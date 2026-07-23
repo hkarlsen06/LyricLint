@@ -1,0 +1,173 @@
+[
+  {
+    "id": "valid-single-performer",
+    "description": "A minimal valid English document with no differentiation",
+    "language": "en",
+    "input": "[Verse 1]\nStreetlights blink above the rain\nI count the steps and miss the train\n\n[Chorus]\nCall my name and I will turn",
+    "performers": ["Avery"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "missing-section-header",
+    "description": "A blank-line section has no header",
+    "language": "en",
+    "input": "[Verse 1]\nMorning settles on the glass\n\nAnother rhythm starts to pass",
+    "performers": ["Avery"],
+    "expectedRuleIds": ["section.header-missing"]
+  },
+  {
+    "id": "unbalanced-section-bracket",
+    "description": "A malformed section header is recoverable",
+    "language": "en",
+    "input": "[Chorus: Avery\nHold the echo in your hand",
+    "performers": ["Avery"],
+    "expectedRuleIds": ["syntax.unbalanced-brackets"]
+  },
+  {
+    "id": "valid-four-voice-slots",
+    "description": "All four Genius differentiation slots",
+    "language": "en",
+    "input": "[Chorus: Avery, <i>Blair</i>, <b>Casey</b> & <i><b>Devon</b></i>]\nA silver line\n<i>A quiet sign</i>\n<b>A borrowed rhyme</b>\n<i><b>We meet in time</b></i>",
+    "performers": ["Avery", "Blair", "Casey", "Devon"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "valid-joint-voice-group",
+    "description": "Two performers singing together count as one styled group",
+    "language": "en",
+    "input": "[Chorus: Avery & Blair, <i>Casey</i>]\nWe carry the melody\n<i>I answer quietly</i>",
+    "performers": ["Avery", "Blair", "Casey"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "too-many-voice-groups",
+    "description": "An imported section contains five differentiated groups",
+    "language": "en",
+    "input": "[Verse: A, <i>B</i>, <b>C</b>, <i><b>D</b></i> & E]\nOne\n<i>Two</i>\n<b>Three</b>\n<i><b>Four</b></i>\n<u>Five</u>",
+    "performers": ["A", "B", "C", "D", "E"],
+    "expectedRuleIds": [
+      "performer.too-many-groups",
+      "syntax.unsupported-voice-markup"
+    ]
+  },
+  {
+    "id": "inline-style-without-legend",
+    "description": "Italic lyrics have no performer mapping",
+    "language": "en",
+    "input": "[Verse]\n<i>The second voice arrives</i>",
+    "performers": ["Avery", "Blair"],
+    "expectedRuleIds": [
+      "performer.header-required",
+      "performer.inline-mismatch"
+    ]
+  },
+  {
+    "id": "forbidden-line-labels",
+    "description": "Names are placed in brackets before individual lines",
+    "language": "en",
+    "input": "[Chorus: Avery & Blair]\n[Avery] Keep the window open\n[Blair] Let the daylight in",
+    "performers": ["Avery", "Blair"],
+    "expectedRuleIds": ["performer.line-label-forbidden"]
+  },
+  {
+    "id": "standardized-spelling-context-free",
+    "description": "Several non-preferred spellings can be suggested",
+    "language": "en-US",
+    "input": "[Verse]\nImma be okay though\nWe can talk til sunrise",
+    "performers": ["Avery"],
+    "expectedRuleIds": ["spelling.standardized"]
+  },
+  {
+    "id": "standardized-spelling-contextual-cuz",
+    "description": "Cuz meaning cousin must not be blindly replaced",
+    "language": "en-US",
+    "input": "[Verse]\nMy cuz waited by the gate",
+    "performers": ["Avery"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "american-british-variant",
+    "description": "British language context accepts till",
+    "language": "en-GB",
+    "input": "[Verse]\nStay till the morning comes",
+    "performers": ["Avery"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "norwegian-valid-headers",
+    "description": "Norwegian section headers from the reviewed catalog",
+    "language": "no",
+    "input": "[Vers 1]\nByen våkner under regn\n\n[Refreng]\nVi synger samme sang",
+    "performers": ["Ane"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "norwegian-english-header",
+    "description": "An English header in a Norwegian document is suggestible",
+    "language": "no",
+    "input": "[Verse 1]\nByen våkner under regn",
+    "performers": ["Ane"],
+    "expectedRuleIds": ["section.header-language"]
+  },
+  {
+    "id": "rtl-arabic-document",
+    "description": "Arabic content exercises bidirectional text and preserves markup",
+    "language": "ar",
+    "input": "[المقطع: نور]\nيمر الليل فوق المدينة\n\n[اللازمة: نور & <i>ليلى</i>]\nنغني معًا\n<i>ويبقى الصدى</i>",
+    "performers": ["نور", "ليلى"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "cjk-ime-content",
+    "description": "CJK text and full-width punctuation survive parsing",
+    "language": "ja",
+    "input": "[Verse 1: アキ]\n夜の窓に光が映る\n声を重ねて、歩いていく",
+    "performers": ["アキ"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "emoji-and-combining-marks",
+    "description": "Grapheme clusters must not be split by transformations",
+    "language": "en",
+    "input": "[Outro: Zoë]\nCafé lights fade 🌙\nWe leave one note behind",
+    "performers": ["Zoë"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "performer-name-with-ampersand",
+    "description": "An ambiguous ampersand name must not be naively split",
+    "language": "en",
+    "input": "[Verse: Echo & The Glass]\nA careful signal crosses town",
+    "performers": ["Echo & The Glass"],
+    "expectedRuleIds": []
+  },
+  {
+    "id": "malformed-nested-html",
+    "description": "Malformed mixed styling is preserved and diagnosed",
+    "language": "en",
+    "input": "[Chorus: A, <i>B</i> & <b>C</b>]\n<i>First voice <b>crosses the boundary</i></b>",
+    "performers": ["A", "B", "C"],
+    "expectedRuleIds": ["syntax.unsupported-voice-markup"]
+  },
+  {
+    "id": "selection-transform-seed",
+    "description": "Fixture for assigning a performer to an exact partial-line selection",
+    "language": "en",
+    "input": "[Verse: Avery]\nThe first voice answers, then the room replies",
+    "performers": ["Avery", "Blair"],
+    "selection": {
+      "text": "then the room replies",
+      "voiceGroup": ["Blair"]
+    },
+    "expectedOutput": "[Verse: Avery & <i>Blair</i>]\nThe first voice answers, <i>then the room replies</i>",
+    "expectedRuleIds": []
+  },
+  {
+    "id": "autosave-recovery-unicode",
+    "description": "A draft snapshot round-trip preserves exact source bytes",
+    "language": "en",
+    "input": "[Bridge: Renée]\nDon't lose this line\r\n<i>Keep the spacing, too</i>",
+    "performers": ["Renée"],
+    "expectedRuleIds": []
+  }
+]
