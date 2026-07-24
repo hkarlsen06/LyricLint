@@ -129,4 +129,14 @@ describe('parseDocument', () => {
 			}
 		}
 	);
+
+	it.each(['[Verse]\nI <3 you', '[Verse]\na < b'])(
+		'does not report literal less-than lyric text as markup: %s',
+		(input) => {
+			const document = parseDocument(input);
+
+			expect(document.syntaxIssues).toEqual([]);
+			expect(document.sections[0]?.lines[0]?.styleSpans).toEqual([]);
+		}
+	);
 });

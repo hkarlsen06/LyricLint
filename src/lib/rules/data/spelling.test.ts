@@ -25,12 +25,14 @@ describe('standardized spelling data', () => {
 	it('models cousin, tool, regional, and meaning exceptions', () => {
 		expect(replacements('My cuz fixed the garden hoe')).toEqual([]);
 		expect(replacements('Cuz I know that hoe')).toEqual(["'Cause", 'ho']);
+		expect(replacements('I sharpened my hoe')).toEqual([]);
 		expect(replacements('Stay til sunrise', 'en-US')).toEqual(["'til"]);
 		expect(replacements('Stay til sunrise', 'en-GB')).toEqual([]);
 	});
 
 	it('preserves names and song-title contexts while recognizing money context', () => {
 		expect(replacements('A$AP arrived ASAP')).toEqual([]);
+		expect(replacements('A.S.A.P. Rocky')).toEqual(['A$AP']);
 		expect(replacements('Wu-Tang made the song C.R.E.A.M.')).toEqual([]);
 		expect(replacements('I stack money, C.R.E.A.M.')).toEqual(['cream']);
 	});

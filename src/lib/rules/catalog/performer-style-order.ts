@@ -13,11 +13,7 @@ export const performerStyleOrderRule: RuleDefinition = {
 			if (groups.length === 0 || groups.length > 4) {
 				return [];
 			}
-			const invalidIndex = groups.findIndex(
-				(group, index) =>
-					(index === 0 && group.styleSlot !== 1) ||
-					(index > 0 && group.styleSlot <= (groups[index - 1]?.styleSlot ?? 0))
-			);
+			const invalidIndex = groups.findIndex((group, index) => group.styleSlot !== index + 1);
 			if (invalidIndex < 0) {
 				return [];
 			}

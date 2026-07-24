@@ -79,20 +79,21 @@ function supportedSpansForSlot(
 }
 
 function exactMembers(
-	name: string,
+	rawNameText: string,
 	roster: readonly PerformerRecord[]
 ): PerformerRecord[] | undefined {
+	const name = decodeLegendText(rawNameText);
 	const whole = findExactPerformer(name, roster);
 	if (whole) {
 		return [whole];
 	}
 
-	const pieces = name.split(/\s+&\s+/u);
+	const pieces = rawNameText.split(/\s+&\s+/u);
 	if (pieces.length < 2) {
 		return undefined;
 	}
 
-	const members = pieces.map((piece) => findExactPerformer(piece, roster));
+	const members = pieces.map((piece) => findExactPerformer(decodeLegendText(piece), roster));
 	return members.every((member): member is PerformerRecord => member !== undefined)
 		? members
 		: undefined;
@@ -196,7 +197,7 @@ export function extractPerformers(
 
 	for (const { section, group } of candidates) {
 		const name = decodeLegendText(group.rawNameText);
-		let members = exactMembers(name, availableRoster);
+		let members = exactMembers(group.rawNameText, availableRoster);
 
 		if (!members) {
 			suggestions.push(...suggestPerformerMatches(name, knownRoster, group.nameRange));

@@ -208,3 +208,49 @@ describe('every enabled rule has valid, invalid, and ambiguous policy coverage',
 		expect(diagnostics.map((item) => input.slice(item.from, item.to))).toEqual(['“', '”']);
 	});
 });
+
+describe('rule regressions', () => {
+	function diagnostics(id: string, text: string, language = 'en', performers: string[] = []) {
+		const rule = getRule(id);
+		if (!rule) {
+			throw new Error(`Missing enabled rule ${id}`);
+		}
+		const context: RuleContext = {
+			language,
+			performers: records(performers),
+			sources: sourceRegistry,
+			ruleSetVersion: '2026.07.24.1'
+		};
+		return rule.check(parseDocument(text), context);
+	}
+
+	it('requires every legend group to use its exact positional style slot', () => {
+		expect(
+			diagnostics('performer.style-order', '[Chorus: A & <b>B</b>]\nLine')
+		).toHaveLength(1);
+	});
+
+	it('reports inline styles missing from the legend even with an empty roster', () => {
+		expect(diagnostics('performer.inline-mismatch', '[Verse: A]\n<i>Voice</i>')).toHaveLength(1);
+	});
+
+	it('does not apply English lexical rules to non-English documents', () => {
+		expect(diagnostics('contraction.apostrophe', '[Strophe]\nIm Haus', 'de')).toEqual([]);
+		expect(diagnostics('numbers.spell-out', '[Vers]\nJeg har 5 grunner', 'no')).toEqual([]);
+	});
+
+	it('recognizes a header-shaped sound effect as ambiguous sound notation', () => {
+		expect(diagnostics('sound-effect.asterisks', '[applause]')).toHaveLength(1);
+	});
+
+	it.each(['[Chorus x2]', '[Chorus x 2]', '[Chorus (x2)]'])(
+		'reports repetition counts from the raw header name: %s',
+		(input) => {
+			expect(diagnostics('repeat.placeholder', input)).toHaveLength(1);
+		}
+	);
+
+	it('keeps a real ordinal section header clean', () => {
+		expect(diagnostics('repeat.placeholder', '[Verse 2]')).toEqual([]);
+	});
+});

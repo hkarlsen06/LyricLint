@@ -11,11 +11,18 @@ export const repeatPlaceholderRule: RuleDefinition = {
 		const diagnostics: Diagnostic[] = [];
 		for (const section of document.sections) {
 			const header = section.header;
-			if (header && /(?:\b(?:x|×)\s*\d+\b|\brepeat(?:ed)?\b)/iu.test(header.namePart)) {
+			if (
+				header &&
+				/(?:\b(?:x|×)\s*\d+\b|\brepeat(?:ed)?\b)/iu.test(header.rawNamePart)
+			) {
+				const rawNameRange = {
+					from: header.nameRange.from,
+					to: header.nameRange.from + header.rawNamePart.length
+				};
 				diagnostics.push(
 					diagnostic(
 						this,
-						header.nameRange,
+						rawNameRange,
 						'Write repeated lyrics instead of a section-count placeholder.',
 						'Repeated sections should contain the transcribed lyrics. The placeholder is preserved because expanding it requires the editor to choose the correct source section.'
 					)

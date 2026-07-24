@@ -88,4 +88,15 @@ describe('canonical export validation', () => {
 			text: source.input
 		});
 	});
+
+	it('rejects unsupported markup embedded in a section-header name without mutation', () => {
+		const input = '[<u>Verse</u>]\nLine';
+		const parsed = parseDocument(input);
+		const validation = validateExport(input, parsed);
+
+		expect(validation.valid).toBe(false);
+		expect(validation.issues.some((issue) => issue.code === 'unsupported-markup')).toBe(true);
+		expect(validation.text).toBe(input);
+		expect(parsed.text).toBe(input);
+	});
 });

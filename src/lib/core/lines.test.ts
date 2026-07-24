@@ -58,4 +58,20 @@ describe('extractLineStyleSpans', () => {
 		]);
 		expect(text).toBe('<i>First <b>crossed</i></b>');
 	});
+
+	it.each(['I <3 you', 'a < b'])('treats literal less-than text as plain lyrics: %s', (text) => {
+		expect(extractLineStyleSpans(text, { from: 0, to: text.length })).toEqual([]);
+	});
+
+	it.each(['<i', '</b'])('keeps malformed supported-tag prefixes detectable: %s', (text) => {
+		expect(extractLineStyleSpans(text, { from: 0, to: text.length })).toEqual([
+			{
+				from: 0,
+				to: text.length,
+				unsupported: true,
+				rawTag: text,
+				reason: 'malformed-markup'
+			}
+		]);
+	});
 });

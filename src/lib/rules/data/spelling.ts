@@ -144,7 +144,8 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		isException: (context) =>
 			/\b(?:garden|gardening|soil|weeds?|handle|blade|dig|row|field|farm)\b/u.test(nearby(context)),
 		isSufficientContext: (context) =>
-			/\b(?:that|this|a|my|your|his|her|these|those)\s+hoe\b/u.test(nearby(context))
+			/\b(?:know|hate|love|see|saw|with)\s+(?:that|this)\s+hoe\b/u.test(nearby(context)) ||
+			/\bcall(?:ed|ing)?\s+\S+\s+(?:a|the)\s+hoe\b/u.test(nearby(context))
 	},
 	{
 		preferred: ['though'],
@@ -295,7 +296,11 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		safe: true,
 		pattern: word('A\\.S\\.A\\.P\\.'),
 		exceptionDescription: 'A$AP performer names remain unchanged.',
-		isException: (context) => /\bA\$AP\b/u.test(nearby(context))
+		isException: (context) => /\ba\$ap\b/iu.test(nearby(context)),
+		resolvePreferred: (context) =>
+			/^\s+(?:rocky|ferg|mob|nast|twelvyy|ant|illz)\b/iu.test(context.text.slice(context.to))
+				? 'A$AP'
+				: 'ASAP'
 	},
 	{
 		preferred: ['cream'],

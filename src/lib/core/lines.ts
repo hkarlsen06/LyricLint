@@ -32,8 +32,26 @@ const SUPPORTED_WRAPPERS: readonly SupportedWrapper[] = [
 
 const SUPPORTED_TAGS = new Set(['<i>', '</i>', '<b>', '</b>']);
 
+function isMalformedSupportedTagPrefix(value: string): boolean {
+	return /^<\/?[ib](?:\s[^>]*)?$/iu.test(value);
+}
+
+function findNextMarkupStart(text: string, localFrom: number): number {
+	let candidate = text.indexOf('<', localFrom);
+
+	while (candidate !== -1) {
+		const remaining = text.slice(candidate);
+		if (/^<\/?[A-Za-z][^>]*>/u.test(remaining) || isMalformedSupportedTagPrefix(remaining)) {
+			return candidate;
+		}
+		candidate = text.indexOf('<', candidate + 1);
+	}
+
+	return -1;
+}
+
 function containsTagLikeMarkup(text: string): boolean {
-	return /<[^>]*>/.test(text) || text.includes('<');
+	return findNextMarkupStart(text, 0) !== -1;
 }
 
 function readSupportedSpan(
@@ -86,7 +104,10 @@ function readUnsupportedSpan(
 		to: lineFrom + localTo,
 		unsupported: true,
 		rawTag,
-		reason: SUPPORTED_TAGS.has(rawTag) ? 'malformed-markup' : 'unsupported-tag'
+		reason:
+			SUPPORTED_TAGS.has(rawTag) || isMalformedSupportedTagPrefix(rawTag)
+				? 'malformed-markup'
+				: 'unsupported-tag'
 	};
 }
 
@@ -103,7 +124,7 @@ export function extractLineStyleSpans(lineText: string, lineRange: TextRange): V
 	let localOffset = 0;
 
 	while (localOffset < lineText.length) {
-		const openingBracket = lineText.indexOf('<', localOffset);
+		const openingBracket = findNextMarkupStart(lineText, localOffset);
 		if (openingBracket === -1) {
 			break;
 		}

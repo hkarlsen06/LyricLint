@@ -28,6 +28,9 @@ export const numbersSpellOutRule: RuleDefinition = {
 	fixability: 'preview',
 	sourceIds: ['G-NUMBERS'],
 	check(document, context) {
+		if (context.language !== 'en') {
+			return [];
+		}
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>
 				matchesOutsideMarkup(line, /(?<![\p{L}\p{N}_])(?:10|[0-9])(?![\p{L}\p{N}_])/gu)

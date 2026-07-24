@@ -74,6 +74,15 @@ describe('rule engine', () => {
 		const document = parseDocument('[Verse]\nImma stay');
 		expect(runRules(document, context)).toEqual(runRules(document, context));
 	});
+
+	it('carries the rule snapshot revision on every produced fix edit', () => {
+		const document = parseDocument('[Verse]\nImma dont “go” with 5 reasons (?) {laughs}');
+		const diagnostics = runRules(document, { ...context, revision: 5 });
+		const fixes = diagnostics.flatMap((diagnostic) => diagnostic.fixes ?? []);
+
+		expect(fixes.length).toBeGreaterThan(0);
+		expect(fixes.every((fix) => fix.edit.baseRevision === 5)).toBe(true);
+	});
 });
 
 describe('registry validation', () => {

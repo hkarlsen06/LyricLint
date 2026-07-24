@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from '../core/parser.js';
 import type { AtomicDocumentEdit, PerformerRecord, Section, TextEdit } from '../core/types.js';
+import { serializeLegend } from '../serialization/genius-markup.js';
 import {
 	allocateStyleSlot,
 	analyzeSlotOrder,
@@ -120,6 +121,22 @@ describe('performer import extraction', () => {
 		expect(extraction.voiceGroups).toHaveLength(1);
 		expect(extraction.voiceGroups[0]?.performerIds).toEqual([records[0]?.id]);
 		expect(extraction.voiceGroups[0]?.rawNameText).toBe('Echo & The Glass');
+	});
+
+	it('round-trips a joint group containing an ampersand-bearing performer name', () => {
+		const records = roster(['Echo & The Glass', 'A']);
+		const legend = serializeLegend([
+			{ styleSlot: 1, members: [records[0]!, records[1]!] }
+		]);
+		const extraction = extractPerformers(parseDocument(`[Chorus: ${legend}]\nLine`), records);
+
+		expect(legend).toBe('Echo &amp; The Glass & A');
+		expect(extraction.rosterAdditions).toEqual([]);
+		expect(extraction.voiceGroups).toHaveLength(1);
+		expect(extraction.voiceGroups[0]?.performerIds).toEqual([
+			records[0]?.id,
+			records[1]?.id
+		]);
 	});
 
 	it('preserves comma, bracket, ampersand, and HTML-significant exact names', () => {
@@ -381,6 +398,43 @@ describe('performer assignment transforms', () => {
 		expect(result).toEqual({ status: 'blocked', reason: 'cross-section' });
 		expect('edit' in result).toBe(false);
 	});
+
+	it('does not apply an empty edit when assigning the existing performer again', () => {
+		const input = '[Verse: A & <i>B</i>]\n<i>Hello</i>';
+		const records = roster(['A', 'B']);
+		const from = input.indexOf('Hello');
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: from + 'Hello'.length },
+			performerIds: [records[1]!.id],
+			roster: records
+		});
+
+		expect(result).toEqual({ status: 'blocked', reason: 'invalid-range' });
+		expect('edit' in result).toBe(false);
+	});
+
+	it.each(['<u>X</u>', '<i>X'])(
+		'blocks assignment anywhere on a line containing unsupported or malformed markup: %s',
+		(line) => {
+			const input = `[Verse: A & <i>B</i>]\n${line}`;
+			const records = roster(['A', 'B']);
+			const from = input.indexOf('X');
+			const result = assignVoiceGroup({
+				revision: 1,
+				text: input,
+				document: parseDocument(input),
+				selection: { anchor: from, head: from + 1 },
+				performerIds: [records[1]!.id],
+				roster: records
+			});
+
+			expect(result.status).toBe('blocked');
+			expect('edit' in result).toBe(false);
+		}
+	);
 });
 
 describe('section transforms', () => {
@@ -420,6 +474,26 @@ describe('section transforms', () => {
 		if (result.status === 'applied') {
 			expect(result.edit.baseRevision).toBe(4);
 			expect(applyEdits(input, result.edit.edits)).toBe('[Chorus]\nA\nB\n<u>Unknown</u>');
+		}
+	});
+
+	it('uses the line ending nearest the insertion point in a mixed-EOL document', () => {
+		const input = '[Verse]\nFirst\r\n\r\nOrphan line';
+		const document = parseDocument(input);
+		const section = document.sections[1];
+		const result = insertSectionHeader({
+			revision: 3,
+			text: input,
+			document,
+			sectionFrom: section?.from ?? -1,
+			headerName: 'Chorus'
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(applyEdits(input, result.edit.edits)).toBe(
+				'[Verse]\nFirst\r\n\r\n[Chorus]\r\nOrphan line'
+			);
 		}
 	});
 });

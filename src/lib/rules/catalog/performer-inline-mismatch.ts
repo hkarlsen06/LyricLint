@@ -7,10 +7,7 @@ export const performerInlineMismatchRule: RuleDefinition = {
 	defaultSeverity: 'warning',
 	fixability: 'none',
 	sourceIds: ['G-SECTIONS'],
-	check(document, context) {
-		if (context.performers.length < 2) {
-			return [];
-		}
+	check(document) {
 		return document.sections.flatMap((section) => {
 			const slots = new Set((section.header?.legendGroups ?? []).map((group) => group.styleSlot));
 			return section.lines.flatMap((line) =>

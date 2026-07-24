@@ -36,6 +36,9 @@ export const contractionApostropheRule: RuleDefinition = {
 	fixability: 'preview',
 	sourceIds: ['G-CONTRACTIONS'],
 	check(document, context) {
+		if (context.language !== 'en') {
+			return [];
+		}
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>
 				matchesOutsideMarkup(line, contractionPattern).map((match) => {

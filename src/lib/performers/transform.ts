@@ -217,11 +217,7 @@ function transformLine(
 	selection: TextRange,
 	styleSlot: StyleSlot
 ): LineTransform | undefined {
-	if (
-		line.styleSpans.some(
-			(span) => 'unsupported' in span && span.from < selection.to && selection.from < span.to
-		)
-	) {
+	if (line.styleSpans.some((span) => 'unsupported' in span)) {
 		return undefined;
 	}
 
@@ -339,17 +335,44 @@ function insertedOffset(edit: TextEdit, localOffset: number, edits: readonly Tex
 	return mapped;
 }
 
-function lineEndingFor(text: string): string {
-	if (text.includes('\r\n')) {
-		return '\r\n';
+function dominantLineEnding(text: string): string {
+	const counts = new Map<string, number>();
+	for (const match of text.matchAll(/\r\n|\r|\n/gu)) {
+		const ending = match[0];
+		counts.set(ending, (counts.get(ending) ?? 0) + 1);
 	}
-	if (text.includes('\n')) {
-		return '\n';
+
+	return (
+		[...counts.entries()].sort(
+			([leftEnding, leftCount], [rightEnding, rightCount]) =>
+				rightCount - leftCount ||
+				text.indexOf(leftEnding) - text.indexOf(rightEnding)
+		)[0]?.[0] ?? '\n'
+	);
+}
+
+function lineEndingForInsertion(text: string, offset: number): string {
+	let nearest: { ending: string; distance: number; preceding: boolean } | undefined;
+
+	for (const match of text.matchAll(/\r\n|\r|\n/gu)) {
+		const from = match.index;
+		const to = from + match[0].length;
+		const preceding = to <= offset;
+		const following = from >= offset;
+		if (!preceding && !following) {
+			continue;
+		}
+		const distance = preceding ? offset - to : from - offset;
+		if (
+			!nearest ||
+			distance < nearest.distance ||
+			(distance === nearest.distance && preceding && !nearest.preceding)
+		) {
+			nearest = { ending: match[0], distance, preceding };
+		}
 	}
-	if (text.includes('\r')) {
-		return '\r';
-	}
-	return '\n';
+
+	return nearest?.ending ?? dominantLineEnding(text);
 }
 
 /**
@@ -469,6 +492,9 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		}
 	}
 	edits.sort(compareEdits);
+	if (edits.length === 0) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
 
 	const first = lineTransforms[0];
 	const last = lineTransforms.at(-1);
@@ -524,7 +550,10 @@ export function insertSectionHeader(request: InsertSectionHeaderRequest): Docume
 			{
 				from: section.from,
 				to: section.from,
-				insert: `[${headerName}${ordinal}]${lineEndingFor(request.text)}`
+				insert: `[${headerName}${ordinal}]${lineEndingForInsertion(
+					request.text,
+					section.from
+				)}`
 			}
 		])
 	};

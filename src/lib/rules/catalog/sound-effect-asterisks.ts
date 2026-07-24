@@ -3,6 +3,7 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 const soundWords =
 	'(?:laughs?|laughing|sighs?|screams?|applause|gunshots?|door|phone|whistles?|snaps?|music)';
+const exactSoundPattern = new RegExp(`^${soundWords}$`, 'iu');
 
 export const soundEffectAsterisksRule: RuleDefinition = {
 	id: 'sound-effect.asterisks',
@@ -15,8 +16,8 @@ export const soundEffectAsterisksRule: RuleDefinition = {
 			`(?:\\{(?<braceSound>${soundWords})\\}|\\[(?<bracketSound>${soundWords})\\])`,
 			'giu'
 		);
-		return document.sections.flatMap((section) =>
-			section.lines.flatMap((line) =>
+		return document.sections.flatMap((section) => {
+			const diagnostics = section.lines.flatMap((line) =>
 				matchesOutsideMarkup(line, pattern).map((match) => {
 					const sound =
 						match.groups.braceSound ?? match.groups.bracketSound ?? match.text.slice(1, -1);
@@ -29,7 +30,30 @@ export const soundEffectAsterisksRule: RuleDefinition = {
 						[replacementFix(context, 'preview', `Replace with ${replacement}`, match, replacement)]
 					);
 				})
-			)
-		);
+			);
+			const header = section.header;
+			const headerSound = header?.rawNamePart.trim();
+			if (header && headerSound && exactSoundPattern.test(headerSound)) {
+				const replacement = `*${headerSound}*`;
+				diagnostics.push(
+					diagnostic(
+						this,
+						header,
+						'This header looks like a sound effect that should use asterisks.',
+						'The bracketed text matches recognized sound-effect vocabulary, so it may be notation rather than a section header. Confirm before replacing it.',
+						[
+							replacementFix(
+								context,
+								'preview',
+								`Replace with ${replacement}`,
+								header,
+								replacement
+							)
+						]
+					)
+				);
+			}
+			return diagnostics;
+		});
 	}
 };
