@@ -1,39 +1,135 @@
 :root {
 	color-scheme: light dark;
+
+	/*
+	 * LyricLint is used for long editing sessions in mixed ambient light. The
+	 * warm neutral canvas reduces glare, while the editor surface stays quiet
+	 * enough for markup, diagnostics, and performer colors to carry meaning.
+	 */
+
+	/* Typography */
 	--font-ui:
 		'IBM Plex Sans', 'Avenir Next', Avenir, 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
 	--font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, ui-monospace, monospace;
+	--font-size-2xs: 0.6875rem;
+	--font-size-xs: 0.75rem;
+	--font-size-sm: 0.8125rem;
+	--font-size-md: 0.9375rem;
+	--font-size-lg: 1.0625rem;
+	--font-size-xl: 1.1875rem;
+	--line-height-tight: 1.25;
+	--line-height-ui: 1.4;
+	--line-height-body: 1.5;
+	--line-height-editor: 1.65;
+	--font-weight-regular: 400;
+	--font-weight-medium: 550;
+	--font-weight-semibold: 650;
+	--font-weight-bold: 700;
+	--font-weight-heavy: 750;
 
+	/* Spacing */
+	--space-0: 0;
+	--space-0-5: 0.125rem;
+	--space-1: 0.25rem;
+	--space-1-5: 0.375rem;
+	--space-2: 0.5rem;
+	--space-2-5: 0.625rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 2.5rem;
+	--space-8: 3rem;
+
+	/* Shape and borders */
+	--border-width: 1px;
+	--radius-xs: 0.25rem;
+	--radius-sm: 0.4rem;
+	--radius-md: 0.65rem;
+	--radius-lg: 0.8rem;
+	--radius-round: 50%;
+	--radius-pill: 999rem;
+	--radius-control: var(--radius-sm);
+	--radius-panel: var(--radius-md);
+	--radius-overlay: var(--radius-lg);
+
+	/* Control geometry */
+	--control-height-sm: 1.75rem;
+	--control-height-md: 2rem;
+	--control-height-lg: 2.25rem;
+	--control-padding-inline: var(--space-2-5);
+	--control-padding-block: var(--space-1);
+	--control-gap: var(--space-1-5);
+
+	/* Focus, motion, and interaction states */
+	--focus-ring-width: 2px;
+	--focus-ring-offset: 2px;
+	--duration-fast: 120ms;
+	--duration-medium: 180ms;
+	--duration-slow: 240ms;
+	--ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+	--opacity-disabled: 0.48;
+	--opacity-muted: 0.72;
+
+	/* Semantic surfaces and text */
 	--color-canvas: oklch(97.8% 0.008 78);
 	--color-surface: oklch(99.1% 0.005 78);
 	--color-surface-subtle: oklch(95.3% 0.01 78);
 	--color-surface-strong: oklch(91.5% 0.014 78);
+	--color-overlay: var(--color-surface);
 	--color-text: oklch(24% 0.018 65);
 	--color-text-muted: oklch(44% 0.016 65);
+	--color-text-disabled: color-mix(in oklch, var(--color-text-muted) 65%, transparent);
 	--color-border: oklch(82% 0.018 72);
 	--color-border-strong: oklch(65% 0.025 70);
-	--color-border-input: oklch(65% 0.025 70);
+	--color-border-input: var(--color-border-strong);
+	--color-control: var(--color-surface);
+	--color-control-hover: var(--color-surface-subtle);
+	--color-control-active: var(--color-surface-strong);
+	--color-control-border: var(--color-border-input);
+
+	/* Accent and selection */
 	--color-accent: oklch(48% 0.13 42);
 	--color-accent-hover: oklch(42% 0.13 42);
+	--color-accent-active: oklch(38% 0.12 42);
 	--color-accent-text: oklch(98% 0.006 78);
-	--color-focus: oklch(54% 0.15 255);
-	--color-danger: oklch(47% 0.16 28);
-	--color-danger-surface: oklch(94% 0.03 28);
-	--color-success: oklch(43% 0.09 150);
-	--color-warning: oklch(47% 0.11 75);
-	--color-suggestion: oklch(43% 0.09 210);
-	--color-manual: oklch(43% 0.08 305);
-	--color-danger-soft: oklch(94% 0.03 28);
-	--color-warning-soft: oklch(95% 0.04 80);
-	--color-suggestion-soft: oklch(94% 0.03 210);
-	--color-manual-soft: oklch(94% 0.025 305);
 	--color-accent-soft: oklch(93% 0.03 55);
-	--shadow-popover: 0 2px 8px oklch(20% 0.02 65 / 0.14);
+	--color-selected: var(--color-accent-soft);
+	--color-focus: oklch(54% 0.15 255);
+	--color-focus-soft: color-mix(in oklch, var(--color-focus) 28%, transparent);
+
+	/* Feedback states */
+	--color-danger: oklch(47% 0.16 28);
+	--color-danger-hover: oklch(41% 0.15 28);
+	--color-danger-surface: oklch(94% 0.03 28);
+	--color-danger-border: color-mix(in oklch, var(--color-danger) 45%, var(--color-border));
+	--color-success: oklch(43% 0.09 150);
+	--color-success-surface: oklch(94% 0.026 150);
+	--color-warning: oklch(47% 0.11 75);
+	--color-warning-soft: oklch(95% 0.04 80);
+	--color-suggestion: oklch(43% 0.09 210);
+	--color-suggestion-soft: oklch(94% 0.03 210);
+	--color-manual: oklch(43% 0.08 305);
+	--color-manual-soft: oklch(94% 0.025 305);
+	--color-danger-soft: var(--color-danger-surface);
+
+	/* Elevation */
 	--shadow-raised: 0 1px 2px oklch(20% 0.02 65 / 0.08);
+	--shadow-popover: 0 2px 8px oklch(20% 0.02 65 / 0.14);
 	--shadow-overlay: 0 12px 32px oklch(20% 0.02 65 / 0.18), 0 2px 8px oklch(20% 0.02 65 / 0.12);
 
-	/* Palette order matches the roster allocation: green first, violet second
-	   (the mockup's Mara and Jun), then distinguishable hues. */
+	/* Layering */
+	--layer-toolbar: 4;
+	--layer-panel: 10;
+	--layer-menu: 20;
+	--layer-picker: 30;
+	--layer-popover: 32;
+	--layer-toast: 50;
+
+	/*
+	 * Palette order matches roster allocation. Performer identity is also
+	 * expressed in labels and markup, never by color alone.
+	 */
 	--performer-olive: oklch(50% 0.12 145);
 	--performer-indigo: oklch(50% 0.14 285);
 	--performer-teal: oklch(53% 0.1 195);
@@ -42,16 +138,6 @@
 	--performer-plum: oklch(55% 0.15 325);
 	--performer-copper: oklch(55% 0.12 48);
 	--performer-slate: oklch(52% 0.045 240);
-
-	--radius-control: 0.4rem;
-	--radius-panel: 0.65rem;
-	--radius-pill: 999rem;
-	--space-1: 0.25rem;
-	--space-2: 0.5rem;
-	--space-3: 0.75rem;
-	--space-4: 1rem;
-	--space-5: 1.5rem;
-	--space-6: 2rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -64,24 +150,25 @@
 		--color-text-muted: oklch(72% 0.016 72);
 		--color-border: oklch(36% 0.018 65);
 		--color-border-strong: oklch(52% 0.022 65);
-		--color-border-input: oklch(52% 0.022 65);
 		--color-accent: oklch(68% 0.12 50);
 		--color-accent-hover: oklch(74% 0.11 50);
+		--color-accent-active: oklch(78% 0.1 50);
 		--color-accent-text: oklch(19% 0.012 65);
+		--color-accent-soft: oklch(30% 0.045 55);
 		--color-focus: oklch(76% 0.13 245);
 		--color-danger: oklch(72% 0.13 25);
+		--color-danger-hover: oklch(78% 0.12 25);
 		--color-danger-surface: oklch(28% 0.045 25);
 		--color-success: oklch(72% 0.09 150);
+		--color-success-surface: oklch(28% 0.035 150);
 		--color-warning: oklch(76% 0.1 78);
-		--color-suggestion: oklch(73% 0.08 210);
-		--color-manual: oklch(74% 0.09 305);
-		--color-danger-soft: oklch(28% 0.045 25);
 		--color-warning-soft: oklch(29% 0.04 78);
+		--color-suggestion: oklch(73% 0.08 210);
 		--color-suggestion-soft: oklch(28% 0.035 210);
+		--color-manual: oklch(74% 0.09 305);
 		--color-manual-soft: oklch(28% 0.035 305);
-		--color-accent-soft: oklch(30% 0.045 55);
-		--shadow-popover: 0 2px 8px oklch(5% 0.01 65 / 0.34);
 		--shadow-raised: 0 1px 2px oklch(5% 0.01 65 / 0.3);
+		--shadow-popover: 0 2px 8px oklch(5% 0.01 65 / 0.34);
 		--shadow-overlay: 0 12px 32px oklch(5% 0.01 65 / 0.5), 0 2px 8px oklch(5% 0.01 65 / 0.4);
 
 		--performer-olive: oklch(74% 0.13 148);

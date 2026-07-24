@@ -2,7 +2,12 @@ import { parseDocument } from '$lib/core/parser.js';
 import { currentRuleSet } from '$lib/rules/index.js';
 import { describe, expect, test } from 'vitest';
 import { createTestWorkbench, performer } from '../test-utils.js';
-import { buildRuleContext, computeDiagnostics, resolveVoiceGroupRanges } from './wiring.js';
+import {
+	buildRuleContext,
+	computeDiagnostics,
+	orderPerformersByAppearance,
+	resolveVoiceGroupRanges
+} from './wiring.js';
 
 describe('UI wiring', () => {
 	test('propagates the editor revision to rule fixes and accepts the resulting fix', () => {
@@ -47,6 +52,54 @@ describe('UI wiring', () => {
 			{ text: 'tail', ids: ['a'], legend: false }
 		]);
 		expect(highlightedText.some((range) => range.text.includes('<i>'))).toBe(false);
+	});
+
+	test('colors valid multi-line performer markup across every physical line', () => {
+		const roster = [performer('mein', 'Mein', 0), performer('krissyb', 'KrissyB', 1)];
+		const text =
+			'[Vers 1: Mein & <i>KrissyB</i>]\n' +
+			'Plain line\n' +
+			'Ad lib (<i>La oss</i>)\n' +
+			'<i>Open across lines\n' +
+			'Interior line\n' +
+			'Closing here</i>\n' +
+			'Plain again';
+		const ranges = resolveVoiceGroupRanges(parseDocument(text), roster);
+		const highlighted = ranges.map((range) => ({
+			text: text.slice(range.from, range.to),
+			ids: range.group.performerIds,
+			legend: range.legend ?? false
+		}));
+
+		// Genius allows one style wrapper to span physical lyric lines. Every
+		// line inside it belongs to the styled performer, while surrounding
+		// plain text remains attributed to the first legend slot.
+		expect(highlighted).toEqual([
+			{ text: 'Mein', ids: ['mein'], legend: true },
+			{ text: 'KrissyB', ids: ['krissyb'], legend: true },
+			{ text: 'Plain line', ids: ['mein'], legend: false },
+			{ text: 'Ad lib (', ids: ['mein'], legend: false },
+			{ text: 'La oss', ids: ['krissyb'], legend: false },
+			{ text: ')', ids: ['mein'], legend: false },
+			{ text: 'Open across lines', ids: ['krissyb'], legend: false },
+			{ text: 'Interior line', ids: ['krissyb'], legend: false },
+			{ text: 'Closing here', ids: ['krissyb'], legend: false },
+			{ text: 'Plain again', ids: ['mein'], legend: false }
+		]);
+	});
+
+	test('orders the roster by first appearance, with absent performers last', () => {
+		const roster = [
+			performer('avery', 'Avery', 0),
+			performer('blair', 'Blair', 1),
+			performer('cleo', 'Cleo', 2)
+		];
+		const parsed = parseDocument('[Chorus: Blair, <i>Avery</i>]\nBlair line\n<i>Avery line</i>');
+
+		const ordered = orderPerformersByAppearance(parsed, roster);
+		expect(ordered.map((entry) => entry.id)).toEqual(['blair', 'avery', 'cleo']);
+		// Ordering never rewrites the records themselves (colors stay attached).
+		expect(ordered.find((entry) => entry.id === 'avery')).toBe(roster[0]);
 	});
 
 	test('resolves exact names and aliases only, while decoding generated entities', () => {

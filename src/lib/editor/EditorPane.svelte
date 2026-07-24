@@ -39,6 +39,12 @@
 	let sectionOpen = $state(false);
 	let dismissedSelection = $state<string | undefined>();
 	let lastRevision = 0;
+	// Bumped on editor scroll so anchored overlays recompute their coordinates
+	// and stay attached to their line instead of floating in the viewport.
+	let scrollTick = $state(0);
+	// The scroll position (tick) at which the cached selection anchor rect was
+	// captured; after scrolling, the rect must be recomputed from the document.
+	let selectionAnchorTick = 0;
 
 	const fallbackLanguagePack = $derived<LanguagePack>(
 		context.languagePack ?? {
@@ -77,7 +83,11 @@
 		if (!range) {
 			return undefined;
 		}
-		return selectionAnchor && rangeKey(selectionAnchor.range) === rangeKey(range)
+		// Depend on scrollTick: scrolling must recompute every anchored overlay.
+		const tick = scrollTick;
+		return selectionAnchor &&
+			rangeKey(selectionAnchor.range) === rangeKey(range) &&
+			tick === selectionAnchorTick
 			? selectionAnchor.rect
 			: rectForRange(range);
 	}
@@ -148,6 +158,30 @@
 	function returnFocus(): void {
 		editor?.handle.focus();
 	}
+
+	function bumpScrollTick(): void {
+		scrollTick += 1;
+	}
+
+	// Once the diagnostic's line leaves the rendered viewport there is nothing
+	// meaningful to anchor to, so the popover closes rather than floating free.
+	$effect(() => {
+		void scrollTick;
+		const diagnostic = activeDiagnostic;
+		const view = editor?.view;
+		if (!diagnostic || !view) {
+			return;
+		}
+		const position = Math.min(diagnostic.from, view.state.doc.length);
+		if (view.coordsAtPos(position, 1) === null) {
+			const hadFocus = diagnosticTakesFocus;
+			activeDiagnostic = undefined;
+			diagnosticTakesFocus = false;
+			if (hadFocus) {
+				returnFocus();
+			}
+		}
+	});
 
 	function cancelPerformer(): void {
 		if (performerRange) {
@@ -259,6 +293,7 @@
 				context,
 				callbacks: internalCallbacks(),
 				onSelectionAnchor(anchor) {
+					selectionAnchorTick = scrollTick;
 					selectionAnchor = anchor;
 					if (!anchor) {
 						performerOpen = false;
@@ -277,6 +312,7 @@
 			};
 			editor = createLyricEditor(host, options);
 			handle = editor.handle;
+			editor.view.scrollDOM.addEventListener('scroll', bumpScrollTick, { passive: true });
 			// The update bridge deliberately stays silent for the initial state
 			// (it only emits for document or selection changes), so freshly
 			// loaded drafts would otherwise never reach the lint pipeline.
@@ -289,6 +325,7 @@
 
 		return () => {
 			cancelled = true;
+			editor?.view.scrollDOM.removeEventListener('scroll', bumpScrollTick);
 			editor?.destroy();
 			editor = undefined;
 			handle = undefined;
@@ -354,7 +391,7 @@
 		height: 100%;
 		min-height: 12rem;
 		overflow: hidden;
-		background: var(--color-surface, var(--ll-editor-surface, oklch(0.985 0.006 78)));
+		background: var(--color-surface);
 	}
 
 	@media (prefers-reduced-motion: reduce) {

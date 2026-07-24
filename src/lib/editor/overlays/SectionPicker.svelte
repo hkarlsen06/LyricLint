@@ -121,18 +121,18 @@
 
 <style>
 	.picker {
-		z-index: 31;
+		z-index: calc(var(--layer-picker) + 1);
 		width: min(21rem, calc(100vw - 1rem));
-		padding: 0.65rem;
-		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
-		border-radius: var(--radius-panel, 0.5rem);
-		background: var(--color-surface, oklch(0.985 0.006 78));
-		color: var(--color-text, oklch(0.24 0.015 70));
-		box-shadow: var(--shadow-overlay, 0 2px 8px oklch(0.2 0.01 70 / 0.14));
-		font:
-			500 0.8125rem/1.3 ui-sans-serif,
-			system-ui,
-			sans-serif;
+		padding: var(--space-2-5);
+		border: var(--border-width) solid var(--color-border);
+		border-radius: var(--radius-overlay);
+		background: var(--color-overlay);
+		color: var(--color-text);
+		box-shadow: var(--shadow-overlay);
+		font-family: var(--font-ui);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+		line-height: var(--line-height-tight);
 	}
 
 	.anchored {
@@ -141,30 +141,31 @@
 
 	label {
 		display: block;
-		margin-block-end: 0.35rem;
-		font-weight: 650;
+		margin-block-end: var(--space-1-5);
+		font-weight: var(--font-weight-semibold);
 	}
 
 	input {
 		box-sizing: border-box;
 		width: 100%;
-		padding: 0.45rem 0.55rem;
-		border: 1px solid var(--color-border-input, oklch(0.65 0.02 75));
-		border-radius: 0.375rem;
-		background: var(--color-surface, oklch(0.99 0.004 78));
+		min-height: var(--control-height-md);
+		padding: var(--control-padding-block) var(--control-padding-inline);
+		border: var(--border-width) solid var(--color-control-border);
+		border-radius: var(--radius-control);
+		background: var(--color-control);
 		color: inherit;
 		font: inherit;
 	}
 
 	input:focus-visible,
 	button:focus-visible {
-		outline: 2px solid var(--color-focus, oklch(0.58 0.14 55));
-		outline-offset: 2px;
+		outline: var(--focus-ring-width) solid var(--color-focus);
+		outline-offset: var(--focus-ring-offset);
 	}
 
 	ul {
 		max-height: 13rem;
-		margin: 0.45rem 0;
+		margin: var(--space-2) 0;
 		padding: 0;
 		overflow-y: auto;
 		list-style: none;
@@ -175,15 +176,16 @@
 	}
 
 	li[aria-selected='true'] {
-		background: var(--color-accent-soft, oklch(0.9 0.045 62));
+		background: var(--color-selected);
 	}
 
 	li button,
 	.cancel {
 		width: 100%;
-		padding: 0.42rem 0.5rem;
-		border: 0;
-		border-radius: 0.25rem;
+		min-height: var(--control-height-md);
+		padding: var(--control-padding-block) var(--control-padding-inline);
+		border: var(--border-width) solid transparent;
+		border-radius: var(--radius-control);
 		background: transparent;
 		color: inherit;
 		font: inherit;
@@ -193,6 +195,21 @@
 
 	.cancel {
 		width: auto;
-		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
+		border-color: var(--color-control-border);
+	}
+
+	li button:hover,
+	.cancel:hover {
+		background: var(--color-control-hover);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		input,
+		button {
+			transition:
+				background-color var(--duration-fast) var(--ease-out-quart),
+				border-color var(--duration-fast) var(--ease-out-quart),
+				color var(--duration-fast) var(--ease-out-quart);
+		}
 	}
 </style>

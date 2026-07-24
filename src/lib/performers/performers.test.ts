@@ -472,6 +472,22 @@ describe('section transforms', () => {
 		}
 	});
 
+	it('removes supported differentiation spanning physical lyric lines', () => {
+		const input = '[Chorus: A & <i>B</i>]\nA\n<i>First\nMiddle\nLast</i>';
+		const document = parseDocument(input);
+		const result = removeDifferentiation({
+			revision: 5,
+			text: input,
+			document,
+			sectionFrom: document.sections[0]?.from ?? -1
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(applyEdits(input, result.edit.edits)).toBe('[Chorus]\nA\nFirst\nMiddle\nLast');
+		}
+	});
+
 	it('uses the line ending nearest the insertion point in a mixed-EOL document', () => {
 		const input = '[Verse]\nFirst\r\n\r\nOrphan line';
 		const document = parseDocument(input);

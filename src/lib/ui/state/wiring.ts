@@ -104,7 +104,28 @@ export function resolveVoiceGroupRanges(
 					: group.performerIds
 			});
 		}
+		// Malformed or unsupported markup (e.g. an <i> left open across lines)
+		// makes the implicit "everything else is the plain voice" inference
+		// unreliable — but only where the broken markup reaches: the lines that
+		// carry a broken tag, plus the lines inside an apparently unclosed
+		// wrapper. Clean lines in the same section keep the plain fallback, and
+		// explicitly tagged spans and legend names always keep their colors.
 		const plainGroup = resolvedGroups.get(1);
+		const suppressedLines = new Set<(typeof section.lines)[number]>();
+		let openUnmatched = false;
+		for (const line of section.lines) {
+			const openAtStart = openUnmatched;
+			let lineBroken = false;
+			for (const span of line.styleSpans) {
+				if ('unsupported' in span) {
+					lineBroken = true;
+					openUnmatched = !span.rawTag.startsWith('</');
+				}
+			}
+			if (openAtStart || lineBroken) {
+				suppressedLines.add(line);
+			}
+		}
 
 		// Legend names take their group's tint/underline inside the header too;
 		// the `legend` flag keeps the header line free of the full-line wash.
@@ -121,28 +142,55 @@ export function resolveVoiceGroupRanges(
 		}
 
 		for (const line of section.lines) {
+			const linePlainGroup = suppressedLines.has(line) ? undefined : plainGroup;
 			const supported = line.styleSpans
 				.filter((span): span is Extract<typeof span, { slot: number }> => 'slot' in span)
 				.sort((left, right) => left.from - right.from);
 
 			let cursor = line.from;
 			for (const span of supported) {
-				if (plainGroup && span.from > cursor) {
+				if (linePlainGroup && span.from > cursor) {
 					const trimmed = trimRange(parsed.text, cursor, span.from);
-					if (trimmed) ranges.push({ ...trimmed, group: plainGroup });
+					if (trimmed) ranges.push({ ...trimmed, group: linePlainGroup });
 				}
 				const group = resolvedGroups.get(span.slot);
 				if (group) ranges.push({ from: span.contentFrom, to: span.contentTo, group });
 				cursor = span.to;
 			}
-			if (plainGroup && cursor < line.to) {
+			if (linePlainGroup && cursor < line.to) {
 				const trimmed = trimRange(parsed.text, cursor, line.to);
-				if (trimmed) ranges.push({ ...trimmed, group: plainGroup });
+				if (trimmed) ranges.push({ ...trimmed, group: linePlainGroup });
 			}
 		}
 	}
 
 	return ranges;
+}
+
+/**
+ * Order the roster by each performer's first appearance in the document
+ * (legend names and styled spans alike). Performers who do not appear yet
+ * keep their existing relative order after the appearing ones. The color a
+ * performer carries never changes with this ordering — it is only a visual
+ * distinguisher.
+ */
+export function orderPerformersByAppearance(
+	parsed: ParsedDocument,
+	performers: readonly PerformerRecord[]
+): PerformerRecord[] {
+	const firstSeen = new Map<string, number>();
+	for (const range of resolveVoiceGroupRanges(parsed, performers)) {
+		for (const id of range.group.performerIds) {
+			const seen = firstSeen.get(id);
+			if (seen === undefined || range.from < seen) firstSeen.set(id, range.from);
+		}
+	}
+	return [...performers].sort((left, right) => {
+		const leftSeen = firstSeen.get(left.id) ?? Number.POSITIVE_INFINITY;
+		const rightSeen = firstSeen.get(right.id) ?? Number.POSITIVE_INFINITY;
+		if (leftSeen !== rightSeen) return leftSeen - rightSeen;
+		return performers.indexOf(left) - performers.indexOf(right);
+	});
 }
 
 function trimRange(text: string, from: number, to: number): { from: number; to: number } | null {

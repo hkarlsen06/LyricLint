@@ -7,7 +7,7 @@ import PerformersPanel from './PerformersPanel.svelte';
 describe('PerformersPanel', () => {
 	afterEach(cleanup);
 
-	test('supports roster CRUD, merge suggestions, order, color, and toast undo', async () => {
+	test('supports roster CRUD, merge suggestions, and toast undo', async () => {
 		const { controller, feedback } = createTestWorkbench({
 			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
 		});
@@ -37,21 +37,15 @@ describe('PerformersPanel', () => {
 			expect(document.activeElement).toBe(within(averyRow!).getByRole('button', { name: 'Rename' }))
 		);
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Move Blair up' }));
-		expect(controller.performers[0]?.displayName).toBe('Blair');
-
 		const blairRow = within(roster).getByText('Blair').closest('li');
 		expect(blairRow).toBeTruthy();
-		const oldColor = controller.performers[0]?.colorId;
-		await fireEvent.click(within(blairRow!).getByRole('button', { name: 'Recolor' }));
-		expect(controller.performers[0]?.colorId).not.toBe(oldColor);
-		expect(within(blairRow!).getByLabelText(/color/)).toBeTruthy();
 
 		await fireEvent.click(within(blairRow!).getByRole('button', { name: 'Remove' }));
 		expect(controller.performers.some((candidate) => candidate.displayName === 'Blair')).toBe(
 			false
 		);
-		await waitFor(() => expect(document.activeElement?.textContent).toContain('Assign'));
+		// Blair was the last row, so focus falls back to the add-performer input.
+		await waitFor(() => expect(document.activeElement?.id).toBe('new-performer'));
 
 		const undoButtons = screen.getAllByRole('button', { name: 'Undo' });
 		await fireEvent.click(undoButtons.at(-1)!);
@@ -60,6 +54,21 @@ describe('PerformersPanel', () => {
 				true
 			)
 		);
+	});
+
+	test('lists the roster in order of first appearance in the lyrics', () => {
+		const text = '[Chorus: Blair, <i>Avery</i>]\nBlair line\n<i>Avery line</i>';
+		const { controller } = createTestWorkbench({
+			text,
+			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
+		});
+		render(PerformersPanel, { controller });
+
+		const roster = screen.getByRole('list', { name: 'Draft performer roster' });
+		const names = within(roster)
+			.getAllByRole('listitem')
+			.map((item) => item.querySelector('strong')?.textContent);
+		expect(names).toEqual(['Blair', 'Avery']);
 	});
 
 	test('assigns a joint performer group from panel checkboxes and supports cancellation', async () => {

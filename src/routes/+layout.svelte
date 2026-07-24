@@ -15,7 +15,7 @@
 		name="description"
 		content="A local-first lyric editor and source-backed Genius convention linter."
 	/>
-	<meta name="theme-color" content="#f7f4ef" />
+	<meta name="theme-color" content="oklch(97.8% 0.008 78)" />
 	<title>LyricLint</title>
 </svelte:head>
 

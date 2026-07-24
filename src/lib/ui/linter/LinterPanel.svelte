@@ -55,7 +55,8 @@
 			{#each filters as filter (filter.value)}
 				<button
 					type="button"
-					class="linter-panel__filter-chip"
+					class="linter-panel__filter-chip linter-panel__filter-chip--{filter.value}"
+					class:is-empty={counts[filter.value] === 0}
 					aria-pressed={controller.severityFilter.includes(filter.value)}
 					onclick={() => controller.toggleSeverity(filter.value)}
 				>
@@ -69,6 +70,7 @@
 	<DiagnosticList
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
+		documentText={controller.snapshot.text}
 		{lineFor}
 		onNavigate={(diagnostic) => controller.navigateToDiagnostic(diagnostic)}
 		onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}

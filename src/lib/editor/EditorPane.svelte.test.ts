@@ -388,7 +388,9 @@ describe('EditorPane', () => {
 
 		const highlight = document.querySelector<HTMLElement>('.ll-performer-slot-3');
 		expect(highlight).not.toBeNull();
-		expect(getComputedStyle(highlight!).borderBottomStyle).toBe('dashed');
+		// Slot styling mirrors the markup (bold for slot 3); no underline ornament.
+		expect(getComputedStyle(highlight!).fontWeight).toBe('650');
+		expect(getComputedStyle(highlight!).borderBottomStyle).toBe('none');
 	});
 
 	it('uses the containing section start for the section shortcut and editor handle', async () => {

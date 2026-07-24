@@ -68,6 +68,57 @@
 		});
 	});
 
+	// Mouse-opened popovers close on their own when the pointer wanders away
+	// from both the popover and its anchor; a grace margin plus a short delay
+	// keeps the diagonal travel from badge to popover from closing it early.
+	// Keyboard-opened popovers (takeFocus) are unaffected, and a popover the
+	// user has tabbed into is never closed out from under the focus.
+	$effect(() => {
+		if (takeFocus) {
+			return;
+		}
+		let timer: number | undefined;
+		const margin = 28;
+		const within = (
+			rect: { left: number; right: number; top: number; bottom: number },
+			x: number,
+			y: number,
+			pad: number
+		) =>
+			x >= rect.left - pad &&
+			x <= rect.right + pad &&
+			y >= rect.top - pad &&
+			y <= rect.bottom + pad;
+		const onMove = (event: PointerEvent) => {
+			const rect = root?.getBoundingClientRect();
+			if (!rect) {
+				return;
+			}
+			const near =
+				within(rect, event.clientX, event.clientY, margin) ||
+				(anchor !== undefined && within(anchor, event.clientX, event.clientY, 12));
+			if (near) {
+				if (timer !== undefined) {
+					clearTimeout(timer);
+					timer = undefined;
+				}
+			} else if (timer === undefined) {
+				timer = window.setTimeout(() => {
+					if (!root?.contains(document.activeElement)) {
+						onDismiss();
+					}
+				}, 250);
+			}
+		};
+		window.addEventListener('pointermove', onMove, { passive: true });
+		return () => {
+			window.removeEventListener('pointermove', onMove);
+			if (timer !== undefined) {
+				clearTimeout(timer);
+			}
+		};
+	});
+
 	// Compare fixes by their stable key, not object identity: reactive $state
 	// proxies make `===` unreliable between the stored fix and the render item.
 	function fixKey(fix: DiagnosticFix): string {
@@ -169,21 +220,21 @@
 
 <style>
 	.popover {
-		z-index: 32;
+		z-index: var(--layer-popover);
 		box-sizing: border-box;
 		width: min(26rem, calc(100vw - 1rem));
 		max-height: min(26rem, calc(100vh - 1rem));
-		padding: 0.8rem;
+		padding: var(--space-3);
 		overflow-y: auto;
-		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
-		border-radius: var(--radius-panel, 0.5rem);
-		background: var(--color-surface, oklch(0.985 0.006 78));
-		color: var(--color-text, oklch(0.24 0.015 70));
-		box-shadow: var(--shadow-overlay, 0 2px 8px oklch(0.2 0.01 70 / 0.14));
-		font:
-			400 0.8125rem/1.45 ui-sans-serif,
-			system-ui,
-			sans-serif;
+		border: var(--border-width) solid var(--color-border);
+		border-radius: var(--radius-overlay);
+		background: var(--color-overlay);
+		color: var(--color-text);
+		box-shadow: var(--shadow-overlay);
+		font-family: var(--font-ui);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-regular);
+		line-height: var(--line-height-body);
 	}
 
 	.anchored {
@@ -192,26 +243,27 @@
 
 	strong {
 		display: block;
-		font-size: 0.9375rem;
-		line-height: 1.3;
+		font-size: var(--font-size-md);
+		line-height: var(--line-height-tight);
 	}
 
 	p {
 		max-width: 68ch;
-		margin: 0.45rem 0 0.7rem;
+		margin: var(--space-2) 0 var(--space-3);
 	}
 
 	.fixes {
 		display: flex;
 		flex-wrap: wrap;
-		gap: 0.4rem;
-		margin-block-end: 0.7rem;
+		gap: var(--space-1-5);
+		margin-block-end: var(--space-3);
 	}
 
 	button {
-		padding: 0.38rem 0.55rem;
-		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
-		border-radius: 0.375rem;
+		min-height: var(--control-height-md);
+		padding: var(--control-padding-block) var(--control-padding-inline);
+		border: var(--border-width) solid var(--color-control-border);
+		border-radius: var(--radius-control);
 		background: transparent;
 		color: inherit;
 		font: inherit;
@@ -219,45 +271,49 @@
 	}
 
 	button:hover {
-		background: var(--color-surface-subtle, oklch(0.94 0.012 75));
+		background: var(--color-control-hover);
+	}
+
+	button:active {
+		background: var(--color-control-active);
 	}
 
 	button:focus-visible,
 	a:focus-visible {
-		outline: 2px solid var(--color-focus, oklch(0.58 0.14 55));
-		outline-offset: 2px;
+		outline: var(--focus-ring-width) solid var(--color-focus);
+		outline-offset: var(--focus-ring-offset);
 	}
 
 	.fixes span {
-		margin-inline-start: 0.35rem;
+		margin-inline-start: var(--space-1-5);
 		color: color-mix(in oklch, currentColor 65%, transparent);
-		font-size: 0.7rem;
+		font-size: var(--font-size-2xs);
 	}
 
 	.preview {
-		margin-block-end: 0.7rem;
-		padding: 0.55rem;
-		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
-		border-radius: 0.375rem;
-		background: var(--color-surface-subtle, oklch(0.953 0.01 78));
+		margin-block-end: var(--space-3);
+		padding: var(--space-2);
+		border: var(--border-width) solid var(--color-border);
+		border-radius: var(--radius-panel);
+		background: var(--color-surface-subtle);
 	}
 
 	.preview p {
-		margin: 0 0 0.45rem;
-		font-weight: 550;
+		margin: 0 0 var(--space-2);
+		font-weight: var(--font-weight-medium);
 	}
 
 	.preview dl {
 		display: grid;
 		grid-template-columns: minmax(4rem, auto) 1fr;
-		gap: 0.25rem 0.55rem;
+		gap: var(--space-1) var(--space-2);
 		margin: 0;
 	}
 
 	.preview dl + dl {
-		margin-block-start: 0.45rem;
-		padding-block-start: 0.45rem;
-		border-block-start: 1px solid var(--color-border, oklch(0.78 0.012 75));
+		margin-block-start: var(--space-2);
+		padding-block-start: var(--space-2);
+		border-block-start: var(--border-width) solid var(--color-border);
 	}
 
 	.preview dl div {
@@ -265,7 +321,7 @@
 	}
 
 	.preview dt {
-		font-weight: 650;
+		font-weight: var(--font-weight-semibold);
 	}
 
 	.preview dd {
@@ -276,36 +332,45 @@
 	.preview code {
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
-		font:
-			0.75rem/1.4 ui-monospace,
-			monospace;
+		font-family: var(--font-mono);
+		font-size: var(--font-size-xs);
+		line-height: var(--line-height-ui);
 	}
 
 	ul {
 		margin: 0;
-		padding: 0.65rem 0;
-		border-block: 1px solid var(--color-border, oklch(0.78 0.012 75));
+		padding: var(--space-2-5) 0;
+		border-block: var(--border-width) solid var(--color-border);
 		list-style: none;
 	}
 
 	li + li {
-		margin-block-start: 0.45rem;
+		margin-block-start: var(--space-2);
 	}
 
 	a {
-		color: var(--color-accent, oklch(0.48 0.12 45));
+		color: var(--color-accent);
 	}
 
 	time {
 		display: block;
 		color: color-mix(in oklch, currentColor 65%, transparent);
-		font-size: 0.72rem;
+		font-size: var(--font-size-2xs);
 	}
 
 	.actions {
 		display: flex;
-		gap: 0.4rem;
+		gap: var(--space-1-5);
 		justify-content: flex-end;
-		margin-block-start: 0.7rem;
+		margin-block-start: var(--space-3);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		button {
+			transition:
+				background-color var(--duration-fast) var(--ease-out-quart),
+				border-color var(--duration-fast) var(--ease-out-quart),
+				color var(--duration-fast) var(--ease-out-quart);
+		}
 	}
 </style>

@@ -1,10 +1,17 @@
 <script lang="ts">
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import { orderPerformersByAppearance } from '../state/wiring.js';
 	import PerformerEditor from './PerformerEditor.svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
 	let newName = $state('');
 	let selectedPerformerIds = $state<string[]>([]);
+
+	// The roster lists performers in the order they first appear in the lyrics;
+	// performers not (yet) in the document follow in the order they were added.
+	const orderedPerformers = $derived(
+		orderPerformersByAppearance(controller.snapshot.parsed, controller.performers)
+	);
 
 	function add(event: SubmitEvent): void {
 		event.preventDefault();
@@ -54,7 +61,7 @@
 			<legend>Assign selection</legend>
 			<p>Select one or more performers. Multiple selections create one joint voice group.</p>
 			<div class="performer-assignment__choices">
-				{#each controller.performers as performer (performer.id)}
+				{#each orderedPerformers as performer (performer.id)}
 					<label>
 						<input
 							type="checkbox"
@@ -80,8 +87,8 @@
 			</div>
 		</fieldset>
 		<ul class="performer-list" aria-label="Draft performer roster">
-			{#each controller.performers as performer, index (performer.id)}
-				<PerformerEditor {performer} {index} count={controller.performers.length} {controller} />
+			{#each orderedPerformers as performer (performer.id)}
+				<PerformerEditor {performer} {controller} />
 			{/each}
 		</ul>
 	{/if}

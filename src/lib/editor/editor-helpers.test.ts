@@ -117,7 +117,7 @@ describe('editor pure helpers', () => {
 		});
 	});
 
-	it('maps stable performer colors to segmented accessible styles with a cap', () => {
+	it('blends joint-group performer colors into one mixed tint with a cap', () => {
 		const performers: PerformerRecord[] = ['A', 'B', 'C', 'D'].map((name, index) => ({
 			id: name.toLocaleLowerCase(),
 			displayName: name,
@@ -133,8 +133,10 @@ describe('editor pure helpers', () => {
 
 		expect(style?.label).toBe('Performed by A, B, C, D');
 		expect(style?.hiddenCount).toBe(1);
-		expect(style?.lightBackground).toContain('linear-gradient');
-		expect(style?.darkBackground).toContain('linear-gradient');
+		// Joint groups blend into one color instead of striping per member.
+		expect(style?.lightBackground).toContain('color-mix');
+		expect(style?.lightBackground).not.toContain('linear-gradient');
+		expect(style?.darkBackground).toContain('color-mix');
 	});
 
 	it('keeps every performer palette entry above 4.5:1 in light and dark schemes', () => {

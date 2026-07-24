@@ -146,3 +146,68 @@ export function extractLineStyleSpans(lineText: string, lineRange: TextRange): V
 
 /** Alias used by rule and performer workers for per-line voice markup scanning. */
 export const extractStyleSpans = extractLineStyleSpans;
+
+/**
+ * Parse performer wrappers across a section body, then project each supported
+ * wrapper back onto the physical lines it touches. Genius commonly keeps one
+ * `<i>`/`<b>` wrapper open across several lyric lines, so line breaks are
+ * content boundaries, not implicit closing tags.
+ */
+export function extractSectionStyleSpans(
+	documentText: string,
+	lineRanges: readonly TextRange[]
+): VoiceSpan[][] {
+	const byLine = lineRanges.map(() => [] as VoiceSpan[]);
+	const first = lineRanges[0];
+	const last = lineRanges.at(-1);
+	if (!first || !last) {
+		return byLine;
+	}
+
+	const bodyText = documentText.slice(first.from, last.to);
+	const spans = extractLineStyleSpans(bodyText, { from: first.from, to: last.to });
+
+	for (const span of spans) {
+		if ('unsupported' in span) {
+			const lineIndex = lineRanges.findIndex(
+				(line) => line.from <= span.from && span.from <= line.to
+			);
+			if (lineIndex >= 0) {
+				byLine[lineIndex]?.push(span);
+			}
+			continue;
+		}
+
+		for (let index = 0; index < lineRanges.length; index += 1) {
+			const line = lineRanges[index];
+			if (!line || span.to <= line.from || span.from >= line.to) {
+				continue;
+			}
+
+			const from = Math.max(span.from, line.from);
+			const to = Math.min(span.to, line.to);
+			const contentFrom = Math.max(span.contentFrom, line.from);
+			const contentTo = Math.min(span.contentTo, line.to);
+			if (from >= to || contentFrom > contentTo) {
+				continue;
+			}
+
+			byLine[index]?.push({
+				from,
+				to,
+				slot: span.slot,
+				rawTag: span.from >= line.from ? span.rawTag : '',
+				contentFrom,
+				contentTo,
+				closingTag: span.to <= line.to ? span.closingTag : '',
+				...(span.from < line.from ? { continuedFromPreviousLine: true } : {}),
+				...(span.to > line.to ? { continuesToNextLine: true } : {})
+			});
+		}
+	}
+
+	for (const lineSpans of byLine) {
+		lineSpans.sort((left, right) => left.from - right.from || left.to - right.to);
+	}
+	return byLine;
+}

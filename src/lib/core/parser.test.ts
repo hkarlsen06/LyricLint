@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { SupportedStyleSpan } from './types.js';
 import { parseDocument } from './parser.js';
 
 interface LyricFixture {
@@ -97,6 +98,29 @@ describe('parseDocument', () => {
 			to: closingItalic + '</i>'.length,
 			raw: '</i>'
 		});
+	});
+
+	it('parses a supported performer wrapper across physical lyric lines', () => {
+		const input = '[Verse: A & <i>B</i>]\n<i>First line\nMiddle line\nLast line</i>\nPlain';
+		const document = parseDocument(input);
+		const lines = document.sections[0]?.lines ?? [];
+		const supported = lines.flatMap((line) =>
+			line.styleSpans.filter((span): span is SupportedStyleSpan => !('unsupported' in span))
+		);
+
+		expect(document.syntaxIssues).toEqual([]);
+		expect(
+			supported.map((span) => ({
+				content: input.slice(span.contentFrom, span.contentTo),
+				fromPrevious: span.continuedFromPreviousLine ?? false,
+				toNext: span.continuesToNextLine ?? false
+			}))
+		).toEqual([
+			{ content: 'First line', fromPrevious: false, toNext: true },
+			{ content: 'Middle line', fromPrevious: true, toNext: true },
+			{ content: 'Last line', fromPrevious: true, toNext: false }
+		]);
+		expect(lines[3]?.styleSpans).toEqual([]);
 	});
 
 	it('keeps CRLF line endings and absolute offsets exact', () => {

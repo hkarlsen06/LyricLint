@@ -230,7 +230,7 @@
 					data-performer={performer.id}
 					aria-pressed={selectedIds.includes(performer.id)}
 					tabindex={index === activeIndex ? 0 : -1}
-					style={`--dot-color: var(--performer-${performer.colorId}, var(--color-text-muted, currentColor));`}
+					style={`--dot-color: var(--performer-${performer.colorId}, var(--color-text-muted));`}
 					onclick={() => toggle(performer.id)}
 					onfocus={() => (activeIndex = index)}
 				>
@@ -304,28 +304,28 @@
 
 <style>
 	.picker-layer {
-		z-index: 30;
+		z-index: var(--layer-picker);
 		display: grid;
 		max-width: min(34rem, calc(100vw - 1rem));
-		gap: 0.3rem;
+		gap: var(--space-1);
 		justify-items: start;
 	}
 
 	.picker {
 		display: flex;
 		max-width: 100%;
-		gap: 0.5rem;
+		gap: var(--space-2);
 		align-items: center;
-		padding: 0.5rem;
-		border: 1px solid var(--color-border-strong, oklch(0.65 0.025 70));
-		border-radius: var(--radius-panel, 0.65rem);
-		background: var(--color-surface, oklch(0.991 0.005 78));
-		color: var(--color-text, oklch(0.24 0.018 65));
-		box-shadow: var(--shadow-overlay, 0 2px 8px oklch(0.2 0.01 70 / 0.14));
-		font:
-			500 0.8125rem/1.25 var(--font-ui, ui-sans-serif),
-			system-ui,
-			sans-serif;
+		padding: var(--space-2);
+		border: var(--border-width) solid var(--color-border-strong);
+		border-radius: var(--radius-overlay);
+		background: var(--color-overlay);
+		color: var(--color-text);
+		box-shadow: var(--shadow-overlay);
+		font-family: var(--font-ui);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+		line-height: var(--line-height-tight);
 	}
 
 	.anchored {
@@ -340,25 +340,25 @@
 
 	.hint {
 		margin: 0;
-		padding-inline: 0.25rem;
-		color: var(--color-text-muted, oklch(0.44 0.016 65));
-		font:
-			400 0.7rem/1.3 var(--font-ui, ui-sans-serif),
-			system-ui,
-			sans-serif;
-		text-shadow: 0 1px 2px var(--color-canvas, transparent);
+		padding-inline: var(--space-1);
+		color: var(--color-text-muted);
+		font-family: var(--font-ui);
+		font-size: var(--font-size-2xs);
+		font-weight: var(--font-weight-regular);
+		line-height: var(--line-height-tight);
+		text-shadow: 0 1px 2px var(--color-canvas);
 	}
 
 	.anchored .hint {
-		padding: 0.1rem 0.4rem;
-		border-radius: 0.4rem;
-		background: color-mix(in oklch, var(--color-surface, oklch(0.99 0.005 78)) 88%, transparent);
+		padding: var(--space-0-5) var(--space-1-5);
+		border-radius: var(--radius-control);
+		background: color-mix(in oklch, var(--color-overlay) 88%, transparent);
 	}
 
 	.roster {
 		display: flex;
 		min-width: 0;
-		gap: 0.35rem;
+		gap: var(--space-1-5);
 		align-items: center;
 		overflow-x: auto;
 	}
@@ -366,11 +366,12 @@
 	button {
 		flex: none;
 		display: inline-flex;
-		gap: 0.35rem;
+		min-height: var(--control-height-sm);
+		gap: var(--space-1-5);
 		align-items: center;
-		padding: 0.34rem 0.6rem;
-		border: 1px solid var(--color-border-input, oklch(0.65 0.025 70));
-		border-radius: var(--radius-pill, 999rem);
+		padding: var(--space-1) var(--space-2-5);
+		border: var(--border-width) solid var(--color-control-border);
+		border-radius: var(--radius-pill);
 		background: transparent;
 		color: inherit;
 		font: inherit;
@@ -378,13 +379,13 @@
 	}
 
 	button:hover {
-		background: var(--color-surface-subtle, oklch(0.953 0.01 78));
+		background: var(--color-control-hover);
 	}
 
 	.chip__dot {
 		width: 0.55rem;
 		height: 0.55rem;
-		border-radius: 50%;
+		border-radius: var(--radius-round);
 		background: var(--dot-color);
 		box-shadow: inset 0 0 0 1px color-mix(in oklch, currentColor 30%, transparent);
 	}
@@ -394,13 +395,13 @@
 	}
 
 	.chip--add {
-		width: 1.85rem;
-		height: 1.85rem;
+		width: var(--control-height-sm);
+		height: var(--control-height-sm);
 		padding: 0;
 		justify-content: center;
 		border-style: dashed;
-		border-radius: 50%;
-		color: var(--color-text-muted, oklch(0.44 0.016 65));
+		border-radius: var(--radius-round);
+		color: var(--color-text-muted);
 	}
 
 	.chip--add:hover {
@@ -409,43 +410,35 @@
 
 	.chip--input {
 		width: 9.5rem;
-		min-height: 1.85rem;
-		padding: 0.2rem 0.6rem;
-		border: 1px solid var(--color-border-input, oklch(0.65 0.025 70));
-		border-radius: var(--radius-pill, 999rem);
+		min-height: var(--control-height-sm);
+		padding: var(--space-0-5) var(--space-2-5);
+		border: var(--border-width) solid var(--color-control-border);
+		border-radius: var(--radius-pill);
 		background: transparent;
 		color: inherit;
 		font: inherit;
 	}
 
 	.picker__empty-hint {
-		color: var(--color-text-muted, oklch(0.44 0.016 65));
+		color: var(--color-text-muted);
 		white-space: nowrap;
 	}
 
 	button[aria-pressed='true'] {
-		border-color: color-mix(
-			in oklch,
-			var(--dot-color, var(--color-accent, oklch(0.48 0.13 42))) 65%,
-			transparent
-		);
-		background: color-mix(
-			in oklch,
-			var(--dot-color, var(--color-accent, oklch(0.48 0.13 42))) 24%,
-			transparent
-		);
+		border-color: color-mix(in oklch, var(--dot-color, var(--color-accent)) 65%, transparent);
+		background: color-mix(in oklch, var(--dot-color, var(--color-accent)) 24%, transparent);
 	}
 
 	.apply {
-		border-color: var(--color-text, oklch(0.24 0.018 65));
-		background: var(--color-text, oklch(0.24 0.018 65));
-		color: var(--color-canvas, oklch(0.978 0.008 78));
-		font-weight: 650;
+		border-color: var(--color-text);
+		background: var(--color-text);
+		color: var(--color-canvas);
+		font-weight: var(--font-weight-semibold);
 	}
 
 	.apply:hover:not(:disabled) {
-		border-color: color-mix(in oklch, var(--color-text, oklch(0.24 0.018 65)) 85%, transparent);
-		background: color-mix(in oklch, var(--color-text, oklch(0.24 0.018 65)) 85%, transparent);
+		border-color: color-mix(in oklch, var(--color-text) 85%, transparent);
+		background: color-mix(in oklch, var(--color-text) 85%, transparent);
 	}
 
 	.apply__key {
@@ -455,20 +448,30 @@
 
 	button:focus-visible,
 	input:focus-visible {
-		outline: 2px solid var(--color-focus, oklch(0.54 0.15 255));
-		outline-offset: 2px;
+		outline: var(--focus-ring-width) solid var(--color-focus);
+		outline-offset: var(--focus-ring-offset);
 	}
 
 	button:disabled {
 		cursor: not-allowed;
-		opacity: 0.5;
+		opacity: var(--opacity-disabled);
 	}
 
 	.actions {
 		display: flex;
-		gap: 0.35rem;
-		padding-inline-start: 0.5rem;
-		border-inline-start: 1px solid var(--color-border, oklch(0.82 0.018 72));
+		gap: var(--space-1-5);
+		padding-inline-start: var(--space-2);
+		border-inline-start: var(--border-width) solid var(--color-border);
+	}
+
+	@media (prefers-reduced-motion: no-preference) {
+		button,
+		input {
+			transition:
+				background-color var(--duration-fast) var(--ease-out-quart),
+				border-color var(--duration-fast) var(--ease-out-quart),
+				color var(--duration-fast) var(--ease-out-quart);
+		}
 	}
 
 	@media (max-width: 34rem) {

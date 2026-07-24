@@ -1,5 +1,5 @@
 import { parseLegend } from './legend.js';
-import { extractLineStyleSpans } from './lines.js';
+import { extractSectionStyleSpans } from './lines.js';
 import type {
 	LineEndingKind,
 	LyricLine,
@@ -171,34 +171,46 @@ function parseSectionHeader(text: string, line: PhysicalLine): HeaderParseResult
 	return { header, issues };
 }
 
-function parseLyricLine(line: PhysicalLine, issues: ParseIssue[]): LyricLine {
-	const styleSpans = extractLineStyleSpans(line.text, line);
-
-	for (const span of styleSpans) {
-		if (!('unsupported' in span)) {
-			continue;
-		}
-
-		issues.push({
-			code: span.reason === 'unsupported-tag' ? 'unsupported-markup' : 'malformed-markup',
-			from: span.from,
-			to: span.to,
-			message:
-				span.reason === 'unsupported-tag'
-					? 'This markup is not a supported Genius performer style.'
-					: 'This performer markup is malformed or mis-nested.',
-			raw: span.rawTag
-		});
-	}
-
+function parseLyricLine(line: PhysicalLine): LyricLine {
 	return {
 		from: line.from,
 		to: line.to,
 		text: line.text,
 		lineEnding: line.lineEnding,
 		lineEndingRange: line.lineEndingRange,
-		styleSpans
+		styleSpans: []
 	};
+}
+
+function parseSectionBodyMarkup(
+	text: string,
+	sections: readonly Section[],
+	issues: ParseIssue[]
+): void {
+	for (const section of sections) {
+		const spansByLine = extractSectionStyleSpans(text, section.lines);
+		for (let index = 0; index < section.lines.length; index += 1) {
+			const line = section.lines[index];
+			if (!line) continue;
+			line.styleSpans = spansByLine[index] ?? [];
+
+			for (const span of line.styleSpans) {
+				if (!('unsupported' in span)) {
+					continue;
+				}
+				issues.push({
+					code: span.reason === 'unsupported-tag' ? 'unsupported-markup' : 'malformed-markup',
+					from: span.from,
+					to: span.to,
+					message:
+						span.reason === 'unsupported-tag'
+							? 'This markup is not a supported Genius performer style.'
+							: 'This performer markup is malformed or mis-nested.',
+					raw: span.rawTag
+				});
+			}
+		}
+	}
 }
 
 function resolvedSyntaxGroups(header: SectionHeader | undefined): VoiceGroup[] {
@@ -262,7 +274,7 @@ export function parseDocument(text: string): ParsedDocument {
 			continue;
 		}
 
-		const lyricLine = parseLyricLine(line, syntaxIssues);
+		const lyricLine = parseLyricLine(line);
 		if (!current) {
 			current = {
 				from: line.from,
@@ -276,5 +288,6 @@ export function parseDocument(text: string): ParsedDocument {
 	}
 
 	finishSection(current, sections);
+	parseSectionBodyMarkup(text, sections, syntaxIssues);
 	return { text, sections, syntaxIssues };
 }

@@ -5,13 +5,9 @@
 
 	let {
 		performer,
-		index,
-		count,
 		controller
 	}: {
 		performer: PerformerRecord;
-		index: number;
-		count: number;
 		controller: WorkbenchController;
 	} = $props();
 
@@ -62,13 +58,10 @@
 
 <li class="performer-row">
 	<div class="performer-row__identity">
-		<span
-			class={`performer-color performer-color--${performer.colorId}`}
-			aria-label={`${performer.colorId} color`}
-		></span>
+		<!-- The color is a visual distinguisher only, so the dot is decorative. -->
+		<span class={`performer-color performer-color--${performer.colorId}`} aria-hidden="true"></span>
 		<div>
 			<strong>{performer.displayName}</strong>
-			<span>Color: {performer.colorId}</span>
 		</div>
 	</div>
 
@@ -94,25 +87,6 @@
 			>
 				Rename
 			</button>
-			<button
-				type="button"
-				class="button button--quiet"
-				onclick={() => controller.cyclePerformerColor(performer.id)}>Recolor</button
-			>
-			<button
-				type="button"
-				class="icon-button"
-				aria-label={`Move ${performer.displayName} up`}
-				disabled={index === 0}
-				onclick={() => controller.movePerformer(performer.id, -1)}>↑</button
-			>
-			<button
-				type="button"
-				class="icon-button"
-				aria-label={`Move ${performer.displayName} down`}
-				disabled={index === count - 1}
-				onclick={() => controller.movePerformer(performer.id, 1)}>↓</button
-			>
 			<button
 				type="button"
 				class="button button--quiet danger-text"

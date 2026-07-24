@@ -52,13 +52,22 @@ export interface VoiceGroup {
 	ambiguousAmpersands?: AmbiguousAmpersand[];
 }
 
-/** A canonical supported performer-style wrapper within one lyric line. */
+/**
+ * A canonical supported performer-style wrapper segment within one lyric line.
+ *
+ * A wrapper may span several physical lines. In that case each affected line
+ * receives one segment so line-oriented editor and transform code can reason
+ * about the styled content without treating normal multi-line Genius markup as
+ * malformed.
+ */
 export interface SupportedStyleSpan extends TextRange {
 	slot: StyleSlot;
 	rawTag: string;
 	contentFrom: Offset;
 	contentTo: Offset;
 	closingTag: string;
+	continuedFromPreviousLine?: boolean;
+	continuesToNextLine?: boolean;
 }
 
 /** A literal tag or malformed markup fragment that LyricLint cannot interpret. */

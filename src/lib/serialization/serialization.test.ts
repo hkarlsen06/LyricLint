@@ -89,6 +89,17 @@ describe('canonical export validation', () => {
 		});
 	});
 
+	it('accepts supported performer wrappers spanning lyric lines', () => {
+		const input = '[Verse: A & <i>B</i>]\n<i>First line\nMiddle line\nLast line</i>';
+		const parsed = parseDocument(input);
+
+		expect(validateExport(input, parsed)).toEqual({
+			valid: true,
+			issues: [],
+			text: input
+		});
+	});
+
 	it('rejects unsupported markup embedded in a section-header name without mutation', () => {
 		const input = '[<u>Verse</u>]\nLine';
 		const parsed = parseDocument(input);

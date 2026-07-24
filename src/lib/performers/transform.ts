@@ -220,6 +220,14 @@ function transformLine(
 	if (line.styleSpans.some((span) => 'unsupported' in span)) {
 		return undefined;
 	}
+	// Rewriting only one physical line cannot safely preserve an outer wrapper
+	// whose opening or closing tag lives on another line. Keep the source
+	// lossless until a section-aware transform can normalize the whole wrapper.
+	if (
+		supportedSpans(line).some((span) => span.continuedFromPreviousLine || span.continuesToNextLine)
+	) {
+		return undefined;
+	}
 
 	const pieces = buildLinePieces(text, line, selection).map((piece) =>
 		piece.selected ? { ...piece, slot: styleSlot } : piece

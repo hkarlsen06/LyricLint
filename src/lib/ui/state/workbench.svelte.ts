@@ -97,8 +97,6 @@ export interface WorkbenchController {
 	addPerformer(displayName: string): void;
 	renamePerformer(id: string, displayName: string): void;
 	mergePerformers(sourceId: string, targetId: string): void;
-	movePerformer(id: string, direction: -1 | 1): void;
-	cyclePerformerColor(id: string): void;
 	removePerformer(id: string): void;
 	refreshDrafts(): Promise<void>;
 	createDraft(): Promise<void>;
@@ -566,30 +564,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 					.filter((performer) => performer.id !== sourceId)
 					.map((performer) => (performer.id === targetId ? { ...performer, aliases } : performer)),
 				`Merged ${source.displayName} into ${target.displayName}.`
-			);
-		},
-		movePerformer(id, direction) {
-			const index = performers.findIndex((performer) => performer.id === id);
-			const targetIndex = index + direction;
-			if (index < 0 || targetIndex < 0 || targetIndex >= performers.length) return;
-			const next = cloneRoster(performers);
-			const [moved] = next.splice(index, 1);
-			if (!moved) return;
-			next.splice(targetIndex, 0, moved);
-			commitRoster(next, `Moved ${moved.displayName} in the roster.`);
-		},
-		cyclePerformerColor(id) {
-			const current = performers.find((performer) => performer.id === id);
-			if (!current) return;
-			const colorIndex = performerColorIds.indexOf(
-				current.colorId as (typeof performerColorIds)[number]
-			);
-			const colorId = performerColorIds[(colorIndex + 1) % performerColorIds.length] ?? 'olive';
-			commitRoster(
-				performers.map((performer) =>
-					performer.id === id ? { ...performer, colorId } : performer
-				),
-				`Changed ${current.displayName}'s roster color to ${colorId}.`
 			);
 		},
 		removePerformer(id) {

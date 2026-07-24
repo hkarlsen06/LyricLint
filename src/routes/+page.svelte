@@ -152,7 +152,7 @@
 		margin: 4rem auto;
 		max-width: 32rem;
 		text-align: center;
-		color: var(--ll-text-muted, #555);
+		color: var(--color-text-muted);
 		font: inherit;
 	}
 </style>

@@ -6,6 +6,7 @@
 	let {
 		diagnostics,
 		sources,
+		documentText,
 		lineFor,
 		onNavigate,
 		onApplyFix,
@@ -13,6 +14,7 @@
 	}: {
 		diagnostics: readonly Diagnostic[];
 		sources: ReadonlyMap<string, SourceReference>;
+		documentText: string;
 		lineFor?: (offset: number) => number;
 		onNavigate: (diagnostic: Diagnostic) => void;
 		onApplyFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
@@ -151,6 +153,7 @@
 					<DiagnosticDetails
 						{diagnostic}
 						{sources}
+						{documentText}
 						onApplyFix={(fix) => onApplyFix(diagnostic, fix)}
 						onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic.ruleId, trigger)}
 					/>
