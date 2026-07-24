@@ -184,6 +184,11 @@ export interface RuleContext {
 	performers: readonly PerformerRecord[];
 	sources: ReadonlyMap<string, SourceReference>;
 	ruleSetVersion: string;
+	/**
+	 * Revision of the snapshot the rules run against. Fix edits must carry this
+	 * as their `baseRevision` so stale fixes are rejected instead of misapplied.
+	 */
+	revision?: number;
 }
 
 /** A versioned, source-backed lint rule. */
@@ -384,6 +389,8 @@ export interface AutosaveController {
 	schedule(snapshot: AutosaveSnapshot): void;
 	flush(): Promise<void>;
 	cancel(): void;
+	/** Drop any pending write for one draft so a deleted draft cannot be resurrected. */
+	cancelDraft?(draftId: string): void;
 	status(): AutosaveStatus;
 }
 
@@ -417,6 +424,12 @@ export interface EditorHandle {
 	redo(): void;
 	revealRange(range: TextRange): void;
 	setSelection(selection: SerializedSelection): void;
+	/**
+	 * Open the section-header picker for the section containing the cursor, as
+	 * if the user pressed the insert-section shortcut. Optional so headless
+	 * handles can omit it.
+	 */
+	requestSectionHeader?(): void;
 }
 
 /** Immutable editor inputs owned by the application shell. */
