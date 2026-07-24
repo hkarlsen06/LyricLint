@@ -10,7 +10,10 @@ function isWhitespaceSelection(view: EditorView, from: number, to: number): bool
 	return view.state.doc.sliceString(from, to).trim().length === 0;
 }
 
-export function selectionAnchorForView(view: EditorView): SelectionAnchor | undefined {
+export function selectionAnchorForView(
+	view: EditorView,
+	userDriven = false
+): SelectionAnchor | undefined {
 	const selection = view.state.selection.main;
 	const from = Math.min(selection.anchor, selection.head);
 	const to = Math.max(selection.anchor, selection.head);
@@ -49,19 +52,21 @@ export function selectionAnchorForView(view: EditorView): SelectionAnchor | unde
 			width: Math.max(0, right - left),
 			height: Math.max(0, bottom - top)
 		},
-		prefer: spaceAbove > spaceBelow ? 'above' : 'below'
+		prefer: spaceAbove > spaceBelow ? 'above' : 'below',
+		userDriven
 	};
 }
 
 class SelectionAnchorReporter {
 	private timer: number | undefined;
+	private pendingUserDriven = false;
 
 	constructor(
 		readonly view: EditorView,
 		readonly callback: (anchor: SelectionAnchor | undefined) => void,
 		readonly settleDelay: number
 	) {
-		this.schedule();
+		this.schedule(false);
 	}
 
 	reportAfterSettle(): void {
@@ -69,9 +74,15 @@ class SelectionAnchorReporter {
 	}
 
 	update(update: ViewUpdate): void {
+		if (update.selectionSet) {
+			const userDriven = update.transactions.some((transaction) =>
+				transaction.isUserEvent('select')
+			);
+			this.schedule(userDriven);
+			return;
+		}
 		if (
 			update.docChanged ||
-			update.selectionSet ||
 			update.viewportChanged ||
 			update.geometryChanged ||
 			update.transactions.some((transaction) => transaction.effects.length > 0)
@@ -80,13 +91,18 @@ class SelectionAnchorReporter {
 		}
 	}
 
-	private schedule(): void {
+	private schedule(userDriven?: boolean): void {
+		if (userDriven !== undefined) {
+			this.pendingUserDriven = userDriven;
+		}
 		if (this.timer !== undefined) {
 			window.clearTimeout(this.timer);
 		}
 		this.timer = window.setTimeout(() => {
 			this.timer = undefined;
-			this.callback(selectionAnchorForView(this.view));
+			const selectionWasUserDriven = this.pendingUserDriven;
+			this.pendingUserDriven = false;
+			this.callback(selectionAnchorForView(this.view, selectionWasUserDriven));
 		}, this.settleDelay);
 	}
 

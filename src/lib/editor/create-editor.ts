@@ -10,7 +10,6 @@ import {
 } from '@codemirror/view';
 import { parseDocument } from '../core/parser.js';
 import type {
-	EditorCallbacks,
 	EditorHandle,
 	EditorSnapshot,
 	SerializedSelection,
@@ -32,7 +31,9 @@ import {
 } from './extensions/lint-decorations.js';
 import {
 	performerDecorationField,
+	performerCaretAnnouncementPlugin,
 	performerDecorationTheme,
+	performerGroupsField,
 	setVoiceGroupsEffect
 } from './extensions/performer-decorations.js';
 import {
@@ -42,7 +43,7 @@ import {
 } from './extensions/section-ghosts.js';
 import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
 import { createUpdateListener, snapshotFromState } from './extensions/update-bridge.js';
-import { lyricLintKeymap } from './keymap.js';
+import { lyricLintKeymap, requestSectionHeader } from './keymap.js';
 import { dispatchAtomicEdit } from './transaction-adapter.js';
 
 export interface CreateLyricEditorOptions {
@@ -97,13 +98,13 @@ const editorTheme = EditorView.theme({
 	'&': {
 		height: '100%',
 		minHeight: '12rem',
-		background: 'var(--ll-editor-surface, oklch(0.985 0.006 78))',
-		color: 'var(--ll-editor-text, oklch(0.24 0.015 70))',
+		background: 'var(--color-surface, var(--ll-editor-surface, oklch(0.985 0.006 78)))',
+		color: 'var(--color-text, var(--ll-editor-text, oklch(0.24 0.015 70)))',
 		fontFamily: 'ui-monospace, "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace',
 		fontSize: '0.9375rem'
 	},
 	'&.cm-focused': {
-		outline: '2px solid var(--ll-focus, oklch(0.58 0.14 55))',
+		outline: '2px solid var(--color-focus, var(--ll-focus, oklch(0.58 0.14 55)))',
 		outlineOffset: '-2px'
 	},
 	'.cm-scroller': {
@@ -113,26 +114,77 @@ const editorTheme = EditorView.theme({
 	},
 	'.cm-content': {
 		padding: '1rem 1.1rem 4rem',
-		caretColor: 'var(--ll-editor-caret, oklch(0.47 0.16 48))'
+		caretColor: 'var(--color-accent, var(--ll-editor-caret, oklch(0.47 0.16 48)))'
 	},
 	'.cm-line': {
 		padding: '0 0.25rem'
 	},
 	'.cm-selectionBackground, ::selection': {
-		backgroundColor: 'var(--ll-selection, oklch(0.82 0.07 62 / 0.62)) !important'
+		backgroundColor:
+			'var(--color-surface-strong, var(--ll-selection, oklch(0.82 0.07 62 / 0.62))) !important'
 	},
 	'.cm-cursor': {
-		borderLeftColor: 'var(--ll-editor-caret, oklch(0.47 0.16 48))'
+		borderLeftColor: 'var(--color-accent, var(--ll-editor-caret, oklch(0.47 0.16 48)))'
 	}
 });
 
-function createCallbackProxy(read: () => LyricEditorCallbacks): EditorCallbacks {
+export interface PreparedInitialDocument {
+	text: string;
+}
+
+/**
+ * Canonicalize line endings to LF exactly once at load.
+ *
+ * CodeMirror counts every line break as a single document position, so a
+ * multi-code-unit separator in snapshot text would desynchronize every parser,
+ * diagnostic, and decoration offset from editor positions. The canonical
+ * working document therefore always uses `\n`; the untouched original bytes
+ * are preserved separately on the draft record (`originalText`).
+ */
+export function prepareInitialDocument(text: string): PreparedInitialDocument {
+	return { text: text.replace(/\r\n|\r/g, '\n') };
+}
+
+function prepareInitialSelection(
+	selection: SerializedSelection | undefined,
+	sourceText: string,
+	prepared: PreparedInitialDocument
+): SerializedSelection | undefined {
+	if (!selection || prepared.text === sourceText) {
+		return selection;
+	}
+	if (
+		selection.anchor < 0 ||
+		selection.head < 0 ||
+		selection.anchor > sourceText.length ||
+		selection.head > sourceText.length
+	) {
+		return selection;
+	}
+	const normalizeOffset = (offset: number) =>
+		sourceText.slice(0, offset).replace(/\r\n|\r/g, '\n').length;
+	return {
+		anchor: normalizeOffset(selection.anchor),
+		head: normalizeOffset(selection.head)
+	};
+}
+
+function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEditorCallbacks {
 	return {
 		onSnapshot: (snapshot) => read().onSnapshot(snapshot),
 		onAssignRequest: (request) => read().onAssignRequest(request),
 		onSectionHeaderRequest: (request) => read().onSectionHeaderRequest(request),
 		onDiagnosticActivate: (diagnostic) => read().onDiagnosticActivate(diagnostic),
-		onAnnouncement: (message) => read().onAnnouncement(message)
+		onAnnouncement: (message) => read().onAnnouncement(message),
+		onDiagnosticActivateIntent: (diagnostic, intent) => {
+			const callbacks = read();
+			if (callbacks.onDiagnosticActivateIntent) {
+				callbacks.onDiagnosticActivateIntent(diagnostic, intent);
+			} else {
+				callbacks.onDiagnosticActivate(diagnostic);
+			}
+		},
+		onDiagnosticDismiss: () => read().onDiagnosticDismiss?.() ?? false
 	};
 }
 
@@ -153,6 +205,12 @@ export function createLyricEditor(
 	let destroyed = false;
 	let contextFlushQueued = false;
 	const callbackProxy = createCallbackProxy(() => activeCallbacks);
+	const preparedDocument = prepareInitialDocument(options.initialText);
+	const preparedSelection = prepareInitialSelection(
+		options.initialSelection,
+		options.initialText,
+		preparedDocument
+	);
 
 	const extensions: Extension[] = [
 		history(),
@@ -167,9 +225,14 @@ export function createLyricEditor(
 			autocapitalize: 'sentences'
 		}),
 		editorContextField,
+		EditorView.contentAttributes.compute([editorContextField], (state) => ({
+			lang: state.field(editorContextField)?.language ?? options.context.language,
+			dir: 'auto'
+		})),
 		editorCallbacksField,
 		editorRevisionField,
 		editorComposingField,
+		performerGroupsField,
 		performerDecorationField,
 		lintDecorationField,
 		sectionGhostField,
@@ -182,6 +245,7 @@ export function createLyricEditor(
 			(anchor) => options.onSelectionAnchor?.(anchor),
 			options.selectionSettleDelay
 		),
+		performerCaretAnnouncementPlugin(),
 		createUpdateListener((snapshot) => {
 			activeCallbacks.onSnapshot(snapshot);
 			if (!pendingContext || contextFlushQueued) {
@@ -200,8 +264,8 @@ export function createLyricEditor(
 	];
 
 	const state = EditorState.create({
-		doc: options.initialText,
-		selection: initialSelection(options.initialSelection, options.initialText.length),
+		doc: preparedDocument.text,
+		selection: initialSelection(preparedSelection, preparedDocument.text.length),
 		extensions
 	});
 	const view = new EditorView({ state, parent: host });
@@ -265,6 +329,9 @@ export function createLyricEditor(
 				scrollIntoView: true,
 				annotations: Transaction.addToHistory.of(false)
 			});
+		},
+		requestSectionHeader() {
+			requestSectionHeader(view, callbackProxy);
 		}
 	};
 

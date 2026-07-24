@@ -1,13 +1,14 @@
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import type { Diagnostic, LanguagePack, PerformerRecord } from '../core/types.js';
+import { prepareInitialDocument } from './create-editor.js';
 import {
 	clusterDiagnostics,
 	diagnosticsForState,
 	lintDecorationField,
 	setDiagnosticsEffect
 } from './extensions/lint-decorations.js';
-import { voiceGroupStyle } from './extensions/performer-decorations.js';
+import { performerPalette, voiceGroupStyle } from './extensions/performer-decorations.js';
 import { editorCallbacksField, editorRevisionField } from './extensions/editor-state.js';
 import { safeExternalUrl } from './overlays/diagnostic-popover.js';
 import { sectionHeaderOptions, suggestNextOrdinal } from './overlays/section-picker.js';
@@ -23,6 +24,34 @@ function diagnostic(from: number, to: number, severity: Diagnostic['severity']):
 		explanation: `${severity} explanation`,
 		sourceIds: []
 	};
+}
+
+function relativeLuminance(oklch: string): number {
+	const match = /^oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)$/u.exec(oklch);
+	if (!match) {
+		throw new Error(`Unsupported test color: ${oklch}`);
+	}
+	const lightness = Number(match[1]);
+	const chroma = Number(match[2]);
+	const hue = (Number(match[3]) * Math.PI) / 180;
+	const a = chroma * Math.cos(hue);
+	const b = chroma * Math.sin(hue);
+	const lRoot = lightness + 0.3963377774 * a + 0.2158037573 * b;
+	const mRoot = lightness - 0.1055613458 * a - 0.0638541728 * b;
+	const sRoot = lightness - 0.0894841775 * a - 1.291485548 * b;
+	const l = lRoot ** 3;
+	const m = mRoot ** 3;
+	const s = sRoot ** 3;
+	const red = Math.min(1, Math.max(0, 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s));
+	const green = Math.min(1, Math.max(0, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s));
+	const blue = Math.min(1, Math.max(0, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s));
+	return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function contrastRatio(first: string, second: string): number {
+	const lighter = Math.max(relativeLuminance(first), relativeLuminance(second));
+	const darker = Math.min(relativeLuminance(first), relativeLuminance(second));
+	return (lighter + 0.05) / (darker + 0.05);
 }
 
 describe('editor pure helpers', () => {
@@ -106,6 +135,26 @@ describe('editor pure helpers', () => {
 		expect(style?.hiddenCount).toBe(1);
 		expect(style?.lightBackground).toContain('linear-gradient');
 		expect(style?.darkBackground).toContain('linear-gradient');
+	});
+
+	it('keeps every performer palette entry above 4.5:1 in light and dark schemes', () => {
+		const lightText = 'oklch(0.24 0.018 65)';
+		const darkText = 'oklch(0.91 0.012 75)';
+
+		for (const entry of performerPalette) {
+			expect(contrastRatio(entry.light, lightText)).toBeGreaterThanOrEqual(4.5);
+			expect(contrastRatio(entry.dark, darkText)).toBeGreaterThanOrEqual(4.5);
+		}
+	});
+
+	it('canonicalizes every line-ending style to LF exactly once', () => {
+		expect(prepareInitialDocument('one\r\ntwo\r\n')).toEqual({ text: 'one\ntwo\n' });
+		expect(prepareInitialDocument('one\ntwo\n')).toEqual({ text: 'one\ntwo\n' });
+		expect(prepareInitialDocument('one\r\ntwo\nthree\r')).toEqual({ text: 'one\ntwo\nthree\n' });
+		// Idempotent: a second pass changes nothing.
+		expect(prepareInitialDocument(prepareInitialDocument('a\r\nb\rc\n').text)).toEqual({
+			text: 'a\nb\nc\n'
+		});
 	});
 
 	it('rejects stale, overlapping, and out-of-bounds atomic edits before dispatch', () => {

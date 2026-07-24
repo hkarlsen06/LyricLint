@@ -1,9 +1,10 @@
 import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { Diagnostic, EditorCallbacks, EditorHandle, PerformerRecord } from '../core/types.js';
-import type { EditorDisplayContext } from './contracts.js';
+import type { Diagnostic, EditorHandle, PerformerRecord } from '../core/types.js';
+import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
+import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
 import PerformerPicker from './overlays/PerformerPicker.svelte';
 
 function performers(): PerformerRecord[] {
@@ -26,7 +27,7 @@ function context(overrides: Partial<EditorDisplayContext> = {}): EditorDisplayCo
 	};
 }
 
-function callbacks(): EditorCallbacks {
+function callbacks(): LyricEditorCallbacks {
 	return {
 		onSnapshot: vi.fn(),
 		onAssignRequest: vi.fn(),
@@ -40,8 +41,8 @@ async function mountEditor(options?: {
 	text?: string;
 	selection?: { anchor: number; head: number };
 	displayContext?: EditorDisplayContext;
-	editorCallbacks?: EditorCallbacks;
-}): Promise<{ handle: EditorHandle; editorCallbacks: EditorCallbacks }> {
+	editorCallbacks?: LyricEditorCallbacks;
+}): Promise<{ handle: EditorHandle; editorCallbacks: LyricEditorCallbacks }> {
 	const editorCallbacks = options?.editorCallbacks ?? callbacks();
 	let handle: EditorHandle | undefined;
 	await render(EditorPane, {
@@ -50,7 +51,7 @@ async function mountEditor(options?: {
 			initialSelection: options?.selection,
 			context: options?.displayContext ?? context(),
 			callbacks: editorCallbacks,
-			onready: (readyHandle) => {
+			onready: (readyHandle: EditorHandle) => {
 				handle = readyHandle;
 			}
 		}
@@ -60,6 +61,26 @@ async function mountEditor(options?: {
 		throw new Error('Editor did not expose its handle.');
 	}
 	return { handle, editorCallbacks };
+}
+
+function testDiagnostic(overrides: Partial<Diagnostic> = {}): Diagnostic {
+	return {
+		ruleId: 'test-rule',
+		severity: 'warning',
+		from: 0,
+		to: 5,
+		message: 'Test issue',
+		explanation: 'This diagnostic needs attention.',
+		sourceIds: [],
+		...overrides
+	};
+}
+
+async function pressMod(key: string, shift = false): Promise<void> {
+	const modifier = navigator.platform.toLocaleLowerCase().includes('mac') ? 'Meta' : 'Control';
+	const shiftDown = shift ? '{Shift>}' : '';
+	const shiftUp = shift ? '{/Shift}' : '';
+	await userEvent.keyboard(`{${modifier}>}${shiftDown}${key}${shiftUp}{/${modifier}}`);
 }
 
 afterEach(() => {
@@ -72,6 +93,45 @@ describe('EditorPane', () => {
 
 		expect(handle.getSnapshot().text).toBe('[Verse]\nHello');
 		await expect.element(page.getByText('[Verse]')).toBeVisible();
+	});
+
+	it('canonicalizes a CRLF document to LF once, deterministically', async () => {
+		const { handle } = await mountEditor({ text: 'First\r\nSecond\r\n' });
+		expect(handle.getSnapshot().text).toBe('First\nSecond\n');
+	});
+
+	it('keeps an LF document unchanged', async () => {
+		const { handle } = await mountEditor({ text: 'First\nSecond\n' });
+		expect(handle.getSnapshot().text).toBe('First\nSecond\n');
+	});
+
+	it('sets content language and direction attributes and updates the language', async () => {
+		let handle: EditorHandle | undefined;
+		const editorCallbacks = callbacks();
+		const screen = await render(EditorPane, {
+			props: {
+				initialText: 'مرحبا',
+				context: context({ language: 'ar' }),
+				callbacks: editorCallbacks,
+				onready: (readyHandle: EditorHandle) => {
+					handle = readyHandle;
+				}
+			}
+		});
+		const textbox = page.getByRole('textbox', { name: 'Lyrics editor' });
+		await expect.element(textbox).toHaveAttribute('lang', 'ar');
+		await expect.element(textbox).toHaveAttribute('dir', 'auto');
+
+		await screen.rerender({
+			initialText: 'مرحبا',
+			context: context({ language: 'he' }),
+			callbacks: editorCallbacks,
+			onready: (readyHandle: EditorHandle) => {
+				handle = readyHandle;
+			}
+		});
+		await expect.element(textbox).toHaveAttribute('lang', 'he');
+		expect(handle).toBeDefined();
 	});
 
 	it('applies a multi-change atomic edit as one undo step', async () => {
@@ -113,7 +173,7 @@ describe('EditorPane', () => {
 				initialText: 'hello',
 				context: context({ diagnostics: { revision: 0, items: [stale] } }),
 				callbacks: editorCallbacks,
-				onready: (readyHandle) => {
+				onready: (readyHandle: EditorHandle) => {
 					handle = readyHandle;
 				}
 			}
@@ -131,7 +191,7 @@ describe('EditorPane', () => {
 			initialText: 'hello',
 			context: context({ diagnostics: { revision: 0, items: [stale] } }),
 			callbacks: editorCallbacks,
-			onready: (readyHandle) => {
+			onready: (readyHandle: EditorHandle) => {
 				handle = readyHandle;
 			}
 		});
@@ -191,15 +251,163 @@ describe('EditorPane', () => {
 		);
 	});
 
-	it('anchors a settled selection without changing the CodeMirror selection', async () => {
+	it('opens assignment UI only for a user-driven selection', async () => {
 		const { handle } = await mountEditor({
 			text: 'hello world',
-			selection: { anchor: 0, head: 5 },
 			displayContext: context({ performers: performers() })
 		});
 
+		handle.setSelection({ anchor: 0, head: 5 });
+		await new Promise((resolve) => window.setTimeout(resolve, 100));
+		await expect
+			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.not.toBeInTheDocument();
+
+		handle.setSelection({ anchor: 0, head: 0 });
+		handle.focus();
+		await userEvent.keyboard('{Shift>}{ArrowRight}{ArrowRight}{/Shift}');
 		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
-		expect(handle.getSnapshot().selection).toEqual({ anchor: 0, head: 5 });
+		expect(handle.getSnapshot().selection).toEqual({ anchor: 0, head: 2 });
+	});
+
+	it('still opens assignment explicitly with Alt+P for a programmatic selection', async () => {
+		const { handle } = await mountEditor({
+			text: 'hello world',
+			displayContext: context({ performers: performers() })
+		});
+
+		handle.setSelection({ anchor: 0, head: 5 });
+		handle.focus();
+		await userEvent.keyboard('{Alt>}p{/Alt}');
+
+		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
+	});
+
+	it('keeps F8 diagnostic navigation visible when a performer roster exists', async () => {
+		const issue = testDiagnostic();
+		const { handle } = await mountEditor({
+			text: 'hello world',
+			selection: { anchor: 6, head: 6 },
+			displayContext: context({
+				performers: performers(),
+				diagnostics: { revision: 0, items: [issue] }
+			})
+		});
+
+		handle.focus();
+		await userEvent.keyboard('{F8}');
+
+		const popover = page.getByRole('dialog', { name: 'Diagnostic details' });
+		await expect.element(popover).toBeVisible();
+		await expect.element(popover).toHaveFocus();
+		await expect.element(page.getByText('Test issue')).toBeVisible();
+		await expect
+			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.not.toBeInTheDocument();
+	});
+
+	it('focuses keyboard-opened diagnostics and closes them with Escape from editor focus', async () => {
+		const issue = testDiagnostic({
+			fixes: [
+				{
+					kind: 'safe',
+					label: 'Replace greeting',
+					edit: {
+						baseRevision: 0,
+						edits: [{ from: 0, to: 5, insert: 'hi' }]
+					}
+				}
+			]
+		});
+		const { handle } = await mountEditor({
+			text: 'hello world',
+			displayContext: context({ diagnostics: { revision: 0, items: [issue] } })
+		});
+
+		handle.focus();
+		await pressMod('.');
+		await expect.element(page.getByRole('button', { name: /Replace greeting/u })).toHaveFocus();
+
+		handle.focus();
+		await userEvent.keyboard('{Escape}');
+		await expect
+			.element(page.getByRole('dialog', { name: 'Diagnostic details' }))
+			.not.toBeInTheDocument();
+		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toHaveFocus();
+	});
+
+	it('announces performer identity only when the caret enters a highlighted range', async () => {
+		const editorCallbacks = callbacks();
+		const { handle } = await mountEditor({
+			text: 'hello x',
+			selection: { anchor: 6, head: 6 },
+			displayContext: context({
+				performers: performers(),
+				voiceGroups: [
+					{
+						from: 0,
+						to: 5,
+						group: { id: 'voice-a', performerIds: ['avery'], styleSlot: 3 }
+					}
+				]
+			}),
+			editorCallbacks
+		});
+
+		handle.setSelection({ anchor: 1, head: 1 });
+		expect(editorCallbacks.onAnnouncement).toHaveBeenCalledWith('Performed by Avery');
+		handle.setSelection({ anchor: 2, head: 2 });
+		expect(editorCallbacks.onAnnouncement).toHaveBeenCalledTimes(1);
+		handle.setSelection({ anchor: 6, head: 6 });
+		handle.setSelection({ anchor: 3, head: 3 });
+		expect(editorCallbacks.onAnnouncement).toHaveBeenCalledTimes(2);
+
+		const highlight = document.querySelector<HTMLElement>('.ll-performer-slot-3');
+		expect(highlight).not.toBeNull();
+		expect(getComputedStyle(highlight!).borderBottomStyle).toBe('dashed');
+	});
+
+	it('uses the containing section start for the section shortcut and editor handle', async () => {
+		const createSectionHeaderEdit = vi.fn(({ range }: { range: { from: number; to: number } }) =>
+			range.from === 0
+				? {
+						baseRevision: 0,
+						edits: [{ from: 0, to: 0, insert: '[Verse]\n' }]
+					}
+				: undefined
+		);
+		const editorCallbacks: LyricEditorCallbacks = {
+			...callbacks(),
+			createSectionHeaderEdit
+		};
+		const languagePack = {
+			tag: 'en',
+			displayName: 'English',
+			policy: 'localized' as const,
+			headers: [{ semanticPart: 'verse', terms: ['Verse'] }],
+			sourceIds: [],
+			reviewed: true
+		};
+		const { handle } = await mountEditor({
+			text: 'first line\nsecond line',
+			selection: { anchor: 14, head: 14 },
+			displayContext: context({ languagePack }),
+			editorCallbacks
+		});
+
+		handle.focus();
+		await pressMod('h', true);
+		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
+		await userEvent.click(page.getByRole('button', { name: 'Verse' }));
+		expect(createSectionHeaderEdit).toHaveBeenCalledWith(
+			expect.objectContaining({ range: expect.objectContaining({ from: 0 }) })
+		);
+		expect(handle.getSnapshot().text).toBe('[Verse]\nfirst line\nsecond line');
+
+		handle.undo();
+		handle.setSelection({ anchor: 14, head: 14 });
+		handle.requestSectionHeader?.();
+		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
 	});
 
 	it('shows a non-document ghost row for a headerless section', async () => {
@@ -254,5 +462,68 @@ describe('PerformerPicker keyboard flow', () => {
 
 		expect(onCancel).toHaveBeenCalledOnce();
 		expect(focusTarget).toBe(document.activeElement);
+	});
+
+	it('lets Enter on Cancel run cancel without applying', async () => {
+		const focusTarget = document.createElement('button');
+		focusTarget.dataset.testFocusReturn = 'true';
+		focusTarget.textContent = 'Editor focus target';
+		document.body.append(focusTarget);
+		const onApply = vi.fn();
+		const onCancel = vi.fn();
+
+		await render(PerformerPicker, {
+			performers: performers(),
+			initialSelectedIds: ['avery'],
+			onApply,
+			onCancel,
+			returnFocus: () => focusTarget.focus()
+		});
+		const cancel = page.getByRole('button', { name: 'Cancel' });
+		cancel.element().focus();
+		await userEvent.keyboard('{Enter}');
+
+		expect(onCancel).toHaveBeenCalledOnce();
+		expect(onApply).not.toHaveBeenCalled();
+	});
+});
+
+describe('DiagnosticPopover fix flow', () => {
+	it('requires preview fixes to be activated twice and keeps safe fixes one-click', async () => {
+		const previewFix = {
+			kind: 'preview' as const,
+			label: 'Replace word',
+			edit: {
+				baseRevision: 0,
+				edits: [{ from: 0, to: 5, insert: 'world' }]
+			}
+		};
+		const safeFix = {
+			kind: 'safe' as const,
+			label: 'Remove mark',
+			edit: {
+				baseRevision: 0,
+				edits: [{ from: 5, to: 6, insert: '' }]
+			}
+		};
+		const onApplyFix = vi.fn();
+		await render(DiagnosticPopover, {
+			diagnostic: testDiagnostic({ to: 6, fixes: [previewFix, safeFix] }),
+			documentText: 'hello!',
+			onApplyFix,
+			onIgnore: vi.fn()
+		});
+
+		await userEvent.click(page.getByRole('button', { name: /Replace word Preview/u }));
+		expect(onApplyFix).not.toHaveBeenCalled();
+		await expect.element(page.getByText('hello')).toBeVisible();
+		await expect.element(page.getByText('world')).toBeVisible();
+
+		await userEvent.click(page.getByRole('button', { name: /Apply Replace word Confirm/u }));
+		expect(onApplyFix).toHaveBeenCalledWith(previewFix);
+
+		await userEvent.click(page.getByRole('button', { name: /Remove mark Safe fix/u }));
+		expect(onApplyFix).toHaveBeenCalledWith(safeFix);
+		expect(onApplyFix).toHaveBeenCalledTimes(2);
 	});
 });

@@ -67,6 +67,8 @@ export interface EditorOverlayCallbacks {
 	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
 	onApplyDiagnosticFix?(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	onIgnoreDiagnostic?(diagnostic: Diagnostic): void;
+	onDiagnosticActivateIntent?(diagnostic: Diagnostic, intent: 'navigate' | 'fix'): void;
+	onDiagnosticDismiss?(): boolean;
 }
 
 export type LyricEditorCallbacks = EditorCallbacks & EditorOverlayCallbacks;
@@ -99,4 +101,6 @@ export interface SelectionAnchor {
 	range: TextRange;
 	rect: ScreenRect;
 	prefer: 'above' | 'below';
+	/** True only for a CodeMirror selection transaction annotated as user selection. */
+	userDriven: boolean;
 }

@@ -1,19 +1,20 @@
 import { StateEffect, StateField } from '@codemirror/state';
-import type { EditorState, Range } from '@codemirror/state';
-import { Decoration, EditorView, WidgetType } from '@codemirror/view';
-import type { DecorationSet } from '@codemirror/view';
+import type { EditorState, Extension, Range } from '@codemirror/state';
+import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
+import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import type { PerformerRecord } from '../../core/types.js';
 import type { VoiceGroupRange } from '../contracts.js';
+import { editorCallbacksField } from './editor-state.js';
 
 const MAX_VISIBLE_SEGMENTS = 3;
 
-const performerPalette = [
-	{ light: 'oklch(0.88 0.075 34)', dark: 'oklch(0.39 0.075 34)' },
-	{ light: 'oklch(0.89 0.065 102)', dark: 'oklch(0.4 0.065 102)' },
-	{ light: 'oklch(0.88 0.065 151)', dark: 'oklch(0.39 0.065 151)' },
-	{ light: 'oklch(0.88 0.065 225)', dark: 'oklch(0.39 0.065 225)' },
-	{ light: 'oklch(0.88 0.07 285)', dark: 'oklch(0.39 0.07 285)' },
-	{ light: 'oklch(0.88 0.07 330)', dark: 'oklch(0.39 0.07 330)' }
+export const performerPalette = [
+	{ light: 'oklch(0.9 0.06 34)', dark: 'oklch(0.34 0.06 34)' },
+	{ light: 'oklch(0.9 0.055 102)', dark: 'oklch(0.34 0.055 102)' },
+	{ light: 'oklch(0.9 0.055 151)', dark: 'oklch(0.34 0.055 151)' },
+	{ light: 'oklch(0.9 0.055 225)', dark: 'oklch(0.34 0.055 225)' },
+	{ light: 'oklch(0.9 0.06 285)', dark: 'oklch(0.34 0.06 285)' },
+	{ light: 'oklch(0.9 0.06 330)', dark: 'oklch(0.34 0.06 330)' }
 ] as const;
 
 export interface VoiceGroupDecorationPayload {
@@ -29,6 +30,23 @@ export interface PerformerSegmentStyle {
 }
 
 export const setVoiceGroupsEffect = StateEffect.define<VoiceGroupDecorationPayload>();
+
+const emptyPayload: VoiceGroupDecorationPayload = { groups: [], performers: [] };
+
+export const performerGroupsField = StateField.define<VoiceGroupDecorationPayload>({
+	create: () => emptyPayload,
+	update(value, transaction) {
+		if (transaction.docChanged) {
+			value = emptyPayload;
+		}
+		for (const effect of transaction.effects) {
+			if (effect.is(setVoiceGroupsEffect)) {
+				value = effect.value;
+			}
+		}
+		return value;
+	}
+});
 
 function paletteIndex(colorId: string): number {
 	let hash = 0;
@@ -120,7 +138,7 @@ function buildDecorations(state: EditorState, payload: VoiceGroupDecorationPaylo
 
 		ranges.push(
 			Decoration.mark({
-				class: 'll-performer-highlight',
+				class: `ll-performer-highlight ll-performer-slot-${group.group.styleSlot}`,
 				attributes: {
 					'aria-label': style.label,
 					title: style.label,
@@ -157,14 +175,78 @@ export const performerDecorationField = StateField.define<DecorationSet>({
 	provide: (field) => EditorView.decorations.from(field)
 });
 
+function performerRangeAtCaret(state: EditorState): VoiceGroupRange | undefined {
+	const selection = state.selection.main;
+	if (!selection.empty) {
+		return undefined;
+	}
+	const position = selection.head;
+	return state
+		.field(performerGroupsField)
+		.groups.find((group) => group.from <= position && position < group.to);
+}
+
+function performerRangeKey(range: VoiceGroupRange | undefined): string | undefined {
+	return range ? `${range.from}:${range.to}:${range.group.id}` : undefined;
+}
+
+class PerformerCaretAnnouncer {
+	private activeRangeKey: string | undefined;
+
+	constructor(readonly view: EditorView) {
+		this.activeRangeKey = performerRangeKey(performerRangeAtCaret(view.state));
+	}
+
+	update(update: ViewUpdate): void {
+		if (!update.selectionSet) {
+			return;
+		}
+		const range = performerRangeAtCaret(update.state);
+		const nextRangeKey = performerRangeKey(range);
+		if (nextRangeKey === this.activeRangeKey) {
+			return;
+		}
+		this.activeRangeKey = nextRangeKey;
+		if (!range) {
+			return;
+		}
+		const style = voiceGroupStyle(
+			range.group.performerIds,
+			update.state.field(performerGroupsField).performers
+		);
+		if (style) {
+			update.state.field(editorCallbacksField)?.onAnnouncement(style.label);
+		}
+	}
+}
+
+/** Announce performer identity once when a collapsed caret enters a highlighted range. */
+export function performerCaretAnnouncementPlugin(): Extension {
+	return ViewPlugin.define((view) => new PerformerCaretAnnouncer(view));
+}
+
 export const performerDecorationTheme = EditorView.baseTheme({
 	'.ll-performer-highlight': {
 		position: 'relative',
 		zIndex: '1',
 		borderRadius: '0.125rem',
 		background: 'var(--ll-performer-light)',
+		borderBlockEnd: '1px solid currentColor',
 		boxDecorationBreak: 'clone',
 		WebkitBoxDecorationBreak: 'clone'
+	},
+	'.ll-performer-slot-2': {
+		borderBlockEndStyle: 'double',
+		borderBlockEndWidth: '3px',
+		fontStyle: 'italic'
+	},
+	'.ll-performer-slot-3': {
+		borderBlockEndStyle: 'dashed',
+		fontWeight: '650'
+	},
+	'.ll-performer-slot-4': {
+		borderBlockEndStyle: 'dotted',
+		borderBlockEndWidth: '2px'
 	},
 	'.ll-performer-overflow': {
 		position: 'relative',

@@ -76,6 +76,10 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent): void {
+		const performerButton =
+			event.target instanceof HTMLElement
+				? event.target.closest<HTMLButtonElement>('[data-performer]')
+				: null;
 		switch (event.key) {
 			case 'ArrowRight':
 			case 'ArrowDown':
@@ -89,14 +93,20 @@
 				break;
 			case ' ':
 			case 'Spacebar': {
+				if (!performerButton) {
+					break;
+				}
 				event.preventDefault();
-				const performer = performers[activeIndex];
-				if (performer) {
-					toggle(performer.id);
+				const performerId = performerButton.dataset.performer;
+				if (performerId) {
+					toggle(performerId);
 				}
 				break;
 			}
 			case 'Enter':
+				if (!performerButton) {
+					break;
+				}
 				event.preventDefault();
 				void apply();
 				break;
@@ -128,7 +138,7 @@
 		{#each performers as performer, index (performer.id)}
 			<button
 				type="button"
-				data-performer
+				data-performer={performer.id}
 				aria-pressed={selectedIds.includes(performer.id)}
 				tabindex={index === activeIndex ? 0 : -1}
 				onclick={() => toggle(performer.id)}

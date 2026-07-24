@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import type { Diagnostic, DiagnosticFix, SourceReference } from '../../core/types.js';
 	import type { ScreenRect } from '../contracts.js';
 	import { safeExternalUrl } from './diagnostic-popover.js';
@@ -7,6 +8,8 @@
 		diagnostic: Diagnostic;
 		sources?: readonly SourceReference[];
 		anchor?: ScreenRect;
+		documentText?: string;
+		takeFocus?: boolean;
 		onApplyFix: (fix: DiagnosticFix) => void;
 		onIgnore: () => void;
 		onDismiss?: () => void;
@@ -16,10 +19,15 @@
 		diagnostic,
 		sources = [],
 		anchor,
+		documentText = '',
+		takeFocus = false,
 		onApplyFix,
 		onIgnore,
 		onDismiss = () => {}
 	}: Props = $props();
+	let root: HTMLDivElement;
+	let previewFix = $state<DiagnosticFix | undefined>();
+	let previousDiagnosticKey = $state('');
 	const citedSources = $derived(
 		diagnostic.sourceIds.map((sourceId) => ({
 			id: sourceId,
@@ -31,13 +39,60 @@
 			? `left: ${Math.max(8, anchor.left)}px; top: ${Math.max(8, anchor.bottom + 6)}px;`
 			: undefined
 	);
+	const previewChanges = $derived(
+		previewFix?.edit.edits.map((edit) => ({
+			before: documentText.slice(edit.from, edit.to),
+			after: edit.insert
+		})) ?? []
+	);
+
+	$effect(() => {
+		const diagnosticKey = `${diagnostic.ruleId}:${diagnostic.from}:${diagnostic.to}:${diagnostic.message}`;
+		if (diagnosticKey !== previousDiagnosticKey) {
+			previousDiagnosticKey = diagnosticKey;
+			previewFix = undefined;
+		}
+	});
+
+	$effect(() => {
+		if (!takeFocus) {
+			return;
+		}
+		const diagnosticAtOpen = diagnostic;
+		void tick().then(() => {
+			if (diagnostic !== diagnosticAtOpen) {
+				return;
+			}
+			const firstFix = root?.querySelector<HTMLButtonElement>('.fixes button');
+			(firstFix ?? root)?.focus();
+		});
+	});
+
+	// Compare fixes by their stable key, not object identity: reactive $state
+	// proxies make `===` unreliable between the stored fix and the render item.
+	function fixKey(fix: DiagnosticFix): string {
+		return `${fix.kind}:${fix.label}`;
+	}
+
+	function isPendingPreview(fix: DiagnosticFix): boolean {
+		return previewFix !== undefined && fixKey(previewFix) === fixKey(fix);
+	}
+
+	function activateFix(fix: DiagnosticFix): void {
+		if (fix.kind === 'preview' && !isPendingPreview(fix)) {
+			previewFix = fix;
+			return;
+		}
+		onApplyFix(fix);
+	}
 </script>
 
 <div
+	bind:this={root}
 	class="popover severity-{diagnostic.severity}"
 	class:anchored={anchor}
 	style={position}
-	role="dialog"
+	role={takeFocus ? 'dialog' : undefined}
 	tabindex="-1"
 	aria-label="Diagnostic details"
 	onkeydown={(event) => {
@@ -53,10 +108,30 @@
 	{#if diagnostic.fixes?.length}
 		<div class="fixes" aria-label="Available fixes">
 			{#each diagnostic.fixes as fix (`${fix.kind}:${fix.label}`)}
-				<button type="button" onclick={() => onApplyFix(fix)}>
-					{fix.label}
-					<span>{fix.kind === 'safe' ? 'Safe fix' : 'Preview'}</span>
+				<button type="button" onclick={() => activateFix(fix)}>
+					{isPendingPreview(fix) ? `Apply ${fix.label}` : fix.label}
+					<span>
+						{fix.kind === 'safe' ? 'Safe fix' : isPendingPreview(fix) ? 'Confirm' : 'Preview'}
+					</span>
 				</button>
+			{/each}
+		</div>
+	{/if}
+
+	{#if previewFix}
+		<div class="preview" aria-live="polite">
+			<p>Review the change, then activate the fix again to apply it.</p>
+			{#each previewChanges as change, index (`${index}:${change.before}:${change.after}`)}
+				<dl>
+					<div>
+						<dt>Before</dt>
+						<dd><code>{change.before || '(empty)'}</code></dd>
+					</div>
+					<div>
+						<dt>After</dt>
+						<dd><code>{change.after || '(empty)'}</code></dd>
+					</div>
+				</dl>
 			{/each}
 		</div>
 	{/if}
@@ -157,6 +232,53 @@
 		margin-inline-start: 0.35rem;
 		color: color-mix(in oklch, currentColor 65%, transparent);
 		font-size: 0.7rem;
+	}
+
+	.preview {
+		margin-block-end: 0.7rem;
+		padding: 0.55rem;
+		border: 1px solid var(--ll-border, oklch(0.78 0.012 75));
+		border-radius: 0.375rem;
+		background: var(--color-surface-subtle, oklch(0.953 0.01 78));
+	}
+
+	.preview p {
+		margin: 0 0 0.45rem;
+		font-weight: 550;
+	}
+
+	.preview dl {
+		display: grid;
+		grid-template-columns: minmax(4rem, auto) 1fr;
+		gap: 0.25rem 0.55rem;
+		margin: 0;
+	}
+
+	.preview dl + dl {
+		margin-block-start: 0.45rem;
+		padding-block-start: 0.45rem;
+		border-block-start: 1px solid var(--ll-border, oklch(0.78 0.012 75));
+	}
+
+	.preview dl div {
+		display: contents;
+	}
+
+	.preview dt {
+		font-weight: 650;
+	}
+
+	.preview dd {
+		min-width: 0;
+		margin: 0;
+	}
+
+	.preview code {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		font:
+			0.75rem/1.4 ui-monospace,
+			monospace;
 	}
 
 	ul {

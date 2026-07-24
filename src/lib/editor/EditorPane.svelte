@@ -29,11 +29,12 @@
 		ondestroyed
 	}: EditorPaneProps = $props();
 	let host: HTMLDivElement;
-	let editor: LyricEditorInstance | undefined;
+	let editor = $state.raw<LyricEditorInstance | undefined>();
 	let selectionAnchor = $state<SelectionAnchor | undefined>();
 	let performerRange = $state<TextRange | undefined>();
 	let sectionRange = $state<TextRange | undefined>();
 	let activeDiagnostic = $state<Diagnostic | undefined>();
+	let diagnosticTakesFocus = $state(false);
 	let performerOpen = $state(false);
 	let sectionOpen = $state(false);
 	let dismissedSelection = $state<string | undefined>();
@@ -93,6 +94,7 @@
 		if (performerOpen) {
 			sectionOpen = false;
 			activeDiagnostic = undefined;
+			diagnosticTakesFocus = false;
 		}
 	}
 
@@ -115,13 +117,30 @@
 				sectionOpen = true;
 				performerOpen = false;
 				activeDiagnostic = undefined;
+				diagnosticTakesFocus = false;
 				callbacks.onSectionHeaderRequest(request);
 			},
 			onDiagnosticActivate(diagnostic) {
 				activeDiagnostic = diagnostic;
+				diagnosticTakesFocus = false;
 				performerOpen = false;
 				sectionOpen = false;
 				callbacks.onDiagnosticActivate(diagnostic);
+			},
+			onDiagnosticActivateIntent(diagnostic) {
+				activeDiagnostic = diagnostic;
+				diagnosticTakesFocus = true;
+				performerOpen = false;
+				sectionOpen = false;
+				callbacks.onDiagnosticActivate(diagnostic);
+			},
+			onDiagnosticDismiss() {
+				if (!activeDiagnostic) {
+					return false;
+				}
+				activeDiagnostic = undefined;
+				diagnosticTakesFocus = false;
+				return true;
 			}
 		};
 	}
@@ -198,6 +217,7 @@
 			callbacks.onAnnouncement('Preview fixes require the application review handler.');
 		}
 		activeDiagnostic = undefined;
+		diagnosticTakesFocus = false;
 		returnFocus();
 	}
 
@@ -206,6 +226,7 @@
 			callbacks.onIgnoreDiagnostic?.(activeDiagnostic);
 		}
 		activeDiagnostic = undefined;
+		diagnosticTakesFocus = false;
 		returnFocus();
 	}
 
@@ -213,6 +234,7 @@
 		performerOpen = false;
 		sectionOpen = false;
 		activeDiagnostic = undefined;
+		diagnosticTakesFocus = false;
 	}
 
 	$effect(() => {
@@ -244,6 +266,7 @@
 					}
 					const key = rangeKey(anchor.range);
 					if (
+						anchor.userDriven &&
 						context.performers.length > 0 &&
 						key !== dismissedSelection &&
 						(!performerRange || key !== rangeKey(performerRange) || !performerOpen)
@@ -304,10 +327,13 @@
 		diagnostic={activeDiagnostic}
 		sources={context.sources}
 		anchor={activeAnchor(activeDiagnostic)}
+		documentText={editor?.handle.getSnapshot().text ?? initialText}
+		takeFocus={diagnosticTakesFocus}
 		onApplyFix={applyFix}
 		onIgnore={ignoreDiagnostic}
 		onDismiss={() => {
 			activeDiagnostic = undefined;
+			diagnosticTakesFocus = false;
 			returnFocus();
 		}}
 	/>
