@@ -102,7 +102,9 @@
 				headerName,
 				ordinal
 			});
-			return result.status === 'applied' ? result.edit : undefined;
+			if (result.status === 'applied') return result.edit;
+			controller.feedback.announce('That section header could not be inserted here.');
+			return undefined;
 		},
 		onApplyDiagnosticFix: (diagnostic, fix) => controller.applyFix(diagnostic, fix),
 		onIgnoreDiagnostic: (diagnostic) => controller.ignoreRule(diagnostic.ruleId)
