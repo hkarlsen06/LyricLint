@@ -1,17 +1,12 @@
-import type { Diagnostic, ParsedDocument, RuleContext, RuleDefinition } from '../core/types.js';
-
-function rulesWorker(): never {
-	throw new Error('not implemented: rules worker');
-}
+import type { RuleDefinition } from '../core/types.js';
+import { enabledRules } from './registry.js';
 
 /** Return the reviewed rule definitions enabled in the bundled rule set. */
 export function getEnabledRules(): RuleDefinition[] {
-	return rulesWorker();
+	return [...enabledRules];
 }
 
-/** Run the enabled registry synchronously against one parsed document revision. */
-export function runRules(_document: ParsedDocument, _context: RuleContext): Diagnostic[] {
-	void _document;
-	void _context;
-	return rulesWorker();
-}
+export { collectSafeFixes, filterIgnored, runRules, sortDiagnostics } from './engine.js';
+export { enabledRules, getRule, validateRuleRegistry } from './registry.js';
+export { currentRuleSet, previousKnownGoodRuleSet } from './data/rule-set.js';
+export { assertReviewedSources, getSource, sourceRegistry } from './data/sources.js';

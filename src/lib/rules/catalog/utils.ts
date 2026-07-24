@@ -1,0 +1,110 @@
+import type {
+	Diagnostic,
+	DiagnosticFix,
+	LyricLine,
+	RuleContext,
+	RuleDefinition,
+	TextRange
+} from '../../core/types.js';
+
+export function diagnostic(
+	rule: RuleDefinition,
+	range: TextRange,
+	message: string,
+	explanation: string,
+	fixes?: DiagnosticFix[],
+	sourceIds: string[] = rule.sourceIds
+): Diagnostic {
+	return {
+		ruleId: rule.id,
+		severity: rule.defaultSeverity,
+		from: range.from,
+		to: range.to,
+		message,
+		explanation,
+		sourceIds,
+		...(fixes && fixes.length > 0 ? { fixes } : {})
+	};
+}
+
+function contextRevision(context: RuleContext): number {
+	// The frozen RuleContext currently omits revision. Accept an integration extension
+	// when present and use the parser's initial revision otherwise.
+	return (context as RuleContext & { revision?: number }).revision ?? 0;
+}
+
+export function replacementFix(
+	context: RuleContext,
+	kind: DiagnosticFix['kind'],
+	label: string,
+	range: TextRange,
+	insert: string
+): DiagnosticFix {
+	return {
+		kind,
+		label,
+		edit: {
+			baseRevision: contextRevision(context),
+			edits: [{ from: range.from, to: range.to, insert }]
+		}
+	};
+}
+
+export function hasUnsupportedMarkup(line: LyricLine): boolean {
+	return line.styleSpans.some((span) => 'unsupported' in span);
+}
+
+export function maskedMarkupText(line: LyricLine): string {
+	// split('') preserves one array entry per UTF-16 code unit, matching parser offsets.
+	const characters = line.text.split('');
+	for (const match of line.text.matchAll(/<[^>]*>/gu)) {
+		const from = match.index;
+		for (let index = from; index < from + match[0].length; index += 1) {
+			characters[index] = ' ';
+		}
+	}
+	return characters.join('');
+}
+
+export interface AbsoluteMatch {
+	from: number;
+	to: number;
+	text: string;
+	groups: Record<string, string | undefined>;
+}
+
+export function matchesOutsideMarkup(line: LyricLine, pattern: RegExp): AbsoluteMatch[] {
+	if (hasUnsupportedMarkup(line)) {
+		return [];
+	}
+	const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+	const safePattern = new RegExp(pattern.source, flags);
+	return Array.from(maskedMarkupText(line).matchAll(safePattern), (match) => ({
+		from: line.from + match.index,
+		to: line.from + match.index + match[0].length,
+		text: line.text.slice(match.index, match.index + match[0].length),
+		groups: match.groups ?? {}
+	}));
+}
+
+export function visibleLineStart(line: LyricLine): { offset: number; text: string } | undefined {
+	if (hasUnsupportedMarkup(line)) {
+		return undefined;
+	}
+	const masked = maskedMarkupText(line);
+	const match = /\S/u.exec(masked);
+	if (!match) {
+		return undefined;
+	}
+	return { offset: line.from + match.index, text: line.text.slice(match.index) };
+}
+
+export function preserveCase(found: string, replacement: string): string {
+	if (found === found.toUpperCase() && /\p{L}/u.test(found)) {
+		return replacement.toUpperCase();
+	}
+	if (found[0] === found[0]?.toUpperCase()) {
+		return `${replacement[0]?.toUpperCase() ?? ''}${replacement.slice(1)}`;
+	}
+	return replacement;
+}
