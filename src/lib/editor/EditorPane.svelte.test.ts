@@ -159,7 +159,7 @@ describe('EditorPane', () => {
 	});
 
 	it('applies a multi-change atomic edit as one undo step', async () => {
-		const original = 'Verse\nhello';
+		const original = 'Verse\nhello world';
 		const { handle } = await mountEditor({ text: original, selection: { anchor: 6, head: 11 } });
 
 		handle.dispatchAtomic({
@@ -168,9 +168,9 @@ describe('EditorPane', () => {
 				{ from: 0, to: 5, insert: '[Verse: Avery]' },
 				{ from: 6, to: 11, insert: '<i>hello</i>' }
 			],
-			selectionAfter: { anchor: 22, head: 27 }
+			selectionAfter: { anchor: 18, head: 23 }
 		});
-		expect(handle.getSnapshot().text).toBe('[Verse: Avery]\n<i>hello</i>');
+		expect(handle.getSnapshot().text).toBe('[Verse: Avery]\n<i>hello</i> world');
 
 		handle.undo();
 		expect(handle.getSnapshot().text).toBe(original);
@@ -488,27 +488,78 @@ describe('PerformerPicker keyboard flow', () => {
 		expect(focusTarget).toBe(document.activeElement);
 	});
 
-	it('lets Enter on Cancel run cancel without applying', async () => {
+	it('opens with an empty roster and adds a performer inline from the + chip', async () => {
 		const focusTarget = document.createElement('button');
 		focusTarget.dataset.testFocusReturn = 'true';
 		focusTarget.textContent = 'Editor focus target';
 		document.body.append(focusTarget);
 		const onApply = vi.fn();
+		const onAddPerformer = vi.fn();
+		const roster = performers().slice(0, 1);
+
+		const screen = await render(PerformerPicker, {
+			performers: [],
+			onApply,
+			onCancel: vi.fn(),
+			returnFocus: () => focusTarget.focus(),
+			onAddPerformer
+		});
+		await expect.element(page.getByText('Add a performer', { exact: true })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Add a performer' })).toHaveFocus();
+
+		await userEvent.keyboard('{Enter}');
+		const nameInput = page.getByRole('textbox', { name: 'New performer name' });
+		await expect.element(nameInput).toHaveFocus();
+		await userEvent.keyboard('Avery{Enter}');
+		expect(onAddPerformer).toHaveBeenCalledWith('Avery');
+
+		// The shell adds the performer to the roster; the new chip arrives
+		// pre-selected and focused so Enter immediately applies.
+		await screen.rerender({ performers: roster });
+		await expect.element(page.getByRole('button', { name: /Avery/u })).toHaveFocus();
+		await userEvent.keyboard('{Enter}');
+		expect(onApply).toHaveBeenCalledWith(['avery']);
+	});
+
+	it('backs out one level per Escape: input, then chips, then closed', async () => {
+		const focusTarget = document.createElement('button');
+		focusTarget.dataset.testFocusReturn = 'true';
+		focusTarget.textContent = 'Editor focus target';
+		document.body.append(focusTarget);
 		const onCancel = vi.fn();
 
 		await render(PerformerPicker, {
 			performers: performers(),
-			initialSelectedIds: ['avery'],
-			onApply,
+			onApply: vi.fn(),
 			onCancel,
 			returnFocus: () => focusTarget.focus()
 		});
-		const cancel = page.getByRole('button', { name: 'Cancel' });
-		cancel.element().focus();
-		await userEvent.keyboard('{Enter}');
+		// No onAddPerformer means no + chip; with it, the input round-trips.
+		await expect
+			.element(page.getByRole('button', { name: 'Add a performer' }))
+			.not.toBeInTheDocument();
 
+		const screen = await render(PerformerPicker, {
+			performers: performers(),
+			onApply: vi.fn(),
+			onCancel,
+			returnFocus: () => focusTarget.focus(),
+			onAddPerformer: vi.fn()
+		});
+		await userEvent.click(page.getByRole('button', { name: 'Add a performer' }));
+		await expect.element(page.getByRole('textbox', { name: 'New performer name' })).toHaveFocus();
+
+		await userEvent.keyboard('{Escape}');
+		expect(onCancel).not.toHaveBeenCalled();
+		await expect
+			.element(page.getByRole('textbox', { name: 'New performer name' }))
+			.not.toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: 'Add a performer' })).toHaveFocus();
+
+		await userEvent.keyboard('{Escape}');
 		expect(onCancel).toHaveBeenCalledOnce();
-		expect(onApply).not.toHaveBeenCalled();
+		expect(focusTarget).toBe(document.activeElement);
+		screen.unmount();
 	});
 });
 

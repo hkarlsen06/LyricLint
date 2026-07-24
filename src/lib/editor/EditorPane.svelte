@@ -90,12 +90,12 @@
 
 	function openPerformerPicker(range: TextRange): void {
 		performerRange = range;
-		performerOpen = context.performers.length > 0;
-		if (performerOpen) {
-			sectionOpen = false;
-			activeDiagnostic = undefined;
-			diagnosticTakesFocus = false;
-		}
+		// The card opens even with an empty roster: it then offers the inline
+		// "+" add flow so assignment never dead-ends on a missing performer.
+		performerOpen = true;
+		sectionOpen = false;
+		activeDiagnostic = undefined;
+		diagnosticTakesFocus = false;
 	}
 
 	function internalCallbacks(): LyricEditorCallbacks {
@@ -267,7 +267,6 @@
 					const key = rangeKey(anchor.range);
 					if (
 						anchor.userDriven &&
-						context.performers.length > 0 &&
 						key !== dismissedSelection &&
 						(!performerRange || key !== rangeKey(performerRange) || !performerOpen)
 					) {
@@ -314,14 +313,9 @@
 		onApply={applyPerformers}
 		onCancel={cancelPerformer}
 		{returnFocus}
-		onManageRoster={() => {
-			const range = performerRange;
-			if (!range) {
-				return;
-			}
-			callbacks.onAssignRequest({ range, prefer: anchorPreference(range) });
-			callbacks.onAnnouncement('Performers panel opened to manage the roster.');
-		}}
+		onAddPerformer={callbacks.onAddPerformer
+			? (displayName) => callbacks.onAddPerformer?.(displayName)
+			: undefined}
 	/>
 {/if}
 

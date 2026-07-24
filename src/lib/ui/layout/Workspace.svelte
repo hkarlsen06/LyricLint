@@ -91,10 +91,10 @@
 
 	const editorCallbacks: LyricEditorCallbacks = {
 		onSnapshot: (snapshot) => controller.onSnapshot(enrichSnapshot(snapshot)),
-		onAssignRequest: () => {
-			controller.setPanelCollapsed(false);
-			controller.setActiveTab('performers');
-		},
+		// Assignment happens inline in the floating card; the right panel keeps
+		// whatever tab the user chose.
+		onAssignRequest: () => {},
+		onAddPerformer: (displayName) => controller.addPerformer(displayName),
 		onSectionHeaderRequest: () => {},
 		onDiagnosticActivate: (diagnostic) => controller.navigateToDiagnostic(diagnostic),
 		onAnnouncement: (message) => controller.feedback.announce(message),

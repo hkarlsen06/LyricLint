@@ -67,6 +67,8 @@ export interface EditorOverlayCallbacks {
 	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
 	onApplyDiagnosticFix?(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	onIgnoreDiagnostic?(diagnostic: Diagnostic): void;
+	/** Add a performer to the draft roster from the floating assignment card. */
+	onAddPerformer?(displayName: string): void;
 	onDiagnosticActivateIntent?(diagnostic: Diagnostic, intent: 'navigate' | 'fix'): void;
 	onDiagnosticDismiss?(): boolean;
 }
