@@ -2,7 +2,6 @@
 	import type { Severity } from '$lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import DiagnosticList from './DiagnosticList.svelte';
-	import IgnoredRules from './IgnoredRules.svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
 
@@ -12,6 +11,9 @@
 		{ value: 'suggestion', label: 'Suggestions' },
 		{ value: 'manual-review', label: 'Manual review' }
 	];
+
+	let filtersOpen = $state(false);
+	const filtered = $derived(controller.severityFilter.length < filters.length);
 
 	const counts = $derived.by(() => {
 		const result: Record<Severity, number> = {
@@ -25,34 +27,51 @@
 		}
 		return result;
 	});
+
+	function lineFor(offset: number): number {
+		const text = controller.snapshot.text;
+		let line = 1;
+		for (let index = 0; index < offset && index < text.length; index += 1) {
+			if (text[index] === '\n') line += 1;
+		}
+		return line;
+	}
 </script>
 
 <div class="panel-content linter-panel">
-	<fieldset class="severity-filters">
-		<legend class="sr-only">Filter diagnostics by severity</legend>
-		{#each filters as filter (filter.value)}
-			<label>
-				<input
-					type="checkbox"
-					checked={controller.severityFilter.includes(filter.value)}
-					onchange={() => controller.toggleSeverity(filter.value)}
-				/>
-				<span>{filter.label}</span>
-				<span>{counts[filter.value]}</span>
-			</label>
-		{/each}
-	</fieldset>
+	<div class="linter-panel__filter-row">
+		<button
+			type="button"
+			class="linter-panel__filter-toggle"
+			class:is-filtered={filtered}
+			aria-expanded={filtersOpen}
+			onclick={() => (filtersOpen = !filtersOpen)}
+		>
+			Filter{filtered ? ' · on' : ''}
+		</button>
+	</div>
+	{#if filtersOpen}
+		<div class="linter-panel__filters" role="group" aria-label="Filter diagnostics by severity">
+			{#each filters as filter (filter.value)}
+				<button
+					type="button"
+					class="linter-panel__filter-chip"
+					aria-pressed={controller.severityFilter.includes(filter.value)}
+					onclick={() => controller.toggleSeverity(filter.value)}
+				>
+					{filter.label}
+					<span class="linter-panel__filter-count">{counts[filter.value]}</span>
+				</button>
+			{/each}
+		</div>
+	{/if}
 
 	<DiagnosticList
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
+		{lineFor}
 		onNavigate={(diagnostic) => controller.navigateToDiagnostic(diagnostic)}
 		onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
 		onIgnore={(ruleId) => controller.ignoreRule(ruleId)}
-	/>
-
-	<IgnoredRules
-		ruleIds={controller.ignoredRuleIds}
-		onRestore={(ruleId) => controller.restoreRule(ruleId)}
 	/>
 </div>

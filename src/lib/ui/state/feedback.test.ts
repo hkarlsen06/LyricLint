@@ -38,7 +38,11 @@ describe('feedback toast lifecycle', () => {
 
 	it('pauses the countdown while engaged and resumes with remaining time', () => {
 		const feedback = createFeedbackState();
-		const id = feedback.addToast({ message: 'Ignored rule.', actionLabel: 'Undo', action: () => {} });
+		const id = feedback.addToast({
+			message: 'Ignored rule.',
+			actionLabel: 'Undo',
+			action: () => {}
+		});
 
 		vi.advanceTimersByTime(3000);
 		feedback.pauseToast(id);

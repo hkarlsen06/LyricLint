@@ -6,12 +6,14 @@
 	let {
 		diagnostics,
 		sources,
+		lineFor,
 		onNavigate,
 		onApplyFix,
 		onIgnore
 	}: {
 		diagnostics: readonly Diagnostic[];
 		sources: ReadonlyMap<string, SourceReference>;
+		lineFor?: (offset: number) => number;
 		onNavigate: (diagnostic: Diagnostic) => void;
 		onApplyFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
 		onIgnore: (ruleId: string) => void;
@@ -33,10 +35,45 @@
 		)
 	);
 
+	function cardKey(diagnostic: Diagnostic): string {
+		return `${diagnostic.ruleId}:${diagnostic.from}:${diagnostic.to}`;
+	}
+
+	// Exactly one card sits expanded at a time; before any explicit choice the
+	// top card starts expanded so the panel is never a wall of closed rows.
+	let chosenKey = $state<string | undefined>();
+	const expandedKey = $derived.by(() => {
+		if (chosenKey && sortedDiagnostics.some((diagnostic) => cardKey(diagnostic) === chosenKey)) {
+			return chosenKey;
+		}
+		const first = sortedDiagnostics[0];
+		return first ? cardKey(first) : undefined;
+	});
+
 	function severityLabel(severity: Severity): string {
 		return severity === 'manual-review'
 			? 'Manual review'
 			: `${severity.slice(0, 1).toUpperCase()}${severity.slice(1)}`;
+	}
+
+	function subtitle(diagnostic: Diagnostic): string {
+		const parts: string[] = [];
+		if (lineFor) {
+			parts.push(`Line ${lineFor(diagnostic.from)}`);
+		}
+		if (diagnostic.severity === 'manual-review') {
+			parts.push('Judgment call — not an error');
+		} else if (diagnostic.fixes?.some((fix) => fix.kind === 'safe')) {
+			parts.push('Safe fix available');
+		} else if (diagnostic.fixes?.some((fix) => fix.kind === 'preview')) {
+			parts.push('Fix available with preview');
+		}
+		return parts.join(' · ');
+	}
+
+	function activate(diagnostic: Diagnostic): void {
+		chosenKey = cardKey(diagnostic);
+		onNavigate(diagnostic);
 	}
 
 	async function ignoreAndMoveFocus(ruleId: string, trigger: HTMLButtonElement): Promise<void> {
@@ -44,9 +81,9 @@
 		const nextRowControl = row?.nextElementSibling?.querySelector<HTMLButtonElement>(
 			'.diagnostic-list__navigate'
 		);
-		const fallback = trigger
-			.closest('.linter-panel')
-			?.querySelector<HTMLButtonElement>('.ignored-rules__toggle');
+		const fallback =
+			trigger.closest('.right-panel')?.querySelector<HTMLButtonElement>('.ignored-rules__toggle') ??
+			document.querySelector<HTMLButtonElement>('.ignored-rules__toggle');
 		onIgnore(ruleId);
 		await tick();
 		if (nextRowControl?.isConnected) {
@@ -61,8 +98,12 @@
 	<p class="empty-state">No diagnostics match the current filters.</p>
 {:else}
 	<ol class="diagnostic-list" aria-label="Document diagnostics">
-		{#each sortedDiagnostics as diagnostic, index (`${diagnostic.ruleId}-${diagnostic.from}-${diagnostic.to}-${index}`)}
-			<li class:diagnostic-error={diagnostic.severity === 'error'}>
+		{#each sortedDiagnostics as diagnostic, index (`${cardKey(diagnostic)}-${index}`)}
+			{@const expanded = cardKey(diagnostic) === expandedKey}
+			<li
+				class:diagnostic-error={diagnostic.severity === 'error'}
+				class:diagnostic-card--expanded={expanded}
+			>
 				<div class="diagnostic-list__heading">
 					<span class={`severity severity--${diagnostic.severity}`}>
 						<svg
@@ -97,17 +138,23 @@
 						type="button"
 						class="diagnostic-list__navigate"
 						aria-label={`Go to ${diagnostic.message}`}
-						onclick={() => onNavigate(diagnostic)}
+						aria-expanded={expanded}
+						onclick={() => activate(diagnostic)}
 					>
 						{diagnostic.message}
 					</button>
+					{#if subtitle(diagnostic)}
+						<span class="diagnostic-list__subtitle">{subtitle(diagnostic)}</span>
+					{/if}
 				</div>
-				<DiagnosticDetails
-					{diagnostic}
-					{sources}
-					onApplyFix={(fix) => onApplyFix(diagnostic, fix)}
-					onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic.ruleId, trigger)}
-				/>
+				{#if expanded}
+					<DiagnosticDetails
+						{diagnostic}
+						{sources}
+						onApplyFix={(fix) => onApplyFix(diagnostic, fix)}
+						onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic.ruleId, trigger)}
+					/>
+				{/if}
 			</li>
 		{/each}
 	</ol>

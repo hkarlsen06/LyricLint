@@ -31,43 +31,46 @@
 		{/each}
 	</div>
 
-	{#if diagnostic.fixes?.length}
-		<div class="diagnostic-details__fixes" aria-label="Available fixes">
-			{#each diagnostic.fixes as fix (`${fix.kind}-${fix.label}`)}
-				{#if fix.kind === 'safe'}
-					<button type="button" class="button button--primary" onclick={() => onApplyFix(fix)}>
-						{fix.label}
-					</button>
-				{:else if previewFix === fix}
-					<span class="confirm-row">
-						Review the affected range before applying.
-						<button
-							type="button"
-							class="button button--primary"
-							onclick={() => {
-								onApplyFix(fix);
-								previewFix = undefined;
-							}}>Apply previewed fix</button
-						>
-						<button
-							type="button"
-							class="button button--quiet"
-							onclick={() => (previewFix = undefined)}>Cancel</button
-						>
-					</span>
-				{:else}
-					<button type="button" class="button button--quiet" onclick={() => (previewFix = fix)}>
-						Preview: {fix.label}
-					</button>
-				{/if}
-			{/each}
-		</div>
-	{/if}
-
 	<div class="diagnostic-details__actions">
+		{#each diagnostic.fixes ?? [] as fix (`${fix.kind}-${fix.label}`)}
+			{#if fix.kind === 'safe'}
+				<button
+					type="button"
+					class="button button--pill diagnostic-details__fix"
+					onclick={() => onApplyFix(fix)}
+				>
+					{fix.label}
+				</button>
+			{:else if previewFix === fix}
+				<span class="confirm-row">
+					Review the affected range before applying.
+					<button
+						type="button"
+						class="button button--pill diagnostic-details__fix"
+						onclick={() => {
+							onApplyFix(fix);
+							previewFix = undefined;
+						}}>Apply previewed fix</button
+					>
+					<button
+						type="button"
+						class="button button--quiet"
+						onclick={() => (previewFix = undefined)}>Cancel</button
+					>
+				</span>
+			{:else}
+				<button
+					type="button"
+					class="button button--pill diagnostic-details__fix"
+					onclick={() => (previewFix = fix)}
+				>
+					Preview: {fix.label}
+				</button>
+			{/if}
+		{/each}
 		<button
 			type="button"
-			class="button button--quiet"
+			class="diagnostic-details__ignore"
 			onclick={(event) => onIgnore(event.currentTarget)}
 		>
 			Ignore this session

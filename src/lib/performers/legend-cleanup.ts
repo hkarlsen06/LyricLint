@@ -28,9 +28,7 @@ function sectionIsSafeToPrune(section: Section): boolean {
 	if (header.legendGroups.some((group) => !group.markupSupported)) {
 		return false;
 	}
-	if (
-		section.lines.some((line) => line.styleSpans.some((span) => 'unsupported' in span))
-	) {
+	if (section.lines.some((line) => line.styleSpans.some((span) => 'unsupported' in span))) {
 		return false;
 	}
 	return section.lines.some((line) => line.text.trim().length > 0);

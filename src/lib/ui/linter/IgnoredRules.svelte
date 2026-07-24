@@ -38,7 +38,7 @@
 			<span>No rules ignored this session</span>
 		{:else}
 			<span>{ruleIds.length} {ruleIds.length === 1 ? 'rule' : 'rules'} ignored</span>
-			<span class="ignored-rules__restore-hint">· Restore</span>
+			<span class="ignored-rules__restore-hint">Restore</span>
 		{/if}
 	</button>
 	{#if expanded}

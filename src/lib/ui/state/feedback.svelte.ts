@@ -1,4 +1,5 @@
 import { getContext, setContext } from 'svelte';
+import { SvelteMap } from 'svelte/reactivity';
 
 export interface ToastMessage {
 	id: string;
@@ -42,7 +43,7 @@ export function createFeedbackState(): FeedbackState {
 	let announcementId = $state(0);
 	let toasts = $state<ToastMessage[]>([]);
 	let nextToastId = 0;
-	const countdowns = new Map<string, ToastCountdown>();
+	const countdowns = new SvelteMap<string, ToastCountdown>();
 
 	function clearCountdown(id: string): void {
 		const countdown = countdowns.get(id);

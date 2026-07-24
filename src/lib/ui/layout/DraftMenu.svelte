@@ -2,10 +2,8 @@
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { tick } from 'svelte';
 
-	let {
-		controller,
-		open = $bindable(false)
-	}: { controller: WorkbenchController; open?: boolean } = $props();
+	let { controller, open = $bindable(false) }: { controller: WorkbenchController; open?: boolean } =
+		$props();
 
 	let renameId = $state<string | undefined>();
 	let renameValue = $state('');

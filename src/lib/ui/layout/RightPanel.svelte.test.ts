@@ -48,7 +48,12 @@ describe('RightPanel', () => {
 		expect(calls.selections).toEqual([{ anchor: 9, head: 13 }]);
 		expect(calls.focusCount).toBe(1);
 
-		await fireEvent.click(screen.getByRole('checkbox', { name: /Warnings/ }));
+		expect(screen.queryByRole('group', { name: 'Filter diagnostics by severity' })).toBeNull();
+		await fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
+		const warningChip = screen.getByRole('button', { name: /Warnings/ });
+		expect(warningChip.getAttribute('aria-pressed')).toBe('true');
+		await fireEvent.click(warningChip);
+		expect(warningChip.getAttribute('aria-pressed')).toBe('false');
 		expect(screen.queryByText('Add a section header')).toBeNull();
 		expect(screen.getByText('Close this section header')).toBeTruthy();
 	});

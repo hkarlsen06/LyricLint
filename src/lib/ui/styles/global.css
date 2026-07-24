@@ -358,18 +358,39 @@ select {
 	min-width: 0;
 	height: 100%;
 	min-height: 0;
-	overflow: auto;
+	overflow: hidden;
 	grid-row: 1;
 	border-left: 1px solid var(--color-border);
 	background: var(--color-canvas);
 }
 
+/* Bits UI renders Tabs.Root as a plain div; it must become the column that
+   pins the header on top and the ignored-rules footer at the bottom. */
+.right-panel__tabs-root {
+	display: flex;
+	height: 100%;
+	min-height: 0;
+	flex-direction: column;
+}
+
+.right-panel__body {
+	min-height: 0;
+	flex: 1;
+	overflow: auto;
+}
+
+.right-panel__footer {
+	flex: none;
+	padding: 0 var(--space-4);
+	border-top: 1px solid var(--color-border);
+	background: var(--color-canvas);
+}
+
 .right-panel__header {
-	position: sticky;
 	z-index: 3;
-	top: 0;
 	display: flex;
 	min-height: 3.5rem;
+	flex: none;
 	padding: 0 var(--space-2) 0 var(--space-3);
 	border-bottom: 1px solid var(--color-border);
 	align-items: center;
@@ -402,7 +423,7 @@ select {
 	bottom: -1px;
 	left: 0;
 	height: 2px;
-	background: var(--color-accent);
+	background: var(--color-text);
 	content: '';
 }
 
@@ -414,15 +435,11 @@ select {
 	padding: 0 0.3rem;
 	place-items: center;
 	border-radius: var(--radius-pill);
-	background: var(--color-surface-strong);
-	color: var(--color-text);
+	background: var(--color-warning);
+	color: var(--color-canvas);
 	font-size: 0.7rem;
+	font-weight: 750;
 	font-variant-numeric: tabular-nums;
-}
-
-.panel-tabs button[data-state='active'] .tab-count {
-	background: var(--color-accent);
-	color: var(--color-accent-text);
 }
 
 .panel-content {
@@ -460,22 +477,61 @@ select {
 	font-weight: 650;
 }
 
-.severity-filters {
-	display: grid;
-	margin: 0 0 var(--space-4);
-	padding: 0;
-	border: 0;
-	grid-template-columns: 1fr 1fr;
-	gap: var(--space-1) var(--space-3);
+.linter-panel__filter-row {
+	display: flex;
+	margin-bottom: var(--space-2);
+	justify-content: flex-end;
 }
 
-.severity-filters label {
-	display: grid;
-	grid-template-columns: auto 1fr auto;
-	gap: var(--space-2);
-	align-items: center;
+.linter-panel__filter-toggle {
+	padding: 0.15rem 0.4rem;
+	border: 0;
+	border-radius: var(--radius-control);
+	background: transparent;
 	color: var(--color-text-muted);
-	font-size: 0.8125rem;
+	font-size: 0.78rem;
+	font-weight: 650;
+}
+
+.linter-panel__filter-toggle:hover,
+.linter-panel__filter-toggle[aria-expanded='true'] {
+	background: var(--color-surface-strong);
+	color: var(--color-text);
+}
+
+.linter-panel__filter-toggle.is-filtered {
+	color: var(--color-accent);
+}
+
+.linter-panel__filters {
+	display: flex;
+	margin-bottom: var(--space-3);
+	flex-wrap: wrap;
+	gap: var(--space-1);
+}
+
+.linter-panel__filter-chip {
+	display: inline-flex;
+	padding: 0.18rem 0.55rem;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-pill);
+	gap: 0.35rem;
+	align-items: center;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: 0.75rem;
+	font-weight: 650;
+}
+
+.linter-panel__filter-chip[aria-pressed='true'] {
+	border-color: var(--color-border-strong);
+	background: var(--color-surface-strong);
+	color: var(--color-text);
+}
+
+.linter-panel__filter-count {
+	color: var(--color-text-muted);
+	font-variant-numeric: tabular-nums;
 }
 
 .diagnostic-list {
@@ -491,12 +547,22 @@ select {
 	border: 1px solid var(--color-border);
 	border-radius: var(--radius-panel);
 	background: var(--color-surface);
+}
+
+.diagnostic-list > li.diagnostic-card--expanded {
+	border-color: var(--color-border-strong);
+	background: var(--color-surface-subtle);
 	box-shadow: var(--shadow-raised);
 }
 
 .diagnostic-list__heading {
 	display: grid;
 	gap: var(--space-1);
+}
+
+.diagnostic-list__subtitle {
+	color: var(--color-text-muted);
+	font-size: 0.78rem;
 }
 
 .diagnostic-list__navigate {
@@ -564,16 +630,38 @@ select {
 	font-size: 0.8125rem;
 }
 
-.diagnostic-details__fixes {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-2);
-}
-
 .diagnostic-details__actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--space-2);
+	align-items: center;
+}
+
+.diagnostic-details__fix {
+	border-color: var(--color-border-strong);
+	background: transparent;
+	color: var(--color-text);
+}
+
+.diagnostic-details__fix:hover {
+	background: var(--color-surface-strong);
+}
+
+.diagnostic-details__ignore {
+	margin-inline-start: auto;
+	padding: 0.25rem 0.4rem;
+	border: 0;
+	border-radius: var(--radius-control);
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: 0.78rem;
+	font-weight: 650;
+}
+
+.diagnostic-details__ignore:hover {
+	color: var(--color-text);
+	text-decoration: underline;
+	text-underline-offset: 0.16em;
 }
 
 .diagnostic-details__sources {
@@ -612,13 +700,7 @@ select {
 }
 
 .ignored-rules {
-	margin-top: var(--space-4);
-	padding-top: var(--space-3);
-	border-top: 1px solid var(--color-border);
-}
-
-.ignored-rules--empty {
-	border-top-color: transparent;
+	padding: var(--space-1) 0;
 }
 
 .ignored-rules__toggle {
@@ -627,6 +709,8 @@ select {
 	padding: var(--space-2) 0;
 	border: 0;
 	gap: var(--space-1);
+	align-items: center;
+	justify-content: space-between;
 	background: transparent;
 	color: var(--color-text-muted);
 	font-size: 0.8125rem;
