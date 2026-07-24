@@ -7,3 +7,7 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# Source specifications and untrusted fixture corpus
+docs/
+fixtures/
