@@ -8,6 +8,7 @@
 	let renameValue = $state('');
 	let deleteId = $state<string | undefined>();
 	let confirmDeleteAll = $state(false);
+	let menuOpen = $state(false);
 	let menuTrigger: HTMLElement;
 
 	function beginRename(id: string, title: string): void {
@@ -19,6 +20,12 @@
 		event.preventDefault();
 		await controller.renameDraft(id, renameValue);
 		renameId = undefined;
+	}
+
+	/** Close the popover for actions that switch the active document. */
+	function closeAnd(action: () => Promise<void>): Promise<void> {
+		menuOpen = false;
+		return action();
 	}
 
 	async function deleteDraftAndMoveFocus(id: string, trigger: HTMLButtonElement): Promise<void> {
@@ -36,8 +43,18 @@
 	}
 </script>
 
-<details class="draft-menu">
-	<summary class="button button--quiet draft-menu__trigger" bind:this={menuTrigger}>
+<details class="draft-menu" bind:open={menuOpen}>
+	<!-- The .button flex styling strips the summary's implicit disclosure role in
+	     Chromium, so restate the button semantics and expansion state explicitly.
+	     Svelte considers the role redundant, but real browsers expose the styled
+	     summary as generic without it. -->
+	<!-- svelte-ignore a11y_no_redundant_roles -->
+	<summary
+		class="button button--quiet draft-menu__trigger"
+		role="button"
+		aria-expanded={menuOpen}
+		bind:this={menuTrigger}
+	>
 		<svg
 			aria-hidden="true"
 			viewBox="0 0 16 16"
@@ -58,7 +75,11 @@
 	<div class="draft-menu__popover">
 		<div class="draft-menu__heading">
 			<strong>Saved drafts</strong>
-			<button type="button" class="button button--primary" onclick={() => controller.createDraft()}>
+			<button
+				type="button"
+				class="button button--primary"
+				onclick={() => closeAnd(() => controller.createDraft())}
+			>
 				New draft
 			</button>
 		</div>
@@ -89,7 +110,7 @@
 								type="button"
 								class="draft-list__title"
 								aria-current={draft.id === controller.draftId ? 'page' : undefined}
-								onclick={() => controller.openDraft(draft.id)}
+								onclick={() => closeAnd(() => controller.openDraft(draft.id))}
 							>
 								<span>{draft.title}</span>
 								<time datetime={draft.updatedAt}
