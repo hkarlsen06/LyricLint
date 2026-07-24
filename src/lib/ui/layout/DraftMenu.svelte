@@ -2,13 +2,15 @@
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { tick } from 'svelte';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let {
+		controller,
+		open = $bindable(false)
+	}: { controller: WorkbenchController; open?: boolean } = $props();
 
 	let renameId = $state<string | undefined>();
 	let renameValue = $state('');
 	let deleteId = $state<string | undefined>();
 	let confirmDeleteAll = $state(false);
-	let menuOpen = $state(false);
 	let menuTrigger: HTMLElement;
 
 	function beginRename(id: string, title: string): void {
@@ -24,7 +26,7 @@
 
 	/** Close the popover for actions that switch the active document. */
 	function closeAnd(action: () => Promise<void>): Promise<void> {
-		menuOpen = false;
+		open = false;
 		return action();
 	}
 
@@ -43,7 +45,7 @@
 	}
 </script>
 
-<details class="draft-menu" bind:open={menuOpen}>
+<details class="draft-menu" bind:open>
 	<!-- The .button flex styling strips the summary's implicit disclosure role in
 	     Chromium, so restate the button semantics and expansion state explicitly.
 	     Svelte considers the role redundant, but real browsers expose the styled
@@ -52,7 +54,7 @@
 	<summary
 		class="button button--quiet draft-menu__trigger"
 		role="button"
-		aria-expanded={menuOpen}
+		aria-expanded={open}
 		bind:this={menuTrigger}
 	>
 		<svg

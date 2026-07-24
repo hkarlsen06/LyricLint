@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import { onMount, tick } from 'svelte';
+	import { onMount } from 'svelte';
 	import DraftMenu from './DraftMenu.svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
@@ -75,21 +75,20 @@
 		if (value !== '__other__') controller.setLanguage(value);
 	}
 
-	async function openPerformerPanel(): Promise<void> {
-		controller.setPanelCollapsed(false);
-		controller.setActiveTab('performers');
-		await tick();
-		document.getElementById('performers-panel-tab')?.focus();
-		controller.feedback.announce(
-			'Choose a performer in the Performers panel to assign the selection.'
-		);
-	}
+	let draftsOpen = $state(false);
 </script>
 
 <header class="document-toolbar" aria-label="Document controls">
 	<div class="document-toolbar__identity">
-		<span class="app-mark" aria-hidden="true">
+		<button
+			type="button"
+			class="app-mark"
+			aria-label="Open drafts menu"
+			aria-expanded={draftsOpen}
+			onclick={() => (draftsOpen = !draftsOpen)}
+		>
 			<svg
+				aria-hidden="true"
 				viewBox="0 0 16 16"
 				width="16"
 				height="16"
@@ -97,10 +96,12 @@
 				stroke="currentColor"
 				stroke-width="1.6"
 				stroke-linecap="round"
+				stroke-linejoin="round"
 			>
-				<path d="M2.5 4h11M2.5 8h11M2.5 12h6.5" />
+				<path d="m2.2 4.4 1 1 1.8-2M2.2 8.4l1 1 1.8-2M2.2 12.4l1 1 1.8-2" />
+				<path d="M7.5 4.6h6M7.5 8.6h6M7.5 12.6h4" />
 			</svg>
-		</span>
+		</button>
 		<label class="sr-only" for="draft-title">Draft title</label>
 		<input
 			id="draft-title"
@@ -158,14 +159,14 @@
 					aria-label="BCP 47 language tag"
 				/>
 			{/if}
-			<DraftMenu {controller} />
+			<DraftMenu {controller} bind:open={draftsOpen} />
 		</div>
 	</div>
 
-	<div class="document-toolbar__commands" role="toolbar" aria-label="Editing commands">
+	<div class="document-toolbar__commands">
 		<button
 			type="button"
-			class="button button--primary button--pill"
+			class="button button--contrast button--pill"
 			onclick={() => controller.copyCanonical()}
 		>
 			<svg
@@ -189,30 +190,7 @@
 		<span class="document-toolbar__spacer" aria-hidden="true"></span>
 		<button
 			type="button"
-			class="icon-button"
-			disabled={!controller.snapshot.canUndo}
-			aria-label="Undo document edit"
-			title="Undo"
-			onclick={() => controller.undo()}>↶</button
-		>
-		<button
-			type="button"
-			class="icon-button"
-			disabled={!controller.snapshot.canRedo}
-			aria-label="Redo document edit"
-			title="Redo"
-			onclick={() => controller.redo()}>↷</button
-		>
-		<span class="toolbar-separator" aria-hidden="true"></span>
-		<button type="button" class="button button--quiet" onclick={() => controller.insertSection()}>
-			Insert section
-		</button>
-		<button type="button" class="button button--quiet" onclick={openPerformerPanel}>
-			Assign performer
-		</button>
-		<button
-			type="button"
-			class="icon-button"
+			class="icon-button icon-button--ghost"
 			aria-label={controller.panelCollapsed ? 'Show right panel' : 'Hide right panel'}
 			aria-expanded={!controller.panelCollapsed}
 			onclick={() => controller.togglePanel()}

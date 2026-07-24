@@ -28,13 +28,30 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
-	test('opens the editor section picker from the toolbar', async () => {
-		const { controller, calls } = createTestWorkbench();
+	test('keeps the header to the mockup surface: drafts affordances, copy pill, no edit buttons', () => {
+		const { controller } = createTestWorkbench();
 		render(DocumentToolbar, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Insert section' }));
+		// The single visible command is the high-contrast copy pill; section
+		// insertion, performer assignment, and undo/redo stay reachable through
+		// the editor itself (ghost pill, selection card, and Mod+Z shortcuts).
+		expect(screen.getByRole('button', { name: 'Copy Genius markup' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Open drafts menu' })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Insert section' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Assign performer' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Undo document edit' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Redo document edit' })).toBeNull();
+	});
 
-		expect(calls.sectionHeaderRequestCount).toBe(1);
+	test('the checklist mark toggles the drafts menu popover', async () => {
+		const { controller } = createTestWorkbench();
+		render(DocumentToolbar, { controller });
+
+		const mark = screen.getByRole('button', { name: 'Open drafts menu' });
+		expect(mark.getAttribute('aria-expanded')).toBe('false');
+		await fireEvent.click(mark);
+		expect(mark.getAttribute('aria-expanded')).toBe('true');
+		expect(screen.getByText('Saved drafts')).toBeTruthy();
 	});
 
 	test('reflects a late autosave failure instead of remaining on saving', async () => {
@@ -50,25 +67,6 @@ describe('Workspace and toolbar', () => {
 		await waitFor(() =>
 			expect(screen.getByLabelText('Autosave status').textContent).toContain('Save failed')
 		);
-	});
-
-	test('moves focus to the Performers tab when assignment is opened from the toolbar', async () => {
-		vi.stubGlobal(
-			'matchMedia',
-			vi.fn().mockReturnValue({
-				matches: false,
-				addEventListener: vi.fn(),
-				removeEventListener: vi.fn()
-			})
-		);
-		const { controller } = createTestWorkbench();
-		render(Workspace, { controller });
-
-		await fireEvent.click(screen.getByRole('button', { name: 'Assign performer' }));
-
-		const performersTab = screen.getByRole('tab', { name: 'Performers' });
-		await waitFor(() => expect(document.activeElement).toBe(performersTab));
-		expect(controller.activeTab).toBe('performers');
 	});
 
 	test('collapses the panel at a narrow viewport while keeping the editor region visible', async () => {

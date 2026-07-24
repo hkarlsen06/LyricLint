@@ -121,6 +121,20 @@ a:hover {
 	background: transparent;
 }
 
+/* The mockup's "white pill": inverts against the theme so it stays the
+   highest-contrast action in both color schemes. */
+.button--contrast {
+	border-color: var(--color-text);
+	background: var(--color-text);
+	color: var(--color-canvas);
+}
+
+.button--contrast:hover:not(:disabled) {
+	border-color: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
+	background: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
+	color: var(--color-canvas);
+}
+
 .button--danger {
 	border-color: var(--color-danger);
 	background: var(--color-danger);
@@ -196,12 +210,24 @@ select {
 
 .app-mark {
 	display: inline-grid;
-	width: 1.75rem;
-	height: 1.75rem;
+	width: 1.9rem;
+	height: 1.9rem;
 	flex: none;
+	padding: 0;
 	place-items: center;
+	border: 0;
 	border-radius: var(--radius-control);
-	background: var(--color-surface-strong);
+	background: color-mix(in oklch, var(--performer-teal) 18%, transparent);
+	color: var(--performer-teal);
+}
+
+.app-mark:hover {
+	background: color-mix(in oklch, var(--performer-teal) 30%, transparent);
+}
+
+.icon-button--ghost {
+	border-color: transparent;
+	background: transparent;
 	color: var(--color-text-muted);
 }
 
