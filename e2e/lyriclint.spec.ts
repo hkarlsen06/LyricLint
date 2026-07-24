@@ -182,9 +182,23 @@ test('an edit after switching between two drafts remains revision-scoped and dur
 	await expectDocText(page, durableEdit);
 });
 
-test('offline reopen from cache', async () => {
-	test.skip(
-		true,
-		'The static export has no service worker or navigation cache, so the preview host cannot reopen while offline.'
-	);
+test('offline reopen from cache via the service worker', async ({ page, context }) => {
+	await openWorkspace(page);
+	const text = '[Verse]\nOffline again';
+	await replaceDocument(page, text);
+	await waitForSaved(page);
+
+	// Wait until the service worker is active and controlling the page (it
+	// calls clients.claim on activate) so the offline reload can be served
+	// from the precache.
+	await page.evaluate(() => navigator.serviceWorker.ready);
+	await expect
+		.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
+		.toBe(true);
+
+	await context.setOffline(true);
+	await page.reload();
+	await expect(editor(page)).toBeVisible();
+	await expectDocText(page, text);
+	await context.setOffline(false);
 });
