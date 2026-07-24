@@ -160,7 +160,7 @@ test('an edit after switching between two drafts remains revision-scoped and dur
 	await editor(page).click();
 	await waitForSaved(page);
 
-	await page.getByRole('button', { name: 'Drafts' }).click();
+	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
 	await page.getByRole('button', { name: 'New draft' }).click();
 	await replaceDocument(page, '[Verse]\nSecond draft');
 	await page.getByRole('textbox', { name: 'Draft title' }).fill('Second');
@@ -168,10 +168,10 @@ test('an edit after switching between two drafts remains revision-scoped and dur
 	await editor(page).click();
 	await waitForSaved(page);
 
-	await page.getByRole('button', { name: 'Drafts' }).click();
+	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
 	await page.getByRole('button', { name: /First/u }).click();
 	await expectDocText(page, '[Verse]\nFirst draft');
-	await page.getByRole('button', { name: 'Drafts' }).click();
+	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
 	await page.getByRole('button', { name: /Second/u }).click();
 	await expectDocText(page, '[Verse]\nSecond draft');
 

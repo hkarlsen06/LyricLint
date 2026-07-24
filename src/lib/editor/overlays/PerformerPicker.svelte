@@ -148,6 +148,8 @@
 			event.target instanceof HTMLElement
 				? event.target.closest<HTMLButtonElement>('[data-performer]')
 				: null;
+		const addButton =
+			event.target instanceof HTMLElement ? event.target.closest('.chip--add') : null;
 		switch (event.key) {
 			case 'ArrowRight':
 			case 'ArrowDown':
@@ -161,6 +163,11 @@
 				break;
 			case ' ':
 			case 'Spacebar': {
+				if (addButton) {
+					event.preventDefault();
+					void beginAdd();
+					break;
+				}
 				if (!performerButton) {
 					break;
 				}
@@ -172,6 +179,11 @@
 				break;
 			}
 			case 'Enter':
+				if (addButton) {
+					event.preventDefault();
+					void beginAdd();
+					break;
+				}
 				if (!performerButton) {
 					break;
 				}
