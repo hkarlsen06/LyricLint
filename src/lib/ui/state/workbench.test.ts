@@ -316,6 +316,9 @@ describe('workbench performer imports', () => {
 		expect(controller.rosterSuggestions).toEqual([
 			expect.objectContaining({ sourceName: 'avery', targetName: 'Avery', reason: 'case' })
 		]);
+		// One user action (the paste) coalesces into exactly one toast whose
+		// single Undo reverts the whole imported batch.
+		expect(controller.feedback.toasts).toHaveLength(1);
 		expect(controller.feedback.toasts.at(-1)?.message).toContain('Imported 2 performers');
 
 		controller.feedback.toasts.at(-1)?.action?.();
