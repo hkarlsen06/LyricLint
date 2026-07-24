@@ -47,4 +47,5 @@ export interface SessionStorageLike {
 /** Timing configuration for local autosave. */
 export interface AutosaveOptions {
 	debounceMs?: number;
+	onStatusChange?(status: AutosaveStatus): void;
 }

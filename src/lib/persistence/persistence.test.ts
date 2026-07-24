@@ -236,12 +236,58 @@ describe('autosave and recovery', () => {
 		expect(autosave.status()).toBe('saved');
 	});
 
-	it('reports a failed local write without exposing an error payload', async () => {
+	it('keeps independently debounced pending saves for different drafts', async () => {
+		const { repository } = await createRepository('cross-draft-pending');
+		vi.useFakeTimers();
+		const savedIds: string[] = [];
+		const recordingRepository: DraftRepository = {
+			...repository,
+			save(record) {
+				savedIds.push(record.id);
+				return Promise.resolve();
+			}
+		};
+		const autosave = createAutosaveController(recordingRepository, { debounceMs: 10 });
+
+		autosave.schedule({
+			revision: 1,
+			draft: draft({ id: 'draft-a', text: 'A' })
+		});
+		await vi.advanceTimersByTimeAsync(5);
+		autosave.schedule({
+			revision: 1,
+			draft: draft({ id: 'draft-b', text: 'B' })
+		});
+
+		await vi.advanceTimersByTimeAsync(5);
+		expect(savedIds).toEqual(['draft-a']);
+		await vi.advanceTimersByTimeAsync(5);
+		expect(savedIds).toEqual(['draft-a', 'draft-b']);
+
+		vi.useRealTimers();
+		autosave.schedule({
+			revision: 1,
+			draft: draft({ id: 'draft-c', text: 'C' })
+		});
+		autosave.schedule({
+			revision: 1,
+			draft: draft({ id: 'draft-d', text: 'D' })
+		});
+		await autosave.flush();
+		expect(savedIds).toEqual(['draft-a', 'draft-b', 'draft-c', 'draft-d']);
+	});
+
+	it('retains a failed write and retries it once on a later flush', async () => {
 		const { repository } = await createRepository('failed-save');
+		let saveCount = 0;
 		const failingRepository: DraftRepository = {
 			...repository,
 			async save(record: DraftRecord) {
-				throw new Error(record.text);
+				saveCount += 1;
+				if (record.id === 'failed-draft' && saveCount === 1) {
+					throw new Error(record.text);
+				}
+				await repository.save(record);
 			}
 		};
 		const autosave = createAutosaveController(failingRepository);
@@ -250,10 +296,106 @@ describe('autosave and recovery', () => {
 			revision: 1,
 			draft: draft({ id: 'failed-draft', text: 'private lyric content' })
 		});
+		autosave.schedule({
+			revision: 1,
+			draft: draft({ id: 'other-draft', text: 'must still save' })
+		});
 		await autosave.flush();
 
+		expect(saveCount).toBe(2);
 		expect(autosave.status()).toBe('failed');
-		expect(Object.keys(autosave)).toEqual(['schedule', 'flush', 'cancel', 'status']);
+		expect(await repository.get('failed-draft')).toBeUndefined();
+		expect((await repository.get('other-draft'))?.text).toBe('must still save');
+
+		await autosave.flush();
+
+		expect(saveCount).toBe(3);
+		expect((await repository.get('failed-draft'))?.text).toBe('private lyric content');
+		expect(autosave.status()).toBe('saved');
+		expect(Object.keys(autosave)).toEqual([
+			'schedule',
+			'flush',
+			'cancel',
+			'cancelDraft',
+			'status'
+		]);
+	});
+
+	it('cancelDraft drops only that draft so a delayed save cannot recreate it', async () => {
+		const { repository } = await createRepository('cancel-draft');
+		await repository.create(draft({ id: 'deleted-draft', text: 'persisted' }));
+		await repository.delete('deleted-draft');
+		vi.useFakeTimers();
+		const autosave = createAutosaveController(repository, { debounceMs: 10 });
+
+		autosave.schedule({
+			revision: 2,
+			draft: draft({ id: 'deleted-draft', text: 'must not return' })
+		});
+		autosave.cancelDraft?.('deleted-draft');
+		await vi.advanceTimersByTimeAsync(10);
+		await autosave.flush();
+		vi.useRealTimers();
+
+		expect(await repository.get('deleted-draft')).toBeUndefined();
+		expect(autosave.status()).toBe('idle');
+	});
+
+	it('emits every autosave status transition through onStatusChange', async () => {
+		const { repository } = await createRepository('status-changes');
+		const statuses: string[] = [];
+		let shouldFail = true;
+		const retryingRepository: DraftRepository = {
+			...repository,
+			async save(record) {
+				if (shouldFail) {
+					shouldFail = false;
+					throw new Error('quota exceeded');
+				}
+				await repository.save(record);
+			}
+		};
+		const autosave = createAutosaveController(retryingRepository, {
+			onStatusChange(status) {
+				statuses.push(status);
+			}
+		});
+
+		autosave.schedule({
+			revision: 1,
+			draft: draft({ id: 'status-draft', text: 'status' })
+		});
+		await autosave.flush();
+		await autosave.flush();
+
+		expect(statuses).toEqual(['scheduled', 'saving', 'failed', 'saving', 'saved']);
+		expect(autosave.status()).toBe('saved');
+	});
+
+	it('ignores lower revisions for a draft while accepting equal and higher revisions', async () => {
+		const { repository } = await createRepository('revision-guard');
+		const autosave = createAutosaveController(repository);
+
+		autosave.schedule({
+			revision: 2,
+			draft: draft({ id: 'revision-draft', text: 'revision two' })
+		});
+		autosave.schedule({
+			revision: 1,
+			draft: draft({ id: 'revision-draft', text: 'stale revision one' })
+		});
+		autosave.schedule({
+			revision: 2,
+			draft: draft({ id: 'revision-draft', text: 'equal revision replacement' })
+		});
+		await autosave.flush();
+		autosave.schedule({
+			revision: 1,
+			draft: draft({ id: 'revision-draft', text: 'stale after save' })
+		});
+		await autosave.flush();
+
+		expect((await repository.get('revision-draft'))?.text).toBe('equal revision replacement');
 	});
 
 	it('restores the current draft before a newer draft', async () => {
