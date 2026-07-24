@@ -117,6 +117,133 @@ describe('editor pure helpers', () => {
 		});
 	});
 
+	it('ranks likely repeating sections ahead of one-off sections already in the song', () => {
+		const pack: LanguagePack = {
+			tag: 'en',
+			displayName: 'English',
+			policy: 'localized',
+			headers: [
+				{ semanticPart: 'Intro', terms: ['Intro'] },
+				{ semanticPart: 'Verse', terms: ['Verse'] },
+				{ semanticPart: 'Chorus', terms: ['Chorus'] },
+				{ semanticPart: 'Pre-Chorus', terms: ['Pre-Chorus'] },
+				{ semanticPart: 'Bridge', terms: ['Bridge'] },
+				{ semanticPart: 'Outro', terms: ['Outro'] }
+			],
+			sourceIds: ['source'],
+			reviewed: true
+		};
+
+		const labels = sectionHeaderOptions(pack, ['Intro', 'Verse', 'Chorus', 'Verse 2'], '').map(
+			(option) => option.label
+		);
+
+		expect(labels.slice(0, 3)).toEqual(['Verse 3', 'Chorus', 'Pre-Chorus']);
+		expect(labels.indexOf('Intro')).toBeGreaterThan(labels.indexOf('Bridge'));
+	});
+
+	it('keeps query relevance ahead of contextual likelihood', () => {
+		const pack: LanguagePack = {
+			tag: 'en',
+			displayName: 'English',
+			policy: 'localized',
+			headers: [
+				{ semanticPart: 'Verse', terms: ['Verse'] },
+				{ semanticPart: 'Instrumental Verse', terms: ['Instrumental Verse'] }
+			],
+			sourceIds: ['source'],
+			reviewed: true
+		};
+
+		expect(sectionHeaderOptions(pack, ['Verse'], 'instrumental')[0]?.headerName).toBe(
+			'Instrumental Verse'
+		);
+	});
+
+	it('recognizes a pre-chorus from its position between a verse and chorus', () => {
+		const pack: LanguagePack = {
+			tag: 'no',
+			displayName: 'Norwegian',
+			policy: 'localized',
+			headers: [
+				{ semanticPart: 'Intro', terms: ['Intro'] },
+				{ semanticPart: 'Verse', terms: ['Vers'] },
+				{ semanticPart: 'Chorus', terms: ['Chorus', 'Refreng'] },
+				{ semanticPart: 'Pre-Chorus', terms: ['Pre-Chorus'] },
+				{ semanticPart: 'Post-Chorus', terms: ['Post-Chorus'] },
+				{ semanticPart: 'Bridge', terms: ['Bro'] }
+			],
+			sourceIds: ['source'],
+			reviewed: true
+		};
+
+		const options = sectionHeaderOptions(pack, ['Intro', 'Vers 1', 'Refreng'], '', {
+			previousHeader: 'Vers 1',
+			nextHeader: 'Refreng'
+		});
+
+		expect(options[0]?.headerName).toBe('Pre-Chorus');
+		expect(options.findIndex((option) => option.headerName === 'Pre-Chorus')).toBeLessThan(
+			options.findIndex((option) => option.headerName === 'Chorus')
+		);
+		expect(options.findIndex((option) => option.headerName === 'Pre-Chorus')).toBeLessThan(
+			options.findIndex((option) => option.headerName === 'Refreng')
+		);
+	});
+
+	it('numbers a verse from its position instead of the song-wide maximum', () => {
+		const pack: LanguagePack = {
+			tag: 'no',
+			displayName: 'Norwegian',
+			policy: 'localized',
+			headers: [
+				{ semanticPart: 'Verse', terms: ['Vers'] },
+				{ semanticPart: 'Chorus', terms: ['Refreng'] }
+			],
+			sourceIds: ['source'],
+			reviewed: true
+		};
+
+		const options = sectionHeaderOptions(pack, ['Vers 1', 'Refreng', 'Vers 2', 'Vers 3'], 'vers', {
+			previousHeader: 'Vers 1',
+			nextHeader: 'Refreng',
+			headersBefore: ['Vers 1']
+		});
+
+		expect(options[0]).toMatchObject({
+			label: 'Vers 2',
+			headerName: 'Vers',
+			ordinal: 2,
+			numberedHeaderTerms: ['Vers']
+		});
+	});
+
+	it('uses the previous section to favor the natural next transition', () => {
+		const pack: LanguagePack = {
+			tag: 'en',
+			displayName: 'English',
+			policy: 'localized',
+			headers: [
+				{ semanticPart: 'Intro', terms: ['Intro'] },
+				{ semanticPart: 'Verse', terms: ['Verse'] },
+				{ semanticPart: 'Chorus', terms: ['Chorus'] },
+				{ semanticPart: 'Pre-Chorus', terms: ['Pre-Chorus'] },
+				{ semanticPart: 'Post-Chorus', terms: ['Post-Chorus'] }
+			],
+			sourceIds: ['source'],
+			reviewed: true
+		};
+
+		expect(
+			sectionHeaderOptions(pack, ['Intro'], '', { previousHeader: 'Intro' })[0]?.headerName
+		).toBe('Verse');
+		expect(
+			sectionHeaderOptions(pack, ['Verse', 'Chorus'], '', {
+				previousHeader: 'Chorus'
+			})[0]?.headerName
+		).toBe('Verse');
+	});
+
 	it('blends joint-group performer colors into one mixed tint with a cap', () => {
 		const performers: PerformerRecord[] = ['A', 'B', 'C', 'D'].map((name, index) => ({
 			id: name.toLocaleLowerCase(),

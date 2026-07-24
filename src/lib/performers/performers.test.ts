@@ -8,6 +8,7 @@ import {
 	allocateStyleSlot,
 	analyzeSlotOrder,
 	assignVoiceGroup,
+	assignVoiceLegend,
 	cleanupLegendSlots,
 	extractPerformers,
 	findExactPerformer,
@@ -294,7 +295,7 @@ describe('performer assignment transforms', () => {
 		}
 	});
 
-	it('uses one wrapper for a contiguous multiline performer selection', () => {
+	it('reuses the plain slot when replacing the performer across the whole section', () => {
 		const input = '[Verse: A]\nFirst line\nSecond line';
 		const records = roster(['A', 'B']);
 		const from = input.indexOf('First line');
@@ -311,10 +312,56 @@ describe('performer assignment transforms', () => {
 		expect(result.status).toBe('applied');
 		if (result.status === 'applied') {
 			const output = applyEdits(input, result.edit.edits);
-			expect(output).toBe('[Verse: A & <i>B</i>]\n<i>First line\nSecond line</i>');
+			expect(output).toBe('[Verse: B]\nFirst line\nSecond line');
 			expect(
 				output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)
 			).toBe('First line\nSecond line');
+		}
+	});
+
+	it('does not introduce italic markup when a joint group replaces a prior partial assignment', () => {
+		const input =
+			'[Pre-Chorus]\nTrenger ikke at du dør for meg\n' +
+			'Eller smiler når du møter meg\nMen vi står her igjen';
+		const records = roster(['Leif Tore', 'Lars Ulrik', 'Leif Terje']);
+		const firstFrom = input.indexOf('Trenger');
+		const firstAssignment = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: firstFrom, head: firstFrom + 'Trenger'.length },
+			performerIds: [records[0]!.id],
+			roster: records
+		});
+
+		expect(firstAssignment.status).toBe('applied');
+		if (firstAssignment.status !== 'applied') {
+			throw new Error(`Initial assignment blocked: ${firstAssignment.reason}`);
+		}
+		const withFirstPerformer = applyEdits(input, firstAssignment.edit.edits);
+		const sectionFrom = withFirstPerformer.indexOf('Trenger');
+		const replacement = assignVoiceGroup({
+			revision: 2,
+			text: withFirstPerformer,
+			document: parseDocument(withFirstPerformer),
+			selection: { anchor: sectionFrom, head: withFirstPerformer.length },
+			performerIds: records.map((performer) => performer.id),
+			roster: records
+		});
+
+		expect(replacement.status).toBe('applied');
+		if (replacement.status === 'applied') {
+			const output = applyEdits(withFirstPerformer, replacement.edit.edits);
+			expect(output).toBe(
+				'[Pre-Chorus: Leif Tore & Lars Ulrik & Leif Terje]\n' +
+					'Trenger ikke at du dør for meg\n' +
+					'Eller smiler når du møter meg\nMen vi står her igjen'
+			);
+			expect(output).not.toContain('<i>');
+			expect(
+				parseDocument(output).sections[0]?.header?.legendGroups.map((group) => group.styleSlot)
+			).toEqual([1]);
+			expect(cleanupLegendSlots(parseDocument(output))).toEqual([]);
 		}
 	});
 
@@ -396,7 +443,7 @@ describe('performer assignment transforms', () => {
 
 		expect(result.status).toBe('applied');
 		if (result.status === 'applied') {
-			expect(applyEdits(input, result.edit.edits)).toBe('[Verse: A & <i>B</i>]\n<i>Whole line</i>');
+			expect(applyEdits(input, result.edit.edits)).toBe('[Verse: B]\nWhole line');
 		}
 	});
 
@@ -488,6 +535,31 @@ describe('performer assignment transforms', () => {
 		}
 	});
 
+	it('assigns the plain and unresolved styled voices with one header-only edit', () => {
+		const input = '[Verse: Avery]\nAvery leads\n<i>Blair answers\nStill Blair</i>';
+		const records = roster(['Avery', 'Blair']);
+		const result = assignVoiceLegend({
+			revision: 8,
+			text: input,
+			document: parseDocument(input),
+			sectionFrom: 0,
+			assignments: [
+				{ styleSlot: 1, performerIds: [records[0]!.id] },
+				{ styleSlot: 2, performerIds: [records[1]!.id] }
+			],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(result.edit.baseRevision).toBe(8);
+			expect(result.edit.edits).toHaveLength(1);
+			expect(applyEdits(input, result.edit.edits)).toBe(
+				'[Verse: Avery & <i>Blair</i>]\nAvery leads\n<i>Blair answers\nStill Blair</i>'
+			);
+		}
+	});
+
 	it.each(['<u>X</u>', '<i>X'])(
 		'blocks assignment anywhere on a line containing unsupported or malformed markup: %s',
 		(line) => {
@@ -528,6 +600,59 @@ describe('section transforms', () => {
 			expect(result.edit.edits).toHaveLength(1);
 			expect(applyEdits(input, result.edit.edits)).toBe(
 				'[Verse]\nFirst\n\n[Chorus 2]\nOrphan line'
+			);
+		}
+	});
+
+	it('renumbers matching later verses as part of the same atomic insertion', () => {
+		const input =
+			'[Vers 1]\nFirst\n\nMissing verse\n\n[Refreng]\nHook\n\n' +
+			'[Vers 2: A & <i>B</i>]\nSecond\n\n[Vers 3]\nThird';
+		const document = parseDocument(input);
+		const section = document.sections.find((candidate) =>
+			candidate.lines.some((line) => line.text === 'Missing verse')
+		);
+		const result = insertSectionHeader({
+			revision: 8,
+			text: input,
+			document,
+			sectionFrom: section?.from ?? -1,
+			headerName: 'Vers',
+			ordinal: 2,
+			numberedHeaderTerms: ['Vers']
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(result.edit.baseRevision).toBe(8);
+			expect(result.edit.edits).toHaveLength(3);
+			expect(applyEdits(input, result.edit.edits)).toBe(
+				'[Vers 1]\nFirst\n\n[Vers 2]\nMissing verse\n\n[Refreng]\nHook\n\n' +
+					'[Vers 3: A & <i>B</i>]\nSecond\n\n[Vers 4]\nThird'
+			);
+		}
+	});
+
+	it('does not renumber earlier or differently named numbered sections', () => {
+		const input = '[Vers 2]\nEarlier\n\nMissing verse\n\n[Chorus 2]\nHook\n\n[Vers 3]\nLater';
+		const document = parseDocument(input);
+		const section = document.sections.find((candidate) =>
+			candidate.lines.some((line) => line.text === 'Missing verse')
+		);
+		const result = insertSectionHeader({
+			revision: 9,
+			text: input,
+			document,
+			sectionFrom: section?.from ?? -1,
+			headerName: 'Vers',
+			ordinal: 3,
+			numberedHeaderTerms: ['Vers']
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(applyEdits(input, result.edit.edits)).toBe(
+				'[Vers 2]\nEarlier\n\n[Vers 3]\nMissing verse\n\n[Chorus 2]\nHook\n\n[Vers 4]\nLater'
 			);
 		}
 	});

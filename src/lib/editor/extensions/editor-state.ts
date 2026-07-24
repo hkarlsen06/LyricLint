@@ -1,9 +1,8 @@
 import { StateEffect, StateField } from '@codemirror/state';
-import type { EditorCallbacks } from '../../core/types.js';
-import type { EditorDisplayContext } from '../contracts.js';
+import type { EditorDisplayContext, LyricEditorCallbacks } from '../contracts.js';
 
 export const setEditorContextEffect = StateEffect.define<EditorDisplayContext>();
-export const setEditorCallbacksEffect = StateEffect.define<EditorCallbacks>();
+export const setEditorCallbacksEffect = StateEffect.define<LyricEditorCallbacks>();
 export const setComposingEffect = StateEffect.define<boolean>();
 
 export const editorContextField = StateField.define<EditorDisplayContext | undefined>({
@@ -37,7 +36,7 @@ export const editorComposingField = StateField.define<boolean>({
 	}
 });
 
-export const editorCallbacksField = StateField.define<EditorCallbacks | undefined>({
+export const editorCallbacksField = StateField.define<LyricEditorCallbacks | undefined>({
 	create: () => undefined,
 	update(value, transaction) {
 		for (const effect of transaction.effects) {

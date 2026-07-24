@@ -20,8 +20,20 @@ export {
 } from './identity.js';
 export { extractPerformers } from './import.js';
 export { allocateStyleSlot, analyzeSlotOrder } from './allocation.js';
-export { assignVoiceGroup, insertSectionHeader, removeDifferentiation } from './transform.js';
+export {
+	assignVoiceGroup,
+	assignVoiceLegend,
+	insertSectionHeader,
+	removeDifferentiation
+} from './transform.js';
 export { cleanupLegendSlots, usedStyleSlots } from './legend-cleanup.js';
+export {
+	findHeaderRenameTargets,
+	headerNameAtoms,
+	isMirrorableHeaderName,
+	nameBreaksHeaderStructure
+} from './header-rename.js';
+export type { HeaderNameAtom, HeaderRenameTargets } from './header-rename.js';
 export { TOO_MANY_GROUP_OPTIONS } from './types.js';
 export type {
 	AppliedAssignmentResult,

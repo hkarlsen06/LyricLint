@@ -2,11 +2,12 @@
 	import { onMount, tick } from 'svelte';
 	import type { LanguagePack } from '../../core/types.js';
 	import type { ScreenRect, SectionHeaderChoice } from '../contracts.js';
-	import { sectionHeaderOptions } from './section-picker.js';
+	import { sectionHeaderOptions, type SectionHeaderNeighbors } from './section-picker.js';
 
 	interface Props {
 		languagePack: LanguagePack;
 		existingHeaders?: readonly string[];
+		neighbors?: SectionHeaderNeighbors;
 		range: { from: number; to: number };
 		anchor?: ScreenRect;
 		onChoose: (choice: SectionHeaderChoice) => void | Promise<void>;
@@ -17,6 +18,7 @@
 	let {
 		languagePack,
 		existingHeaders = [],
+		neighbors = {},
 		range,
 		anchor,
 		onChoose,
@@ -26,7 +28,7 @@
 	let query = $state('');
 	let activeIndex = $state(0);
 	let input: HTMLInputElement;
-	const options = $derived(sectionHeaderOptions(languagePack, existingHeaders, query));
+	const options = $derived(sectionHeaderOptions(languagePack, existingHeaders, query, neighbors));
 	const position = $derived(
 		anchor
 			? `left: ${Math.max(8, anchor.left)}px; top: ${Math.max(8, anchor.bottom + 6)}px;`
@@ -48,7 +50,8 @@
 			await onChoose({
 				range,
 				headerName: option.headerName,
-				ordinal: option.ordinal
+				ordinal: option.ordinal,
+				numberedHeaderTerms: option.numberedHeaderTerms
 			});
 		} finally {
 			await tick();

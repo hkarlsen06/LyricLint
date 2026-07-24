@@ -53,6 +53,36 @@
 	});
 
 	let draftsOpen = $state(false);
+
+	// Fallback sizing for browsers without `field-sizing: content`; the CSS rule
+	// takes over where it is supported and this attribute is ignored. Typing
+	// writes the length locally; switching drafts resyncs it.
+	let titleLength = $derived(controller.title.length);
+	const titleSize = $derived(Math.min(28, Math.max(8, titleLength + 1)));
+
+	// The title input lives outside a form, so Enter has no implicit submit to
+	// piggyback on: commit explicitly and hand focus back. Tracking the committed
+	// value keeps the blur-triggered `change` from renaming a second time.
+	let committedTitle = $derived(controller.title);
+
+	function commitTitle(input: HTMLInputElement) {
+		if (input.value === committedTitle) return;
+		committedTitle = input.value;
+		controller.setTitle(input.value);
+	}
+
+	function onTitleKeydown(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			commitTitle(event.currentTarget);
+			event.currentTarget.blur();
+		} else if (event.key === 'Escape') {
+			event.preventDefault();
+			event.currentTarget.value = committedTitle;
+			titleLength = committedTitle.length;
+			event.currentTarget.blur();
+		}
+	}
 </script>
 
 <header class="document-toolbar" aria-label="Document controls">
@@ -83,8 +113,11 @@
 		<input
 			id="draft-title"
 			class="draft-title"
+			size={titleSize}
 			value={controller.title}
-			onchange={(event) => controller.setTitle(event.currentTarget.value)}
+			oninput={(event) => (titleLength = event.currentTarget.value.length)}
+			onchange={(event) => commitTitle(event.currentTarget)}
+			onkeydown={onTitleKeydown}
 			aria-label="Draft title"
 		/>
 		<span
@@ -111,16 +144,12 @@
 			</svg>
 			{saveStatusText}
 		</span>
-		<div class="document-toolbar__meta">
-			<LanguagePicker {controller} />
-			<DraftMenu {controller} bind:open={draftsOpen} />
-		</div>
 	</div>
 
 	<div class="document-toolbar__commands">
 		<button
 			type="button"
-			class="button button--contrast button--pill"
+			class="button button--contrast"
 			onclick={() => controller.copyCanonical()}
 		>
 			<svg
@@ -141,15 +170,7 @@
 			</svg>
 			Copy Genius markup
 		</button>
-		<span class="document-toolbar__spacer" aria-hidden="true"></span>
-		<button
-			type="button"
-			class="icon-button icon-button--ghost"
-			aria-label={controller.panelCollapsed ? 'Show right panel' : 'Hide right panel'}
-			aria-expanded={!controller.panelCollapsed}
-			onclick={() => controller.togglePanel()}
-		>
-			{controller.panelCollapsed ? '◧' : '▧'}
-		</button>
+		<LanguagePicker {controller} />
+		<DraftMenu {controller} bind:open={draftsOpen} />
 	</div>
 </header>

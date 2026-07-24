@@ -38,12 +38,6 @@
 				<Tabs.Trigger id="performers-panel-tab" value="performers">Performers</Tabs.Trigger>
 				<Tabs.Trigger value="tools">Tools</Tabs.Trigger>
 			</Tabs.List>
-			<button
-				type="button"
-				class="icon-button icon-button--ghost"
-				aria-label="Hide right panel"
-				onclick={() => controller.setPanelCollapsed(true)}>×</button
-			>
 		</div>
 
 		<div class="right-panel__body">

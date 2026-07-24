@@ -117,22 +117,9 @@
 									>{new Date(draft.updatedAt).toLocaleDateString()}</time
 								>
 							</button>
+							<!-- While a delete is pending the row's other actions step aside, so the
+							     confirm is the only decision on screen. -->
 							<div class="draft-list__actions">
-								<button
-									type="button"
-									class="button button--quiet"
-									onclick={() => beginRename(draft.id, draft.title)}>Rename</button
-								>
-								<button
-									type="button"
-									class="button button--quiet"
-									onclick={() => controller.duplicateDraft(draft.id)}>Duplicate</button
-								>
-								<button
-									type="button"
-									class="button button--quiet"
-									onclick={() => controller.exportDraft(draft.id)}>Export</button
-								>
 								{#if deleteId === draft.id}
 									<span class="confirm-row">
 										Delete?
@@ -149,6 +136,21 @@
 										>
 									</span>
 								{:else}
+									<button
+										type="button"
+										class="button button--quiet"
+										onclick={() => beginRename(draft.id, draft.title)}>Rename</button
+									>
+									<button
+										type="button"
+										class="button button--quiet"
+										onclick={() => controller.duplicateDraft(draft.id)}>Duplicate</button
+									>
+									<button
+										type="button"
+										class="button button--quiet"
+										onclick={() => controller.exportDraft(draft.id)}>Export</button
+									>
 									<button
 										type="button"
 										class="button button--quiet danger-text"

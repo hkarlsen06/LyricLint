@@ -330,6 +330,22 @@ export interface AssignmentRequest {
 	roster: readonly PerformerRecord[];
 }
 
+/** One performer group to write into an exact section-local legend slot. */
+export interface LegendGroupAssignment {
+	styleSlot: StyleSlot;
+	performerIds: PerformerId[];
+}
+
+/** Inputs for assigning existing styled and plain voices without rewriting lyrics. */
+export interface LegendAssignmentRequest {
+	revision: number;
+	text: string;
+	document: ParsedDocument;
+	sectionFrom: Offset;
+	assignments: LegendGroupAssignment[];
+	roster: readonly PerformerRecord[];
+}
+
 /** A reason a performer or section transformation made no document edit. */
 export type AssignmentBlockReason =
 	| 'empty-selection'
@@ -352,6 +368,8 @@ export interface InsertSectionHeaderRequest {
 	sectionFrom: Offset;
 	headerName: string;
 	ordinal?: number;
+	/** Localized terms identifying later headers that share this numbered part. */
+	numberedHeaderTerms?: readonly string[];
 }
 
 /** Inputs for explicitly removing supported differentiation from one section. */
@@ -445,6 +463,8 @@ export interface EditorHandle {
 	 * handles can omit it.
 	 */
 	requestSectionHeader?(): void;
+	/** Open the guided performer-legend assignment for an inline mismatch. */
+	requestPerformerLegendAssignment?(diagnostic: Diagnostic): void;
 }
 
 /** Immutable editor inputs owned by the application shell. */

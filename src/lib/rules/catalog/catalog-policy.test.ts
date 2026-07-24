@@ -60,6 +60,13 @@ const cases: RulePolicyCase[] = [
 		language: 'no'
 	},
 	{
+		id: 'section.header-unrecognized',
+		invalid: '[Chor]\nEn natt',
+		valid: '[Refreng]\nEn natt',
+		ambiguous: 'En natt',
+		language: 'no'
+	},
+	{
 		id: 'performer.header-required',
 		invalid: '[Verse]\n<i>Second voice</i>',
 		valid: '[Verse: A & <i>B</i>]\n<i>Second voice</i>',
@@ -290,6 +297,22 @@ describe('rule regressions', () => {
 		expect(finding?.fixes?.map((fix) => fix.edit.edits[0]?.insert)).toContain(replacement);
 	});
 
+	it('sends unknown header names to manual review without guessing a replacement', () => {
+		const [finding] = diagnostics('section.header-unrecognized', '[Chor]\nEn natt', 'no');
+		expect(finding).toMatchObject({
+			severity: 'manual-review',
+			from: 1,
+			to: 5,
+			message: 'Review the custom section header “Chor”.'
+		});
+		expect(finding?.fixes).toBeUndefined();
+	});
+
+	it('does not duplicate the language warning for a header recognized in another reviewed pack', () => {
+		expect(diagnostics('section.header-unrecognized', '[Verse]\nEn natt', 'no')).toEqual([]);
+		expect(diagnostics('section.header-language', '[Verse]\nEn natt', 'no')).toHaveLength(1);
+	});
+
 	it('accepts English headers for Japanese pages and both Korean policies', () => {
 		expect(diagnostics('section.header-language', '[Verse]\n歌詞', 'ja')).toEqual([]);
 		expect(diagnostics('section.header-language', '[Verse]\n가사', 'ko')).toEqual([]);
@@ -333,6 +356,11 @@ describe('rule regressions', () => {
 		const input = '[Chorus]\nAgain\nTonight\n\nAgain\nTonight';
 		expect(diagnostics('section.header-missing', input)).toEqual([]);
 		expect(diagnostics('section.immediate-repeat-spacing', input)).toHaveLength(1);
+	});
+
+	it('leaves missing-header choice to the contextual section picker', () => {
+		const [finding] = diagnostics('section.header-missing', 'A lyric');
+		expect(finding?.fixes).toBeUndefined();
 	});
 
 	it('does not merge changed lyrics or different performer legends', () => {

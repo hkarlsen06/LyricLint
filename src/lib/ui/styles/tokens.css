@@ -64,6 +64,10 @@
 	--control-padding-block: var(--space-1);
 	--control-gap: var(--space-1-5);
 
+	/* The document toolbar and the right panel header sit side by side, so they
+	   share one height and their bottom borders line up. */
+	--header-height: 3.5rem;
+
 	/* Focus, motion, and interaction states */
 	--focus-ring-width: 2px;
 	--focus-ring-offset: 2px;
@@ -100,6 +104,14 @@
 	--color-selected: var(--color-accent-soft);
 	--color-focus: oklch(54% 0.15 255);
 	--color-focus-soft: color-mix(in oklch, var(--color-focus) 28%, transparent);
+
+	/*
+	 * Text selection. Lyrics and roster chips sit on color-coded backgrounds
+	 * (performer tints, fix previews, severity badges), and a translucent
+	 * selection washes out the moment it lands on one — so this is an opaque
+	 * fill. It is light enough to leave the glyphs on top fully readable.
+	 */
+	--color-text-selection: oklch(84% 0.075 255);
 
 	/* Feedback states */
 	--color-danger: oklch(50% 0.17 28);
@@ -160,6 +172,7 @@
 		--color-accent-text: oklch(17% 0.008 285);
 		--color-accent-soft: oklch(28% 0.05 255);
 		--color-focus: oklch(68% 0.14 255);
+		--color-text-selection: oklch(38% 0.1 255);
 		--color-danger: oklch(70% 0.15 28);
 		--color-danger-hover: oklch(76% 0.14 28);
 		--color-danger-surface: oklch(26% 0.055 25);

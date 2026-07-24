@@ -12,6 +12,8 @@ interface FixContract {
 	range: [number, number];
 	expected: string;
 	kind: 'safe' | 'preview';
+	performers?: string[];
+	label?: string;
 }
 
 const contracts: FixContract[] = [
@@ -22,14 +24,6 @@ const contracts: FixContract[] = [
 		range: [6, 6],
 		expected: '[Verse]\nLine',
 		kind: 'safe'
-	},
-	{
-		id: 'section.header-missing',
-		input: 'A lyric',
-		language: 'en',
-		range: [0, 0],
-		expected: '[Verse]\nA lyric',
-		kind: 'preview'
 	},
 	{
 		id: 'section.header-language',
@@ -54,6 +48,16 @@ const contracts: FixContract[] = [
 		range: [30, 38],
 		expected: '[Verse: A & <i>B</i>]\n<i>First\nSecond</i>',
 		kind: 'safe'
+	},
+	{
+		id: 'performer.header-required',
+		input: '[Verse]\n<i>First voice\nSecond voice</i>\n<b>Third voice</b>',
+		language: 'en',
+		range: [1, 6],
+		expected: '[Verse]\nFirst voice\nSecond voice\nThird voice',
+		kind: 'safe',
+		performers: ['A', 'B'],
+		label: 'Remove performer formatting'
 	},
 	{
 		id: 'performer.unused-legend-slot',
@@ -161,15 +165,26 @@ function applyEdits(text: string, edits: readonly TextEdit[]): string {
 	return output;
 }
 
+function performerRecords(names: readonly string[]): RuleContext['performers'] {
+	return names.map((displayName, order) => ({
+		id: `performer-${order}`,
+		displayName,
+		normalizedKey: displayName.toLocaleLowerCase(),
+		aliases: [],
+		colorId: `color-${order}`,
+		order
+	}));
+}
+
 describe('rule fix contracts', () => {
 	it.each(contracts)(
 		'keeps $id range, severity, provenance, output, and safety classification exact',
-		({ id, input, language, range, expected, kind }) => {
+		({ id, input, language, range, expected, kind, performers = [], label }) => {
 			const rule = getRule(id);
 			if (!rule) throw new Error(`Missing rule ${id}`);
 			const context: RuleContext = {
 				language,
-				performers: [],
+				performers: performerRecords(performers),
 				sources: sourceRegistry,
 				ruleSetVersion: 'contract-test',
 				revision: 73
@@ -188,6 +203,9 @@ describe('rule fix contracts', () => {
 			expect(diagnostic.fixes).toHaveLength(1);
 			const fix = diagnostic.fixes![0]!;
 			expect(fix.kind).toBe(kind);
+			if (label) {
+				expect(fix.label).toBe(label);
+			}
 			expect(fix.edit.baseRevision).toBe(73);
 			const output = applyEdits(input, fix.edit.edits);
 			expect(output).toBe(expected);

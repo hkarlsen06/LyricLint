@@ -5,6 +5,8 @@
 	let {
 		diagnostic,
 		sources,
+		onChooseHeader,
+		onAssignPerformers = () => {},
 		onPreviewFix,
 		onCancelPreview,
 		onApplyFix,
@@ -12,6 +14,8 @@
 	}: {
 		diagnostic: Diagnostic;
 		sources: ReadonlyMap<string, SourceReference>;
+		onChooseHeader: () => void;
+		onAssignPerformers?: () => void;
 		onPreviewFix: (fix: DiagnosticFix) => void;
 		onCancelPreview: () => void;
 		onApplyFix: (fix: DiagnosticFix) => void;
@@ -54,6 +58,20 @@
 	</div>
 
 	<div class="diagnostic-details__actions">
+		{#if diagnostic.ruleId === 'section.header-missing'}
+			<button
+				type="button"
+				class="button button--pill diagnostic-details__fix"
+				onclick={onChooseHeader}
+			>
+				Choose header
+			</button>
+		{/if}
+		{#if diagnostic.ruleId === 'performer.inline-mismatch'}
+			<button type="button" class="button diagnostic-details__fix" onclick={onAssignPerformers}>
+				Assign section performers
+			</button>
+		{/if}
 		{#each diagnostic.fixes ?? [] as fix (`${fix.kind}-${fix.label}`)}
 			{#if fix.kind === 'safe'}
 				<button
@@ -64,46 +82,53 @@
 					{fix.label}
 				</button>
 			{:else if isPreviewing(fix)}
-				<div class="diagnostic-preview" aria-live="polite">
-					<p>Previewing this change in the editor.</p>
-					<div class="diagnostic-preview__actions">
-						<button
-							type="button"
-							class="button button--pill diagnostic-details__fix"
-							onclick={() => {
-								onApplyFix(fix);
-								previewFix = undefined;
-							}}>Apply previewed fix</button
-						>
-						<button
-							type="button"
-							class="button button--quiet"
-							onclick={() => {
-								previewFix = undefined;
-								onCancelPreview();
-							}}>Cancel</button
-						>
-					</div>
-				</div>
+				<button
+					type="button"
+					class="button button--contrast diagnostic-details__cta"
+					aria-label={`Confirm: ${fix.label}`}
+					onclick={() => {
+						onApplyFix(fix);
+						previewFix = undefined;
+					}}
+				>
+					Confirm
+				</button>
+				<button
+					type="button"
+					class="button button--quiet diagnostic-details__cancel"
+					onclick={() => {
+						previewFix = undefined;
+						onCancelPreview();
+					}}
+				>
+					Cancel
+				</button>
 			{:else}
 				<button
 					type="button"
-					class="button button--pill diagnostic-details__fix"
+					class="button button--contrast diagnostic-details__cta"
+					aria-label={`Preview: ${fix.label}`}
 					onclick={() => {
 						previewFix = fix;
 						onPreviewFix(fix);
 					}}
 				>
-					Preview: {fix.label}
+					Preview
 				</button>
 			{/if}
 		{/each}
-		<button
-			type="button"
-			class="diagnostic-details__ignore"
-			onclick={(event) => onIgnore(event.currentTarget)}
-		>
-			Ignore this session
-		</button>
+		{#if previewFix === undefined}
+			<button
+				type="button"
+				class="diagnostic-details__ignore"
+				onclick={(event) => onIgnore(event.currentTarget)}
+			>
+				Ignore this session
+			</button>
+		{/if}
 	</div>
+
+	<p class="sr-only" aria-live="polite">
+		{previewFix ? 'Previewing this change in the editor. Confirm or cancel.' : ''}
+	</p>
 </div>

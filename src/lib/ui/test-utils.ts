@@ -1,5 +1,4 @@
 import { parseDocument } from '$lib/core/parser.js';
-import { assignVoiceGroup } from '$lib/performers/index.js';
 import type {
 	AtomicDocumentEdit,
 	Diagnostic,
@@ -172,16 +171,6 @@ export function createTestWorkbench(options?: {
 		},
 		idFactory: () => `generated-${nextId++}`,
 		now: () => `2026-07-20T10:00:0${nextId}.000Z`,
-		assignPerformers(currentSnapshot, performerIds, roster) {
-			return assignVoiceGroup({
-				revision: currentSnapshot.revision,
-				text: currentSnapshot.text,
-				document: currentSnapshot.parsed,
-				selection: currentSnapshot.selection,
-				performerIds: [...performerIds],
-				roster
-			});
-		},
 		onOpenDraft(draft) {
 			snapshot = {
 				revision: 0,

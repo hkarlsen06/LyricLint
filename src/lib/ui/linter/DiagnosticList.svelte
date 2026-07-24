@@ -7,8 +7,11 @@
 		diagnostics,
 		sources,
 		activeDiagnosticKey,
+		emptyMessage,
 		lineFor,
 		onNavigate,
+		onChooseHeader,
+		onAssignPerformers = () => {},
 		onPreviewFix,
 		onCancelPreview,
 		onApplyFix,
@@ -17,8 +20,11 @@
 		diagnostics: readonly Diagnostic[];
 		sources: ReadonlyMap<string, SourceReference>;
 		activeDiagnosticKey?: string;
+		emptyMessage: string;
 		lineFor?: (offset: number) => number;
 		onNavigate: (diagnostic: Diagnostic) => void;
+		onChooseHeader: (diagnostic: Diagnostic) => void;
+		onAssignPerformers?: (diagnostic: Diagnostic) => void;
 		onPreviewFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
 		onCancelPreview: () => void;
 		onApplyFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
@@ -120,7 +126,7 @@
 </script>
 
 {#if sortedDiagnostics.length === 0}
-	<p class="empty-state">No diagnostics match the current filters.</p>
+	<p class="empty-state">{emptyMessage}</p>
 {:else}
 	<ol bind:this={list} class="diagnostic-list" aria-label="Document diagnostics">
 		{#each sortedDiagnostics as diagnostic, index (`${cardKey(diagnostic)}-${index}`)}
@@ -178,6 +184,8 @@
 					<DiagnosticDetails
 						{diagnostic}
 						{sources}
+						onChooseHeader={() => onChooseHeader(diagnostic)}
+						onAssignPerformers={() => onAssignPerformers(diagnostic)}
 						onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
 						{onCancelPreview}
 						onApplyFix={(fix) => onApplyFix(diagnostic, fix)}

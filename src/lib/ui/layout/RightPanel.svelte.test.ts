@@ -103,4 +103,52 @@ describe('RightPanel', () => {
 			)
 		);
 	});
+
+	test('opens the editor section picker from a missing-header diagnostic', async () => {
+		const finding = diagnostic({
+			ruleId: 'section.header-missing',
+			severity: 'warning',
+			message: 'This lyric section has no header.',
+			from: 14,
+			to: 14
+		});
+		const { controller, calls } = createTestWorkbench({ diagnostics: [finding] });
+		render(RightPanel, { controller });
+
+		expect(screen.queryByRole('button', { name: /Preview:/ })).toBeNull();
+		await fireEvent.click(screen.getByRole('button', { name: 'Choose header' }));
+
+		expect(calls.revealed).toEqual([{ from: 14, to: 14 }]);
+		expect(calls.selections).toEqual([{ anchor: 14, head: 14 }]);
+		expect(calls.sectionHeaderRequestCount).toBe(1);
+	});
+
+	test('blames the filters for an empty linter list only when they are the cause', async () => {
+		const { controller: clean } = createTestWorkbench({ diagnostics: [] });
+		render(RightPanel, { controller: clean });
+		expect(screen.getByText('No issues found.')).toBeTruthy();
+		cleanup();
+
+		const finding = diagnostic({
+			ruleId: 'section.header-missing',
+			severity: 'warning',
+			message: 'Add a section header'
+		});
+		const { controller } = createTestWorkbench({ diagnostics: [finding] });
+		render(RightPanel, { controller });
+
+		await fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));
+		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
+		expect(screen.getByText('No diagnostics match the current filters.')).toBeTruthy();
+
+		// Ignoring the rule is a separate reason for an empty list, so the copy
+		// should stop pointing at the filters once they no longer hide anything.
+		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
+		controller.ignoreRule('section.header-missing');
+		await waitFor(() =>
+			expect(
+				screen.getByText('Every issue in this draft comes from a rule you ignored.')
+			).toBeTruthy()
+		);
+	});
 });

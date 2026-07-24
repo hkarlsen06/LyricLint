@@ -1,5 +1,4 @@
 import type {
-	AssignmentResult,
 	AutosaveController,
 	AutosaveStatus,
 	Diagnostic,
@@ -49,11 +48,6 @@ export interface WorkbenchDependencies {
 	idFactory?: () => string;
 	now?: () => string;
 	onOpenDraft?: (draft: DraftRecord) => EditorSnapshot | void;
-	assignPerformers?: (
-		snapshot: EditorSnapshot,
-		performerIds: readonly string[],
-		roster: readonly PerformerRecord[]
-	) => AssignmentResult;
 }
 
 export interface WorkbenchController {
@@ -66,7 +60,6 @@ export interface WorkbenchController {
 	readonly performers: readonly PerformerRecord[];
 	readonly activeTab: RightPanelTab;
 	readonly activeDiagnosticKey?: string;
-	readonly panelCollapsed: boolean;
 	readonly severityFilter: readonly Severity[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
 	readonly ignoredRuleIds: readonly string[];
@@ -83,14 +76,14 @@ export interface WorkbenchController {
 	setSaveStatus(status: AutosaveStatus): void;
 	onSnapshot(snapshot: EditorSnapshot): void;
 	setActiveTab(tab: RightPanelTab): void;
-	setPanelCollapsed(collapsed: boolean): void;
-	togglePanel(): void;
 	toggleSeverity(severity: Severity): void;
 	setTitle(title: string): Promise<void>;
 	setLanguage(language: string): void;
 	undo(): void;
 	redo(): void;
 	navigateToDiagnostic(diagnostic: Diagnostic): void;
+	chooseSectionHeader(diagnostic: Diagnostic): void;
+	assignDiagnosticPerformers(diagnostic: Diagnostic): void;
 	previewFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	clearFixPreview(): void;
 	applyFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
@@ -98,9 +91,9 @@ export interface WorkbenchController {
 	restoreRule(ruleId: string): void;
 	copyCanonical(): Promise<void>;
 	insertSection(): void;
-	assignSelection(performerIds: readonly string[]): void;
 	addPerformer(displayName: string): void;
 	renamePerformer(id: string, displayName: string): void;
+	adoptHeaderRename(id: string, previousName: string, displayName: string): void;
 	mergePerformers(sourceId: string, targetId: string): void;
 	removePerformer(id: string): void;
 	refreshDrafts(): Promise<void>;
@@ -174,7 +167,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	let performers = $state<PerformerRecord[]>(cloneRoster(deps.initialDraft.performers));
 	let activeTab = $state<RightPanelTab>('linter');
 	let activeDiagnosticKey = $state<string | undefined>();
-	let panelCollapsed = $state(false);
 	let severityFilter = $state<Severity[]>([...allSeverities]);
 	let ignoredRuleIds = $state<string[]>(deps.ignoreStore.list(deps.initialDraft.id));
 	let saveStatus = $state<AutosaveStatus>(deps.autosave.status());
@@ -350,9 +342,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get activeDiagnosticKey() {
 			return activeDiagnosticKey;
 		},
-		get panelCollapsed() {
-			return panelCollapsed;
-		},
 		get severityFilter() {
 			return severityFilter;
 		},
@@ -461,12 +450,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		setActiveTab(tab) {
 			activeTab = tab;
 		},
-		setPanelCollapsed(collapsed) {
-			panelCollapsed = collapsed;
-		},
-		togglePanel() {
-			panelCollapsed = !panelCollapsed;
-		},
 		toggleSeverity(severity) {
 			severityFilter = severityFilter.includes(severity)
 				? severityFilter.filter((candidate) => candidate !== severity)
@@ -499,11 +482,38 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		navigateToDiagnostic(diagnostic) {
 			editor.clearPreview?.();
+			// Activating a diagnostic from the editor has to reveal its card, so
+			// pull the panel back to the linter tab whatever was showing before.
+			activeTab = 'linter';
 			activeDiagnosticKey = diagnosticKey(diagnostic);
 			const range = { from: diagnostic.from, to: diagnostic.to };
 			editor.revealRange(range);
 			editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
 			editor.focus();
+		},
+		chooseSectionHeader(diagnostic) {
+			editor.clearPreview?.();
+			activeTab = 'linter';
+			activeDiagnosticKey = diagnosticKey(diagnostic);
+			editor.revealRange({ from: diagnostic.from, to: diagnostic.to });
+			editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
+			if (editor.requestSectionHeader) {
+				editor.requestSectionHeader();
+			} else {
+				feedback.announce('The section-header picker is unavailable.');
+			}
+		},
+		assignDiagnosticPerformers(diagnostic) {
+			editor.clearPreview?.();
+			activeTab = 'linter';
+			activeDiagnosticKey = diagnosticKey(diagnostic);
+			editor.revealRange({ from: diagnostic.from, to: diagnostic.to });
+			editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
+			if (editor.requestPerformerLegendAssignment) {
+				editor.requestPerformerLegendAssignment(diagnostic);
+			} else {
+				feedback.announce('The performer picker is unavailable.');
+			}
 		},
 		previewFix(diagnostic, fix) {
 			if (fix.edit.baseRevision !== snapshot.revision) {
@@ -577,20 +587,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				feedback.announce('Place the cursor in a lyric section before inserting a header.');
 			}
 		},
-		assignSelection(performerIds) {
-			const result = deps.assignPerformers?.(snapshot, performerIds, performers);
-			if (!result || result.status === 'blocked') {
-				const reason =
-					result?.status === 'blocked'
-						? result.reason.replaceAll('-', ' ')
-						: 'no editable selection';
-				feedback.announce(`Performer assignment blocked: ${reason}.`);
-				return;
-			}
-			editor.dispatchAtomic(result.edit);
-			feedback.announce('Performer assignment applied.');
-			editor.focus();
-		},
 		addPerformer(displayName) {
 			const trimmed = displayName.trim();
 			if (!trimmed) return;
@@ -619,6 +615,39 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 						: performer
 				),
 				`Renamed ${current.displayName} to ${trimmed}.`
+			);
+		},
+		adoptHeaderRename(id, previousName, displayName) {
+			const trimmed = displayName.trim();
+			const current = performers.find((performer) => performer.id === id);
+			if (!current || !trimmed) return;
+			// The previous spelling stays as an alias so undoing the document edit,
+			// or a header the user has not retyped yet, still resolves to this
+			// performer instead of importing a duplicate.
+			const aliases = [...current.aliases, previousName].filter(
+				(alias, index, allAliases) =>
+					alias.length > 0 && alias !== trimmed && allAliases.indexOf(alias) === index
+			);
+			if (
+				current.displayName === trimmed &&
+				aliases.length === current.aliases.length &&
+				aliases.every((alias, index) => alias === current.aliases[index])
+			) {
+				return;
+			}
+			// The header edit already lives in editor undo, so this roster update
+			// deliberately carries no toast of its own.
+			setRoster(
+				performers.map((performer) =>
+					performer.id === id
+						? {
+								...performer,
+								displayName: trimmed,
+								normalizedKey: normalizedKey(trimmed),
+								aliases
+							}
+						: performer
+				)
 			);
 		},
 		mergePerformers(sourceId, targetId) {

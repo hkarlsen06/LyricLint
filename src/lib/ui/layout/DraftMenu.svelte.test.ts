@@ -62,6 +62,11 @@ describe('DraftMenu', () => {
 		expect(exported[1]?.filename).toBe('Bridge notes.txt');
 
 		await fireEvent.click(within(renamedRow!).getByRole('button', { name: 'Delete' }));
+		// The pending confirm is the row's only decision: the other row actions
+		// step aside rather than sitting beside it.
+		expect(within(renamedRow!).queryByRole('button', { name: 'Rename' })).toBeNull();
+		expect(within(renamedRow!).queryByRole('button', { name: 'Duplicate' })).toBeNull();
+		expect(within(renamedRow!).queryByRole('button', { name: 'Export' })).toBeNull();
 		await fireEvent.click(within(renamedRow!).getByRole('button', { name: 'Yes' }));
 		await waitFor(async () => expect((await repository.list()).length).toBe(3));
 		await waitFor(() =>

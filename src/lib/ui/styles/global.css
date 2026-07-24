@@ -54,8 +54,13 @@ a:hover {
 	outline-offset: var(--focus-ring-offset);
 }
 
+/*
+ * Native selection paints over an element's own background, so an opaque wash
+ * stays visible on the tinted chips, badges, and lyric excerpts in the panels —
+ * a translucent one washed out against them.
+ */
 ::selection {
-	background: var(--color-focus-soft);
+	background: var(--color-text-selection);
 }
 
 .sr-only {
@@ -206,10 +211,6 @@ textarea:disabled {
 	background: var(--color-surface);
 }
 
-.workspace.panel-collapsed {
-	grid-template-columns: minmax(44rem, 1fr);
-}
-
 .editor-region {
 	display: grid;
 	min-width: 0;
@@ -220,10 +221,13 @@ textarea:disabled {
 
 .document-toolbar {
 	z-index: var(--layer-toolbar);
-	display: grid;
+	display: flex;
+	min-height: var(--header-height);
 	padding: var(--space-2) var(--space-3) var(--space-2);
 	border-bottom: var(--border-width) solid var(--color-border);
-	gap: var(--space-2);
+	gap: var(--space-3);
+	align-items: center;
+	justify-content: space-between;
 	background: var(--color-surface-subtle);
 }
 
@@ -235,12 +239,12 @@ textarea:disabled {
 	align-items: center;
 }
 
-.document-toolbar__meta {
-	display: flex;
-	min-width: 0;
-	margin-inline-start: auto;
-	gap: var(--space-2);
-	align-items: center;
+.document-toolbar__identity {
+	flex: 1 1 auto;
+}
+
+.document-toolbar__commands {
+	flex: none;
 }
 
 .app-mark {
@@ -266,10 +270,16 @@ textarea:disabled {
 	color: var(--color-text-muted);
 }
 
+/* Hugs its own text so the save status sits right beside the title instead of
+   being pushed out by a fixed-width field. `size` covers browsers without
+   `field-sizing`. */
 .draft-title {
-	width: min(18rem, 30vw);
+	width: auto;
+	min-width: 4rem;
+	max-width: min(18rem, 30vw);
 	border-color: transparent;
 	background: transparent;
+	field-sizing: content;
 	font-size: var(--font-size-lg);
 	font-weight: var(--font-weight-bold);
 }
@@ -303,10 +313,6 @@ textarea:disabled {
 	width: 1px;
 	height: 1.5rem;
 	background: var(--color-border);
-}
-
-.document-toolbar__spacer {
-	flex: 1;
 }
 
 .editor-host {
@@ -410,12 +416,11 @@ textarea:disabled {
 .right-panel__header {
 	z-index: calc(var(--layer-toolbar) - 1);
 	display: flex;
-	min-height: 3.5rem;
+	min-height: var(--header-height);
 	flex: none;
-	padding: 0 var(--space-2) 0 var(--space-3);
+	padding: 0 var(--space-3);
 	border-bottom: var(--border-width) solid var(--color-border);
 	align-items: center;
-	justify-content: space-between;
 	background: var(--color-canvas);
 }
 
@@ -484,25 +489,17 @@ textarea:disabled {
 	color: var(--color-text-muted);
 }
 
-.panel-reopen {
-	position: fixed;
-	z-index: calc(var(--layer-toolbar) + 1);
-	right: var(--space-3);
-	bottom: 2.75rem;
-	min-height: var(--control-height-lg);
-	padding: var(--control-padding-block) var(--space-3);
-	border: var(--border-width) solid var(--color-border-strong);
-	border-radius: var(--radius-control);
-	background: var(--color-surface);
-	color: var(--color-text);
-	box-shadow: var(--shadow-popover);
-	font-weight: var(--font-weight-semibold);
-}
-
 /* The linter tab is full-bleed: cards run edge to edge as square sections,
    separated by slim bands of the darker panel canvas, as in the mockup. */
 .panel-content.linter-panel {
 	padding: 0;
+}
+
+/* Cards are edge to edge, but prose is not: inset the empty state to line up
+   with the filter row above it. */
+.linter-panel > .empty-state {
+	padding: var(--space-2) var(--space-3) var(--space-4);
+	margin: 0;
 }
 
 .linter-panel__filter-row {
@@ -720,10 +717,27 @@ textarea:disabled {
 }
 
 .diagnostic-details__actions > .button,
-.diagnostic-details__ignore,
-.diagnostic-preview__actions .button {
+.diagnostic-details__ignore {
 	min-height: var(--control-height-md);
 	border-radius: var(--radius-control);
+}
+
+/*
+ * Preview and its confirm state are the same control in the same slot: the
+ * label swaps in place rather than opening a second card inside the card.
+ */
+.diagnostic-details__cta {
+	font-size: var(--font-size-sm);
+}
+
+.diagnostic-details__cancel {
+	border-color: var(--color-border-strong);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+}
+
+.diagnostic-details__cancel:hover:not(:disabled) {
+	color: var(--color-text);
 }
 
 .diagnostic-details__fix {
@@ -750,63 +764,6 @@ textarea:disabled {
 .diagnostic-details__ignore:hover {
 	color: var(--color-text);
 	background: var(--color-control-hover);
-}
-
-.diagnostic-preview {
-	display: grid;
-	width: 100%;
-	padding: var(--space-3);
-	border: var(--border-width) solid var(--color-border);
-	border-radius: var(--radius-panel);
-	gap: var(--space-2);
-	background: var(--color-surface);
-}
-
-.diagnostic-preview > p {
-	margin: 0;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-sm);
-}
-
-.diagnostic-preview dl {
-	display: grid;
-	margin: 0;
-	gap: var(--space-1);
-}
-
-.diagnostic-preview dl > div {
-	display: grid;
-	grid-template-columns: 4rem minmax(0, 1fr);
-	align-items: baseline;
-	gap: var(--space-2);
-}
-
-.diagnostic-preview dt {
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-semibold);
-}
-
-.diagnostic-preview dd {
-	min-width: 0;
-	margin: 0;
-}
-
-.diagnostic-preview code {
-	display: block;
-	padding: var(--space-1) var(--space-2);
-	border-radius: var(--radius-xs);
-	background: var(--color-surface-subtle);
-	font-family: var(--font-mono);
-	font-size: var(--font-size-xs);
-	overflow-wrap: anywhere;
-	white-space: pre-wrap;
-}
-
-.diagnostic-preview__actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-2);
 }
 
 .diagnostic-details__sources {
@@ -898,41 +855,14 @@ textarea:disabled {
 	font-weight: var(--font-weight-semibold);
 }
 
-.performer-assignment {
-	display: grid;
+/* Assignment happens in the editor's floating picker, so the roster only says
+   where to go — the same top-border divider every other panel section uses. */
+.roster-hint {
 	margin: 0 0 var(--space-4);
-	padding: var(--space-3);
-	border: var(--border-width) solid var(--color-border);
-	border-radius: var(--radius-panel);
-	gap: var(--space-2);
-}
-
-.performer-assignment legend {
-	padding: 0 var(--space-1);
-	font-weight: var(--font-weight-bold);
-}
-
-.performer-assignment p {
-	margin: 0;
+	padding: var(--space-4) 0 0;
+	border-top: var(--border-width) solid var(--color-border);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-sm);
-}
-
-.performer-assignment__choices {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-	gap: var(--space-1) var(--space-3);
-}
-
-.performer-assignment__choices label {
-	display: flex;
-	gap: var(--space-2);
-	align-items: center;
-}
-
-.performer-assignment__actions {
-	display: flex;
-	gap: var(--space-2);
 }
 
 .inline-form {
@@ -1075,13 +1005,6 @@ textarea:disabled {
 	margin-top: var(--space-3);
 }
 
-.confirm-block {
-	padding: var(--space-3);
-	border: var(--border-width) solid var(--color-danger-border);
-	border-radius: var(--radius-panel);
-	background: var(--color-danger-surface);
-}
-
 .confirm-row {
 	display: inline-flex;
 	flex-wrap: wrap;
@@ -1102,7 +1025,6 @@ textarea:disabled {
 	display: inline-flex;
 	gap: 0.4rem;
 	align-items: center;
-	border-radius: var(--radius-pill);
 }
 
 .draft-menu > summary::-webkit-details-marker {
@@ -1227,20 +1149,18 @@ textarea:disabled {
 }
 
 @media (max-width: 78rem) {
-	.document-toolbar__identity,
-	.document-toolbar__commands {
-		width: 100%;
+	.document-toolbar {
 		flex-wrap: wrap;
 	}
 
+	.document-toolbar__identity,
 	.document-toolbar__commands {
-		justify-content: flex-start;
+		flex-wrap: wrap;
 	}
 }
 
 @media (max-width: 68rem) {
-	.workspace,
-	.workspace.panel-collapsed {
+	.workspace {
 		display: block;
 		height: auto;
 		min-height: 100vh;
@@ -1250,21 +1170,17 @@ textarea:disabled {
 	.editor-region {
 		width: 100%;
 		min-width: 0;
-		min-height: calc(100vh - 2.5rem);
 	}
 
 	.editor-host {
 		min-height: 60vh;
 	}
 
+	/* Too narrow for two columns, so the panel stacks under the editor rather
+	   than floating over it. It is always visible, so it must not overlap. */
 	.right-panel {
-		position: fixed;
-		z-index: var(--layer-panel);
-		top: 0;
-		right: 0;
-		width: min(24rem, calc(100vw - 1rem));
-		border: var(--border-width) solid var(--color-border-strong);
-		box-shadow: var(--shadow-popover);
+		width: 100%;
+		border-top: var(--border-width) solid var(--color-border);
 	}
 }
 
@@ -1274,7 +1190,7 @@ textarea:disabled {
 	}
 
 	.draft-title {
-		width: min(15rem, 60vw);
+		max-width: min(15rem, 60vw);
 	}
 
 	.save-status {

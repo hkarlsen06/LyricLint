@@ -20,6 +20,7 @@ import { quotesTypewriterRule } from './catalog/quotes-typewriter.js';
 import { repeatPlaceholderRule } from './catalog/repeat-placeholder.js';
 import { sectionHeaderLanguageRule } from './catalog/section-header-language.js';
 import { sectionHeaderMissingRule } from './catalog/section-header-missing.js';
+import { sectionHeaderUnrecognizedRule } from './catalog/section-header-unrecognized.js';
 import { sectionDeprecatedHookRule } from './catalog/section-deprecated-hook.js';
 import { sectionImmediateRepeatSpacingRule } from './catalog/section-immediate-repeat-spacing.js';
 import { sectionVerseNumberingRule } from './catalog/section-verse-numbering.js';
@@ -37,6 +38,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	languageSelectionMismatchRule,
 	sectionHeaderMissingRule,
 	sectionHeaderLanguageRule,
+	sectionHeaderUnrecognizedRule,
 	sectionDeprecatedHookRule,
 	sectionImmediateRepeatSpacingRule,
 	sectionVerseNumberingRule,

@@ -76,11 +76,6 @@
 		<div class="performer-row__actions">
 			<button
 				type="button"
-				class="button button--primary"
-				onclick={() => controller.assignSelection([performer.id])}>Assign</button
-			>
-			<button
-				type="button"
 				class="button button--quiet"
 				bind:this={renameButton}
 				onclick={beginRename}

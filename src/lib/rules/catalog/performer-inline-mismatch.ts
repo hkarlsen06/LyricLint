@@ -3,7 +3,7 @@ import { diagnostic } from './utils.js';
 
 export const performerInlineMismatchRule: RuleDefinition = {
 	id: 'performer.inline-mismatch',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'warning',
 	fixability: 'none',
 	sourceIds: ['G-SECTIONS'],
@@ -20,7 +20,7 @@ export const performerInlineMismatchRule: RuleDefinition = {
 							this,
 							span,
 							'Inline style has no performer in the section legend.',
-							'The styled lyric is preserved as an unresolved voice. Add a matching legend group or explicitly reassign the passage after reviewing performer identity.'
+							'The styled lyric is preserved as an unresolved voice. Choose the section voice and this styled voice to add the missing performer legend without changing the lyrics.'
 						)
 					];
 				})

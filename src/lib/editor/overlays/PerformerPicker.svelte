@@ -8,6 +8,10 @@
 		anchor?: ScreenRect;
 		placement?: 'above' | 'below';
 		initialSelectedIds?: readonly PerformerId[];
+		prompt?: string;
+		applyLabel?: string;
+		returnFocusOnApply?: boolean;
+		allowRemoval?: boolean;
 		onApply: (performerIds: PerformerId[]) => void | Promise<void>;
 		onCancel: () => void;
 		returnFocus: () => void;
@@ -19,19 +23,24 @@
 		anchor,
 		placement = 'above',
 		initialSelectedIds = [],
+		prompt,
+		applyLabel = 'Apply',
+		returnFocusOnApply = true,
+		allowRemoval = true,
 		onApply,
 		onCancel,
 		returnFocus,
 		onAddPerformer
 	}: Props = $props();
 	let activeIndex = $state(0);
+	let keyboardNavigated = $state(false);
 	let selectedIds = $state<PerformerId[]>([...untrack(() => initialSelectedIds)]);
 	let adding = $state(false);
 	let addName = $state('');
 	let pendingAddName = $state<string | undefined>();
 	let root: HTMLDivElement;
 	let addInput = $state<HTMLInputElement | undefined>();
-	const canRemoveFormatting = $derived(initialSelectedIds.length > 0);
+	const canRemoveFormatting = $derived(allowRemoval && initialSelectedIds.length > 0);
 
 	const position = $derived(
 		anchor
@@ -56,6 +65,32 @@
 		void tick().then(focusActive);
 	}
 
+	// Roving tabindex leaves a single tab stop in the roster, so a plain Tab
+	// would land on the workbench behind this card while it stays open — the
+	// keyboard would then drive the page, not the picker. Cycle within instead;
+	// Escape and Apply remain the ways out.
+	function tabStops(): HTMLElement[] {
+		if (!root) {
+			return [];
+		}
+		const rosterStop = adding ? addInput : chipButtons()[activeIndex];
+		return [
+			...(rosterStop ? [rosterStop] : []),
+			...root.querySelectorAll<HTMLButtonElement>('.actions button:not(:disabled)')
+		];
+	}
+
+	function trapTab(event: KeyboardEvent): void {
+		event.preventDefault();
+		const stops = tabStops();
+		if (stops.length < 2) {
+			return;
+		}
+		const current = stops.findIndex((stop) => stop === document.activeElement);
+		const delta = event.shiftKey ? -1 : 1;
+		stops[(Math.max(0, current) + delta + stops.length) % stops.length]?.focus();
+	}
+
 	function toggle(id: PerformerId): void {
 		selectedIds = selectedIds.includes(id)
 			? selectedIds.filter((candidate) => candidate !== id)
@@ -70,7 +105,9 @@
 			await onApply([...selectedIds]);
 		} finally {
 			await tick();
-			returnFocus();
+			if (returnFocusOnApply) {
+				returnFocus();
+			}
 		}
 	}
 
@@ -142,6 +179,11 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent): void {
+		// Runs before the add-input bail-out: Tab has to stay trapped there too.
+		if (event.key === 'Tab') {
+			trapTab(event);
+			return;
+		}
 		if (adding && event.target === addInput) {
 			return;
 		}
@@ -200,6 +242,17 @@
 
 	onMount(() => {
 		focusActive();
+		// The picker grabs focus the moment it opens, so :focus-visible would ring
+		// the first chip before anyone navigated to it — that reads as a highlight
+		// pointing at something rather than as a focus indicator. Reveal it on the
+		// first Tab or arrow key instead, including a Tab arriving from outside.
+		const revealFocusRing = (event: KeyboardEvent): void => {
+			if (event.key === 'Tab' || event.key.startsWith('Arrow')) {
+				keyboardNavigated = true;
+			}
+		};
+		window.addEventListener('keydown', revealFocusRing, true);
+		return () => window.removeEventListener('keydown', revealFocusRing, true);
 	});
 </script>
 
@@ -212,6 +265,7 @@
 	<div
 		bind:this={root}
 		class="picker"
+		class:show-focus={keyboardNavigated}
 		role="toolbar"
 		tabindex="-1"
 		aria-label="Assign performers"
@@ -222,6 +276,9 @@
 			}
 		}}
 	>
+		{#if prompt}
+			<span class="picker__prompt">{prompt}</span>
+		{/if}
 		<div class="roster" aria-label="Performer roster">
 			{#each performers as performer, index (performer.id)}
 				<button
@@ -301,7 +358,7 @@
 				disabled={selectedIds.length === 0 && !canRemoveFormatting}
 				onclick={apply}
 			>
-				{selectedIds.length === 0 ? 'Remove formatting' : 'Apply'}
+				{selectedIds.length === 0 && allowRemoval ? 'Remove formatting' : applyLabel}
 				<span aria-hidden="true" class="apply__key">↵</span>
 			</button>
 		</div>
@@ -335,6 +392,14 @@
 		line-height: var(--line-height-tight);
 	}
 
+	.picker__prompt {
+		flex: none;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-semibold);
+		white-space: nowrap;
+	}
+
 	.anchored {
 		position: fixed;
 		left: clamp(0.5rem, var(--ll-anchor-left), calc(100vw - 34.5rem));
@@ -363,10 +428,17 @@
 	}
 
 	.roster {
+		/* Chip focus rings sit outside the chip border, and overflow-x makes this
+		   box clip on both axes. Reserve the ring's space inside the scroller and
+		   pull it back out again so the chips keep their original position. */
+		--ring-space: calc(var(--focus-ring-width) + var(--focus-ring-offset));
+
 		display: flex;
 		min-width: 0;
 		gap: var(--space-1-5);
 		align-items: center;
+		margin: calc(-1 * var(--ring-space));
+		padding: var(--ring-space);
 		overflow-x: auto;
 	}
 
@@ -453,7 +525,14 @@
 		font-weight: 400;
 	}
 
-	button:focus-visible,
+	/* The picker takes focus as it opens, so the global :focus-visible ring would
+	   land on a chip nobody navigated to. Hold it back until the first Tab or
+	   arrow key; text entry keeps its ring either way. */
+	.picker:not(.show-focus) button:focus-visible {
+		outline: none;
+	}
+
+	.show-focus button:focus-visible,
 	input:focus-visible {
 		outline: var(--focus-ring-width) solid var(--color-focus);
 		outline-offset: var(--focus-ring-offset);
@@ -465,6 +544,10 @@
 	}
 
 	.actions {
+		/* The roster is the part that gives way when the row runs out of room (it
+		   scrolls); without this the actions box shrinks under its own button and
+		   the Apply pill hangs outside the picker's rounded edge. */
+		flex: none;
 		display: flex;
 		gap: var(--space-1-5);
 		padding-inline-start: var(--space-2);

@@ -426,9 +426,10 @@ The fixability classes below normalize the catalog into `safe`, `preview`, and `
 | `syntax.unsupported-voice-markup` | Error | Preview | `G-SECTIONS` | Detect performer differentiation outside supported `<i>/<b>` combinations, including malformed nesting. |
 | `section.header-missing` | Warning | Preview/user choice | `G-SECTIONS` | Detect a blank-line section containing lyrics without a header and offer the localized/custom picker. |
 | `section.header-language` | Warning | Preview/confirmation | `G-SECTIONS` + selected reviewed language source (`G-LANG-EN` or `G-LANG-NO`) | Warn only when a recognized header conflicts with a reviewed selected pack; preserve custom/unreviewed headers. |
-| `performer.header-required` | Warning | Preview | `G-SECTIONS` | Detect inline differentiation in a multi-vocalist section without a performer legend. |
+| `section.header-unrecognized` | Manual review | None | `G-SECTIONS` + reviewed language sources | Flag a bracketed name absent from every reviewed header catalog without guessing a replacement or changing custom text. |
+| `performer.header-required` | Warning | Safe | `G-SECTIONS` | Detect inline differentiation in a multi-vocalist section without a performer legend and offer removal of the supported formatting wrappers. |
 | `performer.style-order` | Warning | Preview | `G-SECTIONS` | Detect header groups that do not follow plain, italic, bold, bold-italic slot order. |
-| `performer.inline-mismatch` | Warning | None | `G-SECTIONS` | Detect inline style with no resolvable legend group. |
+| `performer.inline-mismatch` | Warning | None | `G-SECTIONS` | Detect inline style with no resolvable legend group and offer guided performer assignment for the plain and styled voices. |
 | `performer.too-many-groups` | Warning | None | `G-SECTIONS` | Detect more than four distinct style groups and explain options without asserting a universal performer ban. |
 | `performer.line-label-forbidden` | Warning | None | `G-SECTIONS` | Detect names/symbols in brackets used to label individual lyric lines. |
 | `spelling.standardized` | Suggestion | Safe only for context-free entries | `G-SPELLING` | Detect reviewed non-preferred forms only when context is sufficiently certain. |

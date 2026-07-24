@@ -33,7 +33,8 @@ function callbacks(): LyricEditorCallbacks {
 		onAssignRequest: vi.fn(),
 		onSectionHeaderRequest: vi.fn(),
 		onDiagnosticActivate: vi.fn(),
-		onAnnouncement: vi.fn()
+		onAnnouncement: vi.fn(),
+		onPerformerRenamed: vi.fn()
 	};
 }
 
@@ -275,6 +276,42 @@ describe('EditorPane', () => {
 		);
 	});
 
+	it('mirrors a performer renamed in one header into the other headers', async () => {
+		const text = [
+			'[Verse 1: Avery]',
+			'Avery opens the song',
+			'',
+			'[Chorus: Avery & Blair]',
+			'Both of them together'
+		].join('\n');
+		const { handle, editorCallbacks } = await mountEditor({
+			text,
+			displayContext: context({ performers: performers() })
+		});
+
+		handle.setSelection({ anchor: 15, head: 15 });
+		handle.focus();
+		await userEvent.keyboard('n');
+
+		expect(handle.getSnapshot().text).toBe(
+			text.replace('[Verse 1: Avery]', '[Verse 1: Averyn]').replace('Avery &', 'Averyn &')
+		);
+		expect(editorCallbacks.onPerformerRenamed).toHaveBeenCalledWith(
+			expect.objectContaining({
+				performerId: 'avery',
+				previousName: 'Avery',
+				displayName: 'Averyn'
+			})
+		);
+		expect(editorCallbacks.onAnnouncement).toHaveBeenCalledWith(
+			'Renaming Avery in 1 other header.'
+		);
+
+		// The mirrored headers are part of the same history event.
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(text);
+	});
+
 	it('opens assignment UI only for a user-driven selection', async () => {
 		const { handle } = await mountEditor({
 			text: 'hello world',
@@ -370,6 +407,62 @@ describe('EditorPane', () => {
 			.not.toBeInTheDocument();
 	});
 
+	it('assigns both the section voice and unresolved styled voice from the diagnostic', async () => {
+		const text = '[Verse: Avery]\nAvery leads\n<i>Blair answers</i>';
+		const styledFrom = text.indexOf('<i>');
+		const styledTo = text.indexOf('</i>') + '</i>'.length;
+		const legendFrom = text.indexOf('Avery');
+		const createPerformerLegendEdit = vi.fn();
+		const issue = testDiagnostic({
+			ruleId: 'performer.inline-mismatch',
+			from: styledFrom,
+			to: styledTo,
+			message: 'Inline style has no performer in the section legend.'
+		});
+		const editorCallbacks: LyricEditorCallbacks = {
+			...callbacks(),
+			createPerformerLegendEdit
+		};
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({
+				performers: performers(),
+				diagnostics: { revision: 0, items: [issue] },
+				voiceGroups: [
+					{
+						from: legendFrom,
+						to: legendFrom + 'Avery'.length,
+						group: { id: 'voice-avery', performerIds: ['avery'], styleSlot: 1 },
+						legend: true
+					}
+				]
+			}),
+			editorCallbacks
+		});
+
+		handle.focus();
+		await userEvent.keyboard('{F8}');
+		await userEvent.click(page.getByRole('button', { name: /Assign section performers Choose/u }));
+
+		await expect.element(page.getByText('General section voice · 1 of 2')).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: /Avery/u }))
+			.toHaveAttribute('aria-pressed', 'true');
+		await userEvent.click(page.getByRole('button', { name: /Next/u }));
+
+		await expect.element(page.getByText('Styled passage · 2 of 2')).toBeVisible();
+		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
+		await userEvent.click(page.getByRole('button', { name: /^Apply/u }));
+
+		expect(createPerformerLegendEdit).toHaveBeenCalledWith({
+			sectionFrom: 0,
+			assignments: [
+				{ styleSlot: 1, performerIds: ['avery'] },
+				{ styleSlot: 2, performerIds: ['blair'] }
+			]
+		});
+	});
+
 	it('activates a diagnostic when its inline underline is tapped', async () => {
 		const issue = testDiagnostic({ from: 0, to: 5 });
 		const editorCallbacks = callbacks();
@@ -386,6 +479,36 @@ describe('EditorPane', () => {
 		}
 
 		await userEvent.click(underline);
+
+		expect(editorCallbacks.onDiagnosticActivate).toHaveBeenCalledWith(issue);
+	});
+
+	it('activates a one-character underline tapped on its trailing half', async () => {
+		// Lyric-line capitalization marks a single letter, so half of every tap
+		// lands past the range's midpoint and resolves to its end offset.
+		const issue = testDiagnostic({ from: 0, to: 1 });
+		const editorCallbacks = callbacks();
+		await mountEditor({
+			text: 'hello',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [issue] }
+			}),
+			editorCallbacks
+		});
+		const underline = document.querySelector<HTMLElement>('.ll-diagnostic-range');
+		if (!underline) {
+			throw new Error('Diagnostic underline was not rendered.');
+		}
+		const box = underline.getBoundingClientRect();
+
+		underline.dispatchEvent(
+			new MouseEvent('click', {
+				bubbles: true,
+				cancelable: true,
+				clientX: box.right - 1,
+				clientY: box.top + box.height / 2
+			})
+		);
 
 		expect(editorCallbacks.onDiagnosticActivate).toHaveBeenCalledWith(issue);
 	});
@@ -453,6 +576,39 @@ describe('EditorPane', () => {
 		expect(getComputedStyle(highlight!).borderBottomStyle).toBe('none');
 	});
 
+	it('leaves the selection to the native highlight so performer tints cannot hide it', async () => {
+		// Regression: with drawSelection the highlight lives in a layer pinned
+		// behind every line background, so an opaque performer tint swallowed it
+		// and only untinted lyrics showed a selection at all.
+		const { handle } = await mountEditor({
+			text: 'hello world',
+			displayContext: context({
+				performers: performers(),
+				voiceGroups: [
+					{
+						from: 0,
+						to: 5,
+						group: { id: 'voice-a', performerIds: ['avery'], styleSlot: 1 }
+					}
+				]
+			})
+		});
+
+		handle.focus();
+		handle.setSelection({ anchor: 0, head: 5 });
+
+		const highlight = document.querySelector<HTMLElement>('.ll-performer-highlight');
+		expect(highlight).not.toBeNull();
+		expect(document.querySelector('.cm-selectionLayer')).toBeNull();
+		// The browser paints ::selection between a line's background and its glyphs,
+		// the only place a selection survives an opaque tint. drawSelection hides it
+		// there and repaints it behind the tint, where nothing shows.
+		const selectionBackground = getComputedStyle(highlight!, '::selection').backgroundColor;
+		expect(selectionBackground).not.toBe('transparent');
+		expect(selectionBackground).not.toBe('rgba(0, 0, 0, 0)');
+		expect(window.getSelection()?.isCollapsed).toBe(false);
+	});
+
 	it('uses the containing section start for the section shortcut and editor handle', async () => {
 		const createSectionHeaderEdit = vi.fn(({ range }: { range: { from: number; to: number } }) =>
 			range.from === 0
@@ -503,6 +659,48 @@ describe('EditorPane', () => {
 		expect(handle.getSnapshot().text).toBe('A lyric line');
 	});
 
+	it('ranks a pre-chorus first when a headerless section sits between a verse and refrain', async () => {
+		const createSectionHeaderEdit = vi.fn();
+		const languagePack = {
+			tag: 'no',
+			displayName: 'Norwegian',
+			policy: 'localized' as const,
+			headers: [
+				{ semanticPart: 'Intro', terms: ['Intro'] },
+				{ semanticPart: 'Verse', terms: ['Vers'] },
+				{ semanticPart: 'Chorus', terms: ['Chorus', 'Refreng'] },
+				{ semanticPart: 'Pre-Chorus', terms: ['Pre-Chorus'] },
+				{ semanticPart: 'Post-Chorus', terms: ['Post-Chorus'] },
+				{ semanticPart: 'Bridge', terms: ['Bro'] }
+			],
+			sourceIds: [],
+			reviewed: true
+		};
+		await mountEditor({
+			text: '[Vers 1]\nVerse line\n\nBuild line\n\n[Refreng]\nChorus line\n\n[Vers 2]\nLater verse',
+			displayContext: context({ language: 'no', languagePack }),
+			editorCallbacks: { ...callbacks(), createSectionHeaderEdit }
+		});
+
+		await userEvent.click(page.getByRole('button', { name: '+ Add section header' }));
+		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
+
+		expect(
+			document.querySelector<HTMLElement>('[role="option"]:first-child button')?.textContent?.trim()
+		).toBe('Pre-Chorus');
+		await expect.element(page.getByRole('button', { name: 'Vers 2' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Vers 3' })).not.toBeInTheDocument();
+
+		await userEvent.click(page.getByRole('button', { name: 'Vers 2' }));
+		expect(createSectionHeaderEdit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				headerName: 'Vers',
+				ordinal: 2,
+				numberedHeaderTerms: ['Vers']
+			})
+		);
+	});
+
 	it('renders an atomic fix preview in the editor without changing the document', async () => {
 		const { handle } = await mountEditor({ text: 'hello!' });
 
@@ -545,6 +743,53 @@ describe('PerformerPicker keyboard flow', () => {
 		expect(onApply).toHaveBeenCalledWith(['avery', 'blair']);
 		expect(focusTarget).toBe(document.activeElement);
 		expect(onCancel).not.toHaveBeenCalled();
+	});
+
+	it('holds the focus ring back until the first keyboard navigation', async () => {
+		const focusTarget = document.createElement('button');
+		focusTarget.dataset.testFocusReturn = 'true';
+		focusTarget.textContent = 'Editor focus target';
+		document.body.append(focusTarget);
+
+		await render(PerformerPicker, {
+			performers: performers(),
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => focusTarget.focus()
+		});
+		const toolbar = page.getByRole('toolbar', { name: 'Assign performers' });
+		await expect.element(page.getByRole('button', { name: 'Avery' })).toHaveFocus();
+		await expect.element(toolbar).not.toHaveClass('show-focus');
+
+		await userEvent.keyboard('{ArrowRight}');
+
+		await expect.element(toolbar).toHaveClass('show-focus');
+	});
+
+	it('keeps Tab inside the card instead of dropping focus onto the page behind it', async () => {
+		const focusTarget = document.createElement('button');
+		focusTarget.dataset.testFocusReturn = 'true';
+		focusTarget.textContent = 'Editor focus target';
+		document.body.append(focusTarget);
+
+		await render(PerformerPicker, {
+			performers: performers(),
+			initialSelectedIds: ['avery'],
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => focusTarget.focus()
+		});
+		await expect.element(page.getByRole('button', { name: 'Avery' })).toHaveFocus();
+
+		// Roving tabindex leaves one stop in the roster, so an untrapped Tab lands
+		// on whatever follows the card in the document.
+		await userEvent.keyboard('{Tab}');
+		await expect.element(page.getByRole('button', { name: /Apply/ })).toHaveFocus();
+
+		await userEvent.keyboard('{Tab}');
+		await expect.element(page.getByRole('button', { name: 'Avery' })).toHaveFocus();
+
+		expect(focusTarget).not.toBe(document.activeElement);
 	});
 
 	it('cancels with Escape and returns focus', async () => {
@@ -673,7 +918,11 @@ describe('DiagnosticPopover fix flow', () => {
 		await userEvent.click(page.getByRole('button', { name: /Replace word Preview/u }));
 		expect(onApplyFix).not.toHaveBeenCalled();
 		expect(onPreviewFix).toHaveBeenCalledWith(previewFix);
-		await expect.element(page.getByText('Previewing this change in the editor.')).toBeVisible();
+		// The confirm state swaps the fix button in place; no nested preview card.
+		await expect.element(page.getByRole('button', { name: 'Cancel preview' })).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: 'Ignore for this session' }))
+			.not.toBeInTheDocument();
 
 		await userEvent.click(page.getByRole('button', { name: /Apply Replace word Confirm/u }));
 		expect(onApplyFix).toHaveBeenCalledWith(previewFix);

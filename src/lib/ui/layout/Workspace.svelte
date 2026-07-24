@@ -5,9 +5,13 @@
 		EditorPaneProps,
 		LyricEditorCallbacks
 	} from '$lib/editor/index.js';
-	import { assignVoiceGroup, insertSectionHeader } from '$lib/performers/index.js';
+	import {
+		assignVoiceGroup,
+		assignVoiceLegend,
+		insertSectionHeader
+	} from '$lib/performers/index.js';
 	import { getLanguagePack } from '$lib/languages/registry.js';
-	import { onMount, type Component, untrack } from 'svelte';
+	import { type Component, untrack } from 'svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import {
 		buildRuleContext,
@@ -107,6 +111,8 @@
 		// whatever tab the user chose.
 		onAssignRequest: () => {},
 		onAddPerformer: (displayName) => controller.addPerformer(displayName),
+		onPerformerRenamed: ({ performerId, previousName, displayName }) =>
+			controller.adoptHeaderRename(performerId, previousName, displayName),
 		onSectionHeaderRequest: () => {},
 		onDiagnosticActivate: (diagnostic) => controller.navigateToDiagnostic(diagnostic),
 		onAnnouncement: (message) => controller.feedback.announce(message),
@@ -125,7 +131,24 @@
 			controller.feedback.announce(`Performer assignment blocked: ${reason}.`);
 			return undefined;
 		},
-		createSectionHeaderEdit: ({ range, headerName, ordinal }) => {
+		createPerformerLegendEdit: ({ sectionFrom, assignments }) => {
+			const snapshot = controller.snapshot;
+			const result = assignVoiceLegend({
+				revision: snapshot.revision,
+				text: snapshot.text,
+				document: snapshot.parsed,
+				sectionFrom,
+				assignments: assignments.map((assignment) => ({
+					...assignment,
+					performerIds: [...assignment.performerIds]
+				})),
+				roster: controller.performers
+			});
+			if (result.status === 'applied') return result.edit;
+			controller.feedback.announce('Those section performers could not be assigned.');
+			return undefined;
+		},
+		createSectionHeaderEdit: ({ range, headerName, ordinal, numberedHeaderTerms }) => {
 			const snapshot = controller.snapshot;
 			const result = insertSectionHeader({
 				revision: snapshot.revision,
@@ -133,7 +156,8 @@
 				document: snapshot.parsed,
 				sectionFrom: range.from,
 				headerName,
-				ordinal
+				ordinal,
+				numberedHeaderTerms
 			});
 			if (result.status === 'applied') return result.edit;
 			controller.feedback.announce('That section header could not be inserted here.');
@@ -156,19 +180,9 @@
 		if (current.composing || key === lastLintKey) return;
 		controller.onSnapshot(enrichSnapshot(current));
 	});
-
-	onMount(() => {
-		const narrowViewport = window.matchMedia('(max-width: 68rem)');
-		if (narrowViewport.matches) controller.setPanelCollapsed(true);
-		const collapseOnNarrow = (event: MediaQueryListEvent) => {
-			if (event.matches) controller.setPanelCollapsed(true);
-		};
-		narrowViewport.addEventListener('change', collapseOnNarrow);
-		return () => narrowViewport.removeEventListener('change', collapseOnNarrow);
-	});
 </script>
 
-<main class:panel-collapsed={controller.panelCollapsed} class="workspace" data-testid="workspace">
+<main class="workspace" data-testid="workspace">
 	<section class="editor-region" aria-label="Lyrics workspace">
 		<DocumentToolbar {controller} />
 		<div class="editor-host" data-testid="editor-region">
@@ -184,18 +198,7 @@
 		</div>
 	</section>
 
-	{#if controller.panelCollapsed}
-		<button
-			type="button"
-			class="panel-reopen"
-			aria-label="Show right panel"
-			onclick={() => controller.setPanelCollapsed(false)}
-		>
-			Show panel
-		</button>
-	{:else}
-		<RightPanel {controller} />
-	{/if}
+	<RightPanel {controller} />
 
 	<footer class="status-bar" aria-label="Document summary">
 		<span class="status-bar__group">

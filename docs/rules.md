@@ -76,12 +76,13 @@ Rules depending only on sources in this table remain disabled until their annota
 | `language.selection-mismatch` | Warning | Sufficient lyric text clearly matches a different language than the selected one | Explain only; local statistical estimate | `T-LANGUAGE-DETECT` |
 | `section.header-missing` | Warning | A blank-line section contains lyrics but no section header | Insert chosen localized header | `G-SECTIONS` |
 | `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog | Replace after user confirmation | `G-SECTIONS`, reviewed language source |
+| `section.header-unrecognized` | Manual review | A bracketed header is absent from every reviewed header catalog | Explain only; preserve the custom text | `G-SECTIONS`, reviewed language sources |
 | `section.deprecated-hook` | Warning | A section uses the deprecated `[Hook]` name | Preview Chorus and Refrain replacements | `G-SECTION-HOOK` |
 | `section.immediate-repeat-spacing` | Warning | An exact song part is immediately repeated behind a blank separator or duplicate header | Safely retain both lyric copies under one header with no blank separator | `G-SECTIONS`, `G-REPEATS` |
 | `section.verse-numbering` | Suggestion | A non-verse is numbered, a lone verse is numbered, or explicit verse numbers conflict | Preview number removal or correction | `G-SECTION-NUMBERING` |
-| `performer.header-required` | Warning | A multi-vocalist section has inline differentiation but no performer legend | Preview header insertion | `G-SECTIONS` |
+| `performer.header-required` | Warning | A multi-vocalist section has inline differentiation but no performer legend | Safely remove performer formatting | `G-SECTIONS` |
 | `performer.style-order` | Warning | Header voice groups do not use plain, italic, bold, bold-italic slot order | Preview only | `G-SECTIONS` |
-| `performer.inline-mismatch` | Warning | Inline style refers to no resolvable header voice group | No automatic fix | `G-SECTIONS` |
+| `performer.inline-mismatch` | Warning | Inline style refers to no resolvable header voice group | Choose the section and styled performers | `G-SECTIONS` |
 | `performer.redundant-markup` | Suggestion | Adjacent same-performer wrappers use more formatting markers than necessary | Safely merge the adjacent wrappers | `G-SECTIONS` |
 | `performer.unused-legend-slot` | Suggestion | A clean section header declares a performer style absent from its lyrics | Safely remove the unused legend slot | `G-SECTIONS` |
 | `performer.too-many-groups` | Warning | More than four distinct style groups occur, exceeding the documented four-slot format | Explain the source's context and options only | `G-SECTIONS` |
@@ -160,7 +161,7 @@ Initial reviewed subset:
 | Instrumental | Instrumental | Instrumental |
 | Outro | Outro | Outro |
 
-Do not assume every language translates every header. Some Genius language annotations explicitly prefer English headers or vary by genre. Preserve custom headers and explain recommendations rather than blocking export.
+Do not assume every language translates every header. Some Genius language annotations explicitly prefer English headers or vary by genre. Preserve custom headers, send unrecognized names to manual review, and explain recommendations rather than blocking export.
 
 The general performer source uses the phrase "too many vocalists" without a universal number. It explicitly mentions more than four only for multiple vocal samples. LyricLint warns when a fifth group exceeds the four available style slots, but its copy must not misquote that as a universal five-performer Genius ban.
 

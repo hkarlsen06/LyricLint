@@ -2,6 +2,7 @@ import type {
 	AssignmentRequest,
 	AtomicDocumentEdit,
 	InsertSectionHeaderRequest,
+	LegendAssignmentRequest,
 	LyricLine,
 	RemoveDifferentiationRequest,
 	Section,
@@ -38,6 +39,8 @@ interface LineTransform {
 	selectedFrom: number;
 	selectedTo: number;
 }
+
+const STYLE_SLOTS: readonly StyleSlot[] = [1, 2, 3, 4];
 
 function orderedSelection(selection: SerializedSelection): TextRange {
 	return {
@@ -265,6 +268,22 @@ function buildLinePieces(text: string, line: LyricLine, selection: TextRange): S
 	return pieces;
 }
 
+function retainedStyleSlots(text: string, section: Section, selection: TextRange): Set<StyleSlot> {
+	const retained = new Set<StyleSlot>();
+	for (const line of section.lines) {
+		const lineSelection = trimWhitespaceRange(text, {
+			from: Math.max(selection.from, line.from),
+			to: Math.min(selection.to, line.to)
+		});
+		for (const piece of buildLinePieces(text, line, lineSelection)) {
+			if (!piece.selected && piece.text.trim().length > 0) {
+				retained.add(piece.slot);
+			}
+		}
+	}
+	return retained;
+}
+
 function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
 	const runs: { slot: StyleSlot; pieces: StyledPiece[] }[] = [];
 	for (const piece of pieces) {
@@ -415,34 +434,42 @@ function combineLineTransforms(
 	};
 }
 
-function serializeRawGroupsWithNew(rawGroups: readonly string[], newGroup: string): string {
-	const allGroups = [...rawGroups, newGroup];
-	if (allGroups.length < 2) {
-		return allGroups[0] ?? '';
+interface RawLegendGroup {
+	raw: string;
+	styleSlot: StyleSlot;
+}
+
+function serializeRawGroups(groups: readonly RawLegendGroup[]): string {
+	const orderedGroups = [...groups].sort((left, right) => left.styleSlot - right.styleSlot);
+	if (orderedGroups.length < 2) {
+		return orderedGroups[0]?.raw ?? '';
 	}
-	return `${allGroups.slice(0, -1).join(', ')} & ${allGroups.at(-1)}`;
+	return `${orderedGroups
+		.slice(0, -1)
+		.map((group) => group.raw)
+		.join(', ')} & ${orderedGroups.at(-1)?.raw ?? ''}`;
 }
 
 function headerLegendEdit(
 	section: Section,
-	newGroup: string,
-	existingRawGroups = section.header?.legendGroups.map((group) => group.raw) ?? []
+	groups: readonly RawLegendGroup[]
 ): TextEdit | undefined {
 	const header = section.header;
 	if (!header) {
 		return undefined;
 	}
 
+	const legend = serializeRawGroups(groups);
 	if (header.legendRange) {
 		return {
 			from: header.legendRange.from,
 			to: header.legendRange.to,
-			insert: serializeRawGroupsWithNew(existingRawGroups, newGroup)
+			insert: legend
 		};
 	}
 
 	const insertionPoint = header.closed ? header.to - 1 : header.to;
-	return { from: insertionPoint, to: insertionPoint, insert: `: ${newGroup}` };
+	return { from: insertionPoint, to: insertionPoint, insert: `: ${legend}` };
 }
 
 function compareEdits(left: TextEdit, right: TextEdit): number {
@@ -614,7 +641,14 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		}));
 	const resolvedSection: Section = { ...section, voiceGroups: resolvedGroups };
 	const groupKey = makeVoiceGroupKey(selectedPerformers.map((performer) => performer.id));
-	const allocation = allocateStyleSlot(resolvedSection, groupKey);
+	const retainedSlots = retainedStyleSlots(request.text, section, selection);
+	let allocation = allocateStyleSlot(resolvedSection, groupKey);
+	if (allocation.status !== 'existing') {
+		const reusableSlot = STYLE_SLOTS.find((slot) => !retainedSlots.has(slot));
+		allocation = reusableSlot
+			? { status: 'available', styleSlot: reusableSlot }
+			: { status: 'unavailable' };
+	}
 
 	if (allocation.status === 'unavailable') {
 		return {
@@ -658,15 +692,20 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		const newLegendGroup = serializeLegend([
 			{ styleSlot: allocation.styleSlot, members: selectedPerformers }
 		]);
-		const existingRawGroups = extraction.voiceGroups
+		const retainedLegendGroups = extraction.voiceGroups
 			.filter((group) => group.sectionFrom === section.from && !group.unresolved)
 			.sort((left, right) => (left.sourceRange?.from ?? 0) - (right.sourceRange?.from ?? 0))
-			.map((group) =>
-				group.sourceRange
+			.filter((group) => retainedSlots.has(group.styleSlot))
+			.map((group) => ({
+				styleSlot: group.styleSlot,
+				raw: group.sourceRange
 					? request.text.slice(group.sourceRange.from, group.sourceRange.to)
 					: (group.rawNameText ?? '')
-			);
-		const edit = headerLegendEdit(section, newLegendGroup, existingRawGroups);
+			}));
+		const edit = headerLegendEdit(section, [
+			...retainedLegendGroups,
+			{ styleSlot: allocation.styleSlot, raw: newLegendGroup }
+		]);
 		if (!edit) {
 			return { status: 'blocked', reason: 'invalid-range' };
 		}
@@ -708,29 +747,116 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	};
 }
 
-/** Insert a chosen section header as one undoable atomic edit. */
-export function insertSectionHeader(request: InsertSectionHeaderRequest): DocumentTransformResult {
-	if (request.document.text !== request.text) {
+/**
+ * Assign performers to existing section-local style slots without touching the
+ * lyric body. This is used when imported inline formatting is valid but its
+ * header legend is missing the performer identities.
+ */
+export function assignVoiceLegend(request: LegendAssignmentRequest): DocumentTransformResult {
+	if (request.document.text !== request.text || request.assignments.length === 0) {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 	const section = request.document.sections.find(
 		(candidate) => candidate.from === request.sectionFrom
 	);
+	const header = section?.header;
+	if (
+		!section ||
+		!header ||
+		!header.closed ||
+		header.legendGroups.some((group) => !group.markupSupported)
+	) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+
+	const replacements = new Map<StyleSlot, RawLegendGroup>();
+	for (const assignment of request.assignments) {
+		if (replacements.has(assignment.styleSlot) || assignment.performerIds.length === 0) {
+			return { status: 'blocked', reason: 'invalid-range' };
+		}
+		const uniqueIds = [...new Set(assignment.performerIds)];
+		const members = uniqueIds
+			.map((id) => request.roster.find((performer) => performer.id === id))
+			.filter((performer) => performer !== undefined)
+			.sort((left, right) => left.order - right.order);
+		if (members.length !== uniqueIds.length) {
+			return { status: 'blocked', reason: 'invalid-range' };
+		}
+		replacements.set(assignment.styleSlot, {
+			styleSlot: assignment.styleSlot,
+			raw: serializeLegend([{ styleSlot: assignment.styleSlot, members }])
+		});
+	}
+
+	const groups = new Map<StyleSlot, RawLegendGroup>();
+	for (const group of header.legendGroups) {
+		groups.set(group.styleSlot, { styleSlot: group.styleSlot, raw: group.raw });
+	}
+	for (const [styleSlot, group] of replacements) {
+		groups.set(styleSlot, group);
+	}
+
+	const edit = headerLegendEdit(section, [...groups.values()]);
+	if (
+		!edit ||
+		(edit.from === edit.to && edit.insert.length === 0) ||
+		request.text.slice(edit.from, edit.to) === edit.insert
+	) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+	return {
+		status: 'applied',
+		edit: makeAtomicEdit(request.revision, request.text.length, [edit])
+	};
+}
+
+/** Insert a chosen section header as one undoable atomic edit. */
+export function insertSectionHeader(request: InsertSectionHeaderRequest): DocumentTransformResult {
+	if (request.document.text !== request.text) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+	const sectionIndex = request.document.sections.findIndex(
+		(candidate) => candidate.from === request.sectionFrom
+	);
+	const section = request.document.sections[sectionIndex];
 	const headerName = request.headerName.trim();
 	if (!section || section.header || headerName.length === 0) {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 
 	const ordinal = request.ordinal === undefined ? '' : ` ${request.ordinal}`;
+	const edits: TextEdit[] = [
+		{
+			from: section.from,
+			to: section.from,
+			insert: `[${headerName}${ordinal}]${lineEndingForInsertion(request.text, section.from)}`
+		}
+	];
+	if (request.ordinal !== undefined && request.numberedHeaderTerms?.length) {
+		const matchingTerms = new Set(
+			request.numberedHeaderTerms.map((term) => term.trim().toLocaleLowerCase())
+		);
+		for (const followingSection of request.document.sections.slice(sectionIndex + 1)) {
+			const header = followingSection.header;
+			if (
+				!header?.ordinalRange ||
+				header.ordinal === undefined ||
+				header.ordinal < request.ordinal ||
+				!matchingTerms.has(header.namePart.trim().toLocaleLowerCase())
+			) {
+				continue;
+			}
+			edits.push({
+				from: header.ordinalRange.from,
+				to: header.ordinalRange.to,
+				insert: String(header.ordinal + 1)
+			});
+		}
+	}
+
 	return {
 		status: 'applied',
-		edit: makeAtomicEdit(request.revision, request.text.length, [
-			{
-				from: section.from,
-				to: section.from,
-				insert: `[${headerName}${ordinal}]${lineEndingForInsertion(request.text, section.from)}`
-			}
-		])
+		edit: makeAtomicEdit(request.revision, request.text.length, edits)
 	};
 }
 

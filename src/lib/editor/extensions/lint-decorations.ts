@@ -23,6 +23,9 @@ export interface DiagnosticCluster {
 
 export const setDiagnosticsEffect = StateEffect.define<RevisionedDiagnostics>();
 
+/** Serialized `from:to` of the diagnostic a severity underline belongs to. */
+const diagnosticRangeAttribute = 'data-ll-diagnostic-range';
+
 export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {
 	return [...diagnostics].sort(
 		(left, right) =>
@@ -187,7 +190,10 @@ function buildDecorations(state: EditorState, diagnostics: readonly Diagnostic[]
 					class: `ll-diagnostic-range ll-diagnostic-${diagnostic.severity}`,
 					attributes: {
 						'aria-label': `${diagnostic.severity}: ${diagnostic.message}`,
-						title: diagnostic.message
+						title: diagnostic.message,
+						// The underline carries its own range so a tap resolves back to
+						// the exact diagnostic without re-deriving it from coordinates.
+						[diagnosticRangeAttribute]: `${diagnostic.from}:${diagnostic.to}`
 					}
 				}).range(diagnostic.from, diagnostic.to)
 			);
@@ -273,24 +279,50 @@ export function diagnosticsForState(state: EditorState): Diagnostic[] {
 	return value.diagnostics;
 }
 
+/** Resolve the underline's own range back to the diagnostic that drew it. */
+function diagnosticForUnderline(
+	underline: Element,
+	diagnostics: readonly Diagnostic[]
+): Diagnostic | undefined {
+	const [from, to] = (underline.getAttribute(diagnosticRangeAttribute) ?? '')
+		.split(':')
+		.map(Number);
+	if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to)) {
+		return undefined;
+	}
+	return diagnostics.find((candidate) => candidate.from === from && candidate.to === to);
+}
+
+/**
+ * Both range ends count as hits. A one-character underline is the common case,
+ * and clicking its right half maps to the range's end offset, which strict
+ * containment would reject — the tap would then land on the text without ever
+ * opening the card.
+ */
+function diagnosticAtPosition(
+	diagnostics: readonly Diagnostic[],
+	position: number
+): Diagnostic | undefined {
+	return (
+		diagnostics.find((candidate) => candidate.from <= position && position < candidate.to) ??
+		diagnostics.find((candidate) => candidate.from <= position && position <= candidate.to)
+	);
+}
+
 /** Activate the most relevant diagnostic when its visible underline is tapped. */
 export function diagnosticRangeClickHandler(): Extension {
 	return EditorView.domEventHandlers({
 		click(event, view) {
 			const target = event.target instanceof Element ? event.target : undefined;
-			if (!target?.closest('.ll-diagnostic-range')) {
+			const underline = target?.closest('.ll-diagnostic-range');
+			if (!underline) {
 				return false;
 			}
+			const diagnostics = diagnosticsForState(view.state);
 			const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
-			if (position === null) {
-				return false;
-			}
-			const diagnostic = diagnosticsForState(view.state).find(
-				(candidate) =>
-					candidate.from <= position &&
-					(position < candidate.to ||
-						(candidate.from === candidate.to && position === candidate.from))
-			);
+			const diagnostic =
+				diagnosticForUnderline(underline, diagnostics) ??
+				(position === null ? undefined : diagnosticAtPosition(diagnostics, position));
 			if (!diagnostic) {
 				return false;
 			}

@@ -18,6 +18,24 @@
 			"runtimeExecutable": "bun",
 			"runtimeArgs": ["run", "dev", "--", "--port", "5227"],
 			"port": 5227
+		},
+		{
+			"name": "toolbar-dev",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "dev", "--", "--port", "5231"],
+			"port": 5231
+		},
+		{
+			"name": "editor-focus-dev",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "dev", "--", "--port", "5243"],
+			"port": 5243
+		},
+		{
+			"name": "title-enter-dev",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "dev", "--", "--port", "5251", "--strictPort"],
+			"port": 5251
 		}
 	]
 }

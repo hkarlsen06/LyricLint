@@ -2,15 +2,12 @@
 	import { browser } from '$app/environment';
 	import { parseDocument } from '$lib/core/parser.js';
 	import type {
-		AssignmentResult,
 		AutosaveStatus,
 		DraftRecord,
 		EditorHandle,
-		EditorSnapshot,
-		PerformerRecord
+		EditorSnapshot
 	} from '$lib/core/types.js';
 	import EditorPane from '$lib/editor/EditorPane.svelte';
-	import { assignVoiceGroup } from '$lib/performers/index.js';
 	import {
 		closeDatabase,
 		createAutosaveController,
@@ -61,21 +58,6 @@
 		};
 	}
 
-	function assignPerformers(
-		snapshot: EditorSnapshot,
-		performerIds: readonly string[],
-		roster: readonly PerformerRecord[]
-	): AssignmentResult {
-		return assignVoiceGroup({
-			revision: snapshot.revision,
-			text: snapshot.text,
-			document: snapshot.parsed,
-			selection: snapshot.selection,
-			performerIds: [...performerIds],
-			roster
-		});
-	}
-
 	onMount(() => {
 		let cancelled = false;
 
@@ -107,7 +89,6 @@
 					feedback,
 					sources: [...sourceRegistry.values()],
 					ruleSet: currentRuleSet,
-					assignPerformers,
 					onOpenDraft: (draft) => {
 						snapshot = snapshotFor(draft, 0);
 						return snapshot;

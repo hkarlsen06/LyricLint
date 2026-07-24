@@ -6,6 +6,7 @@ import type {
 	EditorContext,
 	EditorHandle,
 	LanguagePack,
+	LegendGroupAssignment,
 	ParsedDocument,
 	PerformerId,
 	SourceReference,
@@ -49,10 +50,16 @@ export interface PerformerAssignmentChoice {
 	performerIds: PerformerId[];
 }
 
+export interface PerformerLegendAssignmentChoice {
+	sectionFrom: number;
+	assignments: LegendGroupAssignment[];
+}
+
 export interface SectionHeaderChoice {
 	range: TextRange;
 	headerName: string;
 	ordinal?: number;
+	numberedHeaderTerms?: readonly string[];
 }
 
 /**
@@ -65,6 +72,9 @@ export interface EditorOverlayCallbacks {
 	createPerformerEdit?(
 		choice: PerformerAssignmentChoice
 	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
+	createPerformerLegendEdit?(
+		choice: PerformerLegendAssignmentChoice
+	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
 	createSectionHeaderEdit?(
 		choice: SectionHeaderChoice
 	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
@@ -72,6 +82,16 @@ export interface EditorOverlayCallbacks {
 	onIgnoreDiagnostic?(diagnostic: Diagnostic): void;
 	/** Add a performer to the draft roster from the floating assignment card. */
 	onAddPerformer?(displayName: string): void;
+	/**
+	 * A performer's name was edited in one section header and mirrored into the
+	 * others. The shell follows this in the roster; the document edit itself is
+	 * already applied and owns undo.
+	 */
+	onPerformerRenamed?(rename: {
+		performerId: PerformerId;
+		previousName: string;
+		displayName: string;
+	}): void;
 	onDiagnosticActivateIntent?(diagnostic: Diagnostic, intent: 'navigate' | 'fix'): void;
 	onDiagnosticDismiss?(): boolean;
 }

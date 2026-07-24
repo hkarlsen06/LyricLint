@@ -28,6 +28,21 @@
 		return result;
 	});
 
+	// Only blame the filters when they are actually what is hiding something;
+	// an otherwise clean draft should read as clean.
+	const emptyMessage = $derived.by(() => {
+		const unignored = controller.snapshot.diagnostics.filter(
+			(diagnostic) => !controller.ignoredRuleIds.includes(diagnostic.ruleId)
+		);
+		if (unignored.some((diagnostic) => !controller.severityFilter.includes(diagnostic.severity))) {
+			return 'No diagnostics match the current filters.';
+		}
+		if (controller.snapshot.diagnostics.length > 0) {
+			return 'Every issue in this draft comes from a rule you ignored.';
+		}
+		return 'No issues found.';
+	});
+
 	function lineFor(offset: number): number {
 		const text = controller.snapshot.text;
 		let line = 1;
@@ -71,8 +86,11 @@
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
 		activeDiagnosticKey={controller.activeDiagnosticKey}
+		{emptyMessage}
 		{lineFor}
 		onNavigate={(diagnostic) => controller.navigateToDiagnostic(diagnostic)}
+		onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
+		onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
 		onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
 		onCancelPreview={() => controller.clearFixPreview()}
 		onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}

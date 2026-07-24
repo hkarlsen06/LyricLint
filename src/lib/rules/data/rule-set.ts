@@ -1,7 +1,7 @@
 import type { RuleSetManifest } from '../../core/types.js';
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.24.4',
+	version: '2026.07.24.7',
 	publishedAt: '2026-07-24',
 	sourceIds: [
 		'T-LANGUAGE-DETECT',
@@ -36,6 +36,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'language.selection-mismatch',
 		'section.header-missing',
 		'section.header-language',
+		'section.header-unrecognized',
 		'section.deprecated-hook',
 		'section.immediate-repeat-spacing',
 		'section.verse-numbering',

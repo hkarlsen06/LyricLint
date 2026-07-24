@@ -12,6 +12,7 @@
 		onPreviewFix: (fix: DiagnosticFix) => void;
 		onCancelPreview: () => void;
 		onApplyFix: (fix: DiagnosticFix) => void;
+		onAssignPerformers?: () => void;
 		onIgnore: () => void;
 		onDismiss?: () => void;
 	}
@@ -24,6 +25,7 @@
 		onPreviewFix,
 		onCancelPreview,
 		onApplyFix,
+		onAssignPerformers,
 		onIgnore,
 		onDismiss = () => {}
 	}: Props = $props();
@@ -152,31 +154,41 @@
 	<strong>{diagnostic.message}</strong>
 	<p>{diagnostic.explanation}</p>
 
-	{#if diagnostic.fixes?.length}
+	{#if onAssignPerformers || diagnostic.fixes?.length}
 		<div class="fixes" aria-label="Available fixes">
-			{#each diagnostic.fixes as fix (`${fix.kind}:${fix.label}`)}
-				<button type="button" onclick={() => activateFix(fix)}>
+			{#if onAssignPerformers}
+				<button type="button" onclick={onAssignPerformers}>
+					Assign section performers
+					<span>Choose</span>
+				</button>
+			{/if}
+			{#each diagnostic.fixes ?? [] as fix (`${fix.kind}:${fix.label}`)}
+				<button
+					type="button"
+					class:pending={isPendingPreview(fix)}
+					onclick={() => activateFix(fix)}
+				>
 					{isPendingPreview(fix) ? `Apply ${fix.label}` : fix.label}
 					<span>
 						{fix.kind === 'safe' ? 'Safe fix' : isPendingPreview(fix) ? 'Confirm' : 'Preview'}
 					</span>
 				</button>
 			{/each}
+			{#if previewFix}
+				<button
+					type="button"
+					onclick={() => {
+						previewFix = undefined;
+						onCancelPreview();
+					}}>Cancel preview</button
+				>
+			{/if}
 		</div>
 	{/if}
 
-	{#if previewFix}
-		<div class="preview" aria-live="polite">
-			<p>Previewing this change in the editor.</p>
-			<button
-				type="button"
-				onclick={() => {
-					previewFix = undefined;
-					onCancelPreview();
-				}}>Cancel preview</button
-			>
-		</div>
-	{/if}
+	<p class="sr-only" aria-live="polite">
+		{previewFix ? 'Previewing this change in the editor. Confirm or cancel.' : ''}
+	</p>
 
 	{#if citedSources.length}
 		<ul aria-label="Sources">
@@ -204,7 +216,9 @@
 	{/if}
 
 	<div class="actions">
-		<button type="button" onclick={onIgnore}>Ignore for this session</button>
+		{#if !previewFix}
+			<button type="button" onclick={onIgnore}>Ignore for this session</button>
+		{/if}
 		<button type="button" onclick={onDismiss}>Close</button>
 	</div>
 </div>
@@ -281,17 +295,18 @@
 		font-size: var(--font-size-2xs);
 	}
 
-	.preview {
-		margin-block-end: var(--space-3);
-		padding: var(--space-2);
-		border: var(--border-width) solid var(--color-border);
-		border-radius: var(--radius-panel);
-		background: var(--color-surface-subtle);
+	/* The pending fix stays in its own slot and becomes the primary action;
+	   confirming never opens a second card inside the popover. */
+	button.pending {
+		border-color: var(--color-text);
+		background: var(--color-text);
+		color: var(--color-canvas);
 	}
 
-	.preview p {
-		margin: 0 0 var(--space-2);
-		font-weight: var(--font-weight-medium);
+	button.pending:hover,
+	button.pending:active {
+		border-color: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
+		background: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
 	}
 
 	ul {

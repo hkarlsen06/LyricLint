@@ -125,7 +125,6 @@ describe('Workspace and toolbar', () => {
 				)
 			).toBe(true)
 		);
-		controller.setPanelCollapsed(false);
 		await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
@@ -214,7 +213,7 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
-	test('collapses the panel at a narrow viewport while keeping the editor region visible', async () => {
+	test('keeps the panel mounted at a narrow viewport with no way to dismiss it', async () => {
 		vi.stubGlobal(
 			'matchMedia',
 			vi.fn().mockReturnValue({
@@ -231,10 +230,10 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench();
 		render(Workspace, { controller });
 
-		await waitFor(() => expect(controller.panelCollapsed).toBe(true));
 		const editorRegion = screen.getByTestId('editor-region');
-		expect(editorRegion).toBeTruthy();
 		expect(getComputedStyle(editorRegion).display).not.toBe('none');
-		expect(screen.getAllByRole('button', { name: 'Show right panel' })).toHaveLength(2);
+		expect(screen.getByRole('tab', { name: /Linter/ })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Hide right panel' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Show right panel' })).toBeNull();
 	});
 });

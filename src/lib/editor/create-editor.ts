@@ -2,7 +2,6 @@ import { redo as redoCommand, history, undo as undoCommand } from '@codemirror/c
 import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
 import {
-	drawSelection,
 	dropCursor,
 	EditorView,
 	highlightActiveLine,
@@ -28,6 +27,11 @@ import {
 	setEditorContextEffect
 } from './extensions/editor-state.js';
 import { fixPreviewField, fixPreviewTheme, setFixPreviewEffect } from './extensions/fix-preview.js';
+import {
+	headerRenameFilter,
+	headerRenameNotifier,
+	headerRenameSessionField
+} from './extensions/header-rename.js';
 import { legendCleanupFilter } from './extensions/legend-cleanup.js';
 import { markupDimField, markupDimTheme } from './extensions/markup-dim.js';
 import {
@@ -110,9 +114,10 @@ const editorTheme = EditorView.theme({
 		fontFamily: 'ui-monospace, "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace',
 		fontSize: '0.9375rem'
 	},
+	// No focus ring around the editor: the caret and the active-line wash already
+	// show where focus is, and a full-height outline dominates the workspace.
 	'&.cm-focused': {
-		outline: '2px solid var(--color-focus, var(--ll-focus, oklch(0.58 0.14 55)))',
-		outlineOffset: '-2px'
+		outline: 'none'
 	},
 	'.cm-scroller': {
 		fontFamily: 'inherit',
@@ -148,11 +153,15 @@ const editorTheme = EditorView.theme({
 		backgroundColor: 'transparent',
 		color: 'var(--color-text, currentColor)'
 	},
-	'.cm-selectionBackground, ::selection': {
-		backgroundColor:
-			'var(--color-surface-strong, var(--ll-selection, oklch(0.82 0.07 62 / 0.62))) !important'
+	// The selection is the browser's own, not CodeMirror's drawn one (see
+	// `drawSelection` in the extension list): a native highlight is painted over
+	// the line's backgrounds and under its glyphs, so it stays visible on
+	// performer tints and fix previews. The drawn selection sits in a layer
+	// behind every background and vanished under them.
+	'.cm-content ::selection, .cm-line::selection': {
+		backgroundColor: 'var(--color-text-selection, var(--ll-selection, oklch(0.84 0.075 255)))'
 	},
-	'.cm-cursor': {
+	'.cm-dropCursor': {
 		borderLeftColor: 'var(--color-accent, var(--ll-editor-caret, oklch(0.47 0.16 48)))'
 	}
 });
@@ -245,7 +254,13 @@ export function createLyricEditor(
 		history(),
 		lineNumbers(),
 		highlightSpecialChars(),
-		drawSelection(),
+		// No `drawSelection()`: it hides the native selection and repaints it in a
+		// layer pinned behind the content, where the performer tints and other
+		// color-coded line backgrounds cover it completely. The browser's own
+		// highlight paints between a line's background and its glyphs, which is
+		// exactly where a selection has to sit to survive a tint. The cost is the
+		// drawn cursor and secondary selection ranges, neither of which this
+		// single-selection editor uses.
 		dropCursor(),
 		EditorView.lineWrapping,
 		EditorView.contentAttributes.of({
@@ -263,6 +278,13 @@ export function createLyricEditor(
 		editorRevisionField,
 		editorComposingField,
 		legendCleanupFilter(),
+		// Transaction filters run in reverse registration order, so listing the
+		// rename filter after legend cleanup makes it run first: it needs the
+		// user's own edit, not one already carrying appended cleanup changes.
+		// Cleanup then sees the fully mirrored document.
+		headerRenameSessionField,
+		headerRenameFilter(),
+		headerRenameNotifier(),
 		fixPreviewField,
 		performerGroupsField,
 		performerDecorationField,
@@ -354,10 +376,13 @@ export function createLyricEditor(
 				assertRange(change, view.state.doc.length);
 			}
 			const first = [...edit.edits].sort((left, right) => left.from - right.from)[0];
+			// Scroll only far enough to expose the edit. Centering it would shove
+			// the lyrics (and the popover anchored to them) under the reader on
+			// every preview, even when the change was already on screen.
 			view.dispatch({
 				effects: [
 					setFixPreviewEffect.of(edit),
-					...(first ? [EditorView.scrollIntoView(first.from, { y: 'center' })] : [])
+					...(first ? [EditorView.scrollIntoView(first.from)] : [])
 				],
 				annotations: Transaction.addToHistory.of(false)
 			});

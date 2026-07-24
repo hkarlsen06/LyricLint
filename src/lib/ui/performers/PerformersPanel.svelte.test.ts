@@ -71,31 +71,21 @@ describe('PerformersPanel', () => {
 		expect(names).toEqual(['Blair', 'Avery']);
 	});
 
-	test('assigns a joint performer group from panel checkboxes and supports cancellation', async () => {
+	// Assignment is a selection-anchored action, so it lives only in the editor's
+	// floating picker. The panel offers no second, selection-blind way in.
+	test('offers no assignment controls, only a pointer to the editor picker', () => {
 		const text = '[Chorus]\nShared line';
-		const { controller, calls } = createTestWorkbench({
+		const { controller } = createTestWorkbench({
 			text,
 			selection: { anchor: 9, head: text.length },
 			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
 		});
 		render(PerformersPanel, { controller });
 
-		await fireEvent.click(screen.getByRole('checkbox', { name: 'Avery' }));
-		await fireEvent.click(screen.getByRole('checkbox', { name: 'Blair' }));
-		await fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-
-		expect(calls.dispatched).toHaveLength(1);
-		expect(calls.dispatched[0]?.baseRevision).toBe(4);
-		expect(calls.dispatched[0]?.edits.some((edit) => edit.insert.includes('Avery & Blair'))).toBe(
-			true
-		);
-
-		await fireEvent.click(screen.getByRole('checkbox', { name: 'Avery' }));
-		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-		expect((screen.getByRole('checkbox', { name: 'Avery' }) as HTMLInputElement).checked).toBe(
-			false
-		);
-		expect(calls.focusCount).toBeGreaterThan(1);
+		expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+		expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Assign' })).toBeNull();
+		expect(screen.getByText(/select lyric text in the editor/i)).toBeTruthy();
 	});
 
 	test('surfaces unresolved imported styles without changing the document', () => {

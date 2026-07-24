@@ -2,6 +2,7 @@ import { parseDocument } from '$lib/core/parser.js';
 import type {
 	AutosaveController,
 	AutosaveSnapshot,
+	Diagnostic,
 	DraftRecord,
 	DraftRepository,
 	EditorHandle,
@@ -100,7 +101,8 @@ function setup(options: {
 		undo() {},
 		redo() {},
 		revealRange() {},
-		setSelection() {}
+		setSelection() {},
+		requestPerformerLegendAssignment: vi.fn()
 	};
 	const onOpenDraft =
 		options.onOpenDraft ??
@@ -120,7 +122,7 @@ function setup(options: {
 		now: () => '2026-07-20T11:00:00.000Z',
 		onOpenDraft
 	});
-	return { controller, repository, autosave };
+	return { controller, repository, autosave, editor };
 }
 
 describe('workbench draft safety', () => {
@@ -332,6 +334,51 @@ describe('workbench draft safety', () => {
 	});
 });
 
+describe('workbench diagnostic navigation', () => {
+	const diagnostic: Diagnostic = {
+		ruleId: 'section-header-missing',
+		severity: 'warning',
+		message: 'This lyric section has no header.',
+		explanation: 'Blank-line sections containing lyrics should open with a header.',
+		sourceIds: [],
+		from: 8,
+		to: 12
+	};
+
+	test('returns to the linter tab so the activated card is visible', () => {
+		const { controller } = setup({});
+		controller.setActiveTab('performers');
+
+		controller.navigateToDiagnostic(diagnostic);
+
+		expect(controller.activeTab).toBe('linter');
+		expect(controller.activeDiagnosticKey).toBe('section-header-missing:8:12');
+	});
+
+	test('returns to the linter tab when the header picker is requested', () => {
+		const { controller } = setup({});
+		controller.setActiveTab('tools');
+
+		controller.chooseSectionHeader(diagnostic);
+
+		expect(controller.activeTab).toBe('linter');
+	});
+
+	test('opens guided performer assignment from the linter panel', () => {
+		const { controller, editor } = setup({});
+		const mismatch = {
+			...diagnostic,
+			ruleId: 'performer.inline-mismatch',
+			message: 'Inline style has no performer in the section legend.'
+		};
+
+		controller.assignDiagnosticPerformers(mismatch);
+
+		expect(editor.requestPerformerLegendAssignment).toHaveBeenCalledWith(mismatch);
+		expect(controller.activeTab).toBe('linter');
+	});
+});
+
 describe('workbench performer imports', () => {
 	test('adds exact pasted names through roster undo and exposes case suggestions', () => {
 		const initial = draft('draft-a', '');
@@ -383,5 +430,40 @@ describe('workbench performer imports', () => {
 			expect.objectContaining({ rawNameText: 'Unresolved voice 2', styleSlot: 2 })
 		]);
 		expect(controller.snapshot.text).toBe(second.text);
+	});
+
+	test('follows a header rename in the roster and keeps the old spelling resolvable', () => {
+		const initial = draft('draft-a', '[Verse 1: Avery]\nA line\n\n[Chorus: Avery]\nAnother line');
+		const { controller } = setup({ initial });
+		const toastsBefore = controller.feedback.toasts.length;
+
+		controller.adoptHeaderRename(controller.performers[0]?.id ?? '', 'Avery', 'Averie');
+
+		expect(controller.performers).toEqual([
+			expect.objectContaining({
+				displayName: 'Averie',
+				normalizedKey: 'averie',
+				aliases: ['Avery']
+			})
+		]);
+		// The header edit already lives in editor undo; a roster toast here would
+		// offer a second, conflicting undo for the same user action.
+		expect(controller.feedback.toasts).toHaveLength(toastsBefore);
+	});
+
+	test('leaves no stale alias when a rename is typed back to the original name', () => {
+		const initial = draft('draft-a', '[Verse 1: Avery]\nA line\n\n[Chorus: Avery]\nAnother line');
+		const { controller } = setup({ initial });
+		const id = controller.performers[0]?.id ?? '';
+
+		controller.adoptHeaderRename(id, 'Avery', 'Avery');
+		expect(controller.performers[0]?.aliases).toEqual([]);
+
+		// One rename reports every keystroke against the name it started from.
+		controller.adoptHeaderRename(id, 'Avery', 'Averi');
+		controller.adoptHeaderRename(id, 'Avery', 'Avery');
+		expect(controller.performers[0]).toEqual(
+			expect.objectContaining({ displayName: 'Avery', aliases: [] })
+		);
 	});
 });

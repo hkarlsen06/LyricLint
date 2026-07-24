@@ -64,30 +64,32 @@
 	<section>
 		<h3>Local data</h3>
 		<p>Drafts remain in this browser. Lyric text is not sent to Genius or a LyricLint server.</p>
-		{#if confirmDeleteAll}
-			<div class="confirm-block">
-				<p>Delete every local draft? This cannot be undone.</p>
+		<div aria-live="polite">
+			{#if confirmDeleteAll}
+				<p class="danger-text">Delete every local draft? This cannot be undone.</p>
+				<div class="tool-actions">
+					<button
+						type="button"
+						class="button button--danger"
+						onclick={async () => {
+							await controller.deleteAllDrafts();
+							confirmDeleteAll = false;
+						}}>Delete all local data</button
+					>
+					<button
+						type="button"
+						class="button button--quiet"
+						onclick={() => (confirmDeleteAll = false)}>Cancel</button
+					>
+				</div>
+			{:else}
 				<button
 					type="button"
-					class="button button--danger"
-					onclick={async () => {
-						await controller.deleteAllDrafts();
-						confirmDeleteAll = false;
-					}}>Delete all local data</button
+					class="button button--quiet danger-text"
+					onclick={() => (confirmDeleteAll = true)}>Delete all local data…</button
 				>
-				<button
-					type="button"
-					class="button button--quiet"
-					onclick={() => (confirmDeleteAll = false)}>Cancel</button
-				>
-			</div>
-		{:else}
-			<button
-				type="button"
-				class="button button--quiet danger-text"
-				onclick={() => (confirmDeleteAll = true)}>Delete all local data…</button
-			>
-		{/if}
+			{/if}
+		</div>
 	</section>
 
 	<p class="offline-note">

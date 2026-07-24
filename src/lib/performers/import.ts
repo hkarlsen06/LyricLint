@@ -17,7 +17,8 @@ import type { ImportExtraction, ImportedVoiceGroup } from './types.js';
 
 const ENTITY_PATTERN = /&(?:amp|lt|gt|quot|#39);/gu;
 
-function decodeLegendText(value: string): string {
+/** Decode the HTML entities Genius legends may carry, for matching only. */
+export function decodeLegendText(value: string): string {
 	return value.replace(ENTITY_PATTERN, (entity) => {
 		switch (entity) {
 			case '&amp;':
