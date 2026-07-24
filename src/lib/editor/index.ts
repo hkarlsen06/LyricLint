@@ -1,36 +1,25 @@
-import type {
-	EditorCallbacks,
-	EditorContext,
-	EditorHandle,
-	SerializedSelection
-} from '../core/types.js';
+export { default as DiagnosticPopover } from './overlays/DiagnosticPopover.svelte';
+export { default as EditorPane } from './EditorPane.svelte';
+export { default as PerformerPicker } from './overlays/PerformerPicker.svelte';
+export { default as SectionPicker } from './overlays/SectionPicker.svelte';
 
-/**
- * Props for the future `EditorPane` component.
- *
- * The component receives initial state once, owns CodeMirror creation and
- * destruction during `onMount`, emits internally consistent snapshots through
- * `callbacks`, and exposes `handle` as its bindable shell-safe control surface.
- */
-export interface EditorPaneProps {
-	initialText: string;
-	initialSelection?: SerializedSelection;
-	context: EditorContext;
-	callbacks: EditorCallbacks;
-	handle?: EditorHandle;
-}
+export { safeExternalUrl } from './overlays/diagnostic-popover.js';
+export { sectionHeaderOptions, suggestNextOrdinal } from './overlays/section-picker.js';
 
-/**
- * Editor lifecycle events exposed to component consumers.
- *
- * Document updates flow through `EditorCallbacks.onSnapshot`; consumers must
- * never bind the canonical text as a continuously controlled Svelte value.
- */
-export interface EditorPaneEvents {
-	ready: EditorHandle;
-	destroyed: undefined;
-}
-
+export type { CreateLyricEditorOptions, LyricEditorInstance } from './create-editor.js';
+export type {
+	EditorDisplayContext,
+	EditorOverlayCallbacks,
+	EditorPaneEvents,
+	EditorPaneProps,
+	LyricEditorCallbacks,
+	PerformerAssignmentChoice,
+	RevisionedDiagnostics,
+	ScreenRect,
+	SectionHeaderChoice,
+	SelectionAnchor,
+	VoiceGroupRange
+} from './contracts.js';
 export type {
 	EditorCallbacks,
 	EditorContext,
