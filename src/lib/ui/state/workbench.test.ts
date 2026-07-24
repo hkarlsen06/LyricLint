@@ -308,8 +308,7 @@ describe('workbench performer imports', () => {
 			repository,
 			autosave: controlled.autosave
 		});
-		const pasted =
-			'[Chorus: Avery, <i>avery</i>]\nA long enough lyric line for import detection';
+		const pasted = '[Chorus: Avery, <i>avery</i>]\nA long enough lyric line for import detection';
 
 		controller.onSnapshot(snapshot(initial, 1, pasted));
 

@@ -16,10 +16,7 @@ export interface ExportValidationResult {
 	text: string;
 }
 
-function unexpectedMarkupIssues(
-	text: string,
-	parsed: ParsedDocument
-): ExportValidationIssue[] {
+function unexpectedMarkupIssues(text: string, parsed: ParsedDocument): ExportValidationIssue[] {
 	const allowedRanges: TextRange[] = parsed.sections.flatMap((section) => [
 		...section.lines.flatMap((line) =>
 			line.styleSpans

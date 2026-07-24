@@ -11,10 +11,7 @@ export const repeatPlaceholderRule: RuleDefinition = {
 		const diagnostics: Diagnostic[] = [];
 		for (const section of document.sections) {
 			const header = section.header;
-			if (
-				header &&
-				/(?:\b(?:x|×)\s*\d+\b|\brepeat(?:ed)?\b)/iu.test(header.rawNamePart)
-			) {
+			if (header && /(?:\b(?:x|×)\s*\d+\b|\brepeat(?:ed)?\b)/iu.test(header.rawNamePart)) {
 				const rawNameRange = {
 					from: header.nameRange.from,
 					to: header.nameRange.from + header.rawNamePart.length

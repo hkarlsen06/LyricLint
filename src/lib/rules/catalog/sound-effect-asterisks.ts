@@ -41,15 +41,7 @@ export const soundEffectAsterisksRule: RuleDefinition = {
 						header,
 						'This header looks like a sound effect that should use asterisks.',
 						'The bracketed text matches recognized sound-effect vocabulary, so it may be notation rather than a section header. Confirm before replacing it.',
-						[
-							replacementFix(
-								context,
-								'preview',
-								`Replace with ${replacement}`,
-								header,
-								replacement
-							)
-						]
+						[replacementFix(context, 'preview', `Replace with ${replacement}`, header, replacement)]
 					)
 				);
 			}

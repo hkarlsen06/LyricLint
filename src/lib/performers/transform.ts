@@ -345,8 +345,7 @@ function dominantLineEnding(text: string): string {
 	return (
 		[...counts.entries()].sort(
 			([leftEnding, leftCount], [rightEnding, rightCount]) =>
-				rightCount - leftCount ||
-				text.indexOf(leftEnding) - text.indexOf(rightEnding)
+				rightCount - leftCount || text.indexOf(leftEnding) - text.indexOf(rightEnding)
 		)[0]?.[0] ?? '\n'
 	);
 }
@@ -550,10 +549,7 @@ export function insertSectionHeader(request: InsertSectionHeaderRequest): Docume
 			{
 				from: section.from,
 				to: section.from,
-				insert: `[${headerName}${ordinal}]${lineEndingForInsertion(
-					request.text,
-					section.from
-				)}`
+				insert: `[${headerName}${ordinal}]${lineEndingForInsertion(request.text, section.from)}`
 			}
 		])
 	};

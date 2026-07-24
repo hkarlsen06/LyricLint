@@ -83,14 +83,11 @@
 			try {
 				database = await openDatabase();
 				const repository = createDraftRepository(database);
-				const autosave = createAutosaveController(
-					repository,
-					{
-						onStatusChange: (status: AutosaveStatus) => controller?.setSaveStatus(status)
-					} as Parameters<typeof createAutosaveController>[1] & {
-						onStatusChange: (status: AutosaveStatus) => void;
-					}
-				);
+				const autosave = createAutosaveController(repository, {
+					onStatusChange: (status: AutosaveStatus) => controller?.setSaveStatus(status)
+				} as Parameters<typeof createAutosaveController>[1] & {
+					onStatusChange: (status: AutosaveStatus) => void;
+				});
 				const ignoreStore = createSessionIgnoreStore(window.sessionStorage);
 				const initialDraft = await recoverStartupDraft(repository);
 				if (cancelled) return;

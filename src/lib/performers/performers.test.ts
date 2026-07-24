@@ -125,18 +125,13 @@ describe('performer import extraction', () => {
 
 	it('round-trips a joint group containing an ampersand-bearing performer name', () => {
 		const records = roster(['Echo & The Glass', 'A']);
-		const legend = serializeLegend([
-			{ styleSlot: 1, members: [records[0]!, records[1]!] }
-		]);
+		const legend = serializeLegend([{ styleSlot: 1, members: [records[0]!, records[1]!] }]);
 		const extraction = extractPerformers(parseDocument(`[Chorus: ${legend}]\nLine`), records);
 
 		expect(legend).toBe('Echo &amp; The Glass & A');
 		expect(extraction.rosterAdditions).toEqual([]);
 		expect(extraction.voiceGroups).toHaveLength(1);
-		expect(extraction.voiceGroups[0]?.performerIds).toEqual([
-			records[0]?.id,
-			records[1]?.id
-		]);
+		expect(extraction.voiceGroups[0]?.performerIds).toEqual([records[0]?.id, records[1]?.id]);
 	});
 
 	it('preserves comma, bracket, ampersand, and HTML-significant exact names', () => {

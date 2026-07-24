@@ -77,11 +77,7 @@
 			<label class="sr-only" for={`performer-${performer.id}`}>Performer name</label>
 			<input id={`performer-${performer.id}`} bind:this={renameInput} bind:value={name} />
 			<button type="submit" class="button button--primary">Save</button>
-			<button
-				type="button"
-				class="button button--quiet"
-				onclick={cancelRename}>Cancel</button
-			>
+			<button type="button" class="button button--quiet" onclick={cancelRename}>Cancel</button>
 		</form>
 	{:else}
 		<div class="performer-row__actions">

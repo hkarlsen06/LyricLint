@@ -238,8 +238,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		const additions = extraction.rosterAdditions.map((performer, index) => ({
 			...performer,
 			aliases: [...performer.aliases],
-			colorId:
-				performerColorIds[(performers.length + index) % performerColorIds.length] ?? 'plum',
+			colorId: performerColorIds[(performers.length + index) % performerColorIds.length] ?? 'plum',
 			order: performers.length + index
 		}));
 		const names = additions.map((performer) => performer.displayName);
@@ -369,8 +368,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			for (const imported of importSuggestions) {
 				const source = performers.find(
 					(performer) =>
-						performer.displayName === imported.importedName &&
-						performer.id !== imported.performerId
+						performer.displayName === imported.importedName && performer.id !== imported.performerId
 				);
 				const target = performers.find((performer) => performer.id === imported.performerId);
 				if (!source || !target) continue;

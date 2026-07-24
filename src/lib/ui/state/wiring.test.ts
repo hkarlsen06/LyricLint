@@ -53,10 +53,7 @@ describe('UI wiring', () => {
 			{ ...performer('alias', 'Blair', 2), aliases: ['B.'] }
 		];
 
-		const caseOnly = resolveVoiceGroupRanges(
-			parseDocument('[Chorus: avery]\nLine'),
-			roster
-		);
+		const caseOnly = resolveVoiceGroupRanges(parseDocument('[Chorus: avery]\nLine'), roster);
 		expect(caseOnly[0]?.group.performerIds).toEqual([]);
 
 		const entityName = resolveVoiceGroupRanges(
@@ -66,9 +63,7 @@ describe('UI wiring', () => {
 		expect(entityName[0]?.group.performerIds).toEqual(['echo']);
 
 		const joint = resolveVoiceGroupRanges(
-			parseDocument(
-				'[Chorus: <i>Echo &amp; The Glass & B.</i>]\n<i>Joint line</i>'
-			),
+			parseDocument('[Chorus: <i>Echo &amp; The Glass & B.</i>]\n<i>Joint line</i>'),
 			roster
 		);
 		expect(joint[0]?.group.performerIds).toEqual(['echo', 'alias']);

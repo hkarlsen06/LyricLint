@@ -312,13 +312,7 @@ describe('autosave and recovery', () => {
 		expect(saveCount).toBe(3);
 		expect((await repository.get('failed-draft'))?.text).toBe('private lyric content');
 		expect(autosave.status()).toBe('saved');
-		expect(Object.keys(autosave)).toEqual([
-			'schedule',
-			'flush',
-			'cancel',
-			'cancelDraft',
-			'status'
-		]);
+		expect(Object.keys(autosave)).toEqual(['schedule', 'flush', 'cancel', 'cancelDraft', 'status']);
 	});
 
 	it('cancelDraft drops only that draft so a delayed save cannot recreate it', async () => {

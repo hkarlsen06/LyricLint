@@ -65,9 +65,9 @@ describe('DraftMenu', () => {
 		await fireEvent.click(within(renamedRow!).getByRole('button', { name: 'Yes' }));
 		await waitFor(async () => expect((await repository.list()).length).toBe(3));
 		await waitFor(() =>
-			expect(
-				document.activeElement?.matches('.draft-list__title, .draft-menu > summary')
-			).toBe(true)
+			expect(document.activeElement?.matches('.draft-list__title, .draft-menu > summary')).toBe(
+				true
+			)
 		);
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete all local data…' }));

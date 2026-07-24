@@ -225,9 +225,7 @@ describe('rule regressions', () => {
 	}
 
 	it('requires every legend group to use its exact positional style slot', () => {
-		expect(
-			diagnostics('performer.style-order', '[Chorus: A & <b>B</b>]\nLine')
-		).toHaveLength(1);
+		expect(diagnostics('performer.style-order', '[Chorus: A & <b>B</b>]\nLine')).toHaveLength(1);
 	});
 
 	it('reports inline styles missing from the legend even with an empty roster', () => {

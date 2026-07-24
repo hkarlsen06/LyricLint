@@ -21,10 +21,7 @@
 		renameId = undefined;
 	}
 
-	async function deleteDraftAndMoveFocus(
-		id: string,
-		trigger: HTMLButtonElement
-	): Promise<void> {
+	async function deleteDraftAndMoveFocus(id: string, trigger: HTMLButtonElement): Promise<void> {
 		const nextDraft = trigger
 			.closest('li')
 			?.nextElementSibling?.querySelector<HTMLButtonElement>('.draft-list__title');
@@ -104,8 +101,8 @@
 										<button
 											type="button"
 											class="button button--danger"
-											onclick={(event) =>
-												deleteDraftAndMoveFocus(draft.id, event.currentTarget)}>Yes</button
+											onclick={(event) => deleteDraftAndMoveFocus(draft.id, event.currentTarget)}
+											>Yes</button
 										>
 										<button
 											type="button"

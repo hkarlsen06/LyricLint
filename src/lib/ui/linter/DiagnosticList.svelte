@@ -39,10 +39,7 @@
 			: `${severity.slice(0, 1).toUpperCase()}${severity.slice(1)}`;
 	}
 
-	async function ignoreAndMoveFocus(
-		ruleId: string,
-		trigger: HTMLButtonElement
-	): Promise<void> {
+	async function ignoreAndMoveFocus(ruleId: string, trigger: HTMLButtonElement): Promise<void> {
 		const row = trigger.closest('li');
 		const nextRowControl = row?.nextElementSibling?.querySelector<HTMLButtonElement>(
 			'.diagnostic-list__navigate'

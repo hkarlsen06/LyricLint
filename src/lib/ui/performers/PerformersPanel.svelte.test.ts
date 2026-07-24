@@ -34,9 +34,7 @@ describe('PerformersPanel', () => {
 		await fireEvent.click(within(averyRow!).getByRole('button', { name: 'Save' }));
 		expect(controller.performers[0]?.displayName).toBe('Avery Stone');
 		await waitFor(() =>
-			expect(document.activeElement).toBe(
-				within(averyRow!).getByRole('button', { name: 'Rename' })
-			)
+			expect(document.activeElement).toBe(within(averyRow!).getByRole('button', { name: 'Rename' }))
 		);
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Move Blair up' }));
@@ -85,15 +83,14 @@ describe('PerformersPanel', () => {
 
 		await fireEvent.click(screen.getByRole('checkbox', { name: 'Avery' }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-		expect(
-			(screen.getByRole('checkbox', { name: 'Avery' }) as HTMLInputElement).checked
-		).toBe(false);
+		expect((screen.getByRole('checkbox', { name: 'Avery' }) as HTMLInputElement).checked).toBe(
+			false
+		);
 		expect(calls.focusCount).toBeGreaterThan(1);
 	});
 
 	test('surfaces unresolved imported styles without changing the document', () => {
-		const text =
-			'[Chorus: Avery]\nA long plain lyric with <i>an unmatched styled voice</i>';
+		const text = '[Chorus: Avery]\nA long plain lyric with <i>an unmatched styled voice</i>';
 		const { controller } = createTestWorkbench({ text, performers: [] });
 		render(PerformersPanel, { controller });
 
