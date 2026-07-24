@@ -11,7 +11,7 @@ function editor(page: Page): Locator {
  * byte-exact assertions: it flattens line breaks and includes decoration
  * widgets such as diagnostic badges.
  */
-function docText(page: Page): Promise<string> {
+function docText(page: Page): Promise<string | null> {
 	return page.evaluate(() => {
 		interface ContentHandle {
 			view: { state: { doc: { toString(): string } } };
@@ -19,10 +19,11 @@ function docText(page: Page): Promise<string> {
 		const content = document.querySelector('.cm-content') as unknown as {
 			cmView?: ContentHandle;
 			cmTile?: ContentHandle;
-		};
-		const handle = content.cmView ?? content.cmTile;
-		if (!handle) throw new Error('CodeMirror content handle not found.');
-		return handle.view.state.doc.toString();
+		} | null;
+		// Return null (instead of throwing) while the editor is still mounting,
+		// e.g. immediately after a reload, so expect.poll keeps retrying.
+		const handle = content?.cmView ?? content?.cmTile;
+		return handle ? handle.view.state.doc.toString() : null;
 	});
 }
 
@@ -44,7 +45,7 @@ async function replaceDocument(page: Page, text: string): Promise<void> {
 }
 
 async function waitForSaved(page: Page): Promise<void> {
-	await expect(page.getByLabel('Autosave status')).toHaveText('Saved locally');
+	await expect(page.getByLabel('Autosave status')).toContainText('Saved locally');
 }
 
 test('paste → lint → safe fix updates the canonical editor text', async ({ page }) => {
@@ -135,13 +136,17 @@ test('session ignores survive reload in the same tab and can be restored', async
 	});
 	await expect(diagnostic).toBeVisible();
 
-	await page.getByRole('button', { name: 'Ignore rule for this session' }).click();
+	await page.getByRole('button', { name: 'Ignore this session' }).click();
 	await expect(diagnostic).toHaveCount(0);
+	// Persist the draft before reloading: this spec verifies sessionStorage
+	// ignores, not the unload flush path, so the document must survive.
+	await waitForSaved(page);
 	await page.reload();
+	await expectDocText(page, '[Verse]\nImma go');
 	await expect(diagnostic).toHaveCount(0);
 
-	await page.getByRole('button', { name: /Ignored rules/u }).click();
-	await page.getByRole('button', { name: 'Restore' }).click();
+	await page.getByRole('button', { name: /ignored/u }).click();
+	await page.getByRole('button', { name: 'Restore', exact: true }).click();
 	await expect(diagnostic).toBeVisible();
 });
 
