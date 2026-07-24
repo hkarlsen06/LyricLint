@@ -307,6 +307,14 @@
 		onApply={applyPerformers}
 		onCancel={cancelPerformer}
 		{returnFocus}
+		onManageRoster={() => {
+			const range = performerRange;
+			if (!range) {
+				return;
+			}
+			callbacks.onAssignRequest({ range, prefer: anchorPreference(range) });
+			callbacks.onAnnouncement('Performers panel opened to manage the roster.');
+		}}
 	/>
 {/if}
 
@@ -345,9 +353,7 @@
 		height: 100%;
 		min-height: 12rem;
 		overflow: hidden;
-		border: 1px solid var(--ll-border, oklch(0.78 0.012 75));
-		border-radius: 0.5rem;
-		background: var(--ll-editor-surface, oklch(0.985 0.006 78));
+		background: var(--color-surface, var(--ll-editor-surface, oklch(0.985 0.006 78)));
 	}
 
 	@media (prefers-reduced-motion: reduce) {

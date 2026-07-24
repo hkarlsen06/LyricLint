@@ -26,7 +26,7 @@
 	}
 </script>
 
-<section class="ignored-rules">
+<section class="ignored-rules" class:ignored-rules--empty={ruleIds.length === 0}>
 	<button
 		type="button"
 		class="ignored-rules__toggle"
@@ -34,8 +34,12 @@
 		aria-expanded={expanded}
 		onclick={() => (expanded = !expanded)}
 	>
-		<span>Ignored rules</span>
-		<span>{ruleIds.length}</span>
+		{#if ruleIds.length === 0}
+			<span>No rules ignored this session</span>
+		{:else}
+			<span>{ruleIds.length} {ruleIds.length === 1 ? 'rule' : 'rules'} ignored</span>
+			<span class="ignored-rules__restore-hint">· Restore</span>
+		{/if}
 	</button>
 	{#if expanded}
 		{#if ruleIds.length === 0}

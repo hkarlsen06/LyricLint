@@ -84,7 +84,7 @@ function diagnosticLabel(cluster: DiagnosticCluster): string {
 	if (cluster.diagnostics.length === 1) {
 		return `${cluster.severity}: ${cluster.diagnostics[0]?.message ?? 'Diagnostic'}`;
 	}
-	return `${cluster.diagnostics.length} overlapping diagnostics, highest severity ${cluster.severity}`;
+	return `${cluster.diagnostics.length} diagnostics on this line, highest severity ${cluster.severity}`;
 }
 
 function diagnosticClusterKey(cluster: DiagnosticCluster): string {
@@ -114,12 +114,7 @@ class DiagnosticBadge extends WidgetType {
 		const badge = document.createElement('button');
 		badge.type = 'button';
 		badge.className = `ll-diagnostic-badge ll-diagnostic-badge-${this.cluster.severity}`;
-		badge.textContent =
-			this.cluster.diagnostics.length > 1
-				? String(this.cluster.diagnostics.length)
-				: this.cluster.severity === 'error'
-					? '!'
-					: '•';
+		badge.textContent = String(this.cluster.diagnostics.length);
 		badge.setAttribute('aria-label', diagnosticLabel(this.cluster));
 		badge.title = diagnosticLabel(this.cluster);
 		badge.addEventListener('mousedown', (event) => event.preventDefault());
@@ -196,14 +191,37 @@ function buildDecorations(state: EditorState, diagnostics: readonly Diagnostic[]
 		}
 	}
 
-	const clusters = clusterDiagnostics(diagnostics, (offset) => state.doc.lineAt(offset).number);
-	for (const cluster of clusters) {
-		const line = state.doc.line(cluster.line);
+	// Per the approved design, only lines carrying two or more diagnostics get a
+	// circled count badge at the end of the line; a single diagnostic keeps just
+	// its severity underline.
+	const byLine = new Map<number, Diagnostic[]>();
+	for (const diagnostic of diagnostics) {
+		const line = state.doc.lineAt(diagnostic.from).number;
+		const existing = byLine.get(line);
+		if (existing) {
+			existing.push(diagnostic);
+		} else {
+			byLine.set(line, [diagnostic]);
+		}
+	}
+	for (const [lineNumber, lineDiagnostics] of byLine) {
+		if (lineDiagnostics.length < 2) {
+			continue;
+		}
+		const line = state.doc.line(lineNumber);
+		const sorted = sortDiagnostics(lineDiagnostics);
+		const cluster: DiagnosticCluster = {
+			from: Math.min(...sorted.map((item) => item.from)),
+			to: Math.max(...sorted.map((item) => item.to)),
+			line: lineNumber,
+			severity: sorted[0]?.severity ?? 'suggestion',
+			diagnostics: sorted
+		};
 		ranges.push(
 			Decoration.widget({
 				widget: new DiagnosticBadge(cluster, callbacks?.onDiagnosticActivate),
 				side: 1
-			}).range(Math.min(Math.max(cluster.to, line.from), line.to))
+			}).range(line.to)
 		);
 	}
 
@@ -262,16 +280,16 @@ export const lintDecorationTheme = EditorView.baseTheme({
 		textUnderlineOffset: '3px'
 	},
 	'.ll-diagnostic-error': {
-		textDecorationColor: 'oklch(0.53 0.2 28)'
+		textDecorationColor: 'var(--color-danger, oklch(0.53 0.2 28))'
 	},
 	'.ll-diagnostic-warning': {
-		textDecorationColor: 'oklch(0.66 0.16 75)'
+		textDecorationColor: 'var(--color-warning, oklch(0.66 0.16 75))'
 	},
 	'.ll-diagnostic-suggestion': {
-		textDecorationColor: 'oklch(0.55 0.12 155)'
+		textDecorationColor: 'var(--color-suggestion, oklch(0.55 0.12 155))'
 	},
 	'.ll-diagnostic-manual-review': {
-		textDecorationColor: 'oklch(0.58 0.11 305)'
+		textDecorationColor: 'var(--color-manual, oklch(0.58 0.11 305))'
 	},
 	'.ll-diagnostic-badge-container': {
 		position: 'relative',
@@ -279,16 +297,16 @@ export const lintDecorationTheme = EditorView.baseTheme({
 	},
 	'.ll-diagnostic-badge': {
 		boxSizing: 'border-box',
-		minWidth: '1.25rem',
-		height: '1.25rem',
-		marginInlineStart: '0.3rem',
-		padding: '0 0.25rem',
+		minWidth: '1.15rem',
+		height: '1.15rem',
+		marginInlineStart: '0.4rem',
+		padding: '0 0.28rem',
 		border: '1px solid currentColor',
-		borderRadius: '0.375rem',
-		background: 'var(--ll-surface, oklch(0.98 0.006 80))',
-		color: 'var(--ll-text, oklch(0.25 0.015 70))',
-		font: '600 0.7rem/1 ui-sans-serif, system-ui, sans-serif',
-		verticalAlign: '0.2rem',
+		borderRadius: '999rem',
+		background: 'var(--color-surface, var(--ll-surface, oklch(0.98 0.006 80)))',
+		font: '650 0.68rem/1.05rem ui-sans-serif, system-ui, sans-serif',
+		textAlign: 'center',
+		verticalAlign: '0.16rem',
 		cursor: 'pointer'
 	},
 	'.ll-diagnostic-badge:focus-visible': {
@@ -304,9 +322,9 @@ export const lintDecorationTheme = EditorView.baseTheme({
 		width: 'min(22rem, calc(100vw - 1rem))',
 		padding: '0.25rem',
 		border: '1px solid color-mix(in oklch, currentColor 25%, transparent)',
-		borderRadius: '0.375rem',
-		background: 'var(--ll-surface, oklch(0.98 0.006 80))',
-		boxShadow: '0 2px 8px oklch(0.2 0.01 70 / 0.14)'
+		borderRadius: 'var(--radius-panel, 0.5rem)',
+		background: 'var(--color-surface, var(--ll-surface, oklch(0.98 0.006 80)))',
+		boxShadow: 'var(--shadow-overlay, 0 2px 8px oklch(0.2 0.01 70 / 0.14))'
 	},
 	'.ll-diagnostic-cluster-menu[hidden]': {
 		display: 'none'
@@ -326,15 +344,15 @@ export const lintDecorationTheme = EditorView.baseTheme({
 		background: 'color-mix(in oklch, currentColor 8%, transparent)'
 	},
 	'.ll-diagnostic-badge-error': {
-		color: 'oklch(0.48 0.19 28)'
+		color: 'var(--color-danger, oklch(0.48 0.19 28))'
 	},
 	'.ll-diagnostic-badge-warning': {
-		color: 'oklch(0.55 0.15 70)'
+		color: 'var(--color-warning, oklch(0.55 0.15 70))'
 	},
 	'.ll-diagnostic-badge-suggestion': {
-		color: 'oklch(0.47 0.11 155)'
+		color: 'var(--color-suggestion, oklch(0.47 0.11 155))'
 	},
 	'.ll-diagnostic-badge-manual-review': {
-		color: 'oklch(0.5 0.11 305)'
+		color: 'var(--color-manual, oklch(0.5 0.11 305))'
 	}
 });

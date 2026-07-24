@@ -6,6 +6,12 @@
 			"runtimeExecutable": "npm",
 			"runtimeArgs": ["run", "preview", "--", "--port", "4319"],
 			"port": 4319
+		},
+		{
+			"name": "fix-polish-dev",
+			"runtimeExecutable": "npm",
+			"runtimeArgs": ["run", "dev", "--", "--port", "5199"],
+			"port": 5199
 		}
 	]
 }

@@ -175,11 +175,11 @@
 		max-height: min(26rem, calc(100vh - 1rem));
 		padding: 0.8rem;
 		overflow-y: auto;
-		border: 1px solid var(--ll-border, oklch(0.78 0.012 75));
-		border-radius: 0.5rem;
-		background: var(--ll-surface, oklch(0.985 0.006 78));
-		color: var(--ll-text, oklch(0.24 0.015 70));
-		box-shadow: 0 2px 8px oklch(0.2 0.01 70 / 0.14);
+		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
+		border-radius: var(--radius-panel, 0.5rem);
+		background: var(--color-surface, oklch(0.985 0.006 78));
+		color: var(--color-text, oklch(0.24 0.015 70));
+		box-shadow: var(--shadow-overlay, 0 2px 8px oklch(0.2 0.01 70 / 0.14));
 		font:
 			400 0.8125rem/1.45 ui-sans-serif,
 			system-ui,
@@ -210,7 +210,7 @@
 
 	button {
 		padding: 0.38rem 0.55rem;
-		border: 1px solid var(--ll-border, oklch(0.78 0.012 75));
+		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
 		border-radius: 0.375rem;
 		background: transparent;
 		color: inherit;
@@ -219,12 +219,12 @@
 	}
 
 	button:hover {
-		background: var(--ll-hover, oklch(0.94 0.012 75));
+		background: var(--color-surface-subtle, oklch(0.94 0.012 75));
 	}
 
 	button:focus-visible,
 	a:focus-visible {
-		outline: 2px solid var(--ll-focus, oklch(0.58 0.14 55));
+		outline: 2px solid var(--color-focus, oklch(0.58 0.14 55));
 		outline-offset: 2px;
 	}
 
@@ -237,7 +237,7 @@
 	.preview {
 		margin-block-end: 0.7rem;
 		padding: 0.55rem;
-		border: 1px solid var(--ll-border, oklch(0.78 0.012 75));
+		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
 		border-radius: 0.375rem;
 		background: var(--color-surface-subtle, oklch(0.953 0.01 78));
 	}
@@ -257,7 +257,7 @@
 	.preview dl + dl {
 		margin-block-start: 0.45rem;
 		padding-block-start: 0.45rem;
-		border-block-start: 1px solid var(--ll-border, oklch(0.78 0.012 75));
+		border-block-start: 1px solid var(--color-border, oklch(0.78 0.012 75));
 	}
 
 	.preview dl div {
@@ -284,7 +284,7 @@
 	ul {
 		margin: 0;
 		padding: 0.65rem 0;
-		border-block: 1px solid var(--ll-border, oklch(0.78 0.012 75));
+		border-block: 1px solid var(--color-border, oklch(0.78 0.012 75));
 		list-style: none;
 	}
 
@@ -293,7 +293,7 @@
 	}
 
 	a {
-		color: var(--ll-link, oklch(0.48 0.12 45));
+		color: var(--color-accent, oklch(0.48 0.12 45));
 	}
 
 	time {

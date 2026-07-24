@@ -26,6 +26,12 @@ export interface PerformerSegmentStyle {
 	label: string;
 	lightBackground: string;
 	darkBackground: string;
+	/** Solid accent for the underline: the opposite scheme's palette value so it reads clearly on the tint. */
+	lightUnderline: string;
+	darkUnderline: string;
+	/** Soft full-line wash derived from the first member's palette entry. */
+	lightLineTint: string;
+	darkLineTint: string;
 	hiddenCount: number;
 }
 
@@ -84,10 +90,15 @@ export function voiceGroupStyle(
 
 	const visible = members.slice(0, MAX_VISIBLE_SEGMENTS);
 	const colors = visible.map((performer) => performerPalette[paletteIndex(performer.colorId)]);
+	const first = colors[0] ?? performerPalette[0];
 	return {
 		label: `Performed by ${members.map((member) => member.displayName).join(', ')}`,
 		lightBackground: segmentedGradient(colors.map((color) => color.light)),
 		darkBackground: segmentedGradient(colors.map((color) => color.dark)),
+		lightUnderline: first.dark,
+		darkUnderline: first.light,
+		lightLineTint: `color-mix(in oklch, ${first.light} 38%, transparent)`,
+		darkLineTint: `color-mix(in oklch, ${first.dark} 45%, transparent)`,
 		hiddenCount: Math.max(0, members.length - visible.length)
 	};
 }
@@ -142,10 +153,24 @@ function buildDecorations(state: EditorState, payload: VoiceGroupDecorationPaylo
 				attributes: {
 					'aria-label': style.label,
 					title: style.label,
-					style: `--ll-performer-light: ${style.lightBackground}; --ll-performer-dark: ${style.darkBackground};`
+					style:
+						`--ll-performer-light: ${style.lightBackground}; --ll-performer-dark: ${style.darkBackground}; ` +
+						`--ll-performer-underline-light: ${style.lightUnderline}; --ll-performer-underline-dark: ${style.darkUnderline};`
 				}
 			}).range(group.from, group.to)
 		);
+		const firstLine = state.doc.lineAt(group.from);
+		const lastLine = state.doc.lineAt(Math.max(group.from, group.to - 1));
+		for (let lineNumber = firstLine.number; lineNumber <= lastLine.number; lineNumber += 1) {
+			ranges.push(
+				Decoration.line({
+					class: 'll-performer-line',
+					attributes: {
+						style: `--ll-performer-line-light: ${style.lightLineTint}; --ll-performer-line-dark: ${style.darkLineTint};`
+					}
+				}).range(state.doc.line(lineNumber).from)
+			);
+		}
 		if (style.hiddenCount > 0) {
 			ranges.push(
 				Decoration.widget({
@@ -226,12 +251,15 @@ export function performerCaretAnnouncementPlugin(): Extension {
 }
 
 export const performerDecorationTheme = EditorView.baseTheme({
+	'.ll-performer-line': {
+		background: 'var(--ll-performer-line-light)'
+	},
 	'.ll-performer-highlight': {
 		position: 'relative',
 		zIndex: '1',
 		borderRadius: '0.125rem',
 		background: 'var(--ll-performer-light)',
-		borderBlockEnd: '1px solid currentColor',
+		borderBlockEnd: '2px solid var(--ll-performer-underline-light, currentColor)',
 		boxDecorationBreak: 'clone',
 		WebkitBoxDecorationBreak: 'clone'
 	},
@@ -258,8 +286,12 @@ export const performerDecorationTheme = EditorView.baseTheme({
 		font: '600 0.65rem/1.2 ui-sans-serif, system-ui, sans-serif'
 	},
 	'@media (prefers-color-scheme: dark)': {
+		'.ll-performer-line': {
+			background: 'var(--ll-performer-line-dark)'
+		},
 		'.ll-performer-highlight': {
-			background: 'var(--ll-performer-dark)'
+			background: 'var(--ll-performer-dark)',
+			borderBlockEndColor: 'var(--ll-performer-underline-dark, currentColor)'
 		}
 	}
 });

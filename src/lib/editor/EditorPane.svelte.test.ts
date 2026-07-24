@@ -202,7 +202,9 @@ describe('EditorPane', () => {
 				}
 			}
 		});
-		await expect.element(page.getByRole('button', { name: /warning: Stale issue/u })).toBeVisible();
+		// Single diagnostics render as an underlined range (count badges only
+		// appear for lines with two or more diagnostics).
+		await expect.element(page.getByTitle('Stale issue')).toBeVisible();
 		if (!handle) {
 			throw new Error('Editor did not expose its handle.');
 		}
@@ -220,9 +222,7 @@ describe('EditorPane', () => {
 			}
 		});
 
-		await expect
-			.element(page.getByRole('button', { name: /warning: Stale issue/u }))
-			.not.toBeInTheDocument();
+		await expect.element(page.getByTitle('Stale issue')).not.toBeInTheDocument();
 		expect(handle.getSnapshot().diagnostics).toEqual([]);
 	});
 

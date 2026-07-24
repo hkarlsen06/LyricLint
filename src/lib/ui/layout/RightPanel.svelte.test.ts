@@ -64,12 +64,12 @@ describe('RightPanel', () => {
 		render(ToastRegion, { feedback });
 		render(LiveRegion, { feedback });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Ignore rule for this session' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Ignore this session' }));
 		expect(controller.ignoredRuleCount).toBe(1);
 		expect(screen.queryByText('Add a section header')).toBeNull();
 		expect(screen.getByTestId('live-region').textContent).toContain('Ignored');
 
-		const ignoredToggle = screen.getByRole('button', { name: /Ignored rules/ });
+		const ignoredToggle = screen.getByRole('button', { name: /rule ignored/ });
 		await waitFor(() => expect(document.activeElement).toBe(ignoredToggle));
 		await fireEvent.click(ignoredToggle);
 		await fireEvent.click(screen.getByRole('button', { name: 'Restore' }));

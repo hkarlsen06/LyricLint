@@ -6,7 +6,8 @@ import {
 	dropCursor,
 	EditorView,
 	highlightSpecialChars,
-	keymap
+	keymap,
+	lineNumbers
 } from '@codemirror/view';
 import { parseDocument } from '../core/parser.js';
 import type {
@@ -113,11 +114,22 @@ const editorTheme = EditorView.theme({
 		overflow: 'auto'
 	},
 	'.cm-content': {
-		padding: '1rem 1.1rem 4rem',
+		padding: '1.25rem 1.1rem 4rem 0.5rem',
 		caretColor: 'var(--color-accent, var(--ll-editor-caret, oklch(0.47 0.16 48)))'
 	},
 	'.cm-line': {
 		padding: '0 0.25rem'
+	},
+	'.cm-gutters': {
+		border: 'none',
+		background: 'transparent',
+		color: 'color-mix(in oklch, var(--color-text-muted, oklch(0.44 0.016 65)) 72%, transparent)',
+		fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+		fontSize: '0.72rem'
+	},
+	'.cm-lineNumbers .cm-gutterElement': {
+		minWidth: '2.6rem',
+		padding: '0.22rem 0.7rem 0 0.5rem'
 	},
 	'.cm-selectionBackground, ::selection': {
 		backgroundColor:
@@ -214,6 +226,7 @@ export function createLyricEditor(
 
 	const extensions: Extension[] = [
 		history(),
+		lineNumbers(),
 		highlightSpecialChars(),
 		drawSelection(),
 		dropCursor(),

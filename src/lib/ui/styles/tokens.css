@@ -23,7 +23,14 @@
 	--color-warning: oklch(47% 0.11 75);
 	--color-suggestion: oklch(43% 0.09 210);
 	--color-manual: oklch(43% 0.08 305);
+	--color-danger-soft: oklch(94% 0.03 28);
+	--color-warning-soft: oklch(95% 0.04 80);
+	--color-suggestion-soft: oklch(94% 0.03 210);
+	--color-manual-soft: oklch(94% 0.025 305);
+	--color-accent-soft: oklch(93% 0.03 55);
 	--shadow-popover: 0 2px 8px oklch(20% 0.02 65 / 0.14);
+	--shadow-raised: 0 1px 2px oklch(20% 0.02 65 / 0.08);
+	--shadow-overlay: 0 12px 32px oklch(20% 0.02 65 / 0.18), 0 2px 8px oklch(20% 0.02 65 / 0.12);
 
 	--performer-plum: oklch(55% 0.15 325);
 	--performer-ochre: oklch(60% 0.13 75);
@@ -35,7 +42,8 @@
 	--performer-slate: oklch(52% 0.045 240);
 
 	--radius-control: 0.4rem;
-	--radius-panel: 0.55rem;
+	--radius-panel: 0.65rem;
+	--radius-pill: 999rem;
 	--space-1: 0.25rem;
 	--space-2: 0.5rem;
 	--space-3: 0.75rem;
@@ -65,7 +73,14 @@
 		--color-warning: oklch(76% 0.1 78);
 		--color-suggestion: oklch(73% 0.08 210);
 		--color-manual: oklch(74% 0.09 305);
+		--color-danger-soft: oklch(28% 0.045 25);
+		--color-warning-soft: oklch(29% 0.04 78);
+		--color-suggestion-soft: oklch(28% 0.035 210);
+		--color-manual-soft: oklch(28% 0.035 305);
+		--color-accent-soft: oklch(30% 0.045 55);
 		--shadow-popover: 0 2px 8px oklch(5% 0.01 65 / 0.34);
+		--shadow-raised: 0 1px 2px oklch(5% 0.01 65 / 0.3);
+		--shadow-overlay: 0 12px 32px oklch(5% 0.01 65 / 0.5), 0 2px 8px oklch(5% 0.01 65 / 0.4);
 
 		--performer-plum: oklch(72% 0.13 325);
 		--performer-ochre: oklch(76% 0.12 75);

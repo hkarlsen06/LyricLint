@@ -34,6 +34,26 @@
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+	const isMacLike =
+		typeof navigator !== 'undefined' && /mac|iphone|ipad|ipod/i.test(navigator.platform ?? '');
+	const fixShortcut = isMacLike ? '⌘.' : 'Ctrl+.';
+
+	// Read-only presentation stats for the status bar; derived from the snapshot
+	// the controller already holds, never written back.
+	const documentStats = $derived.by(() => {
+		const parsed = controller.snapshot.parsed;
+		const lines = parsed.sections.reduce((total, section) => total + section.lines.length, 0);
+		const voiceGroups = new Set(
+			parsed.sections.flatMap((section) => section.voiceGroups.map((group) => group.id))
+		).size;
+		return {
+			lines,
+			sections: parsed.sections.length,
+			performers: controller.performers.length,
+			voiceGroups
+		};
+	});
+
 	// Run the rule engine for one revision and fold the diagnostics into the
 	// snapshot before the controller stores it. Composition revisions reuse the
 	// previous result so linting never runs on incomplete IME input.
@@ -154,4 +174,16 @@
 	{:else}
 		<RightPanel {controller} />
 	{/if}
+
+	<footer class="status-bar" aria-label="Document summary">
+		<span class="status-bar__group">
+			<span>{documentStats.lines} lines · {documentStats.sections} sections</span>
+			<span>{documentStats.performers} performers · {documentStats.voiceGroups} voice groups</span>
+		</span>
+		<span class="status-bar__group status-bar__hints">
+			<span><kbd>F8</kbd> next issue</span>
+			<span><kbd>{fixShortcut}</kbd> fixes</span>
+			<span>offline ready</span>
+		</span>
+	</footer>
 </main>

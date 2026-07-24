@@ -124,11 +124,11 @@
 		z-index: 31;
 		width: min(21rem, calc(100vw - 1rem));
 		padding: 0.65rem;
-		border: 1px solid var(--ll-border, oklch(0.78 0.012 75));
-		border-radius: 0.5rem;
-		background: var(--ll-surface, oklch(0.985 0.006 78));
-		color: var(--ll-text, oklch(0.24 0.015 70));
-		box-shadow: 0 2px 8px oklch(0.2 0.01 70 / 0.14);
+		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
+		border-radius: var(--radius-panel, 0.5rem);
+		background: var(--color-surface, oklch(0.985 0.006 78));
+		color: var(--color-text, oklch(0.24 0.015 70));
+		box-shadow: var(--shadow-overlay, 0 2px 8px oklch(0.2 0.01 70 / 0.14));
 		font:
 			500 0.8125rem/1.3 ui-sans-serif,
 			system-ui,
@@ -149,16 +149,16 @@
 		box-sizing: border-box;
 		width: 100%;
 		padding: 0.45rem 0.55rem;
-		border: 1px solid var(--ll-border-strong, oklch(0.65 0.02 75));
+		border: 1px solid var(--color-border-input, oklch(0.65 0.02 75));
 		border-radius: 0.375rem;
-		background: var(--ll-input, oklch(0.99 0.004 78));
+		background: var(--color-surface, oklch(0.99 0.004 78));
 		color: inherit;
 		font: inherit;
 	}
 
 	input:focus-visible,
 	button:focus-visible {
-		outline: 2px solid var(--ll-focus, oklch(0.58 0.14 55));
+		outline: 2px solid var(--color-focus, oklch(0.58 0.14 55));
 		outline-offset: 2px;
 	}
 
@@ -175,7 +175,7 @@
 	}
 
 	li[aria-selected='true'] {
-		background: var(--ll-selected, oklch(0.9 0.045 62));
+		background: var(--color-accent-soft, oklch(0.9 0.045 62));
 	}
 
 	li button,
@@ -193,6 +193,6 @@
 
 	.cancel {
 		width: auto;
-		border: 1px solid var(--ll-border, oklch(0.78 0.012 75));
+		border: 1px solid var(--color-border, oklch(0.78 0.012 75));
 	}
 </style>

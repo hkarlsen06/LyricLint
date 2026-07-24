@@ -81,23 +81,24 @@ export const sectionGhostField = StateField.define<DecorationSet>({
 
 export const sectionGhostTheme = EditorView.baseTheme({
 	'.ll-section-ghost': {
-		padding: '0.2rem 0 0.25rem'
+		padding: '0.35rem 0 0.4rem'
 	},
 	'.ll-section-ghost-button': {
-		padding: '0.2rem 0.4rem',
-		border: '1px dashed color-mix(in oklch, currentColor 35%, transparent)',
-		borderRadius: '0.35rem',
-		background: 'transparent',
-		color: 'color-mix(in oklch, currentColor 68%, transparent)',
+		padding: '0.26rem 0.75rem',
+		border: '1px dashed color-mix(in oklch, currentColor 42%, transparent)',
+		borderRadius: '999rem',
+		background: 'color-mix(in oklch, currentColor 4%, transparent)',
+		color: 'color-mix(in oklch, currentColor 70%, transparent)',
 		font: '500 0.75rem/1.25 ui-sans-serif, system-ui, sans-serif',
 		cursor: 'pointer'
 	},
 	'.ll-section-ghost-button:hover': {
 		color: 'currentColor',
-		borderColor: 'currentColor'
+		borderColor: 'currentColor',
+		background: 'color-mix(in oklch, currentColor 8%, transparent)'
 	},
 	'.ll-section-ghost-button:focus-visible': {
-		outline: '2px solid var(--ll-focus, oklch(0.58 0.14 55))',
+		outline: '2px solid var(--color-focus, var(--ll-focus, oklch(0.58 0.14 55)))',
 		outlineOffset: '2px'
 	}
 });

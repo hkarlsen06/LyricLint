@@ -20,9 +20,11 @@
 			<Tabs.List class="panel-tabs" aria-label="Document panels">
 				<Tabs.Trigger value="linter">
 					Linter
-					{#if controller.ignoredRuleCount > 0}
-						<span class="tab-count" aria-label={`${controller.ignoredRuleCount} ignored rules`}
-							>{controller.ignoredRuleCount}</span
+					{#if controller.visibleDiagnostics.length > 0}
+						<span
+							class="tab-count"
+							aria-label={`${controller.visibleDiagnostics.length} visible diagnostics`}
+							>{controller.visibleDiagnostics.length}</span
 						>
 					{/if}
 				</Tabs.Trigger>

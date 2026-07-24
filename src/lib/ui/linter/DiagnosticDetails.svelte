@@ -20,6 +20,17 @@
 <div class="diagnostic-details">
 	<p>{diagnostic.explanation}</p>
 
+	<div class="diagnostic-details__sources" aria-label="Sources">
+		{#each diagnostic.sourceIds as sourceId (sourceId)}
+			{@const source = sources.get(sourceId)}
+			{#if source}
+				<SourceLink {source} />
+			{:else}
+				<p>Source metadata unavailable: {sourceId}</p>
+			{/if}
+		{/each}
+	</div>
+
 	{#if diagnostic.fixes?.length}
 		<div class="diagnostic-details__fixes" aria-label="Available fixes">
 			{#each diagnostic.fixes as fix (`${fix.kind}-${fix.label}`)}
@@ -53,22 +64,13 @@
 		</div>
 	{/if}
 
-	<div class="diagnostic-details__sources" aria-label="Sources">
-		{#each diagnostic.sourceIds as sourceId (sourceId)}
-			{@const source = sources.get(sourceId)}
-			{#if source}
-				<SourceLink {source} />
-			{:else}
-				<p>Source metadata unavailable: {sourceId}</p>
-			{/if}
-		{/each}
+	<div class="diagnostic-details__actions">
+		<button
+			type="button"
+			class="button button--quiet"
+			onclick={(event) => onIgnore(event.currentTarget)}
+		>
+			Ignore this session
+		</button>
 	</div>
-
-	<button
-		type="button"
-		class="button button--quiet"
-		onclick={(event) => onIgnore(event.currentTarget)}
-	>
-		Ignore rule for this session
-	</button>
 </div>
