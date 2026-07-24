@@ -395,8 +395,16 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		onSnapshot(nextSnapshot) {
 			if (lastEditorRevision !== undefined && nextSnapshot.revision < lastEditorRevision) return;
 			const textDelta = nextSnapshot.text.length - snapshot.text.length;
+			// The editor emits once at mount so loaded drafts get linted. That
+			// snapshot matches the persisted state byte for byte, so store it
+			// (for its diagnostics) without dirtying the draft.
+			const unchanged =
+				nextSnapshot.text === snapshot.text &&
+				nextSnapshot.selection.anchor === snapshot.selection.anchor &&
+				nextSnapshot.selection.head === snapshot.selection.head;
 			lastEditorRevision = nextSnapshot.revision;
 			snapshot = nextSnapshot;
+			if (unchanged) return;
 			if (textDelta >= largePasteThreshold) importPerformers(nextSnapshot);
 			scheduleSave();
 		},

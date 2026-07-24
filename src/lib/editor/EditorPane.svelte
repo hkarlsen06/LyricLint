@@ -278,6 +278,13 @@
 			};
 			editor = createLyricEditor(host, options);
 			handle = editor.handle;
+			// The update bridge deliberately stays silent for the initial state
+			// (it only emits for document or selection changes), so freshly
+			// loaded drafts would otherwise never reach the lint pipeline.
+			// Emit one snapshot now; the shell's enrichment is idempotent and
+			// re-applying context dispatches an effects-only transaction that
+			// the bridge ignores, so this cannot re-enter.
+			internalCallbacks().onSnapshot(handle.getSnapshot());
 			onready?.(handle);
 		})();
 

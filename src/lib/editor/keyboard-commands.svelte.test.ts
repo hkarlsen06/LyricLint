@@ -154,6 +154,9 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 		});
 		await mount({ text: '日本語', editorCallbacks });
 		const textbox = page.getByRole('textbox', { name: 'Lyrics editor' }).element();
+		// The editor emits one snapshot at mount (lint-on-load); composition
+		// suppression is measured relative to that baseline.
+		lint.mockClear();
 
 		textbox.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: 'に' }));
 		await new Promise((resolve) => window.setTimeout(resolve, 20));
