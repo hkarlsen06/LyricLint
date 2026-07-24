@@ -44,7 +44,8 @@
 			const context = buildRuleContext(
 				controller.language,
 				controller.performers,
-				controller.ruleSet?.version ?? 'unavailable'
+				controller.ruleSet?.version ?? 'unavailable',
+				snapshot.revision
 			);
 			lastDiagnostics = computeDiagnostics(snapshot.parsed, context);
 		}

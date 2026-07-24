@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { tick } from 'svelte';
+
 	let {
 		ruleIds,
 		onRestore
@@ -8,12 +10,27 @@
 	} = $props();
 
 	let expanded = $state(false);
+	let toggle: HTMLButtonElement;
+
+	async function restoreAndMoveFocus(ruleId: string, trigger: HTMLButtonElement): Promise<void> {
+		const nextRestore = trigger
+			.closest('li')
+			?.nextElementSibling?.querySelector<HTMLButtonElement>('button');
+		onRestore(ruleId);
+		await tick();
+		if (nextRestore?.isConnected) {
+			nextRestore.focus();
+		} else {
+			toggle.focus();
+		}
+	}
 </script>
 
 <section class="ignored-rules">
 	<button
 		type="button"
 		class="ignored-rules__toggle"
+		bind:this={toggle}
 		aria-expanded={expanded}
 		onclick={() => (expanded = !expanded)}
 	>
@@ -28,7 +45,11 @@
 				{#each ruleIds as ruleId (ruleId)}
 					<li>
 						<code>{ruleId}</code>
-						<button type="button" class="button button--quiet" onclick={() => onRestore(ruleId)}>
+						<button
+							type="button"
+							class="button button--quiet"
+							onclick={(event) => restoreAndMoveFocus(ruleId, event.currentTarget)}
+						>
 							Restore
 						</button>
 					</li>

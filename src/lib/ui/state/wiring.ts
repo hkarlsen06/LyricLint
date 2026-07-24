@@ -1,6 +1,6 @@
 import { runRules } from '$lib/rules/index.js';
 import { sourceRegistry } from '$lib/rules/index.js';
-import { normalizePerformerKey } from '$lib/performers/index.js';
+import { findExactPerformer } from '$lib/performers/index.js';
 import type { VoiceGroupRange } from '$lib/editor/index.js';
 import type {
 	Diagnostic,
@@ -17,13 +17,15 @@ import type {
 export function buildRuleContext(
 	language: string,
 	performers: readonly PerformerRecord[],
-	ruleSetVersion: string
+	ruleSetVersion: string,
+	revision: number
 ): RuleContext {
 	return {
 		language,
 		performers,
 		sources: sourceRegistry,
-		ruleSetVersion
+		ruleSetVersion,
+		revision
 	};
 }
 
@@ -41,26 +43,41 @@ export function computeDiagnostics(parsed: ParsedDocument, context: RuleContext)
  * `Avery & Blair`. Unmatched parts are ignored for display coloring only; they
  * never change the canonical document.
  */
-function resolvePerformerIds(rawNameText: string, byKey: Map<string, PerformerRecord>): string[] {
-	const whole = byKey.get(normalizePerformerKey(rawNameText));
+function decodeLegendText(value: string): string {
+	return value.replace(/&(?:amp|lt|gt|quot|#39);/gu, (entity) => {
+		switch (entity) {
+			case '&amp;':
+				return '&';
+			case '&lt;':
+				return '<';
+			case '&gt;':
+				return '>';
+			case '&quot;':
+				return '"';
+			case '&#39;':
+				return "'";
+			default:
+				return entity;
+		}
+	});
+}
+
+function resolvePerformerIds(
+	rawNameText: string,
+	performers: readonly PerformerRecord[]
+): string[] {
+	const whole = findExactPerformer(decodeLegendText(rawNameText), performers);
 	if (whole) return [whole.id];
-	const parts = rawNameText.split(/\s*(?:,|&)\s*/u).filter((part) => part.length > 0);
+	const parts = rawNameText
+		.split(/(?:\s*,\s+|\s+&\s+)/u)
+		.map(decodeLegendText)
+		.filter((part) => part.length > 0);
 	const ids: string[] = [];
 	for (const part of parts) {
-		const match = byKey.get(normalizePerformerKey(part));
+		const match = findExactPerformer(part, performers);
 		if (match && !ids.includes(match.id)) ids.push(match.id);
 	}
 	return ids;
-}
-
-function rosterIndex(performers: readonly PerformerRecord[]): Map<string, PerformerRecord> {
-	const byKey = new Map<string, PerformerRecord>();
-	for (const performer of performers) {
-		byKey.set(performer.normalizedKey || normalizePerformerKey(performer.displayName), performer);
-		byKey.set(normalizePerformerKey(performer.displayName), performer);
-		for (const alias of performer.aliases) byKey.set(normalizePerformerKey(alias), performer);
-	}
-	return byKey;
 }
 
 /**
@@ -74,7 +91,6 @@ export function resolveVoiceGroupRanges(
 	parsed: ParsedDocument,
 	performers: readonly PerformerRecord[]
 ): VoiceGroupRange[] {
-	const byKey = rosterIndex(performers);
 	const ranges: VoiceGroupRange[] = [];
 
 	for (const section of parsed.sections) {
@@ -84,7 +100,7 @@ export function resolveVoiceGroupRanges(
 			resolvedGroups.set(group.styleSlot, {
 				...group,
 				performerIds: group.rawNameText
-					? resolvePerformerIds(group.rawNameText, byKey)
+					? resolvePerformerIds(group.rawNameText, performers)
 					: group.performerIds
 			});
 		}
@@ -93,17 +109,17 @@ export function resolveVoiceGroupRanges(
 		for (const line of section.lines) {
 			const supported = line.styleSpans
 				.filter((span): span is Extract<typeof span, { slot: number }> => 'slot' in span)
-				.sort((left, right) => left.contentFrom - right.contentFrom);
+				.sort((left, right) => left.from - right.from);
 
 			let cursor = line.from;
 			for (const span of supported) {
-				if (plainGroup && span.contentFrom > cursor) {
-					const trimmed = trimRange(parsed.text, cursor, span.contentFrom);
+				if (plainGroup && span.from > cursor) {
+					const trimmed = trimRange(parsed.text, cursor, span.from);
 					if (trimmed) ranges.push({ ...trimmed, group: plainGroup });
 				}
 				const group = resolvedGroups.get(span.slot);
 				if (group) ranges.push({ from: span.contentFrom, to: span.contentTo, group });
-				cursor = span.contentTo;
+				cursor = span.to;
 			}
 			if (plainGroup && cursor < line.to) {
 				const trimmed = trimRange(parsed.text, cursor, line.to);

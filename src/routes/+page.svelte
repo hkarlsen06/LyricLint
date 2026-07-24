@@ -3,6 +3,7 @@
 	import { parseDocument } from '$lib/core/parser.js';
 	import type {
 		AssignmentResult,
+		AutosaveStatus,
 		DraftRecord,
 		EditorHandle,
 		EditorSnapshot,
@@ -82,7 +83,14 @@
 			try {
 				database = await openDatabase();
 				const repository = createDraftRepository(database);
-				const autosave = createAutosaveController(repository);
+				const autosave = createAutosaveController(
+					repository,
+					{
+						onStatusChange: (status: AutosaveStatus) => controller?.setSaveStatus(status)
+					} as Parameters<typeof createAutosaveController>[1] & {
+						onStatusChange: (status: AutosaveStatus) => void;
+					}
+				);
 				const ignoreStore = createSessionIgnoreStore(window.sessionStorage);
 				const initialDraft = await recoverStartupDraft(repository);
 				if (cancelled) return;
@@ -101,9 +109,8 @@
 					sources: [...sourceRegistry.values()],
 					ruleSet: currentRuleSet,
 					assignPerformers,
-					onInsertSection: (currentSnapshot) => currentSnapshot.text.length >= 0,
 					onOpenDraft: (draft) => {
-						snapshot = snapshotFor(draft, snapshot.revision + 1);
+						snapshot = snapshotFor(draft, 0);
 						return snapshot;
 					}
 				});

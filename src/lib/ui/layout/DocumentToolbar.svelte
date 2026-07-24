@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import { tick } from 'svelte';
 	import DraftMenu from './DraftMenu.svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
@@ -27,9 +28,11 @@
 		if (value !== '__other__') controller.setLanguage(value);
 	}
 
-	function openPerformerPanel(): void {
+	async function openPerformerPanel(): Promise<void> {
 		controller.setPanelCollapsed(false);
 		controller.setActiveTab('performers');
+		await tick();
+		document.getElementById('performers-panel-tab')?.focus();
 		controller.feedback.announce(
 			'Choose a performer in the Performers panel to assign the selection.'
 		);

@@ -11,7 +11,7 @@
 		diagnostic: Diagnostic;
 		sources: ReadonlyMap<string, SourceReference>;
 		onApplyFix: (fix: DiagnosticFix) => void;
-		onIgnore: () => void;
+		onIgnore: (trigger: HTMLButtonElement) => void;
 	} = $props();
 
 	let previewFix = $state<DiagnosticFix | undefined>();
@@ -64,7 +64,11 @@
 		{/each}
 	</div>
 
-	<button type="button" class="button button--quiet" onclick={onIgnore}>
+	<button
+		type="button"
+		class="button button--quiet"
+		onclick={(event) => onIgnore(event.currentTarget)}
+	>
 		Ignore rule for this session
 	</button>
 </div>

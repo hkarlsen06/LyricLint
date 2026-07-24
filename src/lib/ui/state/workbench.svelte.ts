@@ -9,12 +9,15 @@ import type {
 	DraftSummary,
 	EditorHandle,
 	EditorSnapshot,
+	ImportSuggestion,
 	PerformerRecord,
 	RuleSetManifest,
 	SessionIgnoreStore,
 	Severity,
-	SourceReference
+	SourceReference,
+	VoiceGroup
 } from '$lib/core/types.js';
+import { extractPerformers } from '$lib/performers/index.js';
 import { SvelteDate, SvelteMap } from 'svelte/reactivity';
 import { copyCanonicalMarkup, downloadUtf8Text } from '../clipboard.js';
 import type { FeedbackState, ToastMessage } from './feedback.svelte.js';
@@ -27,7 +30,7 @@ export interface RosterMergeSuggestion {
 	targetId: string;
 	sourceName: string;
 	targetName: string;
-	reason: 'case' | 'normalized-key';
+	reason: 'case' | 'normalized-key' | 'alias';
 }
 
 export interface WorkbenchDependencies {
@@ -45,7 +48,6 @@ export interface WorkbenchDependencies {
 	idFactory?: () => string;
 	now?: () => string;
 	onOpenDraft?: (draft: DraftRecord) => EditorSnapshot | void;
-	onInsertSection?: (snapshot: EditorSnapshot) => boolean | void;
 	assignPerformers?: (
 		snapshot: EditorSnapshot,
 		performerIds: readonly string[],
@@ -73,7 +75,9 @@ export interface WorkbenchController {
 	readonly sources: ReadonlyMap<string, SourceReference>;
 	readonly ruleSet?: RuleSetManifest;
 	readonly rosterSuggestions: readonly RosterMergeSuggestion[];
+	readonly unresolvedVoiceGroups: readonly VoiceGroup[];
 	setEditorHandle(handle: EditorHandle): void;
+	setSaveStatus(status: AutosaveStatus): void;
 	onSnapshot(snapshot: EditorSnapshot): void;
 	setActiveTab(tab: RightPanelTab): void;
 	setPanelCollapsed(collapsed: boolean): void;
@@ -108,6 +112,7 @@ export interface WorkbenchController {
 }
 
 const allSeverities: Severity[] = ['error', 'warning', 'suggestion', 'manual-review'];
+const largePasteThreshold = 32;
 export const performerColorIds = [
 	'plum',
 	'ochre',
@@ -150,6 +155,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	let ignoredRuleIds = $state<string[]>(deps.ignoreStore.list(deps.initialDraft.id));
 	let saveStatus = $state<AutosaveStatus>(deps.autosave.status());
 	let drafts = $state<DraftSummary[]>([]);
+	let importSuggestions = $state<ImportSuggestion[]>([]);
+	let unresolvedVoiceGroups = $state<VoiceGroup[]>([]);
+	let lastEditorRevision: number | undefined;
 	let statusRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
 	const feedback = deps.feedback ?? createFeedbackState();
@@ -183,9 +191,14 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		deps.autosave.schedule({ revision: snapshot.revision, draft: draftFromSnapshot() });
 		saveStatus = deps.autosave.status();
 		if (statusRefreshTimer) clearTimeout(statusRefreshTimer);
-		statusRefreshTimer = setTimeout(() => {
+		const refreshStatus = () => {
 			saveStatus = deps.autosave.status();
-		}, 250);
+			statusRefreshTimer =
+				saveStatus === 'scheduled' || saveStatus === 'saving'
+					? setTimeout(refreshStatus, 250)
+					: undefined;
+		};
+		statusRefreshTimer = setTimeout(refreshStatus, 250);
 	}
 
 	function setRoster(next: readonly PerformerRecord[]): void {
@@ -209,6 +222,34 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		});
 	}
 
+	function importPerformers(currentSnapshot: EditorSnapshot): void {
+		const extraction = extractPerformers(currentSnapshot.parsed, performers);
+		importSuggestions = extraction.suggestions.map((suggestion) => ({
+			...suggestion,
+			importedRange: { ...suggestion.importedRange }
+		}));
+		unresolvedVoiceGroups = extraction.unresolvedVoiceGroups.map((group) => ({
+			...group,
+			performerIds: [...group.performerIds],
+			...(group.sourceRange ? { sourceRange: { ...group.sourceRange } } : {})
+		}));
+
+		if (extraction.rosterAdditions.length === 0) return;
+		const additions = extraction.rosterAdditions.map((performer, index) => ({
+			...performer,
+			aliases: [...performer.aliases],
+			colorId:
+				performerColorIds[(performers.length + index) % performerColorIds.length] ?? 'plum',
+			order: performers.length + index
+		}));
+		const names = additions.map((performer) => performer.displayName);
+		const message =
+			names.length === 1
+				? `Imported ${names[0]} into the roster.`
+				: `Imported ${names.length} performers into the roster.`;
+		commitRoster([...performers, ...additions], message);
+	}
+
 	function setIgnored(ruleId: string, ignored: boolean): void {
 		if (ignored) deps.ignoreStore.ignore(draftId, ruleId);
 		else deps.ignoreStore.restore(draftId, ruleId);
@@ -223,8 +264,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		originalText = nextDraft.originalText;
 		performers = cloneRoster(nextDraft.performers);
 		ignoredRuleIds = deps.ignoreStore.list(nextDraft.id);
+		lastEditorRevision = undefined;
 		const openedSnapshot = deps.onOpenDraft?.(nextDraft);
-		if (openedSnapshot) snapshot = openedSnapshot;
+		if (openedSnapshot) {
+			snapshot = openedSnapshot;
+			importPerformers(openedSnapshot);
+		}
 	}
 
 	function emptyTransientDraft(): DraftRecord {
@@ -302,13 +347,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			return deps.ruleSet;
 		},
 		get rosterSuggestions() {
-			const suggestions: RosterMergeSuggestion[] = [];
+			const suggestions = new SvelteMap<string, RosterMergeSuggestion>();
 			for (let sourceIndex = 0; sourceIndex < performers.length; sourceIndex += 1) {
 				for (let targetIndex = 0; targetIndex < sourceIndex; targetIndex += 1) {
 					const source = performers[sourceIndex];
 					const target = performers[targetIndex];
 					if (!source || !target || source.normalizedKey !== target.normalizedKey) continue;
-					suggestions.push({
+					const suggestion: RosterMergeSuggestion = {
 						sourceId: source.id,
 						targetId: target.id,
 						sourceName: source.displayName,
@@ -317,17 +362,44 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 							source.displayName.toLocaleLowerCase() === target.displayName.toLocaleLowerCase()
 								? 'case'
 								: 'normalized-key'
-					});
+					};
+					suggestions.set(`${suggestion.sourceId}:${suggestion.targetId}`, suggestion);
 				}
 			}
-			return suggestions;
+			for (const imported of importSuggestions) {
+				const source = performers.find(
+					(performer) =>
+						performer.displayName === imported.importedName &&
+						performer.id !== imported.performerId
+				);
+				const target = performers.find((performer) => performer.id === imported.performerId);
+				if (!source || !target) continue;
+				const suggestion: RosterMergeSuggestion = {
+					sourceId: source.id,
+					targetId: target.id,
+					sourceName: source.displayName,
+					targetName: target.displayName,
+					reason: imported.reason
+				};
+				suggestions.set(`${suggestion.sourceId}:${suggestion.targetId}`, suggestion);
+			}
+			return [...suggestions.values()];
+		},
+		get unresolvedVoiceGroups() {
+			return unresolvedVoiceGroups;
 		},
 		setEditorHandle(handle) {
 			editor = handle;
 		},
+		setSaveStatus(status) {
+			saveStatus = status;
+		},
 		onSnapshot(nextSnapshot) {
-			if (nextSnapshot.revision < snapshot.revision) return;
+			if (lastEditorRevision !== undefined && nextSnapshot.revision < lastEditorRevision) return;
+			const textDelta = nextSnapshot.text.length - snapshot.text.length;
+			lastEditorRevision = nextSnapshot.revision;
 			snapshot = nextSnapshot;
+			if (textDelta >= largePasteThreshold) importPerformers(nextSnapshot);
 			scheduleSave();
 		},
 		setActiveTab(tab) {
@@ -419,8 +491,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			}
 		},
 		insertSection() {
-			const opened = deps.onInsertSection?.(snapshot);
-			if (opened === false || !deps.onInsertSection) {
+			if (editor.requestSectionHeader) {
+				editor.requestSectionHeader();
+			} else {
 				feedback.announce('Place the cursor in a lyric section before inserting a header.');
 			}
 		},
@@ -520,6 +593,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			drafts = await deps.repository.list();
 		},
 		async createDraft() {
+			await deps.autosave.flush();
 			const timestamp = now();
 			const draft: DraftRecord = {
 				id: idFactory(),
@@ -539,12 +613,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			feedback.announce('New draft created.');
 		},
 		async openDraft(id) {
+			await deps.autosave.flush();
+			if (id === draftId) return;
 			const draft = await deps.repository.get(id);
 			if (!draft) {
 				feedback.announce('That draft is no longer available.');
 				return;
 			}
-			await deps.autosave.flush();
 			await deps.repository.setCurrent(id);
 			loadDraft(draft);
 			await controller.refreshDrafts();
@@ -553,11 +628,15 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		async renameDraft(id, nextTitle) {
 			const trimmed = nextTitle.trim() || 'Untitled draft';
 			await deps.repository.rename(id, trimmed);
-			if (id === draftId) title = trimmed;
+			if (id === draftId) {
+				title = trimmed;
+				scheduleSave();
+			}
 			await controller.refreshDrafts();
 			feedback.announce(`Renamed draft to ${trimmed}.`);
 		},
 		async duplicateDraft(id) {
+			await deps.autosave.flush();
 			const duplicate = await deps.repository.duplicate(id, idFactory());
 			await controller.refreshDrafts();
 			feedback.announce(`Duplicated ${duplicate.title.replace(/ copy$/, '')}.`);
@@ -573,6 +652,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		async deleteDraft(id) {
 			const deleted = await deps.repository.get(id);
+			if (deps.autosave.cancelDraft) {
+				deps.autosave.cancelDraft(id);
+			} else if (id === draftId) {
+				deps.autosave.cancel();
+			}
 			await deps.repository.delete(id);
 			if (id === draftId) {
 				const remaining = await deps.repository.list();
@@ -606,6 +690,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		}
 	};
 
+	importPerformers(deps.initialSnapshot);
 	void controller.refreshDrafts();
 	return controller;
 }

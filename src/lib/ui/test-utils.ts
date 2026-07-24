@@ -1,4 +1,5 @@
 import { parseDocument } from '$lib/core/parser.js';
+import { assignVoiceGroup } from '$lib/performers/index.js';
 import type {
 	AtomicDocumentEdit,
 	Diagnostic,
@@ -26,6 +27,7 @@ export interface EditorCallLog {
 	dispatched: AtomicDocumentEdit[];
 	undoCount: number;
 	redoCount: number;
+	sectionHeaderRequestCount: number;
 }
 
 const testSource: SourceReference = {
@@ -74,8 +76,11 @@ export function createTestWorkbench(options?: {
 	drafts?: DraftRecord[];
 	copyLog?: string[];
 	exportLog?: Array<{ text: string; filename: string }>;
+	selection?: SerializedSelection;
+	revision?: number;
 }) {
 	const text = options?.text ?? '[Verse]\nLine';
+	const selection = options?.selection ?? { anchor: 0, head: 4 };
 	const initialDraft: DraftRecord = {
 		id: 'draft-1',
 		title: 'Test draft',
@@ -85,12 +90,12 @@ export function createTestWorkbench(options?: {
 		createdAt: '2026-07-20T10:00:00.000Z',
 		updatedAt: '2026-07-20T10:00:00.000Z',
 		ruleSetVersion: '2026.7',
-		editorSelection: { anchor: 0, head: 4 }
+		editorSelection: selection
 	};
 	let snapshot: EditorSnapshot = {
-		revision: 4,
+		revision: options?.revision ?? 4,
 		text,
-		selection: { anchor: 0, head: 4 },
+		selection,
 		parsed: parseDocument(text),
 		diagnostics: options?.diagnostics ?? [],
 		composing: false,
@@ -103,7 +108,8 @@ export function createTestWorkbench(options?: {
 		selections: [],
 		dispatched: [],
 		undoCount: 0,
-		redoCount: 0
+		redoCount: 0,
+		sectionHeaderRequestCount: 0
 	};
 	const editor: EditorHandle = {
 		focus() {
@@ -127,6 +133,9 @@ export function createTestWorkbench(options?: {
 		setSelection(selection) {
 			calls.selections.push(selection);
 			snapshot = { ...snapshot, selection };
+		},
+		requestSectionHeader() {
+			calls.sectionHeaderRequestCount += 1;
 		}
 	};
 	const repository = createInMemoryDraftRepository(options?.drafts ?? [initialDraft]);
@@ -161,9 +170,19 @@ export function createTestWorkbench(options?: {
 		},
 		idFactory: () => `generated-${nextId++}`,
 		now: () => `2026-07-20T10:00:0${nextId}.000Z`,
+		assignPerformers(currentSnapshot, performerIds, roster) {
+			return assignVoiceGroup({
+				revision: currentSnapshot.revision,
+				text: currentSnapshot.text,
+				document: currentSnapshot.parsed,
+				selection: currentSnapshot.selection,
+				performerIds: [...performerIds],
+				roster
+			});
+		},
 		onOpenDraft(draft) {
 			snapshot = {
-				revision: snapshot.revision + 1,
+				revision: 0,
 				text: draft.text,
 				selection: draft.editorSelection ?? { anchor: 0, head: 0 },
 				parsed: parseDocument(draft.text),

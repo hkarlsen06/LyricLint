@@ -69,10 +69,13 @@ describe('RightPanel', () => {
 		expect(screen.queryByText('Add a section header')).toBeNull();
 		expect(screen.getByTestId('live-region').textContent).toContain('Ignored');
 
-		await fireEvent.click(screen.getByRole('button', { name: /Ignored rules/ }));
+		const ignoredToggle = screen.getByRole('button', { name: /Ignored rules/ });
+		await waitFor(() => expect(document.activeElement).toBe(ignoredToggle));
+		await fireEvent.click(ignoredToggle);
 		await fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
 		expect(controller.ignoredRuleCount).toBe(0);
 		expect(screen.getByText('Add a section header')).toBeTruthy();
+		await waitFor(() => expect(document.activeElement).toBe(ignoredToggle));
 
 		const undoButtons = screen.getAllByRole('button', { name: 'Undo' });
 		await fireEvent.click(undoButtons.at(-1)!);

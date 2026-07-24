@@ -12,6 +12,7 @@
 	--color-text-muted: oklch(44% 0.016 65);
 	--color-border: oklch(82% 0.018 72);
 	--color-border-strong: oklch(65% 0.025 70);
+	--color-border-input: oklch(65% 0.025 70);
 	--color-accent: oklch(48% 0.13 42);
 	--color-accent-hover: oklch(42% 0.13 42);
 	--color-accent-text: oklch(98% 0.006 78);
@@ -53,6 +54,7 @@
 		--color-text-muted: oklch(72% 0.016 72);
 		--color-border: oklch(36% 0.018 65);
 		--color-border-strong: oklch(52% 0.022 65);
+		--color-border-input: oklch(52% 0.022 65);
 		--color-accent: oklch(68% 0.12 50);
 		--color-accent-hover: oklch(74% 0.11 50);
 		--color-accent-text: oklch(19% 0.012 65);

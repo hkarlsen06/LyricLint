@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import { tick } from 'svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
 
@@ -7,6 +8,7 @@
 	let renameValue = $state('');
 	let deleteId = $state<string | undefined>();
 	let confirmDeleteAll = $state(false);
+	let menuTrigger: HTMLElement;
 
 	function beginRename(id: string, title: string): void {
 		renameId = id;
@@ -18,10 +20,27 @@
 		await controller.renameDraft(id, renameValue);
 		renameId = undefined;
 	}
+
+	async function deleteDraftAndMoveFocus(
+		id: string,
+		trigger: HTMLButtonElement
+	): Promise<void> {
+		const nextDraft = trigger
+			.closest('li')
+			?.nextElementSibling?.querySelector<HTMLButtonElement>('.draft-list__title');
+		await controller.deleteDraft(id);
+		deleteId = undefined;
+		await tick();
+		if (nextDraft?.isConnected) {
+			nextDraft.focus();
+		} else {
+			menuTrigger.focus();
+		}
+	}
 </script>
 
 <details class="draft-menu">
-	<summary class="button button--quiet">Drafts</summary>
+	<summary class="button button--quiet" bind:this={menuTrigger}>Drafts</summary>
 	<div class="draft-menu__popover">
 		<div class="draft-menu__heading">
 			<strong>Saved drafts</strong>
@@ -85,10 +104,8 @@
 										<button
 											type="button"
 											class="button button--danger"
-											onclick={async () => {
-												await controller.deleteDraft(draft.id);
-												deleteId = undefined;
-											}}>Yes</button
+											onclick={(event) =>
+												deleteDraftAndMoveFocus(draft.id, event.currentTarget)}>Yes</button
 										>
 										<button
 											type="button"

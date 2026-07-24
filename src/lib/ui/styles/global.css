@@ -73,7 +73,7 @@ a:hover {
 .button,
 .icon-button {
 	min-height: 2rem;
-	border: 1px solid var(--color-border);
+	border: 1px solid var(--color-border-input);
 	border-radius: var(--radius-control);
 	background: var(--color-surface);
 	color: var(--color-text);
@@ -126,7 +126,7 @@ a:hover {
 input,
 select,
 textarea {
-	border: 1px solid var(--color-border);
+	border: 1px solid var(--color-border-input);
 	border-radius: var(--radius-control);
 	background: var(--color-surface);
 	color: var(--color-text);
@@ -193,7 +193,7 @@ select {
 
 .draft-title:hover,
 .draft-title:focus {
-	border-color: var(--color-border);
+	border-color: var(--color-border-input);
 	background: var(--color-surface);
 }
 
@@ -491,6 +491,43 @@ select {
 	font-weight: 650;
 }
 
+.performer-assignment {
+	display: grid;
+	margin: 0 0 var(--space-4);
+	padding: var(--space-3);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-panel);
+	gap: var(--space-2);
+}
+
+.performer-assignment legend {
+	padding: 0 var(--space-1);
+	font-weight: 700;
+}
+
+.performer-assignment p {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: 0.8125rem;
+}
+
+.performer-assignment__choices {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+	gap: var(--space-1) var(--space-3);
+}
+
+.performer-assignment__choices label {
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+.performer-assignment__actions {
+	display: flex;
+	gap: var(--space-2);
+}
+
 .inline-form {
 	display: flex;
 	flex-wrap: wrap;
@@ -576,6 +613,7 @@ select {
 }
 
 .merge-suggestions,
+.unresolved-voices,
 .performer-legend,
 .tools-panel section {
 	margin-top: var(--space-5);
@@ -584,6 +622,7 @@ select {
 }
 
 .merge-suggestions ul,
+.unresolved-voices ul,
 .performer-legend ol,
 .performer-legend ul {
 	display: grid;

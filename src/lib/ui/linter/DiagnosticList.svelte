@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Diagnostic, Severity, SourceReference } from '$lib/core/types.js';
+	import { tick } from 'svelte';
 	import DiagnosticDetails from './DiagnosticDetails.svelte';
 
 	let {
@@ -37,6 +38,26 @@
 			? 'Manual review'
 			: `${severity.slice(0, 1).toUpperCase()}${severity.slice(1)}`;
 	}
+
+	async function ignoreAndMoveFocus(
+		ruleId: string,
+		trigger: HTMLButtonElement
+	): Promise<void> {
+		const row = trigger.closest('li');
+		const nextRowControl = row?.nextElementSibling?.querySelector<HTMLButtonElement>(
+			'.diagnostic-list__navigate'
+		);
+		const fallback = trigger
+			.closest('.linter-panel')
+			?.querySelector<HTMLButtonElement>('.ignored-rules__toggle');
+		onIgnore(ruleId);
+		await tick();
+		if (nextRowControl?.isConnected) {
+			nextRowControl.focus();
+			return;
+		}
+		fallback?.focus();
+	}
 </script>
 
 {#if sortedDiagnostics.length === 0}
@@ -62,7 +83,7 @@
 					{diagnostic}
 					{sources}
 					onApplyFix={(fix) => onApplyFix(diagnostic, fix)}
-					onIgnore={() => onIgnore(diagnostic.ruleId)}
+					onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic.ruleId, trigger)}
 				/>
 			</li>
 		{/each}

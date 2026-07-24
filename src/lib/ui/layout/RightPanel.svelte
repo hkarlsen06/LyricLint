@@ -26,7 +26,7 @@
 						>
 					{/if}
 				</Tabs.Trigger>
-				<Tabs.Trigger value="performers">Performers</Tabs.Trigger>
+				<Tabs.Trigger id="performers-panel-tab" value="performers">Performers</Tabs.Trigger>
 				<Tabs.Trigger value="tools">Tools</Tabs.Trigger>
 			</Tabs.List>
 			<button

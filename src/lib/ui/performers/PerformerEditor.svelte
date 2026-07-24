@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PerformerRecord } from '$lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 
 	let {
 		performer,
@@ -17,11 +17,46 @@
 
 	let editing = $state(false);
 	let name = $state(untrack(() => performer.displayName));
+	let renameInput = $state<HTMLInputElement>();
+	let renameButton = $state<HTMLButtonElement>();
 
-	function saveRename(event: SubmitEvent): void {
+	async function beginRename(): Promise<void> {
+		editing = true;
+		await tick();
+		renameInput?.focus();
+		renameInput?.select();
+	}
+
+	async function finishRename(): Promise<void> {
+		editing = false;
+		await tick();
+		renameButton?.focus();
+	}
+
+	async function saveRename(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 		controller.renamePerformer(performer.id, name);
-		editing = false;
+		await finishRename();
+	}
+
+	async function cancelRename(): Promise<void> {
+		name = performer.displayName;
+		await finishRename();
+	}
+
+	async function removeAndMoveFocus(trigger: HTMLButtonElement): Promise<void> {
+		const roster = trigger.closest('.performer-roster');
+		const nextRowControl = trigger
+			.closest('li')
+			?.nextElementSibling?.querySelector<HTMLButtonElement>('button');
+		const fallback = roster?.querySelector<HTMLInputElement>('#new-performer');
+		controller.removePerformer(performer.id);
+		await tick();
+		if (nextRowControl?.isConnected) {
+			nextRowControl.focus();
+		} else {
+			fallback?.focus();
+		}
 	}
 </script>
 
@@ -40,15 +75,12 @@
 	{#if editing}
 		<form class="inline-form" onsubmit={saveRename}>
 			<label class="sr-only" for={`performer-${performer.id}`}>Performer name</label>
-			<input id={`performer-${performer.id}`} bind:value={name} />
+			<input id={`performer-${performer.id}`} bind:this={renameInput} bind:value={name} />
 			<button type="submit" class="button button--primary">Save</button>
 			<button
 				type="button"
 				class="button button--quiet"
-				onclick={() => {
-					name = performer.displayName;
-					editing = false;
-				}}>Cancel</button
+				onclick={cancelRename}>Cancel</button
 			>
 		</form>
 	{:else}
@@ -58,7 +90,12 @@
 				class="button button--primary"
 				onclick={() => controller.assignSelection([performer.id])}>Assign</button
 			>
-			<button type="button" class="button button--quiet" onclick={() => (editing = true)}>
+			<button
+				type="button"
+				class="button button--quiet"
+				bind:this={renameButton}
+				onclick={beginRename}
+			>
 				Rename
 			</button>
 			<button
@@ -83,7 +120,7 @@
 			<button
 				type="button"
 				class="button button--quiet danger-text"
-				onclick={() => controller.removePerformer(performer.id)}>Remove</button
+				onclick={(event) => removeAndMoveFocus(event.currentTarget)}>Remove</button
 			>
 		</div>
 	{/if}

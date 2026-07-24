@@ -28,6 +28,49 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
+	test('opens the editor section picker from the toolbar', async () => {
+		const { controller, calls } = createTestWorkbench();
+		render(DocumentToolbar, { controller });
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Insert section' }));
+
+		expect(calls.sectionHeaderRequestCount).toBe(1);
+	});
+
+	test('reflects a late autosave failure instead of remaining on saving', async () => {
+		const { controller } = createTestWorkbench();
+		render(DocumentToolbar, { controller });
+
+		controller.setSaveStatus('saving');
+		await waitFor(() =>
+			expect(screen.getByLabelText('Autosave status').textContent).toContain('Saving')
+		);
+		controller.setSaveStatus('failed');
+
+		await waitFor(() =>
+			expect(screen.getByLabelText('Autosave status').textContent).toContain('Save failed')
+		);
+	});
+
+	test('moves focus to the Performers tab when assignment is opened from the toolbar', async () => {
+		vi.stubGlobal(
+			'matchMedia',
+			vi.fn().mockReturnValue({
+				matches: false,
+				addEventListener: vi.fn(),
+				removeEventListener: vi.fn()
+			})
+		);
+		const { controller } = createTestWorkbench();
+		render(Workspace, { controller });
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Assign performer' }));
+
+		const performersTab = screen.getByRole('tab', { name: 'Performers' });
+		await waitFor(() => expect(document.activeElement).toBe(performersTab));
+		expect(controller.activeTab).toBe('performers');
+	});
+
 	test('collapses the panel at a narrow viewport while keeping the editor region visible', async () => {
 		vi.stubGlobal(
 			'matchMedia',
