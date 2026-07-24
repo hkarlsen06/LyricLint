@@ -61,6 +61,20 @@
 	const autosave = createInMemoryAutosaveController(repository);
 	const sessionStorageAdapter = browser
 		? {
+				get length() {
+					try {
+						return window.sessionStorage.length;
+					} catch {
+						return 0;
+					}
+				},
+				key(index: number) {
+					try {
+						return window.sessionStorage.key(index);
+					} catch {
+						return null;
+					}
+				},
 				getItem(key: string) {
 					try {
 						return window.sessionStorage.getItem(key);

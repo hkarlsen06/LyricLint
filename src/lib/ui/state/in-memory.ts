@@ -153,6 +153,12 @@ export function createInMemoryAutosaveController(
 export function createMemorySessionStorage(): SessionStorageLike {
 	const entries = new Map<string, string>();
 	return {
+		get length() {
+			return entries.size;
+		},
+		key(index) {
+			return Array.from(entries.keys())[index] ?? null;
+		},
 		getItem(key) {
 			return entries.get(key) ?? null;
 		},
