@@ -34,6 +34,7 @@ export function createInMemoryDraftRepository(
 ): DraftRepository {
 	const drafts = new Map(initialDrafts.map((draft) => [draft.id, cloneDraft(draft)]));
 	let currentId: string | undefined = initialDrafts[0]?.id;
+	let recentLanguages: string[] = [];
 
 	return {
 		async list() {
@@ -88,6 +89,17 @@ export function createInMemoryDraftRepository(
 		},
 		async getCurrent() {
 			return currentId;
+		},
+		async getRecentLanguages() {
+			return [...recentLanguages];
+		},
+		async rememberLanguage(language) {
+			const normalized = language.trim();
+			if (!normalized) return;
+			recentLanguages = [
+				normalized,
+				...recentLanguages.filter((candidate) => candidate !== normalized)
+			].slice(0, 5);
 		}
 	};
 }

@@ -8,8 +8,9 @@
 		diagnostic: Diagnostic;
 		sources?: readonly SourceReference[];
 		anchor?: ScreenRect;
-		documentText?: string;
 		takeFocus?: boolean;
+		onPreviewFix: (fix: DiagnosticFix) => void;
+		onCancelPreview: () => void;
 		onApplyFix: (fix: DiagnosticFix) => void;
 		onIgnore: () => void;
 		onDismiss?: () => void;
@@ -19,8 +20,9 @@
 		diagnostic,
 		sources = [],
 		anchor,
-		documentText = '',
 		takeFocus = false,
+		onPreviewFix,
+		onCancelPreview,
 		onApplyFix,
 		onIgnore,
 		onDismiss = () => {}
@@ -39,13 +41,6 @@
 			? `left: ${Math.max(8, anchor.left)}px; top: ${Math.max(8, anchor.bottom + 6)}px;`
 			: undefined
 	);
-	const previewChanges = $derived(
-		previewFix?.edit.edits.map((edit) => ({
-			before: documentText.slice(edit.from, edit.to),
-			after: edit.insert
-		})) ?? []
-	);
-
 	$effect(() => {
 		const diagnosticKey = `${diagnostic.ruleId}:${diagnostic.from}:${diagnostic.to}:${diagnostic.message}`;
 		if (diagnosticKey !== previousDiagnosticKey) {
@@ -132,6 +127,7 @@
 	function activateFix(fix: DiagnosticFix): void {
 		if (fix.kind === 'preview' && !isPendingPreview(fix)) {
 			previewFix = fix;
+			onPreviewFix(fix);
 			return;
 		}
 		onApplyFix(fix);
@@ -171,19 +167,14 @@
 
 	{#if previewFix}
 		<div class="preview" aria-live="polite">
-			<p>Review the change, then activate the fix again to apply it.</p>
-			{#each previewChanges as change, index (`${index}:${change.before}:${change.after}`)}
-				<dl>
-					<div>
-						<dt>Before</dt>
-						<dd><code>{change.before || '(empty)'}</code></dd>
-					</div>
-					<div>
-						<dt>After</dt>
-						<dd><code>{change.after || '(empty)'}</code></dd>
-					</div>
-				</dl>
-			{/each}
+			<p>Previewing this change in the editor.</p>
+			<button
+				type="button"
+				onclick={() => {
+					previewFix = undefined;
+					onCancelPreview();
+				}}>Cancel preview</button
+			>
 		</div>
 	{/if}
 
@@ -301,40 +292,6 @@
 	.preview p {
 		margin: 0 0 var(--space-2);
 		font-weight: var(--font-weight-medium);
-	}
-
-	.preview dl {
-		display: grid;
-		grid-template-columns: minmax(4rem, auto) 1fr;
-		gap: var(--space-1) var(--space-2);
-		margin: 0;
-	}
-
-	.preview dl + dl {
-		margin-block-start: var(--space-2);
-		padding-block-start: var(--space-2);
-		border-block-start: var(--border-width) solid var(--color-border);
-	}
-
-	.preview dl div {
-		display: contents;
-	}
-
-	.preview dt {
-		font-weight: var(--font-weight-semibold);
-	}
-
-	.preview dd {
-		min-width: 0;
-		margin: 0;
-	}
-
-	.preview code {
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-		font-family: var(--font-mono);
-		font-size: var(--font-size-xs);
-		line-height: var(--line-height-ui);
 	}
 
 	ul {

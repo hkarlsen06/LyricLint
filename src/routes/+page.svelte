@@ -90,6 +90,7 @@
 				});
 				const ignoreStore = createSessionIgnoreStore(window.sessionStorage);
 				const initialDraft = await recoverStartupDraft(repository);
+				const initialRecentLanguages = await repository.getRecentLanguages();
 				if (cancelled) return;
 
 				let snapshot = snapshotFor(initialDraft);
@@ -99,6 +100,7 @@
 					editor,
 					initialSnapshot: snapshot,
 					initialDraft,
+					initialRecentLanguages,
 					repository,
 					autosave,
 					ignoreStore,

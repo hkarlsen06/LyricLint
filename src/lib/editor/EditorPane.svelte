@@ -61,6 +61,23 @@
 		return `${range.from}:${range.to}`;
 	}
 
+	function performerIdsForRange(range: TextRange): string[] {
+		const performerIds: string[] = [];
+		for (const voiceRange of context.voiceGroups ?? []) {
+			if (voiceRange.legend || voiceRange.from >= range.to || range.from >= voiceRange.to) {
+				continue;
+			}
+			for (const performerId of voiceRange.group.performerIds) {
+				if (!performerIds.includes(performerId)) {
+					performerIds.push(performerId);
+				}
+			}
+		}
+		return context.performers
+			.filter((performer) => performerIds.includes(performer.id))
+			.map((performer) => performer.id);
+	}
+
 	function rectForRange(range: TextRange): ScreenRect {
 		const start = editor?.view.coordsAtPos(range.from, 1);
 		const end = editor?.view.coordsAtPos(range.to, -1);
@@ -255,6 +272,25 @@
 		returnFocus();
 	}
 
+	function previewFix(fix: DiagnosticFix): void {
+		try {
+			editor?.handle.previewAtomic?.(fix.edit);
+			const first = fix.edit.edits[0];
+			if (first) {
+				editor?.handle.revealRange(first);
+			}
+			callbacks.onAnnouncement(`${fix.label} previewed in the editor.`);
+		} catch (error) {
+			callbacks.onAnnouncement(
+				error instanceof Error ? error.message : 'The fix could not be previewed in the editor.'
+			);
+		}
+	}
+
+	function clearFixPreview(): void {
+		editor?.handle.clearPreview?.();
+	}
+
 	function ignoreDiagnostic(): void {
 		if (activeDiagnostic) {
 			callbacks.onIgnoreDiagnostic?.(activeDiagnostic);
@@ -345,6 +381,7 @@
 {#if performerOpen && performerRange}
 	<PerformerPicker
 		performers={context.performers}
+		initialSelectedIds={performerIdsForRange(performerRange)}
 		anchor={activeAnchor(performerRange)}
 		placement={anchorPreference(performerRange)}
 		onApply={applyPerformers}
@@ -373,11 +410,13 @@
 		diagnostic={activeDiagnostic}
 		sources={context.sources}
 		anchor={activeAnchor(activeDiagnostic)}
-		documentText={editor?.handle.getSnapshot().text ?? initialText}
 		takeFocus={diagnosticTakesFocus}
+		onPreviewFix={previewFix}
+		onCancelPreview={clearFixPreview}
 		onApplyFix={applyFix}
 		onIgnore={ignoreDiagnostic}
 		onDismiss={() => {
+			clearFixPreview();
 			activeDiagnostic = undefined;
 			diagnosticTakesFocus = false;
 			returnFocus();

@@ -23,6 +23,15 @@ function annotation(
 
 const sources: SourceReference[] = [
 	{
+		id: 'T-LANGUAGE-DETECT',
+		url: 'https://github.com/FGRibreau/node-language-detect',
+		pageTitle: 'LanguageDetect',
+		sectionTitle: 'Local statistical language recognition using bundled text profiles',
+		retrievedAt: reviewedAt,
+		lastVerifiedAt: reviewedAt,
+		reviewStatus: 'reviewed'
+	},
+	{
 		id: 'G-ADD-SONGS',
 		url: 'https://genius.com/Genius-how-to-add-songs-to-genius-annotated',
 		pageTitle: 'How to Add Songs to Genius',
@@ -42,6 +51,18 @@ const sources: SourceReference[] = [
 		9250687,
 		'Use song part headers',
 		'Section headers, performer legends, and four differentiation styles'
+	),
+	annotation(
+		'G-SECTION-NUMBERING',
+		16107272,
+		'Song Sections & Headers Guide',
+		'Only verses are enumerated; distinct verses use ascending numbers'
+	),
+	annotation(
+		'G-SECTION-HOOK',
+		34151858,
+		'Song Sections & Headers Guide',
+		'Replace the deprecated Hook header with Chorus or Refrain'
 	),
 	{
 		id: 'G-LANG-HEADERS',
@@ -69,6 +90,42 @@ const sources: SourceReference[] = [
 		13453292,
 		'Song Headers in Different Languages',
 		'Reviewed Norwegian section-header vocabulary'
+	),
+	annotation(
+		'G-LANG-AR',
+		12745769,
+		'Song Headers in Different Languages',
+		'Reviewed Arabic section-header vocabulary'
+	),
+	annotation(
+		'G-LANG-DE',
+		12745292,
+		'Song Headers in Different Languages',
+		'Reviewed German genre-dependent section-header vocabulary'
+	),
+	annotation(
+		'G-LANG-ES',
+		12744618,
+		'Song Headers in Different Languages',
+		'Reviewed Spanish section-header vocabulary'
+	),
+	annotation(
+		'G-LANG-FR',
+		12745216,
+		'Song Headers in Different Languages',
+		'Reviewed French section-header vocabulary'
+	),
+	annotation(
+		'G-LANG-JA',
+		13322994,
+		'Song Headers in Different Languages',
+		'Japanese song pages use English section headers'
+	),
+	annotation(
+		'G-LANG-KO',
+		20378931,
+		'Song Headers in Different Languages',
+		'English headers for original Korean songs and Hangul headers for translations'
 	),
 	annotation('G-NUMBERS', 15591905, 'Number spelling', 'Spell out numbers with exceptions'),
 	annotation(

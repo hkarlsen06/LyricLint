@@ -3,8 +3,11 @@
 
 	/*
 	 * LyricLint is used for long editing sessions in mixed ambient light. The
-	 * warm neutral canvas reduces glare, while the editor surface stays quiet
-	 * enough for markup, diagnostics, and performer colors to carry meaning.
+	 * palette is a cool neutral so the editor surface stays quiet enough for
+	 * markup, diagnostics, and performer colors to carry meaning. Both schemes
+	 * share the same hue anchors: near-achromatic surfaces (hue 285), a blue
+	 * accent for links and focus (hue 255), and severity hues at coral 28,
+	 * amber 78, blue 255, and neutral gray.
 	 */
 
 	/* Typography */
@@ -46,7 +49,7 @@
 	--radius-xs: 0.25rem;
 	--radius-sm: 0.4rem;
 	--radius-md: 0.65rem;
-	--radius-lg: 0.8rem;
+	--radius-lg: 1rem;
 	--radius-round: 50%;
 	--radius-pill: 999rem;
 	--radius-control: var(--radius-sm);
@@ -72,16 +75,16 @@
 	--opacity-muted: 0.72;
 
 	/* Semantic surfaces and text */
-	--color-canvas: oklch(97.8% 0.008 78);
-	--color-surface: oklch(99.1% 0.005 78);
-	--color-surface-subtle: oklch(95.3% 0.01 78);
-	--color-surface-strong: oklch(91.5% 0.014 78);
+	--color-canvas: oklch(97.5% 0.003 285);
+	--color-surface: oklch(99.2% 0.002 285);
+	--color-surface-subtle: oklch(95.2% 0.004 285);
+	--color-surface-strong: oklch(91.5% 0.006 285);
 	--color-overlay: var(--color-surface);
-	--color-text: oklch(24% 0.018 65);
-	--color-text-muted: oklch(44% 0.016 65);
+	--color-text: oklch(23% 0.012 285);
+	--color-text-muted: oklch(45% 0.014 285);
 	--color-text-disabled: color-mix(in oklch, var(--color-text-muted) 65%, transparent);
-	--color-border: oklch(82% 0.018 72);
-	--color-border-strong: oklch(65% 0.025 70);
+	--color-border: oklch(87% 0.006 285);
+	--color-border-strong: oklch(68% 0.012 285);
 	--color-border-input: var(--color-border-strong);
 	--color-control: var(--color-surface);
 	--color-control-hover: var(--color-surface-subtle);
@@ -89,34 +92,34 @@
 	--color-control-border: var(--color-border-input);
 
 	/* Accent and selection */
-	--color-accent: oklch(48% 0.13 42);
-	--color-accent-hover: oklch(42% 0.13 42);
-	--color-accent-active: oklch(38% 0.12 42);
-	--color-accent-text: oklch(98% 0.006 78);
-	--color-accent-soft: oklch(93% 0.03 55);
+	--color-accent: oklch(50% 0.15 255);
+	--color-accent-hover: oklch(44% 0.15 255);
+	--color-accent-active: oklch(40% 0.14 255);
+	--color-accent-text: oklch(98.5% 0.002 285);
+	--color-accent-soft: oklch(93% 0.03 255);
 	--color-selected: var(--color-accent-soft);
 	--color-focus: oklch(54% 0.15 255);
 	--color-focus-soft: color-mix(in oklch, var(--color-focus) 28%, transparent);
 
 	/* Feedback states */
-	--color-danger: oklch(47% 0.16 28);
-	--color-danger-hover: oklch(41% 0.15 28);
-	--color-danger-surface: oklch(94% 0.03 28);
+	--color-danger: oklch(50% 0.17 28);
+	--color-danger-hover: oklch(44% 0.16 28);
+	--color-danger-surface: oklch(94.5% 0.028 28);
 	--color-danger-border: color-mix(in oklch, var(--color-danger) 45%, var(--color-border));
-	--color-success: oklch(43% 0.09 150);
-	--color-success-surface: oklch(94% 0.026 150);
-	--color-warning: oklch(47% 0.11 75);
-	--color-warning-soft: oklch(95% 0.04 80);
-	--color-suggestion: oklch(43% 0.09 210);
-	--color-suggestion-soft: oklch(94% 0.03 210);
-	--color-manual: oklch(43% 0.08 305);
-	--color-manual-soft: oklch(94% 0.025 305);
+	--color-success: oklch(46% 0.11 155);
+	--color-success-surface: oklch(94% 0.03 155);
+	--color-warning: oklch(52% 0.12 78);
+	--color-warning-soft: oklch(95% 0.045 82);
+	--color-suggestion: oklch(48% 0.12 255);
+	--color-suggestion-soft: oklch(94% 0.03 255);
+	--color-manual: oklch(45% 0.018 285);
+	--color-manual-soft: oklch(93.5% 0.006 285);
 	--color-danger-soft: var(--color-danger-surface);
 
 	/* Elevation */
-	--shadow-raised: 0 1px 2px oklch(20% 0.02 65 / 0.08);
-	--shadow-popover: 0 2px 8px oklch(20% 0.02 65 / 0.14);
-	--shadow-overlay: 0 12px 32px oklch(20% 0.02 65 / 0.18), 0 2px 8px oklch(20% 0.02 65 / 0.12);
+	--shadow-raised: 0 1px 2px oklch(20% 0.01 285 / 0.08);
+	--shadow-popover: 0 2px 8px oklch(20% 0.01 285 / 0.14);
+	--shadow-overlay: 0 12px 32px oklch(20% 0.01 285 / 0.18), 0 2px 8px oklch(20% 0.01 285 / 0.12);
 
 	/* Layering */
 	--layer-toolbar: 4;
@@ -127,57 +130,58 @@
 	--layer-toast: 50;
 
 	/*
-	 * Palette order matches roster allocation. Performer identity is also
+	 * Palette order matches roster allocation: the first two slots are the
+	 * emerald/violet pair the mockups lead with. Performer identity is also
 	 * expressed in labels and markup, never by color alone.
 	 */
-	--performer-olive: oklch(50% 0.12 145);
-	--performer-indigo: oklch(50% 0.14 285);
-	--performer-teal: oklch(53% 0.1 195);
-	--performer-ochre: oklch(60% 0.13 75);
+	--performer-olive: oklch(50% 0.13 155);
+	--performer-indigo: oklch(50% 0.15 295);
+	--performer-teal: oklch(53% 0.1 200);
+	--performer-ochre: oklch(60% 0.13 78);
 	--performer-rose: oklch(57% 0.14 20);
-	--performer-plum: oklch(55% 0.15 325);
-	--performer-copper: oklch(55% 0.12 48);
-	--performer-slate: oklch(52% 0.045 240);
+	--performer-plum: oklch(55% 0.15 330);
+	--performer-copper: oklch(55% 0.12 50);
+	--performer-slate: oklch(52% 0.045 255);
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--color-canvas: oklch(18% 0.012 65);
-		--color-surface: oklch(21.5% 0.014 65);
-		--color-surface-subtle: oklch(25% 0.016 65);
-		--color-surface-strong: oklch(30% 0.018 65);
-		--color-text: oklch(91% 0.012 75);
-		--color-text-muted: oklch(72% 0.016 72);
-		--color-border: oklch(36% 0.018 65);
-		--color-border-strong: oklch(52% 0.022 65);
-		--color-accent: oklch(68% 0.12 50);
-		--color-accent-hover: oklch(74% 0.11 50);
-		--color-accent-active: oklch(78% 0.1 50);
-		--color-accent-text: oklch(19% 0.012 65);
-		--color-accent-soft: oklch(30% 0.045 55);
-		--color-focus: oklch(76% 0.13 245);
-		--color-danger: oklch(72% 0.13 25);
-		--color-danger-hover: oklch(78% 0.12 25);
-		--color-danger-surface: oklch(28% 0.045 25);
-		--color-success: oklch(72% 0.09 150);
-		--color-success-surface: oklch(28% 0.035 150);
-		--color-warning: oklch(76% 0.1 78);
-		--color-warning-soft: oklch(29% 0.04 78);
-		--color-suggestion: oklch(73% 0.08 210);
-		--color-suggestion-soft: oklch(28% 0.035 210);
-		--color-manual: oklch(74% 0.09 305);
-		--color-manual-soft: oklch(28% 0.035 305);
-		--shadow-raised: 0 1px 2px oklch(5% 0.01 65 / 0.3);
-		--shadow-popover: 0 2px 8px oklch(5% 0.01 65 / 0.34);
-		--shadow-overlay: 0 12px 32px oklch(5% 0.01 65 / 0.5), 0 2px 8px oklch(5% 0.01 65 / 0.4);
+		--color-canvas: oklch(16.5% 0.008 285);
+		--color-surface: oklch(20% 0.009 285);
+		--color-surface-subtle: oklch(23.5% 0.01 285);
+		--color-surface-strong: oklch(28% 0.012 285);
+		--color-text: oklch(94% 0.005 285);
+		--color-text-muted: oklch(70% 0.012 285);
+		--color-border: oklch(31% 0.012 285);
+		--color-border-strong: oklch(46% 0.015 285);
+		--color-accent: oklch(71% 0.12 255);
+		--color-accent-hover: oklch(77% 0.11 255);
+		--color-accent-active: oklch(81% 0.1 255);
+		--color-accent-text: oklch(17% 0.008 285);
+		--color-accent-soft: oklch(28% 0.05 255);
+		--color-focus: oklch(68% 0.14 255);
+		--color-danger: oklch(70% 0.15 28);
+		--color-danger-hover: oklch(76% 0.14 28);
+		--color-danger-surface: oklch(26% 0.055 25);
+		--color-success: oklch(72% 0.13 158);
+		--color-success-surface: oklch(27% 0.045 158);
+		--color-warning: oklch(76% 0.13 78);
+		--color-warning-soft: oklch(27% 0.05 80);
+		--color-suggestion: oklch(71% 0.12 255);
+		--color-suggestion-soft: oklch(26% 0.05 255);
+		--color-manual: oklch(74% 0.012 285);
+		--color-manual-soft: oklch(27% 0.008 285);
+		--shadow-raised: 0 1px 2px oklch(4% 0.005 285 / 0.35);
+		--shadow-popover: 0 2px 8px oklch(4% 0.005 285 / 0.4);
+		--shadow-overlay: 0 12px 32px oklch(4% 0.005 285 / 0.55), 0 2px 8px oklch(4% 0.005 285 / 0.45);
 
-		--performer-olive: oklch(74% 0.13 148);
-		--performer-indigo: oklch(72% 0.13 288);
-		--performer-teal: oklch(72% 0.09 195);
-		--performer-ochre: oklch(76% 0.12 75);
+		--performer-olive: oklch(73% 0.14 158);
+		--performer-indigo: oklch(72% 0.14 295);
+		--performer-teal: oklch(72% 0.09 200);
+		--performer-ochre: oklch(76% 0.12 78);
 		--performer-rose: oklch(72% 0.12 20);
-		--performer-plum: oklch(72% 0.13 325);
-		--performer-copper: oklch(72% 0.11 48);
-		--performer-slate: oklch(72% 0.04 240);
+		--performer-plum: oklch(72% 0.13 330);
+		--performer-copper: oklch(72% 0.11 50);
+		--performer-slate: oklch(72% 0.04 255);
 	}
 }

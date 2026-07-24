@@ -11,7 +11,10 @@ export const repeatPlaceholderRule: RuleDefinition = {
 		const diagnostics: Diagnostic[] = [];
 		for (const section of document.sections) {
 			const header = section.header;
-			if (header && /(?:\b(?:x|×)\s*\d+\b|\brepeat(?:ed)?\b)/iu.test(header.rawNamePart)) {
+			if (
+				header &&
+				/(?:\b(?:x|×)\s*\d+\b|\b\d+\s*(?:x|×)\b|\brepeat(?:ed)?\b)/iu.test(header.rawNamePart)
+			) {
 				const rawNameRange = {
 					from: header.nameRange.from,
 					to: header.nameRange.from + header.rawNamePart.length
@@ -28,7 +31,7 @@ export const repeatPlaceholderRule: RuleDefinition = {
 			for (const line of section.lines) {
 				for (const match of matchesOutsideMarkup(
 					line,
-					/^\s*(?:repeat\s+(?:verse|chorus|refrain|hook|bridge)|(?:verse|chorus|refrain|hook|bridge)\s+(?:x|×)\s*\d+)\s*$/giu
+					/^\s*(?:[[(]\s*)?(?:repeat\s+(?:verse|chorus|refrain|hook|bridge)|(?:verse|chorus|refrain|hook|bridge)(?:\s*:\s*repeat)?\s*(?:\(\s*)?(?:(?:x|×)\s*\d+|\d+\s*(?:x|×))(?:\s*\))?)(?:\s*[\])])?\s*$/giu
 				)) {
 					diagnostics.push(
 						diagnostic(

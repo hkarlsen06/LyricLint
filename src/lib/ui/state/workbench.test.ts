@@ -86,6 +86,7 @@ function setup(options: {
 	repository?: DraftRepository;
 	autosave?: AutosaveController;
 	onOpenDraft?: (draft: DraftRecord) => EditorSnapshot;
+	initialRecentLanguages?: readonly string[];
 }) {
 	const initial = options.initial ?? draft('draft-a');
 	const repository =
@@ -111,6 +112,7 @@ function setup(options: {
 		editor,
 		initialSnapshot: currentSnapshot,
 		initialDraft: initial,
+		initialRecentLanguages: options.initialRecentLanguages,
 		repository,
 		autosave,
 		ignoreStore: createContractSessionIgnoreStore(createMemorySessionStorage()),
@@ -198,6 +200,38 @@ describe('workbench draft safety', () => {
 
 		expect(events.indexOf('flush')).toBeLessThan(events.indexOf('create'));
 		expect((await repository.get(first.id))?.text).toBe('[Verse]\nUnsaved edit');
+	});
+
+	test('uses the last selected language for a new draft', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		const controlled = controllableAutosave(repository);
+		const { controller } = setup({
+			initial: first,
+			repository,
+			autosave: controlled.autosave
+		});
+
+		controller.setLanguage('fr');
+		await controller.createDraft();
+
+		expect(controller.language).toBe('fr');
+		expect(controller.draftId).not.toBe(first.id);
+		expect((await repository.get(controller.draftId))?.language).toBe('fr');
+	});
+
+	test('keeps recent languages in deduplicated most-recent-first order', () => {
+		const { controller } = setup({
+			initialRecentLanguages: ['no', 'fr', 'de', 'es', 'ja']
+		});
+
+		expect(controller.recentLanguages).toEqual(['en', 'no', 'fr', 'de', 'es']);
+
+		controller.setLanguage('fr');
+		expect(controller.recentLanguages).toEqual(['fr', 'en', 'no', 'de', 'es']);
+
+		controller.setLanguage('ko');
+		expect(controller.recentLanguages).toEqual(['ko', 'fr', 'en', 'no', 'de']);
 	});
 
 	test('flushes before reading another draft and treats reopening the current draft as flush-only', async () => {

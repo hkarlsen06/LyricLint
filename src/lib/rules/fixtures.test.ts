@@ -35,7 +35,7 @@ function context(fixture: LyricFixture): RuleContext {
 		language: fixture.language,
 		performers: fixture.performers.map(performer),
 		sources: sourceRegistry,
-		ruleSetVersion: '2026.07.24.1'
+		ruleSetVersion: '2026.07.24.4'
 	};
 }
 

@@ -78,6 +78,7 @@ export function createTestWorkbench(options?: {
 	exportLog?: Array<{ text: string; filename: string }>;
 	selection?: SerializedSelection;
 	revision?: number;
+	recentLanguages?: readonly string[];
 }) {
 	const text = options?.text ?? '[Verse]\nLine';
 	const selection = options?.selection ?? { anchor: 0, head: 4 };
@@ -147,6 +148,7 @@ export function createTestWorkbench(options?: {
 		editor,
 		initialSnapshot: snapshot,
 		initialDraft,
+		initialRecentLanguages: options?.recentLanguages,
 		repository,
 		autosave,
 		ignoreStore,

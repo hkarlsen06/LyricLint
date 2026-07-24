@@ -43,10 +43,22 @@ describe('RightPanel', () => {
 
 		const diagnosticButtons = screen.getAllByRole('button', { name: /^Go to/ });
 		expect(diagnosticButtons[0]?.textContent).toContain('Close this section header');
-		await fireEvent.click(screen.getByRole('button', { name: 'Go to Add a section header' }));
+		const warningButton = screen.getByRole('button', { name: 'Go to Add a section header' });
+		await fireEvent.click(warningButton);
 		expect(calls.revealed).toEqual([{ from: 9, to: 13 }]);
 		expect(calls.selections).toEqual([{ anchor: 9, head: 13 }]);
 		expect(calls.focusCount).toBe(1);
+		expect(warningButton.closest('li')?.classList.contains('diagnostic-card--active')).toBe(true);
+
+		controller.navigateToDiagnostic(error);
+		await waitFor(() =>
+			expect(
+				screen
+					.getByRole('button', { name: 'Go to Close this section header' })
+					.closest('li')
+					?.classList.contains('diagnostic-card--active')
+			).toBe(true)
+		);
 
 		expect(screen.queryByRole('group', { name: 'Filter diagnostics by severity' })).toBeNull();
 		await fireEvent.click(screen.getByRole('button', { name: /^Filter/ }));

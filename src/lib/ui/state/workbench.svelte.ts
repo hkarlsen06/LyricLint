@@ -37,6 +37,7 @@ export interface WorkbenchDependencies {
 	editor: EditorHandle;
 	initialSnapshot: EditorSnapshot;
 	initialDraft: DraftRecord;
+	initialRecentLanguages?: readonly string[];
 	repository: DraftRepository;
 	autosave: AutosaveController;
 	ignoreStore: SessionIgnoreStore;
@@ -61,8 +62,10 @@ export interface WorkbenchController {
 	readonly draftId: string;
 	readonly title: string;
 	readonly language: string;
+	readonly recentLanguages: readonly string[];
 	readonly performers: readonly PerformerRecord[];
 	readonly activeTab: RightPanelTab;
+	readonly activeDiagnosticKey?: string;
 	readonly panelCollapsed: boolean;
 	readonly severityFilter: readonly Severity[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
@@ -88,6 +91,8 @@ export interface WorkbenchController {
 	undo(): void;
 	redo(): void;
 	navigateToDiagnostic(diagnostic: Diagnostic): void;
+	previewFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
+	clearFixPreview(): void;
 	applyFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	ignoreRule(ruleId: string): void;
 	restoreRule(ruleId: string): void;
@@ -111,6 +116,7 @@ export interface WorkbenchController {
 
 const allSeverities: Severity[] = ['error', 'warning', 'suggestion', 'manual-review'];
 const largePasteThreshold = 32;
+const maxRecentLanguages = 5;
 /**
  * Roster allocation order for performer colors. Green then violet lead so the
  * first two performers match the approved mockup (Mara green, Jun violet);
@@ -143,16 +149,31 @@ function cloneRoster(roster: readonly PerformerRecord[]): PerformerRecord[] {
 	return roster.map((performer) => ({ ...performer, aliases: [...performer.aliases] }));
 }
 
+function prependRecentLanguage(languages: readonly string[], language: string): string[] {
+	const normalized = language.trim();
+	const unique = languages.filter(
+		(candidate, index) =>
+			candidate.trim().length > 0 &&
+			candidate !== normalized &&
+			languages.indexOf(candidate) === index
+	);
+	return normalized ? [normalized, ...unique].slice(0, maxRecentLanguages) : unique;
+}
+
 export function createWorkbenchController(deps: WorkbenchDependencies): WorkbenchController {
 	let editor = $state(deps.editor);
 	let snapshot = $state(deps.initialSnapshot);
 	let draftId = $state(deps.initialDraft.id);
 	let title = $state(deps.initialDraft.title);
 	let language = $state(deps.initialDraft.language);
+	let recentLanguages = $state(
+		prependRecentLanguage(deps.initialRecentLanguages ?? [], deps.initialDraft.language)
+	);
 	let createdAt = $state(deps.initialDraft.createdAt);
 	let originalText = $state(deps.initialDraft.originalText);
 	let performers = $state<PerformerRecord[]>(cloneRoster(deps.initialDraft.performers));
 	let activeTab = $state<RightPanelTab>('linter');
+	let activeDiagnosticKey = $state<string | undefined>();
 	let panelCollapsed = $state(false);
 	let severityFilter = $state<Severity[]>([...allSeverities]);
 	let ignoredRuleIds = $state<string[]>(deps.ignoreStore.list(deps.initialDraft.id));
@@ -174,6 +195,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			typeof crypto !== 'undefined' && 'randomUUID' in crypto
 				? crypto.randomUUID()
 				: `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+	function diagnosticKey(diagnostic: Diagnostic): string {
+		return `${diagnostic.ruleId}:${diagnostic.from}:${diagnostic.to}`;
+	}
 
 	function draftFromSnapshot(currentSnapshot = snapshot): DraftRecord {
 		return {
@@ -258,10 +283,18 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		ignoredRuleIds = deps.ignoreStore.list(draftId);
 	}
 
+	function rememberLanguage(nextLanguage: string): void {
+		recentLanguages = prependRecentLanguage(recentLanguages, nextLanguage);
+		void deps.repository.rememberLanguage(nextLanguage).catch(() => {
+			feedback.announce('Recent languages could not be saved locally.');
+		});
+	}
+
 	function loadDraft(nextDraft: DraftRecord): void {
 		draftId = nextDraft.id;
 		title = nextDraft.title;
 		language = nextDraft.language;
+		rememberLanguage(nextDraft.language);
 		createdAt = nextDraft.createdAt;
 		originalText = nextDraft.originalText;
 		performers = cloneRoster(nextDraft.performers);
@@ -280,7 +313,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			id: idFactory(),
 			title: 'Untitled draft',
 			text: '',
-			language: 'en',
+			language,
 			performers: [],
 			createdAt: timestamp,
 			updatedAt: timestamp,
@@ -305,11 +338,17 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get language() {
 			return language;
 		},
+		get recentLanguages() {
+			return recentLanguages;
+		},
 		get performers() {
 			return performers;
 		},
 		get activeTab() {
 			return activeTab;
+		},
+		get activeDiagnosticKey() {
+			return activeDiagnosticKey;
 		},
 		get panelCollapsed() {
 			return panelCollapsed;
@@ -407,6 +446,14 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				nextSnapshot.selection.head === snapshot.selection.head;
 			lastEditorRevision = nextSnapshot.revision;
 			snapshot = nextSnapshot;
+			if (
+				activeDiagnosticKey &&
+				!nextSnapshot.diagnostics.some(
+					(diagnostic) => diagnosticKey(diagnostic) === activeDiagnosticKey
+				)
+			) {
+				activeDiagnosticKey = undefined;
+			}
 			if (unchanged) return;
 			if (textDelta >= largePasteThreshold) importPerformers(nextSnapshot);
 			scheduleSave();
@@ -441,6 +488,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		setLanguage(nextLanguage) {
 			language = nextLanguage;
+			rememberLanguage(nextLanguage);
 			scheduleSave();
 		},
 		undo() {
@@ -450,12 +498,33 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			editor.redo();
 		},
 		navigateToDiagnostic(diagnostic) {
+			editor.clearPreview?.();
+			activeDiagnosticKey = diagnosticKey(diagnostic);
 			const range = { from: diagnostic.from, to: diagnostic.to };
 			editor.revealRange(range);
 			editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
 			editor.focus();
 		},
+		previewFix(diagnostic, fix) {
+			if (fix.edit.baseRevision !== snapshot.revision) {
+				feedback.announce('This preview is stale. Review the current diagnostic again.');
+				return;
+			}
+			try {
+				editor.previewAtomic?.(fix.edit);
+				editor.revealRange({ from: diagnostic.from, to: diagnostic.to });
+				feedback.announce(`${fix.label} previewed in the editor.`);
+			} catch {
+				feedback.announce('The fix could not be previewed in the editor.');
+			}
+		},
+		clearFixPreview() {
+			editor.clearPreview?.();
+			feedback.announce('Fix preview cancelled.');
+		},
 		applyFix(diagnostic, fix) {
+			editor.clearPreview?.();
+			activeDiagnosticKey = undefined;
 			if (fix.edit.baseRevision !== snapshot.revision) {
 				feedback.announce('This fix is stale. Review the current diagnostic before applying it.');
 				return;
@@ -464,6 +533,8 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			feedback.announce(`${fix.label} applied for ${diagnostic.message}.`);
 		},
 		ignoreRule(ruleId) {
+			editor.clearPreview?.();
+			activeDiagnosticKey = undefined;
 			if (ignoredRuleIds.includes(ruleId)) return;
 			setIgnored(ruleId, true);
 			const message = `Ignored ${ruleId} for this session.`;
@@ -580,11 +651,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		async createDraft() {
 			await deps.autosave.flush();
 			const timestamp = now();
+			const rememberedLanguage = language;
 			const draft: DraftRecord = {
 				id: idFactory(),
 				title: 'Untitled draft',
 				text: '',
-				language: 'en',
+				language: rememberedLanguage,
 				performers: [],
 				createdAt: timestamp,
 				updatedAt: timestamp,
@@ -676,6 +748,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	};
 
 	importPerformers(deps.initialSnapshot);
+	rememberLanguage(deps.initialDraft.language);
 	void controller.refreshDrafts();
 	return controller;
 }

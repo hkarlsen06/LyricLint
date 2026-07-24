@@ -3,22 +3,32 @@ import { languageSourceInventory } from './inventory.js';
 import { canLintHeaderLanguage, getLanguagePack, resolveLanguageTag } from './registry.js';
 
 describe('language packs', () => {
-	it('resolves English and Norwegian regional tags to reviewed enforcing packs', () => {
+	it('resolves every reviewed selector language to an enforcing pack', () => {
 		expect(resolveLanguageTag('en-US')).toBe('en');
 		expect(resolveLanguageTag('no')).toBe('no');
 		expect(canLintHeaderLanguage(getLanguagePack('en-GB'))).toBe(true);
-		expect(canLintHeaderLanguage(getLanguagePack('no'))).toBe(true);
+		for (const tag of ['no', 'ar', 'de', 'es', 'fr', 'ja', 'ko']) {
+			expect(canLintHeaderLanguage(getLanguagePack(tag)), tag).toBe(true);
+			expect(getLanguagePack(tag).reviewed, tag).toBe(true);
+		}
 		expect(getLanguagePack('no').headers.flatMap((header) => header.terms)).toContain('Refreng');
+		expect(getLanguagePack('ar').headers.flatMap((header) => header.terms)).toContain('المقطع');
+		expect(getLanguagePack('de').headers.flatMap((header) => header.terms)).toContain('Strophe');
+		expect(getLanguagePack('es').headers.flatMap((header) => header.terms)).toContain('Estribillo');
+		expect(getLanguagePack('fr').headers.flatMap((header) => header.terms)).toContain('Couplet');
+		expect(getLanguagePack('ja').headers.flatMap((header) => header.terms)).toContain('Verse');
+		expect(getLanguagePack('ko').headers.flatMap((header) => header.terms)).toContain('벌스');
 	});
 
-	it('preserves Arabic, Japanese, and unknown languages without production enforcement', () => {
-		expect(getLanguagePack('ar')).toMatchObject({ policy: 'unreviewed', reviewed: false });
+	it('models English-preferred and contextual policies without enforcing unknown languages', () => {
 		expect(getLanguagePack('ja')).toMatchObject({
 			policy: 'english-preferred',
-			reviewed: false
+			reviewed: true
 		});
+		expect(getLanguagePack('de')).toMatchObject({ policy: 'contextual', reviewed: true });
+		expect(getLanguagePack('ko')).toMatchObject({ policy: 'contextual', reviewed: true });
 		expect(getLanguagePack('xx-ZZ')).toMatchObject({ tag: 'und', reviewed: false });
-		expect(canLintHeaderLanguage(getLanguagePack('ja'))).toBe(false);
+		expect(canLintHeaderLanguage(getLanguagePack('xx-ZZ'))).toBe(false);
 	});
 
 	it('retains every exact source-inventory mapping and policy exception', () => {

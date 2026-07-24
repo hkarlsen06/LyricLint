@@ -7,13 +7,15 @@
 		"performers": [
 			"Avery"
 		],
-		"expectedRuleIds": []
+		"expectedRuleIds": [
+			"section.verse-numbering"
+		]
 	},
 	{
 		"id": "missing-section-header",
 		"description": "A blank-line section has no header",
 		"language": "en",
-		"input": "[Verse 1]\nMorning settles on the glass\n\nAnother rhythm starts to pass",
+		"input": "[Verse]\nMorning settles on the glass\n\nAnother rhythm starts to pass",
 		"performers": [
 			"Avery"
 		],
@@ -138,7 +140,7 @@
 		"id": "norwegian-valid-headers",
 		"description": "Norwegian section headers from the reviewed catalog",
 		"language": "no",
-		"input": "[Vers 1]\nByen våkner under regn\n\n[Refreng]\nVi synger samme sang",
+		"input": "[Vers]\nByen våkner under regn\n\n[Refreng]\nVi synger samme sang",
 		"performers": [
 			"Ane"
 		],
@@ -171,7 +173,7 @@
 		"id": "cjk-ime-content",
 		"description": "CJK text and full-width punctuation survive parsing",
 		"language": "ja",
-		"input": "[Verse 1: アキ]\n夜の窓に光が映る\n声を重ねて、歩いていく",
+		"input": "[Verse: アキ]\n夜の窓に光が映る\n声を重ねて、歩いていく",
 		"performers": [
 			"アキ"
 		],
@@ -228,6 +230,40 @@
 		},
 		"expectedOutput": "[Verse: Avery & <i>Blair</i>]\nThe first voice answers, <i>then the room replies</i>",
 		"expectedRuleIds": []
+	},
+	{
+		"id": "redundant-performer-markup",
+		"description": "Adjacent lines with the same performer style use one continuous wrapper",
+		"language": "en",
+		"input": "[Verse: Avery & <i>Blair</i>]\n<i>First line</i>\n<i>Second line</i>",
+		"performers": [
+			"Avery",
+			"Blair"
+		],
+		"expectedRuleIds": [
+			"performer.redundant-markup",
+			"performer.unused-legend-slot"
+		]
+	},
+	{
+		"id": "immediate-repeated-chorus",
+		"description": "An exact immediate chorus repetition remains transcribed but uses one header and no blank separator",
+		"language": "en",
+		"input": "[Chorus]\nAgain tonight\nSing it twice\n\n[Chorus]\nAgain tonight\nSing it twice",
+		"performers": [],
+		"expectedRuleIds": [
+			"section.immediate-repeat-spacing"
+		]
+	},
+	{
+		"id": "immediate-headerless-repetition",
+		"description": "An exact headerless second copy is a repetition, not a missing-header section",
+		"language": "en",
+		"input": "[Chorus]\nAgain tonight\nSing it twice\n\nAgain tonight\nSing it twice",
+		"performers": [],
+		"expectedRuleIds": [
+			"section.immediate-repeat-spacing"
+		]
 	},
 	{
 		"id": "autosave-recovery-unicode",

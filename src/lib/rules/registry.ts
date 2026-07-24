@@ -1,13 +1,17 @@
 import type { RuleDefinition, SourceReference } from '../core/types.js';
 import { adlibParenthesesRule } from './catalog/adlib-parentheses.js';
 import { capitalizationLineStartRule } from './catalog/capitalization-line-start.js';
+import { capitalizationTitleCaseRule } from './catalog/capitalization-title-case.js';
 import { censoredMaskRule } from './catalog/censored-mask.js';
 import { contractionApostropheRule } from './catalog/contraction-apostrophe.js';
+import { languageSelectionMismatchRule } from './catalog/language-selection-mismatch.js';
 import { lineProseDensityRule } from './catalog/line-prose-density.js';
 import { numbersSpellOutRule } from './catalog/numbers-spell-out.js';
 import { performerHeaderRequiredRule } from './catalog/performer-header-required.js';
 import { performerInlineMismatchRule } from './catalog/performer-inline-mismatch.js';
 import { performerLineLabelForbiddenRule } from './catalog/performer-line-label-forbidden.js';
+import { performerRedundantMarkupRule } from './catalog/performer-redundant-markup.js';
+import { performerUnusedLegendSlotRule } from './catalog/performer-unused-legend-slot.js';
 import { performerStyleOrderRule } from './catalog/performer-style-order.js';
 import { performerTooManyGroupsRule } from './catalog/performer-too-many-groups.js';
 import { punctuationDroppedWordDashRule } from './catalog/punctuation-dropped-word-dash.js';
@@ -16,6 +20,9 @@ import { quotesTypewriterRule } from './catalog/quotes-typewriter.js';
 import { repeatPlaceholderRule } from './catalog/repeat-placeholder.js';
 import { sectionHeaderLanguageRule } from './catalog/section-header-language.js';
 import { sectionHeaderMissingRule } from './catalog/section-header-missing.js';
+import { sectionDeprecatedHookRule } from './catalog/section-deprecated-hook.js';
+import { sectionImmediateRepeatSpacingRule } from './catalog/section-immediate-repeat-spacing.js';
+import { sectionVerseNumberingRule } from './catalog/section-verse-numbering.js';
 import { soundEffectAsterisksRule } from './catalog/sound-effect-asterisks.js';
 import { spellingLanguageVariantRule } from './catalog/spelling-language-variant.js';
 import { spellingStandardizedRule } from './catalog/spelling-standardized.js';
@@ -27,11 +34,17 @@ import { sourceRegistry } from './data/sources.js';
 export const enabledRules: readonly RuleDefinition[] = [
 	syntaxUnbalancedBracketsRule,
 	syntaxUnsupportedVoiceMarkupRule,
+	languageSelectionMismatchRule,
 	sectionHeaderMissingRule,
 	sectionHeaderLanguageRule,
+	sectionDeprecatedHookRule,
+	sectionImmediateRepeatSpacingRule,
+	sectionVerseNumberingRule,
 	performerHeaderRequiredRule,
 	performerStyleOrderRule,
 	performerInlineMismatchRule,
+	performerRedundantMarkupRule,
+	performerUnusedLegendSlotRule,
 	performerTooManyGroupsRule,
 	performerLineLabelForbiddenRule,
 	spellingStandardizedRule,
@@ -44,6 +57,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	censoredMaskRule,
 	adlibParenthesesRule,
 	capitalizationLineStartRule,
+	capitalizationTitleCaseRule,
 	punctuationQuestionRule,
 	punctuationDroppedWordDashRule,
 	lineProseDensityRule,

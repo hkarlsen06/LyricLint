@@ -1,5 +1,5 @@
 import { StateEffect, StateField } from '@codemirror/state';
-import type { EditorState, Range } from '@codemirror/state';
+import type { EditorState, Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import type { Diagnostic, Severity } from '../../core/types.js';
@@ -273,10 +273,38 @@ export function diagnosticsForState(state: EditorState): Diagnostic[] {
 	return value.diagnostics;
 }
 
+/** Activate the most relevant diagnostic when its visible underline is tapped. */
+export function diagnosticRangeClickHandler(): Extension {
+	return EditorView.domEventHandlers({
+		click(event, view) {
+			const target = event.target instanceof Element ? event.target : undefined;
+			if (!target?.closest('.ll-diagnostic-range')) {
+				return false;
+			}
+			const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
+			if (position === null) {
+				return false;
+			}
+			const diagnostic = diagnosticsForState(view.state).find(
+				(candidate) =>
+					candidate.from <= position &&
+					(position < candidate.to ||
+						(candidate.from === candidate.to && position === candidate.from))
+			);
+			if (!diagnostic) {
+				return false;
+			}
+			view.state.field(editorCallbacksField)?.onDiagnosticActivate(diagnostic);
+			return true;
+		}
+	});
+}
+
 export const lintDecorationTheme = EditorView.baseTheme({
 	'.ll-diagnostic-range': {
 		position: 'relative',
 		zIndex: '2',
+		cursor: 'pointer',
 		textDecorationLine: 'underline',
 		textDecorationStyle: 'wavy',
 		textDecorationThickness: '1.5px',

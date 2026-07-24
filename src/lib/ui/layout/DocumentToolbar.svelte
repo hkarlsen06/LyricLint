@@ -2,27 +2,9 @@
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { onMount } from 'svelte';
 	import DraftMenu from './DraftMenu.svelte';
+	import LanguagePicker from './LanguagePicker.svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
-	let customLanguage = $state('');
-
-	const knownLanguages = [
-		['en', 'English'],
-		['en-US', 'English (United States)'],
-		['en-GB', 'English (United Kingdom)'],
-		['no', 'Norwegian'],
-		['ar', 'Arabic'],
-		['de', 'German'],
-		['es', 'Spanish'],
-		['fr', 'French'],
-		['ja', 'Japanese'],
-		['ko', 'Korean']
-	] as const;
-
-	const selectedLanguage = $derived(
-		knownLanguages.some(([tag]) => tag === controller.language) ? controller.language : '__other__'
-	);
-
 	// Presentation-only clock for the "Saved locally · Ns ago" readout. It never
 	// feeds back into the controller; it only re-renders the relative timestamp.
 	let lastSavedAt = $state<number | undefined>();
@@ -69,11 +51,6 @@
 				return 'Local draft';
 		}
 	});
-
-	function onLanguageChange(event: Event): void {
-		const value = (event.currentTarget as HTMLSelectElement).value;
-		if (value !== '__other__') controller.setLanguage(value);
-	}
 
 	let draftsOpen = $state(false);
 </script>
@@ -135,30 +112,7 @@
 			{saveStatusText}
 		</span>
 		<div class="document-toolbar__meta">
-			<label class="sr-only" for="draft-language">Lyric language</label>
-			<select
-				id="draft-language"
-				class="language-select"
-				value={selectedLanguage}
-				onchange={onLanguageChange}
-				aria-label="Lyric language"
-			>
-				{#each knownLanguages as [tag, label] (tag)}
-					<option value={tag}>{label}</option>
-				{/each}
-				<option value="__other__">Other language…</option>
-			</select>
-			{#if selectedLanguage === '__other__'}
-				<label class="sr-only" for="custom-language">BCP 47 language tag</label>
-				<input
-					id="custom-language"
-					class="language-tag"
-					placeholder={controller.language}
-					bind:value={customLanguage}
-					onchange={() => customLanguage.trim() && controller.setLanguage(customLanguage.trim())}
-					aria-label="BCP 47 language tag"
-				/>
-			{/if}
+			<LanguagePicker {controller} />
 			<DraftMenu {controller} bind:open={draftsOpen} />
 		</div>
 	</div>

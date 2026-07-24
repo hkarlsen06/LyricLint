@@ -31,6 +31,7 @@
 	let pendingAddName = $state<string | undefined>();
 	let root: HTMLDivElement;
 	let addInput = $state<HTMLInputElement | undefined>();
+	const canRemoveFormatting = $derived(initialSelectedIds.length > 0);
 
 	const position = $derived(
 		anchor
@@ -62,7 +63,7 @@
 	}
 
 	async function apply(): Promise<void> {
-		if (selectedIds.length === 0) {
+		if (selectedIds.length === 0 && !canRemoveFormatting) {
 			return;
 		}
 		try {
@@ -294,8 +295,14 @@
 			{/if}
 		</div>
 		<div class="actions">
-			<button type="button" class="apply" disabled={selectedIds.length === 0} onclick={apply}>
-				Apply <span aria-hidden="true" class="apply__key">↵</span>
+			<button
+				type="button"
+				class="apply"
+				disabled={selectedIds.length === 0 && !canRemoveFormatting}
+				onclick={apply}
+			>
+				{selectedIds.length === 0 ? 'Remove formatting' : 'Apply'}
+				<span aria-hidden="true" class="apply__key">↵</span>
 			</button>
 		</div>
 	</div>

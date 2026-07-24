@@ -150,6 +150,27 @@ describe('draft repository', () => {
 		expect(await repository.list()).toEqual([]);
 		expect(await repository.getCurrent()).toBeUndefined();
 	});
+
+	it('persists a bounded, deduplicated recent-language history across sessions', async () => {
+		const name = databaseName('recent-languages');
+		const firstDatabase = await openDatabase(name);
+		openDatabases.add(firstDatabase);
+		const firstRepository = createDraftRepository(firstDatabase);
+
+		for (const language of ['en', 'no', 'fr', 'de', 'es', 'ja', 'fr']) {
+			await firstRepository.rememberLanguage(language);
+		}
+		expect(await firstRepository.getRecentLanguages()).toEqual(['fr', 'ja', 'es', 'de', 'no']);
+		closeTestDatabase(firstDatabase);
+
+		const reopenedDatabase = await openDatabase(name);
+		openDatabases.add(reopenedDatabase);
+		const reopenedRepository = createDraftRepository(reopenedDatabase);
+		expect(await reopenedRepository.getRecentLanguages()).toEqual(['fr', 'ja', 'es', 'de', 'no']);
+
+		await reopenedRepository.deleteAll();
+		expect(await reopenedRepository.getRecentLanguages()).toEqual(['fr', 'ja', 'es', 'de', 'no']);
+	});
 });
 
 describe('autosave and recovery', () => {

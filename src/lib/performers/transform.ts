@@ -112,6 +112,97 @@ function supportedSpans(line: LyricLine): SupportedStyleSpan[] {
 	return line.styleSpans.filter((span): span is SupportedStyleSpan => !('unsupported' in span));
 }
 
+function supportedStyleChains(section: Section): SupportedStyleSpan[][] {
+	const chains: SupportedStyleSpan[][] = [];
+	const active = new Map<StyleSlot, SupportedStyleSpan[]>();
+
+	for (const line of section.lines) {
+		for (const span of supportedSpans(line)) {
+			let chain = span.continuedFromPreviousLine === true ? active.get(span.slot) : undefined;
+			if (!chain) {
+				chain = [];
+			}
+			chain.push(span);
+
+			if (span.continuesToNextLine) {
+				active.set(span.slot, chain);
+			} else {
+				active.delete(span.slot);
+				chains.push(chain);
+			}
+		}
+	}
+
+	return chains;
+}
+
+function removeSelectedDifferentiation(
+	request: AssignmentRequest,
+	section: Section,
+	selection: TextRange
+): AssignmentResult {
+	if (
+		section.lines.some(
+			(line) =>
+				line.from < selection.to &&
+				selection.from < line.to &&
+				line.styleSpans.some((span) => 'unsupported' in span)
+		)
+	) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+
+	const selectedChains: SupportedStyleSpan[][] = [];
+	for (const chain of supportedStyleChains(section)) {
+		const overlaps = chain.some((span) => span.from < selection.to && selection.from < span.to);
+		if (!overlaps) {
+			continue;
+		}
+		const fullySelected = chain.every(
+			(span) =>
+				span.contentFrom === span.contentTo ||
+				(selection.from <= span.contentFrom && span.contentTo <= selection.to)
+		);
+		if (!fullySelected) {
+			return { status: 'blocked', reason: 'invalid-range' };
+		}
+		selectedChains.push(chain);
+	}
+
+	const edits = selectedChains
+		.flatMap((chain) =>
+			chain.flatMap((span) => {
+				const tagEdits: TextEdit[] = [];
+				if (span.from < span.contentFrom) {
+					tagEdits.push({ from: span.from, to: span.contentFrom, insert: '' });
+				}
+				if (span.contentTo < span.to) {
+					tagEdits.push({ from: span.contentTo, to: span.to, insert: '' });
+				}
+				return tagEdits;
+			})
+		)
+		.sort(compareEdits);
+	const firstSpan = selectedChains[0]?.[0];
+	if (edits.length === 0 || !firstSpan) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+
+	const mappedFrom = mapOriginalOffset(selection.from, edits);
+	const mappedTo = mapOriginalOffset(selection.to, edits);
+	const forwards = request.selection.anchor <= request.selection.head;
+	return {
+		status: 'applied',
+		styleSlot: firstSpan.slot,
+		edit: makeAtomicEdit(
+			request.revision,
+			request.text.length,
+			edits,
+			forwards ? { anchor: mappedFrom, head: mappedTo } : { anchor: mappedTo, head: mappedFrom }
+		)
+	};
+}
+
 function appendSplitPiece(
 	pieces: StyledPiece[],
 	text: string,
@@ -244,6 +335,83 @@ function transformLine(
 				: { from: line.from, to: line.to, insert: rendered.text },
 		selectedFrom: line.from + rendered.selectedFrom,
 		selectedTo: line.from + rendered.selectedTo
+	};
+}
+
+function styleTags(styleSlot: StyleSlot): { opening: string; closing: string } {
+	const marker = '\u{E000}';
+	const wrapped = wrapVoiceSpan(marker, styleSlot);
+	const markerFrom = wrapped.indexOf(marker);
+	return {
+		opening: wrapped.slice(0, markerFrom),
+		closing: wrapped.slice(markerFrom + marker.length)
+	};
+}
+
+function combineLineTransforms(
+	text: string,
+	lineTransforms: readonly { line: LyricLine; transform: LineTransform }[],
+	styleSlot: StyleSlot
+): LineTransform | undefined {
+	if (lineTransforms.length < 2 || styleSlot === 1) {
+		return undefined;
+	}
+	const first = lineTransforms[0];
+	const last = lineTransforms.at(-1);
+	if (!first || !last) {
+		return undefined;
+	}
+
+	const { opening, closing } = styleTags(styleSlot);
+	let insert = '';
+	let selectedFrom: number | undefined;
+	let selectedTo: number | undefined;
+
+	for (const [index, entry] of lineTransforms.entries()) {
+		let rendered = entry.transform.edit?.insert ?? entry.line.text;
+		let localFrom = entry.transform.selectedFrom - entry.line.from;
+		let localTo = entry.transform.selectedTo - entry.line.from;
+
+		if (
+			rendered.slice(localFrom - opening.length, localFrom) !== opening ||
+			rendered.slice(localTo, localTo + closing.length) !== closing
+		) {
+			return undefined;
+		}
+
+		if (index > 0) {
+			rendered = rendered.slice(0, localFrom - opening.length) + rendered.slice(localFrom);
+			localFrom -= opening.length;
+			localTo -= opening.length;
+		}
+		if (index < lineTransforms.length - 1) {
+			rendered = rendered.slice(0, localTo) + rendered.slice(localTo + closing.length);
+		}
+
+		if (index > 0) {
+			const previous = lineTransforms[index - 1];
+			if (!previous) {
+				return undefined;
+			}
+			insert += text.slice(previous.line.to, entry.line.from);
+		}
+		const outputFrom = insert.length;
+		if (index === 0) {
+			selectedFrom = first.line.from + outputFrom + localFrom;
+		}
+		if (index === lineTransforms.length - 1) {
+			selectedTo = first.line.from + outputFrom + localTo;
+		}
+		insert += rendered;
+	}
+
+	if (selectedFrom === undefined || selectedTo === undefined) {
+		return undefined;
+	}
+	return {
+		edit: { from: first.line.from, to: last.line.to, insert },
+		selectedFrom,
+		selectedTo
 	};
 }
 
@@ -419,8 +587,11 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	if (!section) {
 		return { status: 'blocked', reason: 'cross-section' };
 	}
-	if (!section.header || request.performerIds.length === 0) {
+	if (!section.header) {
 		return { status: 'blocked', reason: 'invalid-range' };
+	}
+	if (request.performerIds.length === 0) {
+		return removeSelectedDifferentiation(request, section, selection);
 	}
 
 	const selectedPerformers = [...new Set(request.performerIds)]
@@ -474,6 +645,14 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		return { status: 'blocked', reason: 'whitespace-selection' };
 	}
 
+	const combinedTransform = combineLineTransforms(
+		request.text,
+		lineTransforms,
+		allocation.styleSlot
+	);
+	const appliedTransforms = combinedTransform
+		? [combinedTransform]
+		: lineTransforms.map(({ transform }) => transform);
 	const edits: TextEdit[] = [];
 	if (allocation.status === 'available') {
 		const newLegendGroup = serializeLegend([
@@ -493,7 +672,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		}
 		edits.push(edit);
 	}
-	for (const { transform } of lineTransforms) {
+	for (const transform of appliedTransforms) {
 		if (transform.edit) {
 			edits.push(transform.edit);
 		}
@@ -503,26 +682,18 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 
-	const first = lineTransforms[0];
-	const last = lineTransforms.at(-1);
+	const first = appliedTransforms[0];
+	const last = appliedTransforms.at(-1);
 	if (!first || !last) {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 
-	const mappedFrom = first.transform.edit
-		? insertedOffset(
-				first.transform.edit,
-				first.transform.selectedFrom - first.transform.edit.from,
-				edits
-			)
-		: mapOriginalOffset(first.transform.selectedFrom, edits);
-	const mappedTo = last.transform.edit
-		? insertedOffset(
-				last.transform.edit,
-				last.transform.selectedTo - last.transform.edit.from,
-				edits
-			)
-		: mapOriginalOffset(last.transform.selectedTo, edits);
+	const mappedFrom = first.edit
+		? insertedOffset(first.edit, first.selectedFrom - first.edit.from, edits)
+		: mapOriginalOffset(first.selectedFrom, edits);
+	const mappedTo = last.edit
+		? insertedOffset(last.edit, last.selectedTo - last.edit.from, edits)
+		: mapOriginalOffset(last.selectedTo, edits);
 	const forwards = request.selection.anchor <= request.selection.head;
 
 	return {

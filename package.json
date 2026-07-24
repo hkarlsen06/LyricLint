@@ -52,6 +52,7 @@
 		"@codemirror/state": "^6.7.1",
 		"@codemirror/view": "^6.43.6",
 		"bits-ui": "^2.18.1",
-		"dexie": "^4.4.4"
+		"dexie": "^4.4.4",
+		"languagedetect": "2.0.0"
 	}
 }

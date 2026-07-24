@@ -9,7 +9,7 @@ const context: RuleContext = {
 	language: 'en',
 	performers: [],
 	sources: sourceRegistry,
-	ruleSetVersion: '2026.07.24.1'
+	ruleSetVersion: '2026.07.24.4'
 };
 
 function finding(
@@ -95,7 +95,7 @@ describe('registry validation', () => {
 	};
 
 	it('accepts the complete reviewed enabled registry', () => {
-		expect(enabledRules).toHaveLength(23);
+		expect(enabledRules).toHaveLength(30);
 		expect(() => validateRuleRegistry()).not.toThrow();
 	});
 

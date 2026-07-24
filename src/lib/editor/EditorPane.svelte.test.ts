@@ -307,6 +307,46 @@ describe('EditorPane', () => {
 		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
 	});
 
+	it('preselects the performer covering the selection and submits an empty group to remove it', async () => {
+		const text = '[Verse: Avery & <i>Blair</i>]\n<i>First line\nSecond line</i>';
+		const from = text.indexOf('First line');
+		const to = text.indexOf('Second line') + 'Second line'.length;
+		const createPerformerEdit = vi.fn();
+		const editorCallbacks: LyricEditorCallbacks = {
+			...callbacks(),
+			createPerformerEdit
+		};
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({
+				performers: performers(),
+				voiceGroups: [
+					{
+						from,
+						to,
+						group: { id: 'voice-blair', performerIds: ['blair'], styleSlot: 2 }
+					}
+				]
+			}),
+			editorCallbacks
+		});
+
+		handle.setSelection({ anchor: from, head: to });
+		handle.focus();
+		await userEvent.keyboard('{Alt>}p{/Alt}');
+
+		const blair = page.getByRole('button', { name: /Blair/u });
+		await expect.element(blair).toHaveAttribute('aria-pressed', 'true');
+		await userEvent.keyboard('{ArrowRight} ');
+		await expect.element(blair).toHaveAttribute('aria-pressed', 'false');
+		await userEvent.click(page.getByRole('button', { name: /Remove formatting/u }));
+
+		expect(createPerformerEdit).toHaveBeenCalledWith({
+			range: { from, to },
+			performerIds: []
+		});
+	});
+
 	it('keeps F8 diagnostic navigation visible when a performer roster exists', async () => {
 		const issue = testDiagnostic();
 		const { handle } = await mountEditor({
@@ -328,6 +368,26 @@ describe('EditorPane', () => {
 		await expect
 			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
 			.not.toBeInTheDocument();
+	});
+
+	it('activates a diagnostic when its inline underline is tapped', async () => {
+		const issue = testDiagnostic({ from: 0, to: 5 });
+		const editorCallbacks = callbacks();
+		await mountEditor({
+			text: 'hello',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [issue] }
+			}),
+			editorCallbacks
+		});
+		const underline = document.querySelector<HTMLElement>('.ll-diagnostic-range');
+		if (!underline) {
+			throw new Error('Diagnostic underline was not rendered.');
+		}
+
+		await userEvent.click(underline);
+
+		expect(editorCallbacks.onDiagnosticActivate).toHaveBeenCalledWith(issue);
 	});
 
 	it('focuses keyboard-opened diagnostics and closes them with Escape from editor focus', async () => {
@@ -441,6 +501,22 @@ describe('EditorPane', () => {
 
 		await expect.element(page.getByRole('button', { name: '+ Add section header' })).toBeVisible();
 		expect(handle.getSnapshot().text).toBe('A lyric line');
+	});
+
+	it('renders an atomic fix preview in the editor without changing the document', async () => {
+		const { handle } = await mountEditor({ text: 'hello!' });
+
+		handle.previewAtomic?.({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 5, insert: 'world' }]
+		});
+
+		await expect.element(page.getByText('world', { exact: true })).toBeVisible();
+		expect(handle.getSnapshot().text).toBe('hello!');
+
+		handle.clearPreview?.();
+		await expect.element(page.getByText('world', { exact: true })).not.toBeInTheDocument();
+		expect(handle.getSnapshot().text).toBe('hello!');
 	});
 });
 
@@ -584,17 +660,20 @@ describe('DiagnosticPopover fix flow', () => {
 			}
 		};
 		const onApplyFix = vi.fn();
+		const onPreviewFix = vi.fn();
+		const onCancelPreview = vi.fn();
 		await render(DiagnosticPopover, {
 			diagnostic: testDiagnostic({ to: 6, fixes: [previewFix, safeFix] }),
-			documentText: 'hello!',
+			onPreviewFix,
+			onCancelPreview,
 			onApplyFix,
 			onIgnore: vi.fn()
 		});
 
 		await userEvent.click(page.getByRole('button', { name: /Replace word Preview/u }));
 		expect(onApplyFix).not.toHaveBeenCalled();
-		await expect.element(page.getByText('hello')).toBeVisible();
-		await expect.element(page.getByText('world')).toBeVisible();
+		expect(onPreviewFix).toHaveBeenCalledWith(previewFix);
+		await expect.element(page.getByText('Previewing this change in the editor.')).toBeVisible();
 
 		await userEvent.click(page.getByRole('button', { name: /Apply Replace word Confirm/u }));
 		expect(onApplyFix).toHaveBeenCalledWith(previewFix);

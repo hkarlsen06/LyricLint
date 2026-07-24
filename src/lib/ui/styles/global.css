@@ -280,20 +280,6 @@ textarea:disabled {
 	background: var(--color-surface);
 }
 
-.language-select {
-	max-width: 11rem;
-	padding-inline: var(--space-3);
-	border-radius: var(--radius-pill);
-	background: var(--color-surface);
-	font-size: var(--font-size-sm);
-	font-weight: var(--font-weight-semibold);
-}
-
-.language-tag {
-	width: 6rem;
-	border-radius: var(--radius-pill);
-}
-
 .save-status {
 	display: inline-flex;
 	gap: var(--space-1-5);
@@ -513,9 +499,16 @@ textarea:disabled {
 	font-weight: var(--font-weight-semibold);
 }
 
+/* The linter tab is full-bleed: cards run edge to edge as square sections,
+   separated by slim bands of the darker panel canvas, as in the mockup. */
+.panel-content.linter-panel {
+	padding: 0;
+}
+
 .linter-panel__filter-row {
 	display: flex;
-	margin-bottom: var(--space-2);
+	padding: var(--space-1) var(--space-3) 0;
+	margin-bottom: var(--space-1);
 	justify-content: flex-end;
 }
 
@@ -542,6 +535,7 @@ textarea:disabled {
 
 .linter-panel__filters {
 	display: flex;
+	padding: 0 var(--space-3);
 	margin-bottom: var(--space-3);
 	flex-wrap: wrap;
 	gap: var(--space-1);
@@ -620,21 +614,27 @@ textarea:disabled {
 	display: grid;
 	margin: 0;
 	padding: 0;
-	gap: var(--space-3);
+	gap: var(--space-1);
 	list-style: none;
 }
 
+/* Square, borderless sections; the canvas showing through the grid gap is
+   the only separator. Focus and expansion read through background shifts and
+   an inset ring so the silhouette never rounds. */
 .diagnostic-list > li {
-	padding: var(--space-3);
-	border: var(--border-width) solid var(--color-border);
-	border-radius: var(--radius-panel);
+	padding: var(--space-3) var(--space-4);
+	border: 0;
+	border-radius: 0;
 	background: var(--color-surface);
 }
 
 .diagnostic-list > li.diagnostic-card--expanded {
-	border-color: var(--color-border-strong);
 	background: var(--color-surface-subtle);
-	box-shadow: var(--shadow-raised);
+}
+
+.diagnostic-list > li.diagnostic-card--active {
+	background: color-mix(in oklch, var(--color-focus) 8%, var(--color-surface-subtle));
+	box-shadow: inset 0 0 0 var(--focus-ring-width) var(--color-focus-soft);
 }
 
 .diagnostic-list__heading {
@@ -665,13 +665,13 @@ textarea:disabled {
 .severity {
 	display: inline-flex;
 	width: fit-content;
-	padding: var(--space-0-5) var(--space-2) var(--space-0-5) var(--space-1-5);
-	gap: var(--space-1);
+	padding: var(--space-1) var(--space-2-5) var(--space-1) var(--space-2);
+	gap: var(--space-1-5);
 	align-items: center;
 	border-radius: var(--radius-pill);
 	background: var(--color-surface-strong);
 	color: var(--color-text-muted);
-	font-size: var(--font-size-2xs);
+	font-size: var(--font-size-xs);
 	font-weight: var(--font-weight-bold);
 	letter-spacing: 0.01em;
 }
@@ -696,8 +696,8 @@ textarea:disabled {
 }
 
 .severity--manual-review {
-	background: var(--color-surface-strong);
-	color: var(--color-text-muted);
+	background: var(--color-manual-soft);
+	color: var(--color-manual);
 }
 
 .diagnostic-details {

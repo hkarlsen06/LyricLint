@@ -8,6 +8,7 @@ import {
 	allocateStyleSlot,
 	analyzeSlotOrder,
 	assignVoiceGroup,
+	cleanupLegendSlots,
 	extractPerformers,
 	findExactPerformer,
 	insertSectionHeader,
@@ -293,6 +294,30 @@ describe('performer assignment transforms', () => {
 		}
 	});
 
+	it('uses one wrapper for a contiguous multiline performer selection', () => {
+		const input = '[Verse: A]\nFirst line\nSecond line';
+		const records = roster(['A', 'B']);
+		const from = input.indexOf('First line');
+		const to = input.length;
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: to },
+			performerIds: [records[1]?.id ?? ''],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			const output = applyEdits(input, result.edit.edits);
+			expect(output).toBe('[Verse: A & <i>B</i>]\n<i>First line\nSecond line</i>');
+			expect(
+				output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)
+			).toBe('First line\nSecond line');
+		}
+	});
+
 	it('blocks a fifth group with explicit options and no edit', () => {
 		const source = fixture('too-many-voice-groups');
 		const records = roster([...source.performers, 'F']);
@@ -409,6 +434,58 @@ describe('performer assignment transforms', () => {
 
 		expect(result).toEqual({ status: 'blocked', reason: 'invalid-range' });
 		expect('edit' in result).toBe(false);
+	});
+
+	it('removes a fully selected multiline voice while retaining its legend when an ad-lib remains', () => {
+		const input =
+			'[Verse: A & <i>B</i>]\nA line (<i>Ad-lib</i>)\n<i>First B line\nSecond B line</i>';
+		const records = roster(['A', 'B']);
+		const from = input.indexOf('<i>First B line');
+		const to = input.indexOf('</i>', from) + '</i>'.length;
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: to },
+			performerIds: [],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			const output = applyEdits(input, result.edit.edits);
+			expect(output).toBe(
+				'[Verse: A & <i>B</i>]\nA line (<i>Ad-lib</i>)\nFirst B line\nSecond B line'
+			);
+			expect(cleanupLegendSlots(parseDocument(output))).toEqual([]);
+			expect(
+				output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)
+			).toBe('First B line\nSecond B line');
+		}
+	});
+
+	it('makes an unused performer legend eligible for cleanup after removing its only voice', () => {
+		const input = '[Verse: A & <i>B</i>]\nA line\n<i>Only B line</i>';
+		const records = roster(['A', 'B']);
+		const from = input.indexOf('Only B line');
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: from + 'Only B line'.length },
+			performerIds: [],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			const withoutFormatting = applyEdits(input, result.edit.edits);
+			const cleaned = applyEdits(
+				withoutFormatting,
+				cleanupLegendSlots(parseDocument(withoutFormatting))
+			);
+			expect(cleaned).toBe('[Verse: A]\nA line\nOnly B line');
+		}
 	});
 
 	it.each(['<u>X</u>', '<i>X'])(

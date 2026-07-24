@@ -40,6 +40,30 @@ const contracts: FixContract[] = [
 		kind: 'preview'
 	},
 	{
+		id: 'section.immediate-repeat-spacing',
+		input: '[Chorus]\nAgain\nTonight\n\n[Chorus]\nAgain\nTonight',
+		language: 'en',
+		range: [24, 32],
+		expected: '[Chorus]\nAgain\nTonight\nAgain\nTonight',
+		kind: 'safe'
+	},
+	{
+		id: 'performer.redundant-markup',
+		input: '[Verse: A & <i>B</i>]\n<i>First</i>\n<i>Second</i>',
+		language: 'en',
+		range: [30, 38],
+		expected: '[Verse: A & <i>B</i>]\n<i>First\nSecond</i>',
+		kind: 'safe'
+	},
+	{
+		id: 'performer.unused-legend-slot',
+		input: '[Verse: A & <i>B</i>]\nOnly A sings',
+		language: 'en',
+		range: [8, 20],
+		expected: '[Verse: A]\nOnly A sings',
+		kind: 'safe'
+	},
+	{
 		id: 'spelling.standardized',
 		input: '[Verse]\nImma go',
 		language: 'en',

@@ -388,6 +388,8 @@ export interface DraftRepository {
 	deleteAll(): Promise<void>;
 	setCurrent(id: string | undefined): Promise<void>;
 	getCurrent(): Promise<string | undefined>;
+	getRecentLanguages(): Promise<string[]>;
+	rememberLanguage(language: string): Promise<void>;
 }
 
 /** State exposed by the revision-ordered autosave controller. */
@@ -429,6 +431,10 @@ export interface EditorHandle {
 	focus(): void;
 	getSnapshot(): EditorSnapshot;
 	dispatchAtomic(edit: AtomicDocumentEdit): void;
+	/** Render an atomic edit as a non-mutating editor decoration. */
+	previewAtomic?(edit: AtomicDocumentEdit): void;
+	/** Remove the current non-mutating edit preview. */
+	clearPreview?(): void;
 	undo(): void;
 	redo(): void;
 	revealRange(range: TextRange): void;

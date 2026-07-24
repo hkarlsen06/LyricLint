@@ -27,9 +27,11 @@ import {
 	setEditorCallbacksEffect,
 	setEditorContextEffect
 } from './extensions/editor-state.js';
+import { fixPreviewField, fixPreviewTheme, setFixPreviewEffect } from './extensions/fix-preview.js';
 import { legendCleanupFilter } from './extensions/legend-cleanup.js';
 import { markupDimField, markupDimTheme } from './extensions/markup-dim.js';
 import {
+	diagnosticRangeClickHandler,
 	lintDecorationField,
 	lintDecorationTheme,
 	setDiagnosticsEffect
@@ -261,9 +263,11 @@ export function createLyricEditor(
 		editorRevisionField,
 		editorComposingField,
 		legendCleanupFilter(),
+		fixPreviewField,
 		performerGroupsField,
 		performerDecorationField,
 		lintDecorationField,
+		diagnosticRangeClickHandler(),
 		sectionGhostField,
 		markupDimField,
 		highlightActiveLine(),
@@ -272,6 +276,7 @@ export function createLyricEditor(
 		lintDecorationTheme,
 		sectionGhostTheme,
 		markupDimTheme,
+		fixPreviewTheme,
 		editorTheme,
 		keymap.of(lyricLintKeymap(callbackProxy, options.keymapOverrides)),
 		selectionAnchorPlugin(
@@ -335,7 +340,33 @@ export function createLyricEditor(
 			return snapshotFromState(view.state);
 		},
 		dispatchAtomic(edit) {
+			view.dispatch({
+				effects: setFixPreviewEffect.of(undefined),
+				annotations: Transaction.addToHistory.of(false)
+			});
 			dispatchAtomicEdit(view, edit);
+		},
+		previewAtomic(edit) {
+			if (edit.baseRevision !== view.state.field(editorRevisionField)) {
+				throw new RangeError('Fix preview is stale for the current editor revision.');
+			}
+			for (const change of edit.edits) {
+				assertRange(change, view.state.doc.length);
+			}
+			const first = [...edit.edits].sort((left, right) => left.from - right.from)[0];
+			view.dispatch({
+				effects: [
+					setFixPreviewEffect.of(edit),
+					...(first ? [EditorView.scrollIntoView(first.from, { y: 'center' })] : [])
+				],
+				annotations: Transaction.addToHistory.of(false)
+			});
+		},
+		clearPreview() {
+			view.dispatch({
+				effects: setFixPreviewEffect.of(undefined),
+				annotations: Transaction.addToHistory.of(false)
+			});
 		},
 		undo() {
 			undoCommand(view);

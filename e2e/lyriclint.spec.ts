@@ -62,6 +62,43 @@ test('paste → lint → safe fix updates the canonical editor text', async ({ p
 	await expect(diagnostic).toHaveCount(0);
 });
 
+test('language selector re-lints the current text without another editor change', async ({
+	page
+}) => {
+	await openWorkspace(page);
+	await replaceDocument(page, '[Verse]\nA lyric');
+
+	const languageConflict = page.getByRole('button', {
+		name: /^Go to “Verse” conflicts with the reviewed Norwegian header pack/u
+	});
+	await expect(languageConflict).toHaveCount(0);
+
+	await page.getByRole('button', { name: 'Lyric language: English' }).click();
+	const languageDialog = page.getByRole('dialog', { name: 'Lyric language' });
+	await languageDialog.getByPlaceholder('Search languages').fill('Norwegian');
+	await languageDialog.getByRole('button', { name: 'Norwegian' }).click();
+	await expect(languageConflict).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Replace with Vers' })).toBeVisible();
+
+	await page.getByRole('button', { name: 'Lyric language: Norwegian' }).click();
+	await languageDialog.getByRole('button', { name: 'English', exact: true }).click();
+	await expect(languageConflict).toHaveCount(0);
+});
+
+test('new drafts use the last selected language', async ({ page }) => {
+	await openWorkspace(page);
+	await page.getByRole('button', { name: /^Lyric language:/u }).click();
+	const languageDialog = page.getByRole('dialog', { name: 'Lyric language' });
+	await languageDialog.getByPlaceholder('Search languages').fill('French');
+	await languageDialog.getByRole('button', { name: 'French' }).click();
+
+	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
+	await page.getByRole('button', { name: 'New draft' }).click();
+
+	await expect(page.getByRole('button', { name: 'Lyric language: French' })).toBeVisible();
+	await expectDocText(page, '');
+});
+
 test('performer assignment is applied and undone as one atomic edit', async ({ page }) => {
 	await openWorkspace(page);
 	await replaceDocument(page, '[Verse]\nHello world');

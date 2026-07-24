@@ -2,13 +2,22 @@ import { describe, expect, it } from 'vitest';
 import { assertReviewedSources, getSource, sourceRegistry } from './sources.js';
 
 const reviewedIds = [
+	'T-LANGUAGE-DETECT',
 	'G-ADD-SONGS',
 	'G-SPELLING',
 	'G-SECTIONS',
+	'G-SECTION-NUMBERING',
+	'G-SECTION-HOOK',
 	'G-LANG-HEADERS',
 	'G-LANG-PURPOSE',
 	'G-LANG-EN',
 	'G-LANG-NO',
+	'G-LANG-AR',
+	'G-LANG-DE',
+	'G-LANG-ES',
+	'G-LANG-FR',
+	'G-LANG-JA',
+	'G-LANG-KO',
 	'G-NUMBERS',
 	'G-QE-MARKS',
 	'G-DASHES',
@@ -51,7 +60,7 @@ describe('source registry', () => {
 		expect(() => assertReviewedSources(needsReviewIds)).toThrow(/not reviewed/u);
 	});
 
-	it('contains only the 24 specified source records', () => {
-		expect(sourceRegistry.size).toBe(24);
+	it('contains only the 33 specified source records', () => {
+		expect(sourceRegistry.size).toBe(33);
 	});
 });

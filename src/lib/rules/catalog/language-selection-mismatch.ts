@@ -1,0 +1,27 @@
+import { detectSongLanguage } from '../../languages/detect.js';
+import { getLanguagePack, resolveLanguageTag } from '../../languages/registry.js';
+import type { RuleDefinition } from '../../core/types.js';
+import { diagnostic } from './utils.js';
+
+export const languageSelectionMismatchRule: RuleDefinition = {
+	id: 'language.selection-mismatch',
+	version: 1,
+	defaultSeverity: 'warning',
+	fixability: 'none',
+	sourceIds: ['T-LANGUAGE-DETECT'],
+	check(document, context) {
+		const selectedTag = resolveLanguageTag(context.language);
+		const detected = detectSongLanguage(document, context.language);
+		if (!detected || detected.tag === selectedTag) return [];
+
+		const selectedName = getLanguagePack(selectedTag).displayName;
+		return [
+			diagnostic(
+				this,
+				detected.range,
+				`Lyrics appear to be ${detected.displayName}, but ${selectedName} is selected.`,
+				'Language recognition runs locally using statistical text analysis. Review the selected lyric language; short, mixed-language, and transliterated songs may be inconclusive.'
+			)
+		];
+	}
+};

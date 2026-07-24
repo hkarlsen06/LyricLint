@@ -6,17 +6,21 @@
 	let {
 		diagnostics,
 		sources,
-		documentText,
+		activeDiagnosticKey,
 		lineFor,
 		onNavigate,
+		onPreviewFix,
+		onCancelPreview,
 		onApplyFix,
 		onIgnore
 	}: {
 		diagnostics: readonly Diagnostic[];
 		sources: ReadonlyMap<string, SourceReference>;
-		documentText: string;
+		activeDiagnosticKey?: string;
 		lineFor?: (offset: number) => number;
 		onNavigate: (diagnostic: Diagnostic) => void;
+		onPreviewFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
+		onCancelPreview: () => void;
 		onApplyFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
 		onIgnore: (ruleId: string) => void;
 	} = $props();
@@ -44,12 +48,31 @@
 	// Exactly one card sits expanded at a time; before any explicit choice the
 	// top card starts expanded so the panel is never a wall of closed rows.
 	let chosenKey = $state<string | undefined>();
+	let list = $state<HTMLOListElement>();
 	const expandedKey = $derived.by(() => {
+		if (
+			activeDiagnosticKey &&
+			sortedDiagnostics.some((diagnostic) => cardKey(diagnostic) === activeDiagnosticKey)
+		) {
+			return activeDiagnosticKey;
+		}
 		if (chosenKey && sortedDiagnostics.some((diagnostic) => cardKey(diagnostic) === chosenKey)) {
 			return chosenKey;
 		}
 		const first = sortedDiagnostics[0];
 		return first ? cardKey(first) : undefined;
+	});
+
+	$effect(() => {
+		const key = activeDiagnosticKey;
+		const currentList = list;
+		if (!key || !currentList) return;
+		void tick().then(() => {
+			const card = Array.from(currentList.children).find(
+				(candidate) => (candidate as HTMLElement).dataset.diagnosticKey === key
+			);
+			card?.scrollIntoView({ block: 'nearest' });
+		});
 	});
 
 	function severityLabel(severity: Severity): string {
@@ -99,12 +122,14 @@
 {#if sortedDiagnostics.length === 0}
 	<p class="empty-state">No diagnostics match the current filters.</p>
 {:else}
-	<ol class="diagnostic-list" aria-label="Document diagnostics">
+	<ol bind:this={list} class="diagnostic-list" aria-label="Document diagnostics">
 		{#each sortedDiagnostics as diagnostic, index (`${cardKey(diagnostic)}-${index}`)}
 			{@const expanded = cardKey(diagnostic) === expandedKey}
 			<li
+				data-diagnostic-key={cardKey(diagnostic)}
 				class:diagnostic-error={diagnostic.severity === 'error'}
 				class:diagnostic-card--expanded={expanded}
+				class:diagnostic-card--active={cardKey(diagnostic) === activeDiagnosticKey}
 			>
 				<div class="diagnostic-list__heading">
 					<span class={`severity severity--${diagnostic.severity}`}>
@@ -153,7 +178,8 @@
 					<DiagnosticDetails
 						{diagnostic}
 						{sources}
-						{documentText}
+						onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
+						{onCancelPreview}
 						onApplyFix={(fix) => onApplyFix(diagnostic, fix)}
 						onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic.ruleId, trigger)}
 					/>

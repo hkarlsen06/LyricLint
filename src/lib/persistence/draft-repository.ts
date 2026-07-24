@@ -2,6 +2,8 @@ import type { AppMetadataRecord, DraftCreateInput, DraftRecord, DraftRepository 
 import type { LyricLintDatabase } from './database.js';
 
 const CURRENT_DRAFT_KEY = 'currentDraftId';
+const RECENT_LANGUAGES_KEY = 'recentLanguages';
+const MAX_RECENT_LANGUAGES = 5;
 const DEFAULT_TITLE = 'Untitled draft';
 const DEFAULT_LANGUAGE = 'en';
 
@@ -76,6 +78,23 @@ function currentDraftMetadata(id: string): AppMetadataRecord {
 		value: id,
 		updatedAt: now()
 	};
+}
+
+function parseRecentLanguages(value: string | undefined): string[] {
+	if (!value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (!Array.isArray(parsed)) return [];
+		return [
+			...new Set(
+				parsed.flatMap((language) =>
+					typeof language === 'string' && language.trim().length > 0 ? [language.trim()] : []
+				)
+			)
+		].slice(0, MAX_RECENT_LANGUAGES);
+	} catch {
+		return [];
+	}
 }
 
 /** Create a serializable draft repository backed by the supplied Dexie database. */
@@ -168,6 +187,30 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 
 		async getCurrent() {
 			return (await database.appMetadata.get(CURRENT_DRAFT_KEY))?.value;
+		},
+
+		async getRecentLanguages() {
+			const metadata = await database.appMetadata.get(RECENT_LANGUAGES_KEY);
+			return parseRecentLanguages(metadata?.value);
+		},
+
+		async rememberLanguage(language) {
+			const normalized = language.trim();
+			if (!normalized) return;
+			await database.transaction('rw', database.appMetadata, async () => {
+				const current = parseRecentLanguages(
+					(await database.appMetadata.get(RECENT_LANGUAGES_KEY))?.value
+				);
+				const recent = [
+					normalized,
+					...current.filter((candidate) => candidate !== normalized)
+				].slice(0, MAX_RECENT_LANGUAGES);
+				await database.appMetadata.put({
+					key: RECENT_LANGUAGES_KEY,
+					value: JSON.stringify(recent),
+					updatedAt: now()
+				});
+			});
 		}
 	};
 }

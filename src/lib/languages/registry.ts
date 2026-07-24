@@ -1,11 +1,23 @@
+import { arabicLanguagePack } from './ar.js';
+import { germanLanguagePack } from './de.js';
 import { englishLanguagePack } from './en.js';
+import { spanishLanguagePack } from './es.js';
+import { frenchLanguagePack } from './fr.js';
 import { languageSourceInventory } from './inventory.js';
+import { japaneseLanguagePack } from './ja.js';
+import { koreanLanguagePack } from './ko.js';
 import { norwegianLanguagePack } from './no.js';
 import type { LanguagePack } from './types.js';
 
 const reviewedPacks = new Map<string, LanguagePack>([
 	[englishLanguagePack.tag, englishLanguagePack],
-	[norwegianLanguagePack.tag, norwegianLanguagePack]
+	[norwegianLanguagePack.tag, norwegianLanguagePack],
+	[arabicLanguagePack.tag, arabicLanguagePack],
+	[germanLanguagePack.tag, germanLanguagePack],
+	[spanishLanguagePack.tag, spanishLanguagePack],
+	[frenchLanguagePack.tag, frenchLanguagePack],
+	[japaneseLanguagePack.tag, japaneseLanguagePack],
+	[koreanLanguagePack.tag, koreanLanguagePack]
 ]);
 
 const inventoryByTag = new Map(languageSourceInventory.map((entry) => [entry.tag, entry]));
@@ -52,10 +64,16 @@ export function getLanguagePack(tag: string): LanguagePack {
 
 /** Only human-reviewed localized vocabularies may produce header-language diagnostics. */
 export function canLintHeaderLanguage(pack: LanguagePack): boolean {
-	return pack.reviewed && pack.policy === 'localized' && pack.headers.length > 0;
+	return pack.reviewed && pack.policy !== 'unreviewed' && pack.headers.length > 0;
 }
 
 export const reviewedLanguagePacks: readonly LanguagePack[] = [
 	englishLanguagePack,
-	norwegianLanguagePack
+	norwegianLanguagePack,
+	arabicLanguagePack,
+	germanLanguagePack,
+	spanishLanguagePack,
+	frenchLanguagePack,
+	japaneseLanguagePack,
+	koreanLanguagePack
 ];

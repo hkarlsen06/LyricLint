@@ -15,8 +15,19 @@ export const englishLanguagePack: LanguagePack = {
 		{ semanticPart: 'Pre-Chorus', terms: ['Pre-Chorus'] },
 		{ semanticPart: 'Post-Chorus', terms: ['Post-Chorus'] },
 		{ semanticPart: 'Bridge', terms: ['Bridge'] },
+		{ semanticPart: 'Breakdown', terms: ['Breakdown'] },
 		{ semanticPart: 'Interlude', terms: ['Interlude'] },
+		{ semanticPart: 'Segue', terms: ['Segue'] },
+		{ semanticPart: 'Part', terms: ['Part'] },
+		{ semanticPart: 'Skit', terms: ['Skit'] },
 		{ semanticPart: 'Instrumental', terms: ['Instrumental'] },
+		{ semanticPart: 'Instrumental Break', terms: ['Instrumental Break'] },
+		{ semanticPart: 'Instrumental Intro', terms: ['Instrumental Intro'] },
+		{ semanticPart: 'Instrumental Outro', terms: ['Instrumental Outro'] },
+		{ semanticPart: 'Solo', terms: ['Solo'] },
+		{ semanticPart: 'Non-Lyrical Vocals', terms: ['Non-Lyrical Vocals'] },
+		{ semanticPart: 'Build', terms: ['Build'] },
+		{ semanticPart: 'Drop', terms: ['Drop'] },
 		{ semanticPart: 'Outro', terms: ['Outro'] }
 	]
 };

@@ -58,6 +58,17 @@
 	// snapshot before the controller stores it. Composition revisions reuse the
 	// previous result so linting never runs on incomplete IME input.
 	let lastDiagnostics: EditorSnapshot['diagnostics'] = [];
+	let lastLintKey = '';
+
+	function lintKey(snapshot: EditorSnapshot): string {
+		const performerKey = controller.performers
+			.map(
+				(performer) =>
+					`${performer.id}:${performer.normalizedKey}:${performer.aliases.join('\u001f')}`
+			)
+			.join('\u001e');
+		return `${controller.language}\u0000${performerKey}\u0000${snapshot.revision}\u0000${snapshot.text}`;
+	}
 
 	function enrichSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
 		if (!snapshot.composing) {
@@ -68,6 +79,7 @@
 				snapshot.revision
 			);
 			lastDiagnostics = computeDiagnostics(snapshot.parsed, context);
+			lastLintKey = lintKey(snapshot);
 		}
 		return { ...snapshot, diagnostics: lastDiagnostics };
 	}
@@ -133,6 +145,16 @@
 
 	$effect(() => {
 		controller.setEditorHandle(editorHandle);
+	});
+
+	// Language and roster changes do not create a CodeMirror transaction. Re-run
+	// the rules against the current immutable document so the selector updates
+	// diagnostics immediately instead of waiting for the next keystroke.
+	$effect(() => {
+		const current = controller.snapshot;
+		const key = lintKey(current);
+		if (current.composing || key === lastLintKey) return;
+		controller.onSnapshot(enrichSnapshot(current));
 	});
 
 	onMount(() => {

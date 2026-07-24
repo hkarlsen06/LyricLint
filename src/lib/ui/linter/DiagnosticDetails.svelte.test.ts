@@ -29,18 +29,20 @@ function previewDiagnostic(): Diagnostic {
 describe('DiagnosticDetails preview flow', () => {
 	it('shows the exact before and after values before applying', async () => {
 		const onApplyFix = vi.fn();
+		const onPreviewFix = vi.fn();
 		await render(DiagnosticDetails, {
 			diagnostic: previewDiagnostic(),
 			sources: new Map(),
-			documentText: 'Line: Yeah',
+			onPreviewFix,
+			onCancelPreview: vi.fn(),
 			onApplyFix,
 			onIgnore: vi.fn()
 		});
 
 		await page.getByRole('button', { name: 'Preview: Wrap as (Yeah)' }).click();
 
-		await expect.element(page.getByText('Yeah', { exact: true })).toBeVisible();
-		await expect.element(page.getByText('(Yeah)', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('Previewing this change in the editor.')).toBeVisible();
+		expect(onPreviewFix).toHaveBeenCalledOnce();
 		expect(onApplyFix).not.toHaveBeenCalled();
 
 		await page.getByRole('button', { name: 'Apply previewed fix' }).click();
@@ -49,10 +51,12 @@ describe('DiagnosticDetails preview flow', () => {
 
 	it('cancels a preview without applying it', async () => {
 		const onApplyFix = vi.fn();
+		const onCancelPreview = vi.fn();
 		await render(DiagnosticDetails, {
 			diagnostic: previewDiagnostic(),
 			sources: new Map(),
-			documentText: 'Line: Yeah',
+			onPreviewFix: vi.fn(),
+			onCancelPreview,
 			onApplyFix,
 			onIgnore: vi.fn()
 		});
@@ -63,6 +67,7 @@ describe('DiagnosticDetails preview flow', () => {
 		await expect
 			.element(page.getByRole('button', { name: 'Preview: Wrap as (Yeah)' }))
 			.toBeVisible();
+		expect(onCancelPreview).toHaveBeenCalledOnce();
 		expect(onApplyFix).not.toHaveBeenCalled();
 	});
 });

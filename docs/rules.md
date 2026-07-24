@@ -14,19 +14,32 @@ A production lint rule requires:
 
 Community annotations can change. Rule data is versioned, reviewed, and bundled with the application. Live scraping is not part of the editing path.
 
+The content-language mismatch check is a product-safety diagnostic rather than
+a Genius policy claim. It uses a bundled statistical detector, runs locally,
+and links to the detector implementation as tooling provenance.
+
 ## Source registry
 
 ### Reviewed sources
 
 | ID | Source | Scope | Status |
 | --- | --- | --- | --- |
+| `T-LANGUAGE-DETECT` | [LanguageDetect](https://github.com/FGRibreau/node-language-detect) | Local statistical language recognition | Version 2.0.0 reviewed 2026-07-24 |
 | `G-ADD-SONGS` | [How to Add Songs to Genius](https://genius.com/Genius-how-to-add-songs-to-genius-annotated) | Index of lyric accuracy and formatting guidance | Reviewed as an index on 2026-07-24 |
 | `G-SPELLING` | [Use standardized spellings, annotation 9298624](https://genius.com/9298624) | Preferred spellings and contextual exceptions | Accepted annotation, reviewed 2026-07-24 |
 | `G-SECTIONS` | [Use song part headers, annotation 9250687](https://genius.com/9250687) | Headers, performer names, four formatting slots, joint performers | Accepted annotation, reviewed 2026-07-24 |
+| `G-SECTION-NUMBERING` | [Verse numbering, annotation 16107272](https://genius.com/16107272) | Only verses are enumerated; distinct verses ascend | Reviewed 2026-07-24 |
+| `G-SECTION-HOOK` | [Deprecated Hook header, annotation 34151858](https://genius.com/34151858) | Replace Hook with Chorus or Refrain | Reviewed 2026-07-24 |
 | `G-LANG-HEADERS` | [Song Headers in Different Languages](https://genius.com/Genius-song-headers-in-different-languages-annotated) | Language-specific header annotations | Page and inventory reviewed 2026-07-24; individual languages require separate review |
 | `G-LANG-PURPOSE` | [Multilingual guide purpose, annotation 12709276](https://genius.com/12709276) | Purpose and use of localized header guidance | Reviewed 2026-07-24 |
 | `G-LANG-EN` | [English headers, annotation 12744609](https://genius.com/12744609) | Standard English header vocabulary | Reviewed 2026-07-24 |
 | `G-LANG-NO` | [Norwegian headers, annotation 13453292](https://genius.com/13453292) | Norwegian header vocabulary | Reviewed 2026-07-24 |
+| `G-LANG-AR` | [Arabic headers, annotation 12745769](https://genius.com/12745769) | Localized Arabic header vocabulary | Reviewed 2026-07-24 |
+| `G-LANG-DE` | [German headers, annotation 12745292](https://genius.com/12745292) | Genre-dependent German alternatives | Reviewed 2026-07-24 |
+| `G-LANG-ES` | [Spanish headers, annotation 12744618](https://genius.com/12744618) | Localized Spanish header vocabulary | Reviewed 2026-07-24 |
+| `G-LANG-FR` | [French headers, annotation 12745216](https://genius.com/12745216) | Localized French header vocabulary | Reviewed 2026-07-24 |
+| `G-LANG-JA` | [Japanese header policy, annotation 13322994](https://genius.com/13322994) | English headers are required on Japanese song pages | Reviewed 2026-07-24 |
+| `G-LANG-KO` | [Korean headers, annotation 20378931](https://genius.com/20378931) | English for original songs; Hangul permitted for translations | Reviewed 2026-07-24 |
 | `G-NUMBERS` | [Number spelling, annotation 15591905](https://genius.com/15591905) | Spell out numbers with documented exceptions | Reviewed 2026-07-24 |
 | `G-QE-MARKS` | [Question and exclamation marks, annotation 15593987](https://genius.com/15593987) | Punctuation for questions and exclamations | Reviewed 2026-07-24 |
 | `G-DASHES` | [Hyphens and em dashes, annotation 15594027](https://genius.com/15594027) | Dropped words and em dash punctuation | Reviewed 2026-07-24 |
@@ -60,11 +73,17 @@ Rules depending only on sources in this table remain disabled until their annota
 | --- | --- | --- | --- | --- |
 | `syntax.unbalanced-brackets` | Error | Uneven square brackets in section markup | Safe when the missing delimiter is unambiguous | `G-SECTIONS` plus parser contract |
 | `syntax.unsupported-voice-markup` | Error | Performer differentiation uses tags other than supported `<i>` and `<b>` combinations | Preview only | `G-SECTIONS` |
+| `language.selection-mismatch` | Warning | Sufficient lyric text clearly matches a different language than the selected one | Explain only; local statistical estimate | `T-LANGUAGE-DETECT` |
 | `section.header-missing` | Warning | A blank-line section contains lyrics but no section header | Insert chosen localized header | `G-SECTIONS` |
 | `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog | Replace after user confirmation | `G-SECTIONS`, reviewed language source |
+| `section.deprecated-hook` | Warning | A section uses the deprecated `[Hook]` name | Preview Chorus and Refrain replacements | `G-SECTION-HOOK` |
+| `section.immediate-repeat-spacing` | Warning | An exact song part is immediately repeated behind a blank separator or duplicate header | Safely retain both lyric copies under one header with no blank separator | `G-SECTIONS`, `G-REPEATS` |
+| `section.verse-numbering` | Suggestion | A non-verse is numbered, a lone verse is numbered, or explicit verse numbers conflict | Preview number removal or correction | `G-SECTION-NUMBERING` |
 | `performer.header-required` | Warning | A multi-vocalist section has inline differentiation but no performer legend | Preview header insertion | `G-SECTIONS` |
 | `performer.style-order` | Warning | Header voice groups do not use plain, italic, bold, bold-italic slot order | Preview only | `G-SECTIONS` |
 | `performer.inline-mismatch` | Warning | Inline style refers to no resolvable header voice group | No automatic fix | `G-SECTIONS` |
+| `performer.redundant-markup` | Suggestion | Adjacent same-performer wrappers use more formatting markers than necessary | Safely merge the adjacent wrappers | `G-SECTIONS` |
+| `performer.unused-legend-slot` | Suggestion | A clean section header declares a performer style absent from its lyrics | Safely remove the unused legend slot | `G-SECTIONS` |
 | `performer.too-many-groups` | Warning | More than four distinct style groups occur, exceeding the documented four-slot format | Explain the source's context and options only | `G-SECTIONS` |
 | `performer.line-label-forbidden` | Warning | Names or symbols in brackets are used to label individual lyric lines | No automatic fix | `G-SECTIONS` |
 | `spelling.standardized` | Suggestion | A reviewed non-preferred spelling occurs in a context where the preferred spelling is sufficiently certain | Safe only for context-free entries | `G-SPELLING` |
@@ -77,6 +96,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `censored.mask` | Warning | A censored word uses a mask other than exactly four asterisks | Preview replacement | `G-CENSORED` |
 | `adlib.parentheses` | Suggestion | A likely ad-lib lacks parentheses or starts lowercase | Contextual fix preview | `G-ADLIBS` |
 | `capitalization.line-start` | Suggestion | A lyric line starts lowercase without a known contextual reason | Contextual fix preview | `G-CAPS` |
+| `capitalization.title-case` | Suggestion | Several lyric lines appear to capitalize nearly every word | Explain only because names and intentional styling need review | `G-CAPS` |
 | `punctuation.question` | Suggestion | A clearly interrogative line has no question mark | Explain or preview | `G-QE-MARKS` |
 | `punctuation.dropped-word-dash` | Warning | A dropped word uses an incorrect dash form or an em dash followed by a comma | Preview replacement | `G-DASHES` |
 | `line.prose-density` | Suggestion | A very long prose-like line may contain several lyric lines | Explain only; no fixed character limit | `G-LINES` |

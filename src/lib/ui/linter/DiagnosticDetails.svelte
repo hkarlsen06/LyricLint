@@ -5,26 +5,21 @@
 	let {
 		diagnostic,
 		sources,
-		documentText,
+		onPreviewFix,
+		onCancelPreview,
 		onApplyFix,
 		onIgnore
 	}: {
 		diagnostic: Diagnostic;
 		sources: ReadonlyMap<string, SourceReference>;
-		documentText: string;
+		onPreviewFix: (fix: DiagnosticFix) => void;
+		onCancelPreview: () => void;
 		onApplyFix: (fix: DiagnosticFix) => void;
 		onIgnore: (trigger: HTMLButtonElement) => void;
 	} = $props();
 
 	let previewFix = $state<DiagnosticFix | undefined>();
 	let previousDiagnosticKey = $state('');
-	const previewChanges = $derived(
-		previewFix?.edit.edits.map((edit) => ({
-			before: documentText.slice(edit.from, edit.to),
-			after: edit.insert
-		})) ?? []
-	);
-
 	$effect(() => {
 		const key = `${diagnostic.ruleId}:${diagnostic.from}:${diagnostic.to}:${diagnostic.message}`;
 		if (key !== previousDiagnosticKey) {
@@ -70,19 +65,7 @@
 				</button>
 			{:else if isPreviewing(fix)}
 				<div class="diagnostic-preview" aria-live="polite">
-					<p>Review the exact change before applying it.</p>
-					{#each previewChanges as change, index (`${index}:${change.before}:${change.after}`)}
-						<dl>
-							<div>
-								<dt>Before</dt>
-								<dd><code>{change.before || '(empty)'}</code></dd>
-							</div>
-							<div>
-								<dt>After</dt>
-								<dd><code>{change.after || '(empty)'}</code></dd>
-							</div>
-						</dl>
-					{/each}
+					<p>Previewing this change in the editor.</p>
 					<div class="diagnostic-preview__actions">
 						<button
 							type="button"
@@ -95,7 +78,10 @@
 						<button
 							type="button"
 							class="button button--quiet"
-							onclick={() => (previewFix = undefined)}>Cancel</button
+							onclick={() => {
+								previewFix = undefined;
+								onCancelPreview();
+							}}>Cancel</button
 						>
 					</div>
 				</div>
@@ -103,7 +89,10 @@
 				<button
 					type="button"
 					class="button button--pill diagnostic-details__fix"
-					onclick={() => (previewFix = fix)}
+					onclick={() => {
+						previewFix = fix;
+						onPreviewFix(fix);
+					}}
 				>
 					Preview: {fix.label}
 				</button>

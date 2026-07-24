@@ -70,9 +70,11 @@
 	<DiagnosticList
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
-		documentText={controller.snapshot.text}
+		activeDiagnosticKey={controller.activeDiagnosticKey}
 		{lineFor}
 		onNavigate={(diagnostic) => controller.navigateToDiagnostic(diagnostic)}
+		onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
+		onCancelPreview={() => controller.clearFixPreview()}
 		onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
 		onIgnore={(ruleId) => controller.ignoreRule(ruleId)}
 	/>

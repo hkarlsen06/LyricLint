@@ -41,7 +41,17 @@ export const sectionHeaderLanguageRule: RuleDefinition = {
 	version: 1,
 	defaultSeverity: 'warning',
 	fixability: 'preview',
-	sourceIds: ['G-SECTIONS', 'G-LANG-EN', 'G-LANG-NO'],
+	sourceIds: [
+		'G-SECTIONS',
+		'G-LANG-EN',
+		'G-LANG-NO',
+		'G-LANG-AR',
+		'G-LANG-DE',
+		'G-LANG-ES',
+		'G-LANG-FR',
+		'G-LANG-JA',
+		'G-LANG-KO'
+	],
 	check(document, context) {
 		const selected = getLanguagePack(context.language);
 		if (!canLintHeaderLanguage(selected)) {
@@ -57,9 +67,9 @@ export const sectionHeaderLanguageRule: RuleDefinition = {
 			if (!conflict) {
 				return [];
 			}
-			const replacement = selected.headers.find(
+			const replacements = selected.headers.find(
 				(vocabulary) => vocabulary.semanticPart === conflict.semanticPart
-			)?.terms[0];
+			)?.terms;
 			const sourceIds = ['G-SECTIONS', ...selected.sourceIds];
 			return [
 				diagnostic(
@@ -67,8 +77,8 @@ export const sectionHeaderLanguageRule: RuleDefinition = {
 					header.nameRange,
 					`“${header.namePart}” conflicts with the reviewed ${selected.displayName} header pack.`,
 					`This is a recognized ${conflict.pack.displayName} ${conflict.semanticPart} header. The selected reviewed language pack recommends a localized term; custom and unreviewed headers are always preserved.`,
-					replacement
-						? [
+					replacements
+						? replacements.map((replacement) =>
 								replacementFix(
 									context,
 									'preview',
@@ -76,7 +86,7 @@ export const sectionHeaderLanguageRule: RuleDefinition = {
 									header.nameRange,
 									replacement
 								)
-							]
+							)
 						: undefined,
 					sourceIds
 				)

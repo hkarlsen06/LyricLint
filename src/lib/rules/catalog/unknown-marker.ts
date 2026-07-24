@@ -10,7 +10,7 @@ export const unknownMarkerRule: RuleDefinition = {
 	check(document, context) {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>
-				matchesOutsideMarkup(line, /\(\?\)|\[\?\?\]/gu).map((match) =>
+				matchesOutsideMarkup(line, /\(\s*\?+\s*\)|\[\s*\?{2,}\s*\]/gu).map((match) =>
 					diagnostic(
 						this,
 						match,
