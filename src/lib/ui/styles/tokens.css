@@ -32,12 +32,14 @@
 	--shadow-raised: 0 1px 2px oklch(20% 0.02 65 / 0.08);
 	--shadow-overlay: 0 12px 32px oklch(20% 0.02 65 / 0.18), 0 2px 8px oklch(20% 0.02 65 / 0.12);
 
-	--performer-plum: oklch(55% 0.15 325);
+	/* Palette order matches the roster allocation: green first, violet second
+	   (the mockup's Mara and Jun), then distinguishable hues. */
+	--performer-olive: oklch(50% 0.12 145);
+	--performer-indigo: oklch(50% 0.14 285);
+	--performer-teal: oklch(53% 0.1 195);
 	--performer-ochre: oklch(60% 0.13 75);
-	--performer-teal: oklch(53% 0.1 185);
 	--performer-rose: oklch(57% 0.14 20);
-	--performer-indigo: oklch(53% 0.12 275);
-	--performer-olive: oklch(55% 0.1 120);
+	--performer-plum: oklch(55% 0.15 325);
 	--performer-copper: oklch(55% 0.12 48);
 	--performer-slate: oklch(52% 0.045 240);
 
@@ -82,12 +84,12 @@
 		--shadow-raised: 0 1px 2px oklch(5% 0.01 65 / 0.3);
 		--shadow-overlay: 0 12px 32px oklch(5% 0.01 65 / 0.5), 0 2px 8px oklch(5% 0.01 65 / 0.4);
 
-		--performer-plum: oklch(72% 0.13 325);
+		--performer-olive: oklch(74% 0.13 148);
+		--performer-indigo: oklch(72% 0.13 288);
+		--performer-teal: oklch(72% 0.09 195);
 		--performer-ochre: oklch(76% 0.12 75);
-		--performer-teal: oklch(72% 0.09 185);
 		--performer-rose: oklch(72% 0.12 20);
-		--performer-indigo: oklch(72% 0.11 275);
-		--performer-olive: oklch(74% 0.09 120);
+		--performer-plum: oklch(72% 0.13 325);
 		--performer-copper: oklch(72% 0.11 48);
 		--performer-slate: oklch(72% 0.04 240);
 	}

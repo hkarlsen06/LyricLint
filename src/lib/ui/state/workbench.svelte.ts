@@ -113,13 +113,18 @@ export interface WorkbenchController {
 
 const allSeverities: Severity[] = ['error', 'warning', 'suggestion', 'manual-review'];
 const largePasteThreshold = 32;
+/**
+ * Roster allocation order for performer colors. Green then violet lead so the
+ * first two performers match the approved mockup (Mara green, Jun violet);
+ * the remaining hues stay mutually distinguishable.
+ */
 export const performerColorIds = [
-	'plum',
-	'ochre',
-	'teal',
-	'rose',
-	'indigo',
 	'olive',
+	'indigo',
+	'teal',
+	'ochre',
+	'rose',
+	'plum',
 	'copper',
 	'slate'
 ] as const;
@@ -238,7 +243,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		const additions = extraction.rosterAdditions.map((performer, index) => ({
 			...performer,
 			aliases: [...performer.aliases],
-			colorId: performerColorIds[(performers.length + index) % performerColorIds.length] ?? 'plum',
+			colorId: performerColorIds[(performers.length + index) % performerColorIds.length] ?? 'olive',
 			order: performers.length + index
 		}));
 		const names = additions.map((performer) => performer.displayName);
@@ -525,7 +530,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				displayName: trimmed,
 				normalizedKey: normalizedKey(trimmed),
 				aliases: [],
-				colorId: performerColorIds[performers.length % performerColorIds.length] ?? 'plum',
+				colorId: performerColorIds[performers.length % performerColorIds.length] ?? 'olive',
 				order: performers.length
 			};
 			commitRoster([...performers, next], `Added ${trimmed} to the roster.`);
@@ -579,7 +584,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			const colorIndex = performerColorIds.indexOf(
 				current.colorId as (typeof performerColorIds)[number]
 			);
-			const colorId = performerColorIds[(colorIndex + 1) % performerColorIds.length] ?? 'plum';
+			const colorId = performerColorIds[(colorIndex + 1) % performerColorIds.length] ?? 'olive';
 			commitRoster(
 				performers.map((performer) =>
 					performer.id === id ? { ...performer, colorId } : performer

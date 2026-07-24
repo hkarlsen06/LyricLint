@@ -114,7 +114,10 @@ class DiagnosticBadge extends WidgetType {
 		const badge = document.createElement('button');
 		badge.type = 'button';
 		badge.className = `ll-diagnostic-badge ll-diagnostic-badge-${this.cluster.severity}`;
-		badge.textContent = String(this.cluster.diagnostics.length);
+		const count = document.createElement('span');
+		count.className = 'll-diagnostic-badge-count';
+		count.textContent = String(this.cluster.diagnostics.length);
+		badge.append(count);
 		badge.setAttribute('aria-label', diagnosticLabel(this.cluster));
 		badge.title = diagnosticLabel(this.cluster);
 		badge.addEventListener('mousedown', (event) => event.preventDefault());
@@ -291,23 +294,39 @@ export const lintDecorationTheme = EditorView.baseTheme({
 	'.ll-diagnostic-manual-review': {
 		textDecorationColor: 'var(--color-manual, oklch(0.58 0.11 305))'
 	},
+	// Position marker: a small caret sits under the offending character so the
+	// exact spot (e.g. a trailing comma) is unambiguous.
+	'.ll-diagnostic-warning::after': {
+		content: '"˄"',
+		position: 'absolute',
+		bottom: '-0.72em',
+		left: '0',
+		color: 'var(--color-warning, oklch(0.66 0.16 75))',
+		font: '700 0.62em/1 ui-sans-serif, system-ui, sans-serif',
+		pointerEvents: 'none'
+	},
 	'.ll-diagnostic-badge-container': {
 		position: 'relative',
 		display: 'inline-block'
 	},
+	// Cluster badges are filled circles in the severity color with dark count
+	// text (mockup: the amber "2" past the end of the line).
 	'.ll-diagnostic-badge': {
 		boxSizing: 'border-box',
 		minWidth: '1.15rem',
 		height: '1.15rem',
 		marginInlineStart: '0.4rem',
 		padding: '0 0.28rem',
-		border: '1px solid currentColor',
+		border: 'none',
 		borderRadius: '999rem',
-		background: 'var(--color-surface, var(--ll-surface, oklch(0.98 0.006 80)))',
-		font: '650 0.68rem/1.05rem ui-sans-serif, system-ui, sans-serif',
+		background: 'currentColor',
+		font: '700 0.68rem/1.15rem ui-sans-serif, system-ui, sans-serif',
 		textAlign: 'center',
 		verticalAlign: '0.16rem',
 		cursor: 'pointer'
+	},
+	'.ll-diagnostic-badge > .ll-diagnostic-badge-count': {
+		color: 'var(--color-canvas, oklch(0.18 0.012 65))'
 	},
 	'.ll-diagnostic-badge:focus-visible': {
 		outline: '2px solid var(--ll-focus, oklch(0.58 0.14 55))',

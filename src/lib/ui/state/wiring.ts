@@ -106,6 +106,20 @@ export function resolveVoiceGroupRanges(
 		}
 		const plainGroup = resolvedGroups.get(1);
 
+		// Legend names take their group's tint/underline inside the header too;
+		// the `legend` flag keeps the header line free of the full-line wash.
+		for (const legendGroup of section.header?.legendGroups ?? []) {
+			const group = resolvedGroups.get(legendGroup.styleSlot);
+			if (group && legendGroup.nameRange.from < legendGroup.nameRange.to) {
+				ranges.push({
+					from: legendGroup.nameRange.from,
+					to: legendGroup.nameRange.to,
+					group,
+					legend: true
+				});
+			}
+		}
+
 		for (const line of section.lines) {
 			const supported = line.styleSpans
 				.filter((span): span is Extract<typeof span, { slot: number }> => 'slot' in span)

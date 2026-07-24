@@ -35,13 +35,16 @@ describe('UI wiring', () => {
 		]);
 		const highlightedText = ranges.map((range) => ({
 			text: text.slice(range.from, range.to),
-			ids: range.group.performerIds
+			ids: range.group.performerIds,
+			legend: range.legend ?? false
 		}));
 
 		expect(highlightedText).toEqual([
-			{ text: 'Plain', ids: ['a'] },
-			{ text: 'Voice', ids: ['b'] },
-			{ text: 'tail', ids: ['a'] }
+			{ text: 'A', ids: ['a'], legend: true },
+			{ text: 'B', ids: ['b'], legend: true },
+			{ text: 'Plain', ids: ['a'], legend: false },
+			{ text: 'Voice', ids: ['b'], legend: false },
+			{ text: 'tail', ids: ['a'], legend: false }
 		]);
 		expect(highlightedText.some((range) => range.text.includes('<i>'))).toBe(false);
 	});

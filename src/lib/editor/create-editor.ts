@@ -5,6 +5,8 @@ import {
 	drawSelection,
 	dropCursor,
 	EditorView,
+	highlightActiveLine,
+	highlightActiveLineGutter,
 	highlightSpecialChars,
 	keymap,
 	lineNumbers
@@ -26,6 +28,7 @@ import {
 	setEditorContextEffect
 } from './extensions/editor-state.js';
 import { legendCleanupFilter } from './extensions/legend-cleanup.js';
+import { markupDimField, markupDimTheme } from './extensions/markup-dim.js';
 import {
 	lintDecorationField,
 	lintDecorationTheme,
@@ -131,6 +134,17 @@ const editorTheme = EditorView.theme({
 	'.cm-lineNumbers .cm-gutterElement': {
 		minWidth: '2.6rem',
 		padding: '0.22rem 0.7rem 0 0.5rem'
+	},
+	// The caret's row gets a subtle blue-tinted wash. An inset shadow layers on
+	// top of performer line tints instead of replacing them.
+	'.cm-activeLine': {
+		backgroundColor: 'transparent',
+		boxShadow:
+			'inset 0 0 0 62.5rem color-mix(in oklch, var(--color-focus, oklch(0.54 0.15 255)) 9%, transparent)'
+	},
+	'.cm-activeLineGutter': {
+		backgroundColor: 'transparent',
+		color: 'var(--color-text, currentColor)'
 	},
 	'.cm-selectionBackground, ::selection': {
 		backgroundColor:
@@ -251,9 +265,13 @@ export function createLyricEditor(
 		performerDecorationField,
 		lintDecorationField,
 		sectionGhostField,
+		markupDimField,
+		highlightActiveLine(),
+		highlightActiveLineGutter(),
 		performerDecorationTheme,
 		lintDecorationTheme,
 		sectionGhostTheme,
+		markupDimTheme,
 		editorTheme,
 		keymap.of(lyricLintKeymap(callbackProxy, options.keymapOverrides)),
 		selectionAnchorPlugin(

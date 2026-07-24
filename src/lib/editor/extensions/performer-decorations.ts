@@ -8,13 +8,68 @@ import { editorCallbacksField } from './editor-state.js';
 
 const MAX_VISIBLE_SEGMENTS = 3;
 
+/**
+ * Editor tints and underline accents keyed to the roster color ids. Order
+ * matches the roster allocation (green, violet, …) so the first performers
+ * take the mockup's colors; unknown ids hash into the same table.
+ */
 export const performerPalette = [
-	{ light: 'oklch(0.9 0.06 34)', dark: 'oklch(0.34 0.06 34)' },
-	{ light: 'oklch(0.9 0.055 102)', dark: 'oklch(0.34 0.055 102)' },
-	{ light: 'oklch(0.9 0.055 151)', dark: 'oklch(0.34 0.055 151)' },
-	{ light: 'oklch(0.9 0.055 225)', dark: 'oklch(0.34 0.055 225)' },
-	{ light: 'oklch(0.9 0.06 285)', dark: 'oklch(0.34 0.06 285)' },
-	{ light: 'oklch(0.9 0.06 330)', dark: 'oklch(0.34 0.06 330)' }
+	{
+		id: 'olive',
+		light: 'oklch(0.9 0.06 145)',
+		dark: 'oklch(0.34 0.06 145)',
+		accentLight: 'oklch(0.5 0.12 145)',
+		accentDark: 'oklch(0.74 0.13 148)'
+	},
+	{
+		id: 'indigo',
+		light: 'oklch(0.9 0.06 285)',
+		dark: 'oklch(0.34 0.06 285)',
+		accentLight: 'oklch(0.5 0.14 285)',
+		accentDark: 'oklch(0.72 0.13 288)'
+	},
+	{
+		id: 'teal',
+		light: 'oklch(0.9 0.055 195)',
+		dark: 'oklch(0.34 0.055 195)',
+		accentLight: 'oklch(0.53 0.1 195)',
+		accentDark: 'oklch(0.72 0.09 195)'
+	},
+	{
+		id: 'ochre',
+		light: 'oklch(0.9 0.055 90)',
+		dark: 'oklch(0.34 0.055 90)',
+		accentLight: 'oklch(0.6 0.13 75)',
+		accentDark: 'oklch(0.76 0.12 75)'
+	},
+	{
+		id: 'rose',
+		light: 'oklch(0.9 0.06 20)',
+		dark: 'oklch(0.34 0.06 20)',
+		accentLight: 'oklch(0.57 0.14 20)',
+		accentDark: 'oklch(0.72 0.12 20)'
+	},
+	{
+		id: 'plum',
+		light: 'oklch(0.9 0.06 330)',
+		dark: 'oklch(0.34 0.06 330)',
+		accentLight: 'oklch(0.55 0.15 325)',
+		accentDark: 'oklch(0.72 0.13 325)'
+	},
+	{
+		id: 'copper',
+		light: 'oklch(0.9 0.06 48)',
+		dark: 'oklch(0.34 0.06 48)',
+		accentLight: 'oklch(0.55 0.12 48)',
+		accentDark: 'oklch(0.72 0.11 48)'
+	},
+	{
+		id: 'slate',
+		light: 'oklch(0.9 0.035 240)',
+		dark: 'oklch(0.34 0.035 240)',
+		accentLight: 'oklch(0.52 0.045 240)',
+		accentDark: 'oklch(0.72 0.04 240)'
+	}
 ] as const;
 
 export interface VoiceGroupDecorationPayload {
@@ -26,9 +81,16 @@ export interface PerformerSegmentStyle {
 	label: string;
 	lightBackground: string;
 	darkBackground: string;
-	/** Solid accent for the underline: the opposite scheme's palette value so it reads clearly on the tint. */
+	/** Solid accent for the underline in the member's own hue. */
 	lightUnderline: string;
 	darkUnderline: string;
+	/**
+	 * For joint groups: a hard-stop gradient spanning every visible member so
+	 * the underline reads as two (or three) stacked colors. Undefined for a
+	 * solo group, whose plain underline color already tells the story.
+	 */
+	lightUnderlineImage?: string;
+	darkUnderlineImage?: string;
 	/** Soft full-line wash derived from the first member's palette entry. */
 	lightLineTint: string;
 	darkLineTint: string;
@@ -55,6 +117,10 @@ export const performerGroupsField = StateField.define<VoiceGroupDecorationPayloa
 });
 
 function paletteIndex(colorId: string): number {
+	const known = performerPalette.findIndex((entry) => entry.id === colorId);
+	if (known >= 0) {
+		return known;
+	}
 	let hash = 0;
 	for (let index = 0; index < colorId.length; index += 1) {
 		hash = (hash * 31 + colorId.charCodeAt(index)) >>> 0;
@@ -91,12 +157,19 @@ export function voiceGroupStyle(
 	const visible = members.slice(0, MAX_VISIBLE_SEGMENTS);
 	const colors = visible.map((performer) => performerPalette[paletteIndex(performer.colorId)]);
 	const first = colors[0] ?? performerPalette[0];
+	const joint = colors.length > 1;
 	return {
 		label: `Performed by ${members.map((member) => member.displayName).join(', ')}`,
 		lightBackground: segmentedGradient(colors.map((color) => color.light)),
 		darkBackground: segmentedGradient(colors.map((color) => color.dark)),
-		lightUnderline: first.dark,
-		darkUnderline: first.light,
+		lightUnderline: first.accentLight,
+		darkUnderline: first.accentDark,
+		...(joint
+			? {
+					lightUnderlineImage: segmentedGradient(colors.map((color) => color.accentLight)),
+					darkUnderlineImage: segmentedGradient(colors.map((color) => color.accentDark))
+				}
+			: {}),
 		lightLineTint: `color-mix(in oklch, ${first.light} 38%, transparent)`,
 		darkLineTint: `color-mix(in oklch, ${first.dark} 45%, transparent)`,
 		hiddenCount: Math.max(0, members.length - visible.length)
@@ -147,18 +220,30 @@ function buildDecorations(state: EditorState, payload: VoiceGroupDecorationPaylo
 			continue;
 		}
 
+		const underlineImages =
+			style.lightUnderlineImage && style.darkUnderlineImage
+				? ` --ll-performer-underline-img-light: ${style.lightUnderlineImage}; --ll-performer-underline-img-dark: ${style.darkUnderlineImage};`
+				: '';
 		ranges.push(
 			Decoration.mark({
-				class: `ll-performer-highlight ll-performer-slot-${group.group.styleSlot}`,
+				class:
+					`ll-performer-highlight ll-performer-slot-${group.group.styleSlot}` +
+					(group.legend ? ' ll-performer-legend-name' : ''),
 				attributes: {
 					'aria-label': style.label,
 					title: style.label,
 					style:
 						`--ll-performer-light: ${style.lightBackground}; --ll-performer-dark: ${style.darkBackground}; ` +
-						`--ll-performer-underline-light: ${style.lightUnderline}; --ll-performer-underline-dark: ${style.darkUnderline};`
+						`--ll-performer-underline-light: ${style.lightUnderline}; --ll-performer-underline-dark: ${style.darkUnderline};` +
+						underlineImages
 				}
 			}).range(group.from, group.to)
 		);
+		if (group.legend) {
+			// Legend names carry only the inline tint/underline; the header line
+			// itself never gets a full-line wash.
+			continue;
+		}
 		const firstLine = state.doc.lineAt(group.from);
 		const lastLine = state.doc.lineAt(Math.max(group.from, group.to - 1));
 		for (let lineNumber = firstLine.number; lineNumber <= lastLine.number; lineNumber += 1) {
@@ -260,8 +345,15 @@ export const performerDecorationTheme = EditorView.baseTheme({
 		borderRadius: '0.125rem',
 		background: 'var(--ll-performer-light)',
 		borderBlockEnd: '2px solid var(--ll-performer-underline-light, currentColor)',
+		// Joint groups override the solid underline with a hard-stop gradient so
+		// e.g. a <b> duet reads as a green+violet dual underline.
+		borderImageSource: 'var(--ll-performer-underline-img-light, none)',
+		borderImageSlice: '1',
 		boxDecorationBreak: 'clone',
 		WebkitBoxDecorationBreak: 'clone'
+	},
+	'.ll-performer-legend-name': {
+		borderBlockEndWidth: '1.5px'
 	},
 	'.ll-performer-slot-2': {
 		borderBlockEndStyle: 'double',
@@ -291,7 +383,8 @@ export const performerDecorationTheme = EditorView.baseTheme({
 		},
 		'.ll-performer-highlight': {
 			background: 'var(--ll-performer-dark)',
-			borderBlockEndColor: 'var(--ll-performer-underline-dark, currentColor)'
+			borderBlockEndColor: 'var(--ll-performer-underline-dark, currentColor)',
+			borderImageSource: 'var(--ll-performer-underline-img-dark, none)'
 		}
 	}
 });

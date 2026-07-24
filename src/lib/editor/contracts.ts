@@ -23,6 +23,9 @@ export interface RevisionedDiagnostics {
 /** One resolved voice group and the lyric range it decorates. */
 export interface VoiceGroupRange extends TextRange {
 	group: VoiceGroup;
+	/** True for a performer name inside a section-header legend: it gets the
+	 * inline tint/underline but never a full-line wash. */
+	legend?: boolean;
 }
 
 /**
