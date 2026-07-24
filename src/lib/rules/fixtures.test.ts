@@ -48,10 +48,6 @@ describe('fixture rule acceptance', () => {
 				)
 			)
 		].sort();
-		const expected = [
-			...fixture.expectedRuleIds,
-			...(fixture.id === 'autosave-recovery-unicode' ? ['performer.inline-mismatch'] : [])
-		];
-		expect(actual).toEqual(expected.sort());
+		expect(actual).toEqual([...fixture.expectedRuleIds].sort());
 	});
 });
