@@ -2,33 +2,36 @@
 	import { browser } from '$app/environment';
 	import { parseDocument } from '$lib/core/parser.js';
 	import type {
+		AssignmentResult,
 		DraftRecord,
 		EditorHandle,
 		EditorSnapshot,
-		SessionIgnoreStore
+		PerformerRecord
 	} from '$lib/core/types.js';
-	import Workspace from '$lib/ui/layout/Workspace.svelte';
+	import EditorPane from '$lib/editor/EditorPane.svelte';
+	import { assignVoiceGroup } from '$lib/performers/index.js';
 	import {
-		createContractSessionIgnoreStore,
-		createInMemoryAutosaveController,
-		createInMemoryDraftRepository,
-		createMemorySessionStorage
-	} from '$lib/ui/state/in-memory.js';
+		closeDatabase,
+		createAutosaveController,
+		createDraftRepository,
+		createSessionIgnoreStore,
+		openDatabase,
+		recoverStartupDraft,
+		type LyricLintDatabase
+	} from '$lib/persistence/index.js';
+	import { currentRuleSet, sourceRegistry } from '$lib/rules/index.js';
+	import Workspace from '$lib/ui/layout/Workspace.svelte';
 	import { useFeedbackState } from '$lib/ui/state/feedback.svelte.js';
-	import { createWorkbenchController } from '$lib/ui/state/workbench.svelte.js';
-	import { onMount } from 'svelte';
+	import {
+		createWorkbenchController,
+		type WorkbenchController
+	} from '$lib/ui/state/workbench.svelte.js';
+	import { onDestroy, onMount } from 'svelte';
 
-	const initialDraft: DraftRecord = {
-		id: 'local-draft',
-		title: 'Untitled draft',
-		text: '',
-		language: 'en',
-		performers: [],
-		createdAt: '1970-01-01T00:00:00.000Z',
-		updatedAt: '1970-01-01T00:00:00.000Z',
-		ruleSetVersion: 'unavailable',
-		editorSelection: { anchor: 0, head: 0 }
-	};
+	let controller = $state<WorkbenchController | undefined>();
+	let bootError = $state<string | undefined>();
+	let database: LyricLintDatabase | undefined;
+	const feedback = useFeedbackState();
 
 	function snapshotFor(draft: DraftRecord, revision = 0): EditorSnapshot {
 		return {
@@ -43,84 +46,109 @@
 		};
 	}
 
-	let headlessSnapshot = snapshotFor(initialDraft);
-	const headlessEditor: EditorHandle = {
-		focus() {},
-		getSnapshot: () => headlessSnapshot,
-		dispatchAtomic() {},
-		undo() {},
-		redo() {},
-		revealRange() {},
-		setSelection(selection) {
-			headlessSnapshot = { ...headlessSnapshot, selection };
-		}
-	};
+	// The controller starts with a headless editor handle; the real CodeMirror
+	// handle is published through `bind:handle` once EditorPane mounts.
+	function headlessEditor(getSnapshot: () => EditorSnapshot): EditorHandle {
+		return {
+			focus() {},
+			getSnapshot,
+			dispatchAtomic() {},
+			undo() {},
+			redo() {},
+			revealRange() {},
+			setSelection() {}
+		};
+	}
 
-	const feedback = useFeedbackState();
-	const repository = createInMemoryDraftRepository([initialDraft]);
-	const autosave = createInMemoryAutosaveController(repository);
-	const sessionStorageAdapter = browser
-		? {
-				get length() {
-					try {
-						return window.sessionStorage.length;
-					} catch {
-						return 0;
-					}
-				},
-				key(index: number) {
-					try {
-						return window.sessionStorage.key(index);
-					} catch {
-						return null;
-					}
-				},
-				getItem(key: string) {
-					try {
-						return window.sessionStorage.getItem(key);
-					} catch {
-						return null;
-					}
-				},
-				setItem(key: string, value: string) {
-					try {
-						window.sessionStorage.setItem(key, value);
-					} catch {
-						feedback.announce('Session ignore state is unavailable in this browser.');
-					}
-				},
-				removeItem(key: string) {
-					try {
-						window.sessionStorage.removeItem(key);
-					} catch {
-						feedback.announce('Session ignore state could not be cleared.');
-					}
-				}
-			}
-		: createMemorySessionStorage();
-	const ignoreStore: SessionIgnoreStore = createContractSessionIgnoreStore(sessionStorageAdapter);
-	const controller = createWorkbenchController({
-		editor: headlessEditor,
-		initialSnapshot: headlessSnapshot,
-		initialDraft,
-		repository,
-		autosave,
-		ignoreStore,
-		feedback,
-		onOpenDraft(draft) {
-			const nextSnapshot = snapshotFor(draft, headlessSnapshot.revision + 1);
-			headlessSnapshot = nextSnapshot;
-			return nextSnapshot;
-		}
-	});
+	function assignPerformers(
+		snapshot: EditorSnapshot,
+		performerIds: readonly string[],
+		roster: readonly PerformerRecord[]
+	): AssignmentResult {
+		return assignVoiceGroup({
+			revision: snapshot.revision,
+			text: snapshot.text,
+			document: snapshot.parsed,
+			selection: snapshot.selection,
+			performerIds: [...performerIds],
+			roster
+		});
+	}
 
 	onMount(() => {
+		let cancelled = false;
+
+		void (async () => {
+			try {
+				database = await openDatabase();
+				const repository = createDraftRepository(database);
+				const autosave = createAutosaveController(repository);
+				const ignoreStore = createSessionIgnoreStore(window.sessionStorage);
+				const initialDraft = await recoverStartupDraft(repository);
+				if (cancelled) return;
+
+				let snapshot = snapshotFor(initialDraft);
+				const editor = headlessEditor(() => snapshot);
+
+				controller = createWorkbenchController({
+					editor,
+					initialSnapshot: snapshot,
+					initialDraft,
+					repository,
+					autosave,
+					ignoreStore,
+					feedback,
+					sources: [...sourceRegistry.values()],
+					ruleSet: currentRuleSet,
+					assignPerformers,
+					onInsertSection: (currentSnapshot) => currentSnapshot.text.length >= 0,
+					onOpenDraft: (draft) => {
+						snapshot = snapshotFor(draft, snapshot.revision + 1);
+						return snapshot;
+					}
+				});
+			} catch (error) {
+				if (!cancelled) {
+					bootError = 'Local storage is unavailable, so drafts cannot be saved in this browser.';
+					console.error('LyricLint failed to open local storage.', error);
+				}
+			}
+		})();
+
 		const flushWhenHidden = () => {
-			if (document.visibilityState === 'hidden') void controller.flushAutosave();
+			if (document.visibilityState === 'hidden') void controller?.flushAutosave();
 		};
 		document.addEventListener('visibilitychange', flushWhenHidden);
-		return () => document.removeEventListener('visibilitychange', flushWhenHidden);
+		return () => {
+			cancelled = true;
+			document.removeEventListener('visibilitychange', flushWhenHidden);
+		};
+	});
+
+	onDestroy(() => {
+		if (browser && database) closeDatabase(database);
 	});
 </script>
 
-<Workspace {controller} />
+<svelte:head>
+	<title>LyricLint</title>
+	<meta name="description" content="Local-first lyric editor and linter for Genius conventions." />
+</svelte:head>
+
+{#if controller}
+	<Workspace {controller} editorComponent={EditorPane} />
+{:else if bootError}
+	<p class="boot-message" role="alert">{bootError}</p>
+{:else}
+	<p class="boot-message" aria-live="polite">Loading your workspace…</p>
+{/if}
+
+<style>
+	.boot-message {
+		margin: 4rem auto;
+		max-width: 32rem;
+		text-align: center;
+		color: var(--ll-text-muted, #555);
+		font: inherit;
+	}
+</style>
