@@ -1,68 +1,38 @@
-import type {
-	AssignmentRequest,
+import type { PerformerRecord, PerformerRoster } from '../core/types.js';
+import { findExactPerformer } from './identity.js';
+
+/** Create immutable exact-match roster operations over the supplied records. */
+export function createPerformerRoster(records: readonly PerformerRecord[]): PerformerRoster {
+	const roster = [...records];
+	const byId = new Map(roster.map((performer) => [performer.id, performer]));
+	return {
+		list: () => roster,
+		get: (id) => byId.get(id),
+		findExact: (displayNameOrAlias) => findExactPerformer(displayNameOrAlias, roster)
+	};
+}
+
+export {
+	findExactPerformer,
+	makeVoiceGroupKey,
+	normalizePerformerKey,
+	suggestPerformerMatches
+} from './identity.js';
+export { extractPerformers } from './import.js';
+export { allocateStyleSlot, analyzeSlotOrder } from './allocation.js';
+export { assignVoiceGroup, insertSectionHeader, removeDifferentiation } from './transform.js';
+export { TOO_MANY_GROUP_OPTIONS } from './types.js';
+export type {
+	AppliedAssignmentResult,
+	AssignmentBlockReason,
 	AssignmentResult,
+	BlockedAssignmentResult,
+	DocumentTransformResult,
+	ImportedVoiceGroup,
 	ImportExtraction,
-	InsertSectionHeaderRequest,
-	ParsedDocument,
-	PerformerRecord,
-	PerformerRoster,
-	RemoveDifferentiationRequest,
-	Section,
-	StyleSlotAllocation,
-	StyleSlotOrderIssue,
-	VoiceGroupKey
-} from '../core/types.js';
-
-function performerWorker(): never {
-	throw new Error('not implemented: performer worker');
-}
-
-/** Create exact-match roster operations without rewriting performer display names. */
-export function createPerformerRoster(_records: readonly PerformerRecord[]): PerformerRoster {
-	void _records;
-	return performerWorker();
-}
-
-/** Extract exact header candidates, unresolved voices, and non-destructive suggestions. */
-export function extractPerformers(
-	_document: ParsedDocument,
-	_knownRoster: readonly PerformerRecord[]
-): ImportExtraction {
-	void _document;
-	void _knownRoster;
-	return performerWorker();
-}
-
-/** Allocate or recover a stable section-local style slot for one voice-group key. */
-export function allocateStyleSlot(
-	_section: Section,
-	_groupKey: VoiceGroupKey
-): StyleSlotAllocation {
-	void _section;
-	void _groupKey;
-	return performerWorker();
-}
-
-/** Report legend groups whose ordering conflicts with the four canonical slots. */
-export function analyzeSlotOrder(_section: Section): StyleSlotOrderIssue[] {
-	void _section;
-	return performerWorker();
-}
-
-/** Build one atomic header-and-selection edit for a performer assignment. */
-export function assignVoiceGroup(_request: AssignmentRequest): AssignmentResult {
-	void _request;
-	return performerWorker();
-}
-
-/** Build one atomic insertion for a chosen localized or custom section header. */
-export function insertSectionHeader(_request: InsertSectionHeaderRequest): AssignmentResult {
-	void _request;
-	return performerWorker();
-}
-
-/** Build one explicit atomic edit that removes differentiation from a section. */
-export function removeDifferentiation(_request: RemoveDifferentiationRequest): AssignmentResult {
-	void _request;
-	return performerWorker();
-}
+	ImportSuggestion,
+	SlotOrderDeviation,
+	SlotOrderIssue,
+	TooManyGroupOption,
+	UnavailableSlotIssue
+} from './types.js';
