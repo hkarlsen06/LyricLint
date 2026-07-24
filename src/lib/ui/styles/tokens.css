@@ -1,0 +1,77 @@
+:root {
+	color-scheme: light dark;
+	--font-ui:
+		'IBM Plex Sans', 'Avenir Next', Avenir, 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, ui-monospace, monospace;
+
+	--color-canvas: oklch(97.8% 0.008 78);
+	--color-surface: oklch(99.1% 0.005 78);
+	--color-surface-subtle: oklch(95.3% 0.01 78);
+	--color-surface-strong: oklch(91.5% 0.014 78);
+	--color-text: oklch(24% 0.018 65);
+	--color-text-muted: oklch(44% 0.016 65);
+	--color-border: oklch(82% 0.018 72);
+	--color-border-strong: oklch(65% 0.025 70);
+	--color-accent: oklch(48% 0.13 42);
+	--color-accent-hover: oklch(42% 0.13 42);
+	--color-accent-text: oklch(98% 0.006 78);
+	--color-focus: oklch(54% 0.15 255);
+	--color-danger: oklch(47% 0.16 28);
+	--color-danger-surface: oklch(94% 0.03 28);
+	--color-success: oklch(43% 0.09 150);
+	--color-warning: oklch(47% 0.11 75);
+	--color-suggestion: oklch(43% 0.09 210);
+	--color-manual: oklch(43% 0.08 305);
+	--shadow-popover: 0 2px 8px oklch(20% 0.02 65 / 0.14);
+
+	--performer-plum: oklch(55% 0.15 325);
+	--performer-ochre: oklch(60% 0.13 75);
+	--performer-teal: oklch(53% 0.1 185);
+	--performer-rose: oklch(57% 0.14 20);
+	--performer-indigo: oklch(53% 0.12 275);
+	--performer-olive: oklch(55% 0.1 120);
+	--performer-copper: oklch(55% 0.12 48);
+	--performer-slate: oklch(52% 0.045 240);
+
+	--radius-control: 0.4rem;
+	--radius-panel: 0.55rem;
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--color-canvas: oklch(18% 0.012 65);
+		--color-surface: oklch(21.5% 0.014 65);
+		--color-surface-subtle: oklch(25% 0.016 65);
+		--color-surface-strong: oklch(30% 0.018 65);
+		--color-text: oklch(91% 0.012 75);
+		--color-text-muted: oklch(72% 0.016 72);
+		--color-border: oklch(36% 0.018 65);
+		--color-border-strong: oklch(52% 0.022 65);
+		--color-accent: oklch(68% 0.12 50);
+		--color-accent-hover: oklch(74% 0.11 50);
+		--color-accent-text: oklch(19% 0.012 65);
+		--color-focus: oklch(76% 0.13 245);
+		--color-danger: oklch(72% 0.13 25);
+		--color-danger-surface: oklch(28% 0.045 25);
+		--color-success: oklch(72% 0.09 150);
+		--color-warning: oklch(76% 0.1 78);
+		--color-suggestion: oklch(73% 0.08 210);
+		--color-manual: oklch(74% 0.09 305);
+		--shadow-popover: 0 2px 8px oklch(5% 0.01 65 / 0.34);
+
+		--performer-plum: oklch(72% 0.13 325);
+		--performer-ochre: oklch(76% 0.12 75);
+		--performer-teal: oklch(72% 0.09 185);
+		--performer-rose: oklch(72% 0.12 20);
+		--performer-indigo: oklch(72% 0.11 275);
+		--performer-olive: oklch(74% 0.09 120);
+		--performer-copper: oklch(72% 0.11 48);
+		--performer-slate: oklch(72% 0.04 240);
+	}
+}
