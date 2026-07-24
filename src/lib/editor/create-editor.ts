@@ -25,6 +25,7 @@ import {
 	setEditorCallbacksEffect,
 	setEditorContextEffect
 } from './extensions/editor-state.js';
+import { legendCleanupFilter } from './extensions/legend-cleanup.js';
 import {
 	lintDecorationField,
 	lintDecorationTheme,
@@ -245,6 +246,7 @@ export function createLyricEditor(
 		editorCallbacksField,
 		editorRevisionField,
 		editorComposingField,
+		legendCleanupFilter(),
 		performerGroupsField,
 		performerDecorationField,
 		lintDecorationField,

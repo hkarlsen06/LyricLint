@@ -21,6 +21,7 @@ export {
 export { extractPerformers } from './import.js';
 export { allocateStyleSlot, analyzeSlotOrder } from './allocation.js';
 export { assignVoiceGroup, insertSectionHeader, removeDifferentiation } from './transform.js';
+export { cleanupLegendSlots, usedStyleSlots } from './legend-cleanup.js';
 export { TOO_MANY_GROUP_OPTIONS } from './types.js';
 export type {
 	AppliedAssignmentResult,

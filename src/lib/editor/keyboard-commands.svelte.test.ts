@@ -145,6 +145,21 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 		await expect.element(page.getByRole('button', { name: /Replace word/u })).toHaveFocus();
 	});
 
+	it('prunes an unused legend slot in the same transaction and restores it with one undo', async () => {
+		const text = '[Verse: Mara, <i>Jun</i>]\nMara sings\n<i>Jun sings</i>';
+		const { handle } = await mount({ text });
+		const spanFrom = text.indexOf('<i>Jun sings</i>');
+
+		handle.dispatchAtomic({
+			baseRevision: 0,
+			edits: [{ from: spanFrom, to: spanFrom + '<i>Jun sings</i>'.length, insert: '' }]
+		});
+		expect(handle.getSnapshot().text).toBe('[Verse: Mara]\nMara sings\n');
+
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(text);
+	});
+
 	it('withholds composition snapshots and resumes lint exactly once after compositionend', async () => {
 		const lint = vi.fn();
 		const editorCallbacks = callbacks({
