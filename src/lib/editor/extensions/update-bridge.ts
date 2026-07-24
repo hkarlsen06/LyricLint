@@ -58,11 +58,12 @@ export function createUpdateListener(callback: (snapshot: EditorSnapshot) => voi
 				return;
 			}
 
-			if (
-				update.docChanged ||
-				update.selectionSet ||
-				update.transactions.some((transaction) => transaction.effects.length > 0)
-			) {
+			// Emit only for document, selection, or composition-resume changes.
+			// Effects-only transactions (context or diagnostics application) must
+			// not re-emit: the shell reacts to snapshots by re-applying context,
+			// so emitting here would form an infinite update cycle.
+			const resumedComposition = update.startState.field(editorComposingField);
+			if (update.docChanged || update.selectionSet || resumedComposition) {
 				callback(snapshotFromState(update.state));
 			}
 		})

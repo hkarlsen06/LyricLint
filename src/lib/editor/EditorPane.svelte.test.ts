@@ -105,6 +105,30 @@ describe('EditorPane', () => {
 		expect(handle.getSnapshot().text).toBe('First\nSecond\n');
 	});
 
+	it('does not emit snapshots for effects-only context updates', async () => {
+		// Regression: context application dispatches CodeMirror effects; emitting
+		// snapshots for those transactions forms an infinite shell↔editor cycle
+		// (effect_update_depth_exceeded) because the shell re-derives context
+		// from every snapshot.
+		const editorCallbacks = callbacks();
+		const screen = await render(EditorPane, {
+			props: {
+				initialText: '[Verse]\nHello',
+				context: context(),
+				callbacks: editorCallbacks
+			}
+		});
+		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+		const snapshotCalls = vi.mocked(editorCallbacks.onSnapshot).mock.calls.length;
+
+		await screen.rerender({
+			context: { ...context(), ruleSetVersion: 'context-change-only' }
+		});
+		await new Promise((resolve) => setTimeout(resolve, 150));
+
+		expect(vi.mocked(editorCallbacks.onSnapshot).mock.calls.length).toBe(snapshotCalls);
+	});
+
 	it('sets content language and direction attributes and updates the language', async () => {
 		let handle: EditorHandle | undefined;
 		const editorCallbacks = callbacks();
