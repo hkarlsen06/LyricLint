@@ -92,6 +92,11 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	let drafts = $state<DraftSummary[]>([]);
 	let saveStatus = $state<AutosaveStatus>(deps.autosave.status());
 	let statusRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+	// Whether this draft has a record in the repository. A draft with no text
+	// never does — see `scheduleSave` — so blankness and persistence track each
+	// other, and startup recovery has already swept any blank record an older
+	// build left behind.
+	let persisted = deps.initialDraft.text.trim().length > 0;
 
 	const feedback = deps.feedback;
 	const bindings = deps.bindings;
@@ -111,8 +116,47 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		};
 	}
 
+	/**
+	 * Drop the record of a draft the user has emptied, and forget any write
+	 * still queued for it. Undo puts the text back and the next save writes the
+	 * same id again, so nothing is lost by letting the empty version go.
+	 */
+	function discardEmptyDraft(): void {
+		if (deps.autosave.cancelDraft) {
+			deps.autosave.cancelDraft(draftId);
+		} else {
+			deps.autosave.cancel();
+		}
+		saveStatus = deps.autosave.status();
+		if (!persisted) return;
+		persisted = false;
+		const discardedId = draftId;
+		void deps.repository
+			.delete(discardedId)
+			.then(() => store.refreshDrafts())
+			.catch(() => {
+				feedback.announce('Local storage could not be updated.');
+			});
+	}
+
 	function scheduleSave(): void {
-		deps.autosave.schedule({ revision: bindings.snapshot.revision, draft: draftFromSnapshot() });
+		const draft = draftFromSnapshot();
+
+		// An empty document is not a draft. It has nothing to recover and shows up
+		// as one more "Untitled draft" among the real ones, so it is never
+		// written — and a draft emptied out gives up the record it had.
+		if (draft.text.trim().length === 0) {
+			discardEmptyDraft();
+			return;
+		}
+
+		deps.autosave.schedule({ revision: bindings.snapshot.revision, draft });
+		if (!persisted) {
+			// The first text is what creates the record, so it is also what makes
+			// this the draft a reload comes back to.
+			persisted = true;
+			void deps.repository.setCurrent(draftId).catch(() => {});
+		}
 		saveStatus = deps.autosave.status();
 		if (statusRefreshTimer) clearTimeout(statusRefreshTimer);
 		const refreshStatus = () => {
@@ -132,7 +176,9 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		});
 	}
 
-	function loadDraft(nextDraft: DraftRecord): void {
+	/** `isPersisted` is false for a draft that exists only in memory so far. */
+	function loadDraft(nextDraft: DraftRecord, isPersisted: boolean): void {
+		persisted = isPersisted;
 		draftId = nextDraft.id;
 		title = nextDraft.title;
 		language = nextDraft.language;
@@ -194,6 +240,9 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		async setTitle(nextTitle) {
 			const trimmed = nextTitle.trim() || 'Untitled draft';
 			title = trimmed;
+			// An empty draft has no record to rename. The title rides along with the
+			// first save that gives it one.
+			if (!persisted) return;
 			try {
 				await deps.repository.rename(draftId, trimmed);
 				scheduleSave();
@@ -213,22 +262,12 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		},
 		async createDraft() {
 			await deps.autosave.flush();
-			const timestamp = deps.now();
-			const rememberedLanguage = language;
-			const draft: DraftRecord = {
-				id: deps.idFactory(),
-				title: 'Untitled draft',
-				text: '',
-				language: rememberedLanguage,
-				performers: [],
-				createdAt: timestamp,
-				updatedAt: timestamp,
-				ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,
-				editorSelection: { anchor: 0, head: 0 }
-			};
-			const created = await deps.repository.create(draft);
-			await deps.repository.setCurrent(created.id);
-			loadDraft(created);
+			// Nothing is written here. A new draft is empty by definition, and the
+			// first save with text in it is what creates the record and takes over
+			// the current-draft pointer — so a new draft abandoned untouched leaves
+			// nothing behind, and a reload before the first keystroke comes back to
+			// the draft that still has the user's work in it.
+			loadDraft(emptyTransientDraft(), false);
 			await store.refreshDrafts();
 			feedback.announce('New draft created.');
 		},
@@ -241,12 +280,18 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				return;
 			}
 			await deps.repository.setCurrent(id);
-			loadDraft(draft);
+			loadDraft(draft, true);
 			await store.refreshDrafts();
 			feedback.announce(`Opened ${draft.title}.`);
 		},
 		async renameDraft(id, nextTitle) {
 			const trimmed = nextTitle.trim() || 'Untitled draft';
+			if (id === draftId && !persisted) {
+				// Same as `setTitle`: an empty draft has no record to rename yet.
+				title = trimmed;
+				feedback.announce(`Renamed draft to ${trimmed}.`);
+				return;
+			}
 			await deps.repository.rename(id, trimmed);
 			if (id === draftId) {
 				title = trimmed;
@@ -283,9 +328,9 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				const next = remaining[0] ? await deps.repository.get(remaining[0].id) : undefined;
 				if (next) {
 					await deps.repository.setCurrent(next.id);
-					loadDraft(next);
+					loadDraft(next, true);
 				} else {
-					loadDraft(emptyTransientDraft());
+					loadDraft(emptyTransientDraft(), false);
 				}
 			}
 			await store.refreshDrafts();
@@ -295,7 +340,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			deps.autosave.cancel();
 			await deps.repository.deleteAll();
 			drafts = [];
-			loadDraft(emptyTransientDraft());
+			loadDraft(emptyTransientDraft(), false);
 			feedback.announce('All local drafts deleted.');
 		}
 	};

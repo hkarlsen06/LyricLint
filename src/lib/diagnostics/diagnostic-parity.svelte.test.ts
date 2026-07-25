@@ -220,10 +220,13 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		const tag = popover.container.querySelector('.severity')!;
 		expect(tag).not.toBeNull();
 		expect(tag.classList.contains('severity--warning')).toBe(true);
-		expect(tag.textContent?.trim()).toBe('Warning');
+		// A glyph, and the word behind it for whoever is not looking at it.
+		expect(tag.querySelector('.severity-icon')).not.toBeNull();
+		expect(tag.querySelector('.sr-only')?.textContent).toBe('Warning');
+		expect(tag.getAttribute('title')).toBe('Warning');
 		// Styled from the shared stylesheet, not from a copy scoped to the
-		// overlay: a colored glyph and a colored word, with no box around them —
-		// the badge that used to sit here spent a whole line on one word.
+		// overlay: a colored glyph with no box around it — the badge that used to
+		// sit here spent a whole line on one word.
 		const style = getComputedStyle(tag);
 		expect(style.backgroundColor).toBe('rgba(0, 0, 0, 0)');
 		expect(style.borderRadius).toBe('0px');

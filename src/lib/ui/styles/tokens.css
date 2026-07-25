@@ -32,6 +32,15 @@
 	   no use for it — it is for a page that is nothing but a message, where the
 	   brand is the first thing read rather than a label in a toolbar. */
 	--font-size-2xl: 1.75rem;
+	/* One step further, and the only thing in the system allowed to use it is the
+	   landing page's headline — the single line on the whole site that has to be
+	   read before anything else on the page. It is fluid because it is the one
+	   size that has to work at a phone's width and at a monitor's without a
+	   breakpoint: a headline that stayed at its desktop size on a 320px screen
+	   would take five lines, and one that stayed at its phone size on a monitor
+	   would not lead anything. It stops growing at an 800px viewport, which is
+	   where the prose column beneath it stops growing too. */
+	--font-size-3xl: clamp(1.9rem, 1.5rem + 2vw, 2.5rem);
 	--line-height-tight: 1.25;
 	--line-height-ui: 1.4;
 	--line-height-body: 1.5;

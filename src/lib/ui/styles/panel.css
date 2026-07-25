@@ -21,12 +21,29 @@
 
 /* Positioned so it is the containing block for anything absolute inside the
    diagnostic cards; otherwise such a box resolves against the shell and its
-   offset down this long list leaks out as shell-level scrollable overflow. */
+   offset down this long list leaks out as shell-level scrollable overflow.
+
+   A column too, so the active pane inherits the height the body was given
+   instead of collapsing onto its content: the linter's foot — the recent
+   drafts — is at the bottom of the panel, which only means anything if the
+   panel's height reaches the pane that draws it. A pane taller than the body
+   still grows and scrolls, because it is only told to fill, never to fit. */
 .right-panel__body {
 	position: relative;
+	display: flex;
 	min-height: 0;
 	flex: 1;
+	flex-direction: column;
 	overflow: auto;
+}
+
+/* `:not([hidden])` is load bearing: Bits UI hides the inactive panes with the
+   attribute, and a bare `display: flex` here outranks the UA rule that honours
+   it — all three panels stack up in one column. */
+.right-panel__pane:not([hidden]) {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 }
 
 /* Chrome at both ends of the panel: the tab strip above, this below, and the

@@ -276,11 +276,11 @@
 	     so `offers.{#if …}` followed by an indented line ran the two sentences
 	     together; whitespace *outside* the tag survives as the space they need. -->
 	<p class="site-demo__hint">
-		This is the real editor. Hover an underline to see the finding, the Genius guideline behind it,
-		and the change it offers.
+		Hover over an underline to see the finding, the relevant Genius guideline, and the suggested
+		fix.
 		{#if performers.length > 0}
-			Select a line to hand it to {performerList} and watch the markup write itself.
+			Select a line to credit it to {performerList}.
 		{/if}
-		Type in it if you want to see what else it catches.
+		Edit directly to see what else the editor catches.
 	</p>
 </div>

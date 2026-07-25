@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
-	import { tick } from 'svelte';
+	import { tick, type Snippet } from 'svelte';
 	import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
 	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
 	import DiagnosticDetails from './DiagnosticDetails.svelte';
@@ -10,6 +10,7 @@
 		sources,
 		activeDiagnosticKey,
 		emptyState,
+		emptyActions,
 		lineFor,
 		onNavigate,
 		onChooseHeader,
@@ -32,6 +33,12 @@
 		 * panel never just stops without saying which.
 		 */
 		emptyState: { title: string; detail: string };
+		/**
+		 * What the reader can do about the empty state, when there is anything.
+		 * Only the untouched-document case has an answer worth a control; the
+		 * other three are already resolved by something elsewhere in the panel.
+		 */
+		emptyActions?: Snippet;
 		lineFor?: (offset: number) => number;
 		onNavigate: (diagnostic: Diagnostic) => void;
 		onChooseHeader: (diagnostic: Diagnostic) => void;
@@ -141,6 +148,7 @@
 	<div class="empty-state diagnostic-list__empty">
 		<p class="diagnostic-list__empty-title">{emptyState.title}</p>
 		<p>{emptyState.detail}</p>
+		{@render emptyActions?.()}
 	</div>
 {:else}
 	<ol bind:this={list} class="diagnostic-list" aria-label="Document diagnostics">

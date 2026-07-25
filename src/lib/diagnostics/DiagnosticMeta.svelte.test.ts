@@ -51,13 +51,23 @@ describe('the diagnostic meta line', () => {
 			line: 47
 		});
 
+		// The severity is a glyph, so the line opens with the mark and no
+		// interpunct after it — an interpunct separates facts of the same kind, and
+		// the mark is not one of the words in the list it introduces.
 		expect(visibleText(screen.container.querySelector('.diagnostic-meta__row')!)).toBe(
-			'Warning · Line 47 · Page G-LINES'
+			'Line 47 · Page G-LINES'
 		);
 
-		// The severity is the marked word that opens the line, not a badge above
-		// it, so the line is one line high.
+		// The severity is the mark that opens the line, not a badge above it, so
+		// the line is one line high.
+		const severity = screen.container.querySelector('.severity')!;
 		expect(screen.container.querySelectorAll('.severity')).toHaveLength(1);
+		expect(severity.querySelector('.severity-icon')).not.toBeNull();
+
+		// The word left the screen, not the page: a screen reader still hears it,
+		// and the pointer gets it from the tooltip.
+		expect(severity.querySelector('.sr-only')?.textContent).toBe('Warning');
+		expect(severity.getAttribute('title')).toBe('Warning');
 		screen.unmount();
 	});
 

@@ -463,15 +463,37 @@ describe('autosave and recovery', () => {
 		expect(await repository.getCurrent()).toBe('newest');
 	});
 
-	it('creates and selects a blank draft only when no draft is recoverable', async () => {
+	it('hands back a blank draft without writing one when nothing is recoverable', async () => {
 		const { repository } = await createRepository('recover-blank');
 
 		const recovered = await recoverStartupDraft(repository);
 
 		expect(recovered.text).toBe('');
 		expect(recovered.title).toBe('Untitled draft');
-		expect(await repository.getCurrent()).toBe(recovered.id);
-		expect((await repository.list()).map(({ id }) => id)).toEqual([recovered.id]);
+		// A draft with nothing in it has nothing to recover, so nothing is stored
+		// for it until the first save that gives it text.
+		expect(await repository.list()).toEqual([]);
+		expect(await repository.getCurrent()).toBeUndefined();
+	});
+
+	it('sweeps blank records left behind by earlier sessions', async () => {
+		const { repository } = await createRepository('recover-sweep');
+		await repository.create(
+			draft({ id: 'blank-newest', text: '   \n', updatedAt: '2026-01-03T00:00:00.000Z' })
+		);
+		await repository.create(
+			draft({ id: 'written', text: 'a line', updatedAt: '2026-01-02T00:00:00.000Z' })
+		);
+		await repository.create(
+			draft({ id: 'blank-current', text: '', updatedAt: '2026-01-01T00:00:00.000Z' })
+		);
+		await repository.setCurrent('blank-current');
+
+		const recovered = await recoverStartupDraft(repository);
+
+		expect(recovered.id).toBe('written');
+		expect((await repository.list()).map(({ id }) => id)).toEqual(['written']);
+		expect(await repository.getCurrent()).toBe('written');
 	});
 });
 

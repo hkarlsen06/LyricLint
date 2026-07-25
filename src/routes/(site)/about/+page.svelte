@@ -40,30 +40,46 @@ And the "quiet" part was never really quiet`;
 </svelte:head>
 
 <main class="site-main site-prose">
-	<h1>Catch Genius formatting problems before you submit.</h1>
+	<!-- Three things, and no more — see `.site-hero` in site.css for why the
+	     block that used to say the whole product up here says one sentence of it
+	     now. The `Desktop or laptop` fact used to be two sentences explaining
+	     that the editor and the linter work side by side; the phone gate already
+	     says exactly that, in full, to the only readers it matters to.
 
-	<p class="site-lede">
-		LyricLint is a lyric editor and linter for Genius transcription conventions. Paste a
-		transcription, see what is wrong and which Genius guideline says so, fix it, and copy markup
-		that is still exactly what you would have typed by hand.
-	</p>
+	     Three facts and not four, and the one that went is the privacy claim: the
+	     footer of every page already carries it and it has a section of its own
+	     further down. What is left is what this surface owes a reader deciding
+	     whether to press the button — what it costs and what it needs — and it
+	     stays on one line down to a 390px screen, which a fourth did not. -->
+	<header class="site-hero">
+		<h1>Catch Genius formatting problems before you submit.</h1>
 
-	<div class="site-actions">
-		<a class="button button--contrast" href={resolve('/')}>Open the workbench</a>
-		<a class="button" href={resolve('/rules')}>Browse the {ruleCount} rules</a>
-	</div>
+		<p class="site-lede">
+			Paste a transcription and see every formatting problem — each one with the Genius guideline
+			behind it.
+		</p>
 
-	<p class="site-aside">
-		Free, and there is nothing to sign up for. It needs a desktop or laptop — the editor and the
-		linter work side by side, and fixing a finding means selecting text and typing.
-	</p>
+		<div class="site-actions">
+			<a class="button button--contrast" href={resolve('/')}>Open the workbench</a>
+			<a class="button" href={resolve('/rules')}>Browse the {ruleCount} rules</a>
+		</div>
+
+		<p class="site-meta">
+			<span>Free</span>
+			<span class="site-meta__fact">
+				<span class="site-meta__separator" aria-hidden="true">·</span>No account
+			</span>
+			<span class="site-meta__fact">
+				<span class="site-meta__separator" aria-hidden="true">·</span>Desktop or laptop
+			</span>
+		</p>
+	</header>
 
 	<h2>What it looks like</h2>
 
 	<p>
-		Let's say a transcription arrives with a written-out section header, a stray comma, a lowercase
-		line start, and an ad-lib that has not been parenthesised. This is the workbench's own editor,
-		running the real rule set — not a screenshot of it:
+		A transcription arrives with a written-out section header, a lowercase line start, a stray
+		comma, and an ad-lib nobody parenthesised:
 	</p>
 
 	<LiveDemo text={messy} performerNames={['Avery', 'Blair']} />

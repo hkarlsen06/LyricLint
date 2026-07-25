@@ -16,7 +16,9 @@ import type {
 	VoiceGroup
 } from '$lib/core/types.js';
 import { SvelteDate, SvelteMap } from 'svelte/reactivity';
-import { copyCanonicalMarkup, downloadUtf8Text } from '../clipboard.js';
+import { resolveLanguageTag } from '$lib/languages/registry.js';
+import { copyCanonicalMarkup, downloadUtf8Text, readClipboardText } from '../clipboard.js';
+import { sampleDraftLanguage, sampleDraftText } from '../sample-draft.js';
 import { createDraftStore } from './draft-store.svelte.js';
 import { createEditorSession } from './editor-session.svelte.js';
 import type { FeedbackState, ToastMessage } from './feedback.svelte.js';
@@ -43,6 +45,7 @@ export interface WorkbenchDependencies {
 	sources?: readonly SourceReference[];
 	ruleSet?: RuleSetManifest;
 	copy?: (text: string) => Promise<void>;
+	readClipboard?: () => Promise<string>;
 	exportText?: (text: string, filename: string) => void;
 	idFactory?: () => string;
 	now?: () => string;
@@ -52,6 +55,19 @@ export interface WorkbenchDependencies {
 export interface WorkbenchController {
 	readonly editor: EditorHandle;
 	readonly snapshot: EditorSnapshot;
+	/**
+	 * Whether the document holds nothing worth acting on yet. Several surfaces
+	 * change shape on this — the toolbar's one contrast action, the linter's
+	 * empty state, the status bar's counts — so they read it from here rather
+	 * than each deciding what "empty" means.
+	 */
+	readonly isEmpty: boolean;
+	/**
+	 * Whether the bundled sample is worth offering: there is nothing to lose and
+	 * its language is the one selected, so loading it cannot open with a
+	 * mismatch warning about lyrics the user never wrote.
+	 */
+	readonly canLoadSample: boolean;
 	readonly draftId: string;
 	readonly title: string;
 	readonly language: string;
@@ -73,7 +89,12 @@ export interface WorkbenchController {
 	readonly ruleSet?: RuleSetManifest;
 	readonly rosterSuggestions: readonly RosterMergeSuggestion[];
 	readonly unresolvedVoiceGroups: readonly VoiceGroup[];
-	setEditorHandle(handle: EditorHandle): void;
+	/**
+	 * Publish the editor handle bound by the workspace. Svelte clears a bound
+	 * component prop during keyed teardown, so the hand-off can briefly carry
+	 * `undefined` before the replacement editor publishes its handle.
+	 */
+	setEditorHandle(handle: EditorHandle | undefined): void;
 	setSaveStatus(status: AutosaveStatus): void;
 	onSnapshot(snapshot: EditorSnapshot): void;
 	setActiveTab(tab: RightPanelTab): void;
@@ -98,6 +119,9 @@ export interface WorkbenchController {
 	ignoreRule(ruleId: string): void;
 	restoreRule(ruleId: string): void;
 	copyCanonical(): Promise<void>;
+	pasteLyrics(): Promise<void>;
+	/** Replace an empty document with the bundled sample transcription. */
+	loadSample(): void;
 	insertSection(): void;
 	addPerformer(displayName: string): void;
 	renamePerformer(id: string, displayName: string): void;
@@ -127,6 +151,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	const feedback = deps.feedback ?? createFeedbackState();
 	const sources = new SvelteMap((deps.sources ?? []).map((source) => [source.id, source]));
 	const copy = deps.copy ?? copyCanonicalMarkup;
+	const readClipboard = deps.readClipboard ?? readClipboardText;
 	const exportText = deps.exportText ?? downloadUtf8Text;
 	const now = deps.now ?? (() => new SvelteDate().toISOString());
 	const idFactory =
@@ -140,7 +165,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		editor: deps.editor,
 		initialSnapshot: deps.initialSnapshot,
 		feedback,
-		copy
+		copy,
+		readClipboard,
+		// `panel` is declared below and only read when a replacement actually
+		// dispatches, which is long after this module has finished evaluating.
+		onBeforeReplace: () => panel.leadOnNextSnapshot()
 	});
 
 	const draft = createDraftStore({
@@ -194,6 +223,15 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		get snapshot() {
 			return editorSession.snapshot;
+		},
+		get isEmpty() {
+			return editorSession.snapshot.text.trim().length === 0;
+		},
+		get canLoadSample() {
+			return (
+				editorSession.snapshot.text.trim().length === 0 &&
+				resolveLanguageTag(draft.language) === sampleDraftLanguage
+			);
 		},
 		get draftId() {
 			return draft.draftId;
@@ -259,6 +297,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			return roster.unresolvedVoiceGroups;
 		},
 		setEditorHandle(handle) {
+			// Keep the last usable handle through the keyed editor's teardown.
+			// Reactive diagnostic cleanup can still run during that hand-off, and
+			// replacing the handle with `undefined` would make even an optional
+			// editor capability such as `previewAtomic` unsafe to inspect.
+			if (!handle) return;
 			editorSession.setEditorHandle(handle);
 			// The card that starts expanded asks for its preview before the real
 			// editor exists to draw it. Now that one does, show it.
@@ -297,6 +340,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		ignoreRule: panel.ignoreRule,
 		restoreRule: panel.restoreRule,
 		copyCanonical: editorSession.copyCanonical,
+		pasteLyrics: editorSession.pasteLyrics,
+		loadSample() {
+			editorSession.replaceDocument(
+				sampleDraftText,
+				'Sample transcription loaded. Undo replaces it with an empty draft.'
+			);
+		},
 		insertSection: editorSession.insertSection,
 		addPerformer: roster.addPerformer,
 		renamePerformer: roster.renamePerformer,

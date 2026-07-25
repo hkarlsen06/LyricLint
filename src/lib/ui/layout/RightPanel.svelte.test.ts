@@ -3,11 +3,45 @@ import { userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, test } from 'vitest';
 import LiveRegion from '../primitives/LiveRegion.svelte';
 import ToastRegion from '../primitives/ToastRegion.svelte';
+import type { DraftRecord } from '$lib/core/types.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
 import RightPanel from './RightPanel.svelte';
 
+function savedDraft(id: string, title: string, text = '[Verse]\nLine'): DraftRecord {
+	return {
+		id,
+		title,
+		text,
+		language: 'en',
+		performers: [],
+		createdAt: '2026-07-20T10:00:00.000Z',
+		updatedAt: '2026-07-20T10:00:00.000Z',
+		ruleSetVersion: '2026.7',
+		editorSelection: { anchor: 0, head: 0 }
+	};
+}
+
 describe('RightPanel', () => {
 	afterEach(cleanup);
+
+	// The panes are flex columns so the linter can pin its foot to the bottom of
+	// the panel. Bits UI hides the inactive ones with the `hidden` attribute, and
+	// a `display` declaration that does not exclude them outranks the rule that
+	// honours it — all three panels stack into one column.
+	test('draws only the active pane despite the panes being flex columns', async () => {
+		const { controller } = createTestWorkbench();
+		render(RightPanel, { controller });
+
+		const panes = () => [...document.querySelectorAll('.right-panel__pane')];
+		expect(panes().length).toBe(3);
+		const shown = () => panes().filter((pane) => getComputedStyle(pane).display !== 'none');
+		expect(shown()).toHaveLength(1);
+		expect(shown()[0]!.hasAttribute('hidden')).toBe(false);
+
+		await fireEvent.click(screen.getByRole('tab', { name: 'Tools' }));
+		await waitFor(() => expect(shown()).toHaveLength(1));
+		expect(shown()[0]!.textContent).toContain('Local data');
+	});
 
 	test('switches tabs with keyboard-operable Bits UI tabs', async () => {
 		const { controller } = createTestWorkbench();
@@ -98,8 +132,11 @@ describe('RightPanel', () => {
 		expect(screen.getByTestId('live-region').textContent).toContain('Severity filters hidden');
 
 		// Coming back from another panel only comes back; it does not also open them.
-		await fireEvent.click(screen.getByRole('tab', { name: 'Performers' }));
-		await fireEvent.click(linterTab);
+		// Use a full pointer sequence here: automatic tab activation runs on focus,
+		// before click, which is the ordering that caused the navigation press to
+		// be mistaken for a second press.
+		await userEvent.click(screen.getByRole('tab', { name: 'Performers' }));
+		await userEvent.click(linterTab);
 		await waitFor(() => expect(controller.activeTab).toBe('linter'));
 		expect(filters()).toBeNull();
 
@@ -315,17 +352,127 @@ describe('RightPanel', () => {
 		expect(calls.sectionHeaderRequestCount).toBe(1);
 	});
 
-	test('invites lyrics and a language check while the document is empty', () => {
+	// The editor now carries the instructions — a ghost transcription where the
+	// caret is, and Paste lyrics in the toolbar — so the panel says what it will
+	// do rather than repeating how to feed it, and offers the sample instead.
+	test('says what it is waiting for, and offers the sample, while the document is empty', () => {
 		const { controller } = createTestWorkbench({ text: '   \n\n', diagnostics: [] });
 		render(RightPanel, { controller });
 
 		expect(screen.getByText('Nothing to lint yet')).toBeTruthy();
 		expect(
-			screen.getByText(
-				'Paste or write some lyrics to get started, and make sure the selected language is correct.'
-			)
+			screen.getByText('Findings appear here as soon as the document has something in it.')
 		).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Load a sample draft' })).toBeTruthy();
 		expect(screen.queryByText('No issues found')).toBeNull();
+	});
+
+	test('replaces the empty document with the sample transcription in one edit', async () => {
+		const { controller, calls } = createTestWorkbench({ text: '', diagnostics: [] });
+		render(RightPanel, { controller });
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Load a sample draft' }));
+
+		expect(calls.dispatched).toHaveLength(1);
+		expect(calls.dispatched[0]!.edits[0]!.insert).toContain('[Verse 1]');
+	});
+
+	// English lyrics under another selection would open with a mismatch warning
+	// about a document the user never wrote, so the offer is withdrawn rather
+	// than made and then apologized for.
+	test('withholds the sample when the selected language is not the sample’s', async () => {
+		const { controller } = createTestWorkbench({ text: '', diagnostics: [] });
+		controller.setLanguage('no');
+		render(RightPanel, { controller });
+
+		await waitFor(() => expect(screen.getByText('Nothing to lint yet')).toBeTruthy());
+		expect(screen.queryByRole('button', { name: 'Load a sample draft' })).toBeNull();
+	});
+
+	// A fresh open is only empty because it opened a *new* draft; the work the
+	// user came back for should not be hidden behind a menu they have to find.
+	test('lists the other saved drafts while the document is empty', async () => {
+		const { controller } = createTestWorkbench({
+			text: '',
+			diagnostics: [],
+			drafts: [savedDraft('draft-1', 'Test draft', ''), savedDraft('draft-2', 'Older song')]
+		});
+		render(RightPanel, { controller });
+
+		await waitFor(() => expect(screen.getByText('Recent drafts')).toBeTruthy());
+		expect(screen.getByRole('button', { name: /^Older song/ })).toBeTruthy();
+		// The draft being looked at is not somewhere to go back to.
+		expect(screen.queryByRole('button', { name: /^Test draft/ })).toBeNull();
+
+		// They are the foot of the column, not part of the empty state's message:
+		// the sample answers "nothing to lint yet" and stays with it, the drafts
+		// come after everything the panel has to say about this document.
+		const panel = document.querySelector('.linter-panel')!;
+		const drafts = panel.querySelector('.linter-panel__drafts')!;
+		expect(panel.lastElementChild).toBe(drafts);
+		expect(drafts.contains(screen.getByRole('button', { name: 'Load a sample draft' }))).toBe(
+			false
+		);
+		expect(
+			drafts.compareDocumentPosition(screen.getByRole('button', { name: 'Load a sample draft' })) &
+				Node.DOCUMENT_POSITION_PRECEDING
+		).toBeTruthy();
+	});
+
+	// A draft the user wants rid of is most likely one of these, so the way out
+	// of it is in the row rather than behind the drafts menu.
+	test('deletes a recent draft in two presses without leaving its row', async () => {
+		const { controller, repository } = createTestWorkbench({
+			text: '',
+			diagnostics: [],
+			drafts: [savedDraft('draft-1', 'Test draft', ''), savedDraft('draft-2', 'Older song')]
+		});
+		render(RightPanel, { controller });
+
+		await waitFor(() => expect(screen.getByText('Recent drafts')).toBeTruthy());
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete Older song' }));
+
+		// The confirm takes the trigger's slot, and the row stops offering the
+		// draft while its deletion is the question.
+		expect(screen.queryByRole('button', { name: /^Older song/ })).toBeNull();
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+		await waitFor(async () =>
+			expect((await repository.list()).map(({ id }) => id)).not.toContain('draft-2')
+		);
+		await waitFor(() => expect(screen.queryByText('Recent drafts')).toBeNull());
+	});
+
+	test('cancelling a recent draft delete puts the row back', async () => {
+		const { controller, repository } = createTestWorkbench({
+			text: '',
+			diagnostics: [],
+			drafts: [savedDraft('draft-1', 'Test draft', ''), savedDraft('draft-2', 'Older song')]
+		});
+		render(RightPanel, { controller });
+
+		await waitFor(() => expect(screen.getByText('Recent drafts')).toBeTruthy());
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete Older song' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+		expect(screen.getByRole('button', { name: /^Older song/ })).toBeTruthy();
+		expect((await repository.list()).map(({ id }) => id)).toContain('draft-2');
+	});
+
+	test('offers nothing to press once the empty state is about filters instead', async () => {
+		const finding = diagnostic({
+			ruleId: 'quotes.typewriter',
+			severity: 'warning',
+			message: 'Use a straight typewriter quote in lyric text.'
+		});
+		const { controller } = createTestWorkbench({ diagnostics: [finding] });
+		render(RightPanel, { controller });
+
+		controller.toggleSeverity('warning');
+
+		await waitFor(() => expect(screen.getByText('Hidden by filters')).toBeTruthy());
+		expect(screen.queryByRole('button', { name: 'Load a sample draft' })).toBeNull();
+		expect(screen.queryByText('Recent drafts')).toBeNull();
 	});
 
 	test('blames the filters for an empty linter list only when they are the cause', async () => {

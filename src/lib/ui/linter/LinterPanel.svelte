@@ -1,9 +1,29 @@
 <script lang="ts">
 	import type { Severity } from '$lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
+	import { formatDraftDate, fullDraftDate } from '$lib/ui/drafts/draft-date.js';
 	import DiagnosticList from './DiagnosticList.svelte';
+	import SeverityIcon from '$lib/diagnostics/SeverityIcon.svelte';
+	import { tick } from 'svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
+
+	// One row at a time may be armed for deletion, so the pending draft is the
+	// list's state rather than each row's.
+	let pendingDeleteId = $state<string | undefined>();
+
+	async function deleteRecentDraft(id: string, trigger: HTMLButtonElement): Promise<void> {
+		// The row is about to leave the list, so the press hands focus to the next
+		// draft in it before it goes.
+		const nextDraft = trigger
+			.closest('li')
+			?.nextElementSibling?.querySelector<HTMLButtonElement>('.linter-panel__recent-draft');
+		await controller.deleteDraft(id);
+		pendingDeleteId = undefined;
+		await tick();
+		if (nextDraft?.isConnected) nextDraft.focus();
+	}
 
 	const filters: Array<{ value: Severity; label: string }> = [
 		{ value: 'error', label: 'Errors' },
@@ -38,13 +58,15 @@
 	// Only blame the filters when they are actually what is hiding something;
 	// an otherwise clean draft should read as clean.
 	const emptyState = $derived.by(() => {
-		// An untouched draft is not "clean" — it has nothing to lint yet, so the
-		// panel points at the two things that get linting started.
-		if (controller.snapshot.text.trim().length === 0) {
+		// An untouched draft is not "clean" — it has nothing to lint yet. The
+		// editor now carries the instructions (a ghost transcription where the
+		// caret is, and Paste lyrics in the toolbar), so this line says what the
+		// panel will do rather than repeating how to feed it, and the space under
+		// it holds the two things worth pressing from here.
+		if (controller.isEmpty) {
 			return {
 				title: 'Nothing to lint yet',
-				detail:
-					'Paste or write some lyrics to get started, and make sure the selected language is correct.'
+				detail: 'Findings appear here as soon as the document has something in it.'
 			};
 		}
 		if (hiddenByFilters > 0) {
@@ -71,13 +93,20 @@
 	const afterword = $derived(
 		hiddenByFilters > 0
 			? `${hiddenByFilters} more ${hiddenByFilters === 1 ? 'issue' : 'issues'} hidden by the severity filters.`
-			: 'No further issues.'
+			: 'No further issues detected.'
 	);
 
 	// What pressing the bulk button would settle, and what it would leave behind.
 	// Both numbers are about the list directly below, so they are counted over
 	// the same visible diagnostics the cards are drawn from.
 	const bulk = $derived(controller.bulkFixPlan);
+
+	// A fresh open is only empty because it opened a *new* draft — the work a
+	// returning user came back for is behind the drafts menu, which they have to
+	// know to look in. The panel has the room, so it says so.
+	const recentDrafts = $derived(
+		controller.drafts.filter((draft) => draft.id !== controller.draftId).slice(0, 5)
+	);
 
 	function lineFor(offset: number): number {
 		const text = controller.snapshot.text;
@@ -101,6 +130,10 @@
 					aria-pressed={controller.severityFilter.includes(filter.value)}
 					onclick={() => controller.toggleSeverity(filter.value)}
 				>
+					<!-- The chip wears the mark its rows wear. The row's word is gone, so
+					     without this the only thing tying "Suggestions" to the eight rows
+					     it hides would be their shared color. -->
+					<SeverityIcon severity={filter.value} />
 					{filter.label}
 					<span class="linter-panel__filter-count">{counts[filter.value]}</span>
 				</button>
@@ -140,11 +173,29 @@
 		</div>
 	{/if}
 
+	<!-- Only the untouched-document state gets a control, and only the sample:
+	     it is the one thing that answers "nothing to lint yet" in place, so it
+	     stays with the sentence it answers. "Hidden by filters" and "All issues
+	     ignored" already name the chip or the footer that undid them, and "No
+	     issues found" is not a problem to solve. The drafts are not an answer to
+	     this state at all — they are somewhere else to be — so they wait at the
+	     far end of the column instead of between the message and its offer. -->
+	{#snippet emptyActions()}
+		{#if controller.isEmpty && controller.canLoadSample}
+			<div class="linter-panel__empty-action">
+				<button type="button" class="button" onclick={() => controller.loadSample()}>
+					Load a sample draft
+				</button>
+			</div>
+		{/if}
+	{/snippet}
+
 	<DiagnosticList
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
 		activeDiagnosticKey={controller.activeDiagnosticKey}
 		{emptyState}
+		{emptyActions}
 		{lineFor}
 		onNavigate={(diagnostic) => controller.navigateToDiagnostic(diagnostic)}
 		onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
@@ -160,5 +211,53 @@
 	/>
 	{#if controller.visibleDiagnostics.length > 0}
 		<p class="linter-panel__afterword">{afterword}</p>
+	{/if}
+
+	<!-- The drafts the user already has sit at the foot of the column, under
+	     whatever the panel is currently saying about this document. They are a
+	     way out of it rather than a thing to do about it, and reading order is
+	     the difference: the message, the sample that resolves it, then — after
+	     the panel has finished with this draft — the others. Prose on the canvas,
+	     no border: the gap above it is already the separation. -->
+	{#if controller.isEmpty && recentDrafts.length > 0}
+		<div class="linter-panel__drafts">
+			<p class="linter-panel__empty-label" id="linter-panel-recent-label">Recent drafts</p>
+			<ul class="linter-panel__recent" aria-labelledby="linter-panel-recent-label">
+				{#each recentDrafts as draft (draft.id)}
+					<li>
+						<!-- Somewhere to go back to is also somewhere to be done with, and
+						     the drafts a returning user wants rid of are exactly the ones
+						     listed here. Same two-press control as the drafts menu, in the
+						     row it acts on. -->
+						{#if pendingDeleteId === draft.id}
+							<span class="linter-panel__recent-draft linter-panel__recent-draft--static">
+								<span class="linter-panel__recent-title">{draft.title}</span>
+								<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
+									{formatDraftDate(draft.updatedAt)}
+								</time>
+							</span>
+						{:else}
+							<button
+								type="button"
+								class="linter-panel__recent-draft"
+								onclick={() => controller.openDraft(draft.id)}
+							>
+								<span class="linter-panel__recent-title">{draft.title}</span>
+								<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
+									{formatDraftDate(draft.updatedAt)}
+								</time>
+							</button>
+						{/if}
+						<RemoveButton
+							subject={draft.title}
+							pending={pendingDeleteId === draft.id}
+							onRequest={() => (pendingDeleteId = draft.id)}
+							onCancel={() => (pendingDeleteId = undefined)}
+							onConfirm={(trigger) => deleteRecentDraft(draft.id, trigger)}
+						/>
+					</li>
+				{/each}
+			</ul>
+		</div>
 	{/if}
 </div>

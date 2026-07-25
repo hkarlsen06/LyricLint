@@ -30,16 +30,26 @@
 	 * Pressing the tab from another panel only comes back to the linter, and
 	 * pressing it again — while already inside — shows or hides the chips.
 	 *
-	 * Both handlers run before Bits UI activates the tab (it composes props
-	 * handlers ahead of its own), so `activeTab` here is still the tab the user
-	 * was on when they pressed. Keyboard needs its own path: Bits UI activates
-	 * Enter and Space from `keydown` and calls `preventDefault`, so no click
-	 * follows to be heard.
+	 * A pointer press is decided on pointerdown, before focusing an automatic
+	 * Bits UI tab activates it. Waiting for click would make that navigational
+	 * focus change look like a second press. Keyboard needs its own path: Bits UI
+	 * activates Enter and Space from `keydown` and calls `preventDefault`, so no
+	 * click follows to be heard.
 	 */
 	function pressLinterTab(): void {
 		if (controller.activeTab !== 'linter') return;
 		const open = controller.toggleSeverityFilters();
 		controller.feedback.announce(open ? 'Severity filters shown.' : 'Severity filters hidden.');
+	}
+
+	function pressLinterTabByPointer(event: PointerEvent): void {
+		if (event.button === 0) pressLinterTab();
+	}
+
+	function pressLinterTabBySyntheticClick(event: MouseEvent): void {
+		// Pointer clicks were already handled before focus. Keep zero-detail
+		// synthetic clicks operable for assistive technology and tests.
+		if (event.detail === 0) pressLinterTab();
 	}
 
 	function pressLinterTabByKey(event: KeyboardEvent): void {
@@ -64,7 +74,8 @@
 					value="linter"
 					title="Linter — press again to show the severity filters"
 					onkeydown={pressLinterTabByKey}
-					onclick={pressLinterTab}
+					onpointerdown={pressLinterTabByPointer}
+					onclick={pressLinterTabBySyntheticClick}
 				>
 					Linter
 					{#if controller.visibleDiagnostics.length > 0}
@@ -78,10 +89,19 @@
 			</Tabs.List>
 		</div>
 
+		<!-- The pane fills the body it sits in rather than hugging its content, so
+		     a panel that pins something to its foot — the linter's recent drafts —
+		     has a foot to pin it to. -->
 		<div class="right-panel__body">
-			<Tabs.Content value="linter"><LinterPanel {controller} /></Tabs.Content>
-			<Tabs.Content value="performers"><PerformersPanel {controller} /></Tabs.Content>
-			<Tabs.Content value="tools"><ToolsPanel {controller} /></Tabs.Content>
+			<Tabs.Content value="linter" class="right-panel__pane">
+				<LinterPanel {controller} />
+			</Tabs.Content>
+			<Tabs.Content value="performers" class="right-panel__pane">
+				<PerformersPanel {controller} />
+			</Tabs.Content>
+			<Tabs.Content value="tools" class="right-panel__pane">
+				<ToolsPanel {controller} />
+			</Tabs.Content>
 		</div>
 
 		<!-- The footer is a real boundary only once there is something behind it;

@@ -25,6 +25,11 @@ import {
 	setEditorCallbacksEffect,
 	setEditorContextEffect
 } from './extensions/editor-state.js';
+import {
+	documentPlaceholderField,
+	documentPlaceholderTheme,
+	placeholderGuidance
+} from './extensions/document-placeholder.js';
 import { fixPreviewField, fixPreviewTheme, setFixPreviewEffect } from './extensions/fix-preview.js';
 import {
 	headerRenameFilter,
@@ -173,6 +178,13 @@ const editorTheme = EditorView.theme({
 		backgroundColor: 'transparent',
 		boxShadow: 'inset 0 0 0 62.5rem color-mix(in oklch, var(--color-focus) 9%, transparent)'
 	},
+	// Except on the empty document. A wash marks the row you are on *among
+	// others*, and an empty document has no others for it to pick out — here it
+	// would only draw a band across the ghost's first row, cutting the four rows
+	// of one placeholder into a lit one and three unlit ones.
+	'.cm-activeLine:has(.ll-placeholder)': {
+		boxShadow: 'none'
+	},
 	'.cm-activeLineGutter': {
 		backgroundColor: 'transparent',
 		color: 'var(--color-text)'
@@ -298,6 +310,11 @@ export function createLyricEditor(
 		EditorView.contentAttributes.of({
 			'aria-label': 'Lyrics editor',
 			'aria-multiline': 'true',
+			// The visible ghost transcription is `aria-hidden`; this is how its
+			// guidance reaches a reader who cannot see it. It is stated
+			// unconditionally because ARIA already scopes a placeholder to an empty
+			// field, exactly as the visible one is scoped to an empty document.
+			'aria-placeholder': placeholderGuidance,
 			spellcheck: 'true',
 			autocapitalize: 'sentences'
 		}),
@@ -318,6 +335,7 @@ export function createLyricEditor(
 		headerRenameFilter(),
 		headerRenameNotifier(),
 		fixPreviewField,
+		documentPlaceholderField,
 		performerGroupsField,
 		performerDecorationField,
 		lintDecorationField,
@@ -332,6 +350,7 @@ export function createLyricEditor(
 		markupDimTheme,
 		invisibleMarksTheme,
 		fixPreviewTheme,
+		documentPlaceholderTheme,
 		editorTheme,
 		keymap.of(lyricLintKeymap(callbackProxy, options.keymapOverrides)),
 		selectionAnchorPlugin(

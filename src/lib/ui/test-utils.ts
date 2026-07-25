@@ -75,6 +75,8 @@ export function createTestWorkbench(options?: {
 	performers?: PerformerRecord[];
 	drafts?: DraftRecord[];
 	copyLog?: string[];
+	/** What the system clipboard hands back, or a rejection to fall back from. */
+	clipboardText?: string | (() => Promise<string>);
 	exportLog?: Array<{ text: string; filename: string }>;
 	selection?: SerializedSelection;
 	revision?: number;
@@ -170,6 +172,12 @@ export function createTestWorkbench(options?: {
 					}
 				}
 			: {}),
+		readClipboard: async () => {
+			const source = options?.clipboardText;
+			if (typeof source === 'function') return source();
+			if (source === undefined) throw new Error('Clipboard reads are unavailable.');
+			return source;
+		},
 		exportText: (canonicalText, filename) => {
 			options?.exportLog?.push({ text: canonicalText, filename });
 		},

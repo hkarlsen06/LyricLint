@@ -39,10 +39,6 @@
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-	const isMacLike =
-		typeof navigator !== 'undefined' && /mac|iphone|ipad|ipod/i.test(navigator.platform ?? '');
-	const fixShortcut = isMacLike ? '⌘.' : 'Ctrl+.';
-
 	// Local on purpose: the codebase has no shared pluralizer, and the status
 	// bar is UI chrome (always English), not lyric text, so the language packs
 	// under $lib/languages do not apply.
@@ -65,6 +61,24 @@
 			voiceGroups
 		};
 	});
+
+	// A count worth stating is one that could have been otherwise. On a fresh
+	// document all four are zero, which is four more ways for the window to say
+	// "empty" to someone who can already see that it is — so each one waits
+	// until it has something to report.
+	const documentCounts = $derived(
+		[
+			documentStats.lines > 0 ? count(documentStats.lines, 'line') : undefined,
+			documentStats.sections > 0 ? count(documentStats.sections, 'section') : undefined
+		].filter((label) => label !== undefined)
+	);
+
+	const voiceCounts = $derived(
+		[
+			documentStats.performers > 0 ? count(documentStats.performers, 'performer') : undefined,
+			documentStats.voiceGroups > 0 ? count(documentStats.voiceGroups, 'voice group') : undefined
+		].filter((label) => label !== undefined)
+	);
 
 	// Run the rule engine for one revision and fold the diagnostics into the
 	// snapshot before the controller stores it. Composition revisions reuse the
@@ -225,25 +239,25 @@
 
 	<footer class="status-bar" aria-label="Document summary">
 		<span class="status-bar__group">
-			<span>{count(documentStats.lines, 'line')} · {count(documentStats.sections, 'section')}</span>
-			<span
-				>{count(documentStats.performers, 'performer')} · {count(
-					documentStats.voiceGroups,
-					'voice group'
-				)}</span
-			>
+			{#if documentCounts.length > 0}
+				<span>{documentCounts.join(' · ')}</span>
+			{/if}
+			{#if voiceCounts.length > 0}
+				<span>{voiceCounts.join(' · ')}</span>
+			{/if}
 		</span>
 		<!-- The way out of the workbench, and the only one on the desktop layout.
 		     It belongs here rather than in the toolbar for two reasons: the toolbar
 		     holds commands that act on the document and this acts on nothing, and
 		     anyone already inside the app has no need to be told what the app is.
 		     What they do need, occasionally, is a URL to hand someone else — so it
-		     sits in the quietest persistent row on the screen, beside the other
-		     facts that are true whether or not you are looking at them. -->
-		<span class="status-bar__group status-bar__hints">
-			<span><kbd>F8</kbd> next issue</span>
-			<span><kbd>{fixShortcut}</kbd> fixes</span>
-			<span>offline ready</span>
+		     sits in the quietest persistent row on the screen.
+
+		     It is the whole end of the row now. "offline ready" was a fact about
+		     the app rather than about the document this row summarises, and the
+		     two keystroke hints were a legend for shortcuts nobody had asked for
+		     help with — three items of chrome to make one link look less alone. -->
+		<span class="status-bar__group">
 			<a class="status-bar__link" href={resolve('/about')}>About LyricLint</a>
 		</span>
 	</footer>

@@ -21,14 +21,17 @@
 	display: none;
 }
 
+/* Hangs from the draft switcher rather than from the chevron inside it, so the
+   list opens under the name it is offering to replace and lines up with its left
+   edge — the `<details>` goes static for exactly this. */
 .draft-menu__popover {
 	position: absolute;
 	z-index: var(--layer-menu);
 	top: calc(100% + var(--space-2));
-	right: 0;
-	width: min(34rem, calc(100vw - 2rem));
+	left: 0;
+	width: min(30rem, calc(100vw - 2rem));
 	max-height: min(36rem, calc(100vh - 5rem));
-	padding: var(--space-3);
+	padding: var(--space-2);
 	overflow: auto;
 	border: var(--border-width) solid var(--color-border-strong);
 	border-radius: var(--radius-overlay);
@@ -36,17 +39,20 @@
 	box-shadow: var(--shadow-overlay);
 }
 
+/* The rows lost their hairlines, so the one rule that is still worth drawing is
+   the one that separates the list from what names it. */
 .draft-menu__heading {
-	margin: 0;
-	padding-bottom: var(--space-3);
-	font-size: var(--font-size-lg);
+	padding: var(--space-1) var(--space-2) var(--space-2);
+	margin: 0 0 var(--space-1);
+	border-bottom: var(--border-width) solid var(--color-border);
+	font-size: var(--font-size-md);
 	line-height: var(--line-height-tight);
 }
 
 .draft-menu__footer {
 	display: flex;
-	margin-top: 0;
-	padding-top: var(--space-3);
+	margin-top: var(--space-1);
+	padding-top: var(--space-2);
 	border-top: var(--border-width) solid var(--color-border);
 	flex-wrap: wrap;
 	gap: var(--space-2);
@@ -54,25 +60,25 @@
 	justify-content: flex-end;
 }
 
+/*
+ * A draft is one `.list-row` (rows.css): its name, when it was last touched, and
+ * the commands that act on it, all on one line. What is here is only what the
+ * drafts list adds to that — the row is a way into the draft, so its name and
+ * date are one pressable control.
+ */
 .draft-list {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.draft-list > li {
-	display: grid;
-	padding: var(--space-3) 0;
-	border-top: var(--border-width) solid var(--color-border);
-	gap: var(--space-2);
-}
-
 .draft-list__title {
 	display: flex;
-	width: 100%;
+	min-width: 0;
 	padding: 0;
 	border: 0;
 	gap: var(--space-4);
+	flex: 1;
 	justify-content: space-between;
 	align-items: baseline;
 	background: transparent;
@@ -80,12 +86,16 @@
 	text-align: start;
 }
 
-.draft-list__title span {
-	min-width: 0;
-	overflow: hidden;
+/* The row keeps its shape while a delete is pending: same line, same columns,
+   with the press taken away rather than the layout rearranged. */
+.draft-list__title--static {
+	cursor: default;
+}
+
+/* The draft being edited is the one the whole window is about, so it is the
+   one name in the list drawn at full weight. */
+.draft-list > li.current .list-row__name {
 	font-weight: var(--font-weight-bold);
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .draft-list__title time {
@@ -96,24 +106,10 @@
 	white-space: nowrap;
 }
 
-.draft-list__actions {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--space-1);
-	align-items: center;
-}
-
-.draft-list__actions .button,
 .draft-menu__footer .button {
 	min-height: var(--control-height-sm);
 	padding-block: 0;
 	font-size: var(--font-size-sm);
-}
-
-/* Ordinary document actions stay together. The destructive action owns the
-   far edge, so the row reads as two scopes instead of one loose run of labels. */
-.draft-list__actions > .danger-text {
-	margin-inline-start: auto;
 }
 
 .toast-region {

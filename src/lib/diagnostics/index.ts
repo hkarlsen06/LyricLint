@@ -6,6 +6,7 @@
  */
 export { default as DiagnosticActions } from './DiagnosticActions.svelte';
 export { default as DiagnosticMeta } from './DiagnosticMeta.svelte';
+export { default as SeverityIcon } from './SeverityIcon.svelte';
 export { default as SeverityTag } from './SeverityTag.svelte';
 export { default as SourceCitation } from './SourceCitation.svelte';
 export { default as SourceLink } from './SourceLink.svelte';

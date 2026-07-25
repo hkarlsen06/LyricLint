@@ -14,6 +14,7 @@ import {
 	createInMemoryDraftRepository,
 	createMemorySessionStorage
 } from './in-memory.js';
+import { sampleDraftText } from '../sample-draft.js';
 import { createWorkbenchController } from './workbench.svelte.js';
 
 function draft(id: string, text = '[Verse]\nLine'): DraftRecord {
@@ -88,6 +89,7 @@ function setup(options: {
 	autosave?: AutosaveController;
 	onOpenDraft?: (draft: DraftRecord) => EditorSnapshot;
 	initialRecentLanguages?: readonly string[];
+	readClipboard?: () => Promise<string>;
 }) {
 	const initial = options.initial ?? draft('draft-a');
 	const repository =
@@ -120,12 +122,23 @@ function setup(options: {
 		ignoreStore: createContractSessionIgnoreStore(createMemorySessionStorage()),
 		idFactory: vi.fn(() => `generated-${Math.random().toString(36).slice(2)}`),
 		now: () => '2026-07-20T11:00:00.000Z',
+		readClipboard:
+			options.readClipboard ??
+			(() => Promise.reject(new Error('Clipboard reads are unavailable.'))),
 		onOpenDraft
 	});
 	return { controller, repository, autosave, editor };
 }
 
 describe('workbench draft safety', () => {
+	test('keeps a usable editor while a keyed replacement clears its bound handle', () => {
+		const { controller, editor } = setup({});
+
+		controller.setEditorHandle(undefined);
+
+		expect(controller.editor).toBe(editor);
+	});
+
 	test('keeps polling as a fallback until a late autosave failure is visible', () => {
 		vi.useFakeTimers();
 		try {
@@ -179,7 +192,7 @@ describe('workbench draft safety', () => {
 		expect(controlled.scheduled.at(-1)?.draft.id).toBe(first.id);
 	});
 
-	test('flushes the previous draft before creating a new one', async () => {
+	test('flushes the previous draft before creating a new one, and writes nothing for the new one', async () => {
 		const first = draft('draft-a');
 		const events: string[] = [];
 		const baseRepository = createInMemoryDraftRepository([first]);
@@ -200,8 +213,48 @@ describe('workbench draft safety', () => {
 
 		await controller.createDraft();
 
-		expect(events.indexOf('flush')).toBeLessThan(events.indexOf('create'));
+		expect(events).toContain('flush');
 		expect((await repository.get(first.id))?.text).toBe('[Verse]\nUnsaved edit');
+		// The new draft is empty, so it exists only in memory: no record, and the
+		// current-draft pointer still names the draft that has the user's work.
+		expect(events).not.toContain('create');
+		expect((await repository.list()).map(({ id }) => id)).toEqual([first.id]);
+		expect(await repository.getCurrent()).toBe(first.id);
+	});
+
+	test('writes the new draft on its first text, and takes over the current pointer then', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		const controlled = controllableAutosave(repository);
+		const { controller } = setup({
+			initial: first,
+			repository,
+			autosave: controlled.autosave
+		});
+
+		await controller.createDraft();
+		const created = controller.draftId;
+		controller.onSnapshot(snapshot(first, 1, '[Verse]\nFirst words'));
+		await controlled.autosave.flush();
+
+		expect((await repository.get(created))?.text).toBe('[Verse]\nFirst words');
+		expect(await repository.getCurrent()).toBe(created);
+	});
+
+	test('drops the record of a draft the user empties out', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		const controlled = controllableAutosave(repository);
+		const { controller } = setup({
+			initial: first,
+			repository,
+			autosave: controlled.autosave
+		});
+
+		controller.onSnapshot(snapshot(first, 1, ''));
+		await controlled.autosave.flush();
+
+		await vi.waitFor(async () => expect(await repository.get(first.id)).toBeUndefined());
 	});
 
 	test('uses the last selected language for a new draft', async () => {
@@ -216,10 +269,13 @@ describe('workbench draft safety', () => {
 
 		controller.setLanguage('fr');
 		await controller.createDraft();
+		const created = controller.draftId;
+		controller.onSnapshot(snapshot(first, 1, '[Verse]\nFirst words'));
+		await controlled.autosave.flush();
 
 		expect(controller.language).toBe('fr');
-		expect(controller.draftId).not.toBe(first.id);
-		expect((await repository.get(controller.draftId))?.language).toBe('fr');
+		expect(created).not.toBe(first.id);
+		expect((await repository.get(created))?.language).toBe('fr');
 	});
 
 	test('keeps recent languages in deduplicated most-recent-first order', () => {
@@ -410,6 +466,49 @@ describe('workbench diagnostic navigation', () => {
 
 		expect(selections).toEqual([{ anchor: 26, head: 30 }]);
 		expect(controller.activeDiagnosticKey).toBe('section-header-missing:26:30');
+	});
+
+	// Arriving with a whole document is the same situation as applying a fix: the
+	// panel leads with a finding, and nothing in the editor would say where that
+	// one sits unless the wash travels to it.
+	test('hands the workbench to the leading finding after the sample is loaded', () => {
+		const record = draft('draft-a', '');
+		const { controller, editor } = setup({ initial: record });
+		const selections: unknown[] = [];
+		editor.setSelection = (selection) => selections.push(selection);
+		const warning: Diagnostic = { ...diagnostic, from: 19, to: 25 };
+		const worse: Diagnostic = { ...diagnostic, severity: 'error', from: 26, to: 30 };
+		editor.dispatchAtomic = () => {
+			controller.onSnapshot({
+				...snapshot(record, 1, sampleDraftText),
+				diagnostics: [warning, worse]
+			});
+		};
+
+		controller.loadSample();
+
+		expect(selections).toEqual([{ anchor: 26, head: 30 }]);
+		expect(controller.activeDiagnosticKey).toBe('section-header-missing:26:30');
+	});
+
+	// The keyboard fallback replaces nothing, so it must not leave the hand-off
+	// armed for whatever edit the user makes next.
+	test('does not arm the hand-off when the clipboard could not be read', () => {
+		const text = '[Verse]\nfirst line';
+		const record = draft('draft-a', text);
+		const { controller, editor } = setup({ initial: record });
+		const selections: unknown[] = [];
+		editor.setSelection = (selection) => selections.push(selection);
+
+		return controller.pasteLyrics().then(() => {
+			controller.onSnapshot({
+				...snapshot(record, 1, text),
+				diagnostics: [{ ...diagnostic, from: 8, to: 13 }]
+			});
+
+			expect(selections).toEqual([]);
+			expect(controller.activeDiagnosticKey).toBeUndefined();
+		});
 	});
 
 	test('leaves the editor where it is when a fix clears the last diagnostic', () => {

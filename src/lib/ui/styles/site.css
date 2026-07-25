@@ -146,12 +146,128 @@
 	line-height: var(--line-height-body);
 }
 
+/*
+ * The landing page's hero, and the only part of that page that is not an
+ * article.
+ *
+ * What was wrong with it was mass, not wording. A headline, four muted lines
+ * restating the entire product, two actions, and two more muted lines of
+ * caveat — all at the same spacing, so nothing led, and the first thing under
+ * the loudest control on the page was an explanation of what it could not do.
+ * Six blocks of grey before the reader reached the demo that would have
+ * convinced them.
+ *
+ * It is three things now, and they are deliberately different sizes:
+ *
+ * - **The headline is the claim**, at the one display step above the UI ramp,
+ *   balanced so it breaks between phrases rather than wherever the column runs
+ *   out. It is the only thing on the site set at that size.
+ * - **The lede is one sentence**, and it says the one thing that separates this
+ *   from a spellchecker — the guideline behind each finding. Everything it used
+ *   to say beyond that has a section of its own further down, and saying it
+ *   twice is what made the top of the page read as anxious.
+ * - **What it costs is a line of facts**, in the meta idiom the diagnostic card
+ *   established: interpuncts, muted, small. A requirement stated as a
+ *   specification reads as a specification. The same requirement spelled out in
+ *   two sentences under the button reads as an apology for the button.
+ *
+ * No border and no fill, because a hero that boxed itself would be a card
+ * separating its contents from nothing. The space around it is the boundary,
+ * which is also why the padding here is the largest on the page.
+ */
+/*
+ * The hero takes the screen, and leaves exactly one thing on it: the top of
+ * what comes next.
+ *
+ * A first screen that is nothing but a headline is a claim with no evidence
+ * under it, and one that ends at a clean viewport edge reads as the end of the
+ * page — both of which cost the reader the demo, which is the only thing here
+ * that proves any of it. So the hero is sized to stop short: the next heading,
+ * its paragraph, and the top edge of the live editor stay on screen underneath
+ * it, cut off, which is what says there is more without a chevron having to say
+ * it.
+ *
+ * `svh` and not `dvh`. A phone's URL bar retracts on the first scroll and `dvh`
+ * would grow the hero underneath the reader as it went, closing the gap the
+ * hero exists to leave open; the small viewport height is the one that is
+ * always true.
+ */
+.site-hero {
+	/* Everything on screen the hero may not cover: the header band, this page's
+	   own top padding, and the peek. Measured rather than guessed — at 1496×760
+	   it leaves the next heading, its two-line paragraph, and the top 75px of the
+	   editor on screen. Re-measure it if the header's padding changes or the
+	   paragraph under "What it looks like" changes length; that paragraph is the
+	   only part of the peek that is not a fixed height. */
+	--site-hero-reserved: 18.5rem;
+
+	display: flex;
+	/*
+	 * The cap is what keeps "fills the screen" from becoming "adrift in it". A
+	 * laptop is wide and short, so the subtraction alone lands the content in a
+	 * comfortable box there — but a tablet held in portrait is a thousand pixels
+	 * tall, and centering four small elements in all of it puts a hundred and
+	 * fifty pixels of nothing above the headline and the same below the facts.
+	 *
+	 * Past 32rem the hero stops growing and the page beneath it simply moves up,
+	 * which is the right trade: a taller screen showing more of the demo is more
+	 * evidence, while a taller screen showing more empty canvas is only a longer
+	 * scroll to the same place.
+	 */
+	min-height: min(calc(100svh - var(--site-hero-reserved)), 32rem);
+	padding-top: var(--space-5);
+	padding-bottom: var(--space-5);
+	flex-direction: column;
+	justify-content: center;
+	/* Centered here and nowhere else on the site. The hero is four things read
+	   as one stack, with a screen of space around them; the article below it is
+	   prose, and prose is read down a left edge. */
+	text-align: center;
+}
+
+.site-hero .site-actions,
+.site-hero .site-meta {
+	justify-content: center;
+}
+
+.site-hero h1 {
+	margin-bottom: var(--space-5);
+	font-size: var(--font-size-3xl);
+	/* Tracking is optical, so it is negative at display size and nowhere else:
+	   the same spacing that keeps 15px UI text legible reads as loose at 40px. */
+	letter-spacing: -0.015em;
+	text-wrap: balance;
+}
+
+.site-hero .site-meta {
+	margin: var(--space-4) 0 0;
+}
+
+/* A separator and the fact after it are one flex item, so a line that runs out
+   of room never breaks between them and leaves an interpunct dangling off the
+   end with nothing to separate. The rule pages' meta lines carry two or three
+   short items and never wrap, which is why the flat form is still fine there. */
+.site-hero .site-meta__fact {
+	display: inline-flex;
+	gap: var(--space-2);
+	align-items: center;
+}
+
 .site-actions {
 	display: flex;
 	padding-bottom: var(--space-2);
 	gap: var(--space-3);
 	flex-wrap: wrap;
 	align-items: center;
+}
+
+/* A destination is not a toolbar command. These are the two largest targets on
+   the page and the only ones the reader came to press, so they take the tall
+   control height and a wider inline padding — the same silhouette as every
+   other button in the system, at the size the surface calls for. */
+.site-hero .site-actions .button {
+	min-height: var(--control-height-lg);
+	padding-inline: var(--space-4);
 }
 
 /* A button that is an anchor. The tiers in controls.css assume a <button>, whose
@@ -390,6 +506,17 @@
 	.site-demo__editor {
 		height: 20rem;
 	}
+
+	/* The two actions no longer fit on one row here — `Open the workbench` and
+	   `Browse the 47 rules` come to two pixels more than a 390px phone has — and
+	   two centred buttons of unequal width stacked on top of each other read as a
+	   row that broke rather than as a column that was meant. So below the width
+	   where they stop fitting they are a column on purpose, at one width, which
+	   is also the larger touch target. */
+	.site-hero .site-actions {
+		flex-direction: column;
+		align-items: stretch;
+	}
 }
 
 /*
@@ -560,5 +687,13 @@
 	   controls at this width. */
 	.site-nav {
 		gap: var(--space-3);
+	}
+
+	/* The peek is taller here because the paragraph it has to leave on screen is
+	   taller: the same sentence wraps to three lines in a phone's column and to
+	   two in a laptop's. The page's top padding is smaller, which pays for part
+	   of it. */
+	.site-hero {
+		--site-hero-reserved: 19.5rem;
 	}
 }

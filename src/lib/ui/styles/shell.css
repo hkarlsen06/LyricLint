@@ -47,8 +47,8 @@
 }
 
 /* The identity strip absorbs the slack so the commands stay pinned right. Its
-   own gap is tighter than the toolbar's so the save glyph reads as part of the
-   title rather than as a third, separate item. */
+   own gap is tighter than the toolbar's so the plus reads as belonging to the
+   draft's name rather than as a third, separate item. */
 .document-toolbar__identity {
 	flex: 1 1 auto;
 	gap: var(--space-1);
@@ -305,10 +305,32 @@
 	margin-inline-end: var(--space-2);
 }
 
+/* The draft's name and the way into the other drafts are one control, so they
+   share one surface: the border and fill are drawn on the group, and hovering
+   either half — or opening the menu — lights the whole thing rather than the
+   half the pointer happens to be over. It is also what the popover hangs from,
+   so the list of drafts opens under the name it would replace. */
+.draft-switcher {
+	position: relative;
+	display: flex;
+	border: var(--border-width) solid transparent;
+	border-radius: var(--radius-control);
+	align-items: center;
+}
+
+.draft-switcher:hover,
+.draft-switcher:focus-within,
+.draft-switcher:has(.draft-menu[open]) {
+	border-color: var(--color-border-input);
+	background: var(--color-surface);
+}
+
 /* Hugs its own text so the save status sits right beside the title instead of
    being pushed out by a fixed-width field. `size` covers browsers without
    `field-sizing`. It sits one step below the wordmark's weight so the brand and
-   the document name stay distinguishable side by side. */
+   the document name stay distinguishable side by side. The field draws no box
+   of its own at any point — a border inside the group's border is two rectangles
+   for one control. */
 .draft-title {
 	width: auto;
 	min-width: 4rem;
@@ -320,14 +342,44 @@
 	font-weight: var(--font-weight-semibold);
 }
 
-.draft-title:hover,
-.draft-title:focus {
-	border-color: var(--color-border-input);
-	background: var(--color-surface);
+/* The disclosure is the field's own end, not a button parked beside it: no box,
+   no fill of its own, and it keeps the field's height so the group reads as one
+   row. It stays muted until the control is in play. */
+.draft-switcher > .draft-menu {
+	position: static;
 }
 
-/* The healthy states render as a bare glyph, so the gap and type here only come
-   into play for the failed state, which keeps its label. */
+.draft-menu__trigger {
+	width: 1.5rem;
+	min-height: var(--control-height-sm);
+	margin-inline-end: var(--space-1);
+	color: var(--color-text-muted);
+}
+
+.draft-switcher:hover .draft-menu__trigger,
+.draft-switcher:focus-within .draft-menu__trigger,
+.draft-menu[open] .draft-menu__trigger {
+	color: var(--color-text);
+}
+
+/* Open is the one state the glyph carries itself: the list it points at is
+   below it, so the arrow turns to point back at the name. */
+.draft-menu__chevron {
+	transition: transform var(--duration-fast) var(--ease-out-quart);
+}
+
+.draft-menu[open] .draft-menu__chevron {
+	transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.draft-menu__chevron {
+		transition: none;
+	}
+}
+
+/* The healthy states draw nothing at all — the readout is `sr-only` until it has
+   something to report — so everything here is for the failed state. */
 .save-status {
 	display: inline-flex;
 	gap: var(--space-1-5);
@@ -384,13 +436,4 @@
 
 .status-bar__link:hover {
 	color: var(--color-text);
-}
-
-.status-bar__hints kbd {
-	padding: var(--space-0-5) var(--space-1);
-	border: var(--border-width) solid var(--color-border);
-	border-radius: var(--radius-xs);
-	background: var(--color-surface);
-	font-family: var(--font-ui);
-	font-size: var(--font-size-2xs);
 }

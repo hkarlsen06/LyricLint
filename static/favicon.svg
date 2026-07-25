@@ -1,7 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="LyricLint">
+<svg
+	xmlns="http://www.w3.org/2000/svg"
+	viewBox="3.6 3.6 24.8 24.8"
+	width="32"
+	height="32"
+	role="img"
+	aria-label="LyricLint"
+>
 	<title>LyricLint</title>
-	<rect width="32" height="32" rx="7" fill="#1c1c22" />
-	<g fill="none" stroke="#fcfcfe" stroke-width="2.2">
+	<!-- No tile: the mark is the icon. It carries #dea645 so it clears Safari's
+	     contrast threshold against its #282828 dark tab bar on its own — a mark
+	     any darker than this comes back on a white plate. The viewBox is cropped
+	     to the mark's bounding box plus half a unit, so the strokes land thicker
+	     at 16px than they would inside a tile. -->
+	<g fill="none" stroke="#dea645" stroke-width="2.2">
 		<path d="M9 8.5H5.2v15H9" />
 		<path d="M23 8.5h3.8v15H23" />
 	</g>

@@ -56,13 +56,21 @@
 -->
 <div class="diagnostic-meta">
 	<span class="diagnostic-meta__row">
-		<SeverityTag severity={diagnostic.severity} />
+		<!--
+			Glyph only, and therefore no interpunct after it: an interpunct separates
+			facts of the same kind, and the mark that opens the line is not one of the
+			words in the list it introduces. The word itself is redundant here in a way
+			it is not on the rule reference — a panel of nine findings printed
+			"Suggestion" eight times, in the same blue, down the same column.
+		-->
+		<SeverityTag severity={diagnostic.severity} labelled={false} />
 		{#if line !== undefined}
-			<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
 			<span class="diagnostic-meta__line">Line {line}</span>
 		{/if}
 		{#if folded}
-			<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
+			{#if line !== undefined}
+				<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
+			{/if}
 			<button
 				type="button"
 				class="button button--quiet diagnostic-meta__disclosure"
@@ -91,8 +99,10 @@
 				</svg>
 			</button>
 		{:else}
-			{#each citations as citation (citation.id)}
-				<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
+			{#each citations as citation, index (citation.id)}
+				{#if line !== undefined || index > 0}
+					<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
+				{/if}
 				{#if citation.source}
 					<SourceCitation source={citation.source} />
 				{:else}

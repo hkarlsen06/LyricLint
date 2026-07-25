@@ -27,20 +27,30 @@ describe('PerformersPanel', () => {
 		const roster = screen.getByRole('list', { name: 'Draft performer roster' });
 		const averyRow = within(roster).getByText('Avery').closest('li');
 		expect(averyRow).toBeTruthy();
-		await fireEvent.click(within(averyRow!).getByRole('button', { name: 'Rename' }));
+		// The row's commands are glyphs, so the performer's own name is what
+		// carries them in the accessible tree.
+		await fireEvent.click(within(averyRow!).getByRole('button', { name: 'Rename Avery' }));
 		const renameInput = within(averyRow!).getByRole('textbox', { name: 'Performer name' });
 		await waitFor(() => expect(document.activeElement).toBe(renameInput));
 		await fireEvent.input(renameInput, { target: { value: 'Avery Stone' } });
 		await fireEvent.click(within(averyRow!).getByRole('button', { name: 'Save' }));
 		expect(controller.performers[0]?.displayName).toBe('Avery Stone');
 		await waitFor(() =>
-			expect(document.activeElement).toBe(within(averyRow!).getByRole('button', { name: 'Rename' }))
+			expect(document.activeElement).toBe(
+				within(averyRow!).getByRole('button', { name: 'Rename Avery Stone' })
+			)
 		);
 
 		const blairRow = within(roster).getByText('Blair').closest('li');
 		expect(blairRow).toBeTruthy();
 
-		await fireEvent.click(within(blairRow!).getByRole('button', { name: 'Remove' }));
+		// Two presses in the trigger's own slot, with the row's other command
+		// stepping aside while the removal is its only question.
+		await fireEvent.click(within(blairRow!).getByRole('button', { name: 'Remove Blair' }));
+		expect(within(blairRow!).queryByRole('button', { name: /^Rename/ })).toBeNull();
+		const confirm = within(blairRow!).getByRole('button', { name: 'Remove' });
+		expect(document.activeElement).toBe(confirm);
+		await fireEvent.click(confirm);
 		expect(controller.performers.some((candidate) => candidate.displayName === 'Blair')).toBe(
 			false
 		);
@@ -54,6 +64,83 @@ describe('PerformersPanel', () => {
 				true
 			)
 		);
+	});
+
+	// Pressing the name is the rename: a pencil beside it would be a second
+	// control for the thing the pointer is already on.
+	test('the name is the rename control, and it is the only one', async () => {
+		const { controller } = createTestWorkbench({
+			performers: [performer('avery', 'Avery', 0)]
+		});
+		render(PerformersPanel, { controller });
+
+		const row = screen.getByRole('list', { name: 'Draft performer roster' }).querySelector('li')!;
+		expect(within(row).queryByTitle('Rename')?.tagName).toBe('BUTTON');
+		expect(within(row).queryAllByRole('button', { name: /^Rename/ })).toHaveLength(1);
+
+		await fireEvent.click(within(row).getByText('Avery'));
+
+		const renameInput = within(row).getByRole('textbox', { name: 'Performer name' });
+		await waitFor(() => expect(document.activeElement).toBe(renameInput));
+		// The field opens with the name selected, so typing replaces it.
+		expect((renameInput as HTMLInputElement).value).toBe('Avery');
+	});
+
+	// The removal is the row's only question while it is open, so the name stops
+	// offering to become a field under the same pointer.
+	test('the name stops being pressable while a removal is pending', async () => {
+		const { controller } = createTestWorkbench({
+			performers: [performer('avery', 'Avery', 0)]
+		});
+		render(PerformersPanel, { controller });
+
+		const row = screen.getByRole('list', { name: 'Draft performer roster' }).querySelector('li')!;
+		await fireEvent.click(within(row).getByRole('button', { name: 'Remove Avery' }));
+
+		expect(within(row).queryByRole('button', { name: /^Rename/ })).toBeNull();
+		expect(within(row).getByText('Avery').tagName).toBe('SPAN');
+	});
+
+	test('cancelling a removal puts the row back, and only one row is armed at a time', async () => {
+		const { controller } = createTestWorkbench({
+			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
+		});
+		render(PerformersPanel, { controller });
+
+		const roster = screen.getByRole('list', { name: 'Draft performer roster' });
+		const averyRow = within(roster).getByText('Avery').closest('li')!;
+		const blairRow = within(roster).getByText('Blair').closest('li')!;
+
+		await fireEvent.click(within(averyRow).getByRole('button', { name: 'Remove Avery' }));
+		await fireEvent.click(within(blairRow).getByRole('button', { name: 'Remove Blair' }));
+		expect(within(averyRow).getByRole('button', { name: 'Remove Avery' })).toBeTruthy();
+		expect(within(blairRow).getByRole('button', { name: 'Remove' })).toBeTruthy();
+
+		await fireEvent.click(within(blairRow).getByRole('button', { name: 'Cancel' }));
+		expect(within(blairRow).getByRole('button', { name: 'Remove Blair' })).toBeTruthy();
+		expect(within(blairRow).getByRole('button', { name: 'Rename Blair' })).toBeTruthy();
+		expect(controller.performers).toHaveLength(2);
+	});
+
+	// Renaming one row and removing another are two questions about the roster,
+	// so beginning the rename abandons the removal rather than leaving a primed
+	// confirm somewhere above it.
+	test('beginning a rename abandons a removal pending on another row', async () => {
+		const { controller } = createTestWorkbench({
+			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
+		});
+		render(PerformersPanel, { controller });
+
+		const roster = screen.getByRole('list', { name: 'Draft performer roster' });
+		const averyRow = within(roster).getByText('Avery').closest('li')!;
+		const blairRow = within(roster).getByText('Blair').closest('li')!;
+
+		await fireEvent.click(within(averyRow).getByRole('button', { name: 'Remove Avery' }));
+		await fireEvent.click(within(blairRow).getByRole('button', { name: 'Rename Blair' }));
+
+		expect(within(averyRow).getByRole('button', { name: 'Remove Avery' })).toBeTruthy();
+		expect(within(averyRow).queryByRole('button', { name: 'Remove' })).toBeNull();
+		expect(controller.performers).toHaveLength(2);
 	});
 
 	test('gives the same artist the same preferred color in separate drafts', () => {
@@ -77,7 +164,7 @@ describe('PerformersPanel', () => {
 		const roster = screen.getByRole('list', { name: 'Draft performer roster' });
 		const names = within(roster)
 			.getAllByRole('listitem')
-			.map((item) => item.querySelector('strong')?.textContent);
+			.map((item) => item.querySelector('.list-row__name')?.textContent);
 		expect(names).toEqual(['Blair', 'Avery']);
 	});
 

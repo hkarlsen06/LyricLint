@@ -45,8 +45,8 @@ async function replaceDocument(page: Page, text: string): Promise<void> {
 }
 
 async function waitForSaved(page: Page): Promise<void> {
-	// The healthy save states render as a bare glyph, so the wording is only in
-	// the accessible name.
+	// The healthy save states draw nothing, so the wording is only in the
+	// accessible name.
 	await expect(page.getByLabel('Autosave status')).toHaveAttribute('aria-label', /Saved locally/u);
 }
 
@@ -226,11 +226,13 @@ test('an edit after switching between two drafts remains revision-scoped and dur
 	await editor(page).click();
 	await waitForSaved(page);
 
+	// The row's own control leads with the draft's name; the commands beside it
+	// carry that name too ("Rename First"), so anchor on the start of the label.
 	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
-	await page.getByRole('button', { name: /First/u }).click();
+	await page.getByRole('button', { name: /^First/u }).click();
 	await expectDocText(page, '[Verse]\nFirst draft');
 	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
-	await page.getByRole('button', { name: /Second/u }).click();
+	await page.getByRole('button', { name: /^Second/u }).click();
 	await expectDocText(page, '[Verse]\nSecond draft');
 
 	const durableEdit = '[Verse]\nEdited after switching twice';

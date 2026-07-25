@@ -1,9 +1,17 @@
 /* The linter tab: severity filters, diagnostic cards, severity chips, details, and ignored rules. */
 
 /* The linter tab is full-bleed: cards run edge to edge as square sections,
-   separated by slim bands of the darker panel canvas, as in the mockup. */
+   separated by slim bands of the darker panel canvas, as in the mockup.
+
+   It is also a column the full height of the panel, so the recent drafts at its
+   foot can be at the foot of the *panel* rather than trailing whatever the list
+   above them happens to be tall. Nothing else in here is pinned; everything
+   stacks from the top as before. */
 .panel-content.linter-panel {
+	display: flex;
 	padding: 0;
+	flex: 1;
+	flex-direction: column;
 }
 
 /* Cards are edge to edge, but prose is not: inset the empty state to line up
@@ -28,6 +36,105 @@
 .diagnostic-list__empty-title {
 	color: var(--color-text);
 	font-weight: var(--font-weight-semibold);
+}
+
+/* The drafts sit at the foot of the column, pushed there by the auto margin
+   rather than by whatever is above them: on an empty document that is a short
+   paragraph, and a list of destinations left directly under it read as part of
+   the message. Still prose on the canvas — a list of the user's own drafts is
+   not a region anyone acts on independently of its neighbours, so there is no
+   border to draw around it, and the empty canvas above is the separation. */
+.linter-panel__drafts {
+	padding: var(--space-4) var(--space-3);
+	margin-top: auto;
+}
+
+.linter-panel__empty-label {
+	margin: 0 0 var(--space-1);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-medium);
+}
+
+.linter-panel__recent {
+	display: grid;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+/* The row is the draft; the delete rides at its end. Both surfaces that list
+   drafts offer the same way out of one, so neither is the place a user has to
+   remember to go. */
+.linter-panel__recent > li {
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+/* A draft is a destination, so it reads as a line of text you can press rather
+   than as a button: full-width target, title first, and the date it was last
+   touched trailing on the same line to tell two similar titles apart. */
+.linter-panel__recent-draft {
+	display: flex;
+	width: 100%;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-1) 0;
+	border: 0;
+	background: none;
+	color: var(--color-text);
+	font-family: inherit;
+	font-size: var(--font-size-sm);
+	text-align: start;
+	cursor: pointer;
+}
+
+.linter-panel__recent-draft {
+	flex: 1;
+	min-width: 0;
+}
+
+/* While its deletion is the question the row is not also a way into the draft:
+   same line, same columns, one decision. */
+.linter-panel__recent-draft--static {
+	cursor: default;
+}
+
+.linter-panel__recent-draft:hover .linter-panel__recent-title {
+	text-decoration: underline;
+}
+
+.linter-panel__recent-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* The delete stays out of the way until the row is: a muted glyph that only
+   colors under the pointer or focus (see rows.css). */
+.linter-panel__recent .remove-button {
+	flex: none;
+}
+
+.linter-panel__recent-draft:focus-visible {
+	outline: var(--focus-ring-width) solid var(--color-focus);
+	outline-offset: var(--focus-ring-offset);
+}
+
+.linter-panel__recent-draft time {
+	flex: none;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-variant-numeric: tabular-nums;
+}
+
+/* The grid stretches its items, and a button that spans the prose measure reads
+   as a banner rather than an offer. */
+.linter-panel__empty-action {
+	justify-self: start;
+	padding-top: var(--space-3);
 }
 
 /* The list ends deliberately: a muted line after the last card says whether

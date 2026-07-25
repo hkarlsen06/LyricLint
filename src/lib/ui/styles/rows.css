@@ -1,0 +1,105 @@
+/*
+ * A list whose entries are one line each: a name, and the commands that act on
+ * it. The drafts menu and the performer roster are both this, and both were two
+ * rows per entry before — a name, then `Rename Duplicate Export Delete` (or
+ * `Rename Remove`) spelled out underneath, the same words repeated down the page
+ * until they were the loudest thing in the list.
+ *
+ * One line, then. The commands are glyphs at the end of the name's own line, and
+ * they stay quiet until the row is hovered or holds focus: four marks at full
+ * strength on every row read as the list's content rather than as what can be
+ * done to one entry of it. The hairline between rows went with the second line,
+ * because a compact row that lights up already says where one entry ends.
+ */
+
+.list-row {
+	display: flex;
+	min-height: 2rem;
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-control);
+	gap: var(--space-2);
+	align-items: center;
+}
+
+.list-row:hover,
+.list-row:focus-within {
+	background: var(--color-control-hover);
+}
+
+/* One line means one line: a long name is cut, never wrapped onto a second. */
+.list-row__name {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.list-row__commands {
+	display: flex;
+	flex: none;
+	gap: var(--space-1);
+	align-items: center;
+}
+
+.list-row__commands .icon-button {
+	width: 1.75rem;
+	min-height: var(--control-height-sm);
+	color: var(--color-text-muted);
+}
+
+.list-row:hover .list-row__commands .icon-button,
+.list-row:focus-within .list-row__commands .icon-button {
+	color: var(--color-text);
+}
+
+/* Renaming happens in the row's own place rather than in a box opened under it,
+   so the list never changes shape while one entry is being edited. */
+.list-row__form {
+	display: flex;
+	width: 100%;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+.list-row__form input {
+	min-width: 0;
+	min-height: var(--control-height-sm);
+	flex: 1;
+}
+
+.list-row__form .button {
+	min-height: var(--control-height-sm);
+	padding-block: 0;
+	font-size: var(--font-size-sm);
+}
+
+/*
+ * The way out of a row, wherever a list offers one: the drafts menu, the linter
+ * panel's recent drafts, and the performer roster share one control
+ * (`primitives/RemoveButton.svelte`), so they share its look.
+ *
+ * The trigger is muted, not red. A list of seven rows drew seven red words down
+ * its right edge, which is a warning about nothing — the row is not dangerous,
+ * the press is. So the glyph earns its color under the pointer, and the fill is
+ * spent on the confirm that follows it.
+ */
+.remove-button,
+.remove-button__confirm,
+.remove-button__cancel {
+	min-height: var(--control-height-sm);
+	padding-block: 0;
+	font-size: var(--font-size-sm);
+}
+
+.remove-button {
+	width: 1.75rem;
+	color: var(--color-text-muted);
+}
+
+/* Written to outrank the row's own quieting of the glyphs beside it. */
+.remove-button:hover:not(:disabled),
+.remove-button:focus-visible,
+.list-row .remove-button:hover:not(:disabled),
+.list-row .remove-button:focus-visible {
+	color: var(--color-danger);
+}

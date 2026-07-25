@@ -73,6 +73,16 @@ half of it. The right panel's tab strip hangs directly under it, at `--panel-tab
 than the toolbar's `--header-height`. Toolbar, tab strip, ignored-rules footer, and status bar
 are all `--color-chrome`; the scrolling content between them is not.
 
+**The toolbar splits on what a control acts on, not on how loud it is.** The left is the identity
+strip — the brand, the draft's name, and the plus that starts another one, which acts on no
+document and therefore does not belong in the strip of commands that act on this one. The right
+holds only those: the language and the contrast action. The save readout trails the plus and
+**draws nothing while saving is going well** — a disk glyph that is always there reports a state
+that never changes — but it stays in the accessible tree the whole time (`sr-only`, named and
+titled), because the e2e suite and a screen reader both need to know a save landed. A failure is
+the one state that draws, with its words and an alert glyph, so what the user must act on is
+carried neither by red alone nor by the silence that means everything is fine.
+
 Diagnostics are one continuous run, not a stack of separate cards: no gap, no rounding, a
 hairline between neighbours. **Selection is depth, not hue.** The selected row drops from
 `--color-surface` to the recessed `--color-canvas` and takes `--shadow-recessed`, so it reads as
@@ -98,6 +108,57 @@ calls `preventDefault`, so no click follows to be heard.
 Implementation: `src/lib/ui/styles/shell.css`, `src/lib/ui/styles/panel.css`,
 `src/lib/ui/styles/linter.css` (the run of cards), `src/lib/ui/styles/diagnostics.css` (what is
 inside one), and `src/lib/ui/layout/RightPanel.svelte`.
+
+### The empty document is one message, not three
+
+A fresh open used to say "empty" four times — a black editor with a bare caret, a panel explaining
+how to feed it, and four zeroed counts in the status bar — while the loudest control on the screen,
+the contrast-tier `Copy lyrics`, pointed at the exit of a job nobody had started. The fix is not
+decoration. It is dividing one message between the surfaces so that no two of them say it:
+
+- **The editor says what belongs there**, with a ghost transcription at the caret
+  (`extensions/document-placeholder.ts`). Section headers come from the selected language pack, so
+  the shape it models is the shape the linter wants; the one line of guidance between them stays
+  English because it is the application talking, not the document.
+- **The toolbar says what to do**, by swapping its one contrast action to `Paste lyrics` while the
+  document is empty. The slot, the tier, and the tab order are unchanged — only the label follows
+  the state, and the surface never carries two contrast actions.
+- **The panel says what it is waiting for**, and nothing about how to start. Its copy got shorter
+  when the editor took over the instructions; re-adding "paste or write some lyrics" here is the
+  drift this section exists to prevent.
+- **The status bar says nothing at all.** A count worth stating is one that could have been
+  otherwise, so each count waits until it has something to report. The shortcut hints that used to
+  keep it company are gone at every state, not just this one: a legend for `F8` and `⌘.` was help
+  nobody had asked for, printed permanently across the quietest row in the window. So was `offline
+ready`, which is a fact about the application in a row that summarises the document. What is left
+  at the end of the row is the `About LyricLint` link, alone, which is the whole of what that end of
+  the row is for.
+
+Two things the empty panel offers, both prose on the canvas rather than boxes: the drafts the user
+already has (a fresh open is only empty because it opened a _new_ one, and their work should not be
+behind a menu they have to find), and the sample. **They are not offered in the same place**, because
+only one of them is about this document. The sample answers "nothing to lint yet" and stays with the
+sentence it answers, directly under it. The drafts answer nothing — they are somewhere else to be —
+so they sit at the **foot of the column**, after everything the panel has to say about the draft in
+front of the user, pushed there by `margin-top: auto` rather than by whatever happens to be above
+them. Between the two is empty canvas, and that is the whole separation: no rule, no fill, no box.
+
+Pinning a foot means the panel is a column the height of the panel, which is what
+`.right-panel__pane` is for. Two traps in that: the pane is only told to fill, never to fit, so
+content taller than the panel still grows and scrolls; and its `display` **must** exclude
+`[hidden]`, because Bits UI hides the inactive panes with the attribute and a bare `display: flex`
+outranks the rule that honours it — all three panels stack into one column. `RightPanel.svelte.test.ts`
+asserts exactly one pane draws.
+
+**The sample is offered only while its own
+language is selected** — under another choice, its English lyrics open with a true
+`language.selection-mismatch` about a document the user did not write. Its findings are few, and
+`sample-draft.test.ts` pins both the count and the mix, because the sample is only worth loading
+while it still demonstrates the split the bulk strip reads out: some fixed mechanically, the rest
+named as judgment calls.
+
+`controller.isEmpty` and `controller.canLoadSample` are the single answers to both questions; no
+surface decides for itself what "empty" means.
 
 ### Show, don't ask
 
@@ -137,8 +198,17 @@ a caret parked on text the user never chose would arm their next keystroke over 
 Implementation: `src/lib/editor/extensions/fix-preview.ts` renders the diff,
 `src/lib/core/fix-preview.ts` picks the fix, and `src/lib/diagnostics/DiagnosticActions.svelte`
 binds it to its own mounted lifetime — which is the open/close lifetime of whichever surface
-rendered it. `leadAfterFix` in `src/lib/ui/state/panel-view.svelte.ts` is the advance, armed by
-`applyFix` and consumed on the snapshot that dispatch emits.
+rendered it. `leadAfterFix` in `src/lib/ui/state/panel-view.svelte.ts` is the advance, consumed on
+the snapshot that dispatch emits.
+
+**A fix is not the only edit that needs the advance.** Anything that replaces the whole document —
+loading the sample, pasting into an empty draft — lands the panel on a leading finding while the
+wash sits wherever the edit left the caret, which is the same failure with a different cause. So
+the arming is its own call, `leadOnNextSnapshot`, and `replaceDocument` in
+`editor-session.svelte.ts` makes it through the `onBeforeReplace` hook rather than each caller
+remembering to. It has to run _before_ the dispatch, because the editor emits the re-linted
+snapshot from inside it, and it must not run on a paste that never reached the document — a lead
+left armed fires on whatever the user types next.
 
 ### A batch repeats one change, not one rule
 
@@ -207,7 +277,9 @@ bottom, for facts that read as one sentence — and between them the reader had 
 card to learn where the finding was and what said so.
 
 They are one line now, under the message: **severity, line number, citation**, interpuncts between
-(`DiagnosticMeta.svelte`). The severity is a colored glyph and a colored word, not a chip. The
+(`DiagnosticMeta.svelte`). The severity is a colored glyph, not a chip and **not a word** — and
+therefore no interpunct follows it, because an interpunct separates facts of the same kind and the
+mark that opens the line is not one of the words in the list it introduces. The
 citation is a link and only a link; **which part of the page was cited and when it was last
 verified are the link's tooltip**, because that is what a reader checks before following it rather
 than something they need in front of them on every card.
@@ -228,6 +300,75 @@ _contains_ the head: an `<a>` inside a `<button>` is neither valid nor reliably 
 button holds the message and stretches its hit area over the whole head with an inset `::after`,
 the citation and its disclosure ride above that layer with `z-index`, and hover and the focus ring
 are read off the head with `:has()` — off the button alone they would light up only the message.
+
+### A draft is one line, and an empty draft is not a draft
+
+The drafts menu used to spend two rows on every draft: its name, then `Rename Duplicate Export
+Delete` spelled out underneath. Seven drafts came to twenty-eight words of chrome around seven
+names, the same four repeated down the page, and a column of red `Delete`s warning about nothing —
+the row is not dangerous, the press is. The commands are glyphs on the name's own line now, each
+keeping the draft in its accessible name (`aria-label="Rename Sensommer"`, `title="Rename"`) so
+"Rename" alone is never all a screen reader hears. They are muted until the row is hovered or holds
+focus, and the trash earns `--color-danger` only under the pointer. The hairline between rows went
+with the second line: a compact row that lights up says where one draft ends, and the only rule
+left worth drawing is the one under the heading.
+
+**The confirm takes the trigger's own slot.** `Delete` armed a `Yes` at the far side of the row,
+which is a pointer journey to undo a press the user has already aimed. `RemoveButton.svelte`
+swaps itself for the confirm in place, `Cancel` beside it, the row's other commands hidden and the
+row itself no longer pressable while the question is open — and it moves focus onto the confirm,
+because a control that replaces another has to inherit the focus that was on it. **Every list that
+offers a way out of one of its rows shares the component**: the drafts menu, the linter panel's
+recent-drafts list — which is where a returning user actually meets the drafts they want rid of —
+and the performer roster. `label` is all that differs between them, because a draft is deleted and
+a performer is removed from a roster. The armed row is the list's state, never the row's: only one
+question may be open at a time, and closing the surface has to abandon it.
+
+**The roster is the same list, and there the name _is_ the rename.** A performer was two rows as
+well — a colored dot and a bold name, then `Rename Remove` underneath — so six performers filled a
+panel with `Rename` printed six times and `Remove` in red beside it, and the roster's actual
+content, the six names, was the smallest thing in it. It is `.list-row` now: dot, name, trash. No
+pencil, because pressing the name opens the field in its place, and a glyph beside it would be a
+second control for the thing the pointer is already on. The name draws nothing to advertise that —
+a bordered field on every row is six boxes for a name that is usually only read — it just takes the
+row's free width, underlines under the pointer, and keeps `Rename Mul` as its accessible name. While
+a removal is pending it is plain text again, because that question is the row's only one. The name
+also lost its `<strong>`: six bold rows in a column are the same repetition the commands were, and a
+name is not an emphasis.
+
+A draft's name is not this, and the difference is what the row is for. A draft row is a way _into_
+the draft, so its name opens it and the pencil stays; a performer row is nothing but the name, so
+the name is the only thing there to press.
+
+**A draft with nothing in it is never written.** Every "new draft" used to create a record
+immediately, so a session of second thoughts left a list of `Untitled draft`s that had never held a
+character. Now `createDraft` loads a transient record and writes nothing; the first save with text
+in it is what creates the row and takes over the current-draft pointer, so a reload before the
+first keystroke comes back to the draft that still has the work in it. A draft emptied out gives up
+its record the same way (`discardEmptyDraft`) — undo puts the text back and the next save writes
+the same id, so nothing is lost. `recoverStartupDraft` sweeps blank records on the way through for
+the databases earlier builds already filled.
+
+Dates are read, not parsed: `Today`, `Yesterday`, `3 days ago`, then `15 Jun`, and the year only
+outside this one. They are English like the rest of the chrome — the browser locale put a Norwegian
+month on the line under `Yesterday` — and the exact timestamp stays in `datetime` and the tooltip.
+
+**The way into that list is the draft's own name.** It used to be a hamburger at the far end of the
+command strip: a glyph that names nothing, sitting among the commands that act on the document,
+nowhere near the thing it actually switched. The name was already in the toolbar as an input, so the
+two are one control now — `.draft-switcher`, the field plus a chevron at its end. Typing in it
+renames this draft; the chevron opens the ones it could be swapped for, anchored to the switcher's
+left edge so the list opens under the name it would replace. That anchoring is why the `<details>`
+goes `position: static` inside a relative switcher; the popover hangs from the group, not from the
+chevron. Border and fill belong to the group and nothing inside it draws a box of its own — a border
+inside a border is two rectangles for one control — and hovering either half, or opening the menu,
+lights the whole thing. The trigger keeps `Drafts` as its accessible name; only the glyph changed.
+
+Implementation: `src/lib/ui/primitives/RemoveButton.svelte` (the shared confirm) and
+`src/lib/ui/styles/rows.css` (`.list-row` and its commands, shared by the drafts menu and the
+performer roster); `src/lib/ui/drafts/draft-date.ts` for the dates; what each surface adds on top in
+`overlays.css`, `linter.css`, and `performers.css`; and the persistence rule in
+`draft-store.svelte.ts` and `persistence/recovery.ts`.
 
 ### Every transient surface dismisses on an outside press
 
@@ -271,6 +412,72 @@ comparing `event.target` to the dialog (`src/lib/ui/layout/LanguagePicker.svelte
 Canonical implementations: `src/lib/editor/overlays/SectionPicker.svelte`,
 `src/lib/editor/overlays/PerformerPicker.svelte`, `src/lib/editor/overlays/DiagnosticPopover.svelte`,
 and `src/lib/ui/layout/DraftMenu.svelte`.
+
+### The hero is a claim, a sentence, and a line of facts
+
+The landing page opened with a headline, four muted lines restating the entire product, two
+actions, and two more muted lines explaining what the product could not do — all at the same
+spacing, so nothing led and the loudest control on the page was followed immediately by a caveat
+about it. Six blocks of grey before the reader reached the live demo that would have convinced
+them. Overwhelming is a symptom of mass; unconfident is a symptom of saying everything at once
+and then apologising.
+
+Three things, in three different sizes, and nothing else:
+
+- **The headline is the claim**, at `--font-size-3xl` — the one step past the display size, fluid
+  between a phone and an 800px viewport, and the only use of it in the system. It is
+  `text-wrap: balance`d so it breaks between phrases instead of wherever the column runs out, and
+  its tracking is negative, because the spacing that keeps 15px UI text legible reads as loose at
+  40px.
+- **The lede is one sentence**, and it says the one thing that separates this from a
+  spellchecker: the guideline behind each finding. Everything it used to say beyond that —
+  what the product is, what the workflow is, what the copied markup is worth — already has a
+  section of its own further down, and a first paragraph that says all of it is the drift this
+  section exists to prevent.
+- **What it costs is a line of facts**, in the meta idiom the diagnostic card established:
+  interpuncts, muted, small, `Free · No account · Desktop or laptop`. A requirement stated as a
+  specification reads as a specification; the same requirement spelled out in two sentences under
+  the button reads as an apology for the button. There are three because a fourth wrapped at a
+  phone's width, and the one that went is the privacy claim — the footer of every page already
+  carries it.
+
+The separator and the fact after it are one flex item (`.site-meta__fact`), so a wrap can never
+leave an interpunct dangling at the end of a line with nothing to separate.
+
+The three are **centred, and they are the only centred thing on the site.** The hero is a stack
+read as one object with a screen of space around it; everything below it is prose, and prose is
+read down a left edge.
+
+No border and no fill: a hero that boxed itself would be a card separating its contents from
+nothing. The space around it is the boundary.
+
+**It takes the screen and leaves exactly one thing on it: the top of what comes next.** A first
+screen that is only a headline is a claim with no evidence under it, and one that ends at a clean
+viewport edge reads as the end of the page — either way the reader never reaches the live demo,
+which is the only thing here that proves any of it. So the hero is sized to stop short, and the
+next heading, its paragraph, and the top edge of the editor stay on screen underneath it, cut
+off. That is the scroll affordance; there is no chevron, and adding one would be saying it twice.
+
+Three things that arithmetic depends on:
+
+- **`svh`, never `dvh`.** A phone's URL bar retracts on the first scroll, and `dvh` grows the hero
+  underneath the reader as it goes, closing the gap the hero exists to hold open.
+- **`--site-hero-reserved` is measured, not guessed** — the header band, the page's own top
+  padding, and the peek. It is larger on a phone because the paragraph it has to leave visible
+  wraps to five lines there and three on a laptop. Re-measure it if either changes.
+- **The height is capped at `32rem`.** The subtraction alone is right on a laptop, which is wide
+  and short; a tablet held in portrait is a thousand pixels tall, and centring four small elements
+  in all of it puts a hundred and fifty pixels of nothing above the headline and the same below.
+  Past the cap the hero stops growing and the page moves up instead, which is the right trade — a
+  taller screen showing more of the demo is more evidence, while a taller screen showing more
+  empty canvas is only a longer scroll to the same place.
+
+Below `32rem` the two actions stop fitting on one row by about two pixels, so they become a column
+on purpose, at one width. Two centred buttons of unequal width stacked on each other read as a row
+that broke rather than as a column that was meant.
+
+Implementation: `.site-hero` in `src/lib/ui/styles/site.css` and
+`src/routes/(site)/about/+page.svelte`.
 
 ### The mark and the wordmark are one object
 
@@ -357,7 +564,43 @@ Three things the arithmetic depends on, all easy to break:
 
 Implementation: `src/lib/ui/layout/AppWordmark.svelte` (state and markup only) and the arithmetic
 in `src/lib/ui/styles/shell.css`. `src/lib/assets/lyriclint-mark.svg` and the favicon are the
-static mark and are unchanged — the closed lockup has to keep matching them.
+static mark and carry the same geometry — the closed lockup has to keep matching them.
+
+**The favicon is the bare mark in `#dea645`, and the color is contrast, not taste.** There is no
+tile: brackets and waveform on transparency, the `viewBox` cropped to the mark's own bounding box
+plus half a unit so the strokes land as thick as 16px allows. The brand's dark ink is the one thing
+it may not have, because:
+
+**Safari draws its own background behind any favicon whose contrast against the tab bar is too
+low.** Its dark-mode tab bar is `#282828`; the brand's `#1c1c22` scores 1.15:1 against it, which is
+about as low as a favicon can score. Safari's plate is white and rounded and a little larger than
+the icon, so a dark tile came back wearing a white ring, and a transparent icon with dark ink came
+back as a solid white box with the mark inverted on top. Two rounds went into blaming our own file
+for both. The threshold is undocumented and does not match WCAG AA or AAA; the only lever is the
+icon's own brightness. `#dea645` scores 6.77:1, so nothing is drawn behind it.
+
+Three consequences worth keeping straight:
+
+- **A transparent background is only safe while the mark is bright.** Transparency is not what
+  summons the plate — low contrast is. The moment this mark takes a darker color it is a white box
+  again, and no amount of squaring, padding, or opaque tiling addresses that.
+- **`prefers-color-scheme` inside an SVG favicon does not help.** It resolves in the browser's
+  favicon context rather than the tab strip's, so ink that swapped under the dark scheme rendered
+  the light value anyway. No media query belongs in this file.
+- **A single mid-tone reads against dark or against light, never both.** `#dea645` is 6.77:1 on a
+  dark bar and 2.18:1 on a light one, so this icon is chosen for a dark tab strip and gives up the
+  light one — where Safari will plate it dark, which is the acceptable end of the trade. An icon
+  that wanted both would need a bright field _and_ dark ink, which is a tile, which is the version
+  in the history of this file.
+
+`favicon-16.png` and `favicon-32.png` are `favicon.svg` rasterized at those sizes with the page
+background omitted — never scale the old files, and never size by rewriting the SVG's `width`/`height`
+attributes, which silently stops matching the moment the file is reformatted and crops the icon
+instead. Size the wrapper. `apple-touch-icon.png` keeps the dark tile, because a home-screen icon
+is composited by iOS against a wallpaper and no contrast heuristic runs on it.
+
+Safari caches favicons hard and does not clear them on a normal reload. Verifying a change there
+means clearing website data, not pressing refresh.
 
 ### Design system
 
@@ -371,11 +614,31 @@ radii belong to categorical chips and badges only (`.tab-count`,
 The severity on a diagnostic is no longer a chip at all. It was a filled badge holding a line of
 its own above the message, which spent a whole line of a card's height saying one word — and it
 had to be squared off to keep from reading as one of the pressable severity filters directly
-above it. It is a **colored glyph and a colored word** now (`.severity`, no fill, no border, no
-radius), and it leads the card's meta line ahead of the line number:
-`⚠ Warning · Line 47 · Use song part headers`. Severity is one more fact about the finding, so it
-sits with where the finding is and what says so. The color is the whole signal and it is the
-text's own color, which is why the shape question stops arising.
+above it. It is a **colored glyph** now (`.severity`, no fill, no border, no radius), and it leads
+the card's meta line ahead of the line number: `⚠ Line 47 · Use song part headers`. Severity is one
+more fact about the finding, so it sits with where the finding is and what says so, and the color
+is the text's own color, which is why the shape question stops arising.
+
+**The word went because it was the same word every row.** A panel of nine findings printed
+`Suggestion` eight times, in one blue, down one column — repetition that never varies stops being
+read by the second row, and what the eye was actually using was the shape and the color. Dropping
+it also gives the column a left rail of glyphs to scan instead of a ragged mix of `⚠ Warning ·` and
+`ⓘ Suggestion ·`, and buys back width in a panel where a long rule name already runs to the edge.
+Three things hold it up, and removing any one of them puts severity back on color alone:
+
+- **The four glyphs separate at 12px in greyscale.** `SeverityIcon.svelte` owns them, and
+  `SeverityIcon.svelte.test.ts` asserts no two severities draw the same outline. Error used to be
+  `!` in a circle and suggestion `i` in one — the same ring with the bar and the dot swapped, which
+  is a coin flip at this size — so error is a cross now: `✕`, `!`, `i`, `✓` in four different marks.
+- **The word is still in the accessible tree**, `sr-only` inside the tag, and in its `title` for
+  the pointer. Nothing about the change is visual-only in the sense that costs a screen reader.
+- **The filter chip wears the same mark** (`LinterPanel.svelte`), because the row's word was half
+  of what tied `Suggestions` to the rows it hides; without the glyph on both, the tie is color.
+
+`SeverityTag.svelte` therefore takes `labelled`, and **the rule reference keeps the word**
+(`/rules` and `/rules/[rule]`). Nothing repeats there the way it does in the panel, the reader may
+never have opened the workbench, and a severity in a document is a fact to be read rather than a
+mark to be scanned.
 
 Three button tiers, and no more: `.button--quiet` (borderless) < `.button` (bordered default) <
 `.button--contrast` (theme-inverting, one per surface). `.button--primary` is gone — an

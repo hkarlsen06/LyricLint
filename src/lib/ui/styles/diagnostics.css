@@ -7,17 +7,23 @@
  */
 
 /*
- * Not a badge — a marked word. The severity used to be a filled tag on a line
- * of its own, which cost the card a full line of height to say one word that
- * the metadata line was already the place for. It is the glyph and the colored
- * word now, and it leads the card's meta line: `⚠ Warning · Line 47 · Safe fix
- * available`. No fill, no border, no radius, so nothing about it reads as
- * pressable next to the severity filters that genuinely are.
+ * Not a badge — a mark. The severity used to be a filled tag on a line of its
+ * own, which cost the card a full line of height to say one word that the
+ * metadata line was already the place for. No fill, no border, no radius, so
+ * nothing about it reads as pressable next to the severity filters that
+ * genuinely are.
+ *
+ * On the rule reference it is the glyph and the colored word. On a diagnostic's
+ * meta line it is the glyph alone, leading the line: `⚠ Line 47 · Repeated
+ * sections`. A word that is the same word down every row of a nine-item panel
+ * has stopped being read by the second one — what the eye was using there is
+ * the shape and the color, and both survive dropping it.
  *
  * The color is the whole signal, so it is the text color rather than a wash
  * behind muted text: `--color-danger` and its siblings are text-grade against
  * both `--color-surface` and the recessed `--color-canvas` an expanded card
- * drops to.
+ * drops to. It is never the *only* signal: the four glyphs are drawn to
+ * separate at 12px in greyscale, which is what `SeverityIcon.svelte` is for.
  */
 .severity {
 	display: inline-flex;
@@ -30,7 +36,9 @@
 	letter-spacing: 0.01em;
 }
 
-.severity__icon {
+/* Shared with the linter's severity chips, which wear the same mark as the rows
+   they filter — so it takes its color from whatever it sits in. */
+.severity-icon {
 	flex: none;
 }
 

@@ -5,6 +5,9 @@
 
 	let { controller }: { controller: WorkbenchController } = $props();
 	let newName = $state('');
+	// One row at a time may be armed for removal, so the pending performer is the
+	// list's state rather than each row's.
+	let removingId = $state<string | undefined>();
 
 	// The roster lists performers in the order they first appear in the lyrics;
 	// performers not (yet) in the document follow in the order they were added.
@@ -39,11 +42,17 @@
 		</p>
 	{:else}
 		<p class="roster-hint">
-			Select lyric text in the editor — or press Alt+P — to assign performers to it.
+			Select lyric text in the editor to assign performers to it.
 		</p>
 		<ul class="performer-list" aria-label="Draft performer roster">
 			{#each orderedPerformers as performer (performer.id)}
-				<PerformerEditor {performer} {controller} />
+				<PerformerEditor
+					{performer}
+					{controller}
+					removing={removingId === performer.id}
+					onRequestRemove={() => (removingId = performer.id)}
+					onCancelRemove={() => (removingId = undefined)}
+				/>
 			{/each}
 		</ul>
 	{/if}

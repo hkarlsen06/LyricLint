@@ -37,37 +37,45 @@
 	display: grid;
 	margin: 0;
 	padding: 0;
-	gap: var(--space-2);
 	list-style: none;
 }
 
+/* The row is `.list-row` (rows.css); this pulls its fill out to the panel's own
+   inset so the names still line up with the prose above them. */
 .performer-row {
-	display: grid;
-	padding: var(--space-3) 0;
-	border-top: var(--border-width) solid var(--color-border);
-	gap: var(--space-2);
+	margin-inline: calc(-1 * var(--space-2));
 }
 
-.performer-row__identity,
-.performer-row__actions {
+.performer-row__identity {
 	display: flex;
-	flex-wrap: wrap;
+	min-width: 0;
 	gap: var(--space-2);
+	flex: 1;
 	align-items: center;
 }
 
-.performer-row__identity > div {
-	display: grid;
+/* The name is the row's rename control, and it draws nothing to say so: a
+   bordered field on every row would be six boxes for a name that is usually
+   only read. It takes the whole of the row's free width, so the target is the
+   name and everything after it, and it underlines under the pointer — the same
+   tell the linter panel's recent drafts use for a line you can press. */
+.performer-row__name {
+	padding: 0;
+	border: 0;
+	flex: 1;
+	background: transparent;
+	color: var(--color-text);
+	text-align: start;
 }
 
-.performer-row__identity span:not(.performer-color) {
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
+button.performer-row__name:hover {
+	text-decoration: underline;
 }
 
 .performer-color {
 	width: 1rem;
 	height: 1rem;
+	flex: none;
 	border: var(--border-width) solid color-mix(in oklch, currentColor 35%, var(--color-border));
 	border-radius: var(--radius-xs);
 	background: var(--performer-color);
