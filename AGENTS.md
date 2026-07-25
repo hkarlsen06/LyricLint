@@ -282,6 +282,23 @@ the left bracket sweeping right off it. It holds open on load for as long as the
 read — a saccade to land on it, ~400ms for a nine-letter compound, a beat to register it — then
 contracts, and reopens on hover or on a press that latches.
 
+**The one thing a page may change about it is which end it arrives from**, and the question that
+settles it is whether the brand is what the reader came for. Over a tool it is a masthead: it
+leads with the word, then contracts and gives the space back (`entrance="hold"`, the default).
+On `/about` it is the product itself, seen for the first time by most of the people who get
+there — so the mark arrives first and grows into the word (`entrance="reveal"`), after a beat
+that is shorter than the hold because a glyph costs a fixation to register and none of the
+reading a word does. A reveal **stays open**: the two are not one animation played in two
+directions, and a landing page has nothing underneath the lockup waiting for that space back.
+The rule reference keeps the default — it is a document people return to, and a logo that
+unfolded on every visit is furniture that moves.
+
+The prop is `entrance` and not `intro`, which is what it is, because `intro` is one of Svelte's
+own `mount` options: a prop by that name is taken as the option and never reaches the component,
+silently, including from every `render()` in the tests. Each mode starts from its own end, so the
+server-rendered HTML is already correct — `/about` ships the mark and `/rules` ships the word,
+and neither one flashes through the other on the way.
+
 **A press is not a hover, and on touch it cannot be faked with one.** Tapping an element that
 carries `:hover` styles does apply them, so a tap looks like it opens the lockup — but they stay
 applied until the next tap somewhere else, which means a second tap on the lockup changes nothing.
@@ -291,7 +308,8 @@ both directions (or sticky hover would hold open the thing the second tap just c
 `pointerleave` fires after every tap and releasing there would undo each press on the frame it
 happened.
 
-It is used twice, and the second place is not a toolbar. On the phone gate the lockup is not a
+It is used three times — the document toolbar, the site header, and the phone gate — and only the
+first of those is a toolbar. On the phone gate the lockup is not a
 logo above the message but the **first word of the message**: the h1 reads `Lyric[Lint] needs a
 bigger screen`, and `role="img"` is what puts `LyricLint` back into the heading's accessible name.
 That is also why the component's root is a `span` — a heading takes phrasing content only, and a

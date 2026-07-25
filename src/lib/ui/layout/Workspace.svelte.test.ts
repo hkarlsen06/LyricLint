@@ -352,6 +352,35 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
+	test('puts the way out of the workbench in the status bar, not the toolbar', () => {
+		// The toolbar holds commands that act on the document; this acts on nothing,
+		// so it lives in the quietest persistent row instead. Anyone already in the
+		// app has found the product — what they occasionally need is a URL to hand
+		// to someone else.
+		const { controller } = createTestWorkbench();
+		render(Workspace, { controller });
+
+		const link = screen.getByRole('link', { name: 'About LyricLint' });
+		expect(link.getAttribute('href')).toBe('/about');
+		expect(link.closest('.status-bar')).toBeTruthy();
+		expect(link.closest('.document-toolbar')).toBeNull();
+	});
+
+	test('keeps the status-bar link off the accent color', () => {
+		// The band is the quietest chrome in the window. A saturated blue would be
+		// the only saturated thing in it, and in a linter a lone spot of color reads
+		// as a finding — so the link is marked by its underline and takes the row's
+		// muted color instead.
+		const { controller } = createTestWorkbench();
+		render(Workspace, { controller });
+
+		const link = screen.getByRole('link', { name: 'About LyricLint' });
+		const styles = getComputedStyle(link);
+		const row = getComputedStyle(link.closest('.status-bar')!);
+		expect(styles.color).toBe(row.color);
+		expect(styles.textDecorationLine).toBe('underline');
+	});
+
 	test('keeps the panel mounted at a narrow viewport with no way to dismiss it', async () => {
 		vi.stubGlobal(
 			'matchMedia',

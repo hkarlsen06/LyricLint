@@ -91,6 +91,12 @@
 	--measure-editor: 76ch;
 	--measure-prose: 66ch;
 
+	/* The one measure that caps a page rather than a column of text, so it is
+	   `rem`: it spans two elements set in different faces — a scanned list and a
+	   read document side by side — and each of them is still under its own
+	   measure inside it. */
+	--measure-split: 74rem;
+
 	/* Focus, motion, and interaction states */
 	--focus-ring-width: 2px;
 	--focus-ring-offset: 2px;

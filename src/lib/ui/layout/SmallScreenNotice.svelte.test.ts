@@ -41,4 +41,30 @@ describe('SmallScreenNotice', () => {
 			true
 		);
 	});
+
+	it('offers the one page a phone can actually read', async () => {
+		// The gate used to be a dead end: it explained that the app was gone and
+		// left the reader with nothing to do. `/about` is outside the `(app)` route
+		// group precisely so this link lands somewhere that has not been blanked.
+		const screen = await render(SmallScreenNotice);
+		reveal();
+
+		const link = screen.getByRole('link', { name: 'See what LyricLint does' });
+		await expect.element(link).toBeInTheDocument();
+		await expect.element(link).toHaveAttribute('href', '/about');
+	});
+
+	it('keeps the action as the surface it is, not a box on the page', async () => {
+		// A full-page message is prose on the canvas. The link is allowed the
+		// contrast tier because it is the single destination action here, but it
+		// must not arrive wrapped in a bordered container.
+		await render(SmallScreenNotice);
+		reveal();
+
+		const action = document.querySelector<HTMLElement>('.small-screen-notice__action');
+		expect(action).toBeTruthy();
+		const styles = getComputedStyle(action!);
+		expect(styles.borderTopWidth).toBe('0px');
+		expect(styles.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+	});
 });

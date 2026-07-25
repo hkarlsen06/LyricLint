@@ -11,6 +11,7 @@
 		insertSectionHeader
 	} from '$lib/performers/index.js';
 	import { getLanguagePack } from '$lib/languages/registry.js';
+	import { resolve } from '$app/paths';
 	import { type Component, untrack } from 'svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import {
@@ -232,10 +233,18 @@
 				)}</span
 			>
 		</span>
+		<!-- The way out of the workbench, and the only one on the desktop layout.
+		     It belongs here rather than in the toolbar for two reasons: the toolbar
+		     holds commands that act on the document and this acts on nothing, and
+		     anyone already inside the app has no need to be told what the app is.
+		     What they do need, occasionally, is a URL to hand someone else — so it
+		     sits in the quietest persistent row on the screen, beside the other
+		     facts that are true whether or not you are looking at them. -->
 		<span class="status-bar__group status-bar__hints">
 			<span><kbd>F8</kbd> next issue</span>
 			<span><kbd>{fixShortcut}</kbd> fixes</span>
 			<span>offline ready</span>
+			<a class="status-bar__link" href={resolve('/about')}>About LyricLint</a>
 		</span>
 	</footer>
 </main>

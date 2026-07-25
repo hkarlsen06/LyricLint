@@ -1,0 +1,564 @@
+/*
+ * The pages outside the workbench: the landing page and the rule reference.
+ *
+ * These are read, not operated. A site page is one ordinary document that
+ * scrolls the viewport, and it has to survive a phone, because the phone gate
+ * deliberately does not apply here. The rule reference is the exception, and it
+ * is the workbench's own arrangement rather than an article — see `data-shell`
+ * below.
+ *
+ * The material vocabulary is the app's, unchanged. Chrome bands for the header
+ * and footer, prose directly on `--color-canvas`, and exactly two things that
+ * are allowed a border: a run of repeating items (the rule index, drawn like the
+ * linter's run of diagnostics) and a verbatim sample of document text, which is
+ * a different material from the prose describing it.
+ */
+
+.site {
+	display: grid;
+	min-height: 100vh;
+	min-height: 100dvh;
+	grid-template-rows: auto 1fr auto;
+}
+
+/*
+ * The window shell, for a page whose content scrolls in columns rather than as
+ * a document: the chrome is pinned, the middle row is exactly what is left of
+ * the viewport, and whatever sits in it owns its own scrollers.
+ *
+ * `clip`, not `hidden`, for the same reason `.workspace` uses it: a hidden box
+ * is still a scroll port, so a `scrollIntoView` from a focused row deep inside
+ * a column could scroll the header off the top with no scrollbar to bring it
+ * back. Clipping removes the port, so the shell cannot move at all.
+ */
+.site[data-shell='window'] {
+	height: 100vh;
+	height: 100dvh;
+	min-height: 0;
+	overflow: clip;
+}
+
+/* Chrome, like the document toolbar, so arriving at the workbench from here is
+   not a change of material — the same band, the same brand, in the same place. */
+.site-header,
+.site-footer {
+	display: flex;
+	padding: var(--space-3) var(--space-5);
+	gap: var(--space-4);
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	background: var(--color-chrome);
+}
+
+.site-header {
+	border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.site-footer {
+	border-top: var(--border-width) solid var(--color-border);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+/* The lockup is the link, so the link may not paint over it: the wordmark tints
+   its own brackets off `--wm-open` and an inherited accent color would fight
+   that arithmetic for the same pixels. It reads as a link from its position and
+   from the pointer, the way a masthead does. */
+.site-home {
+	display: inline-flex;
+	color: inherit;
+	text-decoration: none;
+}
+
+.site-nav {
+	display: flex;
+	gap: var(--space-4);
+	flex-wrap: wrap;
+	align-items: center;
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+}
+
+/* The page the reader is already on is named but not linked, so the nav says
+   where they are without offering to take them there again. */
+.site-nav [aria-current='page'] {
+	color: var(--color-text);
+	text-decoration: none;
+}
+
+.site-main {
+	width: 100%;
+	max-width: var(--measure-prose);
+	padding: var(--space-7) var(--space-5) var(--space-8);
+	margin: 0 auto;
+}
+
+/* Wider than the prose measure, because a run of rows is scanned down its left
+   edge rather than read in wrapping lines, and a verbatim lyric sample wraps at
+   the editor's column, not at prose's. */
+.site-main--wide {
+	max-width: var(--measure-editor);
+}
+
+/*
+ * Prose. Sized off the same ramp as the UI: this is the same product, and a
+ * marketing page that reached for a larger body size would be the one surface
+ * in the system with typography of its own.
+ */
+.site-prose h1 {
+	margin: 0 0 var(--space-4);
+	font-size: var(--font-size-2xl);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.site-prose h2 {
+	margin: var(--space-7) 0 var(--space-3);
+	font-size: var(--font-size-xl);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.site-prose h3 {
+	margin: var(--space-5) 0 var(--space-2);
+	font-size: var(--font-size-lg);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.site-prose p,
+.site-prose ul,
+.site-prose ol {
+	margin: 0 0 var(--space-4);
+}
+
+.site-prose li {
+	margin-bottom: var(--space-2);
+}
+
+/* The one line under the headline that has to be read: the sentence that says
+   what the thing is. Larger than body copy and no wider than the measure. */
+.site-lede {
+	margin-bottom: var(--space-5);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-lg);
+	line-height: var(--line-height-body);
+}
+
+.site-actions {
+	display: flex;
+	padding-bottom: var(--space-2);
+	gap: var(--space-3);
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+/* A button that is an anchor. The tiers in controls.css assume a <button>, whose
+   text is centred and undecorated by default; an <a> is neither. */
+.site-actions .button {
+	text-decoration: none;
+}
+
+/* Sits beside the destination action and says what it costs — a desktop, a
+   keyboard. Muted prose, not a tinted advisory box. */
+.site-aside {
+	margin: 0 0 var(--space-6);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+}
+
+/*
+ * A run of repeating items, drawn like the linter's run of diagnostic cards: no
+ * gap, no rounding between neighbours, a hairline where two meet. One border
+ * around the whole run, because the run is the thing being separated from the
+ * page — the rows are separated from each other, which a hairline already does.
+ */
+.site-run {
+	padding: 0;
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-panel);
+	margin: 0 0 var(--space-6);
+	background: var(--color-surface);
+	list-style: none;
+	overflow: hidden;
+}
+
+.site-run > li + li {
+	border-top: var(--border-width) solid var(--color-border);
+}
+
+/* The whole row is the target, so the link fills it rather than sitting inside
+   it as a word with dead space either side. */
+.site-run a {
+	display: grid;
+	padding: var(--space-3) var(--space-4);
+	gap: var(--space-1);
+	color: inherit;
+	text-decoration: none;
+}
+
+.site-run a:hover {
+	background: var(--color-fill-subtle);
+	color: inherit;
+}
+
+.site-run a:focus-visible {
+	outline-offset: calc(-1 * var(--focus-ring-width));
+}
+
+.site-run__title {
+	font-weight: var(--font-weight-medium);
+}
+
+.site-run__meta {
+	display: flex;
+	gap: var(--space-2);
+	flex-wrap: wrap;
+	align-items: center;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+/* Rule and source identifiers are literal strings the reader may need to match
+   against the codebase or a URL, so they are set in the source face wherever
+   they appear. */
+.site-code {
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+}
+
+/*
+ * A verbatim sample of document text. This earns its border: it is a different
+ * material from the prose around it — the literal thing the reader would type
+ * into the editor — and the boundary is what says where the sample stops. It is
+ * `--color-surface`, one step up from the page, and never nested in anything
+ * else that has a border.
+ *
+ * Markup shape is load-bearing here, so use a `<figure>` holding a
+ * `<figcaption class="site-sample__label">` and a `<pre class="site-sample__text">`.
+ * Preserved whitespace belongs to the `<pre>` alone: with `pre-wrap` on the
+ * wrapper, the newlines and tabs of the *template's own* indentation between the
+ * caption and the text render as a blank line and a leading indent inside the
+ * sample, which then misrepresents the very thing the sample is quoting.
+ */
+.site-sample {
+	padding: var(--space-3) var(--space-4);
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-panel);
+	margin: 0 0 var(--space-4);
+	background: var(--color-surface);
+}
+
+.site-sample__text {
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-editor);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	tab-size: 2;
+}
+
+/* Which of the two a sample is — the input that trips the rule, or the text it
+   should have been. Color states it and a word states it too, because the pair
+   is the whole point of the example and must not be carried by hue alone. */
+.site-sample__label {
+	display: flex;
+	gap: var(--space-1-5);
+	align-items: center;
+	margin: 0 0 var(--space-1-5);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.01em;
+}
+
+.site-sample--invalid .site-sample__label {
+	color: var(--color-danger);
+}
+
+.site-sample--valid .site-sample__label {
+	color: var(--color-success);
+}
+
+/* Facts about the page's subject, on one line, in the meta idiom the diagnostic
+   card established: interpuncts between, muted, small. */
+.site-meta {
+	display: flex;
+	gap: var(--space-2);
+	flex-wrap: wrap;
+	align-items: center;
+	margin: 0 0 var(--space-5);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+.site-meta__separator {
+	color: var(--color-border-strong);
+}
+
+/*
+ * The live demo: the workbench's own `EditorPane`, mounted without the shell
+ * around it. It gets the same border and surface as a `.site-sample`, because
+ * it is the same material — a piece of document text set apart from the prose
+ * describing it — and for the same reason it is the only thing on this page
+ * allowed a second one.
+ *
+ * The wrapper reserves the box and paints nothing. That is the whole trick
+ * here, and it settles two problems that pulled in opposite directions:
+ *
+ * - The popover has to escape, so the wrapper cannot clip. But a rounded
+ *   *unclipped* box whose child repeats its radius one border-width inside it
+ *   has four corners where the child's curve falls outside the parent's, and
+ *   the surface color spills past the border in each of them. So exactly one
+ *   element paints the border, the radius, the background and the clip, and
+ *   that element is the editor itself — nothing is nested, so nothing can
+ *   mismatch.
+ * - The height has to be the same before and after CodeMirror exists, or the
+ *   page jumps under the reader while it loads. So the wrapper is a definite
+ *   height and both the stand-in and the real editor fill it exactly.
+ */
+.site-demo {
+	margin: 0 0 var(--space-5);
+}
+
+/*
+ * Measured against the sample verse rather than guessed: CodeMirror's own
+ * padding (24px over, 48px under), the ghost "Add section header" row (38px),
+ * four lines at 24.75px, and one badge row where a line carries a cluster of
+ * findings — 234px, reserved as 15rem. Re-measure it if the sample changes.
+ *
+ * Definite, not `min-height`: a percentage height does not resolve against
+ * `min-height`, and CodeMirror's theme sets `.cm-editor` to `height: 100%`. It
+ * is also what makes the box the same size in both states, which is the point.
+ * Typing past it scrolls `.cm-scroller`, exactly as the workbench does.
+ */
+.site-demo__editor {
+	position: relative;
+	height: 15rem;
+}
+
+/* One box, painted once — see above. `overflow: hidden` here and not on the
+   wrapper: CodeMirror draws the scroller and the gutters as square boxes that
+   would otherwise sit proud of this radius, while the diagnostic popover is a
+   sibling of this element and stays free to overhang the wrapper. */
+.site-demo__editor .cm-editor,
+.site-demo__fallback {
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-panel);
+	background: var(--color-surface);
+	overflow: hidden;
+}
+
+/* The prerendered stand-in, replaced the moment CodeMirror is ready. It is what
+   a crawler indexes and what a reader without JavaScript keeps, so it carries
+   the verse verbatim rather than a placeholder.
+
+   Taken out of flow so that it cannot contribute a height of its own: the box
+   is the wrapper's, and the swap has nothing left to move. Its text is inset to
+   where the editor's text lands — past the gutter, below the ghost header row —
+   so the exchange does not slide the verse sideways either. */
+.site-demo__fallback {
+	position: absolute;
+	padding: var(--space-7) var(--space-4) var(--space-3) var(--space-8);
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-editor);
+	inset: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.site-demo__hint {
+	margin: var(--space-2) 0 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+}
+
+/*
+ * The one thing a reservation cannot be is width-independent: below this the
+ * verse wraps and the box it needs grows. Measured the same way — the longest
+ * line takes a second row once the box falls under 480px, which is a 512px
+ * viewport, and the worst case down to a 320px one costs 308px. Reserved as
+ * 20rem, and the breakpoint is set at the onset rather than under it: an
+ * over-tall box is a band of empty surface at one width, while an under-tall
+ * one clips the last line of the sample the whole page is built around.
+ */
+@media (max-width: 32rem) {
+	.site-demo__editor {
+		height: 20rem;
+	}
+}
+
+/*
+ * The rule reference, which is a master and a detail rather than a list that
+ * leads away to pages. The list lives in the section's layout, so pressing a
+ * row swaps only the column beside it — and the arrangement is the workbench's
+ * own: the run you are working through on the left, the thing you are reading
+ * about on the right.
+ *
+ * The DOM order is detail first, list second, and the grid areas are what put
+ * the list back on the left. That way the page's `<main>` and its `<h1>` come
+ * before a `<nav>` of forty-eight links, instead of behind it.
+ *
+ * Neither column scrolls the page. Forty-eight rows and a rule are two runs of
+ * unrelated lengths, and a document scroll would have to serve both with one
+ * offset: reading to the bottom of a rule dragged the list along with it and
+ * took the header off the top of the screen on the way. So each column is its
+ * own scroll port inside the window shell, and the only thing the viewport
+ * decides is how tall they are.
+ */
+.rules {
+	display: grid;
+	width: 100%;
+	max-width: var(--measure-split);
+	min-height: 0;
+	padding: var(--space-6) var(--space-5);
+	gap: var(--space-6);
+	grid-template-rows: minmax(0, 1fr);
+	grid-template-columns: minmax(0, 1fr) minmax(0, 34rem);
+	grid-template-areas: 'index detail';
+	margin: 0 auto;
+}
+
+/*
+ * `min-height: 0` is what makes the scrollers real: a grid item's automatic
+ * minimum is its content, so without it each column grows to its full length,
+ * pushes the row past the shell, and the overflow is clipped by the shell with
+ * nothing to scroll it back.
+ *
+ * `overscroll-behavior` keeps a wheel that reaches the end of one column from
+ * being handed to anything behind it — there is no document scroll here to
+ * receive it, but a nested scroller would otherwise take it.
+ *
+ * The inline-end padding is the scrollbar's lane, and it is padding rather than
+ * `scrollbar-gutter` alone because the two platforms fail differently. An
+ * overlay scrollbar — macOS, and any touch device — takes no layout space at
+ * all, so `scrollbar-gutter` reserves nothing and the bar paints straight over
+ * the last word of every wrapped line and over the right border of every sample
+ * card. A classic scrollbar does take space, but it takes it from the content
+ * box, which parks the text against the bar instead of under it. The padding
+ * answers both: it is the lane the overlay bar floats in, and the gap between
+ * the text and a classic one. `stable` is here for the second case only, so a
+ * short rule and a long one do not sit at different widths.
+ */
+.rules__index,
+.rules__detail {
+	min-height: 0;
+	padding-inline-end: var(--space-3);
+	overflow: auto;
+	overscroll-behavior: contain;
+	scrollbar-gutter: stable;
+}
+
+.rules__index {
+	grid-area: index;
+}
+
+.rules__detail {
+	grid-area: detail;
+}
+
+/* Verbatim lyric samples wrap at the editor's column here as they do anywhere
+   else, which is what this caps; the grid column is what sizes the page. */
+.rules__page {
+	max-width: var(--measure-editor);
+	padding-bottom: var(--space-5);
+}
+
+.rules__group {
+	margin: var(--space-6) 0 var(--space-3);
+	font-size: var(--font-size-lg);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.rules__index > .rules__group:first-child {
+	margin-top: 0;
+}
+
+/* Selection is depth, not hue, exactly as in the linter's run of diagnostics:
+   the open rule's row drops to the recessed canvas and reads as cut into the
+   column. No accent wash and no ring — the severity tag is already the one
+   colored thing in the row, and a second color would compete with it. */
+.rules__index a[aria-current='page'],
+.rules__index a[aria-current='page']:hover {
+	background: var(--color-canvas);
+	box-shadow: var(--shadow-recessed);
+}
+
+/* Narrow screens only: see the media query below, where the list stops being on
+   screen and this becomes the way back to it. */
+.rules__back {
+	display: none;
+}
+
+@media (max-width: 62rem) {
+	/*
+	 * One column at a time. A rule is a route of its own here rather than a pane
+	 * beside the list, so opening one replaces the list and the control at the
+	 * top of the page goes back to it — back, not forward to a fresh `/rules`,
+	 * which is what returns the reader to the row they pressed. The scroll that
+	 * restores is the document's, and the document is what scrolled, so there is
+	 * nothing for this stylesheet to preserve: the list must simply not be given
+	 * a scroller of its own at this width.
+	 *
+	 * That is also why the window shell comes off. Two columns of unequal length
+	 * are what earned it; with one on screen at a time there is nothing to hold
+	 * still, and a pinned header and footer would only spend the short edge of a
+	 * small screen on chrome the reader can already scroll away from.
+	 */
+	.site[data-shell='window'] {
+		height: auto;
+		min-height: 100vh;
+		min-height: 100dvh;
+		overflow: visible;
+	}
+
+	.rules {
+		padding: var(--space-5) var(--space-4) var(--space-7);
+		gap: var(--space-5);
+		grid-template-rows: auto;
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: 'detail' 'index';
+	}
+
+	.rules__index,
+	.rules__detail {
+		min-height: auto;
+		padding-inline-end: 0;
+		overflow: visible;
+		overscroll-behavior: auto;
+		scrollbar-gutter: auto;
+	}
+
+	.rules[data-view='rule'] .rules__index {
+		display: none;
+	}
+
+	.rules__back {
+		display: inline-flex;
+		gap: var(--space-1-5);
+		align-items: center;
+		margin-bottom: var(--space-4);
+	}
+}
+
+@media (max-width: 46rem) {
+	.site-header,
+	.site-footer {
+		padding: var(--space-3) var(--space-4);
+	}
+
+	.site-main {
+		padding: var(--space-5) var(--space-4) var(--space-7);
+	}
+
+	/* Touch targets, matching what responsive.css already does for the app's
+	   controls at this width. */
+	.site-nav {
+		gap: var(--space-3);
+	}
+}

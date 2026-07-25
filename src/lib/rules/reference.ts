@@ -1,0 +1,224 @@
+import { parseDocument } from '$lib/core/parser.js';
+import type {
+	DiagnosticFix,
+	PerformerRecord,
+	RuleContext,
+	RuleDefinition,
+	Severity,
+	SourceReference
+} from '$lib/core/types.js';
+import { policyCases, type RulePolicyCase } from './catalog/policy-cases.js';
+import { currentRuleSet } from './data/rule-set.js';
+import { sourceRegistry } from './data/sources.js';
+import { sortDiagnostics } from './engine.js';
+import { enabledRules } from './registry.js';
+
+/**
+ * The public rule reference, derived rather than written.
+ *
+ * Rules carry no prose of their own — their `message` and `explanation` exist
+ * only on the diagnostics `check()` emits. Hand-writing 47 page descriptions
+ * would create a second copy of that text with no test tying it to the rule,
+ * and it would drift within a release. So each page's content comes from
+ * actually running the rule against its reviewed `invalid` policy example: the
+ * lead diagnostic's message is the page title, its explanation is the body,
+ * and its fix label is the fix the page names. What the reference publishes is
+ * therefore exactly what the workbench shows, by construction.
+ */
+
+/** Everything a reference page states about one rule, all diagnostic-derived. */
+export interface RuleReference {
+	id: string;
+	/** URL path segment: the rule ID with dots flattened to hyphens. */
+	slug: string;
+	/** The ID prefix before the first dot, which is what the index groups by. */
+	group: string;
+	groupTitle: string;
+	severity: Severity;
+	message: string;
+	explanation: string;
+	/** The lead fix of the example diagnostic, when the rule offers one. */
+	fix?: { label: string; kind: DiagnosticFix['kind'] };
+	/** The reviewed example pair the diagnostic above was produced from. */
+	invalid: string;
+	valid: string;
+	/** Resolved provenance for the diagnostic's `sourceIds`, in citation order. */
+	sources: SourceReference[];
+	/** The explanation cut to meta-description length for the page's head. */
+	seoDescription: string;
+}
+
+/**
+ * Dots cannot appear in a static-adapter path segment — the adapter writes the
+ * page to disk and `adlib.parentheses` reads as a file named `adlib` with the
+ * extension `parentheses`. Hyphens also match the catalog filenames, so a slug
+ * doubles as the name of the module implementing it.
+ */
+export function ruleSlug(id: string): string {
+	return id.replaceAll('.', '-');
+}
+
+// Rule IDs already contain hyphens (`sound-effect.asterisks`), so the flatten
+// is not invertible by string transform. The map is; a collision between two
+// IDs would silently drop an entry here, which reference.test.ts turns into a
+// failure by asserting every ID round-trips.
+const idBySlug = new Map(enabledRules.map((rule) => [ruleSlug(rule.id), rule.id]));
+
+export function ruleFromSlug(slug: string): string | undefined {
+	return idBySlug.get(slug);
+}
+
+/**
+ * Index group names, keyed by ID prefix. The lookup throws on a prefix it does
+ * not know so a rule family cannot ship with its raw prefix as a heading —
+ * prerendering every page is part of the build, which makes this a build error
+ * rather than a runtime one.
+ */
+const groupTitles: Record<string, string> = {
+	syntax: 'Syntax and markup',
+	language: 'Language selection',
+	section: 'Section headers',
+	performer: 'Performer attribution',
+	spelling: 'Spelling',
+	quotes: 'Quotation marks',
+	contraction: 'Contractions',
+	grammar: 'Grammar',
+	text: 'Invisible characters',
+	unknown: 'Unknown lyrics',
+	repeat: 'Repeated sections',
+	'sound-effect': 'Sound effects',
+	censored: 'Censored words',
+	adlib: 'Ad-libs',
+	capitalization: 'Capitalization',
+	punctuation: 'Punctuation',
+	line: 'Line length',
+	numbers: 'Numbers'
+};
+
+function groupTitle(prefix: string): string {
+	const title = groupTitles[prefix];
+	if (!title) {
+		throw new Error(`No reference group title for rule prefix "${prefix}"`);
+	}
+	return title;
+}
+
+// Mirrors how catalog-policy.test.ts builds its roster, so the reference runs
+// each rule under the same conditions its policy example is verified under.
+function performerRecordsFor(names: readonly string[]): PerformerRecord[] {
+	return names.map((displayName, order) => ({
+		id: `p-${order}`,
+		displayName,
+		normalizedKey: displayName.toLocaleLowerCase(),
+		aliases: [],
+		colorId: `c-${order}`,
+		order
+	}));
+}
+
+/**
+ * Search descriptions get cut mid-sentence by engines at around 155–160
+ * characters; cutting at a word boundary ourselves keeps the visible text ours
+ * rather than an engine's truncation of it.
+ */
+function seoDescription(explanation: string): string {
+	if (explanation.length <= 155) {
+		return explanation;
+	}
+	const cut = explanation.slice(0, 154);
+	return `${cut.slice(0, cut.lastIndexOf(' '))}…`;
+}
+
+function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleReference {
+	const context: RuleContext = {
+		language: policy.language ?? 'en',
+		performers: performerRecordsFor(policy.performers ?? ['A']),
+		sources: sourceRegistry,
+		ruleSetVersion: currentRuleSet.version,
+		// The reference never dispatches the fixes it reads labels from, so any
+		// revision works; zero states that these edits are not for applying.
+		revision: 0
+	};
+	// `sortDiagnostics` rather than "first emitted": the page leads with the
+	// same finding the panel would, not with whatever iteration order the
+	// rule's implementation happens to have.
+	const [lead] = sortDiagnostics(rule.check(parseDocument(policy.invalid), context));
+	if (!lead) {
+		throw new Error(`Rule ${rule.id} produced no diagnostic for its invalid policy example`);
+	}
+	const sources = lead.sourceIds.map((sourceId) => {
+		const source = sourceRegistry.get(sourceId);
+		if (!source) {
+			// Provenance is the entire reason these pages exist, so a citation that
+			// cannot be resolved is a page that must not build.
+			throw new Error(`Rule ${rule.id} cites unknown source ${sourceId}`);
+		}
+		return source;
+	});
+	const prefix = rule.id.slice(0, rule.id.indexOf('.'));
+	const fix = lead.fixes?.[0];
+	return {
+		id: rule.id,
+		slug: ruleSlug(rule.id),
+		group: prefix,
+		groupTitle: groupTitle(prefix),
+		severity: lead.severity,
+		message: lead.message,
+		explanation: lead.explanation,
+		...(fix ? { fix: { label: fix.label, kind: fix.kind } } : {}),
+		invalid: policy.invalid,
+		valid: policy.valid,
+		sources,
+		seoDescription: seoDescription(lead.explanation)
+	};
+}
+
+let cache: RuleReference[] | undefined;
+
+/** Every enabled rule's reference entry, in registry order. */
+export function ruleReferences(): RuleReference[] {
+	if (!cache) {
+		const caseById = new Map(policyCases.map((policy) => [policy.id, policy]));
+		cache = enabledRules.map((rule) => {
+			const policy = caseById.get(rule.id);
+			if (!policy) {
+				// A rule without a policy case has no reviewed example to derive a
+				// page from — and no page means no reference entry, so the rule
+				// cannot ship until the case (and with it the test coverage) exists.
+				throw new Error(`Rule ${rule.id} has no policy case to derive its reference page from`);
+			}
+			return deriveReference(rule, policy);
+		});
+	}
+	return cache;
+}
+
+export function ruleReferenceFromSlug(slug: string): RuleReference | undefined {
+	const id = ruleFromSlug(slug);
+	return id ? ruleReferences().find((reference) => reference.id === id) : undefined;
+}
+
+/** One index section: a titled, contiguous slice of the reference. */
+export interface RuleReferenceGroup {
+	title: string;
+	rules: RuleReference[];
+}
+
+/**
+ * The reference grouped for the index, ordered by each group's first
+ * appearance in the registry. Grouping by prefix pulls the spelling rules that
+ * the registry interleaves with grammar back into one section, while keeping
+ * the registry's own broad ordering — syntax first, conventions last.
+ */
+export function groupedRuleReferences(): RuleReferenceGroup[] {
+	const groups = new Map<string, RuleReferenceGroup>();
+	for (const reference of ruleReferences()) {
+		let group = groups.get(reference.group);
+		if (!group) {
+			group = { title: reference.groupTitle, rules: [] };
+			groups.set(reference.group, group);
+		}
+		group.rules.push(reference);
+	}
+	return [...groups.values()];
+}

@@ -370,6 +370,22 @@
 	align-items: center;
 }
 
+/*
+ * The status bar's one link. It takes the muted color of the row rather than
+ * `--color-accent`: the band is the quietest chrome in the window and a
+ * saturated blue would be the only saturated thing in it, which in a linter
+ * reads as a finding. The underline is what marks it as a link instead, and
+ * hover promotes it to full text color — a change in weight, not in hue.
+ */
+.status-bar__link {
+	color: inherit;
+	text-decoration: underline;
+}
+
+.status-bar__link:hover {
+	color: var(--color-text);
+}
+
 .status-bar__hints kbd {
 	padding: var(--space-0-5) var(--space-1);
 	border: var(--border-width) solid var(--color-border);

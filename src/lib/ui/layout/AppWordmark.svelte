@@ -17,9 +17,10 @@
 	// and the letters stay out of the accessibility tree — a screen reader should
 	// hear the product name, not five spans and a bracket.
 
-	// The lockup behaves the same wherever it is used and takes no props to say
-	// otherwise. It opens three ways: on load, under a pointer, and on a press
-	// that latches.
+	// It opens three ways: on load, under a pointer, and on a press that latches.
+	// Only the first of those differs between pages, and only in which direction
+	// it runs — see `intro` below. Everything after it is the same lockup
+	// everywhere.
 	//
 	// The press is what touch needs, and `:hover` cannot stand in for it. Tapping
 	// an element that carries hover styles does apply them — which is why a tap
@@ -30,6 +31,25 @@
 	// tap just closed; a mouse leaving drops the latch so hover takes over again,
 	// and touch never reaches that because `pointerleave` after a tap would undo
 	// the tap that caused it.
+
+	/**
+	 * Which way the lockup arrives. This is a question about the page, not about
+	 * the lockup: in the workbench the brand is a masthead over a tool the reader
+	 * came to use, so it leads with the word and then gets out of the way
+	 * (`hold`). On the landing page the brand is what the reader came for, so it
+	 * arrives as the mark and grows into the word (`reveal`) — and stays there,
+	 * because there is nothing on that page for it to get out of the way of.
+	 *
+	 * That is the whole difference. Hover, the press latch, and the driver they
+	 * move are identical in both, so a lockup cannot be made to behave one way
+	 * here and another way there.
+	 *
+	 * Not called `intro`, which is what it is: `intro` is one of Svelte's own
+	 * `mount` options, and a prop by that name is silently taken as the option and
+	 * never reaches the component — including from every `render()` in the tests,
+	 * which then quietly exercise the default.
+	 */
+	let { entrance = 'hold' }: { entrance?: 'hold' | 'reveal' } = $props();
 
 	/**
 	 * How long the wordmark holds before it contracts to the mark on load: long
@@ -45,6 +65,16 @@
 	 */
 	const READING_MS = 900;
 
+	/**
+	 * The beat a `reveal` waits before it opens, and it is short for the missing
+	 * half of the same reason: the mark still has to be landed on and registered
+	 * before it moves, but it is one glyph rather than a nine-letter compound, so
+	 * none of the reading time is owed. Opening on the frame the page paints reads
+	 * as the page still assembling itself; opening a beat later reads as the brand
+	 * doing something on purpose.
+	 */
+	const REVEAL_MS = 420;
+
 	const LEAD = ['L', 'y', 'r', 'i', 'c'];
 	const WORD = ['L', 'i', 'n', 't'];
 
@@ -53,13 +83,26 @@
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-	// Starts open so the prerendered HTML is the wordmark: the intro is a hold on
-	// the state the page already loaded in, not an animation that has to play.
-	let introHolding = $state(true);
+	// The intro's own opinion on whether the lockup is open — the one hover and the
+	// press latch both outrank. It starts at whichever end its mode begins from,
+	// so the prerendered HTML is already that state and the intro is a single flip
+	// out of it rather than an animation that has to play to be correct: `hold`
+	// loads as the word and closes, `reveal` loads as the mark and opens.
+	//
+	// Reading the prop here does capture only its initial value, which is what is
+	// wanted: this is the end the entrance starts from, and the effect below is
+	// what carries a later change through. Recomputing it reactively would snap a
+	// navigating lockup back to a starting position it should be leaving.
+	// svelte-ignore state_referenced_locally
+	let introOpen = $state(entrance === 'hold');
 
 	$effect(() => {
 		if (prefersReducedMotion) return;
-		const timer = setTimeout(() => (introHolding = false), READING_MS);
+		const reveal = entrance === 'reveal';
+		// Reading `entrance` in here is deliberate: a client-side navigation between
+		// the site pages swaps the mode without remounting the header's lockup, and
+		// re-running the timer is what plays the arriving page's entrance.
+		const timer = setTimeout(() => (introOpen = reveal), reveal ? REVEAL_MS : READING_MS);
 		return () => clearTimeout(timer);
 	});
 
@@ -73,7 +116,7 @@
 		// Inverts what is on screen rather than the latch itself, so the first
 		// press during the intro closes the wordmark instead of appearing to do
 		// nothing.
-		latched = !(latched ?? introHolding);
+		latched = !(latched ?? introOpen);
 	}
 
 	function releaseLatch(event: PointerEvent): void {
@@ -85,6 +128,13 @@
 
 	// Not named `state`: that shadows the `$state` rune for the compiler's own
 	// type mapping, and the errors it produces point at the rune, not at here.
+	//
+	// `intro` means the intro is holding the lockup open, which for a `reveal` is
+	// a state it enters rather than leaves and then never gives up — its ending
+	// position is open, and nothing but a press takes it back. `static` is the
+	// reduced-motion parking spot and is open too, which is the same ending both
+	// modes would have reached; the wordmark carries the most brand for the least
+	// movement, so it is the right thing to sit still as.
 	const openState = $derived(
 		prefersReducedMotion
 			? 'static'
@@ -92,7 +142,7 @@
 				? 'latched'
 				: latched === false
 					? 'released'
-					: introHolding
+					: introOpen
 						? 'intro'
 						: 'idle'
 	);

@@ -16,6 +16,14 @@
 				: 'The application shell encountered an error before the workspace was ready.'}
 		</p>
 		<p>Your local drafts have not been included in this error page or sent anywhere.</p>
-		<a class="button button--contrast" href={resolve('/')}>Return to the workspace</a>
+		<!-- A 404 here is usually a shared link that was truncated or mistyped, which
+		     means the reader may never have seen LyricLint before. Sending them to
+		     the workspace alone hands a stranger an empty editor with no explanation,
+		     so the quiet tier offers the page that explains it. The contrast tier
+		     stays with the workspace: that is still the destination. -->
+		<p class="error-page__actions">
+			<a class="button button--contrast" href={resolve('/')}>Return to the workspace</a>
+			<a class="button button--quiet" href={resolve('/about')}>What is LyricLint?</a>
+		</p>
 	</div>
 </main>

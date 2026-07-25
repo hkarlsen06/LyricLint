@@ -10,6 +10,7 @@
 	// the wordmark is set in type and reads as type, so it can simply be the
 	// first word of the sentence. `role="img"` puts `LyricLint` back into the
 	// heading's accessible name, so the heading still announces in full.
+	import { resolve } from '$app/paths';
 	import AppWordmark from './AppWordmark.svelte';
 </script>
 
@@ -21,5 +22,18 @@
 			selecting text and typing — none of which survives a phone-sized viewport.
 		</p>
 		<p>Open this page on a laptop or desktop to get started.</p>
+		<!-- The gate is the most likely first contact anyone has with LyricLint: a
+		     link shared in a forum or a chat is opened on a phone far more often
+		     than not, and until now that reader was told the product was unusable
+		     and given nowhere to go. `/about` sits outside the `(app)` route group
+		     so the gate does not blank the very page this points at.
+
+		     It takes the contrast tier because it is the only action on the page —
+		     the one destination this surface offers — and it is a bare link on the
+		     canvas, not a box: a full-page message is prose, and a card here would
+		     separate its contents from nothing. -->
+		<p class="small-screen-notice__action">
+			<a class="button button--contrast" href={resolve('/about')}>See what LyricLint does</a>
+		</p>
 	</div>
 </div>

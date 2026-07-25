@@ -62,6 +62,57 @@ describe('AppWordmark', () => {
 		}
 	});
 
+	it('runs the intro backwards where the brand is the reason for the page', async () => {
+		vi.useFakeTimers();
+		try {
+			await render(AppWordmark, { entrance: 'reveal' });
+			const element = lockup();
+
+			// Closed on mount, and closed in the prerendered HTML with it: the mark is
+			// what the landing page loads as, and the word grows out of it. The beat
+			// before it does is shorter than the workbench's hold, because a glyph
+			// costs a fixation to register and none of the reading a word does.
+			expect(element.dataset.state).toBe('idle');
+			expect(open(element)).toBe(0);
+			const markWidth = element.getBoundingClientRect().width;
+
+			await vi.advanceTimersByTimeAsync(1_000);
+			expect(element.dataset.state).toBe('intro');
+
+			vi.useRealTimers();
+			await Promise.all(element.getAnimations().map((animation) => animation.finished));
+
+			expect(open(element)).toBe(1);
+			expect(element.getBoundingClientRect().width).toBeGreaterThan(markWidth * 3);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it('leaves a revealed lockup open instead of contracting after it', async () => {
+		// The two modes are not the same animation played in two directions: the
+		// workbench's contracts because a masthead over a tool has to yield the
+		// space back, and the landing page's does not, because there is nothing
+		// underneath it waiting for that space. A reveal that then folded away
+		// would spend the page's one branding moment on a round trip.
+		vi.useFakeTimers();
+		try {
+			await render(AppWordmark, { entrance: 'reveal' });
+			const element = lockup();
+
+			await vi.advanceTimersByTimeAsync(30_000);
+			expect(element.dataset.state).toBe('intro');
+
+			// Same clock caveat as the hold's test: the driver moves on the
+			// compositor's, not on the one just wound forward.
+			vi.useRealTimers();
+			await Promise.all(element.getAnimations().map((animation) => animation.finished));
+			expect(open(element)).toBe(1);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it('toggles on every press, including the first one during the intro', async () => {
 		// The press inverts what is on screen, not the latch, so the first press
 		// while the intro still holds closes the wordmark instead of appearing to

@@ -164,9 +164,13 @@
 	   to let the second tap close it, because the finger that pressed is exactly
 	   what hover is stuck to.
 
-	   Nothing else on the page answers a pointer either — no button, no link, no
-	   field — so a brand that lit up under one would be the only thing here
-	   claiming to be usable, on a page whose message is that nothing is. */
+	   That is now the whole of the argument. This rule used to lean on a second
+	   one — that nothing else on the page answered a pointer, so a brand that lit
+	   up under one would be the only thing here claiming to be usable — and the
+	   link to `/about` retired it. There is a real control on this page now. The
+	   sticky-hover reason stands on its own and is why the rule stays; do not
+	   restore the old justification if the action is ever removed again without
+	   checking that it still says something true. */
 	.small-screen-notice .app-wordmark[data-state='idle']:hover {
 		--wm-open: 0;
 	}
@@ -178,6 +182,28 @@
 
 	.small-screen-notice p:last-child {
 		margin-bottom: 0;
+	}
+
+	/* Below the paragraph rules on purpose, not above them: the action is a `<p>`
+	   so it inherits the reading rhythm, and `.small-screen-notice p` is the more
+	   specific selector (0,1,1 against this rule's 0,1,0). Ordered the other way
+	   round the hand-set spacing below is silently discarded.
+
+	   It is the last thing on the page and wants air above it rather than that
+	   rhythm. No border, no fill, no container — a full-page message is prose on
+	   the canvas, and the button is the whole control. */
+	.small-screen-notice__action {
+		margin-top: var(--space-5);
+	}
+
+	/* Full-width and a comfortable target, because on the surface this rule is
+	   scoped to there is exactly one control and a finger is what will press it.
+	   The button silhouette is `inline-flex`, which would otherwise shrink it to
+	   the width of its label in the middle of a centred column. */
+	.small-screen-notice__action .button {
+		width: 100%;
+		min-height: var(--control-height-lg);
+		text-decoration: none;
 	}
 }
 

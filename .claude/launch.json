@@ -2,142 +2,28 @@
 	"version": "0.0.1",
 	"configurations": [
 		{
-			"name": "lyriclint-preview",
-			"runtimeExecutable": "npm",
-			"runtimeArgs": ["run", "preview", "--", "--port", "4319"],
-			"port": 4319
+			"name": "dev",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "dev", "--", "--port", "5173", "--strictPort"],
+			"port": 5173
 		},
 		{
-			"name": "fix-polish-dev",
+			"name": "rules-split-dev",
 			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5199"],
-			"port": 5199
+			"runtimeArgs": ["run", "dev", "--", "--port", "5461", "--strictPort"],
+			"port": 5461
 		},
 		{
-			"name": "token-system-dev",
+			"name": "rules-scroll-dev",
 			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5227"],
-			"port": 5227
+			"runtimeArgs": ["run", "dev", "--", "--port", "5462", "--strictPort"],
+			"port": 5462
 		},
 		{
-			"name": "toolbar-dev",
+			"name": "preview",
 			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5231"],
-			"port": 5231
-		},
-		{
-			"name": "editor-focus-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5243"],
-			"port": 5243
-		},
-		{
-			"name": "markup-removal-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5263", "--strictPort"],
-			"port": 5263
-		},
-		{
-			"name": "fix-label-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5273", "--strictPort"],
-			"port": 5273
-		},
-		{
-			"name": "hover-diagnostic-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5281", "--strictPort"],
-			"port": 5281
-		},
-		{
-			"name": "diff-preview-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5291", "--strictPort"],
-			"port": 5291
-		},
-		{
-			"name": "styled-only-legend-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5301", "--strictPort"],
-			"port": 5301
-		},
-		{
-			"name": "brand-mark-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5311", "--strictPort"],
-			"port": 5311
-		},
-		{
-			"name": "title-enter-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5251", "--strictPort"],
-			"port": 5251
-		},
-		{
-			"name": "phone-gate-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5321", "--strictPort"],
-			"port": 5321
-		},
-		{
-			"name": "mockup-parity-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5341", "--strictPort"],
-			"port": 5341
-		},
-		{
-			"name": "card-target-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5351", "--strictPort"],
-			"port": 5351
-		},
-		{
-			"name": "ignored-footer-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5361", "--strictPort"],
-			"port": 5361
-		},
-		{
-			"name": "diagnostic-parity-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5371", "--strictPort"],
-			"port": 5371
-		},
-		{
-			"name": "wordmark-morph-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5381", "--strictPort"],
-			"port": 5381
-		},
-		{
-			"name": "fix-advance-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5391", "--strictPort"],
-			"port": 5391
-		},
-		{
-			"name": "severity-marker-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5401", "--strictPort"],
-			"port": 5401
-		},
-		{
-			"name": "slot-order-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5411", "--strictPort"],
-			"port": 5411
-		},
-		{
-			"name": "paste-cleanup-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5431", "--strictPort"],
-			"port": 5431
-		},
-		{
-			"name": "outside-dismiss-dev",
-			"runtimeExecutable": "bun",
-			"runtimeArgs": ["run", "dev", "--", "--port", "5331", "--strictPort"],
-			"port": 5331
+			"runtimeArgs": ["run", "preview", "--", "--port", "4173", "--strictPort"],
+			"port": 4173
 		}
 	]
 }
