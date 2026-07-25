@@ -4,9 +4,9 @@ import { diagnostic, hasUnsupportedMarkup, replacementFix } from './utils.js';
 
 export const spellingStandardizedRule: RuleDefinition = {
 	id: 'spelling.standardized',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'suggestion',
-	fixability: 'safe',
+	fixability: 'preview',
 	sourceIds: ['G-SPELLING'],
 	check(document, context) {
 		return document.sections.flatMap((section) =>
@@ -23,15 +23,19 @@ export const spellingStandardizedRule: RuleDefinition = {
 						return diagnostic(
 							this,
 							range,
-							`Use the reviewed spelling “${candidate.replacement}” instead of “${candidate.found}”.`,
+							candidate.contextGate === 'cousin-meaning'
+								? `If “${candidate.found}” means “because,” use “${candidate.replacement}”.`
+								: `Use “${candidate.replacement}” instead of “${candidate.found}”.`,
 							candidate.safe
-								? 'This context-free spelling recommendation matched a complete word outside literal markup.'
-								: `This recommendation passed its ${candidate.contextGate} context gate, but its meaning still deserves review.`,
-							candidate.safe
+								? 'The reviewed Genius spelling guide recommends this form.'
+								: candidate.contextGate === 'cousin-meaning'
+									? `“${candidate.found}” can also mean “cousin,” so check the lyric before replacing it.`
+									: `This spelling can have another meaning, so check the lyric before replacing it.`,
+							candidate.safe || candidate.contextGate === 'cousin-meaning'
 								? [
 										replacementFix(
 											context,
-											'safe',
+											candidate.safe ? 'safe' : 'preview',
 											`Replace with ${candidate.replacement}`,
 											range,
 											candidate.replacement

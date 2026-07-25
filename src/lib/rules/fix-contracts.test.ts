@@ -122,6 +122,15 @@ const contracts: FixContract[] = [
 		kind: 'safe'
 	},
 	{
+		id: 'spelling.standardized',
+		input: '[Verse]\nCuz I said so',
+		language: 'en',
+		range: [8, 11],
+		expected: "[Verse]\n'Cause I said so",
+		kind: 'preview',
+		label: "Replace with 'Cause"
+	},
+	{
 		id: 'quotes.typewriter',
 		input: '[Verse]\n“Hello',
 		language: 'en',

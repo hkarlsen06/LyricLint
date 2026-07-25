@@ -55,12 +55,29 @@ test('paste → lint → safe fix updates the canonical editor text', async ({ p
 	await replaceDocument(page, '[Chorus: Blair]\nImma stay');
 
 	const diagnostic = page.getByRole('button', {
-		name: /^Go to Use the reviewed spelling “I'ma” instead of “Imma”/u
+		name: /^Go to Use “I'ma” instead of “Imma”/u
 	});
 	await expect(diagnostic).toBeVisible();
 	await page.getByRole('button', { name: "Replace with I'ma" }).click();
 
 	await expectDocText(page, "[Chorus: Blair]\nI'ma stay");
+	await expect(diagnostic).toHaveCount(0);
+});
+
+test('meaning-sensitive spelling uses plain copy and offers a preview action', async ({ page }) => {
+	await openWorkspace(page);
+	await replaceDocument(page, '[Chorus: Blair]\nCuz I stay');
+
+	const diagnostic = page.getByRole('button', {
+		name: /^Go to If “Cuz” means “because,” use “'Cause”/u
+	});
+	await expect(diagnostic).toBeVisible();
+	await expect(
+		page.getByText('“Cuz” can also mean “cousin,” so check the lyric before replacing it.')
+	).toBeVisible();
+	await page.getByRole('button', { name: "Replace with 'Cause" }).click();
+
+	await expectDocText(page, "[Chorus: Blair]\n'Cause I stay");
 	await expect(diagnostic).toHaveCount(0);
 });
 
@@ -171,7 +188,7 @@ test('session ignores survive reload in the same tab and can be restored', async
 	await openWorkspace(page);
 	await replaceDocument(page, '[Verse]\nImma go');
 	const diagnostic = page.getByRole('button', {
-		name: /^Go to Use the reviewed spelling “I'ma” instead of “Imma”/u
+		name: /^Go to Use “I'ma” instead of “Imma”/u
 	});
 	await expect(diagnostic).toBeVisible();
 

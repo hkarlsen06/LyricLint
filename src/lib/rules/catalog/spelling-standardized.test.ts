@@ -92,12 +92,21 @@ describe('spelling.standardized', () => {
 		expect(markedText(text, found)).toEqual(['Imma']);
 	});
 
-	it('withholds a fix until a gated spelling has its meaning confirmed', () => {
+	it('offers a preview fix when a gated spelling has enough context', () => {
 		expect(checkRule(rule, '[Verse]\nMy cuz came')).toEqual([]);
 
 		const [gated] = checkRule(rule, '[Verse]\nCuz I said so');
-		expect(gated?.fixes).toBeUndefined();
-		expect(gated?.explanation).toContain('cousin-meaning');
+		expect(gated?.message).toBe("If “Cuz” means “because,” use “'Cause”.");
+		expect(gated?.explanation).toBe(
+			'“Cuz” can also mean “cousin,” so check the lyric before replacing it.'
+		);
+		expect(gated?.fixes).toMatchObject([
+			{
+				kind: 'preview',
+				label: "Replace with 'Cause",
+				edit: { edits: [{ insert: "'Cause" }] }
+			}
+		]);
 	});
 
 	it('keeps the named-song exception and requires money context for CREAM', () => {

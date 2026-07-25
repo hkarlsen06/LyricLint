@@ -119,7 +119,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `performer.unused-legend-slot` | Suggestion | A clean section header declares a performer style absent from its lyrics | Safely remove the unused legend slot | `G-SECTIONS` |
 | `performer.too-many-groups` | Warning | More than four distinct style groups occur, exceeding the documented four-slot format | Explain the source's context and options only | `G-SECTIONS` |
 | `performer.line-label-forbidden` | Warning | Names or symbols in brackets are used to label individual lyric lines | Preview removal of the inline label | `G-SECTIONS` |
-| `spelling.standardized` | Suggestion | A reviewed non-preferred spelling occurs in a context where the preferred spelling is sufficiently certain | Safe only for context-free entries | `G-SPELLING` |
+| `spelling.standardized` | Suggestion | A reviewed non-preferred spelling occurs in a context where the preferred spelling is sufficiently certain | Safe for context-free entries; selected meaning-sensitive entries use preview | `G-SPELLING` |
 | `spelling.language-variant` | Manual review | British and American variants appear inconsistent with chosen performer language | No automatic fix | `G-SPELLING` |
 | `quotes.typewriter` | Warning | Curly apostrophes or quotation marks occur in lyric text | Safe character replacement outside unsupported markup | `G-TYPEWRITER` |
 | `contraction.apostrophe` | Warning | A likely contraction is missing its apostrophe | Contextual fix preview | `G-CONTRACTIONS` |

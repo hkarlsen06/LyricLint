@@ -432,7 +432,7 @@ The fixability classes below normalize the catalog into `safe`, `preview`, and `
 | `performer.inline-mismatch` | Warning | None | `G-SECTIONS` | Detect inline style with no resolvable legend group and offer guided performer assignment for the plain and styled voices. |
 | `performer.too-many-groups` | Warning | None | `G-SECTIONS` | Detect more than four distinct style groups and explain options without asserting a universal performer ban. |
 | `performer.line-label-forbidden` | Warning | Preview | `G-SECTIONS` | Detect names/symbols in brackets used to label individual lyric lines and offer removal of the inline label, leaving the lyric and any indentation intact. |
-| `spelling.standardized` | Suggestion | Safe only for context-free entries | `G-SPELLING` | Detect reviewed non-preferred forms only when context is sufficiently certain. |
+| `spelling.standardized` | Suggestion | Safe for context-free entries; selected meaning-sensitive entries use preview | `G-SPELLING` | Detect reviewed non-preferred forms only when context is sufficiently certain. |
 | `spelling.language-variant` | Manual review | None | `G-SPELLING` | Identify inconsistent British/American variants relative to chosen performer language. |
 | `quotes.typewriter` | Warning | Safe outside unsupported markup | `G-TYPEWRITER` | Detect curly apostrophes/quotation marks in lyric text and replace exact characters only. |
 | `contraction.apostrophe` | Warning | Preview | `G-CONTRACTIONS` | Detect likely missing contraction apostrophes conservatively. |
