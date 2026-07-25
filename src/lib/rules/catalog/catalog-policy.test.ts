@@ -35,6 +35,12 @@ const cases: RulePolicyCase[] = [
 	},
 	{ id: 'section.header-missing', invalid: 'A lyric', valid: '[Verse]\nA lyric', ambiguous: '   ' },
 	{
+		id: 'section.header-spacing',
+		invalid: '[Verse]\nFirst\n[Chorus]\nSecond',
+		valid: '[Verse]\nFirst\n\n[Chorus]\nSecond',
+		ambiguous: '[Chorus]\nAgain\n[Chorus]\nAgain'
+	},
+	{
 		id: 'section.deprecated-hook',
 		invalid: '[Hook]\nSing it',
 		valid: '[Chorus]\nSing it',
@@ -91,6 +97,12 @@ const cases: RulePolicyCase[] = [
 		invalid: '[Verse: A & <i>B</i>]\n<i>First</i>\n<i>Second</i>',
 		valid: '[Verse: A & <i>B</i>]\n<i>First\nSecond</i>',
 		ambiguous: '[Verse: A & <i>B</i>]\n<i>First</i>\nPlain\n<i>Second</i>'
+	},
+	{
+		id: 'performer.parenthetical-boundary',
+		invalid: '[Verse: A & <i>B</i>]\nA (<i>Second voice</i>)',
+		valid: '[Verse: A & <i>B</i>]\nA <i>(Second voice)</i>',
+		ambiguous: '[Verse: A & <i>B</i>]\nA (plain <i>mixed voice</i>)'
 	},
 	{
 		id: 'performer.unused-legend-slot',
@@ -301,6 +313,17 @@ describe('rule regressions', () => {
 	it('does not apply English lexical rules to non-English documents', () => {
 		expect(diagnostics('contraction.apostrophe', '[Strophe]\nIm Haus', 'de')).toEqual([]);
 		expect(diagnostics('numbers.spell-out', '[Vers]\nJeg har 5 grunner', 'no')).toEqual([]);
+	});
+
+	it('carries the detected language as a direct resolution for a mismatch', () => {
+		const [finding] = diagnostics(
+			'language.selection-mismatch',
+			'[Verse]\nJe regarde la lumière du matin\nEt je sais que tu resteras avec moi ce soir'
+		);
+		expect(finding?.detectedLanguage).toEqual({
+			tag: 'fr',
+			displayName: 'French'
+		});
 	});
 
 	it.each([

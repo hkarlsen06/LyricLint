@@ -18,6 +18,14 @@ export {
 	normalizePerformerKey,
 	suggestPerformerMatches
 } from './identity.js';
+export {
+	allocatePerformerColor,
+	derivePerformerHue,
+	performerColorIds,
+	performerColorPalette,
+	rankPerformerColorIds
+} from './color.js';
+export type { PerformerPaletteColorId } from './color.js';
 export { extractPerformers } from './import.js';
 export { allocateStyleSlot, analyzeSlotOrder } from './allocation.js';
 export {

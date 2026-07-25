@@ -16,6 +16,7 @@
 		onApplyFix: (fix: DiagnosticFix) => void;
 		onChooseHeader?: () => void;
 		onAssignPerformers?: () => void;
+		onSetLanguage?: (language: string) => void;
 		onIgnore: () => void;
 		/**
 		 * `heldFocus` reports whether the popover still owned focus when it closed.
@@ -35,6 +36,7 @@
 		onApplyFix,
 		onChooseHeader,
 		onAssignPerformers,
+		onSetLanguage,
 		onIgnore,
 		onDismiss = () => {}
 	}: Props = $props();
@@ -58,7 +60,7 @@
 			// the keyboard must never put Enter over Ignore. A diagnostic with
 			// nothing to do about it focuses the card itself, to be read.
 			const firstAction = root?.querySelector<HTMLButtonElement>(
-				'.diagnostic-actions__guided, .diagnostic-actions__fix'
+				'.diagnostic-actions__guided, .diagnostic-actions__language, .diagnostic-actions__fix'
 			);
 			(firstAction ?? root)?.focus();
 		});
@@ -167,6 +169,7 @@
 		{diagnostic}
 		{onChooseHeader}
 		{onAssignPerformers}
+		onSetLanguage={onSetLanguage ? (language) => onSetLanguage(language) : undefined}
 		{onPreviewFix}
 		{onCancelPreview}
 		{onApplyFix}

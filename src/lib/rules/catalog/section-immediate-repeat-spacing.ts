@@ -25,6 +25,19 @@ function headersAllowJoin(first: Section, second: Section): boolean {
 	return first.header.raw === second.header.raw;
 }
 
+export function isImmediateRepeat(document: ParsedDocument, sectionIndex: number): boolean {
+	const section = document.sections[sectionIndex];
+	const previous = document.sections[sectionIndex - 1];
+	return Boolean(
+		section &&
+		previous &&
+		hasCleanBody(previous) &&
+		hasCleanBody(section) &&
+		headersAllowJoin(previous, section) &&
+		bodiesMatch(previous, section)
+	);
+}
+
 /**
  * Whether a parser-created headerless section is actually an exact immediate
  * repeat of the headed part before it. The missing-header rule uses the same
@@ -35,16 +48,7 @@ export function isImmediateHeaderlessRepeat(
 	sectionIndex: number
 ): boolean {
 	const section = document.sections[sectionIndex];
-	const previous = document.sections[sectionIndex - 1];
-	return Boolean(
-		section &&
-		previous &&
-		!section.header &&
-		hasCleanBody(previous) &&
-		hasCleanBody(section) &&
-		headersAllowJoin(previous, section) &&
-		bodiesMatch(previous, section)
-	);
+	return Boolean(section && !section.header && isImmediateRepeat(document, sectionIndex));
 }
 
 export const sectionImmediateRepeatSpacingRule: RuleDefinition = {
@@ -58,14 +62,7 @@ export const sectionImmediateRepeatSpacingRule: RuleDefinition = {
 		for (let index = 1; index < document.sections.length; index += 1) {
 			const previous = document.sections[index - 1];
 			const section = document.sections[index];
-			if (
-				!previous ||
-				!section ||
-				!hasCleanBody(previous) ||
-				!hasCleanBody(section) ||
-				!headersAllowJoin(previous, section) ||
-				!bodiesMatch(previous, section)
-			) {
+			if (!previous || !section || !isImmediateRepeat(document, index)) {
 				continue;
 			}
 			const previousLastLine = previous.lines.at(-1);

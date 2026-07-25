@@ -217,7 +217,11 @@ The editor never depends on a live refresh. A Genius outage or changed annotatio
 
 ## Performer colors
 
-Each normalized performer ID receives a stable color stored with the draft. Use color-blind-aware palettes for light and dark themes.
+Each normalized performer name derives a stable hue, which is matched to the nearest performer
+color token and stored with the draft. If that token is already used in the roster, the new
+performer takes the nearest least-used token; existing performers are never recolored to settle a
+collision. Once every token is occupied, the same least-used rule balances unavoidable reuse.
+Use color-blind-aware palettes for light and dark themes.
 
 Single performers receive a low-opacity background or underline. Joint voice groups use a segmented multi-color treatment rather than averaging colors into an indistinguishable brown or gray. A text label, accessible name, or section legend always accompanies color.
 

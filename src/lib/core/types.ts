@@ -172,6 +172,12 @@ export interface DiagnosticFix {
 	edit: AtomicDocumentEdit;
 }
 
+/** A language inferred from the document that the shell can select directly. */
+export interface DetectedDiagnosticLanguage {
+	tag: string;
+	displayName: string;
+}
+
 /** A source-backed finding against the same revision as its parsed document. */
 export interface Diagnostic extends TextRange {
 	ruleId: string;
@@ -179,6 +185,8 @@ export interface Diagnostic extends TextRange {
 	message: string;
 	explanation: string;
 	sourceIds: string[];
+	/** Present when resolving the finding means selecting an inferred language. */
+	detectedLanguage?: DetectedDiagnosticLanguage;
 	/**
 	 * Labeled fixes for this diagnostic. Only `kind: 'safe'` fixes are eligible
 	 * for bulk application; `preview` fixes require explicit confirmation. Each

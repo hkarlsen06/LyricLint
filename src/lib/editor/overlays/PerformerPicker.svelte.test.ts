@@ -55,14 +55,16 @@ describe('PerformerPicker layout', () => {
 		expect(actionBox.right).toBeLessThanOrEqual(cardBox.right);
 		expect(actionBox.left).toBeGreaterThanOrEqual(cardBox.left);
 		// The chips take the squeeze instead, which is what the scroller is for.
-		const roster = document.querySelector<HTMLElement>('.roster');
-		expect(roster!.scrollWidth).toBeGreaterThan(roster!.clientWidth);
+		const track = document.querySelector<HTMLElement>('.roster__track');
+		expect(track).not.toBeNull();
+		expect(track!.scrollWidth).toBeGreaterThan(track!.clientWidth);
 	});
 
 	it('renders the apply action as the canonical contrast tier, not a local pill', async () => {
 		await render(PerformerPicker, {
 			performers: crowdedRoster(),
 			initialSelectedIds: ['leif tore'],
+			allowRemoval: false,
 			onApply: vi.fn(),
 			onCancel: vi.fn(),
 			returnFocus: () => {}
@@ -90,6 +92,132 @@ describe('PerformerPicker layout', () => {
 		// Pill radii belong to the categorical chips alone.
 		const chip = document.querySelector<HTMLElement>('.roster .chip');
 		expect(actionStyle.borderTopLeftRadius).not.toBe(getComputedStyle(chip!).borderTopLeftRadius);
+	});
+
+	it('keeps the larger add control fixed beside a fading, scrollable track', async () => {
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			initialSelectedIds: ['leif tore'],
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {},
+			onAddPerformer: vi.fn()
+		});
+		await userEvent.click(page.getByRole('button', { name: 'Leif Tore' }));
+
+		const roster = document.querySelector<HTMLElement>('.roster');
+		const track = document.querySelector<HTMLElement>('.roster__track');
+		const addSlot = document.querySelector<HTMLElement>('.add-slot');
+		const add = document.querySelector<HTMLButtonElement>('.chip--add');
+		const plus = add?.querySelector<SVGElement>('svg');
+		expect(roster).not.toBeNull();
+		expect(track).not.toBeNull();
+		expect(addSlot).not.toBeNull();
+		expect(add).not.toBeNull();
+		expect(plus).not.toBeNull();
+		expect(track!.scrollWidth).toBeGreaterThan(track!.clientWidth);
+		await new Promise(requestAnimationFrame);
+		expect(getComputedStyle(addSlot!, '::before').backgroundImage).not.toBe('none');
+		expect(Number(getComputedStyle(add!).zIndex)).toBeGreaterThan(
+			Number(getComputedStyle(addSlot!, '::before').zIndex)
+		);
+		expect(plus!.getBoundingClientRect().width).toBeGreaterThan(12);
+		expect(track!.getBoundingClientRect().width).toBeLessThanOrEqual(
+			Number.parseFloat(getComputedStyle(track!).maxWidth)
+		);
+
+		const initialLeft = addSlot!.getBoundingClientRect().left;
+		track!.scrollLeft = track!.scrollWidth;
+		await new Promise(requestAnimationFrame);
+		expect(addSlot!.getBoundingClientRect().left).toBeCloseTo(initialLeft, 0);
+
+		const dividerGap =
+			document.querySelector<HTMLElement>('.actions')!.getBoundingClientRect().left -
+			add!.getBoundingClientRect().right;
+		expect(dividerGap).toBeLessThanOrEqual(6);
+	});
+
+	it('does not fade the preceding chip when the roster fits without scrolling', async () => {
+		await render(PerformerPicker, {
+			performers: crowdedRoster().slice(0, 1),
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {},
+			onAddPerformer: vi.fn()
+		});
+
+		const roster = document.querySelector<HTMLElement>('.roster');
+		const track = document.querySelector<HTMLElement>('.roster__track');
+		const addSlot = document.querySelector<HTMLElement>('.add-slot');
+		expect(roster).not.toBeNull();
+		expect(track).not.toBeNull();
+		expect(addSlot).not.toBeNull();
+		await new Promise(requestAnimationFrame);
+		expect(track!.scrollWidth).toBeLessThanOrEqual(track!.clientWidth);
+		expect(roster!.classList.contains('roster--scrollable')).toBe(false);
+		expect(getComputedStyle(addSlot!, '::before').backgroundImage).toBe('none');
+	});
+
+	it('explains when clearing the main performer cannot remove any formatting', async () => {
+		const onApply = vi.fn();
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			initialSelectedIds: ['leif tore'],
+			removalAvailable: false,
+			onApply,
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		await userEvent.click(page.getByRole('button', { name: 'Leif Tore' }));
+
+		const action = page.getByRole('button', { name: 'Already plain text' });
+		await expect.element(action).toBeDisabled();
+		await expect
+			.element(page.getByText('The main performer has no inline formatting to remove.'))
+			.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('button', { name: /Remove formatting/u }))
+			.not.toBeInTheDocument();
+		expect(onApply).not.toHaveBeenCalled();
+	});
+
+	it('keeps Apply gated until the performer selection actually changes', async () => {
+		const onApply = vi.fn();
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			initialSelectedIds: ['leif tore'],
+			onApply,
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		const apply = page.getByRole('button', { name: /Apply/u });
+		await expect.element(apply).toBeDisabled();
+
+		// Enter on the initially selected chip follows the same guarded path as
+		// the button, so keyboard use cannot submit an unchanged assignment.
+		await userEvent.keyboard('{Enter}');
+		expect(onApply).not.toHaveBeenCalled();
+
+		await userEvent.click(page.getByRole('button', { name: 'Lars Ulrik' }));
+		await expect.element(apply).toBeEnabled();
+
+		// Returning to the original set makes the action inert again.
+		await userEvent.click(page.getByRole('button', { name: 'Lars Ulrik' }));
+		await expect.element(apply).toBeDisabled();
+		expect(onApply).not.toHaveBeenCalled();
+	});
+
+	it('does not show a keyboard hint beneath the picker', async () => {
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		expect(page.getByText(/Alt\+P|Esc cancels|focus returns to editor/u).query()).toBeNull();
 	});
 });
 

@@ -25,6 +25,10 @@ Genius's current verified guide does not state that blanket ban; its punctuation
 instead requires question marks for questions and reserves exclamation marks for excitement.
 LyricLint records both sources and keeps removal preview-only.
 
+The blank-line-before-header check is a LyricLint readability suggestion, not a direct Genius
+policy claim. The reviewed Genius source establishes that headers sit above distinct song parts
+but does not explicitly require an empty line before each header.
+
 ## Source registry
 
 ### Reviewed sources
@@ -83,6 +87,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `syntax.unsupported-voice-markup` | Error | Performer differentiation uses tags other than supported `<i>` and `<b>` combinations | Preview only | `G-SECTIONS` |
 | `language.selection-mismatch` | Warning | Sufficient lyric text clearly matches a different language than the selected one | Explain only; local statistical estimate | `T-LANGUAGE-DETECT` |
 | `section.header-missing` | Warning | A blank-line section contains lyrics but no section header | Insert chosen localized header | `G-SECTIONS` |
+| `section.header-spacing` | Suggestion | A section header immediately follows preceding content without a blank line | Safely insert one matching line ending | `G-SECTIONS` as context; LyricLint readability preference |
 | `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog | Replace after user confirmation | `G-SECTIONS`, reviewed language source |
 | `section.localized-header-preference` | Suggestion | A valid header has a culturally preferred localized equivalent | Safely replace with the localized term | `G-LANG-PURPOSE`, reviewed language source |
 | `section.header-unrecognized` | Manual review | A bracketed header is absent from every reviewed header catalog | Explain only; preserve the custom text | `G-SECTIONS`, reviewed language sources |
@@ -92,6 +97,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `performer.header-required` | Warning | A multi-vocalist section has inline differentiation but no performer legend | Safely remove performer formatting | `G-SECTIONS` |
 | `performer.style-order` | Warning | Header voice groups do not use plain, italic, bold, bold-italic slot order | Preview only | `G-SECTIONS` |
 | `performer.inline-mismatch` | Warning | Inline style refers to no resolvable header voice group | Choose the section and styled performers | `G-SECTIONS` |
+| `performer.parenthetical-boundary` | Warning | A parenthetical belongs entirely to one styled performer but one or both parentheses sit outside that formatting | Safely expand the existing performer formatting over the parentheses | `G-SECTIONS` |
 | `performer.redundant-markup` | Suggestion | Adjacent same-performer wrappers use more formatting markers than necessary | Safely merge the adjacent wrappers | `G-SECTIONS` |
 | `performer.unused-legend-slot` | Suggestion | A clean section header declares a performer style absent from its lyrics | Safely remove the unused legend slot | `G-SECTIONS` |
 | `performer.too-many-groups` | Warning | More than four distinct style groups occur, exceeding the documented four-slot format | Explain the source's context and options only | `G-SECTIONS` |

@@ -19,7 +19,7 @@ describe('Workspace and toolbar', () => {
 		render(DocumentToolbar, { controller });
 		render(LiveRegion, { feedback });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy Genius markup' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
 		expect(writeText).toHaveBeenCalledWith(canonical);
 		await waitFor(() =>
 			expect(screen.getByTestId('live-region').textContent).toContain(
@@ -28,14 +28,14 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
-	test('keeps the header to the mockup surface: drafts affordances, copy pill, no edit buttons', () => {
+	test('keeps document creation, navigation, language, and copy in the toolbar', () => {
 		const { controller } = createTestWorkbench();
 		render(DocumentToolbar, { controller });
 
-		// The single visible command is the high-contrast copy pill; section
-		// insertion, performer assignment, and undo/redo stay reachable through
-		// the editor itself (ghost pill, selection card, and Mod+Z shortcuts).
-		expect(screen.getByRole('button', { name: 'Copy Genius markup' })).toBeTruthy();
+		// Section insertion, performer assignment, and undo/redo stay reachable
+		// through the editor itself (ghost control, selection surface, and Mod+Z).
+		expect(screen.getByRole('button', { name: 'New draft' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Drafts' })).toBeTruthy();
 		// The left edge is the brand lockup now, not a second drafts affordance.
 		expect(screen.getByRole('img', { name: 'LyricLint' })).toBeTruthy();
@@ -46,7 +46,7 @@ describe('Workspace and toolbar', () => {
 		expect(screen.queryByRole('button', { name: 'Redo document edit' })).toBeNull();
 	});
 
-	test('the icon-only drafts trigger toggles the popover and drops its visible label', async () => {
+	test('the hamburger drafts trigger toggles the popover and stays icon-only', async () => {
 		const { controller } = createTestWorkbench();
 		render(DocumentToolbar, { controller });
 
@@ -61,6 +61,18 @@ describe('Workspace and toolbar', () => {
 		expect(screen.getByText('Saved drafts')).toBeTruthy();
 	});
 
+	test('the plus button creates and opens a new draft', async () => {
+		const { controller, repository } = createTestWorkbench();
+		const initialDraftId = controller.draftId;
+		render(DocumentToolbar, { controller });
+
+		await fireEvent.click(screen.getByRole('button', { name: 'New draft' }));
+
+		await waitFor(() => expect(controller.draftId).not.toBe(initialDraftId));
+		expect(controller.title).toBe('Untitled draft');
+		expect(await repository.list()).toHaveLength(2);
+	});
+
 	test('reads brand, draft name, then save state across the identity strip', () => {
 		const { controller } = createTestWorkbench();
 		render(DocumentToolbar, { controller });
@@ -72,6 +84,23 @@ describe('Workspace and toolbar', () => {
 			screen.getByLabelText('Draft title'),
 			screen.getByRole('img', { name: /^Autosave status/ })
 		]);
+	});
+
+	test('selects the whole default title on click without overriding a named draft caret', async () => {
+		const { controller } = createTestWorkbench();
+		await controller.setTitle('Untitled draft');
+		render(DocumentToolbar, { controller });
+
+		const title = screen.getByLabelText('Draft title') as HTMLInputElement;
+		await fireEvent.click(title);
+		expect(title.selectionStart).toBe(0);
+		expect(title.selectionEnd).toBe('Untitled draft'.length);
+
+		await controller.setTitle('Test draft');
+		await waitFor(() => expect(title.value).toBe('Test draft'));
+		const select = vi.spyOn(title, 'select');
+		await fireEvent.click(title);
+		expect(select).not.toHaveBeenCalled();
 	});
 
 	test('shows save state as a bare glyph until it fails, then spells the failure out', async () => {
@@ -93,13 +122,22 @@ describe('Workspace and toolbar', () => {
 		expect(status.classList.contains('failed')).toBe(true);
 	});
 
-	test('anchors the right edge with copy, after the language and drafts controls', () => {
+	test('orders new draft, drafts menu, language, then copy', () => {
 		const { controller } = createTestWorkbench();
 		render(DocumentToolbar, { controller });
 
 		const commands = document.querySelector('.document-toolbar__commands');
 		expect(commands).toBeTruthy();
-		const copy = screen.getByRole('button', { name: 'Copy Genius markup' });
+		const create = screen.getByRole('button', { name: 'New draft' });
+		const drafts = screen.getByRole('button', { name: 'Drafts' });
+		const language = screen.getByRole('button', { name: 'Lyric language: English' });
+		const copy = screen.getByRole('button', { name: 'Copy lyrics' });
+		expect([...commands!.children].filter((child) => child.matches('button, details'))).toEqual([
+			create,
+			drafts.closest('details'),
+			language,
+			copy
+		]);
 		expect(commands!.lastElementChild).toBe(copy);
 		// Copy ends the tab order too, not just the visual row.
 		const order = [...commands!.querySelectorAll('button, summary')];
@@ -144,6 +182,18 @@ describe('Workspace and toolbar', () => {
 		expect(getComputedStyle(editorRegion).gridRowStart).toBe('2');
 		expect(getComputedStyle(panel).gridRowStart).toBe('2');
 		expect(panel.querySelector('.panel-tabs')).toBeTruthy();
+	});
+
+	test('continues the controller revision when the editor mounts', async () => {
+		const { controller } = createTestWorkbench({ text: '“hello”', revision: 5 });
+		render(Workspace, { controller });
+
+		await fireEvent.input(screen.getByRole('textbox', { name: 'Lyrics editor' }), {
+			target: { value: '"hello”' }
+		});
+
+		await waitFor(() => expect(controller.snapshot.revision).toBe(6));
+		expect(controller.snapshot.text).toBe('"hello”');
 	});
 
 	test('pluralizes the status bar counts, singular at one', () => {
@@ -215,15 +265,16 @@ describe('Workspace and toolbar', () => {
 		);
 		await waitFor(() => expect(screen.getByText(message)).toBeTruthy());
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
-		await fireEvent.click(
-			within(screen.getByRole('dialog', { name: 'Lyric language' })).getByRole('button', {
-				name: 'French'
-			})
-		);
+		const setLanguage = screen.getByRole('button', { name: 'Set language to French' });
+		expect(setLanguage.classList.contains('button--contrast')).toBe(true);
+		expect(screen.getByRole('button', { name: 'Ignore' })).toBeTruthy();
+		await fireEvent.click(setLanguage);
 
 		await waitFor(() => expect(controller.language).toBe('fr'));
 		await waitFor(() => expect(screen.queryByText(message)).toBeNull());
+		await waitFor(() =>
+			expect(screen.getByRole('tab', { name: /^Linter/u })).toBe(document.activeElement)
+		);
 	});
 
 	test('offers the complete Genius language inventory in the selector', async () => {

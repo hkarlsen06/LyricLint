@@ -175,7 +175,8 @@
 			return undefined;
 		},
 		onApplyDiagnosticFix: (diagnostic, fix) => controller.applyFix(diagnostic, fix),
-		onIgnoreDiagnostic: (diagnostic) => controller.ignoreRule(diagnostic.ruleId)
+		onIgnoreDiagnostic: (diagnostic) => controller.ignoreRule(diagnostic.ruleId),
+		onSetLanguage: (language) => controller.setLanguage(language)
 	};
 
 	$effect(() => {
@@ -205,6 +206,7 @@
 				<EditorComponent
 					initialText={controller.snapshot.text}
 					initialSelection={controller.snapshot.selection}
+					initialRevision={controller.snapshot.revision}
 					context={editorContext}
 					callbacks={editorCallbacks}
 					bind:handle={editorHandle}

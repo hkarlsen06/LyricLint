@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 // Tier assertions need the real tokens: the canonical contrast recipe lives in
 // controls.css and these tests compare against it, not against literals.
@@ -112,6 +112,28 @@ describe('DiagnosticPopover button tiers', () => {
 		const closeStyle = getComputedStyle(close!);
 		expect(closeStyle.backgroundColor).toBe('rgba(0, 0, 0, 0)');
 		expect(closeStyle.borderTopColor).toBe('rgba(0, 0, 0, 0)');
+	});
+
+	it('sets the detected language from the shared quick action', async () => {
+		const onSetLanguage = vi.fn();
+		await render(DiagnosticPopover, {
+			diagnostic: {
+				...reviewDiagnostic(),
+				ruleId: 'language.selection-mismatch',
+				severity: 'warning',
+				detectedLanguage: { tag: 'en', displayName: 'English' }
+			},
+			onSetLanguage,
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn()
+		});
+
+		const action = page.getByRole('button', { name: 'Set language to English' });
+		await expect.element(action).toHaveClass('button--contrast');
+		await userEvent.click(action);
+		expect(onSetLanguage).toHaveBeenCalledWith('en');
 	});
 
 	it('gives the hovered card no Close: leaving it is what closes it', async () => {

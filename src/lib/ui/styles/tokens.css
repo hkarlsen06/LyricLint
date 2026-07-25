@@ -210,16 +210,15 @@
 	--layer-toast: 50;
 
 	/*
-	 * Palette order matches roster allocation: the first two slots are the
-	 * emerald/violet pair the mockups lead with. Performer identity is also
-	 * expressed in labels and markup, never by color alone.
+	 * Palette hues are stable targets for name-derived performer colors.
+	 * Performer identity is also expressed in labels and markup, never by color
+	 * alone.
 	 *
-	 * Each performer has two roles at one hue. The solid is the roster swatch and
-	 * the picker chip's dot; the tint is the text background the editor paints
-	 * behind that performer's lines. They must stay on the same hue — the editor
-	 * used to carry its own hardcoded table (155 vs 145, 78 vs 90, 255 vs 240),
-	 * so the one thread tying the roster to the lyrics broke at the editor end,
-	 * and the tints could not follow a theme change at all.
+	 * Each performer has two roles at one hue. The solid is the roster swatch,
+	 * picker dot, and primary-line gutter segment. The tint keys names in the
+	 * section legend and distinguishes every voice on a mixed lyric line.
+	 * They must stay on the same hue so the roster, gutter, and inline exception
+	 * always describe the same performer in either theme.
 	 */
 	--performer-olive: oklch(50% 0.13 155);
 	--performer-indigo: oklch(50% 0.15 295);

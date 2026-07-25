@@ -79,14 +79,19 @@ describe('editor theme token policy', () => {
 		expect(orphans).toEqual([]);
 	});
 
-	it('keys every performer tint to a token rather than a color', () => {
+	it('keys every performer solid and tint to paired tokens rather than colors', () => {
 		const source = readFileSync(join(extensionsDir, 'performer-decorations.ts'), 'utf8');
 		const palette = /export const performerPalette = \[([\s\S]*?)\] as const;/.exec(source)?.[1];
 		expect(palette).toBeDefined();
+		const solids = [...(palette ?? '').matchAll(/solid: '([^']+)'/g)].map(([, value]) => value);
 		const tints = [...(palette ?? '').matchAll(/tint: '([^']+)'/g)].map(([, value]) => value);
+		expect(solids).toHaveLength(8);
 		expect(tints).toHaveLength(8);
-		for (const tint of tints) {
-			expect(tint).toMatch(/^var\(--performer-[a-z]+-tint\)$/);
+		for (let index = 0; index < tints.length; index += 1) {
+			const solid = solids[index];
+			const tint = tints[index];
+			expect(solid).toMatch(/^var\(--performer-[a-z]+\)$/);
+			expect(tint).toBe(solid?.replace(/\)$/, '-tint)'));
 		}
 	});
 });

@@ -60,6 +60,7 @@
 		<div class="right-panel__header">
 			<Tabs.List class="panel-tabs" aria-label="Document panels">
 				<Tabs.Trigger
+					id="linter-panel-tab"
 					value="linter"
 					title="Linter — press again to show the severity filters"
 					onkeydown={pressLinterTabByKey}

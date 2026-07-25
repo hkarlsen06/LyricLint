@@ -13,6 +13,7 @@ import {
 	normalizePerformerKey,
 	suggestPerformerMatches
 } from './identity.js';
+import { allocatePerformerColor } from './color.js';
 import type { ImportExtraction, ImportedVoiceGroup } from './types.js';
 
 const ENTITY_PATTERN = /&(?:amp|lt|gt|quot|#39);/gu;
@@ -49,14 +50,17 @@ function newPerformerId(): string {
 	return `${randomPart()}${randomPart()}-${randomPart()}-4${randomPart().slice(1)}-a${randomPart().slice(1)}-${randomPart()}${randomPart()}${randomPart()}`;
 }
 
-function createRosterAddition(displayName: string, order: number): PerformerRecord {
+function createRosterAddition(
+	displayName: string,
+	roster: readonly PerformerRecord[]
+): PerformerRecord {
 	return {
 		id: newPerformerId(),
 		displayName,
 		normalizedKey: normalizePerformerKey(displayName),
 		aliases: [],
-		colorId: `performer-${(order % 8) + 1}`,
-		order
+		colorId: allocatePerformerColor(displayName, roster),
+		order: roster.length
 	};
 }
 
@@ -191,7 +195,7 @@ export function extractPerformers(
 		}
 
 		suggestions.push(...suggestPerformerMatches(name, knownRoster, group.nameRange));
-		const addition = createRosterAddition(name, availableRoster.length);
+		const addition = createRosterAddition(name, availableRoster);
 		availableRoster.push(addition);
 		rosterAdditions.push(addition);
 	}
@@ -202,7 +206,7 @@ export function extractPerformers(
 
 		if (!members) {
 			suggestions.push(...suggestPerformerMatches(name, knownRoster, group.nameRange));
-			const addition = createRosterAddition(name, availableRoster.length);
+			const addition = createRosterAddition(name, availableRoster);
 			availableRoster.push(addition);
 			rosterAdditions.push(addition);
 			members = [addition];
@@ -247,7 +251,7 @@ export function extractPerformers(
 			const unresolvedName = `Unresolved voice ${slot}`;
 			let unresolvedPerformer = findExactPerformer(unresolvedName, availableRoster);
 			if (!unresolvedPerformer) {
-				unresolvedPerformer = createRosterAddition(unresolvedName, availableRoster.length);
+				unresolvedPerformer = createRosterAddition(unresolvedName, availableRoster);
 				availableRoster.push(unresolvedPerformer);
 				rosterAdditions.push(unresolvedPerformer);
 			}

@@ -16,12 +16,18 @@ export const languageSelectionMismatchRule: RuleDefinition = {
 
 		const selectedName = getLanguagePack(selectedTag).displayName;
 		return [
-			diagnostic(
-				this,
-				detected.range,
-				`Lyrics appear to be ${detected.displayName}, but ${selectedName} is selected.`,
-				'Language recognition runs locally using statistical text analysis. Review the selected lyric language; short, mixed-language, and transliterated songs may be inconclusive.'
-			)
+			{
+				...diagnostic(
+					this,
+					detected.range,
+					`Lyrics appear to be ${detected.displayName}, but ${selectedName} is selected.`,
+					'Language recognition runs locally using statistical text analysis. Review the selected lyric language; short, mixed-language, and transliterated songs may be inconclusive.'
+				),
+				detectedLanguage: {
+					tag: detected.tag,
+					displayName: detected.displayName
+				}
+			}
 		];
 	}
 };

@@ -52,6 +52,15 @@ const contracts: FixContract[] = [
 		kind: 'safe'
 	},
 	{
+		id: 'section.header-spacing',
+		input: '[Verse]\nFirst\n[Chorus]\nSecond',
+		language: 'en',
+		range: [14, 22],
+		expected: '[Verse]\nFirst\n\n[Chorus]\nSecond',
+		kind: 'safe',
+		label: 'Add blank line'
+	},
+	{
 		id: 'section.immediate-repeat-spacing',
 		input: '[Chorus]\nAgain\nTonight\n\n[Chorus]\nAgain\nTonight',
 		language: 'en',
@@ -66,6 +75,15 @@ const contracts: FixContract[] = [
 		range: [30, 38],
 		expected: '[Verse: A & <i>B</i>]\n<i>First\nSecond</i>',
 		kind: 'safe'
+	},
+	{
+		id: 'performer.parenthetical-boundary',
+		input: '[Verse: A & <i>B</i>]\nA (<i>Voice</i>)',
+		language: 'en',
+		range: [24, 38],
+		expected: '[Verse: A & <i>B</i>]\nA <i>(Voice)</i>',
+		kind: 'safe',
+		label: 'Include parentheses in performer formatting'
 	},
 	{
 		id: 'performer.header-required',
@@ -269,6 +287,12 @@ const safeFixBatches: SafeFixBatch[] = [
 		language: 'no'
 	},
 	{
+		id: 'section.header-spacing',
+		input: '[Intro]\nOpen\n[Verse]\nFirst\n[Chorus]\nSecond',
+		expected: '[Intro]\nOpen\n\n[Verse]\nFirst\n\n[Chorus]\nSecond',
+		fixes: 2
+	},
+	{
 		id: 'section.immediate-repeat-spacing',
 		input: '[Chorus]\nA\nB\n\n[Chorus]\nA\nB\n\n[Verse]\nC\n\n[Verse]\nC',
 		expected: '[Chorus]\nA\nB\nA\nB\n\n[Verse]\nC\nC',
@@ -287,6 +311,13 @@ const safeFixBatches: SafeFixBatch[] = [
 			'[Verse: A & <i>B</i>]\n<i>First</i>\n<i>Second</i>\n\n[Chorus: A & <i>B</i>]\n<i>Third</i> <i>Fourth</i>',
 		expected:
 			'[Verse: A & <i>B</i>]\n<i>First\nSecond</i>\n\n[Chorus: A & <i>B</i>]\n<i>Third Fourth</i>',
+		fixes: 2,
+		performers: ['A', 'B']
+	},
+	{
+		id: 'performer.parenthetical-boundary',
+		input: '[Verse: A & <i>B</i>]\nA (<i>First</i>)\nB (<i>Second</i>)',
+		expected: '[Verse: A & <i>B</i>]\nA <i>(First)</i>\nB <i>(Second)</i>',
 		fixes: 2,
 		performers: ['A', 'B']
 	},
@@ -413,6 +444,24 @@ describe('cross-rule safe fixes', () => {
 		// the new text must either re-offer it or show it is no longer needed.
 		const remaining = runRules(parseDocument(output), ruleContext({ language: 'no' }));
 		expect(safeFixesOffered(remaining)).toEqual([]);
+	});
+
+	it('lets the parenthetical boundary fix subsume redundant wrappers', () => {
+		const source = '[Verse: A & <i>B</i>]\n(<i>Call</i> <i>back</i>)';
+		const context = ruleContext({ performers: ['A', 'B'] });
+		const diagnostics = runRules(parseDocument(source), context);
+		const offered = safeFixesOffered(diagnostics);
+		const batch = collectSafeFixes(diagnostics);
+
+		expect(diagnostics.map((finding) => finding.ruleId)).toContain(
+			'performer.parenthetical-boundary'
+		);
+		expect(diagnostics.map((finding) => finding.ruleId)).toContain('performer.redundant-markup');
+		expect(offered).toHaveLength(2);
+		expect(batch).toHaveLength(1);
+		expect(applyEdits(source, batch[0]!.edit.edits)).toBe(
+			'[Verse: A & <i>B</i>]\n<i>(Call back)</i>'
+		);
 	});
 
 	it('refuses two insertions competing for one offset', () => {

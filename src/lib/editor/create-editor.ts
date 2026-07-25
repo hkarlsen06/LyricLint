@@ -44,6 +44,7 @@ import {
 	performerDecorationField,
 	performerCaretAnnouncementPlugin,
 	performerDecorationTheme,
+	performerGutter,
 	performerGroupsField,
 	setVoiceGroupsEffect
 } from './extensions/performer-decorations.js';
@@ -60,6 +61,7 @@ import { dispatchAtomicEdit } from './transaction-adapter.js';
 export interface CreateLyricEditorOptions {
 	initialText: string;
 	initialSelection?: SerializedSelection;
+	initialRevision?: number;
 	context: EditorDisplayContext;
 	callbacks: LyricEditorCallbacks;
 	onSelectionAnchor?: (anchor: SelectionAnchor | undefined) => void;
@@ -166,8 +168,7 @@ const editorTheme = EditorView.theme({
 		minWidth: 'var(--space-7)',
 		padding: 'var(--space-0-5) var(--space-3) 0 var(--space-2)'
 	},
-	// The caret's row gets a subtle blue-tinted wash. An inset shadow layers on
-	// top of performer line tints instead of replacing them.
+	// The caret's row gets a subtle blue-tinted wash.
 	'.cm-activeLine': {
 		backgroundColor: 'transparent',
 		boxShadow: 'inset 0 0 0 62.5rem color-mix(in oklch, var(--color-focus) 9%, transparent)'
@@ -179,7 +180,7 @@ const editorTheme = EditorView.theme({
 	// The selection is the browser's own, not CodeMirror's drawn one (see
 	// `drawSelection` in the extension list): a native highlight is painted over
 	// the line's backgrounds and under its glyphs, so it stays visible on
-	// performer tints and fix previews. The drawn selection sits in a layer
+	// secondary performer tints and fix previews. The drawn selection sits in a layer
 	// behind every background and vanished under them.
 	'.cm-content ::selection, .cm-line::selection': {
 		backgroundColor: 'var(--color-text-selection)'
@@ -266,6 +267,10 @@ export function createLyricEditor(
 	let destroyed = false;
 	let contextFlushQueued = false;
 	const callbackProxy = createCallbackProxy(() => activeCallbacks);
+	const initialRevision = options.initialRevision ?? 0;
+	if (!Number.isSafeInteger(initialRevision) || initialRevision < 0) {
+		throw new RangeError('Initial editor revision must be a non-negative safe integer.');
+	}
 	const preparedDocument = prepareInitialDocument(options.initialText);
 	const preparedSelection = prepareInitialSelection(
 		options.initialSelection,
@@ -276,9 +281,10 @@ export function createLyricEditor(
 	const extensions: Extension[] = [
 		history(),
 		lineNumbers(),
+		performerGutter(),
 		highlightSpecialChars(),
 		// No `drawSelection()`: it hides the native selection and repaints it in a
-		// layer pinned behind the content, where the performer tints and other
+		// layer pinned behind the content, where performer tints and other
 		// color-coded line backgrounds cover it completely. The browser's own
 		// highlight paints between a line's background and its glyphs, which is
 		// exactly where a selection has to sit to survive a tint. The cost is the
@@ -298,7 +304,7 @@ export function createLyricEditor(
 			dir: 'auto'
 		})),
 		editorCallbacksField,
-		editorRevisionField,
+		editorRevisionField.init(() => initialRevision),
 		editorComposingField,
 		legendCleanupFilter(),
 		// Transaction filters run in reverse registration order, so listing the

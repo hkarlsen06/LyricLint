@@ -47,6 +47,7 @@ function callbacks(): LyricEditorCallbacks {
 async function mountEditor(options?: {
 	text?: string;
 	selection?: { anchor: number; head: number };
+	revision?: number;
 	displayContext?: EditorDisplayContext;
 	editorCallbacks?: LyricEditorCallbacks;
 }): Promise<{ handle: EditorHandle; editorCallbacks: LyricEditorCallbacks }> {
@@ -56,6 +57,7 @@ async function mountEditor(options?: {
 		props: {
 			initialText: options?.text ?? 'First line',
 			initialSelection: options?.selection,
+			initialRevision: options?.revision,
 			context: options?.displayContext ?? context(),
 			callbacks: editorCallbacks,
 			onready: (readyHandle: EditorHandle) => {
@@ -100,6 +102,18 @@ describe('EditorPane', () => {
 
 		expect(handle.getSnapshot().text).toBe('[Verse]\nHello');
 		await expect.element(page.getByText('[Verse]')).toBeVisible();
+	});
+
+	it('preserves the current revision when the editor remounts', async () => {
+		const { handle } = await mountEditor({ text: '“hello”', revision: 5 });
+
+		expect(handle.getSnapshot().revision).toBe(5);
+		handle.dispatchAtomic({
+			baseRevision: 5,
+			edits: [{ from: 0, to: 1, insert: '"' }]
+		});
+		expect(handle.getSnapshot().text).toBe('"hello”');
+		expect(handle.getSnapshot().revision).toBe(6);
 	});
 
 	it('reveals a selected line near the upper third of the editor', async () => {
@@ -422,6 +436,42 @@ describe('EditorPane', () => {
 			range: { from, to },
 			performerIds: []
 		});
+	});
+
+	it('shows that the plain main performer has no formatting to remove', async () => {
+		const text = '[Verse: Avery]\nAvery stays plain';
+		const from = text.indexOf('Avery stays plain');
+		const to = from + 'Avery stays plain'.length;
+		const createPerformerEdit = vi.fn();
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({
+				performers: performers(),
+				voiceGroups: [
+					{
+						from,
+						to,
+						group: { id: 'voice-avery', performerIds: ['avery'], styleSlot: 1 }
+					}
+				]
+			}),
+			editorCallbacks: {
+				...callbacks(),
+				createPerformerEdit
+			}
+		});
+
+		handle.setSelection({ anchor: from, head: to });
+		handle.focus();
+		await userEvent.keyboard('{Alt>}p{/Alt}');
+		await expect.element(page.getByRole('button', { name: /^Apply/u })).toBeDisabled();
+		await userEvent.keyboard(' ');
+
+		await expect.element(page.getByRole('button', { name: 'Already plain text' })).toBeDisabled();
+		await expect
+			.element(page.getByRole('button', { name: /Remove formatting/u }))
+			.not.toBeInTheDocument();
+		expect(createPerformerEdit).not.toHaveBeenCalled();
 	});
 
 	it('keeps F8 diagnostic navigation visible when a performer roster exists', async () => {
@@ -829,6 +879,115 @@ describe('EditorPane', () => {
 		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toHaveFocus();
 	});
 
+	it('merges primary performer gutter runs and tints every voice on a mixed line', async () => {
+		const text = 'Mein one\nMein two\nMein with Krissy\nKrissy one\nKrissy two';
+		const roster: PerformerRecord[] = [
+			{
+				id: 'mein',
+				displayName: 'Mein',
+				normalizedKey: 'mein',
+				aliases: [],
+				colorId: 'indigo',
+				order: 0
+			},
+			{
+				id: 'krissy',
+				displayName: 'Krissy',
+				normalizedKey: 'krissy',
+				aliases: [],
+				colorId: 'teal',
+				order: 1
+			}
+		];
+		const range = (
+			value: string,
+			performerId: string,
+			styleSlot: 1 | 2,
+			from = text.indexOf(value)
+		) => ({
+			from,
+			to: from + value.length,
+			group: {
+				id: `voice-${performerId}`,
+				performerIds: [performerId],
+				styleSlot
+			}
+		});
+		await mountEditor({
+			text,
+			displayContext: context({
+				performers: roster,
+				voiceGroups: [
+					range('Mein one', 'mein', 1),
+					range('Mein two', 'mein', 1),
+					range('Mein with ', 'mein', 1),
+					range('Krissy', 'krissy', 2),
+					range('Krissy one', 'krissy', 2),
+					range('Krissy two', 'krissy', 2)
+				]
+			})
+		});
+
+		const markers = [...document.querySelectorAll<HTMLElement>('.ll-performer-gutter-marker')];
+		expect(markers).toHaveLength(5);
+		expect(markers[0]?.classList.contains('ll-performer-gutter-marker--start')).toBe(true);
+		expect(markers[0]?.classList.contains('ll-performer-gutter-marker--end')).toBe(false);
+		expect(markers[1]?.classList.contains('ll-performer-gutter-marker--start')).toBe(false);
+		expect(markers[1]?.classList.contains('ll-performer-gutter-marker--end')).toBe(false);
+		expect(markers[2]?.classList.contains('ll-performer-gutter-marker--start')).toBe(false);
+		expect(markers[2]?.classList.contains('ll-performer-gutter-marker--end')).toBe(true);
+		expect(markers[3]?.classList.contains('ll-performer-gutter-marker--start')).toBe(true);
+		expect(markers[4]?.classList.contains('ll-performer-gutter-marker--end')).toBe(true);
+		expect(markers[0]?.style.getPropertyValue('--ll-performer-solid')).toBe(
+			'var(--performer-indigo)'
+		);
+		expect(markers[3]?.style.getPropertyValue('--ll-performer-solid')).toBe(
+			'var(--performer-teal)'
+		);
+		const firstMarkerRect = markers[0]!.getBoundingClientRect();
+		const firstLineRect = markers[0]!.parentElement!.getBoundingClientRect();
+		const middleMarkerRect = markers[1]!.getBoundingClientRect();
+		const middleLineRect = markers[1]!.parentElement!.getBoundingClientRect();
+		const lastMarkerRect = markers[2]!.getBoundingClientRect();
+		const lastLineRect = markers[2]!.parentElement!.getBoundingClientRect();
+		const textHeight = Number.parseFloat(getComputedStyle(markers[0]!).fontSize);
+		const leadingInset = (firstLineRect.height - textHeight) / 2;
+		expect(firstMarkerRect.top - firstLineRect.top).toBeCloseTo(leadingInset);
+		expect(middleMarkerRect.top).toBeCloseTo(middleLineRect.top);
+		expect(middleMarkerRect.bottom).toBeCloseTo(middleLineRect.bottom);
+		expect(lastLineRect.bottom - lastMarkerRect.bottom).toBeCloseTo(leadingInset);
+		expect(getComputedStyle(markers[0]!).borderTopLeftRadius).not.toContain('%');
+		expect(getComputedStyle(markers[2]!).borderBottomLeftRadius).not.toContain('%');
+
+		await userEvent.hover(markers[1]!);
+		const tooltip = document.querySelector<HTMLElement>('.ll-performer-gutter-tooltip');
+		expect(tooltip?.textContent).toBe('Performed by Mein');
+		expect(tooltip?.getAttribute('aria-hidden')).toBe('true');
+		expect(getComputedStyle(tooltip!).position).toBe('fixed');
+		markers[1]!.dispatchEvent(new PointerEvent('pointerleave'));
+		expect(document.querySelector('.ll-performer-gutter-tooltip')).toBeNull();
+
+		const secondary = [...document.querySelectorAll<HTMLElement>('.ll-performer-secondary')];
+		expect(secondary).toHaveLength(1);
+		expect(secondary[0]?.textContent).toBe('Krissy');
+		expect(secondary[0]?.style.getPropertyValue('--ll-performer-tint')).toBe(
+			'var(--performer-teal-tint)'
+		);
+		const mixed = [...document.querySelectorAll<HTMLElement>('.ll-performer-mixed')];
+		expect(mixed.map((highlight) => highlight.textContent)).toEqual(['Mein with ', 'Krissy']);
+		expect(mixed[0]?.style.getPropertyValue('--ll-performer-tint')).toBe(
+			'var(--performer-indigo-tint)'
+		);
+		expect(mixed[1]?.style.getPropertyValue('--ll-performer-tint')).toBe(
+			'var(--performer-teal-tint)'
+		);
+		expect(
+			[...document.querySelectorAll<HTMLElement>('.ll-performer-highlight')]
+				.filter((highlight) => !highlight.classList.contains('ll-performer-mixed'))
+				.every((highlight) => getComputedStyle(highlight).backgroundColor === 'rgba(0, 0, 0, 0)')
+		).toBe(true);
+	});
+
 	it('announces performer identity only when the caret enters a highlighted range', async () => {
 		const editorCallbacks = callbacks();
 		const { handle } = await mountEditor({
@@ -862,10 +1021,9 @@ describe('EditorPane', () => {
 		expect(getComputedStyle(highlight!).borderBottomStyle).toBe('none');
 	});
 
-	it('leaves the selection to the native highlight so performer tints cannot hide it', async () => {
+	it('leaves the selection to the native highlight so a mixed-line performer tint cannot hide it', async () => {
 		// Regression: with drawSelection the highlight lives in a layer pinned
-		// behind every line background, so an opaque performer tint swallowed it
-		// and only untinted lyrics showed a selection at all.
+		// behind inline backgrounds, so a secondary performer tint swallowed it.
 		const { handle } = await mountEditor({
 			text: 'hello world',
 			displayContext: context({
@@ -875,18 +1033,23 @@ describe('EditorPane', () => {
 						from: 0,
 						to: 5,
 						group: { id: 'voice-a', performerIds: ['avery'], styleSlot: 1 }
+					},
+					{
+						from: 6,
+						to: 11,
+						group: { id: 'voice-b', performerIds: ['blair'], styleSlot: 2 }
 					}
 				]
 			})
 		});
 
 		handle.focus();
-		handle.setSelection({ anchor: 0, head: 5 });
+		handle.setSelection({ anchor: 6, head: 11 });
 
-		const highlight = document.querySelector<HTMLElement>('.ll-performer-highlight');
+		const highlight = document.querySelector<HTMLElement>('.ll-performer-secondary');
 		expect(highlight).not.toBeNull();
 		expect(document.querySelector('.cm-selectionLayer')).toBeNull();
-		// The browser paints ::selection between a line's background and its glyphs,
+		// The browser paints ::selection between an inline background and its glyphs,
 		// the only place a selection survives an opaque tint. drawSelection hides it
 		// there and repaints it behind the tint, where nothing shows.
 		const selectionBackground = getComputedStyle(highlight!, '::selection').backgroundColor;
@@ -1102,11 +1265,12 @@ describe('PerformerPicker keyboard flow', () => {
 
 		// Roving tabindex leaves one stop in the roster, so an untrapped Tab lands
 		// on whatever follows the card in the document.
+		await userEvent.keyboard('{ArrowRight} ');
 		await userEvent.keyboard('{Tab}');
 		await expect.element(page.getByRole('button', { name: /Apply/ })).toHaveFocus();
 
 		await userEvent.keyboard('{Tab}');
-		await expect.element(page.getByRole('button', { name: 'Avery' })).toHaveFocus();
+		await expect.element(page.getByRole('button', { name: 'Blair' })).toHaveFocus();
 
 		expect(focusTarget).not.toBe(document.activeElement);
 	});

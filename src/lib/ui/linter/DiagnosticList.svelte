@@ -15,6 +15,7 @@
 		onChooseHeader,
 		canAssignPerformers = () => true,
 		onAssignPerformers = () => {},
+		onSetLanguage,
 		onPreviewFix,
 		onCancelPreview,
 		onApplyFix,
@@ -39,6 +40,7 @@
 		 */
 		canAssignPerformers?: (diagnostic: Diagnostic) => boolean;
 		onAssignPerformers?: (diagnostic: Diagnostic) => void;
+		onSetLanguage: (language: string) => void;
 		onPreviewFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
 		onCancelPreview: () => void;
 		onApplyFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
@@ -87,25 +89,36 @@
 		onNavigate(diagnostic);
 	}
 
-	async function ignoreAndMoveFocus(ruleId: string, trigger: HTMLButtonElement): Promise<void> {
+	async function runRemovingAction(
+		trigger: HTMLButtonElement,
+		action: () => void,
+		fallbackSelector: string
+	): Promise<void> {
 		const row = trigger.closest('li');
 		const nextRowControl = row?.nextElementSibling?.querySelector<HTMLButtonElement>(
 			'.diagnostic-list__navigate'
 		);
-		// The ignored-rules footer only exists once a rule is ignored, so the
-		// toggle has to be looked up after the update — before it, there is
-		// nothing to find on the first ignore of a session.
+		// The target may only become stable after the diagnostic disappears, so
+		// look it up after the action and its resulting render have settled.
 		const panel = trigger.closest('.right-panel');
-		onIgnore(ruleId);
+		action();
 		await tick();
 		if (nextRowControl?.isConnected) {
 			nextRowControl.focus();
 			return;
 		}
 		const fallback =
-			panel?.querySelector<HTMLButtonElement>('.ignored-rules__toggle') ??
-			document.querySelector<HTMLButtonElement>('.ignored-rules__toggle');
+			panel?.querySelector<HTMLButtonElement>(fallbackSelector) ??
+			panel?.querySelector<HTMLButtonElement>('#linter-panel-tab');
 		fallback?.focus();
+	}
+
+	function ignoreAndMoveFocus(ruleId: string, trigger: HTMLButtonElement): void {
+		void runRemovingAction(trigger, () => onIgnore(ruleId), '.ignored-rules__toggle');
+	}
+
+	function setLanguageAndMoveFocus(language: string, trigger: HTMLButtonElement): void {
+		void runRemovingAction(trigger, () => onSetLanguage(language), '#linter-panel-tab');
 	}
 </script>
 
@@ -151,6 +164,7 @@
 						onAssignPerformers={canAssignPerformers(diagnostic)
 							? () => onAssignPerformers(diagnostic)
 							: undefined}
+						onSetLanguage={setLanguageAndMoveFocus}
 						onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
 						{onCancelPreview}
 						onApplyFix={(fix) => onApplyFix(diagnostic, fix)}

@@ -270,7 +270,7 @@ describe('editor pure helpers', () => {
 		).toBe('Verse');
 	});
 
-	it('blends joint-group performer colors into one mixed tint with a cap', () => {
+	it('blends joint-group performer colors into paired solid and tint values with a cap', () => {
 		const performers: PerformerRecord[] = ['A', 'B', 'C', 'D'].map((name, index) => ({
 			id: name.toLocaleLowerCase(),
 			displayName: name,
@@ -287,9 +287,11 @@ describe('editor pure helpers', () => {
 		expect(style?.label).toBe('Performed by A, B, C, D');
 		expect(style?.hiddenCount).toBe(1);
 		// Joint groups blend into one color instead of striping per member.
+		expect(style?.indicator).toContain('color-mix');
+		expect(style?.indicator).not.toContain('linear-gradient');
 		expect(style?.background).toContain('color-mix');
 		expect(style?.background).not.toContain('linear-gradient');
-		// One value, not a light/dark pair: the tokens it mixes resolve per theme.
+		expect(style?.indicator).toContain('var(--performer-');
 		expect(style?.background).toContain('var(--performer-');
 	});
 

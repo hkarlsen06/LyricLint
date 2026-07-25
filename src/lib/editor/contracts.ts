@@ -25,8 +25,8 @@ export interface RevisionedDiagnostics {
 /** One resolved voice group and the lyric range it decorates. */
 export interface VoiceGroupRange extends TextRange {
 	group: VoiceGroup;
-	/** True for a performer name inside a section-header legend: it gets the
-	 * inline tint/underline but never a full-line wash. */
+	/** True for a performer name inside a section-header legend: it keeps an
+	 * inline tint but never contributes to a lyric-line gutter segment. */
 	legend?: boolean;
 }
 
@@ -83,6 +83,8 @@ export interface EditorOverlayCallbacks {
 	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
 	onApplyDiagnosticFix?(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	onIgnoreDiagnostic?(diagnostic: Diagnostic): void;
+	/** Select a language offered directly by a language diagnostic. */
+	onSetLanguage?(language: string): void;
 	/** Add a performer to the draft roster from the floating assignment card. */
 	onAddPerformer?(displayName: string): void;
 	/**
@@ -113,6 +115,8 @@ export type LyricEditorCallbacks = EditorCallbacks & EditorOverlayCallbacks;
 export interface EditorPaneProps {
 	initialText: string;
 	initialSelection?: SerializedSelection;
+	/** Revision of the snapshot used to mount or remount this editor instance. */
+	initialRevision?: number;
 	context: EditorDisplayContext;
 	callbacks: LyricEditorCallbacks;
 	handle?: EditorHandle;

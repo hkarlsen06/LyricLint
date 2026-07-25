@@ -21,7 +21,7 @@ function secondDraft(): DraftRecord {
 describe('DraftMenu', () => {
 	afterEach(cleanup);
 
-	test('creates, opens, renames, duplicates, exports, deletes, and deletes all drafts', async () => {
+	test('opens, renames, duplicates, exports, deletes, and deletes all drafts', async () => {
 		const exported: Array<{ text: string; filename: string }> = [];
 		const base = createTestWorkbench();
 		const { controller, repository } = createTestWorkbench({
@@ -31,6 +31,7 @@ describe('DraftMenu', () => {
 		await controller.refreshDrafts();
 		render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
+		expect(screen.getByRole('heading', { name: 'Saved drafts', level: 2 })).toBeTruthy();
 
 		await fireEvent.click(screen.getByRole('button', { name: /^Second song/ }));
 		expect(controller.draftId).toBe('draft-2');
@@ -42,7 +43,7 @@ describe('DraftMenu', () => {
 			filename: 'Second song.txt'
 		});
 
-		await fireEvent.click(screen.getByRole('button', { name: 'New draft' }));
+		await controller.createDraft();
 		await waitFor(async () => expect((await repository.list()).length).toBe(3));
 
 		const generatedRow = screen.getByText('Untitled draft').closest('li');

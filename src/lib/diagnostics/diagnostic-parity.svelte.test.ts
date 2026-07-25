@@ -46,6 +46,7 @@ function panelActions(diagnostic: Diagnostic): RenderedAction[] {
 	const screen = render(DiagnosticDetails, {
 		diagnostic,
 		onChooseHeader: vi.fn(),
+		onSetLanguage: vi.fn(),
 		onPreviewFix: vi.fn(),
 		onCancelPreview: vi.fn(),
 		onApplyFix: vi.fn(),
@@ -60,6 +61,7 @@ function popoverActions(diagnostic: Diagnostic, takeFocus = false): RenderedActi
 	const screen = render(DiagnosticPopover, {
 		diagnostic,
 		takeFocus,
+		onSetLanguage: vi.fn(),
 		onPreviewFix: vi.fn(),
 		onCancelPreview: vi.fn(),
 		onApplyFix: vi.fn(),
@@ -95,6 +97,25 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			classes: 'button button--quiet diagnostic-actions__close'
 		});
 		expect(dialog.slice(0, -1)).toEqual(panelActions(diagnostic));
+	});
+
+	it('offers the detected language before the quiet ignore action on both surfaces', () => {
+		const diagnostic: Diagnostic = {
+			...contractionDiagnostic(),
+			ruleId: 'language.selection-mismatch',
+			fixes: undefined,
+			detectedLanguage: { tag: 'en', displayName: 'English' }
+		};
+
+		const expected = [
+			{
+				label: 'Set language to English',
+				classes: 'button button--contrast diagnostic-actions__language'
+			},
+			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
+		];
+		expect(panelActions(diagnostic)).toEqual(expected);
+		expect(popoverActions(diagnostic)).toEqual(expected);
 	});
 
 	it('never puts a verb in front of a fix that already names itself', () => {
@@ -165,6 +186,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 				emptyState: { title: '', detail: '' },
 				onNavigate: vi.fn(),
 				onChooseHeader: vi.fn(),
+				onSetLanguage: vi.fn(),
 				onPreviewFix: vi.fn(),
 				onCancelPreview: vi.fn(),
 				onApplyFix: vi.fn(),

@@ -9,6 +9,8 @@
 		onChooseHeader?: () => void;
 		/** Offered only when the document can actually take the assignment. */
 		onAssignPerformers?: () => void;
+		/** Offered when the diagnostic carries a detected language the host can select. */
+		onSetLanguage?: (language: string, trigger: HTMLButtonElement) => void;
 		onPreviewFix: (fix: DiagnosticFix) => void;
 		onCancelPreview: () => void;
 		onApplyFix: (fix: DiagnosticFix) => void;
@@ -23,6 +25,7 @@
 		diagnostic,
 		onChooseHeader,
 		onAssignPerformers,
+		onSetLanguage,
 		onPreviewFix,
 		onCancelPreview,
 		onApplyFix,
@@ -34,6 +37,7 @@
 	const offersHeaderPicker = $derived(
 		diagnostic.ruleId === 'section.header-missing' && onChooseHeader !== undefined
 	);
+	const detectedLanguage = $derived(diagnostic.detectedLanguage);
 	// Selecting the diagnostic is the preview: the editor shows the change as a
 	// diff for as long as this row is mounted, so the only control needed is the
 	// one that keeps it.
@@ -72,6 +76,15 @@
 	{#if onAssignPerformers}
 		<button type="button" class="button diagnostic-actions__guided" onclick={onAssignPerformers}>
 			Assign section performers
+		</button>
+	{/if}
+	{#if detectedLanguage && onSetLanguage}
+		<button
+			type="button"
+			class="button button--contrast diagnostic-actions__language"
+			onclick={(event) => onSetLanguage(detectedLanguage.tag, event.currentTarget)}
+		>
+			Set language to {detectedLanguage.displayName}
 		</button>
 	{/if}
 	<!-- The fix names itself. "Apply" in front of a label that already reads as a

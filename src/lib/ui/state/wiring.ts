@@ -127,8 +127,8 @@ export function resolveVoiceGroupRanges(
 			}
 		}
 
-		// Legend names take their group's tint/underline inside the header too;
-		// the `legend` flag keeps the header line free of the full-line wash.
+		// Legend names keep their group's tint inside the header; the `legend`
+		// flag keeps them from contributing to lyric-line gutter segments.
 		for (const legendGroup of section.header?.legendGroups ?? []) {
 			const group = resolvedGroups.get(legendGroup.styleSlot);
 			if (group && legendGroup.nameRange.from < legendGroup.nameRange.to) {

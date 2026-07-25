@@ -56,6 +56,16 @@ describe('PerformersPanel', () => {
 		);
 	});
 
+	test('gives the same artist the same preferred color in separate drafts', () => {
+		const first = createTestWorkbench();
+		const second = createTestWorkbench();
+
+		first.controller.addPerformer('Beyoncé');
+		second.controller.addPerformer('  Beyoncé  ');
+
+		expect(first.controller.performers[0]?.colorId).toBe(second.controller.performers[0]?.colorId);
+	});
+
 	test('lists the roster in order of first appearance in the lyrics', () => {
 		const text = '[Chorus: Blair, <i>Avery</i>]\nBlair line\n<i>Avery line</i>';
 		const { controller } = createTestWorkbench({

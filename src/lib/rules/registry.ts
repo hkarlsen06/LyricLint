@@ -10,6 +10,7 @@ import { numbersSpellOutRule } from './catalog/numbers-spell-out.js';
 import { performerHeaderRequiredRule } from './catalog/performer-header-required.js';
 import { performerInlineMismatchRule } from './catalog/performer-inline-mismatch.js';
 import { performerLineLabelForbiddenRule } from './catalog/performer-line-label-forbidden.js';
+import { performerParentheticalBoundaryRule } from './catalog/performer-parenthetical-boundary.js';
 import { performerRedundantMarkupRule } from './catalog/performer-redundant-markup.js';
 import { performerUnusedLegendSlotRule } from './catalog/performer-unused-legend-slot.js';
 import { performerStyleOrderRule } from './catalog/performer-style-order.js';
@@ -21,6 +22,7 @@ import { quotesTypewriterRule } from './catalog/quotes-typewriter.js';
 import { repeatPlaceholderRule } from './catalog/repeat-placeholder.js';
 import { sectionHeaderLanguageRule } from './catalog/section-header-language.js';
 import { sectionHeaderMissingRule } from './catalog/section-header-missing.js';
+import { sectionHeaderSpacingRule } from './catalog/section-header-spacing.js';
 import { sectionHeaderUnrecognizedRule } from './catalog/section-header-unrecognized.js';
 import { sectionLocalizedHeaderPreferenceRule } from './catalog/section-localized-header-preference.js';
 import { sectionDeprecatedHookRule } from './catalog/section-deprecated-hook.js';
@@ -39,6 +41,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	syntaxUnsupportedVoiceMarkupRule,
 	languageSelectionMismatchRule,
 	sectionHeaderMissingRule,
+	sectionHeaderSpacingRule,
 	sectionHeaderLanguageRule,
 	sectionLocalizedHeaderPreferenceRule,
 	sectionHeaderUnrecognizedRule,
@@ -48,6 +51,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	performerHeaderRequiredRule,
 	performerStyleOrderRule,
 	performerInlineMismatchRule,
+	performerParentheticalBoundaryRule,
 	performerRedundantMarkupRule,
 	performerUnusedLegendSlotRule,
 	performerTooManyGroupsRule,

@@ -49,6 +49,7 @@
 	let {
 		initialText,
 		initialSelection,
+		initialRevision = 0,
 		context,
 		callbacks,
 		handle = $bindable(),
@@ -62,7 +63,7 @@
 	// legal combinations are the variants themselves rather than an unwritten
 	// agreement between separate flags. All transitions live in overlay-state.ts.
 	let session = $state<OverlaySession>(closedOverlaySession());
-	let lastRevision = 0;
+	let lastRevision = untrack(() => initialRevision);
 	// Bumped on editor scroll so anchored overlays recompute their coordinates
 	// and stay attached to their line instead of floating in the viewport.
 	let scrollTick = $state(0);
@@ -125,6 +126,16 @@
 		return context.performers
 			.filter((performer) => performerIds.includes(performer.id))
 			.map((performer) => performer.id);
+	}
+
+	function canRemoveFormattingForRange(range: TextRange): boolean {
+		return (context.voiceGroups ?? []).some(
+			(voiceRange) =>
+				!voiceRange.legend &&
+				voiceRange.group.styleSlot !== 1 &&
+				voiceRange.from < range.to &&
+				range.from < voiceRange.to
+		);
 	}
 
 	function rectForRange(range: TextRange): ScreenRect {
@@ -458,6 +469,12 @@
 		returnFocus();
 	}
 
+	function setLanguage(language: string): void {
+		callbacks.onSetLanguage?.(language);
+		session = closeOverlay(session);
+		returnFocus();
+	}
+
 	// The preedit owns the surface during composition: nothing anchored may sit
 	// over text the IME is still rewriting.
 	function suppressOverlaysDuringComposition(): void {
@@ -483,6 +500,7 @@
 			const options: CreateLyricEditorOptions = {
 				initialText,
 				initialSelection,
+				initialRevision,
 				context,
 				callbacks: internalCallbacks(),
 				onSelectionAnchor(anchor) {
@@ -537,6 +555,7 @@
 					? legend.sectionPerformerIds
 					: legend.styledPerformerIds
 				: performerIdsForRange(performerOverlay.range)}
+			removalAvailable={!legend && canRemoveFormattingForRange(performerOverlay.range)}
 			prompt={legendPrompt}
 			applyLabel={legend?.step === 'section' ? 'Next' : 'Apply'}
 			returnFocusOnApply={legend?.step !== 'section'}
@@ -575,6 +594,7 @@
 		onAssignPerformers={legendTarget(diagnosticOverlay.diagnostic)
 			? () => startLegendAssignment(diagnosticOverlay.diagnostic)
 			: undefined}
+		onSetLanguage={callbacks.onSetLanguage ? setLanguage : undefined}
 		onIgnore={ignoreDiagnostic}
 		onDismiss={(heldFocus) => {
 			clearFixPreview();

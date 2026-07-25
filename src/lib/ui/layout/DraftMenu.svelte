@@ -64,8 +64,8 @@
 	     Svelte considers the role redundant, but real browsers expose the styled
 	     summary as generic without it. -->
 	<!-- svelte-ignore a11y_no_redundant_roles -->
-	<!-- Icon only: the folder is the whole control, so the name it used to spell
-	     out lives in the accessible name and the native tooltip instead. -->
+	<!-- Icon only: the three-line menu glyph is the whole control, so its name
+	     lives in the accessible name and the native tooltip instead. -->
 	<summary
 		class="button button--quiet icon-button draft-menu__trigger"
 		role="button"
@@ -83,24 +83,12 @@
 			stroke="currentColor"
 			stroke-width="1.5"
 			stroke-linecap="round"
-			stroke-linejoin="round"
 		>
-			<path
-				d="M1.8 4.2a1 1 0 0 1 1-1h3.1l1.6 1.6h5.7a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H2.8a1 1 0 0 1-1-1Z"
-			/>
+			<path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
 		</svg>
 	</summary>
 	<div class="draft-menu__popover">
-		<div class="draft-menu__heading">
-			<strong>Saved drafts</strong>
-			<button
-				type="button"
-				class="button button--contrast"
-				onclick={() => closeAnd(() => controller.createDraft())}
-			>
-				New draft
-			</button>
-		</div>
+		<h2 class="draft-menu__heading">Saved drafts</h2>
 
 		{#if controller.drafts.length === 0}
 			<p class="empty-state">

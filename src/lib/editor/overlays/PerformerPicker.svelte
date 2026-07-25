@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
+	import type { Attachment } from 'svelte/attachments';
 	import type { PerformerId, PerformerRecord } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import type { ScreenRect } from '../contracts.js';
@@ -13,6 +14,7 @@
 		applyLabel?: string;
 		returnFocusOnApply?: boolean;
 		allowRemoval?: boolean;
+		removalAvailable?: boolean;
 		onApply: (performerIds: PerformerId[]) => void | Promise<void>;
 		onCancel: () => void;
 		returnFocus: () => void;
@@ -28,6 +30,7 @@
 		applyLabel = 'Apply',
 		returnFocusOnApply = true,
 		allowRemoval = true,
+		removalAvailable = initialSelectedIds.length > 0,
 		onApply,
 		onCancel,
 		returnFocus,
@@ -35,13 +38,25 @@
 	}: Props = $props();
 	let activeIndex = $state(0);
 	let keyboardNavigated = $state(false);
+	let rosterScrollable = $state(false);
 	let selectedIds = $state<PerformerId[]>([...untrack(() => initialSelectedIds)]);
 	let adding = $state(false);
 	let addName = $state('');
 	let pendingAddName = $state<string | undefined>();
 	let root: HTMLDivElement;
 	let addInput = $state<HTMLInputElement | undefined>();
-	const canRemoveFormatting = $derived(allowRemoval && initialSelectedIds.length > 0);
+	const removalSelected = $derived(selectedIds.length === 0 && initialSelectedIds.length > 0);
+	const canRemoveFormatting = $derived(
+		allowRemoval && removalAvailable && initialSelectedIds.length > 0
+	);
+	const removalUnavailable = $derived(allowRemoval && removalSelected && !canRemoveFormatting);
+	const selectionChanged = $derived(
+		selectedIds.length !== initialSelectedIds.length ||
+			selectedIds.some((id) => !initialSelectedIds.includes(id))
+	);
+	const canApply = $derived(
+		(selectedIds.length > 0 || canRemoveFormatting) && (!allowRemoval || selectionChanged)
+	);
 
 	const position = $derived(
 		anchor
@@ -52,6 +67,21 @@
 	function chipButtons(): HTMLButtonElement[] {
 		return root ? [...root.querySelectorAll<HTMLButtonElement>('[data-picker-chip]')] : [];
 	}
+
+	const trackRosterOverflow: Attachment<HTMLDivElement> = (node) => {
+		const update = (): void => {
+			rosterScrollable = node.scrollWidth > node.clientWidth;
+		};
+		const resizeObserver = new ResizeObserver(update);
+		const mutationObserver = new MutationObserver(update);
+		resizeObserver.observe(node);
+		mutationObserver.observe(node, { childList: true, subtree: true, characterData: true });
+		update();
+		return () => {
+			resizeObserver.disconnect();
+			mutationObserver.disconnect();
+		};
+	};
 
 	function focusActive(): void {
 		chipButtons()[activeIndex]?.focus();
@@ -99,7 +129,7 @@
 	}
 
 	async function apply(): Promise<void> {
-		if (selectedIds.length === 0 && !canRemoveFormatting) {
+		if (!canApply) {
 			return;
 		}
 		try {
@@ -287,39 +317,45 @@
 		{#if prompt}
 			<span class="picker__prompt">{prompt}</span>
 		{/if}
-		<div class="roster" aria-label="Performer roster">
-			{#each performers as performer, index (performer.id)}
-				<button
-					type="button"
-					class="chip"
-					data-picker-chip
-					data-performer={performer.id}
-					aria-pressed={selectedIds.includes(performer.id)}
-					tabindex={index === activeIndex ? 0 : -1}
-					style={`--dot-color: var(--performer-${performer.colorId}, var(--color-text-muted));`}
-					onclick={() => toggle(performer.id)}
-					onfocus={() => (activeIndex = index)}
-				>
-					<span class="chip__dot" aria-hidden="true"></span>
-					{performer.displayName}
-					{#if selectedIds.includes(performer.id)}
-						<svg
-							class="chip__check"
-							aria-hidden="true"
-							viewBox="0 0 16 16"
-							width="11"
-							height="11"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							<path d="m3.2 8.6 3 3.1 6.6-7.2" />
-						</svg>
-					{/if}
-				</button>
-			{/each}
+		<div
+			class="roster"
+			class:roster--scrollable={rosterScrollable}
+			aria-label="Performer roster"
+		>
+			<div class="roster__track" {@attach trackRosterOverflow}>
+				{#each performers as performer, index (performer.id)}
+					<button
+						type="button"
+						class="chip"
+						data-picker-chip
+						data-performer={performer.id}
+						aria-pressed={selectedIds.includes(performer.id)}
+						tabindex={index === activeIndex ? 0 : -1}
+						style={`--dot-color: var(--performer-${performer.colorId}, var(--color-text-muted));`}
+						onclick={() => toggle(performer.id)}
+						onfocus={() => (activeIndex = index)}
+					>
+						<span class="chip__dot" aria-hidden="true"></span>
+						{performer.displayName}
+						{#if selectedIds.includes(performer.id)}
+							<svg
+								class="chip__check"
+								aria-hidden="true"
+								viewBox="0 0 16 16"
+								width="11"
+								height="11"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+							>
+								<path d="m3.2 8.6 3 3.1 6.6-7.2" />
+							</svg>
+						{/if}
+					</button>
+				{/each}
+			</div>
 			{#if onAddPerformer}
 				{#if adding}
 					<input
@@ -331,28 +367,30 @@
 						onkeydown={handleAddInputKeydown}
 					/>
 				{:else}
-					<button
-						type="button"
-						class="chip chip--add"
-						data-picker-chip
-						aria-label="Add a performer"
-						tabindex={activeIndex === performers.length ? 0 : -1}
-						onclick={beginAdd}
-						onfocus={() => (activeIndex = performers.length)}
-					>
-						<svg
-							aria-hidden="true"
-							viewBox="0 0 16 16"
-							width="12"
-							height="12"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.8"
-							stroke-linecap="round"
+					<span class="add-slot">
+						<button
+							type="button"
+							class="chip chip--add"
+							data-picker-chip
+							aria-label="Add a performer"
+							tabindex={activeIndex === performers.length ? 0 : -1}
+							onclick={beginAdd}
+							onfocus={() => (activeIndex = performers.length)}
 						>
-							<path d="M8 3.2v9.6M3.2 8h9.6" />
-						</svg>
-					</button>
+							<svg
+								aria-hidden="true"
+								viewBox="0 0 16 16"
+								width="16"
+								height="16"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.8"
+								stroke-linecap="round"
+							>
+								<path d="M8 3.2v9.6M3.2 8h9.6" />
+							</svg>
+						</button>
+					</span>
 					{#if performers.length === 0}
 						<span class="picker__empty-hint">Add a performer</span>
 					{/if}
@@ -363,15 +401,24 @@
 			<button
 				type="button"
 				class="button button--contrast apply"
-				disabled={selectedIds.length === 0 && !canRemoveFormatting}
+				disabled={!canApply}
+				aria-describedby={removalUnavailable ? 'performer-removal-unavailable' : undefined}
 				onclick={apply}
 			>
-				{selectedIds.length === 0 && allowRemoval ? 'Remove formatting' : applyLabel}
+				{removalSelected && allowRemoval
+					? removalUnavailable
+						? 'Already plain text'
+						: 'Remove formatting'
+					: applyLabel}
 				<span aria-hidden="true" class="apply__key">↵</span>
 			</button>
+			{#if removalUnavailable}
+				<span class="sr-only" id="performer-removal-unavailable">
+					The main performer has no inline formatting to remove.
+				</span>
+			{/if}
 		</div>
 	</div>
-	<p class="hint" aria-hidden="true">Alt+P · Esc cancels, focus returns to editor</p>
 </div>
 
 <style>
@@ -418,34 +465,27 @@
 		transform: none;
 	}
 
-	.hint {
-		margin: 0;
-		padding-inline: var(--space-1);
-		color: var(--color-text-muted);
-		font-family: var(--font-ui);
-		font-size: var(--font-size-2xs);
-		font-weight: var(--font-weight-regular);
-		line-height: var(--line-height-tight);
-		text-shadow: 0 1px 2px var(--color-canvas);
-	}
-
-	.anchored .hint {
-		padding: var(--space-0-5) var(--space-1-5);
-		border-radius: var(--radius-control);
-		background: color-mix(in oklch, var(--color-overlay) 88%, transparent);
-	}
-
 	.roster {
-		/* Chip focus rings sit outside the chip border, and overflow-x makes this
-		   box clip on both axes. Reserve the ring's space inside the scroller and
-		   pull it back out again so the chips keep their original position. */
 		--ring-space: calc(var(--focus-ring-width) + var(--focus-ring-offset));
 
+		flex: 0 1 auto;
 		display: flex;
 		min-width: 0;
 		gap: var(--space-1-5);
 		align-items: center;
 		margin: calc(-1 * var(--ring-space));
+		margin-inline-end: calc(-1 * (var(--ring-space) + var(--space-1)));
+	}
+
+	.roster__track {
+		/* Performer chips own the scroll viewport. The add control is its sibling,
+		   so clipped chip content can never paint on the far side of the plus.
+		   Padding reserves room for focus rings inside the clipped track. */
+		flex: 0 1 auto;
+		display: flex;
+		min-width: 0;
+		max-width: 20rem;
+		gap: var(--space-1-5);
 		padding: var(--ring-space);
 		overflow-x: auto;
 	}
@@ -482,18 +522,50 @@
 		flex: none;
 	}
 
+	.add-slot {
+		position: relative;
+		z-index: 1;
+		flex: none;
+		display: flex;
+		margin-inline-end: var(--ring-space);
+		background: var(--color-overlay);
+		isolation: isolate;
+	}
+
+	/* The track clips every performer at its own edge. This fade bridges that
+	   edge to the fixed add control without needing to cover content behind it. */
+	.roster--scrollable .add-slot::before {
+		position: absolute;
+		z-index: 0;
+		inset-block: calc(-1 * var(--ring-space));
+		inset-inline-end: 0;
+		width: calc(100% + var(--space-6) + var(--space-1-5));
+		background: linear-gradient(to right, transparent, var(--color-overlay) var(--space-6));
+		content: '';
+		pointer-events: none;
+	}
+
 	.chip--add {
+		position: relative;
+		z-index: 1;
 		width: var(--control-height-sm);
 		height: var(--control-height-sm);
 		padding: 0;
 		justify-content: center;
 		border-style: dashed;
 		border-radius: var(--radius-round);
+		background: var(--color-overlay);
 		color: var(--color-text-muted);
 	}
 
 	.chip--add:hover {
 		color: inherit;
+	}
+
+	.chip--add svg {
+		flex: none;
+		width: var(--font-size-md);
+		height: var(--font-size-md);
 	}
 
 	.chip--input {
@@ -580,6 +652,10 @@
 
 		.roster {
 			flex-basis: 100%;
+		}
+
+		.roster__track {
+			max-width: none;
 		}
 	}
 

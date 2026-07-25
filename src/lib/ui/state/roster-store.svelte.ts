@@ -4,7 +4,11 @@ import type {
 	PerformerRecord,
 	VoiceGroup
 } from '$lib/core/types.js';
-import { extractPerformers } from '$lib/performers/index.js';
+import {
+	allocatePerformerColor,
+	extractPerformers,
+	performerColorIds
+} from '$lib/performers/index.js';
 import { SvelteMap } from 'svelte/reactivity';
 import type { FeedbackState } from './feedback.svelte.js';
 
@@ -16,21 +20,7 @@ export interface RosterMergeSuggestion {
 	reason: 'case' | 'normalized-key' | 'alias';
 }
 
-/**
- * Roster allocation order for performer colors. Green then violet lead so the
- * first two performers match the approved mockup (Mara green, Jun violet);
- * the remaining hues stay mutually distinguishable.
- */
-export const performerColorIds = [
-	'olive',
-	'indigo',
-	'teal',
-	'ochre',
-	'rose',
-	'plum',
-	'copper',
-	'slate'
-] as const;
+export { performerColorIds };
 
 export function cloneRoster(roster: readonly PerformerRecord[]): PerformerRecord[] {
 	return roster.map((performer) => ({ ...performer, aliases: [...performer.aliases] }));
@@ -163,8 +153,6 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			const additions = extraction.rosterAdditions.map((performer, index) => ({
 				...performer,
 				aliases: [...performer.aliases],
-				colorId:
-					performerColorIds[(performers.length + index) % performerColorIds.length] ?? 'olive',
 				order: performers.length + index
 			}));
 			const names = additions.map((performer) => performer.displayName);
@@ -182,7 +170,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 				displayName: trimmed,
 				normalizedKey: normalizedKey(trimmed),
 				aliases: [],
-				colorId: performerColorIds[performers.length % performerColorIds.length] ?? 'olive',
+				colorId: allocatePerformerColor(trimmed, performers),
 				order: performers.length
 			};
 			commitRoster([...performers, next], `Added ${trimmed} to the roster.`);

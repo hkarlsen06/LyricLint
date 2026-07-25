@@ -7,6 +7,7 @@
 	let {
 		initialText,
 		initialSelection = { anchor: 0, head: 0 },
+		initialRevision = 0,
 		context,
 		callbacks,
 		// eslint-disable-next-line no-useless-assignment -- Svelte consumes this bindable contract prop.
@@ -15,7 +16,7 @@
 
 	let text = $state(untrack(() => initialText));
 	let selection = $state<SerializedSelection>(untrack(() => ({ ...initialSelection })));
-	let revision = $state(0);
+	let revision = $state(untrack(() => initialRevision));
 	let textarea: HTMLTextAreaElement | undefined;
 	let history = $state<string[]>([]);
 	let future = $state<string[]>([]);

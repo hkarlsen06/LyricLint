@@ -36,30 +36,35 @@
 	box-shadow: var(--shadow-overlay);
 }
 
-.draft-menu__heading,
-.draft-menu__footer {
-	display: flex;
-	gap: var(--space-2);
-	align-items: center;
-	justify-content: space-between;
+.draft-menu__heading {
+	margin: 0;
+	padding-bottom: var(--space-3);
+	font-size: var(--font-size-lg);
+	line-height: var(--line-height-tight);
 }
 
 .draft-menu__footer {
-	margin-top: var(--space-3);
+	display: flex;
+	margin-top: 0;
 	padding-top: var(--space-3);
 	border-top: var(--border-width) solid var(--color-border);
-	justify-content: flex-start;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	align-items: center;
+	justify-content: flex-end;
 }
 
 .draft-list {
-	margin: var(--space-3) 0 0;
+	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
 .draft-list > li {
+	display: grid;
 	padding: var(--space-3) 0;
 	border-top: var(--border-width) solid var(--color-border);
+	gap: var(--space-2);
 }
 
 .draft-list__title {
@@ -67,26 +72,48 @@
 	width: 100%;
 	padding: 0;
 	border: 0;
+	gap: var(--space-4);
 	justify-content: space-between;
+	align-items: baseline;
 	background: transparent;
 	color: var(--color-text);
 	text-align: start;
 }
 
 .draft-list__title span {
+	min-width: 0;
+	overflow: hidden;
 	font-weight: var(--font-weight-bold);
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .draft-list__title time {
+	flex: none;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
 }
 
 .draft-list__actions {
 	display: flex;
-	margin-top: var(--space-2);
 	flex-wrap: wrap;
 	gap: var(--space-1);
+	align-items: center;
+}
+
+.draft-list__actions .button,
+.draft-menu__footer .button {
+	min-height: var(--control-height-sm);
+	padding-block: 0;
+	font-size: var(--font-size-sm);
+}
+
+/* Ordinary document actions stay together. The destructive action owns the
+   far edge, so the row reads as two scopes instead of one loose run of labels. */
+.draft-list__actions > .danger-text {
+	margin-inline-start: auto;
 }
 
 .toast-region {

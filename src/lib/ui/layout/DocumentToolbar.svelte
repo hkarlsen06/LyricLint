@@ -70,6 +70,12 @@
 		controller.setTitle(input.value);
 	}
 
+	function onTitleClick(event: MouseEvent & { currentTarget: HTMLInputElement }) {
+		if (event.currentTarget.value === 'Untitled draft') {
+			event.currentTarget.select();
+		}
+	}
+
 	function onTitleKeydown(event: KeyboardEvent & { currentTarget: HTMLInputElement }) {
 		if (event.key === 'Enter') {
 			event.preventDefault();
@@ -98,6 +104,7 @@
 			value={controller.title}
 			oninput={(event) => (titleLength = event.currentTarget.value.length)}
 			onchange={(event) => commitTitle(event.currentTarget)}
+			onclick={onTitleClick}
 			onkeydown={onTitleKeydown}
 			aria-label="Draft title"
 		/>
@@ -152,11 +159,32 @@
 		</span>
 	</div>
 
-	<!-- Copy anchors the right edge: it is the one action that ends the session's
-	     work, so it sits last in reading order and last in the tab order. -->
+	<!-- Creation and navigation lead the command strip, followed by the document's
+	     language. Copy anchors the right edge: it is the one action that ends the
+	     session's work, so it sits last in reading order and last in the tab order. -->
 	<div class="document-toolbar__commands">
-		<LanguagePicker {controller} />
+		<button
+			type="button"
+			class="icon-button button--quiet new-draft-trigger"
+			aria-label="New draft"
+			title="New draft"
+			onclick={() => controller.createDraft()}
+		>
+			<svg
+				aria-hidden="true"
+				viewBox="0 0 16 16"
+				width="15"
+				height="15"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+			>
+				<path d="M8 2.5v11M2.5 8h11" />
+			</svg>
+		</button>
 		<DraftMenu {controller} />
+		<LanguagePicker {controller} />
 		<button
 			type="button"
 			class="button button--contrast"
