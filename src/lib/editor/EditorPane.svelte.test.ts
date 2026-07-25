@@ -1267,7 +1267,7 @@ describe('DiagnosticPopover fix flow', () => {
 		expect(onCancelPreview).toHaveBeenCalled();
 	});
 
-	it('keeps long source lists collapsed until the user asks for the full audit trail', async () => {
+	it('folds several citations behind one control so the meta line stays one line', async () => {
 		const sourceIds = ['primary', 'selected-language', 'supporting-a', 'supporting-b'];
 		const sources: SourceReference[] = sourceIds.map((id, index) => ({
 			id,
@@ -1287,18 +1287,15 @@ describe('DiagnosticPopover fix flow', () => {
 			onIgnore: vi.fn()
 		});
 
-		expect(
-			screen.container.querySelectorAll('ul[aria-label="Sources"] li:not(.source-disclosure)')
-		).toHaveLength(2);
+		// Four links would wrap the meta line into four, so none of them is on it.
+		expect(screen.container.querySelectorAll('.diagnostic-meta__row a')).toHaveLength(0);
+		const disclosure = page.getByRole('button', { name: 'Sources' });
+		await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
 
-		await userEvent.click(page.getByRole('button', { name: 'Show 2 more sources' }));
+		await userEvent.click(disclosure);
 
-		expect(
-			screen.container.querySelectorAll('ul[aria-label="Sources"] li:not(.source-disclosure)')
-		).toHaveLength(4);
-		await expect
-			.element(page.getByRole('button', { name: 'Show fewer sources' }))
-			.toHaveAttribute('aria-expanded', 'true');
+		expect(screen.container.querySelectorAll('ul[aria-label="Sources"] li')).toHaveLength(4);
+		await expect.element(disclosure).toHaveAttribute('aria-expanded', 'true');
 	});
 
 	it('uses the affirmative manual-review action for an unrecognized header', async () => {

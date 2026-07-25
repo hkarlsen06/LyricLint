@@ -148,9 +148,23 @@ describe('RightPanel', () => {
 		);
 		expect(getComputedStyle(expanded).boxShadow).toContain('inset');
 
-		// The severity tag is squared off, not a pill.
-		const severity = expanded.querySelector('.severity')!;
-		expect(getComputedStyle(severity).borderRadius).toBe('4px');
+		// The severity is a colored glyph and a colored word on the meta line, not
+		// a filled badge holding a line of its own above the message.
+		const severity = expanded.querySelector('.severity') as HTMLElement;
+		const severityStyle = getComputedStyle(severity);
+		expect(severityStyle.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+		expect(severityStyle.borderRadius).toBe('0px');
+		expect(severity.parentElement?.classList.contains('diagnostic-meta__row')).toBe(true);
+
+		// It leads that line: the title is above it, the line number beside it.
+		const title = expanded.querySelector('.diagnostic-list__title') as HTMLElement;
+		const line = expanded.querySelector('.diagnostic-meta__line') as HTMLElement;
+		const severityBox = severity.getBoundingClientRect();
+		const lineBox = line.getBoundingClientRect();
+		expect(title.getBoundingClientRect().bottom).toBeLessThanOrEqual(severityBox.top);
+		expect(lineBox.left).toBeGreaterThan(severityBox.right);
+		const centre = (box: DOMRect) => box.top + box.height / 2;
+		expect(Math.abs(centre(lineBox) - centre(severityBox))).toBeLessThan(2);
 	});
 
 	test('makes the whole card the target and gives its title no link treatment', async () => {
@@ -174,29 +188,42 @@ describe('RightPanel', () => {
 		const row = screen
 			.getByRole('button', { name: 'Go to Add a section header' })
 			.closest('li') as HTMLElement;
+		const head = row.querySelector('.diagnostic-list__head') as HTMLElement;
 		const control = row.querySelector('.diagnostic-list__navigate') as HTMLElement;
 
-		// The card's inset lives on the button, not on the row, so there is no
+		// The card's inset lives on the head, not on the row, so there is no
 		// border of dead space around the heading where a press does nothing.
 		expect(getComputedStyle(row).padding).toBe('0px');
-		expect(control.getBoundingClientRect().width).toBe(row.getBoundingClientRect().width);
+		expect(head.getBoundingClientRect().width).toBe(row.getBoundingClientRect().width);
+
+		// The button no longer contains the head — the meta line ends in a link,
+		// and an <a> inside a <button> is invalid — so it stretches its hit area
+		// over the head instead. A press in the head's padding, well outside the
+		// button's own box, still lands on the button.
+		const headBox = head.getBoundingClientRect();
+		const corner = document.elementFromPoint(headBox.right - 4, headBox.bottom - 4);
+		expect(corner).toBe(control);
 
 		// The message is a heading inside a pressable card, not a link out of it:
 		// hovering it leaves the title's color and underline alone and moves the
 		// whole row instead.
 		const title = control.querySelector('.diagnostic-list__title') as HTMLElement;
 		const restingColor = getComputedStyle(title).color;
-		const restingRowBackground = getComputedStyle(control).backgroundColor;
+		const restingRowBackground = getComputedStyle(head).backgroundColor;
 		await userEvent.hover(title);
 		expect(getComputedStyle(title).textDecorationLine).toBe('none');
 		expect(getComputedStyle(title).color).toBe(restingColor);
-		expect(getComputedStyle(control).backgroundColor).not.toBe(restingRowBackground);
+		expect(getComputedStyle(head).backgroundColor).not.toBe(restingRowBackground);
 
-		// Severity tag and line number sit inside the control, so pressing either
-		// of them opens the diagnostic just as pressing the message does.
-		expect(control.querySelector('.severity')).not.toBeNull();
-		expect(control.querySelector('.diagnostic-list__subtitle')).not.toBeNull();
-		await fireEvent.click(control.querySelector('.severity')!);
+		// The severity and the line number are under that stretched layer, so
+		// pressing either opens the diagnostic just as pressing the message does.
+		const severity = head.querySelector('.severity') as HTMLElement;
+		expect(head.querySelector('.diagnostic-meta__line')).not.toBeNull();
+		const severityBox = severity.getBoundingClientRect();
+		expect(
+			document.elementFromPoint(severityBox.left + 2, severityBox.top + severityBox.height / 2)
+		).toBe(control);
+		await fireEvent.click(control);
 		expect(calls.revealed).toEqual([{ from: 9, to: 13 }]);
 	});
 

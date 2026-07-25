@@ -17,6 +17,12 @@ bun run lint
 bun run test:unit -- --run
 ```
 
+## Git history
+
+Prefer rebasing over merge commits when integrating branches. Rebase the topic branch onto the
+current target branch, then use a fast-forward merge so history stays linear. Do not create a
+merge commit unless the user explicitly requests one or rebasing would rewrite shared history.
+
 ## UI rules
 
 ### No cards inside cards
@@ -132,17 +138,50 @@ finding seen from two places. They therefore share components rather than mirror
 hand — the previous pair had drifted into two source lists, two ignore labels, two fix buttons,
 and a severity tag in only one of them.
 
-`src/lib/diagnostics/` owns everything from the severity tag down: `SeverityTag.svelte`,
+`src/lib/diagnostics/` owns everything from the meta line down: `DiagnosticMeta.svelte` (the one
+line of facts, built from `SeverityTag.svelte` and `SourceCitation.svelte`),
 `DiagnosticActions.svelte` (every decision about a diagnostic, in one row, in one order, plus the
-fix-preview lifetime), `DiagnosticSources.svelte` with `SourceLink.svelte` (the audit trail and
-its disclosure), and `source-url.ts` (no citation is ever linked without going through it). It
-sits outside `src/lib/ui/` on purpose: the editor may not depend on the shell.
+fix-preview lifetime), and `source-url.ts` (no citation is ever linked without going through it).
+`SourceLink.svelte` is the block form of a citation and is no longer part of a diagnostic at all —
+it belongs to the tools panel's reviewed-source snapshot. The directory sits outside
+`src/lib/ui/` on purpose: the editor may not depend on the shell.
 
 Each surface keeps only its own chrome — a row in the run of cards, or a floating overlay — and
-the card's line-number subtitle. The hovered popover's action row is the panel card's action row
-exactly; only the keyboard-opened one adds a control (see below). Anything else that appears on
-one and not the other is a bug, and `src/lib/diagnostics/diagnostic-parity.svelte.test.ts`
-renders both and compares them.
+the panel's line number, which is the one thing its meta line carries that the popover's does not
+(the popover is anchored under the underline it describes). The hovered popover's action row is
+the panel card's action row exactly; only the keyboard-opened one adds a control (see below).
+Anything else that appears on one and not the other is a bug, and
+`src/lib/diagnostics/diagnostic-parity.svelte.test.ts` renders both and compares them.
+
+### A diagnostic's facts are one line, and its provenance is on it
+
+The card used to open with a filled severity badge on a line of its own and close with a footer of
+block citations, each spelling out its section and verified date. Two blocks of chrome, top and
+bottom, for facts that read as one sentence — and between them the reader had to travel the whole
+card to learn where the finding was and what said so.
+
+They are one line now, under the message: **severity, line number, citation**, interpuncts between
+(`DiagnosticMeta.svelte`). The severity is a colored glyph and a colored word, not a chip. The
+citation is a link and only a link; **which part of the page was cited and when it was last
+verified are the link's tooltip**, because that is what a reader checks before following it rather
+than something they need in front of them on every card.
+
+- The tooltip is `position: fixed`, measured from the link when it opens. The citation sits inside
+  the linter panel's scroller and inside the editor popover's, either of which clips a box that
+  stays in flow.
+- The description is in the accessible tree whether or not the tooltip is showing, through
+  `aria-describedby` on the link. The visible tooltip is the same text drawn again and is
+  `aria-hidden`, so nothing is announced twice — a screen reader cannot produce a hover.
+- **One citation is inline; two or more fold behind `Sources ⌄`.** Two links on the meta line wrap
+  it onto a second and a third row, which is the layout this section exists to prevent. The
+  label names what is behind it and does not change — `aria-expanded` and the chevron carry the
+  state — and unfolded, each citation is the inline one exactly, tooltip included.
+
+The panel card also changed shape for this. The row is still the control, but the button no longer
+_contains_ the head: an `<a>` inside a `<button>` is neither valid nor reliably pressable. The
+button holds the message and stretches its hit area over the whole head with an inset `::after`,
+the citation and its disclosure ride above that layer with `z-index`, and hover and the focus ring
+are read off the head with `:has()` — off the button alone they would light up only the message.
 
 ### Every transient surface dismisses on an outside press
 
@@ -193,8 +232,43 @@ There is one pair of brackets in the brand, not two. The mark's brackets and the
 brackets were always the same shape drawn twice, so the lockup is a single rig that opens and
 closes: closed, the brackets hold the waveform and it _is_ the mark; open, the waveform has
 flattened onto the baseline, `Lint` has grown out of that line, and `Lyric` has been uncovered by
-the left bracket sweeping right off it. It holds open for five seconds on load, contracts, and
-reopens on hover.
+the left bracket sweeping right off it. It holds open on load for as long as the word takes to
+read — a saccade to land on it, ~400ms for a nine-letter compound, a beat to register it — then
+contracts, and reopens on hover or on a press that latches.
+
+**A press is not a hover, and on touch it cannot be faked with one.** Tapping an element that
+carries `:hover` styles does apply them, so a tap looks like it opens the lockup — but they stay
+applied until the next tap somewhere else, which means a second tap on the lockup changes nothing.
+A toggle has to be a real toggle. So the press latches its own state, that latch outranks hover in
+both directions (or sticky hover would hold open the thing the second tap just closed), and only a
+**mouse** leaving releases it: a touch pointer is destroyed when the finger lifts, so
+`pointerleave` fires after every tap and releasing there would undo each press on the frame it
+happened.
+
+It is used twice, and the second place is not a toolbar. On the phone gate the lockup is not a
+logo above the message but the **first word of the message**: the h1 reads `Lyric[Lint] needs a
+bigger screen`, and `role="img"` is what puts `LyricLint` back into the heading's accessible name.
+That is also why the component's root is a `span` — a heading takes phrasing content only, and a
+flow-content root gets spaced apart from the text beside it during name computation, so the
+heading announced as two fragments.
+
+**On the phone gate hover opens nothing** (`responsive.css`) — the press is the whole affordance
+there. That surface is `pointer: coarse`, where `:hover` is not a state anyone entered on purpose:
+it lands on whatever was tapped last and stays. Left in, it would fight the toggle for the exact
+tap the toggle exists to serve.
+
+**The headline also reserves the taller of its two heights**, because the lockup is a word in a
+wrapping sentence and opening it can add a line. Left alone that line comes out of the layout and
+everything below it climbs; reserving it holds the paragraph still and lets the title drop into
+the space its own second line vacated. This is also what kept an earlier hover-driven version from
+oscillating — the lockup moved a line up the page, out from under the pointer that opened it — and
+it is worth knowing the trap is still there for anything that keys off pointer position here.
+
+The reservation is banded, and the band is measured rather than guessed: below it the sentence
+needs two lines in both states, above it one in both, and only in between does the count change.
+Outside the band the same `min-height` would be empty space above the headline, which is what a
+landscape phone would get. Re-measure the threshold if the copy, the padding, or the display size
+changes.
 
 **One driver, not a choreography.** `--wm-open` is a registered `@property` interpolating 0 to 1,
 and it is the only thing that transitions. Every width, tint, flatten, fan, and per-letter fade is
@@ -228,10 +302,16 @@ static mark and are unchanged — the closed lockup has to keep matching them.
 buttons share one silhouette; emphasis changes through color, not shape. There is no pill-shaped
 button variant — the legacy `.button--pill` hook has been removed, so do not reintroduce it. Pill
 radii belong to categorical chips and badges only (`.tab-count`,
-`.linter-panel__filter-chip`), never to an action button. The severity tag on a diagnostic card
-(`.severity`) is the deliberate exception among chips: it takes `--radius-xs`, because it is a
-label stamped on the card rather than something to press, and the sharper corner is what keeps
-it from reading like the pressable severity filters directly above the list.
+`.linter-panel__filter-chip`), never to an action button.
+
+The severity on a diagnostic is no longer a chip at all. It was a filled badge holding a line of
+its own above the message, which spent a whole line of a card's height saying one word — and it
+had to be squared off to keep from reading as one of the pressable severity filters directly
+above it. It is a **colored glyph and a colored word** now (`.severity`, no fill, no border, no
+radius), and it leads the card's meta line ahead of the line number:
+`⚠ Warning · Line 47 · Use song part headers`. Severity is one more fact about the finding, so it
+sits with where the finding is and what says so. The color is the whole signal and it is the
+text's own color, which is why the shape question stops arising.
 
 Three button tiers, and no more: `.button--quiet` (borderless) < `.button` (bordered default) <
 `.button--contrast` (theme-inverting, one per surface). `.button--primary` is gone — an

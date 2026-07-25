@@ -205,6 +205,8 @@
 	--layer-menu: 20;
 	--layer-picker: 30;
 	--layer-popover: 32;
+	/* Above the popover, because a citation's tooltip is opened from inside one. */
+	--layer-tooltip: 40;
 	--layer-toast: 50;
 
 	/*

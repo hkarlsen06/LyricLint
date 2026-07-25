@@ -176,56 +176,87 @@
 	box-shadow: var(--shadow-recessed);
 }
 
-/* The card's whole face is the control, so the button — not the list item —
-   carries the card's padding: there is no dead margin around the heading where
-   a press lands on nothing. */
-.diagnostic-list__navigate {
+/* The head — not the list item — carries the card's padding: there is no dead
+   margin around the heading where a press lands on nothing. */
+.diagnostic-list__head {
+	position: relative;
 	display: grid;
-	width: 100%;
 	padding: var(--space-3) var(--space-4);
-	border: 0;
 	gap: var(--space-1);
 	justify-items: start;
+}
+
+/* Expanded, the head hands off to the details below it, so its bottom padding
+   becomes the seam between the two rather than a second full inset. */
+.diagnostic-card--expanded > .diagnostic-list__head {
+	padding-bottom: var(--space-2);
+}
+
+/*
+ * The card's whole face is still the control, but the button no longer contains
+ * it: the meta line ends in a link to the cited source, and an `<a>` inside a
+ * `<button>` is neither valid nor reliably pressable. The button holds the
+ * message and stretches its hit area over the whole head instead, so a press
+ * anywhere on the card still opens the diagnostic.
+ */
+.diagnostic-list__navigate {
+	display: block;
+	width: 100%;
+	padding: 0;
+	border: 0;
 	background: transparent;
 	color: var(--color-text);
 	text-align: start;
 }
 
-/* Expanded, the button hands off to the details below it, so its bottom padding
-   becomes the seam between the two rather than a second full inset. */
-.diagnostic-card--expanded > .diagnostic-list__navigate {
-	padding-bottom: var(--space-2);
+.diagnostic-list__navigate::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+}
+
+/* The citation and its disclosure are the only places on the card that do
+   something else, so they ride above the stretched layer and take their own
+   press. */
+.diagnostic-list__head .source-citation,
+.diagnostic-list__head .diagnostic-meta__disclosure {
+	z-index: 1;
+}
+
+.diagnostic-list__head .diagnostic-meta__disclosure {
+	position: relative;
 }
 
 /*
- * Hover belongs to the row now. The message used to turn accent and underline on
- * hover, which made a heading inside a pressable card look like a link to
- * somewhere else — and only the words were pressable, so the cue was also a lie
- * about the target. The whole row lifts to the control hover fill instead, the
- * same cue the picker rows use, and the title keeps its color.
+ * Hover and focus belong to the whole head, because that is what the press
+ * target covers — reading them off the button alone would light up only the
+ * message. Hovering the citation deliberately does not raise the row: the
+ * pointer is over the link, and the link is where the press would land.
  */
-.diagnostic-list > li:not(.diagnostic-card--expanded) .diagnostic-list__navigate:hover {
+.diagnostic-list
+	> li:not(.diagnostic-card--expanded)
+	.diagnostic-list__head:has(.diagnostic-list__navigate:hover) {
 	background: var(--color-control-hover);
 }
 
 /* Inset, because a full-bleed row's ring would otherwise be drawn over the
    hairline into the neighbouring card. */
-.diagnostic-list__navigate:focus-visible {
+.diagnostic-list__head:has(.diagnostic-list__navigate:focus-visible) {
+	outline: var(--focus-ring-width) solid var(--color-focus);
 	outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+.diagnostic-list__navigate:focus-visible {
+	outline: none;
 }
 
 .diagnostic-list__title {
 	font-weight: var(--font-weight-bold);
 }
 
-.diagnostic-list__subtitle {
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-}
-
-/* The expanded card's body — severity tag, explanation, actions, sources — is
-   shared with the editor's diagnostic popover and styled in `diagnostics.css`.
-   What stays here is the run of cards itself. */
+/* The expanded card's body — explanation and actions — is shared with the
+   editor's diagnostic popover and styled in `diagnostics.css`, as is the meta
+   line above it. What stays here is the run of cards itself. */
 .diagnostic-details {
 	display: grid;
 	padding: 0 var(--space-4) var(--space-3);

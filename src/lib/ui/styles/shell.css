@@ -131,12 +131,22 @@
 	user-select: none;
 }
 
-/* Open on load (`intro`), open while pointed at, and open permanently where the
-   lockup is the page's subject or the user asked for less motion (`static`). */
+/* Open on load (`intro`), open while pointed at, open because it was pressed
+   (`latched`), and open permanently where the user asked for less motion
+   (`static`). `released` is the fourth press state and appears in none of these:
+   a press that closed the lockup has to survive the pointer still being on it,
+   which on touch it always is — a tap leaves `:hover` stuck to whatever was
+   tapped until something else is. */
 .app-wordmark[data-state='intro'],
 .app-wordmark[data-state='static'],
+.app-wordmark[data-state='latched'],
 .app-wordmark[data-state='idle']:hover {
 	--wm-open: 1;
+}
+
+/* It answers a press, so it says so. */
+.app-wordmark {
+	cursor: pointer;
 }
 
 /* Two boxes whose widths are the animation: the lead grows from nothing and

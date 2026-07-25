@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { tick } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 // The lockup's geometry is all `em` and `ch` against `--font-size-lg` in
 // `shell.css`, so a width assertion here is only meaningful with the real
@@ -12,13 +13,19 @@ function lockup(): HTMLElement {
 	return element!;
 }
 
+/** A press, plus the flush that lands its state change on the attribute. */
+async function press(element: HTMLElement): Promise<void> {
+	element.click();
+	await tick();
+}
+
 /** The master driver, resolved. Every other value in the lockup is `calc()` of it. */
 function open(element: HTMLElement): number {
 	return Number.parseFloat(getComputedStyle(element).getPropertyValue('--wm-open'));
 }
 
 describe('AppWordmark', () => {
-	it('holds the wordmark open for five seconds, then contracts to the mark', async () => {
+	it('holds the wordmark open long enough to read, then contracts to the mark', async () => {
 		vi.useFakeTimers();
 		try {
 			await render(AppWordmark);
@@ -30,10 +37,14 @@ describe('AppWordmark', () => {
 			expect(open(element)).toBe(1);
 			const wordmarkWidth = element.getBoundingClientRect().width;
 
-			await vi.advanceTimersByTimeAsync(4_900);
+			// The hold is one word's reading time, so the bound that matters is that
+			// it survives a fixation rather than that it lasts any particular round
+			// number: a lockup that contracted inside 400ms would be gone before it
+			// had been read, which is the whole point of holding at all.
+			await vi.advanceTimersByTimeAsync(400);
 			expect(element.dataset.state).toBe('intro');
 
-			await vi.advanceTimersByTimeAsync(200);
+			await vi.advanceTimersByTimeAsync(1_000);
 			expect(element.dataset.state).toBe('idle');
 
 			// The contraction is a CSS transition on the compositor's clock, not on
@@ -51,19 +62,60 @@ describe('AppWordmark', () => {
 		}
 	});
 
-	it('stays open and never arms a timer when it is not interactive', async () => {
-		vi.useFakeTimers();
-		try {
-			await render(AppWordmark, { interactive: false });
-			const element = lockup();
+	it('toggles on every press, including the first one during the intro', async () => {
+		// The press inverts what is on screen, not the latch, so the first press
+		// while the intro still holds closes the wordmark instead of appearing to
+		// do nothing. After that it alternates.
+		await render(AppWordmark);
+		const element = lockup();
+		expect(element.dataset.state).toBe('intro');
 
-			expect(element.dataset.state).toBe('static');
-			await vi.advanceTimersByTimeAsync(10_000);
-			expect(element.dataset.state).toBe('static');
-			expect(open(element)).toBe(1);
-		} finally {
-			vi.useRealTimers();
-		}
+		await press(element);
+		expect(element.dataset.state).toBe('released');
+
+		await press(element);
+		expect(element.dataset.state).toBe('latched');
+
+		await press(element);
+		expect(element.dataset.state).toBe('released');
+	});
+
+	it('outranks hover in both directions once pressed', async () => {
+		// `released` is the state that has to survive a pointer still sitting on
+		// the lockup, because on touch it always is: a tap leaves `:hover` stuck to
+		// whatever was tapped until something else is. If hover could still open a
+		// released lockup, the second tap could never close it.
+		await render(AppWordmark);
+		const element = lockup();
+		await press(element);
+
+		expect(element.dataset.state).toBe('released');
+		// `released` is absent from the open-state selector list in `shell.css`,
+		// and `:hover` only ever appears there alongside `idle` — so a pointer
+		// resting on a released lockup cannot reopen it.
+		expect(open(element)).toBe(0);
+	});
+
+	it('releases the latch for a mouse leaving and not for a finger lifting', async () => {
+		// A touch pointer is destroyed when the finger lifts, so `pointerleave`
+		// fires immediately after every tap. Releasing on it would undo each press
+		// on the frame it happened, and the toggle would never appear to work.
+		await render(AppWordmark);
+		const element = lockup();
+		await press(element);
+		await press(element);
+		expect(element.dataset.state).toBe('latched');
+
+		element.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'touch' }));
+		await tick();
+		expect(element.dataset.state).toBe('latched');
+
+		element.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
+		await tick();
+		// Releasing restores whatever the lockup would have been doing unpressed,
+		// rather than picking a state of its own — which this early is still the
+		// intro hold, since these presses all happened inside the first 900ms.
+		expect(element.dataset.state).toBe('intro');
 	});
 
 	it('suppresses the whole rig, not just its speed, under reduced motion', async () => {

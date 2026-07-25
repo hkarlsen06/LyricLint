@@ -6,17 +6,24 @@
  * overlay — is what each surface still owns.
  */
 
-/* Squared off, not a pill: the severity label is a tag stamped on the card, and
-   the sharper silhouette keeps it from reading as a pressable chip the way the
-   rounded severity filters above the list deliberately do. */
+/*
+ * Not a badge — a marked word. The severity used to be a filled tag on a line
+ * of its own, which cost the card a full line of height to say one word that
+ * the metadata line was already the place for. It is the glyph and the colored
+ * word now, and it leads the card's meta line: `⚠ Warning · Line 47 · Safe fix
+ * available`. No fill, no border, no radius, so nothing about it reads as
+ * pressable next to the severity filters that genuinely are.
+ *
+ * The color is the whole signal, so it is the text color rather than a wash
+ * behind muted text: `--color-danger` and its siblings are text-grade against
+ * both `--color-surface` and the recessed `--color-canvas` an expanded card
+ * drops to.
+ */
 .severity {
 	display: inline-flex;
 	width: fit-content;
-	padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1-5);
-	gap: var(--space-1-5);
+	gap: var(--space-1);
 	align-items: center;
-	border-radius: var(--radius-xs);
-	background: var(--color-fill-strong);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
 	font-weight: var(--font-weight-bold);
@@ -28,23 +35,149 @@
 }
 
 .severity--error {
-	background: var(--color-danger-soft);
 	color: var(--color-danger);
 }
 
 .severity--warning {
-	background: var(--color-warning-soft);
 	color: var(--color-warning);
 }
 
 .severity--suggestion {
-	background: var(--color-suggestion-soft);
 	color: var(--color-suggestion);
 }
 
 .severity--manual-review {
-	background: var(--color-manual-soft);
 	color: var(--color-manual);
+}
+
+/*
+ * One line for everything the surface knows about the finding besides its
+ * message and its reasoning: what kind of problem it is, where it is, and what
+ * says so. The severity used to be a badge on a line of its own and the
+ * citations a footer at the foot of the card, which spent two blocks of height
+ * on facts that read as a single sentence.
+ */
+.diagnostic-meta {
+	display: grid;
+	gap: var(--space-1);
+	justify-items: start;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	line-height: var(--line-height-tight);
+}
+
+.diagnostic-meta__row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1-5);
+	align-items: center;
+}
+
+.diagnostic-meta__separator {
+	color: var(--color-text-muted);
+}
+
+/*
+ * One citation is the meta line's last word. Two or more would wrap the line
+ * into a second and a third, so they fold behind this and the line keeps its
+ * length whatever a rule cites. The label names what is behind it and does not
+ * change; the chevron turns.
+ */
+.diagnostic-meta__disclosure {
+	min-height: var(--control-height-sm);
+	padding: 0;
+	gap: var(--space-1);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+}
+
+.diagnostic-meta__disclosure:hover {
+	color: var(--color-text);
+}
+
+.diagnostic-meta__chevron {
+	flex: none;
+}
+
+.diagnostic-meta__disclosure[aria-expanded='true'] .diagnostic-meta__chevron {
+	rotate: 180deg;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.diagnostic-meta__chevron {
+		transition: rotate var(--duration-fast) var(--ease-out-quart);
+	}
+}
+
+/* Unfolded, the citations are a plain list — no box, no rules around it. Each
+   reads exactly as the single inline one does, tooltip included. */
+.diagnostic-meta__sources {
+	display: grid;
+	margin: 0;
+	padding: 0;
+	gap: var(--space-1);
+	list-style: none;
+}
+
+/*
+ * The citation is a link and only a link: which part of the page was cited and
+ * when it was last verified are its tooltip, because that is what a reader
+ * checks before following it rather than something they need in front of them
+ * on every card. The link sits above the stretched hit area of the card's
+ * navigate button, which is what lets its own press reach it.
+ */
+.source-citation {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+}
+
+/* The link and the unlinkable title it falls back to, and nothing else — the
+   tooltip is a child of this element too, and it lays itself out. */
+.source-citation a,
+.source-citation__label {
+	display: inline-flex;
+	gap: 0.25rem;
+	align-items: center;
+	font-weight: var(--font-weight-semibold);
+}
+
+.source-citation__external {
+	flex: none;
+}
+
+/*
+ * Fixed rather than absolute: the citation sits inside the linter panel's
+ * scroller and inside the editor popover's, either of which would clip a box
+ * that stayed in flow. Above `--layer-popover`, because the popover is one of
+ * the two places this opens from.
+ */
+.source-tooltip {
+	position: fixed;
+	z-index: var(--layer-tooltip);
+	display: grid;
+	box-sizing: border-box;
+	width: max-content;
+	max-width: 16rem;
+	padding: var(--space-2);
+	gap: var(--space-0-5);
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-overlay);
+	background: var(--color-overlay);
+	color: var(--color-text-muted);
+	box-shadow: var(--shadow-overlay);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-regular);
+	line-height: var(--line-height-body);
+}
+
+.source-tooltip__section {
+	color: var(--color-text);
+}
+
+.source-tooltip__verified {
+	white-space: nowrap;
 }
 
 /* The reasoning reads as supporting prose on both surfaces, never as the
@@ -104,32 +237,13 @@
 	}
 }
 
-/* The audit trail closes the card on both surfaces: a plain list, no box and no
-   rules around it — the smaller muted type is separation enough. */
-.diagnostic-sources {
-	display: grid;
-	margin: 0;
-	padding: 0;
-	gap: var(--space-2);
-	list-style: none;
-}
-
-.diagnostic-sources__missing {
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-}
-
-.diagnostic-sources__toggle {
-	justify-self: start;
-	min-height: var(--control-height-sm);
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-}
-
-.diagnostic-sources__toggle:hover {
-	color: var(--color-text);
-}
-
+/*
+ * The block citation, which is no longer how a diagnostic shows its provenance:
+ * a diagnostic cites its source as a link on the meta line. What is left here
+ * serves the tools panel's reviewed-source snapshot, which is an inventory of
+ * every citation rather than one card's, and wants the verified date and the
+ * section on the page.
+ */
 .source-reference {
 	display: grid;
 	gap: 0.1rem;

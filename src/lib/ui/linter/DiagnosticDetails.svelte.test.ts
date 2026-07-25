@@ -1,7 +1,7 @@
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { describe, expect, it, vi } from 'vitest';
-import type { Diagnostic, SourceReference } from '$lib/core/types.js';
+import type { Diagnostic } from '$lib/core/types.js';
 import DiagnosticDetails from './DiagnosticDetails.svelte';
 
 function previewDiagnostic(): Diagnostic {
@@ -26,25 +26,12 @@ function previewDiagnostic(): Diagnostic {
 	};
 }
 
-function source(id: string): SourceReference {
-	return {
-		id,
-		url: `https://genius.com/${id}`,
-		pageTitle: `Source ${id}`,
-		sectionTitle: `Section ${id}`,
-		retrievedAt: '2026-07-24',
-		lastVerifiedAt: '2026-07-24',
-		reviewStatus: 'reviewed'
-	};
-}
-
 describe('DiagnosticDetails preview flow', () => {
 	it('previews the fix as soon as the card opens, with one control to keep it', async () => {
 		const onApplyFix = vi.fn();
 		const onPreviewFix = vi.fn();
 		const screen = await render(DiagnosticDetails, {
 			diagnostic: previewDiagnostic(),
-			sources: new Map(),
 			onChooseHeader: vi.fn(),
 			onPreviewFix,
 			onCancelPreview: vi.fn(),
@@ -73,7 +60,6 @@ describe('DiagnosticDetails preview flow', () => {
 	it('keeps ignore available beside apply: there is no pending step to hide it', async () => {
 		await render(DiagnosticDetails, {
 			diagnostic: previewDiagnostic(),
-			sources: new Map(),
 			onChooseHeader: vi.fn(),
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
@@ -101,7 +87,6 @@ describe('DiagnosticDetails preview flow', () => {
 				severity: 'manual-review',
 				fixes: undefined
 			},
-			sources: new Map(),
 			onChooseHeader: vi.fn(),
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
@@ -124,7 +109,6 @@ describe('DiagnosticDetails preview flow', () => {
 		const onCancelPreview = vi.fn();
 		const screen = await render(DiagnosticDetails, {
 			diagnostic: previewDiagnostic(),
-			sources: new Map(),
 			onChooseHeader: vi.fn(),
 			onPreviewFix: vi.fn(),
 			onCancelPreview,
@@ -157,7 +141,6 @@ describe('DiagnosticDetails preview flow', () => {
 				...previewDiagnostic(),
 				fixes: [safeFix]
 			},
-			sources: new Map(),
 			onChooseHeader: vi.fn(),
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
@@ -198,7 +181,6 @@ describe('DiagnosticDetails preview flow', () => {
 				explanation: 'Choose a reviewed localized term.',
 				sourceIds: []
 			},
-			sources: new Map(),
 			onChooseHeader,
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
@@ -226,7 +208,6 @@ describe('DiagnosticDetails preview flow', () => {
 				explanation: 'Choose the section and styled voices.',
 				sourceIds: []
 			},
-			sources: new Map(),
 			onChooseHeader: vi.fn(),
 			onAssignPerformers,
 			onPreviewFix: vi.fn(),
@@ -253,7 +234,6 @@ describe('DiagnosticDetails preview flow', () => {
 				explanation: 'Choose the section and styled voices.',
 				sourceIds: []
 			},
-			sources: new Map(),
 			onChooseHeader: vi.fn(),
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
@@ -266,14 +246,12 @@ describe('DiagnosticDetails preview flow', () => {
 			.not.toBeInTheDocument();
 	});
 
-	it('shows two sources initially and reveals the remaining provenance on request', async () => {
-		const sourceIds = ['primary', 'selected-language', 'supporting-a', 'supporting-b'];
+	it('leaves provenance to the meta line above it', async () => {
 		const screen = await render(DiagnosticDetails, {
 			diagnostic: {
 				...previewDiagnostic(),
-				sourceIds
+				sourceIds: ['primary', 'supporting-a']
 			},
-			sources: new Map(sourceIds.map((sourceId) => [sourceId, source(sourceId)])),
 			onChooseHeader: vi.fn(),
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
@@ -281,35 +259,11 @@ describe('DiagnosticDetails preview flow', () => {
 			onIgnore: vi.fn()
 		});
 
-		expect(screen.container.querySelectorAll('.source-reference')).toHaveLength(2);
-		const showMore = page.getByRole('button', { name: 'Show 2 more sources' });
-		await expect.element(showMore).toHaveAttribute('aria-expanded', 'false');
-
-		await showMore.click();
-		expect(screen.container.querySelectorAll('.source-reference')).toHaveLength(4);
-		const showFewer = page.getByRole('button', { name: 'Show fewer sources' });
-		await expect.element(showFewer).toHaveAttribute('aria-expanded', 'true');
-
-		await showFewer.click();
-		expect(screen.container.querySelectorAll('.source-reference')).toHaveLength(2);
-	});
-
-	it('leaves a short source list fully visible without a disclosure control', async () => {
-		const sourceIds = ['primary', 'supporting-a', 'supporting-b'];
-		const screen = await render(DiagnosticDetails, {
-			diagnostic: {
-				...previewDiagnostic(),
-				sourceIds
-			},
-			sources: new Map(sourceIds.map((sourceId) => [sourceId, source(sourceId)])),
-			onChooseHeader: vi.fn(),
-			onPreviewFix: vi.fn(),
-			onCancelPreview: vi.fn(),
-			onApplyFix: vi.fn(),
-			onIgnore: vi.fn()
-		});
-
-		expect(screen.container.querySelectorAll('.source-reference')).toHaveLength(3);
+		// The audit trail used to close the card as a list of block citations with
+		// a disclosure control once it ran past three. It is the link on the
+		// finding's meta line now, so the card's body ends at its actions.
+		expect(screen.container.querySelector('.diagnostic-sources')).toBeNull();
+		expect(screen.container.querySelector('.source-reference')).toBeNull();
 		await expect
 			.element(page.getByRole('button', { name: /more sources/u }))
 			.not.toBeInTheDocument();

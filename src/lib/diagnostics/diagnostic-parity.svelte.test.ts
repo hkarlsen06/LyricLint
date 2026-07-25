@@ -6,6 +6,7 @@ import '$lib/ui/styles/global.css';
 import type { Diagnostic } from '$lib/core/types.js';
 import DiagnosticPopover from '$lib/editor/overlays/DiagnosticPopover.svelte';
 import DiagnosticDetails from '$lib/ui/linter/DiagnosticDetails.svelte';
+import DiagnosticList from '$lib/ui/linter/DiagnosticList.svelte';
 
 /** The case from the screenshot: a fix whose label is already a command. */
 function contractionDiagnostic(): Diagnostic {
@@ -44,7 +45,6 @@ function actions(root: ParentNode): RenderedAction[] {
 function panelActions(diagnostic: Diagnostic): RenderedAction[] {
 	const screen = render(DiagnosticDetails, {
 		diagnostic,
-		sources: new Map(),
 		onChooseHeader: vi.fn(),
 		onPreviewFix: vi.fn(),
 		onCancelPreview: vi.fn(),
@@ -123,8 +123,75 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		expect(tag.classList.contains('severity--warning')).toBe(true);
 		expect(tag.textContent?.trim()).toBe('Warning');
 		// Styled from the shared stylesheet, not from a copy scoped to the
-		// overlay: the tag is squared off here exactly as it is in the panel.
-		expect(getComputedStyle(tag).borderRadius).toBe('4px');
+		// overlay: a colored glyph and a colored word, with no box around them —
+		// the badge that used to sit here spent a whole line on one word.
+		const style = getComputedStyle(tag);
+		expect(style.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+		expect(style.borderRadius).toBe('0px');
+		expect(style.padding).toBe('0px');
+		// The severity is carried by the word's own color, so it cannot read as
+		// the muted prose beneath it.
+		const explanation = popover.container.querySelector('.diagnostic-explanation')!;
+		expect(style.color).not.toBe(getComputedStyle(explanation).color);
 		popover.unmount();
+	});
+
+	it('cites its source on the meta line, not in a footer under the card', () => {
+		const diagnostic = { ...contractionDiagnostic(), sourceIds: ['G-CONTRACTIONS'] };
+		const sources = [
+			{
+				id: 'G-CONTRACTIONS',
+				url: 'https://genius.com/contractions',
+				pageTitle: 'Use song part headers',
+				sectionTitle: 'Section headers and performer legends',
+				retrievedAt: '2026-07-24',
+				lastVerifiedAt: '2026-07-24',
+				reviewStatus: 'reviewed' as const
+			}
+		];
+
+		for (const screen of [
+			render(DiagnosticPopover, {
+				diagnostic,
+				sources,
+				onPreviewFix: vi.fn(),
+				onCancelPreview: vi.fn(),
+				onApplyFix: vi.fn(),
+				onIgnore: vi.fn()
+			}),
+			render(DiagnosticList, {
+				diagnostics: [diagnostic],
+				sources: new Map(sources.map((source) => [source.id, source])),
+				emptyState: { title: '', detail: '' },
+				onNavigate: vi.fn(),
+				onChooseHeader: vi.fn(),
+				onPreviewFix: vi.fn(),
+				onCancelPreview: vi.fn(),
+				onApplyFix: vi.fn(),
+				onIgnore: vi.fn()
+			})
+		]) {
+			// One source is the meta line's last word, on both surfaces, and the
+			// block of citations that used to close the card is gone.
+			const meta = screen.container.querySelector('.diagnostic-meta')!;
+			const link = meta.querySelector('.source-citation a') as HTMLAnchorElement;
+			expect(link.href).toBe('https://genius.com/contractions');
+			expect(link.textContent?.trim()).toBe('Use song part headers');
+			expect(screen.container.querySelector('.diagnostic-sources')).toBeNull();
+
+			// The severity leads the line the citation ends.
+			const severity = meta.querySelector('.severity')!;
+			expect(
+				severity.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING
+			).toBeTruthy();
+
+			// What the footer used to spell out is the link's description, and it is
+			// in the accessible tree whether or not the tooltip is on screen.
+			const description = document.getElementById(link.getAttribute('aria-describedby')!)!;
+			expect(description.textContent).toContain('Section headers and performer legends');
+			expect(description.textContent).toContain('2026-07-24');
+
+			screen.unmount();
+		}
 	});
 });

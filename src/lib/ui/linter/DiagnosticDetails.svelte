@@ -1,11 +1,9 @@
 <script lang="ts">
 	import DiagnosticActions from '$lib/diagnostics/DiagnosticActions.svelte';
-	import DiagnosticSources from '$lib/diagnostics/DiagnosticSources.svelte';
-	import type { Diagnostic, DiagnosticFix, SourceReference } from '$lib/core/types.js';
+	import type { Diagnostic, DiagnosticFix } from '$lib/core/types.js';
 
 	let {
 		diagnostic,
-		sources,
 		onChooseHeader,
 		onAssignPerformers,
 		onPreviewFix,
@@ -14,7 +12,6 @@
 		onIgnore
 	}: {
 		diagnostic: Diagnostic;
-		sources: ReadonlyMap<string, SourceReference>;
 		onChooseHeader: () => void;
 		onAssignPerformers?: () => void;
 		onPreviewFix: (fix: DiagnosticFix) => void;
@@ -26,7 +23,9 @@
 
 <!-- The expanded card and the editor's popover are the same diagnostic seen from
      two places, so everything below the heading comes from the shared
-     components: reasoning, the decision, then the audit trail. -->
+     components: reasoning, then the decision. The audit trail is no longer a
+     block down here — it is the citation on the head's meta line, and what this
+     footer used to spell out is that link's tooltip. -->
 <div class="diagnostic-details">
 	<p class="diagnostic-explanation">{diagnostic.explanation}</p>
 
@@ -39,6 +38,4 @@
 		{onApplyFix}
 		{onIgnore}
 	/>
-
-	<DiagnosticSources sourceIds={diagnostic.sourceIds} {sources} />
 </div>

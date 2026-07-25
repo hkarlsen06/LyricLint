@@ -2,7 +2,7 @@
 	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
 	import { tick } from 'svelte';
 	import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
-	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
+	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
 	import DiagnosticDetails from './DiagnosticDetails.svelte';
 
 	let {
@@ -82,21 +82,6 @@
 		});
 	});
 
-	function subtitle(diagnostic: Diagnostic): string {
-		const parts: string[] = [];
-		if (lineFor) {
-			parts.push(`Line ${lineFor(diagnostic.from)}`);
-		}
-		if (diagnostic.severity === 'manual-review') {
-			parts.push('Judgment call — not an error');
-		} else if (diagnostic.fixes?.some((fix) => fix.kind === 'safe')) {
-			parts.push('Safe fix available');
-		} else if (diagnostic.fixes?.some((fix) => fix.kind === 'preview')) {
-			parts.push('Fix available with preview');
-		}
-		return parts.join(' · ');
-	}
-
 	function activate(diagnostic: Diagnostic): void {
 		chosenKey = cardKey(diagnostic);
 		onNavigate(diagnostic);
@@ -139,26 +124,29 @@
 				class:diagnostic-card--expanded={expanded}
 				class:diagnostic-card--active={cardKey(diagnostic) === activeDiagnosticKey}
 			>
-				<!-- The row is the control. Severity, message, and line all sit inside
-				     one button that fills the card, so a press anywhere on the card
-				     opens the diagnostic instead of only a press on the message. -->
-				<button
-					type="button"
-					class="diagnostic-list__navigate"
-					aria-label={`Go to ${diagnostic.message}`}
-					aria-expanded={expanded}
-					onclick={() => activate(diagnostic)}
-				>
-					<SeverityTag severity={diagnostic.severity} />
-					<span class="diagnostic-list__title">{diagnostic.message}</span>
-					{#if subtitle(diagnostic)}
-						<span class="diagnostic-list__subtitle">{subtitle(diagnostic)}</span>
-					{/if}
-				</button>
+				<!--
+					The row is still the control: the button stretches over the whole
+					head, so a press anywhere on the card opens the diagnostic. It no
+					longer *contains* the head, because the meta line ends in a link to
+					the cited source, and an `<a>` inside a `<button>` is neither valid
+					nor reliably pressable. The link lifts above the stretched layer
+					instead — it is the one place on the card that does something else.
+				-->
+				<div class="diagnostic-list__head">
+					<button
+						type="button"
+						class="diagnostic-list__navigate"
+						aria-label={`Go to ${diagnostic.message}`}
+						aria-expanded={expanded}
+						onclick={() => activate(diagnostic)}
+					>
+						<span class="diagnostic-list__title">{diagnostic.message}</span>
+					</button>
+					<DiagnosticMeta {diagnostic} {sources} line={lineFor?.(diagnostic.from)} />
+				</div>
 				{#if expanded}
 					<DiagnosticDetails
 						{diagnostic}
-						{sources}
 						onChooseHeader={() => onChooseHeader(diagnostic)}
 						onAssignPerformers={canAssignPerformers(diagnostic)
 							? () => onAssignPerformers(diagnostic)

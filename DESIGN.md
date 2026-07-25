@@ -43,7 +43,9 @@ Line length is a token, not a per-component decision: `--measure-prose` (66ch) c
 - Spacing follows the `--space-*` scale from 0.125rem to 3rem.
 - Standard controls use `--radius-control`.
 - Panels use `--radius-panel`; floating overlays use `--radius-overlay`.
-- Pills are reserved for compact categorical chips and badges, not ordinary action buttons. A chip that is a label rather than a control — the severity tag on a diagnostic card — squares off to `--radius-xs` instead, so shape distinguishes what is pressable from what is stamped.
+- Pills are reserved for compact categorical chips and badges, not ordinary action buttons.
+- A label is not a chip. A diagnostic's severity is a colored glyph and a colored word on the card's meta line — no fill, no border, no radius — rather than a badge on a line of its own; it costs no vertical space and cannot be mistaken for the pressable severity filters above the list.
+- A diagnostic states its facts on one line under the message: severity, line number, citation. Provenance is the link on that line, not a footer of block citations; the section cited and the verified date are the link's tooltip. One citation sits inline, two or more fold behind a `Sources` disclosure so the line stays one line.
 - Circular icon targets use `--radius-round`.
 
 All ordinary buttons share the same control radius, height, padding, focus ring, disabled treatment, and state transition. A control may change emphasis through color or border, not through an unrelated silhouette.
@@ -78,7 +80,7 @@ All ordinary buttons share the same control radius, height, padding, focus ring,
 - Diagnostic cards use severity colors only for labels and state emphasis. The source explanation remains neutral.
 - Every decision about a diagnostic — the fix, ignore, the guided actions, a popover's close — shares one control geometry and one type size, in one row, in one order. Emphasis is carried by the button tier alone.
 - A proposed edit is shown in the document as a diff — outgoing text struck through in `--color-danger`, incoming text washed in `--color-suggestion` — rather than behind a preview step. The surface that shows it offers one control for the fix, labelled with the fix itself (`Replace with Don't`), never with a verb prefixed to a label that is already a command.
-- A diagnostic looks the same wherever it is shown. The linter panel's card and the editor's popover render the same severity tag, action row, and provenance from the same components; each adds only its own chrome.
+- A diagnostic looks the same wherever it is shown. The linter panel's card and the editor's popover render the same severity marker, action row, and provenance from the same components, stacked in the same order — message, meta line, reasoning; each adds only its own chrome.
 - Performer identity must include text or markup cues in addition to color.
 
 ## Accessibility

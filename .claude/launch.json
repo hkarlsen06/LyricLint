@@ -116,6 +116,12 @@
 			"port": 5391
 		},
 		{
+			"name": "severity-marker-dev",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "dev", "--", "--port", "5401", "--strictPort"],
+			"port": 5401
+		},
+		{
 			"name": "outside-dismiss-dev",
 			"runtimeExecutable": "bun",
 			"runtimeArgs": ["run", "dev", "--", "--port", "5331", "--strictPort"],

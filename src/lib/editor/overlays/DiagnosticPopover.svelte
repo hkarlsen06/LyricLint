@@ -3,8 +3,7 @@
 	import type { Diagnostic, DiagnosticFix, SourceReference } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import DiagnosticActions from '$lib/diagnostics/DiagnosticActions.svelte';
-	import DiagnosticSources from '$lib/diagnostics/DiagnosticSources.svelte';
-	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
+	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
 	import type { ScreenRect } from '../contracts.js';
 
 	interface Props {
@@ -154,11 +153,13 @@
 	}}
 	{@attach dismissOnOutside(dismissFromOutsidePress)}
 >
-	<!-- Same tag, same wording, same order as the card in the linter panel: the
-	     finding under the pointer is recognisably the one listed in the panel. -->
+	<!-- Same marker, same wording, same order as the card in the linter panel:
+	     message, then the meta line the severity leads, then the reasoning. The
+	     panel's meta line also carries a line number; here the underline under
+	     the pointer already says where the finding is. -->
 	<div class="heading">
-		<SeverityTag severity={diagnostic.severity} />
 		<strong>{diagnostic.message}</strong>
+		<DiagnosticMeta {diagnostic} {sources} />
 		<p class="diagnostic-explanation">{diagnostic.explanation}</p>
 	</div>
 
@@ -172,14 +173,12 @@
 		onIgnore={() => onIgnore()}
 		onClose={closingControl}
 	/>
-
-	<DiagnosticSources sourceIds={diagnostic.sourceIds} {sources} />
 </div>
 
 <style>
-	/* The card's chrome only. Everything inside it — heading tag, explanation,
-	   action row, sources — is shared with the linter panel and styled with it
-	   in `diagnostics.css`, so the two surfaces cannot drift apart. */
+	/* The card's chrome only. Everything inside it — meta line, explanation,
+	   action row — is shared with the linter panel and styled with it in
+	   `diagnostics.css`, so the two surfaces cannot drift apart. */
 	.popover {
 		display: grid;
 		z-index: var(--layer-popover);
@@ -205,9 +204,9 @@
 		position: fixed;
 	}
 
-	/* Severity tag above the message, exactly as the panel card stacks them. The
-	   explanation belongs to this block, not to the next one: it is the message
-	   continued, so it sits under it rather than a section away. */
+	/* Message, then the severity marker, exactly as the panel card stacks them.
+	   The explanation belongs to this block, not to the next one: it is the
+	   message continued, so it sits under it rather than a section away. */
 	.heading {
 		display: grid;
 		gap: var(--space-1);

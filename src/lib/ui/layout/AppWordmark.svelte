@@ -17,14 +17,33 @@
 	// and the letters stay out of the accessibility tree — a screen reader should
 	// hear the product name, not five spans and a bracket.
 
-	let {
-		/** When false the lockup stays open and still — it is the page's subject
-		 * rather than a toolbar label, so it has nothing to collapse into. */
-		interactive = true
-	}: { interactive?: boolean } = $props();
+	// The lockup behaves the same wherever it is used and takes no props to say
+	// otherwise. It opens three ways: on load, under a pointer, and on a press
+	// that latches.
+	//
+	// The press is what touch needs, and `:hover` cannot stand in for it. Tapping
+	// an element that carries hover styles does apply them — which is why a tap
+	// appears to open the lockup — but they stay applied until the next tap
+	// somewhere else, so a second tap on the lockup itself changes nothing. A
+	// toggle has to be a real toggle. Once pressed, the latch outranks hover in
+	// both directions, or sticky hover would hold open the very thing the second
+	// tap just closed; a mouse leaving drops the latch so hover takes over again,
+	// and touch never reaches that because `pointerleave` after a tap would undo
+	// the tap that caused it.
 
-	/** How long the wordmark holds before it contracts to the mark on load. */
-	const INTRO_MS = 5000;
+	/**
+	 * How long the wordmark holds before it contracts to the mark on load: long
+	 * enough to read the word, and not a moment longer. Silent reading runs about
+	 * 238 words a minute, or ~250ms for the five-letter average; `LyricLint` is a
+	 * nine-letter compound and costs closer to 400ms. Add a saccade to land on it
+	 * in the first place, and a beat to register it before it moves — motion that
+	 * begins on the same frame the eye arrives reads as a glitch, not a gesture.
+	 *
+	 * The old five seconds was a guess, and it was long enough that the
+	 * contraction stopped reading as the end of an intro and started reading as
+	 * something breaking.
+	 */
+	const READING_MS = 900;
 
 	const LEAD = ['L', 'y', 'r', 'i', 'c'];
 	const WORD = ['L', 'i', 'n', 't'];
@@ -39,19 +58,69 @@
 	let introHolding = $state(true);
 
 	$effect(() => {
-		if (!interactive || prefersReducedMotion) return;
-		const timer = setTimeout(() => (introHolding = false), INTRO_MS);
+		if (prefersReducedMotion) return;
+		const timer = setTimeout(() => (introHolding = false), READING_MS);
 		return () => clearTimeout(timer);
 	});
+
+	/**
+	 * The press latch. `null` is "no one has pressed it — follow the pointer",
+	 * which is the state a mouse leaving restores.
+	 */
+	let latched = $state<boolean | null>(null);
+
+	function togglePress(): void {
+		// Inverts what is on screen rather than the latch itself, so the first
+		// press during the intro closes the wordmark instead of appearing to do
+		// nothing.
+		latched = !(latched ?? introHolding);
+	}
+
+	function releaseLatch(event: PointerEvent): void {
+		// Mouse only. A touch pointer is destroyed when the finger lifts, so
+		// `pointerleave` fires immediately after every tap — releasing here would
+		// undo each press on the frame it happened.
+		if (event.pointerType === 'mouse') latched = null;
+	}
 
 	// Not named `state`: that shadows the `$state` rune for the compiler's own
 	// type mapping, and the errors it produces point at the rune, not at here.
 	const openState = $derived(
-		!interactive || prefersReducedMotion ? 'static' : introHolding ? 'intro' : 'idle'
+		prefersReducedMotion
+			? 'static'
+			: latched === true
+				? 'latched'
+				: latched === false
+					? 'released'
+					: introHolding
+						? 'intro'
+						: 'idle'
 	);
 </script>
 
-<div class="app-wordmark" data-state={openState} role="img" aria-label="LyricLint">
+<!-- A `span`, not a `div`: the lockup is the first word of the phone gate's
+     headline, and a heading takes phrasing content only. It also decides how the
+     name is computed — a flow-content root gets spaced apart from the text
+     beside it, so the heading announced as two fragments.
+
+     It stays `role="img"` with a press handler rather than becoming a `button`,
+     and the rule is silenced deliberately. Nothing is behind the press: it
+     changes how the brand draws itself and nothing else — no content, no state,
+     no navigation — so there is nothing a keyboard or screen-reader user is shut
+     out of. A `button` would announce an action to everyone who cannot see the
+     one thing it does, and would put a decorative toy in the workbench's tab
+     order, ahead of the draft title. The image role is the honest one: this is a
+     picture of the product's name that happens to move. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<span
+	class="app-wordmark"
+	data-state={openState}
+	role="img"
+	aria-label="LyricLint"
+	onclick={togglePress}
+	onpointerleave={releaseLatch}
+>
 	<span class="app-wordmark__lead" aria-hidden="true">
 		<span class="app-wordmark__letters">
 			{#each LEAD as letter, index (index)}
@@ -88,4 +157,4 @@
 	>
 		<path d="M23 8.5h3.8v15H23" />
 	</svg>
-</div>
+</span>

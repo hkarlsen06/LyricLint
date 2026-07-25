@@ -103,19 +103,72 @@
 		max-width: 34rem;
 	}
 
-	/* The brand leads here rather than labelling a toolbar, so the lockup runs at
-	   display size. One font-size is the whole override: every dimension in the
-	   lockup — bracket height, bracket width, the waveform's stroke, the two slot
-	   widths in `ch` — is already expressed against its own type. */
-	.small-screen-notice .app-wordmark {
-		font-size: var(--font-size-2xl);
-	}
+	/* The brand is the first word of the headline rather than a logo above it, so
+	   it runs at the heading's size and not at one of its own. That is the whole
+	   override: every dimension in the lockup — bracket height, bracket width,
+	   the waveform's stroke, both slot widths in `ch` — is already expressed
+	   against its own type, so inheriting a font-size resizes the brand.
 
+	   `--font-size-2xl` is the display step, which exists for exactly this: a
+	   page that is nothing but a message, where the brand is the first thing
+	   read. It is also what makes the lockup carry a headline at all. */
 	.small-screen-notice h1 {
-		margin: var(--space-5) 0 var(--space-3);
-		font-size: var(--font-size-xl);
+		margin: 0 0 var(--space-4);
+		font-size: var(--font-size-2xl);
 		font-weight: var(--font-weight-semibold);
 		line-height: var(--line-height-tight);
+	}
+
+	/* The lockup is inline-flex and its first item holds only absolutely
+	   positioned letters, so it has no baseline of its own: the browser
+	   synthesises one from the bottom of its margin box, and the brand rides
+	   above the sentence it is the first word of. This sits it back down on the
+	   line — measured, not derived, but stable in `em` because the wordmark and
+	   the body copy are the mono and sans cuts of one family and share their
+	   vertical metrics. */
+	.small-screen-notice h1 .app-wordmark {
+		font-size: inherit;
+		vertical-align: -0.181em;
+	}
+
+	/* The headline is the only thing on the page whose height changes, because
+	   the lockup shrinking by two thirds can drop the sentence from two lines to
+	   one. Left alone, the notice is centred in the viewport, so that line goes
+	   back into the layout and everything below climbs. This reserves the line
+	   instead and hangs the headline off the bottom of it: the paragraph never
+	   moves, and the title drops into the space its own second line vacated.
+
+	   Only inside the band where it actually wraps. Narrower than this the
+	   sentence needs two lines in both states, and wider it needs one in both —
+	   at either end the reservation is either already met or pure empty space
+	   above the headline, which is what a landscape phone would get.
+
+	   The threshold is the open headline's natural width (458.8px, measured)
+	   plus the notice's padding on both sides, rounded up to the next half rem.
+	   It is keyed to the viewport rather than to the headline's own measure
+	   because a container query cannot be: the notice centres its content by
+	   sizing it to `max-content`, and inline-size containment would take the
+	   contents out of that calculation and collapse the column. Re-measure if
+	   the copy, the padding, or the display size changes. */
+	@media (max-width: 33rem) {
+		.small-screen-notice h1 {
+			min-height: 2lh;
+			align-content: end;
+		}
+	}
+
+	/* Hover opens nothing here; the press is the whole affordance. This surface
+	   is `pointer: coarse`, and on a touch screen `:hover` is not a state anyone
+	   entered on purpose — it is applied to whatever was tapped last and stays
+	   there. Left in, it would open the lockup on the first tap and then refuse
+	   to let the second tap close it, because the finger that pressed is exactly
+	   what hover is stuck to.
+
+	   Nothing else on the page answers a pointer either — no button, no link, no
+	   field — so a brand that lit up under one would be the only thing here
+	   claiming to be usable, on a page whose message is that nothing is. */
+	.small-screen-notice .app-wordmark[data-state='idle']:hover {
+		--wm-open: 0;
 	}
 
 	.small-screen-notice p {
