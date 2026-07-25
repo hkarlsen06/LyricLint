@@ -1,0 +1,138 @@
+/* Floating surfaces: the draft menu and list, toasts, and the error page. */
+
+.draft-menu {
+	position: relative;
+}
+
+.draft-menu > summary {
+	list-style: none;
+}
+
+/* `.icon-button` centres with `place-items`, which a flex box ignores — and the
+   flex display is what strips the summary's default disclosure triangle layout,
+   so restate the centring here rather than dropping back to grid. */
+.draft-menu__trigger {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.draft-menu > summary::-webkit-details-marker {
+	display: none;
+}
+
+.draft-menu__popover {
+	position: absolute;
+	z-index: var(--layer-menu);
+	top: calc(100% + var(--space-2));
+	right: 0;
+	width: min(34rem, calc(100vw - 2rem));
+	max-height: min(36rem, calc(100vh - 5rem));
+	padding: var(--space-3);
+	overflow: auto;
+	border: var(--border-width) solid var(--color-border-strong);
+	border-radius: var(--radius-overlay);
+	background: var(--color-overlay);
+	box-shadow: var(--shadow-overlay);
+}
+
+.draft-menu__heading,
+.draft-menu__footer {
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+	justify-content: space-between;
+}
+
+.draft-menu__footer {
+	margin-top: var(--space-3);
+	padding-top: var(--space-3);
+	border-top: var(--border-width) solid var(--color-border);
+	justify-content: flex-start;
+}
+
+.draft-list {
+	margin: var(--space-3) 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.draft-list > li {
+	padding: var(--space-3) 0;
+	border-top: var(--border-width) solid var(--color-border);
+}
+
+.draft-list__title {
+	display: flex;
+	width: 100%;
+	padding: 0;
+	border: 0;
+	justify-content: space-between;
+	background: transparent;
+	color: var(--color-text);
+	text-align: start;
+}
+
+.draft-list__title span {
+	font-weight: var(--font-weight-bold);
+}
+
+.draft-list__title time {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+.draft-list__actions {
+	display: flex;
+	margin-top: var(--space-2);
+	flex-wrap: wrap;
+	gap: var(--space-1);
+}
+
+.toast-region {
+	position: fixed;
+	z-index: var(--layer-toast);
+	right: var(--space-4);
+	bottom: 3rem;
+	display: grid;
+	width: min(25rem, calc(100vw - 2rem));
+	gap: var(--space-2);
+	pointer-events: none;
+}
+
+.toast {
+	display: flex;
+	padding: var(--space-3);
+	border: var(--border-width) solid var(--color-border-strong);
+	border-radius: var(--radius-overlay);
+	align-items: center;
+	justify-content: space-between;
+	background: var(--color-surface);
+	box-shadow: var(--shadow-popover);
+	pointer-events: auto;
+}
+
+.toast p {
+	margin: 0;
+}
+
+.toast__actions {
+	display: flex;
+	margin-inline-start: var(--space-3);
+	gap: var(--space-2);
+}
+
+.error-page {
+	display: grid;
+	min-height: 100vh;
+	padding: var(--space-6);
+	place-content: center;
+	background: var(--color-canvas);
+}
+
+/* Measure only. The message is the whole page, so it has nothing to be
+   separated from and gets no border or fill — see "A card has to earn its
+   border" in AGENTS.md. */
+.error-page > div {
+	max-width: 34rem;
+}

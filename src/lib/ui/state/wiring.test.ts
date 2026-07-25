@@ -1,4 +1,5 @@
 import { parseDocument } from '$lib/core/parser.js';
+import type { AtomicDocumentEdit } from '$lib/core/types.js';
 import { currentRuleSet } from '$lib/rules/index.js';
 import { describe, expect, test } from 'vitest';
 import { createTestWorkbench, performer } from '../test-utils.js';
@@ -30,6 +31,34 @@ describe('UI wiring', () => {
 		});
 		controller.applyFix(diagnostic!, fix!);
 		expect(calls.dispatched).toEqual([fix!.edit]);
+	});
+
+	test('draws a preview requested before the editor could render one', () => {
+		const text = '[Verse\nLine';
+		const parsed = parseDocument(text);
+		const diagnostics = computeDiagnostics(
+			parsed,
+			buildRuleContext('en', [], currentRuleSet.version, 3)
+		);
+		const diagnostic = diagnostics.find((candidate) => candidate.fixes?.length);
+		const fix = diagnostic?.fixes?.[0];
+
+		const { controller } = createTestWorkbench({ text, revision: 3 });
+		controller.onSnapshot({ ...controller.snapshot, revision: 3, parsed, diagnostics });
+
+		// The card that starts expanded previews itself on mount, which happens
+		// while the editor is still the bootstrap handle — it cannot draw a diff.
+		// Dropping the request there would leave an Apply button with nothing to
+		// explain it, so the request waits for the real editor.
+		controller.previewFix(diagnostic!, fix!);
+
+		const previewed: AtomicDocumentEdit[] = [];
+		controller.setEditorHandle({
+			...controller.editor,
+			previewAtomic: (edit) => previewed.push(edit)
+		});
+
+		expect(previewed).toEqual([fix!.edit]);
 	});
 
 	test('keeps literal style wrappers out of plain performer highlight ranges', () => {

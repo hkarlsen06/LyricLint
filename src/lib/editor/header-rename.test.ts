@@ -2,7 +2,7 @@ import { history, undo } from '@codemirror/commands';
 import { EditorState } from '@codemirror/state';
 import type { TransactionSpec } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import type { PerformerRecord } from '../core/types.js';
+import type { PerformerRecord } from '$lib/core/types.js';
 import {
 	editorComposingField,
 	editorContextField,

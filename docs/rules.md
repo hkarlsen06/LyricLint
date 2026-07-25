@@ -6,7 +6,8 @@ LyricLint does not claim that a rule is authoritative merely because it appears 
 
 A production lint rule requires:
 
-- An exact Genius URL or annotation ID.
+- An exact policy-source URL. Any behavior described as a Genius rule requires an exact Genius
+  URL or annotation ID.
 - A locally stored source title and rule paraphrase.
 - A last-verified date.
 - Human review of the interpretation.
@@ -18,6 +19,12 @@ The content-language mismatch check is a product-safety diagnostic rather than
 a Genius policy claim. It uses a bundled statistical detector, runs locally,
 and links to the detector implementation as tooling provenance.
 
+The line-ending comma/period check is cross-platform guidance, not a direct Genius policy
+claim. Apple Music for Artists explicitly disallows both marks at the end of a lyric line.
+Genius's current verified guide does not state that blanket ban; its punctuation annotation
+instead requires question marks for questions and reserves exclamation marks for excitement.
+LyricLint records both sources and keeps removal preview-only.
+
 ## Source registry
 
 ### Reviewed sources
@@ -25,7 +32,7 @@ and links to the detector implementation as tooling provenance.
 | ID | Source | Scope | Status |
 | --- | --- | --- | --- |
 | `T-LANGUAGE-DETECT` | [LanguageDetect](https://github.com/FGRibreau/node-language-detect) | Local statistical language recognition | Version 2.0.0 reviewed 2026-07-24 |
-| `G-ADD-SONGS` | [How to Add Songs to Genius](https://genius.com/Genius-how-to-add-songs-to-genius-annotated) | Index of lyric accuracy and formatting guidance | Reviewed as an index on 2026-07-24 |
+| `G-ADD-SONGS` | [How to Add Songs to Genius](https://genius.com/Genius-how-to-add-songs-to-genius-annotated) | Index of lyric accuracy and formatting guidance | Reviewed 2026-07-24; reverified 2026-07-25 |
 | `G-SPELLING` | [Use standardized spellings, annotation 9298624](https://genius.com/9298624) | Preferred spellings and contextual exceptions | Accepted annotation, reviewed 2026-07-24 |
 | `G-SECTIONS` | [Use song part headers, annotation 9250687](https://genius.com/9250687) | Headers, performer names, four formatting slots, joint performers | Accepted annotation, reviewed 2026-07-24 |
 | `G-SECTION-NUMBERING` | [Verse numbering, annotation 16107272](https://genius.com/16107272) | Only verses are enumerated; distinct verses ascend | Reviewed 2026-07-24 |
@@ -41,7 +48,8 @@ and links to the detector implementation as tooling provenance.
 | `G-LANG-JA` | [Japanese header policy, annotation 13322994](https://genius.com/13322994) | English headers are required on Japanese song pages | Reviewed 2026-07-24 |
 | `G-LANG-KO` | [Korean headers, annotation 20378931](https://genius.com/20378931) | English for original songs; Hangul permitted for translations | Reviewed 2026-07-24 |
 | `G-NUMBERS` | [Number spelling, annotation 15591905](https://genius.com/15591905) | Spell out numbers with documented exceptions | Reviewed 2026-07-24 |
-| `G-QE-MARKS` | [Question and exclamation marks, annotation 15593987](https://genius.com/15593987) | Punctuation for questions and exclamations | Reviewed 2026-07-24 |
+| `APPLE-LINE-PUNCTUATION` | [Apple Music lyric submission guidelines](https://artists.apple.com/support/1111-lyrics-guidelines) | No periods or commas at the end of lyric lines | Reviewed 2026-07-25 |
+| `G-QE-MARKS` | [Question and exclamation marks, annotation 15593987](https://genius.com/15593987) | Punctuation for questions and exclamations | Reviewed 2026-07-24; reverified 2026-07-25 |
 | `G-DASHES` | [Hyphens and em dashes, annotation 15594027](https://genius.com/15594027) | Dropped words and em dash punctuation | Reviewed 2026-07-24 |
 | `G-CAPS` | [Conventional capitalization, annotation 15545679](https://genius.com/15545679) | Capitalize lyric-line starts with contextual exceptions | Reviewed 2026-07-24 |
 | `G-UNKNOWN` | [Unknown lyric marker, annotation 9303373](https://genius.com/9303373) | Use `[?]` for an incomprehensible lyric | Reviewed 2026-07-24 |
@@ -87,7 +95,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `performer.redundant-markup` | Suggestion | Adjacent same-performer wrappers use more formatting markers than necessary | Safely merge the adjacent wrappers | `G-SECTIONS` |
 | `performer.unused-legend-slot` | Suggestion | A clean section header declares a performer style absent from its lyrics | Safely remove the unused legend slot | `G-SECTIONS` |
 | `performer.too-many-groups` | Warning | More than four distinct style groups occur, exceeding the documented four-slot format | Explain the source's context and options only | `G-SECTIONS` |
-| `performer.line-label-forbidden` | Warning | Names or symbols in brackets are used to label individual lyric lines | No automatic fix | `G-SECTIONS` |
+| `performer.line-label-forbidden` | Warning | Names or symbols in brackets are used to label individual lyric lines | Preview removal of the inline label | `G-SECTIONS` |
 | `spelling.standardized` | Suggestion | A reviewed non-preferred spelling occurs in a context where the preferred spelling is sufficiently certain | Safe only for context-free entries | `G-SPELLING` |
 | `spelling.language-variant` | Manual review | British and American variants appear inconsistent with chosen performer language | No automatic fix | `G-SPELLING` |
 | `quotes.typewriter` | Warning | Curly apostrophes or quotation marks occur in lyric text | Safe character replacement outside unsupported markup | `G-TYPEWRITER` |
@@ -99,6 +107,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `adlib.parentheses` | Suggestion | A likely ad-lib lacks parentheses or starts lowercase | Contextual fix preview | `G-ADLIBS` |
 | `capitalization.line-start` | Suggestion | A lyric line starts lowercase without a known contextual reason | Contextual fix preview | `G-CAPS` |
 | `capitalization.title-case` | Suggestion | Several lyric lines appear to capitalize nearly every word | Explain only because names and intentional styling need review | `G-CAPS` |
+| `punctuation.line-ending` | Warning | A lyric line ends in a comma or period, including before a closing quote or parenthesis | Preview removal; ellipses are excluded | `APPLE-LINE-PUNCTUATION`, `G-QE-MARKS` |
 | `punctuation.question` | Suggestion | A clearly interrogative line has no question mark | Explain or preview | `G-QE-MARKS` |
 | `punctuation.dropped-word-dash` | Warning | A dropped word uses an incorrect dash form or an em dash followed by a comma | Preview replacement | `G-DASHES` |
 | `line.prose-density` | Suggestion | A very long prose-like line may contain several lyric lines | Explain only; no fixed character limit | `G-LINES` |

@@ -1,10 +1,10 @@
 import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Extension, Range } from '@codemirror/state';
-import { Decoration, EditorView, WidgetType } from '@codemirror/view';
+import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { Diagnostic, Severity } from '../../core/types.js';
+import type { Diagnostic, Severity } from '$lib/core/types.js';
 import type { RevisionedDiagnostics } from '../contracts.js';
-import { editorCallbacksField, editorRevisionField } from './editor-state.js';
+import { editorCallbacksField, editorComposingField, editorRevisionField } from './editor-state.js';
 
 const severityRank: Record<Severity, number> = {
 	error: 0,
@@ -99,7 +99,56 @@ function diagnosticClusterKey(cluster: DiagnosticCluster): string {
 		.join('|');
 }
 
+/**
+ * How long the pointer has to settle on one diagnostic before its card appears.
+ *
+ * Long enough that crossing a lint-heavy verse on the way somewhere else opens
+ * nothing, short enough to read as immediate to anyone who actually stopped.
+ * A pointer merely passing through clears any one target well inside this.
+ */
+const hoverIntentDelay = 110;
+
+/**
+ * The wait a pointer serves before a diagnostic reveals itself.
+ *
+ * Every pointer route onto a diagnostic — the severity underline and the count
+ * badge at the end of the line — shares this, so a pointer crossing a crowded
+ * line meets one rule rather than a different one per target. Arming is a no-op
+ * for the diagnostic already pending, which is what lets a pointer that comes
+ * to a complete stop, emitting no further events at all, still open the card.
+ */
+class HoverIntent {
+	private pending?: Diagnostic;
+	private timer?: ReturnType<typeof setTimeout>;
+
+	constructor(private readonly reveal: (diagnostic: Diagnostic) => void) {}
+
+	arm(diagnostic: Diagnostic): void {
+		if (this.pending === diagnostic) {
+			return;
+		}
+		this.cancel();
+		this.pending = diagnostic;
+		this.timer = setTimeout(() => {
+			this.timer = undefined;
+			this.pending = undefined;
+			this.reveal(diagnostic);
+		}, hoverIntentDelay);
+	}
+
+	cancel(): void {
+		if (this.timer !== undefined) {
+			clearTimeout(this.timer);
+			this.timer = undefined;
+		}
+		this.pending = undefined;
+	}
+}
+
 class DiagnosticBadge extends WidgetType {
+	/** The badge's own pending reveal, for the diagnostic it leads with. */
+	private readonly hover = new HoverIntent((diagnostic) => this.activate?.(diagnostic));
+
 	constructor(
 		readonly cluster: DiagnosticCluster,
 		readonly activate: ((diagnostic: Diagnostic) => void) | undefined
@@ -124,13 +173,23 @@ class DiagnosticBadge extends WidgetType {
 		badge.setAttribute('aria-label', diagnosticLabel(this.cluster));
 		badge.title = diagnosticLabel(this.cluster);
 		badge.addEventListener('mousedown', (event) => event.preventDefault());
+		const lead = () => this.cluster.diagnostics[0];
+		// Reaching the badge with the keyboard or the mouse button is a decision
+		// already made, so those reveal at once; only pointing serves the wait.
 		const activate = () => {
-			const diagnostic = this.cluster.diagnostics[0];
+			const diagnostic = lead();
 			if (diagnostic) {
+				this.hover.cancel();
 				this.activate?.(diagnostic);
 			}
 		};
-		badge.addEventListener('mouseenter', activate);
+		badge.addEventListener('mouseenter', () => {
+			const diagnostic = lead();
+			if (diagnostic) {
+				this.hover.arm(diagnostic);
+			}
+		});
+		badge.addEventListener('mouseleave', () => this.hover.cancel());
 		badge.addEventListener('focus', activate);
 		container.append(badge);
 
@@ -147,6 +206,9 @@ class DiagnosticBadge extends WidgetType {
 		badge.setAttribute('aria-haspopup', 'menu');
 		badge.setAttribute('aria-expanded', 'false');
 		badge.addEventListener('click', () => {
+			// A click beat the wait: the menu is the answer now, and a card landing
+			// on top of it a moment later would be answering a question already put.
+			this.hover.cancel();
 			menu.hidden = !menu.hidden;
 			badge.setAttribute('aria-expanded', String(!menu.hidden));
 		});
@@ -158,6 +220,7 @@ class DiagnosticBadge extends WidgetType {
 			item.textContent = `${diagnostic.severity}: ${diagnostic.message}`;
 			item.addEventListener('mousedown', (event) => event.preventDefault());
 			item.addEventListener('click', () => {
+				this.hover.cancel();
 				this.activate?.(diagnostic);
 				menu.hidden = true;
 				badge.setAttribute('aria-expanded', 'false');
@@ -166,6 +229,12 @@ class DiagnosticBadge extends WidgetType {
 		}
 		container.append(menu);
 		return container;
+	}
+
+	// The badge is rebuilt whenever its line's diagnostics change; a wait armed
+	// against the old one must not fire against the new.
+	destroy(): void {
+		this.hover.cancel();
 	}
 
 	ignoreEvent(): boolean {
@@ -190,8 +259,10 @@ function buildDecorations(state: EditorState, diagnostics: readonly Diagnostic[]
 					class: `ll-diagnostic-range ll-diagnostic-${diagnostic.severity}`,
 					attributes: {
 						'aria-label': `${diagnostic.severity}: ${diagnostic.message}`,
-						title: diagnostic.message,
-						// The underline carries its own range so a tap resolves back to
+						// No native `title`: the popover is this underline's tooltip, and
+						// a browser tooltip would sit on top of it saying the same thing.
+						//
+						// The underline carries its own range so hovering resolves back to
 						// the exact diagnostic without re-deriving it from coordinates.
 						[diagnosticRangeAttribute]: `${diagnostic.from}:${diagnostic.to}`
 					}
@@ -295,9 +366,8 @@ function diagnosticForUnderline(
 
 /**
  * Both range ends count as hits. A one-character underline is the common case,
- * and clicking its right half maps to the range's end offset, which strict
- * containment would reject — the tap would then land on the text without ever
- * opening the card.
+ * and its right half maps to the range's end offset, which strict containment
+ * would reject — the pointer would then sit on the underline with no card.
  */
 function diagnosticAtPosition(
 	diagnostics: readonly Diagnostic[],
@@ -309,90 +379,104 @@ function diagnosticAtPosition(
 	);
 }
 
-interface DiagnosticPointerHit {
-	diagnostic: Diagnostic;
-	position: number;
-}
-
-function diagnosticPointerHit(
-	event: MouseEvent,
-	view: EditorView
-): DiagnosticPointerHit | undefined {
+function diagnosticAtPointer(event: MouseEvent, view: EditorView): Diagnostic | undefined {
 	const target = event.target instanceof Element ? event.target : undefined;
 	const underline = target?.closest('.ll-diagnostic-range');
 	if (!underline) {
 		return undefined;
 	}
 	const diagnostics = diagnosticsForState(view.state);
+	// Coordinates are the fallback only: resolving the underline's own range is
+	// both exact and cheap enough to run on every pointer move.
+	const fromRange = diagnosticForUnderline(underline, diagnostics);
+	if (fromRange) {
+		return fromRange;
+	}
 	const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
-	const diagnostic =
-		diagnosticForUnderline(underline, diagnostics) ??
-		(position === null ? undefined : diagnosticAtPosition(diagnostics, position));
-	if (!diagnostic) {
-		return undefined;
-	}
-	return {
-		diagnostic,
-		position: position ?? diagnostic.from
-	};
+	return position === null ? undefined : diagnosticAtPosition(diagnostics, position);
 }
 
-function enterDiagnosticEditMode(event: MouseEvent, view: EditorView): boolean {
-	const hit = diagnosticPointerHit(event, view);
-	if (!hit) {
-		return false;
-	}
-	event.preventDefault();
-	view.state.field(editorCallbacksField)?.onDiagnosticDismiss?.();
-	view.dispatch({
-		selection: { anchor: hit.position },
-		scrollIntoView: true
-	});
-	view.focus();
-	return true;
-}
+/**
+ * Show the underlined diagnostic while the pointer rests on it.
+ *
+ * Pointing is what reveals a diagnostic; clicking is left alone so a tap does
+ * what a tap does everywhere else in a text field — place the caret. The
+ * popover takes it from here: it stays up while the pointer travels toward it
+ * and closes once the pointer leaves both it and the underline.
+ */
+export function diagnosticRangeHoverHandler(): Extension {
+	return ViewPlugin.fromClass(
+		class {
+			readonly hover: HoverIntent;
 
-/** Activate the most relevant diagnostic when its visible underline is tapped. */
-export function diagnosticRangeClickHandler(): Extension {
-	return EditorView.domEventHandlers({
-		click(event, view) {
-			const hit = diagnosticPointerHit(event, view);
-			if (!hit) {
-				return false;
+			constructor(view: EditorView) {
+				// Resolved when the wait elapses rather than now: a re-lint between
+				// arming and firing must not reveal through a retired callback set.
+				this.hover = new HoverIntent((diagnostic) =>
+					view.state.field(editorCallbacksField)?.onDiagnosticActivate(diagnostic)
+				);
 			}
-			if (event.detail > 1) {
-				return enterDiagnosticEditMode(event, view);
+
+			destroy(): void {
+				this.hover.cancel();
 			}
-			view.state.field(editorCallbacksField)?.onDiagnosticActivate(hit.diagnostic);
-			return true;
 		},
-		dblclick(event, view) {
-			return enterDiagnosticEditMode(event, view);
+		{
+			eventHandlers: {
+				mousemove(event: MouseEvent, view: EditorView) {
+					// A held button means the pointer is dragging out a selection, not
+					// pointing at anything; cards popping up along the way would land
+					// under the very text being swept over. Composition owns the surface
+					// outright.
+					const busy =
+						event.buttons !== 0 || view.composing || view.state.field(editorComposingField, false);
+					const diagnostic = busy ? undefined : diagnosticAtPointer(event, view);
+					if (diagnostic) {
+						this.hover.arm(diagnostic);
+					} else {
+						this.hover.cancel();
+					}
+					// Never handled: pointer moves belong to selection dragging.
+					return false;
+				},
+				// Leaving the text and pressing into it are both answers to the
+				// question the wait was asking. Neither may be followed by a card.
+				mouseleave() {
+					this.hover.cancel();
+					return false;
+				},
+				mousedown() {
+					this.hover.cancel();
+					return false;
+				}
+			}
 		}
-	});
+	);
 }
 
 export const lintDecorationTheme = EditorView.baseTheme({
 	'.ll-diagnostic-range': {
 		position: 'relative',
 		zIndex: '2',
-		cursor: 'pointer',
+		// Underlined text is still text: the caret cursor is the promise that a
+		// click puts the caret here rather than opening something.
+		cursor: 'text',
 		textDecorationLine: 'underline',
 		textDecorationStyle: 'wavy',
 		textDecorationThickness: '1.5px',
 		textUnderlineOffset: '3px'
 	},
 	'.ll-diagnostic-error': {
-		textDecorationColor: 'var(--color-danger, oklch(0.53 0.2 28))'
+		textDecorationColor: 'var(--color-danger)'
 	},
 	'.ll-diagnostic-warning': {
-		textDecorationColor: 'var(--color-warning, oklch(0.66 0.16 75))'
+		textDecorationColor: 'var(--color-warning)'
 	},
 	'.ll-diagnostic-suggestion': {
-		textDecorationColor: 'var(--color-suggestion, oklch(0.55 0.12 155))'
+		textDecorationColor: 'var(--color-suggestion)'
 	},
 	'.ll-diagnostic-manual-review': {
-		textDecorationColor: 'var(--color-manual, oklch(0.58 0.11 305))'
+		textDecorationColor: 'var(--color-manual)'
 	},
 	// Position marker: a small caret sits under the offending character so the
 	// exact spot (e.g. a trailing comma) is unambiguous.
@@ -401,8 +485,11 @@ export const lintDecorationTheme = EditorView.baseTheme({
 		position: 'absolute',
 		bottom: '-0.72em',
 		left: '0',
-		color: 'var(--color-warning, oklch(0.66 0.16 75))',
-		font: '700 0.62em/1 ui-sans-serif, system-ui, sans-serif',
+		color: 'var(--color-warning)',
+		fontFamily: 'var(--font-ui)',
+		fontSize: '0.62em',
+		fontWeight: 'var(--font-weight-bold)',
+		lineHeight: '1',
 		pointerEvents: 'none'
 	},
 	'.ll-diagnostic-badge-container': {
@@ -415,35 +502,42 @@ export const lintDecorationTheme = EditorView.baseTheme({
 		boxSizing: 'border-box',
 		minWidth: '1.15rem',
 		height: '1.15rem',
-		marginInlineStart: '0.4rem',
-		padding: '0 0.28rem',
+		marginInlineStart: 'var(--space-1-5)',
+		padding: '0 var(--space-1)',
 		border: 'none',
-		borderRadius: '999rem',
+		borderRadius: 'var(--radius-pill)',
 		background: 'currentColor',
-		font: '700 0.68rem/1.15rem ui-sans-serif, system-ui, sans-serif',
+		fontFamily: 'var(--font-ui)',
+		fontSize: 'var(--font-size-2xs)',
+		fontWeight: 'var(--font-weight-bold)',
+		lineHeight: '1.15rem',
 		textAlign: 'center',
 		verticalAlign: '0.16rem',
 		cursor: 'pointer'
 	},
 	'.ll-diagnostic-badge > .ll-diagnostic-badge-count': {
-		color: 'var(--color-canvas, oklch(0.18 0.012 65))'
+		color: 'var(--color-canvas)'
 	},
+	// `--ll-focus` was never defined anywhere, so this ring had been rendering in
+	// its literal fallback — an off-palette orange at a width the focus tokens
+	// did not control.
 	'.ll-diagnostic-badge:focus-visible': {
-		outline: '2px solid var(--ll-focus, oklch(0.58 0.14 55))',
-		outlineOffset: '2px'
+		outline: 'var(--focus-ring-width) solid var(--color-focus)',
+		outlineOffset: 'var(--focus-ring-offset)'
 	},
 	'.ll-diagnostic-cluster-menu': {
 		position: 'absolute',
-		zIndex: '20',
-		top: 'calc(100% + 0.25rem)',
+		zIndex: 'var(--layer-menu)',
+		top: 'calc(100% + var(--space-1))',
 		right: '0',
 		boxSizing: 'border-box',
 		width: 'min(22rem, calc(100vw - 1rem))',
-		padding: '0.25rem',
-		border: '1px solid color-mix(in oklch, currentColor 25%, transparent)',
-		borderRadius: 'var(--radius-panel, 0.5rem)',
-		background: 'var(--color-surface, var(--ll-surface, oklch(0.98 0.006 80)))',
-		boxShadow: 'var(--shadow-overlay, 0 2px 8px oklch(0.2 0.01 70 / 0.14))'
+		padding: 'var(--space-1)',
+		border: 'var(--border-width) solid var(--color-border)',
+		borderRadius: 'var(--radius-panel)',
+		background: 'var(--color-overlay)',
+		color: 'var(--color-text)',
+		boxShadow: 'var(--shadow-overlay)'
 	},
 	'.ll-diagnostic-cluster-menu[hidden]': {
 		display: 'none'
@@ -451,27 +545,31 @@ export const lintDecorationTheme = EditorView.baseTheme({
 	'.ll-diagnostic-cluster-item': {
 		display: 'block',
 		width: '100%',
-		padding: '0.35rem 0.45rem',
+		padding: 'var(--space-1-5) var(--space-2)',
 		border: '0',
-		borderRadius: '0.25rem',
+		borderRadius: 'var(--radius-control)',
 		background: 'transparent',
-		font: '500 0.75rem/1.3 ui-sans-serif, system-ui, sans-serif',
+		color: 'inherit',
+		fontFamily: 'var(--font-ui)',
+		fontSize: 'var(--font-size-xs)',
+		fontWeight: 'var(--font-weight-medium)',
+		lineHeight: 'var(--line-height-ui)',
 		textAlign: 'start',
 		cursor: 'pointer'
 	},
 	'.ll-diagnostic-cluster-item:hover': {
-		background: 'color-mix(in oklch, currentColor 8%, transparent)'
+		background: 'var(--color-control-hover)'
 	},
 	'.ll-diagnostic-badge-error': {
-		color: 'var(--color-danger, oklch(0.48 0.19 28))'
+		color: 'var(--color-danger)'
 	},
 	'.ll-diagnostic-badge-warning': {
-		color: 'var(--color-warning, oklch(0.55 0.15 70))'
+		color: 'var(--color-warning)'
 	},
 	'.ll-diagnostic-badge-suggestion': {
-		color: 'var(--color-suggestion, oklch(0.47 0.11 155))'
+		color: 'var(--color-suggestion)'
 	},
 	'.ll-diagnostic-badge-manual-review': {
-		color: 'var(--color-manual, oklch(0.5 0.11 305))'
+		color: 'var(--color-manual)'
 	}
 });

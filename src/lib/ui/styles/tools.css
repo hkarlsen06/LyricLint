@@ -1,0 +1,53 @@
+/* The tools tab: action rows, metadata list, source list, and inline confirms. */
+
+/* Separators go *between* sections. The old `.tools-panel section` (which
+   lived in performers.css) matched the first section too, drawing a rule a
+   few pixels under the panel header's own border-bottom — two parallel lines
+   framing nothing. `section + section` is used rather than :not(:first-child)
+   or :first-of-type because it encodes the between-ness directly: a section
+   only gets a top rule when another section actually precedes it, so it
+   survives any section being removed behind an {#if} and any non-section
+   content (like the trailing .offline-note) appearing before or after. */
+.tools-panel section + section {
+	margin-top: var(--space-5);
+	padding-top: var(--space-4);
+	border-top: var(--border-width) solid var(--color-border);
+}
+
+.tool-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.metadata-list {
+	display: grid;
+	margin: 0;
+}
+
+.metadata-list > div {
+	display: flex;
+	padding: var(--space-2) 0;
+	border-bottom: var(--border-width) solid var(--color-border);
+	justify-content: space-between;
+}
+
+.metadata-list dd {
+	margin: 0;
+}
+
+.source-list {
+	margin-top: var(--space-3);
+}
+
+.source-list .source-reference {
+	margin-top: var(--space-3);
+}
+
+.confirm-row {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	align-items: center;
+	color: var(--color-text-muted);
+}

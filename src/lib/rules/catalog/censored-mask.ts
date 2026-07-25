@@ -1,32 +1,31 @@
-import type { RuleDefinition } from '../../core/types.js';
+import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
+
+const censoredWordCandidate = /(?<![\p{L}\p{M}\p{N}_*])[\p{L}\p{M}*]+(?![\p{L}\p{M}\p{N}_*])/gu;
 
 export const censoredMaskRule: RuleDefinition = {
 	id: 'censored.mask',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'warning',
 	fixability: 'preview',
 	sourceIds: ['G-CENSORED'],
 	check(document, context) {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>
-				matchesOutsideMarkup(
-					line,
-					/(?<![\p{L}\p{N}_*])(?<prefix>\p{L}+)?(?<mask>\*{1,3}|\*{5,})(?<suffix>\p{L}+)?(?![\p{L}\p{N}_*])/giu
-				)
-					.filter((match) => Boolean(match.groups.prefix || match.groups.suffix))
+				matchesOutsideMarkup(line, censoredWordCandidate)
+					.filter(
+						(match) =>
+							match.text.includes('*') &&
+							/\p{L}/u.test(match.text) &&
+							!(match.text.startsWith('*') && match.text.endsWith('*'))
+					)
 					.map((match) => {
-						const mask = match.groups.mask ?? '';
-						const localMaskFrom = match.text.indexOf(mask);
-						const range = {
-							from: match.from + localMaskFrom,
-							to: match.from + localMaskFrom + mask.length
-						};
+						const range = { from: match.from, to: match.to };
 						return diagnostic(
 							this,
 							range,
-							'A censored-word mask should use exactly four asterisks.',
-							'The surrounding letters make this look like a censored word. Confirm before normalizing only the asterisk run.',
+							'A censored word should use exactly four asterisks.',
+							'This mixes letters with an asterisk mask. Confirm before replacing the entire censored-word candidate so no partial spelling remains.',
 							[replacementFix(context, 'preview', 'Use four asterisks', range, '****')]
 						);
 					})

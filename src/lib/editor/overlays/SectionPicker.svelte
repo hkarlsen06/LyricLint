@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import type { LanguagePack } from '../../core/types.js';
+	import type { LanguagePack } from '$lib/core/types.js';
+	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import type { ScreenRect, SectionHeaderChoice } from '../contracts.js';
 	import { sectionHeaderOptions, type SectionHeaderNeighbors } from './section-picker.js';
 
@@ -68,6 +69,12 @@
 		}
 	}
 
+	// Pressing outside abandons the header the same way Cancel does, minus the
+	// focus handoff: the press has already chosen where the user is working next.
+	function dismiss(): void {
+		onCancel();
+	}
+
 	function handleKeydown(event: KeyboardEvent): void {
 		if (event.key === 'ArrowDown') {
 			event.preventDefault();
@@ -93,6 +100,7 @@
 	style={position}
 	role="dialog"
 	aria-label="Add section header"
+	{@attach dismissOnOutside(dismiss)}
 >
 	<label for="ll-section-search">Section header</label>
 	<input
@@ -119,7 +127,7 @@
 			</li>
 		{/each}
 	</ul>
-	<button type="button" class="cancel" onclick={cancel}>Cancel</button>
+	<button type="button" class="button" onclick={cancel}>Cancel</button>
 </div>
 
 <style>
@@ -148,22 +156,10 @@
 		font-weight: var(--font-weight-semibold);
 	}
 
+	/* Surface, border, and focus come from the global control vocabulary; only
+	   the full-width layout is local. */
 	input {
-		box-sizing: border-box;
 		width: 100%;
-		min-height: var(--control-height-md);
-		padding: var(--control-padding-block) var(--control-padding-inline);
-		border: var(--border-width) solid var(--color-control-border);
-		border-radius: var(--radius-control);
-		background: var(--color-control);
-		color: inherit;
-		font: inherit;
-	}
-
-	input:focus-visible,
-	button:focus-visible {
-		outline: var(--focus-ring-width) solid var(--color-focus);
-		outline-offset: var(--focus-ring-offset);
 	}
 
 	ul {
@@ -182,8 +178,9 @@
 		background: var(--color-selected);
 	}
 
-	li button,
-	.cancel {
+	/* Listbox options are rows, not action buttons: full-width, start-aligned,
+	   selection carried by the row. The cancel action uses the global tier. */
+	li button {
 		width: 100%;
 		min-height: var(--control-height-md);
 		padding: var(--control-padding-block) var(--control-padding-inline);
@@ -193,16 +190,9 @@
 		color: inherit;
 		font: inherit;
 		text-align: start;
-		cursor: pointer;
 	}
 
-	.cancel {
-		width: auto;
-		border-color: var(--color-control-border);
-	}
-
-	li button:hover,
-	.cancel:hover {
+	li button:hover {
 		background: var(--color-control-hover);
 	}
 

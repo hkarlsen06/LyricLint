@@ -45,7 +45,9 @@ async function replaceDocument(page: Page, text: string): Promise<void> {
 }
 
 async function waitForSaved(page: Page): Promise<void> {
-	await expect(page.getByLabel('Autosave status')).toContainText('Saved locally');
+	// The healthy save states render as a bare glyph, so the wording is only in
+	// the accessible name.
+	await expect(page.getByLabel('Autosave status')).toHaveAttribute('aria-label', /Saved locally/u);
 }
 
 test('paste → lint → safe fix updates the canonical editor text', async ({ page }) => {
@@ -173,7 +175,9 @@ test('session ignores survive reload in the same tab and can be restored', async
 	});
 	await expect(diagnostic).toBeVisible();
 
-	await page.getByRole('button', { name: 'Ignore this session' }).click();
+	// The expanded card's ignore control is labelled just “Ignore”; `exact`
+	// keeps it apart from the “… ignored / Restore” toggle below the list.
+	await page.getByRole('button', { name: 'Ignore', exact: true }).click();
 	await expect(diagnostic).toHaveCount(0);
 	// Persist the draft before reloading: this spec verifies sessionStorage
 	// ignores, not the unload flush path, so the document must survive.
@@ -217,6 +221,76 @@ test('an edit after switching between two drafts remains revision-scoped and dur
 	await waitForSaved(page);
 	await page.reload();
 	await expectDocText(page, durableEdit);
+});
+
+/**
+ * A `.sr-only` live region inside an expanded diagnostic card once scrolled the
+ * whole app shell away — toolbar and status bar off screen, with no scrollbar
+ * and no wheel gesture to bring them back. Two independent causes, both pinned
+ * here against a probe shaped like that live region rather than against whichever
+ * component currently ships one: an absolutely positioned box escaped the panel's
+ * scroll clipping and reported its offset down the list as shell-level scrollable
+ * overflow, and the shell hid that overflow instead of clipping it, so a stray
+ * `scrollIntoView` or focus call could move it.
+ */
+test('nothing in the panel can scroll the app shell', async ({ page }) => {
+	await openWorkspace(page);
+	await replaceDocument(page, '[Verse]\nImma stay');
+	const toolbar = page.getByRole('button', { name: 'Copy Genius markup' });
+	await expect(toolbar).toBeInViewport();
+
+	const metrics = await page.locator('.right-panel__body').evaluate((panel) => {
+		const shellElement = document.querySelector('main.workspace') as HTMLElement;
+		const probe = document.createElement('p');
+		probe.className = 'sr-only';
+		probe.textContent = 'probe';
+		const spacer = document.createElement('div');
+		spacer.style.height = '3000px';
+		panel.append(spacer, probe);
+		shellElement.scrollTop = 500;
+		return {
+			probeTop: probe.getBoundingClientRect().top,
+			shellBottom: shellElement.getBoundingClientRect().bottom,
+			scrollHeight: shellElement.scrollHeight,
+			clientHeight: shellElement.clientHeight,
+			scrollTop: shellElement.scrollTop
+		};
+	});
+
+	// The probe resolves against the panel it lives in, so it stays inside the shell.
+	expect(metrics.probeTop).toBeLessThanOrEqual(metrics.shellBottom);
+	expect(metrics.scrollHeight).toBe(metrics.clientHeight);
+	// And the shell has no scroll port at all, so even a direct write is refused.
+	expect(metrics.scrollTop).toBe(0);
+	await expect(toolbar).toBeInViewport();
+});
+
+test.describe('phone gate', () => {
+	// A phone is a coarse pointer *and* a small viewport, so the emulation has to
+	// set both: `hasTouch` is what makes `(pointer: coarse)` match, and without it
+	// this would only prove that a narrow window still shows the app.
+	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+	test('replaces the workbench with a come-back-on-a-computer notice', async ({ page }) => {
+		await page.goto('/');
+
+		await expect(
+			page.getByRole('heading', { name: 'LyricLint needs a bigger screen' })
+		).toBeVisible();
+		await expect(page.getByText('Open this page on a laptop or desktop')).toBeVisible();
+
+		// Gone from the layout and from the accessibility tree, not just painted over.
+		await expect(page.locator('main.workspace')).toBeHidden();
+		await expect(editor(page)).toBeHidden();
+	});
+});
+
+test('a narrow desktop window keeps the workbench', async ({ page }) => {
+	// Same width as the phone above, fine pointer: a resized browser is a
+	// supported size and must not hit the gate.
+	await page.setViewportSize({ width: 390, height: 844 });
+	await openWorkspace(page);
+	await expect(page.getByRole('heading', { name: 'LyricLint needs a bigger screen' })).toBeHidden();
 });
 
 test('offline reopen from cache via the service worker', async ({ page, context }) => {

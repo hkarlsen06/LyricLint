@@ -1,4 +1,4 @@
-import type { SourceReference } from '../../core/types.js';
+import type { SourceReference } from '$lib/core/types.js';
 
 const reviewedAt = '2026-07-24';
 
@@ -37,7 +37,7 @@ const sources: SourceReference[] = [
 		pageTitle: 'How to Add Songs to Genius',
 		sectionTitle: 'Index of lyric accuracy and formatting guidance',
 		retrievedAt: reviewedAt,
-		lastVerifiedAt: reviewedAt,
+		lastVerifiedAt: '2026-07-25',
 		reviewStatus: 'reviewed'
 	},
 	annotation(
@@ -128,12 +128,24 @@ const sources: SourceReference[] = [
 		'English headers for original Korean songs and Hangul headers for translations'
 	),
 	annotation('G-NUMBERS', 15591905, 'Number spelling', 'Spell out numbers with exceptions'),
-	annotation(
-		'G-QE-MARKS',
-		15593987,
-		'Question and exclamation marks',
-		'Punctuation for questions and exclamations'
-	),
+	{
+		id: 'APPLE-LINE-PUNCTUATION',
+		url: 'https://artists.apple.com/support/1111-lyrics-guidelines',
+		pageTitle: 'Review guidelines for submitting lyrics',
+		sectionTitle: 'No periods or commas at the end of lyric lines',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		...annotation(
+			'G-QE-MARKS',
+			15593987,
+			'Question and exclamation marks',
+			'Punctuation for questions and exclamations'
+		),
+		lastVerifiedAt: '2026-07-25'
+	},
 	annotation(
 		'G-DASHES',
 		15594027,

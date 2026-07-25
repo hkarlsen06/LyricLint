@@ -1,14 +1,18 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type {
 		Diagnostic,
 		DiagnosticFix,
 		EditorSnapshot,
 		LanguagePack,
+		PerformerId,
 		StyleSlot,
 		TextRange
-	} from '../core/types.js';
-	import { usedStyleSlots } from '../performers/legend-cleanup.js';
+	} from '$lib/core/types.js';
+	import {
+		resolveLegendAssignment,
+		type LegendAssignmentResolution
+	} from '$lib/performers/legend-assignment.js';
 	import type { CreateLyricEditorOptions, LyricEditorInstance } from './create-editor.js';
 	import type {
 		EditorPaneProps,
@@ -17,6 +21,26 @@
 		SectionHeaderChoice,
 		SelectionAnchor
 	} from './contracts.js';
+	import {
+		activateDiagnostic,
+		anchorPlacement,
+		applyPerformerPicker,
+		beginLegendAssignment,
+		cachedAnchorRect,
+		cancelPerformerPicker,
+		closeOverlay,
+		closedOverlaySession,
+		dismissDiagnostic,
+		finishPerformerAssignment,
+		forgetDismissedSelection,
+		openPerformerPicker,
+		openSectionPicker,
+		overlayRange,
+		releaseUnanchoredDiagnostic,
+		reportSelectionAnchor,
+		type LegendTarget,
+		type OverlaySession
+	} from './overlay-state.js';
 	import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
 	import PerformerPicker from './overlays/PerformerPicker.svelte';
 	import SectionPicker from './overlays/SectionPicker.svelte';
@@ -34,23 +58,10 @@
 	let host: HTMLDivElement;
 	let editor = $state.raw<LyricEditorInstance | undefined>();
 	let selectionAnchor = $state<SelectionAnchor | undefined>();
-	let performerRange = $state<TextRange | undefined>();
-	let sectionRange = $state<TextRange | undefined>();
-	let activeDiagnostic = $state<Diagnostic | undefined>();
-	let diagnosticTakesFocus = $state(false);
-	let performerOpen = $state(false);
-	let sectionOpen = $state(false);
-	let dismissedSelection = $state<string | undefined>();
-	let legendAssignment = $state<
-		| {
-				sectionFrom: number;
-				styleSlot: StyleSlot;
-				step: 'section' | 'styled';
-				sectionPerformerIds: string[];
-				styledPerformerIds: string[];
-		  }
-		| undefined
-	>();
+	// Every overlay this pane can show lives in one discriminated value, so the
+	// legal combinations are the variants themselves rather than an unwritten
+	// agreement between separate flags. All transitions live in overlay-state.ts.
+	let session = $state<OverlaySession>(closedOverlaySession());
 	let lastRevision = 0;
 	// Bumped on editor scroll so anchored overlays recompute their coordinates
 	// and stay attached to their line instead of floating in the viewport.
@@ -58,6 +69,35 @@
 	// The scroll position (tick) at which the cached selection anchor rect was
 	// captured; after scrolling, the rect must be recomputed from the document.
 	let selectionAnchorTick = 0;
+
+	const overlay = $derived(session.overlay);
+	// One anchor per pane: the open overlay names its range, and the cache
+	// invariant is applied once here instead of per overlay in the markup.
+	const anchorRange = $derived(overlayRange(overlay));
+	const overlayAnchor = $derived(anchorRange ? anchorRect(anchorRange) : undefined);
+	const overlayPlacement = $derived(
+		anchorRange ? anchorPlacement(selectionAnchor, anchorRange) : 'above'
+	);
+
+	// The variants are projected here rather than narrowed with `{@const}` in the
+	// branches: a derived that belongs to the component outlives the block effect
+	// the overlay's own callbacks fire from.
+	const performerOverlay = $derived(overlay.kind === 'performer' ? overlay : undefined);
+	const sectionOverlay = $derived(overlay.kind === 'section' ? overlay : undefined);
+	const diagnosticOverlay = $derived(overlay.kind === 'diagnostic' ? overlay : undefined);
+	const legend = $derived(performerOverlay?.legend);
+	// The step counter belongs to the two-voice flow only. A styled-only section
+	// names one voice, and the prompt says up front that its markup goes with the
+	// assignment — the picker is where that consequence is agreed to.
+	const legendPrompt = $derived(
+		legend
+			? legend.promoteToPlain
+				? 'Section voice · formatting removed'
+				: legend.step === 'section'
+					? 'General section voice · 1 of 2'
+					: 'Styled passage · 2 of 2'
+			: undefined
+	);
 
 	const fallbackLanguagePack = $derived<LanguagePack>(
 		context.languagePack ?? {
@@ -70,12 +110,8 @@
 		}
 	);
 
-	function rangeKey(range: TextRange): string {
-		return `${range.from}:${range.to}`;
-	}
-
-	function performerIdsForRange(range: TextRange): string[] {
-		const performerIds: string[] = [];
+	function performerIdsForRange(range: TextRange): PerformerId[] {
+		const performerIds: PerformerId[] = [];
 		for (const voiceRange of context.voiceGroups ?? []) {
 			if (voiceRange.legend || voiceRange.from >= range.to || range.from >= voiceRange.to) {
 				continue;
@@ -109,37 +145,15 @@
 		};
 	}
 
-	function activeAnchor(range: TextRange | undefined): ScreenRect | undefined {
-		if (!range) {
-			return undefined;
-		}
+	function anchorRect(range: TextRange): ScreenRect {
 		// Depend on scrollTick: scrolling must recompute every anchored overlay.
 		const tick = scrollTick;
-		return selectionAnchor &&
-			rangeKey(selectionAnchor.range) === rangeKey(range) &&
-			tick === selectionAnchorTick
-			? selectionAnchor.rect
-			: rectForRange(range);
+		return (
+			cachedAnchorRect(selectionAnchor, range, tick, selectionAnchorTick) ?? rectForRange(range)
+		);
 	}
 
-	function anchorPreference(range: TextRange): 'above' | 'below' {
-		return selectionAnchor && rangeKey(selectionAnchor.range) === rangeKey(range)
-			? selectionAnchor.prefer
-			: 'above';
-	}
-
-	function openPerformerPicker(range: TextRange): void {
-		legendAssignment = undefined;
-		performerRange = range;
-		// The card opens even with an empty roster: it then offers the inline
-		// "+" add flow so assignment never dead-ends on a missing performer.
-		performerOpen = true;
-		sectionOpen = false;
-		activeDiagnostic = undefined;
-		diagnosticTakesFocus = false;
-	}
-
-	function performerIdsForSlot(sectionFrom: number, styleSlot: StyleSlot): string[] {
+	function performerIdsForSlot(sectionFrom: number, styleSlot: StyleSlot): PerformerId[] {
 		const section = editor?.handle
 			.getSnapshot()
 			.parsed.sections.find((candidate) => candidate.from === sectionFrom);
@@ -157,56 +171,57 @@
 		return group ? [...group.group.performerIds] : [];
 	}
 
-	function legendTarget(
-		diagnostic: Diagnostic
-	): { sectionFrom: number; styleSlot: StyleSlot } | undefined {
-		if (diagnostic.ruleId !== 'performer.inline-mismatch') {
-			return undefined;
-		}
+	function legendResolution(diagnostic: Diagnostic): LegendAssignmentResolution {
 		const parsed = editor?.handle.getSnapshot().parsed;
-		const section = parsed?.sections.find((candidate) =>
-			candidate.lines.some((line) =>
-				line.styleSpans.some(
-					(span) =>
-						!('unsupported' in span) && span.from <= diagnostic.from && diagnostic.to <= span.to
-				)
-			)
-		);
-		if (!section || !section.header || !usedStyleSlots(section).has(1)) {
-			return undefined;
-		}
-		const span = section.lines
-			.flatMap((line) => line.styleSpans)
-			.find(
-				(candidate) =>
-					!('unsupported' in candidate) &&
-					candidate.from <= diagnostic.from &&
-					diagnostic.to <= candidate.to
-			);
-		return span && !('unsupported' in span) && span.slot !== 1
-			? { sectionFrom: section.from, styleSlot: span.slot }
-			: undefined;
+		return parsed
+			? resolveLegendAssignment(parsed, diagnostic)
+			: { status: 'unavailable', reason: 'not-applicable' };
 	}
 
-	function beginLegendAssignment(diagnostic: Diagnostic): void {
-		const target = legendTarget(diagnostic);
-		if (!target) {
+	function legendTarget(diagnostic: Diagnostic): LegendTarget | undefined {
+		const resolution = legendResolution(diagnostic);
+		return resolution.status === 'available' ? resolution.target : undefined;
+	}
+
+	// The same action the linter panel's card offers for a headerless section,
+	// reached from the popover instead: the picker opens over the section the
+	// diagnostic named, replacing the card that asked for it.
+	function startHeaderChoice(diagnostic: Diagnostic): void {
+		internalCallbacks().onSectionHeaderRequest({
+			range: { from: diagnostic.from, to: diagnostic.to },
+			prefer: 'above'
+		});
+	}
+
+	function startLegendAssignment(diagnostic: Diagnostic): void {
+		const resolution = legendResolution(diagnostic);
+		// Both surfaces hide the action when it cannot run, so this is the race:
+		// the document changed between the card rendering and the click.
+		if (resolution.status === 'unavailable') {
 			callbacks.onAnnouncement(
-				'This section needs both plain and styled lyrics before its performers can be assigned here.'
+				resolution.reason === 'no-header'
+					? 'This section needs a header before its performers can be assigned here.'
+					: resolution.reason === 'needs-plain-lyrics'
+						? 'This section needs plain lyrics before a second styled voice can be assigned here.'
+						: 'This styled passage no longer needs a performer assignment.'
 			);
 			return;
 		}
-		legendAssignment = {
-			...target,
-			step: 'section',
-			sectionPerformerIds: performerIdsForSlot(target.sectionFrom, 1),
-			styledPerformerIds: performerIdsForSlot(target.sectionFrom, target.styleSlot)
-		};
-		performerRange = { from: diagnostic.from, to: diagnostic.to };
-		performerOpen = true;
-		sectionOpen = false;
-		activeDiagnostic = undefined;
-		diagnosticTakesFocus = false;
+		const target = resolution.target;
+		session = beginLegendAssignment(
+			session,
+			{ from: diagnostic.from, to: diagnostic.to },
+			{
+				...target,
+				// Nothing to differentiate from means nothing to ask first: the one
+				// voice is chosen in a single step.
+				step: target.promoteToPlain ? 'styled' : 'section',
+				sectionPerformerIds: target.promoteToPlain
+					? []
+					: performerIdsForSlot(target.sectionFrom, 1),
+				styledPerformerIds: performerIdsForSlot(target.sectionFrom, target.styleSlot)
+			}
+		);
 	}
 
 	function internalCallbacks(): LyricEditorCallbacks {
@@ -215,46 +230,33 @@
 			onSnapshot(snapshot: EditorSnapshot) {
 				if (snapshot.revision !== lastRevision) {
 					lastRevision = snapshot.revision;
-					dismissedSelection = undefined;
+					session = forgetDismissedSelection(session);
 				}
 				callbacks.onSnapshot(snapshot);
 			},
 			onAssignRequest(request) {
-				openPerformerPicker(request.range);
+				session = openPerformerPicker(session, request.range);
 				callbacks.onAssignRequest(request);
 			},
 			onSectionHeaderRequest(request) {
-				legendAssignment = undefined;
-				sectionRange = request.range;
-				sectionOpen = true;
-				performerOpen = false;
-				activeDiagnostic = undefined;
-				diagnosticTakesFocus = false;
+				session = openSectionPicker(session, request.range);
 				callbacks.onSectionHeaderRequest(request);
 			},
+			// Every caller of this one is a pointer: the hovered underline and the
+			// cluster badge. It shows the card where the text already is; the shell
+			// only gets to mark the matching entry, never to travel to it.
 			onDiagnosticActivate(diagnostic) {
-				legendAssignment = undefined;
-				activeDiagnostic = diagnostic;
-				diagnosticTakesFocus = false;
-				performerOpen = false;
-				sectionOpen = false;
-				callbacks.onDiagnosticActivate(diagnostic);
+				session = activateDiagnostic(session, diagnostic, false);
+				callbacks.onDiagnosticHighlight?.(diagnostic);
 			},
 			onDiagnosticActivateIntent(diagnostic) {
-				legendAssignment = undefined;
-				activeDiagnostic = diagnostic;
-				diagnosticTakesFocus = true;
-				performerOpen = false;
-				sectionOpen = false;
+				session = activateDiagnostic(session, diagnostic, true);
 				callbacks.onDiagnosticActivate(diagnostic);
 			},
 			onDiagnosticDismiss() {
-				if (!activeDiagnostic) {
-					return false;
-				}
-				activeDiagnostic = undefined;
-				diagnosticTakesFocus = false;
-				return true;
+				const dismissal = dismissDiagnostic(session);
+				session = dismissal.session;
+				return dismissal.dismissed;
 			}
 		};
 	}
@@ -267,81 +269,79 @@
 		scrollTick += 1;
 	}
 
+	// Scrolling retires a hovered diagnostic. The card was opened by pointing at
+	// a line, and scrolling moves that line out from under the pointer, so the
+	// card would describe text the user is no longer indicating. Keyboard-opened
+	// popovers hold focus and scroll along with their own reveal, so they stay.
+	$effect(() => {
+		if (scrollTick === 0) {
+			return;
+		}
+		untrack(() => {
+			const current = session.overlay;
+			// The popover's own teardown cancels the fix preview it opened.
+			if (current.kind === 'diagnostic' && !current.takesFocus) {
+				session = closeOverlay(session);
+			}
+		});
+	});
+
 	// Once the diagnostic's line leaves the rendered viewport there is nothing
 	// meaningful to anchor to, so the popover closes rather than floating free.
 	$effect(() => {
 		void scrollTick;
-		const diagnostic = activeDiagnostic;
+		const current = session.overlay;
 		const view = editor?.view;
-		if (!diagnostic || !view) {
+		if (current.kind !== 'diagnostic' || !view) {
 			return;
 		}
-		const position = Math.min(diagnostic.from, view.state.doc.length);
+		const position = Math.min(current.diagnostic.from, view.state.doc.length);
 		if (view.coordsAtPos(position, 1) === null) {
-			const hadFocus = diagnosticTakesFocus;
-			activeDiagnostic = undefined;
-			diagnosticTakesFocus = false;
-			if (hadFocus) {
+			const released = releaseUnanchoredDiagnostic(session);
+			session = released.session;
+			if (released.returnFocus) {
 				returnFocus();
 			}
 		}
 	});
 
 	function cancelPerformer(): void {
-		if (performerRange) {
-			dismissedSelection = rangeKey(performerRange);
-		}
-		legendAssignment = undefined;
-		performerOpen = false;
+		session = cancelPerformerPicker(session);
 	}
 
-	async function applyPerformers(performerIds: string[]): Promise<void> {
-		const pendingLegend = legendAssignment;
-		if (pendingLegend) {
-			if (pendingLegend.step === 'section') {
-				legendAssignment = {
-					...pendingLegend,
-					step: 'styled',
-					sectionPerformerIds: [...performerIds]
-				};
-				return;
-			}
-			try {
-				const edit = await callbacks.createPerformerLegendEdit?.({
-					sectionFrom: pendingLegend.sectionFrom,
-					assignments: [
-						{ styleSlot: 1, performerIds: pendingLegend.sectionPerformerIds },
-						{ styleSlot: pendingLegend.styleSlot, performerIds: [...performerIds] }
-					]
-				});
-				if (edit) {
-					editor?.handle.dispatchAtomic(edit);
-				}
-			} catch (error) {
-				callbacks.onAnnouncement(
-					error instanceof Error ? error.message : 'The section performers could not be assigned.'
-				);
-			}
-			legendAssignment = undefined;
-			performerOpen = false;
+	async function applyPerformers(performerIds: PerformerId[]): Promise<void> {
+		const outcome = applyPerformerPicker(session, performerIds);
+		if (outcome.kind === 'none') {
 			return;
 		}
-		const range = performerRange;
-		if (!range) {
+		// Step one of the legend flow only records the section voice; the picker
+		// stays mounted and re-keys itself for the styled passage.
+		if (outcome.kind === 'advance') {
+			session = outcome.session;
 			return;
 		}
 		try {
-			const edit = await callbacks.createPerformerEdit?.({ range, performerIds });
+			const edit =
+				outcome.kind === 'legend'
+					? await callbacks.createPerformerLegendEdit?.({
+							sectionFrom: outcome.sectionFrom,
+							assignments: outcome.assignments,
+							unwrapSlots: outcome.unwrapSlots
+						})
+					: await callbacks.createPerformerEdit?.({ range: outcome.range, performerIds });
 			if (edit) {
 				editor?.handle.dispatchAtomic(edit);
 			}
 		} catch (error) {
 			callbacks.onAnnouncement(
-				error instanceof Error ? error.message : 'The performer assignment could not be applied.'
+				error instanceof Error
+					? error.message
+					: outcome.kind === 'legend'
+						? 'The section performers could not be assigned.'
+						: 'The performer assignment could not be applied.'
 			);
 		}
-		dismissedSelection = rangeKey(range);
-		performerOpen = false;
+		session = finishPerformerAssignment(session, outcome);
 	}
 
 	function existingHeaders(): string[] {
@@ -400,15 +400,16 @@
 				error instanceof Error ? error.message : 'The section header could not be inserted.'
 			);
 		}
-		sectionOpen = false;
+		session = closeOverlay(session);
 	}
 
 	function applyFix(fix: DiagnosticFix): void {
-		if (!activeDiagnostic) {
+		const current = session.overlay;
+		if (current.kind !== 'diagnostic') {
 			return;
 		}
 		if (callbacks.onApplyDiagnosticFix) {
-			callbacks.onApplyDiagnosticFix(activeDiagnostic, fix);
+			callbacks.onApplyDiagnosticFix(current.diagnostic, fix);
 		} else if (fix.kind === 'safe') {
 			try {
 				editor?.handle.dispatchAtomic(fix.edit);
@@ -420,18 +421,23 @@
 		} else {
 			callbacks.onAnnouncement('Preview fixes require the application review handler.');
 		}
-		activeDiagnostic = undefined;
-		diagnosticTakesFocus = false;
-		returnFocus();
+		session = closeOverlay(session);
+		// Same rule as dismissal: only a popover that held focus hands it back.
+		// Applying the fix moves the selection onto whatever finding the panel
+		// leads with next, so pulling the caret into the editor after a pointer
+		// press would arm the user's next keystroke over text they never chose.
+		if (current.takesFocus) {
+			returnFocus();
+		}
 	}
 
 	function previewFix(fix: DiagnosticFix): void {
 		try {
-			// previewAtomic already scrolls the edit into view by the shortest
-			// distance; revealing it again here would re-center the line the user
-			// is already looking at and shift the popover out from under them.
+			// Nothing is revealed or announced: the popover is anchored to the
+			// range it previews, so the diff is already on screen, and it appears
+			// as a consequence of selecting the diagnostic rather than of a
+			// command the user issued.
 			editor?.handle.previewAtomic?.(fix.edit);
-			callbacks.onAnnouncement(`${fix.label} previewed in the editor.`);
 		} catch (error) {
 			callbacks.onAnnouncement(
 				error instanceof Error ? error.message : 'The fix could not be previewed in the editor.'
@@ -444,20 +450,18 @@
 	}
 
 	function ignoreDiagnostic(): void {
-		if (activeDiagnostic) {
-			callbacks.onIgnoreDiagnostic?.(activeDiagnostic);
+		const current = session.overlay;
+		if (current.kind === 'diagnostic') {
+			callbacks.onIgnoreDiagnostic?.(current.diagnostic);
 		}
-		activeDiagnostic = undefined;
-		diagnosticTakesFocus = false;
+		session = closeOverlay(session);
 		returnFocus();
 	}
 
+	// The preedit owns the surface during composition: nothing anchored may sit
+	// over text the IME is still rewriting.
 	function suppressOverlaysDuringComposition(): void {
-		legendAssignment = undefined;
-		performerOpen = false;
-		sectionOpen = false;
-		activeDiagnostic = undefined;
-		diagnosticTakesFocus = false;
+		session = closeOverlay(session);
 	}
 
 	$effect(() => {
@@ -484,24 +488,15 @@
 				onSelectionAnchor(anchor) {
 					selectionAnchorTick = scrollTick;
 					selectionAnchor = anchor;
-					if (!anchor) {
-						legendAssignment = undefined;
-						performerOpen = false;
-						return;
-					}
-					const key = rangeKey(anchor.range);
-					if (
-						anchor.userDriven &&
-						key !== dismissedSelection &&
-						(!performerRange || key !== rangeKey(performerRange) || !performerOpen)
-					) {
-						openPerformerPicker(anchor.range);
+					const report = reportSelectionAnchor(session, anchor);
+					session = report.session;
+					if (anchor && report.assignRequested) {
 						callbacks.onAssignRequest({ range: anchor.range, prefer: anchor.prefer });
 					}
 				}
 			};
 			editor = createLyricEditor(host, options);
-			editor.handle.requestPerformerLegendAssignment = beginLegendAssignment;
+			editor.handle.requestPerformerLegendAssignment = startLegendAssignment;
 			handle = editor.handle;
 			editor.view.scrollDOM.addEventListener('scroll', bumpScrollTick, { passive: true });
 			// The update bridge deliberately stays silent for the initial state
@@ -533,25 +528,21 @@
 	oncompositionstart={suppressOverlaysDuringComposition}
 ></div>
 
-{#if performerOpen && performerRange}
-	{#key legendAssignment?.step ?? 'selection'}
+{#if performerOverlay}
+	{#key legend?.step ?? 'selection'}
 		<PerformerPicker
 			performers={context.performers}
-			initialSelectedIds={legendAssignment
-				? legendAssignment.step === 'section'
-					? legendAssignment.sectionPerformerIds
-					: legendAssignment.styledPerformerIds
-				: performerIdsForRange(performerRange)}
-			prompt={legendAssignment
-				? legendAssignment.step === 'section'
-					? 'General section voice · 1 of 2'
-					: 'Styled passage · 2 of 2'
-				: undefined}
-			applyLabel={legendAssignment?.step === 'section' ? 'Next' : 'Apply'}
-			returnFocusOnApply={legendAssignment?.step !== 'section'}
-			allowRemoval={!legendAssignment}
-			anchor={activeAnchor(performerRange)}
-			placement={anchorPreference(performerRange)}
+			initialSelectedIds={legend
+				? legend.step === 'section'
+					? legend.sectionPerformerIds
+					: legend.styledPerformerIds
+				: performerIdsForRange(performerOverlay.range)}
+			prompt={legendPrompt}
+			applyLabel={legend?.step === 'section' ? 'Next' : 'Apply'}
+			returnFocusOnApply={legend?.step !== 'section'}
+			allowRemoval={!legend}
+			anchor={overlayAnchor}
+			placement={overlayPlacement}
 			onApply={applyPerformers}
 			onCancel={cancelPerformer}
 			{returnFocus}
@@ -560,39 +551,39 @@
 				: undefined}
 		/>
 	{/key}
-{/if}
-
-{#if sectionOpen && sectionRange}
+{:else if sectionOverlay}
 	<SectionPicker
 		languagePack={fallbackLanguagePack}
 		existingHeaders={existingHeaders()}
-		neighbors={sectionHeaderNeighbors(sectionRange)}
-		range={sectionRange}
-		anchor={activeAnchor(sectionRange)}
+		neighbors={sectionHeaderNeighbors(sectionOverlay.range)}
+		range={sectionOverlay.range}
+		anchor={overlayAnchor}
 		onChoose={chooseSection}
-		onCancel={() => (sectionOpen = false)}
+		onCancel={() => (session = closeOverlay(session))}
 		{returnFocus}
 	/>
-{/if}
-
-{#if activeDiagnostic}
+{:else if diagnosticOverlay}
 	<DiagnosticPopover
-		diagnostic={activeDiagnostic}
+		diagnostic={diagnosticOverlay.diagnostic}
 		sources={context.sources}
-		anchor={activeAnchor(activeDiagnostic)}
-		takeFocus={diagnosticTakesFocus}
+		anchor={overlayAnchor}
+		takeFocus={diagnosticOverlay.takesFocus}
 		onPreviewFix={previewFix}
 		onCancelPreview={clearFixPreview}
 		onApplyFix={applyFix}
-		onAssignPerformers={legendTarget(activeDiagnostic)
-			? () => activeDiagnostic && beginLegendAssignment(activeDiagnostic)
+		onChooseHeader={() => startHeaderChoice(diagnosticOverlay.diagnostic)}
+		onAssignPerformers={legendTarget(diagnosticOverlay.diagnostic)
+			? () => startLegendAssignment(diagnosticOverlay.diagnostic)
 			: undefined}
 		onIgnore={ignoreDiagnostic}
-		onDismiss={() => {
+		onDismiss={(heldFocus) => {
 			clearFixPreview();
-			activeDiagnostic = undefined;
-			diagnosticTakesFocus = false;
-			returnFocus();
+			session = closeOverlay(session);
+			// A card the pointer merely left never held focus; pulling the caret
+			// into the editor there would hijack whatever the user was typing in.
+			if (heldFocus) {
+				returnFocus();
+			}
 		}}
 	/>
 {/if}

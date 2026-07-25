@@ -1,0 +1,276 @@
+/* The linter tab: severity filters, diagnostic cards, severity chips, details, and ignored rules. */
+
+/* The linter tab is full-bleed: cards run edge to edge as square sections,
+   separated by slim bands of the darker panel canvas, as in the mockup. */
+.panel-content.linter-panel {
+	padding: 0;
+}
+
+/* Cards are edge to edge, but prose is not: inset the empty state to line up
+   with the filter row above it. */
+.linter-panel > .empty-state {
+	padding: var(--space-2) var(--space-3) var(--space-4);
+	margin: 0;
+}
+
+/* One short title naming the state, one muted line saying why and what to do.
+   Prose only — the bare panel canvas is the surface, not a box. */
+.diagnostic-list__empty {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.diagnostic-list__empty p {
+	margin: 0;
+	font-size: var(--font-size-sm);
+}
+
+.diagnostic-list__empty-title {
+	color: var(--color-text);
+	font-weight: var(--font-weight-semibold);
+}
+
+/* The list ends deliberately: a muted line after the last card says whether
+   anything else is hidden, so the canvas below never reads as an accident. */
+.linter-panel__afterword {
+	padding: var(--space-3) var(--space-3) var(--space-4);
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+/* Revealed by pressing the Linter tab a second time, so the chips hang from the
+   tab strip: no gap above them, and a rule below separating them from the run
+   of diagnostic cards. */
+.linter-panel__filters {
+	display: flex;
+	padding: var(--space-2) var(--space-3);
+	border-bottom: var(--border-width) solid var(--color-border);
+	flex-wrap: wrap;
+	gap: var(--space-1);
+	/* Chrome, like the tab strip it drops out of — the row is an extension of
+	   the tabs, not the first item in the list of diagnostics. */
+	background: var(--color-chrome);
+}
+
+.linter-panel__filter-chip {
+	display: inline-flex;
+	min-height: var(--control-height-sm);
+	padding: var(--space-0-5) var(--space-2-5);
+	border: var(--border-width) solid transparent;
+	border-radius: var(--radius-pill);
+	gap: var(--control-gap);
+	align-items: center;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	cursor: pointer;
+	transition:
+		background-color var(--duration-fast) var(--ease-out-quart),
+		color var(--duration-fast) var(--ease-out-quart),
+		border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.linter-panel__filter-chip:hover {
+	border-color: var(--color-border);
+	color: var(--color-text);
+}
+
+/*
+ * An unpressed chip reads as excluded through two cues that survive a
+ * greyscale print: the label is struck through, and the outline goes dashed at
+ * full strength. This used to be `opacity: 0.55`, which put the label at
+ * 3.1:1 and faded the dashed border to 1.0:1 against the panel — so the only
+ * real signal for "this severity is hidden" was a dimming effect, which is
+ * both an AA failure and state carried by nothing but color.
+ */
+.linter-panel__filter-chip[aria-pressed='false'] {
+	/* The muted text color rather than a border token: the dashed outline is a
+	   state indicator, so it owes the 3:1 a non-text UI component owes, and
+	   `--color-border-strong` only reaches 2.35:1 on the panel canvas. */
+	border-style: dashed;
+	border-color: var(--color-text-muted);
+	color: var(--color-text-muted);
+	text-decoration: line-through;
+	text-decoration-thickness: 1px;
+}
+
+.linter-panel__filter-chip[aria-pressed='false']:hover {
+	border-color: var(--color-text);
+	color: var(--color-text);
+}
+
+.linter-panel__filter-chip[aria-pressed='true'] {
+	background: var(--color-fill-strong);
+	color: var(--color-text);
+}
+
+.linter-panel__filter-chip--error[aria-pressed='true'] {
+	background: var(--color-danger-soft);
+	color: var(--color-danger);
+}
+
+.linter-panel__filter-chip--warning[aria-pressed='true'] {
+	background: var(--color-warning-soft);
+	color: var(--color-warning);
+}
+
+.linter-panel__filter-chip--suggestion[aria-pressed='true'] {
+	background: var(--color-suggestion-soft);
+	color: var(--color-suggestion);
+}
+
+/* A severity with nothing to show says so with its own count. It used to also
+   drop to `opacity: 0.45` — 2.2:1 — which made the zero it was trying to
+   communicate the hardest thing on the chip to read. */
+.linter-panel__filter-count {
+	min-width: 1.1em;
+	color: inherit;
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.linter-panel__filter-chip {
+		transition: none;
+	}
+}
+
+/* One continuous run, not a stack of separate cards: no gap, and a hairline
+   between neighbours is the only seam. */
+.diagnostic-list {
+	display: grid;
+	margin: 0;
+	padding: 0;
+	gap: 0;
+	list-style: none;
+}
+
+/* Square, borderless sections. Selection reads as depth rather than as another
+   box: the raised surface is the resting state, and the selected row drops to
+   the recessed level with an inner shadow, so it looks cut into the run.
+   `--color-canvas` is the elevation family's recessed level, not a fill step —
+   the rule a card must not cross is about the fill ramp. */
+.diagnostic-list > li {
+	border: 0;
+	border-bottom: var(--border-width) solid var(--color-border);
+	border-radius: 0;
+	background: var(--color-surface);
+}
+
+.diagnostic-list > li:last-child {
+	border-bottom: 0;
+}
+
+/*
+ * Selection is depth and nothing else. The active card — the one the editor is
+ * sitting in — used to add an accent wash and an inset accent ring on top of
+ * this, which put a blue box inside a panel whose whole job is to color things
+ * by severity. The recessed step is already unmistakable, and an active card is
+ * always the expanded one, so the two states share one treatment.
+ */
+.diagnostic-list > li.diagnostic-card--expanded,
+.diagnostic-list > li.diagnostic-card--active {
+	background: var(--color-canvas);
+	box-shadow: var(--shadow-recessed);
+}
+
+/* The card's whole face is the control, so the button — not the list item —
+   carries the card's padding: there is no dead margin around the heading where
+   a press lands on nothing. */
+.diagnostic-list__navigate {
+	display: grid;
+	width: 100%;
+	padding: var(--space-3) var(--space-4);
+	border: 0;
+	gap: var(--space-1);
+	justify-items: start;
+	background: transparent;
+	color: var(--color-text);
+	text-align: start;
+}
+
+/* Expanded, the button hands off to the details below it, so its bottom padding
+   becomes the seam between the two rather than a second full inset. */
+.diagnostic-card--expanded > .diagnostic-list__navigate {
+	padding-bottom: var(--space-2);
+}
+
+/*
+ * Hover belongs to the row now. The message used to turn accent and underline on
+ * hover, which made a heading inside a pressable card look like a link to
+ * somewhere else — and only the words were pressable, so the cue was also a lie
+ * about the target. The whole row lifts to the control hover fill instead, the
+ * same cue the picker rows use, and the title keeps its color.
+ */
+.diagnostic-list > li:not(.diagnostic-card--expanded) .diagnostic-list__navigate:hover {
+	background: var(--color-control-hover);
+}
+
+/* Inset, because a full-bleed row's ring would otherwise be drawn over the
+   hairline into the neighbouring card. */
+.diagnostic-list__navigate:focus-visible {
+	outline-offset: calc(-1 * var(--focus-ring-offset));
+}
+
+.diagnostic-list__title {
+	font-weight: var(--font-weight-bold);
+}
+
+.diagnostic-list__subtitle {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+/* The expanded card's body — severity tag, explanation, actions, sources — is
+   shared with the editor's diagnostic popover and styled in `diagnostics.css`.
+   What stays here is the run of cards itself. */
+.diagnostic-details {
+	display: grid;
+	padding: 0 var(--space-4) var(--space-3);
+	gap: var(--space-3);
+}
+
+.ignored-rules {
+	padding: var(--space-1) 0;
+}
+
+.ignored-rules__toggle {
+	display: flex;
+	width: 100%;
+	padding: var(--space-2) 0;
+	border: 0;
+	gap: var(--space-1);
+	align-items: center;
+	justify-content: space-between;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+}
+
+.ignored-rules__toggle:hover {
+	color: var(--color-text);
+}
+
+.ignored-rules__restore-hint {
+	color: var(--color-accent);
+	font-weight: var(--font-weight-bold);
+}
+
+.ignored-rules ul {
+	display: grid;
+	margin: var(--space-2) 0 0;
+	padding: 0;
+	gap: var(--space-2);
+	list-style: none;
+}
+
+.ignored-rules li,
+.merge-suggestions li {
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+	justify-content: space-between;
+}

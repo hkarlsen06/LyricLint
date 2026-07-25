@@ -1,0 +1,370 @@
+/* App shell: the workspace grid, the document toolbar, and the status bar. */
+
+/* `clip`, not `hidden`: a hidden box is still a scroll container, so a stray
+   `scrollIntoView` or focus call anywhere inside could scroll the whole shell
+   out of view with no scrollbar or wheel gesture to bring it back. Clipping
+   removes the scroll port itself, so the shell cannot move. */
+.workspace {
+	position: relative;
+	display: grid;
+	grid-template-columns: minmax(44rem, 1fr) minmax(21rem, 24rem);
+	grid-template-rows: auto minmax(0, 1fr) auto;
+	width: 100%;
+	height: 100vh;
+	overflow: clip;
+	background: var(--color-surface);
+}
+
+.editor-region {
+	display: grid;
+	min-width: 0;
+	min-height: 0;
+	grid-row: 2;
+	grid-template-rows: minmax(0, 1fr);
+}
+
+/* The full width of the window, above both columns. */
+.document-toolbar {
+	z-index: var(--layer-toolbar);
+	display: flex;
+	min-height: var(--header-height);
+	grid-row: 1;
+	grid-column: 1 / -1;
+	padding: var(--space-2) var(--space-3) var(--space-2);
+	border-bottom: var(--border-width) solid var(--color-border);
+	gap: var(--space-3);
+	align-items: center;
+	justify-content: space-between;
+	background: var(--color-chrome);
+}
+
+.document-toolbar__identity,
+.document-toolbar__commands {
+	display: flex;
+	min-width: 0;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+/* The identity strip absorbs the slack so the commands stay pinned right. Its
+   own gap is tighter than the toolbar's so the save glyph reads as part of the
+   title rather than as a third, separate item. */
+.document-toolbar__identity {
+	flex: 1 1 auto;
+	gap: var(--space-1);
+}
+
+.document-toolbar__commands {
+	flex: none;
+}
+
+/* Brand lockup. The brackets and the waveform are the product's own markup and
+   diagnostic vocabulary, so the glyph inherits the text color and the wave
+   carries the warning hue it has everywhere else.
+ *
+ * The mark and the wordmark are one object here, not two. `--wm-open` is the
+ * single 0-to-1 driver: 0 is the mark (brackets closed on the waveform), 1 is
+ * the wordmark (`Lyric[Lint]`). Every dimension, tint, and per-letter offset
+ * below is `calc()` off it, so the only thing that transitions is the number.
+ * That is what keeps a hover that interrupts the intro — or a pointer that
+ * leaves mid-open — from tearing the lockup into two half-states. It also means
+ * the easing is chosen once, and its overshoot past 1 (and dip below 0) is real
+ * and deliberate: the brackets fly a little wide before settling. Widths are
+ * clamped with `max()` because that dip would otherwise resolve negative.
+ *
+ * `@property` is what makes it interpolate at all — an unregistered custom
+ * property is a token substitution and transitions in one discrete step. */
+@property --wm-open {
+	syntax: '<number>';
+	inherits: true;
+	initial-value: 0;
+}
+
+.app-wordmark {
+	--wm-open: 0;
+
+	/* Bracket height, and the two widths of the space between the brackets. The
+	   open width is `ch` and the lockup is monospaced, so it is exactly the four
+	   advances of `Lint` — which is why `letter-spacing` stays at zero here, as
+	   any tracking would add a fifth gap the bracket has no room for. */
+	--wm-bracket-height: 1.05em;
+	--wm-slot-closed: 0.95em;
+	--wm-slot-open: 4ch;
+	--wm-lead-open: 5ch;
+	--wm-slot-width: max(
+		0px,
+		calc(var(--wm-slot-closed) + var(--wm-open) * (var(--wm-slot-open) - var(--wm-slot-closed)))
+	);
+
+	/* Per-letter fan-out. A letter's own 0-to-1 progress is a window on the
+	   master: it opens at `--wm-delay` plus a slice of `--wm-stagger` for its
+	   index, and closes `--wm-span` later. The two words get different windows
+	   because they are two different gestures, and they must not collide — the
+	   waveform has to be flat and gone before `Lint` starts growing out of the
+	   line it left behind, or both are smeared across the same band at once.
+
+	   `--wm-fan` is how far each letter is pulled back toward the one before it.
+	   It is a length rather than a fraction of the master on purpose: a fan that
+	   simply scaled with progress closes the pitch below the width of a glyph
+	   partway through, and the word turns into a smear of overlapping ink. */
+	--wm-delay: 0;
+	--wm-stagger: 0.09;
+	--wm-span: 0.3;
+	--wm-lift: 0em;
+	--wm-squash: 1;
+	--wm-fan: 0px;
+
+	/* The waveform's whole life, as a fraction of the transition. */
+	--wm-wave-out: 0.42;
+
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	color: var(--color-text);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-lg);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0;
+	line-height: 1;
+	white-space: nowrap;
+	transition: --wm-open var(--duration-brand) var(--ease-spring-out);
+	user-select: none;
+}
+
+/* Open on load (`intro`), open while pointed at, and open permanently where the
+   lockup is the page's subject or the user asked for less motion (`static`). */
+.app-wordmark[data-state='intro'],
+.app-wordmark[data-state='static'],
+.app-wordmark[data-state='idle']:hover {
+	--wm-open: 1;
+}
+
+/* Two boxes whose widths are the animation: the lead grows from nothing and
+   pushes the brackets right, and the slot between the brackets grows from the
+   waveform's width to the width of the word. */
+.app-wordmark__lead,
+.app-wordmark__slot {
+	position: relative;
+	flex: none;
+	height: var(--wm-bracket-height);
+}
+
+/* Clipped, because the lead is a wipe: the letters are uncovered at the growing
+   edge, which is exactly where the left bracket is, so they appear to slide out
+   from behind it. Clipping is free here and only here — the lead is the half of
+   the lockup with no vertical motion to shear off. */
+.app-wordmark__lead {
+	width: max(0px, calc(var(--wm-open) * var(--wm-lead-open)));
+	overflow: hidden;
+}
+
+.app-wordmark__slot {
+	width: var(--wm-slot-width);
+}
+
+/* The brackets are the mark's own paths, not typographic `[` and `]`, so the
+   closed lockup is the mark rather than a lookalike. They tint toward the
+   warning hue as they open, which is the color the wordmark's brackets have
+   always had — the two brands meet in the middle of the transition instead of
+   one of them winning. Their arms reach out a little as they travel. */
+.app-wordmark__bracket {
+	/* Stated rather than left to the intrinsic ratio, so the lockup's width does
+	   not depend on how a browser sizes an `auto` replaced element in a flex row.
+	   4.9 by 17.2 is the painted bounds of the mark's bracket, stroke included. */
+	width: calc(var(--wm-bracket-height) * 4.9 / 17.2);
+	height: var(--wm-bracket-height);
+	flex: none;
+	stroke: color-mix(in oklab, var(--color-warning) calc(var(--wm-open) * 100%), var(--color-text));
+	stroke-width: 2.2;
+	transform: scaleX(calc(1 + var(--wm-open) * 0.14)) scaleY(calc(1 + var(--wm-open) * 0.05));
+}
+
+.app-wordmark__bracket--open {
+	transform-origin: left center;
+}
+
+.app-wordmark__bracket--close {
+	transform-origin: right center;
+}
+
+/* Fills the slot, so opening the brackets stretches the waveform horizontally
+   for free. `preserveAspectRatio: none` and the flatten below both distort the
+   geometry, so the stroke is taken out of user space entirely — and given an
+   `em` width, which keeps it locked to the type at any brand size. */
+.app-wordmark__wave {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.app-wordmark__wave path {
+	stroke: var(--color-warning);
+	stroke-width: 0.13em;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+	/* Collapses onto the text baseline rather than onto its own centre — 77% of
+	   the bracket's height is where the letters sit — so the waveform does not
+	   just vanish, it becomes the line `Lint` then grows out of. It is finished
+	   in the first `--wm-wave-out` of the transition, before that growth starts. */
+	transform: scaleY(max(0, calc(1 - var(--wm-open) / var(--wm-wave-out))));
+	transform-box: view-box;
+	transform-origin: 50% 77%;
+	opacity: clamp(0, calc((1 - var(--wm-open) / var(--wm-wave-out)) * 1.6), 1);
+}
+
+/* Out of flow and `max-content` wide: the row of letters must never be what
+   sizes the box, because the box's width is the animation. That row is wider
+   than the closed lockup and unclipped inside the brackets, so it is taken out
+   of hit testing too — otherwise the mark answers to a hover over the empty
+   toolbar half an inch to its right, where nothing is drawn. */
+.app-wordmark__letters,
+.app-wordmark__wave {
+	pointer-events: none;
+}
+
+.app-wordmark__letters {
+	position: absolute;
+	inset-block: 0;
+	left: 0;
+	display: flex;
+	width: max-content;
+	align-items: center;
+}
+
+/* `Lyric` is uncovered, not assembled: the left bracket sweeps right off it. So
+   its letters never move — no fan at all — and the clip edge is the whole
+   gesture. Each letter's fade is timed to land as that edge passes it, one
+   fifth of the transition apart, which is the pitch the box opens at. */
+.app-wordmark__lead .app-wordmark__letters {
+	--wm-delay: 0.05;
+	--wm-stagger: 0.18;
+	--wm-span: 0.22;
+}
+
+/* `Lint` is grown: it waits for the waveform to finish flattening, then rises
+   off that line, squashed at the start so it reads as extruded rather than as
+   text sliding up. Nothing clips it — the rise would be sheared off — so
+   instead it is spaced against the slot's live width, each letter sitting on
+   its quarter of whatever the brackets currently hold, and the last two are
+   held back until there is width to hold them. */
+.app-wordmark__letters--inner {
+	--wm-delay: 0.4;
+	--wm-stagger: 0.15;
+	--wm-span: 0.16;
+	--wm-lift: 0.06em;
+	--wm-squash: 0.14;
+	--wm-fan: calc(var(--wm-slot-width) / 4 - 1ch);
+}
+
+/* Each letter carries its index, so its own 0-to-1 progress is a shifted window
+   on the master. Compressing the letters back onto the stack point by their
+   index is what makes the fan exact: at half open the pitch is half a character,
+   so the row is always as wide as the box that holds it. */
+.app-wordmark__letter {
+	--wm-letter: clamp(
+		0,
+		calc((var(--wm-open) - var(--wm-delay) - var(--wm-index) * var(--wm-stagger)) / var(--wm-span)),
+		1
+	);
+
+	display: inline-block;
+	flex: none;
+	transform: translateX(calc(var(--wm-index) * var(--wm-fan)))
+		translateY(calc((1 - var(--wm-letter)) * var(--wm-lift)))
+		scaleY(calc(var(--wm-squash) + var(--wm-letter) * (1 - var(--wm-squash))));
+	/* The same 77% the waveform flattens onto — the letter grows off the line the
+	   waveform left, not off the bottom of its own box, which is a descender's
+	   depth below the baseline and would extrude the word out of the bracket. */
+	transform-origin: 50% 77%;
+	opacity: var(--wm-letter);
+}
+
+/* Suppressed rather than shortened: the lockup has no state to report, so a
+   faster version of it would be motion with nothing to say. `static` is set on
+   the element by the component, which reads the same preference. */
+@media (prefers-reduced-motion: reduce) {
+	.app-wordmark {
+		transition: none;
+	}
+}
+
+/* The brand and the draft name are adjacent bold strings, so the lockup buys a
+   little extra room to keep the two from reading as one phrase. */
+.document-toolbar__identity > .app-wordmark {
+	margin-inline-end: var(--space-2);
+}
+
+/* Hugs its own text so the save status sits right beside the title instead of
+   being pushed out by a fixed-width field. `size` covers browsers without
+   `field-sizing`. It sits one step below the wordmark's weight so the brand and
+   the document name stay distinguishable side by side. */
+.draft-title {
+	width: auto;
+	min-width: 4rem;
+	max-width: min(18rem, 30vw);
+	border-color: transparent;
+	background: transparent;
+	field-sizing: content;
+	font-size: var(--font-size-md);
+	font-weight: var(--font-weight-semibold);
+}
+
+.draft-title:hover,
+.draft-title:focus {
+	border-color: var(--color-border-input);
+	background: var(--color-surface);
+}
+
+/* The healthy states render as a bare glyph, so the gap and type here only come
+   into play for the failed state, which keeps its label. */
+.save-status {
+	display: inline-flex;
+	gap: var(--space-1-5);
+	align-items: center;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+	white-space: nowrap;
+}
+
+.save-status__icon {
+	flex: none;
+}
+
+.save-status.failed {
+	color: var(--color-danger);
+	font-weight: var(--font-weight-semibold);
+}
+
+.status-bar {
+	display: flex;
+	grid-row: 3;
+	grid-column: 1 / -1;
+	min-height: var(--control-height-md);
+	padding: var(--space-1) var(--space-3);
+	border-top: var(--border-width) solid var(--color-border);
+	gap: var(--space-4);
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	background: var(--color-chrome);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-variant-numeric: tabular-nums;
+}
+
+.status-bar__group {
+	display: inline-flex;
+	gap: var(--space-4);
+	flex-wrap: wrap;
+	align-items: center;
+}
+
+.status-bar__hints kbd {
+	padding: var(--space-0-5) var(--space-1);
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-xs);
+	background: var(--color-surface);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-2xs);
+}

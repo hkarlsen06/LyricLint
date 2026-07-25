@@ -1,7 +1,7 @@
 import { EditorState, Transaction } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
-import { parseDocument } from '../../core/parser.js';
-import { cleanupLegendSlots } from '../../performers/legend-cleanup.js';
+import { parseDocument } from '$lib/core/parser.js';
+import { cleanupLegendSlots } from '$lib/performers/legend-cleanup.js';
 import { editorComposingField } from './editor-state.js';
 
 /**

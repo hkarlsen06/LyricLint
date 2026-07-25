@@ -1,10 +1,10 @@
-import type { LanguagePack } from '../../core/types.js';
+import type { LanguagePack } from '$lib/core/types.js';
 import {
 	getLanguagePack,
 	canLintHeaderLanguage,
 	reviewedLanguagePacks
-} from '../../languages/registry.js';
-import type { RuleDefinition } from '../../core/types.js';
+} from '$lib/languages/registry.js';
+import type { RuleDefinition } from '$lib/core/types.js';
 import { localizedHeaderPreference } from './section-localized-header-preference.js';
 import { diagnostic, replacementFix } from './utils.js';
 

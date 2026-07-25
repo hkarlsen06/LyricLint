@@ -12,7 +12,12 @@ The canonical implementation is `src/lib/ui/styles/tokens.css`. Components consu
 
 ### Color
 
-- Canvas and surface tokens establish hierarchy: `--color-canvas`, `--color-surface`, `--color-surface-subtle`, `--color-surface-strong`, and `--color-overlay`.
+- Surfaces come in two families with different jobs, and the split is load-bearing.
+  - **Elevation** is `--color-canvas` (recessed) and `--color-surface` (raised), plus `--color-overlay`. Two levels, deliberately. The light theme runs out of headroom just short of white, so anything above `--color-surface` earns its place with a shadow rather than more lightness.
+  - **Fill** is `--color-fill-subtle` → `--color-fill` → `--color-fill-strong`, stepping from the surface _toward the text color_: darker in light, lighter in dark. Because the direction is perceptual rather than a lightness value, hover, selection, and emphasis read the same way in both themes. `--color-chrome` aliases the first step for flat bands like the toolbar and status bar.
+  - A card or panel never takes a fill step deeper than `--color-fill-subtle`, so no card can cross its own canvas. Dropping a row to `--color-canvas` to mark it as recessed is the elevation family, not the fill ramp, and is allowed — that is what the recessed level is for.
+  - The dark anchors are charcoal, not near-black. A canvas down at the bottom of the range compresses every level above it into the darkest fifth, which is how a tab strip and the list beneath it ended up reading as one unbroken black field. Surfaces also carry very little chroma, so a violet cast never competes with the diagnostics colored on top of them.
+- Every performer identity has a solid (`--performer-*`, the roster swatch and picker dot) and a tint (`--performer-*-tint`, the editor's text background) on the same hue. Hues stay fixed across themes; only lightness and chroma move.
 - Text and borders use `--color-text`, `--color-text-muted`, `--color-border`, and `--color-border-strong`.
 - Controls use the `--color-control-*` family.
 - Accent is reserved for primary action, selection, and current state.
@@ -21,31 +26,38 @@ The canonical implementation is `src/lib/ui/styles/tokens.css`. Components consu
 
 ### Typography
 
-- UI: `--font-ui`
-- Source and markup: `--font-mono`
+- UI: `--font-ui` — IBM Plex Sans, shipped as a self-hosted variable face.
+- Source and markup: `--font-mono` — IBM Plex Mono, shipped as self-hosted static weights, since no variable cut of Plex Mono exists.
 - Fixed product scale: `--font-size-2xs` through `--font-size-xl`
 - Line-height roles: tight headings, compact UI, body copy, and editor text
-- Weight roles: regular, medium, semibold, bold, and heavy
+- Weight roles: regular, medium, semibold, bold, and heavy — but IBM Plex tops out at 700, so `--font-weight-heavy` (750) renders identically to bold. Treat the scale as four distinct faces and do not use heavy to mean "heavier than bold".
 
-Body text is `--font-size-md`; compact metadata is `--font-size-xs` or `--font-size-sm`. Prose explanations should remain below 70 characters per line where layout permits.
+Both faces are self-hosted from `static/fonts` and declared in `src/lib/ui/styles/fonts.css`. The mono faces carry explicit `font-weight` _ranges_ rather than single values: with static weights and default CSS matching, 550 would resolve to the 600 face and 650 to the 700 face, silently collapsing medium, semibold, and bold into one another in the editor.
+
+Body text is `--font-size-md`; compact metadata is `--font-size-xs` or `--font-size-sm`.
+
+Line length is a token, not a per-component decision: `--measure-prose` (66ch) caps explanatory copy, and `--measure-editor` (76ch) caps both the CodeMirror surface and the mock editor so the two wrap at the same column. A measure cap belongs to the text, never to a box that also carries structure — a `max-width` on an element drawing a divider shortens the divider with it, so cap such an element with end padding instead and let its border box span the surface.
 
 ### Spacing and Shape
 
 - Spacing follows the `--space-*` scale from 0.125rem to 3rem.
 - Standard controls use `--radius-control`.
 - Panels use `--radius-panel`; floating overlays use `--radius-overlay`.
-- Pills are reserved for compact categorical chips and badges, not ordinary action buttons.
+- Pills are reserved for compact categorical chips and badges, not ordinary action buttons. A chip that is a label rather than a control — the severity tag on a diagnostic card — squares off to `--radius-xs` instead, so shape distinguishes what is pressable from what is stamped.
 - Circular icon targets use `--radius-round`.
 
-All ordinary buttons share the same control radius, height, padding, focus ring, disabled opacity, and state transition. A control may change emphasis through color or border, not through an unrelated silhouette.
+All ordinary buttons share the same control radius, height, padding, focus ring, disabled treatment, and state transition. A control may change emphasis through color or border, not through an unrelated silhouette.
 
 ### Interaction
 
 - Standard control heights are small, medium, and large.
 - Focus uses `--focus-ring-width`, `--focus-ring-offset`, and `--color-focus`.
-- State transitions use 120 to 240 milliseconds and `--ease-out-quart`.
+- State transitions use 120 to 240 milliseconds and `--ease-out-quart`. The cap is what it costs to answer an action: the result has to be settled before the user looks for it, and an overshoot past the target reads as the control missing and correcting. Nothing that reports state may reach past this.
+- The brand lockup is the one exception, and it is one because it reports nothing: `--duration-brand` and `--ease-spring-out` exist for it alone. Its easing overshoots on purpose.
 - Reduced-motion preferences suppress transitions and animations.
-- Disabled controls retain legibility and use `--opacity-disabled`.
+- Disabled controls recede through `--color-text-disabled`, `--color-control-disabled`, and `--color-border-disabled` — never through opacity.
+- Every transient surface — picker, popover, menu — is dismissed three ways, and all three are required: `Escape`, its own closing control, and a pointer press outside it. The outside press is read on `pointerdown` and never moves focus: the press has already named where the user is going. Modal dialogs get the same behavior from their backdrop. The closing control covers an exit the user cannot see; a surface that closes itself on the pointer path — the hovered diagnostic popover, which ends when the pointer leaves — drops it rather than parking a second quiet button beside a consequential one.
+- Opacity is never a state carrier anywhere in the system. It stacks, it drags contrast below AA, and it fades the border and focus ring along with the label. State that must be seen is carried by an opaque color plus a non-color cue (a strikethrough, a border style, an icon).
 
 ### Elevation and Layers
 
@@ -55,12 +67,18 @@ All ordinary buttons share the same control radius, height, padding, focus ring,
 
 ## Component Rules
 
-- Ordinary actions use `.button`; icon-only actions use `.icon-button`.
-- Primary actions add `.button--primary`; quiet actions add `.button--quiet`.
-- `.button--pill` is limited to chips or unusually compact categorical actions.
+- There are exactly three button tiers, keyed to the _action_ and never to the surface it happens to sit on:
+  - `.button--quiet` — borderless text button, for reversible and secondary actions.
+  - `.button` — bordered default, for ordinary actions. Icon-only actions use `.icon-button`.
+  - `.button--contrast` — theme-inverting, for the one destination action per surface.
+- `.button--danger` is a color modifier on the contrast tier and `.danger-text` on the quiet tier; neither is a fourth tier. There is no `.button--primary` — an accent-filled button duplicated the contrast tier's role, which is how one command ended up rendered two different ways on screen at once.
+- One command gets one emphasis. If the same action appears on two surfaces, the surface that owns it takes the contrast tier and the other steps down to the default.
+- There is no pill-shaped button variant; compact categorical elements are chips and badges, not buttons.
 - Inputs, selects, and textareas share control surface, border, height, radius, focus, hover, disabled, and error vocabulary.
 - Diagnostic cards use severity colors only for labels and state emphasis. The source explanation remains neutral.
-- Preview, apply, cancel, and ignore actions must use the same control geometry even when their emphasis differs.
+- Every decision about a diagnostic — the fix, ignore, the guided actions, a popover's close — shares one control geometry and one type size, in one row, in one order. Emphasis is carried by the button tier alone.
+- A proposed edit is shown in the document as a diff — outgoing text struck through in `--color-danger`, incoming text washed in `--color-suggestion` — rather than behind a preview step. The surface that shows it offers one control for the fix, labelled with the fix itself (`Replace with Don't`), never with a verb prefixed to a label that is already a command.
+- A diagnostic looks the same wherever it is shown. The linter panel's card and the editor's popover render the same severity tag, action row, and provenance from the same components; each adds only its own chrome.
 - Performer identity must include text or markup cues in addition to color.
 
 ## Accessibility

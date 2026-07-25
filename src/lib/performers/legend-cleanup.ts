@@ -4,7 +4,7 @@ import type {
 	StyleSlot,
 	SupportedStyleSpan,
 	TextEdit
-} from '../core/types.js';
+} from '$lib/core/types.js';
 
 function supportedSpans(section: Section): { line: number; spans: SupportedStyleSpan[] }[] {
 	return section.lines.map((line, index) => ({

@@ -1,4 +1,4 @@
-import type { RuleDefinition } from '../../core/types.js';
+import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic } from './utils.js';
 
 export const performerTooManyGroupsRule: RuleDefinition = {

@@ -30,7 +30,7 @@ describe('DraftMenu', () => {
 		});
 		await controller.refreshDrafts();
 		render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByText('Drafts'));
+		await fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
 
 		await fireEvent.click(screen.getByRole('button', { name: /^Second song/ }));
 		expect(controller.draftId).toBe('draft-2');
@@ -78,5 +78,43 @@ describe('DraftMenu', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete all local data…' }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete all' }));
 		expect(await repository.list()).toEqual([]);
+	});
+
+	test('closes on a press outside, abandoning any pending confirm', async () => {
+		const { controller } = createTestWorkbench();
+		await controller.refreshDrafts();
+		render(DraftMenu, { controller });
+		const trigger = screen.getByRole('button', { name: 'Drafts' });
+		await fireEvent.click(trigger);
+		const menu = trigger.closest('details')!;
+		// The native `toggle` event lands a task after the click, and it is what
+		// tells the component it is open; wait for the expansion state to say so.
+		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete all local data…' }));
+		expect(screen.getByRole('button', { name: 'Delete all' })).toBeTruthy();
+
+		await fireEvent.pointerDown(document.body);
+		await waitFor(() => expect(menu.open).toBe(false));
+
+		// Reopening must not present the confirm the user walked away from.
+		await fireEvent.click(trigger);
+		expect(screen.queryByRole('button', { name: 'Delete all' })).toBeNull();
+	});
+
+	test('keeps the menu open for a press on the summary or inside the popover', async () => {
+		const { controller } = createTestWorkbench();
+		await controller.refreshDrafts();
+		render(DraftMenu, { controller });
+		const trigger = screen.getByRole('button', { name: 'Drafts' });
+		await fireEvent.click(trigger);
+		const menu = trigger.closest('details')!;
+		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
+
+		// The attachment sits on the `<details>`, so the summary counts as inside
+		// and the native toggle keeps owning it.
+		await fireEvent.pointerDown(trigger);
+		await fireEvent.pointerDown(screen.getByText('Saved drafts'));
+		expect(menu.open).toBe(true);
 	});
 });

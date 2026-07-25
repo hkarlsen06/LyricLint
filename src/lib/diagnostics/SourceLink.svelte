@@ -1,16 +1,10 @@
 <script lang="ts">
 	import type { SourceReference } from '$lib/core/types.js';
+	import { safeExternalUrl } from './source-url.js';
 
 	let { source }: { source: SourceReference } = $props();
 
-	const safeUrl = $derived.by(() => {
-		try {
-			const url = new URL(source.url);
-			return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : undefined;
-		} catch {
-			return undefined;
-		}
-	});
+	const safeUrl = $derived(safeExternalUrl(source.url));
 </script>
 
 <div class="source-reference">

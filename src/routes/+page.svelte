@@ -118,8 +118,8 @@
 </script>
 
 <svelte:head>
+	<!-- The description lives in the layout; the page only owns its title. -->
 	<title>LyricLint</title>
-	<meta name="description" content="Local-first lyric editor and linter for Genius conventions." />
 </svelte:head>
 
 {#if controller}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
+	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import { tick } from 'svelte';
 
 	let { controller, open = $bindable(false) }: { controller: WorkbenchController; open?: boolean } =
@@ -28,6 +29,20 @@
 		return action();
 	}
 
+	// A press outside the menu closes it. The attachment sits on the `<details>`,
+	// so a press on the summary is inside and the native toggle still owns it.
+	// Leaving the menu abandons any pending confirm too — reopening it must not
+	// present a primed "Delete all" the user has already walked away from.
+	function dismiss(): void {
+		if (!open) {
+			return;
+		}
+		open = false;
+		renameId = undefined;
+		deleteId = undefined;
+		confirmDeleteAll = false;
+	}
+
 	async function deleteDraftAndMoveFocus(id: string, trigger: HTMLButtonElement): Promise<void> {
 		const nextDraft = trigger
 			.closest('li')
@@ -43,23 +58,27 @@
 	}
 </script>
 
-<details class="draft-menu" bind:open>
+<details class="draft-menu" bind:open {@attach dismissOnOutside(dismiss)}>
 	<!-- The .button flex styling strips the summary's implicit disclosure role in
 	     Chromium, so restate the button semantics and expansion state explicitly.
 	     Svelte considers the role redundant, but real browsers expose the styled
 	     summary as generic without it. -->
 	<!-- svelte-ignore a11y_no_redundant_roles -->
+	<!-- Icon only: the folder is the whole control, so the name it used to spell
+	     out lives in the accessible name and the native tooltip instead. -->
 	<summary
-		class="button button--quiet draft-menu__trigger"
+		class="button button--quiet icon-button draft-menu__trigger"
 		role="button"
+		aria-label="Drafts"
+		title="Drafts"
 		aria-expanded={open}
 		bind:this={menuTrigger}
 	>
 		<svg
 			aria-hidden="true"
 			viewBox="0 0 16 16"
-			width="14"
-			height="14"
+			width="15"
+			height="15"
 			fill="none"
 			stroke="currentColor"
 			stroke-width="1.5"
@@ -70,14 +89,13 @@
 				d="M1.8 4.2a1 1 0 0 1 1-1h3.1l1.6 1.6h5.7a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H2.8a1 1 0 0 1-1-1Z"
 			/>
 		</svg>
-		<span>Drafts</span>
 	</summary>
 	<div class="draft-menu__popover">
 		<div class="draft-menu__heading">
 			<strong>Saved drafts</strong>
 			<button
 				type="button"
-				class="button button--primary"
+				class="button button--contrast"
 				onclick={() => closeAnd(() => controller.createDraft())}
 			>
 				New draft
@@ -96,7 +114,7 @@
 							<form class="inline-form" onsubmit={(event) => submitRename(event, draft.id)}>
 								<label class="sr-only" for={`rename-${draft.id}`}>Draft title</label>
 								<input id={`rename-${draft.id}`} bind:value={renameValue} />
-								<button class="button button--primary" type="submit">Save</button>
+								<button class="button button--contrast" type="submit">Save</button>
 								<button
 									class="button button--quiet"
 									type="button"

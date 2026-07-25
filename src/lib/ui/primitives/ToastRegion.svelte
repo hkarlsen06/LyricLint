@@ -45,11 +45,22 @@
 				{/if}
 				<button
 					type="button"
-					class="icon-button"
+					class="icon-button button--quiet"
 					aria-label="Dismiss notification"
 					onclick={() => feedback.dismissToast(toast.id)}
 				>
-					×
+					<svg
+						aria-hidden="true"
+						viewBox="0 0 16 16"
+						width="16"
+						height="16"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+					>
+						<path d="m4 4 8 8M12 4l-8 8" />
+					</svg>
 				</button>
 			</div>
 		</div>

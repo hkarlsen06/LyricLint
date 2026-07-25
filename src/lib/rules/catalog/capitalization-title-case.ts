@@ -1,4 +1,4 @@
-import type { Diagnostic, RuleDefinition } from '../../core/types.js';
+import type { Diagnostic, RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, hasUnsupportedMarkup, maskedMarkupText } from './utils.js';
 
 function looksTitleCased(text: string): boolean {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '../core/parser.js';
-import type { PerformerRecord } from '../core/types.js';
+import { parseDocument } from '$lib/core/parser.js';
+import type { PerformerRecord } from '$lib/core/types.js';
 import {
 	findHeaderRenameTargets,
 	headerNameAtoms,

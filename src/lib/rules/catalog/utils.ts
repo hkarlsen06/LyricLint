@@ -5,7 +5,7 @@ import type {
 	RuleContext,
 	RuleDefinition,
 	TextRange
-} from '../../core/types.js';
+} from '$lib/core/types.js';
 
 export function diagnostic(
 	rule: RuleDefinition,
@@ -27,12 +27,6 @@ export function diagnostic(
 	};
 }
 
-function contextRevision(context: RuleContext): number {
-	// The frozen RuleContext currently omits revision. Accept an integration extension
-	// when present and use the parser's initial revision otherwise.
-	return (context as RuleContext & { revision?: number }).revision ?? 0;
-}
-
 export function replacementFix(
 	context: RuleContext,
 	kind: DiagnosticFix['kind'],
@@ -44,7 +38,7 @@ export function replacementFix(
 		kind,
 		label,
 		edit: {
-			baseRevision: contextRevision(context),
+			baseRevision: context.revision,
 			edits: [{ from: range.from, to: range.to, insert }]
 		}
 	};

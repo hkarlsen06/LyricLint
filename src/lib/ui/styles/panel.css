@@ -1,0 +1,146 @@
+/* The right panel: its column, header, tabs, and generic panel content. */
+
+.right-panel {
+	min-width: 0;
+	height: 100%;
+	min-height: 0;
+	overflow: hidden;
+	grid-row: 2;
+	border-left: var(--border-width) solid var(--color-border);
+	background: var(--color-canvas);
+}
+
+/* Bits UI renders Tabs.Root as a plain div; it must become the column that
+   pins the header on top and the ignored-rules footer at the bottom. */
+.right-panel__tabs-root {
+	display: flex;
+	height: 100%;
+	min-height: 0;
+	flex-direction: column;
+}
+
+/* Positioned so it is the containing block for anything absolute inside the
+   diagnostic cards; otherwise such a box resolves against the shell and its
+   offset down this long list leaks out as shell-level scrollable overflow. */
+.right-panel__body {
+	position: relative;
+	min-height: 0;
+	flex: 1;
+	overflow: auto;
+}
+
+/* Chrome at both ends of the panel: the tab strip above, this below, and the
+   scrolling list of diagnostics framed between them. */
+.right-panel__footer {
+	flex: none;
+	padding: 0 var(--space-4);
+	border-top: var(--border-width) solid var(--color-border);
+	background: var(--color-chrome);
+}
+
+/* The tab strip sits under the full-width toolbar rather than beside it, so it
+   is no longer bound to `--header-height`; it takes the shorter height a strip
+   of three labels actually needs. It is chrome, like the toolbar above it and
+   the status bar below — on the panel canvas it read as one unbroken black
+   field with the list it was supposed to be labelling. */
+.right-panel__header {
+	z-index: calc(var(--layer-toolbar) - 1);
+	display: flex;
+	min-height: var(--panel-tabs-height);
+	flex: none;
+	padding: 0 var(--space-3);
+	border-bottom: var(--border-width) solid var(--color-border);
+	align-items: center;
+	background: var(--color-chrome);
+}
+
+.panel-tabs {
+	display: flex;
+	align-self: stretch;
+	gap: var(--space-4);
+}
+
+.panel-tabs button {
+	position: relative;
+	padding: 0 var(--space-1);
+	border: 0;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-weight: var(--font-weight-semibold);
+}
+
+.panel-tabs button[data-state='active'] {
+	color: var(--color-text);
+}
+
+.panel-tabs button[data-state='active']::after {
+	position: absolute;
+	right: 0;
+	bottom: -1px;
+	left: 0;
+	height: 2px;
+	background: var(--color-text);
+	content: '';
+}
+
+.tab-count {
+	display: inline-grid;
+	min-width: 1.2rem;
+	height: 1.2rem;
+	margin-inline-start: var(--space-1);
+	padding: 0 0.3rem;
+	place-items: center;
+	border-radius: var(--radius-pill);
+	background: var(--color-warning);
+	color: var(--color-canvas);
+	font-size: var(--font-size-2xs);
+	font-weight: var(--font-weight-heavy);
+	font-variant-numeric: tabular-nums;
+}
+
+.panel-content {
+	padding: var(--space-4);
+}
+
+.panel-content > :first-child {
+	margin-top: 0;
+}
+
+.panel-content h3 {
+	margin: 0 0 var(--space-3);
+	font-size: var(--font-size-lg);
+	line-height: var(--line-height-tight);
+}
+
+.empty-state,
+.offline-note,
+.panel-content section > p {
+	color: var(--color-text-muted);
+}
+
+/* Prose measure, in two mechanisms, because "panel paragraph" spans two
+   categories.
+
+   .empty-state and .offline-note are pure text: the box is nothing but the
+   words, so capping the box with max-width caps the text and nothing else.
+   (linter.css also relies on being able to restyle .empty-state's padding,
+   so its cap must stay a max-width, not padding.)
+
+   A section's own paragraphs, however, can carry structure as well as prose:
+   .roster-hint (performers.css) draws the roster's top divider with a
+   border-top. A max-width on that box shortened the divider to ~66ch while
+   the .performer-row rules right below it spanned the full panel — a measure
+   cap for readable prose applied to an element doing structural duty. So for
+   section paragraphs the cap is end padding instead: the line box still stops
+   at 66ch, but the border box — and any rule drawn on it — spans the panel.
+   The :not() keeps the two mechanisms from stacking when one of the pure-text
+   classes sits directly in a section (max-width 66ch plus (100% - 66ch) of
+   padding would squeeze the text twice). */
+.empty-state,
+.offline-note {
+	max-width: var(--measure-prose);
+}
+
+.panel-content section > p:not(.empty-state, .offline-note) {
+	padding-inline-end: max(0px, calc(100% - var(--measure-prose)));
+}

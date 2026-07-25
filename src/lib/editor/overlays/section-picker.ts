@@ -1,4 +1,4 @@
-import type { HeaderVocabulary, LanguagePack } from '../../core/types.js';
+import type { HeaderVocabulary, LanguagePack } from '$lib/core/types.js';
 
 export interface SectionHeaderOption {
 	label: string;

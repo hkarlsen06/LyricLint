@@ -1,4 +1,4 @@
-import type { RuleDefinition, Section, TextEdit } from '../../core/types.js';
+import type { RuleDefinition, Section, TextEdit } from '$lib/core/types.js';
 import { diagnostic } from './utils.js';
 
 function removePerformerFormatting(section: Section): TextEdit[] {

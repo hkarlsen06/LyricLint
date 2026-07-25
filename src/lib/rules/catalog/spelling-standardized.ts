@@ -1,4 +1,4 @@
-import type { RuleDefinition } from '../../core/types.js';
+import type { RuleDefinition } from '$lib/core/types.js';
 import { lookupSpellingCandidates } from '../data/spelling.js';
 import { diagnostic, hasUnsupportedMarkup, replacementFix } from './utils.js';
 

@@ -19,6 +19,7 @@ const reviewedIds = [
 	'G-LANG-JA',
 	'G-LANG-KO',
 	'G-NUMBERS',
+	'APPLE-LINE-PUNCTUATION',
 	'G-QE-MARKS',
 	'G-DASHES',
 	'G-CAPS',
@@ -44,12 +45,25 @@ describe('source registry', () => {
 	it('contains every reviewed source with exact review dates', () => {
 		expect(() => assertReviewedSources(reviewedIds)).not.toThrow();
 		for (const id of reviewedIds) {
-			expect(getSource(id)).toMatchObject({
-				id,
-				retrievedAt: '2026-07-24',
-				lastVerifiedAt: '2026-07-24',
-				reviewStatus: 'reviewed'
-			});
+			const lastVerifiedAt =
+				id === 'APPLE-LINE-PUNCTUATION' || id === 'G-ADD-SONGS' || id === 'G-QE-MARKS'
+					? '2026-07-25'
+					: '2026-07-24';
+			expect(getSource(id)).toMatchObject(
+				id === 'APPLE-LINE-PUNCTUATION'
+					? {
+							id,
+							retrievedAt: '2026-07-25',
+							lastVerifiedAt,
+							reviewStatus: 'reviewed'
+						}
+					: {
+							id,
+							retrievedAt: '2026-07-24',
+							lastVerifiedAt,
+							reviewStatus: 'reviewed'
+						}
+			);
 		}
 	});
 
@@ -60,7 +74,7 @@ describe('source registry', () => {
 		expect(() => assertReviewedSources(needsReviewIds)).toThrow(/not reviewed/u);
 	});
 
-	it('contains only the 33 specified source records', () => {
-		expect(sourceRegistry.size).toBe(33);
+	it('contains only the 34 specified source records', () => {
+		expect(sourceRegistry.size).toBe(34);
 	});
 });

@@ -1,9 +1,4 @@
-import type {
-	Diagnostic,
-	LyricLine,
-	RuleDefinition,
-	SupportedStyleSpan
-} from '../../core/types.js';
+import type { Diagnostic, LyricLine, RuleDefinition, SupportedStyleSpan } from '$lib/core/types.js';
 import { diagnostic } from './utils.js';
 
 function supportedSpans(line: LyricLine): SupportedStyleSpan[] {

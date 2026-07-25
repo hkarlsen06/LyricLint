@@ -1,7 +1,7 @@
-import type { RuleSetManifest } from '../../core/types.js';
+import type { RuleSetManifest } from '$lib/core/types.js';
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.25.1',
+	version: '2026.07.25.4',
 	publishedAt: '2026-07-25',
 	sourceIds: [
 		'T-LANGUAGE-DETECT',
@@ -19,6 +19,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'G-LANG-JA',
 		'G-LANG-KO',
 		'G-NUMBERS',
+		'APPLE-LINE-PUNCTUATION',
 		'G-QE-MARKS',
 		'G-DASHES',
 		'G-CAPS',
@@ -60,6 +61,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'adlib.parentheses',
 		'capitalization.line-start',
 		'capitalization.title-case',
+		'punctuation.line-ending',
 		'punctuation.question',
 		'punctuation.dropped-word-dash',
 		'line.prose-density',

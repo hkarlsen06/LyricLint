@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
-	import type { PerformerId, PerformerRecord } from '../../core/types.js';
+	import type { PerformerId, PerformerRecord } from '$lib/core/types.js';
+	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import type { ScreenRect } from '../contracts.js';
 
 	interface Props {
@@ -118,6 +119,12 @@
 			await tick();
 			returnFocus();
 		}
+	}
+
+	// Pressing outside drops the assignment the same way Escape does, minus the
+	// focus handoff: the press has already chosen where the user is working next.
+	function dismiss(): void {
+		onCancel();
 	}
 
 	async function beginAdd(): Promise<void> {
@@ -261,6 +268,7 @@
 	class:anchored={anchor}
 	class:below={anchor && placement === 'below'}
 	style={position}
+	{@attach dismissOnOutside(dismiss)}
 >
 	<div
 		bind:this={root}
@@ -354,7 +362,7 @@
 		<div class="actions">
 			<button
 				type="button"
-				class="apply"
+				class="button button--contrast apply"
 				disabled={selectedIds.length === 0 && !canRemoveFormatting}
 				onclick={apply}
 			>
@@ -442,7 +450,9 @@
 		overflow-x: auto;
 	}
 
-	button {
+	/* Roster chips are categorical elements, not action buttons, so the pill
+	   radius is theirs alone — the apply action uses the global button tiers. */
+	button.chip {
 		flex: none;
 		display: inline-flex;
 		min-height: var(--control-height-sm);
@@ -454,10 +464,9 @@
 		background: transparent;
 		color: inherit;
 		font: inherit;
-		cursor: pointer;
 	}
 
-	button:hover {
+	button.chip:hover {
 		background: var(--color-control-hover);
 	}
 
@@ -508,21 +517,20 @@
 		background: color-mix(in oklch, var(--dot-color, var(--color-accent)) 24%, transparent);
 	}
 
+	/* Colors, hover, and disabled treatment come from the global contrast tier;
+	   only the compact geometry of this one-row picker is local. */
 	.apply {
-		border-color: var(--color-text);
-		background: var(--color-text);
-		color: var(--color-canvas);
-		font-weight: var(--font-weight-semibold);
+		flex: none;
+		min-height: var(--control-height-sm);
+		padding: var(--space-1) var(--space-2-5);
 	}
 
-	.apply:hover:not(:disabled) {
-		border-color: color-mix(in oklch, var(--color-text) 85%, transparent);
-		background: color-mix(in oklch, var(--color-text) 85%, transparent);
-	}
-
+	/* The shortcut glyph reads as secondary through weight and a mix against the
+	   button's own fill, not through opacity — the label beside it has to keep
+	   its full contrast on the inverted surface. */
 	.apply__key {
-		opacity: 0.75;
-		font-weight: 400;
+		color: color-mix(in oklch, var(--color-canvas) 78%, var(--color-text));
+		font-weight: var(--font-weight-regular);
 	}
 
 	/* The picker takes focus as it opens, so the global :focus-visible ring would
@@ -536,11 +544,6 @@
 	input:focus-visible {
 		outline: var(--focus-ring-width) solid var(--color-focus);
 		outline-offset: var(--focus-ring-offset);
-	}
-
-	button:disabled {
-		cursor: not-allowed;
-		opacity: var(--opacity-disabled);
 	}
 
 	.actions {

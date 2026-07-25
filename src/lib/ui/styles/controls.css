@@ -1,0 +1,135 @@
+/*
+ * The one button silhouette, its emphasis variants, and the form control
+ * vocabulary.
+ *
+ * There are exactly three tiers, and they are keyed to the *action*, never to
+ * the surface the action happens to sit on:
+ *
+ *   .button--quiet     borderless text button — reversible, secondary actions
+ *   .button            bordered default — ordinary actions
+ *   .button--contrast  theme-inverting — the one destination action per surface
+ *
+ * `.button--danger` is a color modifier on the contrast tier, not a fourth
+ * tier; `.danger-text` is the same for the quiet tier. There is no
+ * `.button--primary`: an accent-filled button duplicated the contrast tier's
+ * role, which is how "copy the canonical markup" ended up rendered as a black
+ * contrast button in the toolbar and a blue accent button in the tools panel at
+ * the same time. And there is no `.button--pill` — pill radii belong to
+ * categorical chips and badges only.
+ */
+
+.button,
+.icon-button {
+	min-height: var(--control-height-md);
+	border: var(--border-width) solid var(--color-control-border);
+	border-radius: var(--radius-control);
+	background: var(--color-control);
+	color: var(--color-text);
+}
+
+.button {
+	display: inline-flex;
+	padding: var(--control-padding-block) var(--control-padding-inline);
+	gap: var(--control-gap);
+	align-items: center;
+	justify-content: center;
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-ui);
+}
+
+.icon-button {
+	display: inline-grid;
+	width: 2rem;
+	padding: 0;
+	place-items: center;
+	font-size: var(--font-size-lg);
+}
+
+.button:hover:not(:disabled),
+.icon-button:hover:not(:disabled) {
+	border-color: var(--color-border-strong);
+	background: var(--color-control-hover);
+}
+
+.button:active:not(:disabled),
+.icon-button:active:not(:disabled) {
+	background: var(--color-control-active);
+}
+
+/* Borderless, so "quiet" is actually a step down. With a border it was
+   indistinguishable from the default tier anywhere the control sat on the
+   panel canvas — a ~1.03:1 fill difference — which collapsed five named
+   emphasis levels into three by accident rather than by design. */
+.button--quiet {
+	border-color: transparent;
+	background: transparent;
+}
+
+.button--quiet:hover:not(:disabled) {
+	border-color: transparent;
+	background: var(--color-control-hover);
+}
+
+.button--quiet:disabled {
+	border-color: transparent;
+	background: transparent;
+}
+
+/* The mockup's "white pill": inverts against the theme so it stays the
+   highest-contrast action in both color schemes. */
+.button--contrast {
+	border-color: var(--color-text);
+	background: var(--color-text);
+	color: var(--color-canvas);
+}
+
+.button--contrast:hover:not(:disabled) {
+	border-color: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
+	background: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
+	color: var(--color-canvas);
+}
+
+.button--danger {
+	border-color: var(--color-danger);
+	background: var(--color-danger);
+	color: var(--color-accent-text);
+}
+
+.button--danger:hover:not(:disabled) {
+	border-color: var(--color-danger-hover);
+	background: var(--color-danger-hover);
+}
+
+.danger-text {
+	color: var(--color-danger);
+}
+
+input,
+select,
+textarea {
+	border: var(--border-width) solid var(--color-control-border);
+	border-radius: var(--radius-control);
+	background: var(--color-control);
+	color: var(--color-text);
+}
+
+input,
+select {
+	min-height: var(--control-height-md);
+	padding: var(--control-padding-block) var(--control-padding-inline);
+}
+
+input:hover:not(:disabled),
+select:hover:not(:disabled),
+textarea:hover:not(:disabled) {
+	border-color: var(--color-border-strong);
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+	border-color: var(--color-border-disabled);
+	background: var(--color-control-disabled);
+	color: var(--color-text-disabled);
+	cursor: not-allowed;
+}

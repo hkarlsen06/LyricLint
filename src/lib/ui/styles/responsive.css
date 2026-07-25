@@ -1,0 +1,155 @@
+/* Breakpoint overrides and motion preferences. Loaded last so it can override the parts above. */
+
+@media (max-width: 78rem) {
+	.document-toolbar {
+		flex-wrap: wrap;
+	}
+
+	.document-toolbar__identity,
+	.document-toolbar__commands {
+		flex-wrap: wrap;
+	}
+}
+
+@media (max-width: 68rem) {
+	.workspace {
+		display: block;
+		height: auto;
+		min-height: 100vh;
+		overflow: visible;
+	}
+
+	.editor-region {
+		width: 100%;
+		min-width: 0;
+	}
+
+	.editor-host {
+		/* Content-aware, not a flat viewport fraction: in the stacked layout the
+		   workspace is a block, so the editor already grows with the document —
+		   this floor only guards short drafts. A flat 60vh pushed the linter
+		   panel (the reason the app exists) entirely below the fold on a
+		   two-line document. 20rem keeps roughly a dozen lyric lines of editing
+		   room without swallowing the viewport; the 60vh term lets the floor
+		   shrink further on very short (landscape phone) viewports so the panel
+		   still gets a share of the screen. */
+		min-height: min(60vh, 20rem);
+	}
+
+	/* Too narrow for two columns, so the panel stacks under the editor rather
+	   than floating over it. It is always visible, so it must not overlap. */
+	.right-panel {
+		width: 100%;
+		border-top: var(--border-width) solid var(--color-border);
+	}
+}
+
+@media (max-width: 46rem) {
+	.document-toolbar__identity {
+		flex-wrap: wrap;
+	}
+
+	.draft-title {
+		max-width: min(15rem, 60vw);
+	}
+
+	.button {
+		min-height: var(--control-height-lg);
+	}
+}
+
+/*
+ * The phone gate. Below the stacked layout there is a size the workbench cannot
+ * usefully shrink to: the linter is driven by selecting ranges and typing, and
+ * the fix shortcuts do not exist without a keyboard. So on a phone the app is
+ * removed outright — `display: none` on the shell wrapper takes it out of the
+ * accessibility tree too, which an overlay would not have done — and the notice
+ * takes its place.
+ *
+ * The width alone must not decide this. A narrow window on a desktop is a
+ * supported size (that is what the blocks above are for), so the gate also asks
+ * for a coarse pointer; the two together mean a phone and not a resized browser.
+ * The second query is the same device held sideways, where the width clears the
+ * threshold but the height leaves no room for editor and panel both.
+ */
+.app-shell {
+	display: contents;
+}
+
+.small-screen-notice {
+	display: none;
+}
+
+@media (pointer: coarse) and (max-width: 46rem), (pointer: coarse) and (max-height: 30rem) {
+	.app-shell {
+		display: none;
+	}
+
+	/* The text sits directly on the page background — no border, no fill, no
+	   card. Nothing here is a surface the user acts on or one that has to be told
+	   apart from a neighbor, so a box would be decoration.
+
+	   `dvh` after `vh` so browsers without it still get a full-height page rather
+	   than a collapsed one. */
+	.small-screen-notice {
+		display: grid;
+		min-height: 100vh;
+		min-height: 100dvh;
+		padding: var(--space-6);
+		place-content: center;
+	}
+
+	.small-screen-notice > div {
+		max-width: 34rem;
+	}
+
+	/* The brand leads here rather than labelling a toolbar, so the lockup runs at
+	   display size. One font-size is the whole override: every dimension in the
+	   lockup — bracket height, bracket width, the waveform's stroke, the two slot
+	   widths in `ch` — is already expressed against its own type. */
+	.small-screen-notice .app-wordmark {
+		font-size: var(--font-size-2xl);
+	}
+
+	.small-screen-notice h1 {
+		margin: var(--space-5) 0 var(--space-3);
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--line-height-tight);
+	}
+
+	.small-screen-notice p {
+		margin: 0 0 var(--space-3);
+		color: var(--color-text-muted);
+	}
+
+	.small-screen-notice p:last-child {
+		margin-bottom: 0;
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.button,
+	.icon-button,
+	a,
+	input,
+	select,
+	textarea {
+		transition:
+			background-color var(--duration-fast) var(--ease-out-quart),
+			border-color var(--duration-fast) var(--ease-out-quart),
+			color var(--duration-fast) var(--ease-out-quart),
+			box-shadow var(--duration-fast) var(--ease-out-quart);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
+}

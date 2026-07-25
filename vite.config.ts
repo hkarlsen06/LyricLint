@@ -26,6 +26,9 @@ export default defineConfig({
 						provider: playwright(),
 						instances: [{ browser: 'chromium', headless: true }]
 					},
+					// Loads the token stylesheet so computed-style assertions see the
+					// real design system rather than CSS fallbacks.
+					setupFiles: ['./vitest-setup-client.ts'],
 					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
 					exclude: ['src/lib/server/**']
 				}

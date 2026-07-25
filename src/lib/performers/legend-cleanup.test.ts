@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '../core/parser.js';
-import type { TextEdit } from '../core/types.js';
+import { parseDocument } from '$lib/core/parser.js';
+import type { TextEdit } from '$lib/core/types.js';
 import { cleanupLegendSlots } from './legend-cleanup.js';
 
 function applyEdits(text: string, edits: readonly TextEdit[]): string {

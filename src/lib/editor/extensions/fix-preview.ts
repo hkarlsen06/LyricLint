@@ -2,7 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { AtomicDocumentEdit, TextEdit } from '../../core/types.js';
+import type { AtomicDocumentEdit, TextEdit } from '$lib/core/types.js';
 
 export const setFixPreviewEffect = StateEffect.define<AtomicDocumentEdit | undefined>();
 
@@ -19,7 +19,7 @@ class FixPreviewWidget extends WidgetType {
 		const preview = document.createElement('span');
 		preview.className = 'll-fix-preview-insert';
 		preview.textContent = this.text;
-		preview.setAttribute('aria-label', `Preview replacement: ${this.text}`);
+		preview.setAttribute('aria-label', `Suggested addition: ${this.text}`);
 		return preview;
 	}
 }
@@ -51,21 +51,28 @@ function buildPreview(state: EditorState, edit: AtomicDocumentEdit | undefined):
 		}
 		previousTo = change.to;
 
-		if (change.insert.length === 0 && change.from < change.to) {
+		// Every change reads as a diff: the text the fix would drop stays put,
+		// struck through, and the replacement sits beside it. Nothing is hidden,
+		// so the preview alone explains what Apply will do.
+		if (change.from < change.to) {
 			ranges.push(
 				Decoration.mark({
 					class: 'll-fix-preview-remove',
-					attributes: { 'aria-label': 'Preview deletion' }
+					attributes: {
+						'aria-label': `Suggested removal: ${state.doc.sliceString(change.from, change.to)}`
+					}
 				}).range(change.from, change.to)
 			);
-			continue;
 		}
 
-		const decoration = Decoration.replace({
-			widget: new FixPreviewWidget(change.insert),
-			inclusive: false
-		});
-		ranges.push(decoration.range(change.from, change.to));
+		if (change.insert.length > 0) {
+			ranges.push(
+				Decoration.widget({
+					widget: new FixPreviewWidget(change.insert),
+					side: 1
+				}).range(change.to)
+			);
+		}
 	}
 
 	return Decoration.set(ranges, true);
@@ -90,20 +97,20 @@ export const fixPreviewField = StateField.define<DecorationSet>({
 export const fixPreviewTheme = EditorView.baseTheme({
 	'.ll-fix-preview-insert': {
 		display: 'inline',
+		marginInline: '0.1em',
 		paddingInline: '0.15em',
-		borderRadius: 'var(--radius-xs, 0.25rem)',
-		background:
-			'color-mix(in oklch, var(--color-suggestion, oklch(0.43 0.09 210)) 24%, transparent)',
-		boxShadow: 'inset 0 -2px 0 var(--color-suggestion, oklch(0.43 0.09 210))',
-		color: 'var(--color-text, currentColor)',
+		borderRadius: 'var(--radius-xs)',
+		background: 'color-mix(in oklch, var(--color-suggestion) 24%, transparent)',
+		boxShadow: 'inset 0 -2px 0 var(--color-suggestion)',
+		color: 'var(--color-text)',
 		whiteSpace: 'pre-wrap'
 	},
 	'.ll-fix-preview-remove': {
-		borderRadius: 'var(--radius-xs, 0.25rem)',
-		background: 'color-mix(in oklch, var(--color-danger, oklch(0.47 0.16 28)) 16%, transparent)',
-		color: 'var(--color-text-muted, currentColor)',
+		borderRadius: 'var(--radius-xs)',
+		background: 'color-mix(in oklch, var(--color-danger) 16%, transparent)',
+		color: 'var(--color-text-muted)',
 		textDecoration: 'line-through',
-		textDecorationColor: 'var(--color-danger, currentColor)',
+		textDecorationColor: 'var(--color-danger)',
 		textDecorationThickness: '2px'
 	}
 });

@@ -1,4 +1,4 @@
-import type { ParsedDocument, TextRange } from '../core/types.js';
+import type { ParsedDocument, TextRange } from '$lib/core/types.js';
 import LanguageDetect from 'languagedetect';
 import { languageSourceInventory } from './inventory.js';
 import { getLanguagePack, resolveLanguageTag } from './registry.js';

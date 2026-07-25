@@ -1,16 +1,19 @@
 <script lang="ts">
-	import type { Diagnostic, Severity, SourceReference } from '$lib/core/types.js';
+	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
 	import { tick } from 'svelte';
+	import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
+	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
 	import DiagnosticDetails from './DiagnosticDetails.svelte';
 
 	let {
 		diagnostics,
 		sources,
 		activeDiagnosticKey,
-		emptyMessage,
+		emptyState,
 		lineFor,
 		onNavigate,
 		onChooseHeader,
+		canAssignPerformers = () => true,
 		onAssignPerformers = () => {},
 		onPreviewFix,
 		onCancelPreview,
@@ -20,10 +23,21 @@
 		diagnostics: readonly Diagnostic[];
 		sources: ReadonlyMap<string, SourceReference>;
 		activeDiagnosticKey?: string;
-		emptyMessage: string;
+		/**
+		 * What an empty list means right now — an empty document, filters hiding
+		 * everything, every issue ignored, or a genuinely clean draft — so the
+		 * panel never just stops without saying which.
+		 */
+		emptyState: { title: string; detail: string };
 		lineFor?: (offset: number) => number;
 		onNavigate: (diagnostic: Diagnostic) => void;
 		onChooseHeader: (diagnostic: Diagnostic) => void;
+		/**
+		 * Whether the expanded card offers the performer assignment. A section
+		 * that cannot take one — no header, or two styled voices and no plain
+		 * lyrics — gets no button rather than one that only explains itself.
+		 */
+		canAssignPerformers?: (diagnostic: Diagnostic) => boolean;
 		onAssignPerformers?: (diagnostic: Diagnostic) => void;
 		onPreviewFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
 		onCancelPreview: () => void;
@@ -31,25 +45,12 @@
 		onIgnore: (ruleId: string) => void;
 	} = $props();
 
-	const severityOrder: Record<Severity, number> = {
-		error: 0,
-		warning: 1,
-		suggestion: 2,
-		'manual-review': 3
-	};
+	// The panel's reading order is shared with the state that follows it: after a
+	// fix the workbench hands the editor to the diagnostic this list leads with,
+	// so the two may not sort by different rules.
+	const sortedDiagnostics = $derived(orderDiagnostics(diagnostics));
 
-	const sortedDiagnostics = $derived(
-		[...diagnostics].sort(
-			(left, right) =>
-				severityOrder[left.severity] - severityOrder[right.severity] ||
-				left.from - right.from ||
-				left.ruleId.localeCompare(right.ruleId)
-		)
-	);
-
-	function cardKey(diagnostic: Diagnostic): string {
-		return `${diagnostic.ruleId}:${diagnostic.from}:${diagnostic.to}`;
-	}
+	const cardKey = diagnosticKey;
 
 	// Exactly one card sits expanded at a time; before any explicit choice the
 	// top card starts expanded so the panel is never a wall of closed rows.
@@ -81,12 +82,6 @@
 		});
 	});
 
-	function severityLabel(severity: Severity): string {
-		return severity === 'manual-review'
-			? 'Manual review'
-			: `${severity.slice(0, 1).toUpperCase()}${severity.slice(1)}`;
-	}
-
 	function subtitle(diagnostic: Diagnostic): string {
 		const parts: string[] = [];
 		if (lineFor) {
@@ -112,21 +107,28 @@
 		const nextRowControl = row?.nextElementSibling?.querySelector<HTMLButtonElement>(
 			'.diagnostic-list__navigate'
 		);
-		const fallback =
-			trigger.closest('.right-panel')?.querySelector<HTMLButtonElement>('.ignored-rules__toggle') ??
-			document.querySelector<HTMLButtonElement>('.ignored-rules__toggle');
+		// The ignored-rules footer only exists once a rule is ignored, so the
+		// toggle has to be looked up after the update — before it, there is
+		// nothing to find on the first ignore of a session.
+		const panel = trigger.closest('.right-panel');
 		onIgnore(ruleId);
 		await tick();
 		if (nextRowControl?.isConnected) {
 			nextRowControl.focus();
 			return;
 		}
+		const fallback =
+			panel?.querySelector<HTMLButtonElement>('.ignored-rules__toggle') ??
+			document.querySelector<HTMLButtonElement>('.ignored-rules__toggle');
 		fallback?.focus();
 	}
 </script>
 
 {#if sortedDiagnostics.length === 0}
-	<p class="empty-state">{emptyMessage}</p>
+	<div class="empty-state diagnostic-list__empty">
+		<p class="diagnostic-list__empty-title">{emptyState.title}</p>
+		<p>{emptyState.detail}</p>
+	</div>
 {:else}
 	<ol bind:this={list} class="diagnostic-list" aria-label="Document diagnostics">
 		{#each sortedDiagnostics as diagnostic, index (`${cardKey(diagnostic)}-${index}`)}
@@ -137,55 +139,30 @@
 				class:diagnostic-card--expanded={expanded}
 				class:diagnostic-card--active={cardKey(diagnostic) === activeDiagnosticKey}
 			>
-				<div class="diagnostic-list__heading">
-					<span class={`severity severity--${diagnostic.severity}`}>
-						<svg
-							class="severity__icon"
-							aria-hidden="true"
-							viewBox="0 0 16 16"
-							width="12"
-							height="12"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.6"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						>
-							{#if diagnostic.severity === 'error'}
-								<circle cx="8" cy="8" r="6" />
-								<path d="M8 4.8v3.7M8 11.1v.1" />
-							{:else if diagnostic.severity === 'warning'}
-								<path d="M8 2.4 14.4 13H1.6Z" />
-								<path d="M8 6.6v2.9M8 11.6v.1" />
-							{:else if diagnostic.severity === 'suggestion'}
-								<circle cx="8" cy="8" r="6" />
-								<path d="M8 7.4v3.4M8 4.9v.1" />
-							{:else}
-								<circle cx="8" cy="8" r="6" />
-								<path d="M5.4 8.2 7.2 10l3.4-3.6" />
-							{/if}
-						</svg>
-						{severityLabel(diagnostic.severity)}
-					</span>
-					<button
-						type="button"
-						class="diagnostic-list__navigate"
-						aria-label={`Go to ${diagnostic.message}`}
-						aria-expanded={expanded}
-						onclick={() => activate(diagnostic)}
-					>
-						{diagnostic.message}
-					</button>
+				<!-- The row is the control. Severity, message, and line all sit inside
+				     one button that fills the card, so a press anywhere on the card
+				     opens the diagnostic instead of only a press on the message. -->
+				<button
+					type="button"
+					class="diagnostic-list__navigate"
+					aria-label={`Go to ${diagnostic.message}`}
+					aria-expanded={expanded}
+					onclick={() => activate(diagnostic)}
+				>
+					<SeverityTag severity={diagnostic.severity} />
+					<span class="diagnostic-list__title">{diagnostic.message}</span>
 					{#if subtitle(diagnostic)}
 						<span class="diagnostic-list__subtitle">{subtitle(diagnostic)}</span>
 					{/if}
-				</div>
+				</button>
 				{#if expanded}
 					<DiagnosticDetails
 						{diagnostic}
 						{sources}
 						onChooseHeader={() => onChooseHeader(diagnostic)}
-						onAssignPerformers={() => onAssignPerformers(diagnostic)}
+						onAssignPerformers={canAssignPerformers(diagnostic)
+							? () => onAssignPerformers(diagnostic)
+							: undefined}
 						onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
 						{onCancelPreview}
 						onApplyFix={(fix) => onApplyFix(diagnostic, fix)}

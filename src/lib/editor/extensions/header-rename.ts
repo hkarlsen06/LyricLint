@@ -1,13 +1,13 @@
 import { EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
 import type { ChangeDesc, Extension, TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { parseDocument } from '../../core/parser.js';
-import type { PerformerId, TextEdit, TextRange } from '../../core/types.js';
+import { parseDocument } from '$lib/core/parser.js';
+import type { PerformerId, TextEdit, TextRange } from '$lib/core/types.js';
 import {
 	findHeaderRenameTargets,
 	isMirrorableHeaderName,
 	nameBreaksHeaderStructure
-} from '../../performers/header-rename.js';
+} from '$lib/performers/header-rename.js';
 import { editorCallbacksField, editorComposingField, editorContextField } from './editor-state.js';
 
 /** The performer name currently being edited and the headers mirroring it. */

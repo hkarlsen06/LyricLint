@@ -1,8 +1,8 @@
 import { defaultKeymap, historyKeymap } from '@codemirror/commands';
 import type { KeyBinding } from '@codemirror/view';
 import type { EditorView } from '@codemirror/view';
-import { parseDocument } from '../core/parser.js';
-import type { Diagnostic, EditorCallbacks, TextRange } from '../core/types.js';
+import { parseDocument } from '$lib/core/parser.js';
+import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import { editorComposingField, editorContextField } from './extensions/editor-state.js';
 import { diagnosticsForState, sortDiagnostics } from './extensions/lint-decorations.js';

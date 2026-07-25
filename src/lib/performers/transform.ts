@@ -11,8 +11,8 @@ import type {
 	SupportedStyleSpan,
 	TextEdit,
 	TextRange
-} from '../core/types.js';
-import { serializeLegend, wrapVoiceSpan } from '../serialization/genius-markup.js';
+} from '$lib/core/types.js';
+import { serializeLegend, wrapVoiceSpan } from '$lib/serialization/genius-markup.js';
 import { allocateStyleSlot } from './allocation.js';
 import { makeVoiceGroupKey } from './identity.js';
 import { extractPerformers } from './import.js';
@@ -748,9 +748,12 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 }
 
 /**
- * Assign performers to existing section-local style slots without touching the
- * lyric body. This is used when imported inline formatting is valid but its
- * header legend is missing the performer identities.
+ * Assign performers to existing section-local style slots.
+ *
+ * This is used when imported inline formatting is valid but its header legend
+ * is missing the performer identities. The lyric body is left alone except for
+ * the slots named in `unwrapSlots`, whose wrappers are removed while their
+ * text stays exactly as written.
  */
 export function assignVoiceLegend(request: LegendAssignmentRequest): DocumentTransformResult {
 	if (request.document.text !== request.text || request.assignments.length === 0) {
@@ -766,6 +769,19 @@ export function assignVoiceLegend(request: LegendAssignmentRequest): DocumentTra
 		!header.closed ||
 		header.legendGroups.some((group) => !group.markupSupported)
 	) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+
+	const unwrapped = new Set(request.unwrapSlots ?? []);
+	// Touching the body is only safe when every wrapper in it parses, and a slot
+	// cannot both receive a legend group and lose its markup in the same edit.
+	if (
+		unwrapped.size > 0 &&
+		section.lines.some((line) => line.styleSpans.some((span) => 'unsupported' in span))
+	) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+	if (request.assignments.some((assignment) => unwrapped.has(assignment.styleSlot))) {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 
@@ -790,23 +806,45 @@ export function assignVoiceLegend(request: LegendAssignmentRequest): DocumentTra
 
 	const groups = new Map<StyleSlot, RawLegendGroup>();
 	for (const group of header.legendGroups) {
+		// A slot losing its wrappers loses its legend group with them, otherwise
+		// the legend would name a style the body no longer uses.
+		if (unwrapped.has(group.styleSlot)) {
+			continue;
+		}
 		groups.set(group.styleSlot, { styleSlot: group.styleSlot, raw: group.raw });
 	}
 	for (const [styleSlot, group] of replacements) {
 		groups.set(styleSlot, group);
 	}
 
-	const edit = headerLegendEdit(section, [...groups.values()]);
+	const edits: TextEdit[] = [];
+	const headerEdit = headerLegendEdit(section, [...groups.values()]);
 	if (
-		!edit ||
-		(edit.from === edit.to && edit.insert.length === 0) ||
-		request.text.slice(edit.from, edit.to) === edit.insert
+		headerEdit &&
+		!(headerEdit.from === headerEdit.to && headerEdit.insert.length === 0) &&
+		request.text.slice(headerEdit.from, headerEdit.to) !== headerEdit.insert
 	) {
+		edits.push(headerEdit);
+	}
+	for (const line of section.lines) {
+		for (const span of supportedSpans(line)) {
+			if (!unwrapped.has(span.slot)) {
+				continue;
+			}
+			// A wrapper spanning several lines is projected onto each of them, so
+			// the middle lines carry no marker and produce no edit.
+			const content = request.text.slice(span.contentFrom, span.contentTo);
+			if (request.text.slice(span.from, span.to) !== content) {
+				edits.push({ from: span.from, to: span.to, insert: content });
+			}
+		}
+	}
+	if (edits.length === 0) {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 	return {
 		status: 'applied',
-		edit: makeAtomicEdit(request.revision, request.text.length, [edit])
+		edit: makeAtomicEdit(request.revision, request.text.length, edits)
 	};
 }
 

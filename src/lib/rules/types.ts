@@ -7,4 +7,4 @@ export type {
 	RuleSetManifest,
 	Severity,
 	SourceReference
-} from '../core/types.js';
+} from '$lib/core/types.js';

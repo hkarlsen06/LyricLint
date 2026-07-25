@@ -1,9 +1,9 @@
-import type { RuleDefinition } from '../../core/types.js';
+import type { RuleDefinition } from '$lib/core/types.js';
 import {
 	canLintHeaderLanguage,
 	getLanguagePack,
 	reviewedLanguagePacks
-} from '../../languages/registry.js';
+} from '$lib/languages/registry.js';
 import { diagnostic } from './utils.js';
 
 function isRecognizedHeader(name: string): boolean {

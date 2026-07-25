@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
-import type { Diagnostic, LanguagePack, PerformerRecord } from '../core/types.js';
-import { norwegianLanguagePack } from '../languages/no.js';
+import type { Diagnostic, LanguagePack, PerformerRecord } from '$lib/core/types.js';
+import { norwegianLanguagePack } from '$lib/languages/no.js';
 import { prepareInitialDocument } from './create-editor.js';
 import {
 	clusterDiagnostics,
@@ -11,7 +13,7 @@ import {
 } from './extensions/lint-decorations.js';
 import { performerPalette, voiceGroupStyle } from './extensions/performer-decorations.js';
 import { editorCallbacksField, editorRevisionField } from './extensions/editor-state.js';
-import { safeExternalUrl } from './overlays/diagnostic-popover.js';
+import { safeExternalUrl } from '$lib/diagnostics/source-url.js';
 import { sectionHeaderOptions, suggestNextOrdinal } from './overlays/section-picker.js';
 import { validateAtomicEdit } from './transaction-adapter.js';
 
@@ -27,14 +29,26 @@ function diagnostic(from: number, to: number, severity: Diagnostic['severity']):
 	};
 }
 
-function relativeLuminance(oklch: string): number {
-	const match = /^oklch\(([\d.]+) ([\d.]+) ([\d.]+)\)$/u.exec(oklch);
+/** Accepts both `oklch(0.9 …)` and the stylesheet's `oklch(90% …)` spelling. */
+function parseOklch(oklch: string): { lightness: number; chroma: number; hue: number } {
+	const match = /^oklch\(([\d.]+)(%?) ([\d.]+) ([\d.]+)\)$/u.exec(oklch.trim());
 	if (!match) {
 		throw new Error(`Unsupported test color: ${oklch}`);
 	}
-	const lightness = Number(match[1]);
-	const chroma = Number(match[2]);
-	const hue = (Number(match[3]) * Math.PI) / 180;
+	return {
+		lightness: Number(match[1]) / (match[2] === '%' ? 100 : 1),
+		chroma: Number(match[3]),
+		hue: Number(match[4])
+	};
+}
+
+function hueOf(oklch: string): number {
+	return parseOklch(oklch).hue;
+}
+
+function relativeLuminance(oklch: string): number {
+	const { lightness, chroma } = parseOklch(oklch);
+	const hue = (parseOklch(oklch).hue * Math.PI) / 180;
 	const a = chroma * Math.cos(hue);
 	const b = chroma * Math.sin(hue);
 	const lRoot = lightness + 0.3963377774 * a + 0.2158037573 * b;
@@ -273,18 +287,46 @@ describe('editor pure helpers', () => {
 		expect(style?.label).toBe('Performed by A, B, C, D');
 		expect(style?.hiddenCount).toBe(1);
 		// Joint groups blend into one color instead of striping per member.
-		expect(style?.lightBackground).toContain('color-mix');
-		expect(style?.lightBackground).not.toContain('linear-gradient');
-		expect(style?.darkBackground).toContain('color-mix');
+		expect(style?.background).toContain('color-mix');
+		expect(style?.background).not.toContain('linear-gradient');
+		// One value, not a light/dark pair: the tokens it mixes resolve per theme.
+		expect(style?.background).toContain('var(--performer-');
 	});
 
-	it('keeps every performer palette entry above 4.5:1 in light and dark schemes', () => {
-		const lightText = 'oklch(0.24 0.018 65)';
-		const darkText = 'oklch(0.91 0.012 75)';
+	/*
+	 * The tints live in `tokens.css` now, so the contrast guarantee has to be
+	 * read from there — checking the palette table would only confirm that eight
+	 * `var()` strings are still eight `var()` strings. Reading the stylesheet also
+	 * means this covers the values that actually ship, and that the roster swatch
+	 * and the editor tint can never drift back onto different hues.
+	 */
+	it('keeps every performer tint above 4.5:1 against its own theme text', () => {
+		const tokens = readFileSync(
+			fileURLToPath(new URL('../ui/styles/tokens.css', import.meta.url)),
+			'utf8'
+		);
+		// The dark overrides live in the trailing media query; everything before it
+		// is the light theme.
+		const darkStart = tokens.indexOf('@media (prefers-color-scheme: dark)');
+		expect(darkStart).toBeGreaterThan(0);
+		const themes = [tokens.slice(0, darkStart), tokens.slice(darkStart)];
 
-		for (const entry of performerPalette) {
-			expect(contrastRatio(entry.light, lightText)).toBeGreaterThanOrEqual(4.5);
-			expect(contrastRatio(entry.dark, darkText)).toBeGreaterThanOrEqual(4.5);
+		for (const theme of themes) {
+			const text = /--color-text:\s*(oklch\([^)]+\))/.exec(theme)?.[1];
+			expect(text).toBeDefined();
+			const tints = [...theme.matchAll(/--performer-([a-z]+)-tint:\s*(oklch\([^)]+\))/g)];
+			expect(tints).toHaveLength(performerPalette.length);
+
+			for (const [, id, tint] of tints) {
+				expect(performerPalette.some((entry) => entry.id === id)).toBe(true);
+				// The solid at the same identity has to sit on the same hue as its
+				// tint; that pairing is what the roster and the editor share.
+				const solid = new RegExp(`--performer-${id}:\\s*oklch\\([^)]*?([\\d.]+)\\)`).exec(theme);
+				expect(solid, `--performer-${id} missing in the same theme`).not.toBeNull();
+				expect(hueOf(tint)).toBeCloseTo(Number(solid?.[1]), 5);
+
+				expect(contrastRatio(tint, text as string)).toBeGreaterThanOrEqual(4.5);
+			}
 		}
 	});
 

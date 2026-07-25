@@ -431,7 +431,7 @@ The fixability classes below normalize the catalog into `safe`, `preview`, and `
 | `performer.style-order` | Warning | Preview | `G-SECTIONS` | Detect header groups that do not follow plain, italic, bold, bold-italic slot order. |
 | `performer.inline-mismatch` | Warning | None | `G-SECTIONS` | Detect inline style with no resolvable legend group and offer guided performer assignment for the plain and styled voices. |
 | `performer.too-many-groups` | Warning | None | `G-SECTIONS` | Detect more than four distinct style groups and explain options without asserting a universal performer ban. |
-| `performer.line-label-forbidden` | Warning | None | `G-SECTIONS` | Detect names/symbols in brackets used to label individual lyric lines. |
+| `performer.line-label-forbidden` | Warning | Preview | `G-SECTIONS` | Detect names/symbols in brackets used to label individual lyric lines and offer removal of the inline label, leaving the lyric and any indentation intact. |
 | `spelling.standardized` | Suggestion | Safe only for context-free entries | `G-SPELLING` | Detect reviewed non-preferred forms only when context is sufficiently certain. |
 | `spelling.language-variant` | Manual review | None | `G-SPELLING` | Identify inconsistent British/American variants relative to chosen performer language. |
 | `quotes.typewriter` | Warning | Safe outside unsupported markup | `G-TYPEWRITER` | Detect curly apostrophes/quotation marks in lyric text and replace exact characters only. |
@@ -442,6 +442,7 @@ The fixability classes below normalize the catalog into `safe`, `preview`, and `
 | `censored.mask` | Warning | Preview | `G-CENSORED` | Detect censored-word masks other than exactly four asterisks. |
 | `adlib.parentheses` | Suggestion | Preview | `G-ADLIBS` | Conservatively identify likely ad-libs lacking parentheses or initial capitalization. |
 | `capitalization.line-start` | Suggestion | Preview | `G-CAPS` | Detect lowercase lyric-line starts only when no known contextual exception applies. |
+| `punctuation.line-ending` | Warning | Preview | `APPLE-LINE-PUNCTUATION` + `G-QE-MARKS` | Detect a comma or period at a lyric-line ending, including before closing quotes or parentheses. Exclude ellipses and describe the Apple/Genius provenance distinction. |
 | `punctuation.question` | Suggestion | Preview or explanation | `G-QE-MARKS` | Detect only clearly interrogative lines lacking a question mark. |
 | `punctuation.dropped-word-dash` | Warning | Preview | `G-DASHES` | Detect incorrect dropped-word dash forms and em dashes followed by commas. |
 | `line.prose-density` | Suggestion | None | `G-LINES` | Flag likely prose-like multi-line content without imposing a fixed character limit. |

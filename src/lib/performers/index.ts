@@ -1,4 +1,4 @@
-import type { PerformerRecord, PerformerRoster } from '../core/types.js';
+import type { PerformerRecord, PerformerRoster } from '$lib/core/types.js';
 import { findExactPerformer } from './identity.js';
 
 /** Create immutable exact-match roster operations over the supplied records. */
@@ -27,6 +27,12 @@ export {
 	removeDifferentiation
 } from './transform.js';
 export { cleanupLegendSlots, usedStyleSlots } from './legend-cleanup.js';
+export { resolveLegendAssignment } from './legend-assignment.js';
+export type {
+	LegendAssignmentBlockReason,
+	LegendAssignmentResolution,
+	LegendAssignmentTarget
+} from './legend-assignment.js';
 export {
 	findHeaderRenameTargets,
 	headerNameAtoms,

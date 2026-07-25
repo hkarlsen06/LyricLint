@@ -9,7 +9,7 @@ import type {
 	PerformerRecord,
 	SerializedSelection,
 	SessionIgnoreStore
-} from '../core/types.js';
+} from '$lib/core/types.js';
 
 export type {
 	AppMetadataRecord,

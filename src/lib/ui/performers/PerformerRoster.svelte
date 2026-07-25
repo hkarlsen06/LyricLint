@@ -29,7 +29,7 @@
 				autocomplete="off"
 				placeholder="Exact credited name"
 			/>
-			<button type="submit" class="button button--primary">Add</button>
+			<button type="submit" class="button button--contrast">Add</button>
 		</div>
 	</form>
 

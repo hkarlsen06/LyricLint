@@ -1,6 +1,6 @@
-import { detectSongLanguage } from '../../languages/detect.js';
-import { getLanguagePack, resolveLanguageTag } from '../../languages/registry.js';
-import type { RuleDefinition } from '../../core/types.js';
+import { detectSongLanguage } from '$lib/languages/detect.js';
+import { getLanguagePack, resolveLanguageTag } from '$lib/languages/registry.js';
+import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic } from './utils.js';
 
 export const languageSelectionMismatchRule: RuleDefinition = {

@@ -1,4 +1,4 @@
-import type { Diagnostic, ParsedDocument, RuleDefinition, Section } from '../../core/types.js';
+import type { Diagnostic, ParsedDocument, RuleDefinition, Section } from '$lib/core/types.js';
 import { diagnostic } from './utils.js';
 
 function hasCleanBody(section: Section): boolean {

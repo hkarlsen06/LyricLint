@@ -1,4 +1,4 @@
-import type { PerformerRecord, StyleSlot } from '../performers/types.js';
+import type { PerformerRecord, StyleSlot } from '$lib/performers/types.js';
 
 export type LegendMember = string | Pick<PerformerRecord, 'displayName'>;
 

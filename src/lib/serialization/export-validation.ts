@@ -1,4 +1,4 @@
-import type { ParsedDocument, TextRange } from '../core/types.js';
+import type { ParsedDocument, TextRange } from '$lib/core/types.js';
 
 export type ExportValidationCode =
 	'unsupported-markup' | 'malformed-markup' | 'unbalanced-section-bracket' | 'document-mismatch';

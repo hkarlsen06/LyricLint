@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '../core/parser.js';
-import type { Diagnostic, RuleContext, RuleDefinition, SourceReference } from '../core/types.js';
+import { parseDocument } from '$lib/core/parser.js';
+import type { Diagnostic, RuleContext, RuleDefinition, SourceReference } from '$lib/core/types.js';
 import { collectSafeFixes, filterIgnored, runRules, sortDiagnostics } from './engine.js';
 import { enabledRules, validateRuleRegistry } from './registry.js';
 import { sourceRegistry } from './data/sources.js';
@@ -9,7 +9,8 @@ const context: RuleContext = {
 	language: 'en',
 	performers: [],
 	sources: sourceRegistry,
-	ruleSetVersion: '2026.07.24.4'
+	ruleSetVersion: '2026.07.24.4',
+	revision: 11
 };
 
 function finding(
@@ -95,7 +96,7 @@ describe('registry validation', () => {
 	};
 
 	it('accepts the complete reviewed enabled registry', () => {
-		expect(enabledRules).toHaveLength(32);
+		expect(enabledRules).toHaveLength(33);
 		expect(() => validateRuleRegistry()).not.toThrow();
 	});
 

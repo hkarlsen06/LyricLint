@@ -11,9 +11,10 @@ import type {
 	PerformerId,
 	SourceReference,
 	SerializedSelection,
+	StyleSlot,
 	TextRange,
 	VoiceGroup
-} from '../core/types.js';
+} from '$lib/core/types.js';
 
 /** Diagnostics are accepted only when their source revision is explicit. */
 export interface RevisionedDiagnostics {
@@ -53,6 +54,8 @@ export interface PerformerAssignmentChoice {
 export interface PerformerLegendAssignmentChoice {
 	sectionFrom: number;
 	assignments: LegendGroupAssignment[];
+	/** Style slots whose wrappers the assignment removes from the section body. */
+	unwrapSlots?: readonly StyleSlot[];
 }
 
 export interface SectionHeaderChoice {
@@ -93,6 +96,15 @@ export interface EditorOverlayCallbacks {
 		displayName: string;
 	}): void;
 	onDiagnosticActivateIntent?(diagnostic: Diagnostic, intent: 'navigate' | 'fix'): void;
+	/**
+	 * The pointer is resting on a diagnostic's underline.
+	 *
+	 * Deliberately not `onDiagnosticActivate`: pointing is not navigation. The
+	 * shell may mark the matching card, but nothing here may move the caret or
+	 * scroll the document — the line has to stay exactly where the pointer
+	 * found it. Only choosing a diagnostic outright travels to it.
+	 */
+	onDiagnosticHighlight?(diagnostic: Diagnostic): void;
 	onDiagnosticDismiss?(): boolean;
 }
 

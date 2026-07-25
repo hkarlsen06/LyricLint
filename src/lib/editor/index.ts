@@ -3,7 +3,6 @@ export { default as EditorPane } from './EditorPane.svelte';
 export { default as PerformerPicker } from './overlays/PerformerPicker.svelte';
 export { default as SectionPicker } from './overlays/SectionPicker.svelte';
 
-export { safeExternalUrl } from './overlays/diagnostic-popover.js';
 export { sectionHeaderOptions, suggestNextOrdinal } from './overlays/section-picker.js';
 
 export type { CreateLyricEditorOptions, LyricEditorInstance } from './create-editor.js';
@@ -25,4 +24,4 @@ export type {
 	EditorContext,
 	EditorHandle,
 	EditorSnapshot
-} from '../core/types.js';
+} from '$lib/core/types.js';

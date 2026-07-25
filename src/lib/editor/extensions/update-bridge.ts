@@ -1,8 +1,8 @@
 import { redoDepth, undoDepth } from '@codemirror/commands';
 import type { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { parseDocument } from '../../core/parser.js';
-import type { EditorSnapshot } from '../../core/types.js';
+import { parseDocument } from '$lib/core/parser.js';
+import type { EditorSnapshot } from '$lib/core/types.js';
 import { diagnosticsForState } from './lint-decorations.js';
 import {
 	editorComposingField,

@@ -1,4 +1,4 @@
-import type { RuleDefinition } from '../../core/types.js';
+import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 const numberWords = [
@@ -18,7 +18,9 @@ const numberWords = [
 function documentedNumericContext(text: string, from: number, to: number): boolean {
 	const before = text.slice(Math.max(0, from - 2), from);
 	const after = text.slice(to, Math.min(text.length, to + 6));
-	return /[$€£#:/.-]\s*$/u.test(before) || /^\s*(?:%|:\d|\/\d|a\.?m\.?|p\.?m\.?)/iu.test(after);
+	// The trailing side mirrors the leading separators so the first digit of a
+	// compound number such as `5.5` or `2-5` is exempt just like the last one.
+	return /[$€£#:/.-]\s*$/u.test(before) || /^\s*(?:%|[:/.-]\d|a\.?m\.?|p\.?m\.?)/iu.test(after);
 }
 
 export const numbersSpellOutRule: RuleDefinition = {

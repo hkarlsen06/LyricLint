@@ -1,7 +1,12 @@
 import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { Diagnostic, EditorHandle, PerformerRecord, SourceReference } from '../core/types.js';
+import type {
+	Diagnostic,
+	EditorHandle,
+	PerformerRecord,
+	SourceReference
+} from '$lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
 import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
@@ -33,6 +38,7 @@ function callbacks(): LyricEditorCallbacks {
 		onAssignRequest: vi.fn(),
 		onSectionHeaderRequest: vi.fn(),
 		onDiagnosticActivate: vi.fn(),
+		onDiagnosticHighlight: vi.fn(),
 		onAnnouncement: vi.fn(),
 		onPerformerRenamed: vi.fn()
 	};
@@ -236,8 +242,10 @@ describe('EditorPane', () => {
 			}
 		});
 		// Single diagnostics render as an underlined range (count badges only
-		// appear for lines with two or more diagnostics).
-		await expect.element(page.getByTitle('Stale issue')).toBeVisible();
+		// appear for lines with two or more diagnostics). The underline carries no
+		// native tooltip — the hover popover is the tooltip — so it is found by the
+		// label it exposes instead.
+		await expect.element(page.getByLabelText('warning: Stale issue')).toBeVisible();
 		if (!handle) {
 			throw new Error('Editor did not expose its handle.');
 		}
@@ -255,7 +263,7 @@ describe('EditorPane', () => {
 			}
 		});
 
-		await expect.element(page.getByTitle('Stale issue')).not.toBeInTheDocument();
+		await expect.element(page.getByLabelText('warning: Stale issue')).not.toBeInTheDocument();
 		expect(handle.getSnapshot().diagnostics).toEqual([]);
 	});
 
@@ -474,7 +482,7 @@ describe('EditorPane', () => {
 
 		handle.focus();
 		await userEvent.keyboard('{F8}');
-		await userEvent.click(page.getByRole('button', { name: /Assign section performers Choose/u }));
+		await userEvent.click(page.getByRole('button', { name: 'Assign section performers' }));
 
 		await expect.element(page.getByText('General section voice · 1 of 2')).toBeVisible();
 		await expect
@@ -491,11 +499,82 @@ describe('EditorPane', () => {
 			assignments: [
 				{ styleSlot: 1, performerIds: ['avery'] },
 				{ styleSlot: 2, performerIds: ['blair'] }
-			]
+			],
+			unwrapSlots: []
 		});
 	});
 
-	it('activates a diagnostic when its inline underline is tapped', async () => {
+	it('opens the section picker from the popover, as the linter panel card does', async () => {
+		// Parity: a headerless section offers the same guided action wherever its
+		// diagnostic is shown, and the popover hands off to the picker in place.
+		const text = 'Snow on the wire';
+		const issue = testDiagnostic({
+			ruleId: 'section.header-missing',
+			from: 0,
+			to: 0,
+			message: 'This lyric section has no header.'
+		});
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({ diagnostics: { revision: 0, items: [issue] } })
+		});
+
+		handle.focus();
+		await userEvent.keyboard('{F8}');
+		await userEvent.click(page.getByRole('button', { name: 'Choose header' }));
+
+		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
+		// The popover made way for the picker rather than stacking behind it.
+		await expect
+			.element(page.getByRole('dialog', { name: 'Diagnostic details' }))
+			.not.toBeInTheDocument();
+	});
+
+	it('assigns a styled-only section in one step and drops its formatting', async () => {
+		// Nothing in the section is plain, so there is no voice to differentiate
+		// from: the styled voice is the section's voice, and keeping the wrappers
+		// would only leave an italic legend group with no plain group ahead of it.
+		const text = '[Intro]\nSnow keeps falling\n\n[Verse]\n<i>Blair sings through the snow</i>';
+		const sectionFrom = text.indexOf('[Verse]');
+		const styledFrom = text.indexOf('<i>');
+		const styledTo = text.indexOf('</i>') + '</i>'.length;
+		const createPerformerLegendEdit = vi.fn();
+		const issue = testDiagnostic({
+			ruleId: 'performer.inline-mismatch',
+			from: styledFrom,
+			to: styledTo,
+			message: 'Inline style has no performer in the section legend.'
+		});
+		const editorCallbacks: LyricEditorCallbacks = {
+			...callbacks(),
+			createPerformerLegendEdit
+		};
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({
+				performers: performers(),
+				diagnostics: { revision: 0, items: [issue] }
+			}),
+			editorCallbacks
+		});
+
+		handle.focus();
+		await userEvent.keyboard('{F8}');
+		await userEvent.click(page.getByRole('button', { name: 'Assign section performers' }));
+
+		await expect.element(page.getByText('Section voice · formatting removed')).toBeVisible();
+		await expect.element(page.getByText('General section voice · 1 of 2')).not.toBeInTheDocument();
+		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
+		await userEvent.click(page.getByRole('button', { name: /^Apply/u }));
+
+		expect(createPerformerLegendEdit).toHaveBeenCalledWith({
+			sectionFrom,
+			assignments: [{ styleSlot: 1, performerIds: ['blair'] }],
+			unwrapSlots: [2]
+		});
+	});
+
+	it('activates a diagnostic when its inline underline is hovered', async () => {
 		const issue = testDiagnostic({ from: 0, to: 5 });
 		const editorCallbacks = callbacks();
 		await mountEditor({
@@ -510,12 +589,19 @@ describe('EditorPane', () => {
 			throw new Error('Diagnostic underline was not rendered.');
 		}
 
-		await userEvent.click(underline);
+		await userEvent.hover(underline);
 
-		expect(editorCallbacks.onDiagnosticActivate).toHaveBeenCalledWith(issue);
+		await expect.element(page.getByText('Test issue', { exact: true })).toBeVisible();
+		expect(editorCallbacks.onDiagnosticHighlight).toHaveBeenCalledWith(issue);
+		// Highlighting, never navigation: the shell reveals a diagnostic by
+		// scrolling its line to the upper third, which under a resting pointer
+		// would drag the pointed-at text away.
+		expect(editorCallbacks.onDiagnosticActivate).not.toHaveBeenCalled();
 	});
 
-	it('dismisses the diagnostic and enters editing at the double-tapped position', async () => {
+	it('edits at the tapped position instead of treating the first tap as a reveal', async () => {
+		// Underlined text is still text: one tap puts the caret where it landed,
+		// with no intervening step that has to be dismissed or repeated.
 		const issue = testDiagnostic({ from: 0, to: 5 });
 		const { handle } = await mountEditor({
 			text: 'hello',
@@ -528,9 +614,8 @@ describe('EditorPane', () => {
 			throw new Error('Diagnostic underline was not rendered.');
 		}
 
-		await userEvent.dblClick(underline);
+		await userEvent.click(underline);
 
-		await expect.element(page.getByText('Test issue', { exact: true })).not.toBeInTheDocument();
 		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toHaveFocus();
 		const selection = handle.getSnapshot().selection;
 		expect(selection.anchor).toBe(selection.head);
@@ -542,9 +627,9 @@ describe('EditorPane', () => {
 		expect(handle.getSnapshot().text).toContain('X');
 	});
 
-	it('activates a one-character underline tapped on its trailing half', async () => {
-		// Lyric-line capitalization marks a single letter, so half of every tap
-		// lands past the range's midpoint and resolves to its end offset.
+	it('activates a one-character underline hovered on its trailing half', async () => {
+		// Lyric-line capitalization marks a single letter, so half the underline
+		// resolves to the range's end offset rather than an interior position.
 		const issue = testDiagnostic({ from: 0, to: 1 });
 		const editorCallbacks = callbacks();
 		await mountEditor({
@@ -561,7 +646,7 @@ describe('EditorPane', () => {
 		const box = underline.getBoundingClientRect();
 
 		underline.dispatchEvent(
-			new MouseEvent('click', {
+			new MouseEvent('mousemove', {
 				bubbles: true,
 				cancelable: true,
 				clientX: box.right - 1,
@@ -569,7 +654,149 @@ describe('EditorPane', () => {
 			})
 		);
 
-		expect(editorCallbacks.onDiagnosticActivate).toHaveBeenCalledWith(issue);
+		await expect
+			.poll(() => vi.mocked(editorCallbacks.onDiagnosticHighlight!).mock.calls)
+			.toContainEqual([issue]);
+	});
+
+	it('waits for the pointer to settle, and drops the reveal if it moves on', async () => {
+		// A pointer crossing a lint-heavy verse on its way elsewhere passes over
+		// every underline on the line; each one opening a card would strobe.
+		const issue = testDiagnostic({ from: 0, to: 5 });
+		const editorCallbacks = callbacks();
+		await mountEditor({
+			text: 'hello world',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [issue] }
+			}),
+			editorCallbacks
+		});
+		const underline = document.querySelector<HTMLElement>('.ll-diagnostic-range');
+		const content = document.querySelector<HTMLElement>('.cm-content');
+		if (!underline || !content) {
+			throw new Error('Diagnostic underline was not rendered.');
+		}
+		const box = underline.getBoundingClientRect();
+		const passThrough = (target: HTMLElement, x: number) =>
+			target.dispatchEvent(
+				new MouseEvent('mousemove', {
+					bubbles: true,
+					cancelable: true,
+					clientX: x,
+					clientY: box.top + box.height / 2
+				})
+			);
+
+		passThrough(underline, box.left + 1);
+		// Off the underline again well inside the wait: nothing was ever revealed.
+		passThrough(content, box.right + 200);
+		await new Promise((resolve) => setTimeout(resolve, 300));
+
+		expect(editorCallbacks.onDiagnosticHighlight).not.toHaveBeenCalled();
+		await expect.element(page.getByText('Test issue', { exact: true })).not.toBeInTheDocument();
+
+		// Settling on it does reveal it, without any further movement.
+		passThrough(underline, box.left + 1);
+
+		await expect.element(page.getByText('Test issue', { exact: true })).toBeVisible();
+	});
+
+	it('makes the count badge serve the same wait as the underline', async () => {
+		// Two diagnostics on one line earn the circled count at the end of it, the
+		// other pointer route to a card — and so the same wait.
+		const warning = testDiagnostic({ from: 0, to: 5, message: 'The quieter issue' });
+		const error = testDiagnostic({
+			from: 6,
+			to: 11,
+			severity: 'error',
+			message: 'The louder issue'
+		});
+		await mountEditor({
+			text: 'hello world',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [warning, error] }
+			})
+		});
+		const badge = document.querySelector<HTMLElement>('.ll-diagnostic-badge');
+		if (!badge) {
+			throw new Error('Cluster badge was not rendered.');
+		}
+		// The badge leads with the line's highest severity.
+		const led = page.getByText('The louder issue', { exact: true });
+
+		badge.dispatchEvent(new MouseEvent('mouseenter'));
+		badge.dispatchEvent(new MouseEvent('mouseleave'));
+		await new Promise((resolve) => setTimeout(resolve, 300));
+
+		await expect.element(led).not.toBeInTheDocument();
+
+		badge.dispatchEvent(new MouseEvent('mouseenter'));
+
+		await expect.element(led).toBeVisible();
+	});
+
+	it('dismisses a hovered diagnostic when the editor scrolls', async () => {
+		// The line stays rendered, so this is the scroll itself closing the card
+		// rather than the anchor disappearing from the viewport.
+		const issue = testDiagnostic({ from: 0, to: 5 });
+		await mountEditor({
+			text: 'hello',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [issue] }
+			})
+		});
+		const underline = document.querySelector<HTMLElement>('.ll-diagnostic-range');
+		if (!underline) {
+			throw new Error('Diagnostic underline was not rendered.');
+		}
+
+		await userEvent.hover(underline);
+		await expect.element(page.getByText('Test issue', { exact: true })).toBeVisible();
+
+		const scroller = document.querySelector<HTMLElement>('.cm-scroller');
+		if (!scroller) {
+			throw new Error('Editor scroller was not rendered.');
+		}
+		scroller.dispatchEvent(new Event('scroll'));
+
+		await expect.element(page.getByText('Test issue', { exact: true })).not.toBeInTheDocument();
+	});
+
+	it('leaves the caret out of the editor when a hovered popover applies a fix', async () => {
+		// The shell moves the selection onto whatever finding it leads with next,
+		// so the wash marks that finding rather than the caret. Pulling focus back
+		// into the editor here would put a live caret on text the pointer user
+		// never chose — the same reason a merely-hovered card does not return
+		// focus when it closes.
+		const issue = testDiagnostic({
+			from: 0,
+			to: 5,
+			fixes: [
+				{
+					kind: 'safe',
+					label: 'Replace greeting',
+					edit: { baseRevision: 0, edits: [{ from: 0, to: 5, insert: 'hi' }] }
+				}
+			]
+		});
+		const editorCallbacks = callbacks();
+		await mountEditor({
+			text: 'hello world',
+			displayContext: context({ diagnostics: { revision: 0, items: [issue] } }),
+			editorCallbacks
+		});
+		const underline = document.querySelector<HTMLElement>('.ll-diagnostic-range');
+		if (!underline) {
+			throw new Error('Diagnostic underline was not rendered.');
+		}
+
+		await userEvent.hover(underline);
+		await userEvent.click(page.getByRole('button', { name: /Replace greeting/u }));
+
+		await expect
+			.element(page.getByRole('dialog', { name: 'Diagnostic details' }))
+			.not.toBeInTheDocument();
+		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).not.toHaveFocus();
 	});
 
 	it('focuses keyboard-opened diagnostics and closes them with Escape from editor focus', async () => {
@@ -775,6 +1002,39 @@ describe('EditorPane', () => {
 		await expect.element(page.getByText('world', { exact: true })).not.toBeInTheDocument();
 		expect(handle.getSnapshot().text).toBe('hello!');
 	});
+
+	it('renders a replacement as a diff, keeping the outgoing text struck through', async () => {
+		const { handle } = await mountEditor({ text: 'hello!' });
+
+		handle.previewAtomic?.({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 5, insert: 'world' }]
+		});
+
+		// A replacement is not a swap. The text the fix would drop stays where it
+		// is, marked for removal, and the replacement sits beside it, so the
+		// preview reads as a change rather than as text that already changed.
+		const removed = document.querySelector('.ll-fix-preview-remove');
+		const added = document.querySelector('.ll-fix-preview-insert');
+		expect(removed?.textContent).toBe('hello');
+		expect(removed?.getAttribute('aria-label')).toBe('Suggested removal: hello');
+		expect(added?.textContent).toBe('world');
+		expect(added?.getAttribute('aria-label')).toBe('Suggested addition: world');
+		expect(getComputedStyle(removed as Element).textDecorationLine).toContain('line-through');
+	});
+
+	it('marks a pure deletion without inventing a replacement', async () => {
+		const { handle } = await mountEditor({ text: 'hello!' });
+
+		handle.previewAtomic?.({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 5, to: 6, insert: '' }]
+		});
+
+		expect(document.querySelector('.ll-fix-preview-remove')?.textContent).toBe('!');
+		expect(document.querySelector('.ll-fix-preview-insert')).toBeNull();
+		expect(handle.getSnapshot().text).toBe('hello!');
+	});
 });
 
 describe('PerformerPicker keyboard flow', () => {
@@ -910,7 +1170,7 @@ describe('PerformerPicker keyboard flow', () => {
 		document.body.append(focusTarget);
 		const onCancel = vi.fn();
 
-		await render(PerformerPicker, {
+		const withoutAdd = await render(PerformerPicker, {
 			performers: performers(),
 			onApply: vi.fn(),
 			onCancel,
@@ -920,6 +1180,9 @@ describe('PerformerPicker keyboard flow', () => {
 		await expect
 			.element(page.getByRole('button', { name: 'Add a performer' }))
 			.not.toBeInTheDocument();
+		// One picker at a time, as in the pane: a press inside the second one is a
+		// press outside the first, and the first would dismiss itself over it.
+		withoutAdd.unmount();
 
 		const screen = await render(PerformerPicker, {
 			performers: performers(),
@@ -946,7 +1209,7 @@ describe('PerformerPicker keyboard flow', () => {
 });
 
 describe('DiagnosticPopover fix flow', () => {
-	it('requires preview fixes to be activated twice and keeps safe fixes one-click', async () => {
+	it('previews the fix as soon as it opens and applies it in one click', async () => {
 		const previewFix = {
 			kind: 'preview' as const,
 			label: 'Replace word',
@@ -966,7 +1229,7 @@ describe('DiagnosticPopover fix flow', () => {
 		const onApplyFix = vi.fn();
 		const onPreviewFix = vi.fn();
 		const onCancelPreview = vi.fn();
-		await render(DiagnosticPopover, {
+		const screen = await render(DiagnosticPopover, {
 			diagnostic: testDiagnostic({ to: 6, fixes: [previewFix, safeFix] }),
 			onPreviewFix,
 			onCancelPreview,
@@ -974,21 +1237,34 @@ describe('DiagnosticPopover fix flow', () => {
 			onIgnore: vi.fn()
 		});
 
-		await userEvent.click(page.getByRole('button', { name: /Replace word Preview/u }));
-		expect(onApplyFix).not.toHaveBeenCalled();
+		// Opening the card is the preview. Nothing had to be clicked for the
+		// editor to show the diff, so the two-step controls are gone.
 		expect(onPreviewFix).toHaveBeenCalledWith(previewFix);
-		// The confirm state swaps the fix button in place; no nested preview card.
-		await expect.element(page.getByRole('button', { name: 'Cancel preview' })).toBeVisible();
 		await expect
-			.element(page.getByRole('button', { name: 'Ignore for this session' }))
+			.element(page.getByRole('button', { name: 'Cancel preview' }))
 			.not.toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: /Preview/u })).not.toBeInTheDocument();
+		// The one competing decision stays available: there is no pending state
+		// left for it to hide behind. It is worded exactly as it is in the linter
+		// panel's card, because it is the same control.
+		await expect.element(page.getByRole('button', { name: 'Ignore' })).toBeVisible();
 
-		await userEvent.click(page.getByRole('button', { name: /Apply Replace word Confirm/u }));
+		// Each fix is its own label and nothing else — no "Apply" in front of a
+		// phrase that already reads as the command.
+		const apply = page.getByRole('button', { name: 'Replace word' });
+		await expect.element(apply).not.toHaveTextContent('Apply');
+		await userEvent.click(apply);
 		expect(onApplyFix).toHaveBeenCalledWith(previewFix);
 
-		await userEvent.click(page.getByRole('button', { name: /Remove mark Safe fix/u }));
+		// A second fix moves the preview onto itself before it can be applied.
+		await userEvent.click(page.getByRole('button', { name: 'Remove mark' }));
+		expect(onPreviewFix).toHaveBeenCalledWith(safeFix);
 		expect(onApplyFix).toHaveBeenCalledWith(safeFix);
 		expect(onApplyFix).toHaveBeenCalledTimes(2);
+
+		// Closing the card takes its preview with it.
+		screen.unmount();
+		expect(onCancelPreview).toHaveBeenCalled();
 	});
 
 	it('keeps long source lists collapsed until the user asks for the full audit trail', async () => {
@@ -1041,15 +1317,13 @@ describe('DiagnosticPopover fix flow', () => {
 		const accept = page.getByRole('button', { name: "It's correct" });
 		await expect.element(accept).toBeVisible();
 		expect(accept.element().querySelector('svg')).not.toBeNull();
-		await expect
-			.element(page.getByRole('button', { name: 'Ignore for this session' }))
-			.not.toBeInTheDocument();
-		expect(getComputedStyle(screen.container.querySelector('.actions')!).justifyContent).toBe(
-			'flex-start'
-		);
+		await expect.element(page.getByRole('button', { name: 'Ignore' })).not.toBeInTheDocument();
+		expect(
+			getComputedStyle(screen.container.querySelector('.diagnostic-actions')!).justifyContent
+		).toBe('flex-start');
 
 		await userEvent.click(accept);
 		expect(onIgnore).toHaveBeenCalledOnce();
-		expect(screen.container.querySelector('.accept-review')).not.toBeNull();
+		expect(screen.container.querySelector('.diagnostic-actions__accept')).not.toBeNull();
 	});
 });

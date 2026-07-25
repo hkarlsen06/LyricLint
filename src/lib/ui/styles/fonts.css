@@ -1,0 +1,197 @@
+/*
+ * Self-hosted webfonts. LyricLint is local-first with a static adapter, so the
+ * faces DESIGN.md names — IBM Plex Sans for UI, IBM Plex Mono for source —
+ * ship with the app instead of being requested from a CDN or hoped for on the
+ * user's machine. The binaries in /static/fonts are copied verbatim from
+ * @fontsource-variable/ibm-plex-sans and @fontsource/ibm-plex-mono (see
+ * package.json for the pinned versions; license in /static/fonts/OFL.txt).
+ *
+ * font-display: swap on every face, deliberately. This is a text editor: a
+ * flash of fallback-styled text is a cosmetic blip, but a flash of *invisible*
+ * text (`block`) would blank the user's document while fonts load. `optional`
+ * is wrong for the opposite reason — it may skip the webfont entirely on a
+ * slow first load and silently ship the session in the fallback face.
+ *
+ * Subsets: latin + latin-ext only. The linter supports Arabic, Japanese, and
+ * Korean lyrics (src/lib/languages/), but IBM Plex covers those scripts with
+ * *separate families* (Plex Sans Arabic / JP / KR) and IBM Plex Mono has no
+ * Arabic or CJK glyphs at all — no subset choice here could render them in
+ * the editor. Those scripts intentionally fall through the token stacks to
+ * system faces; latin-ext keeps European diacritics (Norwegian, French,
+ * German, Spanish, plus borrowed names in any lyric) in real Plex.
+ *
+ * unicode-range values are copied from the Fontsource CSS so browsers only
+ * download the subset a document actually uses.
+ */
+
+/*
+ * UI face: one variable file per subset carries the whole weight axis
+ * (100-700), so the token scale's 550/650 render as true intermediate
+ * instances instead of snapping to a neighbouring static weight. The axis
+ * tops out at 700 — IBM Plex has no 750 — so --font-weight-heavy clamps to
+ * 700 and renders like bold. That is a limit of the typeface itself, not of
+ * this build; a local Plex install could do no better.
+ */
+@font-face {
+	font-family: 'IBM Plex Sans Variable';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 700;
+	src: url('/fonts/ibm-plex-sans-latin-wght-normal.woff2') format('woff2-variations');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'IBM Plex Sans Variable';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 700;
+	src: url('/fonts/ibm-plex-sans-latin-ext-wght-normal.woff2') format('woff2-variations');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
+}
+
+/*
+ * Source face: IBM Plex Mono has no variable release anywhere (Fontsource or
+ * IBM's own packages), so it ships as static instances. Each face is declared
+ * with a font-weight *range* so the five-step token scale maps onto four
+ * distinct faces instead of collapsing under default CSS matching (which
+ * would send 550→600 and 650→700, making medium/semibold/bold in the editor
+ * nearly indistinguishable):
+ *
+ *   regular 400 → Regular    medium 550 → Medium(500)
+ *   semibold 650 → SemiBold(600)    bold 700 / heavy 750 → Bold(700)
+ *
+ * Italics ship only where the editor uses them: performer style slots render
+ * italic at regular weight (slot 2) and italic at semibold (slot 4), so the
+ * 400 and 600 italic instances cover both without synthesis.
+ */
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 449;
+	src: url('/fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 450 599;
+	src: url('/fonts/ibm-plex-mono-latin-500-normal.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 600 674;
+	src: url('/fonts/ibm-plex-mono-latin-600-normal.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 675 900;
+	src: url('/fonts/ibm-plex-mono-latin-700-normal.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: italic;
+	font-display: swap;
+	font-weight: 100 549;
+	src: url('/fonts/ibm-plex-mono-latin-400-italic.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: italic;
+	font-display: swap;
+	font-weight: 550 900;
+	src: url('/fonts/ibm-plex-mono-latin-600-italic.woff2') format('woff2');
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+		U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 100 449;
+	src: url('/fonts/ibm-plex-mono-latin-ext-400-normal.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 450 599;
+	src: url('/fonts/ibm-plex-mono-latin-ext-500-normal.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 600 674;
+	src: url('/fonts/ibm-plex-mono-latin-ext-600-normal.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: normal;
+	font-display: swap;
+	font-weight: 675 900;
+	src: url('/fonts/ibm-plex-mono-latin-ext-700-normal.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: italic;
+	font-display: swap;
+	font-weight: 100 549;
+	src: url('/fonts/ibm-plex-mono-latin-ext-400-italic.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
+}
+@font-face {
+	font-family: 'IBM Plex Mono Web';
+	font-style: italic;
+	font-display: swap;
+	font-weight: 550 900;
+	src: url('/fonts/ibm-plex-mono-latin-ext-600-italic.woff2') format('woff2');
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+		U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+		U+A720-A7FF;
+}

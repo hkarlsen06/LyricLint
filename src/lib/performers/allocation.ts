@@ -4,7 +4,7 @@ import type {
 	StyleSlotAllocation,
 	VoiceGroup,
 	VoiceGroupKey
-} from '../core/types.js';
+} from '$lib/core/types.js';
 import { makeVoiceGroupKey } from './identity.js';
 import type { SlotOrderIssue } from './types.js';
 

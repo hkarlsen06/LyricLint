@@ -6,7 +6,7 @@ import type {
 	StyleSlot,
 	SupportedStyleSpan,
 	TextRange
-} from '../core/types.js';
+} from '$lib/core/types.js';
 import {
 	findExactPerformer,
 	makeVoiceGroupKey,

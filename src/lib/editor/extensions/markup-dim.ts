@@ -2,7 +2,7 @@ import { StateField } from '@codemirror/state';
 import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { ParsedDocument, SupportedStyleSpan } from '../../core/types.js';
+import type { ParsedDocument, SupportedStyleSpan } from '$lib/core/types.js';
 import { setHeaderlessSectionsEffect } from './section-ghosts.js';
 
 const dim = Decoration.mark({ class: 'll-syntax-dim' });
@@ -69,8 +69,15 @@ export const markupDimField = StateField.define<DecorationSet>({
 	provide: (field) => EditorView.decorations.from(field)
 });
 
+/*
+ * Recede the markup with the muted text color rather than `opacity: 0.55`.
+ * These are the brackets and asterisks of the lyric source, which the design
+ * rules require to stay visible and exactly readable; an opacity took them to
+ * roughly 2:1 against the editor surface, and it also dimmed any performer tint
+ * or fix-preview background sharing the same run of characters.
+ */
 export const markupDimTheme = EditorView.baseTheme({
 	'.ll-syntax-dim': {
-		opacity: '0.55'
+		color: 'var(--color-text-muted)'
 	}
 });

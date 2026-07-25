@@ -16,6 +16,6 @@
 				: 'The application shell encountered an error before the workspace was ready.'}
 		</p>
 		<p>Your local drafts have not been included in this error page or sent anywhere.</p>
-		<a class="button button--primary" href={resolve('/')}>Return to the workspace</a>
+		<a class="button button--contrast" href={resolve('/')}>Return to the workspace</a>
 	</div>
 </main>

@@ -1,5 +1,5 @@
-import type { RuleContext, RuleDefinition } from '../../core/types.js';
-import { diagnostic } from './utils.js';
+import type { RuleContext, RuleDefinition } from '$lib/core/types.js';
+import { diagnostic, replacementFix } from './utils.js';
 
 function knownLabel(label: string, context: RuleContext): boolean {
 	const normalized = label.trim().toLocaleLowerCase();
@@ -15,13 +15,15 @@ function knownLabel(label: string, context: RuleContext): boolean {
 
 export const performerLineLabelForbiddenRule: RuleDefinition = {
 	id: 'performer.line-label-forbidden',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'warning',
-	fixability: 'none',
+	fixability: 'preview',
 	sourceIds: ['G-SECTIONS'],
 	check(document, context) {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) => {
+				// A line that is nothing but the label parses as a section header, so
+				// every match here keeps a lyric behind the label it drops.
 				const match = /^\s*\[([^\]\n]{1,80})\]\s+/u.exec(line.text);
 				if (!match || !knownLabel(match[1] ?? '', context)) {
 					return [];
@@ -36,7 +38,18 @@ export const performerLineLabelForbiddenRule: RuleDefinition = {
 						this,
 						range,
 						'Do not label individual lyric lines with bracketed performer names.',
-						'Performer identities belong in the section-header legend and are correlated through the four style slots. This line label is left unchanged for manual restructuring.'
+						'Performer identities belong in the section-header legend and are correlated through the four style slots. Removing the label drops the attribution from the lyric, so name the performer in the section header and style the line to keep it.',
+						[
+							// The label and the space that separated it from the lyric go
+							// together; any indentation in front of it is left alone.
+							replacementFix(
+								context,
+								'preview',
+								'Remove the line label',
+								{ from: range.from, to: line.from + match.index + match[0].length },
+								''
+							)
+						]
 					)
 				];
 			})

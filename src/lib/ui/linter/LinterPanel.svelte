@@ -12,9 +12,6 @@
 		{ value: 'manual-review', label: 'Manual review' }
 	];
 
-	let filtersOpen = $state(false);
-	const filtered = $derived(controller.severityFilter.length < filters.length);
-
 	const counts = $derived.by(() => {
 		const result: Record<Severity, number> = {
 			error: 0,
@@ -28,25 +25,54 @@
 		return result;
 	});
 
+	// Diagnostics the severity chips are currently hiding. Ignored rules do not
+	// count: the filters only take the blame for what they actually hide.
+	const hiddenByFilters = $derived(
+		controller.snapshot.diagnostics.filter(
+			(diagnostic) =>
+				!controller.ignoredRuleIds.includes(diagnostic.ruleId) &&
+				!controller.severityFilter.includes(diagnostic.severity)
+		).length
+	);
+
 	// Only blame the filters when they are actually what is hiding something;
 	// an otherwise clean draft should read as clean.
-	const emptyMessage = $derived.by(() => {
+	const emptyState = $derived.by(() => {
 		// An untouched draft is not "clean" — it has nothing to lint yet, so the
 		// panel points at the two things that get linting started.
 		if (controller.snapshot.text.trim().length === 0) {
-			return 'Paste or write some lyrics to get started, and make sure the selected language is correct.';
+			return {
+				title: 'Nothing to lint yet',
+				detail:
+					'Paste or write some lyrics to get started, and make sure the selected language is correct.'
+			};
 		}
-		const unignored = controller.snapshot.diagnostics.filter(
-			(diagnostic) => !controller.ignoredRuleIds.includes(diagnostic.ruleId)
-		);
-		if (unignored.some((diagnostic) => !controller.severityFilter.includes(diagnostic.severity))) {
-			return 'No diagnostics match the current filters.';
+		if (hiddenByFilters > 0) {
+			return {
+				title: 'Hidden by filters',
+				detail: `${hiddenByFilters} ${hiddenByFilters === 1 ? 'issue is' : 'issues are'} hidden by the severity filters. Re-enable a severity to see ${hiddenByFilters === 1 ? 'it' : 'them'}.`
+			};
 		}
 		if (controller.snapshot.diagnostics.length > 0) {
-			return 'Every issue in this draft comes from a rule you ignored.';
+			return {
+				title: 'All issues ignored',
+				detail:
+					'Every issue in this draft comes from a rule you ignored. Restore rules from Ignored rules below.'
+			};
 		}
-		return 'No issues found.';
+		return {
+			title: 'No issues found',
+			detail: 'This draft passes every enabled rule. Diagnostics reappear as you edit.'
+		};
 	});
+
+	// The list ends on purpose, not because the panel ran out of surface: the
+	// line after the last card says whether anything else is out of sight.
+	const afterword = $derived(
+		hiddenByFilters > 0
+			? `${hiddenByFilters} more ${hiddenByFilters === 1 ? 'issue' : 'issues'} hidden by the severity filters.`
+			: 'No further issues.'
+	);
 
 	function lineFor(offset: number): number {
 		const text = controller.snapshot.text;
@@ -59,24 +85,14 @@
 </script>
 
 <div class="panel-content linter-panel">
-	<div class="linter-panel__filter-row">
-		<button
-			type="button"
-			class="linter-panel__filter-toggle"
-			class:is-filtered={filtered}
-			aria-expanded={filtersOpen}
-			onclick={() => (filtersOpen = !filtersOpen)}
-		>
-			Filter{filtered ? ' · on' : ''}
-		</button>
-	</div>
-	{#if filtersOpen}
+	<!-- The chips have no trigger of their own: the Linter tab, pressed again
+	     while already inside the linter, is what reveals and hides them. -->
+	{#if controller.severityFiltersOpen}
 		<div class="linter-panel__filters" role="group" aria-label="Filter diagnostics by severity">
 			{#each filters as filter (filter.value)}
 				<button
 					type="button"
 					class="linter-panel__filter-chip linter-panel__filter-chip--{filter.value}"
-					class:is-empty={counts[filter.value] === 0}
 					aria-pressed={controller.severityFilter.includes(filter.value)}
 					onclick={() => controller.toggleSeverity(filter.value)}
 				>
@@ -91,14 +107,18 @@
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
 		activeDiagnosticKey={controller.activeDiagnosticKey}
-		{emptyMessage}
+		{emptyState}
 		{lineFor}
 		onNavigate={(diagnostic) => controller.navigateToDiagnostic(diagnostic)}
 		onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
+		canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
 		onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
 		onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
 		onCancelPreview={() => controller.clearFixPreview()}
 		onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
 		onIgnore={(ruleId) => controller.ignoreRule(ruleId)}
 	/>
+	{#if controller.visibleDiagnostics.length > 0}
+		<p class="linter-panel__afterword">{afterword}</p>
+	{/if}
 </div>

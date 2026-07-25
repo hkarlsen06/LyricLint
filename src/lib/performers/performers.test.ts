@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '../core/parser.js';
-import type { AtomicDocumentEdit, PerformerRecord, Section, TextEdit } from '../core/types.js';
-import { serializeLegend } from '../serialization/genius-markup.js';
+import { parseDocument } from '$lib/core/parser.js';
+import type { AtomicDocumentEdit, PerformerRecord, Section, TextEdit } from '$lib/core/types.js';
+import { serializeLegend } from '$lib/serialization/genius-markup.js';
 import {
 	allocateStyleSlot,
 	analyzeSlotOrder,
@@ -558,6 +558,81 @@ describe('performer assignment transforms', () => {
 				'[Verse: Avery & <i>Blair</i>]\nAvery leads\n<i>Blair answers\nStill Blair</i>'
 			);
 		}
+	});
+
+	it('promotes a styled-only section to plain by unwrapping it in the same edit', () => {
+		// The section has no plain lyrics, so its single voice belongs in slot 1.
+		// Keeping the wrappers would leave an italic legend group with no plain
+		// group before it — `performer.style-order` right after the assignment.
+		const input = '[Verse]\n<i>Blair sings\nBlair wakes the pines</i>';
+		const records = roster(['Avery', 'Blair']);
+		const result = assignVoiceLegend({
+			revision: 3,
+			text: input,
+			document: parseDocument(input),
+			sectionFrom: 0,
+			assignments: [{ styleSlot: 1, performerIds: [records[1]!.id] }],
+			roster: records,
+			unwrapSlots: [2]
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(applyEdits(input, result.edit.edits)).toBe(
+				'[Verse: Blair]\nBlair sings\nBlair wakes the pines'
+			);
+		}
+	});
+
+	it('drops the legend group of a slot whose markup the assignment removes', () => {
+		const input = '[Verse: <i>Blair</i>]\n<i>Blair sings</i>';
+		const records = roster(['Avery', 'Blair']);
+		const result = assignVoiceLegend({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			sectionFrom: 0,
+			assignments: [{ styleSlot: 1, performerIds: [records[1]!.id] }],
+			roster: records,
+			unwrapSlots: [2]
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(applyEdits(input, result.edit.edits)).toBe('[Verse: Blair]\nBlair sings');
+		}
+	});
+
+	it('blocks unwrapping a slot the same assignment writes a legend group for', () => {
+		const input = '[Verse]\n<i>Blair sings</i>';
+		const records = roster(['Blair']);
+		const result = assignVoiceLegend({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			sectionFrom: 0,
+			assignments: [{ styleSlot: 2, performerIds: [records[0]!.id] }],
+			roster: records,
+			unwrapSlots: [2]
+		});
+
+		expect(result.status).toBe('blocked');
+	});
+
+	it('leaves a styled-only section untouched when its markup is malformed', () => {
+		const input = '[Verse]\n<i>Blair sings\n<u>Blair wakes</u>';
+		const records = roster(['Blair']);
+		const result = assignVoiceLegend({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			sectionFrom: 0,
+			assignments: [{ styleSlot: 1, performerIds: [records[0]!.id] }],
+			roster: records,
+			unwrapSlots: [2]
+		});
+
+		expect(result.status).toBe('blocked');
 	});
 
 	it.each(['<u>X</u>', '<i>X'])(

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '../core/parser.js';
+import { parseDocument } from '$lib/core/parser.js';
 import {
 	escapeLegendText,
 	mergeEquivalentSpans,

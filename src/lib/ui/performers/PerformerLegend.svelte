@@ -32,7 +32,8 @@
 	<h3>Section legend</h3>
 	{#if sectionsWithVoices.length === 0}
 		<p class="empty-state">
-			Performer assignments will remain listed here without requiring hover.
+			Each section's performers and their markup styles are listed here. Assign performers to lyrics
+			in the editor to fill it in.
 		</p>
 	{:else}
 		<ol>

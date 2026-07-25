@@ -69,7 +69,7 @@
 		<form class="inline-form" onsubmit={saveRename}>
 			<label class="sr-only" for={`performer-${performer.id}`}>Performer name</label>
 			<input id={`performer-${performer.id}`} bind:this={renameInput} bind:value={name} />
-			<button type="submit" class="button button--primary">Save</button>
+			<button type="submit" class="button button--contrast">Save</button>
 			<button type="button" class="button button--quiet" onclick={cancelRename}>Cancel</button>
 		</form>
 	{:else}

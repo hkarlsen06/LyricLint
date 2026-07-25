@@ -1,5 +1,5 @@
-import type { RuleDefinition } from '../../core/types.js';
-import { getLanguagePack } from '../../languages/registry.js';
+import type { RuleDefinition } from '$lib/core/types.js';
+import { getLanguagePack } from '$lib/languages/registry.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 export const sectionDeprecatedHookRule: RuleDefinition = {

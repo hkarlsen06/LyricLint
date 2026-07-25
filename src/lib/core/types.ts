@@ -197,7 +197,7 @@ export interface RuleContext {
 	 * Revision of the snapshot the rules run against. Fix edits must carry this
 	 * as their `baseRevision` so stale fixes are rejected instead of misapplied.
 	 */
-	revision?: number;
+	revision: number;
 }
 
 /** A versioned, source-backed lint rule. */
@@ -344,6 +344,14 @@ export interface LegendAssignmentRequest {
 	sectionFrom: Offset;
 	assignments: LegendGroupAssignment[];
 	roster: readonly PerformerRecord[];
+	/**
+	 * Style slots whose wrappers are stripped from the section body as part of
+	 * the same edit, their legend groups dropped with them. This is what lets a
+	 * section styled all the way through name its single voice: the slot moves
+	 * to plain, so the legend does not start at italic with no plain group
+	 * before it. Lyric text itself is preserved — only the markers go.
+	 */
+	unwrapSlots?: readonly StyleSlot[];
 }
 
 /** A reason a performer or section transformation made no document edit. */

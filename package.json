@@ -4,7 +4,7 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "BROWSER=Safari vite dev --host",
 		"build": "vite build",
 		"e2e": "playwright test",
 		"preview": "vite preview",
@@ -51,6 +51,8 @@
 		"@codemirror/search": "^6.7.1",
 		"@codemirror/state": "^6.7.1",
 		"@codemirror/view": "^6.43.6",
+		"@fontsource-variable/ibm-plex-sans": "^5.3.0",
+		"@fontsource/ibm-plex-mono": "^5.3.0",
 		"bits-ui": "^2.18.1",
 		"dexie": "^4.4.4",
 		"languagedetect": "2.0.0"

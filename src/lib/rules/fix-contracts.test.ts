@@ -1,8 +1,9 @@
 import { parseDocument } from '$lib/core/parser.js';
-import type { RuleContext, TextEdit } from '$lib/core/types.js';
-import { collectSafeFixes } from './engine.js';
+import type { Diagnostic, DiagnosticFix, RuleContext } from '$lib/core/types.js';
+import { collectSafeFixes, runRules } from './engine.js';
 import { getRule } from './registry.js';
 import { sourceRegistry } from './data/sources.js';
+import { applyEdits, performerRecords, ruleContext, testRevision } from './rule-test-utils.js';
 import { describe, expect, it } from 'vitest';
 
 interface FixContract {
@@ -24,6 +25,15 @@ const contracts: FixContract[] = [
 		range: [6, 6],
 		expected: '[Verse]\nLine',
 		kind: 'safe'
+	},
+	{
+		id: 'syntax.unsupported-voice-markup',
+		input: '[Verse]\n<u>Voice',
+		language: 'en',
+		range: [8, 11],
+		expected: '[Verse]\nVoice',
+		kind: 'preview',
+		label: 'Remove markup'
 	},
 	{
 		id: 'section.header-language',
@@ -76,6 +86,16 @@ const contracts: FixContract[] = [
 		kind: 'safe'
 	},
 	{
+		id: 'performer.line-label-forbidden',
+		input: '[Verse: Avery]\n[Avery] A line',
+		language: 'en',
+		range: [15, 22],
+		expected: '[Verse: Avery]\nA line',
+		kind: 'preview',
+		performers: ['Avery'],
+		label: 'Remove the line label'
+	},
+	{
 		id: 'spelling.standardized',
 		input: '[Verse]\nImma go',
 		language: 'en',
@@ -119,8 +139,8 @@ const contracts: FixContract[] = [
 		id: 'censored.mask',
 		input: '[Verse]\nf*** this',
 		language: 'en',
-		range: [9, 12],
-		expected: '[Verse]\nf**** this',
+		range: [8, 12],
+		expected: '[Verse]\n**** this',
 		kind: 'preview'
 	},
 	{
@@ -138,6 +158,15 @@ const contracts: FixContract[] = [
 		range: [8, 9],
 		expected: '[Verse]\nThe night is young',
 		kind: 'preview'
+	},
+	{
+		id: 'punctuation.line-ending',
+		input: '[Verse]\nLine.',
+		language: 'en',
+		range: [12, 13],
+		expected: '[Verse]\nLine',
+		kind: 'preview',
+		label: 'Remove the period'
 	},
 	{
 		id: 'punctuation.question',
@@ -164,25 +193,6 @@ const contracts: FixContract[] = [
 		kind: 'preview'
 	}
 ];
-
-function applyEdits(text: string, edits: readonly TextEdit[]): string {
-	let output = text;
-	for (const edit of [...edits].sort((left, right) => right.from - left.from)) {
-		output = `${output.slice(0, edit.from)}${edit.insert}${output.slice(edit.to)}`;
-	}
-	return output;
-}
-
-function performerRecords(names: readonly string[]): RuleContext['performers'] {
-	return names.map((displayName, order) => ({
-		id: `performer-${order}`,
-		displayName,
-		normalizedKey: displayName.toLocaleLowerCase(),
-		aliases: [],
-		colorId: `color-${order}`,
-		order
-	}));
-}
 
 describe('rule fix contracts', () => {
 	it.each(contracts)(
@@ -228,4 +238,206 @@ describe('rule fix contracts', () => {
 			}
 		}
 	);
+});
+
+interface SafeFixBatch {
+	id: string;
+	input: string;
+	expected: string;
+	fixes: number;
+	language?: string;
+	performers?: string[];
+}
+
+/**
+ * One multi-match document per rule that emits safe fixes. A single occurrence
+ * is covered above; these pin what `collectSafeFixes` hands a bulk applier when
+ * the same rule fires several times in one document.
+ */
+const safeFixBatches: SafeFixBatch[] = [
+	{
+		id: 'syntax.unbalanced-brackets',
+		input: '[Verse\nLine\n\n[Chorus\nMore',
+		expected: '[Verse]\nLine\n\n[Chorus]\nMore',
+		fixes: 2
+	},
+	{
+		id: 'section.localized-header-preference',
+		input: '[Chorus: Ane]\nEn natt\n\n[Bridge]\nEn dag',
+		expected: '[Refreng: Ane]\nEn natt\n\n[Bro]\nEn dag',
+		fixes: 2,
+		language: 'no'
+	},
+	{
+		id: 'section.immediate-repeat-spacing',
+		input: '[Chorus]\nA\nB\n\n[Chorus]\nA\nB\n\n[Verse]\nC\n\n[Verse]\nC',
+		expected: '[Chorus]\nA\nB\nA\nB\n\n[Verse]\nC\nC',
+		fixes: 2
+	},
+	{
+		id: 'performer.header-required',
+		input: '[Verse]\n<i>First</i>\n\n[Chorus]\n<b>Second</b>',
+		expected: '[Verse]\nFirst\n\n[Chorus]\nSecond',
+		fixes: 2,
+		performers: ['A', 'B']
+	},
+	{
+		id: 'performer.redundant-markup',
+		input:
+			'[Verse: A & <i>B</i>]\n<i>First</i>\n<i>Second</i>\n\n[Chorus: A & <i>B</i>]\n<i>Third</i> <i>Fourth</i>',
+		expected:
+			'[Verse: A & <i>B</i>]\n<i>First\nSecond</i>\n\n[Chorus: A & <i>B</i>]\n<i>Third Fourth</i>',
+		fixes: 2,
+		performers: ['A', 'B']
+	},
+	{
+		id: 'performer.unused-legend-slot',
+		input: '[Verse: A & <i>B</i>]\nOnly A sings\n\n[Chorus: C & <i>D</i>]\nOnly C sings',
+		expected: '[Verse: A]\nOnly A sings\n\n[Chorus: C]\nOnly C sings',
+		fixes: 2,
+		performers: ['A', 'B', 'C', 'D']
+	},
+	{
+		id: 'spelling.standardized',
+		input: '[Verse]\nlil whoa dawg choppa oughtta\nboujee skrt trynna ya’ll tho',
+		expected: "[Verse]\nlil' woah dog chopper oughta\nbougie skrrt tryna y'all though",
+		fixes: 10
+	},
+	{
+		id: 'spelling.standardized',
+		input: '[Verse]\nok\nok then\nWell ok',
+		expected: '[Verse]\nOkay\nOkay then\nWell okay',
+		fixes: 3
+	},
+	{
+		id: 'quotes.typewriter',
+		input: '[Verse]\n‘a’ said “b”\nAnd ’tis “c”',
+		expected: '[Verse]\n\'a\' said "b"\nAnd \'tis "c"',
+		fixes: 7
+	},
+	{
+		id: 'unknown.marker',
+		input: '[Verse]\nI heard (?) and (??)\nAgain (????)',
+		expected: '[Verse]\nI heard [?] and [?]\nAgain [?]',
+		fixes: 3
+	}
+];
+
+describe('batched safe fixes', () => {
+	it.each(safeFixBatches)(
+		'$id rewrites every match at once and reaches a fixed point',
+		({ id, input, expected, fixes: expectedCount, language = 'en', performers = [] }) => {
+			const rule = getRule(id);
+			if (!rule) throw new Error(`Missing rule ${id}`);
+			const context = ruleContext({ language, performers });
+			const diagnostics = rule.check(parseDocument(input), context);
+			const fixes = collectSafeFixes(diagnostics);
+
+			expect(fixes).toHaveLength(expectedCount);
+			expect(diagnostics.flatMap((diagnostic) => diagnostic.fixes ?? [])).toEqual(fixes);
+			expect(fixes.every((fix) => fix.edit.baseRevision === testRevision)).toBe(true);
+
+			// A single rule's own safe fixes must be disjoint, or a bulk applier
+			// would have to arbitrate between them.
+			const edits = fixes
+				.flatMap((fix) => fix.edit.edits)
+				.sort((left, right) => left.from - right.from);
+			expect(edits.every((edit, index) => index === 0 || edit.from >= edits[index - 1]!.to)).toBe(
+				true
+			);
+
+			const output = applyEdits(input, edits);
+			expect(output).toBe(expected);
+			expect(parseDocument(output).syntaxIssues).toEqual([]);
+			expect(rule.check(parseDocument(output), context)).toEqual([]);
+		}
+	);
+});
+
+function safeFixesOffered(diagnostics: readonly Diagnostic[]): DiagnosticFix[] {
+	return diagnostics.flatMap(
+		(diagnostic) => diagnostic.fixes?.filter((fix) => fix.kind === 'safe') ?? []
+	);
+}
+
+function disjoint(fixes: readonly DiagnosticFix[]): boolean {
+	const edits = [...fixes.flatMap((fix) => fix.edit.edits)].sort(
+		(left, right) => left.from - right.from
+	);
+	return edits.every((edit, index) => index === 0 || edit.from >= edits[index - 1]!.to);
+}
+
+describe('cross-rule safe fixes', () => {
+	// Two rules legitimately target the same text here: the repeat-spacing join
+	// deletes the second header that the localization rule wants to rename.
+	const input = '[Chorus]\nEn natt\n\n[Chorus]\nEn natt';
+
+	it('offers overlapping fixes individually but never batches them together', () => {
+		const context = ruleContext({ language: 'no' });
+		const diagnostics = runRules(parseDocument(input), context);
+		const offered = safeFixesOffered(diagnostics);
+		const batch = collectSafeFixes(diagnostics);
+
+		// Every fix stays available for individual application; the batch is the
+		// subset that can be applied as one atomic edit.
+		expect(disjoint(offered)).toBe(false);
+		expect(batch.length).toBeLessThan(offered.length);
+		expect(disjoint(batch)).toBe(true);
+		expect(batch.every((fix) => offered.includes(fix))).toBe(true);
+	});
+
+	it('applies as one atomic edit without corrupting the document', () => {
+		const context = ruleContext({ language: 'no' });
+		const batch = collectSafeFixes(runRules(parseDocument(input), context));
+		const output = applyEdits(
+			input,
+			batch.flatMap((fix) => fix.edit.edits)
+		);
+
+		expect(output).toBe('[Refreng]\nEn natt\nEn natt');
+		// The regression this guards: applying every offered fix used to yield
+		// '[Refreng]\nEn natt\n\nEn natt', a half-applied join.
+		expect(output).not.toContain('\n\n');
+		expect(parseDocument(output).syntaxIssues).toEqual([]);
+	});
+
+	it('leaves no safe fix that the batch silently swallowed', () => {
+		const context = ruleContext({ language: 'no' });
+		const batch = collectSafeFixes(runRules(parseDocument(input), context));
+		const output = applyEdits(
+			input,
+			batch.flatMap((fix) => fix.edit.edits)
+		);
+
+		// A dropped fix is deferred, not discarded: re-running the engine against
+		// the new text must either re-offer it or show it is no longer needed.
+		const remaining = runRules(parseDocument(output), ruleContext({ language: 'no' }));
+		expect(safeFixesOffered(remaining)).toEqual([]);
+	});
+
+	it('refuses two insertions competing for one offset', () => {
+		// No enabled rule pair produces this today, but zero-width edits do not
+		// overlap by range arithmetic, so the ordering ambiguity needs its own guard.
+		const insertion = (ruleId: string, insert: string): Diagnostic => ({
+			ruleId,
+			severity: 'warning',
+			from: 4,
+			to: 4,
+			message: `${ruleId} message`,
+			explanation: `${ruleId} explanation`,
+			sourceIds: [],
+			fixes: [
+				{
+					kind: 'safe',
+					label: `Insert ${insert}`,
+					edit: { baseRevision: testRevision, edits: [{ from: 4, to: 4, insert }] }
+				}
+			]
+		});
+
+		const batch = collectSafeFixes([insertion('a.rule', 'X'), insertion('b.rule', 'Y')]);
+
+		expect(batch).toHaveLength(1);
+		expect(batch[0]?.label).toBe('Insert X');
+	});
 });

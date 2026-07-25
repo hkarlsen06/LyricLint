@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '../core/parser.js';
+import { parseDocument } from '$lib/core/parser.js';
 import { detectSongLanguage } from './detect.js';
 
 describe('song language detection', () => {

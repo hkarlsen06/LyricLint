@@ -10,13 +10,13 @@ import {
 	keymap,
 	lineNumbers
 } from '@codemirror/view';
-import { parseDocument } from '../core/parser.js';
+import { parseDocument } from '$lib/core/parser.js';
 import type {
 	EditorHandle,
 	EditorSnapshot,
 	SerializedSelection,
 	TextRange
-} from '../core/types.js';
+} from '$lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks, SelectionAnchor } from './contracts.js';
 import {
 	editorCallbacksField,
@@ -35,7 +35,7 @@ import {
 import { legendCleanupFilter } from './extensions/legend-cleanup.js';
 import { markupDimField, markupDimTheme } from './extensions/markup-dim.js';
 import {
-	diagnosticRangeClickHandler,
+	diagnosticRangeHoverHandler,
 	lintDecorationField,
 	lintDecorationTheme,
 	setDiagnosticsEffect
@@ -105,14 +105,26 @@ function assertRange(range: TextRange, documentLength: number): void {
 	}
 }
 
+/*
+ * Every value here resolves through a design token, with no literal fallback.
+ * A fallback looks like insurance but behaves like a second palette: the ones
+ * this file used to carry were left over from an abandoned warm scheme (a hue-48
+ * orange caret, hue-78 surfaces), so any token rename would have silently
+ * repainted the editor in colors nobody had chosen. If a token is missing the
+ * right outcome is a visible break, not a plausible wrong answer.
+ *
+ * The type in particular has to come from the tokens: hardcoding a monospace
+ * stack here is what put the lyric text — the one surface the user reads for
+ * hours — in a different typeface from every other mono glyph in the app.
+ */
 const editorTheme = EditorView.theme({
 	'&': {
 		height: '100%',
 		minHeight: '12rem',
-		background: 'var(--color-surface, var(--ll-editor-surface, oklch(0.985 0.006 78)))',
-		color: 'var(--color-text, var(--ll-editor-text, oklch(0.24 0.015 70)))',
-		fontFamily: 'ui-monospace, "SFMono-Regular", "Cascadia Code", "Liberation Mono", monospace',
-		fontSize: '0.9375rem'
+		background: 'var(--color-surface)',
+		color: 'var(--color-text)',
+		fontFamily: 'var(--font-mono)',
+		fontSize: 'var(--font-size-md)'
 	},
 	// No focus ring around the editor: the caret and the active-line wash already
 	// show where focus is, and a full-height outline dominates the workspace.
@@ -121,37 +133,48 @@ const editorTheme = EditorView.theme({
 	},
 	'.cm-scroller': {
 		fontFamily: 'inherit',
-		lineHeight: '1.65',
+		lineHeight: 'var(--line-height-editor)',
 		overflow: 'auto'
 	},
 	'.cm-content': {
-		padding: '1.25rem 1.1rem 4rem 0.5rem',
-		caretColor: 'var(--color-accent, var(--ll-editor-caret, oklch(0.47 0.16 48)))'
+		padding: 'var(--space-5) var(--space-4) var(--space-8) var(--space-2)',
+		caretColor: 'var(--color-accent)'
 	},
 	'.cm-line': {
-		padding: '0 0.25rem'
+		padding: '0 var(--space-1)',
+		// The reading measure. The cap is carried by padding, not by a max-width
+		// on `.cm-content` or the line: percentage padding resolves against the
+		// content box, so the line's border box still spans the full pane — which
+		// keeps the active-line wash (an inset shadow on that box, above) painting
+		// edge to edge and keeps clicks anywhere on a row landing in the line —
+		// while the text itself wraps at the measure. --measure-editor is the same
+		// token the mock editor's textarea caps at in ui/styles/editor.css; `ch`
+		// resolves against this element's own mono font, so both surfaces cap at
+		// the same character count. The max() keeps the original --space-1 padding
+		// as the floor when the pane is narrower than the measure, and the logical
+		// property puts the slack on the away-from-text side in RTL documents too.
+		paddingInlineEnd: 'max(var(--space-1), calc(100% - var(--measure-editor)))'
 	},
 	'.cm-gutters': {
 		border: 'none',
 		background: 'transparent',
-		color: 'color-mix(in oklch, var(--color-text-muted, oklch(0.44 0.016 65)) 72%, transparent)',
-		fontFamily: 'var(--font-mono, ui-monospace, monospace)',
-		fontSize: '0.72rem'
+		color: 'var(--color-text-muted)',
+		fontFamily: 'var(--font-mono)',
+		fontSize: 'var(--font-size-2xs)'
 	},
 	'.cm-lineNumbers .cm-gutterElement': {
-		minWidth: '2.6rem',
-		padding: '0.22rem 0.7rem 0 0.5rem'
+		minWidth: 'var(--space-7)',
+		padding: 'var(--space-0-5) var(--space-3) 0 var(--space-2)'
 	},
 	// The caret's row gets a subtle blue-tinted wash. An inset shadow layers on
 	// top of performer line tints instead of replacing them.
 	'.cm-activeLine': {
 		backgroundColor: 'transparent',
-		boxShadow:
-			'inset 0 0 0 62.5rem color-mix(in oklch, var(--color-focus, oklch(0.54 0.15 255)) 9%, transparent)'
+		boxShadow: 'inset 0 0 0 62.5rem color-mix(in oklch, var(--color-focus) 9%, transparent)'
 	},
 	'.cm-activeLineGutter': {
 		backgroundColor: 'transparent',
-		color: 'var(--color-text, currentColor)'
+		color: 'var(--color-text)'
 	},
 	// The selection is the browser's own, not CodeMirror's drawn one (see
 	// `drawSelection` in the extension list): a native highlight is painted over
@@ -159,10 +182,10 @@ const editorTheme = EditorView.theme({
 	// performer tints and fix previews. The drawn selection sits in a layer
 	// behind every background and vanished under them.
 	'.cm-content ::selection, .cm-line::selection': {
-		backgroundColor: 'var(--color-text-selection, var(--ll-selection, oklch(0.84 0.075 255)))'
+		backgroundColor: 'var(--color-text-selection)'
 	},
 	'.cm-dropCursor': {
-		borderLeftColor: 'var(--color-accent, var(--ll-editor-caret, oklch(0.47 0.16 48)))'
+		borderLeftColor: 'var(--color-accent)'
 	}
 });
 
@@ -289,7 +312,7 @@ export function createLyricEditor(
 		performerGroupsField,
 		performerDecorationField,
 		lintDecorationField,
-		diagnosticRangeClickHandler(),
+		diagnosticRangeHoverHandler(),
 		sectionGhostField,
 		markupDimField,
 		highlightActiveLine(),
@@ -375,15 +398,12 @@ export function createLyricEditor(
 			for (const change of edit.edits) {
 				assertRange(change, view.state.doc.length);
 			}
-			const first = [...edit.edits].sort((left, right) => left.from - right.from)[0];
-			// Scroll only far enough to expose the edit. Centering it would shove
-			// the lyrics (and the popover anchored to them) under the reader on
-			// every preview, even when the change was already on screen.
+			// Previewing never scrolls. The diff appears because a diagnostic is
+			// selected, and whatever selected it has already brought the range
+			// into view; moving the lyrics again here would yank the document
+			// out from under a reader who only expanded a card.
 			view.dispatch({
-				effects: [
-					setFixPreviewEffect.of(edit),
-					...(first ? [EditorView.scrollIntoView(first.from)] : [])
-				],
+				effects: setFixPreviewEffect.of(edit),
 				annotations: Transaction.addToHistory.of(false)
 			});
 		},

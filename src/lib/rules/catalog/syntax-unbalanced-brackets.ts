@@ -1,4 +1,4 @@
-import type { Diagnostic, RuleDefinition } from '../../core/types.js';
+import type { Diagnostic, RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 export const syntaxUnbalancedBracketsRule: RuleDefinition = {

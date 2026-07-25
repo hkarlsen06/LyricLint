@@ -1,5 +1,5 @@
-import { cleanupLegendSlots } from '../../performers/legend-cleanup.js';
-import type { Diagnostic, RuleDefinition } from '../../core/types.js';
+import { cleanupLegendSlots } from '$lib/performers/legend-cleanup.js';
+import type { Diagnostic, RuleDefinition } from '$lib/core/types.js';
 import { diagnostic } from './utils.js';
 
 export const performerUnusedLegendSlotRule: RuleDefinition = {

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import SourceLink from '../primitives/SourceLink.svelte';
+	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
 	let confirmDeleteAll = $state(false);
@@ -14,12 +14,12 @@
 	<section>
 		<h3>Document</h3>
 		<div class="tool-actions">
-			<button
-				type="button"
-				class="button button--primary"
-				onclick={() => controller.copyCanonical()}
-			>
-				Copy canonical markup
+			<!-- The same action as the toolbar's contrast button, so it takes the
+			     same label and steps down to the default tier: the toolbar already
+			     carries the one destination action, and two emphases for one
+			     command read as two different commands. -->
+			<button type="button" class="button" onclick={() => controller.copyCanonical()}>
+				Copy lyrics
 			</button>
 			<button type="button" class="button button--quiet" onclick={() => controller.exportDraft()}>
 				Export current draft (.txt)

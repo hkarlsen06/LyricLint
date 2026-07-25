@@ -1,0 +1,89 @@
+/* Document reset, element defaults, focus, selection, and the screen-reader utility. */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	min-width: 20rem;
+	min-height: 100%;
+	margin: 0;
+}
+
+body {
+	background: var(--color-canvas);
+	color: var(--color-text);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-md);
+	line-height: var(--line-height-body);
+	text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
+}
+
+button,
+summary,
+select {
+	cursor: pointer;
+}
+
+/* Recessed and desaturated, not faded: the label stays legible and the focus
+   ring keeps its full strength, which a container opacity would have dimmed. */
+button:disabled {
+	border-color: var(--color-border-disabled);
+	background: var(--color-control-disabled);
+	color: var(--color-text-disabled);
+	cursor: not-allowed;
+}
+
+a {
+	color: var(--color-accent);
+	text-underline-offset: 0.16em;
+}
+
+a:hover {
+	color: var(--color-accent-hover);
+}
+
+:focus-visible {
+	outline: var(--focus-ring-width) solid var(--color-focus);
+	outline-offset: var(--focus-ring-offset);
+}
+
+/*
+ * Native selection paints over an element's own background, so an opaque wash
+ * stays visible on the tinted chips, badges, and lyric excerpts in the panels —
+ * a translucent one washed out against them.
+ */
+::selection {
+	background: var(--color-text-selection);
+}
+
+/*
+ * Pinned to its containing block's origin rather than left at its static
+ * position: an absolutely positioned box escapes the scroll clipping of every
+ * ancestor between it and that containing block, so a live region sitting deep
+ * inside a long scrolled list would otherwise report its offset as real
+ * scrollable overflow on the app shell.
+ */
+.sr-only {
+	position: absolute;
+	inset-block-start: 0;
+	inset-inline-start: 0;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}

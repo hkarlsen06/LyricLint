@@ -1,4 +1,4 @@
-import type { RuleDefinition, SourceReference } from '../core/types.js';
+import type { RuleDefinition, SourceReference } from '$lib/core/types.js';
 import { adlibParenthesesRule } from './catalog/adlib-parentheses.js';
 import { capitalizationLineStartRule } from './catalog/capitalization-line-start.js';
 import { capitalizationTitleCaseRule } from './catalog/capitalization-title-case.js';
@@ -15,6 +15,7 @@ import { performerUnusedLegendSlotRule } from './catalog/performer-unused-legend
 import { performerStyleOrderRule } from './catalog/performer-style-order.js';
 import { performerTooManyGroupsRule } from './catalog/performer-too-many-groups.js';
 import { punctuationDroppedWordDashRule } from './catalog/punctuation-dropped-word-dash.js';
+import { punctuationLineEndingRule } from './catalog/punctuation-line-ending.js';
 import { punctuationQuestionRule } from './catalog/punctuation-question.js';
 import { quotesTypewriterRule } from './catalog/quotes-typewriter.js';
 import { repeatPlaceholderRule } from './catalog/repeat-placeholder.js';
@@ -62,6 +63,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	adlibParenthesesRule,
 	capitalizationLineStartRule,
 	capitalizationTitleCaseRule,
+	punctuationLineEndingRule,
 	punctuationQuestionRule,
 	punctuationDroppedWordDashRule,
 	lineProseDensityRule,

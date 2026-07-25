@@ -117,7 +117,7 @@
 <button
 	bind:this={trigger}
 	type="button"
-	class="button button--quiet language-trigger"
+	class="button language-trigger"
 	aria-haspopup="dialog"
 	aria-label={`Lyric language: ${selectedLabel}`}
 	onclick={open}

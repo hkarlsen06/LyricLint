@@ -4,7 +4,7 @@ import type {
 	PerformerId,
 	PerformerRecord,
 	TextRange
-} from '../core/types.js';
+} from '$lib/core/types.js';
 import { findExactPerformer } from './identity.js';
 import { decodeLegendText } from './import.js';
 

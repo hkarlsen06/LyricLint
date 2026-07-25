@@ -11,15 +11,27 @@
 	 */
 
 	/* Typography */
+	/*
+	 * The leading name in each stack is the self-hosted webfont declared in
+	 * fonts.css; the plain Plex names after it are local installs, kept as the
+	 * first fallback if the webfont fails to load. Non-Latin scripts (Arabic,
+	 * CJK lyrics) fall through to the system entries by design — see fonts.css.
+	 */
 	--font-ui:
-		'IBM Plex Sans', 'Avenir Next', Avenir, 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
-	--font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, ui-monospace, monospace;
+		'IBM Plex Sans Variable', 'IBM Plex Sans', 'Avenir Next', Avenir, 'Noto Sans', ui-sans-serif,
+		system-ui, sans-serif;
+	--font-mono:
+		'IBM Plex Mono Web', 'IBM Plex Mono', 'SFMono-Regular', Consolas, ui-monospace, monospace;
 	--font-size-2xs: 0.6875rem;
 	--font-size-xs: 0.75rem;
 	--font-size-sm: 0.8125rem;
 	--font-size-md: 0.9375rem;
 	--font-size-lg: 1.0625rem;
 	--font-size-xl: 1.1875rem;
+	/* Display size, off the end of the compact UI ramp above. The workbench has
+	   no use for it — it is for a page that is nothing but a message, where the
+	   brand is the first thing read rather than a label in a toolbar. */
+	--font-size-2xl: 1.75rem;
 	--line-height-tight: 1.25;
 	--line-height-ui: 1.4;
 	--line-height-body: 1.5;
@@ -64,9 +76,20 @@
 	--control-padding-block: var(--space-1);
 	--control-gap: var(--space-1-5);
 
-	/* The document toolbar and the right panel header sit side by side, so they
-	   share one height and their bottom borders line up. */
+	/* The document toolbar spans the whole window, above both columns; the right
+	   panel's tab strip hangs under it and takes the shorter height a row of
+	   three labels needs. */
 	--header-height: 3.5rem;
+	--panel-tabs-height: 2.75rem;
+
+	/* Reading measures. `ch` resolves against the element's own font, so these
+	   cap a character count rather than a width — which is the point: the real
+	   CodeMirror surface and the mock editor must wrap at the same column, and
+	   they render in the same mono face at different places in the tree.
+	   Prose is narrower than source because wrapped prose is read in runs of
+	   lines, while a lyric line is scanned one at a time. */
+	--measure-editor: 76ch;
+	--measure-prose: 66ch;
 
 	/* Focus, motion, and interaction states */
 	--focus-ring-width: 2px;
@@ -75,24 +98,64 @@
 	--duration-medium: 180ms;
 	--duration-slow: 240ms;
 	--ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
-	--opacity-disabled: 0.48;
-	--opacity-muted: 0.72;
+	/* The brand lockup only. A state transition answers a user's action and must
+	   be gone before they look for the result, which is what caps the ramp above
+	   at 240ms; the wordmark answers nothing, so it is allowed the time an
+	   overshoot needs to read as weight rather than as lag. Nothing that reports
+	   state may reach for these two. */
+	--duration-brand: 560ms;
+	--ease-spring-out: cubic-bezier(0.22, 1.4, 0.36, 1);
+	/*
+	 * There is deliberately no `--opacity-disabled` or `--opacity-muted`. Opacity
+	 * is never a state carrier here: it stacks (a 0.65 text mix inside a 0.48
+	 * container leaves ~0.31 effective alpha), it drags contrast below AA wherever
+	 * it lands, and it fades the border and focus ring along with the label. State
+	 * is carried by the `--color-*-disabled` tokens and by non-color cues instead.
+	 */
 
-	/* Semantic surfaces and text */
-	--color-canvas: oklch(97.5% 0.003 285);
-	--color-surface: oklch(99.2% 0.002 285);
-	--color-surface-subtle: oklch(95.2% 0.004 285);
-	--color-surface-strong: oklch(91.5% 0.006 285);
+	/*
+	 * Surfaces come in two families, and the split is load-bearing.
+	 *
+	 * ELEVATION — `--color-canvas` (recessed) and `--color-surface` (raised).
+	 * Two levels, no more. Light mode runs out of headroom just short of white,
+	 * so anything that needs to sit above `--color-surface` earns it with a
+	 * shadow, never with more lightness. Deriving a third elevation step is what
+	 * previously made an expanded diagnostic card sink *below* the panel canvas
+	 * in light mode while rising above it in dark.
+	 *
+	 * FILL — `--color-fill-subtle` → `--color-fill` → `--color-fill-strong`.
+	 * Steps from the surface *toward the text color*: darker in light, lighter
+	 * in dark. Because the direction is defined perceptually rather than by
+	 * lightness, hover, selection, and emphasis read identically in both themes.
+	 *
+	 * The rule that keeps the two from colliding: a card or panel never takes a
+	 * fill step deeper than `--color-fill-subtle`, so no card can cross its own
+	 * canvas. Deeper steps belong to controls, chips, and badges.
+	 */
+	--color-canvas: oklch(93% 0.004 285);
+	--color-surface: oklch(99.3% 0.002 285);
+	--color-fill-subtle: oklch(96.5% 0.004 285);
+	--color-fill: oklch(92% 0.006 285);
+	--color-fill-strong: oklch(88% 0.008 285);
 	--color-overlay: var(--color-surface);
+
+	/* Toolbars and status bars are chrome, not an interaction state; the alias
+	   keeps that intent legible where the fill ramp is reused for a flat band. */
+	--color-chrome: var(--color-fill-subtle);
+
 	--color-text: oklch(23% 0.012 285);
 	--color-text-muted: oklch(45% 0.014 285);
-	--color-text-disabled: color-mix(in oklch, var(--color-text-muted) 65%, transparent);
-	--color-border: oklch(87% 0.006 285);
+	/* Opaque, not a translucent mix: disabled text has to stay legible, and an
+	   alpha mix stacked on a container opacity is what made it illegible. */
+	--color-text-disabled: oklch(57% 0.012 285);
+	--color-border: oklch(86% 0.006 285);
 	--color-border-strong: oklch(68% 0.012 285);
 	--color-border-input: var(--color-border-strong);
+	--color-border-disabled: oklch(82% 0.006 285);
 	--color-control: var(--color-surface);
-	--color-control-hover: var(--color-surface-subtle);
-	--color-control-active: var(--color-surface-strong);
+	--color-control-hover: var(--color-fill-subtle);
+	--color-control-active: var(--color-fill);
+	--color-control-disabled: var(--color-fill-subtle);
 	--color-control-border: var(--color-border-input);
 
 	/* Accent and selection */
@@ -128,7 +191,10 @@
 	--color-manual-soft: oklch(93.5% 0.006 285);
 	--color-danger-soft: var(--color-danger-surface);
 
-	/* Elevation */
+	/* Elevation. `--shadow-recessed` is the only one that points inward: it is
+	   what makes a selected row read as a well cut into a run of touching rows,
+	   rather than as one more card floating above them. */
+	--shadow-recessed: inset 0 1px 3px oklch(20% 0.01 285 / 0.13);
 	--shadow-raised: 0 1px 2px oklch(20% 0.01 285 / 0.08);
 	--shadow-popover: 0 2px 8px oklch(20% 0.01 285 / 0.14);
 	--shadow-overlay: 0 12px 32px oklch(20% 0.01 285 / 0.18), 0 2px 8px oklch(20% 0.01 285 / 0.12);
@@ -145,6 +211,13 @@
 	 * Palette order matches roster allocation: the first two slots are the
 	 * emerald/violet pair the mockups lead with. Performer identity is also
 	 * expressed in labels and markup, never by color alone.
+	 *
+	 * Each performer has two roles at one hue. The solid is the roster swatch and
+	 * the picker chip's dot; the tint is the text background the editor paints
+	 * behind that performer's lines. They must stay on the same hue — the editor
+	 * used to carry its own hardcoded table (155 vs 145, 78 vs 90, 255 vs 240),
+	 * so the one thread tying the roster to the lyrics broke at the editor end,
+	 * and the tints could not follow a theme change at all.
 	 */
 	--performer-olive: oklch(50% 0.13 155);
 	--performer-indigo: oklch(50% 0.15 295);
@@ -154,41 +227,70 @@
 	--performer-plum: oklch(55% 0.15 330);
 	--performer-copper: oklch(55% 0.12 50);
 	--performer-slate: oklch(52% 0.045 255);
+
+	--performer-olive-tint: oklch(90% 0.06 155);
+	--performer-indigo-tint: oklch(90% 0.06 295);
+	--performer-teal-tint: oklch(90% 0.055 200);
+	--performer-ochre-tint: oklch(90% 0.055 78);
+	--performer-rose-tint: oklch(90% 0.06 20);
+	--performer-plum-tint: oklch(90% 0.06 330);
+	--performer-copper-tint: oklch(90% 0.06 50);
+	--performer-slate-tint: oklch(90% 0.035 255);
 }
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--color-canvas: oklch(16.5% 0.008 285);
-		--color-surface: oklch(20% 0.009 285);
-		--color-surface-subtle: oklch(23.5% 0.01 285);
-		--color-surface-strong: oklch(28% 0.012 285);
-		--color-text: oklch(94% 0.005 285);
-		--color-text-muted: oklch(70% 0.012 285);
-		--color-border: oklch(31% 0.012 285);
-		--color-border-strong: oklch(46% 0.015 285);
+		/*
+		 * Same two families, same directions: elevation lightens away from the
+		 * canvas, fill steps toward the text. Only the anchors move.
+		 *
+		 * The dark anchors sit higher, and nearer to neutral, than they used to.
+		 * The old canvas at 15.5% was almost the bottom of the range, which left
+		 * the whole ramp compressed into the darkest fifth: the tab strip and the
+		 * panel read as one black field, and every step above them had to be tiny
+		 * to fit. Charcoal rather than near-black gives each level room to be
+		 * told apart, and dropping the chroma takes the violet cast off surfaces
+		 * that are supposed to be neutral behind colored diagnostics.
+		 */
+		--color-canvas: oklch(20% 0.004 285);
+		--color-surface: oklch(24.5% 0.005 285);
+		--color-fill-subtle: oklch(28.5% 0.006 285);
+		--color-fill: oklch(32.5% 0.007 285);
+		--color-fill-strong: oklch(37% 0.008 285);
+		--color-text: oklch(94% 0.004 285);
+		--color-text-muted: oklch(72% 0.008 285);
+		--color-text-disabled: oklch(56% 0.008 285);
+		--color-border: oklch(34% 0.008 285);
+		--color-border-strong: oklch(49% 0.012 285);
+		--color-border-disabled: oklch(39% 0.008 285);
 		--color-accent: oklch(71% 0.12 255);
 		--color-accent-hover: oklch(77% 0.11 255);
 		--color-accent-active: oklch(81% 0.1 255);
 		--color-accent-text: oklch(17% 0.008 285);
-		--color-accent-soft: oklch(28% 0.05 255);
+		--color-accent-soft: oklch(32% 0.06 255);
 		--color-focus: oklch(68% 0.14 255);
 		--color-text-selection: oklch(38% 0.1 255);
-		--color-danger: oklch(70% 0.15 28);
-		--color-danger-hover: oklch(76% 0.14 28);
-		--color-danger-surface: oklch(26% 0.055 25);
-		--color-success: oklch(72% 0.13 158);
-		--color-success-surface: oklch(27% 0.045 158);
-		--color-warning: oklch(76% 0.13 78);
-		--color-warning-soft: oklch(27% 0.05 80);
-		--color-suggestion: oklch(71% 0.12 255);
-		--color-suggestion-soft: oklch(26% 0.05 255);
-		--color-manual: oklch(74% 0.012 285);
-		--color-manual-soft: oklch(27% 0.008 285);
+		/* The soft severity surfaces rise with the canvas under them: a tag has to
+		   stay a tag against a charcoal card, not sink into it. */
+		--color-danger: oklch(72% 0.15 28);
+		--color-danger-hover: oklch(78% 0.14 28);
+		--color-danger-surface: oklch(32% 0.08 25);
+		--color-success: oklch(74% 0.13 158);
+		--color-success-surface: oklch(32% 0.06 158);
+		--color-warning: oklch(78% 0.13 78);
+		--color-warning-soft: oklch(32% 0.065 80);
+		--color-suggestion: oklch(73% 0.12 255);
+		--color-suggestion-soft: oklch(32% 0.065 255);
+		--color-manual: oklch(76% 0.01 285);
+		--color-manual-soft: oklch(32% 0.006 285);
+		--shadow-recessed: inset 0 1px 3px oklch(4% 0.005 285 / 0.5);
 		--shadow-raised: 0 1px 2px oklch(4% 0.005 285 / 0.35);
 		--shadow-popover: 0 2px 8px oklch(4% 0.005 285 / 0.4);
 		--shadow-overlay: 0 12px 32px oklch(4% 0.005 285 / 0.55), 0 2px 8px oklch(4% 0.005 285 / 0.45);
 
-		--performer-olive: oklch(73% 0.14 158);
+		/* Hues are the identity and are held fixed across both themes; only
+		   lightness and chroma move. */
+		--performer-olive: oklch(73% 0.14 155);
 		--performer-indigo: oklch(72% 0.14 295);
 		--performer-teal: oklch(72% 0.09 200);
 		--performer-ochre: oklch(76% 0.12 78);
@@ -196,5 +298,14 @@
 		--performer-plum: oklch(72% 0.13 330);
 		--performer-copper: oklch(72% 0.11 50);
 		--performer-slate: oklch(72% 0.04 255);
+
+		--performer-olive-tint: oklch(34% 0.06 155);
+		--performer-indigo-tint: oklch(34% 0.06 295);
+		--performer-teal-tint: oklch(34% 0.055 200);
+		--performer-ochre-tint: oklch(34% 0.055 78);
+		--performer-rose-tint: oklch(34% 0.06 20);
+		--performer-plum-tint: oklch(34% 0.06 330);
+		--performer-copper-tint: oklch(34% 0.06 50);
+		--performer-slate-tint: oklch(34% 0.035 255);
 	}
 }

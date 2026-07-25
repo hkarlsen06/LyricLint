@@ -42,6 +42,13 @@
 		typeof navigator !== 'undefined' && /mac|iphone|ipad|ipod/i.test(navigator.platform ?? '');
 	const fixShortcut = isMacLike ? '⌘.' : 'Ctrl+.';
 
+	// Local on purpose: the codebase has no shared pluralizer, and the status
+	// bar is UI chrome (always English), not lyric text, so the language packs
+	// under $lib/languages do not apply.
+	function count(value: number, noun: string): string {
+		return `${value} ${noun}${value === 1 ? '' : 's'}`;
+	}
+
 	// Read-only presentation stats for the status bar; derived from the snapshot
 	// the controller already holds, never written back.
 	const documentStats = $derived.by(() => {
@@ -114,7 +121,10 @@
 		onPerformerRenamed: ({ performerId, previousName, displayName }) =>
 			controller.adoptHeaderRename(performerId, previousName, displayName),
 		onSectionHeaderRequest: () => {},
+		// Keyboard diagnostic navigation travels to the diagnostic; hovering one in
+		// the editor only marks its card, leaving the text under the pointer still.
 		onDiagnosticActivate: (diagnostic) => controller.navigateToDiagnostic(diagnostic),
+		onDiagnosticHighlight: (diagnostic) => controller.highlightDiagnostic(diagnostic),
 		onAnnouncement: (message) => controller.feedback.announce(message),
 		createPerformerEdit: ({ range, performerIds }) => {
 			const snapshot = controller.snapshot;
@@ -131,7 +141,7 @@
 			controller.feedback.announce(`Performer assignment blocked: ${reason}.`);
 			return undefined;
 		},
-		createPerformerLegendEdit: ({ sectionFrom, assignments }) => {
+		createPerformerLegendEdit: ({ sectionFrom, assignments, unwrapSlots }) => {
 			const snapshot = controller.snapshot;
 			const result = assignVoiceLegend({
 				revision: snapshot.revision,
@@ -142,7 +152,8 @@
 					...assignment,
 					performerIds: [...assignment.performerIds]
 				})),
-				roster: controller.performers
+				roster: controller.performers,
+				unwrapSlots
 			});
 			if (result.status === 'applied') return result.edit;
 			controller.feedback.announce('Those section performers could not be assigned.');
@@ -183,8 +194,12 @@
 </script>
 
 <main class="workspace" data-testid="workspace">
+	<!-- The toolbar spans both columns: the draft's name, its save state, and the
+	     commands that act on the whole document belong to the window, not to the
+	     editor half of it. The panel's tabs then hang directly under it. -->
+	<DocumentToolbar {controller} />
+
 	<section class="editor-region" aria-label="Lyrics workspace">
-		<DocumentToolbar {controller} />
 		<div class="editor-host" data-testid="editor-region">
 			{#key controller.draftId}
 				<EditorComponent
@@ -202,8 +217,13 @@
 
 	<footer class="status-bar" aria-label="Document summary">
 		<span class="status-bar__group">
-			<span>{documentStats.lines} lines · {documentStats.sections} sections</span>
-			<span>{documentStats.performers} performers · {documentStats.voiceGroups} voice groups</span>
+			<span>{count(documentStats.lines, 'line')} · {count(documentStats.sections, 'section')}</span>
+			<span
+				>{count(documentStats.performers, 'performer')} · {count(
+					documentStats.voiceGroups,
+					'voice group'
+				)}</span
+			>
 		</span>
 		<span class="status-bar__group status-bar__hints">
 			<span><kbd>F8</kbd> next issue</span>

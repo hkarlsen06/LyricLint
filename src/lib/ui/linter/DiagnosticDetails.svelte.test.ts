@@ -39,7 +39,7 @@ function source(id: string): SourceReference {
 }
 
 describe('DiagnosticDetails preview flow', () => {
-	it('turns the preview control into confirm in place, without a nested card', async () => {
+	it('previews the fix as soon as the card opens, with one control to keep it', async () => {
 		const onApplyFix = vi.fn();
 		const onPreviewFix = vi.fn();
 		const screen = await render(DiagnosticDetails, {
@@ -52,26 +52,25 @@ describe('DiagnosticDetails preview flow', () => {
 			onIgnore: vi.fn()
 		});
 
-		const preview = page.getByRole('button', { name: 'Preview: Wrap as (Yeah)' });
-		await expect.element(preview).toHaveTextContent('Preview');
-		await preview.click();
-
-		const apply = page.getByRole('button', { name: 'Apply: Wrap as (Yeah)' });
-		await expect.element(apply).toHaveTextContent('Apply');
-		await expect.element(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
+		// Expanding the card is the preview: the editor shows the change as a
+		// diff without the user asking, so the two-step controls are gone.
 		expect(onPreviewFix).toHaveBeenCalledOnce();
 		expect(onApplyFix).not.toHaveBeenCalled();
+		await expect.element(page.getByRole('button', { name: /Preview/u })).not.toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
 
-		// The confirm state replaces the preview control rather than nesting a
-		// second card with its own actions inside the diagnostic card.
-		expect(screen.container.querySelectorAll('.diagnostic-details__actions')).toHaveLength(1);
-		await expect.element(preview).not.toBeInTheDocument();
+		// The fix names itself. "Apply" in front of a label that already reads as
+		// a command said the same thing twice, so the label is the whole button.
+		const apply = page.getByRole('button', { name: 'Wrap as (Yeah)' });
+		await expect.element(apply).toBeVisible();
+		await expect.element(page.getByRole('button', { name: /^Apply/u })).not.toBeInTheDocument();
+		expect(screen.container.querySelectorAll('.diagnostic-actions')).toHaveLength(1);
 
 		await apply.click();
 		expect(onApplyFix).toHaveBeenCalledOnce();
 	});
 
-	it('hides the ignore action while a preview is pending', async () => {
+	it('keeps ignore available beside apply: there is no pending step to hide it', async () => {
 		await render(DiagnosticDetails, {
 			diagnostic: previewDiagnostic(),
 			sources: new Map(),
@@ -84,15 +83,13 @@ describe('DiagnosticDetails preview flow', () => {
 
 		const ignore = page.getByRole('button', { name: 'Ignore' });
 		await expect.element(ignore).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Wrap as (Yeah)' })).toBeVisible();
+		// Beside means beside: no auto margin shoving Ignore to the card's far
+		// edge away from the Apply it pairs with.
+		expect(getComputedStyle(ignore.element()).marginInlineStart).toBe('0px');
 		await expect
 			.element(page.getByRole('button', { name: 'Ignore this session' }))
 			.not.toBeInTheDocument();
-
-		await page.getByRole('button', { name: 'Preview: Wrap as (Yeah)' }).click();
-		await expect.element(ignore).not.toBeInTheDocument();
-
-		await page.getByRole('button', { name: 'Cancel' }).click();
-		await expect.element(ignore).toBeVisible();
 	});
 
 	it('accepts an unrecognized header as correct with an affirmative CTA', async () => {
@@ -122,10 +119,10 @@ describe('DiagnosticDetails preview flow', () => {
 		expect(onIgnore).toHaveBeenCalledOnce();
 	});
 
-	it('cancels a preview without applying it', async () => {
+	it('takes its preview with it when the card closes', async () => {
 		const onApplyFix = vi.fn();
 		const onCancelPreview = vi.fn();
-		await render(DiagnosticDetails, {
+		const screen = await render(DiagnosticDetails, {
 			diagnostic: previewDiagnostic(),
 			sources: new Map(),
 			onChooseHeader: vi.fn(),
@@ -135,17 +132,17 @@ describe('DiagnosticDetails preview flow', () => {
 			onIgnore: vi.fn()
 		});
 
-		await page.getByRole('button', { name: 'Preview: Wrap as (Yeah)' }).click();
-		await page.getByRole('button', { name: 'Cancel' }).click();
+		expect(onCancelPreview).not.toHaveBeenCalled();
 
-		await expect
-			.element(page.getByRole('button', { name: 'Preview: Wrap as (Yeah)' }))
-			.toBeVisible();
+		// Collapsing the card is the only way out of a preview now, and the
+		// document must not be left showing a diff for a diagnostic nobody
+		// is looking at.
+		screen.unmount();
 		expect(onCancelPreview).toHaveBeenCalledOnce();
 		expect(onApplyFix).not.toHaveBeenCalled();
 	});
 
-	it('labels a safe diagnostic action as apply', async () => {
+	it('labels a fix with the change it makes, not with the word apply', async () => {
 		const onApplyFix = vi.fn();
 		const safeFix = {
 			kind: 'safe' as const,
@@ -168,11 +165,22 @@ describe('DiagnosticDetails preview flow', () => {
 			onIgnore: vi.fn()
 		});
 
+		// Safe and preview fixes are the same control, and it says what it does:
+		// the diff in the editor shows the change, the label names it, and the
+		// word "Apply" adds nothing the label has not already said.
 		const apply = page.getByRole('button', {
-			name: 'Apply: Insert the missing closing bracket'
+			name: 'Insert the missing closing bracket'
 		});
-		await expect.element(apply).toHaveTextContent('Apply');
-		await expect.element(apply).not.toHaveTextContent('Insert the missing closing bracket');
+		await expect.element(apply).toBeVisible();
+		await expect.element(apply).not.toHaveTextContent('Apply');
+		// The visible label is the accessible name: no aria-label repeating it
+		// back with a verb in front.
+		expect(apply.element().getAttribute('aria-label')).toBeNull();
+
+		// Every action here wears the one ordinary button silhouette; the legacy
+		// `.button--pill` hook is gone and must not come back.
+		await expect.element(apply).toHaveClass('button');
+		expect(apply.element().classList.contains('button--pill')).toBe(false);
 
 		await apply.click();
 		expect(onApplyFix).toHaveBeenCalledWith(safeFix);
@@ -199,7 +207,10 @@ describe('DiagnosticDetails preview flow', () => {
 		});
 
 		await expect.element(page.getByRole('button', { name: /Preview:/ })).not.toBeInTheDocument();
-		await page.getByRole('button', { name: 'Choose header' }).click();
+		const chooseHeader = page.getByRole('button', { name: 'Choose header' });
+		await expect.element(chooseHeader).toHaveClass('button');
+		expect(chooseHeader.element().classList.contains('button--pill')).toBe(false);
+		await chooseHeader.click();
 		expect(onChooseHeader).toHaveBeenCalledOnce();
 	});
 
@@ -226,6 +237,33 @@ describe('DiagnosticDetails preview flow', () => {
 
 		await page.getByRole('button', { name: 'Assign section performers' }).click();
 		expect(onAssignPerformers).toHaveBeenCalledOnce();
+	});
+
+	it('offers no assignment when the host cannot make one', async () => {
+		// A section that cannot take a legend — no header, or two styled voices
+		// and no plain lyrics — withholds the handler, and the card withholds the
+		// button rather than showing one that only explains why it did nothing.
+		await render(DiagnosticDetails, {
+			diagnostic: {
+				ruleId: 'performer.inline-mismatch',
+				severity: 'warning',
+				from: 20,
+				to: 38,
+				message: 'Inline style has no performer in the section legend.',
+				explanation: 'Choose the section and styled voices.',
+				sourceIds: []
+			},
+			sources: new Map(),
+			onChooseHeader: vi.fn(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn()
+		});
+
+		await expect
+			.element(page.getByRole('button', { name: 'Assign section performers' }))
+			.not.toBeInTheDocument();
 	});
 
 	it('shows two sources initially and reveals the remaining provenance on request', async () => {

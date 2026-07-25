@@ -1,5 +1,5 @@
-import { canLintHeaderLanguage, getLanguagePack } from '../../languages/registry.js';
-import type { Diagnostic, RuleDefinition, Section, SectionHeader } from '../../core/types.js';
+import { canLintHeaderLanguage, getLanguagePack } from '$lib/languages/registry.js';
+import type { Diagnostic, RuleDefinition, Section, SectionHeader } from '$lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 function semanticPart(header: SectionHeader, language: string): string | undefined {

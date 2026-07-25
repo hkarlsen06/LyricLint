@@ -101,4 +101,21 @@ describe('PerformersPanel', () => {
 		).toBeTruthy();
 		expect(controller.snapshot.text).toBe(text);
 	});
+
+	test('lists a recurring unresolved voice once across sections', () => {
+		// Extraction emits one unresolved group per section that styles the slot,
+		// and they share an identity id. Rendering both crashed the panel with
+		// `each_key_duplicate`, which left the workspace stuck on its loading state.
+		const text =
+			'[Chorus: Avery]\nA long plain lyric with <i>an unmatched styled voice</i>\n\n' +
+			'[Verse: Avery]\nAnother plain lyric with <i>a second unmatched voice</i>';
+		const { controller } = createTestWorkbench({ text, performers: [] });
+		render(PerformersPanel, { controller });
+
+		const region = screen.getByRole('region', { name: 'Unresolved imported voices' });
+		expect(within(region).getAllByText('Unresolved voice 2')).toHaveLength(1);
+		expect(within(region).getAllByRole('listitem')).toHaveLength(1);
+		expect(controller.unresolvedVoiceGroups).toHaveLength(1);
+		expect(controller.snapshot.text).toBe(text);
+	});
 });

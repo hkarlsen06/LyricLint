@@ -36,22 +36,74 @@ describe('Workspace and toolbar', () => {
 		// insertion, performer assignment, and undo/redo stay reachable through
 		// the editor itself (ghost pill, selection card, and Mod+Z shortcuts).
 		expect(screen.getByRole('button', { name: 'Copy Genius markup' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Open drafts menu' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Drafts' })).toBeTruthy();
+		// The left edge is the brand lockup now, not a second drafts affordance.
+		expect(screen.getByRole('img', { name: 'LyricLint' })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Open drafts menu' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Insert section' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Assign performer' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Undo document edit' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Redo document edit' })).toBeNull();
 	});
 
-	test('the checklist mark toggles the drafts menu popover', async () => {
+	test('the icon-only drafts trigger toggles the popover and drops its visible label', async () => {
 		const { controller } = createTestWorkbench();
 		render(DocumentToolbar, { controller });
 
-		const mark = screen.getByRole('button', { name: 'Open drafts menu' });
-		expect(mark.getAttribute('aria-expanded')).toBe('false');
-		await fireEvent.click(mark);
-		expect(mark.getAttribute('aria-expanded')).toBe('true');
+		const trigger = screen.getByRole('button', { name: 'Drafts' });
+		// The word moved into the accessible name; nothing in the header spells it.
+		expect(trigger.textContent?.trim()).toBe('');
+		expect(trigger.getAttribute('aria-expanded')).toBe('false');
+		await fireEvent.click(trigger);
+		// `bind:open` rides the details element's `toggle` event, which lands a
+		// frame after the click, so the expansion state settles asynchronously.
+		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
 		expect(screen.getByText('Saved drafts')).toBeTruthy();
+	});
+
+	test('reads brand, draft name, then save state across the identity strip', () => {
+		const { controller } = createTestWorkbench();
+		render(DocumentToolbar, { controller });
+
+		const identity = document.querySelector('.document-toolbar__identity');
+		expect(identity).toBeTruthy();
+		expect([...identity!.children].filter((child) => child.tagName !== 'LABEL')).toEqual([
+			screen.getByRole('img', { name: 'LyricLint' }),
+			screen.getByLabelText('Draft title'),
+			screen.getByRole('img', { name: /^Autosave status/ })
+		]);
+	});
+
+	test('shows save state as a bare glyph until it fails, then spells the failure out', async () => {
+		const { controller } = createTestWorkbench();
+		render(DocumentToolbar, { controller });
+
+		const status = screen.getByRole('img', { name: /^Autosave status/ });
+		// Healthy states are icon-only; the wording lives in the name and tooltip.
+		expect(status.textContent?.trim()).toBe('');
+		expect(status.getAttribute('title')).toBe('Local draft');
+
+		controller.setSaveStatus('saved');
+		await waitFor(() => expect(status.getAttribute('title')).toContain('Saved locally'));
+		expect(status.textContent?.trim()).toBe('');
+
+		// A failure must not be carried by red alone, so the label comes back.
+		controller.setSaveStatus('failed');
+		await waitFor(() => expect(status.textContent).toContain('Save failed'));
+		expect(status.classList.contains('failed')).toBe(true);
+	});
+
+	test('anchors the right edge with copy, after the language and drafts controls', () => {
+		const { controller } = createTestWorkbench();
+		render(DocumentToolbar, { controller });
+
+		const commands = document.querySelector('.document-toolbar__commands');
+		expect(commands).toBeTruthy();
+		const copy = screen.getByRole('button', { name: 'Copy Genius markup' });
+		expect(commands!.lastElementChild).toBe(copy);
+		// Copy ends the tab order too, not just the visual row.
+		const order = [...commands!.querySelectorAll('button, summary')];
+		expect(order.indexOf(copy)).toBe(order.length - 1);
 	});
 
 	test('reflects a late autosave failure instead of remaining on saving', async () => {
@@ -60,13 +112,49 @@ describe('Workspace and toolbar', () => {
 
 		controller.setSaveStatus('saving');
 		await waitFor(() =>
-			expect(screen.getByLabelText('Autosave status').textContent).toContain('Saving')
+			expect(screen.getByRole('img', { name: /^Autosave status/ }).getAttribute('title')).toContain(
+				'Saving'
+			)
 		);
 		controller.setSaveStatus('failed');
 
 		await waitFor(() =>
-			expect(screen.getByLabelText('Autosave status').textContent).toContain('Save failed')
+			expect(screen.getByRole('img', { name: /^Autosave status/ }).textContent).toContain(
+				'Save failed'
+			)
 		);
+	});
+
+	test('spans the toolbar across both columns with the panel tabs beneath it', () => {
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
+		render(Workspace, { controller });
+
+		// The toolbar belongs to the window, not to the editor half of it, so it
+		// is a child of the workspace grid rather than of the editor region.
+		const workspace = screen.getByTestId('workspace');
+		const toolbar = screen.getByRole('banner', { name: 'Document controls' });
+		expect(toolbar.parentElement).toBe(workspace);
+		expect(document.querySelector('.editor-region')?.contains(toolbar)).toBe(false);
+		expect(getComputedStyle(toolbar).gridColumnStart).toBe('1');
+		expect(getComputedStyle(toolbar).gridColumnEnd).toBe('-1');
+
+		// The tab strip then hangs under it, in the row the two columns share.
+		const editorRegion = document.querySelector('.editor-region')!;
+		const panel = document.querySelector('.right-panel')!;
+		expect(getComputedStyle(editorRegion).gridRowStart).toBe('2');
+		expect(getComputedStyle(panel).gridRowStart).toBe('2');
+		expect(panel.querySelector('.panel-tabs')).toBeTruthy();
+	});
+
+	test('pluralizes the status bar counts, singular at one', () => {
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
+		render(Workspace, { controller });
+
+		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
+		expect(summary.textContent).toContain('1 line · 1 section');
+		expect(summary.textContent).not.toContain('1 lines');
+		expect(summary.textContent).not.toContain('1 sections');
+		expect(summary.textContent).toContain('0 performers · 0 voice groups');
 	});
 
 	test('re-lints the current document immediately when its language changes', async () => {

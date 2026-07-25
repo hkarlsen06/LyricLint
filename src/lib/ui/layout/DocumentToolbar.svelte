@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { onMount } from 'svelte';
+	import AppWordmark from './AppWordmark.svelte';
 	import DraftMenu from './DraftMenu.svelte';
 	import LanguagePicker from './LanguagePicker.svelte';
 
@@ -52,8 +53,6 @@
 		}
 	});
 
-	let draftsOpen = $state(false);
-
 	// Fallback sizing for browsers without `field-sizing: content`; the CSS rule
 	// takes over where it is supported and this attribute is ignored. Typing
 	// writes the length locally; switching drafts resyncs it.
@@ -86,29 +85,11 @@
 </script>
 
 <header class="document-toolbar" aria-label="Document controls">
+	<!-- Left to right: who made this, what this document is called, and whether it
+	     is safe on disk. The brand, the name, and the save state read as one
+	     identity strip; everything that acts on the document lives on the right. -->
 	<div class="document-toolbar__identity">
-		<button
-			type="button"
-			class="app-mark"
-			aria-label="Open drafts menu"
-			aria-expanded={draftsOpen}
-			onclick={() => (draftsOpen = !draftsOpen)}
-		>
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="16"
-				height="16"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.6"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="m2.2 4.4 1 1 1.8-2M2.2 8.4l1 1 1.8-2M2.2 12.4l1 1 1.8-2" />
-				<path d="M7.5 4.6h6M7.5 8.6h6M7.5 12.6h4" />
-			</svg>
-		</button>
+		<AppWordmark />
 		<label class="sr-only" for="draft-title">Draft title</label>
 		<input
 			id="draft-title"
@@ -120,33 +101,62 @@
 			onkeydown={onTitleKeydown}
 			aria-label="Draft title"
 		/>
+		<!-- Icon only while saving is going well: the disk glyph is the whole
+		     readout, and the wording it replaced lives in the accessible name and
+		     the hover tooltip. A failed save is the exception — it keeps its words
+		     and swaps to an alert glyph, so the one state the user must act on is
+		     never carried by red alone. -->
 		<span
 			class:failed={controller.saveStatus === 'failed'}
 			class="save-status"
-			aria-label="Autosave status"
+			role="img"
+			aria-label="Autosave status: {saveStatusText}"
+			title={saveStatusText}
 		>
-			<svg
-				class="save-status__icon"
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="13"
-				height="13"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path
-					d="M12.8 13.5H3.2a.7.7 0 0 1-.7-.7V3.2a.7.7 0 0 1 .7-.7h7.3l2.7 2.7v7.6a.7.7 0 0 1-.7.7Z"
-				/>
-				<path d="M5 2.7v3h5.4v-3M5 13.3V9.5h6v3.8" />
-			</svg>
-			{saveStatusText}
+			{#if controller.saveStatus === 'failed'}
+				<svg
+					class="save-status__icon"
+					aria-hidden="true"
+					viewBox="0 0 16 16"
+					width="13"
+					height="13"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path d="M8 2.4 15 13.6H1Z" />
+					<path d="M8 6.7v3M8 11.6h.01" />
+				</svg>
+				Save failed
+			{:else}
+				<svg
+					class="save-status__icon"
+					aria-hidden="true"
+					viewBox="0 0 16 16"
+					width="13"
+					height="13"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="1.5"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+				>
+					<path
+						d="M12.8 13.5H3.2a.7.7 0 0 1-.7-.7V3.2a.7.7 0 0 1 .7-.7h7.3l2.7 2.7v7.6a.7.7 0 0 1-.7.7Z"
+					/>
+					<path d="M5 2.7v3h5.4v-3M5 13.3V9.5h6v3.8" />
+				</svg>
+			{/if}
 		</span>
 	</div>
 
+	<!-- Copy anchors the right edge: it is the one action that ends the session's
+	     work, so it sits last in reading order and last in the tab order. -->
 	<div class="document-toolbar__commands">
+		<LanguagePicker {controller} />
+		<DraftMenu {controller} />
 		<button
 			type="button"
 			class="button button--contrast"
@@ -168,9 +178,7 @@
 					d="M10.5 3.5v-.8a1.2 1.2 0 0 0-1.2-1.2H3.7a1.2 1.2 0 0 0-1.2 1.2v5.6a1.2 1.2 0 0 0 1.2 1.2h.8"
 				/>
 			</svg>
-			Copy Genius markup
+			Copy lyrics
 		</button>
-		<LanguagePicker {controller} />
-		<DraftMenu {controller} bind:open={draftsOpen} />
 	</div>
 </header>

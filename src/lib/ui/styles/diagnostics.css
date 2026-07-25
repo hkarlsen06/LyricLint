@@ -1,0 +1,161 @@
+/*
+ * A diagnostic, wherever it is shown. The linter panel's expanded card and the
+ * editor's anchored popover are two views of one finding, so its severity tag,
+ * explanation, action row, and provenance are styled once, here, and not per
+ * surface. The chrome around them — a row in the run of cards, or a floating
+ * overlay — is what each surface still owns.
+ */
+
+/* Squared off, not a pill: the severity label is a tag stamped on the card, and
+   the sharper silhouette keeps it from reading as a pressable chip the way the
+   rounded severity filters above the list deliberately do. */
+.severity {
+	display: inline-flex;
+	width: fit-content;
+	padding: var(--space-1) var(--space-2) var(--space-1) var(--space-1-5);
+	gap: var(--space-1-5);
+	align-items: center;
+	border-radius: var(--radius-xs);
+	background: var(--color-fill-strong);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.01em;
+}
+
+.severity__icon {
+	flex: none;
+}
+
+.severity--error {
+	background: var(--color-danger-soft);
+	color: var(--color-danger);
+}
+
+.severity--warning {
+	background: var(--color-warning-soft);
+	color: var(--color-warning);
+}
+
+.severity--suggestion {
+	background: var(--color-suggestion-soft);
+	color: var(--color-suggestion);
+}
+
+.severity--manual-review {
+	background: var(--color-manual-soft);
+	color: var(--color-manual);
+}
+
+/* The reasoning reads as supporting prose on both surfaces, never as the
+   headline: the message above it is the headline. */
+.diagnostic-explanation {
+	max-width: 68ch;
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+}
+
+/*
+ * One row, one set of decisions, in one order: guided actions, then the fix,
+ * then the ways out. Selecting a diagnostic already shows its fix as a diff in
+ * the document, so the fix button keeps the change rather than asking to see
+ * it — and it is labelled with the change itself ("Replace with Don't"), never
+ * with "Apply" in front of a label that already reads as the command.
+ */
+.diagnostic-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+	align-items: center;
+	/* Reading order, on both surfaces: the decisions start where the sentence
+	   above them started. Nothing is pushed to a far edge. */
+	justify-content: flex-start;
+}
+
+/* Every decision about a diagnostic shares one geometry and one type size;
+   emphasis is carried by the button tier alone. */
+.diagnostic-actions > .button {
+	min-height: var(--control-height-md);
+	border-radius: var(--radius-control);
+	font-size: var(--font-size-sm);
+}
+
+.diagnostic-actions__ignore,
+.diagnostic-actions__close {
+	color: var(--color-text-muted);
+}
+
+.diagnostic-actions__ignore:hover,
+.diagnostic-actions__close:hover {
+	color: var(--color-text);
+}
+
+.diagnostic-actions__accept svg {
+	flex: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.diagnostic-actions > .button {
+		transition:
+			background-color var(--duration-fast) var(--ease-out-quart),
+			border-color var(--duration-fast) var(--ease-out-quart),
+			color var(--duration-fast) var(--ease-out-quart);
+	}
+}
+
+/* The audit trail closes the card on both surfaces: a plain list, no box and no
+   rules around it — the smaller muted type is separation enough. */
+.diagnostic-sources {
+	display: grid;
+	margin: 0;
+	padding: 0;
+	gap: var(--space-2);
+	list-style: none;
+}
+
+.diagnostic-sources__missing {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+.diagnostic-sources__toggle {
+	justify-self: start;
+	min-height: var(--control-height-sm);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+.diagnostic-sources__toggle:hover {
+	color: var(--color-text);
+}
+
+.source-reference {
+	display: grid;
+	gap: 0.1rem;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+.source-reference a {
+	display: inline-flex;
+	width: fit-content;
+	gap: 0.25rem;
+	align-items: center;
+	font-weight: var(--font-weight-semibold);
+}
+
+.source-reference__title {
+	display: flex;
+	gap: var(--space-2);
+	flex-wrap: wrap;
+	align-items: baseline;
+}
+
+.source-reference__external {
+	flex: none;
+}
+
+.source-reference__verified {
+	white-space: nowrap;
+}

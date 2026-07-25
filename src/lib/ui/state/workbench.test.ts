@@ -377,6 +377,84 @@ describe('workbench diagnostic navigation', () => {
 		expect(editor.requestPerformerLegendAssignment).toHaveBeenCalledWith(mismatch);
 		expect(controller.activeTab).toBe('linter');
 	});
+
+	test('hands the editor to the diagnostic the panel leads with after a fix', () => {
+		// Applying a fix empties the card the user was reading, so the panel leads
+		// with another one — and the editor's active-line wash, which is all that
+		// marks where a finding sits, has to travel with it instead of staying on
+		// the line the fix landed in.
+		const text = '[Verse]\nfirst line\nsecond line';
+		const record = draft('draft-a', text);
+		const { controller, editor } = setup({ initial: record });
+		const selections: unknown[] = [];
+		editor.setSelection = (selection) => selections.push(selection);
+		const fixed: Diagnostic = {
+			...diagnostic,
+			ruleId: 'capitalization.line-start',
+			from: 8,
+			to: 13,
+			fixes: [{ kind: 'safe', label: 'Capitalize', edit: { baseRevision: 1, edits: [] } }]
+		};
+		const warning: Diagnostic = { ...diagnostic, from: 19, to: 25 };
+		// Later in the document but worse, so it leads the panel — the same order
+		// the list reads in, which is why both share one sort.
+		const worse: Diagnostic = { ...diagnostic, severity: 'error', from: 26, to: 30 };
+		// The dispatch is what triggers the re-lint, and the editor emits the
+		// resulting snapshot from inside it.
+		editor.dispatchAtomic = () => {
+			controller.onSnapshot({ ...snapshot(record, 2, text), diagnostics: [warning, worse] });
+		};
+		controller.onSnapshot({ ...snapshot(record, 1, text), diagnostics: [fixed, warning] });
+
+		controller.applyFix(fixed, fixed.fixes![0]);
+
+		expect(selections).toEqual([{ anchor: 26, head: 30 }]);
+		expect(controller.activeDiagnosticKey).toBe('section-header-missing:26:30');
+	});
+
+	test('leaves the editor where it is when a fix clears the last diagnostic', () => {
+		const text = '[Verse]\nfirst line';
+		const record = draft('draft-a', text);
+		const { controller, editor } = setup({ initial: record });
+		const selections: unknown[] = [];
+		editor.setSelection = (selection) => selections.push(selection);
+		const only: Diagnostic = {
+			...diagnostic,
+			from: 8,
+			to: 13,
+			fixes: [{ kind: 'safe', label: 'Capitalize', edit: { baseRevision: 1, edits: [] } }]
+		};
+		editor.dispatchAtomic = () => {
+			controller.onSnapshot({ ...snapshot(record, 2, text), diagnostics: [] });
+		};
+		controller.onSnapshot({ ...snapshot(record, 1, text), diagnostics: [only] });
+
+		controller.applyFix(only, only.fixes![0]);
+
+		expect(selections).toEqual([]);
+		expect(controller.activeDiagnosticKey).toBeUndefined();
+	});
+
+	test('offers the assignment only where the document can take one', () => {
+		// The editor's popover asks the same question of the same document, so a
+		// card must not advertise an action the popover withholds.
+		const text = '[Verse]\n<i>Blair sings</i>\n\nOne more line\n<b>Avery answers</b>';
+		const record = { ...draft('draft-a', text) };
+		const { controller } = setup({ initial: record });
+		controller.onSnapshot(snapshot(record, 1, text));
+		const styled = (fragment: string): Diagnostic => ({
+			...diagnostic,
+			ruleId: 'performer.inline-mismatch',
+			message: 'Inline style has no performer in the section legend.',
+			from: text.indexOf(fragment),
+			to: text.indexOf(fragment) + fragment.length
+		});
+
+		expect(controller.canAssignDiagnosticPerformers(styled('<i>Blair sings</i>'))).toBe(true);
+		// The second section has no header at all, so there is no legend to write.
+		expect(controller.canAssignDiagnosticPerformers(styled('<b>Avery answers</b>'))).toBe(false);
+		expect(controller.canAssignDiagnosticPerformers(diagnostic)).toBe(false);
+	});
 });
 
 describe('workbench performer imports', () => {

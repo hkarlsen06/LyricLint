@@ -1,4 +1,4 @@
-import type { RuleDefinition } from '../../core/types.js';
+import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup } from './utils.js';
 
 export const spellingLanguageVariantRule: RuleDefinition = {
@@ -17,7 +17,10 @@ export const spellingLanguageVariantRule: RuleDefinition = {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) => {
 				if (british) {
-					return matchesOutsideMarkup(line, /(?<![\p{L}\p{N}_])'til(?![\p{L}\p{N}_])/giu).map(
+					// Either apostrophe glyph is the same American spelling. Waiting for
+					// `quotes.typewriter` to straighten the curly form first would leave
+					// the review unreachable whenever that rule is ignored for a session.
+					return matchesOutsideMarkup(line, /(?<![\p{L}\p{N}_])['’]til(?![\p{L}\p{N}_])/giu).map(
 						(match) =>
 							diagnostic(
 								this,

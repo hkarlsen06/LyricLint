@@ -2,7 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { ParsedDocument, TextRange } from '../../core/types.js';
+import type { ParsedDocument, TextRange } from '$lib/core/types.js';
 import { editorCallbacksField } from './editor-state.js';
 
 export const setHeaderlessSectionsEffect = StateEffect.define<ParsedDocument>();
@@ -81,24 +81,30 @@ export const sectionGhostField = StateField.define<DecorationSet>({
 
 export const sectionGhostTheme = EditorView.baseTheme({
 	'.ll-section-ghost': {
-		padding: '0.35rem 0 0.4rem'
+		padding: 'var(--space-1-5) 0 var(--space-1-5)'
 	},
+	// A dashed chip offering to add something that is not there yet, so the pill
+	// radius is the categorical one it is entitled to — this is a chip, not an
+	// action button in the shell's button vocabulary.
 	'.ll-section-ghost-button': {
-		padding: '0.26rem 0.75rem',
-		border: '1px dashed color-mix(in oklch, currentColor 42%, transparent)',
-		borderRadius: '999rem',
-		background: 'color-mix(in oklch, currentColor 4%, transparent)',
-		color: 'color-mix(in oklch, currentColor 70%, transparent)',
-		font: '500 0.75rem/1.25 ui-sans-serif, system-ui, sans-serif',
+		padding: 'var(--space-1) var(--space-3)',
+		border: 'var(--border-width) dashed var(--color-border-strong)',
+		borderRadius: 'var(--radius-pill)',
+		background: 'transparent',
+		color: 'var(--color-text-muted)',
+		fontFamily: 'var(--font-ui)',
+		fontSize: 'var(--font-size-xs)',
+		fontWeight: 'var(--font-weight-medium)',
+		lineHeight: 'var(--line-height-tight)',
 		cursor: 'pointer'
 	},
 	'.ll-section-ghost-button:hover': {
-		color: 'currentColor',
-		borderColor: 'currentColor',
-		background: 'color-mix(in oklch, currentColor 8%, transparent)'
+		borderColor: 'var(--color-text)',
+		background: 'var(--color-control-hover)',
+		color: 'var(--color-text)'
 	},
 	'.ll-section-ghost-button:focus-visible': {
-		outline: '2px solid var(--color-focus, var(--ll-focus, oklch(0.58 0.14 55)))',
-		outlineOffset: '2px'
+		outline: 'var(--focus-ring-width) solid var(--color-focus)',
+		outlineOffset: 'var(--focus-ring-offset)'
 	}
 });

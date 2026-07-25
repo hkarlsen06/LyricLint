@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parseDocument } from '../../core/parser.js';
-import type { PerformerRecord, RuleContext } from '../../core/types.js';
+import { parseDocument } from '$lib/core/parser.js';
+import type { PerformerRecord, RuleContext } from '$lib/core/types.js';
 import { getRule } from '../registry.js';
 import { sourceRegistry } from '../data/sources.js';
 
@@ -164,7 +164,7 @@ const cases: RulePolicyCase[] = [
 	{
 		id: 'censored.mask',
 		invalid: '[Verse]\nf*** this',
-		valid: '[Verse]\nf**** this',
+		valid: '[Verse]\n**** this',
 		ambiguous: '[Verse]\n***'
 	},
 	{
@@ -184,6 +184,12 @@ const cases: RulePolicyCase[] = [
 		invalid: '[Verse]\nThis Is The Way We Live\nEvery Single Word Starts Uppercase',
 		valid: '[Verse]\nThis is the way we live\nEvery single word starts normally',
 		ambiguous: '[Verse]\nThis Is One Deliberate Title'
+	},
+	{
+		id: 'punctuation.line-ending',
+		invalid: '[Verse]\nA lyric line.',
+		valid: '[Verse]\nA lyric line!',
+		ambiguous: '[Verse]\nA lyric trails off...'
 	},
 	{
 		id: 'punctuation.question',
@@ -237,7 +243,8 @@ function lint(caseData: RulePolicyCase, text: string, ambiguous = false): number
 		language: caseData.language ?? 'en',
 		performers: records(performerNames),
 		sources: sourceRegistry,
-		ruleSetVersion: '2026.07.24.4'
+		ruleSetVersion: '2026.07.24.4',
+		revision: 12
 	};
 	return rule.check(parseDocument(text), context).length;
 }
@@ -259,7 +266,8 @@ describe('every enabled rule has valid, invalid, and ambiguous policy coverage',
 			language: 'en',
 			performers: records(['A']),
 			sources: sourceRegistry,
-			ruleSetVersion: '2026.07.24.4'
+			ruleSetVersion: '2026.07.24.4',
+			revision: 12
 		};
 		const diagnostics = rule.check(parseDocument(input), context);
 		expect(diagnostics.map((item) => input.slice(item.from, item.to))).toEqual(['“', '”']);
@@ -276,7 +284,8 @@ describe('rule regressions', () => {
 			language,
 			performers: records(performers),
 			sources: sourceRegistry,
-			ruleSetVersion: '2026.07.24.4'
+			ruleSetVersion: '2026.07.24.4',
+			revision: 12
 		};
 		return rule.check(parseDocument(text), context);
 	}
@@ -425,6 +434,26 @@ describe('rule regressions', () => {
 		expect(
 			diagnostics('performer.redundant-markup', '[Verse: A & <i>B</i>]\n<i>First</i> <i>Second</i>')
 		).toHaveLength(1);
+	});
+
+	it('leaves a label-only line to the header rules instead of emptying it', () => {
+		// The line parses as a section header, so the label rule never sees it and
+		// its removal fix can never leave a section-splitting blank line behind.
+		expect(
+			diagnostics('performer.line-label-forbidden', '[Verse: Avery]\n[Avery] \nA line', 'en', [
+				'Avery'
+			])
+		).toEqual([]);
+	});
+
+	it('keeps indentation and the lyric when removing a line label', () => {
+		const [finding] = diagnostics(
+			'performer.line-label-forbidden',
+			'[Verse: Avery]\n  [Avery]   A line',
+			'en',
+			['Avery']
+		);
+		expect(finding?.fixes?.[0]?.edit.edits).toEqual([{ from: 17, to: 27, insert: '' }]);
 	});
 
 	it('keeps a real ordinal section header clean', () => {

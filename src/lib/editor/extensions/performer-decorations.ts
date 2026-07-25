@@ -2,7 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
-import type { PerformerRecord } from '../../core/types.js';
+import type { PerformerRecord } from '$lib/core/types.js';
 import type { VoiceGroupRange } from '../contracts.js';
 import { editorCallbacksField } from './editor-state.js';
 
@@ -12,48 +12,22 @@ const MAX_VISIBLE_SEGMENTS = 3;
  * Editor text tints keyed to the roster color ids. Order matches the roster
  * allocation (green, violet, …) so the first performers take the mockup's
  * colors; unknown ids hash into the same table.
+ *
+ * Each entry is a token reference, not a color. The theme switch therefore
+ * happens inside the token — one `--performer-*-tint` per identity, redefined
+ * under `prefers-color-scheme: dark` alongside the roster swatch it has to
+ * match — so this module no longer carries a light/dark pair of its own, and
+ * cannot drift off the roster's hues the way its hardcoded table did.
  */
 export const performerPalette = [
-	{
-		id: 'olive',
-		light: 'oklch(0.9 0.06 145)',
-		dark: 'oklch(0.34 0.06 145)'
-	},
-	{
-		id: 'indigo',
-		light: 'oklch(0.9 0.06 285)',
-		dark: 'oklch(0.34 0.06 285)'
-	},
-	{
-		id: 'teal',
-		light: 'oklch(0.9 0.055 195)',
-		dark: 'oklch(0.34 0.055 195)'
-	},
-	{
-		id: 'ochre',
-		light: 'oklch(0.9 0.055 90)',
-		dark: 'oklch(0.34 0.055 90)'
-	},
-	{
-		id: 'rose',
-		light: 'oklch(0.9 0.06 20)',
-		dark: 'oklch(0.34 0.06 20)'
-	},
-	{
-		id: 'plum',
-		light: 'oklch(0.9 0.06 330)',
-		dark: 'oklch(0.34 0.06 330)'
-	},
-	{
-		id: 'copper',
-		light: 'oklch(0.9 0.06 48)',
-		dark: 'oklch(0.34 0.06 48)'
-	},
-	{
-		id: 'slate',
-		light: 'oklch(0.9 0.035 240)',
-		dark: 'oklch(0.34 0.035 240)'
-	}
+	{ id: 'olive', tint: 'var(--performer-olive-tint)' },
+	{ id: 'indigo', tint: 'var(--performer-indigo-tint)' },
+	{ id: 'teal', tint: 'var(--performer-teal-tint)' },
+	{ id: 'ochre', tint: 'var(--performer-ochre-tint)' },
+	{ id: 'rose', tint: 'var(--performer-rose-tint)' },
+	{ id: 'plum', tint: 'var(--performer-plum-tint)' },
+	{ id: 'copper', tint: 'var(--performer-copper-tint)' },
+	{ id: 'slate', tint: 'var(--performer-slate-tint)' }
 ] as const;
 
 export interface VoiceGroupDecorationPayload {
@@ -66,10 +40,10 @@ export interface PerformerSegmentStyle {
 	/**
 	 * A single tint per group: a solo performer's own hue, or for joint groups
 	 * the members' hues blended into one color — a shared voice is one color,
-	 * not a striped split.
+	 * not a striped split. One value, not a light/dark pair: the tokens it mixes
+	 * already resolve per theme.
 	 */
-	lightBackground: string;
-	darkBackground: string;
+	background: string;
 	hiddenCount: number;
 }
 
@@ -116,7 +90,7 @@ function mixColors(colors: readonly string[]): string {
 	);
 }
 
-/** Stable slot/color IDs become one blended, accessible light and dark tint. */
+/** Stable slot/color IDs become one blended, accessible, theme-aware tint. */
 export function voiceGroupStyle(
 	performerIds: readonly string[],
 	performers: readonly PerformerRecord[]
@@ -133,8 +107,7 @@ export function voiceGroupStyle(
 	const colors = visible.map((performer) => performerPalette[paletteIndex(performer.colorId)]);
 	return {
 		label: `Performed by ${members.map((member) => member.displayName).join(', ')}`,
-		lightBackground: mixColors(colors.map((color) => color.light)),
-		darkBackground: mixColors(colors.map((color) => color.dark)),
+		background: mixColors(colors.map((color) => color.tint)),
 		hiddenCount: Math.max(0, members.length - visible.length)
 	};
 }
@@ -193,7 +166,7 @@ function buildDecorations(state: EditorState, payload: VoiceGroupDecorationPaylo
 				attributes: {
 					'aria-label': style.label,
 					title: style.label,
-					style: `--ll-performer-light: ${style.lightBackground}; --ll-performer-dark: ${style.darkBackground};`
+					style: `--ll-performer-tint: ${style.background};`
 				}
 			}).range(group.from, group.to)
 		);
@@ -280,11 +253,13 @@ export function performerCaretAnnouncementPlugin(): Extension {
 }
 
 export const performerDecorationTheme = EditorView.baseTheme({
+	// One background, no media query: the tint token behind it already resolves
+	// per theme, so this rule does not need to know which theme is active.
 	'.ll-performer-highlight': {
 		position: 'relative',
 		zIndex: '1',
-		borderRadius: '0.2rem',
-		background: 'var(--ll-performer-light)',
+		borderRadius: 'var(--radius-xs)',
+		background: 'var(--ll-performer-tint)',
 		boxDecorationBreak: 'clone',
 		WebkitBoxDecorationBreak: 'clone'
 	},
@@ -294,24 +269,23 @@ export const performerDecorationTheme = EditorView.baseTheme({
 		fontStyle: 'italic'
 	},
 	'.ll-performer-slot-3': {
-		fontWeight: '650'
+		fontWeight: 'var(--font-weight-semibold)'
 	},
 	'.ll-performer-slot-4': {
 		fontStyle: 'italic',
-		fontWeight: '650'
+		fontWeight: 'var(--font-weight-semibold)'
 	},
 	'.ll-performer-overflow': {
 		position: 'relative',
 		zIndex: '1',
-		marginInlineStart: '0.2rem',
-		padding: '0 0.2rem',
-		border: '1px solid color-mix(in oklch, currentColor 25%, transparent)',
-		borderRadius: '0.25rem',
-		font: '600 0.65rem/1.2 ui-sans-serif, system-ui, sans-serif'
-	},
-	'@media (prefers-color-scheme: dark)': {
-		'.ll-performer-highlight': {
-			background: 'var(--ll-performer-dark)'
-		}
+		marginInlineStart: 'var(--space-0-5)',
+		padding: '0 var(--space-0-5)',
+		border: 'var(--border-width) solid color-mix(in oklch, currentColor 25%, transparent)',
+		borderRadius: 'var(--radius-xs)',
+		color: 'var(--color-text)',
+		fontFamily: 'var(--font-ui)',
+		fontSize: 'var(--font-size-2xs)',
+		fontWeight: 'var(--font-weight-semibold)',
+		lineHeight: 'var(--line-height-tight)'
 	}
 });
