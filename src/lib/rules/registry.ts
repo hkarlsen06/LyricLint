@@ -24,6 +24,7 @@ import { quotesTypewriterRule } from './catalog/quotes-typewriter.js';
 import { repeatPlaceholderRule } from './catalog/repeat-placeholder.js';
 import { sectionHeaderLanguageRule } from './catalog/section-header-language.js';
 import { sectionHeaderMissingRule } from './catalog/section-header-missing.js';
+import { sectionHeaderProseRule } from './catalog/section-header-prose.js';
 import { sectionHeaderSpacingRule } from './catalog/section-header-spacing.js';
 import { sectionHeaderUnrecognizedRule } from './catalog/section-header-unrecognized.js';
 import { sectionLocalizedHeaderPreferenceRule } from './catalog/section-localized-header-preference.js';
@@ -43,6 +44,7 @@ import { spellingSpanishCommonRule } from './catalog/spelling-spanish-common.js'
 import { spellingStandardizedRule } from './catalog/spelling-standardized.js';
 import { syntaxUnbalancedBracketsRule } from './catalog/syntax-unbalanced-brackets.js';
 import { syntaxUnsupportedVoiceMarkupRule } from './catalog/syntax-unsupported-voice-markup.js';
+import { textInvisibleCharactersRule } from './catalog/text-invisible-characters.js';
 import { unknownMarkerRule } from './catalog/unknown-marker.js';
 import { sourceRegistry } from './data/sources.js';
 
@@ -51,6 +53,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	syntaxUnsupportedVoiceMarkupRule,
 	languageSelectionMismatchRule,
 	sectionHeaderMissingRule,
+	sectionHeaderProseRule,
 	sectionHeaderSpacingRule,
 	sectionHeaderLanguageRule,
 	sectionLocalizedHeaderPreferenceRule,
@@ -80,6 +83,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	spellingArabicCommonRule,
 	spellingJapaneseCommonRule,
 	spellingKoreanCommonRule,
+	textInvisibleCharactersRule,
 	unknownMarkerRule,
 	repeatPlaceholderRule,
 	soundEffectAsterisksRule,

@@ -28,10 +28,36 @@ function contractionDiagnostic(): Diagnostic {
 	};
 }
 
+/** A safe fix, which is the only kind a whole batch can be reached from. */
+function spellingDiagnostic(): Diagnostic {
+	return {
+		ruleId: 'spelling.standardized',
+		severity: 'suggestion',
+		from: 0,
+		to: 4,
+		message: 'Genius prefers “I’ma”.',
+		explanation: 'The reviewed spelling data lists Imma as a non-preferred form.',
+		sourceIds: [],
+		fixes: [
+			{
+				kind: 'safe',
+				label: "Replace with I'ma",
+				edit: { baseRevision: 0, edits: [{ from: 0, to: 4, insert: "I'ma" }] }
+			}
+		]
+	};
+}
+
 interface RenderedAction {
 	label: string;
 	classes: string;
 }
+
+/** The batch props both surfaces take, standing in for the shell's planner. */
+const batchOf = (size: number) => ({
+	fixBatchSize: () => size,
+	onApplyFixBatch: vi.fn()
+});
 
 function actions(root: ParentNode): RenderedAction[] {
 	return [...root.querySelectorAll<HTMLButtonElement>('.diagnostic-actions button')].map(
@@ -42,7 +68,10 @@ function actions(root: ParentNode): RenderedAction[] {
 	);
 }
 
-function panelActions(diagnostic: Diagnostic): RenderedAction[] {
+function panelActions(
+	diagnostic: Diagnostic,
+	batch?: ReturnType<typeof batchOf>
+): RenderedAction[] {
 	const screen = render(DiagnosticDetails, {
 		diagnostic,
 		onChooseHeader: vi.fn(),
@@ -50,14 +79,19 @@ function panelActions(diagnostic: Diagnostic): RenderedAction[] {
 		onPreviewFix: vi.fn(),
 		onCancelPreview: vi.fn(),
 		onApplyFix: vi.fn(),
-		onIgnore: vi.fn()
+		onIgnore: vi.fn(),
+		...batch
 	});
 	const rendered = actions(screen.container);
 	screen.unmount();
 	return rendered;
 }
 
-function popoverActions(diagnostic: Diagnostic, takeFocus = false): RenderedAction[] {
+function popoverActions(
+	diagnostic: Diagnostic,
+	takeFocus = false,
+	batch?: ReturnType<typeof batchOf>
+): RenderedAction[] {
 	const screen = render(DiagnosticPopover, {
 		diagnostic,
 		takeFocus,
@@ -65,7 +99,8 @@ function popoverActions(diagnostic: Diagnostic, takeFocus = false): RenderedActi
 		onPreviewFix: vi.fn(),
 		onCancelPreview: vi.fn(),
 		onApplyFix: vi.fn(),
-		onIgnore: vi.fn()
+		onIgnore: vi.fn(),
+		...batch
 	});
 	const rendered = actions(screen.container);
 	screen.unmount();
@@ -116,6 +151,49 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		];
 		expect(panelActions(diagnostic)).toEqual(expected);
 		expect(popoverActions(diagnostic)).toEqual(expected);
+	});
+
+	it('offers the same batch, in the same tier, on both surfaces', () => {
+		const diagnostic = spellingDiagnostic();
+		const panel = panelActions(diagnostic, batchOf(3));
+
+		expect(popoverActions(diagnostic, false, batchOf(3))).toEqual(panel);
+		expect(panel).toEqual([
+			{
+				label: "Replace with I'ma",
+				classes: 'button button--contrast diagnostic-actions__fix'
+			},
+			// Follows the fix it repeats and steps down a tier: the contrast action
+			// on a surface is one, and it belongs to the change being previewed.
+			{ label: 'Fix all 3', classes: 'button diagnostic-actions__fix-all' },
+			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
+		]);
+	});
+
+	it('says nothing about a batch that is only this one finding', () => {
+		const diagnostic = spellingDiagnostic();
+
+		// The button beside it already applies the single occurrence; "Fix all 1"
+		// would be a second control for the same press.
+		for (const row of [
+			panelActions(diagnostic, batchOf(1)),
+			popoverActions(diagnostic, false, batchOf(1))
+		]) {
+			expect(row.map((action) => action.label)).toEqual(["Replace with I'ma", 'Ignore']);
+		}
+	});
+
+	it('never offers to repeat a fix the user has to confirm', () => {
+		// The contraction fix is `preview`: it is exactly the case that has to be
+		// decided one occurrence at a time, whatever count the shell reports.
+		const diagnostic = contractionDiagnostic();
+
+		for (const row of [
+			panelActions(diagnostic, batchOf(4)),
+			popoverActions(diagnostic, false, batchOf(4))
+		]) {
+			expect(row.some((action) => action.label.startsWith('Fix all'))).toBe(false);
+		}
 	});
 
 	it('never puts a verb in front of a fix that already names itself', () => {

@@ -66,7 +66,9 @@ describe('editor theme token policy', () => {
 		const defined = new Set<string>();
 		const read = new Map<string, string>();
 		for (const { path, source } of sources) {
-			for (const [, name] of source.matchAll(/(--ll-[a-z0-9-]+)\s*:/g)) {
+			// Two definition forms: a quoted object key (CSS-in-JS cannot spell a
+			// custom property as a bare identifier) and an inline `style` string.
+			for (const [, name] of source.matchAll(/(--ll-[a-z0-9-]+)['"]?\s*:/g)) {
 				defined.add(name);
 			}
 			for (const [, name] of source.matchAll(/var\(\s*(--ll-[a-z0-9-]+)/g)) {

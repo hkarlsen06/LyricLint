@@ -12,7 +12,7 @@ import type {
 	TextEdit,
 	TextRange
 } from '$lib/core/types.js';
-import { serializeLegend, wrapVoiceSpan } from '$lib/serialization/genius-markup.js';
+import { serializeLegend, styleTags, wrapVoiceSpan } from '$lib/serialization/genius-markup.js';
 import { allocateStyleSlot } from './allocation.js';
 import { makeVoiceGroupKey } from './identity.js';
 import { extractPerformers } from './import.js';
@@ -354,16 +354,6 @@ function transformLine(
 				: { from: line.from, to: line.to, insert: rendered.text },
 		selectedFrom: line.from + rendered.selectedFrom,
 		selectedTo: line.from + rendered.selectedTo
-	};
-}
-
-function styleTags(styleSlot: StyleSlot): { opening: string; closing: string } {
-	const marker = '\u{E000}';
-	const wrapped = wrapVoiceSpan(marker, styleSlot);
-	const markerFrom = wrapped.indexOf(marker);
-	return {
-		opening: wrapped.slice(0, markerFrom),
-		closing: wrapped.slice(markerFrom + marker.length)
 	};
 }
 

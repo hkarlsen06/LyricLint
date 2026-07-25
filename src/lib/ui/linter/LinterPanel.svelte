@@ -74,6 +74,11 @@
 			: 'No further issues.'
 	);
 
+	// What pressing the bulk button would settle, and what it would leave behind.
+	// Both numbers are about the list directly below, so they are counted over
+	// the same visible diagnostics the cards are drawn from.
+	const bulk = $derived(controller.bulkFixPlan);
+
 	function lineFor(offset: number): number {
 		const text = controller.snapshot.text;
 		let line = 1;
@@ -103,6 +108,38 @@
 		</div>
 	{/if}
 
+	<!-- The whole-document command is a strip of chrome under the tab strip, the
+	     same material as the severity chips that hang above it. The material is
+	     the point, and it took three tries to see why: the panel already spends
+	     `--color-canvas` on the *selected* diagnostic, so a row of bare canvas
+	     here — which is what this was — is the same tone as the open card below
+	     it, and the two merge into one region with a button loose inside it.
+	     Chrome is what the panel means by "not the list": tab strip, chips, this,
+	     and the ignored-rules footer.
+
+	     Command at one end, what it will not touch at the other. That is also
+	     what keeps the row from reading as a lone button in half a row of dead
+	     gutter, which is how the first version of this failed. It is absent, not
+	     disabled, when there is nothing it could do. -->
+	{#if bulk.automatic > 0}
+		<div class="linter-panel__bulk">
+			<button
+				type="button"
+				class="button linter-panel__bulk-action"
+				onclick={() => controller.applyBulkFix()}
+			>
+				Fix {bulk.automatic}
+				{bulk.automatic === 1 ? 'issue' : 'issues'} automatically
+			</button>
+			<!-- Why the count on the button is smaller than the count on the tab, so
+			     the issues still standing afterwards read as the ones that were
+			     always going to need the user, not as a fix that half worked. -->
+			{#if bulk.manual > 0}
+				<span class="linter-panel__bulk-note">{bulk.manual} need a decision</span>
+			{/if}
+		</div>
+	{/if}
+
 	<DiagnosticList
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
@@ -117,6 +154,8 @@
 		onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
 		onCancelPreview={() => controller.clearFixPreview()}
 		onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
+		fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
+		onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
 		onIgnore={(ruleId) => controller.ignoreRule(ruleId)}
 	/>
 	{#if controller.visibleDiagnostics.length > 0}

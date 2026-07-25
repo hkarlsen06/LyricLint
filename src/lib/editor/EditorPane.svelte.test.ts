@@ -988,6 +988,39 @@ describe('EditorPane', () => {
 		).toBe(true);
 	});
 
+	it('shows performer title tooltips on legend names but not regular lyric text', async () => {
+		const text = '[Verse: Avery]\nRegular lyric';
+		const legendFrom = text.indexOf('Avery');
+		const lyricFrom = text.indexOf('Regular lyric');
+		await mountEditor({
+			text,
+			displayContext: context({
+				performers: performers(),
+				voiceGroups: [
+					{
+						from: legendFrom,
+						to: legendFrom + 'Avery'.length,
+						group: { id: 'voice-a-legend', performerIds: ['avery'], styleSlot: 1 },
+						legend: true
+					},
+					{
+						from: lyricFrom,
+						to: lyricFrom + 'Regular lyric'.length,
+						group: { id: 'voice-a-lyrics', performerIds: ['avery'], styleSlot: 1 }
+					}
+				]
+			})
+		});
+
+		const legendName = document.querySelector<HTMLElement>('.ll-performer-legend-name');
+		const lyricText = [...document.querySelectorAll<HTMLElement>('.ll-performer-highlight')].find(
+			(highlight) => !highlight.classList.contains('ll-performer-legend-name')
+		);
+		expect(legendName?.getAttribute('title')).toBe('Performed by Avery');
+		expect(lyricText?.hasAttribute('title')).toBe(false);
+		expect(lyricText?.getAttribute('aria-label')).toBe('Performed by Avery');
+	});
+
 	it('announces performer identity only when the caret enters a highlighted range', async () => {
 		const editorCallbacks = callbacks();
 		const { handle } = await mountEditor({

@@ -64,6 +64,22 @@ export function wrapVoiceSpan(text: string, styleSlot: StyleSlot): string {
 	}
 }
 
+/**
+ * The exact opening and closing markers one style slot wraps content in.
+ *
+ * Derived from `wrapVoiceSpan` rather than tabulated separately, so the four
+ * slots keep one definition. Slot 1 yields two empty strings.
+ */
+export function styleTags(styleSlot: StyleSlot): { opening: string; closing: string } {
+	const marker = '\u{E000}';
+	const wrapped = wrapVoiceSpan(marker, styleSlot);
+	const markerFrom = wrapped.indexOf(marker);
+	return {
+		opening: wrapped.slice(0, markerFrom),
+		closing: wrapped.slice(markerFrom + marker.length)
+	};
+}
+
 const EQUIVALENT_SPAN_PATTERNS: readonly RegExp[] = [
 	/<i><b>([^<>]*)<\/b><\/i><i><b>([^<>]*)<\/b><\/i>/gu,
 	/<i>([^<>]*)<\/i><i>([^<>]*)<\/i>/gu,

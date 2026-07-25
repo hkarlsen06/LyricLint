@@ -82,6 +82,17 @@ export interface EditorOverlayCallbacks {
 		choice: SectionHeaderChoice
 	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
 	onApplyDiagnosticFix?(diagnostic: Diagnostic, fix: DiagnosticFix): void;
+	/**
+	 * How many findings one fix would settle across the document, counting the
+	 * one it came from.
+	 *
+	 * The editor does not answer this itself. The batch has to be exactly the
+	 * one the linter panel would apply — same diagnostics, same arbitration —
+	 * and only the shell knows which diagnostics are visible, so a popover that
+	 * counted its own would offer a different number for the same fix.
+	 */
+	countDiagnosticFixBatch?(diagnostic: Diagnostic, fix: DiagnosticFix): number;
+	onApplyDiagnosticFixBatch?(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	onIgnoreDiagnostic?(diagnostic: Diagnostic): void;
 	/** Select a language offered directly by a language diagnostic. */
 	onSetLanguage?(language: string): void;

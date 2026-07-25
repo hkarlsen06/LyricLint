@@ -317,11 +317,7 @@
 		{#if prompt}
 			<span class="picker__prompt">{prompt}</span>
 		{/if}
-		<div
-			class="roster"
-			class:roster--scrollable={rosterScrollable}
-			aria-label="Performer roster"
-		>
+		<div class="roster" class:roster--scrollable={rosterScrollable} aria-label="Performer roster">
 			<div class="roster__track" {@attach trackRosterOverflow}>
 				{#each performers as performer, index (performer.id)}
 					<button

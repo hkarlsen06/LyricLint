@@ -18,6 +18,7 @@
 		type LyricLintDatabase
 	} from '$lib/persistence/index.js';
 	import { currentRuleSet, sourceRegistry } from '$lib/rules/index.js';
+	import DocumentTitle from '$lib/ui/layout/DocumentTitle.svelte';
 	import Workspace from '$lib/ui/layout/Workspace.svelte';
 	import { useFeedbackState } from '$lib/ui/state/feedback.svelte.js';
 	import {
@@ -117,10 +118,9 @@
 	});
 </script>
 
-<svelte:head>
-	<!-- The description lives in the layout; the page only owns its title. -->
-	<title>LyricLint</title>
-</svelte:head>
+<!-- The description lives in the layout; the page only owns its title. Keep the
+     active draft first so it remains visible when a browser tab is narrow. -->
+<DocumentTitle title={controller?.title} />
 
 {#if controller}
 	<Workspace {controller} editorComponent={EditorPane} />

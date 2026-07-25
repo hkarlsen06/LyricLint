@@ -143,12 +143,12 @@ test('performer assignment is applied and undone as one atomic edit', async ({ p
 	await expectDocText(page, '[Verse]\nHello world');
 });
 
-test('Copy Genius markup writes byte-exact canonical text', async ({ page }) => {
+test('Copy lyrics writes byte-exact canonical text', async ({ page }) => {
 	await openWorkspace(page);
 	const canonical = '[Chorus: Blair & <i>Avery</i>]\nLead\n<i>Harmony</i>';
 	await replaceDocument(page, canonical);
 
-	await page.getByRole('button', { name: 'Copy Genius markup' }).click();
+	await page.getByRole('button', { name: 'Copy lyrics' }).click();
 	const clipboard = await page.evaluate(() => navigator.clipboard.readText());
 	expect(clipboard).toBe(canonical);
 });
@@ -253,7 +253,7 @@ test('an edit after switching between two drafts remains revision-scoped and dur
 test('nothing in the panel can scroll the app shell', async ({ page }) => {
 	await openWorkspace(page);
 	await replaceDocument(page, '[Verse]\nImma stay');
-	const toolbar = page.getByRole('button', { name: 'Copy Genius markup' });
+	const toolbar = page.getByRole('button', { name: 'Copy lyrics' });
 	await expect(toolbar).toBeInViewport();
 
 	const metrics = await page.locator('.right-panel__body').evaluate((panel) => {

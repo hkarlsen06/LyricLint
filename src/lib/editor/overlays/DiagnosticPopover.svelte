@@ -14,6 +14,9 @@
 		onPreviewFix: (fix: DiagnosticFix) => void;
 		onCancelPreview: () => void;
 		onApplyFix: (fix: DiagnosticFix) => void;
+		/** The batch behind a fix; the shell counts it, not the editor. */
+		fixBatchSize?: (fix: DiagnosticFix) => number;
+		onApplyFixBatch?: (fix: DiagnosticFix) => void;
 		onChooseHeader?: () => void;
 		onAssignPerformers?: () => void;
 		onSetLanguage?: (language: string) => void;
@@ -34,6 +37,8 @@
 		onPreviewFix,
 		onCancelPreview,
 		onApplyFix,
+		fixBatchSize,
+		onApplyFixBatch,
 		onChooseHeader,
 		onAssignPerformers,
 		onSetLanguage,
@@ -173,6 +178,8 @@
 		{onPreviewFix}
 		{onCancelPreview}
 		{onApplyFix}
+		{fixBatchSize}
+		{onApplyFixBatch}
 		onIgnore={() => onIgnore()}
 		onClose={closingControl}
 	/>

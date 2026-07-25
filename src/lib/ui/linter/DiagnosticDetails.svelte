@@ -10,6 +10,8 @@
 		onPreviewFix,
 		onCancelPreview,
 		onApplyFix,
+		fixBatchSize,
+		onApplyFixBatch,
 		onIgnore
 	}: {
 		diagnostic: Diagnostic;
@@ -19,6 +21,8 @@
 		onPreviewFix: (fix: DiagnosticFix) => void;
 		onCancelPreview: () => void;
 		onApplyFix: (fix: DiagnosticFix) => void;
+		fixBatchSize?: (fix: DiagnosticFix) => number;
+		onApplyFixBatch?: (fix: DiagnosticFix) => void;
 		onIgnore: (trigger: HTMLButtonElement) => void;
 	} = $props();
 </script>
@@ -39,6 +43,8 @@
 		{onPreviewFix}
 		{onCancelPreview}
 		{onApplyFix}
+		{fixBatchSize}
+		{onApplyFixBatch}
 		{onIgnore}
 	/>
 </div>

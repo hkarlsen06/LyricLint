@@ -104,6 +104,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `syntax.unsupported-voice-markup` | Error | Performer differentiation uses tags other than supported `<i>` and `<b>` combinations | Preview only | `G-SECTIONS` |
 | `language.selection-mismatch` | Warning | Sufficient lyric text clearly matches a different language than the selected one | Explain only; local statistical estimate | `T-LANGUAGE-DETECT` |
 | `section.header-missing` | Warning | A blank-line section contains lyrics but no section header | Insert chosen localized header | `G-SECTIONS` |
+| `section.header-prose` | Warning | A whole line is a reviewed song-part name written as prose, such as `Verse 1:` or `CHORUS`, instead of a bracketed header | Safely replace the line with the bracketed header, using the reviewed spelling | `G-SECTIONS`, reviewed language source |
 | `section.header-spacing` | Suggestion | A section header immediately follows preceding content without a blank line | Safely insert one matching line ending | `G-SECTIONS` as context; LyricLint readability preference |
 | `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog | Replace after user confirmation | `G-SECTIONS`, reviewed language source |
 | `section.localized-header-preference` | Suggestion | A valid header has a culturally preferred localized equivalent | Safely replace with the localized term | `G-LANG-PURPOSE`, reviewed language source |
@@ -112,7 +113,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `section.immediate-repeat-spacing` | Warning | An exact song part is immediately repeated behind a blank separator or duplicate header | Safely retain both lyric copies under one header with no blank separator | `G-SECTIONS`, `G-REPEATS` |
 | `section.verse-numbering` | Suggestion | A non-verse is numbered, a lone verse is numbered, or explicit verse numbers conflict | Preview number removal or correction | `G-SECTION-NUMBERING` |
 | `performer.header-required` | Warning | A multi-vocalist section has inline differentiation but no performer legend | Safely remove performer formatting | `G-SECTIONS` |
-| `performer.style-order` | Warning | Header voice groups do not use plain, italic, bold, bold-italic slot order | Preview only | `G-SECTIONS` |
+| `performer.style-order` | Warning | Header voice groups do not use plain, italic, bold, bold-italic slot order | Preview the legend reorder, or the legend and body restyle, that shifts every group into slot order | `G-SECTIONS` |
 | `performer.inline-mismatch` | Warning | Inline style refers to no resolvable header voice group | Choose the section and styled performers | `G-SECTIONS` |
 | `performer.parenthetical-boundary` | Warning | A parenthetical belongs entirely to one styled performer but one or both parentheses sit outside that formatting | Safely expand the existing performer formatting over the parentheses | `G-SECTIONS` |
 | `performer.redundant-markup` | Suggestion | Adjacent same-performer wrappers use more formatting markers than necessary | Safely merge the adjacent wrappers | `G-SECTIONS` |
@@ -133,6 +134,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `spelling.arabic-common` | Suggestion | A reviewed phonetic spelling such as `لاكن`, `هاذا`, or `انشاء الله` occurs | Preview only because dialect spelling can be intentional in lyrics | `L-AR-COMMON` |
 | `spelling.japanese-common` | Suggestion | A greeting uses phonetic `わ`, or `づつ` occurs instead of `ずつ` | Preview only because phonetic lyric styling can be intentional | `L-JA-COMMON` |
 | `spelling.korean-common` | Suggestion | A frequent spelling such as `됬`, `웬지`, `오랫만`, or `설레임` occurs | Preview the standard Korean spelling | Reviewed National Institute of Korean Language sources |
+| `text.invisible-characters` | Warning | A non-breaking, narrow non-breaking, figure, or zero-width space, a byte-order mark, or trailing whitespace occurs | Safely replace space-like characters with a normal space and remove the rest | `G-ADD-SONGS` plus product-safety hygiene |
 | `unknown.marker` | Warning | An unknown lyric uses `(?)` or another recognized nonstandard marker instead of `[?]` | Safe only for exact known markers | `G-UNKNOWN` |
 | `repeat.placeholder` | Warning | Text such as `[Chorus x2]` or `repeat chorus` substitutes for repeated lyrics | Explain only | `G-REPEATS` |
 | `sound-effect.asterisks` | Warning | A likely sound effect uses braces or an unsupported wrapper | Preview replacement | `G-SFX` |
@@ -147,6 +149,10 @@ Rules depending only on sources in this table remain disabled until their annota
 | `numbers.spell-out` | Suggestion | A numeric form conflicts with a reviewed case and no documented exception applies | Contextual fix preview | `G-NUMBERS` |
 
 `syntax.unbalanced-brackets` is partly a product-safety rule. The source establishes the bracketed header form, while the parser establishes syntactic validity. Its explanation must not imply that Genius explicitly documents every malformed bracket case.
+
+`text.invisible-characters` is likewise a hygiene rule rather than a quotation of Genius guidance, and its character set is a closed list in `src/lib/core/invisible-characters.ts`. Two families are excluded on purpose and must stay excluded: the joiners `U+200C` and `U+200D`, which hold emoji sequences and Persian and Indic words together, and the bidi controls `U+200E`, `U+200F`, `U+202A`–`U+202E`, and `U+2066`–`U+2069`, which are load-bearing in the right-to-left documents this product preserves exactly. Adding a character to that list means deciding it is never intentional in any language LyricLint accepts.
+
+`section.header-prose` requires more than a recognized part name alone on a line, because a lyric can be the single word `Chorus`. One of three marks has to be present — a trailing colon, a number, or capitals in a cased script — which is what a written-out label carries and a one-word lyric does not. It converts to the bracketed form only; choosing a localized term afterwards remains `section.localized-header-preference`'s decision.
 
 The language-specific grammar catalog is intentionally narrower than the language picker. The
 first release covers only the eight reviewed language packs (`en`, `no`, `ar`, `de`, `es`, `fr`,

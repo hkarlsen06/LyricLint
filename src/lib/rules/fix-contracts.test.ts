@@ -69,6 +69,33 @@ const contracts: FixContract[] = [
 		kind: 'safe'
 	},
 	{
+		id: 'performer.style-order',
+		input: '[Chorus: A, <b>B</b> & <i>C</i>]\nLine',
+		language: 'en',
+		range: [12, 20],
+		expected: '[Chorus: A, <i>C</i> & <b>B</b>]\nLine',
+		kind: 'preview',
+		label: 'Reorder legend groups'
+	},
+	{
+		id: 'performer.style-order',
+		input: '[Verse: <i>Blair</i>]\n<i>First light</i>\n<i>Then dark</i>',
+		language: 'en',
+		range: [8, 20],
+		expected: '[Verse: Blair]\nFirst light\nThen dark',
+		kind: 'preview',
+		label: 'Remove performer formatting'
+	},
+	{
+		id: 'performer.style-order',
+		input: '[Verse: <i>A</i> & <b>B</b>]\n<i>One</i>\n<b>Two</b>',
+		language: 'en',
+		range: [8, 16],
+		expected: '[Verse: A & <i>B</i>]\nOne\n<i>Two</i>',
+		kind: 'preview',
+		label: 'Restyle in slot order'
+	},
+	{
 		id: 'performer.redundant-markup',
 		input: '[Verse: A & <i>B</i>]\n<i>First</i>\n<i>Second</i>',
 		language: 'en',

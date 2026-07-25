@@ -14,6 +14,13 @@
 		onPreviewFix: (fix: DiagnosticFix) => void;
 		onCancelPreview: () => void;
 		onApplyFix: (fix: DiagnosticFix) => void;
+		/**
+		 * How many findings this exact fix would settle, counting this one. Both
+		 * surfaces ask the shell, which plans the batch against the diagnostics the
+		 * panel is showing — neither a card nor a popover can see the document.
+		 */
+		fixBatchSize?: (fix: DiagnosticFix) => number;
+		onApplyFixBatch?: (fix: DiagnosticFix) => void;
 		/** The trigger comes back so a host can move focus off the row it removes. */
 		onIgnore: (trigger: HTMLButtonElement) => void;
 		/** A transient surface passes its own closing control; a card in the panel
@@ -29,6 +36,8 @@
 		onPreviewFix,
 		onCancelPreview,
 		onApplyFix,
+		fixBatchSize,
+		onApplyFixBatch,
 		onIgnore,
 		onClose
 	}: Props = $props();
@@ -65,6 +74,21 @@
 	function showFix(fix: DiagnosticFix): void {
 		onPreviewFix(fix);
 	}
+
+	/**
+	 * The batch a fix offers, or nothing.
+	 *
+	 * The button appears only above one occurrence, and only for a fix the whole
+	 * document can take unreviewed. The diff on screen is the user's evidence for
+	 * pressing it, which is why the batch is this exact change repeated and not
+	 * everything the rule found: a `preview` fix has no such standing, and a
+	 * lone occurrence is already what the button beside it does.
+	 */
+	function batchCount(fix: DiagnosticFix): number {
+		if (fix.kind !== 'safe' || !fixBatchSize || !onApplyFixBatch) return 0;
+		const size = fixBatchSize(fix);
+		return size > 1 ? size : 0;
+	}
 </script>
 
 <div class="diagnostic-actions">
@@ -91,6 +115,7 @@
 	     command ("Apply Replace with Don't") says the same thing twice, so the
 	     button is the label and nothing else. -->
 	{#each diagnostic.fixes ?? [] as fix (`${fix.kind}:${fix.label}`)}
+		{@const batch = batchCount(fix)}
 		<button
 			type="button"
 			class="button button--contrast diagnostic-actions__fix"
@@ -100,6 +125,23 @@
 		>
 			{fix.label}
 		</button>
+		<!-- Read against the button it follows, which already names the change and
+		     is previewing it in the document: "Replace with I'ma · Fix all 3". The
+		     count is the only new fact, so repeating the word here would just be
+		     the label twice. It steps down a tier because the contrast action on a
+		     surface is one, and the single reviewed fix is the one the diff is
+		     actually showing. -->
+		{#if batch > 0}
+			<button
+				type="button"
+				class="button diagnostic-actions__fix-all"
+				onpointerenter={() => showFix(fix)}
+				onfocus={() => showFix(fix)}
+				onclick={() => onApplyFixBatch?.(fix)}
+			>
+				Fix all {batch}
+			</button>
+		{/if}
 	{/each}
 	{#if isUnrecognizedHeaderReview}
 		<button

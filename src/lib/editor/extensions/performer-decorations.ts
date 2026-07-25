@@ -383,7 +383,7 @@ function buildVisuals(state: EditorState, payload: VoiceGroupDecorationPayload):
 						(secondary ? ' ll-performer-secondary' : ''),
 					attributes: {
 						'aria-label': style.label,
-						title: style.label,
+						...(group.legend ? { title: style.label } : {}),
 						style: `--ll-performer-tint: ${style.background};`
 					}
 				}).range(fragment.from, fragment.to)

@@ -175,6 +175,11 @@
 			return undefined;
 		},
 		onApplyDiagnosticFix: (diagnostic, fix) => controller.applyFix(diagnostic, fix),
+		// The popover's batch is the panel card's batch: same planner, same
+		// visible diagnostics, so the same fix offers the same count wherever the
+		// user meets it.
+		countDiagnosticFixBatch: (diagnostic, fix) => controller.fixBatchSize(diagnostic, fix),
+		onApplyDiagnosticFixBatch: (diagnostic, fix) => controller.applyFixBatch(diagnostic, fix),
 		onIgnoreDiagnostic: (diagnostic) => controller.ignoreRule(diagnostic.ruleId),
 		onSetLanguage: (language) => controller.setLanguage(language)
 	};

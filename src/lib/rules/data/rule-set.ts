@@ -1,9 +1,10 @@
 import type { RuleSetManifest } from '$lib/core/types.js';
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.25.6',
+	version: '2026.07.25.8',
 	publishedAt: '2026-07-25',
 	sourceIds: [
+		'G-ADD-SONGS',
 		'T-LANGUAGE-DETECT',
 		'L-EN-COMMON',
 		'L-EN-MORE',
@@ -54,6 +55,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'syntax.unsupported-voice-markup',
 		'language.selection-mismatch',
 		'section.header-missing',
+		'section.header-prose',
 		'section.header-spacing',
 		'section.header-language',
 		'section.localized-header-preference',
@@ -82,6 +84,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'spelling.arabic-common',
 		'spelling.japanese-common',
 		'spelling.korean-common',
+		'text.invisible-characters',
 		'unknown.marker',
 		'repeat.placeholder',
 		'sound-effect.asterisks',

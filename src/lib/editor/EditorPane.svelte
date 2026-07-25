@@ -414,6 +414,24 @@
 		session = closeOverlay(session);
 	}
 
+	/**
+	 * Apply every occurrence of this exact fix. Only the shell can do it — the
+	 * batch has to be the one the linter panel would apply — so unlike `applyFix`
+	 * there is no local fallback: without the handler the popover never offers
+	 * the control in the first place.
+	 */
+	function applyFixBatch(fix: DiagnosticFix): void {
+		const current = session.overlay;
+		if (current.kind !== 'diagnostic') {
+			return;
+		}
+		callbacks.onApplyDiagnosticFixBatch?.(current.diagnostic, fix);
+		session = closeOverlay(session);
+		if (current.takesFocus) {
+			returnFocus();
+		}
+	}
+
 	function applyFix(fix: DiagnosticFix): void {
 		const current = session.overlay;
 		if (current.kind !== 'diagnostic') {
@@ -590,6 +608,10 @@
 		onPreviewFix={previewFix}
 		onCancelPreview={clearFixPreview}
 		onApplyFix={applyFix}
+		fixBatchSize={callbacks.countDiagnosticFixBatch
+			? (fix) => callbacks.countDiagnosticFixBatch?.(diagnosticOverlay.diagnostic, fix) ?? 0
+			: undefined}
+		onApplyFixBatch={callbacks.onApplyDiagnosticFixBatch ? applyFixBatch : undefined}
 		onChooseHeader={() => startHeaderChoice(diagnosticOverlay.diagnostic)}
 		onAssignPerformers={legendTarget(diagnosticOverlay.diagnostic)
 			? () => startLegendAssignment(diagnosticOverlay.diagnostic)

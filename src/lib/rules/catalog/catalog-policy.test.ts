@@ -35,6 +35,21 @@ const cases: RulePolicyCase[] = [
 	},
 	{ id: 'section.header-missing', invalid: 'A lyric', valid: '[Verse]\nA lyric', ambiguous: '   ' },
 	{
+		id: 'section.header-prose',
+		invalid: 'Verse 1:\nA lyric',
+		valid: '[Verse 1]\nA lyric',
+		// A one-word lyric that happens to name a song part, with none of the
+		// three marks a written-out label carries.
+		ambiguous: '[Verse]\nChorus'
+	},
+	{
+		id: 'text.invisible-characters',
+		invalid: '[Verse]\nA lyric ',
+		valid: '[Verse]\nA lyric',
+		// A right-to-left mark is invisible and deliberately preserved.
+		ambiguous: `[Verse]\nA lyric${String.fromCodePoint(0x200f)}`
+	},
+	{
 		id: 'section.header-spacing',
 		invalid: '[Verse]\nFirst\n[Chorus]\nSecond',
 		valid: '[Verse]\nFirst\n\n[Chorus]\nSecond',

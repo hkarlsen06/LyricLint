@@ -39,6 +39,42 @@
 	font-size: var(--font-size-xs);
 }
 
+/* Chrome, like the tab strip above and the ignored-rules footer at the far end
+   of the panel: this row is not part of the list it acts on. The fill is load
+   bearing rather than decorative — `--color-canvas` is already spoken for as
+   the *selected* card's recessed level, so a row of bare canvas here read as a
+   continuation of whichever card was open and the button looked loose inside
+   it. Same inset as the chips row, which is the other strip that hangs here. */
+.linter-panel__bulk {
+	display: flex;
+	flex-wrap: wrap;
+	padding: var(--space-2) var(--space-3);
+	border-bottom: var(--border-width) solid var(--color-border);
+	margin: 0;
+	gap: var(--space-2);
+	align-items: center;
+	justify-content: space-between;
+	background: var(--color-chrome);
+}
+
+/* Compact, and bordered rather than quiet: it has to read as pressable against
+   a strip that is otherwise inert. It keeps the default tier — the contrast
+   action on this surface belongs to the fix a card is previewing, and there is
+   one of those per surface. */
+.linter-panel__bulk-action {
+	min-height: var(--control-height-sm);
+	padding: var(--space-1) var(--space-2-5);
+	font-size: var(--font-size-xs);
+}
+
+/* Rides the far end of the row, which is the same thing as saying the command
+   does not fill it: a lone button with an empty half-row beside it was the
+   shape this strip started as. */
+.linter-panel__bulk-note {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
 /* Revealed by pressing the Linter tab a second time, so the chips hang from the
    tab strip: no gap above them, and a rule below separating them from the run
    of diagnostic cards. */

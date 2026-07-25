@@ -21,6 +21,7 @@ import { createDraftStore } from './draft-store.svelte.js';
 import { createEditorSession } from './editor-session.svelte.js';
 import type { FeedbackState, ToastMessage } from './feedback.svelte.js';
 import { createFeedbackState } from './feedback.svelte.js';
+import type { BulkFixPlan } from '$lib/rules/bulk-fix.js';
 import type { RightPanelTab } from './panel-view.svelte.js';
 import { createPanelView } from './panel-view.svelte.js';
 import type { RosterMergeSuggestion } from './roster-store.svelte.js';
@@ -61,6 +62,7 @@ export interface WorkbenchController {
 	readonly severityFilter: readonly Severity[];
 	readonly severityFiltersOpen: boolean;
 	readonly visibleDiagnostics: readonly Diagnostic[];
+	readonly bulkFixPlan: BulkFixPlan;
 	readonly ignoredRuleIds: readonly string[];
 	readonly ignoredRuleCount: number;
 	readonly saveStatus: AutosaveStatus;
@@ -90,6 +92,9 @@ export interface WorkbenchController {
 	previewFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	clearFixPreview(): void;
 	applyFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
+	fixBatchSize(diagnostic: Diagnostic, fix: DiagnosticFix): number;
+	applyFixBatch(diagnostic: Diagnostic, fix: DiagnosticFix): void;
+	applyBulkFix(): void;
 	ignoreRule(ruleId: string): void;
 	restoreRule(ruleId: string): void;
 	copyCanonical(): Promise<void>;
@@ -220,6 +225,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get visibleDiagnostics() {
 			return panel.visibleDiagnostics;
 		},
+		get bulkFixPlan() {
+			return panel.bulkFixPlan;
+		},
 		get ignoredRuleIds() {
 			return panel.ignoredRuleIds;
 		},
@@ -283,6 +291,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		previewFix: panel.previewFix,
 		clearFixPreview: panel.clearFixPreview,
 		applyFix: panel.applyFix,
+		fixBatchSize: panel.fixBatchSize,
+		applyFixBatch: panel.applyFixBatch,
+		applyBulkFix: panel.applyBulkFix,
 		ignoreRule: panel.ignoreRule,
 		restoreRule: panel.restoreRule,
 		copyCanonical: editorSession.copyCanonical,

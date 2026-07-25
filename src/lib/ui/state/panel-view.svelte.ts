@@ -1,4 +1,5 @@
 import type {
+	AtomicDocumentEdit,
 	Diagnostic,
 	DiagnosticFix,
 	EditorHandle,
@@ -8,6 +9,8 @@ import type {
 } from '$lib/core/types.js';
 import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
 import { resolveLegendAssignment } from '$lib/performers/legend-assignment.js';
+import { collectMatchingFixes, mergeFixes, planBulkFix } from '$lib/rules/bulk-fix.js';
+import type { BulkFixPlan } from '$lib/rules/bulk-fix.js';
 import type { FeedbackState } from './feedback.svelte.js';
 
 export type RightPanelTab = 'linter' | 'performers' | 'tools';
@@ -33,6 +36,13 @@ export interface PanelView {
 	 */
 	readonly severityFiltersOpen: boolean;
 	readonly visibleDiagnostics: readonly Diagnostic[];
+	/**
+	 * What a whole-document bulk fix would settle, and what it would leave. It is
+	 * planned over the *visible* diagnostics: a severity chip the user switched
+	 * off is a statement about what they want to deal with, and fixing something
+	 * a filter is hiding is the one thing bulk fixing must never do.
+	 */
+	readonly bulkFixPlan: BulkFixPlan;
 	readonly ignoredRuleIds: readonly string[];
 	setActiveTab(tab: RightPanelTab): void;
 	toggleSeverity(severity: Severity): void;
@@ -67,6 +77,16 @@ export interface PanelView {
 	retryFixPreview(): void;
 	clearFixPreview(): void;
 	applyFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
+	/**
+	 * How many findings this exact fix would settle, counting the one it came
+	 * from. A card offers its batch only above 1, so the count is also the test
+	 * for whether the control exists at all.
+	 */
+	fixBatchSize(diagnostic: Diagnostic, fix: DiagnosticFix): number;
+	/** Apply every visible occurrence of this exact fix as one edit. */
+	applyFixBatch(diagnostic: Diagnostic, fix: DiagnosticFix): void;
+	/** Apply every safe fix the panel is showing as one edit. */
+	applyBulkFix(): void;
 	ignoreRule(ruleId: string): void;
 	restoreRule(ruleId: string): void;
 }
@@ -155,6 +175,38 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	// editor emits the re-linted snapshot from inside it.
 	let leadPending = false;
 
+	/**
+	 * The one path from a decided edit to the document. Everything that applies
+	 * a fix — one, a batch of identical ones, or the whole safe set — arrives
+	 * here, so the staleness guard, the abandoned preview, and the hand-off to
+	 * the next finding cannot be got right in one place and forgotten in another.
+	 */
+	function dispatchFixEdit(edit: AtomicDocumentEdit | undefined, announcement: string): void {
+		const editor = deps.editor();
+		editor.clearPreview?.();
+		activeDiagnosticKey = undefined;
+		if (!edit || edit.baseRevision !== deps.snapshot().revision) {
+			feedback.announce('This fix is stale. Review the current diagnostic before applying it.');
+			return;
+		}
+		leadPending = true;
+		try {
+			editor.dispatchAtomic(edit);
+		} catch (error) {
+			leadPending = false;
+			throw error;
+		}
+		feedback.announce(announcement);
+	}
+
+	function bulkPlan(): BulkFixPlan {
+		return planBulkFix(visibleIn(deps.snapshot().diagnostics));
+	}
+
+	function matchingFixes(diagnostic: Diagnostic, fix: DiagnosticFix): DiagnosticFix[] {
+		return collectMatchingFixes(visibleIn(deps.snapshot().diagnostics), diagnostic, fix);
+	}
+
 	return {
 		get activeTab() {
 			return activeTab;
@@ -170,6 +222,9 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		},
 		get visibleDiagnostics() {
 			return visibleIn(deps.snapshot().diagnostics);
+		},
+		get bulkFixPlan() {
+			return bulkPlan();
 		},
 		get ignoredRuleIds() {
 			return ignoredRuleIds;
@@ -249,21 +304,33 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			deps.editor().clearPreview?.();
 		},
 		applyFix(diagnostic, fix) {
-			const editor = deps.editor();
-			editor.clearPreview?.();
-			activeDiagnosticKey = undefined;
-			if (fix.edit.baseRevision !== deps.snapshot().revision) {
-				feedback.announce('This fix is stale. Review the current diagnostic before applying it.');
+			dispatchFixEdit(fix.edit, `${fix.label} applied for ${diagnostic.message}.`);
+		},
+		fixBatchSize(diagnostic, fix) {
+			return matchingFixes(diagnostic, fix).length;
+		},
+		applyFixBatch(diagnostic, fix) {
+			const fixes = matchingFixes(diagnostic, fix);
+			// The batch collapsed to the fix it started from — a re-lint can remove
+			// its siblings between the render and the press. Applying it alone is
+			// what the user asked for either way.
+			if (fixes.length <= 1) {
+				dispatchFixEdit(fix.edit, `${fix.label} applied for ${diagnostic.message}.`);
 				return;
 			}
-			leadPending = true;
-			try {
-				editor.dispatchAtomic(fix.edit);
-			} catch (error) {
-				leadPending = false;
-				throw error;
+			dispatchFixEdit(mergeFixes(fixes), `${fix.label} applied to ${fixes.length} findings.`);
+		},
+		applyBulkFix() {
+			const plan = bulkPlan();
+			if (plan.fixes.length === 0) {
+				feedback.announce('No issues can be fixed automatically.');
+				return;
 			}
-			feedback.announce(`${fix.label} applied for ${diagnostic.message}.`);
+			const fixed = `Fixed ${plan.automatic} ${plan.automatic === 1 ? 'issue' : 'issues'} automatically.`;
+			dispatchFixEdit(
+				mergeFixes(plan.fixes),
+				plan.manual === 0 ? fixed : `${fixed} ${plan.manual} still need a decision.`
+			);
 		},
 		ignoreRule(ruleId) {
 			deps.editor().clearPreview?.();

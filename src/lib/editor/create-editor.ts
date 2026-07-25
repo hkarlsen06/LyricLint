@@ -6,7 +6,6 @@ import {
 	EditorView,
 	highlightActiveLine,
 	highlightActiveLineGutter,
-	highlightSpecialChars,
 	keymap,
 	lineNumbers
 } from '@codemirror/view';
@@ -33,6 +32,7 @@ import {
 	headerRenameSessionField
 } from './extensions/header-rename.js';
 import { legendCleanupFilter } from './extensions/legend-cleanup.js';
+import { invisibleMarks, invisibleMarksTheme } from './extensions/invisible-marks.js';
 import { markupDimField, markupDimTheme } from './extensions/markup-dim.js';
 import {
 	diagnosticRangeHoverHandler,
@@ -282,7 +282,10 @@ export function createLyricEditor(
 		history(),
 		lineNumbers(),
 		performerGutter(),
-		highlightSpecialChars(),
+		// Replaces a bare `highlightSpecialChars()`: same control-character
+		// handling, plus the invisible characters `text.invisible-characters`
+		// reports, so that rule's underlines have something to sit under.
+		invisibleMarks,
 		// No `drawSelection()`: it hides the native selection and repaints it in a
 		// layer pinned behind the content, where performer tints and other
 		// color-coded line backgrounds cover it completely. The browser's own
@@ -327,6 +330,7 @@ export function createLyricEditor(
 		lintDecorationTheme,
 		sectionGhostTheme,
 		markupDimTheme,
+		invisibleMarksTheme,
 		fixPreviewTheme,
 		editorTheme,
 		keymap.of(lyricLintKeymap(callbackProxy, options.keymapOverrides)),

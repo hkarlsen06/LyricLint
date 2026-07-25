@@ -79,6 +79,15 @@ hairline between neighbours. **Selection is depth, not hue.** The selected row d
 cut into the column; it does not also get an accent wash or an accent ring, which put a blue box
 inside a panel whose entire job is to color things by severity.
 
+**That spends `--color-canvas`, so nothing else in the column may sit on it.** Anything hanging
+between the tab strip and the run of cards is chrome or it is a card; there is no third material.
+The bulk-fix strip learned this the long way: drawn as bare canvas it was the same tone as
+whichever card was open below it, the two merged into one region, and its button read as loose
+inside the open diagnostic rather than as a command over the list. It is `--color-chrome` now,
+like the severity chips it hangs beneath. A strip also carries something at both ends — the
+command at one, the count it will not touch at the other — because a lone control in half a row
+of empty gutter is the other way this row has failed.
+
 The severity filters have no control of their own. Pressing the Linter tab from another panel
 comes back to the linter; pressing it again, while already inside, shows or hides the chips.
 Both handlers on the trigger run _before_ Bits UI activates the tab (it composes props handlers
@@ -130,6 +139,43 @@ Implementation: `src/lib/editor/extensions/fix-preview.ts` renders the diff,
 binds it to its own mounted lifetime — which is the open/close lifetime of whichever surface
 rendered it. `leadAfterFix` in `src/lib/ui/state/panel-view.svelte.ts` is the advance, armed by
 `applyFix` and consumed on the snapshot that dispatch emits.
+
+### A batch repeats one change, not one rule
+
+Two controls fix more than one finding at a time, and what separates them is what the user has
+already been shown.
+
+**The card's `Fix all N` batches by rule _and_ fix label together.** A card previews exactly one
+fix as a diff, and that diff is the whole evidence for pressing anything beside it, so the batch
+may only hold edits the preview honestly stands in for. Batching by rule alone is the tempting
+wrong answer: it sweeps `til` → `'til` into a card showing `Imma` → `I'ma` — both
+`spelling.standardized`, neither one the change on screen. The label is the right key rather than
+a lucky one, because fix labels are written to name the change, so two fixes share a label
+exactly when they read as the same command. The control appears only above one occurrence
+(`Fix all 1` is a second button for the press already beside it) and never for a `preview` fix,
+which is the kind that exists to be confirmed one at a time.
+
+**The linter's `Fix N issues automatically` batches every safe fix in the panel.** Both plan over
+the _visible_ diagnostics. A severity chip switched off is a statement about what the user means
+to deal with, and reaching past it is the one thing bulk fixing must never do — as is reaching
+past an ignored rule.
+
+**A batch is one `AtomicDocumentEdit`, always.** Every fix in it carries the same `baseRevision`,
+so dispatching them one at a time makes the second stale and hands the user one undo step per fix
+for something they pressed once. `mergeFixes` drops `selectionAfter` on the way: a batch spread
+down the document has no single place for the caret, and `leadAfterFix` is about to select the
+leading remaining finding anyway, exactly as it does after a single fix.
+
+Counts are of diagnostics, not of fixes, because the strip's two numbers are read as one sentence
+about the list underneath and have to add up to it.
+
+Implementation: `src/lib/rules/bulk-fix.ts` (keys, arbitration through the existing
+`collectSafeFixes`, and the merge), `applyFixBatch` / `applyBulkFix` in
+`src/lib/ui/state/panel-view.svelte.ts`, and the card's control in
+`src/lib/diagnostics/DiagnosticActions.svelte` — the shared row, so the popover and the panel
+card cannot offer different batches for the same fix. The shell answers the count for both
+surfaces (`countDiagnosticFixBatch` in `src/lib/editor/contracts.ts`); an editor that counted its
+own would disagree with the panel.
 
 ### One diagnostic, one implementation
 

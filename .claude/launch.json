@@ -122,6 +122,18 @@
 			"port": 5401
 		},
 		{
+			"name": "slot-order-dev",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "dev", "--", "--port", "5411", "--strictPort"],
+			"port": 5411
+		},
+		{
+			"name": "paste-cleanup-dev",
+			"runtimeExecutable": "bun",
+			"runtimeArgs": ["run", "dev", "--", "--port", "5431", "--strictPort"],
+			"port": 5431
+		},
+		{
 			"name": "outside-dismiss-dev",
 			"runtimeExecutable": "bun",
 			"runtimeArgs": ["run", "dev", "--", "--port", "5331", "--strictPort"],

@@ -1,0 +1,72 @@
+import { describe, expect, it } from 'vitest';
+import { applyRuleFixes, checkRule, markedText } from '../rule-test-utils.js';
+import { sectionHeaderProseRule as rule } from './section-header-prose.js';
+
+function messages(text: string, language?: string): string[] {
+	return checkRule(rule, text, language ? { language } : {}).map((finding) => finding.message);
+}
+
+describe('section.header-prose', () => {
+	it('converts the three shapes a written-out label takes', () => {
+		expect(applyRuleFixes(rule, 'Verse 1:\nA lyric')).toBe('[Verse 1]\nA lyric');
+		expect(applyRuleFixes(rule, 'Chorus:\nA lyric')).toBe('[Chorus]\nA lyric');
+		expect(applyRuleFixes(rule, 'VERSE 2\nA lyric')).toBe('[Verse 2]\nA lyric');
+	});
+
+	it('normalizes casing to the reviewed spelling', () => {
+		expect(applyRuleFixes(rule, 'CHORUS\nA lyric')).toBe('[Chorus]\nA lyric');
+		expect(applyRuleFixes(rule, 'pre-chorus:\nA lyric')).toBe('[Pre-Chorus]\nA lyric');
+	});
+
+	it('leaves a bare part name alone, because a lyric can be one word', () => {
+		expect(messages('[Verse]\nChorus')).toEqual([]);
+		expect(messages('[Verse]\nBridge')).toEqual([]);
+	});
+
+	it('ignores a line that only contains a part name among other words', () => {
+		expect(messages('[Verse]\nThe chorus of my life:')).toEqual([]);
+		expect(messages('[Verse]\nVerse 1 of the book')).toEqual([]);
+	});
+
+	it('ignores a name no reviewed pack knows', () => {
+		expect(messages('Breakdance 1:\nA lyric')).toEqual([]);
+	});
+
+	it('prefers the document language before falling back to other packs', () => {
+		expect(applyRuleFixes(rule, 'Refreng:\nEn natt', { language: 'no' })).toBe(
+			'[Refreng]\nEn natt'
+		);
+		// English is still recognized in a Norwegian draft; choosing the localized
+		// term is `section.localized-header-preference`'s decision, not this rule's.
+		expect(applyRuleFixes(rule, 'Chorus:\nEn natt', { language: 'no' })).toBe('[Chorus]\nEn natt');
+	});
+
+	it('does not read an uppercase non-cased script as shouting', () => {
+		// Hangul has no case, so `isAllCaps` must not treat it as a marked label.
+		expect(messages('[Verse]\n후렴', 'ko')).toEqual([]);
+	});
+
+	it('drops indentation and marks the whole line', () => {
+		const input = '  Verse 1:  \nA lyric';
+		expect(markedText(input, checkRule(rule, input))).toEqual(['  Verse 1:  ']);
+		expect(applyRuleFixes(rule, input)).toBe('[Verse 1]\nA lyric');
+	});
+
+	it('leaves a styled line to the performer rules', () => {
+		expect(messages('[Verse: A & <i>B</i>]\n<i>Chorus:</i>')).toEqual([]);
+	});
+
+	it('converts every label in a scraped document', () => {
+		const input = 'Verse 1:\nFirst\n\nChorus:\nSecond\n\nVerse 2:\nThird';
+		expect(applyRuleFixes(rule, input)).toBe(
+			'[Verse 1]\nFirst\n\n[Chorus]\nSecond\n\n[Verse 2]\nThird'
+		);
+	});
+
+	it('keeps each label its own batch so one card cannot sweep up another', () => {
+		const labels = checkRule(rule, 'Verse 1:\nFirst\n\nChorus:\nSecond').flatMap(
+			(finding) => finding.fixes?.map((fix) => fix.label) ?? []
+		);
+		expect(labels).toEqual(['Use [Verse 1]', 'Use [Chorus]']);
+	});
+});

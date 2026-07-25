@@ -19,6 +19,8 @@
 		onPreviewFix,
 		onCancelPreview,
 		onApplyFix,
+		fixBatchSize,
+		onApplyFixBatch,
 		onIgnore
 	}: {
 		diagnostics: readonly Diagnostic[];
@@ -44,6 +46,19 @@
 		onPreviewFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
 		onCancelPreview: () => void;
 		onApplyFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
+		/**
+		 * The batch behind a fix, and the way to apply it. Both come from the
+		 * shell, which plans against the whole visible list — a card only knows
+		 * its own finding.
+		 */
+		fixBatchSize?: (
+			diagnostic: Diagnostic,
+			fix: NonNullable<Diagnostic['fixes']>[number]
+		) => number;
+		onApplyFixBatch?: (
+			diagnostic: Diagnostic,
+			fix: NonNullable<Diagnostic['fixes']>[number]
+		) => void;
 		onIgnore: (ruleId: string) => void;
 	} = $props();
 
@@ -168,6 +183,10 @@
 						onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
 						{onCancelPreview}
 						onApplyFix={(fix) => onApplyFix(diagnostic, fix)}
+						fixBatchSize={fixBatchSize ? (fix) => fixBatchSize(diagnostic, fix) : undefined}
+						onApplyFixBatch={onApplyFixBatch
+							? (fix) => onApplyFixBatch(diagnostic, fix)
+							: undefined}
 						onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic.ruleId, trigger)}
 					/>
 				{/if}

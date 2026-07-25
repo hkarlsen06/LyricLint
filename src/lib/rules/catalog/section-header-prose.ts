@@ -1,0 +1,130 @@
+import type { Diagnostic, LyricLine, RuleDefinition } from '$lib/core/types.js';
+import {
+	canLintHeaderLanguage,
+	getLanguagePack,
+	reviewedLanguagePacks
+} from '$lib/languages/registry.js';
+import { diagnostic, replacementFix } from './utils.js';
+
+/**
+ * A whole line that is nothing but a song-part name, optionally numbered and
+ * optionally followed by a colon — the shape lyric sites and word processors
+ * use where Genius wants `[Verse 1]`.
+ */
+const PROSE_LABEL = /^(?<name>\p{L}[\p{L} '’-]*?)(?:\s+(?<ordinal>\d+))?\s*(?<colon>:)?$/u;
+
+interface RecognizedTerm {
+	term: string;
+	sourceIds: readonly string[];
+}
+
+/**
+ * The reviewed spelling of a song-part name, preferring the document's own
+ * language so a Norwegian draft converts `Refreng:` with Norwegian provenance
+ * before English is consulted.
+ *
+ * The pack's casing wins over the line's, which is what turns `VERSE 1` into
+ * `[Verse 1]` rather than `[VERSE 1]`. Choosing a *localized* replacement is
+ * deliberately not this rule's job: `section.localized-header-preference`
+ * already owns that decision and will see the bracketed header afterwards.
+ */
+function canonicalTerm(name: string, language: string): RecognizedTerm | undefined {
+	const normalized = name.trim().toLocaleLowerCase();
+	const selected = getLanguagePack(language);
+	const packs = canLintHeaderLanguage(selected)
+		? [selected, ...reviewedLanguagePacks.filter((pack) => pack.tag !== selected.tag)]
+		: reviewedLanguagePacks;
+
+	for (const pack of packs) {
+		for (const header of pack.headers) {
+			for (const term of header.terms) {
+				if (term.toLocaleLowerCase() === normalized) {
+					return { term, sourceIds: pack.sourceIds };
+				}
+			}
+		}
+	}
+	return undefined;
+}
+
+/** True only for cased scripts, so Hangul and Arabic never read as shouting. */
+function isAllCaps(name: string): boolean {
+	return /\p{Lu}/u.test(name) && name === name.toLocaleUpperCase();
+}
+
+export const sectionHeaderProseRule: RuleDefinition = {
+	id: 'section.header-prose',
+	version: 1,
+	defaultSeverity: 'warning',
+	fixability: 'safe',
+	sourceIds: ['G-SECTIONS'],
+	check(document, context) {
+		const diagnostics: Diagnostic[] = [];
+
+		for (const section of document.sections) {
+			for (const line of section.lines) {
+				const finding = proseHeader(line, context.language);
+				if (!finding) {
+					continue;
+				}
+
+				const range = { from: line.from, to: line.to };
+				diagnostics.push(
+					diagnostic(
+						this,
+						range,
+						`Write this section header as ${finding.replacement}.`,
+						`Genius marks song parts with a bracketed header. “${line.text.trim()}” names a reviewed song part but is written as a plain line, so it reads as a lyric and no section is created. The bracketed form keeps the same part name.`,
+						[
+							replacementFix(
+								context,
+								'safe',
+								`Use ${finding.replacement}`,
+								range,
+								finding.replacement
+							)
+						],
+						['G-SECTIONS', ...finding.sourceIds.filter((id) => id !== 'G-SECTIONS')]
+					)
+				);
+			}
+		}
+
+		return diagnostics;
+	}
+};
+
+interface ProseHeader {
+	replacement: string;
+	sourceIds: readonly string[];
+}
+
+/**
+ * A recognized part name alone on a line is not enough on its own: a lyric can
+ * be the single word “Chorus”. One of three marks has to be present — a
+ * trailing colon, a number, or shouting caps — which is what every real scraped
+ * transcription carries and what a one-word lyric does not.
+ */
+function proseHeader(line: LyricLine, language: string): ProseHeader | undefined {
+	// Any markup at all means the line was styled as a lyric, not typed as a label.
+	if (line.styleSpans.length > 0) {
+		return undefined;
+	}
+
+	const groups = PROSE_LABEL.exec(line.text.trim())?.groups;
+	const name = groups?.name;
+	if (!name) {
+		return undefined;
+	}
+	if (groups.colon === undefined && groups.ordinal === undefined && !isAllCaps(name)) {
+		return undefined;
+	}
+
+	const recognized = canonicalTerm(name, language);
+	if (!recognized) {
+		return undefined;
+	}
+
+	const ordinal = groups.ordinal === undefined ? '' : ` ${groups.ordinal}`;
+	return { replacement: `[${recognized.term}${ordinal}]`, sourceIds: recognized.sourceIds };
+}
