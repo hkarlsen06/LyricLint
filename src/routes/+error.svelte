@@ -22,8 +22,8 @@
 		     so the quiet tier offers the page that explains it. The contrast tier
 		     stays with the workspace: that is still the destination. -->
 		<p class="error-page__actions">
-			<a class="button button--contrast" href={resolve('/')}>Return to the workspace</a>
-			<a class="button button--quiet" href={resolve('/about')}>What is LyricLint?</a>
+			<a class="button button--contrast" href={resolve('/lint/')}>Return to the workspace</a>
+			<a class="button button--quiet" href={resolve('/')}>What is LyricLint?</a>
 		</p>
 	</div>
 </main>

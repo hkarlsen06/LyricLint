@@ -113,6 +113,26 @@ describe('AppWordmark', () => {
 		}
 	});
 
+	it('renders the plain wordmark without any animation when animation is disabled', async () => {
+		vi.useFakeTimers();
+		try {
+			await render(AppWordmark, { animated: false });
+			const element = lockup();
+
+			expect(element.dataset.state).toBe('static');
+			expect(open(element)).toBe(1);
+			expect(getComputedStyle(element).transitionProperty).toBe('none');
+
+			await vi.advanceTimersByTimeAsync(30_000);
+			await press(element);
+			expect(element.dataset.state).toBe('static');
+			expect(open(element)).toBe(1);
+			expect(element.getAnimations()).toEqual([]);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it('toggles on every press, including the first one during the intro', async () => {
 		// The press inverts what is on screen, not the latch, so the first press
 		// while the intro still holds closes the wordmark instead of appearing to

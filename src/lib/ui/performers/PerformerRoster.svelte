@@ -41,9 +41,7 @@
 			Add performers here, then select lyric text in the editor to assign them.
 		</p>
 	{:else}
-		<p class="roster-hint">
-			Select lyric text in the editor to assign performers to it.
-		</p>
+		<p class="roster-hint">Select lyric text in the editor to assign performers to it.</p>
 		<ul class="performer-list" aria-label="Draft performer roster">
 			{#each orderedPerformers as performer (performer.id)}
 				<PerformerEditor

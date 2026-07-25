@@ -23,6 +23,7 @@ describe('rule reference derivation', () => {
 			expect(reference.message.length, reference.id).toBeGreaterThan(0);
 			expect(reference.explanation.length, reference.id).toBeGreaterThan(0);
 			expect(reference.groupTitle.length, reference.id).toBeGreaterThan(0);
+			expect(reference.language.length, reference.id).toBeGreaterThan(0);
 			expect(reference.sources.length, reference.id).toBeGreaterThan(0);
 		}
 	});
@@ -57,7 +58,7 @@ describe('rule reference derivation', () => {
 	it('keeps meta descriptions within what result pages display', () => {
 		for (const reference of ruleReferences()) {
 			expect(reference.seoDescription.length, reference.id).toBeLessThanOrEqual(155);
-			expect(reference.seoDescription.length, reference.id).toBeGreaterThan(0);
+			expect(reference.seoDescription.length, reference.id).toBeGreaterThanOrEqual(90);
 		}
 	});
 

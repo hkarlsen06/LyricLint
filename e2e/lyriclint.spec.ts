@@ -32,7 +32,7 @@ async function expectDocText(page: Page, expected: string): Promise<void> {
 }
 
 async function openWorkspace(page: Page): Promise<void> {
-	await page.goto('/');
+	await page.goto('/lint/');
 	await expect(editor(page)).toBeVisible();
 }
 
@@ -49,6 +49,120 @@ async function waitForSaved(page: Page): Promise<void> {
 	// accessible name.
 	await expect(page.getByLabel('Autosave status')).toHaveAttribute('aria-label', /Saved locally/u);
 }
+
+async function expectSocialPreview(page: Page): Promise<void> {
+	await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+		'content',
+		'https://lyriclint.com/social-preview.png'
+	);
+	await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
+	await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute('content', '630');
+	await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute(
+		'content',
+		/LyricLint/u
+	);
+	await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+		'content',
+		'summary_large_image'
+	);
+	await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute(
+		'content',
+		'https://lyriclint.com/social-preview.png'
+	);
+}
+
+test('the homepage and workbench align the wordmark and link it home', async ({ page }) => {
+	await page.goto('/');
+
+	await expect(page.getByRole('link', { name: 'About' })).toHaveAttribute('aria-current', 'page');
+	const siteWordmark = page.locator('.site-header .app-wordmark');
+	await expect(siteWordmark).toHaveAttribute('data-state', 'static');
+	await expect(siteWordmark).toHaveCSS('transition-property', 'none');
+	const siteHeaderBox = await page.locator('.site-header').boundingBox();
+	const siteWordmarkBox = await siteWordmark.boundingBox();
+
+	await page.getByRole('link', { name: 'Open the workbench' }).first().click();
+	await expect(editor(page)).toBeVisible();
+	const toolbarBox = await page.locator('.document-toolbar').boundingBox();
+	const toolbarWordmarkBox = await page.locator('.document-toolbar .app-wordmark').boundingBox();
+
+	expect(siteHeaderBox).not.toBeNull();
+	expect(siteWordmarkBox).not.toBeNull();
+	expect(toolbarBox).not.toBeNull();
+	expect(toolbarWordmarkBox).not.toBeNull();
+	expect(siteHeaderBox!.height).toBe(toolbarBox!.height);
+	expect(siteWordmarkBox!.x).toBeCloseTo(toolbarWordmarkBox!.x, 1);
+	expect(siteWordmarkBox!.y).toBeCloseTo(toolbarWordmarkBox!.y, 1);
+
+	await page.getByRole('link', { name: 'LyricLint home' }).click();
+	await expect(page).toHaveURL(/\/$/u);
+});
+
+test('marketing home opens the workbench at /lint', async ({ page }) => {
+	await page.goto('/');
+
+	await expect(
+		page.getByRole('heading', { name: 'Catch Genius formatting problems before you submit.' })
+	).toBeVisible();
+	await expect(page).toHaveTitle('LyricLint · A linter for Genius lyric transcriptions');
+	await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Genius/u);
+	await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+	await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+		'href',
+		'https://lyriclint.com/'
+	);
+	await expectSocialPreview(page);
+	await expect
+		.poll(() => page.locator('script[type="application/ld+json"]').textContent())
+		.toContain('"@type":"WebApplication"');
+	await page.getByRole('link', { name: 'Open the workbench' }).first().click();
+
+	await expect(page).toHaveURL(/\/lint\/$/u);
+	await expect(editor(page)).toBeVisible();
+	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
+	await expect(page.locator('main.workspace h1')).toHaveText('LyricLint transcription workbench');
+});
+
+test('the rule reference exposes article metadata and language semantics', async ({ page }) => {
+	await page.goto('/rules/');
+
+	await expect(page).toHaveTitle('Genius lyric formatting rules · LyricLint');
+	await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+		'href',
+		'https://lyriclint.com/rules/'
+	);
+	await expectSocialPreview(page);
+	await expect
+		.poll(() => page.locator('script[type="application/ld+json"]').textContent())
+		.toContain('"@type":"CollectionPage"');
+
+	await page.goto('/rules/spelling-arabic-common/');
+	await expect(page).toHaveTitle(/Review “لاكن”.*· LyricLint/u);
+	await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+		'href',
+		'https://lyriclint.com/rules/spelling-arabic-common/'
+	);
+	await expect
+		.poll(() => page.locator('script[type="application/ld+json"]').textContent())
+		.toContain('"@type":"TechArticle"');
+	await expect(page.locator('pre[lang="ar"][dir="rtl"]')).toHaveCount(2);
+});
+
+test('sitemap lists every public page and excludes the workbench', async ({ request }) => {
+	const sitemapResponse = await request.get('/sitemap.xml');
+	expect(sitemapResponse.ok()).toBe(true);
+	expect(sitemapResponse.headers()['content-type']).toMatch(/(?:application|text)\/xml/u);
+
+	const sitemap = await sitemapResponse.text();
+	expect(sitemap.match(/<url>/gu)).toHaveLength(49);
+	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
+	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/</loc>');
+	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/spelling-arabic-common/</loc>');
+	expect(sitemap).not.toContain('/lint/');
+
+	const robots = await (await request.get('/robots.txt')).text();
+	expect(robots).toContain('Sitemap: https://lyriclint.com/sitemap.xml');
+});
 
 test('paste → lint → safe fix updates the canonical editor text', async ({ page }) => {
 	await openWorkspace(page);
@@ -291,7 +405,7 @@ test.describe('phone gate', () => {
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
 	test('replaces the workbench with a come-back-on-a-computer notice', async ({ page }) => {
-		await page.goto('/');
+		await page.goto('/lint/');
 
 		await expect(
 			page.getByRole('heading', { name: 'LyricLint needs a bigger screen' })

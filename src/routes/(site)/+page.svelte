@@ -1,12 +1,35 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { enabledRules } from '$lib/rules/index.js';
+	import { siteUrl } from '$lib/seo.js';
 	import LiveDemo from '$lib/ui/site/LiveDemo.svelte';
+	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 
 	// Read off the registry rather than typed into the copy. A landing page that
 	// states a count is making a claim about the product, and a hand-written one
 	// is wrong the first time a rule ships.
 	const ruleCount = enabledRules.length;
+	const pageTitle = 'LyricLint · A linter for Genius lyric transcriptions';
+	const pageDescription = `LyricLint checks Genius lyric transcriptions against ${ruleCount} rules for section headers, performer markup, spelling, and punctuation. Runs in your browser.`;
+	const socialDescription =
+		'Paste a transcription, see every formatting problem with the Genius source that backs it, and copy clean markup. Nothing leaves your browser.';
+	const canonicalUrl = siteUrl('/');
+	const appUrl = siteUrl('/lint/');
+	const structuredData = {
+		'@context': 'https://schema.org',
+		'@type': 'WebApplication',
+		name: 'LyricLint',
+		url: appUrl,
+		description: pageDescription,
+		applicationCategory: 'UtilitiesApplication',
+		operatingSystem: 'Any',
+		browserRequirements: 'Requires a desktop or laptop web browser',
+		offers: {
+			'@type': 'Offer',
+			price: 0,
+			priceCurrency: 'USD'
+		}
+	};
 
 	// Deliberately invented lines, not a real song. The page needs a transcription
 	// that is wrong in several ordinary ways at once — a written-out label instead
@@ -25,19 +48,19 @@ And the "quiet" part was never really quiet`;
 </script>
 
 <svelte:head>
-	<title>About LyricLint · A linter for Genius lyric transcriptions</title>
-	<meta
-		name="description"
-		content="LyricLint checks Genius lyric transcriptions against {ruleCount} sourced formatting rules — section headers, performer markup, spelling, and punctuation. Runs entirely in your browser."
-	/>
+	<title>{pageTitle}</title>
+	<meta name="description" content={pageDescription} />
+	<link rel="canonical" href={canonicalUrl} />
 	<meta property="og:type" content="website" />
-	<meta property="og:title" content="LyricLint — a linter for Genius lyric transcriptions" />
-	<meta
-		property="og:description"
-		content="Paste a transcription, see every formatting problem with the Genius source that backs it, and copy clean markup. Nothing leaves your browser."
-	/>
-	<meta name="twitter:card" content="summary" />
+	<meta property="og:title" content={pageTitle} />
+	<meta property="og:description" content={socialDescription} />
+	<meta property="og:url" content={canonicalUrl} />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content={pageTitle} />
+	<meta name="twitter:description" content={socialDescription} />
 </svelte:head>
+
+<StructuredData data={structuredData} />
 
 <main class="site-main site-prose">
 	<!-- Three things, and no more — see `.site-hero` in site.css for why the
@@ -60,14 +83,14 @@ And the "quiet" part was never really quiet`;
 		</p>
 
 		<div class="site-actions">
-			<a class="button button--contrast" href={resolve('/')}>Open the workbench</a>
-			<a class="button" href={resolve('/rules')}>Browse the {ruleCount} rules</a>
+			<a class="button button--contrast" href={resolve('/lint/')}>Open the workbench</a>
+			<a class="button" href={resolve('/rules/')}>Browse the {ruleCount} rules</a>
 		</div>
 
 		<p class="site-meta">
 			<span>Free</span>
 			<span class="site-meta__fact">
-				<span class="site-meta__separator" aria-hidden="true">·</span>No account
+				<span class="site-meta__separator" aria-hidden="true">·</span>On device
 			</span>
 			<span class="site-meta__fact">
 				<span class="site-meta__separator" aria-hidden="true">·</span>Desktop or laptop
@@ -133,7 +156,7 @@ And the "quiet" part was never really quiet`;
 	</p>
 
 	<p>
-		<a href={resolve('/rules')}>Read the full rule reference</a>, including the sources behind each
+		<a href={resolve('/rules/')}>Read the full rule reference</a>, including the sources behind each
 		one.
 	</p>
 
@@ -161,6 +184,6 @@ And the "quiet" part was never really quiet`;
 	</ul>
 
 	<div class="site-actions">
-		<a class="button button--contrast" href={resolve('/')}>Open the workbench</a>
+		<a class="button button--contrast" href={resolve('/lint/')}>Open the workbench</a>
 	</div>
 </main>

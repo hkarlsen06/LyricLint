@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { onMount } from 'svelte';
 	import AppWordmark from './AppWordmark.svelte';
@@ -95,7 +96,9 @@
 	     is safe on disk. The brand, the name, and the save state read as one
 	     identity strip; everything that acts on the document lives on the right. -->
 	<div class="document-toolbar__identity">
-		<AppWordmark />
+		<a class="document-toolbar__home" href={resolve('/')} aria-label="LyricLint home">
+			<AppWordmark />
+		</a>
 		<!-- The name of the draft and the list of the other drafts are one control:
 		     typing in it renames this document, and the chevron at its end opens the
 		     ones it could be swapped for. The hamburger this replaced sat at the far

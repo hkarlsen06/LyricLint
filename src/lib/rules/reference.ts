@@ -34,6 +34,8 @@ export interface RuleReference {
 	/** The ID prefix before the first dot, which is what the index groups by. */
 	group: string;
 	groupTitle: string;
+	/** BCP 47 language tag for the reviewed policy example. */
+	language: string;
 	severity: Severity;
 	message: string;
 	explanation: string;
@@ -122,6 +124,10 @@ function performerRecordsFor(names: readonly string[]): PerformerRecord[] {
  * rather than an engine's truncation of it.
  */
 function seoDescription(explanation: string): string {
+	const supplement = ' See examples, the available fix, and the reviewed Genius source.';
+	if (explanation.length < 90 && explanation.length + supplement.length <= 155) {
+		return `${explanation}${supplement}`;
+	}
 	if (explanation.length <= 155) {
 		return explanation;
 	}
@@ -162,6 +168,7 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 		slug: ruleSlug(rule.id),
 		group: prefix,
 		groupTitle: groupTitle(prefix),
+		language: policy.language ?? 'en',
 		severity: lead.severity,
 		message: lead.message,
 		explanation: lead.explanation,

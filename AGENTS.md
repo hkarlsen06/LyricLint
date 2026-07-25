@@ -477,7 +477,7 @@ on purpose, at one width. Two centred buttons of unequal width stacked on each o
 that broke rather than as a column that was meant.
 
 Implementation: `.site-hero` in `src/lib/ui/styles/site.css` and
-`src/routes/(site)/about/+page.svelte`.
+`src/routes/(site)/+page.svelte`.
 
 ### The mark and the wordmark are one object
 
@@ -487,24 +487,20 @@ closes: closed, the brackets hold the waveform and it _is_ the mark; open, the w
 flattened onto the baseline, `Lint` has grown out of that line, and `Lyric` has been uncovered by
 the left bracket sweeping right off it. It holds open on load for as long as the word takes to
 read — a saccade to land on it, ~400ms for a nine-letter compound, a beat to register it — then
-contracts, and reopens on hover or on a press that latches.
+contracts, and reopens on hover or on a press that latches. That is the animated default.
 
-**The one thing a page may change about it is which end it arrives from**, and the question that
-settles it is whether the brand is what the reader came for. Over a tool it is a masthead: it
-leads with the word, then contracts and gives the space back (`entrance="hold"`, the default).
-On `/about` it is the product itself, seen for the first time by most of the people who get
-there — so the mark arrives first and grows into the word (`entrance="reveal"`), after a beat
-that is shorter than the hold because a glyph costs a fixation to register and none of the
-reading a word does. A reveal **stays open**: the two are not one animation played in two
-directions, and a landing page has nothing underneath the lockup waiting for that space back.
-The rule reference keeps the default — it is a document people return to, and a logo that
-unfolded on every visit is furniture that moves.
+**The landing page parks the rig open.** There the brand is what the reader came for, not a
+masthead over a tool, so `/` ships the complete wordmark and never turns it into an interactive
+morph (`animated={false}`). The rule reference and the workbench keep the animated default: they
+are surfaces people return to for their content, so the word leads, contracts, and gives that
+space back (`entrance="hold"`).
 
-The prop is `entrance` and not `intro`, which is what it is, because `intro` is one of Svelte's
-own `mount` options: a prop by that name is taken as the option and never reaches the component,
-silently, including from every `render()` in the tests. Each mode starts from its own end, so the
-server-rendered HTML is already correct — `/about` ships the mark and `/rules` ships the word,
-and neither one flashes through the other on the way.
+The alternate animated entrance is `entrance="reveal"`, and the prop is `entrance` rather than
+`intro`, which is what it is, because `intro` is one of Svelte's own `mount` options: a prop by
+that name is taken as the option and never reaches the component, silently, including from every
+`render()` in the tests. `animated={false}` outranks either entrance, renders the open state from
+the server, and owns no transition, so the landing page never flashes through a mark or suggests
+that its home link is also a separate logo control.
 
 **A press is not a hover, and on touch it cannot be faked with one.** Tapping an element that
 carries `:hover` styles does apply them, so a tap looks like it opens the lockup — but they stay

@@ -52,6 +52,8 @@
 }
 
 .site-header {
+	min-height: var(--header-height);
+	padding: var(--space-2) var(--space-3);
 	border-bottom: var(--border-width) solid var(--color-border);
 }
 

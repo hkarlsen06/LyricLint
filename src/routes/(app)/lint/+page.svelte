@@ -118,9 +118,12 @@
 	});
 </script>
 
-<!-- The description lives in the layout; the page only owns its title. Keep the
-     active draft first so it remains visible when a browser tab is narrow. -->
+<!-- Keep the active draft first so it remains visible when a browser tab is narrow. -->
 <DocumentTitle title={controller?.title} />
+
+<svelte:head>
+	<meta name="robots" content="noindex, follow" />
+</svelte:head>
 
 {#if controller}
 	<Workspace {controller} editorComponent={EditorPane} />

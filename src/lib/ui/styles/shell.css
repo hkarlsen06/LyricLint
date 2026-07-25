@@ -144,6 +144,12 @@
 	--wm-open: 1;
 }
 
+/* A deliberately plain lockup and the reduced-motion parking state share the
+   same contract: fully open, with no transition waiting to be triggered. */
+.app-wordmark[data-state='static'] {
+	transition: none;
+}
+
 /* It answers a press, so it says so. */
 .app-wordmark {
 	cursor: pointer;
@@ -299,10 +305,15 @@
 	}
 }
 
-/* The brand and the draft name are adjacent bold strings, so the lockup buys a
-   little extra room to keep the two from reading as one phrase. */
-.document-toolbar__identity > .app-wordmark {
+/* The brand is the way back to the marketing home. The link draws no extra
+   surface, so the lockup keeps exactly the same geometry it had when it was
+   inert. It buys a little extra room before the adjacent bold draft name so the
+   two do not read as one phrase. */
+.document-toolbar__home {
+	display: inline-flex;
 	margin-inline-end: var(--space-2);
+	color: inherit;
+	text-decoration: none;
 }
 
 /* The draft's name and the way into the other drafts are one control, so they

@@ -526,11 +526,11 @@ describe('RightPanel', () => {
 		render(RightPanel, { controller });
 
 		// With every severity shown, the line after the last card closes the list.
-		expect(screen.getByText('No further issues.')).toBeTruthy();
+		expect(screen.getByText('No further issues detected.')).toBeTruthy();
 
 		await fireEvent.click(screen.getByRole('tab', { name: /Linter/ }));
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
-		expect(screen.queryByText('No further issues.')).toBeNull();
+		expect(screen.queryByText('No further issues detected.')).toBeNull();
 		expect(screen.getByText('1 more issue hidden by the severity filters.')).toBeTruthy();
 	});
 });

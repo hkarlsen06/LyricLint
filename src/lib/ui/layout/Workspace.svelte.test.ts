@@ -87,8 +87,8 @@ describe('Workspace and toolbar', () => {
 		expect(screen.getByRole('button', { name: 'New draft' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Drafts' })).toBeTruthy();
-		// The left edge is the brand lockup now, not a second drafts affordance.
-		expect(screen.getByRole('img', { name: 'LyricLint' })).toBeTruthy();
+		// The left edge is the brand lockup now, and it returns to the marketing home.
+		expect(screen.getByRole('link', { name: 'LyricLint home' })).toHaveAttribute('href', '/');
 		expect(screen.queryByRole('button', { name: 'Open drafts menu' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Insert section' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Assign performer' })).toBeNull();
@@ -140,7 +140,7 @@ describe('Workspace and toolbar', () => {
 		const identity = document.querySelector('.document-toolbar__identity');
 		expect(identity).toBeTruthy();
 		expect([...identity!.children].filter((child) => child.tagName !== 'LABEL')).toEqual([
-			screen.getByRole('img', { name: 'LyricLint' }),
+			screen.getByRole('link', { name: 'LyricLint home' }),
 			// The name is a control now — the field and its drafts disclosure — so
 			// the middle of the strip is the switcher rather than a bare input.
 			screen.getByLabelText('Draft title').closest('.draft-switcher'),
@@ -469,7 +469,7 @@ describe('Workspace and toolbar', () => {
 		render(Workspace, { controller });
 
 		const link = screen.getByRole('link', { name: 'About LyricLint' });
-		expect(link.getAttribute('href')).toBe('/about');
+		expect(link.getAttribute('href')).toBe('/');
 		expect(link.closest('.status-bar')).toBeTruthy();
 		expect(link.closest('.document-toolbar')).toBeNull();
 	});

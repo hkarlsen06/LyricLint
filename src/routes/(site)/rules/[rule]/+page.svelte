@@ -2,17 +2,49 @@
 	import { resolve } from '$app/paths';
 	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
 	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
+	import { currentRuleSet } from '$lib/rules/index.js';
+	import { siteUrl } from '$lib/seo.js';
+	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import type { PageProps } from './$types.js';
 
 	let { data }: PageProps = $props();
 
 	const reference = $derived(data.reference);
+	const pageTitle = $derived(`${reference.message} · LyricLint`);
+	const canonicalUrl = $derived(siteUrl(`/rules/${reference.slug}/`));
+	const structuredData = $derived({
+		'@context': 'https://schema.org',
+		'@type': 'TechArticle',
+		headline: reference.message,
+		url: canonicalUrl,
+		mainEntityOfPage: canonicalUrl,
+		description: reference.seoDescription,
+		datePublished: currentRuleSet.publishedAt,
+		dateModified: currentRuleSet.publishedAt,
+		author: {
+			'@type': 'Organization',
+			name: 'LyricLint'
+		},
+		about: 'Genius lyric formatting',
+		citation: reference.sources.map((source) => source.url)
+	});
 </script>
 
 <svelte:head>
-	<title>Genius lyric formatting: {reference.message} · LyricLint</title>
+	<title>{pageTitle}</title>
 	<meta name="description" content={reference.seoDescription} />
+	<link rel="canonical" href={canonicalUrl} />
+	<meta property="og:type" content="article" />
+	<meta property="og:title" content={pageTitle} />
+	<meta property="og:description" content={reference.seoDescription} />
+	<meta property="og:url" content={canonicalUrl} />
+	<meta property="article:published_time" content={currentRuleSet.publishedAt} />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content={pageTitle} />
+	<meta name="twitter:description" content={reference.seoDescription} />
 </svelte:head>
+
+<StructuredData data={structuredData} />
 
 <main class="site-prose rules__page">
 	<h1>{reference.message}</h1>
@@ -38,11 +70,17 @@
 	<h2>Example</h2>
 	<figure class="site-sample site-sample--invalid">
 		<figcaption class="site-sample__label">Flagged by this rule</figcaption>
-		<pre class="site-sample__text">{reference.invalid}</pre>
+		<pre
+			class="site-sample__text"
+			lang={reference.language}
+			dir={reference.language === 'ar' ? 'rtl' : undefined}>{reference.invalid}</pre>
 	</figure>
 	<figure class="site-sample site-sample--valid">
 		<figcaption class="site-sample__label">Accepted by this rule</figcaption>
-		<pre class="site-sample__text">{reference.valid}</pre>
+		<pre
+			class="site-sample__text"
+			lang={reference.language}
+			dir={reference.language === 'ar' ? 'rtl' : undefined}>{reference.valid}</pre>
 	</figure>
 
 	<h2>The fix</h2>
@@ -82,6 +120,6 @@
 	     page is the way back — one of them would always be the second control for
 	     a move the reader already has. -->
 	<div class="site-actions">
-		<a class="button" href={resolve('/')}>Check a transcription in the workbench</a>
+		<a class="button" href={resolve('/lint/')}>Check a transcription in the workbench</a>
 	</div>
 </main>

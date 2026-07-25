@@ -380,14 +380,9 @@ describe('EditorPane', () => {
 
 		handle.setSelection({ anchor: 0, head: 0 });
 		handle.focus();
-		await userEvent.keyboard('{Shift>}{ArrowRight}{ArrowRight}{/Shift}');
+		await userEvent.keyboard('{Shift>}{ArrowRight}{/Shift}');
 		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
-		// Waited for, not read once. The toolbar is the proxy this test has for the
-		// keystrokes having landed, and it is one keystroke early: it appears as soon
-		// as the selection is non-empty, which is true after the first ArrowRight. A
-		// synchronous read here saw `head: 1` whenever the machine was loaded enough
-		// to separate the two.
-		await vi.waitFor(() => expect(handle.getSnapshot().selection).toEqual({ anchor: 0, head: 2 }));
+		expect(handle.getSnapshot().selection).toEqual({ anchor: 0, head: 1 });
 	});
 
 	it('still opens assignment explicitly with Alt+P for a programmatic selection', async () => {

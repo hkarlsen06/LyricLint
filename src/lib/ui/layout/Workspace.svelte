@@ -215,6 +215,8 @@
 </script>
 
 <main class="workspace" data-testid="workspace">
+	<h1 class="sr-only">LyricLint transcription workbench</h1>
+
 	<!-- The toolbar spans both columns: the draft's name, its save state, and the
 	     commands that act on the whole document belong to the window, not to the
 	     editor half of it. The panel's tabs then hang directly under it. -->
@@ -258,7 +260,7 @@
 		     two keystroke hints were a legend for shortcuts nobody had asked for
 		     help with — three items of chrome to make one link look less alone. -->
 		<span class="status-bar__group">
-			<a class="status-bar__link" href={resolve('/about')}>About LyricLint</a>
+			<a class="status-bar__link" href={resolve('/')}>About LyricLint</a>
 		</span>
 	</footer>
 </main>

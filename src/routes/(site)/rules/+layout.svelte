@@ -13,7 +13,8 @@
 	// the list instead of tearing the list down and building it again.
 	const groups = groupedRuleReferences();
 
-	const indexHref = resolve('/rules');
+	const indexHref = resolve('/rules/');
+	const indexPath = indexHref.replace(/\/$/, '');
 
 	const selectedSlug = $derived(page.params.rule);
 
@@ -27,7 +28,7 @@
 
 	afterNavigate((navigation) => {
 		arrivedFromIndex =
-			navigation.type === 'link' && navigation.from?.url.pathname.replace(/\/$/, '') === indexHref;
+			navigation.type === 'link' && navigation.from?.url.pathname.replace(/\/$/, '') === indexPath;
 
 		// A popped entry has a scroll position of its own and the router has just
 		// restored it. That is the whole mechanism behind the control above, so

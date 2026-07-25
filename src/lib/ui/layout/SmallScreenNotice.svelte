@@ -25,7 +25,7 @@
 		<!-- The gate is the most likely first contact anyone has with LyricLint: a
 		     link shared in a forum or a chat is opened on a phone far more often
 		     than not, and until now that reader was told the product was unusable
-		     and given nowhere to go. `/about` sits outside the `(app)` route group
+		     and given nowhere to go. `/` sits outside the `(app)` route group
 		     so the gate does not blank the very page this points at.
 
 		     It takes the contrast tier because it is the only action on the page —
@@ -33,7 +33,7 @@
 		     canvas, not a box: a full-page message is prose, and a card here would
 		     separate its contents from nothing. -->
 		<p class="small-screen-notice__action">
-			<a class="button button--contrast" href={resolve('/about')}>See what LyricLint does</a>
+			<a class="button button--contrast" href={resolve('/')}>See what LyricLint does</a>
 		</p>
 	</div>
 </div>

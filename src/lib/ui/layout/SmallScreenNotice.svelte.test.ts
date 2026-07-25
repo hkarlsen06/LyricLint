@@ -44,14 +44,14 @@ describe('SmallScreenNotice', () => {
 
 	it('offers the one page a phone can actually read', async () => {
 		// The gate used to be a dead end: it explained that the app was gone and
-		// left the reader with nothing to do. `/about` is outside the `(app)` route
+		// left the reader with nothing to do. `/` is outside the `(app)` route
 		// group precisely so this link lands somewhere that has not been blanked.
 		const screen = await render(SmallScreenNotice);
 		reveal();
 
 		const link = screen.getByRole('link', { name: 'See what LyricLint does' });
 		await expect.element(link).toBeInTheDocument();
-		await expect.element(link).toHaveAttribute('href', '/about');
+		await expect.element(link).toHaveAttribute('href', '/');
 	});
 
 	it('keeps the action as the surface it is, not a box on the page', async () => {
