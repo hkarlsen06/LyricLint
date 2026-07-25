@@ -47,6 +47,7 @@ describe('RightPanel', () => {
 		await fireEvent.click(warningButton);
 		expect(calls.revealed).toEqual([{ from: 9, to: 13 }]);
 		expect(calls.selections).toEqual([{ anchor: 9, head: 13 }]);
+		expect(calls.navigation).toEqual(['selection', 'reveal']);
 		expect(calls.focusCount).toBe(1);
 		expect(warningButton.closest('li')?.classList.contains('diagnostic-card--active')).toBe(true);
 
@@ -81,7 +82,8 @@ describe('RightPanel', () => {
 		render(ToastRegion, { feedback });
 		render(LiveRegion, { feedback });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Ignore this session' }));
+		expect(screen.queryByRole('button', { name: 'Ignore this session' })).toBeNull();
+		await fireEvent.click(screen.getByRole('button', { name: 'Ignore' }));
 		expect(controller.ignoredRuleCount).toBe(1);
 		expect(screen.queryByText('Add a section header')).toBeNull();
 		expect(screen.getByTestId('live-region').textContent).toContain('Ignored');
@@ -104,6 +106,24 @@ describe('RightPanel', () => {
 		);
 	});
 
+	test('accepts an unrecognized header as correct for the session', async () => {
+		const finding = diagnostic({
+			ruleId: 'section.header-unrecognized',
+			severity: 'manual-review',
+			message: 'Review the custom section header “Chor”.'
+		});
+		const { controller } = createTestWorkbench({ diagnostics: [finding] });
+		render(RightPanel, { controller });
+
+		expect(screen.queryByRole('button', { name: 'Ignore' })).toBeNull();
+		const accept = screen.getByRole('button', { name: "It's correct" });
+		expect(accept.querySelector('svg')).not.toBeNull();
+
+		await fireEvent.click(accept);
+		expect(controller.ignoredRuleIds).toContain('section.header-unrecognized');
+		expect(screen.queryByText('Review the custom section header “Chor”.')).toBeNull();
+	});
+
 	test('opens the editor section picker from a missing-header diagnostic', async () => {
 		const finding = diagnostic({
 			ruleId: 'section.header-missing',
@@ -120,7 +140,20 @@ describe('RightPanel', () => {
 
 		expect(calls.revealed).toEqual([{ from: 14, to: 14 }]);
 		expect(calls.selections).toEqual([{ anchor: 14, head: 14 }]);
+		expect(calls.navigation).toEqual(['selection', 'reveal']);
 		expect(calls.sectionHeaderRequestCount).toBe(1);
+	});
+
+	test('invites lyrics and a language check while the document is empty', () => {
+		const { controller } = createTestWorkbench({ text: '   \n\n', diagnostics: [] });
+		render(RightPanel, { controller });
+
+		expect(
+			screen.getByText(
+				'Paste or write some lyrics to get started, and make sure the selected language is correct.'
+			)
+		).toBeTruthy();
+		expect(screen.queryByText('No issues found.')).toBeNull();
 	});
 
 	test('blames the filters for an empty linter list only when they are the cause', async () => {

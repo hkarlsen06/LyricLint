@@ -23,6 +23,7 @@ export interface EditorCallLog {
 	focusCount: number;
 	revealed: TextRange[];
 	selections: SerializedSelection[];
+	navigation: Array<'selection' | 'reveal'>;
 	dispatched: AtomicDocumentEdit[];
 	undoCount: number;
 	redoCount: number;
@@ -106,6 +107,7 @@ export function createTestWorkbench(options?: {
 		focusCount: 0,
 		revealed: [],
 		selections: [],
+		navigation: [],
 		dispatched: [],
 		undoCount: 0,
 		redoCount: 0,
@@ -128,9 +130,11 @@ export function createTestWorkbench(options?: {
 			calls.redoCount += 1;
 		},
 		revealRange(range) {
+			calls.navigation.push('reveal');
 			calls.revealed.push(range);
 		},
 		setSelection(selection) {
+			calls.navigation.push('selection');
 			calls.selections.push(selection);
 			snapshot = { ...snapshot, selection };
 		},

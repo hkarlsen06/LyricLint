@@ -485,7 +485,7 @@ The shipped spelling data must include these policies exactly, with word boundar
 
 - [ ] English and Norwegian are the only reviewed localized MVP packs. **[R §Language header data]**
 - [ ] English vocabulary covers Intro, Verse, Chorus, Refrain, Pre-Chorus, Post-Chorus, Bridge, Interlude, Instrumental, Outro. **[R §Language header data]**
-- [ ] Norwegian covers Intro, Vers, Chorus/Refreng, Refreng, Pre-Chorus, Post-Chorus, Bro, Mellomspill, Instrumental, Outro. **[R §Language header data]**
+- [ ] Norwegian covers Intro, Vers, Refreng (preferred over Chorus), Pre-Chorus, Post-Chorus, Bro (preferred over Bridge), Mellomspill, Instrumental, Outro. **[R §Language header data]**
 - [ ] Missing translations never become blocking export errors. Custom headers remain intact. **[R §Language header data]**
 - [ ] The full inventory retains the exact language/annotation-ID mappings from L as untrusted inventory metadata until individual review. **[L]**
 - [ ] Japanese, Thai, Indonesian, and Dutch model English-header policy; Korean models original-versus-translation context; Czech/Slovak and Finnish model English/local alternatives; German models genre-dependent behavior. Unreviewed policies do not emit production claims. **[L §Known policy exceptions]**

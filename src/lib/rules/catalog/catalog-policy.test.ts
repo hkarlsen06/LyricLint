@@ -60,6 +60,13 @@ const cases: RulePolicyCase[] = [
 		language: 'no'
 	},
 	{
+		id: 'section.localized-header-preference',
+		invalid: '[Chorus]\nEn natt',
+		valid: '[Refreng]\nEn natt',
+		ambiguous: '[Eget parti]\nEn natt',
+		language: 'no'
+	},
+	{
 		id: 'section.header-unrecognized',
 		invalid: '[Chor]\nEn natt',
 		valid: '[Refreng]\nEn natt',
@@ -305,12 +312,41 @@ describe('rule regressions', () => {
 			to: 5,
 			message: 'Review the custom section header “Chor”.'
 		});
+		expect(finding?.sourceIds.slice(0, 2)).toEqual(['G-SECTIONS', 'G-LANG-NO']);
 		expect(finding?.fixes).toBeUndefined();
 	});
 
 	it('does not duplicate the language warning for a header recognized in another reviewed pack', () => {
 		expect(diagnostics('section.header-unrecognized', '[Verse]\nEn natt', 'no')).toEqual([]);
 		expect(diagnostics('section.header-language', '[Verse]\nEn natt', 'no')).toHaveLength(1);
+	});
+
+	it.each([
+		['Chorus', 'Refreng'],
+		['Bridge', 'Bro']
+	])('prefers the localized Norwegian header %s → %s', (input, replacement) => {
+		const [finding] = diagnostics(
+			'section.localized-header-preference',
+			`[${input}: Ane]\nEn natt`,
+			'no'
+		);
+		expect(finding).toMatchObject({
+			severity: 'suggestion',
+			message: `Prefer “${replacement}” over “${input}” in Norwegian lyrics.`
+		});
+		expect(finding?.explanation).toContain('preference, not an error');
+		expect(finding?.fixes?.[0]).toMatchObject({
+			kind: 'safe',
+			label: `Use ${replacement}`,
+			edit: { edits: [{ insert: replacement }] }
+		});
+	});
+
+	it('does not duplicate the Norwegian Bridge preference as a language warning', () => {
+		expect(diagnostics('section.header-language', '[Bridge]\nEn natt', 'no')).toEqual([]);
+		expect(diagnostics('section.localized-header-preference', '[Bridge]\nA night', 'en')).toEqual(
+			[]
+		);
 	});
 
 	it('accepts English headers for Japanese pages and both Korean policies', () => {

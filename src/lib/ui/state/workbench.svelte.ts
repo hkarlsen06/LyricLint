@@ -487,16 +487,19 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			activeTab = 'linter';
 			activeDiagnosticKey = diagnosticKey(diagnostic);
 			const range = { from: diagnostic.from, to: diagnostic.to };
-			editor.revealRange(range);
 			editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
+			// CodeMirror applies queued scroll requests during its measure phase.
+			// Reveal last so selection's nearest-edge scroll cannot replace the
+			// deliberate upper-third placement.
+			editor.revealRange(range);
 			editor.focus();
 		},
 		chooseSectionHeader(diagnostic) {
 			editor.clearPreview?.();
 			activeTab = 'linter';
 			activeDiagnosticKey = diagnosticKey(diagnostic);
-			editor.revealRange({ from: diagnostic.from, to: diagnostic.to });
 			editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
+			editor.revealRange({ from: diagnostic.from, to: diagnostic.to });
 			if (editor.requestSectionHeader) {
 				editor.requestSectionHeader();
 			} else {
@@ -507,8 +510,8 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			editor.clearPreview?.();
 			activeTab = 'linter';
 			activeDiagnosticKey = diagnosticKey(diagnostic);
-			editor.revealRange({ from: diagnostic.from, to: diagnostic.to });
 			editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
+			editor.revealRange({ from: diagnostic.from, to: diagnostic.to });
 			if (editor.requestPerformerLegendAssignment) {
 				editor.requestPerformerLegendAssignment(diagnostic);
 			} else {

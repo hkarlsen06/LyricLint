@@ -5,6 +5,7 @@ import {
 	reviewedLanguagePacks
 } from '../../languages/registry.js';
 import type { RuleDefinition } from '../../core/types.js';
+import { localizedHeaderPreference } from './section-localized-header-preference.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 interface RecognizedHeader {
@@ -60,7 +61,11 @@ export const sectionHeaderLanguageRule: RuleDefinition = {
 		const accepted = selectedTerms(selected);
 		return document.sections.flatMap((section) => {
 			const header = section.header;
-			if (!header || accepted.has(header.namePart.toLocaleLowerCase())) {
+			if (
+				!header ||
+				accepted.has(header.namePart.toLocaleLowerCase()) ||
+				localizedHeaderPreference(context.language, header.namePart)
+			) {
 				return [];
 			}
 			const conflict = recognizeInOtherReviewedPack(header.namePart, selected);

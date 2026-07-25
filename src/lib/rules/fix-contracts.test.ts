@@ -34,6 +34,14 @@ const contracts: FixContract[] = [
 		kind: 'preview'
 	},
 	{
+		id: 'section.localized-header-preference',
+		input: '[Chorus: Ane]\nEn natt',
+		language: 'no',
+		range: [1, 7],
+		expected: '[Refreng: Ane]\nEn natt',
+		kind: 'safe'
+	},
+	{
 		id: 'section.immediate-repeat-spacing',
 		input: '[Chorus]\nAgain\nTonight\n\n[Chorus]\nAgain\nTonight',
 		language: 'en',

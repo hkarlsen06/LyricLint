@@ -1,7 +1,7 @@
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { describe, expect, it, vi } from 'vitest';
-import type { Diagnostic } from '$lib/core/types.js';
+import type { Diagnostic, SourceReference } from '$lib/core/types.js';
 import DiagnosticDetails from './DiagnosticDetails.svelte';
 
 function previewDiagnostic(): Diagnostic {
@@ -26,6 +26,18 @@ function previewDiagnostic(): Diagnostic {
 	};
 }
 
+function source(id: string): SourceReference {
+	return {
+		id,
+		url: `https://genius.com/${id}`,
+		pageTitle: `Source ${id}`,
+		sectionTitle: `Section ${id}`,
+		retrievedAt: '2026-07-24',
+		lastVerifiedAt: '2026-07-24',
+		reviewStatus: 'reviewed'
+	};
+}
+
 describe('DiagnosticDetails preview flow', () => {
 	it('turns the preview control into confirm in place, without a nested card', async () => {
 		const onApplyFix = vi.fn();
@@ -44,8 +56,8 @@ describe('DiagnosticDetails preview flow', () => {
 		await expect.element(preview).toHaveTextContent('Preview');
 		await preview.click();
 
-		const confirm = page.getByRole('button', { name: 'Confirm: Wrap as (Yeah)' });
-		await expect.element(confirm).toHaveTextContent('Confirm');
+		const apply = page.getByRole('button', { name: 'Apply: Wrap as (Yeah)' });
+		await expect.element(apply).toHaveTextContent('Apply');
 		await expect.element(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
 		expect(onPreviewFix).toHaveBeenCalledOnce();
 		expect(onApplyFix).not.toHaveBeenCalled();
@@ -55,7 +67,7 @@ describe('DiagnosticDetails preview flow', () => {
 		expect(screen.container.querySelectorAll('.diagnostic-details__actions')).toHaveLength(1);
 		await expect.element(preview).not.toBeInTheDocument();
 
-		await confirm.click();
+		await apply.click();
 		expect(onApplyFix).toHaveBeenCalledOnce();
 	});
 
@@ -70,14 +82,44 @@ describe('DiagnosticDetails preview flow', () => {
 			onIgnore: vi.fn()
 		});
 
-		const ignore = page.getByRole('button', { name: 'Ignore this session' });
+		const ignore = page.getByRole('button', { name: 'Ignore' });
 		await expect.element(ignore).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: 'Ignore this session' }))
+			.not.toBeInTheDocument();
 
 		await page.getByRole('button', { name: 'Preview: Wrap as (Yeah)' }).click();
 		await expect.element(ignore).not.toBeInTheDocument();
 
 		await page.getByRole('button', { name: 'Cancel' }).click();
 		await expect.element(ignore).toBeVisible();
+	});
+
+	it('accepts an unrecognized header as correct with an affirmative CTA', async () => {
+		const onIgnore = vi.fn();
+		await render(DiagnosticDetails, {
+			diagnostic: {
+				...previewDiagnostic(),
+				ruleId: 'section.header-unrecognized',
+				severity: 'manual-review',
+				fixes: undefined
+			},
+			sources: new Map(),
+			onChooseHeader: vi.fn(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore
+		});
+
+		const accept = page.getByRole('button', { name: "It's correct" });
+		await expect.element(accept).toBeVisible();
+		expect(accept.element().querySelector('svg')).not.toBeNull();
+		expect(getComputedStyle(accept.element()).marginInlineStart).toBe('0px');
+		await expect.element(page.getByRole('button', { name: 'Ignore' })).not.toBeInTheDocument();
+
+		await accept.click();
+		expect(onIgnore).toHaveBeenCalledOnce();
 	});
 
 	it('cancels a preview without applying it', async () => {
@@ -101,6 +143,39 @@ describe('DiagnosticDetails preview flow', () => {
 			.toBeVisible();
 		expect(onCancelPreview).toHaveBeenCalledOnce();
 		expect(onApplyFix).not.toHaveBeenCalled();
+	});
+
+	it('labels a safe diagnostic action as apply', async () => {
+		const onApplyFix = vi.fn();
+		const safeFix = {
+			kind: 'safe' as const,
+			label: 'Insert the missing closing bracket',
+			edit: {
+				baseRevision: 0,
+				edits: [{ from: 6, to: 6, insert: ']' }]
+			}
+		};
+		await render(DiagnosticDetails, {
+			diagnostic: {
+				...previewDiagnostic(),
+				fixes: [safeFix]
+			},
+			sources: new Map(),
+			onChooseHeader: vi.fn(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix,
+			onIgnore: vi.fn()
+		});
+
+		const apply = page.getByRole('button', {
+			name: 'Apply: Insert the missing closing bracket'
+		});
+		await expect.element(apply).toHaveTextContent('Apply');
+		await expect.element(apply).not.toHaveTextContent('Insert the missing closing bracket');
+
+		await apply.click();
+		expect(onApplyFix).toHaveBeenCalledWith(safeFix);
 	});
 
 	it('offers the section picker without creating a preview fix', async () => {
@@ -151,5 +226,54 @@ describe('DiagnosticDetails preview flow', () => {
 
 		await page.getByRole('button', { name: 'Assign section performers' }).click();
 		expect(onAssignPerformers).toHaveBeenCalledOnce();
+	});
+
+	it('shows two sources initially and reveals the remaining provenance on request', async () => {
+		const sourceIds = ['primary', 'selected-language', 'supporting-a', 'supporting-b'];
+		const screen = await render(DiagnosticDetails, {
+			diagnostic: {
+				...previewDiagnostic(),
+				sourceIds
+			},
+			sources: new Map(sourceIds.map((sourceId) => [sourceId, source(sourceId)])),
+			onChooseHeader: vi.fn(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn()
+		});
+
+		expect(screen.container.querySelectorAll('.source-reference')).toHaveLength(2);
+		const showMore = page.getByRole('button', { name: 'Show 2 more sources' });
+		await expect.element(showMore).toHaveAttribute('aria-expanded', 'false');
+
+		await showMore.click();
+		expect(screen.container.querySelectorAll('.source-reference')).toHaveLength(4);
+		const showFewer = page.getByRole('button', { name: 'Show fewer sources' });
+		await expect.element(showFewer).toHaveAttribute('aria-expanded', 'true');
+
+		await showFewer.click();
+		expect(screen.container.querySelectorAll('.source-reference')).toHaveLength(2);
+	});
+
+	it('leaves a short source list fully visible without a disclosure control', async () => {
+		const sourceIds = ['primary', 'supporting-a', 'supporting-b'];
+		const screen = await render(DiagnosticDetails, {
+			diagnostic: {
+				...previewDiagnostic(),
+				sourceIds
+			},
+			sources: new Map(sourceIds.map((sourceId) => [sourceId, source(sourceId)])),
+			onChooseHeader: vi.fn(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn()
+		});
+
+		expect(screen.container.querySelectorAll('.source-reference')).toHaveLength(3);
+		await expect
+			.element(page.getByRole('button', { name: /more sources/u }))
+			.not.toBeInTheDocument();
 	});
 });

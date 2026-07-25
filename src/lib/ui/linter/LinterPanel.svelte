@@ -31,6 +31,11 @@
 	// Only blame the filters when they are actually what is hiding something;
 	// an otherwise clean draft should read as clean.
 	const emptyMessage = $derived.by(() => {
+		// An untouched draft is not "clean" — it has nothing to lint yet, so the
+		// panel points at the two things that get linting started.
+		if (controller.snapshot.text.trim().length === 0) {
+			return 'Paste or write some lyrics to get started, and make sure the selected language is correct.';
+		}
 		const unignored = controller.snapshot.diagnostics.filter(
 			(diagnostic) => !controller.ignoredRuleIds.includes(diagnostic.ruleId)
 		);

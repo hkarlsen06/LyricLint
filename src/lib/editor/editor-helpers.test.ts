@@ -1,6 +1,7 @@
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import type { Diagnostic, LanguagePack, PerformerRecord } from '../core/types.js';
+import { norwegianLanguagePack } from '../languages/no.js';
 import { prepareInitialDocument } from './create-editor.js';
 import {
 	clusterDiagnostics,
@@ -216,6 +217,17 @@ describe('editor pure helpers', () => {
 			ordinal: 2,
 			numberedHeaderTerms: ['Vers']
 		});
+	});
+
+	it('prefers Refreng over Chorus in the Norwegian section picker', () => {
+		const labels = sectionHeaderOptions(norwegianLanguagePack, ['Vers 1'], '', {
+			previousHeader: 'Vers 1',
+			headersBefore: ['Vers 1']
+		}).map((option) => option.label);
+
+		expect(labels.indexOf('Refreng')).toBeLessThan(labels.indexOf('Chorus'));
+		expect(labels.indexOf('Bro')).toBeGreaterThan(-1);
+		expect(labels).not.toContain('Bridge');
 	});
 
 	it('uses the previous section to favor the natural next transition', () => {

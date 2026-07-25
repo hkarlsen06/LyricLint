@@ -1,7 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import type { Diagnostic, EditorHandle, PerformerRecord } from '../core/types.js';
+import type { Diagnostic, EditorHandle, PerformerRecord, SourceReference } from '../core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
 import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
@@ -94,6 +94,38 @@ describe('EditorPane', () => {
 
 		expect(handle.getSnapshot().text).toBe('[Verse]\nHello');
 		await expect.element(page.getByText('[Verse]')).toBeVisible();
+	});
+
+	it('reveals a selected line near the upper third of the editor', async () => {
+		const lines = Array.from({ length: 80 }, (_, index) => `Line ${index + 1}`);
+		const text = lines.join('\n');
+		const target = 'Line 60';
+		const from = text.indexOf(target);
+		const { handle } = await mountEditor({ text });
+		const editor = document.querySelector<HTMLElement>('[data-testid="lyric-editor"]');
+		if (!editor) {
+			throw new Error('Editor host was not mounted.');
+		}
+		editor.style.height = '600px';
+		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+		handle.setSelection({ anchor: from, head: from + target.length });
+		handle.revealRange({ from, to: from + target.length });
+		await new Promise<void>((resolve) =>
+			requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+		);
+
+		const scroller = editor.querySelector<HTMLElement>('.cm-scroller');
+		const activeLine = editor.querySelector<HTMLElement>('.cm-activeLine');
+		if (!scroller || !activeLine) {
+			throw new Error('CodeMirror did not render the active line.');
+		}
+		const viewport = scroller.getBoundingClientRect();
+		const line = activeLine.getBoundingClientRect();
+		const verticalPosition = (line.top - viewport.top) / viewport.height;
+
+		expect(verticalPosition).toBeGreaterThan(0.28);
+		expect(verticalPosition).toBeLessThan(0.38);
 	});
 
 	it('canonicalizes a CRLF document to LF once, deterministically', async () => {
@@ -481,6 +513,33 @@ describe('EditorPane', () => {
 		await userEvent.click(underline);
 
 		expect(editorCallbacks.onDiagnosticActivate).toHaveBeenCalledWith(issue);
+	});
+
+	it('dismisses the diagnostic and enters editing at the double-tapped position', async () => {
+		const issue = testDiagnostic({ from: 0, to: 5 });
+		const { handle } = await mountEditor({
+			text: 'hello',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [issue] }
+			})
+		});
+		const underline = document.querySelector<HTMLElement>('.ll-diagnostic-range');
+		if (!underline) {
+			throw new Error('Diagnostic underline was not rendered.');
+		}
+
+		await userEvent.dblClick(underline);
+
+		await expect.element(page.getByText('Test issue', { exact: true })).not.toBeInTheDocument();
+		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toHaveFocus();
+		const selection = handle.getSnapshot().selection;
+		expect(selection.anchor).toBe(selection.head);
+		expect(selection.anchor).toBeGreaterThanOrEqual(issue.from);
+		expect(selection.anchor).toBeLessThanOrEqual(issue.to);
+
+		await userEvent.keyboard('X');
+		expect(handle.getSnapshot().text).toHaveLength(6);
+		expect(handle.getSnapshot().text).toContain('X');
 	});
 
 	it('activates a one-character underline tapped on its trailing half', async () => {
@@ -930,5 +989,67 @@ describe('DiagnosticPopover fix flow', () => {
 		await userEvent.click(page.getByRole('button', { name: /Remove mark Safe fix/u }));
 		expect(onApplyFix).toHaveBeenCalledWith(safeFix);
 		expect(onApplyFix).toHaveBeenCalledTimes(2);
+	});
+
+	it('keeps long source lists collapsed until the user asks for the full audit trail', async () => {
+		const sourceIds = ['primary', 'selected-language', 'supporting-a', 'supporting-b'];
+		const sources: SourceReference[] = sourceIds.map((id, index) => ({
+			id,
+			url: `https://genius.com/${index + 1}`,
+			pageTitle: `Source ${id}`,
+			sectionTitle: `Section ${id}`,
+			retrievedAt: '2026-07-24',
+			lastVerifiedAt: '2026-07-24',
+			reviewStatus: 'reviewed'
+		}));
+		const screen = await render(DiagnosticPopover, {
+			diagnostic: testDiagnostic({ sourceIds }),
+			sources,
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn()
+		});
+
+		expect(
+			screen.container.querySelectorAll('ul[aria-label="Sources"] li:not(.source-disclosure)')
+		).toHaveLength(2);
+
+		await userEvent.click(page.getByRole('button', { name: 'Show 2 more sources' }));
+
+		expect(
+			screen.container.querySelectorAll('ul[aria-label="Sources"] li:not(.source-disclosure)')
+		).toHaveLength(4);
+		await expect
+			.element(page.getByRole('button', { name: 'Show fewer sources' }))
+			.toHaveAttribute('aria-expanded', 'true');
+	});
+
+	it('uses the affirmative manual-review action for an unrecognized header', async () => {
+		const onIgnore = vi.fn();
+		const screen = await render(DiagnosticPopover, {
+			diagnostic: testDiagnostic({
+				ruleId: 'section.header-unrecognized',
+				severity: 'manual-review'
+			}),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore
+		});
+
+		const accept = page.getByRole('button', { name: "It's correct" });
+		await expect.element(accept).toBeVisible();
+		expect(accept.element().querySelector('svg')).not.toBeNull();
+		await expect
+			.element(page.getByRole('button', { name: 'Ignore for this session' }))
+			.not.toBeInTheDocument();
+		expect(getComputedStyle(screen.container.querySelector('.actions')!).justifyContent).toBe(
+			'flex-start'
+		);
+
+		await userEvent.click(accept);
+		expect(onIgnore).toHaveBeenCalledOnce();
+		expect(screen.container.querySelector('.accept-review')).not.toBeNull();
 	});
 });

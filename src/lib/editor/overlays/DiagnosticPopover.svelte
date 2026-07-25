@@ -4,6 +4,9 @@
 	import type { ScreenRect } from '../contracts.js';
 	import { safeExternalUrl } from './diagnostic-popover.js';
 
+	const SOURCE_PREVIEW_LIMIT = 2;
+	const SOURCE_COLLAPSE_THRESHOLD = 3;
+
 	interface Props {
 		diagnostic: Diagnostic;
 		sources?: readonly SourceReference[];
@@ -31,12 +34,22 @@
 	}: Props = $props();
 	let root: HTMLDivElement;
 	let previewFix = $state<DiagnosticFix | undefined>();
+	let sourcesExpanded = $state(false);
 	let previousDiagnosticKey = $state('');
+	const isUnrecognizedHeaderReview = $derived(diagnostic.ruleId === 'section.header-unrecognized');
 	const citedSources = $derived(
 		diagnostic.sourceIds.map((sourceId) => ({
 			id: sourceId,
 			source: sources.find((candidate) => candidate.id === sourceId)
 		}))
+	);
+	const visibleCitedSources = $derived(
+		sourcesExpanded || citedSources.length <= SOURCE_COLLAPSE_THRESHOLD
+			? citedSources
+			: citedSources.slice(0, SOURCE_PREVIEW_LIMIT)
+	);
+	const hiddenSourceCount = $derived(
+		citedSources.length > SOURCE_COLLAPSE_THRESHOLD ? citedSources.length - SOURCE_PREVIEW_LIMIT : 0
 	);
 	const position = $derived(
 		anchor
@@ -48,6 +61,7 @@
 		if (diagnosticKey !== previousDiagnosticKey) {
 			previousDiagnosticKey = diagnosticKey;
 			previewFix = undefined;
+			sourcesExpanded = false;
 		}
 	});
 
@@ -192,7 +206,7 @@
 
 	{#if citedSources.length}
 		<ul aria-label="Sources">
-			{#each citedSources as citation (citation.id)}
+			{#each visibleCitedSources as citation (citation.id)}
 				<li>
 					{#if citation.source}
 						{@const href = safeExternalUrl(citation.source.url)}
@@ -212,12 +226,44 @@
 					{/if}
 				</li>
 			{/each}
+			{#if hiddenSourceCount > 0}
+				<li class="source-disclosure">
+					<button
+						type="button"
+						aria-expanded={sourcesExpanded}
+						onclick={() => {
+							sourcesExpanded = !sourcesExpanded;
+						}}
+					>
+						{sourcesExpanded ? 'Show fewer sources' : `Show ${hiddenSourceCount} more sources`}
+					</button>
+				</li>
+			{/if}
 		</ul>
 	{/if}
 
-	<div class="actions">
+	<div class="actions" class:actions--review={isUnrecognizedHeaderReview}>
 		{#if !previewFix}
-			<button type="button" onclick={onIgnore}>Ignore for this session</button>
+			{#if isUnrecognizedHeaderReview}
+				<button type="button" class="accept-review" onclick={onIgnore}>
+					It's correct
+					<svg
+						aria-hidden="true"
+						viewBox="0 0 16 16"
+						width="14"
+						height="14"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.8"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M3.5 8.2 6.5 11l6-6" />
+					</svg>
+				</button>
+			{:else}
+				<button type="button" onclick={onIgnore}>Ignore for this session</button>
+			{/if}
 		{/if}
 		<button type="button" onclick={onDismiss}>Close</button>
 	</div>
@@ -320,6 +366,12 @@
 		margin-block-start: var(--space-2);
 	}
 
+	.source-disclosure button {
+		min-height: var(--control-height-sm);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+	}
+
 	a {
 		color: var(--color-accent);
 	}
@@ -335,6 +387,25 @@
 		gap: var(--space-1-5);
 		justify-content: flex-end;
 		margin-block-start: var(--space-3);
+	}
+
+	.actions--review {
+		justify-content: flex-start;
+	}
+
+	.actions .accept-review {
+		display: inline-flex;
+		border-color: var(--color-text);
+		gap: var(--control-gap);
+		align-items: center;
+		background: var(--color-text);
+		color: var(--color-canvas);
+	}
+
+	.actions .accept-review:hover,
+	.actions .accept-review:active {
+		border-color: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
+		background: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
 	}
 
 	@media (prefers-reduced-motion: no-preference) {

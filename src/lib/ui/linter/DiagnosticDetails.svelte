@@ -2,6 +2,9 @@
 	import type { Diagnostic, DiagnosticFix, SourceReference } from '$lib/core/types.js';
 	import SourceLink from '../primitives/SourceLink.svelte';
 
+	const SOURCE_PREVIEW_LIMIT = 2;
+	const SOURCE_COLLAPSE_THRESHOLD = 3;
+
 	let {
 		diagnostic,
 		sources,
@@ -23,12 +26,25 @@
 	} = $props();
 
 	let previewFix = $state<DiagnosticFix | undefined>();
+	let sourcesExpanded = $state(false);
 	let previousDiagnosticKey = $state('');
+	const isUnrecognizedHeaderReview = $derived(diagnostic.ruleId === 'section.header-unrecognized');
+	const visibleSourceIds = $derived(
+		sourcesExpanded || diagnostic.sourceIds.length <= SOURCE_COLLAPSE_THRESHOLD
+			? diagnostic.sourceIds
+			: diagnostic.sourceIds.slice(0, SOURCE_PREVIEW_LIMIT)
+	);
+	const hiddenSourceCount = $derived(
+		diagnostic.sourceIds.length > SOURCE_COLLAPSE_THRESHOLD
+			? diagnostic.sourceIds.length - SOURCE_PREVIEW_LIMIT
+			: 0
+	);
 	$effect(() => {
 		const key = `${diagnostic.ruleId}:${diagnostic.from}:${diagnostic.to}:${diagnostic.message}`;
 		if (key !== previousDiagnosticKey) {
 			previousDiagnosticKey = key;
 			previewFix = undefined;
+			sourcesExpanded = false;
 		}
 	});
 
@@ -47,7 +63,7 @@
 	<p>{diagnostic.explanation}</p>
 
 	<div class="diagnostic-details__sources" aria-label="Sources">
-		{#each diagnostic.sourceIds as sourceId (sourceId)}
+		{#each visibleSourceIds as sourceId (sourceId)}
 			{@const source = sources.get(sourceId)}
 			{#if source}
 				<SourceLink {source} />
@@ -55,6 +71,18 @@
 				<p>Source metadata unavailable: {sourceId}</p>
 			{/if}
 		{/each}
+		{#if hiddenSourceCount > 0}
+			<button
+				type="button"
+				class="button button--quiet diagnostic-details__sources-toggle"
+				aria-expanded={sourcesExpanded}
+				onclick={() => {
+					sourcesExpanded = !sourcesExpanded;
+				}}
+			>
+				{sourcesExpanded ? 'Show fewer sources' : `Show ${hiddenSourceCount} more sources`}
+			</button>
+		{/if}
 	</div>
 
 	<div class="diagnostic-details__actions">
@@ -77,21 +105,22 @@
 				<button
 					type="button"
 					class="button button--pill diagnostic-details__fix"
+					aria-label={`Apply: ${fix.label}`}
 					onclick={() => onApplyFix(fix)}
 				>
-					{fix.label}
+					Apply
 				</button>
 			{:else if isPreviewing(fix)}
 				<button
 					type="button"
 					class="button button--contrast diagnostic-details__cta"
-					aria-label={`Confirm: ${fix.label}`}
+					aria-label={`Apply: ${fix.label}`}
 					onclick={() => {
 						onApplyFix(fix);
 						previewFix = undefined;
 					}}
 				>
-					Confirm
+					Apply
 				</button>
 				<button
 					type="button"
@@ -118,13 +147,36 @@
 			{/if}
 		{/each}
 		{#if previewFix === undefined}
-			<button
-				type="button"
-				class="diagnostic-details__ignore"
-				onclick={(event) => onIgnore(event.currentTarget)}
-			>
-				Ignore this session
-			</button>
+			{#if isUnrecognizedHeaderReview}
+				<button
+					type="button"
+					class="button button--contrast diagnostic-details__cta diagnostic-details__accept"
+					onclick={(event) => onIgnore(event.currentTarget)}
+				>
+					It's correct
+					<svg
+						aria-hidden="true"
+						viewBox="0 0 16 16"
+						width="14"
+						height="14"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.8"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M3.5 8.2 6.5 11l6-6" />
+					</svg>
+				</button>
+			{:else}
+				<button
+					type="button"
+					class="diagnostic-details__ignore"
+					onclick={(event) => onIgnore(event.currentTarget)}
+				>
+					Ignore
+				</button>
+			{/if}
 		{/if}
 	</div>
 

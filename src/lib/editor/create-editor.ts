@@ -401,8 +401,12 @@ export function createLyricEditor(
 		},
 		revealRange(range) {
 			assertRange(range, view.state.doc.length);
+			const upperThirdOffset = view.scrollDOM.clientHeight / 3;
 			view.dispatch({
-				effects: EditorView.scrollIntoView(range.from, { y: 'center' })
+				effects: EditorView.scrollIntoView(range.from, {
+					y: 'start',
+					yMargin: upperThirdOffset
+				})
 			});
 		},
 		setSelection(selection) {

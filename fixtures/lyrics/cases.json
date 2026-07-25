@@ -159,6 +159,18 @@
 		]
 	},
 	{
+		"id": "norwegian-localized-header-preferences",
+		"description": "Norwegian cultural header preferences remain suggestions without duplicate warnings",
+		"language": "no",
+		"input": "[Chorus]\nVi synger samme sang\n\n[Bridge]\nVi møtes igjen",
+		"performers": [
+			"Ane"
+		],
+		"expectedRuleIds": [
+			"section.localized-header-preference"
+		]
+	},
+	{
 		"id": "rtl-arabic-document",
 		"description": "Arabic content exercises bidirectional text and preserves markup",
 		"language": "ar",

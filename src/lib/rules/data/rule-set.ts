@@ -1,14 +1,15 @@
 import type { RuleSetManifest } from '../../core/types.js';
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.24.7',
-	publishedAt: '2026-07-24',
+	version: '2026.07.25.1',
+	publishedAt: '2026-07-25',
 	sourceIds: [
 		'T-LANGUAGE-DETECT',
 		'G-SECTIONS',
 		'G-SECTION-NUMBERING',
 		'G-SECTION-HOOK',
 		'G-SPELLING',
+		'G-LANG-PURPOSE',
 		'G-LANG-EN',
 		'G-LANG-NO',
 		'G-LANG-AR',
@@ -36,6 +37,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'language.selection-mismatch',
 		'section.header-missing',
 		'section.header-language',
+		'section.localized-header-preference',
 		'section.header-unrecognized',
 		'section.deprecated-hook',
 		'section.immediate-repeat-spacing',

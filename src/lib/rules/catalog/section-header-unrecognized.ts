@@ -1,5 +1,9 @@
 import type { RuleDefinition } from '../../core/types.js';
-import { reviewedLanguagePacks } from '../../languages/registry.js';
+import {
+	canLintHeaderLanguage,
+	getLanguagePack,
+	reviewedLanguagePacks
+} from '../../languages/registry.js';
 import { diagnostic } from './utils.js';
 
 function isRecognizedHeader(name: string): boolean {
@@ -9,6 +13,18 @@ function isRecognizedHeader(name: string): boolean {
 			header.terms.some((term) => term.toLocaleLowerCase() === normalized)
 		)
 	);
+}
+
+function orderedSourceIds(language: string, sourceIds: readonly string[]): string[] {
+	const selected = getLanguagePack(language);
+	const selectedSourceIds = canLintHeaderLanguage(selected) ? selected.sourceIds : [];
+	return [
+		'G-SECTIONS',
+		...selectedSourceIds,
+		...sourceIds.filter(
+			(sourceId) => sourceId !== 'G-SECTIONS' && !selectedSourceIds.includes(sourceId)
+		)
+	];
 }
 
 export const sectionHeaderUnrecognizedRule: RuleDefinition = {
@@ -27,7 +43,7 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 		'G-LANG-JA',
 		'G-LANG-KO'
 	],
-	check(document) {
+	check(document, context) {
 		return document.sections.flatMap((section) => {
 			const header = section.header;
 			if (!header || isRecognizedHeader(header.namePart)) {
@@ -39,7 +55,9 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 					this,
 					header.nameRange,
 					`Review the custom section header “${header.namePart}”.`,
-					`“${header.namePart}” is not in any reviewed section-header catalog. It may be intentional, but it could also be a typo. Confirm it manually; LyricLint preserves the text and does not guess a replacement.`
+					`“${header.namePart}” is not in any reviewed section-header catalog. It may be intentional, but it could also be a typo. Confirm it manually; LyricLint preserves the text and does not guess a replacement.`,
+					undefined,
+					orderedSourceIds(context.language, this.sourceIds)
 				)
 			];
 		});

@@ -766,9 +766,19 @@ textarea:disabled {
 	background: var(--color-control-hover);
 }
 
+.diagnostic-details__accept svg {
+	flex: none;
+}
+
 .diagnostic-details__sources {
 	display: grid;
 	gap: var(--space-2);
+}
+
+.diagnostic-details__sources-toggle {
+	justify-self: start;
+	min-height: var(--control-height-sm);
+	font-size: var(--font-size-xs);
 }
 
 .source-reference {

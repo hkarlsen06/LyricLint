@@ -309,25 +309,65 @@ function diagnosticAtPosition(
 	);
 }
 
+interface DiagnosticPointerHit {
+	diagnostic: Diagnostic;
+	position: number;
+}
+
+function diagnosticPointerHit(
+	event: MouseEvent,
+	view: EditorView
+): DiagnosticPointerHit | undefined {
+	const target = event.target instanceof Element ? event.target : undefined;
+	const underline = target?.closest('.ll-diagnostic-range');
+	if (!underline) {
+		return undefined;
+	}
+	const diagnostics = diagnosticsForState(view.state);
+	const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
+	const diagnostic =
+		diagnosticForUnderline(underline, diagnostics) ??
+		(position === null ? undefined : diagnosticAtPosition(diagnostics, position));
+	if (!diagnostic) {
+		return undefined;
+	}
+	return {
+		diagnostic,
+		position: position ?? diagnostic.from
+	};
+}
+
+function enterDiagnosticEditMode(event: MouseEvent, view: EditorView): boolean {
+	const hit = diagnosticPointerHit(event, view);
+	if (!hit) {
+		return false;
+	}
+	event.preventDefault();
+	view.state.field(editorCallbacksField)?.onDiagnosticDismiss?.();
+	view.dispatch({
+		selection: { anchor: hit.position },
+		scrollIntoView: true
+	});
+	view.focus();
+	return true;
+}
+
 /** Activate the most relevant diagnostic when its visible underline is tapped. */
 export function diagnosticRangeClickHandler(): Extension {
 	return EditorView.domEventHandlers({
 		click(event, view) {
-			const target = event.target instanceof Element ? event.target : undefined;
-			const underline = target?.closest('.ll-diagnostic-range');
-			if (!underline) {
+			const hit = diagnosticPointerHit(event, view);
+			if (!hit) {
 				return false;
 			}
-			const diagnostics = diagnosticsForState(view.state);
-			const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
-			const diagnostic =
-				diagnosticForUnderline(underline, diagnostics) ??
-				(position === null ? undefined : diagnosticAtPosition(diagnostics, position));
-			if (!diagnostic) {
-				return false;
+			if (event.detail > 1) {
+				return enterDiagnosticEditMode(event, view);
 			}
-			view.state.field(editorCallbacksField)?.onDiagnosticActivate(diagnostic);
+			view.state.field(editorCallbacksField)?.onDiagnosticActivate(hit.diagnostic);
 			return true;
+		},
+		dblclick(event, view) {
+			return enterDiagnosticEditMode(event, view);
 		}
 	});
 }

@@ -76,6 +76,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `language.selection-mismatch` | Warning | Sufficient lyric text clearly matches a different language than the selected one | Explain only; local statistical estimate | `T-LANGUAGE-DETECT` |
 | `section.header-missing` | Warning | A blank-line section contains lyrics but no section header | Insert chosen localized header | `G-SECTIONS` |
 | `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog | Replace after user confirmation | `G-SECTIONS`, reviewed language source |
+| `section.localized-header-preference` | Suggestion | A valid header has a culturally preferred localized equivalent | Safely replace with the localized term | `G-LANG-PURPOSE`, reviewed language source |
 | `section.header-unrecognized` | Manual review | A bracketed header is absent from every reviewed header catalog | Explain only; preserve the custom text | `G-SECTIONS`, reviewed language sources |
 | `section.deprecated-hook` | Warning | A section uses the deprecated `[Hook]` name | Preview Chorus and Refrain replacements | `G-SECTION-HOOK` |
 | `section.immediate-repeat-spacing` | Warning | An exact song part is immediately repeated behind a blank separator or duplicate header | Safely retain both lyric copies under one header with no blank separator | `G-SECTIONS`, `G-REPEATS` |
@@ -152,7 +153,7 @@ Initial reviewed subset:
 | --- | --- | --- |
 | Intro | Intro | Intro |
 | Verse | Verse | Vers |
-| Chorus | Chorus | Chorus or Refreng |
+| Chorus | Chorus | Refreng (preferred) or Chorus |
 | Refrain | Refrain | Refreng |
 | Pre-Chorus | Pre-Chorus | Pre-Chorus |
 | Post-Chorus | Post-Chorus | Post-Chorus |
