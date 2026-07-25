@@ -158,6 +158,13 @@ The spelling source is not a global search-and-replace table. Contextual excepti
 
 Context-free replacements still require word boundaries, case handling, and tests around punctuation and literal HTML.
 
+The linter also recognizes a curated set of unambiguous common misspellings of these reviewed
+targets. These are stored separately from the source's explicit alternates so provenance stays
+clear. Examples include `ey` → `ayy`, `yall` → `y'all`, `whoah` → `woah`, `bougy` → `bougie`,
+`naieve` → `naive`, and missing punctuation in unambiguous initialisms such as `V.I.P` → `VIP`.
+This is deliberately not an edit-distance spellchecker: nearby real words and intentional lyric
+forms such as `hey`, `skirt`, `outta`, `boogie`, `Dogg`, and `shortie` remain untouched.
+
 ## Language header data
 
 The multilingual source currently contains more than sixty annotated languages. Each language annotation is its own review unit.

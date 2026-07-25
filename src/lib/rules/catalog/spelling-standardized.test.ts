@@ -22,6 +22,37 @@ describe('spelling.standardized', () => {
 		expect(applyRuleFixes(rule, text)).toBe("[Verse]\nI'ma though woah dog");
 	});
 
+	it('reports curated common misspellings of reviewed spellings', () => {
+		const text = '[Verse]\ney okey yall whoah bougy choper naieve clichè asap';
+		const found = checkRule(rule, text);
+
+		expect(markedText(text, found)).toEqual([
+			'ey',
+			'okey',
+			'yall',
+			'whoah',
+			'bougy',
+			'choper',
+			'naieve',
+			'clichè',
+			'asap'
+		]);
+		expect(fixInserts(found)).toEqual([
+			'ayy',
+			'okay',
+			"y'all",
+			'woah',
+			'bougie',
+			'chopper',
+			'naive',
+			'cliché',
+			'ASAP'
+		]);
+		expect(applyRuleFixes(rule, text)).toBe(
+			"[Verse]\nayy okay y'all woah bougie chopper naive cliché ASAP"
+		);
+	});
+
 	it('carries the casing of the matched alternate into the replacement', () => {
 		expect(fixInserts(checkRule(rule, '[Verse]\nIMMA GO'))).toEqual(["I'MA"]);
 		expect(fixInserts(checkRule(rule, '[Verse]\nTho, whoa'))).toEqual(['Though', 'woah']);
@@ -89,5 +120,11 @@ describe('spelling.standardized', () => {
 
 	it('stays silent on forms whose alternates are all accepted', () => {
 		expect(checkRule(rule, '[Verse]\nshawty shorty alright')).toEqual([]);
+	});
+
+	it('does not confuse similar real words or intentional pronunciation variants for typos', () => {
+		expect(checkRule(rule, '[Verse]\nhey skirt outta boogie Dogg shortie till garden hoe')).toEqual(
+			[]
+		);
 	});
 });

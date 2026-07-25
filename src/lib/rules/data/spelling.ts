@@ -24,6 +24,11 @@ interface SpellingMatchContext extends SpellingLookupContext {
 export interface StandardizedSpelling {
 	preferred: readonly string[];
 	alternates: readonly string[];
+	/**
+	 * Curated, unambiguous transcription mistakes that are not themselves
+	 * listed as alternates in the reviewed Genius guidance.
+	 */
+	commonMisspellings?: readonly string[];
 	contextGate: SpellingContextGate;
 	safe: boolean;
 	pattern?: RegExp;
@@ -78,16 +83,18 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ["I'ma"],
 		alternates: ["I'mma", 'Ima', 'Imma'],
+		commonMisspellings: ["im'a"],
 		contextGate: 'general',
 		safe: true,
-		pattern: word("I'mma|Ima|Imma")
+		pattern: word("I'mma|Im'a|Ima|Imma")
 	},
 	{
 		preferred: ["'cause"],
 		alternates: ['cause', 'cos'],
+		commonMisspellings: ['coz', 'couse'],
 		contextGate: 'general',
 		safe: true,
-		pattern: new RegExp("(?<![\\p{L}\\p{N}_'’])(?:cause|cos)(?![\\p{L}\\p{N}_])", 'giu')
+		pattern: new RegExp("(?<![\\p{L}\\p{N}_'’])(?:cause|couse|cos|coz)(?![\\p{L}\\p{N}_])", 'giu')
 	},
 	{
 		preferred: ["'cause"],
@@ -106,9 +113,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['okay'],
 		alternates: ['ok', 'O.K.'],
+		commonMisspellings: ['okey'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('O\\.K\\.|ok'),
+		pattern: word('O\\.K\\.|okey|ok'),
 		resolvePreferred: (context) => (isLineStart(context) ? 'Okay' : 'okay')
 	},
 	{
@@ -123,16 +131,18 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['tryna'],
 		alternates: ['trynna'],
+		commonMisspellings: ['tryina'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('trynna')
+		pattern: word('trynna|tryina')
 	},
 	{
 		preferred: ['ayy'],
 		alternates: ['aye', 'ay'],
+		commonMisspellings: ['ey', 'eyy', 'ayee'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('aye|ay')
+		pattern: word('ayee|aye|ay|eyy|ey')
 	},
 	{
 		preferred: ['ho'],
@@ -150,9 +160,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['though'],
 		alternates: ['tho'],
+		commonMisspellings: ['thoe', 'thogh', 'thoug'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('tho')
+		pattern: word('thoe|thogh|thoug|tho')
 	},
 	{
 		preferred: ['ya'],
@@ -169,9 +180,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ["y'all"],
 		alternates: ['ya’ll'],
+		commonMisspellings: ['yall', "ya'll"],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('ya’ll')
+		pattern: word("ya’ll|ya'll|yall")
 	},
 	{
 		preferred: ['skrrt'],
@@ -193,9 +205,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['bougie'],
 		alternates: ['boujee', 'boujie'],
+		commonMisspellings: ['bougi', 'bougy', 'bouji', 'bourgie'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('boujee|boujie')
+		pattern: word('boujee|boujie|bourgie|bougi|bougy|bouji')
 	},
 	{
 		preferred: ['shawty', 'shorty'],
@@ -214,9 +227,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['woah'],
 		alternates: ['whoa'],
+		commonMisspellings: ['whoah', 'whao', 'woa'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('whoa')
+		pattern: word('whoah|whoa|whao|woa')
 	},
 	{
 		preferred: ['dog'],
@@ -228,9 +242,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['chopper'],
 		alternates: ['choppa'],
+		commonMisspellings: ['choper'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('choppa')
+		pattern: word('choppa|choper')
 	},
 	{
 		preferred: ['oughta'],
@@ -242,16 +257,18 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['naive'],
 		alternates: ['naïve'],
+		commonMisspellings: ['naieve', 'niaive', 'neive'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('naïve')
+		pattern: word('naïve|naieve|niaive|neive')
 	},
 	{
 		preferred: ['cliché'],
 		alternates: ['cliche'],
+		commonMisspellings: ['clichè', 'clichê', 'clichee'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('cliche')
+		pattern: word('clichee|cliche|clichè|clichê')
 	},
 	{
 		preferred: ['alright', 'all right'],
@@ -265,7 +282,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		alternates: ['AKA', 'AKAs', 'A.K.A', 'A.K.A.s'],
 		contextGate: 'line-position',
 		safe: false,
-		pattern: word('A\\.K\\.A\\.s|A\\.K\\.A|AKAs|AKA'),
+		pattern: new RegExp(
+			'(?<![\\p{L}\\p{N}_])(?:A\\.K\\.A\\.s|A\\.K\\.A|AKAs|AKA)(?![\\p{L}\\p{N}_.])',
+			'giu'
+		),
 		resolvePreferred: (context) => {
 			if (isLineStart(context)) {
 				return context.match.toLowerCase().endsWith('s') ? 'A.K.A.s' : 'A.K.A.';
@@ -276,25 +296,28 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['GOAT', 'GOATs'],
 		alternates: ['G.O.A.T.', 'G.O.A.T.s'],
+		commonMisspellings: ['G.O.A.T', 'G.O.A.Ts'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('G\\.O\\.A\\.T\\.s|G\\.O\\.A\\.T\\.'),
+		pattern: word('G\\.O\\.A\\.T(?:\\.s|s|\\.)?'),
 		resolvePreferred: (context) => (context.match.toLowerCase().endsWith('s') ? 'GOATs' : 'GOAT')
 	},
 	{
 		preferred: ['VIP', 'VIPs'],
 		alternates: ['V.I.P.', 'V.I.P.s'],
+		commonMisspellings: ['vip', 'vips', 'V.I.P', 'V.I.Ps'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('V\\.I\\.P\\.s|V\\.I\\.P\\.'),
+		pattern: word('V\\.I\\.P(?:\\.s|s|\\.)?|VIPs?'),
 		resolvePreferred: (context) => (context.match.toLowerCase().endsWith('s') ? 'VIPs' : 'VIP')
 	},
 	{
 		preferred: ['ASAP'],
 		alternates: ['A.S.A.P.'],
+		commonMisspellings: ['asap', 'A.S.A.P'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('A\\.S\\.A\\.P\\.'),
+		pattern: word('A\\.S\\.A\\.P\\.?|ASAP'),
 		exceptionDescription: 'A$AP performer names remain unchanged.',
 		isException: (context) => /\ba\$ap\b/iu.test(nearby(context)),
 		resolvePreferred: (context) =>
@@ -305,11 +328,12 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['cream'],
 		alternates: ['CREAM', 'C.R.E.A.M.'],
+		commonMisspellings: ['creem'],
 		contextGate: 'money-meaning',
 		safe: false,
 		pattern: new RegExp(
-			'(?<![\\p{L}\\p{N}_])(?:C\\.R\\.E\\.A\\.M\\.|CREAM)(?![\\p{L}\\p{N}_])',
-			'gu'
+			'(?<![\\p{L}\\p{N}_])(?:C\\.R\\.E\\.A\\.M\\.|CREAM|creem)(?![\\p{L}\\p{N}_])',
+			'giu'
 		),
 		exceptionDescription: 'Keep C.R.E.A.M. when naming the Wu-Tang Clan song.',
 		isException: (context) => /\b(?:wu-tang|wu tang|song|track)\b/u.test(nearby(context)),
@@ -320,9 +344,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['HAM'],
 		alternates: ['H.A.M.'],
+		commonMisspellings: ['H.A.M'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('H\\.A\\.M\\.')
+		pattern: word('H\\.A\\.M\\.?')
 	}
 ];
 
@@ -377,6 +402,9 @@ export function lookupSpellingCandidates(
 			const preferred =
 				spelling.resolvePreferred?.(matchContext) ??
 				preserveSimpleCase(match[0], spelling.preferred[0] ?? match[0]);
+			if (preferred === match[0]) {
+				continue;
+			}
 			candidates.push({
 				from,
 				to,
