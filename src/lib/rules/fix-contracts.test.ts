@@ -138,6 +138,86 @@ const contracts: FixContract[] = [
 		kind: 'preview'
 	},
 	{
+		id: 'grammar.english-pronoun-i',
+		input: '[Verse]\nyou and i',
+		language: 'en-US',
+		range: [16, 17],
+		expected: '[Verse]\nyou and I',
+		kind: 'preview'
+	},
+	{
+		id: 'spelling.english-common',
+		input: '[Verse]\nI will definately stay',
+		language: 'en',
+		range: [15, 25],
+		expected: '[Verse]\nI will definitely stay',
+		kind: 'preview'
+	},
+	{
+		id: 'spelling.norwegian-common',
+		input: '[Vers]\nDet er desverre sant',
+		language: 'no',
+		range: [14, 22],
+		expected: '[Vers]\nDet er dessverre sant',
+		kind: 'preview'
+	},
+	{
+		id: 'spelling.german-common',
+		input: '[Strophe]\nDas ist garnicht wahr',
+		language: 'de',
+		range: [18, 26],
+		expected: '[Strophe]\nDas ist gar nicht wahr',
+		kind: 'preview'
+	},
+	{
+		id: 'grammar.spanish-contractions',
+		input: '[Verso]\nVoy a el mar',
+		language: 'es',
+		range: [12, 16],
+		expected: '[Verso]\nVoy al mar',
+		kind: 'preview'
+	},
+	{
+		id: 'spelling.spanish-common',
+		input: '[Verso]\nPorfavor ven',
+		language: 'es',
+		range: [8, 16],
+		expected: '[Verso]\nPor favor ven',
+		kind: 'preview'
+	},
+	{
+		id: 'spelling.french-common',
+		input: '[Couplet]\nJe sais, sa va',
+		language: 'fr',
+		range: [19, 24],
+		expected: '[Couplet]\nJe sais, ça va',
+		kind: 'preview'
+	},
+	{
+		id: 'spelling.arabic-common',
+		input: '[المقطع]\nلاكن أحبك',
+		language: 'ar',
+		range: [9, 13],
+		expected: '[المقطع]\nلكن أحبك',
+		kind: 'preview'
+	},
+	{
+		id: 'spelling.japanese-common',
+		input: '[Verse]\nこんにちわ',
+		language: 'ja',
+		range: [8, 13],
+		expected: '[Verse]\nこんにちは',
+		kind: 'preview'
+	},
+	{
+		id: 'spelling.korean-common',
+		input: '[벌스]\n됬어',
+		language: 'ko',
+		range: [5, 6],
+		expected: '[벌스]\n됐어',
+		kind: 'preview'
+	},
+	{
 		id: 'unknown.marker',
 		input: '[Verse]\nI heard (?)',
 		language: 'en',

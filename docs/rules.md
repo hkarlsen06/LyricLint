@@ -36,6 +36,23 @@ but does not explicitly require an empty line before each header.
 | ID | Source | Scope | Status |
 | --- | --- | --- | --- |
 | `T-LANGUAGE-DETECT` | [LanguageDetect](https://github.com/FGRibreau/node-language-detect) | Local statistical language recognition | Version 2.0.0 reviewed 2026-07-24 |
+| `L-EN-COMMON` | [Merriam-Webster: Commonly Misspelled Words](https://www.merriam-webster.com/grammar/commonly-misspelled-words) | Frequent English misspellings including `definately` and `tommorrow` | Reviewed 2026-07-25 |
+| `L-EN-MORE` | [Merriam-Webster: More Commonly Misspelled Words](https://www.merriam-webster.com/grammar/more-commonly-misspelled-words/_not-seperate-seprate-seperet_) | Frequent English misspellings including `seperate` and `acheive` | Reviewed 2026-07-25 |
+| `L-EN-TOP50` | [Cambridge: Top 50 spelling mistakes in English](https://dictionary.cambridge.org/grammar/british-grammar/spelling-top-50-spelling-mistakes-in-english) | High-frequency mistakes including `definately`, `freind`, `untill`, and `recieve` | Reviewed 2026-07-25 |
+| `L-NO-COMMON` | [Språkrådet: Ord som mange lurer på](https://sprakradet.no/arkiv/ord-som-mange-lurer-pa/) | Frequently searched Bokmål spellings | Reviewed 2026-07-25 |
+| `L-DE-COMMON` | [Duden: Häufige Fehler und Falschschreibweisen](https://www.duden.de/haeufige_fehler) | Common German misspellings | Reviewed 2026-07-25 |
+| `L-ES-CONTRACTIONS` | [RAE: Ortografía](https://www.rae.es/diccionario-estudiante/docs/ortografia.pdf) | Spanish `al`/`del` contractions and proper-name exceptions | Reviewed 2026-07-25 |
+| `L-ES-COMMON` | [RAE: La tecnología al servicio de la palabra](https://www.rae.es/sites/default/files/la_tecnologia_al_servicio_de_la_palabra.pdf) | Frequent word-division errors such as `sinembargo` and `porfavor` | Reviewed 2026-07-25 |
+| `L-FR-COMMON` | [Dictionnaire de l’Académie française: ça](https://www.dictionnaire-academie.fr/article/A9C0002) | Demonstrative `ça` in common phrases | Reviewed 2026-07-25 |
+| `L-FR-LEXICAL` | [Projet Voltaire: Questions d’orthographe lexicales](https://www.projet-voltaire.fr/regles-orthographe/categories/lexical/page/5/) | Frequent lexical errors including `acceuil` and `parmis` | Reviewed 2026-07-25 |
+| `L-FR-DOUBLES` | [OQLF: Les erreurs fréquentes liées aux consonnes doubles](https://vitrinelinguistique.oqlf.gouv.qc.ca/24465/lorthographe/problemes-lies-aux-consonnes/les-erreurs-frequentes-liees-aux-consonnes-doubles) | Frequent single- and double-consonant spelling errors | Reviewed 2026-07-25 |
+| `L-AR-COMMON` | [مجمع الملك سلمان: لغة الطفل العربي (٢)](https://library.ksaa.gov.sa/links/epubs/arabic_child_2.pdf) | Common phonetic Arabic spellings and their standard written forms | Reviewed 2026-07-25 |
+| `L-JA-COMMON` | [文化庁: 現代仮名遣い 本文 第2](https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/gendaikana/honbun_dai2.html) | Conventional greetings and `ずつ` spelling | Reviewed 2026-07-25 |
+| `L-KO-COMMON` | [국립국어원: 온라인가나다 맞춤법 문답](https://www.korean.go.kr/front/onlineQna/onlineQnaView.do?mn_id=216&pageIndex=1&qna_seq=317387) | Standard Korean spellings `됐` and `며칠` | Reviewed 2026-07-25 |
+| `L-KO-WAENJI` | [국립국어원: ‘웬지’와 ‘왠지’](https://www.korean.go.kr/front/mcfaq/mcfaqView.do?mcfaq_seq=6103&mn_id=62&pageIndex=207) | Standard spelling `왠지` | Reviewed 2026-07-25 |
+| `L-KO-ORAENMAN` | [국립국어원: ‘오랜만’과 ‘오랫만’](https://www.korean.go.kr/nkview/news/11/11_3.htm) | Standard spelling `오랜만` | Reviewed 2026-07-25 |
+| `L-KO-SEOLLEM` | [국립국어원: 궁금증을 풀어 드립니다](https://www.korean.go.kr/nkview/nknews/200111/40_9.html) | Misused `설레이다` forms in popular songs | Reviewed 2026-07-25 |
+| `L-KO-IRIRI` | [국립국어원: ‘일일이’와 ‘일일히’](https://www.korean.go.kr/front/mcfaq/mcfaqView.do?mcfaq_seq=6078&mn_id=62&pageIndex=207) | Standard spelling `일일이` | Reviewed 2026-07-25 |
 | `G-ADD-SONGS` | [How to Add Songs to Genius](https://genius.com/Genius-how-to-add-songs-to-genius-annotated) | Index of lyric accuracy and formatting guidance | Reviewed 2026-07-24; reverified 2026-07-25 |
 | `G-SPELLING` | [Use standardized spellings, annotation 9298624](https://genius.com/9298624) | Preferred spellings and contextual exceptions | Accepted annotation, reviewed 2026-07-24 |
 | `G-SECTIONS` | [Use song part headers, annotation 9250687](https://genius.com/9250687) | Headers, performer names, four formatting slots, joint performers | Accepted annotation, reviewed 2026-07-24 |
@@ -106,6 +123,16 @@ Rules depending only on sources in this table remain disabled until their annota
 | `spelling.language-variant` | Manual review | British and American variants appear inconsistent with chosen performer language | No automatic fix | `G-SPELLING` |
 | `quotes.typewriter` | Warning | Curly apostrophes or quotation marks occur in lyric text | Safe character replacement outside unsupported markup | `G-TYPEWRITER` |
 | `contraction.apostrophe` | Warning | A likely contraction is missing its apostrophe | Contextual fix preview | `G-CONTRACTIONS` |
+| `grammar.english-pronoun-i` | Suggestion | The standalone first-person `i`, including common contractions, is lowercase | Preview capitalization because lowercase styling can be intentional | `G-CAPS` |
+| `spelling.english-common` | Suggestion | A frequent misspelling such as `definately`, `tommorrow`, or `freind` occurs | Preview the standard English spelling | Reviewed Merriam-Webster and Cambridge sources |
+| `spelling.norwegian-common` | Suggestion | A frequent spelling such as `desverre`, `nyskjerrig`, or `etterhvert` occurs | Preview the standard Bokmål spelling | `L-NO-COMMON` |
+| `spelling.german-common` | Suggestion | A frequent spelling such as `garnicht`, `bischen`, or `rythmus` occurs | Preview the standard German spelling | `L-DE-COMMON` |
+| `grammar.spanish-contractions` | Suggestion | Lowercase `a el` or `de el` appears where Spanish contracts it | Preview `al` or `del`; capitalized proper names remain untouched | `L-ES-CONTRACTIONS` |
+| `spelling.spanish-common` | Suggestion | A frequent word-division error such as `sinembargo`, `alomejor`, or `porfavor` occurs | Preview the standard separated form | `L-ES-COMMON` |
+| `spelling.french-common` | Suggestion | A frequent spelling such as `acceuil`, `parmis`, `mourrir`, or phrase-gated `sa va` occurs | Preview the standard French spelling | `L-FR-COMMON`, `L-FR-LEXICAL`, `L-FR-DOUBLES` |
+| `spelling.arabic-common` | Suggestion | A reviewed phonetic spelling such as `لاكن`, `هاذا`, or `انشاء الله` occurs | Preview only because dialect spelling can be intentional in lyrics | `L-AR-COMMON` |
+| `spelling.japanese-common` | Suggestion | A greeting uses phonetic `わ`, or `づつ` occurs instead of `ずつ` | Preview only because phonetic lyric styling can be intentional | `L-JA-COMMON` |
+| `spelling.korean-common` | Suggestion | A frequent spelling such as `됬`, `웬지`, `오랫만`, or `설레임` occurs | Preview the standard Korean spelling | Reviewed National Institute of Korean Language sources |
 | `unknown.marker` | Warning | An unknown lyric uses `(?)` or another recognized nonstandard marker instead of `[?]` | Safe only for exact known markers | `G-UNKNOWN` |
 | `repeat.placeholder` | Warning | Text such as `[Chorus x2]` or `repeat chorus` substitutes for repeated lyrics | Explain only | `G-REPEATS` |
 | `sound-effect.asterisks` | Warning | A likely sound effect uses braces or an unsupported wrapper | Preview replacement | `G-SFX` |
@@ -120,6 +147,12 @@ Rules depending only on sources in this table remain disabled until their annota
 | `numbers.spell-out` | Suggestion | A numeric form conflicts with a reviewed case and no documented exception applies | Contextual fix preview | `G-NUMBERS` |
 
 `syntax.unbalanced-brackets` is partly a product-safety rule. The source establishes the bracketed header form, while the parser establishes syntactic validity. Its explanation must not imply that Genius explicitly documents every malformed bracket case.
+
+The language-specific grammar catalog is intentionally narrower than the language picker. The
+first release covers only the eight reviewed language packs (`en`, `no`, `ar`, `de`, `es`, `fr`,
+`ja`, and `ko`) and favors mechanical, source-backed forms over broad grammatical guesses.
+Context-sensitive pairs such as Norwegian `og`/`å`, German `das`/`dass`, and general Japanese
+particle choice remain out of scope until a parser can keep false positives acceptably low.
 
 ## Standardized spelling data
 

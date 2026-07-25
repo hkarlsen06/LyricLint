@@ -32,6 +32,160 @@ const sources: SourceReference[] = [
 		reviewStatus: 'reviewed'
 	},
 	{
+		id: 'L-EN-COMMON',
+		url: 'https://www.merriam-webster.com/grammar/commonly-misspelled-words',
+		pageTitle: 'Commonly Misspelled Words',
+		sectionTitle: 'Frequent English misspellings including definitely and tomorrow',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-EN-MORE',
+		url: 'https://www.merriam-webster.com/grammar/more-commonly-misspelled-words/_not-seperate-seprate-seperet_',
+		pageTitle: 'More Commonly Misspelled Words',
+		sectionTitle: 'Frequent English misspellings including separate and achieve',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-EN-TOP50',
+		url: 'https://dictionary.cambridge.org/grammar/british-grammar/spelling-top-50-spelling-mistakes-in-english',
+		pageTitle: 'Spelling: Top 50 spelling mistakes in English',
+		sectionTitle:
+			'High-frequency learner misspellings including definately, freind, untill and recieve',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-NO-COMMON',
+		url: 'https://sprakradet.no/arkiv/ord-som-mange-lurer-pa/',
+		pageTitle: 'Ord som mange lurer på',
+		sectionTitle: 'Frequently searched Bokmål spellings, including dessverre and interessant',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-DE-COMMON',
+		url: 'https://www.duden.de/haeufige_fehler',
+		pageTitle: 'Häufige Fehler und Falschschreibweisen',
+		sectionTitle: 'Common German misspellings, including garnicht and nähmlich',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-ES-CONTRACTIONS',
+		url: 'https://www.rae.es/diccionario-estudiante/docs/ortografia.pdf',
+		pageTitle: 'Ortografía',
+		sectionTitle: 'Contractions al and del, with proper-name exceptions',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-ES-COMMON',
+		url: 'https://www.rae.es/sites/default/files/la_tecnologia_al_servicio_de_la_palabra.pdf',
+		pageTitle: 'La tecnología al servicio de la palabra',
+		sectionTitle: 'Frequent Spanish word-division errors such as sinembargo and porfavor',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-FR-COMMON',
+		url: 'https://www.dictionnaire-academie.fr/article/A9C0002',
+		pageTitle: 'Ça',
+		sectionTitle: 'Demonstrative-pronoun spellings in ça va and comme ça',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-FR-LEXICAL',
+		url: 'https://www.projet-voltaire.fr/regles-orthographe/categories/lexical/page/5/',
+		pageTitle: 'Questions d’orthographe lexicales',
+		sectionTitle: 'Frequent lexical errors including acceuil and parmis',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-FR-DOUBLES',
+		url: 'https://vitrinelinguistique.oqlf.gouv.qc.ca/24465/lorthographe/problemes-lies-aux-consonnes/les-erreurs-frequentes-liees-aux-consonnes-doubles',
+		pageTitle: 'Les erreurs fréquentes liées aux consonnes doubles',
+		sectionTitle: 'Standard spellings with single and doubled consonants',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-AR-COMMON',
+		url: 'https://library.ksaa.gov.sa/links/epubs/arabic_child_2.pdf',
+		pageTitle: 'لغة الطفل العربي (٢): لغة الطفل في وسائل الإعلام المعاصرة',
+		sectionTitle: 'Common phonetic spellings لاكن and هاذا and their standard written forms',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-JA-COMMON',
+		url: 'https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/gendaikana/honbun_dai2.html',
+		pageTitle: '現代仮名遣い 本文 第2',
+		sectionTitle: 'Conventional greeting spellings and ずつ',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-KO-WAENJI',
+		url: 'https://www.korean.go.kr/front/mcfaq/mcfaqView.do?mcfaq_seq=6103&mn_id=62&pageIndex=207',
+		pageTitle: '‘웬지’와 ‘왠지’',
+		sectionTitle: 'Standard spelling 왠지',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-KO-ORAENMAN',
+		url: 'https://www.korean.go.kr/nkview/news/11/11_3.htm',
+		pageTitle: '‘오랜만’과 ‘오랫만’',
+		sectionTitle: 'Standard spelling 오랜만',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-KO-SEOLLEM',
+		url: 'https://www.korean.go.kr/nkview/nknews/200111/40_9.html',
+		pageTitle: '궁금증을 풀어 드립니다',
+		sectionTitle: 'Misused 설레이다 forms in popular songs and their standard forms',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-KO-IRIRI',
+		url: 'https://www.korean.go.kr/front/mcfaq/mcfaqView.do?mcfaq_seq=6078&mn_id=62&pageIndex=207',
+		pageTitle: '‘일일이’와 ‘일일히’',
+		sectionTitle: 'Standard spelling 일일이',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
+		id: 'L-KO-COMMON',
+		url: 'https://www.korean.go.kr/front/onlineQna/onlineQnaView.do?mn_id=216&pageIndex=1&qna_seq=317387',
+		pageTitle: '온라인가나다 맞춤법 문답',
+		sectionTitle: 'Standard spellings 됐 and 며칠',
+		retrievedAt: '2026-07-25',
+		lastVerifiedAt: '2026-07-25',
+		reviewStatus: 'reviewed'
+	},
+	{
 		id: 'G-ADD-SONGS',
 		url: 'https://genius.com/Genius-how-to-add-songs-to-genius-annotated',
 		pageTitle: 'How to Add Songs to Genius',

@@ -3,6 +3,23 @@ import { assertReviewedSources, getSource, sourceRegistry } from './sources.js';
 
 const reviewedIds = [
 	'T-LANGUAGE-DETECT',
+	'L-EN-COMMON',
+	'L-EN-MORE',
+	'L-EN-TOP50',
+	'L-NO-COMMON',
+	'L-DE-COMMON',
+	'L-ES-CONTRACTIONS',
+	'L-ES-COMMON',
+	'L-FR-COMMON',
+	'L-FR-LEXICAL',
+	'L-FR-DOUBLES',
+	'L-AR-COMMON',
+	'L-JA-COMMON',
+	'L-KO-COMMON',
+	'L-KO-WAENJI',
+	'L-KO-ORAENMAN',
+	'L-KO-SEOLLEM',
+	'L-KO-IRIRI',
 	'G-ADD-SONGS',
 	'G-SPELLING',
 	'G-SECTIONS',
@@ -46,11 +63,14 @@ describe('source registry', () => {
 		expect(() => assertReviewedSources(reviewedIds)).not.toThrow();
 		for (const id of reviewedIds) {
 			const lastVerifiedAt =
-				id === 'APPLE-LINE-PUNCTUATION' || id === 'G-ADD-SONGS' || id === 'G-QE-MARKS'
+				id.startsWith('L-') ||
+				id === 'APPLE-LINE-PUNCTUATION' ||
+				id === 'G-ADD-SONGS' ||
+				id === 'G-QE-MARKS'
 					? '2026-07-25'
 					: '2026-07-24';
 			expect(getSource(id)).toMatchObject(
-				id === 'APPLE-LINE-PUNCTUATION'
+				id === 'APPLE-LINE-PUNCTUATION' || id.startsWith('L-')
 					? {
 							id,
 							retrievedAt: '2026-07-25',
@@ -74,7 +94,7 @@ describe('source registry', () => {
 		expect(() => assertReviewedSources(needsReviewIds)).toThrow(/not reviewed/u);
 	});
 
-	it('contains only the 34 specified source records', () => {
-		expect(sourceRegistry.size).toBe(34);
+	it('contains only the 51 specified source records', () => {
+		expect(sourceRegistry.size).toBe(51);
 	});
 });

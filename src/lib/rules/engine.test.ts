@@ -84,6 +84,15 @@ describe('rule engine', () => {
 		expect(fixes.length).toBeGreaterThan(0);
 		expect(fixes.every((fix) => fix.edit.baseRevision === 5)).toBe(true);
 	});
+
+	it('emits one capitalization finding for English first-person i at a line start', () => {
+		const diagnostics = runRules(parseDocument('[Verse]\ni know'), context).filter(
+			(item) =>
+				item.ruleId === 'grammar.english-pronoun-i' || item.ruleId === 'capitalization.line-start'
+		);
+
+		expect(diagnostics.map((item) => item.ruleId)).toEqual(['grammar.english-pronoun-i']);
+	});
 });
 
 describe('registry validation', () => {
@@ -96,7 +105,7 @@ describe('registry validation', () => {
 	};
 
 	it('accepts the complete reviewed enabled registry', () => {
-		expect(enabledRules).toHaveLength(35);
+		expect(enabledRules).toHaveLength(43);
 		expect(() => validateRuleRegistry()).not.toThrow();
 	});
 

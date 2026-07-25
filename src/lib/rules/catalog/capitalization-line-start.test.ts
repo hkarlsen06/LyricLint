@@ -54,6 +54,12 @@ describe('capitalization.line-start', () => {
 		expect(checkRule(rule, '[Verse]\ne.e. cummings wrote this')).toEqual([]);
 	});
 
+	it('defers the English first-person pronoun to its language-specific rule', () => {
+		expect(checkRule(rule, "[Verse]\ni know i'm ready", { language: 'en' })).toEqual([]);
+		expect(checkRule(rule, "[Verse]\ni's a quoted form", { language: 'en' })).toHaveLength(1);
+		expect(checkRule(rule, '[Vers]\ni natt er alt stille', { language: 'no' })).toHaveLength(1);
+	});
+
 	it('replaces only the base character of a decomposed letter', () => {
 		const composed = '[Verse]\n\u00E9clair and cream';
 		expect(fixInserts(checkRule(rule, composed))).toEqual(['\u00C9']);

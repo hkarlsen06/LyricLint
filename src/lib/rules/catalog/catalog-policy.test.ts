@@ -156,6 +156,76 @@ const cases: RulePolicyCase[] = [
 		ambiguous: '[Verse]\nIll will fades'
 	},
 	{
+		id: 'grammar.english-pronoun-i',
+		invalid: '[Verse]\nyou and i',
+		valid: '[Verse]\nyou and I',
+		ambiguous: '[Verse]\niPhone lights glow',
+		language: 'en-US'
+	},
+	{
+		id: 'spelling.english-common',
+		invalid: '[Verse]\nI will definately stay',
+		valid: '[Verse]\nI will definitely stay',
+		ambiguous: '[Verse]\nA weird separate friend',
+		language: 'en'
+	},
+	{
+		id: 'spelling.norwegian-common',
+		invalid: '[Vers]\nDet er desverre sant',
+		valid: '[Vers]\nDet er dessverre sant',
+		ambiguous: '[Vers]\nVæret er verre',
+		language: 'no'
+	},
+	{
+		id: 'spelling.german-common',
+		invalid: '[Strophe]\nDas ist garnicht wahr',
+		valid: '[Strophe]\nDas ist gar nicht wahr',
+		ambiguous: '[Strophe]\nGar nichts bleibt',
+		language: 'de'
+	},
+	{
+		id: 'grammar.spanish-contractions',
+		invalid: '[Verso]\nVoy a el mar',
+		valid: '[Verso]\nVoy al mar',
+		ambiguous: '[Verso]\nVoy a El Salvador',
+		language: 'es'
+	},
+	{
+		id: 'spelling.spanish-common',
+		invalid: '[Verso]\nPorfavor ven',
+		valid: '[Verso]\nPor favor ven',
+		ambiguous: '[Verso]\nUn favor más',
+		language: 'es'
+	},
+	{
+		id: 'spelling.french-common',
+		invalid: '[Couplet]\nJe sais, sa va',
+		valid: '[Couplet]\nJe sais, ça va',
+		ambiguous: '[Couplet]\nSa chanson va loin',
+		language: 'fr'
+	},
+	{
+		id: 'spelling.arabic-common',
+		invalid: '[المقطع]\nلاكن أحبك',
+		valid: '[المقطع]\nلكن أحبك',
+		ambiguous: '[المقطع]\nمكان هذا',
+		language: 'ar'
+	},
+	{
+		id: 'spelling.japanese-common',
+		invalid: '[Verse]\nこんにちわ',
+		valid: '[Verse]\nこんにちは',
+		ambiguous: '[Verse]\nわたしはここ',
+		language: 'ja'
+	},
+	{
+		id: 'spelling.korean-common',
+		invalid: '[벌스]\n됬어',
+		valid: '[벌스]\n됐어',
+		ambiguous: '[벌스]\n되어 간다',
+		language: 'ko'
+	},
+	{
 		id: 'unknown.marker',
 		invalid: '[Verse]\nI heard (?)',
 		valid: '[Verse]\nI heard [?]',

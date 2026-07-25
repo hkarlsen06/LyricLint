@@ -4,6 +4,8 @@ import { capitalizationLineStartRule } from './catalog/capitalization-line-start
 import { capitalizationTitleCaseRule } from './catalog/capitalization-title-case.js';
 import { censoredMaskRule } from './catalog/censored-mask.js';
 import { contractionApostropheRule } from './catalog/contraction-apostrophe.js';
+import { grammarEnglishPronounIRule } from './catalog/grammar-english-pronoun-i.js';
+import { grammarSpanishContractionsRule } from './catalog/grammar-spanish-contractions.js';
 import { languageSelectionMismatchRule } from './catalog/language-selection-mismatch.js';
 import { lineProseDensityRule } from './catalog/line-prose-density.js';
 import { numbersSpellOutRule } from './catalog/numbers-spell-out.js';
@@ -29,7 +31,15 @@ import { sectionDeprecatedHookRule } from './catalog/section-deprecated-hook.js'
 import { sectionImmediateRepeatSpacingRule } from './catalog/section-immediate-repeat-spacing.js';
 import { sectionVerseNumberingRule } from './catalog/section-verse-numbering.js';
 import { soundEffectAsterisksRule } from './catalog/sound-effect-asterisks.js';
+import { spellingArabicCommonRule } from './catalog/spelling-arabic-common.js';
+import { spellingEnglishCommonRule } from './catalog/spelling-english-common.js';
+import { spellingFrenchCommonRule } from './catalog/spelling-french-common.js';
+import { spellingGermanCommonRule } from './catalog/spelling-german-common.js';
+import { spellingJapaneseCommonRule } from './catalog/spelling-japanese-common.js';
+import { spellingKoreanCommonRule } from './catalog/spelling-korean-common.js';
 import { spellingLanguageVariantRule } from './catalog/spelling-language-variant.js';
+import { spellingNorwegianCommonRule } from './catalog/spelling-norwegian-common.js';
+import { spellingSpanishCommonRule } from './catalog/spelling-spanish-common.js';
 import { spellingStandardizedRule } from './catalog/spelling-standardized.js';
 import { syntaxUnbalancedBracketsRule } from './catalog/syntax-unbalanced-brackets.js';
 import { syntaxUnsupportedVoiceMarkupRule } from './catalog/syntax-unsupported-voice-markup.js';
@@ -60,6 +70,16 @@ export const enabledRules: readonly RuleDefinition[] = [
 	spellingLanguageVariantRule,
 	quotesTypewriterRule,
 	contractionApostropheRule,
+	grammarEnglishPronounIRule,
+	spellingEnglishCommonRule,
+	spellingNorwegianCommonRule,
+	spellingGermanCommonRule,
+	grammarSpanishContractionsRule,
+	spellingSpanishCommonRule,
+	spellingFrenchCommonRule,
+	spellingArabicCommonRule,
+	spellingJapaneseCommonRule,
+	spellingKoreanCommonRule,
 	unknownMarkerRule,
 	repeatPlaceholderRule,
 	soundEffectAsterisksRule,
