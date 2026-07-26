@@ -455,16 +455,30 @@ nothing. The space around it is the boundary.
 screen that is only a headline is a claim with no evidence under it, and one that ends at a clean
 viewport edge reads as the end of the page — either way the reader never reaches the live demo,
 which is the only thing here that proves any of it. So the hero is sized to stop short, and the
-next heading, its paragraph, and the top edge of the editor stay on screen underneath it, cut
-off. That is the scroll affordance; there is no chevron, and adding one would be saying it twice.
+next heading and the top edge of the editor stay on screen underneath it, cut off. That is the
+scroll affordance; there is no chevron, and adding one would be saying it twice.
+
+**The heading sits directly on the demo, and what the sample gets wrong is read back afterwards.**
+That paragraph used to lead into the editor with a colon, which put four lines of prose in the peek
+describing a picture the reader could not see yet — and it cost the hero the same four lines, so
+the claim sat higher up the screen than it had to. Underneath the demo it names findings that are
+already on screen, so it needs no colon and no forward reference, and the peek is the pair worth
+peeking at.
 
 Three things that arithmetic depends on:
 
 - **`svh`, never `dvh`.** A phone's URL bar retracts on the first scroll, and `dvh` grows the hero
   underneath the reader as it goes, closing the gap the hero exists to hold open.
 - **`--site-hero-reserved` is measured, not guessed** — the header band, the page's own top
-  padding, and the peek. It is larger on a phone because the paragraph it has to leave visible
-  wraps to five lines there and three on a laptop. Re-measure it if either changes.
+  padding, and the peek. It is _smaller_ on a phone (`14rem` against `18.5rem`), because the phone
+  gives back the header's padding and the peek is only the heading and the editor's top edge.
+  Re-measure it if the heading's margins, the header, or what sits between them changes.
+- **On a short phone the subtraction stops governing**, and nothing peeks: below roughly a 600px
+  visible viewport the hero's own content — a four-line headline, the lede, two stacked actions,
+  the fact line — is taller than the `min-height` this arithmetic computes, so the box grows to fit
+  and the next heading lands at the fold. That is not a regression to hunt; it is the floor of what
+  the hero contains. Fixing it means making the hero's contents shorter at that height, not tuning
+  the reservation.
 - **The height is capped at `32rem`.** The subtraction alone is right on a laptop, which is wide
   and short; a tablet held in portrait is a thousand pixels tall, and centring four small elements
   in all of it puts a hundred and fifty pixels of nothing above the headline and the same below.
@@ -478,6 +492,119 @@ that broke rather than as a column that was meant.
 
 Implementation: `.site-hero` in `src/lib/ui/styles/site.css` and
 `src/routes/(site)/+page.svelte`.
+
+### On a phone the site header is not a band, and the masthead never underlines
+
+`theme-color` is `--color-canvas`, which means the browser paints the status bar and the safe area
+with the **page** color. A header filled with `--color-chrome` therefore met that strip at a seam a
+few percent lighter than it, full width, at the very top of the first screen — so the first thing
+the page said was that it was two mismatched bands, before it said anything about the product.
+
+Below `46rem` the fill comes off, and the border with it. A band separates pinned chrome from
+content moving under it; at this width the header scrolls away with the document like everything
+else, so it separates nothing, and a hairline under a band the same color as the page is a rule
+drawn across the canvas for no reason. The footer keeps its rule and loses its fill for the same
+trade — the rule is what marks the end of the article, and it does that job alone. **On a laptop
+the band stays**, because there it is the workbench's own band over a wide page with no browser
+tint above it to disagree with.
+
+Two things that follow, and both are load-bearing:
+
+- **`theme-color` and the top of the page are one decision.** They are already coupled by
+  `theme-color.test.ts`, which pins the meta tags to `--color-canvas`; this section is the other
+  half of it. Anything given a fill at the top of a site page has to answer what the browser is
+  painting above it.
+- **The gutter is the prose gutter.** With no band to sit in, the wordmark's left edge is read
+  against the headline's and every paragraph's, so header, footer, `.site-main`, and `.rules` all
+  take `--space-5` at this width. `.rules` needs saying separately because the rule reference is
+  laid out by its own grid rather than by `.site-main`.
+
+**The nav is chrome, and chrome does not underline.** Set as prose links, `About Rules Open the
+app` were three accent-blue underlined words crowded against the wordmark — a link list where a
+masthead should be, and on a phone the busiest thing on the first screen. They are quiet text at
+every width: `--color-text-muted`, resolving to the body color under the pointer, the way the
+workbench's toolbar commands answer one. The page the reader is on is still named rather than
+linked, but it says so with a step up in color now instead of the absence of an underline.
+
+Implementation: the `max-width: 46rem` block and `.site-nav` in `src/lib/ui/styles/site.css`.
+
+### An action that cannot complete is never the loud one
+
+The workbench is removed on a phone — `responsive.css` takes it away on `(pointer: coarse)` at
+phone width or landscape height, and the gate stands in its place. The landing page was still
+built for the reader who was about to open it: the contrast-tier `Open the workbench` was the
+loudest thing on the first screen, `Open the app` sat in the masthead, and the one line saying
+`Desktop or laptop` was small, grey, and _under_ the button, so it arrived after the decision.
+
+Where the workbench cannot open, the emphasis follows what the reader can actually have:
+
+- **The masthead drops `Open the app`.** It is the one link there that leads nowhere, and a nav
+  item is too small to explain why. `display: none`, so it leaves the accessible tree with it.
+- **The two hero actions trade tiers.** `Browse the 47 rules` takes the contrast tier and
+  `Open the workbench` steps down to the bordered default — kept rather than removed, because a
+  reader who wants to see what is waiting on a laptop should still be able to look. The loud
+  action is second in the column and that is fine: it is the one the eye lands on, and reordering
+  would put the visual order out of step with the focus order for a two-item list.
+- **The swap is a CSS override, not different classes.** Which tier a control wears is a fact
+  about the device, and the page is prerendered before there is one to ask. Hover and active are
+  overridden with it: a tap applies `:hover` on a touch screen, so leaving them behind flashes
+  each button in the tier it no longer has, at the moment it is pressed.
+
+The query is `(pointer: coarse)` and not width alone, because a narrow window on a laptop is a
+supported size where the workbench opens perfectly well — it is the same test the gate uses, and
+the two are kept in step **by hand**: CSS has no way to name a media query and reuse it. Changing
+one means changing the other.
+
+The closing `Open the workbench` at the foot of the page keeps the contrast tier. By then the
+reader has the whole article behind them, including what it runs on; the hero is where the
+emphasis was lying, because it is what the reader met first.
+
+Implementation: the `(pointer: coarse)` block in `src/lib/ui/styles/site.css`, `.site-nav__app` in
+`src/routes/(site)/+layout.svelte`, and the gate itself in `src/lib/ui/styles/responsive.css`.
+
+### The demo is as tall as its verse
+
+The landing page's editor is the workbench's `EditorPane`, and for a long time it was also the
+workbench's _shape_: a fixed box with the document scrolling inside it. That is right for the
+workbench, where the editor is one half of a two-column window and has a column to fill. It is
+wrong in an article. The box had to be tall enough for the worst wrap at every width it covered, so
+it was too tall at all the others — a hand of empty surface under a four-line verse — and it took
+three measured breakpoints to be wrong by a different amount at each size.
+
+Two mount options say so, both off by default so the workbench is untouched
+(`CreateLyricEditorOptions`, threaded through `EditorPaneProps`):
+
+- **`autoHeight`** makes the pane as tall as its document and lets it grow as one is typed into it.
+  It also brings the content's bottom padding down from `--space-8` to `--space-5`: forty eight
+  pixels under the last line is room to scroll it clear of the bottom edge, and a pane that never
+  scrolls has no use for it.
+- **`sectionGhosts={false}`** drops the `+ Add section header` row, which costs one row of a
+  document you can scroll and a quarter of a box four lines tall.
+
+Three things this arrangement depends on:
+
+- **The host owns no size and paints nothing.** `.editor-pane` is `height: 100%` with a
+  `min-height: 12rem` floor and a `--color-surface` fill; under `autoHeight` all three come off. The
+  floor would put a foot of empty surface under a short document — and, before CodeMirror loads,
+  the empty host is stacked under the stand-in that is already drawing the verse. The fill is worse:
+  it is a square box directly behind a child that draws a rounded one, so at each corner the host
+  paints outside the editor's curve and the box reads as poking out of itself.
+- **The stand-in has to be the shape the editor will be.** With neither given a height, the box is
+  whichever of the two is in the document, so `.site-demo__fallback` is set in the editor's own type
+  at insets measured to where the editor's text lands. Matching insets at matching type means
+  matching wraps. What is left over is that a row carrying a diagnostic badge is taller than plain
+  text, so hydration can still settle the box by up to one row at some widths; it happens below the
+  fold, because the hero holds the first screen. Re-measure the insets if the gutter, the content
+  padding, or the editor's type changes.
+- **A CodeMirror theme mounted later does not reliably come out later in the sheet.** `StyleModule`
+  decides that, so at equal specificity the override is a coin toss — `autoHeightTheme` writes
+  `&.cm-editor` where `editorTheme` writes `&`, and wins outright. The first version of it lost
+  silently: the padding stayed at 48px and the `min-height` floor stayed standing, and the box only
+  looked right because the wrapper had stopped setting a height.
+
+Implementation: `autoHeightTheme` and both options in `src/lib/editor/create-editor.ts`,
+`.editor-pane.auto-height` in `src/lib/editor/EditorPane.svelte`, `.site-demo*` in
+`src/lib/ui/styles/site.css`, and the pane's own tests in `EditorPane.svelte.test.ts`.
 
 ### The mark and the wordmark are one object
 

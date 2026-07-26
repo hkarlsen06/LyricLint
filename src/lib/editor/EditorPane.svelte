@@ -54,7 +54,9 @@
 		callbacks,
 		handle = $bindable(),
 		onready,
-		ondestroyed
+		ondestroyed,
+		sectionGhosts = true,
+		autoHeight = false
 	}: EditorPaneProps = $props();
 	let host: HTMLDivElement;
 	let editor = $state.raw<LyricEditorInstance | undefined>();
@@ -521,6 +523,11 @@
 				initialRevision,
 				context,
 				callbacks: internalCallbacks(),
+				// Read once, with the rest of the mount options: the extension list
+				// is built when the view is created, so neither of these is something
+				// a pane can change without remounting.
+				sectionGhosts,
+				autoHeight,
 				onSelectionAnchor(anchor) {
 					selectionAnchorTick = scrollTick;
 					selectionAnchor = anchor;
@@ -558,6 +565,7 @@
 
 <div
 	class="editor-pane"
+	class:auto-height={autoHeight}
 	class:reduced-motion={context.reducedMotion}
 	bind:this={host}
 	data-testid="lyric-editor"
@@ -637,6 +645,26 @@
 		min-height: 12rem;
 		overflow: hidden;
 		background: var(--color-surface);
+	}
+
+	/*
+	 * The host of a pane that is as tall as its document owns no size and paints
+	 * nothing. Both halves of that matter:
+	 *
+	 * - A `height: 100%` that resolves to nothing still leaves `min-height: 12rem`
+	 *   standing, so a short document gets a foot of empty surface under it — and
+	 *   before CodeMirror has loaded, that empty box is the whole of what the host
+	 *   contributes, stacked under the stand-in that is already drawing the verse.
+	 * - The fill is a square box behind a child that draws a rounded one. Where the
+	 *   two are the same size, the host's corners paint outside the editor's curve
+	 *   and the box reads as poking out of itself. In the workbench the editor has
+	 *   no radius and fills the column, so the fill is correct there and stays.
+	 */
+	.editor-pane.auto-height {
+		height: auto;
+		min-height: 0;
+		overflow: visible;
+		background: transparent;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

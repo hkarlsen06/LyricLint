@@ -72,6 +72,25 @@ export interface CreateLyricEditorOptions {
 	onSelectionAnchor?: (anchor: SelectionAnchor | undefined) => void;
 	keymapOverrides?: Parameters<typeof lyricLintKeymap>[1];
 	selectionSettleDelay?: number;
+	/**
+	 * Whether a headerless section offers its `+ Add section header` row. On by
+	 * default, and the workbench never turns it off: there the ghost is how a
+	 * section that has no header gets one, and it costs a row of a document the
+	 * reader is free to scroll.
+	 *
+	 * It is off in the landing page's demo, where the editor is a fixed box a few
+	 * lines tall and the row is a quarter of it. Nothing is lost by dropping it
+	 * there — the sample's header problem is `section.header-prose`, whose fix
+	 * rewrites the line the reader is already looking at, so the repair is on the
+	 * line rather than in a control above it.
+	 */
+	sectionGhosts?: boolean;
+	/**
+	 * Whether the pane is as tall as its document and grows as the document does.
+	 * Off by default: the workbench's editor fills the column it was given and
+	 * scrolls inside it. See `autoHeightTheme`.
+	 */
+	autoHeight?: boolean;
 }
 
 export interface LyricEditorInstance {
@@ -202,6 +221,38 @@ const editorTheme = EditorView.theme({
 	}
 });
 
+/*
+ * A pane that is as tall as its document instead of a window onto it. Mounted
+ * after `editorTheme` so these three win on equal specificity, and only when a
+ * caller asks (`autoHeight`).
+ *
+ * The workbench is the other kind and has to be: its editor is one half of a
+ * two-column window, so it fills the column it was given and the document
+ * scrolls inside it. The landing page's demo has no column to fill — it sits in
+ * an article, at whatever height the verse needs, and typing a fifth line should
+ * lengthen it rather than start a scroller inside a box in the middle of a page
+ * the reader is already scrolling.
+ *
+ * The bottom padding comes down with the height, and for the same reason. Forty
+ * eight pixels under the last line is room to scroll it clear of the bottom
+ * edge; with nothing scrolling it is just the largest empty space on the page.
+ * Twenty four matches the space over the first line, so the verse sits in its
+ * box rather than at the top of one.
+ */
+const autoHeightTheme = EditorView.theme({
+	// `&.cm-editor` and not the bare `&` that `editorTheme` uses, because a theme
+	// mounted later does not reliably come out later in the sheet — CodeMirror's
+	// StyleModule decides that — and at equal specificity the loser is whichever
+	// one lost the coin toss. Naming the class as well outranks it outright.
+	'&.cm-editor': {
+		height: 'auto',
+		minHeight: '0'
+	},
+	'&.cm-editor .cm-content': {
+		paddingBottom: 'var(--space-5)'
+	}
+});
+
 export interface PreparedInitialDocument {
 	text: string;
 }
@@ -290,6 +341,11 @@ export function createLyricEditor(
 		preparedDocument
 	);
 
+	// The field and its theme are one decision, so they are gated by one value:
+	// a pane that does not draw the row has nothing to style, and leaving half
+	// the pair behind is how a "disabled" feature keeps a foothold in the DOM.
+	const sectionGhosts = options.sectionGhosts ?? true;
+
 	const extensions: Extension[] = [
 		history(),
 		lineNumbers(),
@@ -340,18 +396,19 @@ export function createLyricEditor(
 		performerDecorationField,
 		lintDecorationField,
 		diagnosticRangeHoverHandler(),
-		sectionGhostField,
+		...(sectionGhosts ? [sectionGhostField] : []),
 		markupDimField,
 		highlightActiveLine(),
 		highlightActiveLineGutter(),
 		performerDecorationTheme,
 		lintDecorationTheme,
-		sectionGhostTheme,
+		...(sectionGhosts ? [sectionGhostTheme] : []),
 		markupDimTheme,
 		invisibleMarksTheme,
 		fixPreviewTheme,
 		documentPlaceholderTheme,
 		editorTheme,
+		...(options.autoHeight ? [autoHeightTheme] : []),
 		keymap.of(lyricLintKeymap(callbackProxy, options.keymapOverrides)),
 		selectionAnchorPlugin(
 			(anchor) => options.onSelectionAnchor?.(anchor),

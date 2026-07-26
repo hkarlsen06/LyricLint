@@ -164,10 +164,9 @@
 		// travel to and no live region to speak into.
 		onDiagnosticActivate: () => {},
 		onAnnouncement: () => {},
-		// The ghost "Add section header" control is visible in this pane, so it has
-		// to work. A landing page whose one demo carries a control that does
-		// nothing when pressed is worse than a screenshot — and the missing header
-		// is one of the findings on screen, so this is the fix for it.
+		// The ghost row is off in this pane (see `sectionGhosts` below), but the
+		// keyboard path to the picker is not, and a control that does nothing when
+		// pressed is worse than a screenshot. It stays wired.
 		createSectionHeaderEdit: ({ range, headerName, ordinal, numberedHeaderTerms }) => {
 			const result = insertSectionHeader({
 				revision: snapshot.revision,
@@ -261,6 +260,12 @@
 		{#if !editorReady}
 			<pre class="site-demo__fallback">{text}</pre>
 		{/if}
+		<!-- No `+ Add section header` row. In the workbench it costs one row of a
+		     document the reader can scroll; here the editor is a fixed box a few
+		     lines tall and the row was a quarter of it, above the verse it was
+		     meant to introduce. The sample loses nothing by it: what is wrong with
+		     its header is `section.header-prose`, and that fix rewrites the line
+		     itself, on the line, where the reader is already looking. -->
 		<EditorPane
 			initialText={text}
 			initialSelection={{ anchor: 0, head: 0 }}
@@ -268,6 +273,8 @@
 			{context}
 			{callbacks}
 			bind:handle
+			sectionGhosts={false}
+			autoHeight
 			onready={() => (editorReady = true)}
 		/>
 	</div>

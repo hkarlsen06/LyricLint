@@ -82,11 +82,23 @@
 	font-weight: var(--font-weight-medium);
 }
 
-/* The page the reader is already on is named but not linked, so the nav says
-   where they are without offering to take them there again. */
+/* A masthead is chrome, and chrome does not underline. Set as prose links these
+   were three accent-blue, underlined words crowded against the wordmark — a link
+   list where a masthead should be, and on a phone the busiest thing on the first
+   screen. They are quiet text now: muted, resolving to the body color under the
+   pointer, which is the same way the workbench's own toolbar commands answer one.
+
+   The page the reader is already on is named but not linked, so the nav says
+   where they are without offering to take them there again — which is now a step
+   up in color rather than the absence of an underline. */
+.site-nav a {
+	color: var(--color-text-muted);
+	text-decoration: none;
+}
+
+.site-nav a:hover,
 .site-nav [aria-current='page'] {
 	color: var(--color-text);
-	text-decoration: none;
 }
 
 .site-main {
@@ -423,7 +435,7 @@
  * describing it — and for the same reason it is the only thing on this page
  * allowed a second one.
  *
- * The wrapper reserves the box and paints nothing. That is the whole trick
+ * The wrapper paints nothing and reserves nothing. That is the whole trick
  * here, and it settles two problems that pulled in opposite directions:
  *
  * - The popover has to escape, so the wrapper cannot clip. But a rounded
@@ -434,38 +446,39 @@
  *   that element is the editor itself — nothing is nested, so nothing can
  *   mismatch.
  * - The height has to be the same before and after CodeMirror exists, or the
- *   page jumps under the reader while it loads. So the wrapper is a definite
- *   height and both the stand-in and the real editor fill it exactly.
+ *   page jumps under the reader while it loads. It used to be the same because
+ *   the wrapper was a fixed height and both the stand-in and the editor filled
+ *   it; that box then had to be tall enough for the worst wrap at every width,
+ *   which left a hand of empty surface under the verse at most of them. It is
+ *   the same now because the two are the *same shape*: `autoHeight` makes the
+ *   pane as tall as its document, the stand-in is set in the editor's own type
+ *   at the editor's own insets, and neither one is given a height at all. Type
+ *   a fifth line into the demo and the box grows with it.
  */
 .site-demo {
 	margin: 0 0 var(--space-5);
 }
 
-/*
- * Measured against the sample verse rather than guessed: CodeMirror's own
- * padding (24px over, 48px under), the ghost "Add section header" row (38px),
- * four lines at 24.75px, and one badge row where a line carries a cluster of
- * findings — 234px, reserved as 15rem. Re-measure it if the sample changes.
- *
- * Definite, not `min-height`: a percentage height does not resolve against
- * `min-height`, and CodeMirror's theme sets `.cm-editor` to `height: 100%`. It
- * is also what makes the box the same size in both states, which is the point.
- * Typing past it scrolls `.cm-scroller`, exactly as the workbench does.
- */
 .site-demo__editor {
 	position: relative;
-	height: 15rem;
 }
 
 /* One box, painted once — see above. `overflow: hidden` here and not on the
    wrapper: CodeMirror draws the scroller and the gutters as square boxes that
    would otherwise sit proud of this radius, while the diagnostic popover is a
-   sibling of this element and stays free to overhang the wrapper. */
+   sibling of this element and stays free to overhang the wrapper.
+
+   `isolation` is for iOS Safari, which does not reliably clip a scrolling
+   descendant to its ancestor's radius unless that ancestor is a stacking
+   context of its own: without it the scroller's square white corners paint over
+   all four of the editor's rounded ones, and the box reads as poking out of
+   itself. It costs nothing where the clip already works. */
 .site-demo__editor .cm-editor,
 .site-demo__fallback {
 	border: var(--border-width) solid var(--color-border);
 	border-radius: var(--radius-panel);
 	background: var(--color-surface);
+	isolation: isolate;
 	overflow: hidden;
 }
 
@@ -473,18 +486,21 @@
    a crawler indexes and what a reader without JavaScript keeps, so it carries
    the verse verbatim rather than a placeholder.
 
-   Taken out of flow so that it cannot contribute a height of its own: the box
-   is the wrapper's, and the swap has nothing left to move. Its text is inset to
-   where the editor's text lands — past the gutter, below the ghost header row —
-   so the exchange does not slide the verse sideways either. */
+   In flow, and deliberately: with neither element given a height, the box is
+   whichever of the two is currently in the document, so the stand-in has to be
+   the shape the editor will be. That is what every value below is for — the
+   editor's own type size, its line height, and padding measured to the pixel
+   where its text lands (past the gutter and the content's own inset on the
+   left, inside the line's end padding on the right). Matching insets at
+   matching type means matching wraps, which means matching line counts, which
+   is the only reason the swap does not move the page. Re-measure them if the
+   editor's gutter, content padding, or type changes. */
 .site-demo__fallback {
-	position: absolute;
-	padding: var(--space-7) var(--space-4) var(--space-3) var(--space-8);
+	padding: var(--space-5) 19px var(--space-5) 61px;
 	margin: 0;
 	font-family: var(--font-mono);
-	font-size: var(--font-size-sm);
+	font-size: var(--font-size-md);
 	line-height: var(--line-height-editor);
-	inset: 0;
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
 }
@@ -495,26 +511,20 @@
 	font-size: var(--font-size-sm);
 }
 
-/*
- * The one thing a reservation cannot be is width-independent: below this the
- * verse wraps and the box it needs grows. Measured the same way — the longest
- * line takes a second row once the box falls under 480px, which is a 512px
- * viewport, and the worst case down to a 320px one costs 308px. Reserved as
- * 20rem, and the breakpoint is set at the onset rather than under it: an
- * over-tall box is a band of empty surface at one width, while an under-tall
- * one clips the last line of the sample the whole page is built around.
- */
-@media (max-width: 32rem) {
-	.site-demo__editor {
-		height: 20rem;
-	}
+/* There is no width band for the demo box any more, and that is the point of
+   sizing it to its document: the reservation had to be tall enough for the
+   worst wrap at every width it covered, so it was too tall at all the others —
+   three breakpoints, each one re-measured every time the gutter or the sample
+   moved. A box that is exactly as tall as the verse is correct at 320px and at
+   1280px without being told. */
 
-	/* The two actions no longer fit on one row here — `Open the workbench` and
-	   `Browse the 47 rules` come to two pixels more than a 390px phone has — and
-	   two centred buttons of unequal width stacked on top of each other read as a
-	   row that broke rather than as a column that was meant. So below the width
-	   where they stop fitting they are a column on purpose, at one width, which
-	   is also the larger touch target. */
+/* The two actions no longer fit on one row here — `Open the workbench` and
+   `Browse the 47 rules` come to two pixels more than a 390px phone has — and
+   two centred buttons of unequal width stacked on top of each other read as a
+   row that broke rather than as a column that was meant. So below the width
+   where they stop fitting they are a column on purpose, at one width, which is
+   also the larger touch target. */
+@media (max-width: 32rem) {
 	.site-hero .site-actions {
 		flex-direction: column;
 		align-items: stretch;
@@ -676,13 +686,51 @@
 }
 
 @media (max-width: 46rem) {
+	/*
+	 * The chrome band comes off on a phone, and the reason is the strip of screen
+	 * above it. `theme-color` is `--color-canvas`, so the browser paints the
+	 * status bar and the safe area with the *page* color — and a header filled
+	 * with `--color-chrome` meets that at a seam a few percent lighter than it,
+	 * across the full width, at the very top of the first screen. The first thing
+	 * the page said was that it was two mismatched strips.
+	 *
+	 * Nothing here was earning the fill. A band separates pinned chrome from the
+	 * content moving under it, and at this width the header scrolls away with the
+	 * document like everything else, so there is nothing to separate. The border
+	 * goes with it: a hairline under a band the same color as the page is a line
+	 * ruled across the canvas for no reason. The wordmark and the nav sit
+	 * directly on the canvas, and the top of the screen is one surface from the
+	 * status bar down.
+	 *
+	 * The footer keeps its hairline and loses its fill for the same trade — the
+	 * rule is what separates the end of the article from the colophon, and it
+	 * does that job on its own.
+	 *
+	 * On a laptop the band stays. There the header is a masthead over a wide
+	 * page with no browser tint above it to disagree with, and it is the same
+	 * band the workbench wears, which is the point of it.
+	 */
 	.site-header,
 	.site-footer {
-		padding: var(--space-3) var(--space-4);
+		/* The gutter is the prose gutter, so the wordmark, the headline, and every
+		   paragraph under it start on one edge. */
+		padding: var(--space-3) var(--space-5);
+		background: transparent;
+	}
+
+	.site-header {
+		border-bottom: none;
 	}
 
 	.site-main {
-		padding: var(--space-5) var(--space-4) var(--space-7);
+		padding: var(--space-5) var(--space-5) var(--space-7);
+	}
+
+	/* The rule reference is laid out by `.rules` rather than by `.site-main`, so
+	   it takes the gutter separately or the brand ends up inset further than the
+	   list it sits over. One edge down the page, whichever page it is. */
+	.rules {
+		padding-inline: var(--space-5);
 	}
 
 	/* Touch targets, matching what responsive.css already does for the app's
@@ -691,11 +739,73 @@
 		gap: var(--space-3);
 	}
 
-	/* The peek is taller here because the paragraph it has to leave on screen is
-	   taller: the same sentence wraps to three lines in a phone's column and to
-	   two in a laptop's. The page's top padding is smaller, which pays for part
-	   of it. */
+	/* What the hero may not cover is smaller here than it looks, because the peek
+	   is only the heading and the top edge of the editor — the paragraph that
+	   used to sit between them now reads the findings back underneath the demo.
+	   So the hero takes the space that paragraph gave up and its stack sits lower
+	   on the screen, which is the whole point of a first screen with one claim on
+	   it. Measured at 390×844: the heading, its margins, and 90px of the editor
+	   stay visible under it. */
 	.site-hero {
-		--site-hero-reserved: 19.5rem;
+		--site-hero-reserved: 14rem;
+	}
+}
+
+/*
+ * A phone, and not a narrow window on a desktop: the same test responsive.css
+ * uses to take the workbench away (kept in step with it by hand — CSS has no
+ * way to name a media query and reuse it). Everything here follows from that
+ * one fact. Where the workbench cannot open, an action that opens it is a wall,
+ * and a page may not spend its loudest control on one.
+ */
+@media (pointer: coarse) and (max-width: 46rem), (pointer: coarse) and (max-height: 30rem) {
+	/* The masthead's third link is the wall itself, so it is not offered. The
+	   hero still carries the workbench as a quiet action for a reader who wants
+	   to see what is waiting on a laptop; a nav item cannot say that much. */
+	.site-nav__app {
+		display: none;
+	}
+
+	/*
+	 * The two hero actions trade tiers. `Browse the 47 rules` is the whole
+	 * product this reader can actually have — forty-seven rules, each with the
+	 * Genius guideline behind it — and it was the quiet one, sitting under a
+	 * contrast-tier button that leads to a screen saying "not on a phone". The
+	 * fact line under them already states the requirement; the emphasis has to
+	 * agree with it.
+	 *
+	 * Written as an override rather than as different classes because which tier
+	 * a control wears is a fact about the device, and the markup is prerendered
+	 * before there is one to ask. Hover and active come too: a tap applies
+	 * `:hover` on a touch screen, so leaving them behind flashes each button in
+	 * the tier it no longer has, at the moment it is pressed.
+	 */
+	.site-hero .site-actions .button--contrast {
+		border-color: var(--color-control-border);
+		background: var(--color-control);
+		color: var(--color-text);
+	}
+
+	.site-hero .site-actions .button--contrast:hover:not(:disabled) {
+		border-color: var(--color-border-strong);
+		background: var(--color-control-hover);
+		color: var(--color-text);
+	}
+
+	.site-hero .site-actions .button--contrast:active:not(:disabled) {
+		background: var(--color-control-active);
+	}
+
+	.site-hero .site-actions .button:not(.button--contrast) {
+		border-color: var(--color-text);
+		background: var(--color-text);
+		color: var(--color-canvas);
+	}
+
+	.site-hero .site-actions .button:not(.button--contrast):hover:not(:disabled),
+	.site-hero .site-actions .button:not(.button--contrast):active:not(:disabled) {
+		border-color: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
+		background: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
+		color: var(--color-canvas);
 	}
 }

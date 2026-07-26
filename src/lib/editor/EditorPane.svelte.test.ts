@@ -50,6 +50,8 @@ async function mountEditor(options?: {
 	revision?: number;
 	displayContext?: EditorDisplayContext;
 	editorCallbacks?: LyricEditorCallbacks;
+	sectionGhosts?: boolean;
+	autoHeight?: boolean;
 }): Promise<{ handle: EditorHandle; editorCallbacks: LyricEditorCallbacks }> {
 	const editorCallbacks = options?.editorCallbacks ?? callbacks();
 	let handle: EditorHandle | undefined;
@@ -60,6 +62,8 @@ async function mountEditor(options?: {
 			initialRevision: options?.revision,
 			context: options?.displayContext ?? context(),
 			callbacks: editorCallbacks,
+			sectionGhosts: options?.sectionGhosts,
+			autoHeight: options?.autoHeight,
 			onready: (readyHandle: EditorHandle) => {
 				handle = readyHandle;
 			}
@@ -1139,6 +1143,44 @@ describe('EditorPane', () => {
 
 		await expect.element(page.getByRole('button', { name: '+ Add section header' })).toBeVisible();
 		expect(handle.getSnapshot().text).toBe('A lyric line');
+	});
+
+	// Also the landing page's demo: a pane in an article rather than a column to
+	// fill, so it is as tall as its verse and grows when one is typed into it. The
+	// assertions are computed styles because that is where the whole feature lives
+	// — a theme mounted over `editorTheme`, which it has to outrank.
+	it('sizes an auto-height pane to its document instead of filling its host', async () => {
+		await mountEditor({ text: 'A lyric line', autoHeight: true });
+
+		const pane = document.querySelector<HTMLElement>('.editor-pane');
+		const editor = document.querySelector<HTMLElement>('.cm-editor');
+		const content = document.querySelector<HTMLElement>('.cm-content');
+		expect(pane?.classList.contains('auto-height')).toBe(true);
+		// The host owns no size and paints nothing: a `min-height` left standing
+		// would floor the box, and a square fill behind a rounded editor paints
+		// outside its corners.
+		expect(getComputedStyle(pane!).minHeight).toBe('0px');
+		expect(getComputedStyle(pane!).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+		expect(getComputedStyle(editor!).minHeight).toBe('0px');
+		// Room to scroll the last line clear of the bottom edge is not room a pane
+		// that never scrolls has any use for, so it matches the space above.
+		expect(getComputedStyle(content!).paddingBottom).toBe(getComputedStyle(content!).paddingTop);
+	});
+
+	// The landing page's demo mounts this way: a fixed box a few lines tall, where
+	// the row costs a quarter of what there is to show. Absent from the document,
+	// not painted over — a hidden control is still a control.
+	it('omits the ghost row when the pane does not offer section ghosts', async () => {
+		const { handle } = await mountEditor({ text: 'A lyric line', sectionGhosts: false });
+
+		await expect
+			.element(page.getByRole('button', { name: '+ Add section header' }))
+			.not.toBeInTheDocument();
+		expect(document.querySelector('.ll-section-ghost')).toBeNull();
+		// The keyboard path is untouched, so the picker is still reachable.
+		handle.focus();
+		handle.requestSectionHeader?.();
+		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
 	});
 
 	it('ranks a pre-chorus first when a headerless section sits between a verse and refrain', async () => {

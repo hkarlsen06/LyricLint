@@ -98,14 +98,19 @@ And the "quiet" part was never really quiet`;
 		</p>
 	</header>
 
+	<!-- The heading and the demo, with nothing between them. What the sample is
+	     wrong about used to lead into it with a colon; it reads the findings back
+	     afterwards instead, so the first screen's peek is the heading and the top
+	     of the editor rather than a paragraph the reader has no picture for yet.
+	     `--site-hero-reserved` is measured against exactly that pair. -->
 	<h2>What it looks like</h2>
 
-	<p>
-		A transcription arrives with a written-out section header, a lowercase line start, a stray
-		comma, and an ad-lib nobody parenthesised:
-	</p>
-
 	<LiveDemo text={messy} performerNames={['Avery', 'Blair']} />
+
+	<p>
+		That transcription has a written-out section header, a lowercase line start, a stray comma, and
+		an ad-lib nobody parenthesised.
+	</p>
 
 	<p>
 		Apply the fixes it offers and you are left with the document you meant to submit — the same

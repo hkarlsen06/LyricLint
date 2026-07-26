@@ -133,6 +133,10 @@ export interface EditorPaneProps {
 	handle?: EditorHandle;
 	onready?: (handle: EditorHandle) => void;
 	ondestroyed?: () => void;
+	/** See `CreateLyricEditorOptions.sectionGhosts`. Defaults to on. */
+	sectionGhosts?: boolean;
+	/** See `CreateLyricEditorOptions.autoHeight`. Defaults to off. */
+	autoHeight?: boolean;
 }
 
 export interface EditorPaneEvents {
