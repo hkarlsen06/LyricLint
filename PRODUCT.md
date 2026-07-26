@@ -21,9 +21,9 @@ Success means that users can:
 - Understand which Genius source supports every emitted warning.
 - Apply performer differentiation without hand-writing fragile HTML.
 - See who performs each passage without changing the exported markup.
-- Continue editing when Genius or the network is unavailable.
+- Continue editing when Genius or the network is unavailable, except where they have opted a draft into YouTube playback.
 
-The initial product is a standalone paste, edit, lint, and copy tool. Direct Genius editing, cloud accounts, collaboration, audio tooling, and browser-extension integration are later possibilities.
+The initial product is a standalone paste, edit, lint, and copy tool with a transport for the audio being transcribed. That audio is a local file by default, which never leaves the user's disk; a YouTube video is offered as an alternative because that is where most transcribers' audio actually is, and it is opted into per draft. Direct Genius editing, cloud accounts, collaboration, and browser-extension integration are later possibilities.
 
 ## Brand Personality
 
@@ -38,7 +38,7 @@ The product should feel like a focused editorial instrument: dense enough for ex
 - Not a toy text area covered in decorative colors.
 - Not a full IDE with irrelevant programming affordances.
 - Not a warning-heavy validator that silently rewrites user work.
-- Not dependent on live scraping or network availability.
+- Not dependent on live scraping. Not dependent on network availability either, with one exception the user chooses draft by draft: YouTube playback loads Google's player, and nothing else here contacts a third party.
 
 ## Design Principles
 
@@ -46,7 +46,7 @@ The product should feel like a focused editorial instrument: dense enough for ex
 2. **Every warning earns trust.** A production rule must include an exact Genius source, a reviewed interpretation, and a last-verified date.
 3. **Automation is reversible.** Structural and performer transformations are previewable where needed and always form one undoable edit.
 4. **Expert speed, accessible operation.** Common actions are keyboard-first, while all controls and diagnostics remain discoverable and screen-reader reachable.
-5. **Local work is durable.** Drafts autosave locally and the editor remains useful offline.
+5. **Local work is durable.** Drafts autosave locally and the editor remains useful offline. The one thing that reaches a network is YouTube playback, which is asked for and never assumed.
 6. **Judgment is labeled as judgment.** Contextual conventions are suggestions or manual-review items, not false errors.
 
 ## Accessibility & Inclusion

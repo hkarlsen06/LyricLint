@@ -10,6 +10,27 @@
 	);
 </script>
 
+<!--
+	Three sections, and each one is a heading over at most two things.
+
+	It used to be a panel you had to read rather than scan. The Document section
+	alone carried four actions that wrapped into a ragged two-by-two of mixed
+	tiers, and the privacy story was told three separate times — once about audio
+	under those buttons, once under `Local data`, and once more in a trailing
+	sentence with no heading over it at all. Skimming it meant reading all of it.
+
+	Two rules came out of the repair, and both are worth keeping:
+
+	**A section's actions fit on one row.** Two is what fits at this panel's width,
+	so the third and fourth had to be somewhere honest rather than somewhere
+	convenient — attaching audio is now the status bar's picker, in the row the
+	transport itself appears in. Adding an action here means asking what leaves.
+
+	**A claim is made once, where the reader is deciding.** Everything local is
+	said under `Local data` and nowhere else; the sentence about what YouTube
+	costs lives in the picker, next to the press that spends it, because a warning
+	the reader meets an hour before the decision is a warning they have forgotten.
+-->
 <div class="panel-content tools-panel">
 	<section>
 		<h3>Document</h3>
@@ -21,8 +42,11 @@
 			<button type="button" class="button" onclick={() => controller.copyCanonical()}>
 				Copy lyrics
 			</button>
+			<!-- `current draft` is gone from the label rather than shortened for
+			     room: the toolbar names the draft two rows up, so the words were
+			     restating what the window already says. -->
 			<button type="button" class="button button--quiet" onclick={() => controller.exportDraft()}>
-				Export current draft (.txt)
+				Export .txt
 			</button>
 		</div>
 		<p>Copy and export use the exact canonical string, including literal supported markup.</p>
@@ -63,7 +87,14 @@
 
 	<section>
 		<h3>Local data</h3>
-		<p>Drafts remain in this browser. Lyric text is not sent to Genius or a LyricLint server.</p>
+		<p>
+			Drafts stay in this browser. Lyric text is never sent to Genius or a LyricLint server, and
+			attached audio plays from your own disk — only its name is stored, never the file.
+		</p>
+		<p>
+			Editing, linting, saving, export and copy all work offline. The one thing that reaches a
+			network is YouTube playback, and it is asked for every session.
+		</p>
 		<div aria-live="polite">
 			{#if confirmDeleteAll}
 				<p class="danger-text">Delete every local draft? This cannot be undone.</p>
@@ -91,8 +122,4 @@
 			{/if}
 		</div>
 	</section>
-
-	<p class="offline-note">
-		Editing, lint metadata, local saving, export, and copy remain available offline.
-	</p>
 </div>

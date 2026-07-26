@@ -23,6 +23,8 @@ export interface PanelViewDependencies {
 	draftId: () => string;
 	ignoreStore: SessionIgnoreStore;
 	feedback: FeedbackState;
+	initialActiveTab?: RightPanelTab;
+	onActiveTabChange?: (tab: RightPanelTab) => void;
 }
 
 export interface PanelView {
@@ -100,7 +102,7 @@ export interface PanelView {
 }
 
 export function createPanelView(deps: PanelViewDependencies): PanelView {
-	let activeTab = $state<RightPanelTab>('linter');
+	let activeTab = $state<RightPanelTab>(deps.initialActiveTab ?? 'linter');
 	let activeDiagnosticKey = $state<string | undefined>();
 	let severityFilter = $state<Severity[]>([...allSeverities]);
 	let severityFiltersOpen = $state(false);
@@ -113,6 +115,12 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		if (ignored) deps.ignoreStore.ignore(draftId, ruleId);
 		else deps.ignoreStore.restore(draftId, ruleId);
 		ignoredRuleIds = deps.ignoreStore.list(draftId);
+	}
+
+	function setActiveTab(tab: RightPanelTab): void {
+		if (activeTab === tab) return;
+		activeTab = tab;
+		deps.onActiveTabChange?.(tab);
 	}
 
 	// A fix whose diff the editor could not draw yet. Previewing is no longer a
@@ -166,7 +174,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	function revealDiagnostic(diagnostic: Diagnostic): EditorHandle {
 		// Activating a diagnostic from the editor has to reveal its card, so
 		// pull the panel back to the linter tab whatever was showing before.
-		activeTab = 'linter';
+		setActiveTab('linter');
 		const editor = selectDiagnostic(diagnostic);
 		// CodeMirror applies queued scroll requests during its measure phase.
 		// Reveal last so selection's nearest-edge scroll cannot replace the
@@ -238,7 +246,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			return ignoredRuleIds;
 		},
 		setActiveTab(tab) {
-			activeTab = tab;
+			setActiveTab(tab);
 		},
 		toggleSeverity(severity) {
 			severityFilter = severityFilter.includes(severity)

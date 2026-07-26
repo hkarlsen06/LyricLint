@@ -1,0 +1,749 @@
+import {
+	EditorState,
+	MapMode,
+	RangeSet,
+	RangeValue,
+	StateEffect,
+	StateField
+} from '@codemirror/state';
+import type { ChangeDesc, Extension, Range } from '@codemirror/state';
+import { EditorView, GutterMarker, gutter, lineNumberMarkers } from '@codemirror/view';
+import type { BlockInfo } from '@codemirror/view';
+import type { LineAnchor } from '$lib/core/types.js';
+
+export type { LineAnchor };
+
+/**
+ * The anchor's own value: a time, over the line's text.
+ *
+ * `MapMode.TrackDel` is the whole reason this is a `RangeValue` and not a plain
+ * array — deleting the line an anchor sits on has to delete the anchor, and
+ * mapping is what knows that happened. An array of line numbers would quietly
+ * point at whatever text slid up into the gap.
+ *
+ * It spans the line rather than marking its start, and that distinction is
+ * load-bearing. A point at `line.from` sits on the *boundary* of the deletion
+ * that removes the line, and a boundary is not inside anything — so deleting a
+ * line left its anchor behind, sharing the next line with that line's own
+ * anchor, and a jump went to whichever of the two came first. An anchor belongs
+ * to the line's text, so it covers the line's text and dies with it.
+ */
+class AnchorValue extends RangeValue {
+	override mapMode = MapMode.TrackDel;
+
+	constructor(readonly time: number) {
+		super();
+	}
+
+	override eq(other: AnchorValue): boolean {
+		return other.time === this.time;
+	}
+}
+
+/** Replace every anchor, for a draft being opened. */
+export const setLineAnchorsEffect = StateEffect.define<readonly LineAnchor[]>();
+
+/**
+ * Anchor the line containing `pos` to `time`.
+ *
+ * `overwrite` is false for the automatic stamp that happens while audio plays
+ * and true for the deliberate one. An automatic stamp may never replace a time
+ * already there: the anchor on a line is either something the user set on
+ * purpose or the first pass they made at it, and re-stamping on every later
+ * keystroke would drag every anchor to wherever the audio happened to be when
+ * they came back to fix a typo.
+ */
+export const anchorLineEffect = StateEffect.define<{
+	pos: number;
+	time: number;
+	overwrite: boolean;
+}>();
+
+/** Drop the anchor on the line containing `pos`. */
+export const clearLineAnchorEffect = StateEffect.define<{ pos: number }>();
+
+/**
+ * Tell the column where the audio is, or `undefined` when nothing is attached.
+ *
+ * This moves nothing. It marks one cell, and that is the entire extent of what
+ * playback is allowed to do to the document — outside sync mode, which is a
+ * mode the user deliberately entered and is not typing in.
+ */
+export const setPlayheadEffect = StateEffect.define<number | undefined>();
+
+interface LineAnchorState {
+	anchors: RangeSet<AnchorValue>;
+	/**
+	 * Where the audio is, and — because the shell pushes `undefined` whenever
+	 * nothing is attached — whether there is any audio at all. The timestamp
+	 * column draws off exactly this: a workbench with no song has no times to
+	 * show and no line worth stamping, so the whole column stays out of the
+	 * editor rather than standing there as an empty rail.
+	 */
+	playhead: number | undefined;
+	/** Start position of the anchor the playhead is currently inside. */
+	currentFrom: number | undefined;
+}
+
+/**
+ * `m:ss`, duplicated from the media player on purpose.
+ *
+ * The editor may not import from `$lib/ui` — it is the rule that keeps the
+ * shell replaceable — and four lines of arithmetic is a cheaper price than the
+ * dependency.
+ */
+export function formatAnchorTime(seconds: number): string {
+	const whole = Math.max(0, Math.floor(seconds));
+	return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
+
+/**
+ * One cell of the timestamp column.
+ *
+ * Everything in it is a pointer affordance and only that, because CodeMirror
+ * puts `aria-hidden="true"` on the whole `.cm-gutters` container and a descendant
+ * cannot opt back in — `aria-hidden="false"` under a hidden ancestor does
+ * nothing. So nothing here carries an accessible name: a name nothing can read is
+ * a claim to accessibility rather than the thing itself, and `tabIndex = -1`
+ * follows from the same fact, since a focusable control inside an `aria-hidden`
+ * subtree is a genuine violation and a hundred anchored lines would otherwise be
+ * a hundred tab stops before the first word.
+ *
+ * The equivalent path for everyone else is `Ctrl-Alt-Enter` (play from this
+ * line), `Ctrl-Alt-M` (anchor it), and sync mode, all of which announce what they
+ * did and need no aiming.
+ *
+ * The alternative was a line-decoration widget at the end of each line, which
+ * *would* be in the accessible tree. It is disqualified because a widget in the
+ * content flow participates in selection and copy, and clean lyrics on the
+ * clipboard are this application's entire output. A timestamp in somebody's paste
+ * is the worst bug it could ship.
+ */
+class TimeGutterMarker extends GutterMarker {
+	constructor(
+		readonly time: number | undefined,
+		readonly current: boolean
+	) {
+		super();
+	}
+
+	override eq(other: TimeGutterMarker): boolean {
+		return other.time === this.time && other.current === this.current;
+	}
+
+	override toDOM(): HTMLElement {
+		const cell = document.createElement('div');
+		cell.className = 'll-time-cell';
+
+		// The time is the play control. A visible timestamp is the most obvious
+		// thing in the world to press to hear that moment, so it needs no icon of
+		// its own — and a separate play glyph would be a second control for the
+		// gesture the pointer is already on.
+		const time = document.createElement('button');
+		time.type = 'button';
+		time.tabIndex = -1;
+		time.className = 'll-time-value';
+		if (this.time === undefined) {
+			// A dash, not a blank. A column of empty cells is an invisible column —
+			// there is nothing on screen to say the rail exists, what it holds, or
+			// that a line can be timed at all, so the feature reads as absent until
+			// the pointer happens to cross the one cell that answers. A dash is the
+			// quietest mark that says "a value goes here and is not set yet", which is
+			// exactly true, and it costs one muted glyph per line against a column
+			// that is a full timestamp per line the moment the song is synced.
+			time.textContent = '–';
+			time.classList.add('ll-time-value--empty');
+			time.disabled = true;
+		} else {
+			if (this.current) time.classList.add('ll-time-value--current');
+			time.textContent = formatAnchorTime(this.time);
+			time.title = `Play from ${formatAnchorTime(this.time)}`;
+			time.dataset.anchorSeek = String(this.time);
+		}
+		cell.append(time);
+
+		// One control for the write, whichever write it is. Stamping an empty line
+		// and correcting a stamped one are the same command with the same effect —
+		// the line's own state says which — so two glyphs would be two buttons for
+		// one press. It carries no time in its tooltip on purpose: the playhead
+		// moves several times a second and a title that named it would rebuild this
+		// column on every tick.
+		const stamp = document.createElement('button');
+		stamp.type = 'button';
+		stamp.tabIndex = -1;
+		stamp.className = 'll-time-stamp';
+		stamp.title = this.time === undefined ? 'Anchor this line' : 'Re-anchor this line';
+		stamp.dataset.anchorStamp = 'true';
+		stamp.append(stampGlyph(this.time !== undefined));
+		cell.append(stamp);
+
+		return cell;
+	}
+}
+
+/**
+ * Marks an anchored line's *number* as pressable.
+ *
+ * It carries `elementClass` and deliberately no `toDOM`: `lineNumbers` drops its
+ * own number marker for any line whose markers include one that draws
+ * (`others.some(m => m.toDOM)`), so a marker with a body here would replace the
+ * line number rather than decorate it.
+ *
+ * It rides the `lineNumberMarkers` facet rather than `gutterLineClass`, because
+ * the latter classes the matching element in *every* gutter — the timestamp cell
+ * and the performer bar included — for a fact that is only about this one.
+ */
+const seekableLineMarker = new (class extends GutterMarker {
+	override elementClass = 'll-line-seek';
+})();
+
+/**
+ * Play from a line by pressing its number.
+ *
+ * The line number is a wider, always-drawn target than a timestamp that is four
+ * characters of muted text, and it is on the side of the document the eye is
+ * already using to find a line. It is safe to make it seek for the same reason
+ * the timestamp is: a gutter sits outside `.cm-content`, so a press there never
+ * places a caret, and the rule that keeps seeking out of the text — clicking a
+ * line is how a caret is placed, and is the most frequent gesture in the editor —
+ * does not reach here.
+ *
+ * It answers only on a line that has a time. Returning false leaves the press
+ * unclaimed, and only anchored lines are given the pointer cursor, because an
+ * affordance that works on some rows and silently not on others is worse than no
+ * affordance at all.
+ */
+export function anchorSeekOnLineNumber(
+	options: LineAnchorOptions
+): (view: EditorView, line: BlockInfo, event: Event) => boolean {
+	return (view, line) => {
+		const time = anchorTimeAt(view.state, line.from);
+		if (time === undefined) return false;
+		options.onSeek(time);
+		return true;
+	};
+}
+
+/** A pin for an empty line, a pencil for one already carrying a time. */
+function stampGlyph(anchored: boolean): SVGElement {
+	const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+	svg.setAttribute('viewBox', '0 0 16 16');
+	svg.setAttribute('width', '13');
+	svg.setAttribute('height', '13');
+	svg.setAttribute('fill', 'none');
+	svg.setAttribute('stroke', 'currentColor');
+	svg.setAttribute('stroke-width', '1.5');
+	svg.setAttribute('stroke-linecap', 'round');
+	svg.setAttribute('stroke-linejoin', 'round');
+	const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+	path.setAttribute('d', anchored ? 'm10 2.5 3.5 3.5-8 8H2v-3.5Z' : 'M8 3.5v9M3.5 8h9');
+	svg.append(path);
+	return svg;
+}
+
+function rangesForLines(
+	state: EditorState,
+	times: ReadonlyMap<number, number>
+): RangeSet<AnchorValue> {
+	const ranges: Range<AnchorValue>[] = [];
+	for (const lineNumber of [...times.keys()].sort((left, right) => left - right)) {
+		const line = state.doc.line(lineNumber);
+		ranges.push(new AnchorValue(times.get(lineNumber) as number).range(line.from, line.to));
+	}
+	return RangeSet.of(ranges, true);
+}
+
+function anchorsFromLines(
+	state: EditorState,
+	anchors: readonly LineAnchor[]
+): RangeSet<AnchorValue> {
+	const times = new Map<number, number>();
+	for (const anchor of [...anchors].sort((left, right) => left.line - right.line)) {
+		if (
+			!Number.isInteger(anchor.line) ||
+			anchor.line < 1 ||
+			anchor.line > state.doc.lines ||
+			!Number.isFinite(anchor.time) ||
+			anchor.time < 0 ||
+			times.has(anchor.line)
+		) {
+			continue;
+		}
+		times.set(anchor.line, anchor.time);
+	}
+	return rangesForLines(state, times);
+}
+
+/**
+ * Drop the anchors whose line was wholly erased, before anything is mapped.
+ *
+ * Mapping cannot answer this on its own, and the reason is worth keeping: after
+ * a line is deleted its anchor and the following line's anchor both land on the
+ * same line, which is *also* exactly what happens when backspace merges two
+ * lines. The two are indistinguishable from the result and want opposite
+ * answers — the deleted line's anchor should go, the merged line's earlier
+ * anchor should stay — so only the change set can separate them.
+ *
+ * `touchesRange` is the obvious tool and the wrong one. Its `'cover'` verdict is
+ * strict on both sides (`pos < from && end > to`), and deleting a line produces
+ * a change that starts *at* the anchor's own `from`, so it answers `true` like
+ * any ordinary edit. What actually distinguishes the two is whether the line's
+ * span survived: map its start forward and its end backward, and if they meet,
+ * every character the anchor described is gone.
+ *
+ * The `to > from` guard is for an anchor on an empty line, whose span is a point
+ * and would otherwise always look collapsed. Those are left to `MapMode.TrackDel`.
+ */
+function dropErasedAnchors(
+	anchors: RangeSet<AnchorValue>,
+	changes: ChangeDesc
+): RangeSet<AnchorValue> {
+	const survivors: Range<AnchorValue>[] = [];
+	const cursor = anchors.iter();
+	while (cursor.value) {
+		const erased =
+			cursor.to > cursor.from && changes.mapPos(cursor.from, 1) >= changes.mapPos(cursor.to, -1);
+		if (!erased) survivors.push(cursor.value.range(cursor.from, cursor.to));
+		cursor.next();
+	}
+	return RangeSet.of(survivors, true);
+}
+
+/**
+ * Re-seat every anchor on the line it now covers, one anchor per line.
+ *
+ * Mapping keeps an anchor with its text but not necessarily flush with the
+ * line's bounds, and it cannot prevent two anchors arriving on one line — press
+ * backspace at the start of a line and two of them merge along with the text.
+ * Where that happens the earlier time wins, because the merged line begins with
+ * the earlier line's words and that is the moment its audio starts.
+ */
+function normalize(state: EditorState, anchors: RangeSet<AnchorValue>): RangeSet<AnchorValue> {
+	const times = new Map<number, number>();
+	const cursor = anchors.iter();
+	while (cursor.value) {
+		const lineNumber = state.doc.lineAt(cursor.from).number;
+		const existing = times.get(lineNumber);
+		if (existing === undefined || cursor.value.time < existing) {
+			times.set(lineNumber, cursor.value.time);
+		}
+		cursor.next();
+	}
+	return rangesForLines(state, times);
+}
+
+/** The anchor whose line contains `pos`, if there is one. */
+function anchorOnLine(
+	state: EditorState,
+	anchors: RangeSet<AnchorValue>,
+	pos: number
+): { from: number; time: number } | undefined {
+	const line = state.doc.lineAt(pos);
+	let found: { from: number; time: number } | undefined;
+	anchors.between(line.from, line.to, (from, _to, value) => {
+		found = { from, time: value.time };
+		return false;
+	});
+	return found;
+}
+
+function withAnchor(
+	state: EditorState,
+	anchors: RangeSet<AnchorValue>,
+	pos: number,
+	time: number,
+	overwrite: boolean
+): RangeSet<AnchorValue> {
+	const line = state.doc.lineAt(pos);
+	const existing = anchorOnLine(state, anchors, pos);
+	if (existing && !overwrite) return anchors;
+	return anchors.update({
+		filter: (from) => from !== (existing?.from ?? -1),
+		add: [new AnchorValue(time).range(line.from, line.to)],
+		sort: true
+	});
+}
+
+/**
+ * Which anchor the playhead is inside.
+ *
+ * An anchor owns the audio from its own time until the next anchor's, so this
+ * is the last anchor at or before the playhead — not the nearest one, which
+ * would jump the marker forward halfway through a line.
+ */
+function currentAnchorFrom(
+	anchors: RangeSet<AnchorValue>,
+	playhead: number | undefined
+): number | undefined {
+	if (playhead === undefined) return undefined;
+	let best: { from: number; time: number } | undefined;
+	const cursor = anchors.iter();
+	while (cursor.value) {
+		if (cursor.value.time <= playhead && (!best || cursor.value.time >= best.time)) {
+			best = { from: cursor.from, time: cursor.value.time };
+		}
+		cursor.next();
+	}
+	return best?.from;
+}
+
+function derive(anchors: RangeSet<AnchorValue>, playhead: number | undefined): LineAnchorState {
+	return { anchors, playhead, currentFrom: currentAnchorFrom(anchors, playhead) };
+}
+
+export const lineAnchorField = StateField.define<LineAnchorState>({
+	create: () => derive(RangeSet.empty, undefined),
+	update(value, transaction) {
+		let anchors = transaction.docChanged
+			? normalize(
+					transaction.state,
+					dropErasedAnchors(value.anchors, transaction.changes).map(transaction.changes)
+				)
+			: value.anchors;
+		let playhead = value.playhead;
+
+		for (const effect of transaction.effects) {
+			if (effect.is(setLineAnchorsEffect)) {
+				anchors = anchorsFromLines(transaction.state, effect.value);
+			} else if (effect.is(anchorLineEffect)) {
+				anchors = withAnchor(
+					transaction.state,
+					anchors,
+					Math.min(effect.value.pos, transaction.state.doc.length),
+					effect.value.time,
+					effect.value.overwrite
+				);
+			} else if (effect.is(clearLineAnchorEffect)) {
+				const existing = anchorOnLine(
+					transaction.state,
+					anchors,
+					Math.min(effect.value.pos, transaction.state.doc.length)
+				);
+				if (existing) {
+					anchors = anchors.update({ filter: (from) => from !== existing.from });
+				}
+			} else if (effect.is(setPlayheadEffect)) {
+				playhead = effect.value;
+			}
+		}
+
+		if (anchors === value.anchors && playhead === value.playhead) return value;
+		return derive(anchors, playhead);
+	}
+});
+
+/** Whether there is audio behind this document at all. */
+export function hasAudio(state: EditorState): boolean {
+	return state.field(lineAnchorField, false)?.playhead !== undefined;
+}
+
+/** Every anchor, as line numbers, ready to be written down. */
+export function lineAnchorsFor(state: EditorState): LineAnchor[] {
+	const field = state.field(lineAnchorField, false);
+	if (!field) return [];
+	const anchors: LineAnchor[] = [];
+	const cursor = field.anchors.iter();
+	while (cursor.value) {
+		anchors.push({ line: state.doc.lineAt(cursor.from).number, time: cursor.value.time });
+		cursor.next();
+	}
+	return anchors;
+}
+
+/** The time anchored to the line containing `pos`, if any. */
+export function anchorTimeAt(state: EditorState, pos: number): number | undefined {
+	const field = state.field(lineAnchorField, false);
+	if (!field) return undefined;
+	return anchorOnLine(state, field.anchors, pos)?.time;
+}
+
+/** Whether the line containing `pos` already carries an anchor. */
+export function hasAnchorAt(state: EditorState, pos: number): boolean {
+	return anchorTimeAt(state, pos) !== undefined;
+}
+
+export interface LineAnchorOptions {
+	/**
+	 * Seek the audio. Called only from a press on a timestamp — never from a caret
+	 * move, a click in the text, or a selection.
+	 */
+	onSeek(time: number): void;
+	/**
+	 * The moment the audio is at, or undefined when nothing is attached.
+	 *
+	 * Read on every typed transaction, so it must be cheap and must never throw.
+	 */
+	currentTime(): number | undefined;
+	/**
+	 * The set of anchors changed, so the shell can write them down.
+	 *
+	 * Most ways an anchor is set change no text: sync mode holds the document
+	 * read-only, and `Ctrl-Alt-M` and this column's own control move nothing. A
+	 * shell that saved only on a document change would therefore lose every
+	 * anchor that was not a side effect of typing, which is nearly all of them.
+	 */
+	onAnchorsChanged?(): void;
+}
+
+/**
+ * Stamp the line being typed with the moment it was typed at.
+ *
+ * This is the whole feature, and it has to be automatic: nobody transcribing a
+ * song will press a key per line to record something they are not thinking
+ * about, so an anchor set only by hand is an anchor that never exists. It is
+ * safe to do silently because of what it does *not* do — it writes a number
+ * beside a line and draws a dot. It moves no text, no caret, and no audio.
+ *
+ * Three guards keep it from being the other kind of automatic:
+ *
+ * It rides in the user's own transaction rather than a later one of its own, so
+ * one undo takes the anchor with the typing that caused it and the history never
+ * grows a step nobody performed.
+ *
+ * **It fires on `input.type` and nothing else, and the precision matters.** It
+ * was `input` once, and `Transaction.isUserEvent` matches by prefix — so
+ * `input.atomic`, which is what `transaction-adapter.ts` annotates every
+ * programmatic edit with, counted as typing. Applying a linter fix stamped the
+ * line it repaired; so did a bulk fix, loading the sample, and pasting into an
+ * empty draft. A user who attached audio and then accepted a few suggestions got
+ * a column of anchors at wherever the playhead happened to be sitting, usually
+ * 0:00. `input.type` is the one CodeMirror uses for typed characters, and IME
+ * composition (`input.type.compose`) still matches it by the same prefix rule.
+ * Paste is deliberately out: a pasted lyric was not transcribed in time.
+ *
+ * **And never at zero.** A line anchored to 0:00 by a machine is almost always an
+ * artifact of audio that is attached but has never been moved, and it is the
+ * worst kind of wrong — it looks like data and it sends the user to the start of
+ * the song. The true first line is rare and can be set by hand. Deliberate stamps
+ * are free to write zero; only the automatic one is held to this.
+ *
+ * A *paused* playhead is fine and is not filtered: the loop this exists for is
+ * listen, pause, type, so the position the tape stopped at is exactly where the
+ * line being typed was heard.
+ *
+ * And it never overwrites (`overwrite: false`), so returning to a finished line
+ * to fix a typo half an hour later leaves that line's time exactly where it was.
+ */
+function autoStamp(options: LineAnchorOptions): Extension {
+	return EditorState.transactionExtender.of((transaction) => {
+		if (!transaction.docChanged || !transaction.isUserEvent('input.type')) return null;
+		if (transaction.effects.some((effect) => effect.is(setLineAnchorsEffect))) return null;
+		const time = options.currentTime();
+		if (time === undefined || !Number.isFinite(time) || time <= 0) return null;
+		return {
+			effects: anchorLineEffect.of({
+				pos: transaction.newSelection.main.head,
+				time,
+				overwrite: false
+			})
+		};
+	});
+}
+
+/**
+ * The timestamp column, on the far side of the text.
+ *
+ * It is the whole of what line anchoring draws. There was a dot in a left gutter
+ * before this, and it lost on both counts: the left side already carries line
+ * numbers and the performer voice bars, so a third lane crowded it, and a dot
+ * says only *that* a line is anchored — never to when. A column of times says
+ * both, and it is where the eye already goes to check timings.
+ *
+ * It draws whenever audio is attached, anchors or not, because an empty cell that
+ * offers a control on hover is how anyone discovers that lines can be anchored at
+ * all. With no audio there is nothing to anchor to, and the column goes entirely.
+ *
+ * Nothing here scrolls, focuses, or moves the selection. A press on a timestamp
+ * moves the audio and only the audio: clicking a line is how a caret is placed
+ * and is the most frequent gesture in the editor, so seeking lives in the gutter
+ * where no ordinary click can reach it.
+ */
+export function lineAnchors(options: LineAnchorOptions): Extension {
+	return [
+		lineAnchorField,
+		autoStamp(options),
+		// A class on the editor rather than a reconfigured gutter: attachment flips
+		// rarely and a compartment swap would rebuild the gutter's DOM, while a
+		// class costs one attribute and lets CSS collapse the column.
+		EditorView.editorAttributes.of((view) =>
+			hasAudio(view.state) ? { class: 'll-has-audio' } : null
+		),
+		// Which line numbers are pressable. Gated on there being audio at all, so
+		// the cursor never promises a seek a draft with no song cannot perform.
+		lineNumberMarkers.compute([lineAnchorField], (state) => {
+			const field = state.field(lineAnchorField);
+			if (field.playhead === undefined) return RangeSet.empty;
+			const marks: Range<GutterMarker>[] = [];
+			const cursor = field.anchors.iter();
+			while (cursor.value) {
+				marks.push(seekableLineMarker.range(cursor.from));
+				cursor.next();
+			}
+			return RangeSet.of(marks, true);
+		}),
+		EditorView.updateListener.of((update) => {
+			// A document change already reaches the shell as a snapshot, and that is
+			// what schedules its save; anchors merely mapped along with the text need
+			// no second word about it.
+			if (update.docChanged) return;
+			// A restore is the draft being read back, not a change worth writing. Left
+			// in, opening a draft would schedule a save of what had just been loaded.
+			const restoring = update.transactions.some((transaction) =>
+				transaction.effects.some((effect) => effect.is(setLineAnchorsEffect))
+			);
+			if (restoring) return;
+			if (
+				update.startState.field(lineAnchorField).anchors !==
+				update.state.field(lineAnchorField).anchors
+			) {
+				options.onAnchorsChanged?.();
+			}
+		}),
+		gutter({
+			class: 'll-time-gutter',
+			side: 'after',
+			// `lineMarker` rather than a marker `RangeSet`, because every line gets a
+			// cell — an unanchored one is an empty slot holding the column's width
+			// and offering the control that fills it.
+			lineMarker: (view, line) => {
+				const field = view.state.field(lineAnchorField);
+				if (field.playhead === undefined) return null;
+				const found = anchorOnLine(view.state, field.anchors, line.from);
+				return new TimeGutterMarker(found?.time, found?.from === field.currentFrom);
+			},
+			// The playhead arrives several times a second and almost never crosses an
+			// anchor. Keying the rebuild on `currentFrom` rather than on the time is
+			// the difference between a rebuild per tick and a rebuild per line.
+			lineMarkerChange: (update) => {
+				const before = update.startState.field(lineAnchorField);
+				const after = update.state.field(lineAnchorField);
+				return (
+					before.anchors !== after.anchors ||
+					before.currentFrom !== after.currentFrom ||
+					(before.playhead === undefined) !== (after.playhead === undefined)
+				);
+			},
+			// No `initialSpacer`. The column's width is a constant in the theme, so a
+			// spacer reserves nothing CSS has not already reserved — and it is a real
+			// marker, drawn with its own controls, in the gutter of a document that
+			// may have no anchors at all.
+			domEventHandlers: {
+				mousedown: (view, line, event) => {
+					const target = event.target as HTMLElement | null;
+
+					const seek = target?.closest<HTMLElement>('[data-anchor-seek]');
+					if (seek) {
+						// The press must not reach CodeMirror, which would otherwise move
+						// the caret to this line for a gesture that was about the audio.
+						event.preventDefault();
+						options.onSeek(Number(seek.dataset.anchorSeek));
+						return true;
+					}
+
+					if (!target?.closest('[data-anchor-stamp]')) return false;
+					const time = options.currentTime();
+					if (time === undefined || !Number.isFinite(time)) return false;
+					event.preventDefault();
+					// Deliberate, so it overwrites: this is the pointer's `Ctrl-Alt-M`,
+					// and correcting a wrong time is most of what it is for.
+					view.dispatch({
+						effects: anchorLineEffect.of({ pos: line.from, time, overwrite: true })
+					});
+					return true;
+				}
+			}
+		})
+	];
+}
+
+export const lineAnchorTheme = EditorView.baseTheme({
+	// Collapsed until there is a song. `display: none` rather than a zero width,
+	// so the column contributes nothing to the content's measure either.
+	'.cm-editor:not(.ll-has-audio) .ll-time-gutter': {
+		display: 'none'
+	},
+	'.ll-time-gutter .cm-gutterElement': {
+		display: 'flex',
+		// The width every row reserves, in `ch` against the gutter's own mono font:
+		// four for `m:ss` and the rest for the control beside it. It is the same on
+		// an empty row as on an anchored one, so anchoring a song never moves a
+		// single wrap point in the document.
+		minWidth: 'calc(4ch + var(--space-5))',
+		padding: 'var(--space-0-5) var(--space-2) 0',
+		gap: 'var(--space-1)',
+		alignItems: 'center',
+		justifyContent: 'flex-end'
+	},
+	'.ll-time-value': {
+		padding: '0',
+		border: 'none',
+		background: 'transparent',
+		color: 'var(--color-text-muted)',
+		font: 'inherit',
+		fontVariantNumeric: 'tabular-nums',
+		cursor: 'pointer'
+	},
+	'.ll-time-value:disabled': {
+		cursor: 'default'
+	},
+	// The placeholder is a step quieter than a real time, so a synced document
+	// reads as times with gaps rather than as two kinds of mark competing.
+	'.ll-time-value--empty': {
+		color: 'var(--color-text-disabled)'
+	},
+	'.ll-time-value:hover:not(:disabled)': {
+		color: 'var(--color-text)'
+	},
+	// Where the audio is. The one cell in the column that is not muted, so the
+	// answer to "where am I in the song" is read off the same rail as the times.
+	'.ll-time-value--current': {
+		color: 'var(--color-accent)'
+	},
+	// Hidden rather than transparent, and `visibility` rather than `opacity`:
+	// opacity is never a state carrier here, and `visibility: hidden` keeps the
+	// slot's width so revealing the control moves nothing.
+	'.ll-time-stamp': {
+		display: 'flex',
+		visibility: 'hidden',
+		padding: '0',
+		border: 'none',
+		background: 'transparent',
+		color: 'var(--color-text-muted)',
+		cursor: 'pointer'
+	},
+	// Three ways it shows, and the first is the one that makes it findable: the
+	// caret's own line always offers it. Hover alone meant the control existed only
+	// where the pointer happened to already be, which is nowhere until you know to
+	// look — a control discovered by hovering a blank column is a control nobody
+	// discovers. `highlightActiveLineGutter` is what puts the class here.
+	'.cm-activeLineGutter .ll-time-stamp': {
+		visibility: 'visible'
+	},
+	'.ll-time-cell:hover .ll-time-stamp': {
+		visibility: 'visible'
+	},
+	'.ll-time-stamp:hover': {
+		color: 'var(--color-text)'
+	},
+	// The gutter's own active-line wash is turned off: the row is already marked
+	// in the content by `.cm-activeLine`, and a second band starting at the text's
+	// edge would draw the row as two pieces.
+	'.cm-activeLineGutter': {
+		backgroundColor: 'transparent'
+	},
+	// Only the line numbers that will actually play something. An untimed line is
+	// left exactly as it was, so the cursor is the whole of the distinction.
+	'.cm-lineNumbers .ll-line-seek': {
+		cursor: 'pointer'
+	},
+	'.cm-lineNumbers .ll-line-seek:hover': {
+		color: 'var(--color-text)'
+	},
+	'.ll-time-cell': {
+		display: 'flex',
+		width: '100%',
+		gap: 'var(--space-1)',
+		alignItems: 'center',
+		justifyContent: 'space-between'
+	}
+});

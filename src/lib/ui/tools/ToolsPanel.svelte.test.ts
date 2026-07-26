@@ -29,3 +29,46 @@ describe('ToolsPanel destructive confirm', () => {
 		expect(screen.getByRole('button', { name: 'Delete all local data…' })).toBeTruthy();
 	});
 });
+
+/*
+ * The panel is meant to be skimmed, and these pin the two rules that make it
+ * skimmable rather than the wording of any one line.
+ *
+ * Attaching audio is deliberately absent: it moved to the status bar's picker,
+ * whose own tests cover it. Re-adding an audio control here is the drift these
+ * assertions exist to catch — a third action in `Document` would put the row
+ * back to wrapping, which is how the panel got messy the first time.
+ */
+describe('ToolsPanel skimmability', () => {
+	afterEach(cleanup);
+
+	test('gives each section a heading over at most two things, and Document one row of actions', () => {
+		const { controller } = createTestWorkbench();
+		const { container } = render(ToolsPanel, { controller });
+
+		expect([...container.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual([
+			'Document',
+			'Reviewed rules',
+			'Local data'
+		]);
+
+		const documentActions = container.querySelector('section .tool-actions');
+		expect(
+			[...(documentActions?.querySelectorAll('button') ?? [])].map((b) => b.textContent?.trim())
+		).toEqual(['Copy lyrics', 'Export .txt']);
+	});
+
+	test('says nothing about audio, and makes the local-data claim exactly once', () => {
+		const { controller } = createTestWorkbench();
+		const { container } = render(ToolsPanel, { controller });
+
+		expect(screen.queryByRole('button', { name: /audio/iu })).toBeNull();
+		expect(screen.queryByRole('button', { name: /YouTube/iu })).toBeNull();
+		expect(screen.queryByLabelText('YouTube link')).toBeNull();
+
+		// The trailing sentence that used to hang outside every section is gone,
+		// folded into `Local data` with the rest of the story.
+		expect(container.querySelector('.offline-note')).toBeNull();
+		expect(container.querySelectorAll('.panel-content > p')).toHaveLength(0);
+	});
+});

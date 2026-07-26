@@ -4,7 +4,7 @@ import { diagnostic, hasUnsupportedMarkup, replacementFix } from './utils.js';
 
 export const spellingStandardizedRule: RuleDefinition = {
 	id: 'spelling.standardized',
-	version: 2,
+	version: 3,
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-SPELLING'],
@@ -28,10 +28,12 @@ export const spellingStandardizedRule: RuleDefinition = {
 								: `Use “${candidate.replacement}” instead of “${candidate.found}”.`,
 							candidate.safe
 								? 'The reviewed Genius spelling guide recommends this form.'
-								: candidate.contextGate === 'cousin-meaning'
-									? `“${candidate.found}” can also mean “cousin,” so check the lyric before replacing it.`
-									: `This spelling can have another meaning, so check the lyric before replacing it.`,
-							candidate.safe || candidate.contextGate === 'cousin-meaning'
+								: candidate.fuzzy
+									? 'This is one character away from a reviewed Genius spelling. Check the lyric before replacing it.'
+									: candidate.contextGate === 'cousin-meaning'
+										? `“${candidate.found}” can also mean “cousin,” so check the lyric before replacing it.`
+										: `This spelling can have another meaning, so check the lyric before replacing it.`,
+							candidate.safe || candidate.fuzzy || candidate.contextGate === 'cousin-meaning'
 								? [
 										replacementFix(
 											context,

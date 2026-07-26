@@ -70,8 +70,8 @@ Canonical implementation: `.small-screen-notice` in `src/lib/ui/styles/responsiv
 The document toolbar spans the whole window, above both columns — the draft's name, its save
 state, and the commands that act on the whole document belong to the window, not to the editor
 half of it. The right panel's tab strip hangs directly under it, at `--panel-tabs-height` rather
-than the toolbar's `--header-height`. Toolbar, tab strip, ignored-rules footer, and status bar
-are all `--color-chrome`; the scrolling content between them is not.
+than the toolbar's `--header-height`. Toolbar, tab strip, ignored-rules footer, video band, and
+status bar are all `--color-chrome`; the scrolling content between them is not.
 
 **The toolbar splits on what a control acts on, not on how loud it is.** The left is the identity
 strip — the brand, the draft's name, and the plus that starts another one, which acts on no
@@ -369,6 +369,540 @@ Implementation: `src/lib/ui/primitives/RemoveButton.svelte` (the shared confirm)
 performer roster); `src/lib/ui/drafts/draft-date.ts` for the dates; what each surface adds on top in
 `overlays.css`, `linter.css`, and `performers.css`; and the persistence rule in
 `draft-store.svelte.ts` and `persistence/recovery.ts`.
+
+### The audio is a transport, and it is never at rest
+
+Nobody opens LyricLint to listen to music. The loop is listen, pause, type, back up, replay, so the
+control that matters is the one nobody looks at — and most of the value is in two defaults and three
+keys rather than in anything on screen.
+
+**The strip is the second row of `.editor-region`, not a row of the workspace grid.** A workspace
+row would run under both columns and shorten the right panel, whose linter pane is a full-height
+column with its recent drafts pinned to the foot. Hanging it under the document alone is also the
+honest reading: it controls what the document is transcribed from, not the window. The row is
+`auto`, so it costs nothing until a file is attached, and it is `--color-chrome` like the toolbar
+above it and the status bar below — the bulk-fix strip's lesson, that a row drawn as bare canvas
+between two surfaces merges with whichever one it touches.
+
+It was not made a fourth panel tab, and the reason generalizes: tabs are exclusive, so a Media tab
+would make the user choose between seeing diagnostics and controlling audio during the one activity
+where both are live.
+
+**Nothing draws while there is nothing to control.** No empty transport, no `Load audio` in the
+toolbar competing with its one contrast action.
+
+**Attaching is one control in the status bar, and it opens one question.** It sat in the tools panel
+first, which meant three tabs away from the document and, worse, split across two commands —
+`Attach audio…` and `Use a YouTube video…` — so the user had to know which kind of answer they had
+before they could start. There is one trigger now (`MediaPicker.svelte`), it lives in the row the
+transport itself appears directly above, and the two ways to answer sit side by side inside a modal.
+It is the one control in the status bar and therefore the one exception to that row being a readout:
+its slot never moves and only its label follows the state, `Add audio` to `Change audio`, because a
+control that vanished once audio was attached would take the only way to swap tracks with it.
+
+The modal is a modal because attaching is a detour — nothing else in the workbench is worth doing
+until it is answered or abandoned — and neither answer inside it is boxed. The dialog is already the
+surface; a border around each option would be two cards inside the card the reader is looking at,
+and the hairline between them is a separator, which is a different thing. Once a file is attached,
+the strip is where it is operated.
+
+**Each answer is a control and a line of facts, and YouTube is the first of them.** It opened as two
+headings over two paragraphs — a hundred words of grey to read before either press, the longer of
+them explaining what YouTube costs — so a dialog offering two ways to start a job read as a warning
+about doing it at all. The facts are the same facts, in the meta idiom the diagnostic card
+established: interpuncts, muted, small, under the control they qualify. A requirement stated as a
+specification reads as a specification; the same requirement spelled out in sentences reads as an
+apology for the button under it. YouTube leads because it is where most transcribers' audio already
+is, and the header lost its rule and its display size with the rest — a band of chrome over four
+lines of content is the boundary separating nothing that `A card has to earn its border` is about.
+
+**`Ctrl-Alt-J`, `K`, `L` — back three seconds, play/pause, forward three.** The shape every video
+editor uses, and the modifier is not a matter of taste. Everything simpler is taken: `Mod-L` is the
+address bar, `Mod-Shift-J` and `Mod-Alt-J` open DevTools, and `Ctrl-K` alone is CodeMirror's own
+delete-to-end-of-line on Mac. Bare `Alt-J` is out because Option+J types a character on macOS, so
+the key never arrives as the letter anything would match on — the same fact that makes CodeMirror
+refuse an Alt-letter binding there (`@codemirror/view`: _"Alt-combinations on macOS tend to be typed
+characters"_). The function row is worse still: on a stock Mac, F8 _is_ play/pause.
+
+**The triad is bound to the window, not to the editor**, and that is a correction. It began as a
+CodeMirror keymap, which meant it answered only while the caret was in the document — so the moment
+the user stepped out to read a finding, aim the scrubber, or rename the draft, the tape could not be
+stopped. That is the wrong half of the loop to serve: the pause is wanted _most_ at those moments.
+`bindTransportShortcuts` in `src/lib/ui/state/media-shortcuts.ts` listens in the capture phase and
+the editor no longer knows these keys exist, because two implementations of one keystroke would
+double every nudge the moment CodeMirror let the event bubble. `keyboard-commands.svelte.test.ts`
+now asserts the opposite of what it used to: that the triad reaches the window from inside the
+editor, `defaultPrevented === false`, with the document and the caret untouched.
+
+Three things that listener owes its keystroke:
+
+- **It matches `Ctrl-Alt` and no superset of it.** `Ctrl-Alt-Shift-K` is a different keystroke, and
+  a handler answering to supersets of its own binding swallows one somebody else had a use for.
+- **It matches the _physical_ key** (`event.code`), because the argument for J K L is physical —
+  three keys beside one another with pause in the middle. `event.key` is the fallback for synthetic
+  events that carry a character and no code.
+- **It prevents nothing it did not handle.** No audio attached means nothing to control, and a
+  control that is not on screen must not eat a key press. A held nudge repeats, because that is a
+  scrub worth having; a held pause does not, or the track starts and stops dozens of times a second
+  and settles wherever the last repeat landed.
+
+**That refusal applies to every Alt-letter binding, and two of the workbench's own were broken by
+it.** `Alt-p` (assign performers) had never once fired on a Mac, silently, with no test covering it;
+and `F8`/`Shift-F8` (diagnostic navigation) collide with the media row described above — a latent
+annoyance that got sharper the moment this app grew a transport of its own. Both now have `Ctrl-Alt`
+primaries — `Ctrl-Alt-P`, and `Ctrl-Alt-.`/`Ctrl-Alt-,` — with the old keys kept as aliases for the
+platforms they always worked on. `.` and `,` are adjacent and sit in the same place on US and Nordic
+layouts, unlike `/` or the brackets, which are Option combos on a Norwegian Mac; `.` already means
+"diagnostic" here through `Mod-.`.
+
+Worth knowing before trusting a green suite: `userEvent` reports `key='p'` for `Alt-p`, so CodeMirror
+matches by name and never reaches the base-key fallback it refuses. **The alias tests pin the
+binding's existence, not the macOS failure** — that one is reproducible only on real hardware.
+
+**Two defaults do more work than the keys.** A resume backs up two seconds, because the words either
+side of a pause are the ones hardest to place and a resume that starts where the ear stopped means
+rewinding by hand nearly every time. And `preservesPitch` is on, because every rate below 1 is
+unusable without it and those are the rates a transcriber actually reaches for. The run-in is
+cancelled by any deliberate placement — a nudge or a scrub — or back-3 followed by resume moves five
+seconds and the two controls stop being separately predictable.
+
+**The song is the draft, so the audio and its playhead belong to the draft, not the session.** Both
+are stored, and neither is stored on `DraftRecord`: a `FileSystemFileHandle` is structured
+cloneable but not JSON, and `exportDraft` and `copyDraft` walk that record field by field. They live
+in a `mediaHandles` table of their own (`database.ts` `version(2)`), and `delete` and `deleteAll`
+clear it inside their own transactions — a guarantee kept by every call site remembering to make a
+second call is one that will eventually be broken, and the tools panel promises this one in prose.
+
+**Bytes are never stored.** A 60MB file per draft would spend the origin's whole quota on one song.
+What is kept is a handle, a name, and a number.
+
+Three things the restore depends on:
+
+- **The draft the page boots with never travels through `onDraftLoaded`** — that hook fires on a
+  _switch_ — so `createWorkbenchController` calls `openFor` for the initial draft itself. Without it
+  a reload came back to a workbench with no audio and no sign there had been any.
+- **A restored position is held, not assigned.** `currentTime` does not stick until the browser has
+  read the file's metadata, so the seek waits for `loadedmetadata`/`durationchange`. It is shown
+  immediately all the same, so a reopened draft says where it left off before the decoder is ready.
+- **A reload is not a user gesture**, so a stored handle usually needs one before the browser will
+  hand the bytes back. The strip's other state is that question: `Reconnect sensommer.mp3`, naming
+  the file in the control rather than in a sentence beside it. Where `queryPermission` already
+  answers `granted`, the track simply returns.
+
+Writes are throttled to one every five seconds while audio runs, and bypass the throttle on a pause,
+an ending, and a nudge. The flush that runs as the tab hides reads `player.liveTime()` — the
+element's own playhead — because `currentTime` is a `timeupdate`-fed mirror, near enough for a
+readout and up to a tick stale for the one write that has no second chance. A position is written
+against `ownerDraftId`, the draft the loaded audio belongs to, never the draft that happens to be
+open: switching drafts mid-playback would otherwise stamp the outgoing track's playhead onto the
+incoming draft.
+
+Implementation: `src/lib/ui/state/media-player.svelte.ts` (the transport and its arithmetic),
+`media-store.svelte.ts` (attachment, permission, and the durable position),
+`src/lib/ui/media/MediaStrip.svelte`, `src/lib/ui/styles/media.css`, and
+`src/lib/persistence/media-repository.ts`. `media-test-audio.ts` is the stub both test files drive —
+a real `<audio>` rejects `play()` on a synthetic object URL and ignores `currentTime` until metadata
+arrives, so what is under test is the transport's arithmetic rather than the browser's.
+
+### An anchor is written by typing and read by pressing, and neither one moves the other
+
+Line anchoring ties a lyric line to the moment in the audio it was transcribed from. It is the one
+feature here with a real capacity to make the editor unusable, because it couples two things that
+are each moving under the user's hands — so the whole design is three rules about what it may not
+do:
+
+- **The audio never moves the document** — outside sync mode, which is the one exception and is
+  described below. No auto-scroll, no follow mode, no caret motion. The playhead arrives several
+  times a second and marks exactly one cell of the timestamp column. A document that moves under
+  someone typing into it is the fastest way to ruin a transcription tool, and the temptation to add
+  "just a gentle scroll" is why this is written down.
+- **The document never moves the audio unless the gesture meant only that.** Clicking a line is how
+  a caret is placed and is the most frequent gesture in the editor, so a click that also seeked
+  would be intolerable. Seeking happens from a press on a timestamp, from a press on an anchored
+  line's _number_, and from `Ctrl-Alt-Enter` — and from nothing else. The two gutter paths are safe
+  for one reason and it is worth stating: a gutter sits outside `.cm-content`, so a press there
+  never places a caret, which is exactly what disqualifies the text. `line-anchoring.svelte.test.ts`
+  asserts that clicking an anchored line's text and arrowing across anchored lines both seek
+  nothing.
+- **Nothing automatic ever overwrites something deliberate.** The automatic stamp passes
+  `overwrite: false`, so returning to a finished line to fix a typo half an hour later leaves that
+  line's time where it was. `Ctrl-Alt-M`, the column's own control, and sync mode are the three
+  things that replace an anchor, and all three are a press the user aimed.
+
+**The stamp has to be automatic, and it is safe because of what it does not do.** Nobody
+transcribing a song will press a key per line to record something they are not thinking about, so an
+anchor set only by hand is an anchor that never exists. It rides in the user's own transaction
+through a `transactionExtender` rather than a later one of its own, so the history never grows a step
+nobody performed.
+
+**It fires on `isUserEvent('input.type')`, and the precision is the whole point.** It was `input`
+once, and `Transaction.isUserEvent` matches by _prefix_ — so `input.atomic`, which
+`transaction-adapter.ts` annotates every programmatic edit with, counted as typing. Applying a
+linter fix stamped the line it repaired; so did a bulk fix, loading the sample, and pasting into an
+empty draft. Attach audio, accept a few suggestions, and the column filled with anchors at whatever
+the playhead was sitting on. `input.type` is what CodeMirror uses for typed characters, and IME
+composition (`input.type.compose`) still matches it under the same prefix rule. Paste is
+deliberately out: a pasted lyric was not transcribed in time.
+
+**And never at zero.** A line anchored to 0:00 by a machine is almost always audio that is attached
+and has never been moved, and it is the worst kind of wrong — it looks like data and it sends the
+reader to the start of the song. The true first line is rare and can be set by hand. Only the
+automatic stamp is held to this; every deliberate one may write zero.
+
+A _paused_ playhead is fine and is deliberately not filtered. The loop this feature exists for is
+listen, pause, type, so the position the tape stopped at is exactly where the line being typed was
+heard — gating the stamp on playback would break the primary workflow to fix a symptom that belongs
+to the two rules above.
+
+**An anchor is a range over the line's text, not a point at its start**, and that distinction cost
+two bugs' worth of learning:
+
+- A point at `line.from` sits on the _boundary_ of the deletion that removes the line, and a boundary
+  is not inside anything — so deleting a line left its anchor behind to share the next line with
+  that line's own anchor, and a jump went to whichever came first.
+- `ChangeDesc.touchesRange` is the obvious way to detect the erasure and the wrong one. Its `'cover'`
+  verdict is strict on both sides (`pos < from && end > to`), so deleting a line — a change starting
+  exactly at the anchor's `from` — answers `true` like any ordinary edit. What separates the cases is
+  whether the span survived: map the start forward, map the end backward, and if they meet, every
+  character the anchor described is gone.
+
+That distinction is load-bearing because deleting a line and merging two lines produce _identical_
+end states — two anchors on one line — and want opposite answers. Where a merge really happened the
+earlier time wins, because the merged line begins with the earlier line's words.
+
+**Anchors live on the draft, not beside the attached audio**, because an anchor describes a _line_:
+it is written by typing, it moves when the text moves, and it is saved by the same autosave that
+saves the words. That also means a duplicated draft keeps them and detaching the audio does not throw
+away work still correct for the same song.
+
+**Three hand-written copiers stand between a draft and the disk, and every one lists the fields it
+keeps.** `copySnapshot` in `persistence/autosave.ts`, and `copyDraft` and `createRecord` in
+`persistence/draft-repository.ts`. A field added to `DraftRecord` and missed by any of them is
+dropped in silence — which is what happened to `lineAnchors`: the autosave stripped it on the way
+past, so a whole synced song was gone on reload while the editor, the controller and the repository
+all looked correct, and two other real bugs were fixed in front of it before anyone looked here.
+**Adding a field to `DraftRecord` means adding it to all three.** `persistence.test.ts` populates
+every optional field and asserts the record comes back whole, so the next omission fails there
+rather than in somebody's lost work.
+
+**Setting an anchor has to schedule its own save, because almost none of them change the text.**
+`draft.scheduleSave()` runs from `onSnapshot`, and only when the document actually changed — so for
+a while a whole synced song was lost on reload. Sync mode holds the document read-only; `Ctrl-Alt-M`
+and the timestamp column's own control move nothing. The only anchors that survived were the ones
+the automatic stamp happened to write alongside a keystroke, which is the one case that _does_ come
+with a document change. The path is `onAnchorsChanged` on the extension →
+`onLineAnchorsChanged` on the contract → `controller.onLineAnchorsChanged()`, and it deliberately
+stays quiet for two kinds of update: a document change, which the snapshot already covers, and a
+transaction carrying `setLineAnchorsEffect`, which is the draft being read back rather than
+changed.
+
+Restoring them has one trap. Opening a draft **remounts the keyed editor**, so the handle in scope
+when the draft loads is the outgoing one and anything dispatched into it dies with it. The anchors
+are held in `pendingLineAnchors` and applied from `setEditorHandle`, when the replacement publishes
+itself — the same hand-off `retryFixPreview` already waits for.
+
+**`?.` is wrong for a one-shot hand-off, and it cost every reload's timings.** The page builds the
+controller on a _headless_ placeholder handle — no document, and none of the optional anchor methods
+— and CodeMirror publishes a real one only after it mounts. That placeholder is therefore the first
+thing `setEditorHandle` ever sees, so `handle.setLineAnchors?.(pending)` dropped a whole synced song
+into a no-op and cleared the pending list on the way past. The capability is **checked** now, not
+optionally called: there is no second chance to deliver this, and an optional call cannot tell
+"delivered" from "silently discarded".
+
+The same window has a second edge, and it is guarded the same way: `bindings.lineAnchors` falls back
+to `pendingLineAnchors` rather than to `[]`, because a save landing before the editor mounts — a
+rename is enough — would otherwise write an empty list over the draft's own timings. `workbench.test.ts`
+pins both halves, and both fail if either guard is relaxed.
+
+Implementation: `src/lib/editor/extensions/line-anchors.ts` (the field, the mapping, the column, the
+auto-stamp), the two commands in `keymap.ts`,
+`getLineAnchors`/`setLineAnchors`/`setMediaPlayhead`/`setLyricSync` on `EditorHandle`, and
+`onRequestMediaTime`/`onSeekMedia`/`onLyricSyncChange` in `contracts.ts` — which, like every other
+hook, must also be added to **`createCallbackProxy` in `create-editor.ts`**, an explicit allow-list
+where a missing callback looks exactly like a feature that silently does nothing.
+
+### The anchors are a column on the far side of the text
+
+Anchoring used to draw a dot in a left gutter, and that lost on both counts. The left side already
+carries line numbers and the performer voice bars, so a third lane crowded it; and a dot says only
+_that_ a line is anchored, never to when. The column on the right says both, and it is where the eye
+already goes to check timings.
+
+A cell is a time and one control. **The time is the play control** — a visible timestamp is the most
+obvious thing in the world to press to hear that moment, so it needs no glyph, and a separate play
+button would be a second control for the gesture the pointer is already on. **The glyph beside it is
+one control for the write, not two**: stamping an empty line and correcting a stamped one are the
+same command with the same effect, and the line's own state says which, so a pin and a pencil in
+adjacent slots would be two buttons for one press.
+
+Four things that arrangement depends on:
+
+- **It draws whenever audio is attached, anchors or not**, and it does not wait for a first anchor
+  the way the transport waits for a first file. With no audio the column goes entirely —
+  `.cm-editor:not(.ll-has-audio)` sets `display: none`, which also keeps it out of the landing
+  page's demo editor. The signal is `setMediaPlayhead(undefined)`, so a shell that wires
+  `onRequestMediaTime` and never pushes a playhead gets no column.
+- **An untimed line draws a dash, and its control shows at rest on the caret's line.** Both of
+  those are corrections. Drawn as a blank cell with a control on hover, the column was invisible:
+  nothing on screen said the rail existed, what it held, or that a line could be timed, so the
+  whole feature read as absent until the pointer happened to cross the one cell that answered — a
+  control discovered by hovering a blank column is a control nobody discovers. A dash is the
+  quietest mark that says "a value goes here and is not set yet", which is exactly true, and
+  `.cm-activeLineGutter` (from `highlightActiveLineGutter`, already in the extension list) puts the
+  stamp control beside the line the user just clicked into. The gutter's own active-line wash is
+  turned off, because `.cm-activeLine` already marks the row and a second band starting at the
+  text's edge would draw one row as two pieces.
+- **Every row reserves the same width**, `calc(4ch + var(--space-5))` — four characters for `m:ss`
+  and the rest for the control. An empty row reserves it too, so anchoring a song never moves a
+  single wrap point in the document, and the hover control is `visibility: hidden` rather than
+  removed for the same reason. (`visibility`, not `opacity`: opacity is never a state carrier here.)
+- **The marked cell is the last anchor at or before the playhead**, not the nearest, or the accent
+  jumps to the next line halfway through the current one. `lineMarkerChange` is keyed on
+  `currentFrom` rather than on the time, so a tick that stays inside one line costs one transaction
+  and no rebuild.
+- **No `initialSpacer`.** The column's width is a constant in the theme, so a spacer reserves
+  nothing CSS has not already reserved.
+
+**The line number is the second way to play a line.** It is a wider, always-drawn target than four
+characters of muted time, on the side of the document the eye already uses to find a line — and
+CodeMirror binds nothing to the line-number gutter itself, so there was nothing to displace. Two
+things it depends on:
+
+- **Only anchored line numbers get the pointer cursor**, and a press on an untimed one returns
+  false so nothing is claimed. An affordance that works on some rows and silently not on others is
+  worse than no affordance at all.
+- **The marker carries `elementClass` and deliberately no `toDOM`.** `lineNumbers` drops its own
+  number for any line whose markers include one that draws (`others.some(m => m.toDOM)`), so a
+  marker with a body would replace the line number rather than decorate it. It rides the
+  `lineNumberMarkers` facet rather than `gutterLineClass`, because the latter classes the matching
+  element in _every_ gutter — the timestamp cell and the performer bar included — for a fact that
+  is only about this one.
+
+**Everything in the column is a pointer affordance and says so.** CodeMirror sets
+`aria-hidden="true"` on the whole `.cm-gutters` container and a descendant cannot opt back in, so
+nothing in any gutter is reachable by assistive technology. Nothing here carries an `aria-label` — a
+name nothing can read is a claim to accessibility rather than the thing itself — and nothing is
+focusable, both because a focusable control inside an `aria-hidden` subtree is a real violation and
+because a hundred anchored lines would be two hundred tab stops before the first word. The
+equivalent paths are `Ctrl-Alt-Enter`, `Ctrl-Alt-M`, and sync mode, all of which announce what they
+did. **Do not give a gutter control an accessible name and call it done.**
+
+The escape hatch — line-decoration widgets at the end of each line, which _would_ be in the
+accessible tree — is disqualified rather than unconsidered. A widget in the content flow
+participates in selection and copy, and clean lyrics on the clipboard are this application's entire
+output. A timestamp in somebody's paste is the worst bug it could ship.
+
+### Sync mode is the one place the audio moves the document
+
+Automatic stamping only ever anchors lines typed _while_ the audio runs, so a draft pasted in from
+somewhere else has nothing — which is most drafts. Sync mode is how one gets timed: press play, tap
+a key at the start of each line, and the caret walks down the document ahead of you.
+
+**It is a mode, and that is what makes the key cheap.** The whole value is one key hit in rhythm
+without thinking about it, which rules out a chord; and a bare `Space` is only free if the document
+is not taking typing. So entering sets `EditorState.readOnly` — which blocks document changes only,
+leaving the caret free to walk and the anchor effects free to land — and every way out is loud:
+`Escape`, the strip's own control, and running off the end of the document.
+
+**No `preventDefault: true` on any of the sync bindings.** That option prevents the default even
+when the command returns _false_, so it swallows the space bar, backspace and the up arrow in an
+editor that is not syncing, which is to say almost always. Returning true already prevents the
+default, and returning false is exactly the case that must not. This cost a green suite once.
+
+**Its control is the one bordered thing in the strip, and it earned the step up.** Set quiet, it
+was a word in the same muted type as the readouts either side of it, in the shortest row in the
+window — the entry point to a whole mode, indistinguishable from the track's name, and unfindable
+even by the person who designed it. Everything else in that row is a transport glyph the user
+already knows how to look for or a number they read; this is the only thing there that _starts_
+something, so it is the only thing there drawn as a command. Bordered rather than contrast: the
+tier above belongs to a surface's primary action, and the primary thing this row does is play and
+pause.
+
+The rest is five decisions:
+
+- **The caret and the tape begin in the same place, and a half-timed song picks up where it was
+  left.** A run is one pass over the document against one pass of the audio, so starting the tape at
+  0:00 and the caret at whichever line was last clicked would time the wrong lines from the first
+  press. `runStart` decides where that is and the shell learns the matching moment through
+  `onLyricSyncChange(active, startAt)` — the editor's answer, because the anchors are the editor's.
+
+  A part-timed song resumes on the **last line that already has a time**, `armed`, so the first tap
+  advances onto the first untimed line exactly as any other tap would. Landing directly on the
+  untimed line would mean tapping its opening syllable from a standing start; a whole line of run-up
+  is what makes the rhythm findable again. A song with nothing timed and a song timed all the way
+  through both start over from the top — the second is the only sensible reading of pressing sync on
+  finished work, since there is nothing to resume.
+
+  Correcting one line afterwards is what the column's own control and `Ctrl-Alt-M` are for.
+
+- **Blank lines and section headers are skipped**, through the parser's own `isSectionHeaderLine`
+  rather than a regex of the editor's. A header sits in the gap before its verse, so a tap spent on
+  it would land at the exact moment the verse's first line starts and put every anchor in that
+  section one line out. It is also why the run starts on the first _stampable_ line rather than
+  line 1 — the top of a lyric is usually a header.
+- **The caret lands on the line that was just timed, not on the one coming next.** A tap is a claim
+  about the line starting _now_, so the row that lights up has to be the row whose time just
+  changed — that is the whole of the feedback for the press, and read on the following line it is
+  feedback about the wrong thing. It is also what the user is doing between taps: reading along
+  with the line they are hearing, checking the words against the music. So the advance is deferred
+  to the front of the _next_ tap, which is exactly when it stops being wrong, and `armed` on the
+  sync field is what tells a run's first tap on a line from its second. Timing the last line ends
+  the run there rather than on a further press, because a press that only stopped the mode would be
+  a press the user made expecting to time something.
+- **`Backspace` and `ArrowUp` undo the last tap.** Without a way back one fumbled tap means
+  restarting the run, because every later press lands on the wrong line. It clears the line it
+  leaves rather than merely stepping off it, so that line is genuinely un-timed and the next tap
+  writes it fresh — and it goes back to the previous line, which is still timed and therefore still
+  `armed`. This is the only caller of `clearLineAnchorEffect`.
+- **Every tap is written `tapOffsetSeconds` early** (120ms). Human taps land late, and without the
+  offset jumping to a line starts just after its first syllable — the annoying direction, because
+  the word you came back to check is the one you miss.
+- **The stamp and the advance are one transaction.** One press has to be one undo, and `readOnly`
+  does not stand in the way of putting a selection change and an effect in the same dispatch.
+- **The document follows the run, at a reading line a third from the top — and not before the caret
+  gets there.** Far enough down that the lines already timed stay readable above it, high enough
+  that the two thirds below show what is coming, which is what the user reads ahead into while
+  waiting for the next line. A run starts at the top of the lyric, where the first lines are
+  naturally above that point, so scrolling on the first tap would throw the page down to reposition
+  a line the user could already see. `holdReadingLine` therefore leaves the document alone while the
+  caret descends and only starts moving at the moment the caret would otherwise go past — and pulls
+  back a caret that has gone _above_ the viewport, which is what makes `Backspace` land somewhere
+  visible.
+
+  It sets `scrollTop` rather than passing `scrollIntoView`, because CodeMirror's own scroll is a
+  nearest-edge nudge with no notion of a fixed reading position, and it is instant rather than
+  smooth, because a smooth scroll started on every tap would still be animating when the next
+  arrived. Worth knowing before trusting a test here: **near the top of the document the browser
+  clamps a premature scroll away at zero**, so an assertion that nothing moved on the first taps
+  passes with or without the guard. The one that bites is stepping back once the document is already
+  scrolled — without the guard that hauls the page up to re-centre a row already in plain view.
+
+The editor owns the mode and the shell reacts (`onLyricSyncChange`), which is what keeps the tape
+and the mode from disagreeing: `Escape` and the end of the document both end a run without the shell
+being asked, and both arrive through that one hook. The shell answers by playing or pausing, and by
+focusing the editor on entry — the tap is a keystroke, so a run cannot start with focus in the
+button that started it.
+
+Implementation: `src/lib/editor/extensions/lyric-sync.ts`, the control in `MediaStrip.svelte`, and
+the wiring in `Workspace.svelte`.
+
+### YouTube is a second source behind the same transport, and it is asked for every session
+
+Transcribers' audio is usually on YouTube, so it is the source most of them actually have. It is also
+the only thing in this application that contacts a third party, and both facts have to stay true at
+once.
+
+**One transport, two sources.** `MediaPlayer` holds a `MediaSource` — `time`, `duration`, `rates`,
+`play/pause/seek/setRate/clear/destroy`, reporting upward through events — and every rule worth
+having is written once against that interface: the two-second resume rewind, the clamp to both ends,
+nudge and scrub cancelling the run-in, `liveTime()`, the `'progress' | 'settled'` reasons. A source
+reports; it never decides. The evidence the abstraction did not disturb the default is that
+`media-player.test.ts` needed no changes at all.
+
+**The source hides the async gap; the transport must never learn about it.** The media element is
+synchronous and the IFrame API is a postMessage bridge, so `createYouTubeSource` records the target
+of a `seekTo` and reports _that_ from `time` until the player agrees. Without it, back-3-then-resume
+moves five seconds, and there is a test pinning exactly that against a stub with read latency.
+`getCurrentTime` is a poll rather than an event, so it runs at 250ms while playing and stops on
+pause, end, clear and destroy — a poll that outlives its player is a leak that costs battery on a
+page nobody is looking at.
+
+**The opt-in is per session and deliberately not persisted.** A stored "yes" would load Google's
+script on a page nobody has touched, which is the thing the consent exists to prevent. So a
+remembered video comes back as a pending source waiting on a press, exactly as a file handle waits on
+a gesture. `loadYouTubeApi()` is the whole network surface and nothing calls it at module scope. The
+host is `youtube-nocookie.com`. The sentence stating the trade is prose in the Tools panel, not a
+tinted warning box, and it says the two things that are actually true: Google sees which video is
+being transcribed, and that draft stops working offline.
+
+**Offering a rate that will not apply is worse than offering fewer.** `playbackRates` is now the
+_offer_; `MediaPlayer.availableRates` is that list intersected with what the source says it can do,
+and the strip renders the latter. The offer stands until the source contradicts it, because
+collapsing to one option and growing back is worse than either. `preservesPitch` has no YouTube
+counterpart — the player pitch-corrects itself and exposes no control — so there is nothing to set
+and that is documented rather than faked.
+
+**No schema bump.** `source?: 'file' | 'youtube'` and `videoId?` are unindexed, so the live
+`version(2)` `mediaHandles` table takes them without a migration, and **absence reads as `'file'`** —
+which is what keeps every record written before YouTube existed working. That is why the discriminant
+is optional rather than required.
+
+**The video cannot be a hidden iframe**: YouTube's embed terms require a visible player, minimum
+200×200. That minimum is `px` and not `rem` — the one place in the system where a literal length is
+right, because a rem shrinks below a third party's stated floor on a smaller root font.
+
+**It draws at the foot of the right panel, not in the editor column.** It began above the strip,
+on the reasoning that the picture and the controls under it are one band; what that missed is that
+they are used differently. The transport is operated constantly — three keys, a scrubber — and
+belongs under the document because it controls what the document is transcribed from. The picture
+is only looked at, and two hundred pixels of it taken off the editor is two hundred pixels off the
+thing being typed into, where the same two hundred off a scrolling list of findings costs a scroll.
+
+Three things that placement depends on:
+
+- **It is the panel's _last_ band, under the ignored-rules footer rather than over it**, and the
+  order is by scope: the pane, then the chrome belonging to that one pane, then the chrome
+  belonging to the window. A picture that survives every tab switch cannot sit above a bar that
+  exists only inside the linter, or changing tabs would move it.
+- **It is outside the panes**, so a tab switch does not destroy and rebuild the iframe — which is a
+  black flash and a lost playhead every time. `RightPanel.svelte.test.ts` pins the element's
+  identity across a switch.
+- **The frame takes the panel's width and holds 200px as a floor.** At 21rem the panel is narrower
+  than the 356px a 200px-tall 16:9 box wants, so `min-height` overrides `aspect-ratio` and the
+  picture is pillarboxed by a few pixels. A couple of pixels of black beside the video costs
+  nothing; a frame 189px tall is a term broken quietly.
+
+Implementation: `src/lib/ui/state/media-youtube.ts`, `MediaVideo.svelte`, and the stub in
+`media-test-youtube.ts`, which is what makes "nothing has contacted Google" an assertion rather than
+a hope — its load count is the number of times the real loader would have injected a script tag.
+
+### Audio arrives by drop, and the drop that is not audio is not ours
+
+Dragging an audio file onto the document attaches it. The rule that matters is the negative one:
+CodeMirror has its own drop handling that inserts dropped text at the drop position, and that must
+keep working exactly as it did. So the handler `preventDefault()`s **only** when it is actually
+taking the file — unconditionally preventing on `dragover` is what breaks native text drop — and the
+shell returning false hands the event straight back to CodeMirror.
+
+Detection happens on `dragover`, where the browser withholds the file's name and exposes only
+`kind` and `type`, so an empty `type` counts as a candidate (some browsers report nothing for
+`.flac` and `.opus`) and the extension is only checkable on `drop`. `dragleave` ignores a
+`relatedTarget` still inside `contentDOM`, or crossing between lines blinks the affordance.
+
+The affordance is an inset outline on the editor's own edge, because the thing that will take the
+file is the whole document — a tinted sheet or a "Drop here" box would be a card inside the editor
+saying what an edge already says.
+
+Implementation: `audioFileDrop` in `src/lib/editor/create-editor.ts`, `onAudioFileDropped` in
+`contracts.ts`, and `src/lib/editor/audio-drop.svelte.test.ts`, which asserts both halves of the
+regression: dragover is not `defaultPrevented` for text, and dropped text still reaches the document.
+
+### A panel section is a heading over at most two things
+
+The tools tab stopped being skimmable the ordinary way: nothing in it was wrong on its own. Its
+`Document` section had grown to four actions, which wrapped into a ragged two-by-two of mixed tiers,
+and the privacy story was told three separate times — once about audio under those buttons, once
+under `Local data`, and once more in a trailing sentence with no heading over it at all. Every part
+was defensible; the panel was a wall of grey.
+
+Two rules came out of the repair:
+
+- **A section's actions fit on one row.** Two is what fits at this panel's width, so a third has to
+  displace something or live somewhere else. That is what moved attaching audio to the status bar
+  rather than shortening its label to squeeze it in — the constraint is a forcing function for
+  putting a command where it belongs, not a licence to abbreviate. `Export current draft (.txt)`
+  also lost two words, because the toolbar names the draft two rows above it.
+- **A claim is made once, where the reader is deciding.** Everything local is said under
+  `Local data`; what YouTube costs is said in the picker, beside the press that spends it. A warning
+  met an hour before the decision is a warning already forgotten, and the same warning in two places
+  reads as two different warnings.
+
+The trailing `.offline-note` went with this, and its CSS hook went with it: a selector for markup
+nothing renders is the same drift as a fallback color for a token nothing defines.
+
+`ToolsPanel.svelte.test.ts` asserts the heading list, the single action row, and the _absence_ of any
+audio control — re-adding one here is the specific regression that made the panel messy the first
+time.
 
 ### Every transient surface dismisses on an outside press
 

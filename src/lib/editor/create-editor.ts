@@ -1,5 +1,11 @@
 import { redo as redoCommand, history, undo as undoCommand } from '@codemirror/commands';
-import { EditorSelection, EditorState, Transaction } from '@codemirror/state';
+import {
+	EditorSelection,
+	EditorState,
+	StateEffect,
+	StateField,
+	Transaction
+} from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
 import {
 	dropCursor,
@@ -37,6 +43,15 @@ import {
 	headerRenameSessionField
 } from './extensions/header-rename.js';
 import { legendCleanupFilter } from './extensions/legend-cleanup.js';
+import {
+	anchorSeekOnLineNumber,
+	lineAnchors,
+	lineAnchorTheme,
+	lineAnchorsFor,
+	setLineAnchorsEffect,
+	setPlayheadEffect
+} from './extensions/line-anchors.js';
+import { lyricSync, lyricSyncTheme, setLyricSync } from './extensions/lyric-sync.js';
 import { invisibleMarks, invisibleMarksTheme } from './extensions/invisible-marks.js';
 import { markupDimField, markupDimTheme } from './extensions/markup-dim.js';
 import {
@@ -156,6 +171,21 @@ const editorTheme = EditorView.theme({
 	// show where focus is, and a full-height outline dominates the workspace.
 	'&.cm-focused': {
 		outline: 'none'
+	},
+	// The one time this editor draws a ring around itself. The focus ring was
+	// dropped because a full-height outline dominates the workspace — which is
+	// the property wanted here and nowhere else: what will take the file is the
+	// whole document, not a well inside it, and a drag lasts a second. So the
+	// affordance is the surface's own edge answering, rather than a tinted sheet
+	// over the lyrics or a "Drop here" box drawn on top of them. It is the ring
+	// width the system already uses to say "this is what your next act lands on",
+	// inset so the scroll host cannot clip it.
+	//
+	// `&.cm-editor` and not the bare `&`, because `&.cm-focused` above is the
+	// same specificity and would otherwise decide this by source order.
+	'&.cm-editor.ll-audio-drop': {
+		outline: 'var(--focus-ring-width) solid var(--color-accent)',
+		outlineOffset: 'calc(-1 * var(--focus-ring-width))'
 	},
 	'.cm-scroller': {
 		fontFamily: 'inherit',
@@ -294,6 +324,125 @@ function prepareInitialSelection(
 	};
 }
 
+/*
+ * Dropping the song onto the lyrics it belongs to is what an expert reaches for
+ * instead of hunting for a control in a panel. The editor therefore learns one
+ * thing about audio — what a drag carrying it looks like — and hands the file
+ * straight out through `onAudioFileDropped`.
+ *
+ * Everything here is written so the drops that already worked keep working. A
+ * selection dragged inside the document, a `.txt` read in at the caret, a URL:
+ * CodeMirror handles all three, and it only gets to if this never claims an
+ * event it is not handling. `preventDefault` on `dragover` is the trap — called
+ * unconditionally it makes the editor the drop target for everything, so it is
+ * called only once the drag has been recognized as audio.
+ */
+const audioFileExtensions = ['.mp3', '.m4a', '.aac', '.wav', '.flac', '.ogg', '.opus', '.webm'];
+
+function namedAsAudio(name: string): boolean {
+	const lowered = name.toLowerCase();
+	return audioFileExtensions.some((extension) => lowered.endsWith(extension));
+}
+
+function isAudioFile(file: File): boolean {
+	// The extension is a fallback, not decoration: browsers report an empty type
+	// for `.flac` and `.opus` often enough that a type-only test would refuse two
+	// of the formats a transcriber is most likely to be handed.
+	return file.type.startsWith('audio/') || namedAsAudio(file.name);
+}
+
+/**
+ * Whether a drag still in flight is carrying audio.
+ *
+ * Mid-drag the browser withholds the bytes and the names — `items` reports
+ * `kind` and `type` and nothing else — so this is the type test with the empty
+ * type allowed through, and it is deliberately the optimistic half of the pair.
+ * The affordance may light for a file whose type the browser would not name;
+ * the drop, which can read the name, is where that is settled, and a drop this
+ * declined falls through to CodeMirror exactly as an unrecognized one does.
+ */
+function dragCarriesAudio(transfer: DataTransfer | null): boolean {
+	if (!transfer) return false;
+	const items = transfer.items;
+	if (items && items.length > 0) {
+		for (let index = 0; index < items.length; index += 1) {
+			const item = items[index];
+			// `kind === 'string'` is a selection being dragged within the document
+			// or text arriving from another window, and neither is ours.
+			if (item.kind === 'file' && (item.type === '' || item.type.startsWith('audio/'))) {
+				return true;
+			}
+		}
+		return false;
+	}
+	// No items at all: an older browser, or a test dispatching a bare event. The
+	// file list is usually empty until the drop, but when it is populated it is
+	// better evidence than nothing.
+	return [...transfer.files].some(isAudioFile);
+}
+
+const setAudioDropEffect = StateEffect.define<boolean>();
+
+/** Whether audio is hovering over the document at this moment. */
+const audioDropField = StateField.define<boolean>({
+	create: () => false,
+	update(active, transaction) {
+		for (const effect of transaction.effects) {
+			if (effect.is(setAudioDropEffect)) active = effect.value;
+		}
+		return active;
+	}
+});
+
+/** Dispatch only on a change: `dragover` fires continuously while the pointer moves. */
+function setAudioDrop(view: EditorView, active: boolean): void {
+	if (view.state.field(audioDropField) === active) return;
+	view.dispatch({
+		effects: setAudioDropEffect.of(active),
+		annotations: Transaction.addToHistory.of(false)
+	});
+}
+
+function audioFileDrop(callbacks: LyricEditorCallbacks): Extension {
+	return [
+		audioDropField,
+		EditorView.editorAttributes.compute([audioDropField], (state): Record<string, string> =>
+			state.field(audioDropField) ? { class: 'll-audio-drop' } : {}
+		),
+		EditorView.domEventHandlers({
+			dragover(event, view) {
+				if (!dragCarriesAudio(event.dataTransfer)) return false;
+				// The file is copied into the draft, not moved out of wherever the
+				// user dragged it from.
+				if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+				setAudioDrop(view, true);
+				event.preventDefault();
+				return true;
+			},
+			dragleave(event, view) {
+				// A drag crossing from one line to the next leaves a child of the
+				// content and enters another, and the affordance may not blink for
+				// that. A null `relatedTarget` is the drag leaving the window, or
+				// being cancelled, which is a real departure.
+				const entered = event.relatedTarget;
+				if (entered instanceof Node && view.contentDOM.contains(entered)) return false;
+				setAudioDrop(view, false);
+				return false;
+			},
+			drop(event, view) {
+				setAudioDrop(view, false);
+				const dropped = event.dataTransfer ? [...event.dataTransfer.files] : [];
+				const audio = dropped.find(isAudioFile);
+				// Nothing audible in it, or a shell with nowhere to put it: hand the
+				// event back untouched so CodeMirror's own drop runs as before.
+				if (!audio || !callbacks.onAudioFileDropped?.(audio)) return false;
+				event.preventDefault();
+				return true;
+			}
+		})
+	];
+}
+
 function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEditorCallbacks {
 	return {
 		onSnapshot: (snapshot) => read().onSnapshot(snapshot),
@@ -309,7 +458,19 @@ function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEditorCallb
 				callbacks.onDiagnosticActivate(diagnostic);
 			}
 		},
-		onDiagnosticDismiss: () => read().onDiagnosticDismiss?.() ?? false
+		onDiagnosticDismiss: () => read().onDiagnosticDismiss?.() ?? false,
+		// This object is an explicit allow-list: a hook declared on the contract and
+		// left out of here is never called, with nothing to see at either end.
+		// `false` when the shell offers none, so the drop falls through to
+		// CodeMirror instead of disappearing.
+		onAudioFileDropped: (file) => read().onAudioFileDropped?.(file) ?? false,
+		// Same allow-list, same trap. The anchor pair is read on every typed
+		// transaction and on every press of a gutter marker, so a callback missing
+		// from here would look exactly like a feature that silently does nothing.
+		onRequestMediaTime: () => read().onRequestMediaTime?.(),
+		onSeekMedia: (time) => read().onSeekMedia?.(time),
+		onLyricSyncChange: (active, startAt) => read().onLyricSyncChange?.(active, startAt),
+		onLineAnchorsChanged: () => read().onLineAnchorsChanged?.()
 	};
 }
 
@@ -348,7 +509,18 @@ export function createLyricEditor(
 
 	const extensions: Extension[] = [
 		history(),
-		lineNumbers(),
+		// The line number is a wider, always-drawn target than four characters of
+		// muted time, on the side of the document the eye already uses to find a
+		// line. It answers only where there is a time to play; see
+		// `anchorSeekOnLineNumber`.
+		lineNumbers({
+			domEventHandlers: {
+				mousedown: anchorSeekOnLineNumber({
+					onSeek: (time) => callbackProxy.onSeekMedia?.(time),
+					currentTime: () => callbackProxy.onRequestMediaTime?.()
+				})
+			}
+		}),
 		performerGutter(),
 		// Replaces a bare `highlightSpecialChars()`: same control-character
 		// handling, plus the invisible characters `text.invisible-characters`
@@ -409,6 +581,19 @@ export function createLyricEditor(
 		documentPlaceholderTheme,
 		editorTheme,
 		...(options.autoHeight ? [autoHeightTheme] : []),
+		audioFileDrop(callbackProxy),
+		lineAnchors({
+			onSeek: (time) => callbackProxy.onSeekMedia?.(time),
+			currentTime: () => callbackProxy.onRequestMediaTime?.(),
+			onAnchorsChanged: () => callbackProxy.onLineAnchorsChanged?.()
+		}),
+		lineAnchorTheme,
+		lyricSync({
+			currentTime: () => callbackProxy.onRequestMediaTime?.(),
+			onChange: (active, startAt) => callbackProxy.onLyricSyncChange?.(active, startAt),
+			announce: (message) => callbackProxy.onAnnouncement(message)
+		}),
+		lyricSyncTheme,
 		keymap.of(lyricLintKeymap(callbackProxy, options.keymapOverrides)),
 		selectionAnchorPlugin(
 			(anchor) => options.onSelectionAnchor?.(anchor),
@@ -531,6 +716,28 @@ export function createLyricEditor(
 		},
 		requestSectionHeader() {
 			requestSectionHeader(view, callbackProxy);
+		},
+		getLineAnchors() {
+			return lineAnchorsFor(view.state);
+		},
+		setLineAnchors(anchors) {
+			view.dispatch({
+				effects: setLineAnchorsEffect.of(anchors),
+				annotations: Transaction.addToHistory.of(false)
+			});
+		},
+		setMediaPlayhead(time) {
+			// Cheap on purpose: this arrives several times a second for the length
+			// of a song. The field returns its own previous value when the marked
+			// anchor has not changed, so the common tick costs one transaction and
+			// no re-render.
+			view.dispatch({
+				effects: setPlayheadEffect.of(time),
+				annotations: Transaction.addToHistory.of(false)
+			});
+		},
+		setLyricSync(active) {
+			setLyricSync(view, active);
 		}
 	};
 

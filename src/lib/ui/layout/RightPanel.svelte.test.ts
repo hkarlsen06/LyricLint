@@ -5,6 +5,11 @@ import LiveRegion from '../primitives/LiveRegion.svelte';
 import ToastRegion from '../primitives/ToastRegion.svelte';
 import type { DraftRecord } from '$lib/core/types.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
+import { createFeedbackState } from '../state/feedback.svelte.js';
+import { createInMemoryMediaRepository } from '../state/in-memory.js';
+import { createMediaPlayer } from '../state/media-player.svelte.js';
+import { StubAudio } from '../state/media-test-audio.js';
+import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import RightPanel from './RightPanel.svelte';
 
 function savedDraft(id: string, title: string, text = '[Verse]\nLine'): DraftRecord {
@@ -19,6 +24,31 @@ function savedDraft(id: string, title: string, text = '[Verse]\nLine'): DraftRec
 		ruleSetVersion: '2026.7',
 		editorSelection: { anchor: 0, head: 0 }
 	};
+}
+
+/**
+ * A workbench with audio, and nothing behind it: the API loader is a stub whose
+ * `loads` count is the number of times the real one would have injected a script
+ * tag, and the poll is a function this file would have to call.
+ */
+function withAudio(options: Parameters<typeof createTestWorkbench>[0] = {}) {
+	const feedback = createFeedbackState();
+	const youtube = createStubYouTubeApi();
+	const poll = createStubPoll();
+	const audio = new StubAudio();
+	const player = createMediaPlayer({
+		feedback,
+		createAudio: () => audio.asMediaElement(),
+		createObjectUrl: () => 'blob:test',
+		revokeObjectUrl: () => {},
+		loadYouTubeApi: youtube.load,
+		scheduleYouTubePoll: poll.schedule
+	});
+	const harness = createTestWorkbench({
+		...options,
+		media: { repository: createInMemoryMediaRepository([]), player }
+	});
+	return { ...harness, youtube };
 }
 
 describe('RightPanel', () => {
@@ -509,6 +539,59 @@ describe('RightPanel', () => {
 				'Every issue in this draft comes from a rule you ignored. Restore rules from Ignored rules below.'
 			)
 		).toBeTruthy();
+	});
+
+	// The video is the panel's last band: below the ignored-rules footer, which
+	// belongs to the linter alone, and directly above the workspace status bar.
+	// Ordering by scope is what keeps it still — a picture placed above a bar that
+	// only exists inside one tab would move whenever the user changed tabs.
+	test('hangs the video at the foot of the panel and pushes the ignored-rules bar up', async () => {
+		const finding = diagnostic({
+			ruleId: 'section.header-missing',
+			severity: 'warning',
+			message: 'Add a section header'
+		});
+		const { controller, youtube } = withAudio({ diagnostics: [finding] });
+		render(RightPanel, { controller });
+
+		// Nothing attached draws nothing, and nothing has been asked of Google.
+		expect(document.querySelector('.media-video')).toBeNull();
+		expect(youtube.loads).toBe(0);
+
+		await controller.media!.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
+		await waitFor(() => expect(document.querySelector('.media-video')).not.toBeNull());
+
+		const column = document.querySelector('.right-panel__tabs-root')!;
+		const video = document.querySelector('.media-video')!;
+		expect(column.lastElementChild).toBe(video);
+		// Chrome, like the tab strip at the other end of the column: `--color-canvas`
+		// is spent on the recessed selected diagnostic, so there is no third
+		// material for a band hanging outside the run of cards.
+		expect(getComputedStyle(video).backgroundColor).toBe(
+			getComputedStyle(document.querySelector('.right-panel__header')!).backgroundColor
+		);
+
+		// The footer arrives above it rather than under it.
+		controller.ignoreRule('section.header-missing');
+		await waitFor(() => expect(document.querySelector('.right-panel__footer')).not.toBeNull());
+		const footer = document.querySelector('.right-panel__footer')!;
+		expect(column.lastElementChild).toBe(video);
+		expect(footer.compareDocumentPosition(video) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+	});
+
+	// It is outside the panes on purpose. Inside one it would be destroyed and
+	// rebuilt on every tab switch — a black flash and a lost playhead each time.
+	test('keeps the same video element across a tab switch', async () => {
+		const { controller } = withAudio();
+		render(RightPanel, { controller });
+
+		await controller.media!.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
+		await waitFor(() => expect(document.querySelector('.media-video__frame')).not.toBeNull());
+		const frame = document.querySelector('.media-video__frame');
+
+		await fireEvent.click(screen.getByRole('tab', { name: 'Tools' }));
+		await waitFor(() => expect(controller.activeTab).toBe('tools'));
+		expect(document.querySelector('.media-video__frame')).toBe(frame);
 	});
 
 	test('ends a populated list deliberately and counts what the filters hide', async () => {

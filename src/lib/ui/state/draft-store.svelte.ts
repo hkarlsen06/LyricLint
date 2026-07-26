@@ -2,6 +2,7 @@ import type {
 	AutosaveController,
 	AutosaveStatus,
 	DraftRecord,
+	LineAnchor,
 	DraftRepository,
 	DraftSummary,
 	EditorSnapshot,
@@ -40,6 +41,8 @@ function prependRecentLanguage(languages: readonly string[], language: string): 
 export interface DraftStoreBindings {
 	readonly snapshot: EditorSnapshot;
 	readonly performers: readonly PerformerRecord[];
+	/** The editor's live anchors, saved with the text they describe. */
+	readonly lineAnchors: readonly LineAnchor[];
 	onDraftLoaded(draft: DraftRecord): void;
 }
 
@@ -112,6 +115,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			updatedAt: deps.now(),
 			ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,
 			editorSelection: { ...currentSnapshot.selection },
+			lineAnchors: bindings.lineAnchors.map((anchor) => ({ ...anchor })),
 			...(originalText === undefined ? {} : { originalText })
 		};
 	}

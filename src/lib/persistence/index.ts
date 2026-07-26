@@ -5,6 +5,8 @@ export {
 	openDatabase
 } from './database.js';
 export { createDraftRepository } from './draft-repository.js';
+export { createMediaRepository } from './media-repository.js';
+export type { MediaAttachInput, MediaRepository } from './media-repository.js';
 export { createAutosaveController } from './autosave.js';
 export { recoverStartupDraft } from './recovery.js';
 export { createSessionIgnoreStore } from './session-ignores.js';
@@ -18,6 +20,7 @@ export type {
 	DraftRecord,
 	DraftRepository,
 	DraftSummary,
+	MediaHandleRecord,
 	PerformerRecord,
 	SerializedSelection,
 	SessionIgnoreStore,

@@ -7,6 +7,7 @@ import lyricCases from '../../../fixtures/lyrics/cases.json';
 import { createAutosaveController } from './autosave.js';
 import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.js';
 import { createDraftRepository } from './draft-repository.js';
+import { createMediaRepository } from './media-repository.js';
 import { recoverStartupDraft } from './recovery.js';
 import { createSessionIgnoreStore } from './session-ignores.js';
 import type {
@@ -151,6 +152,104 @@ describe('draft repository', () => {
 		expect(await repository.getCurrent()).toBeUndefined();
 	});
 
+	// The tools panel promises "Delete all local data" leaves nothing behind, and
+	// attached audio is local data. The sweep belongs to the repository rather
+	// than to its callers: a guarantee kept by every call site remembering to make
+	// a second call is one that will eventually be broken.
+	it('takes attached audio with the draft it belongs to', async () => {
+		const { database, repository } = await createRepository('media-delete');
+		const media = createMediaRepository(database);
+		await repository.create({ id: 'draft-a', text: 'A' });
+		await repository.create({ id: 'draft-b', text: 'B' });
+		await media.attach({ draftId: 'draft-a', name: 'a.mp3' });
+		await media.attach({ draftId: 'draft-b', name: 'b.mp3' });
+
+		await repository.delete('draft-a');
+
+		expect(await media.get('draft-a')).toBeUndefined();
+		expect((await media.get('draft-b'))?.name).toBe('b.mp3');
+	});
+
+	it('deleteAll leaves no attached audio behind either', async () => {
+		const { database, repository } = await createRepository('media-delete-all');
+		const media = createMediaRepository(database);
+		await repository.create({ id: 'draft-a', text: 'A' });
+		await media.attach({ draftId: 'draft-a', name: 'a.mp3', size: 4096 });
+
+		await repository.deleteAll();
+
+		expect(await media.get('draft-a')).toBeUndefined();
+	});
+
+	it('remembers a track for a draft across sessions', async () => {
+		const name = databaseName('media-reopen');
+		const firstDatabase = await openDatabase(name);
+		openDatabases.add(firstDatabase);
+		await createMediaRepository(firstDatabase).attach({
+			draftId: 'draft-a',
+			name: 'sensommer.mp3',
+			size: 8_000_000
+		});
+		closeTestDatabase(firstDatabase);
+
+		const reopenedDatabase = await openDatabase(name);
+		openDatabases.add(reopenedDatabase);
+		const reopened = await createMediaRepository(reopenedDatabase).get('draft-a');
+
+		expect(reopened?.name).toBe('sensommer.mp3');
+		expect(reopened?.size).toBe(8_000_000);
+	});
+
+	// A video is a discriminant and an id where a file is a handle and a size, and
+	// both live in the same `version(2)` table. Neither field is indexed, so the
+	// live schema takes them without a migration — which is the whole reason the
+	// discriminant is optional rather than required.
+	it('remembers a video for a draft across sessions, beside the files', async () => {
+		const name = databaseName('media-video-reopen');
+		const firstDatabase = await openDatabase(name);
+		openDatabases.add(firstDatabase);
+		const media = createMediaRepository(firstDatabase);
+		await media.attach({ draftId: 'draft-a', name: 'a.mp3', size: 4096, source: 'file' });
+		await media.attach({
+			draftId: 'draft-b',
+			name: 'youtu.be/dQw4w9WgXcQ',
+			source: 'youtube',
+			videoId: 'dQw4w9WgXcQ',
+			position: 143
+		});
+		// The title arrives after the record does, and must not take the id with it.
+		await media.saveName('draft-b', 'Sensommer');
+		closeTestDatabase(firstDatabase);
+
+		const reopenedDatabase = await openDatabase(name);
+		openDatabases.add(reopenedDatabase);
+		const reopened = createMediaRepository(reopenedDatabase);
+
+		expect(await reopened.get('draft-a')).toMatchObject({ source: 'file', size: 4096 });
+		expect(await reopened.get('draft-b')).toMatchObject({
+			source: 'youtube',
+			videoId: 'dQw4w9WgXcQ',
+			name: 'Sensommer',
+			position: 143
+		});
+	});
+
+	it('deleteAll leaves no remembered video behind either', async () => {
+		const { database, repository } = await createRepository('media-video-delete-all');
+		const media = createMediaRepository(database);
+		await repository.create({ id: 'draft-a', text: 'A' });
+		await media.attach({
+			draftId: 'draft-a',
+			name: 'youtu.be/dQw4w9WgXcQ',
+			source: 'youtube',
+			videoId: 'dQw4w9WgXcQ'
+		});
+
+		await repository.deleteAll();
+
+		expect(await media.get('draft-a')).toBeUndefined();
+	});
+
 	it('persists a bounded, deduplicated recent-language history across sessions', async () => {
 		const name = databaseName('recent-languages');
 		const firstDatabase = await openDatabase(name);
@@ -206,6 +305,48 @@ describe('autosave and recovery', () => {
 		expect(new TextEncoder().encode(recovered?.text)).toEqual(
 			new TextEncoder().encode(fixture.input)
 		);
+	});
+
+	/*
+	 * Three separate hand-written copiers stand between a draft and the disk —
+	 * `copySnapshot` in the autosave, and `copyDraft` and `createRecord` in the
+	 * repository — and every one of them lists the fields it keeps. A field added
+	 * to `DraftRecord` and missed by any of them is dropped in silence: that is how
+	 * `lineAnchors` came to be stripped by the autosave, so a whole synced song was
+	 * gone on reload while every layer above it looked correct.
+	 *
+	 * This is the guard for the next one. It populates every optional field and
+	 * asserts the record comes back whole, so a copier that forgets one fails here
+	 * rather than in somebody's lost work.
+	 */
+	it('writes every field of a draft, including the ones only some copiers know about', async () => {
+		const name = databaseName('whole-record');
+		const database = await openDatabase(name);
+		openDatabases.add(database);
+		const repository = createDraftRepository(database);
+		const complete: DraftRecord = {
+			...draft({ id: 'whole-draft', text: '[Verse]\nFirst line\nSecond line' }),
+			originalText: '[Verse]\noriginal',
+			editorSelection: { anchor: 3, head: 7 },
+			lineAnchors: [
+				{ line: 2, time: 12.5 },
+				{ line: 3, time: 30 }
+			]
+		};
+		const autosave = createAutosaveController(repository, { debounceMs: 10 });
+
+		autosave.schedule({ revision: 1, draft: complete });
+		await autosave.flush();
+		closeTestDatabase(database);
+
+		const reopened = await openDatabase(name);
+		openDatabases.add(reopened);
+		const recovered = await createDraftRepository(reopened).get(complete.id);
+
+		expect(recovered).toEqual(complete);
+		// Named separately so a failure says which field went missing rather than
+		// printing two whole records side by side.
+		expect(Object.keys(recovered ?? {}).sort()).toEqual(Object.keys(complete).sort());
 	});
 
 	it('serializes writes so a slow older revision cannot overwrite the newest snapshot', async () => {

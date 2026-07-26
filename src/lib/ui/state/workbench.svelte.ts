@@ -8,6 +8,7 @@ import type {
 	DraftSummary,
 	EditorHandle,
 	EditorSnapshot,
+	LineAnchor,
 	PerformerRecord,
 	RuleSetManifest,
 	SessionIgnoreStore,
@@ -28,6 +29,10 @@ import type { RightPanelTab } from './panel-view.svelte.js';
 import { createPanelView } from './panel-view.svelte.js';
 import type { RosterMergeSuggestion } from './roster-store.svelte.js';
 import { createRosterStore } from './roster-store.svelte.js';
+import type { MediaRepository } from '$lib/persistence/media-repository.js';
+import type { MediaPlayer } from './media-player.svelte.js';
+import type { MediaStore } from './media-store.svelte.js';
+import { createMediaStore } from './media-store.svelte.js';
 
 export { performerColorIds } from './roster-store.svelte.js';
 export type { RosterMergeSuggestion } from './roster-store.svelte.js';
@@ -39,6 +44,15 @@ export interface WorkbenchDependencies {
 	initialDraft: DraftRecord;
 	initialRecentLanguages?: readonly string[];
 	repository: DraftRepository;
+	/** Omitted in tests and on the contract harness: the workbench runs without audio. */
+	mediaRepository?: MediaRepository;
+	/**
+	 * The transport the media store should drive, when it must not be the real
+	 * one. Only a test supplies this: the default player builds an `<audio>`
+	 * element and knows how to fetch Google's IFrame API, and a test asserting
+	 * that nothing has contacted Google needs a stub in that position.
+	 */
+	mediaPlayer?: MediaPlayer;
 	autosave: AutosaveController;
 	ignoreStore: SessionIgnoreStore;
 	feedback?: FeedbackState;
@@ -50,6 +64,8 @@ export interface WorkbenchDependencies {
 	idFactory?: () => string;
 	now?: () => string;
 	onOpenDraft?: (draft: DraftRecord) => EditorSnapshot | void;
+	initialActiveTab?: RightPanelTab;
+	onActiveTabChange?: (tab: RightPanelTab) => void;
 }
 
 export interface WorkbenchController {
@@ -90,6 +106,12 @@ export interface WorkbenchController {
 	readonly rosterSuggestions: readonly RosterMergeSuggestion[];
 	readonly unresolvedVoiceGroups: readonly VoiceGroup[];
 	/**
+	 * The audio this draft is transcribed from, or undefined in a build with no
+	 * media repository behind it. Surfaces read `media?.player.attached` rather
+	 * than deciding for themselves whether audio exists.
+	 */
+	readonly media?: MediaStore;
+	/**
 	 * Publish the editor handle bound by the workspace. Svelte clears a bound
 	 * component prop during keyed teardown, so the hand-off can briefly carry
 	 * `undefined` before the replacement editor publishes its handle.
@@ -97,6 +119,17 @@ export interface WorkbenchController {
 	setEditorHandle(handle: EditorHandle | undefined): void;
 	setSaveStatus(status: AutosaveStatus): void;
 	onSnapshot(snapshot: EditorSnapshot): void;
+	/**
+	 * A line anchor was written, corrected, or cleared.
+	 *
+	 * Anchors are saved with the draft, but most of the ways one is set change no
+	 * text at all — sync mode holds the document read-only, and `Ctrl-Alt-M` and
+	 * the timestamp column's own control move nothing. `onSnapshot` therefore
+	 * never hears about them, and for a while a whole synced song was lost on
+	 * reload because the only anchors that survived were the ones the automatic
+	 * stamp happened to write alongside a keystroke.
+	 */
+	onLineAnchorsChanged(): void;
 	setActiveTab(tab: RightPanelTab): void;
 	toggleSeverity(severity: Severity): void;
 	toggleSeverityFilters(): boolean;
@@ -172,6 +205,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		onBeforeReplace: () => panel.leadOnNextSnapshot()
 	});
 
+	// A loaded draft's anchors, waiting for an editor that can hold them. Declared
+	// ahead of `bindings` because the getter below falls back to it.
+	let pendingLineAnchors: readonly LineAnchor[] | undefined = deps.initialDraft.lineAnchors;
+
 	const draft = createDraftStore({
 		initialDraft: deps.initialDraft,
 		initialRecentLanguages: deps.initialRecentLanguages,
@@ -189,9 +226,27 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			get performers() {
 				return roster.performers;
 			},
+			get lineAnchors() {
+				// Falling back to the anchors still waiting rather than to nothing.
+				// The page boots with a headless handle that cannot answer this, and
+				// any save that landed in that window — a rename is enough — would
+				// write an empty list over the draft's own timings.
+				return editorSession.editor.getLineAnchors?.() ?? pendingLineAnchors ?? [];
+			},
 			onDraftLoaded(nextDraft) {
 				roster.reset(nextDraft.performers);
 				panel.refreshIgnoredRules();
+				// The song is the draft, so the audio travels with it: switching
+				// drafts stops whatever was playing and offers the new draft's own
+				// track. Deleting drafts arrives here too, by way of the empty draft
+				// that replaces them, which is what clears the strip.
+				void media?.openFor(nextDraft.id);
+				// Held rather than applied. Opening a draft remounts the keyed editor,
+				// so the handle reading this line is the outgoing one and anything
+				// dispatched into it dies with it. `setEditorHandle` applies them when
+				// the replacement publishes itself, which is the same hand-off the fix
+				// preview already waits for.
+				pendingLineAnchors = nextDraft.lineAnchors ?? [];
 				editorSession.resetRevisionGuard();
 				const openedSnapshot = deps.onOpenDraft?.(nextDraft);
 				if (openedSnapshot) {
@@ -209,12 +264,23 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		scheduleSave: draft.scheduleSave
 	});
 
+	const media = deps.mediaRepository
+		? createMediaStore({
+				repository: deps.mediaRepository,
+				feedback,
+				draftId: () => draft.draftId,
+				...(deps.mediaPlayer ? { player: deps.mediaPlayer } : {})
+			})
+		: undefined;
+
 	const panel = createPanelView({
 		editor: () => editorSession.editor,
 		snapshot: () => editorSession.snapshot,
 		draftId: () => draft.draftId,
 		ignoreStore: deps.ignoreStore,
-		feedback
+		feedback,
+		initialActiveTab: deps.initialActiveTab,
+		onActiveTabChange: deps.onActiveTabChange
 	});
 
 	const controller: WorkbenchController = {
@@ -296,6 +362,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get unresolvedVoiceGroups() {
 			return roster.unresolvedVoiceGroups;
 		},
+		get media() {
+			return media;
+		},
 		setEditorHandle(handle) {
 			// Keep the last usable handle through the keyed editor's teardown.
 			// Reactive diagnostic cleanup can still run during that hand-off, and
@@ -303,6 +372,18 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// editor capability such as `previewAtomic` unsafe to inspect.
 			if (!handle) return;
 			editorSession.setEditorHandle(handle);
+			// The anchors wait for a handle that can actually take them, and the
+			// capability is *checked* rather than optional-called. The first handle
+			// this ever sees is the page's headless placeholder — it holds no
+			// document and implements no anchors — so `handle.setLineAnchors?.(…)`
+			// dropped a whole song's timings into a no-op and then cleared the
+			// pending list, every reload, before CodeMirror had mounted. `?.` is safe
+			// for a fire-and-forget notification and wrong for a one-shot hand-off:
+			// there is no second chance to deliver this.
+			if (pendingLineAnchors && handle.setLineAnchors) {
+				handle.setLineAnchors(pendingLineAnchors);
+				pendingLineAnchors = undefined;
+			}
 			// The card that starts expanded asks for its preview before the real
 			// editor exists to draw it. Now that one does, show it.
 			panel.retryFixPreview();
@@ -317,6 +398,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			panel.leadAfterFix(nextSnapshot.diagnostics);
 			if (change.unchanged) return;
 			if (change.textDelta >= largePasteThreshold) roster.importFromSnapshot(nextSnapshot);
+			draft.scheduleSave();
+		},
+		onLineAnchorsChanged() {
 			draft.scheduleSave();
 		},
 		setActiveTab: panel.setActiveTab,
@@ -366,5 +450,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 
 	roster.importFromSnapshot(deps.initialSnapshot);
 	void controller.refreshDrafts();
+	// The draft the page boots with never travels through `onDraftLoaded` — that
+	// hook fires on a *switch* — so without this a reload came back to a workbench
+	// with no audio and no sign there had been any.
+	void media?.openFor(deps.initialDraft.id);
 	return controller;
 }

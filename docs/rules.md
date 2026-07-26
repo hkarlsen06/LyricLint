@@ -201,8 +201,12 @@ The linter also recognizes a curated set of unambiguous common misspellings of t
 targets. These are stored separately from the source's explicit alternates so provenance stays
 clear. Examples include `ey` → `ayy`, `yall` → `y'all`, `whoah` → `woah`, `bougy` → `bougie`,
 `naieve` → `naive`, and missing punctuation in unambiguous initialisms such as `V.I.P` → `VIP`.
-This is deliberately not an edit-distance spellchecker: nearby real words and intentional lyric
-forms such as `hey`, `skirt`, `outta`, `boogie`, `Dogg`, and `shortie` remain untouched.
+For selected longer, context-free entries, the linter also previews a correction when a token is
+one insertion, deletion, substitution, or adjacent transposition away from the preferred form.
+This fuzzy matching is deliberately opt-in rather than global: short forms, contextual entries,
+and preferred words with common one-edit neighbours remain exact-match only. Nearby real words and
+intentional lyric forms such as `hey`, `skirt`, `outta`, `boogie`, `Dogg`, and `shortie` remain
+untouched.
 
 ## Language header data
 

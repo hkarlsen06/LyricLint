@@ -6,7 +6,11 @@ import type {
 	DraftSummary,
 	SessionIgnoreStore
 } from '$lib/core/types.js';
-import type { SessionStorageLike } from '$lib/persistence/index.js';
+import type {
+	MediaHandleRecord,
+	MediaRepository,
+	SessionStorageLike
+} from '$lib/persistence/index.js';
 
 function cloneDraft(draft: DraftRecord): DraftRecord {
 	return {
@@ -100,6 +104,56 @@ export function createInMemoryDraftRepository(
 				normalized,
 				...recentLanguages.filter((candidate) => candidate !== normalized)
 			].slice(0, 5);
+		}
+	};
+}
+
+/**
+ * Attached-audio storage with no IndexedDB behind it.
+ *
+ * Tests and the contract harness use this; nothing here holds a real file
+ * handle, which is exactly right — the browser is the only thing that can mint
+ * one, so a fake that pretended to would be testing itself.
+ */
+export function createInMemoryMediaRepository(
+	initialRecords: readonly MediaHandleRecord[] = []
+): MediaRepository {
+	const records = new Map(initialRecords.map((record) => [record.draftId, { ...record }]));
+
+	return {
+		async get(draftId) {
+			const record = records.get(draftId);
+			return record ? { ...record } : undefined;
+		},
+		async attach({ draftId, name, size, source, videoId, handle, position }) {
+			const record: MediaHandleRecord = {
+				draftId,
+				name,
+				attachedAt: new Date().toISOString(),
+				...(size === undefined ? {} : { size }),
+				...(source === undefined ? {} : { source }),
+				...(videoId === undefined ? {} : { videoId }),
+				...(handle === undefined ? {} : { handle }),
+				...(position === undefined ? {} : { position })
+			};
+			records.set(draftId, record);
+			return { ...record };
+		},
+		async savePosition(draftId, position) {
+			const record = records.get(draftId);
+			if (!record) return;
+			records.set(draftId, { ...record, position });
+		},
+		async saveName(draftId, name) {
+			const record = records.get(draftId);
+			if (!record) return;
+			records.set(draftId, { ...record, name });
+		},
+		async detach(draftId) {
+			records.delete(draftId);
+		},
+		async clear() {
+			records.clear();
 		}
 	};
 }

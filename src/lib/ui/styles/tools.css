@@ -7,7 +7,7 @@
    or :first-of-type because it encodes the between-ness directly: a section
    only gets a top rule when another section actually precedes it, so it
    survives any section being removed behind an {#if} and any non-section
-   content (like the trailing .offline-note) appearing before or after. */
+   content appearing before or after. */
 .tools-panel section + section {
 	margin-top: var(--space-5);
 	padding-top: var(--space-4);

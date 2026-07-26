@@ -1,0 +1,215 @@
+/*
+ * The audio transport strip, at the foot of the editor column.
+ *
+ * It is `--color-chrome`, like the toolbar above it and the status bar below it,
+ * for the reason the bulk-fix strip learned the long way: a row drawn as bare
+ * canvas between two surfaces merges with whichever one it touches, and its
+ * controls read as loose inside that surface rather than as commands over it.
+ * There is no third material in this column.
+ */
+
+.media-strip {
+	display: flex;
+	min-height: var(--control-height-lg);
+	grid-row: 2;
+	padding: var(--space-1) var(--space-3);
+	border-top: var(--border-width) solid var(--color-border);
+	gap: var(--space-3);
+	align-items: center;
+	background: var(--color-chrome);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+/*
+ * The video, the last band of the right panel.
+ *
+ * `flex: none` because the panel column hands all its slack to the body: the
+ * picture is a fixed thing to look at, and a frame that stretched or collapsed
+ * with the window would be one more thing moving while somebody types.
+ *
+ * It is `--color-chrome`, like the ignored-rules footer above it and the tab
+ * strip at the other end of the column. That is the panel's own rule rather than
+ * a preference: `--color-canvas` is spent on the recessed selected diagnostic,
+ * so anything hanging outside the run of cards is chrome or it is a card, and
+ * there is no third material here.
+ */
+.media-video {
+	/*
+	 * YouTube's embed terms require a visible player of at least 200 by 200
+	 * pixels. This is `px` and not `rem` on purpose, and it is the one place in
+	 * the system where that is right: a `rem` shrinks with the reader's root font
+	 * size, and a minimum set by somebody else is not ours to scale below.
+	 */
+	--media-video-min: 200px;
+
+	display: flex;
+	flex: none;
+	padding: var(--space-2) var(--space-3);
+	border-top: var(--border-width) solid var(--color-border);
+	background: var(--color-chrome);
+}
+
+/*
+ * The frame takes the panel's width, and the aspect ratio gives way to the floor
+ * rather than the other way round.
+ *
+ * At the panel's narrowest (21rem, less its border and this padding) 16:9 would
+ * compute a height under 200px, so `min-height` overrides the ratio and the
+ * picture is pillarboxed by a few pixels inside a slightly wide box. That is the
+ * right end of the trade: a couple of pixels of black beside the video costs
+ * nothing, and a frame 189px tall is a term broken quietly.
+ */
+.media-video__frame {
+	width: 100%;
+	min-width: var(--media-video-min);
+	min-height: var(--media-video-min);
+	overflow: hidden;
+	border-radius: var(--radius-sm);
+	aspect-ratio: 16 / 9;
+	background: var(--color-canvas);
+}
+
+/*
+ * The IFrame API writes its own `width` and `height` attributes on the element
+ * it creates, so the frame's size is only the frame's size once they are
+ * overridden here.
+ */
+.media-video__frame iframe {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
+.media-strip__transport,
+.media-strip__meta {
+	display: flex;
+	flex: none;
+	min-width: 0;
+	gap: var(--space-1);
+	align-items: center;
+}
+
+.media-strip__meta {
+	gap: var(--space-2);
+}
+
+/* Tabular so the elapsed readout does not shuffle its neighbours every tick. */
+.media-strip__time {
+	color: var(--color-text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.media-strip__name {
+	max-width: 14rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+ * The one bordered control in the row, and it earns the step up.
+ *
+ * Set quiet, it was a word in the same muted type as the readouts either side of
+ * it, in the shortest row in the window — the entry point to a whole mode,
+ * indistinguishable from the track's name. Everything else here is a transport
+ * glyph the user already knows how to find or a number they read; this is the
+ * only thing in the strip that starts something, so it is the only thing in the
+ * strip drawn as a command.
+ *
+ * Bordered rather than contrast: the tier above belongs to a surface's primary
+ * action, and the primary thing this row does is play and pause. A white button
+ * beside the transport would compete for attention on every glance with the
+ * controls used constantly, for the sake of one pressed once per song.
+ */
+.media-strip__sync {
+	display: inline-flex;
+	flex: none;
+	min-height: var(--control-height-sm);
+	padding: 0 var(--space-2);
+	gap: var(--space-1-5);
+	align-items: center;
+	font-size: var(--font-size-xs);
+	white-space: nowrap;
+}
+
+.media-strip__sync svg {
+	flex: none;
+	color: var(--color-text-muted);
+}
+
+.media-strip__sync:hover svg {
+	color: var(--color-text);
+}
+
+/* The two keys, in the slot the file name gives up while a run is under way. */
+.media-strip__hint {
+	white-space: nowrap;
+}
+
+.media-strip__error {
+	flex: 1 1 auto;
+	margin: 0;
+	color: var(--color-danger);
+}
+
+/*
+ * The scrubber takes the slack between the two ends, which is what keeps the
+ * strip from being one control marooned in half a row of empty gutter.
+ *
+ * It has to opt out of the shared `input` silhouette in controls.css — a range
+ * with a border, a fill and a 2rem min-height draws a box around a track — so
+ * every one of those is reset here rather than weakened there.
+ */
+.media-strip__seek {
+	min-height: 0;
+	flex: 1 1 auto;
+	padding: 0;
+	border: none;
+	background: transparent;
+	accent-color: var(--color-accent);
+	cursor: pointer;
+}
+
+.media-strip__seek:hover:not(:disabled) {
+	border: none;
+}
+
+/* Disabled is a real color and a real cursor, never opacity: the track has to
+   stay legible while the browser is still reading the file's duration. */
+.media-strip__seek:disabled {
+	background: transparent;
+	accent-color: var(--color-control-disabled);
+	cursor: default;
+}
+
+.media-strip__rate select {
+	min-height: var(--control-height-sm);
+	padding: 0 var(--space-1);
+	border-color: transparent;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-variant-numeric: tabular-nums;
+}
+
+.media-strip__rate select:hover:not(:disabled) {
+	border-color: var(--color-border-strong);
+	color: var(--color-text);
+}
+
+/* The reconnect row is one command and one way out of it, so the command takes
+   the slack and the dismissal stays pinned to the far end. */
+.media-strip__reconnect {
+	flex: 1 1 auto;
+	justify-content: flex-start;
+	min-height: var(--control-height-sm);
+	font-size: var(--font-size-xs);
+}
+
+.media-strip .icon-button {
+	width: var(--control-height-sm);
+	min-height: var(--control-height-sm);
+	color: var(--color-text);
+}

@@ -6,7 +6,8 @@ import type {
 	DraftRecord,
 	DraftRepository,
 	EditorHandle,
-	EditorSnapshot
+	EditorSnapshot,
+	LineAnchor
 } from '$lib/core/types.js';
 import { describe, expect, test, vi } from 'vitest';
 import {
@@ -90,12 +91,18 @@ function setup(options: {
 	onOpenDraft?: (draft: DraftRecord) => EditorSnapshot;
 	initialRecentLanguages?: readonly string[];
 	readClipboard?: () => Promise<string>;
+	/**
+	 * Build the controller on a handle that cannot hold anchors, the way the page
+	 * does: it boots on a headless placeholder and CodeMirror publishes later.
+	 */
+	headless?: boolean;
 }) {
 	const initial = options.initial ?? draft('draft-a');
 	const repository =
 		options.repository ?? createInMemoryDraftRepository(options.drafts ?? [initial]);
 	const autosave = options.autosave ?? controllableAutosave(repository).autosave;
 	let currentSnapshot = snapshot(initial);
+	let lineAnchors: LineAnchor[] = [];
 	const editor: EditorHandle = {
 		focus() {},
 		getSnapshot: () => currentSnapshot,
@@ -104,7 +111,11 @@ function setup(options: {
 		redo() {},
 		revealRange() {},
 		setSelection() {},
-		requestPerformerLegendAssignment: vi.fn()
+		requestPerformerLegendAssignment: vi.fn(),
+		getLineAnchors: () => lineAnchors.map((anchor) => ({ ...anchor })),
+		setLineAnchors(anchors) {
+			lineAnchors = anchors.map((anchor) => ({ ...anchor }));
+		}
 	};
 	const onOpenDraft =
 		options.onOpenDraft ??
@@ -112,8 +123,18 @@ function setup(options: {
 			currentSnapshot = snapshot(nextDraft, 0);
 			return currentSnapshot;
 		});
+	// The page's own placeholder: no document, and none of the anchor methods.
+	const headless: EditorHandle = {
+		focus() {},
+		getSnapshot: () => currentSnapshot,
+		dispatchAtomic() {},
+		undo() {},
+		redo() {},
+		revealRange() {},
+		setSelection() {}
+	};
 	const controller = createWorkbenchController({
-		editor,
+		editor: options.headless ? headless : editor,
 		initialSnapshot: currentSnapshot,
 		initialDraft: initial,
 		initialRecentLanguages: options.initialRecentLanguages,
@@ -127,7 +148,7 @@ function setup(options: {
 			(() => Promise.reject(new Error('Clipboard reads are unavailable.'))),
 		onOpenDraft
 	});
-	return { controller, repository, autosave, editor };
+	return { controller, repository, autosave, editor, headless };
 }
 
 describe('workbench draft safety', () => {
@@ -168,6 +189,114 @@ describe('workbench draft safety', () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+
+	// Opening a draft remounts the keyed editor, so the handle in scope when the
+	// draft loads is the outgoing one and anything dispatched into it dies with
+	// it. The anchors are held and applied when the replacement publishes itself.
+	test('lands a draft’s line anchors on the editor that replaces the one being torn down', async () => {
+		const first = draft('draft-a');
+		const second: DraftRecord = { ...draft('draft-b'), lineAnchors: [{ line: 2, time: 61 }] };
+		const repository = createInMemoryDraftRepository([first, second]);
+		const { controller, editor } = setup({
+			initial: first,
+			drafts: [first, second],
+			repository
+		});
+
+		await controller.openDraft(second.id);
+		expect(editor.getLineAnchors?.()).toEqual([]);
+
+		controller.setEditorHandle(editor);
+
+		expect(editor.getLineAnchors?.()).toEqual([{ line: 2, time: 61 }]);
+	});
+
+	/*
+	 * The bug this pins lost a whole synced song on every reload, and it lost it
+	 * to `?.`.
+	 *
+	 * The page builds the controller with a *headless* handle — no document, no
+	 * anchors — and only later does CodeMirror mount and publish a real one. The
+	 * headless handle is therefore the first thing `setEditorHandle` ever sees, and
+	 * `handle.setLineAnchors?.(pending)` dropped the draft's timings into a no-op
+	 * and cleared the pending list on the way past.
+	 *
+	 * `?.` is right for a fire-and-forget notification and wrong for a one-shot
+	 * hand-off: there is no second chance to deliver this, so the capability has to
+	 * be checked rather than optionally called.
+	 */
+	test('holds a draft’s anchors until a handle that can take them arrives', async () => {
+		const stored: DraftRecord = { ...draft('draft-a'), lineAnchors: [{ line: 2, time: 61 }] };
+		const repository = createInMemoryDraftRepository([stored]);
+		const { controller, editor, headless } = setup({ initial: stored, repository });
+
+		controller.setEditorHandle(headless);
+		controller.setEditorHandle(editor);
+
+		expect(editor.getLineAnchors?.()).toEqual([{ line: 2, time: 61 }]);
+	});
+
+	// The other half of the same window. A save that landed before CodeMirror
+	// mounted read the anchors off a handle that cannot report them, and `?? []`
+	// would have written an empty list over the draft's own timings. A rename is
+	// enough to get there.
+	test('never writes an empty anchor list from a handle that cannot report them', async () => {
+		const stored: DraftRecord = { ...draft('draft-a'), lineAnchors: [{ line: 2, time: 61 }] };
+		const repository = createInMemoryDraftRepository([stored]);
+		const controlled = controllableAutosave(repository);
+		const { controller } = setup({
+			initial: stored,
+			repository,
+			autosave: controlled.autosave,
+			headless: true
+		});
+
+		await controller.setTitle('Renamed before the editor mounted');
+
+		expect(controlled.scheduled.at(-1)?.draft.lineAnchors).toEqual([{ line: 2, time: 61 }]);
+	});
+
+	test('saves the editor’s live anchors with the text they describe', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		const controlled = controllableAutosave(repository);
+		const { controller, editor } = setup({
+			initial: first,
+			repository,
+			autosave: controlled.autosave
+		});
+
+		editor.setLineAnchors?.([{ line: 2, time: 12.5 }]);
+		controller.onSnapshot(snapshot(first, 1, '[Verse]\nEdited'));
+
+		expect(controlled.scheduled.at(-1)?.draft.lineAnchors).toEqual([{ line: 2, time: 12.5 }]);
+	});
+
+	/*
+	 * Most ways an anchor is set change no text at all: sync mode holds the
+	 * document read-only, and `Ctrl-Alt-M` and the timestamp column's own control
+	 * move nothing. Saving only on a snapshot therefore lost a whole synced song on
+	 * reload — the only anchors that survived were the ones the automatic stamp
+	 * happened to write alongside a keystroke.
+	 */
+	test('saves anchors written without the text changing', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		const controlled = controllableAutosave(repository);
+		const { controller, editor } = setup({
+			initial: first,
+			repository,
+			autosave: controlled.autosave
+		});
+		const before = controlled.scheduled.length;
+
+		editor.setLineAnchors?.([{ line: 2, time: 41 }]);
+		controller.onLineAnchorsChanged();
+
+		expect(controlled.scheduled.length).toBeGreaterThan(before);
+		expect(controlled.scheduled.at(-1)?.draft.lineAnchors).toEqual([{ line: 2, time: 41 }]);
+		expect(controlled.scheduled.at(-1)?.draft.text).toBe(first.text);
 	});
 
 	test('accepts revision 1 after two draft switches and schedules the edit', async () => {

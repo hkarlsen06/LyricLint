@@ -5,6 +5,7 @@ import { parseDocument } from '$lib/core/parser.js';
 import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import { editorComposingField, editorContextField } from './extensions/editor-state.js';
+import { anchorLineEffect, anchorTimeAt, formatAnchorTime } from './extensions/line-anchors.js';
 import { diagnosticsForState, sortDiagnostics } from './extensions/lint-decorations.js';
 
 function logicalSelection(view: EditorView): TextRange {
@@ -139,6 +140,48 @@ function dismissDiagnostic(callbacks: LyricEditorCallbacks): () => boolean {
 }
 
 /**
+ * Anchor this line to where the audio is now, replacing whatever was there.
+ *
+ * The counterpart to the silent stamp that happens while typing: that one never
+ * overwrites, so this is the only way to correct a line whose anchor is wrong.
+ */
+function anchorCurrentLine(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
+	return (view) => {
+		if (composing(view)) return true;
+		const time = callbacks.onRequestMediaTime?.();
+		if (time === undefined || !Number.isFinite(time)) {
+			return announce(callbacks, 'Attach audio before anchoring a line to it.');
+		}
+		view.dispatch({
+			effects: anchorLineEffect.of({
+				pos: view.state.selection.main.head,
+				time,
+				overwrite: true
+			})
+		});
+		return announce(callbacks, `Line anchored at ${formatAnchorTime(time)}.`);
+	};
+}
+
+/**
+ * Play from this line's anchor.
+ *
+ * Nothing about the document moves — not the caret, not the scroll position.
+ * The only thing that happens is that the audio goes somewhere.
+ */
+function playFromCurrentLine(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
+	return (view) => {
+		if (composing(view)) return true;
+		const time = anchorTimeAt(view.state, view.state.selection.main.head);
+		if (time === undefined) {
+			return announce(callbacks, 'This line has no audio anchor.');
+		}
+		callbacks.onSeekMedia?.(time);
+		return announce(callbacks, `Playing from ${formatAnchorTime(time)}.`);
+	};
+}
+
+/**
  * LyricLint commands precede standard CodeMirror editing/history bindings.
  * Callers may place explicit overrides first.
  */
@@ -148,11 +191,36 @@ export function lyricLintKeymap(
 ): KeyBinding[] {
 	return [
 		...overrides,
+		// `Alt-p` has never fired on macOS. Option+P types a character there, so
+		// CodeMirror's dispatcher refuses the base-key fallback for Alt held without
+		// Ctrl or Cmd and nothing matches — the same trap the transport below
+		// documents at length, and `Ctrl-Alt` is the same answer to it: the one
+		// modifier span free on both platforms. The old key stays as the alias
+		// Windows and Linux have been pressing all along.
+		{ key: 'Ctrl-Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Mod-Shift-h', run: insertSection(callbacks), preventDefault: true },
+		// F8 is play/pause on the macOS media row, which was a collision before this
+		// app had a transport of its own and is a worse one now. `.` and `,` are
+		// adjacent and sit in the same place on US and Nordic layouts, unlike `/` or
+		// the brackets, which are Option combos on a Norwegian Mac — and `.` already
+		// means "diagnostic" here through `Mod-.` below. The function keys stay as
+		// aliases.
+		{ key: 'Ctrl-Alt-.', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
+		{ key: 'Ctrl-Alt-,', run: navigateDiagnostic(callbacks, -1), preventDefault: true },
 		{ key: 'F8', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
 		{ key: 'Shift-F8', run: navigateDiagnostic(callbacks, -1), preventDefault: true },
 		{ key: 'Mod-.', run: openAvailableFix(callbacks), preventDefault: true },
+		// The transport triad — `Ctrl-Alt-J`, `K`, `L` — is deliberately *not* here.
+		// It is bound to the window in `ui/state/media-shortcuts.ts`, because the
+		// tape is most wanted when the caret has left the document. Binding it in
+		// both places would double every nudge.
+		//
+		// The two anchor commands stay, in the same Ctrl-Alt family because they are
+		// pressed in the same breath as the transport, and here because each needs
+		// the caret's own line. `M` marks; `Enter` goes.
+		{ key: 'Ctrl-Alt-m', run: anchorCurrentLine(callbacks), preventDefault: true },
+		{ key: 'Ctrl-Alt-Enter', run: playFromCurrentLine(callbacks), preventDefault: true },
 		{ key: 'Escape', run: dismissDiagnostic(callbacks) },
 		...defaultKeymap,
 		...historyKeymap

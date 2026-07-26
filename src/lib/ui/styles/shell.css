@@ -15,12 +15,24 @@
 	background: var(--color-surface);
 }
 
+/*
+ * The editor column, and the second row is the audio transport.
+ *
+ * The strip belongs to this region rather than to the workspace grid, and that
+ * is the whole reason it can exist without disturbing anything: a workspace row
+ * would run under both columns and shorten the right panel, whose linter pane is
+ * a full-height column with its recent drafts pinned to the foot. Here it hangs
+ * under the document only, which is also the honest reading — it controls what
+ * the document is transcribed from, not the window.
+ *
+ * The row is `auto`, so it costs exactly nothing while no audio is attached.
+ */
 .editor-region {
 	display: grid;
 	min-width: 0;
 	min-height: 0;
 	grid-row: 2;
-	grid-template-rows: minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr) auto;
 }
 
 /* The full width of the window, above both columns. */

@@ -1,0 +1,639 @@
+import type { FeedbackState } from './feedback.svelte.js';
+import type { PollScheduler, YouTubeApiLoader, YouTubeSource } from './media-youtube.js';
+import { createYouTubeSource, loadYouTubeApi } from './media-youtube.js';
+
+/**
+ * How far a resume backs up before it starts, in seconds.
+ *
+ * This is the single most valuable default in the transport. Transcription is a
+ * loop of listen, pause, type, and the words either side of a pause are the ones
+ * hardest to place — so a resume that starts exactly where the ear stopped makes
+ * the user rewind by hand nearly every time. Two seconds of run-in is enough to
+ * re-enter the phrase and short enough that it never feels like a repeat.
+ */
+export const resumeRewindSeconds = 2;
+
+/** What one press of the side keys, or one press of a skip button, moves. */
+export const nudgeSeconds = 3;
+
+/**
+ * Playback rates the workbench offers, slow to fast.
+ *
+ * Everything below 1 is the point: dense or slurred passages are the reason a
+ * transcriber reaches for a speed control at all. On a media element
+ * `preservesPitch` is what keeps these listenable rather than comic.
+ *
+ * This is the *offer*, not the promise. A source narrows it — YouTube has a
+ * fixed menu of its own and ignores `setPlaybackRate` for anything outside it,
+ * without a word — so what a surface actually renders is
+ * `MediaPlayer.availableRates`, which is this list intersected with what the
+ * attached source says it can do. Offering a rate that will not apply is worse
+ * than offering fewer.
+ */
+export const playbackRates = [0.5, 0.75, 1, 1.25, 1.5] as const;
+
+export type TransportAction = 'toggle' | 'back' | 'forward';
+
+/** Where the sound is coming from. Absent from a record means `file`. */
+export type MediaSourceKind = 'file' | 'youtube';
+
+/**
+ * What the transport tells itself about whatever is making sound.
+ *
+ * A source reports; it never decides. Clamping, the resume rewind, and the
+ * cancellation rules all live one level up, so the two sources cannot drift into
+ * two different transports.
+ */
+export interface MediaSourceEvents {
+	timeChanged(time: number): void;
+	durationChanged(duration: number): void;
+	/** What this source can actually play at, once it knows. */
+	ratesChanged(rates: readonly number[]): void;
+	/** The source learned what it is playing, after it was already attached. */
+	named(name: string): void;
+	started(): void;
+	stopped(): void;
+	ended(): void;
+	failed(message: string): void;
+}
+
+/**
+ * The transport's view of a playback source.
+ *
+ * Deliberately synchronous. The YouTube bridge is not, and hiding that is the
+ * source's own work: `time` there answers with the position the player was last
+ * told to go to until the player agrees, so the arithmetic above reads the same
+ * numbers it reads off a media element.
+ */
+export interface MediaSource {
+	readonly kind: MediaSourceKind;
+	/** The source's own playhead, not a mirrored one. */
+	readonly time: number;
+	/** NaN until the source knows how long the track is. */
+	readonly duration: number;
+	/** Rates this source can apply, slow to fast. */
+	readonly rates: readonly number[];
+	play(): void;
+	pause(): void;
+	seek(seconds: number): void;
+	setRate(rate: number): void;
+	/** Give up what is loaded without giving up the source itself. */
+	clear(): void;
+	destroy(): void;
+}
+
+export interface MediaAttachment {
+	name: string;
+	/** Absent when the browser has no File System Access API to hand one back. */
+	handle?: FileSystemFileHandle;
+	size?: number;
+	/**
+	 * Where to place the playhead once the file is readable.
+	 *
+	 * It cannot simply be assigned: `currentTime` is ignored until the browser has
+	 * read the file's metadata, so the seek is held and applied on the event that
+	 * says the track has a length.
+	 */
+	startAt?: number;
+}
+
+/** What `attachVideo` needs. The id is the whole of the durable fact. */
+export interface VideoAttachment {
+	videoId: string;
+	/** What to call it until the player says what it actually is. */
+	name?: string;
+	startAt?: number;
+}
+
+/**
+ * Why the transport is reporting its position.
+ *
+ * `settled` means playback has come to rest — a pause or the end of the track —
+ * and is the moment a listener should write the position down rather than
+ * waiting for its next threshold.
+ */
+export type ProgressReason = 'progress' | 'settled';
+
+export type ProgressListener = (time: number, reason: ProgressReason) => void;
+
+export interface MediaPlayerDependencies {
+	feedback: FeedbackState;
+	/** Injectable so tests drive a stub instead of a real decoder. */
+	createAudio?: () => HTMLMediaElement;
+	createObjectUrl?: (file: Blob) => string;
+	revokeObjectUrl?: (url: string) => void;
+	/**
+	 * How the YouTube IFrame API arrives.
+	 *
+	 * Injectable so the suite drives a stub player object; nothing in a test ever
+	 * reaches Google. The default is the real loader, and it is a function rather
+	 * than an import precisely so that nothing runs until a user has asked for it.
+	 */
+	loadYouTubeApi?: YouTubeApiLoader;
+	/** Injectable so a test advances the YouTube poll by hand. */
+	scheduleYouTubePoll?: PollScheduler;
+}
+
+export interface MediaPlayer {
+	/** The attached file's name, or undefined when nothing is attached. */
+	readonly name: string | undefined;
+	readonly attached: boolean;
+	readonly playing: boolean;
+	readonly currentTime: number;
+	/** NaN until the browser has read the file's metadata. */
+	readonly duration: number;
+	readonly rate: number;
+	/** Set when the file could not be decoded; the strip shows it in place. */
+	readonly error: string | undefined;
+	/** What is attached, or undefined when nothing is. */
+	readonly sourceKind: MediaSourceKind | undefined;
+	/**
+	 * The rates the attached source can actually apply, slow to fast.
+	 *
+	 * `playbackRates` narrowed by what the source says it can do. A surface that
+	 * renders the constant instead is offering presses that silently do nothing.
+	 *
+	 * The workbench's own offer stands until a source contradicts it, which for a
+	 * video is the moment Google's player is ready. A control that collapsed to
+	 * one option on attach and grew back a second later would be worse than
+	 * either — and under-promising is its own kind of wrong answer.
+	 */
+	readonly availableRates: readonly number[];
+	attach(file: File, attachment?: MediaAttachment): void;
+	/**
+	 * Point the transport at a YouTube video.
+	 *
+	 * Asynchronous where `attach` is not, because the first call is what fetches
+	 * Google's IFrame API. It resolves when the API is in hand, not when the video
+	 * plays — everything after that arrives as ordinary source events.
+	 */
+	attachVideo(video: VideoAttachment): Promise<void>;
+	/**
+	 * Give the video source somewhere to draw, and take it back on unmount.
+	 *
+	 * The return value is the teardown, so this can be handed straight to a Svelte
+	 * attachment. A file source draws nothing and never calls it.
+	 */
+	mountVideo(container: HTMLElement): () => void;
+	detach(): void;
+	play(): void;
+	pause(): void;
+	toggle(): void;
+	/** Move by `seconds`, clamped to the track. Never starts or stops playback. */
+	nudge(seconds: number): void;
+	seek(time: number): void;
+	setRate(rate: number): void;
+	transport(action: TransportAction): void;
+	/**
+	 * The source's own playhead rather than the mirrored one.
+	 *
+	 * `currentTime` is reactive state fed by whatever the source reports, which is
+	 * a few times a second — near enough for a readout, up to a tick stale for a
+	 * write. The flush that runs as the tab is closing is the one place that
+	 * difference is the difference between the right second and the previous one.
+	 */
+	liveTime(): number;
+	/** Watch the playhead. One listener; setting it again replaces the previous. */
+	setProgressListener(listener: ProgressListener | undefined): void;
+	/**
+	 * Watch for the source learning what it is playing.
+	 *
+	 * A file is named before it is opened. A video is a bare id until Google's
+	 * player answers with a title, and that title is worth writing down — it is
+	 * what the strip and the reconnect control say next session.
+	 */
+	setNameListener(listener: ((name: string) => void) | undefined): void;
+	destroy(): void;
+}
+
+function clamp(value: number, lower: number, upper: number): number {
+	if (!Number.isFinite(value)) return lower;
+	return Math.min(Math.max(value, lower), Number.isFinite(upper) ? upper : value);
+}
+
+interface FileSourceDependencies {
+	events: MediaSourceEvents;
+	createAudio: () => HTMLMediaElement;
+	createObjectUrl: (file: Blob) => string;
+	revokeObjectUrl: (url: string) => void;
+}
+
+interface FileSource extends MediaSource {
+	load(file: Blob, startAt?: number): void;
+}
+
+/**
+ * A local file, played by one media element.
+ *
+ * One element for the lifetime of the source and a swapped `src`, rather than an
+ * element per file: a fresh element per attachment leaks decoders and loses the
+ * rate the user chose. It is never in the document — this is audio, and a
+ * visible `<audio controls>` would be a second transport disagreeing with the
+ * strip.
+ */
+function createFileSource(deps: FileSourceDependencies): FileSource {
+	const events = deps.events;
+
+	let audio: HTMLMediaElement | undefined;
+	let objectUrl: string | undefined;
+	let pendingSeek: number | undefined;
+
+	function element(): HTMLMediaElement {
+		if (audio) return audio;
+		const created = deps.createAudio();
+		created.preload = 'metadata';
+		// Rates below 1 are unusable without it, and Safari spells it differently.
+		created.preservesPitch = true;
+		created.addEventListener('timeupdate', () => events.timeChanged(created.currentTime));
+		// A held seek is applied on whichever of these arrives first: both mean the
+		// browser now knows how long the track is, which is what `currentTime` was
+		// waiting for. Clearing it here is what keeps it from firing twice.
+		const applyPendingSeek = () => {
+			events.durationChanged(created.duration);
+			if (pendingSeek === undefined) return;
+			created.currentTime = clamp(pendingSeek, 0, created.duration);
+			pendingSeek = undefined;
+			events.timeChanged(created.currentTime);
+		};
+		created.addEventListener('loadedmetadata', applyPendingSeek);
+		created.addEventListener('durationchange', applyPendingSeek);
+		created.addEventListener('play', () => events.started());
+		created.addEventListener('pause', () => events.stopped());
+		created.addEventListener('ended', () => events.ended());
+		created.addEventListener('error', () => events.failed('That file could not be played.'));
+		audio = created;
+		return created;
+	}
+
+	function releaseUrl(): void {
+		if (objectUrl === undefined) return;
+		deps.revokeObjectUrl(objectUrl);
+		objectUrl = undefined;
+	}
+
+	const source: FileSource = {
+		kind: 'file',
+
+		get time() {
+			return audio ? audio.currentTime : 0;
+		},
+		get duration() {
+			return audio ? audio.duration : Number.NaN;
+		},
+		get rates() {
+			return playbackRates;
+		},
+
+		load(file, startAt) {
+			const media = element();
+			media.pause();
+			releaseUrl();
+			objectUrl = deps.createObjectUrl(file);
+			media.src = objectUrl;
+			// Held rather than assigned: `currentTime` does not stick until the
+			// browser has read the file.
+			pendingSeek = startAt;
+			events.ratesChanged(playbackRates);
+		},
+
+		play() {
+			// A rejected play is a decode failure the `error` listener already
+			// reports; nothing here should surface an unhandled rejection for it.
+			void Promise.resolve(element().play()).catch(() => events.stopped());
+		},
+
+		pause() {
+			element().pause();
+		},
+
+		seek(seconds) {
+			element().currentTime = seconds;
+		},
+
+		setRate(rate) {
+			if (audio) audio.playbackRate = rate;
+		},
+
+		clear() {
+			if (audio) {
+				audio.pause();
+				audio.removeAttribute('src');
+				audio.load();
+			}
+			releaseUrl();
+			pendingSeek = undefined;
+		},
+
+		destroy() {
+			source.clear();
+			audio = undefined;
+		}
+	};
+
+	return source;
+}
+
+/**
+ * The workbench's transport, and the one place its arithmetic lives.
+ *
+ * It holds a source rather than a media element. Every rule that makes the
+ * transport worth having — the two-second run-in on a resume, the clamp to both
+ * ends of the track, a deliberate placement cancelling the run-in — is written
+ * once here against `MediaSource`, so a local file and a YouTube video cannot
+ * behave differently under the same key. The sources exist to make that possible
+ * and to hide, each in its own file, whatever is asymmetric about them.
+ */
+export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
+	const createAudio = deps.createAudio ?? (() => new Audio());
+	const createObjectUrl = deps.createObjectUrl ?? ((file: Blob) => URL.createObjectURL(file));
+	const revokeObjectUrl = deps.revokeObjectUrl ?? ((url: string) => URL.revokeObjectURL(url));
+
+	let name = $state<string | undefined>(undefined);
+	let playing = $state(false);
+	let currentTime = $state(0);
+	let duration = $state(Number.NaN);
+	let rate = $state(1);
+	let error = $state<string | undefined>(undefined);
+	let sourceKind = $state<MediaSourceKind | undefined>(undefined);
+	let availableRates = $state<readonly number[]>(playbackRates);
+
+	let active: MediaSource | undefined;
+	let fileSource: FileSource | undefined;
+	let youtubeSource: YouTubeSource | undefined;
+	let progressListener: ProgressListener | undefined;
+	let nameListener: ((name: string) => void) | undefined;
+	// Cleared by any deliberate seek: someone who has just dragged the scrubber to
+	// a point has named where they want playback to start, and backing up from
+	// there would be the transport overriding an instruction it was just given.
+	let rewindOnResume = false;
+
+	/**
+	 * Events from a source that is no longer the attached one are dropped.
+	 *
+	 * A YouTube poll in flight when the user attaches a file would otherwise
+	 * report the video's playhead into the file's readout, and a `pause` from the
+	 * source being torn down would arm a run-in on the one taking its place.
+	 */
+	function eventsFor(owner: () => MediaSource | undefined): MediaSourceEvents {
+		const live = () => active !== undefined && active === owner();
+		return {
+			timeChanged(time) {
+				if (!live()) return;
+				currentTime = time;
+				progressListener?.(time, 'progress');
+			},
+			durationChanged(next) {
+				if (!live()) return;
+				duration = next;
+			},
+			ratesChanged(rates) {
+				if (!live()) return;
+				reconcileRates(rates);
+			},
+			named(next) {
+				if (!live()) return;
+				name = next;
+				nameListener?.(next);
+			},
+			started() {
+				if (!live()) return;
+				playing = true;
+			},
+			stopped() {
+				if (!live()) return;
+				playing = false;
+				rewindOnResume = true;
+				progressListener?.(active?.time ?? currentTime, 'settled');
+			},
+			ended() {
+				if (!live()) return;
+				playing = false;
+				rewindOnResume = false;
+				progressListener?.(active?.time ?? currentTime, 'settled');
+			},
+			failed(message) {
+				if (!live()) return;
+				error = message;
+				playing = false;
+				deps.feedback.announce(message);
+			}
+		};
+	}
+
+	/**
+	 * Narrow the offer to what the source can do, and never leave the chosen rate
+	 * pointing at something that will be ignored.
+	 */
+	function reconcileRates(sourceRates: readonly number[]): void {
+		const offered = playbackRates.filter((candidate) => sourceRates.includes(candidate));
+		availableRates = offered.length > 0 ? offered : [...sourceRates];
+		if (availableRates.includes(rate)) return;
+
+		const nearest = availableRates.reduce(
+			(best, candidate) => (Math.abs(candidate - rate) < Math.abs(best - rate) ? candidate : best),
+			availableRates[0] ?? 1
+		);
+		const previous = rate;
+		player.setRate(nearest);
+		deps.feedback.announce(`This source plays at ${nearest}× rather than ${previous}×.`);
+	}
+
+	function file(): FileSource {
+		fileSource ??= createFileSource({
+			events: eventsFor(() => fileSource),
+			createAudio,
+			createObjectUrl,
+			revokeObjectUrl
+		});
+		return fileSource;
+	}
+
+	function youtube(): YouTubeSource {
+		youtubeSource ??= createYouTubeSource({
+			events: eventsFor(() => youtubeSource),
+			loadApi: deps.loadYouTubeApi ?? loadYouTubeApi,
+			...(deps.scheduleYouTubePoll ? { schedule: deps.scheduleYouTubePoll } : {})
+		});
+		return youtubeSource;
+	}
+
+	/** Hand the transport to a source, before that source is told what to load. */
+	function beginAttachment(next: MediaSource, label: string): void {
+		if (active && active !== next) active.clear();
+		active = next;
+		sourceKind = next.kind;
+		name = label;
+		error = undefined;
+	}
+
+	/**
+	 * Reset the readout, *after* the source has been told what to load.
+	 *
+	 * A source giving up what it was holding reports a stop on the way out, and a
+	 * stop arms the resume run-in. Resetting before the load would leave a track
+	 * that has never been played owing the user two seconds of somewhere else.
+	 */
+	function settleAttachment(startAt: number | undefined): void {
+		currentTime = startAt ?? 0;
+		duration = Number.NaN;
+		rewindOnResume = false;
+		playing = false;
+	}
+
+	const player: MediaPlayer = {
+		get name() {
+			return name;
+		},
+		get attached() {
+			return name !== undefined;
+		},
+		get playing() {
+			return playing;
+		},
+		get currentTime() {
+			return currentTime;
+		},
+		get duration() {
+			return duration;
+		},
+		get rate() {
+			return rate;
+		},
+		get error() {
+			return error;
+		},
+		get sourceKind() {
+			return sourceKind;
+		},
+		get availableRates() {
+			return availableRates;
+		},
+
+		attach(file_, attachment) {
+			const source = file();
+			beginAttachment(source, attachment?.name ?? file_.name);
+			source.load(file_, attachment?.startAt);
+			settleAttachment(attachment?.startAt);
+			// The rate survives an attachment on purpose: someone transcribing an
+			// album at 0.75 should not have to re-choose it for every track.
+			source.setRate(rate);
+			deps.feedback.announce(`${name} attached.`);
+		},
+
+		async attachVideo(video) {
+			const source = youtube();
+			beginAttachment(source, video.name ?? video.videoId);
+			const loading = source.load(video.videoId, video.startAt);
+			settleAttachment(video.startAt);
+			deps.feedback.announce(`${name} attached.`);
+			await loading;
+			if (active !== source) return;
+			source.setRate(rate);
+		},
+
+		mountVideo(container) {
+			return youtube().mount(container);
+		},
+
+		detach() {
+			active?.clear();
+			active = undefined;
+			sourceKind = undefined;
+			name = undefined;
+			playing = false;
+			currentTime = 0;
+			duration = Number.NaN;
+			error = undefined;
+			rewindOnResume = false;
+			availableRates = playbackRates;
+		},
+
+		play() {
+			const source = active;
+			if (source === undefined) return;
+			if (rewindOnResume) {
+				const target = clamp(source.time - resumeRewindSeconds, 0, source.duration);
+				source.seek(target);
+				currentTime = source.time;
+				rewindOnResume = false;
+			}
+			source.play();
+		},
+
+		pause() {
+			active?.pause();
+		},
+
+		toggle() {
+			if (playing) player.pause();
+			else player.play();
+		},
+
+		nudge(seconds) {
+			const source = active;
+			if (source === undefined) return;
+			source.seek(clamp(source.time + seconds, 0, source.duration));
+			currentTime = source.time;
+			// A nudge is a deliberate placement too, so it cancels the run-in the
+			// same way a scrub does — otherwise a back-3 followed by a resume moves
+			// five seconds and the two controls stop being separately predictable.
+			rewindOnResume = false;
+			// One discrete press, so it is worth writing down at once. A scrub is
+			// not: `seek` reports ordinary progress, or dragging the length of a
+			// track would queue a write for every pixel crossed.
+			progressListener?.(source.time, 'settled');
+		},
+
+		seek(time) {
+			const source = active;
+			if (source === undefined) return;
+			source.seek(clamp(time, 0, source.duration));
+			currentTime = source.time;
+			rewindOnResume = false;
+			progressListener?.(source.time, 'progress');
+		},
+
+		setRate(nextRate) {
+			rate = nextRate;
+			active?.setRate(nextRate);
+		},
+
+		transport(action) {
+			if (action === 'toggle') player.toggle();
+			else if (action === 'back') player.nudge(-nudgeSeconds);
+			else player.nudge(nudgeSeconds);
+		},
+
+		liveTime() {
+			return active && name !== undefined ? active.time : currentTime;
+		},
+
+		setProgressListener(listener) {
+			progressListener = listener;
+		},
+
+		setNameListener(listener) {
+			nameListener = listener;
+		},
+
+		destroy() {
+			progressListener = undefined;
+			nameListener = undefined;
+			player.detach();
+			fileSource?.destroy();
+			fileSource = undefined;
+			youtubeSource?.destroy();
+			youtubeSource = undefined;
+		}
+	};
+
+	return player;
+}
+
+/** `m:ss`, or `—` before the browser has read the duration. */
+export function formatTime(seconds: number): string {
+	if (!Number.isFinite(seconds) || seconds < 0) return '—';
+	const whole = Math.floor(seconds);
+	const minutes = Math.floor(whole / 60);
+	return `${minutes}:${String(whole % 60).padStart(2, '0')}`;
+}

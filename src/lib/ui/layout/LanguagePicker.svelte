@@ -264,7 +264,7 @@
 	}
 
 	.language-dialog::backdrop {
-		background: oklch(12% 0.008 285 / 0.64);
+		background: var(--color-backdrop);
 	}
 
 	.language-dialog__surface {

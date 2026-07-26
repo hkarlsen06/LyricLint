@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { replaceState } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import { parseDocument } from '$lib/core/parser.js';
 	import type {
 		AutosaveStatus,
@@ -12,6 +15,7 @@
 		closeDatabase,
 		createAutosaveController,
 		createDraftRepository,
+		createMediaRepository,
 		createSessionIgnoreStore,
 		openDatabase,
 		recoverStartupDraft,
@@ -25,7 +29,8 @@
 		createWorkbenchController,
 		type WorkbenchController
 	} from '$lib/ui/state/workbench.svelte.js';
-	import { onDestroy, onMount } from 'svelte';
+	import { rightPanelTabFromUrl, urlForRightPanelTab } from '$lib/ui/state/panel-url.js';
+	import { onDestroy, onMount, untrack } from 'svelte';
 
 	let controller = $state<WorkbenchController | undefined>();
 	let bootError = $state<string | undefined>();
@@ -66,6 +71,7 @@
 			try {
 				database = await openDatabase();
 				const repository = createDraftRepository(database);
+				const mediaRepository = createMediaRepository(database);
 				const autosave = createAutosaveController(repository, {
 					onStatusChange: (status: AutosaveStatus) => controller?.setSaveStatus(status)
 				} as Parameters<typeof createAutosaveController>[1] & {
@@ -85,9 +91,15 @@
 					initialDraft,
 					initialRecentLanguages,
 					repository,
+					mediaRepository,
 					autosave,
 					ignoreStore,
 					feedback,
+					initialActiveTab: rightPanelTabFromUrl(page.url),
+					onActiveTabChange: (tab) => {
+						const next = urlForRightPanelTab(page.url, tab);
+						replaceState(resolve(`${next.pathname}${next.search}${next.hash}`), page.state);
+					},
 					sources: [...sourceRegistry.values()],
 					ruleSet: currentRuleSet,
 					onOpenDraft: (draft) => {
@@ -103,8 +115,13 @@
 			}
 		})();
 
+		// Hiding the tab is the last moment either of these is reachable, and a
+		// reload or a close arrives here first. The playhead flushes alongside the
+		// text for the same reason the text flushes at all.
 		const flushWhenHidden = () => {
-			if (document.visibilityState === 'hidden') void controller?.flushAutosave();
+			if (document.visibilityState !== 'hidden') return;
+			void controller?.flushAutosave();
+			void controller?.media?.flushPosition();
 		};
 		document.addEventListener('visibilitychange', flushWhenHidden);
 		return () => {
@@ -115,6 +132,15 @@
 
 	onDestroy(() => {
 		if (browser && database) closeDatabase(database);
+	});
+
+	// A history traversal or an externally changed URL must update the already
+	// mounted workbench too. The controller's callback is a no-op for the URL in
+	// this direction because it already names the selected tab.
+	$effect(() => {
+		const tab = rightPanelTabFromUrl(page.url);
+		const currentController = controller;
+		untrack(() => currentController?.setActiveTab(tab));
 	});
 </script>
 

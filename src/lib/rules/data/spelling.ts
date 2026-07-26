@@ -29,6 +29,15 @@ export interface StandardizedSpelling {
 	 * listed as alternates in the reviewed Genius guidance.
 	 */
 	commonMisspellings?: readonly string[];
+	/**
+	 * Detect a single insertion, deletion, substitution, or adjacent
+	 * transposition around this preferred form. This is deliberately opt-in:
+	 * short forms and preferred words with common one-edit neighbours would
+	 * otherwise turn ordinary lyrics into spelling findings.
+	 */
+	fuzzy?: boolean;
+	/** Real or intentionally stylized one-edit neighbours that must stay untouched. */
+	fuzzyExceptions?: readonly string[];
 	contextGate: SpellingContextGate;
 	safe: boolean;
 	pattern?: RegExp;
@@ -45,6 +54,7 @@ export interface SpellingCandidate {
 	replacement: string;
 	contextGate: SpellingContextGate;
 	safe: boolean;
+	fuzzy: boolean;
 }
 
 const word = (source: string): RegExp =>
@@ -75,6 +85,62 @@ function preserveSimpleCase(found: string, preferred: string): string {
 	return preferred;
 }
 
+function normalizedSpelling(value: string): string {
+	return value.normalize('NFC').toLocaleLowerCase('en').replaceAll('’', "'");
+}
+
+/** Whether two strings are one typo apart, including an adjacent transposition. */
+function isSingleEditApart(left: string, right: string): boolean {
+	const source = Array.from(normalizedSpelling(left));
+	const target = Array.from(normalizedSpelling(right));
+	const lengthDifference = source.length - target.length;
+	if (Math.abs(lengthDifference) > 1 || (source.length === 0 && target.length === 0)) {
+		return false;
+	}
+
+	if (lengthDifference === 0) {
+		const differences: number[] = [];
+		for (let index = 0; index < source.length; index += 1) {
+			if (source[index] !== target[index]) {
+				differences.push(index);
+				if (differences.length > 2) {
+					return false;
+				}
+			}
+		}
+		if (differences.length === 1) {
+			return true;
+		}
+		return (
+			differences.length === 2 &&
+			differences[1] === differences[0] + 1 &&
+			source[differences[0]] === target[differences[1]] &&
+			source[differences[1]] === target[differences[0]]
+		);
+	}
+
+	const longer = lengthDifference > 0 ? source : target;
+	const shorter = lengthDifference > 0 ? target : source;
+	let longerIndex = 0;
+	let shorterIndex = 0;
+	let skipped = false;
+	while (longerIndex < longer.length && shorterIndex < shorter.length) {
+		if (longer[longerIndex] === shorter[shorterIndex]) {
+			longerIndex += 1;
+			shorterIndex += 1;
+			continue;
+		}
+		if (skipped) {
+			return false;
+		}
+		skipped = true;
+		longerIndex += 1;
+	}
+	return true;
+}
+
+const fuzzyWord = /['’]?[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*'?/gu;
+
 /**
  * Reviewed spelling table. Empty alternate lists intentionally encode accepted,
  * pronunciation-dependent forms so callers do not infer a replacement.
@@ -84,6 +150,8 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		preferred: ["I'ma"],
 		alternates: ["I'mma", 'Ima', 'Imma'],
 		commonMisspellings: ["im'a"],
+		fuzzy: true,
+		fuzzyExceptions: ["I'm"],
 		contextGate: 'general',
 		safe: true,
 		pattern: word("I'mma|Im'a|Ima|Imma")
@@ -92,6 +160,7 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		preferred: ["'cause"],
 		alternates: ['cause', 'cos'],
 		commonMisspellings: ['coz', 'couse'],
+		fuzzy: true,
 		contextGate: 'general',
 		safe: true,
 		pattern: new RegExp("(?<![\\p{L}\\p{N}_'’])(?:cause|couse|cos|coz)(?![\\p{L}\\p{N}_])", 'giu')
@@ -114,6 +183,7 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		preferred: ['okay'],
 		alternates: ['ok', 'O.K.'],
 		commonMisspellings: ['okey'],
+		fuzzy: true,
 		contextGate: 'general',
 		safe: true,
 		pattern: word('O\\.K\\.|okey|ok'),
@@ -132,6 +202,7 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		preferred: ['tryna'],
 		alternates: ['trynna'],
 		commonMisspellings: ['tryina'],
+		fuzzy: true,
 		contextGate: 'general',
 		safe: true,
 		pattern: word('trynna|tryina')
@@ -181,6 +252,7 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		preferred: ["y'all"],
 		alternates: ['ya’ll'],
 		commonMisspellings: ['yall', "ya'll"],
+		fuzzy: true,
 		contextGate: 'general',
 		safe: true,
 		pattern: word("ya’ll|ya'll|yall")
@@ -188,6 +260,8 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['skrrt'],
 		alternates: ['skrt'],
+		fuzzy: true,
+		fuzzyExceptions: ['skirt'],
 		contextGate: 'general',
 		safe: true,
 		pattern: word('skrt')
@@ -206,6 +280,8 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		preferred: ['bougie'],
 		alternates: ['boujee', 'boujie'],
 		commonMisspellings: ['bougi', 'bougy', 'bouji', 'bourgie'],
+		fuzzy: true,
+		fuzzyExceptions: ['boogie'],
 		contextGate: 'general',
 		safe: true,
 		pattern: word('boujee|boujie|bourgie|bougi|bougy|bouji')
@@ -243,6 +319,8 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		preferred: ['chopper'],
 		alternates: ['choppa'],
 		commonMisspellings: ['choper'],
+		fuzzy: true,
+		fuzzyExceptions: ['chopped', 'shopper', 'copper', 'hopper'],
 		contextGate: 'general',
 		safe: true,
 		pattern: word('choppa|choper')
@@ -250,6 +328,8 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['oughta'],
 		alternates: ['oughtta'],
+		fuzzy: true,
+		fuzzyExceptions: ['ought'],
 		contextGate: 'general',
 		safe: true,
 		pattern: word('oughtta')
@@ -258,6 +338,8 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		preferred: ['naive'],
 		alternates: ['naïve'],
 		commonMisspellings: ['naieve', 'niaive', 'neive'],
+		fuzzy: true,
+		fuzzyExceptions: ['waive'],
 		contextGate: 'general',
 		safe: true,
 		pattern: word('naïve|naieve|niaive|neive')
@@ -266,6 +348,7 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		preferred: ['cliché'],
 		alternates: ['cliche'],
 		commonMisspellings: ['clichè', 'clichê', 'clichee'],
+		fuzzy: true,
 		contextGate: 'general',
 		safe: true,
 		pattern: word('clichee|cliche|clichè|clichê')
@@ -411,9 +494,53 @@ export function lookupSpellingCandidates(
 				found: match[0],
 				replacement: preferred,
 				contextGate: spelling.contextGate,
-				safe: spelling.safe
+				safe: spelling.safe,
+				fuzzy: false
 			});
 		}
+	}
+
+	const occupiedRanges = new Set(
+		candidates.map((candidate) => `${candidate.from}:${candidate.to}`)
+	);
+	for (const match of text.matchAll(fuzzyWord)) {
+		const from = match.index;
+		const to = from + match[0].length;
+		if (intersectsHtml({ from, to }, htmlRanges) || occupiedRanges.has(`${from}:${to}`)) {
+			continue;
+		}
+
+		const matches = standardizedSpellings.flatMap((spelling) =>
+			spelling.fuzzy &&
+			!spelling.preferred.some(
+				(preferred) => normalizedSpelling(preferred) === normalizedSpelling(match[0])
+			) &&
+			!spelling.alternates.some(
+				(alternate) => normalizedSpelling(alternate) === normalizedSpelling(match[0])
+			) &&
+			!spelling.fuzzyExceptions?.some(
+				(exception) => normalizedSpelling(exception) === normalizedSpelling(match[0])
+			)
+				? spelling.preferred
+						.filter((preferred) => isSingleEditApart(match[0], preferred))
+						.map((preferred) => ({ spelling, preferred }))
+				: []
+		);
+		if (matches.length !== 1) {
+			continue;
+		}
+
+		const [{ spelling, preferred }] = matches;
+		const replacement = preserveSimpleCase(match[0], preferred);
+		candidates.push({
+			from,
+			to,
+			found: match[0],
+			replacement,
+			contextGate: spelling.contextGate,
+			safe: false,
+			fuzzy: true
+		});
 	}
 
 	return candidates.sort((left, right) => left.from - right.from || left.to - right.to);

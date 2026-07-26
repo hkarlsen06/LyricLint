@@ -45,6 +45,13 @@ function copyDraft(record: DraftRecord): DraftRecord {
 		};
 	}
 
+	if (record.lineAnchors !== undefined) {
+		copy.lineAnchors = record.lineAnchors.map((anchor) => ({
+			line: anchor.line,
+			time: anchor.time
+		}));
+	}
+
 	return copy;
 }
 
@@ -67,6 +74,10 @@ function createRecord(input: DraftCreateInput): DraftRecord {
 
 	if (input.editorSelection !== undefined) {
 		record.editorSelection = input.editorSelection;
+	}
+
+	if (input.lineAnchors !== undefined) {
+		record.lineAnchors = input.lineAnchors;
 	}
 
 	return copyDraft(record);
@@ -159,21 +170,39 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			return copyDraft(duplicate);
 		},
 
+		// Deleting a draft takes its attached audio with it, here rather than in
+		// the caller. The Tools panel promises that "Delete all local data" leaves
+		// nothing behind, and a promise kept by every call site remembering to make
+		// a second call is a promise that will eventually be broken.
 		async delete(id) {
-			await database.transaction('rw', database.drafts, database.appMetadata, async () => {
-				await database.drafts.delete(id);
-				const current = await database.appMetadata.get(CURRENT_DRAFT_KEY);
-				if (current?.value === id) {
-					await database.appMetadata.delete(CURRENT_DRAFT_KEY);
+			await database.transaction(
+				'rw',
+				database.drafts,
+				database.appMetadata,
+				database.mediaHandles,
+				async () => {
+					await database.drafts.delete(id);
+					await database.mediaHandles.delete(id);
+					const current = await database.appMetadata.get(CURRENT_DRAFT_KEY);
+					if (current?.value === id) {
+						await database.appMetadata.delete(CURRENT_DRAFT_KEY);
+					}
 				}
-			});
+			);
 		},
 
 		async deleteAll() {
-			await database.transaction('rw', database.drafts, database.appMetadata, async () => {
-				await database.drafts.clear();
-				await database.appMetadata.delete(CURRENT_DRAFT_KEY);
-			});
+			await database.transaction(
+				'rw',
+				database.drafts,
+				database.appMetadata,
+				database.mediaHandles,
+				async () => {
+					await database.drafts.clear();
+					await database.mediaHandles.clear();
+					await database.appMetadata.delete(CURRENT_DRAFT_KEY);
+				}
+			);
 		},
 
 		async setCurrent(id) {

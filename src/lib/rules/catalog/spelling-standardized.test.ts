@@ -53,6 +53,29 @@ describe('spelling.standardized', () => {
 		);
 	});
 
+	it('previews unlisted one-edit misspellings of opted-in Genius spellings', () => {
+		const text = '[Verse]\ntryan skrtr bougei choppre naiv clcihé';
+		const found = checkRule(rule, text);
+
+		expect(markedText(text, found)).toEqual([
+			'tryan',
+			'skrtr',
+			'bougei',
+			'choppre',
+			'naiv',
+			'clcihé'
+		]);
+		expect(fixInserts(found)).toEqual(['tryna', 'skrrt', 'bougie', 'chopper', 'naive', 'cliché']);
+		expect(found.every((finding) => finding.fixes?.[0]?.kind === 'preview')).toBe(true);
+		expect(found.every((finding) => finding.explanation.includes('one character away'))).toBe(true);
+	});
+
+	it('does not fuzzy-match short, contextual, accepted, or ambiguous forms', () => {
+		expect(
+			checkRule(rule, '[Verse]\ncat dig hag goad till shawtie perkie woah alright thought')
+		).toEqual([]);
+	});
+
 	it('carries the casing of the matched alternate into the replacement', () => {
 		expect(fixInserts(checkRule(rule, '[Verse]\nIMMA GO'))).toEqual(["I'MA"]);
 		expect(fixInserts(checkRule(rule, '[Verse]\nTho, whoa'))).toEqual(['Though', 'woah']);

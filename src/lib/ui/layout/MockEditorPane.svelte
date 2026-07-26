@@ -88,6 +88,13 @@
 				textarea.selectionStart = nextSelection.anchor;
 				textarea.selectionEnd = nextSelection.head;
 			}
+		},
+		// The real editor owns the mode and reports it back, which is what the
+		// shell reacts to. The mock owes it the same shape: a `setLyricSync` that
+		// swallowed the call would leave the shell's half of the feature — rewind
+		// the song, focus the editor — with no way to be exercised at all.
+		setLyricSync(active) {
+			callbacks.onLyricSyncChange?.(active);
 		}
 	};
 

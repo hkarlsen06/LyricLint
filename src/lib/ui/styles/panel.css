@@ -130,7 +130,6 @@
 }
 
 .empty-state,
-.offline-note,
 .panel-content section > p {
 	color: var(--color-text-muted);
 }
@@ -138,10 +137,16 @@
 /* Prose measure, in two mechanisms, because "panel paragraph" spans two
    categories.
 
-   .empty-state and .offline-note are pure text: the box is nothing but the
-   words, so capping the box with max-width caps the text and nothing else.
-   (linter.css also relies on being able to restyle .empty-state's padding,
-   so its cap must stay a max-width, not padding.)
+   .empty-state is pure text: the box is nothing but the words, so capping the
+   box with max-width caps the text and nothing else. (linter.css also relies on
+   being able to restyle .empty-state's padding, so its cap must stay a
+   max-width, not padding.)
+
+   `.offline-note` used to be the other one. It was the tools panel's trailing
+   sentence, sitting outside every section with no heading over it, and it went
+   when that panel's three separate privacy claims were folded into one under
+   `Local data`. The hook went with it: a selector for markup nothing renders is
+   the same drift as a fallback color for a token nothing defines.
 
    A section's own paragraphs, however, can carry structure as well as prose:
    .roster-hint (performers.css) draws the roster's top divider with a
@@ -153,11 +158,10 @@
    The :not() keeps the two mechanisms from stacking when one of the pure-text
    classes sits directly in a section (max-width 66ch plus (100% - 66ch) of
    padding would squeeze the text twice). */
-.empty-state,
-.offline-note {
+.empty-state {
 	max-width: var(--measure-prose);
 }
 
-.panel-content section > p:not(.empty-state, .offline-note) {
+.panel-content section > p:not(.empty-state) {
 	padding-inline-end: max(0px, calc(100% - var(--measure-prose)));
 }

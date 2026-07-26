@@ -2,6 +2,11 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import LiveRegion from '../primitives/LiveRegion.svelte';
 import { createTestWorkbench } from '../test-utils.js';
+import { createFeedbackState } from '../state/feedback.svelte.js';
+import { createInMemoryMediaRepository } from '../state/in-memory.js';
+import { createMediaPlayer } from '../state/media-player.svelte.js';
+import { StubAudio } from '../state/media-test-audio.js';
+import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import DocumentToolbar from './DocumentToolbar.svelte';
 import Workspace from './Workspace.svelte';
 
@@ -487,6 +492,48 @@ describe('Workspace and toolbar', () => {
 		const row = getComputedStyle(link.closest('.status-bar')!);
 		expect(styles.color).toBe(row.color);
 		expect(styles.textDecorationLine).toBe('underline');
+	});
+
+	// The strip's own control is the only way in, so it has to be findable: a
+	// bordered command among the row's quiet glyphs and readouts, not another
+	// muted word beside the track's name.
+	test('draws the sync control as a command and starts a run from the top of the song', async () => {
+		const audio = new StubAudio();
+		const feedback = createFeedbackState();
+		const player = createMediaPlayer({
+			feedback,
+			createAudio: () => audio.asMediaElement(),
+			createObjectUrl: () => 'blob:test',
+			revokeObjectUrl: () => {},
+			loadYouTubeApi: createStubYouTubeApi().load,
+			scheduleYouTubePoll: createStubPoll().schedule
+		});
+		const { controller } = createTestWorkbench({
+			media: { repository: createInMemoryMediaRepository([]), player }
+		});
+		// The controller opens the initial draft's media on construction, and that
+		// call detaches whatever was loaded before it looks for a record. Attaching
+		// inside that window would be undone by it.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await controller.media!.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		audio.setDuration(200);
+		render(Workspace, { controller });
+
+		const sync = await screen.findByRole('button', { name: 'Sync lyrics' });
+		expect(sync.classList.contains('button')).toBe(true);
+		expect(getComputedStyle(sync).borderStyle).toBe('solid');
+
+		player.seek(90);
+		await fireEvent.click(sync);
+
+		// One pass over the lyric against one pass of the audio: the editor puts the
+		// caret at the top, so the shell rewinds the song to match it.
+		expect(player.currentTime).toBe(0);
+		expect(player.playing).toBe(true);
+		expect(screen.getByRole('button', { name: 'Stop syncing' })).toBeTruthy();
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Stop syncing' }));
+		expect(player.playing).toBe(false);
 	});
 
 	test('keeps the panel mounted at a narrow viewport with no way to dismiss it', async () => {

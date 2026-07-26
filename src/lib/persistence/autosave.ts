@@ -48,6 +48,13 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 		};
 	}
 
+	if (draft.lineAnchors !== undefined) {
+		copy.lineAnchors = draft.lineAnchors.map((anchor) => ({
+			line: anchor.line,
+			time: anchor.time
+		}));
+	}
+
 	return copy;
 }
 

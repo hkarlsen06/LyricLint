@@ -85,13 +85,25 @@ function trimmedRange(text: string, from: number, to: number): TextRange {
 	return { from: trimmedFrom, to: trimmedTo };
 }
 
-function isHeaderCandidate(line: PhysicalLine): boolean {
-	const trimmed = line.text.trim();
+/**
+ * Whether a line of text opens a section rather than being sung.
+ *
+ * Exported because the editor needs the same answer and must not arrive at it
+ * with a regex of its own: sync mode taps through lyric lines and skips the
+ * structure between them, and a second definition of "structure" would drift
+ * from this one the first time the parser learned about an unclosed bracket.
+ */
+export function isSectionHeaderLine(text: string): boolean {
+	const trimmed = text.trim();
 	if (!trimmed.startsWith('[')) {
 		return false;
 	}
 
 	return trimmed.endsWith(']') || !trimmed.includes(']');
+}
+
+function isHeaderCandidate(line: PhysicalLine): boolean {
+	return isSectionHeaderLine(line.text);
 }
 
 function parseHeaderName(

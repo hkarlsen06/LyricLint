@@ -110,6 +110,56 @@ export interface EditorOverlayCallbacks {
 	}): void;
 	onDiagnosticActivateIntent?(diagnostic: Diagnostic, intent: 'navigate' | 'fix'): void;
 	/**
+	 * An audio file was dropped on the document.
+	 *
+	 * The editor recognizes the drag and nothing more: it does not know what a
+	 * draft's audio is, whether one is already attached, or where the bytes are
+	 * kept. Returning false — or leaving the hook off — means the drop was not
+	 * taken, and CodeMirror's own drop handling runs as if nothing here existed.
+	 * That fallback is the whole safety net for the drops that were already
+	 * working, so nothing on this path may claim an event it did not handle.
+	 */
+	onAudioFileDropped?(file: File): boolean;
+	/**
+	 * Where the audio is now, for the line about to be stamped.
+	 *
+	 * Read on every typed transaction, so the shell's answer has to be cheap.
+	 * `undefined` means nothing is attached, and no anchor is recorded.
+	 */
+	onRequestMediaTime?(): number | undefined;
+	/**
+	 * Play from a line's anchored moment.
+	 *
+	 * Called from a press on a timestamp and from the jump command, and from
+	 * nothing else. Moving the caret past an anchored line must never reach this:
+	 * an editor whose audio jumps because the arrow key moved is an editor nobody
+	 * can type in.
+	 */
+	onSeekMedia?(time: number): void;
+	/**
+	 * A line anchor was written, corrected, or cleared without the text changing.
+	 *
+	 * Sync mode holds the document read-only, and `Ctrl-Alt-M` and the timestamp
+	 * column's own control move nothing, so `onSnapshot` never hears about any of
+	 * them. A shell that saved only on a document change would lose every anchor
+	 * that was not a side effect of typing — which is nearly all of them.
+	 */
+	onLineAnchorsChanged?(): void;
+	/**
+	 * Sync mode turned on or off.
+	 *
+	 * The editor owns the mode, so this reports rather than asks — and it fires
+	 * for every cause, including the ones the shell did not start: `Escape`, and
+	 * running out of lines to time. The shell answers it by starting or stopping
+	 * playback, so those two never disagree about whether a run is under way.
+	 *
+	 * `startAt` is where the audio has to be for the run to line up with the
+	 * caret: 0 for a fresh pass, and the resumed line's own time when a half-timed
+	 * song picks up where it was left. The editor decides it, because the anchors
+	 * are the editor's.
+	 */
+	onLyricSyncChange?(active: boolean, startAt?: number): void;
+	/**
 	 * The pointer is resting on a diagnostic's underline.
 	 *
 	 * Deliberately not `onDiagnosticActivate`: pointing is not navigation. The

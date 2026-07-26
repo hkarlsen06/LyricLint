@@ -2,6 +2,7 @@
 	import { Tabs } from 'bits-ui';
 	import LinterPanel from '../linter/LinterPanel.svelte';
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
+	import MediaVideo from '../media/MediaVideo.svelte';
 	import PerformersPanel from '../performers/PerformersPanel.svelte';
 	import type { RightPanelTab, WorkbenchController } from '../state/workbench.svelte.js';
 	import ToolsPanel from '../tools/ToolsPanel.svelte';
@@ -114,6 +115,22 @@
 					onRestore={(ruleId) => controller.restoreRule(ruleId)}
 				/>
 			</footer>
+		{/if}
+
+		<!-- The video is the last band in the column, under the ignored-rules footer
+		     rather than over it, and the order is by scope: the pane, then the
+		     chrome belonging to that one pane, then the chrome belonging to the
+		     window. A picture that survives every tab switch cannot sit above a bar
+		     that only exists inside the linter, or switching tabs would move it.
+
+		     It is here and not in the editor column because it is the one part of
+		     the media feature that is looked at rather than operated: two hundred
+		     pixels taken off a scrolling list of findings costs a scroll, and the
+		     same two hundred taken off the document costs the thing being typed
+		     into. The transport stays under the editor, which is the honest reading
+		     of what it controls. -->
+		{#if controller.media?.player.sourceKind === 'youtube'}
+			<MediaVideo media={controller.media} />
 		{/if}
 	</Tabs.Root>
 </aside>

@@ -174,6 +174,14 @@ And the "quiet" part was never really quiet`;
 		site that is not always reachable.
 	</p>
 
+	<p>
+		There is one exception, and you choose it draft by draft. You can play the song you are
+		transcribing alongside the lyrics: an audio file off your own disk, which is never uploaded and
+		never copied into the browser, or a YouTube video, which loads Google's player into the page and
+		lets Google see which video it is. Nothing loads from Google until you paste a link, and a draft
+		using one stops working offline.
+	</p>
+
 	<h2>What it is not</h2>
 
 	<ul>

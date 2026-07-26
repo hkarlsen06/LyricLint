@@ -1,0 +1,249 @@
+import { page } from 'vitest/browser';
+import { describe, expect, it } from 'vitest';
+import { render } from 'vitest-browser-svelte';
+import { createInMemoryMediaRepository } from '../state/in-memory.js';
+import { createFeedbackState } from '../state/feedback.svelte.js';
+import { createMediaPlayer } from '../state/media-player.svelte.js';
+import { createMediaStore } from '../state/media-store.svelte.js';
+import { StubAudio } from '../state/media-test-audio.js';
+import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
+import type { MediaHandleRecord } from '$lib/persistence/index.js';
+import MediaStrip from './MediaStrip.svelte';
+
+function store(options: { records?: MediaHandleRecord[]; file?: File } = {}) {
+	const audio = new StubAudio();
+	const feedback = createFeedbackState();
+	// Nothing in this file reaches Google: the API is a stub and the poll is a
+	// function the test would have to call.
+	const youtube = createStubYouTubeApi();
+	const poll = createStubPoll();
+	const player = createMediaPlayer({
+		feedback,
+		createAudio: () => audio.asMediaElement(),
+		createObjectUrl: () => 'blob:test',
+		revokeObjectUrl: () => {},
+		loadYouTubeApi: youtube.load,
+		scheduleYouTubePoll: poll.schedule
+	});
+	const file = options.file ?? new File([''], 'track.mp3', { type: 'audio/mpeg' });
+	const media = createMediaStore({
+		repository: createInMemoryMediaRepository(options.records ?? []),
+		feedback,
+		draftId: () => 'draft-1',
+		player,
+		pickFile: async () => ({ file })
+	});
+
+	return { audio, media, player, youtube };
+}
+
+describe('MediaStrip', () => {
+	it('offers the transport, the elapsed time, and the track at both ends', async () => {
+		const { audio, media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		audio.setDuration(125);
+
+		render(MediaStrip, { props: { media } });
+
+		await expect.element(page.getByRole('button', { name: 'Play' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Back 3 seconds' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Forward 3 seconds' })).toBeVisible();
+		await expect.element(page.getByTestId('media-elapsed')).toHaveTextContent('0:00');
+		await expect.element(page.getByText('2:05')).toBeVisible();
+		await expect.element(page.getByText('track.mp3')).toBeVisible();
+		await expect.element(page.getByRole('slider', { name: 'Seek' })).toBeEnabled();
+	});
+
+	it('swaps the middle control to Pause while playing, keeping its slot', async () => {
+		const { audio, media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		audio.setDuration(60);
+
+		render(MediaStrip, { props: { media } });
+
+		await page.getByRole('button', { name: 'Play' }).click();
+		await expect.element(page.getByRole('button', { name: 'Pause' })).toBeVisible();
+		expect(page.getByRole('button', { name: 'Play' }).elements()).toHaveLength(0);
+
+		await page.getByRole('button', { name: 'Pause' }).click();
+		await expect.element(page.getByRole('button', { name: 'Play' })).toBeVisible();
+	});
+
+	// A scrubber that spans an unknown range is a control that cannot be aimed.
+	it('holds the scrubber until the browser has read the duration', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+
+		render(MediaStrip, { props: { media } });
+
+		await expect.element(page.getByRole('slider', { name: 'Seek' })).toBeDisabled();
+	});
+
+	it('names the remembered file in the reconnect control and offers no transport', async () => {
+		const { media } = store({
+			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }]
+		});
+		await media.openFor('draft-1');
+
+		render(MediaStrip, { props: { media } });
+
+		await expect
+			.element(page.getByRole('button', { name: 'Reconnect sensommer.mp3' }))
+			.toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Forget sensommer.mp3' })).toBeVisible();
+		expect(page.getByRole('button', { name: 'Play' }).elements()).toHaveLength(0);
+		expect(page.getByRole('slider', { name: 'Seek' }).elements()).toHaveLength(0);
+	});
+
+	it('reconnects into the full transport when the control is pressed', async () => {
+		const { media } = store({
+			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }]
+		});
+		await media.openFor('draft-1');
+
+		render(MediaStrip, { props: { media } });
+
+		await page.getByRole('button', { name: 'Reconnect sensommer.mp3' }).click();
+
+		await expect.element(page.getByRole('button', { name: 'Play' })).toBeVisible();
+		expect(media.pendingName).toBeUndefined();
+		expect(media.player.attached).toBe(true);
+	});
+
+	// The error is prose in the row, not a tinted box appearing inside the strip,
+	// and the file stays named so re-attaching is one press away.
+	it('states a decode failure in place of the scrubber', async () => {
+		const { audio, media, player } = store();
+		player.attach(new File([''], 'broken.mp3', { type: 'audio/mpeg' }));
+		audio.dispatchEvent(new Event('error'));
+
+		render(MediaStrip, { props: { media } });
+
+		await expect.element(page.getByText('That file could not be played.')).toBeVisible();
+		expect(page.getByRole('slider', { name: 'Seek' }).elements()).toHaveLength(0);
+		await expect.element(page.getByText('broken.mp3')).toBeVisible();
+	});
+
+	// The transport is the same transport whichever source is playing, and this row
+	// is only the transport. The picture belongs to the right panel's foot, so
+	// attaching a video must not grow the editor column by a frame.
+	it('draws no picture for either source', async () => {
+		const { audio, media, player } = store();
+		render(MediaStrip, { props: { media } });
+
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		audio.setDuration(125);
+		await expect.element(page.getByRole('button', { name: 'Play' })).toBeVisible();
+		expect(document.querySelectorAll('.media-video')).toHaveLength(0);
+
+		await media.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
+
+		await expect.element(page.getByRole('button', { name: 'Play' })).toBeVisible();
+		expect(document.querySelectorAll('.media-video')).toHaveLength(0);
+	});
+
+	it('offers only the rates the attached source will apply', async () => {
+		const { media, player, youtube } = store();
+		await media.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
+		// The picture draws in the right panel, so nothing this row renders builds a
+		// player. Stand in for that mount: what is under test here is the strip's
+		// speed control answering to whatever the source turns out to allow.
+		player.mountVideo(document.createElement('div'));
+
+		render(MediaStrip, { props: { media } });
+
+		const select = page.getByRole('combobox', { name: 'Playback speed' });
+		await expect.element(select).toBeVisible();
+		// Until the player answers, the workbench's own offer stands; a control
+		// that collapsed to one option and grew back would be worse than either.
+		expect(select.element().querySelectorAll('option')).toHaveLength(5);
+
+		const video = youtube.players.at(-1);
+		if (!video) throw new Error('The strip mounted no player for the video.');
+		video.rates = [0.5, 1, 2];
+		video.ready({ duration: 200 });
+
+		expect(player.availableRates).toEqual([0.5, 1]);
+		await expect.element(select).toBeVisible();
+		expect(select.element().querySelectorAll('option')).toHaveLength(2);
+	});
+
+	it('says which question the waiting control is asking', async () => {
+		const { media } = store({
+			records: [
+				{
+					draftId: 'draft-1',
+					name: 'Sensommer',
+					source: 'youtube',
+					videoId: 'dQw4w9WgXcQ',
+					attachedAt: '2026-07-01T00:00:00Z'
+				}
+			]
+		});
+		await media.openFor('draft-1');
+
+		render(MediaStrip, { props: { media } });
+
+		// Naming YouTube in the control is what makes the press the consent: a bare
+		// "Reconnect" would spend it without saying so.
+		await expect
+			.element(page.getByRole('button', { name: 'Load Sensommer from YouTube' }))
+			.toBeVisible();
+		expect(page.getByRole('button', { name: 'Reconnect Sensommer' }).elements()).toHaveLength(0);
+	});
+
+	// Timing the whole lyric is a transport activity, so its control is in the
+	// transport. While a run is under way the strip stops naming the file and
+	// states the two keys instead — the document has quietly stopped taking
+	// typing, and `Stop syncing` explains that only to someone who already knows
+	// what syncing is.
+	it('offers the sync control and swaps the track name for the keys while it runs', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		let active = $state(false);
+		const sync = {
+			get active() {
+				return active;
+			},
+			toggle: () => {
+				active = !active;
+			}
+		};
+
+		render(MediaStrip, { props: { media, sync } });
+
+		await expect.element(page.getByText('track.mp3')).toBeVisible();
+		await page.getByRole('button', { name: 'Sync lyrics' }).click();
+
+		expect(active).toBe(true);
+		await expect.element(page.getByRole('button', { name: 'Stop syncing' })).toBeVisible();
+		await expect.element(page.getByText('Tap Space as each line starts · Esc stops')).toBeVisible();
+		expect(page.getByText('track.mp3').elements()).toHaveLength(0);
+	});
+
+	// A strip mounted without one has nothing to toggle, which is what keeps the
+	// control from appearing in a build whose editor cannot enter the mode.
+	it('draws no sync control when the shell offers none', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+
+		render(MediaStrip, { props: { media } });
+
+		await expect.element(page.getByText('track.mp3')).toBeVisible();
+		expect(page.getByRole('button', { name: /sync/iu }).elements()).toHaveLength(0);
+	});
+
+	it('detaching clears the strip and forgets the file for this draft', async () => {
+		const { media, player } = store();
+		await media.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+
+		render(MediaStrip, { props: { media } });
+
+		await page.getByRole('button', { name: 'Detach track.mp3' }).click();
+
+		expect(player.attached).toBe(false);
+		expect(media.pendingName).toBeUndefined();
+		await media.openFor('draft-1');
+		expect(media.pendingName).toBeUndefined();
+	});
+});

@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 
-import type { AppMetadataRecord, DraftRecord } from './types.js';
+import type { AppMetadataRecord, DraftRecord, MediaHandleRecord } from './types.js';
 
 export const DEFAULT_DATABASE_NAME = 'lyriclint';
 
@@ -8,6 +8,17 @@ export const DEFAULT_DATABASE_NAME = 'lyriclint';
 export class LyricLintDatabase extends Dexie {
 	drafts!: EntityTable<DraftRecord, 'id'>;
 	appMetadata!: EntityTable<AppMetadataRecord, 'key'>;
+	/**
+	 * The audio attached to a draft, as a file handle rather than as bytes.
+	 *
+	 * It is a table of its own and not a field on `DraftRecord` for two separate
+	 * reasons, and both have to hold. A `FileSystemFileHandle` is structured
+	 * cloneable but not JSON — putting one on the draft would break `exportDraft`
+	 * and `copyDraft`, which walk the record field by field. And a draft's audio
+	 * is a 60MB file: storing the bytes would spend the origin's whole quota on
+	 * one song, so nothing here ever holds the audio itself.
+	 */
+	mediaHandles!: EntityTable<MediaHandleRecord, 'draftId'>;
 
 	constructor(name = DEFAULT_DATABASE_NAME) {
 		super(name);
@@ -15,6 +26,12 @@ export class LyricLintDatabase extends Dexie {
 		this.version(1).stores({
 			drafts: 'id, updatedAt',
 			appMetadata: 'key'
+		});
+
+		this.version(2).stores({
+			drafts: 'id, updatedAt',
+			appMetadata: 'key',
+			mediaHandles: 'draftId'
 		});
 	}
 }

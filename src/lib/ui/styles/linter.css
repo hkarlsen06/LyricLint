@@ -406,14 +406,22 @@
 	gap: var(--space-3);
 }
 
+/*
+ * The collapsed footer is one row of chrome at the foot of the panel, and the
+ * media strip is one row of chrome at the foot of the editor beside it — so they
+ * are the same height, `--control-height-lg`, and neither one stacks padding of
+ * its own on top of it. Two chrome bands meeting at the same seam, six pixels
+ * apart, read as a mistake before they read as two different things.
+ */
 .ignored-rules {
-	padding: var(--space-1) 0;
+	padding: 0;
 }
 
 .ignored-rules__toggle {
 	display: flex;
 	width: 100%;
-	padding: var(--space-2) 0;
+	min-height: var(--control-height-lg);
+	padding: var(--space-1) 0;
 	border: 0;
 	gap: var(--space-1);
 	align-items: center;
@@ -433,9 +441,11 @@
 	font-weight: var(--font-weight-bold);
 }
 
+/* The row's height is fixed, so the expanded list carries its own bottom space
+   rather than borrowing it from the section's padding. */
 .ignored-rules ul {
 	display: grid;
-	margin: var(--space-2) 0 0;
+	margin: 0 0 var(--space-2);
 	padding: 0;
 	gap: var(--space-2);
 	list-style: none;

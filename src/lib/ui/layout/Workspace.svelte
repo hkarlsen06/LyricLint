@@ -20,6 +20,9 @@
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
 	import DocumentToolbar from './DocumentToolbar.svelte';
+	import MediaPicker from '../media/MediaPicker.svelte';
+	import MediaStrip from '../media/MediaStrip.svelte';
+	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
 	import MockEditorPane from './MockEditorPane.svelte';
 	import RightPanel from './RightPanel.svelte';
 
@@ -196,11 +199,101 @@
 		countDiagnosticFixBatch: (diagnostic, fix) => controller.fixBatchSize(diagnostic, fix),
 		onApplyDiagnosticFixBatch: (diagnostic, fix) => controller.applyFixBatch(diagnostic, fix),
 		onIgnoreDiagnostic: (diagnostic) => controller.ignoreRule(diagnostic.ruleId),
-		onSetLanguage: (language) => controller.setLanguage(language)
+		onSetLanguage: (language) => controller.setLanguage(language),
+		// The song dropped onto the lyrics it belongs to. The editor recognized the
+		// file and knows nothing else about it; where the bytes go is the media
+		// store's business. False when the draft has no store yet, so the drop
+		// falls back to the editor's own handling rather than vanishing — and the
+		// attach is a promise this hook has no way to wait for, which is fine: it
+		// reports its own progress in the strip it is about to draw.
+		onAudioFileDropped: (file) => {
+			const media = controller.media;
+			if (!media) return false;
+			void media.attachFile(file);
+			return true;
+		},
+		// Read on every typed transaction, so it answers off the source rather than
+		// the mirrored readout and does nothing else.
+		onRequestMediaTime: () => {
+			const player = controller.media?.player;
+			return player?.attached ? player.liveTime() : undefined;
+		},
+		// The marker says "Play from 1:23", so it plays: seeking without starting
+		// would leave the user to press a second control to get what the first one
+		// promised. The seek cancels the resume rewind on its way through, so
+		// playback begins at the anchored moment and not two seconds before it.
+		// A whole synced song changes no text, so nothing else would ever write it
+		// down. See `onLineAnchorsChanged` on the controller.
+		onLineAnchorsChanged: () => controller.onLineAnchorsChanged(),
+		onSeekMedia: (time) => {
+			const player = controller.media?.player;
+			if (!player?.attached) return;
+			player.seek(time);
+			player.play();
+		},
+		// The editor owns the mode and this only reacts, which is what keeps the
+		// tape and the mode from ever disagreeing: `Escape` and running out of lines
+		// end a run without the shell being asked, and both arrive here.
+		onLyricSyncChange: (active, startAt) => {
+			syncing = active;
+			const player = controller.media?.player;
+			if (active) {
+				// Wherever the editor put the caret, because a run is one pass over the
+				// document against one pass of the audio and the two ends have to begin
+				// in the same place. That is 0 for a fresh pass and the resumed line's
+				// own time for a half-timed song; the editor decides which, because the
+				// anchors are the editor's.
+				player?.seek(startAt ?? 0);
+				player?.play();
+				// The tap is a keystroke, so the run cannot start with focus in the
+				// button that started it. This is a deliberate focus move into a mode
+				// the user just asked for, not the editor grabbing the caret.
+				editorHandle?.focus();
+			} else {
+				player?.pause();
+			}
+		}
+	};
+
+	let syncing = $state(false);
+
+	const lyricSync = {
+		get active() {
+			return syncing;
+		},
+		toggle: () => editorHandle?.setLyricSync?.(!syncing)
 	};
 
 	$effect(() => {
 		controller.setEditorHandle(editorHandle);
+	});
+
+	// The transport keys, bound to the window and not to the document. The pause
+	// is wanted most at exactly the moments the caret has left the text — reading
+	// a finding, aiming a scrubber, renaming the draft — so a binding that only
+	// answered inside the editor answered in the wrong half of the loop.
+	//
+	// Only `controller.media` is read here, so the listener is bound once rather
+	// than rebound on every tick of the playhead.
+	$effect(() => {
+		const media = controller.media;
+		if (!media) return;
+		return bindTransportShortcuts({
+			transport: (action) => {
+				if (!media.player.attached) return false;
+				media.player.transport(action);
+				return true;
+			}
+		});
+	});
+
+	// Where the audio is, pushed into the anchor gutter — which fills one dot and
+	// is the entire extent of what playback is permitted to do to the document.
+	// It is deliberately not conditional on playing: a paused track still has a
+	// position, and showing it is how the user finds their way back to it.
+	$effect(() => {
+		const player = controller.media?.player;
+		editorHandle?.setMediaPlayhead?.(player?.attached ? player.currentTime : undefined);
 	});
 
 	// Language and roster changes do not create a CodeMirror transaction. Re-run
@@ -235,12 +328,26 @@
 				/>
 			{/key}
 		</div>
+
+		<!-- Only when there is something to control: an empty transport reports a
+		     state that could not have been otherwise, which is the same reason the
+		     status bar's counts wait for a count worth stating. -->
+		{#if controller.media && (controller.media.player.attached || controller.media.pendingName)}
+			<MediaStrip media={controller.media} sync={lyricSync} />
+		{/if}
 	</section>
 
 	<RightPanel {controller} />
 
 	<footer class="status-bar" aria-label="Document summary">
 		<span class="status-bar__group">
+			<!-- The way in to the audio, in the row the transport itself appears
+			     directly above. It is a control among readouts, so unlike the counts
+			     it does not wait for something to report — a stable slot with a
+			     label that follows the state is what makes it findable at all. -->
+			{#if controller.media}
+				<MediaPicker media={controller.media} />
+			{/if}
 			{#if documentCounts.length > 0}
 				<span>{documentCounts.join(' · ')}</span>
 			{/if}

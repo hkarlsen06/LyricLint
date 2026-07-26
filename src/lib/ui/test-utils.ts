@@ -5,12 +5,15 @@ import type {
 	DraftRecord,
 	EditorHandle,
 	EditorSnapshot,
+	LineAnchor,
 	PerformerRecord,
 	SerializedSelection,
 	SourceReference,
 	TextRange
 } from '$lib/core/types.js';
+import type { MediaRepository } from '$lib/persistence/media-repository.js';
 import { createFeedbackState } from './state/feedback.svelte.js';
+import type { MediaPlayer } from './state/media-player.svelte.js';
 import {
 	createContractSessionIgnoreStore,
 	createInMemoryAutosaveController,
@@ -28,6 +31,9 @@ export interface EditorCallLog {
 	undoCount: number;
 	redoCount: number;
 	sectionHeaderRequestCount: number;
+	lineAnchors: LineAnchor[];
+	/** Every playhead push, so a test can assert the document did not follow it. */
+	playheads: (number | undefined)[];
 }
 
 const testSource: SourceReference = {
@@ -81,6 +87,13 @@ export function createTestWorkbench(options?: {
 	selection?: SerializedSelection;
 	revision?: number;
 	recentLanguages?: readonly string[];
+	/**
+	 * Give this workbench audio. Off by default, because a controller with a media
+	 * store is one more thing running behind every unrelated assertion — and
+	 * because the player has to be a stub: the real one builds an `<audio>`
+	 * element and can fetch Google's IFrame API.
+	 */
+	media?: { repository: MediaRepository; player: MediaPlayer };
 }) {
 	const text = options?.text ?? '[Verse]\nLine';
 	const selection = options?.selection ?? { anchor: 0, head: 4 };
@@ -113,7 +126,9 @@ export function createTestWorkbench(options?: {
 		dispatched: [],
 		undoCount: 0,
 		redoCount: 0,
-		sectionHeaderRequestCount: 0
+		sectionHeaderRequestCount: 0,
+		lineAnchors: [],
+		playheads: []
 	};
 	const editor: EditorHandle = {
 		focus() {
@@ -142,6 +157,15 @@ export function createTestWorkbench(options?: {
 		},
 		requestSectionHeader() {
 			calls.sectionHeaderRequestCount += 1;
+		},
+		getLineAnchors() {
+			return calls.lineAnchors.map((anchor) => ({ ...anchor }));
+		},
+		setLineAnchors(anchors) {
+			calls.lineAnchors = anchors.map((anchor) => ({ ...anchor }));
+		},
+		setMediaPlayhead(time) {
+			calls.playheads.push(time);
 		}
 	};
 	const repository = createInMemoryDraftRepository(options?.drafts ?? [initialDraft]);
@@ -158,6 +182,9 @@ export function createTestWorkbench(options?: {
 		autosave,
 		ignoreStore,
 		feedback,
+		...(options?.media
+			? { mediaRepository: options.media.repository, mediaPlayer: options.media.player }
+			: {}),
 		sources: [testSource],
 		ruleSet: {
 			version: '2026.7',

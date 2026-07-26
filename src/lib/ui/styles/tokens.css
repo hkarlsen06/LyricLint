@@ -154,6 +154,12 @@
 	--color-fill-strong: oklch(88% 0.008 285);
 	--color-overlay: var(--color-surface);
 
+	/* What a modal dims the workbench with. One value for both schemes, because
+	   the job is to darken whatever is behind the dialog rather than to match the
+	   page — and it is a token rather than a literal in each `::backdrop` because
+	   two dialogs had already copied the same oklch by hand. */
+	--color-backdrop: oklch(12% 0.008 285 / 0.64);
+
 	/* Toolbars and status bars are chrome, not an interaction state; the alias
 	   keeps that intent legible where the fill ramp is reused for a flat band. */
 	--color-chrome: var(--color-fill-subtle);

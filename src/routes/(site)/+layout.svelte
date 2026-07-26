@@ -77,7 +77,11 @@
 	{@render children()}
 
 	<footer class="site-footer">
-		<span>Local-first. No account, no upload, no tracking.</span>
+		<!-- The claim has to stay true of the workbench, not only of this page. A
+		     draft can be pointed at a YouTube video for playback, and that loads
+		     Google's player — so the footer names the exception rather than
+		     promising something the tool no longer promises. -->
+		<span>Local-first. No account, no upload, nothing third-party unless you ask for it.</span>
 		<span class="site-code">
 			Rule set {currentRuleSet.version} · published {currentRuleSet.publishedAt}
 		</span>

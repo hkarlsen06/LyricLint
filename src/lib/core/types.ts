@@ -257,6 +257,18 @@ export interface DraftRecord {
 	updatedAt: string;
 	ruleSetVersion: string;
 	editorSelection?: SerializedSelection;
+	/**
+	 * Lines tied to moments in the audio they were transcribed from.
+	 *
+	 * On the draft rather than beside the attached audio, because an anchor
+	 * describes a *line* — it is written by typing, it moves when the text moves,
+	 * and it is saved by the same autosave that saves the words. Keeping it here
+	 * also means a duplicated draft keeps its anchors, and detaching the audio
+	 * does not throw away work that is still correct for the same song.
+	 *
+	 * Plain JSON, so `copyDraft` and `exportDraft` are undisturbed.
+	 */
+	lineAnchors?: LineAnchor[];
 }
 
 /** Lightweight metadata used to list drafts without opening their text. */
@@ -481,6 +493,47 @@ export interface EditorHandle {
 	requestSectionHeader?(): void;
 	/** Open the guided performer-legend assignment for an inline mismatch. */
 	requestPerformerLegendAssignment?(diagnostic: Diagnostic): void;
+	/** Every line anchor, for the shell to write down. */
+	getLineAnchors?(): LineAnchor[];
+	/** Replace every line anchor, for a draft being opened. */
+	setLineAnchors?(anchors: readonly LineAnchor[]): void;
+	/**
+	 * Tell the editor where the audio is, or `undefined` when nothing is attached.
+	 *
+	 * This marks one cell of the timestamp column and does nothing else. It is not
+	 * permitted to scroll, and there is no follow mode behind it: a document that
+	 * moves under the hands of someone typing into it is the single fastest way
+	 * to make a transcription tool unusable.
+	 *
+	 * `undefined` also takes the column away entirely, which is the honest
+	 * reading — with no audio there is nothing to show a time for and nothing to
+	 * anchor a line to.
+	 */
+	setMediaPlayhead?(time: number | undefined): void;
+	/**
+	 * Enter or leave sync mode, where the document stops taking typing and a tap
+	 * anchors the caret's line before moving to the next one.
+	 *
+	 * The editor owns the mode; this only asks. What actually happened comes back
+	 * through `onLyricSyncChange`, which also fires when the editor ends it by
+	 * itself — on `Escape`, or on running out of lines.
+	 */
+	setLyricSync?(active: boolean): void;
+}
+
+/**
+ * A lyric line tied to a moment in the audio it was transcribed from.
+ *
+ * Serialized against the line *number* rather than a character offset: offsets
+ * shift on every keystroke earlier in the document, while a line keeps its
+ * identity through anything typed inside it. Inside the editor the live truth is
+ * a mapped range over the line's text; this is only how it is written down.
+ */
+export interface LineAnchor {
+	/** 1-based, matching CodeMirror's own line numbering. */
+	line: number;
+	/** Seconds into the attached audio. */
+	time: number;
 }
 
 /** Immutable editor inputs owned by the application shell. */
