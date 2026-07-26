@@ -11,7 +11,10 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter()
+			// Cloudflare Pages treats a static site without a top-level 404 page
+			// as an SPA and rewrites unknown paths to index.html. A missing hashed
+			// asset must remain a 404 rather than becoming 200 text/html.
+			adapter: adapter({ fallback: '404.html' })
 		})
 	],
 	test: {
