@@ -102,6 +102,19 @@ export function isSectionHeaderLine(text: string): boolean {
 	return trimmed.endsWith(']') || !trimmed.includes(']');
 }
 
+/**
+ * Whether a line is one of the ones that gets timed: sung text, not structure.
+ *
+ * Three surfaces ask this — sync mode taps through these lines, the timestamp
+ * column draws a cell only for them, and the strip's `Lyrics synced` is the claim
+ * that every one of them has an anchor. They have to agree, so there is one
+ * answer and it lives beside the header test it is built from.
+ */
+export function isLyricLine(text: string): boolean {
+	const trimmed = text.trim();
+	return trimmed.length > 0 && !isSectionHeaderLine(trimmed);
+}
+
 function isHeaderCandidate(line: PhysicalLine): boolean {
 	return isSectionHeaderLine(line.text);
 }

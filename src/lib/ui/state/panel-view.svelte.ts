@@ -11,6 +11,7 @@ import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
 import { resolveLegendAssignment } from '$lib/performers/legend-assignment.js';
 import { collectMatchingFixes, mergeFixes, planBulkFix } from '$lib/rules/bulk-fix.js';
 import type { BulkFixPlan } from '$lib/rules/bulk-fix.js';
+import { ruleName } from '$lib/rules/reference.js';
 import type { FeedbackState } from './feedback.svelte.js';
 
 export type RightPanelTab = 'linter' | 'performers' | 'tools';
@@ -353,14 +354,14 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			activeDiagnosticKey = undefined;
 			if (ignoredRuleIds.includes(ruleId)) return;
 			setIgnored(ruleId, true);
-			const message = `Ignored ${ruleId} for this session.`;
+			const message = `Ignored “${ruleName(ruleId)}” for this session.`;
 			feedback.announce(message);
 			feedback.addToast({
 				message,
 				actionLabel: 'Undo',
 				action: () => {
 					setIgnored(ruleId, false);
-					feedback.announce(`Restored ${ruleId}.`);
+					feedback.announce(`Restored “${ruleName(ruleId)}”.`);
 				}
 			});
 		},
@@ -370,14 +371,14 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		restoreRule(ruleId) {
 			if (!ignoredRuleIds.includes(ruleId)) return;
 			setIgnored(ruleId, false);
-			const message = `Restored ${ruleId}.`;
+			const message = `Restored “${ruleName(ruleId)}”.`;
 			feedback.announce(message);
 			feedback.addToast({
 				message,
 				actionLabel: 'Undo',
 				action: () => {
 					setIgnored(ruleId, true);
-					feedback.announce(`Ignored ${ruleId} again.`);
+					feedback.announce(`Ignored “${ruleName(ruleId)}” again.`);
 				}
 			});
 		}

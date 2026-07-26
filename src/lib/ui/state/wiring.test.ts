@@ -6,6 +6,7 @@ import { createTestWorkbench, performer } from '../test-utils.js';
 import {
 	buildRuleContext,
 	computeDiagnostics,
+	everyLyricLineTimed,
 	orderPerformersByAppearance,
 	resolveVoiceGroupRanges
 } from './wiring.js';
@@ -152,5 +153,27 @@ describe('UI wiring', () => {
 			roster
 		);
 		expect(joint[0]?.group.performerIds).toEqual(['echo', 'alias']);
+	});
+
+	// What the strip's `Lyrics synced` claims. The lines a run would tap are the
+	// editor's own stampable ones, so headers and blanks may not hold the claim
+	// back — and an anchor on a header may not stand in for a missing lyric line.
+	test('a lyric is timed when every stampable line has an anchor', () => {
+		const text = '[Verse 1]\nFirst line\n\nSecond line';
+		expect(
+			everyLyricLineTimed(text, [
+				{ line: 2, time: 1 },
+				{ line: 4, time: 5 }
+			])
+		).toBe(true);
+		expect(everyLyricLineTimed(text, [{ line: 2, time: 1 }])).toBe(false);
+		expect(
+			everyLyricLineTimed(text, [
+				{ line: 1, time: 0 },
+				{ line: 2, time: 1 }
+			])
+		).toBe(false);
+		// Nothing to tap is not finished work, so the control keeps offering the job.
+		expect(everyLyricLineTimed('[Verse 1]\n\n', [])).toBe(false);
 	});
 });

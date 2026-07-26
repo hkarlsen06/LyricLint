@@ -212,6 +212,13 @@
 	--color-manual-soft: oklch(93.5% 0.006 285);
 	--color-danger-soft: var(--color-danger-surface);
 
+	/* Where the audio is. LyricLint's own yellow, which is the warning ramp —
+	   the mark's `#dea645` is that hue in both themes — under a name that says
+	   what it marks, since a playhead is not a warning. Aliases rather than
+	   copies, so a theme that moves the ramp moves this with it. */
+	--color-playhead: var(--color-warning);
+	--color-playhead-soft: var(--color-warning-soft);
+
 	/* Elevation. `--shadow-recessed` is the only one that points inward: it is
 	   what makes a selected row read as a well cut into a run of touching rows,
 	   rather than as one more card floating above them. */

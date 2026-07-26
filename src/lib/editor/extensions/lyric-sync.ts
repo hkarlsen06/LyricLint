@@ -1,12 +1,13 @@
 import { EditorState, Prec, StateEffect, StateField } from '@codemirror/state';
 import type { Extension, Line } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
-import { isSectionHeaderLine } from '$lib/core/parser.js';
 import {
 	anchorLineEffect,
 	anchorTimeAt,
 	clearLineAnchorEffect,
-	formatAnchorTime
+	formatAnchorTime,
+	holdReadingLine,
+	isStampableLine
 } from './line-anchors.js';
 
 /**
@@ -77,24 +78,11 @@ export function lyricSyncActive(state: EditorState): boolean {
 	return state.field(lyricSyncField, false)?.active ?? false;
 }
 
-/**
- * Whether a line is one of the ones being timed.
- *
- * Blank lines and section headers are skipped, and the header case is the one
- * worth explaining: a header sits in the gap before its verse, so tapping through
- * it would land the press at the exact moment the verse's first line starts —
- * eating that line's tap and putting every anchor in the section one line out.
- */
-function isStampable(line: Line): boolean {
-	const text = line.text.trim();
-	return text.length > 0 && !isSectionHeaderLine(text);
-}
-
 /** The first stampable line at or after `number`, if the document has one. */
 function stampableFrom(state: EditorState, number: number): Line | undefined {
 	for (let candidate = Math.max(1, number); candidate <= state.doc.lines; candidate += 1) {
 		const line = state.doc.line(candidate);
-		if (isStampable(line)) return line;
+		if (isStampableLine(line)) return line;
 	}
 	return undefined;
 }
@@ -103,48 +91,9 @@ function stampableFrom(state: EditorState, number: number): Line | undefined {
 function stampableBefore(state: EditorState, number: number): Line | undefined {
 	for (let candidate = Math.min(number, state.doc.lines); candidate >= 1; candidate -= 1) {
 		const line = state.doc.line(candidate);
-		if (isStampable(line)) return line;
+		if (isStampableLine(line)) return line;
 	}
 	return undefined;
-}
-
-/**
- * Where the line being timed sits in the viewport once the document is moving.
- *
- * A third from the top: far enough down that the lines already timed stay
- * readable above it, and high enough that the two thirds below show what is
- * coming — which is what the user is reading ahead into while they wait for the
- * next line to start.
- */
-const readingLineFraction = 1 / 3;
-
-/**
- * Keep the line being timed at the reading line, once it has reached it.
- *
- * **It does not scroll before then.** A run starts at the top of the document,
- * where the first lines are naturally above the reading line, and a scroll on the
- * very first tap would throw the page down to put line one a third of the way
- * into a viewport it was already comfortably inside. So the document is left
- * alone while the caret descends, and only starts moving at the moment the caret
- * would otherwise go past.
- *
- * Above the viewport it is pulled back to the same place, which is what makes
- * stepping back with `Backspace` land somewhere the user can see.
- *
- * This is `scrollTop` rather than `scrollIntoView` because CodeMirror's own
- * scroll is a nearest-edge nudge and has no notion of a fixed reading position —
- * and it is instant rather than smooth, because a smooth scroll started on every
- * tap would still be animating when the next one arrived.
- */
-function holdReadingLine(view: EditorView, pos: number): void {
-	const coords = view.coordsAtPos(pos);
-	if (!coords) return;
-	const scroller = view.scrollDOM;
-	const box = scroller.getBoundingClientRect();
-	const reading = box.height * readingLineFraction;
-	const offset = coords.top - box.top;
-	if (offset >= 0 && offset <= reading) return;
-	scroller.scrollTop += offset - reading;
 }
 
 export interface LyricSyncOptions {
@@ -318,7 +267,7 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 function firstUntimed(state: EditorState): Line | undefined {
 	for (let candidate = 1; candidate <= state.doc.lines; candidate += 1) {
 		const line = state.doc.line(candidate);
-		if (isStampable(line) && anchorTimeAt(state, line.from) === undefined) return line;
+		if (isStampableLine(line) && anchorTimeAt(state, line.from) === undefined) return line;
 	}
 	return undefined;
 }

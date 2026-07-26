@@ -19,7 +19,7 @@ export const youtubePollIntervalMs = 250;
  * A seek across the bridge does not land by the time the next read happens, so
  * `getCurrentTime()` answers with the position the user just left. The source
  * therefore reports the *target* until the player catches up — otherwise a
- * back-3 followed by a resume reads the pre-nudge time and moves five seconds,
+ * back-2 followed by a resume reads the pre-nudge time and moves four seconds,
  * which is the exact failure the local-file transport is written to avoid. The
  * poll cap is there so a seek the player ignored outright cannot leave the
  * readout stuck on a position nothing is playing from.
@@ -37,7 +37,7 @@ export interface YouTubePlayerLike {
 	setPlaybackRate(rate: number): void;
 	getAvailablePlaybackRates(): number[];
 	getVideoData?(): { title?: string } | undefined;
-	loadVideoById(options: { videoId: string; startSeconds?: number }): void;
+	cueVideoById(options: { videoId: string; startSeconds?: number }): void;
 	destroy(): void;
 }
 
@@ -381,7 +381,11 @@ export function createYouTubeSource(deps: YouTubeSourceDependencies): YouTubeSou
 		if (!api || !container || videoId === undefined) return;
 
 		if (player) {
-			player.loadVideoById({ videoId, startSeconds: startAt ?? 0 });
+			// `cue`, never `load`: `loadVideoById` autoplays by design, so reusing an
+			// existing player — a draft switch, a reconnect, an HMR reload — started
+			// the song on its own. Playback is `wantPlaying`'s job.
+			player.cueVideoById({ videoId, startSeconds: startAt ?? 0 });
+			if (wantPlaying) player.playVideo();
 			return;
 		}
 

@@ -2,13 +2,34 @@ import { runRules } from '$lib/rules/index.js';
 import { sourceRegistry } from '$lib/rules/index.js';
 import { findExactPerformer } from '$lib/performers/index.js';
 import type { VoiceGroupRange } from '$lib/editor/index.js';
+import { isLyricLine } from '$lib/core/parser.js';
 import type {
 	Diagnostic,
+	LineAnchor,
 	ParsedDocument,
 	PerformerRecord,
 	RuleContext,
 	VoiceGroup
 } from '$lib/core/types.js';
+
+/**
+ * Whether a sync run has anything left to time.
+ *
+ * The lines it would tap are `isLyricLine`'s, the same answer the editor's column
+ * and sync mode use, matched here against the anchors' own line numbers — both of
+ * which the shell already holds. A song with nothing to tap is not a finished one.
+ */
+export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]): boolean {
+	const timed = new Set(anchors.map((anchor) => anchor.line));
+	const lines = text.split('\n');
+	let stampable = 0;
+	for (let index = 0; index < lines.length; index += 1) {
+		if (!isLyricLine(lines[index])) continue;
+		stampable += 1;
+		if (!timed.has(index + 1)) return false;
+	}
+	return stampable > 0;
+}
 
 /**
  * Build the immutable rule context for one document revision. Sources come from

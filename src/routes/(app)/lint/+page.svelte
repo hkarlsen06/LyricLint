@@ -98,7 +98,9 @@
 					initialActiveTab: rightPanelTabFromUrl(page.url),
 					onActiveTabChange: (tab) => {
 						const next = urlForRightPanelTab(page.url, tab);
-						replaceState(resolve(`${next.pathname}${next.search}${next.hash}`), page.state);
+						const target = `/lint/${next.search}${next.hash}` as
+							'/lint/' | `/lint/?${string}` | `/lint/#${string}`;
+						replaceState(resolve(target), page.state);
 					},
 					sources: [...sourceRegistry.values()],
 					ruleSet: currentRuleSet,

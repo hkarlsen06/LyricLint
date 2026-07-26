@@ -7,6 +7,7 @@ import { serializeLegend } from '$lib/serialization/genius-markup.js';
 import {
 	allocateStyleSlot,
 	analyzeSlotOrder,
+	assignmentNeedsSectionVoice,
 	assignVoiceGroup,
 	assignVoiceLegend,
 	cleanupLegendSlots,
@@ -293,6 +294,103 @@ describe('performer assignment transforms', () => {
 		if (result.status === 'applied') {
 			expect(applyEdits(input, result.edit.edits)).toBe('[Verse: A & <i>B</i>]\n<i>Helloworld</i>');
 		}
+	});
+
+	// A first legend group landing in italic is a legend that does not begin at
+	// plain, which `performer.style-order` flags and cannot fix: the only reorder
+	// available to one group hands it the unstyled lyrics it was distinguished
+	// from. The picker asks for the missing voice instead of writing that.
+	describe('section voice', () => {
+		const partial = '[Verse]\nFirst line\nSecond line';
+		const partialRange = {
+			anchor: partial.indexOf('Second'),
+			head: partial.indexOf('Second') + 'Second line'.length
+		};
+
+		it('is needed when unstyled lyrics would stay behind with nobody named', () => {
+			expect(assignmentNeedsSectionVoice(parseDocument(partial), partialRange)).toBe(true);
+		});
+
+		it('is not needed when the section already names its plain voice', () => {
+			const named = '[Verse: A]\nFirst line\nSecond line';
+			const from = named.indexOf('Second');
+			expect(
+				assignmentNeedsSectionVoice(parseDocument(named), {
+					anchor: from,
+					head: from + 'Second line'.length
+				})
+			).toBe(false);
+		});
+
+		it('is not needed when the selection leaves no unstyled lyrics behind', () => {
+			const from = partial.indexOf('First');
+			expect(
+				assignmentNeedsSectionVoice(parseDocument(partial), { anchor: from, head: partial.length })
+			).toBe(false);
+		});
+
+		it('writes the answer into the plain slot ahead of the styled group', () => {
+			const records = roster(['A', 'B']);
+			const result = assignVoiceGroup({
+				revision: 1,
+				text: partial,
+				document: parseDocument(partial),
+				selection: partialRange,
+				performerIds: [records[1]?.id ?? ''],
+				sectionPerformerIds: [records[0]?.id ?? ''],
+				roster: records
+			});
+
+			expect(result.status).toBe('applied');
+			if (result.status === 'applied') {
+				expect(applyEdits(partial, result.edit.edits)).toBe(
+					'[Verse: A & <i>B</i>]\nFirst line\n<i>Second line</i>'
+				);
+			}
+		});
+
+		// `[Chorus: Frikk & <i>Frikk</i>]` — two legend groups, one singer, and a
+		// passage wrapped to distinguish someone from themselves.
+		it('writes one plain group when the same voice sings the selection and the rest', () => {
+			const records = roster(['A', 'B']);
+			const result = assignVoiceGroup({
+				revision: 1,
+				text: partial,
+				document: parseDocument(partial),
+				selection: partialRange,
+				performerIds: [records[1]?.id ?? ''],
+				sectionPerformerIds: [records[1]?.id ?? ''],
+				roster: records
+			});
+
+			expect(result.status).toBe('applied');
+			if (result.status === 'applied') {
+				const output = applyEdits(partial, result.edit.edits);
+				expect(output).toBe('[Verse: B]\nFirst line\nSecond line');
+				expect(
+					output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)
+				).toBe('Second line');
+			}
+		});
+
+		it('leaves the legend as it was when the voice is named later', () => {
+			const records = roster(['A', 'B']);
+			const result = assignVoiceGroup({
+				revision: 1,
+				text: partial,
+				document: parseDocument(partial),
+				selection: partialRange,
+				performerIds: [records[1]?.id ?? ''],
+				roster: records
+			});
+
+			expect(result.status).toBe('applied');
+			if (result.status === 'applied') {
+				expect(applyEdits(partial, result.edit.edits)).toBe(
+					'[Verse: <i>B</i>]\nFirst line\n<i>Second line</i>'
+				);
+			}
+		});
 	});
 
 	it('reuses the plain slot when replacing the performer across the whole section', () => {

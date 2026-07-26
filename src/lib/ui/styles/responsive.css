@@ -1,54 +1,118 @@
 /* Breakpoint overrides and motion preferences. Loaded last so it can override the parts above. */
 
+/* The toolbar scrolls sideways rather than wrapping, for the reason the transport
+   strip does: wrapped, it became a two-line band across the top of the window,
+   which is a second header's worth of chrome taken off the document for a row
+   whose contents never grew. Both groups stop absorbing slack — a growing
+   identity strip has nothing to push the commands against once the row is wider
+   than the window — and the bar is hidden, like the strip's, so a permanent grey
+   rule is not drawn under the toolbar at every narrow width. */
 @media (max-width: 78rem) {
 	.document-toolbar {
-		flex-wrap: wrap;
+		overflow-x: auto;
+		scrollbar-width: none;
 	}
 
 	.document-toolbar__identity,
 	.document-toolbar__commands {
-		flex-wrap: wrap;
+		flex: none;
 	}
 }
 
+/* Too narrow for two columns, so the panel stacks under the editor. It is still
+   one window: the same grid with the second column folded into a third row, so
+   each half scrolls inside itself and the page never grows. Laid out as blocks
+   the page grew with the document instead, which put the status bar halfway up a
+   long draft and pushed the panel — the reason the app exists — below the fold.
+
+   The editor takes the larger share because it is the half being typed into.
+   What changes for the panel is where its scroll port is: in the column layout
+   the list scrolls between two pinned bands, which is right for a full-height
+   column and wrong for a row two fifths of a short viewport, where the video and
+   the status bar are most of what the pinning leaves. So the whole panel scrolls
+   instead — tab strip pinned because it is how the user changes what is under
+   it, and everything else, the findings, the player, the ignored-rules footer
+   and the window's own status bar, reached by scrolling to the bottom of it.
+
+   The status bar is rendered inside the panel here rather than as the grid's
+   last row; `stacked` in Workspace.svelte is the same breakpoint in JS, and the
+   two have to be changed together. Its row stays declared below so that the
+   server's first paint — which has no viewport to ask — lands somewhere sane. */
 @media (max-width: 68rem) {
 	.workspace {
-		display: block;
-		height: auto;
-		min-height: 100vh;
-		overflow: visible;
+		grid-template-columns: 100%;
+		grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr) auto;
 	}
 
 	.editor-region {
-		width: 100%;
-		min-width: 0;
+		grid-row: 2;
 	}
 
-	.editor-host {
-		/* Content-aware, not a flat viewport fraction: in the stacked layout the
-		   workspace is a block, so the editor already grows with the document —
-		   this floor only guards short drafts. A flat 60vh pushed the linter
-		   panel (the reason the app exists) entirely below the fold on a
-		   two-line document. 20rem keeps roughly a dozen lyric lines of editing
-		   room without swallowing the viewport; the 60vh term lets the floor
-		   shrink further on very short (landscape phone) viewports so the panel
-		   still gets a share of the screen. */
-		min-height: min(60vh, 20rem);
-	}
-
-	/* Too narrow for two columns, so the panel stacks under the editor rather
-	   than floating over it. It is always visible, so it must not overlap. */
 	.right-panel {
-		width: 100%;
+		grid-row: 3;
 		border-top: var(--border-width) solid var(--color-border);
+		border-left: 0;
+	}
+
+	.right-panel__tabs-root {
+		overflow: auto;
+	}
+
+	.right-panel__header {
+		position: sticky;
+		top: 0;
+	}
+
+	/* The body gives up its own scroll port to the column above it, and grows
+	   instead: `1 0 auto` is what puts the trailing bands — the footer, the
+	   player, the status bar — on the floor of the panel when the findings are
+	   short of filling it, and leaves them exactly where the content ends when
+	   they are not. It never shrinks, or a long list would be squeezed to fit
+	   rather than scrolled through. */
+	.right-panel__body {
+		flex: 1 0 auto;
+		overflow: visible;
+	}
+
+	/* A band across the window wraps into two ends and spaces them apart; a block
+	   one panel wide has no two ends, so `space-between` has nothing to space and
+	   the row packs left instead.
+
+	   The two groups then have to stop being boxes. A flex item is placed on a
+	   line by its whole width, so the left group — picker and both pairs of
+	   counts — never fits one and takes a line to itself, wrapping inside it,
+	   which pushed the link onto a third line while half of the second sat empty.
+	   `display: contents` drops the wrappers and lets the five facts wrap as one
+	   run; they are spans grouping nothing but the layout that no longer applies
+	   here. */
+	.right-panel .status-bar {
+		flex: none;
+		column-gap: var(--space-3);
+		row-gap: var(--space-1);
+		justify-content: flex-start;
+	}
+
+	.right-panel .status-bar__group {
+		display: contents;
+	}
+
+	/* Wrapped, the row has a left edge, and the picker's own padding put its
+	   glyph a few pixels inside the counts on the line under it — the one
+	   misalignment in a block whose whole job is to be read down that edge. The
+	   padding stays, because a control needs a hit area; it is pulled back by
+	   exactly its own width instead, so the ink of both lines starts together.
+	   The extra class outranks the component's scoped rule whichever way the two
+	   sheets end up ordered. */
+	.right-panel .status-bar .status-bar__media {
+		margin-inline-start: calc(-1 * var(--space-1-5));
+	}
+
+	.status-bar {
+		grid-row: 4;
 	}
 }
 
 @media (max-width: 46rem) {
-	.document-toolbar__identity {
-		flex-wrap: wrap;
-	}
-
 	.draft-title {
 		max-width: min(15rem, 60vw);
 	}

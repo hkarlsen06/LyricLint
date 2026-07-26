@@ -171,7 +171,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 		expect(handle.getSnapshot().text).toBe('one two');
 	});
 
-	it('cycles forward and backward diagnostics with F8 and Shift+F8', async () => {
+	it('cycles forward and backward diagnostics with F2 and Shift+F2', async () => {
 		const issues = [diagnostic(0, 3, 'First issue'), diagnostic(4, 7, 'Second issue')];
 		const { handle } = await mount({
 			text: 'one two',
@@ -180,12 +180,12 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 		});
 
 		handle.focus();
-		await userEvent.keyboard('{F8}');
+		await userEvent.keyboard('{F2}');
 		expect(handle.getSnapshot().selection).toEqual({ anchor: 4, head: 7 });
 		await expect.element(page.getByText('Second issue', { exact: true })).toBeVisible();
 
 		handle.focus();
-		await userEvent.keyboard('{Shift>}{F8}{/Shift}');
+		await userEvent.keyboard('{Shift>}{F2}{/Shift}');
 		expect(handle.getSnapshot().selection).toEqual({ anchor: 0, head: 3 });
 		await expect.element(page.getByText('First issue', { exact: true })).toBeVisible();
 	});

@@ -11,7 +11,7 @@
 	// toolbar, no linter panel, no drafts, and no persistence. Nothing here
 	// touches IndexedDB, so reading the landing page never creates a draft and
 	// never disturbs one the reader already has open in another tab.
-	import { untrack } from 'svelte';
+	import { onDestroy, untrack } from 'svelte';
 	import { parseDocument } from '$lib/core/parser.js';
 	import type {
 		Diagnostic,
@@ -25,7 +25,7 @@
 		type EditorDisplayContext,
 		type LyricEditorCallbacks
 	} from '$lib/editor/index.js';
-	import { getLanguagePack } from '$lib/languages/registry.js';
+	import { getLanguagePack, resolveLanguageTag } from '$lib/languages/registry.js';
 	import {
 		allocatePerformerColor,
 		assignVoiceGroup,
@@ -35,8 +35,11 @@
 	} from '$lib/performers/index.js';
 	import {
 		collectMatchingFixes,
+		createHarperDiagnosticProvider,
 		currentRuleSet,
 		mergeFixes,
+		mergeHarperDiagnostics,
+		type HarperDiagnosticProvider,
 		sourceRegistry
 	} from '$lib/rules/index.js';
 	import {
@@ -48,8 +51,15 @@
 	let {
 		text,
 		language = 'en',
-		performerNames = []
-	}: { text: string; language?: string; performerNames?: readonly string[] } = $props();
+		performerNames = [],
+		harperProvider = createHarperDiagnosticProvider()
+	}: {
+		text: string;
+		language?: string;
+		performerNames?: readonly string[];
+		/** Injectable so component tests can avoid instantiating the WASM worker. */
+		harperProvider?: HarperDiagnosticProvider;
+	} = $props();
 
 	/**
 	 * Build the roster the way the roster store does, one name at a time, so the
@@ -99,15 +109,77 @@
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+	let harperTimer: ReturnType<typeof setTimeout> | undefined;
+	let harperRequest = 0;
+	let harperUnavailable = false;
+	const harperDelay = 250;
+
+	function invalidateHarper(): number {
+		harperRequest += 1;
+		if (harperTimer !== undefined) {
+			clearTimeout(harperTimer);
+			harperTimer = undefined;
+		}
+		return harperRequest;
+	}
+
+	function scheduleHarper(next: EditorSnapshot, nativeDiagnostics: readonly Diagnostic[]): void {
+		const request = invalidateHarper();
+		if (
+			harperUnavailable ||
+			resolveLanguageTag(language) !== 'en' ||
+			next.text.trim().length === 0
+		) {
+			return;
+		}
+
+		const performersAtRequest = [...performers];
+		harperTimer = setTimeout(() => {
+			harperTimer = undefined;
+			void harperProvider
+				.lint({
+					text: next.text,
+					document: next.parsed,
+					language,
+					performers: performersAtRequest,
+					revision: next.revision
+				})
+				.then((harperDiagnostics) => {
+					if (
+						request !== harperRequest ||
+						snapshot.composing ||
+						snapshot.revision !== next.revision ||
+						snapshot.text !== next.text
+					) {
+						return;
+					}
+
+					const merged = mergeHarperDiagnostics(nativeDiagnostics, harperDiagnostics);
+					if (merged.length === nativeDiagnostics.length) return;
+					lastDiagnostics = merged;
+					snapshot = { ...snapshot, diagnostics: merged };
+				})
+				.catch((error: unknown) => {
+					if (request !== harperRequest || harperUnavailable) return;
+					harperUnavailable = true;
+					console.error('Harper grammar checking is unavailable in the landing demo.', error);
+				});
+		}, harperDelay);
+	}
+
 	function enrich(snapshot: EditorSnapshot): EditorSnapshot {
 		// Composition revisions reuse whatever was last computed, exactly as the
 		// workbench does: linting half-finished IME input reports on text the
 		// user has not typed yet.
-		if (snapshot.composing) return { ...snapshot, diagnostics: lastDiagnostics };
+		if (snapshot.composing) {
+			invalidateHarper();
+			return { ...snapshot, diagnostics: lastDiagnostics };
+		}
 		lastDiagnostics = computeDiagnostics(
 			snapshot.parsed,
 			buildRuleContext(language, performers, currentRuleSet.version, snapshot.revision)
 		);
+		scheduleHarper(snapshot, lastDiagnostics);
 		return { ...snapshot, diagnostics: lastDiagnostics };
 	}
 
@@ -136,6 +208,13 @@
 	// the fallback stands in until the real pane is ready and then stands down —
 	// leaving both in the document would show the verse twice.
 	let editorReady = $state(false);
+
+	onDestroy(() => {
+		invalidateHarper();
+		void harperProvider
+			.dispose()
+			.catch((error: unknown) => console.error('Harper demo worker cleanup failed.', error));
+	});
 
 	const context = $derived<EditorDisplayContext>({
 		language,
@@ -184,13 +263,14 @@
 		// card assigns a selection, the header legend assigns a whole section, and
 		// a name typed into the card has to reach the roster or the performer it
 		// created has no color and no identity.
-		createPerformerEdit: ({ range, performerIds }) => {
+		createPerformerEdit: ({ range, performerIds, sectionPerformerIds }) => {
 			const result = assignVoiceGroup({
 				revision: snapshot.revision,
 				text: snapshot.text,
 				document: snapshot.parsed,
 				selection: { anchor: range.from, head: range.to },
 				performerIds: [...performerIds],
+				sectionPerformerIds,
 				roster: performers
 			});
 			return result.status === 'applied' ? result.edit : undefined;

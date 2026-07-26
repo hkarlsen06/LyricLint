@@ -3,6 +3,7 @@ import { assertReviewedSources, getSource, sourceRegistry } from './sources.js';
 
 const reviewedIds = [
 	'T-LANGUAGE-DETECT',
+	'T-HARPER',
 	'L-EN-COMMON',
 	'L-EN-MORE',
 	'L-EN-TOP50',
@@ -63,26 +64,35 @@ describe('source registry', () => {
 		expect(() => assertReviewedSources(reviewedIds)).not.toThrow();
 		for (const id of reviewedIds) {
 			const lastVerifiedAt =
-				id.startsWith('L-') ||
-				id === 'APPLE-LINE-PUNCTUATION' ||
-				id === 'G-ADD-SONGS' ||
-				id === 'G-QE-MARKS'
-					? '2026-07-25'
-					: '2026-07-24';
+				id === 'T-HARPER'
+					? '2026-07-26'
+					: id.startsWith('L-') ||
+						  id === 'APPLE-LINE-PUNCTUATION' ||
+						  id === 'G-ADD-SONGS' ||
+						  id === 'G-QE-MARKS'
+						? '2026-07-25'
+						: '2026-07-24';
 			expect(getSource(id)).toMatchObject(
-				id === 'APPLE-LINE-PUNCTUATION' || id.startsWith('L-')
+				id === 'T-HARPER'
 					? {
 							id,
-							retrievedAt: '2026-07-25',
+							retrievedAt: '2026-07-26',
 							lastVerifiedAt,
 							reviewStatus: 'reviewed'
 						}
-					: {
-							id,
-							retrievedAt: '2026-07-24',
-							lastVerifiedAt,
-							reviewStatus: 'reviewed'
-						}
+					: id === 'APPLE-LINE-PUNCTUATION' || id.startsWith('L-')
+						? {
+								id,
+								retrievedAt: '2026-07-25',
+								lastVerifiedAt,
+								reviewStatus: 'reviewed'
+							}
+						: {
+								id,
+								retrievedAt: '2026-07-24',
+								lastVerifiedAt,
+								reviewStatus: 'reviewed'
+							}
 			);
 		}
 	});
@@ -94,7 +104,7 @@ describe('source registry', () => {
 		expect(() => assertReviewedSources(needsReviewIds)).toThrow(/not reviewed/u);
 	});
 
-	it('contains only the 51 specified source records', () => {
-		expect(sourceRegistry.size).toBe(51);
+	it('contains only the 52 specified source records', () => {
+		expect(sourceRegistry.size).toBe(52);
 	});
 });

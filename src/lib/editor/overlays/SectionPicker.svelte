@@ -4,6 +4,7 @@
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import type { ScreenRect, SectionHeaderChoice } from '../contracts.js';
 	import { sectionHeaderOptions, type SectionHeaderNeighbors } from './section-picker.js';
+	import { anchoredPosition } from './anchored-position.js';
 
 	interface Props {
 		languagePack: LanguagePack;
@@ -30,11 +31,7 @@
 	let activeIndex = $state(0);
 	let input: HTMLInputElement;
 	const options = $derived(sectionHeaderOptions(languagePack, existingHeaders, query, neighbors));
-	const position = $derived(
-		anchor
-			? `left: ${Math.max(8, anchor.left)}px; top: ${Math.max(8, anchor.bottom + 6)}px;`
-			: undefined
-	);
+	const position = $derived(anchor ? anchoredPosition(anchor) : undefined);
 
 	$effect(() => {
 		if (activeIndex >= options.length) {
@@ -132,8 +129,10 @@
 
 <style>
 	.picker {
+		--ll-card-width: min(21rem, calc(100vw - 1rem));
+
 		z-index: calc(var(--layer-picker) + 1);
-		width: min(21rem, calc(100vw - 1rem));
+		width: var(--ll-card-width);
 		padding: var(--space-2-5);
 		border: var(--border-width) solid var(--color-border);
 		border-radius: var(--radius-overlay);
@@ -146,7 +145,11 @@
 		line-height: var(--line-height-tight);
 	}
 
+	/* `--ll-anchor-space` is the room on the side the card landed on; the list
+	   inside is already capped, so this only bites on a very short viewport. */
 	.anchored {
+		max-height: var(--ll-anchor-space, none);
+		overflow-y: auto;
 		position: fixed;
 	}
 

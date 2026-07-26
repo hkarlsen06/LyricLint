@@ -451,6 +451,13 @@
 	list-style: none;
 }
 
+/* The list is a continuation of the row above it, so it is set in that row's
+   type — a rule's name at body size beside a header at `--font-size-sm` read as
+   two lists that had landed on top of each other. */
+.ignored-rules li {
+	font-size: var(--font-size-sm);
+}
+
 .ignored-rules li,
 .merge-suggestions li {
 	display: flex;

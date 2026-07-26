@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { enabledRules } from '$lib/rules/index.js';
+	import { enabledRules, sourceRegistry } from '$lib/rules/index.js';
 	import { siteUrl } from '$lib/seo.js';
 	import LiveDemo from '$lib/ui/site/LiveDemo.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
@@ -10,11 +10,12 @@
 	// is wrong the first time a rule ships.
 	const ruleCount = enabledRules.length;
 	const pageTitle = 'LyricLint · A linter for Genius lyric transcriptions';
-	const pageDescription = `LyricLint checks Genius lyric transcriptions against ${ruleCount} rules for section headers, performer markup, spelling, and punctuation. Runs in your browser.`;
+	const pageDescription = `LyricLint checks Genius lyric transcriptions against ${ruleCount} reviewed rules plus local grammar and spelling checks for section headers, performer markup, punctuation, and more. Runs in your browser.`;
 	const socialDescription =
 		'Paste a transcription, see every formatting problem with the Genius source that backs it, and copy clean markup. Nothing leaves your browser.';
 	const canonicalUrl = siteUrl('/');
 	const appUrl = siteUrl('/lint/');
+	const harperUrl = sourceRegistry.get('T-HARPER')?.url ?? 'https://writewithharper.com/';
 	const structuredData = {
 		'@context': 'https://schema.org',
 		'@type': 'WebApplication',
@@ -37,12 +38,12 @@
 	// comma, a bare ad-lib — and inventing them is also the only way to show a
 	// lyric here at all.
 	const messy = `Verse 1:
-i was counting every streetlight on the way
+i has counted every streetlight on the way
 you said we'd drive until the radio gave out, yeah
 and the "quiet" part was never really quiet`;
 
 	const clean = `[Verse 1]
-I was counting every streetlight on the way
+I have counted every streetlight on the way
 You said we'd drive until the radio gave out (Yeah)
 And the "quiet" part was never really quiet`;
 </script>
@@ -108,8 +109,8 @@ And the "quiet" part was never really quiet`;
 	<LiveDemo text={messy} performerNames={['Avery', 'Blair']} />
 
 	<p>
-		That transcription has a written-out section header, a lowercase line start, a stray comma, and
-		an ad-lib nobody parenthesised.
+		That transcription has a written-out section header, a lowercase line start, a subject and verb
+		that disagree, a stray comma, and an ad-lib nobody parenthesised.
 	</p>
 
 	<p>
@@ -121,6 +122,21 @@ And the "quiet" part was never really quiet`;
 		<figcaption class="site-sample__label">Clean</figcaption>
 		<pre class="site-sample__text">{clean}</pre>
 	</figure>
+
+	<h2>Grammar checking that stays on your device</h2>
+
+	<p>
+		<a href={harperUrl} rel="external">Harper</a> catches
+		<code class="site-code">I has</code> above and suggests <code class="site-code">I have</code>.
+		The open-source English grammar and spelling engine runs inside the page, so your lyrics are not
+		sent to Harper or to a LyricLint server.
+	</p>
+
+	<p>
+		Lyrics are not ordinary prose, so Harper stays advisory: its fixes are always shown for review.
+		Performer names and reviewed Genius spellings such as <code class="site-code">ayy</code> are added
+		to its dictionary, and LyricLint's sourced Genius rules take precedence wherever the two disagree.
+	</p>
 
 	<h2>Performer tagging without hand-writing the HTML</h2>
 

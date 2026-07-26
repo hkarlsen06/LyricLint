@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { EditorHandle, EditorSnapshot } from '$lib/core/types.js';
+	import type { EditorHandle, EditorSnapshot, LineAnchor } from '$lib/core/types.js';
 	import type {
 		EditorDisplayContext,
 		EditorPaneProps,
@@ -10,13 +10,20 @@
 		assignVoiceLegend,
 		insertSectionHeader
 	} from '$lib/performers/index.js';
-	import { getLanguagePack } from '$lib/languages/registry.js';
+	import { getLanguagePack, resolveLanguageTag } from '$lib/languages/registry.js';
+	import {
+		createHarperDiagnosticProvider,
+		mergeHarperDiagnostics,
+		type HarperDiagnosticProvider
+	} from '$lib/rules/index.js';
 	import { resolve } from '$app/paths';
-	import { type Component, untrack } from 'svelte';
+	import { onDestroy, type Component, untrack } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import {
 		buildRuleContext,
 		computeDiagnostics,
+		everyLyricLineTimed,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
 	import DocumentToolbar from './DocumentToolbar.svelte';
@@ -28,14 +35,20 @@
 
 	let {
 		controller,
-		editorComponent = MockEditorPane
+		editorComponent = MockEditorPane,
+		harperProvider = createHarperDiagnosticProvider()
 	}: {
 		controller: WorkbenchController;
 		editorComponent?: Component<EditorPaneProps>;
+		/** Injectable so component tests never need to instantiate the WASM worker. */
+		harperProvider?: HarperDiagnosticProvider;
 	} = $props();
 
 	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
 	const EditorComponent = $derived(editorComponent);
+
+	/** The stacked layout, in step with the `68rem` block in responsive.css. */
+	const stacked = new MediaQuery('(max-width: 68rem)');
 
 	const reducedMotion =
 		typeof window !== 'undefined' &&
@@ -88,6 +101,10 @@
 	// previous result so linting never runs on incomplete IME input.
 	let lastDiagnostics: EditorSnapshot['diagnostics'] = [];
 	let lastLintKey = '';
+	let harperTimer: ReturnType<typeof setTimeout> | undefined;
+	let harperRequest = 0;
+	let harperUnavailable = false;
+	const harperDelay = 250;
 
 	function lintKey(snapshot: EditorSnapshot): string {
 		const performerKey = controller.performers
@@ -97,6 +114,64 @@
 			)
 			.join('\u001e');
 		return `${controller.language}\u0000${performerKey}\u0000${snapshot.revision}\u0000${snapshot.text}`;
+	}
+
+	function invalidateHarper(): number {
+		harperRequest += 1;
+		if (harperTimer !== undefined) {
+			clearTimeout(harperTimer);
+			harperTimer = undefined;
+		}
+		return harperRequest;
+	}
+
+	function scheduleHarper(
+		snapshot: EditorSnapshot,
+		nativeDiagnostics: EditorSnapshot['diagnostics']
+	): void {
+		const request = invalidateHarper();
+		if (
+			harperUnavailable ||
+			resolveLanguageTag(controller.language) !== 'en' ||
+			snapshot.text.trim().length === 0
+		) {
+			return;
+		}
+
+		const key = `${controller.draftId}\u0000${lintKey(snapshot)}`;
+		const language = controller.language;
+		const performers = [...controller.performers];
+		harperTimer = setTimeout(() => {
+			harperTimer = undefined;
+			void harperProvider
+				.lint({
+					text: snapshot.text,
+					document: snapshot.parsed,
+					language,
+					performers,
+					revision: snapshot.revision
+				})
+				.then((harperDiagnostics) => {
+					const current = controller.snapshot;
+					if (
+						request !== harperRequest ||
+						current.composing ||
+						`${controller.draftId}\u0000${lintKey(current)}` !== key
+					) {
+						return;
+					}
+
+					const merged = mergeHarperDiagnostics(nativeDiagnostics, harperDiagnostics);
+					if (merged.length === nativeDiagnostics.length) return;
+					lastDiagnostics = merged;
+					controller.onSnapshot({ ...current, diagnostics: merged });
+				})
+				.catch((error: unknown) => {
+					if (request !== harperRequest || harperUnavailable) return;
+					harperUnavailable = true;
+					console.error('Harper grammar checking is unavailable.', error);
+				});
+		}, harperDelay);
 	}
 
 	function enrichSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
@@ -109,9 +184,19 @@
 			);
 			lastDiagnostics = computeDiagnostics(snapshot.parsed, context);
 			lastLintKey = lintKey(snapshot);
+			scheduleHarper(snapshot, lastDiagnostics);
+		} else {
+			invalidateHarper();
 		}
 		return { ...snapshot, diagnostics: lastDiagnostics };
 	}
+
+	onDestroy(() => {
+		invalidateHarper();
+		void harperProvider
+			.dispose()
+			.catch((error: unknown) => console.error('Harper worker cleanup failed.', error));
+	});
 
 	const editorContext = $derived<EditorDisplayContext>({
 		language: controller.language,
@@ -144,7 +229,7 @@
 		onDiagnosticActivate: (diagnostic) => controller.navigateToDiagnostic(diagnostic),
 		onDiagnosticHighlight: (diagnostic) => controller.highlightDiagnostic(diagnostic),
 		onAnnouncement: (message) => controller.feedback.announce(message),
-		createPerformerEdit: ({ range, performerIds }) => {
+		createPerformerEdit: ({ range, performerIds, sectionPerformerIds }) => {
 			const snapshot = controller.snapshot;
 			const result = assignVoiceGroup({
 				revision: snapshot.revision,
@@ -152,6 +237,7 @@
 				document: snapshot.parsed,
 				selection: { anchor: range.from, head: range.to },
 				performerIds: [...performerIds],
+				sectionPerformerIds,
 				roster: controller.performers
 			});
 			if (result.status === 'applied') return result.edit;
@@ -224,7 +310,10 @@
 		// playback begins at the anchored moment and not two seconds before it.
 		// A whole synced song changes no text, so nothing else would ever write it
 		// down. See `onLineAnchorsChanged` on the controller.
-		onLineAnchorsChanged: () => controller.onLineAnchorsChanged(),
+		onLineAnchorsChanged: () => {
+			anchors = editorHandle?.getLineAnchors?.() ?? [];
+			controller.onLineAnchorsChanged();
+		},
 		onSeekMedia: (time) => {
 			const player = controller.media?.player;
 			if (!player?.attached) return;
@@ -256,16 +345,49 @@
 	};
 
 	let syncing = $state(false);
+	let following = $state(true);
+	let anchors = $state<readonly LineAnchor[]>([]);
+	const anchorCount = $derived(anchors.length);
+
+	// Read off the snapshot rather than asked for through the handle: the anchors
+	// carry their own line numbers and the text is already here.
+	const allLinesTimed = $derived(everyLyricLineTimed(controller.snapshot.text, anchors));
+
+	// Two timed lines is the floor for a scroll to mean anything: with one, the
+	// document never moves and the control would promise something it cannot do.
+	const followControl = {
+		get available() {
+			return anchorCount >= 2;
+		},
+		get active() {
+			return following;
+		},
+		toggle: () => {
+			following = !following;
+			editorHandle?.setFollowPlayhead?.(following);
+		}
+	};
 
 	const lyricSync = {
 		get active() {
 			return syncing;
+		},
+		get complete() {
+			return allLinesTimed;
 		},
 		toggle: () => editorHandle?.setLyricSync?.(!syncing)
 	};
 
 	$effect(() => {
 		controller.setEditorHandle(editorHandle);
+		// Read the anchors back on the same pass, because that call is where a
+		// remount gets the draft's own timings re-seated onto it — through
+		// `setLineAnchors`, which deliberately reports nothing (it is the draft being
+		// read back, not changed). Without this the shell's copy stays as it was left
+		// by whichever editor is being replaced, and with a paused track nothing else
+		// re-reads it: a fully timed song comes back from a draft switch still
+		// offering `Sync lyrics`, and the follow control still hidden.
+		anchors = editorHandle?.getLineAnchors?.() ?? [];
 	});
 
 	// The transport keys, bound to the window and not to the document. The pause
@@ -273,15 +395,25 @@
 	// a finding, aiming a scrubber, renaming the draft — so a binding that only
 	// answered inside the editor answered in the wrong half of the loop.
 	//
-	// Only `controller.media` is read here, so the listener is bound once rather
-	// than rebound on every tick of the playhead.
+	// Attachment state is the only reactive player value read here, so the
+	// listener follows attach and detach without rebinding on every playhead tick.
 	$effect(() => {
-		const media = controller.media;
-		if (!media) return;
+		const player = controller.media?.player;
+		if (!player?.attached) return;
 		return bindTransportShortcuts({
 			transport: (action) => {
-				if (!media.player.attached) return false;
-				media.player.transport(action);
+				if (!player.attached) return false;
+				player.transport(action);
+				return true;
+			},
+			play: () => {
+				if (!player.attached) return false;
+				player.play();
+				return true;
+			},
+			pause: () => {
+				if (!player.attached) return false;
+				player.pause();
 				return true;
 			}
 		});
@@ -294,6 +426,15 @@
 	$effect(() => {
 		const player = controller.media?.player;
 		editorHandle?.setMediaPlayhead?.(player?.attached ? player.currentTime : undefined);
+		anchors = editorHandle?.getLineAnchors?.() ?? [];
+	});
+
+	// The timed lines are what the side keys step between. The transport owns the
+	// arithmetic, as it owns every other rule about where the playhead lands; all
+	// it is told here is the moments, so a press from the strip and a press of the
+	// key cannot disagree about what "back" means.
+	$effect(() => {
+		controller.media?.player.setCuePoints(anchors.map((anchor) => anchor.time));
 	});
 
 	// Language and roster changes do not create a CodeMirror transaction. Re-run
@@ -333,12 +474,33 @@
 		     state that could not have been otherwise, which is the same reason the
 		     status bar's counts wait for a count worth stating. -->
 		{#if controller.media && (controller.media.player.attached || controller.media.pendingName)}
-			<MediaStrip media={controller.media} sync={lyricSync} />
+			<MediaStrip media={controller.media} sync={lyricSync} follow={followControl} />
 		{/if}
 	</section>
 
-	<RightPanel {controller} />
+	<!--
+		Stacked, the status bar is handed to the panel rather than kept as the
+		grid's last row. It is the window's summary and belongs on the floor of the
+		window — but at this size that floor is a band taken off a list that is
+		already too short, and the row holds the only way to attach audio, so it
+		cannot simply be dropped. Inside the panel's scroll port it is the last
+		thing under the player, reached by scrolling to the bottom of whichever tab
+		is open. One element either way: rendering it twice would put a second
+		`Add audio` dialog and a second copy of every count in the document.
 
+		`stacked` is the same breakpoint as the `68rem` block in responsive.css and
+		has to be changed with it. Its fallback is false, so a server render — which
+		has no viewport to ask — emits the grid row, which is where the CSS still
+		puts it until the query resolves.
+	-->
+	<RightPanel {controller} footer={stacked.current ? statusBar : undefined} />
+
+	{#if !stacked.current}
+		{@render statusBar()}
+	{/if}
+</main>
+
+{#snippet statusBar()}
 	<footer class="status-bar" aria-label="Document summary">
 		<span class="status-bar__group">
 			<!-- The way in to the audio, in the row the transport itself appears
@@ -370,4 +532,4 @@
 			<a class="status-bar__link" href={resolve('/')}>About LyricLint</a>
 		</span>
 	</footer>
-</main>
+{/snippet}

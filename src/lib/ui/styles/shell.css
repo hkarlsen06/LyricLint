@@ -70,6 +70,12 @@
 	flex: none;
 }
 
+/* Undo and redo are one pair, not two items in the strip, so they sit against
+   each other rather than at the gap that separates commands from one another. */
+.document-toolbar__history + .document-toolbar__history {
+	margin-left: calc(-1 * var(--space-2));
+}
+
 /* Brand lockup. The brackets and the waveform are the product's own markup and
    diagnostic vocabulary, so the glyph inherits the text color and the wave
    carries the warning hue it has everywhere else.

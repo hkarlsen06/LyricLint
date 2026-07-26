@@ -138,20 +138,7 @@
 			d="M2.5 8h11M8 2.25c1.55 1.6 2.35 3.5 2.35 5.75S9.55 12.15 8 13.75M8 2.25C6.45 3.85 5.65 5.75 5.65 8s.8 4.15 2.35 5.75"
 		/>
 	</svg>
-	<span>{selectedLabel}</span>
-	<svg
-		aria-hidden="true"
-		viewBox="0 0 12 12"
-		width="12"
-		height="12"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="1.5"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-	>
-		<path d="m3 4.5 3 3 3-3" />
-	</svg>
+	<span aria-hidden="true">{controller.language.toUpperCase()}</span>
 </button>
 
 <dialog
@@ -236,13 +223,7 @@
 
 <style>
 	.language-trigger {
-		max-width: 13rem;
 		white-space: nowrap;
-	}
-
-	.language-trigger span {
-		overflow: hidden;
-		text-overflow: ellipsis;
 	}
 
 	.language-trigger svg {
@@ -388,10 +369,6 @@
 	}
 
 	@media (max-width: 36rem) {
-		.language-trigger {
-			max-width: 8rem;
-		}
-
 		.language-dialog {
 			width: calc(100vw - var(--space-2));
 			height: calc(100dvh - var(--space-2));

@@ -27,27 +27,73 @@ const transportKeys: Readonly<Record<string, TransportAction>> = {
 	KeyL: 'forward'
 };
 
+const directTransportKeys: Readonly<Record<string, TransportAction>> = {
+	F7: 'back',
+	F8: 'toggle',
+	F9: 'forward',
+	MediaTrackPrevious: 'back',
+	MediaPlayPause: 'toggle',
+	MediaTrackNext: 'forward'
+};
+
+function currentPlatform(): string {
+	return typeof navigator === 'undefined' ? '' : navigator.platform;
+}
+
+export function transportModifier(platform = currentPlatform()): 'Control' | 'Alt' {
+	return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'Control' : 'Alt';
+}
+
 /**
  * The action a keystroke asks for, or nothing.
  *
- * `Ctrl-Alt` and not the bare `Alt` the triad suggests. Everything simpler is
- * taken: `Mod-L` is the address bar, `Mod-Shift-J` and `Mod-Alt-J` open DevTools,
- * and `Ctrl-K` alone is CodeMirror's own delete-to-end-of-line on Mac. `Ctrl-Alt`
- * is AltGr on Windows, where J, K and L are unmapped on US and Nordic layouts.
- * Bare `Alt` is out for a reason that outlived the CodeMirror binding this
- * replaced: Option+J types a character on macOS, so the key never arrives as the
- * letter anything would match on.
+ * The one-modifier fallback follows the platform: Control on macOS, where Option
+ * types characters, and Alt on Windows and Linux, where Control-J/K/L belong to
+ * the browser. Ctrl-Alt remains the universal fallback.
  *
  * Shift and Meta are excluded rather than ignored — `Ctrl-Alt-Shift-K` is a
  * different keystroke, and a handler that answered to supersets of its own
  * binding would swallow one.
  */
-export function matchTransportAction(event: KeyboardEvent): TransportAction | undefined {
-	if (!event.ctrlKey || !event.altKey || event.metaKey || event.shiftKey) return undefined;
+export function matchTransportAction(
+	event: KeyboardEvent,
+	platform = currentPlatform()
+): TransportAction | undefined {
+	// The function row and actual media keys need no modifier. Bare Space also
+	// toggles, but only when the press was not aimed at something that owns it.
+	if (!event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
+		const direct = directTransportKeys[event.code] ?? directTransportKeys[event.key];
+		if (direct) return direct;
+		if (event.code !== 'Space' && event.key !== ' ') return undefined;
+		return ownsSpace(event.target) ? undefined : 'toggle';
+	}
+	if (event.metaKey || event.shiftKey) return undefined;
+	const primary =
+		transportModifier(platform) === 'Control'
+			? event.ctrlKey && !event.altKey
+			: event.altKey && !event.ctrlKey;
+	const universal = event.ctrlKey && event.altKey;
+	if (!primary && !universal) return undefined;
 	const byCode = transportKeys[event.code];
 	if (byCode) return byCode;
 	return event.key.length === 1 ? transportKeys[`Key${event.key.toUpperCase()}`] : undefined;
 }
+
+/**
+ * Whether this element owns the space bar already: a field being typed into (the
+ * lyric editor is `contenteditable`, the draft name and performer names are
+ * inputs), or a control a space would press.
+ */
+function ownsSpace(target: EventTarget | null): boolean {
+	if (!(target instanceof Element)) return false;
+	return (
+		target.closest(
+			"input, textarea, select, button, summary, a[href], [role='button'], [contenteditable='true'], .cm-editor"
+		) !== null
+	);
+}
+
+type MediaSessionControls = Pick<MediaSession, 'setActionHandler'>;
 
 export interface TransportShortcutOptions {
 	/**
@@ -56,8 +102,13 @@ export interface TransportShortcutOptions {
 	 * key press, which is the same rule the editor's own hook followed.
 	 */
 	transport: (action: TransportAction) => boolean;
+	/** Exact play and pause operations for the OS media-session buttons. */
+	play?: () => boolean;
+	pause?: () => boolean;
 	/** Injectable so a test can drive an element instead of the window. */
 	target?: EventTarget;
+	/** Injectable for tests; null deliberately disables native media controls. */
+	mediaSession?: MediaSessionControls | null;
 }
 
 /**
@@ -69,6 +120,11 @@ export interface TransportShortcutOptions {
  */
 export function bindTransportShortcuts(options: TransportShortcutOptions): () => void {
 	const target = options.target ?? window;
+	const mediaSession =
+		options.mediaSession === null
+			? undefined
+			: (options.mediaSession ??
+				(typeof navigator === 'undefined' ? undefined : navigator.mediaSession));
 
 	function handle(event: Event): void {
 		const keystroke = event as KeyboardEvent;
@@ -84,8 +140,38 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 
 		if (!options.transport(action)) return;
 		keystroke.preventDefault();
+		keystroke.stopPropagation();
 	}
 
 	target.addEventListener('keydown', handle, true);
-	return () => target.removeEventListener('keydown', handle, true);
+
+	const registeredActions: MediaSessionAction[] = [];
+	const mediaActions: Array<[MediaSessionAction, () => void]> = [
+		['previoustrack', () => void options.transport('back')],
+		['seekbackward', () => void options.transport('back')],
+		['nexttrack', () => void options.transport('forward')],
+		['seekforward', () => void options.transport('forward')]
+	];
+	if (options.play) mediaActions.push(['play', () => void options.play?.()]);
+	if (options.pause) mediaActions.push(['pause', () => void options.pause?.()]);
+
+	for (const [action, run] of mediaActions) {
+		try {
+			mediaSession?.setActionHandler(action, run);
+			if (mediaSession) registeredActions.push(action);
+		} catch {
+			// Browsers may expose Media Session without supporting every action.
+		}
+	}
+
+	return () => {
+		target.removeEventListener('keydown', handle, true);
+		for (const action of registeredActions) {
+			try {
+				mediaSession?.setActionHandler(action, null);
+			} catch {
+				// The corresponding registration already proved this path optional.
+			}
+		}
+	};
 }

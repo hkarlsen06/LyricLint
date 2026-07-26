@@ -32,6 +32,15 @@ const sources: SourceReference[] = [
 		reviewStatus: 'reviewed'
 	},
 	{
+		id: 'T-HARPER',
+		url: 'https://github.com/Automattic/harper',
+		pageTitle: 'Harper',
+		sectionTitle: 'Version 2.4.0 local English grammar and spelling engine',
+		retrievedAt: '2026-07-26',
+		lastVerifiedAt: '2026-07-26',
+		reviewStatus: 'reviewed'
+	},
+	{
 		id: 'L-EN-COMMON',
 		url: 'https://www.merriam-webster.com/grammar/commonly-misspelled-words',
 		pageTitle: 'Commonly Misspelled Words',

@@ -44,7 +44,18 @@ export interface LegendTarget {
 export type OverlayState =
 	| { kind: 'none' }
 	| { kind: 'diagnostic'; diagnostic: Diagnostic; takesFocus: boolean }
-	| { kind: 'performer'; range: TextRange; legend?: LegendAssignment }
+	| {
+			kind: 'performer';
+			range: TextRange;
+			legend?: LegendAssignment;
+			/**
+			 * Step two of a selection assignment: the voices already chosen for the
+			 * selection, held while the picker asks who sings the rest of the section.
+			 * Set only when the assignment would otherwise write a legend that does
+			 * not begin at plain — see `assignmentNeedsSectionVoice`.
+			 */
+			pendingVoice?: readonly PerformerId[];
+	  }
 	| { kind: 'section'; range: TextRange };
 
 /** The overlay plus the suppression that outlives any single overlay. */
@@ -167,8 +178,19 @@ export type PerformerApplyOutcome =
 			assignments: LegendGroupAssignment[];
 			unwrapSlots: StyleSlot[];
 	  }
-	/** An ordinary selection assignment over the picker's range. */
-	| { kind: 'range'; range: TextRange }
+	/**
+	 * An ordinary selection assignment over the picker's range.
+	 *
+	 * `performerIds` rather than whatever the picker just handed back, because
+	 * step two hands back the *section's* voice: the selection's own was chosen a
+	 * step earlier and is carried on the overlay.
+	 */
+	| {
+			kind: 'range';
+			range: TextRange;
+			performerIds: readonly PerformerId[];
+			sectionPerformerIds?: readonly PerformerId[];
+	  }
 	/** No performer picker was open, so there is nothing to apply. */
 	| { kind: 'none' };
 
@@ -180,7 +202,17 @@ export function applyPerformerPicker(
 	if (overlay.kind !== 'performer') {
 		return { kind: 'none' };
 	}
-	const { legend } = overlay;
+	const { legend, pendingVoice } = overlay;
+	// Step two of a selection assignment. An empty answer is the "name them
+	// later" way out, and it commits exactly what step one asked for.
+	if (pendingVoice) {
+		return {
+			kind: 'range',
+			range: overlay.range,
+			performerIds: pendingVoice,
+			...(performerIds.length > 0 ? { sectionPerformerIds: [...performerIds] } : {})
+		};
+	}
 	if (legend?.step === 'section') {
 		return {
 			kind: 'advance',
@@ -212,7 +244,22 @@ export function applyPerformerPicker(
 			unwrapSlots: []
 		};
 	}
-	return { kind: 'range', range: overlay.range };
+	return { kind: 'range', range: overlay.range, performerIds: [...performerIds] };
+}
+
+/**
+ * Hold the selection's chosen voices and ask who sings the rest of the section.
+ *
+ * The picker stays mounted and re-keys itself, exactly as the legend flow's two
+ * steps do; the assignment commits on the second answer, as one edit.
+ */
+export function askSectionVoice(
+	session: OverlaySession,
+	performerIds: readonly PerformerId[]
+): OverlaySession {
+	return session.overlay.kind === 'performer'
+		? withOverlay(session, { ...session.overlay, pendingVoice: [...performerIds] })
+		: session;
 }
 
 /** The outcomes that produce a document edit and therefore settle afterwards. */

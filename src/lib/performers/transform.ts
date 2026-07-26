@@ -4,6 +4,9 @@ import type {
 	InsertSectionHeaderRequest,
 	LegendAssignmentRequest,
 	LyricLine,
+	ParsedDocument,
+	PerformerId,
+	PerformerRecord,
 	RemoveDifferentiationRequest,
 	Section,
 	SerializedSelection,
@@ -462,6 +465,71 @@ function headerLegendEdit(
 	return { from: insertionPoint, to: insertionPoint, insert: `: ${legend}` };
 }
 
+/**
+ * The range an assignment actually acts on: a collapsed caret grows to its whole
+ * line, surrounding whitespace comes off, and the ends land on grapheme
+ * boundaries. Shared with `assignmentNeedsSectionVoice`, so the question the
+ * picker asks is asked about the same text the edit would rewrite.
+ */
+function normalizeSelection(
+	document: ParsedDocument,
+	selection: SerializedSelection
+): TextRange | 'empty-selection' | 'whitespace-selection' {
+	let range = orderedSelection(selection);
+	if (range.from === range.to) {
+		const caretSection = document.sections.find((section) => lineAtCaret(section, range.from));
+		const line = caretSection && lineAtCaret(caretSection, range.from);
+		if (!line) {
+			return 'empty-selection';
+		}
+		range = { from: line.from, to: line.to };
+	}
+
+	range = trimWhitespaceRange(document.text, range);
+	if (range.from === range.to) {
+		return 'whitespace-selection';
+	}
+	return expandToGraphemeBoundaries(document.text, range);
+}
+
+/**
+ * Whether assigning here would write a legend that does not begin at the plain
+ * slot, because unstyled lyrics stay behind with nobody named for them.
+ *
+ * That document is invalid the moment it is written and `performer.style-order`
+ * cannot repair it: the only reorder available to one group is moving it down
+ * into plain, which would hand it the very lyrics it was meant to be
+ * distinguished from. The missing fact is who sings the rest, so the picker asks
+ * for it and `sectionPerformerIds` carries the answer back into the same edit.
+ */
+export function assignmentNeedsSectionVoice(
+	document: ParsedDocument,
+	selection: SerializedSelection
+): boolean {
+	const range = normalizeSelection(document, selection);
+	if (typeof range === 'string') {
+		return false;
+	}
+	const section = sectionForRange(document.sections, range);
+	if (!section?.header || section.header.legendGroups.length > 0) {
+		return false;
+	}
+	return retainedStyleSlots(document.text, section, range).has(1);
+}
+
+/** Roster records for a set of ids, in roster order, or `undefined` if any is unknown. */
+function resolveMembers(
+	roster: readonly PerformerRecord[],
+	performerIds: readonly PerformerId[]
+): PerformerRecord[] | undefined {
+	const unique = [...new Set(performerIds)];
+	const members = unique
+		.map((id) => roster.find((performer) => performer.id === id))
+		.filter((performer) => performer !== undefined)
+		.sort((left, right) => left.order - right.order);
+	return members.length === unique.length ? members : undefined;
+}
+
 function compareEdits(left: TextEdit, right: TextEdit): number {
 	return left.from - right.from || left.to - right.to;
 }
@@ -582,23 +650,11 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 
-	let selection = orderedSelection(request.selection);
-	if (selection.from === selection.to) {
-		const caretSection = request.document.sections.find((section) =>
-			lineAtCaret(section, selection.from)
-		);
-		const line = caretSection && lineAtCaret(caretSection, selection.from);
-		if (!line) {
-			return { status: 'blocked', reason: 'empty-selection' };
-		}
-		selection = { from: line.from, to: line.to };
+	const normalized = normalizeSelection(request.document, request.selection);
+	if (typeof normalized === 'string') {
+		return { status: 'blocked', reason: normalized };
 	}
-
-	selection = trimWhitespaceRange(request.text, selection);
-	if (selection.from === selection.to) {
-		return { status: 'blocked', reason: 'whitespace-selection' };
-	}
-	selection = expandToGraphemeBoundaries(request.text, selection);
+	const selection = normalized;
 
 	const section = sectionForRange(request.document.sections, selection);
 	if (!section) {
@@ -611,12 +667,42 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		return removeSelectedDifferentiation(request, section, selection);
 	}
 
-	const selectedPerformers = [...new Set(request.performerIds)]
-		.map((id) => request.roster.find((performer) => performer.id === id))
-		.filter((performer) => performer !== undefined)
-		.sort((left, right) => left.order - right.order);
-	if (selectedPerformers.length !== new Set(request.performerIds).size) {
+	const selectedPerformers = resolveMembers(request.roster, request.performerIds);
+	const sectionPerformers = resolveMembers(request.roster, request.sectionPerformerIds ?? []);
+	if (!selectedPerformers || !sectionPerformers) {
 		return { status: 'blocked', reason: 'invalid-range' };
+	}
+	const selectedKey = makeVoiceGroupKey(selectedPerformers.map((performer) => performer.id));
+
+	// The same voice on both sides of the question is one voice: it sings the
+	// selection and it sings everything around it, so there is nothing to tell
+	// apart. Name it in the plain slot and leave the lyrics alone — wrapping a
+	// passage to distinguish a performer from themselves is `Frikk & <i>Frikk</i>`,
+	// two legend groups for one singer.
+	if (
+		sectionPerformers.length > 0 &&
+		makeVoiceGroupKey(sectionPerformers.map((performer) => performer.id)) === selectedKey
+	) {
+		const plainEdit = headerLegendEdit(section, [
+			{ styleSlot: 1, raw: serializeLegend([{ styleSlot: 1, members: selectedPerformers }]) }
+		]);
+		if (!plainEdit) {
+			return { status: 'blocked', reason: 'invalid-range' };
+		}
+		const edits = [plainEdit];
+		const forwardSelection = request.selection.anchor <= request.selection.head;
+		const from = mapOriginalOffset(selection.from, edits);
+		const to = mapOriginalOffset(selection.to, edits);
+		return {
+			status: 'applied',
+			styleSlot: 1,
+			edit: makeAtomicEdit(
+				request.revision,
+				request.text.length,
+				edits,
+				forwardSelection ? { anchor: from, head: to } : { anchor: to, head: from }
+			)
+		};
 	}
 
 	const extraction = extractPerformers(request.document, request.roster);
@@ -630,9 +716,8 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 			sourceRange: group.sourceRange
 		}));
 	const resolvedSection: Section = { ...section, voiceGroups: resolvedGroups };
-	const groupKey = makeVoiceGroupKey(selectedPerformers.map((performer) => performer.id));
 	const retainedSlots = retainedStyleSlots(request.text, section, selection);
-	let allocation = allocateStyleSlot(resolvedSection, groupKey);
+	let allocation = allocateStyleSlot(resolvedSection, selectedKey);
 	if (allocation.status !== 'existing') {
 		const reusableSlot = STYLE_SLOTS.find((slot) => !retainedSlots.has(slot));
 		allocation = reusableSlot
@@ -692,7 +777,23 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 					? request.text.slice(group.sourceRange.from, group.sourceRange.to)
 					: (group.rawNameText ?? '')
 			}));
+		// The picker's second step, when it ran: the unstyled lyrics get their own
+		// group so the legend begins at plain, instead of opening with the italic
+		// group this assignment just created. Nothing to add when the section
+		// already names a plain voice, or when the user chose to name one later.
+		const plainVoiceGroup: RawLegendGroup[] =
+			sectionPerformers.length > 0 &&
+			allocation.styleSlot !== 1 &&
+			!retainedLegendGroups.some((group) => group.styleSlot === 1)
+				? [
+						{
+							styleSlot: 1,
+							raw: serializeLegend([{ styleSlot: 1, members: sectionPerformers }])
+						}
+					]
+				: [];
 		const edit = headerLegendEdit(section, [
+			...plainVoiceGroup,
 			...retainedLegendGroups,
 			{ styleSlot: allocation.styleSlot, raw: newLegendGroup }
 		]);

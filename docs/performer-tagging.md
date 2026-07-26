@@ -195,8 +195,8 @@ Proposed defaults, subject to platform-conflict testing:
 | --- | --- |
 | Assign performers | `Alt+P` |
 | Insert section header | `Ctrl/Cmd+Shift+H` |
-| Next diagnostic | `F8` |
-| Previous diagnostic | `Shift+F8` |
+| Next diagnostic | `F2` |
+| Previous diagnostic | `Shift+F2` |
 | Open available fixes | `Ctrl/Cmd+.` |
 
 Inside the performer picker:

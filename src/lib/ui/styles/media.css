@@ -8,11 +8,24 @@
  * There is no third material in this column.
  */
 
+/*
+	The row scrolls sideways rather than dropping controls off its end. Every
+	control here is `flex: none` on purpose — a transport glyph that shrank would
+	stop being aimable — so in a narrow window the sync button, the track's name
+	and the detach control simply left the strip, silently, clipped by the editor
+	column. There is no second place any of them appear. Scrolling keeps the row
+	one line tall, which is what the strip is worth, and keeps every control
+	reachable. The bar itself is hidden: it would draw a permanent grey rule
+	across the shortest row in the window for an overflow that only happens at
+	the narrowest widths.
+*/
 .media-strip {
 	display: flex;
 	min-height: var(--control-height-lg);
 	grid-row: 2;
+	overflow-x: auto;
 	padding: var(--space-1) var(--space-3);
+	scrollbar-width: none;
 	border-top: var(--border-width) solid var(--color-border);
 	gap: var(--space-3);
 	align-items: center;
@@ -95,6 +108,51 @@
 	gap: var(--space-2);
 }
 
+/*
+	The glyph with its shortcut under it, and the stack costs the row nothing.
+
+	The row's height is `--control-height-lg`, and every other control in it —
+	the rate select, the sync button, the icon buttons — is `--control-height-md`
+	plus this row's padding, which is exactly that. So the second line has to fit
+	inside `md`, and it does with a pixel to spare: 14px of glyph, 2px of gap,
+	11px of key. Anything added here that pushes the stack past a `md` control
+	grows the strip, and every pixel this row takes is a pixel off the document
+	above it. `MediaStrip.svelte.test.ts` measures it against a sibling control.
+*/
+.media-strip__transport-button {
+	display: inline-flex;
+	flex: none;
+	flex-direction: column;
+	min-height: var(--control-height-sm);
+	padding: 0 var(--space-1-5);
+	gap: var(--space-0-5);
+	color: var(--color-text);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-regular);
+	line-height: 1;
+}
+
+.media-strip__transport-button svg {
+	flex: none;
+}
+
+/*
+	The hint is one mark per control, under the glyph it belongs to, and it is
+	unboxed. Beside the glyph it was read as part of the row of controls and
+	doubled the transport's width; two capped boxes made it worse, printing `⌃`
+	three times for a fact that never varies while the letter — the only thing
+	that differs — wore the same weight. Under the glyph it is a caption, which
+	is what it is, and the modifier folds into the letter so the caption is one
+	mark rather than a row of chrome under a row of chrome.
+*/
+.media-strip__key {
+	color: var(--color-text-muted);
+	font-family: var(--font-ui);
+	font-size: var(--font-size-2xs);
+	font-weight: var(--font-weight-medium);
+	line-height: 1;
+}
+
 /* Tabular so the elapsed readout does not shuffle its neighbours every tick. */
 .media-strip__time {
 	color: var(--color-text-muted);
@@ -163,6 +221,7 @@
  * every one of those is reset here rather than weakened there.
  */
 .media-strip__seek {
+	min-width: 6rem;
 	min-height: 0;
 	flex: 1 1 auto;
 	padding: 0;
@@ -184,7 +243,14 @@
 	cursor: default;
 }
 
+/* No indicator glyph: the number is the control, and a chevron beside four
+   characters of muted type is a second mark for the press the pointer is
+   already on. */
 .media-strip__rate select {
+	appearance: none;
+	/* A select is otherwise as wide as `0.75×` in every state, including the
+	   `1×` it sits at nearly always. */
+	field-sizing: content;
 	min-height: var(--control-height-sm);
 	padding: 0 var(--space-1);
 	border-color: transparent;

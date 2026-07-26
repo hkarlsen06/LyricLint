@@ -200,6 +200,26 @@ export function ruleReferences(): RuleReference[] {
 	return cache;
 }
 
+/**
+ * What a rule is called in front of a reader. `adlib.parentheses` is a
+ * developer's handle, so every surface naming a rule to a user — the
+ * ignored-rules footer, the ignore and restore announcements — comes through
+ * here.
+ *
+ * It is the index group's own title plus the rest of the ID in words, rather
+ * than the rule's diagnostic message: a message is written about the occurrence
+ * in front of the reader (“«definately» is a common English spelling error”),
+ * and ignoring a rule silences all of them. Derived rather than hand-written so
+ * a new rule cannot ship with no name, and unknown IDs fall back to themselves —
+ * a label is not worth breaking a restore over.
+ */
+export function ruleName(id: string): string {
+	const [prefix, ...rest] = id.split('.');
+	const detail = rest.join(' ').replaceAll('-', ' ');
+	if (!groupTitles[prefix] || !detail) return id;
+	return `${groupTitles[prefix]}: ${detail}`;
+}
+
 export function ruleReferenceFromSlug(slug: string): RuleReference | undefined {
 	const id = ruleFromSlug(slug);
 	return id ? ruleReferences().find((reference) => reference.id === id) : undefined;

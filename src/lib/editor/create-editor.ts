@@ -48,6 +48,7 @@ import {
 	lineAnchors,
 	lineAnchorTheme,
 	lineAnchorsFor,
+	setFollowPlayheadEffect,
 	setLineAnchorsEffect,
 	setPlayheadEffect
 } from './extensions/line-anchors.js';
@@ -738,6 +739,12 @@ export function createLyricEditor(
 		},
 		setLyricSync(active) {
 			setLyricSync(view, active);
+		},
+		setFollowPlayhead(follow) {
+			view.dispatch({
+				effects: setFollowPlayheadEffect.of(follow),
+				annotations: Transaction.addToHistory.of(false)
+			});
 		}
 	};
 

@@ -200,16 +200,15 @@ export function lyricLintKeymap(
 		{ key: 'Ctrl-Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Mod-Shift-h', run: insertSection(callbacks), preventDefault: true },
-		// F8 is play/pause on the macOS media row, which was a collision before this
-		// app had a transport of its own and is a worse one now. `.` and `,` are
-		// adjacent and sit in the same place on US and Nordic layouts, unlike `/` or
-		// the brackets, which are Option combos on a Norwegian Mac — and `.` already
-		// means "diagnostic" here through `Mod-.` below. The function keys stay as
-		// aliases.
+		// F7 through F9 belong to the transport. F2 and Shift-F2 keep diagnostic
+		// navigation on the function row without asking one key to mean two things.
+		// `.` and `,` remain the cross-platform primaries because they are adjacent
+		// on US and Nordic layouts and `.` already means "diagnostic" through
+		// `Mod-.` below.
 		{ key: 'Ctrl-Alt-.', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
 		{ key: 'Ctrl-Alt-,', run: navigateDiagnostic(callbacks, -1), preventDefault: true },
-		{ key: 'F8', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
-		{ key: 'Shift-F8', run: navigateDiagnostic(callbacks, -1), preventDefault: true },
+		{ key: 'F2', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
+		{ key: 'Shift-F2', run: navigateDiagnostic(callbacks, -1), preventDefault: true },
 		{ key: 'Mod-.', run: openAvailableFix(callbacks), preventDefault: true },
 		// The transport triad — `Ctrl-Alt-J`, `K`, `L` — is deliberately *not* here.
 		// It is bound to the window in `ui/state/media-shortcuts.ts`, because the

@@ -13,6 +13,7 @@
 		resolveLegendAssignment,
 		type LegendAssignmentResolution
 	} from '$lib/performers/legend-assignment.js';
+	import { assignmentNeedsSectionVoice } from '$lib/performers/transform.js';
 	import type { CreateLyricEditorOptions, LyricEditorInstance } from './create-editor.js';
 	import type {
 		EditorPaneProps,
@@ -25,6 +26,7 @@
 		activateDiagnostic,
 		anchorPlacement,
 		applyPerformerPicker,
+		askSectionVoice,
 		beginLegendAssignment,
 		cachedAnchorRect,
 		cancelPerformerPicker,
@@ -89,6 +91,29 @@
 	const sectionOverlay = $derived(overlay.kind === 'section' ? overlay : undefined);
 	const diagnosticOverlay = $derived(overlay.kind === 'diagnostic' ? overlay : undefined);
 	const legend = $derived(performerOverlay?.legend);
+	const pendingVoice = $derived(performerOverlay?.pendingVoice);
+	// Whether applying will need a second step. Read before the press so the
+	// button can say `Next` rather than promising an assignment and then asking
+	// another question — the legend flow's first step does the same.
+	//
+	// A function reading the session state directly, rather than a `$derived` over
+	// the projections above: the press that consumes it arrives from inside the
+	// picker's own `{#key}` block, and that block is being torn down as the
+	// handler runs. The answer has to come from the state, not from a cache the
+	// dying effect owns.
+	function needsSectionVoice(): boolean {
+		const current = session.overlay;
+		return (
+			current.kind === 'performer' &&
+			!current.legend &&
+			!current.pendingVoice &&
+			context.parsed !== undefined &&
+			assignmentNeedsSectionVoice(context.parsed, {
+				anchor: current.range.from,
+				head: current.range.to
+			})
+		);
+	}
 	// The step counter belongs to the two-voice flow only. A styled-only section
 	// names one voice, and the prompt says up front that its markup goes with the
 	// assignment — the picker is where that consequence is agreed to.
@@ -99,7 +124,11 @@
 				: legend.step === 'section'
 					? 'General section voice · 1 of 2'
 					: 'Styled passage · 2 of 2'
-			: undefined
+			: pendingVoice
+				? 'Who sings the rest? · 2 of 2'
+				: needsSectionVoice()
+					? 'Who sings this? · 1 of 2'
+					: undefined
 	);
 
 	const fallbackLanguagePack = $derived<LanguagePack>(
@@ -323,6 +352,14 @@
 	}
 
 	async function applyPerformers(performerIds: PerformerId[]): Promise<void> {
+		// A selection assignment that would open the legend at italic asks who
+		// sings the unstyled lyrics before it writes anything, because that is the
+		// one fact the document cannot supply and `performer.style-order` cannot
+		// invent. The picker stays mounted for the answer.
+		if (needsSectionVoice() && performerIds.length > 0) {
+			session = askSectionVoice(session, performerIds);
+			return;
+		}
 		const outcome = applyPerformerPicker(session, performerIds);
 		if (outcome.kind === 'none') {
 			return;
@@ -341,7 +378,13 @@
 							assignments: outcome.assignments,
 							unwrapSlots: outcome.unwrapSlots
 						})
-					: await callbacks.createPerformerEdit?.({ range: outcome.range, performerIds });
+					: await callbacks.createPerformerEdit?.({
+							range: outcome.range,
+							performerIds: [...outcome.performerIds],
+							...(outcome.sectionPerformerIds
+								? { sectionPerformerIds: outcome.sectionPerformerIds }
+								: {})
+						});
 			if (edit) {
 				editor?.handle.dispatchAtomic(edit);
 			}
@@ -573,19 +616,24 @@
 ></div>
 
 {#if performerOverlay}
-	{#key legend?.step ?? 'selection'}
+	{#key legend?.step ?? (pendingVoice ? 'section-voice' : 'selection')}
 		<PerformerPicker
 			performers={context.performers}
 			initialSelectedIds={legend
 				? legend.step === 'section'
 					? legend.sectionPerformerIds
 					: legend.styledPerformerIds
-				: performerIdsForRange(performerOverlay.range)}
-			removalAvailable={!legend && canRemoveFormattingForRange(performerOverlay.range)}
+				: pendingVoice
+					? []
+					: performerIdsForRange(performerOverlay.range)}
+			removalAvailable={!legend &&
+				!pendingVoice &&
+				canRemoveFormattingForRange(performerOverlay.range)}
 			prompt={legendPrompt}
-			applyLabel={legend?.step === 'section' ? 'Next' : 'Apply'}
-			returnFocusOnApply={legend?.step !== 'section'}
-			allowRemoval={!legend}
+			applyLabel={legend?.step === 'section' || needsSectionVoice() ? 'Next' : 'Apply'}
+			emptyApplyLabel={pendingVoice ? 'Name later' : undefined}
+			returnFocusOnApply={legend?.step !== 'section' && !needsSectionVoice()}
+			allowRemoval={!legend && !pendingVoice}
 			anchor={overlayAnchor}
 			placement={overlayPlacement}
 			onApply={applyPerformers}

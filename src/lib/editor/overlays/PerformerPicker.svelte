@@ -12,6 +12,12 @@
 		initialSelectedIds?: readonly PerformerId[];
 		prompt?: string;
 		applyLabel?: string;
+		/**
+		 * What applying with nobody selected does, when that is a real answer —
+		 * "who sings the rest of this section?" is answerable with "I will name
+		 * them later". Omitted, an empty selection leaves Apply disabled.
+		 */
+		emptyApplyLabel?: string;
 		returnFocusOnApply?: boolean;
 		allowRemoval?: boolean;
 		removalAvailable?: boolean;
@@ -28,6 +34,7 @@
 		initialSelectedIds = [],
 		prompt,
 		applyLabel = 'Apply',
+		emptyApplyLabel,
 		returnFocusOnApply = true,
 		allowRemoval = true,
 		removalAvailable = initialSelectedIds.length > 0,
@@ -55,7 +62,8 @@
 			selectedIds.some((id) => !initialSelectedIds.includes(id))
 	);
 	const canApply = $derived(
-		(selectedIds.length > 0 || canRemoveFormatting) && (!allowRemoval || selectionChanged)
+		(selectedIds.length > 0 || canRemoveFormatting || emptyApplyLabel !== undefined) &&
+			(!allowRemoval || selectionChanged)
 	);
 
 	const position = $derived(
@@ -405,7 +413,9 @@
 					? removalUnavailable
 						? 'Already plain text'
 						: 'Remove formatting'
-					: applyLabel}
+					: selectedIds.length === 0 && emptyApplyLabel
+						? emptyApplyLabel
+						: applyLabel}
 				<span aria-hidden="true" class="apply__key">↵</span>
 			</button>
 			{#if removalUnavailable}
@@ -443,10 +453,13 @@
 		line-height: var(--line-height-tight);
 	}
 
+	/* The prompt is the card's own question, not a caption on it. Set muted and
+	   small it read as chrome, so a step that replaced the card's whole meaning
+	   looked like the same card glitching: the only thing that had changed was a
+	   few grey words the eye skips. It takes the picker's own type and full
+	   contrast, and the step counter rides along in it. */
 	.picker__prompt {
 		flex: none;
-		color: var(--color-text-muted);
-		font-size: var(--font-size-xs);
 		font-weight: var(--font-weight-semibold);
 		white-space: nowrap;
 	}

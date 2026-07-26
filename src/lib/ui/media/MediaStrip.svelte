@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatTime } from '../state/media-player.svelte.js';
+	import { transportModifier } from '../state/media-shortcuts.js';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 
 	/**
@@ -9,12 +10,30 @@
 	 */
 	interface LyricSyncControl {
 		readonly active: boolean;
+		/** Every line a run would tap already has a time. */
+		readonly complete?: boolean;
 		toggle(): void;
 	}
 
-	let { media, sync }: { media: MediaStore; sync?: LyricSyncControl } = $props();
+	/**
+	 * Following the playhead. Shown only when the song has enough timed lines for
+	 * a scroll to mean anything — one anchor scrolls nowhere.
+	 */
+	interface FollowControl {
+		readonly available: boolean;
+		readonly active: boolean;
+		toggle(): void;
+	}
+
+	let {
+		media,
+		sync,
+		follow
+	}: { media: MediaStore; sync?: LyricSyncControl; follow?: FollowControl } = $props();
 
 	const player = $derived(media.player);
+	const fallbackModifier = transportModifier();
+	const fallbackModifierKey = fallbackModifier === 'Control' ? '⌃' : fallbackModifier;
 
 	// NaN until the browser has read the file's metadata, and a scrubber with no
 	// range is a control that cannot be aimed — so it waits rather than pretending
@@ -25,6 +44,13 @@
 	// wants a gesture the browser insists on; a video wants this session's consent
 	// to load Google's player, and a control that did not say so would spend it
 	// without asking.
+	// Once the song has timed lines the side keys step between them, so the
+	// controls say so. A button labelled with a number of seconds it no longer
+	// moves is worse than one with no number on it at all.
+	const timed = $derived(player.cuePoints.length > 0);
+	const backLabel = $derived(timed ? 'Previous line' : 'Back 2 seconds');
+	const forwardLabel = $derived(timed ? 'Next line' : 'Forward 2 seconds');
+
 	const pendingLabel = $derived(
 		media.pendingSource === 'youtube'
 			? `Load ${media.pendingName} from YouTube`
@@ -57,10 +83,11 @@
 		<div class="media-strip__transport">
 			<button
 				type="button"
-				class="button--quiet icon-button"
+				class="button button--quiet media-strip__transport-button"
 				onclick={() => player.transport('back')}
-				aria-label="Back 3 seconds"
-				title="Back 3 seconds (Ctrl+Alt+J)"
+				aria-label={backLabel}
+				aria-keyshortcuts={`F7 ${fallbackModifier}+J Control+Alt+J`}
+				title={`${backLabel} (F7 · ${fallbackModifier}+J)`}
 			>
 				<svg
 					aria-hidden="true"
@@ -76,14 +103,16 @@
 					<path d="M13 3.5v9L6.5 8Z" />
 					<path d="M3.5 3.5v9" />
 				</svg>
+				<kbd class="media-strip__key" aria-hidden="true">{fallbackModifierKey}J</kbd>
 			</button>
 
 			<button
 				type="button"
-				class="button--quiet icon-button"
+				class="button button--quiet media-strip__transport-button"
 				onclick={() => player.transport('toggle')}
 				aria-label={player.playing ? 'Pause' : 'Play'}
-				title={player.playing ? 'Pause (Ctrl+Alt+K)' : 'Play (Ctrl+Alt+K)'}
+				aria-keyshortcuts={`F8 Space ${fallbackModifier}+K Control+Alt+K`}
+				title={`${player.playing ? 'Pause' : 'Play'} (F8 · ${fallbackModifier}+K)`}
 			>
 				<svg
 					aria-hidden="true"
@@ -99,14 +128,16 @@
 						<path d="M4.5 2.8 13 8l-8.5 5.2Z" />
 					{/if}
 				</svg>
+				<kbd class="media-strip__key" aria-hidden="true">{fallbackModifierKey}K</kbd>
 			</button>
 
 			<button
 				type="button"
-				class="button--quiet icon-button"
+				class="button button--quiet media-strip__transport-button"
 				onclick={() => player.transport('forward')}
-				aria-label="Forward 3 seconds"
-				title="Forward 3 seconds (Ctrl+Alt+L)"
+				aria-label={forwardLabel}
+				aria-keyshortcuts={`F9 ${fallbackModifier}+L Control+Alt+L`}
+				title={`${forwardLabel} (F9 · ${fallbackModifier}+L)`}
 			>
 				<svg
 					aria-hidden="true"
@@ -122,6 +153,7 @@
 					<path d="M3 3.5v9L9.5 8Z" />
 					<path d="M12.5 3.5v9" />
 				</svg>
+				<kbd class="media-strip__key" aria-hidden="true">{fallbackModifierKey}L</kbd>
 			</button>
 
 			<span class="media-strip__time" data-testid="media-elapsed">
@@ -178,13 +210,49 @@
 				reading `Stop syncing` explains that only to someone who already knows
 				what syncing is.
 			-->
+			{#if follow?.available}
+				<button
+					type="button"
+					class="button--quiet icon-button"
+					aria-pressed={follow.active}
+					aria-label="Follow the playing line"
+					title={follow.active ? 'Stop following the playing line' : 'Follow the playing line'}
+					onclick={follow.toggle}
+				>
+					<svg
+						aria-hidden="true"
+						viewBox="0 0 16 16"
+						width="14"
+						height="14"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.6"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+					>
+						<path d="M2.5 4h11M2.5 8h6M2.5 12h4" />
+						{#if follow.active}<path d="M11.5 9.5v4M9.75 11.75 11.5 13.5l1.75-1.75" />{/if}
+					</svg>
+				</button>
+			{/if}
+
 			{#if sync}
+				<!--
+					A finished song says so rather than offering the job again, but it is
+					still the same control and still one press: `runStart` reads a fully
+					timed lyric as a fresh pass from the top, which is the only sensible
+					reading of pressing sync on finished work. The checkmark is the state
+					and the title is what the press does — a readout that could not be
+					pressed would take away the only way to re-time a song.
+				-->
 				<button
 					type="button"
 					class="button media-strip__sync"
 					title={sync.active
 						? 'Stop timing and go back to editing'
-						: 'Play the song from the start and tap Space at each line to time it'}
+						: sync.complete
+							? 'Every line is timed. Play the song from the start and tap Space to time it again'
+							: 'Play the song from the start and tap Space at each line to time it'}
 					onclick={sync.toggle}
 				>
 					<svg
@@ -198,10 +266,16 @@
 						stroke-linecap="round"
 						stroke-linejoin="round"
 					>
-						<circle cx="8" cy="9.25" r="5.25" />
-						<path d="M8 6.75v2.5h2M6.25 1.75h3.5" />
+						{#if !sync.active && sync.complete}
+							<path d="M2.75 8.5 6.25 12l7-8" />
+						{:else}
+							<circle cx="8" cy="9.25" r="5.25" />
+							<path d="M8 6.75v2.5h2M6.25 1.75h3.5" />
+						{/if}
 					</svg>
-					<span>{sync.active ? 'Stop syncing' : 'Sync lyrics'}</span>
+					<span>
+						{sync.active ? 'Stop syncing' : sync.complete ? 'Lyrics synced' : 'Sync lyrics'}
+					</span>
 				</button>
 			{/if}
 

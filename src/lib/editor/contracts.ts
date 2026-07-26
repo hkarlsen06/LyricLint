@@ -49,6 +49,8 @@ export interface EditorDisplayContext extends EditorContext {
 export interface PerformerAssignmentChoice {
 	range: TextRange;
 	performerIds: PerformerId[];
+	/** Who sings the section's unstyled lyrics, when the picker asked for them. */
+	sectionPerformerIds?: readonly PerformerId[];
 }
 
 export interface PerformerLegendAssignmentChoice {

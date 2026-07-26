@@ -1,11 +1,12 @@
 import type { RuleSetManifest } from '$lib/core/types.js';
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.25.8',
-	publishedAt: '2026-07-25',
+	version: '2026.07.26.1',
+	publishedAt: '2026-07-26',
 	sourceIds: [
 		'G-ADD-SONGS',
 		'T-LANGUAGE-DETECT',
+		'T-HARPER',
 		'L-EN-COMMON',
 		'L-EN-MORE',
 		'L-EN-TOP50',
@@ -84,6 +85,9 @@ export const currentRuleSet: RuleSetManifest = {
 		'spelling.arabic-common',
 		'spelling.japanese-common',
 		'spelling.korean-common',
+		'spelling.harper',
+		'grammar.harper',
+		'style.harper',
 		'text.invisible-characters',
 		'unknown.marker',
 		'repeat.placeholder',

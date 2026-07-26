@@ -151,7 +151,7 @@ export interface WorkbenchController {
 	applyBulkFix(): void;
 	ignoreRule(ruleId: string): void;
 	restoreRule(ruleId: string): void;
-	copyCanonical(): Promise<void>;
+	copyCanonical(): Promise<boolean>;
 	pasteLyrics(): Promise<void>;
 	/** Replace an empty document with the bundled sample transcription. */
 	loadSample(): void;
@@ -205,9 +205,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		onBeforeReplace: () => panel.leadOnNextSnapshot()
 	});
 
-	// A loaded draft's anchors, waiting for an editor that can hold them. Declared
-	// ahead of `bindings` because the getter below falls back to it.
-	let pendingLineAnchors: readonly LineAnchor[] | undefined = deps.initialDraft.lineAnchors;
+	// The anchors this draft is known to have — not a one-shot hand-off. Every
+	// editor remount (a draft switch, but also HMR) starts blank, and a blank
+	// editor's `getLineAnchors()` is `[]`, which the next save writes straight over
+	// the draft. So this is kept and re-seated onto any capable editor that has
+	// none, and refreshed whenever the editor reports a change.
+	let knownLineAnchors: readonly LineAnchor[] = deps.initialDraft.lineAnchors ?? [];
 
 	const draft = createDraftStore({
 		initialDraft: deps.initialDraft,
@@ -227,11 +230,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				return roster.performers;
 			},
 			get lineAnchors() {
-				// Falling back to the anchors still waiting rather than to nothing.
-				// The page boots with a headless handle that cannot answer this, and
-				// any save that landed in that window — a rename is enough — would
-				// write an empty list over the draft's own timings.
-				return editorSession.editor.getLineAnchors?.() ?? pendingLineAnchors ?? [];
+				// Falling back to the known set rather than to nothing. The page boots
+				// with a headless handle that cannot answer this, and any save that
+				// landed in that window — a rename is enough — would write an empty
+				// list over the draft's own timings.
+				return editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
 			},
 			onDraftLoaded(nextDraft) {
 				roster.reset(nextDraft.performers);
@@ -246,7 +249,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				// dispatched into it dies with it. `setEditorHandle` applies them when
 				// the replacement publishes itself, which is the same hand-off the fix
 				// preview already waits for.
-				pendingLineAnchors = nextDraft.lineAnchors ?? [];
+				knownLineAnchors = nextDraft.lineAnchors ?? [];
 				editorSession.resetRevisionGuard();
 				const openedSnapshot = deps.onOpenDraft?.(nextDraft);
 				if (openedSnapshot) {
@@ -372,17 +375,19 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// editor capability such as `previewAtomic` unsafe to inspect.
 			if (!handle) return;
 			editorSession.setEditorHandle(handle);
-			// The anchors wait for a handle that can actually take them, and the
-			// capability is *checked* rather than optional-called. The first handle
-			// this ever sees is the page's headless placeholder — it holds no
-			// document and implements no anchors — so `handle.setLineAnchors?.(…)`
-			// dropped a whole song's timings into a no-op and then cleared the
-			// pending list, every reload, before CodeMirror had mounted. `?.` is safe
-			// for a fire-and-forget notification and wrong for a one-shot hand-off:
-			// there is no second chance to deliver this.
-			if (pendingLineAnchors && handle.setLineAnchors) {
-				handle.setLineAnchors(pendingLineAnchors);
-				pendingLineAnchors = undefined;
+			// Re-seat the draft's anchors on any editor that can hold them and has
+			// none. The capability is *checked* rather than optional-called: the
+			// first handle this ever sees is the page's headless placeholder, which
+			// implements no anchors, so `handle.setLineAnchors?.(…)` dropped a whole
+			// song's timings into a no-op. And it runs on every handle, not just the
+			// first, because a remount (HMR, a keyed rebuild) otherwise leaves the
+			// editor blank and the next save writes that blank over the draft.
+			if (
+				knownLineAnchors.length > 0 &&
+				handle.setLineAnchors &&
+				handle.getLineAnchors?.().length === 0
+			) {
+				handle.setLineAnchors(knownLineAnchors);
 			}
 			// The card that starts expanded asks for its preview before the real
 			// editor exists to draw it. Now that one does, show it.
@@ -401,6 +406,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			draft.scheduleSave();
 		},
 		onLineAnchorsChanged() {
+			knownLineAnchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
 			draft.scheduleSave();
 		},
 		setActiveTab: panel.setActiveTab,

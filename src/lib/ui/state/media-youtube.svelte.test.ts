@@ -165,10 +165,10 @@ describe('YouTube transport arithmetic', () => {
 		video.currentTime = 40;
 		player.pause();
 		player.nudge(-nudgeSeconds);
-		expect(video.currentTime).toBe(37);
+		expect(video.currentTime).toBe(38);
 
 		player.play();
-		expect(video.currentTime).toBe(37);
+		expect(video.currentTime).toBe(38);
 	});
 
 	it('clamps a nudge to both ends of the track', async () => {
@@ -186,7 +186,7 @@ describe('YouTube transport arithmetic', () => {
 
 	// The gap this whole source exists to hide. `seekTo` crosses a postMessage
 	// bridge, so the next `getCurrentTime` still answers with where the user just
-	// left — and arithmetic read off that answer moves five seconds for a back-3
+	// left — and arithmetic read off that answer moves four seconds for a back-2
 	// and a resume, which is the failure the local-file transport is written to
 	// avoid in the first place.
 	it('reads its own target back while the player is still catching up', async () => {
@@ -205,7 +205,7 @@ describe('YouTube transport arithmetic', () => {
 		expect(video.getCurrentTime()).toBe(40);
 
 		player.nudge(-nudgeSeconds);
-		expect(player.currentTime).toBe(35);
+		expect(player.currentTime).toBe(36);
 	});
 
 	it('opens where the draft left off', async () => {

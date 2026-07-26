@@ -33,7 +33,8 @@ export interface EditorSession {
 	resetRevisionGuard(): void;
 	undo(): void;
 	redo(): void;
-	copyCanonical(): Promise<void>;
+	/** Resolves true when the markup reached the clipboard. */
+	copyCanonical(): Promise<boolean>;
 	/** Replace the whole document in one undoable edit. */
 	replaceDocument(text: string, announcement: string): void;
 	/** Drop the clipboard into an empty document, or hand over to keyboard paste. */
@@ -104,8 +105,10 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			try {
 				await deps.copy(snapshot.text);
 				deps.feedback.announce('Canonical Genius markup copied.');
+				return true;
 			} catch {
 				deps.feedback.announce('Copy failed. Check browser clipboard permission and try again.');
+				return false;
 			}
 		},
 		replaceDocument,

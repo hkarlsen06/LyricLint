@@ -71,6 +71,20 @@
 		controller.setTitle(input.value);
 	}
 
+	// Same slot, same tier, label following the state — as with `Paste lyrics`.
+	// The confirmation is the button itself, so nothing else has to appear to say
+	// the copy landed; it reverts on its own because there is no other way out.
+	let copied = $state(false);
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+	async function copyLyrics() {
+		copied = await controller.copyCanonical();
+		clearTimeout(copiedTimer);
+		if (copied) copiedTimer = setTimeout(() => (copied = false), 2000);
+	}
+
+	onMount(() => () => clearTimeout(copiedTimer));
+
 	function onTitleClick(event: MouseEvent & { currentTarget: HTMLInputElement }) {
 		if (event.currentTarget.value === 'Untitled draft') {
 			event.currentTarget.select();
@@ -190,6 +204,56 @@
 	     surface never carries two contrast actions, and the user is never offered
 	     the end of a job they have not started. -->
 	<div class="document-toolbar__commands">
+		<!-- The keystrokes already exist in the editor; these are the same two
+		     commands for the pointer, and they act on the document, so they belong
+		     in this strip rather than beside the draft's name. Quiet tier: they are
+		     corrections, not the thing the surface is for. -->
+		<button
+			type="button"
+			class="icon-button button--quiet document-toolbar__history"
+			aria-label="Undo"
+			title="Undo"
+			disabled={!controller.snapshot.canUndo}
+			onclick={() => controller.undo()}
+		>
+			<svg
+				aria-hidden="true"
+				viewBox="0 0 16 16"
+				width="15"
+				height="15"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<path d="M3 6.5h6.2a3.8 3.8 0 0 1 0 7.6H6.5" />
+				<path d="M5.8 3.4 2.7 6.5l3.1 3.1" />
+			</svg>
+		</button>
+		<button
+			type="button"
+			class="icon-button button--quiet document-toolbar__history"
+			aria-label="Redo"
+			title="Redo"
+			disabled={!controller.snapshot.canRedo}
+			onclick={() => controller.redo()}
+		>
+			<svg
+				aria-hidden="true"
+				viewBox="0 0 16 16"
+				width="15"
+				height="15"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.5"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<path d="M13 6.5H6.8a3.8 3.8 0 0 0 0 7.6h2.7" />
+				<path d="M10.2 3.4l3.1 3.1-3.1 3.1" />
+			</svg>
+		</button>
 		<LanguagePicker {controller} />
 		{#if controller.isEmpty}
 			<button
@@ -217,11 +281,7 @@
 				Paste lyrics
 			</button>
 		{:else}
-			<button
-				type="button"
-				class="button button--contrast"
-				onclick={() => controller.copyCanonical()}
-			>
+			<button type="button" class="button button--contrast" onclick={copyLyrics}>
 				<svg
 					aria-hidden="true"
 					viewBox="0 0 16 16"
@@ -233,12 +293,16 @@
 					stroke-linecap="round"
 					stroke-linejoin="round"
 				>
-					<rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
-					<path
-						d="M10.5 3.5v-.8a1.2 1.2 0 0 0-1.2-1.2H3.7a1.2 1.2 0 0 0-1.2 1.2v5.6a1.2 1.2 0 0 0 1.2 1.2h.8"
-					/>
+					{#if copied}
+						<path d="M3 8.4 6.4 11.8 13 5.2" />
+					{:else}
+						<rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
+						<path
+							d="M10.5 3.5v-.8a1.2 1.2 0 0 0-1.2-1.2H3.7a1.2 1.2 0 0 0-1.2 1.2v5.6a1.2 1.2 0 0 0 1.2 1.2h.8"
+						/>
+					{/if}
 				</svg>
-				Copy lyrics
+				{copied ? 'Lyrics copied' : 'Copy lyrics'}
 			</button>
 		{/if}
 	</div>

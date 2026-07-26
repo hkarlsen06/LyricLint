@@ -339,7 +339,7 @@ describe('RightPanel', () => {
 		expect(controller.ignoredRuleCount).toBe(1);
 		await waitFor(() =>
 			expect(screen.getByTestId('live-region').textContent).toContain(
-				'Ignored section.header-missing again'
+				'Ignored “Section headers: header missing” again'
 			)
 		);
 	});

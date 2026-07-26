@@ -44,14 +44,63 @@ describe('MediaStrip', () => {
 		audio.setDuration(125);
 
 		render(MediaStrip, { props: { media } });
+		const modifier = navigator.platform.toLocaleLowerCase().includes('mac') ? 'Control' : 'Alt';
+		const modifierKey = modifier === 'Control' ? '⌃' : modifier;
 
-		await expect.element(page.getByRole('button', { name: 'Play' })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Back 3 seconds' })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Forward 3 seconds' })).toBeVisible();
+		const back = page.getByRole('button', { name: 'Back 2 seconds' });
+		const play = page.getByRole('button', { name: 'Play' });
+		const forward = page.getByRole('button', { name: 'Forward 2 seconds' });
+
+		await expect.element(play).toBeVisible();
+		await expect.element(back).toBeVisible();
+		await expect.element(forward).toBeVisible();
+		await expect
+			.element(back)
+			.toHaveAttribute('aria-keyshortcuts', `F7 ${modifier}+J Control+Alt+J`);
+		await expect
+			.element(play)
+			.toHaveAttribute('aria-keyshortcuts', `F8 Space ${modifier}+K Control+Alt+K`);
+		await expect
+			.element(forward)
+			.toHaveAttribute('aria-keyshortcuts', `F9 ${modifier}+L Control+Alt+L`);
+		// One cap per control, modifier folded into it — not a repeated `⌃` box.
+		expect([...back.element().querySelectorAll('kbd')].map((key) => key.textContent)).toEqual([
+			`${modifierKey}J`
+		]);
+		expect([...play.element().querySelectorAll('kbd')].map((key) => key.textContent)).toEqual([
+			`${modifierKey}K`
+		]);
+		expect([...forward.element().querySelectorAll('kbd')].map((key) => key.textContent)).toEqual([
+			`${modifierKey}L`
+		]);
+		const detach = page.getByRole('button', { name: 'Detach track.mp3' });
+		// The stack's own content has to fit the height the row's other controls
+		// already set, or the shortcut caption costs the document a strip of pixels.
+		const stack = play.element() as HTMLElement;
+		const glyph = (stack.querySelector('svg') as SVGElement).getBoundingClientRect();
+		const cap = (stack.querySelector('kbd') as HTMLElement).getBoundingClientRect();
+		expect(cap.bottom - glyph.top).toBeLessThanOrEqual(
+			(detach.element() as HTMLElement).offsetHeight
+		);
 		await expect.element(page.getByTestId('media-elapsed')).toHaveTextContent('0:00');
 		await expect.element(page.getByText('2:05')).toBeVisible();
 		await expect.element(page.getByText('track.mp3')).toBeVisible();
 		await expect.element(page.getByRole('slider', { name: 'Seek' })).toBeEnabled();
+	});
+
+	// A timed song moves the side keys off seconds and onto lines, so a control
+	// still naming a number of seconds would be naming something it no longer does.
+	it('names the side controls after the lines once the song is timed', async () => {
+		const { audio, media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		audio.setDuration(125);
+		player.setCuePoints([12, 30]);
+
+		render(MediaStrip, { props: { media } });
+
+		await expect.element(page.getByRole('button', { name: 'Previous line' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Next line' })).toBeVisible();
+		expect(page.getByRole('button', { name: 'Back 2 seconds' }).elements()).toHaveLength(0);
 	});
 
 	it('swaps the middle control to Pause while playing, keeping its slot', async () => {
@@ -142,6 +191,24 @@ describe('MediaStrip', () => {
 		expect(document.querySelectorAll('.media-video')).toHaveLength(0);
 	});
 
+	// `loadVideoById` autoplays by design, so reusing an existing player — a draft
+	// switch, a reconnect, an HMR reload — started the song on its own.
+	it('does not start playing when an existing player is reused', async () => {
+		const { media, player, youtube } = store();
+		await media.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
+		player.mountVideo(document.createElement('div'));
+		const video = youtube.players.at(-1);
+		if (!video) throw new Error('no player was built');
+		video.ready({ duration: 200 });
+		expect(player.playing).toBe(false);
+
+		// The same video adopted again, the way `openFor` does on a draft switch.
+		await media.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
+
+		expect(youtube.players).toHaveLength(1);
+		expect(player.playing).toBe(false);
+	});
+
 	it('offers only the rates the attached source will apply', async () => {
 		const { media, player, youtube } = store();
 		await media.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
@@ -219,6 +286,31 @@ describe('MediaStrip', () => {
 		await expect.element(page.getByRole('button', { name: 'Stop syncing' })).toBeVisible();
 		await expect.element(page.getByText('Tap Space as each line starts · Esc stops')).toBeVisible();
 		expect(page.getByText('track.mp3').elements()).toHaveLength(0);
+	});
+
+	// A finished song states that it is finished, and is still the same one-press
+	// control: `runStart` reads a fully timed lyric as a fresh pass from the top,
+	// so a readout here would take away the only way to re-time a song.
+	it('reads Lyrics synced when every line is timed, and still starts a fresh run', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		let active = $state(false);
+		const sync = {
+			get active() {
+				return active;
+			},
+			complete: true,
+			toggle: () => {
+				active = !active;
+			}
+		};
+
+		render(MediaStrip, { props: { media, sync } });
+
+		await page.getByRole('button', { name: 'Lyrics synced' }).click();
+
+		expect(active).toBe(true);
+		await expect.element(page.getByRole('button', { name: 'Stop syncing' })).toBeVisible();
 	});
 
 	// A strip mounted without one has nothing to toggle, which is what keeps the

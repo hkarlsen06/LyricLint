@@ -257,6 +257,32 @@ describe('workbench draft safety', () => {
 		expect(controlled.scheduled.at(-1)?.draft.lineAnchors).toEqual([{ line: 2, time: 61 }]);
 	});
 
+	// Every editor remount starts blank — a keyed rebuild, or HMR in dev — and a
+	// blank editor's `getLineAnchors()` is `[]`, which the next save writes straight
+	// over the draft. The anchors are re-seated onto any capable handle that has
+	// none, not just the first one.
+	test('re-seats the anchors on a remounted editor', async () => {
+		const stored: DraftRecord = { ...draft('draft-a'), lineAnchors: [{ line: 2, time: 61 }] };
+		const repository = createInMemoryDraftRepository([stored]);
+		const { controller, editor, headless } = setup({ initial: stored, repository });
+
+		controller.setEditorHandle(headless);
+		controller.setEditorHandle(editor);
+		expect(editor.getLineAnchors?.()).toEqual([{ line: 2, time: 61 }]);
+
+		// A fresh CodeMirror, the way a remount publishes one.
+		let remounted: LineAnchor[] = [];
+		controller.setEditorHandle({
+			...editor,
+			getLineAnchors: () => remounted.map((anchor) => ({ ...anchor })),
+			setLineAnchors(anchors) {
+				remounted = anchors.map((anchor) => ({ ...anchor }));
+			}
+		});
+
+		expect(remounted).toEqual([{ line: 2, time: 61 }]);
+	});
+
 	test('saves the editor’s live anchors with the text they describe', async () => {
 		const first = draft('draft-a');
 		const repository = createInMemoryDraftRepository([first]);

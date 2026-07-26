@@ -7,8 +7,19 @@ export function getEnabledRules(): RuleDefinition[] {
 }
 
 export { collectSafeFixes, filterIgnored, runRules, sortDiagnostics } from './engine.js';
+export {
+	createHarperDiagnosticProvider,
+	mergeHarperDiagnostics,
+	projectLyricsForHarper
+} from './harper.js';
+export type {
+	HarperDiagnosticProvider,
+	HarperDiagnosticRequest,
+	HarperEngineFactory
+} from './harper.js';
 export type { BulkFixPlan } from './bulk-fix.js';
 export { collectMatchingFixes, fixBatchKey, mergeFixes, planBulkFix } from './bulk-fix.js';
 export { enabledRules, getRule, validateRuleRegistry } from './registry.js';
 export { currentRuleSet, previousKnownGoodRuleSet } from './data/rule-set.js';
 export { assertReviewedSources, getSource, sourceRegistry } from './data/sources.js';
+export { ruleName } from './reference.js';

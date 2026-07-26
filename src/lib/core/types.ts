@@ -348,6 +348,14 @@ export interface AssignmentRequest {
 	selection: SerializedSelection;
 	performerIds: PerformerId[];
 	roster: readonly PerformerRecord[];
+	/**
+	 * Who sings the section's unstyled lyrics, written into the plain slot by the
+	 * same edit. Without it a first legend group landing in italic is a legend
+	 * that does not begin at plain — the state `performer.style-order` flags and
+	 * cannot fix, because naming those lyrics is not in the document to be found.
+	 * See `assignmentNeedsSectionVoice`.
+	 */
+	sectionPerformerIds?: readonly PerformerId[];
 }
 
 /** One performer group to write into an exact section-local legend slot. */
@@ -519,6 +527,8 @@ export interface EditorHandle {
 	 * itself — on `Escape`, or on running out of lines.
 	 */
 	setLyricSync?(active: boolean): void;
+	/** Whether the document scrolls to keep the playing line at the reading line. */
+	setFollowPlayhead?(follow: boolean): void;
 }
 
 /**

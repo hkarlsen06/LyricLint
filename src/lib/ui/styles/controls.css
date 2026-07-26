@@ -56,6 +56,16 @@
 	background: var(--color-control-active);
 }
 
+/* Disabled is muted ink and a muted surface, never opacity — the contrast tier
+   keeps its own treatment below, and the quiet tier keeps its transparency and
+   takes only the color. */
+.button:disabled,
+.icon-button:disabled {
+	border-color: var(--color-border-disabled);
+	background: var(--color-control-disabled);
+	color: var(--color-text-disabled);
+}
+
 /* Borderless, so "quiet" is actually a step down. With a border it was
    indistinguishable from the default tier anywhere the control sat on the
    panel canvas — a ~1.03:1 fill difference — which collapsed five named

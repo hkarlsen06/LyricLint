@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { ruleName } from '$lib/rules/index.js';
 
 	let {
 		ruleIds,
@@ -48,7 +49,7 @@
 		<ul>
 			{#each ruleIds as ruleId (ruleId)}
 				<li>
-					<code>{ruleId}</code>
+					<span>{ruleName(ruleId)}</span>
 					<button
 						type="button"
 						class="button button--quiet"

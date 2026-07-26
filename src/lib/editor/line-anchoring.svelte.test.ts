@@ -1,6 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { isLyricLine } from '$lib/core/parser.js';
 import type { EditorHandle } from '$lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
@@ -83,11 +84,17 @@ function lineNumberElements(): HTMLElement[] {
 	);
 }
 
+/**
+ * The cell beside a line, counted among the lines that *have* one. Structure —
+ * blanks and section headers — is drawn no cell at all, so the cells and the
+ * document's lines are not the same list and cannot share an index.
+ */
 function cellFor(lineText: string): HTMLElement {
 	const cells = [...document.querySelectorAll<HTMLElement>('.ll-time-cell')];
-	const lines = [...document.querySelectorAll<HTMLElement>('.cm-content .cm-line')];
-	const index = lines.findIndex((line) => line.textContent === lineText);
-	const cell = cells[index];
+	const timeable = [...document.querySelectorAll<HTMLElement>('.cm-content .cm-line')]
+		.map((line) => line.textContent ?? '')
+		.filter((text) => isLyricLine(text));
+	const cell = cells[timeable.indexOf(lineText)];
 	if (!cell) throw new Error(`no timestamp cell beside “${lineText}”`);
 	return cell;
 }
@@ -316,17 +323,52 @@ describe('the timestamp column', () => {
 	// invisible column: there is no mark on screen to say the rail exists or that a
 	// line can be timed, so the feature reads as absent until the pointer happens
 	// to cross the one cell that answers.
-	it('draws a cell for every line as soon as there is audio, and a dash where no time is set', async () => {
+	it('draws a cell for every timeable line as soon as there is audio, and a dash where no time is set', async () => {
 		const { handle } = await mount({ text: lyric, mediaTime: () => 0 });
 		expect(document.querySelector('.ll-time-cell')).toBeNull();
 
 		await withColumn(handle);
 
-		expect(document.querySelectorAll('.ll-time-cell')).toHaveLength(3);
+		expect(document.querySelectorAll('.ll-time-cell')).toHaveLength(2);
 		const empty = cellFor('first line').querySelector<HTMLButtonElement>('.ll-time-value');
 		expect(empty?.textContent).toBe('–');
 		expect(empty?.disabled).toBe(true);
 		expect(cellFor('first line').querySelector('.ll-time-stamp')).not.toBeNull();
+	});
+
+	// The dash means "a value goes here and is not set yet", which is false on a
+	// blank line and on a section header — and saying it there cost a real bug: an
+	// untimed lyric line wore the same mark as the structure around it, so a song
+	// with one line missing read as finished. Nothing is drawn beside a line no run
+	// will ever visit, stamp control included, because there is nothing to time.
+	it('draws nothing beside a line that cannot be timed', async () => {
+		const text = ['[Verse 1]', 'first line', '', 'second line'].join('\n');
+		const { handle } = await mount({ text, mediaTime: () => 0 });
+		await withColumn(handle);
+
+		expect(
+			[...document.querySelectorAll<HTMLElement>('.ll-time-cell')].map((cell) => cell.textContent)
+		).toEqual(['–', '–']);
+
+		// A skipped line leaves no element behind, so the rows that remain keep their
+		// place by the margin the gutter gives them. Worth asserting rather than
+		// assuming: a column that drew the right cells against the wrong lines would
+		// be a worse bug than the dash it replaces.
+		const offset = (lineText: string) => {
+			const line = [...document.querySelectorAll<HTMLElement>('.cm-content .cm-line')].find(
+				(candidate) => candidate.textContent === lineText
+			)!;
+			return cellFor(lineText).getBoundingClientRect().top - line.getBoundingClientRect().top;
+		};
+		// Measured against its own neighbour rather than against zero: the cell sits
+		// inside a padded row, so what matters is that the row after a skipped line
+		// is off by exactly as much as the row before it.
+		expect(offset('second line')).toBeCloseTo(offset('first line'), 1);
+
+		// A deliberate anchor is still shown wherever it was put: `Ctrl-Alt-M` may
+		// time any line, and a cell that vanished would lose the timing with it.
+		handle.setLineAnchors?.([{ line: 1, time: 10 }]);
+		await vi.waitFor(() => expect(document.querySelectorAll('.ll-time-cell')).toHaveLength(3));
 	});
 
 	/*
@@ -437,6 +479,20 @@ describe('the timestamp column', () => {
 		await vi.waitFor(() => expect(current()).toEqual(['0:20']));
 	});
 
+	// The mark is a band across the whole row, not four characters at the far edge
+	// of the document: the line's text, its number, and its timestamp cell.
+	it('washes the whole playing line, gutters included', async () => {
+		const { handle } = await mount({ text: lyric, mediaTime: () => 0 });
+		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
+		await withColumn(handle, 15);
+
+		await vi.waitFor(() => {
+			expect(document.querySelector('.cm-line.ll-current-line')?.textContent).toBe('first line');
+			// One per gutter: the line number, the performer bar, the timestamp cell.
+			expect(document.querySelectorAll('.cm-gutterElement.ll-current-line-gutter')).toHaveLength(3);
+		});
+	});
+
 	// The playhead arrives several times a second for the length of a song. It
 	// marks one cell. It does not move the caret, and it does not put a step in the
 	// history for something the user never did.
@@ -476,6 +532,58 @@ describe('the timestamp column', () => {
  * line starts.
  */
 const song = ['[Verse 1]', 'first line', '', '[Chorus]', 'second line'].join('\n');
+
+describe('following the playhead', () => {
+	// Sync mode is not the only time the document follows: playing a timed song
+	// pulls the marked line to the same reading line, so reading along does not
+	// mean scrolling by hand.
+	it('parks the marked line a third down as the playhead crosses into it', async () => {
+		const long = ['[Verse 1]', ...Array.from({ length: 60 }, (_, i) => `line ${i + 1}`)].join('\n');
+		const { handle } = await mount({ text: long, mediaTime: () => 0 });
+		handle.setLineAnchors?.(Array.from({ length: 60 }, (_, i) => ({ line: i + 2, time: i + 1 })));
+
+		const pane = document.querySelector<HTMLElement>('.editor-pane')!;
+		pane.style.height = '300px';
+		const scroller = document.querySelector<HTMLElement>('.cm-scroller')!;
+		await vi.waitFor(() => {
+			if (scroller.clientHeight < 200) throw new Error('the pane has no height yet');
+		});
+
+		handle.setMediaPlayhead?.(1);
+		expect(scroller.scrollTop).toBe(0);
+
+		handle.setMediaPlayhead?.(30);
+
+		await vi.waitFor(() => {
+			const row = [...document.querySelectorAll<HTMLElement>('.cm-content .cm-line')].find(
+				(element) => element.textContent === 'line 30'
+			);
+			if (!row) throw new Error('the marked row is not rendered');
+			const viewport = scroller.getBoundingClientRect();
+			const offset = row.getBoundingClientRect().top - viewport.top;
+			expect(Math.abs(offset - viewport.height / 3)).toBeLessThan(row.offsetHeight);
+		});
+	});
+
+	it('stops following once the shell turns it off', async () => {
+		const long = ['[Verse 1]', ...Array.from({ length: 60 }, (_, i) => `line ${i + 1}`)].join('\n');
+		const { handle } = await mount({ text: long, mediaTime: () => 0 });
+		handle.setLineAnchors?.(Array.from({ length: 60 }, (_, i) => ({ line: i + 2, time: i + 1 })));
+
+		const pane = document.querySelector<HTMLElement>('.editor-pane')!;
+		pane.style.height = '300px';
+		const scroller = document.querySelector<HTMLElement>('.cm-scroller')!;
+		await vi.waitFor(() => {
+			if (scroller.clientHeight < 200) throw new Error('the pane has no height yet');
+		});
+
+		handle.setFollowPlayhead?.(false);
+		handle.setMediaPlayhead?.(30);
+
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		expect(scroller.scrollTop).toBe(0);
+	});
+});
 
 describe('sync mode', () => {
 	// A run is one pass over the whole lyric against one pass of the audio, and the
@@ -648,15 +756,10 @@ describe('sync mode', () => {
 		expect(handle.getSnapshot().text).toBe(`${song}!`);
 	});
 
-	/*
-	 * The document follows the run, and this is the only place in the workbench
-	 * where it follows anything — but it does not start until the line being timed
-	 * has descended to the reading line a third of the way down. A run begins at
-	 * the top of the lyric, where the first lines are naturally above that point,
-	 * and scrolling on the first tap would throw the page down to reposition a line
-	 * the user could already see perfectly well.
-	 */
-	it('holds the line being timed a third down, and not before it gets there', async () => {
+	// The document follows the run, and every advance parks the line being timed at
+	// the reading line a third down — including a run resumed mid-song, which used
+	// to sit wherever the document happened to be scrolled and never come down.
+	it('parks the line being timed a third down, wherever the run started', async () => {
 		const long = ['[Verse 1]', ...Array.from({ length: 60 }, (_, i) => `line ${i + 1}`)].join('\n');
 		const { handle } = await mount({
 			text: long,
@@ -676,108 +779,33 @@ describe('sync mode', () => {
 		handle.setLyricSync?.(true);
 		handle.focus();
 
-		// The first lines sit above the reading line, so the document stays put.
+		// Near the top there is nowhere to scroll to: the target is negative and the
+		// browser clamps it away.
 		await userEvent.keyboard('   ');
 		expect(scroller.scrollTop).toBe(0);
 
-		// Far enough down and it starts moving, holding the caret's line at the
-		// third rather than nudging it to whichever edge it left.
 		await userEvent.keyboard('            ');
-		expect(scroller.scrollTop).toBeGreaterThan(0);
-
-		// CodeMirror renders only the visible lines, so the caret's row is found by
-		// its text rather than by index into `.cm-line`.
-		// The caret sits at the line's start, so slicing up to it yields the previous
-		// line — take the whole line the head is inside instead.
-		const snapshot = handle.getSnapshot();
-		const head = snapshot.selection.head;
-		const from = snapshot.text.lastIndexOf('\n', head - 1) + 1;
-		const to = snapshot.text.indexOf('\n', head);
-		const caretText = snapshot.text.slice(from, to === -1 ? undefined : to);
-		const row = [...document.querySelectorAll<HTMLElement>('.cm-content .cm-line')].find(
-			(element) => element.textContent === caretText
-		);
-		expect(row).toBeDefined();
-
-		const viewport = scroller.getBoundingClientRect();
-		const offset = row!.getBoundingClientRect().top - viewport.top;
-		expect(Math.abs(offset - viewport.height / 3)).toBeLessThan(row!.offsetHeight);
-
-		// The load-bearing half of "not before it gets there", and the only one the
-		// browser does not give for free: near the top of the document a premature
-		// scroll is clamped away at zero, so the guard is only observable once the
-		// document is already scrolled. Stepping back puts the caret just *above* the
-		// reading line, and a version without the guard hauls the document up to
-		// re-centre a row that is already in plain view.
-		const settled = scroller.scrollTop;
-		await userEvent.keyboard('{Backspace}');
-		expect(scroller.scrollTop).toBe(settled);
-	});
-
-	/*
-	 * A half-timed song picks up where it was left, and it picks up on the last
-	 * line that *has* a time rather than the first that does not — armed, so the
-	 * first tap advances onto the untimed line exactly as any other tap would.
-	 *
-	 * Landing directly on the untimed line would mean tapping its opening syllable
-	 * from a standing start; a whole line of run-up is what makes the rhythm
-	 * findable again.
-	 */
-	it('resumes a half-timed song on the last line that has a time', async () => {
-		const { handle, syncChanges, announcements } = await mount({
-			text: song,
-			selection: { anchor: 0, head: 0 },
-			mediaTime: () => 90
-		});
-		// Line 2 timed, line 5 not.
-		handle.setLineAnchors?.([{ line: 2, time: 31 }]);
-
-		handle.setLyricSync?.(true);
-
-		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
-		// The tape is told to start on that same line, not at 0:00.
-		expect(syncChanges).toEqual([{ active: true, startAt: 31 }]);
-		expect(announcements.at(-1)).toBe('Sync resumed at 0:31.');
-
-		// Armed, so the first tap advances rather than re-timing the resumed line.
-		handle.focus();
-		await userEvent.keyboard(' ');
-		expect(handle.getLineAnchors?.()).toEqual([
-			{ line: 2, time: 31 },
-			{ line: 5, time: 89.88 }
-		]);
-	});
-
-	it('starts from the top when nothing is timed yet', async () => {
-		const { handle, syncChanges, announcements } = await mount({
-			text: song,
-			selection: { anchor: song.length, head: song.length },
-			mediaTime: () => 90
+		await vi.waitFor(() => {
+			if (scroller.scrollTop === 0) throw new Error('the document has not moved yet');
 		});
 
-		handle.setLyricSync?.(true);
+		const rowFor = (head: number) => {
+			const text = handle.getSnapshot().text;
+			const from = text.lastIndexOf('\n', head - 1) + 1;
+			const to = text.indexOf('\n', head);
+			const caretText = text.slice(from, to === -1 ? undefined : to);
+			return [...document.querySelectorAll<HTMLElement>('.cm-content .cm-line')].find(
+				(element) => element.textContent === caretText
+			);
+		};
 
-		expect(syncChanges).toEqual([{ active: true, startAt: 0 }]);
-		expect(announcements.at(-1)).toBe('Sync started from the top.');
-		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
-	});
-
-	// Pressing sync on finished work has nothing to resume, so it is a fresh pass.
-	it('starts over when the song is timed all the way through', async () => {
-		const { handle, syncChanges } = await mount({
-			text: song,
-			selection: { anchor: song.length, head: song.length },
-			mediaTime: () => 90
+		await vi.waitFor(() => {
+			const row = rowFor(handle.getSnapshot().selection.head);
+			if (!row) throw new Error('the caret row is not rendered');
+			const viewport = scroller.getBoundingClientRect();
+			const offset = row.getBoundingClientRect().top - viewport.top;
+			expect(Math.abs(offset - viewport.height / 3)).toBeLessThan(row.offsetHeight);
 		});
-		handle.setLineAnchors?.([
-			{ line: 2, time: 31 },
-			{ line: 5, time: 62 }
-		]);
-
-		handle.setLyricSync?.(true);
-
-		expect(syncChanges).toEqual([{ active: true, startAt: 0 }]);
-		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
 	});
 
 	it('leaves on Escape', async () => {

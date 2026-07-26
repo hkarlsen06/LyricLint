@@ -416,15 +416,49 @@ apology for the button under it. YouTube leads because it is where most transcri
 is, and the header lost its rule and its display size with the rest — a band of chrome over four
 lines of content is the boundary separating nothing that `A card has to earn its border` is about.
 
-**`Ctrl-Alt-J`, `K`, `L` — back three seconds, play/pause, forward three.** The shape every video
-editor uses, and the modifier is not a matter of taste. Everything simpler is taken: `Mod-L` is the
-address bar, `Mod-Shift-J` and `Mod-Alt-J` open DevTools, and `Ctrl-K` alone is CodeMirror's own
-delete-to-end-of-line on Mac. Bare `Alt-J` is out because Option+J types a character on macOS, so
-the key never arrives as the letter anything would match on — the same fact that makes CodeMirror
-refuse an Alt-letter binding there (`@codemirror/view`: _"Alt-combinations on macOS tend to be typed
-characters"_). The function row is worse still: on a stock Mac, F8 _is_ play/pause.
+**`F7`, `F8`, `F9` — back, play/pause, forward.** They are the three controls
+the keyboard already made for a transport, so they are the primary path and need no modifiers.
+The Media Session handlers answer to the Mac's previous, play/pause, and next buttons even when
+the browser consumes their function-key events; browsers that deliver `F7` through `F9` directly
+take the same path. Keyboards without media keys use one modifier with the physical J K L triad:
+`Ctrl-J/K/L` on macOS, where Option types characters, and `Alt-J/K/L` on Windows and Linux, where
+Control belongs to the browser. `Ctrl-Alt-J/K/L` remains the universal fallback.
 
-**The triad is bound to the window, not to the editor**, and that is a correction. It began as a
+**Back and forward step between the timed lines once there are any**, and move two seconds when
+there are not. A transcriber checking a line wants the line, not two seconds of wherever the last
+press left off — and a song with anchors already says where its lines begin, so the step is free.
+The shell pushes those moments into the transport as `cuePoints` and nothing else; the arithmetic
+stays where every other rule about where the playhead lands lives, so a press on the strip and a
+press of the key cannot mean different things. Outside the timed part of the song — before the
+first cue, after the last — there is nothing to step to and the nudge is what is left, which is
+also the whole of the behaviour for an untimed draft. The controls are named for what they
+currently do (`Previous line` against `Back 2 seconds`); a button naming a number of seconds it no
+longer moves is worse than one naming none.
+
+The reliable one-modifier fallback is printed on the transport itself, as one mark **under** each
+control. This is where the shortcut is learned: the guide appears with the song, stays attached to
+the action it operates, and costs no separate help row or preference. Tooltips and
+`aria-keyshortcuts` carry the function-row and universal fallbacks without putting every alternative
+on screen.
+
+Three things that mark is not. It is not **beside** the glyph, which is where it began: read along
+the row it joined the run of controls, doubling the transport's width and making two thirds of the
+most-operated row in the window a legend. It is not two capped boxes, `⌃` and `J`, which printed the
+modifier three times for a fact that never varies while the letter — the only part that differs —
+wore the same weight as it. And it is not boxed at all: a keycap border here is a rectangle drawn
+around every glyph in the shortest row in the window, competing with the transport it only
+annotates. Muted, `--font-size-2xs`, one caption per control.
+
+**The caption costs the row no height, and that is a constraint rather than a happy result.** The
+strip is `--control-height-lg` and every other control in it is `--control-height-md` plus this
+row's padding, which comes to exactly that — so the stack of glyph, gap, and caption has to fit
+inside one `md` control, and it does with a pixel to spare. Anything added to that stack grows the
+strip, and every pixel this row takes is a pixel off the document above it.
+`MediaStrip.svelte.test.ts` measures the stack against a sibling control rather than trusting the
+arithmetic, because at narrow widths `responsive.css` raises every `.button` to `lg` and the box
+stops reporting what the content does.
+
+**The transport is bound to the window, not to the editor**, and that is a correction. It began as a
 CodeMirror keymap, which meant it answered only while the caret was in the document — so the moment
 the user stepped out to read a finding, aim the scrubber, or rename the draft, the tape could not be
 stopped. That is the wrong half of the loop to serve: the pause is wanted _most_ at those moments.
@@ -436,8 +470,9 @@ editor, `defaultPrevented === false`, with the document and the caret untouched.
 
 Three things that listener owes its keystroke:
 
-- **It matches `Ctrl-Alt` and no superset of it.** `Ctrl-Alt-Shift-K` is a different keystroke, and
-  a handler answering to supersets of its own binding swallows one somebody else had a use for.
+- **The function row and media buttons need no modifier.** Modified variants remain available to
+  the browser and the rest of the app. The J K L fallback matches the platform's one modifier or
+  `Ctrl-Alt`, and no superset of either.
 - **It matches the _physical_ key** (`event.code`), because the argument for J K L is physical —
   three keys beside one another with pause in the middle. `event.key` is the fallback for synthetic
   events that carry a character and no code.
@@ -448,12 +483,11 @@ Three things that listener owes its keystroke:
 
 **That refusal applies to every Alt-letter binding, and two of the workbench's own were broken by
 it.** `Alt-p` (assign performers) had never once fired on a Mac, silently, with no test covering it;
-and `F8`/`Shift-F8` (diagnostic navigation) collide with the media row described above — a latent
-annoyance that got sharper the moment this app grew a transport of its own. Both now have `Ctrl-Alt`
-primaries — `Ctrl-Alt-P`, and `Ctrl-Alt-.`/`Ctrl-Alt-,` — with the old keys kept as aliases for the
-platforms they always worked on. `.` and `,` are adjacent and sit in the same place on US and Nordic
-layouts, unlike `/` or the brackets, which are Option combos on a Norwegian Mac; `.` already means
-"diagnostic" here through `Mod-.`.
+and diagnostics once occupied `F8`/`Shift-F8`, colliding with the media row. Assignment therefore
+has `Ctrl-Alt-P` as its cross-platform primary, while diagnostic navigation uses
+`Ctrl-Alt-.`/`Ctrl-Alt-,` with `F2`/`Shift-F2` as its function-row aliases. `.` and `,` are adjacent
+and sit in the same place on US and Nordic layouts, unlike `/` or the brackets, which are Option
+combos on a Norwegian Mac; `.` already means "diagnostic" here through `Mod-.`.
 
 Worth knowing before trusting a green suite: `userEvent` reports `key='p'` for `Alt-p`, so CodeMirror
 matches by name and never reaches the base-key fallback it refuses. **The alias tests pin the
@@ -463,7 +497,7 @@ binding's existence, not the macOS failure** — that one is reproducible only o
 side of a pause are the ones hardest to place and a resume that starts where the ear stopped means
 rewinding by hand nearly every time. And `preservesPitch` is on, because every rate below 1 is
 unusable without it and those are the rates a transcriber actually reaches for. The run-in is
-cancelled by any deliberate placement — a nudge or a scrub — or back-3 followed by resume moves five
+cancelled by any deliberate placement — a nudge or a scrub — or back-2 followed by resume moves four
 seconds and the two controls stop being separately predictable.
 
 **The song is the draft, so the audio and its playhead belong to the draft, not the session.** Both
@@ -801,7 +835,7 @@ reports; it never decides. The evidence the abstraction did not disturb the defa
 
 **The source hides the async gap; the transport must never learn about it.** The media element is
 synchronous and the IFrame API is a postMessage bridge, so `createYouTubeSource` records the target
-of a `seekTo` and reports _that_ from `time` until the player agrees. Without it, back-3-then-resume
+of a `seekTo` and reports _that_ from `time` until the player agrees. Without it, back-2-then-resume
 moves five seconds, and there is a test pinning exactly that against a stub with read latency.
 `getCurrentTime` is a poll rather than an event, so it runs at 250ms while playing and stops on
 pause, end, clear and destroy — a poll that outlives its player is a leak that costs battery on a

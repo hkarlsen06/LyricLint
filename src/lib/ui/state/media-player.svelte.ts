@@ -14,7 +14,7 @@ import { createYouTubeSource, loadYouTubeApi } from './media-youtube.js';
 export const resumeRewindSeconds = 2;
 
 /** What one press of the side keys, or one press of a skip button, moves. */
-export const nudgeSeconds = 3;
+export const nudgeSeconds = 2;
 
 /**
  * Playback rates the workbench offers, slow to fast.
@@ -179,6 +179,17 @@ export interface MediaPlayer {
 	play(): void;
 	pause(): void;
 	toggle(): void;
+	/**
+	 * The moments the side keys step between, in seconds, ascending.
+	 *
+	 * The timed lines of the lyric, pushed down by the shell. A transcriber
+	 * checking a line wants the line, not two seconds of wherever the last
+	 * press left off — so once a song has timings, back and forward mean the
+	 * previous and next timed line. Outside them, and for a song with none, the
+	 * plain nudge is what is left.
+	 */
+	readonly cuePoints: readonly number[];
+	setCuePoints(times: readonly number[]): void;
 	/** Move by `seconds`, clamped to the track. Never starts or stops playback. */
 	nudge(seconds: number): void;
 	seek(time: number): void;
@@ -356,6 +367,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	let error = $state<string | undefined>(undefined);
 	let sourceKind = $state<MediaSourceKind | undefined>(undefined);
 	let availableRates = $state<readonly number[]>(playbackRates);
+	let cuePoints = $state<readonly number[]>([]);
 
 	let active: MediaSource | undefined;
 	let fileSource: FileSource | undefined;
@@ -436,6 +448,43 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		const previous = rate;
 		player.setRate(nearest);
 		deps.feedback.announce(`This source plays at ${nearest}× rather than ${previous}×.`);
+	}
+
+	/**
+	 * Place the playhead, clamped to the track. Never starts or stops playback.
+	 *
+	 * Every discrete press lands here — a nudge, a step to the next line — as
+	 * against `seek`, which is the scrubber's path and reports ordinary progress.
+	 */
+	function moveTo(target: number): void {
+		const source = active;
+		if (source === undefined) return;
+		source.seek(clamp(target, 0, source.duration));
+		currentTime = source.time;
+		// A deliberate placement, so it cancels the run-in the same way a scrub
+		// does — otherwise a back-2 followed by a resume moves four seconds and the
+		// two controls stop being separately predictable.
+		rewindOnResume = false;
+		// One press, so it is worth writing down at once. A scrub is not: dragging
+		// the length of a track would queue a write for every pixel crossed.
+		progressListener?.(source.time, 'settled');
+	}
+
+	/**
+	 * The step back and the step forward, or nothing when the playhead is already
+	 * outside the timed part of the song.
+	 *
+	 * The margin is what makes repeated presses walk: landing exactly on a cue and
+	 * then asking for the one before it must not answer with the cue underfoot,
+	 * and a source that reports its own rounding — or the seek it was last told to
+	 * make — can be a few milliseconds either side of the number it was given.
+	 */
+	function cueBefore(time: number): number | undefined {
+		return cuePoints.findLast((cue) => cue < time - 0.25);
+	}
+
+	function cueAfter(time: number): number | undefined {
+		return cuePoints.find((cue) => cue > time + 0.25);
 	}
 
 	function file(): FileSource {
@@ -569,19 +618,18 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			else player.play();
 		},
 
+		get cuePoints() {
+			return cuePoints;
+		},
+
+		setCuePoints(times) {
+			cuePoints = [...times].sort((a, b) => a - b);
+		},
+
 		nudge(seconds) {
 			const source = active;
 			if (source === undefined) return;
-			source.seek(clamp(source.time + seconds, 0, source.duration));
-			currentTime = source.time;
-			// A nudge is a deliberate placement too, so it cancels the run-in the
-			// same way a scrub does — otherwise a back-3 followed by a resume moves
-			// five seconds and the two controls stop being separately predictable.
-			rewindOnResume = false;
-			// One discrete press, so it is worth writing down at once. A scrub is
-			// not: `seek` reports ordinary progress, or dragging the length of a
-			// track would queue a write for every pixel crossed.
-			progressListener?.(source.time, 'settled');
+			moveTo(source.time + seconds);
 		},
 
 		seek(time) {
@@ -599,9 +647,11 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		},
 
 		transport(action) {
+			const source = active;
 			if (action === 'toggle') player.toggle();
-			else if (action === 'back') player.nudge(-nudgeSeconds);
-			else player.nudge(nudgeSeconds);
+			else if (source === undefined) return;
+			else if (action === 'back') moveTo(cueBefore(source.time) ?? source.time - nudgeSeconds);
+			else moveTo(cueAfter(source.time) ?? source.time + nudgeSeconds);
 		},
 
 		liveTime() {

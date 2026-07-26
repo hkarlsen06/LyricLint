@@ -7,11 +7,31 @@ import {
 	StateField
 } from '@codemirror/state';
 import type { ChangeDesc, Extension, Range } from '@codemirror/state';
-import { EditorView, GutterMarker, gutter, lineNumberMarkers } from '@codemirror/view';
+import {
+	Decoration,
+	EditorView,
+	GutterMarker,
+	gutter,
+	gutterLineClass,
+	lineNumberMarkers
+} from '@codemirror/view';
 import type { BlockInfo } from '@codemirror/view';
+import { isLyricLine } from '$lib/core/parser.js';
+import type { Line } from '@codemirror/state';
 import type { LineAnchor } from '$lib/core/types.js';
 
 export type { LineAnchor };
+
+/**
+ * Whether this line is one of the ones that gets timed.
+ *
+ * The answer is the parser's, not a rule of the editor's: sync mode taps through
+ * these lines and the column draws a cell only for them, so the two disagreeing
+ * would offer a stamp control for a line a run refuses to visit.
+ */
+export function isStampableLine(line: Line): boolean {
+	return isLyricLine(line.text);
+}
 
 /**
  * The anchor's own value: a time, over the line's text.
@@ -70,6 +90,20 @@ export const clearLineAnchorEffect = StateEffect.define<{ pos: number }>();
  * mode the user deliberately entered and is not typing in.
  */
 export const setPlayheadEffect = StateEffect.define<number | undefined>();
+
+/** Whether the document follows the playhead. On until the shell says otherwise. */
+export const setFollowPlayheadEffect = StateEffect.define<boolean>();
+
+export const followPlayheadField = StateField.define<boolean>({
+	create: () => true,
+	update(value, transaction) {
+		let next = value;
+		for (const effect of transaction.effects) {
+			if (effect.is(setFollowPlayheadEffect)) next = effect.value;
+		}
+		return next;
+	}
+});
 
 interface LineAnchorState {
 	anchors: RangeSet<AnchorValue>;
@@ -196,6 +230,29 @@ class TimeGutterMarker extends GutterMarker {
 const seekableLineMarker = new (class extends GutterMarker {
 	override elementClass = 'll-line-seek';
 })();
+
+/**
+ * The line the audio is inside, washed end to end.
+ *
+ * Tinting the timestamp alone asked the eye to follow four muted characters at
+ * one edge of the document while reading the words at the other. The lyric gets
+ * a band and its rails go yellow with it, and that is the one thing playback is
+ * allowed to draw on the document — it still moves nothing.
+ *
+ * This is the case `gutterLineClass` is for and `seekableLineMarker` is not: the
+ * row includes its line number and its timestamp cell, so classing the matching
+ * element in *every* gutter is exactly the fact being stated.
+ */
+const currentLine = Decoration.line({ class: 'll-current-line' });
+
+const currentLineGutterMarker = new (class extends GutterMarker {
+	override elementClass = 'll-current-line-gutter';
+})();
+
+function currentLineStart(state: EditorState): number | undefined {
+	const { currentFrom } = state.field(lineAnchorField);
+	return currentFrom === undefined ? undefined : state.doc.lineAt(currentFrom).from;
+}
 
 /**
  * Play from a line by pressing its number.
@@ -462,6 +519,85 @@ export function hasAnchorAt(state: EditorState, pos: number): boolean {
 	return anchorTimeAt(state, pos) !== undefined;
 }
 
+/**
+ * Where the line being timed sits in the viewport once the document is moving.
+ *
+ * A third from the top: far enough down that the lines already timed stay
+ * readable above it, and high enough that the two thirds below show what is
+ * coming — which is what the user is reading ahead into while they wait for the
+ * next line to start.
+ */
+export const readingLineFraction = 1 / 3;
+
+/**
+ * Park the line being timed at the reading line.
+ *
+ * Every advance targets the third, wherever the run started. It used to leave the
+ * caret alone anywhere between the top and the reading line, so a run resumed
+ * mid-song never came down to it — the caret just sat wherever the document
+ * happened to be scrolled. Near the top of the document the browser clamps the
+ * negative target away at zero, which is the behaviour that band was really
+ * providing.
+ *
+ * `scrollTo` rather than `scrollIntoView`, because CodeMirror's own scroll is a
+ * nearest-edge nudge with no notion of a fixed reading position. Smooth, because
+ * the document moving a line at a time under someone reading along is easier to
+ * follow than a jump — a new `scrollTo` supersedes an in-flight one, so taps
+ * faster than the animation just retarget it, and each tap recomputes from live
+ * positions so any mid-animation drift corrects itself on the next one.
+ */
+export function holdReadingLine(view: EditorView, pos: number): void {
+	const coords = view.coordsAtPos(pos);
+	if (!coords) return;
+	const scroller = view.scrollDOM;
+	const box = scroller.getBoundingClientRect();
+	const to = scroller.scrollTop + (coords.top - box.top) - box.height * readingLineFraction;
+	tweenScroll(scroller, to);
+}
+
+/** Roughly one line's worth of travel, eased. */
+const readingScrollMs = 380;
+
+/** `cubic-bezier(0.65, 0, 0.35, 1)` — the standard ease-in-out, solved directly. */
+function easeInOutCubic(t: number): number {
+	return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+}
+
+let running: { scroller: Element; frame: number } | undefined;
+
+/**
+ * Scroll on an eased curve instead of `behavior: 'smooth'`.
+ *
+ * The native smooth scroll has no easing control and restarts abruptly when a
+ * new target arrives, which is what made following the playhead read as a series
+ * of jerks rather than one movement. This starts from wherever the scroller is,
+ * so a retarget mid-flight continues from the current position.
+ */
+function tweenScroll(scroller: HTMLElement, to: number): void {
+	if (running) cancelAnimationFrame(running.frame);
+	running = undefined;
+
+	const from = scroller.scrollTop;
+	const distance = to - from;
+	if (prefersReducedMotion() || Math.abs(distance) < 1) {
+		scroller.scrollTop = to;
+		return;
+	}
+
+	const start = performance.now();
+	const step = (now: number) => {
+		const progress = Math.min(1, (now - start) / readingScrollMs);
+		scroller.scrollTop = from + distance * easeInOutCubic(progress);
+		if (progress < 1) running = { scroller, frame: requestAnimationFrame(step) };
+		else running = undefined;
+	};
+	running = { scroller, frame: requestAnimationFrame(step) };
+}
+
+function prefersReducedMotion(): boolean {
+	return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
 export interface LineAnchorOptions {
 	/**
 	 * Seek the audio. Called only from a press on a timestamp — never from a caret
@@ -581,11 +717,27 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 			}
 			return RangeSet.of(marks, true);
 		}),
+		EditorView.decorations.compute([lineAnchorField], (state) => {
+			const from = currentLineStart(state);
+			return from === undefined ? Decoration.none : Decoration.set(currentLine.range(from));
+		}),
+		gutterLineClass.compute([lineAnchorField], (state) => {
+			const from = currentLineStart(state);
+			return from === undefined ? RangeSet.empty : RangeSet.of(currentLineGutterMarker.range(from));
+		}),
+		// The playhead moving onto another anchored line pulls the document with it,
+		// parked at the same reading line sync mode uses. This is the one thing
+		// playback is allowed to do to the document outside sync mode, and it is
+		// keyed on `currentFrom` — the marked line — so a tick that stays inside one
+		// line costs nothing.
+		followPlayheadField,
 		EditorView.updateListener.of((update) => {
-			// A document change already reaches the shell as a snapshot, and that is
-			// what schedules its save; anchors merely mapped along with the text need
-			// no second word about it.
-			if (update.docChanged) return;
+			if (!update.state.field(followPlayheadField)) return;
+			const before = update.startState.field(lineAnchorField).currentFrom;
+			const after = update.state.field(lineAnchorField).currentFrom;
+			if (after !== undefined && after !== before) holdReadingLine(update.view, after);
+		}),
+		EditorView.updateListener.of((update) => {
 			// A restore is the draft being read back, not a change worth writing. Left
 			// in, opening a draft would schedule a save of what had just been loaded.
 			const restoring = update.transactions.some((transaction) =>
@@ -609,6 +761,16 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 				const field = view.state.field(lineAnchorField);
 				if (field.playhead === undefined) return null;
 				const found = anchorOnLine(view.state, field.anchors, line.from);
+				// A line that will never be timed is drawn nothing: no dash, and no
+				// control to time it with. The dash means "a value goes here and is not
+				// set yet", which is false on a blank line and on a section header — and
+				// it cost a real bug, because an untimed lyric line wore the same mark as
+				// the structure around it and read as finished work. A cell still draws
+				// where a time exists, since `Ctrl-Alt-M` may put one anywhere and a
+				// deliberate anchor must not vanish.
+				if (found === undefined && !isStampableLine(view.state.doc.lineAt(line.from))) {
+					return null;
+				}
 				return new TimeGutterMarker(found?.time, found?.from === field.currentFrom);
 			},
 			// The playhead arrives several times a second and almost never crosses an
@@ -694,10 +856,24 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	'.ll-time-value:hover:not(:disabled)': {
 		color: 'var(--color-text)'
 	},
-	// Where the audio is. The one cell in the column that is not muted, so the
-	// answer to "where am I in the song" is read off the same rail as the times.
+	// Where the audio is. Yellow rather than the accent, because the accent is the
+	// caret's own tint and the two are on screen together — a blue wash under a
+	// blue-washed active line says one thing twice and neither clearly.
 	'.ll-time-value--current': {
-		color: 'var(--color-accent)'
+		color: 'var(--color-playhead)'
+	},
+	// The wash is the text's alone. A gutter is a rail of marks a few characters
+	// wide, and a band behind one is mostly empty tint at the edge of the row —
+	// so the number and the time take the color themselves and the band stops at
+	// the content's edge.
+	'.cm-line.ll-current-line': {
+		backgroundColor: 'var(--color-playhead-soft)'
+	},
+	// Written two classes deep on purpose: `.cm-activeLineGutter` sets the text
+	// color at one, and `StyleModule` does not promise this theme comes out after
+	// that one, so a tie on specificity would be a coin toss.
+	'.cm-gutterElement.ll-current-line-gutter': {
+		color: 'var(--color-playhead)'
 	},
 	// Hidden rather than transparent, and `visibility` rather than `opacity`:
 	// opacity is never a state carrier here, and `visibility: hidden` keeps the

@@ -507,7 +507,7 @@ The shipped spelling data must include these policies exactly, with word boundar
 - [ ] Overlapping same-line badges collapse to a severity-marked count. Expanded order is errors, warnings, suggestions, manual review. **[T §Lint presentation]**
 - [ ] Every popover shows problem, explanation, available safe/preview fix, exact source title/link, last-verified date, and session-ignore action. **[T §Lint presentation]**
 - [ ] The right-panel linter mirrors every visible diagnostic and can navigate/focus the exact editor range. **[P §Accessibility & Inclusion; T §Lint presentation]**
-- [ ] `F8`, `Shift+F8`, and `Ctrl/Cmd+.` navigate next, previous, and available fixes, subject to conflict testing. **[T §Keyboard behavior]**
+- [ ] `F2`, `Shift+F2`, and `Ctrl/Cmd+.` navigate next, previous, and available fixes, subject to conflict testing. **[T §Keyboard behavior]**
 - [ ] Ignores use `sessionStorage` keyed by draft ID and rule ID, survive same-tab reload, expire in a new browser session, and never enter editor undo. **[A §Session state; T §Ignoring rules]**
 - [ ] Ignored-rule count, inspection, restore, and immediate toast undo are available. **[T §Ignoring rules]**
 

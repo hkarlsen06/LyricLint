@@ -114,7 +114,7 @@ export class StubYouTubePlayer implements YouTubePlayerLike {
 		return this.title === undefined ? {} : { title: this.title };
 	}
 
-	loadVideoById(options: { videoId: string; startSeconds?: number }): void {
+	cueVideoById(options: { videoId: string; startSeconds?: number }): void {
 		this.currentTime = options.startSeconds ?? 0;
 		this.pendingSeek = undefined;
 	}

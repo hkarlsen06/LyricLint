@@ -61,7 +61,7 @@ describe('media player transport', () => {
 		expect(audio.currentTime).toBe(0);
 	});
 
-	// Back-3 then resume has to move three seconds, not five. Otherwise the two
+	// Back-2 then resume has to move two seconds, not four. Otherwise the two
 	// controls stop being separately predictable and the user compensates by
 	// pressing one of them a random number of times.
 	it('cancels the resume rewind after a deliberate placement', () => {
@@ -71,10 +71,10 @@ describe('media player transport', () => {
 		audio.currentTime = 40;
 		player.pause();
 		player.nudge(-nudgeSeconds);
-		expect(audio.currentTime).toBe(37);
+		expect(audio.currentTime).toBe(38);
 
 		player.play();
-		expect(audio.currentTime).toBe(37);
+		expect(audio.currentTime).toBe(38);
 	});
 
 	it('cancels the resume rewind after a scrub', () => {
@@ -98,6 +98,42 @@ describe('media player transport', () => {
 		player.seek(199);
 		player.nudge(nudgeSeconds);
 		expect(audio.currentTime).toBe(200);
+	});
+
+	// The whole point of timing a lyric is being able to go back to a line, so
+	// once there are cues the side keys step between them — and only between
+	// them. Outside the timed part of the song the plain nudge is what is left.
+	it('steps between cue points, and nudges outside them', () => {
+		const { audio, player } = setup(200);
+		player.setCuePoints([61, 12, 30]);
+
+		player.seek(45);
+		player.transport('back');
+		expect(audio.currentTime).toBe(30);
+		player.transport('back');
+		expect(audio.currentTime).toBe(12);
+
+		// Before the first cue and after the last one there is nothing to step to.
+		player.transport('back');
+		expect(audio.currentTime).toBe(12 - nudgeSeconds);
+
+		player.seek(61);
+		player.transport('forward');
+		expect(audio.currentTime).toBe(61 + nudgeSeconds);
+
+		player.seek(20);
+		player.transport('forward');
+		expect(audio.currentTime).toBe(30);
+	});
+
+	it('nudges when the song has no cue points', () => {
+		const { audio, player } = setup(200);
+
+		player.seek(45);
+		player.transport('back');
+		expect(audio.currentTime).toBe(45 - nudgeSeconds);
+		player.transport('forward');
+		expect(audio.currentTime).toBe(45);
 	});
 
 	it('keeps the chosen rate across a new attachment', () => {
@@ -203,8 +239,8 @@ describe('media player playhead memory', () => {
 
 		expect(seen).toEqual([
 			[30, 'settled'],
-			[33, 'settled'],
-			[33, 'settled']
+			[30 + nudgeSeconds, 'settled'],
+			[30 + nudgeSeconds, 'settled']
 		]);
 	});
 

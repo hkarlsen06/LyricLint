@@ -5,6 +5,7 @@ import {
 	activateDiagnostic,
 	anchorPlacement,
 	applyPerformerPicker,
+	askSectionVoice,
 	beginLegendAssignment,
 	cachedAnchorRect,
 	cancelPerformerPicker,
@@ -306,7 +307,37 @@ describe('performer assignment', () => {
 
 		const outcome = applyPerformerPicker(open, ['avery', 'blair']);
 
-		expect(outcome).toEqual({ kind: 'range', range: selection });
+		expect(outcome).toEqual({
+			kind: 'range',
+			range: selection,
+			performerIds: ['avery', 'blair']
+		});
+	});
+
+	// Step two answers a different question than step one, so what it hands back
+	// is the section's voice — the selection's own was chosen a step earlier and
+	// has to survive the second press.
+	it('carries the selection voice through the section-voice step', () => {
+		const open = askSectionVoice(openPerformerPicker(closedOverlaySession(), selection), ['avery']);
+
+		expect(applyPerformerPicker(open, ['blair'])).toEqual({
+			kind: 'range',
+			range: selection,
+			performerIds: ['avery'],
+			sectionPerformerIds: ['blair']
+		});
+	});
+
+	// "Name later" is a real answer: it commits step one exactly as pressing
+	// Apply would have before the question existed.
+	it('commits the selection alone when no section voice is named', () => {
+		const open = askSectionVoice(openPerformerPicker(closedOverlaySession(), selection), ['avery']);
+
+		expect(applyPerformerPicker(open, [])).toEqual({
+			kind: 'range',
+			range: selection,
+			performerIds: ['avery']
+		});
 	});
 
 	it('suppresses the selection an applied assignment consumed', () => {

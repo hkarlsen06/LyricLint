@@ -1,6 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { parseDocument } from '$lib/core/parser.js';
 import type {
 	Diagnostic,
 	EditorHandle,
@@ -442,6 +443,66 @@ describe('EditorPane', () => {
 		});
 	});
 
+	// Assigning part of an unlabelled section used to write `[Verse: <i>Blair</i>]`
+	// on its own — a legend that does not begin at plain, which the linter flags
+	// the next tick and cannot fix, because nothing in the document says who sings
+	// the lines left behind. The picker asks before it writes.
+	it('asks who sings the rest before opening a legend at italic', async () => {
+		const text = '[Verse]\nFirst line\nSecond line';
+		const from = text.indexOf('Second line');
+		const to = from + 'Second line'.length;
+		const createPerformerEdit = vi.fn();
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({ performers: performers(), parsed: parseDocument(text) }),
+			editorCallbacks: { ...callbacks(), createPerformerEdit }
+		});
+
+		handle.setSelection({ anchor: from, head: to });
+		handle.focus();
+		await userEvent.keyboard('{Alt>}p{/Alt}');
+
+		await expect.element(page.getByText('Who sings this? · 1 of 2')).toBeVisible();
+		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
+		await userEvent.click(page.getByRole('button', { name: /Next/u }));
+
+		expect(createPerformerEdit).not.toHaveBeenCalled();
+		await expect.element(page.getByText('Who sings the rest? · 2 of 2')).toBeVisible();
+		await userEvent.click(page.getByRole('button', { name: /Avery/u }));
+		await userEvent.click(page.getByRole('button', { name: /Apply/u }));
+
+		expect(createPerformerEdit).toHaveBeenCalledWith({
+			range: { from, to },
+			performerIds: ['blair'],
+			sectionPerformerIds: ['avery']
+		});
+	});
+
+	// The other honest answer: name them later, and take the warning until then.
+	it('commits the selection alone when the section voice is named later', async () => {
+		const text = '[Verse]\nFirst line\nSecond line';
+		const from = text.indexOf('Second line');
+		const to = from + 'Second line'.length;
+		const createPerformerEdit = vi.fn();
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({ performers: performers(), parsed: parseDocument(text) }),
+			editorCallbacks: { ...callbacks(), createPerformerEdit }
+		});
+
+		handle.setSelection({ anchor: from, head: to });
+		handle.focus();
+		await userEvent.keyboard('{Alt>}p{/Alt}');
+		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
+		await userEvent.click(page.getByRole('button', { name: /Next/u }));
+		await userEvent.click(page.getByRole('button', { name: /Name later/u }));
+
+		expect(createPerformerEdit).toHaveBeenCalledWith({
+			range: { from, to },
+			performerIds: ['blair']
+		});
+	});
+
 	it('shows that the plain main performer has no formatting to remove', async () => {
 		const text = '[Verse: Avery]\nAvery stays plain';
 		const from = text.indexOf('Avery stays plain');
@@ -478,7 +539,7 @@ describe('EditorPane', () => {
 		expect(createPerformerEdit).not.toHaveBeenCalled();
 	});
 
-	it('keeps F8 diagnostic navigation visible when a performer roster exists', async () => {
+	it('keeps F2 diagnostic navigation visible when a performer roster exists', async () => {
 		const issue = testDiagnostic();
 		const { handle } = await mountEditor({
 			text: 'hello world',
@@ -490,7 +551,7 @@ describe('EditorPane', () => {
 		});
 
 		handle.focus();
-		await userEvent.keyboard('{F8}');
+		await userEvent.keyboard('{F2}');
 
 		const popover = page.getByRole('dialog', { name: 'Diagnostic details' });
 		await expect.element(popover).toBeVisible();
@@ -535,7 +596,7 @@ describe('EditorPane', () => {
 		});
 
 		handle.focus();
-		await userEvent.keyboard('{F8}');
+		await userEvent.keyboard('{F2}');
 		await userEvent.click(page.getByRole('button', { name: 'Assign section performers' }));
 
 		await expect.element(page.getByText('General section voice · 1 of 2')).toBeVisible();
@@ -574,7 +635,7 @@ describe('EditorPane', () => {
 		});
 
 		handle.focus();
-		await userEvent.keyboard('{F8}');
+		await userEvent.keyboard('{F2}');
 		await userEvent.click(page.getByRole('button', { name: 'Choose header' }));
 
 		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
@@ -613,7 +674,7 @@ describe('EditorPane', () => {
 		});
 
 		handle.focus();
-		await userEvent.keyboard('{F8}');
+		await userEvent.keyboard('{F2}');
 		await userEvent.click(page.getByRole('button', { name: 'Assign section performers' }));
 
 		await expect.element(page.getByText('Section voice · formatting removed')).toBeVisible();

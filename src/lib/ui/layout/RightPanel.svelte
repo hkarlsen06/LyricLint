@@ -7,7 +7,20 @@
 	import type { RightPanelTab, WorkbenchController } from '../state/workbench.svelte.js';
 	import ToolsPanel from '../tools/ToolsPanel.svelte';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let {
+		controller,
+		footer
+	}: {
+		controller: WorkbenchController;
+		/**
+		 * The window's status bar, handed down while the layout is stacked: there
+		 * the panel is the scroll port for everything under the tab strip, and a
+		 * band pinned to the floor of a viewport that short is a band taken off the
+		 * findings. Absent in the column layout, where it is the grid's own last
+		 * row. Workspace.svelte owns the breakpoint.
+		 */
+		footer?: import('svelte').Snippet;
+	} = $props();
 
 	// The badge shows a bare numeral, so its accessible name is the only place
 	// the noun appears — and "1 visible diagnostics" is exactly the kind of thing
@@ -132,5 +145,9 @@
 		{#if controller.media?.player.sourceKind === 'youtube'}
 			<MediaVideo media={controller.media} />
 		{/if}
+
+		<!-- Last of all, under the picture: the window's summary is the widest
+		     scope in this column, and the order here is by scope. -->
+		{@render footer?.()}
 	</Tabs.Root>
 </aside>

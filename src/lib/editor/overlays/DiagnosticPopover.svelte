@@ -5,6 +5,7 @@
 	import DiagnosticActions from '$lib/diagnostics/DiagnosticActions.svelte';
 	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
 	import type { ScreenRect } from '../contracts.js';
+	import { anchoredPosition } from './anchored-position.js';
 
 	interface Props {
 		diagnostic: Diagnostic;
@@ -46,11 +47,7 @@
 		onDismiss = () => {}
 	}: Props = $props();
 	let root: HTMLDivElement;
-	const position = $derived(
-		anchor
-			? `left: ${Math.max(8, anchor.left)}px; top: ${Math.max(8, anchor.bottom + 6)}px;`
-			: undefined
-	);
+	const position = $derived(anchor ? anchoredPosition(anchor) : undefined);
 
 	$effect(() => {
 		if (!takeFocus) {
@@ -190,11 +187,15 @@
 	   action row — is shared with the linter panel and styled with it in
 	   `diagnostics.css`, so the two surfaces cannot drift apart. */
 	.popover {
+		--ll-card-width: min(26rem, calc(100vw - 1rem));
+
 		display: grid;
 		z-index: var(--layer-popover);
 		box-sizing: border-box;
-		width: min(26rem, calc(100vw - 1rem));
-		max-height: min(26rem, calc(100vh - 1rem));
+		width: var(--ll-card-width);
+		/* `--ll-anchor-space` is the room on whichever side the card landed on;
+		   without an anchor there is no side, so the cap stands alone. */
+		max-height: min(26rem, calc(100vh - 1rem), var(--ll-anchor-space, 100vh));
 		padding: var(--space-3);
 		gap: var(--space-3);
 		align-content: start;

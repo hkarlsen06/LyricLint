@@ -29,6 +29,7 @@ export type { PerformerPaletteColorId } from './color.js';
 export { extractPerformers } from './import.js';
 export { allocateStyleSlot, analyzeSlotOrder } from './allocation.js';
 export {
+	assignmentNeedsSectionVoice,
 	assignVoiceGroup,
 	assignVoiceLegend,
 	insertSectionHeader,
