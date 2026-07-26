@@ -1,0 +1,14 @@
+{
+	"name": "LyricLint",
+	"short_name": "LyricLint",
+	"description": "A linter for Genius lyric transcriptions.",
+	"start_url": "/lint/",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "portrait",
+	"background_color": "#161618",
+	"icons": [
+		{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" },
+		{ "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+	]
+}

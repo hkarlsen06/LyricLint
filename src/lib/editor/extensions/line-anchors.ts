@@ -64,20 +64,14 @@ class AnchorValue extends RangeValue {
 export const setLineAnchorsEffect = StateEffect.define<readonly LineAnchor[]>();
 
 /**
- * Anchor the line containing `pos` to `time`.
+ * Anchor the line containing `pos` to `time`, replacing whatever was there.
  *
- * `overwrite` is false for the automatic stamp that happens while audio plays
- * and true for the deliberate one. An automatic stamp may never replace a time
- * already there: the anchor on a line is either something the user set on
- * purpose or the first pass they made at it, and re-stamping on every later
- * keystroke would drag every anchor to wherever the audio happened to be when
- * they came back to fix a typo.
+ * Every anchor is deliberate — `Ctrl-Alt-M`, the column's own control, or a tap
+ * in sync mode — so there is nothing to arbitrate: correcting a wrong time is
+ * most of what all three are for. There used to be a second, automatic kind
+ * that never overwrote, and the flag telling them apart went when it did.
  */
-export const anchorLineEffect = StateEffect.define<{
-	pos: number;
-	time: number;
-	overwrite: boolean;
-}>();
+export const anchorLineEffect = StateEffect.define<{ pos: number; time: number }>();
 
 /** Drop the anchor on the line containing `pos`. */
 export const clearLineAnchorEffect = StateEffect.define<{ pos: number }>();
@@ -408,12 +402,10 @@ function withAnchor(
 	state: EditorState,
 	anchors: RangeSet<AnchorValue>,
 	pos: number,
-	time: number,
-	overwrite: boolean
+	time: number
 ): RangeSet<AnchorValue> {
 	const line = state.doc.lineAt(pos);
 	const existing = anchorOnLine(state, anchors, pos);
-	if (existing && !overwrite) return anchors;
 	return anchors.update({
 		filter: (from) => from !== (existing?.from ?? -1),
 		add: [new AnchorValue(time).range(line.from, line.to)],
@@ -467,8 +459,7 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 					transaction.state,
 					anchors,
 					Math.min(effect.value.pos, transaction.state.doc.length),
-					effect.value.time,
-					effect.value.overwrite
+					effect.value.time
 				);
 			} else if (effect.is(clearLineAnchorEffect)) {
 				const existing = anchorOnLine(
@@ -607,73 +598,18 @@ export interface LineAnchorOptions {
 	/**
 	 * The moment the audio is at, or undefined when nothing is attached.
 	 *
-	 * Read on every typed transaction, so it must be cheap and must never throw.
+	 * Read from a press on the column's stamp control, so it must never throw.
 	 */
 	currentTime(): number | undefined;
 	/**
 	 * The set of anchors changed, so the shell can write them down.
 	 *
-	 * Most ways an anchor is set change no text: sync mode holds the document
-	 * read-only, and `Ctrl-Alt-M` and this column's own control move nothing. A
-	 * shell that saved only on a document change would therefore lose every
-	 * anchor that was not a side effect of typing, which is nearly all of them.
+	 * No anchor is ever a side effect of typing, and none of the three ways one
+	 * is set changes any text: sync mode holds the document read-only, and
+	 * `Ctrl-Alt-M` and this column's own control move nothing. A shell that saved
+	 * only on a document change would therefore lose every anchor there is.
 	 */
 	onAnchorsChanged?(): void;
-}
-
-/**
- * Stamp the line being typed with the moment it was typed at.
- *
- * This is the whole feature, and it has to be automatic: nobody transcribing a
- * song will press a key per line to record something they are not thinking
- * about, so an anchor set only by hand is an anchor that never exists. It is
- * safe to do silently because of what it does *not* do — it writes a number
- * beside a line and draws a dot. It moves no text, no caret, and no audio.
- *
- * Three guards keep it from being the other kind of automatic:
- *
- * It rides in the user's own transaction rather than a later one of its own, so
- * one undo takes the anchor with the typing that caused it and the history never
- * grows a step nobody performed.
- *
- * **It fires on `input.type` and nothing else, and the precision matters.** It
- * was `input` once, and `Transaction.isUserEvent` matches by prefix — so
- * `input.atomic`, which is what `transaction-adapter.ts` annotates every
- * programmatic edit with, counted as typing. Applying a linter fix stamped the
- * line it repaired; so did a bulk fix, loading the sample, and pasting into an
- * empty draft. A user who attached audio and then accepted a few suggestions got
- * a column of anchors at wherever the playhead happened to be sitting, usually
- * 0:00. `input.type` is the one CodeMirror uses for typed characters, and IME
- * composition (`input.type.compose`) still matches it by the same prefix rule.
- * Paste is deliberately out: a pasted lyric was not transcribed in time.
- *
- * **And never at zero.** A line anchored to 0:00 by a machine is almost always an
- * artifact of audio that is attached but has never been moved, and it is the
- * worst kind of wrong — it looks like data and it sends the user to the start of
- * the song. The true first line is rare and can be set by hand. Deliberate stamps
- * are free to write zero; only the automatic one is held to this.
- *
- * A *paused* playhead is fine and is not filtered: the loop this exists for is
- * listen, pause, type, so the position the tape stopped at is exactly where the
- * line being typed was heard.
- *
- * And it never overwrites (`overwrite: false`), so returning to a finished line
- * to fix a typo half an hour later leaves that line's time exactly where it was.
- */
-function autoStamp(options: LineAnchorOptions): Extension {
-	return EditorState.transactionExtender.of((transaction) => {
-		if (!transaction.docChanged || !transaction.isUserEvent('input.type')) return null;
-		if (transaction.effects.some((effect) => effect.is(setLineAnchorsEffect))) return null;
-		const time = options.currentTime();
-		if (time === undefined || !Number.isFinite(time) || time <= 0) return null;
-		return {
-			effects: anchorLineEffect.of({
-				pos: transaction.newSelection.main.head,
-				time,
-				overwrite: false
-			})
-		};
-	});
 }
 
 /**
@@ -697,7 +633,6 @@ function autoStamp(options: LineAnchorOptions): Extension {
 export function lineAnchors(options: LineAnchorOptions): Extension {
 	return [
 		lineAnchorField,
-		autoStamp(options),
 		// A class on the editor rather than a reconfigured gutter: attachment flips
 		// rarely and a compartment swap would rebuild the gutter's DOM, while a
 		// class costs one attribute and lets CSS collapse the column.
@@ -806,11 +741,9 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 					const time = options.currentTime();
 					if (time === undefined || !Number.isFinite(time)) return false;
 					event.preventDefault();
-					// Deliberate, so it overwrites: this is the pointer's `Ctrl-Alt-M`,
-					// and correcting a wrong time is most of what it is for.
-					view.dispatch({
-						effects: anchorLineEffect.of({ pos: line.from, time, overwrite: true })
-					});
+					// This is the pointer's `Ctrl-Alt-M`, and correcting a wrong time is
+					// most of what it is for.
+					view.dispatch({ effects: anchorLineEffect.of({ pos: line.from, time }) });
 					return true;
 				}
 			}

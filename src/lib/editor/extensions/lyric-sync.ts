@@ -133,8 +133,14 @@ function end(view: EditorView, options: LyricSyncOptions, message: string): bool
  * One transaction, not two: the anchor and the move are one press and have to be
  * one undo — and `EditorState.readOnly` blocks document changes, not selection
  * changes or effects, so both fit in the same dispatch.
+ *
+ * Exported because a finger has no `Space`. The transport's tap control is bound
+ * to the command itself rather than to a synthesised key event, so the two paths
+ * cannot drift into meaning different things — and everything the tap has to get
+ * right (the offset, the deferred advance, ending on the last line) is written
+ * once, here.
  */
-function stampAndAdvance(options: LyricSyncOptions) {
+export function lyricSyncTap(options: LyricSyncOptions) {
 	return (view: EditorView): boolean => {
 		const sync = view.state.field(lyricSyncField);
 		if (!sync.active) return false;
@@ -150,14 +156,10 @@ function stampAndAdvance(options: LyricSyncOptions) {
 
 		view.dispatch({
 			effects: [
-				anchorLineEffect.of({
-					pos: line.from,
-					time: Math.max(0, time - tapOffsetSeconds),
-					// Deliberate, so it overwrites. Timing a song is the act of replacing
-					// whatever the automatic stamp left behind, so a sync that refused to
-					// overwrite would be a sync that did nothing on a second pass.
-					overwrite: true
-				}),
+				// It overwrites, because timing a song is the act of replacing whatever
+				// the last pass got wrong — a sync that refused would do nothing on a
+				// second run over a part-timed draft, which is the common case.
+				anchorLineEffect.of({ pos: line.from, time: Math.max(0, time - tapOffsetSeconds) }),
 				armEffect.of(true)
 			],
 			selection: { anchor: line.from }
@@ -218,8 +220,8 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 		// default, and returning false is exactly the case that must not.
 		Prec.highest(
 			keymap.of([
-				{ key: 'Space', run: stampAndAdvance(options) },
-				{ key: 'Enter', run: stampAndAdvance(options) },
+				{ key: 'Space', run: lyricSyncTap(options) },
+				{ key: 'Enter', run: lyricSyncTap(options) },
 				{ key: 'Backspace', run: stepBack },
 				{ key: 'ArrowUp', run: stepBack },
 				{

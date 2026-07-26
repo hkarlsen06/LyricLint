@@ -261,31 +261,43 @@ describe('MediaStrip', () => {
 
 	// Timing the whole lyric is a transport activity, so its control is in the
 	// transport. While a run is under way the strip stops naming the file and
-	// states the two keys instead — the document has quietly stopped taking
-	// typing, and `Stop syncing` explains that only to someone who already knows
-	// what syncing is.
-	it('offers the sync control and swaps the track name for the keys while it runs', async () => {
+	// offers the tap instead — the document has quietly stopped taking typing, and
+	// `Stop syncing` explains that only to someone who already knows what syncing
+	// is. The tap is a real control on every pointer, not one that appears under a
+	// coarse one: a button that exists only on some devices is one nobody tests.
+	it('offers the sync control and swaps the track name for the tap while it runs', async () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		let active = $state(false);
+		let taps = 0;
 		const sync = {
 			get active() {
 				return active;
 			},
 			toggle: () => {
 				active = !active;
+			},
+			tap: () => {
+				taps += 1;
 			}
 		};
 
 		render(MediaStrip, { props: { media, sync } });
 
 		await expect.element(page.getByText('track.mp3')).toBeVisible();
+		expect(page.getByRole('button', { name: 'Tap each line' }).elements()).toHaveLength(0);
+
 		await page.getByRole('button', { name: 'Sync lyrics' }).click();
 
 		expect(active).toBe(true);
 		await expect.element(page.getByRole('button', { name: 'Stop syncing' })).toBeVisible();
-		await expect.element(page.getByText('Tap Space as each line starts · Esc stops')).toBeVisible();
+		await expect.element(page.getByText('Esc stops')).toBeVisible();
 		expect(page.getByText('track.mp3').elements()).toHaveLength(0);
+
+		// The press runs the run's own command, which is the whole point of the
+		// control: a phone has no `Space` to stand in for it.
+		await page.getByRole('button', { name: 'Tap each line' }).click();
+		expect(taps).toBe(1);
 	});
 
 	// A finished song states that it is finished, and is still the same one-press
@@ -302,7 +314,8 @@ describe('MediaStrip', () => {
 			complete: true,
 			toggle: () => {
 				active = !active;
-			}
+			},
+			tap: () => {}
 		};
 
 		render(MediaStrip, { props: { media, sync } });
@@ -323,6 +336,50 @@ describe('MediaStrip', () => {
 
 		await expect.element(page.getByText('track.mp3')).toBeVisible();
 		expect(page.getByRole('button', { name: /sync/iu }).elements()).toHaveLength(0);
+	});
+
+	/**
+	 * The loop is listen, pause, type — so a press on the transport must not take
+	 * focus off the document. On a phone that is the whole difference between
+	 * pausing to fix a word and pausing, losing the keyboard, and tapping back into
+	 * the line to get it again.
+	 *
+	 * Asserted on `defaultPrevented` rather than on where focus ended up, because
+	 * moving focus *is* the default action being prevented: there is nothing left
+	 * to observe afterwards.
+	 */
+	it('keeps the caret in the document when a transport button is pressed', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+
+		render(MediaStrip, { props: { media } });
+
+		const play = page.getByRole('button', { name: 'Play' }).element();
+		const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+		play.dispatchEvent(press);
+
+		expect(press.defaultPrevented).toBe(true);
+	});
+
+	/**
+	 * The scrubber and the rate control are the exception. Both need their own
+	 * press — one to drag, one to open — and both are aimed rather than tapped, so
+	 * a lost keyboard is the cheaper of the two costs.
+	 */
+	it('leaves the scrubber and the rate control their own press', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+
+		render(MediaStrip, { props: { media } });
+
+		for (const control of [
+			page.getByRole('slider').element(),
+			page.getByRole('combobox').element()
+		]) {
+			const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+			control.dispatchEvent(press);
+			expect(press.defaultPrevented).toBe(false);
+		}
 	});
 
 	it('detaching clears the strip and forgets the file for this draft', async () => {

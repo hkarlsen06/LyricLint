@@ -123,10 +123,11 @@ export interface EditorOverlayCallbacks {
 	 */
 	onAudioFileDropped?(file: File): boolean;
 	/**
-	 * Where the audio is now, for the line about to be stamped.
+	 * Where the audio is now, for the line about to be anchored.
 	 *
-	 * Read on every typed transaction, so the shell's answer has to be cheap.
-	 * `undefined` means nothing is attached, and no anchor is recorded.
+	 * Read from a deliberate stamp — `Ctrl-Alt-M`, the timestamp column's control,
+	 * or a tap in sync mode — so it must never throw. `undefined` means nothing is
+	 * attached, and no anchor is recorded.
 	 */
 	onRequestMediaTime?(): number | undefined;
 	/**

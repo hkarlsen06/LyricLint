@@ -123,39 +123,115 @@
 }
 
 /*
- * The phone gate. Below the stacked layout there is a size the workbench cannot
- * usefully shrink to: the linter is driven by selecting ranges and typing, and
- * the fix shortcuts do not exist without a keyboard. So on a phone the app is
- * removed outright — `display: none` on the shell wrapper takes it out of the
- * accessibility tree too, which an overlay would not have done — and the notice
- * takes its place.
+ * The transport rides the top of the software keyboard.
  *
- * The width alone must not decide this. A narrow window on a desktop is a
- * supported size (that is what the blocks above are for), so the gate also asks
- * for a coarse pointer; the two together mean a phone and not a resized browser.
- * The second query is the same device held sideways, where the width clears the
- * threshold but the height leaves no room for editor and panel both.
+ * A keyboard does not shrink the page — the layout viewport is unchanged and
+ * only the visible part of it gets shorter — so the foot of the workbench, the
+ * transport included, ends up under the keys. That is the row a transcriber
+ * needs *most* while typing: the loop is listen, pause, type, back up, replay.
+ *
+ * `--keyboard-top` and `data-keyboard-inset` come from `trackKeyboardInset`,
+ * which is the only thing that can answer this on iOS (see the module). The flag
+ * is the whole gate: it appears when a software keyboard is genuinely up and at
+ * no other time, so this needs no pointer query and is inert on a laptop.
+ *
+ * **A translate, not `bottom` and not `top`.** `--keyboard-top` is the bottom edge
+ * of what the user can see, taken from the visual viewport's own offset and
+ * height. Written as `bottom: <keyboard height>`, the rule would have to know
+ * what the layout viewport did when the keyboard opened — the assumption that
+ * shipped once and did nothing at all on a real phone. Written as `top`, it
+ * would relayout on every one of the events the keyboard fires as it slides in;
+ * a transform moves the same distance on the compositor.
+ *
+ * The `- 100%` is why no JavaScript here measures the strip. A percentage in a
+ * translate resolves against the element's own size, so the bottom edge lands on
+ * `--keyboard-top` whatever the row currently is — one control tall, or two
+ * lines when an error is showing. Computing the same offset in JS means reading
+ * the height back, which means a `ResizeObserver` to catch it changing.
+ *
+ * Leaving the flow collapses the strip's grid row and the document grows into
+ * it, which is the right trade: the row is over the keyboard now, and the space
+ * it held is more document.
+ *
+ * Above `--layer-panel`, because the panel is what it now hangs over. It keeps
+ * its own `--color-chrome` fill and gains a hairline on the side it did not have
+ * one — floating, it borders the keyboard below as well as the document above.
+ */
+:root[data-keyboard-inset] .media-strip {
+	position: fixed;
+	top: 0;
+	right: 0;
+	left: 0;
+	z-index: calc(var(--layer-panel) + 1);
+	transform: translateY(calc(var(--keyboard-top) - 100%));
+}
+
+/*
+ * The floor the strip stands on.
+ *
+ * Below the visible viewport there is a band the browser owns — Safari's address
+ * pill, the keyboard's own accessory row — and the page keeps drawing behind it.
+ * So the tab strip and the top of the findings showed through the gaps around
+ * that chrome, in pieces, under a row that had just been pinned above them. The
+ * fill ends it: from the strip's bottom edge to the foot of the layout viewport,
+ * in the strip's own `--color-chrome`, so the two read as one band resting on
+ * the keyboard rather than as a bar floating over a cut-off panel.
+ *
+ * It is a pseudo-element of the workspace and not of the strip, because the
+ * strip is a horizontal scroller: `overflow-x: auto` computes `overflow-y` to
+ * `auto` as well, so anything absolutely positioned below the strip inside it
+ * would be clipped and would give the shortest row in the window a vertical
+ * scroll port. `.workspace` is not a containing block for fixed descendants —
+ * no transform, no filter, no containment — so this escapes its `overflow: clip`
+ * exactly as the strip does.
+ *
+ * One layer under the strip and above the panel: it hides the panel, and the
+ * strip's border draws over it.
+ */
+:root[data-keyboard-inset] .workspace::after {
+	content: '';
+	position: fixed;
+	top: var(--keyboard-top);
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: var(--layer-panel);
+	background: var(--color-chrome);
+}
+
+/*
+ * The landscape gate.
+ *
+ * The workbench runs on a phone held upright: the editor and the linter stack,
+ * and each scrolls in its own port. Turned sideways there is no height left to
+ * divide — the toolbar, the tab strip and the status bar are fixed costs, and
+ * what remains would be a couple of lines of lyric over a couple of lines of
+ * finding. So this one orientation is refused outright, and the notice takes its
+ * place: `display: none` on the shell wrapper takes the app out of the
+ * accessibility tree too, which an overlay would not have done.
+ *
+ * Height *and* a coarse pointer, never height alone. A short window on a laptop
+ * is a supported size — the stacked layout above is exactly what it is for — and
+ * a rule keyed on height alone would tell someone with a keyboard and a mouse to
+ * rotate a screen they cannot rotate.
  */
 .app-shell {
 	display: contents;
 }
 
-.small-screen-notice {
+.landscape-notice {
 	display: none;
 }
 
-@media (pointer: coarse) and (max-width: 46rem), (pointer: coarse) and (max-height: 30rem) {
+@media (pointer: coarse) and (max-height: 30rem) {
 	.app-shell {
 		display: none;
 	}
 
-	/* The text sits directly on the page background — no border, no fill, no
-	   card. Nothing here is a surface the user acts on or one that has to be told
-	   apart from a neighbor, so a box would be decoration.
-
-	   `dvh` after `vh` so browsers without it still get a full-height page rather
-	   than a collapsed one. */
-	.small-screen-notice {
+	/* Prose on the canvas — no border, no fill, no card. Nothing here is a surface
+	   the user acts on or one that has to be told apart from a neighbour, so a box
+	   would be decoration. See "A card has to earn its border". */
+	.landscape-notice {
 		display: grid;
 		min-height: 100vh;
 		min-height: 100dvh;
@@ -163,20 +239,16 @@
 		place-content: center;
 	}
 
-	.small-screen-notice > div {
+	.landscape-notice > div {
 		max-width: 34rem;
 	}
 
 	/* The brand is the first word of the headline rather than a logo above it, so
 	   it runs at the heading's size and not at one of its own. That is the whole
-	   override: every dimension in the lockup — bracket height, bracket width,
-	   the waveform's stroke, both slot widths in `ch` — is already expressed
-	   against its own type, so inheriting a font-size resizes the brand.
-
-	   `--font-size-2xl` is the display step, which exists for exactly this: a
-	   page that is nothing but a message, where the brand is the first thing
-	   read. It is also what makes the lockup carry a headline at all. */
-	.small-screen-notice h1 {
+	   override: every dimension in the lockup — bracket height, bracket width, the
+	   waveform's stroke, both slot widths in `ch` — is already expressed against
+	   its own type, so inheriting a font-size resizes the brand. */
+	.landscape-notice h1 {
 		margin: 0 0 var(--space-4);
 		font-size: var(--font-size-2xl);
 		font-weight: var(--font-weight-semibold);
@@ -185,89 +257,78 @@
 
 	/* The lockup is inline-flex and its first item holds only absolutely
 	   positioned letters, so it has no baseline of its own: the browser
-	   synthesises one from the bottom of its margin box, and the brand rides
-	   above the sentence it is the first word of. This sits it back down on the
-	   line — measured, not derived, but stable in `em` because the wordmark and
-	   the body copy are the mono and sans cuts of one family and share their
-	   vertical metrics. */
-	.small-screen-notice h1 .app-wordmark {
+	   synthesises one from the bottom of its margin box, and the brand rides above
+	   the sentence it is the first word of. This sits it back down on the line —
+	   measured, not derived, but stable in `em` because the wordmark and the body
+	   copy are the mono and sans cuts of one family and share their vertical
+	   metrics. */
+	.landscape-notice h1 .app-wordmark {
 		font-size: inherit;
 		vertical-align: -0.181em;
 	}
 
-	/* The headline is the only thing on the page whose height changes, because
-	   the lockup shrinking by two thirds can drop the sentence from two lines to
-	   one. Left alone, the notice is centred in the viewport, so that line goes
-	   back into the layout and everything below climbs. This reserves the line
-	   instead and hangs the headline off the bottom of it: the paragraph never
-	   moves, and the title drops into the space its own second line vacated.
-
-	   Only inside the band where it actually wraps. Narrower than this the
-	   sentence needs two lines in both states, and wider it needs one in both —
-	   at either end the reservation is either already met or pure empty space
-	   above the headline, which is what a landscape phone would get.
-
-	   The threshold is the open headline's natural width (458.8px, measured)
-	   plus the notice's padding on both sides, rounded up to the next half rem.
-	   It is keyed to the viewport rather than to the headline's own measure
-	   because a container query cannot be: the notice centres its content by
-	   sizing it to `max-content`, and inline-size containment would take the
-	   contents out of that calculation and collapse the column. Re-measure if
-	   the copy, the padding, or the display size changes. */
-	@media (max-width: 33rem) {
-		.small-screen-notice h1 {
-			min-height: 2lh;
-			align-content: end;
-		}
-	}
-
-	/* Hover opens nothing here; the press is the whole affordance. This surface
-	   is `pointer: coarse`, and on a touch screen `:hover` is not a state anyone
+	/* Hover opens nothing here; the press is the whole affordance. This surface is
+	   `pointer: coarse`, and on a touch screen `:hover` is not a state anyone
 	   entered on purpose — it is applied to whatever was tapped last and stays
-	   there. Left in, it would open the lockup on the first tap and then refuse
-	   to let the second tap close it, because the finger that pressed is exactly
-	   what hover is stuck to.
-
-	   That is now the whole of the argument. This rule used to lean on a second
-	   one — that nothing else on the page answered a pointer, so a brand that lit
-	   up under one would be the only thing here claiming to be usable — and the
-	   link to `/` retired it. There is a real control on this page now. The
-	   sticky-hover reason stands on its own and is why the rule stays; do not
-	   restore the old justification if the action is ever removed again without
-	   checking that it still says something true. */
-	.small-screen-notice .app-wordmark[data-state='idle']:hover {
+	   there. Left in, it would open the lockup on the first tap and then refuse to
+	   let the second tap close it, because the finger that pressed is exactly what
+	   hover is stuck to. */
+	.landscape-notice .app-wordmark[data-state='idle']:hover {
 		--wm-open: 0;
 	}
 
-	.small-screen-notice p {
+	.landscape-notice p {
 		margin: 0 0 var(--space-3);
 		color: var(--color-text-muted);
 	}
 
-	.small-screen-notice p:last-child {
+	.landscape-notice p:last-child {
 		margin-bottom: 0;
 	}
+}
 
-	/* Below the paragraph rules on purpose, not above them: the action is a `<p>`
-	   so it inherits the reading rhythm, and `.small-screen-notice p` is the more
-	   specific selector (0,1,1 against this rule's 0,1,0). Ordered the other way
-	   round the hand-set spacing below is silently discarded.
-
-	   It is the last thing on the page and wants air above it rather than that
-	   rhythm. No border, no fill, no container — a full-page message is prose on
-	   the canvas, and the button is the whole control. */
-	.small-screen-notice__action {
-		margin-top: var(--space-5);
+/*
+ * Nothing a finger can type into may be smaller than 16px, because Safari on iOS
+ * answers a focus on a smaller field by zooming the page in — and it does not
+ * zoom back out. That reads as the app lurching every time the caret is placed,
+ * and it is the whole reason this block exists.
+ *
+ * The two ways out of it are this and `maximum-scale=1` on the viewport meta,
+ * which buys the same result by taking pinch zoom away from everyone. That is
+ * not a trade this application makes.
+ *
+ * `--font-size-lg` rather than a literal `1rem`: it is the first step on the
+ * ramp that clears the threshold, it is a token, and slightly larger text under
+ * a finger is right on its own terms. The editor moves through
+ * `--font-size-editor` so the landing page's stand-in moves with it; the form
+ * controls inherit their size from the body, so they are named directly.
+ *
+ * Keyed on the pointer and not on width, like every other rule here that means
+ * "a phone": a narrow window on a laptop has a fine pointer, does not zoom, and
+ * has no reason to grow its type.
+ */
+@media (pointer: coarse) {
+	:root {
+		--font-size-editor: var(--font-size-lg);
 	}
 
-	/* Full-width and a comfortable target, because on the surface this rule is
-	   scoped to there is exactly one control and a finger is what will press it.
-	   The button silhouette is `inline-flex`, which would otherwise shrink it to
-	   the width of its label in the middle of a centred column. */
-	.small-screen-notice__action .button {
-		width: 100%;
-		min-height: var(--control-height-lg);
-		text-decoration: none;
+	input,
+	select,
+	textarea {
+		font-size: var(--font-size-lg);
+	}
+
+	/* The one control in the window that is pressed in rhythm, on the one pointer
+	   that cannot use the key it stands in for. It takes the row's slack so it can
+	   be found without looking away from the lyric — which is also why the hint
+	   beside it goes: a target this wide has nothing to share the slot with, and
+	   `Esc` is not a key this device has. */
+	.media-strip__tap {
+		flex: 1 1 auto;
+	}
+
+	.media-strip__tap + .media-strip__hint {
+		display: none;
 	}
 }
 

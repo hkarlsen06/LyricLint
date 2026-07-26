@@ -1,3 +1,4 @@
+import { randomId } from '../core/random-id.js';
 import type { DraftRecord, DraftRepository } from './types.js';
 
 const DEFAULT_TITLE = 'Untitled draft';
@@ -12,7 +13,7 @@ const DEFAULT_LANGUAGE = 'en';
 function blankDraft(): DraftRecord {
 	const timestamp = new Date().toISOString();
 	return {
-		id: globalThis.crypto.randomUUID(),
+		id: randomId(),
 		title: DEFAULT_TITLE,
 		text: '',
 		language: DEFAULT_LANGUAGE,

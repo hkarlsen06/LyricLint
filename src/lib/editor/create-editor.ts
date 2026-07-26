@@ -52,7 +52,7 @@ import {
 	setLineAnchorsEffect,
 	setPlayheadEffect
 } from './extensions/line-anchors.js';
-import { lyricSync, lyricSyncTheme, setLyricSync } from './extensions/lyric-sync.js';
+import { lyricSync, lyricSyncTap, lyricSyncTheme, setLyricSync } from './extensions/lyric-sync.js';
 import { invisibleMarks, invisibleMarksTheme } from './extensions/invisible-marks.js';
 import { markupDimField, markupDimTheme } from './extensions/markup-dim.js';
 import {
@@ -166,7 +166,7 @@ const editorTheme = EditorView.theme({
 		background: 'var(--color-surface)',
 		color: 'var(--color-text)',
 		fontFamily: 'var(--font-mono)',
-		fontSize: 'var(--font-size-md)'
+		fontSize: 'var(--font-size-editor)'
 	},
 	// No focus ring around the editor: the caret and the active-line wash already
 	// show where focus is, and a full-height outline dominates the workspace.
@@ -508,6 +508,18 @@ export function createLyricEditor(
 	// the pair behind is how a "disabled" feature keeps a foothold in the DOM.
 	const sectionGhosts = options.sectionGhosts ?? true;
 
+	// Held rather than passed inline, because the tap is reachable two ways — the
+	// `Space` binding inside the extension, and the transport's control through
+	// the handle below — and both have to be the same command over the same
+	// options or a tap and a press would stop meaning the same thing.
+	const syncOptions = {
+		currentTime: () => callbackProxy.onRequestMediaTime?.(),
+		onChange: (active: boolean, startAt?: number) =>
+			callbackProxy.onLyricSyncChange?.(active, startAt),
+		announce: (message: string) => callbackProxy.onAnnouncement(message)
+	};
+	const syncTap = lyricSyncTap(syncOptions);
+
 	const extensions: Extension[] = [
 		history(),
 		// The line number is a wider, always-drawn target than four characters of
@@ -589,11 +601,7 @@ export function createLyricEditor(
 			onAnchorsChanged: () => callbackProxy.onLineAnchorsChanged?.()
 		}),
 		lineAnchorTheme,
-		lyricSync({
-			currentTime: () => callbackProxy.onRequestMediaTime?.(),
-			onChange: (active, startAt) => callbackProxy.onLyricSyncChange?.(active, startAt),
-			announce: (message) => callbackProxy.onAnnouncement(message)
-		}),
+		lyricSync(syncOptions),
 		lyricSyncTheme,
 		keymap.of(lyricLintKeymap(callbackProxy, options.keymapOverrides)),
 		selectionAnchorPlugin(
@@ -739,6 +747,12 @@ export function createLyricEditor(
 		},
 		setLyricSync(active) {
 			setLyricSync(view, active);
+		},
+		// The tap, for a pointer that has no `Space`. It does not focus the editor:
+		// the press is already in the transport, and a run driven from there stays
+		// there — the caret walks on its own and the document is read-only anyway.
+		tapLyricSync() {
+			syncTap(view);
 		},
 		setFollowPlayhead(follow) {
 			view.dispatch({

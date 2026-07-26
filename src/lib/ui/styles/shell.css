@@ -3,7 +3,21 @@
 /* `clip`, not `hidden`: a hidden box is still a scroll container, so a stray
    `scrollIntoView` or focus call anywhere inside could scroll the whole shell
    out of view with no scrollbar or wheel gesture to bring it back. Clipping
-   removes the scroll port itself, so the shell cannot move. */
+   removes the scroll port itself, so the shell cannot move.
+
+   `dvh` and not `vh`, because `vh` is the *large* viewport: the height the page
+   would have if the browser's own chrome were retracted. On a phone that is
+   taller than what is actually on screen by exactly the URL bar, so the shell
+   overflowed the window and the document itself scrolled — the one scroll this
+   application has no use for, since every region inside the shell scrolls in
+   its own port. `dvh` is the visible height at this moment, so the shell spans
+   the window and there is nothing for the page to scroll.
+
+   The bar therefore never retracts, which is why `dvh` costs nothing here and
+   is wrong on the landing page (see `.site-hero`): there the reader scrolls the
+   document, so a `dvh` box grows underneath them as they go. `vh` stays as the
+   fallback for browsers without the unit, where it is exactly today's
+   behaviour. */
 .workspace {
 	position: relative;
 	display: grid;
@@ -11,6 +25,7 @@
 	grid-template-rows: auto minmax(0, 1fr) auto;
 	width: 100%;
 	height: 100vh;
+	height: 100dvh;
 	overflow: clip;
 	background: var(--color-surface);
 }

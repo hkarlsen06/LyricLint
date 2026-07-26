@@ -300,11 +300,10 @@ describe('workbench draft safety', () => {
 	});
 
 	/*
-	 * Most ways an anchor is set change no text at all: sync mode holds the
-	 * document read-only, and `Ctrl-Alt-M` and the timestamp column's own control
-	 * move nothing. Saving only on a snapshot therefore lost a whole synced song on
-	 * reload — the only anchors that survived were the ones the automatic stamp
-	 * happened to write alongside a keystroke.
+	 * No way of setting an anchor changes any text: sync mode holds the document
+	 * read-only, and `Ctrl-Alt-M` and the timestamp column's own control move
+	 * nothing. Saving only on a snapshot therefore lost a whole synced song on
+	 * reload.
 	 */
 	test('saves anchors written without the text changing', async () => {
 		const first = draft('draft-a');

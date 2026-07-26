@@ -66,8 +66,8 @@ export class StubYouTubePlayer implements YouTubePlayerLike {
 		this.options.events?.onStateChange?.({ data: state });
 	}
 
-	fail(): void {
-		this.options.events?.onError?.({ data: 5 });
+	fail(code = 5): void {
+		this.options.events?.onError?.({ data: code });
 	}
 
 	playVideo(): void {

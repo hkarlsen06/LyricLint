@@ -102,91 +102,19 @@ function cellFor(lineText: string): HTMLElement {
 const lyric = ['[Verse 1]', 'first line', 'second line'].join('\n');
 
 describe('line anchoring while transcribing', () => {
-	it('anchors the line being typed to the moment it was typed at', async () => {
-		const { handle } = await mount({
-			text: lyric,
-			selection: { anchor: lyric.length, head: lyric.length },
-			mediaTime: () => 42
-		});
-
-		handle.focus();
-		await userEvent.keyboard('!');
-
-		expect(handle.getLineAnchors?.()).toEqual([{ line: 3, time: 42 }]);
-	});
-
-	it('anchors nothing while no audio is attached', async () => {
-		const { handle } = await mount({
-			text: lyric,
-			selection: { anchor: lyric.length, head: lyric.length }
-		});
-
-		handle.focus();
-		await userEvent.keyboard('!');
-
-		expect(handle.getLineAnchors?.()).toEqual([]);
-	});
-
-	// The automatic stamp is the feature; it is also the thing most able to ruin
-	// the data it collects. Coming back to a finished line half an hour later must
-	// leave that line's time exactly where it was.
-	it('never drags an existing anchor to wherever the audio now is', async () => {
-		let time = 42;
-		const { handle } = await mount({
-			text: lyric,
-			selection: { anchor: lyric.length, head: lyric.length },
-			mediaTime: () => time
-		});
-
-		handle.focus();
-		await userEvent.keyboard('!');
-		time = 300;
-		await userEvent.keyboard('?');
-
-		expect(handle.getLineAnchors?.()).toEqual([{ line: 3, time: 42 }]);
-	});
-
 	/*
-	 * The stamp fires on `input.type`, and the precision is the whole point.
+	 * Typing used to stamp the line being typed with wherever the playhead was.
+	 * It was the feature and it was also the thing most able to ruin the data it
+	 * collected: what it recorded was the moment you *started typing* a line, which
+	 * is after you heard it and after however long you spent working out the words —
+	 * a lag with no fixed size and nothing on screen disclosing it. Typing a verse
+	 * at one pause put every line of it on one second, and typing along with the
+	 * tape put every line late by a different amount.
 	 *
-	 * It was `input` once, and `Transaction.isUserEvent` matches by prefix — so
-	 * `input.atomic`, which every programmatic edit is annotated with, counted as
-	 * typing. Accepting a handful of linter suggestions therefore stamped each line
-	 * it repaired, at whatever the playhead happened to be sitting on.
+	 * Sync mode is the accurate answer to the same job, so this one went. Every
+	 * anchor is deliberate now, and typing writes none.
 	 */
-	it('does not stamp a line an applied fix rewrote', async () => {
-		const { handle } = await mount({
-			text: lyric,
-			selection: { anchor: 0, head: 0 },
-			mediaTime: () => 42
-		});
-
-		handle.dispatchAtomic({
-			baseRevision: handle.getSnapshot().revision,
-			edits: [{ from: lyric.indexOf('first'), to: lyric.indexOf('first') + 5, insert: 'FIRST' }]
-		});
-
-		expect(handle.getSnapshot().text).toContain('FIRST');
-		expect(handle.getLineAnchors?.()).toEqual([]);
-	});
-
-	// A line anchored to 0:00 by a machine is almost always audio that is attached
-	// and has never been moved. It looks like data and it sends the user to the
-	// start of the song, which is worse than having no time at all.
-	it('does not stamp at zero, where the playhead has never been moved', async () => {
-		const { handle } = await mount({
-			text: lyric,
-			selection: { anchor: lyric.length, head: lyric.length },
-			mediaTime: () => 0
-		});
-
-		handle.focus();
-		await userEvent.keyboard('!');
-
-		expect(handle.getLineAnchors?.()).toEqual([]);
-	});
-
-	it('costs no extra undo step for the typing that caused it', async () => {
+	it('anchors nothing for typing, whatever the audio is doing', async () => {
 		const { handle } = await mount({
 			text: lyric,
 			selection: { anchor: lyric.length, head: lyric.length },
@@ -195,24 +123,47 @@ describe('line anchoring while transcribing', () => {
 
 		handle.focus();
 		await userEvent.keyboard('!');
+
 		expect(handle.getSnapshot().text).toBe(`${lyric}!`);
-
-		handle.undo();
-
-		expect(handle.getSnapshot().text).toBe(lyric);
+		expect(handle.getLineAnchors?.()).toEqual([]);
 	});
 
-	it('corrects a line deliberately with Ctrl+Alt+M', async () => {
-		let time = 42;
+	it('leaves an existing anchor alone through an edit to its line', async () => {
 		const { handle } = await mount({
 			text: lyric,
 			selection: { anchor: lyric.length, head: lyric.length },
-			mediaTime: () => time
+			mediaTime: () => 300
 		});
+		handle.setLineAnchors?.([{ line: 3, time: 42 }]);
 
 		handle.focus();
 		await userEvent.keyboard('!');
-		time = 300;
+
+		expect(handle.getLineAnchors?.()).toEqual([{ line: 3, time: 42 }]);
+	});
+
+	it('anchors the caret line deliberately with Ctrl+Alt+M', async () => {
+		const { handle } = await mount({
+			text: lyric,
+			selection: { anchor: lyric.length, head: lyric.length },
+			mediaTime: () => 300
+		});
+
+		handle.focus();
+		await userEvent.keyboard('{Control>}{Alt>}m{/Alt}{/Control}');
+
+		expect(handle.getLineAnchors?.()).toEqual([{ line: 3, time: 300 }]);
+	});
+
+	it('corrects a line already anchored with Ctrl+Alt+M', async () => {
+		const { handle } = await mount({
+			text: lyric,
+			selection: { anchor: lyric.length, head: lyric.length },
+			mediaTime: () => 300
+		});
+		handle.setLineAnchors?.([{ line: 3, time: 42 }]);
+
+		handle.focus();
 		await userEvent.keyboard('{Control>}{Alt>}m{/Alt}{/Control}');
 
 		expect(handle.getLineAnchors?.()).toEqual([{ line: 3, time: 300 }]);
@@ -628,6 +579,43 @@ describe('sync mode', () => {
 		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
 	});
 
+	// The transport's tap control, for a pointer with no `Space`. It runs the same
+	// command the key does — that is the whole reason it is a command and not a
+	// synthesised key event — so a run driven entirely from the strip has to time
+	// the same lines, at the same offset, in the same order, with the editor never
+	// focused.
+	it('times a line from the transport control, with the editor unfocused', async () => {
+		const { handle } = await mount({
+			text: song,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => 30
+		});
+		handle.setLyricSync?.(true);
+
+		handle.tapLyricSync?.();
+		handle.tapLyricSync?.();
+
+		const anchors = handle.getLineAnchors?.() ?? [];
+		expect(anchors.map((anchor) => anchor.line)).toEqual([2, 5]);
+		expect(anchors[0]?.time).toBeCloseTo(29.88, 5);
+		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('second line'));
+	});
+
+	// Outside a run it is a no-op, exactly like the binding it stands in for: a
+	// control the shell leaves wired must not write an anchor when nothing asked
+	// for one.
+	it('does nothing from the transport control while no run is under way', async () => {
+		const { handle } = await mount({
+			text: song,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => 30
+		});
+
+		handle.tapLyricSync?.();
+
+		expect(handle.getLineAnchors?.() ?? []).toEqual([]);
+	});
+
 	// The advance is deferred to the front of the next tap, which is the moment it
 	// stops being wrong — and it walks past the blank line and `[Chorus]` in one
 	// step, so no tap is spent on structure nobody sings.
@@ -688,11 +676,10 @@ describe('sync mode', () => {
 	});
 
 	/*
-	 * The save path, and the reason it needs one of its own: a run changes no text
-	 * at all, so the shell's snapshot — which is what schedules a write — never
-	 * fires. Without this hook a whole synced song was lost on reload, and the only
-	 * anchors that survived were the ones the automatic stamp happened to write
-	 * alongside a keystroke.
+	 * The save path, and the reason it needs one of its own: no way of setting an
+	 * anchor changes any text, so the shell's snapshot — which is what schedules a
+	 * write — never fires. Without this hook a whole synced song was lost on
+	 * reload.
 	 */
 	it('tells the shell to write the anchors down, since no text changed', async () => {
 		const { handle, anchorsChanged } = await mount({
@@ -832,6 +819,8 @@ describe('sync mode', () => {
 		await userEvent.keyboard(' still typing');
 
 		expect(handle.getSnapshot().text).toBe(`${song} still typing`);
-		expect(handle.getLineAnchors?.()).toEqual([{ line: 5, time: 30 }]);
+		// The space went to the document rather than timing a line, which is the
+		// other half of the same claim.
+		expect(handle.getLineAnchors?.()).toEqual([]);
 	});
 });

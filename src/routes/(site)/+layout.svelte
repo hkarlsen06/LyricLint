@@ -70,7 +70,7 @@
 			<!-- Dropped on a phone, where it is the one link in the masthead that
 			     cannot lead anywhere: the workbench is removed at that size and the
 			     gate takes its place. See `site.css`. -->
-			<a class="site-nav__app" href={resolve('/lint/')}>Open the app</a>
+			<a href={resolve('/lint/')}>Open the app</a>
 		</nav>
 	</header>
 

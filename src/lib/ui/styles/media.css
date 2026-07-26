@@ -201,7 +201,15 @@
 	color: var(--color-text);
 }
 
-/* The two keys, in the slot the file name gives up while a run is under way. */
+/* The tap and the way out, in the slot the file name gives up while a run is
+   under way. The tap is bordered like the sync control beside it — both are
+   commands rather than readouts, and the row's contrast tier belongs to play.
+   Its width is the pointer's business; see `responsive.css`. */
+.media-strip__tap {
+	flex: none;
+	white-space: nowrap;
+}
+
 .media-strip__hint {
 	white-space: nowrap;
 }

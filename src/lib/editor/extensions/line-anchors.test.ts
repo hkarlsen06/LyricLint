@@ -105,25 +105,11 @@ describe('line anchors', () => {
 		expect(lineAnchorsFor(edited)).toEqual([{ line: 2, time: 10 }]);
 	});
 
-	// The automatic stamp fires on every edit while audio plays. If it could
-	// overwrite, coming back to fix a typo would drag that line's anchor to
-	// wherever the audio happened to be — the feature quietly destroying its own
-	// data, which is exactly the way it would fight the user.
-	it('never lets an automatic stamp replace a time already there', () => {
-		const state = stateWith([{ line: 2, time: 10 }]);
-
-		const stamped = state.update({
-			effects: anchorLineEffect.of({ pos: lineStart(state, 2), time: 99, overwrite: false })
-		}).state;
-
-		expect(lineAnchorsFor(stamped)).toEqual([{ line: 2, time: 10 }]);
-	});
-
 	it('stamps a line that has no anchor yet', () => {
 		const state = stateWith([{ line: 2, time: 10 }]);
 
 		const stamped = state.update({
-			effects: anchorLineEffect.of({ pos: lineStart(state, 3) + 2, time: 25, overwrite: false })
+			effects: anchorLineEffect.of({ pos: lineStart(state, 3) + 2, time: 25 })
 		}).state;
 
 		expect(lineAnchorsFor(stamped)).toEqual([
@@ -132,11 +118,26 @@ describe('line anchors', () => {
 		]);
 	});
 
-	it('lets a deliberate stamp correct an existing anchor', () => {
+	// Two lines of one held note are a legitimate repeat, and every stamp is
+	// deliberate now, so nothing arbitrates one.
+	it('lets a stamp repeat a time already on another line', () => {
+		const state = stateWith([{ line: 2, time: 8 }]);
+
+		const stamped = state.update({
+			effects: anchorLineEffect.of({ pos: lineStart(state, 3), time: 8 })
+		}).state;
+
+		expect(lineAnchorsFor(stamped)).toEqual([
+			{ line: 2, time: 8 },
+			{ line: 3, time: 8 }
+		]);
+	});
+
+	it('corrects an existing anchor', () => {
 		const state = stateWith([{ line: 2, time: 10 }]);
 
 		const stamped = state.update({
-			effects: anchorLineEffect.of({ pos: lineStart(state, 2), time: 99, overwrite: true })
+			effects: anchorLineEffect.of({ pos: lineStart(state, 2), time: 99 })
 		}).state;
 
 		expect(lineAnchorsFor(stamped)).toEqual([{ line: 2, time: 99 }]);

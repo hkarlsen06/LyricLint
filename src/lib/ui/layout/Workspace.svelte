@@ -30,6 +30,7 @@
 	import MediaPicker from '../media/MediaPicker.svelte';
 	import MediaStrip from '../media/MediaStrip.svelte';
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
+	import { trackKeyboardInset } from '../state/keyboard-inset.js';
 	import MockEditorPane from './MockEditorPane.svelte';
 	import RightPanel from './RightPanel.svelte';
 
@@ -375,7 +376,8 @@
 		get complete() {
 			return allLinesTimed;
 		},
-		toggle: () => editorHandle?.setLyricSync?.(!syncing)
+		toggle: () => editorHandle?.setLyricSync?.(!syncing),
+		tap: () => editorHandle?.tapLyricSync?.()
 	};
 
 	$effect(() => {
@@ -418,6 +420,12 @@
 			}
 		});
 	});
+
+	// The software keyboard's height, published for `responsive.css` to hang the
+	// transport on. It runs whenever the workbench is mounted rather than only
+	// while audio is attached: the measurement costs nothing until a keyboard
+	// opens, and a listener bound on attach would miss one that was already up.
+	$effect(() => trackKeyboardInset());
 
 	// Where the audio is, pushed into the anchor gutter — which fills one dot and
 	// is the entire extent of what playback is permitted to do to the document.

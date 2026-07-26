@@ -145,9 +145,13 @@
 	gap: var(--space-2);
 }
 
+/* `dvh` for the reason `.workspace` takes it: a full-window message sized to the
+   large viewport is taller than a phone's window by the URL bar, so the one page
+   in the app that says only "this went wrong" also scrolled. */
 .error-page {
 	display: grid;
 	min-height: 100vh;
+	min-height: 100dvh;
 	padding: var(--space-6);
 	place-content: center;
 	background: var(--color-canvas);

@@ -13,6 +13,8 @@
 		/** Every line a run would tap already has a time. */
 		readonly complete?: boolean;
 		toggle(): void;
+		/** One tap of a run. The same command `Space` runs — see `tapLyricSync`. */
+		tap(): void;
 	}
 
 	/**
@@ -51,6 +53,37 @@
 	const backLabel = $derived(timed ? 'Previous line' : 'Back 2 seconds');
 	const forwardLabel = $derived(timed ? 'Next line' : 'Forward 2 seconds');
 
+	/**
+	 * Keep the caret where the user put it.
+	 *
+	 * Focus moves on `mousedown`, so preventing its default is what stops a press
+	 * here from taking focus off the document — and on a phone, focus leaving the
+	 * document is the keyboard closing. The loop this row exists for is listen,
+	 * pause, type: a pause that dismissed the keyboard would cost a tap to bring it
+	 * back and a scroll to find the line again, every single time.
+	 *
+	 * Buttons only. A `<select>` and a `range` need their default press to open and
+	 * to drag, so the rate control and the scrubber are left alone — they are also
+	 * the two controls here that are aimed rather than tapped, where losing the
+	 * keyboard is the smaller cost.
+	 *
+	 * `click` is not a default action of `mousedown` and still fires, so every
+	 * control keeps working exactly as it did. This is the same move a rich-text
+	 * toolbar makes for the same reason.
+	 *
+	 * An attachment rather than an inline handler because the row is a `<div>`: a
+	 * mouse handler written on it is an interactive element with no role, and the
+	 * honest answer is that the row is not interactive — its buttons are, and this
+	 * listens on their behalf.
+	 */
+	function keepFocus(node: HTMLElement) {
+		const onPress = (event: MouseEvent) => {
+			if ((event.target as Element | null)?.closest('button')) event.preventDefault();
+		};
+		node.addEventListener('mousedown', onPress);
+		return () => node.removeEventListener('mousedown', onPress);
+	}
+
 	const pendingLabel = $derived(
 		media.pendingSource === 'youtube'
 			? `Load ${media.pendingName} from YouTube`
@@ -78,7 +111,7 @@
 	source is attached shows in this row only in which rates the speed control
 	offers.
 -->
-<div class="media-strip" data-testid="media-strip">
+<div class="media-strip" data-testid="media-strip" {@attach keepFocus}>
 	{#if player.attached}
 		<div class="media-strip__transport">
 			<button
@@ -280,7 +313,33 @@
 			{/if}
 
 			{#if sync?.active}
-				<span class="media-strip__hint">Tap Space as each line starts · Esc stops</span>
+				<!--
+					The tap itself, because a finger has no `Space`. It takes the slot the
+					hint took — the run's instruction is now the thing you press, which is
+					shorter to read and is the only way to drive a run on a phone.
+
+					It is a control on every pointer rather than one that appears under a
+					coarse one. The command is the same command, pressing it is a legitimate
+					way to time a line with a mouse, and a button that exists only on some
+					devices is one nobody documents and nobody tests. What the pointer
+					changes is its width (`responsive.css`): under a finger it takes the
+					row's slack, because a target tapped in rhythm has to be found without
+					looking.
+
+					`Space` and `Enter` both activate a focused button, and both are the
+					run's own keys — so a press here leaves the keyboard path working
+					exactly as it did, on the button instead of in the document.
+				-->
+				<button
+					type="button"
+					class="button media-strip__tap"
+					aria-keyshortcuts="Space Enter"
+					title="Time the line that is starting now"
+					onclick={sync.tap}
+				>
+					Tap each line
+				</button>
+				<span class="media-strip__hint">Esc stops</span>
 			{:else}
 				<span class="media-strip__name" title={player.name}>{player.name}</span>
 			{/if}

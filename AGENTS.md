@@ -59,11 +59,10 @@ content sit directly on the page background.
 
 The tell is a card with nothing beside it. A single centered box on an otherwise empty page
 separates its contents from nothing at all; it only adds a rectangle, an inset, and a second
-background color for the reader to parse. Full-page messages — the phone gate, boot and error
-states — are prose on the canvas: constrain the measure with `max-width`, center it, and stop
-there.
+background color for the reader to parse. Full-page messages — boot and error states — are prose on
+the canvas: constrain the measure with `max-width`, center it, and stop there.
 
-Canonical implementation: `.small-screen-notice` in `src/lib/ui/styles/responsive.css`.
+Canonical implementation: `.error-page` in `src/lib/ui/styles/overlays.css`.
 
 ### The shell is one window, and the linter is one column
 
@@ -388,6 +387,73 @@ It was not made a fourth panel tab, and the reason generalizes: tabs are exclusi
 would make the user choose between seeing diagnostics and controlling audio during the one activity
 where both are live.
 
+**With a software keyboard up, the strip rides the top of it, and pressing it does not close it.**
+Two separate fixes for one failure, and the workbench is unusable on a phone without both.
+
+A keyboard covers the foot of the workbench, transport included, so the row a transcriber needs
+_most_ while typing was the one row they could not reach. `trackKeyboardInset` publishes
+`--keyboard-top` and `data-keyboard-inset` on `<html>`, and `responsive.css` hangs the strip off
+them.
+
+**Nothing in it reads `window.innerHeight`, and that is the whole design.** The obvious measurement
+is `innerHeight - visualViewport.height`, it is what every recipe on the web says, and it is what
+shipped first and did **nothing at all** on a real phone. What the layout viewport does when a
+keyboard opens is browser lore that differs by engine and by version; a rule built on it fails
+silently on the one device it was written for, and passes every test, because no test has a
+keyboard. Both published values come from `visualViewport` alone:
+
+- **`--keyboard-top` is `offsetTop + height`** — the bottom edge of what the user can see, in the
+  space `position: fixed` is measured against. `offsetTop` is not optional: iOS pushes the visible
+  viewport down inside the layout one to bring the caret into view, and dropping it puts the strip
+  over the top row of keys by exactly that much. The CSS moves the strip there with
+  `translateY(calc(var(--keyboard-top) - 100%))` — not `bottom`, which would need the keyboard's
+  height, the thing we could not establish; and not `top`, which relayouts on every event the
+  keyboard fires as it slides in. The `- 100%` is also why nothing here measures the strip: a
+  percentage in a translate resolves against the element's own size, so a JS version of the same
+  offset would have to read the height back and observe it changing.
+- **The flag is the drop in visible height** below the tallest this session has seen, not a
+  comparison against anything the layout viewport reports. A shrinking visual viewport is the one
+  behaviour that is true on every engine. The baseline resets when the viewport changes width,
+  because a rotation is a new viewport and not a keyboard.
+- **The viewport's own events are not enough, and it re-reads on a timer while a keyboard is up.**
+  Dismissing the iOS screenshot preview moved the visible viewport and fired nothing, so the strip
+  stayed pinned where the viewport had been and sat halfway down the keyboard until something else
+  happened; anything the system draws over the page can do this. Twice a second, and only while the
+  flag is set — a pair of property reads that cannot run at all in the state the workbench spends
+  its life in.
+
+**The band below the strip is filled** (`.workspace::after`). Between the visible viewport's bottom
+edge and the foot of the layout viewport is chrome the browser owns — the address pill, the
+keyboard's accessory row — and the page goes on drawing behind it, so the tab strip and the top of
+the findings showed through the gaps around it in pieces. The fill is the strip's own
+`--color-chrome`, so the two read as one band resting on the keyboard. It hangs off the workspace
+rather than the strip because the strip is a horizontal scroller: `overflow-x: auto` computes
+`overflow-y` to `auto` as well, so a pseudo-element below the strip inside it would be clipped and
+would give the shortest row in the window a vertical scroll port.
+
+`env(keyboard-inset-height)` would answer both directly and is not available: it belongs to the
+VirtualKeyboard API, which Safari does not implement, and `interactiveWidget` in the viewport meta
+is Chrome on Android.
+
+The flag is also the whole gate, so the rule needs no pointer query and is inert everywhere else.
+The module publishes lengths and moves nothing; where a band sits stays in the stylesheet with
+every other decision of that kind.
+
+**And a press on the strip keeps the caret in the document.** Focus moves on `mousedown`, so
+preventing its default is what stops a press here from blurring the editor — and on a phone, focus
+leaving the document is the keyboard closing. Buttons only: the scrubber and the rate control need
+their own press to drag and to open, and both are aimed rather than tapped, where a lost keyboard is
+the cheaper cost. `click` is not a default action of `mousedown` and still fires, so nothing else
+changes.
+
+This does not contradict "the editor is deliberately left unfocused" under _Show, don't ask_. That
+rule is about a caret the user did not place — parked on text a panel control happened to select,
+arming their next keystroke over it. Here the caret is exactly where they put it and they are in the
+middle of typing there; taking it away is the bug, not the fix.
+
+Implementation: `src/lib/ui/state/keyboard-inset.ts`, the `:root[data-keyboard-inset]` rule in
+`responsive.css`, and `keepFocus` in `MediaStrip.svelte`.
+
 **Nothing draws while there is nothing to control.** No empty transport, no `Load audio` in the
 toolbar competing with its one contrast action.
 
@@ -538,7 +604,7 @@ Implementation: `src/lib/ui/state/media-player.svelte.ts` (the transport and its
 a real `<audio>` rejects `play()` on a synthetic object URL and ignores `currentTime` until metadata
 arrives, so what is under test is the transport's arithmetic rather than the browser's.
 
-### An anchor is written by typing and read by pressing, and neither one moves the other
+### Every anchor is deliberate, and neither the audio nor the document moves the other
 
 Line anchoring ties a lyric line to the moment in the audio it was transcribed from. It is the one
 feature here with a real capacity to make the editor unusable, because it couples two things that
@@ -558,35 +624,32 @@ do:
   never places a caret, which is exactly what disqualifies the text. `line-anchoring.svelte.test.ts`
   asserts that clicking an anchored line's text and arrowing across anchored lines both seek
   nothing.
-- **Nothing automatic ever overwrites something deliberate.** The automatic stamp passes
-  `overwrite: false`, so returning to a finished line to fix a typo half an hour later leaves that
-  line's time where it was. `Ctrl-Alt-M`, the column's own control, and sync mode are the three
-  things that replace an anchor, and all three are a press the user aimed.
+- **Typing writes no anchor at all.** There are exactly three ways one is set — sync mode's tap,
+  `Ctrl-Alt-M`, and the timestamp column's own control — and all three are a press the user aimed
+  at a line. Each replaces whatever was there, because correcting a wrong time is most of what all
+  three are for, so nothing arbitrates between them and `anchorLineEffect` carries no flag.
 
-**The stamp has to be automatic, and it is safe because of what it does not do.** Nobody
-transcribing a song will press a key per line to record something they are not thinking about, so an
-anchor set only by hand is an anchor that never exists. It rides in the user's own transaction
-through a `transactionExtender` rather than a later one of its own, so the history never grows a step
-nobody performed.
+**There used to be a fourth, automatic, and it was deleted rather than tuned.** Typing a character
+stamped that line with wherever the playhead sat. The intent was that nobody transcribing a song
+will press a key per line, so an anchor set only by hand is an anchor that never exists — but what
+it actually recorded was the moment the user _started typing_ a line, which is after they heard it
+and after however long they spent working out the words. That lag has no fixed size and nothing on
+screen disclosed it:
 
-**It fires on `isUserEvent('input.type')`, and the precision is the whole point.** It was `input`
-once, and `Transaction.isUserEvent` matches by _prefix_ — so `input.atomic`, which
-`transaction-adapter.ts` annotates every programmatic edit with, counted as typing. Applying a
-linter fix stamped the line it repaired; so did a bulk fix, loading the sample, and pasting into an
-empty draft. Attach audio, accept a few suggestions, and the column filled with anchors at whatever
-the playhead was sitting on. `input.type` is what CodeMirror uses for typed characters, and IME
-composition (`input.type.compose`) still matches it under the same prefix rule. Paste is
-deliberately out: a pasted lyric was not transcribed in time.
+- Typing a verse at one pause put every line of it on the same second, so a whole verse pointed at
+  one moment and every jump into it landed in the same place.
+- Typing along with the tape running put every line late by a different amount.
+- Shifting the write back one line does not fix either — it relocates an unbounded error onto a
+  different row, right only by luck.
 
-**And never at zero.** A line anchored to 0:00 by a machine is almost always audio that is attached
-and has never been moved, and it is the worst kind of wrong — it looks like data and it sends the
-reader to the start of the song. The true first line is rare and can be set by hand. Only the
-automatic stamp is held to this; every deliberate one may write zero.
-
-A _paused_ playhead is fine and is deliberately not filtered. The loop this feature exists for is
-listen, pause, type, so the position the tape stopped at is exactly where the line being typed was
-heard — gating the stamp on playback would break the primary workflow to fix a symptom that belongs
-to the two rules above.
+Sync mode is the accurate answer to the job that stamp was invented for, and it was built after it:
+one pass, one tap per line, in rhythm, correctable, with `Ctrl-Alt-M` and the column control for
+fixing a single line afterwards. Three rules existed only to contain the automatic stamp's guesses
+and went with it — the `input.type` prefix precision (`input.atomic` had counted as typing, so
+applying a linter fix stamped the line it repaired), the never-at-zero filter, and the never-
+overwrite flag. **Do not reintroduce it.** A timing derived from when someone typed is a plausible
+number that is wrong by an amount nobody can see, which is worse than the dash that says a line is
+not timed yet.
 
 **An anchor is a range over the line's text, not a point at its start**, and that distinction cost
 two bugs' worth of learning:
@@ -619,12 +682,10 @@ all looked correct, and two other real bugs were fixed in front of it before any
 every optional field and asserts the record comes back whole, so the next omission fails there
 rather than in somebody's lost work.
 
-**Setting an anchor has to schedule its own save, because almost none of them change the text.**
+**Setting an anchor has to schedule its own save, because none of them change the text.**
 `draft.scheduleSave()` runs from `onSnapshot`, and only when the document actually changed — so for
 a while a whole synced song was lost on reload. Sync mode holds the document read-only; `Ctrl-Alt-M`
-and the timestamp column's own control move nothing. The only anchors that survived were the ones
-the automatic stamp happened to write alongside a keystroke, which is the one case that _does_ come
-with a document change. The path is `onAnchorsChanged` on the extension →
+and the timestamp column's own control move nothing. The path is `onAnchorsChanged` on the extension →
 `onLineAnchorsChanged` on the contract → `controller.onLineAnchorsChanged()`, and it deliberately
 stays quiet for two kinds of update: a document change, which the snapshot already covers, and a
 transaction carrying `setLineAnchorsEffect`, which is the draft being read back rather than
@@ -648,8 +709,8 @@ to `pendingLineAnchors` rather than to `[]`, because a save landing before the e
 rename is enough — would otherwise write an empty list over the draft's own timings. `workbench.test.ts`
 pins both halves, and both fail if either guard is relaxed.
 
-Implementation: `src/lib/editor/extensions/line-anchors.ts` (the field, the mapping, the column, the
-auto-stamp), the two commands in `keymap.ts`,
+Implementation: `src/lib/editor/extensions/line-anchors.ts` (the field, the mapping, the column),
+the two commands in `keymap.ts`,
 `getLineAnchors`/`setLineAnchors`/`setMediaPlayhead`/`setLyricSync` on `EditorHandle`, and
 `onRequestMediaTime`/`onSeekMedia`/`onLyricSyncChange` in `contracts.ts` — which, like every other
 hook, must also be added to **`createCallbackProxy` in `create-editor.ts`**, an explicit allow-list
@@ -742,6 +803,25 @@ leaving the caret free to walk and the anchor effects free to land — and every
 when the command returns _false_, so it swallows the space bar, backspace and the up arrow in an
 editor that is not syncing, which is to say almost always. Returning true already prevents the
 default, and returning false is exactly the case that must not. This cost a green suite once.
+
+**A finger has no `Space`, so the tap is also a control.** While a run is under way the strip's
+name slot becomes `Tap each line`, which is the run's instruction and the thing you press at once —
+and on a phone it is the only way to drive a run at all. Three things about it:
+
+- **It is bound to the command, not to a synthesised key event.** `lyricSyncTap` is exported and
+  the `Space` binding, the `Enter` binding and `tapLyricSync` on the handle are all the same
+  command over the same options, so the offset, the deferred advance and the ending on the last
+  line cannot come to mean one thing under a key and another under a finger.
+- **It draws on every pointer**, and only its width follows the device: under a coarse one it takes
+  the row's slack, because a target pressed in rhythm has to be found without looking away from the
+  lyric. A control that exists only on some devices is one nobody documents and nobody tests, and
+  pressing it with a mouse is a legitimate way to time a line. `Space` and `Enter` activate a
+  focused button and are the run's own keys, so the keyboard path survives the button taking focus.
+- **It does not focus the editor.** The press is already in the transport, the caret walks on its
+  own, and the document is read-only for the duration anyway.
+
+The `Esc stops` hint beside it goes under a coarse pointer, where there is neither room for it nor
+a key it names.
 
 **Its control is the one bordered thing in the strip, and it earned the step up.** Set quiet, it
 was a word in the same muted type as the readouts either side of it, in the shortest row in the
@@ -1096,40 +1176,6 @@ linked, but it says so with a step up in color now instead of the absence of an 
 
 Implementation: the `max-width: 46rem` block and `.site-nav` in `src/lib/ui/styles/site.css`.
 
-### An action that cannot complete is never the loud one
-
-The workbench is removed on a phone — `responsive.css` takes it away on `(pointer: coarse)` at
-phone width or landscape height, and the gate stands in its place. The landing page was still
-built for the reader who was about to open it: the contrast-tier `Open the workbench` was the
-loudest thing on the first screen, `Open the app` sat in the masthead, and the one line saying
-`Desktop or laptop` was small, grey, and _under_ the button, so it arrived after the decision.
-
-Where the workbench cannot open, the emphasis follows what the reader can actually have:
-
-- **The masthead drops `Open the app`.** It is the one link there that leads nowhere, and a nav
-  item is too small to explain why. `display: none`, so it leaves the accessible tree with it.
-- **The two hero actions trade tiers.** `Browse the 47 rules` takes the contrast tier and
-  `Open the workbench` steps down to the bordered default — kept rather than removed, because a
-  reader who wants to see what is waiting on a laptop should still be able to look. The loud
-  action is second in the column and that is fine: it is the one the eye lands on, and reordering
-  would put the visual order out of step with the focus order for a two-item list.
-- **The swap is a CSS override, not different classes.** Which tier a control wears is a fact
-  about the device, and the page is prerendered before there is one to ask. Hover and active are
-  overridden with it: a tap applies `:hover` on a touch screen, so leaving them behind flashes
-  each button in the tier it no longer has, at the moment it is pressed.
-
-The query is `(pointer: coarse)` and not width alone, because a narrow window on a laptop is a
-supported size where the workbench opens perfectly well — it is the same test the gate uses, and
-the two are kept in step **by hand**: CSS has no way to name a media query and reuse it. Changing
-one means changing the other.
-
-The closing `Open the workbench` at the foot of the page keeps the contrast tier. By then the
-reader has the whole article behind them, including what it runs on; the hero is where the
-emphasis was lying, because it is what the reader met first.
-
-Implementation: the `(pointer: coarse)` block in `src/lib/ui/styles/site.css`, `.site-nav__app` in
-`src/routes/(site)/+layout.svelte`, and the gate itself in `src/lib/ui/styles/responsive.css`.
-
 ### The demo is as tall as its verse
 
 The landing page's editor is the workbench's `EditorPane`, and for a long time it was also the
@@ -1206,31 +1252,17 @@ both directions (or sticky hover would hold open the thing the second tap just c
 `pointerleave` fires after every tap and releasing there would undo each press on the frame it
 happened.
 
-It is used three times — the document toolbar, the site header, and the phone gate — and only the
-first of those is a toolbar. On the phone gate the lockup is not a
-logo above the message but the **first word of the message**: the h1 reads `Lyric[Lint] needs a
-bigger screen`, and `role="img"` is what puts `LyricLint` back into the heading's accessible name.
-That is also why the component's root is a `span` — a heading takes phrasing content only, and a
-flow-content root gets spaced apart from the text beside it during name computation, so the
-heading announced as two fragments.
+It is used twice — the document toolbar and the site header — and only the first of those is a
+toolbar. It stays able to be the **first word of a sentence** rather than a logo above one:
+`role="img"` puts `LyricLint` into the surrounding accessible name, and the component's root is a
+`span` because a heading takes phrasing content only, and a flow-content root gets spaced apart
+from the text beside it during name computation, so such a heading announces as two fragments.
 
-**On the phone gate hover opens nothing** (`responsive.css`) — the press is the whole affordance
-there. That surface is `pointer: coarse`, where `:hover` is not a state anyone entered on purpose:
-it lands on whatever was tapped last and stays. Left in, it would fight the toggle for the exact
-tap the toggle exists to serve.
-
-**The headline also reserves the taller of its two heights**, because the lockup is a word in a
-wrapping sentence and opening it can add a line. Left alone that line comes out of the layout and
-everything below it climbs; reserving it holds the paragraph still and lets the title drop into
-the space its own second line vacated. This is also what kept an earlier hover-driven version from
-oscillating — the lockup moved a line up the page, out from under the pointer that opened it — and
-it is worth knowing the trap is still there for anything that keys off pointer position here.
-
-The reservation is banded, and the band is measured rather than guessed: below it the sentence
-needs two lines in both states, above it one in both, and only in between does the count change.
-Outside the band the same `min-height` would be empty space above the headline, which is what a
-landscape phone would get. Re-measure the threshold if the copy, the padding, or the display size
-changes.
+**A lockup set inside wrapping copy has to reserve the taller of its two heights**, because opening
+it can add a line. Left alone that line comes out of the layout and everything below it climbs, and
+an earlier hover-driven version oscillated on exactly that — the lockup moved a line up the page,
+out from under the pointer that opened it. The trap is still there for anything that keys off
+pointer position here.
 
 **One driver, not a choreography.** `--wm-open` is a registered `@property` interpolating 0 to 1,
 and it is the only thing that transitions. Every width, tint, flatten, fan, and per-letter fade is
@@ -1250,8 +1282,8 @@ Three things the arithmetic depends on, all easy to break:
   tracking would add a gap the bracket has no room for, and `4ch` would stop being the width of
   `Lint`.
 - **Everything is `em` against the lockup's own `font-size`** — bracket height and width, the
-  waveform's `vector-effect: non-scaling-stroke` width, both slot widths. The phone gate resizes
-  the whole brand with one declaration, and that is the only override it is allowed.
+  waveform's `vector-effect: non-scaling-stroke` width, both slot widths. A surface resizes the
+  whole brand by setting `font-size`, and that is the only override it is allowed.
 
 Implementation: `src/lib/ui/layout/AppWordmark.svelte` (state and markup only) and the arithmetic
 in `src/lib/ui/styles/shell.css`. `src/lib/assets/lyriclint-mark.svg` and the favicon are the
@@ -1292,6 +1324,80 @@ is composited by iOS against a wallpaper and no contrast heuristic runs on it.
 
 Safari caches favicons hard and does not clear them on a normal reload. Verifying a change there
 means clearing website data, not pressing refresh.
+
+### The phone is supported upright and refused on its side
+
+The workbench runs on a phone. The editor and the linter stack (the `68rem` breakpoint), each
+scrolls in its own port, every fix has a button, and the transport's own controls are all a
+touch user needs for playback — nobody transcribes a song on a phone by keyboard shortcut.
+
+**One orientation is refused, and only one.** Turned sideways there is no height left to divide:
+the toolbar, the tab strip and the status bar are fixed costs, and what remains would be a couple
+of lines of lyric over a couple of lines of finding. `(pointer: coarse) and (max-height: 30rem)`
+hides `.app-shell` outright — `display: none` takes the app out of the accessibility tree, which an
+overlay would not have done — and `LandscapeNotice.svelte` takes its place.
+
+Three things that gate depends on:
+
+- **Height _and_ a coarse pointer, never height alone.** A short window on a laptop is a supported
+  size — the stacked layout is what it is for — and a rule keyed on height alone would tell someone
+  with a mouse to rotate a screen they cannot rotate. `e2e/lyriclint.spec.ts` pins both halves.
+- **It is CSS, not `matchMedia`.** The app is prerendered, so a JS gate would ship the workbench
+  markup first and swap it for the notice a frame later, on exactly the devices least able to hide
+  the flash.
+- **It asks for a rotation and offers nothing else.** The way out is a gesture the reader is already
+  holding the device to make, which is what separates it from the whole-phone gate it replaced —
+  there, the device could not run the app at all, so the notice owed the reader somewhere to go.
+
+The notice is prose on the canvas, and the brand is the first word of its headline rather than a
+logo above it. The gate lives in the `(app)` group layout so it cannot reach the pages under
+`(site)`, which read fine held either way round.
+
+Implementation: the `(pointer: coarse) and (max-height: 30rem)` block in
+`src/lib/ui/styles/responsive.css` and `src/lib/ui/layout/LandscapeNotice.svelte`.
+
+### The touch user is told once, and told what is true
+
+A phone visitor meets a workbench built for a wide screen and a keyboard, so `TouchNotice.svelte`
+says so on the way in: the lyrics and the findings stack instead of sitting side by side, every fix
+has a shortcut they do not have, and it will be quicker on a desktop. It says **everything here
+works**, because it does — this is a recommendation, not the gate it replaced.
+
+- **A modal, and the only one that opens by itself.** Nothing else in the workbench appears
+  unasked. It earns that by being the shortest-lived surface in the application: one press and it
+  is gone for the session. A banner would have to live somewhere in a layout whose whole problem is
+  that it has no room to spare.
+- **Session-scoped, like the ignored rules.** A warning that has been read is noise, and one that
+  is never repeated is a warning the user cannot get back; closing the tab forgets it. It is
+  remembered on the dialog's `close` rather than in the button's handler, so `Escape` and a press
+  on the backdrop are remembered too — every way out is the same way out. A browser refusing
+  storage reads as "not seen", which shows it once per load rather than losing it.
+- **A coarse pointer _and_ the stacked layout** (`68rem`), not either alone. The pointer alone
+  stops a tablet in landscape, where the two-column layout is intact and there is nothing to warn
+  about; the width alone stops a narrow window on a laptop, which is a supported size with a
+  keyboard behind it.
+- **Nothing inside it is boxed**, and there is one action. The dialog is already the surface, and
+  there is no `Cancel` because there is nothing to cancel.
+
+### Nothing a finger types into is smaller than 16px
+
+Safari on iOS answers a focus on a field below 16px by zooming the page in, and it does not zoom
+back out — so placing the caret made the whole workbench lurch. The UI ramp tops out at 15px
+(`--font-size-md`), which means every input and the lyric text itself were under the threshold.
+
+Under `(pointer: coarse)` they step up to `--font-size-lg`: the first rung that clears it, a token
+rather than a literal `1rem`, and larger text under a finger on its own merits. The alternative fix
+is `maximum-scale=1` on the viewport meta, which buys the same result by taking pinch zoom away
+from everyone; that is not a trade this application makes, and `src/app.html` must stay
+`width=device-width, initial-scale=1`.
+
+The editor moves through a token of its own, `--font-size-editor`, because two surfaces have to
+move together: the editor, and the landing page's prerendered stand-in, which is sized to be the
+shape the editor will be (see "The demo is as tall as its verse"). Anything new that a caret can
+land in either inherits from the body or names `--font-size-editor` — a field given
+`--font-size-sm` reintroduces the lurch, silently, on a device the test suite does not run on.
+
+Implementation: the `(pointer: coarse)` block in `src/lib/ui/styles/responsive.css`.
 
 ### Design system
 

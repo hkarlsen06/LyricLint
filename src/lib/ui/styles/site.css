@@ -499,7 +499,7 @@
 	padding: var(--space-5) 19px var(--space-5) 61px;
 	margin: 0;
 	font-family: var(--font-mono);
-	font-size: var(--font-size-md);
+	font-size: var(--font-size-editor);
 	line-height: var(--line-height-editor);
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
@@ -748,64 +748,5 @@
 	   stay visible under it. */
 	.site-hero {
 		--site-hero-reserved: 14rem;
-	}
-}
-
-/*
- * A phone, and not a narrow window on a desktop: the same test responsive.css
- * uses to take the workbench away (kept in step with it by hand — CSS has no
- * way to name a media query and reuse it). Everything here follows from that
- * one fact. Where the workbench cannot open, an action that opens it is a wall,
- * and a page may not spend its loudest control on one.
- */
-@media (pointer: coarse) and (max-width: 46rem), (pointer: coarse) and (max-height: 30rem) {
-	/* The masthead's third link is the wall itself, so it is not offered. The
-	   hero still carries the workbench as a quiet action for a reader who wants
-	   to see what is waiting on a laptop; a nav item cannot say that much. */
-	.site-nav__app {
-		display: none;
-	}
-
-	/*
-	 * The two hero actions trade tiers. `Browse the 47 rules` is the whole
-	 * product this reader can actually have — forty-seven rules, each with the
-	 * Genius guideline behind it — and it was the quiet one, sitting under a
-	 * contrast-tier button that leads to a screen saying "not on a phone". The
-	 * fact line under them already states the requirement; the emphasis has to
-	 * agree with it.
-	 *
-	 * Written as an override rather than as different classes because which tier
-	 * a control wears is a fact about the device, and the markup is prerendered
-	 * before there is one to ask. Hover and active come too: a tap applies
-	 * `:hover` on a touch screen, so leaving them behind flashes each button in
-	 * the tier it no longer has, at the moment it is pressed.
-	 */
-	.site-hero .site-actions .button--contrast {
-		border-color: var(--color-control-border);
-		background: var(--color-control);
-		color: var(--color-text);
-	}
-
-	.site-hero .site-actions .button--contrast:hover:not(:disabled) {
-		border-color: var(--color-border-strong);
-		background: var(--color-control-hover);
-		color: var(--color-text);
-	}
-
-	.site-hero .site-actions .button--contrast:active:not(:disabled) {
-		background: var(--color-control-active);
-	}
-
-	.site-hero .site-actions .button:not(.button--contrast) {
-		border-color: var(--color-text);
-		background: var(--color-text);
-		color: var(--color-canvas);
-	}
-
-	.site-hero .site-actions .button:not(.button--contrast):hover:not(:disabled),
-	.site-hero .site-actions .button:not(.button--contrast):active:not(:disabled) {
-		border-color: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
-		background: color-mix(in oklch, var(--color-text) 85%, var(--color-canvas));
-		color: var(--color-canvas);
 	}
 }

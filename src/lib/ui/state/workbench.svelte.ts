@@ -18,6 +18,7 @@ import type {
 } from '$lib/core/types.js';
 import { SvelteDate, SvelteMap } from 'svelte/reactivity';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
+import { randomId } from '$lib/core/random-id.js';
 import { copyCanonicalMarkup, downloadUtf8Text, readClipboardText } from '../clipboard.js';
 import { sampleDraftLanguage, sampleDraftText } from '../sample-draft.js';
 import { createDraftStore } from './draft-store.svelte.js';
@@ -187,12 +188,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	const readClipboard = deps.readClipboard ?? readClipboardText;
 	const exportText = deps.exportText ?? downloadUtf8Text;
 	const now = deps.now ?? (() => new SvelteDate().toISOString());
-	const idFactory =
-		deps.idFactory ??
-		(() =>
-			typeof crypto !== 'undefined' && 'randomUUID' in crypto
-				? crypto.randomUUID()
-				: `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+	const idFactory = deps.idFactory ?? randomId;
 
 	const editorSession = createEditorSession({
 		editor: deps.editor,

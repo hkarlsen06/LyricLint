@@ -45,6 +45,12 @@
 	--line-height-ui: 1.4;
 	--line-height-body: 1.5;
 	--line-height-editor: 1.65;
+	/* The lyric text's own size, alongside its own line height and measure. It is
+	   `md` like the rest of the UI and exists as a token of its own because a
+	   coarse pointer raises it (responsive.css) and two surfaces have to move
+	   together when it does: the editor, and the landing page's prerendered
+	   stand-in, which is sized to be the shape the editor will be. */
+	--font-size-editor: var(--font-size-md);
 	--font-weight-regular: 400;
 	--font-weight-medium: 550;
 	--font-weight-semibold: 650;

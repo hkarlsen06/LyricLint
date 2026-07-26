@@ -132,6 +132,29 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 	return injected;
 }
 
+/**
+ * What the IFrame API's error codes mean, in the words the strip has room for.
+ *
+ * All five used to arrive as one sentence — "That video could not be played." —
+ * which is true of every one of them and useful about none. The distinction that
+ * costs a debugging session is 101/150 against 5: the first is the owner's
+ * decision and no amount of retrying changes it, while the second is this
+ * browser on this page, which is usually the app being served over plain `http`
+ * so the nested player is not a secure context and DRM-protected audio has
+ * nothing to decrypt with.
+ */
+const youtubeErrorMessages: Record<number, string> = {
+	2: 'That video id is not valid.',
+	5: 'This browser could not play that video. Serving the app over https usually fixes it.',
+	100: 'That video is gone — removed, or private.',
+	101: 'The owner does not allow that video to be played outside YouTube.',
+	150: 'The owner does not allow that video to be played outside YouTube.'
+};
+
+function youtubeErrorMessage(code: number): string {
+	return youtubeErrorMessages[code] ?? `That video could not be played (error ${code}).`;
+}
+
 export type YouTubeUrlResult = { videoId: string } | { error: string };
 
 const bareIdPattern = /^[A-Za-z0-9_-]{11}$/;
@@ -407,7 +430,7 @@ export function createYouTubeSource(deps: YouTubeSourceDependencies): YouTubeSou
 			events: {
 				onReady: () => onReady(),
 				onStateChange: (event) => onStateChange(event.data),
-				onError: () => events.failed('That video could not be played.')
+				onError: (event) => events.failed(youtubeErrorMessage(event.data))
 			}
 		});
 	}

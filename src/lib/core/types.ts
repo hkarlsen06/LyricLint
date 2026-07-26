@@ -527,6 +527,14 @@ export interface EditorHandle {
 	 * itself — on `Escape`, or on running out of lines.
 	 */
 	setLyricSync?(active: boolean): void;
+	/**
+	 * One tap of a run, for a pointer with no `Space` to press.
+	 *
+	 * The same command the key is bound to, not a synthesised key event, so the
+	 * two paths cannot come to mean different things. A no-op outside a run, like
+	 * the binding.
+	 */
+	tapLyricSync?(): void;
 	/** Whether the document scrolls to keep the playing line at the reading line. */
 	setFollowPlayhead?(follow: boolean): void;
 }

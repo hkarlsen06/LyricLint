@@ -1,3 +1,4 @@
+import { randomId } from '../core/random-id.js';
 import type { AppMetadataRecord, DraftCreateInput, DraftRecord, DraftRepository } from './types.js';
 import type { LyricLintDatabase } from './database.js';
 
@@ -6,10 +7,6 @@ const RECENT_LANGUAGES_KEY = 'recentLanguages';
 const MAX_RECENT_LANGUAGES = 5;
 const DEFAULT_TITLE = 'Untitled draft';
 const DEFAULT_LANGUAGE = 'en';
-
-function createId(): string {
-	return globalThis.crypto.randomUUID();
-}
 
 function now(): string {
 	return new Date().toISOString();
@@ -58,7 +55,7 @@ function copyDraft(record: DraftRecord): DraftRecord {
 function createRecord(input: DraftCreateInput): DraftRecord {
 	const timestamp = now();
 	const record: DraftRecord = {
-		id: input.id ?? createId(),
+		id: input.id ?? randomId(),
 		title: input.title ?? DEFAULT_TITLE,
 		text: input.text ?? '',
 		language: input.language ?? DEFAULT_LANGUAGE,
@@ -153,7 +150,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			await database.drafts.where('id').equals(id).modify({ title, updatedAt: now() });
 		},
 
-		async duplicate(id, newId = createId()) {
+		async duplicate(id, newId = randomId()) {
 			const source = await database.drafts.get(id);
 			if (source === undefined) {
 				throw new Error('Draft not found.');

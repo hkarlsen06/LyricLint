@@ -142,8 +142,8 @@ function dismissDiagnostic(callbacks: LyricEditorCallbacks): () => boolean {
 /**
  * Anchor this line to where the audio is now, replacing whatever was there.
  *
- * The counterpart to the silent stamp that happens while typing: that one never
- * overwrites, so this is the only way to correct a line whose anchor is wrong.
+ * The keyboard's way to time a single line, and the way to correct one sync mode
+ * got wrong without starting another run over the whole song.
  */
 function anchorCurrentLine(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
 	return (view) => {
@@ -153,11 +153,7 @@ function anchorCurrentLine(callbacks: LyricEditorCallbacks): (view: EditorView) 
 			return announce(callbacks, 'Attach audio before anchoring a line to it.');
 		}
 		view.dispatch({
-			effects: anchorLineEffect.of({
-				pos: view.state.selection.main.head,
-				time,
-				overwrite: true
-			})
+			effects: anchorLineEffect.of({ pos: view.state.selection.main.head, time })
 		});
 		return announce(callbacks, `Line anchored at ${formatAnchorTime(time)}.`);
 	};

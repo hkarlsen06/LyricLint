@@ -398,32 +398,39 @@ test('nothing in the panel can scroll the app shell', async ({ page }) => {
 	await expect(toolbar).toBeInViewport();
 });
 
-test.describe('phone gate', () => {
+test.describe('phone', () => {
 	// A phone is a coarse pointer *and* a small viewport, so the emulation has to
-	// set both: `hasTouch` is what makes `(pointer: coarse)` match, and without it
-	// this would only prove that a narrow window still shows the app.
+	// set both: `hasTouch` is what makes `(pointer: coarse)` match. Upright, the
+	// workbench is served like anywhere else — stacked by the 68rem breakpoint,
+	// not gated away.
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-	test('replaces the workbench with a come-back-on-a-computer notice', async ({ page }) => {
+	test('serves the workbench upright and asks for a rotation on its side', async ({ page }) => {
 		await page.goto('/lint/');
 
-		await expect(
-			page.getByRole('heading', { name: 'LyricLint needs a bigger screen' })
-		).toBeVisible();
-		await expect(page.getByText('Open this page on a laptop or desktop')).toBeVisible();
+		await expect(page.locator('main.workspace')).toBeVisible();
+		await expect(editor(page)).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'LyricLint needs the tall side' })).toBeHidden();
 
-		// Gone from the layout and from the accessibility tree, not just painted over.
+		// Sideways there is no height left to divide between the editor and the
+		// panel, so this one orientation is refused. Gone from the layout and from
+		// the accessibility tree, not just painted over.
+		await page.setViewportSize({ width: 844, height: 390 });
+		await expect(
+			page.getByRole('heading', { name: 'LyricLint needs the tall side' })
+		).toBeVisible();
 		await expect(page.locator('main.workspace')).toBeHidden();
 		await expect(editor(page)).toBeHidden();
 	});
 });
 
-test('a narrow desktop window keeps the workbench', async ({ page }) => {
-	// Same width as the phone above, fine pointer: a resized browser is a
-	// supported size and must not hit the gate.
-	await page.setViewportSize({ width: 390, height: 844 });
+test('a short desktop window keeps the workbench', async ({ page }) => {
+	// The same height as the landscape phone above, with a fine pointer: a short
+	// window on a laptop is a supported size, and telling someone with a mouse to
+	// rotate their screen is the failure the pointer half of the query prevents.
+	await page.setViewportSize({ width: 844, height: 390 });
 	await openWorkspace(page);
-	await expect(page.getByRole('heading', { name: 'LyricLint needs a bigger screen' })).toBeHidden();
+	await expect(page.getByRole('heading', { name: 'LyricLint needs the tall side' })).toBeHidden();
 });
 
 test('offline reopen from cache via the service worker', async ({ page, context }) => {

@@ -349,6 +349,20 @@ describe('what a video says about itself', () => {
 		video.fail();
 
 		expect(player.playing).toBe(false);
-		expect(player.error).toBe('That video could not be played.');
+		expect(player.error).toBe(
+			'This browser could not play that video. Serving the app over https usually fixes it.'
+		);
+	});
+
+	it('separates the owner refusing embedding from this browser failing to play', async () => {
+		const { attach, player } = setup();
+		const video = await attach();
+		video.ready({ duration: 200 });
+
+		video.fail(150);
+		expect(player.error).toBe('The owner does not allow that video to be played outside YouTube.');
+
+		video.fail(999);
+		expect(player.error).toBe('That video could not be played (error 999).');
 	});
 });

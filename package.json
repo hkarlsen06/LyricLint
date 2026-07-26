@@ -5,6 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "BROWSER=Safari vite dev --host",
+		"certs": "mkcert -install && mkcert -cert-file certs/dev-cert.pem -key-file certs/dev-key.pem localhost 127.0.0.1 ::1 \"$(scutil --get LocalHostName).local\" \"$(ipconfig getifaddr en0)\"",
 		"build": "vite build",
 		"e2e": "playwright test",
 		"preview": "vite preview",

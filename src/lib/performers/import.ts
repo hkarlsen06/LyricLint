@@ -7,6 +7,7 @@ import type {
 	SupportedStyleSpan,
 	TextRange
 } from '$lib/core/types.js';
+import { randomId } from '$lib/core/random-id.js';
 import {
 	findExactPerformer,
 	makeVoiceGroupKey,
@@ -38,24 +39,12 @@ export function decodeLegendText(value: string): string {
 	});
 }
 
-function newPerformerId(): string {
-	if (typeof globalThis.crypto?.randomUUID === 'function') {
-		return globalThis.crypto.randomUUID();
-	}
-
-	const randomPart = () =>
-		Math.floor(Math.random() * 0x1_0000)
-			.toString(16)
-			.padStart(4, '0');
-	return `${randomPart()}${randomPart()}-${randomPart()}-4${randomPart().slice(1)}-a${randomPart().slice(1)}-${randomPart()}${randomPart()}${randomPart()}`;
-}
-
 function createRosterAddition(
 	displayName: string,
 	roster: readonly PerformerRecord[]
 ): PerformerRecord {
 	return {
-		id: newPerformerId(),
+		id: randomId(),
 		displayName,
 		normalizedKey: normalizePerformerKey(displayName),
 		aliases: [],
