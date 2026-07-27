@@ -5,7 +5,7 @@ import type {
 	SerializedSelection,
 	TextEdit
 } from '$lib/core/types.js';
-import { assignVoiceGroup } from './index.js';
+import { assignVoiceGroup, canAssignVoiceGroup } from './index.js';
 import { describe, expect, it } from 'vitest';
 
 const header = '[Verse: A & <i>B</i>]\n';
@@ -154,4 +154,64 @@ describe('destructive performer transform boundaries', () => {
 			expect(applyEdits(output, inverseEdits(input, result.edit))).toBe(input);
 		}
 	);
+});
+
+// The picker asks this before it opens itself over a selection nobody invited
+// it to, so every `false` here has to be a range `assignVoiceGroup` would have
+// refused: a card that could only fail is worse than no card.
+describe('canAssignVoiceGroup', () => {
+	const text = '[Verse: A]\nFirst line\nSecond line\n\n[Chorus: A]\nThird line';
+	const document = parseDocument(text);
+
+	function range(needle: string): SerializedSelection {
+		const anchor = text.indexOf(needle);
+		return { anchor, head: anchor + needle.length };
+	}
+
+	it.each([
+		['lyric text', range('First')],
+		['a whole lyric line', range('First line')],
+		['two lyric lines in one section', range('First line\nSecond line')]
+	])('offers an assignment for %s', (_label, selection) => {
+		expect(canAssignVoiceGroup(document, selection)).toBe(true);
+	});
+
+	it.each([
+		['a section header', range('[Verse: A]')],
+		['the legend inside a header', range('A]')],
+		['a selection crossing two sections', range('Second line\n\n[Chorus: A]\nThird')],
+		['whitespace', range('\n\n')]
+	])('refuses %s', (_label, selection) => {
+		expect(canAssignVoiceGroup(document, selection)).toBe(false);
+	});
+
+	// A caret normalizes to its own line, exactly as it does for the transform.
+	// Ruling collapsed selections out is the anchor reporter's job and stays
+	// there: this answers what a range could take, not whether one was made.
+	it('answers for a caret as it does for the line the caret is in', () => {
+		expect(canAssignVoiceGroup(document, { anchor: 12, head: 12 })).toBe(true);
+		expect(canAssignVoiceGroup(document, { anchor: 2, head: 2 })).toBe(false);
+	});
+
+	it('refuses a document with no section header to write the legend into', () => {
+		const bare = 'First line\nSecond line';
+
+		expect(canAssignVoiceGroup(parseDocument(bare), { anchor: 0, head: 5 })).toBe(false);
+	});
+
+	it.each([
+		['a section header', range('[Verse: A]')],
+		['a selection crossing two sections', range('Second line\n\n[Chorus: A]\nThird')]
+	])('agrees with the transform, which blocks %s', (_label, selection) => {
+		const result = assignVoiceGroup({
+			revision: 0,
+			text,
+			document,
+			selection,
+			performerIds: ['A'],
+			roster
+		});
+
+		expect(result.status).toBe('blocked');
+	});
 });

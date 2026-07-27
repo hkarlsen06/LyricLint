@@ -1,10 +1,10 @@
 import { defaultKeymap, historyKeymap } from '@codemirror/commands';
 import type { KeyBinding } from '@codemirror/view';
 import type { EditorView } from '@codemirror/view';
-import { parseDocument } from '$lib/core/parser.js';
 import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js';
+import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
-import { editorComposingField, editorContextField } from './extensions/editor-state.js';
+import { editorComposingField, parsedDocumentForView } from './extensions/editor-state.js';
 import { anchorLineEffect, anchorTimeAt, formatAnchorTime } from './extensions/line-anchors.js';
 import { diagnosticsForState, sortDiagnostics } from './extensions/lint-decorations.js';
 
@@ -34,6 +34,16 @@ function assignPerformers(callbacks: EditorCallbacks): (view: EditorView) => boo
 		if (range.from === range.to || view.state.doc.sliceString(range.from, range.to).trim() === '') {
 			return announce(callbacks, 'Select lyric text before assigning performers.');
 		}
+		// The same question the picker asks itself before opening on a pointer
+		// selection, so the two ways in cannot disagree about what is assignable.
+		// This one says so out loud: the press was aimed at this command, and a
+		// shortcut that silently does nothing reads as a shortcut that is broken.
+		if (!canAssignVoiceGroup(parsedDocumentForView(view), { anchor: range.from, head: range.to })) {
+			return announce(
+				callbacks,
+				'Performers are assigned to lyric lines within one section that has a header.'
+			);
+		}
 		callbacks.onAssignRequest({ range, prefer: 'above' });
 		return true;
 	};
@@ -41,10 +51,7 @@ function assignPerformers(callbacks: EditorCallbacks): (view: EditorView) => boo
 
 function containingSectionRange(view: EditorView): TextRange {
 	const position = view.state.selection.main.head;
-	const text = view.state.doc.toString();
-	const parsedContext = view.state.field(editorContextField)?.parsed;
-	const parsed = parsedContext?.text === text ? parsedContext : parseDocument(text);
-	const section = parsed.sections.find(
+	const section = parsedDocumentForView(view).sections.find(
 		(candidate) => candidate.from <= position && position <= candidate.to
 	);
 	if (!section) {

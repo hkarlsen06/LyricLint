@@ -295,7 +295,10 @@
    the recessed level with an inner shadow, so it looks cut into the run.
    `--color-canvas` is the elevation family's recessed level, not a fill step —
    the rule a card must not cross is about the fill ramp. */
+/* Positioned because the row's press target is measured against it: the card is
+   the control all the way down, explanation included, not just its head. */
 .diagnostic-list > li {
+	position: relative;
 	border: 0;
 	border-bottom: var(--border-width) solid var(--color-border);
 	border-radius: 0;
@@ -320,9 +323,10 @@
 }
 
 /* The head — not the list item — carries the card's padding: there is no dead
-   margin around the heading where a press lands on nothing. */
+   margin around the heading where a press lands on nothing. It is deliberately
+   unpositioned: the stretched press layer below resolves against the row, so a
+   containing block here would stop it at the head's own bottom edge. */
 .diagnostic-list__head {
-	position: relative;
 	display: grid;
 	padding: var(--space-3) var(--space-4);
 	gap: var(--space-1);
@@ -339,8 +343,9 @@
  * The card's whole face is still the control, but the button no longer contains
  * it: the meta line ends in a link to the cited source, and an `<a>` inside a
  * `<button>` is neither valid nor reliably pressable. The button holds the
- * message and stretches its hit area over the whole head instead, so a press
- * anywhere on the card still opens the diagnostic.
+ * message and stretches its hit area over the whole *row* instead — the head,
+ * the explanation under it, and the slack beside the actions — so a press
+ * anywhere on the card that is not aimed at something else opens the diagnostic.
  */
 .diagnostic-list__navigate {
 	display: block;
@@ -358,15 +363,20 @@
 	inset: 0;
 }
 
-/* The citation and its disclosure are the only places on the card that do
-   something else, so they ride above the stretched layer and take their own
-   press. */
+/* Whatever does something else rides above the stretched layer and takes its own
+   press: the citation, its disclosure, and every decision in the expanded card.
+   The buttons and not the row they sit in — lifting `.diagnostic-actions` would
+   make the whole band dead, and the slack beside the last control is card. */
 .diagnostic-list__head .source-citation,
-.diagnostic-list__head .diagnostic-meta__disclosure {
+.diagnostic-list__head .diagnostic-meta__disclosure,
+.diagnostic-details :is(button, a) {
 	z-index: 1;
 }
 
-.diagnostic-list__head .diagnostic-meta__disclosure {
+/* A z-index only counts on a positioned box, and only the citation brings its
+   own. */
+.diagnostic-list__head .diagnostic-meta__disclosure,
+.diagnostic-details :is(button, a) {
 	position: relative;
 }
 

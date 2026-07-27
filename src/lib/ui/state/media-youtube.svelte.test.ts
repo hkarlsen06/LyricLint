@@ -360,7 +360,9 @@ describe('what a video says about itself', () => {
 		video.ready({ duration: 200 });
 
 		video.fail(150);
-		expect(player.error).toBe('The owner does not allow that video to be played outside YouTube.');
+		expect(player.error).toBe(
+			'The owner does not allow that video to be played outside YouTube. Download the audio and attach the file with Change audio.'
+		);
 
 		video.fail(999);
 		expect(player.error).toBe('That video could not be played (error 999).');

@@ -294,6 +294,48 @@ describe('RightPanel', () => {
 		expect(calls.revealed).toEqual([{ from: 9, to: 13 }]);
 	});
 
+	test('takes a press anywhere in the expanded card, and leaves its decisions alone', async () => {
+		const warning = diagnostic({
+			ruleId: 'section.header-missing',
+			severity: 'warning',
+			message: 'Add a section header',
+			from: 9,
+			to: 13
+		});
+		const { controller } = createTestWorkbench({ diagnostics: [warning] });
+		render(RightPanel, { controller });
+
+		const row = screen
+			.getByRole('button', { name: 'Go to Add a section header' })
+			.closest('li') as HTMLElement;
+		const control = row.querySelector('.diagnostic-list__navigate') as HTMLElement;
+		const explanation = row.querySelector('.diagnostic-explanation') as HTMLElement;
+		const ignore = screen.getByRole('button', { name: 'Ignore' });
+
+		// The card is the control all the way down, so the reasoning under the head
+		// hits the same target the message does.
+		const explanationBox = explanation.getBoundingClientRect();
+		expect(document.elementFromPoint(explanationBox.left + 4, explanationBox.top + 4)).toBe(
+			control
+		);
+
+		// So does the slack beside the last decision — a lone control in half a row
+		// of empty gutter is card, not a dead zone.
+		const ignoreBox = ignore.getBoundingClientRect();
+		const rowBox = row.getBoundingClientRect();
+		expect(document.elementFromPoint(rowBox.right - 4, ignoreBox.top + ignoreBox.height / 2)).toBe(
+			control
+		);
+
+		// The decisions themselves ride above that layer and take their own press.
+		expect(
+			document.elementFromPoint(
+				ignoreBox.left + ignoreBox.width / 2,
+				ignoreBox.top + ignoreBox.height / 2
+			)
+		).toBe(ignore);
+	});
+
 	test('ignores, restores, and undo-restores one diagnostic while announcing each action', async () => {
 		const finding = diagnostic({
 			ruleId: 'section.header-missing',
@@ -546,10 +588,10 @@ describe('RightPanel', () => {
 		// should stop pointing at the filters once they no longer hide anything.
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
 		controller.ignoreDiagnostic(finding);
-		await waitFor(() => expect(screen.getByText('All issues ignored')).toBeTruthy());
+		await waitFor(() => expect(screen.getByText('Nothing left to show')).toBeTruthy());
 		expect(
 			screen.getByText(
-				'Every issue in this draft was ignored. Restore diagnostics from Ignored diagnostics below.'
+				'Every finding here is set aside for this session. Bring any of them back from Ignored diagnostics below.'
 			)
 		).toBeTruthy();
 	});

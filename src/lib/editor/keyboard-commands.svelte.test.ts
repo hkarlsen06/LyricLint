@@ -118,8 +118,10 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 	it('opens performer assignment with Ctrl+Alt+P', async () => {
 		const editorCallbacks = callbacks();
 		const { handle } = await mount({
-			text: 'one two three',
-			selection: { anchor: 0, head: 3 },
+			// Headed, because assignment refuses a range with no legend to write
+			// into: the binding is what these two pin, not the refusal.
+			text: '[Verse]\none two three',
+			selection: { anchor: 8, head: 11 },
 			editorCallbacks
 		});
 
@@ -128,7 +130,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 
 		expect(editorCallbacks.onAssignRequest).toHaveBeenCalledOnce();
 		expect(editorCallbacks.onAssignRequest).toHaveBeenCalledWith({
-			range: { from: 0, to: 3 },
+			range: { from: 8, to: 11 },
 			prefer: 'above'
 		});
 	});
@@ -136,8 +138,10 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 	it('keeps Alt+P as an alias for performer assignment', async () => {
 		const editorCallbacks = callbacks();
 		const { handle } = await mount({
-			text: 'one two three',
-			selection: { anchor: 0, head: 3 },
+			// Headed, because assignment refuses a range with no legend to write
+			// into: the binding is what these two pin, not the refusal.
+			text: '[Verse]\none two three',
+			selection: { anchor: 8, head: 11 },
 			editorCallbacks
 		});
 
@@ -146,7 +150,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 
 		expect(editorCallbacks.onAssignRequest).toHaveBeenCalledOnce();
 		expect(editorCallbacks.onAssignRequest).toHaveBeenCalledWith({
-			range: { from: 0, to: 3 },
+			range: { from: 8, to: 11 },
 			prefer: 'above'
 		});
 	});

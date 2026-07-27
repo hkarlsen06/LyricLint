@@ -210,6 +210,16 @@ export interface SelectionAnchor {
 	range: TextRange;
 	rect: ScreenRect;
 	prefer: 'above' | 'below';
-	/** True only for a CodeMirror selection transaction annotated as user selection. */
-	userDriven: boolean;
+	/**
+	 * Whether this selection is one the performer picker may open itself over,
+	 * which takes both a gesture that asked for nothing else (`select.pointer`)
+	 * and a range the assignment could actually be written to
+	 * (`canAssignVoiceGroup`). One flag rather than two, because the overlay layer
+	 * has one decision to make and no use for which half said no.
+	 *
+	 * The geometry beside it is reported for every settled selection either way:
+	 * it is the anchor cache every overlay positions against, including the ones
+	 * that were never opened from a selection.
+	 */
+	offersAssignment: boolean;
 }

@@ -98,6 +98,30 @@ describe('feedback toast lifecycle', () => {
 		expect(feedback.toasts).toHaveLength(0);
 	});
 
+	it('coalesces a repeated message onto one toast, and its Undo runs every action', () => {
+		const feedback = createFeedbackState();
+		const first = vi.fn();
+		const second = vi.fn();
+		const id = feedback.addToast({ message: 'Ignored.', actionLabel: 'Undo', action: first });
+		vi.advanceTimersByTime(ACTION_TOAST_DURATION - 1000);
+		expect(feedback.addToast({ message: 'Ignored.', actionLabel: 'Undo', action: second })).toBe(
+			id
+		);
+
+		expect(feedback.toasts).toHaveLength(1);
+		expect(feedback.toasts[0]?.count).toBe(2);
+
+		// The second occurrence restarts the countdown — a toast the user has not
+		// finished reading must not expire because an earlier copy was about to.
+		vi.advanceTimersByTime(ACTION_TOAST_DURATION - 1);
+		expect(feedback.toasts).toHaveLength(1);
+
+		feedback.runToastAction(id);
+		expect(first).toHaveBeenCalledOnce();
+		expect(second).toHaveBeenCalledOnce();
+		expect(feedback.toasts).toHaveLength(0);
+	});
+
 	it('running the action dismisses the toast and cancels its timer', () => {
 		const feedback = createFeedbackState();
 		const action = vi.fn();

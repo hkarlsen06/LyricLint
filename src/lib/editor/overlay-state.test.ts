@@ -60,7 +60,7 @@ function anchor(overrides: Partial<SelectionAnchor> = {}): SelectionAnchor {
 		range: selection,
 		rect: rect(100),
 		prefer: 'below',
-		userDriven: true,
+		offersAssignment: true,
 		...overrides
 	};
 }
@@ -247,11 +247,24 @@ describe('dismissed selections', () => {
 });
 
 describe('selection anchor reports', () => {
-	it('ignores a selection the user did not make', () => {
+	it('ignores a selection that does not offer an assignment', () => {
 		const session = closedOverlaySession();
 
-		expect(reportSelectionAnchor(session, anchor({ userDriven: false }))).toEqual({
+		expect(reportSelectionAnchor(session, anchor({ offersAssignment: false }))).toEqual({
 			session,
+			assignRequested: false
+		});
+	});
+
+	// The picker is open on the range the user is answering; a selection made
+	// somewhere unassignable while it stands says nothing about that answer.
+	it('leaves an open picker standing when a later selection offers nothing', () => {
+		const open = openPerformerPicker(closedOverlaySession(), selection);
+
+		expect(
+			reportSelectionAnchor(open, anchor({ range: otherRange, offersAssignment: false }))
+		).toEqual({
+			session: open,
 			assignRequested: false
 		});
 	});

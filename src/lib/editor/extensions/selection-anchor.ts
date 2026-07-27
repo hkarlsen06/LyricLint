@@ -1,8 +1,9 @@
 import type { Extension } from '@codemirror/state';
 import { ViewPlugin } from '@codemirror/view';
 import type { EditorView, ViewUpdate } from '@codemirror/view';
+import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { SelectionAnchor } from '../contracts.js';
-import { editorComposingField } from './editor-state.js';
+import { editorComposingField, parsedDocumentForView } from './editor-state.js';
 
 const VIEWPORT_MARGIN = 8;
 
@@ -12,7 +13,7 @@ function isWhitespaceSelection(view: EditorView, from: number, to: number): bool
 
 export function selectionAnchorForView(
 	view: EditorView,
-	userDriven = false
+	pointerDriven = false
 ): SelectionAnchor | undefined {
 	const selection = view.state.selection.main;
 	const from = Math.min(selection.anchor, selection.head);
@@ -53,13 +54,17 @@ export function selectionAnchorForView(
 			height: Math.max(0, bottom - top)
 		},
 		prefer: spaceAbove > spaceBelow ? 'above' : 'below',
-		userDriven
+		// Short-circuited on the gesture, so the parse never runs for the anchors
+		// this plugin reports on every settled scroll, geometry change and typing
+		// pause — which is nearly all of them.
+		offersAssignment:
+			pointerDriven && canAssignVoiceGroup(parsedDocumentForView(view), { anchor: from, head: to })
 	};
 }
 
 class SelectionAnchorReporter {
 	private timer: number | undefined;
-	private pendingUserDriven = false;
+	private pendingPointerDriven = false;
 
 	constructor(
 		readonly view: EditorView,
@@ -75,10 +80,17 @@ class SelectionAnchorReporter {
 
 	update(update: ViewUpdate): void {
 		if (update.selectionSet) {
-			const userDriven = update.transactions.some((transaction) =>
-				transaction.isUserEvent('select')
+			// `select.pointer` and not `select`: a keyboard selection is nearly
+			// always a step inside an edit — Shift-arrow to retype a word,
+			// Shift-End to delete the rest of a line — and a card that opens itself
+			// over the caret mid-edit is interrupting the very gesture it read as an
+			// invitation. A drag or a double-click is terminal: the button came up
+			// and the user is looking at what they picked. The keyboard keeps its
+			// own way in, `Ctrl-Alt-P`, which is a press that meant only this.
+			const pointerDriven = update.transactions.some((transaction) =>
+				transaction.isUserEvent('select.pointer')
 			);
-			this.schedule(userDriven);
+			this.schedule(pointerDriven);
 			return;
 		}
 		if (
@@ -91,18 +103,18 @@ class SelectionAnchorReporter {
 		}
 	}
 
-	private schedule(userDriven?: boolean): void {
-		if (userDriven !== undefined) {
-			this.pendingUserDriven = userDriven;
+	private schedule(pointerDriven?: boolean): void {
+		if (pointerDriven !== undefined) {
+			this.pendingPointerDriven = pointerDriven;
 		}
 		if (this.timer !== undefined) {
 			window.clearTimeout(this.timer);
 		}
 		this.timer = window.setTimeout(() => {
 			this.timer = undefined;
-			const selectionWasUserDriven = this.pendingUserDriven;
-			this.pendingUserDriven = false;
-			this.callback(selectionAnchorForView(this.view, selectionWasUserDriven));
+			const selectionWasPointerDriven = this.pendingPointerDriven;
+			this.pendingPointerDriven = false;
+			this.callback(selectionAnchorForView(this.view, selectionWasPointerDriven));
 		}, this.settleDelay);
 	}
 

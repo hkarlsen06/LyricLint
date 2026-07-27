@@ -178,10 +178,15 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	 * Mark a diagnostic's card and put the editor's selection — and with it the
 	 * active-line wash — on its text, without scrolling deliberately: the
 	 * selection's own nearest-edge scroll is enough to keep it on screen.
+	 *
+	 * It does not clear the preview. Selecting a diagnostic is what *shows* a
+	 * diff, and the card mounting is what asks for it — so clearing here undid
+	 * the request whenever the card was already open on this diagnostic, which is
+	 * every press on an expanded card's own row. The outgoing card's own unmount
+	 * is what retires a diff that nothing wants any more.
 	 */
 	function selectDiagnostic(diagnostic: Diagnostic): EditorHandle {
 		const editor = deps.editor();
-		editor.clearPreview?.();
 		activeDiagnosticKey = diagnosticKey(diagnostic);
 		editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
 		return editor;

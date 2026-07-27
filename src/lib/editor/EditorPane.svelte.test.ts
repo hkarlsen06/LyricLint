@@ -371,28 +371,87 @@ describe('EditorPane', () => {
 		expect(handle.getSnapshot().text).toBe(text);
 	});
 
-	it('opens assignment UI only for a user-driven selection', async () => {
+	it('opens assignment for a pointer selection of lyric text', async () => {
 		const { handle } = await mountEditor({
-			text: 'hello world',
+			text: '[Verse]\nHello world',
 			displayContext: context({ performers: performers() })
 		});
 
-		handle.setSelection({ anchor: 0, head: 5 });
+		await page.getByText('Hello world').dblClick();
+
+		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
+		const { selection } = handle.getSnapshot();
+		expect(selection.anchor).not.toBe(selection.head);
+	});
+
+	it('ignores a programmatic selection', async () => {
+		const { handle } = await mountEditor({
+			text: '[Verse]\nHello world',
+			displayContext: context({ performers: performers() })
+		});
+
+		handle.setSelection({ anchor: 8, head: 13 });
 		await new Promise((resolve) => window.setTimeout(resolve, 100));
+
 		await expect
 			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
 			.not.toBeInTheDocument();
+	});
 
-		handle.setSelection({ anchor: 0, head: 0 });
+	// Shift-arrow is a step inside an edit far more often than it is a request,
+	// so the card would open over the caret in the middle of one. The keyboard
+	// keeps the explicit way in that the test below pins.
+	it('ignores a keyboard selection', async () => {
+		const { handle } = await mountEditor({
+			text: '[Verse]\nHello world',
+			displayContext: context({ performers: performers() })
+		});
+
+		handle.setSelection({ anchor: 8, head: 8 });
 		handle.focus();
-		await userEvent.keyboard('{Shift>}{ArrowRight}{/Shift}');
-		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
-		expect(handle.getSnapshot().selection).toEqual({ anchor: 0, head: 1 });
+		await userEvent.keyboard('{Shift>}{ArrowRight}{ArrowRight}{/Shift}');
+		await new Promise((resolve) => window.setTimeout(resolve, 100));
+
+		expect(handle.getSnapshot().selection).toEqual({ anchor: 8, head: 10 });
+		await expect
+			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.not.toBeInTheDocument();
+	});
+
+	// The header holds the legend the assignment would be written into, so a
+	// selection inside it names no passage anybody sings.
+	it('ignores a pointer selection inside a section header', async () => {
+		await mountEditor({
+			text: '[Verse]\nHello world',
+			displayContext: context({ performers: performers() })
+		});
+
+		await page.getByText('[Verse]').dblClick();
+		await new Promise((resolve) => window.setTimeout(resolve, 100));
+
+		await expect
+			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.not.toBeInTheDocument();
 	});
 
 	it('still opens assignment explicitly with Alt+P for a programmatic selection', async () => {
 		const { handle } = await mountEditor({
-			text: 'hello world',
+			text: '[Verse]\nHello world',
+			displayContext: context({ performers: performers() })
+		});
+
+		handle.setSelection({ anchor: 8, head: 13 });
+		handle.focus();
+		await userEvent.keyboard('{Alt>}p{/Alt}');
+
+		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
+	});
+
+	// The press was aimed at this command, so it is answered rather than
+	// silently ignored the way an uninvited pointer selection is.
+	it('says why Alt+P assigns nothing on a selection that cannot take one', async () => {
+		const { handle, editorCallbacks } = await mountEditor({
+			text: 'Hello world',
 			displayContext: context({ performers: performers() })
 		});
 
@@ -400,7 +459,12 @@ describe('EditorPane', () => {
 		handle.focus();
 		await userEvent.keyboard('{Alt>}p{/Alt}');
 
-		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
+		await expect
+			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.not.toBeInTheDocument();
+		expect(editorCallbacks.onAnnouncement).toHaveBeenCalledWith(
+			'Performers are assigned to lyric lines within one section that has a header.'
+		);
 	});
 
 	it('preselects the performer covering the selection and submits an empty group to remove it', async () => {
@@ -1320,6 +1384,34 @@ describe('EditorPane', () => {
 		expect(added?.textContent).toBe('world');
 		expect(added?.getAttribute('aria-label')).toBe('Suggested addition: world');
 		expect(getComputedStyle(removed as Element).textDecorationLine).toContain('line-through');
+	});
+
+	it('opens the diagnostic from the replacement text as well as from the underline', async () => {
+		// The diff is one object: the struck-through words carry the underline, but
+		// the replacement beside them is a widget outside every mark, so pointing at
+		// the more interesting half of the change used to reveal nothing.
+		const issue = testDiagnostic({ from: 0, to: 5 });
+		const editorCallbacks = callbacks();
+		const { handle } = await mountEditor({
+			text: 'hello!',
+			displayContext: context({ diagnostics: { revision: 0, items: [issue] } }),
+			editorCallbacks
+		});
+
+		handle.previewAtomic?.({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 5, insert: 'world' }]
+		});
+		const inserted = document.querySelector<HTMLElement>('.ll-fix-preview-insert');
+		if (!inserted) {
+			throw new Error('Fix preview was not rendered.');
+		}
+
+		await userEvent.hover(inserted);
+
+		await expect
+			.poll(() => vi.mocked(editorCallbacks.onDiagnosticHighlight!).mock.calls)
+			.toContainEqual([issue]);
 	});
 
 	it('marks a pure deletion without inventing a replacement', async () => {

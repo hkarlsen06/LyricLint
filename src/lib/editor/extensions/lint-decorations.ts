@@ -381,19 +381,25 @@ function diagnosticAtPosition(
 
 function diagnosticAtPointer(event: MouseEvent, view: EditorView): Diagnostic | undefined {
 	const target = event.target instanceof Element ? event.target : undefined;
-	const underline = target?.closest('.ll-diagnostic-range');
-	if (!underline) {
-		return undefined;
-	}
 	const diagnostics = diagnosticsForState(view.state);
-	// Coordinates are the fallback only: resolving the underline's own range is
-	// both exact and cheap enough to run on every pointer move.
-	const fromRange = diagnosticForUnderline(underline, diagnostics);
-	if (fromRange) {
-		return fromRange;
+	const underline = target?.closest('.ll-diagnostic-range');
+	if (underline) {
+		// Coordinates are the fallback only: resolving the underline's own range is
+		// both exact and cheap enough to run on every pointer move.
+		const fromRange = diagnosticForUnderline(underline, diagnostics);
+		if (fromRange) {
+			return fromRange;
+		}
+		const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
+		return position === null ? undefined : diagnosticAtPosition(diagnostics, position);
 	}
-	const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
-	return position === null ? undefined : diagnosticAtPosition(diagnostics, position);
+	// The replacement text a preview inserts belongs to the diagnostic that
+	// proposed it: it sits beside the words it replaces, and a card that opened
+	// over the struck-through half but not the new one made the more interesting
+	// half of the diff a dead zone. The widget has no text of its own to read
+	// coordinates against, so its place in the document is what resolves it.
+	const inserted = target?.closest('.ll-fix-preview-insert');
+	return inserted ? diagnosticAtPosition(diagnostics, view.posAtDOM(inserted)) : undefined;
 }
 
 /**

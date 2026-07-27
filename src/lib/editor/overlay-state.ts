@@ -299,6 +299,11 @@ export function forgetDismissedSelection(session: OverlaySession): OverlaySessio
  * whitespace-only, or composing — which retires the performer picker but
  * leaves a section picker or diagnostic popover alone: neither was opened
  * from the selection.
+ *
+ * An anchor that does not offer an assignment still reports its geometry and
+ * still leaves an open picker standing. It is not a selection going away, it is
+ * a selection this surface has nothing to say about, and closing on it would
+ * shut the card the user is answering the moment they reached past it.
  */
 export function reportSelectionAnchor(
 	session: OverlaySession,
@@ -313,7 +318,7 @@ export function reportSelectionAnchor(
 	const key = rangeKey(anchor.range);
 	const alreadyOpen =
 		session.overlay.kind === 'performer' && rangeKey(session.overlay.range) === key;
-	if (!anchor.userDriven || key === session.dismissedSelection || alreadyOpen) {
+	if (!anchor.offersAssignment || key === session.dismissedSelection || alreadyOpen) {
 		return { session, assignRequested: false };
 	}
 	return { session: openPerformerPicker(session, anchor.range), assignRequested: true };

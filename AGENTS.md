@@ -194,11 +194,37 @@ already blurred it, and a hovered popover's fix no longer hands focus back eithe
 keyboard-opened twin does, as with dismissal). A wash with no caret in it reads as a location;
 a caret parked on text the user never chose would arm their next keystroke over it.
 
+**One document, one diff, and two surfaces that both want it.** A selected diagnostic showing no
+preview is the failure this invariant exists to prevent, and it had two causes, both of them one
+surface reaching into a slot another one owned. Hovering an underline highlights the finding, which
+expands its card, so the panel card and the popover are routinely mounted over the same fix — and
+the popover leaving cleared the diff the still-expanded card was showing. The slot therefore
+belongs to whichever surface mounted last, and a surface leaving **hands it back** to whoever is
+still open rather than clearing it (`shownPreviews` in `DiagnosticActions.svelte`). That also makes
+teardown order irrelevant, which matters because moving the panel's selection destroys one card and
+creates another in the same flush.
+
+**And selecting a diagnostic does not clear the preview, because selecting one is what asks for
+it.** `selectDiagnostic` used to clear first, on the reasoning that the outgoing card's diff had to
+go — but the outgoing card's own unmount already retires it, and clearing here silently undid the
+request whenever the card was _already_ open on that diagnostic, which is every press on an
+expanded card's own row.
+
+**A pointer on the replacement text is a pointer on the finding.** The struck-through half of the
+diff is inside the underline and always resolved; the inserted half is a widget outside every mark,
+so it revealed nothing and the more interesting half of the change was a dead zone. Two things it
+needs, and the second is the one that costs an afternoon: `diagnosticAtPointer` resolves
+`.ll-fix-preview-insert` through `posAtDOM` (a widget has no text under it to read coordinates
+against), and the widget has to override `ignoreEvent` — CodeMirror stops at the first `ignoreEvent`
+on the way up from the target, so a widget swallows every plugin handler by default and the hover
+watcher never ran at all. Only `mousemove` is let through: the diff is not text, and a press must
+not put a caret inside a change nobody has applied.
+
 Implementation: `src/lib/editor/extensions/fix-preview.ts` renders the diff,
 `src/lib/core/fix-preview.ts` picks the fix, and `src/lib/diagnostics/DiagnosticActions.svelte`
 binds it to its own mounted lifetime — which is the open/close lifetime of whichever surface
-rendered it. `leadAfterFix` in `src/lib/ui/state/panel-view.svelte.ts` is the advance, consumed on
-the snapshot that dispatch emits.
+rendered it, plus the hand-off above. `leadAfterFix` in `src/lib/ui/state/panel-view.svelte.ts` is
+the advance, consumed on the snapshot that dispatch emits.
 
 **A fix is not the only edit that needs the advance.** Anything that replaces the whole document —
 loading the sample, pasting into an empty draft — lands the panel on a leading finding while the
@@ -296,9 +322,19 @@ than something they need in front of them on every card.
 
 The panel card also changed shape for this. The row is still the control, but the button no longer
 _contains_ the head: an `<a>` inside a `<button>` is neither valid nor reliably pressable. The
-button holds the message and stretches its hit area over the whole head with an inset `::after`,
-the citation and its disclosure ride above that layer with `z-index`, and hover and the focus ring
+button holds the message and stretches its hit area over the row with an inset `::after`, the
+citation and its disclosure ride above that layer with `z-index`, and hover and the focus ring
 are read off the head with `:has()` — off the button alone they would light up only the message.
+
+**The card is the control all the way down, not just at its head.** Expanded, it is the message,
+the meta line, the explanation, and the decisions; only the first two used to open the diagnostic,
+so half the surface the reader was looking at did nothing. The stretched layer is measured against
+the `<li>` — which is why the head is deliberately unpositioned, a containing block there stops the
+layer at the head's own bottom edge — and what does something else is lifted over it. That is the
+**buttons**, not the row holding them: lifting `.diagnostic-actions` would make its whole band dead,
+and the slack beside the last control is card, exactly as the head's padding is. The one thing this
+costs is selecting the explanation's prose with the pointer, which is the trade a card that is a
+control makes anyway.
 
 ### A draft is one line, and an empty draft is not a draft
 
@@ -1017,6 +1053,50 @@ nothing renders is the same drift as a fallback color for a token nothing define
 `ToolsPanel.svelte.test.ts` asserts the heading list, the single action row, and the _absence_ of any
 audio control — re-adding one here is the specific regression that made the panel messy the first
 time.
+
+### A surface that opens itself has to have been asked, twice over
+
+The performer picker is the one overlay in the workbench that appears without a press aimed at
+it: select lyric text and it is there. That is worth having — assignment is the workbench's one
+selection-scoped job, and a card that arrives with the selection is faster than any command — but
+it puts the surface on the most common gesture in a text editor. People select text to re-read a
+line, to drag it, to delete it and type over it. So it opens on two conditions, and **it is silent
+when either fails**, because the user asked for nothing and owes no answer to a question they did
+not put.
+
+- **The gesture has to have meant only that.** `select.pointer`, never `select`. A drag or a
+  double-click is terminal: the button came up and the user is looking at what they picked. A
+  keyboard selection is nearly always a step _inside_ an edit — Shift-arrow to retype a word,
+  Shift-End to cut the rest of a line — so a card that opens over the caret there interrupts the
+  very gesture it read as an invitation. The keyboard keeps `Ctrl-Alt-P`, which is a press that
+  meant only this.
+- **The range has to be one an assignment could be written to**, which is `canAssignVoiceGroup` in
+  `performers/transform.ts` and not a predicate of the editor's own. It is the three checks
+  `assignVoiceGroup` opens with, through the same helpers, so the card cannot offer an assignment
+  the transform is about to refuse: a header, the legend inside it, a drag across two sections, and
+  a document with no headers at all are all ranges the picker used to open on and then fail from.
+  What it does not ask about is the roster — an empty one is answered by the card's own inline add,
+  and `too-many-groups` depends on performers the card is open to choose.
+
+**One flag on the anchor, `offersAssignment`, and not two.** The overlay layer has one decision to
+make and no use for which half said no; the flag also short-circuits on the gesture, so the parse
+behind the second half never runs for the anchors the plugin reports on every settled scroll,
+geometry change and typing pause, which is nearly all of them. The geometry beside it is still
+reported for every selection either way — it is the cache every anchored overlay positions
+against, including the two that were never opened from a selection.
+
+**Not offering is not the same as the selection going away.** An anchor with nothing to offer
+leaves an open picker standing; only `undefined` — collapsed, whitespace, composing — retires it.
+Closing on the first unassignable selection would shut the card the moment a user reached past it.
+
+**`Ctrl-Alt-P` asks the same question and answers out loud.** Two ways in that disagree about what
+is assignable is the bug this section exists to prevent, so both call the one predicate; what
+differs is what a refusal costs. The uninvited surface stays quiet, and the aimed press gets a
+sentence, because a shortcut that silently does nothing reads as a shortcut that is broken.
+
+`EditorPane.svelte.test.ts` pins all four cases — pointer opens, keyboard does not, programmatic
+does not, a header does not — and `transform-boundaries.test.ts` pins the predicate against the
+transform's own `blocked` verdicts, so the two cannot drift apart.
 
 ### Every transient surface dismisses on an outside press
 

@@ -75,9 +75,12 @@
 		}
 		if (controller.snapshot.diagnostics.length > 0) {
 			return {
-				title: 'All issues ignored',
+				// Not "all issues ignored", which reads as a verdict on the reader. The
+				// findings are set aside, not dismissed, and the way back is offered
+				// rather than instructed.
+				title: 'Nothing left to show',
 				detail:
-					'Every issue in this draft was ignored. Restore diagnostics from Ignored diagnostics below.'
+					'Every finding here is set aside for this session. Bring any of them back from Ignored diagnostics below.'
 			};
 		}
 		return {

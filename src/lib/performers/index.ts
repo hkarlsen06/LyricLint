@@ -31,6 +31,7 @@ export { allocateStyleSlot, analyzeSlotOrder } from './allocation.js';
 export {
 	assignmentNeedsSectionVoice,
 	assignVoiceGroup,
+	canAssignVoiceGroup,
 	assignVoiceLegend,
 	insertSectionHeader,
 	removeDifferentiation

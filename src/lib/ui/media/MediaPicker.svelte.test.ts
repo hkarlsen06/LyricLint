@@ -154,6 +154,30 @@ describe('MediaPicker', () => {
 		expect(dialog()?.open).toBe(false);
 	});
 
+	// A draft already on a video opens the field holding that video's link,
+	// selected — copying it out and typing over it are both one gesture from here.
+	it('prefills and selects the link of the video already attached', async () => {
+		const { media } = setup();
+		await media.attachYouTube('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90s');
+
+		await page.getByRole('button', { name: 'Change audio' }).click();
+
+		const input = page.getByLabelText('YouTube link').element() as HTMLInputElement;
+		expect(input.value).toBe('https://youtu.be/dQw4w9WgXcQ');
+		expect(input.selectionStart).toBe(0);
+		expect(input.selectionEnd).toBe(input.value.length);
+	});
+
+	// A file is not a link, so there is nothing to offer back.
+	it('opens empty for a draft on a local file', async () => {
+		const { media } = setup();
+		await media.attachFile(new File([''], 'track.mp3'));
+
+		await page.getByRole('button', { name: 'Change audio' }).click();
+
+		expect((page.getByLabelText('YouTube link').element() as HTMLInputElement).value).toBe('');
+	});
+
 	// The slot never moves; only the label follows the state. A control that
 	// disappeared once audio was attached would take the only way to swap tracks
 	// with it.

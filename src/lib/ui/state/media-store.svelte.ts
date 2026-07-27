@@ -64,6 +64,15 @@ export interface MediaStore {
 	readonly pendingName: string | undefined;
 	/** What `pendingName` refers to, so a surface can say which press it is. */
 	readonly pendingSource: MediaSourceKind | undefined;
+	/**
+	 * The video this draft is on, loaded or still waiting on the opt-in.
+	 *
+	 * Not `pendingVideoId`, which is only the half of that the picker has yet to
+	 * spend a gesture on. This is the durable fact, so the picker can offer the
+	 * link already in use rather than an empty field over a video the user would
+	 * otherwise have to go and find again.
+	 */
+	readonly videoId: string | undefined;
 	readonly busy: boolean;
 	/**
 	 * Whether the user has chosen YouTube in this session.
@@ -166,6 +175,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	let pendingHandle: PersistableFileHandle | undefined;
 	let pendingVideoId: string | undefined;
 	let pendingPosition: number | undefined;
+	let currentVideoId = $state<string | undefined>(undefined);
 	let busy = $state(false);
 	let youtubeAllowed = $state(false);
 
@@ -232,6 +242,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		pendingHandle = undefined;
 		pendingVideoId = undefined;
 		pendingPosition = undefined;
+		currentVideoId = undefined;
 		ownerDraftId = deps.draftId();
 		lastWriteAt = clock();
 		lastWritten = startAt;
@@ -250,6 +261,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 	async function adoptVideo(videoId: string, name: string): Promise<void> {
 		const startAt = claim();
+		currentVideoId = videoId;
 		await player.attachVideo({
 			videoId,
 			name,
@@ -271,6 +283,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		},
 		get pendingSource() {
 			return pendingSource;
+		},
+		get videoId() {
+			return currentVideoId;
 		},
 		get busy() {
 			return busy;
@@ -396,6 +411,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			pendingHandle = undefined;
 			pendingVideoId = undefined;
 			pendingPosition = undefined;
+			currentVideoId = undefined;
 			lastWritten = undefined;
 			try {
 				await deps.repository.detach(deps.draftId());
@@ -416,6 +432,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			pendingHandle = undefined;
 			pendingVideoId = undefined;
 			pendingPosition = undefined;
+			currentVideoId = undefined;
 			lastWritten = undefined;
 
 			let record;
@@ -431,6 +448,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			pendingHandle = record.handle as PersistableFileHandle | undefined;
 			pendingVideoId = record.videoId;
 			pendingPosition = record.position;
+			currentVideoId = record.videoId;
 
 			// A video is loaded without a press only where the user has already said
 			// yes to Google in this session — the same trade the file path makes with

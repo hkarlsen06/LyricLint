@@ -16,12 +16,17 @@
 	// swap tracks with it.
 	const label = $derived(media.player.attached || media.pendingName ? 'Change audio' : 'Add audio');
 
+	// The link already in use, in the form worth having on a clipboard. A draft on
+	// a video knows which one, so the field opens holding it — and holds it
+	// selected, because the two things done to a link that is already there are
+	// copying it out and typing over it, and a selection is the one state that
+	// serves both without a clearing press first.
 	async function open(): Promise<void> {
-		url = '';
+		url = media.videoId ? `https://youtu.be/${media.videoId}` : '';
 		error = undefined;
 		dialog.showModal();
 		await tick();
-		urlInput.focus();
+		urlInput.select();
 	}
 
 	function close(): void {

@@ -493,6 +493,33 @@ function normalizeSelection(
 }
 
 /**
+ * Whether a range could take a voice-group assignment at all.
+ *
+ * This is the question the selection picker asks before opening itself over a
+ * selection nobody invited it to, so it has to be the transform's own answer
+ * rather than a second opinion: it runs the three checks `assignVoiceGroup`
+ * opens with, through the same helpers. The range has to normalize to real
+ * text; it has to sit inside one section's lyric bounds, which is what rules
+ * out a header, the legend inside it, a drag that crosses two sections, and a
+ * document with no sections at all; and that section needs a header for the
+ * legend to be written into.
+ *
+ * What it deliberately does not ask about is the roster. An empty one is
+ * answered by the card's own inline add, and `too-many-groups` depends on which
+ * performers are chosen — which is the question the card is open to ask.
+ */
+export function canAssignVoiceGroup(
+	document: ParsedDocument,
+	selection: SerializedSelection
+): boolean {
+	const range = normalizeSelection(document, selection);
+	if (typeof range === 'string') {
+		return false;
+	}
+	return sectionForRange(document.sections, range)?.header !== undefined;
+}
+
+/**
  * Whether assigning here would write a legend that does not begin at the plain
  * slot, because unstyled lyrics stay behind with nobody named for them.
  *

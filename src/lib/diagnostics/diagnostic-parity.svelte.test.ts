@@ -207,6 +207,41 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		}
 	});
 
+	it('hands the one preview slot back when the other surface closes', () => {
+		// Hovering an underline opens the popover over a card the panel already has
+		// expanded, so both surfaces want the same diff. The popover leaving used to
+		// clear it outright, and the still-expanded card was left describing a
+		// change the document no longer showed.
+		const diagnostic = contractionDiagnostic();
+		const card = { onPreviewFix: vi.fn(), onCancelPreview: vi.fn() };
+		const popover = { onPreviewFix: vi.fn(), onCancelPreview: vi.fn() };
+		const panel = render(DiagnosticDetails, {
+			diagnostic,
+			onChooseHeader: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn(),
+			...card
+		});
+		const overlay = render(DiagnosticPopover, {
+			diagnostic,
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn(),
+			...popover
+		});
+		expect(popover.onPreviewFix).toHaveBeenCalledTimes(1);
+
+		overlay.unmount();
+
+		// The card that is still open re-asserts its diff, and nothing cleared it.
+		expect(popover.onCancelPreview).not.toHaveBeenCalled();
+		expect(card.onCancelPreview).not.toHaveBeenCalled();
+		expect(card.onPreviewFix).toHaveBeenCalledTimes(2);
+
+		// Nothing is left showing a diff, so the last surface out clears the slot.
+		panel.unmount();
+		expect(card.onCancelPreview).toHaveBeenCalledTimes(1);
+	});
+
 	it('marks the finding with the same severity tag in both places', () => {
 		const diagnostic = contractionDiagnostic();
 		const popover = render(DiagnosticPopover, {

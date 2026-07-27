@@ -8,6 +8,8 @@ export interface ToastMessage {
 	action?: () => void;
 	/** Milliseconds before auto-dismiss. Defaults by action presence. */
 	duration?: number;
+	/** How many identical messages this toast stands for. Absent means one. */
+	count?: number;
 }
 
 /** Informational toasts linger briefly; actionable ones long enough to react. */
@@ -85,6 +87,38 @@ export function createFeedbackState(): FeedbackState {
 			announcementId += 1;
 		},
 		addToast(toast) {
+			// The same message twice is one thing that happened twice — ignoring two
+			// occurrences of a rule stacked two identical cards, and the second said
+			// nothing the first had not. It coalesces onto the existing toast with a
+			// count, its countdown restarts, and its Undo runs every action it stands
+			// for, so the badge and the press agree about how many.
+			const existing = toasts.find(
+				(candidate) =>
+					candidate.message === toast.message && candidate.actionLabel === toast.actionLabel
+			);
+			if (existing) {
+				const previous = existing.action;
+				const next = toast.action;
+				const merged: ToastMessage = {
+					...existing,
+					count: (existing.count ?? 1) + 1,
+					action:
+						previous && next
+							? () => {
+									previous();
+									next();
+								}
+							: (next ?? previous)
+				};
+				toasts = toasts.map((candidate) => (candidate.id === existing.id ? merged : candidate));
+				clearCountdown(existing.id);
+				startCountdown(
+					existing.id,
+					toast.duration ?? (merged.action ? ACTION_TOAST_DURATION : INFO_TOAST_DURATION)
+				);
+				return existing.id;
+			}
+
 			const id = toast.id ?? `toast-${++nextToastId}`;
 			toasts = [...toasts, { ...toast, id }];
 			while (toasts.length > MAX_VISIBLE_TOASTS) {

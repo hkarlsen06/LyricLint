@@ -8,7 +8,8 @@
 		typeof window !== 'undefined' &&
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-	const motion = { y: 6, duration: reducedMotion ? 0 : 150 };
+	// The region hangs under the toolbar, so a toast arrives from behind it.
+	const motion = { y: -6, duration: reducedMotion ? 0 : 150 };
 
 	function stillEngaged(toast: HTMLElement, next: EventTarget | null): boolean {
 		if (next instanceof Node && toast.contains(next)) return true;
@@ -32,6 +33,9 @@
 			onfocusin={() => feedback.pauseToast(toast.id)}
 			onfocusout={(event) => release(toast.id, event.currentTarget, event.relatedTarget)}
 		>
+			{#if (toast.count ?? 1) > 1}
+				<span class="toast__count" role="img" aria-label="{toast.count} times">{toast.count}</span>
+			{/if}
 			<p>{toast.message}</p>
 			<div class="toast__actions">
 				{#if toast.action && toast.actionLabel}
