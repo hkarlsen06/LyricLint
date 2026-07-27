@@ -388,11 +388,11 @@ every attachment path already passes through, rather than three that each have t
 The predicate is read on **every** save, not only the one attaching triggers. The document is still
 wordless on the next snapshot, so a one-shot write would be undone a keystroke later by the very
 discard it was working around. This costs a wordless draft with a song in it a row in the drafts
-list, which is the right trade: an `Untitled draft` the user can see and delete beats an attachment
+list, which is the right trade: an `Untitled transcription` the user can see and delete beats an attachment
 that vanishes with no sign it existed.
 
 **A draft with nothing in it is never written.** Every "new draft" used to create a record
-immediately, so a session of second thoughts left a list of `Untitled draft`s that had never held a
+immediately, so a session of second thoughts left a list of `Untitled transcription`s that had never held a
 character. Now `createDraft` loads a transient record and writes nothing; the first save with text
 in it is what creates the row and takes over the current-draft pointer, so a reload before the
 first keystroke comes back to the draft that still has the work in it. A draft emptied out gives up
@@ -610,6 +610,71 @@ combos on a Norwegian Mac; `.` already means "diagnostic" here through `Mod-.`.
 Worth knowing before trusting a green suite: `userEvent` reports `key='p'` for `Alt-p`, so CodeMirror
 matches by name and never reaches the base-key fallback it refuses. **The alias tests pin the
 binding's existence, not the macOS failure** — that one is reproducible only on real hardware.
+
+**A press made before the source can act on it is remembered, not dropped.** A remote source is not
+ready the moment its strip draws: a video is waiting on Google's player, a track on a device
+registration, a song on a script, a sign-in and a queue. The transport is on screen and live for
+that whole gap, and every press in it used to go on the floor — so the user pressed play, got
+silence, pressed again, and eventually one landed by luck. `playWhenReady` in
+`media-player.svelte.ts` holds the press and `playIfAsked` spends it when the attachment lands.
+
+Three things it needs, and the second is the one that stops the rage rather than merely fixing the
+bug:
+
+- **It lives in the transport, not in a source.** The YouTube bridge solved this for itself with a
+  `wantPlaying` flag it replays when its player arrives — right behaviour, wrong place, because it
+  left the identical gap open in the two sources written after it. Spotify's `startPlayback`
+  returns early on a missing `deviceId`; Apple's `music` is undefined for most of `load`. One rule
+  above all four is the whole fix.
+- **`playing` reports the queued press**, so the control flips to Pause the instant it is made. A
+  press that works but shows nothing for a second is still a press somebody makes twice, and the
+  second one has to mean something: `toggle` reads `player.playing` rather than the bare state, so
+  pressing again cancels the pending start instead of asking for it a second time. Repeated
+  presses collapse to one start.
+- **A failure clears it.** `events.failed` and `playIfAsked` both refuse to start something the
+  source has already reported it cannot play — answering a real error with silence and a Pause
+  button is the failure this was supposed to prevent, wearing a different hat.
+- **And the wait is drawn, not merely handled.** A Pause button over silence is only half an
+  answer; the half that was missing still read as nothing having happened. `player.starting` is the
+  other half and is the only thing it is for — the transport puts a `.spinner` in the glyph's own
+  slot while it is true, so nothing in the row moves. The label stays `Pause`, because that is
+  still what the press does, and `aria-busy` carries the wait: a label reading `Loading` would name
+  the state and lose the action.
+
+**`.spinner` is the one shared answer to a wait with no measurable end, and it is deliberately
+scarce.** Every other progress in this application is a state that can be named — saving, attached,
+ready — and says so in words. There are three places where the honest answer is only "a request is
+out": a track told to play before its source could take the instruction, a catalogue search, and
+the attach behind a pressed search result. All three looked exactly like nothing happening. It is
+not a substitute for a control saying what it did, and it is never a fourth way to say something a
+word already says.
+
+Three things it owes:
+
+- **It takes `currentColor` and `1em`**, so it belongs to whatever it is inside — a quiet button in
+  a chrome row, a bordered button in a dialog, a transport glyph over an album cover — without
+  either surface knowing about it.
+- **It is slowed under `prefers-reduced-motion`, not stopped.** A still ring reads as a drawing, so
+  stopping it loses the one piece of information the element carries, exactly where a text
+  alternative is least likely to be noticed.
+- **It goes in a slot that already had a size.** The transport's glyph, and the duration at the end
+  of a search result — never appended beside something, which reflows a row under the pointer that
+  just pressed it. The search control is the same rule in reverse: the label stays `Search` and the
+  spinner joins it, rather than the word swapping to `Searching…` and resizing a control that sits
+  beside a field the user may still be typing into.
+
+**A pressed result names itself.** `media.busy` covers the attach, but on its own it only disables
+controls, which reads as the dialog having gone dead rather than as work being done — and it cannot
+say _which_ row was pressed. The picker holds the id it is attaching so the spinner lands on the row
+the user aimed at, and both search flags clear in a `finally`: a spinner left turning over a refused
+request is worse than the silence it replaced.
+
+The other half of the same complaint is not a queue but a wait worth shortening: **nothing that the
+press is not waiting on may be awaited in front of it.** The Apple source fetched a song's name and
+length and only then built the queue, which put a whole network round trip between the user and
+their first press for two things that have nothing to do with each other. They run together now, so
+the wait is the slower of the two rather than the sum, and `load` still resolves with both in —
+which is what lets the transport treat "attached" as "ready to play".
 
 **Two defaults do more work than the keys.** A resume backs up two seconds, because the words either
 side of a pause are the ones hardest to place and a resume that starts where the ear stopped means
@@ -1157,6 +1222,251 @@ field added to all three or silently dropped by two.
 Implementation: `src/lib/ui/state/spotify-auth.ts` (PKCE, tokens, the redirect),
 `media-spotify.ts` (the source and the link parser), and `media-spotify.test.ts`, whose stub SDK is
 what makes "attaching plays nothing" an assertion rather than a hope.
+
+### Apple Music is the fourth source, and the only remote one the deployed build ships
+
+It clears both of the things that make Spotify a local-only experiment, which is the whole reason
+it exists here. **There is no allowlist and no quota review** — an Apple Developer Program
+membership signs the token and any Apple Music subscriber can then use it, so this is the one
+remote source a stranger can actually be offered. **And it has a playback rate**, which Spotify
+has at no layer, which makes it the better source than YouTube for the job this application is
+for.
+
+What it costs instead is a signature, and that is the only real friction: the developer token is a
+JWT signed with a Media Services key, and Apple caps it at **six months**.
+
+**The token is not a secret, and treating it as one would break the feature silently.** It is
+handed to every browser that loads the workbench — that is what a developer token _is_ — so it is
+inlined in the bundle as `PUBLIC_APPLE_MUSIC_TOKEN` and committed to nothing. The `.p8` that signs
+it is the secret and never leaves the machine that mints it. The trap this avoids is the one
+Spotify's client id documents: `import.meta.env` resolves at **build** time, so a Cloudflare Pages
+_runtime_ variable or a `wrangler secret` never reaches the bundle and Apple Music would work
+locally and quietly vanish from the deployed picker. Production sets it as a **build** variable.
+
+**`appleMusicConfigured` reads `exp` rather than testing for presence**, and that is not
+belt-and-braces. The failure this will actually meet is not a missing token but a stale one, six
+months from whenever it was last minted — and a stale one otherwise fails as a 401 under a press,
+several steps after the point where anything could have said so. Reading the expiry turns that
+into the picker not drawing an answer it cannot carry out, which is the rule `availableRates` and
+`spotifyAvailable` both follow. A token the parser cannot read counts as unusable rather than as
+unlimited: one this module cannot vouch for is one it should not offer.
+
+Rotating it is `bun run token:apple -- --key <path to the .p8>`, one variable, and a redeploy.
+`ieee-p1363` in that script is load-bearing — Node signs ES256 as a DER sequence by default and
+JWS wants the raw r‖s pair, and the difference is invisible until Apple answers 401 with nothing
+to go on.
+
+**It is the least asymmetric of the three remote sources, and each difference is machinery the
+other two need and this one does not.**
+
+- **There is a cue.** `setQueue({ startPlaying: false })` points the player at a song without a
+  note of sound, so attaching is silent the way YouTube's is — rather than by deferring the start,
+  which is the whole shape of the Spotify module.
+- **There is a `playbackTimeDidChange` event**, so nothing here polls. Both other bridges run a
+  250ms timer because their players report no such thing.
+- **There is a rate**, and the source claims it back on every attach. The transport does not reset
+  `availableRates` between attachments, so a song attached after a Spotify track would otherwise
+  inherit that source's narrowing to `[1]`.
+
+What it does share with Spotify is that **a seek before the first press has nowhere to land**:
+`seekToTime` needs a `nowPlayingItem`, which does not exist until playback has started. So a
+restored position is spent as the queue's `startTime` rather than as a seek, and `started` is what
+tells the two apart.
+
+**A remembered song is always pending, and that is a deliberate divergence.** Spotify can come
+back without a press where the session already holds a token, because that question is one
+`sessionStorage` read. Apple's cannot: MusicKit keeps its own user token, and the only way to ask
+whether it still has one is to load Apple's script — which is the exact thing an untouched page
+must not do, and the reason `youtubeAllowed` exists. So the press pays for the script and the
+sign-in together, and where Apple already has a session the sign-in step passes straight through,
+which is the same trade the file source makes with an already-granted permission.
+
+**The search signs in to nothing.** Apple's catalogue answers to this build's own developer token,
+so a user finds their song before being asked for an account — one better than Spotify, where
+searching is what triggers the OAuth redirect. It searches `music.storefrontId` rather than a
+fixed storefront, because a search against the wrong one returns songs the subscription cannot
+play, which is the same class of wrong answer as offering a rate that will not apply.
+
+**The link parser checks `?i=` before the path, and that ordering is the bug it exists to
+prevent.** Apple's share sheet copies an _album_ URL with the song hanging off it as a query
+parameter, which is the form nearly everybody will paste — and the album id in the path is a
+perfectly valid id, so a parser reading the path first attaches the album's opening track for
+every share link Apple produces. Silently, and only wrong for songs that are not track one.
+
+**The attribution is Apple's own `Listen on Apple Music` lockup, and every part of how it is drawn
+comes from a rule rather than a preference.** Spotify's glyph is one flat shape in one fixed green,
+so `.media-strip__spotify` can draw it from a path and spend a literal color on it. Apple's
+guidelines say the opposite three times over — use their artwork and never draw one, never remove
+the `Listen on` call to action from the badge, never stretch or recolor it — so this is their file,
+whole, at its own aspect ratio, with no hover treatment and no `currentColor`. Even the white
+lockup keeps Apple's gradient on the note; only the type is white, so there is no monochrome
+version of _this_ asset to tint. (There is one of the standalone icon, which is a different
+download and would lose the call to action.)
+
+Four things that follow, and two of them are traps:
+
+- **It is an `<img>`, not an inline SVG.** Both files were exported from Illustrator with the same
+  `.st0`/`.st1` class names and the same `SVGID_1_` gradient id, so two of them inlined in one
+  document collide on both — and a URL reference is also what makes "unmodified" true by
+  construction.
+- **It is inlined as a data URI, by an exception in `vite.config.ts`.** Apple's lockups are ~7.5KB
+  each because Illustrator exported them, over Vite's 4096-byte `assetsInlineLimit`, so they
+  shipped as separate files and the badge visibly popped in a moment after a song attached — a
+  request that only starts when the element mounts, which is exactly when the user is looking at
+  that row. The obvious fix, minifying the files, is the one thing the guidelines forbid; a data
+  URI is byte-for-byte the same file. It is the function form of the option rather than a raised
+  global limit, because this is one exception with a reason and not a new threshold.
+- **`<picture>` with a `prefers-color-scheme` `<source>`**, not a theme value read in Svelte. The
+  theme here _is_ that media query, and this way the browser fetches exactly one of the two files.
+- **The aspect ratio is declared in CSS, not in `width`/`height` attributes.** Those are parsed as
+  integers, so the artwork's 125.1 × 27.78 rounds to 125 × 28 and squeezes the badge by 0.9%
+  horizontally — invisible, and still exactly the stretching the guidelines name.
+  `MediaStrip.svelte.test.ts` measures the rendered box rather than trusting the rule.
+- **It is 21px tall, matching the Spotify mark** rather than the row, so neither attribution costs
+  the strip any height — the same constraint the shortcut captions are measured against.
+
+**The cover takes the video's band, and unlike the video it folds.** It is the same slot at the
+foot of the right panel, chosen for the same reason: a picture is looked at rather than operated,
+so two hundred pixels of it costs a scroll there and would cost the document anywhere else. What
+differs is the one control. YouTube's embed terms require their player visible and unobscured, so
+a collapse control on that band would be a control for breaking them; Apple asks for attribution —
+which the strip's badge carries — and nothing at all about a picture. So this is the one band in
+the panel a user can take their height back from.
+
+**The transport is on the picture, and it is the strip's own transport.** Both surfaces render
+`MediaTransport.svelte` rather than mirroring three buttons by hand, for the reason the diagnostic
+card and its popover share theirs: two copies of three controls is two copies of every label rule,
+and `Previous line` appearing on one while the other still said `Back 2 seconds` is drift nobody
+notices for months. **The captions are the only difference and they are a prop.** The strip prints
+the one-modifier fallback under each glyph because the strip is where the shortcut is learned;
+printing the same legend twice on one screen is how a row of controls becomes a row of
+documentation.
+
+- **It draws on a scrim, and that is not decoration.** What the glyphs read against is somebody
+  else's album art, and half the covers in the world are pale — white alone vanishes on a third of
+  them. `--color-scrim`, `--color-text-on-scrim` and `--color-control-hover-on-scrim` are therefore
+  one value for both schemes, exactly like `--color-backdrop` and for the same reason: the job is
+  to read against whatever is there rather than to match a page. They are the only tokens in the
+  system that do not follow the scheme, and a literal here instead would be the second palette
+  `editor-token-policy.test.ts` exists to prevent.
+- **A gradient, not a flat band**, so the picture is given up gradually. A hard edge across a cover
+  reads as a second box drawn over it.
+- **Plain state, not a `<details>`, and that is a correction.** A disclosure was right while the
+  bar was a name and a chevron — the platform owned the state, the keyboard and the semantics for
+  free, the way the drafts menu still does. It stopped being right when controls arrived: a
+  `<summary>` is one activation target, so every button inside it has to `stopPropagation` or
+  pressing play folds the picture away. Three opt-outs from an element's whole reason for existing
+  is the element being wrong, not the buttons. Only the chevron toggles now. (The controls ended up
+  on the cover rather than in the bar, which would have settled it anyway — but the rule is the one
+  to keep.)
+- **The chevron points at the content, not along its own travel.** Open points down at the picture
+  it opened; closed points up at the bar the picture folded into. That is the reading that survives
+  the band being at the _foot_ of a column, where up is where everything else in the panel lives.
+- **It opens by default**, and the fold is remembered. Two things would otherwise forget it: the
+  band is destroyed whenever the attached source changes, so a flag held in the component resets on
+  every swapped song, and a reload starts over. So the controller owns it and the component is told
+  — `artworkOpen` / `setArtworkOpen`, written through `getPreference` / `setPreference` on the draft
+  repository. **That round trip is the point rather than an accident of where the code sits:** the
+  `appMetadata` table is what the workspace backup copies and what `Delete all local data` clears,
+  so a preference kept in `localStorage` would quietly escape both promises this application makes
+  about local state. It is a generic key/value pair rather than a method each, because the
+  alternative is two more methods on that contract every time a control learns to remember itself.
+- **The bar is the strip's bar** — same `--control-height-lg`, same padding, read off the same
+  token rather than a number copied across. The two rows sit at the feet of the two columns of one
+  window, and a few pixels between them reads as one of them being slightly wrong.
+- **The name is said once.** The bar carries it directly over the picture it belongs to, so the
+  strip drops its own copy while a cover is drawn — three words twice on one screen, in the row
+  with least space for them.
+- **The band waits on the picture, not on the source kind.** A cover only exists once the
+  catalogue read lands, and drawing on `sourceKind === 'apple'` would put a square of empty chrome
+  on screen for the round trip in between — the band flashing into existence twice.
+- **`artwork` is on the transport, not on the Apple source**, because a cover is a fact about what
+  is playing and the panel drawing it should not have to know which of four things is playing.
+  Sources with no picture simply never call `artworkChanged`, which is every source but this one
+  today. It is cleared in `beginAttachment` rather than after the load, or the outgoing song's
+  cover sits over the incoming one for as long as its metadata takes.
+- **Apple's `artwork.url` is a template, not an address** — `{w}` and `{h}` are still in it, and
+  passed through unresolved the panel draws a broken image. The size is chosen in `media-apple.ts`
+  at roughly twice the panel's narrowest width, because the CDN renders whatever is asked for and
+  the alternative is every surface picking its own.
+
+### The song names the draft, but only while nothing else has
+
+Attaching audio to a fresh draft says what the transcription is _of_, and that is nearly always
+what it should be called — so a draft still carrying `Untitled transcription` takes the source's own name.
+That placeholder is the whole of the condition: a title the user typed, or one an earlier source
+already supplied, is a decision, and a later attachment must not overwrite it.
+
+**What counts as a name worth having is decided in the media store, not in the workbench**, because
+that is the one place that can tell. Two kinds of name would be actively worse than nothing:
+
+- **A pasted link is its own URL until the catalogue answers.** A draft called
+  `music.apple.com/song/1091453645` is worse than one called nothing, so `adoptVideo`, `adoptTrack`
+  and `adoptSong` compare against the provisional label they would have minted and stay quiet when
+  it matches. The late `named` from the source arrives through the same hook, so a link paste still
+  gets its title a moment later — which is the whole reason the suggestion is a stream rather than
+  one call at attach time.
+- **A filename is not reliably a title.** `Snøfall.mp3` is a fine one;
+  `Artist - Album (2011 Remaster) [FLAC 24-96] - 07 - Title.mp3` is a rip's bookkeeping, and there
+  is no way to tell them apart except by how much of it there is. Over `longestFilenameTitle` is
+  left alone rather than guessed at — an `Untitled transcription` the user renames beats a title they have
+  to clear first. The extension always goes: that is a fact about a file on a disk, not the name of
+  a transcription.
+
+`DEFAULT_DRAFT_TITLE` is exported from `draft-repository.ts` and compared against rather than
+spelled out. It had been written by hand in four places, which is one edit away from a rule that
+silently stops matching.
+
+**No schema bump.** `source` gains `'apple'` and `songId` is unindexed, so the live `version(2)`
+`mediaHandles` table takes both without a migration — and `songId` is its own field rather than a
+reused `videoId` or `trackId` for the reason the Spotify section already gives. `backup.ts`
+validates the source against a set now rather than a chain of inequalities, because a fourth
+member made the chain long enough to read wrong.
+
+**Unverified, and worth knowing before trusting it:** whether `playbackRate` holds on a
+DRM-protected full track as opposed to on a preview. Apple documents the property and says nothing
+about that, and native MusicKit shipped `playbackRate` broken on iOS 15.4 — so Apple is
+demonstrably sloppy in this exact corner. Everything above is worth the membership only if the
+rate is real; if it turns out not to be, `rates` in `media-player.svelte.ts`'s `apple()` factory
+narrows to `[1]` and the picker's meta line gains Spotify's third fact.
+
+Implementation: `src/lib/ui/state/media-apple.ts` (the loader, the token rules, the parser, the
+search and the source), `scripts/apple-music-token.mjs`, and `media-apple.test.ts`, whose stub
+MusicKit is what makes "attaching plays nothing" an assertion rather than a hope.
+
+### The cover is one fact, drawn in one place and saved in another
+
+Three of the four sources know what the song looks like, and each one already had it in
+hand: Apple's catalogue read resolves an artwork template, Spotify's `/tracks/{id}` — the same
+read that pays for the name — carries `album.images` widest-first, and a video's still is derived
+from its id (`youtubeThumbnailUrl`, `hqdefault` rather than `maxresdefault`, because the latter is
+a 404 for any video whose uploader supplied no frame that big and the browser draws a 404 as a
+broken picture). None of them costs a request that was not already being made. A local file
+publishes nothing, and that is not a gap to fill: reading cover art out of an ID3 frame is a tag
+parser this application has no other use for.
+
+**`player.artwork` is that one fact, and the two surfaces read it rather than the source kind.**
+The panel's cover band already waited on the picture instead of on `sourceKind === 'apple'`; the
+one thing it now has to say about a kind is that a **video does not get one**, because the video's
+own player is already drawing that still directly above it and two bands showing one frame is the
+same thing twice.
+
+**Saving it is in the tools panel, because it is not part of transcribing.** It is a thing a
+transcriber wants once, on the way out, next to `Export .txt` — not a control in the shortest row
+in the window, which has no pixel to spare and is operated constantly. The section draws only when
+there is a cover, so it comes and goes with the song rather than sitting there as a setting.
+
+**The bytes come through `fetch`, and the fallback is the point.** `download` on an anchor is
+ignored cross-origin and every cover lives on Apple's, Spotify's or Google's CDN, so an anchor
+pointed at one navigates the workbench away instead of saving anything. The half that can be
+refused is the fetch — an `<img>` needs no CORS header and a fetch does — so a host may perfectly
+well draw the cover in the panel and decline to hand it over here, which is a button that does
+nothing at all and would only ever be found on somebody else's infrastructure. `downloadImage`
+opens the picture in a tab when that happens: one more press rather than silence.
+
+Implementation: `downloadImage` in `src/lib/ui/clipboard.ts` (with `clipboard.svelte.test.ts`
+pinning the fallback), `artworkChanged` in `media-spotify.ts` and `media-youtube.ts`, and the
+section in `ToolsPanel.svelte`.
 
 ### Audio arrives by drop, and the drop that is not audio is not ours
 

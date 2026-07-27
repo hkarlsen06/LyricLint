@@ -5,6 +5,13 @@ import { createMediaPlayer } from './media-player.svelte.js';
 import { parseYouTubeVideoId } from './media-youtube.js';
 import type { SpotifySearchOutcome } from './media-spotify.js';
 import { parseSpotifyTrackId, searchSpotifyTracks } from './media-spotify.js';
+import type { AppleMusicSearchOutcome } from './media-apple.js';
+import {
+	appleMusicConfigured,
+	configureAppleMusic,
+	parseAppleMusicSongId,
+	searchAppleMusicSongs
+} from './media-apple.js';
 import {
 	beginSpotifySignIn,
 	completeSpotifySignIn,
@@ -50,6 +57,31 @@ const audioExtensions = ['.mp3', '.m4a', '.aac', '.wav', '.flac', '.ogg', '.opus
  */
 const positionWriteIntervalMs = 5000;
 
+/**
+ * The longest filename worth calling a draft.
+ *
+ * A search result is `Artist — Title` and is always worth having. A filename is
+ * not reliably anything: `01 Track.mp3` is a fine title, and
+ * `Artist - Album (2011 Remaster) [FLAC 24-96] - 07 - Title.mp3` is a rip's
+ * bookkeeping. There is no way to tell them apart except by how much of it there
+ * is, so the long ones are left alone rather than guessed at — an `Untitled
+ * draft` the user renames beats a title they have to clear first.
+ */
+const longestFilenameTitle = 60;
+
+/**
+ * A filename as a draft title, or nothing when it is one of the long ones.
+ *
+ * The extension goes: it is a fact about a file on a disk, and this is the name
+ * of a transcription. Only the last one, so `Song (feat. X).mp3` keeps its
+ * parenthesis and `.mp3` alone is not left as a title.
+ */
+function titleFromFilename(name: string): string | undefined {
+	const withoutExtension = name.replace(/\.[a-z0-9]{1,5}$/i, '').trim();
+	if (withoutExtension === '' || withoutExtension.length > longestFilenameTitle) return undefined;
+	return withoutExtension;
+}
+
 export interface MediaStoreDependencies {
 	repository: MediaRepository;
 	feedback: FeedbackState;
@@ -69,6 +101,20 @@ export interface MediaStoreDependencies {
 	 * nothing about the document, so nothing else will schedule the save.
 	 */
 	onAttached?: () => void;
+	/**
+	 * A name worth calling the draft, when the source has one.
+	 *
+	 * Only ever a *real* name. The provisional labels a link paste starts with —
+	 * `youtu.be/dQw4w9WgXcQ`, `music.apple.com/song/1091453645` — are exactly what
+	 * a draft must not be called, and this is the one place that can tell them
+	 * apart, because it is where they are minted. A late `named` from the source
+	 * arrives here too, so a link paste still gets its title once the catalogue
+	 * answers.
+	 *
+	 * Whether to spend it is the workbench's call, not this store's: a draft the
+	 * user has already named is not up for renaming.
+	 */
+	onTitleSuggestion?: (title: string) => void;
 }
 
 export interface MediaStore {
@@ -96,6 +142,17 @@ export interface MediaStore {
 	readonly videoId: string | undefined;
 	/** The Spotify track this draft is on, for the same reason as `videoId`. */
 	readonly trackId: string | undefined;
+	/** The Apple Music song this draft is on, for the same reason again. */
+	readonly songId: string | undefined;
+	/**
+	 * Whether this build carries a live Apple Music developer token.
+	 *
+	 * False when `PUBLIC_APPLE_MUSIC_TOKEN` is unset *or has expired* — the
+	 * second is the one that matters, because a developer token lasts at most six
+	 * months and the honest failure of a stale one is the picker not offering
+	 * Apple Music rather than a 401 under a press.
+	 */
+	readonly appleMusicAvailable: boolean;
 	/**
 	 * Whether this build has a Spotify app registered behind it.
 	 *
@@ -151,6 +208,17 @@ export interface MediaStore {
 	searchSpotify(query: string): Promise<SpotifySearchOutcome>;
 	/** Attach a track the user picked out of those results. */
 	attachSpotifyTrack(trackId: string, name: string): Promise<void>;
+	/**
+	 * Find a song by name, or attach one outright when the query is a link.
+	 *
+	 * The same one-field shape as `searchSpotify`, and simpler underneath: Apple's
+	 * catalogue is public data behind this build's own developer token, so nothing
+	 * is signed in to yet and there is no redirect to survive. The sign-in happens
+	 * later, inside the attach, where MusicKit runs it in a window of its own.
+	 */
+	searchAppleMusic(query: string): Promise<AppleMusicSearchOutcome>;
+	/** Attach a song the user picked out of those results. */
+	attachAppleMusicSong(songId: string, name: string): Promise<void>;
 	/**
 	 * The search a sign-in interrupted, handed back once, for the surface to
 	 * reopen on. Reading it clears it: a query left standing would reopen the
@@ -241,9 +309,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	let pendingHandle: PersistableFileHandle | undefined;
 	let pendingVideoId: string | undefined;
 	let pendingTrackId: string | undefined;
+	let pendingSongId: string | undefined;
 	let pendingPosition: number | undefined;
 	let currentVideoId = $state<string | undefined>(undefined);
 	let currentTrackId = $state<string | undefined>(undefined);
+	let currentSongId = $state<string | undefined>(undefined);
 	let busy = $state(false);
 	let youtubeAllowed = $state(false);
 	let resumedQuery = $state<string | undefined>(undefined);
@@ -280,6 +350,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	// That is the name the strip shows and the name next session's control says,
 	// so it is written against the draft the audio belongs to, like the position.
 	player.setNameListener((name) => {
+		// A source only reports a name once it actually knows one, so this is always
+		// worth offering — it is how a pasted link gets a title at all.
+		deps.onTitleSuggestion?.(name);
 		const draftId = ownerDraftId;
 		if (draftId === undefined) return;
 		void deps.repository.saveName(draftId, name).catch(() => {
@@ -318,9 +391,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		pendingHandle = undefined;
 		pendingVideoId = undefined;
 		pendingTrackId = undefined;
+		pendingSongId = undefined;
 		pendingPosition = undefined;
 		currentVideoId = undefined;
 		currentTrackId = undefined;
+		currentSongId = undefined;
 	}
 
 	/** Everything a new attachment forgets, whichever kind it is. */
@@ -339,6 +414,8 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 	function adopt(file: File, handle?: FileSystemFileHandle): void {
 		const startAt = claim();
+		const suggestion = titleFromFilename(file.name);
+		if (suggestion !== undefined) deps.onTitleSuggestion?.(suggestion);
 		player.attach(file, {
 			name: file.name,
 			handle,
@@ -349,6 +426,10 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 	async function adoptVideo(videoId: string, name: string): Promise<void> {
 		const startAt = claim();
+		// A search result arrives already named; a pasted link arrives as its own
+		// URL, and that one waits for the catalogue rather than titling a draft
+		// after an address.
+		if (name !== provisionalName(videoId)) deps.onTitleSuggestion?.(name);
 		currentVideoId = videoId;
 		await player.attachVideo({
 			videoId,
@@ -359,9 +440,27 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 	async function adoptTrack(trackId: string, name: string): Promise<void> {
 		const startAt = claim();
+		// A search result arrives already named; a pasted link arrives as its own
+		// URL, and that one waits for the catalogue rather than titling a draft
+		// after an address.
+		if (name !== provisionalTrackName(trackId)) deps.onTitleSuggestion?.(name);
 		currentTrackId = trackId;
 		await player.attachTrack({
 			trackId,
+			name,
+			...(startAt === undefined ? {} : { startAt })
+		});
+	}
+
+	async function adoptSong(songId: string, name: string): Promise<void> {
+		const startAt = claim();
+		// A search result arrives already named; a pasted link arrives as its own
+		// URL, and that one waits for the catalogue rather than titling a draft
+		// after an address.
+		if (name !== provisionalSongName(songId)) deps.onTitleSuggestion?.(name);
+		currentSongId = songId;
+		await player.attachSong({
+			songId,
 			name,
 			...(startAt === undefined ? {} : { startAt })
 		});
@@ -382,6 +481,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		return `https://open.spotify.com/track/${trackId}`;
 	}
 
+	/** And the same, for a song, until Apple's catalogue answers with a title. */
+	function provisionalSongName(songId: string): string {
+		return `music.apple.com/song/${songId}`;
+	}
+
 	const store: MediaStore = {
 		get player() {
 			return player;
@@ -398,8 +502,14 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		get trackId() {
 			return currentTrackId;
 		},
+		get songId() {
+			return currentSongId;
+		},
 		get spotifyAvailable() {
 			return spotifyConfigured();
+		},
+		get appleMusicAvailable() {
+			return appleMusicConfigured();
 		},
 		get busy() {
 			return busy;
@@ -543,6 +653,52 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			}
 		},
 
+		/**
+		 * The same one field, two gestures shape as the Spotify search, minus the
+		 * redirect it has to survive.
+		 *
+		 * A search here signs in to nothing: Apple's catalogue answers to this
+		 * build's own developer token, so a user can find the song before they are
+		 * ever asked for an account. The sign-in is spent on the *attach*, which is
+		 * both later and the press that actually needs it.
+		 */
+		async searchAppleMusic(query) {
+			const trimmed = query.trim();
+			if (trimmed === '') return { results: [] };
+			if (!appleMusicConfigured()) {
+				return { error: 'Apple Music is not configured for this build.' };
+			}
+
+			const parsed = parseAppleMusicSongId(trimmed);
+			if ('songId' in parsed) {
+				await store.attachAppleMusicSong(parsed.songId, provisionalSongName(parsed.songId));
+				return { results: [] };
+			}
+
+			return await searchAppleMusicSongs(trimmed, { music: () => configureAppleMusic() });
+		},
+
+		async attachAppleMusicSong(songId, name) {
+			if (busy) return;
+			busy = true;
+			try {
+				const attaching = adoptSong(songId, name);
+				try {
+					await deps.repository.attach({
+						draftId: deps.draftId(),
+						name,
+						source: 'apple',
+						songId
+					});
+				} catch {
+					feedback.announce('This song could not be remembered for next time.');
+				}
+				await attaching;
+			} finally {
+				busy = false;
+			}
+		},
+
 		takeResumedQuery() {
 			const query = resumedQuery;
 			resumedQuery = undefined;
@@ -622,6 +778,19 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 					return;
 				}
 
+				// And a remembered song is the question a third time. This one is
+				// *always* pending, with no already-signed-in shortcut: answering
+				// whether MusicKit still holds a user token means loading Apple's SDK,
+				// which is the very thing a page nobody has touched must not do. So the
+				// press pays for the script and the sign-in together, and where Apple
+				// already has a session the sign-in step passes straight through.
+				if (pendingSource === 'apple') {
+					const songId = pendingSongId;
+					if (songId === undefined) return;
+					await adoptSong(songId, pendingName ?? provisionalSongName(songId));
+					return;
+				}
+
 				const handle = pendingHandle;
 				if (handle?.requestPermission) {
 					const permission = await handle.requestPermission({ mode: 'read' });
@@ -689,9 +858,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			pendingHandle = record.handle as PersistableFileHandle | undefined;
 			pendingVideoId = record.videoId;
 			pendingTrackId = record.trackId;
+			pendingSongId = record.songId;
 			pendingPosition = record.position;
 			currentVideoId = record.videoId;
 			currentTrackId = record.trackId;
+			currentSongId = record.songId;
 
 			// A video is loaded without a press only where the user has already said
 			// yes to Google in this session — the same trade the file path makes with
@@ -711,6 +882,14 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				await adoptTrack(pendingTrackId, pendingName);
 				return;
 			}
+
+			// A song always waits to be asked. Whether Apple still has a session for
+			// this user is a question only MusicKit can answer, and asking it means
+			// loading Apple's script — so the honest thing is to draw the press and
+			// let it pay for both. It falls through to the file branch harmlessly
+			// (there is no handle), but only by accident, and an accident is not what
+			// this should rest on.
+			if (pendingSource === 'apple') return;
 
 			// A permission already granted for this origin needs no gesture, so the
 			// track simply comes back where it was left. Anything else waits to be

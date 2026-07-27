@@ -165,6 +165,19 @@ function youtubeErrorMessage(code: number): string {
 	return youtubeErrorMessages[code] ?? `That video could not be played (error ${code}).`;
 }
 
+/**
+ * The still YouTube publishes for a video, at the largest size it always has.
+ *
+ * `maxresdefault` is twice the size and exists only where the uploader supplied
+ * a frame that big — everywhere else it is a 404, which the browser draws as a
+ * broken picture in the panel. `hqdefault` is generated for every video there
+ * is, which is the trade this makes: a cover that is always there beats a
+ * sharper one that sometimes is not.
+ */
+export function youtubeThumbnailUrl(videoId: string): string {
+	return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+}
+
 export type YouTubeUrlResult = { videoId: string } | { error: string };
 
 const bareIdPattern = /^[A-Za-z0-9_-]{11}$/;
@@ -472,6 +485,9 @@ export function createYouTubeSource(deps: YouTubeSourceDependencies): YouTubeSou
 		async load(nextVideoId, nextStartAt) {
 			if (player && nextVideoId !== videoId) teardown();
 			videoId = nextVideoId;
+			// Before the player, and without asking Google anything: the address is
+			// derived from the id, so the cover is known the moment the video is.
+			events.artworkChanged(youtubeThumbnailUrl(nextVideoId));
 			startAt = nextStartAt;
 			// Shown at once, the way a restored file position is, and held for the
 			// same reason: the player is not there yet to be asked.

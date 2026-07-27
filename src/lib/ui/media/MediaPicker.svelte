@@ -2,6 +2,7 @@
 	import { tick } from 'svelte';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import type { SpotifySearchResult } from '../state/media-spotify.js';
+	import type { AppleMusicSearchResult } from '../state/media-apple.js';
 	import { formatTime } from '../state/media-player.svelte.js';
 
 	let { media }: { media: MediaStore } = $props();
@@ -18,12 +19,34 @@
 	let trackError = $state<string | undefined>(undefined);
 	let results = $state<SpotifySearchResult[]>([]);
 	let searched = $state(false);
+	let songQuery = $state('');
+	let songError = $state<string | undefined>(undefined);
+	let songResults = $state<AppleMusicSearchResult[]>([]);
+	let songSearched = $state(false);
+
+	/**
+	 * Two waits with nothing on screen, and they are the two slowest things here.
+	 *
+	 * A search is a round trip to a catalogue and an attach is a script, a
+	 * sign-in and a queue — and both used to leave the dialog looking exactly as
+	 * it did before the press. `media.busy` covers the attach but is not enough on
+	 * its own: it disables controls, which reads as the dialog having gone dead
+	 * rather than as work being done, and it says nothing about *which* row was
+	 * pressed. So the search holds its own flag and the attach remembers the id it
+	 * is attaching, which is what lets the spinner appear on the row the user
+	 * actually aimed at.
+	 */
+	let searching = $state(false);
+	let songSearching = $state(false);
+	let attachingId = $state<string | undefined>(undefined);
 
 	// The slot never moves and the label follows the state, the way the toolbar's
 	// one contrast action swaps between `Copy lyrics` and `Paste lyrics`. A
 	// control that disappeared once audio was attached would take the only way to
 	// swap tracks with it.
-	const label = $derived(media.player.attached || media.pendingName ? 'Change audio' : 'Add audio');
+	const label = $derived(
+		media.player.attached || media.pendingName ? 'Change audio source' : 'Add audio source'
+	);
 
 	// The link already in use, in the form worth having on a clipboard. A draft on
 	// a video knows which one, so the field opens holding it — and holds it
@@ -34,8 +57,11 @@
 		url = media.videoId ? `https://youtu.be/${media.videoId}` : '';
 		error = undefined;
 		trackError = undefined;
+		songError = undefined;
 		results = [];
+		songResults = [];
 		searched = false;
+		songSearched = false;
 		dialog.showModal();
 		await tick();
 		urlInput.select();
@@ -86,7 +112,16 @@
 	 */
 	async function runSearch(): Promise<void> {
 		trackError = undefined;
-		const outcome = await media.searchSpotify(query);
+		searching = true;
+		let outcome;
+		try {
+			outcome = await media.searchSpotify(query);
+		} finally {
+			// `finally`, because a refusal has to give the field back as surely as an
+			// answer does — a spinner left turning over a dead request is worse than
+			// the silence this replaced.
+			searching = false;
+		}
 
 		if ('signingIn' in outcome) return;
 		if ('error' in outcome) {
@@ -103,7 +138,52 @@
 	}
 
 	async function useResult(track: SpotifySearchResult): Promise<void> {
-		await media.attachSpotifyTrack(track.trackId, track.name);
+		attachingId = track.trackId;
+		try {
+			await media.attachSpotifyTrack(track.trackId, track.name);
+		} finally {
+			attachingId = undefined;
+		}
+		close();
+	}
+
+	/**
+	 * The same two gestures at the same field, one source over.
+	 *
+	 * Simpler than the Spotify path because nothing here can be interrupted: the
+	 * catalogue answers to the build's own token, so a search never leaves the
+	 * page and there is no `signingIn` outcome to render nothing for.
+	 */
+	async function runSongSearch(): Promise<void> {
+		songError = undefined;
+		songSearching = true;
+		let outcome;
+		try {
+			outcome = await media.searchAppleMusic(songQuery);
+		} finally {
+			songSearching = false;
+		}
+
+		if ('error' in outcome) {
+			songError = outcome.error;
+			return;
+		}
+		// A pasted link attaches inside the store, so the dialog's work is done.
+		if (media.player.sourceKind === 'apple' && media.songId !== undefined) {
+			close();
+			return;
+		}
+		songResults = outcome.results;
+		songSearched = true;
+	}
+
+	async function useSong(song: AppleMusicSearchResult): Promise<void> {
+		attachingId = song.songId;
+		try {
+			await media.attachAppleMusicSong(song.songId, song.name);
+		} finally {
+			attachingId = undefined;
+		}
 		close();
 	}
 </script>
@@ -139,8 +219,13 @@
 	It is a modal because it is a detour: nothing else in the workbench is worth
 	doing until it is answered or abandoned.
 
+	Two of the four are conditional, for the same reason and on different facts.
 	Spotify draws only where the build has an app registered behind it
-	(`PUBLIC_SPOTIFY_CLIENT_ID`). An answer that cannot be carried out is worse
+	(`PUBLIC_SPOTIFY_CLIENT_ID`), which production deliberately leaves unset.
+	Apple Music draws only where the build's developer token is present *and in
+	date* — it expires within six months, and a stale one has to stop being
+	offered rather than start failing under a press. An answer that cannot be
+	carried out is worse
 	than one fewer answer — the same reason the rate control renders
 	`availableRates` rather than the workbench's full offer.
 
@@ -217,6 +302,91 @@
 				</div>
 			</section>
 
+			{#if media.appleMusicAvailable}
+				<section>
+					<!--
+						One field again, and the sign-in is deliberately *not* here: Apple's
+						catalogue answers to this build's own developer token, so a user can
+						find their song before being asked for an account. Only the press on
+						a result spends one.
+					-->
+					<form
+						class="media-dialog__url"
+						onsubmit={(event) => {
+							event.preventDefault();
+							void runSongSearch();
+						}}
+					>
+						<input
+							bind:value={songQuery}
+							type="search"
+							placeholder="Search Apple Music, or paste a link"
+							aria-label="Apple Music search"
+							autocomplete="off"
+							spellcheck="false"
+						/>
+						<!-- The label stays put and a spinner joins it, rather than the
+						     word swapping to `Searching…`: a control whose text changes
+						     under the press reflows the row it is in, and this one sits
+						     beside a field the user may still be typing into. -->
+						<button
+							type="submit"
+							class="button media-dialog__search"
+							disabled={media.busy || songSearching || songQuery.trim() === ''}
+							aria-busy={songSearching}
+						>
+							{#if songSearching}
+								<span class="spinner" aria-hidden="true"></span>
+							{/if}
+							Search
+						</button>
+					</form>
+
+					{#if songResults.length > 0}
+						<ul class="media-dialog__results">
+							{#each songResults as song (song.songId)}
+								<li>
+									<button
+										type="button"
+										class="media-dialog__result"
+										disabled={media.busy}
+										aria-busy={attachingId === song.songId}
+										onclick={() => void useSong(song)}
+									>
+										<span class="media-dialog__result-name">{song.name}</span>
+										<!-- The wait takes the duration's slot rather than adding
+										     anything, so the row keeps its shape — and it is on the
+										     row the user aimed at, which is the thing `media.busy`
+										     alone could never say. -->
+										<span class="media-dialog__result-time">
+											{#if attachingId === song.songId}
+												<span class="spinner" aria-hidden="true"></span>
+											{:else}
+												{formatTime(song.durationSeconds)}
+											{/if}
+										</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{:else if songSearched && songQuery.trim() !== ''}
+						<p class="media-dialog__meta">No matches on Apple Music.</p>
+					{/if}
+					<!-- Two facts, and no third about the speed control: this source keeps
+					     it, so there is nothing to warn about — the same reason the file
+					     row says nothing about rates either. -->
+					<!-- Not "Signs in with Apple", which is the name of a different Apple
+					     technology with its own branding rules — MusicKit's `authorize()`
+					     is an Apple Music authorization and nothing to do with it. -->
+					<p class="media-dialog__meta">Needs an Apple Music subscription · Sign-in required</p>
+					<div aria-live="polite">
+						{#if songError}
+							<p class="media-dialog__error">{songError}</p>
+						{/if}
+					</div>
+				</section>
+			{/if}
+
 			{#if media.spotifyAvailable}
 				<section>
 					<!--
@@ -241,7 +411,15 @@
 							autocomplete="off"
 							spellcheck="false"
 						/>
-						<button type="submit" class="button" disabled={media.busy || query.trim() === ''}>
+						<button
+							type="submit"
+							class="button media-dialog__search"
+							disabled={media.busy || searching || query.trim() === ''}
+							aria-busy={searching}
+						>
+							{#if searching}
+								<span class="spinner" aria-hidden="true"></span>
+							{/if}
 							Search
 						</button>
 					</form>
@@ -261,11 +439,16 @@
 										type="button"
 										class="media-dialog__result"
 										disabled={media.busy}
+										aria-busy={attachingId === track.trackId}
 										onclick={() => void useResult(track)}
 									>
 										<span class="media-dialog__result-name">{track.name}</span>
 										<span class="media-dialog__result-time">
-											{formatTime(track.durationSeconds)}
+											{#if attachingId === track.trackId}
+												<span class="spinner" aria-hidden="true"></span>
+											{:else}
+												{formatTime(track.durationSeconds)}
+											{/if}
 										</span>
 									</button>
 								</li>
@@ -435,10 +618,32 @@
 		font-size: var(--font-size-sm);
 	}
 
+	/*
+	 * The duration's slot is also the row's wait, so it holds its own width: a
+	 * spinner replacing `3:43` must not reflow the name beside it.
+	 */
 	.media-dialog__result-time {
+		display: inline-flex;
 		flex: none;
+		min-width: 3ch;
+		align-items: center;
+		justify-content: flex-end;
 		color: var(--color-text-muted);
 		font-size: var(--font-size-xs);
 		font-variant-numeric: tabular-nums;
+	}
+
+	/*
+	 * The search control, which is a word and sometimes a spinner beside it.
+	 *
+	 * The label does not change under the press. `Search` becoming `Searching…` is
+	 * the obvious version and it reflows the row every time — this one sits
+	 * directly beside a field the user may still be typing into, and a control
+	 * that resizes under the caret is worse than one that says less.
+	 */
+	.media-dialog__search {
+		display: inline-flex;
+		gap: var(--space-1-5);
+		align-items: center;
 	}
 </style>

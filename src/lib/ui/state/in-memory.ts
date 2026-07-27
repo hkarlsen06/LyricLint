@@ -39,6 +39,7 @@ export function createInMemoryDraftRepository(
 	const drafts = new Map(initialDrafts.map((draft) => [draft.id, cloneDraft(draft)]));
 	let currentId: string | undefined = initialDrafts[0]?.id;
 	let recentLanguages: string[] = [];
+	const preferences = new Map<string, string>();
 
 	return {
 		async list() {
@@ -93,6 +94,12 @@ export function createInMemoryDraftRepository(
 		},
 		async getCurrent() {
 			return currentId;
+		},
+		async getPreference(key) {
+			return preferences.get(key);
+		},
+		async setPreference(key, value) {
+			preferences.set(key, value);
 		},
 		async getRecentLanguages() {
 			return [...recentLanguages];

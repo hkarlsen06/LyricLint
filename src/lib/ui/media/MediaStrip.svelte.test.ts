@@ -69,6 +69,42 @@ async function spotifyStore() {
 	return { media, player };
 }
 
+/** The same, one source over, and nothing reaching Apple. */
+async function appleStore() {
+	const feedback = createFeedbackState();
+	const player = createMediaPlayer({
+		feedback,
+		createAudio: () => new StubAudio().asMediaElement(),
+		createObjectUrl: () => 'blob:test',
+		revokeObjectUrl: () => {},
+		loadMusicKit: async () =>
+			({
+				PlaybackStates: { playing: 2, paused: 3 },
+				configure: async () => ({
+					isAuthorized: true,
+					storefrontId: 'no',
+					playbackRate: 1,
+					setQueue: async () => undefined,
+					addEventListener: () => {},
+					removeEventListener: () => {}
+				})
+			}) as never,
+		appleMusicRequest: (async () =>
+			new Response(
+				JSON.stringify({ data: [{ attributes: { name: 'Stole the Show', artistName: 'Kygo' } }] }),
+				{ status: 200, headers: { 'content-type': 'application/json' } }
+			)) as typeof fetch
+	});
+	const media = createMediaStore({
+		repository: createInMemoryMediaRepository(),
+		feedback,
+		draftId: () => 'draft-1',
+		player
+	});
+	await media.attachAppleMusicSong('1091453645', 'Kygo — Stole the Show');
+	return { media, player };
+}
+
 describe('MediaStrip', () => {
 	it('offers the transport, the elapsed time, and the track at both ends', async () => {
 		const { audio, media, player } = store();
@@ -463,5 +499,66 @@ describe('MediaStrip attribution', () => {
 		render(MediaStrip, { props: { media } });
 
 		expect(document.querySelector('.media-strip__spotify')).toBeNull();
+	});
+
+	// Apple wants the same thing, and gets their own supplied lockup for it.
+	it('carries Apple’s badge and links back to the song', async () => {
+		const { media } = await appleStore();
+		render(MediaStrip, { props: { media } });
+
+		const link = page.getByRole('link', {
+			name: 'Listen to Kygo — Stole the Show on Apple Music'
+		});
+		await expect.element(link).toHaveAttribute('href', 'https://music.apple.com/song/1091453645');
+		await expect.element(link).toHaveAttribute('target', '_blank');
+		await expect.element(link).toHaveAttribute('rel', 'noopener noreferrer');
+	});
+
+	/**
+	 * The three things Apple's identity guidelines forbid, asserted as a shape
+	 * rather than trusted to a comment.
+	 *
+	 * Their artwork must be used rather than redrawn, the `Listen on` call to
+	 * action may not be removed from the badge, and it may not be stretched or
+	 * recolored. So: an `<img>` pointing at their file (not an inline path we
+	 * could have cut ourselves), drawn at the artwork's own 125.1 × 27.78.
+	 *
+	 * The ratio is measured rather than assumed, because the obvious way to write
+	 * this markup gets it wrong: `width`/`height` attributes are parsed as
+	 * integers, so 125 × 28 squeezes the badge by 0.9% — invisible, and still the
+	 * thing the guidelines name.
+	 *
+	 * The data URI is the third rule and a fix in its own right. Apple's lockups
+	 * are ~7.5KB, over Vite's 4096-byte inline threshold, so they shipped as
+	 * separate files and the badge visibly popped in a moment after a song
+	 * attached — a request that only starts when the element mounts, which is
+	 * exactly when the user is looking at that row. Inlining is also byte-for-byte
+	 * their file, where minifying it to fit would not have been.
+	 */
+	it('uses Apple’s own artwork at its own aspect ratio, with no second request', async () => {
+		const { media } = await appleStore();
+		render(MediaStrip, { props: { media } });
+
+		const badge = document.querySelector('.media-strip__apple img') as HTMLImageElement;
+		const src = badge.getAttribute('src') ?? '';
+		expect(src.startsWith('data:image/svg+xml')).toBe(true);
+		// Their own gradient, still in the file: this is Apple's artwork rather
+		// than something redrawn to be small enough to inline.
+		expect(decodeURIComponent(src)).toContain('#FA233B');
+
+		const box = badge.getBoundingClientRect();
+		expect(box.width / box.height).toBeCloseTo(125.1 / 27.78, 3);
+		// The dark-scheme twin is offered by the browser rather than by a theme
+		// value, so exactly one of the two files is ever fetched.
+		const source = document.querySelector('.media-strip__apple source');
+		expect(source?.getAttribute('media')).toBe('(prefers-color-scheme: dark)');
+	});
+
+	it('draws no attribution at all for a local file', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		render(MediaStrip, { props: { media } });
+
+		expect(document.querySelector('.media-strip__apple')).toBeNull();
 	});
 });

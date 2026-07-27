@@ -178,6 +178,7 @@ describe('draft repository', () => {
 		const media = createMediaRepository(database);
 		await repository.create({ id: 'draft-yt', text: 'A' });
 		await repository.create({ id: 'draft-sp', text: 'B' });
+		await repository.create({ id: 'draft-am', text: 'C' });
 
 		await media.attach({
 			draftId: 'draft-yt',
@@ -193,6 +194,13 @@ describe('draft repository', () => {
 			trackId: '4cOdK2wGLETKBW3PvgPWqT',
 			position: 34
 		});
+		await media.attach({
+			draftId: 'draft-am',
+			name: 'Kygo — Stole the Show',
+			source: 'apple',
+			songId: '1091453645',
+			position: 56
+		});
 
 		expect(await media.get('draft-yt')).toMatchObject({
 			source: 'youtube',
@@ -203,6 +211,11 @@ describe('draft repository', () => {
 			source: 'spotify',
 			trackId: '4cOdK2wGLETKBW3PvgPWqT',
 			position: 34
+		});
+		expect(await media.get('draft-am')).toMatchObject({
+			source: 'apple',
+			songId: '1091453645',
+			position: 56
 		});
 	});
 
@@ -671,7 +684,7 @@ describe('autosave and recovery', () => {
 		const recovered = await recoverStartupDraft(repository);
 
 		expect(recovered.text).toBe('');
-		expect(recovered.title).toBe('Untitled draft');
+		expect(recovered.title).toBe('Untitled transcription');
 		// A draft with nothing in it has nothing to recover, so nothing is stored
 		// for it until the first save that gives it text.
 		expect(await repository.list()).toEqual([]);

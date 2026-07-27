@@ -258,6 +258,140 @@ describe('media player playhead memory', () => {
 	});
 });
 
+/**
+ * The gap between a strip drawing and its source being able to do anything.
+ *
+ * A remote source is not ready the moment its transport appears: a video waits
+ * on Google's player, a track on a device registration, a song on a script, a
+ * sign-in and a queue. Every press in that gap used to be dropped — press play,
+ * get silence, press again, and eventually one lands by luck.
+ *
+ * Driven through Apple Music because its queue is the easiest of the three to
+ * hold open, but the rule under test belongs to the transport and therefore to
+ * all four sources.
+ */
+describe('a press that arrives before the source is ready', () => {
+	function slowAttachment() {
+		let release = (): void => {};
+		const opened = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const calls: string[] = [];
+		const listeners = new Map<string, (event: never) => void>();
+		const instance = {
+			isAuthorized: true,
+			storefrontId: 'no',
+			playbackRate: 1,
+			setQueue: async () => {
+				await opened;
+			},
+			play: async () => void calls.push('play'),
+			pause: () => void calls.push('pause'),
+			seekToTime: async () => {},
+			addEventListener: (name: string, handler: (event: never) => void) => {
+				listeners.set(name, handler);
+			},
+			removeEventListener: (name: string) => void listeners.delete(name)
+		};
+
+		const player = createMediaPlayer({
+			feedback: createFeedbackState(),
+			createAudio: () => new StubAudio().asMediaElement(),
+			createObjectUrl: () => 'blob:test',
+			revokeObjectUrl: () => {},
+			loadMusicKit: async () =>
+				({ PlaybackStates: { playing: 2 }, configure: async () => instance }) as never,
+			appleMusicRequest: (async () =>
+				new Response('{}', { headers: { 'content-type': 'application/json' } })) as typeof fetch
+		});
+
+		const attaching = player.attachSong({ songId: '1091453645', name: 'Kygo — Stole the Show' });
+		// MusicKit's own `playing` state number. Nothing reports playback until this
+		// is fired, which is the point: `play()` is a request, not a fact.
+		const reportPlaying = () => listeners.get('playbackStateDidChange')?.({ state: 2 } as never);
+		return { player, calls, release, attaching, reportPlaying };
+	}
+
+	it('spends the press once the source can take it, rather than dropping it', async () => {
+		const { player, calls, release, attaching } = slowAttachment();
+
+		player.play();
+		// It reads as playing at once. A press that works but shows nothing for a
+		// second is still a press somebody makes twice.
+		expect(player.playing).toBe(true);
+		expect(calls).toEqual([]);
+
+		release();
+		await attaching;
+
+		expect(calls).toEqual(['play']);
+	});
+
+	/**
+	 * The wait has to be visible, not merely correct.
+	 *
+	 * `playing` flipping to true is what makes the control say Pause and a second
+	 * press cancel — but a Pause button over silence is only half an answer, and
+	 * the half that was missing read as nothing having happened. `starting` is the
+	 * other half and is the only thing it is for: the surfaces put a spinner in
+	 * the glyph's own slot while it is true.
+	 */
+	it('reports the wait for as long as it lasts, and one press reads as one state', async () => {
+		const { player, release, attaching, reportPlaying } = slowAttachment();
+
+		expect(player.starting).toBe(false);
+		player.play();
+		expect(player.starting).toBe(true);
+		expect(player.playing).toBe(true);
+
+		release();
+		await attaching;
+
+		// The gap has two halves and the spinner has to cover both. `play()` has
+		// been issued by now, but issuing it is a request rather than sound: an
+		// earlier version cleared here, which put the Play glyph back on screen for
+		// the buffer and made a single press read as spinner, then play, then pause.
+		expect(player.starting).toBe(true);
+		expect(player.playing).toBe(true);
+
+		reportPlaying();
+
+		expect(player.starting).toBe(false);
+		expect(player.playing).toBe(true);
+	});
+
+	// Because the queued press reads as playing, the control says Pause — so the
+	// obvious second press has to mean what it says and call the start off.
+	it('lets a second press cancel a start that has not happened yet', async () => {
+		const { player, calls, release, attaching } = slowAttachment();
+
+		player.toggle();
+		expect(player.playing).toBe(true);
+		player.toggle();
+		expect(player.playing).toBe(false);
+
+		release();
+		await attaching;
+
+		expect(calls).toEqual([]);
+	});
+
+	// Two presses in the gap are one start, not two: the user pressing again
+	// because nothing happened must not queue a second play behind the first.
+	it('collapses repeated presses into one start', async () => {
+		const { player, calls, release, attaching } = slowAttachment();
+
+		player.play();
+		player.play();
+		player.play();
+
+		release();
+		await attaching;
+
+		expect(calls).toEqual(['play']);
+	});
+});
+
 describe('formatTime', () => {
 	it('reads as minutes and padded seconds', () => {
 		expect(formatTime(0)).toBe('0:00');

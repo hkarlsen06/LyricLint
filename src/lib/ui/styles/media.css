@@ -95,6 +95,145 @@
 	border: 0;
 }
 
+/*
+ * The cover, in the video's band and under the video's rules — chrome, a hairline
+ * over it, flush with the column.
+ *
+ * The one thing it does that the video may not is fold, so the row that folds it
+ * is the only chrome it adds: the track at one end and a chevron at the other,
+ * which is the strip rule about a control never sitting alone in half a gutter.
+ */
+.media-artwork {
+	display: flex;
+	flex: none;
+	flex-direction: column;
+	border-top: var(--border-width) solid var(--color-border);
+	background: var(--color-chrome);
+}
+
+/*
+ * The bar, and it is the strip's bar: same height, same padding, same order —
+ * transport, then what is playing, then the row's one command at the far end.
+ *
+ * `min-height` from the same token the strip uses rather than a number copied
+ * off it, because the two being equal is the point: they sit at the foot of the
+ * two columns of one window, and a few pixels between them reads as one of them
+ * being slightly wrong rather than as two different things.
+ */
+.media-artwork__bar {
+	display: flex;
+	min-height: var(--control-height-lg);
+	padding: var(--space-1) var(--space-3);
+	gap: var(--space-3);
+	align-items: center;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+/* The name takes the row's slack and gives it back at the ellipsis, so the
+   chevron keeps its slot at the far end however long the title runs. */
+.media-artwork__name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.media-artwork__toggle {
+	flex: none;
+}
+
+/*
+ * Open points down, at the picture it opened; closed points up, at the bar the
+ * picture folded into. The chevron names where the content is rather than which
+ * way the control travels, which is the reading that survives the band being at
+ * the *foot* of a column — up is where everything else in this panel lives.
+ *
+ * The rotation is the only animation here. The fold itself is instant, because a
+ * panel band sliding open under a list of findings would move every one of them.
+ */
+.media-artwork__chevron {
+	transform: rotate(180deg);
+	transition: transform var(--duration-fast) var(--ease-out-quart);
+}
+
+.media-artwork__toggle[aria-expanded='true'] .media-artwork__chevron {
+	transform: none;
+}
+
+/*
+ * The picture and the controls over it are one stack, and the stack is what
+ * clips: rounding the corners here rather than on the image is what keeps the
+ * scrim from squaring them off again at the bottom.
+ */
+.media-artwork__stage {
+	position: relative;
+	margin: 0 var(--space-3) var(--space-3);
+	overflow: hidden;
+	border-radius: var(--radius-sm);
+}
+
+.media-artwork__cover {
+	display: block;
+	width: 100%;
+	/* Square because a cover is square. Nothing is boxed: the picture sits on the
+	   band's own chrome, so it needs no frame of its own. */
+	aspect-ratio: 1;
+	object-fit: cover;
+	background: var(--color-canvas);
+}
+
+/*
+ * The transport on the picture, where a player's controls go.
+ *
+ * The scrim is not decoration and not a state: half the covers in the world are
+ * pale, and white glyphs alone would vanish on a third of them. It is a gradient
+ * rather than a flat band so the picture is given up gradually — a hard edge
+ * across a cover reads as a second box drawn over it.
+ */
+.media-artwork__controls {
+	position: absolute;
+	inset-inline: 0;
+	bottom: 0;
+	display: flex;
+	padding: var(--space-6) var(--space-3) var(--space-2);
+	gap: var(--space-2);
+	align-items: center;
+	justify-content: center;
+	background: var(--color-scrim);
+}
+
+/*
+ * The two colors in the system that do not follow the scheme, and the reason is
+ * the same one the modal backdrop has: what they read against is not our surface.
+ * Here it is somebody else's album art.
+ */
+.media-artwork__controls .media-strip__transport-button {
+	padding: var(--space-1-5);
+	border-radius: var(--radius-sm);
+	color: var(--color-text-on-scrim);
+}
+
+.media-artwork__controls .media-strip__transport-button:hover:not(:disabled) {
+	background: var(--color-control-hover-on-scrim);
+}
+
+/* Player-sized, not chrome-sized. The glyphs carry `width`/`height` attributes
+   for the strip, so this is the override that makes them big here. */
+.media-artwork__controls svg,
+.media-artwork__controls .spinner {
+	width: 20px;
+	height: 20px;
+}
+
+/* Play leads, the way it does in every transport anyone has used. */
+.media-artwork__controls .media-strip__transport-button:nth-child(2) svg,
+.media-artwork__controls .media-strip__transport-button:nth-child(2) .spinner {
+	width: 28px;
+	height: 28px;
+}
+
 .media-strip__transport,
 .media-strip__meta {
 	display: flex;
@@ -191,6 +330,36 @@
    a brand asset on hover is the thing their guidelines forbid outright. */
 .media-strip__spotify:hover {
 	color: #1ed760;
+}
+
+/*
+ * Apple's `Listen on Apple Music` lockup, sized and otherwise left alone.
+ *
+ * The only thing set here is a height, and everything else follows from it. The
+ * lockup is 125.1 × 27.78, and that ratio is stated here rather than left to the
+ * `<img>`'s `width`/`height` attributes, which are parsed as integers: rounding
+ * it to 125 × 28 squeezes the badge by 0.9% horizontally, which is invisible and
+ * is still exactly the stretching their guidelines forbid. Declaring it in CSS
+ * keeps the ratio exact *and* reserves the box before the file loads, which is
+ * what the attributes were there for. There is no hover treatment for a related
+ * reason: recoloring a brand asset under the pointer is the specific thing
+ * Spotify's mark is also spared.
+ *
+ * The height matches the Spotify mark's 21px rather than the row's, so the two
+ * attributions sit on one line and neither costs the strip any height — which is
+ * the constraint the shortcut captions are already measured against.
+ */
+.media-strip__apple {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	line-height: 0;
+}
+
+.media-strip__apple img {
+	width: auto;
+	height: 21px;
+	aspect-ratio: 125.1 / 27.78;
 }
 
 /*

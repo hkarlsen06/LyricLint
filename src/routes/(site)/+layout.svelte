@@ -85,5 +85,12 @@
 		<span class="site-code">
 			Rule set {currentRuleSet.version} · published {currentRuleSet.publishedAt}
 		</span>
+		<!-- Required by the Apple Music Identity Guidelines, which the Developer
+		     Program License Agreement makes binding on anything that calls MusicKit.
+		     Once per site, wherever the legal copy is, which is here. -->
+		<span
+			>Apple and Apple Music are trademarks of Apple Inc., registered in the U.S. and other
+			countries.</span
+		>
 	</footer>
 </div>

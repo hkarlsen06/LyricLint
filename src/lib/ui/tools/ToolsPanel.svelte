@@ -2,6 +2,7 @@
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
 	import type { WorkspaceBackupState } from '$lib/persistence/backup.js';
+	import { downloadImage } from '../clipboard.js';
 	import { onMount } from 'svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
@@ -9,6 +10,25 @@
 	let backupInput = $state<HTMLInputElement>();
 	let importingBackup = $state(false);
 	let backupState = $state<WorkspaceBackupState | undefined>();
+	let savingArtwork = $state(false);
+
+	const artwork = $derived(controller.media?.player.artwork);
+
+	/** A track name is a filename here, and `Artist — Track` is full of nothing a
+	 *  file system minds except the separators. */
+	function artworkFilename(): string {
+		const name = controller.media?.player.name ?? 'Album art';
+		return `${name.replace(/[\\/:*?"<>|]/gu, '-').trim()}.jpg`;
+	}
+
+	async function saveArtwork(url: string): Promise<void> {
+		savingArtwork = true;
+		try {
+			await downloadImage(url, artworkFilename());
+		} finally {
+			savingArtwork = false;
+		}
+	}
 
 	const reviewedSources = $derived(
 		[...controller.sources.values()].filter((source) => source.reviewStatus === 'reviewed')
@@ -83,6 +103,37 @@
 		<p>Copy and export use the exact canonical string, including literal supported markup.</p>
 	</section>
 
+	<!--
+		One section, one action, and it draws only where there is a cover to save.
+
+		The picture belongs to whatever is attached — Apple's and Spotify's
+		catalogue reads publish one, and a video's is derived from its id — so this
+		section says nothing about which source the song came from and appears or
+		goes with the song rather than with a setting.
+	-->
+	{#if artwork}
+		<section>
+			<h3>Album art</h3>
+			<p>The cover the attached source publishes for this song, at full size.</p>
+			<div class="tool-actions">
+				<!-- The label stays put and a spinner joins it: a control whose text
+				     changes under the press reflows the row it was pressed in. -->
+				<button
+					type="button"
+					class="button"
+					disabled={savingArtwork}
+					aria-busy={savingArtwork}
+					onclick={() => saveArtwork(artwork)}
+				>
+					{#if savingArtwork}
+						<span class="spinner" aria-hidden="true"></span>
+					{/if}
+					Download album art
+				</button>
+			</div>
+		</section>
+	{/if}
+
 	{#if controller.backup}
 		<section>
 			<h3>Workspace backup</h3>
@@ -136,8 +187,8 @@
 	<section>
 		<h3>Local data</h3>
 		<p>
-			Drafts stay in this browser; audio stays on your disk. Everything works offline except
-			YouTube playback, which needs permission each session.
+			Drafts stay in this browser; audio stays on your disk. Everything works offline except YouTube
+			playback, which needs permission each session.
 		</p>
 		<div aria-live="polite">
 			{#if confirmDeleteAll}

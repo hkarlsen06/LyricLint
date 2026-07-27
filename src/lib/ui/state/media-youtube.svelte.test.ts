@@ -114,6 +114,14 @@ function setup() {
  * comes out different here is the abstraction having failed at its one job.
  */
 describe('YouTube transport arithmetic', () => {
+	// The address is derived from the id rather than asked for, so the cover is
+	// known before Google's player is — and it costs the opt-in nothing.
+	it('reports a cover the moment the video is attached', async () => {
+		const { attach, player } = setup();
+		await attach();
+		expect(player.artwork).toBe(`https://i.ytimg.com/vi/${id}/hqdefault.jpg`);
+	});
+
 	it('backs up on resume, exactly as a local file does', async () => {
 		const { attach, player } = setup();
 		const video = await attach();

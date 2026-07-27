@@ -26,6 +26,8 @@ export interface SpotifyTrack {
 	name: string;
 	artists?: { name: string }[];
 	duration_ms?: number;
+	/** Widest first, as Spotify orders them — 640px at the top. */
+	album?: { images?: { url: string }[] };
 }
 
 export interface SpotifyPlaybackState {
@@ -368,6 +370,9 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 		const track = (await response.json().catch(() => undefined)) as SpotifyTrack | undefined;
 		if (track?.name === undefined || trackId !== id) return;
 		events.named(describe(track));
+		// The read that pays for the name carries the cover with it, so this costs
+		// no second request. Widest first is Spotify's own order.
+		events.artworkChanged(track.album?.images?.[0]?.url);
 		if (track.duration_ms !== undefined) reportDuration(track.duration_ms / 1000);
 	}
 

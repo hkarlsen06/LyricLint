@@ -8,7 +8,7 @@ export { default as ToolsPanel } from './tools/ToolsPanel.svelte';
 export { default as LiveRegion } from './primitives/LiveRegion.svelte';
 export { default as ToastRegion } from './primitives/ToastRegion.svelte';
 export { default as SourceLink } from '$lib/diagnostics/SourceLink.svelte';
-export { copyCanonicalMarkup, downloadUtf8Text } from './clipboard.js';
+export { copyCanonicalMarkup, downloadImage, downloadUtf8Text } from './clipboard.js';
 export {
 	createWorkbenchController,
 	performerColorIds,

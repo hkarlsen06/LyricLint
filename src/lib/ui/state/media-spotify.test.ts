@@ -158,7 +158,11 @@ async function attach(startAt?: number): Promise<Harness> {
 				JSON.stringify({
 					name: 'Sensommer',
 					artists: [{ name: 'Mul' }],
-					duration_ms: 212_000
+					duration_ms: 212_000,
+					// Widest first, as Spotify orders them.
+					album: {
+						images: [{ url: 'https://i.scdn.co/image/640' }, { url: 'https://i.scdn.co/image/64' }]
+					}
 				}),
 				{ status: 200, headers: { 'content-type': 'application/json' } }
 			);
@@ -171,6 +175,7 @@ async function attach(startAt?: number): Promise<Harness> {
 		durationChanged: vi.fn(),
 		ratesChanged: vi.fn(),
 		named: vi.fn(),
+		artworkChanged: vi.fn(),
 		started: vi.fn(),
 		stopped: vi.fn(),
 		ended: vi.fn(),
@@ -209,6 +214,13 @@ describe('createSpotifySource', () => {
 		expect(harness.playCalls()).toHaveLength(0);
 		expect(harness.events.named).toHaveBeenCalledWith('Mul — Sensommer');
 		expect(harness.events.durationChanged).toHaveBeenCalledWith(212);
+	});
+
+	// The cover rides along with the name, so offering it costs no second request.
+	it('reports the widest cover the same read already carried', async () => {
+		const harness = await attach();
+		expect(harness.events.artworkChanged).toHaveBeenCalledWith('https://i.scdn.co/image/640');
+		expect(harness.calls.filter((call) => call.url.includes('/tracks/'))).toHaveLength(1);
 	});
 
 	it('offers exactly one rate, because Spotify has no rate control', async () => {

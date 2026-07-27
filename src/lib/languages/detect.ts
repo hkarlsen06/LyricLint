@@ -6,7 +6,8 @@ import { getLanguagePack, resolveLanguageTag } from './registry.js';
 const minimumStatisticalLetters = 40;
 const minimumStatisticalScore = 0.2;
 const minimumSelectedScoreRatio = 1.15;
-const norwegianMarkers = /(?<!\p{L})(?:fortsatt|gjør|gjøre|hva|mer|mye|noe|noen|røyke|skjer)(?!\p{L})/giu;
+const norwegianMarkers =
+	/(?<!\p{L})(?:fortsatt|gjør|gjøre|hva|mer|mye|noe|noen|røyke|skjer)(?!\p{L})/giu;
 const selectableTags = new Set(['en', ...languageSourceInventory.map((entry) => entry.tag)]);
 
 let detector: LanguageDetect | undefined;

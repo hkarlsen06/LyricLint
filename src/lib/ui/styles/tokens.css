@@ -166,6 +166,16 @@
 	   two dialogs had already copied the same oklch by hand. */
 	--color-backdrop: oklch(12% 0.008 285 / 0.64);
 
+	/* Controls drawn over a picture — today the album cover in the panel's media
+	   band, where the surface underneath is somebody else's artwork rather than
+	   any of our own. Neither scheme's text color can be trusted against it, so
+	   these are one value for both, exactly like the backdrop above and for the
+	   same reason: the job is to read against whatever is there. The scrim is what
+	   makes that promise keepable on a pale cover. */
+	--color-scrim: linear-gradient(to top, oklch(12% 0.008 285 / 0.78), transparent);
+	--color-text-on-scrim: oklch(98% 0 0);
+	--color-control-hover-on-scrim: oklch(100% 0 0 / 0.18);
+
 	/* Toolbars and status bars are chrome, not an interaction state; the alias
 	   keeps that intent legible where the fill ramp is reused for a flat band. */
 	--color-chrome: var(--color-fill-subtle);

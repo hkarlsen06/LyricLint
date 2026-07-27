@@ -5,6 +5,7 @@
 	import AppWordmark from './AppWordmark.svelte';
 	import DraftMenu from './DraftMenu.svelte';
 	import LanguagePicker from './LanguagePicker.svelte';
+	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
 	let { controller }: { controller: WorkbenchController } = $props();
 	// Presentation-only clock for the "Saved locally · Ns ago" readout. It never
@@ -86,7 +87,10 @@
 	onMount(() => () => clearTimeout(copiedTimer));
 
 	function onTitleClick(event: MouseEvent & { currentTarget: HTMLInputElement }) {
-		if (event.currentTarget.value === 'Untitled draft') {
+		// The constant, not the words: this is a real comparison rather than a
+		// label, so a literal here stops matching the day the placeholder is
+		// renamed and the select-all quietly never fires again.
+		if (event.currentTarget.value === DEFAULT_DRAFT_TITLE) {
 			event.currentTarget.select();
 		}
 	}

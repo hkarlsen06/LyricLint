@@ -415,6 +415,114 @@ describe('workbench draft safety', () => {
 	});
 
 	// Attaching audio is the one thing other than text that makes a draft worth a
+	/**
+	 * A song attached to an untouched draft says what the transcription is *of*,
+	 * which is nearly always what it should be called.
+	 *
+	 * `Untitled transcription` is the whole of the condition. A title the user typed — or
+	 * one an earlier source already supplied — is a decision, and a later
+	 * attachment must not overwrite it.
+	 */
+	test('lets a named source title a draft nobody has named', async () => {
+		const first = { ...draft('draft-a'), title: 'Untitled transcription' };
+		const repository = createInMemoryDraftRepository([first]);
+		const { controller } = setup({
+			initial: first,
+			repository,
+			mediaRepository: createInMemoryMediaRepository()
+		});
+
+		await controller.media?.attachAppleMusicSong('1091453645', 'Kygo — Stole the Show');
+
+		expect(controller.title).toBe('Kygo — Stole the Show');
+	});
+
+	test('never renames a draft the user has already named', async () => {
+		const first = { ...draft('draft-a'), title: 'Snøfall verse 2' };
+		const repository = createInMemoryDraftRepository([first]);
+		const { controller } = setup({
+			initial: first,
+			repository,
+			mediaRepository: createInMemoryMediaRepository()
+		});
+
+		await controller.media?.attachAppleMusicSong('1091453645', 'Kygo — Stole the Show');
+
+		expect(controller.title).toBe('Snøfall verse 2');
+	});
+
+	/**
+	 * A filename is not reliably a title.
+	 *
+	 * `01 Track.mp3` is a fine one; a rip's bookkeeping is not, and there is no
+	 * way to tell them apart except by how much of it there is. The long ones are
+	 * left alone rather than guessed at — an `Untitled transcription` the user renames
+	 * beats a title they have to clear first. The extension always goes: that is a
+	 * fact about a file on a disk, not the name of a transcription.
+	 */
+	test('takes a short filename as a title, without its extension, and leaves a long one', async () => {
+		for (const [filename, expected] of [
+			['Snøfall.mp3', 'Snøfall'],
+			[
+				'Artist - Album (2011 Remaster) [FLAC 24-96] - 07 - The Song Itself.mp3',
+				'Untitled transcription'
+			]
+		] as const) {
+			const first = { ...draft('draft-a'), title: 'Untitled transcription' };
+			const repository = createInMemoryDraftRepository([first]);
+			const { controller } = setup({
+				initial: first,
+				repository,
+				mediaRepository: createInMemoryMediaRepository()
+			});
+
+			await controller.media?.attachFile(new File([''], filename));
+
+			expect(controller.title, filename).toBe(expected);
+		}
+	});
+
+	// A pasted link is its own URL until the catalogue answers, and a draft called
+	// `music.apple.com/song/1091453645` is worse than one called nothing.
+	test('never titles a draft after a link', async () => {
+		const first = { ...draft('draft-a'), title: 'Untitled transcription' };
+		const repository = createInMemoryDraftRepository([first]);
+		const { controller } = setup({
+			initial: first,
+			repository,
+			mediaRepository: createInMemoryMediaRepository()
+		});
+
+		await controller.media?.attachAppleMusicSong('1091453645', 'music.apple.com/song/1091453645');
+
+		expect(controller.title).toBe('Untitled transcription');
+	});
+
+	/**
+	 * The fold outlives the band that draws it.
+	 *
+	 * It is destroyed whenever the attached source changes, so a flag held in the
+	 * component would forget on every swapped song — and a reload would start over.
+	 * It goes in the same `appMetadata` table as the current draft, which is what
+	 * puts it inside the workspace backup and inside `Delete all local data`.
+	 */
+	test('remembers whether the cover was folded, across a reload', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		const { controller } = setup({ initial: first, repository });
+
+		expect(controller.artworkOpen).toBe(true);
+		controller.setArtworkOpen(false);
+		expect(controller.artworkOpen).toBe(false);
+		await vi.waitFor(async () =>
+			expect(await repository.getPreference('artworkOpen')).toBe('false')
+		);
+
+		// A reload is a fresh controller over the same storage.
+		const next = setup({ initial: first, repository });
+		await vi.waitFor(() => expect(next.controller.artworkOpen).toBe(false));
+	});
+
 	// record. Without this the media row was written against a transient id, the
 	// draft was never persisted, and the next load invented a new id — so the
 	// attachment came back as nothing at all, not even the pending bar.

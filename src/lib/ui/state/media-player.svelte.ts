@@ -4,6 +4,8 @@ import { createYouTubeSource, loadYouTubeApi } from './media-youtube.js';
 import type { SpotifySdkLoader, SpotifySource } from './media-spotify.js';
 import { createSpotifySource, loadSpotifySdk } from './media-spotify.js';
 import { spotifyAccessToken } from './spotify-auth.js';
+import type { AppleMusicSource, MusicKitLoader } from './media-apple.js';
+import { configureAppleMusic, createAppleMusicSource, loadMusicKit } from './media-apple.js';
 
 /**
  * How far a resume backs up before it starts, in seconds.
@@ -38,7 +40,7 @@ export const playbackRates = [0.5, 0.75, 1, 1.25, 1.5] as const;
 export type TransportAction = 'toggle' | 'back' | 'forward';
 
 /** Where the sound is coming from. Absent from a record means `file`. */
-export type MediaSourceKind = 'file' | 'youtube' | 'spotify';
+export type MediaSourceKind = 'file' | 'youtube' | 'spotify' | 'apple';
 
 /**
  * What the transport tells itself about whatever is making sound.
@@ -54,6 +56,16 @@ export interface MediaSourceEvents {
 	ratesChanged(rates: readonly number[]): void;
 	/** The source learned what it is playing, after it was already attached. */
 	named(name: string): void;
+	/**
+	 * Cover art for what is playing, where the source has any.
+	 *
+	 * Optional in practice rather than in the type: a source that has no picture
+	 * to offer simply never calls it, which is every source but Apple Music today.
+	 * It is on the transport rather than on that one source because a cover is a
+	 * fact about what is playing, and the panel that draws it should not have to
+	 * know which of four things is playing it.
+	 */
+	artworkChanged(url: string | undefined): void;
 	started(): void;
 	stopped(): void;
 	ended(): void;
@@ -115,6 +127,13 @@ export interface TrackAttachment {
 	startAt?: number;
 }
 
+/** What `attachSong` needs. The same shape again, for Apple Music. */
+export interface SongAttachment {
+	songId: string;
+	name?: string;
+	startAt?: number;
+}
+
 /**
  * Why the transport is reporting its position.
  *
@@ -150,6 +169,10 @@ export interface MediaPlayerDependencies {
 	spotifyRequest?: typeof fetch;
 	/** Injectable so a test advances the Spotify poll by hand. */
 	scheduleSpotifyPoll?: PollScheduler;
+	/** How MusicKit arrives. Injectable for the same reason as the other two. */
+	loadMusicKit?: MusicKitLoader;
+	/** Injectable so a test answers Apple's catalogue without a network. */
+	appleMusicRequest?: typeof fetch;
 }
 
 export interface MediaPlayer {
@@ -163,8 +186,31 @@ export interface MediaPlayer {
 	readonly rate: number;
 	/** Set when the file could not be decoded; the strip shows it in place. */
 	readonly error: string | undefined;
+	/**
+	 * A press on play that the source has not been able to act on yet.
+	 *
+	 * `playing` already reports it, because the control has to flip and a second
+	 * press has to cancel — but a control that says Pause over silence is only
+	 * half the answer. This is the other half, and the only thing it is for: the
+	 * surfaces draw a spinner in the glyph's place, so the gap reads as a wait
+	 * rather than as nothing having happened.
+	 *
+	 * It covers the whole gap — the attachment *and* the buffer after `play()` was
+	 * issued — because a spinner that gave up at the halfway mark put the Play
+	 * glyph back for the second half, and one press reading as three states is the
+	 * thing this was supposed to stop.
+	 */
+	readonly starting: boolean;
 	/** What is attached, or undefined when nothing is. */
 	readonly sourceKind: MediaSourceKind | undefined;
+	/**
+	 * A cover for what is playing, where the source has one to give.
+	 *
+	 * Undefined for a local file, a video and a track, which is the honest answer
+	 * rather than a placeholder: a band that drew an empty square whenever there
+	 * was no picture would cost the panel a third of its height to say nothing.
+	 */
+	readonly artwork: string | undefined;
 	/**
 	 * The rates the attached source can actually apply, slow to fast.
 	 *
@@ -195,6 +241,15 @@ export interface MediaPlayer {
 	 * `play()` — see `createSpotifySource`.
 	 */
 	attachTrack(track: TrackAttachment): Promise<void>;
+	/**
+	 * Point the transport at an Apple Music song.
+	 *
+	 * Silent like the other two, and for the reason the file source is: MusicKit
+	 * has a real cue, so the queue is built without playing. This resolves once
+	 * the song is queued — which includes the sign-in, where a sign-in is needed,
+	 * so it must be called from a gesture.
+	 */
+	attachSong(song: SongAttachment): Promise<void>;
 	/**
 	 * Give the video source somewhere to draw, and take it back on unmount.
 	 *
@@ -393,13 +448,40 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	let rate = $state(1);
 	let error = $state<string | undefined>(undefined);
 	let sourceKind = $state<MediaSourceKind | undefined>(undefined);
+	let artwork = $state<string | undefined>(undefined);
 	let availableRates = $state<readonly number[]>(playbackRates);
 	let cuePoints = $state<readonly number[]>([]);
+	/**
+	 * What the user has asked for, as against what the source is doing.
+	 *
+	 * These are two different facts and the transport needs both, because between
+	 * them is a gap that is always visible and sometimes seconds long. A remote
+	 * source is not ready to be told anything the moment its strip draws — a video
+	 * waits on Google's player, a track on a device registration, a song on a
+	 * script, a sign-in and a queue — and even once it is, `play()` is a request
+	 * that buffers before it becomes sound.
+	 *
+	 * Every press in that gap used to be dropped: press play, get silence, press
+	 * again, and eventually one lands by luck. Holding the intent separately is
+	 * what fixes it, and one flag covers the whole gap rather than one per half —
+	 * an earlier version cleared as soon as `play()` was *issued*, which put the
+	 * Play glyph back on screen for the buffer and made a single press look like
+	 * three states.
+	 *
+	 * The YouTube bridge already solved its own half with a flag of this name that
+	 * it replays when its player arrives. Right behaviour, wrong place: it left
+	 * the identical gap open in the two sources written after it. Here it is once,
+	 * above all four.
+	 */
+	let wantPlaying = $state(false);
+	/** Whether a source is still being handed what it was told to load. */
+	let attaching = false;
 
 	let active: MediaSource | undefined;
 	let fileSource: FileSource | undefined;
 	let youtubeSource: YouTubeSource | undefined;
 	let spotifySource: SpotifySource | undefined;
+	let appleSource: AppleMusicSource | undefined;
 	let progressListener: ProgressListener | undefined;
 	let nameListener: ((name: string) => void) | undefined;
 	// Cleared by any deliberate seek: someone who has just dragged the scrubber to
@@ -435,6 +517,10 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 				name = next;
 				nameListener?.(next);
 			},
+			artworkChanged(url) {
+				if (!live()) return;
+				artwork = url;
+			},
 			started() {
 				if (!live()) return;
 				playing = true;
@@ -442,12 +528,14 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			stopped() {
 				if (!live()) return;
 				playing = false;
+				wantPlaying = false;
 				rewindOnResume = true;
 				progressListener?.(active?.time ?? currentTime, 'settled');
 			},
 			ended() {
 				if (!live()) return;
 				playing = false;
+				wantPlaying = false;
 				rewindOnResume = false;
 				progressListener?.(active?.time ?? currentTime, 'settled');
 			},
@@ -455,6 +543,8 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 				if (!live()) return;
 				error = message;
 				playing = false;
+				// Nothing is going to start now, so the control must stop saying it is.
+				wantPlaying = false;
 				deps.feedback.announce(message);
 			}
 		};
@@ -545,6 +635,18 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		return spotifySource;
 	}
 
+	function apple(): AppleMusicSource {
+		const load = deps.loadMusicKit ?? loadMusicKit;
+		appleSource ??= createAppleMusicSource({
+			events: eventsFor(() => appleSource),
+			music: () => configureAppleMusic(load),
+			playbackStates: async () => (await load()).PlaybackStates,
+			rates: playbackRates,
+			...(deps.appleMusicRequest ? { request: deps.appleMusicRequest } : {})
+		});
+		return appleSource;
+	}
+
 	/** Hand the transport to a source, before that source is told what to load. */
 	function beginAttachment(next: MediaSource, label: string): void {
 		if (active && active !== next) active.clear();
@@ -552,6 +654,9 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		sourceKind = next.kind;
 		name = label;
 		error = undefined;
+		// Before the load, not after: the outgoing song's cover must not sit over
+		// the incoming one for however long its metadata takes to arrive.
+		artwork = undefined;
 	}
 
 	/**
@@ -566,6 +671,27 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		duration = Number.NaN;
 		rewindOnResume = false;
 		playing = false;
+		wantPlaying = false;
+	}
+
+	/**
+	 * Spend a press that arrived before the source could act on it.
+	 *
+	 * Called at the end of every asynchronous attachment, and deliberately not
+	 * where a failure has already been reported: a source that could not load has
+	 * nothing to play, and starting it anyway would answer a real error with
+	 * silence and a Pause button.
+	 */
+	function playIfAsked(source: MediaSource): void {
+		if (!wantPlaying) return;
+		if (active !== source || error !== undefined) {
+			wantPlaying = false;
+			return;
+		}
+		// The intent is *not* cleared here. It is cleared by the source reporting
+		// that playback started, stopped or failed — until one of those arrives the
+		// press is still outstanding, and so is the spinner.
+		source.play();
 	}
 
 	const player: MediaPlayer = {
@@ -576,7 +702,10 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			return name !== undefined;
 		},
 		get playing() {
-			return playing;
+			// The intent, not the source's state: `toggle` has to cancel a start that
+			// has not landed rather than ask for it twice, and the control has to say
+			// what the user just did rather than what has finished happening.
+			return playing || wantPlaying;
 		},
 		get currentTime() {
 			return currentTime;
@@ -590,8 +719,14 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		get error() {
 			return error;
 		},
+		get starting() {
+			return wantPlaying && !playing;
+		},
 		get sourceKind() {
 			return sourceKind;
+		},
+		get artwork() {
+			return artwork;
 		},
 		get availableRates() {
 			return availableRates;
@@ -611,21 +746,42 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		async attachVideo(video) {
 			const source = youtube();
 			beginAttachment(source, video.name ?? video.videoId);
+			attaching = true;
 			const loading = source.load(video.videoId, video.startAt);
 			settleAttachment(video.startAt);
 			deps.feedback.announce(`${name} attached.`);
 			await loading;
+			attaching = false;
 			if (active !== source) return;
 			source.setRate(rate);
+			playIfAsked(source);
 		},
 
 		async attachTrack(track) {
 			const source = spotify();
 			beginAttachment(source, track.name ?? track.trackId);
+			attaching = true;
 			const loading = source.load(track.trackId, track.startAt);
 			settleAttachment(track.startAt);
 			deps.feedback.announce(`${name} attached.`);
 			await loading;
+			attaching = false;
+			playIfAsked(source);
+		},
+
+		async attachSong(song) {
+			const source = apple();
+			beginAttachment(source, song.name ?? song.songId);
+			attaching = true;
+			const loading = source.load(song.songId, song.startAt);
+			settleAttachment(song.startAt);
+			deps.feedback.announce(`${name} attached.`);
+			await loading;
+			attaching = false;
+			if (active !== source) return;
+			// Unlike the other two, this one can actually honour it.
+			source.setRate(rate);
+			playIfAsked(source);
 		},
 
 		mountVideo(container) {
@@ -637,7 +793,9 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			active = undefined;
 			sourceKind = undefined;
 			name = undefined;
+			artwork = undefined;
 			playing = false;
+			wantPlaying = false;
 			currentTime = 0;
 			duration = Number.NaN;
 			error = undefined;
@@ -648,6 +806,13 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		play() {
 			const source = active;
 			if (source === undefined) return;
+			// Recorded before anything else, so the control flips and the spinner
+			// appears on the press rather than on whatever answers it. A press that
+			// works but shows nothing for a second is still a press somebody makes
+			// twice.
+			wantPlaying = true;
+			// Nothing to spend it on yet; the attachment will, when it lands.
+			if (attaching) return;
 			if (rewindOnResume) {
 				const target = clamp(source.time - resumeRewindSeconds, 0, source.duration);
 				source.seek(target);
@@ -658,11 +823,17 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		},
 
 		pause() {
+			// A press to stop something that has not started yet has to count, or the
+			// pending start fires a second later over a user who changed their mind.
+			wantPlaying = false;
 			active?.pause();
 		},
 
 		toggle() {
-			if (playing) player.pause();
+			// `player.playing`, not the bare state: a queued press counts as playing,
+			// so pressing again while a track is still loading cancels it instead of
+			// asking for the same start a second time.
+			if (player.playing) player.pause();
 			else player.play();
 		},
 
@@ -724,6 +895,8 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			youtubeSource = undefined;
 			spotifySource?.destroy();
 			spotifySource = undefined;
+			appleSource?.destroy();
+			appleSource = undefined;
 		}
 	};
 

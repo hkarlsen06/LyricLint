@@ -3,6 +3,7 @@
 	import LinterPanel from '../linter/LinterPanel.svelte';
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
 	import MediaVideo from '../media/MediaVideo.svelte';
+	import MediaArtwork from '../media/MediaArtwork.svelte';
 	import PerformersPanel from '../performers/PerformersPanel.svelte';
 	import type { RightPanelTab, WorkbenchController } from '../state/workbench.svelte.js';
 	import ToolsPanel from '../tools/ToolsPanel.svelte';
@@ -142,6 +143,25 @@
 		     of what it controls. -->
 		{#if controller.media?.player.sourceKind === 'youtube'}
 			<MediaVideo media={controller.media} />
+		{/if}
+
+		<!-- The same band, filled by whatever the attached source has to show. A
+		     cover only exists once its catalogue read has landed, so this waits on
+		     the picture rather than on the source kind: a square of empty chrome
+		     between attaching and the metadata arriving would be the band flashing
+		     into existence twice.
+
+		     A video is the one source that has a picture of its own here, and it is
+		     the picture this band would draw. Two bands showing one still — one of
+		     them playing it — is the same thing twice, so a video keeps its player
+		     and the thumbnail stays where it is only wanted: the tools panel's
+		     download. -->
+		{#if controller.media?.player.artwork && controller.media.player.sourceKind !== 'youtube'}
+			<MediaArtwork
+				media={controller.media}
+				open={controller.artworkOpen}
+				onToggle={(open) => controller.setArtworkOpen(open)}
+			/>
 		{/if}
 
 		<!-- Last of all, under the picture: the window's summary is the widest

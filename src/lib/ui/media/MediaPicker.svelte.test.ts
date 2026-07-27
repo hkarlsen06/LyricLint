@@ -78,6 +78,9 @@ describe('MediaPicker', () => {
 
 	// The answer most transcribers have is the one they meet first, and the local
 	// file — the answer that always works and needs nothing — anchors the end.
+	// Between them the two subscription sources sit in the order the deployed
+	// build will actually show them: Apple Music ships, Spotify is a local-only
+	// experiment, so the one a stranger can use comes first.
 	it('leads with YouTube and closes with the file', async () => {
 		setup();
 		await page.getByRole('button', { name: 'Add audio' }).click();
@@ -86,6 +89,8 @@ describe('MediaPicker', () => {
 		expect(controls.map((el) => el.getAttribute('aria-label') ?? el.textContent?.trim())).toEqual([
 			'YouTube link',
 			'Use video',
+			'Apple Music search',
+			'Search',
 			'Spotify search',
 			'Search',
 			'Choose a file…'
@@ -214,5 +219,42 @@ describe('MediaPicker', () => {
 
 		await expect.element(page.getByRole('button', { name: 'Change audio' })).toBeVisible();
 		expect(page.getByRole('button', { name: 'Add audio' }).elements()).toHaveLength(0);
+	});
+
+	/**
+	 * The two slowest things in this dialog, both of which used to look like
+	 * nothing happening.
+	 *
+	 * A search is a round trip to Apple's catalogue and an attach is a script, a
+	 * sign-in and a queue. `media.busy` disables controls during the second, which
+	 * reads as the dialog having gone dead rather than as work being done — and
+	 * says nothing about which row was pressed.
+	 */
+	it('shows the search is running, and gives the control back on a refusal', async () => {
+		let release = (): void => {};
+		const answered = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const { media } = setup();
+		// A search that hangs until this test lets it go.
+		media.searchAppleMusic = async () => {
+			await answered;
+			return { error: 'Apple Music could not be reached.' };
+		};
+
+		await page.getByRole('button', { name: 'Add audio' }).click();
+		await page.getByLabelText('Apple Music search').fill('kygo');
+
+		const search = dialog()?.querySelector('.media-dialog__search') as HTMLButtonElement;
+		search.click();
+		await vi.waitFor(() => expect(search.getAttribute('aria-busy')).toBe('true'));
+		expect(search.querySelector('.spinner')).not.toBeNull();
+
+		release();
+		// A refusal has to hand the field back as surely as an answer does: a
+		// spinner left turning over a dead request is worse than the silence it
+		// replaced.
+		await vi.waitFor(() => expect(search.getAttribute('aria-busy')).toBe('false'));
+		expect(search.querySelector('.spinner')).toBeNull();
 	});
 });

@@ -187,23 +187,29 @@ function parseMetadata(value: unknown): AppMetadataRecord {
 	};
 }
 
+const mediaSources = new Set<string>(['file', 'youtube', 'spotify', 'apple']);
+
 function parseMedia(value: unknown): SerializableMediaRecord {
 	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid remembered media in backup.');
 	const source = optionalStringField(value, 'source');
 	const videoId = optionalStringField(value, 'videoId');
 	const trackId = optionalStringField(value, 'trackId');
+	const songId = optionalStringField(value, 'songId');
 	const size = optionalNumberField(value, 'size');
 	const position = optionalNumberField(value, 'position');
-	if (source !== undefined && source !== 'file' && source !== 'youtube' && source !== 'spotify') {
+	// A set rather than a chain of inequalities: a fourth source made the chain
+	// long enough to read wrong, and a fifth would make it longer.
+	if (source !== undefined && !mediaSources.has(source)) {
 		throw new WorkspaceBackupError('Invalid media source in backup.');
 	}
 	return {
 		draftId: stringField(value, 'draftId'),
 		name: stringField(value, 'name'),
 		attachedAt: stringField(value, 'attachedAt'),
-		...(source === undefined ? {} : { source }),
+		...(source === undefined ? {} : { source: source as SerializableMediaRecord['source'] }),
 		...(videoId === undefined ? {} : { videoId }),
 		...(trackId === undefined ? {} : { trackId }),
+		...(songId === undefined ? {} : { songId }),
 		...(size === undefined ? {} : { size }),
 		...(position === undefined ? {} : { position })
 	};

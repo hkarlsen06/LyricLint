@@ -154,3 +154,48 @@ textarea:disabled {
 	color: var(--color-text-disabled);
 	cursor: not-allowed;
 }
+
+/*
+ * A wait with no measurable end.
+ *
+ * Every other progress in this application is a state you can name — saving,
+ * attached, ready — and says so in words. This is for the two places where the
+ * honest answer is only "a request is out": a search waiting on a catalogue, and
+ * a track that was told to play before its source could take the instruction.
+ * Both of them looked exactly like nothing happening, which is the failure a
+ * spinner exists for and the only one it is allowed to answer. It is not a
+ * substitute for a control saying what it did.
+ *
+ * It takes `currentColor` and `1em`, so it belongs to whatever it is inside — a
+ * quiet button in a chrome row, a bordered button in a dialog, or a transport
+ * glyph over an album cover — without either surface knowing about it.
+ */
+.spinner {
+	display: inline-block;
+	flex: none;
+	width: 1em;
+	height: 1em;
+	border: 2px solid currentColor;
+	/* The gap is the animation: a ring with one quarter missing reads as turning,
+	   where a full ring reads as a static circle however fast it spins. */
+	border-top-color: transparent;
+	border-radius: var(--radius-round);
+	animation: spinner-turn 700ms linear infinite;
+}
+
+@keyframes spinner-turn {
+	to {
+		transform: rotate(1turn);
+	}
+}
+
+/*
+ * Slowed rather than stopped. A still ring says nothing at all — it reads as a
+ * drawing — so the one piece of information this element carries would be lost
+ * exactly where a text alternative is least likely to be noticed.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.spinner {
+		animation-duration: 2.4s;
+	}
+}

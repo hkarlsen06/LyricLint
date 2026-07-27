@@ -378,3 +378,31 @@ describe('a draft on a Spotify track', () => {
 		expect(next.player.attached).toBe(false);
 	});
 });
+
+describe('a draft on an Apple Music song', () => {
+	/**
+	 * The same reload, with one deliberate difference from Spotify's.
+	 *
+	 * Spotify can restore silently where this session already holds a token,
+	 * because that question is one `sessionStorage` read. Apple's is not: whether
+	 * MusicKit still has a user token can only be answered by loading Apple's
+	 * script, which is the exact thing a page nobody has touched must not do. So a
+	 * song is *always* pending, and the press pays for the script and the sign-in
+	 * together.
+	 */
+	it('comes back as a pending song after a reload, and loads nothing on its own', async () => {
+		const repository = createInMemoryMediaRepository();
+		const { media } = setup({ repository });
+
+		await media.attachAppleMusicSong('1091453645', 'Kygo — Stole the Show');
+		expect(media.songId).toBe('1091453645');
+
+		const next = setup({ repository });
+		await next.media.openFor('draft-1');
+
+		expect(next.media.pendingName).toBe('Kygo — Stole the Show');
+		expect(next.media.pendingSource).toBe('apple');
+		expect(next.media.songId).toBe('1091453645');
+		expect(next.player.attached).toBe(false);
+	});
+});

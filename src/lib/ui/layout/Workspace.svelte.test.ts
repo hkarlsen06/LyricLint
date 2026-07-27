@@ -161,7 +161,7 @@ describe('Workspace and toolbar', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'New draft' }));
 
 		await waitFor(() => expect(controller.draftId).not.toBe(initialDraftId));
-		expect(controller.title).toBe('Untitled draft');
+		expect(controller.title).toBe('Untitled transcription');
 		// Nothing is stored for it while it is empty, so the list still holds only
 		// the draft that has something in it.
 		expect((await repository.list()).map(({ id }) => id)).toEqual([initialDraftId]);
@@ -187,13 +187,13 @@ describe('Workspace and toolbar', () => {
 
 	test('selects the whole default title on click without overriding a named draft caret', async () => {
 		const { controller } = createTestWorkbench();
-		await controller.setTitle('Untitled draft');
+		await controller.setTitle('Untitled transcription');
 		render(DocumentToolbar, { controller });
 
 		const title = screen.getByLabelText('Draft title') as HTMLInputElement;
 		await fireEvent.click(title);
 		expect(title.selectionStart).toBe(0);
-		expect(title.selectionEnd).toBe('Untitled draft'.length);
+		expect(title.selectionEnd).toBe('Untitled transcription'.length);
 
 		await controller.setTitle('Test draft');
 		await waitFor(() => expect(title.value).toBe('Test draft'));

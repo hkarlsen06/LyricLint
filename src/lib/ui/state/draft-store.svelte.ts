@@ -11,6 +11,7 @@ import type {
 } from '$lib/core/types.js';
 import type { FeedbackState } from './feedback.svelte.js';
 import { cloneRoster } from './roster-store.svelte.js';
+import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
 const maxRecentLanguages = 5;
 
@@ -18,7 +19,7 @@ function safeFilename(title: string): string {
 	const withoutControls = [...title.trim()]
 		.map((character) => (character.charCodeAt(0) < 32 ? '_' : character))
 		.join('');
-	const filename = withoutControls.replace(/[<>:"/\\|?*]/g, '_') || 'Untitled draft';
+	const filename = withoutControls.replace(/[<>:"/\\|?*]/g, '_') || DEFAULT_DRAFT_TITLE;
 	return `${filename}.txt`;
 }
 
@@ -162,7 +163,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		const draft = draftFromSnapshot();
 
 		// An empty document is not a draft. It has nothing to recover and shows up
-		// as one more "Untitled draft" among the real ones, so it is never
+		// as one more "Untitled transcription" among the real ones, so it is never
 		// written — and a draft emptied out gives up the record it had.
 		//
 		// Attached audio is the exception, and it has to be checked on *every*
@@ -216,7 +217,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		const timestamp = deps.now();
 		return {
 			id: deps.idFactory(),
-			title: 'Untitled draft',
+			title: DEFAULT_DRAFT_TITLE,
 			text: '',
 			language,
 			performers: [],
@@ -263,7 +264,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			}
 		},
 		async setTitle(nextTitle) {
-			const trimmed = nextTitle.trim() || 'Untitled draft';
+			const trimmed = nextTitle.trim() || DEFAULT_DRAFT_TITLE;
 			title = trimmed;
 			// An empty draft has no record to rename. The title rides along with the
 			// first save that gives it one.
@@ -310,7 +311,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			feedback.announce(`Opened ${draft.title}.`);
 		},
 		async renameDraft(id, nextTitle) {
-			const trimmed = nextTitle.trim() || 'Untitled draft';
+			const trimmed = nextTitle.trim() || DEFAULT_DRAFT_TITLE;
 			if (id === draftId && !persisted) {
 				// Same as `setTitle`: an empty draft has no record to rename yet.
 				title = trimmed;

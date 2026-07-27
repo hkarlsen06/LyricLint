@@ -4,8 +4,29 @@ import type { LyricLintDatabase } from './database.js';
 
 const CURRENT_DRAFT_KEY = 'currentDraftId';
 const RECENT_LANGUAGES_KEY = 'recentLanguages';
+
+/**
+ * Preferences share the metadata table with the keys above, so they are
+ * namespaced rather than trusted not to collide: this is a generic setter, and
+ * a caller passing `currentDraft` would otherwise overwrite the pointer to the
+ * draft the user is in.
+ */
+function preferenceKey(key: string): string {
+	return `preference:${key}`;
+}
 const MAX_RECENT_LANGUAGES = 5;
-const DEFAULT_TITLE = 'Untitled draft';
+
+/**
+ * What a draft is called before anything has named it.
+ *
+ * Exported because it is a value three other modules compare against rather than
+ * merely write: the startup sweep, the draft store's own fallback, and the
+ * workbench's rule about letting an attached song name an untouched draft. It
+ * had been spelled out by hand in each of them, which is one edit away from a
+ * rule that silently stops matching.
+ */
+export const DEFAULT_DRAFT_TITLE = 'Untitled transcription';
+const DEFAULT_TITLE = DEFAULT_DRAFT_TITLE;
 const DEFAULT_LANGUAGE = 'en';
 
 function now(): string {
@@ -213,6 +234,14 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 
 		async getCurrent() {
 			return (await database.appMetadata.get(CURRENT_DRAFT_KEY))?.value;
+		},
+
+		async getPreference(key) {
+			return (await database.appMetadata.get(preferenceKey(key)))?.value;
+		},
+
+		async setPreference(key, value) {
+			await database.appMetadata.put({ key: preferenceKey(key), value, updatedAt: now() });
 		},
 
 		async getRecentLanguages() {

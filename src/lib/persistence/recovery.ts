@@ -1,14 +1,15 @@
 import { randomId } from '../core/random-id.js';
 import type { MediaRepository } from './media-repository.js';
 import type { DraftRecord, DraftRepository } from './types.js';
+import { DEFAULT_DRAFT_TITLE } from './draft-repository.js';
 
-const DEFAULT_TITLE = 'Untitled draft';
+const DEFAULT_TITLE = DEFAULT_DRAFT_TITLE;
 const DEFAULT_LANGUAGE = 'en';
 
 /**
  * A draft that exists only in memory. Nothing is written for it: a document
  * with no text has nothing to recover, and a record for it would come back as
- * one more row called "Untitled draft" in the drafts list. The first save with
+ * one more row called "Untitled transcription" in the drafts list. The first save with
  * something in it is what gives this draft a record (see the draft store).
  */
 function blankDraft(): DraftRecord {

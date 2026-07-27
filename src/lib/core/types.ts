@@ -443,6 +443,18 @@ export interface DraftRepository {
 	setCurrent(id: string | undefined): Promise<void>;
 	getCurrent(): Promise<string | undefined>;
 	getRecentLanguages(): Promise<string[]>;
+	/**
+	 * A small, durable UI preference, by key.
+	 *
+	 * A generic pair rather than a method each, because the alternative is two more
+	 * methods on this contract every time a control learns to remember itself. It
+	 * lives in the same `appMetadata` table as the current draft and the recent
+	 * languages — which matters beyond tidiness: that table is what the workspace
+	 * backup copies and what `Delete all local data` clears, and a preference kept
+	 * in `localStorage` instead would quietly escape both of those promises.
+	 */
+	getPreference(key: string): Promise<string | undefined>;
+	setPreference(key: string, value: string): Promise<void>;
 	rememberLanguage(language: string): Promise<void>;
 }
 

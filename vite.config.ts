@@ -59,6 +59,26 @@ function loopbackLiteralUrls(): Plugin {
 
 export default defineConfig({
 	server: { https: devHttps() },
+	build: {
+		/**
+		 * Inline Apple's badge, whatever its size.
+		 *
+		 * Vite inlines an asset as a data URI below `assetsInlineLimit`, which
+		 * defaults to 4096 bytes; Apple's lockups are around 7.5KB each because
+		 * Illustrator exported them, so they shipped as separate files and the badge
+		 * visibly popped in a moment after a song attached. That request only starts
+		 * when the element mounts, which is exactly the moment the user is looking at
+		 * the row it appears in.
+		 *
+		 * The alternative — minifying the files — is off the table: their guidelines
+		 * say use their artwork unmodified, and inlining is byte-for-byte the same
+		 * file. A function rather than a raised global limit, because everything else
+		 * in the build should keep the default: this is one exception with a reason,
+		 * not a new threshold.
+		 */
+		assetsInlineLimit: (filePath: string) =>
+			filePath.includes('apple-music-listen-on') ? true : undefined
+	},
 	// `PUBLIC_` alongside Vite's own prefix, so `import.meta.env.PUBLIC_*` carries
 	// the same variables SvelteKit's `$env/static/public` would — without the two
 	// failure modes that module has here: it refuses to compile when a variable is
@@ -94,7 +114,15 @@ export default defineConfig({
 		 * configured, so it says so here rather than inheriting whatever the
 		 * developer happens to have.
 		 */
-		env: { PUBLIC_SPOTIFY_CLIENT_ID: 'test-client-id' },
+		env: {
+			PUBLIC_SPOTIFY_CLIENT_ID: 'test-client-id',
+			// A real-shaped, unsigned JWT expiring in 2100. It has to parse and it has
+			// to be in date, because `appleMusicConfigured` checks `exp` rather than
+			// mere presence — a bare string here would turn the feature off for the
+			// whole suite and every Apple Music assertion would pass by not drawing.
+			PUBLIC_APPLE_MUSIC_TOKEN:
+				'eyJhbGciOiJFUzI1NiIsImtpZCI6IlRFU1RLRVlJRCJ9.eyJpc3MiOiJURVNUVEVBTUlEIiwiaWF0IjowLCJleHAiOjQxMDI0NDQ4MDB9.testsignature'
+		},
 		projects: [
 			{
 				extends: './vite.config.ts',

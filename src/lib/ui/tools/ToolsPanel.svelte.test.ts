@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { WorkspaceBackupController, WorkspaceBackupState } from '$lib/persistence/backup.js';
+import type { WorkbenchController } from '../state/workbench.svelte.js';
 import { createTestWorkbench } from '../test-utils.js';
 import ToolsPanel from './ToolsPanel.svelte';
 
@@ -98,6 +99,44 @@ describe('ToolsPanel skimmability', () => {
 		// folded into `Local data` with the rest of the story.
 		expect(container.querySelector('.offline-note')).toBeNull();
 		expect(container.querySelectorAll('.panel-content > p')).toHaveLength(0);
+	});
+});
+
+/*
+ * The cover is a fact about the attached song, so the section that saves it
+ * comes and goes with one. A source with no picture — a local file, and every
+ * source before the catalogue read lands — must draw no heading at all, or the
+ * panel carries an action for something that is not there.
+ */
+describe('ToolsPanel album art', () => {
+	afterEach(cleanup);
+
+	function withArtwork(artwork: string | undefined): WorkbenchController {
+		const { controller } = createTestWorkbench();
+		return {
+			...controller,
+			media: { player: { artwork, name: 'Mul — Sensommer' } }
+		} as unknown as WorkbenchController;
+	}
+
+	test('offers the download only while a source has published a cover', () => {
+		const { container } = render(ToolsPanel, {
+			controller: withArtwork('https://i.scdn.co/image/640')
+		});
+
+		expect([...container.querySelectorAll('h3')].map((heading) => heading.textContent)).toContain(
+			'Album art'
+		);
+		expect(screen.getByRole('button', { name: 'Download album art' })).toBeTruthy();
+	});
+
+	test('draws nothing for a source with no cover', () => {
+		const { container } = render(ToolsPanel, { controller: withArtwork(undefined) });
+
+		expect(
+			[...container.querySelectorAll('h3')].map((heading) => heading.textContent)
+		).not.toContain('Album art');
+		expect(screen.queryByRole('button', { name: 'Download album art' })).toBeNull();
 	});
 });
 

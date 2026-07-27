@@ -9,6 +9,13 @@
  */
 interface ImportMetaEnv {
 	readonly PUBLIC_SPOTIFY_CLIENT_ID?: string;
+	/**
+	 * The signed Apple Music developer token, valid for at most six months.
+	 *
+	 * Optional for the same reason, and checked for expiry rather than presence —
+	 * see `appleMusicConfigured` in `media-apple.ts`.
+	 */
+	readonly PUBLIC_APPLE_MUSIC_TOKEN?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- interface merging

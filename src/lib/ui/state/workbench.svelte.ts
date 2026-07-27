@@ -35,6 +35,7 @@ import type { MediaPlayer } from './media-player.svelte.js';
 import type { MediaStore } from './media-store.svelte.js';
 import { createMediaStore } from './media-store.svelte.js';
 import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persistence/backup.js';
+import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
 export { performerColorIds } from './roster-store.svelte.js';
 export type { RosterMergeSuggestion } from './roster-store.svelte.js';
@@ -138,6 +139,15 @@ export interface WorkbenchController {
 	 */
 	onLineAnchorsChanged(): void;
 	setActiveTab(tab: RightPanelTab): void;
+	/**
+	 * Whether the panel's cover band is unfolded, remembered between sessions.
+	 *
+	 * On the controller rather than in the component because it outlives it: the
+	 * band is destroyed whenever the attached source changes, and a flag held in
+	 * its own state would forget the answer every time a user swapped songs.
+	 */
+	readonly artworkOpen: boolean;
+	setArtworkOpen(open: boolean): void;
 	toggleSeverity(severity: Severity): void;
 	toggleSeverityFilters(): boolean;
 	setTitle(title: string): Promise<void>;
@@ -183,6 +193,9 @@ export interface WorkbenchController {
 }
 
 const largePasteThreshold = 32;
+
+/** The one preference key this controller owns. */
+const artworkOpenPreference = 'artworkOpen';
 
 /**
  * Compose the workbench from its four stores — editor session, draft, roster,
@@ -276,6 +289,48 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		scheduleSave: draft.scheduleSave
 	});
 
+	/**
+	 * Whether the cover in the right panel is unfolded.
+	 *
+	 * Durable, because a fold is a statement about how the user wants the window
+	 * laid out and re-making it every reload is the kind of small tax nobody
+	 * reports. It lives in the same `appMetadata` table as the current draft and
+	 * the recent languages rather than in `localStorage`, and that is the whole
+	 * argument for the round trip: that table is what the workspace backup copies
+	 * and what `Delete all local data` clears, so a preference kept anywhere else
+	 * would quietly escape both promises this application makes about local state.
+	 *
+	 * It opens by default and is only ever written when the user presses the
+	 * chevron, so the read below is the one cost on a boot that never touches it.
+	 */
+	let artworkOpen = $state(true);
+	void deps.repository
+		.getPreference(artworkOpenPreference)
+		.then((stored) => {
+			if (stored !== undefined) artworkOpen = stored === 'true';
+		})
+		.catch(() => {
+			// A preference that cannot be read is a preference at its default.
+		});
+
+	/**
+	 * Let the song name the draft, but only while nothing else has.
+	 *
+	 * Attaching audio to a fresh draft says what the transcription is *of*, and
+	 * that is nearly always what it should be called — so a draft still carrying
+	 * the placeholder takes the source's own name. `Untitled transcription` is the whole
+	 * of the condition: a title the user typed, or one an earlier source already
+	 * supplied, is a decision, and a later attachment must not overwrite it.
+	 *
+	 * The store has already decided what counts as a name worth having — a pasted
+	 * link's own URL is not one, and neither is a long filename — so there is
+	 * nothing to second-guess here.
+	 */
+	async function nameDraftAfterSource(title: string): Promise<void> {
+		if (draft.title !== DEFAULT_DRAFT_TITLE) return;
+		await draft.setTitle(title);
+	}
+
 	const media = deps.mediaRepository
 		? createMediaStore({
 				repository: deps.mediaRepository,
@@ -286,6 +341,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				// every later save. Both directions are lazy closures because the two
 				// stores need each other and only one of them can be built first.
 				onAttached: () => draft.keepDraft(),
+				onTitleSuggestion: (title) => void nameDraftAfterSource(title),
 				...(deps.mediaPlayer ? { player: deps.mediaPlayer } : {})
 			})
 		: undefined;
@@ -431,6 +487,16 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			draft.scheduleSave();
 		},
 		setActiveTab: panel.setActiveTab,
+		get artworkOpen() {
+			return artworkOpen;
+		},
+		setArtworkOpen(open) {
+			artworkOpen = open;
+			// The fold answers at once and the write follows it; a preference is not
+			// worth making a control wait on IndexedDB, and losing one is not worth
+			// a message.
+			void deps.repository.setPreference(artworkOpenPreference, String(open)).catch(() => {});
+		},
 		toggleSeverity: panel.toggleSeverity,
 		toggleSeverityFilters: panel.toggleSeverityFilters,
 		setTitle: draft.setTitle,
