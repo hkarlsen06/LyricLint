@@ -192,6 +192,7 @@ export interface WorkbenchController {
 	chooseSectionHeader(diagnostic: Diagnostic): void;
 	canAssignDiagnosticPerformers(diagnostic: Diagnostic): boolean;
 	assignDiagnosticPerformers(diagnostic: Diagnostic): void;
+	linkDiagnosticSections(diagnostic: Diagnostic): void;
 	previewFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	clearFixPreview(): void;
 	applyFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
@@ -598,6 +599,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		chooseSectionHeader: panel.chooseSectionHeader,
 		canAssignDiagnosticPerformers: panel.canAssignDiagnosticPerformers,
 		assignDiagnosticPerformers: panel.assignDiagnosticPerformers,
+		linkDiagnosticSections: panel.linkDiagnosticSections,
 		previewFix: panel.previewFix,
 		clearFixPreview: panel.clearFixPreview,
 		applyFix: panel.applyFix,

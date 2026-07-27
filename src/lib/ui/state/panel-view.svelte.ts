@@ -80,6 +80,7 @@ export interface PanelView {
 	 */
 	canAssignDiagnosticPerformers(diagnostic: Diagnostic): boolean;
 	assignDiagnosticPerformers(diagnostic: Diagnostic): void;
+	linkDiagnosticSections(diagnostic: Diagnostic): void;
 	previewFix(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	/**
 	 * Show a preview that arrived before the editor could render one. The
@@ -345,6 +346,17 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 				editor.requestPerformerLegendAssignment(diagnostic);
 			} else {
 				feedback.announce('The performer picker is unavailable.');
+			}
+		},
+		// Revealing selects the diagnostic's range, which is the header itself, so
+		// the command the keyboard already has resolves the same group from the
+		// same predicate. Nothing here decides what is linkable a second time.
+		linkDiagnosticSections(diagnostic) {
+			const editor = revealDiagnostic(diagnostic);
+			if (editor.requestSectionLink) {
+				editor.requestSectionLink();
+			} else {
+				feedback.announce('The section-link picker is unavailable.');
 			}
 		},
 		previewFix(_diagnostic, fix) {

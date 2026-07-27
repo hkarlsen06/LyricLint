@@ -123,6 +123,7 @@ function setup(options: {
 		revealRange() {},
 		setSelection() {},
 		requestPerformerLegendAssignment: vi.fn(),
+		requestSectionLink: vi.fn(),
 		getLineAnchors: () => lineAnchors.map((anchor) => ({ ...anchor })),
 		setLineAnchors(anchors) {
 			lineAnchors = anchors.map((anchor) => ({ ...anchor }));
@@ -836,6 +837,23 @@ describe('workbench diagnostic navigation', () => {
 		controller.assignDiagnosticPerformers(mismatch);
 
 		expect(editor.requestPerformerLegendAssignment).toHaveBeenCalledWith(mismatch);
+		expect(controller.activeTab).toBe('linter');
+	});
+
+	// The panel's way into linking. The card carries the finding but not the
+	// group, so it selects the diagnostic's range — the header — and asks the
+	// editor the same question `Ctrl-Shift-L` does, over the same predicate.
+	test('opens the link picker on the repeated section from the linter panel', () => {
+		const { controller, editor } = setup({});
+		const repeat = {
+			...diagnostic,
+			ruleId: 'section.unlinked-repeat',
+			message: 'Link the repeated sections so one correction reaches all of them.'
+		};
+
+		controller.linkDiagnosticSections(repeat);
+
+		expect(editor.requestSectionLink).toHaveBeenCalled();
 		expect(controller.activeTab).toBe('linter');
 	});
 

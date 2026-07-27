@@ -101,6 +101,13 @@ function cellFor(lineText: string): HTMLElement {
 
 const lyric = ['[Verse 1]', 'first line', 'second line'].join('\n');
 
+/** A press on one of a cell's controls, which the gutter reads on `mousedown`. */
+function press(cell: HTMLElement, selector: string): void {
+	const control = cell.querySelector<HTMLElement>(selector);
+	if (!control) throw new Error(`no “${selector}” in this cell`);
+	control.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+}
+
 describe('line anchoring while transcribing', () => {
 	/*
 	 * Typing used to stamp the line being typed with wherever the playhead was.
@@ -397,16 +404,105 @@ describe('the timestamp column', () => {
 		});
 	});
 
-	it('anchors the line from a press on its own cell, overwriting what was there', async () => {
+	it('anchors an untimed line to the playhead from a press on its own cell', async () => {
+		const { handle } = await mount({ text: lyric, mediaTime: () => 75 });
+		await withColumn(handle);
+
+		press(cellFor('first line'), '.ll-time-stamp');
+
+		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 75 }]);
+	});
+
+	// A line that already carries a time is nearly always a line whose time is
+	// nearly right — a tap landed late, or a run was a beat behind — so writing the
+	// playhead over it is almost never the correction wanted. The pencil offers the
+	// correction that is: a second either way, which is what `m:ss` can show.
+	it('offers a nudge either side of the time instead of re-stamping it', async () => {
 		const { handle } = await mount({ text: lyric, mediaTime: () => 75 });
 		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
 		await withColumn(handle);
 
-		cellFor('first line')
-			.querySelector<HTMLElement>('.ll-time-stamp')
-			?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+		const restingLeft = cellFor('first line')
+			.querySelector('.ll-time-value')!
+			.getBoundingClientRect().left;
 
-		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 75 }]);
+		press(cellFor('first line'), '.ll-time-stamp');
+
+		await vi.waitFor(() => {
+			const nudges = [...cellFor('first line').querySelectorAll('.ll-time-nudge')];
+			expect(nudges.map((button) => button.textContent)).toEqual(['−', '+']);
+		});
+		// One at each end of the number: `−` off its start, `+` against its last
+		// digit. The time itself does not move, because a number sliding sideways
+		// when a control opens beside it is the reflow this cell is arranged to
+		// avoid — which is what keeps `−` out of flow.
+		const box = (selector: string) =>
+			cellFor('first line').querySelector(selector)!.getBoundingClientRect();
+		expect([...cellFor('first line').querySelectorAll('button')].map((b) => b.textContent)).toEqual(
+			['−', '0:10.00', '+']
+		);
+		expect(box('.ll-time-value').left).toBe(restingLeft);
+		expect(box('.ll-time-nudge--back').right).toBeLessThanOrEqual(box('.ll-time-value').left);
+		expect(box('.ll-time-nudge--on').left).toBeGreaterThanOrEqual(box('.ll-time-value').right);
+		// CodeMirror clips every gutter column, which cut the chip hanging off the
+		// start of the number down to a sliver — a control that is there, is
+		// pressable, and cannot be seen.
+		expect(getComputedStyle(document.querySelector('.ll-time-gutter')!).overflow).toBe('visible');
+		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 10 }]);
+
+		press(cellFor('first line'), '[data-anchor-nudge="1"]');
+		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 10.25 }]);
+
+		press(cellFor('first line'), '[data-anchor-nudge="-1"]');
+		press(cellFor('first line'), '[data-anchor-nudge="-1"]');
+		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 9.75 }]);
+
+		// A quarter second is only worth stepping if the cell can answer it, so the
+		// open one shows hundredths — `m:ss` alone said nothing for three presses in
+		// every four. Every other row is left in whole seconds.
+		await vi.waitFor(() =>
+			expect(cellFor('first line').querySelector('.ll-time-value')?.textContent).toBe('0:09.75')
+		);
+		expect(cellFor('second line').querySelector('.ll-time-value')?.textContent).toBe('–');
+	});
+
+	// The precision arrives with the controls that spend it and leaves with them: a
+	// column of `m:ss.cc` is two digits per row nobody is reading, and the resting
+	// job of this rail is to say where a line sits in the song.
+	it('goes back to whole seconds once the pair is closed', async () => {
+		const { handle } = await mount({ text: lyric, mediaTime: () => 75 });
+		handle.setLineAnchors?.([{ line: 2, time: 9.75 }]);
+		await withColumn(handle);
+
+		const value = () => cellFor('first line').querySelector('.ll-time-value')?.textContent;
+		expect(value()).toBe('0:09');
+
+		press(cellFor('first line'), '.ll-time-stamp');
+		await vi.waitFor(() => expect(value()).toBe('0:09.75'));
+
+		document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		await vi.waitFor(() => expect(value()).toBe('0:09'));
+	});
+
+	// Every transient surface in the workbench closes on a press anywhere else, and
+	// this one is no different — the press that opened it is the only thing keeping
+	// it up.
+	it('dismisses the nudge pair on a press outside it', async () => {
+		const { handle } = await mount({ text: lyric, mediaTime: () => 75 });
+		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
+		await withColumn(handle);
+
+		press(cellFor('first line'), '.ll-time-stamp');
+		await vi.waitFor(() => {
+			if (!document.querySelector('.ll-time-nudge')) throw new Error('the pair never opened');
+		});
+
+		document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+		await vi.waitFor(() => {
+			if (document.querySelector('.ll-time-nudge')) throw new Error('the pair is still open');
+		});
+		expect(cellFor('first line').querySelector('.ll-time-stamp')).not.toBeNull();
 	});
 
 	// Where the audio is, read off the same rail as the times themselves. It is

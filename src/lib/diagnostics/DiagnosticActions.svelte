@@ -24,6 +24,8 @@
 		onChooseHeader?: () => void;
 		/** Offered only when the document can actually take the assignment. */
 		onAssignPerformers?: () => void;
+		/** Offered for repeated sections when the host can open the link picker. */
+		onLinkSections?: () => void;
 		/** Offered when the diagnostic carries a detected language the host can select. */
 		onSetLanguage?: (language: string, trigger: HTMLButtonElement) => void;
 		onPreviewFix: (fix: DiagnosticFix) => void;
@@ -47,6 +49,7 @@
 		diagnostic,
 		onChooseHeader,
 		onAssignPerformers,
+		onLinkSections,
 		onSetLanguage,
 		onPreviewFix,
 		onCancelPreview,
@@ -61,6 +64,13 @@
 	const isUnresolvedUnknown = $derived(diagnostic.ruleId === 'unknown.unresolved');
 	const offersHeaderPicker = $derived(
 		diagnostic.ruleId === 'section.header-missing' && onChooseHeader !== undefined
+	);
+	// The picker, not the link itself: a batch that rewrites three sections is
+	// worth seeing named before it runs, and the card has no room to show the
+	// change as a diff the way a fix does. It also costs no second implementation
+	// — this is the same card `Ctrl-Shift-L` opens, over the same group.
+	const offersSectionLink = $derived(
+		diagnostic.ruleId === 'section.unlinked-repeat' && onLinkSections !== undefined
 	);
 	const detectedLanguage = $derived(diagnostic.detectedLanguage);
 	// Selecting the diagnostic is the preview: the editor shows the change as a
@@ -129,6 +139,11 @@
 	{#if onAssignPerformers}
 		<button type="button" class="button diagnostic-actions__guided" onclick={onAssignPerformers}>
 			Assign section performers
+		</button>
+	{/if}
+	{#if offersSectionLink}
+		<button type="button" class="button diagnostic-actions__guided" onclick={onLinkSections}>
+			Link these sections
 		</button>
 	{/if}
 	{#if detectedLanguage && onSetLanguage}

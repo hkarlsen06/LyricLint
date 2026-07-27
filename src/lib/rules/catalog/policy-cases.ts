@@ -75,6 +75,15 @@ export const policyCases: readonly RulePolicyCase[] = [
 		ambiguous: '[Chorus]\nAgain\nTonight\n\n[Chorus]\nAgain\nTomorrow'
 	},
 	{
+		id: 'section.unlinked-repeat',
+		invalid: '[Chorus]\nHold the line\n\n[Verse 1]\nA lyric\n\n[Chorus]\nHold the line',
+		valid: '[Chorus]\nHold the line\n\n[Verse 1]\nA lyric\n\n[Chorus]\nLet it go',
+		// Two identical choruses with nothing between them belong under one
+		// header, which is `section.immediate-repeat-spacing`'s finding rather
+		// than this one.
+		ambiguous: '[Chorus]\nHold the line\n\n[Chorus]\nHold the line'
+	},
+	{
 		id: 'section.verse-numbering',
 		invalid: '[Chorus 2]\nAgain',
 		valid: '[Verse 1]\nFirst\n\n[Verse 2]\nSecond',

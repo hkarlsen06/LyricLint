@@ -24,7 +24,7 @@
 	import {
 		buildRuleContext,
 		computeDiagnostics,
-		deferActiveLineTrailingWhitespace,
+		filterForEditorState,
 		everyLyricLineTimed,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
@@ -177,11 +177,7 @@
 					controller.onSnapshot(
 						{
 							...current,
-							diagnostics: deferActiveLineTrailingWhitespace(
-								current,
-								merged,
-								editorHandle?.getSectionLinks?.()
-							)
+							diagnostics: filterForEditorState(current, merged, editorHandle?.getSectionLinks?.())
 						},
 						merged
 					);
@@ -220,7 +216,7 @@
 			if (key === lastLintKey) {
 				return {
 					...snapshot,
-					diagnostics: deferActiveLineTrailingWhitespace(
+					diagnostics: filterForEditorState(
 						snapshot,
 						lastDiagnostics,
 						editorHandle?.getSectionLinks?.()
@@ -242,7 +238,7 @@
 		}
 		return {
 			...snapshot,
-			diagnostics: deferActiveLineTrailingWhitespace(
+			diagnostics: filterForEditorState(
 				snapshot,
 				lastDiagnostics,
 				editorHandle?.getSectionLinks?.()

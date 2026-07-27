@@ -31,6 +31,7 @@ import { sectionHeaderUnrecognizedRule } from './catalog/section-header-unrecogn
 import { sectionLocalizedHeaderPreferenceRule } from './catalog/section-localized-header-preference.js';
 import { sectionDeprecatedHookRule } from './catalog/section-deprecated-hook.js';
 import { sectionImmediateRepeatSpacingRule } from './catalog/section-immediate-repeat-spacing.js';
+import { sectionUnlinkedRepeatRule } from './catalog/section-unlinked-repeat.js';
 import { sectionVerseNumberingRule } from './catalog/section-verse-numbering.js';
 import { soundEffectAsterisksRule } from './catalog/sound-effect-asterisks.js';
 import { spellingArabicCommonRule } from './catalog/spelling-arabic-common.js';
@@ -62,6 +63,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	sectionHeaderUnrecognizedRule,
 	sectionDeprecatedHookRule,
 	sectionImmediateRepeatSpacingRule,
+	sectionUnlinkedRepeatRule,
 	sectionVerseNumberingRule,
 	performerHeaderRequiredRule,
 	performerStyleOrderRule,

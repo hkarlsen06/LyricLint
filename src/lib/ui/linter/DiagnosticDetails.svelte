@@ -6,6 +6,7 @@
 		diagnostic,
 		onChooseHeader,
 		onAssignPerformers,
+		onLinkSections,
 		onSetLanguage,
 		onPreviewFix,
 		onCancelPreview,
@@ -17,6 +18,7 @@
 		diagnostic: Diagnostic;
 		onChooseHeader: () => void;
 		onAssignPerformers?: () => void;
+		onLinkSections?: () => void;
 		onSetLanguage?: (language: string, trigger: HTMLButtonElement) => void;
 		onPreviewFix: (fix: DiagnosticFix) => void;
 		onCancelPreview: () => void;
@@ -39,6 +41,7 @@
 		{diagnostic}
 		{onChooseHeader}
 		{onAssignPerformers}
+		{onLinkSections}
 		{onSetLanguage}
 		{onPreviewFix}
 		{onCancelPreview}

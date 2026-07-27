@@ -256,6 +256,16 @@
 		});
 	}
 
+	// The diagnostic's own range is the header, and the picker takes it as both
+	// the anchor and the source it links from — which the rule guarantees is a
+	// section with words in it, never the empty repeat about to be filled.
+	function startSectionLink(diagnostic: Diagnostic): void {
+		internalCallbacks().onSectionLinkRequest?.({
+			range: { from: diagnostic.from, to: diagnostic.to },
+			prefer: 'above'
+		});
+	}
+
 	function startLegendAssignment(diagnostic: Diagnostic): void {
 		const resolution = legendResolution(diagnostic);
 		// Both surfaces hide the action when it cannot run, so this is the race:
@@ -753,6 +763,7 @@
 		onAssignPerformers={legendTarget(diagnosticOverlay.diagnostic)
 			? () => startLegendAssignment(diagnosticOverlay.diagnostic)
 			: undefined}
+		onLinkSections={() => startSectionLink(diagnosticOverlay.diagnostic)}
 		onSetLanguage={callbacks.onSetLanguage ? setLanguage : undefined}
 		onIgnore={ignoreDiagnostic}
 		onDismiss={(heldFocus) => {

@@ -46,7 +46,7 @@
 	import {
 		buildRuleContext,
 		computeDiagnostics,
-		deferActiveLineTrailingWhitespace,
+		filterForEditorState,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
 
@@ -175,11 +175,7 @@
 					lastDiagnostics = merged;
 					snapshot = {
 						...snapshot,
-						diagnostics: deferActiveLineTrailingWhitespace(
-							snapshot,
-							merged,
-							handle?.getSectionLinks?.()
-						)
+						diagnostics: filterForEditorState(snapshot, merged, handle?.getSectionLinks?.())
 					};
 				})
 				.catch((error: unknown) => {
@@ -218,22 +214,14 @@
 			invalidateHarper();
 			return {
 				...snapshot,
-				diagnostics: deferActiveLineTrailingWhitespace(
-					snapshot,
-					lastDiagnostics,
-					handle?.getSectionLinks?.()
-				)
+				diagnostics: filterForEditorState(snapshot, lastDiagnostics, handle?.getSectionLinks?.())
 			};
 		}
 		const key = lintKey(snapshot);
 		if (key === lastLintKey) {
 			return {
 				...snapshot,
-				diagnostics: deferActiveLineTrailingWhitespace(
-					snapshot,
-					lastDiagnostics,
-					handle?.getSectionLinks?.()
-				)
+				diagnostics: filterForEditorState(snapshot, lastDiagnostics, handle?.getSectionLinks?.())
 			};
 		}
 		lastDiagnostics = computeDiagnostics(
@@ -245,11 +233,7 @@
 		scheduleHarper(snapshot, lastDiagnostics);
 		return {
 			...snapshot,
-			diagnostics: deferActiveLineTrailingWhitespace(
-				snapshot,
-				lastDiagnostics,
-				handle?.getSectionLinks?.()
-			)
+			diagnostics: filterForEditorState(snapshot, lastDiagnostics, handle?.getSectionLinks?.())
 		};
 	}
 

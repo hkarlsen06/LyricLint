@@ -63,8 +63,55 @@ export function computeDiagnostics(parsed: ParsedDocument, context: RuleContext)
 	return runRules(parsed, context);
 }
 
+/**
+ * Adjust one revision's findings for editor state the rules cannot see.
+ *
+ * Rules run against a parsed document and nothing else, so two facts never
+ * reach them: where the caret is, and which sections are linked. Both are
+ * applied here rather than passed into `RuleContext`, because this runs on
+ * every snapshot while the lint itself is memoized on the document — a link
+ * made or taken off changes no text, and a suggestion that outlived the press
+ * that answered it would sit there until the next keystroke.
+ */
+export function filterForEditorState(
+	snapshot: EditorSnapshot,
+	diagnostics: readonly Diagnostic[],
+	sectionLinks: readonly SectionLink[] = []
+): Diagnostic[] {
+	return deferActiveLineTrailingWhitespace(
+		snapshot,
+		dropLinkedRepeats(snapshot, diagnostics, sectionLinks),
+		sectionLinks
+	);
+}
+
+/**
+ * Stop suggesting a link where one is already made.
+ *
+ * Linked sections keep identical words by construction, so the suggestion would
+ * otherwise fire on its own result forever. Membership of *any* group is enough
+ * to go quiet, which under-reports a group only partly linked — deliberately:
+ * leaving one repeat out is a decision the user made in the picker, and this
+ * rule exists to catch the copies nobody tied together, not to argue with them.
+ */
+function dropLinkedRepeats(
+	snapshot: EditorSnapshot,
+	diagnostics: readonly Diagnostic[],
+	sectionLinks: readonly SectionLink[]
+): readonly Diagnostic[] {
+	if (sectionLinks.length === 0) return diagnostics;
+	const linkedLines = new Set(sectionLinks.flatMap((link) => link.lines));
+	return diagnostics.filter(
+		(diagnostic) =>
+			!(
+				diagnostic.ruleId === 'section.unlinked-repeat' &&
+				linkedLines.has(lineNumberAt(snapshot.text, diagnostic.from))
+			)
+	);
+}
+
 /** Hide unfinished trailing whitespace until the caret leaves its line. */
-export function deferActiveLineTrailingWhitespace(
+function deferActiveLineTrailingWhitespace(
 	snapshot: EditorSnapshot,
 	diagnostics: readonly Diagnostic[],
 	sectionLinks: readonly SectionLink[] = []

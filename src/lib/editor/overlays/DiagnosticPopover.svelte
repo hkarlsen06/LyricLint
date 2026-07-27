@@ -20,6 +20,7 @@
 		onApplyFixBatch?: (fix: DiagnosticFix) => void;
 		onChooseHeader?: () => void;
 		onAssignPerformers?: () => void;
+		onLinkSections?: () => void;
 		onSetLanguage?: (language: string) => void;
 		onIgnore: () => void;
 		/**
@@ -42,6 +43,7 @@
 		onApplyFixBatch,
 		onChooseHeader,
 		onAssignPerformers,
+		onLinkSections,
 		onSetLanguage,
 		onIgnore,
 		onDismiss = () => {}
@@ -171,6 +173,7 @@
 		{diagnostic}
 		{onChooseHeader}
 		{onAssignPerformers}
+		{onLinkSections}
 		onSetLanguage={onSetLanguage ? (language) => onSetLanguage(language) : undefined}
 		{onPreviewFix}
 		{onCancelPreview}

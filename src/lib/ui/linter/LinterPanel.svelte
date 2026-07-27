@@ -202,6 +202,7 @@
 		onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
 		canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
 		onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}
+		onLinkSections={(diagnostic) => controller.linkDiagnosticSections(diagnostic)}
 		onSetLanguage={(language) => controller.setLanguage(language)}
 		onPreviewFix={(diagnostic, fix) => controller.previewFix(diagnostic, fix)}
 		onCancelPreview={() => controller.clearFixPreview()}

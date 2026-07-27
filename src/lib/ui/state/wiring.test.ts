@@ -6,7 +6,7 @@ import { createTestWorkbench, performer } from '../test-utils.js';
 import {
 	buildRuleContext,
 	computeDiagnostics,
-	deferActiveLineTrailingWhitespace,
+	filterForEditorState,
 	everyLyricLineTimed,
 	orderPerformersByAppearance,
 	resolveVoiceGroupRanges
@@ -51,12 +51,12 @@ describe('UI wiring', () => {
 		};
 
 		expect(
-			deferActiveLineTrailingWhitespace(snapshot, diagnostics, [{ lines: [1, 5] }])
+			filterForEditorState(snapshot, diagnostics, [{ lines: [1, 5] }])
 				.filter((diagnostic) => diagnostic.ruleId === 'text.invisible-characters')
 				.map((diagnostic) => text.slice(diagnostic.from, diagnostic.to))
 		).toEqual(['\u200b', '\u200b', '  ']);
 		expect(
-			deferActiveLineTrailingWhitespace(
+			filterForEditorState(
 				{ ...snapshot, selection: { anchor: text.length, head: text.length } },
 				diagnostics,
 				[{ lines: [1, 5] }]
@@ -65,12 +65,41 @@ describe('UI wiring', () => {
 				.map((diagnostic) => text.slice(diagnostic.from, diagnostic.to))
 		).toEqual(['\u200b', ' ', '\u200b', ' ']);
 		expect(
-			deferActiveLineTrailingWhitespace(
+			filterForEditorState(
 				{ ...snapshot, selection: { anchor: text.length - 2, head: text.length } },
 				diagnostics,
 				[{ lines: [1, 5] }]
 			)
 		).toEqual(diagnostics);
+	});
+
+	// The rules see a parsed document and nothing else, so a linked group still
+	// looks like two identical choruses to them — and linked sections keep
+	// identical words by construction, which is the suggestion firing on its own
+	// result forever. The links are known here, so the answer is here.
+	test('stops suggesting a link once one is made', () => {
+		const text = '[Chorus]\nHold the line\n\n[Verse 1]\nA lyric\n\n[Chorus]\nHold the line';
+		const parsed = parseDocument(text);
+		const diagnostics = computeDiagnostics(
+			parsed,
+			buildRuleContext('en', [], currentRuleSet.version, 3)
+		);
+		const snapshot = {
+			...createTestWorkbench({ text, revision: 3 }).controller.snapshot,
+			parsed,
+			diagnostics,
+			selection: { anchor: 0, head: 0 }
+		};
+		const suggested = (links: { lines: number[] }[]) =>
+			filterForEditorState(snapshot, diagnostics, links).filter(
+				(diagnostic) => diagnostic.ruleId === 'section.unlinked-repeat'
+			).length;
+
+		expect(suggested([])).toBe(1);
+		// The diagnostic is anchored on the first header, which is line 1.
+		expect(suggested([{ lines: [1, 7] }])).toBe(0);
+		// A link somewhere else in the song is not an answer to this one.
+		expect(suggested([{ lines: [4, 9] }])).toBe(1);
 	});
 
 	test('draws a preview requested before the editor could render one', () => {

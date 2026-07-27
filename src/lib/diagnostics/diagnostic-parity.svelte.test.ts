@@ -75,6 +75,7 @@ function panelActions(
 	const screen = render(DiagnosticDetails, {
 		diagnostic,
 		onChooseHeader: vi.fn(),
+		onLinkSections: vi.fn(),
 		onSetLanguage: vi.fn(),
 		onPreviewFix: vi.fn(),
 		onCancelPreview: vi.fn(),
@@ -95,6 +96,7 @@ function popoverActions(
 	const screen = render(DiagnosticPopover, {
 		diagnostic,
 		takeFocus,
+		onLinkSections: vi.fn(),
 		onSetLanguage: vi.fn(),
 		onPreviewFix: vi.fn(),
 		onCancelPreview: vi.fn(),
@@ -147,6 +149,23 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 				label: 'Set language to English',
 				classes: 'button button--contrast diagnostic-actions__language'
 			},
+			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
+		];
+		expect(panelActions(diagnostic)).toEqual(expected);
+		expect(popoverActions(diagnostic)).toEqual(expected);
+	});
+
+	it('offers the link picker for a repeated section on both surfaces', () => {
+		const diagnostic: Diagnostic = {
+			...contractionDiagnostic(),
+			ruleId: 'section.unlinked-repeat',
+			fixes: undefined
+		};
+
+		// A guided action, in the bordered tier, like the other two that open a
+		// picker rather than changing the document where they stand.
+		const expected = [
+			{ label: 'Link these sections', classes: 'button diagnostic-actions__guided' },
 			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
 		];
 		expect(panelActions(diagnostic)).toEqual(expected);

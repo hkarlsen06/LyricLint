@@ -16,6 +16,7 @@
 		onChooseHeader,
 		canAssignPerformers = () => true,
 		onAssignPerformers = () => {},
+		onLinkSections,
 		onSetLanguage,
 		onPreviewFix,
 		onCancelPreview,
@@ -49,6 +50,9 @@
 		 */
 		canAssignPerformers?: (diagnostic: Diagnostic) => boolean;
 		onAssignPerformers?: (diagnostic: Diagnostic) => void;
+		/** Open the link picker on a repeated section. The rule found the group;
+		 *  the picker is what names it before anything is overwritten. */
+		onLinkSections?: (diagnostic: Diagnostic) => void;
 		onSetLanguage: (language: string) => void;
 		onPreviewFix: (diagnostic: Diagnostic, fix: NonNullable<Diagnostic['fixes']>[number]) => void;
 		onCancelPreview: () => void;
@@ -187,6 +191,7 @@
 						onAssignPerformers={canAssignPerformers(diagnostic)
 							? () => onAssignPerformers(diagnostic)
 							: undefined}
+						onLinkSections={onLinkSections ? () => onLinkSections(diagnostic) : undefined}
 						onSetLanguage={setLanguageAndMoveFocus}
 						onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
 						{onCancelPreview}

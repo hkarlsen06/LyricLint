@@ -11,6 +11,7 @@ import {
 	Decoration,
 	EditorView,
 	GutterMarker,
+	ViewPlugin,
 	gutter,
 	gutterLineClass,
 	lineNumberMarkers
@@ -77,6 +78,28 @@ export const anchorLineEffect = StateEffect.define<{ pos: number; time: number }
 export const clearLineAnchorEffect = StateEffect.define<{ pos: number }>();
 
 /**
+ * Open the nudge pair on the line containing `pos`, or close it with `undefined`.
+ *
+ * The stamp control on an *anchored* line no longer writes the playhead over its
+ * time. A line that already carries one is usually a line whose time is nearly
+ * right — a tap landed late, or a run was a beat behind — so re-stamping it from
+ * wherever the tape happens to be sitting is almost never the correction wanted.
+ * The pencil opens `−` and `+` beside the time instead.
+ */
+export const setAnchorAdjustEffect = StateEffect.define<number | undefined>();
+
+/**
+ * One press of `−` or `+`.
+ *
+ * A quarter second, which is about the smallest correction a transcriber can
+ * actually hear the difference of, and the size a late tap is usually out by. It
+ * is why the column shows hundredths: a step nothing on screen answers is a
+ * press that reads as broken. Exact in binary, so a run of presses does not
+ * drift.
+ */
+export const anchorNudgeSeconds = 0.25;
+
+/**
  * Tell the column where the audio is, or `undefined` when nothing is attached.
  *
  * This moves nothing. It marks one cell, and that is the entire extent of what
@@ -111,6 +134,14 @@ interface LineAnchorState {
 	playhead: number | undefined;
 	/** Start position of the anchor the playhead is currently inside. */
 	currentFrom: number | undefined;
+	/**
+	 * A position on the one line showing its nudge pair, or `undefined`.
+	 *
+	 * One at a time, like every other transient surface in the workbench: the
+	 * pair is a question about one time, and two of them open at once would be
+	 * two questions with one answer between them.
+	 */
+	adjusting: number | undefined;
 }
 
 /**
@@ -123,6 +154,23 @@ interface LineAnchorState {
 export function formatAnchorTime(seconds: number): string {
 	const whole = Math.max(0, Math.floor(seconds));
 	return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
+
+/**
+ * `m:ss.cc`, for a cell whose nudge pair is open and nothing else.
+ *
+ * The anchors are not whole seconds and never were — a sync tap is written 120ms
+ * early, and the pair moves a quarter second at a time — so `m:ss` alone answers
+ * three presses in every four with no visible change. At rest it is the right
+ * readout and this one is noise, which is why the two are separate functions
+ * rather than a flag. The announcements stay whole for the same reason:
+ * hundredths read aloud say nothing anyone asked.
+ */
+export function formatAnchorTimePrecise(seconds: number): string {
+	// Rounded to hundredths first and split afterwards, so a time a hair under a
+	// second cannot round its fraction up to `00` while the seconds still read low.
+	const hundredths = Math.round(Math.max(0, seconds) * 100);
+	return `${formatAnchorTime(Math.floor(hundredths / 100))}.${String(hundredths % 100).padStart(2, '0')}`;
 }
 
 /**
@@ -150,18 +198,30 @@ export function formatAnchorTime(seconds: number): string {
 class TimeGutterMarker extends GutterMarker {
 	constructor(
 		readonly time: number | undefined,
-		readonly current: boolean
+		readonly current: boolean,
+		readonly adjusting: boolean
 	) {
 		super();
 	}
 
 	override eq(other: TimeGutterMarker): boolean {
-		return other.time === this.time && other.current === this.current;
+		return (
+			other.time === this.time &&
+			other.current === this.current &&
+			other.adjusting === this.adjusting
+		);
 	}
 
 	override toDOM(): HTMLElement {
 		const cell = document.createElement('div');
-		cell.className = 'll-time-cell';
+		cell.className = this.adjusting ? 'll-time-cell ll-time-cell--adjusting' : 'll-time-cell';
+
+		// One at each end of the number, lifted off the rail: `−` hangs outside the
+		// cell entirely and `+` follows the last digit. Set as two glyphs after the
+		// time they change, they read as a suffix of it — `0:12.88 −+` — which is
+		// three things in a row where there is one control, one value and one
+		// control.
+		if (this.adjusting) cell.append(nudgeButton(-1));
 
 		// The time is the play control. A visible timestamp is the most obvious
 		// thing in the world to press to hear that moment, so it needs no icon of
@@ -184,23 +244,39 @@ class TimeGutterMarker extends GutterMarker {
 			time.disabled = true;
 		} else {
 			if (this.current) time.classList.add('ll-time-value--current');
-			time.textContent = formatAnchorTime(this.time);
+			// Hundredths only while the pair is open. A column of `m:ss.cc` is a
+			// column of two digits nobody is reading — the resting job of this rail is
+			// to say where a line sits in the song, which whole seconds answer — but
+			// they are exactly what a quarter-second step needs on screen, and a press
+			// nothing answers reads as broken. So the precision arrives with the
+			// controls that spend it and leaves with them.
+			time.textContent = this.adjusting
+				? formatAnchorTimePrecise(this.time)
+				: formatAnchorTime(this.time);
 			time.title = `Play from ${formatAnchorTime(this.time)}`;
 			time.dataset.anchorSeek = String(this.time);
 		}
 		cell.append(time);
 
-		// One control for the write, whichever write it is. Stamping an empty line
-		// and correcting a stamped one are the same command with the same effect —
-		// the line's own state says which — so two glyphs would be two buttons for
-		// one press. It carries no time in its tooltip on purpose: the playhead
-		// moves several times a second and a title that named it would rebuild this
-		// column on every tick.
+		// `+` stays in flow, so it hugs the last digit however wide the number is,
+		// and the cell packs from the left while the pair is open rather than
+		// spreading its children to both ends. `−` is out of flow, so neither of
+		// them moves the number: the whole open cell is the closed one plus two
+		// things drawn beside it.
+		if (this.adjusting) {
+			cell.append(nudgeButton(1));
+			return cell;
+		}
+
+		// One control for the write, whichever write it is: on an empty line it
+		// stamps the playhead, on a timed one it opens the pair above. It carries no
+		// time in its tooltip on purpose — the playhead moves several times a second
+		// and a title that named it would rebuild this column on every tick.
 		const stamp = document.createElement('button');
 		stamp.type = 'button';
 		stamp.tabIndex = -1;
 		stamp.className = 'll-time-stamp';
-		stamp.title = this.time === undefined ? 'Anchor this line' : 'Re-anchor this line';
+		stamp.title = this.time === undefined ? 'Anchor this line' : 'Adjust this line’s time';
 		stamp.dataset.anchorStamp = 'true';
 		stamp.append(stampGlyph(this.time !== undefined));
 		cell.append(stamp);
@@ -248,6 +324,13 @@ function currentLineStart(state: EditorState): number | undefined {
 	return currentFrom === undefined ? undefined : state.doc.lineAt(currentFrom).from;
 }
 
+/** The start of the line whose nudge pair is open, if one is. */
+function adjustingLineStart(state: EditorState): number | undefined {
+	const { adjusting } = state.field(lineAnchorField);
+	if (adjusting === undefined) return undefined;
+	return state.doc.lineAt(Math.min(adjusting, state.doc.length)).from;
+}
+
 /**
  * Play from a line by pressing its number.
  *
@@ -273,6 +356,23 @@ export function anchorSeekOnLineNumber(
 		options.onSeek(time);
 		return true;
 	};
+}
+
+/**
+ * One half of the nudge pair, as a character rather than a drawn glyph.
+ *
+ * `−` and `+` are one `ch` each in the gutter's mono font, which is what keeps
+ * the open cell inside the width every row already reserves.
+ */
+function nudgeButton(direction: 1 | -1): HTMLButtonElement {
+	const button = document.createElement('button');
+	button.type = 'button';
+	button.tabIndex = -1;
+	button.className = `ll-time-nudge ll-time-nudge--${direction < 0 ? 'back' : 'on'}`;
+	button.textContent = direction < 0 ? '−' : '+';
+	button.title = `${anchorNudgeSeconds}s ${direction < 0 ? 'earlier' : 'later'}`;
+	button.dataset.anchorNudge = String(direction);
+	return button;
 }
 
 /** A pin for an empty line, a pencil for one already carrying a time. */
@@ -436,12 +536,16 @@ function currentAnchorFrom(
 	return best?.from;
 }
 
-function derive(anchors: RangeSet<AnchorValue>, playhead: number | undefined): LineAnchorState {
-	return { anchors, playhead, currentFrom: currentAnchorFrom(anchors, playhead) };
+function derive(
+	anchors: RangeSet<AnchorValue>,
+	playhead: number | undefined,
+	adjusting: number | undefined
+): LineAnchorState {
+	return { anchors, playhead, currentFrom: currentAnchorFrom(anchors, playhead), adjusting };
 }
 
 export const lineAnchorField = StateField.define<LineAnchorState>({
-	create: () => derive(RangeSet.empty, undefined),
+	create: () => derive(RangeSet.empty, undefined, undefined),
 	update(value, transaction) {
 		let anchors = transaction.docChanged
 			? normalize(
@@ -450,10 +554,19 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 				)
 			: value.anchors;
 		let playhead = value.playhead;
+		// The open pair belongs to a line, so it travels with the text like an
+		// anchor does — and it closes with the draft being read back.
+		let adjusting =
+			value.adjusting !== undefined && transaction.docChanged
+				? transaction.changes.mapPos(value.adjusting)
+				: value.adjusting;
 
 		for (const effect of transaction.effects) {
 			if (effect.is(setLineAnchorsEffect)) {
 				anchors = anchorsFromLines(transaction.state, effect.value);
+				adjusting = undefined;
+			} else if (effect.is(setAnchorAdjustEffect)) {
+				adjusting = effect.value;
 			} else if (effect.is(anchorLineEffect)) {
 				anchors = withAnchor(
 					transaction.state,
@@ -469,14 +582,17 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 				);
 				if (existing) {
 					anchors = anchors.update({ filter: (from) => from !== existing.from });
+					adjusting = undefined;
 				}
 			} else if (effect.is(setPlayheadEffect)) {
 				playhead = effect.value;
 			}
 		}
 
-		if (anchors === value.anchors && playhead === value.playhead) return value;
-		return derive(anchors, playhead);
+		if (anchors === value.anchors && playhead === value.playhead && adjusting === value.adjusting) {
+			return value;
+		}
+		return derive(anchors, playhead, adjusting);
 	}
 });
 
@@ -589,6 +705,39 @@ function prefersReducedMotion(): boolean {
 	return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
+/**
+ * Close the nudge pair on a press anywhere else.
+ *
+ * The same rule every transient surface in the workbench follows, and the same
+ * two decisions behind `dismissOnOutside`: `pointerdown` in the capture phase,
+ * because waiting for `click` leaves the pair up through the press and the
+ * bubble phase never arrives for a press CodeMirror cancels; and nothing here
+ * moves focus, because the press has already said where the user is going.
+ *
+ * It listens on the document rather than the editor, since most of what is
+ * "anywhere else" — the panel, the toolbar, the transport — is outside it. The
+ * cell's own two controls are exempt: the pair has to survive being pressed, and
+ * the pencil is its own way back out.
+ */
+const dismissAdjustOnOutside = ViewPlugin.fromClass(
+	class {
+		constructor(private readonly view: EditorView) {
+			document.addEventListener('pointerdown', this.onPointerDown, true);
+		}
+
+		private readonly onPointerDown = (event: PointerEvent): void => {
+			if (this.view.state.field(lineAnchorField).adjusting === undefined) return;
+			const target = event.target as HTMLElement | null;
+			if (target?.closest('[data-anchor-nudge],[data-anchor-stamp]')) return;
+			this.view.dispatch({ effects: setAnchorAdjustEffect.of(undefined) });
+		};
+
+		destroy(): void {
+			document.removeEventListener('pointerdown', this.onPointerDown, true);
+		}
+	}
+);
+
 export interface LineAnchorOptions {
 	/**
 	 * Seek the audio. Called only from a press on a timestamp — never from a caret
@@ -633,6 +782,7 @@ export interface LineAnchorOptions {
 export function lineAnchors(options: LineAnchorOptions): Extension {
 	return [
 		lineAnchorField,
+		dismissAdjustOnOutside,
 		// A class on the editor rather than a reconfigured gutter: attachment flips
 		// rarely and a compartment swap would rebuild the gutter's DOM, while a
 		// class costs one attribute and lets CSS collapse the column.
@@ -706,7 +856,11 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 				if (found === undefined && !isStampableLine(view.state.doc.lineAt(line.from))) {
 					return null;
 				}
-				return new TimeGutterMarker(found?.time, found?.from === field.currentFrom);
+				return new TimeGutterMarker(
+					found?.time,
+					found?.from === field.currentFrom,
+					found !== undefined && adjustingLineStart(view.state) === line.from
+				);
 			},
 			// The playhead arrives several times a second and almost never crosses an
 			// anchor. Keying the rebuild on `currentFrom` rather than on the time is
@@ -717,6 +871,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 				return (
 					before.anchors !== after.anchors ||
 					before.currentFrom !== after.currentFrom ||
+					before.adjusting !== after.adjusting ||
 					(before.playhead === undefined) !== (after.playhead === undefined)
 				);
 			},
@@ -737,12 +892,36 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 						return true;
 					}
 
+					const nudge = target?.closest<HTMLElement>('[data-anchor-nudge]');
+					if (nudge) {
+						event.preventDefault();
+						const anchored = anchorTimeAt(view.state, line.from);
+						if (anchored === undefined) return true;
+						view.dispatch({
+							effects: anchorLineEffect.of({
+								pos: line.from,
+								time: Math.max(0, anchored + Number(nudge.dataset.anchorNudge) * anchorNudgeSeconds)
+							})
+						});
+						return true;
+					}
+
 					if (!target?.closest('[data-anchor-stamp]')) return false;
+
+					// A timed line's pencil opens the pair rather than writing anything,
+					// and pressing it again is the way back out — the same press that
+					// asked the question answers it.
+					if (hasAnchorAt(view.state, line.from)) {
+						event.preventDefault();
+						const open = adjustingLineStart(view.state) === line.from;
+						view.dispatch({ effects: setAnchorAdjustEffect.of(open ? undefined : line.from) });
+						return true;
+					}
+
 					const time = options.currentTime();
 					if (time === undefined || !Number.isFinite(time)) return false;
 					event.preventDefault();
-					// This is the pointer's `Ctrl-Alt-M`, and correcting a wrong time is
-					// most of what it is for.
+					// This is the pointer's `Ctrl-Alt-M`, for a line that has no time yet.
 					view.dispatch({ effects: anchorLineEffect.of({ pos: line.from, time }) });
 					return true;
 				}
@@ -757,13 +936,28 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	'.cm-editor:not(.ll-has-audio) .ll-time-gutter': {
 		display: 'none'
 	},
+	// CodeMirror clips every gutter column (`.cm-gutter { overflow: hidden }`),
+	// which cut the `−` hanging off the start of the number down to a sliver. This
+	// one column may spill: everything in it is ours, the only thing that ever
+	// leaves it is a control that lives for the length of one correction, and it
+	// spills inwards over the text rather than outwards past the scroller.
+	'.ll-time-gutter': {
+		overflow: 'visible'
+	},
 	'.ll-time-gutter .cm-gutterElement': {
 		display: 'flex',
-		// The width every row reserves, in `ch` against the gutter's own mono font:
-		// four for `m:ss` and the rest for the control beside it. It is the same on
-		// an empty row as on an anchored one, so anchoring a song never moves a
-		// single wrap point in the document.
-		minWidth: 'calc(4ch + var(--space-5))',
+		// The width every row reserves, in `ch` against the gutter's own mono font,
+		// and it is the *widest* state written out rather than a number that happens
+		// to fit: seven for `m:ss.cc`, the gap, and two for the nudge pair. The stamp
+		// glyph is narrower than the pair, so it fits the same slot. It is the same on
+		// an empty row as on an anchored one, and the same open as closed, so neither
+		// anchoring a song nor correcting a time moves a wrap point in the document.
+		// It is a `min-width` on a `border-box` element, so it has to cover the
+		// element's own inline padding as well — reserving only the content leaves
+		// the row's contents governing the width, which is how the number slid
+		// sideways once already: `+` is a shade wider than the glyph it replaces,
+		// and with no slack the gutter grew by exactly that.
+		minWidth: 'calc(9ch + var(--space-5))',
 		padding: 'var(--space-0-5) var(--space-2) 0',
 		gap: 'var(--space-1)',
 		alignItems: 'center',
@@ -834,6 +1028,47 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	'.ll-time-stamp:hover': {
 		color: 'var(--color-text)'
 	},
+	// Packed from the left while the pair is open, so `+` lands against the last
+	// digit instead of being spread to the far side of the reserved slot.
+	'.ll-time-cell--adjusting': {
+		justifyContent: 'flex-start'
+	},
+	// Each one is a small lifted surface rather than a glyph in the rail: they are
+	// on screen for as long as one correction takes, over a column of quiet text
+	// that they must not read as part of. Border, fill and shadow are what say
+	// "pressable and temporary" — the same three the workbench's other popovers
+	// use, at the size the gutter has room for.
+	'.ll-time-nudge': {
+		// One `ch` of glyph, stated rather than left to the font: `−` is not in
+		// every mono face and a fallback one is wider, which would push `+` past the
+		// slot it fits into and slide the whole column sideways.
+		width: '1ch',
+		padding: 'var(--space-0-5)',
+		border: 'var(--border-width) solid var(--color-border)',
+		borderRadius: 'var(--radius-xs)',
+		boxShadow: 'var(--shadow-popover)',
+		background: 'var(--color-surface)',
+		boxSizing: 'content-box',
+		color: 'var(--color-text-muted)',
+		font: 'inherit',
+		lineHeight: '1',
+		textAlign: 'center',
+		cursor: 'pointer'
+	},
+	// `−` hangs off the start of the number, outside the cell and therefore out of
+	// flow: in flow it would push the number right by its own width, which is the
+	// one thing this cell is arranged never to do. `+` needs no such treatment —
+	// it follows the last digit, where the reserved slot already has room.
+	'.ll-time-nudge--back': {
+		position: 'absolute',
+		top: '50%',
+		right: 'calc(100% + var(--space-1))',
+		transform: 'translateY(-50%)'
+	},
+	'.ll-time-nudge:hover': {
+		color: 'var(--color-text)',
+		borderColor: 'var(--color-border-strong)'
+	},
 	// The gutter's own active-line wash is turned off: the row is already marked
 	// in the content by `.cm-activeLine`, and a second band starting at the text's
 	// edge would draw the row as two pieces.
@@ -850,6 +1085,8 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	},
 	'.ll-time-cell': {
 		display: 'flex',
+		// The containing block for the `−` hanging off its start.
+		position: 'relative',
 		width: '100%',
 		gap: 'var(--space-1)',
 		alignItems: 'center',

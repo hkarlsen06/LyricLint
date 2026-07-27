@@ -843,9 +843,59 @@ already goes to check timings.
 A cell is a time and one control. **The time is the play control** — a visible timestamp is the most
 obvious thing in the world to press to hear that moment, so it needs no glyph, and a separate play
 button would be a second control for the gesture the pointer is already on. **The glyph beside it is
-one control for the write, not two**: stamping an empty line and correcting a stamped one are the
-same command with the same effect, and the line's own state says which, so a pin and a pencil in
-adjacent slots would be two buttons for one press.
+one control, not two**: a pin and a pencil in adjacent slots would be two buttons where the line's
+own state already says which of the two writes is on offer.
+
+**On an untimed line that glyph stamps the playhead; on a timed one it opens `−` and `+` beside the
+time.** Those are not the same write, which is what the single control used to assume. A line that
+already carries a time is nearly always a line whose time is nearly _right_ — a tap landed late, or
+a run was a beat behind — so re-stamping it from wherever the tape happens to be sitting is almost
+never the correction wanted, and it destroys the one that was. Re-stamping outright is still
+`Ctrl-Alt-M`, which is a press aimed at exactly that.
+
+**The step is a quarter second, so the open cell — and only the open cell — shows `m:ss.cc`.** A
+step nothing on screen answers is a press that reads as broken, and three presses in every four move
+a time `m:ss` goes on printing unchanged. The anchors were never whole seconds anyway; a sync tap is
+written 120ms early. But a whole column of hundredths is two digits per row nobody is reading, and
+the resting job of this rail is to say where a line sits in the song. So the precision arrives with
+the controls that spend it and leaves with them, which is why `formatAnchorTimePrecise` is a second
+function rather than a flag on the first. The announcements stay whole for the same reason:
+hundredths read aloud say nothing anyone asked, so `Ctrl-Alt-M` and sync mode keep `formatAnchorTime`.
+
+Neither state changes the column's width, because the reserve below covers the wider one.
+
+**One chip at each end of the number, not two glyphs after it.** Set as a pair in the stamp's slot
+they read as a suffix of the time — `0:12.88 −+`, three marks in a row where there is one control,
+one value and one control. Each is a small lifted surface instead: border, fill and shadow, the same
+three the workbench's other popovers use, at the size the gutter has room for. They are on screen
+for the length of one correction, over a column of quiet text they must not read as part of.
+
+**`+` stays in flow and `−` does not**, which is what keeps the number still. `+` follows the last
+digit however wide the number is, and the cell packs from the left while the pair is open rather
+than spreading its children to both ends; `−` hangs outside the cell entirely, since in flow it
+would push the number right by its own width. The open cell is the closed one plus two things drawn
+beside it.
+
+**That means this one gutter column may spill.** CodeMirror clips every column
+(`.cm-gutter { overflow: hidden }`), which cut the `−` down to a sliver — a control that is there,
+is pressable, and cannot be seen. `.ll-time-gutter` is `overflow: visible`: everything in it is
+ours, the only thing that ever leaves it is that chip, and it spills inwards over the text rather
+than outwards past the scroller.
+
+**The reserved width is the widest state written out, padding included.** `calc(9ch + var(--space-5))`
+is seven characters of `m:ss.cc`, the gap, two for the pair, and the element's own inline padding —
+it is a `min-width` on a `border-box` element, so reserving only the content leaves the row's
+contents governing the width. That is how the number slid sideways once already: the pair is a
+fraction of a pixel wider than the glyph it replaces, and with no slack the gutter grew by exactly
+that much and dragged every row left.
+
+It closes the way every transient surface in the workbench closes — a press anywhere else, read on
+`pointerdown` in the capture phase, plus a second press on the pencil that opened it. The listener is
+on the document rather than the editor, because most of what is "anywhere else" is the panel, the
+toolbar and the transport; only the cell's own two controls are exempt, since the pair has to survive
+being pressed. It is one at a time and it belongs to the field, not to the cell: a state kept in the
+marker would be destroyed by the next rebuild, and the playhead rebuilds this column whenever it
+crosses a line.
 
 Four things that arrangement depends on:
 
@@ -1071,6 +1121,57 @@ Four things it refuses, and the refusals are the design:
   rather than two: `setSectionLinkEffect` names the whole resulting group, every named header leaves
   whatever group it was in first, and a lone survivor comes loose.
 
+**The linter is how anyone finds this, and it may only point at repeats that already agree.** The
+two ways in above are a gesture nobody makes by accident and an unadvertised keystroke, and the only
+mark on screen — `⇄` — appears on headers that are _already_ linked, so the feature was invisible
+until it had been used. `section.unlinked-repeat` is the answer, and what makes it safe to say out
+loud is that the set it names either already says the same thing or is still empty: accepting it
+overwrites nothing. A chorus sung differently the second time is ordinary songwriting, so a copy
+that departs is simply not in the set — and the empty case is the better half of the offer, because
+an untyped `[Chorus 3]` is unambiguously a repeat waiting to be filled and linking is what fills it.
+
+**The set, not the song part, and that distinction is the correction this rule shipped with.** The
+first version required the _whole_ kind to match and went quiet on a song whose first and last
+chorus agree while the middle one departs — which is a common shape rather than an edge case, and
+still two choruses worth linking. So the most-repeated wording wins, the empties join it, and the
+odd copy out is left alone rather than silencing its peers. The finding says which copies it means
+(`2 of this song part's 3 copies…`), because a count of all of them would send the reader looking
+for a third that is deliberately different.
+
+Five things it owes, and the third is the one a careless version gets wrong:
+
+- **It is a `suggestion` with no fix, and its action opens the picker.** Linking is a state effect
+  and `DiagnosticFix` carries text edits, so this joins `Choose header` and `Assign section
+performers` as a guided action on the shared row rather than inventing a fourth kind of fix. The
+  picker is also the honest surface: a card cannot show a three-section overwrite as a diff, and the
+  picker names every member before anything runs.
+- **It arbitrates nothing, and the picker preselects nothing.** Which copies to tie together is the
+  picker's question, and it names what it will replace before it runs — so the rule points and stops
+  there. Threading the matched set through as a preselection would put "which of these agree" in a
+  second place, and the two would disagree the first time either changed.
+- **It anchors on a copy that has words.** The picker links _from_ the section it was opened on, so
+  a finding sitting on an empty `[Chorus 2]` would offer to overwrite the real chorus with nothing.
+  The matched set is in document order and its first member may well be the empty one, so the anchor
+  is the first member _of the winning wording_ — and the diagnostic's own range is that header,
+  which is what both surfaces then hand to the picker.
+- **An immediate repeat belongs to `section.immediate-repeat-spacing`.** Two identical choruses with
+  nothing between them want one header, not two tied together, so both rules read the same
+  `isImmediateRepeat` predicate and cannot contradict each other. Only the adjacent pair steps
+  aside, though — the rest of the kind stays linkable, by the same rule as the odd copy out, and the
+  two repairs touch different sections.
+- **The suppression is in the shell, not in `RuleContext`.** Linked sections keep identical words by
+  construction, so the rule fires on its own result forever unless something knows about the links —
+  and `filterForEditorState` in `wiring.ts` is where that already happens, because it runs on every
+  snapshot while the lint itself is memoized on the document. A link made or taken off changes no
+  text, so a rule that learned about links through its context would keep the answered suggestion on
+  screen until the next keystroke. Membership of _any_ group silences it, which under-reports a
+  partly linked group deliberately: leaving one repeat out is a decision the user made in the picker.
+
+**The mark stayed as it was, and that is a decision.** `⇄` means one thing — this section rewrites
+others — and giving linkable-but-unlinked headers a dimmer copy of it would separate a warning from
+an invitation by tone alone, which is what the severity glyphs were reworked to stop doing. With the
+linter carrying the offer, a second mark would also be the same claim in two places.
+
 **Applying collapses the selection, and that is load-bearing rather than tidiness.** The card opens
 _because_ a header is selected whole, and the selection survives the edit — so leaving it there
 would reopen the card the user just answered on the next settled anchor report. A collapsed
@@ -1148,10 +1249,15 @@ uses, so they cannot come to mean different things; the pointer opens silently a
 names its refusal out loud, which is the rule _A surface that opens itself has to have been asked_
 already states for the performer picker.
 
-Implementation: `src/lib/editor/section-links.ts` (the pure predicate, the kinds, the body range —
-no CodeMirror, so `EditorPane` may import it without pulling the editor into the landing page's
+Implementation: `src/lib/editor/section-links.ts` (the pure predicate, the body range — no
+CodeMirror, so `EditorPane` may import it without pulling the editor into the landing page's
 bundle), `src/lib/editor/extensions/section-links.ts` (the field, the mirror, the decoration), and
-`SectionLinkPicker.svelte`.
+`SectionLinkPicker.svelte`. **`linkableSemantic` lives in `languages/registry.ts`**, beside the
+`headerSemanticKey` it is built on, because the rule asks it too and a rule may not import the
+editor. The rule is `rules/catalog/section-unlinked-repeat.ts`, its action is `onLinkSections` on
+`DiagnosticActions.svelte` — wired to the picker by `startSectionLink` in `EditorPane.svelte` and by
+`linkDiagnosticSections` on the controller, which selects the header and then asks the editor the
+same question `Mod-Shift-L` does.
 
 ### YouTube is a second source behind the same transport, and it is asked for every session
 

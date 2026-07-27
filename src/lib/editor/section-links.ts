@@ -1,37 +1,5 @@
-import { englishLanguagePack } from '$lib/languages/en.js';
-import { headerSemanticKey } from '$lib/languages/registry.js';
+import { linkableSemantic } from '$lib/languages/registry.js';
 import type { LanguagePack, ParsedDocument, Section, TextRange } from '$lib/core/types.js';
-
-/**
- * The section kinds a song repeats verbatim, and therefore the only ones worth
- * linking.
- *
- * A verse repeats its *shape*, not its words, so linking two of them would be a
- * standing offer to overwrite one with the other. These three are the parts a
- * transcriber genuinely types twice, and mis-typing the second is the mistake
- * linking exists to make impossible.
- */
-const LINKABLE_SEMANTICS = new Set(['chorus', 'prechorus', 'postchorus']);
-
-/**
- * The linkable kind this header spells, in the draft's own language.
- *
- * English is consulted second rather than instead: Genius pages in every
- * language carry English headers routinely — `ja` is an English pack outright,
- * and `no` lists `Chorus` beside `Refreng` — so a German draft with `[Chorus]`
- * in it links exactly like one with `[Hook]`. The selected pack still wins,
- * which is what keeps `Refrain` reading as a chorus in French and as a chorus
- * in German rather than as English's separate `Refrain`.
- */
-export function linkableSemantic(
-	pack: LanguagePack | undefined,
-	headerName: string | undefined
-): string | undefined {
-	const semantic =
-		(pack ? headerSemanticKey(pack, headerName) : undefined) ??
-		headerSemanticKey(englishLanguagePack, headerName);
-	return semantic && LINKABLE_SEMANTICS.has(semantic) ? semantic : undefined;
-}
 
 function sectionForHeader(parsed: ParsedDocument, headerFrom: number): Section | undefined {
 	return parsed.sections.find((section) => section.header?.from === headerFrom);
