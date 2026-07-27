@@ -57,6 +57,16 @@ export interface DraftStoreDependencies {
 	idFactory: () => string;
 	now: () => string;
 	bindings: DraftStoreBindings;
+	/**
+	 * Whether this draft has audio attached, and therefore something to recover
+	 * even with no words in it.
+	 *
+	 * "An empty document is not a draft" is right about text and wrong about a
+	 * song: choosing what a draft is transcribed *from* is deliberate work, and
+	 * without this it was thrown away on reload — the media record kept pointing
+	 * at a transient id that no draft would ever carry again.
+	 */
+	hasAttachment?: () => boolean;
 }
 
 export interface DraftStore {
@@ -69,6 +79,11 @@ export interface DraftStore {
 	/** The shared save seam: the current draft as it would be persisted now. */
 	draftFromSnapshot(currentSnapshot?: EditorSnapshot): DraftRecord;
 	scheduleSave(): void;
+	/**
+	 * Give a wordless draft a record anyway, because something other than its
+	 * text is now worth keeping. Attaching audio is the one caller.
+	 */
+	keepDraft(): void;
 	setSaveStatus(status: AutosaveStatus): void;
 	flushAutosave(): Promise<void>;
 	setTitle(title: string): Promise<void>;
@@ -143,13 +158,18 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			});
 	}
 
-	function scheduleSave(): void {
+	function scheduleSave(keepEmpty = false): void {
 		const draft = draftFromSnapshot();
 
 		// An empty document is not a draft. It has nothing to recover and shows up
 		// as one more "Untitled draft" among the real ones, so it is never
 		// written — and a draft emptied out gives up the record it had.
-		if (draft.text.trim().length === 0) {
+		//
+		// Attached audio is the exception, and it has to be checked on *every*
+		// save rather than only at the moment of attaching: the document is still
+		// wordless on the next snapshot, so without this the draft the attachment
+		// just created would be discarded again a keystroke later.
+		if (draft.text.trim().length === 0 && !keepEmpty && !(deps.hasAttachment?.() ?? false)) {
 			discardEmptyDraft();
 			return;
 		}
@@ -227,7 +247,8 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			return saveStatus;
 		},
 		draftFromSnapshot,
-		scheduleSave,
+		scheduleSave: () => scheduleSave(),
+		keepDraft: () => scheduleSave(true),
 		setSaveStatus(status) {
 			saveStatus = status;
 		},

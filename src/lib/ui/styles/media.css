@@ -167,6 +167,33 @@
 }
 
 /*
+ * Spotify's mark, and the one place in this stylesheet a literal color is
+ * right — the same exception the favicon takes.
+ *
+ * It is a third party's brand asset, not a tone from our palette, and their
+ * guidelines fix both the color and the floor: Spotify green on a dark surface,
+ * and never below 21px. A semantic token here would be the design system
+ * claiming ownership of something it does not own, and would drift the moment
+ * the theme moved. `flex: none` for the same reason — the mark may not be
+ * squeezed by a long track name, which is exactly what the name beside it is
+ * set up to do to its neighbours.
+ */
+.media-strip__spotify {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	color: #1db954;
+	line-height: 0;
+	text-decoration: none;
+}
+
+/* No underline and no color change: the mark is the affordance, and recoloring
+   a brand asset on hover is the thing their guidelines forbid outright. */
+.media-strip__spotify:hover {
+	color: #1ed760;
+}
+
+/*
  * The one bordered control in the row, and it earns the step up.
  *
  * Set quiet, it was a word in the same muted type as the readouts either side of

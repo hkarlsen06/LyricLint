@@ -11,8 +11,9 @@ export interface MediaAttachInput {
 	name: string;
 	size?: number;
 	/** Absent means `'file'`, which is what every record written before this was. */
-	source?: 'file' | 'youtube';
+	source?: 'file' | 'youtube' | 'spotify';
 	videoId?: string;
+	trackId?: string;
 	handle?: FileSystemFileHandle;
 	position?: number;
 }
@@ -53,7 +54,7 @@ export function createMediaRepository(database: LyricLintDatabase): MediaReposit
 			return await database.mediaHandles.get(draftId);
 		},
 
-		async attach({ draftId, name, size, source, videoId, handle, position }) {
+		async attach({ draftId, name, size, source, videoId, trackId, handle, position }) {
 			const record: MediaHandleRecord = {
 				draftId,
 				name,
@@ -61,6 +62,7 @@ export function createMediaRepository(database: LyricLintDatabase): MediaReposit
 				...(size === undefined ? {} : { size }),
 				...(source === undefined ? {} : { source }),
 				...(videoId === undefined ? {} : { videoId }),
+				...(trackId === undefined ? {} : { trackId }),
 				...(handle === undefined ? {} : { handle }),
 				...(position === undefined ? {} : { position })
 			};

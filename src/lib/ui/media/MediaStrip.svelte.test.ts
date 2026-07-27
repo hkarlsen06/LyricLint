@@ -37,6 +37,38 @@ function store(options: { records?: MediaHandleRecord[]; file?: File } = {}) {
 	return { audio, media, player, youtube };
 }
 
+/**
+ * A strip with a Spotify track on it, and nothing reaching Spotify.
+ *
+ * The SDK is a stub whose device never arrives, which is enough: attaching is
+ * silent by design, so the name and the link are in place before any player is.
+ */
+async function spotifyStore() {
+	const feedback = createFeedbackState();
+	const player = createMediaPlayer({
+		feedback,
+		createAudio: () => new StubAudio().asMediaElement(),
+		createObjectUrl: () => 'blob:test',
+		revokeObjectUrl: () => {},
+		loadSpotifySdk: async () => ({ Player: class {} }) as never,
+		spotifyToken: async () => 'token',
+		spotifyRequest: (async () =>
+			new Response(JSON.stringify({ name: 'Sensommer', artists: [{ name: 'Mul' }] }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			})) as typeof fetch,
+		scheduleSpotifyPoll: () => () => {}
+	});
+	const media = createMediaStore({
+		repository: createInMemoryMediaRepository(),
+		feedback,
+		draftId: () => 'draft-1',
+		player
+	});
+	await media.attachSpotifyTrack('4cOdK2wGLETKBW3PvgPWqT', 'Mul — Sensommer');
+	return { media, player };
+}
+
 describe('MediaStrip', () => {
 	it('offers the transport, the elapsed time, and the track at both ends', async () => {
 		const { audio, media, player } = store();
@@ -394,5 +426,42 @@ describe('MediaStrip', () => {
 		expect(media.pendingName).toBeUndefined();
 		await media.openFor('draft-1');
 		expect(media.pendingName).toBeUndefined();
+	});
+});
+
+// Spotify's Design Guidelines require the mark, the track and artist beside it,
+// and a way back to the track — and a missing one of those is the most common
+// reason a quota-extension request is refused.
+describe('MediaStrip attribution', () => {
+	it('names the track and links the mark to it on Spotify', async () => {
+		const { media } = await spotifyStore();
+		render(MediaStrip, { props: { media } });
+
+		const link = page.getByRole('link', { name: 'Open Mul — Sensommer on Spotify' });
+		await expect
+			.element(link)
+			.toHaveAttribute('href', 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT');
+		// A new tab, because the workbench is a document being typed into.
+		await expect.element(link).toHaveAttribute('target', '_blank');
+		await expect.element(link).toHaveAttribute('rel', 'noopener noreferrer');
+	});
+
+	// It is a brand asset, so it takes Spotify's green rather than the accent
+	// every other link on the page inherits — and their stated 21px floor.
+	it('draws the mark in Spotify green at their minimum size', async () => {
+		const { media } = await spotifyStore();
+		render(MediaStrip, { props: { media } });
+
+		const link = page.getByRole('link', { name: 'Open Mul — Sensommer on Spotify' }).element();
+		expect(getComputedStyle(link).color).toBe('rgb(29, 185, 84)');
+		expect(link.querySelector('svg')?.getAttribute('width')).toBe('21');
+	});
+
+	it('draws no mark for a source that is not Spotify', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		render(MediaStrip, { props: { media } });
+
+		expect(document.querySelector('.media-strip__spotify')).toBeNull();
 	});
 });

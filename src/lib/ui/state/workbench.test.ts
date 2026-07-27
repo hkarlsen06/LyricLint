@@ -13,8 +13,13 @@ import { describe, expect, test, vi } from 'vitest';
 import {
 	createContractSessionIgnoreStore,
 	createInMemoryDraftRepository,
+	createInMemoryMediaRepository,
 	createMemorySessionStorage
 } from './in-memory.js';
+import type { MediaRepository } from '$lib/persistence/media-repository.js';
+import { createFeedbackState } from './feedback.svelte.js';
+import { createMediaPlayer } from './media-player.svelte.js';
+import { StubAudio } from './media-test-audio.js';
 import { sampleDraftText } from '../sample-draft.js';
 import { createWorkbenchController } from './workbench.svelte.js';
 
@@ -96,6 +101,7 @@ function setup(options: {
 	 * does: it boots on a headless placeholder and CodeMirror publishes later.
 	 */
 	headless?: boolean;
+	mediaRepository?: MediaRepository;
 }) {
 	const initial = options.initial ?? draft('draft-a');
 	const repository =
@@ -146,7 +152,20 @@ function setup(options: {
 		readClipboard:
 			options.readClipboard ??
 			(() => Promise.reject(new Error('Clipboard reads are unavailable.'))),
-		onOpenDraft
+		onOpenDraft,
+		...(options.mediaRepository
+			? {
+					mediaRepository: options.mediaRepository,
+					// A real player would reach for `new Audio()`, which node has not
+					// got; what is under test here is the draft record, not decoding.
+					mediaPlayer: createMediaPlayer({
+						feedback: createFeedbackState(),
+						createAudio: () => new StubAudio().asMediaElement(),
+						createObjectUrl: () => 'blob:test',
+						revokeObjectUrl: () => {}
+					})
+				}
+			: {})
 	});
 	return { controller, repository, autosave, editor, headless };
 }
@@ -393,6 +412,39 @@ describe('workbench draft safety', () => {
 
 		expect((await repository.get(created))?.text).toBe('[Verse]\nFirst words');
 		expect(await repository.getCurrent()).toBe(created);
+	});
+
+	// Attaching audio is the one thing other than text that makes a draft worth a
+	// record. Without this the media row was written against a transient id, the
+	// draft was never persisted, and the next load invented a new id — so the
+	// attachment came back as nothing at all, not even the pending bar.
+	test('writes a wordless draft once audio is attached to it', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		const mediaRepository = createInMemoryMediaRepository();
+		const controlled = controllableAutosave(repository);
+		const { controller } = setup({
+			initial: first,
+			repository,
+			autosave: controlled.autosave,
+			mediaRepository
+		});
+
+		await controller.createDraft();
+		const created = controller.draftId;
+		expect(await repository.get(created)).toBeUndefined();
+
+		await controller.media?.attachFile(new File([''], 'sensommer.mp3'));
+		await controlled.autosave.flush();
+
+		expect(await repository.get(created)).toBeDefined();
+		expect((await mediaRepository.get(created))?.name).toBe('sensommer.mp3');
+
+		// And it stays written: the document is still wordless on the next
+		// snapshot, which is where the discard used to take it straight back out.
+		controller.onSnapshot(snapshot(first, 2, ''));
+		await controlled.autosave.flush();
+		expect(await repository.get(created)).toBeDefined();
 	});
 
 	test('drops the record of a draft the user empties out', async () => {

@@ -356,3 +356,25 @@ describe('the YouTube opt-in', () => {
 		expect(media.player.sourceKind).toBeUndefined();
 	});
 });
+
+describe('a draft on a Spotify track', () => {
+	// The symptom this pins: a reload came back with no audio and no sign there
+	// had been any — not even the pending bar that says which track it wants.
+	it('comes back as a pending track after a reload', async () => {
+		const repository = createInMemoryMediaRepository();
+		const { media } = setup({ repository });
+
+		await media.attachSpotifyTrack('4cOdK2wGLETKBW3PvgPWqT', 'Mul — Sensommer');
+		expect(media.trackId).toBe('4cOdK2wGLETKBW3PvgPWqT');
+
+		// A reload is a fresh store over the same storage.
+		const next = setup({ repository });
+		await next.media.openFor('draft-1');
+
+		expect(next.media.pendingName).toBe('Mul — Sensommer');
+		expect(next.media.pendingSource).toBe('spotify');
+		expect(next.media.trackId).toBe('4cOdK2wGLETKBW3PvgPWqT');
+		// Not signed in, so nothing has been loaded — the press is what pays.
+		expect(next.player.attached).toBe(false);
+	});
+});

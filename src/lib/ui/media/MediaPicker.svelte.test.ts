@@ -53,13 +53,14 @@ describe('MediaPicker', () => {
 		expect(youtube.loads).toBe(0);
 	});
 
-	it('offers both answers to one question, side by side', async () => {
+	it('offers every answer to one question, in one place', async () => {
 		setup();
 		await page.getByRole('button', { name: 'Add audio' }).click();
 
 		expect(dialog()?.open).toBe(true);
 		await expect.element(page.getByRole('button', { name: 'Choose a file…' })).toBeVisible();
 		await expect.element(page.getByLabelText('YouTube link')).toBeVisible();
+		await expect.element(page.getByLabelText('Spotify search')).toBeVisible();
 	});
 
 	// The trade is stated where the decision is made, not an hour earlier in a
@@ -75,8 +76,9 @@ describe('MediaPicker', () => {
 		expect(youtube.loads).toBe(0);
 	});
 
-	// The answer most transcribers have is the one they meet first.
-	it('leads with YouTube', async () => {
+	// The answer most transcribers have is the one they meet first, and the local
+	// file — the answer that always works and needs nothing — anchors the end.
+	it('leads with YouTube and closes with the file', async () => {
 		setup();
 		await page.getByRole('button', { name: 'Add audio' }).click();
 
@@ -84,8 +86,31 @@ describe('MediaPicker', () => {
 		expect(controls.map((el) => el.getAttribute('aria-label') ?? el.textContent?.trim())).toEqual([
 			'YouTube link',
 			'Use video',
+			'Spotify search',
+			'Search',
 			'Choose a file…'
 		]);
+	});
+
+	// Spotify is the one source that does not need the user to go and fetch a
+	// link first, and the search field is that. One field takes both, so a paste
+	// still works without a second control beside it.
+	it('asks for a track by name rather than by link', async () => {
+		setup();
+		await page.getByRole('button', { name: 'Add audio' }).click();
+
+		const field = page.getByLabelText('Spotify search').element() as HTMLInputElement;
+		expect(field.placeholder).toBe('Search Spotify, or paste a link');
+	});
+
+	// Spotify costs a subscription and the speed control, and both are facts the
+	// user needs in front of them before the press rather than after it.
+	it('states what Spotify costs, including the rate it takes away', async () => {
+		setup();
+		await page.getByRole('button', { name: 'Add audio' }).click();
+
+		await expect.element(page.getByText('Needs Spotify Premium ·', { exact: false })).toBeVisible();
+		await expect.element(page.getByText('No speed control', { exact: false })).toBeVisible();
 	});
 
 	it('takes a chosen file and closes on the answer', async () => {

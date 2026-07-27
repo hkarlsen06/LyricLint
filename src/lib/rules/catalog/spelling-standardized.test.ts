@@ -23,11 +23,18 @@ describe('spelling.standardized', () => {
 	});
 
 	it('reports curated common misspellings of reviewed spellings', () => {
-		const text = '[Verse]\ney okey yall whoah bougy choper naieve clichè asap';
+		const text =
+			'[Verse]\n(Ayyy, ey eyy eyyy ei eii eiii okey yall whoah bougy choper naieve clichè asap';
 		const found = checkRule(rule, text);
 
 		expect(markedText(text, found)).toEqual([
+			'Ayyy',
 			'ey',
+			'eyy',
+			'eyyy',
+			'ei',
+			'eii',
+			'eiii',
 			'okey',
 			'yall',
 			'whoah',
@@ -38,6 +45,12 @@ describe('spelling.standardized', () => {
 			'asap'
 		]);
 		expect(fixInserts(found)).toEqual([
+			'Ayy',
+			'ayy',
+			'ayy',
+			'ayy',
+			'ayy',
+			'ayy',
 			'ayy',
 			'okay',
 			"y'all",
@@ -49,7 +62,7 @@ describe('spelling.standardized', () => {
 			'ASAP'
 		]);
 		expect(applyRuleFixes(rule, text)).toBe(
-			"[Verse]\nayy okay y'all woah bougie chopper naive cliché ASAP"
+			"[Verse]\n(Ayy, ayy ayy ayy ayy ayy ayy okay y'all woah bougie chopper naive cliché ASAP"
 		);
 	});
 

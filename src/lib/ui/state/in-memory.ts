@@ -125,16 +125,21 @@ export function createInMemoryMediaRepository(
 			const record = records.get(draftId);
 			return record ? { ...record } : undefined;
 		},
-		async attach({ draftId, name, size, source, videoId, handle, position }) {
+		/**
+		 * Spread, never destructured field by field.
+		 *
+		 * This used to list the fields it kept, and it silently dropped `trackId`
+		 * the day a third source was added — a test double that quietly loses a
+		 * field is worse than no double at all, because it makes the suite agree
+		 * with the bug. The real repository has to enumerate (it stamps
+		 * `attachedAt` and Dexie wants a clean record); this one has no such
+		 * excuse.
+		 */
+		async attach({ draftId, ...rest }) {
 			const record: MediaHandleRecord = {
 				draftId,
-				name,
 				attachedAt: new Date().toISOString(),
-				...(size === undefined ? {} : { size }),
-				...(source === undefined ? {} : { source }),
-				...(videoId === undefined ? {} : { videoId }),
-				...(handle === undefined ? {} : { handle }),
-				...(position === undefined ? {} : { position })
+				...rest
 			};
 			records.set(draftId, record);
 			return { ...record };

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { MediaStore } from '../state/media-store.svelte.js';
+	import type { SpotifySearchResult } from '../state/media-spotify.js';
+	import { formatTime } from '../state/media-player.svelte.js';
 
 	let { media }: { media: MediaStore } = $props();
 
@@ -8,7 +10,14 @@
 	let trigger: HTMLButtonElement;
 	let urlInput: HTMLInputElement;
 	let url = $state('');
+	let query = $state('');
+	// One message per answer rather than one for the dialog: a refusal belongs
+	// under the field that caused it, and a shared slot would print a Spotify
+	// error under a YouTube link the user is still looking at.
 	let error = $state<string | undefined>(undefined);
+	let trackError = $state<string | undefined>(undefined);
+	let results = $state<SpotifySearchResult[]>([]);
+	let searched = $state(false);
 
 	// The slot never moves and the label follows the state, the way the toolbar's
 	// one contrast action swaps between `Copy lyrics` and `Paste lyrics`. A
@@ -24,10 +33,27 @@
 	async function open(): Promise<void> {
 		url = media.videoId ? `https://youtu.be/${media.videoId}` : '';
 		error = undefined;
+		trackError = undefined;
+		results = [];
+		searched = false;
 		dialog.showModal();
 		await tick();
 		urlInput.select();
 	}
+
+	// A sign-in interrupts whatever the user was searching for, and this is how
+	// they get it back: the query rode across the redirect, and the picker reopens
+	// on it and runs it. Reading the query clears it, so this fires once — an
+	// effect that reopened a dialog on every render would be impossible to close.
+	$effect(() => {
+		const resumed = media.takeResumedQuery();
+		if (resumed === undefined) return;
+		void (async () => {
+			await open();
+			query = resumed;
+			await runSearch();
+		})();
+	});
 
 	function close(): void {
 		dialog.close();
@@ -47,6 +73,38 @@
 	async function useVideo(): Promise<void> {
 		error = await media.attachYouTube(url);
 		if (error === undefined) close();
+	}
+
+	/**
+	 * Search, or attach outright when what was typed turns out to be a link.
+	 *
+	 * `{ results: [] }` therefore means two different things and both end the
+	 * same way: nothing matched, or a pasted link attached and the dialog is
+	 * already closing. `searched` is what tells the empty list from the state
+	 * before anything was asked, so "No matches" cannot greet a user who has not
+	 * typed anything yet.
+	 */
+	async function runSearch(): Promise<void> {
+		trackError = undefined;
+		const outcome = await media.searchSpotify(query);
+
+		if ('signingIn' in outcome) return;
+		if ('error' in outcome) {
+			trackError = outcome.error;
+			return;
+		}
+		// A pasted link attaches inside the store, so the dialog's work is done.
+		if (media.player.sourceKind === 'spotify' && media.trackId !== undefined) {
+			close();
+			return;
+		}
+		results = outcome.results;
+		searched = true;
+	}
+
+	async function useResult(track: SpotifySearchResult): Promise<void> {
+		await media.attachSpotifyTrack(track.trackId, track.name);
+		close();
 	}
 </script>
 
@@ -76,10 +134,15 @@
 </button>
 
 <!--
-	One question — where is the song? — asked in one place, with the two answers
-	side by side rather than as two commands the user has to tell apart in a list.
+	One question — where is the song? — asked in one place, with the answers
+	stacked rather than scattered as commands the user has to tell apart in a list.
 	It is a modal because it is a detour: nothing else in the workbench is worth
 	doing until it is answered or abandoned.
+
+	Spotify draws only where the build has an app registered behind it
+	(`PUBLIC_SPOTIFY_CLIENT_ID`). An answer that cannot be carried out is worse
+	than one fewer answer — the same reason the rate control renders
+	`availableRates` rather than the workbench's full offer.
 
 	Neither answer is boxed. The dialog is already the surface, and giving each
 	option a border would be two cards inside the card the user is looking at; a
@@ -153,6 +216,79 @@
 					{/if}
 				</div>
 			</section>
+
+			{#if media.spotifyAvailable}
+				<section>
+					<!--
+						One field for two gestures. Typing a title searches; pasting a link
+						attaches. They are the same aim at the same box, and splitting them
+						into two controls would put a second row in a section that has room
+						for one — and make the user classify their own input before they
+						could start.
+					-->
+					<form
+						class="media-dialog__url"
+						onsubmit={(event) => {
+							event.preventDefault();
+							void runSearch();
+						}}
+					>
+						<input
+							bind:value={query}
+							type="search"
+							placeholder="Search Spotify, or paste a link"
+							aria-label="Spotify search"
+							autocomplete="off"
+							spellcheck="false"
+						/>
+						<button type="submit" class="button" disabled={media.busy || query.trim() === ''}>
+							Search
+						</button>
+					</form>
+
+					<!--
+						Results are rows on the dialog, not a boxed list inside it: the
+						dialog is already the surface, and a bordered panel here would be
+						the card-inside-a-card the design rules exist to prevent. Each row
+						carries something at both ends — the track at one, its length at the
+						other — so no row is a label alone in half a gutter.
+					-->
+					{#if results.length > 0}
+						<ul class="media-dialog__results">
+							{#each results as track (track.trackId)}
+								<li>
+									<button
+										type="button"
+										class="media-dialog__result"
+										disabled={media.busy}
+										onclick={() => void useResult(track)}
+									>
+										<span class="media-dialog__result-name">{track.name}</span>
+										<span class="media-dialog__result-time">
+											{formatTime(track.durationSeconds)}
+										</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{:else if searched && query.trim() !== ''}
+						<p class="media-dialog__meta">No matches on Spotify.</p>
+					{/if}
+					<!-- The three facts a press here actually costs. The rate one is not
+					     a caveat buried in a sentence: Spotify exposes no playback-rate
+					     control at any layer, so the transport's speed menu collapses to
+					     1× for as long as a track is attached, and that is worth knowing
+					     before the press rather than after it. -->
+					<p class="media-dialog__meta">
+						Needs Spotify Premium · Signs in with Spotify · No speed control
+					</p>
+					<div aria-live="polite">
+						{#if trackError}
+							<p class="media-dialog__error">{trackError}</p>
+						{/if}
+					</div>
+				</section>
+			{/if}
 
 			<section>
 				<button
@@ -255,5 +391,54 @@
 		color: var(--color-danger);
 		font-size: var(--font-size-xs);
 		line-height: var(--line-height-body);
+	}
+
+	/* A run of rows, the way the linter's findings are: no gap, no rounding, a
+	   hairline between neighbours. Nothing here draws a box — the dialog is the
+	   surface these sit on. */
+	.media-dialog__results {
+		margin: var(--space-2) 0 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.media-dialog__results li + li {
+		border-top: var(--border-width) solid var(--color-border);
+	}
+
+	.media-dialog__result {
+		display: flex;
+		width: 100%;
+		padding: var(--space-2) var(--space-1-5);
+		gap: var(--space-3);
+		align-items: baseline;
+		justify-content: space-between;
+		border: 0;
+		background: none;
+		color: var(--color-text);
+		font: inherit;
+		text-align: start;
+		cursor: pointer;
+	}
+
+	.media-dialog__result:hover {
+		background: var(--color-control-hover);
+	}
+
+	.media-dialog__result:disabled {
+		color: var(--color-text-disabled);
+		cursor: default;
+	}
+
+	.media-dialog__result-name {
+		min-width: 0;
+		font-size: var(--font-size-sm);
+	}
+
+	.media-dialog__result-time {
+		flex: none;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-variant-numeric: tabular-nums;
 	}
 </style>

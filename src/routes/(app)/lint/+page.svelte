@@ -82,7 +82,7 @@
 				} as Parameters<typeof createAutosaveController>[1] & {
 					onStatusChange: (status: AutosaveStatus) => void;
 				});
-				const initialDraft = await recoverStartupDraft(repository);
+				const initialDraft = await recoverStartupDraft(repository, mediaRepository);
 				const initialRecentLanguages = await repository.getRecentLanguages();
 				if (cancelled) return;
 

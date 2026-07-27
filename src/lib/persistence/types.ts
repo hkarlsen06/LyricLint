@@ -49,9 +49,17 @@ export interface MediaHandleRecord {
 	name: string;
 	size?: number;
 	/** Absent means `'file'`. */
-	source?: 'file' | 'youtube';
+	source?: 'file' | 'youtube' | 'spotify';
 	/** The YouTube video id, and the whole of what a video source needs. */
 	videoId?: string;
+	/**
+	 * The Spotify track id, and the whole of what that source needs.
+	 *
+	 * A field of its own rather than a reused `videoId`, because the two are
+	 * different lengths and different alphabets and a record that mixed them up
+	 * would fail as a 404 somewhere far from here.
+	 */
+	trackId?: string;
 	/** Structured-cloneable, so Dexie stores it directly. Never serialized to JSON. */
 	handle?: FileSystemFileHandle;
 	/**

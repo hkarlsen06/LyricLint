@@ -3,6 +3,17 @@ import type { FeedbackState } from './feedback.svelte.js';
 import type { MediaPlayer, MediaSourceKind } from './media-player.svelte.js';
 import { createMediaPlayer } from './media-player.svelte.js';
 import { parseYouTubeVideoId } from './media-youtube.js';
+import type { SpotifySearchOutcome } from './media-spotify.js';
+import { parseSpotifyTrackId, searchSpotifyTracks } from './media-spotify.js';
+import {
+	beginSpotifySignIn,
+	completeSpotifySignIn,
+	spotifyAccessToken,
+	spotifyConfigured,
+	spotifyInsecureOriginMessage,
+	spotifyRedirectAllowed,
+	spotifySignedIn
+} from './spotify-auth.js';
 
 /**
  * The parts of the File System Access API this store uses.
@@ -48,6 +59,16 @@ export interface MediaStoreDependencies {
 	pickFile?: () => Promise<{ file: File; handle?: FileSystemFileHandle } | undefined>;
 	/** Injectable so tests drive the write throttle without waiting on a clock. */
 	clock?: () => number;
+	/**
+	 * Tell the draft it now has something worth a record.
+	 *
+	 * A draft with no text is never written, so audio attached before the first
+	 * keystroke was written against an id no reload would ever produce again —
+	 * the record survived and the draft that owned it did not. The same shape of
+	 * call `onLineAnchorsChanged` makes, and for the same reason: this changes
+	 * nothing about the document, so nothing else will schedule the save.
+	 */
+	onAttached?: () => void;
 }
 
 export interface MediaStore {
@@ -73,6 +94,16 @@ export interface MediaStore {
 	 * otherwise have to go and find again.
 	 */
 	readonly videoId: string | undefined;
+	/** The Spotify track this draft is on, for the same reason as `videoId`. */
+	readonly trackId: string | undefined;
+	/**
+	 * Whether this build has a Spotify app registered behind it.
+	 *
+	 * False when `PUBLIC_SPOTIFY_CLIENT_ID` is unset, which is the honest state of
+	 * a feature whose credential is missing — the picker then does not offer an
+	 * answer it cannot carry out, rather than offering one that fails on press.
+	 */
+	readonly spotifyAvailable: boolean;
 	readonly busy: boolean;
 	/**
 	 * Whether the user has chosen YouTube in this session.
@@ -99,6 +130,41 @@ export interface MediaStore {
 	 * it is.
 	 */
 	attachYouTube(url: string): Promise<string | undefined>;
+	/**
+	 * Take a pasted Spotify link, signing in first if this session has not.
+	 *
+	 * Resolves to a message when the link is not a track link, and to nothing
+	 * otherwise — including when "otherwise" means the page is about to navigate
+	 * to Spotify's authorize screen. The link is carried across that redirect and
+	 * this method is called again with it on the way back, so a caller writes one
+	 * path and not two.
+	 */
+	attachSpotify(url: string): Promise<string | undefined>;
+	/**
+	 * Find a track by name, signing in first if this session has not.
+	 *
+	 * The way in that does not require the user to go and fetch a link — which is
+	 * a trip to another application to answer a question this one can ask. A query
+	 * that happens to *be* a link is attached rather than searched, so the paste
+	 * still works and costs no second control.
+	 */
+	searchSpotify(query: string): Promise<SpotifySearchOutcome>;
+	/** Attach a track the user picked out of those results. */
+	attachSpotifyTrack(trackId: string, name: string): Promise<void>;
+	/**
+	 * The search a sign-in interrupted, handed back once, for the surface to
+	 * reopen on. Reading it clears it: a query left standing would reopen the
+	 * picker on every later render.
+	 */
+	takeResumedQuery(): string | undefined;
+	/**
+	 * Finish a sign-in this page load is returning from, if it is.
+	 *
+	 * Called once at boot. On an ordinary load it does nothing at all; on the load
+	 * that comes back from Spotify it exchanges the code and re-attaches whatever
+	 * the user was in the middle of adding.
+	 */
+	resumeSignIn(): Promise<void>;
 	reconnect(): Promise<void>;
 	detach(): Promise<void>;
 	/** Move the attached audio to whichever draft is now open. */
@@ -174,10 +240,13 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	let pendingSource = $state<MediaSourceKind | undefined>(undefined);
 	let pendingHandle: PersistableFileHandle | undefined;
 	let pendingVideoId: string | undefined;
+	let pendingTrackId: string | undefined;
 	let pendingPosition: number | undefined;
 	let currentVideoId = $state<string | undefined>(undefined);
+	let currentTrackId = $state<string | undefined>(undefined);
 	let busy = $state(false);
 	let youtubeAllowed = $state(false);
+	let resumedQuery = $state<string | undefined>(undefined);
 
 	// The draft the loaded audio belongs to, which is not always the draft that is
 	// open: switching drafts detaches, and a position write racing that switch
@@ -234,18 +303,37 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		}
 	}
 
-	/** Everything a new attachment forgets, whichever kind it is. */
-	function claim(): number | undefined {
-		const startAt = pendingPosition;
+	/**
+	 * Drop every trace of what this draft was pointing at.
+	 *
+	 * One function rather than the same run of assignments written out at each of
+	 * the three call sites, because a source added later is a field added here —
+	 * and a field added to one of three hand-written copies and missed by the
+	 * other two is the failure mode that cost this codebase a whole synced song
+	 * once already.
+	 */
+	function forget(): void {
 		pendingName = undefined;
 		pendingSource = undefined;
 		pendingHandle = undefined;
 		pendingVideoId = undefined;
+		pendingTrackId = undefined;
 		pendingPosition = undefined;
 		currentVideoId = undefined;
+		currentTrackId = undefined;
+	}
+
+	/** Everything a new attachment forgets, whichever kind it is. */
+	function claim(): number | undefined {
+		const startAt = pendingPosition;
+		forget();
 		ownerDraftId = deps.draftId();
 		lastWriteAt = clock();
 		lastWritten = startAt;
+		// Every attachment path lands here — file, video and track — so this is the
+		// one place the draft has to be told, rather than three that each have to
+		// remember.
+		deps.onAttached?.();
 		return startAt;
 	}
 
@@ -269,9 +357,29 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		});
 	}
 
+	async function adoptTrack(trackId: string, name: string): Promise<void> {
+		const startAt = claim();
+		currentTrackId = trackId;
+		await player.attachTrack({
+			trackId,
+			name,
+			...(startAt === undefined ? {} : { startAt })
+		});
+	}
+
 	/** What a video is called before Google's player says what it actually is. */
 	function provisionalName(videoId: string): string {
 		return `youtu.be/${videoId}`;
+	}
+
+	/** The same, for a track, until Spotify answers with an artist and a title. */
+	function provisionalTrackName(trackId: string): string {
+		return `open.spotify.com/track/${trackId}`;
+	}
+
+	/** The link form, which is what a sign-in carries across the redirect. */
+	function spotifyLink(trackId: string): string {
+		return `https://open.spotify.com/track/${trackId}`;
 	}
 
 	const store: MediaStore = {
@@ -286,6 +394,12 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		},
 		get videoId() {
 			return currentVideoId;
+		},
+		get trackId() {
+			return currentTrackId;
+		},
+		get spotifyAvailable() {
+			return spotifyConfigured();
 		},
 		get busy() {
 			return busy;
@@ -349,6 +463,125 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		},
 
 		/**
+		 * The press that is both the link and, when it has to be, the sign-in.
+		 *
+		 * Two outcomes look identical to the caller and that is the point: either
+		 * the track attaches, or the page leaves for Spotify's authorize screen
+		 * carrying this same link and comes back through `resumeSignIn` to run this
+		 * again. A surface therefore closes on `undefined` without having to know
+		 * which of the two it got — on the redirect branch there is no surface left
+		 * to close.
+		 *
+		 * The parse happens *before* the sign-in, so a typo costs a message rather
+		 * than a round trip to Spotify and back.
+		 */
+		async attachSpotify(url) {
+			const parsed = parseSpotifyTrackId(url);
+			if ('error' in parsed) return parsed.error;
+			if (!spotifyConfigured()) return 'Spotify is not configured for this build.';
+			if (busy) return undefined;
+
+			if (!spotifySignedIn()) {
+				if (!spotifyRedirectAllowed()) return spotifyInsecureOriginMessage();
+				await beginSpotifySignIn(spotifyLink(parsed.trackId));
+				return undefined;
+			}
+
+			await store.attachSpotifyTrack(parsed.trackId, provisionalTrackName(parsed.trackId));
+			return undefined;
+		},
+
+		/**
+		 * The way in that asks the question instead of sending the user off to find
+		 * a link, and the sign-in when this session has not had one.
+		 *
+		 * A query that parses as a link is attached rather than searched. That is
+		 * not a special case bolted on: a pasted link and a typed title are the same
+		 * gesture aimed at the same field, and answering both from one control is
+		 * what keeps this section to the one row the picker has room for.
+		 */
+		async searchSpotify(query) {
+			const trimmed = query.trim();
+			if (trimmed === '') return { results: [] };
+			if (!spotifyConfigured()) return { error: 'Spotify is not configured for this build.' };
+
+			const parsed = parseSpotifyTrackId(trimmed);
+			if ('trackId' in parsed) {
+				const message = await store.attachSpotify(trimmed);
+				return message === undefined ? { results: [] } : { error: message };
+			}
+
+			// The query rides across the redirect the way a link does, so a first
+			// search is not lost to the sign-in that it triggered.
+			if (!spotifySignedIn()) {
+				if (!spotifyRedirectAllowed()) return { error: spotifyInsecureOriginMessage() };
+				await beginSpotifySignIn(trimmed);
+				return { signingIn: true };
+			}
+
+			return await searchSpotifyTracks(trimmed, { token: spotifyAccessToken });
+		},
+
+		async attachSpotifyTrack(trackId, name) {
+			if (busy) return;
+			busy = true;
+			try {
+				const attaching = adoptTrack(trackId, name);
+				try {
+					await deps.repository.attach({
+						draftId: deps.draftId(),
+						name,
+						source: 'spotify',
+						trackId
+					});
+				} catch {
+					feedback.announce('This track could not be remembered for next time.');
+				}
+				await attaching;
+			} finally {
+				busy = false;
+			}
+		},
+
+		takeResumedQuery() {
+			const query = resumedQuery;
+			resumedQuery = undefined;
+			return query;
+		},
+
+		/**
+		 * The other half of `attachSpotify`, on the load that comes back.
+		 *
+		 * Silent on every ordinary load, which is nearly all of them. A refusal is
+		 * announced rather than swallowed: the user pressed something, was sent to
+		 * Spotify, and came back to a workbench that would otherwise look exactly as
+		 * it did before they pressed it.
+		 */
+		async resumeSignIn() {
+			const returned = await completeSpotifySignIn();
+			if (returned === undefined) return;
+			if (returned.error !== undefined) {
+				feedback.announce(returned.error);
+				return;
+			}
+			if (returned.intent === undefined) return;
+
+			// The intent is whatever the user was in the middle of, and it is one of
+			// two things. A link attaches straight away — that is `reconnect`'s path
+			// and the paste's. A search term cannot attach anything on its own, so it
+			// is handed back for the picker to reopen on, because a user who typed a
+			// title, got sent to Spotify and came back to an untouched workbench has
+			// been made to do the same work twice.
+			const parsed = parseSpotifyTrackId(returned.intent);
+			if ('error' in parsed) {
+				resumedQuery = returned.intent;
+				return;
+			}
+			const message = await store.attachSpotify(returned.intent);
+			if (message !== undefined) feedback.announce(message);
+		},
+
+		/**
 		 * Spend the user's gesture on the remembered handle.
 		 *
 		 * `requestPermission` is why this may only be called from a real press: the
@@ -368,6 +601,24 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 					if (videoId === undefined) return;
 					youtubeAllowed = true;
 					await adoptVideo(videoId, pendingName ?? provisionalName(videoId));
+					return;
+				}
+
+				// A remembered track is the same question again, with the sign-in in
+				// the place the permission prompt and the consent occupy: this press
+				// is what pays for it, and the link it leaves with is this track's.
+				if (pendingSource === 'spotify') {
+					const trackId = pendingTrackId;
+					if (trackId === undefined) return;
+					if (!spotifySignedIn()) {
+						if (!spotifyRedirectAllowed()) {
+							feedback.announce(spotifyInsecureOriginMessage());
+							return;
+						}
+						await beginSpotifySignIn(spotifyLink(trackId));
+						return;
+					}
+					await adoptTrack(trackId, pendingName ?? provisionalTrackName(trackId));
 					return;
 				}
 
@@ -406,12 +657,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			// back the moment after it went.
 			ownerDraftId = undefined;
 			player.detach();
-			pendingName = undefined;
-			pendingSource = undefined;
-			pendingHandle = undefined;
-			pendingVideoId = undefined;
-			pendingPosition = undefined;
-			currentVideoId = undefined;
+			forget();
 			lastWritten = undefined;
 			try {
 				await deps.repository.detach(deps.draftId());
@@ -427,12 +673,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			await store.flushPosition();
 			ownerDraftId = undefined;
 			player.detach();
-			pendingName = undefined;
-			pendingSource = undefined;
-			pendingHandle = undefined;
-			pendingVideoId = undefined;
-			pendingPosition = undefined;
-			currentVideoId = undefined;
+			forget();
 			lastWritten = undefined;
 
 			let record;
@@ -447,8 +688,10 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			pendingSource = record.source ?? 'file';
 			pendingHandle = record.handle as PersistableFileHandle | undefined;
 			pendingVideoId = record.videoId;
+			pendingTrackId = record.trackId;
 			pendingPosition = record.position;
 			currentVideoId = record.videoId;
+			currentTrackId = record.trackId;
 
 			// A video is loaded without a press only where the user has already said
 			// yes to Google in this session — the same trade the file path makes with
@@ -457,6 +700,15 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			if (pendingSource === 'youtube') {
 				if (!youtubeAllowed || pendingVideoId === undefined) return;
 				await adoptVideo(pendingVideoId, pendingName);
+				return;
+			}
+
+			// And a track comes back without a press only where this session has
+			// already signed in — the same trade, with the sign-in standing where
+			// the granted permission and the YouTube consent stand.
+			if (pendingSource === 'spotify') {
+				if (!spotifySignedIn() || pendingTrackId === undefined) return;
+				await adoptTrack(pendingTrackId, pendingName);
 				return;
 			}
 

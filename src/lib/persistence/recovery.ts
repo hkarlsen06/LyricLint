@@ -1,4 +1,5 @@
 import { randomId } from '../core/random-id.js';
+import type { MediaRepository } from './media-repository.js';
 import type { DraftRecord, DraftRepository } from './types.js';
 
 const DEFAULT_TITLE = 'Untitled draft';
@@ -34,13 +35,20 @@ function blankDraft(): DraftRecord {
  * full of empty rows the user never wrote; they carry nothing to recover, so
  * startup is where they go.
  */
-export async function recoverStartupDraft(repository: DraftRepository): Promise<DraftRecord> {
+export async function recoverStartupDraft(
+	repository: DraftRepository,
+	media?: Pick<MediaRepository, 'get'>
+): Promise<DraftRecord> {
 	const summaries = await repository.list();
 	const recoverable: DraftRecord[] = [];
 	for (const summary of summaries) {
 		const draft = await repository.get(summary.id);
 		if (draft === undefined) continue;
-		if (draft.text.trim().length === 0) {
+		// A draft with a song attached and no words yet is not one of the empty
+		// rows this sweep exists to clear — it is a transcription about to start,
+		// and deleting it takes the attachment with it, because `delete` clears
+		// the media record in the same transaction.
+		if (draft.text.trim().length === 0 && (await media?.get(draft.id)) === undefined) {
 			await repository.delete(draft.id);
 			continue;
 		}

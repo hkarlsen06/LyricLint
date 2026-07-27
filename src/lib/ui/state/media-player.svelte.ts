@@ -1,6 +1,9 @@
 import type { FeedbackState } from './feedback.svelte.js';
 import type { PollScheduler, YouTubeApiLoader, YouTubeSource } from './media-youtube.js';
 import { createYouTubeSource, loadYouTubeApi } from './media-youtube.js';
+import type { SpotifySdkLoader, SpotifySource } from './media-spotify.js';
+import { createSpotifySource, loadSpotifySdk } from './media-spotify.js';
+import { spotifyAccessToken } from './spotify-auth.js';
 
 /**
  * How far a resume backs up before it starts, in seconds.
@@ -35,7 +38,7 @@ export const playbackRates = [0.5, 0.75, 1, 1.25, 1.5] as const;
 export type TransportAction = 'toggle' | 'back' | 'forward';
 
 /** Where the sound is coming from. Absent from a record means `file`. */
-export type MediaSourceKind = 'file' | 'youtube';
+export type MediaSourceKind = 'file' | 'youtube' | 'spotify';
 
 /**
  * What the transport tells itself about whatever is making sound.
@@ -105,6 +108,13 @@ export interface VideoAttachment {
 	startAt?: number;
 }
 
+/** What `attachTrack` needs. Same shape as a video: an id and a placeholder. */
+export interface TrackAttachment {
+	trackId: string;
+	name?: string;
+	startAt?: number;
+}
+
 /**
  * Why the transport is reporting its position.
  *
@@ -132,6 +142,14 @@ export interface MediaPlayerDependencies {
 	loadYouTubeApi?: YouTubeApiLoader;
 	/** Injectable so a test advances the YouTube poll by hand. */
 	scheduleYouTubePoll?: PollScheduler;
+	/** How Spotify's Web Playback SDK arrives. Injectable for the same reason. */
+	loadSpotifySdk?: SpotifySdkLoader;
+	/** The Spotify access token, so a test never runs an OAuth flow. */
+	spotifyToken?: () => Promise<string | undefined>;
+	/** Injectable so a test answers Spotify's Web API without a network. */
+	spotifyRequest?: typeof fetch;
+	/** Injectable so a test advances the Spotify poll by hand. */
+	scheduleSpotifyPoll?: PollScheduler;
 }
 
 export interface MediaPlayer {
@@ -168,6 +186,15 @@ export interface MediaPlayer {
 	 * plays — everything after that arrives as ordinary source events.
 	 */
 	attachVideo(video: VideoAttachment): Promise<void>;
+	/**
+	 * Point the transport at a Spotify track.
+	 *
+	 * Asynchronous like `attachVideo`, and silent like it: this resolves once the
+	 * track's name and length are in hand, having played nothing. Spotify has no
+	 * cue, so the call that actually starts the track is deferred to the first
+	 * `play()` — see `createSpotifySource`.
+	 */
+	attachTrack(track: TrackAttachment): Promise<void>;
 	/**
 	 * Give the video source somewhere to draw, and take it back on unmount.
 	 *
@@ -372,6 +399,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	let active: MediaSource | undefined;
 	let fileSource: FileSource | undefined;
 	let youtubeSource: YouTubeSource | undefined;
+	let spotifySource: SpotifySource | undefined;
 	let progressListener: ProgressListener | undefined;
 	let nameListener: ((name: string) => void) | undefined;
 	// Cleared by any deliberate seek: someone who has just dragged the scrubber to
@@ -506,6 +534,17 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		return youtubeSource;
 	}
 
+	function spotify(): SpotifySource {
+		spotifySource ??= createSpotifySource({
+			events: eventsFor(() => spotifySource),
+			loadSdk: deps.loadSpotifySdk ?? loadSpotifySdk,
+			token: deps.spotifyToken ?? spotifyAccessToken,
+			...(deps.spotifyRequest ? { request: deps.spotifyRequest } : {}),
+			...(deps.scheduleSpotifyPoll ? { schedule: deps.scheduleSpotifyPoll } : {})
+		});
+		return spotifySource;
+	}
+
 	/** Hand the transport to a source, before that source is told what to load. */
 	function beginAttachment(next: MediaSource, label: string): void {
 		if (active && active !== next) active.clear();
@@ -578,6 +617,15 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			await loading;
 			if (active !== source) return;
 			source.setRate(rate);
+		},
+
+		async attachTrack(track) {
+			const source = spotify();
+			beginAttachment(source, track.name ?? track.trackId);
+			const loading = source.load(track.trackId, track.startAt);
+			settleAttachment(track.startAt);
+			deps.feedback.announce(`${name} attached.`);
+			await loading;
 		},
 
 		mountVideo(container) {
@@ -674,6 +722,8 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			fileSource = undefined;
 			youtubeSource?.destroy();
 			youtubeSource = undefined;
+			spotifySource?.destroy();
+			spotifySource = undefined;
 		}
 	};
 

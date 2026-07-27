@@ -191,9 +191,10 @@ function parseMedia(value: unknown): SerializableMediaRecord {
 	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid remembered media in backup.');
 	const source = optionalStringField(value, 'source');
 	const videoId = optionalStringField(value, 'videoId');
+	const trackId = optionalStringField(value, 'trackId');
 	const size = optionalNumberField(value, 'size');
 	const position = optionalNumberField(value, 'position');
-	if (source !== undefined && source !== 'file' && source !== 'youtube') {
+	if (source !== undefined && source !== 'file' && source !== 'youtube' && source !== 'spotify') {
 		throw new WorkspaceBackupError('Invalid media source in backup.');
 	}
 	return {
@@ -202,6 +203,7 @@ function parseMedia(value: unknown): SerializableMediaRecord {
 		attachedAt: stringField(value, 'attachedAt'),
 		...(source === undefined ? {} : { source }),
 		...(videoId === undefined ? {} : { videoId }),
+		...(trackId === undefined ? {} : { trackId }),
 		...(size === undefined ? {} : { size }),
 		...(position === undefined ? {} : { position })
 	};

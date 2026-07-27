@@ -133,6 +133,16 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 }
 
 /**
+ * The one failure with nothing to retry, so it names the way out instead of
+ * stopping at the diagnosis. Nothing here can lift the owner's embed flag —
+ * Google checks it server-side — and the file source is not subject to it, so
+ * the sentence points at the control that switches sources rather than leaving
+ * the user with a dead track and an `✕`.
+ */
+const embedRefused =
+	'The owner does not allow that video to be played outside YouTube. Download the audio and attach the file with Change audio.';
+
+/**
  * What the IFrame API's error codes mean, in the words the strip has room for.
  *
  * All five used to arrive as one sentence — "That video could not be played." —
@@ -143,16 +153,6 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
  * so the nested player is not a secure context and DRM-protected audio has
  * nothing to decrypt with.
  */
-/**
- * The one failure with nothing to retry, so it names the way out instead of
- * stopping at the diagnosis. Nothing here can lift the owner's embed flag —
- * Google checks it server-side — and the file source is not subject to it, so
- * the sentence points at the control that switches sources rather than leaving
- * the user with a dead track and an `✕`.
- */
-const embedRefused =
-	'The owner does not allow that video to be played outside YouTube. Download the audio and attach the file with Change audio.';
-
 const youtubeErrorMessages: Record<number, string> = {
 	2: 'That video id is not valid.',
 	5: 'This browser could not play that video. Serving the app over https usually fixes it.',

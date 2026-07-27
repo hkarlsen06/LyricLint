@@ -208,10 +208,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['ayy'],
 		alternates: ['aye', 'ay'],
-		commonMisspellings: ['ey', 'eyy', 'ayee'],
+		commonMisspellings: ['ey', 'eyy', 'ei', 'eii', 'ayee', 'ayyy'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('ayee|aye|ay|eyy|ey')
+		pattern: word('ay{3,}|ayee|aye|ay|e(?:y+|i+)')
 	},
 	{
 		preferred: ['ho'],

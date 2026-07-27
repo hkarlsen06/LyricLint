@@ -170,6 +170,67 @@ describe('draft repository', () => {
 		expect((await media.get('draft-b'))?.name).toBe('b.mp3');
 	});
 
+	// Every source's id has to survive the trip, and `trackId` is the field a
+	// hand-written copier drops in silence — which is exactly how it was lost from
+	// the in-memory double the day Spotify was added.
+	it('keeps each source and its id whole across a reopen', async () => {
+		const { database, repository } = await createRepository('media-sources');
+		const media = createMediaRepository(database);
+		await repository.create({ id: 'draft-yt', text: 'A' });
+		await repository.create({ id: 'draft-sp', text: 'B' });
+
+		await media.attach({
+			draftId: 'draft-yt',
+			name: 'youtu.be/dQw4w9WgXcQ',
+			source: 'youtube',
+			videoId: 'dQw4w9WgXcQ',
+			position: 12
+		});
+		await media.attach({
+			draftId: 'draft-sp',
+			name: 'Mul — Sensommer',
+			source: 'spotify',
+			trackId: '4cOdK2wGLETKBW3PvgPWqT',
+			position: 34
+		});
+
+		expect(await media.get('draft-yt')).toMatchObject({
+			source: 'youtube',
+			videoId: 'dQw4w9WgXcQ',
+			position: 12
+		});
+		expect(await media.get('draft-sp')).toMatchObject({
+			source: 'spotify',
+			trackId: '4cOdK2wGLETKBW3PvgPWqT',
+			position: 34
+		});
+	});
+
+	// A song chosen for a draft with no words yet is deliberate work, and the
+	// startup sweep used to throw it away: the blank draft was deleted, `delete`
+	// cleared its media record in the same transaction, and the attachment was
+	// gone with no sign there had been one.
+	it('keeps a wordless draft that has audio attached, and sweeps one that has not', async () => {
+		const { database, repository } = await createRepository('media-blank-draft');
+		const media = createMediaRepository(database);
+		await repository.create({ id: 'draft-scored', text: '' });
+		await repository.create({ id: 'draft-bare', text: '' });
+		await media.attach({
+			draftId: 'draft-scored',
+			name: 'Mul — Sensommer',
+			source: 'spotify',
+			trackId: '4cOdK2wGLETKBW3PvgPWqT'
+		});
+
+		const recovered = await recoverStartupDraft(repository, media);
+
+		expect(recovered.id).toBe('draft-scored');
+		expect(await media.get('draft-scored')).toBeDefined();
+		// The draft with nothing at all in it is still swept, which is the rule
+		// this exception is carved out of.
+		expect(await repository.get('draft-bare')).toBeUndefined();
+	});
+
 	it('deleteAll leaves no attached audio behind either', async () => {
 		const { database, repository } = await createRepository('media-delete-all');
 		const media = createMediaRepository(database);

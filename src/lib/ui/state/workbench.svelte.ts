@@ -227,6 +227,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		exportText,
 		idFactory,
 		now,
+		// Read on every save, not just the one attaching triggers: the document is
+		// still wordless on the next snapshot, and without this the record the
+		// attachment created would be swept a keystroke later.
+		hasAttachment: () => media?.player.attached === true || media?.pendingName !== undefined,
 		bindings: {
 			get snapshot() {
 				return editorSession.snapshot;
@@ -277,6 +281,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				repository: deps.mediaRepository,
 				feedback,
 				draftId: () => draft.draftId,
+				// Attaching audio is what makes a wordless draft worth keeping, and
+				// the draft store reads the answer back through `hasAttachment` on
+				// every later save. Both directions are lazy closures because the two
+				// stores need each other and only one of them can be built first.
+				onAttached: () => draft.keepDraft(),
 				...(deps.mediaPlayer ? { player: deps.mediaPlayer } : {})
 			})
 		: undefined;
@@ -523,6 +532,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	// The draft the page boots with never travels through `onDraftLoaded` — that
 	// hook fires on a *switch* — so without this a reload came back to a workbench
 	// with no audio and no sign there had been any.
-	void media?.openFor(deps.initialDraft.id);
+	//
+	// The sign-in is picked up *after* it, and the order matters: a load returning
+	// from Spotify is a load that has already restored this draft's remembered
+	// track as pending, and re-attaching it is exactly what the resumed intent
+	// does. The other way round, `openFor` would arrive second and detach what the
+	// user had just signed in to hear.
+	void media?.openFor(deps.initialDraft.id).then(() => media?.resumeSignIn());
 	return controller;
 }
