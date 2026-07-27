@@ -309,8 +309,8 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	{
 		preferred: ['dog'],
 		alternates: ['dawg'],
-		contextGate: 'general',
-		safe: true,
+		contextGate: 'pronunciation',
+		safe: false,
 		pattern: word('dawg')
 	},
 	{
@@ -319,8 +319,8 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		commonMisspellings: ['choper'],
 		fuzzy: true,
 		fuzzyExceptions: ['chopped', 'shopper', 'copper', 'hopper'],
-		contextGate: 'general',
-		safe: true,
+		contextGate: 'pronunciation',
+		safe: false,
 		pattern: word('choppa|choper')
 	},
 	{

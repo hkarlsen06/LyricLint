@@ -39,6 +39,8 @@ export interface EditorSession {
 	replaceDocument(text: string, announcement: string): void;
 	/** Drop the clipboard into an empty document, or hand over to keyboard paste. */
 	pasteLyrics(): Promise<void>;
+	/** Replace the current selection with Genius's unknown-lyric marker. */
+	insertUnknownMarker(): void;
 	insertSection(): void;
 }
 
@@ -136,6 +138,19 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			// user never chose. The wash marks the place; the press that goes there
 			// is theirs to make.
 			replaceDocument(text, 'Lyrics pasted from the clipboard.');
+		},
+		insertUnknownMarker() {
+			const current = snapshot;
+			const from = Math.min(current.selection.anchor, current.selection.head);
+			const to = Math.max(current.selection.anchor, current.selection.head);
+			const caret = from + '[?]'.length;
+			editor.dispatchAtomic({
+				baseRevision: current.revision,
+				edits: [{ from, to, insert: '[?]' }],
+				selectionAfter: { anchor: caret, head: caret }
+			});
+			editor.focus();
+			deps.feedback.announce('Unknown lyric marker inserted.');
 		},
 		insertSection() {
 			if (editor.requestSectionHeader) {

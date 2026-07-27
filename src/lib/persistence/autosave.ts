@@ -55,6 +55,10 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 		}));
 	}
 
+	if (draft.sectionLinks !== undefined) {
+		copy.sectionLinks = draft.sectionLinks.map((link) => ({ lines: [...link.lines] }));
+	}
+
 	return copy;
 }
 

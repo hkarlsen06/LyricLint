@@ -70,6 +70,10 @@ function copyDraft(record: DraftRecord): DraftRecord {
 		}));
 	}
 
+	if (record.sectionLinks !== undefined) {
+		copy.sectionLinks = record.sectionLinks.map((link) => ({ lines: [...link.lines] }));
+	}
+
 	return copy;
 }
 
@@ -96,6 +100,10 @@ function createRecord(input: DraftCreateInput): DraftRecord {
 
 	if (input.lineAnchors !== undefined) {
 		record.lineAnchors = input.lineAnchors;
+	}
+
+	if (input.sectionLinks !== undefined) {
+		record.sectionLinks = input.sectionLinks;
 	}
 
 	return copyDraft(record);

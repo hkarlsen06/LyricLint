@@ -7,7 +7,8 @@ import type {
 	DraftRepository,
 	EditorHandle,
 	EditorSnapshot,
-	LineAnchor
+	LineAnchor,
+	SectionLink
 } from '$lib/core/types.js';
 import { describe, expect, test, vi } from 'vitest';
 import {
@@ -104,6 +105,7 @@ function setup(options: {
 	mediaRepository?: MediaRepository;
 	/** The stacked, touch-driven layout, which folds the cover band by default. */
 	phoneLayout?: boolean;
+	exportText?: (text: string, filename: string) => void;
 }) {
 	const initial = options.initial ?? draft('draft-a');
 	const repository =
@@ -111,6 +113,7 @@ function setup(options: {
 	const autosave = options.autosave ?? controllableAutosave(repository).autosave;
 	let currentSnapshot = snapshot(initial);
 	let lineAnchors: LineAnchor[] = [];
+	let sectionLinks: SectionLink[] = [];
 	const editor: EditorHandle = {
 		focus() {},
 		getSnapshot: () => currentSnapshot,
@@ -123,6 +126,10 @@ function setup(options: {
 		getLineAnchors: () => lineAnchors.map((anchor) => ({ ...anchor })),
 		setLineAnchors(anchors) {
 			lineAnchors = anchors.map((anchor) => ({ ...anchor }));
+		},
+		getSectionLinks: () => sectionLinks.map((link) => ({ lines: [...link.lines] })),
+		setSectionLinks(links) {
+			sectionLinks = links.map((link) => ({ lines: [...link.lines] }));
 		}
 	};
 	const onOpenDraft =
@@ -155,6 +162,7 @@ function setup(options: {
 			options.readClipboard ??
 			(() => Promise.reject(new Error('Clipboard reads are unavailable.'))),
 		onOpenDraft,
+		exportText: options.exportText,
 		phoneLayout: () => options.phoneLayout === true,
 		...(options.mediaRepository
 			? {
@@ -248,6 +256,30 @@ describe('workbench draft safety', () => {
 	 * hand-off: there is no second chance to deliver this, so the capability has to
 	 * be checked rather than optionally called.
 	 */
+	// The timings a player gets are the editor's live ones, named after the draft
+	// rather than after the file the audio came from.
+	test('writes the editor’s own anchors out as a timed-lyrics file', () => {
+		const exportText = vi.fn();
+		const { controller, editor } = setup({ exportText });
+
+		editor.setLineAnchors?.([{ line: 2, time: 12.34 }]);
+
+		controller.exportTimedLyrics('lrc');
+
+		expect(exportText).toHaveBeenCalledWith('[00:12.34]Line\n', 'First song.lrc');
+	});
+
+	test('writes nothing when every anchor points at a line that is gone', () => {
+		const exportText = vi.fn();
+		const { controller, editor } = setup({ exportText });
+
+		editor.setLineAnchors?.([{ line: 9, time: 12.34 }]);
+
+		controller.exportTimedLyrics('srt');
+
+		expect(exportText).not.toHaveBeenCalled();
+	});
+
 	test('holds a draft’s anchors until a handle that can take them arrives', async () => {
 		const stored: DraftRecord = { ...draft('draft-a'), lineAnchors: [{ line: 2, time: 61 }] };
 		const repository = createInMemoryDraftRepository([stored]);
@@ -257,6 +289,36 @@ describe('workbench draft safety', () => {
 		controller.setEditorHandle(editor);
 
 		expect(editor.getLineAnchors?.()).toEqual([{ line: 2, time: 61 }]);
+	});
+
+	// Section links ride the same hand-off and are lost the same two ways, so they
+	// get the same pair of guards. A link changes no text at all, which makes the
+	// blank-editor window strictly more dangerous for it than for the anchors.
+	test('holds a draft’s section links until a handle that can take them arrives', async () => {
+		const stored: DraftRecord = { ...draft('draft-a'), sectionLinks: [{ lines: [4, 11] }] };
+		const repository = createInMemoryDraftRepository([stored]);
+		const { controller, editor, headless } = setup({ initial: stored, repository });
+
+		controller.setEditorHandle(headless);
+		controller.setEditorHandle(editor);
+
+		expect(editor.getSectionLinks?.()).toEqual([{ lines: [4, 11] }]);
+	});
+
+	test('never writes an empty section-link list from a handle that cannot report them', async () => {
+		const stored: DraftRecord = { ...draft('draft-a'), sectionLinks: [{ lines: [4, 11] }] };
+		const repository = createInMemoryDraftRepository([stored]);
+		const controlled = controllableAutosave(repository);
+		const { controller } = setup({
+			initial: stored,
+			repository,
+			autosave: controlled.autosave,
+			headless: true
+		});
+
+		await controller.setTitle('Renamed before the editor mounted');
+
+		expect(controlled.scheduled.at(-1)?.draft.sectionLinks).toEqual([{ lines: [4, 11] }]);
 	});
 
 	// The other half of the same window. A save that landed before CodeMirror
@@ -875,6 +937,28 @@ describe('workbench diagnostic navigation', () => {
 
 		expect(selections).toEqual([]);
 		expect(controller.activeDiagnosticKey).toBeUndefined();
+	});
+
+	test('forgets ignored diagnostics once the settled lint result no longer contains them', () => {
+		const text = '[Verse]\nfirst line';
+		const record = draft('draft-a', text);
+		const { controller } = setup({ initial: record });
+		const finding: Diagnostic = { ...diagnostic, from: 8, to: 13 };
+		controller.onSnapshot({ ...snapshot(record, 1, text), diagnostics: [finding] });
+		controller.ignoreDiagnostic(finding);
+
+		controller.onSnapshot(snapshot(record, 2, text), [finding]);
+		expect(controller.ignoredDiagnosticCount).toBe(1);
+
+		const fixed = snapshot(record, 3, '[Verse]\nFirst line');
+		controller.onSnapshot(fixed, null);
+		expect(controller.ignoredDiagnosticCount).toBe(1);
+
+		controller.onSnapshot(fixed, []);
+		expect(controller.ignoredDiagnosticCount).toBe(0);
+
+		controller.onSnapshot({ ...snapshot(record, 4, text), diagnostics: [finding] });
+		expect(controller.visibleDiagnostics).toEqual([finding]);
 	});
 
 	test('offers the assignment only where the document can take one', () => {

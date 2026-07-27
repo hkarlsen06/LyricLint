@@ -61,13 +61,13 @@ function sharedEdge(left: string, right: string, fromEnd = false): number {
 }
 
 /** Match each saved occurrence once, retaining it when unrelated text shifts its offsets. */
-export function ignoredDiagnosticKeys(
+export function matchIgnoredDiagnostics(
 	diagnostics: readonly Diagnostic[],
 	text: string,
 	ignored: readonly string[]
-): Set<string> {
+): Map<string, string> {
 	const remaining = [...diagnostics];
-	const result = new Set<string>();
+	const result = new Map<string, string>();
 
 	for (const key of ignored) {
 		const saved = parse(key);
@@ -86,7 +86,7 @@ export function ignoredDiagnosticKeys(
 				distance = candidateDistance;
 			}
 		}
-		if (best >= 0) result.add(diagnosticKey(remaining.splice(best, 1)[0]!));
+		if (best >= 0) result.set(key, diagnosticKey(remaining.splice(best, 1)[0]!));
 	}
 
 	return result;

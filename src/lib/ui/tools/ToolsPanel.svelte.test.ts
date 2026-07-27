@@ -229,6 +229,10 @@ describe('ToolsPanel song metadata', () => {
 	 * typed in on the other end. A field the catalogue did not carry is absent
 	 * from the list entirely — an empty `Label` row is a fact this application
 	 * does not have, dressed up as one it does.
+	 *
+	 * This is everything known, not the shorter list the copy receipt draws: the
+	 * ISRC is here because a reader may want it, and not there because Genius's
+	 * song form has no field to paste it into.
 	 */
 	test('lists only the facts the catalogue actually carried', () => {
 		const { container } = render(ToolsPanel, {
@@ -236,7 +240,8 @@ describe('ToolsPanel song metadata', () => {
 				songDetails: {
 					releaseDate: '2015-03-23',
 					writers: 'Kygo, Parker Ighile',
-					label: 'Ultra Records'
+					label: 'Ultra Records',
+					isrc: 'USUG11500642'
 				}
 			})
 		});
@@ -245,7 +250,8 @@ describe('ToolsPanel song metadata', () => {
 		expect([...list.querySelectorAll('dt')].map((term) => term.textContent)).toEqual([
 			'Released',
 			'Writers',
-			'Label'
+			'Label',
+			'ISRC'
 		]);
 		expect(list.querySelector('time')?.getAttribute('datetime')).toBe('2015-03-23');
 		expect(list.textContent).toContain('Ultra Records');

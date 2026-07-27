@@ -56,7 +56,18 @@ export type OverlayState =
 			 */
 			pendingVoice?: readonly PerformerId[];
 	  }
-	| { kind: 'section'; range: TextRange };
+	| { kind: 'section'; range: TextRange }
+	| {
+			kind: 'link';
+			/**
+			 * The selection that opened the card, not the header it names. The
+			 * dismissal that keeps a closed card from reopening is keyed to the
+			 * selection still sitting there, so the two have to be the same range.
+			 */
+			range: TextRange;
+			/** The header's own offset, which is what every link hook is keyed to. */
+			headerFrom: number;
+	  };
 
 /** The overlay plus the suppression that outlives any single overlay. */
 export interface OverlaySession {
@@ -113,6 +124,25 @@ export function beginLegendAssignment(
 
 export function openSectionPicker(session: OverlaySession, range: TextRange): OverlaySession {
 	return withOverlay(session, { kind: 'section', range });
+}
+
+export function openSectionLinkPicker(
+	session: OverlaySession,
+	range: TextRange,
+	headerFrom: number
+): OverlaySession {
+	return withOverlay(session, { kind: 'link', range, headerFrom });
+}
+
+/**
+ * Cancelling records the range, exactly as the performer picker's does: the
+ * header is still selected after the card closes, and the next settled anchor
+ * report would otherwise reopen what the user just dismissed.
+ */
+export function cancelSectionLinkPicker(session: OverlaySession): OverlaySession {
+	return session.overlay.kind === 'link'
+		? { overlay: { kind: 'none' }, dismissedSelection: rangeKey(session.overlay.range) }
+		: closeOverlay(session);
 }
 
 /**
@@ -296,7 +326,8 @@ export function forgetDismissedSelection(session: OverlaySession): OverlaySessio
  * A settled selection anchor.
  *
  * `undefined` means there is no anchored selection at all — collapsed,
- * whitespace-only, or composing — which retires the performer picker but
+ * whitespace-only, or composing — which retires the two cards that opened
+ * themselves from a selection (the performer picker and the link picker) but
  * leaves a section picker or diagnostic popover alone: neither was opened
  * from the selection.
  *
@@ -309,6 +340,14 @@ export function reportSelectionAnchor(
 	session: OverlaySession,
 	anchor: SelectionAnchor | undefined
 ): { session: OverlaySession; assignRequested: boolean } {
+	const openedFromSelection =
+		session.overlay.kind === 'performer' || session.overlay.kind === 'link';
+	// Only the performer picker goes. It exists solely because a range of lyrics
+	// is selected, so a selection that is gone is a card describing nothing. The
+	// link picker is anchored to a *header*, which is still there — and it opens
+	// from a bare caret too, through `Mod-Shift-L`, so retiring it here killed the
+	// keyboard-opened card on the very next settle. It leaves the way every other
+	// transient surface does: Escape, Cancel, an outside press, or applying.
 	if (!anchor) {
 		return {
 			session: session.overlay.kind === 'performer' ? closeOverlay(session) : session,
@@ -317,11 +356,22 @@ export function reportSelectionAnchor(
 	}
 	const key = rangeKey(anchor.range);
 	const alreadyOpen =
-		session.overlay.kind === 'performer' && rangeKey(session.overlay.range) === key;
-	if (!anchor.offersAssignment || key === session.dismissedSelection || alreadyOpen) {
+		openedFromSelection && rangeKey(overlayRange(session.overlay) ?? anchor.range) === key;
+	if (key === session.dismissedSelection || alreadyOpen) {
 		return { session, assignRequested: false };
 	}
-	return { session: openPerformerPicker(session, anchor.range), assignRequested: true };
+	if (anchor.offersAssignment) {
+		return { session: openPerformerPicker(session, anchor.range), assignRequested: true };
+	}
+	// No `assignRequested`: the shell has nothing to arbitrate about a link, so
+	// there is no request to forward. The pane opens the card and that is all.
+	if (anchor.linkHeader) {
+		return {
+			session: openSectionLinkPicker(session, anchor.range, anchor.linkHeader.from),
+			assignRequested: false
+		};
+	}
+	return { session, assignRequested: false };
 }
 
 /**
@@ -362,7 +412,15 @@ export function cachedAnchorRect(
  */
 export function anchorPlacement(
 	anchor: SelectionAnchor | undefined,
-	range: TextRange
+	range: TextRange,
+	/**
+	 * Which side to take when no reported anchor describes this range — a card
+	 * opened by a command rather than by a selection. It used to be `above`
+	 * unconditionally, which put a keyboard-opened card off the top of the screen
+	 * whenever the line it named was near the top of the viewport. The caller
+	 * measures; the rule it applies is `selectionAnchorForView`'s own.
+	 */
+	fallback: 'above' | 'below' = 'above'
 ): 'above' | 'below' {
-	return anchor && rangeKey(anchor.range) === rangeKey(range) ? anchor.prefer : 'above';
+	return anchor && rangeKey(anchor.range) === rangeKey(range) ? anchor.prefer : fallback;
 }

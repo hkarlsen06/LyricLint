@@ -1,4 +1,5 @@
 import type { HeaderVocabulary, LanguagePack } from '$lib/core/types.js';
+import { headerSemanticKey, semanticPartKey } from '$lib/languages/registry.js';
 
 export interface SectionHeaderOption {
 	label: string;
@@ -43,9 +44,7 @@ const SEMANTIC_PRIORITIES: Readonly<Record<string, number>> = {
 
 const SINGLE_USE_SEMANTICS = new Set(['intro', 'outro']);
 
-function semanticKey(value: string): string {
-	return value.toLocaleLowerCase().replaceAll(/[\s_-]+/gu, '');
-}
+const semanticKey = semanticPartKey;
 
 function structuralFamily(semantic: string | undefined): string | undefined {
 	if (semantic === 'chorus' || semantic === 'refrain') {
@@ -75,24 +74,7 @@ function headerCandidates(pack: LanguagePack): HeaderCandidate[] {
 	return candidates;
 }
 
-function matchesHeaderTerm(existingHeader: string, term: string, pack: LanguagePack): boolean {
-	const normalizedHeader = existingHeader.trim().toLocaleLowerCase(pack.tag);
-	const normalizedTerm = term.trim().toLocaleLowerCase(pack.tag);
-	return (
-		normalizedHeader === normalizedTerm ||
-		new RegExp(`^${escapeRegExp(normalizedTerm)}\\s+\\d+$`, 'u').test(normalizedHeader)
-	);
-}
-
-function semanticForHeader(pack: LanguagePack, header: string | undefined): string | undefined {
-	if (!header) {
-		return undefined;
-	}
-	const vocabulary = pack.headers.find((candidate) =>
-		candidate.terms.some((term) => matchesHeaderTerm(header, term, pack))
-	);
-	return vocabulary ? semanticKey(vocabulary.semanticPart) : undefined;
-}
+const semanticForHeader = headerSemanticKey;
 
 function semanticCounts(
 	pack: LanguagePack,

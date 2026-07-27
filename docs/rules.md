@@ -82,20 +82,21 @@ but does not explicitly require an empty line before each header.
 | `G-LINES` | [Individual lyric lines, annotation 9257393](https://genius.com/9257393) | Split prose-like lyric transcription into lines | Reviewed 2026-07-24 |
 | `G-SFX` | [Sound effects, annotation 14949930](https://genius.com/14949930) | Surround sound effects with asterisks, not braces | Reviewed 2026-07-24 |
 | `G-CENSORED` | [Censored words, annotation 15237597](https://genius.com/15237597) | Use four asterisks for a censored word | Reviewed 2026-07-24 |
+| `G-QUOTES` | [Quotation marks, annotation 15594059](https://genius.com/15594059) | Song titles, explicit quotations, and words referred to as words | Accepted annotation, reviewed 2026-07-27 |
+| `G-SYMBOLS` | [Symbols and special characters, annotation 30242624](https://genius.com/30242624) | Omit trademark and decorative symbols; spell out ampersands and degrees outside brand names | Accepted annotation, reviewed 2026-07-27 |
+| `G-AS-SPOKEN` | [Transcribe as spoken, annotation 12332255](https://genius.com/12332255) | Preserve distinct pronunciation when readable; use omission apostrophes selectively | Accepted annotation, reviewed 2026-07-27 |
+| `G-NON-ENGLISH` | [Non-English song header, annotation 11893156](https://genius.com/11893156) | Optional bracketed title header for non-English songs | Accepted annotation, reviewed 2026-07-27 |
+| `G-INSTRUMENTAL` | [Instrumental songs, annotation 16427849](https://genius.com/16427849) | Use `[Instrumental]` as the lyric text on an instrumental track page | Accepted annotation, reviewed 2026-07-27 |
+| `G-ROMANIZED` | [Romanized lyrics, annotation 14835335](https://genius.com/14835335) | Host romanized lyrics on a separate page | Accepted annotation, reviewed 2026-07-27 |
+| `G-TRANSLATIONS` | [Translations, annotation 14949891](https://genius.com/14949891) | Host lyric translations on a separate page | Accepted annotation, reviewed 2026-07-27 |
 
 The reviewed Genius annotation for performer formatting is accepted but not marked verified by Genius. LyricLint should describe it as a Genius community guideline source.
 
-### Located sources awaiting body review
-
-| ID | URL | Candidate scope |
-| --- | --- | --- |
-| `G-QUOTES` | [Annotation 15594059](https://genius.com/15594059) | Quotation marks |
-| `G-SYMBOLS` | [Annotation 30242624](https://genius.com/30242624) | Symbols and special characters |
-| `G-AS-SPOKEN` | [Annotation 12332255](https://genius.com/12332255) | Transcribe what the artist says |
-| `G-NON-ENGLISH` | [Annotation 11893156](https://genius.com/11893156) | Non-English song header |
-| `G-INSTRUMENTAL` | [Annotation 16427849](https://genius.com/16427849) | Instrumental songs |
-
-Rules depending only on sources in this table remain disabled until their annotation bodies are reviewed.
+Quotation context, whether text matches the recording, and whether a draft belongs on a translation
+or romanization page cannot be inferred from the lyric string. These reviewed sources therefore
+constrain existing diagnostics and page-level behavior rather than producing permanent checklist
+warnings. The optional non-English title header is accepted as a first header instead of being
+misreported as an unknown song part. Pronunciation-sensitive spelling alternatives are preview-only.
 
 ## MVP rule catalog
 
@@ -109,7 +110,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `section.header-spacing` | Suggestion | A section header immediately follows preceding content without a blank line | Safely insert one matching line ending | `G-SECTIONS` as context; LyricLint readability preference |
 | `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog | Replace after user confirmation | `G-SECTIONS`, reviewed language source |
 | `section.localized-header-preference` | Suggestion | A valid header has a culturally preferred localized equivalent | Safely replace with the localized term | `G-LANG-PURPOSE`, reviewed language source |
-| `section.header-unrecognized` | Manual review | A bracketed header is absent from every reviewed header catalog | Explain only; preserve the custom text | `G-SECTIONS`, reviewed language sources |
+| `section.header-unrecognized` | Manual review | A bracketed header is absent from every reviewed header catalog and is not an optional first non-English title header | Explain only; preserve the custom text | `G-SECTIONS`, reviewed language sources, `G-NON-ENGLISH` |
 | `section.deprecated-hook` | Warning | A section uses the deprecated `[Hook]` name | Preview Chorus and Refrain replacements | `G-SECTION-HOOK` |
 | `section.immediate-repeat-spacing` | Warning | An exact song part is immediately repeated behind a blank separator or duplicate header | Safely retain both lyric copies under one header with no blank separator | `G-SECTIONS`, `G-REPEATS` |
 | `section.verse-numbering` | Suggestion | A non-verse is numbered, a lone verse is numbered, or explicit verse numbers conflict | Preview number removal or correction | `G-SECTION-NUMBERING` |
@@ -121,7 +122,7 @@ Rules depending only on sources in this table remain disabled until their annota
 | `performer.unused-legend-slot` | Suggestion | A clean section header declares a performer style absent from its lyrics | Safely remove the unused legend slot | `G-SECTIONS` |
 | `performer.too-many-groups` | Warning | More than four distinct style groups occur, exceeding the documented four-slot format | Explain the source's context and options only | `G-SECTIONS` |
 | `performer.line-label-forbidden` | Warning | Names or symbols in brackets are used to label individual lyric lines | Preview removal of the inline label | `G-SECTIONS` |
-| `spelling.standardized` | Suggestion | A reviewed non-preferred spelling occurs in a context where the preferred spelling is sufficiently certain | Safe for context-free entries; selected meaning-sensitive entries use preview | `G-SPELLING` |
+| `spelling.standardized` | Suggestion | A reviewed non-preferred spelling occurs in a context where the preferred spelling is sufficiently certain | Safe for context-free entries; meaning- and pronunciation-sensitive entries use preview | `G-SPELLING`, `G-AS-SPOKEN` |
 | `spelling.language-variant` | Manual review | British and American variants appear inconsistent with chosen performer language | No automatic fix | `G-SPELLING` |
 | `quotes.typewriter` | Warning | Curly apostrophes or quotation marks occur in lyric text | Safe character replacement outside unsupported markup | `G-TYPEWRITER` |
 | `contraction.apostrophe` | Warning | A likely contraction is missing its apostrophe | Contextual fix preview | `G-CONTRACTIONS` |
@@ -135,12 +136,15 @@ Rules depending only on sources in this table remain disabled until their annota
 | `spelling.arabic-common` | Suggestion | A reviewed phonetic spelling such as `لاكن`, `هاذا`, or `انشاء الله` occurs | Preview only because dialect spelling can be intentional in lyrics | `L-AR-COMMON` |
 | `spelling.japanese-common` | Suggestion | A greeting uses phonetic `わ`, or `づつ` occurs instead of `ずつ` | Preview only because phonetic lyric styling can be intentional | `L-JA-COMMON` |
 | `spelling.korean-common` | Suggestion | A frequent spelling such as `됬`, `웬지`, `오랫만`, or `설레임` occurs | Preview the standard Korean spelling | Reviewed National Institute of Korean Language sources |
+| `symbols.special-characters` | Suggestion | Trademark or decorative symbols occur, or English lyric text spells `and`/`degrees` as symbols outside a compact brand name | Preview removal or spelled-out replacement | `G-SYMBOLS` |
 | `text.invisible-characters` | Warning | A non-breaking, narrow non-breaking, figure, or zero-width space, a byte-order mark, or trailing whitespace occurs | Safely replace space-like characters with a normal space and remove the rest | `G-ADD-SONGS` plus product-safety hygiene |
 | `unknown.marker` | Warning | An unknown lyric uses `(?)` or another recognized nonstandard marker instead of `[?]` | Safe only for exact known markers | `G-UNKNOWN` |
+| `unknown.unresolved` | Suggestion | A `[?]` marks an audible lyric that remains unidentified | Explain only | `G-UNKNOWN` |
 | `repeat.placeholder` | Warning | Text such as `[Chorus x2]` or `repeat chorus` substitutes for repeated lyrics | Explain only | `G-REPEATS` |
 | `sound-effect.asterisks` | Warning | A likely sound effect uses braces or an unsupported wrapper | Preview replacement | `G-SFX` |
 | `censored.mask` | Warning | A censored word uses a mask other than exactly four asterisks | Preview replacement | `G-CENSORED` |
 | `adlib.parentheses` | Suggestion | A likely ad-lib lacks parentheses or starts lowercase | Contextual fix preview | `G-ADLIBS` |
+| `adlib.separator` | Suggestion | Two or more recognized ad-libs run together with only whitespace between, as in `(Yeah yeah yeah)` or `(Uh huh)` | Preview a comma-separated or hyphen-joined run; ad-libs that double as ordinary words need a third before they count | `G-ADLIBS` |
 | `capitalization.line-start` | Suggestion | A lyric line starts lowercase without a known contextual reason | Contextual fix preview | `G-CAPS` |
 | `capitalization.title-case` | Suggestion | Several lyric lines appear to capitalize nearly every word | Explain only because names and intentional styling need review | `G-CAPS` |
 | `punctuation.line-ending` | Warning | A lyric line ends in a comma or period, including before a closing quote or parenthesis | Preview removal; ellipses are excluded | `APPLE-LINE-PUNCTUATION`, `G-QE-MARKS` |
@@ -232,16 +236,12 @@ Do not assume every language translates every header. Some Genius language annot
 
 The general performer source uses the phrase "too many vocalists" without a universal number. It explicitly mentions more than four only for multiple vocal samples. LyricLint warns when a fifth group exceeds the four available style slots, but its copy must not misquote that as a universal five-performer Genius ban.
 
-## Candidate rules after source review
+## Reviewed guidance without a text-only diagnostic
 
-These are not enabled until their exact source bodies and product behavior are reviewed:
-
-- Quotation style
-- Instrumental-page tag
-- Detailed symbols and special characters
-- Pronunciation-based transcription
-- Non-English title-header requirements
-- Translations and romanizations on separate pages
+- Quotation marks depend on whether a phrase names a song, quotes speech, or refers to a word.
+- Pronunciation depends on the recording; the linter can only keep affected spelling fixes out of bulk fixing.
+- `[Instrumental]` is already a recognized section name, but only song-page metadata can establish that the whole track is instrumental.
+- Translation and romanization separation is page-level metadata, not a property of the canonical lyric string.
 
 ## Rule review checklist
 

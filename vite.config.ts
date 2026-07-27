@@ -85,6 +85,7 @@ export default defineConfig({
 	// unset, and its dynamic twin reads `process` at module scope, which the
 	// browser test environment does not have.
 	envPrefix: ['VITE_', 'PUBLIC_'],
+	optimizeDeps: { include: ['@codemirror/search'] },
 	plugins: [
 		sveltekit({
 			compilerOptions: {

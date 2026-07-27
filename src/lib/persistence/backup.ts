@@ -175,6 +175,23 @@ function parseDraft(value: unknown): DraftRecord {
 		});
 	}
 
+	if (value.sectionLinks !== undefined) {
+		if (!Array.isArray(value.sectionLinks)) {
+			throw new WorkspaceBackupError('Invalid section links in backup.');
+		}
+		draft.sectionLinks = value.sectionLinks.map((link) => {
+			if (
+				!isRecord(link) ||
+				!Array.isArray(link.lines) ||
+				link.lines.length < 2 ||
+				link.lines.some((line) => !Number.isInteger(line) || (line as number) < 1)
+			) {
+				throw new WorkspaceBackupError('Invalid section link in backup.');
+			}
+			return { lines: link.lines as number[] };
+		});
+	}
+
 	return draft;
 }
 

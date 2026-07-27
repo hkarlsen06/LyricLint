@@ -30,12 +30,14 @@
 		beginLegendAssignment,
 		cachedAnchorRect,
 		cancelPerformerPicker,
+		cancelSectionLinkPicker,
 		closeOverlay,
 		closedOverlaySession,
 		dismissDiagnostic,
 		finishPerformerAssignment,
 		forgetDismissedSelection,
 		openPerformerPicker,
+		openSectionLinkPicker,
 		openSectionPicker,
 		overlayRange,
 		releaseUnanchoredDiagnostic,
@@ -45,8 +47,10 @@
 	} from './overlay-state.js';
 	import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
 	import PerformerPicker from './overlays/PerformerPicker.svelte';
+	import SectionLinkPicker from './overlays/SectionLinkPicker.svelte';
 	import SectionPicker from './overlays/SectionPicker.svelte';
 	import type { SectionHeaderNeighbors } from './overlays/section-picker.js';
+	import { linkOccurrences, type LinkOccurrence } from './section-links.js';
 
 	let {
 		initialText,
@@ -81,14 +85,31 @@
 	const anchorRange = $derived(overlayRange(overlay));
 	const overlayAnchor = $derived(anchorRange ? anchorRect(anchorRange) : undefined);
 	const overlayPlacement = $derived(
-		anchorRange ? anchorPlacement(selectionAnchor, anchorRange) : 'above'
+		anchorRange
+			? anchorPlacement(selectionAnchor, anchorRange, roomiestSide(overlayAnchor))
+			: 'above'
 	);
+
+	/**
+	 * Which side of a measured rect has room, for a card no reported selection
+	 * anchor describes — the `Mod-Shift-L` path opens on a bare caret. The same
+	 * comparison `selectionAnchorForView` makes, so a card that opens from the
+	 * pointer and one that opens from the keyboard land on the same side.
+	 */
+	function roomiestSide(rect: ScreenRect | undefined): 'above' | 'below' {
+		if (!rect) {
+			return 'above';
+		}
+		const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+		return rect.top > viewportHeight - rect.bottom ? 'above' : 'below';
+	}
 
 	// The variants are projected here rather than narrowed with `{@const}` in the
 	// branches: a derived that belongs to the component outlives the block effect
 	// the overlay's own callbacks fire from.
 	const performerOverlay = $derived(overlay.kind === 'performer' ? overlay : undefined);
 	const sectionOverlay = $derived(overlay.kind === 'section' ? overlay : undefined);
+	const linkOverlay = $derived(overlay.kind === 'link' ? overlay : undefined);
 	const diagnosticOverlay = $derived(overlay.kind === 'diagnostic' ? overlay : undefined);
 	const legend = $derived(performerOverlay?.legend);
 	const pendingVoice = $derived(performerOverlay?.pendingVoice);
@@ -284,6 +305,12 @@
 				session = openSectionPicker(session, request.range);
 				callbacks.onSectionHeaderRequest(request);
 			},
+			// Not forwarded: linking is one document edit repeated, so there is
+			// nothing here for the shell to arbitrate. `request.range` is the
+			// header itself, which the keyboard command resolved from the caret.
+			onSectionLinkRequest(request) {
+				session = openSectionLinkPicker(session, request.range, request.range.from);
+			},
 			// Every caller of this one is a pointer: the hovered underline and the
 			// cluster badge. It shows the card where the text already is; the shell
 			// only gets to mark the matching entry, never to travel to it.
@@ -398,6 +425,48 @@
 			);
 		}
 		session = finishPerformerAssignment(session, outcome);
+	}
+
+	/**
+	 * Every section of the same kind as the one the card was opened from, read
+	 * from the editor's own snapshot rather than from `context.parsed` — the
+	 * shell's parse lands a beat behind the document, and a list of sections that
+	 * is one keystroke stale would offer offsets the link is written against.
+	 */
+	function sectionsToLink(headerFrom: number): LinkOccurrence[] {
+		const parsed = editor?.handle.getSnapshot().parsed;
+		return parsed ? linkOccurrences(parsed, fallbackLanguagePack, headerFrom) : [];
+	}
+
+	/** The sections already tied to this one, so the card opens on the truth. */
+	function linkedPeers(headerFrom: number, occurrences: readonly LinkOccurrence[]): number[] {
+		const currentLine = occurrences.find(
+			(occurrence) => occurrence.headerFrom === headerFrom
+		)?.line;
+		if (currentLine === undefined) {
+			return [];
+		}
+		const group = (editor?.handle.getSectionLinks?.() ?? []).find((link) =>
+			link.lines.includes(currentLine)
+		);
+		return group
+			? occurrences
+					.filter(
+						(occurrence) =>
+							occurrence.headerFrom !== headerFrom && group.lines.includes(occurrence.line)
+					)
+					.map((occurrence) => occurrence.headerFrom)
+			: [];
+	}
+
+	function applySectionLink(headerOffsets: number[]): void {
+		editor?.handle.linkSections?.(headerOffsets);
+		callbacks.onAnnouncement(
+			headerOffsets.length > 1
+				? `${headerOffsets.length} sections linked. Editing one now edits them all.`
+				: 'Section unlinked.'
+		);
+		session = closeOverlay(session);
 	}
 
 	function existingHeaders(): string[] {
@@ -644,6 +713,18 @@
 				: undefined}
 		/>
 	{/key}
+{:else if linkOverlay}
+	{@const occurrences = sectionsToLink(linkOverlay.headerFrom)}
+	<SectionLinkPicker
+		{occurrences}
+		currentHeaderFrom={linkOverlay.headerFrom}
+		initialSelected={linkedPeers(linkOverlay.headerFrom, occurrences)}
+		anchor={overlayAnchor}
+		placement={overlayPlacement}
+		onApply={applySectionLink}
+		onCancel={() => (session = cancelSectionLinkPicker(session))}
+		{returnFocus}
+	/>
 {:else if sectionOverlay}
 	<SectionPicker
 		languagePack={fallbackLanguagePack}

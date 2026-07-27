@@ -7,7 +7,8 @@ import type {
 	DraftSummary,
 	EditorSnapshot,
 	PerformerRecord,
-	RuleSetManifest
+	RuleSetManifest,
+	SectionLink
 } from '$lib/core/types.js';
 import type { FeedbackState } from './feedback.svelte.js';
 import { cloneRoster } from './roster-store.svelte.js';
@@ -15,12 +16,17 @@ import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
 const maxRecentLanguages = 5;
 
-function safeFilename(title: string): string {
+/**
+ * A draft's title as a filename, with whatever extension the export wants —
+ * one sanitiser for all of them, because a second copy is one edit away from
+ * disagreeing about which characters a disk will take.
+ */
+export function safeFilename(title: string, extension = 'txt'): string {
 	const withoutControls = [...title.trim()]
 		.map((character) => (character.charCodeAt(0) < 32 ? '_' : character))
 		.join('');
 	const filename = withoutControls.replace(/[<>:"/\\|?*]/g, '_') || DEFAULT_DRAFT_TITLE;
-	return `${filename}.txt`;
+	return `${filename}.${extension}`;
 }
 
 function prependRecentLanguage(languages: readonly string[], language: string): string[] {
@@ -44,6 +50,8 @@ export interface DraftStoreBindings {
 	readonly performers: readonly PerformerRecord[];
 	/** The editor's live anchors, saved with the text they describe. */
 	readonly lineAnchors: readonly LineAnchor[];
+	/** The editor's live section links, saved with the sections they tie together. */
+	readonly sectionLinks: readonly SectionLink[];
 	onDraftLoaded(draft: DraftRecord): void;
 }
 
@@ -132,6 +140,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,
 			editorSelection: { ...currentSnapshot.selection },
 			lineAnchors: bindings.lineAnchors.map((anchor) => ({ ...anchor })),
+			sectionLinks: bindings.sectionLinks.map((link) => ({ lines: [...link.lines] })),
 			...(originalText === undefined ? {} : { originalText })
 		};
 	}

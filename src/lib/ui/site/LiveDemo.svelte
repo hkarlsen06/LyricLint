@@ -46,6 +46,7 @@
 	import {
 		buildRuleContext,
 		computeDiagnostics,
+		deferActiveLineTrailingWhitespace,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
 
@@ -172,7 +173,14 @@
 					const merged = mergeHarperDiagnostics(nativeDiagnostics, harperDiagnostics);
 					if (merged.length === nativeDiagnostics.length) return;
 					lastDiagnostics = merged;
-					snapshot = { ...snapshot, diagnostics: merged };
+					snapshot = {
+						...snapshot,
+						diagnostics: deferActiveLineTrailingWhitespace(
+							snapshot,
+							merged,
+							handle?.getSectionLinks?.()
+						)
+					};
 				})
 				.catch((error: unknown) => {
 					if (request !== harperRequest || harperUnavailable) return;
@@ -208,11 +216,25 @@
 		// user has not typed yet.
 		if (snapshot.composing) {
 			invalidateHarper();
-			return { ...snapshot, diagnostics: lastDiagnostics };
+			return {
+				...snapshot,
+				diagnostics: deferActiveLineTrailingWhitespace(
+					snapshot,
+					lastDiagnostics,
+					handle?.getSectionLinks?.()
+				)
+			};
 		}
 		const key = lintKey(snapshot);
 		if (key === lastLintKey) {
-			return { ...snapshot, diagnostics: lastDiagnostics };
+			return {
+				...snapshot,
+				diagnostics: deferActiveLineTrailingWhitespace(
+					snapshot,
+					lastDiagnostics,
+					handle?.getSectionLinks?.()
+				)
+			};
 		}
 		lastDiagnostics = computeDiagnostics(
 			snapshot.parsed,
@@ -221,7 +243,14 @@
 		lastLintKey = key;
 		scheduleLanguageDetector(snapshot);
 		scheduleHarper(snapshot, lastDiagnostics);
-		return { ...snapshot, diagnostics: lastDiagnostics };
+		return {
+			...snapshot,
+			diagnostics: deferActiveLineTrailingWhitespace(
+				snapshot,
+				lastDiagnostics,
+				handle?.getSectionLinks?.()
+			)
+		};
 	}
 
 	function initialSnapshot(): EditorSnapshot {
@@ -240,11 +269,11 @@
 
 	let lastDiagnostics: Diagnostic[] = [];
 	let lastLintKey = '';
+	let handle = $state<EditorHandle>();
 	// Seeded rather than left empty: the pane paints its first frame from this,
 	// and an editor that arrives clean and sprouts underlines a tick later reads
 	// as a page still loading rather than as a linter that has already run.
 	let snapshot = $state<EditorSnapshot>(enrich(initialSnapshot()));
-	let handle = $state<EditorHandle>();
 	// The static sample below is the prerendered text, and it is what a crawler
 	// and a reader with no JavaScript get. CodeMirror only exists after mount, so
 	// the fallback stands in until the real pane is ready and then stands down —

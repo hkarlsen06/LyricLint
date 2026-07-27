@@ -11,6 +11,7 @@ import type {
 	LineAnchor,
 	PerformerRecord,
 	RuleSetManifest,
+	SectionLink,
 	SessionIgnoreStore,
 	Severity,
 	SourceReference,
@@ -19,9 +20,11 @@ import type {
 import { SvelteDate, SvelteMap } from 'svelte/reactivity';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
 import { randomId } from '$lib/core/random-id.js';
+import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
+import { formatTimedLyrics, timedLyricsExtensions } from '$lib/core/timed-lyrics.js';
 import { copyCanonicalMarkup, downloadUtf8Text, readClipboardText } from '../clipboard.js';
 import { sampleDraftLanguage, sampleDraftText } from '../sample-draft.js';
-import { createDraftStore } from './draft-store.svelte.js';
+import { createDraftStore, safeFilename } from './draft-store.svelte.js';
 import { createEditorSession } from './editor-session.svelte.js';
 import type { FeedbackState, ToastMessage } from './feedback.svelte.js';
 import { createFeedbackState } from './feedback.svelte.js';
@@ -133,7 +136,11 @@ export interface WorkbenchController {
 	 */
 	setEditorHandle(handle: EditorHandle | undefined): void;
 	setSaveStatus(status: AutosaveStatus): void;
-	onSnapshot(snapshot: EditorSnapshot): void;
+	/**
+	 * Store a snapshot. The second argument is the complete, unfiltered lint
+	 * result, or null while an asynchronous rule provider is still preparing it.
+	 */
+	onSnapshot(snapshot: EditorSnapshot, settledDiagnostics?: readonly Diagnostic[] | null): void;
 	/**
 	 * A line anchor was written, corrected, or cleared.
 	 *
@@ -146,12 +153,23 @@ export interface WorkbenchController {
 	 */
 	onLineAnchorsChanged(): void;
 	/**
-	 * How many lines in this draft are timed. Read by the one surface that offers
-	 * to throw them away, so it can draw only where there is something to delete.
+	 * A section link was made, changed, or dropped.
+	 *
+	 * Here for the same reason the anchors are: unlinking moves no text, so
+	 * `onSnapshot` never hears about it, and a save that only followed the words
+	 * would keep writing a link the user had just taken off.
+	 */
+	onSectionLinksChanged(): void;
+	/**
+	 * How many lines in this draft are timed. Read by the two surfaces that act on
+	 * them — the delete and the timed-lyrics export — so each draws only where
+	 * there is something to act on.
 	 */
 	readonly lineAnchorCount: number;
 	/** Drop every line timing on this draft. The words are untouched. */
 	clearLineAnchors(): void;
+	/** Save this draft's line timings as a timed-lyrics file a player can read. */
+	exportTimedLyrics(format: TimedLyricsFormat): void;
 	setActiveTab(tab: RightPanelTab): void;
 	/**
 	 * Whether the panel's cover band is unfolded, remembered between sessions.
@@ -184,6 +202,7 @@ export interface WorkbenchController {
 	restoreDiagnostic(diagnosticKey: string): void;
 	copyCanonical(): Promise<boolean>;
 	pasteLyrics(): Promise<void>;
+	insertUnknownMarker(): void;
 	/** Replace an empty document with the bundled sample transcription. */
 	loadSample(): void;
 	insertSection(): void;
@@ -245,6 +264,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	// State rather than a plain binding, because the tools panel draws its
 	// delete control only while there is something to delete.
 	let knownLineAnchors = $state<readonly LineAnchor[]>(deps.initialDraft.lineAnchors ?? []);
+	// The same hand-off, for the same reason: a freshly mounted editor holds no
+	// links, and a save landing in that window would write the blank over the
+	// draft's own.
+	let knownSectionLinks: readonly SectionLink[] = deps.initialDraft.sectionLinks ?? [];
 
 	const draft = createDraftStore({
 		initialDraft: deps.initialDraft,
@@ -274,6 +297,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				// list over the draft's own timings.
 				return editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
 			},
+			get sectionLinks() {
+				return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
+			},
 			onDraftLoaded(nextDraft) {
 				roster.reset(nextDraft.performers);
 				panel.refreshIgnoredDiagnostics();
@@ -288,6 +314,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				// the replacement publishes itself, which is the same hand-off the fix
 				// preview already waits for.
 				knownLineAnchors = nextDraft.lineAnchors ?? [];
+				knownSectionLinks = nextDraft.sectionLinks ?? [];
 				editorSession.resetRevisionGuard();
 				const openedSnapshot = deps.onOpenDraft?.(nextDraft);
 				if (openedSnapshot) {
@@ -490,15 +517,25 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			) {
 				handle.setLineAnchors(knownLineAnchors);
 			}
+			if (
+				knownSectionLinks.length > 0 &&
+				handle.setSectionLinks &&
+				handle.getSectionLinks?.().length === 0
+			) {
+				handle.setSectionLinks(knownSectionLinks);
+			}
 			// The card that starts expanded asks for its preview before the real
 			// editor exists to draw it. Now that one does, show it.
 			panel.retryFixPreview();
 		},
 		setSaveStatus: draft.setSaveStatus,
-		onSnapshot(nextSnapshot) {
+		onSnapshot(nextSnapshot, settledDiagnostics = nextSnapshot.diagnostics) {
 			const change = editorSession.adoptSnapshot(nextSnapshot);
 			if (!change) return;
 			panel.pruneActiveDiagnostic(nextSnapshot.diagnostics);
+			if (settledDiagnostics && !nextSnapshot.composing) {
+				panel.pruneIgnoredDiagnostics(settledDiagnostics);
+			}
 			// A fix's own re-lint arrives here. Prune first so the card the fix
 			// emptied is gone before the panel leads with the next one.
 			panel.leadAfterFix(nextSnapshot.diagnostics);
@@ -508,6 +545,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		onLineAnchorsChanged() {
 			knownLineAnchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
+			draft.scheduleSave();
+		},
+		onSectionLinksChanged() {
+			knownSectionLinks = editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
 			draft.scheduleSave();
 		},
 		get lineAnchorCount() {
@@ -522,6 +563,18 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			editorSession.editor.setLineAnchors?.([]);
 			draft.scheduleSave();
 			feedback.announce('Line timings deleted.');
+		},
+		exportTimedLyrics(format) {
+			// The editor's own field first, for the reason `bindings.lineAnchors`
+			// gives: the known set is the fallback, not the truth.
+			const anchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
+			const content = formatTimedLyrics(editorSession.snapshot.text, anchors, format);
+			if (content.length === 0) {
+				feedback.announce('There are no line timings to export.');
+				return;
+			}
+			exportText(content, safeFilename(draft.title, timedLyricsExtensions[format]));
+			feedback.announce(`Exported ${draft.title} as ${format.toUpperCase()}.`);
 		},
 		setActiveTab: panel.setActiveTab,
 		get artworkOpen() {
@@ -555,6 +608,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		restoreDiagnostic: panel.restoreDiagnostic,
 		copyCanonical: editorSession.copyCanonical,
 		pasteLyrics: editorSession.pasteLyrics,
+		insertUnknownMarker: editorSession.insertUnknownMarker,
 		loadSample() {
 			editorSession.replaceDocument(
 				sampleDraftText,

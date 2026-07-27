@@ -6,6 +6,7 @@ import { createTestWorkbench, performer } from '../test-utils.js';
 import {
 	buildRuleContext,
 	computeDiagnostics,
+	deferActiveLineTrailingWhitespace,
 	everyLyricLineTimed,
 	orderPerformersByAppearance,
 	resolveVoiceGroupRanges
@@ -32,6 +33,44 @@ describe('UI wiring', () => {
 		});
 		controller.applyFix(diagnostic!, fix!);
 		expect(calls.dispatched).toEqual([fix!.edit]);
+	});
+
+	test('defers trailing whitespace until the caret leaves its line', () => {
+		const text = `[Chorus]\nFirst\u200b \nSecond\n\n[Chorus]\nFirst\u200b \nSecond\n\n[Verse]\nOther  `;
+		const parsed = parseDocument(text);
+		const diagnostics = computeDiagnostics(
+			parsed,
+			buildRuleContext('en', [], currentRuleSet.version, 3)
+		);
+		const firstLine = text.indexOf('First') + 'First'.length;
+		const snapshot = {
+			...createTestWorkbench({ text, revision: 3 }).controller.snapshot,
+			parsed,
+			diagnostics,
+			selection: { anchor: firstLine, head: firstLine }
+		};
+
+		expect(
+			deferActiveLineTrailingWhitespace(snapshot, diagnostics, [{ lines: [1, 5] }])
+				.filter((diagnostic) => diagnostic.ruleId === 'text.invisible-characters')
+				.map((diagnostic) => text.slice(diagnostic.from, diagnostic.to))
+		).toEqual(['\u200b', '\u200b', '  ']);
+		expect(
+			deferActiveLineTrailingWhitespace(
+				{ ...snapshot, selection: { anchor: text.length, head: text.length } },
+				diagnostics,
+				[{ lines: [1, 5] }]
+			)
+				.filter((diagnostic) => diagnostic.ruleId === 'text.invisible-characters')
+				.map((diagnostic) => text.slice(diagnostic.from, diagnostic.to))
+		).toEqual(['\u200b', ' ', '\u200b', ' ']);
+		expect(
+			deferActiveLineTrailingWhitespace(
+				{ ...snapshot, selection: { anchor: text.length - 2, head: text.length } },
+				diagnostics,
+				[{ lines: [1, 5] }]
+			)
+		).toEqual(diagnostics);
 	});
 
 	test('draws a preview requested before the editor could render one', () => {

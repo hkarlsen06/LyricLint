@@ -2,13 +2,16 @@ import { runRules } from '$lib/rules/index.js';
 import { sourceRegistry } from '$lib/rules/index.js';
 import { findExactPerformer } from '$lib/performers/index.js';
 import type { VoiceGroupRange } from '$lib/editor/index.js';
+import { lineNumberAt } from '$lib/editor/section-links.js';
 import { isLyricLine } from '$lib/core/parser.js';
 import type {
 	Diagnostic,
+	EditorSnapshot,
 	LineAnchor,
 	ParsedDocument,
 	PerformerRecord,
 	RuleContext,
+	SectionLink,
 	VoiceGroup
 } from '$lib/core/types.js';
 
@@ -58,6 +61,42 @@ export function buildRuleContext(
 /** Run every enabled rule against one parsed revision, sorted by severity. */
 export function computeDiagnostics(parsed: ParsedDocument, context: RuleContext): Diagnostic[] {
 	return runRules(parsed, context);
+}
+
+/** Hide unfinished trailing whitespace until the caret leaves its line. */
+export function deferActiveLineTrailingWhitespace(
+	snapshot: EditorSnapshot,
+	diagnostics: readonly Diagnostic[],
+	sectionLinks: readonly SectionLink[] = []
+): Diagnostic[] {
+	if (snapshot.selection.anchor !== snapshot.selection.head) return [...diagnostics];
+
+	const { text } = snapshot;
+	const caret = snapshot.selection.head;
+	const activeLine = lineNumberAt(text, caret);
+	const deferredLines = new Set([activeLine]);
+	const section = snapshot.parsed.sections.find(
+		(candidate) =>
+			candidate.header &&
+			candidate.lines.some((line) => line.from <= caret && caret <= line.lineEndingRange.from)
+	);
+	if (section?.header) {
+		const headerLine = lineNumberAt(text, section.header.from);
+		const link = sectionLinks.find((candidate) => candidate.lines.includes(headerLine));
+		for (const peerHeaderLine of link?.lines ?? []) {
+			deferredLines.add(peerHeaderLine + activeLine - headerLine);
+		}
+	}
+
+	return diagnostics.filter(
+		(diagnostic) =>
+			!(
+				diagnostic.ruleId === 'text.invisible-characters' &&
+				deferredLines.has(lineNumberAt(text, diagnostic.from)) &&
+				(diagnostic.to === text.length || /[\r\n]/u.test(text[diagnostic.to] ?? '')) &&
+				/^[^\S\r\n]+$/u.test(text.slice(diagnostic.from, diagnostic.to))
+			)
+	);
 }
 
 /**

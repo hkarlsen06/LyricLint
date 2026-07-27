@@ -128,6 +128,19 @@ describe('rule regressions', () => {
 		expect(finding?.fixes).toBeUndefined();
 	});
 
+	it('accepts the optional quoted title header on a non-English song', () => {
+		expect(
+			diagnostics('section.header-unrecognized', '[Letra de “Chantaje” ft. Maluma]\nHola', 'es')
+		).toEqual([]);
+		expect(
+			diagnostics(
+				'section.header-unrecognized',
+				'[Intro]\nHola\n\n[Letra de “Chantaje” ft. Maluma]\nMás',
+				'es'
+			)
+		).toHaveLength(1);
+	});
+
 	it('does not duplicate the language warning for a header recognized in another reviewed pack', () => {
 		expect(diagnostics('section.header-unrecognized', '[Verse]\nEn natt', 'no')).toEqual([]);
 		expect(diagnostics('section.header-language', '[Verse]\nEn natt', 'no')).toHaveLength(1);

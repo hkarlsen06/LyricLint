@@ -782,6 +782,21 @@
 	align-items: center;
 }
 
+.status-bar__insert {
+	display: inline-flex;
+	min-height: var(--control-height-sm);
+	padding: 0 var(--space-1-5);
+	gap: var(--space-1);
+	align-items: center;
+	color: var(--color-text);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+}
+
+.status-bar__marker {
+	font-family: var(--font-mono);
+}
+
 /*
  * The status bar's one link. It takes the muted color of the row rather than
  * `--color-accent`: the band is the quietest chrome in the window and a

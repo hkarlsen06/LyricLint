@@ -1,5 +1,6 @@
 import type { RuleDefinition, SourceReference } from '$lib/core/types.js';
 import { adlibParenthesesRule } from './catalog/adlib-parentheses.js';
+import { adlibSeparatorRule } from './catalog/adlib-separator.js';
 import { capitalizationLineStartRule } from './catalog/capitalization-line-start.js';
 import { capitalizationTitleCaseRule } from './catalog/capitalization-title-case.js';
 import { censoredMaskRule } from './catalog/censored-mask.js';
@@ -44,8 +45,9 @@ import { spellingSpanishCommonRule } from './catalog/spelling-spanish-common.js'
 import { spellingStandardizedRule } from './catalog/spelling-standardized.js';
 import { syntaxUnbalancedBracketsRule } from './catalog/syntax-unbalanced-brackets.js';
 import { syntaxUnsupportedVoiceMarkupRule } from './catalog/syntax-unsupported-voice-markup.js';
+import { symbolsSpecialCharactersRule } from './catalog/symbols-special-characters.js';
 import { textInvisibleCharactersRule } from './catalog/text-invisible-characters.js';
-import { unknownMarkerRule } from './catalog/unknown-marker.js';
+import { unknownMarkerRule, unknownUnresolvedRule } from './catalog/unknown-marker.js';
 import { sourceRegistry } from './data/sources.js';
 
 export const enabledRules: readonly RuleDefinition[] = [
@@ -83,12 +85,15 @@ export const enabledRules: readonly RuleDefinition[] = [
 	spellingArabicCommonRule,
 	spellingJapaneseCommonRule,
 	spellingKoreanCommonRule,
+	symbolsSpecialCharactersRule,
 	textInvisibleCharactersRule,
 	unknownMarkerRule,
+	unknownUnresolvedRule,
 	repeatPlaceholderRule,
 	soundEffectAsterisksRule,
 	censoredMaskRule,
 	adlibParenthesesRule,
+	adlibSeparatorRule,
 	capitalizationLineStartRule,
 	capitalizationTitleCaseRule,
 	punctuationLineEndingRule,

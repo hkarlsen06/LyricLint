@@ -72,7 +72,7 @@ export const headerRenameSessionField = StateField.define<HeaderRenameSession | 
  * counts as one edit. Anything genuinely scattered is left alone: a rename is
  * always one localized edit.
  */
-function singleChangedRange(changes: ChangeDesc): TextRange | undefined {
+export function singleChangedRange(changes: ChangeDesc): TextRange | undefined {
 	let range: TextRange | undefined;
 	let count = 0;
 	changes.iterChangedRanges((fromA, toA) => {

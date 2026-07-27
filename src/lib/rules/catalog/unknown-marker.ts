@@ -23,3 +23,25 @@ export const unknownMarkerRule: RuleDefinition = {
 		);
 	}
 };
+
+export const unknownUnresolvedRule: RuleDefinition = {
+	id: 'unknown.unresolved',
+	version: 1,
+	defaultSeverity: 'suggestion',
+	fixability: 'none',
+	sourceIds: ['G-UNKNOWN'],
+	check(document) {
+		return document.sections.flatMap((section) =>
+			section.lines.flatMap((line) =>
+				matchesOutsideMarkup(line, /\[\?\]/gu).map((match) =>
+					diagnostic(
+						this,
+						match,
+						'Try to identify the lyric marked [?].',
+						'Aim to transcribe all audible lyrics. Use [?] only when careful listening still cannot determine what is being sung.'
+					)
+				)
+			)
+		);
+	}
+};

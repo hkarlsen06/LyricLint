@@ -31,7 +31,8 @@ function draft(id: string, text: string): DraftRecord {
 		updatedAt: '2026-07-02T10:00:00.000Z',
 		ruleSetVersion: '2026.7',
 		editorSelection: { anchor: 1, head: 3 },
-		lineAnchors: [{ line: 1, time: 12.5 }]
+		lineAnchors: [{ line: 1, time: 12.5 }],
+		sectionLinks: [{ lines: [1, 4] }]
 	};
 }
 

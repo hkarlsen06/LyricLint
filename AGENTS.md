@@ -1017,6 +1017,142 @@ button that started it.
 Implementation: `src/lib/editor/extensions/lyric-sync.ts`, the control in `MediaStrip.svelte`, and
 the wiring in `Workspace.svelte`.
 
+### A chorus is typed once, and its repeats are the same words or they are a bug
+
+A song's second chorus is its first chorus, so transcribing it means typing the same lines again —
+and the mistake that follows is the one nobody catches: one of them has a typo, or a correction
+lands in one and not the others, and the page ships with two versions of a line that is sung once.
+Linking is the answer, and the whole feature is three decisions.
+
+**Only what a song repeats verbatim may be linked**, which is chorus, pre-chorus and post-chorus
+(`LINKABLE_SEMANTICS`). A verse repeats its shape and not its words, so offering to link two of
+them would be a standing offer to overwrite one with the other. Refrain is deliberately out for
+now; the three the user named are the three that are always the same lines.
+
+**The kind is the language pack's `semanticPart`, never the spelling.** That is what makes this
+work in every supported language without a word of it being written twice: `[Hook]` and `[Refreng]`
+and `[코러스]` are all `chorus`, and `Chorus 2` matches `Chorus` because the ordinal is stripped by
+the same `headerSemanticKey` the section picker orders its suggestions with — one answer to "is
+this a chorus", exported from `languages/registry.ts`, because two would disagree the first time a
+pack gained a term. **English is consulted second**, not instead: Genius pages in every language
+carry English headers routinely — `ja` is an English pack outright, `no` lists `Chorus` beside
+`Refreng` — so a German draft with `[Chorus]` in it links exactly like one with `[Hook]`, while the
+selected pack still wins where the two disagree.
+
+**The source is the section the user opened the card from**, and linking overwrites the others from
+it. There is no merge and no prompt about which words win: the user is looking at the words they
+mean to keep, which is the whole of the arbitration, and the card says so before the press.
+
+**A body is measured from the end of the header line, not from the first lyric.** That one offset
+is what makes an empty `[Chorus 3]` take a peer's words with no special case — replacing an empty
+range at the end of a header line with `"\nHold on tight"` is an ordinary edit, while a body
+measured from the first lyric of a section that has none has no position to describe at all.
+
+**Editing one edits them all through a `transactionFilter`, not a follow-up dispatch.** The mirrored
+edits are appended to the transaction that caused them with `sequential: true`, exactly as
+`headerRenameFilter` mirrors a performer's name: the document is never briefly inconsistent, one
+snapshot is emitted, and one undo restores every section at once. A second `view.dispatch` would
+give the user one undo step per linked section for something they typed once.
+
+Four things it refuses, and the refusals are the design:
+
+- **Undo, redo, and IME composition are exempt**, so history replays byte for byte and a preedit is
+  never interrupted.
+- **Only a single contiguous edit inside exactly one member's body is mirrored.** An edit reaching a
+  header, spanning two sections, or arriving scattered is a restructuring rather than a rewrite of
+  the words, and guessing at those is how a link eats work the user meant to keep.
+- **Membership is a range over the header's own line, never a point at its start.** The distinction
+  `line-anchors.ts` documents at length: a point sits on the _boundary_ of the deletion that removes
+  the line, so a deleted section would leave its membership behind for whatever line moved up into
+  its place. Erasure is detected the same way — map the start forward, map the end backward, and if
+  they meet, every character it described is gone.
+- **A group with fewer than two members is not a group.** Delete a linked section and the rest carry
+  on; delete all but one and the link is simply off. That is also what makes unlinking one effect
+  rather than two: `setSectionLinkEffect` names the whole resulting group, every named header leaves
+  whatever group it was in first, and a lone survivor comes loose.
+
+**Applying collapses the selection, and that is load-bearing rather than tidiness.** The card opens
+_because_ a header is selected whole, and the selection survives the edit — so leaving it there
+would reopen the card the user just answered on the next settled anchor report. A collapsed
+selection reports no anchor at all.
+
+**Which is exactly why a missing anchor does not retire this card, unlike the performer picker.**
+That one exists solely because a range of lyrics is selected, so a selection that is gone leaves a
+card describing nothing. This one is anchored to a _header_, which is still there — and it opens
+from a bare caret through `Mod-Shift-L`, so retiring it on the next settle killed the
+keyboard-opened card about eighty milliseconds after it drew. It leaves the way every other
+transient surface does: Escape, Cancel, an outside press, or applying.
+
+**Nothing in the card may change size with what is selected.** It hangs from its own bottom edge,
+so anything that grows it moves it out from under the pointer that just caused the growth — which
+is the same complaint _`.spinner` goes in a slot that already had a size_ makes about a row that
+reflows under the press. Three things enforce it: the layer takes a `width` rather than a
+`max-width`, so the card never sizes to its content; the note is one sentence per **opening** rather
+than one per tick, because two sentences of different length rewrap to different heights; and the
+apply action takes the row's free width through a `1fr auto` grid, so `Link` becoming
+`Link 3 sections` moves neither button. `section-links.svelte.test.ts` measures the box across a
+tick rather than trusting the rules — the failure they replace looked exactly like working CSS.
+
+**Which sentence that is depends on the state the card opened in, and `openedComplete` is read once
+rather than derived.** A card opened on a group that is already whole has no linking left to
+describe — every peer is in it, and all that is on offer is taking one out — so narrating what
+linking does there is a caption for an action the card is not offering. It says the standing fact
+instead. Derived live, unticking a row would swap the sentence back and resize the card, which is
+the rule directly above; frozen at open, the two states cannot fight.
+
+**A card no anchor describes takes the side that has room**, rather than `above` unconditionally.
+The keyboard path opens on a caret, so nothing has reported a rect for it, and the old fallback put
+the card off the top of the screen whenever the header it named was near the top of the viewport.
+`anchorPlacement` takes the fallback from the caller, and the caller measures with
+`selectionAnchorForView`'s own comparison, so the pointer-opened card and the keyboard-opened one
+land on the same side.
+
+**A linked header says so on its own line**, through a line decoration and a CSS `::after` — never
+a widget. A widget in the content flow participates in selection and copy, and clean lyrics on the
+clipboard are this application's entire output. A section that silently rewrites another has to be
+visible; a mark in somebody's paste is worse than the bug it was warning about.
+
+**Undo reverses the link along with the words, and that needs `invertedEffects`.** Undo restores
+text by reversing changes, and a `StateField` reverses nothing on its own — so deleting a linked
+section and pressing undo used to bring the section back with its link silently gone, which is a
+half-reversal and the worst kind. Every history event now carries the groups as they stood before
+it, so undoing a deletion, the link's own overwrite, or an unlink that moved no text at all puts
+the membership back. Two things it depends on: the restore effect **must** define `map`, because an
+effect stored in the history without one is _dropped_ the moment it has to be mapped through a
+later change, silently; and it is emitted whenever links exist rather than only where the field
+actually changed, because comparing would mean reading the new state from inside the facet that
+state is still being built for.
+
+**What it does not survive is the document being replaced wholesale.** Select all, cut, paste back
+and the links are gone — every header line the membership was written against was erased, and
+`dropErased` is right to drop them. Re-attaching links to re-pasted text would be guessing at which
+of the new headers used to be which, and a link that is silently wrong overwrites work. Line
+anchors behave the same way for the same reason. `section-links.svelte.test.ts` pins this as a
+decision rather than leaving it as a surprise.
+
+**Links are saved on the draft as header line numbers**, exactly as `LineAnchor` is and for the same
+reason — an offset shifts on every keystroke earlier in the document, a line does not. **The numbers
+are read off the live mapped ranges at save time, never stored and then shifted**, so a verse typed
+above a linked chorus moves the link with the text rather than stranding it on whatever section
+inherited the old number. Which means
+`sectionLinks` had to be added to all three hand-written copiers (`copySnapshot`, `copyDraft`,
+`createRecord`), to `backup.ts`, and re-seated through `setEditorHandle` on any editor that can hold
+links and has none. And it needs `onSectionLinksChanged`, because **unlinking moves no text**: a
+shell that saved only on a document change would keep writing a link the user had just taken off.
+
+**The keyboard's way in is `Mod-Shift-L`, beside `Mod-Shift-H`, and deliberately not the `Ctrl-Alt`
+family the rest of the editor's commands live in** — `Ctrl-Alt-L` is the transport's forward key,
+bound to the window, and two implementations of one keystroke is how every nudge came to fire twice.
+Both ways in run `requestSectionLink`, over the same `linkableHeaderAt` predicate the pointer path
+uses, so they cannot come to mean different things; the pointer opens silently and the aimed press
+names its refusal out loud, which is the rule _A surface that opens itself has to have been asked_
+already states for the performer picker.
+
+Implementation: `src/lib/editor/section-links.ts` (the pure predicate, the kinds, the body range —
+no CodeMirror, so `EditorPane` may import it without pulling the editor into the landing page's
+bundle), `src/lib/editor/extensions/section-links.ts` (the field, the mirror, the decoration), and
+`SectionLinkPicker.svelte`.
+
 ### YouTube is a second source behind the same transport, and it is asked for every session
 
 Transcribers' audio is usually on YouTube, so it is the source most of them actually have. It is also

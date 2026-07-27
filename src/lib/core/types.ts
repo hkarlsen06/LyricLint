@@ -269,6 +269,28 @@ export interface DraftRecord {
 	 * Plain JSON, so `copyDraft` and `exportDraft` are undisturbed.
 	 */
 	lineAnchors?: LineAnchor[];
+	/**
+	 * Repeated sections the user has tied together, so editing one edits them all.
+	 *
+	 * On the draft for the same reason the anchors are: a link describes *lines* of
+	 * this document, it moves when they move, and it is saved by the autosave that
+	 * saves the words.
+	 */
+	sectionLinks?: SectionLink[];
+}
+
+/**
+ * Two or more sections of the same kind whose bodies are kept identical.
+ *
+ * Written down as header line numbers rather than offsets, exactly as
+ * `LineAnchor` is and for the same reason: an offset shifts on every keystroke
+ * earlier in the document, while a line keeps its identity through anything
+ * typed inside it. Inside the editor the live truth is a mapped range over each
+ * header line; this is only how it is written down.
+ */
+export interface SectionLink {
+	/** 1-based header lines, in document order. Fewer than two is not a link. */
+	lines: number[];
 }
 
 /** Lightweight metadata used to list drafts without opening their text. */
@@ -511,8 +533,29 @@ export interface EditorHandle {
 	 * handles can omit it.
 	 */
 	requestSectionHeader?(): void;
+	/**
+	 * Open the link picker for the repeated section containing the cursor, as if
+	 * the user pressed the link shortcut. The same command over the same
+	 * predicate, so the two ways in cannot come to mean different things.
+	 */
+	requestSectionLink?(): void;
 	/** Open the guided performer-legend assignment for an inline mismatch. */
 	requestPerformerLegendAssignment?(diagnostic: Diagnostic): void;
+	/** Every section link, for the shell to write down. */
+	getSectionLinks?(): SectionLink[];
+	/** Replace every section link, for a draft being opened. */
+	setSectionLinks?(links: readonly SectionLink[]): void;
+	/**
+	 * Tie these sections together, overwriting every one of them from the first.
+	 *
+	 * The first is the section the user opened the picker from: they are looking
+	 * at the words they mean to keep, so those are the words that win. Fewer than
+	 * two headers takes the named one out of whatever group it was in.
+	 *
+	 * Header offsets rather than line numbers, because the caller resolved them
+	 * against the parse it is holding.
+	 */
+	linkSections?(headerOffsets: readonly number[]): void;
 	/** Every line anchor, for the shell to write down. */
 	getLineAnchors?(): LineAnchor[];
 	/** Replace every line anchor, for a draft being opened. */

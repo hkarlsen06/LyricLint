@@ -62,6 +62,58 @@ describe('Workspace and toolbar', () => {
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy());
 	});
 
+	/*
+	 * The receipt is the one copy worth interrupting: the next thing the user does
+	 * with these lyrics is fill in a Genius song page, and the facts the catalogue
+	 * read already paid for are several of its fields. It draws only where there is
+	 * something on it besides the word the button says in its own slot — a modal
+	 * repeating a press is a surface that opened itself for nothing.
+	 */
+	test("hands the song's facts over with the copy, and only where there are any", async () => {
+		const writeText = vi.fn(async () => {});
+		vi.stubGlobal('navigator', { clipboard: { writeText } });
+		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
+		const withSong = {
+			...controller,
+			media: {
+				player: {
+					songDetails: { artist: 'Mul', title: 'Sensommer', label: 'Sony', isrc: 'NOA1234' }
+				}
+			}
+		} as unknown as typeof controller;
+
+		const { unmount } = render(DocumentToolbar, { controller: withSong });
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
+
+		const receipt = await waitFor(() => {
+			const dialog = document.querySelector('dialog.copy-receipt') as HTMLDialogElement;
+			expect(dialog.open).toBe(true);
+			return dialog;
+		});
+		// The fields that form actually asks for: artist and title are on it here and
+		// not in the tools panel, which leaves them to the toolbar and the cover
+		// band the receipt covers up — and the ISRC is the other way round, because
+		// there is nowhere on the page to type it.
+		expect([...receipt.querySelectorAll('dt')].map((term) => term.textContent)).toEqual([
+			'Artist',
+			'Title',
+			'Label'
+		]);
+		// The button keeps its own label, so the copy is not confirmed twice.
+		expect(screen.queryByRole('button', { name: 'Lyrics copied' })).toBeNull();
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+		await waitFor(() => expect(receipt.open).toBe(false));
+		unmount();
+
+		// A source that knows nothing about the song has nothing to hand over, so
+		// the button is the whole of the confirmation.
+		render(DocumentToolbar, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
+		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
+		expect((document.querySelector('dialog.copy-receipt') as HTMLDialogElement).open).toBe(false);
+	});
+
 	// The contrast tier is the loudest thing on the screen, and on an empty
 	// document `Copy lyrics` spends it pointing at the exit. Same slot, same
 	// tier, label following the state — and never both at once.
@@ -116,8 +168,8 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench();
 		render(DocumentToolbar, { controller });
 
-		// Section insertion, performer assignment, and undo/redo stay reachable
-		// through the editor itself (ghost control, selection surface, and Mod+Z).
+		// Section insertion and performer assignment stay reachable through the
+		// editor itself (ghost control and selection surface).
 		expect(screen.getByRole('button', { name: 'New draft' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Drafts' })).toBeTruthy();
@@ -128,6 +180,24 @@ describe('Workspace and toolbar', () => {
 		expect(screen.queryByRole('button', { name: 'Assign performer' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Undo document edit' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Redo document edit' })).toBeNull();
+	});
+
+	test('replaces the selection with an unknown lyric marker in one undoable edit', async () => {
+		const { controller, calls } = createTestWorkbench({
+			text: '[Verse]\nI heard something',
+			selection: { anchor: 15, head: 10 }
+		});
+
+		controller.insertUnknownMarker();
+
+		expect(calls.dispatched).toEqual([
+			{
+				baseRevision: 4,
+				edits: [{ from: 10, to: 15, insert: '[?]' }],
+				selectionAfter: { anchor: 13, head: 13 }
+			}
+		]);
+		expect(calls.focusCount).toBe(1);
 	});
 
 	// The drafts trigger is the draft name's own disclosure now, not a hamburger
@@ -228,7 +298,7 @@ describe('Workspace and toolbar', () => {
 		expect(status.querySelector('svg')).toBeTruthy();
 	});
 
-	test('leaves history, language and copy in the command strip, with drafts and creation out of it', () => {
+	test('leaves document commands in the command strip, with drafts and creation out of it', () => {
 		const { controller } = createTestWorkbench();
 		render(DocumentToolbar, { controller });
 
@@ -598,6 +668,16 @@ describe('Workspace and toolbar', () => {
 		expect(link.getAttribute('href')).toBe('/');
 		expect(link.closest('.status-bar')).toBeTruthy();
 		expect(link.closest('.document-toolbar')).toBeNull();
+	});
+
+	test('keeps unknown-marker insertion in the document strip, not the toolbar', () => {
+		const { controller } = createTestWorkbench();
+		renderWorkspace(controller);
+
+		const insert = screen.getByRole('button', { name: 'Insert [?]' });
+		expect(insert.textContent?.replace(/\s+/gu, ' ').trim()).toBe('Insert [?]');
+		expect(insert.closest('.status-bar')).toBeTruthy();
+		expect(insert.closest('.document-toolbar')).toBeNull();
 	});
 
 	test('keeps the status-bar link off the accent color', () => {

@@ -9,7 +9,7 @@ import type {
 } from '$lib/core/types.js';
 import {
 	diagnosticIgnoreKey,
-	ignoredDiagnosticKeys as matchIgnoredDiagnostics,
+	matchIgnoredDiagnostics,
 	ignoredDiagnosticRuleId
 } from '$lib/diagnostics/ignore.js';
 import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
@@ -60,6 +60,8 @@ export interface PanelView {
 	toggleSeverityFilters(): boolean;
 	/** Re-read the session ignores for whichever draft is current now. */
 	refreshIgnoredDiagnostics(): void;
+	/** Forget ignored occurrences that no longer exist in a settled lint result. */
+	pruneIgnoredDiagnostics(diagnostics: readonly Diagnostic[]): void;
 	/** Drop the active card once its diagnostic is gone from the document. */
 	pruneActiveDiagnostic(diagnostics: readonly Diagnostic[]): void;
 	/**
@@ -160,12 +162,10 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	}
 
 	function unignoredIn(diagnostics: readonly Diagnostic[]): Diagnostic[] {
-		const ignored = matchIgnoredDiagnostics(
-			diagnostics,
-			deps.snapshot().text,
-			ignoredDiagnosticKeys
-		);
-		return diagnostics.filter((diagnostic) => !ignored.has(diagnosticKey(diagnostic)));
+		const ignored = [
+			...matchIgnoredDiagnostics(diagnostics, deps.snapshot().text, ignoredDiagnosticKeys).values()
+		];
+		return diagnostics.filter((diagnostic) => !ignored.includes(diagnosticKey(diagnostic)));
 	}
 
 	function visibleIn(diagnostics: readonly Diagnostic[]): Diagnostic[] {
@@ -286,6 +286,19 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		},
 		refreshIgnoredDiagnostics() {
 			ignoredDiagnosticKeys = deps.ignoreStore.list(deps.draftId());
+		},
+		pruneIgnoredDiagnostics(diagnostics) {
+			const current = matchIgnoredDiagnostics(
+				diagnostics,
+				deps.snapshot().text,
+				ignoredDiagnosticKeys
+			);
+			const stale = ignoredDiagnosticKeys.filter((key) => !current.has(key));
+			if (stale.length === 0) return;
+			const draftId = deps.draftId();
+			for (const key of stale) deps.ignoreStore.restore(draftId, key);
+			ignoredDiagnosticKeys = deps.ignoreStore.list(draftId);
+			deps.onIgnoredDiagnosticsChange?.();
 		},
 		pruneActiveDiagnostic(diagnostics) {
 			if (

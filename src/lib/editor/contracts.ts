@@ -2,6 +2,7 @@ import type {
 	AtomicDocumentEdit,
 	Diagnostic,
 	DiagnosticFix,
+	EditorAnchorRequest,
 	EditorCallbacks,
 	EditorContext,
 	EditorHandle,
@@ -172,6 +173,24 @@ export interface EditorOverlayCallbacks {
 	 */
 	onDiagnosticHighlight?(diagnostic: Diagnostic): void;
 	onDiagnosticDismiss?(): boolean;
+	/**
+	 * A repeated section's header was aimed at, by selecting it whole or by
+	 * pressing the link shortcut on it.
+	 *
+	 * Handled inside the pane and deliberately not forwarded to the shell: the
+	 * whole of linking — which sections, which words win, and keeping them in
+	 * step afterwards — lives in the editor, because it is one document edit
+	 * repeated, not a domain transform the shell has to arbitrate.
+	 */
+	onSectionLinkRequest?(request: EditorAnchorRequest): void;
+	/**
+	 * A link was made, changed, or dropped without the text necessarily changing.
+	 *
+	 * Unlinking moves nothing, so `onSnapshot` never hears about it, and a shell
+	 * that saved only on a document change would keep writing a link the user
+	 * had just taken off. The same trap `onLineAnchorsChanged` exists for.
+	 */
+	onSectionLinksChanged?(): void;
 }
 
 export type LyricEditorCallbacks = EditorCallbacks & EditorOverlayCallbacks;
@@ -222,4 +241,20 @@ export interface SelectionAnchor {
 	 * that were never opened from a selection.
 	 */
 	offersAssignment: boolean;
+	/**
+	 * The repeated-section header this selection names whole, when it names one,
+	 * and the offer the link picker opens itself on.
+	 *
+	 * A second field rather than a second reading of `offersAssignment`: these are
+	 * two surfaces, not two halves of one decision, and they are mutually
+	 * exclusive by construction — a header is never a range an assignment could be
+	 * written to. It carries the header's own range rather than a bare flag,
+	 * because the picker is keyed to the header while the anchor is keyed to the
+	 * selection, and re-deriving one from the other in the overlay layer is how the
+	 * two would come to disagree.
+	 *
+	 * Short-circuited on the same gesture as `offersAssignment`, for the same
+	 * reason.
+	 */
+	linkHeader?: TextRange;
 }

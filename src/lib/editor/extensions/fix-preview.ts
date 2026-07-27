@@ -6,7 +6,7 @@ import type { AtomicDocumentEdit, TextEdit } from '$lib/core/types.js';
 
 export const setFixPreviewEffect = StateEffect.define<AtomicDocumentEdit | undefined>();
 
-class FixPreviewWidget extends WidgetType {
+export class FixPreviewWidget extends WidgetType {
 	constructor(readonly text: string) {
 		super();
 	}

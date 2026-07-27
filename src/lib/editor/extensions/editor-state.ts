@@ -1,4 +1,5 @@
 import { StateEffect, StateField } from '@codemirror/state';
+import type { EditorState } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { parseDocument } from '$lib/core/parser.js';
 import type { ParsedDocument } from '$lib/core/types.js';
@@ -29,10 +30,14 @@ export const editorContextField = StateField.define<EditorDisplayContext | undef
  * fallback, and two spellings of "is this parse still current" would drift the
  * first time one of them learned about a new invalidation.
  */
-export function parsedDocumentForView(view: EditorView): ParsedDocument {
-	const text = view.state.doc.toString();
-	const parsed = view.state.field(editorContextField)?.parsed;
+export function parsedDocumentForState(state: EditorState): ParsedDocument {
+	const text = state.doc.toString();
+	const parsed = state.field(editorContextField, false)?.parsed;
 	return parsed?.text === text ? parsed : parseDocument(text);
+}
+
+export function parsedDocumentForView(view: EditorView): ParsedDocument {
+	return parsedDocumentForState(view.state);
 }
 
 export const editorRevisionField = StateField.define<number>({

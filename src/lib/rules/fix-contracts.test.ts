@@ -158,6 +158,15 @@ const contracts: FixContract[] = [
 		label: "Replace with 'Cause"
 	},
 	{
+		id: 'symbols.special-characters',
+		input: '[Verse]\nYou & me',
+		language: 'en',
+		range: [12, 13],
+		expected: '[Verse]\nYou and me',
+		kind: 'preview',
+		label: 'Replace with and'
+	},
+	{
 		id: 'quotes.typewriter',
 		input: '[Verse]\n“Hello',
 		language: 'en',
@@ -446,9 +455,9 @@ const safeFixBatches: SafeFixBatch[] = [
 	},
 	{
 		id: 'spelling.standardized',
-		input: '[Verse]\nlil whoa dawg choppa oughtta\nboujee skrt trynna ya’ll tho',
-		expected: "[Verse]\nlil' woah dog chopper oughta\nbougie skrrt tryna y'all though",
-		fixes: 10
+		input: '[Verse]\nlil whoa oughtta\nboujee skrt trynna ya’ll tho',
+		expected: "[Verse]\nlil' woah oughta\nbougie skrrt tryna y'all though",
+		fixes: 8
 	},
 	{
 		id: 'spelling.standardized',

@@ -248,10 +248,23 @@ export const policyCases: readonly RulePolicyCase[] = [
 		language: 'ko'
 	},
 	{
+		id: 'symbols.special-characters',
+		invalid: '[Verse]\nYou & me',
+		valid: '[Verse]\nYou and me',
+		ambiguous: '[Verse]\nH&M on my shirt',
+		language: 'en'
+	},
+	{
 		id: 'unknown.marker',
 		invalid: '[Verse]\nI heard (?)',
 		valid: '[Verse]\nI heard [?]',
 		ambiguous: '[Verse]\nI heard ???'
+	},
+	{
+		id: 'unknown.unresolved',
+		invalid: '[Verse]\nI heard [?]',
+		valid: '[Verse]\nI heard every word',
+		ambiguous: '[Verse]\nWas that a question?'
 	},
 	{
 		id: 'repeat.placeholder',
@@ -276,6 +289,14 @@ export const policyCases: readonly RulePolicyCase[] = [
 		invalid: '[Verse]\n(yeah)',
 		valid: '[Verse]\n(Yeah)',
 		ambiguous: '[Verse]\nYeah I know'
+	},
+	{
+		id: 'adlib.separator',
+		invalid: '[Verse]\n(Yeah yeah yeah)',
+		valid: '[Verse]\n(Yeah, yeah, yeah)',
+		// One ad-lib among ordinary words is `adlib.parentheses`'s business; this
+		// rule needs two of them side by side.
+		ambiguous: '[Verse]\nOh baby oh baby'
 	},
 	{
 		id: 'capitalization.line-start',

@@ -9,7 +9,7 @@
 	// states a count is making a claim about the product, and a hand-written one
 	// is wrong the first time a rule ships.
 	const ruleCount = enabledRules.length;
-	const pageTitle = 'LyricLint · A linter for Genius lyric transcriptions';
+	const pageTitle = 'LyricLint · For Genius transcribers';
 	const pageDescription = `LyricLint checks Genius lyric transcriptions against ${ruleCount} reviewed rules plus local grammar and spelling checks for section headers, performer markup, punctuation, and more. Runs in your browser.`;
 	const socialDescription =
 		'Paste a transcription, see every formatting problem with the Genius source that backs it, and copy clean markup. Nothing leaves your browser.';

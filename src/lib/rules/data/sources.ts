@@ -1,6 +1,7 @@
 import type { SourceReference } from '$lib/core/types.js';
 
 const reviewedAt = '2026-07-24';
+const latestReviewedAt = '2026-07-27';
 
 function annotation(
 	id: string,
@@ -354,35 +355,78 @@ const sources: SourceReference[] = [
 		'Use asterisks rather than braces for sound effects'
 	),
 	annotation('G-CENSORED', 15237597, 'Censored words', 'Use four asterisks for a censored word'),
-	annotation('G-QUOTES', 15594059, 'Quotation marks', 'Quotation style candidate', 'needs-review'),
-	annotation(
-		'G-SYMBOLS',
-		30242624,
-		'Symbols and special characters',
-		'Symbol usage candidate',
-		'needs-review'
-	),
-	annotation(
-		'G-AS-SPOKEN',
-		12332255,
-		'Transcribe as spoken',
-		'Pronunciation-based transcription candidate',
-		'needs-review'
-	),
-	annotation(
-		'G-NON-ENGLISH',
-		11893156,
-		'Non-English song header',
-		'Non-English title-header candidate',
-		'needs-review'
-	),
-	annotation(
-		'G-INSTRUMENTAL',
-		16427849,
-		'Instrumental songs',
-		'Instrumental-page tag candidate',
-		'needs-review'
-	)
+	{
+		...annotation('G-QUOTES', 15594059, 'Quotation marks', 'When lyric text uses quotation marks'),
+		retrievedAt: latestReviewedAt,
+		lastVerifiedAt: latestReviewedAt,
+		contentHash: 'sha256:af782896da241613e8c43f818e1e29cbd10c737dd3a25085ecdff4f9b85ec49b'
+	},
+	{
+		...annotation(
+			'G-SYMBOLS',
+			30242624,
+			'Symbols and special characters',
+			'Omit trademark and decorative symbols; spell out ampersands and degrees outside brands'
+		),
+		retrievedAt: latestReviewedAt,
+		lastVerifiedAt: latestReviewedAt,
+		contentHash: 'sha256:264d9996c30fe27b2d8d51591a3fdf4a26c16569a1ab5849cd48c30449e9f601'
+	},
+	{
+		...annotation(
+			'G-AS-SPOKEN',
+			12332255,
+			'Transcribe as spoken',
+			'Reflect distinct pronunciation unless a phonetic spelling harms comprehension'
+		),
+		retrievedAt: latestReviewedAt,
+		lastVerifiedAt: latestReviewedAt,
+		contentHash: 'sha256:961751d472f6b006e7c23640f99f18d5f81255f3cec22faf002648b0e648e092'
+	},
+	{
+		...annotation(
+			'G-NON-ENGLISH',
+			11893156,
+			'Non-English song header',
+			'Optional bracketed title header for non-English songs'
+		),
+		retrievedAt: latestReviewedAt,
+		lastVerifiedAt: latestReviewedAt,
+		contentHash: 'sha256:23f3b830f5078af165503b09bc9e7775a3b4e5623260b3ac1648c2c25d6ae8f1'
+	},
+	{
+		...annotation(
+			'G-INSTRUMENTAL',
+			16427849,
+			'Instrumental songs',
+			'Use [Instrumental] as the lyric text for an instrumental track page'
+		),
+		retrievedAt: latestReviewedAt,
+		lastVerifiedAt: latestReviewedAt,
+		contentHash: 'sha256:27f047b0a1ab7f56e8cbf9ef46ea08c1441e843f66f41e569afefb2874e55350'
+	},
+	{
+		...annotation(
+			'G-ROMANIZED',
+			14835335,
+			'Romanized lyrics',
+			'Host romanized lyrics on a separate page'
+		),
+		retrievedAt: latestReviewedAt,
+		lastVerifiedAt: latestReviewedAt,
+		contentHash: 'sha256:fc82a5078321719e14a6efda974655d32f6d14027547baa53e2d6d9b7979373a'
+	},
+	{
+		...annotation(
+			'G-TRANSLATIONS',
+			14949891,
+			'Translations',
+			'Host lyric translations on a separate page'
+		),
+		retrievedAt: latestReviewedAt,
+		lastVerifiedAt: latestReviewedAt,
+		contentHash: 'sha256:df8d1a410fbcbf88f912a5d030553840a6145383649e4d194c2bb8dc453fa4eb'
+	}
 ];
 
 /** Bundled source metadata keyed by its stable source ID. */

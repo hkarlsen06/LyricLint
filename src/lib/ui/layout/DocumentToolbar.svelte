@@ -5,6 +5,7 @@
 	import AppWordmark from './AppWordmark.svelte';
 	import DraftMenu from './DraftMenu.svelte';
 	import LanguagePicker from './LanguagePicker.svelte';
+	import SongFacts, { hasSongFacts } from '../media/SongFacts.svelte';
 	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
 	let { controller }: { controller: WorkbenchController } = $props();
@@ -78,10 +79,36 @@
 	let copied = $state(false);
 	let copiedTimer: ReturnType<typeof setTimeout> | undefined;
 
+	/**
+	 * The one copy that is worth interrupting: the next thing the user does with
+	 * these lyrics is fill in a Genius song page, and the workbench already knows
+	 * several of the fields on it — the facts the catalogue read that named the
+	 * song paid for. Handing them over at the moment the lyrics leave saves the
+	 * trip to the tools tab to copy them out one at a time.
+	 *
+	 * So the receipt draws only where there is something on it besides the word
+	 * "copied", which the button already says in its own slot. A modal for nothing
+	 * but a confirmation is a surface that opens itself to repeat a press.
+	 */
+	const songFacts = $derived(controller.media?.player.songDetails);
+	const hasReceipt = $derived(hasSongFacts(songFacts, true));
+	let receipt = $state<HTMLDialogElement>();
+
 	async function copyLyrics() {
-		copied = await controller.copyCanonical();
+		const landed = await controller.copyCanonical();
+		if (landed && hasReceipt) {
+			receipt?.showModal();
+			return;
+		}
+		copied = landed;
 		clearTimeout(copiedTimer);
 		if (copied) copiedTimer = setTimeout(() => (copied = false), 2000);
+	}
+
+	// A press on the backdrop is a press outside the surface, which is one of the
+	// three ways every transient surface here closes.
+	function dismissOnBackdrop(event: MouseEvent): void {
+		if (event.target === receipt) receipt.close();
 	}
 
 	onMount(() => () => clearTimeout(copiedTimer));
@@ -311,3 +338,120 @@
 		{/if}
 	</div>
 </header>
+
+<!--
+	What the copy landed with, where there is anything worth saying beyond that it
+	landed: the song's own facts, in the forms the page being filled in wants them.
+
+	Nothing here is boxed and nothing here contacts anyone — the facts arrived on
+	the read that named the song. One action, because there is nothing to cancel;
+	the dialog closes three ways and all of them mean the same. The list is
+	`SongFacts.svelte`, shared with the tools panel, so a field added there appears
+	here without anybody remembering to.
+-->
+<dialog
+	bind:this={receipt}
+	class="copy-receipt"
+	aria-labelledby="copy-receipt-title"
+	onclick={dismissOnBackdrop}
+>
+	<div class="copy-receipt__body">
+		<!-- The mark says the copy landed, so the heading and the sentence under it
+		     are free to say what to do with it. `aria-hidden`, because the heading
+		     is already the words this draws. -->
+		<svg
+			class="copy-receipt__mark"
+			aria-hidden="true"
+			viewBox="0 0 32 32"
+			width="44"
+			height="44"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.75"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+		>
+			<circle cx="16" cy="16" r="14" />
+			<path d="m9.5 16.6 4.4 4.4 9-9.4" />
+		</svg>
+		<h2 id="copy-receipt-title">Lyrics copied</h2>
+		<p>Paste them into Genius. It also asks for these, which this song already told us.</p>
+		<!-- The facts read down a left edge, so this is the one part of the receipt
+		     that is not centred, and a hairline is what separates it from the message
+		     above — a border around it would be a card inside the dialog. -->
+		{#if songFacts}
+			<div class="copy-receipt__facts">
+				<SongFacts details={songFacts} genius />
+			</div>
+		{/if}
+		<button
+			type="button"
+			class="button button--contrast copy-receipt__done"
+			onclick={() => receipt?.close()}
+		>
+			Done
+		</button>
+	</div>
+</dialog>
+
+<style>
+	.copy-receipt {
+		width: min(30rem, calc(100vw - var(--space-4)));
+		max-width: none;
+		/* A long enough list has to be able to scroll rather than run under the one
+		   control that closes the surface. */
+		max-height: calc(100dvh - var(--space-6));
+		padding: 0;
+		overflow: auto;
+		border: var(--border-width) solid var(--color-border-strong);
+		border-radius: var(--radius-overlay);
+		background: var(--color-overlay);
+		color: var(--color-text);
+		box-shadow: var(--shadow-overlay);
+	}
+
+	.copy-receipt::backdrop {
+		background: var(--color-backdrop);
+	}
+
+	/* One column with one gap, rather than a margin on each child: the receipt is
+	   a stack read top to bottom — mark, message, facts, way out — and margins are
+	   what let the button and the last row of the list collide. */
+	.copy-receipt__body {
+		display: flex;
+		flex-direction: column;
+		padding: var(--space-5) var(--space-4) var(--space-4);
+		gap: var(--space-3);
+		text-align: center;
+	}
+
+	.copy-receipt__mark {
+		align-self: center;
+		color: var(--color-success);
+	}
+
+	.copy-receipt__body h2 {
+		margin: 0;
+		font-size: var(--font-size-lg);
+		font-weight: var(--font-weight-semibold);
+		line-height: var(--line-height-tight);
+	}
+
+	.copy-receipt__body p {
+		margin: 0;
+		color: var(--color-text-muted);
+	}
+
+	.copy-receipt__facts {
+		margin-top: var(--space-2);
+		padding-top: var(--space-4);
+		border-top: var(--border-width) solid var(--color-border);
+		text-align: start;
+	}
+
+	/* A finger is what will press it, and it is the only control here. */
+	.copy-receipt__done {
+		margin-top: var(--space-2);
+		min-height: var(--control-height-lg);
+	}
+</style>

@@ -4,10 +4,10 @@ import { diagnostic, hasUnsupportedMarkup, replacementFix } from './utils.js';
 
 export const spellingStandardizedRule: RuleDefinition = {
 	id: 'spelling.standardized',
-	version: 3,
+	version: 4,
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
-	sourceIds: ['G-SPELLING'],
+	sourceIds: ['G-SPELLING', 'G-AS-SPOKEN'],
 	check(document, context) {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) => {
@@ -25,15 +25,22 @@ export const spellingStandardizedRule: RuleDefinition = {
 							range,
 							candidate.contextGate === 'cousin-meaning'
 								? `If “${candidate.found}” means “because,” use “${candidate.replacement}”.`
-								: `Use “${candidate.replacement}” instead of “${candidate.found}”.`,
+								: candidate.contextGate === 'pronunciation'
+									? `Review whether “${candidate.found}” matches the pronunciation.`
+									: `Use “${candidate.replacement}” instead of “${candidate.found}”.`,
 							candidate.safe
 								? 'The reviewed Genius spelling guide recommends this form.'
 								: candidate.fuzzy
 									? 'This is one character away from a reviewed Genius spelling. Check the lyric before replacing it.'
-									: candidate.contextGate === 'cousin-meaning'
-										? `“${candidate.found}” can also mean “cousin,” so check the lyric before replacing it.`
-										: `This spelling can have another meaning, so check the lyric before replacing it.`,
-							candidate.safe || candidate.fuzzy || candidate.contextGate === 'cousin-meaning'
+									: candidate.contextGate === 'pronunciation'
+										? `The spelling guide prefers “${candidate.replacement},” but Genius also says distinct or deliberate pronunciation may be written as heard. Compare the audio before replacing it.`
+										: candidate.contextGate === 'cousin-meaning'
+											? `“${candidate.found}” can also mean “cousin,” so check the lyric before replacing it.`
+											: `This spelling can have another meaning, so check the lyric before replacing it.`,
+							candidate.safe ||
+								candidate.fuzzy ||
+								candidate.contextGate === 'cousin-meaning' ||
+								candidate.contextGate === 'pronunciation'
 								? [
 										replacementFix(
 											context,
@@ -43,7 +50,10 @@ export const spellingStandardizedRule: RuleDefinition = {
 											candidate.replacement
 										)
 									]
-								: undefined
+								: undefined,
+							candidate.contextGate === 'pronunciation'
+								? ['G-SPELLING', 'G-AS-SPOKEN']
+								: ['G-SPELLING']
 						);
 					}
 				);

@@ -62,6 +62,45 @@ export function getLanguagePack(tag: string): LanguagePack {
 	};
 }
 
+/** Normalized comparison key for a semantic section part: `Pre-Chorus` → `prechorus`. */
+export function semanticPartKey(value: string): string {
+	return value.toLocaleLowerCase().replaceAll(/[\s_-]+/gu, '');
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function matchesHeaderTerm(header: string, term: string, pack: LanguagePack): boolean {
+	const normalizedHeader = header.trim().toLocaleLowerCase(pack.tag);
+	const normalizedTerm = term.trim().toLocaleLowerCase(pack.tag);
+	return (
+		normalizedHeader === normalizedTerm ||
+		new RegExp(`^${escapeRegExp(normalizedTerm)}\\s+\\d+$`, 'u').test(normalizedHeader)
+	);
+}
+
+/**
+ * Which semantic part a header name spells in this language, ignoring its ordinal.
+ *
+ * One answer for every surface that asks: the section picker's ordering, and the
+ * chorus linking that has to decide whether two headers are the same kind. Two
+ * spellings of "is this a chorus" would disagree the first time a pack gained a
+ * term.
+ */
+export function headerSemanticKey(
+	pack: LanguagePack,
+	header: string | undefined
+): string | undefined {
+	if (!header) {
+		return undefined;
+	}
+	const vocabulary = pack.headers.find((candidate) =>
+		candidate.terms.some((term) => matchesHeaderTerm(header, term, pack))
+	);
+	return vocabulary ? semanticPartKey(vocabulary.semanticPart) : undefined;
+}
+
 /** Only human-reviewed localized vocabularies may produce header-language diagnostics. */
 export function canLintHeaderLanguage(pack: LanguagePack): boolean {
 	return pack.reviewed && pack.policy !== 'unreviewed' && pack.headers.length > 0;

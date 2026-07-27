@@ -2,7 +2,9 @@
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
 	import type { WorkspaceBackupState } from '$lib/persistence/backup.js';
+	import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
 	import { copyText, downloadImage } from '../clipboard.js';
+	import SongFacts, { hasSongFacts } from '../media/SongFacts.svelte';
 	import { onMount } from 'svelte';
 	import LoadingMark from '../primitives/LoadingMark.svelte';
 
@@ -13,23 +15,17 @@
 	let importingBackup = $state(false);
 	let backupState = $state<WorkspaceBackupState | undefined>();
 	let savingArtwork = $state(false);
+	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
 
 	const artwork = $derived(controller.media?.player.artwork);
 	const details = $derived(controller.media?.player.songDetails);
 	/**
-	 * Whether any of the facts *this list draws* are known.
-	 *
-	 * `songDetails` is not the same question. Artist and title live on it too —
-	 * the cover band sets them at opposite ends of a row — and they are not listed
-	 * here, because the toolbar and the band both already say them. A source that
-	 * reports only those two would otherwise open an empty `<dl>` under a heading.
+	 * Whether any of the facts *this list draws* are known — the list's own
+	 * predicate, so the section gate and the list cannot disagree. Artist and
+	 * title are not asked for here, because the toolbar and the cover band both
+	 * already say them.
 	 */
-	const listedFacts = $derived(
-		details !== undefined &&
-			[details.releaseDate, details.writers, details.album, details.label, details.isrc].some(
-				(fact) => fact !== undefined
-			)
-	);
+	const listedFacts = $derived(hasSongFacts(details));
 	/**
 	 * The watch page for an attached video, which the workbench already knows.
 	 *
@@ -146,50 +142,11 @@
 			     between a heading and the data it introduces is how this panel got
 			     hard to skim the first time. -->
 			<h3>Song metadata</h3>
-			<!--
-				The facts before the two things that can be taken away, and a `<dl>`
-				rather than a copied block: these go into separate fields on whatever
-				page they are being typed into, so one string holding all of them would
-				have to be taken apart again by hand.
-
-				Only Apple Music fills this. What is absent is deliberate rather than
-				missing — Apple's catalogue has no producer credits at all, and their
-				one writer field is `composerName`, a flat string this application does
-				not try to split.
-			-->
+			<!-- The facts before the two things that can be taken away. The list is
+			     `SongFacts.svelte`, shared with the receipt the copy button opens —
+			     two copies of it would be two places for a field to be added to. -->
 			{#if details && listedFacts}
-				<dl class="metadata-list">
-					{#if details.releaseDate}
-						<div>
-							<dt>Released</dt>
-							<dd><time datetime={details.releaseDate}>{details.releaseDate}</time></dd>
-						</div>
-					{/if}
-					{#if details.writers}
-						<div>
-							<dt>Writers</dt>
-							<dd>{details.writers}</dd>
-						</div>
-					{/if}
-					{#if details.album}
-						<div>
-							<dt>Album</dt>
-							<dd>{details.album}</dd>
-						</div>
-					{/if}
-					{#if details.label}
-						<div>
-							<dt>Label</dt>
-							<dd>{details.label}</dd>
-						</div>
-					{/if}
-					{#if details.isrc}
-						<div>
-							<dt>ISRC</dt>
-							<dd>{details.isrc}</dd>
-						</div>
-					{/if}
-				</dl>
+				<SongFacts {details} />
 			{/if}
 			<div class="tool-actions">
 				{#if videoUrl}
@@ -359,6 +316,40 @@
 		</div>
 		<p>The file holds the exact canonical string, including literal supported markup.</p>
 	</section>
+
+	<!--
+		Beside the export it belongs with, and drawn only where there is something
+		to write — a draft with no timings is offered no file, the same rule
+		`availableRates` and the cover section follow.
+
+		A section's actions fit on one row, so the three formats are one native
+		`<select>` rather than three buttons: the choice is which container, and the
+		command is still one press.
+	-->
+	{#if controller.lineAnchorCount > 0}
+		<section>
+			<h3>Timed lyrics</h3>
+			<div class="tool-actions">
+				<label class="sr-only" for="timed-lyrics-format">Timed lyrics format</label>
+				<select id="timed-lyrics-format" bind:value={timedLyricsFormat}>
+					<option value="lrc">LRC</option>
+					<option value="srt">SRT</option>
+					<option value="vtt">VTT</option>
+				</select>
+				<button
+					type="button"
+					class="button"
+					onclick={() => controller.exportTimedLyrics(timedLyricsFormat)}
+				>
+					Export timings
+				</button>
+			</div>
+			<p>
+				{controller.lineAnchorCount} timed {controller.lineAnchorCount === 1 ? 'line' : 'lines'}, in
+				time order, without the markup a player cannot read.
+			</p>
+		</section>
+	{/if}
 
 	<section>
 		<h3>Reviewed rules</h3>

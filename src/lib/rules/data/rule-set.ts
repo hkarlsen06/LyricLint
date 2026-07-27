@@ -1,8 +1,8 @@
 import type { RuleSetManifest } from '$lib/core/types.js';
 
-export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.26.1',
-	publishedAt: '2026-07-26',
+const previousRuleSet: RuleSetManifest = {
+	version: '2026.07.27.0',
+	publishedAt: '2026-07-27',
 	sourceIds: [
 		'G-ADD-SONGS',
 		'T-LANGUAGE-DETECT',
@@ -90,6 +90,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'style.harper',
 		'text.invisible-characters',
 		'unknown.marker',
+		'unknown.unresolved',
 		'repeat.placeholder',
 		'sound-effect.asterisks',
 		'censored.mask',
@@ -104,10 +105,19 @@ export const currentRuleSet: RuleSetManifest = {
 	]
 };
 
-/** Empty bootstrap snapshot retained as the prior known-good rule-set. */
-export const previousKnownGoodRuleSet: RuleSetManifest = {
-	version: '2026.07.24.0',
-	publishedAt: '2026-07-24',
-	sourceIds: [],
-	ruleIds: []
+export const previousKnownGoodRuleSet = previousRuleSet;
+
+export const currentRuleSet: RuleSetManifest = {
+	version: '2026.07.27.2',
+	publishedAt: '2026-07-27',
+	sourceIds: [...previousRuleSet.sourceIds, 'G-SYMBOLS', 'G-AS-SPOKEN', 'G-NON-ENGLISH'],
+	ruleIds: [
+		...previousRuleSet.ruleIds.slice(
+			0,
+			previousRuleSet.ruleIds.indexOf('text.invisible-characters')
+		),
+		'symbols.special-characters',
+		...previousRuleSet.ruleIds.slice(previousRuleSet.ruleIds.indexOf('text.invisible-characters')),
+		'adlib.separator'
+	]
 };

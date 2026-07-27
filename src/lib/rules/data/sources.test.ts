@@ -48,23 +48,33 @@ const reviewedIds = [
 	'G-REPEATS',
 	'G-LINES',
 	'G-SFX',
-	'G-CENSORED'
-] as const;
-
-const needsReviewIds = [
+	'G-CENSORED',
 	'G-QUOTES',
 	'G-SYMBOLS',
 	'G-AS-SPOKEN',
 	'G-NON-ENGLISH',
-	'G-INSTRUMENTAL'
+	'G-INSTRUMENTAL',
+	'G-ROMANIZED',
+	'G-TRANSLATIONS'
 ] as const;
+
+const latestHashes = new Map([
+	['G-QUOTES', 'sha256:af782896da241613e8c43f818e1e29cbd10c737dd3a25085ecdff4f9b85ec49b'],
+	['G-SYMBOLS', 'sha256:264d9996c30fe27b2d8d51591a3fdf4a26c16569a1ab5849cd48c30449e9f601'],
+	['G-AS-SPOKEN', 'sha256:961751d472f6b006e7c23640f99f18d5f81255f3cec22faf002648b0e648e092'],
+	['G-NON-ENGLISH', 'sha256:23f3b830f5078af165503b09bc9e7775a3b4e5623260b3ac1648c2c25d6ae8f1'],
+	['G-INSTRUMENTAL', 'sha256:27f047b0a1ab7f56e8cbf9ef46ea08c1441e843f66f41e569afefb2874e55350'],
+	['G-ROMANIZED', 'sha256:fc82a5078321719e14a6efda974655d32f6d14027547baa53e2d6d9b7979373a'],
+	['G-TRANSLATIONS', 'sha256:df8d1a410fbcbf88f912a5d030553840a6145383649e4d194c2bb8dc453fa4eb']
+]);
 
 describe('source registry', () => {
 	it('contains every reviewed source with exact review dates', () => {
 		expect(() => assertReviewedSources(reviewedIds)).not.toThrow();
 		for (const id of reviewedIds) {
-			const lastVerifiedAt =
-				id === 'T-HARPER'
+			const lastVerifiedAt = latestHashes.has(id)
+				? '2026-07-27'
+				: id === 'T-HARPER'
 					? '2026-07-26'
 					: id.startsWith('L-') ||
 						  id === 'APPLE-LINE-PUNCTUATION' ||
@@ -73,38 +83,39 @@ describe('source registry', () => {
 						? '2026-07-25'
 						: '2026-07-24';
 			expect(getSource(id)).toMatchObject(
-				id === 'T-HARPER'
+				latestHashes.has(id)
 					? {
 							id,
-							retrievedAt: '2026-07-26',
+							retrievedAt: '2026-07-27',
 							lastVerifiedAt,
-							reviewStatus: 'reviewed'
+							reviewStatus: 'reviewed',
+							contentHash: latestHashes.get(id)
 						}
-					: id === 'APPLE-LINE-PUNCTUATION' || id.startsWith('L-')
+					: id === 'T-HARPER'
 						? {
 								id,
-								retrievedAt: '2026-07-25',
+								retrievedAt: '2026-07-26',
 								lastVerifiedAt,
 								reviewStatus: 'reviewed'
 							}
-						: {
-								id,
-								retrievedAt: '2026-07-24',
-								lastVerifiedAt,
-								reviewStatus: 'reviewed'
-							}
+						: id === 'APPLE-LINE-PUNCTUATION' || id.startsWith('L-')
+							? {
+									id,
+									retrievedAt: '2026-07-25',
+									lastVerifiedAt,
+									reviewStatus: 'reviewed'
+								}
+							: {
+									id,
+									retrievedAt: '2026-07-24',
+									lastVerifiedAt,
+									reviewStatus: 'reviewed'
+								}
 			);
 		}
 	});
 
-	it('keeps candidate sources out of reviewed provenance', () => {
-		for (const id of needsReviewIds) {
-			expect(getSource(id)?.reviewStatus).toBe('needs-review');
-		}
-		expect(() => assertReviewedSources(needsReviewIds)).toThrow(/not reviewed/u);
-	});
-
-	it('contains only the 52 specified source records', () => {
-		expect(sourceRegistry.size).toBe(52);
+	it('contains only the 54 specified source records', () => {
+		expect(sourceRegistry.size).toBe(54);
 	});
 });

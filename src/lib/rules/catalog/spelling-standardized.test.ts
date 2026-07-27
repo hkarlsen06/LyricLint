@@ -15,7 +15,12 @@ describe('spelling.standardized', () => {
 
 		expect(markedText(text, found)).toEqual(['Imma', 'tho', 'whoa', 'dawg']);
 		expect(fixInserts(found)).toEqual(["I'ma", 'though', 'woah', 'dog']);
-		expect(found.every((finding) => finding.fixes?.[0]?.kind === 'safe')).toBe(true);
+		expect(found.map((finding) => finding.fixes?.[0]?.kind)).toEqual([
+			'safe',
+			'safe',
+			'safe',
+			'preview'
+		]);
 		expect(found.every((finding) => finding.fixes?.[0]?.edit.baseRevision === testRevision)).toBe(
 			true
 		);
@@ -165,6 +170,17 @@ describe('spelling.standardized', () => {
 
 	it('stays silent on forms whose alternates are all accepted', () => {
 		expect(checkRule(rule, '[Verse]\nshawty shorty alright')).toEqual([]);
+	});
+
+	it('keeps pronunciation-sensitive spellings out of automatic fixes', () => {
+		const findings = checkRule(rule, '[Verse]\ndawg with a choppa');
+
+		expect(findings.map((finding) => finding.message)).toEqual([
+			'Review whether “dawg” matches the pronunciation.',
+			'Review whether “choppa” matches the pronunciation.'
+		]);
+		expect(findings.every((finding) => finding.fixes?.[0]?.kind === 'preview')).toBe(true);
+		expect(findings.every((finding) => finding.sourceIds.includes('G-AS-SPOKEN'))).toBe(true);
 	});
 
 	it('does not confuse similar real words or intentional pronunciation variants for typos', () => {

@@ -24,6 +24,7 @@
 	import {
 		buildRuleContext,
 		computeDiagnostics,
+		deferActiveLineTrailingWhitespace,
 		everyLyricLineTimed,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
@@ -105,6 +106,7 @@
 	let lastLintKey = '';
 	let harperTimer: ReturnType<typeof setTimeout> | undefined;
 	let harperRequest = 0;
+	let harperPending = false;
 	let harperUnavailable = false;
 	let languageDetectorTimer: ReturnType<typeof setTimeout> | undefined;
 	let languageDetectorStarted = false;
@@ -124,6 +126,7 @@
 
 	function invalidateHarper(): number {
 		harperRequest += 1;
+		harperPending = false;
 		if (harperTimer !== undefined) {
 			clearTimeout(harperTimer);
 			harperTimer = undefined;
@@ -144,6 +147,7 @@
 			return;
 		}
 
+		harperPending = true;
 		const key = `${controller.draftId}\u0000${lintKey(snapshot)}`;
 		const language = controller.language;
 		const performers = [...controller.performers];
@@ -167,15 +171,27 @@
 						return;
 					}
 
+					harperPending = false;
 					const merged = mergeHarperDiagnostics(nativeDiagnostics, harperDiagnostics);
-					if (merged.length === nativeDiagnostics.length) return;
 					lastDiagnostics = merged;
-					controller.onSnapshot({ ...current, diagnostics: merged });
+					controller.onSnapshot(
+						{
+							...current,
+							diagnostics: deferActiveLineTrailingWhitespace(
+								current,
+								merged,
+								editorHandle?.getSectionLinks?.()
+							)
+						},
+						merged
+					);
 				})
 				.catch((error: unknown) => {
 					if (request !== harperRequest || harperUnavailable) return;
+					harperPending = false;
 					harperUnavailable = true;
 					console.error('Harper grammar checking is unavailable.', error);
+					controller.onSnapshot(controller.snapshot, lastDiagnostics);
 				});
 		}, harperDelay);
 	}
@@ -192,7 +208,7 @@
 				.then(() => {
 					if (destroyed) return;
 					lastLintKey = '';
-					controller.onSnapshot(enrichSnapshot(controller.snapshot));
+					publishSnapshot(controller.snapshot);
 				})
 				.catch((error: unknown) => console.error('Language recognition is unavailable.', error));
 		}, languageDetectorDelay);
@@ -202,7 +218,14 @@
 		if (!snapshot.composing) {
 			const key = lintKey(snapshot);
 			if (key === lastLintKey) {
-				return { ...snapshot, diagnostics: lastDiagnostics };
+				return {
+					...snapshot,
+					diagnostics: deferActiveLineTrailingWhitespace(
+						snapshot,
+						lastDiagnostics,
+						editorHandle?.getSectionLinks?.()
+					)
+				};
 			}
 			const context = buildRuleContext(
 				controller.language,
@@ -217,7 +240,19 @@
 		} else {
 			invalidateHarper();
 		}
-		return { ...snapshot, diagnostics: lastDiagnostics };
+		return {
+			...snapshot,
+			diagnostics: deferActiveLineTrailingWhitespace(
+				snapshot,
+				lastDiagnostics,
+				editorHandle?.getSectionLinks?.()
+			)
+		};
+	}
+
+	function publishSnapshot(snapshot: EditorSnapshot): void {
+		const enriched = enrichSnapshot(snapshot);
+		controller.onSnapshot(enriched, harperPending ? null : lastDiagnostics);
 	}
 
 	onDestroy(() => {
@@ -245,7 +280,7 @@
 	});
 
 	const editorCallbacks: LyricEditorCallbacks = {
-		onSnapshot: (snapshot) => controller.onSnapshot(enrichSnapshot(snapshot)),
+		onSnapshot: publishSnapshot,
 		// Assignment happens inline in the floating card; the right panel keeps
 		// whatever tab the user chose.
 		onAssignRequest: () => {},
@@ -343,6 +378,8 @@
 			anchors = editorHandle?.getLineAnchors?.() ?? [];
 			controller.onLineAnchorsChanged();
 		},
+		// Unlinking moves no text, so this is the only thing that writes it down.
+		onSectionLinksChanged: () => controller.onSectionLinksChanged(),
 		onSeekMedia: (time) => {
 			const player = controller.media?.player;
 			if (!player?.attached) return;
@@ -480,7 +517,7 @@
 		const current = controller.snapshot;
 		const key = lintKey(current);
 		if (current.composing || key === lastLintKey) return;
-		controller.onSnapshot(enrichSnapshot(current));
+		publishSnapshot(current);
 	});
 </script>
 
@@ -548,6 +585,17 @@
 				     this draft is already named after, rather than only for one that
 				     has been attached. -->
 				<MediaPicker media={controller.media} draftTitle={controller.title} />
+			{/if}
+			{#if !controller.isEmpty}
+				<button
+					type="button"
+					class="button--quiet status-bar__insert"
+					aria-label="Insert [?]"
+					title="Insert unknown lyric marker"
+					onclick={() => controller.insertUnknownMarker()}
+				>
+					Insert <span class="status-bar__marker">[?]</span>
+				</button>
 			{/if}
 			{#if documentCounts.length > 0}
 				<span>{documentCounts.join(' · ')}</span>

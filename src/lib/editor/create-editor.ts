@@ -1,4 +1,5 @@
 import { redo as redoCommand, history, undo as undoCommand } from '@codemirror/commands';
+import { openSearchPanel, searchKeymap } from '@codemirror/search';
 import {
 	EditorSelection,
 	EditorState,
@@ -74,9 +75,20 @@ import {
 	sectionGhostTheme,
 	setHeaderlessSectionsEffect
 } from './extensions/section-ghosts.js';
+import {
+	linkSections as linkSectionsCommand,
+	sectionLinkDecorations,
+	sectionLinkField,
+	sectionLinkHistory,
+	sectionLinkMirror,
+	sectionLinkTheme,
+	sectionLinksFor,
+	setSectionLinksEffect
+} from './extensions/section-links.js';
 import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
+import { searchReplace } from './extensions/search-replace.js';
 import { createUpdateListener, snapshotFromState } from './extensions/update-bridge.js';
-import { lyricLintKeymap, requestSectionHeader } from './keymap.js';
+import { lyricLintKeymap, requestSectionHeader, requestSectionLink } from './keymap.js';
 import { dispatchAtomicEdit } from './transaction-adapter.js';
 
 export interface CreateLyricEditorOptions {
@@ -482,7 +494,13 @@ function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEditorCallb
 		onRequestMediaTime: () => read().onRequestMediaTime?.(),
 		onSeekMedia: (time) => read().onSeekMedia?.(time),
 		onLyricSyncChange: (active, startAt) => read().onLyricSyncChange?.(active, startAt),
-		onLineAnchorsChanged: () => read().onLineAnchorsChanged?.()
+		onLineAnchorsChanged: () => read().onLineAnchorsChanged?.(),
+		// Same allow-list, same trap: a hook left out of here is never called, with
+		// nothing to see at either end. The link request is what the `Ctrl-Alt-L`
+		// binding fires, and the change hook is the only thing that saves an unlink,
+		// which moves no text at all.
+		onSectionLinkRequest: (request) => read().onSectionLinkRequest?.(request),
+		onSectionLinksChanged: () => read().onSectionLinksChanged?.()
 	};
 }
 
@@ -587,8 +605,16 @@ export function createLyricEditor(
 		headerRenameSessionField,
 		headerRenameFilter(),
 		headerRenameNotifier(),
+		// Last of the filters registered and therefore the first to run: like the
+		// rename it needs the user's own edit, and the two cannot collide because
+		// one only ever reads a header and the other only ever reads a body.
+		sectionLinkField,
+		sectionLinkHistory,
+		sectionLinkMirror(),
+		sectionLinkDecorations,
 		fixPreviewField,
 		documentPlaceholderField,
+		searchReplace,
 		performerGroupsField,
 		performerDecorationField,
 		lintDecorationField,
@@ -613,9 +639,10 @@ export function createLyricEditor(
 			onAnchorsChanged: () => callbackProxy.onLineAnchorsChanged?.()
 		}),
 		lineAnchorTheme,
+		sectionLinkTheme,
 		lyricSync(syncOptions),
 		lyricSyncTheme,
-		keymap.of(lyricLintKeymap(callbackProxy, options.keymapOverrides)),
+		keymap.of([...searchKeymap, ...lyricLintKeymap(callbackProxy, options.keymapOverrides)]),
 		selectionAnchorPlugin(
 			(anchor) => options.onSelectionAnchor?.(anchor),
 			options.selectionSettleDelay
@@ -644,6 +671,18 @@ export function createLyricEditor(
 		extensions
 	});
 	const view = new EditorView({ state, parent: host });
+	const openFind = (event: KeyboardEvent): void => {
+		const modifier = /Mac|iPhone|iPad|iPod/u.test(navigator.platform)
+			? event.metaKey
+			: event.ctrlKey;
+		if (event.key.toLowerCase() !== 'f' || !modifier || event.altKey || event.shiftKey) {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		openSearchPanel(view);
+	};
+	window.addEventListener('keydown', openFind, true);
 
 	function applyContext(context: EditorDisplayContext): void {
 		const revision = view.state.field(editorRevisionField);
@@ -754,6 +793,25 @@ export function createLyricEditor(
 		requestSectionHeader() {
 			requestSectionHeader(view, callbackProxy);
 		},
+		requestSectionLink() {
+			requestSectionLink(view, callbackProxy);
+		},
+		getSectionLinks() {
+			return sectionLinksFor(view.state);
+		},
+		setSectionLinks(links) {
+			view.dispatch({
+				effects: setSectionLinksEffect.of(links),
+				annotations: Transaction.addToHistory.of(false)
+			});
+		},
+		// Deliberately *not* `addToHistory.of(false)`: this one carries the edit
+		// that overwrites the other sections, and an overwrite the user cannot
+		// undo is the one thing linking must never be.
+		linkSections(headerOffsets) {
+			linkSectionsCommand(view, headerOffsets);
+			callbackProxy.onSectionLinksChanged?.();
+		},
 		getLineAnchors() {
 			return lineAnchorsFor(view.state);
 		},
@@ -813,6 +871,7 @@ export function createLyricEditor(
 			}
 			destroyed = true;
 			options.onSelectionAnchor?.(undefined);
+			window.removeEventListener('keydown', openFind, true);
 			view.destroy();
 			host.replaceChildren();
 		}

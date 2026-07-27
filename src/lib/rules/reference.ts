@@ -93,6 +93,7 @@ const groupTitles: Record<string, string> = {
 	quotes: 'Quotation marks',
 	contraction: 'Contractions',
 	grammar: 'Grammar',
+	symbols: 'Symbols and special characters',
 	text: 'Invisible characters',
 	unknown: 'Unknown lyrics',
 	repeat: 'Repeated sections',

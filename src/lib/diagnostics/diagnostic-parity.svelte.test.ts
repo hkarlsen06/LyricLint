@@ -153,6 +153,18 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		expect(popoverActions(diagnostic)).toEqual(expected);
 	});
 
+	it('accepts an unresolved lyric with a normal button on both surfaces', () => {
+		const diagnostic: Diagnostic = {
+			...contractionDiagnostic(),
+			ruleId: 'unknown.unresolved',
+			fixes: undefined
+		};
+		const expected = [{ label: 'It really is unintelligible', classes: 'button button--contrast' }];
+
+		expect(panelActions(diagnostic)).toEqual(expected);
+		expect(popoverActions(diagnostic)).toEqual(expected);
+	});
+
 	it('offers the same batch, in the same tier, on both surfaces', () => {
 		const diagnostic = spellingDiagnostic();
 		const panel = panelActions(diagnostic, batchOf(3));

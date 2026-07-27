@@ -15,6 +15,13 @@ function isRecognizedHeader(name: string): boolean {
 	);
 }
 
+function isNonEnglishTitleHeader(name: string, language: string, sectionIndex: number): boolean {
+	const pack = getLanguagePack(language);
+	return (
+		sectionIndex === 0 && pack.tag !== 'en' && pack.tag !== 'und' && /["“][^"”]+["”]/u.test(name)
+	);
+}
+
 function orderedSourceIds(language: string, sourceIds: readonly string[]): string[] {
 	const selected = getLanguagePack(language);
 	const selectedSourceIds = canLintHeaderLanguage(selected) ? selected.sourceIds : [];
@@ -41,12 +48,17 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 		'G-LANG-ES',
 		'G-LANG-FR',
 		'G-LANG-JA',
-		'G-LANG-KO'
+		'G-LANG-KO',
+		'G-NON-ENGLISH'
 	],
 	check(document, context) {
-		return document.sections.flatMap((section) => {
+		return document.sections.flatMap((section, sectionIndex) => {
 			const header = section.header;
-			if (!header || isRecognizedHeader(header.namePart)) {
+			if (
+				!header ||
+				isRecognizedHeader(header.namePart) ||
+				isNonEnglishTitleHeader(header.namePart, context.language, sectionIndex)
+			) {
 				return [];
 			}
 
@@ -57,7 +69,10 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 					`Review the custom section header “${header.namePart}”.`,
 					`“${header.namePart}” is not in any reviewed section-header catalog. It may be intentional, but it could also be a typo. Confirm it manually; LyricLint preserves the text and does not guess a replacement.`,
 					undefined,
-					orderedSourceIds(context.language, this.sourceIds)
+					orderedSourceIds(
+						context.language,
+						this.sourceIds.filter((sourceId) => sourceId !== 'G-NON-ENGLISH')
+					)
 				)
 			];
 		});

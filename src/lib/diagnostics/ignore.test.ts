@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Diagnostic } from '$lib/core/types.js';
-import { diagnosticIgnoreKey, ignoredDiagnosticKeys } from './ignore.js';
+import { diagnosticIgnoreKey, matchIgnoredDiagnostics } from './ignore.js';
 import { diagnosticKey } from './order.js';
 
 function diagnostic(from: number): Diagnostic {
@@ -22,7 +22,7 @@ describe('diagnostic ignores', () => {
 		const second = diagnostic(11);
 		const ignored = diagnosticIgnoreKey(second, text);
 
-		expect([...ignoredDiagnosticKeys([first, second], text, [ignored])]).toEqual([
+		expect([...matchIgnoredDiagnostics([first, second], text, [ignored]).values()]).toEqual([
 			diagnosticKey(second)
 		]);
 
@@ -30,7 +30,7 @@ describe('diagnostic ignores', () => {
 		const shiftedFirst = diagnostic(7);
 		const shiftedSecond = diagnostic(18);
 		expect([
-			...ignoredDiagnosticKeys([shiftedFirst, shiftedSecond], shiftedText, [ignored])
+			...matchIgnoredDiagnostics([shiftedFirst, shiftedSecond], shiftedText, [ignored]).values()
 		]).toEqual([diagnosticKey(shiftedSecond)]);
 	});
 });

@@ -4,7 +4,12 @@ import type { EditorView } from '@codemirror/view';
 import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js';
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
-import { editorComposingField, parsedDocumentForView } from './extensions/editor-state.js';
+import { linkableHeaderAt } from './section-links.js';
+import {
+	editorComposingField,
+	editorContextField,
+	parsedDocumentForView
+} from './extensions/editor-state.js';
 import { anchorLineEffect, anchorTimeAt, formatAnchorTime } from './extensions/line-anchors.js';
 import { diagnosticsForState, sortDiagnostics } from './extensions/lint-decorations.js';
 
@@ -47,6 +52,40 @@ function assignPerformers(callbacks: EditorCallbacks): (view: EditorView) => boo
 		callbacks.onAssignRequest({ range, prefer: 'above' });
 		return true;
 	};
+}
+
+/**
+ * Open the link picker on the repeated section the caret is in.
+ *
+ * The pointer opens this card by selecting a header whole, which a keyboard
+ * user has no equivalent of — every anchored surface here is `aria-hidden`
+ * inside CodeMirror's gutters or reached by a drag. So the shortcut asks the
+ * same question of the same predicate, and answers a refusal out loud: an aimed
+ * press that silently does nothing reads as a broken shortcut.
+ */
+export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallbacks): boolean {
+	if (composing(view)) {
+		return true;
+	}
+	const range = logicalSelection(view);
+	const header = linkableHeaderAt(
+		parsedDocumentForView(view),
+		view.state.field(editorContextField, false)?.languagePack,
+		range.from,
+		range.to
+	);
+	if (!header) {
+		return announce(
+			callbacks,
+			'Put the cursor in a chorus, pre-chorus, or post-chorus to link it to the others.'
+		);
+	}
+	callbacks.onSectionLinkRequest?.({ range: header, prefer: 'above' });
+	return true;
+}
+
+function linkSections(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
+	return (view) => requestSectionLink(view, callbacks);
 }
 
 function containingSectionRange(view: EditorView): TextRange {
@@ -203,6 +242,12 @@ export function lyricLintKeymap(
 		{ key: 'Ctrl-Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Mod-Shift-h', run: insertSection(callbacks), preventDefault: true },
+		// `Mod-Shift` and deliberately not the `Ctrl-Alt` family the rest of these
+		// live in: `Ctrl-Alt-L` is the transport's forward key, bound to the window,
+		// and two implementations of one keystroke is how every nudge came to fire
+		// twice. This belongs beside `Mod-Shift-H` anyway — both are commands about
+		// the song's structure rather than about its audio.
+		{ key: 'Mod-Shift-l', run: linkSections(callbacks), preventDefault: true },
 		// F7 through F9 belong to the transport. F2 and Shift-F2 keep diagnostic
 		// navigation on the function row without asking one key to mean two things.
 		// `.` and `,` remain the cross-platform primaries because they are adjacent

@@ -58,6 +58,7 @@
 	}: Props = $props();
 
 	const isUnrecognizedHeaderReview = $derived(diagnostic.ruleId === 'section.header-unrecognized');
+	const isUnresolvedUnknown = $derived(diagnostic.ruleId === 'unknown.unresolved');
 	const offersHeaderPicker = $derived(
 		diagnostic.ruleId === 'section.header-missing' && onChooseHeader !== undefined
 	);
@@ -195,10 +196,12 @@
 	{:else}
 		<button
 			type="button"
-			class="button button--quiet diagnostic-actions__ignore"
+			class={isUnresolvedUnknown
+				? 'button button--contrast'
+				: 'button button--quiet diagnostic-actions__ignore'}
 			onclick={(event) => onIgnore(event.currentTarget)}
 		>
-			Ignore
+			{isUnresolvedUnknown ? 'It really is unintelligible' : 'Ignore'}
 		</button>
 	{/if}
 	{#if onClose}

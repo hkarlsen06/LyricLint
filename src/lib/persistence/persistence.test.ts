@@ -405,7 +405,8 @@ describe('autosave and recovery', () => {
 			lineAnchors: [
 				{ line: 2, time: 12.5 },
 				{ line: 3, time: 30 }
-			]
+			],
+			sectionLinks: [{ lines: [1, 3] }]
 		};
 		const autosave = createAutosaveController(repository, { debounceMs: 10 });
 
