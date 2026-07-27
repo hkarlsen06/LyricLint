@@ -116,14 +116,19 @@ export const sectionUnlinkedRepeatRule: RuleDefinition = {
 				matching.length === members.length
 					? `This song part appears ${members.length} times, and every copy either already matches the others or is still empty.`
 					: `${matching.length} of this song part's ${members.length} copies say the same thing, or are still empty; the rest are sung differently and are left alone.`;
-			diagnostics.push(
-				diagnostic(
+			diagnostics.push({
+				...diagnostic(
 					this,
 					{ from: source.header.from, to: source.header.to },
 					'Link the matching sections so one correction reaches them all.',
 					`${scope} Linking ties them together so that editing one edits the rest, and a correction can never land in only one copy. Nothing here is overwritten: linking is offered only where the copies already agree.`
+				),
+				relatedRanges: matching.flatMap((section) =>
+					section.header && section.header !== source.header
+						? [{ from: section.header.from, to: section.header.to }]
+						: []
 				)
-			);
+			});
 		}
 		return diagnostics;
 	}

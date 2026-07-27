@@ -71,16 +71,16 @@
 			: undefined
 	);
 
-	function rowButtons(): HTMLButtonElement[] {
-		return root ? [...root.querySelectorAll<HTMLButtonElement>('[data-link-row]')] : [];
+	function rowInputs(): HTMLInputElement[] {
+		return root ? [...root.querySelectorAll<HTMLInputElement>('[data-link-row]')] : [];
 	}
 
 	function focusActive(): void {
-		rowButtons()[activeIndex]?.focus();
+		rowInputs()[activeIndex]?.focus();
 	}
 
 	function move(delta: number): void {
-		const rows = rowButtons();
+		const rows = rowInputs();
 		if (rows.length === 0) {
 			return;
 		}
@@ -95,7 +95,7 @@
 		if (!root) {
 			return [];
 		}
-		const row = rowButtons()[activeIndex];
+		const row = rowInputs()[activeIndex];
 		return [
 			...(row ? [row] : []),
 			...root.querySelectorAll<HTMLButtonElement>('.actions button:not(:disabled)')
@@ -147,10 +147,6 @@
 			trapTab(event);
 			return;
 		}
-		const row =
-			event.target instanceof HTMLElement
-				? event.target.closest<HTMLButtonElement>('[data-link-row]')
-				: null;
 		switch (event.key) {
 			case 'ArrowDown':
 			case 'ArrowRight':
@@ -161,14 +157,6 @@
 			case 'ArrowLeft':
 				event.preventDefault();
 				move(-1);
-				break;
-			case ' ':
-			case 'Spacebar':
-				if (!row?.dataset.header) {
-					break;
-				}
-				event.preventDefault();
-				toggle(Number(row.dataset.header));
 				break;
 			case 'Enter':
 				event.preventDefault();
@@ -219,41 +207,33 @@
 				{@const isSelected = selected.includes(occurrence.headerFrom)}
 				<li>
 					{#if isCurrent}
-						<span class="row row--current">
-							<span class="row__check" aria-hidden="true"></span>
+						<label class="row row--current">
+							<input class="row__check" type="checkbox" checked disabled />
 							<span class="row__label">{kind} {occurrence.ordinal}</span>
-							<span class="row__meta">This one · line {occurrence.line}</span>
-						</span>
+							<span class="row__meta">This section · line {occurrence.line}</span>
+						</label>
 					{:else}
-						<button
-							type="button"
-							data-link-row
-							data-header={occurrence.headerFrom}
-							class="row"
-							aria-pressed={isSelected}
-							tabindex={rowIndex.get(occurrence.headerFrom) === activeIndex ? 0 : -1}
-							onclick={() => toggle(occurrence.headerFrom)}
-							onfocus={() => (activeIndex = rowIndex.get(occurrence.headerFrom) ?? 0)}
-						>
-							<span class="row__check" aria-hidden="true">
-								{#if isSelected}
-									<svg
-										viewBox="0 0 16 16"
-										width="11"
-										height="11"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="2"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<path d="m3.2 8.6 3 3.1 6.6-7.2" />
-									</svg>
-								{/if}
-							</span>
+						<label class="row" class:row--matching={occurrence.comparison === 'same'}>
+							<input
+								type="checkbox"
+								data-link-row
+								data-header={occurrence.headerFrom}
+								class="row__check"
+								checked={isSelected}
+								tabindex={rowIndex.get(occurrence.headerFrom) === activeIndex ? 0 : -1}
+								onchange={() => toggle(occurrence.headerFrom)}
+								onfocus={() => (activeIndex = rowIndex.get(occurrence.headerFrom) ?? 0)}
+							/>
 							<span class="row__label">{kind} {occurrence.ordinal}</span>
-							<span class="row__meta">Line {occurrence.line}</span>
-						</button>
+							<span class="row__meta">
+								{occurrence.comparison === 'same'
+									? 'Same lyrics'
+									: occurrence.comparison === 'empty'
+										? 'Empty'
+										: 'Different lyrics'}
+								· line {occurrence.line}
+							</span>
+						</label>
 					{/if}
 				</li>
 			{/each}
@@ -379,16 +359,23 @@
 		color: var(--color-text-muted);
 	}
 
-	.row[aria-pressed='true'] {
+	.row--matching .row__meta {
+		color: var(--color-text);
+		font-weight: var(--font-weight-semibold);
+	}
+
+	.row:has(.row__check:checked):not(.row--current) {
 		border-color: var(--color-border-strong);
 		background: var(--color-selected);
 	}
 
 	.row__check {
 		flex: none;
-		display: flex;
-		width: 0.75rem;
-		justify-content: center;
+		width: 1rem;
+		height: 1rem;
+		margin: 0;
+		accent-color: var(--color-accent);
+		opacity: 1;
 	}
 
 	.row__label {
@@ -426,11 +413,11 @@
 		font-weight: var(--font-weight-regular);
 	}
 
-	.picker:not(.show-focus) button:focus-visible {
+	.picker:not(.show-focus) :is(button, input):focus-visible {
 		outline: none;
 	}
 
-	.show-focus button:focus-visible {
+	.show-focus :is(button, input):focus-visible {
 		outline: var(--focus-ring-width) solid var(--color-focus);
 		outline-offset: var(--focus-ring-offset);
 	}

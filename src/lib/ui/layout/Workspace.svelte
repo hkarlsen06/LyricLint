@@ -39,12 +39,15 @@
 	let {
 		controller,
 		editorComponent = MockEditorPane,
-		harperProvider = createHarperDiagnosticProvider()
+		harperProvider = createHarperDiagnosticProvider(),
+		brandRevealed = true
 	}: {
 		controller: WorkbenchController;
 		editorComponent?: Component<EditorPaneProps>;
 		/** Injectable so component tests never need to instantiate the WASM worker. */
 		harperProvider?: HarperDiagnosticProvider;
+		/** Delays the toolbar lockup until the boot screen has finished leaving. */
+		brandRevealed?: boolean;
 	} = $props();
 
 	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
@@ -523,7 +526,7 @@
 	<!-- The toolbar spans both columns: the draft's name, its save state, and the
 	     commands that act on the whole document belong to the window, not to the
 	     editor half of it. The panel's tabs then hang directly under it. -->
-	<DocumentToolbar {controller} />
+	<DocumentToolbar {controller} {brandRevealed} />
 
 	<section class="editor-region" aria-label="Lyrics workspace">
 		<div class="editor-host" data-testid="editor-region">

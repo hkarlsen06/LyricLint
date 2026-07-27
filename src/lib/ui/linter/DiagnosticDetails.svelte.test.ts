@@ -169,8 +169,17 @@ describe('DiagnosticDetails preview flow', () => {
 		expect(onApplyFix).toHaveBeenCalledWith(safeFix);
 	});
 
-	it('offers the section picker without creating a preview fix', async () => {
+	it('offers choosing a header or removing the blank line', async () => {
 		const onChooseHeader = vi.fn();
+		const onApplyFix = vi.fn();
+		const removeBlankLine = {
+			kind: 'preview' as const,
+			label: 'Remove blank line',
+			edit: {
+				baseRevision: 0,
+				edits: [{ from: 7, to: 9, insert: '\n' }]
+			}
+		};
 		await render(DiagnosticDetails, {
 			diagnostic: {
 				ruleId: 'section.header-missing',
@@ -179,21 +188,27 @@ describe('DiagnosticDetails preview flow', () => {
 				to: 0,
 				message: 'This lyric section has no header.',
 				explanation: 'Choose a reviewed localized term.',
-				sourceIds: []
+				sourceIds: [],
+				fixes: [removeBlankLine]
 			},
 			onChooseHeader,
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
-			onApplyFix: vi.fn(),
+			onApplyFix,
 			onIgnore: vi.fn()
 		});
 
-		await expect.element(page.getByRole('button', { name: /Preview:/ })).not.toBeInTheDocument();
 		const chooseHeader = page.getByRole('button', { name: 'Choose header' });
+		const remove = page.getByRole('button', { name: 'Remove blank line' });
 		await expect.element(chooseHeader).toHaveClass('button');
+		await expect.element(remove).toBeVisible();
+		await expect.element(chooseHeader).toHaveClass('button--contrast');
+		await expect.element(remove).not.toHaveClass('button--contrast');
 		expect(chooseHeader.element().classList.contains('button--pill')).toBe(false);
 		await chooseHeader.click();
+		await remove.click();
 		expect(onChooseHeader).toHaveBeenCalledOnce();
+		expect(onApplyFix).toHaveBeenCalledWith(removeBlankLine);
 	});
 
 	it('offers guided performer assignment for an unresolved styled voice', async () => {

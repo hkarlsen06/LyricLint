@@ -51,6 +51,8 @@ export interface LinkOccurrence {
 	label: string;
 	/** Position among this kind's occurrences, counted from the top of the song. */
 	ordinal: number;
+	/** How this section's lyrics compare with the section the picker opened from. */
+	comparison: 'source' | 'same' | 'empty' | 'different';
 }
 
 /** Every section of the same kind as the one at `headerFrom`, in document order. */
@@ -66,16 +68,29 @@ export function linkOccurrences(
 	if (!semantic) {
 		return [];
 	}
-	return parsed.sections
-		.filter(
-			(section) => section.header && linkableSemantic(pack, section.header.rawNamePart) === semantic
-		)
-		.map((section, index) => ({
-			headerFrom: section.header?.from ?? 0,
-			line: lineNumberAt(parsed.text, section.header?.from ?? 0),
-			label: section.header?.rawNamePart.trim() || section.header?.raw || '',
-			ordinal: index + 1
-		}));
+	const members = parsed.sections.filter(
+		(section) => section.header && linkableSemantic(pack, section.header.rawNamePart) === semantic
+	);
+	const lyrics = (section: Section): string =>
+		section.lines
+			.map((line) => line.text.trim())
+			.filter(Boolean)
+			.join('\n');
+	const sourceLyrics = lyrics(sectionForHeader(parsed, headerFrom) ?? members[0]);
+	return members.map((section, index) => ({
+		headerFrom: section.header?.from ?? 0,
+		line: lineNumberAt(parsed.text, section.header?.from ?? 0),
+		label: section.header?.rawNamePart.trim() || section.header?.raw || '',
+		ordinal: index + 1,
+		comparison:
+			section.header?.from === headerFrom
+				? 'source'
+				: lyrics(section).length === 0
+					? 'empty'
+					: lyrics(section) === sourceLyrics
+						? 'same'
+						: 'different'
+	}));
 }
 
 /**

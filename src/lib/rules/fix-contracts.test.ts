@@ -61,6 +61,15 @@ const contracts: FixContract[] = [
 		label: 'Add blank line'
 	},
 	{
+		id: 'section.header-missing',
+		input: '[Verse]\nFirst\n\nSecond',
+		language: 'en',
+		range: [15, 15],
+		expected: '[Verse]\nFirst\nSecond',
+		kind: 'preview',
+		label: 'Remove blank line'
+	},
+	{
 		id: 'section.immediate-repeat-spacing',
 		input: '[Chorus]\nAgain\nTonight\n\n[Chorus]\nAgain\nTonight',
 		language: 'en',

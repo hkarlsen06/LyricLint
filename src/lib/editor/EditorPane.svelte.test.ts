@@ -778,6 +778,81 @@ describe('EditorPane', () => {
 		expect(editorCallbacks.onDiagnosticActivate).not.toHaveBeenCalled();
 	});
 
+	it('makes a blank-line diagnostic visible and hoverable before it is selected', async () => {
+		const issue = testDiagnostic({
+			ruleId: 'section.header-missing',
+			from: 15,
+			to: 15,
+			message: 'This lyric section has no header.'
+		});
+		issue.relatedRanges = [{ from: 14, to: 15 }];
+		issue.fixes = [
+			{
+				kind: 'preview',
+				label: 'Remove blank line',
+				edit: { baseRevision: 0, edits: [{ from: 14, to: 15, insert: '' }] }
+			}
+		];
+		const editorCallbacks = callbacks();
+		const { handle } = await mountEditor({
+			text: '[Verse]\nFirst\n\nSecond',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [issue] }
+			}),
+			editorCallbacks
+		});
+
+		const lines = [...document.querySelectorAll('.cm-line')];
+		const marker = document.querySelector<HTMLElement>('.ll-diagnostic-blank-line');
+		expect(marker?.closest('.cm-line')).toBe(lines[2]);
+		expect(marker?.textContent).toBe('↵');
+
+		await userEvent.hover(marker!);
+
+		await expect.element(page.getByText(issue.message, { exact: true })).toBeVisible();
+		expect(editorCallbacks.onDiagnosticHighlight).toHaveBeenCalledWith(issue);
+
+		const preview = document.querySelector<HTMLElement>('.ll-fix-preview-blank-line');
+		if (!preview) {
+			throw new Error('Blank-line fix preview was not rendered.');
+		}
+		handle.setSelection({ anchor: issue.from, head: issue.to });
+		expect(document.querySelector('.ll-diagnostic-blank-line')).toBe(marker);
+		expect(getComputedStyle(marker!).display).toBe('inline-block');
+		expect(getComputedStyle(preview).display).toBe('none');
+
+		vi.mocked(editorCallbacks.onDiagnosticHighlight!).mockClear();
+		await userEvent.hover(marker!);
+
+		await expect
+			.poll(() => vi.mocked(editorCallbacks.onDiagnosticHighlight!).mock.calls)
+			.toContainEqual([issue]);
+		await expect.element(page.getByText(issue.message, { exact: true })).toBeVisible();
+	});
+
+	it('underlines and highlights every range described by one diagnostic', async () => {
+		const issue = testDiagnostic({ from: 0, to: 8 });
+		issue.relatedRanges = [{ from: 14, to: 24 }];
+		const { handle } = await mountEditor({
+			text: '[Chorus]\nHold\n[Chorus 2]',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [issue] }
+			})
+		});
+
+		const underlinedText = () =>
+			[...document.querySelectorAll('.ll-diagnostic-range')]
+				.map((range) => range.textContent)
+				.join('');
+		expect(underlinedText()).toBe('[Chorus][Chorus 2]');
+		handle.setSelection({ anchor: issue.from, head: issue.to });
+		expect(
+			[...document.querySelectorAll('.ll-diagnostic-range--active')]
+				.map((range) => range.textContent)
+				.join('')
+		).toBe('[Chorus][Chorus 2]');
+	});
+
 	it('edits at the tapped position instead of treating the first tap as a reveal', async () => {
 		// Underlined text is still text: one tap puts the caret where it landed,
 		// with no intervening step that has to be dismissed or repeated.
@@ -1425,6 +1500,22 @@ describe('EditorPane', () => {
 		expect(document.querySelector('.ll-fix-preview-remove')?.textContent).toBe('!');
 		expect(document.querySelector('.ll-fix-preview-insert')).toBeNull();
 		expect(handle.getSnapshot().text).toBe('hello!');
+	});
+
+	it('draws a blank-line deletion on the blank line, not the lyric below it', async () => {
+		const { handle } = await mountEditor({ text: '[Verse]\nFirst\n\nSecond' });
+
+		handle.previewAtomic?.({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 14, to: 15, insert: '' }]
+		});
+
+		const lines = [...document.querySelectorAll('.cm-line')];
+		const removed = document.querySelector('.ll-fix-preview-blank-line');
+		expect(removed?.closest('.cm-line')).toBe(lines[2]);
+		expect(removed?.textContent).toBe('↵');
+		expect(removed?.getAttribute('aria-label')).toBe('Suggested removal: blank line');
+		expect(document.querySelector('.ll-fix-preview-insert')).toBeNull();
 	});
 });
 

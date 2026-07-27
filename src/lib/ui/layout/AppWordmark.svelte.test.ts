@@ -41,10 +41,10 @@ describe('AppWordmark', () => {
 			// it survives a fixation rather than that it lasts any particular round
 			// number: a lockup that contracted inside 400ms would be gone before it
 			// had been read, which is the whole point of holding at all.
-			await vi.advanceTimersByTimeAsync(400);
+			await vi.advanceTimersByTimeAsync(6_999);
 			expect(element.dataset.state).toBe('intro');
 
-			await vi.advanceTimersByTimeAsync(1_000);
+			await vi.advanceTimersByTimeAsync(1);
 			expect(element.dataset.state).toBe('idle');
 
 			// The contraction is a CSS transition on the compositor's clock, not on
@@ -87,6 +87,35 @@ describe('AppWordmark', () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+
+	it('hands the boot wordmark into the header from the left', async () => {
+		await render(AppWordmark, { entrance: 'handoff' });
+		const element = lockup();
+
+		expect(element.dataset.state).toBe('intro');
+		expect(getComputedStyle(element).animationName).toBe('wordmark-handoff-left');
+		expect(getComputedStyle(element.querySelector('.app-wordmark__lead')!).animationName).toBe(
+			'none'
+		);
+		expect(
+			(element.getAnimations()[0]?.effect as KeyframeEffect | null)?.getKeyframes().at(-1)?.clipPath
+		).toBe('inset(0px)');
+	});
+
+	it('reserves the handoff space until the wordmark arrives', async () => {
+		const view = await render(AppWordmark, { entrance: 'handoff', visible: false });
+		const element = lockup();
+		const width = element.getBoundingClientRect().width;
+
+		expect(getComputedStyle(element).visibility).toBe('hidden');
+		expect(open(element)).toBe(1);
+		expect(width).toBeGreaterThan(0);
+
+		await view.rerender({ entrance: 'handoff', visible: true });
+		expect(lockup()).toBe(element);
+		expect(getComputedStyle(element).visibility).toBe('visible');
+		expect(getComputedStyle(element).animationDelay).toBe('0.36s');
 	});
 
 	it('leaves a revealed lockup open instead of contracting after it', async () => {
@@ -185,7 +214,7 @@ describe('AppWordmark', () => {
 		await tick();
 		// Releasing restores whatever the lockup would have been doing unpressed,
 		// rather than picking a state of its own — which this early is still the
-		// intro hold, since these presses all happened inside the first 900ms.
+		// intro hold, since these presses all happened inside the first 7,000ms.
 		expect(element.dataset.state).toBe('intro');
 	});
 

@@ -222,6 +222,15 @@ describe('rule regressions', () => {
 	it('leaves missing-header choice to the contextual section picker', () => {
 		const [finding] = diagnostics('section.header-missing', 'A lyric');
 		expect(finding?.fixes).toBeUndefined();
+		expect(finding?.explanation).toContain(
+			'Genius does not allow blank lines to split one part into smaller stanzas.'
+		);
+	});
+
+	it('previews blank-line removal on the blank line, not the lyric below it', () => {
+		const [finding] = diagnostics('section.header-missing', '[Verse]\nFirst\n\nSecond');
+		expect(finding?.relatedRanges).toEqual([{ from: 14, to: 15 }]);
+		expect(finding?.fixes?.[0]?.edit.edits).toEqual([{ from: 14, to: 15, insert: '' }]);
 	});
 
 	it('does not merge changed lyrics or different performer legends', () => {

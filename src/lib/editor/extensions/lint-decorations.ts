@@ -2,7 +2,7 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { Diagnostic, Severity } from '$lib/core/types.js';
+import type { Diagnostic, Severity, TextRange } from '$lib/core/types.js';
 import type { RevisionedDiagnostics } from '../contracts.js';
 import { editorCallbacksField, editorComposingField, editorRevisionField } from './editor-state.js';
 
@@ -73,13 +73,13 @@ export function clusterDiagnostics(
 	return clusters;
 }
 
-function isValidDiagnostic(diagnostic: Diagnostic, documentLength: number): boolean {
+function isValidRange(range: TextRange, documentLength: number): boolean {
 	return (
-		Number.isSafeInteger(diagnostic.from) &&
-		Number.isSafeInteger(diagnostic.to) &&
-		diagnostic.from >= 0 &&
-		diagnostic.from <= diagnostic.to &&
-		diagnostic.to <= documentLength
+		Number.isSafeInteger(range.from) &&
+		Number.isSafeInteger(range.to) &&
+		range.from >= 0 &&
+		range.from <= range.to &&
+		range.to <= documentLength
 	);
 }
 
@@ -242,21 +242,79 @@ class DiagnosticBadge extends WidgetType {
 	}
 }
 
+class BlankLineDiagnosticWidget extends WidgetType {
+	constructor(readonly diagnostic: Diagnostic) {
+		super();
+	}
+
+	eq(other: BlankLineDiagnosticWidget): boolean {
+		return other.diagnostic === this.diagnostic;
+	}
+
+	toDOM(): HTMLElement {
+		const marker = document.createElement('span');
+		marker.className =
+			`ll-diagnostic-range ll-diagnostic-blank-line ` +
+			`ll-diagnostic-blank-line-${this.diagnostic.severity}`;
+		marker.textContent = '↵';
+		marker.setAttribute('aria-label', `${this.diagnostic.severity}: ${this.diagnostic.message}`);
+		marker.setAttribute(diagnosticRangeAttribute, `${this.diagnostic.from}:${this.diagnostic.to}`);
+		return marker;
+	}
+
+	ignoreEvent(): boolean {
+		return false;
+	}
+}
+
 interface LintDecorationState {
 	revision?: number;
 	diagnostics: Diagnostic[];
+	active?: Diagnostic;
 	decorations: DecorationSet;
 }
 
-function buildDecorations(state: EditorState, diagnostics: readonly Diagnostic[]): DecorationSet {
+function activeRelatedDiagnostic(
+	state: EditorState,
+	diagnostics: readonly Diagnostic[]
+): Diagnostic | undefined {
+	const selection = state.selection.main;
+	return diagnostics.find(
+		(diagnostic) =>
+			diagnostic.relatedRanges?.length &&
+			selection.from === diagnostic.from &&
+			selection.to === diagnostic.to
+	);
+}
+
+function buildDecorations(
+	state: EditorState,
+	diagnostics: readonly Diagnostic[],
+	active?: Diagnostic
+): DecorationSet {
 	const callbacks = state.field(editorCallbacksField);
 	const ranges: Range<Decoration>[] = [];
 
 	for (const diagnostic of diagnostics) {
-		if (diagnostic.from < diagnostic.to) {
+		for (const range of [diagnostic, ...(diagnostic.relatedRanges ?? [])]) {
+			if (range.from >= range.to || !isValidRange(range, state.doc.length)) {
+				continue;
+			}
+			const text = state.doc.sliceString(range.from, range.to);
+			if (text.trim().length === 0 && /[\r\n]/u.test(text)) {
+				ranges.push(
+					Decoration.widget({
+						widget: new BlankLineDiagnosticWidget(diagnostic),
+						side: 1
+					}).range(range.from)
+				);
+				continue;
+			}
 			ranges.push(
 				Decoration.mark({
-					class: `ll-diagnostic-range ll-diagnostic-${diagnostic.severity}`,
+					class:
+						`ll-diagnostic-range ll-diagnostic-${diagnostic.severity}` +
+						(diagnostic === active ? ' ll-diagnostic-range--active' : ''),
 					attributes: {
 						'aria-label': `${diagnostic.severity}: ${diagnostic.message}`,
 						// No native `title`: the popover is this underline's tooltip, and
@@ -266,7 +324,7 @@ function buildDecorations(state: EditorState, diagnostics: readonly Diagnostic[]
 						// the exact diagnostic without re-deriving it from coordinates.
 						[diagnosticRangeAttribute]: `${diagnostic.from}:${diagnostic.to}`
 					}
-				}).range(diagnostic.from, diagnostic.to)
+				}).range(range.from, range.to)
 			);
 		}
 	}
@@ -327,14 +385,27 @@ export const lintDecorationField = StateField.define<LintDecorationState>({
 
 			const diagnostics = sortDiagnostics(
 				effect.value.items.filter((diagnostic) =>
-					isValidDiagnostic(diagnostic, transaction.state.doc.length)
+					isValidRange(diagnostic, transaction.state.doc.length)
 				)
 			);
+			const active = activeRelatedDiagnostic(transaction.state, diagnostics);
 			value = {
 				revision: currentRevision,
 				diagnostics,
-				decorations: buildDecorations(transaction.state, diagnostics)
+				active,
+				decorations: buildDecorations(transaction.state, diagnostics, active)
 			};
+		}
+
+		if (transaction.selection && value.diagnostics.length > 0) {
+			const active = activeRelatedDiagnostic(transaction.state, value.diagnostics);
+			if (active !== value.active) {
+				value = {
+					...value,
+					active,
+					decorations: buildDecorations(transaction.state, value.diagnostics, active)
+				};
+			}
 		}
 
 		return value;
@@ -399,7 +470,17 @@ function diagnosticAtPointer(event: MouseEvent, view: EditorView): Diagnostic | 
 	// half of the diff a dead zone. The widget has no text of its own to read
 	// coordinates against, so its place in the document is what resolves it.
 	const inserted = target?.closest('.ll-fix-preview-insert');
-	return inserted ? diagnosticAtPosition(diagnostics, view.posAtDOM(inserted)) : undefined;
+	if (inserted) {
+		return diagnosticAtPosition(diagnostics, view.posAtDOM(inserted));
+	}
+	const blankLinePreview = target?.closest('.ll-fix-preview-blank-line');
+	if (!blankLinePreview) {
+		return undefined;
+	}
+	const marker = blankLinePreview.closest('.cm-line')?.querySelector('.ll-diagnostic-blank-line');
+	return marker
+		? diagnosticForUnderline(marker, diagnostics)
+		: diagnosticAtPosition(diagnostics, view.posAtDOM(blankLinePreview));
 }
 
 /**
@@ -471,6 +552,35 @@ export const lintDecorationTheme = EditorView.baseTheme({
 		textDecorationStyle: 'wavy',
 		textDecorationThickness: '1.5px',
 		textUnderlineOffset: '3px'
+	},
+	'.ll-diagnostic-range--active': {
+		backgroundColor: 'var(--color-text-selection)'
+	},
+	'.ll-diagnostic-blank-line': {
+		display: 'inline-block',
+		paddingInline: '0.15em',
+		color: 'var(--color-text-muted)'
+	},
+	'.cm-line:has(.ll-fix-preview-blank-line) .ll-diagnostic-blank-line': {
+		borderRadius: 'var(--radius-xs)',
+		background: 'color-mix(in oklch, var(--color-danger) 16%, transparent)',
+		textDecoration: 'none',
+		boxShadow: 'inset 0 -2px 0 var(--color-danger)'
+	},
+	'.cm-line:has(.ll-diagnostic-blank-line) .ll-fix-preview-blank-line': {
+		display: 'none'
+	},
+	'.ll-diagnostic-blank-line-error': {
+		textDecorationColor: 'var(--color-danger)'
+	},
+	'.ll-diagnostic-blank-line-warning': {
+		textDecorationColor: 'var(--color-warning)'
+	},
+	'.ll-diagnostic-blank-line-suggestion': {
+		textDecorationColor: 'var(--color-suggestion)'
+	},
+	'.ll-diagnostic-blank-line-manual-review': {
+		textDecorationColor: 'var(--color-manual)'
 	},
 	'.ll-diagnostic-error': {
 		textDecorationColor: 'var(--color-danger)'

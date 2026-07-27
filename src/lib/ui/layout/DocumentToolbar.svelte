@@ -8,7 +8,10 @@
 	import SongFacts, { hasSongFacts } from '../media/SongFacts.svelte';
 	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let {
+		controller,
+		brandRevealed = true
+	}: { controller: WorkbenchController; brandRevealed?: boolean } = $props();
 	// Presentation-only clock for the "Saved locally · Ns ago" readout. It never
 	// feeds back into the controller; it only re-renders the relative timestamp.
 	let lastSavedAt = $state<number | undefined>();
@@ -142,7 +145,7 @@
 	     identity strip; everything that acts on the document lives on the right. -->
 	<div class="document-toolbar__identity">
 		<a class="document-toolbar__home" href={resolve('/')} aria-label="LyricLint home">
-			<AppWordmark />
+			<AppWordmark entrance="handoff" visible={brandRevealed} />
 		</a>
 		<!-- The name of the draft and the list of the other drafts are one control:
 		     typing in it renames this document, and the chevron at its end opens the

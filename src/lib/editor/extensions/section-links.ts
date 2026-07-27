@@ -2,13 +2,17 @@ import { invertedEffects } from '@codemirror/commands';
 import { EditorState, RangeSet, RangeValue, StateEffect, StateField } from '@codemirror/state';
 import type { ChangeDesc, Extension, Range, TransactionSpec } from '@codemirror/state';
 import { Transaction } from '@codemirror/state';
-import { Decoration, EditorView } from '@codemirror/view';
+import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import { parseDocument } from '$lib/core/parser.js';
 import { randomId } from '$lib/core/random-id.js';
 import type { SectionLink, TextEdit } from '$lib/core/types.js';
 import { sectionBodyRange } from '../section-links.js';
-import { editorComposingField, parsedDocumentForState } from './editor-state.js';
+import {
+	editorCallbacksField,
+	editorComposingField,
+	parsedDocumentForState
+} from './editor-state.js';
 import { singleChangedRange } from './header-rename.js';
 
 /**
@@ -352,14 +356,36 @@ export function sectionLinkMirror(): Extension {
 	});
 }
 
-/**
- * Mark a linked header, because a section that silently rewrites another has to
- * say so on the line it does it from.
- *
- * A line decoration and a CSS `::after`, never a widget: a widget in the content
- * flow participates in selection and copy, and clean lyrics on the clipboard are
- * this application's entire output.
- */
+class SectionLinkMarker extends WidgetType {
+	constructor(readonly headerFrom: number) {
+		super();
+	}
+
+	eq(other: SectionLinkMarker): boolean {
+		return other.headerFrom === this.headerFrom;
+	}
+
+	toDOM(view: EditorView): HTMLElement {
+		const marker = document.createElement('button');
+		marker.type = 'button';
+		marker.className = 'll-section-link-marker';
+		marker.textContent = '⇄';
+		marker.setAttribute('aria-label', 'Edit linked sections');
+		marker.setAttribute('aria-haspopup', 'dialog');
+		const open = () => {
+			const line = view.state.doc.lineAt(clamp(view.state, this.headerFrom));
+			view.state.field(editorCallbacksField, false)?.onSectionLinkRequest?.({
+				range: { from: line.from, to: line.to },
+				prefer: 'above'
+			});
+		};
+		marker.addEventListener('pointerenter', open);
+		marker.addEventListener('focus', open);
+		return marker;
+	}
+}
+
+/** Mark linked headers and open their existing picker directly from the mark. */
 export const sectionLinkDecorations = EditorView.decorations.compute(
 	[sectionLinkField],
 	(state): DecorationSet => {
@@ -370,7 +396,12 @@ export const sectionLinkDecorations = EditorView.decorations.compute(
 		const marks: Range<Decoration>[] = [];
 		const cursor = field.iter();
 		while (cursor.value) {
-			marks.push(Decoration.line({ class: 'll-linked-header' }).range(cursor.from));
+			marks.push(
+				Decoration.widget({
+					widget: new SectionLinkMarker(cursor.from),
+					side: 1
+				}).range(cursor.to)
+			);
 			cursor.next();
 		}
 		return Decoration.set(marks, true);
@@ -378,9 +409,19 @@ export const sectionLinkDecorations = EditorView.decorations.compute(
 );
 
 export const sectionLinkTheme = EditorView.baseTheme({
-	'.ll-linked-header::after': {
-		content: '" ⇄"',
+	'.ll-section-link-marker': {
+		marginInlineStart: '0.35em',
+		padding: '0',
+		border: '0',
+		appearance: 'none',
+		background: 'transparent',
 		color: 'var(--color-text-muted)',
-		fontSize: 'var(--font-size-xs)'
+		fontFamily: 'inherit',
+		fontSize: 'var(--font-size-xs)',
+		lineHeight: 'inherit',
+		cursor: 'pointer'
+	},
+	'.ll-section-link-marker:hover, .ll-section-link-marker:focus-visible': {
+		color: 'var(--color-text)'
 	}
 });

@@ -60,6 +60,10 @@ describe('section.unlinked-repeat', () => {
 		const found = checkRule(sectionUnlinkedRepeatRule, text);
 
 		expect(markedText(text, found)).toEqual(['[Chorus]']);
+		expect(found[0]?.relatedRanges?.map(({ from, to }) => text.slice(from, to))).toEqual([
+			'[Chorus 2]',
+			'[Chorus 3]'
+		]);
 		expect(found[0]?.explanation).toContain('appears 3 times');
 	});
 

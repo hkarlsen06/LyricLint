@@ -108,7 +108,7 @@ const previousRuleSet: RuleSetManifest = {
 export const previousKnownGoodRuleSet = previousRuleSet;
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.27.3',
+	version: '2026.07.27.6',
 	publishedAt: '2026-07-27',
 	sourceIds: [...previousRuleSet.sourceIds, 'G-SYMBOLS', 'G-AS-SPOKEN', 'G-NON-ENGLISH'],
 	ruleIds: [

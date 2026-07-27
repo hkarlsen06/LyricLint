@@ -132,7 +132,11 @@
 
 <div class="diagnostic-actions">
 	{#if offersHeaderPicker}
-		<button type="button" class="button diagnostic-actions__guided" onclick={onChooseHeader}>
+		<button
+			type="button"
+			class="button button--contrast diagnostic-actions__guided"
+			onclick={onChooseHeader}
+		>
 			Choose header
 		</button>
 	{/if}
@@ -162,7 +166,8 @@
 		{@const batch = batchCount(fix)}
 		<button
 			type="button"
-			class="button button--contrast diagnostic-actions__fix"
+			class="button diagnostic-actions__fix"
+			class:button--contrast={!offersHeaderPicker}
 			onpointerenter={() => showFix(fix)}
 			onfocus={() => showFix(fix)}
 			onclick={() => onApplyFix(fix)}

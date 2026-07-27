@@ -185,6 +185,8 @@ export interface Diagnostic extends TextRange {
 	message: string;
 	explanation: string;
 	sourceIds: string[];
+	/** Additional document ranges described by this same finding. */
+	relatedRanges?: readonly TextRange[];
 	/** Present when resolving the finding means selecting an inferred language. */
 	detectedLanguage?: DetectedDiagnosticLanguage;
 	/**

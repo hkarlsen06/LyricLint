@@ -94,8 +94,12 @@ export function overlayRange(overlay: OverlayState): TextRange | undefined {
 	switch (overlay.kind) {
 		case 'none':
 			return undefined;
-		case 'diagnostic':
-			return { from: overlay.diagnostic.from, to: overlay.diagnostic.to };
+		case 'diagnostic': {
+			const diagnostic = overlay.diagnostic;
+			return diagnostic.from === diagnostic.to && diagnostic.relatedRanges?.[0]
+				? diagnostic.relatedRanges[0]
+				: { from: diagnostic.from, to: diagnostic.to };
+		}
 		default:
 			return overlay.range;
 	}

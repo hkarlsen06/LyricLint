@@ -195,6 +195,28 @@
 	transition: none;
 }
 
+/* The boot screen leaves the same lockup behind in the toolbar. It is already
+   taking up its final space, then draws from left to right after the travel beat
+   so the second drawing reads as a handoff rather than waiting chrome. */
+.app-wordmark[data-entrance='handoff'][data-visible='false'] {
+	visibility: hidden;
+}
+
+.app-wordmark[data-entrance='handoff'][data-visible='true'] {
+	animation: wordmark-handoff-left var(--duration-slow) var(--ease-out-quart)
+		calc(var(--duration-slow) + var(--duration-fast)) both;
+}
+
+@keyframes wordmark-handoff-left {
+	from {
+		clip-path: inset(0 100% 0 0);
+	}
+
+	to {
+		clip-path: inset(0);
+	}
+}
+
 /* It answers a press, so it says so. */
 .app-wordmark {
 	cursor: pointer;
@@ -347,6 +369,10 @@
 @media (prefers-reduced-motion: reduce) {
 	.app-wordmark {
 		transition: none;
+	}
+
+	.app-wordmark[data-entrance='handoff'] {
+		animation: none;
 	}
 }
 

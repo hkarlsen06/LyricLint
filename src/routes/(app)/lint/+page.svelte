@@ -184,7 +184,7 @@
      already drawn rather than a workbench assembling itself in front of the
      user. A boot failure is the one thing that outranks the sequence. -->
 {#if controller}
-	<Workspace {controller} editorComponent={EditorPane} />
+	<Workspace {controller} editorComponent={EditorPane} brandRevealed={revealed} />
 {:else if bootError}
 	<p class="boot-message" role="alert">{bootError}</p>
 {/if}

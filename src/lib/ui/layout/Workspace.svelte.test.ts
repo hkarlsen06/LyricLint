@@ -182,6 +182,17 @@ describe('Workspace and toolbar', () => {
 		expect(screen.queryByRole('button', { name: 'Redo document edit' })).toBeNull();
 	});
 
+	test('waits for the boot reveal before handing the wordmark into the toolbar', async () => {
+		const { controller } = createTestWorkbench();
+		const view = render(DocumentToolbar, { controller, brandRevealed: false });
+		const wordmark = document.querySelector('.app-wordmark') as HTMLElement;
+
+		expect(wordmark).toHaveAttribute('data-visible', 'false');
+		await view.rerender({ controller, brandRevealed: true });
+		expect(screen.getByRole('img', { name: 'LyricLint' })).toBe(wordmark);
+		expect(wordmark).toHaveAttribute('data-visible', 'true');
+	});
+
 	test('replaces the selection with an unknown lyric marker in one undoable edit', async () => {
 		const { controller, calls } = createTestWorkbench({
 			text: '[Verse]\nI heard something',

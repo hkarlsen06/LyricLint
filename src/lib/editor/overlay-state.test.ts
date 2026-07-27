@@ -92,6 +92,13 @@ describe('overlay state', () => {
 		expect(
 			overlayRange({ kind: 'diagnostic', diagnostic: diagnostic(), takesFocus: false })
 		).toEqual({ from: 12, to: 18 });
+		expect(
+			overlayRange({
+				kind: 'diagnostic',
+				diagnostic: diagnostic({ from: 15, to: 15, relatedRanges: [{ from: 14, to: 15 }] }),
+				takesFocus: false
+			})
+		).toEqual({ from: 14, to: 15 });
 	});
 });
 

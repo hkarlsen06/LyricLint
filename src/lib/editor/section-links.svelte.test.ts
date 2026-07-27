@@ -89,6 +89,11 @@ describe('what counts as a linkable section', () => {
 			'Chorus 2',
 			'Chorus 3'
 		]);
+		expect(occurrences.map((occurrence) => occurrence.comparison)).toEqual([
+			'source',
+			'different',
+			'empty'
+		]);
 		// Line numbers are what gets written down, so they have to match
 		// CodeMirror's own 1-based numbering.
 		expect(occurrences.map((occurrence) => occurrence.line)).toEqual([4, 11, 15]);
@@ -111,6 +116,15 @@ describe('what counts as a linkable section', () => {
 		expect(
 			linkOccurrences(norwegian, norwegianLanguagePack, offsetOf(norwegian.text, '[Refreng]'))
 		).toHaveLength(2);
+	});
+
+	it('names sections with the same lyrics as the source', () => {
+		const repeated = parseDocument(SONG.replace('Hold on tigth', 'Hold on tight'));
+		expect(
+			linkOccurrences(repeated, englishLanguagePack, offsetOf(repeated.text, '[Chorus]')).map(
+				(occurrence) => occurrence.comparison
+			)
+		).toEqual(['source', 'same', 'empty']);
 	});
 
 	it('offers itself only for a header selected whole, on one line', () => {
@@ -200,6 +214,18 @@ describe('linking sections through the editor', () => {
 		expect(typed.split('Never let go!')).toHaveLength(2);
 	});
 
+	it('opens the link picker when a linked-section mark is hovered', async () => {
+		const handle = await mount(SONG);
+		handle.linkSections?.([offsetOf(SONG, '[Chorus]'), offsetOf(SONG, '[Chorus 2]')]);
+		const marker = document.querySelector<HTMLElement>('.ll-section-link-marker');
+		expect(marker).not.toBeNull();
+
+		await userEvent.hover(marker!);
+
+		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
+		await expect.element(page.getByText('This section · line 4')).toBeVisible();
+	});
+
 	// The pointer opens this card by selecting a header whole, which a keyboard
 	// user has no equivalent of — so `Mod-Shift-L` is the whole of its way in, and
 	// it runs `requestSectionLink`, the same command the handle exposes here.
@@ -216,9 +242,11 @@ describe('linking sections through the editor', () => {
 		await expect.element(card).toBeVisible();
 		// Every chorus is listed, numbered chronologically, and the one the card was
 		// opened from is named rather than offered.
-		await expect.element(page.getByText('This one · line 4')).toBeVisible();
-		await expect.element(page.getByRole('button', { name: /Chorus 2/ })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: /Chorus 3/ })).toBeVisible();
+		await expect.element(page.getByText('This section · line 4')).toBeVisible();
+		await expect.element(page.getByRole('checkbox', { name: /Chorus 2/ })).toBeVisible();
+		await expect.element(page.getByRole('checkbox', { name: /Chorus 3/ })).toBeVisible();
+		await expect.element(page.getByText('Different lyrics · line 11')).toBeVisible();
+		await expect.element(page.getByText('Empty · line 15')).toBeVisible();
 	});
 
 	// Opened on a group that is already complete there is no linking left to
@@ -257,7 +285,7 @@ describe('linking sections through the editor', () => {
 
 		const note = page.getByText('These 3 sections are linked. Editing one edits the others.');
 		await expect.element(note).toBeVisible();
-		await page.getByRole('button', { name: /Chorus 3/ }).click();
+		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
 		await expect.element(page.getByRole('button', { name: /Link 2 sections/ })).toBeVisible();
 		await expect.element(note).toBeVisible();
 	});
@@ -275,7 +303,7 @@ describe('linking sections through the editor', () => {
 		await expect.element(card).toBeVisible();
 		const before = (await card.element()).getBoundingClientRect();
 
-		await page.getByRole('button', { name: /Chorus 2/ }).click();
+		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
 		await expect.element(page.getByRole('button', { name: /Link 2 sections/ })).toBeVisible();
 		const after = (await card.element()).getBoundingClientRect();
 

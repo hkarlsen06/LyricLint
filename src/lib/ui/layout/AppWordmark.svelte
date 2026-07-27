@@ -33,30 +33,31 @@
 
 	/**
 	 * Which way an animated lockup arrives. `hold` leads with the word and then
-	 * contracts; `reveal` grows from the mark and stays open. `animated={false}`
-	 * bypasses both entrances and parks the rig open.
+	 * contracts; `handoff` adds the boot-to-header entrance before doing the same;
+	 * `reveal` grows from the mark and stays open. `animated={false}` bypasses
+	 * every entrance and parks the rig open.
 	 *
 	 * Not called `intro`, which is what it is: `intro` is one of Svelte's own
 	 * `mount` options, and a prop by that name is silently taken as the option and
 	 * never reaches the component — including from every `render()` in the tests,
 	 * which then quietly exercise the default.
 	 */
-	let { entrance = 'hold', animated = true }: { entrance?: 'hold' | 'reveal'; animated?: boolean } =
-		$props();
+	let {
+		entrance = 'hold',
+		animated = true,
+		visible = true
+	}: {
+		entrance?: 'hold' | 'handoff' | 'reveal';
+		animated?: boolean;
+		visible?: boolean;
+	} = $props();
 
 	/**
-	 * How long the wordmark holds before it contracts to the mark on load: long
-	 * enough to read the word, and not a moment longer. Silent reading runs about
-	 * 238 words a minute, or ~250ms for the five-letter average; `LyricLint` is a
-	 * nine-letter compound and costs closer to 400ms. Add a saccade to land on it
-	 * in the first place, and a beat to register it before it moves — motion that
-	 * begins on the same frame the eye arrives reads as a glitch, not a gesture.
-	 *
-	 * The old five seconds was a guess, and it was long enough that the
-	 * contraction stopped reading as the end of an intro and started reading as
-	 * something breaking.
+	 * The shared open hold before contraction. Seven seconds gives the boot handoff
+	 * time to arrive, settle, and read before every animated header yields its
+	 * space back.
 	 */
-	const READING_MS = 900;
+	const READING_MS = 7_000;
 
 	/**
 	 * The beat a `reveal` waits before it opens, and it is short for the missing
@@ -87,11 +88,11 @@
 	// what carries a later change through. Recomputing it reactively would snap a
 	// navigating lockup back to a starting position it should be leaving.
 	// svelte-ignore state_referenced_locally
-	let introOpen = $state(entrance === 'hold');
+	let introOpen = $state(entrance !== 'reveal');
 
 	$effect(() => {
 		const reveal = entrance === 'reveal';
-		if (!animated || prefersReducedMotion) return;
+		if (!visible || !animated || prefersReducedMotion) return;
 		// Reading `entrance` in here is deliberate: a client-side navigation between
 		// the site pages swaps the mode without remounting the header's lockup, and
 		// re-running the timer is what plays the arriving page's entrance. Resetting
@@ -161,7 +162,9 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <span
 	class="app-wordmark"
+	data-entrance={entrance}
 	data-state={openState}
+	data-visible={visible}
 	role="img"
 	aria-label="LyricLint"
 	onclick={togglePress}
