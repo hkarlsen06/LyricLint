@@ -6,6 +6,7 @@
 	import { formatTime } from '../state/media-player.svelte.js';
 	import { youtubeSearchTerm } from '../state/media-youtube.js';
 	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
+	import LoadingMark from '../primitives/LoadingMark.svelte';
 
 	let { media, draftTitle }: { media: MediaStore; draftTitle?: string } = $props();
 
@@ -52,7 +53,7 @@
 	 * its own: it disables controls, which reads as the dialog having gone dead
 	 * rather than as work being done, and it says nothing about *which* row was
 	 * pressed. So the search holds its own flag and the attach remembers the id it
-	 * is attaching, which is what lets the spinner appear on the row the user
+	 * is attaching, which is what lets the loading mark appear on the row the user
 	 * actually aimed at.
 	 */
 	let searching = $state(false);
@@ -137,7 +138,7 @@
 			outcome = await media.searchSpotify(query);
 		} finally {
 			// `finally`, because a refusal has to give the field back as surely as an
-			// answer does — a spinner left turning over a dead request is worse than
+			// answer does — a loading mark left moving over a dead request is worse than
 			// the silence this replaced.
 			searching = false;
 		}
@@ -371,7 +372,7 @@
 							autocomplete="off"
 							spellcheck="false"
 						/>
-						<!-- The label stays put and a spinner joins it, rather than the
+						<!-- The label stays put and a loading mark joins it, rather than the
 						     word swapping to `Searching…`: a control whose text changes
 						     under the press reflows the row it is in, and this one sits
 						     beside a field the user may still be typing into. -->
@@ -382,7 +383,7 @@
 							aria-busy={songSearching}
 						>
 							{#if songSearching}
-								<span class="spinner" aria-hidden="true"></span>
+								<LoadingMark />
 							{/if}
 							Search
 						</button>
@@ -406,7 +407,7 @@
 										     alone could never say. -->
 										<span class="media-dialog__result-time">
 											{#if attachingId === song.songId}
-												<span class="spinner" aria-hidden="true"></span>
+												<LoadingMark />
 											{:else}
 												{formatTime(song.durationSeconds)}
 											{/if}
@@ -464,7 +465,7 @@
 							aria-busy={searching}
 						>
 							{#if searching}
-								<span class="spinner" aria-hidden="true"></span>
+								<LoadingMark />
 							{/if}
 							Search
 						</button>
@@ -491,7 +492,7 @@
 										<span class="media-dialog__result-name">{track.name}</span>
 										<span class="media-dialog__result-time">
 											{#if attachingId === track.trackId}
-												<span class="spinner" aria-hidden="true"></span>
+												<LoadingMark />
 											{:else}
 												{formatTime(track.durationSeconds)}
 											{/if}
@@ -666,7 +667,7 @@
 
 	/*
 	 * The duration's slot is also the row's wait, so it holds its own width: a
-	 * spinner replacing `3:43` must not reflow the name beside it.
+	 * loading mark replacing `3:43` must not reflow the name beside it.
 	 */
 	.media-dialog__result-time {
 		display: inline-flex;
@@ -680,7 +681,7 @@
 	}
 
 	/*
-	 * The search control, which is a word and sometimes a spinner beside it.
+	 * The search control, which is a word and sometimes a loading mark beside it.
 	 *
 	 * The label does not change under the press. `Search` becoming `Searching…` is
 	 * the obvious version and it reflows the row every time — this one sits

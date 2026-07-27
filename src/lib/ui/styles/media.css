@@ -328,17 +328,19 @@
 
 /* Player-sized, not chrome-sized. The glyphs carry `width`/`height` attributes
    for the strip, so this is the override that makes them big here. */
-.media-artwork__controls svg,
-.media-artwork__controls .spinner {
+.media-artwork__controls .media-strip__transport-button > svg,
+.media-artwork__controls .loading-mark {
 	width: 20px;
 	height: 20px;
+	font-size: 20px;
 }
 
 /* Play leads, the way it does in every transport anyone has used. */
-.media-artwork__controls .media-strip__transport-button:nth-child(2) svg,
-.media-artwork__controls .media-strip__transport-button:nth-child(2) .spinner {
+.media-artwork__controls .media-strip__transport-button:nth-child(2) > svg,
+.media-artwork__controls .media-strip__transport-button:nth-child(2) .loading-mark {
 	width: 28px;
 	height: 28px;
+	font-size: 28px;
 }
 
 .media-strip__transport,

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { MediaPlayer } from '../state/media-player.svelte.js';
 	import { transportModifier } from '../state/media-shortcuts.js';
+	import LoadingMark from '../primitives/LoadingMark.svelte';
 
 	let { player, captions = true }: { player: MediaPlayer; captions?: boolean } = $props();
 
@@ -79,7 +80,7 @@
 		label reading `Loading` would name the state and lose the action.
 	-->
 	{#if player.starting}
-		<span class="spinner" aria-hidden="true"></span>
+		<LoadingMark />
 	{:else}
 		<svg
 			aria-hidden="true"

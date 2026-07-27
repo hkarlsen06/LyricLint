@@ -26,6 +26,7 @@
 	// than written down twice, because a CSS transition that disagrees with the
 	// timer driving it tears the sequence in half.
 	import AppWordmark from './AppWordmark.svelte';
+	import { runWave } from '../primitives/wave-loop.js';
 	import { onMount, untrack } from 'svelte';
 
 	let {
@@ -97,64 +98,6 @@
 	 */
 	const FALL_EXIT_MS = RELEASE_MS + 60;
 
-	/**
-	 * The waiting wave is the mark's own wave with a phase, drawn from the sine it
-	 * was always an approximation of.
-	 *
-	 * This replaces a considerably cleverer arrangement, and the difference is
-	 * worth writing down because the clever one looked reasonable at every step.
-	 * It animated the phase by *translating* a longer path — which meant the path
-	 * had to be swapped for one several periods wide, which meant it filled the
-	 * viewBox instead of stopping two units short of it, which meant the wave
-	 * visibly widened and lost its round caps to the clip edge the instant the
-	 * wait began, which meant a mask to fade those edges out, which meant an
-	 * `@property` percentage to animate the mask, a `--boot-wave-soften` beat to
-	 * fade it before the swap landed underneath it, and a timer in here to hold
-	 * the swap for exactly that long. Six mechanisms, each one load-bearing for
-	 * the one before it, and all of them holding up the first decision.
-	 *
-	 * Computing the curve instead makes every one of them unnecessary. The span is
-	 * fixed at the mark's own `2` to `30`, so the ends never move and never need
-	 * hiding, and the phase is one number in the expression. The sine differs from
-	 * the mark's quadratic by 0.27 units at its worst — about a third of a pixel at
-	 * the size this draws — so the first frame *is* the mark and there is no
-	 * transition into the animation to conceal.
-	 *
-	 * It runs at one speed from that first frame. There was a run-in easing it out
-	 * of rest, which is the right idea for a wave that starts on its own and the
-	 * wrong one here: this one is struck. The mark lands and the wave is moving,
-	 * and anything between the two turns an impact into a wind-up. The amplitude
-	 * held still for the same reason — a wave that swells and shrinks is a second
-	 * thing to watch in a mark whose only job at that moment is to be steady.
-	 */
-	const WAVE_FROM = 2;
-	const WAVE_TO = 30;
-	/** The centre line and peak deviation of `M2 16Q9 6.7 16 16T30 16`. */
-	const WAVE_MID = 16;
-	const WAVE_PEAK = 4.65;
-	/** One wavelength per this long, from the first frame. */
-	const WAVE_PERIOD_MS = 950;
-	/**
-	 * How far past the current phase to look when parking. The wave stops where it
-	 * is the mark again, which is any whole wavelength — but the nearest one may be
-	 * two frames away, and stopping that abruptly after the workbench arrives reads
-	 * as the animation being cut off rather than coming to rest. A fifth of a
-	 * wavelength is enough to always be a deliberate run-out.
-	 */
-	const WAVE_PARK_LEAD = 0.2;
-
-	function wavePath(elapsed: number): string {
-		const phase = elapsed / WAVE_PERIOD_MS;
-		const span = WAVE_TO - WAVE_FROM;
-
-		let path = '';
-		for (let x = WAVE_FROM; x <= WAVE_TO; x += 1) {
-			const y = WAVE_MID - WAVE_PEAK * Math.sin(2 * Math.PI * ((x - WAVE_FROM) / span + phase));
-			path += `${path ? 'L' : 'M'}${x} ${y.toFixed(2)}`;
-		}
-		return path;
-	}
-
 	const prefersReducedMotion =
 		typeof window !== 'undefined' &&
 		typeof window.matchMedia === 'function' &&
@@ -171,12 +114,6 @@
 	// was still scaling. With nothing after the landing, both are just `landed`.
 	let landed = $state(false);
 	let leaving = $state(false);
-	// Whether the wave is at rest at a whole wavelength, where it is the mark's own
-	// curve again. True until a wait actually starts one, and true again once the
-	// workbench has arrived and the wave has run out to the next matching phase —
-	// which is what the reveal waits for, so the last thing on screen before the
-	// workspace is the mark rather than a wave caught mid-stride.
-	let waveParked = $state(true);
 	// Whether this boot ever had a wait, latched as the fall begins. It says one
 	// thing only: the brand never had to become the mark, so the brackets keep the
 	// colour they were opened in the whole way down. Where the answer arrives late
@@ -201,9 +138,11 @@
 	/**
 	 * When the screen starts to leave, which is two different moments and not one.
 	 *
-	 * **With a wave**, it is after the landing and after the wave has run out to a
-	 * whole wavelength — the gap is where the wave lives, so nothing can close
-	 * until it has finished.
+	 * **With a wave**, it is the landing. The wave used to have to run out to a
+	 * whole wavelength first, so that it was never left frozen mid-stride — which
+	 * was worth up to a wavelength of held-back workspace until the exit learned to
+	 * close the brackets over it. Squeezed out from both edges, the phase it
+	 * happened to be at is not on screen long enough to be anywhere.
 	 *
 	 * **Without one**, it is the top of the fall. There is nothing left to wait for
 	 * by then, so the fall *is* the exit: the brackets fade as they travel and are
@@ -213,7 +152,7 @@
 	 * the fall began and one that became ready halfway down, because this is
 	 * re-asked on every change rather than latched.
 	 */
-	const exiting = $derived(ready && waveParked && (sparked ? landed : stage === 'land'));
+	const exiting = $derived(ready && (sparked ? landed : stage === 'land'));
 
 	/**
 	 * One exit duration, and it is measured against what it has to keep pace with.
@@ -262,17 +201,21 @@
 		};
 	});
 
-	// The wait redraws the lockup's own wave, frame by frame, and puts the mark's
-	// path back when it ends.
+	// The wait redraws the lockup's own wave, and `wave-loop.ts` is what does it —
+	// the curve and its loop are not about booting, so they live where anything
+	// else that has to draw a wait can reach them. What is boot-specific is only
+	// *when* it runs, which is the effect below.
 	//
 	// The stylesheet already reaches into `.app-wordmark__wave` to drive this
-	// screen's version of the mark, and this is the same override in the one place
-	// CSS cannot express it. `d` *is* a CSS property in Blink and behind an
-	// `@supports` it silently cost WebKit the whole animation once already; as an
-	// attribute it is as old as SVG. And a curve with a phase in it is not
-	// something a keyframe can state anyway — which is the point, since the
-	// alternative was translating a longer path and every mechanism that then
-	// needed.
+	// screen's version of the mark, and going through the DOM for the path is the
+	// same override in the one place CSS cannot express it.
+	//
+	// It runs at one speed from its first frame. There was a run-in easing it out
+	// of rest, which is the right idea for a wave that starts on its own and the
+	// wrong one here: this one is struck. The mark lands and the wave is moving,
+	// and anything between the two turns an impact into a wind-up. The amplitude
+	// held still for the same reason — a wave that swells and shrinks is a second
+	// thing to watch in a mark whose only job at that moment is to be steady.
 	let root = $state<HTMLElement>();
 
 	$effect(() => {
@@ -281,45 +224,11 @@
 		// down by it, because arriving is what starts the run-out below.
 		if (!landed) return;
 		if (untrack(() => ready)) return;
-		const path = root?.querySelector('.app-wordmark__wave path');
+		const path = root?.querySelector<SVGPathElement>('.app-wordmark__wave path');
 		if (!path) return;
-		const own = path.getAttribute('d');
-		waveParked = false;
 		sparked = true;
-		// Slowed rather than stopped, like `.spinner`: a still wave reads as a
-		// drawing, and it is the only thing on screen reporting that anything is
-		// happening at all.
-		const rate = prefersReducedMotion ? 0.35 : 1;
-		const started = performance.now();
-		// Where the wave will come to rest, once there is something to come to rest
-		// for. A whole number of wavelengths is where it is the mark's own curve
-		// again, so stopping there is invisible — the shape is already correct and
-		// simply stops changing.
-		let parkAt = Number.POSITIVE_INFINITY;
-		let frame = requestAnimationFrame(function draw(now) {
-			const phase = ((now - started) * rate) / WAVE_PERIOD_MS;
-			if (ready && parkAt === Number.POSITIVE_INFINITY) {
-				// Reduced motion parks where it stands. The run-out is worth up to a
-				// whole wavelength of waiting, and at this rate that is nearly three
-				// seconds of held-back workspace bought with motion, which is the one
-				// currency this reader has asked to spend less of.
-				parkAt = prefersReducedMotion ? phase : Math.ceil(phase + WAVE_PARK_LEAD);
-			}
-			if (phase >= parkAt) {
-				// Back to the mark exactly, rather than to a sine that rounds to it.
-				if (own !== null) path.setAttribute('d', own);
-				waveParked = true;
-				return;
-			}
-			path.setAttribute('d', wavePath(phase * WAVE_PERIOD_MS));
-			frame = requestAnimationFrame(draw);
-		});
-		// Restored rather than left, so the last frames of the screen — the fade,
-		// which runs after the wait ends — are the mark itself again.
-		return () => {
-			cancelAnimationFrame(frame);
-			if (own !== null) path.setAttribute('d', own);
-		};
+		// Slowed rather than stopped under reduced motion.
+		return runWave(path, { rate: prefersReducedMotion ? 0.35 : 1 });
 	});
 
 	// The reveal waits for both: a workspace that arrived early is held behind the

@@ -254,14 +254,14 @@ describe('MediaPicker', () => {
 		const search = dialog()?.querySelector('.media-dialog__search') as HTMLButtonElement;
 		search.click();
 		await vi.waitFor(() => expect(search.getAttribute('aria-busy')).toBe('true'));
-		expect(search.querySelector('.spinner')).not.toBeNull();
+		expect(search.querySelector('.loading-mark')).not.toBeNull();
 
 		release();
 		// A refusal has to hand the field back as surely as an answer does: a
-		// spinner left turning over a dead request is worse than the silence it
+		// loading mark left moving over a dead request is worse than the silence it
 		// replaced.
 		await vi.waitFor(() => expect(search.getAttribute('aria-busy')).toBe('false'));
-		expect(search.querySelector('.spinner')).toBeNull();
+		expect(search.querySelector('.loading-mark')).toBeNull();
 	});
 
 	/*

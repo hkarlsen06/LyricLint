@@ -4,6 +4,7 @@
 	import type { WorkspaceBackupState } from '$lib/persistence/backup.js';
 	import { copyText, downloadImage } from '../clipboard.js';
 	import { onMount } from 'svelte';
+	import LoadingMark from '../primitives/LoadingMark.svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
 	let confirmDeleteAll = $state(false);
@@ -197,7 +198,7 @@
 					</button>
 				{/if}
 				{#if artwork}
-					<!-- The label stays put and a spinner joins it: a control whose text
+					<!-- The label stays put and a loading mark joins it: a control whose text
 					     changes under the press reflows the row it was pressed in. -->
 					<button
 						type="button"
@@ -207,7 +208,7 @@
 						onclick={() => saveArtwork(artwork)}
 					>
 						{#if savingArtwork}
-							<span class="spinner" aria-hidden="true"></span>
+							<LoadingMark />
 						{/if}
 						Download album art
 					</button>
