@@ -39,7 +39,7 @@ The primary workspace uses two structural regions:
 │ Lyrics editor                                 │ Tools                   │
 │                                               │                         │
 │ Inline marks, clustered badges,               │ Issue list, sources,    │
-│ selection performer picker                    │ roster, ignored rules   │
+│ selection performer picker                    │ roster, ignored issues  │
 │                                               │                         │
 └───────────────────────────────────────────────┴─────────────────────────┘
 ```
@@ -98,7 +98,7 @@ Opening the application creates a blank draft only when there is no current reco
 
 ### Session state
 
-Ignored rules belong in `sessionStorage`, keyed by draft ID and rule ID. They survive reloads in the same tab but not a new browser session. Ignoring a rule is not part of CodeMirror undo history.
+Ignored diagnostics belong in `sessionStorage`, keyed by draft ID and an occurrence fingerprint. They survive reloads in the same tab but not a new browser session, and are included in workspace backups. Ignoring a diagnostic is not part of CodeMirror undo history.
 
 ## Canonical document and derived model
 
@@ -252,7 +252,6 @@ Roster-only metadata changes use a separate action with toast undo. A normal doc
 - Accounts and cross-device sync
 - Collaborative editing
 - Audio playback
-- Occurrence-level rule ignores
 - Hidden-markup or WYSIWYM editing
 - Authorized guideline synchronization
 - Mobile-first editing

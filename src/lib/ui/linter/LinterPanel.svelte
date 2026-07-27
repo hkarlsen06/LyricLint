@@ -39,8 +39,8 @@
 			suggestion: 0,
 			'manual-review': 0
 		};
-		for (const diagnostic of controller.snapshot.diagnostics) {
-			if (!controller.ignoredRuleIds.includes(diagnostic.ruleId)) result[diagnostic.severity] += 1;
+		for (const diagnostic of controller.unignoredDiagnostics) {
+			result[diagnostic.severity] += 1;
 		}
 		return result;
 	});
@@ -48,10 +48,8 @@
 	// Diagnostics the severity chips are currently hiding. Ignored rules do not
 	// count: the filters only take the blame for what they actually hide.
 	const hiddenByFilters = $derived(
-		controller.snapshot.diagnostics.filter(
-			(diagnostic) =>
-				!controller.ignoredRuleIds.includes(diagnostic.ruleId) &&
-				!controller.severityFilter.includes(diagnostic.severity)
+		controller.unignoredDiagnostics.filter(
+			(diagnostic) => !controller.severityFilter.includes(diagnostic.severity)
 		).length
 	);
 
@@ -79,7 +77,7 @@
 			return {
 				title: 'All issues ignored',
 				detail:
-					'Every issue in this draft comes from a rule you ignored. Restore rules from Ignored rules below.'
+					'Every issue in this draft was ignored. Restore diagnostics from Ignored diagnostics below.'
 			};
 		}
 		return {
@@ -207,7 +205,7 @@
 		onApplyFix={(diagnostic, fix) => controller.applyFix(diagnostic, fix)}
 		fixBatchSize={(diagnostic, fix) => controller.fixBatchSize(diagnostic, fix)}
 		onApplyFixBatch={(diagnostic, fix) => controller.applyFixBatch(diagnostic, fix)}
-		onIgnore={(ruleId) => controller.ignoreRule(ruleId)}
+		onIgnore={(diagnostic) => controller.ignoreDiagnostic(diagnostic)}
 	/>
 	{#if controller.visibleDiagnostics.length > 0}
 		<p class="linter-panel__afterword">{afterword}</p>

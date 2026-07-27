@@ -107,6 +107,7 @@
 	function onSelect(event: Event): void {
 		const target = event.currentTarget as HTMLTextAreaElement;
 		selection = { anchor: target.selectionStart, head: target.selectionEnd };
+		emitSnapshot();
 	}
 </script>
 

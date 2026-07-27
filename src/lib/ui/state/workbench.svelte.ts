@@ -34,6 +34,7 @@ import type { MediaRepository } from '$lib/persistence/media-repository.js';
 import type { MediaPlayer } from './media-player.svelte.js';
 import type { MediaStore } from './media-store.svelte.js';
 import { createMediaStore } from './media-store.svelte.js';
+import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persistence/backup.js';
 
 export { performerColorIds } from './roster-store.svelte.js';
 export type { RosterMergeSuggestion } from './roster-store.svelte.js';
@@ -54,6 +55,8 @@ export interface WorkbenchDependencies {
 	 * that nothing has contacted Google needs a stub in that position.
 	 */
 	mediaPlayer?: MediaPlayer;
+	/** Omitted by contract tests that do not open IndexedDB. */
+	backup?: WorkspaceBackupController;
 	autosave: AutosaveController;
 	ignoreStore: SessionIgnoreStore;
 	feedback?: FeedbackState;
@@ -67,6 +70,7 @@ export interface WorkbenchDependencies {
 	onOpenDraft?: (draft: DraftRecord) => EditorSnapshot | void;
 	initialActiveTab?: RightPanelTab;
 	onActiveTabChange?: (tab: RightPanelTab) => void;
+	onBackupRestored?: () => void;
 }
 
 export interface WorkbenchController {
@@ -94,10 +98,11 @@ export interface WorkbenchController {
 	readonly activeDiagnosticKey?: string;
 	readonly severityFilter: readonly Severity[];
 	readonly severityFiltersOpen: boolean;
+	readonly unignoredDiagnostics: readonly Diagnostic[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
 	readonly bulkFixPlan: BulkFixPlan;
-	readonly ignoredRuleIds: readonly string[];
-	readonly ignoredRuleCount: number;
+	readonly ignoredDiagnosticKeys: readonly string[];
+	readonly ignoredDiagnosticCount: number;
 	readonly saveStatus: AutosaveStatus;
 	readonly drafts: readonly DraftSummary[];
 	readonly feedback: FeedbackState;
@@ -112,6 +117,7 @@ export interface WorkbenchController {
 	 * than deciding for themselves whether audio exists.
 	 */
 	readonly media?: MediaStore;
+	readonly backup?: WorkspaceBackupController;
 	/**
 	 * Publish the editor handle bound by the workspace. Svelte clears a bound
 	 * component prop during keyed teardown, so the hand-off can briefly carry
@@ -150,8 +156,8 @@ export interface WorkbenchController {
 	fixBatchSize(diagnostic: Diagnostic, fix: DiagnosticFix): number;
 	applyFixBatch(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	applyBulkFix(): void;
-	ignoreRule(ruleId: string): void;
-	restoreRule(ruleId: string): void;
+	ignoreDiagnostic(diagnostic: Diagnostic): void;
+	restoreDiagnostic(diagnosticKey: string): void;
 	copyCanonical(): Promise<boolean>;
 	pasteLyrics(): Promise<void>;
 	/** Replace an empty document with the bundled sample transcription. */
@@ -170,6 +176,9 @@ export interface WorkbenchController {
 	exportDraft(id?: string): Promise<void>;
 	deleteDraft(id: string): Promise<void>;
 	deleteAllDrafts(): Promise<void>;
+	backupWorkspace(): Promise<void>;
+	allowBackupAccess(): Promise<void>;
+	restoreWorkspaceBackup(file: File): Promise<boolean>;
 	flushAutosave(): Promise<void>;
 }
 
@@ -234,7 +243,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			},
 			onDraftLoaded(nextDraft) {
 				roster.reset(nextDraft.performers);
-				panel.refreshIgnoredRules();
+				panel.refreshIgnoredDiagnostics();
 				// The song is the draft, so the audio travels with it: switching
 				// drafts stops whatever was playing and offers the new draft's own
 				// track. Deleting drafts arrives here too, by way of the empty draft
@@ -279,7 +288,8 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		ignoreStore: deps.ignoreStore,
 		feedback,
 		initialActiveTab: deps.initialActiveTab,
-		onActiveTabChange: deps.onActiveTabChange
+		onActiveTabChange: deps.onActiveTabChange,
+		onIgnoredDiagnosticsChange: deps.backup?.schedule
 	});
 
 	const controller: WorkbenchController = {
@@ -325,17 +335,20 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get severityFiltersOpen() {
 			return panel.severityFiltersOpen;
 		},
+		get unignoredDiagnostics() {
+			return panel.unignoredDiagnostics;
+		},
 		get visibleDiagnostics() {
 			return panel.visibleDiagnostics;
 		},
 		get bulkFixPlan() {
 			return panel.bulkFixPlan;
 		},
-		get ignoredRuleIds() {
-			return panel.ignoredRuleIds;
+		get ignoredDiagnosticKeys() {
+			return panel.ignoredDiagnosticKeys;
 		},
-		get ignoredRuleCount() {
-			return panel.ignoredRuleIds.length;
+		get ignoredDiagnosticCount() {
+			return panel.ignoredDiagnosticKeys.length;
 		},
 		get saveStatus() {
 			return draft.saveStatus;
@@ -363,6 +376,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		get media() {
 			return media;
+		},
+		get backup() {
+			return deps.backup;
 		},
 		setEditorHandle(handle) {
 			// Keep the last usable handle through the keyed editor's teardown.
@@ -423,8 +439,8 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		fixBatchSize: panel.fixBatchSize,
 		applyFixBatch: panel.applyFixBatch,
 		applyBulkFix: panel.applyBulkFix,
-		ignoreRule: panel.ignoreRule,
-		restoreRule: panel.restoreRule,
+		ignoreDiagnostic: panel.ignoreDiagnostic,
+		restoreDiagnostic: panel.restoreDiagnostic,
 		copyCanonical: editorSession.copyCanonical,
 		pasteLyrics: editorSession.pasteLyrics,
 		loadSample() {
@@ -446,7 +462,59 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		duplicateDraft: draft.duplicateDraft,
 		exportDraft: draft.exportDraft,
 		deleteDraft: draft.deleteDraft,
-		deleteAllDrafts: draft.deleteAllDrafts,
+		async deleteAllDrafts() {
+			await deps.backup?.unlink();
+			await draft.deleteAllDrafts();
+		},
+		async backupWorkspace() {
+			if (!deps.backup) return;
+			try {
+				if (deps.backup.state().supported) {
+					const chosen = await deps.backup.chooseFile(() => draft.flushAutosave());
+					if (chosen) {
+						feedback.announce('Workspace backup connected and saved.');
+					}
+					return;
+				}
+				await draft.flushAutosave();
+				exportText(await deps.backup.serialize(), 'LyricLint backup.json');
+				feedback.announce('Workspace backup downloaded.');
+			} catch {
+				feedback.announce('The workspace backup could not be saved.');
+			}
+		},
+		async allowBackupAccess() {
+			if (!deps.backup) return;
+			try {
+				const granted = await deps.backup.requestPermission(() => draft.flushAutosave());
+				feedback.announce(
+					granted
+						? 'Workspace backup access granted and the latest data was saved.'
+						: 'Workspace backup access was not granted.'
+				);
+			} catch {
+				feedback.announce('Workspace backup access could not be requested.');
+			}
+		},
+		async restoreWorkspaceBackup(file) {
+			if (!deps.backup) return false;
+			try {
+				await draft.flushAutosave();
+				const count = await deps.backup.restore(file);
+				feedback.announce(
+					`${count} ${count === 1 ? 'draft' : 'drafts'} imported. Reloading the workbench.`
+				);
+				deps.onBackupRestored?.();
+				return true;
+			} catch (error) {
+				feedback.announce(
+					error instanceof WorkspaceBackupError
+						? error.message
+						: 'The workspace backup could not be imported.'
+				);
+				return false;
+			}
+		},
 		flushAutosave: draft.flushAutosave
 	};
 

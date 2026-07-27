@@ -426,6 +426,21 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
+	test('reuses diagnostics when only the editor selection changes', async () => {
+		const { controller } = createTestWorkbench({ text: '[Verse]\nImma go' });
+		const lint = vi.fn(async () => []);
+		renderWorkspace(controller, { lint, dispose: async () => {} });
+		await waitFor(() => expect(lint).toHaveBeenCalledOnce());
+		const editor = screen.getByRole('textbox', { name: 'Lyrics editor' }) as HTMLTextAreaElement;
+
+		editor.setSelectionRange(2, 2);
+		await fireEvent.select(editor);
+		await waitFor(() => expect(controller.snapshot.selection.anchor).toBe(2));
+		await new Promise((resolve) => setTimeout(resolve, 300));
+
+		expect(lint).toHaveBeenCalledOnce();
+	});
+
 	test('merges revision-matched Harper findings after the native lint pass', async () => {
 		const text = '[Verse]\nThis are wrong';
 		const from = text.indexOf('are');

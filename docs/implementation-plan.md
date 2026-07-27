@@ -187,7 +187,7 @@ A `DiagnosticFix` has `kind: "safe" | "preview"`, a label, and one validated edi
 | `persistence/draft-repository.ts` | `createDraftRepository(db)` implementing `list`, `get`, `create`, `save`, `rename`, `duplicate`, `delete`, `deleteAll`, `setCurrent`, and `getCurrent`. |
 | `persistence/autosave.ts` | `createAutosaveController(repository, options)` returning `schedule`, `flush`, `cancel`, `status`; writes are revision-ordered so an older async save cannot overwrite a newer snapshot. |
 | `persistence/recovery.ts` | `recoverStartupDraft(repository)`; restores the current draft, otherwise the most recently updated recoverable draft, and creates a blank draft only if none exists. |
-| `persistence/session-ignores.ts` | `createSessionIgnoreStore(storage)` with `isIgnored`, `ignore`, `restore`, `list`, and `clearDraft`; keys contain both draft ID and rule ID. |
+| `persistence/session-ignores.ts` | `createSessionIgnoreStore(storage)` with `isIgnored`, `ignore`, `restore`, `list`, and `clearDraft`; keys contain both draft ID and a diagnostic occurrence fingerprint. |
 
 `DraftRecord` must match A, with `performers: PerformerRecord[]` and `editorSelection: SerializedSelection`. `originalText`, when present, is immutable import provenance. All dates are ISO strings.
 
@@ -223,7 +223,7 @@ The fixed editor contract should be:
 | `ui/layout/Workspace.svelte` | Two-region editor/right-panel layout with responsive panel collapse and a minimum readable editor width. |
 | `ui/layout/DocumentToolbar.svelte` | Draft title, save state, undo/redo, section/performer commands, copy, and panel toggle. |
 | `ui/layout/DraftMenu.svelte` | List, open, create, rename, duplicate, `.txt` export, delete, and delete-all commands. |
-| `ui/layout/RightPanel.svelte` | Linter/Performers/Tools tabs and ignored-rule count. |
+| `ui/layout/RightPanel.svelte` | Linter/Performers/Tools tabs and ignored-diagnostic count. |
 | `ui/linter/*` | Complete diagnostic list, filtering, navigation, fixes, citations, ignore/restore, and mirrored details. |
 | `ui/performers/*` | Roster add/rename/merge/reorder/recolor/remove and persistent textual section legend. |
 | `ui/tools/ToolsPanel.svelte` | Canonical copy, draft export, rule-set/source information, and local-data controls. |
@@ -508,8 +508,8 @@ The shipped spelling data must include these policies exactly, with word boundar
 - [ ] Every popover shows problem, explanation, available safe/preview fix, exact source title/link, last-verified date, and session-ignore action. **[T §Lint presentation]**
 - [ ] The right-panel linter mirrors every visible diagnostic and can navigate/focus the exact editor range. **[P §Accessibility & Inclusion; T §Lint presentation]**
 - [ ] `F2`, `Shift+F2`, and `Ctrl/Cmd+.` navigate next, previous, and available fixes, subject to conflict testing. **[T §Keyboard behavior]**
-- [ ] Ignores use `sessionStorage` keyed by draft ID and rule ID, survive same-tab reload, expire in a new browser session, and never enter editor undo. **[A §Session state; T §Ignoring rules]**
-- [ ] Ignored-rule count, inspection, restore, and immediate toast undo are available. **[T §Ignoring rules]**
+- [ ] Ignores use `sessionStorage` keyed by draft ID and diagnostic occurrence, survive same-tab reload and unrelated offset shifts, expire in a new browser session, enter workspace backups, and never enter editor undo. **[A §Session state; T §Ignoring rules]**
+- [ ] Ignored-diagnostic count, inspection, restore, and immediate toast undo are available. **[T §Ignoring rules]**
 
 ### Persistence, recovery, and offline operation
 
@@ -582,7 +582,7 @@ Additional required edge-case tests from T:
 
 ### Explicit MVP exclusions
 
-No implementation should quietly add direct Genius editing, runtime scraping, accounts, cloud sync, collaboration, audio playback, browser-extension integration, occurrence-level ignores, hidden/WYSIWYM markup, mobile-first editing, or authorized guideline synchronization. **[P §Product Purpose; A §Deferred decisions]**
+No implementation should quietly add direct Genius editing, runtime scraping, accounts, cloud sync, collaboration, audio playback, browser-extension integration, hidden/WYSIWYM markup, mobile-first editing, or authorized guideline synchronization. **[P §Product Purpose; A §Deferred decisions]**
 
 ## 5. Pipeline
 

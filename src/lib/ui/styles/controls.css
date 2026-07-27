@@ -114,6 +114,17 @@
 	color: var(--color-danger);
 }
 
+/* A control that draws no fill at rest draws no inset either. The quiet tier's
+   inline padding is invisible until the pointer arrives, so a quiet button
+   standing alone in a column of prose reads as a paragraph that failed to line
+   up rather than as a deliberately indented control. Pull the label back to the
+   column's own edge; the hover fill keeps the padding it needs. Only for a
+   quiet button whose edge is read against text — inside a row of controls the
+   gap is the alignment and this would close it. */
+.button--flush {
+	margin-inline: calc(-1 * var(--control-padding-inline));
+}
+
 input,
 select,
 textarea {

@@ -118,14 +118,12 @@
 			</Tabs.Content>
 		</div>
 
-		<!-- The footer is a real boundary only once there is something behind it;
-		     an empty "No rules ignored this session" bar is chrome announcing its
-		     own emptiness, so it stays out of the panel until a rule is ignored. -->
-		{#if controller.activeTab === 'linter' && controller.ignoredRuleIds.length > 0}
+		<!-- The footer is a real boundary only once there is something behind it. -->
+		{#if controller.activeTab === 'linter' && controller.ignoredDiagnosticKeys.length > 0}
 			<footer class="right-panel__footer">
 				<IgnoredRules
-					ruleIds={controller.ignoredRuleIds}
-					onRestore={(ruleId) => controller.restoreRule(ruleId)}
+					diagnosticKeys={controller.ignoredDiagnosticKeys}
+					onRestore={(key) => controller.restoreDiagnostic(key)}
 				/>
 			</footer>
 		{/if}

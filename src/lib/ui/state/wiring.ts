@@ -12,6 +12,11 @@ import type {
 	VoiceGroup
 } from '$lib/core/types.js';
 
+const voiceGroupRangeCache = new WeakMap<
+	ParsedDocument,
+	WeakMap<readonly PerformerRecord[], VoiceGroupRange[]>
+>();
+
 /**
  * Whether a sync run has anything left to time.
  *
@@ -112,6 +117,8 @@ export function resolveVoiceGroupRanges(
 	parsed: ParsedDocument,
 	performers: readonly PerformerRecord[]
 ): VoiceGroupRange[] {
+	const cached = voiceGroupRangeCache.get(parsed)?.get(performers);
+	if (cached) return cached;
 	const ranges: VoiceGroupRange[] = [];
 
 	for (const section of parsed.sections) {
@@ -185,6 +192,12 @@ export function resolveVoiceGroupRanges(
 		}
 	}
 
+	let byPerformers = voiceGroupRangeCache.get(parsed);
+	if (!byPerformers) {
+		byPerformers = new WeakMap();
+		voiceGroupRangeCache.set(parsed, byPerformers);
+	}
+	byPerformers.set(performers, ranges);
 	return ranges;
 }
 

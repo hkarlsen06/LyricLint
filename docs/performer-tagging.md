@@ -174,18 +174,18 @@ Every popover includes:
 
 If a source becomes unavailable, retain the cached citation metadata and diagnostic.
 
-## Ignoring rules
+## Ignoring diagnostics
 
-`Ignore for this session` stores the draft ID and rule ID in `sessionStorage`.
+`Ignore for this session` stores the draft ID and one diagnostic fingerprint in `sessionStorage`.
 
 - It survives reload in the same tab.
 - It does not persist into a new browser session.
-- The right panel shows the number of ignored rules.
-- Users can inspect and restore ignored rules.
+- The right panel shows the number of ignored diagnostics.
+- Users can inspect and restore ignored diagnostics.
 - A toast offers immediate undo.
 - Ignore state is not part of editor undo.
-
-Occurrence-level ignores are deferred because raw character offsets drift as users edit.
+- Fingerprints include nearby text so unrelated edits can shift offsets without restoring the finding.
+- Workspace backups include ignored diagnostic fingerprints.
 
 ## Keyboard behavior
 

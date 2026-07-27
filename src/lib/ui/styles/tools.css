@@ -44,6 +44,11 @@
 	margin-top: var(--space-3);
 }
 
+.backup-status {
+	overflow-wrap: anywhere;
+	color: var(--color-text-muted);
+}
+
 .confirm-row {
 	display: inline-flex;
 	flex-wrap: wrap;

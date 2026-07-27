@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { parseDocument } from '$lib/core/parser.js';
+import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 import { currentRuleSet, runRules, sourceRegistry } from '$lib/rules/index.js';
 import { sampleDraftLanguage, sampleDraftText } from './sample-draft.js';
+
+beforeAll(() => loadStatisticalLanguageDetector());
 
 function lint(text: string, language = sampleDraftLanguage) {
 	return runRules(parseDocument(text), {

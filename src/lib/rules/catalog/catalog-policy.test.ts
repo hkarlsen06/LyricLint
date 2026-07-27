@@ -1,12 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { parseDocument } from '$lib/core/parser.js';
 import type { PerformerRecord, RuleContext } from '$lib/core/types.js';
+import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 import { getRule } from '../registry.js';
 import { sourceRegistry } from '../data/sources.js';
 // The cases live in a module of their own because the public rule reference
 // derives its pages from the same examples this suite verifies. See
 // `policy-cases.ts` for why the two consumers must not have separate copies.
 import { policyCases as cases, type RulePolicyCase } from './policy-cases.js';
+
+beforeAll(() => loadStatisticalLanguageDetector());
 
 function records(names: string[]): PerformerRecord[] {
 	return names.map((displayName, order) => ({

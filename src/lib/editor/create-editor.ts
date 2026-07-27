@@ -109,6 +109,17 @@ export interface CreateLyricEditorOptions {
 	autoHeight?: boolean;
 }
 
+function sameReferences<Value>(
+	left: readonly Value[] | undefined,
+	right: readonly Value[] | undefined
+): boolean {
+	return (
+		left === right ||
+		(left?.length === right?.length &&
+			left?.every((value, index) => value === right?.[index]) === true)
+	);
+}
+
 export interface LyricEditorInstance {
 	view: EditorView;
 	handle: EditorHandle;
@@ -489,6 +500,7 @@ export function createLyricEditor(
 
 	let activeCallbacks = options.callbacks;
 	let pendingContext: EditorDisplayContext | undefined;
+	let appliedContext: EditorDisplayContext | undefined;
 	let destroyed = false;
 	let contextFlushQueued = false;
 	const callbackProxy = createCallbackProxy(() => activeCallbacks);
@@ -637,9 +649,25 @@ export function createLyricEditor(
 		const revision = view.state.field(editorRevisionField);
 		const text = view.state.doc.toString();
 		const parsed = context.parsed?.text === text ? context.parsed : parseDocument(text);
+		const nextContext = { ...context, parsed };
+		if (
+			appliedContext?.language === nextContext.language &&
+			appliedContext.performers === nextContext.performers &&
+			appliedContext.ruleSetVersion === nextContext.ruleSetVersion &&
+			appliedContext.parsed === nextContext.parsed &&
+			appliedContext.diagnostics?.revision === nextContext.diagnostics?.revision &&
+			sameReferences(appliedContext.diagnostics?.items, nextContext.diagnostics?.items) &&
+			appliedContext.voiceGroups === nextContext.voiceGroups &&
+			appliedContext.languagePack === nextContext.languagePack &&
+			appliedContext.reducedMotion === nextContext.reducedMotion &&
+			sameReferences(appliedContext.sources, nextContext.sources)
+		) {
+			return;
+		}
+		appliedContext = nextContext;
 		view.dispatch({
 			effects: [
-				setEditorContextEffect.of({ ...context, parsed }),
+				setEditorContextEffect.of(nextContext),
 				setDiagnosticsEffect.of(
 					context.diagnostics ?? {
 						revision,

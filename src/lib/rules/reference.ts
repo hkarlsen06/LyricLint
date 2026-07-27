@@ -1,4 +1,5 @@
 import { parseDocument } from '$lib/core/parser.js';
+import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 import type {
 	DiagnosticFix,
 	PerformerRecord,
@@ -12,6 +13,13 @@ import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { sortDiagnostics } from './engine.js';
 import { enabledRules } from './registry.js';
+
+// Reference pages are prerendered from real rule output. Browsers load the
+// statistical profiles on demand; the static builder needs them before it
+// derives the language-mismatch example synchronously.
+if (typeof window === 'undefined') {
+	await loadStatisticalLanguageDetector();
+}
 
 /**
  * The public rule reference, derived rather than written.

@@ -1,7 +1,32 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { WorkspaceBackupController, WorkspaceBackupState } from '$lib/persistence/backup.js';
 import { createTestWorkbench } from '../test-utils.js';
 import ToolsPanel from './ToolsPanel.svelte';
+
+function backupController(state: WorkspaceBackupState): WorkspaceBackupController {
+	return {
+		state: () => state,
+		subscribe(listener) {
+			listener(state);
+			return () => {};
+		},
+		serialize: vi.fn(async () => '{"format":"lyriclint-workspace"}'),
+		restore: vi.fn(async () => 1),
+		chooseFile: vi.fn(async (beforeWrite) => {
+			await beforeWrite();
+			return true;
+		}),
+		requestPermission: vi.fn(async (beforeWrite) => {
+			await beforeWrite();
+			return true;
+		}),
+		unlink: vi.fn(async () => {}),
+		schedule: vi.fn(),
+		flush: vi.fn(async () => {}),
+		destroy: vi.fn()
+	};
+}
 
 describe('ToolsPanel destructive confirm', () => {
 	afterEach(cleanup);
@@ -43,13 +68,16 @@ describe('ToolsPanel skimmability', () => {
 	afterEach(cleanup);
 
 	test('gives each section a heading over at most two things, and Document one row of actions', () => {
-		const { controller } = createTestWorkbench();
+		const { controller } = createTestWorkbench({
+			backup: backupController({ supported: false, status: 'idle' })
+		});
 		const { container } = render(ToolsPanel, { controller });
 
 		expect([...container.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual([
 			'Document',
-			'Reviewed rules',
-			'Local data'
+			'Workspace backup',
+			'Local data',
+			'Reviewed rules'
 		]);
 
 		const documentActions = container.querySelector('section .tool-actions');
@@ -70,5 +98,54 @@ describe('ToolsPanel skimmability', () => {
 		// folded into `Local data` with the rest of the story.
 		expect(container.querySelector('.offline-note')).toBeNull();
 		expect(container.querySelectorAll('.panel-content > p')).toHaveLength(0);
+	});
+});
+
+describe('ToolsPanel workspace backup', () => {
+	afterEach(cleanup);
+
+	test('downloads a full backup where direct file access is unavailable', async () => {
+		const backup = backupController({ supported: false, status: 'idle' });
+		const exportLog: Array<{ text: string; filename: string }> = [];
+		const { controller } = createTestWorkbench({ backup, exportLog });
+		render(ToolsPanel, { controller });
+
+		await fireEvent.click(await screen.findByRole('button', { name: 'Download backup' }));
+
+		expect(backup.serialize).toHaveBeenCalledOnce();
+		expect(exportLog).toEqual([
+			{ text: '{"format":"lyriclint-workspace"}', filename: 'LyricLint backup.json' }
+		]);
+	});
+
+	test('offers Chrome persistent access for a linked file that needs permission', async () => {
+		const backup = backupController({
+			supported: true,
+			linkedFileName: 'LyricLint backup.json',
+			permission: 'prompt',
+			status: 'idle'
+		});
+		const { controller } = createTestWorkbench({ backup });
+		render(ToolsPanel, { controller });
+
+		expect(await screen.findByText(/choose “Allow on every visit”/u)).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button', { name: 'Allow backup access' }));
+
+		expect(backup.requestPermission).toHaveBeenCalledOnce();
+	});
+
+	test('imports immediately without a destructive confirmation', async () => {
+		const backup = backupController({ supported: false, status: 'idle' });
+		const { controller } = createTestWorkbench({ backup });
+		const { container } = render(ToolsPanel, { controller });
+		const file = new File(['{}'], 'July backup.json', { type: 'application/json' });
+		const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+		expect(input).toBeTruthy();
+
+		await fireEvent.change(input as HTMLInputElement, { target: { files: [file] } });
+
+		await waitFor(() => expect(backup.restore).toHaveBeenCalledWith(file));
+		expect(screen.queryByText(/replaces every local draft/iu)).toBeNull();
+		expect(screen.queryByRole('button', { name: /restore/iu })).toBeNull();
 	});
 });

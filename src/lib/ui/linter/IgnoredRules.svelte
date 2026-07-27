@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { ignoredDiagnosticRuleId } from '$lib/diagnostics/ignore.js';
 	import { ruleName } from '$lib/rules/index.js';
 
 	let {
-		ruleIds,
+		diagnosticKeys,
 		onRestore
 	}: {
-		ruleIds: readonly string[];
-		onRestore: (ruleId: string) => void;
+		diagnosticKeys: readonly string[];
+		onRestore: (diagnosticKey: string) => void;
 	} = $props();
 
 	let expanded = $state(false);
@@ -17,12 +18,12 @@
 	// toggle we would normally return focus to may be gone by the time the DOM
 	// settles. The restored diagnostics are back in the list above, so that is
 	// where focus goes instead.
-	async function restoreAndMoveFocus(ruleId: string, trigger: HTMLButtonElement): Promise<void> {
+	async function restoreAndMoveFocus(key: string, trigger: HTMLButtonElement): Promise<void> {
 		const nextRestore = trigger
 			.closest('li')
 			?.nextElementSibling?.querySelector<HTMLButtonElement>('button');
 		const panel = trigger.closest('.right-panel');
-		onRestore(ruleId);
+		onRestore(key);
 		await tick();
 		if (nextRestore?.isConnected) {
 			nextRestore.focus();
@@ -42,18 +43,21 @@
 		aria-expanded={expanded}
 		onclick={() => (expanded = !expanded)}
 	>
-		<span>{ruleIds.length} {ruleIds.length === 1 ? 'rule' : 'rules'} ignored</span>
+		<span
+			>{diagnosticKeys.length}
+			{diagnosticKeys.length === 1 ? 'diagnostic' : 'diagnostics'} ignored</span
+		>
 		<span class="ignored-rules__restore-hint">Restore</span>
 	</button>
 	{#if expanded}
 		<ul>
-			{#each ruleIds as ruleId (ruleId)}
+			{#each diagnosticKeys as key (key)}
 				<li>
-					<span>{ruleName(ruleId)}</span>
+					<span>{ruleName(ignoredDiagnosticRuleId(key))}</span>
 					<button
 						type="button"
 						class="button button--quiet"
-						onclick={(event) => restoreAndMoveFocus(ruleId, event.currentTarget)}
+						onclick={(event) => restoreAndMoveFocus(key, event.currentTarget)}
 					>
 						Restore
 					</button>

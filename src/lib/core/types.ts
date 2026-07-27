@@ -459,11 +459,11 @@ export interface AutosaveController {
 	status(): AutosaveStatus;
 }
 
-/** Draft-and-rule keyed session-only ignore operations. */
+/** Draft-and-diagnostic keyed session-only ignore operations. */
 export interface SessionIgnoreStore {
-	isIgnored(draftId: string, ruleId: string): boolean;
-	ignore(draftId: string, ruleId: string): void;
-	restore(draftId: string, ruleId: string): void;
+	isIgnored(draftId: string, diagnosticKey: string): boolean;
+	ignore(draftId: string, diagnosticKey: string): void;
+	restore(draftId: string, diagnosticKey: string): void;
 	list(draftId: string): string[];
 	clearDraft(draftId: string): void;
 }

@@ -294,35 +294,48 @@ describe('RightPanel', () => {
 		expect(calls.revealed).toEqual([{ from: 9, to: 13 }]);
 	});
 
-	test('ignores, restores, and undo-restores a rule while announcing each action', async () => {
+	test('ignores, restores, and undo-restores one diagnostic while announcing each action', async () => {
 		const finding = diagnostic({
 			ruleId: 'section.header-missing',
 			severity: 'warning',
-			message: 'Add a section header'
+			message: 'Add a section header',
+			from: 0,
+			to: 0
 		});
-		const { controller, feedback } = createTestWorkbench({ diagnostics: [finding] });
+		const sibling = diagnostic({
+			ruleId: 'section.header-missing',
+			severity: 'warning',
+			message: 'Add another section header',
+			from: 8,
+			to: 8
+		});
+		const { controller, feedback } = createTestWorkbench({
+			text: 'Verse 1\nVerse 2',
+			diagnostics: [finding, sibling]
+		});
 		render(RightPanel, { controller });
 		render(ToastRegion, { feedback });
 		render(LiveRegion, { feedback });
 
 		expect(screen.queryByRole('button', { name: 'Ignore this session' })).toBeNull();
-		// The ignored-rules footer stays out of the panel until it has something
+		// The ignored-diagnostics footer stays out of the panel until it has something
 		// to list.
 		expect(screen.queryByRole('button', { name: /ignored/ })).toBeNull();
 		await fireEvent.click(screen.getByRole('button', { name: 'Ignore' }));
-		expect(controller.ignoredRuleCount).toBe(1);
+		expect(controller.ignoredDiagnosticCount).toBe(1);
 		expect(screen.queryByText('Add a section header')).toBeNull();
+		expect(screen.getByText('Add another section header')).toBeTruthy();
 		expect(screen.getByTestId('live-region').textContent).toContain('Ignored');
 
-		const ignoredToggle = screen.getByRole('button', { name: /rule ignored/ });
+		const ignoredToggle = screen.getByRole('button', { name: /diagnostic ignored/ });
 		await waitFor(() => expect(document.activeElement).toBe(ignoredToggle));
 		await fireEvent.click(ignoredToggle);
 		await fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
-		expect(controller.ignoredRuleCount).toBe(0);
+		expect(controller.ignoredDiagnosticCount).toBe(0);
 		expect(screen.getByText('Add a section header')).toBeTruthy();
-		// Restoring the last rule takes the footer with it, so focus lands on the
+		// Restoring the last diagnostic takes the footer with it, so focus lands on the
 		// restored diagnostic rather than on a control that no longer exists.
-		expect(screen.queryByRole('button', { name: /rule ignored/ })).toBeNull();
+		expect(screen.queryByRole('button', { name: /diagnostic ignored/ })).toBeNull();
 		await waitFor(() =>
 			expect(document.activeElement).toBe(
 				document.querySelector<HTMLButtonElement>('.diagnostic-list__navigate')
@@ -336,10 +349,10 @@ describe('RightPanel', () => {
 
 		const undoButtons = screen.getAllByRole('button', { name: 'Undo' });
 		await fireEvent.click(undoButtons.at(-1)!);
-		expect(controller.ignoredRuleCount).toBe(1);
+		expect(controller.ignoredDiagnosticCount).toBe(1);
 		await waitFor(() =>
 			expect(screen.getByTestId('live-region').textContent).toContain(
-				'Ignored “Section headers: header missing” again'
+				'Ignored this diagnostic again'
 			)
 		);
 	});
@@ -358,7 +371,7 @@ describe('RightPanel', () => {
 		expect(accept.querySelector('svg')).not.toBeNull();
 
 		await fireEvent.click(accept);
-		expect(controller.ignoredRuleIds).toContain('section.header-unrecognized');
+		expect(controller.ignoredDiagnosticCount).toBe(1);
 		expect(screen.queryByText('Review the custom section header “Chor”.')).toBeNull();
 	});
 
@@ -529,14 +542,14 @@ describe('RightPanel', () => {
 			screen.getByText('1 issue is hidden by the severity filters. Re-enable a severity to see it.')
 		).toBeTruthy();
 
-		// Ignoring the rule is a separate reason for an empty list, so the copy
+		// Ignoring the diagnostic is a separate reason for an empty list, so the copy
 		// should stop pointing at the filters once they no longer hide anything.
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
-		controller.ignoreRule('section.header-missing');
+		controller.ignoreDiagnostic(finding);
 		await waitFor(() => expect(screen.getByText('All issues ignored')).toBeTruthy());
 		expect(
 			screen.getByText(
-				'Every issue in this draft comes from a rule you ignored. Restore rules from Ignored rules below.'
+				'Every issue in this draft was ignored. Restore diagnostics from Ignored diagnostics below.'
 			)
 		).toBeTruthy();
 	});
@@ -572,7 +585,7 @@ describe('RightPanel', () => {
 		);
 
 		// The footer arrives above it rather than under it.
-		controller.ignoreRule('section.header-missing');
+		controller.ignoreDiagnostic(finding);
 		await waitFor(() => expect(document.querySelector('.right-panel__footer')).not.toBeNull());
 		const footer = document.querySelector('.right-panel__footer')!;
 		expect(column.lastElementChild).toBe(video);

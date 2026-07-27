@@ -1443,6 +1443,17 @@ accent-filled button competed with the contrast tier for the same job. Pick the 
 the action _is_, not from which panel it landed in; if a command appears twice, only its home
 surface gets the contrast tier.
 
+**A control that draws no fill draws no inset.** A quiet button's inline padding is invisible
+until the pointer arrives, so a quiet button standing alone in a column of prose starts a few
+pixels right of every paragraph edge around it and reads as a misalignment rather than as
+something deliberate — which is exactly how `Delete all local data…` sat under its own paragraph
+in the tools panel. `.button--flush` cancels the inset with a negative inline margin, so the label
+lines up with the text and the hover fill keeps its padding. It is for a quiet button whose edge
+is read against text; inside a row of controls the gap _is_ the alignment and this would close it.
+The other way out is to give the control a real background — but a permanently filled red trigger
+for an action that already arms a `.button--danger` confirm would put two red buttons in one
+section, so flush is the default answer.
+
 **The editor is part of the design system.** CodeMirror styles live in CSS-in-JS
 (`create-editor.ts` and `src/lib/editor/extensions/*.ts`) where the stylesheet cannot reach them,
 so they must reference tokens directly and must not carry literal fallbacks — a fallback is a

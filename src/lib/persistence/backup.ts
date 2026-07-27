@@ -1,0 +1,595 @@
+import Dexie from 'dexie';
+
+import { randomId } from '../core/random-id.js';
+import type { LyricLintDatabase } from './database.js';
+import type {
+	AppMetadataRecord,
+	BackupHandleRecord,
+	DraftRecord,
+	MediaHandleRecord,
+	PerformerRecord,
+	SessionIgnoreStore
+} from './types.js';
+
+const FORMAT = 'lyriclint-workspace';
+const VERSION = 1;
+const HANDLE_KEY = 'workspace';
+const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
+const AUTOSAVE_DELAY_MS = 750;
+const CURRENT_DRAFT_KEY = 'currentDraftId';
+const RECENT_LANGUAGES_KEY = 'recentLanguages';
+const MAX_RECENT_LANGUAGES = 5;
+
+type SerializableMediaRecord = Omit<MediaHandleRecord, 'handle'>;
+type FilePermission = 'granted' | 'prompt' | 'denied';
+type BackupStatus = 'idle' | 'saving' | 'saved' | 'failed';
+
+interface WritableFileHandle extends FileSystemFileHandle {
+	createWritable(): Promise<FileSystemWritableFileStream>;
+	queryPermission(options: { mode: 'readwrite' }): Promise<FilePermission>;
+	requestPermission(options: { mode: 'readwrite' }): Promise<FilePermission>;
+}
+
+type SaveFilePicker = (options: {
+	suggestedName: string;
+	types: Array<{ description: string; accept: Record<string, string[]> }>;
+}) => Promise<WritableFileHandle>;
+
+export interface WorkspaceBackupFile {
+	format: typeof FORMAT;
+	version: typeof VERSION;
+	createdAt: string;
+	drafts: DraftRecord[];
+	appMetadata: AppMetadataRecord[];
+	media: SerializableMediaRecord[];
+	ignoredDiagnostics: Array<{ draftId: string; keys: string[] }>;
+}
+
+export interface WorkspaceBackupState {
+	supported: boolean;
+	linkedFileName?: string;
+	permission?: FilePermission;
+	status: BackupStatus;
+}
+
+export interface WorkspaceBackupController {
+	state(): WorkspaceBackupState;
+	subscribe(listener: (state: WorkspaceBackupState) => void): () => void;
+	serialize(): Promise<string>;
+	restore(file: File): Promise<number>;
+	chooseFile(beforeWrite: () => Promise<void>): Promise<boolean>;
+	requestPermission(beforeWrite: () => Promise<void>): Promise<boolean>;
+	unlink(): Promise<void>;
+	schedule(): void;
+	flush(): Promise<void>;
+	destroy(): void;
+}
+
+export interface WorkspaceBackupOptions {
+	showSaveFilePicker?: SaveFilePicker;
+	now?: () => string;
+	ignoreStore?: SessionIgnoreStore;
+}
+
+export class WorkspaceBackupError extends Error {}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringField(record: Record<string, unknown>, key: string): string {
+	const value = record[key];
+	if (typeof value !== 'string') throw new WorkspaceBackupError(`Invalid ${key} in backup.`);
+	return value;
+}
+
+function optionalStringField(record: Record<string, unknown>, key: string): string | undefined {
+	const value = record[key];
+	if (value !== undefined && typeof value !== 'string') {
+		throw new WorkspaceBackupError(`Invalid ${key} in backup.`);
+	}
+	return value;
+}
+
+function optionalNumberField(record: Record<string, unknown>, key: string): number | undefined {
+	const value = record[key];
+	if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 0)) {
+		throw new WorkspaceBackupError(`Invalid ${key} in backup.`);
+	}
+	return value;
+}
+
+function parsePerformer(value: unknown): PerformerRecord {
+	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid performer in backup.');
+	const aliases = value.aliases;
+	if (!Array.isArray(aliases) || !aliases.every((alias) => typeof alias === 'string')) {
+		throw new WorkspaceBackupError('Invalid performer aliases in backup.');
+	}
+	if (typeof value.order !== 'number' || !Number.isInteger(value.order) || value.order < 0) {
+		throw new WorkspaceBackupError('Invalid performer order in backup.');
+	}
+	return {
+		id: stringField(value, 'id'),
+		displayName: stringField(value, 'displayName'),
+		normalizedKey: stringField(value, 'normalizedKey'),
+		aliases: [...aliases],
+		colorId: stringField(value, 'colorId'),
+		order: value.order
+	};
+}
+
+function parseDraft(value: unknown): DraftRecord {
+	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid draft in backup.');
+	if (!Array.isArray(value.performers)) {
+		throw new WorkspaceBackupError('Invalid draft performers in backup.');
+	}
+	const text = stringField(value, 'text');
+	const draft: DraftRecord = {
+		id: stringField(value, 'id'),
+		title: stringField(value, 'title'),
+		text,
+		language: stringField(value, 'language'),
+		performers: value.performers.map(parsePerformer),
+		createdAt: stringField(value, 'createdAt'),
+		updatedAt: stringField(value, 'updatedAt'),
+		ruleSetVersion: stringField(value, 'ruleSetVersion')
+	};
+
+	const originalText = optionalStringField(value, 'originalText');
+	if (originalText !== undefined) draft.originalText = originalText;
+
+	if (value.editorSelection !== undefined) {
+		if (!isRecord(value.editorSelection)) {
+			throw new WorkspaceBackupError('Invalid editor selection in backup.');
+		}
+		const { anchor, head } = value.editorSelection;
+		if (
+			!Number.isInteger(anchor) ||
+			!Number.isInteger(head) ||
+			(anchor as number) < 0 ||
+			(head as number) < 0 ||
+			(anchor as number) > text.length ||
+			(head as number) > text.length
+		) {
+			throw new WorkspaceBackupError('Invalid editor selection in backup.');
+		}
+		draft.editorSelection = { anchor: anchor as number, head: head as number };
+	}
+
+	if (value.lineAnchors !== undefined) {
+		if (!Array.isArray(value.lineAnchors)) {
+			throw new WorkspaceBackupError('Invalid line anchors in backup.');
+		}
+		draft.lineAnchors = value.lineAnchors.map((anchor) => {
+			if (
+				!isRecord(anchor) ||
+				!Number.isInteger(anchor.line) ||
+				(anchor.line as number) < 1 ||
+				typeof anchor.time !== 'number' ||
+				!Number.isFinite(anchor.time) ||
+				anchor.time < 0
+			) {
+				throw new WorkspaceBackupError('Invalid line anchor in backup.');
+			}
+			return { line: anchor.line as number, time: anchor.time };
+		});
+	}
+
+	return draft;
+}
+
+function parseMetadata(value: unknown): AppMetadataRecord {
+	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid application metadata in backup.');
+	return {
+		key: stringField(value, 'key'),
+		value: stringField(value, 'value'),
+		updatedAt: stringField(value, 'updatedAt')
+	};
+}
+
+function parseMedia(value: unknown): SerializableMediaRecord {
+	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid remembered media in backup.');
+	const source = optionalStringField(value, 'source');
+	const videoId = optionalStringField(value, 'videoId');
+	const size = optionalNumberField(value, 'size');
+	const position = optionalNumberField(value, 'position');
+	if (source !== undefined && source !== 'file' && source !== 'youtube') {
+		throw new WorkspaceBackupError('Invalid media source in backup.');
+	}
+	return {
+		draftId: stringField(value, 'draftId'),
+		name: stringField(value, 'name'),
+		attachedAt: stringField(value, 'attachedAt'),
+		...(source === undefined ? {} : { source }),
+		...(videoId === undefined ? {} : { videoId }),
+		...(size === undefined ? {} : { size }),
+		...(position === undefined ? {} : { position })
+	};
+}
+
+function unique(values: readonly string[], label: string): void {
+	if (new Set(values).size !== values.length) {
+		throw new WorkspaceBackupError(`Duplicate ${label} in backup.`);
+	}
+}
+
+function parseIgnoredDiagnostics(value: unknown): { draftId: string; keys: string[] } {
+	if (!isRecord(value) || !Array.isArray(value.keys)) {
+		throw new WorkspaceBackupError('Invalid ignored diagnostics in backup.');
+	}
+	if (!value.keys.every((key) => typeof key === 'string')) {
+		throw new WorkspaceBackupError('Invalid ignored diagnostic in backup.');
+	}
+	return {
+		draftId: stringField(value, 'draftId'),
+		keys: [...new Set(value.keys)].sort()
+	};
+}
+
+function parseRecentLanguages(value: string | undefined): string[] {
+	if (!value) return [];
+	try {
+		const parsed: unknown = JSON.parse(value);
+		if (!Array.isArray(parsed)) return [];
+		return [
+			...new Set(
+				parsed.flatMap((language) =>
+					typeof language === 'string' && language.trim() ? [language.trim()] : []
+				)
+			)
+		];
+	} catch {
+		return [];
+	}
+}
+
+export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
+	let value: unknown;
+	try {
+		value = JSON.parse(text);
+	} catch {
+		throw new WorkspaceBackupError('This is not a valid LyricLint backup file.');
+	}
+	if (!isRecord(value) || value.format !== FORMAT || value.version !== VERSION) {
+		throw new WorkspaceBackupError('This LyricLint backup version is not supported.');
+	}
+	if (
+		!Array.isArray(value.drafts) ||
+		!Array.isArray(value.appMetadata) ||
+		!Array.isArray(value.media) ||
+		!Array.isArray(value.ignoredDiagnostics)
+	) {
+		throw new WorkspaceBackupError('This LyricLint backup is incomplete.');
+	}
+
+	const drafts = value.drafts.map(parseDraft);
+	const appMetadata = value.appMetadata.map(parseMetadata);
+	const media = value.media.map(parseMedia);
+	const ignoredDiagnostics = value.ignoredDiagnostics.map(parseIgnoredDiagnostics);
+	unique(
+		drafts.map((draft) => draft.id),
+		'draft IDs'
+	);
+	unique(
+		appMetadata.map((metadata) => metadata.key),
+		'metadata keys'
+	);
+	unique(
+		media.map((record) => record.draftId),
+		'media records'
+	);
+	unique(
+		ignoredDiagnostics.map((record) => record.draftId),
+		'ignored-diagnostic records'
+	);
+	const draftIds = new Set(drafts.map((draft) => draft.id));
+	if (
+		media.some((record) => !draftIds.has(record.draftId)) ||
+		ignoredDiagnostics.some((record) => !draftIds.has(record.draftId))
+	) {
+		throw new WorkspaceBackupError('Backup data refers to a missing draft.');
+	}
+
+	return {
+		format: FORMAT,
+		version: VERSION,
+		createdAt: stringField(value, 'createdAt'),
+		drafts,
+		appMetadata,
+		media,
+		ignoredDiagnostics
+	};
+}
+
+async function createBackupFile(
+	database: LyricLintDatabase,
+	now: () => string,
+	ignoreStore?: SessionIgnoreStore
+): Promise<WorkspaceBackupFile> {
+	const [drafts, appMetadata, media] = await database.transaction(
+		'r',
+		database.drafts,
+		database.appMetadata,
+		database.mediaHandles,
+		() =>
+			Promise.all([
+				database.drafts.toArray(),
+				database.appMetadata.toArray(),
+				database.mediaHandles.toArray()
+			])
+	);
+	return {
+		format: FORMAT,
+		version: VERSION,
+		createdAt: now(),
+		drafts,
+		appMetadata,
+		media: media.map((record) => {
+			const copy = { ...record };
+			delete copy.handle;
+			return copy;
+		}),
+		ignoredDiagnostics: drafts.flatMap((draft) => {
+			const keys = ignoreStore?.list(draft.id) ?? [];
+			return keys.length > 0 ? [{ draftId: draft.id, keys }] : [];
+		})
+	};
+}
+
+export function createWorkspaceBackup(
+	database: LyricLintDatabase,
+	options: WorkspaceBackupOptions = {}
+): WorkspaceBackupController {
+	const now = options.now ?? (() => new Date().toISOString());
+	const ignoreStore = options.ignoreStore;
+	const browserWindow =
+		typeof window === 'undefined' ? undefined : (window as unknown as Record<string, unknown>);
+	const picker =
+		options.showSaveFilePicker ??
+		(typeof browserWindow?.showSaveFilePicker === 'function'
+			? (browserWindow.showSaveFilePicker as SaveFilePicker).bind(window)
+			: undefined);
+	let currentState: WorkspaceBackupState = {
+		supported: picker !== undefined,
+		status: 'idle'
+	};
+	let handle: WritableFileHandle | undefined;
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	let dirty = false;
+	let writing: Promise<void> | undefined;
+	let destroyed = false;
+	const listeners = new Set<(state: WorkspaceBackupState) => void>();
+
+	function publish(update: Partial<WorkspaceBackupState>): void {
+		currentState = { ...currentState, ...update };
+		for (const listener of listeners) listener({ ...currentState });
+	}
+
+	async function permissionFor(candidate: WritableFileHandle): Promise<FilePermission> {
+		try {
+			return await candidate.queryPermission({ mode: 'readwrite' });
+		} catch {
+			return 'denied';
+		}
+	}
+
+	const ready = database.backupHandles.get(HANDLE_KEY).then(async (record) => {
+		if (!record || destroyed) return;
+		handle = record.handle as WritableFileHandle;
+		publish({
+			linkedFileName: record.name,
+			permission: await permissionFor(handle)
+		});
+	});
+
+	const databasePrefix = `idb://${database.name}/`;
+	const mutationListener = (parts: Record<string, unknown>) => {
+		if (
+			Object.keys(parts).some((part) =>
+				['drafts', 'appMetadata', 'mediaHandles'].some((table) =>
+					part.startsWith(`${databasePrefix}${table}/`)
+				)
+			)
+		) {
+			controller.schedule();
+		}
+	};
+	Dexie.on.storagemutated.subscribe(mutationListener);
+
+	async function writeUntilClean(): Promise<void> {
+		while (dirty && handle && currentState.permission === 'granted') {
+			dirty = false;
+			publish({ status: 'saving' });
+			try {
+				const writable = await handle.createWritable();
+				await writable.write(await controller.serialize());
+				await writable.close();
+				publish({ status: 'saved' });
+			} catch {
+				dirty = true;
+				publish({
+					status: 'failed',
+					permission: handle ? await permissionFor(handle) : undefined
+				});
+				break;
+			}
+		}
+	}
+
+	const controller: WorkspaceBackupController = {
+		state() {
+			return { ...currentState };
+		},
+		subscribe(listener) {
+			listeners.add(listener);
+			listener({ ...currentState });
+			return () => listeners.delete(listener);
+		},
+		async serialize() {
+			return `${JSON.stringify(await createBackupFile(database, now, ignoreStore), null, 2)}\n`;
+		},
+		async restore(file) {
+			if (file.size > MAX_BACKUP_BYTES) {
+				throw new WorkspaceBackupError('This backup file is too large to import.');
+			}
+			const backup = parseWorkspaceBackup(await file.text());
+			const draftIdMap = await database.transaction(
+				'rw',
+				database.drafts,
+				database.appMetadata,
+				database.mediaHandles,
+				async () => {
+					const [localDrafts, localMetadata] = await Promise.all([
+						database.drafts.toArray(),
+						database.appMetadata.toArray()
+					]);
+					const occupiedIds = new Set(localDrafts.map((draft) => draft.id));
+					const idMap = new Map<string, string>();
+					const importedDrafts = backup.drafts.map((draft) => {
+						let id = draft.id;
+						while (occupiedIds.has(id)) id = randomId();
+						occupiedIds.add(id);
+						idMap.set(draft.id, id);
+						return id === draft.id ? draft : { ...draft, id };
+					});
+					const importedMedia = backup.media.map((media) => ({
+						...media,
+						draftId: idMap.get(media.draftId) as string
+					}));
+
+					if (importedDrafts.length > 0) await database.drafts.bulkAdd(importedDrafts);
+					if (importedMedia.length > 0) await database.mediaHandles.bulkAdd(importedMedia);
+
+					const metadata = new Map(localMetadata.map((record) => [record.key, record]));
+					const backupMetadata = new Map(backup.appMetadata.map((record) => [record.key, record]));
+					const additions = backup.appMetadata.filter(
+						(record) =>
+							record.key !== CURRENT_DRAFT_KEY &&
+							record.key !== RECENT_LANGUAGES_KEY &&
+							!metadata.has(record.key)
+					);
+					if (additions.length > 0) await database.appMetadata.bulkAdd(additions);
+
+					const localCurrent = metadata.get(CURRENT_DRAFT_KEY);
+					if (!localCurrent || !localDrafts.some((draft) => draft.id === localCurrent.value)) {
+						const importedCurrent = backupMetadata.get(CURRENT_DRAFT_KEY);
+						const mappedCurrent = importedCurrent && idMap.get(importedCurrent.value);
+						if (importedCurrent && mappedCurrent) {
+							await database.appMetadata.put({ ...importedCurrent, value: mappedCurrent });
+						}
+					}
+
+					const recentLanguages = [
+						...new Set([
+							...parseRecentLanguages(metadata.get(RECENT_LANGUAGES_KEY)?.value),
+							...parseRecentLanguages(backupMetadata.get(RECENT_LANGUAGES_KEY)?.value)
+						])
+					].slice(0, MAX_RECENT_LANGUAGES);
+					if (recentLanguages.length > 0) {
+						await database.appMetadata.put({
+							key: RECENT_LANGUAGES_KEY,
+							value: JSON.stringify(recentLanguages),
+							updatedAt: now()
+						});
+					}
+
+					return idMap;
+				}
+			);
+			if (ignoreStore) {
+				for (const { draftId, keys } of backup.ignoredDiagnostics) {
+					const importedDraftId = draftIdMap.get(draftId) as string;
+					for (const key of keys) ignoreStore.ignore(importedDraftId, key);
+				}
+			}
+			return backup.drafts.length;
+		},
+		async chooseFile(beforeWrite) {
+			if (!picker) return false;
+			let chosen: WritableFileHandle;
+			try {
+				chosen = await picker({
+					suggestedName: 'LyricLint backup.json',
+					types: [
+						{
+							description: 'LyricLint workspace backup',
+							accept: { 'application/json': ['.json'] }
+						}
+					]
+				});
+			} catch (error) {
+				if (error instanceof DOMException && error.name === 'AbortError') return false;
+				throw error;
+			}
+			await beforeWrite();
+			handle = chosen;
+			const permission = await permissionFor(chosen);
+			const record: BackupHandleRecord = {
+				key: HANDLE_KEY,
+				name: chosen.name,
+				handle: chosen,
+				linkedAt: now()
+			};
+			await database.backupHandles.put(record);
+			publish({ linkedFileName: chosen.name, permission });
+			if (permission === 'granted') {
+				dirty = true;
+				await controller.flush();
+			}
+			return true;
+		},
+		async requestPermission(beforeWrite) {
+			if (!handle) return false;
+			const permissionPromise = handle.requestPermission({ mode: 'readwrite' });
+			const permission = await permissionPromise;
+			publish({ permission });
+			if (permission !== 'granted') return false;
+			await beforeWrite();
+			dirty = true;
+			await controller.flush();
+			return true;
+		},
+		async unlink() {
+			if (timer) clearTimeout(timer);
+			timer = undefined;
+			dirty = false;
+			handle = undefined;
+			await database.backupHandles.delete(HANDLE_KEY);
+			currentState = { supported: currentState.supported, status: 'idle' };
+			publish({});
+		},
+		schedule() {
+			void ready.then(() => {
+				if (destroyed || !handle || currentState.permission !== 'granted' || timer !== undefined) {
+					return;
+				}
+				dirty = true;
+				timer = setTimeout(() => {
+					timer = undefined;
+					void controller.flush();
+				}, AUTOSAVE_DELAY_MS);
+			});
+		},
+		async flush() {
+			await ready;
+			if (timer) clearTimeout(timer);
+			timer = undefined;
+			if (!handle || currentState.permission !== 'granted' || destroyed) return;
+			dirty = true;
+			if (!writing) {
+				writing = writeUntilClean().finally(() => {
+					writing = undefined;
+				});
+			}
+			await writing;
+		},
+		destroy() {
+			destroyed = true;
+			if (timer) clearTimeout(timer);
+			Dexie.on.storagemutated.unsubscribe(mutationListener);
+			listeners.clear();
+		}
+	};
+
+	return controller;
+}

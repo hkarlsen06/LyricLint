@@ -17,9 +17,11 @@
 		createDraftRepository,
 		createMediaRepository,
 		createSessionIgnoreStore,
+		createWorkspaceBackup,
 		openDatabase,
 		recoverStartupDraft,
-		type LyricLintDatabase
+		type LyricLintDatabase,
+		type WorkspaceBackupController
 	} from '$lib/persistence/index.js';
 	import { currentRuleSet, sourceRegistry } from '$lib/rules/index.js';
 	import DocumentTitle from '$lib/ui/layout/DocumentTitle.svelte';
@@ -35,6 +37,7 @@
 	let controller = $state<WorkbenchController | undefined>();
 	let bootError = $state<string | undefined>();
 	let database: LyricLintDatabase | undefined;
+	let backup: WorkspaceBackupController | undefined;
 	const feedback = useFeedbackState();
 
 	function snapshotFor(draft: DraftRecord, revision = 0): EditorSnapshot {
@@ -70,6 +73,8 @@
 		void (async () => {
 			try {
 				database = await openDatabase();
+				const ignoreStore = createSessionIgnoreStore(window.sessionStorage);
+				backup = createWorkspaceBackup(database, { ignoreStore });
 				const repository = createDraftRepository(database);
 				const mediaRepository = createMediaRepository(database);
 				const autosave = createAutosaveController(repository, {
@@ -77,7 +82,6 @@
 				} as Parameters<typeof createAutosaveController>[1] & {
 					onStatusChange: (status: AutosaveStatus) => void;
 				});
-				const ignoreStore = createSessionIgnoreStore(window.sessionStorage);
 				const initialDraft = await recoverStartupDraft(repository);
 				const initialRecentLanguages = await repository.getRecentLanguages();
 				if (cancelled) return;
@@ -92,6 +96,7 @@
 					initialRecentLanguages,
 					repository,
 					mediaRepository,
+					backup,
 					autosave,
 					ignoreStore,
 					feedback,
@@ -102,6 +107,7 @@
 							'/lint/' | `/lint/?${string}` | `/lint/#${string}`;
 						replaceState(resolve(target), page.state);
 					},
+					onBackupRestored: () => location.reload(),
 					sources: [...sourceRegistry.values()],
 					ruleSet: currentRuleSet,
 					onOpenDraft: (draft) => {
@@ -122,8 +128,10 @@
 		// text for the same reason the text flushes at all.
 		const flushWhenHidden = () => {
 			if (document.visibilityState !== 'hidden') return;
-			void controller?.flushAutosave();
-			void controller?.media?.flushPosition();
+			void (async () => {
+				await Promise.all([controller?.flushAutosave(), controller?.media?.flushPosition()]);
+				await controller?.backup?.flush();
+			})();
 		};
 		document.addEventListener('visibilitychange', flushWhenHidden);
 		return () => {
@@ -133,6 +141,7 @@
 	});
 
 	onDestroy(() => {
+		if (browser) backup?.destroy();
 		if (browser && database) closeDatabase(database);
 	});
 

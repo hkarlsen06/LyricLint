@@ -276,7 +276,7 @@
 			{:else}
 				<button
 					type="button"
-					class="button button--quiet danger-text"
+					class="button button--quiet button--flush danger-text"
 					onclick={() => {
 						deleteId = undefined;
 						confirmDeleteAll = true;

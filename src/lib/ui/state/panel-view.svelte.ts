@@ -7,6 +7,11 @@ import type {
 	SessionIgnoreStore,
 	Severity
 } from '$lib/core/types.js';
+import {
+	diagnosticIgnoreKey,
+	ignoredDiagnosticKeys as matchIgnoredDiagnostics,
+	ignoredDiagnosticRuleId
+} from '$lib/diagnostics/ignore.js';
 import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
 import { resolveLegendAssignment } from '$lib/performers/legend-assignment.js';
 import { collectMatchingFixes, mergeFixes, planBulkFix } from '$lib/rules/bulk-fix.js';
@@ -26,6 +31,7 @@ export interface PanelViewDependencies {
 	feedback: FeedbackState;
 	initialActiveTab?: RightPanelTab;
 	onActiveTabChange?: (tab: RightPanelTab) => void;
+	onIgnoredDiagnosticsChange?: () => void;
 }
 
 export interface PanelView {
@@ -38,6 +44,7 @@ export interface PanelView {
 	 * tab a second time, while already inside it, is the toggle.
 	 */
 	readonly severityFiltersOpen: boolean;
+	readonly unignoredDiagnostics: readonly Diagnostic[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
 	/**
 	 * What a whole-document bulk fix would settle, and what it would leave. It is
@@ -46,13 +53,13 @@ export interface PanelView {
 	 * a filter is hiding is the one thing bulk fixing must never do.
 	 */
 	readonly bulkFixPlan: BulkFixPlan;
-	readonly ignoredRuleIds: readonly string[];
+	readonly ignoredDiagnosticKeys: readonly string[];
 	setActiveTab(tab: RightPanelTab): void;
 	toggleSeverity(severity: Severity): void;
 	/** Show or hide the severity chips; returns the state it settled on. */
 	toggleSeverityFilters(): boolean;
 	/** Re-read the session ignores for whichever draft is current now. */
-	refreshIgnoredRules(): void;
+	refreshIgnoredDiagnostics(): void;
 	/** Drop the active card once its diagnostic is gone from the document. */
 	pruneActiveDiagnostic(diagnostics: readonly Diagnostic[]): void;
 	/**
@@ -90,8 +97,8 @@ export interface PanelView {
 	applyFixBatch(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	/** Apply every safe fix the panel is showing as one edit. */
 	applyBulkFix(): void;
-	ignoreRule(ruleId: string): void;
-	restoreRule(ruleId: string): void;
+	ignoreDiagnostic(diagnostic: Diagnostic): void;
+	restoreDiagnostic(diagnosticKey: string): void;
 	/**
 	 * Ask the next snapshot to hand the workbench to its leading finding, for an
 	 * edit that did not come from a fix. Replacing the whole document has the
@@ -107,15 +114,16 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	let activeDiagnosticKey = $state<string | undefined>();
 	let severityFilter = $state<Severity[]>([...allSeverities]);
 	let severityFiltersOpen = $state(false);
-	let ignoredRuleIds = $state<string[]>(deps.ignoreStore.list(deps.draftId()));
+	let ignoredDiagnosticKeys = $state<string[]>(deps.ignoreStore.list(deps.draftId()));
 
 	const feedback = deps.feedback;
 
-	function setIgnored(ruleId: string, ignored: boolean): void {
+	function setIgnored(diagnosticKey: string, ignored: boolean): void {
 		const draftId = deps.draftId();
-		if (ignored) deps.ignoreStore.ignore(draftId, ruleId);
-		else deps.ignoreStore.restore(draftId, ruleId);
-		ignoredRuleIds = deps.ignoreStore.list(draftId);
+		if (ignored) deps.ignoreStore.ignore(draftId, diagnosticKey);
+		else deps.ignoreStore.restore(draftId, diagnosticKey);
+		ignoredDiagnosticKeys = deps.ignoreStore.list(draftId);
+		deps.onIgnoredDiagnosticsChange?.();
 	}
 
 	function setActiveTab(tab: RightPanelTab): void {
@@ -151,10 +159,18 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		}
 	}
 
+	function unignoredIn(diagnostics: readonly Diagnostic[]): Diagnostic[] {
+		const ignored = matchIgnoredDiagnostics(
+			diagnostics,
+			deps.snapshot().text,
+			ignoredDiagnosticKeys
+		);
+		return diagnostics.filter((diagnostic) => !ignored.has(diagnosticKey(diagnostic)));
+	}
+
 	function visibleIn(diagnostics: readonly Diagnostic[]): Diagnostic[] {
-		return diagnostics.filter(
-			(diagnostic) =>
-				severityFilter.includes(diagnostic.severity) && !ignoredRuleIds.includes(diagnostic.ruleId)
+		return unignoredIn(diagnostics).filter((diagnostic) =>
+			severityFilter.includes(diagnostic.severity)
 		);
 	}
 
@@ -237,14 +253,17 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		get severityFiltersOpen() {
 			return severityFiltersOpen;
 		},
+		get unignoredDiagnostics() {
+			return unignoredIn(deps.snapshot().diagnostics);
+		},
 		get visibleDiagnostics() {
 			return visibleIn(deps.snapshot().diagnostics);
 		},
 		get bulkFixPlan() {
 			return bulkPlan();
 		},
-		get ignoredRuleIds() {
-			return ignoredRuleIds;
+		get ignoredDiagnosticKeys() {
+			return ignoredDiagnosticKeys;
 		},
 		setActiveTab(tab) {
 			setActiveTab(tab);
@@ -260,8 +279,8 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			severityFiltersOpen = !severityFiltersOpen;
 			return severityFiltersOpen;
 		},
-		refreshIgnoredRules() {
-			ignoredRuleIds = deps.ignoreStore.list(deps.draftId());
+		refreshIgnoredDiagnostics() {
+			ignoredDiagnosticKeys = deps.ignoreStore.list(deps.draftId());
 		},
 		pruneActiveDiagnostic(diagnostics) {
 			if (
@@ -349,36 +368,37 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 				plan.manual === 0 ? fixed : `${fixed} ${plan.manual} still need a decision.`
 			);
 		},
-		ignoreRule(ruleId) {
+		ignoreDiagnostic(diagnostic) {
 			deps.editor().clearPreview?.();
 			activeDiagnosticKey = undefined;
-			if (ignoredRuleIds.includes(ruleId)) return;
-			setIgnored(ruleId, true);
-			const message = `Ignored “${ruleName(ruleId)}” for this session.`;
+			const key = diagnosticIgnoreKey(diagnostic, deps.snapshot().text);
+			if (ignoredDiagnosticKeys.includes(key)) return;
+			setIgnored(key, true);
+			const message = `Ignored this “${ruleName(diagnostic.ruleId)}” diagnostic for this session.`;
 			feedback.announce(message);
 			feedback.addToast({
 				message,
 				actionLabel: 'Undo',
 				action: () => {
-					setIgnored(ruleId, false);
-					feedback.announce(`Restored “${ruleName(ruleId)}”.`);
+					setIgnored(key, false);
+					feedback.announce(`Restored “${ruleName(diagnostic.ruleId)}”.`);
 				}
 			});
 		},
 		leadOnNextSnapshot() {
 			leadPending = true;
 		},
-		restoreRule(ruleId) {
-			if (!ignoredRuleIds.includes(ruleId)) return;
-			setIgnored(ruleId, false);
-			const message = `Restored “${ruleName(ruleId)}”.`;
+		restoreDiagnostic(key) {
+			if (!ignoredDiagnosticKeys.includes(key)) return;
+			setIgnored(key, false);
+			const message = `Restored “${ruleName(ignoredDiagnosticRuleId(key))}”.`;
 			feedback.announce(message);
 			feedback.addToast({
 				message,
 				actionLabel: 'Undo',
 				action: () => {
-					setIgnored(ruleId, true);
-					feedback.announce(`Ignored “${ruleName(ruleId)}” again.`);
+					setIgnored(key, true);
+					feedback.announce(`Ignored this diagnostic again.`);
 				}
 			});
 		}

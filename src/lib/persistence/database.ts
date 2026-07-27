@@ -1,6 +1,11 @@
 import Dexie, { type EntityTable } from 'dexie';
 
-import type { AppMetadataRecord, DraftRecord, MediaHandleRecord } from './types.js';
+import type {
+	AppMetadataRecord,
+	BackupHandleRecord,
+	DraftRecord,
+	MediaHandleRecord
+} from './types.js';
 
 export const DEFAULT_DATABASE_NAME = 'lyriclint';
 
@@ -19,6 +24,8 @@ export class LyricLintDatabase extends Dexie {
 	 * one song, so nothing here ever holds the audio itself.
 	 */
 	mediaHandles!: EntityTable<MediaHandleRecord, 'draftId'>;
+	/** The user-granted destination for full-workspace autosaves. */
+	backupHandles!: EntityTable<BackupHandleRecord, 'key'>;
 
 	constructor(name = DEFAULT_DATABASE_NAME) {
 		super(name);
@@ -32,6 +39,13 @@ export class LyricLintDatabase extends Dexie {
 			drafts: 'id, updatedAt',
 			appMetadata: 'key',
 			mediaHandles: 'draftId'
+		});
+
+		this.version(3).stores({
+			drafts: 'id, updatedAt',
+			appMetadata: 'key',
+			mediaHandles: 'draftId',
+			backupHandles: 'key'
 		});
 	}
 }

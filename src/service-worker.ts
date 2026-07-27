@@ -4,7 +4,16 @@ import { build, files, prerendered, version } from '$service-worker';
 
 const worker = self as unknown as ServiceWorkerGlobalScope;
 const cacheName = `lyriclint-${version}`;
-const applicationAssets = [...build, ...files, ...prerendered];
+const runtimeAssets = new Set(
+	build
+		.filter((asset) => asset.endsWith('.wasm'))
+		.map((asset) => new URL(asset, worker.location.href).pathname)
+);
+const applicationAssets = [
+	...build.filter((asset) => !runtimeAssets.has(new URL(asset, worker.location.href).pathname)),
+	...files,
+	...prerendered
+];
 
 function expectedContentType(pathname: string): string | undefined {
 	if (pathname.endsWith('.js')) return 'javascript';
@@ -68,18 +77,28 @@ worker.addEventListener('fetch', (event) => {
 	const url = new URL(request.url);
 	if (url.origin !== worker.location.origin) return;
 
-	event.respondWith(
-		caches.match(request).then(async (cached) => {
-			if (cached) return cached;
-			try {
-				return await fetch(request);
-			} catch {
-				if (request.mode === 'navigate') {
-					const shell = await caches.match('/');
-					if (shell) return shell;
-				}
-				throw new Error('Requested resource is not available offline.');
+	let fetched = false;
+	const response = caches.match(request).then(async (cached) => {
+		if (cached) return cached;
+		try {
+			fetched = true;
+			return await fetch(request);
+		} catch {
+			if (request.mode === 'navigate') {
+				const shell = await caches.match('/');
+				if (shell) return shell;
 			}
-		})
-	);
+			throw new Error('Requested resource is not available offline.');
+		}
+	});
+	event.respondWith(response);
+	if (runtimeAssets.has(url.pathname)) {
+		event.waitUntil(
+			response.then((result) =>
+				fetched && result.ok
+					? caches.open(cacheName).then((cache) => cache.put(request, result.clone()))
+					: undefined
+			)
+		);
+	}
 });

@@ -1,13 +1,44 @@
 <script lang="ts">
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
+	import type { WorkspaceBackupState } from '$lib/persistence/backup.js';
+	import { onMount } from 'svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
 	let confirmDeleteAll = $state(false);
+	let backupInput = $state<HTMLInputElement>();
+	let importingBackup = $state(false);
+	let backupState = $state<WorkspaceBackupState | undefined>();
 
 	const reviewedSources = $derived(
 		[...controller.sources.values()].filter((source) => source.reviewStatus === 'reviewed')
 	);
+	const backupActionLabel = $derived.by(() => {
+		if (!backupState?.supported) return 'Download backup';
+		if (!backupState.linkedFileName) return 'Choose backup file…';
+		if (backupState.permission !== 'granted') return 'Allow backup access';
+		return 'Change backup file…';
+	});
+
+	onMount(() => {
+		backupState = controller.backup?.state();
+		return controller.backup?.subscribe((state) => (backupState = state));
+	});
+
+	async function runBackupAction(): Promise<void> {
+		if (backupState?.linkedFileName && backupState.permission !== 'granted') {
+			await controller.allowBackupAccess();
+			return;
+		}
+		await controller.backupWorkspace();
+	}
+
+	async function importBackup(file: File | undefined): Promise<void> {
+		if (!file) return;
+		importingBackup = true;
+		await controller.restoreWorkspaceBackup(file);
+		importingBackup = false;
+	}
 </script>
 
 <!--
@@ -52,6 +83,90 @@
 		<p>Copy and export use the exact canonical string, including literal supported markup.</p>
 	</section>
 
+	{#if controller.backup}
+		<section>
+			<h3>Workspace backup</h3>
+			<p>Backs up everything. Imports add to this workspace, but local audio needs reconnecting.</p>
+
+			<div class="tool-actions">
+				<button type="button" class="button" disabled={importingBackup} onclick={runBackupAction}>
+					{backupActionLabel}
+				</button>
+				<button
+					type="button"
+					class="button button--quiet"
+					disabled={importingBackup}
+					onclick={() => backupInput?.click()}
+				>
+					{importingBackup ? 'Importing…' : 'Import backup…'}
+				</button>
+				<input
+					bind:this={backupInput}
+					hidden
+					type="file"
+					accept="application/json,.json"
+					onchange={(event) => {
+						const input = event.currentTarget;
+						void importBackup(input.files?.[0]);
+						input.value = '';
+					}}
+				/>
+			</div>
+
+			<p class="backup-status" aria-live="polite">
+				{#if backupState?.linkedFileName}
+					{#if backupState.permission === 'granted'}
+						Autosaving to {backupState.linkedFileName}.
+					{:else}
+						Access to {backupState.linkedFileName} is needed. In Chrome, choose “Allow on every visit”
+						to keep backups running after you reopen LyricLint.
+					{/if}
+				{:else if backupState?.supported}
+					Choose a file once to autosave the whole workspace. Chrome can keep access between visits.
+				{/if}
+				{#if backupState?.status === 'saving'}
+					Saving…
+				{:else if backupState?.status === 'failed'}
+					The last automatic backup failed.
+				{/if}
+			</p>
+		</section>
+	{/if}
+
+	<section>
+		<h3>Local data</h3>
+		<p>
+			Drafts stay in this browser; audio stays on your disk. Everything works offline except
+			YouTube playback, which needs permission each session.
+		</p>
+		<div aria-live="polite">
+			{#if confirmDeleteAll}
+				<p class="danger-text">Delete every local draft? This cannot be undone.</p>
+				<div class="tool-actions">
+					<button
+						type="button"
+						class="button button--danger"
+						onclick={async () => {
+							await controller.deleteAllDrafts();
+							confirmDeleteAll = false;
+						}}>Delete all local data</button
+					>
+					<button
+						type="button"
+						class="button button--quiet"
+						onclick={() => (confirmDeleteAll = false)}>Cancel</button
+					>
+				</div>
+			{:else}
+				<button
+					type="button"
+					class="button button--quiet button--flush danger-text"
+					onclick={() => (confirmDeleteAll = true)}>Delete all local data…</button
+				>
+			{/if}
+		</div>
+	</section>
+
 	<section>
 		<h3>Reviewed rules</h3>
 		{#if controller.ruleSet}
@@ -83,43 +198,5 @@
 				{/each}
 			</details>
 		{/if}
-	</section>
-
-	<section>
-		<h3>Local data</h3>
-		<p>
-			Drafts stay in this browser. Lyric text is never sent to Genius or a LyricLint server, and
-			attached audio plays from your own disk — only its name is stored, never the file.
-		</p>
-		<p>
-			Editing, linting, saving, export and copy all work offline. The one thing that reaches a
-			network is YouTube playback, and it is asked for every session.
-		</p>
-		<div aria-live="polite">
-			{#if confirmDeleteAll}
-				<p class="danger-text">Delete every local draft? This cannot be undone.</p>
-				<div class="tool-actions">
-					<button
-						type="button"
-						class="button button--danger"
-						onclick={async () => {
-							await controller.deleteAllDrafts();
-							confirmDeleteAll = false;
-						}}>Delete all local data</button
-					>
-					<button
-						type="button"
-						class="button button--quiet"
-						onclick={() => (confirmDeleteAll = false)}>Cancel</button
-					>
-				</div>
-			{:else}
-				<button
-					type="button"
-					class="button button--quiet danger-text"
-					onclick={() => (confirmDeleteAll = true)}>Delete all local data…</button
-				>
-			{/if}
-		</div>
 	</section>
 </div>

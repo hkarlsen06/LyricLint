@@ -7,6 +7,13 @@ export {
 export { createDraftRepository } from './draft-repository.js';
 export { createMediaRepository } from './media-repository.js';
 export type { MediaAttachInput, MediaRepository } from './media-repository.js';
+export { WorkspaceBackupError, createWorkspaceBackup, parseWorkspaceBackup } from './backup.js';
+export type {
+	WorkspaceBackupController,
+	WorkspaceBackupFile,
+	WorkspaceBackupOptions,
+	WorkspaceBackupState
+} from './backup.js';
 export { createAutosaveController } from './autosave.js';
 export { recoverStartupDraft } from './recovery.js';
 export { createSessionIgnoreStore } from './session-ignores.js';
@@ -16,6 +23,7 @@ export type {
 	AutosaveOptions,
 	AutosaveSnapshot,
 	AutosaveStatus,
+	BackupHandleRecord,
 	DraftCreateInput,
 	DraftRecord,
 	DraftRepository,

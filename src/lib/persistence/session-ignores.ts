@@ -1,44 +1,44 @@
 import type { SessionIgnoreStore, SessionStorageLike } from './types.js';
 
-const IGNORE_PREFIX = 'lyriclint:session-ignore:';
+const IGNORE_PREFIX = 'lyriclint:session-ignore-diagnostic:';
 
 function draftPrefix(draftId: string): string {
 	return `${IGNORE_PREFIX}${encodeURIComponent(draftId)}:`;
 }
 
-function ignoreKey(draftId: string, ruleId: string): string {
-	return `${draftPrefix(draftId)}${encodeURIComponent(ruleId)}`;
+function ignoreKey(draftId: string, diagnosticKey: string): string {
+	return `${draftPrefix(draftId)}${encodeURIComponent(diagnosticKey)}`;
 }
 
-/** Create session-scoped, draft-and-rule keyed ignore state. */
+/** Create session-scoped, draft-and-diagnostic keyed ignore state. */
 export function createSessionIgnoreStore(
 	storage: SessionStorageLike = sessionStorage
 ): SessionIgnoreStore {
 	return {
-		isIgnored(draftId, ruleId) {
-			return storage.getItem(ignoreKey(draftId, ruleId)) !== null;
+		isIgnored(draftId, diagnosticKey) {
+			return storage.getItem(ignoreKey(draftId, diagnosticKey)) !== null;
 		},
 
-		ignore(draftId, ruleId) {
-			storage.setItem(ignoreKey(draftId, ruleId), '1');
+		ignore(draftId, diagnosticKey) {
+			storage.setItem(ignoreKey(draftId, diagnosticKey), '1');
 		},
 
-		restore(draftId, ruleId) {
-			storage.removeItem(ignoreKey(draftId, ruleId));
+		restore(draftId, diagnosticKey) {
+			storage.removeItem(ignoreKey(draftId, diagnosticKey));
 		},
 
 		list(draftId) {
 			const prefix = draftPrefix(draftId);
-			const ruleIds: string[] = [];
+			const diagnosticKeys: string[] = [];
 
 			for (let index = 0; index < storage.length; index += 1) {
 				const key = storage.key(index);
 				if (key?.startsWith(prefix)) {
-					ruleIds.push(decodeURIComponent(key.slice(prefix.length)));
+					diagnosticKeys.push(decodeURIComponent(key.slice(prefix.length)));
 				}
 			}
 
-			return ruleIds.sort();
+			return diagnosticKeys.sort();
 		},
 
 		clearDraft(draftId) {

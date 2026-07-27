@@ -1,15 +1,29 @@
 import type { ParsedDocument, TextRange } from '$lib/core/types.js';
-import LanguageDetect from 'languagedetect';
+import type LanguageDetect from 'languagedetect';
 import { languageSourceInventory } from './inventory.js';
 import { getLanguagePack, resolveLanguageTag } from './registry.js';
 
 const minimumStatisticalLetters = 40;
 const minimumStatisticalScore = 0.2;
-const minimumSelectedScoreLead = 0.08;
+const minimumSelectedScoreRatio = 1.15;
+const norwegianMarkers = /(?<!\p{L})(?:fortsatt|gjør|gjøre|hva|mer|mye|noe|noen|røyke|skjer)(?!\p{L})/giu;
 const selectableTags = new Set(['en', ...languageSourceInventory.map((entry) => entry.tag)]);
 
-const detector = new LanguageDetect();
-detector.setLanguageType('iso2');
+let detector: LanguageDetect | undefined;
+let detectorPromise: Promise<void> | undefined;
+
+/** Load the statistical profiles only when a non-empty editor asks for them. */
+export function loadStatisticalLanguageDetector(): Promise<void> {
+	return (detectorPromise ??= import('languagedetect')
+		.then(({ default: LanguageDetector }) => {
+			detector = new LanguageDetector();
+			detector.setLanguageType('iso2');
+		})
+		.catch((error: unknown) => {
+			detectorPromise = undefined;
+			throw error;
+		}));
+}
 
 export interface SongLanguageDetection {
 	tag: string;
@@ -136,6 +150,7 @@ export function detectSongLanguage(
 	}
 
 	if (letterCount < minimumStatisticalLetters) return undefined;
+	if (!detector) return undefined;
 	const scores = new Map<string, number>();
 	for (const [rawTag, score] of detector.detect(text)) {
 		const tag = normalizedDetectorTag(rawTag);
@@ -143,10 +158,19 @@ export function detectSongLanguage(
 		scores.set(tag, Math.max(scores.get(tag) ?? 0, score));
 	}
 
-	const best = [...scores].sort((left, right) => right[1] - left[1])[0];
+	let best = [...scores].sort((left, right) => right[1] - left[1])[0];
+	const norwegianScore = scores.get('no');
+	if (
+		best?.[0] === 'da' &&
+		norwegianScore !== undefined &&
+		best[1] < norwegianScore * minimumSelectedScoreRatio &&
+		countMatches(text, norwegianMarkers) >= 2
+	) {
+		best = ['no', norwegianScore];
+	}
 	if (!best || best[1] < minimumStatisticalScore) return undefined;
 	const selectedScore = scores.get(selectedTag) ?? 0;
-	if (best[0] !== selectedTag && best[1] - selectedScore < minimumSelectedScoreLead) {
+	if (best[0] !== selectedTag && best[1] < selectedScore * minimumSelectedScoreRatio) {
 		return undefined;
 	}
 

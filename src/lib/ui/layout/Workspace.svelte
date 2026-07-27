@@ -11,6 +11,7 @@
 		insertSectionHeader
 	} from '$lib/performers/index.js';
 	import { getLanguagePack, resolveLanguageTag } from '$lib/languages/registry.js';
+	import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 	import {
 		createHarperDiagnosticProvider,
 		mergeHarperDiagnostics,
@@ -105,7 +106,11 @@
 	let harperTimer: ReturnType<typeof setTimeout> | undefined;
 	let harperRequest = 0;
 	let harperUnavailable = false;
+	let languageDetectorTimer: ReturnType<typeof setTimeout> | undefined;
+	let languageDetectorStarted = false;
+	let destroyed = false;
 	const harperDelay = 250;
+	const languageDetectorDelay = 150;
 
 	function lintKey(snapshot: EditorSnapshot): string {
 		const performerKey = controller.performers
@@ -175,8 +180,30 @@
 		}, harperDelay);
 	}
 
+	function scheduleLanguageDetector(snapshot: EditorSnapshot): void {
+		if (languageDetectorStarted) return;
+		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
+		if (snapshot.text.length < 40) return;
+
+		languageDetectorTimer = setTimeout(() => {
+			languageDetectorTimer = undefined;
+			languageDetectorStarted = true;
+			void loadStatisticalLanguageDetector()
+				.then(() => {
+					if (destroyed) return;
+					lastLintKey = '';
+					controller.onSnapshot(enrichSnapshot(controller.snapshot));
+				})
+				.catch((error: unknown) => console.error('Language recognition is unavailable.', error));
+		}, languageDetectorDelay);
+	}
+
 	function enrichSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
 		if (!snapshot.composing) {
+			const key = lintKey(snapshot);
+			if (key === lastLintKey) {
+				return { ...snapshot, diagnostics: lastDiagnostics };
+			}
 			const context = buildRuleContext(
 				controller.language,
 				controller.performers,
@@ -184,7 +211,8 @@
 				snapshot.revision
 			);
 			lastDiagnostics = computeDiagnostics(snapshot.parsed, context);
-			lastLintKey = lintKey(snapshot);
+			lastLintKey = key;
+			scheduleLanguageDetector(snapshot);
 			scheduleHarper(snapshot, lastDiagnostics);
 		} else {
 			invalidateHarper();
@@ -193,6 +221,8 @@
 	}
 
 	onDestroy(() => {
+		destroyed = true;
+		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
 		invalidateHarper();
 		void harperProvider
 			.dispose()
@@ -206,9 +236,7 @@
 		parsed: controller.snapshot.parsed,
 		diagnostics: {
 			revision: controller.snapshot.revision,
-			items: controller.snapshot.diagnostics.filter(
-				(diagnostic) => !controller.ignoredRuleIds.includes(diagnostic.ruleId)
-			)
+			items: controller.unignoredDiagnostics
 		},
 		voiceGroups: resolveVoiceGroupRanges(controller.snapshot.parsed, controller.performers),
 		languagePack: getLanguagePack(controller.language),
@@ -285,7 +313,7 @@
 		// user meets it.
 		countDiagnosticFixBatch: (diagnostic, fix) => controller.fixBatchSize(diagnostic, fix),
 		onApplyDiagnosticFixBatch: (diagnostic, fix) => controller.applyFixBatch(diagnostic, fix),
-		onIgnoreDiagnostic: (diagnostic) => controller.ignoreRule(diagnostic.ruleId),
+		onIgnoreDiagnostic: (diagnostic) => controller.ignoreDiagnostic(diagnostic),
 		onSetLanguage: (language) => controller.setLanguage(language),
 		// The song dropped onto the lyrics it belongs to. The editor recognized the
 		// file and knows nothing else about it; where the bytes go is the media

@@ -25,6 +25,7 @@
 		type EditorDisplayContext,
 		type LyricEditorCallbacks
 	} from '$lib/editor/index.js';
+	import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 	import { getLanguagePack, resolveLanguageTag } from '$lib/languages/registry.js';
 	import {
 		allocatePerformerColor,
@@ -112,7 +113,21 @@
 	let harperTimer: ReturnType<typeof setTimeout> | undefined;
 	let harperRequest = 0;
 	let harperUnavailable = false;
+	let languageDetectorTimer: ReturnType<typeof setTimeout> | undefined;
+	let languageDetectorStarted = false;
+	let destroyed = false;
 	const harperDelay = 250;
+	const languageDetectorDelay = 150;
+
+	function lintKey(next: EditorSnapshot): string {
+		const roster = performers
+			.map(
+				(performer) =>
+					`${performer.id}:${performer.normalizedKey}:${performer.aliases.join('\u001f')}`
+			)
+			.join('\u001e');
+		return `${language}\u0000${roster}\u0000${next.revision}\u0000${next.text}`;
+	}
 
 	function invalidateHarper(): number {
 		harperRequest += 1;
@@ -167,6 +182,26 @@
 		}, harperDelay);
 	}
 
+	function scheduleLanguageDetector(next: EditorSnapshot): void {
+		if (typeof window === 'undefined' || languageDetectorStarted) return;
+		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
+		if (next.text.length < 40) return;
+
+		languageDetectorTimer = setTimeout(() => {
+			languageDetectorTimer = undefined;
+			languageDetectorStarted = true;
+			void loadStatisticalLanguageDetector()
+				.then(() => {
+					if (destroyed) return;
+					lastLintKey = '';
+					snapshot = enrich(snapshot);
+				})
+				.catch((error: unknown) =>
+					console.error('Language recognition is unavailable in the landing demo.', error)
+				);
+		}, languageDetectorDelay);
+	}
+
 	function enrich(snapshot: EditorSnapshot): EditorSnapshot {
 		// Composition revisions reuse whatever was last computed, exactly as the
 		// workbench does: linting half-finished IME input reports on text the
@@ -175,10 +210,16 @@
 			invalidateHarper();
 			return { ...snapshot, diagnostics: lastDiagnostics };
 		}
+		const key = lintKey(snapshot);
+		if (key === lastLintKey) {
+			return { ...snapshot, diagnostics: lastDiagnostics };
+		}
 		lastDiagnostics = computeDiagnostics(
 			snapshot.parsed,
 			buildRuleContext(language, performers, currentRuleSet.version, snapshot.revision)
 		);
+		lastLintKey = key;
+		scheduleLanguageDetector(snapshot);
 		scheduleHarper(snapshot, lastDiagnostics);
 		return { ...snapshot, diagnostics: lastDiagnostics };
 	}
@@ -198,6 +239,7 @@
 	}
 
 	let lastDiagnostics: Diagnostic[] = [];
+	let lastLintKey = '';
 	// Seeded rather than left empty: the pane paints its first frame from this,
 	// and an editor that arrives clean and sprouts underlines a tick later reads
 	// as a page still loading rather than as a linter that has already run.
@@ -210,6 +252,8 @@
 	let editorReady = $state(false);
 
 	onDestroy(() => {
+		destroyed = true;
+		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
 		invalidateHarper();
 		void harperProvider
 			.dispose()

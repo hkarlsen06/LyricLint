@@ -12,6 +12,7 @@ import type {
 	TextRange
 } from '$lib/core/types.js';
 import type { MediaRepository } from '$lib/persistence/media-repository.js';
+import type { WorkspaceBackupController } from '$lib/persistence/backup.js';
 import { createFeedbackState } from './state/feedback.svelte.js';
 import type { MediaPlayer } from './state/media-player.svelte.js';
 import {
@@ -94,6 +95,7 @@ export function createTestWorkbench(options?: {
 	 * element and can fetch Google's IFrame API.
 	 */
 	media?: { repository: MediaRepository; player: MediaPlayer };
+	backup?: WorkspaceBackupController;
 }) {
 	const text = options?.text ?? '[Verse]\nLine';
 	const selection = options?.selection ?? { anchor: 0, head: 4 };
@@ -185,6 +187,7 @@ export function createTestWorkbench(options?: {
 		...(options?.media
 			? { mediaRepository: options.media.repository, mediaPlayer: options.media.player }
 			: {}),
+		...(options?.backup ? { backup: options.backup } : {}),
 		sources: [testSource],
 		ruleSet: {
 			version: '2026.7',

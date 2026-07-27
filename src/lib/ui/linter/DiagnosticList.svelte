@@ -66,7 +66,7 @@
 			diagnostic: Diagnostic,
 			fix: NonNullable<Diagnostic['fixes']>[number]
 		) => void;
-		onIgnore: (ruleId: string) => void;
+		onIgnore: (diagnostic: Diagnostic) => void;
 	} = $props();
 
 	// The panel's reading order is shared with the state that follows it: after a
@@ -135,8 +135,8 @@
 		fallback?.focus();
 	}
 
-	function ignoreAndMoveFocus(ruleId: string, trigger: HTMLButtonElement): void {
-		void runRemovingAction(trigger, () => onIgnore(ruleId), '.ignored-rules__toggle');
+	function ignoreAndMoveFocus(diagnostic: Diagnostic, trigger: HTMLButtonElement): void {
+		void runRemovingAction(trigger, () => onIgnore(diagnostic), '.ignored-rules__toggle');
 	}
 
 	function setLanguageAndMoveFocus(language: string, trigger: HTMLButtonElement): void {
@@ -195,7 +195,7 @@
 						onApplyFixBatch={onApplyFixBatch
 							? (fix) => onApplyFixBatch(diagnostic, fix)
 							: undefined}
-						onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic.ruleId, trigger)}
+						onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic, trigger)}
 					/>
 				{/if}
 			</li>

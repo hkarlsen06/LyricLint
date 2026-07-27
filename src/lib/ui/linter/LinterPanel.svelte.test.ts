@@ -152,15 +152,16 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		expect(screen.getByRole('button', { name: 'Fix 1 issue automatically' })).toBeTruthy();
 	});
 
-	test('excludes an ignored rule from the batch', async () => {
+	test('excludes only the ignored diagnostic from the batch', async () => {
+		const first = spelling(0, 4, "I'ma");
 		const { controller } = createTestWorkbench({
-			diagnostics: [spelling(0, 4, "I'ma"), spelling(20, 24, "I'ma")]
+			diagnostics: [first, spelling(20, 24, "I'ma")]
 		});
 		render(LinterPanel, { controller });
 
-		controller.ignoreRule('spelling.standardized');
+		controller.ignoreDiagnostic(first);
 		await Promise.resolve();
-		expect(screen.queryByRole('button', { name: /automatically/ })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Fix 1 issue automatically' })).toBeTruthy();
 	});
 });
 

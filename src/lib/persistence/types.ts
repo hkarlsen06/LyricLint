@@ -67,6 +67,14 @@ export interface MediaHandleRecord {
 	attachedAt: string;
 }
 
+/** Browser-local capability for the workspace backup file. Never exported. */
+export interface BackupHandleRecord {
+	key: 'workspace';
+	name: string;
+	handle: FileSystemFileHandle;
+	linkedAt: string;
+}
+
 /**
  * The persistence implementation broadens the frozen repository contract by
  * accepting partial creates and generating duplicate IDs when one is omitted.

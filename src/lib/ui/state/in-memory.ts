@@ -238,7 +238,7 @@ export function createMemorySessionStorage(): SessionStorageLike {
 }
 
 export function createContractSessionIgnoreStore(storage: SessionStorageLike): SessionIgnoreStore {
-	const key = (draftId: string) => `lyriclint:ignored-rules:${draftId}`;
+	const key = (draftId: string) => `lyriclint:ignored-diagnostics:${draftId}`;
 
 	function read(draftId: string): string[] {
 		const raw = storage.getItem(key(draftId));
@@ -253,25 +253,25 @@ export function createContractSessionIgnoreStore(storage: SessionStorageLike): S
 		}
 	}
 
-	function write(draftId: string, rules: readonly string[]): void {
-		if (rules.length === 0) {
+	function write(draftId: string, diagnosticKeys: readonly string[]): void {
+		if (diagnosticKeys.length === 0) {
 			storage.removeItem(key(draftId));
 			return;
 		}
-		storage.setItem(key(draftId), JSON.stringify([...new Set(rules)].sort()));
+		storage.setItem(key(draftId), JSON.stringify([...new Set(diagnosticKeys)].sort()));
 	}
 
 	return {
-		isIgnored(draftId, ruleId) {
-			return read(draftId).includes(ruleId);
+		isIgnored(draftId, diagnosticKey) {
+			return read(draftId).includes(diagnosticKey);
 		},
-		ignore(draftId, ruleId) {
-			write(draftId, [...read(draftId), ruleId]);
+		ignore(draftId, diagnosticKey) {
+			write(draftId, [...read(draftId), diagnosticKey]);
 		},
-		restore(draftId, ruleId) {
+		restore(draftId, diagnosticKey) {
 			write(
 				draftId,
-				read(draftId).filter((candidate) => candidate !== ruleId)
+				read(draftId).filter((candidate) => candidate !== diagnosticKey)
 			);
 		},
 		list(draftId) {

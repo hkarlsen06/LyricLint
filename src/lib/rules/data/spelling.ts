@@ -90,9 +90,7 @@ function normalizedSpelling(value: string): string {
 }
 
 /** Whether two strings are one typo apart, including an adjacent transposition. */
-function isSingleEditApart(left: string, right: string): boolean {
-	const source = Array.from(normalizedSpelling(left));
-	const target = Array.from(normalizedSpelling(right));
+function isSingleEditApart(source: readonly string[], target: readonly string[]): boolean {
 	const lengthDifference = source.length - target.length;
 	if (Math.abs(lengthDifference) > 1 || (source.length === 0 && target.length === 0)) {
 		return false;
@@ -434,6 +432,24 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 	}
 ];
 
+const fuzzySpellings = standardizedSpellings.flatMap((spelling) => {
+	if (!spelling.fuzzy) return [];
+	return [
+		{
+			spelling,
+			preferred: spelling.preferred.map((value) => ({
+				value,
+				characters: Array.from(normalizedSpelling(value))
+			})),
+			excluded: new Set(
+				[...spelling.preferred, ...spelling.alternates, ...(spelling.fuzzyExceptions ?? [])].map(
+					normalizedSpelling
+				)
+			)
+		}
+	];
+});
+
 function htmlTokenRanges(text: string): Array<{ from: number; to: number }> {
 	return Array.from(text.matchAll(/<[^>]*>/gu), (match) => ({
 		from: match.index,
@@ -510,20 +526,13 @@ export function lookupSpellingCandidates(
 			continue;
 		}
 
-		const matches = standardizedSpellings.flatMap((spelling) =>
-			spelling.fuzzy &&
-			!spelling.preferred.some(
-				(preferred) => normalizedSpelling(preferred) === normalizedSpelling(match[0])
-			) &&
-			!spelling.alternates.some(
-				(alternate) => normalizedSpelling(alternate) === normalizedSpelling(match[0])
-			) &&
-			!spelling.fuzzyExceptions?.some(
-				(exception) => normalizedSpelling(exception) === normalizedSpelling(match[0])
-			)
-				? spelling.preferred
-						.filter((preferred) => isSingleEditApart(match[0], preferred))
-						.map((preferred) => ({ spelling, preferred }))
+		const normalized = normalizedSpelling(match[0]);
+		const characters = Array.from(normalized);
+		const matches = fuzzySpellings.flatMap(({ spelling, preferred, excluded }) =>
+			!excluded.has(normalized)
+				? preferred
+						.filter((candidate) => isSingleEditApart(characters, candidate.characters))
+						.map((candidate) => ({ spelling, preferred: candidate.value }))
 				: []
 		);
 		if (matches.length !== 1) {
