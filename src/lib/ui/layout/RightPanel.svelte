@@ -4,6 +4,7 @@
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
 	import MediaVideo from '../media/MediaVideo.svelte';
 	import MediaArtwork from '../media/MediaArtwork.svelte';
+	import { drawsCoverBand } from '../state/media-player.svelte.js';
 	import PerformersPanel from '../performers/PerformersPanel.svelte';
 	import type { RightPanelTab, WorkbenchController } from '../state/workbench.svelte.js';
 	import ToolsPanel from '../tools/ToolsPanel.svelte';
@@ -145,18 +146,22 @@
 			<MediaVideo media={controller.media} />
 		{/if}
 
-		<!-- The same band, filled by whatever the attached source has to show. A
-		     cover only exists once its catalogue read has landed, so this waits on
-		     the picture rather than on the source kind: a square of empty chrome
-		     between attaching and the metadata arriving would be the band flashing
-		     into existence twice.
+		<!-- The same band, for the sources with a catalogue behind them.
 
-		     A video is the one source that has a picture of its own here, and it is
-		     the picture this band would draw. Two bands showing one still — one of
-		     them playing it — is the same thing twice, so a video keeps its player
-		     and the thumbnail stays where it is only wanted: the tools panel's
+		     It draws on the kind rather than on the picture, and the band itself
+		     gates the picture: the cover lands a round trip after the song is
+		     attached, so waiting here left the name and the attribution in the
+		     transport strip for that long and then moved them down. `drawsCoverBand`
+		     is the one answer to that question, shared with the strip, because two
+		     conditions for one hand-off is how a title ends up in both rows or in
+		     neither.
+
+		     A video is the one source with a picture of its own here, and it is the
+		     picture this band would draw. Two bands showing one still — one of them
+		     playing it — is the same thing twice, so a video keeps its player and
+		     the thumbnail stays where it is only wanted: the tools panel's
 		     download. -->
-		{#if controller.media?.player.artwork && controller.media.player.sourceKind !== 'youtube'}
+		{#if controller.media && drawsCoverBand(controller.media.player.sourceKind)}
 			<MediaArtwork
 				media={controller.media}
 				open={controller.artworkOpen}

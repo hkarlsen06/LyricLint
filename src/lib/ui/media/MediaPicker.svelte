@@ -4,8 +4,27 @@
 	import type { SpotifySearchResult } from '../state/media-spotify.js';
 	import type { AppleMusicSearchResult } from '../state/media-apple.js';
 	import { formatTime } from '../state/media-player.svelte.js';
+	import { youtubeSearchTerm } from '../state/media-youtube.js';
+	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
-	let { media }: { media: MediaStore } = $props();
+	let { media, draftTitle }: { media: MediaStore; draftTitle?: string } = $props();
+
+	/**
+	 * What this song is called, in the order the names are worth searching for.
+	 *
+	 * The draft's own title leads because it is the one a person chose — and for
+	 * a file it is *already* the cleaned filename, since attaching names an
+	 * untitled draft after its source. The placeholder title is not a name, so it
+	 * is skipped rather than searched for; a remembered attachment counts, because
+	 * a draft waiting on a press still knows what it is waiting for.
+	 */
+	const searchName = $derived.by(() => {
+		const named =
+			(draftTitle?.trim() === DEFAULT_DRAFT_TITLE ? undefined : draftTitle?.trim()) ||
+			media.player.name ||
+			media.pendingName;
+		return named === undefined ? undefined : youtubeSearchTerm(named);
+	});
 
 	let dialog: HTMLDialogElement;
 	let trigger: HTMLButtonElement;
@@ -295,6 +314,33 @@
 				<p class="media-dialog__meta">
 					Google can theoretically see what you play · Needs internet · Asked once a session
 				</p>
+				<!--
+					The way in for somebody who has the song but not its link, which is
+					most people opening this section: the search runs on Google's own
+					page, prefilled with what this draft is already called, and the result
+					they pick comes back to the field above as a paste.
+
+					It is a link and not a lookup because neither lookup exists. Resolving
+					a name to a video needs the Data API, whose quota is a hundred
+					searches a day for the whole build behind a key inlined in the bundle;
+					and Odesli, the keyless alternative, returns no YouTube link for an
+					Apple or Spotify id at all. A search the user runs themselves costs
+					nobody a quota and asks this application to guess at nothing.
+
+					It draws only where there is something to search for, so an untitled
+					draft with nothing attached is offered no empty query.
+				-->
+				{#if searchName}
+					<p class="media-dialog__meta">
+						No link? <a
+							href={`https://www.youtube.com/results?search_query=${encodeURIComponent(searchName)}`}
+							target="_blank"
+							rel="noopener noreferrer"
+						>
+							Search YouTube for “{searchName}”
+						</a>
+					</p>
+				{/if}
 				<div aria-live="polite">
 					{#if error}
 						<p class="media-dialog__error">{error}</p>

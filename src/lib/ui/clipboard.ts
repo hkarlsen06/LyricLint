@@ -1,10 +1,19 @@
-export async function copyCanonicalMarkup(text: string): Promise<void> {
+export async function copyText(text: string): Promise<void> {
 	if (typeof navigator === 'undefined' || !navigator.clipboard) {
 		throw new Error('Clipboard access is unavailable.');
 	}
 
 	await navigator.clipboard.writeText(text);
 }
+
+/**
+ * The lyrics, exactly as the canonical string has them.
+ *
+ * A separate name for the same write because it is the application's one
+ * output, and every caller of it means that rather than "put a string on the
+ * clipboard" — which is what {@link copyText} is for.
+ */
+export const copyCanonicalMarkup = copyText;
 
 /**
  * Read plain text from the system clipboard.

@@ -102,6 +102,8 @@ function setup(options: {
 	 */
 	headless?: boolean;
 	mediaRepository?: MediaRepository;
+	/** The stacked, touch-driven layout, which folds the cover band by default. */
+	phoneLayout?: boolean;
 }) {
 	const initial = options.initial ?? draft('draft-a');
 	const repository =
@@ -153,6 +155,7 @@ function setup(options: {
 			options.readClipboard ??
 			(() => Promise.reject(new Error('Clipboard reads are unavailable.'))),
 		onOpenDraft,
+		phoneLayout: () => options.phoneLayout === true,
 		...(options.mediaRepository
 			? {
 					mediaRepository: options.mediaRepository,
@@ -506,6 +509,32 @@ describe('workbench draft safety', () => {
 	 * It goes in the same `appMetadata` table as the current draft, which is what
 	 * puts it inside the workspace backup and inside `Delete all local data`.
 	 */
+	/**
+	 * The phone gets the compact row instead, and only until the user says
+	 * otherwise.
+	 *
+	 * There the panel is stacked *under* the editor rather than beside it, so an
+	 * open cover is a square of picture sitting between the document and the
+	 * findings — the two things a transcriber moves between — on the screen with
+	 * the least room to give it.
+	 */
+	test('folds the cover by default on a phone, and opens it everywhere else', () => {
+		expect(setup({ phoneLayout: true }).controller.artworkOpen).toBe(false);
+		expect(setup({}).controller.artworkOpen).toBe(true);
+	});
+
+	// A default decides what to do before the user has said anything, never
+	// instead of what they said.
+	test('lets a stored preference outrank the phone default', async () => {
+		const first = draft('draft-a');
+		const repository = createInMemoryDraftRepository([first]);
+		await repository.setPreference('artworkOpen', 'true');
+
+		const { controller } = setup({ initial: first, repository, phoneLayout: true });
+
+		await vi.waitFor(() => expect(controller.artworkOpen).toBe(true));
+	});
+
 	test('remembers whether the cover was folded, across a reload', async () => {
 		const first = draft('draft-a');
 		const repository = createInMemoryDraftRepository([first]);

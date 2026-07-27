@@ -99,79 +99,71 @@
  * The cover, in the video's band and under the video's rules — chrome, a hairline
  * over it, flush with the column.
  *
- * The one thing it does that the video may not is fold, so the row that folds it
- * is the only chrome it adds: the track at one end and a chevron at the other,
- * which is the strip rule about a control never sitting alone in half a gutter.
+ * The picture is the surface here rather than a thing inside one. This band used
+ * to be a chrome bar with a cover under it — a whole row of the panel's height
+ * spent on two facts and one control, above a picture with four unused corners.
+ * The facts sit on the artwork now, and the row that is left is the folded state.
+ *
+ * `--media-thumb` is the folded picture, and it is read off the strip's control
+ * height rather than picked: the folded row is a thumbnail beside a stack of
+ * artist, title and mark, and tying it to that token keeps it in the same family
+ * as the row at the foot of the other column.
  */
 .media-artwork {
+	--media-thumb: calc(var(--control-height-lg) * 2);
+
 	display: flex;
 	flex: none;
-	flex-direction: column;
+	gap: var(--space-3);
+	align-items: center;
 	border-top: var(--border-width) solid var(--color-border);
 	background: var(--color-chrome);
 }
 
 /*
- * The bar, and it is the strip's bar: same height, same padding, same order —
- * transport, then what is playing, then the row's one command at the far end.
- *
- * `min-height` from the same token the strip uses rather than a number copied
- * off it, because the two being equal is the point: they sit at the foot of the
- * two columns of one window, and a few pixels between them reads as one of them
- * being slightly wrong rather than as two different things.
+ * Expanded, the picture is not in anything: full width of the panel, edge to
+ * edge, with the scrims riding directly on the artwork. The inset and the
+ * rounding belong to the folded state, where it really is a thumbnail sitting in
+ * a row — and they move on the same transition as the width, so the fold reads
+ * as one movement rather than a scale plus a jump.
  */
-.media-artwork__bar {
-	display: flex;
-	min-height: var(--control-height-lg);
-	padding: var(--space-1) var(--space-3);
-	gap: var(--space-3);
-	align-items: center;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-}
-
-/* The name takes the row's slack and gives it back at the ellipsis, so the
-   chevron keeps its slot at the far end however long the title runs. */
-.media-artwork__name {
-	flex: 1 1 auto;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.media-artwork__toggle {
-	flex: none;
+.media-artwork--folded {
+	padding: var(--space-3);
 }
 
 /*
- * Open points down, at the picture it opened; closed points up, at the bar the
- * picture folded into. The chevron names where the content is rather than which
- * way the control travels, which is the reading that survives the band being at
- * the *foot* of a column — up is where everything else in this panel lives.
+ * The picture and everything over it are one stack, and the stack is what clips:
+ * rounding the corners here rather than on the image is what keeps the scrims
+ * from squaring them off again at either end.
  *
- * The rotation is the only animation here. The fold itself is instant, because a
- * panel band sliding open under a list of findings would move every one of them.
- */
-.media-artwork__chevron {
-	transform: rotate(180deg);
-	transition: transform var(--duration-fast) var(--ease-out-quart);
-}
-
-.media-artwork__toggle[aria-expanded='true'] .media-artwork__chevron {
-	transform: none;
-}
-
-/*
- * The picture and the controls over it are one stack, and the stack is what
- * clips: rounding the corners here rather than on the image is what keeps the
- * scrim from squaring them off again at the bottom.
+ * The width is the fold. It is the same element in both states — only the
+ * `<img>`'s box changes — so the picture scales down to the left rather than
+ * being swapped for a smaller one, which is the one animation in this band and
+ * the one exception to the rule that its fold is instant: what moves is the
+ * thing the user just pressed, and it moves to where it is going.
  */
 .media-artwork__stage {
 	position: relative;
-	margin: 0 var(--space-3) var(--space-3);
+	flex: none;
+	width: 100%;
 	overflow: hidden;
+}
+
+.media-artwork--folded .media-artwork__stage {
+	width: var(--media-thumb);
 	border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.media-artwork {
+		transition: padding var(--duration-medium) var(--ease-out-quart);
+	}
+
+	.media-artwork__stage {
+		transition:
+			width var(--duration-medium) var(--ease-out-quart),
+			border-radius var(--duration-medium) var(--ease-out-quart);
+	}
 }
 
 .media-artwork__cover {
@@ -185,29 +177,144 @@
 }
 
 /*
- * The transport on the picture, where a player's controls go.
+ * The two ends of the picture, and each is a row rather than a pair of corners:
+ * absolutely-placed corners collide the moment an artist and a title are both
+ * long, and a flex row with the ellipsis on both halves cannot.
  *
- * The scrim is not decoration and not a state: half the covers in the world are
- * pale, and white glyphs alone would vanish on a third of them. It is a gradient
- * rather than a flat band so the picture is given up gradually — a hard edge
- * across a cover reads as a second box drawn over it.
+ * The scrim is not decoration and not a state. What the text reads against is
+ * somebody else's album art, half the covers in the world are pale, and white
+ * alone vanishes on a third of them. Each band is a gradient rather than a flat
+ * fill so the picture is given up gradually — a hard edge across a cover reads
+ * as a second box drawn over it — and the middle, which is the part worth
+ * looking at, stays clear of both.
  */
-.media-artwork__controls {
+.media-artwork__top,
+.media-artwork__bottom {
 	position: absolute;
 	inset-inline: 0;
-	bottom: 0;
 	display: flex;
-	padding: var(--space-6) var(--space-3) var(--space-2);
 	gap: var(--space-2);
 	align-items: center;
-	justify-content: center;
+	color: var(--color-text-on-scrim);
+}
+
+.media-artwork__top {
+	top: 0;
+	padding: var(--space-2) var(--space-3) var(--space-6);
+	background: var(--color-scrim-top);
+	font-size: var(--font-size-xs);
+}
+
+.media-artwork__bottom {
+	bottom: 0;
+	padding: var(--space-6) var(--space-3) var(--space-2);
 	background: var(--color-scrim);
+	justify-content: space-between;
+}
+
+/* The artist takes the row's slack and gives it back at the ellipsis, so a long
+   title never pushes the fold off the end of its own row. */
+.media-artwork__artist,
+.media-artwork__title {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.media-artwork__top .media-artwork__artist {
+	flex: 1 1 auto;
+}
+
+.media-artwork__top .media-artwork__title {
+	flex: 0 1 auto;
+	text-align: end;
 }
 
 /*
- * The two colors in the system that do not follow the scheme, and the reason is
- * the same one the modal backdrop has: what they read against is not our surface.
- * Here it is somebody else's album art.
+ * Folded: title over artist, centred against the thumbnail, and no transport at
+ * all — the controls under the document are the ones in use while typing, and a
+ * second copy beside a thumbnail is a row of buttons for a picture nobody is
+ * looking at.
+ *
+ * A step up in type from the overlay's. There the text is a caption on a
+ * picture and the picture is the thing; here the two lines *are* the row, with
+ * a whole thumbnail's height to fill, and `--font-size-xs` left them stranded
+ * against it.
+ */
+.media-artwork__meta {
+	display: flex;
+	flex: 1 1 auto;
+	min-width: 0;
+	flex-direction: column;
+	gap: var(--space-1);
+	align-items: start;
+	justify-content: center;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+}
+
+.media-artwork__meta .media-artwork__title {
+	max-width: 100%;
+	color: var(--color-text);
+}
+
+.media-artwork__meta .media-artwork__artist {
+	max-width: 100%;
+}
+
+/* The way back over the mark, in one column at the far end. */
+.media-artwork__aside {
+	display: flex;
+	flex: none;
+	flex-direction: column;
+	gap: var(--space-2);
+	align-items: end;
+	justify-content: center;
+}
+
+.media-artwork__toggle {
+	flex: none;
+}
+
+.media-artwork__top .media-artwork__toggle {
+	color: var(--color-text-on-scrim);
+}
+
+.media-artwork__top .media-artwork__toggle:hover {
+	background: var(--color-control-hover-on-scrim);
+}
+
+/*
+ * Open points down, at the picture it opened; closed points up, at the bar the
+ * picture folded into. The chevron names where the content is rather than which
+ * way the control travels, which is the reading that survives the band being at
+ * the *foot* of a column — up is where everything else in this panel lives.
+ */
+.media-artwork__chevron {
+	transform: rotate(180deg);
+}
+
+.media-artwork__toggle[aria-expanded='true'] .media-artwork__chevron {
+	transform: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.media-artwork__chevron {
+		transition: transform var(--duration-fast) var(--ease-out-quart);
+	}
+}
+
+.media-artwork__controls {
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+/*
+ * The colors here do not follow the scheme, and the reason is the same one the
+ * modal backdrop has: what they read against is not our surface. Here it is
+ * somebody else's album art.
  */
 .media-artwork__controls .media-strip__transport-button {
 	padding: var(--space-1-5);
@@ -306,7 +413,11 @@
 }
 
 /*
- * Spotify's mark, and the one place in this stylesheet a literal color is
+ * The two attributions, drawn in whichever surface is showing the song: the
+ * artwork band's bar where there is one, the transport strip where there is not.
+ * `MediaAttribution.svelte` is the single markup, so these are sized once.
+ *
+ * Spotify's mark is the one place in this stylesheet a literal color is
  * right — the same exception the favicon takes.
  *
  * It is a third party's brand asset, not a tone from our palette, and their
@@ -317,7 +428,7 @@
  * squeezed by a long track name, which is exactly what the name beside it is
  * set up to do to its neighbours.
  */
-.media-strip__spotify {
+.media-attribution__spotify {
 	display: inline-flex;
 	flex: none;
 	align-items: center;
@@ -328,7 +439,7 @@
 
 /* No underline and no color change: the mark is the affordance, and recoloring
    a brand asset on hover is the thing their guidelines forbid outright. */
-.media-strip__spotify:hover {
+.media-attribution__spotify:hover {
 	color: #1ed760;
 }
 
@@ -349,14 +460,14 @@
  * attributions sit on one line and neither costs the strip any height — which is
  * the constraint the shortcut captions are already measured against.
  */
-.media-strip__apple {
+.media-attribution__apple {
 	display: inline-flex;
 	flex: none;
 	align-items: center;
 	line-height: 0;
 }
 
-.media-strip__apple img {
+.media-attribution__apple img {
 	width: auto;
 	height: 21px;
 	aspect-ratio: 125.1 / 27.78;

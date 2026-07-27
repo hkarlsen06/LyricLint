@@ -34,6 +34,7 @@ import type { MediaRepository } from '$lib/persistence/media-repository.js';
 import type { MediaPlayer } from './media-player.svelte.js';
 import type { MediaStore } from './media-store.svelte.js';
 import { createMediaStore } from './media-store.svelte.js';
+import { isPhoneLayout } from './phone-layout.js';
 import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persistence/backup.js';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
@@ -49,6 +50,12 @@ export interface WorkbenchDependencies {
 	repository: DraftRepository;
 	/** Omitted in tests and on the contract harness: the workbench runs without audio. */
 	mediaRepository?: MediaRepository;
+	/**
+	 * Whether this is the stacked, touch-driven layout. Injectable because the
+	 * default fold of the cover band answers to it and a media query is not a
+	 * thing the server-side suite can have.
+	 */
+	phoneLayout?: () => boolean;
 	/**
 	 * The transport the media store should drive, when it must not be the real
 	 * one. Only a test supplies this: the default player builds an `<audio>`
@@ -138,6 +145,13 @@ export interface WorkbenchController {
 	 * stamp happened to write alongside a keystroke.
 	 */
 	onLineAnchorsChanged(): void;
+	/**
+	 * How many lines in this draft are timed. Read by the one surface that offers
+	 * to throw them away, so it can draw only where there is something to delete.
+	 */
+	readonly lineAnchorCount: number;
+	/** Drop every line timing on this draft. The words are untouched. */
+	clearLineAnchors(): void;
 	setActiveTab(tab: RightPanelTab): void;
 	/**
 	 * Whether the panel's cover band is unfolded, remembered between sessions.
@@ -228,7 +242,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	// editor's `getLineAnchors()` is `[]`, which the next save writes straight over
 	// the draft. So this is kept and re-seated onto any capable editor that has
 	// none, and refreshed whenever the editor reports a change.
-	let knownLineAnchors: readonly LineAnchor[] = deps.initialDraft.lineAnchors ?? [];
+	// State rather than a plain binding, because the tools panel draws its
+	// delete control only while there is something to delete.
+	let knownLineAnchors = $state<readonly LineAnchor[]>(deps.initialDraft.lineAnchors ?? []);
 
 	const draft = createDraftStore({
 		initialDraft: deps.initialDraft,
@@ -300,10 +316,18 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	 * and what `Delete all local data` clears, so a preference kept anywhere else
 	 * would quietly escape both promises this application makes about local state.
 	 *
-	 * It opens by default and is only ever written when the user presses the
-	 * chevron, so the read below is the one cost on a boot that never touches it.
+	 * It is only ever written when the user presses the chevron, so the read below
+	 * is the one cost on a boot that never touches it.
+	 *
+	 * **The default is the fold on a phone.** There the panel is stacked under the
+	 * editor rather than beside it, so an open cover is a square of picture between
+	 * the document and the findings — the two things a transcriber is actually
+	 * moving between — on the screen with the least room to give it. Everywhere
+	 * else it opens, because a cover that arrives folded is a feature nobody finds.
+	 * A stored preference still wins either way: this decides what to do before the
+	 * user has said anything, not instead of what they said.
 	 */
-	let artworkOpen = $state(true);
+	let artworkOpen = $state(!(deps.phoneLayout ?? isPhoneLayout)());
 	void deps.repository
 		.getPreference(artworkOpenPreference)
 		.then((stored) => {
@@ -485,6 +509,19 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		onLineAnchorsChanged() {
 			knownLineAnchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
 			draft.scheduleSave();
+		},
+		get lineAnchorCount() {
+			return knownLineAnchors.length;
+		},
+		clearLineAnchors() {
+			// Both halves, in this order: the editor's own field is what the next
+			// save reads, and `knownLineAnchors` is what it falls back to while no
+			// capable editor is mounted. Setting one and not the other puts the
+			// timings back on the following save.
+			knownLineAnchors = [];
+			editorSession.editor.setLineAnchors?.([]);
+			draft.scheduleSave();
+			feedback.announce('Line timings deleted.');
 		},
 		setActiveTab: panel.setActiveTab,
 		get artworkOpen() {

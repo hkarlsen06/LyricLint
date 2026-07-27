@@ -1,0 +1,352 @@
+<script lang="ts">
+	// The workbench cannot draw until IndexedDB has opened and the startup draft
+	// has been recovered, and what used to fill that gap was the sentence
+	// "Loading your workspace…" on an otherwise empty canvas.
+	//
+	// The brand lockup is already a rig with one driver, so it can play the wait
+	// rather than describe it. It opens on the wordmark, which is the most brand
+	// for the least movement and the thing worth reading; that word is then pulled
+	// taut past where it belongs, and released — it collapses under its own weight
+	// and stops dead at the mark. The impact is what starts the waveform, and the
+	// workspace is revealed from the same instant.
+	//
+	// The stretch is `--wm-open` driven past its own 0-to-1 range, which is the
+	// rig's arithmetic rather than a scale laid on top of it: the brackets travel
+	// further, the lead opens wider than the word it uncovers, and `Lint` fans
+	// apart on its own spacing. A spring under tension, rather than a picture of
+	// one being resized.
+	//
+	// The other end used to be driven past rest too — a compression the mark rang
+	// back out of. It is gone: a mark that gives and recoils reads as light, and
+	// the landing is the one moment here that has to read as heavy.
+	//
+	// The timeline lives here and the shapes live in `shell.css`, next to the
+	// arithmetic they override — the same split every other animated thing in this
+	// application uses. The durations are published as custom properties rather
+	// than written down twice, because a CSS transition that disagrees with the
+	// timer driving it tears the sequence in half.
+	import AppWordmark from './AppWordmark.svelte';
+	import { onMount, untrack } from 'svelte';
+
+	let {
+		/** Whether the workbench behind this screen is ready to be revealed. */
+		ready = false,
+		/** Called once the reveal has finished and this screen can be unmounted. */
+		ondone
+	}: { ready?: boolean; ondone: () => void } = $props();
+
+	/**
+	 * The word, before anything moves. Long enough to read a nine-letter compound
+	 * and not a moment longer, plus the beat it takes to land on it — motion that
+	 * begins on the frame the page paints reads as the page still assembling
+	 * itself rather than as the brand doing something on purpose.
+	 */
+	const READ_MS = 620;
+	/** The pull, decelerating into full tension so the stretch reads as held. */
+	const PULL_MS = 380;
+	/**
+	 * The release: the fall from full stretch to the mark, accelerating the whole
+	 * way and stopping there. `shell.css` shapes it.
+	 *
+	 * Its end is the impact, and three things happen on that one instant — the
+	 * mark arrives, the waveform starts, and the screen begins to leave. They are
+	 * one moment because a landing that sets off everything at once is what makes
+	 * it read as a landing.
+	 */
+	const RELEASE_MS = 420;
+	/** Slack for the fallback timer, so it never beats the fall's own end. */
+	const LANDING_GRACE_MS = 250;
+	/** The backdrop clearing, after a wait, once the mark has landed. */
+	const REVEAL_MS = 240;
+	/**
+	 * And the backdrop on the other path, where the exit runs inside the fall.
+	 *
+	 * It cannot simply start when the screen starts leaving, because that is the
+	 * top of the fall — the canvas was clearing while the lockup was still at full
+	 * strength three hundred milliseconds from going anywhere, so the workspace
+	 * arrived first and the brand was left dissolving on top of it. The canvas goes
+	 * *with* the wordmark: it waits for the same part of the fall the fade is tuned
+	 * to, then clears fast enough to be done as the brackets settle.
+	 *
+	 * The delay is a fraction of the fall rather than a driver threshold like the
+	 * fade's, and that is a deliberate difference of kind. The fade needed to be
+	 * exact — its whole window is 75ms and being a frame out ruins it. This only
+	 * has to arrive in the neighbourhood, and a rough moment stated as a rough
+	 * moment is easier to read than arithmetic pretending to more than it has.
+	 */
+	const FALL_REVEAL_AT_MS = Math.round(RELEASE_MS * 0.75);
+	const FALL_REVEAL_MS = 110;
+	/**
+	 * The exit, after a wait: the brackets come together and go as they do.
+	 *
+	 * A boot that waited has been holding an open mark with a wave running in it,
+	 * so the two things it has to do on the way out are close and disappear — and
+	 * they are one gesture, not a sequence. Closing first and fading after leaves a
+	 * shut mark sitting on the workspace for a beat, which is the pause this
+	 * duration exists to avoid; the fade runs the whole way alongside the closing
+	 * so the brackets are gone by the time they meet.
+	 */
+	const CLOSE_MS = 260;
+	/**
+	 * And how long the screen stays mounted when the exit runs *inside* the fall.
+	 *
+	 * It is not a fade duration: on that path the fade is read off the gap between
+	 * the brackets rather than off a clock (see `shell.css`), so nothing here times
+	 * it. This only has to outlast the fall, or the screen would be pulled out from
+	 * under a lockup still visibly falling.
+	 */
+	const FALL_EXIT_MS = RELEASE_MS + 60;
+
+	/**
+	 * The waiting wave is the mark's own wave with a phase, drawn from the sine it
+	 * was always an approximation of.
+	 *
+	 * This replaces a considerably cleverer arrangement, and the difference is
+	 * worth writing down because the clever one looked reasonable at every step.
+	 * It animated the phase by *translating* a longer path — which meant the path
+	 * had to be swapped for one several periods wide, which meant it filled the
+	 * viewBox instead of stopping two units short of it, which meant the wave
+	 * visibly widened and lost its round caps to the clip edge the instant the
+	 * wait began, which meant a mask to fade those edges out, which meant an
+	 * `@property` percentage to animate the mask, a `--boot-wave-soften` beat to
+	 * fade it before the swap landed underneath it, and a timer in here to hold
+	 * the swap for exactly that long. Six mechanisms, each one load-bearing for
+	 * the one before it, and all of them holding up the first decision.
+	 *
+	 * Computing the curve instead makes every one of them unnecessary. The span is
+	 * fixed at the mark's own `2` to `30`, so the ends never move and never need
+	 * hiding, and the phase is one number in the expression. The sine differs from
+	 * the mark's quadratic by 0.27 units at its worst — about a third of a pixel at
+	 * the size this draws — so the first frame *is* the mark and there is no
+	 * transition into the animation to conceal.
+	 *
+	 * It runs at one speed from that first frame. There was a run-in easing it out
+	 * of rest, which is the right idea for a wave that starts on its own and the
+	 * wrong one here: this one is struck. The mark lands and the wave is moving,
+	 * and anything between the two turns an impact into a wind-up. The amplitude
+	 * held still for the same reason — a wave that swells and shrinks is a second
+	 * thing to watch in a mark whose only job at that moment is to be steady.
+	 */
+	const WAVE_FROM = 2;
+	const WAVE_TO = 30;
+	/** The centre line and peak deviation of `M2 16Q9 6.7 16 16T30 16`. */
+	const WAVE_MID = 16;
+	const WAVE_PEAK = 4.65;
+	/** One wavelength per this long, from the first frame. */
+	const WAVE_PERIOD_MS = 950;
+	/**
+	 * How far past the current phase to look when parking. The wave stops where it
+	 * is the mark again, which is any whole wavelength — but the nearest one may be
+	 * two frames away, and stopping that abruptly after the workbench arrives reads
+	 * as the animation being cut off rather than coming to rest. A fifth of a
+	 * wavelength is enough to always be a deliberate run-out.
+	 */
+	const WAVE_PARK_LEAD = 0.2;
+
+	function wavePath(elapsed: number): string {
+		const phase = elapsed / WAVE_PERIOD_MS;
+		const span = WAVE_TO - WAVE_FROM;
+
+		let path = '';
+		for (let x = WAVE_FROM; x <= WAVE_TO; x += 1) {
+			const y = WAVE_MID - WAVE_PEAK * Math.sin(2 * Math.PI * ((x - WAVE_FROM) / span + phase));
+			path += `${path ? 'L' : 'M'}${x} ${y.toFixed(2)}`;
+		}
+		return path;
+	}
+
+	const prefersReducedMotion =
+		typeof window !== 'undefined' &&
+		typeof window.matchMedia === 'function' &&
+		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+	// `word` is where the sequence starts and where the prerendered HTML already
+	// is, so the first thing on screen is the product's name rather than a blank
+	// canvas — and the stretch has something to be a stretch of.
+	let stage = $state<'word' | 'pull' | 'land'>('word');
+	// One mark on the release, because everything the impact sets off happens on
+	// the same instant. There were two while the spring rang past the mark and
+	// back: the reveal began on the turn and the waveform had to wait for the
+	// ringing to stop, or it would have been redrawing the same path the recoil
+	// was still scaling. With nothing after the landing, both are just `landed`.
+	let landed = $state(false);
+	let leaving = $state(false);
+	// Whether the wave is at rest at a whole wavelength, where it is the mark's own
+	// curve again. True until a wait actually starts one, and true again once the
+	// workbench has arrived and the wave has run out to the next matching phase —
+	// which is what the reveal waits for, so the last thing on screen before the
+	// workspace is the mark rather than a wave caught mid-stride.
+	let waveParked = $state(true);
+	// Whether this boot ever had a wait, latched as the fall begins. It says one
+	// thing only: the brand never had to become the mark, so the brackets keep the
+	// colour they were opened in the whole way down. Where the answer arrives late
+	// they will already have tinted partway, and there is nothing to freeze — the
+	// hold is honest exactly when it is decided before the fall starts, which is
+	// why this one stays latched while `closing` below does not.
+	let shut = $state(false);
+
+	// The waveform is the wait, and it is the one place in this application allowed
+	// to answer "a request is out" without a spinner, because the mark it lives
+	// inside is already on screen. A boot with nothing to wait for never draws one:
+	// a wave that appeared for a tenth of a second on its way out would be
+	// reporting a wait that did not happen.
+	//
+	// Once drawn it stays drawn, which is why this latches rather than tracking
+	// whether a wait is still on. What the wave does when the workbench arrives is
+	// get squeezed out from both ends by the closing brackets — so it has to
+	// outlive the wait it was reporting, or it would wink off a beat before the
+	// thing that is supposed to be taking it away.
+	let sparked = $state(false);
+
+	/**
+	 * When the screen starts to leave, which is two different moments and not one.
+	 *
+	 * **With a wave**, it is after the landing and after the wave has run out to a
+	 * whole wavelength — the gap is where the wave lives, so nothing can close
+	 * until it has finished.
+	 *
+	 * **Without one**, it is the top of the fall. There is nothing left to wait for
+	 * by then, so the fall *is* the exit: the brackets fade as they travel and are
+	 * gone a moment before they would have met. Waiting for the landing here put a
+	 * shut mark on screen and then faded it, which is a still frame in the middle
+	 * of a movement — and it is the same answer for a boot that was ready before
+	 * the fall began and one that became ready halfway down, because this is
+	 * re-asked on every change rather than latched.
+	 */
+	const exiting = $derived(ready && waveParked && (sparked ? landed : stage === 'land'));
+
+	/**
+	 * One exit duration, and it is measured against what it has to keep pace with.
+	 * A wave means the gap is still open, so the fade has a closing beside it and
+	 * they share `CLOSE_MS`. Without one the fade is racing the fall, and has to be
+	 * finished before it lands.
+	 */
+	const exitMs = $derived(sparked ? CLOSE_MS : FALL_EXIT_MS);
+
+	/** The backdrop's own timing, which differs on the two paths for the same reason. */
+	const revealMs = $derived(sparked ? REVEAL_MS : FALL_REVEAL_MS);
+	const revealAtMs = $derived(sparked ? 0 : FALL_REVEAL_AT_MS);
+
+	onMount(() => {
+		if (prefersReducedMotion) {
+			// The whole point of the sequence is motion, so there is nothing to
+			// shorten: park on the mark and let the waveform carry the wait.
+			stage = 'land';
+			landed = true;
+			return;
+		}
+		let elapsed = 0;
+		const at = (ms: number, run: () => void) => setTimeout(run, (elapsed += ms));
+		const timers = [
+			at(READ_MS, () => (stage = 'pull')),
+			at(PULL_MS, () => {
+				shut = untrack(() => ready);
+				stage = 'land';
+			}),
+			// The fall's own end, not a timer's idea of it. A timer counts from the
+			// stage flip and the animation from the browser's next style resolution,
+			// so the two disagree by a frame or so — and this easing spends its last
+			// sixth in its final frame, so that frame is the difference between a
+			// closed mark and one still visibly ajar. Fading out of *that* is the
+			// premature-looking landing this replaces.
+			at(RELEASE_MS + LANDING_GRACE_MS, () => (landed = true))
+		];
+		const onLanded = (event: AnimationEvent) => {
+			if (event.animationName.startsWith('boot-release')) landed = true;
+		};
+		// The timer above is the fallback for a browser that never fires it.
+		root?.addEventListener('animationend', onLanded);
+		return () => {
+			timers.forEach(clearTimeout);
+			root?.removeEventListener('animationend', onLanded);
+		};
+	});
+
+	// The wait redraws the lockup's own wave, frame by frame, and puts the mark's
+	// path back when it ends.
+	//
+	// The stylesheet already reaches into `.app-wordmark__wave` to drive this
+	// screen's version of the mark, and this is the same override in the one place
+	// CSS cannot express it. `d` *is* a CSS property in Blink and behind an
+	// `@supports` it silently cost WebKit the whole animation once already; as an
+	// attribute it is as old as SVG. And a curve with a phase in it is not
+	// something a keyframe can state anyway — which is the point, since the
+	// alternative was translating a longer path and every mechanism that then
+	// needed.
+	let root = $state<HTMLElement>();
+
+	$effect(() => {
+		// Keyed on the landing alone, and `ready` is read outside the tracked pass on
+		// purpose: this has to survive the workbench arriving rather than be torn
+		// down by it, because arriving is what starts the run-out below.
+		if (!landed) return;
+		if (untrack(() => ready)) return;
+		const path = root?.querySelector('.app-wordmark__wave path');
+		if (!path) return;
+		const own = path.getAttribute('d');
+		waveParked = false;
+		sparked = true;
+		// Slowed rather than stopped, like `.spinner`: a still wave reads as a
+		// drawing, and it is the only thing on screen reporting that anything is
+		// happening at all.
+		const rate = prefersReducedMotion ? 0.35 : 1;
+		const started = performance.now();
+		// Where the wave will come to rest, once there is something to come to rest
+		// for. A whole number of wavelengths is where it is the mark's own curve
+		// again, so stopping there is invisible — the shape is already correct and
+		// simply stops changing.
+		let parkAt = Number.POSITIVE_INFINITY;
+		let frame = requestAnimationFrame(function draw(now) {
+			const phase = ((now - started) * rate) / WAVE_PERIOD_MS;
+			if (ready && parkAt === Number.POSITIVE_INFINITY) {
+				// Reduced motion parks where it stands. The run-out is worth up to a
+				// whole wavelength of waiting, and at this rate that is nearly three
+				// seconds of held-back workspace bought with motion, which is the one
+				// currency this reader has asked to spend less of.
+				parkAt = prefersReducedMotion ? phase : Math.ceil(phase + WAVE_PARK_LEAD);
+			}
+			if (phase >= parkAt) {
+				// Back to the mark exactly, rather than to a sine that rounds to it.
+				if (own !== null) path.setAttribute('d', own);
+				waveParked = true;
+				return;
+			}
+			path.setAttribute('d', wavePath(phase * WAVE_PERIOD_MS));
+			frame = requestAnimationFrame(draw);
+		});
+		// Restored rather than left, so the last frames of the screen — the fade,
+		// which runs after the wait ends — are the mark itself again.
+		return () => {
+			cancelAnimationFrame(frame);
+			if (own !== null) path.setAttribute('d', own);
+		};
+	});
+
+	// The reveal waits for both: a workspace that arrived early is held behind the
+	// landing, and a landing that arrived early waits on the workspace.
+	$effect(() => {
+		if (!exiting) return;
+		leaving = true;
+		// The mark is the last thing here to go, so it is what the screen's
+		// lifetime is measured against — unmounting on the backdrop's timing would
+		// cut the lockup off mid-fade.
+		const timer = setTimeout(ondone, prefersReducedMotion ? 0 : exitMs);
+		return () => clearTimeout(timer);
+	});
+</script>
+
+<div
+	bind:this={root}
+	class="boot-screen"
+	data-stage={stage}
+	data-wait={sparked ? '' : undefined}
+	data-shut={shut ? '' : undefined}
+	data-leaving={leaving ? '' : undefined}
+	style="--boot-pull: {PULL_MS}ms; --boot-release: {RELEASE_MS}ms; --boot-reveal: {revealMs}ms; --boot-reveal-at: {revealAtMs}ms; --boot-exit: {exitMs}ms; --boot-close: {CLOSE_MS}ms"
+>
+	<!-- Parked rather than animated: this screen owns the driver, so the lockup's
+	     own entrance and its hover and press morph would both be a second opinion
+	     about where `--wm-open` should be. -->
+	<AppWordmark animated={false} />
+	<p class="sr-only" role="status">Loading your workspace…</p>
+</div>

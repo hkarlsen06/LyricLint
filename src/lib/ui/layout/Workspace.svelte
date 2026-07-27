@@ -544,7 +544,10 @@
 			     it does not wait for something to report — a stable slot with a
 			     label that follows the state is what makes it findable at all. -->
 			{#if controller.media}
-				<MediaPicker media={controller.media} />
+				<!-- The title rides along so the picker can offer a search for the song
+				     this draft is already named after, rather than only for one that
+				     has been attached. -->
+				<MediaPicker media={controller.media} draftTitle={controller.title} />
 			{/if}
 			{#if documentCounts.length > 0}
 				<span>{documentCounts.join(' · ')}</span>

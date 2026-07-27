@@ -20,20 +20,51 @@
 	gap: var(--space-2);
 }
 
+/* `button--flush` for a row: the first label is read against the paragraph
+   above it and has to line up with it, but pulling every button back would
+   close the gap that separates them. Pull the row instead. */
+.tool-actions--flush {
+	margin-inline-start: calc(-1 * var(--control-padding-inline));
+}
+
+/* Two columns for the whole list, not two ends of each row.
+ *
+ * It was a `space-between` flex row per pair with a hairline under it, which
+ * works only while every value is a version number. Given a real one — three
+ * songwriters, a label, a title — the value wrapped and the second line came
+ * back flush against its own term, so `Writers` and the first name it belonged
+ * to ran together into one word. There was no gap to run out of: pushing the
+ * two ends apart is not the same as putting space between them.
+ *
+ * So the grid is on the list and the row wrappers are `display: contents`,
+ * which is what lets every value start at one left edge instead of each row
+ * measuring itself. A value that wraps now wraps inside its own column.
+ *
+ * The hairlines went with the alignment. A rule between two facts of the same
+ * kind separates nothing — five of them turned a short list into a receipt —
+ * and the column of muted terms already says where each row begins. */
 .metadata-list {
 	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: var(--space-2) var(--space-4);
 	margin: 0;
 }
 
 .metadata-list > div {
-	display: flex;
-	padding: var(--space-2) 0;
-	border-bottom: var(--border-width) solid var(--color-border);
-	justify-content: space-between;
+	display: contents;
+}
+
+.metadata-list dt {
+	color: var(--color-text-muted);
 }
 
 .metadata-list dd {
 	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.metadata-list + .tool-actions {
+	margin-top: var(--space-4);
 }
 
 .source-list {

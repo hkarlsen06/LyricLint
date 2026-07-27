@@ -17,14 +17,11 @@
 	 */
 
 	/**
-	 * A coarse pointer *and* the stacked layout. The pointer alone would stop a
-	 * tablet in landscape, where the workbench is in its two-column form and there
-	 * is nothing to warn about; the width alone would stop a narrow window on a
-	 * laptop, which is a supported size with a keyboard behind it. `68rem` is the
-	 * breakpoint that folds the panel under the editor, so this fires exactly where
-	 * the layout is the compromised one.
+	 * A coarse pointer *and* the stacked layout, from the one place that answers
+	 * that question — the cover band's default fold reads the same query, and two
+	 * copies of a breakpoint are two things to remember when it moves.
 	 */
-	const QUERY = '(pointer: coarse) and (max-width: 68rem)';
+	import { PHONE_LAYOUT_QUERY } from '../state/phone-layout.js';
 
 	/**
 	 * Session-scoped, like the ignored rules and for the same reason: a warning
@@ -69,7 +66,7 @@
 	}
 
 	onMount(() => {
-		if (alreadySeen() || !window.matchMedia(QUERY).matches) return;
+		if (alreadySeen() || !window.matchMedia(PHONE_LAYOUT_QUERY).matches) return;
 		dialog.showModal();
 	});
 </script>

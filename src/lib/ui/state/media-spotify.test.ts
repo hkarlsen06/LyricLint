@@ -176,6 +176,7 @@ async function attach(startAt?: number): Promise<Harness> {
 		ratesChanged: vi.fn(),
 		named: vi.fn(),
 		artworkChanged: vi.fn(),
+		detailsChanged: vi.fn(),
 		started: vi.fn(),
 		stopped: vi.fn(),
 		ended: vi.fn(),

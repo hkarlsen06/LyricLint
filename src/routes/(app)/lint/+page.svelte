@@ -11,6 +11,7 @@
 		EditorSnapshot
 	} from '$lib/core/types.js';
 	import EditorPane from '$lib/editor/EditorPane.svelte';
+	import BootScreen from '$lib/ui/layout/BootScreen.svelte';
 	import {
 		closeDatabase,
 		createAutosaveController,
@@ -36,6 +37,9 @@
 
 	let controller = $state<WorkbenchController | undefined>();
 	let bootError = $state<string | undefined>();
+	// The boot screen retires itself once the mark has landed and the workbench is
+	// ready: it is what decides when the workspace is revealed, not this page.
+	let revealed = $state(false);
 	let database: LyricLintDatabase | undefined;
 	let backup: WorkspaceBackupController | undefined;
 	const feedback = useFeedbackState();
@@ -72,6 +76,19 @@
 
 		void (async () => {
 			try {
+				// `?slowboot` holds the workbench back so the boot screen's waiting
+				// state — the mark landed, the waveform running — can be looked at on a
+				// machine where local storage opens in forty milliseconds. Ten seconds
+				// unless a number is given. `import.meta.env.DEV` is a build-time
+				// constant, so none of this reaches a production bundle.
+				if (import.meta.env.DEV) {
+					const slowBoot = page.url.searchParams.get('slowboot');
+					if (slowBoot !== null) {
+						await new Promise((resolve) => setTimeout(resolve, Number(slowBoot) || 10_000));
+						if (cancelled) return;
+					}
+				}
+
 				database = await openDatabase();
 				const ignoreStore = createSessionIgnoreStore(window.sessionStorage);
 				backup = createWorkspaceBackup(database, { ignoreStore });
@@ -162,12 +179,18 @@
 	<meta name="robots" content="noindex, follow" />
 </svelte:head>
 
+<!-- The workspace is mounted as soon as it exists and the boot screen covers it
+     until the lockup has landed, so the reveal is a screen coming off something
+     already drawn rather than a workbench assembling itself in front of the
+     user. A boot failure is the one thing that outranks the sequence. -->
 {#if controller}
 	<Workspace {controller} editorComponent={EditorPane} />
 {:else if bootError}
 	<p class="boot-message" role="alert">{bootError}</p>
-{:else}
-	<p class="boot-message" aria-live="polite">Loading your workspace…</p>
+{/if}
+
+{#if !revealed && !bootError}
+	<BootScreen ready={Boolean(controller)} ondone={() => (revealed = true)} />
 {/if}
 
 <style>

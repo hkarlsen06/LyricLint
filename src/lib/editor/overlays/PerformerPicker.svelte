@@ -136,26 +136,30 @@
 			: [...selectedIds, id];
 	}
 
+	// Applying is what closes this card, so by the time the `finally` runs the
+	// component is usually destroyed — and a prop read there is a read of a
+	// derived belonging to a torn-down effect. The hand-off is therefore decided
+	// and held *before* the await, while there is still a component to ask.
 	async function apply(): Promise<void> {
 		if (!canApply) {
 			return;
 		}
+		const restoreFocus = returnFocusOnApply ? returnFocus : undefined;
 		try {
 			await onApply([...selectedIds]);
 		} finally {
 			await tick();
-			if (returnFocusOnApply) {
-				returnFocus();
-			}
+			restoreFocus?.();
 		}
 	}
 
 	async function cancel(): Promise<void> {
+		const restoreFocus = returnFocus;
 		try {
 			onCancel();
 		} finally {
 			await tick();
-			returnFocus();
+			restoreFocus();
 		}
 	}
 

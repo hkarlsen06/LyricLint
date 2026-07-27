@@ -113,6 +113,18 @@
 	initial-value: 0;
 }
 
+/* Registered only so the boot screen can close the brackets down to a single
+   space, which is a length the driver cannot express: `--wm-open` at 0 is the
+   mark, and the mark is brackets holding the gap its wave lives in. Everywhere else this is set once and never
+   moves. The initial value is `0px` rather than the `0.95em` below because a
+   registered property's initial value has to be computationally independent, and
+   `em` is not — `.app-wordmark` supplies the real one. */
+@property --wm-slot-closed {
+	syntax: '<length>';
+	inherits: true;
+	initial-value: 0px;
+}
+
 .app-wordmark {
 	--wm-open: 0;
 
@@ -335,6 +347,310 @@
 @media (prefers-reduced-motion: reduce) {
 	.app-wordmark {
 		transition: none;
+	}
+}
+
+/* Boot screen. The lockup plays the wait for local storage to open rather than
+   a sentence describing it: it opens on the wordmark, the word is pulled taut
+   past where it belongs, and the release snaps it shut through the mark and into
+   a compression it springs back out of. It is the same `--wm-open` driver and the
+   same rig — only the easing, the timing, and the landing are this screen's own,
+   which is why they are here rather than in the component. The durations arrive
+   as custom properties from `BootScreen.svelte`, so a timer and a transition
+   cannot come to disagree about how long a stage lasts.
+
+   Both ends of that are the driver pushed outside its own 0-to-1 range, which is
+   the rig's arithmetic rather than a scale laid over it. All of it is written in
+   `max()` and `clamp()` for exactly this kind of overshoot — the one exception is
+   the bracket tint, whose `color-mix()` percentage is only valid up to 100%, so
+   it is clamped here rather than left to a browser.
+
+   These rules deliberately follow the wordmark's: they tie with
+   `[data-state='static']` on specificity and win on source order. Moving this
+   block above them hands the lockup back to its own parked state. */
+/* The one place the brand's size is set here — the lockup inherits it, which is
+   the only override a surface is allowed to make. */
+.boot-screen {
+	/* How far past open the pull stretches the rig. */
+	--boot-stretch: 1.22;
+
+	/* Where the brackets have gone entirely, and how much of the approach they take
+	   to get there — both in the driver's own units, so they describe a gap rather
+	   than a moment.
+	 *
+	 * Both numbers are set by how savagely the fall's easing back-loads itself. The
+	 * driver spends its last 0.3 in about 30ms, so `--boot-fade-gone` has to be
+	 * kept well clear of zero or "invisible before they arrive" comes out at under
+	 * a frame of daylight — which is neither reliably visible nor reliably
+	 * measurable. At `0.28` the lockup is gone with roughly two frames of travel
+	 * still to run. The span then buys the fade its length: half the driver's range
+	 * is around 56ms, which is a fade rather than a cut. */
+	--boot-fade-gone: 0.28;
+	--boot-fade-span: 0.5;
+
+	position: fixed;
+	inset: 0;
+	z-index: var(--layer-boot);
+	display: grid;
+	background: var(--color-canvas);
+	font-size: var(--font-size-3xl);
+	place-content: center;
+}
+
+.boot-screen .app-wordmark {
+	--wm-open: 1;
+
+	font-size: inherit;
+	/* Nothing here answers a pointer: the screen owns the driver, so the lockup's
+	   own hover and press morph would be a second opinion about where it should
+	   be — and there is nothing behind a press on a loading screen anyway. */
+	cursor: default;
+	pointer-events: none;
+	/* Only the fade, and only because the mark outlives the backdrop it was drawn
+	   on — see the reveal below. Nothing else about the lockup transitions here:
+	   the driver is moved by the stages, which declare their own.
+	 *
+	 * It is a delay and a short duration rather than a long gentle curve, and that
+	 * is the third attempt at this. Sharing the backdrop's front-loaded easing
+	 * spent the whole fade in its first hundred milliseconds, so the two left
+	 * together however long the duration said; `ease-in` over a long duration
+	 * fixed the ordering but replaced it with a mark that was translucent for a
+	 * quarter of a second, which is a slow dissolve rather than a lockup that
+	 * stayed.
+	 *
+	 * What settles it is that the fade is not on its own out here: where a wait has
+	 * left the gap still open, the brackets are closing at the same time, and the
+	 * fade is a fact *about* that travel rather than a second thing happening near
+	 * it. So the two run at one duration — `--boot-exit` resolves to the closing
+	 * duration in exactly that case — and at one curve, `linear`, which is what
+	 * makes the opacity left the gap left.
+	 *
+	 * Giving them different easings is what this replaces, and it fails in a way
+	 * that is invisible in the code and obvious on screen: a front-loaded curve on
+	 * the gap and a back-loaded one on the opacity put the brackets halfway shut
+	 * while still 96% opaque, then faded them over travel too small to see. They
+	 * were never closing *and* going at the same time, they were doing one and then
+	 * the other inside a single duration.
+	 *
+	 * Both live in one shorthand on purpose: `transition` is a shorthand, so a
+	 * second declaration anywhere in this block's cascade resets whatever the first
+	 * said. That has already cost this fade once. */
+	transition: --wm-slot-closed var(--boot-close) linear;
+}
+
+/* Except on the way to nothing, where they keep the colour they were opened in.
+   The tint travels because the lockup is becoming the mark, and the mark's
+   brackets are the text's colour — but a fall that ends on the brackets closed
+   never becomes the mark, so a hue sliding out from under them on the way is a
+   second thing happening in a gesture that is meant to read as one. They are
+   already fully warm when this takes over at the top of the fall, so nothing
+   jumps; it only stops moving. */
+.boot-screen[data-shut] .app-wordmark__bracket {
+	stroke: var(--color-warning);
+}
+
+/* The pull: past open, decelerating, so the tension reads as held rather than as
+   a bounce. This is the one place the driver is allowed out of its own range. */
+.boot-screen[data-stage='pull'] .app-wordmark {
+	--wm-open: var(--boot-stretch);
+
+	transition: --wm-open var(--boot-pull) var(--ease-out-quart);
+}
+
+/* And the release, which stops dead at the mark.
+ *
+ * It used to carry past it: the driver went negative, the brackets closed inside
+ * where they belong and pinched the waveform, and the spring rang back out
+ * through a small overshoot before settling. All of that worked and none of it
+ * was wanted — a mark that gives, recoils and resettles reads as light. What the
+ * landing is for is the opposite: the wordmark collapses under its own weight and
+ * the mark arrives immovable.
+ *
+ * So the curve accelerates the whole way and arrives at full speed with nowhere
+ * to go, which is the entire impact. `cubic-bezier(0.5, 0, 0.85, 0.25)` is
+ * back-loaded on purpose, and it is safe to be here in a way it was not before:
+ * the previous version chained a second stage onto the end of this one, so a
+ * value only reached in the last few milliseconds was a value the next stage
+ * clipped off. Nothing follows it now. It ends at rest and stays there.
+ *
+ * Keyframes rather than a transition, and not for the reason the compression
+ * needed them. With no turning point to cross this is one monotonic fall and a
+ * transition would say it in a line — but `transition` is a shorthand, so
+ * declaring one here resets the whole property, and the base rule above is using
+ * it for the mark's own fade. Written as a transition this silently deleted that
+ * fade: the lockup stopped holding through the backdrop's clearing and blinked
+ * out the instant the screen began to leave. An animation touches nothing the
+ * cascade has already spent. */
+.boot-screen[data-stage='land'] .app-wordmark {
+	--wm-open: 0;
+
+	animation: boot-release var(--boot-release) cubic-bezier(0.5, 0, 0.85, 0.25);
+}
+
+@keyframes boot-release {
+	from {
+		--wm-open: var(--boot-stretch);
+	}
+
+	to {
+		--wm-open: 0;
+	}
+}
+
+/* The wave draws only where there was a wait for it to report, which is why the
+   impact reads as setting it off: on a boot with nothing to wait for it never
+   appears at all, and the landing is the brackets closing on nothing and fading.
+   A wave that flashed up for a tenth of a second on the way out would be
+   announcing a wait that did not happen.
+ *
+ * The flag is "this boot showed a wave", not "is waiting now" — the wave has to
+ * survive the wait ending, because what it does then is get squeezed out by the
+ * brackets rather than winking off the instant the workbench arrives.
+ *
+ * `visibility`, not `opacity` — opacity is never a state carrier here, and this
+ * is a state. The mask below is not a state; it is the squeeze. */
+.boot-screen .app-wordmark__wave {
+	visibility: hidden;
+	transition: --boot-wave-edge var(--boot-exit) linear;
+	-webkit-mask-image: linear-gradient(
+		to right,
+		transparent,
+		#000 var(--boot-wave-edge),
+		#000 calc(100% - var(--boot-wave-edge)),
+		transparent
+	);
+	mask-image: linear-gradient(
+		to right,
+		transparent,
+		#000 var(--boot-wave-edge),
+		#000 calc(100% - var(--boot-wave-edge)),
+		transparent
+	);
+}
+
+.boot-screen[data-wait] .app-wordmark__wave {
+	visibility: visible;
+}
+
+/* The wave goes the way the brackets take it: in from both ends, as the gap it
+   lives in closes. At `0%` the two stops sit on the very edges and the mask is a
+   no-op, so nothing is masked for the whole of the wait; at `50%` they have met
+   in the middle and all that is left of the wave is its centre.
+ *
+ * Black to transparent rather than any other hue, because a mask gradient
+ * interpolates in premultiplied alpha and anything else puts a grey haze down
+ * the ramp. It is an alpha channel rather than a colour, which is why a literal
+ * belongs here. */
+@property --boot-wave-edge {
+	syntax: '<percentage>';
+	inherits: false;
+	initial-value: 0%;
+}
+
+.boot-screen[data-leaving] .app-wordmark__wave {
+	--boot-wave-edge: 50%;
+}
+
+/* A wait with no measurable end, answered by the thing already on screen rather
+   than by a spinner beside it: the mark's own waveform runs, phase and amplitude
+   both. None of it is here, and that is the point — a curve with a phase in it is
+   not something a keyframe can state, so `BootScreen.svelte` computes the path
+   instead. What that deleted is worth remembering: translating a longer path
+   needed the path swapped, which made it fill the viewBox instead of stopping
+   short of it, which cut the wave's round caps off at the clip edge, which needed
+   a mask, which needed an `@property` to animate, which needed a beat to fade in
+   before the swap could hide under it. Six mechanisms holding up the first
+   decision. The span is fixed at the mark's own now, so the ends never move and
+   there is nothing to hide.
+
+   The one rule the wait still keeps here is the wave's own colour and weight,
+   which are the lockup's, untouched. */
+
+/* The reveal is the screen being taken off the workbench, which is already drawn
+   underneath it by the time this runs — and it starts on the spring's turn, so
+   the last half of the release plays through a screen that is already going. The
+   brackets opening out of the crush are what uncovers the workspace, rather than
+   something that finishes and is then followed by a fade.
+ *
+ * The backdrop and the mark go at different rates, which is why this is a
+ * background fade and not an `opacity` on the whole screen: an opacity there
+ * takes the mark with it at exactly the backdrop's speed, and the two are not the
+ * same object. The canvas is what is in the way, so it clears first; the lockup
+ * is what the user is looking at, so it stays a moment longer and finishes
+ * springing open over the workspace it uncovered. Its own fade is the
+ * `transition` up on the base rule.
+ *
+ * No scale on the way out either. It was on the screen, so it scaled the mark
+ * too — a second opinion about the mark's size running against the spring that
+ * owns it, which is the same mistake the impact keyframes were. */
+.boot-screen[data-leaving] {
+	animation: boot-uncover var(--boot-reveal) var(--ease-out-quart) var(--boot-reveal-at) forwards;
+	pointer-events: none;
+}
+
+/* The lockup goes, and the gap between the brackets goes with it — one moment,
+   not two, which is why they hang off the same attribute.
+ *
+ * One space rather than none. The brackets are SVG paths and carry no side
+ * bearings, so a slot of zero butts their strokes into a single shape — where two
+ * bracket *characters* typed against each other still show the gap their own
+ * bearings leave. `1ch` is that gap in the lockup's own metric, the same unit
+ * `--wm-slot-open` is written in, and it follows the mono font wherever it
+ * resolves. */
+.boot-screen[data-leaving] .app-wordmark {
+	--wm-slot-closed: 1ch;
+}
+
+/* After a wait, the fade is timed, because it has a closing to keep pace with:
+   the gap is still fully open when the screen starts to leave, so the two run at
+   one duration and one curve and the opacity left is the gap left. */
+.boot-screen[data-wait][data-leaving] .app-wordmark {
+	opacity: 0;
+	transition:
+		opacity var(--boot-exit) linear,
+		--wm-slot-closed var(--boot-exit) linear;
+}
+
+/* With no wait, it is not timed at all — it is read off the gap.
+ *
+ * Here the fade happens *inside* the fall, and the fall's easing is violently
+ * back-loaded: the last third of the brackets' travel takes 34ms of a 420ms
+ * drop. So anything expressed as a duration is either a fade down the whole
+ * descent, which is far too early, or a single frame at the end, which is a cut.
+ * Neither is "gone just before they meet".
+ *
+ * Driving it from `--wm-open` instead states the thing that was actually wanted:
+ * full strength until the brackets are nearly shut, then out over the last of the
+ * approach, reaching zero while there is still visible gap between them. It is
+ * immune to the easing by construction — change the fall's curve and the fade
+ * still lands at the same place, because the place is a position and not a time.
+ * A transition here would only lag it. */
+.boot-screen[data-leaving]:not([data-wait]) .app-wordmark {
+	opacity: clamp(0, calc((var(--wm-open) - var(--boot-fade-gone)) / var(--boot-fade-span)), 1);
+}
+
+@keyframes boot-uncover {
+	to {
+		background-color: transparent;
+	}
+}
+
+/* The sequence is motion and nothing else, so there is no shortened version of
+   it to offer: the screen parks on the mark and the reveal is a cut. The
+   waveform is slowed rather than stopped, like `.spinner` — a still wave reads
+   as a drawing, and it is the only thing here reporting that anything is
+   happening at all. */
+@media (prefers-reduced-motion: reduce) {
+	/* The screen parks straight on `land`, so without these the driver would still
+	   transition into it from the word the markup ships as, and the release would
+	   play out in full on the way. */
+	.boot-screen[data-stage] .app-wordmark {
+		animation: none;
+		transition: none;
+	}
+
+	.boot-screen[data-leaving] {
+		animation: none;
 	}
 }
 

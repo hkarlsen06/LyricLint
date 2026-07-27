@@ -7,6 +7,7 @@ import { createMediaPlayer } from '../state/media-player.svelte.js';
 import { createMediaStore } from '../state/media-store.svelte.js';
 import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
+import { appleStore, spotifyStore } from '../state/media-test-stores.js';
 import type { MediaHandleRecord } from '$lib/persistence/index.js';
 import MediaStrip from './MediaStrip.svelte';
 
@@ -35,74 +36,6 @@ function store(options: { records?: MediaHandleRecord[]; file?: File } = {}) {
 	});
 
 	return { audio, media, player, youtube };
-}
-
-/**
- * A strip with a Spotify track on it, and nothing reaching Spotify.
- *
- * The SDK is a stub whose device never arrives, which is enough: attaching is
- * silent by design, so the name and the link are in place before any player is.
- */
-async function spotifyStore() {
-	const feedback = createFeedbackState();
-	const player = createMediaPlayer({
-		feedback,
-		createAudio: () => new StubAudio().asMediaElement(),
-		createObjectUrl: () => 'blob:test',
-		revokeObjectUrl: () => {},
-		loadSpotifySdk: async () => ({ Player: class {} }) as never,
-		spotifyToken: async () => 'token',
-		spotifyRequest: (async () =>
-			new Response(JSON.stringify({ name: 'Sensommer', artists: [{ name: 'Mul' }] }), {
-				status: 200,
-				headers: { 'content-type': 'application/json' }
-			})) as typeof fetch,
-		scheduleSpotifyPoll: () => () => {}
-	});
-	const media = createMediaStore({
-		repository: createInMemoryMediaRepository(),
-		feedback,
-		draftId: () => 'draft-1',
-		player
-	});
-	await media.attachSpotifyTrack('4cOdK2wGLETKBW3PvgPWqT', 'Mul — Sensommer');
-	return { media, player };
-}
-
-/** The same, one source over, and nothing reaching Apple. */
-async function appleStore() {
-	const feedback = createFeedbackState();
-	const player = createMediaPlayer({
-		feedback,
-		createAudio: () => new StubAudio().asMediaElement(),
-		createObjectUrl: () => 'blob:test',
-		revokeObjectUrl: () => {},
-		loadMusicKit: async () =>
-			({
-				PlaybackStates: { playing: 2, paused: 3 },
-				configure: async () => ({
-					isAuthorized: true,
-					storefrontId: 'no',
-					playbackRate: 1,
-					setQueue: async () => undefined,
-					addEventListener: () => {},
-					removeEventListener: () => {}
-				})
-			}) as never,
-		appleMusicRequest: (async () =>
-			new Response(
-				JSON.stringify({ data: [{ attributes: { name: 'Stole the Show', artistName: 'Kygo' } }] }),
-				{ status: 200, headers: { 'content-type': 'application/json' } }
-			)) as typeof fetch
-	});
-	const media = createMediaStore({
-		repository: createInMemoryMediaRepository(),
-		feedback,
-		draftId: () => 'draft-1',
-		player
-	});
-	await media.attachAppleMusicSong('1091453645', 'Kygo — Stole the Show');
-	return { media, player };
 }
 
 describe('MediaStrip', () => {
@@ -194,6 +127,26 @@ describe('MediaStrip', () => {
 		render(MediaStrip, { props: { media } });
 
 		await expect.element(page.getByRole('slider', { name: 'Seek' })).toBeDisabled();
+	});
+
+	// A reopened draft reports its position before the metadata that says how long
+	// the song is, so the value is handed to a range still spanning one second. The
+	// browser clamps it, and Svelte will not push it again — `currentTime` has not
+	// changed since the value it cached — so the thumb stays at the clamp beside a
+	// readout printing the truth.
+	it('moves the thumb to a restored position once the duration arrives', async () => {
+		const { audio, media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }), {
+			name: 'track.mp3',
+			startAt: 112
+		});
+
+		render(MediaStrip, { props: { media } });
+
+		const seek = page.getByRole('slider', { name: 'Seek' });
+		await expect.element(page.getByTestId('media-elapsed')).toHaveTextContent('1:52');
+		audio.setDuration(161);
+		await expect.element(seek).toHaveValue('112');
 	});
 
 	it('names the remembered file in the reconnect control and offers no transport', async () => {
@@ -357,7 +310,7 @@ describe('MediaStrip', () => {
 
 		await page.getByRole('button', { name: 'Sync lyrics' }).click();
 
-		expect(active).toBe(true);
+		expect(sync.active).toBe(true);
 		await expect.element(page.getByRole('button', { name: 'Stop syncing' })).toBeVisible();
 		await expect.element(page.getByText('Esc stops')).toBeVisible();
 		expect(page.getByText('track.mp3').elements()).toHaveLength(0);
@@ -390,7 +343,7 @@ describe('MediaStrip', () => {
 
 		await page.getByRole('button', { name: 'Lyrics synced' }).click();
 
-		expect(active).toBe(true);
+		expect(sync.active).toBe(true);
 		await expect.element(page.getByRole('button', { name: 'Stop syncing' })).toBeVisible();
 	});
 
@@ -465,100 +418,41 @@ describe('MediaStrip', () => {
 	});
 });
 
-// Spotify's Design Guidelines require the mark, the track and artist beside it,
-// and a way back to the track — and a missing one of those is the most common
-// reason a quota-extension request is refused.
+/*
+ * The strip's half of one hand-off: it names the song and carries the mark only
+ * where no cover band is going to. `MediaAttribution.svelte.test.ts` covers what
+ * the two marks are, and `MediaArtwork.svelte.test.ts` covers the band carrying
+ * them; these two pin which surface draws them at all.
+ */
 describe('MediaStrip attribution', () => {
-	it('names the track and links the mark to it on Spotify', async () => {
-		const { media } = await spotifyStore();
-		render(MediaStrip, { props: { media } });
-
-		const link = page.getByRole('link', { name: 'Open Mul — Sensommer on Spotify' });
-		await expect
-			.element(link)
-			.toHaveAttribute('href', 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT');
-		// A new tab, because the workbench is a document being typed into.
-		await expect.element(link).toHaveAttribute('target', '_blank');
-		await expect.element(link).toHaveAttribute('rel', 'noopener noreferrer');
-	});
-
-	// It is a brand asset, so it takes Spotify's green rather than the accent
-	// every other link on the page inherits — and their stated 21px floor.
-	it('draws the mark in Spotify green at their minimum size', async () => {
-		const { media } = await spotifyStore();
-		render(MediaStrip, { props: { media } });
-
-		const link = page.getByRole('link', { name: 'Open Mul — Sensommer on Spotify' }).element();
-		expect(getComputedStyle(link).color).toBe('rgb(29, 185, 84)');
-		expect(link.querySelector('svg')?.getAttribute('width')).toBe('21');
-	});
-
-	it('draws no mark for a source that is not Spotify', async () => {
+	it('names a local file itself, and attributes nobody for it', async () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		render(MediaStrip, { props: { media } });
 
-		expect(document.querySelector('.media-strip__spotify')).toBeNull();
+		expect(document.querySelector('.media-strip__name')?.textContent).toBe('track.mp3');
+		expect(document.querySelector('.media-attribution__spotify')).toBeNull();
+		expect(document.querySelector('.media-attribution__apple')).toBeNull();
 	});
 
-	// Apple wants the same thing, and gets their own supplied lockup for it.
-	it('carries Apple’s badge and links back to the song', async () => {
-		const { media } = await appleStore();
-		render(MediaStrip, { props: { media } });
-
-		const link = page.getByRole('link', {
-			name: 'Listen to Kygo — Stole the Show on Apple Music'
-		});
-		await expect.element(link).toHaveAttribute('href', 'https://music.apple.com/song/1091453645');
-		await expect.element(link).toHaveAttribute('target', '_blank');
-		await expect.element(link).toHaveAttribute('rel', 'noopener noreferrer');
-	});
-
-	/**
-	 * The three things Apple's identity guidelines forbid, asserted as a shape
-	 * rather than trusted to a comment.
-	 *
-	 * Their artwork must be used rather than redrawn, the `Listen on` call to
-	 * action may not be removed from the badge, and it may not be stretched or
-	 * recolored. So: an `<img>` pointing at their file (not an inline path we
-	 * could have cut ourselves), drawn at the artwork's own 125.1 × 27.78.
-	 *
-	 * The ratio is measured rather than assumed, because the obvious way to write
-	 * this markup gets it wrong: `width`/`height` attributes are parsed as
-	 * integers, so 125 × 28 squeezes the badge by 0.9% — invisible, and still the
-	 * thing the guidelines name.
-	 *
-	 * The data URI is the third rule and a fix in its own right. Apple's lockups
-	 * are ~7.5KB, over Vite's 4096-byte inline threshold, so they shipped as
-	 * separate files and the badge visibly popped in a moment after a song
-	 * attached — a request that only starts when the element mounts, which is
-	 * exactly when the user is looking at that row. Inlining is also byte-for-byte
-	 * their file, where minifying it to fit would not have been.
+	/*
+	 * The bug this pins is a flash rather than a missing element: keyed on
+	 * `player.artwork`, the strip drew the name and the badge for as long as the
+	 * catalogue read took and then handed both to the band. So the assertion is
+	 * made on a song whose cover has *not* arrived — which is exactly the moment
+	 * the old condition was true.
 	 */
-	it('uses Apple’s own artwork at its own aspect ratio, with no second request', async () => {
-		const { media } = await appleStore();
+	it.each([
+		['Apple Music', appleStore],
+		['Spotify', spotifyStore]
+	])('leaves the name and the mark to the band for %s, cover or no cover', async (_case, open) => {
+		const { media, player } = await open();
+		expect(player.artwork).toBeUndefined();
+
 		render(MediaStrip, { props: { media } });
 
-		const badge = document.querySelector('.media-strip__apple img') as HTMLImageElement;
-		const src = badge.getAttribute('src') ?? '';
-		expect(src.startsWith('data:image/svg+xml')).toBe(true);
-		// Their own gradient, still in the file: this is Apple's artwork rather
-		// than something redrawn to be small enough to inline.
-		expect(decodeURIComponent(src)).toContain('#FA233B');
-
-		const box = badge.getBoundingClientRect();
-		expect(box.width / box.height).toBeCloseTo(125.1 / 27.78, 3);
-		// The dark-scheme twin is offered by the browser rather than by a theme
-		// value, so exactly one of the two files is ever fetched.
-		const source = document.querySelector('.media-strip__apple source');
-		expect(source?.getAttribute('media')).toBe('(prefers-color-scheme: dark)');
-	});
-
-	it('draws no attribution at all for a local file', async () => {
-		const { media, player } = store();
-		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
-		render(MediaStrip, { props: { media } });
-
-		expect(document.querySelector('.media-strip__apple')).toBeNull();
+		expect(document.querySelector('.media-strip__name')).toBeNull();
+		expect(document.querySelector('.media-attribution__spotify')).toBeNull();
+		expect(document.querySelector('.media-attribution__apple')).toBeNull();
 	});
 });

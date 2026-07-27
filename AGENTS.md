@@ -1170,8 +1170,8 @@ rediscovering that.
 **The mark beside the track name is a requirement, not decoration.** Spotify's Design Guidelines
 want their content attributed wherever it plays — the mark, the track and artist named beside it,
 and a way back to the track on Spotify — and a missing one of those is the most common reason a
-quota-extension request is refused. So `.media-strip__spotify` is the **one literal color in this
-stylesheet outside the favicon**: a third party's brand asset is not a tone from our palette, their
+quota-extension request is refused. So `.media-attribution__spotify` is the **one literal color in
+this stylesheet outside the favicon**: a third party's brand asset is not a tone from our palette, their
 green is fixed, and their floor is 21px. A semantic token here would be the design system claiming
 ownership of something it does not own, and would drift the moment the theme moved. It opens a new
 tab, because the workbench is a document being typed into.
@@ -1295,7 +1295,7 @@ every share link Apple produces. Silently, and only wrong for songs that are not
 
 **The attribution is Apple's own `Listen on Apple Music` lockup, and every part of how it is drawn
 comes from a rule rather than a preference.** Spotify's glyph is one flat shape in one fixed green,
-so `.media-strip__spotify` can draw it from a path and spend a literal color on it. Apple's
+so `.media-attribution__spotify` can draw it from a path and spend a literal color on it. Apple's
 guidelines say the opposite three times over — use their artwork and never draw one, never remove
 the `Listen on` call to action from the badge, never stretch or recolor it — so this is their file,
 whole, at its own aspect ratio, with no hover treatment and no `currentColor`. Even the white
@@ -1330,8 +1330,14 @@ foot of the right panel, chosen for the same reason: a picture is looked at rath
 so two hundred pixels of it costs a scroll there and would cost the document anywhere else. What
 differs is the one control. YouTube's embed terms require their player visible and unobscured, so
 a collapse control on that band would be a control for breaking them; Apple asks for attribution —
-which the strip's badge carries — and nothing at all about a picture. So this is the one band in
-the panel a user can take their height back from.
+which this band carries at the foot of the picture, and under the title once it is folded — and
+nothing at all about a picture. So this is the one band in the panel a user can take their height
+back from.
+
+**The mark is on the picture, and the folded row is why that is safe.** Overlaid on a cover that
+could be folded away, a third party's mark would leave the screen while their song was still
+playing — so the folded state carries it under the title rather than dropping it with the
+artwork.
 
 **The transport is on the picture, and it is the strip's own transport.** Both surfaces render
 `MediaTransport.svelte` rather than mirroring three buttons by hand, for the reason the diagnostic
@@ -1362,7 +1368,15 @@ documentation.
 - **The chevron points at the content, not along its own travel.** Open points down at the picture
   it opened; closed points up at the bar the picture folded into. That is the reading that survives
   the band being at the _foot_ of a column, where up is where everything else in the panel lives.
-- **It opens by default**, and the fold is remembered. Two things would otherwise forget it: the
+- **It opens by default on a laptop and is folded on a phone**, and either way the fold is
+  remembered. There the panel is stacked _under_ the editor rather than beside it, so an open cover
+  is a square of picture between the document and the findings — the two things a transcriber moves
+  between — on the screen with the least room to give it. `isPhoneLayout()` is the same
+  `(pointer: coarse) and (max-width: 68rem)` the touch notice fires on, shared rather than written
+  out twice, and it is read once at boot rather than watched: a phone does not become a laptop, and
+  re-folding a band the user just opened because they rotated the device would be the layout
+  overriding an instruction. A stored preference outranks it, because a default decides what to do
+  before the user has said anything rather than instead of what they said. Two things would otherwise forget it: the
   band is destroyed whenever the attached source changes, so a flag held in the component resets on
   every swapped song, and a reload starts over. So the controller owns it and the component is told
   — `artworkOpen` / `setArtworkOpen`, written through `getPreference` / `setPreference` on the draft
@@ -1371,15 +1385,53 @@ documentation.
   so a preference kept in `localStorage` would quietly escape both promises this application makes
   about local state. It is a generic key/value pair rather than a method each, because the
   alternative is two more methods on that contract every time a control learns to remember itself.
-- **The bar is the strip's bar** — same `--control-height-lg`, same padding, read off the same
-  token rather than a number copied across. The two rows sit at the feet of the two columns of one
-  window, and a few pixels between them reads as one of them being slightly wrong.
-- **The name is said once.** The bar carries it directly over the picture it belongs to, so the
-  strip drops its own copy while a cover is drawn — three words twice on one screen, in the row
-  with least space for them.
-- **The band waits on the picture, not on the source kind.** A cover only exists once the
-  catalogue read lands, and drawing on `sourceKind === 'apple'` would put a square of empty chrome
-  on screen for the round trip in between — the band flashing into existence twice.
+- **The picture is the surface, and the facts sit on it.** Artist at the top left, title at the top
+  right, the transport at the bottom left, the mark at the bottom right, and the fold at the end of
+  the title's own row. This band used to be a chrome bar with a cover under it — the strip's bar,
+  repeated at the foot of the other column — which spent a whole row of the panel's height on two
+  facts and one control, above a picture with four unused corners.
+- **Each end is a row, not a pair of corners.** Absolutely-placed corners collide the moment an
+  artist and a title are both long; a flex row with the ellipsis on both halves cannot.
+- **Two scrims, top and bottom, and they are the contrast.** `--color-scrim-ink` is its own token
+  now because the two gradients differ only in direction, and two hand-copied `oklch()`s is what
+  `--color-backdrop` already exists to prevent. Each end is a gradient rather than a flat fill, so
+  the picture is given up gradually and the middle — the part worth looking at — stays clear of
+  both.
+- **Artist and title are separate facts, not a split string.** `SongDetails` carries both; `name`
+  stays the one-line `Artist — Title` a single readout wants. Splitting that back up would be
+  parsing a separator this application chose, which works until an artist has an em dash in their
+  name. Both catalogue sources have the two fields already, so Spotify reports them too — and the
+  tools panel's list therefore gates on the facts _it_ draws rather than on `songDetails` existing,
+  or a Spotify song opens an empty `<dl>` under a heading.
+- **Folded, the picture scales down to the left** and the row is three columns: the thumbnail, the
+  title over the artist centred against it, and the chevron over the mark at the far end. **No
+  transport** — the controls under the document are the ones in use while typing, and a second copy
+  beside a thumbnail is a row of buttons for a picture nobody is looking at. The title leads here
+  and the artist qualifies it, which is the opposite of the order they take on the picture, where
+  they are the two ends of one line. The type is a step up from the overlay's: there the text is a
+  caption on a picture, here the two lines _are_ the row and have a thumbnail's height to fill. The `<img>` is the _same element_ in both states, which is what makes the fold a
+  scale rather than a swap, and `--media-thumb` is read off `--control-height-lg` rather than
+  picked. This is the one animation in the band and a deliberate exception to its own rule that the
+  fold is instant: what moves is the picture the user just pressed, and it moves to where it is
+  going. It is gated on `prefers-reduced-motion: no-preference`, like every other transition here.
+- **The name and the mark are said once, and the band is where a catalogue source says them.** The
+  strip draws neither — three words twice on one screen, in the row with least space for them.
+- **The hand-off is `drawsCoverBand(sourceKind)`, and it is one function because it is one
+  decision.** The panel asks it whether to draw the band and the strip asks it whether to name the
+  song itself; two conditions for that would put the title in both rows or in neither.
+- **It answers on the kind, and the band gates the picture rather than the other way round.** This
+  is a correction, and the version it replaces looked reasonable: the band waited on the cover, on
+  the grounds that drawing at `sourceKind === 'apple'` would put a square of empty chrome on screen
+  for the round trip the catalogue read takes. What that missed is that a song is _named_ the
+  moment it attaches — so the name and the badge sat in the transport strip for the length of the
+  read and then jumped down here, which reads as a glitch rather than as a hand-off. **Before the
+  cover lands the band draws in the shape it would fold into**, thumbnail slot empty, so the
+  picture arrives into a layout that was already standing. The fold control waits for the picture
+  too: a control that folds a stage which is not there is a press that appears to do nothing.
+- **One `MediaAttribution.svelte` for both marks and both surfaces.** The mark travels with the
+  name, so it is rendered by the band for a catalogue source and by the strip for anything else;
+  two copies of that markup would be two copies of every guideline rule above, and the copy that
+  drifted would be the one nobody is looking at.
 - **`artwork` is on the transport, not on the Apple source**, because a cover is a fact about what
   is playing and the panel drawing it should not have to know which of four things is playing.
   Sources with no picture simply never call `artworkChanged`, which is every source but this one
@@ -1453,8 +1505,81 @@ same thing twice.
 
 **Saving it is in the tools panel, because it is not part of transcribing.** It is a thing a
 transcriber wants once, on the way out, next to `Export .txt` — not a control in the shortest row
-in the window, which has no pixel to spare and is operated constantly. The section draws only when
-there is a cover, so it comes and goes with the song rather than sitting there as a setting.
+in the window, which has no pixel to spare and is operated constantly.
+
+**It shares a section with the video's link, because they are one job.** `Song metadata` is
+everything the workbench happens to know about the attached song that is not the words, in the
+forms somebody filling in a song page elsewhere has to paste: the cover, the watch URL derived
+from the `videoId` the draft already stores, and the catalogue's own facts about the recording.
+**Each of them draws only where its own fact exists** — a Spotify track has a cover and no link, a
+local file has neither and the heading itself goes. No press contacts anyone: the cover's address
+arrived with the song, the link is arithmetic on an id, and the facts came in on the read that was
+already paying for the name.
+
+**And it leads the panel**, because it is the only section there that is about the song in front of
+the user rather than about the application — everything under it is a setting, a backup, or a way
+out. A section that comes and goes has to lead or it lands somewhere different on every draft.
+
+**Those facts are a `<dl>` and not a copied block**, because they go into separate fields on
+whatever page they are being typed into — one string holding all of them would only have to be
+taken apart again by hand. **The grid is on the list, and the row wrappers are `display:
+contents`**: `.metadata-list` began as a `space-between` flex row per pair, which works only while
+every value is a version number, and the first real one — three songwriters — wrapped back flush
+against its own term and read as `WritersTigergutt101`. Pushing two ends apart is not the same as
+putting space between them. The hairline under each row went at the same time: a rule between two
+facts of the same kind separates nothing, and five of them turned a short list into a receipt.
+`ToolsPanel.svelte.test.ts` measures the boxes rather than trusting the rule, because the failure
+it replaces looked exactly like working CSS. `SongDetails` rides the transport beside `artwork`, for the same
+reason: it is a fact about what is playing, and the panel listing it should not have to know which
+of four sources is playing it. Only Apple fills it; the read asks for **`include=albums`** because
+a song carries no label of its own and the album relationship is the only place Apple keeps one —
+one request either way.
+
+Three things about it that are the catalogue's limits rather than this code's, and all three cost
+a round of disappointment to establish:
+
+- **There are no producers, and there is no way to get them.** Apple's public catalogue has no
+  credits resource at all. The Music app's Credits screen — producers, engineers, performers — is
+  fed by an endpoint they do not publish, so a producer row here would be one nothing could ever
+  fill.
+- **Writers are `composerName`, one flat string**, frequently just the lead writer and sometimes
+  absent. It is passed through unsplit: a name this application has rewritten is worse than the
+  one it was given.
+- **The label is the _album's_, and the album is whichever release the song sits on.** For
+  "Bohemian Rhapsody" that is a 2000 compilation on Hollywood Records while the song's own
+  `releaseDate` is correctly 1975-10-31 — the two disagree inside one response. What is reported
+  is the label of the release being played, which is true, rather than the label of the first
+  release, which Apple does not say.
+
+A field the catalogue does not carry is **left out rather than emptied**, and a song with none of
+them reports `undefined` rather than an empty object, so a list of these is a list of things that
+are actually known.
+
+**Going the other way — a name to a YouTube URL — is a link to a search the user runs, and the two
+lookups it is not are worth writing down so nobody tries them twice.** The Data API's
+`search.list` costs 100 quota units against a 10,000/day default, which is ~100 searches a day for
+the whole deployed build, shared by every visitor, behind a key inlined in the bundle for anyone
+to lift. Odesli (`api.song.link`) is keyless and resolves an Apple or Spotify id correctly, but it
+**returns no `youtube` entry in `linksByPlatform`** for those inputs — verified against four
+songs — and it sends no `Access-Control-Allow-Origin`, so it would need a proxy to deliver an
+answer it does not have. What is left is the search running where it is free: in the user's own
+browser, on Google's own page, with the video they pick pasted back into the field it opened
+under.
+
+So the picker's YouTube section carries `Search YouTube for “…”` beneath its line of facts, and
+three things about it:
+
+- **The name is the draft's own title first**, because it is the one a person chose — and for a
+  file it is _already_ the cleaned filename, since attaching names an untitled draft after its
+  source (`titleFromFilename`). The attached or pending source name is the fallback, and
+  `DEFAULT_DRAFT_TITLE` is skipped rather than searched for: a placeholder is not a name.
+- **It draws only where there is something to search for**, the rule `availableRates` and
+  `spotifyAvailable` both follow. An untitled draft with nothing attached is offered no empty
+  query.
+- **The `href` is built inline from a literal**, like the Spotify and Apple links in the strip,
+  because `svelte/no-navigation-without-resolve` cannot see that a variable holds an external URL.
+  A helper returning the whole address fails lint; `youtubeSearchTerm` returns the term instead,
+  which the control both shows and encodes.
 
 **The bytes come through `fetch`, and the fallback is the point.** `download` on an anchor is
 ignored cross-origin and every cover lives on Apple's, Spotify's or Google's CDN, so an anchor
@@ -1508,13 +1633,19 @@ Two rules came out of the repair:
   `Local data`; what YouTube costs is said in the picker, beside the press that spends it. A warning
   met an hour before the decision is a warning already forgotten, and the same warning in two places
   reads as two different warnings.
+- **A command is offered once, and the section sits where its command is wanted.** `Copy lyrics`
+  went entirely: the toolbar carries it as the window's one contrast action, and repeating it three
+  rows down a panel was a second command for a press the user already has. What is left of
+  `Document` is the export, which is a thing a transcriber wants once on the way out — so the
+  section moved to the foot of the panel, under `Local data`, and only the rule reference is below
+  it. Order sections by how often the reader needs them, not by which one is about the document.
 
 The trailing `.offline-note` went with this, and its CSS hook went with it: a selector for markup
 nothing renders is the same drift as a fallback color for a token nothing defines.
 
-`ToolsPanel.svelte.test.ts` asserts the heading list, the single action row, and the _absence_ of any
-audio control — re-adding one here is the specific regression that made the panel messy the first
-time.
+`ToolsPanel.svelte.test.ts` asserts the heading list in order, the single action row, and the
+_absence_ of any audio control or second `Copy lyrics` — re-adding either here is the specific
+regression that made the panel messy the first time.
 
 ### A surface that opens itself has to have been asked, twice over
 

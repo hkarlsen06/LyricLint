@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/sv
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { WorkspaceBackupController, WorkspaceBackupState } from '$lib/persistence/backup.js';
 import type { WorkbenchController } from '../state/workbench.svelte.js';
+import type { SongDetails } from '../state/media-player.svelte.js';
 import { createTestWorkbench } from '../test-utils.js';
 import ToolsPanel from './ToolsPanel.svelte';
 
@@ -54,6 +55,33 @@ describe('ToolsPanel destructive confirm', () => {
 		await waitFor(async () => expect(await repository.list()).toEqual([]));
 		expect(screen.getByRole('button', { name: 'Delete all local data…' })).toBeTruthy();
 	});
+
+	test('offers the draft’s line timings only while it has some, and clears them', async () => {
+		const { controller, calls } = createTestWorkbench();
+		const { container } = render(ToolsPanel, { controller });
+
+		// Nothing timed: no control offering to delete nothing.
+		expect(screen.queryByRole('button', { name: 'Delete line timings…' })).toBeNull();
+
+		calls.lineAnchors = [{ line: 2, time: 1 }];
+		controller.onLineAnchorsChanged();
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: 'Delete line timings…' })).toBeTruthy()
+		);
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete line timings…' }));
+		// In place, and the competing question is hidden while this one is open.
+		expect(container.querySelector('.confirm-block')).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Delete all local data…' })).toBeNull();
+		expect(screen.getByText(/1 line timing on this transcription/u)).toBeTruthy();
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete line timings' }));
+		expect(calls.lineAnchors).toEqual([]);
+		expect(controller.lineAnchorCount).toBe(0);
+		await waitFor(() =>
+			expect(screen.queryByRole('button', { name: 'Delete line timings…' })).toBeNull()
+		);
+	});
 });
 
 /*
@@ -68,23 +96,29 @@ describe('ToolsPanel destructive confirm', () => {
 describe('ToolsPanel skimmability', () => {
 	afterEach(cleanup);
 
-	test('gives each section a heading over at most two things, and Document one row of actions', () => {
+	test('gives each section a heading over at most two things, and Document one export', () => {
 		const { controller } = createTestWorkbench({
 			backup: backupController({ supported: false, status: 'idle' })
 		});
 		const { container } = render(ToolsPanel, { controller });
 
+		// `Document` sits near the foot: an export is wanted once, on the way out.
 		expect([...container.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual([
-			'Document',
 			'Workspace backup',
 			'Local data',
+			'Document',
 			'Reviewed rules'
 		]);
 
-		const documentActions = container.querySelector('section .tool-actions');
+		const documentActions = [...container.querySelectorAll('section')]
+			.find((section) => section.querySelector('h3')?.textContent === 'Document')
+			?.querySelector('.tool-actions');
 		expect(
 			[...(documentActions?.querySelectorAll('button') ?? [])].map((b) => b.textContent?.trim())
-		).toEqual(['Copy lyrics', 'Export .txt']);
+		).toEqual(['Export .txt']);
+
+		// The toolbar carries this one; a second copy here is the drift to catch.
+		expect(screen.queryByRole('button', { name: 'Copy lyrics' })).toBeNull();
 	});
 
 	test('says nothing about audio, and makes the local-data claim exactly once', () => {
@@ -103,40 +137,155 @@ describe('ToolsPanel skimmability', () => {
 });
 
 /*
- * The cover is a fact about the attached song, so the section that saves it
- * comes and goes with one. A source with no picture — a local file, and every
- * source before the catalogue read lands — must draw no heading at all, or the
- * panel carries an action for something that is not there.
+ * Both facts are facts about the attached song, so the section carrying them
+ * comes and goes with one — and each control comes and goes with its own fact.
+ * A local file has neither and must draw no heading at all, or the panel offers
+ * an action for something that is not there.
  */
-describe('ToolsPanel album art', () => {
+describe('ToolsPanel song metadata', () => {
 	afterEach(cleanup);
 
-	function withArtwork(artwork: string | undefined): WorkbenchController {
+	function withSong(media: {
+		artwork?: string;
+		videoId?: string;
+		songDetails?: SongDetails;
+	}): WorkbenchController {
 		const { controller } = createTestWorkbench();
 		return {
 			...controller,
-			media: { player: { artwork, name: 'Mul — Sensommer' } }
+			media: {
+				videoId: media.videoId,
+				player: {
+					artwork: media.artwork,
+					songDetails: media.songDetails,
+					name: 'Mul — Sensommer'
+				}
+			}
 		} as unknown as WorkbenchController;
 	}
 
-	test('offers the download only while a source has published a cover', () => {
+	function headings(container: HTMLElement): (string | null)[] {
+		return [...container.querySelectorAll('h3')].map((heading) => heading.textContent);
+	}
+
+	/** Scoped by heading: `Reviewed rules` draws a `.metadata-list` of its own. */
+	function songSection(container: HTMLElement): HTMLElement | undefined {
+		return [...container.querySelectorAll('section')].find(
+			(section) => section.querySelector('h3')?.textContent === 'Song metadata'
+		);
+	}
+
+	test('offers each control only where its own fact exists', () => {
 		const { container } = render(ToolsPanel, {
-			controller: withArtwork('https://i.scdn.co/image/640')
+			controller: withSong({ artwork: 'https://i.scdn.co/image/640' })
 		});
 
-		expect([...container.querySelectorAll('h3')].map((heading) => heading.textContent)).toContain(
-			'Album art'
-		);
+		// It leads: the one section about the song rather than about the app.
+		expect(headings(container)[0]).toBe('Song metadata');
 		expect(screen.getByRole('button', { name: 'Download album art' })).toBeTruthy();
+		// Spotify and Apple publish a cover and no video, so the link must not be
+		// offered for a song there is no link to.
+		expect(screen.queryByRole('button', { name: 'Copy YouTube link' })).toBeNull();
 	});
 
-	test('draws nothing for a source with no cover', () => {
-		const { container } = render(ToolsPanel, { controller: withArtwork(undefined) });
+	test('copies the watch page for an attached video, contacting nobody', async () => {
+		const copied: string[] = [];
+		const clipboard = { writeText: async (text: string) => void copied.push(text) };
+		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as unknown as Clipboard);
 
-		expect(
-			[...container.querySelectorAll('h3')].map((heading) => heading.textContent)
-		).not.toContain('Album art');
+		render(ToolsPanel, {
+			controller: withSong({ videoId: 'dQw4w9WgXcQ', artwork: 'https://i.ytimg.com/vi/x/hq.jpg' })
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy YouTube link' }));
+		await waitFor(() => expect(copied).toEqual(['https://www.youtube.com/watch?v=dQw4w9WgXcQ']));
+	});
+
+	/*
+	 * `songDetails` is not the same question as "has this list anything to show".
+	 * Artist and title live on it too — the cover band sets them at opposite ends
+	 * of a row — and Spotify reports only those two, so gating on the object
+	 * itself opens an empty `<dl>` under a heading.
+	 */
+	test('draws no list for a source that knows only the artist and title', () => {
+		const { container } = render(ToolsPanel, {
+			controller: withSong({ songDetails: { artist: 'Mul', title: 'Sensommer' } })
+		});
+
+		expect(headings(container)).not.toContain('Song metadata');
+		expect(songSection(container)).toBeUndefined();
+	});
+
+	test('draws nothing for a song with neither', () => {
+		const { container } = render(ToolsPanel, { controller: withSong({}) });
+
+		expect(headings(container)).not.toContain('Song metadata');
 		expect(screen.queryByRole('button', { name: 'Download album art' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Copy YouTube link' })).toBeNull();
+	});
+
+	/*
+	 * Separate fields rather than one copied block, because that is how they are
+	 * typed in on the other end. A field the catalogue did not carry is absent
+	 * from the list entirely — an empty `Label` row is a fact this application
+	 * does not have, dressed up as one it does.
+	 */
+	test('lists only the facts the catalogue actually carried', () => {
+		const { container } = render(ToolsPanel, {
+			controller: withSong({
+				songDetails: {
+					releaseDate: '2015-03-23',
+					writers: 'Kygo, Parker Ighile',
+					label: 'Ultra Records'
+				}
+			})
+		});
+
+		const list = songSection(container)!.querySelector('.metadata-list') as HTMLElement;
+		expect([...list.querySelectorAll('dt')].map((term) => term.textContent)).toEqual([
+			'Released',
+			'Writers',
+			'Label'
+		]);
+		expect(list.querySelector('time')?.getAttribute('datetime')).toBe('2015-03-23');
+		expect(list.textContent).toContain('Ultra Records');
+	});
+
+	/*
+	 * Measured rather than trusted, because the failure this replaces looked
+	 * exactly like working CSS: the rows were `space-between` flex pairs, which
+	 * pushes two ends apart without putting any space between them, so the first
+	 * value long enough to wrap came back flush against its own term and read as
+	 * one word — `WritersTigergutt101, …`.
+	 *
+	 * Two assertions, and the second is the one that would have caught it: every
+	 * value starts at one left edge, which is only true while the grid is on the
+	 * list rather than on each row.
+	 */
+	test('keeps a long value clear of its term, in a column with the others', () => {
+		const { container } = render(ToolsPanel, {
+			controller: withSong({
+				songDetails: {
+					releaseDate: '2026-03-20',
+					writers: 'Tigergutt101, Mathias Nilsen & Kjell Øverland',
+					label: 'RCA Records Label'
+				}
+			})
+		});
+
+		const list = songSection(container)!.querySelector('.metadata-list') as HTMLElement;
+		const terms = [...list.querySelectorAll('dt')];
+		const values = [...list.querySelectorAll('dd')];
+
+		for (const [index, value] of values.entries()) {
+			const term = terms[index] as HTMLElement;
+			expect(value.getBoundingClientRect().left).toBeGreaterThan(
+				term.getBoundingClientRect().right
+			);
+		}
+
+		const edges = new Set(values.map((value) => Math.round(value.getBoundingClientRect().left)));
+		expect(edges.size).toBe(1);
 	});
 });
 

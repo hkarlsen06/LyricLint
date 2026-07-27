@@ -286,8 +286,12 @@ function defaultSchedule(tick: () => void, intervalMs: number): () => void {
 	return () => clearInterval(timer);
 }
 
+function artistsOf(track: SpotifyTrack): string[] {
+	return (track.artists ?? []).map((artist) => artist.name).filter(Boolean);
+}
+
 function describe(track: SpotifyTrack): string {
-	const artists = (track.artists ?? []).map((artist) => artist.name).filter(Boolean);
+	const artists = artistsOf(track);
 	return artists.length > 0 ? `${artists.join(', ')} — ${track.name}` : track.name;
 }
 
@@ -373,6 +377,14 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 		// The read that pays for the name carries the cover with it, so this costs
 		// no second request. Widest first is Spotify's own order.
 		events.artworkChanged(track.album?.images?.[0]?.url);
+		// The two halves of that name, for the band that sets them at opposite ends
+		// of a row. Everything else Spotify would need for the tools panel's list —
+		// the label above all — is on a request this source does not make, so this
+		// reports what it has rather than a shape with holes in it.
+		events.detailsChanged({
+			...(artistsOf(track).length > 0 ? { artist: artistsOf(track).join(', ') } : {}),
+			title: track.name
+		});
 		if (track.duration_ms !== undefined) reportDuration(track.duration_ms / 1000);
 	}
 

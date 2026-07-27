@@ -1,14 +1,8 @@
 <script lang="ts">
-	import { formatTime } from '../state/media-player.svelte.js';
+	import { drawsCoverBand, formatTime } from '../state/media-player.svelte.js';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import MediaTransport from './MediaTransport.svelte';
-	// Apple's own artwork, unmodified, because their identity guidelines say to use
-	// theirs and never to draw one. Imported as URLs rather than inlined for a
-	// second reason that would bite immediately: both files were exported from
-	// Illustrator with the same `.st0`/`.st1` class names and the same
-	// `SVGID_1_` gradient id, so two of them in one document collide on both.
-	import appleMusicBadgeBlack from '$lib/assets/apple-music-listen-on-black.svg';
-	import appleMusicBadgeWhite from '$lib/assets/apple-music-listen-on-white.svg';
+	import MediaAttribution from './MediaAttribution.svelte';
 
 	/**
 	 * Timing the whole lyric, which is a transport activity and therefore lives in
@@ -128,13 +122,21 @@
 			     is one press away. -->
 			<p class="media-strip__error">{player.error}</p>
 		{:else}
+			<!-- The value is clamped to the range that exists, and it is the same
+			     `seekable` the range is drawn from rather than a second condition.
+			     A restored position is reported the moment a draft opens, before the
+			     metadata that says how long the song is — so an unclamped `112` was
+			     handed to an element still spanning one second, the browser clamped
+			     the DOM value to 1, and Svelte never pushed it again because
+			     `currentTime` had not changed since the value it cached. The thumb
+			     stayed at 1/161 beside a readout printing 1:52. -->
 			<input
 				class="media-strip__seek"
 				type="range"
 				min="0"
 				max={seekable ? player.duration : 1}
 				step="0.05"
-				value={player.currentTime}
+				value={seekable ? Math.min(player.currentTime, player.duration) : 0}
 				disabled={!seekable}
 				aria-label="Seek"
 				oninput={(event) => player.seek(event.currentTarget.valueAsNumber)}
@@ -269,74 +271,23 @@
 				</button>
 				<span class="media-strip__hint">Esc stops</span>
 			{:else}
-				<!-- The name is said once. Where a cover is drawn, the artwork band's
-				     own bar carries it directly over the picture it belongs to, and
-				     repeating it here would put the same three words twice on one
-				     screen — in the row that has least space for them. -->
-				{#if !player.artwork}
+				<!--
+					The name and the mark are said once, and both are said wherever the song
+					is being shown: on the artwork band's own bar for a source that has one,
+					here for a source that does not.
+
+					**The condition is the source kind and not `player.artwork`, which is the
+					bug this replaces.** A catalogue source is named before its cover arrives —
+					the read that fetches one is a round trip behind the attach — so keying on
+					the picture put the title and the badge in this row for as long as that
+					took and then moved them to the band underneath. What the user sees is the
+					name flashing into the shortest row in the window and leaving again, which
+					reads as a glitch rather than as a hand-off. Where a band is coming, this
+					row never draws them at all.
+				-->
+				{#if !drawsCoverBand(player.sourceKind)}
 					<span class="media-strip__name" title={player.name}>{player.name}</span>
-				{/if}
-				<!--
-					Attribution, and Spotify's Design Guidelines require it wherever
-					their content plays: the mark, the track and artist named beside it,
-					and a way back to the track on Spotify. It is also the most common
-					reason a quota-extension request is refused.
-
-					A new tab, because the workbench is a document being typed into and
-					a link that navigated away from it would lose the user's place — the
-					same reason the sign-in redirect is only spent at the one moment
-					nothing is in progress.
-				-->
-				{#if player.sourceKind === 'spotify' && media.trackId}
-					<a
-						class="media-strip__spotify"
-						href={`https://open.spotify.com/track/${media.trackId}`}
-						target="_blank"
-						rel="noopener noreferrer"
-						aria-label={`Open ${player.name} on Spotify`}
-						title="Open on Spotify"
-					>
-						<svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="currentColor">
-							<path
-								d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0Zm5.5 17.31a.75.75 0 0 1-1.03.25c-2.82-1.72-6.37-2.11-10.55-1.16a.75.75 0 1 1-.33-1.46c4.57-1.04 8.5-.59 11.66 1.34.35.22.46.68.25 1.03Zm1.47-3.27a.94.94 0 0 1-1.29.31c-3.23-1.98-8.15-2.56-11.97-1.4a.94.94 0 1 1-.54-1.8c4.36-1.32 9.78-.68 13.49 1.6.44.27.58.85.31 1.29Zm.13-3.4C15.23 8.34 8.85 8.13 5.15 9.25a1.12 1.12 0 1 1-.65-2.15c4.25-1.29 11.29-1.04 15.74 1.6a1.12 1.12 0 1 1-1.14 1.94Z"
-							/>
-						</svg>
-					</a>
-				{/if}
-				<!--
-					The same requirement one source over: Apple wants their catalogue
-					attributed and a way back to the song wherever it plays.
-
-					Apple's supplied `Listen on Apple Music` lockup, unmodified. Three
-					rules from their identity guidelines shape every part of this and none
-					of them is discretionary: use their artwork rather than drawing one,
-					never remove the `Listen on` call to action from the badge, and never
-					recolor it. So this is the whole lockup at its own aspect ratio, and it
-					carries no `currentColor` — even the white file keeps Apple's gradient
-					on the note and only the type is white.
-
-					`<picture>` rather than a Svelte-side theme value, because the theme
-					here is `prefers-color-scheme` and therefore CSS: the white lockup is
-					for the dark surface and the black one for the light, and the browser
-					fetches exactly one of them.
-				-->
-				{#if player.sourceKind === 'apple' && media.songId}
-					<a
-						class="media-strip__apple"
-						href={`https://music.apple.com/song/${media.songId}`}
-						target="_blank"
-						rel="noopener noreferrer"
-						aria-label={`Listen to ${player.name} on Apple Music`}
-						title="Listen on Apple Music"
-					>
-						<picture>
-							<source srcset={appleMusicBadgeWhite} media="(prefers-color-scheme: dark)" />
-							<!-- The link is already named, so the badge is decorative here;
-							     an alt repeating `Listen on Apple Music` would announce the
-							     same control twice. -->
-							<img src={appleMusicBadgeBlack} alt="" />
-						</picture>
-					</a>
+					<MediaAttribution {media} />
 				{/if}
 			{/if}
 

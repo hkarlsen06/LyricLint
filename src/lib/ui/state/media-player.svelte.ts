@@ -43,6 +43,71 @@ export type TransportAction = 'toggle' | 'back' | 'forward';
 export type MediaSourceKind = 'file' | 'youtube' | 'spotify' | 'apple';
 
 /**
+ * Whether this source gets the panel's cover band, which carries the song's name
+ * and its attribution.
+ *
+ * One answer for the two surfaces that would otherwise disagree: the panel
+ * decides whether to draw the band, and the strip decides whether to name the
+ * song itself. Two conditions for one hand-off is how a title ends up in both
+ * rows or in neither.
+ *
+ * It is the *kind* rather than `player.artwork`, deliberately, and the two are
+ * not the same question. This one is about ownership: a catalogue song's name
+ * and mark belong to the band, so the strip must not draw them even while the
+ * cover is still on its way — keyed on the picture, the strip would show both
+ * for the length of the read and then hand them down, which reads as a glitch.
+ * Whether the band has anything to draw *yet* is the band's own business, and
+ * it draws nothing until its picture lands. Between the two, a song that has
+ * just attached says nothing anywhere, which is the shorter wait.
+ *
+ * A file has no catalogue behind it, and a video has its own player in that slot.
+ */
+export function drawsCoverBand(kind: MediaSourceKind | undefined): boolean {
+	return kind === 'apple' || kind === 'spotify';
+}
+
+/**
+ * The facts about a song that belong on a song page somewhere else.
+ *
+ * Every field is optional because the catalogue's own are: `composerName` is one
+ * flat string that is frequently just the lead writer and sometimes absent, and
+ * a song with no album relationship has no label. A field this application
+ * cannot vouch for is left out rather than guessed at.
+ *
+ * **There are no producers, and there is no way to get them.** Apple's public
+ * catalogue has no credits resource at all — the Music app's Credits screen is
+ * fed by an endpoint they do not publish — so a producer field here would be one
+ * this application could never fill.
+ *
+ * **`label` is the album's, and the album is whichever release the song sits
+ * on.** For "Bohemian Rhapsody" that is a 2000 compilation on Hollywood
+ * Records, not the 1975 EMI original, while `releaseDate` on the song is
+ * correctly 1975-10-31 — so the two can disagree inside one response. It is the
+ * label of the release being played, which is true, rather than the label of the
+ * first release, which Apple does not say.
+ */
+export interface SongDetails {
+	/**
+	 * The two halves of `name`, kept apart because the cover band sets them at
+	 * opposite ends of one row.
+	 *
+	 * `name` is `Artist — Title` and is what a one-line readout wants; splitting
+	 * that string back up would be parsing a separator this application chose,
+	 * which is the kind of round trip that works until an artist has an em dash in
+	 * their name. Both sources have the two fields already.
+	 */
+	artist?: string;
+	title?: string;
+	/** ISO `YYYY-MM-DD`, from the song rather than from its album. */
+	releaseDate?: string;
+	/** Apple's `composerName`, unsplit — see the caveat above. */
+	writers?: string;
+	label?: string;
+	isrc?: string;
+	album?: string;
+}
+
+/**
  * What the transport tells itself about whatever is making sound.
  *
  * A source reports; it never decides. Clamping, the resume rewind, and the
@@ -66,6 +131,16 @@ export interface MediaSourceEvents {
 	 * know which of four things is playing it.
 	 */
 	artworkChanged(url: string | undefined): void;
+	/**
+	 * What the catalogue knows about the song beyond its name, where it knows any.
+	 *
+	 * On the transport for the same reason the cover is: these are facts about
+	 * what is playing, and the panel listing them should not have to know which of
+	 * four things is playing it. Only Apple Music reports them today — YouTube has
+	 * no catalogue behind it, and Spotify's track read carries no writers or
+	 * label — so every other source simply never calls this.
+	 */
+	detailsChanged(details: SongDetails | undefined): void;
 	started(): void;
 	stopped(): void;
 	ended(): void;
@@ -211,6 +286,13 @@ export interface MediaPlayer {
 	 * was no picture would cost the panel a third of its height to say nothing.
 	 */
 	readonly artwork: string | undefined;
+	/**
+	 * What the catalogue says about the song, where the source has a catalogue.
+	 *
+	 * Undefined for a file, a video and a track, on the same reasoning as the
+	 * cover: a list of empty fields says less than no list at all.
+	 */
+	readonly songDetails: SongDetails | undefined;
 	/**
 	 * The rates the attached source can actually apply, slow to fast.
 	 *
@@ -449,6 +531,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	let error = $state<string | undefined>(undefined);
 	let sourceKind = $state<MediaSourceKind | undefined>(undefined);
 	let artwork = $state<string | undefined>(undefined);
+	let songDetails = $state<SongDetails | undefined>(undefined);
 	let availableRates = $state<readonly number[]>(playbackRates);
 	let cuePoints = $state<readonly number[]>([]);
 	/**
@@ -520,6 +603,10 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			artworkChanged(url) {
 				if (!live()) return;
 				artwork = url;
+			},
+			detailsChanged(details) {
+				if (!live()) return;
+				songDetails = details;
 			},
 			started() {
 				if (!live()) return;
@@ -655,8 +742,10 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		name = label;
 		error = undefined;
 		// Before the load, not after: the outgoing song's cover must not sit over
-		// the incoming one for however long its metadata takes to arrive.
+		// the incoming one for however long its metadata takes to arrive, and the
+		// outgoing song's facts must not be read as the incoming one's.
 		artwork = undefined;
+		songDetails = undefined;
 	}
 
 	/**
@@ -728,6 +817,9 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		get artwork() {
 			return artwork;
 		},
+		get songDetails() {
+			return songDetails;
+		},
 		get availableRates() {
 			return availableRates;
 		},
@@ -794,6 +886,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			sourceKind = undefined;
 			name = undefined;
 			artwork = undefined;
+			songDetails = undefined;
 			playing = false;
 			wantPlaying = false;
 			currentTime = 0;

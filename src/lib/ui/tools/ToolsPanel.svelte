@@ -2,17 +2,45 @@
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
 	import type { WorkspaceBackupState } from '$lib/persistence/backup.js';
-	import { downloadImage } from '../clipboard.js';
+	import { copyText, downloadImage } from '../clipboard.js';
 	import { onMount } from 'svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
 	let confirmDeleteAll = $state(false);
+	let confirmClearAnchors = $state(false);
 	let backupInput = $state<HTMLInputElement>();
 	let importingBackup = $state(false);
 	let backupState = $state<WorkspaceBackupState | undefined>();
 	let savingArtwork = $state(false);
 
 	const artwork = $derived(controller.media?.player.artwork);
+	const details = $derived(controller.media?.player.songDetails);
+	/**
+	 * Whether any of the facts *this list draws* are known.
+	 *
+	 * `songDetails` is not the same question. Artist and title live on it too —
+	 * the cover band sets them at opposite ends of a row — and they are not listed
+	 * here, because the toolbar and the band both already say them. A source that
+	 * reports only those two would otherwise open an empty `<dl>` under a heading.
+	 */
+	const listedFacts = $derived(
+		details !== undefined &&
+			[details.releaseDate, details.writers, details.album, details.label, details.isrc].some(
+				(fact) => fact !== undefined
+			)
+	);
+	/**
+	 * The watch page for an attached video, which the workbench already knows.
+	 *
+	 * `videoId` is the draft's video rather than the player's, so this answers
+	 * before a pending video has been through the session's opt-in: the link is a
+	 * fact about the draft, and copying it contacts nobody.
+	 */
+	const videoUrl = $derived(
+		controller.media?.videoId === undefined
+			? undefined
+			: `https://www.youtube.com/watch?v=${controller.media.videoId}`
+	);
 
 	/** A track name is a filename here, and `Artist — Track` is full of nothing a
 	 *  file system minds except the separators. */
@@ -27,6 +55,15 @@
 			await downloadImage(url, artworkFilename());
 		} finally {
 			savingArtwork = false;
+		}
+	}
+
+	async function copyVideoUrl(url: string): Promise<void> {
+		try {
+			await copyText(url);
+			controller.feedback.announce('YouTube link copied.');
+		} catch {
+			controller.feedback.announce('The link could not be copied.');
 		}
 	}
 
@@ -83,53 +120,98 @@
 	the reader meets an hour before the decision is a warning they have forgotten.
 -->
 <div class="panel-content tools-panel">
-	<section>
-		<h3>Document</h3>
-		<div class="tool-actions">
-			<!-- The same action as the toolbar's contrast button, so it takes the
-			     same label and steps down to the default tier: the toolbar already
-			     carries the one destination action, and two emphases for one
-			     command read as two different commands. -->
-			<button type="button" class="button" onclick={() => controller.copyCanonical()}>
-				Copy lyrics
-			</button>
-			<!-- `current draft` is gone from the label rather than shortened for
-			     room: the toolbar names the draft two rows up, so the words were
-			     restating what the window already says. -->
-			<button type="button" class="button button--quiet" onclick={() => controller.exportDraft()}>
-				Export .txt
-			</button>
-		</div>
-		<p>Copy and export use the exact canonical string, including literal supported markup.</p>
-	</section>
-
 	<!--
-		One section, one action, and it draws only where there is a cover to save.
+		What the attached song is, in the forms somebody filling in a song page
+		elsewhere has to paste: its facts, its cover and its link.
 
-		The picture belongs to whatever is attached — Apple's and Spotify's
-		catalogue reads publish one, and a video's is derived from its id — so this
-		section says nothing about which source the song came from and appears or
-		goes with the song rather than with a setting.
+		It leads the panel, because it is the only section here that is about the
+		song in front of the user rather than about the application: it comes and
+		goes with the attachment, it is read while transcribing, and everything
+		under it is a setting or a way out. A section that is only sometimes there
+		leads or it is somewhere different on every draft.
+
+		One section rather than three, because they are one job: everything the
+		workbench happens to know about this song that is not the words. Each part
+		draws only where its own fact exists, so a local file shows no heading at
+		all, and nothing here contacts anyone — the facts and the cover's address
+		arrived on the read that named the song, and the link is derived from the id
+		the draft already stores.
 	-->
-	{#if artwork}
+	{#if artwork || videoUrl || listedFacts}
 		<section>
-			<h3>Album art</h3>
-			<p>The cover the attached source publishes for this song, at full size.</p>
-			<div class="tool-actions">
-				<!-- The label stays put and a spinner joins it: a control whose text
-				     changes under the press reflows the row it was pressed in. -->
-				<button
-					type="button"
-					class="button"
-					disabled={savingArtwork}
-					aria-busy={savingArtwork}
-					onclick={() => saveArtwork(artwork)}
-				>
-					{#if savingArtwork}
-						<span class="spinner" aria-hidden="true"></span>
+			<!-- No sentence under the heading. `Song metadata` over a column of
+			     labelled facts and two self-describing commands is already the whole
+			     of what a paragraph there would have said, and two lines of grey
+			     between a heading and the data it introduces is how this panel got
+			     hard to skim the first time. -->
+			<h3>Song metadata</h3>
+			<!--
+				The facts before the two things that can be taken away, and a `<dl>`
+				rather than a copied block: these go into separate fields on whatever
+				page they are being typed into, so one string holding all of them would
+				have to be taken apart again by hand.
+
+				Only Apple Music fills this. What is absent is deliberate rather than
+				missing — Apple's catalogue has no producer credits at all, and their
+				one writer field is `composerName`, a flat string this application does
+				not try to split.
+			-->
+			{#if details && listedFacts}
+				<dl class="metadata-list">
+					{#if details.releaseDate}
+						<div>
+							<dt>Released</dt>
+							<dd><time datetime={details.releaseDate}>{details.releaseDate}</time></dd>
+						</div>
 					{/if}
-					Download album art
-				</button>
+					{#if details.writers}
+						<div>
+							<dt>Writers</dt>
+							<dd>{details.writers}</dd>
+						</div>
+					{/if}
+					{#if details.album}
+						<div>
+							<dt>Album</dt>
+							<dd>{details.album}</dd>
+						</div>
+					{/if}
+					{#if details.label}
+						<div>
+							<dt>Label</dt>
+							<dd>{details.label}</dd>
+						</div>
+					{/if}
+					{#if details.isrc}
+						<div>
+							<dt>ISRC</dt>
+							<dd>{details.isrc}</dd>
+						</div>
+					{/if}
+				</dl>
+			{/if}
+			<div class="tool-actions">
+				{#if videoUrl}
+					<button type="button" class="button" onclick={() => copyVideoUrl(videoUrl)}>
+						Copy YouTube link
+					</button>
+				{/if}
+				{#if artwork}
+					<!-- The label stays put and a spinner joins it: a control whose text
+					     changes under the press reflows the row it was pressed in. -->
+					<button
+						type="button"
+						class="button"
+						disabled={savingArtwork}
+						aria-busy={savingArtwork}
+						onclick={() => saveArtwork(artwork)}
+					>
+						{#if savingArtwork}
+							<span class="spinner" aria-hidden="true"></span>
+						{/if}
+						Download album art
+					</button>
+				{/if}
 			</div>
 		</section>
 	{/if}
@@ -190,6 +272,16 @@
 			Drafts stay in this browser; audio stays on your disk. Everything works offline except YouTube
 			playback, which needs permission each session.
 		</p>
+		<!--
+			Two ways out, one row, and exactly one question open at a time. The
+			timings are the narrower of the two and draw only where there are any —
+			a control offering to delete nothing is the same wrong answer as a rate
+			that will not apply.
+
+			The row carries the flush pull rather than each button, so the first
+			label lines up with the paragraph above it and the gap between the two
+			survives. `button--flush` on both would close it.
+		-->
 		<div aria-live="polite">
 			{#if confirmDeleteAll}
 				<p class="danger-text">Delete every local draft? This cannot be undone.</p>
@@ -208,14 +300,63 @@
 						onclick={() => (confirmDeleteAll = false)}>Cancel</button
 					>
 				</div>
+			{:else if confirmClearAnchors}
+				<p class="danger-text">
+					Delete {controller.lineAnchorCount} line {controller.lineAnchorCount === 1
+						? 'timing'
+						: 'timings'} on this transcription? The lyrics are untouched.
+				</p>
+				<div class="tool-actions">
+					<button
+						type="button"
+						class="button button--danger"
+						onclick={() => {
+							controller.clearLineAnchors();
+							confirmClearAnchors = false;
+						}}>Delete line timings</button
+					>
+					<button
+						type="button"
+						class="button button--quiet"
+						onclick={() => (confirmClearAnchors = false)}>Cancel</button
+					>
+				</div>
 			{:else}
-				<button
-					type="button"
-					class="button button--quiet button--flush danger-text"
-					onclick={() => (confirmDeleteAll = true)}>Delete all local data…</button
-				>
+				<div class="tool-actions tool-actions--flush">
+					{#if controller.lineAnchorCount > 0}
+						<button
+							type="button"
+							class="button button--quiet danger-text"
+							onclick={() => (confirmClearAnchors = true)}>Delete line timings…</button
+						>
+					{/if}
+					<button
+						type="button"
+						class="button button--quiet danger-text"
+						onclick={() => (confirmDeleteAll = true)}>Delete all local data…</button
+					>
+				</div>
 			{/if}
 		</div>
+	</section>
+
+	<!--
+		One action, near the foot of the panel, because that is how often it is
+		wanted. `Copy lyrics` is not here at all: the toolbar carries it as the
+		window's one contrast action, and a second copy of it in a panel three rows
+		down was a second command for a press the user already has.
+
+		`current draft` is gone from the label rather than shortened for room: the
+		toolbar names the draft, so the words restated what the window already says.
+	-->
+	<section>
+		<h3>Document</h3>
+		<div class="tool-actions">
+			<button type="button" class="button" onclick={() => controller.exportDraft()}>
+				Export .txt
+			</button>
+		</div>
+		<p>The file holds the exact canonical string, including literal supported markup.</p>
 	</section>
 
 	<section>

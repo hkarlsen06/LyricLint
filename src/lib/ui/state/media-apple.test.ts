@@ -138,6 +138,7 @@ function recorder(): MediaSourceEvents & { readonly log: string[] } {
 		ratesChanged: (rates) => void log.push(`rates:${rates.join(',')}`),
 		named: (name) => void log.push(`named:${name}`),
 		artworkChanged: (url) => void log.push(`artwork:${url ?? 'none'}`),
+		detailsChanged: (details) => void log.push(`details:${JSON.stringify(details ?? null)}`),
 		started: () => void log.push('started'),
 		stopped: () => void log.push('stopped'),
 		ended: () => void log.push('ended'),
@@ -193,8 +194,15 @@ const songPayload = {
 				artistName: 'Kygo',
 				durationInMillis: 223_000,
 				// Apple's artwork field is a template, not an address.
-				artwork: { url: 'https://is1-ssl.mzstatic.com/image/thumb/x/{w}x{h}bb.jpg' }
-			}
+				artwork: { url: 'https://is1-ssl.mzstatic.com/image/thumb/x/{w}x{h}bb.jpg' },
+				releaseDate: '2015-03-23',
+				composerName: 'Kygo, Parker Ighile',
+				isrc: 'NOG841578501',
+				albumName: 'Cloud Nine'
+			},
+			// The label lives here and nowhere else, which is what `include=albums`
+			// on the read is for.
+			relationships: { albums: { data: [{ attributes: { recordLabel: 'Ultra Records' } }] } }
 		}
 	]
 };
@@ -293,6 +301,82 @@ describe('createAppleMusicSource', () => {
 		expect(events.log).toContain('artwork:none');
 	});
 
+	/*
+	 * The facts a song page somewhere else asks for, from the read that was
+	 * already paying for the name — including the label, which is why that read
+	 * asks for `include=albums` rather than making a second request for one
+	 * string. Producers are not among them and never will be: Apple's public
+	 * catalogue has no credits resource at all.
+	 */
+	it('reports the song facts the catalogue carries, label included', async () => {
+		const { instance } = stubMusic();
+		const { source, events } = build(instance);
+
+		await source.load(songId);
+
+		expect(events.log).toContain(
+			`details:${JSON.stringify({
+				artist: 'Kygo',
+				title: 'Stole the Show',
+				releaseDate: '2015-03-23',
+				writers: 'Kygo, Parker Ighile',
+				isrc: 'NOG841578501',
+				album: 'Cloud Nine',
+				label: 'Ultra Records'
+			})}`
+		);
+	});
+
+	it('asks for the album alongside the song, in one request', async () => {
+		const { instance } = stubMusic();
+		const asked: string[] = [];
+		const events = recorder();
+		const source = createAppleMusicSource({
+			events,
+			music: async () => instance,
+			playbackStates: async () => playbackStates,
+			rates: [1],
+			request: (async (url: RequestInfo | URL) => {
+				asked.push(String(url));
+				return new Response(JSON.stringify(songPayload), {
+					headers: { 'content-type': 'application/json' }
+				});
+			}) as typeof fetch
+		});
+
+		await source.load(songId);
+
+		expect(asked).toHaveLength(1);
+		expect(asked[0]).toContain('include=albums');
+	});
+
+	// A field the catalogue does not carry is left out rather than emptied, so a
+	// list of these is a list of things that are actually known — and a song with
+	// nothing at all reports nothing rather than an empty list.
+	it('leaves out what it does not know', async () => {
+		const { instance } = stubMusic();
+		const events = recorder();
+		const source = createAppleMusicSource({
+			events,
+			music: async () => instance,
+			playbackStates: async () => playbackStates,
+			rates: [1],
+			request: (async () =>
+				new Response(
+					JSON.stringify({
+						data: [{ id: songId, attributes: { name: 'Untitled', releaseDate: '2020-01-01' } }]
+					}),
+					{ headers: { 'content-type': 'application/json' } }
+				)) as typeof fetch
+		});
+
+		await source.load(songId);
+
+		expect(events.log).toContain(
+			`details:${JSON.stringify({ title: 'Untitled', releaseDate: '2020-01-01' })}`
+		);
+	});
+
 	/**
 	 * The one asymmetry this source does share with Spotify.
 	 *
@@ -325,6 +409,49 @@ describe('createAppleMusicSource', () => {
 		source.seek(30);
 
 		expect(instance.seekToTime).toHaveBeenCalledWith(30);
+	});
+
+	/**
+	 * The gap `seekToTime` opens, which the readout must never show.
+	 *
+	 * MusicKit answers a seek with one or more time events still carrying the
+	 * position the user just left, so a nudge used to read as current, target,
+	 * previous, and only then the new time.
+	 */
+	it('holds a seek target until the player agrees', async () => {
+		const { instance, emit } = stubMusic();
+		const { source, events } = build(instance);
+
+		await source.load(songId);
+		emit('playbackStateDidChange', { state: playbackStates.playing });
+
+		source.seek(38);
+		expect(source.time).toBe(38);
+
+		// The stale one, from before the seek landed.
+		emit('playbackTimeDidChange', { currentPlaybackTime: 40 });
+		expect(source.time).toBe(38);
+		expect(events.log).not.toContain('time:40');
+
+		emit('playbackTimeDidChange', { currentPlaybackTime: 38.2 });
+		expect(source.time).toBe(38.2);
+	});
+
+	// A seek the player never carries out must not strand the readout on a
+	// position nothing is playing from.
+	it('gives up a seek target that never lands', async () => {
+		const { instance, emit } = stubMusic();
+		const { source } = build(instance);
+
+		await source.load(songId);
+		emit('playbackStateDidChange', { state: playbackStates.playing });
+		source.seek(38);
+
+		for (let index = 0; index < 4; index += 1) {
+			emit('playbackTimeDidChange', { currentPlaybackTime: 60 + index });
+		}
+
+		expect(source.time).toBe(63);
 	});
 
 	// No poll anywhere in this file, unlike the other two remote sources: MusicKit

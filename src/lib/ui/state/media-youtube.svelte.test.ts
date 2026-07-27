@@ -6,7 +6,7 @@ import {
 	playbackRates,
 	resumeRewindSeconds
 } from './media-player.svelte.js';
-import { parseYouTubeVideoId, youtubePollIntervalMs } from './media-youtube.js';
+import { parseYouTubeVideoId, youtubePollIntervalMs, youtubeSearchTerm } from './media-youtube.js';
 import { createStubPoll, createStubYouTubeApi, stubPlayerState } from './media-test-youtube.js';
 
 const id = 'dQw4w9WgXcQ';
@@ -70,6 +70,20 @@ describe('YouTube link parsing', () => {
 	it('says something a reader can act on rather than nothing', () => {
 		const result = parseYouTubeVideoId('nonsense');
 		expect(result).toEqual({ error: 'That is not a YouTube link.' });
+	});
+});
+
+describe('the prefilled search', () => {
+	it('drops the extension, because a filename is not a query', () => {
+		expect(youtubeSearchTerm('sensommer.mp3')).toBe('sensommer');
+		expect(youtubeSearchTerm('Song (feat. X).flac')).toBe('Song (feat. X)');
+		// Only a trailing extension: a title that merely contains a dot keeps it.
+		expect(youtubeSearchTerm('Mul — Sensommer, Pt. 2')).toBe('Mul — Sensommer, Pt. 2');
+	});
+
+	it('has nothing to search for in a name that is only punctuation and space', () => {
+		expect(youtubeSearchTerm('   ')).toBeUndefined();
+		expect(youtubeSearchTerm('.mp3')).toBeUndefined();
 	});
 });
 

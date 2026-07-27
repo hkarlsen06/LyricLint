@@ -171,8 +171,15 @@
 	   any of our own. Neither scheme's text color can be trusted against it, so
 	   these are one value for both, exactly like the backdrop above and for the
 	   same reason: the job is to read against whatever is there. The scrim is what
-	   makes that promise keepable on a pale cover. */
-	--color-scrim: linear-gradient(to top, oklch(12% 0.008 285 / 0.78), transparent);
+	   makes that promise keepable on a pale cover.
+
+	   The ink is its own value because the cover band scrims both ends — the
+	   artist and title along the top, the transport and the mark along the
+	   bottom — and the two gradients differ only in direction. Two hand-copied
+	   `oklch()`s is the thing the backdrop token above already exists to prevent. */
+	--color-scrim-ink: oklch(12% 0.008 285 / 0.78);
+	--color-scrim: linear-gradient(to top, var(--color-scrim-ink), transparent);
+	--color-scrim-top: linear-gradient(to bottom, var(--color-scrim-ink), transparent);
 	--color-text-on-scrim: oklch(98% 0 0);
 	--color-control-hover-on-scrim: oklch(100% 0 0 / 0.18);
 
@@ -252,6 +259,9 @@
 	/* Above the popover, because a citation's tooltip is opened from inside one. */
 	--layer-tooltip: 40;
 	--layer-toast: 50;
+	/* Above everything, including a toast: the boot screen is the whole window
+	   until the workbench behind it is ready to be revealed. */
+	--layer-boot: 60;
 
 	/*
 	 * Palette hues are stable targets for name-derived performer colors.

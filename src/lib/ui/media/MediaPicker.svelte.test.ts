@@ -1,6 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 import { createInMemoryMediaRepository } from '../state/in-memory.js';
 import { createFeedbackState } from '../state/feedback.svelte.js';
 import { createMediaPlayer } from '../state/media-player.svelte.js';
@@ -17,7 +18,7 @@ import MediaPicker from './MediaPicker.svelte';
  * injected a script tag, which is what makes "nothing has been fetched" an
  * assertion rather than a hope.
  */
-function setup(options: { file?: File | undefined } = {}) {
+function setup(options: { file?: File | undefined; draftTitle?: string } = {}) {
 	const feedback = createFeedbackState();
 	const youtube = createStubYouTubeApi();
 	const poll = createStubPoll();
@@ -38,7 +39,12 @@ function setup(options: { file?: File | undefined } = {}) {
 		pickFile: async () => (file ? { file } : undefined)
 	});
 
-	render(MediaPicker, { props: { media } });
+	render(MediaPicker, {
+		props: {
+			media,
+			...(options.draftTitle === undefined ? {} : { draftTitle: options.draftTitle })
+		}
+	});
 	return { media, youtube };
 }
 
@@ -256,5 +262,33 @@ describe('MediaPicker', () => {
 		// replaced.
 		await vi.waitFor(() => expect(search.getAttribute('aria-busy')).toBe('false'));
 		expect(search.querySelector('.spinner')).toBeNull();
+	});
+
+	/*
+	 * The way in for somebody who has the song and not its link. It is a search
+	 * the user runs on Google's own page rather than a lookup this build pays a
+	 * quota for — and it must not be offered when there is nothing to search for,
+	 * which is the same rule `availableRates` and `spotifyAvailable` follow.
+	 */
+	it('offers a prefilled YouTube search named after the draft', async () => {
+		setup({ draftTitle: 'Mul — Sensommer' });
+		await page.getByRole('button', { name: 'Add audio' }).click();
+
+		const search = dialog()?.querySelector('a[href*="results?search_query"]') as HTMLAnchorElement;
+		expect(search.href).toBe(
+			'https://www.youtube.com/results?search_query=Mul%20%E2%80%94%20Sensommer'
+		);
+		expect(search.textContent?.trim()).toBe('Search YouTube for “Mul — Sensommer”');
+		// A new tab, because the workbench is a document being typed into.
+		expect(search.target).toBe('_blank');
+	});
+
+	it('says nothing where the draft has no name and nothing is attached', async () => {
+		// The placeholder title by its own name, so renaming it cannot leave this
+		// asserting against a string nothing produces any more.
+		setup({ draftTitle: DEFAULT_DRAFT_TITLE });
+		await page.getByRole('button', { name: 'Add audio' }).click();
+
+		expect(dialog()?.querySelector('a[href*="results?search_query"]')).toBeNull();
 	});
 });

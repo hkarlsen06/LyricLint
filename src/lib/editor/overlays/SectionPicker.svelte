@@ -39,11 +39,15 @@
 		}
 	});
 
+	// Choosing is what closes this card, so the `finally` runs after the component
+	// is destroyed and a prop read there is a read of a derived belonging to a
+	// torn-down effect. Hold the hand-off before the await, as PerformerPicker does.
 	async function choose(index = activeIndex): Promise<void> {
 		const option = options[index];
 		if (!option) {
 			return;
 		}
+		const restoreFocus = returnFocus;
 		try {
 			await onChoose({
 				range,
@@ -53,16 +57,17 @@
 			});
 		} finally {
 			await tick();
-			returnFocus();
+			restoreFocus();
 		}
 	}
 
 	async function cancel(): Promise<void> {
+		const restoreFocus = returnFocus;
 		try {
 			onCancel();
 		} finally {
 			await tick();
-			returnFocus();
+			restoreFocus();
 		}
 	}
 

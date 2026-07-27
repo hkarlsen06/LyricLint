@@ -1,4 +1,4 @@
-import type { MediaSource, MediaSourceEvents } from './media-player.svelte.js';
+import type { MediaSource, MediaSourceEvents, SongDetails } from './media-player.svelte.js';
 
 /**
  * Apple Music as a fourth source, and the first one with nothing to apologise for.
@@ -17,6 +17,17 @@ import type { MediaSource, MediaSourceEvents } from './media-player.svelte.js';
  */
 
 const catalogApi = 'https://api.music.apple.com/v1';
+
+/** The seek settle window, exactly as the other two remote bridges use it. */
+const settleToleranceSeconds = 1;
+/**
+ * How many time events a held seek target survives.
+ *
+ * The other two bridges count polls at 250ms; this one counts MusicKit's own
+ * `playbackTimeDidChange`, which is why the number is smaller — it is a backstop
+ * for a `seekToTime` that never lands, not the ordinary path.
+ */
+const settleMaxEvents = 4;
 const musicKitScriptUrl = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
 
 /** Where MusicKit puts a listener's payload. Narrowed to what is read. */
@@ -293,6 +304,15 @@ interface CatalogSong {
 		artistName?: string;
 		durationInMillis?: number;
 		artwork?: { url?: string };
+		releaseDate?: string;
+		/** One flat string, and Apple's only answer to "who wrote this". */
+		composerName?: string;
+		isrc?: string;
+		albumName?: string;
+	};
+	/** Present only where the read asked for `include=albums`. */
+	relationships?: {
+		albums?: { data?: { attributes?: { recordLabel?: string } }[] };
 	};
 }
 
@@ -311,6 +331,33 @@ function artworkUrl(attributes: CatalogSong['attributes']): string | undefined {
 	const template = attributes?.artwork?.url;
 	if (template === undefined || template === '') return undefined;
 	return template.replace('{w}', String(artworkSize)).replace('{h}', String(artworkSize));
+}
+
+/**
+ * The song's facts, for a page being filled in somewhere else.
+ *
+ * Every field is dropped rather than emptied when the catalogue does not carry
+ * it, so a list of these is a list of things that are actually known. The label
+ * comes from the album relationship because a song carries none of its own —
+ * which is why the read asks for `include=albums` rather than making a second
+ * request for one string.
+ *
+ * Producers are not here because Apple has none to give: the public catalogue
+ * has no credits resource, and the Music app's Credits screen is fed by an
+ * endpoint they do not publish.
+ */
+function songDetails(song: CatalogSong): SongDetails | undefined {
+	const attributes = song.attributes;
+	const details: SongDetails = {};
+	if (attributes?.artistName) details.artist = attributes.artistName;
+	if (attributes?.name) details.title = attributes.name;
+	if (attributes?.releaseDate) details.releaseDate = attributes.releaseDate;
+	if (attributes?.composerName) details.writers = attributes.composerName;
+	if (attributes?.isrc) details.isrc = attributes.isrc;
+	if (attributes?.albumName) details.album = attributes.albumName;
+	const label = song.relationships?.albums?.data?.[0]?.attributes?.recordLabel;
+	if (label) details.label = label;
+	return Object.keys(details).length === 0 ? undefined : details;
 }
 
 function describe(attributes: CatalogSong['attributes']): string {
@@ -449,6 +496,18 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	let reportedDuration = Number.NaN;
 	let rate = 1;
 
+	// The position the player has been told to go to, held until it agrees.
+	// MusicKit answers a `seekToTime` with one or more `playbackTimeDidChange`
+	// events still carrying the position the user just left, so without this the
+	// readout goes target, back to where it was, and only then to the new time —
+	// which is the async gap the YouTube and Spotify bridges already hide.
+	let target: number | undefined;
+	let targetEvents = 0;
+
+	function position(): number {
+		return target ?? known;
+	}
+
 	function reportDuration(seconds: number): void {
 		const next = Number.isFinite(seconds) && seconds > 0 ? seconds : Number.NaN;
 		if (next === reportedDuration || (Number.isNaN(next) && Number.isNaN(reportedDuration))) {
@@ -464,7 +523,13 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		}
 		if (typeof event.currentPlaybackTime !== 'number') return;
 		known = event.currentPlaybackTime;
-		events.timeChanged(known);
+		if (target !== undefined) {
+			targetEvents += 1;
+			if (Math.abs(known - target) <= settleToleranceSeconds || targetEvents >= settleMaxEvents) {
+				target = undefined;
+			}
+		}
+		events.timeChanged(position());
 	}
 
 	function onState(event: AppleMusicPlaybackStateEvent): void {
@@ -493,8 +558,10 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		const token = (deps.token ?? appleMusicDeveloperToken)();
 		if (token === undefined) return;
 		const request = deps.request ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
+		// `include=albums` rather than a second request: a song carries no label of
+		// its own, and the album relationship is the only place Apple keeps one.
 		const response = await catalog(
-			`/catalog/${encodeURIComponent(instance.storefrontId)}/songs/${encodeURIComponent(id)}`,
+			`/catalog/${encodeURIComponent(instance.storefrontId)}/songs/${encodeURIComponent(id)}?include=albums`,
 			{ token, request }
 		);
 		if (!response?.ok) return;
@@ -504,6 +571,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		if (song?.attributes?.name === undefined || songId !== id) return;
 		events.named(describe(song.attributes));
 		events.artworkChanged(artworkUrl(song.attributes));
+		events.detailsChanged(songDetails(song));
 		if (song.attributes.durationInMillis !== undefined) {
 			reportDuration(song.attributes.durationInMillis / 1000);
 		}
@@ -513,7 +581,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		kind: 'apple',
 
 		get time() {
-			return known;
+			return position();
 		},
 		get duration() {
 			return reportedDuration;
@@ -526,6 +594,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			if (nextSongId !== songId) started = false;
 			songId = nextSongId;
 			known = startAt ?? 0;
+			target = undefined;
 			reportedDuration = Number.NaN;
 
 			let instance: AppleMusicInstance;
@@ -596,8 +665,12 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			known = seconds;
 			// Before the first press there is no `nowPlayingItem` to seek within, so
 			// the position is simply remembered — the queue was built with it as
-			// `startTime`, and a play from here starts in the right place.
-			if (started) void music?.seekToTime(Math.max(0, seconds));
+			// `startTime`, and a play from here starts in the right place. Nothing is
+			// reporting a playhead yet either, so there is no gap to hold open.
+			if (!started) return;
+			target = seconds;
+			targetEvents = 0;
+			void music?.seekToTime(Math.max(0, seconds));
 		},
 
 		setRate(next) {
@@ -610,6 +683,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			songId = undefined;
 			started = false;
 			known = 0;
+			target = undefined;
 			reportedDuration = Number.NaN;
 		},
 
