@@ -108,7 +108,11 @@ export default defineConfig({
 			// Cloudflare Pages treats a static site without a top-level 404 page
 			// as an SPA and rewrites unknown paths to index.html. A missing hashed
 			// asset must remain a 404 rather than becoming 200 text/html.
-			adapter: adapter({ fallback: '404.html' })
+			adapter: adapter({ fallback: '404.html' }),
+			// Cloudflare Pages consumes `_headers` as platform config and 404s its
+			// URL. Left in `$service-worker` `files` it fails the precache validation,
+			// so every new worker dies at install and stale clients never update.
+			serviceWorker: { files: (file) => !file.startsWith('_') }
 		}),
 		loopbackLiteralUrls()
 	],
