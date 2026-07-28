@@ -76,4 +76,98 @@ describe('real autosave + workbench status integration', () => {
 			vi.useRealTimers();
 		}
 	});
+
+	/*
+	 * The first-timer's whole question. A new visitor types, waits, and opens the
+	 * drafts menu to find out whether any of it is safe — and the menu read a list
+	 * fetched once at boot, so it said "No saved 'scribes yet" over a record
+	 * already on disk until a reload or some other draft operation happened to
+	 * re-read it. The toolbar deliberately draws nothing while saving is going
+	 * well, so this was the only answer on screen.
+	 */
+	test('lists a draft as soon as its first save lands', async () => {
+		vi.useFakeTimers();
+		try {
+			// A first visit: nothing stored, and the draft the page boots on is the
+			// empty transient one, which has no record until it has words.
+			const repository = createInMemoryDraftRepository([]);
+			const fresh: DraftRecord = { ...record, text: '', title: 'Untitled transcription' };
+			const controllerRef: { current?: ReturnType<typeof createWorkbenchController> } = {};
+			const autosave = createAutosaveController(repository, {
+				onStatusChange: (status) => controllerRef.current?.setSaveStatus(status)
+			});
+			const initialSnapshot = snap(0, fresh.text);
+			const controller = createWorkbenchController({
+				editor: {
+					focus() {},
+					getSnapshot: () => initialSnapshot,
+					dispatchAtomic() {},
+					undo() {},
+					redo() {},
+					revealRange() {},
+					setSelection() {}
+				},
+				initialSnapshot,
+				initialDraft: fresh,
+				repository,
+				autosave,
+				ignoreStore: createContractSessionIgnoreStore(createMemorySessionStorage()),
+				now: () => '2026-07-20T11:00:00.000Z'
+			});
+			controllerRef.current = controller;
+			await vi.advanceTimersByTimeAsync(0);
+			expect(controller.drafts).toEqual([]);
+
+			controller.onSnapshot(snap(1, '[Verse]\nFirst words'));
+			await vi.advanceTimersByTimeAsync(600);
+
+			expect((await repository.get(fresh.id))?.text).toBe('[Verse]\nFirst words');
+			expect(controller.drafts.map(({ id }) => id)).toEqual([fresh.id]);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	// Every landed save, not only the record-creating one: the row carries the
+	// draft's own `updatedAt` and the list is ordered by it, so a list re-read
+	// once would report yesterday's date under a draft being typed into now.
+	test('keeps the listed draft’s date current as it is typed into', async () => {
+		vi.useFakeTimers();
+		try {
+			const stale: DraftRecord = { ...record, updatedAt: '2026-07-19T10:00:00.000Z' };
+			const repository = createInMemoryDraftRepository([stale]);
+			const controllerRef: { current?: ReturnType<typeof createWorkbenchController> } = {};
+			const autosave = createAutosaveController(repository, {
+				onStatusChange: (status) => controllerRef.current?.setSaveStatus(status)
+			});
+			const initialSnapshot = snap(0, stale.text);
+			const controller = createWorkbenchController({
+				editor: {
+					focus() {},
+					getSnapshot: () => initialSnapshot,
+					dispatchAtomic() {},
+					undo() {},
+					redo() {},
+					revealRange() {},
+					setSelection() {}
+				},
+				initialSnapshot,
+				initialDraft: stale,
+				repository,
+				autosave,
+				ignoreStore: createContractSessionIgnoreStore(createMemorySessionStorage()),
+				now: () => '2026-07-20T11:00:00.000Z'
+			});
+			controllerRef.current = controller;
+			await vi.advanceTimersByTimeAsync(0);
+			expect(controller.drafts[0]?.updatedAt).toBe('2026-07-19T10:00:00.000Z');
+
+			controller.onSnapshot(snap(1, '[Verse]\nLine edited'));
+			await vi.advanceTimersByTimeAsync(600);
+
+			expect(controller.drafts[0]?.updatedAt).toBe('2026-07-20T11:00:00.000Z');
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 });

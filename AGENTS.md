@@ -435,6 +435,24 @@ its record the same way (`discardEmptyDraft`) — undo puts the text back and th
 the same id, so nothing is lost. `recoverStartupDraft` sweeps blank records on the way through for
 the databases earlier builds already filled.
 
+**Which makes a landed save the moment a draft joins the list, so a landed save is what re-reads
+it.** The list was fetched once at boot and thereafter only by the operations that change it —
+open, rename, duplicate, delete — and none of those is what a first-timer does. They type, they
+wait, and they open the menu to find out whether any of it is safe: `drafts` was still the empty
+value it booted with, so the menu said `No saved 'scribes yet. This one will appear after its first
+local save` over a record that had been on disk for six seconds. It is the only question that menu
+exists to answer, and the toolbar deliberately draws nothing while saving is going well, so both of
+a nervous new user's signals said no while the data was written.
+
+Every landed save re-reads it, not only the record-creating one, because the row carries the
+draft's own `updatedAt` and the list is ordered by it — refreshed once, the menu would report
+`Yesterday` under a draft being typed into now. The read is bounded by `sawPendingSave` rather than
+by the status alone: a settle arrives twice, once from the store's own 250ms poll and once from the
+autosave controller's `onStatusChange`, so a status that has not passed through `scheduled` or
+`saving` since the last read has nothing new to show. `noteSaveStatus` in `draft-store.svelte.ts` is
+therefore the **one** place `saveStatus` is assigned; an assignment that goes around it is a save
+the list never hears about.
+
 Dates are read, not parsed: `Today`, `Yesterday`, `3 days ago`, then `15 Jun`, and the year only
 outside this one. They are English like the rest of the chrome — the browser locale put a Norwegian
 month on the line under `Yesterday` — and the exact timestamp stays in `datetime` and the tooltip.

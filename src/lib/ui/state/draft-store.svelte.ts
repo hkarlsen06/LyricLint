@@ -120,6 +120,9 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	let drafts = $state<DraftSummary[]>([]);
 	let saveStatus = $state<AutosaveStatus>(deps.autosave.status());
 	let statusRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+	// Whether a save has been scheduled since the list was last re-read. See
+	// `noteSaveStatus`.
+	let sawPendingSave = false;
 	// Whether this draft has a record in the repository. A draft with no text
 	// never does — see `scheduleSave` — so blankness and persistence track each
 	// other, and startup recovery has already swept any blank record an older
@@ -147,6 +150,44 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	}
 
 	/**
+	 * Take a save status, and re-read the drafts list whenever a save has landed.
+	 *
+	 * **A landed save is what puts a draft in the list.** The list was otherwise
+	 * read once at boot and then only by the operations that change it, so a
+	 * draft's *first* save — the one that creates its record — left `drafts` at
+	 * the empty value it booted with, and the menu went on saying "No saved
+	 * 'scribes yet. This one will appear after its first local save" over a
+	 * record already on disk, for the rest of the session. That is the only
+	 * question that menu exists to answer, and the toolbar deliberately draws
+	 * nothing while saving is going well, so it was the only answer on screen and
+	 * it was the wrong one.
+	 *
+	 * **Every landed save, not only the first.** The row carries the draft's own
+	 * `updatedAt` and the list is ordered by it, so a list re-read once would go
+	 * on reporting `Yesterday` under a draft being typed into now — the same lie
+	 * with a smaller radius.
+	 *
+	 * `sawPendingSave` is what keeps that to one read per save rather than one
+	 * per report: a settle is heard twice, once from this store's own poll and
+	 * once from the autosave controller's `onStatusChange`, which the page wires
+	 * to `setSaveStatus`. A status that has not passed through a pending state
+	 * since the last read has nothing new to show.
+	 *
+	 * A failed read is silent. The list simply stays as it was, and a message
+	 * about a menu nobody has opened is noise.
+	 */
+	function noteSaveStatus(status: AutosaveStatus): void {
+		saveStatus = status;
+		if (status === 'scheduled' || status === 'saving') {
+			sawPendingSave = true;
+			return;
+		}
+		if (status !== 'saved' || !sawPendingSave) return;
+		sawPendingSave = false;
+		void store.refreshDrafts().catch(() => {});
+	}
+
+	/**
 	 * Drop the record of a draft the user has emptied, and forget any write
 	 * still queued for it. Undo puts the text back and the next save writes the
 	 * same id again, so nothing is lost by letting the empty version go.
@@ -157,7 +198,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		} else {
 			deps.autosave.cancel();
 		}
-		saveStatus = deps.autosave.status();
+		noteSaveStatus(deps.autosave.status());
 		if (!persisted) return;
 		persisted = false;
 		const discardedId = draftId;
@@ -192,10 +233,10 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			persisted = true;
 			void deps.repository.setCurrent(draftId).catch(() => {});
 		}
-		saveStatus = deps.autosave.status();
+		noteSaveStatus(deps.autosave.status());
 		if (statusRefreshTimer) clearTimeout(statusRefreshTimer);
 		const refreshStatus = () => {
-			saveStatus = deps.autosave.status();
+			noteSaveStatus(deps.autosave.status());
 			statusRefreshTimer =
 				saveStatus === 'scheduled' || saveStatus === 'saving'
 					? setTimeout(refreshStatus, 250)
@@ -261,15 +302,15 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		scheduleSave: () => scheduleSave(),
 		keepDraft: () => scheduleSave(true),
 		setSaveStatus(status) {
-			saveStatus = status;
+			noteSaveStatus(status);
 		},
 		async flushAutosave() {
-			saveStatus = 'saving';
+			noteSaveStatus('saving');
 			try {
 				await deps.autosave.flush();
-				saveStatus = deps.autosave.status();
+				noteSaveStatus(deps.autosave.status());
 			} catch {
-				saveStatus = 'failed';
+				noteSaveStatus('failed');
 				feedback.announce('Local save failed. Keep this tab open and try again.');
 			}
 		},
@@ -284,7 +325,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				scheduleSave();
 				await store.refreshDrafts();
 			} catch {
-				saveStatus = 'failed';
+				noteSaveStatus('failed');
 				feedback.announce("'Scribe title could not be saved locally.");
 			}
 		},
