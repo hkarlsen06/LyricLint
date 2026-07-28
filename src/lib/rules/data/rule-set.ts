@@ -108,8 +108,8 @@ const previousRuleSet: RuleSetManifest = {
 export const previousKnownGoodRuleSet = previousRuleSet;
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.27.7',
-	publishedAt: '2026-07-27',
+	version: '2026.07.28.0',
+	publishedAt: '2026-07-28',
 	sourceIds: [
 		...previousRuleSet.sourceIds,
 		'G-SYMBOLS',
@@ -125,6 +125,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'symbols.special-characters',
 		...previousRuleSet.ruleIds.slice(previousRuleSet.ruleIds.indexOf('text.invisible-characters')),
 		'adlib.separator',
-		'section.unlinked-repeat'
+		'section.unlinked-repeat',
+		'text.multiple-spaces'
 	]
 };

@@ -94,7 +94,7 @@ const groupTitles: Record<string, string> = {
 	contraction: 'Contractions',
 	grammar: 'Grammar',
 	symbols: 'Symbols and special characters',
-	text: 'Invisible characters',
+	text: 'Text spacing and invisible characters',
 	unknown: 'Unknown lyrics',
 	repeat: 'Repeated sections',
 	'sound-effect': 'Sound effects',

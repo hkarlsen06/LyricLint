@@ -140,6 +140,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `spelling.korean-common` | Suggestion | A frequent spelling such as `됬`, `웬지`, `오랫만`, or `설레임` occurs | Preview the standard Korean spelling | Reviewed National Institute of Korean Language sources |
 | `symbols.special-characters` | Suggestion | Trademark or decorative symbols occur, or English lyric text spells `and`/`degrees` as symbols outside a compact brand name | Preview removal or spelled-out replacement | `G-SYMBOLS` |
 | `text.invisible-characters` | Warning | A non-breaking, narrow non-breaking, figure, or zero-width space, a byte-order mark, or trailing whitespace occurs | Safely replace space-like characters with a normal space and remove the rest | `G-ADD-SONGS` plus product-safety hygiene |
+| `text.multiple-spaces` | Suggestion | Two or more ordinary spaces occur between words on a lyric line | Safely collapse the run to one space | `G-ADD-SONGS` as context; LyricLint text-hygiene preference |
 | `unknown.marker` | Warning | An unknown lyric uses `(?)` or another recognized nonstandard marker instead of `[?]` | Safe only for exact known markers | `G-UNKNOWN` |
 | `unknown.unresolved` | Suggestion | A `[?]` marks an audible lyric that remains unidentified | Explain only | `G-UNKNOWN` |
 | `repeat.placeholder` | Warning | Text such as `[Chorus x2]` or `repeat chorus` substitutes for repeated lyrics | Explain only | `G-REPEATS` |

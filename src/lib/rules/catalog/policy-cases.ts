@@ -57,6 +57,12 @@ export const policyCases: readonly RulePolicyCase[] = [
 		ambiguous: `[Verse]\nA lyric${String.fromCodePoint(0x200f)}`
 	},
 	{
+		id: 'text.multiple-spaces',
+		invalid: '[Verse]\nTwo  words',
+		valid: '[Verse]\nTwo words',
+		ambiguous: '[Verse]\n  An indented line'
+	},
+	{
 		id: 'section.header-spacing',
 		invalid: '[Verse]\nFirst\n[Chorus]\nSecond',
 		valid: '[Verse]\nFirst\n\n[Chorus]\nSecond',

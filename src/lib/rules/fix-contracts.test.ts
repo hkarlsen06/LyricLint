@@ -337,6 +337,15 @@ const contracts: FixContract[] = [
 		kind: 'preview'
 	},
 	{
+		id: 'text.multiple-spaces',
+		input: '[Verse]\nTwo  words',
+		language: 'en',
+		range: [11, 13],
+		expected: '[Verse]\nTwo words',
+		kind: 'safe',
+		label: 'Use one space'
+	},
+	{
 		id: 'numbers.spell-out',
 		input: '[Verse]\nI need 5 reasons',
 		language: 'en',
@@ -479,6 +488,12 @@ const safeFixBatches: SafeFixBatch[] = [
 		input: '[Verse]\n‘a’ said “b”\nAnd ’tis “c”',
 		expected: '[Verse]\n\'a\' said "b"\nAnd \'tis "c"',
 		fixes: 7
+	},
+	{
+		id: 'text.multiple-spaces',
+		input: '[Verse]\nOne  two   three',
+		expected: '[Verse]\nOne two three',
+		fixes: 2
 	},
 	{
 		id: 'unknown.marker',

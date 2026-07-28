@@ -48,6 +48,7 @@ import { syntaxUnbalancedBracketsRule } from './catalog/syntax-unbalanced-bracke
 import { syntaxUnsupportedVoiceMarkupRule } from './catalog/syntax-unsupported-voice-markup.js';
 import { symbolsSpecialCharactersRule } from './catalog/symbols-special-characters.js';
 import { textInvisibleCharactersRule } from './catalog/text-invisible-characters.js';
+import { textMultipleSpacesRule } from './catalog/text-multiple-spaces.js';
 import { unknownMarkerRule, unknownUnresolvedRule } from './catalog/unknown-marker.js';
 import { sourceRegistry } from './data/sources.js';
 
@@ -89,6 +90,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	spellingKoreanCommonRule,
 	symbolsSpecialCharactersRule,
 	textInvisibleCharactersRule,
+	textMultipleSpacesRule,
 	unknownMarkerRule,
 	unknownUnresolvedRule,
 	repeatPlaceholderRule,
