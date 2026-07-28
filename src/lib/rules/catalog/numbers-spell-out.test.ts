@@ -76,6 +76,18 @@ describe('numbers.spell-out', () => {
 		expect(applyRuleFixes(rule, text)).toBe('[Verse]\nI need five and six and seven');
 	});
 
+	it('leaves the ordinal of a written-out label alone', () => {
+		// `Verse 1:` is a header that has not been bracketed yet, so the number in
+		// it is part of a song-part name — spelling it out reads as the linter
+		// asking for `Verse one:`, on the first line of a fresh paste.
+		const text = 'Verse 1:\nI need 5 reasons';
+		// The label's own `1` is gone; the lyric's `5` below it is untouched.
+		expect(markedText(text, checkRule(rule, text))).toEqual(['5']);
+		expect(checkRule(rule, 'VERSE 2\nA lyric')).toEqual([]);
+		// A line that only happens to contain a part name is still a lyric.
+		expect(fixInserts(checkRule(rule, '[Verse]\nVerse 1 of the book'))).toEqual(['one']);
+	});
+
 	it('reads inside supported markup, skips unsupported markup, and ignores headers', () => {
 		const supported = '[Verse]\n<i>I need 5</i>';
 		expect(markedText(supported, checkRule(rule, supported))).toEqual(['5']);

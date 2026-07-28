@@ -219,6 +219,31 @@ describe('rule regressions', () => {
 		expect(diagnostics('section.immediate-repeat-spacing', input)).toHaveLength(1);
 	});
 
+	it('does not call a section headerless when it leads with a written-out label', () => {
+		// The two cards read as contradictory — one denying the header the other
+		// is quoting — and the one carrying the exact one-press fix was second.
+		const input = 'Verse 1:\nFirst line\n\nChorus:\nSecond line';
+		expect(diagnostics('section.header-missing', input)).toEqual([]);
+		expect(diagnostics('section.header-prose', input).map((finding) => finding.message)).toEqual([
+			'Write this section header as [Verse 1].',
+			'Write this section header as [Chorus].'
+		]);
+	});
+
+	it('still reports a headerless section whose label is further down it', () => {
+		// Only the leading line is the section's own header. `Chorus:` further in
+		// is a second finding about a different line, and both are true.
+		const input = 'First line\nChorus:\nSecond line';
+		expect(diagnostics('section.header-missing', input)).toHaveLength(1);
+		expect(diagnostics('section.header-prose', input)).toHaveLength(1);
+	});
+
+	it('recognizes the label in the draft language before English', () => {
+		expect(diagnostics('section.header-missing', 'Refreng:\nEn natt', 'no')).toEqual([]);
+		// A name no reviewed pack knows is not a header, so the section has none.
+		expect(diagnostics('section.header-missing', 'Breakdance 1:\nA lyric')).toHaveLength(1);
+	});
+
 	it('leaves missing-header choice to the contextual section picker', () => {
 		const [finding] = diagnostics('section.header-missing', 'A lyric');
 		expect(finding?.fixes).toBeUndefined();

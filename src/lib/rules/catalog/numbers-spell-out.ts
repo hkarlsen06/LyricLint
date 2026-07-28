@@ -1,4 +1,5 @@
 import type { RuleDefinition } from '$lib/core/types.js';
+import { isProseHeaderLine } from './section-header-prose.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 const numberWords = [
@@ -25,7 +26,7 @@ function documentedNumericContext(text: string, from: number, to: number): boole
 
 export const numbersSpellOutRule: RuleDefinition = {
 	id: 'numbers.spell-out',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-NUMBERS'],
@@ -34,8 +35,15 @@ export const numbersSpellOutRule: RuleDefinition = {
 			return [];
 		}
 		return document.sections.flatMap((section) =>
-			section.lines.flatMap((line) =>
-				matchesOutsideMarkup(line, /(?<![\p{L}\p{N}_])(?:10|[0-9])(?![\p{L}\p{N}_])/gu)
+			section.lines.flatMap((line) => {
+				// The ordinal in a written-out label — `Verse 1:` — is part of a
+				// header, not a number in a lyric, so spelling it out would produce
+				// `Verse one:`. It is the very first thing on a pasted transcription,
+				// which is the worst possible moment to be confidently wrong.
+				if (isProseHeaderLine(line, context.language)) {
+					return [];
+				}
+				return matchesOutsideMarkup(line, /(?<![\p{L}\p{N}_])(?:10|[0-9])(?![\p{L}\p{N}_])/gu)
 					.filter((match) => {
 						const localFrom = match.from - line.from;
 						return !documentedNumericContext(line.text, localFrom, localFrom + match.text.length);
@@ -57,8 +65,8 @@ export const numbersSpellOutRule: RuleDefinition = {
 								)
 							]
 						);
-					})
-			)
+					});
+			})
 		);
 	}
 };

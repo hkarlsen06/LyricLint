@@ -52,6 +52,27 @@ function isAllCaps(name: string): boolean {
 	return /\p{Lu}/u.test(name) && name === name.toLocaleUpperCase();
 }
 
+/**
+ * True where a line is a song-part label written as prose rather than as a
+ * bracketed header.
+ *
+ * It is exported because such a line is not a lyric, and two other rules read
+ * every line as one. `section.header-missing` reported the section it heads as
+ * headerless — two cards on one line, the leading one saying there is no header
+ * beside one quoting the header — and `numbers.spell-out` offered to write its
+ * ordinal out, so a pasted `Verse 1:` was told to become `Verse one:`. Both are
+ * this shape's own findings arriving as somebody else's, and the answer to both
+ * is the same one press: `Use [Verse 1]`.
+ *
+ * One predicate rather than a copy per consumer, because what counts as a
+ * written-out header is exactly the set this rule is about to offer a fix for —
+ * three answers to that would disagree the first time a language pack gained a
+ * term.
+ */
+export function isProseHeaderLine(line: LyricLine, language: string): boolean {
+	return proseHeader(line, language) !== undefined;
+}
+
 export const sectionHeaderProseRule: RuleDefinition = {
 	id: 'section.header-prose',
 	version: 1,

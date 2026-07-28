@@ -1,7 +1,8 @@
 import { getLanguagePack, canLintHeaderLanguage } from '$lib/languages/registry.js';
-import type { RuleDefinition } from '$lib/core/types.js';
+import type { RuleDefinition, Section } from '$lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 import { isImmediateHeaderlessRepeat } from './section-immediate-repeat-spacing.js';
+import { isProseHeaderLine } from './section-header-prose.js';
 
 function headerSourceIds(language: string): string[] {
 	const pack = getLanguagePack(language);
@@ -11,9 +12,24 @@ function headerSourceIds(language: string): string[] {
 	return ['G-SECTIONS', ...pack.sourceIds];
 }
 
+/**
+ * A section led by a written-out label has a header — it is simply not
+ * bracketed, which is `section.header-prose`'s finding and its one-press fix.
+ * Reporting it as headerless too puts two cards on one line, the leading one
+ * denying the header the second one is quoting.
+ *
+ * The *leading* line only. A headerless section with `Chorus:` somewhere down
+ * it really does start without a header, and both findings are then true about
+ * different lines.
+ */
+function leadsWithProseHeader(section: Section, language: string): boolean {
+	const leading = section.lines.find((line) => line.text.trim().length > 0);
+	return leading !== undefined && isProseHeaderLine(leading, language);
+}
+
 export const sectionHeaderMissingRule: RuleDefinition = {
 	id: 'section.header-missing',
-	version: 5,
+	version: 6,
 	defaultSeverity: 'warning',
 	fixability: 'preview',
 	sourceIds: ['G-SECTIONS'],
@@ -22,7 +38,8 @@ export const sectionHeaderMissingRule: RuleDefinition = {
 			if (
 				isImmediateHeaderlessRepeat(document, index) ||
 				section.header ||
-				!section.lines.some((line) => line.text.trim().length > 0)
+				!section.lines.some((line) => line.text.trim().length > 0) ||
+				leadsWithProseHeader(section, context.language)
 			) {
 				return [];
 			}

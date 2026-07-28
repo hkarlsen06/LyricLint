@@ -2696,6 +2696,45 @@ Implementation: `title` on `RulePolicyCase` in `rules/catalog/policy-cases.ts`,
 `rules/reference-search.ts` (the fold, the filter, the counts — pure, so the component holds no
 logic of its own), `src/lib/ui/site/RuleIndex.svelte`, and `.rules__finder` in `site.css`.
 
+### A line that is a header is not a lyric, and every rule has to agree about which
+
+Paste what a word processor or a lyric site gives you and the first line is `Verse 1:`. Three rules
+read that line, and only one of them was right about it — so the first thing a new user saw was the
+workbench contradicting itself on the line they had just pasted:
+
+- `section.header-prose` says the header wants brackets, and offers `Use [Verse 1]`, one press.
+- `section.header-missing` said the section had **no** header, on the same line, expanded and
+  leading — because the label is not bracketed, so the parser hands it over as a lyric. Two cards
+  adjacent, the loud one denying the header the quiet one was quoting, and the quiet one was the
+  one carrying the fix.
+- `numbers.spell-out` offered to write the `1` out, so the linter's advice on line 1 of a fresh
+  paste was **`Verse one:`**. It goes away the moment the header is bracketed, which is exactly the
+  wrong time: it is on screen while the user is deciding whether this tool knows anything.
+
+Both are one rule's finding arriving as somebody else's, and both have the same answer — the one
+press that brackets the header. So `isProseHeaderLine` is exported from `section-header-prose.ts`,
+the rule that owns the question, and the other two consult it. One predicate rather than three,
+because what counts as a written-out label is exactly the set that rule is about to offer a fix
+for, and three copies would disagree the first time a language pack gained a term.
+
+Two things about the suppression:
+
+- **`section.header-missing` steps aside only for the section's _leading_ line.** A headerless
+  section with `Chorus:` further down it really does start without a header, and the two findings
+  are then about different lines and both true.
+- **`numbers.spell-out` steps aside for the whole line, wherever it sits.** An ordinal in a label is
+  part of a song-part name at any position; the `5` in the lyric beneath it is untouched.
+
+This is the same shape as `isImmediateRepeat`, which `section.immediate-repeat-spacing` and
+`section.unlinked-repeat` share: where two rules can fire on one line, one of them owns the
+predicate and the other imports it. A rule that re-derives another rule's question locally is the
+bug, and it presents as a panel arguing with itself.
+
+Implementation: `isProseHeaderLine` in `rules/catalog/section-header-prose.ts`,
+`leadsWithProseHeader` in `section-header-missing.ts`, the guard in `numbers-spell-out.ts`, and the
+regressions in `catalog-policy.test.ts` — which is where cross-rule interactions are pinned, so the
+two halves cannot be re-broken one at a time.
+
 ### The mark and the wordmark are one object
 
 There is one pair of brackets in the brand, not two. The mark's brackets and the `[Lint]`
