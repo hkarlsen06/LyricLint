@@ -45,6 +45,18 @@
 		return result;
 	});
 
+	// One chip per kind the document actually has something in. `Errors 0` and
+	// `Manual review 0` were two thirds of this row on an ordinary draft: a count
+	// that could not have been otherwise, offering to filter out a kind that is
+	// not there — the same thing the status bar refuses to print.
+	//
+	// The count is over the unignored diagnostics and blind to the filters, which
+	// is what makes this safe: a kind the user has switched off keeps its count,
+	// so it keeps its chip, which is the only way back to it. A kind with nothing
+	// in it has nothing to show and nothing to hide, so it draws nothing — and a
+	// document with no findings draws no row at all.
+	const chips = $derived(filters.filter((filter) => counts[filter.value] > 0));
+
 	// Diagnostics the severity chips are currently hiding. Ignored rules do not
 	// count: the filters only take the blame for what they actually hide.
 	const hiddenByFilters = $derived(
@@ -120,11 +132,22 @@
 </script>
 
 <div class="panel-content linter-panel">
-	<!-- The chips have no trigger of their own: the Linter tab, pressed again
-	     while already inside the linter, is what reveals and hides them. -->
-	{#if controller.severityFiltersOpen}
+	<!-- The chips are on screen whenever there is something to filter. They used
+	     to be revealed by pressing the Linter tab a second time from inside the
+	     linter, which is a gesture nobody performs and nothing advertises — the
+	     same failure the timestamp gutter had when its control only appeared
+	     under a hovering pointer, and it is worse here because there was no
+	     column to hover: the filters read as a feature the workbench does not
+	     have.
+
+	     What paid for the reveal was space, and the row buys it back by drawing
+	     only the kinds that are there. It also earns its place at rest: the card
+	     dropped the severity *word* in favour of a glyph, so this row is now the
+	     one surface in the workbench that pairs the four marks with their names,
+	     and it hangs directly above the column it is the legend for. -->
+	{#if chips.length > 0}
 		<div class="linter-panel__filters" role="group" aria-label="Filter diagnostics by severity">
-			{#each filters as filter (filter.value)}
+			{#each chips as filter (filter.value)}
 				<button
 					type="button"
 					class="filter-chip filter-chip--{filter.value}"

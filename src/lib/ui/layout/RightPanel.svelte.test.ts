@@ -126,10 +126,7 @@ describe('RightPanel', () => {
 			).toBe(true)
 		);
 
-		// The filters have no button of their own: the Linter tab reveals them.
-		expect(screen.queryByRole('button', { name: /^Filter/ })).toBeNull();
-		expect(screen.queryByRole('group', { name: 'Filter diagnostics by severity' })).toBeNull();
-		await fireEvent.click(screen.getByRole('tab', { name: /Linter/ }));
+		// The filters are on screen, and they took no press to get there.
 		expect(screen.getByRole('group', { name: 'Filter diagnostics by severity' })).toBeTruthy();
 		const warningChip = screen.getByRole('button', { name: /Warnings/ });
 		expect(warningChip.getAttribute('aria-pressed')).toBe('true');
@@ -139,41 +136,35 @@ describe('RightPanel', () => {
 		expect(screen.getByText('Close this section header')).toBeTruthy();
 	});
 
-	test('hangs the severity filters off the Linter tab, pressed from inside the linter', async () => {
+	test('leaves the Linter tab a tab, and the filters where they can be found', async () => {
 		const finding = diagnostic({
 			ruleId: 'section.header-missing',
 			severity: 'warning',
 			message: 'Add a section header'
 		});
-		const { controller, feedback } = createTestWorkbench({ diagnostics: [finding] });
+		const { controller } = createTestWorkbench({ diagnostics: [finding] });
 		render(RightPanel, { controller });
-		render(LiveRegion, { feedback });
 
 		const linterTab = screen.getByRole('tab', { name: /Linter/ });
 		const filters = () => screen.queryByRole('group', { name: 'Filter diagnostics by severity' });
-		expect(filters()).toBeNull();
 
-		// Pressed while already inside the linter, the tab is the toggle.
-		await fireEvent.click(linterTab);
-		await waitFor(() => expect(filters()).toBeTruthy());
-		expect(screen.getByTestId('live-region').textContent).toContain('Severity filters shown');
-		await fireEvent.click(linterTab);
-		await waitFor(() => expect(filters()).toBeNull());
-		expect(screen.getByTestId('live-region').textContent).toContain('Severity filters hidden');
+		// The chips used to hang off a second press on this tab from inside the
+		// linter — undiscoverable, and three handlers deep to work around Bits UI's
+		// activation order. They are simply on screen now.
+		expect(filters()).toBeTruthy();
 
-		// Coming back from another panel only comes back; it does not also open them.
-		// Use a full pointer sequence here: automatic tab activation runs on focus,
-		// before click, which is the ordering that caused the navigation press to
-		// be mistaken for a second press.
+		// So pressing the tab does nothing but come back to the linter, from
+		// wherever the user was and by whichever route. A full pointer sequence
+		// here, because automatic tab activation runs on focus, before click.
 		await userEvent.click(screen.getByRole('tab', { name: 'Performers' }));
 		await userEvent.click(linterTab);
 		await waitFor(() => expect(controller.activeTab).toBe('linter'));
-		expect(filters()).toBeNull();
+		expect(filters()).toBeTruthy();
 
-		// Bits UI activates Enter from keydown and prevents the click that would
-		// otherwise follow, so the keyboard path cannot ride on the click handler.
+		await fireEvent.click(linterTab);
 		await fireEvent.keyDown(linterTab, { key: 'Enter' });
-		await waitFor(() => expect(filters()).toBeTruthy());
+		expect(controller.activeTab).toBe('linter');
+		expect(filters()).toBeTruthy();
 	});
 
 	test('runs the diagnostics as one gapless column with the selected row recessed', async () => {

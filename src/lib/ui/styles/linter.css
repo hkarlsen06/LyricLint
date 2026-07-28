@@ -182,9 +182,11 @@
 	font-size: var(--font-size-xs);
 }
 
-/* Revealed by pressing the Linter tab a second time, so the chips hang from the
-   tab strip: no gap above them, and a rule below separating them from the run
-   of diagnostic cards. */
+/* The chips hang from the tab strip: no gap above them, and a rule below
+   separating them from the run of diagnostic cards. They are drawn whenever the
+   document has a finding of any kind — one chip per kind that is actually
+   there, so the row costs the panel nothing on a clean draft and never offers
+   to filter out a severity with nothing in it. */
 .linter-panel__filters {
 	display: flex;
 	padding: var(--space-2) var(--space-3);

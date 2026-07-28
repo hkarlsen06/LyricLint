@@ -108,7 +108,6 @@ export interface WorkbenchController {
 	readonly activeTab: RightPanelTab;
 	readonly activeDiagnosticKey?: string;
 	readonly severityFilter: readonly Severity[];
-	readonly severityFiltersOpen: boolean;
 	readonly unignoredDiagnostics: readonly Diagnostic[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
 	readonly bulkFixPlan: BulkFixPlan;
@@ -181,7 +180,6 @@ export interface WorkbenchController {
 	readonly artworkOpen: boolean;
 	setArtworkOpen(open: boolean): void;
 	toggleSeverity(severity: Severity): void;
-	toggleSeverityFilters(): boolean;
 	setTitle(title: string): Promise<void>;
 	setLanguage(language: string): void;
 	undo(): void;
@@ -449,9 +447,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get severityFilter() {
 			return panel.severityFilter;
 		},
-		get severityFiltersOpen() {
-			return panel.severityFiltersOpen;
-		},
 		get unignoredDiagnostics() {
 			return panel.unignoredDiagnostics;
 		},
@@ -589,7 +584,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			void deps.repository.setPreference(artworkOpenPreference, String(open)).catch(() => {});
 		},
 		toggleSeverity: panel.toggleSeverity,
-		toggleSeverityFilters: panel.toggleSeverityFilters,
 		setTitle: draft.setTitle,
 		setLanguage: draft.setLanguage,
 		undo: editorSession.undo,

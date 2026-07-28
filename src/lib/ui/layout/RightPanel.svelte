@@ -42,37 +42,14 @@
 	}
 
 	/*
-	 * The severity filters have no control of their own; the Linter tab is it.
-	 * Pressing the tab from another panel only comes back to the linter, and
-	 * pressing it again — while already inside — shows or hides the chips.
-	 *
-	 * A pointer press is decided on pointerdown, before focusing an automatic
-	 * Bits UI tab activates it. Waiting for click would make that navigational
-	 * focus change look like a second press. Keyboard needs its own path: Bits UI
-	 * activates Enter and Space from `keydown` and calls `preventDefault`, so no
-	 * click follows to be heard.
+	 * The Linter tab is a tab and nothing else. It used to carry the severity
+	 * filters as well — pressed a second time from inside the linter, it showed
+	 * or hid the chips — which took three handlers to get right (pointerdown
+	 * ahead of Bits UI's focus activation, a separate keydown path because Bits
+	 * UI prevents the click that would otherwise follow Enter) and was found by
+	 * nobody, because a tab advertises switching panels and nothing else. The
+	 * chips draw themselves now, for the kinds the document actually has.
 	 */
-	function pressLinterTab(): void {
-		if (controller.activeTab !== 'linter') return;
-		const open = controller.toggleSeverityFilters();
-		controller.feedback.announce(open ? 'Severity filters shown.' : 'Severity filters hidden.');
-	}
-
-	function pressLinterTabByPointer(event: PointerEvent): void {
-		if (event.button === 0) pressLinterTab();
-	}
-
-	function pressLinterTabBySyntheticClick(event: MouseEvent): void {
-		// Pointer clicks were already handled before focus. Keep zero-detail
-		// synthetic clicks operable for assistive technology and tests.
-		if (event.detail === 0) pressLinterTab();
-	}
-
-	function pressLinterTabByKey(event: KeyboardEvent): void {
-		// Arrow keys move between tabs and activate on focus; that is a switch,
-		// not a second press on the tab the user is already in.
-		if (event.key === 'Enter' || event.key === ' ') pressLinterTab();
-	}
 </script>
 
 <aside class="right-panel" aria-label="Document panel">
@@ -85,14 +62,7 @@
 	>
 		<div class="right-panel__header">
 			<Tabs.List class="panel-tabs" aria-label="Document panels">
-				<Tabs.Trigger
-					id="linter-panel-tab"
-					value="linter"
-					title="Linter — press again to show the severity filters"
-					onkeydown={pressLinterTabByKey}
-					onpointerdown={pressLinterTabByPointer}
-					onclick={pressLinterTabBySyntheticClick}
-				>
+				<Tabs.Trigger id="linter-panel-tab" value="linter">
 					Linter
 					{#if controller.visibleDiagnostics.length > 0}
 						<span class="tab-count" aria-label={diagnosticBadgeLabel}

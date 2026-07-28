@@ -38,12 +38,6 @@ export interface PanelView {
 	readonly activeTab: RightPanelTab;
 	readonly activeDiagnosticKey?: string;
 	readonly severityFilter: readonly Severity[];
-	/**
-	 * Whether the severity chips are on screen. It lives here rather than inside
-	 * the linter panel because the Linter tab is what reveals them: pressing the
-	 * tab a second time, while already inside it, is the toggle.
-	 */
-	readonly severityFiltersOpen: boolean;
 	readonly unignoredDiagnostics: readonly Diagnostic[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
 	/**
@@ -56,8 +50,6 @@ export interface PanelView {
 	readonly ignoredDiagnosticKeys: readonly string[];
 	setActiveTab(tab: RightPanelTab): void;
 	toggleSeverity(severity: Severity): void;
-	/** Show or hide the severity chips; returns the state it settled on. */
-	toggleSeverityFilters(): boolean;
 	/** Re-read the session ignores for whichever draft is current now. */
 	refreshIgnoredDiagnostics(): void;
 	/** Forget ignored occurrences that no longer exist in a settled lint result. */
@@ -116,7 +108,6 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	let activeTab = $state<RightPanelTab>(deps.initialActiveTab ?? 'linter');
 	let activeDiagnosticKey = $state<string | undefined>();
 	let severityFilter = $state<Severity[]>([...allSeverities]);
-	let severityFiltersOpen = $state(false);
 	let ignoredDiagnosticKeys = $state<string[]>(deps.ignoreStore.list(deps.draftId()));
 
 	const feedback = deps.feedback;
@@ -256,9 +247,6 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		get severityFilter() {
 			return severityFilter;
 		},
-		get severityFiltersOpen() {
-			return severityFiltersOpen;
-		},
 		get unignoredDiagnostics() {
 			return unignoredIn(deps.snapshot().diagnostics);
 		},
@@ -280,10 +268,6 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 				: allSeverities.filter(
 						(candidate) => candidate === severity || severityFilter.includes(candidate)
 					);
-		},
-		toggleSeverityFilters() {
-			severityFiltersOpen = !severityFiltersOpen;
-			return severityFiltersOpen;
 		},
 		refreshIgnoredDiagnostics() {
 			ignoredDiagnosticKeys = deps.ignoreStore.list(deps.draftId());

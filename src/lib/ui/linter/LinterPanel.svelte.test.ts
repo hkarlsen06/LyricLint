@@ -67,9 +67,9 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		const { controller } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), prose(40, 60)]
 		});
-		// The chips are the other strip that hangs here; render them so the two can
-		// be compared as the one material they are meant to share.
-		controller.toggleSeverityFilters();
+		// The chips are the other strip that hangs here, and they draw themselves
+		// once the document has findings, so the two can be compared as the one
+		// material they are meant to share.
 		render(LinterPanel, { controller });
 
 		const row = document.querySelector('.linter-panel__bulk')!;
@@ -162,6 +162,79 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		controller.ignoreDiagnostic(first);
 		await Promise.resolve();
 		expect(screen.getByRole('button', { name: 'Fix 1 issue automatically' })).toBeTruthy();
+	});
+});
+
+describe('the severity chips are on screen, and only for the kinds that are there', () => {
+	afterEach(cleanup);
+
+	const chipNames = () =>
+		[...document.querySelectorAll('.linter-panel__filters .filter-chip')].map((chip) =>
+			chip.textContent?.replace(/\s+/gu, ' ').trim()
+		);
+
+	test('draws itself without being asked for', () => {
+		const { controller } = createTestWorkbench({ diagnostics: [prose(0, 10)] });
+		render(LinterPanel, { controller });
+
+		// The row used to be revealed by pressing the Linter tab a second time from
+		// inside the linter, which is a gesture nothing advertises and nobody
+		// performs — so the filters read as a feature the workbench did not have.
+		expect(screen.getByRole('group', { name: 'Filter diagnostics by severity' })).toBeTruthy();
+	});
+
+	test('offers no chip for a severity with nothing in it', () => {
+		const { controller } = createTestWorkbench({
+			diagnostics: [
+				prose(0, 10),
+				diagnostic({
+					ruleId: 'quotes.typewriter',
+					severity: 'warning',
+					message: 'Use a typewriter apostrophe.',
+					from: 30,
+					to: 31
+				})
+			]
+		});
+		render(LinterPanel, { controller });
+
+		// `Errors 0` and `Manual review 0` are counts that could not have been
+		// otherwise, offering to filter out kinds that are not in the document.
+		expect(chipNames()).toEqual(['Warnings 1', 'Suggestions 1']);
+	});
+
+	test('draws no row at all when there is nothing to filter', () => {
+		const { controller } = createTestWorkbench({ diagnostics: [] });
+		render(LinterPanel, { controller });
+
+		expect(screen.queryByRole('group', { name: 'Filter diagnostics by severity' })).toBeNull();
+	});
+
+	test('keeps a switched-off kind on screen, because its chip is the way back', async () => {
+		const { controller } = createTestWorkbench({
+			diagnostics: [
+				prose(0, 10),
+				diagnostic({
+					ruleId: 'quotes.typewriter',
+					severity: 'warning',
+					message: 'Use a typewriter apostrophe.',
+					from: 30,
+					to: 31
+				})
+			]
+		});
+		render(LinterPanel, { controller });
+
+		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
+
+		// The count is over the unignored diagnostics and blind to the filters, so
+		// a kind the user has hidden keeps its count and therefore keeps its chip.
+		// Read the other way, hiding a kind would delete the only control that
+		// brings it back.
+		const warnings = screen.getByRole('button', { name: /Warnings/ });
+		expect(warnings.getAttribute('aria-pressed')).toBe('false');
+		expect(chipNames()).toEqual(['Warnings 1', 'Suggestions 1']);
+		expect(screen.queryByText('Use a typewriter apostrophe.')).toBeNull();
 	});
 });
 

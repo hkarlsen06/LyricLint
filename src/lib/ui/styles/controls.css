@@ -235,9 +235,11 @@ textarea:disabled {
 	color: var(--color-suggestion);
 }
 
-/* A kind with nothing to show says so with its own count. It used to also drop
-   to `opacity: 0.45` — 2.2:1 — which made the zero it was trying to communicate
-   the hardest thing on the chip to read. */
+/* The count is what pressing the chip puts back. A zero on one is a fact about
+   the rule reference's query — the linter panel drops a chip whose kind has
+   nothing in it rather than printing one. It used to also drop to
+   `opacity: 0.45` — 2.2:1 — which made the zero it was trying to communicate the
+   hardest thing on the chip to read. */
 .filter-chip__count {
 	min-width: 1.1em;
 	color: inherit;

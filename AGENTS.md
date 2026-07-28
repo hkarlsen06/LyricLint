@@ -97,16 +97,33 @@ like the severity chips it hangs beneath. A strip also carries something at both
 command at one, the count it will not touch at the other — because a lone control in half a row
 of empty gutter is the other way this row has failed.
 
-The severity filters have no control of their own. Pressing the Linter tab from another panel
-comes back to the linter; pressing it again, while already inside, shows or hides the chips.
-Both handlers on the trigger run _before_ Bits UI activates the tab (it composes props handlers
-ahead of its own), so `controller.activeTab` read inside them is still the tab the user was on.
-Keyboard needs its own `onkeydown` path: Bits UI activates Enter and Space from `keydown` and
-calls `preventDefault`, so no click follows to be heard.
+**The severity chips draw one chip per kind the document has, and they draw it unasked.** They
+used to have no control of their own: pressing the Linter tab a second time, from inside the
+linter, was what showed and hid them. That is a gesture nothing advertises and nobody performs — a
+tab announces switching panels and nothing else — so the filters read as a feature the workbench
+did not have, which is the same failure the timestamp gutter had while its control only appeared
+under a hovering pointer, and worse here because there was no column to hover. It also cost three
+handlers to work around Bits UI's activation order, all of them for a press that was never made.
 
-Implementation: `src/lib/ui/styles/shell.css`, `src/lib/ui/styles/panel.css`,
-`src/lib/ui/styles/linter.css` (the run of cards), `src/lib/ui/styles/diagnostics.css` (what is
-inside one), and `src/lib/ui/layout/RightPanel.svelte`.
+What the reveal was buying was vertical space, and the row buys it back by **drawing only the
+kinds that are actually there**. `Errors 0` and `Manual review 0` were two thirds of this row on
+an ordinary draft: counts that could not have been otherwise, offering to filter out kinds that
+are not in the document — the same thing the status bar refuses to print. A clean draft draws no
+row at all.
+
+**A chip's count is over the unignored diagnostics and blind to the filters**, exactly as in the
+rule reference, and that is what makes drawing on the count safe: a kind the user has switched off
+keeps its count, so it keeps its chip, which is the only control that brings it back. Read the
+other way — counting what is visible — hiding a kind would delete the way back to it.
+
+The row also earns its place at rest. The card dropped the severity **word** in favour of a glyph,
+so this is now the one surface in the workbench pairing the four marks with their names, hanging
+directly above the column it is the legend for.
+
+Implementation: `chips` in `src/lib/ui/linter/LinterPanel.svelte`, `src/lib/ui/styles/shell.css`,
+`src/lib/ui/styles/panel.css`, `src/lib/ui/styles/linter.css` (the run of cards),
+`src/lib/ui/styles/diagnostics.css` (what is inside one), and
+`src/lib/ui/layout/RightPanel.svelte`.
 
 ### The empty document is one message, not three
 
@@ -2665,6 +2682,12 @@ this way a count is what pressing the chip puts back — which is how the linter
 own severities. Which chips are _offered_ is decided over the whole set rather than the query, so
 a chip cannot vanish as the reader types and take its axis with it; a chip reading zero is what
 says the query excluded it.
+
+**That last part is the one place this row and the linter panel's differ on purpose.** There a
+chip with a zero on it is dropped, because the set behind it is the document's own findings and a
+kind with nothing in it is nothing to filter. Here the set is fixed — every rule that exists — and
+the zero is a fact about the _query_, which the reader is in the middle of typing. Dropping it
+would take the axis off screen mid-keystroke and leave nothing to say why the list is short.
 
 **The readout draws only while something is narrowing the list**, because `52 of 52 rules` is a
 count that could not have been otherwise and the lede beside the column already states the total.
