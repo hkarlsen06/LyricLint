@@ -58,7 +58,19 @@ function loopbackLiteralUrls(): Plugin {
 }
 
 export default defineConfig({
-	server: { https: devHttps() },
+	/**
+	 * Name the proxied host, so the tailnet dev server answers it.
+	 *
+	 * Caddy on the VPS terminates TLS for `dev.lyriclint.com` and forwards here
+	 * with that Host header intact. Vite refuses a Host it was not told about —
+	 * a DNS-rebinding defence — and answers 403 before any route runs, which
+	 * reads as the dev server being down rather than being picky.
+	 *
+	 * The certificate pair `devHttps` looks for stays a local-machine concern:
+	 * over the tailnet the proxy is what makes the origin secure, so the phone
+	 * gets its secure context without this checkout owning a key.
+	 */
+	server: { https: devHttps(), allowedHosts: ['dev.lyriclint.com'] },
 	build: {
 		/**
 		 * Inline Apple's badge, whatever its size.
@@ -122,7 +134,12 @@ export default defineConfig({
 			// mere presence — a bare string here would turn the feature off for the
 			// whole suite and every Apple Music assertion would pass by not drawing.
 			PUBLIC_APPLE_MUSIC_TOKEN:
-				'eyJhbGciOiJFUzI1NiIsImtpZCI6IlRFU1RLRVlJRCJ9.eyJpc3MiOiJURVNUVEVBTUlEIiwiaWF0IjowLCJleHAiOjQxMDI0NDQ4MDB9.testsignature'
+				'eyJhbGciOiJFUzI1NiIsImtpZCI6IlRFU1RLRVlJRCJ9.eyJpc3MiOiJURVNUVEVBTUlEIiwiaWF0IjowLCJleHAiOjQxMDI0NDQ4MDB9.testsignature',
+			// Empty for the same reason, and it matters more here: the suite runs as a
+			// development build, so a developer's own dev-tab label would otherwise
+			// rename every tab `DocumentTitle` asserts on. The test that covers the
+			// label stubs it per render.
+			PUBLIC_DEV_TAB_TITLE: ''
 		},
 		projects: [
 			{

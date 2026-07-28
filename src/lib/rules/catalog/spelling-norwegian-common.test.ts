@@ -44,6 +44,26 @@ describe('spelling.norwegian-common', () => {
 		);
 	});
 
+	it('previews the grave accent for “óg” and cites the accent source', () => {
+		const text = '[Vers]\nDu er her óg, Óg jeg';
+		const findings = checkRule(rule, text, { language: 'no' });
+
+		expect(markedText(text, findings)).toEqual(['óg', 'Óg']);
+		expect(fixInserts(findings)).toEqual(['òg', 'Òg']);
+		expect(findings[0]?.sourceIds).toEqual(['L-NO-ACCENT']);
+		expect(findings[0]?.explanation).toContain('“og.”');
+		expect(applyRuleFixes(rule, text, { language: 'no' })).toBe('[Vers]\nDu er her òg, Òg jeg');
+	});
+
+	it('leaves the conjunction and the correct adverb alone', () => {
+		expect(checkRule(rule, '[Vers]\nDu og jeg, du òg', { language: 'no' })).toEqual([]);
+	});
+
+	it('cites only the common-spelling source for the other entries', () => {
+		const findings = checkRule(rule, '[Vers]\nDet er desverre sant', { language: 'no' });
+		expect(findings[0]?.sourceIds).toEqual(['L-NO-COMMON']);
+	});
+
 	it('runs for Norwegian base and regional tags only', () => {
 		for (const language of ['no', 'no-NB', 'NO-nn']) {
 			expect(checkRule(rule, '[Vers]\nDet er desverre sant', { language })).toHaveLength(1);

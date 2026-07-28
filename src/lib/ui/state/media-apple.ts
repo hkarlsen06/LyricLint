@@ -234,6 +234,115 @@ export function resetAppleMusic(): void {
 	configuredFor = new WeakMap();
 }
 
+/**
+ * How a sign-in ended, which is four things and not two.
+ *
+ * `blocked` is the one worth naming separately: it is not the user declining and
+ * it is not Apple failing, it is the browser refusing to open the window, and it
+ * is the only one of the four whose repair is a browser setting rather than
+ * another press.
+ */
+export type AppleAuthorizationOutcome = 'authorized' | 'blocked' | 'refused' | 'unanswered';
+
+/** What the user is told, per outcome. `authorized` says nothing. */
+export function appleSignInMessage(outcome: AppleAuthorizationOutcome): string | undefined {
+	if (outcome === 'authorized') return undefined;
+	if (outcome === 'blocked') {
+		return 'Apple Music’s sign-in window was blocked. Allow pop-ups for this site, then press again.';
+	}
+	if (outcome === 'refused') return 'Apple Music sign-in was cancelled.';
+	return 'Apple Music sign-in did not finish.';
+}
+
+/**
+ * The backstop, and it is deliberately long enough to be useless as a timeout.
+ *
+ * A sign-in is a person typing an Apple ID, a password and a code from another
+ * device, so any duration short enough to feel like a timeout is short enough to
+ * cut off somebody halfway through their two-factor prompt — and cancelling a
+ * sign-in the user is *in the middle of* is a worse bug than the hang this
+ * replaces. The blocked-window detection below is what actually answers quickly;
+ * this only exists so that a MusicKit which stops using `window.open` cannot
+ * bring back an unbounded wait.
+ */
+const signInBackstopMs = 5 * 60_000;
+
+type WindowOpen = (typeof globalThis)['open'];
+
+/**
+ * Sign in, and never hang doing it.
+ *
+ * `authorize()` opens Apple's sign-in in a pop-up, and MusicKit's own bookkeeping
+ * has no answer for one that never opened:
+ *
+ * ```js
+ * this._window = window.open(e, this.target, m) || void 0;
+ * _startPollingForWindowClosed(e){ this._window && … setInterval(…) }
+ * ```
+ *
+ * The interval is the only thing that ever settles the promise, and it is guarded
+ * on the window existing — so a blocked pop-up is not a rejection, it is silence
+ * for the rest of the page's life. Everything downstream inherits that silence:
+ * `load` never returns, `reconnect`'s `finally` never runs, `busy` stays true,
+ * and the picker's search button — disabled on `busy` — reads as a dead dialog in
+ * a completely different part of the workbench. One unsettled promise presenting
+ * as three unrelated faults is the whole reason this wrapper exists.
+ *
+ * So the block is **observed rather than waited out**: `window.open` is patched
+ * for the length of the call, and a `null` return resolves the race at once. That
+ * is the exact condition MusicKit cannot recover from, which is what makes it a
+ * better signal than any duration — the user is told about their pop-up blocker
+ * while the sign-in they asked for is still the thing on their mind.
+ *
+ * The patch is restored in a `finally`, including on the success path, and a
+ * `null` return is still handed back to MusicKit unchanged: this watches the
+ * call, it does not change what the SDK sees.
+ */
+export async function authorizeAppleMusic(
+	instance: AppleMusicInstance,
+	deps: { scope?: { open: WindowOpen }; timeoutMs?: number } = {}
+): Promise<AppleAuthorizationOutcome> {
+	const scope = deps.scope ?? (globalThis as { open: WindowOpen });
+	const timeoutMs = deps.timeoutMs ?? signInBackstopMs;
+
+	let reportBlocked: (() => void) | undefined;
+	const blocked = new Promise<'blocked'>((resolve) => {
+		reportBlocked = () => resolve('blocked');
+	});
+
+	// Nowhere to open a window is not the same as a window being refused: there is
+	// simply nothing to watch, and the backstop is the whole guarantee. This is
+	// what keeps the wrapper safe to call outside a browser.
+	const nativeOpen = scope.open;
+	const watchable = typeof nativeOpen === 'function';
+	if (watchable) {
+		scope.open = function patchedOpen(this: unknown, ...args: Parameters<WindowOpen>) {
+			const opened = nativeOpen.apply(scope, args);
+			if (!opened) reportBlocked?.();
+			return opened;
+		} as WindowOpen;
+	}
+
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const expired = new Promise<'unanswered'>((resolve) => {
+		timer = setTimeout(() => resolve('unanswered'), timeoutMs);
+	});
+
+	try {
+		return await Promise.race([
+			instance.authorize().then(
+				() => 'authorized' as const,
+				() => 'refused' as const
+			),
+			blocked,
+			expired
+		]);
+	} finally {
+		if (timer !== undefined) clearTimeout(timer);
+		if (watchable) scope.open = nativeOpen;
+	}
+}
+
 export type AppleMusicUrlResult = { songId: string } | { error: string };
 
 const songIdPattern = /^\d{1,20}$/;
@@ -457,6 +566,11 @@ export interface AppleMusicSourceDependencies {
 	/** Injectable so a test answers the catalogue without a network. */
 	request?: typeof fetch;
 	token?: () => string | undefined;
+	/**
+	 * How a sign-in is asked for, injected so a test can be blocked without a
+	 * browser. Defaults to the wrapper that cannot hang.
+	 */
+	authorize?: (instance: AppleMusicInstance) => Promise<AppleAuthorizationOutcome>;
 }
 
 export interface AppleMusicSource extends MediaSource {
@@ -621,11 +735,20 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			// keeps its own user token between sessions, so a returning subscriber
 			// usually passes straight through — the same trade the file source makes
 			// with a permission already granted for this origin.
+			//
+			// **Per origin**, which is why this branch is so rarely exercised and was
+			// wrong for so long: moving a dev server to a new hostname is enough to
+			// make every subscriber a first-time one again.
+			//
+			// It goes through `authorizeAppleMusic` rather than calling `authorize`
+			// directly because a blocked pop-up leaves MusicKit's own promise
+			// unsettled forever — see that function. Every outcome but `authorized`
+			// reports and returns, so this can no longer be the step the whole
+			// workbench waits behind.
 			if (!instance.isAuthorized) {
-				try {
-					await instance.authorize();
-				} catch {
-					events.failed('Apple Music sign-in was cancelled.');
+				const outcome = await (deps.authorize ?? authorizeAppleMusic)(instance);
+				if (outcome !== 'authorized') {
+					events.failed(appleSignInMessage(outcome) ?? 'Apple Music sign-in did not finish.');
 					return;
 				}
 				if (songId !== nextSongId) return;

@@ -127,6 +127,18 @@ describe('what counts as a linkable section', () => {
 		).toEqual(['source', 'same', 'empty']);
 	});
 
+	// Opened on a section with nothing in it, the words can only come from a copy
+	// that has some — so the comparisons are read against that copy rather than
+	// against the empty one, which would name two identical choruses `different`.
+	it('compares against the copy with words when the one it opened on has none', () => {
+		const occurrences = linkOccurrences(parsed, englishLanguagePack, offsetOf(SONG, '[Chorus 3]'));
+		expect(occurrences.map((occurrence) => occurrence.comparison)).toEqual([
+			'same',
+			'different',
+			'empty'
+		]);
+	});
+
 	it('offers itself only for a header selected whole, on one line', () => {
 		const header = offsetOf(SONG, '[Chorus]');
 		expect(linkableHeaderAt(parsed, englishLanguagePack, header, header + 8)).toEqual({
@@ -172,6 +184,37 @@ describe('linking sections through the editor', () => {
 		// One press, one undo: the whole overwrite comes back off together.
 		handle.undo();
 		expect(handle.getSnapshot().text).toBe(SONG);
+	});
+
+	// Adding `[Chorus 3]` at the foot of a draft and linking it to the chorus above
+	// is a request to fill it. Written from the section the card was opened on,
+	// that request empties the chorus that had the words — so an empty section is
+	// never the source, however the link was started.
+	it('fills an empty section from its peer rather than emptying the peer', async () => {
+		const handle = await mount(SONG);
+		handle.linkSections?.([offsetOf(SONG, '[Chorus 3]'), offsetOf(SONG, '[Chorus]')]);
+
+		const linked = handle.getSnapshot().text;
+		expect(linked).toContain('[Chorus 3]\nHold on tight\nNever let go');
+		// The chorus the words came from still has them, and the typo in the copy
+		// nobody linked is untouched.
+		expect(linked).toContain('[Chorus]\nHold on tight\nNever let go');
+		expect(linked).toContain('tigth');
+		expect(handle.getSectionLinks?.()).toEqual([{ lines: [4, 15] }]);
+
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(SONG);
+	});
+
+	// The words come from the group, never from the document: a copy the user did
+	// not tick is not part of what they asked for.
+	it('takes the words from the ticked copy, not the first one in the song', async () => {
+		const handle = await mount(SONG);
+		handle.linkSections?.([offsetOf(SONG, '[Chorus 3]'), offsetOf(SONG, '[Chorus 2]')]);
+
+		const linked = handle.getSnapshot().text;
+		expect(linked).toContain('[Chorus 3]\nHold on tigth\nNever let go');
+		expect(linked).toContain('[Chorus]\nHold on tight\nNever let go');
 	});
 
 	it('repeats a later edit in every linked section', async () => {
@@ -265,6 +308,20 @@ describe('linking sections through the editor', () => {
 
 		await expect
 			.element(page.getByText('These 3 sections are linked. Editing one edits the others.'))
+			.toBeVisible();
+		await expect.element(page.getByText(/Linking replaces their words/)).not.toBeInTheDocument();
+	});
+
+	// And on an empty one the card says the opposite of what it usually says,
+	// because linking there fills this section instead of overwriting the others.
+	it('says the empty section is filled rather than copied from', async () => {
+		const handle = await mount(SONG);
+		const caret = offsetOf(SONG, '[Chorus 3]') + 5;
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.requestSectionLink?.();
+
+		await expect
+			.element(page.getByText(/This chorus is empty, so linking fills it from the ones you pick/))
 			.toBeVisible();
 		await expect.element(page.getByText(/Linking replaces their words/)).not.toBeInTheDocument();
 	});

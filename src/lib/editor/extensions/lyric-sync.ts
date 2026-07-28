@@ -20,9 +20,10 @@ import {
  *
  * It is a mode, and that is deliberate. The whole value is one key hit in rhythm
  * without thinking about it, which rules out a chord; and a bare `Space` is only
- * free if the document is not taking typing. So entering makes the editor
- * read-only, and every way out is loud: `Escape`, the strip's own control, and
- * running off the end of the document.
+ * free while the run owns it, which the mode's own keymap sees to at the highest
+ * precedence. Every way out is loud: `Escape`, the strip's own control, running
+ * off the end of the document — and writing a word, which ends the run and lets
+ * the character land where it was typed.
  *
  * **This is the one place the audio is allowed to move the document.** Everywhere
  * else, following the playhead with the caret or the scroll position is the
@@ -100,6 +101,15 @@ export interface LyricSyncOptions {
 	/** Where the audio is, or undefined when nothing is attached. */
 	currentTime(): number | undefined;
 	/**
+	 * Put the tape at `time`.
+	 *
+	 * Stepping back is the one thing in a run that moves the audio, and it moves
+	 * it the same way every other seek in the workbench does — which is to say it
+	 * plays from there, because a run that is being backed up is a run in
+	 * progress.
+	 */
+	onSeek(time: number): void;
+	/**
 	 * The mode turned on or off, however it happened.
 	 *
 	 * `startAt` is where the audio has to be for the run to line up with the caret
@@ -131,8 +141,7 @@ function end(view: EditorView, options: LyricSyncOptions, message: string): bool
  * from its second.
  *
  * One transaction, not two: the anchor and the move are one press and have to be
- * one undo — and `EditorState.readOnly` blocks document changes, not selection
- * changes or effects, so both fit in the same dispatch.
+ * one undo, and a selection change and an effect fit in the same dispatch.
  *
  * Exported because a finger has no `Space`. The transport's tap control is bound
  * to the command itself rather than to a synthesised key event, so the two paths
@@ -184,34 +193,84 @@ export function lyricSyncTap(options: LyricSyncOptions) {
  * stepping off it, so that line is genuinely un-timed and the next tap writes it
  * fresh — and it goes back to the previous line, which is still timed and is
  * therefore still `armed`.
+ *
+ * **The tape backs up with the caret**, to the time that previous line already
+ * carries. A run is one pass over the document against one pass of the audio, so
+ * a step back that moved only the caret would leave the two ends in different
+ * places — the user would be looking at the line before the fumble while hearing
+ * whatever came after it, and the next tap would land as wrong as the one being
+ * taken back. Seeking to the stored anchor rather than to the moment of the tap
+ * also carries `tapOffsetSeconds` back with it, so the line starts a beat after
+ * playback resumes and there is a run-up to tap against.
+ *
+ * Nothing is seeked where there is no line to go back to — the first tap of a run
+ * — or where the one there is carries no time of its own. There is no moment to
+ * go to, so the tap comes off and the audio is left where it is rather than being
+ * sent somewhere invented.
  */
-function stepBack(view: EditorView): boolean {
-	const sync = view.state.field(lyricSyncField);
-	if (!sync.active) return false;
-	// Nothing has been timed yet, so there is no tap to take back.
-	if (!sync.armed) return true;
+function stepBack(options: LyricSyncOptions) {
+	return (view: EditorView): boolean => {
+		const sync = view.state.field(lyricSyncField);
+		if (!sync.active) return false;
+		// Nothing has been timed yet, so there is no tap to take back.
+		if (!sync.armed) return true;
 
-	const line = view.state.doc.lineAt(view.state.selection.main.head);
-	const previous = stampableBefore(view.state, line.number - 1);
-	view.dispatch({
-		effects: [clearLineAnchorEffect.of({ pos: line.from }), armEffect.of(previous !== undefined)],
-		...(previous ? { selection: { anchor: previous.from } } : {})
-	});
-	if (previous) holdReadingLine(view, previous.from);
-	return true;
+		const line = view.state.doc.lineAt(view.state.selection.main.head);
+		const previous = stampableBefore(view.state, line.number - 1);
+		const resumeAt = previous ? anchorTimeAt(view.state, previous.from) : undefined;
+		view.dispatch({
+			effects: [clearLineAnchorEffect.of({ pos: line.from }), armEffect.of(previous !== undefined)],
+			...(previous ? { selection: { anchor: previous.from } } : {})
+		});
+		if (previous) holdReadingLine(view, previous.from);
+		if (resumeAt !== undefined) options.onSeek(resumeAt);
+		return true;
+	};
 }
 
 export function lyricSync(options: LyricSyncOptions): Extension {
 	return [
 		lyricSyncField,
-		// The document stops taking typing, which is what frees `Space` to be the
-		// tap. It blocks changes only — the caret still walks, and the effects that
-		// write the anchors still land.
-		EditorState.readOnly.compute([lyricSyncField], (state) => state.field(lyricSyncField).active),
+		// **Typing ends the run, and the character lands where it was typed.**
+		//
+		// The mode used to hold the document `EditorState.readOnly`, on the
+		// reasoning that a document not taking typing is what frees `Space` to be
+		// the tap. What that actually bought was a mis-keyed letter doing nothing
+		// at all: the user typed at a line they could see was wrong, nothing
+		// happened, and they had to work out that they were in a mode before they
+		// could fix it. `Space` is freed by the run's own keymap, at the highest
+		// precedence, which is where it was always being freed.
+		//
+		// So a keystroke that would write something is read as what it plainly is —
+		// the user has stopped tapping and started transcribing — and the run gets
+		// out of the way. The shell pauses the tape on the way out, as it does for
+		// every other exit.
+		//
+		// **It is read off the document actually changing, never off a guess about
+		// which keys mean typing.** That is what keeps it one rule rather than a
+		// list: a dead key, an IME composition, a paste, a drop, and a fix applied
+		// from the panel are all edits, and every one of them ends the run. Nothing
+		// has to be excluded either, because the keys the run owns — `Space`,
+		// `Enter`, `Backspace`, `ArrowUp` — are taken at the highest precedence and
+		// change no text, so they never reach here.
+		//
+		// An extender rather than a filter, because the effect has to ride the very
+		// transaction that carried the edit: one undo step, one snapshot, and no
+		// instant in which the document has changed while the mode is still on.
+		EditorState.transactionExtender.of((transaction) =>
+			transaction.docChanged && transaction.startState.field(lyricSyncField).active
+				? { effects: setLyricSyncEffect.of(false) }
+				: null
+		),
 		// Highest precedence, because `Space`, `Enter` and `Backspace` all belong to
 		// the default keymap and every one of them has to be taken back while the
 		// mode is on. Each command returns false when it is not, so the keys fall
 		// straight through to their usual owners the rest of the time.
+		//
+		// This is the whole of what keeps the run's keys out of the document, now
+		// that the document is not held read-only: while a run is under way each of
+		// these commands returns true down every path it has, so the key is
+		// answered here and its default never runs.
 		//
 		// **No `preventDefault: true` on any of these.** That option prevents the
 		// default even when the command returns *false*, so it would swallow the
@@ -222,8 +281,8 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 			keymap.of([
 				{ key: 'Space', run: lyricSyncTap(options) },
 				{ key: 'Enter', run: lyricSyncTap(options) },
-				{ key: 'Backspace', run: stepBack },
-				{ key: 'ArrowUp', run: stepBack },
+				{ key: 'Backspace', run: stepBack(options) },
+				{ key: 'ArrowUp', run: stepBack(options) },
 				{
 					key: 'Escape',
 					run: (view) => {
@@ -234,13 +293,19 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 			])
 		),
 		// One place the mode's change is reported, so it reads the same whether the
-		// shell turned it on, `Escape` turned it off, or the document ran out.
+		// shell turned it on, `Escape` turned it off, the document ran out, or the
+		// user typed a word into it.
 		EditorView.updateListener.of((update) => {
 			const before = update.startState.field(lyricSyncField).active;
 			const state = update.state.field(lyricSyncField);
 			if (before === state.active) return;
 			if (!state.active) {
 				options.onChange(false);
+				// The one exit that arrives without having been asked for. `end`
+				// speaks for the three deliberate ones, and this is the transaction
+				// the user typed — which is loud on screen and silent to a screen
+				// reader, so it is the one that needs saying out loud.
+				if (update.docChanged) options.announce('Sync stopped: the document changed.');
 				return;
 			}
 

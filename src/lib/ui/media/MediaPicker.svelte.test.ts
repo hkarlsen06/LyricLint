@@ -264,6 +264,32 @@ describe('MediaPicker', () => {
 		expect(search.querySelector('.loading-mark')).toBeNull();
 	});
 
+	/**
+	 * The press that pays for Apple's SDK is not the press that signs in.
+	 *
+	 * A sign-in opens a pop-up, and a browser only allows one out of an activation
+	 * it can still see. Attaching used to await Apple's ~600KB script and its
+	 * `configure()` round trips *first*, so on a cold load the press had been spent
+	 * long before `authorize()` was reached and the window was blocked every time —
+	 * which, because MusicKit never settles a blocked sign-in, hung the whole
+	 * workbench rather than failing.
+	 *
+	 * Opening the dialog is the earlier press, and the one that offers Apple Music
+	 * in the first place. Removing this call is the regression that brings the hang
+	 * back on the slowest connections, where nothing else here would fail.
+	 */
+	it('buys Apple’s SDK with the press that opens the dialog', async () => {
+		const { media } = setup();
+		const prepared = vi.fn();
+		media.prepareAppleMusic = prepared;
+
+		expect(prepared).not.toHaveBeenCalled();
+
+		await page.getByRole('button', { name: 'Add audio' }).click();
+
+		expect(prepared).toHaveBeenCalledTimes(1);
+	});
+
 	/*
 	 * The way in for somebody who has the song and not its link. It is a search
 	 * the user runs on Google's own page rather than a lookup this build pays a

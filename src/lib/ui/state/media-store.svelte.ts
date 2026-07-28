@@ -220,6 +220,27 @@ export interface MediaStore {
 	/** Attach a song the user picked out of those results. */
 	attachAppleMusicSong(songId: string, name: string): Promise<void>;
 	/**
+	 * Load and configure MusicKit ahead of the press that will sign in.
+	 *
+	 * A sign-in opens a pop-up, and a browser only allows one from a press it can
+	 * still see: Safari counts the activation from the press *itself*, so anything
+	 * awaited in front of `authorize()` spends it. Attaching used to await Apple's
+	 * ~600KB SDK and its `configure()` round trips first, which is several seconds
+	 * on a cold load — so by the time the sign-in was asked for, the press it
+	 * belonged to was long gone and the window was blocked every time.
+	 *
+	 * So the script is bought with an *earlier* press than the one that needs it.
+	 * Opening the audio dialog is that press, and it is still a press — this is
+	 * not the module-scope load that `youtubeAllowed` exists to prevent, and it is
+	 * not on a page the user has not touched. By the time a result is pressed the
+	 * instance is already there, `authorize()` runs in the same tick, and the
+	 * pop-up opens.
+	 *
+	 * Fire and forget, and deliberately silent: nothing is being attached yet, so
+	 * a failure here has nothing to report and the real press will report its own.
+	 */
+	prepareAppleMusic(): void;
+	/**
 	 * The search a sign-in interrupted, handed back once, for the surface to
 	 * reopen on. Reading it clears it: a query left standing would reopen the
 	 * picker on every later render.
@@ -676,6 +697,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			}
 
 			return await searchAppleMusicSongs(trimmed, { music: () => configureAppleMusic() });
+		},
+
+		prepareAppleMusic() {
+			if (!appleMusicConfigured()) return;
+			void configureAppleMusic().catch(() => undefined);
 		},
 
 		async attachAppleMusicSong(songId, name) {

@@ -16,6 +16,13 @@ interface ImportMetaEnv {
 	 * see `appleMusicConfigured` in `media-apple.ts`.
 	 */
 	readonly PUBLIC_APPLE_MUSIC_TOKEN?: string;
+	/**
+	 * What a development tab calls itself, in place of the draft's own name.
+	 *
+	 * Optional like the two above, and read only out of a dev build — see
+	 * `DocumentTitle.svelte`.
+	 */
+	readonly PUBLIC_DEV_TAB_TITLE?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- interface merging

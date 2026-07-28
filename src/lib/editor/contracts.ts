@@ -143,10 +143,10 @@ export interface EditorOverlayCallbacks {
 	/**
 	 * A line anchor was written, corrected, or cleared without the text changing.
 	 *
-	 * Sync mode holds the document read-only, and `Ctrl-Alt-M` and the timestamp
-	 * column's own control move nothing, so `onSnapshot` never hears about any of
-	 * them. A shell that saved only on a document change would lose every anchor
-	 * that was not a side effect of typing — which is nearly all of them.
+	 * A sync tap writes an anchor and moves the caret, and `Ctrl-Alt-M` and the
+	 * timestamp column's own control move nothing, so `onSnapshot` never hears
+	 * about any of them. A shell that saved only on a document change would lose
+	 * every anchor that was not a side effect of typing — which is all of them.
 	 */
 	onLineAnchorsChanged?(): void;
 	/**

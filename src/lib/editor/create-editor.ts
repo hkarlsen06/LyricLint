@@ -544,6 +544,10 @@ export function createLyricEditor(
 	// options or a tap and a press would stop meaning the same thing.
 	const syncOptions = {
 		currentTime: () => callbackProxy.onRequestMediaTime?.(),
+		// The same hook the timestamp column and `Ctrl-Alt-Enter` seek through, so
+		// backing a run up and jumping to a line cannot come to mean different
+		// things about where the tape ends up.
+		onSeek: (time: number) => callbackProxy.onSeekMedia?.(time),
 		onChange: (active: boolean, startAt?: number) =>
 			callbackProxy.onLyricSyncChange?.(active, startAt),
 		announce: (message: string) => callbackProxy.onAnnouncement(message)
@@ -836,7 +840,7 @@ export function createLyricEditor(
 		},
 		// The tap, for a pointer that has no `Space`. It does not focus the editor:
 		// the press is already in the transport, and a run driven from there stays
-		// there — the caret walks on its own and the document is read-only anyway.
+		// there — the caret walks on its own and nothing is being typed.
 		tapLyricSync() {
 			syncTap(view);
 		},

@@ -8,6 +8,7 @@ const reviewedIds = [
 	'L-EN-MORE',
 	'L-EN-TOP50',
 	'L-NO-COMMON',
+	'L-NO-ACCENT',
 	'L-DE-COMMON',
 	'L-ES-CONTRACTIONS',
 	'L-ES-COMMON',
@@ -68,54 +69,41 @@ const latestHashes = new Map([
 	['G-TRANSLATIONS', 'sha256:df8d1a410fbcbf88f912a5d030553840a6145383649e4d194c2bb8dc453fa4eb']
 ]);
 
+// Reviewed in the latest sweep. Only the annotations were re-fetched with a
+// content hash; `L-NO-ACCENT` arrived with the rule that cites it.
+const reviewedToday = new Set<string>([...latestHashes.keys(), 'L-NO-ACCENT']);
+
+function retrievedOn(id: string): string {
+	if (reviewedToday.has(id)) {
+		return '2026-07-27';
+	}
+	if (id === 'T-HARPER') {
+		return '2026-07-26';
+	}
+	return id === 'APPLE-LINE-PUNCTUATION' || id.startsWith('L-') ? '2026-07-25' : '2026-07-24';
+}
+
+// Two annotations were re-read without being re-fetched, so their verification
+// outruns their retrieval by a day.
+function verifiedOn(id: string): string {
+	return id === 'G-ADD-SONGS' || id === 'G-QE-MARKS' ? '2026-07-25' : retrievedOn(id);
+}
+
 describe('source registry', () => {
 	it('contains every reviewed source with exact review dates', () => {
 		expect(() => assertReviewedSources(reviewedIds)).not.toThrow();
 		for (const id of reviewedIds) {
-			const lastVerifiedAt = latestHashes.has(id)
-				? '2026-07-27'
-				: id === 'T-HARPER'
-					? '2026-07-26'
-					: id.startsWith('L-') ||
-						  id === 'APPLE-LINE-PUNCTUATION' ||
-						  id === 'G-ADD-SONGS' ||
-						  id === 'G-QE-MARKS'
-						? '2026-07-25'
-						: '2026-07-24';
-			expect(getSource(id)).toMatchObject(
-				latestHashes.has(id)
-					? {
-							id,
-							retrievedAt: '2026-07-27',
-							lastVerifiedAt,
-							reviewStatus: 'reviewed',
-							contentHash: latestHashes.get(id)
-						}
-					: id === 'T-HARPER'
-						? {
-								id,
-								retrievedAt: '2026-07-26',
-								lastVerifiedAt,
-								reviewStatus: 'reviewed'
-							}
-						: id === 'APPLE-LINE-PUNCTUATION' || id.startsWith('L-')
-							? {
-									id,
-									retrievedAt: '2026-07-25',
-									lastVerifiedAt,
-									reviewStatus: 'reviewed'
-								}
-							: {
-									id,
-									retrievedAt: '2026-07-24',
-									lastVerifiedAt,
-									reviewStatus: 'reviewed'
-								}
-			);
+			expect(getSource(id)).toMatchObject({
+				id,
+				retrievedAt: retrievedOn(id),
+				lastVerifiedAt: verifiedOn(id),
+				reviewStatus: 'reviewed',
+				...(latestHashes.has(id) ? { contentHash: latestHashes.get(id) } : {})
+			});
 		}
 	});
 
-	it('contains only the 54 specified source records', () => {
-		expect(sourceRegistry.size).toBe(54);
+	it('contains only the 55 specified source records', () => {
+		expect(sourceRegistry.size).toBe(55);
 	});
 });

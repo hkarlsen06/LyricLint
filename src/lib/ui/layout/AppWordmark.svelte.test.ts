@@ -24,6 +24,26 @@ function open(element: HTMLElement): number {
 	return Number.parseFloat(getComputedStyle(element).getPropertyValue('--wm-open'));
 }
 
+/** The handoff's own driver: how much of the lockup has arrived in the toolbar. */
+function arrived(element: HTMLElement): number {
+	return Number.parseFloat(getComputedStyle(element).getPropertyValue('--wm-in'));
+}
+
+/**
+ * The four boxes that draw the lockup, measured rather than trusted: the handoff
+ * takes a fraction of `--wm-width`, and that has to be the width its own parts
+ * occupy or the arrived wordmark is clipped short or trails empty space.
+ */
+function partsWidth(element: HTMLElement): number {
+	// The laid-out width, not the painted one: the brackets reach out past their
+	// own boxes with a `scaleX`, which a client rect would count and layout
+	// rightly does not.
+	return [...element.children].reduce(
+		(total, part) => total + Number.parseFloat(getComputedStyle(part).width),
+		0
+	);
+}
+
 describe('AppWordmark', () => {
 	it('holds the wordmark open long enough to read, then contracts to the mark', async () => {
 		vi.useFakeTimers();
@@ -98,19 +118,30 @@ describe('AppWordmark', () => {
 		expect(getComputedStyle(element.querySelector('.app-wordmark__lead')!).animationName).toBe(
 			'none'
 		);
-		expect(
-			(element.getAnimations()[0]?.effect as KeyframeEffect | null)?.getKeyframes().at(-1)?.clipPath
-		).toBe('inset(0px)');
+
+		// The travel beat is spent at no width at all, so the name beside it starts
+		// at the head of the toolbar and is pushed right as the word is uncovered —
+		// one edge, not two things agreeing about a rate.
+		expect(arrived(element)).toBe(0);
+		expect(element.getBoundingClientRect().width).toBe(0);
+
+		await Promise.all(element.getAnimations().map((animation) => animation.finished));
+
+		expect(arrived(element)).toBe(1);
+		expect(element.getBoundingClientRect().width).toBeCloseTo(partsWidth(element), 1);
 	});
 
-	it('reserves the handoff space until the wordmark arrives', async () => {
+	it('takes no space in the toolbar until the wordmark arrives', async () => {
 		const view = await render(AppWordmark, { entrance: 'handoff', visible: false });
 		const element = lockup();
-		const width = element.getBoundingClientRect().width;
 
 		expect(getComputedStyle(element).visibility).toBe('hidden');
 		expect(open(element)).toBe(1);
-		expect(width).toBeGreaterThan(0);
+		// The regression this replaces: the lockup held its final width from the
+		// first frame and filled it in place, which put a hand of empty chrome at
+		// the head of the toolbar and read as waiting rather than as a handoff.
+		expect(arrived(element)).toBe(0);
+		expect(element.getBoundingClientRect().width).toBe(0);
 
 		await view.rerender({ entrance: 'handoff', visible: true });
 		expect(lockup()).toBe(element);

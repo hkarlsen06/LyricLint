@@ -59,6 +59,16 @@
 		() => initialSelected.length > 0 && initialSelected.length === occurrences.length - 1
 	);
 
+	// And whether it opened on a section with no words in it, which reverses what
+	// linking does here: an empty section has nothing to give, so it is filled
+	// from the copies that are ticked rather than written over them. Read once for
+	// the same reason as above.
+	const openedEmpty = untrack(
+		() =>
+			occurrences.find((occurrence) => occurrence.headerFrom === currentHeaderFrom)?.comparison ===
+			'empty'
+	);
+
 	const wasLinked = $derived(initialSelected.length > 0);
 	const changed = $derived(
 		selected.length !== initialSelected.length ||
@@ -246,7 +256,9 @@
 				? `This is the only ${kind.toLocaleLowerCase()} in the song.`
 				: openedComplete
 					? `These ${occurrences.length} sections are linked. Editing one edits the others.`
-					: `Linking replaces their words with this ${kind.toLocaleLowerCase()}’s, and keeps them in step.`}
+					: openedEmpty
+						? `This ${kind.toLocaleLowerCase()} is empty, so linking fills it from the ones you pick, and keeps them in step.`
+						: `Linking replaces their words with this ${kind.toLocaleLowerCase()}’s, and keeps them in step.`}
 		</p>
 		<div class="actions">
 			<button

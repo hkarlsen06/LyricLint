@@ -754,9 +754,9 @@ export interface LineAnchorOptions {
 	 * The set of anchors changed, so the shell can write them down.
 	 *
 	 * No anchor is ever a side effect of typing, and none of the three ways one
-	 * is set changes any text: sync mode holds the document read-only, and
-	 * `Ctrl-Alt-M` and this column's own control move nothing. A shell that saved
-	 * only on a document change would therefore lose every anchor there is.
+	 * is set changes any text: a sync tap writes an anchor and moves the caret,
+	 * and `Ctrl-Alt-M` and this column's own control move nothing. A shell that
+	 * saved only on a document change would therefore lose every anchor there is.
 	 */
 	onAnchorsChanged?(): void;
 }

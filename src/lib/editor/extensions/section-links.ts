@@ -225,21 +225,36 @@ export function sectionLinksFor(state: EditorState): SectionLink[] {
 }
 
 /**
- * Tie these sections together and overwrite every one of them from the first.
+ * Tie these sections together and overwrite every one of them from the source.
  *
- * The first is the section the picker was opened from, which is the whole
+ * The source is the section the picker was opened from, which is the whole
  * arbitration: the user is looking at the words they want kept, so those are
  * the words that win. Changes and membership travel in one transaction, so one
  * undo puts the song back exactly as it was.
+ *
+ * **Unless that section has no words**, which is the one case where the section
+ * in front of the user cannot be the one that wins: adding `[Chorus 3]` at the
+ * foot of a draft and linking it to the chorus above is a request to *fill* it,
+ * and an empty source would answer it by emptying the chorus that had the
+ * words. A section with nothing in it has nothing to give, so the words come
+ * from the first member of the group that has any — the group, never the
+ * document, because a peer the user did not tick is not part of what they
+ * asked for. All of them empty is the harmless case and writes nothing.
  */
 export function linkSections(view: EditorView, headers: readonly number[]): number {
 	const parsed = parsedDocumentForState(view.state);
-	const [source, ...targets] = headers;
-	const body = source === undefined ? undefined : sectionBodyRange(parsed, source);
-	const text = body ? view.state.doc.sliceString(body.from, body.to) : '';
+	const opened = headers[0] ?? 0;
+	const bodyText = (header: number): string => {
+		const range = sectionBodyRange(parsed, header);
+		return range ? view.state.doc.sliceString(range.from, range.to) : '';
+	};
+	const source =
+		[...headers].sort((left, right) => left - right).find((header) => bodyText(header).trim()) ??
+		opened;
+	const text = bodyText(source);
 	const changes: TextEdit[] = [];
-	for (const target of targets) {
-		const range = sectionBodyRange(parsed, target);
+	for (const target of headers) {
+		const range = target === source ? undefined : sectionBodyRange(parsed, target);
 		if (range && view.state.doc.sliceString(range.from, range.to) !== text) {
 			changes.push({ from: range.from, to: range.to, insert: text });
 		}
@@ -249,12 +264,15 @@ export function linkSections(view: EditorView, headers: readonly number[]): numb
 	// tidiness: the card opened *because* the header was selected whole, and the
 	// selection survives the edit, so leaving it there would reopen the card the
 	// user just answered on the next settled anchor report. A collapsed selection
-	// reports no anchor at all. Bodies never contain a header, so the source's own
-	// offset only moves by what the earlier replacements added or took away.
+	// reports no anchor at all. It follows the *opened* header rather than the
+	// source, which are the same offset except when an empty section was filled
+	// from a peer — and there it is still the header the selection sits on.
+	// Bodies never contain a header, so that offset only moves by what the
+	// earlier replacements added or took away.
 	const caret =
-		(source ?? 0) +
+		opened +
 		changes
-			.filter((change) => change.to <= (source ?? 0))
+			.filter((change) => change.to <= opened)
 			.reduce((shift, change) => shift + change.insert.length - (change.to - change.from), 0);
 	view.dispatch({
 		...(changes.length > 0 ? { changes } : {}),

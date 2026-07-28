@@ -186,11 +186,24 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench();
 		const view = render(DocumentToolbar, { controller, brandRevealed: false });
 		const wordmark = document.querySelector('.app-wordmark') as HTMLElement;
+		const title = screen.getByLabelText('Draft title');
+		const awayLeft = title.getBoundingClientRect().left;
 
 		expect(wordmark).toHaveAttribute('data-visible', 'false');
+		// The lockup reserves nothing while it is away, so the draft's name starts
+		// at the head of the toolbar rather than beside a hand of empty chrome.
+		expect(wordmark.getBoundingClientRect().width).toBe(0);
+
 		await view.rerender({ controller, brandRevealed: true });
 		expect(screen.getByRole('img', { name: 'LyricLint' })).toBe(wordmark);
 		expect(wordmark).toHaveAttribute('data-visible', 'true');
+
+		// And the name is pushed along by the arriving word rather than sitting
+		// still while it fills a slot that was already open.
+		await Promise.all(wordmark.getAnimations().map((animation) => animation.finished));
+		const width = wordmark.getBoundingClientRect().width;
+		expect(width).toBeGreaterThan(0);
+		expect(title.getBoundingClientRect().left).toBeCloseTo(awayLeft + width, 0);
 	});
 
 	test('replaces the selection with an unknown lyric marker in one undoable edit', async () => {

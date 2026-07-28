@@ -79,6 +79,16 @@ const sources: SourceReference[] = [
 		reviewStatus: 'reviewed'
 	},
 	{
+		id: 'L-NO-ACCENT',
+		url: 'https://sprakradet.no/godt-og-korrekt-sprak/rettskriving-og-grammatikk/tegn/aksentteikn/',
+		pageTitle: 'Aksentteikn',
+		sectionTitle:
+			'Gravis separates the adverb òg from the conjunction og; the acute accent is wrong here',
+		retrievedAt: latestReviewedAt,
+		lastVerifiedAt: latestReviewedAt,
+		reviewStatus: 'reviewed'
+	},
+	{
 		id: 'L-DE-COMMON',
 		url: 'https://www.duden.de/haeufige_fehler',
 		pageTitle: 'Häufige Fehler und Falschschreibweisen',

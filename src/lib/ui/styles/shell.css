@@ -141,6 +141,21 @@
 		calc(var(--wm-slot-closed) + var(--wm-open) * (var(--wm-slot-open) - var(--wm-slot-closed)))
 	);
 
+	/* 4.9 by 17.2 is the painted bounds of the mark's bracket, stroke included.
+	   Stated rather than left to the intrinsic ratio, so the lockup's width does
+	   not depend on how a browser sizes an `auto` replaced element in a flex row. */
+	--wm-bracket-width: calc(var(--wm-bracket-height) * 4.9 / 17.2);
+	--wm-lead-width: max(0px, calc(var(--wm-open) * var(--wm-lead-open)));
+
+	/* The lockup's own width, as the sum of the four boxes that draw it, so it is
+	   exact at every value of the driver — the spring's overshoot past 1 included,
+	   which is why this is derived rather than a constant for the open state. The
+	   handoff below is the only thing that needs it, and it needs it to be the
+	   width the children actually occupy: it takes a fraction of this, and
+	   anything but the true sum would either clip the word or leave a gap the
+	   lockup never fills. */
+	--wm-width: calc(var(--wm-lead-width) + var(--wm-slot-width) + 2 * var(--wm-bracket-width));
+
 	/* Per-letter fan-out. A letter's own 0-to-1 progress is a window on the
 	   master: it opens at `--wm-delay` plus a slice of `--wm-stagger` for its
 	   index, and closes `--wm-span` later. The two words get different windows
@@ -195,10 +210,36 @@
 	transition: none;
 }
 
-/* The boot screen leaves the same lockup behind in the toolbar. It is already
-   taking up its final space, then draws from left to right after the travel beat
-   so the second drawing reads as a handoff rather than waiting chrome. */
+/* The boot screen leaves the same lockup behind in the toolbar, drawn from left
+   to right after the travel beat so the second drawing reads as a handoff rather
+   than waiting chrome.
+ *
+ * It reserves no space while it is away, and the draft's name is pushed right at
+ * exactly the rate the word arrives. A lockup that held its final width from the
+ * first frame put a hand of empty chrome at the head of the toolbar and then
+ * filled it in place, which reads as the toolbar waiting for something rather
+ * than as the brand landing in it.
+ *
+ * `--wm-in` is that arrival, 0 to 1, and it is a width rather than a clip: the
+ * element takes its own fraction of `--wm-width` and hides the overflow, so the
+ * edge the word is uncovered at and the edge that pushes the name along are the
+ * same edge by construction. Nothing has to agree about the rate. It is one
+ * driver for one gesture, as `--wm-open` is for the rig it rides on — and the
+ * two compose, since the width it takes a fraction of is the live one. */
+@property --wm-in {
+	syntax: '<number>';
+	inherits: false;
+	initial-value: 1;
+}
+
+.app-wordmark[data-entrance='handoff'] {
+	width: calc(var(--wm-in) * var(--wm-width));
+	overflow: hidden;
+}
+
 .app-wordmark[data-entrance='handoff'][data-visible='false'] {
+	--wm-in: 0;
+
 	visibility: hidden;
 }
 
@@ -207,13 +248,15 @@
 		calc(var(--duration-slow) + var(--duration-fast)) both;
 }
 
+/* `both`, so the delay is spent at zero width: the toolbar holds the space open
+   for nothing until the boot lockup has finished travelling. */
 @keyframes wordmark-handoff-left {
 	from {
-		clip-path: inset(0 100% 0 0);
+		--wm-in: 0;
 	}
 
 	to {
-		clip-path: inset(0);
+		--wm-in: 1;
 	}
 }
 
@@ -237,7 +280,7 @@
    from behind it. Clipping is free here and only here — the lead is the half of
    the lockup with no vertical motion to shear off. */
 .app-wordmark__lead {
-	width: max(0px, calc(var(--wm-open) * var(--wm-lead-open)));
+	width: var(--wm-lead-width);
 	overflow: hidden;
 }
 
@@ -251,10 +294,7 @@
    always had — the two brands meet in the middle of the transition instead of
    one of them winning. Their arms reach out a little as they travel. */
 .app-wordmark__bracket {
-	/* Stated rather than left to the intrinsic ratio, so the lockup's width does
-	   not depend on how a browser sizes an `auto` replaced element in a flex row.
-	   4.9 by 17.2 is the painted bounds of the mark's bracket, stroke included. */
-	width: calc(var(--wm-bracket-height) * 4.9 / 17.2);
+	width: var(--wm-bracket-width);
 	height: var(--wm-bracket-height);
 	flex: none;
 	stroke: color-mix(in oklab, var(--color-warning) calc(var(--wm-open) * 100%), var(--color-text));

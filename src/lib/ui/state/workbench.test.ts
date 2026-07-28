@@ -385,9 +385,9 @@ describe('workbench draft safety', () => {
 	});
 
 	/*
-	 * No way of setting an anchor changes any text: sync mode holds the document
-	 * read-only, and `Ctrl-Alt-M` and the timestamp column's own control move
-	 * nothing. Saving only on a snapshot therefore lost a whole synced song on
+	 * No way of setting an anchor changes any text: a sync tap writes an anchor
+	 * and moves the caret, and `Ctrl-Alt-M` and the timestamp column's own control
+	 * move nothing. Saving only on a snapshot therefore lost a whole synced song on
 	 * reload.
 	 */
 	test('saves anchors written without the text changing', async () => {

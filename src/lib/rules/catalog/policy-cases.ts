@@ -85,9 +85,11 @@ export const policyCases: readonly RulePolicyCase[] = [
 	},
 	{
 		id: 'section.verse-numbering',
-		invalid: '[Chorus 2]\nAgain',
+		invalid: '[Verse]\nFirst\n\n[Verse]\nSecond',
 		valid: '[Verse 1]\nFirst\n\n[Verse 2]\nSecond',
-		ambiguous: '[Verse]\nFirst\n\n[Verse]\nSecond'
+		// One distinct verse, sung twice. Genius leaves that unnumbered, so the
+		// missing numbers here are correct rather than an omission.
+		ambiguous: '[Verse]\nFirst\n\n[Chorus]\nHold\n\n[Verse]\nFirst'
 	},
 	{
 		id: 'section.header-language',

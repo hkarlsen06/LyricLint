@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { isLyricLine } from '$lib/core/parser.js';
 import type { EditorHandle } from '$lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
+import { tapOffsetSeconds } from './extensions/lyric-sync.js';
 import EditorPane from './EditorPane.svelte';
 
 function context(): EditorDisplayContext {
@@ -730,14 +731,44 @@ describe('sync mode', () => {
 		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('second line'));
 	});
 
-	it('takes the document out of service so the tap key is free', async () => {
-		const { handle } = await mount({ text: song, mediaTime: () => 30 });
+	// The document is no longer held read-only, so the run's own keymap is the
+	// whole of what keeps its keys out of the text. Each of these commands returns
+	// true down every path it has while a run is under way, so none of them ever
+	// reaches the document — a run that typed a space into the lyric on its first
+	// tap would be worse than no run at all.
+	it('keeps the run’s own keys out of the document', async () => {
+		const { handle, syncChanges } = await mount({ text: song, mediaTime: () => 30 });
+		handle.setLyricSync?.(true);
+		handle.focus();
+
+		await userEvent.keyboard(' {Backspace}{ArrowUp}');
+
+		expect(handle.getSnapshot().text).toBe(song);
+		expect(syncChanges.at(-1)?.active).toBe(true);
+	});
+
+	// Typing is the fourth way out, and the only one that arrives without having
+	// been asked for. A mode that answered a mis-keyed letter with nothing at all
+	// left the user typing at a line they could see was wrong, with no sign of why
+	// it would not take — so the keystroke ends the run and then lands, exactly
+	// where it was typed.
+	it('ends the run on a typed character, and takes the character', async () => {
+		const { handle, syncChanges, announcements } = await mount({
+			text: song,
+			mediaTime: () => 30
+		});
 		handle.setLyricSync?.(true);
 		handle.focus();
 
 		await userEvent.keyboard(' x');
 
-		expect(handle.getSnapshot().text).toBe(song);
+		expect(syncChanges.at(-1)?.active).toBe(false);
+		// The caret is on the line the tap just timed, which is where the character
+		// belongs: the user is fixing the line they are hearing.
+		expect(handle.getSnapshot().text).toBe(song.replace('first line', 'xfirst line'));
+		expect(announcements.at(-1)).toBe('Sync stopped: the document changed.');
+		// The run's work survives it. Ending is not undoing.
+		expect((handle.getLineAnchors?.() ?? []).map(({ line }) => line)).toEqual([2]);
 	});
 
 	// Without a way back, one fumbled tap means restarting the run: every later
@@ -769,6 +800,56 @@ describe('sync mode', () => {
 		await userEvent.keyboard(' ');
 		expect((handle.getLineAnchors?.() ?? []).map(({ line }) => line)).toEqual([2, 5]);
 		expect(handle.getSnapshot().text).toBe(longer);
+	});
+
+	// The caret alone is half a step back: a run is one pass over the document
+	// against one pass of the audio, so leaving the tape where the fumble happened
+	// would have the user reading the line before it while hearing the line after,
+	// and the next tap would land as wrong as the one just taken back.
+	it('backs the tape up to the previous line on Backspace', async () => {
+		const longer = [...song.split('\n'), 'third line'].join('\n');
+		// Two distinguishable taps, so the seek can be checked against the earlier
+		// one rather than against whatever the tape happens to say now.
+		let now = 30;
+		const { handle, seek } = await mount({
+			text: longer,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => now
+		});
+		handle.setLyricSync?.(true);
+		handle.focus();
+
+		await userEvent.keyboard(' ');
+		now = 45;
+		await userEvent.keyboard(' ');
+		seek.mockClear();
+
+		await userEvent.keyboard('{Backspace}');
+
+		// The first line's own anchor, offset and all, so the line the caret is on
+		// starts a beat after playback resumes.
+		expect(seek).toHaveBeenCalledWith(30 - tapOffsetSeconds);
+	});
+
+	// The first tap of a run has no line behind it, so there is no moment to go
+	// back to. The tap comes off and the tape is left where it is, rather than
+	// being sent somewhere invented.
+	it('leaves the tape alone stepping back off the first line of a run', async () => {
+		const { handle, seek } = await mount({
+			text: song,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => 30
+		});
+		handle.setLyricSync?.(true);
+		handle.focus();
+
+		await userEvent.keyboard(' ');
+		seek.mockClear();
+		await userEvent.keyboard('{Backspace}');
+
+		expect(seek).not.toHaveBeenCalled();
+		expect(handle.getLineAnchors?.()).toEqual([]);
+		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
 	});
 
 	/*

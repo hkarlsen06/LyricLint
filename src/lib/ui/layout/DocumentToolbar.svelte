@@ -378,7 +378,15 @@
 			<path d="m9.5 16.6 4.4 4.4 9-9.4" />
 		</svg>
 		<h2 id="copy-receipt-title">Lyrics copied</h2>
-		<p>Paste them into Genius. It also asks for these, which this song already told us.</p>
+		<!-- The last clause is the whole of the instructions for the list under it.
+		     A value that is only pressable is a control nobody discovers — the same
+		     failure the timestamp column had while it drew a blank cell — and this is
+		     one sentence in the place the reader already is rather than a second line
+		     of grey over the facts. -->
+		<p>
+			Paste them into Genius. It also asks for these, which this song already told us — press one to
+			copy it.
+		</p>
 		<!-- The facts read down a left edge, so this is the one part of the receipt
 		     that is not centred, and a hairline is what separates it from the message
 		     above — a border around it would be a card inside the dialog. -->

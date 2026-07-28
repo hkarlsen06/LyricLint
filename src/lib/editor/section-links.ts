@@ -51,7 +51,13 @@ export interface LinkOccurrence {
 	label: string;
 	/** Position among this kind's occurrences, counted from the top of the song. */
 	ordinal: number;
-	/** How this section's lyrics compare with the section the picker opened from. */
+	/**
+	 * How this section's lyrics compare with the words a link would write.
+	 *
+	 * `source` is the section the card was opened from — unless it has no words,
+	 * in which case it reports `empty` like any other empty copy, because an
+	 * empty section is not what a link is written from.
+	 */
 	comparison: 'source' | 'same' | 'empty' | 'different';
 }
 
@@ -76,17 +82,24 @@ export function linkOccurrences(
 			.map((line) => line.text.trim())
 			.filter(Boolean)
 			.join('\n');
-	const sourceLyrics = lyrics(sectionForHeader(parsed, headerFrom) ?? members[0]);
+	// What a link would actually write: the opened section's words, or — where it
+	// has none — the first copy that has any, since that is where `linkSections`
+	// takes them from. Compared against an empty source every peer reads
+	// `different`, which is the card telling a user filling a new `[Chorus 3]`
+	// that the two identical choruses above it disagree.
+	const opened = sectionForHeader(parsed, headerFrom) ?? members[0];
+	const sourceLyrics =
+		lyrics(opened) || lyrics(members.find((section) => lyrics(section).length > 0) ?? opened);
 	return members.map((section, index) => ({
 		headerFrom: section.header?.from ?? 0,
 		line: lineNumberAt(parsed.text, section.header?.from ?? 0),
 		label: section.header?.rawNamePart.trim() || section.header?.raw || '',
 		ordinal: index + 1,
 		comparison:
-			section.header?.from === headerFrom
-				? 'source'
-				: lyrics(section).length === 0
-					? 'empty'
+			lyrics(section).length === 0
+				? 'empty'
+				: section.header?.from === headerFrom
+					? 'source'
 					: lyrics(section) === sourceLyrics
 						? 'same'
 						: 'different'

@@ -6,6 +6,7 @@ import { createMediaStore } from './media-store.svelte.js';
 import { StubAudio } from './media-test-audio.js';
 import { createStubYouTubeApi } from './media-test-youtube.js';
 import type { MediaRepository } from '$lib/persistence/index.js';
+import type { MusicKitLoader } from './media-apple.js';
 
 /**
  * A file handle whose permission answer the test chooses.
@@ -36,6 +37,7 @@ function setup(
 		now?: () => number;
 		file?: File;
 		handle?: FileSystemFileHandle;
+		loadMusicKit?: MusicKitLoader;
 	} = {}
 ) {
 	const audio = new StubAudio();
@@ -49,7 +51,8 @@ function setup(
 		createAudio: () => audio.asMediaElement(),
 		createObjectUrl: () => 'blob:test',
 		revokeObjectUrl: () => {},
-		loadYouTubeApi: youtube.load
+		loadYouTubeApi: youtube.load,
+		...(options.loadMusicKit ? { loadMusicKit: options.loadMusicKit } : {})
 	});
 	const file = options.file ?? new File([''], 'track.mp3', { type: 'audio/mpeg' });
 	const repository = options.repository ?? createInMemoryMediaRepository();
@@ -405,4 +408,86 @@ describe('a draft on an Apple Music song', () => {
 		expect(next.media.songId).toBe('1091453645');
 		expect(next.player.attached).toBe(false);
 	});
+
+	/**
+	 * The bug this pair of tests was written for, and why it presented as three.
+	 *
+	 * A blocked sign-in pop-up leaves MusicKit's `authorize()` unsettled forever
+	 * (see `authorizeAppleMusic`), so `reconnect` never reached its `finally` and
+	 * `busy` stayed true for the rest of the session. Nothing about that looks like
+	 * a sign-in problem from the outside: the reconnect control span forever, no
+	 * artwork ever arrived, and — three surfaces away — the picker's search button
+	 * is disabled on `busy`, so Apple Music search read as broken in a dialog the
+	 * user had not even had open when it happened.
+	 *
+	 * So the assertion is `busy`, not the message. A press that fails has to hand
+	 * the workbench back.
+	 */
+	it('hands the workbench back when the sign-in window is blocked', async () => {
+		const nativeOpen = (globalThis as { open?: unknown }).open;
+		// Node has no `window.open`, and its absence means "nothing to watch" rather
+		// than "refused" — so a browser that refuses has to be supplied to be tested.
+		(globalThis as { open?: unknown }).open = () => null;
+
+		try {
+			const repository = createInMemoryMediaRepository();
+			await repository.attach({
+				draftId: 'draft-1',
+				name: 'Kygo — Stole the Show',
+				source: 'apple',
+				songId: '1091453645'
+			});
+
+			const { media, player } = setup({
+				repository,
+				loadMusicKit: async () => stubMusicKitRefusingSignIn()
+			});
+			await media.openFor('draft-1');
+			expect(media.pendingSource).toBe('apple');
+
+			await media.reconnect();
+
+			expect(media.busy).toBe(false);
+			expect(player.starting).toBe(false);
+			expect(player.error).toBe(
+				'Apple Music’s sign-in window was blocked. Allow pop-ups for this site, then press again.'
+			);
+		} finally {
+			(globalThis as { open?: unknown }).open = nativeOpen;
+		}
+	});
 });
+
+/**
+ * MusicKit for a subscriber this origin has never signed in on.
+ *
+ * `authorize` opens a window and then waits on it, exactly as the real one does —
+ * which, when the window was refused, is a promise that never settles.
+ */
+function stubMusicKitRefusingSignIn() {
+	const instance = {
+		isAuthorized: false,
+		storefrontId: 'no',
+		currentPlaybackTime: 0,
+		currentPlaybackDuration: 0,
+		playbackRate: 1,
+		authorize: () => {
+			(globalThis as { open?: (url: string, target: string) => unknown }).open?.(
+				'https://authorize.music.apple.com/woa',
+				'apple-auth'
+			);
+			return new Promise<string>(() => {});
+		},
+		setQueue: async () => undefined,
+		play: async () => undefined,
+		pause: () => {},
+		stop: async () => undefined,
+		seekToTime: async () => undefined,
+		addEventListener: () => {},
+		removeEventListener: () => {}
+	};
+	return {
+		configure: async () => instance,
+		PlaybackStates: { playing: 2, paused: 3, stopped: 4, ended: 5, completed: 10 }
+	} as unknown as Awaited<ReturnType<MusicKitLoader>>;
+}

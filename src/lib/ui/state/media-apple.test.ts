@@ -3,6 +3,7 @@ import type { AppleMusicInstance, AppleMusicSource } from './media-apple.js';
 import {
 	appleMusicConfigured,
 	appleMusicTokenExpiry,
+	authorizeAppleMusic,
 	createAppleMusicSource,
 	parseAppleMusicSongId,
 	searchAppleMusicSongs
@@ -507,5 +508,129 @@ describe('createAppleMusicSource', () => {
 
 		expect(events.log).toContain('failed:Apple Music sign-in was cancelled.');
 		expect(instance.setQueue).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The regression this whole wrapper exists for, at the level that matters.
+	 *
+	 * A blocked pop-up leaves MusicKit's own `authorize()` unsettled forever, so
+	 * before this `load` never returned — and `load` not returning is what left
+	 * `busy` true, the picker's search button dead, no artwork, and a play control
+	 * spinning. What is asserted here is simply that it *resolves*.
+	 */
+	it('does not hang when the sign-in window is blocked, and says so', async () => {
+		const { instance } = stubMusic({
+			isAuthorized: false,
+			// Exactly MusicKit's own shape: no throw, no resolve, ever.
+			authorize: vi.fn(() => new Promise<string>(() => {}))
+		});
+		const events = recorder();
+		const source = createAppleMusicSource({
+			events,
+			music: async () => instance,
+			playbackStates: async () => playbackStates,
+			rates: [1],
+			authorize: async () => 'blocked'
+		});
+
+		await source.load(songId);
+
+		expect(events.log).toContain(
+			'failed:Apple Music’s sign-in window was blocked. Allow pop-ups for this site, then press again.'
+		);
+		expect(instance.setQueue).not.toHaveBeenCalled();
+	});
+});
+
+describe('authorizeAppleMusic', () => {
+	/** A scope standing in for `window`, so nothing here touches a real one. */
+	function scopeWith(open: () => unknown) {
+		return { open: open as unknown as (typeof globalThis)['open'] };
+	}
+
+	/**
+	 * The blocked window is *observed*, not waited out.
+	 *
+	 * MusicKit answers a blocked pop-up with silence — `_startPollingForWindowClosed`
+	 * is guarded on the window existing, and that interval is the only thing that
+	 * ever settles the promise. So the `null` return from `window.open` is the
+	 * signal, and it has to resolve the race while `authorize()` is still pending
+	 * for the rest of the page's life.
+	 */
+	it('answers at once when the pop-up is blocked, without waiting on MusicKit', async () => {
+		const scope = scopeWith(() => null);
+		const { instance } = stubMusic({
+			isAuthorized: false,
+			authorize: vi.fn(() => {
+				scope.open('https://authorize.music.apple.com/woa', 'apple-auth');
+				return new Promise<string>(() => {});
+			})
+		});
+
+		await expect(authorizeAppleMusic(instance, { scope })).resolves.toBe('blocked');
+	});
+
+	it('reports a completed sign-in and one the user turned down', async () => {
+		const opened = () => scopeWith(() => ({ closed: false }));
+
+		const { instance: signedIn } = stubMusic({
+			isAuthorized: false,
+			authorize: vi.fn(async () => 'user-token')
+		});
+		await expect(authorizeAppleMusic(signedIn, { scope: opened() })).resolves.toBe('authorized');
+
+		const { instance: refused } = stubMusic({
+			isAuthorized: false,
+			authorize: vi.fn(async () => {
+				throw new Error('cancelled');
+			})
+		});
+		await expect(authorizeAppleMusic(refused, { scope: opened() })).resolves.toBe('refused');
+	});
+
+	/**
+	 * The patch is a watcher, not a replacement.
+	 *
+	 * It hands MusicKit back whatever the real `window.open` returned — including
+	 * the `null` — and puts the original back on every path, so a blocked sign-in
+	 * cannot leave the page with a wrapped `open` for everything that comes after.
+	 */
+	it('passes the window through unchanged and restores open afterwards', async () => {
+		const real = vi.fn(() => ({ closed: false }));
+		const scope = scopeWith(real);
+		const native = scope.open;
+		let seen: unknown;
+		const { instance } = stubMusic({
+			isAuthorized: false,
+			authorize: vi.fn(async () => {
+				seen = scope.open('https://authorize.music.apple.com/woa', 'apple-auth');
+				return 'user-token';
+			})
+		});
+
+		await authorizeAppleMusic(instance, { scope });
+
+		expect(seen).toEqual({ closed: false });
+		expect(real).toHaveBeenCalledTimes(1);
+		expect(scope.open).toBe(native);
+	});
+
+	/**
+	 * The backstop, for a MusicKit that stops using `window.open`.
+	 *
+	 * It is five minutes in production and deliberately useless as a timeout — a
+	 * sign-in is a person typing a password and a code from another device, and
+	 * cutting that off partway would be a worse bug than the hang. This only
+	 * guarantees the wait is bounded.
+	 */
+	it('gives up eventually even if nothing ever opens a window', async () => {
+		const { instance } = stubMusic({
+			isAuthorized: false,
+			authorize: vi.fn(() => new Promise<string>(() => {}))
+		});
+
+		await expect(
+			authorizeAppleMusic(instance, { scope: scopeWith(() => null), timeoutMs: 5 })
+		).resolves.toBe('unanswered');
 	});
 });

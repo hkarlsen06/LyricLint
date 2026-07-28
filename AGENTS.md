@@ -801,8 +801,8 @@ rather than in somebody's lost work.
 
 **Setting an anchor has to schedule its own save, because none of them change the text.**
 `draft.scheduleSave()` runs from `onSnapshot`, and only when the document actually changed — so for
-a while a whole synced song was lost on reload. Sync mode holds the document read-only; `Ctrl-Alt-M`
-and the timestamp column's own control move nothing. The path is `onAnchorsChanged` on the extension →
+a while a whole synced song was lost on reload. A sync tap writes an anchor and moves the caret;
+`Ctrl-Alt-M` and the timestamp column's own control move nothing. The path is `onAnchorsChanged` on the extension →
 `onLineAnchorsChanged` on the contract → `controller.onLineAnchorsChanged()`, and it deliberately
 stays quiet for two kinds of update: a document change, which the snapshot already covers, and a
 transaction carrying `setLineAnchorsEffect`, which is the draft being read back rather than
@@ -961,10 +961,32 @@ somewhere else has nothing — which is most drafts. Sync mode is how one gets t
 a key at the start of each line, and the caret walks down the document ahead of you.
 
 **It is a mode, and that is what makes the key cheap.** The whole value is one key hit in rhythm
-without thinking about it, which rules out a chord; and a bare `Space` is only free if the document
-is not taking typing. So entering sets `EditorState.readOnly` — which blocks document changes only,
-leaving the caret free to walk and the anchor effects free to land — and every way out is loud:
-`Escape`, the strip's own control, and running off the end of the document.
+without thinking about it, which rules out a chord; and a bare `Space` is only free while the run
+owns it, which the mode's own keymap sees to at the highest precedence. Every way out is loud:
+`Escape`, the strip's own control, running off the end of the document — and typing.
+
+**Typing ends the run, and the character lands where it was typed.** The mode used to hold the
+document `EditorState.readOnly`, on the reasoning that a document not taking typing is what frees
+`Space` to be the tap. What that actually bought was a mis-keyed letter doing nothing at all: the
+user typed at a line they could see was wrong, nothing happened, and there was no sign of why it
+would not take — they had to work out that they were in a mode before they could fix it. `Space`
+was being freed by the keymap the whole time, so the lock was buying only the silence. A keystroke
+that would write something is now read as what it plainly is — the user has stopped tapping and
+started transcribing — and the shell pauses the tape on the way out, as it does for every other
+exit.
+
+**It is read off the document actually changing, never off a guess about which keys mean typing.**
+That is what keeps it one rule rather than a list: a dead key, an IME composition, a paste, a drop
+and a fix applied from the panel are all edits, and every one of them ends the run. Nothing has to
+be excluded either, because the keys the run owns — `Space`, `Enter`, `Backspace`, `ArrowUp` —
+return true down every path they have while a run is under way, so they are answered by the keymap
+and never reach the document. An `EditorState.transactionExtender` rather than a filter, because
+the effect has to ride the very transaction that carried the edit: one undo step, one snapshot, and
+no instant in which the document has changed while the mode is still on.
+
+Ending is not undoing: the anchors the run wrote stay written, and the announcement is the run's
+own (`Sync stopped: the document changed.`), because a mode that ends under someone's fingers is
+loud on screen and silent to a screen reader.
 
 **No `preventDefault: true` on any of the sync bindings.** That option prevents the default even
 when the command returns _false_, so it swallows the space bar, backspace and the up arrow in an
@@ -985,7 +1007,7 @@ and on a phone it is the only way to drive a run at all. Three things about it:
   pressing it with a mouse is a legitimate way to time a line. `Space` and `Enter` activate a
   focused button and are the run's own keys, so the keyboard path survives the button taking focus.
 - **It does not focus the editor.** The press is already in the transport, the caret walks on its
-  own, and the document is read-only for the duration anyway.
+  own, and a run driven from there is a run nobody is typing into.
 
 The `Esc stops` hint beside it goes under a coarse pointer, where there is neither room for it nor
 a key it names.
@@ -1035,11 +1057,24 @@ The rest is five decisions:
   leaves rather than merely stepping off it, so that line is genuinely un-timed and the next tap
   writes it fresh — and it goes back to the previous line, which is still timed and therefore still
   `armed`. This is the only caller of `clearLineAnchorEffect`.
+
+  **The tape backs up with the caret**, to the time that previous line already carries. A run is one
+  pass over the document against one pass of the audio, so a step back that moved only the caret
+  would leave the two ends in different places — the user reading the line before the fumble while
+  hearing whatever came after it, and the next tap landing as wrong as the one being taken back.
+  Seeking to the stored anchor rather than to the moment of the tap carries `tapOffsetSeconds` back
+  with it, so the line starts a beat after playback resumes and there is a run-up to tap against. It
+  goes through `onSeekMedia`, the hook the timestamp column and `Ctrl-Alt-Enter` already seek
+  through, so backing a run up and jumping to a line cannot come to mean different things about
+  where the tape ends up — which also means it plays, and a run being backed up is a run in
+  progress. Where there is no earlier line, or the one there is carries no time, nothing is seeked:
+  the tap comes off and the audio is left where it is rather than sent somewhere invented.
+
 - **Every tap is written `tapOffsetSeconds` early** (120ms). Human taps land late, and without the
   offset jumping to a line starts just after its first syllable — the annoying direction, because
   the word you came back to check is the one you miss.
-- **The stamp and the advance are one transaction.** One press has to be one undo, and `readOnly`
-  does not stand in the way of putting a selection change and an effect in the same dispatch.
+- **The stamp and the advance are one transaction.** One press has to be one undo, and a selection
+  change and an effect go in one dispatch.
 - **The document follows the run, at a reading line a third from the top — and not before the caret
   gets there.** Far enough down that the lines already timed stay readable above it, high enough
   that the two thirds below show what is coming, which is what the user reads ahead into while
@@ -1092,6 +1127,31 @@ selected pack still wins where the two disagree.
 **The source is the section the user opened the card from**, and linking overwrites the others from
 it. There is no merge and no prompt about which words win: the user is looking at the words they
 mean to keep, which is the whole of the arbitration, and the card says so before the press.
+
+**Unless that section is empty, and then it is the one being filled.** Typing `[Refreng]` at the
+foot of a draft and linking it to the chorus above is a request to _fill_ it — nobody adds a header
+in order to empty the section it repeats — so writing from the section in front of the user answers
+it by destroying the only copy that had the words. A section with nothing in it has nothing to
+give: the words come from the first member of the group that has any, and the empty one joins the
+others as a target. **The group, never the document**, because a copy the user did not tick is not
+part of what they asked for; all of them empty writes nothing, which is the harmless case.
+
+Three things follow from it, and the first two are the card refusing to lie about what it is about
+to do:
+
+- **`comparison` is read against the words that will be written**, not against the opened section.
+  Compared with an empty source every peer is `different`, so a card opened on a new `[Chorus 3]`
+  told the user its two identical choruses disagreed.
+- **The opened section reports `empty` rather than `source` when it has no words**, and the card's
+  note says the opposite of its usual sentence: linking fills this one from the copies that are
+  ticked. Decided once at open, like `openedComplete`, because the two wrap to different heights.
+- **The collapsed selection still follows the _opened_ header**, which is no longer the source. It
+  is the header the selection sits on, and leaving it selected would reopen the card the user just
+  answered on the next settled anchor report.
+
+This is the same hazard `section.unlinked-repeat` already anchors around — the rule points at a
+copy that has words for exactly this reason — but the rule is not the only way in, and neither
+`Mod-Shift-L` nor the `⇄` mark went through it.
 
 **A body is measured from the end of the header line, not from the first lyric.** That one offset
 is what makes an empty `[Chorus 3]` take a peer's words with no special case — replacing an empty
@@ -1523,6 +1583,46 @@ must not do, and the reason `youtubeAllowed` exists. So the press pays for the s
 sign-in together, and where Apple already has a session the sign-in step passes straight through,
 which is the same trade the file source makes with an already-granted permission.
 
+**But the press may not pay for both in that order, and getting it wrong hangs the whole
+workbench.** The sign-in opens a pop-up, and a browser only allows one out of an activation it can
+still see — so awaiting Apple's ~600KB script and its `configure()` round trips in front of
+`authorize()` spends the very press the pop-up needed. On a cold load it was blocked every time.
+
+What made that a catastrophe rather than an error message is MusicKit's own bookkeeping:
+
+```js
+this._window = window.open(e, this.target, m) || void 0;
+_startPollingForWindowClosed(e){ this._window && … setInterval(…) }
+```
+
+That interval is the only thing that ever settles `authorize()`, and it is guarded on the window
+existing. **A blocked pop-up is therefore not a rejection — it is silence for the rest of the
+page's life**, and everything downstream inherits it: `load` never returns, `reconnect`'s `finally`
+never runs, `busy` stays true, and the picker's search button — disabled on `busy` — reads as a
+dead dialog in a part of the workbench the user had not even had open. One unsettled promise
+presenting as three unrelated faults is why both halves of the repair are load-bearing.
+
+- **The script is bought with an earlier press.** `prepareAppleMusic` runs when the audio dialog
+  opens, so by the time a result is pressed the instance is already configured and `authorize()`
+  runs in the same tick. This is not the module-scope load `youtubeAllowed` exists to prevent: it
+  is a press, on the one surface that offers Apple Music. `MediaPicker.svelte.test.ts` pins the
+  call, because removing it brings the hang back only on slow connections, where nothing else here
+  would fail.
+- **And `authorizeAppleMusic` watches for the refusal rather than waiting it out**, by patching
+  `window.open` for the length of the call: a `null` return resolves the race at once, while
+  MusicKit's promise stays pending forever. A duration cannot do this job — a sign-in is somebody
+  typing a password and a code from another device, so any timeout short enough to feel like one is
+  short enough to cut off a real sign-in. The five-minute backstop exists only so that a MusicKit
+  which stops using `window.open` cannot restore an unbounded wait. `blocked` is its own outcome
+  because it is the only one whose repair is a browser setting rather than another press, and the
+  message says so.
+
+**The reason this went unnoticed is that MusicKit's user token is per origin.** Every subscriber
+who had signed in on `127.0.0.1` skipped the branch entirely; moving the dev server to a hostname
+behind a proxy was enough to make everyone a first-time user again and light it up. A remote source
+whose sign-in path only runs on a new origin is a path no ordinary session will ever test —
+`media-store.test.ts` therefore drives it end to end and asserts on `busy`, not on the message.
+
 **The search signs in to nothing.** Apple's catalogue answers to this build's own developer token,
 so a user finds their song before being asked for an account — one better than Spotify, where
 searching is what triggers the OAuth redirect. It searches `music.storefrontId` rather than a
@@ -1776,6 +1876,37 @@ reason: it is a fact about what is playing, and the panel listing it should not 
 of four sources is playing it. Only Apple fills it; the read asks for **`include=albums`** because
 a song carries no label of its own and the album relationship is the only place Apple keeps one —
 one request either way.
+
+**Every value in that list is a press, and a writers row is one press per name.** The list exists
+to be retyped into fields somewhere else, and the page it is retyped into takes one writer at a
+time — so a reader handed four names on one wrapped line has been given the facts and none of the
+work, and the gesture they are left with is the one this list is worst at: selecting to a comma
+they have to find. The receipt says so in the sentence it already had (`— press one to copy it`),
+because a value that is only pressable is a control nobody discovers; the tools panel's copy is
+found the way a name in a row is always found here, by underlining under the pointer.
+
+Four things it owes, and the first is what makes it compatible with the rule directly below that a
+writer credit is never rewritten:
+
+- **`creditSegments` joins back to the string it was given, byte for byte.** The row goes on
+  reading exactly as Apple wrote it and all that changed is where a press lands. That is also the
+  whole safety argument for cutting it up at all: a credit split in the wrong place — `Smith, Jr.`
+  is the one to worry about — costs a press that copies half a name, in front of a reader who can
+  see the boundary because the half they hovered is the half that underlined. A _list_ built on the
+  same guess would state a writer who does not exist.
+- **Only a credit is cut up**, because it is the only value that is a list. `Bob Marley & The
+Wailers` in the artist row is one entity, and splitting it would offer half a band.
+- **The confirmation is the copied name in the success color, and nothing is drawn beside it.**
+  There was a check at the end of the row and it went: a mark says a second time what the user has
+  just pressed and is looking at, and the only place to put one that does not shift the line under
+  that press is a slot every row reserves — a permanent indent on six rows for a state showing on
+  none of them, which is the complaint `.spinner` answers by going in a slot that already had a
+  size. The `sr-only` announcement is what carries it for a reader with no pointer. A refused
+  clipboard draws nothing at all, exactly as the toolbar's own button says nothing.
+- **The row is a flex line with no gap**, so the spacing on it is the credit's own punctuation and
+  nothing the stylesheet or the template's indentation added. `SongFacts.svelte.test.ts` measures
+  the pieces meeting, because `Kristiansen , Kristofer` is what this looks like when it breaks and
+  that looks exactly like working markup.
 
 Three things about it that are the catalogue's limits rather than this code's, and all three cost
 a round of disappointment to establish:
@@ -2187,6 +2318,33 @@ half-states that finish at different times. Reversing the number reverses the wh
 given its own `transition` here is a bug, and `AppWordmark.svelte.test.ts` asserts that
 `transition-property` is `--wm-open` and that no descendant owns a transition of its own.
 
+**The handoff arrives, and the toolbar gives it no room until it does.** The workbench's lockup is
+the one the boot screen leaves behind (`entrance="handoff"`), so it draws itself into the toolbar
+from the left once the travelling mark has landed. It used to hold its final width from the first
+frame and fill that width in place — a hand of empty chrome at the head of the toolbar with the
+draft's name already parked to the right of it, which reads as the toolbar waiting for something
+rather than as the brand arriving in it. It reserves nothing now, and the name is pushed along at
+exactly the rate the word appears.
+
+`--wm-in` is the second registered driver, 0 to 1 across that arrival, and it is spent as a
+**width** rather than as a clip: the element takes its own fraction of `--wm-width` and hides the
+overflow, so the edge the word is uncovered at and the edge that pushes the name along are the same
+edge by construction. Nothing has to agree about a rate, which is `--wm-open`'s own argument applied
+to the one gesture that changes the toolbar's layout. Two things it depends on:
+
+- **`--wm-width` is the live sum of the four boxes that draw the lockup**, not a constant for the
+  open state, so the fraction is exact at every value of `--wm-open` — the spring's overshoot past
+  1 included, and through the contraction that follows the hold. The lead and the brackets take
+  their widths from the same custom properties the sum is built from, or the two drift and the
+  arrived word is clipped short or trails a gap it never fills.
+- **The animation is `both`**, so its delay — the beat the boot lockup is still travelling in — is
+  spent at zero width rather than at full.
+
+Both are measured rather than trusted: `AppWordmark.svelte.test.ts` compares the arrived box
+against its own parts (by computed width, since the brackets reach past their boxes with a
+`scaleX` a client rect would count), and `Workspace.svelte.test.ts` asserts the draft title's left
+edge moves right by exactly the width that arrived.
+
 Three things the arithmetic depends on, all easy to break:
 
 - **Per-letter offsets are lengths, never fractions of the driver.** A fan that scales with
@@ -2314,6 +2472,29 @@ land in either inherits from the body or names `--font-size-editor` — a field 
 
 Implementation: the `(pointer: coarse)` block in `src/lib/ui/styles/responsive.css`.
 
+### The dev tab says which one it is
+
+A workbench tab is named after the draft, which is named after the song — so a dev server and the
+deployed build, open on the same transcription, are two tabs carrying the same artist and title
+with nothing at a tab's width to tell them apart. `PUBLIC_DEV_TAB_TITLE` is the word that replaces
+the pair, `Dev` in `.env.example`, and something more specific where two dev servers are up at
+once.
+
+Three things about it:
+
+- **It replaces the whole title rather than prefixing it.** A tab shows the first few characters,
+  so a prefix worth having is one that is all that gets read.
+- **It is gated on `import.meta.env.DEV` as well as on its own value**, which is a build-time
+  constant, so the label cannot reach a production bundle even from an `.env.local` — the hazard
+  `.env.example` opens by naming. Unset, the tab is named after the draft exactly as production is.
+- **The suite pins it empty in `vite.config.ts`**, beside the Spotify id and the Apple token and
+  for the same reason, sharpened: the tests run as a development build, so a developer's own label
+  would rename every tab `DocumentTitle` asserts on and the suite would pass on a fresh checkout
+  and fail on the machine that had an env file. The test that covers the label stubs it per render,
+  which is why the value is read in the component body rather than at module scope.
+
+Implementation: `src/lib/ui/layout/DocumentTitle.svelte`.
+
 ### Design system
 
 `DESIGN.md` is authoritative. Components consume semantic tokens from
@@ -2388,3 +2569,9 @@ sees the real tokens. Do not reintroduce literal fallbacks to make a test pass.
 Component behavior is covered by `vitest-browser-svelte` tests next to the component. When a
 UI interaction changes, update the test to assert the new structure — including the absence of
 the thing that was removed.
+
+## Final responses
+
+At the end of every turn, begin the final response by explaining what the user asked for, then
+explain how it was solved. Include enough context that someone returning to the project among
+many parallel projects can understand what is going on from the final response alone.

@@ -144,8 +144,8 @@ export interface WorkbenchController {
 	/**
 	 * A line anchor was written, corrected, or cleared.
 	 *
-	 * Anchors are saved with the draft, but most of the ways one is set change no
-	 * text at all — sync mode holds the document read-only, and `Ctrl-Alt-M` and
+	 * Anchors are saved with the draft, but no way of setting one changes any text
+	 * — a sync tap writes an anchor and moves the caret, and `Ctrl-Alt-M` and
 	 * the timestamp column's own control move nothing. `onSnapshot` therefore
 	 * never hears about them, and for a while a whole synced song was lost on
 	 * reload because the only anchors that survived were the ones the automatic

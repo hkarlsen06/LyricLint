@@ -58,9 +58,54 @@
 	color: var(--color-text-muted);
 }
 
+/* A row of inline pieces rather than a run of text, because a writers row is one
+ * press per name and the names have to meet their own commas exactly.
+ *
+ * No gap, and that is the point of laying it out this way: the spacing on this
+ * line is the credit string's own punctuation and nothing the stylesheet adds.
+ * Flex also drops the whitespace-only text nodes the component's indentation
+ * leaves between pieces, and gives the reserved mark at the end of the row a
+ * baseline to sit on. */
 .metadata-list dd {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
 	margin: 0;
+}
+
+/* A value is a control, because each of these is retyped into a field of its own
+ * on the other end — and the page they are retyped into takes one writer at a
+ * time. It draws nothing at rest: a bordered chip per fact would be six boxes in
+ * a list whose whole job is to be read, and the affordance a name has always had
+ * is the one used here — it underlines under the pointer, exactly as a performer's
+ * name does in the roster. */
+.metadata-copy {
+	max-width: 100%;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: start;
 	overflow-wrap: anywhere;
+	cursor: pointer;
+}
+
+.metadata-copy:hover,
+.metadata-copy:focus-visible {
+	text-decoration: underline;
+}
+
+/* The whole of the confirmation, and the whole of what it may cost: the name the
+ * press took, in the success color, for as long as the press is worth answering.
+ * Nothing is added to the line and nothing is reserved on the rows that are not
+ * showing this, so the row the pointer is resting on does not move under it. */
+.metadata-copy.is-copied {
+	color: var(--color-success);
+}
+
+.metadata-copy__separator {
+	white-space: pre;
 }
 
 .metadata-list + .tool-actions {

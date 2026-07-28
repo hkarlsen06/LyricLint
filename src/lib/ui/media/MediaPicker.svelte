@@ -82,6 +82,13 @@
 		songResults = [];
 		searched = false;
 		songSearched = false;
+		// The press that pays for Apple's SDK, so that the press which signs in does
+		// not have to. A sign-in pop-up is only allowed out of an activation the
+		// browser can still see, and awaiting a 600KB script and its `configure()`
+		// round trips spends one — see `prepareAppleMusic`. This is the earliest
+		// press on the way to that one, and it is the surface that offers Apple
+		// Music in the first place.
+		media.prepareAppleMusic();
 		dialog.showModal();
 		await tick();
 		urlInput.select();
