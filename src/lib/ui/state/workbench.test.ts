@@ -98,6 +98,7 @@ function setup(options: {
 	onOpenDraft?: (draft: DraftRecord) => EditorSnapshot;
 	initialRecentLanguages?: readonly string[];
 	readClipboard?: () => Promise<string>;
+	copy?: (text: string) => Promise<void>;
 	/**
 	 * Build the controller on a handle that cannot hold anchors, the way the page
 	 * does: it boots on a headless placeholder and CodeMirror publishes later.
@@ -167,6 +168,7 @@ function setup(options: {
 		readClipboard:
 			options.readClipboard ??
 			(() => Promise.reject(new Error('Clipboard reads are unavailable.'))),
+		copy: options.copy ?? (() => Promise.resolve()),
 		onOpenDraft,
 		exportText: options.exportText,
 		phoneLayout: () => options.phoneLayout === true,
@@ -961,6 +963,61 @@ describe('workbench diagnostic navigation', () => {
 			expect(selections).toEqual([]);
 			expect(controller.activeDiagnosticKey).toBeUndefined();
 		});
+	});
+
+	// The three refusals of the toolbar's one contrast action. Each used to reach
+	// the `sr-only` live region and nothing else, which on the empty document the
+	// paste button appears over is a pixel-identical screen: the caret moves into
+	// an editor whose active line was already washed. Asserting the toast is
+	// asserting the half a sighted user can actually receive.
+	test('draws the keyboard hand-off when the clipboard cannot be read', async () => {
+		const record = draft('draft-a', '');
+		const { controller } = setup({ initial: record });
+
+		await controller.pasteLyrics();
+
+		expect(controller.feedback.toasts.map((toast) => toast.message)).toEqual([
+			'Press the paste shortcut to paste into the editor.'
+		]);
+		expect(controller.feedback.announcement).toBe(
+			'Press the paste shortcut to paste into the editor.'
+		);
+	});
+
+	test('draws the refusal when the clipboard holds no text', async () => {
+		const record = draft('draft-a', '');
+		const { controller } = setup({ initial: record, readClipboard: () => Promise.resolve('   ') });
+
+		await controller.pasteLyrics();
+
+		expect(controller.feedback.toasts.map((toast) => toast.message)).toEqual([
+			'The clipboard has no text to paste.'
+		]);
+	});
+
+	test('draws the refusal when the markup could not be copied', async () => {
+		const record = draft('draft-a', '[Verse]\nfirst line');
+		const { controller } = setup({
+			initial: record,
+			copy: () => Promise.reject(new Error('denied'))
+		});
+
+		await expect(controller.copyCanonical()).resolves.toBe(false);
+
+		expect(controller.feedback.toasts.map((toast) => toast.message)).toEqual([
+			'Copy failed. Check browser clipboard permission and try again.'
+		]);
+	});
+
+	// A copy that lands is not an event: the document is unchanged and the user
+	// pressed the button, so a toast would be the workbench congratulating itself.
+	test('says nothing on screen when the markup reaches the clipboard', async () => {
+		const record = draft('draft-a', '[Verse]\nfirst line');
+		const { controller } = setup({ initial: record });
+
+		await expect(controller.copyCanonical()).resolves.toBe(true);
+
+		expect(controller.feedback.toasts).toEqual([]);
 	});
 
 	test('leaves the editor where it is when a fix clears the last diagnostic', () => {

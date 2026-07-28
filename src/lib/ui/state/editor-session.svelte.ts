@@ -67,6 +67,28 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 		deps.feedback.announce(announcement);
 	}
 
+	/**
+	 * Say something the user is owed an answer to, where they can see it.
+	 *
+	 * `announce` alone reaches the `sr-only` live region and nothing else, which
+	 * is right for the running commentary on things that visibly happened — a
+	 * draft opened, a marker inserted, a document replaced. It is wrong for the
+	 * three refusals below, because each is the toolbar's one contrast action
+	 * declining to do the thing it is labelled with, and two of them are an
+	 * *instruction*: the press did not finish the job and the user has to. Left
+	 * to the live region they were a pixel-identical screen — the caret moves
+	 * into an empty editor whose active-line wash was already drawn, so a sighted
+	 * user got no answer at all.
+	 *
+	 * `announce` beside `addToast` rather than the toast alone: the toast region
+	 * is not a live region, so dropping the announcement would trade one
+	 * audience for the other.
+	 */
+	function report(message: string): void {
+		deps.feedback.announce(message);
+		deps.feedback.addToast({ message });
+	}
+
 	return {
 		get editor() {
 			return editor;
@@ -109,7 +131,7 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 				deps.feedback.announce('Canonical Genius markup copied.');
 				return true;
 			} catch {
-				deps.feedback.announce('Copy failed. Check browser clipboard permission and try again.');
+				report('Copy failed. Check browser clipboard permission and try again.');
 				return false;
 			}
 		},
@@ -119,16 +141,20 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			try {
 				text = await deps.readClipboard();
 			} catch {
-				// Not a failure worth reporting as one: every browser that refuses a
-				// programmatic read still pastes from the keyboard. Put the caret
-				// where that keystroke lands instead of explaining a permission.
+				// Still not a failure worth reporting as one: every browser that
+				// refuses a programmatic read pastes from the keyboard, so the caret
+				// goes where that keystroke lands rather than a permission being
+				// explained. What changed is that the hand-off is *drawn*. Moving the
+				// caret is the whole of what this path does on screen, and into an
+				// empty document — whose active line is washed either way — that is a
+				// blinking hairline nobody can be expected to read as an answer.
 				editor.focus();
-				deps.feedback.announce('Press the paste shortcut to paste into the editor.');
+				report('Press the paste shortcut to paste into the editor.');
 				return;
 			}
 			if (text.trim().length === 0) {
 				editor.focus();
-				deps.feedback.announce('The clipboard has no text to paste.');
+				report('The clipboard has no text to paste.');
 				return;
 			}
 			// No `focus()` on this path, unlike the two above it. Those hand the

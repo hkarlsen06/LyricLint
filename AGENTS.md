@@ -122,6 +122,22 @@ decoration. It is dividing one message between the surfaces so that no two of th
 - **The toolbar says what to do**, by swapping its one contrast action to `Paste lyrics` while the
   document is empty. The slot, the tier, and the tab order are unchanged — only the label follows
   the state, and the surface never carries two contrast actions.
+
+  **And when that action refuses, it says so where the press can see it.** Safari denies
+  `readText()` outside a gesture and Firefox gates it behind a prompt, which is ordinary rather
+  than exceptional — the keyboard still pastes, so the fallback puts the caret where that keystroke
+  lands. What it must not do is put the _instruction_ in the `sr-only` live region alone, which is
+  what `announce` reaches and all it reaches. Over an empty document that is a pixel-identical
+  screen: the active line is washed either way, so the whole of the visible change was a blinking
+  caret, and the one contrast action on the surface read as doing nothing at all. The three
+  refusals of that action — the denied read, the empty clipboard, the failed copy — go through
+  `report` in `editor-session.svelte.ts`, which draws a toast **and** announces, because the toast
+  region is not a live region and either alone loses an audience.
+
+  Only the refusals. A copy that lands changes nothing on screen and was asked for by the press
+  that ran it, so a toast there would be the workbench congratulating itself — the same reason the
+  save readout draws nothing while saving is going well. `workbench.test.ts` pins both halves.
+
 - **The panel says what it is waiting for**, and nothing about how to start. Its copy got shorter
   when the editor took over the instructions; re-adding "paste or write some lyrics" here is the
   drift this section exists to prevent.
