@@ -68,15 +68,18 @@ export const adlibParenthesesRule: RuleDefinition = {
 					// not gain a second space.
 					const replacement =
 						strandsComma && before.length > 0 && !/\s$/u.test(before) ? ` ${wrapped}` : wrapped;
-					diagnostics.push(
-						diagnostic(
+					diagnostics.push({
+						...diagnostic(
 							this,
 							range,
 							'This likely ad-lib may need parentheses.',
-							'The short phrase appears after a comma at the end of a lyric line. Because vocal phrasing is contextual, the edit is preview-only.',
+							'The short phrase appears after a comma at the end of a lyric line. Parentheses are for a vocal sitting behind the lead, so an ad-lib the singer is performing as part of the line belongs exactly as it is written.',
 							[replacementFix(context, 'preview', `Wrap as ${wrapped}`, range, replacement)]
-						)
-					);
+						),
+						// More of these are sung than are backing, so the leading answer is
+						// that the line is already right and the wrap is the second offer.
+						presumedCorrect: true
+					});
 				}
 			}
 		}

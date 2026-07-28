@@ -172,6 +172,32 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		expect(popoverActions(diagnostic)).toEqual(expected);
 	});
 
+	it('leads with acceptance, and steps the fix down, on both surfaces', () => {
+		// An ad-lib the singer performs as part of the line needs no brackets, so
+		// the likelier answer is that the text is right — it takes the row's one
+		// contrast tier and the wrap follows it as an ordinary bordered button.
+		const diagnostic: Diagnostic = {
+			...contractionDiagnostic(),
+			ruleId: 'adlib.parentheses',
+			message: 'This likely ad-lib may need parentheses.',
+			presumedCorrect: true,
+			fixes: [
+				{
+					kind: 'preview',
+					label: 'Wrap as (Yeah)',
+					edit: { baseRevision: 0, edits: [{ from: 0, to: 4, insert: '(Yeah)' }] }
+				}
+			]
+		};
+
+		const expected = [
+			{ label: "It's correct", classes: 'button button--contrast diagnostic-actions__accept' },
+			{ label: 'Wrap as (Yeah)', classes: 'button diagnostic-actions__fix' }
+		];
+		expect(panelActions(diagnostic)).toEqual(expected);
+		expect(popoverActions(diagnostic)).toEqual(expected);
+	});
+
 	it('accepts an unresolved lyric with a normal button on both surfaces', () => {
 		const diagnostic: Diagnostic = {
 			...contractionDiagnostic(),

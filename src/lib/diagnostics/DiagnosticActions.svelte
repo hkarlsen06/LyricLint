@@ -60,7 +60,19 @@
 		onClose
 	}: Props = $props();
 
-	const isUnrecognizedHeaderReview = $derived(diagnostic.ruleId === 'section.header-unrecognized');
+	/**
+	 * The finding whose likeliest answer is that the text is already right. The
+	 * quiet `Ignore` is replaced by an affirmative control, which leads the row
+	 * and takes the surface's one contrast tier — so a fix beside it steps down
+	 * to bordered, the way `Fix all N` does beside the change it repeats.
+	 *
+	 * A custom header is the whole of its rule; an ad-lib is one of the two
+	 * findings its rule reports, which is why the second is carried on the
+	 * diagnostic rather than named here by id.
+	 */
+	const acceptsAsCorrect = $derived(
+		diagnostic.ruleId === 'section.header-unrecognized' || diagnostic.presumedCorrect === true
+	);
 	const isUnresolvedUnknown = $derived(diagnostic.ruleId === 'unknown.unresolved');
 	const offersHeaderPicker = $derived(
 		diagnostic.ruleId === 'section.header-missing' && onChooseHeader !== undefined
@@ -131,6 +143,28 @@
 </script>
 
 <div class="diagnostic-actions">
+	{#if acceptsAsCorrect}
+		<button
+			type="button"
+			class="button button--contrast diagnostic-actions__accept"
+			onclick={(event) => onIgnore(event.currentTarget)}
+		>
+			It's correct
+			<svg
+				aria-hidden="true"
+				viewBox="0 0 16 16"
+				width="14"
+				height="14"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.8"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<path d="M3.5 8.2 6.5 11l6-6" />
+			</svg>
+		</button>
+	{/if}
 	{#if offersHeaderPicker}
 		<button
 			type="button"
@@ -167,7 +201,7 @@
 		<button
 			type="button"
 			class="button diagnostic-actions__fix"
-			class:button--contrast={!offersHeaderPicker}
+			class:button--contrast={!offersHeaderPicker && !acceptsAsCorrect}
 			onpointerenter={() => showFix(fix)}
 			onfocus={() => showFix(fix)}
 			onclick={() => onApplyFix(fix)}
@@ -192,28 +226,7 @@
 			</button>
 		{/if}
 	{/each}
-	{#if isUnrecognizedHeaderReview}
-		<button
-			type="button"
-			class="button button--contrast diagnostic-actions__accept"
-			onclick={(event) => onIgnore(event.currentTarget)}
-		>
-			It's correct
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="14"
-				height="14"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.8"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M3.5 8.2 6.5 11l6-6" />
-			</svg>
-		</button>
-	{:else}
+	{#if !acceptsAsCorrect}
 		<button
 			type="button"
 			class={isUnresolvedUnknown

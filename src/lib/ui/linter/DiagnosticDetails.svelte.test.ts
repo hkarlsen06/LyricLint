@@ -13,6 +13,9 @@ function previewDiagnostic(): Diagnostic {
 		message: 'This likely ad-lib may need parentheses.',
 		explanation: 'Review the contextual edit.',
 		sourceIds: [],
+		// As the rule reports it: an ad-lib sung as part of the line needs no
+		// brackets, so the card leads with accepting it.
+		presumedCorrect: true,
 		fixes: [
 			{
 				kind: 'preview',
@@ -57,25 +60,39 @@ describe('DiagnosticDetails preview flow', () => {
 		expect(onApplyFix).toHaveBeenCalledOnce();
 	});
 
-	it('keeps ignore available beside apply: there is no pending step to hide it', async () => {
+	it('leads an ad-lib with accepting it and offers the wrap second', async () => {
+		const onIgnore = vi.fn();
 		await render(DiagnosticDetails, {
 			diagnostic: previewDiagnostic(),
 			onChooseHeader: vi.fn(),
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
 			onApplyFix: vi.fn(),
-			onIgnore: vi.fn()
+			onIgnore
 		});
 
-		const ignore = page.getByRole('button', { name: 'Ignore' });
-		await expect.element(ignore).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Wrap as (Yeah)' })).toBeVisible();
-		// Beside means beside: no auto margin shoving Ignore to the card's far
-		// edge away from the Apply it pairs with.
-		expect(getComputedStyle(ignore.element()).marginInlineStart).toBe('0px');
-		await expect
-			.element(page.getByRole('button', { name: 'Ignore this session' }))
-			.not.toBeInTheDocument();
+		// An ad-lib the singer is performing as part of the line belongs exactly as
+		// it is written, so the answer that leads is that nothing is wrong — and the
+		// quiet `Ignore` that used to sit after the fix is what it replaces.
+		const accept = page.getByRole('button', { name: "It's correct" });
+		const wrap = page.getByRole('button', { name: 'Wrap as (Yeah)' });
+		await expect.element(accept).toBeVisible();
+		await expect.element(accept).toHaveClass('button--contrast');
+		await expect.element(page.getByRole('button', { name: 'Ignore' })).not.toBeInTheDocument();
+
+		// One contrast action per surface: the wrap steps down to the bordered tier.
+		await expect.element(wrap).toBeVisible();
+		await expect.element(wrap).not.toHaveClass('button--contrast');
+		expect(
+			accept.element().compareDocumentPosition(wrap.element()) & Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+
+		// Beside means beside: no auto margin shoving either control to the card's
+		// far edge away from the one it pairs with.
+		expect(getComputedStyle(accept.element()).marginInlineStart).toBe('0px');
+
+		await accept.click();
+		expect(onIgnore).toHaveBeenCalledOnce();
 	});
 
 	it('accepts an unrecognized header as correct with an affirmative CTA', async () => {

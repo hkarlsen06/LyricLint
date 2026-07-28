@@ -35,6 +35,19 @@ describe('adlib.parentheses', () => {
 		expect(applyRuleFixes(rule, text)).toBe('[Verse]\nI never surrendered (Yeah)');
 	});
 
+	it('leads with accepting the line the singer may be performing as written', () => {
+		// Parentheses are for a vocal behind the lead, so an ad-lib sung as part of
+		// the line is already right — the shell answers with "It's correct" first
+		// and offers the wrap second.
+		const [wrap] = checkRule(rule, '[Verse]\nI never surrendered, yeah');
+		expect(wrap?.presumedCorrect).toBe(true);
+
+		// Capitalizing inside brackets is a fact about the text, not a question
+		// about how it was sung, so that finding claims nothing of the kind.
+		const [capitalize] = checkRule(rule, '[Verse]\n(yeah)');
+		expect(capitalize?.presumedCorrect).toBeUndefined();
+	});
+
 	it('does not double the space when the comma already stands apart', () => {
 		expect(applyRuleFixes(rule, '[Verse]\nWe run , yeah')).toBe('[Verse]\nWe run (Yeah)');
 		expect(applyRuleFixes(rule, '[Verse]\n, yeah')).toBe('[Verse]\n(Yeah)');

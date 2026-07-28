@@ -235,6 +235,41 @@ remembering to. It has to run _before_ the dispatch, because the editor emits th
 snapshot from inside it, and it must not run on a paste that never reached the document — a lead
 left armed fires on whatever the user types next.
 
+### Some findings lead with the answer that nothing is wrong
+
+Most of the time the reason a diagnostic is on screen is that the text is wrong and the fix is
+what the user came for, so the fix takes the card's one contrast tier and the way out is a quiet
+`Ignore` after it. A few findings are the other way round: they are a guess about intent, and the
+likelier answer is that the words are already right. There the quiet `Ignore` is replaced by
+`It's correct` — an affirmative control, with a check, in the contrast tier, **leading the row** —
+and whatever change the card also offers steps down to bordered, because a surface has one
+contrast action.
+
+Two findings are like that, and each of them says something about where the flag lives.
+
+**A custom section header is the whole of its rule.** `section.header-unrecognized` cannot vouch
+for `[Chor]`, and says so; a rule that never has anything else to report can be recognised by its
+id, which is how the card has always known.
+
+**An ad-lib after a comma is one of two findings its rule reports, and only one of them is a
+question.** Parentheses mark a vocal sitting _behind_ the lead, so an ad-lib the singer is
+performing as part of the line belongs exactly as it is written — most of what
+`adlib.parentheses` points at is already correct, and offering `Wrap as (Yeah)` as the loud answer
+was the linter asserting something it cannot hear. The rule's _other_ finding, that a
+parenthesized `(yeah)` wants a capital, is a fact about the text and keeps the ordinary shape. One
+rule, two shapes, so it cannot be read off the id: `presumedCorrect` is on the diagnostic, set by
+the rule that knows which of its findings is a judgment about performance.
+
+That is also why `It's correct` is `onIgnore` under the hood and not a new hook — an ignore is
+per-occurrence (`diagnostics/ignore.ts` keys on the rule, the message, the text and its
+surroundings), so accepting one ad-lib says nothing about the next one. Only the words on the
+button change, and they change because the user is being asked a different question.
+
+Implementation: `presumedCorrect` on `Diagnostic` in `src/lib/core/types.ts`, set in
+`rules/catalog/adlib-parentheses.ts`; `acceptsAsCorrect` in
+`src/lib/diagnostics/DiagnosticActions.svelte`, which is one derived answer for both surfaces —
+`diagnostic-parity.svelte.test.ts` renders the card and the popover and compares the row.
+
 ### A batch repeats one change, not one rule
 
 Two controls fix more than one finding at a time, and what separates them is what the user has
@@ -2790,41 +2825,68 @@ logo above it. The gate lives in the `(app)` group layout so it cannot reach the
 Implementation: the `(pointer: coarse) and (max-height: 30rem)` block in
 `src/lib/ui/styles/responsive.css` and `src/lib/ui/layout/LandscapeNotice.svelte`.
 
-### The touch user is told once, and told what is true
+### The touch user is told once, beside the workbench rather than in front of it
 
-A phone visitor meets a workbench built for a wide screen and a keyboard, so `TouchNotice.svelte`
-says so on the way in: the lyrics and the findings stack instead of sitting side by side, every fix
-has a shortcut they do not have, and it will be quicker on a desktop. It says **everything here
-works**, because it does — this is a recommendation, not the gate it replaced.
+A phone visitor meets a workbench built for a wide screen and a keyboard, so `touch-notice.ts` says
+so on the way in: the lyrics and the findings stack instead of sitting side by side, every fix has
+a shortcut they do not have, and it will be quicker on a desktop. It says **everything here works**,
+because it does — this is a recommendation, not the gate it replaced.
 
-- **A modal, and the only one that opens by itself.** Nothing else in the workbench appears
-  unasked. It earns that by being the shortest-lived surface in the application: one press and it
-  is gone for the session. A banner would have to live somewhere in a layout whose whole problem is
-  that it has no room to spare.
-- **It waits for the boot screen, and it is mounted by the page rather than the group layout so
-  that it can.** The notice opened over the boot lockup's landing, which is the one piece of this
-  application deliberately staged frame by frame — and **a z-index could never have fixed it**. A
+**It is a toast, and it used to be a modal.** That was out of proportion to what it says. A surface
+that dims the window and takes focus is for a question which must be answered before anything else
+happens, and this is the opposite of one: nothing here is a decision, there is no second path to
+offer, and the workbench behind it works either way. What a phone visitor actually met was a screen
+standing between them and the document they had come to open, with a button whose only job was to
+take it away again. The toast says the same thing next to the work instead of over it, and retires
+itself — so the intrusive part, the part that had to be dismissed before anything could be read,
+is gone rather than restyled.
+
+- **It is not a component, because the dialog was the surface.** Markup, styles, a backdrop, a
+  focus trap: all of that belonged to the modal. What is left is a rule about when to say
+  something, so it is a module in `ui/state/`, and the region that draws it — `ToastRegion`, in the
+  `(app)` layout — is already mounted for every other toast in the application. A component that
+  rendered nothing and pushed a message on mount would be the old shape kept for its own sake.
+- **The message leads with the reassurance**, because it arrives uninvited and the first thing to
+  establish is that the visitor has not hit a wall. What follows is the two facts that are actually
+  different here, rather than a description of the product they are already looking at. It is one
+  sentence: a toast is a `<p>`, and the modal's heading and three paragraphs were only ever
+  affordable because the modal had taken the screen.
+- **`TOUCH_NOTICE_DURATION` is longer than either toast default**, for two reasons that compound.
+  `INFO_TOAST_DURATION` is sized for a confirmation of something the user just did and therefore
+  already knows the content of; this is a sentence they have never read. And the countdown pauses
+  on hover, which is a gesture a finger does not have — so on the one device this ever appears on,
+  the time on screen is the whole of the reading time.
+- **It carries no action.** There is nothing to undo and nothing to confirm, and the region's own
+  dismiss is the only control such a message needs. It is deliberately not a second `Got it`.
+- **It is announced as well as drawn.** The toast region is not a live region, and this is the one
+  message in the workbench that arrives without the user having done anything — so a phone visitor
+  running a screen reader would otherwise be the only person it is about who never hears it.
+  `announce` beside `addToast` is the pattern `commitRoster` already uses.
+- **Session-scoped, like the ignored rules, and remembered on the _showing_.** A warning that has
+  been read is noise, and one that is never repeated is a warning the user cannot get back; closing
+  the tab forgets it. The dialog could wait for a press because it had to be answered to get out of
+  the way; a toast retires itself, so there is no press that means "read" — the X and the countdown
+  are the same way out, and gating on either would bring back a notice the user watched go by. A
+  browser refusing storage reads as "not seen", which shows it once per load rather than losing it.
+- **It still waits for the boot screen, and the page still speaks it**, but the reason has changed
+  and the old one is worth keeping straight. As a modal it could not be covered at all: a
   `<dialog>` opened with `showModal()` is in the browser's **top layer**, above every stacking
-  context on the page, so the boot screen cannot be lifted over it at any value; the only repair is
-  for the notice not to exist yet. It therefore hangs off the same `revealed` the boot screen sets
-  on its way out, which is page state a layout cannot see — hence the move, and it is still inside
-  `.app-shell` because the page is. Mounting is the gate rather than a prop, since opening is what
-  this surface does when it mounts. A boot failure never sets `revealed` and the notice never
-  draws, which is right twice over: there is no workbench behind an error to recommend anything
-  about, and spending a session-scoped warning over a failure means never seeing it on the reload
-  that works. `e2e/lyriclint.spec.ts` pins the order, because a top-layer dialog over a prerendered
-  boot screen is only observable in a real browser.
-- **Session-scoped, like the ignored rules.** A warning that has been read is noise, and one that
-  is never repeated is a warning the user cannot get back; closing the tab forgets it. It is
-  remembered on the dialog's `close` rather than in the button's handler, so `Escape` and a press
-  on the backdrop are remembered too — every way out is the same way out. A browser refusing
-  storage reads as "not seen", which shows it once per load rather than losing it.
+  context, so **no z-index could have fixed it** and the only repair was for the notice not to
+  exist yet. A toast is an ordinary layer and `--layer-boot` outranks `--layer-toast`, so it would
+  now simply spend its countdown behind the boot screen and be gone before anyone saw it — a
+  quieter failure with the same fix. It is raised from `BootScreen`'s `ondone`, beside the
+  `revealed` it sets, because that is page state a layout cannot see. A boot failure never reaches
+  it, which is right twice over: there is no workbench behind an error to recommend anything about,
+  and spending a session-scoped message on a failed load means never seeing it on the reload that
+  works. `e2e/lyriclint.spec.ts` pins the order, because the interaction between a prerendered boot
+  screen and a timed message is only observable in a real browser.
 - **A coarse pointer _and_ the stacked layout** (`68rem`), not either alone. The pointer alone
   stops a tablet in landscape, where the two-column layout is intact and there is nothing to warn
   about; the width alone stops a narrow window on a laptop, which is a supported size with a
   keyboard behind it.
-- **Nothing inside it is boxed**, and there is one action. The dialog is already the surface, and
-  there is no `Cancel` because there is nothing to cancel.
+
+Implementation: `src/lib/ui/state/touch-notice.ts`, raised from `src/routes/(app)/lint/+page.svelte`
+and drawn by the `ToastRegion` in `src/routes/(app)/+layout.svelte`.
 
 ### Nothing a finger types into is smaller than 16px
 

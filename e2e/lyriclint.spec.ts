@@ -476,15 +476,17 @@ test.describe('phone', () => {
 
 	/**
 	 * The notice waits for the boot screen, and this is the only place that can
-	 * see it: a `<dialog>` opened with `showModal()` is in the top layer, above
-	 * every stacking context, so no z-index in the stylesheet could have kept the
-	 * boot lockup in front of it. What is asserted is therefore the mounting
-	 * order — nothing of the notice exists while the boot screen is on screen —
-	 * and that it still arrives afterwards, which is the half a plain delete
-	 * would also have passed.
+	 * see it: the boot screen is in the prerendered HTML and covers the whole
+	 * window, toasts included, so a notice raised any earlier would spend its
+	 * countdown behind it and be gone before anyone saw it. What is asserted is
+	 * therefore the order — nothing of the notice while the boot screen is on
+	 * screen — and that it still arrives afterwards, which is the half a plain
+	 * delete would also have passed.
 	 */
 	test('holds the touch notice until the boot screen has gone', async ({ page }) => {
-		const notice = page.locator('dialog.touch-notice');
+		// Scoped to the region that draws it: the same words are also written into
+		// the sr-only live region, and an unscoped text match would be two nodes.
+		const notice = page.locator('.toast-region').getByText('LyricLint is quicker on a laptop');
 		const boot = page.locator('.boot-screen');
 
 		await page.goto('/lint/');
@@ -497,15 +499,12 @@ test.describe('phone', () => {
 
 		await expect(boot).toHaveCount(0);
 		await expect(notice).toBeVisible();
-		await expect(
-			page.getByRole('heading', { name: 'LyricLint works best on a laptop' })
-		).toBeVisible();
 
-		// And it is still the modal it was: one press and it is gone for the
-		// session, leaving the workbench behind it.
-		await page.getByRole('button', { name: 'Got it' }).click();
-		await expect(notice).toBeHidden();
+		// And it is a toast rather than the modal it was: the workbench is behind
+		// it the whole time, not dimmed out and waiting on an answer.
 		await expect(editor(page)).toBeVisible();
+		await page.getByRole('button', { name: 'Dismiss notification' }).click();
+		await expect(notice).toHaveCount(0);
 	});
 });
 

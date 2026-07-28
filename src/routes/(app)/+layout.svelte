@@ -17,10 +17,10 @@
      reach the pages under `(site)`. Those are prose and read perfectly well on a
      phone held either way round.
 
-     The touch notice is not here, and that is deliberate: it has to wait for the
-     boot screen, which is the workbench page's own state and not something a
-     layout can see. It is rendered from there instead — still inside this
-     wrapper, since the page is. -->
+     The touch notice draws here too, because it is a toast like any other now.
+     What is *not* here is the decision to raise it: that waits for the boot
+     screen, which is the workbench page's own state and not something a layout
+     can see, so the page speaks it and this region draws it. -->
 <div class="app-shell">
 	{@render children()}
 	<LiveRegion {feedback} />

@@ -190,6 +190,15 @@ export interface Diagnostic extends TextRange {
 	/** Present when resolving the finding means selecting an inferred language. */
 	detectedLanguage?: DetectedDiagnosticLanguage;
 	/**
+	 * The finding is a guess about intent whose likeliest answer is that the text
+	 * is already right, so a shell leads with accepting it rather than with the
+	 * change. It is carried here rather than read off the rule id because a rule
+	 * can report both kinds: `adlib.parentheses` says a parenthesized ad-lib is
+	 * miscapitalized, which is a fact, and that an unparenthesized one may want
+	 * brackets, which is a question about how it was sung.
+	 */
+	presumedCorrect?: true;
+	/**
 	 * Labeled fixes for this diagnostic. Only `kind: 'safe'` fixes are eligible
 	 * for bulk application; `preview` fixes require explicit confirmation. Each
 	 * fix carries one atomic edit so it applies as a single undoable transaction.

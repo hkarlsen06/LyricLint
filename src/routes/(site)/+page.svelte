@@ -191,11 +191,10 @@ And the "quiet" part was never really quiet`;
 	</p>
 
 	<p>
-		There is one exception, and you choose it draft by draft. You can play the song you are
-		transcribing alongside the lyrics: an audio file off your own disk, which is never uploaded and
-		never copied into the browser, or a YouTube video, which loads Google's player into the page and
-		lets Google see which video it is. Nothing loads from Google until you paste a link, and a draft
-		using one stops working offline.
+		There is one exception, and you choose it scribe by scribe: You can play the song you are
+		transcribing alongside the lyrics. That could be an audio file off your own disk, which is never uploaded and
+		never copied into the browser, a YouTube video, which loads Google's player into the page and
+		lets Google see which video it is, or an Apple Music track. A scribe using the online options stop working offline.
 	</p>
 
 	<h2>What it is not</h2>
