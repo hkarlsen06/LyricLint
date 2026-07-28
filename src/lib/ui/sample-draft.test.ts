@@ -30,6 +30,21 @@ describe('the sample transcription', () => {
 		]);
 	});
 
+	// Both curly quotes are on line 4, so severity, line number and citation are
+	// identical on both rows and the message is the only thing separating them.
+	// Two rows reading exactly alike is what the sample looked like before the
+	// rule named the mark it had found.
+	it('says which quote each of the two curly findings is about', () => {
+		const quotes = lint(sampleDraftText).filter(
+			(diagnostic) => diagnostic.ruleId === 'quotes.typewriter'
+		);
+
+		expect(quotes.map((diagnostic) => diagnostic.message)).toEqual([
+			'Use a straight " instead of the opening curly double quote.',
+			'Use a straight " instead of the closing curly double quote.'
+		]);
+	});
+
 	// The bulk strip's two numbers are the point of the sample: one press
 	// settles what is mechanical, and the rest are named as judgment calls
 	// rather than left looking like a fix that half worked.
