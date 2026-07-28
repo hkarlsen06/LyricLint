@@ -188,7 +188,31 @@ function parseDraft(value: unknown): DraftRecord {
 			) {
 				throw new WorkspaceBackupError('Invalid section link in backup.');
 			}
-			return { lines: link.lines as number[] };
+			if (link.holes !== undefined && !Array.isArray(link.holes)) {
+				throw new WorkspaceBackupError('Invalid section link in backup.');
+			}
+			// A run whose numbers cannot be read is dropped rather than throwing: the
+			// link itself is still good, and losing a difference costs the user one
+			// re-tick, while refusing the whole backup costs them the draft.
+			const holes = ((link.holes ?? []) as unknown[]).flatMap((hole) =>
+				isRecord(hole) &&
+				Number.isInteger(hole.line) &&
+				Number.isInteger(hole.column) &&
+				Number.isInteger(hole.endLine) &&
+				Number.isInteger(hole.endColumn)
+					? [
+							{
+								line: hole.line as number,
+								column: hole.column as number,
+								endLine: hole.endLine as number,
+								endColumn: hole.endColumn as number
+							}
+						]
+					: []
+			);
+			return holes.length > 0
+				? { lines: link.lines as number[], holes }
+				: { lines: link.lines as number[] };
 		});
 	}
 

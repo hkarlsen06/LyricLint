@@ -43,6 +43,25 @@ function oneSpace(): number {
 /** The lockup's own single-period wave, as `AppWordmark.svelte` draws it. */
 const WAVE_D_ATTRIBUTE_OF_THE_MARK = 'M2 16Q9 6.7 16 16T30 16';
 
+/** How far the circle has got, 0 to 1, which is the whole of the reveal. */
+const shock = () => Number(getComputedStyle(screen()).getPropertyValue('--boot-shock'));
+
+/**
+ * That circle's radius in pixels, which is what a claim about the reveal passing
+ * something has to be measured in. Percentages on a `circle` gradient resolve
+ * against the distance from the middle of the box to its furthest corner, and
+ * `--boot-shock-reach` is how far past that the driver's own 1 reaches — read
+ * from the stylesheet rather than restated here, so the two cannot drift.
+ */
+function revealRadius(): number {
+	const box = screen().getBoundingClientRect();
+	const corner = Math.hypot(box.width / 2, box.height / 2);
+	const reach = Number.parseFloat(
+		getComputedStyle(screen()).getPropertyValue('--boot-shock-reach')
+	);
+	return shock() * (reach / 100) * corner;
+}
+
 describe('BootScreen', () => {
 	// The reveal is gated on both halves, and this is the half that is easy to
 	// lose: a workspace that opened local storage in 40ms must not cut the
@@ -163,12 +182,7 @@ describe('BootScreen', () => {
 
 		await vi.waitFor(() => expect(screen().dataset.stage).toBe('land'), { timeout: 3000 });
 
-		const canvasAlpha = (color: string) => {
-			const parts = color.match(/[\d.]+/gu) ?? [];
-			return parts.length > 3 ? Number(parts[3]) : 1;
-		};
-
-		const fall: { open: number; opacity: number; canvas: number; leaving: boolean }[] = [];
+		const fall: { open: number; opacity: number; shock: number; leaving: boolean }[] = [];
 		await new Promise<void>((done) => {
 			const started = performance.now();
 			const tick = () => {
@@ -177,10 +191,10 @@ describe('BootScreen', () => {
 				fall.push({
 					open: Number(getComputedStyle(mark()).getPropertyValue('--wm-open')),
 					opacity: Number(getComputedStyle(mark()).opacity),
-					canvas: canvasAlpha(getComputedStyle(el).backgroundColor),
+					shock: shock(),
 					leaving: el.hasAttribute('data-leaving')
 				});
-				if (performance.now() - started < 900) requestAnimationFrame(tick);
+				if (performance.now() - started < 1200) requestAnimationFrame(tick);
 				else done();
 			};
 			tick();
@@ -204,14 +218,77 @@ describe('BootScreen', () => {
 		expect(fall.at(-1)!.open).toBeCloseTo(0, 3);
 		expect(fall.at(-1)!.opacity).toBe(0);
 
-		// And the canvas goes with the wordmark rather than ahead of it. It starts
-		// leaving at the top of the fall, so without a delay of its own the backdrop
-		// cleared while the lockup was still three hundred milliseconds from moving
-		// — the workspace arrived first and the brand was left dissolving on top of
-		// it. Measured from the frame the fade begins: the canvas is still mostly
-		// there.
+		// And the circle is struck by the collision rather than by the screen
+		// starting to leave, which on this path are three hundred milliseconds
+		// apart: the screen begins going at the top of the fall, and the brackets do
+		// not begin to meet until three quarters of the way down it. Without the
+		// delay the canvas was already open while the lockup hung at full strength
+		// above it, so the reveal came out of nothing and the brand was left
+		// dissolving on a workspace that had arrived first.
 		const fadeBegins = fall.find((frame) => frame.opacity < 1)!;
-		expect(fadeBegins.canvas).toBeGreaterThan(0.4);
+		expect(fadeBegins.shock).toBeLessThan(0.4);
+
+		// The lockup is still on screen when the charge goes off — the circle leaves
+		// something, rather than an empty middle a moment after it emptied.
+		expect(fall.find((frame) => frame.shock > 0)!.opacity).toBeGreaterThan(0);
+
+		// And it runs all the way out before the screen does.
+		expect(fall.at(-1)!.shock).toBeGreaterThan(0.9);
+	});
+
+	/**
+	 * The reveal itself, which is the impact's own consequence: the canvas opens in
+	 * a circle from the point the brackets met and expands past the corners.
+	 *
+	 * What it replaces is a background fade on the screen — which came from
+	 * nowhere in particular and said nothing about what the mark had just done. So
+	 * the absence is asserted too: this screen paints no background of its own at
+	 * all now, and anything that gave it one back would put an unmasked sheet over
+	 * the hole and quietly restore the old ending. The other absence is a second
+	 * layer over the canvas — a ring at the circle's edge, a glow, a wave behind
+	 * it — which is a second object to watch on a screen whose remaining job is to
+	 * get out of the way.
+	 */
+	it('opens the canvas from the middle instead of fading it', async () => {
+		render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
+		const backdrop = () => getComputedStyle(screen(), '::before');
+
+		const alpha = (color: string) => {
+			const parts = color.match(/[\d.]+/gu) ?? [];
+			return parts.length > 3 ? Number(parts[3]) : 1;
+		};
+
+		// The canvas is a masked layer under the lockup, and the screen itself is
+		// bare — so what clears is a hole in the backdrop, not the backdrop.
+		expect(alpha(getComputedStyle(screen()).backgroundColor)).toBe(0);
+		expect(backdrop().getPropertyValue('mask-image')).toContain('radial-gradient');
+		expect(alpha(backdrop().backgroundColor)).toBe(1);
+
+		// And there is nothing over it: the reveal is the mask and nothing else.
+		expect(getComputedStyle(screen(), '::after').content).toBe('none');
+
+		await vi.waitFor(() => expect(screen().dataset.stage).toBe('land'), { timeout: 3000 });
+
+		const circle: number[] = [];
+		await new Promise<void>((done) => {
+			const started = performance.now();
+			const tick = () => {
+				const el = screen();
+				if (!el || !document.contains(el)) return done();
+				circle.push(shock());
+				if (performance.now() - started < 1200) requestAnimationFrame(tick);
+				else done();
+			};
+			tick();
+		});
+
+		// It leaves the middle and only expands: a radius that went back on itself
+		// would be a hole breathing rather than a reveal travelling.
+		expect(circle.at(0)).toBe(0);
+		for (const [index, value] of circle.entries()) {
+			if (index > 0) expect(value).toBeGreaterThanOrEqual(circle[index - 1]);
+		}
+		expect(circle.at(-1)).toBeGreaterThan(0.9);
 	});
 
 	/**
@@ -221,14 +298,16 @@ describe('BootScreen', () => {
 	 * is their order: the wave runs, and when the workbench arrives it does not
 	 * stop where it stands — it runs out to a whole wavelength, where it is the
 	 * mark's own curve again, and only then does the screen begin to leave. Then
-	 * the canvas clears first and the lockup outlasts it.
+	 * the canvas is blown out from underneath the lockup, and the lockup outlasts
+	 * it.
 	 *
 	 * That last one is measured rather than read off the durations, because a
 	 * duration says nothing about presence: the front-loaded curve the backdrop
-	 * uses spends nearly all of its fade in its own first third, so a mark wearing
-	 * the same curve collapsed just as fast over twice the duration. It has since
-	 * been lost a second way — a `transition` shorthand declared for the fall reset
-	 * the one the fade lives on — which is why this is asserted from the pixels.
+	 * used to fade on spent nearly all of it in its own first third, so a mark
+	 * wearing the same curve collapsed just as fast over twice the duration. It has
+	 * since been lost a second way — a `transition` shorthand declared for the fall
+	 * reset the one the fade lives on — which is why this is asserted from the
+	 * pixels, and now from where the front has actually got to.
 	 */
 	it('runs the wave out to the mark before revealing, and outlasts the backdrop', async () => {
 		const props = $state({ ready: false, ondone: vi.fn() });
@@ -243,10 +322,11 @@ describe('BootScreen', () => {
 
 		props.ready = true;
 
-		const alpha = (color: string) => {
-			const parts = color.match(/[\d.]+/gu) ?? [];
-			return parts.length > 3 ? Number(parts[3]) : 1;
-		};
+		// Where the front has to have got to before the lockup can be said to have
+		// been uncovered: past the lockup's own edge, so the canvas is gone from
+		// behind the whole of it.
+		const markReach = mark().getBoundingClientRect().width / 2;
+
 		let waveAtReveal = '';
 		let markWhenUncovered = Number.NaN;
 		const exit: { slot: number; opacity: number }[] = [];
@@ -260,10 +340,7 @@ describe('BootScreen', () => {
 				}
 				if (waveAtReveal) {
 					exit.push({ slot: slotWidth(), opacity: Number(getComputedStyle(mark()).opacity) });
-					if (
-						Number.isNaN(markWhenUncovered) &&
-						alpha(getComputedStyle(el).backgroundColor) < 0.02
-					) {
+					if (Number.isNaN(markWhenUncovered) && revealRadius() > markReach) {
 						markWhenUncovered = Number(getComputedStyle(mark()).opacity);
 					}
 				}
@@ -296,9 +373,10 @@ describe('BootScreen', () => {
 		expect(halfway.opacity).toBeLessThan(0.65);
 		expect(halfway.opacity).toBeGreaterThan(0.25);
 
-		// Still there as the canvas goes, though. The lockup is what is being looked
-		// at and the canvas is only what is in the way, so they do not go at one
-		// rate — the brackets finish their travel over the workspace.
+		// Still there once the wave has cleared the ground it stands on, though. The
+		// lockup is what is being looked at and the canvas is only what is in the
+		// way, so they do not go at one rate — the brackets finish their travel over
+		// the workspace the blast uncovered under them.
 		expect(markWhenUncovered).toBeGreaterThan(0.2);
 	});
 

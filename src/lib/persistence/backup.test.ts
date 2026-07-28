@@ -32,7 +32,7 @@ function draft(id: string, text: string): DraftRecord {
 		ruleSetVersion: '2026.7',
 		editorSelection: { anchor: 1, head: 3 },
 		lineAnchors: [{ line: 1, time: 12.5 }],
-		sectionLinks: [{ lines: [1, 4] }]
+		sectionLinks: [{ lines: [1, 4], holes: [{ line: 2, column: 0, endLine: 2, endColumn: 5 }] }]
 	};
 }
 

@@ -282,7 +282,8 @@ export interface DraftRecord {
 }
 
 /**
- * Two or more sections of the same kind whose bodies are kept identical.
+ * Two or more sections of the same kind that are kept in step, apart from the
+ * words they are each allowed to sing their own way.
  *
  * Written down as header line numbers rather than offsets, exactly as
  * `LineAnchor` is and for the same reason: an offset shifts on every keystroke
@@ -293,6 +294,95 @@ export interface DraftRecord {
 export interface SectionLink {
 	/** 1-based header lines, in document order. Fewer than two is not a link. */
 	lines: number[];
+	/**
+	 * Every run of every member that is deliberately not kept in step, in
+	 * document order.
+	 *
+	 * Flat rather than nested per member, because a run already says which member
+	 * it is in by where it sits — and what makes two runs correspond is their
+	 * ordinal within their own member, which nesting would have to restate. Two
+	 * choruses differing by one line have one run each, and those two are the
+	 * same difference.
+	 *
+	 * Absent means what it meant before differences existed: the members are kept
+	 * identical throughout.
+	 */
+	holes?: LinkHole[];
+}
+
+/**
+ * One run of one section that its link leaves alone, as a line and a column at
+ * each end.
+ *
+ * A column as well as a line, because a difference can be part of a line —
+ * `there tonight` against `there again` — which is the case the whole feature
+ * was rebuilt for. Zero width is meaningful and is kept: it is where one copy
+ * simply has nothing, and it is where the words the other copy has go.
+ */
+export interface LinkHole {
+	/** 1-based line the run starts on. */
+	line: number;
+	/** Characters into that line. */
+	column: number;
+	/** 1-based line the run ends on, the same line for a run inside one. */
+	endLine: number;
+	/** Characters into the ending line. */
+	endColumn: number;
+}
+
+/**
+ * One difference inside a link group, with each member's own wording — the row
+ * the link card's second list draws.
+ */
+export interface LinkDifference {
+	/** Position in the group's shape, which is what an answer names. */
+	index: number;
+	/** One entry per member, in document order, however it reads today. */
+	wordings: LinkWording[];
+}
+
+/**
+ * One copy's version of one difference, with enough of its own line either side
+ * to be read as a diff rather than as a floating fragment.
+ *
+ * `før, du kunne spørt meg` on its own says nothing about where in the chorus it
+ * sits, or that the other copies simply stop at that point. The line around it
+ * says both, and the shared halves are identical in every copy by construction —
+ * which is what makes the versions line up under each other on screen.
+ */
+export interface LinkWording {
+	headerFrom: number;
+	/** The divergent run itself. Empty where this copy has nothing there. */
+	text: string;
+	/** Shared text before it, back to the start of its line. */
+	before: string;
+	/** Shared text after it, on to the end of its line. */
+	after: string;
+}
+
+/** What the user answered in the link card. */
+export interface SectionLinkChoice {
+	/** The sections to tie together, the one the card was opened from first. */
+	headers: readonly number[];
+	/**
+	 * Per difference of the resulting shape, whether the copies go on keeping
+	 * their own words. Omitted keeps every one of them, which is what linking
+	 * does on its own — collapsing one is the destructive answer and has to be
+	 * asked for.
+	 */
+	keepDifferent?: readonly boolean[];
+	/** A span of the opened section to set aside as its own, from a selection. */
+	makeDifferent?: TextRange;
+	/**
+	 * Whose words win where a difference is collapsed, as a header offset.
+	 *
+	 * Any member of the group, not necessarily the one the card was opened from:
+	 * noticing that the *third* chorus has the wording you meant to keep is the
+	 * ordinary case, and hard-wiring the opened section would make the repair
+	 * "close the card, open it again from the right copy". Defaults to the opened
+	 * section, and an empty wording never wins — see `winningWording`.
+	 */
+	replaceFrom?: number;
 }
 
 /** Lightweight metadata used to list drafts without opening their text. */
@@ -548,16 +638,26 @@ export interface EditorHandle {
 	/** Replace every section link, for a draft being opened. */
 	setSectionLinks?(links: readonly SectionLink[]): void;
 	/**
-	 * Tie these sections together, overwriting every one of them from the first.
+	 * Tie these sections together, keeping every word they already disagree on.
 	 *
-	 * The first is the section the user opened the picker from: they are looking
-	 * at the words they mean to keep, so those are the words that win. Fewer than
-	 * two headers takes the named one out of whatever group it was in.
+	 * Linking writes nothing on its own: the words the copies already share
+	 * become the shared runs and the rest is set aside as each copy's own, which
+	 * is what makes two choruses differing by a line linkable at all. Making a
+	 * difference agree is asked for per difference, through `keepDifferent`.
+	 *
+	 * `headers` leads with the section the picker was opened from, which is the
+	 * copy whose wording wins wherever one has to. Fewer than two takes the named
+	 * one out of whatever group it was in.
 	 *
 	 * Header offsets rather than line numbers, because the caller resolved them
 	 * against the parse it is holding.
 	 */
-	linkSections?(headerOffsets: readonly number[]): void;
+	linkSections?(choice: SectionLinkChoice): void;
+	/**
+	 * Every difference in the group these headers would form, with each copy's
+	 * own wording — what the picker's second list is built from.
+	 */
+	getLinkDifferences?(headerOffsets: readonly number[]): LinkDifference[];
 	/** Every line anchor, for the shell to write down. */
 	getLineAnchors?(): LineAnchor[];
 	/** Replace every line anchor, for a draft being opened. */
@@ -622,6 +722,17 @@ export interface EditorContext {
 export interface EditorAnchorRequest {
 	range: TextRange;
 	prefer: 'above' | 'below';
+	/**
+	 * Words the user had selected when they asked, for a card that can offer
+	 * something about them.
+	 *
+	 * Only the link card reads it, and only from the keyboard path: selecting
+	 * lyrics and pressing the shortcut is how a difference is created by hand.
+	 * The pointer path deliberately does not report one, because widening what a
+	 * bare selection opens is how an uninvited card starts arriving on the most
+	 * common gesture in a text editor.
+	 */
+	selection?: TextRange;
 }
 
 /** Events emitted by the editor without exposing CodeMirror state objects. */

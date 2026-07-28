@@ -104,7 +104,9 @@ test('marketing home opens the workbench at /lint', async ({ page }) => {
 	await expect(
 		page.getByRole('heading', { name: 'Catch Genius formatting problems before you submit.' })
 	).toBeVisible();
-	await expect(page).toHaveTitle('LyricLint · A linter for Genius lyric transcriptions');
+	// The title the page actually ships. It was shortened in 220ded2 and this
+	// assertion was not, so it had been failing since.
+	await expect(page).toHaveTitle('LyricLint · For Genius transcribers');
 	await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Genius/u);
 	await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
 	await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
@@ -137,7 +139,15 @@ test('the rule reference exposes article metadata and language semantics', async
 		.toContain('"@type":"CollectionPage"');
 
 	await page.goto('/rules/spelling-arabic-common/');
-	await expect(page).toHaveTitle(/Review “لاكن”.*· LyricLint/u);
+	// The page is named for the rule, not for the one misspelling its reviewed
+	// example happens to carry — the index row that opens it says the same words.
+	// The message is still on the page, under the example that produces it.
+	await expect(page).toHaveTitle('Standard Arabic spellings · LyricLint');
+	await expect(page.locator('main h1')).toHaveText('Standard Arabic spellings');
+	// Scoped to the element rather than by text: the same words are in the
+	// paragraph and in the `<strong>` inside it, so a bare `getByText` resolves
+	// two nodes and fails strict mode.
+	await expect(page.locator('p.site-aside strong')).toContainText('Review “لاكن”');
 	await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
 		'href',
 		'https://lyriclint.com/rules/spelling-arabic-common/'
@@ -148,13 +158,54 @@ test('the rule reference exposes article metadata and language semantics', async
 	await expect(page.locator('pre[lang="ar"][dir="rtl"]')).toHaveCount(2);
 });
 
+test('the rule index is searched by symptom and narrowed by chip', async ({ page }) => {
+	await page.goto('/rules/');
+
+	const rows = page.locator('.rules__index .site-run a');
+	const total = await rows.count();
+	expect(total).toBeGreaterThan(40);
+	// Nothing is narrowing the list, so there is no count to state.
+	await expect(page.locator('.rules__readout')).toHaveCount(0);
+
+	// The reader has the word the linter underlined, not the rule's name — and
+	// that word lives only in the reviewed example on this page.
+	await page.getByRole('searchbox', { name: 'Search the formatting rules' }).fill('definately');
+	await expect(rows).toHaveCount(1);
+	await expect(rows.first()).toContainText('Common English misspellings');
+	await expect(page.getByText(`1 of ${total} rules`)).toBeVisible();
+
+	// The search survives opening one of its own results, because the list and
+	// its filters are mounted by the section's layout rather than by the page.
+	await rows.first().click();
+	await expect(page).toHaveURL(/\/rules\/spelling-english-common\/$/u);
+	await expect(rows).toHaveCount(1);
+
+	await page.getByRole('button', { name: 'Clear filters' }).click();
+	await expect(rows).toHaveCount(total);
+
+	// Leaving `No automatic fix` alone is the list of rules that are judgment
+	// calls, which is the question the three fix chips exist to answer.
+	await page.getByRole('button', { name: /^Automatic fix/u }).click();
+	await page.getByRole('button', { name: /^Previewed fix/u }).click();
+	const remaining = await rows.count();
+	expect(remaining).toBeGreaterThan(0);
+	expect(remaining).toBeLessThan(total);
+	await expect(rows.filter({ hasText: 'No automatic fix' })).toHaveCount(remaining);
+});
+
 test('sitemap lists every public page and excludes the workbench', async ({ request }) => {
 	const sitemapResponse = await request.get('/sitemap.xml');
 	expect(sitemapResponse.ok()).toBe(true);
 	expect(sitemapResponse.headers()['content-type']).toMatch(/(?:application|text)\/xml/u);
 
 	const sitemap = await sitemapResponse.text();
-	expect(sitemap.match(/<url>/gu)).toHaveLength(49);
+	// The home page, the rule index, and one page per rule — so this number moves
+	// by one every time a rule ships. It read 49 against 52 rules for three
+	// releases, which is what a bare figure with nothing saying what it counts
+	// costs; the arithmetic is written out so the next mismatch is legible.
+	const rulePages = sitemap.match(/<loc>https:\/\/lyriclint\.com\/rules\/[^/]+\/<\/loc>/gu) ?? [];
+	expect(rulePages).toHaveLength(52);
+	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + 2);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/spelling-arabic-common/</loc>');
@@ -421,6 +472,40 @@ test.describe('phone', () => {
 		).toBeVisible();
 		await expect(page.locator('main.workspace')).toBeHidden();
 		await expect(editor(page)).toBeHidden();
+	});
+
+	/**
+	 * The notice waits for the boot screen, and this is the only place that can
+	 * see it: a `<dialog>` opened with `showModal()` is in the top layer, above
+	 * every stacking context, so no z-index in the stylesheet could have kept the
+	 * boot lockup in front of it. What is asserted is therefore the mounting
+	 * order — nothing of the notice exists while the boot screen is on screen —
+	 * and that it still arrives afterwards, which is the half a plain delete
+	 * would also have passed.
+	 */
+	test('holds the touch notice until the boot screen has gone', async ({ page }) => {
+		const notice = page.locator('dialog.touch-notice');
+		const boot = page.locator('.boot-screen');
+
+		await page.goto('/lint/');
+
+		// The boot screen is in the prerendered HTML, so it is on screen from the
+		// first paint and this is a state to assert against rather than a race to
+		// win.
+		await expect(boot).toBeVisible();
+		await expect(notice).toHaveCount(0);
+
+		await expect(boot).toHaveCount(0);
+		await expect(notice).toBeVisible();
+		await expect(
+			page.getByRole('heading', { name: 'LyricLint works best on a laptop' })
+		).toBeVisible();
+
+		// And it is still the modal it was: one press and it is gone for the
+		// session, leaving the workbench behind it.
+		await page.getByRole('button', { name: 'Got it' }).click();
+		await expect(notice).toBeHidden();
+		await expect(editor(page)).toBeVisible();
 	});
 });
 

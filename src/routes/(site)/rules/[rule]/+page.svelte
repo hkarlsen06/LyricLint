@@ -1,21 +1,36 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
 	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
-	import { currentRuleSet } from '$lib/rules/index.js';
+	// Straight from the manifest, not through `$lib/rules/index.js`: that barrel
+	// re-exports the engine, the registry and Harper, so one version string taken
+	// from it would put all of them back in this page's bundle.
+	import { currentRuleSet } from '$lib/rules/data/rule-set.js';
 	import { siteUrl } from '$lib/seo.js';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import type { PageProps } from './$types.js';
 
 	let { data }: PageProps = $props();
 
-	const reference = $derived(data.reference);
-	const pageTitle = $derived(`${reference.message} · LyricLint`);
+	// Picked out of the layout's data rather than loaded again: the whole index is
+	// already here, because the list beside this column is drawn from it on every
+	// page in the section. `+page.server.ts` is what guarantees the slug names one
+	// of them.
+	const reference = $derived(
+		data.groups.flatMap((group) => group.rules).find((entry) => entry.slug === page.params.rule)!
+	);
+	// The rule's name, not the message it happens to produce on its example. The
+	// index row that opened this page leads with the same string, and a heading
+	// that disagreed with the row pressed to reach it reads as having landed
+	// somewhere else. The message is still on the page, under the example that
+	// produced it, which is what it is a statement about.
+	const pageTitle = $derived(`${reference.title} · LyricLint`);
 	const canonicalUrl = $derived(siteUrl(`/rules/${reference.slug}/`));
 	const structuredData = $derived({
 		'@context': 'https://schema.org',
 		'@type': 'TechArticle',
-		headline: reference.message,
+		headline: reference.title,
 		url: canonicalUrl,
 		mainEntityOfPage: canonicalUrl,
 		description: reference.seoDescription,
@@ -47,7 +62,7 @@
 <StructuredData data={structuredData} />
 
 <main class="site-prose rules__page">
-	<h1>{reference.message}</h1>
+	<h1>{reference.title}</h1>
 
 	<!-- The diagnostic's facts in the diagnostic's idiom: one meta line under the
 	     message. The line number a card would carry is meaningless here, so its
@@ -75,6 +90,14 @@
 			lang={reference.language}
 			dir={reference.language === 'ar' ? 'rtl' : undefined}>{reference.invalid}</pre>
 	</figure>
+	<!-- The linter's own wording, beside the text that produces it. A message is
+	     written about the occurrence in front of the reader, so this is the one
+	     place on the page where it is true without qualification — and quoting it
+	     here is what makes the page and the workbench verifiably the same thing.
+	     It is derived by running the rule on the sample directly above. -->
+	<p class="site-aside">
+		In the workbench this reads: <strong>{reference.message}</strong>
+	</p>
 	<figure class="site-sample site-sample--valid">
 		<figcaption class="site-sample__label">Accepted by this rule</figcaption>
 		<pre

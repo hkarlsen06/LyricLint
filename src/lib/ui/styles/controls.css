@@ -156,6 +156,102 @@ textarea:disabled {
 }
 
 /*
+ * A categorical toggle over a list: pressed means "I am looking at this kind",
+ * and the list underneath holds only the kinds that are pressed.
+ *
+ * It lives here rather than in `linter.css` because two surfaces filter a list
+ * by severity — the linter panel's run of diagnostics and the rule reference's
+ * index — and the states below are the whole of what the control says. Drawn
+ * twice, the copy that drifted would be the one nobody is looking at, which is
+ * the same argument the diagnostic card and its popover share components for.
+ * A pill radius is right here and only here: this is a categorical chip, never
+ * an action button.
+ */
+.filter-chip {
+	display: inline-flex;
+	min-height: var(--control-height-sm);
+	padding: var(--space-0-5) var(--space-2-5);
+	border: var(--border-width) solid transparent;
+	border-radius: var(--radius-pill);
+	gap: var(--control-gap);
+	align-items: center;
+	background: transparent;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	cursor: pointer;
+	transition:
+		background-color var(--duration-fast) var(--ease-out-quart),
+		color var(--duration-fast) var(--ease-out-quart),
+		border-color var(--duration-fast) var(--ease-out-quart);
+}
+
+.filter-chip:hover {
+	border-color: var(--color-border);
+	color: var(--color-text);
+}
+
+/*
+ * An unpressed chip reads as excluded through two cues that survive a greyscale
+ * print: the label is struck through, and the outline goes dashed at full
+ * strength. This used to be `opacity: 0.55`, which put the label at 3.1:1 and
+ * faded the dashed border to 1.0:1 against the panel — so the only real signal
+ * for "this kind is hidden" was a dimming effect, which is both an AA failure
+ * and state carried by nothing but color.
+ */
+.filter-chip[aria-pressed='false'] {
+	/* The muted text color rather than a border token: the dashed outline is a
+	   state indicator, so it owes the 3:1 a non-text UI component owes, and
+	   `--color-border-strong` only reaches 2.35:1 on the panel canvas. */
+	border-style: dashed;
+	border-color: var(--color-text-muted);
+	color: var(--color-text-muted);
+	text-decoration: line-through;
+	text-decoration-thickness: 1px;
+}
+
+.filter-chip[aria-pressed='false']:hover {
+	border-color: var(--color-text);
+	color: var(--color-text);
+}
+
+.filter-chip[aria-pressed='true'] {
+	background: var(--color-fill-strong);
+	color: var(--color-text);
+}
+
+.filter-chip--error[aria-pressed='true'] {
+	background: var(--color-danger-soft);
+	color: var(--color-danger);
+}
+
+.filter-chip--warning[aria-pressed='true'] {
+	background: var(--color-warning-soft);
+	color: var(--color-warning);
+}
+
+.filter-chip--suggestion[aria-pressed='true'] {
+	background: var(--color-suggestion-soft);
+	color: var(--color-suggestion);
+}
+
+/* A kind with nothing to show says so with its own count. It used to also drop
+   to `opacity: 0.45` — 2.2:1 — which made the zero it was trying to communicate
+   the hardest thing on the chip to read. */
+.filter-chip__count {
+	min-width: 1.1em;
+	color: inherit;
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.filter-chip {
+		transition: none;
+	}
+}
+
+/*
  * A wait with no measurable end: the brand mark, closed, with its own waveform
  * running through it.
  *

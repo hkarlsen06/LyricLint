@@ -65,6 +65,8 @@ export type OverlayState =
 			 * selection still sitting there, so the two have to be the same range.
 			 */
 			range: TextRange;
+			/** Lyrics the user had selected, which the card offers to set aside. */
+			selection?: TextRange;
 			/** The header's own offset, which is what every link hook is keyed to. */
 			headerFrom: number;
 	  };
@@ -133,9 +135,10 @@ export function openSectionPicker(session: OverlaySession, range: TextRange): Ov
 export function openSectionLinkPicker(
 	session: OverlaySession,
 	range: TextRange,
-	headerFrom: number
+	headerFrom: number,
+	selection?: TextRange
 ): OverlaySession {
-	return withOverlay(session, { kind: 'link', range, headerFrom });
+	return withOverlay(session, { kind: 'link', range, headerFrom, selection });
 }
 
 /**

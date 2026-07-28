@@ -454,18 +454,72 @@
 	--boot-fade-gone: 0.28;
 	--boot-fade-span: 0.5;
 
+	/* How far the wave has got when the driver reaches 1, as a radius on a `circle`
+	   gradient — where 100% is the distance from the middle of the window to its
+	   furthest corner. It is a hair past it, because the corner has to be gone
+	   before the screen is: stopping exactly on it leaves a lit pixel there for the
+	   last frames, and the unmount then cuts it off. */
+	--boot-shock-reach: 101%;
+	--boot-front: calc(var(--boot-shock) * var(--boot-shock-reach));
+
 	position: fixed;
 	inset: 0;
 	z-index: var(--layer-boot);
 	display: grid;
-	background: var(--color-canvas);
 	font-size: var(--font-size-3xl);
 	place-content: center;
+}
+
+/* The canvas is a layer of its own rather than this screen's own background,
+   because it has to be able to have a hole in it while the lockup drawn on top
+   of it does not. An `opacity` or a background fade on the screen itself takes
+   the lockup with it at the backdrop's own rate, and the two are not the same
+   object — the same reason the reveal was a background fade rather than an
+   opacity before there was a hole to cut.
+ *
+ * It stays under the lockup by being drawn before it: both are positioned at
+ * `z-index: auto`, so tree order decides, and a pseudo-element is the first
+ * child. Not `z-index: -1`, which asks a negative child to stay inside a
+ * stacking context this screen only has because of the layer it is on, and asks
+ * it while the element is running an animation — a composited layer with a
+ * negative child underneath it is where engines disagree, and the way that
+ * failure shows up is the backdrop simply not being painted.
+ *
+ * The mask is unconditional and is a no-op at rest, which is the whole reason the
+ * feather is on the *outside* of the radius. Put inside it, the two stops at
+ * `--boot-shock: 0` are a transparent one at -1px and an opaque one at 0 — a
+ * gradient with no extent and its only visible stop at zero, which is the shape
+ * of gradient implementations disagree about, and one of them reads it as
+ * transparent throughout: the canvas is missing from the first frame and only
+ * appears once the radius grows enough to make the gradient ordinary again.
+ * Outside, every value of the driver leaves a real 1px span between two stops,
+ * and the hole at rest is 1px wide in the middle of the screen. */
+.boot-screen::before {
+	position: absolute;
+	background: var(--color-canvas);
+	content: '';
+	inset: 0;
+	-webkit-mask-image: radial-gradient(
+		circle at center,
+		transparent var(--boot-front),
+		#000 calc(var(--boot-front) + 1px)
+	);
+	mask-image: radial-gradient(
+		circle at center,
+		transparent var(--boot-front),
+		#000 calc(var(--boot-front) + 1px)
+	);
 }
 
 .boot-screen .app-wordmark {
 	--wm-open: 1;
 
+	/* Positioned only so it is painted over the canvas layer above, which is
+	   positioned too — between two `z-index: auto` boxes the later one in the tree
+	   wins, and the pseudo-element is the first child. It positions nothing: the
+	   lockup's own absolute parts hang off `__lead` and `__slot`, which are
+	   relative themselves. */
+	position: relative;
 	font-size: inherit;
 	/* Nothing here answers a pointer: the screen owns the driver, so the lockup's
 	   own hover and press morph would be a second opinion about where it should
@@ -633,24 +687,45 @@
    which are the lockup's, untouched. */
 
 /* The reveal is the screen being taken off the workbench, which is already drawn
-   underneath it by the time this runs — and it starts on the spring's turn, so
-   the last half of the release plays through a screen that is already going. The
-   brackets opening out of the crush are what uncovers the workspace, rather than
-   something that finishes and is then followed by a fade.
+   underneath it by the time this runs — and it is the impact's own consequence
+   rather than something that follows it. The brackets meeting is a charge going
+   off: the canvas opens in a circle from the point they met and expands past the
+   corners.
  *
- * The backdrop and the mark go at different rates, which is why this is a
- * background fade and not an `opacity` on the whole screen: an opacity there
- * takes the mark with it at exactly the backdrop's speed, and the two are not the
- * same object. The canvas is what is in the way, so it clears first; the lockup
- * is what the user is looking at, so it stays a moment longer and finishes
- * springing open over the workspace it uncovered. Its own fade is the
- * `transition` up on the base rule.
+ * Which is why the workspace is uncovered under the lockup first. A backdrop that
+ * fades everywhere at once comes from nowhere in particular and says nothing
+ * about what the mark just did; a circle leaving the mark says the mark did it,
+ * and it clears the middle of the window — where the user is already looking —
+ * before it clears anything else.
  *
- * No scale on the way out either. It was on the screen, so it scaled the mark
- * too — a second opinion about the mark's size running against the spring that
- * owns it, which is the same mistake the impact keyframes were. */
+ * The backdrop and the mark still go at different rates, and that is still the
+ * reason neither is an `opacity` on this screen: an opacity here takes the mark
+ * with it at exactly the canvas's speed, and the two are not the same object. The
+ * canvas is what is in the way, so it is blown out from underneath; the lockup is
+ * what the user is looking at, so it finishes going over the workspace it
+ * uncovered. Its own fade is the `transition` up on the base rule.
+ *
+ * `--boot-blast-at` is the delay that puts this on the collision — see
+ * `BootScreen.svelte`, which solves it out of the fall's easing rather than
+ * placing it near by eye. `both`, so the wave is held at zero radius through that
+ * delay rather than filling only after it: at zero the mask is a no-op and the
+ * canvas is whole, which is exactly what the screen has to look like while the
+ * lockup is still falling into it.
+ *
+ * The curve is deliberately not `--ease-out-quart`, which every other decelerating
+ * thing here uses. The circle should lose speed — that is most of what makes it
+ * read as something thrown outwards rather than as a wipe — but a quartic spends
+ * its last third travelling the last few percent of the radius, which on a screen
+ * this size is a sliver of canvas creeping into the corners long after the reveal
+ * has read as arrived. This one is done with the corners at about three quarters
+ * of its duration.
+ *
+ * No scale on the way out. It was on the screen, so it scaled the mark too — a
+ * second opinion about the mark's size running against the spring that owns it,
+ * which is the same mistake the impact keyframes were. */
 .boot-screen[data-leaving] {
-	animation: boot-uncover var(--boot-reveal) var(--ease-out-quart) var(--boot-reveal-at) forwards;
+	animation: boot-shockwave var(--boot-blast) cubic-bezier(0.2, 0.7, 0.4, 1) var(--boot-blast-at)
+		both;
 	pointer-events: none;
 }
 
@@ -695,9 +770,21 @@
 	opacity: clamp(0, calc((var(--wm-open) - var(--boot-fade-gone)) / var(--boot-fade-span)), 1);
 }
 
-@keyframes boot-uncover {
+/* One number for the whole reveal, 0 to 1, as `--wm-open` is for the rig: the
+   circle's radius is `calc()` off it and nothing else here moves at all. */
+@property --boot-shock {
+	syntax: '<number>';
+	inherits: true;
+	initial-value: 0;
+}
+
+@keyframes boot-shockwave {
+	from {
+		--boot-shock: 0;
+	}
+
 	to {
-		background-color: transparent;
+		--boot-shock: 1;
 	}
 }
 
@@ -715,6 +802,10 @@
 		transition: none;
 	}
 
+	/* The wave never leaves the mark, so the mask stays a no-op and the canvas is
+	   whole until the screen is unmounted on the same frame it starts to leave.
+	   Nothing is left half-torn, and there is no ring: the front is drawn out of
+	   the driver too, and the driver never moves. */
 	.boot-screen[data-leaving] {
 		animation: none;
 	}

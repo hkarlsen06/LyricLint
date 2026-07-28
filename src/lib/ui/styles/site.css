@@ -519,11 +519,12 @@
    1280px without being told. */
 
 /* The two actions no longer fit on one row here — `Open the workbench` and
-   `Browse the 47 rules` come to two pixels more than a 390px phone has — and
-   two centred buttons of unequal width stacked on top of each other read as a
-   row that broke rather than as a column that was meant. So below the width
-   where they stop fitting they are a column on purpose, at one width, which is
-   also the larger touch target. */
+   `Browse the N rules` came to two pixels more than a 390px phone has when this
+   was measured at 47, and the count only grows — and two centred buttons of
+   unequal width stacked on top of each other read as a row that broke rather
+   than as a column that was meant. So below the width where they stop fitting
+   they are a column on purpose, at one width, which is also the larger touch
+   target. */
 @media (max-width: 32rem) {
 	.site-hero .site-actions {
 		flex-direction: column;
@@ -614,8 +615,79 @@
 	line-height: var(--line-height-tight);
 }
 
-.rules__index > .rules__group:first-child {
+.rules__index nav > .rules__group:first-child {
 	margin-top: 0;
+}
+
+/*
+ * Finding a rule among fifty-two, which is past what anyone reads down.
+ *
+ * It rides the top of the column rather than scrolling away with the rows,
+ * because on a wide screen this column is its own scroll port: a reader forty
+ * rows in would otherwise have to travel back to the field to change their
+ * mind. `--color-canvas` is the page it is pinned over — the rows are
+ * `--color-surface` and pass underneath — and the block-end padding is what
+ * keeps the first row from touching the field as it goes by.
+ *
+ * No border and no fill of its own: a boundary here would separate the controls
+ * that filter the list from the list they filter, which is the one place a
+ * boundary has nothing to do.
+ */
+.rules__finder {
+	position: sticky;
+	display: grid;
+	padding-block-end: var(--space-3);
+	gap: var(--space-2);
+	inset-block-start: 0;
+	background: var(--color-canvas);
+	/* Above the rows it is pinned over, and above the recessed shadow the open
+	   rule's row casts. */
+	z-index: 1;
+}
+
+.rules__search {
+	width: 100%;
+	font-size: var(--font-size-sm);
+}
+
+.rules__chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+}
+
+/* The readout at one end and the way out of it at the other, so the row is not
+   a lone control in half a gutter of empty space. Both halves exist only while
+   something is narrowing the list. */
+.rules__readout {
+	display: flex;
+	gap: var(--space-2);
+	align-items: baseline;
+	justify-content: space-between;
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+.rules__clear {
+	min-height: auto;
+	padding-block: 0;
+	font-size: var(--font-size-xs);
+}
+
+/* What the linter will actually say, under the name of the rule that says it.
+   Muted and one step down, because the row is scanned by its title and read by
+   this line only once the reader has stopped on it. */
+.rules__row-message {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+}
+
+/* Prose on the canvas, like every other full-column message on this site: a
+   single box in an empty column separates its contents from nothing at all. */
+.rules__empty {
+	margin: 0;
+	color: var(--color-text-muted);
 }
 
 /* Selection is depth, not hue, exactly as in the linter's run of diagnostics:
@@ -675,6 +747,16 @@
 
 	.rules[data-view='rule'] .rules__index {
 		display: none;
+	}
+
+	/* Nothing to pin to. The columns stack, so the index sits *below* the rule the
+	   reader is on and the document is the only scroller — a sticky finder would
+	   engage after they had scrolled past a whole page, then follow them down the
+	   list glued to the top of a viewport with no chrome in it. It is the first
+	   thing in the section either way, which at this width is where the reader
+	   arrives. */
+	.rules__finder {
+		position: static;
 	}
 
 	.rules__back {

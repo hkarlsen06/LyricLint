@@ -139,3 +139,43 @@ export function linkableHeaderAt(
 	}
 	return { from: header.from, to: header.to };
 }
+
+/**
+ * What an aimed press means: which section's card to open, and which words the
+ * user had in hand when they asked.
+ *
+ * A selection of *lyrics* inside a linkable section resolves to that section's
+ * header and reports itself, because selecting the words that differ and asking
+ * is how a difference gets made by hand — the gesture the whole second list is
+ * driven by.
+ *
+ * Deliberately not `linkableHeaderAt`, which stays exactly as narrow as it was.
+ * That predicate answers the *pointer* path, where a card opens uninvited on a
+ * bare selection, and teaching it about lyric ranges would put the link card on
+ * the most common gesture in a text editor — beside the performer picker, which
+ * is already there. An aimed press has been asked; a selection has not.
+ */
+export function linkTargetAt(
+	parsed: ParsedDocument,
+	pack: LanguagePack | undefined,
+	from: number,
+	to: number
+): { header: TextRange; selection?: TextRange } | undefined {
+	const header = linkableHeaderAt(parsed, pack, from, to);
+	if (header) {
+		return { header };
+	}
+	if (from === to) {
+		return undefined;
+	}
+	const section = parsed.sections.find(
+		(candidate) =>
+			candidate.header &&
+			linkableSemantic(pack, candidate.header.rawNamePart) &&
+			candidate.header.to <= from &&
+			to <= candidate.to
+	);
+	return section?.header
+		? { header: { from: section.header.from, to: section.header.to }, selection: { from, to } }
+		: undefined;
+}

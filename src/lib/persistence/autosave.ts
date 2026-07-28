@@ -1,3 +1,4 @@
+import { copySectionLinks } from './copy.js';
 import type {
 	AutosaveController,
 	AutosaveOptions,
@@ -56,7 +57,7 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 	}
 
 	if (draft.sectionLinks !== undefined) {
-		copy.sectionLinks = draft.sectionLinks.map((link) => ({ lines: [...link.lines] }));
+		copy.sectionLinks = copySectionLinks(draft.sectionLinks);
 	}
 
 	return copy;

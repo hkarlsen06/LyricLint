@@ -26,6 +26,7 @@
 	} from '$lib/persistence/index.js';
 	import { currentRuleSet, sourceRegistry } from '$lib/rules/index.js';
 	import DocumentTitle from '$lib/ui/layout/DocumentTitle.svelte';
+	import TouchNotice from '$lib/ui/layout/TouchNotice.svelte';
 	import Workspace from '$lib/ui/layout/Workspace.svelte';
 	import { useFeedbackState } from '$lib/ui/state/feedback.svelte.js';
 	import {
@@ -191,6 +192,25 @@
 
 {#if !revealed && !bootError}
 	<BootScreen ready={Boolean(controller)} ondone={() => (revealed = true)} />
+{/if}
+
+<!-- The touch notice waits for the boot screen, and a z-index could never have
+     made it. A `<dialog>` opened with `showModal()` is in the browser's top
+     layer, which sits above every stacking context on the page — so the boot
+     screen cannot be lifted over it at any value, and the notice covered the
+     landing it was mounted alongside.
+
+     What it waits on is the same `revealed` the boot screen sets on its way out,
+     so there is one answer to "is the boot screen gone" rather than two that can
+     disagree. Mounting is the gate rather than a prop, because opening is what
+     this surface does when it mounts.
+
+     A boot failure never sets it, and that is right: the notice is a
+     recommendation about the workbench, and there is no workbench behind an
+     error to recommend anything about. Spending a session-scoped warning over a
+     failure would also mean the user never sees it on the reload that works. -->
+{#if revealed}
+	<TouchNotice />
 {/if}
 
 <style>

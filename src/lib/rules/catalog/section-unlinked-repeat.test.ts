@@ -19,13 +19,42 @@ describe('section.unlinked-repeat', () => {
 		]);
 	});
 
-	// The safety property: what the finding points at either already matches or
-	// is empty, so accepting it overwrites nothing. Two copies that genuinely
-	// differ are two copies with nothing to say about them.
-	it('says nothing where the repeats are genuinely different', () => {
+	// Widening this rule to every repeat went one step too far: two copies with
+	// completely different words share nothing, so linking them would tie no text
+	// together at all — every word a difference, the mirror unable to carry
+	// anything, and the finding an offer to do nothing.
+	it('says nothing where the copies have nothing in common', () => {
 		expect(
-			findings('[Chorus]\nHold the line\n\n[Verse 1]\nA lyric\n\n[Chorus]\nLet it go')
+			findings(
+				'[Pre-Chorus]\nJeg vet ikke hva du mener\nMen jeg blir her\n\n[Verse 1]\nA lyric\n\n[Pre-Chorus 2]\nAlt du sier er sant\nOg jeg drar nå'
+			)
 		).toEqual([]);
+	});
+
+	// And a copy that repeats another in full and then carries on is still worth
+	// linking: the short one is wholly inside the long one, which is the case
+	// linking is for. Measured against the shorter copy for exactly this.
+	it('offers a link where one copy contains the other and goes on', () => {
+		expect(
+			findings(
+				'[Chorus]\nHold the line\nAnd wait for me\n\n[Verse 1]\nA lyric\n\n[Chorus 2]\nHold the line\nAnd wait for me\nUntil the morning comes'
+			)
+		).toEqual(['[Chorus]']);
+	});
+
+	// This is the case the rule used to go quiet on, and going quiet on it was the
+	// whole complaint: two choruses that differ are still two choruses worth
+	// linking, and linking now keeps what they disagree on rather than overwriting
+	// it. There is no wording left for the suggestion to endanger.
+	it('offers a link where the repeats differ, because linking keeps the difference', () => {
+		// Differing in *part*, which is the shape the whole feature is for. Two
+		// copies with nothing in common are a different case and are left alone.
+		const text =
+			'[Chorus]\nHold the line\nAnd wait for me\n\n[Verse 1]\nA lyric\n\n[Chorus]\nHold the line\nAnd wait for now';
+		const found = checkRule(sectionUnlinkedRepeatRule, text);
+
+		expect(markedText(text, found)).toEqual(['[Chorus]']);
+		expect(found[0]?.explanation).toContain('kept exactly as they are');
 	});
 
 	it('anchors on a section with words, never on the empty one it would overwrite', () => {
@@ -86,25 +115,32 @@ describe('section.unlinked-repeat', () => {
 		).toEqual(['[Pre-Chorus]', '[Chorus]', '[Post-Chorus]']);
 	});
 
-	// The common shape: a chorus that departs in the middle of the song and comes
-	// back at the end. One odd copy may not silence the two that match, and the
-	// finding says which copies it means.
-	it('offers the copies that match even where another one departs', () => {
+	// The common shape: a chorus that departs in the middle and comes back at the
+	// end. All three are in the offer now — the odd one out is a copy with a
+	// difference to keep, not a copy to be left out — and the finding says how
+	// many of them the user still has to reconcile.
+	it('counts the copy that departs rather than leaving it out', () => {
 		const text =
 			'[Chorus]\nHold the line\n\n[Verse 1]\nA\n\n[Chorus 2]\nLet it go\n\n[Verse 2]\nB\n\n[Chorus 3]\nHold the line';
 		const found = checkRule(sectionUnlinkedRepeatRule, text);
 
 		expect(markedText(text, found)).toEqual(['[Chorus]']);
-		expect(found[0]?.explanation).toContain("2 of this song part's 3 copies");
+		expect(found[0]?.explanation).toContain('appears 3 times');
+		expect(found[0]?.explanation).toContain('1 of the copies are sung a little differently');
+		expect(found[0]?.relatedRanges?.map(({ from, to }) => text.slice(from, to))).toEqual([
+			'[Chorus 2]',
+			'[Chorus 3]'
+		]);
 	});
 
-	// The most-repeated wording wins, so the odd one out is the odd one out even
-	// when it comes first.
-	it('links the wording the song repeats, not the one it opens with', () => {
+	// The anchor is simply the first copy with words in it. It no longer has to be
+	// the most-repeated wording, because the picker no longer overwrites from it —
+	// it only decides which wording wins where the user asks for one.
+	it('anchors on the first copy that has words, wherever it sits', () => {
 		const text =
 			'[Chorus]\nLet it go\n\n[Verse 1]\nA\n\n[Chorus 2]\nHold the line\n\n[Verse 2]\nB\n\n[Chorus 3]\nHold the line';
 
-		expect(markedText(text, checkRule(sectionUnlinkedRepeatRule, text))).toEqual(['[Chorus 2]']);
+		expect(markedText(text, checkRule(sectionUnlinkedRepeatRule, text))).toEqual(['[Chorus]']);
 	});
 
 	// Only the adjacent pair steps aside for `section.immediate-repeat-spacing`.

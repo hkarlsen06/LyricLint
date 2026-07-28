@@ -1,3 +1,4 @@
+import { copySectionLinks } from '$lib/persistence/copy.js';
 import { parseDocument } from '$lib/core/parser.js';
 import type {
 	AutosaveController,
@@ -128,9 +129,13 @@ function setup(options: {
 		setLineAnchors(anchors) {
 			lineAnchors = anchors.map((anchor) => ({ ...anchor }));
 		},
-		getSectionLinks: () => sectionLinks.map((link) => ({ lines: [...link.lines] })),
+		// Through the real copier, not a hand-written one. A stub that listed the
+		// fields it kept would hide exactly the bug this file exists to catch —
+		// which is what happened: a *fourth* copier in `draft-store` rebuilt every
+		// link as `{ lines }` on every save and dropped the differences in silence.
+		getSectionLinks: () => copySectionLinks(sectionLinks),
 		setSectionLinks(links) {
-			sectionLinks = links.map((link) => ({ lines: [...link.lines] }));
+			sectionLinks = copySectionLinks(links);
 		}
 	};
 	const onOpenDraft =
@@ -295,6 +300,30 @@ describe('workbench draft safety', () => {
 	// Section links ride the same hand-off and are lost the same two ways, so they
 	// get the same pair of guards. A link changes no text at all, which makes the
 	// blank-editor window strictly more dangerous for it than for the anchors.
+	// The differences are half of what a link is now, and they are written down on
+	// the same record — so a copier that keeps the lines and drops them loses the
+	// work while leaving every sign that it was saved.
+	test('saves a link’s differences along with its lines', async () => {
+		const link: SectionLink = {
+			lines: [4, 11],
+			holes: [
+				{ line: 6, column: 18, endLine: 6, endColumn: 25 },
+				{ line: 13, column: 18, endLine: 13, endColumn: 23 }
+			]
+		};
+		const stored: DraftRecord = { ...draft('draft-a'), sectionLinks: [link] };
+		const repository = createInMemoryDraftRepository([stored]);
+		const { controller, editor, autosave } = setup({ initial: stored, repository });
+
+		controller.setEditorHandle(editor);
+		editor.setSectionLinks?.([link]);
+		controller.onSectionLinksChanged();
+		await autosave.flush();
+
+		const saved = await repository.get('draft-a');
+		expect(saved?.sectionLinks).toEqual([link]);
+	});
+
 	test('holds a draft’s section links until a handle that can take them arrives', async () => {
 		const stored: DraftRecord = { ...draft('draft-a'), sectionLinks: [{ lines: [4, 11] }] };
 		const repository = createInMemoryDraftRepository([stored]);

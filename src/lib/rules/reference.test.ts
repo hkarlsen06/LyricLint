@@ -28,6 +28,27 @@ describe('rule reference derivation', () => {
 		}
 	});
 
+	it('names every rule with a written title that is not its message', () => {
+		// The one string in the reference that is written rather than run, so it is
+		// the one that needs pinning. A title is what the index is scanned by: it
+		// has to exist, it has to be distinct from every other, it has to say
+		// something the message does not, and it has to be short enough to stay one
+		// line in a column beside the rule the reader is reading.
+		const references = ruleReferences();
+		const titles = references.map((reference) => reference.title);
+		expect(new Set(titles).size).toBe(references.length);
+		for (const reference of references) {
+			expect(reference.title.trim(), reference.id).toBe(reference.title);
+			expect(reference.title.length, reference.id).toBeGreaterThan(0);
+			expect(reference.title.length, reference.id).toBeLessThanOrEqual(44);
+			// A title that is the message is the drift this field exists to end:
+			// fifty-two occurrence-specific messages is what the index used to be.
+			expect(reference.title, reference.id).not.toBe(reference.message);
+			// It names the convention, so it is not a sentence about one occurrence.
+			expect(reference.title, reference.id).not.toMatch(/\.$/u);
+		}
+	});
+
 	it('has no policy case for a rule that is not enabled', () => {
 		const enabledIds = new Set(enabledRules.map((rule) => rule.id));
 		expect(policyCases.filter((policy) => !enabledIds.has(policy.id))).toEqual([]);

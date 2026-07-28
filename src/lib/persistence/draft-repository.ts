@@ -1,4 +1,5 @@
 import { randomId } from '../core/random-id.js';
+import { copySectionLinks } from './copy.js';
 import type { AppMetadataRecord, DraftCreateInput, DraftRecord, DraftRepository } from './types.js';
 import type { LyricLintDatabase } from './database.js';
 
@@ -71,7 +72,7 @@ function copyDraft(record: DraftRecord): DraftRecord {
 	}
 
 	if (record.sectionLinks !== undefined) {
-		copy.sectionLinks = record.sectionLinks.map((link) => ({ lines: [...link.lines] }));
+		copy.sectionLinks = copySectionLinks(record.sectionLinks);
 	}
 
 	return copy;
@@ -103,7 +104,7 @@ function createRecord(input: DraftCreateInput): DraftRecord {
 	}
 
 	if (input.sectionLinks !== undefined) {
-		record.sectionLinks = input.sectionLinks;
+		record.sectionLinks = copySectionLinks(input.sectionLinks);
 	}
 
 	return copyDraft(record);

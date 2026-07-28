@@ -1,4 +1,5 @@
 import { getLanguagePack, linkableSemantic } from '$lib/languages/registry.js';
+import { alignBodies } from '$lib/core/link-shape.js';
 import type { Diagnostic, ParsedDocument, RuleDefinition, Section } from '$lib/core/types.js';
 import { isImmediateRepeat } from './section-immediate-repeat-spacing.js';
 import { diagnostic } from './utils.js';
@@ -12,52 +13,89 @@ function bodyText(section: Section): string {
 }
 
 /**
- * The copies of one song part that already say the same thing, plus the ones
- * still waiting to.
+ * Half. Two copies that share less of themselves than this are two different
+ * passages that happen to carry the same header, and tying them together would
+ * link almost nothing to almost nothing.
  *
- * The most-repeated wording wins, and a copy sung differently is simply not in
- * the set — a song whose first and last chorus match while the middle one
- * departs is ordinary songwriting, and it is also two choruses worth linking.
- * An earlier version required the *whole* kind to match and went quiet on
- * exactly that song, which is the common shape rather than the edge case.
- *
- * Empty copies join whichever wording won, because an untyped `[Chorus 3]` is a
- * repeat waiting to be filled and linking is what fills it. Ties go to the
- * wording that comes first, which is insertion order here.
+ * A fraction rather than a count, because it has to mean the same thing for a
+ * two-line pre-chorus and a twelve-line one. Measured against the *shorter*
+ * copy, so a section that repeats another in full and then carries on is still
+ * offered — the short one is wholly inside the long one, which is exactly the
+ * case linking is for.
  */
-function matchingRepeats(members: readonly Section[]): Section[] {
-	const byBody = new Map<string, Section[]>();
-	const empty: Section[] = [];
-	for (const member of members) {
-		const body = bodyText(member);
-		if (body.length === 0) {
-			empty.push(member);
-			continue;
+const SHARED_ENOUGH = 0.5;
+
+/**
+ * Whether these copies have enough in common to be worth keeping in step.
+ *
+ * Linking stopped being destructive, so this rule was widened to point at every
+ * repeat of a song part — which went one step too far. Two pre-choruses with
+ * *completely different* words share nothing, so linking them ties no text
+ * together at all: every word is a difference, the mirror can never carry an
+ * edit, and the finding is an offer to do nothing.
+ *
+ * The alignment that answers this is the same `alignBodies` the link itself is
+ * built on, which is why it lives in `core` rather than beside the editor: a
+ * rule may not import the editor, and two answers to "how alike are these" is
+ * one more than the number that can stay in agreement.
+ *
+ * Empty copies are not counted, and do not count against. An untyped
+ * `[Chorus 3]` shares nothing with anything by definition, and it is the case
+ * this rule most wants to catch: a repeat waiting to be filled.
+ */
+function worthLinking(members: readonly Section[]): boolean {
+	const bodies = members.map(bodyText).filter((body) => body.length > 0);
+	if (bodies.length < 2) {
+		// One copy with words and the rest still empty. Nothing to compare, and
+		// filling them is the whole point.
+		return bodies.length === 1;
+	}
+	// **Some pair**, not all of them together. A song whose first and last chorus
+	// match while the middle one is sung differently shares almost nothing across
+	// all three — and it is still two choruses worth linking. Asking of the whole
+	// set is how this rule went quiet on that shape once already.
+	for (let left = 0; left < bodies.length; left += 1) {
+		for (let right = left + 1; right < bodies.length; right += 1) {
+			if (sharesEnough(bodies[left] ?? '', bodies[right] ?? '')) {
+				return true;
+			}
 		}
-		byBody.set(body, [...(byBody.get(body) ?? []), member]);
 	}
-	let written: Section[] = [];
-	for (const sharing of byBody.values()) {
-		if (sharing.length > written.length) {
-			written = sharing;
-		}
+	return false;
+}
+
+function sharesEnough(left: string, right: string): boolean {
+	// The overwhelmingly common answer, and it costs no alignment.
+	if (left === right) {
+		return true;
 	}
-	// Nothing is typed yet, so there is no wording for the empties to take.
-	if (written.length === 0) {
-		return [];
-	}
-	const set = [...written, ...empty].sort((left, right) => left.from - right.from);
-	return set.length > 1 ? set : [];
+	const holes = alignBodies([left, right]);
+	const own = (holes[0] ?? []).reduce((total, hole) => total + (hole.to - hole.from), 0);
+	// Shared length is the same number read off either copy, so one will do.
+	return left.length - own >= Math.min(left.length, right.length) * SHARED_ENOUGH;
 }
 
 /**
  * Every group of repeats worth offering to link, with the copy to link them
  * from.
  *
- * The safety property is about what this points *at*, not about the whole song
- * part: the set it names either already matches or is empty, so accepting the
- * suggestion overwrites nothing. What the user then ticks in the picker is the
- * picker's arbitration, and it says what it will replace before it runs.
+ * This used to name only the copies that *already agreed*, and at the time the
+ * reason was sound: linking overwrote every copy from the one the picker was
+ * opened on, so pointing at a chorus that genuinely differed was an invitation
+ * to destroy the difference. Two rounds of narrowing went into keeping that
+ * offer honest — first the whole song part had to match, then the
+ * most-repeated wording had to.
+ *
+ * All of it is gone, because the hazard is. Linking now keeps every word the
+ * copies disagree on and ties together the rest, so there is no wording left
+ * for a suggestion to endanger — and the song this rule was quietest about is
+ * exactly the one the whole rebuild was for: two choruses that differ by a line.
+ * The narrowing was silence on the common case, bought against a risk that no
+ * longer exists.
+ *
+ * So the song part *is* the group now. Which copies to tie together, and which
+ * differences to keep, is the picker's question; it names every one of them
+ * before anything runs.
  */
 export function linkableRepeatGroups(
 	document: ParsedDocument,
@@ -83,16 +121,23 @@ export function linkableRepeatGroups(
 
 	const found: { source: Section; matching: Section[]; members: Section[] }[] = [];
 	for (const members of kinds.values()) {
-		const matching = matchingRepeats(members);
-		// The source is a copy with words in it, never an empty one: the picker
-		// links *from* the section it was opened on, so anchoring this finding on
-		// an empty `[Chorus 2]` would offer to overwrite the real chorus with
-		// nothing. `matching` is in document order, so the first of it can be the
-		// empty one; the wording's own first copy cannot.
-		const source = matching.find((member) => bodyText(member).length > 0);
-		if (source) {
-			found.push({ source, matching, members });
+		if (members.length < 2 || !worthLinking(members)) {
+			continue;
 		}
+		// The source is a copy with words in it, never an empty one: the picker
+		// resolves the wordings it has to from the section it was opened on, so
+		// anchoring this finding on an empty `[Chorus 2]` would leave a copy the
+		// user is filling with nowhere to take the words from.
+		const source = members.find((member) => bodyText(member).length > 0);
+		if (!source) {
+			continue;
+		}
+		// Only so the finding can say how much of the work is already done. It
+		// arbitrates nothing and no longer decides who is in the offer.
+		const matching = members.filter(
+			(member) => bodyText(member) === bodyText(source) || bodyText(member).length === 0
+		);
+		found.push({ source, matching, members });
 	}
 	return found;
 }
@@ -109,21 +154,21 @@ export const sectionUnlinkedRepeatRule: RuleDefinition = {
 			if (!source.header) {
 				continue;
 			}
-			// Which copies are meant, when they are not all of them. A finding that
-			// said "3 times" about a song where only two match would send the reader
-			// looking for a third that is deliberately different.
+			// How much of the work the copies have already done for themselves, so the
+			// reader knows whether they are being offered a formality or a real
+			// reconciliation. Neither number changes what linking does.
 			const scope =
 				matching.length === members.length
 					? `This song part appears ${members.length} times, and every copy either already matches the others or is still empty.`
-					: `${matching.length} of this song part's ${members.length} copies say the same thing, or are still empty; the rest are sung differently and are left alone.`;
+					: `This song part appears ${members.length} times, and ${members.length - matching.length} of the copies are sung a little differently.`;
 			diagnostics.push({
 				...diagnostic(
 					this,
 					{ from: source.header.from, to: source.header.to },
-					'Link the matching sections so one correction reaches them all.',
-					`${scope} Linking ties them together so that editing one edits the rest, and a correction can never land in only one copy. Nothing here is overwritten: linking is offered only where the copies already agree.`
+					'Link these repeats so one correction reaches them all.',
+					`${scope} Linking ties them together so that editing one edits the rest, and a correction can never land in only one copy. Nothing is overwritten: the words the copies already disagree on are kept exactly as they are and left out of the link, so a chorus that changes one line at the end can still be tied to the others.`
 				),
-				relatedRanges: matching.flatMap((section) =>
+				relatedRanges: members.flatMap((section) =>
 					section.header && section.header !== source.header
 						? [{ from: section.header.from, to: section.header.to }]
 						: []

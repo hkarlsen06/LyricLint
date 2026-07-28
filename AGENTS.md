@@ -1102,69 +1102,116 @@ button that started it.
 Implementation: `src/lib/editor/extensions/lyric-sync.ts`, the control in `MediaStrip.svelte`, and
 the wiring in `Workspace.svelte`.
 
-### A chorus is typed once, and its repeats are the same words or they are a bug
+### A chorus is typed once, and what its repeats do differently is said out loud
 
-A song's second chorus is its first chorus, so transcribing it means typing the same lines again —
-and the mistake that follows is the one nobody catches: one of them has a typo, or a correction
-lands in one and not the others, and the page ships with two versions of a line that is sung once.
-Linking is the answer, and the whole feature is three decisions.
+A song's second chorus is its first chorus, so transcribing it means typing the same lines
+again — and the mistake that follows is the one nobody catches: one of them has a typo, or a
+correction lands in one and not the others, and the page ships with two versions of a line that is
+sung once. Linking is the answer.
+
+**A group used to be one body repeated, and that was the whole problem.** Linking overwrote every
+copy from the one the picker was opened on, and the mirror rewrote each peer's entire body on every
+edit — so the commonest shape in pop music, two choruses that are identical apart from the last
+line, could not be linked at all. The only offer on the table destroyed the difference the
+transcriber meant to keep, and the linter deliberately went quiet rather than make it. The feature
+worked exactly where it was least needed.
+
+**So a group is a merge structure now, not a body.** Each member's body is a partition into
+alternating **shared runs** and **divergent runs**, and two facts hold at all times:
+
+- every member has the same number of divergent runs, and
+- the shared text between run `k-1` and run `k` is identical in every member.
+
+Which means a position in shared text is expressible in coordinates every member agrees on — _so
+many characters into the run after hole 3_ — and that one property is what everything else is built
+out of. An edit made in one copy is carried to the others by translating its span; nobody's body is
+rewritten wholesale, and nobody's own words are touched.
+
+**Only the divergent runs are stored.** The shared runs are the gaps between them, so the second
+half of the invariant is true by construction rather than by two lists agreeing.
+
+**Linking therefore writes nothing.** `alignBodies` works out what the copies already share, that
+becomes the shared runs, and everything else is set aside as each copy's own. Pressing `Link` on two
+choruses that differ by a line changes not one character of the document — it only says that from
+now on they move together, apart from the words named in the card. Making copies actually agree is
+still available and is asked for **per difference**, so the destructive act is something the user
+requests about specific words rather than the price of linking at all.
 
 **Only what a song repeats verbatim may be linked**, which is chorus, pre-chorus and post-chorus
-(`LINKABLE_SEMANTICS`). A verse repeats its shape and not its words, so offering to link two of
-them would be a standing offer to overwrite one with the other. Refrain is deliberately out for
-now; the three the user named are the three that are always the same lines.
+(`LINKABLE_SEMANTICS`). A verse repeats its shape and not its words, so offering to link two of them
+would be a standing offer to overwrite one with the other. Refrain is deliberately out for now.
 
-**The kind is the language pack's `semanticPart`, never the spelling.** That is what makes this
-work in every supported language without a word of it being written twice: `[Hook]` and `[Refreng]`
-and `[코러스]` are all `chorus`, and `Chorus 2` matches `Chorus` because the ordinal is stripped by
-the same `headerSemanticKey` the section picker orders its suggestions with — one answer to "is
-this a chorus", exported from `languages/registry.ts`, because two would disagree the first time a
-pack gained a term. **English is consulted second**, not instead: Genius pages in every language
-carry English headers routinely — `ja` is an English pack outright, `no` lists `Chorus` beside
-`Refreng` — so a German draft with `[Chorus]` in it links exactly like one with `[Hook]`, while the
-selected pack still wins where the two disagree.
+**The kind is the language pack's `semanticPart`, never the spelling.** That is what makes this work
+in every supported language without a word of it being written twice: `[Hook]` and `[Refreng]` and
+`[코러스]` are all `chorus`, and `Chorus 2` matches `Chorus` because the ordinal is stripped by the
+same `headerSemanticKey` the section picker orders its suggestions with — one answer to "is this a
+chorus", exported from `languages/registry.ts`, because two would disagree the first time a pack
+gained a term. **English is consulted second**, not instead: Genius pages in every language carry
+English headers routinely — `ja` is an English pack outright, `no` lists `Chorus` beside `Refreng` —
+so a German draft with `[Chorus]` in it links exactly like one with `[Hook]`, while the selected pack
+still wins where the two disagree.
 
-**The source is the section the user opened the card from**, and linking overwrites the others from
-it. There is no merge and no prompt about which words win: the user is looking at the words they
-mean to keep, which is the whole of the arbitration, and the card says so before the press.
+#### The alignment is decided once, and that is not an optimisation
 
-**Unless that section is empty, and then it is the one being filled.** Typing `[Refreng]` at the
-foot of a draft and linking it to the chorus above is a request to _fill_ it — nobody adds a header
-in order to empty the section it repeats — so writing from the section in front of the user answers
-it by destroying the only copy that had the words. A section with nothing in it has nothing to
-give: the words come from the first member of the group that has any, and the empty one joins the
-others as a target. **The group, never the document**, because a copy the user did not tick is not
-part of what they asked for; all of them empty writes nothing, which is the harmless case.
+The tempting design is to re-derive the shape on every edit — git-style, re-diff and see what lines
+up. It is wrong, and the reason is worth stating because it will be proposed again.
 
-Three things follow from it, and the first two are the card refusing to lie about what it is about
-to do:
+**Git can re-align because it has three versions.** Base, ours, theirs: it knows which side moved.
+Here there is no stored common ancestor, so a live aligner has to guess whether an edit meant the
+copies to converge or to diverge further. Fix a typo in one chorus and it must decide whether you
+were making them agree — in which case it should propagate — or writing a deliberate variation, in
+which case it must not. **A diff cannot tell a mistake from a decision.** Guess one way and it eats a
+difference the user meant to keep; guess the other and the typo stays in one copy for good.
 
-- **`comparison` is read against the words that will be written**, not against the opened section.
-  Compared with an empty source every peer is `different`, so a card opened on a new `[Chorus 3]`
-  told the user its two identical choruses disagreed.
-- **The opened section reports `empty` rather than `source` when it has no words**, and the card's
-  note says the opposite of its usual sentence: linking fills this one from the copies that are
-  ticked. Decided once at open, like `openedComplete`, because the two wrap to different heights.
-- **The collapsed selection still follows the _opened_ header**, which is no longer the source. It
-  is the header the selection sits on, and leaving it selected would reopen the card the user just
-  answered on the next settled anchor report.
+So the shape is worked out once, when a link is made or its membership changes, and is **stored
+intent** from then on. It is re-derived only where there is no intent to honour: a group loaded from
+a draft written before differences existed, or one whose members somehow ended up with different
+numbers of runs, where every translation downstream would refuse anyway.
 
-This is the same hazard `section.unlinked-repeat` already anchors around — the rule points at a
-copy that has words for exactly this reason — but the rule is not the only way in, and neither
-`Mod-Shift-L` nor the `⇄` mark went through it.
+Three things about the aligner itself:
 
-**A body is measured from the end of the header line, not from the first lyric.** That one offset
-is what makes an empty `[Chorus 3]` take a peer's words with no special case — replacing an empty
-range at the end of a header line with `"\nHold on tight"` is an ordinary edit, while a body
-measured from the first lyric of a section that has none has no position to describe at all.
+- **It matches words and line breaks, never characters.** A character-level alignment finds the `to`
+  inside both `tonight` and `together` and calls it a common anchor — a shared run nobody would
+  recognise as shared, which then propagates edits the user never asked to propagate. Line breaks are
+  tokens of their own so a lyric's line structure survives instead of words drifting across it.
+- **Matched tokens are not enough; the text between them is verified.** The whitespace between
+  tokens is not tokenized, so two copies can match word for word and still differ by a double space.
+  A run whose full span is not byte-identical in every member is not a shared run.
+- **Whitespace at a run's edges is handed back to the shared text.** A run begins where the last
+  matched word ended, so `my love` against `my friend` opens the difference at the space and reports
+  ` love` against ` friend` — a difference whose first character is the same in both copies, which is
+  the one thing a difference is not. **Whitespace only, never a letter**: `love` and `lover` share
+  four characters, and trimming those would end the shared run mid-word, which is the coincidental
+  anchor that tokenizing by word exists to prevent arriving through the back door.
 
-**Editing one edits them all through a `transactionFilter`, not a follow-up dispatch.** The mirrored
-edits are appended to the transaction that caused them with `sequential: true`, exactly as
-`headerRenameFilter` mirrors a performer's name: the document is never briefly inconsistent, one
-snapshot is emitted, and one undo restores every section at once. A second `view.dispatch` would
-give the user one undo step per linked section for something they typed once.
+#### The mirror carries a run, and the rule is contained against overlapping
 
-Four things it refuses, and the refusals are the design:
+An edit lands in one member's body. What happens next is two lines:
+
+- **A change wholly _contained_ in a divergent run stays where it was made.** The run absorbs it,
+  nothing is carried to the peers. This is the half that makes two choruses differing by a line
+  linkable at all.
+- **A change that merely _overlaps_ a run took that run with it, in every copy.** Retyping a line
+  that contains a difference, or deleting across one, is the user writing over words that were
+  deliberately their own — so the difference ends, the words become shared, and the mirrored span is
+  widened to swallow the same run everywhere.
+
+`carryHoles` in the field and `expandOverHoles` in the mirror name **the same set from opposite
+ends**, which is why the counts stay equal without anything having to count them.
+
+**A run's ends map outwards** — `from` backwards, `to` forwards — so it is greedy at its edges:
+typing at the end of a word that was deliberately this copy's own leaves it this copy's own. The
+containment rule agrees with this by construction, because an insertion at either edge is contained.
+
+**What gets carried is the whole shared run, not the characters that changed**, and that is
+correctness rather than convenience. A shared run is identical in every member _by definition_, so
+writing all of it is idempotent where the group is in step and **repairs** it where it is not.
+Carrying only the edited slice trusts every offset inside the run to already line up, and leaves the
+copies disagreeing forever the first time one does not. It is also what makes a group with no
+differences behave exactly as the old whole-body link did — one run, the whole body, replaced — so
+a draft saved before any of this still mirrors the way it always did.
+
+Four things it still refuses, and the refusals are the design:
 
 - **Undo, redo, and IME composition are exempt**, so history replays byte for byte and a preedit is
   never interrupted.
@@ -1181,143 +1228,364 @@ Four things it refuses, and the refusals are the design:
   rather than two: `setSectionLinkEffect` names the whole resulting group, every named header leaves
   whatever group it was in first, and a lone survivor comes loose.
 
-**The linter is how anyone finds this, and it may only point at repeats that already agree.** The
-two ways in above are a gesture nobody makes by accident and an unadvertised keystroke, and the only
-mark on screen — `⇄` — appears on headers that are _already_ linked, so the feature was invisible
-until it had been used. `section.unlinked-repeat` is the answer, and what makes it safe to say out
-loud is that the set it names either already says the same thing or is still empty: accepting it
-overwrites nothing. A chorus sung differently the second time is ordinary songwriting, so a copy
-that departs is simply not in the set — and the empty case is the better half of the offer, because
-an untyped `[Chorus 3]` is unambiguously a repeat waiting to be filled and linking is what fills it.
+**And it is a `transactionFilter`, not a follow-up dispatch.** The mirrored edits are appended to the
+transaction that caused them with `sequential: true`, exactly as `headerRenameFilter` mirrors a
+performer's name: the document is never briefly inconsistent, one snapshot is emitted, and one undo
+restores every section at once. A second `view.dispatch` would give the user one undo step per linked
+section for something they typed once.
 
-**The set, not the song part, and that distinction is the correction this rule shipped with.** The
-first version required the _whole_ kind to match and went quiet on a song whose first and last
-chorus agree while the middle one departs — which is a common shape rather than an edge case, and
-still two choruses worth linking. So the most-repeated wording wins, the empties join it, and the
-odd copy out is left alone rather than silencing its peers. The finding says which copies it means
-(`2 of this song part's 3 copies…`), because a count of all of them would send the reader looking
-for a third that is deliberately different.
+#### Making copies agree is asked for per difference
 
-Five things it owes, and the third is the one a careless version gets wrong:
+`keepDifferent[i] === false` collapses difference `i` to one wording. **That wording is the source's**
+— the copy the card was opened from, the words the user is looking at — **unless the source has
+nothing there**, which is the one case where the section in front of the user cannot win: an untyped
+`[Chorus 3]` is a request to be _filled_, and letting its emptiness win would answer it by emptying
+the chorus that had the words. Then the words come from the first member of the group that has any.
+**The group, never the document**, because a copy the user did not tick is not part of what they
+asked for.
 
-- **It is a `suggestion` with no fix, and its action opens the picker.** Linking is a state effect
-  and `DiagnosticFix` carries text edits, so this joins `Choose header` and `Assign section
-performers` as a guided action on the shared row rather than inventing a fourth kind of fix. The
-  picker is also the honest surface: a card cannot show a three-section overwrite as a diff, and the
-  picker names every member before anything runs.
-- **It arbitrates nothing, and the picker preselects nothing.** Which copies to tie together is the
-  picker's question, and it names what it will replace before it runs — so the rule points and stops
-  there. Threading the matched set through as a preselection would put "which of these agree" in a
-  second place, and the two would disagree the first time either changed.
-- **It anchors on a copy that has words.** The picker links _from_ the section it was opened on, so
-  a finding sitting on an empty `[Chorus 2]` would offer to overwrite the real chorus with nothing.
-  The matched set is in document order and its first member may well be the empty one, so the anchor
-  is the first member _of the winning wording_ — and the diagnostic's own range is that header,
-  which is what both surfaces then hand to the picker.
-- **An immediate repeat belongs to `section.immediate-repeat-spacing`.** Two identical choruses with
-  nothing between them want one header, not two tied together, so both rules read the same
-  `isImmediateRepeat` predicate and cannot contradict each other. Only the adjacent pair steps
-  aside, though — the rest of the kind stays linkable, by the same rule as the odd copy out, and the
-  two repairs touch different sections.
-- **The suppression is in the shell, not in `RuleContext`.** Linked sections keep identical words by
-  construction, so the rule fires on its own result forever unless something knows about the links —
-  and `filterForEditorState` in `wiring.ts` is where that already happens, because it runs on every
-  snapshot while the lint itself is memoized on the document. A link made or taken off changes no
-  text, so a rule that learned about links through its context would keep the answered suggestion on
-  screen until the next keystroke. Membership of _any_ group silences it, which under-reports a
-  partly linked group deliberately: leaving one repeat out is a decision the user made in the picker.
+This is the same rule the old whole-body link had for bodies, now applied per difference — and the
+empty-section special case collapses into the general model rather than needing its own branch.
 
-**The mark stayed as it was, and that is a decision.** `⇄` means one thing — this section rewrites
-others — and giving linkable-but-unlinked headers a dimmer copy of it would separate a warning from
-an invitation by tone alone, which is what the severity glyphs were reworked to stop doing. With the
-linter carrying the offer, a second mark would also be the same claim in two places.
+#### Setting words aside by hand is a selection and a press
 
-**Applying collapses the selection, and that is load-bearing rather than tidiness.** The card opens
-_because_ a header is selected whole, and the selection survives the edit — so leaving it there
-would reopen the card the user just answered on the next settled anchor report. A collapsed
-selection reports no anchor at all.
+Select the words that differ, press `Mod-Shift-L`, and the card opens with the selection offered as
+a difference, ticked. The span is **translated** into every peer rather than searched for, through
+the same arithmetic the mirror uses: a position in shared text is the same distance from the nearest
+difference in every copy, so "these five characters" means the same five characters everywhere
+without a word of either copy being compared. It lands in every member or in none — a run that
+appeared in some copies and not others would leave the group with different counts, which every
+translation downstream refuses, so the link would go quiet rather than fail, which is the worse
+failure.
 
-**Which is exactly why a missing anchor does not retire this card, unlike the performer picker.**
-That one exists solely because a range of lyrics is selected, so a selection that is gone leaves a
-card describing nothing. This one is anchored to a _header_, which is still there — and it opens
-from a bare caret through `Mod-Shift-L`, so retiring it on the next settle killed the
-keyboard-opened card about eighty milliseconds after it drew. It leaves the way every other
-transient surface does: Escape, Cancel, an outside press, or applying.
+**`linkTargetAt` answers the keyboard, and `linkableHeaderAt` stays exactly as narrow as it was.**
+That second predicate answers the _pointer_ path, where a card opens uninvited on a bare selection,
+and teaching it about lyric ranges would put the link card on the most common gesture in a text
+editor — beside the performer picker, which is already there. An aimed press has been asked; a
+selection has not. That is the rule _A surface that opens itself has to have been asked_ already
+states, applied to a second surface that wanted the same gesture.
 
-**Nothing in the card may change size with what is selected.** It hangs from its own bottom edge,
-so anything that grows it moves it out from under the pointer that just caused the growth — which
-is the same complaint _`.spinner` goes in a slot that already had a size_ makes about a row that
-reflows under the press. Three things enforce it: the layer takes a `width` rather than a
-`max-width`, so the card never sizes to its content; the note is one sentence per **opening** rather
-than one per tick, because two sentences of different length rewrap to different heights; and the
-apply action takes the row's free width through a `1fr auto` grid, so `Link` becoming
-`Link 3 sections` moves neither button. `section-links.svelte.test.ts` measures the box across a
-tick rather than trusting the rules — the failure they replace looked exactly like working CSS.
+**And the answer about existing differences is resolved before a new one is added.** Inserting first
+would shift every index the user's ticks were given against, silently, and collapse the wrong
+difference.
 
-**Which sentence that is depends on the state the card opened in, and `openedComplete` is read once
-rather than derived.** A card opened on a group that is already whole has no linking left to
-describe — every peer is in it, and all that is on offer is taking one out — so narrating what
-linking does there is a caption for an action the card is not offering. It says the standing fact
-instead. Derived live, unticking a row would swap the sentence back and resize the card, which is
-the rule directly above; frozen at open, the two states cannot fight.
+#### The card asks one thing at a time, and shows a diff
+
+The sections list is what it was: tick the copies to tie together. **Nothing is said about the words
+until some are ticked**, because what two copies differ on is a question about a set the user has
+not chosen yet. Once a peer is ticked, the card grows a **diff** and then the one decision, as a
+**radio pair**:
+
+- ◉ Keep each version as it is
+- ○ Replace them with Chorus 1's words
+
+**The radio names the copy, not the kind.** `Replace them with this chorus's words` is ambiguous the
+moment there are three of them — the reader has to work out which chorus "this" is from the greyed
+row further up. `sourceLabel` is the section's own name.
+
+**The diff shows each version inside its own line.** `før, du kunne spørt meg` on its own says
+nothing about where in the chorus it sits, or that the other copies simply stop there. So each row
+is the run with its neighbours around it: the shared halves muted, the divergent run marked, and the
+versions stacked so the only thing that moves between them is the run.
+
+**That context is the shared runs either side, and never "the rest of the line".** Clipped to the
+line it was drawn from, the context stopped at whatever line boundary each copy happened to have —
+and a run that spans lines ends on a _different_ line in each copy, so the text drawn beside it was
+different text. On screen that put a word inside one copy's run and in another copy's context, with
+the insertion caret sitting in front of a word the row above was showing as shared. A shared run is
+identical in every member by construction; a line is not. It is trimmed towards the middle with a
+leading `…`, because the shared run either side of a difference can be the whole rest of the chorus.
+
+**The lyric wraps rather than truncating.** Set to one line with an ellipsis, the run itself — the
+one thing the row exists to show — was the part that got cut off, and there was nowhere to scroll to
+see it. Wrapping means the run is always whole and only the context is ever abbreviated, which is
+the right way round. The list keeps a `max-height` so a long comparison scrolls.
+
+**A copy that has nothing there gets an insertion caret, not the words "nothing here".** It is the
+mark a diff already uses, it sits at the exact point the other copies' words would go, and it costs
+the row no width it would have to take from the lyric.
+
+**The highlight ends where the run ends.** It carried a one-pixel `box-shadow` spread to fake
+padding, which drew a band a pixel out on every side — read down a column of rows that is a stripe
+lying behind words that are not part of the difference at all. Inline padding grows the box around
+its own text instead.
+
+**Whose version wins is a dropdown, not the opened section.** Hard-wired to the copy the card
+happened to be opened from, noticing that a _later_ chorus has the wording worth keeping made the
+repair "close the card and open it again from the right one". `replaceFrom` rides the choice, the
+dropdown lists the ticked copies, and choosing one selects the replace outcome — picking a version
+is asking for it. Unticking the chosen copy falls back to the opened one, because a section that is
+not in the group cannot be the one whose version wins. An empty wording still never wins.
+
+**Choosing to replace turns each row into what would happen to it**, rather than recolouring what
+is already there. A row that is changing keeps the words it loses, struck through, with the words it
+gains beside them — the editor's own fix-preview idiom, and the only arrangement that answers "what
+would actually happen". Colouring the losing rows red said only that something was wrong with them,
+and left the reader to imagine the result.
+
+Three states follow from it, and the third is the one worth naming:
+
+- **The picked copy** is already saying the winning version, so it shows no change at all, only its
+  run marked green.
+- **A copy that differs** shows `del` then `ins`, in `--color-danger` and `--color-success`. Struck
+  through **as well as** coloured, because colour alone is never a state carrier here.
+- **A copy that happens to match the winner already** is not changing either, so it is marked as the
+  version rather than as an edit. Marking it as a change would promise an edit that never runs.
+
+**Switching the dropdown turns the whole diff around**, because the diff is derived from
+`replaceFrom` rather than from the opened section — otherwise the card would go on describing an
+outcome nobody chose.
+
+**And the card's `winningText` follows the same rule as the editor's `winningWording`**: the picked
+copy's version, unless it is empty, in which case the first copy with words wins. The two have to
+agree, because this row is a promise about what that function is going to do.
+
+**An insertion caret only survives into the replacing state on a row that is not changing.**
+Everywhere else the green insertion has taken its place, which is a better answer to "where do the
+words go" than a bar.
+
+**The two outcomes are one control each, not two rows apart.** Given `--control-height-sm` and their
+own padding they sat a whole row apart with nothing between them, which reads as two separate things
+rather than as one either/or. The heading over the diff takes the opposite correction: with only the
+card's uniform gap above it, the section rows and the comparison ran together as one list of six.
+
+**This replaced a checkbox per difference, and the reason is worth keeping.** Ticked meant _keep
+these words apart_, six pixels under a list where ticked meant _include this section_. One control,
+two opposite meanings, on one card — and the row beside it ran both versions together with an
+interpunct into a single truncated line, so which words were whose could not be read at all. The
+lesson is the general one: **a novel control is a bug unless the familiar one genuinely cannot do
+the job.** A diff and a radio pair are what everyone has already met in a file-conflict dialog, and
+neither can be read two ways.
+
+The diff is **information, not a control**. Nothing in it is pressable.
+
+#### The card is pinned, not frozen
+
+What the old "must not resize" rule was really protecting is the **position** of whatever the
+pointer is on. The card hangs from its bottom edge, so anything appearing lower down pushes the
+section list — the very checkboxes being ticked — up the screen.
+
+Freezing the card's size was the wrong way to stop that, and it cost two rounds. Reserving the
+diff's height meant reserving it for the largest set the user _might_ tick, which opened the card as
+a tall empty box; filling that space with a preview meant showing a comparison and a decision about
+copies nobody had picked yet, which is a question asked before the one it depends on has been
+answered.
+
+**So the top is pinned instead.** `pinnedTop` is measured in a `requestAnimationFrame` after the
+card has drawn, after which the card extends downwards into space the user is not pointing at.
+Three things go with it:
+
+- Only the `above` placement needs it; `below` is already measured from its top.
+- `--ll-room` is what is left below the pinned top, so a long diff scrolls rather than putting the
+  actions out of reach.
+- The diff list keeps a `max-height` of its own for the same reason.
+
+`section-links.svelte.test.ts` asserts the card's top **and the ticked row's own top** are unchanged
+across a tick, and that the card did grow — a pin that pins nothing would pass the first two.
+
+The note is still one sentence per **opening** rather than one per tick (`openedComplete`), because
+two sentences of different length rewrap to different heights and that is a change nothing asked
+for.
+
+**Applying collapses the selection**, and that is load-bearing rather than tidiness: the card opens
+_because_ a header is selected whole, and the selection survives the edit, so leaving it there would
+reopen the card the user just answered on the next settled anchor report. A collapsed selection
+reports no anchor at all. **Which is exactly why a missing anchor does not retire this card**, unlike
+the performer picker — that one exists solely because a range of lyrics is selected, while this one
+is anchored to a _header_ that is still there, and it opens from a bare caret through `Mod-Shift-L`.
+It leaves the way every other transient surface does: Escape, Cancel, an outside press, or applying.
 
 **A card no anchor describes takes the side that has room**, rather than `above` unconditionally.
-The keyboard path opens on a caret, so nothing has reported a rect for it, and the old fallback put
-the card off the top of the screen whenever the header it named was near the top of the viewport.
 `anchorPlacement` takes the fallback from the caller, and the caller measures with
 `selectionAnchorForView`'s own comparison, so the pointer-opened card and the keyboard-opened one
 land on the same side.
 
-**A linked header says so on its own line**, through a line decoration and a CSS `::after` — never
-a widget. A widget in the content flow participates in selection and copy, and clean lyrics on the
-clipboard are this application's entire output. A section that silently rewrites another has to be
-visible; a mark in somebody's paste is worse than the bug it was warning about.
+**The keyboard keeps the section list and the radios apart.** Arrows rove the section rows only; the
+radio group answers its own arrows, which is what a radio group is for.
 
-**Undo reverses the link along with the words, and that needs `invertedEffects`.** Undo restores
-text by reversing changes, and a `StateField` reverses nothing on its own — so deleting a linked
-section and pressing undo used to bring the section back with its link silently gone, which is a
-half-reversal and the worst kind. Every history event now carries the groups as they stood before
-it, so undoing a deletion, the link's own overwrite, or an unlink that moved no text at all puts
-the membership back. Two things it depends on: the restore effect **must** define `map`, because an
-effect stored in the history without one is _dropped_ the moment it has to be mapped through a
-later change, silently; and it is emitted whenever links exist rather than only where the field
-actually changed, because comparing would mean reading the new state from inside the facet that
-state is still being built for.
+`apply` asks for the differences of the ticked copies again rather than reading the list on screen,
+so the answer can never be given against a set that is no longer showing.
 
-**What it does not survive is the document being replaced wholesale.** Select all, cut, paste back
-and the links are gone — every header line the membership was written against was erased, and
-`dropErased` is right to drop them. Re-attaching links to re-pasted text would be guessing at which
-of the new headers used to be which, and a link that is silently wrong overwrites work. Line
-anchors behave the same way for the same reason. `section-links.svelte.test.ts` pins this as a
-decision rather than leaving it as a surprise.
+#### What is drawn
+
+**A linked header says so on its own line** through `⇄`, a widget outside the text.
+
+**And it serves the editor's one hover wait before it opens anything.** It opened on the bare
+`pointerenter`, which made it the only pointer target in the document that answered instantly — so a
+mouse crossing the editor on its way to the panel dragged a card open behind it for every linked
+header it passed over. `HoverIntent` in `extensions/hover-intent.ts` is that wait, shared with the
+severity underline and the count badge at the end of a line, so a pointer crossing a crowded
+document meets one rule rather than a different one per target. The keyboard is exempt, as it is on
+the badge: reaching the marker with `Tab` is a decision already made, so `focus` cancels the wait and
+opens at once. There is deliberately **no click path** — a press focuses the button, and a second
+`open()` behind the first would reset a card the user had already started answering.
+
+**A divergent run is a `Decoration.mark`, never a widget**, and that distinction is the same one the
+`⇄` earns its exception from: a widget in the content flow participates in selection and copy, and
+clean lyrics on the clipboard are this application's entire output. A mark adds nothing to a paste.
+It is drawn as a **dotted** underline because every other underline in the editor is wavy and belongs
+to a diagnostic — this is not a finding, it is a note about what an edit here will and will not
+reach. A run that is empty in this copy draws nothing, because there is nothing there to draw on;
+the card is where those are named.
+
+**The mark on the header stayed as it was, and that is a decision.** `⇄` means one thing — this
+section moves with others — and giving linkable-but-unlinked headers a dimmer copy of it would
+separate a warning from an invitation by tone alone, which is what the severity glyphs were reworked
+to stop doing.
+
+#### The linter is how anyone finds this, and it is no longer timid
+
+`section.unlinked-repeat` used to name only the copies that **already agreed**, and at the time the
+reason was sound: linking overwrote, so pointing at a chorus that genuinely differed was an
+invitation to destroy the difference. Two rounds of narrowing went into keeping that offer honest —
+first the whole song part had to match, then the most-repeated wording had to.
+
+All of it is gone, because the hazard is. Linking keeps what the copies disagree on, so there is no
+wording left for a suggestion to endanger — and the song the rule was quietest about is exactly the
+one this rebuild was for. The narrowing was silence on the common case, bought against a risk that
+no longer exists.
+
+**So the song part is the group now — but only where the copies have something in common.** The
+widening went one step too far in its first version, and the report was a diagnostic offering to
+link two pre-choruses with _completely different_ words. Those share nothing, so linking them ties
+no text together at all: every word is a difference, the mirror can never carry an edit, and the
+finding is an offer to do nothing. `worthLinking` gates on `alignBodies`, and three things about it
+are decisions rather than tuning:
+
+- **Half of the shorter copy**, as a fraction rather than a count, so it means the same for a
+  two-line pre-chorus and a twelve-line one. Against the _shorter_ one, so a copy that repeats
+  another in full and then carries on still qualifies — the short one is wholly inside the long one,
+  which is exactly what linking is for.
+- **Some pair, never all of them together.** A song whose first and last chorus match while the
+  middle one departs shares almost nothing across all three, and is still two choruses worth
+  linking. Asking it of the whole set is how this rule went quiet on that shape once already.
+- **Empty copies are not counted and do not count against.** An untyped `[Chorus 3]` shares nothing
+  with anything by definition, and it is the case this rule most wants to catch.
+
+**The gate is on what the linter volunteers, not on what the card will do.** Open the picker on two
+sections that share nothing and you may still link them; the diff shows exactly what that means.
+The rule only decides what to raise unasked.
+
+Four things it still owes:
+
+- **It is a `suggestion` with no fix, and its action opens the picker.** Linking is a state effect
+  and `DiagnosticFix` carries text edits, so this joins `Choose header` and `Assign section
+performers` as a guided action on the shared row rather than inventing a fourth kind of fix. The
+  picker is also the honest surface: a card cannot show a three-section reconciliation as a diff, and
+  the picker names every member and every difference before anything runs.
+- **It arbitrates nothing, and the picker preselects nothing.** The rule points and stops there.
+- **It anchors on a copy that has words**, never an empty one, so a copy the user is filling always
+  has somewhere to take the words from.
+- **An immediate repeat belongs to `section.immediate-repeat-spacing`.** Two identical choruses with
+  nothing between them want one header, not two tied together, so both rules read the same
+  `isImmediateRepeat` predicate. Only the adjacent pair steps aside; the rest of the kind stays
+  linkable.
+
+**The suppression is in the shell, not in `RuleContext`.** Linked sections keep their shared runs
+identical by construction, so the rule would fire on its own result forever unless something knew
+about the links — and `filterForEditorState` in `wiring.ts` is where that already happens, because it
+runs on every snapshot while the lint itself is memoized on the document. A link made or taken off
+changes no text, so a rule that learned about links through its context would keep the answered
+suggestion on screen until the next keystroke.
+
+**Which means something has to ask for a snapshot when the links move, because the editor will not.**
+An effects-only transaction deliberately emits none (`update-bridge.ts`: the shell reacts to snapshots
+by re-applying context, so emitting there would be a cycle), and a link changes no text. This worked
+by accident for as long as the only way to make one was the card, which collapses the selection on
+its way out — and a selection change _is_ a snapshot. Restoring a draft's links collapses nothing, so
+a reload came back with the suggestion still on every linked section and it went away on the user's
+first press in the document. `republishForSectionLinks` in `Workspace.svelte` is the explicit ask,
+from the two places links move without an edit: `onSectionLinksChanged`, and the `$effect` that hands
+a newly mounted editor its handle. It costs nothing it did not already cost — the lint is memoized on
+the document, so it re-filters diagnostics already computed, and the snapshot it re-adopts is byte for
+byte the one in hand, so no save is dirtied.
+
+**That hand-off runs `untrack`ed, and it has to.** It reads back what it has just written — the
+editor's own anchors and links — and an editor holding those in reactive state re-enters the effect
+forever. CodeMirror does not, so the real pane never showed it; `MockEditorPane` does, and did.
+
+**The mock publishes its handle a microtask after mount for the same reason.** The real pane awaits a
+dynamic import of CodeMirror before it has anything to hand over, so the shell's first lint runs
+_before_ the draft's links are re-seated — which is the entire bug. A mock that assigned its handle
+at init reversed that order and hid it: the first version of this test passed against the unfixed
+shell.
+
+#### Undo, and what is written down
+
+**Undo reverses the link along with the words, and that needs `invertedEffects`.** Undo restores text
+by reversing changes, and a `StateField` reverses nothing on its own. Every history event carries the
+groups **and their runs** as they stood before it, so undoing a deletion, a difference that was
+closed, or an unlink that moved no text at all puts the shape back with the text. The runs travel
+with the membership for a specific reason: a half-reversal that restored `again` while the group
+still believed the line was shared would overwrite it again on the next keystroke.
+
+Two things it depends on: the restore effect **must** define `map`, because an effect stored in the
+history without one is _dropped_ the moment it has to be mapped through a later change, silently; and
+it is emitted whenever links exist rather than only where the field actually changed, because
+comparing would mean reading the new state from inside the facet that state is still being built for.
 
 **Links are saved on the draft as header line numbers**, exactly as `LineAnchor` is and for the same
 reason — an offset shifts on every keystroke earlier in the document, a line does not. **The numbers
-are read off the live mapped ranges at save time, never stored and then shifted**, so a verse typed
-above a linked chorus moves the link with the text rather than stranding it on whatever section
-inherited the old number. Which means
-`sectionLinks` had to be added to all three hand-written copiers (`copySnapshot`, `copyDraft`,
-`createRecord`), to `backup.ts`, and re-seated through `setEditorHandle` on any editor that can hold
-links and has none. And it needs `onSectionLinksChanged`, because **unlinking moves no text**: a
-shell that saved only on a document change would keep writing a link the user had just taken off.
+are read off the live mapped ranges at save time, never stored and then shifted.** A divergent run is
+written the same way, as a line and a column at each end: a column as well as a line because a
+difference can be part of a line, which is the case the whole feature was rebuilt for. **Zero width
+is meaningful and is kept**: it is where one copy simply has nothing, and it is where the other
+copy's words go.
+
+**Which means every hand-written copier had to learn about it, and the count in this file was
+wrong.** `copySnapshot` in `persistence/autosave.ts` and `copyDraft` in
+`persistence/draft-repository.ts` each spelled out `{ lines: [...link.lines] }`, so a link that
+gained a second field was dropped in silence by both.
+
+**And there is a fourth, which this section did not name and which is the one that actually shipped
+the bug.** `writeRecord` in `ui/state/draft-store.svelte.ts` assembles the record every autosave
+writes, and it rebuilt each link as `{ lines: [...link.lines] }` too — so the differences were
+correct in the editor, correct in `sectionLinksFor`, correct on the way into the repository's own
+copiers, and thrown away by the one step in between. On screen that is a link whose divergent runs
+are marked while you work and gone on the next reload, with nothing anywhere reporting a failure.
+
+There is one `copySectionLinks` in `persistence/copy.ts` now, used by all four. **The rule is not
+"there are three copiers" — it is that a `DraftRecord` field is only as safe as the least careful
+place that rebuilds one**, and the way to find them is `grep` for the field's siblings rather than
+trust a list. `workbench.test.ts` drives the _real_ copier in its editor stub for exactly this
+reason: a stub that listed the fields it kept would hide this whole class of bug, and it did.
+
+`backup.ts` validates them, and **a run whose numbers cannot be read is dropped rather than throwing**:
+the link itself is still good, and losing a difference costs the user one re-tick while refusing the
+whole backup costs them the draft.
+
+And it needs `onSectionLinksChanged`, because **unlinking and closing a difference can move no text
+at all**: a shell that saved only on a document change would keep writing a shape the user had just
+changed.
+
+**What none of it survives is the document being replaced wholesale.** Select all, cut, paste back
+and the links are gone — every header line the membership was written against was erased. Re-attaching
+links to re-pasted text would be guessing at which of the new headers used to be which, and a link
+that is silently wrong overwrites work. Line anchors behave the same way for the same reason.
+`section-links.svelte.test.ts` pins this as a decision rather than leaving it as a surprise.
 
 **The keyboard's way in is `Mod-Shift-L`, beside `Mod-Shift-H`, and deliberately not the `Ctrl-Alt`
 family the rest of the editor's commands live in** — `Ctrl-Alt-L` is the transport's forward key,
 bound to the window, and two implementations of one keystroke is how every nudge came to fire twice.
-Both ways in run `requestSectionLink`, over the same `linkableHeaderAt` predicate the pointer path
-uses, so they cannot come to mean different things; the pointer opens silently and the aimed press
-names its refusal out loud, which is the rule _A surface that opens itself has to have been asked_
-already states for the performer picker.
+Both ways in run `requestSectionLink`, over the same predicate, so they cannot come to mean different
+things; the pointer opens silently and the aimed press names its refusal out loud.
 
-Implementation: `src/lib/editor/section-links.ts` (the pure predicate, the body range — no
-CodeMirror, so `EditorPane` may import it without pulling the editor into the landing page's
-bundle), `src/lib/editor/extensions/section-links.ts` (the field, the mirror, the decoration), and
-`SectionLinkPicker.svelte`. **`linkableSemantic` lives in `languages/registry.ts`**, beside the
-`headerSemanticKey` it is built on, because the rule asks it too and a rule may not import the
-editor. The rule is `rules/catalog/section-unlinked-repeat.ts`, its action is `onLinkSections` on
-`DiagnosticActions.svelte` — wired to the picker by `startSectionLink` in `EditorPane.svelte` and by
-`linkDiagnosticSections` on the controller, which selects the header and then asks the editor the
-same question `Mod-Shift-L` does.
+Implementation: `src/lib/core/link-shape.ts` (the aligner and the run arithmetic — pure, no
+CodeMirror, tested as arithmetic in `link-shape.test.ts`). **It lives in `core` rather than beside
+the editor because the rule asks it too**, and a rule may not import the editor: two answers to "how
+alike are these copies" is one more than the number that can stay in agreement, `src/lib/editor/section-links.ts` (the
+predicates and the body range — no CodeMirror either, so `EditorPane` may import it without pulling
+the editor into the landing page's bundle), `src/lib/editor/extensions/section-links.ts` (the two
+fields, the mirror, the decorations), and `SectionLinkPicker.svelte`. **`linkableSemantic` lives in
+`languages/registry.ts`**, beside the `headerSemanticKey` it is built on, because the rule asks it too
+and a rule may not import the editor. The rule is `rules/catalog/section-unlinked-repeat.ts`, its
+action is `onLinkSections` on `DiagnosticActions.svelte` — wired to the picker by `startSectionLink`
+in `EditorPane.svelte` and by `linkDiagnosticSections` on the controller.
+
+**A body is measured from the end of the header line, not from the first lyric.** That one offset is
+what makes an empty `[Chorus 3]` take a peer's words with no special case — replacing an empty range
+at the end of a header line with `"\nHold on tight"` is an ordinary edit, while a body measured from
+the first lyric of a section that has none has no position to describe at all.
 
 ### YouTube is a second source behind the same transport, and it is asked for every session
 
@@ -2266,6 +2534,99 @@ Implementation: `autoHeightTheme` and both options in `src/lib/editor/create-edi
 `.editor-pane.auto-height` in `src/lib/editor/EditorPane.svelte`, `.site-demo*` in
 `src/lib/ui/styles/site.css`, and the pane's own tests in `EditorPane.svelte.test.ts`.
 
+### A rule has a name, and the reference is found by symptom
+
+The rule reference is derived from the linter rather than written about it, and for a long time
+that included what each rule was _called_ — the index row and the page's `<h1>` were both the
+diagnostic `message`, which is written about the occurrence in front of the reader. Fifty-two of
+those in one column is not a reference: `«definately» is a common English spelling error` names
+one misspelling out of a list the rule holds hundreds of, and `Use «I'ma» instead of «Imma»` reads
+as a finding somebody left lying around. The page said what the linter would say and never said
+what the rule was.
+
+**So `title` is the one written string in the whole reference, and it lives on the policy case.**
+Everything else a page states is produced by running the rule against its reviewed example, which
+is right and stays right — a hand-written copy of an explanation drifts from the rule inside a
+release. A title is the exception because there is nothing to copy from: a rule has no name of its
+own, and both candidates for standing in for one fail. The message is about the occurrence, and
+`ruleName()`'s derived form reads as the ID it is built from (`Spelling: english common`). It goes
+on `RulePolicyCase` rather than in a map keyed by ID so the _type_ is what enforces it: a rule
+already ships with a reviewed example or it does not ship, and now the same object is where its
+name has to be. `reference.test.ts` pins that the titles are unique, trimmed, under 44 characters,
+not a sentence, and never equal to the message.
+
+**The row leads with the title and keeps the message under it**, because the message is still the
+most useful thing on the row once the reader has stopped on it — it is what the workbench will
+actually tell them. The detail page leads with the title too, and quotes the message beneath the
+_flagged example_, which is the one place on the page where a statement about one occurrence is
+true without qualification. The `<h1>`, the `<title>`, and the row that opened it are now one
+string; a heading disagreeing with the row pressed to reach it reads as having landed somewhere
+else.
+
+**Finding a rule is by symptom, because that is what the reader has.** Nobody arrives knowing a
+rule's name — they know a bracket, an apostrophe, or the word the linter underlined. So the query
+is matched against everything a page says, **the reviewed examples included**, which is what makes
+`definately` and `Imma` land on the rules that flag them. Three folds on both sides of the
+comparison (`foldForSearch`), and each answers a way this page's own text would otherwise refuse
+an honest search: combining marks come off, so `ca va` finds `ça va`; typographic quotes fold to
+the typewriter kind, so `don't` finds `don’t` on the pages that are _about_ the apostrophe; case
+goes last, with `toLowerCase` rather than a locale fold, because nine languages have no one locale
+to be right for. Every term has to match — two words narrow.
+
+**Filtered, never ranked.** The index is grouped by rule family and a relevance order would have
+to break that grouping, so short terms matching a few extra rules is the accepted cost. A group
+that keeps nothing is dropped rather than left standing as a heading over no rows.
+
+**Two axes, one chip, and the chip is the linter panel's own.** `.filter-chip` moved to
+`controls.css` when this shipped: the same control filtering the same severities out of a list,
+drawn twice, is two copies of the dashed-and-struck-through unpressed state that carries the whole
+meaning — and the copy that drifted would be the one nobody is looking at. Pressed means "I am
+looking at this kind", exactly as in the panel.
+
+**The fix axis is three chips and not one “only rules with a fix” toggle**, and that follows from
+sharing the visual. Unpressed reads as _excluded_, so a struck-through `Fixes automatically` says
+the opposite of what switching it off means. As three shown/hidden chips it also answers the
+better question: keep `No automatic fix` alone and the list is every rule that is a judgment call.
+The three labels are the words the rule's own page already uses.
+
+**A chip's count is over the query alone and blind to the chips.** Read the other way it would be
+the number of rows that chip is currently contributing, so pressing one back on would be a press
+towards a zero, and the two rows of chips would chase each other's numbers on every toggle. Read
+this way a count is what pressing the chip puts back — which is how the linter panel counts its
+own severities. Which chips are _offered_ is decided over the whole set rather than the query, so
+a chip cannot vanish as the reader types and take its axis with it; a chip reading zero is what
+says the query excluded it.
+
+**The readout draws only while something is narrowing the list**, because `52 of 52 rules` is a
+count that could not have been otherwise and the lede beside the column already states the total.
+It carries the count at one end and `Clear filters` at the other — a lone control in half a row of
+empty gutter is the other way this row fails. Nothing matching is a sentence on the canvas, not a
+box.
+
+**None of it is in the URL, and all of it is in the layout.** A filter is a way of looking at the
+list, not a place, and a history entry per keystroke would make the back button walk the query
+backwards one letter at a time. Because `RuleIndex` is mounted by the section's layout — the same
+thing that keeps pressing a row from rebuilding the list — a reader who searched, opened a result,
+and came back finds the search they were in the middle of.
+
+**The finder is pinned on a wide screen and static on a narrow one.** There the column is its own
+scroll port and a field forty rows above the reader is a field they travel back to; here the
+columns stack, the index sits _below_ the rule being read, and a sticky bar would engage after a
+whole page of scrolling and then follow them down glued to a viewport with no chrome in it.
+
+**Harper is named on the index and given no pages.** The workbench runs a local English
+proofreader beside these rules, and its findings arrive as `spelling.harper`, `style.harper` and
+`grammar.harper` — diagnostics like any other, and not in this set. A rule earns a page by citing
+a reviewed Genius guideline and carrying an example a person has checked; Harper's suggestions
+cite Harper, and its list of them is its own to change. Saying so on the page is cheaper than a
+reader concluding the reference is incomplete. `style` is in `groupTitles` for that group alone —
+it will never have a page, but `ruleName` reads the same map, and without an entry the
+ignored-rules footer printed the raw ID at the reader.
+
+Implementation: `title` on `RulePolicyCase` in `rules/catalog/policy-cases.ts`,
+`rules/reference-search.ts` (the fold, the filter, the counts — pure, so the component holds no
+logic of its own), `src/lib/ui/site/RuleIndex.svelte`, and `.rules__finder` in `site.css`.
+
 ### The mark and the wordmark are one object
 
 There is one pair of brackets in the brand, not two. The mark's brackets and the `[Lint]`
@@ -2440,6 +2801,19 @@ works**, because it does — this is a recommendation, not the gate it replaced.
   unasked. It earns that by being the shortest-lived surface in the application: one press and it
   is gone for the session. A banner would have to live somewhere in a layout whose whole problem is
   that it has no room to spare.
+- **It waits for the boot screen, and it is mounted by the page rather than the group layout so
+  that it can.** The notice opened over the boot lockup's landing, which is the one piece of this
+  application deliberately staged frame by frame — and **a z-index could never have fixed it**. A
+  `<dialog>` opened with `showModal()` is in the browser's **top layer**, above every stacking
+  context on the page, so the boot screen cannot be lifted over it at any value; the only repair is
+  for the notice not to exist yet. It therefore hangs off the same `revealed` the boot screen sets
+  on its way out, which is page state a layout cannot see — hence the move, and it is still inside
+  `.app-shell` because the page is. Mounting is the gate rather than a prop, since opening is what
+  this surface does when it mounts. A boot failure never sets `revealed` and the notice never
+  draws, which is right twice over: there is no workbench behind an error to recommend anything
+  about, and spending a session-scoped warning over a failure means never seeing it on the reload
+  that works. `e2e/lyriclint.spec.ts` pins the order, because a top-layer dialog over a prerendered
+  boot screen is only observable in a real browser.
 - **Session-scoped, like the ignored rules.** A warning that has been read is noise, and one that
   is never repeated is a warning the user cannot get back; closing the tab forgets it. It is
   remembered on the dialog's `close` rather than in the button's handler, so `Escape` and a press

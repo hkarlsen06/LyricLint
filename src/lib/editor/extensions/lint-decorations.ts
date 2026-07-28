@@ -5,6 +5,7 @@ import type { DecorationSet } from '@codemirror/view';
 import type { Diagnostic, Severity, TextRange } from '$lib/core/types.js';
 import type { RevisionedDiagnostics } from '../contracts.js';
 import { editorCallbacksField, editorComposingField, editorRevisionField } from './editor-state.js';
+import { HoverIntent } from './hover-intent.js';
 
 const severityRank: Record<Severity, number> = {
 	error: 0,
@@ -99,55 +100,9 @@ function diagnosticClusterKey(cluster: DiagnosticCluster): string {
 		.join('|');
 }
 
-/**
- * How long the pointer has to settle on one diagnostic before its card appears.
- *
- * Long enough that crossing a lint-heavy verse on the way somewhere else opens
- * nothing, short enough to read as immediate to anyone who actually stopped.
- * A pointer merely passing through clears any one target well inside this.
- */
-const hoverIntentDelay = 110;
-
-/**
- * The wait a pointer serves before a diagnostic reveals itself.
- *
- * Every pointer route onto a diagnostic — the severity underline and the count
- * badge at the end of the line — shares this, so a pointer crossing a crowded
- * line meets one rule rather than a different one per target. Arming is a no-op
- * for the diagnostic already pending, which is what lets a pointer that comes
- * to a complete stop, emitting no further events at all, still open the card.
- */
-class HoverIntent {
-	private pending?: Diagnostic;
-	private timer?: ReturnType<typeof setTimeout>;
-
-	constructor(private readonly reveal: (diagnostic: Diagnostic) => void) {}
-
-	arm(diagnostic: Diagnostic): void {
-		if (this.pending === diagnostic) {
-			return;
-		}
-		this.cancel();
-		this.pending = diagnostic;
-		this.timer = setTimeout(() => {
-			this.timer = undefined;
-			this.pending = undefined;
-			this.reveal(diagnostic);
-		}, hoverIntentDelay);
-	}
-
-	cancel(): void {
-		if (this.timer !== undefined) {
-			clearTimeout(this.timer);
-			this.timer = undefined;
-		}
-		this.pending = undefined;
-	}
-}
-
 class DiagnosticBadge extends WidgetType {
 	/** The badge's own pending reveal, for the diagnostic it leads with. */
-	private readonly hover = new HoverIntent((diagnostic) => this.activate?.(diagnostic));
+	private readonly hover = new HoverIntent<Diagnostic>((diagnostic) => this.activate?.(diagnostic));
 
 	constructor(
 		readonly cluster: DiagnosticCluster,
@@ -494,12 +449,12 @@ function diagnosticAtPointer(event: MouseEvent, view: EditorView): Diagnostic | 
 export function diagnosticRangeHoverHandler(): Extension {
 	return ViewPlugin.fromClass(
 		class {
-			readonly hover: HoverIntent;
+			readonly hover: HoverIntent<Diagnostic>;
 
 			constructor(view: EditorView) {
 				// Resolved when the wait elapses rather than now: a re-lint between
 				// arming and firing must not reveal through a retired callback set.
-				this.hover = new HoverIntent((diagnostic) =>
+				this.hover = new HoverIntent<Diagnostic>((diagnostic) =>
 					view.state.field(editorCallbacksField)?.onDiagnosticActivate(diagnostic)
 				);
 			}

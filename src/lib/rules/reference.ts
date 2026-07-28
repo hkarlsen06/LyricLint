@@ -37,6 +37,12 @@ if (typeof window === 'undefined') {
 /** Everything a reference page states about one rule, all diagnostic-derived. */
 export interface RuleReference {
 	id: string;
+	/**
+	 * What the rule is called — the reviewed case's own `title`, and the one
+	 * field here that is written rather than run. See `RulePolicyCase.title` for
+	 * why this one is the exception.
+	 */
+	title: string;
 	/** URL path segment: the rule ID with dots flattened to hyphens. */
 	slug: string;
 	/** The ID prefix before the first dot, which is what the index groups by. */
@@ -83,6 +89,14 @@ export function ruleFromSlug(slug: string): string | undefined {
  * not know so a rule family cannot ship with its raw prefix as a heading —
  * prerendering every page is part of the build, which makes this a build error
  * rather than a runtime one.
+ *
+ * It is also what `ruleName` reads, and that is a second set of callers with a
+ * second set of prefixes: Harper's findings are not registry rules and have no
+ * reference page, but they are diagnostics like any other, so ignoring one
+ * names it in the ignored-rules footer. `style` is in this map for that reason
+ * alone — `style.harper` has no page and never will, and without an entry here
+ * `ruleName` fell through to its own fallback and printed the raw ID at the
+ * reader.
  */
 const groupTitles: Record<string, string> = {
 	syntax: 'Syntax and markup',
@@ -93,6 +107,7 @@ const groupTitles: Record<string, string> = {
 	quotes: 'Quotation marks',
 	contraction: 'Contractions',
 	grammar: 'Grammar',
+	style: 'Style',
 	symbols: 'Symbols and special characters',
 	text: 'Text spacing and invisible characters',
 	unknown: 'Unknown lyrics',
@@ -174,6 +189,7 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 	const fix = lead.fixes?.[0];
 	return {
 		id: rule.id,
+		title: policy.title,
 		slug: ruleSlug(rule.id),
 		group: prefix,
 		groupTitle: groupTitle(prefix),

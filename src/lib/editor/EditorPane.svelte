@@ -5,6 +5,7 @@
 		DiagnosticFix,
 		EditorSnapshot,
 		LanguagePack,
+		LinkDifference,
 		PerformerId,
 		StyleSlot,
 		TextRange
@@ -319,7 +320,12 @@
 			// nothing here for the shell to arbitrate. `request.range` is the
 			// header itself, which the keyboard command resolved from the caret.
 			onSectionLinkRequest(request) {
-				session = openSectionLinkPicker(session, request.range, request.range.from);
+				session = openSectionLinkPicker(
+					session,
+					request.range,
+					request.range.from,
+					request.selection
+				);
 			},
 			// Every caller of this one is a pointer: the hovered underline and the
 			// cluster badge. It shows the card where the text already is; the shell
@@ -469,11 +475,34 @@
 			: [];
 	}
 
-	function applySectionLink(headerOffsets: number[]): void {
-		editor?.handle.linkSections?.(headerOffsets);
+	/**
+	 * What the group of these headers would disagree on.
+	 *
+	 * Asked of the editor on every tick rather than computed once, because a set
+	 * that is not yet a group has no stored shape — what two unlinked choruses
+	 * differ on is worked out from the words, and ticking a third changes the
+	 * answer.
+	 */
+	function linkDifferences(headerOffsets: number[]): LinkDifference[] {
+		return editor?.handle.getLinkDifferences?.(headerOffsets) ?? [];
+	}
+
+	function applySectionLink(choice: {
+		headers: number[];
+		keepDifferent: boolean[];
+		makeDifferent?: TextRange;
+		replaceFrom?: number;
+	}): void {
+		const closing = choice.keepDifferent.filter((kept) => !kept).length;
+		editor?.handle.linkSections?.(choice);
+		// Linking writes nothing on its own, so saying it "overwrote" the others
+		// would be false; what a screen reader needs is how many copies are now in
+		// step and how much of them is deliberately not.
+		const kept =
+			choice.keepDifferent.filter((keep) => keep).length + (choice.makeDifferent ? 1 : 0);
 		callbacks.onAnnouncement(
-			headerOffsets.length > 1
-				? `${headerOffsets.length} sections linked. Editing one now edits them all.`
+			choice.headers.length > 1
+				? `${choice.headers.length} sections linked${kept > 0 ? `, keeping ${kept} difference${kept === 1 ? '' : 's'}` : ''}${closing > 0 ? `, ${closing} made to agree` : ''}. Editing one now edits them all.`
 				: 'Section unlinked.'
 		);
 		session = closeOverlay(session);
@@ -729,6 +758,13 @@
 		{occurrences}
 		currentHeaderFrom={linkOverlay.headerFrom}
 		initialSelected={linkedPeers(linkOverlay.headerFrom, occurrences)}
+		differencesFor={linkDifferences}
+		pendingSelection={linkOverlay.selection}
+		pendingSelectionText={linkOverlay.selection
+			? editor?.handle
+					.getSnapshot()
+					.text.slice(linkOverlay.selection.from, linkOverlay.selection.to)
+			: undefined}
 		anchor={overlayAnchor}
 		placement={overlayPlacement}
 		onApply={applySectionLink}

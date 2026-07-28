@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { parseDocument } from '$lib/core/parser.js';
-	import type { AtomicDocumentEdit, EditorSnapshot, SerializedSelection } from '$lib/core/types.js';
+	import type {
+		AtomicDocumentEdit,
+		EditorSnapshot,
+		SectionLink,
+		SerializedSelection
+	} from '$lib/core/types.js';
 	import type { EditorPaneProps } from '$lib/editor/index.js';
 	import { untrack } from 'svelte';
 
@@ -20,6 +25,7 @@
 	let textarea: HTMLTextAreaElement | undefined;
 	let history = $state<string[]>([]);
 	let future = $state<string[]>([]);
+	let sectionLinks = $state<SectionLink[]>([]);
 
 	function currentSnapshot(): EditorSnapshot {
 		return {
@@ -56,8 +62,7 @@
 		replace(nextText, edit.selectionAfter ?? selection);
 	}
 
-	// eslint-disable-next-line no-useless-assignment -- Assignment publishes the shell-safe handle through bind:handle.
-	handle = {
+	const editorHandle: EditorPaneProps['handle'] = {
 		focus() {
 			textarea?.focus();
 		},
@@ -95,8 +100,33 @@
 		// the song, focus the editor — with no way to be exercised at all.
 		setLyricSync(active) {
 			callbacks.onLyricSyncChange?.(active);
+		},
+		// The draft's links are re-seated onto whichever editor mounts, and the
+		// shell reads them straight back to decide whether a `section.unlinked-repeat`
+		// has already been answered. A mock that swallowed them would leave that
+		// hand-off — the whole of what a reload exercises — untestable. It emits no
+		// snapshot, exactly as the real editor does not: this is the draft being
+		// read back rather than changed.
+		getSectionLinks: () => sectionLinks,
+		setSectionLinks(links) {
+			sectionLinks = [...links];
 		}
 	};
+
+	// Published a microtask after mount, not at init, because the real pane awaits
+	// a dynamic import of CodeMirror before it has anything to hand over — so the
+	// shell's first lint runs *before* the draft's links and anchors are re-seated
+	// onto the editor. Publishing in the mount flush reversed that order and hid
+	// the whole class of bug that lives in it.
+	$effect(() => {
+		let cancelled = false;
+		void Promise.resolve().then(() => {
+			if (!cancelled) handle = editorHandle;
+		});
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	function onInput(event: Event): void {
 		const target = event.currentTarget as HTMLTextAreaElement;

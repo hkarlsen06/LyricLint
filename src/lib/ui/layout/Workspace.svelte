@@ -254,6 +254,26 @@
 		controller.onSnapshot(enriched, harperPending ? null : lastDiagnostics);
 	}
 
+	/**
+	 * Re-run the suppression over the snapshot already in hand.
+	 *
+	 * A link made, taken off, or read back out of the draft changes no text, and
+	 * an effects-only transaction deliberately emits no snapshot — so nothing
+	 * would re-run `filterForEditorState`, which is where an answered
+	 * `section.unlinked-repeat` is hidden. It worked by accident until now:
+	 * applying the card collapses the selection, and that is a snapshot. Restoring
+	 * a draft's links at boot collapses nothing, so a reload came back with the
+	 * suggestion still on every linked section and it went away on the first press
+	 * in the document — the first selection change that emitted one.
+	 *
+	 * Costs nothing it did not already cost: the lint is memoized on the document,
+	 * so this re-filters the diagnostics that were already computed, and the
+	 * snapshot re-adopted is byte for byte the one in hand, so no save is dirtied.
+	 */
+	function republishForSectionLinks(): void {
+		publishSnapshot(controller.snapshot);
+	}
+
 	onDestroy(() => {
 		destroyed = true;
 		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
@@ -377,8 +397,13 @@
 			anchors = editorHandle?.getLineAnchors?.() ?? [];
 			controller.onLineAnchorsChanged();
 		},
-		// Unlinking moves no text, so this is the only thing that writes it down.
-		onSectionLinksChanged: () => controller.onSectionLinksChanged(),
+		// Unlinking moves no text, so this is the only thing that writes it down —
+		// and the only thing that re-asks whether the suggestion it answered is
+		// still worth showing.
+		onSectionLinksChanged: () => {
+			controller.onSectionLinksChanged();
+			republishForSectionLinks();
+		},
 		onSeekMedia: (time) => {
 			const player = controller.media?.player;
 			if (!player?.attached) return;
@@ -444,16 +469,26 @@
 		tap: () => editorHandle?.tapLyricSync?.()
 	};
 
+	// A handle arriving is the only thing this pass answers to, so the hand-off
+	// itself runs untracked: it reads back what it has just written — the editor's
+	// own anchors and links — and an editor that holds those in reactive state (the
+	// mock does; CodeMirror does not) would otherwise re-enter this effect forever.
 	$effect(() => {
-		controller.setEditorHandle(editorHandle);
-		// Read the anchors back on the same pass, because that call is where a
-		// remount gets the draft's own timings re-seated onto it — through
-		// `setLineAnchors`, which deliberately reports nothing (it is the draft being
-		// read back, not changed). Without this the shell's copy stays as it was left
-		// by whichever editor is being replaced, and with a paused track nothing else
-		// re-reads it: a fully timed song comes back from a draft switch still
-		// offering `Sync lyrics`, and the follow control still hidden.
-		anchors = editorHandle?.getLineAnchors?.() ?? [];
+		const handle = editorHandle;
+		untrack(() => {
+			controller.setEditorHandle(handle);
+			// Read the anchors back on the same pass, because that call is where a
+			// remount gets the draft's own timings re-seated onto it — through
+			// `setLineAnchors`, which deliberately reports nothing (it is the draft being
+			// read back, not changed). Without this the shell's copy stays as it was left
+			// by whichever editor is being replaced, and with a paused track nothing else
+			// re-reads it: a fully timed song comes back from a draft switch still
+			// offering `Sync lyrics`, and the follow control still hidden.
+			anchors = handle?.getLineAnchors?.() ?? [];
+			// The same call re-seats the draft's links, and unlike the anchors those
+			// decide what the linter shows.
+			republishForSectionLinks();
+		});
 	});
 
 	// The transport keys, bound to the window and not to the document. The pause

@@ -4,7 +4,7 @@ import type { EditorView } from '@codemirror/view';
 import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js';
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
-import { linkableHeaderAt } from './section-links.js';
+import { linkTargetAt } from './section-links.js';
 import {
 	editorComposingField,
 	editorContextField,
@@ -68,19 +68,23 @@ export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallb
 		return true;
 	}
 	const range = logicalSelection(view);
-	const header = linkableHeaderAt(
+	const target = linkTargetAt(
 		parsedDocumentForView(view),
 		view.state.field(editorContextField, false)?.languagePack,
 		range.from,
 		range.to
 	);
-	if (!header) {
+	if (!target) {
 		return announce(
 			callbacks,
-			'Put the cursor in a chorus, pre-chorus, or post-chorus to link it to the others.'
+			'Put the cursor in a chorus, pre-chorus, or post-chorus to link it to the others, or select the words that differ.'
 		);
 	}
-	callbacks.onSectionLinkRequest?.({ range: header, prefer: 'above' });
+	callbacks.onSectionLinkRequest?.({
+		range: target.header,
+		prefer: 'above',
+		selection: target.selection
+	});
 	return true;
 }
 

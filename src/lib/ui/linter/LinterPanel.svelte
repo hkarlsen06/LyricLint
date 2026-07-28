@@ -127,7 +127,7 @@
 			{#each filters as filter (filter.value)}
 				<button
 					type="button"
-					class="linter-panel__filter-chip linter-panel__filter-chip--{filter.value}"
+					class="filter-chip filter-chip--{filter.value}"
 					aria-pressed={controller.severityFilter.includes(filter.value)}
 					onclick={() => controller.toggleSeverity(filter.value)}
 				>
@@ -136,7 +136,7 @@
 					     it hides would be their shared color. -->
 					<SeverityIcon severity={filter.value} />
 					{filter.label}
-					<span class="linter-panel__filter-count">{counts[filter.value]}</span>
+					<span class="filter-chip__count">{counts[filter.value]}</span>
 				</button>
 			{/each}
 		</div>

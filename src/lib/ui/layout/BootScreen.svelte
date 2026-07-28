@@ -10,6 +10,13 @@
 	// and stops dead at the mark. The impact is what starts the waveform, and the
 	// workspace is revealed from the same instant.
 	//
+	// That reveal is the collapse's own consequence: the brackets meeting is a
+	// charge going off, so the canvas opens in a circle from the point they met and
+	// expands past the corners. One circle and nothing else. The workspace is
+	// uncovered from the middle — under the lockup first, which is where the user is
+	// already looking — rather than by a canvas that fades everywhere at once and
+	// therefore comes from nowhere.
+	//
 	// The stretch is `--wm-open` driven past its own 0-to-1 range, which is the
 	// rig's arithmetic rather than a scale laid on top of it: the brackets travel
 	// further, the lead opens wider than the word it uncovers, and `Lint` fans
@@ -57,26 +64,35 @@
 	const RELEASE_MS = 420;
 	/** Slack for the fallback timer, so it never beats the fall's own end. */
 	const LANDING_GRACE_MS = 250;
-	/** The backdrop clearing, after a wait, once the mark has landed. */
-	const REVEAL_MS = 240;
 	/**
-	 * And the backdrop on the other path, where the exit runs inside the fall.
+	 * The blast: how long the circle takes to cross the screen, corners included.
 	 *
-	 * It cannot simply start when the screen starts leaving, because that is the
-	 * top of the fall — the canvas was clearing while the lockup was still at full
-	 * strength three hundred milliseconds from going anywhere, so the workspace
-	 * arrived first and the brand was left dissolving on top of it. The canvas goes
-	 * *with* the wordmark: it waits for the same part of the fall the fade is tuned
-	 * to, then clears fast enough to be done as the brackets settle.
-	 *
-	 * The delay is a fraction of the fall rather than a driver threshold like the
-	 * fade's, and that is a deliberate difference of kind. The fade needed to be
-	 * exact — its whole window is 75ms and being a frame out ruins it. This only
-	 * has to arrive in the neighbourhood, and a rough moment stated as a rough
-	 * moment is easier to read than arithmetic pretending to more than it has.
+	 * It is one duration for both paths, because it is a fact about the distance
+	 * from the middle of the window to its furthest corner rather than about
+	 * whatever the lockup was doing when it went off. `shell.css` shapes it, and
+	 * shapes it to arrive: a quartic ease-out spends a third of its time on the
+	 * last few percent of the radius, which is a sliver of canvas creeping into
+	 * the corners long after the reveal has read as done. The edge clears the
+	 * corner at roughly three quarters of this, and what is left is slack — the
+	 * guarantee that nothing of the canvas outlives the screen holding it.
 	 */
-	const FALL_REVEAL_AT_MS = Math.round(RELEASE_MS * 0.75);
-	const FALL_REVEAL_MS = 110;
+	const BLAST_MS = 420;
+	/**
+	 * And when it is struck, on the path where the exit runs inside the fall.
+	 *
+	 * It is the instant the brackets begin to collide, which is the same instant
+	 * the lockup starts to go — the fade is what the collision looks like, since
+	 * the eye has to lose the lockup in motion rather than parked at its
+	 * destination. So this is not a moment chosen to sit near that one: it is that
+	 * one, solved. The fade begins where the driver passes `--boot-fade-gone` plus
+	 * `--boot-fade-span` (0.78 of a 1.22 stretch), and `cubic-bezier(0.5, 0, 0.85,
+	 * 0.25)` puts the fall there at 0.75 of its own duration.
+	 *
+	 * Which is why it is a delay and not a threshold, unlike the fade itself: the
+	 * blast is a wave with a length of its own, so it needs a clock to run on, and
+	 * a clock cannot be started by a custom property crossing a number.
+	 */
+	const BLAST_AT_MS = Math.round(RELEASE_MS * 0.75);
 	/**
 	 * The exit, after a wait: the brackets come together and go as they do.
 	 *
@@ -162,9 +178,26 @@
 	 */
 	const exitMs = $derived(sparked ? CLOSE_MS : FALL_EXIT_MS);
 
-	/** The backdrop's own timing, which differs on the two paths for the same reason. */
-	const revealMs = $derived(sparked ? REVEAL_MS : FALL_REVEAL_MS);
-	const revealAtMs = $derived(sparked ? 0 : FALL_REVEAL_AT_MS);
+	/**
+	 * When the charge goes off, which is the same answer on both paths stated
+	 * against two different clocks: the moment the lockup begins to go.
+	 *
+	 * After a wait the brackets are still holding the gap open, so they start
+	 * closing — and the lockup starts fading with them — the instant the screen
+	 * begins to leave, and there is nothing to wait for. Where the fall is the
+	 * exit, the screen begins to leave at the top of the fall and the collision is
+	 * three quarters of the way down it.
+	 */
+	const blastAtMs = $derived(sparked ? 0 : BLAST_AT_MS);
+
+	/**
+	 * And how long the screen stays mounted, which is now the wave's business and
+	 * not the lockup's alone. The exit above is what the brand is doing; this is
+	 * the last moment anything of this screen is on the workbench, and unmounting
+	 * on the lockup's timing would cut the corners of the canvas away rather than
+	 * let the wave take them.
+	 */
+	const doneMs = $derived(Math.max(exitMs, blastAtMs + BLAST_MS));
 
 	onMount(() => {
 		if (prefersReducedMotion) {
@@ -236,10 +269,7 @@
 	$effect(() => {
 		if (!exiting) return;
 		leaving = true;
-		// The mark is the last thing here to go, so it is what the screen's
-		// lifetime is measured against — unmounting on the backdrop's timing would
-		// cut the lockup off mid-fade.
-		const timer = setTimeout(ondone, prefersReducedMotion ? 0 : exitMs);
+		const timer = setTimeout(ondone, prefersReducedMotion ? 0 : doneMs);
 		return () => clearTimeout(timer);
 	});
 </script>
@@ -251,7 +281,7 @@
 	data-wait={sparked ? '' : undefined}
 	data-shut={shut ? '' : undefined}
 	data-leaving={leaving ? '' : undefined}
-	style="--boot-pull: {PULL_MS}ms; --boot-release: {RELEASE_MS}ms; --boot-reveal: {revealMs}ms; --boot-reveal-at: {revealAtMs}ms; --boot-exit: {exitMs}ms; --boot-close: {CLOSE_MS}ms"
+	style="--boot-pull: {PULL_MS}ms; --boot-release: {RELEASE_MS}ms; --boot-blast: {BLAST_MS}ms; --boot-blast-at: {blastAtMs}ms; --boot-exit: {exitMs}ms; --boot-close: {CLOSE_MS}ms"
 >
 	<!-- Parked rather than animated: this screen owns the driver, so the lockup's
 	     own entrance and its hover and press morph would both be a second opinion

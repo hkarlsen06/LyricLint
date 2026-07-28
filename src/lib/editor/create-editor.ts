@@ -76,6 +76,8 @@ import {
 	setHeaderlessSectionsEffect
 } from './extensions/section-ghosts.js';
 import {
+	linkDifferencesFor,
+	linkHolesField,
 	linkSections as linkSectionsCommand,
 	sectionLinkDecorations,
 	sectionLinkField,
@@ -613,6 +615,7 @@ export function createLyricEditor(
 		// rename it needs the user's own edit, and the two cannot collide because
 		// one only ever reads a header and the other only ever reads a body.
 		sectionLinkField,
+		linkHolesField,
 		sectionLinkHistory,
 		sectionLinkMirror(),
 		sectionLinkDecorations,
@@ -809,12 +812,15 @@ export function createLyricEditor(
 				annotations: Transaction.addToHistory.of(false)
 			});
 		},
-		// Deliberately *not* `addToHistory.of(false)`: this one carries the edit
-		// that overwrites the other sections, and an overwrite the user cannot
-		// undo is the one thing linking must never be.
-		linkSections(headerOffsets) {
-			linkSectionsCommand(view, headerOffsets);
+		// Deliberately *not* `addToHistory.of(false)`: this one can carry the edit
+		// that closes a difference, and a copy's own words overwritten with no way
+		// back is the one thing linking must never be.
+		linkSections(choice) {
+			linkSectionsCommand(view, choice);
 			callbackProxy.onSectionLinksChanged?.();
+		},
+		getLinkDifferences(headerOffsets) {
+			return linkDifferencesFor(view.state, headerOffsets);
 		},
 		getLineAnchors() {
 			return lineAnchorsFor(view.state);

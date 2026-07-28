@@ -406,7 +406,19 @@ describe('autosave and recovery', () => {
 				{ line: 2, time: 12.5 },
 				{ line: 3, time: 30 }
 			],
-			sectionLinks: [{ lines: [1, 3] }]
+			// Holes and all: a link is two facts now, and the three hand-written
+			// copiers between a draft and the disk each list the fields they keep.
+			// Both of them spelled out `{ lines: [...link.lines] }`, so a link that
+			// gained a second field was dropped in silence by both.
+			sectionLinks: [
+				{
+					lines: [1, 3],
+					holes: [
+						{ line: 2, column: 4, endLine: 2, endColumn: 9 },
+						{ line: 4, column: 4, endLine: 4, endColumn: 7 }
+					]
+				}
+			]
 		};
 		const autosave = createAutosaveController(repository, { debounceMs: 10 });
 

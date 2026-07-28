@@ -196,89 +196,10 @@
 	background: var(--color-chrome);
 }
 
-.linter-panel__filter-chip {
-	display: inline-flex;
-	min-height: var(--control-height-sm);
-	padding: var(--space-0-5) var(--space-2-5);
-	border: var(--border-width) solid transparent;
-	border-radius: var(--radius-pill);
-	gap: var(--control-gap);
-	align-items: center;
-	background: transparent;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-semibold);
-	cursor: pointer;
-	transition:
-		background-color var(--duration-fast) var(--ease-out-quart),
-		color var(--duration-fast) var(--ease-out-quart),
-		border-color var(--duration-fast) var(--ease-out-quart);
-}
-
-.linter-panel__filter-chip:hover {
-	border-color: var(--color-border);
-	color: var(--color-text);
-}
-
-/*
- * An unpressed chip reads as excluded through two cues that survive a
- * greyscale print: the label is struck through, and the outline goes dashed at
- * full strength. This used to be `opacity: 0.55`, which put the label at
- * 3.1:1 and faded the dashed border to 1.0:1 against the panel — so the only
- * real signal for "this severity is hidden" was a dimming effect, which is
- * both an AA failure and state carried by nothing but color.
- */
-.linter-panel__filter-chip[aria-pressed='false'] {
-	/* The muted text color rather than a border token: the dashed outline is a
-	   state indicator, so it owes the 3:1 a non-text UI component owes, and
-	   `--color-border-strong` only reaches 2.35:1 on the panel canvas. */
-	border-style: dashed;
-	border-color: var(--color-text-muted);
-	color: var(--color-text-muted);
-	text-decoration: line-through;
-	text-decoration-thickness: 1px;
-}
-
-.linter-panel__filter-chip[aria-pressed='false']:hover {
-	border-color: var(--color-text);
-	color: var(--color-text);
-}
-
-.linter-panel__filter-chip[aria-pressed='true'] {
-	background: var(--color-fill-strong);
-	color: var(--color-text);
-}
-
-.linter-panel__filter-chip--error[aria-pressed='true'] {
-	background: var(--color-danger-soft);
-	color: var(--color-danger);
-}
-
-.linter-panel__filter-chip--warning[aria-pressed='true'] {
-	background: var(--color-warning-soft);
-	color: var(--color-warning);
-}
-
-.linter-panel__filter-chip--suggestion[aria-pressed='true'] {
-	background: var(--color-suggestion-soft);
-	color: var(--color-suggestion);
-}
-
-/* A severity with nothing to show says so with its own count. It used to also
-   drop to `opacity: 0.45` — 2.2:1 — which made the zero it was trying to
-   communicate the hardest thing on the chip to read. */
-.linter-panel__filter-count {
-	min-width: 1.1em;
-	color: inherit;
-	font-variant-numeric: tabular-nums;
-	text-align: end;
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.linter-panel__filter-chip {
-		transition: none;
-	}
-}
+/* The chip itself is `.filter-chip` in `controls.css`, shared with the rule
+   reference's index — the same control filtering the same kinds out of a list,
+   so it is one implementation and not two. Nothing about it needs overriding
+   here; this row only decides where the chips sit. */
 
 /* One continuous run, not a stack of separate cards: no gap, and a hairline
    between neighbours is the only seam. */

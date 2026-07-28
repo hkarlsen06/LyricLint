@@ -520,6 +520,42 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
+	/*
+	 * A link changes no text, so the editor emits no snapshot when the draft's
+	 * links are re-seated onto it at boot — and the suppression that hides an
+	 * answered `section.unlinked-repeat` runs on snapshots. It worked by accident
+	 * while the only way to make a link was the card, which collapses the
+	 * selection on the way out and emits one; a reload came back with the
+	 * suggestion still on every linked section, and it went away on the first
+	 * press in the document.
+	 */
+	test('hides a suggestion the draft has already answered, without waiting for a press', async () => {
+		// Under 40 characters on purpose: past that the language detector schedules
+		// a republish of its own 150ms later, which re-runs the suppression and
+		// hides the bug this test is here to catch.
+		const song = ['[Chorus]', 'Go', '', '[Verse]', 'Hey', '', '[Chorus 2]', 'Go'].join('\n');
+		expect(song.length).toBeLessThan(40);
+		const suggested = () =>
+			controller.snapshot.diagnostics.some(
+				(diagnostic) => diagnostic.ruleId === 'section.unlinked-repeat'
+			);
+
+		// Unlinked, the rule points at the repeat: without this the assertion
+		// below would pass on a fixture that never produced the finding at all.
+		let { controller } = createTestWorkbench({ text: song });
+		renderWorkspace(controller);
+		await waitFor(() => expect(suggested()).toBe(true));
+		cleanup();
+
+		// The draft's own links, re-seated onto the editor exactly as a reload
+		// does it. Nothing else publishes a snapshot here, so the diagnostics
+		// arriving at all is the hand-off having asked for them.
+		({ controller } = createTestWorkbench({ text: song, sectionLinks: [{ lines: [1, 7] }] }));
+		renderWorkspace(controller);
+		await waitFor(() => expect(controller.snapshot.diagnostics.length).toBeGreaterThan(0));
+		expect(suggested()).toBe(false);
+	});
+
 	test('reuses diagnostics when only the editor selection changes', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nImma go' });
 		const lint = vi.fn(async () => []);

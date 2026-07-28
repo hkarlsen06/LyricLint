@@ -2,16 +2,19 @@
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
-	import { groupedRuleReferences } from '$lib/rules/reference.js';
+	import RuleIndex from '$lib/ui/site/RuleIndex.svelte';
+	import type { LayoutProps } from './$types.js';
 
-	let { children } = $props();
+	let { children, data }: LayoutProps = $props();
 
-	// Built once at prerender time, and — because it lives in the layout rather
-	// than the index page — mounted once for the whole section. That is the
-	// difference this file exists to make: pressing a row swaps the column beside
-	// the list instead of tearing the list down and building it again.
-	const groups = groupedRuleReferences();
+	// Derived once by the prerenderer and handed here as data — see
+	// `+layout.server.ts` for why deriving it in this file was a bug rather than
+	// a shortcut. It lives in the layout rather than in the index page so it is
+	// mounted once for the whole section: pressing a row swaps the column beside
+	// the list instead of tearing the list down and building it again, and since
+	// `RuleIndex` holds the search and the chips, a reader who filtered the list
+	// and opened one of the results comes back to the filter they were using.
+	const groups = $derived(data.groups);
 
 	const indexHref = resolve('/rules/');
 	const indexPath = indexHref.replace(/\/$/, '');
@@ -95,30 +98,5 @@
 		{@render children()}
 	</div>
 
-	<!-- Pressing a row may not move the list the row is in. Where the two columns
-	     sit side by side the document scroll *is* the list's position, and the
-	     router's default reset would throw the reader back to the top of it every
-	     time they opened a rule; where there is one column, `afterNavigate` above
-	     pays the reset back by hand. -->
-	<nav class="rules__index" aria-label="All formatting rules" data-sveltekit-noscroll>
-		{#each groups as group (group.title)}
-			<h2 class="rules__group">{group.title}</h2>
-			<ul class="site-run">
-				{#each group.rules as rule (rule.id)}
-					<li>
-						<a
-							href={resolve('/(site)/rules/[rule]', { rule: rule.slug })}
-							aria-current={rule.slug === selectedSlug ? 'page' : undefined}
-						>
-							<span class="site-run__title">{rule.message}</span>
-							<span class="site-run__meta">
-								<SeverityTag severity={rule.severity} />
-								<span class="site-code">{rule.id}</span>
-							</span>
-						</a>
-					</li>
-				{/each}
-			</ul>
-		{/each}
-	</nav>
+	<RuleIndex {groups} {selectedSlug} />
 </div>

@@ -7,6 +7,7 @@ import type {
 	EditorSnapshot,
 	LineAnchor,
 	PerformerRecord,
+	SectionLink,
 	SerializedSelection,
 	SourceReference,
 	TextRange
@@ -80,6 +81,8 @@ export function createTestWorkbench(options?: {
 	text?: string;
 	diagnostics?: Diagnostic[];
 	performers?: PerformerRecord[];
+	/** Links the draft was saved with, for the re-seating a reload performs. */
+	sectionLinks?: SectionLink[];
 	drafts?: DraftRecord[];
 	copyLog?: string[];
 	/** What the system clipboard hands back, or a rejection to fall back from. */
@@ -108,7 +111,8 @@ export function createTestWorkbench(options?: {
 		createdAt: '2026-07-20T10:00:00.000Z',
 		updatedAt: '2026-07-20T10:00:00.000Z',
 		ruleSetVersion: '2026.7',
-		editorSelection: selection
+		editorSelection: selection,
+		...(options?.sectionLinks ? { sectionLinks: options.sectionLinks } : {})
 	};
 	let snapshot: EditorSnapshot = {
 		revision: options?.revision ?? 4,

@@ -1,3 +1,4 @@
+import { copySectionLinks } from '$lib/persistence/copy.js';
 import type {
 	AutosaveController,
 	AutosaveStatus,
@@ -140,7 +141,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,
 			editorSelection: { ...currentSnapshot.selection },
 			lineAnchors: bindings.lineAnchors.map((anchor) => ({ ...anchor })),
-			sectionLinks: bindings.sectionLinks.map((link) => ({ lines: [...link.lines] })),
+			sectionLinks: copySectionLinks(bindings.sectionLinks),
 			...(originalText === undefined ? {} : { originalText })
 		};
 	}
