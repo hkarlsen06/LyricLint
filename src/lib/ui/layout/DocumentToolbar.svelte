@@ -55,7 +55,7 @@
 			case 'scheduled':
 				return 'Save pending';
 			default:
-				return 'Local draft';
+				return "Local 'scribe";
 		}
 	});
 
@@ -153,7 +153,7 @@
 		     end of the command strip, named nothing, and was nowhere near the draft
 		     it switched. -->
 		<div class="draft-switcher">
-			<label class="sr-only" for="draft-title">Draft title</label>
+			<label class="sr-only" for="draft-title">'Scribe title</label>
 			<input
 				id="draft-title"
 				class="draft-title"
@@ -163,7 +163,7 @@
 				onchange={(event) => commitTitle(event.currentTarget)}
 				onclick={onTitleClick}
 				onkeydown={onTitleKeydown}
-				aria-label="Draft title"
+				aria-label="'Scribe title"
 			/>
 			<DraftMenu {controller} />
 		</div>
@@ -173,8 +173,8 @@
 		<button
 			type="button"
 			class="icon-button button--quiet new-draft-trigger"
-			aria-label="New draft"
-			title="New draft"
+			aria-label="New 'scribe"
+			title="New 'scribe"
 			onclick={() => controller.createDraft()}
 		>
 			<svg

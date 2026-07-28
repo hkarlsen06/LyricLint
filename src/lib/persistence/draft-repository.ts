@@ -183,7 +183,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 		async duplicate(id, newId = randomId()) {
 			const source = await database.drafts.get(id);
 			if (source === undefined) {
-				throw new Error('Draft not found.');
+				throw new Error("'Scribe not found.");
 			}
 
 			const timestamp = now();

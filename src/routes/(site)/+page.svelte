@@ -184,17 +184,18 @@ And the "quiet" part was never really quiet`;
 	<h2>Your lyrics stay in your browser</h2>
 
 	<p>
-		There is no account, no server, and no upload. Drafts autosave to local storage in your own
-		browser, so closing the tab does not lose work and a crash does not either. Once the page has
-		loaded it keeps working offline, which matters when the rules you are checking against live on a
-		site that is not always reachable.
+		There is no account, no server, and no upload. Your 'scribes autosave to local storage in your
+		own browser, so closing the tab does not lose work and a crash does not either. Once the page
+		has loaded it keeps working offline, which matters when the rules you are checking against live
+		on a site that is not always reachable.
 	</p>
 
 	<p>
-		There is one exception, and you choose it scribe by scribe: You can play the song you are
-		transcribing alongside the lyrics. That could be an audio file off your own disk, which is never uploaded and
-		never copied into the browser, a YouTube video, which loads Google's player into the page and
-		lets Google see which video it is, or an Apple Music track. A scribe using the online options stop working offline.
+		There is one exception, and you choose it 'scribe by 'scribe: you can play the song you are
+		transcribing alongside the lyrics. That could be an audio file off your own disk, which is never
+		uploaded and never copied into the browser, a YouTube video, which loads Google's player into
+		the page and lets Google see which video it is, or an Apple Music track. A 'scribe using the
+		online options stops working offline.
 	</p>
 
 	<h2>What it is not</h2>

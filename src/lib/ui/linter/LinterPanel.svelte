@@ -85,7 +85,7 @@
 		}
 		return {
 			title: 'No issues found',
-			detail: 'This draft passes every enabled rule. Diagnostics reappear as you edit.'
+			detail: "This 'scribe passes every enabled rule. Diagnostics reappear as you edit."
 		};
 	});
 
@@ -185,7 +185,7 @@
 		{#if controller.isEmpty && controller.canLoadSample}
 			<div class="linter-panel__empty-action">
 				<button type="button" class="button" onclick={() => controller.loadSample()}>
-					Load a sample draft
+					Load a sample 'scribe
 				</button>
 			</div>
 		{/if}
@@ -223,7 +223,7 @@
 	     no border: the gap above it is already the separation. -->
 	{#if controller.isEmpty && recentDrafts.length > 0}
 		<div class="linter-panel__drafts">
-			<p class="linter-panel__empty-label" id="linter-panel-recent-label">Recent drafts</p>
+			<p class="linter-panel__empty-label" id="linter-panel-recent-label">Recent 'scribes</p>
 			<ul class="linter-panel__recent" aria-labelledby="linter-panel-recent-label">
 				{#each recentDrafts as draft (draft.id)}
 					<li>

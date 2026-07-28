@@ -42,7 +42,7 @@
 		</p>
 	{:else}
 		<p class="roster-hint">Select lyric text in the editor to assign performers to it.</p>
-		<ul class="performer-list" aria-label="Draft performer roster">
+		<ul class="performer-list" aria-label="'Scribe performer roster">
 			{#each orderedPerformers as performer (performer.id)}
 				<PerformerEditor
 					{performer}

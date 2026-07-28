@@ -15,7 +15,7 @@
 				? 'This page is not part of the installed app.'
 				: 'The application shell encountered an error before the workspace was ready.'}
 		</p>
-		<p>Your local drafts have not been included in this error page or sent anywhere.</p>
+		<p>Your local 'scribes have not been included in this error page or sent anywhere.</p>
 		<!-- A 404 here is usually a shared link that was truncated or mistyped, which
 		     means the reader may never have seen LyricLint before. Sending them to
 		     the workspace alone hands a stranger an empty editor with no explanation,

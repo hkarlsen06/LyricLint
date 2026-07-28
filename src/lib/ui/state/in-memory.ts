@@ -53,7 +53,7 @@ export function createInMemoryDraftRepository(
 		},
 		async create(draft) {
 			if (drafts.has(draft.id)) {
-				throw new Error(`Draft ${draft.id} already exists.`);
+				throw new Error(`'Scribe ${draft.id} already exists.`);
 			}
 			const stored = cloneDraft(draft);
 			drafts.set(stored.id, stored);
@@ -64,12 +64,12 @@ export function createInMemoryDraftRepository(
 		},
 		async rename(id, title) {
 			const draft = drafts.get(id);
-			if (!draft) throw new Error(`Draft ${id} was not found.`);
+			if (!draft) throw new Error(`'Scribe ${id} was not found.`);
 			drafts.set(id, { ...draft, title });
 		},
 		async duplicate(id, newId) {
 			const source = drafts.get(id);
-			if (!source) throw new Error(`Draft ${id} was not found.`);
+			if (!source) throw new Error(`'Scribe ${id} was not found.`);
 			const now = new Date().toISOString();
 			const duplicate = {
 				...cloneDraft(source),

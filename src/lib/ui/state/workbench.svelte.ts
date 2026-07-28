@@ -614,7 +614,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		loadSample() {
 			editorSession.replaceDocument(
 				sampleDraftText,
-				'Sample transcription loaded. Undo replaces it with an empty draft.'
+				"Sample transcription loaded. Undo replaces it with an empty 'scribe."
 			);
 		},
 		insertSection: editorSession.insertSection,

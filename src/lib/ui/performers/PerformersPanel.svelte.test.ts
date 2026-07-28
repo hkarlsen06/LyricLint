@@ -24,7 +24,7 @@ describe('PerformersPanel', () => {
 		expect(controller.performers).toHaveLength(2);
 		expect(controller.performers[0]?.aliases).toContain('avery');
 
-		const roster = screen.getByRole('list', { name: 'Draft performer roster' });
+		const roster = screen.getByRole('list', { name: "'Scribe performer roster" });
 		const averyRow = within(roster).getByText('Avery').closest('li');
 		expect(averyRow).toBeTruthy();
 		// The row's commands are glyphs, so the performer's own name is what
@@ -74,7 +74,7 @@ describe('PerformersPanel', () => {
 		});
 		render(PerformersPanel, { controller });
 
-		const row = screen.getByRole('list', { name: 'Draft performer roster' }).querySelector('li')!;
+		const row = screen.getByRole('list', { name: "'Scribe performer roster" }).querySelector('li')!;
 		expect(within(row).queryByTitle('Rename')?.tagName).toBe('BUTTON');
 		expect(within(row).queryAllByRole('button', { name: /^Rename/ })).toHaveLength(1);
 
@@ -94,7 +94,7 @@ describe('PerformersPanel', () => {
 		});
 		render(PerformersPanel, { controller });
 
-		const row = screen.getByRole('list', { name: 'Draft performer roster' }).querySelector('li')!;
+		const row = screen.getByRole('list', { name: "'Scribe performer roster" }).querySelector('li')!;
 		await fireEvent.click(within(row).getByRole('button', { name: 'Remove Avery' }));
 
 		expect(within(row).queryByRole('button', { name: /^Rename/ })).toBeNull();
@@ -107,7 +107,7 @@ describe('PerformersPanel', () => {
 		});
 		render(PerformersPanel, { controller });
 
-		const roster = screen.getByRole('list', { name: 'Draft performer roster' });
+		const roster = screen.getByRole('list', { name: "'Scribe performer roster" });
 		const averyRow = within(roster).getByText('Avery').closest('li')!;
 		const blairRow = within(roster).getByText('Blair').closest('li')!;
 
@@ -131,7 +131,7 @@ describe('PerformersPanel', () => {
 		});
 		render(PerformersPanel, { controller });
 
-		const roster = screen.getByRole('list', { name: 'Draft performer roster' });
+		const roster = screen.getByRole('list', { name: "'Scribe performer roster" });
 		const averyRow = within(roster).getByText('Avery').closest('li')!;
 		const blairRow = within(roster).getByText('Blair').closest('li')!;
 
@@ -161,7 +161,7 @@ describe('PerformersPanel', () => {
 		});
 		render(PerformersPanel, { controller });
 
-		const roster = screen.getByRole('list', { name: 'Draft performer roster' });
+		const roster = screen.getByRole('list', { name: "'Scribe performer roster" });
 		const names = within(roster)
 			.getAllByRole('listitem')
 			.map((item) => item.querySelector('.list-row__name')?.textContent);

@@ -135,7 +135,7 @@
 				});
 			} catch (error) {
 				if (!cancelled) {
-					bootError = 'Local storage is unavailable, so drafts cannot be saved in this browser.';
+					bootError = "Local storage is unavailable, so 'scribes cannot be saved in this browser.";
 					console.error('LyricLint failed to open local storage.', error);
 				}
 			}

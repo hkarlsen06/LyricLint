@@ -43,7 +43,7 @@ describe('ToolsPanel destructive confirm', () => {
 		// The confirm replaces the trigger in the same section rather than
 		// revealing a bordered danger box nested inside it.
 		expect(container.querySelector('.confirm-block')).toBeNull();
-		expect(screen.getByText('Delete every local draft? This cannot be undone.')).toBeTruthy();
+		expect(screen.getByText("Delete every local 'scribe? This cannot be undone.")).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Delete all local data…' })).toBeNull();
 		expect(screen.getByRole('button', { name: 'Delete all local data' })).toBeTruthy();
 

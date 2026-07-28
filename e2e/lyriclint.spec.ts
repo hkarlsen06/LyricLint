@@ -276,8 +276,8 @@ test('new drafts use the last selected language', async ({ page }) => {
 	await languageDialog.getByPlaceholder('Search languages').fill('French');
 	await languageDialog.getByRole('button', { name: 'French' }).click();
 
-	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
-	await page.getByRole('button', { name: 'New draft' }).click();
+	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+	await page.getByRole('button', { name: "New 'scribe" }).click();
 
 	await expect(page.getByRole('button', { name: 'Lyric language: French' })).toBeVisible();
 	await expectDocText(page, '');
@@ -378,25 +378,25 @@ test('an edit after switching between two drafts remains revision-scoped and dur
 }) => {
 	await openWorkspace(page);
 	await replaceDocument(page, '[Verse]\nFirst draft');
-	await page.getByRole('textbox', { name: 'Draft title' }).fill('First');
-	await page.getByRole('textbox', { name: 'Draft title' }).press('Enter');
+	await page.getByRole('textbox', { name: "'Scribe title" }).fill('First');
+	await page.getByRole('textbox', { name: "'Scribe title" }).press('Enter');
 	await editor(page).click();
 	await waitForSaved(page);
 
-	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
-	await page.getByRole('button', { name: 'New draft' }).click();
+	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
+	await page.getByRole('button', { name: "New 'scribe" }).click();
 	await replaceDocument(page, '[Verse]\nSecond draft');
-	await page.getByRole('textbox', { name: 'Draft title' }).fill('Second');
-	await page.getByRole('textbox', { name: 'Draft title' }).press('Enter');
+	await page.getByRole('textbox', { name: "'Scribe title" }).fill('Second');
+	await page.getByRole('textbox', { name: "'Scribe title" }).press('Enter');
 	await editor(page).click();
 	await waitForSaved(page);
 
 	// The row's own control leads with the draft's name; the commands beside it
 	// carry that name too ("Rename First"), so anchor on the start of the label.
-	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
+	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
 	await page.getByRole('button', { name: /^First/u }).click();
 	await expectDocText(page, '[Verse]\nFirst draft');
-	await page.getByRole('button', { name: 'Drafts', exact: true }).click();
+	await page.getByRole('button', { name: "'Scribes", exact: true }).click();
 	await page.getByRole('button', { name: /^Second/u }).click();
 	await expectDocText(page, '[Verse]\nSecond draft');
 

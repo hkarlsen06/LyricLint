@@ -170,9 +170,9 @@ describe('Workspace and toolbar', () => {
 
 		// Section insertion and performer assignment stay reachable through the
 		// editor itself (ghost control and selection surface).
-		expect(screen.getByRole('button', { name: 'New draft' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: "New 'scribe" })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Drafts' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: "'Scribes" })).toBeTruthy();
 		// The left edge is the brand lockup now, and it returns to the marketing home.
 		expect(screen.getByRole('link', { name: 'LyricLint home' })).toHaveAttribute('href', '/');
 		expect(screen.queryByRole('button', { name: 'Open drafts menu' })).toBeNull();
@@ -186,7 +186,7 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench();
 		const view = render(DocumentToolbar, { controller, brandRevealed: false });
 		const wordmark = document.querySelector('.app-wordmark') as HTMLElement;
-		const title = screen.getByLabelText('Draft title');
+		const title = screen.getByLabelText("'Scribe title");
 		const awayLeft = title.getBoundingClientRect().left;
 
 		expect(wordmark).toHaveAttribute('data-visible', 'false');
@@ -230,12 +230,12 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench();
 		render(DocumentToolbar, { controller });
 
-		const trigger = screen.getByRole('button', { name: 'Drafts' });
+		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		const switcher = trigger.closest('.draft-switcher');
 		expect(switcher).toBeTruthy();
 		// One control: the field you rename in and the chevron that swaps the draft.
-		expect(within(switcher as HTMLElement).getByLabelText('Draft title')).toBe(
-			screen.getByLabelText('Draft title')
+		expect(within(switcher as HTMLElement).getByLabelText("'Scribe title")).toBe(
+			screen.getByLabelText("'Scribe title")
 		);
 		// The word moved into the accessible name; nothing in the header spells it.
 		expect(trigger.textContent?.trim()).toBe('');
@@ -244,7 +244,7 @@ describe('Workspace and toolbar', () => {
 		// `bind:open` rides the details element's `toggle` event, which lands a
 		// frame after the click, so the expansion state settles asynchronously.
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
-		expect(screen.getByText('Saved drafts')).toBeTruthy();
+		expect(screen.getByText("Saved 'scribes")).toBeTruthy();
 	});
 
 	test('the plus button creates and opens a new draft', async () => {
@@ -252,7 +252,7 @@ describe('Workspace and toolbar', () => {
 		const initialDraftId = controller.draftId;
 		render(DocumentToolbar, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'New draft' }));
+		await fireEvent.click(screen.getByRole('button', { name: "New 'scribe" }));
 
 		await waitFor(() => expect(controller.draftId).not.toBe(initialDraftId));
 		expect(controller.title).toBe('Untitled transcription');
@@ -271,10 +271,10 @@ describe('Workspace and toolbar', () => {
 			screen.getByRole('link', { name: 'LyricLint home' }),
 			// The name is a control now — the field and its drafts disclosure — so
 			// the middle of the strip is the switcher rather than a bare input.
-			screen.getByLabelText('Draft title').closest('.draft-switcher'),
+			screen.getByLabelText("'Scribe title").closest('.draft-switcher'),
 			// Creation sits with the draft it creates, in the slot the save glyph
 			// used to hold; the save readout trails it, silent unless it fails.
-			screen.getByRole('button', { name: 'New draft' }),
+			screen.getByRole('button', { name: "New 'scribe" }),
 			screen.getByRole('img', { name: /^Autosave status/ })
 		]);
 	});
@@ -284,7 +284,7 @@ describe('Workspace and toolbar', () => {
 		await controller.setTitle('Untitled transcription');
 		render(DocumentToolbar, { controller });
 
-		const title = screen.getByLabelText('Draft title') as HTMLInputElement;
+		const title = screen.getByLabelText("'Scribe title") as HTMLInputElement;
 		await fireEvent.click(title);
 		expect(title.selectionStart).toBe(0);
 		expect(title.selectionEnd).toBe('Untitled transcription'.length);
@@ -306,7 +306,7 @@ describe('Workspace and toolbar', () => {
 		expect(status.textContent?.trim()).toBe('');
 		expect(status.querySelector('svg')).toBeNull();
 		expect(status.classList.contains('sr-only')).toBe(true);
-		expect(status.getAttribute('title')).toBe('Local draft');
+		expect(status.getAttribute('title')).toBe("Local 'scribe");
 
 		controller.setSaveStatus('saved');
 		await waitFor(() => expect(status.getAttribute('title')).toContain('Saved locally'));
@@ -340,8 +340,8 @@ describe('Workspace and toolbar', () => {
 		]);
 		// Navigation between drafts left the strip for the draft's own name, and
 		// creation followed it — neither acts on the document this strip commands.
-		expect(commands!.contains(screen.getByRole('button', { name: 'Drafts' }))).toBe(false);
-		expect(commands!.contains(screen.getByRole('button', { name: 'New draft' }))).toBe(false);
+		expect(commands!.contains(screen.getByRole('button', { name: "'Scribes" }))).toBe(false);
+		expect(commands!.contains(screen.getByRole('button', { name: "New 'scribe" }))).toBe(false);
 		expect(commands!.lastElementChild).toBe(copy);
 		// Copy ends the tab order too, not just the visual row.
 		const order = [...commands!.querySelectorAll('button, summary')];

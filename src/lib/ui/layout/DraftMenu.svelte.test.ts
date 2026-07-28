@@ -39,8 +39,8 @@ describe('DraftMenu', () => {
 		});
 		await controller.refreshDrafts();
 		render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
-		expect(screen.getByRole('heading', { name: 'Saved drafts', level: 2 })).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		expect(screen.getByRole('heading', { name: "Saved 'scribes", level: 2 })).toBeTruthy();
 
 		await fireEvent.click(screen.getByRole('button', { name: /^Second song/ }));
 		expect(controller.draftId).toBe('draft-2');
@@ -55,7 +55,7 @@ describe('DraftMenu', () => {
 		});
 
 		await fireEvent.click(within(secondRow!).getByRole('button', { name: 'Rename Second song' }));
-		const titleInput = within(secondRow!).getByRole('textbox', { name: 'Draft title' });
+		const titleInput = within(secondRow!).getByRole('textbox', { name: "'Scribe title" });
 		// The field takes the row's place, so it takes its focus too.
 		expect(document.activeElement).toBe(titleInput);
 		await fireEvent.input(titleInput, { target: { value: 'Bridge notes' } });
@@ -90,7 +90,7 @@ describe('DraftMenu', () => {
 		);
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete all local data…' }));
-		await fireEvent.click(screen.getByRole('button', { name: 'Delete all drafts' }));
+		await fireEvent.click(screen.getByRole('button', { name: "Delete all 'scribes" }));
 		expect(await repository.list()).toEqual([]);
 	});
 
@@ -101,7 +101,7 @@ describe('DraftMenu', () => {
 		});
 		await controller.refreshDrafts();
 		render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
+		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 
 		const row = screen.getByText('Second song').closest('li')!;
 		await fireEvent.click(within(row).getByRole('button', { name: 'Delete Second song' }));
@@ -119,7 +119,7 @@ describe('DraftMenu', () => {
 		});
 		await controller.refreshDrafts();
 		render(DraftMenu, { controller });
-		await fireEvent.click(screen.getByRole('button', { name: 'Drafts' }));
+		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 
 		const second = screen.getByText('Second song').closest('li')!;
 		const third = screen.getByText('Third song').closest('li')!;
@@ -134,7 +134,7 @@ describe('DraftMenu', () => {
 		const { controller } = createTestWorkbench();
 		await controller.refreshDrafts();
 		render(DraftMenu, { controller });
-		const trigger = screen.getByRole('button', { name: 'Drafts' });
+		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		await fireEvent.click(trigger);
 		const menu = trigger.closest('details')!;
 		// The native `toggle` event lands a task after the click, and it is what
@@ -142,21 +142,21 @@ describe('DraftMenu', () => {
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete all local data…' }));
-		expect(screen.getByRole('button', { name: 'Delete all drafts' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: "Delete all 'scribes" })).toBeTruthy();
 
 		await fireEvent.pointerDown(document.body);
 		await waitFor(() => expect(menu.open).toBe(false));
 
 		// Reopening must not present the confirm the user walked away from.
 		await fireEvent.click(trigger);
-		expect(screen.queryByRole('button', { name: 'Delete all drafts' })).toBeNull();
+		expect(screen.queryByRole('button', { name: "Delete all 'scribes" })).toBeNull();
 	});
 
 	test('keeps the menu open for a press on the summary or inside the popover', async () => {
 		const { controller } = createTestWorkbench();
 		await controller.refreshDrafts();
 		render(DraftMenu, { controller });
-		const trigger = screen.getByRole('button', { name: 'Drafts' });
+		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		await fireEvent.click(trigger);
 		const menu = trigger.closest('details')!;
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
@@ -164,7 +164,7 @@ describe('DraftMenu', () => {
 		// The attachment sits on the `<details>`, so the summary counts as inside
 		// and the native toggle keeps owning it.
 		await fireEvent.pointerDown(trigger);
-		await fireEvent.pointerDown(screen.getByText('Saved drafts'));
+		await fireEvent.pointerDown(screen.getByText("Saved 'scribes"));
 		expect(menu.open).toBe(true);
 	});
 });

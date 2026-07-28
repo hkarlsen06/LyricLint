@@ -448,7 +448,7 @@ describe('RightPanel', () => {
 		expect(
 			screen.getByText('Findings appear here as soon as the document has something in it.')
 		).toBeTruthy();
-		expect(screen.getByRole('button', { name: 'Load a sample draft' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: "Load a sample 'scribe" })).toBeTruthy();
 		expect(screen.queryByText('No issues found')).toBeNull();
 	});
 
@@ -456,7 +456,7 @@ describe('RightPanel', () => {
 		const { controller, calls } = createTestWorkbench({ text: '', diagnostics: [] });
 		render(RightPanel, { controller });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Load a sample draft' }));
+		await fireEvent.click(screen.getByRole('button', { name: "Load a sample 'scribe" }));
 
 		expect(calls.dispatched).toHaveLength(1);
 		expect(calls.dispatched[0]!.edits[0]!.insert).toContain('[Verse 1]');
@@ -471,7 +471,7 @@ describe('RightPanel', () => {
 		render(RightPanel, { controller });
 
 		await waitFor(() => expect(screen.getByText('Nothing to lint yet')).toBeTruthy());
-		expect(screen.queryByRole('button', { name: 'Load a sample draft' })).toBeNull();
+		expect(screen.queryByRole('button', { name: "Load a sample 'scribe" })).toBeNull();
 	});
 
 	// A fresh open is only empty because it opened a *new* draft; the work the
@@ -484,7 +484,7 @@ describe('RightPanel', () => {
 		});
 		render(RightPanel, { controller });
 
-		await waitFor(() => expect(screen.getByText('Recent drafts')).toBeTruthy());
+		await waitFor(() => expect(screen.getByText("Recent 'scribes")).toBeTruthy());
 		expect(screen.getByRole('button', { name: /^Older song/ })).toBeTruthy();
 		// The draft being looked at is not somewhere to go back to.
 		expect(screen.queryByRole('button', { name: /^Test draft/ })).toBeNull();
@@ -495,12 +495,13 @@ describe('RightPanel', () => {
 		const panel = document.querySelector('.linter-panel')!;
 		const drafts = panel.querySelector('.linter-panel__drafts')!;
 		expect(panel.lastElementChild).toBe(drafts);
-		expect(drafts.contains(screen.getByRole('button', { name: 'Load a sample draft' }))).toBe(
+		expect(drafts.contains(screen.getByRole('button', { name: "Load a sample 'scribe" }))).toBe(
 			false
 		);
 		expect(
-			drafts.compareDocumentPosition(screen.getByRole('button', { name: 'Load a sample draft' })) &
-				Node.DOCUMENT_POSITION_PRECEDING
+			drafts.compareDocumentPosition(
+				screen.getByRole('button', { name: "Load a sample 'scribe" })
+			) & Node.DOCUMENT_POSITION_PRECEDING
 		).toBeTruthy();
 	});
 
@@ -514,7 +515,7 @@ describe('RightPanel', () => {
 		});
 		render(RightPanel, { controller });
 
-		await waitFor(() => expect(screen.getByText('Recent drafts')).toBeTruthy());
+		await waitFor(() => expect(screen.getByText("Recent 'scribes")).toBeTruthy());
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete Older song' }));
 
 		// The confirm takes the trigger's slot, and the row stops offering the
@@ -525,7 +526,7 @@ describe('RightPanel', () => {
 		await waitFor(async () =>
 			expect((await repository.list()).map(({ id }) => id)).not.toContain('draft-2')
 		);
-		await waitFor(() => expect(screen.queryByText('Recent drafts')).toBeNull());
+		await waitFor(() => expect(screen.queryByText("Recent 'scribes")).toBeNull());
 	});
 
 	test('cancelling a recent draft delete puts the row back', async () => {
@@ -536,7 +537,7 @@ describe('RightPanel', () => {
 		});
 		render(RightPanel, { controller });
 
-		await waitFor(() => expect(screen.getByText('Recent drafts')).toBeTruthy());
+		await waitFor(() => expect(screen.getByText("Recent 'scribes")).toBeTruthy());
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete Older song' }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -556,8 +557,8 @@ describe('RightPanel', () => {
 		controller.toggleSeverity('warning');
 
 		await waitFor(() => expect(screen.getByText('Hidden by filters')).toBeTruthy());
-		expect(screen.queryByRole('button', { name: 'Load a sample draft' })).toBeNull();
-		expect(screen.queryByText('Recent drafts')).toBeNull();
+		expect(screen.queryByRole('button', { name: "Load a sample 'scribe" })).toBeNull();
+		expect(screen.queryByText("Recent 'scribes")).toBeNull();
 	});
 
 	test('blames the filters for an empty linter list only when they are the cause', async () => {
@@ -565,7 +566,7 @@ describe('RightPanel', () => {
 		render(RightPanel, { controller: clean });
 		expect(screen.getByText('No issues found')).toBeTruthy();
 		expect(
-			screen.getByText('This draft passes every enabled rule. Diagnostics reappear as you edit.')
+			screen.getByText("This 'scribe passes every enabled rule. Diagnostics reappear as you edit.")
 		).toBeTruthy();
 		cleanup();
 

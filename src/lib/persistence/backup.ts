@@ -119,9 +119,9 @@ function parsePerformer(value: unknown): PerformerRecord {
 }
 
 function parseDraft(value: unknown): DraftRecord {
-	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid draft in backup.');
+	if (!isRecord(value)) throw new WorkspaceBackupError("Invalid 'scribe in backup.");
 	if (!Array.isArray(value.performers)) {
-		throw new WorkspaceBackupError('Invalid draft performers in backup.');
+		throw new WorkspaceBackupError("Invalid 'scribe performers in backup.");
 	}
 	const text = stringField(value, 'text');
 	const draft: DraftRecord = {
@@ -336,7 +336,7 @@ export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
 		media.some((record) => !draftIds.has(record.draftId)) ||
 		ignoredDiagnostics.some((record) => !draftIds.has(record.draftId))
 	) {
-		throw new WorkspaceBackupError('Backup data refers to a missing draft.');
+		throw new WorkspaceBackupError("Backup data refers to a missing 'scribe.");
 	}
 
 	return {

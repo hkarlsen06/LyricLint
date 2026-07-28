@@ -227,8 +227,8 @@
 	<section>
 		<h3>Local data</h3>
 		<p>
-			Drafts stay in this browser; audio stays on your disk. Everything works offline except YouTube
-			playback, which needs permission each session.
+			'Scribes stay in this browser; audio stays on your disk. Everything works offline except
+			YouTube playback, which needs permission each session.
 		</p>
 		<!--
 			Two ways out, one row, and exactly one question open at a time. The
@@ -242,7 +242,7 @@
 		-->
 		<div aria-live="polite">
 			{#if confirmDeleteAll}
-				<p class="danger-text">Delete every local draft? This cannot be undone.</p>
+				<p class="danger-text">Delete every local 'scribe? This cannot be undone.</p>
 				<div class="tool-actions">
 					<button
 						type="button"

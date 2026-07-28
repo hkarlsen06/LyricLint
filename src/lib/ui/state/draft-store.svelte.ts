@@ -285,7 +285,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				await store.refreshDrafts();
 			} catch {
 				saveStatus = 'failed';
-				feedback.announce('Draft title could not be saved locally.');
+				feedback.announce("'Scribe title could not be saved locally.");
 			}
 		},
 		setLanguage(nextLanguage) {
@@ -305,14 +305,14 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			// the draft that still has the user's work in it.
 			loadDraft(emptyTransientDraft(), false);
 			await store.refreshDrafts();
-			feedback.announce('New draft created.');
+			feedback.announce("New 'scribe created.");
 		},
 		async openDraft(id) {
 			await deps.autosave.flush();
 			if (id === draftId) return;
 			const draft = await deps.repository.get(id);
 			if (!draft) {
-				feedback.announce('That draft is no longer available.');
+				feedback.announce("That 'scribe is no longer available.");
 				return;
 			}
 			await deps.repository.setCurrent(id);
@@ -325,7 +325,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			if (id === draftId && !persisted) {
 				// Same as `setTitle`: an empty draft has no record to rename yet.
 				title = trimmed;
-				feedback.announce(`Renamed draft to ${trimmed}.`);
+				feedback.announce(`Renamed 'scribe to ${trimmed}.`);
 				return;
 			}
 			await deps.repository.rename(id, trimmed);
@@ -334,7 +334,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				scheduleSave();
 			}
 			await store.refreshDrafts();
-			feedback.announce(`Renamed draft to ${trimmed}.`);
+			feedback.announce(`Renamed 'scribe to ${trimmed}.`);
 		},
 		async duplicateDraft(id) {
 			await deps.autosave.flush();
@@ -345,7 +345,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		async exportDraft(id = draftId) {
 			const draft = id === draftId ? draftFromSnapshot() : await deps.repository.get(id);
 			if (!draft) {
-				feedback.announce('That draft could not be exported.');
+				feedback.announce("That 'scribe could not be exported.");
 				return;
 			}
 			deps.exportText(draft.text, safeFilename(draft.title));
@@ -370,14 +370,14 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				}
 			}
 			await store.refreshDrafts();
-			feedback.announce(`Deleted ${deleted?.title ?? 'draft'}.`);
+			feedback.announce(`Deleted ${deleted?.title ?? "'scribe"}.`);
 		},
 		async deleteAllDrafts() {
 			deps.autosave.cancel();
 			await deps.repository.deleteAll();
 			drafts = [];
 			loadDraft(emptyTransientDraft(), false);
-			feedback.announce('All local drafts deleted.');
+			feedback.announce("All local 'scribes deleted.");
 		}
 	};
 

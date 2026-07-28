@@ -90,8 +90,8 @@
 	<summary
 		class="button--quiet icon-button draft-menu__trigger"
 		role="button"
-		aria-label="Drafts"
-		title="Drafts"
+		aria-label="'Scribes"
+		title="'Scribes"
 		aria-expanded={open}
 		bind:this={menuTrigger}
 	>
@@ -111,11 +111,11 @@
 		</svg>
 	</summary>
 	<div class="draft-menu__popover">
-		<h2 class="draft-menu__heading">Saved drafts</h2>
+		<h2 class="draft-menu__heading">Saved 'scribes</h2>
 
 		{#if controller.drafts.length === 0}
 			<p class="empty-state">
-				No saved drafts yet. This draft will appear after its first local save.
+				No saved 'scribes yet. This one will appear after its first local save.
 			</p>
 		{:else}
 			<ul class="draft-list">
@@ -123,7 +123,7 @@
 					<li class="list-row" class:current={draft.id === controller.draftId}>
 						{#if renameId === draft.id}
 							<form class="list-row__form" onsubmit={(event) => submitRename(event, draft.id)}>
-								<label class="sr-only" for={`rename-${draft.id}`}>Draft title</label>
+								<label class="sr-only" for={`rename-${draft.id}`}>'Scribe title</label>
 								<input
 									id={`rename-${draft.id}`}
 									bind:value={renameValue}
@@ -257,7 +257,7 @@
 		     its slot and says what the second press does. -->
 		<div class="draft-menu__footer">
 			<span class="sr-only" aria-live="polite">
-				{confirmDeleteAll ? 'Delete every local draft? Confirm or cancel.' : ''}
+				{confirmDeleteAll ? "Delete every local 'scribe? Confirm or cancel." : ''}
 			</span>
 			{#if confirmDeleteAll}
 				<button
@@ -266,7 +266,7 @@
 					onclick={async () => {
 						await controller.deleteAllDrafts();
 						confirmDeleteAll = false;
-					}}>Delete all drafts</button
+					}}>Delete all 'scribes</button
 				>
 				<button
 					type="button"
