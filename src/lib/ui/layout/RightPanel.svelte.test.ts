@@ -167,7 +167,7 @@ describe('RightPanel', () => {
 		expect(filters()).toBeTruthy();
 	});
 
-	test('runs the diagnostics as one gapless column with the selected row recessed', async () => {
+	test('runs the diagnostics as one gapless column with the selected row set into it', async () => {
 		const warning = diagnostic({
 			ruleId: 'section.header-missing',
 			severity: 'warning',
@@ -197,14 +197,29 @@ describe('RightPanel', () => {
 		expect(getComputedStyle(rows[0]!).borderBottomWidth).toBe('1px');
 		expect(getComputedStyle(rows[1]!).borderBottomWidth).toBe('0px');
 
-		// The expanded row sits at the recessed elevation, darker than its
-		// neighbour, with an inner shadow so it reads as cut into the column.
+		// Selection is depth, and the direction is the scheme's own answer — so this
+		// asserts whichever branch it is running under rather than one of them. Dark
+		// drops the expanded row to the recessed elevation, darker than its
+		// neighbour, with an inner shadow so it reads as cut into the column. Light
+		// cannot rise by lightness, its resting cards being the paper already, so it
+		// keeps the paper and lifts on an outward shadow instead: sunk there, the one
+		// card carrying a fix wore the grey this workbench spends on things that are
+		// spent. Both halves of the light state matter, and either alone is the bug.
 		const expanded = rows.find((row) => row.classList.contains('diagnostic-card--expanded'))!;
 		const closed = rows.find((row) => !row.classList.contains('diagnostic-card--expanded'))!;
-		expect(getComputedStyle(expanded).backgroundColor).not.toBe(
-			getComputedStyle(closed).backgroundColor
-		);
-		expect(getComputedStyle(expanded).boxShadow).toContain('inset');
+		const expandedStyle = getComputedStyle(expanded);
+
+		if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+			expect(expandedStyle.backgroundColor).not.toBe(getComputedStyle(closed).backgroundColor);
+			expect(expandedStyle.boxShadow).toContain('inset');
+		} else {
+			expect(expandedStyle.backgroundColor).toBe(getComputedStyle(closed).backgroundColor);
+			expect(expandedStyle.boxShadow).not.toBe('none');
+			expect(expandedStyle.boxShadow).not.toContain('inset');
+			// The seam goes with the lift, and only its color does: the border keeps
+			// the 1px asserted above, so opening a card never moves the list.
+			expect(expandedStyle.borderBottomColor).toBe('rgba(0, 0, 0, 0)');
+		}
 
 		// The severity is a colored glyph and a colored word on the meta line, not
 		// a filled badge holding a line of its own above the message.

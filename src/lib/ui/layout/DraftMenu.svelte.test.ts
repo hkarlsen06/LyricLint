@@ -30,7 +30,7 @@ function thirdDraft(): DraftRecord {
 describe('DraftMenu', () => {
 	afterEach(cleanup);
 
-	test('opens, renames, duplicates, exports, deletes, and deletes all drafts', async () => {
+	test('opens, renames, duplicates, exports, and deletes a draft', async () => {
 		const exported: Array<{ text: string; filename: string }> = [];
 		const base = createTestWorkbench();
 		const { controller, repository } = createTestWorkbench({
@@ -88,10 +88,31 @@ describe('DraftMenu', () => {
 				true
 			)
 		);
+	});
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Delete all local data…' }));
-		await fireEvent.click(screen.getByRole('button', { name: "Delete all 'scribes" }));
-		expect(await repository.list()).toEqual([]);
+	// The menu deletes one 'scribe at a time and offers no way to delete
+	// everything. That footer was the whole menu on a fresh install — a sentence
+	// saying there is nothing saved yet, under a red button offering to delete it
+	// — so the command lives in the tools panel, beside the paragraph that says
+	// what local data is. Re-adding it here is the specific regression.
+	test('offers no way to delete everything, and a fresh install is one sentence', async () => {
+		const { controller } = createTestWorkbench({ drafts: [] });
+		await controller.refreshDrafts();
+		render(DraftMenu, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+
+		expect(screen.getByText(/No saved 'scribes yet/u)).toBeTruthy();
+		expect(screen.queryByRole('button', { name: /delete all/iu })).toBeNull();
+	});
+
+	test('a populated menu offers no way to delete everything either', async () => {
+		const base = createTestWorkbench();
+		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
+		await controller.refreshDrafts();
+		render(DraftMenu, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+
+		expect(screen.queryByRole('button', { name: /delete all/iu })).toBeNull();
 	});
 
 	test('cancelling a delete puts the row back the way it was', async () => {
@@ -131,7 +152,8 @@ describe('DraftMenu', () => {
 	});
 
 	test('closes on a press outside, abandoning any pending confirm', async () => {
-		const { controller } = createTestWorkbench();
+		const base = createTestWorkbench();
+		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
 		await controller.refreshDrafts();
 		render(DraftMenu, { controller });
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
@@ -141,15 +163,17 @@ describe('DraftMenu', () => {
 		// tells the component it is open; wait for the expansion state to say so.
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
 
-		await fireEvent.click(screen.getByRole('button', { name: 'Delete all local data…' }));
-		expect(screen.getByRole('button', { name: "Delete all 'scribes" })).toBeTruthy();
+		const row = screen.getByText('Second song').closest('li')!;
+		await fireEvent.click(within(row).getByRole('button', { name: 'Delete Second song' }));
+		expect(within(row).getByRole('button', { name: 'Delete' })).toBeTruthy();
 
 		await fireEvent.pointerDown(document.body);
 		await waitFor(() => expect(menu.open).toBe(false));
 
 		// Reopening must not present the confirm the user walked away from.
 		await fireEvent.click(trigger);
-		expect(screen.queryByRole('button', { name: "Delete all 'scribes" })).toBeNull();
+		const reopened = screen.getByText('Second song').closest('li')!;
+		expect(within(reopened).getByRole('button', { name: 'Delete Second song' })).toBeTruthy();
 	});
 
 	test('keeps the menu open for a press on the summary or inside the popover', async () => {

@@ -29,6 +29,14 @@ The blank-line-before-header check is a LyricLint readability suggestion, not a 
 policy claim. The reviewed Genius source establishes that headers sit above distinct song parts
 but does not explicitly require an empty line before each header.
 
+The texting-shorthand check is a LyricLint reading of two reviewed Genius sources rather than a
+distinct annotation of its own. No verified Genius page names `idk` or `ur`. What the sources do
+establish is that lyrics use standardized spellings and reflect what is actually sung, and
+written-only shorthand is neither: the letters are a way of writing words the vocal performs in
+full. The rule therefore stays a suggestion with preview-only fixes, and it is deliberately silent
+on initialisms that are themselves said aloud, where expanding one would assert something about
+the delivery that no source supports.
+
 ## Source registry
 
 ### Reviewed sources
@@ -107,9 +115,9 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `syntax.unsupported-voice-markup` | Error | Performer differentiation uses tags other than supported `<i>` and `<b>` combinations | Preview only | `G-SECTIONS` |
 | `language.selection-mismatch` | Warning | Sufficient lyric text clearly matches a different language than the selected one | Explain only; local statistical estimate | `T-LANGUAGE-DETECT` |
 | `section.header-missing` | Warning | A blank-line section contains lyrics but no section header | Insert chosen localized header | `G-SECTIONS` |
-| `section.header-prose` | Warning | A whole line is a reviewed song-part name written as prose, such as `Verse 1:` or `CHORUS`, instead of a bracketed header | Safely replace the line with the bracketed header, using the reviewed spelling | `G-SECTIONS`, reviewed language source |
+| `section.header-prose` | Warning | A whole line is a reviewed song-part name written as prose, such as `Verse 1:` or `CHORUS`, or a bare reviewed name leading a headerless section with lyrics beneath it | Safely replace the line with the bracketed header, using the reviewed spelling | `G-SECTIONS`, reviewed language source |
 | `section.header-spacing` | Suggestion | A section header immediately follows preceding content without a blank line | Safely insert one matching line ending | `G-SECTIONS` as context; LyricLint readability preference |
-| `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog | Replace after user confirmation | `G-SECTIONS`, reviewed language source |
+| `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog or its reviewed capitalization | Safely normalize capitalization; preview a localized replacement | `G-SECTIONS`, reviewed language source |
 | `section.localized-header-preference` | Suggestion | A valid header has a culturally preferred localized equivalent | Safely replace with the localized term | `G-LANG-PURPOSE`, reviewed language source |
 | `section.header-unrecognized` | Manual review | A bracketed header is absent from every reviewed header catalog and is not an optional first non-English title header | Explain only; preserve the custom text | `G-SECTIONS`, reviewed language sources, `G-NON-ENGLISH` |
 | `section.deprecated-hook` | Warning | A section uses the deprecated `[Hook]` name | Preview Chorus and Refrain replacements | `G-SECTION-HOOK` |
@@ -126,6 +134,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `performer.line-label-forbidden` | Warning | Names or symbols in brackets are used to label individual lyric lines | Preview removal of the inline label | `G-SECTIONS` |
 | `spelling.standardized` | Suggestion | A reviewed non-preferred spelling occurs in a context where the preferred spelling is sufficiently certain | Safe for context-free entries; meaning- and pronunciation-sensitive entries use preview | `G-SPELLING`, `G-AS-SPOKEN` |
 | `spelling.language-variant` | Manual review | British and American variants appear inconsistent with chosen performer language | No automatic fix | `G-SPELLING` |
+| `spelling.texting-shorthand` | Suggestion | Written-only shorthand such as `idk`, `tbh`, `rn`, or `ur` stands where the sung words would stand | Preview each expansion the shorthand can have; never safe, because an artist may spell the letters out | `G-SPELLING`, `G-AS-SPOKEN` |
 | `quotes.typewriter` | Warning | Curly apostrophes or quotation marks occur in lyric text | Safe character replacement outside unsupported markup | `G-TYPEWRITER` |
 | `contraction.apostrophe` | Warning | A likely contraction is missing its apostrophe | Contextual fix preview | `G-CONTRACTIONS` |
 | `grammar.english-pronoun-i` | Suggestion | The standalone first-person `i`, including common contractions, is lowercase | Preview capitalization because lowercase styling can be intentional | `G-CAPS` |
@@ -142,6 +151,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `text.invisible-characters` | Warning | A non-breaking, narrow non-breaking, figure, or zero-width space, a byte-order mark, or trailing whitespace occurs | Safely replace space-like characters with a normal space and remove the rest | `G-ADD-SONGS` plus product-safety hygiene |
 | `text.multiple-spaces` | Suggestion | Two or more ordinary spaces occur between words on a lyric line | Safely collapse the run to one space | `G-ADD-SONGS` as context; LyricLint text-hygiene preference |
 | `unknown.marker` | Warning | An unknown lyric uses `(?)` or another recognized nonstandard marker instead of `[?]` | Safe only for exact known markers | `G-UNKNOWN` |
+| `unknown.improvised-marker` | Suggestion | A bare run of question marks stands as its own token where words would go, as in `I heard ??? tonight` | Preview replacement, because the same characters can be deliberate punctuation | `G-UNKNOWN` |
 | `unknown.unresolved` | Suggestion | A `[?]` marks an audible lyric that remains unidentified | Explain only | `G-UNKNOWN` |
 | `repeat.placeholder` | Warning | Text such as `[Chorus x2]` or `repeat chorus` substitutes for repeated lyrics | Explain only | `G-REPEATS` |
 | `sound-effect.asterisks` | Warning | A likely sound effect uses braces or an unsupported wrapper | Preview replacement | `G-SFX` |
@@ -160,7 +170,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 
 `text.invisible-characters` is likewise a hygiene rule rather than a quotation of Genius guidance, and its character set is a closed list in `src/lib/core/invisible-characters.ts`. Two families are excluded on purpose and must stay excluded: the joiners `U+200C` and `U+200D`, which hold emoji sequences and Persian and Indic words together, and the bidi controls `U+200E`, `U+200F`, `U+202A`–`U+202E`, and `U+2066`–`U+2069`, which are load-bearing in the right-to-left documents this product preserves exactly. Adding a character to that list means deciding it is never intentional in any language LyricLint accepts.
 
-`section.header-prose` requires more than a recognized part name alone on a line, because a lyric can be the single word `Chorus`. One of three marks has to be present — a trailing colon, a number, or capitals in a cased script — which is what a written-out label carries and a one-word lyric does not. It converts to the bracketed form only; choosing a localized term afterwards remains `section.localized-header-preference`'s decision.
+`section.header-prose` normally requires more than a recognized part name alone on a line, because a lyric can be the single word `Chorus`. One of three marks has to be present — a trailing colon, a number, or capitals in a cased script. A bare reviewed name is decisive only when it leads a headerless blank-line section and has lyric lines beneath it; inside an existing headed section or alone without a body, it remains ambiguous. The rule converts to the bracketed form only; choosing a localized term afterwards remains `section.localized-header-preference`'s decision.
 
 The language-specific grammar catalog is intentionally narrower than the language picker. The
 first release covers only the eight reviewed language packs (`en`, `no`, `ar`, `de`, `es`, `fr`,

@@ -2,7 +2,7 @@ import { getLanguagePack, canLintHeaderLanguage } from '$lib/languages/registry.
 import type { RuleDefinition, Section } from '$lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 import { isImmediateHeaderlessRepeat } from './section-immediate-repeat-spacing.js';
-import { isProseHeaderLine } from './section-header-prose.js';
+import { sectionLeadsWithProseHeader } from './section-header-prose.js';
 
 function headerSourceIds(language: string): string[] {
 	const pack = getLanguagePack(language);
@@ -23,13 +23,12 @@ function headerSourceIds(language: string): string[] {
  * different lines.
  */
 function leadsWithProseHeader(section: Section, language: string): boolean {
-	const leading = section.lines.find((line) => line.text.trim().length > 0);
-	return leading !== undefined && isProseHeaderLine(leading, language);
+	return sectionLeadsWithProseHeader(section, language);
 }
 
 export const sectionHeaderMissingRule: RuleDefinition = {
 	id: 'section.header-missing',
-	version: 6,
+	version: 7,
 	defaultSeverity: 'warning',
 	fixability: 'preview',
 	sourceIds: ['G-SECTIONS'],

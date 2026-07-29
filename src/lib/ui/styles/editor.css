@@ -1,8 +1,13 @@
 /* The editor surface: its scroll host and the mock editor textarea. */
 
+/* The first row of `.editor-region`, with the transport below it and the action
+   tray floating over its top-right corner rather than taking a row of its own.
+   Stated rather than auto-placed, because the strip states its own row and a
+   document that fell back to auto-placement would land wherever that left it. */
 .editor-host {
 	min-width: 0;
 	min-height: 0;
+	grid-row: 1;
 	overflow: auto;
 	background: var(--color-surface);
 }

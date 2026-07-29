@@ -109,10 +109,11 @@
 }
 
 /* Wider than the prose measure, because a run of rows is scanned down its left
-   edge rather than read in wrapping lines, and a verbatim lyric sample wraps at
-   the editor's column, not at prose's. */
+   edge rather than read in wrapping lines. Not the editor's column: that one is
+   a runaway-line cap rather than a reading measure and is far wider than a page
+   of copy wants. */
 .site-main--wide {
-	max-width: var(--measure-editor);
+	max-width: var(--measure-reference);
 }
 
 /*
@@ -601,10 +602,12 @@
 	grid-area: detail;
 }
 
-/* Verbatim lyric samples wrap at the editor's column here as they do anywhere
-   else, which is what this caps; the grid column is what sizes the page. */
+/* A ceiling on the read column, not the editor's wrap column; the grid column
+   is what sizes the page. The reviewed examples on these pages are short enough
+   that neither measure ever wraps one, so following the editor past a prose
+   width would only have widened the copy around them. */
 .rules__page {
-	max-width: var(--measure-editor);
+	max-width: var(--measure-reference);
 	padding-bottom: var(--space-5);
 }
 
@@ -690,10 +693,23 @@
 	color: var(--color-text-muted);
 }
 
-/* Selection is depth, not hue, exactly as in the linter's run of diagnostics:
-   the open rule's row drops to the recessed canvas and reads as cut into the
-   column. No accent wash and no ring — the severity tag is already the one
-   colored thing in the row, and a second color would compete with it. */
+/* Selection is depth, not hue. No accent wash and no ring — the severity tag is
+   already the one colored thing in the row, and a second color would compete
+   with it.
+
+   THIS STAYS RECESSED IN BOTH SCHEMES, and the linter's run of diagnostics no
+   longer does, so the two are worth telling apart rather than assuming they
+   drifted. A diagnostic card is a work surface: it opens, it carries the fix
+   the reader is about to press, and in light mode sinking it to grey made the
+   one active thing on the column read as the spent one. A row here is a nav
+   item saying which page is on screen. Grey for "you are here" is what a
+   selected item in a list of links has always looked like, and there is nothing
+   in the row to press but the row.
+
+   It also *cannot* lift, which settles it. `.site-run` clips to its own radius
+   with `overflow: hidden`, so an outer shadow on a child is cut off at the
+   container's edge and the row simply loses its marker. An inset one is not,
+   which is the quiet reason this pattern worked here in the first place. */
 .rules__index a[aria-current='page'],
 .rules__index a[aria-current='page']:hover {
 	background: var(--color-canvas);

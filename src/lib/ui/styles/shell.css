@@ -41,13 +41,106 @@
  * the document is transcribed from, not the window.
  *
  * The row is `auto`, so it costs exactly nothing while no audio is attached.
+ *
+ * The action tray takes no row at all — it is positioned over the document, which
+ * is what `position: relative` here is for. See `.editor-actions`.
  */
 .editor-region {
+	/* What the find bar keeps clear so the tray never covers its way out. It is a
+	   constant because the tray is a fixed set of glyphs, and it is asserted
+	   against the tray's measured width rather than trusted. */
+	--editor-actions-reserve: 9rem;
+
+	position: relative;
 	display: grid;
 	min-width: 0;
 	min-height: 0;
 	grid-row: 2;
 	grid-template-rows: minmax(0, 1fr) auto;
+}
+
+/*
+ * The editor column's commands, as a tray over the top-right corner of the
+ * document.
+ *
+ * **It costs the document no height, and that is the third shape this took.**
+ * Drawn full width across the column it made the row the object — a strip of
+ * chrome as wide as the document with two words at one end and a hand of empty
+ * gutter after them. Hugged to its contents it was the right size and, at the
+ * left of the column, belonged to nothing. Given a grid row of its own at the
+ * right it belonged to the tab strip, and charged 44px of the document for the
+ * privilege — every pixel of it beside the text rather than above it, because
+ * the lyric column is capped at `--measure-editor` and left-aligned. So the row
+ * went and the tray is `position: absolute` over the space that was already
+ * empty.
+ *
+ * `--panel-tabs-height` is kept, so its foot still lands level with the panel's
+ * tab strip: the chrome under the toolbar ends at one height across the window
+ * even though the two surfaces do not touch.
+ *
+ * It closes on the side it pokes out of: a border and a radius at the
+ * bottom-left corner, nothing at the right where the panel's own border already
+ * draws the edge, and nothing at the top where it meets the toolbar it hangs
+ * from.
+ *
+ * `--color-chrome`, like the toolbar above it. The bulk-fix strip learned the
+ * alternative the long way: drawn as bare canvas it took the tone of whatever it
+ * touched and its controls read as loose inside the surface below — which is a
+ * live hazard here rather than a remembered one, since this tray floats directly
+ * over the document.
+ */
+.editor-actions {
+	position: absolute;
+	top: 0;
+	right: 0;
+	z-index: var(--layer-toolbar);
+	display: flex;
+	min-height: var(--panel-tabs-height);
+	padding: 0 var(--space-3);
+	border-bottom: var(--border-width) solid var(--color-border);
+	border-left: var(--border-width) solid var(--color-border);
+	border-bottom-left-radius: var(--radius-panel);
+	gap: var(--space-1);
+	align-items: center;
+	background: var(--color-chrome);
+}
+
+.editor-actions__button {
+	display: inline-grid;
+	min-width: var(--control-height-sm);
+	min-height: var(--control-height-sm);
+	flex: none;
+	padding: 0 var(--space-1);
+	place-items: center;
+	color: var(--color-text);
+	font-size: var(--font-size-xs);
+	line-height: 1;
+}
+
+.editor-actions__mark {
+	font-family: var(--font-mono);
+	white-space: nowrap;
+}
+
+/* The one glyph that is not a mark. A magnifier at `1em` is optically smaller
+   than three mono characters beside it, so it is stepped up to the slot's own
+   size rather than left to look like a shrunken third sibling. */
+.editor-actions__glyph {
+	flex: none;
+	font-size: var(--font-size-md);
+}
+
+/*
+ * Find and replace is showing.
+ *
+ * The accent is on the glyph and not on the button, because a filled or ringed
+ * control here would be a second box inside a tray that is already one — and
+ * because what is being reported is the state of a panel, not a control being
+ * hovered. `aria-pressed` is what carries it to anything that cannot see a
+ * color, which is why the state is a toggle button rather than a class.
+ */
+.editor-actions__button[aria-pressed='true'] {
+	color: var(--color-accent);
 }
 
 /* The full width of the window, above both columns. */
@@ -937,21 +1030,6 @@
 	gap: var(--space-4);
 	flex-wrap: wrap;
 	align-items: center;
-}
-
-.status-bar__insert {
-	display: inline-flex;
-	min-height: var(--control-height-sm);
-	padding: 0 var(--space-1-5);
-	gap: var(--space-1);
-	align-items: center;
-	color: var(--color-text);
-	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-semibold);
-}
-
-.status-bar__marker {
-	font-family: var(--font-mono);
 }
 
 /*

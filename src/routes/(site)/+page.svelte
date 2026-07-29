@@ -158,7 +158,7 @@ And the "quiet" part was never really quiet`;
 
 	<p>
 		The demo above has two performers on its roster already. Select any part of a line and hand it
-		to one of them - after you've fixed the header!
+		to one of them — after you've fixed the header!
 	</p>
 
 	<h2>Every warning carries its source</h2>

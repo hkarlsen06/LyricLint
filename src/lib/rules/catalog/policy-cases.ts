@@ -242,6 +242,16 @@ export const policyCases: readonly RulePolicyCase[] = [
 		language: 'en-GB'
 	},
 	{
+		id: 'spelling.texting-shorthand',
+		title: 'Write texting shorthand out in full',
+		invalid: '[Verse]\nIdk what to tell you',
+		valid: "[Verse]\nI don't know what to tell you",
+		// An initialism people say aloud is the letters being sung, not a
+		// spelling of words that were. Expanding one would put words in a
+		// singer's mouth, which is the whole boundary this rule holds.
+		ambiguous: '[Verse]\nCall me ASAP'
+	},
+	{
 		id: 'quotes.typewriter',
 		title: 'Straight quotes in lyric text',
 		invalid: '[Verse]\n“Hello”',
@@ -349,6 +359,15 @@ export const policyCases: readonly RulePolicyCase[] = [
 		invalid: '[Verse]\nI heard (?)',
 		valid: '[Verse]\nI heard [?]',
 		ambiguous: '[Verse]\nI heard ???'
+	},
+	{
+		id: 'unknown.improvised-marker',
+		title: 'Question marks are not the [?] marker',
+		invalid: '[Verse]\nI heard ??? tonight',
+		valid: '[Verse]\nI heard [?] tonight',
+		// Attached to the word it punctuates, so it is punctuation rather than a
+		// placeholder standing in for words nobody could make out.
+		ambiguous: '[Verse]\nAre you serious???'
 	},
 	{
 		id: 'unknown.unresolved',

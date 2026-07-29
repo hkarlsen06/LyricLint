@@ -28,7 +28,9 @@
 		everyLyricLineTimed,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
+	import ControlTooltip from '../primitives/ControlTooltip.svelte';
 	import DocumentToolbar from './DocumentToolbar.svelte';
+	import EditorActions from './EditorActions.svelte';
 	import MediaPicker from '../media/MediaPicker.svelte';
 	import MediaStrip from '../media/MediaStrip.svelte';
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
@@ -307,6 +309,17 @@
 		onPerformerRenamed: ({ performerId, previousName, displayName }) =>
 			controller.adoptHeaderRename(performerId, previousName, displayName),
 		onSectionHeaderRequest: () => {},
+		// `Ctrl-Alt-U`, and the action bar's own press goes through the controller
+		// directly — one implementation either way, because the edit is the
+		// session's to dispatch.
+		onUnknownMarkerRequest: () => {
+			controller.insertUnknownMarker();
+			return true;
+		},
+		// Reported rather than asked: `Mod-F` is bound to the window and the panel
+		// closes from `Escape` and from its own control, so the tray's glyph would
+		// otherwise burn accent over a bar that had already gone.
+		onSearchOpenChange: (open) => controller.noteSearchOpen(open),
 		// Keyboard diagnostic navigation travels to the diagnostic; hovering one in
 		// the editor only marks its card, leaving the text under the pointer still.
 		onDiagnosticActivate: (diagnostic) => controller.navigateToDiagnostic(diagnostic),
@@ -564,6 +577,11 @@
 	<DocumentToolbar {controller} {brandRevealed} />
 
 	<section class="editor-region" aria-label="Lyrics workspace">
+		<!-- Level with the panel's tab strip, so the two read as one band under the
+		     toolbar: the editor's commands at the left of the window, the panel's
+		     tabs at the right. -->
+		<EditorActions {controller} />
+
 		<div class="editor-host" data-testid="editor-region">
 			{#key controller.draftId}
 				<EditorComponent
@@ -607,6 +625,12 @@
 	{/if}
 </main>
 
+<!-- One box for every control that names itself, filled by whichever one the
+     pointer or the keyboard is on. It is here rather than in the app layout so
+     that a workspace rendered on its own — which is how every component test
+     renders it — still has somewhere to draw. -->
+<ControlTooltip />
+
 {#snippet statusBar()}
 	<footer class="status-bar" aria-label="Document summary">
 		<span class="status-bar__group">
@@ -619,17 +643,6 @@
 				     this draft is already named after, rather than only for one that
 				     has been attached. -->
 				<MediaPicker media={controller.media} draftTitle={controller.title} />
-			{/if}
-			{#if !controller.isEmpty}
-				<button
-					type="button"
-					class="button--quiet status-bar__insert"
-					aria-label="Insert [?]"
-					title="Insert unknown lyric marker"
-					onclick={() => controller.insertUnknownMarker()}
-				>
-					Insert <span class="status-bar__marker">[?]</span>
-				</button>
 			{/if}
 			{#if documentCounts.length > 0}
 				<span>{documentCounts.join(' · ')}</span>

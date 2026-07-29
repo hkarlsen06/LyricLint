@@ -205,6 +205,9 @@ export interface WorkbenchController {
 	/** Replace an empty document with the bundled sample transcription. */
 	loadSample(): void;
 	insertSection(): void;
+	readonly searchOpen: boolean;
+	toggleSearch(): void;
+	noteSearchOpen(open: boolean): void;
 	addPerformer(displayName: string): void;
 	renamePerformer(id: string, displayName: string): void;
 	adoptHeaderRename(id: string, previousName: string, displayName: string): void;
@@ -612,6 +615,11 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			);
 		},
 		insertSection: editorSession.insertSection,
+		get searchOpen() {
+			return editorSession.searchOpen;
+		},
+		toggleSearch: editorSession.toggleSearch,
+		noteSearchOpen: editorSession.noteSearchOpen,
 		addPerformer: roster.addPerformer,
 		renamePerformer: roster.renamePerformer,
 		adoptHeaderRename: roster.adoptHeaderRename,

@@ -1,5 +1,10 @@
 import { redo as redoCommand, history, undo as undoCommand } from '@codemirror/commands';
-import { openSearchPanel, searchKeymap } from '@codemirror/search';
+import {
+	closeSearchPanel,
+	openSearchPanel,
+	searchKeymap,
+	searchPanelOpen
+} from '@codemirror/search';
 import {
 	EditorSelection,
 	EditorState,
@@ -502,7 +507,12 @@ function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEditorCallb
 		// binding fires, and the change hook is the only thing that saves an unlink,
 		// which moves no text at all.
 		onSectionLinkRequest: (request) => read().onSectionLinkRequest?.(request),
-		onSectionLinksChanged: () => read().onSectionLinksChanged?.()
+		onSectionLinksChanged: () => read().onSectionLinksChanged?.(),
+		// Same allow-list again. `?? false` rather than `?? true`: a shell that
+		// offers no handler has not bound the key, so the press has to reach
+		// whatever else wants it.
+		onUnknownMarkerRequest: () => read().onUnknownMarkerRequest?.() ?? false,
+		onSearchOpenChange: (open) => read().onSearchOpenChange?.(open)
 	};
 }
 
@@ -622,6 +632,14 @@ export function createLyricEditor(
 		fixPreviewField,
 		documentPlaceholderField,
 		searchReplace,
+		// Three things open and close this panel and only one is the shell's own
+		// control, so the panel reports rather than being asked.
+		EditorView.updateListener.of((update) => {
+			const open = searchPanelOpen(update.state);
+			if (open !== searchPanelOpen(update.startState)) {
+				callbackProxy.onSearchOpenChange?.(open);
+			}
+		}),
 		performerGroupsField,
 		performerDecorationField,
 		lintDecorationField,
@@ -802,6 +820,16 @@ export function createLyricEditor(
 		},
 		requestSectionLink() {
 			requestSectionLink(view, callbackProxy);
+		},
+		toggleSearch() {
+			if (searchPanelOpen(view.state)) {
+				closeSearchPanel(view);
+				// `closeSearchPanel` moves focus back to the document, which is right
+				// for `Escape` and for the panel's own way out. It is wrong for a press
+				// on the tray: the pointer is up here and the caret was never asked for.
+				return;
+			}
+			openSearchPanel(view);
 		},
 		getSectionLinks() {
 			return sectionLinksFor(view.state);

@@ -12,6 +12,16 @@ import { sortDiagnostics } from './engine.js';
 const harperSourceId = 'T-HARPER';
 const maximumFixes = 3;
 
+/**
+ * Every rule ID a Harper finding can arrive under. These are the one set of
+ * rules in the shipped rule set with no catalog entry and no reference page —
+ * Harper's suggestions cite Harper — so the rule-set manifest is checked against
+ * the registry plus exactly these, and `ruleIdFor` may return nothing else.
+ */
+export const harperRuleIds = ['spelling.harper', 'style.harper', 'grammar.harper'] as const;
+
+type HarperRuleId = (typeof harperRuleIds)[number];
+
 interface HarperSpan {
 	start: number;
 	end: number;
@@ -144,7 +154,7 @@ function originalRange(projection: HarperProjection, span: HarperSpan): TextRang
 	return from === undefined || to === undefined ? undefined : { from, to };
 }
 
-function ruleIdFor(kind: string): string {
+function ruleIdFor(kind: string): HarperRuleId {
 	switch (kind) {
 		case 'Spelling':
 		case 'Typo':
@@ -162,6 +172,13 @@ function ruleIdFor(kind: string): string {
 
 function plainMessage(message: string): string {
 	return message.replace(/`([^`]*)`/gu, '$1');
+}
+
+function appliesToLyrics(lint: HarperLint): boolean {
+	// Readability measures such as sentence length assume prose. A lyric can run
+	// through many physical lines without sentence punctuation, so those findings
+	// describe the transcription form rather than a problem in the lyrics.
+	return lint.lint_kind() !== 'Readability';
 }
 
 function fixForSuggestion(
@@ -313,6 +330,7 @@ export function createHarperDiagnosticProvider(
 			const diagnostics: Diagnostic[] = [];
 			for (const lint of lints) {
 				try {
+					if (!appliesToLyrics(lint)) continue;
 					const diagnostic = convertLint(lint, projection, request.text, request.revision);
 					if (diagnostic) diagnostics.push(diagnostic);
 				} finally {

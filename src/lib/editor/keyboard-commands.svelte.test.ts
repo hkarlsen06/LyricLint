@@ -155,6 +155,51 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 		});
 	});
 
+	// The action bar prints this keystroke under its own button, so the binding
+	// has to exist for the caption to be true. The shell owns the edit: this asks
+	// and nothing else, which is why the assertion is on the hook rather than on
+	// the document.
+	it('asks the shell for the unknown-lyric marker with Ctrl+Alt+U', async () => {
+		const onUnknownMarkerRequest = vi.fn(() => true);
+		const editorCallbacks = callbacks({ onUnknownMarkerRequest });
+		const { handle } = await mount({
+			text: '[Verse]\nI heard something',
+			selection: { anchor: 8, head: 13 },
+			editorCallbacks
+		});
+
+		handle.focus();
+		await userEvent.keyboard('{Control>}{Alt>}u{/Alt}{/Control}');
+
+		expect(onUnknownMarkerRequest).toHaveBeenCalledOnce();
+		// The editor wrote nothing itself.
+		expect(handle.getSnapshot().text).toBe('[Verse]\nI heard something');
+	});
+
+	// No `preventDefault: true` on that binding, because the option prevents the
+	// default even when the command returns false — and it returns false whenever
+	// no shell is listening, which would swallow the keystroke in an editor that
+	// never bound it. This is the same trap the sync-mode bindings document.
+	it('lets Ctrl+Alt+U through when no shell is listening', async () => {
+		const { handle } = await mount({
+			text: '[Verse]\nI heard something',
+			selection: { anchor: 8, head: 8 },
+			editorCallbacks: callbacks()
+		});
+
+		handle.focus();
+		const event = new KeyboardEvent('keydown', {
+			key: 'u',
+			code: 'KeyU',
+			ctrlKey: true,
+			altKey: true,
+			bubbles: true,
+			cancelable: true
+		});
+		document.activeElement?.dispatchEvent(event);
+		expect(event.defaultPrevented).toBe(false);
+	});
+
 	it('cycles forward and backward diagnostics with Ctrl+Alt+. and Ctrl+Alt+,', async () => {
 		const issues = [diagnostic(0, 3, 'First issue'), diagnostic(4, 7, 'Second issue')];
 		const { handle } = await mount({

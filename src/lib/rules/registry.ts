@@ -44,12 +44,17 @@ import { spellingLanguageVariantRule } from './catalog/spelling-language-variant
 import { spellingNorwegianCommonRule } from './catalog/spelling-norwegian-common.js';
 import { spellingSpanishCommonRule } from './catalog/spelling-spanish-common.js';
 import { spellingStandardizedRule } from './catalog/spelling-standardized.js';
+import { spellingTextingShorthandRule } from './catalog/spelling-texting-shorthand.js';
 import { syntaxUnbalancedBracketsRule } from './catalog/syntax-unbalanced-brackets.js';
 import { syntaxUnsupportedVoiceMarkupRule } from './catalog/syntax-unsupported-voice-markup.js';
 import { symbolsSpecialCharactersRule } from './catalog/symbols-special-characters.js';
 import { textInvisibleCharactersRule } from './catalog/text-invisible-characters.js';
 import { textMultipleSpacesRule } from './catalog/text-multiple-spaces.js';
-import { unknownMarkerRule, unknownUnresolvedRule } from './catalog/unknown-marker.js';
+import {
+	unknownImprovisedMarkerRule,
+	unknownMarkerRule,
+	unknownUnresolvedRule
+} from './catalog/unknown-marker.js';
 import { sourceRegistry } from './data/sources.js';
 
 export const enabledRules: readonly RuleDefinition[] = [
@@ -76,6 +81,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	performerLineLabelForbiddenRule,
 	spellingStandardizedRule,
 	spellingLanguageVariantRule,
+	spellingTextingShorthandRule,
 	quotesTypewriterRule,
 	contractionApostropheRule,
 	grammarEnglishPronounIRule,
@@ -92,6 +98,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	textInvisibleCharactersRule,
 	textMultipleSpacesRule,
 	unknownMarkerRule,
+	unknownImprovisedMarkerRule,
 	unknownUnresolvedRule,
 	repeatPlaceholderRule,
 	soundEffectAsterisksRule,

@@ -121,6 +121,24 @@ function insertSection(callbacks: EditorCallbacks): (view: EditorView) => boolea
 	return (view) => requestSectionHeader(view, callbacks);
 }
 
+/**
+ * Write Genius's unknown-lyric marker over whatever is selected.
+ *
+ * This only asks; the shell dispatches, so the insertion goes through the same
+ * atomic path as a fix rather than around it. Nothing is announced on the way
+ * out because the shell announces on the way in, and nothing refuses: a caret
+ * is all this command needs, which is what makes it one of the two the action
+ * bar can offer at rest.
+ */
+function insertUnknownMarker(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
+	return (view) => {
+		if (composing(view)) {
+			return true;
+		}
+		return callbacks.onUnknownMarkerRequest?.() ?? false;
+	};
+}
+
 function activateDiagnostic(
 	view: EditorView,
 	callbacks: LyricEditorCallbacks,
@@ -252,6 +270,13 @@ export function lyricLintKeymap(
 		// twice. This belongs beside `Mod-Shift-H` anyway — both are commands about
 		// the song's structure rather than about its audio.
 		{ key: 'Mod-Shift-l', run: linkSections(callbacks), preventDefault: true },
+		// `Ctrl-Alt-U` for the unknown marker, in the same family as the anchor
+		// pair below and free on both platforms. Deliberately no
+		// `preventDefault: true`: that option prevents the default even when the
+		// command returns *false*, and this one returns false whenever no shell is
+		// listening — which would swallow the keystroke in an editor that had not
+		// bound it at all. Returning true already prevents the default.
+		{ key: 'Ctrl-Alt-u', run: insertUnknownMarker(callbacks) },
 		// F7 through F9 belong to the transport. F2 and Shift-F2 keep diagnostic
 		// navigation on the function row without asking one key to mean two things.
 		// `.` and `,` remain the cross-platform primaries because they are adjacent

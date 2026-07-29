@@ -252,11 +252,21 @@
 	let root = $state<HTMLElement>();
 
 	$effect(() => {
-		// Keyed on the landing alone, and `ready` is read outside the tracked pass on
-		// purpose: this has to survive the workbench arriving rather than be torn
-		// down by it, because arriving is what starts the run-out below.
-		if (!landed) return;
-		if (untrack(() => ready)) return;
+		// Keyed on the landing *and* on the answer, because the answer arriving is
+		// what stops the wave — and stopping it is what parks the path back on the
+		// mark's own curve, which is `runWave`'s teardown and the only thing that
+		// puts it there. `ready` was read untracked here once, so that the run the
+		// wave loop used to make out to a whole wavelength could not be torn down
+		// half way through it. That run-out is gone: the loop runs until it is
+		// stopped and never stops itself, so untracking `ready` left the wave
+		// turning for the whole exit and the mark frozen mid-stride under the
+		// closing brackets.
+		//
+		// Stopping it does not take it off screen. `sparked` is latched, so the
+		// wave stays drawn on the mark's own curve for the frames it has left and
+		// is taken away by the brackets closing over it, which is what needs it
+		// there.
+		if (!landed || ready) return;
 		const path = root?.querySelector<SVGPathElement>('.app-wordmark__wave path');
 		if (!path) return;
 		sparked = true;

@@ -1,6 +1,5 @@
 import {
 	SearchQuery,
-	closeSearchPanel,
 	findNext,
 	findPrevious,
 	getSearchQuery,
@@ -197,10 +196,6 @@ class FindPanel implements Panel {
 		this.status.className = 'll-find__status';
 		this.status.setAttribute('aria-live', 'polite');
 
-		const close = command('ll-find__close', '✕', () => closeSearchPanel(view));
-		close.setAttribute('aria-label', 'Close find');
-		close.title = 'Close find';
-
 		const finding = document.createElement('div');
 		finding.className = 'll-find__group';
 		finding.append(this.find, this.status, this.previous, this.next);
@@ -211,7 +206,12 @@ class FindPanel implements Panel {
 
 		this.dom.className = 'll-find';
 		this.dom.addEventListener('keydown', (event) => this.keydown(event));
-		this.dom.append(finding, ...(view.state.readOnly ? [] : [replacing]), close);
+		// No close button. The action tray's magnifier is this bar's visible way out
+		// — it toggles, it sits directly above the row's own right end, and it draws
+		// accent while the bar is open — so an `✕` here would be a second control
+		// for a press the user already has, in the row with least space for one.
+		// `Escape` is the third way, as it is for every surface in the workbench.
+		this.dom.append(finding, ...(view.state.readOnly ? [] : [replacing]));
 		this.render(view.state);
 	}
 
@@ -294,12 +294,29 @@ class FindPanel implements Panel {
 }
 
 const searchReplaceTheme = EditorView.theme({
+	// See `--layer-editor-panel`: CodeMirror's default puts every panel above this
+	// application's whole layer scale, the tray that toggles this one included.
+	'.cm-panels': {
+		zIndex: 'var(--layer-editor-panel)'
+	},
+	/*
+	 * The bar runs *under* the action tray rather than below it: the tray floats
+	 * over the document's top-right corner and costs no height, so stacking this
+	 * beneath it would charge the document for both — which is what it did, and
+	 * what made the pair look like two bands of chrome for one job.
+	 *
+	 * What that means here is that the tray covers the right end of this row, so
+	 * the row keeps that width clear: `--editor-actions-reserve` in `shell.css` is
+	 * the number, and `Workspace.svelte.test.ts` measures the tray against it
+	 * rather than trusting the two to stay in step.
+	 */
 	'.ll-find': {
 		display: 'flex',
 		flexWrap: 'wrap',
 		alignItems: 'center',
 		gap: 'var(--space-2) var(--space-3)',
 		padding: 'var(--space-2)',
+		paddingInlineEnd: 'var(--editor-actions-reserve)',
 		borderBottom: 'var(--border-width) solid var(--color-border)',
 		background: 'var(--color-chrome)',
 		color: 'var(--color-text)',
@@ -364,7 +381,7 @@ const searchReplaceTheme = EditorView.theme({
 		borderColor: 'color-mix(in oklch, var(--color-text) 85%, var(--color-canvas))',
 		background: 'color-mix(in oklch, var(--color-text) 85%, var(--color-canvas))'
 	},
-	'.ll-find__step, .ll-find__close': {
+	'.ll-find__step': {
 		display: 'inline-grid',
 		width: 'var(--control-height-md)',
 		height: 'var(--control-height-md)',
@@ -379,12 +396,7 @@ const searchReplaceTheme = EditorView.theme({
 		lineHeight: '1',
 		cursor: 'pointer'
 	},
-	// The way out sits at the far end of the row, past everything it closes. It has
-	// to come after the shared rule above, whose `margin: 0` would otherwise reset it.
-	'.ll-find__close': {
-		marginInlineStart: 'auto'
-	},
-	'.ll-find__step:hover, .ll-find__close:hover': {
+	'.ll-find__step:hover': {
 		background: 'var(--color-control-hover)',
 		color: 'var(--color-text)'
 	},

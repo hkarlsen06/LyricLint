@@ -193,12 +193,14 @@ describe('MediaArtwork', () => {
 	 *
 	 * Two copies of three buttons would be two copies of every label rule — and
 	 * `Previous line` appearing on one surface while the other still said
-	 * `Back 2 seconds` is the kind of drift nobody notices for months. The one
-	 * difference is deliberate: the strip prints the shortcut captions because
-	 * that is where the shortcut is learned, and printing the same legend twice on
-	 * one screen turns a row of controls into a row of documentation.
+	 * `Back 2 seconds` is the kind of drift nobody notices for months.
+	 *
+	 * They are now identical, which they were not: the strip used to print the
+	 * keystroke under each glyph and this surface deliberately did not. Both
+	 * name themselves through the shared tooltip instead, so there is no caption
+	 * left to differ about — and no `captions` prop, whose only reader this was.
 	 */
-	it('puts the transport over the cover, without the strip’s shortcut captions', async () => {
+	it('puts the transport over the cover, with no caption under any glyph', async () => {
 		const { media, player } = await withCover();
 		player.setCuePoints([12, 30]);
 		render(MediaArtwork, { props: { media } });

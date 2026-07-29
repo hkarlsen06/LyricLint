@@ -1,12 +1,12 @@
 <script lang="ts">
 	import type { MediaPlayer } from '../state/media-player.svelte.js';
+	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { transportModifier } from '../state/media-shortcuts.js';
 	import LoadingMark from '../primitives/LoadingMark.svelte';
 
-	let { player, captions = true }: { player: MediaPlayer; captions?: boolean } = $props();
+	let { player }: { player: MediaPlayer } = $props();
 
 	const fallbackModifier = transportModifier();
-	const fallbackModifierKey = fallbackModifier === 'Control' ? '⌃' : fallbackModifier;
 
 	// Once the song has timed lines the side keys step between them, so the
 	// controls say so. A button labelled with a number of seconds it no longer
@@ -14,6 +14,14 @@
 	const timed = $derived(player.cuePoints.length > 0);
 	const backLabel = $derived(timed ? 'Previous line' : 'Back 2 seconds');
 	const forwardLabel = $derived(timed ? 'Next line' : 'Forward 2 seconds');
+
+	// One keystroke, the one a transcriber's hands can actually reach for: the
+	// one-modifier triad on the physical J K L keys. `F7`–`F9` and the universal
+	// `Ctrl-Alt` fallback stay in `aria-keyshortcuts`, because a control that
+	// listed every way to press it would be a legend rather than a name — and the
+	// function row is the alternative nobody reaches for first.
+	const key = (letter: string): string =>
+		fallbackModifier === 'Control' ? `⌃${letter}` : `${fallbackModifier}+${letter}`;
 </script>
 
 <!--
@@ -27,7 +35,16 @@
 	every label rule, and `Previous line` appearing on one of them and
 	`Back 2 seconds` on the other is a bug nobody would notice for months.
 
-	**The captions are the one difference, and they are a prop rather than a
+	**They are now identical, and the caption that used to separate them is gone.**
+	The one-modifier keystroke was printed under each glyph, which is where a
+	shortcut with nowhere else to live belongs — but it has somewhere else now, in
+	the shared tooltip that names the control anyway. Printed as well it was the
+	same fact twice, six pixels apart, in the shortest row in the window. A device
+	with no pointer to produce that tooltip has no modifier keys either, so nothing
+	is lost where the box cannot be opened.
+
+	The old note, kept because the reasoning still governs anything added here:
+	**a caption was a prop rather than a
 	second component.** The strip prints the reliable one-modifier fallback under
 	each glyph, because the strip is where the shortcut is learned: it appears with
 	the song and stays attached to the action it operates. Printing them again in
@@ -41,7 +58,7 @@
 	onclick={() => player.transport('back')}
 	aria-label={backLabel}
 	aria-keyshortcuts={`F7 ${fallbackModifier}+J Control+Alt+J`}
-	title={`${backLabel} (F7 · ${fallbackModifier}+J)`}
+	{@attach describeControl(() => ({ label: backLabel, shortcut: key('J') }))}
 >
 	<svg
 		aria-hidden="true"
@@ -57,9 +74,6 @@
 		<path d="M13 3.5v9L6.5 8Z" />
 		<path d="M3.5 3.5v9" />
 	</svg>
-	{#if captions}
-		<kbd class="media-strip__key" aria-hidden="true">{fallbackModifierKey}J</kbd>
-	{/if}
 </button>
 
 <button
@@ -69,7 +83,10 @@
 	aria-label={player.playing ? 'Pause' : 'Play'}
 	aria-busy={player.starting}
 	aria-keyshortcuts={`F8 Space ${fallbackModifier}+K Control+Alt+K`}
-	title={`${player.playing ? 'Pause' : 'Play'} (F8 · ${fallbackModifier}+K)`}
+	{@attach describeControl(() => ({
+		label: player.playing ? 'Pause' : 'Play',
+		shortcut: key('K')
+	}))}
 >
 	<!--
 		A press the source cannot act on yet takes the glyph's own slot rather than
@@ -97,9 +114,6 @@
 			{/if}
 		</svg>
 	{/if}
-	{#if captions}
-		<kbd class="media-strip__key" aria-hidden="true">{fallbackModifierKey}K</kbd>
-	{/if}
 </button>
 
 <button
@@ -108,7 +122,7 @@
 	onclick={() => player.transport('forward')}
 	aria-label={forwardLabel}
 	aria-keyshortcuts={`F9 ${fallbackModifier}+L Control+Alt+L`}
-	title={`${forwardLabel} (F9 · ${fallbackModifier}+L)`}
+	{@attach describeControl(() => ({ label: forwardLabel, shortcut: key('L') }))}
 >
 	<svg
 		aria-hidden="true"
@@ -124,7 +138,4 @@
 		<path d="M3 3.5v9L9.5 8Z" />
 		<path d="M12.5 3.5v9" />
 	</svg>
-	{#if captions}
-		<kbd class="media-strip__key" aria-hidden="true">{fallbackModifierKey}L</kbd>
-	{/if}
 </button>

@@ -108,8 +108,8 @@ const previousRuleSet: RuleSetManifest = {
 export const previousKnownGoodRuleSet = previousRuleSet;
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.28.0',
-	publishedAt: '2026-07-28',
+	version: '2026.07.29.0',
+	publishedAt: '2026-07-29',
 	sourceIds: [
 		...previousRuleSet.sourceIds,
 		'G-SYMBOLS',
@@ -117,15 +117,70 @@ export const currentRuleSet: RuleSetManifest = {
 		'G-NON-ENGLISH',
 		'L-NO-ACCENT'
 	],
+	// Spelled out rather than spliced from the previous set. The splice read as a
+	// changelog only while every change was an append; the moment one belonged in
+	// the interior it became two slices around an index, and the rule that was
+	// missing here — `performer.parenthetical-boundary`, enabled since it shipped
+	// and never listed — is exactly the omission that arrangement hid. The order
+	// is `enabledRules`, with the three Harper IDs where they have always sat.
+	// `rule-set.test.ts` is what keeps this list and the registry in agreement.
 	ruleIds: [
-		...previousRuleSet.ruleIds.slice(
-			0,
-			previousRuleSet.ruleIds.indexOf('text.invisible-characters')
-		),
-		'symbols.special-characters',
-		...previousRuleSet.ruleIds.slice(previousRuleSet.ruleIds.indexOf('text.invisible-characters')),
-		'adlib.separator',
+		'syntax.unbalanced-brackets',
+		'syntax.unsupported-voice-markup',
+		'language.selection-mismatch',
+		'section.header-missing',
+		'section.header-prose',
+		'section.header-spacing',
+		'section.header-language',
+		'section.localized-header-preference',
+		'section.header-unrecognized',
+		'section.deprecated-hook',
+		'section.immediate-repeat-spacing',
 		'section.unlinked-repeat',
-		'text.multiple-spaces'
+		'section.verse-numbering',
+		'performer.header-required',
+		'performer.style-order',
+		'performer.inline-mismatch',
+		'performer.parenthetical-boundary',
+		'performer.redundant-markup',
+		'performer.unused-legend-slot',
+		'performer.too-many-groups',
+		'performer.line-label-forbidden',
+		'spelling.standardized',
+		'spelling.language-variant',
+		'spelling.texting-shorthand',
+		'quotes.typewriter',
+		'contraction.apostrophe',
+		'grammar.english-pronoun-i',
+		'spelling.english-common',
+		'spelling.norwegian-common',
+		'spelling.german-common',
+		'grammar.spanish-contractions',
+		'spelling.spanish-common',
+		'spelling.french-common',
+		'spelling.arabic-common',
+		'spelling.japanese-common',
+		'spelling.korean-common',
+		'spelling.harper',
+		'grammar.harper',
+		'style.harper',
+		'symbols.special-characters',
+		'text.invisible-characters',
+		'text.multiple-spaces',
+		'unknown.marker',
+		'unknown.improvised-marker',
+		'unknown.unresolved',
+		'repeat.placeholder',
+		'sound-effect.asterisks',
+		'censored.mask',
+		'adlib.parentheses',
+		'adlib.separator',
+		'capitalization.line-start',
+		'capitalization.title-case',
+		'punctuation.line-ending',
+		'punctuation.question',
+		'punctuation.dropped-word-dash',
+		'line.prose-density',
+		'numbers.spell-out'
 	]
 };

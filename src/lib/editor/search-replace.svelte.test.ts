@@ -1,11 +1,11 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { EditorHandle } from '$lib/core/types.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
 
-function callbacks(): LyricEditorCallbacks {
+function callbacks(overrides: Partial<LyricEditorCallbacks> = {}): LyricEditorCallbacks {
 	return {
 		onSnapshot: vi.fn(),
 		onAssignRequest: vi.fn(),
@@ -13,17 +13,18 @@ function callbacks(): LyricEditorCallbacks {
 		onDiagnosticActivate: vi.fn(),
 		onDiagnosticHighlight: vi.fn(),
 		onAnnouncement: vi.fn(),
-		onPerformerRenamed: vi.fn()
+		onPerformerRenamed: vi.fn(),
+		...overrides
 	};
 }
 
-async function mount(): Promise<EditorHandle> {
+async function mount(overrides: Partial<LyricEditorCallbacks> = {}): Promise<EditorHandle> {
 	let handle: EditorHandle | undefined;
 	await render(EditorPane, {
 		props: {
 			initialText: 'Echo one\nEcho two\nEcho three',
 			context: { language: 'en', performers: [], ruleSetVersion: 'test' },
-			callbacks: callbacks(),
+			callbacks: callbacks(overrides),
 			onready: (readyHandle: EditorHandle) => {
 				handle = readyHandle;
 			}
@@ -85,6 +86,61 @@ describe('find and replace', () => {
 
 		await page.getByRole('button', { name: 'Replace all 2' }).click();
 		expect(handle.getSnapshot().text).toBe('Song one\nSong two\nSong three');
+	});
+
+	// The action tray's magnifier and `Mod-F` are the same command, because the
+	// handle runs CodeMirror's own panel — the shortcut was folklore until the tray
+	// drew it, and two implementations of one command is how they come to disagree
+	// about which field ends up focused.
+	//
+	// It toggles, because the tray glyph is a pressed-state button sitting directly
+	// over the row's own way out: the bar runs under the tray, so a second press on
+	// the thing that opened it has to be a way back.
+	it('toggles the same panel from the handle as the shortcut opens', async () => {
+		const handle = await mount();
+
+		expect(handle.toggleSearch).toBeTypeOf('function');
+		handle.toggleSearch!();
+
+		await expect.element(page.getByRole('textbox', { name: 'Find' })).toBeVisible();
+		// It focuses the field it opened, which is the whole point of the press.
+		expect(document.activeElement?.getAttribute('aria-label')).toBe('Find');
+
+		handle.toggleSearch!();
+		expect(page.getByRole('textbox', { name: 'Find' }).query()).toBeNull();
+	});
+
+	// Three things open and close this panel and only one is the tray's own press,
+	// so the panel reports rather than being asked — a glyph that only knew about
+	// its own presses would burn accent over a bar `Escape` had already closed.
+	it('reports every open and close to the shell', async () => {
+		const openStates: boolean[] = [];
+		const handle = await mount({ onSearchOpenChange: (open: boolean) => openStates.push(open) });
+
+		handle.toggleSearch!();
+		await expect.element(page.getByRole('textbox', { name: 'Find' })).toBeVisible();
+		expect(openStates).toEqual([true]);
+
+		handle.toggleSearch!();
+		expect(openStates).toEqual([true, false]);
+	});
+
+	// The tray's magnifier is this bar's visible way out — it toggles, it sits over
+	// the row's own right end, and it draws accent while the bar is open — so an
+	// `✕` here would be a second control for a press the user already has, in the
+	// row with least space for one. Re-adding it is the regression this pins.
+	it('carries no close button, and still closes on Escape', async () => {
+		const handle = await mount();
+		handle.toggleSearch!();
+		const find = page.getByRole('textbox', { name: 'Find' });
+		await expect.element(find).toBeVisible();
+
+		expect(page.getByRole('button', { name: 'Close find' }).elements()).toHaveLength(0);
+		expect(document.querySelector('.ll-find__close')).toBeNull();
+
+		await find.fill('echo');
+		await userEvent.keyboard('{Escape}');
+		await expect.poll(() => document.querySelectorAll('.ll-find').length).toBe(0);
 	});
 
 	it('offers only what it can carry out', async () => {

@@ -640,6 +640,16 @@ export interface EditorHandle {
 	 * predicate, so the two ways in cannot come to mean different things.
 	 */
 	requestSectionLink?(): void;
+	/**
+	 * Show or hide find and replace, as if the user pressed `Mod-F`.
+	 *
+	 * The keystroke is bound to the *window* rather than to the editor, because
+	 * the panel it opens is worth reaching from outside the document — so this is
+	 * the second way in rather than the only one, and both run CodeMirror's own
+	 * `openSearchPanel`. It focuses the find field itself, which is the one place
+	 * in the workbench where a command moving focus is the whole point of it.
+	 */
+	toggleSearch?(): void;
 	/** Open the guided performer-legend assignment for an inline mismatch. */
 	requestPerformerLegendAssignment?(diagnostic: Diagnostic): void;
 	/** Every section link, for the shell to write down. */

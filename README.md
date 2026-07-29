@@ -1,42 +1,44 @@
-# sv
+# LyricLint
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+LyricLint is a browser-based editor and linter for Genius lyric transcriptions.
+It checks formatting, grammar, spelling, section headers, and performer markup.
+Every Genius-specific rule cites the guideline behind it.
 
-## Creating a project
+[Open LyricLint](https://lyriclint.com/lint/) ·
+[Browse the rules](https://lyriclint.com/rules/)
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Features
 
-```sh
-# create a new project
-npx sv create my-app
-```
+- Review diagnostics inline and preview fixes before applying them.
+- Add Genius-compatible performer markup without writing the HTML by hand.
+- Keep multiple transcriptions saved locally in the browser.
+- Work offline after the app has loaded. Lyrics are not sent to a LyricLint
+  server.
 
-To recreate this project with the same configuration:
+## Development
 
-```sh
-# recreate this project
-npx sv@0.16.5 create --template minimal --types ts --add prettier eslint playwright vitest="usages:unit,component" sveltekit-adapter="adapter:static" --no-download-check --install npm .
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+[Bun](https://bun.sh/) is required.
 
 ```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+bun install
+bun run dev
 ```
 
-## Building
-
-To create a production version of your app:
+Run the project checks with:
 
 ```sh
-npm run build
+bun run check
+bun run lint
+bun run test:unit -- --run
 ```
 
-You can preview the production build with `npm run preview`.
+Create a production build with:
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```sh
+bun run build
+```
+
+## Security
+
+Report vulnerabilities privately as described in
+[SECURITY.md](SECURITY.md).

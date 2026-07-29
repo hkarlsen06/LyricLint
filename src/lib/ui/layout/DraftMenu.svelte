@@ -12,7 +12,6 @@
 	let renameId = $state<string | undefined>();
 	let renameValue = $state('');
 	let deleteId = $state<string | undefined>();
-	let confirmDeleteAll = $state(false);
 	let menuTrigger: HTMLElement;
 
 	function beginRename(id: string, title: string): void {
@@ -42,7 +41,7 @@
 	// A press outside the menu closes it. The attachment sits on the `<details>`,
 	// so a press on the summary is inside and the native toggle still owns it.
 	// Leaving the menu abandons any pending confirm too — reopening it must not
-	// present a primed "Delete all" the user has already walked away from.
+	// present a primed delete the user has already walked away from.
 	function dismiss(): void {
 		if (!open) {
 			return;
@@ -50,7 +49,6 @@
 		open = false;
 		renameId = undefined;
 		deleteId = undefined;
-		confirmDeleteAll = false;
 	}
 
 	async function deleteDraftAndMoveFocus(id: string, trigger: HTMLButtonElement): Promise<void> {
@@ -253,36 +251,12 @@
 			</ul>
 		{/if}
 
-		<!-- Same two-press shape as a row's delete, one scope up: the trigger keeps
-		     its slot and says what the second press does. -->
-		<div class="draft-menu__footer">
-			<span class="sr-only" aria-live="polite">
-				{confirmDeleteAll ? "Delete every local 'scribe? Confirm or cancel." : ''}
-			</span>
-			{#if confirmDeleteAll}
-				<button
-					type="button"
-					class="button button--danger"
-					onclick={async () => {
-						await controller.deleteAllDrafts();
-						confirmDeleteAll = false;
-					}}>Delete all 'scribes</button
-				>
-				<button
-					type="button"
-					class="button button--quiet"
-					onclick={() => (confirmDeleteAll = false)}>Cancel</button
-				>
-			{:else}
-				<button
-					type="button"
-					class="button button--quiet button--flush danger-text"
-					onclick={() => {
-						deleteId = undefined;
-						confirmDeleteAll = true;
-					}}>Delete all local data…</button
-				>
-			{/if}
-		</div>
+		<!-- No `Delete all local data…` here. It was a footer under this list, and on
+		     a fresh install it was the whole menu: a sentence saying there are no
+		     'scribes yet, and a red button offering to delete them. The one thing a
+		     first-timer opening this out of curiosity met was the most destructive
+		     command in the application, pointed at nothing. It lives under `Local
+		     data` in the tools panel, where the paragraph above it says what local
+		     data is — a claim is made once, where the reader is deciding. -->
 	</div>
 </details>

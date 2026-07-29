@@ -23,6 +23,16 @@ describe('section.header-prose', () => {
 		expect(messages('[Verse]\nBridge')).toEqual([]);
 	});
 
+	it('brackets a bare part name when it leads a headerless section with lyrics', () => {
+		const input = '[Bridge]\nFirst section\n\nOutro\nLast lines';
+		expect(messages(input)).toEqual(['Write this section header as [Outro].']);
+		expect(applyRuleFixes(rule, input)).toBe('[Bridge]\nFirst section\n\n[Outro]\nLast lines');
+	});
+
+	it('leaves a lone bare part name ambiguous without a lyric body', () => {
+		expect(messages('Outro')).toEqual([]);
+	});
+
 	it('ignores a line that only contains a part name among other words', () => {
 		expect(messages('[Verse]\nThe chorus of my life:')).toEqual([]);
 		expect(messages('[Verse]\nVerse 1 of the book')).toEqual([]);

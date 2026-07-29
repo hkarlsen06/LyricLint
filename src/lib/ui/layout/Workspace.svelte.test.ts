@@ -730,14 +730,162 @@ describe('Workspace and toolbar', () => {
 		expect(link.closest('.document-toolbar')).toBeNull();
 	});
 
-	test('keeps unknown-marker insertion in the document strip, not the toolbar', () => {
+	// The row is a readout, and `Add audio` is its one documented exception. The
+	// unknown-marker insert used to sit here as a second control, saying `[?]` at
+	// a reader who by definition did not know what `[?]` meant — so it moved to
+	// the editor column's own action bar, where the label can explain the mark and
+	// where every other command that acts on the document at the caret lives.
+	test('keeps the status bar a readout with one control', () => {
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
+		renderWorkspace(controller);
+
+		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
+		// `Add audio` is the row's one exception and draws only where the shell has
+		// a media store; nothing else in here is pressable at any state.
+		const controls = [...summary.querySelectorAll('button')];
+		expect(controls.every((control) => /audio/iu.test(control.textContent ?? ''))).toBe(true);
+		expect(summary.textContent).not.toContain('[?]');
+		expect(summary.textContent).not.toContain('Insert');
+	});
+
+	test('offers the caret commands in the action bar, with the keystrokes that run them', async () => {
+		const { controller, calls } = createTestWorkbench({
+			text: '[Verse]\nI heard something',
+			selection: { anchor: 15, head: 10 }
+		});
+		renderWorkspace(controller);
+
+		const bar = screen.getByRole('group', { name: 'Document actions' });
+		// Level with the panel's tab strip and inside the editor column, not the
+		// toolbar and not the status bar.
+		expect(bar.closest('.editor-region')).toBeTruthy();
+		expect(bar.closest('.document-toolbar')).toBeNull();
+		expect(bar.closest('.status-bar')).toBeNull();
+
+		// The control is a glyph, and the whole label is its accessible name — which
+		// is what keeps the trade this shape makes off the screen reader: a tooltip
+		// is a thing only a pointer can produce, an accessible name is not.
+		const unknown = screen.getByRole('button', { name: 'Unknown lyric [?]' });
+		expect(unknown.closest('.editor-actions')).toBe(bar);
+		expect(unknown.getAttribute('aria-keyshortcuts')).toContain('U');
+		expect(unknown.textContent?.trim()).toBe('[?]');
+
+		// Nothing is spelled out at rest — the labels and the keystrokes were 243px
+		// of the document's own top row for two commands.
+		expect(bar.querySelectorAll('kbd')).toHaveLength(0);
+		expect(bar.textContent).not.toContain('Section header');
+
+		await fireEvent.click(unknown);
+		expect(calls.dispatched).toEqual([
+			{
+				baseRevision: 4,
+				edits: [{ from: 10, to: 15, insert: '[?]' }],
+				selectionAfter: { anchor: 13, head: 13 }
+			}
+		]);
+	});
+
+	// It is a tray hanging off the toolbar at the right of the column, against the
+	// panel — not a band across the column. Drawn full width the row becomes the
+	// object and is then mostly empty gutter with two words at one end, so the
+	// width is measured rather than trusted to a rule: `width: 100%` or a lost
+	// `justify-self` restores the band silently. The right edge is the other half
+	// of it, because that is what makes the tray read as the tab strip's chrome
+	// carried out over the document rather than as a shape adrift on it.
+	test('sizes the action bar to its contents and hangs it at the right of the column', () => {
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
+		renderWorkspace(controller);
+
+		const bar = screen.getByRole('group', { name: 'Document actions' });
+		const barBox = bar.getBoundingClientRect();
+		const regionBox = bar.closest('.editor-region')!.getBoundingClientRect();
+
+		expect(barBox.width).toBeGreaterThan(0);
+		expect(barBox.width).toBeLessThan(regionBox.width * 0.75);
+		expect(barBox.right).toBeCloseTo(regionBox.right, 0);
+		expect(barBox.left).toBeGreaterThan(regionBox.left);
+	});
+
+	// `Mod-F` opens a whole find-and-replace panel and nothing on screen said so —
+	// the same folklore the section-header shortcut was, which is what this tray
+	// exists to end. It is the one command here that writes nothing, so it is the
+	// one drawn as a pictogram: the other two show the mark they put in the
+	// document, and this has no mark to show.
+	test('opens find and replace from the tray', async () => {
+		const { controller, calls } = createTestWorkbench({ text: '[Verse]\nA lyric' });
+		renderWorkspace(controller);
+
+		const find = screen.getByRole('button', { name: 'Find and replace' });
+		expect(find.closest('.editor-actions')).toBeTruthy();
+		expect(find.querySelector('svg')).toBeTruthy();
+		expect(find.textContent?.trim()).toBe('');
+		expect(find.getAttribute('aria-keyshortcuts')).toMatch(/\+F$/u);
+
+		await fireEvent.click(find);
+		expect(calls.searchOpenCount).toBe(1);
+
+		// The bar runs *under* the tray, so the glyph sitting over its way out has to
+		// be one: it is a toggle, and the state is reported by the editor rather than
+		// assumed from the press — `Escape` and the bar's own control close it too.
+		expect(find.getAttribute('aria-pressed')).toBe('false');
+		controller.noteSearchOpen(true);
+		await waitFor(() =>
+			expect(
+				screen.getByRole('button', { name: 'Find and replace' }).getAttribute('aria-pressed')
+			).toBe('true')
+		);
+	});
+
+	// What a control is, and the keystroke that does the same thing, arriving
+	// together at the one moment either is being asked for. The keyboard opens it
+	// the same way the pointer does, because a control reached by Tab has had its
+	// name asked for just as plainly as one under a pointer.
+	//
+	// It is one box for the whole workbench, rendered by `ControlTooltip` rather
+	// than by the surface — which is why it is queried off the document and not off
+	// the tray.
+	test('names the action and its keystroke on hover and on focus', async () => {
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
+		renderWorkspace(controller);
+
+		const unknown = screen.getByRole('button', { name: 'Unknown lyric [?]' });
+		expect(document.querySelector('.control-tooltip')).toBeNull();
+
+		await fireEvent.pointerEnter(unknown);
+		const tooltip = document.querySelector('.control-tooltip')!;
+		expect(tooltip.textContent).toContain('Unknown lyric [?]');
+		expect(tooltip.textContent).toMatch(/U$/u);
+		// The same two facts are already the button's own name and shortcut, so the
+		// box is drawn for the pointer and hidden from anything that cannot produce
+		// one — otherwise a screen reader hears both twice.
+		expect(tooltip.getAttribute('aria-hidden')).toBe('true');
+
+		await fireEvent.pointerLeave(unknown);
+		expect(document.querySelector('.control-tooltip')).toBeNull();
+
+		await fireEvent.focus(unknown);
+		expect(document.querySelector('.control-tooltip')?.textContent).toContain('Unknown lyric');
+
+		// One box at a time, for the whole application: hover moving to another
+		// control replaces it rather than adding a second.
+		await fireEvent.pointerEnter(screen.getByRole('button', { name: 'Find and replace' }));
+		expect(document.querySelectorAll('.control-tooltip')).toHaveLength(1);
+		expect(document.querySelector('.control-tooltip')?.textContent).toContain('Find and replace');
+	});
+
+	// A band that appeared on the first keystroke would shove the editor down at
+	// the moment somebody started typing — and someone looking at an empty
+	// document is exactly the reader who has never met `[?]`.
+	test('draws the action bar over an empty document', () => {
 		const { controller } = createTestWorkbench();
 		renderWorkspace(controller);
 
-		const insert = screen.getByRole('button', { name: 'Insert [?]' });
-		expect(insert.textContent?.replace(/\s+/gu, ' ').trim()).toBe('Insert [?]');
-		expect(insert.closest('.status-bar')).toBeTruthy();
-		expect(insert.closest('.document-toolbar')).toBeNull();
+		const bar = screen.getByRole('group', { name: 'Document actions' });
+		// Three, and four is the ceiling: each glyph costs about 30px of the
+		// document's own top row, past which this is the full-width band it
+		// replaced, wearing icons.
+		expect(bar.querySelectorAll('button')).toHaveLength(3);
+		expect(bar.querySelectorAll('button').length).toBeLessThanOrEqual(4);
 	});
 
 	test('keeps the status-bar link off the accent color', () => {

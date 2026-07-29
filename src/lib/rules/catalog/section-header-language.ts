@@ -31,15 +31,16 @@ function recognizeInOtherReviewedPack(
 	return undefined;
 }
 
-function selectedTerms(pack: LanguagePack): Set<string> {
-	return new Set(
-		pack.headers.flatMap((header) => header.terms.map((term) => term.toLocaleLowerCase()))
-	);
+function selectedCanonicalTerm(pack: LanguagePack, name: string): string | undefined {
+	const normalized = name.trim().toLocaleLowerCase(pack.tag);
+	return pack.headers
+		.flatMap((header) => header.terms)
+		.find((term) => term.toLocaleLowerCase(pack.tag) === normalized);
 }
 
 export const sectionHeaderLanguageRule: RuleDefinition = {
 	id: 'section.header-language',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'warning',
 	fixability: 'preview',
 	sourceIds: [
@@ -58,15 +59,26 @@ export const sectionHeaderLanguageRule: RuleDefinition = {
 		if (!canLintHeaderLanguage(selected)) {
 			return [];
 		}
-		const accepted = selectedTerms(selected);
 		return document.sections.flatMap((section) => {
 			const header = section.header;
-			if (
-				!header ||
-				accepted.has(header.namePart.toLocaleLowerCase()) ||
-				localizedHeaderPreference(context.language, header.namePart)
-			) {
+			if (!header || localizedHeaderPreference(context.language, header.namePart)) {
 				return [];
+			}
+			const canonical = selectedCanonicalTerm(selected, header.namePart);
+			if (canonical) {
+				if (header.namePart === canonical) {
+					return [];
+				}
+				return [
+					diagnostic(
+						this,
+						header.nameRange,
+						`Use the reviewed capitalization “${canonical}”.`,
+						`This section header matches the reviewed ${selected.displayName} term “${canonical}”, but its letter case does not. Using the catalog spelling keeps section headers consistent.`,
+						[replacementFix(context, 'safe', `Use ${canonical}`, header.nameRange, canonical)],
+						['G-SECTIONS', ...selected.sourceIds]
+					)
+				];
 			}
 			const conflict = recognizeInOtherReviewedPack(header.namePart, selected);
 			if (!conflict) {

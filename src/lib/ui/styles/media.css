@@ -22,6 +22,7 @@
 .media-strip {
 	display: flex;
 	min-height: var(--control-height-lg);
+	/* The last of `.editor-region`'s two rows; the action tray takes none. */
 	grid-row: 2;
 	overflow-x: auto;
 	padding: var(--space-1) var(--space-3);
@@ -357,48 +358,34 @@
 }
 
 /*
-	The glyph with its shortcut under it, and the stack costs the row nothing.
+	The glyph, centred, and nothing under it.
 
-	The row's height is `--control-height-lg`, and every other control in it —
-	the rate select, the sync button, the icon buttons — is `--control-height-md`
-	plus this row's padding, which is exactly that. So the second line has to fit
-	inside `md`, and it does with a pixel to spare: 14px of glyph, 2px of gap,
-	11px of key. Anything added here that pushes the stack past a `md` control
-	grows the strip, and every pixel this row takes is a pixel off the document
-	above it. `MediaStrip.svelte.test.ts` measures it against a sibling control.
+	It carried the one-modifier keystroke as a caption for as long as that
+	keystroke had nowhere else to live. It has somewhere now — the shared tooltip
+	that names the control anyway (`describeControl`) — and printed in both places
+	it was the same fact twice, six pixels apart, in the shortest row in the
+	window.
+
+	The height rule it was written for still governs, so it is kept here rather
+	than deleted with the caption: this row is `--control-height-lg`, every other
+	control in it is `--control-height-md` plus the row's padding, and that comes
+	to exactly the same. Anything stacked under a glyph again has to fit inside one
+	`md` control, and `MediaStrip.svelte.test.ts` measures it against a sibling
+	rather than trusting the arithmetic — every pixel this row takes is a pixel off
+	the document above it.
 */
 .media-strip__transport-button {
 	display: inline-flex;
-	flex: none;
-	flex-direction: column;
 	min-height: var(--control-height-sm);
+	flex: none;
 	padding: 0 var(--space-1-5);
-	gap: var(--space-0-5);
+	align-items: center;
+	justify-content: center;
 	color: var(--color-text);
-	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-regular);
-	line-height: 1;
 }
 
 .media-strip__transport-button svg {
 	flex: none;
-}
-
-/*
-	The hint is one mark per control, under the glyph it belongs to, and it is
-	unboxed. Beside the glyph it was read as part of the row of controls and
-	doubled the transport's width; two capped boxes made it worse, printing `⌃`
-	three times for a fact that never varies while the letter — the only thing
-	that differs — wore the same weight. Under the glyph it is a caption, which
-	is what it is, and the modifier folds into the letter so the caption is one
-	mark rather than a row of chrome under a row of chrome.
-*/
-.media-strip__key {
-	color: var(--color-text-muted);
-	font-family: var(--font-ui);
-	font-size: var(--font-size-2xs);
-	font-weight: var(--font-weight-medium);
-	line-height: 1;
 }
 
 /* Tabular so the elapsed readout does not shuffle its neighbours every tick. */

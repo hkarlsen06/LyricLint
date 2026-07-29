@@ -214,10 +214,9 @@
 }
 
 /* Square, borderless sections. Selection reads as depth rather than as another
-   box: the raised surface is the resting state, and the selected row drops to
-   the recessed level with an inner shadow, so it looks cut into the run.
-   `--color-canvas` is the elevation family's recessed level, not a fill step —
-   the rule a card must not cross is about the fill ramp. */
+   box — which way the depth goes is the scheme's answer, below. `--color-canvas`
+   is the elevation family's recessed level, not a fill step; the rule a card
+   must not cross is about the fill ramp. */
 /* Positioned because the row's press target is measured against it: the card is
    the control all the way down, explanation included, not just its head. */
 .diagnostic-list > li {
@@ -236,13 +235,55 @@
  * Selection is depth and nothing else. The active card — the one the editor is
  * sitting in — used to add an accent wash and an inset accent ring on top of
  * this, which put a blue box inside a panel whose whole job is to color things
- * by severity. The recessed step is already unmistakable, and an active card is
- * always the expanded one, so the two states share one treatment.
+ * by severity. The step is already unmistakable, and an active card is always
+ * the expanded one, so the two states share one treatment.
+ *
+ * IT LIFTS IN LIGHT AND SINKS IN DARK, and that is not an inconsistency dressed
+ * up. Depth is the cue in both; what differs is which direction the scheme has
+ * a word for. In dark, the recessed level *is* the document's own tone, so a
+ * well reads as somewhere to look into and the open card is the deepest thing
+ * on the column. In light the recessed level is grey — and grey on a white
+ * column is what this workbench uses everywhere else to say *spent*: disabled
+ * text, a control that cannot be pressed, a rule that has been ignored. Sunk,
+ * the one card the reader has opened and is about to press a fix on was the
+ * dullest surface in the panel, which is the exact reading a selection must not
+ * have.
+ *
+ * It cannot rise by lightness, because the resting cards are already the paper
+ * — so it earns the lift with a shadow, which is what the elevation note in
+ * `tokens.css` says light mode has to do for anything above `--color-surface`.
+ * The seam goes with it: a row still ruled into the run at both ends is still
+ * part of it, so the hairline under the lifted card and under the row above it
+ * come off, and `z-index` lets the shadow fall *across* both neighbours instead
+ * of under them. Nothing moves — the border keeps its 1px and only loses its
+ * color, so lifting a card cannot shift the list under the pointer that opened
+ * it.
  */
 .diagnostic-list > li.diagnostic-card--expanded,
 .diagnostic-list > li.diagnostic-card--active {
-	background: var(--color-canvas);
-	box-shadow: var(--shadow-recessed);
+	z-index: 1;
+	border-bottom-color: transparent;
+	box-shadow: var(--shadow-raised);
+}
+
+.diagnostic-list > li:has(+ li.diagnostic-card--expanded),
+.diagnostic-list > li:has(+ li.diagnostic-card--active) {
+	border-bottom-color: transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+	.diagnostic-list > li.diagnostic-card--expanded,
+	.diagnostic-list > li.diagnostic-card--active {
+		z-index: auto;
+		border-bottom-color: var(--color-border);
+		background: var(--color-canvas);
+		box-shadow: var(--shadow-recessed);
+	}
+
+	.diagnostic-list > li:has(+ li.diagnostic-card--expanded),
+	.diagnostic-list > li:has(+ li.diagnostic-card--active) {
+		border-bottom-color: var(--color-border);
+	}
 }
 
 /* The head — not the list item — carries the card's padding: there is no dead

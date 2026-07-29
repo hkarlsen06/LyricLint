@@ -42,10 +42,19 @@ export interface EditorSession {
 	/** Replace the current selection with Genius's unknown-lyric marker. */
 	insertUnknownMarker(): void;
 	insertSection(): void;
+	/** Whether find and replace is on screen, as the editor last reported it. */
+	readonly searchOpen: boolean;
+	toggleSearch(): void;
+	/** The editor reporting that the find panel opened or closed. */
+	noteSearchOpen(open: boolean): void;
 }
 
 export function createEditorSession(deps: EditorSessionDependencies): EditorSession {
 	let editor = $state(deps.editor);
+	// Reported by the editor rather than tracked here, because `Mod-F` is bound to
+	// the window and `Escape` and the panel's own `✕` close it — three ways in and
+	// out, only one of which is the tray's own press.
+	let searchOpen = $state(false);
 	let snapshot = $state(deps.initialSnapshot);
 	let lastEditorRevision: number | undefined;
 
@@ -184,6 +193,23 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			} else {
 				deps.feedback.announce('Place the cursor in a lyric section before inserting a header.');
 			}
+		},
+		get searchOpen() {
+			return searchOpen;
+		},
+		toggleSearch() {
+			// Checked rather than optionally called, for the reason `setLineAnchors`
+			// documents: the placeholder handle the page boots with implements none
+			// of these, and `editor.toggleSearch?.()` cannot tell "opened" from
+			// "silently discarded" — which on an aimed press reads as a dead button.
+			if (editor.toggleSearch) {
+				editor.toggleSearch();
+			} else {
+				deps.feedback.announce('Find and replace is not ready yet.');
+			}
+		},
+		noteSearchOpen(open) {
+			searchOpen = open;
 		}
 	};
 }

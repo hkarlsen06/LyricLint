@@ -81,6 +81,33 @@ describe('editor theme token policy', () => {
 		expect(orphans).toEqual([]);
 	});
 
+	/*
+	 * The wrap column is a runaway-line cap, not a reading measure, and the
+	 * difference is only visible in the editor: the line number, the timestamp
+	 * cell, the performer bar and the anchor all address a lyric line by sitting
+	 * against one visual row, so a wrapped line draws one lyric line as two rows
+	 * with one number and one timestamp cell beside the pair. At a prose-width
+	 * 76ch that happened to ordinary lines — a lead vocal with a parenthesized
+	 * ad-lib after it runs to about 80 characters routinely — and because the cap
+	 * is carried by end padding rather than a `max-width`, the active-line wash
+	 * went on running to the edge of a pane a third wider than the text, so the
+	 * editor appeared to wrap with visible room to spare.
+	 *
+	 * Read as text rather than measured, because the failure is a number being
+	 * lowered back towards prose and not a layout that stops working: the cap
+	 * only binds on a pane wider than itself, so a component test's own viewport
+	 * would decide whether the regression was observable at all.
+	 */
+	it('caps the lyric line past the ad-lib band rather than at a prose measure', () => {
+		const tokens = readFileSync(join(dirname(editorDir), 'ui', 'styles', 'tokens.css'), 'utf8');
+		const editor = /--measure-editor:\s*(\d+)ch;/.exec(tokens)?.[1];
+		const prose = /--measure-prose:\s*(\d+)ch;/.exec(tokens)?.[1];
+		expect(editor).toBeDefined();
+		expect(prose).toBeDefined();
+		expect(Number(editor)).toBeGreaterThanOrEqual(90);
+		expect(Number(editor)).toBeGreaterThan(Number(prose));
+	});
+
 	it('keys every performer solid and tint to paired tokens rather than colors', () => {
 		const source = readFileSync(join(extensionsDir, 'performer-decorations.ts'), 'utf8');
 		const palette = /export const performerPalette = \[([\s\S]*?)\] as const;/.exec(source)?.[1];

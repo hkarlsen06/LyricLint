@@ -105,7 +105,7 @@ describe('registry validation', () => {
 	};
 
 	it('accepts the complete reviewed enabled registry', () => {
-		expect(enabledRules).toHaveLength(52);
+		expect(enabledRules).toHaveLength(54);
 		expect(() => validateRuleRegistry()).not.toThrow();
 	});
 

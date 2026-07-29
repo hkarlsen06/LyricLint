@@ -33,6 +33,7 @@ export interface EditorCallLog {
 	undoCount: number;
 	redoCount: number;
 	sectionHeaderRequestCount: number;
+	searchOpenCount: number;
 	lineAnchors: LineAnchor[];
 	/** Every playhead push, so a test can assert the document did not follow it. */
 	playheads: (number | undefined)[];
@@ -133,6 +134,7 @@ export function createTestWorkbench(options?: {
 		undoCount: 0,
 		redoCount: 0,
 		sectionHeaderRequestCount: 0,
+		searchOpenCount: 0,
 		lineAnchors: [],
 		playheads: []
 	};
@@ -163,6 +165,9 @@ export function createTestWorkbench(options?: {
 		},
 		requestSectionHeader() {
 			calls.sectionHeaderRequestCount += 1;
+		},
+		toggleSearch() {
+			calls.searchOpenCount += 1;
 		},
 		getLineAnchors() {
 			return calls.lineAnchors.map((anchor) => ({ ...anchor }));

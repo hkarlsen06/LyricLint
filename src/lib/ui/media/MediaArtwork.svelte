@@ -138,12 +138,12 @@
 				</div>
 
 				<!-- The transport at the size a player's controls are rather than the
-				     size a chrome row's are, and with no shortcut captions: the strip
+				     size a chrome row's are. The strip
 				     prints that legend already, and the same legend twice on one screen
 				     is how a row of controls becomes a row of documentation. -->
 				<div class="media-artwork__bottom">
 					<div class="media-artwork__controls">
-						<MediaTransport {player} captions={false} />
+						<MediaTransport {player} />
 					</div>
 					<MediaAttribution {media} />
 				</div>

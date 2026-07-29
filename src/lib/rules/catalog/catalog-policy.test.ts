@@ -230,6 +230,12 @@ describe('rule regressions', () => {
 		]);
 	});
 
+	it('does not call a section headerless when a bare reviewed name leads its lyric body', () => {
+		const input = '[Bridge]\nFirst\n\nOutro\nLast';
+		expect(diagnostics('section.header-missing', input)).toEqual([]);
+		expect(diagnostics('section.header-prose', input)).toHaveLength(1);
+	});
+
 	it('still reports a headerless section whose label is further down it', () => {
 		// Only the leading line is the section's own header. `Chorus:` further in
 		// is a second finding about a different line, and both are true.

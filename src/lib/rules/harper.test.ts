@@ -6,6 +6,8 @@ import {
 	mergeHarperDiagnostics,
 	projectLyricsForHarper
 } from './harper.js';
+import { spellingTextingShorthandRule } from './catalog/spelling-texting-shorthand.js';
+import { checkRule } from './rule-test-utils.js';
 
 function scalarOffset(text: string, utf16Offset: number): number {
 	return [...text.slice(0, utf16Offset)].length;
@@ -183,6 +185,28 @@ describe('Harper diagnostic provider', () => {
 		).resolves.toEqual([]);
 	});
 
+	it('drops prose readability findings that do not apply to lyrics', async () => {
+		const text = '[Verse]\nUnder city lights we walk\nWhere the stars and skyline meet';
+		const engine = engineReturning((projected) => [
+			lintAt(projected, 'Under city lights we walk', {
+				kind: 'Readability',
+				prettyKind: 'Readability',
+				message: 'This sentence is 41 words long.'
+			})
+		]);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+
+		await expect(
+			provider.lint({
+				text,
+				document: parseDocument(text),
+				language: 'en',
+				performers: [],
+				revision: 1
+			})
+		).resolves.toEqual([]);
+	});
+
 	it('translates insertion suggestions into zero-width document edits', async () => {
 		const text = '[Verse]\nThis needs word';
 		const engine = engineReturning((projected) => [
@@ -249,5 +273,30 @@ describe('Harper diagnostic merging', () => {
 		};
 
 		expect(mergeHarperDiagnostics([native], [harper])).toEqual([native]);
+	});
+
+	// Harper's dictionary has no idea what «Idk» is, so it offers «Id», «Ids» and
+	// «Ilk» — three replacements that are not words the vocal could be singing,
+	// under a card asking whether the spelling was meant. That is the failure this
+	// merge exists to prevent, and the repair is a native rule claiming the token
+	// rather than a list of words Harper is told to skip: the reviewed rule then
+	// says what the shorthand stands for, and Harper's guess never reaches the
+	// panel. Driven through the real rule, because a hand-written span would pass
+	// whether or not the rule still covers that token.
+	it("drops Harper's guess at a token a reviewed rule already claims", () => {
+		const text = '[Verse]\nIdk what to tell you';
+		const native = checkRule(spellingTextingShorthandRule, text);
+		const harper: Diagnostic[] = native.map((finding) => ({
+			from: finding.from,
+			to: finding.to,
+			ruleId: 'spelling.harper',
+			severity: 'suggestion',
+			message: 'Did you mean to spell Idk this way?',
+			explanation: 'Spelling detected by Harper.',
+			sourceIds: ['T-HARPER']
+		}));
+
+		expect(native).toHaveLength(1);
+		expect(mergeHarperDiagnostics(native, harper)).toEqual(native);
 	});
 });

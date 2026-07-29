@@ -55,9 +55,9 @@
 	     parse oklch() and would silently drop the tint. `theme-color.test.ts`
 	     converts both canvas tokens and asserts these two hexes, so the pair below
 	     is the value of record; this comment is not. Keep in sync with tokens.css:
-	       light #e7e7ea = oklch(93% 0.004 285)
+	       light #dfdfe3 = oklch(90.5% 0.006 285)
 	       dark  #161618 = oklch(20% 0.004 285) -->
-	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#e7e7ea" />
+	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#dfdfe3" />
 	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161618" />
 </svelte:head>
 

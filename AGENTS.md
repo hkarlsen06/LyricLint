@@ -83,12 +83,23 @@ the one state that draws, with its words and an alert glyph, so what the user mu
 carried neither by red alone nor by the silence that means everything is fine.
 
 Diagnostics are one continuous run, not a stack of separate cards: no gap, no rounding, a
-hairline between neighbours. **Selection is depth, not hue.** The selected row drops from
-`--color-surface` to the recessed `--color-canvas` and takes `--shadow-recessed`, so it reads as
-cut into the column; it does not also get an accent wash or an accent ring, which put a blue box
-inside a panel whose entire job is to color things by severity.
+hairline between neighbours. **Selection is depth, not hue.** It does not get an accent wash or an
+accent ring, which put a blue box inside a panel whose entire job is to color things by severity.
 
-**That spends `--color-canvas`, so nothing else in the column may sit on it.** Anything hanging
+**Which way the depth goes is the scheme's answer, and the two differ.** In dark the selected row
+drops from `--color-surface` to the recessed `--color-canvas` with `--shadow-recessed` and reads as
+cut into the column — the recessed level there is the document's own tone, so a well reads as
+somewhere to look into. In light it lifts instead: it stays on `--color-surface`, takes
+`--shadow-raised`, and gives up the hairline at both its own foot and the row above it, so the
+shadow falls across its neighbours rather than under them. Sinking it there put the one card the
+reader has opened — the card carrying the fix they are about to press — into the grey this
+workbench spends on things that are _spent_: disabled text, an unpressable control, an ignored
+rule. It cannot rise by lightness, because the resting cards are already the paper, so a shadow is
+how it rises; that is the same rule `tokens.css` states for anything above `--color-surface` in
+light. Nothing moves when it lifts — the border keeps its 1px and loses only its color.
+
+**`--color-canvas` is still spent in this column — on the panel behind the cards at both schemes,
+and on the selected card in dark — so nothing else in it may sit on that tone.** Anything hanging
 between the tab strip and the run of cards is chrome or it is a card; there is no third material.
 The bulk-fix strip learned this the long way: drawn as bare canvas it was the same tone as
 whichever card was open below it, the two merged into one region, and its button read as loose
@@ -124,6 +135,174 @@ Implementation: `chips` in `src/lib/ui/linter/LinterPanel.svelte`, `src/lib/ui/s
 `src/lib/ui/styles/panel.css`, `src/lib/ui/styles/linter.css` (the run of cards),
 `src/lib/ui/styles/diagnostics.css` (what is inside one), and
 `src/lib/ui/layout/RightPanel.svelte`.
+
+### The editor's commands are a tray on the tab strip's own edge
+
+The tab strip hangs under the toolbar at `--panel-tabs-height` and used to be the whole of that
+band: to the left of it, across the editor column, was nothing. So the editor's own commands had
+nowhere to be, and the one that had shipped — inserting Genius's unknown-lyric marker — had ended up
+in the **status bar**, which is the row this file describes as a readout with exactly one control.
+It failed twice over. It was a second control in that row, and what it said there was `Insert [?]`,
+which is a mark somebody either knows or does not — and the reader who needs the button is by
+definition the second kind. A glyph cannot teach the convention it is a glyph for.
+
+**`.editor-actions` is a tray, not a band, and it took three wrong shapes to get there.** Drawn
+full width across the editor column it made the _row_ the object: a strip of chrome as wide as the
+document with two words at one end and a hand of empty gutter after them, which is the failure the
+bulk-fix strip has a rule about arriving from the other side — there a lone control in half a row of
+gutter is what carrying something at both ends exists to prevent, and here there is no second end
+worth carrying anything, so the answer is not to draw the row at all. Hugged to its contents at the
+**left** of the column it was the right size and belonged to nothing: a small box of chrome adrift
+on the document, level with a tab strip a thousand pixels away that it had no visible relationship
+to. Given a grid row of its own at the **right** it belonged to the tab strip and charged the
+document 44px for the privilege — every pixel of it beside the text rather than above it, because
+the lyric column is capped at `--measure-editor` and left-aligned, so the space it took was space
+that was already empty.
+
+So the row went. It is `position: absolute` over the document's top-right corner, against the panel,
+and it costs the document no height at all. `--panel-tabs-height` is kept, so its foot still lands
+level with the panel's tab strip: the chrome under the toolbar ends at one height across the window
+even though the two surfaces do not touch. It closes on the side it pokes out of — a border and a
+radius at the bottom-left corner, nothing at the right where the panel's own border already draws
+the edge, and nothing at the top where it meets the toolbar it hangs from.
+
+It is `--color-chrome` for the reason the bulk-fix strip is — a strip drawn as bare canvas takes the
+tone of whatever it touches — and that is a live hazard here rather than a remembered one, since the
+tray now floats directly over the document.
+
+`Workspace.svelte.test.ts` measures the width and the right edge rather than trusting the rule:
+`width: 100%` or a lost `justify-self` restores the band silently, and both halves have to hold or
+the tray is back to belonging to nothing.
+
+**Find and replace runs under the tray, not below it.** Stacked, the two were 44px of tray over 74px
+of find bar for one job, which is what the overlay exists to stop — so the bar occupies the same band
+and the tray floats over its right end. Three things follow, and the first is the one that will be
+re-broken:
+
+- **CodeMirror panels default to `z-index: 300`**, above every tier in this application's scale, so
+  the bar painted over the very glyph that toggles it and the second press landed on the panel.
+  `--layer-editor-panel` is that panel brought into the scale, below `--layer-toolbar`. The tempting
+  fix — `isolation: isolate` on the editor host — is wrong: it would cap the editor's own pickers and
+  popovers below `--layer-panel`, which is a worse bug than the one it fixes.
+- **The row keeps the tray's width clear** (`--editor-actions-reserve`), or its right end sits under
+  a surface that is painted over it. `Workspace.svelte.test.ts` measures the tray against that
+  number rather than trusting the two to stay in step.
+- **The bar has no close button, and the magnifier is the visible exit that replaces it.** The rule
+  under _Every transient surface dismisses on an outside press_ allows dropping a closing control
+  only by naming what stands in for it, and this one names three things at once: the glyph toggles,
+  it sits directly over the row's own right end, and it draws `--color-accent` while the bar is open.
+  An `✕` beside that would be a second control for a press the user already has, in the row with the
+  least space for one. `Escape` is the third way out, as it is everywhere else here.
+
+**The pressed state is reported by the editor, never assumed from the press.** `Mod-F` is bound to
+the window and `Escape` closes the bar, so a glyph that only knew about its own presses would go on
+burning accent over a bar that had already gone. `onSearchOpenChange` is the hook, fired from an
+`updateListener` that compares `searchPanelOpen` across the update, and — like every other hook — it
+has to be added to **`createCallbackProxy` in `create-editor.ts`**. It is `aria-pressed` rather than
+a class, because the state is a fact about a toggle and colour is never a state carrier here.
+
+**The controls are glyphs, and what they are is a tooltip.** Spelled out — `Section header` over
+`⇧⌘H`, `Unknown lyric [?]` over `⌃⌥U` — the tray was 243px of the document's own top row for two
+commands, five times what the glyphs need, permanently, to say something a transcriber reads once.
+The name and the keystroke arrive together on hover and on focus, which is the one moment either is
+being asked for, and the tray is 95px.
+
+**The glyph is the mark, not an icon drawn to stand for it.** `[?]` is exactly what the button
+writes into the document; `[+]` is that mark's own family saying a header goes in. Both are
+`--font-mono`, at the weight the document will draw them in. An abstract pictogram here would be a
+second thing to learn on top of the convention this control exists to teach.
+
+**What that costs is named rather than hidden, because it is the original complaint coming most of
+the way back.** The status-bar control this replaced also had a `title`; a tooltip is not a thing a
+finger can produce, so a sighted touch user now meets two marks and no words. Two things hold the
+line. The **accessible name is the whole label** at every state (`aria-label`, with
+`aria-keyshortcuts` beside it), so nothing is lost to a screen reader and nothing here repeats the
+gutter's mistake of a control that is only a pointer affordance. And the tooltip is drawn
+`aria-hidden`, because both facts in it are already the button's own name and shortcut — described
+rather than hidden, they would be announced twice. That last part is the citation tooltip's rule
+(`SourceCitation.svelte`) applied in the one case where the direction reverses: there the visible
+text is the _only_ copy and needs `aria-describedby`; here it is the second copy and must not
+announce.
+
+**The box itself is shared, and is the subject of its own section below.**
+
+**Three glyphs, and four is the ceiling.** Each costs about 30px of the document's own top row, past
+which this is the full-width band it replaced, wearing icons. Bold and italic were considered and
+refused: `<i>` and `<b>` are the performer voice slots, the picker and the roster are how a voice is
+marked here, and a command is offered once.
+
+**Only commands a caret alone can carry out.** `Ctrl-Alt-P` and `Mod-Shift-L` are deliberately
+absent: each needs a selection or a chorus and announces a refusal the rest of the time, and a bar
+that spends most of its life offering answers it cannot give is what `availableRates` and
+`spotifyAvailable` both exist to prevent. That leaves two, which is also all a row of this width
+holds — the same constraint that moved `Add audio` out of the tools panel.
+
+**It draws at every state, including over an empty document.** A band that appeared on the first
+keystroke would shove the editor down at the moment somebody started typing, and the reader who has
+never met `[?]` is the one looking at an empty document.
+
+**The editor asks and the shell writes.** `Ctrl-Alt-U` is a keymap binding like `Mod-Shift-H`, but
+the command dispatches nothing itself — it calls `onUnknownMarkerRequest` and the shell runs
+`controller.insertUnknownMarker()`, so the insertion is an `AtomicDocumentEdit` against the
+session's own revision, which is the bookkeeping every fix already goes through. The bar's press
+takes the same path. And like every other hook it has to be added to **`createCallbackProxy` in
+`create-editor.ts`**, where a missing callback looks exactly like a feature that silently does
+nothing.
+
+**That binding carries no `preventDefault: true`, and the reason is the one the sync bindings
+document.** The option prevents the default even when the command returns _false_, and this one
+returns false whenever no shell is listening — which would swallow `Ctrl-Alt-U` in an editor that
+never bound it, the landing page's demo included. Returning true already prevents the default.
+
+Implementation: `src/lib/ui/layout/EditorActions.svelte`, `.editor-actions` in
+`src/lib/ui/styles/shell.css` (and the third row `.editor-region` grew for it, which is why
+`.editor-host` and `.media-strip` both state their own `grid-row` now), `insertUnknownMarker` in
+`src/lib/editor/keymap.ts`, `toggleSearch` on `EditorHandle`, and `onUnknownMarkerRequest` /
+`onSearchOpenChange` on the contract.
+
+### One box names a control, and it is drawn once
+
+Three surfaces wanted the same thing and were about to solve it three ways. The diagnostic
+citation already had a real tooltip — measured, `position: fixed`, `aria-describedby` — the action
+tray grew a second copy of it, and the transport's three glyphs were still on `title`, which is
+slow, unstyled, and worded differently on every platform. `describeControl` and
+`ControlTooltip.svelte` are the one answer: a box carrying **what the control is and the keystroke
+that does the same thing**, on hover and on focus.
+
+**It is an attachment, not a wrapper, and that is a constraint rather than a preference.** The
+transport row's height is budgeted to the pixel — the stack of glyph, gap and caption has to fit
+inside one `md` control, and `MediaStrip.svelte.test.ts` measures it against a sibling — so an
+element wrapped around a flex item is a new flex item with its own sizing and its own chance to grow
+the row. `describeControl` adds nothing to any control's box.
+
+**One box for the whole application**, held in a module rather than per control, because hover and
+focus are separate: a pointer crossing one control while the keyboard sits on another would leave
+two up. `ControlTooltip` is mounted in `Workspace.svelte` rather than the app layout, so a workspace
+rendered on its own — which is how every component test renders it — still has somewhere to draw.
+
+**The placement is read off the control, never passed in.** The two surfaces want opposite answers
+on both axes and neither should have to say so: the tray hangs at the top-right of the document,
+where a box laid out leftward runs off the panel edge, and the transport is the last row above the
+status bar, where there is no room below at all. `placeControlHint` is that arithmetic, exported and
+unit-tested against synthetic rects rather than trusted — it flips to `bottom` when the control is
+within a two-line box of the foot, lays out from whichever edge the control is nearer, and clamps at
+8px so nothing starts off screen.
+
+**It is `aria-hidden`, not `aria-describedby`, and this is the one place that direction reverses.**
+Both facts in it are already the control's own accessible name and `aria-keyshortcuts`, so
+describing would announce each twice. The citation's tooltip is the opposite case — its visible text
+is the _only_ copy — which is why that one keeps `aria-describedby` and this one must not grow it.
+
+**On the transport it joins the caption rather than replacing it.** The caption under each glyph is
+the one keystroke worth learning, one modifier and one letter, and _The audio is a transport_ says
+the tooltip carries the function-row and universal fallbacks — that split was described there long
+before anything implemented it. So the box reads `Play` over `F8 · ⌃K`, and the row is unchanged.
+Both surfaces that draw a transport get it, the strip and the artwork band, because they share
+`MediaTransport.svelte`.
+
+Implementation: `src/lib/ui/state/control-tooltip.svelte.ts` (the store, the placement, the
+attachment), `src/lib/ui/primitives/ControlTooltip.svelte`, and `.control-tooltip` in
+`overlays.css`.
 
 ### The empty document is one message, not three
 
@@ -501,6 +680,30 @@ chevron. Border and fill belong to the group and nothing inside it draws a box o
 inside a border is two rectangles for one control — and hovering either half, or opening the menu,
 lights the whole thing. The trigger keeps `Drafts` as its accessible name; only the glyph changed.
 
+**And the menu deletes one 'scribe at a time, never all of them.** It carried `Delete all local
+data…` as a footer under the list — red, ruled off, one scope up from the row deletes above it — and
+on a fresh install that footer _was_ the menu: a sentence saying there is nothing saved yet, and
+beneath it the most destructive command in the application, offering to delete the nothing. This is
+the menu a first-timer opens out of curiosity, because it is the one control in the toolbar whose
+label does not say what it does, so the first thing the workbench showed them was a way to wipe it.
+The command was already in the tools panel, which is the second half of the complaint and the reason
+this is a deletion rather than a move: the same press in two places is two places for it to drift,
+and the copy that drifted would be the one nobody is looking at.
+
+The panel is where it stays, and not because that surface was there first. **A destructive command
+belongs beside the claim it undoes** — under `Local data`, directly below the paragraph saying
+'scribes stay in this browser and audio stays on your disk, which is the only place in the workbench
+that says what "all local data" _means_. In the menu the phrase had nothing to define it and a list
+of song titles beside it, so it read as being about the seven names on screen; the confirm underneath
+even said `Delete all 'scribes`, promising something narrower than the trigger above it. That is also
+why the menu's own footer could not simply be relabelled: the scope was ambiguous because the surface
+was wrong, not because the words were.
+
+What is left in the menu is per-draft, aimed, and in the row it belongs to — `RemoveButton` in the
+slot the trigger vacated. A user who wants everything gone deletes them one at a time or opens Tools,
+and neither is a path anybody reaches by accident. `DraftMenu.svelte.test.ts` asserts the absence at
+both list states, because re-adding it to the empty menu is the specific regression.
+
 Implementation: `src/lib/ui/primitives/RemoveButton.svelte` (the shared confirm) and
 `src/lib/ui/styles/rows.css` (`.list-row` and its commands, shared by the drafts menu and the
 performer roster); `src/lib/ui/drafts/draft-date.ts` for the dates; what each surface adds on top in
@@ -639,28 +842,36 @@ also the whole of the behaviour for an untimed draft. The controls are named for
 currently do (`Previous line` against `Back 2 seconds`); a button naming a number of seconds it no
 longer moves is worse than one naming none.
 
-The reliable one-modifier fallback is printed on the transport itself, as one mark **under** each
-control. This is where the shortcut is learned: the guide appears with the song, stays attached to
-the action it operates, and costs no separate help row or preference. Tooltips and
-`aria-keyshortcuts` carry the function-row and universal fallbacks without putting every alternative
-on screen.
+**The one-modifier fallback is in the control's tooltip, and nowhere else on screen.** It was
+printed under each glyph as a caption, for as long as it had nowhere else to live — the reasoning
+was that a shortcut belongs beside the action it operates rather than in a help row, and that still
+holds. What changed is that the control names itself now, through the shared `describeControl` box
+that every other named control in the workbench uses, and the keystroke goes in it. Printed in both
+places it was the same fact twice, six pixels apart, in the shortest row in the window. A device
+with no pointer to open that box has no modifier keys either, so nothing is lost where it cannot be
+opened.
 
-Three things that mark is not. It is not **beside** the glyph, which is where it began: read along
-the row it joined the run of controls, doubling the transport's width and making two thirds of the
-most-operated row in the window a legend. It is not two capped boxes, `⌃` and `J`, which printed the
-modifier three times for a fact that never varies while the letter — the only part that differs —
-wore the same weight as it. And it is not boxed at all: a keycap border here is a rectangle drawn
-around every glyph in the shortest row in the window, competing with the transport it only
-annotates. Muted, `--font-size-2xs`, one caption per control.
+**Only that one keystroke is named.** `F7`–`F9` and the universal `Ctrl-Alt` triad stay in
+`aria-keyshortcuts` and are not drawn: a control listing every way to press it is a legend rather
+than a name, and the function row is the alternative nobody reaches for first. This is the split
+this section always described — the caption carries the one you learn, the tooltip carries the
+rest — settled the other way round now that there is only one surface.
 
-**The caption costs the row no height, and that is a constraint rather than a happy result.** The
-strip is `--control-height-lg` and every other control in it is `--control-height-md` plus this
-row's padding, which comes to exactly that — so the stack of glyph, gap, and caption has to fit
-inside one `md` control, and it does with a pixel to spare. Anything added to that stack grows the
-strip, and every pixel this row takes is a pixel off the document above it.
-`MediaStrip.svelte.test.ts` measures the stack against a sibling control rather than trusting the
-arithmetic, because at narrow widths `responsive.css` raises every `.button` to `lg` and the box
-stops reporting what the content does.
+**Whatever goes in this row next has to fit the height, and that is a constraint rather than a happy
+result.** The strip is `--control-height-lg` and every other control in it is `--control-height-md`
+plus this row's padding, which comes to exactly that. Anything stacked on a glyph grows the strip,
+and every pixel this row takes is a pixel off the document above it. `MediaStrip.svelte.test.ts`
+measures the control's **content** against a sibling rather than trusting the arithmetic — content
+and not the box, because at narrow widths `responsive.css` raises every `.button` to `lg` and the
+box stops reporting what is inside it.
+
+The mark that was there is worth keeping in mind if a caption is ever proposed again. It was not
+**beside** the glyph, which is where it began: read along the row it joined the run of controls,
+doubling the transport's width and making two thirds of the most-operated row in the window a
+legend. It was not two capped boxes, `⌃` and `J`, which printed the modifier three times for a fact
+that never varies while the letter — the only part that differs — wore the same weight as it. And it
+was not boxed at all: a keycap border here is a rectangle drawn around every glyph in the shortest
+row in the window, competing with the transport it only annotates.
 
 **The transport is bound to the window, not to the editor**, and that is a correction. It began as a
 CodeMirror keymap, which meant it answered only while the caret was in the document — so the moment
@@ -2039,10 +2250,10 @@ artwork.
 `MediaTransport.svelte` rather than mirroring three buttons by hand, for the reason the diagnostic
 card and its popover share theirs: two copies of three controls is two copies of every label rule,
 and `Previous line` appearing on one while the other still said `Back 2 seconds` is drift nobody
-notices for months. **The captions are the only difference and they are a prop.** The strip prints
-the one-modifier fallback under each glyph because the strip is where the shortcut is learned;
-printing the same legend twice on one screen is how a row of controls becomes a row of
-documentation.
+notices for months. **They are identical now, and the caption that used to be the one
+difference is gone.** The strip printed the one-modifier fallback under each glyph and this surface
+deliberately did not; both name themselves through the shared tooltip instead, so there is no legend
+on either to differ about — and no `captions` prop, whose only reader this was.
 
 - **It draws on a scrim, and that is not decoration.** What the glyphs read against is somebody
   else's album art, and half the covers in the world are pale — white alone vanishes on a third of
@@ -2757,6 +2968,101 @@ Implementation: `isProseHeaderLine` in `rules/catalog/section-header-prose.ts`,
 `leadsWithProseHeader` in `section-header-missing.ts`, the guard in `numbers-spell-out.ts`, and the
 regressions in `catalog-policy.test.ts` — which is where cross-rule interactions are pinned, so the
 two halves cannot be re-broken one at a time.
+
+### An `ambiguous` policy case is a decision, and widening a rule past one is how a safe fix stops being safe
+
+`unknown.marker` flags `(?)` and `[??]` and offers `[?]` as a one-press **safe** fix, and its own
+explanation says why that is allowed: these are _exact recognized_ markers, so replacing one is
+mechanically safe. Its `ambiguous` case is `[Verse]\nI heard ???`, which `catalog-policy.test.ts`
+pins at zero findings.
+
+That looked like a hole — `???` is the commonest thing a transcriber types for a line they cannot
+make out, and the linter said nothing about it. It is not a hole. It is the safe fix's own
+justification, written down as an example: `???` is somebody's improvisation rather than a form
+anyone recognizes, so a rule that swallowed it would have made "exact recognized marker" false for
+every match it has, and would have swept `Are you serious???` into a bulk fix on the strength of it.
+
+**So the answer to a gap next to an `ambiguous` case is a second rule at the right tier, not a wider
+regex.** `unknown.improvised-marker` is a `suggestion` with a `preview` fix — the tier every judgment
+call in this catalog uses, and the one thing `collectSafeFixes` will not touch. The reviewed decision
+survives exactly as written: nothing rewrites `???` mechanically. The transcriber is simply told what
+the marker is.
+
+Three things it owes:
+
+- **The run has to be a token of its own**, and that boundary is the rule. A placeholder stands where
+  the words nobody could make out would have stood; emphatic punctuation attaches to the word it
+  punctuates, so `I heard ??? tonight` is flagged and `Are you serious???` is not.
+- **It reads `recognizedUnknownMarker` rather than re-deriving it.** `( ?? )` and `[???]` are
+  `unknown.marker`'s findings, and two diagnostics over one span are two cards arguing about it —
+  the same failure `isProseHeaderLine` and `isImmediateRepeat` exist to prevent, and the same
+  arrangement: the rule that owns the question exports the predicate, the other imports it.
+- **`censored.mask`'s standalone-run precedent does not carry over, and the difference is worth
+  stating.** A lone `***` is ambiguous about _what it is_ — a mask, a divider, a redaction — so that
+  rule flags only runs mixed with letters. A lone `???` is not ambiguous about what it is, only about
+  whether it was meant; there is exactly one form it can be steering toward, and `[?]` is it.
+
+A new rule is four registrations and a count: `registry.ts`, `currentRuleSet.ruleIds` in
+`data/rule-set.ts` (**never** `previousRuleSet`), a `RulePolicyCase` with all three examples, the row
+in `docs/rules.md`, and the hard-coded total in `engine.test.ts`.
+
+### The way to quiet Harper is to know something Harper does not
+
+Harper is a general-purpose English proofreader with a dictionary, and a dictionary meeting `Idk`
+does the only thing it can: it looks for the nearest words it knows. What that produced was a card
+headed `Did you mean to spell Idk this way?` offering `Id`, `Ids` and `Ilk` — three replacements
+that are not words anybody sang, over a token whose meaning every reader of the line already knows.
+The finding was not merely unhelpful; the fixes were actively wrong, and they were the loudest thing
+on the card.
+
+**The repair is a reviewed rule claiming the token, not a list of words Harper is told to skip.**
+Both would have removed the bad card, and only one of them says anything. `mergeHarperDiagnostics`
+already drops any Harper finding whose range a native diagnostic covers, so a rule that reports
+`Idk` is a rule that silences Harper there for free — and what stands in its place is the finding
+the transcriber wanted: the words the shorthand stands for. Teaching `dictionaryWords` the token
+would have done the opposite of the intent, since that list is what Harper is told is _correct_, and
+`idk` is exactly what this catalog does not think is correct. `harper.test.ts` drives the real rule
+rather than a hand-written span, because a synthetic range would go on passing after the rule
+stopped covering that token.
+
+**What may be expanded is decided by one question: does anybody sing the letters?** A vocal
+performing "I don't know" has been written down as `Idk` by somebody typing the way they text, so
+the words are recoverable and the shorthand is a spelling of them. `ASAP`, `OK`, `VIP`, `DJ` are the
+other kind — the letters _are_ the performance, two of them are reviewed preferred spellings
+already, and expanding one would put words in a singer's mouth. `LOL`, `OMG` and `WTF` are on that
+side too, said aloud often enough that "laughing out loud" is a guess rather than a reading. That
+question is what keeps `expansions` from drifting into every initialism in English, and it is the
+same shape as `unknown.improvised-marker`'s: a rule earns a token by being able to say what it means.
+
+Three consequences worth keeping straight:
+
+- **Nothing here is ever a `safe` fix.** An artist who spells the letters out is transcribed as they
+  sing them, and no rule can hear which happened — so this is a `suggestion` with `preview` fixes,
+  which is the tier every judgment call in this catalog uses and the one thing `collectSafeFixes`
+  will not touch.
+- **A shorthand with two readings offers two fixes rather than guessing one.** `ur` is `your` about
+  as often as it is `you're`, and the card already draws a row of them.
+- **The token's case is never mirrored onto the expansion.** Shorthand is conventionally capitalized
+  as an initialism — `IDK` and `TBH` are how these are written inside an ordinary lowercase line — so
+  its case says nothing about the line, and `I DON'T KNOW` would be the linter shouting over a lyric
+  that was never shouted. Only a leading capital survives, which is what carries a line-initial `Tbh`
+  onto the `To be honest` that `capitalization.line-start` is about to want.
+
+**And the neighbouring sets are left to the rules that own them**, which is the arrangement
+`isProseHeaderLine` and `recognizedUnknownMarker` are already in. Pronunciation spellings (`gonna`,
+`tho`, `cuz`) are how the word is _sung_, which is what `G-AS-SPOKEN` asks for, and `tho` and `cuz`
+are reviewed entries `spelling.standardized` answers for — `cuz` behind a cousin-meaning gate this
+rule could not reproduce. Apostrophe-less contractions belong to `contraction.apostrophe`. A
+performer's own name is left alone through the roster, because IDK is a rapper.
+
+**Its citation is a derivation, and `docs/rules.md` says so.** No verified Genius page names `idk`.
+What the reviewed sources establish is that lyrics use standardized spellings and reflect what is
+sung, and written-only shorthand is neither — so the rule cites `G-SPELLING` and `G-AS-SPOKEN` and
+is recorded in the Policy section beside the line-ending and blank-line checks, which are the other
+two rules here that read a source rather than quote one.
+
+Implementation: `src/lib/rules/catalog/spelling-texting-shorthand.ts`, its policy case in
+`policy-cases.ts`, and the merge regression at the foot of `harper.test.ts`.
 
 ### The mark and the wordmark are one object
 

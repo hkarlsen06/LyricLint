@@ -1,4 +1,4 @@
-import type { Diagnostic, LyricLine, RuleDefinition } from '$lib/core/types.js';
+import type { Diagnostic, LyricLine, RuleDefinition, Section } from '$lib/core/types.js';
 import {
 	canLintHeaderLanguage,
 	getLanguagePack,
@@ -73,9 +73,40 @@ export function isProseHeaderLine(line: LyricLine, language: string): boolean {
 	return proseHeader(line, language) !== undefined;
 }
 
+/**
+ * A bare reviewed name is strong enough evidence when it is the first line of
+ * a headerless blank-line section and has a lyric body beneath it. Inside an
+ * existing headed section, or alone with no body, the same word can still be a
+ * one-word lyric.
+ */
+function leadingBareProseHeader(
+	section: Section,
+	language: string
+): { line: LyricLine; finding: ProseHeader } | undefined {
+	if (section.header) {
+		return undefined;
+	}
+	const nonEmpty = section.lines.filter((line) => line.text.trim().length > 0);
+	const line = nonEmpty[0];
+	if (!line || nonEmpty.length < 2) {
+		return undefined;
+	}
+	const finding = proseHeader(line, language, true);
+	return finding ? { line, finding } : undefined;
+}
+
+export function sectionLeadsWithProseHeader(section: Section, language: string): boolean {
+	const leading = section.lines.find((line) => line.text.trim().length > 0);
+	return (
+		leading !== undefined &&
+		(isProseHeaderLine(leading, language) ||
+			leadingBareProseHeader(section, language)?.line === leading)
+	);
+}
+
 export const sectionHeaderProseRule: RuleDefinition = {
 	id: 'section.header-prose',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'warning',
 	fixability: 'safe',
 	sourceIds: ['G-SECTIONS'],
@@ -83,8 +114,10 @@ export const sectionHeaderProseRule: RuleDefinition = {
 		const diagnostics: Diagnostic[] = [];
 
 		for (const section of document.sections) {
+			const bareLead = leadingBareProseHeader(section, context.language);
 			for (const line of section.lines) {
-				const finding = proseHeader(line, context.language);
+				const finding =
+					bareLead?.line === line ? bareLead.finding : proseHeader(line, context.language);
 				if (!finding) {
 					continue;
 				}
@@ -126,7 +159,11 @@ interface ProseHeader {
  * trailing colon, a number, or shouting caps — which is what every real scraped
  * transcription carries and what a one-word lyric does not.
  */
-function proseHeader(line: LyricLine, language: string): ProseHeader | undefined {
+function proseHeader(
+	line: LyricLine,
+	language: string,
+	allowBareName = false
+): ProseHeader | undefined {
 	// Any markup at all means the line was styled as a lyric, not typed as a label.
 	if (line.styleSpans.length > 0) {
 		return undefined;
@@ -137,7 +174,12 @@ function proseHeader(line: LyricLine, language: string): ProseHeader | undefined
 	if (!name) {
 		return undefined;
 	}
-	if (groups.colon === undefined && groups.ordinal === undefined && !isAllCaps(name)) {
+	if (
+		!allowBareName &&
+		groups.colon === undefined &&
+		groups.ordinal === undefined &&
+		!isAllCaps(name)
+	) {
 		return undefined;
 	}
 

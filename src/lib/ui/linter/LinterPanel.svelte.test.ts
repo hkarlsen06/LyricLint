@@ -77,12 +77,54 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		const selectedCard = document.querySelector('.diagnostic-card--expanded')!;
 		const chips = document.querySelector('.linter-panel__filters')!;
 
-		// The panel spends `--color-canvas` on the *selected* diagnostic, so a
-		// strip of bare canvas here merged into whichever card was open and left
-		// the button loose inside it. This row is chrome: not the list.
+		// The panel spends `--color-canvas` on the column behind the cards, and in
+		// dark on the selected diagnostic as well, so a strip of bare canvas here
+		// merged into whichever card was open and left the button loose inside it.
+		// This row is chrome: not the list. The assertion is against the open card
+		// rather than the resting one because that is the tone the strip is most
+		// at risk of matching in either scheme.
 		expect(rowFill).not.toBe('rgba(0, 0, 0, 0)');
 		expect(rowFill).not.toBe(getComputedStyle(selectedCard).backgroundColor);
 		expect(rowFill).toBe(getComputedStyle(chips).backgroundColor);
+	});
+
+	/*
+	 * Selection is depth in both schemes, and the direction is the scheme's own
+	 * answer — so this asserts the branch it is actually running under rather than
+	 * one of them. The regression it guards is the light half: the open card is
+	 * the one carrying the fix the reader is about to press, and dropped to the
+	 * recessed grey it wore the tone this workbench spends on things that are
+	 * spent. It cannot rise by lightness, the resting cards being the paper
+	 * already, so keeping the paper *and* owning an outward shadow is the whole
+	 * of the state and either half alone is the bug.
+	 */
+	test('lifts the open card in light and sinks it in dark', () => {
+		const { controller } = createTestWorkbench({
+			diagnostics: [spelling(0, 4, "I'ma"), prose(40, 60)]
+		});
+		render(LinterPanel, { controller });
+
+		const open = document.querySelector('.diagnostic-card--expanded')!;
+		const resting = document.querySelector(
+			'.diagnostic-list > li:not(.diagnostic-card--expanded)'
+		)!;
+		const openStyle = getComputedStyle(open);
+
+		if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+			expect(openStyle.backgroundColor).not.toBe(getComputedStyle(resting).backgroundColor);
+			expect(openStyle.boxShadow).toContain('inset');
+			return;
+		}
+
+		expect(openStyle.backgroundColor).toBe(getComputedStyle(resting).backgroundColor);
+		expect(openStyle.boxShadow).not.toBe('none');
+		expect(openStyle.boxShadow).not.toContain('inset');
+		// The seam goes with the lift: a row still ruled into the run at its foot
+		// is still part of it. The border keeps its width and loses only its color,
+		// so opening a card cannot shift the list under the pointer that opened it.
+		expect(openStyle.borderBottomStyle).toBe('solid');
+		expect(openStyle.borderBottomWidth).not.toBe('0px');
+		expect(openStyle.borderBottomColor).toBe('rgba(0, 0, 0, 0)');
 	});
 
 	test('drops the remainder when there is none', () => {

@@ -102,9 +102,31 @@
 	   CodeMirror surface and the mock editor must wrap at the same column, and
 	   they render in the same mono face at different places in the tree.
 	   Prose is narrower than source because wrapped prose is read in runs of
-	   lines, while a lyric line is scanned one at a time. */
-	--measure-editor: 76ch;
+	   lines, while a lyric line is scanned one at a time.
+
+	   The editor's is a runaway-line cap and not a reading measure, which is why
+	   it is so much wider than prose. A wrap costs more here than anywhere else:
+	   the line number, the timestamp cell, the performer bar and the anchor all
+	   address a lyric line by sitting against one visual row, so a wrapped line
+	   draws one lyric line as two rows with one number and one timestamp cell
+	   beside the pair — the gutters the whole anchoring design rests on start
+	   disagreeing with the document. At a prose 76ch that happened to ordinary
+	   lines: a lead vocal with a parenthesized ad-lib after it runs to about 80
+	   characters routinely, and it wrapped while the active-line wash went on
+	   running to the edge of the pane, which reads as the editor wrapping for no
+	   reason. 96ch clears that band and still catches the line that is long
+	   enough to be a transcription error rather than a lyric. */
+	--measure-editor: 96ch;
 	--measure-prose: 66ch;
+
+	/* The rule reference's pages. Wider than prose because a run of rows is
+	   scanned down its left edge rather than read in wrapping lines, narrower
+	   than the editor because these are pages of prose rather than a column of
+	   lyric. It tracked --measure-editor until that grew to clear long lyric
+	   lines, which is a fact about a lyric line and not a reason for a page of
+	   explanatory copy to widen; the reviewed examples on those pages are short
+	   enough that neither column ever wraps one. */
+	--measure-reference: 76ch;
 
 	/* The one measure that caps a page rather than a column of text, so it is
 	   `rem`: it spans two elements set in different faces — a scanned list and a
@@ -152,12 +174,30 @@
 	 * The rule that keeps the two from colliding: a card or panel never takes a
 	 * fill step deeper than `--color-fill-subtle`, so no card can cross its own
 	 * canvas. Deeper steps belong to controls, chips, and badges.
+	 *
+	 * BOTH SCHEMES HAVE TO SPEND COMPARABLE TONAL RANGE, and for a long time the
+	 * light one did not. Its entire ladder — page, chrome, paper — fitted inside
+	 * 6.3 points of lightness where dark spent 8.5, and the step carrying the most
+	 * area on screen, a chrome band against the document beside it, was 2.8 points
+	 * of it. Nothing was wrong with the *model* — chrome is one step from the
+	 * paper toward the ink in both schemes, which is why it is lighter than the
+	 * document in dark and darker than it in light — but at that size the step
+	 * did not arrive, so every boundary in the window was carried by its hairline
+	 * instead. The same layout that read in dark as a document sunk into a lit
+	 * frame read in light as one white sheet ruled into boxes.
+	 *
+	 * The paper stayed where it was and the levels under it moved down, because
+	 * there is no room above it — the headroom note above is the whole reason the
+	 * repair only has one direction to go. And the light steps are deliberately
+	 * the wider of the two: the eye adapts to the brightest thing in view, so a
+	 * near-white grey separates less than the same delta does among the
+	 * charcoals, and this is the scheme meant for a lit room.
 	 */
-	--color-canvas: oklch(93% 0.004 285);
+	--color-canvas: oklch(90.5% 0.006 285);
 	--color-surface: oklch(99.3% 0.002 285);
-	--color-fill-subtle: oklch(96.5% 0.004 285);
-	--color-fill: oklch(92% 0.006 285);
-	--color-fill-strong: oklch(88% 0.008 285);
+	--color-fill-subtle: oklch(95% 0.005 285);
+	--color-fill: oklch(90% 0.007 285);
+	--color-fill-strong: oklch(85% 0.009 285);
 	--color-overlay: var(--color-surface);
 
 	/* What a modal dims the workbench with. One value for both schemes, because
@@ -220,19 +260,31 @@
 	 */
 	--color-text-selection: oklch(84% 0.075 255);
 
-	/* Feedback states */
+	/*
+	 * Feedback states.
+	 *
+	 * The soft surfaces sit at one lightness rather than four. Where they are
+	 * actually drawn is a pressed severity chip on a `--color-chrome` row, so
+	 * what they owe is a step below *that* band — and spread across 93.5% to 95%
+	 * they owed different amounts of it, with warning landing flush on the row it
+	 * was pressed against. One value two points under chrome is the whole of what
+	 * this has to be, and it is the value that moved when chrome did.
+	 *
+	 * The chroma came up a little with it: a tint carries its hue by chroma once
+	 * it is off white, and these are categorical marks before they are surfaces.
+	 */
 	--color-danger: oklch(50% 0.17 28);
 	--color-danger-hover: oklch(44% 0.16 28);
-	--color-danger-surface: oklch(94.5% 0.028 28);
+	--color-danger-surface: oklch(93% 0.035 28);
 	--color-danger-border: color-mix(in oklch, var(--color-danger) 45%, var(--color-border));
 	--color-success: oklch(46% 0.11 155);
-	--color-success-surface: oklch(94% 0.03 155);
+	--color-success-surface: oklch(93% 0.035 155);
 	--color-warning: oklch(52% 0.12 78);
-	--color-warning-soft: oklch(95% 0.045 82);
+	--color-warning-soft: oklch(93% 0.05 82);
 	--color-suggestion: oklch(48% 0.12 255);
-	--color-suggestion-soft: oklch(94% 0.03 255);
+	--color-suggestion-soft: oklch(93% 0.035 255);
 	--color-manual: oklch(45% 0.018 285);
-	--color-manual-soft: oklch(93.5% 0.006 285);
+	--color-manual-soft: oklch(93% 0.008 285);
 	--color-danger-soft: var(--color-danger-surface);
 
 	/* Where the audio is. LyricLint's own yellow, which is the warning ramp —
@@ -244,13 +296,41 @@
 
 	/* Elevation. `--shadow-recessed` is the only one that points inward: it is
 	   what makes a selected row read as a well cut into a run of touching rows,
-	   rather than as one more card floating above them. */
-	--shadow-recessed: inset 0 1px 3px oklch(20% 0.01 285 / 0.13);
-	--shadow-raised: 0 1px 2px oklch(20% 0.01 285 / 0.08);
-	--shadow-popover: 0 2px 8px oklch(20% 0.01 285 / 0.14);
-	--shadow-overlay: 0 12px 32px oklch(20% 0.01 285 / 0.18), 0 2px 8px oklch(20% 0.01 285 / 0.12);
+	   rather than as one more card floating above them.
+
+	   These are the light values, and they used to be the weakest thing in the
+	   system by some distance — 8% to 18% where the dark set below runs 35% to
+	   55%. That is exactly backwards. Dark carries depth in lightness and gets a
+	   shadow as well; light is the scheme the note above says has no headroom
+	   left, so a shadow is not its second cue but its only one for anything
+	   sitting *over* the paper. An 8% shadow under a white popover on a white
+	   card is a promise the design rule makes and the token declines to keep. The
+	   popover gains a tight second layer for the same reason: one diffuse blur
+	   reads as a smudge on white, where a contact shadow under it reads as an
+	   edge. Geometry is otherwise untouched — only the ink got darker.
+
+	   `--shadow-raised` is the exception, and it is the one that now has a job.
+	   It was declared and consumed by nothing, at a geometry that only casts
+	   downward — which is right for a small control lifted off a page and wrong
+	   for the thing that finally wanted it: a full-width row lifted out of a run
+	   of touching rows. Such a row is clipped left and right by its own column,
+	   so the only edges it can lift at are its top and bottom, and a shadow
+	   below it alone reads as the row *below* being lower rather than as this
+	   one being higher. The second layer is the light above it being occluded. */
+	--shadow-recessed: inset 0 1px 3px oklch(20% 0.01 285 / 0.2);
+	--shadow-raised: 0 3px 8px oklch(20% 0.01 285 / 0.19), 0 -2px 5px oklch(20% 0.01 285 / 0.09);
+	--shadow-popover: 0 2px 8px oklch(20% 0.01 285 / 0.18), 0 1px 2px oklch(20% 0.01 285 / 0.1);
+	--shadow-overlay: 0 12px 32px oklch(20% 0.01 285 / 0.24), 0 2px 8px oklch(20% 0.01 285 / 0.16);
 
 	/* Layering */
+	/* CodeMirror panels — the find bar is the only one — default to `z-index: 300`,
+	   which is above every tier in this scale. That put the bar over the action
+	   tray whose magnifier toggles it, so the second press landed on the panel
+	   instead of on the button. It belongs *below* the toolbar tier: the tray is
+	   chrome floating over the document and the bar runs under it by design.
+	   Isolating the editor instead would cap its own pickers and popovers below
+	   `--layer-panel`, which is a worse bug than the one it fixes. */
+	--layer-editor-panel: 3;
 	--layer-toolbar: 4;
 	--layer-panel: 10;
 	--layer-menu: 20;

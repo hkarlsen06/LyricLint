@@ -191,6 +191,29 @@ export interface EditorOverlayCallbacks {
 	 * had just taken off. The same trap `onLineAnchorsChanged` exists for.
 	 */
 	onSectionLinksChanged?(): void;
+	/**
+	 * `[?]` was asked for at the caret — by the action bar, or by its shortcut.
+	 *
+	 * The shell owns the edit rather than the editor writing three characters
+	 * itself: the insertion is an `AtomicDocumentEdit` against the session's own
+	 * revision, which is the bookkeeping every fix already goes through. An
+	 * editor that dispatched it directly would hand the user an edit the session
+	 * never saw.
+	 *
+	 * `false` when no shell is listening, so the key falls through instead of
+	 * being swallowed — which is why its binding carries no `preventDefault`.
+	 */
+	onUnknownMarkerRequest?(): boolean;
+	/**
+	 * Find and replace opened or closed.
+	 *
+	 * The shell needs telling rather than asking, because three things open this
+	 * panel and only one of them is the shell's own control: `Mod-F` is bound to
+	 * the window, and `Escape` and the panel's own `✕` close it. A tray glyph that
+	 * only knew about its own presses would go on burning accent over a closed
+	 * panel the first time either of the other two was used.
+	 */
+	onSearchOpenChange?(open: boolean): void;
 }
 
 export type LyricEditorCallbacks = EditorCallbacks & EditorOverlayCallbacks;

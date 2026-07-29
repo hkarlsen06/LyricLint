@@ -9,6 +9,7 @@ import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import { appleStore, spotifyStore } from '../state/media-test-stores.js';
 import type { MediaHandleRecord } from '$lib/persistence/index.js';
+import ControlTooltip from '../primitives/ControlTooltip.svelte';
 import MediaStrip from './MediaStrip.svelte';
 
 function store(options: { records?: MediaHandleRecord[]; file?: File } = {}) {
@@ -39,6 +40,55 @@ function store(options: { records?: MediaHandleRecord[]; file?: File } = {}) {
 }
 
 describe('MediaStrip', () => {
+	/*
+	 * The three transport controls name themselves through the same box the
+	 * editor's action tray uses — one `describeControl` and one `ControlTooltip`,
+	 * rather than the native `title` each of them carried, which is slow, unstyled,
+	 * and worded differently on every platform.
+	 *
+	 * The caption under the glyph keeps the one keystroke worth learning; the box
+	 * adds the label and the function-row key beside it, which is the split
+	 * "The audio is a transport" already described and this is what implements it.
+	 *
+	 * The layer is rendered alongside rather than by the strip, the way these tests
+	 * already render `LiveRegion` beside a toolbar: there is one box for the whole
+	 * application and the strip is not where it lives.
+	 */
+	it('names each transport control and its keystroke without touching the row', async () => {
+		const { audio, media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		audio.setDuration(125);
+
+		render(MediaStrip, { props: { media } });
+		render(ControlTooltip, { props: {} });
+
+		const play = page.getByRole('button', { name: 'Play' });
+		await expect.element(play).toBeVisible();
+		const before = play.element().getBoundingClientRect().height;
+
+		play.element().dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }));
+		await expect
+			.poll(() => document.querySelector('.control-tooltip')?.textContent)
+			.toContain('Play');
+		const tooltip = document.querySelector('.control-tooltip')!;
+		// One keystroke, the one a transcriber's hands actually reach for. `F8` and
+		// the universal `Ctrl-Alt` fallback stay in `aria-keyshortcuts`: a control
+		// listing every way to press it is a legend rather than a name.
+		const modifier = navigator.platform.toLocaleLowerCase().includes('mac') ? 'Control' : 'Alt';
+		expect(tooltip.querySelector('kbd')?.textContent).toBe(modifier === 'Control' ? '⌃K' : 'Alt+K');
+		expect(tooltip.textContent).not.toContain('F8');
+		expect(tooltip.getAttribute('aria-hidden')).toBe('true');
+		// `title` is gone: two tooltips for one control is the platform's and ours
+		// disagreeing in front of the user.
+		expect(play.element().hasAttribute('title')).toBe(false);
+
+		// An attachment, not a wrapper — this row's height is budgeted to the pixel.
+		expect(play.element().getBoundingClientRect().height).toBe(before);
+
+		play.element().dispatchEvent(new PointerEvent('pointerleave', { bubbles: false }));
+		await expect.poll(() => document.querySelectorAll('.control-tooltip').length).toBe(0);
+	});
+
 	it('offers the transport, the elapsed time, and the track at both ends', async () => {
 		const { audio, media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
@@ -46,7 +96,6 @@ describe('MediaStrip', () => {
 
 		render(MediaStrip, { props: { media } });
 		const modifier = navigator.platform.toLocaleLowerCase().includes('mac') ? 'Control' : 'Alt';
-		const modifierKey = modifier === 'Control' ? '⌃' : modifier;
 
 		const back = page.getByRole('button', { name: 'Back 2 seconds' });
 		const play = page.getByRole('button', { name: 'Play' });
@@ -64,25 +113,26 @@ describe('MediaStrip', () => {
 		await expect
 			.element(forward)
 			.toHaveAttribute('aria-keyshortcuts', `F9 ${modifier}+L Control+Alt+L`);
-		// One cap per control, modifier folded into it — not a repeated `⌃` box.
-		expect([...back.element().querySelectorAll('kbd')].map((key) => key.textContent)).toEqual([
-			`${modifierKey}J`
-		]);
-		expect([...play.element().querySelectorAll('kbd')].map((key) => key.textContent)).toEqual([
-			`${modifierKey}K`
-		]);
-		expect([...forward.element().querySelectorAll('kbd')].map((key) => key.textContent)).toEqual([
-			`${modifierKey}L`
-		]);
+		// Nothing is printed under the glyphs. The keystroke was a caption for as
+		// long as it had nowhere else to live; it lives in the shared tooltip now,
+		// and drawn in both places it was the same fact twice, six pixels apart, in
+		// the shortest row in the window. Re-adding a caption is the regression.
+		for (const control of [back, play, forward]) {
+			expect(control.element().querySelectorAll('kbd')).toHaveLength(0);
+		}
+
+		// The height rule the caption was written for still governs whatever is put
+		// in this row next, so it is measured rather than deleted with it: the
+		// control's *content* has to fit the height the row's other controls already
+		// set, or the strip grows and every pixel it takes is a pixel off the
+		// document. Content and not the box, because at narrow widths
+		// `responsive.css` raises every `.button` to `lg` and the box stops
+		// reporting what is inside it.
 		const detach = page.getByRole('button', { name: 'Detach track.mp3' });
-		// The stack's own content has to fit the height the row's other controls
-		// already set, or the shortcut caption costs the document a strip of pixels.
-		const stack = play.element() as HTMLElement;
-		const glyph = (stack.querySelector('svg') as SVGElement).getBoundingClientRect();
-		const cap = (stack.querySelector('kbd') as HTMLElement).getBoundingClientRect();
-		expect(cap.bottom - glyph.top).toBeLessThanOrEqual(
-			(detach.element() as HTMLElement).offsetHeight
-		);
+		const parts = [...play.element().children].map((part) => part.getBoundingClientRect());
+		const stack =
+			Math.max(...parts.map((part) => part.bottom)) - Math.min(...parts.map((part) => part.top));
+		expect(stack).toBeLessThanOrEqual((detach.element() as HTMLElement).offsetHeight);
 		await expect.element(page.getByTestId('media-elapsed')).toHaveTextContent('0:00');
 		await expect.element(page.getByText('2:05')).toBeVisible();
 		await expect.element(page.getByText('track.mp3')).toBeVisible();
