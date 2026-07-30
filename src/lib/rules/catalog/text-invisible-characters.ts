@@ -11,6 +11,11 @@ export const textInvisibleCharactersRule: RuleDefinition = {
 	defaultSeverity: 'warning',
 	fixability: 'safe',
 	sourceIds: ['G-ADD-SONGS'],
+	// A zero-width space is one the moment it lands, and nothing typed after it
+	// makes it visible. The trailing run below is the other half of this rule and
+	// overrides the tier per finding, because trailing is only trailing until the
+	// next character.
+	settlesOn: 'character',
 	check(document, context) {
 		const diagnostics: Diagnostic[] = [];
 		const text = document.text;
@@ -21,15 +26,19 @@ export const textInvisibleCharactersRule: RuleDefinition = {
 			for (let offset = range.from; offset < range.to; offset += 1) {
 				trailingOffsets.add(offset);
 			}
-			diagnostics.push(
-				diagnostic(
+			diagnostics.push({
+				...diagnostic(
 					this,
 					range,
 					'This line ends with invisible whitespace.',
 					'Trailing spaces survive a copy into Genius without ever being visible in the editor. Removing them changes nothing a reader can see, and the parser already treats a whitespace-only line as a blank one, so no section boundary moves.',
 					[replacementFix(context, 'safe', 'Remove trailing whitespace', range, '')]
-				)
-			);
+				),
+				// Every space between two words is trailing whitespace for as long as
+				// it takes to type the next word — and the pause in the middle of that
+				// is a transcriber listening, not a line they have finished.
+				settlesOn: 'caret'
+			});
 		}
 
 		for (let index = 0; index < text.length; index += 1) {

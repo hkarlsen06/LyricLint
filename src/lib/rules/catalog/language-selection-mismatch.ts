@@ -9,6 +9,9 @@ export const languageSelectionMismatchRule: RuleDefinition = {
 	defaultSeverity: 'warning',
 	fixability: 'none',
 	sourceIds: ['T-LANGUAGE-DETECT'],
+	// A language guessed from a half-typed document is a guess about a sample that
+	// is still arriving.
+	settlesOn: 'document',
 	check(document, context) {
 		const selectedTag = resolveLanguageTag(context.language);
 		const detected = detectSongLanguage(document, context.language);

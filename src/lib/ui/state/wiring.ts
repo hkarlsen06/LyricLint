@@ -64,25 +64,193 @@ export function computeDiagnostics(parsed: ParsedDocument, context: RuleContext)
 }
 
 /**
+ * Whether one document change is somebody typing, as opposed to text arriving
+ * whole.
+ *
+ * This is what holds a `document`-tier finding back, and it has to separate two
+ * things a snapshot cannot tell apart on its own. Opening a draft, pasting a
+ * transcription, loading the sample and applying a bulk fix all deliver a
+ * finished document in one change — the shape findings are right immediately and
+ * waiting on them would read as the linter being slow. Typing delivers it a
+ * character at a time, and the shape is wrong the whole way down.
+ *
+ * The signal is the size of the *changed span*, not the length delta, and that
+ * distinction is the bug it was written to fix. `Fix all 2 · Replace with '`
+ * over two curly apostrophes rewrites two characters in different verses for a
+ * net delta of zero, so a length comparison called the loudest bulk press in the
+ * application "typing" and blinked every shape finding off the panel for a
+ * second and a half — the exact churn this whole mechanism exists to remove.
+ * Comparing from both ends catches it: the span between the common prefix and
+ * the common suffix covers both edits.
+ *
+ * Two characters rather than one, so an IME commit, a bracket auto-close and a
+ * `\r\n` all count as typing.
+ *
+ * **What it still gets wrong, knowingly:** a single-occurrence fix (`Dont` →
+ * `Don't`) inserts one character at the caret and is indistinguishable from
+ * typing one there. The cost is 1.5s in which that line's other findings and the
+ * song's shape findings wait, and the honest repair is for the atomic-edit path
+ * to say so rather than for this to guess better — `dispatchAtomic` knows what
+ * this function is trying to infer.
+ */
+export function isTypingChange(previousText: string, nextText: string): boolean {
+	if (previousText === nextText) return false;
+	const limit = Math.min(previousText.length, nextText.length);
+	let prefix = 0;
+	while (prefix < limit && previousText[prefix] === nextText[prefix]) prefix += 1;
+	let suffix = 0;
+	while (
+		suffix < limit - prefix &&
+		previousText[previousText.length - 1 - suffix] === nextText[nextText.length - 1 - suffix]
+	) {
+		suffix += 1;
+	}
+	const removed = previousText.length - prefix - suffix;
+	const inserted = nextText.length - prefix - suffix;
+	return Math.max(removed, inserted) <= 2;
+}
+
+export interface EditorStateFilter {
+	/**
+	 * Whether the document has stopped changing under the user's hands.
+	 *
+	 * Defaults to true, because a caller that does not track typing is a caller
+	 * looking at a document nobody is typing into — a test, or the landing page's
+	 * demo. The workbench passes the real answer.
+	 */
+	settled?: boolean;
+}
+
+/**
  * Adjust one revision's findings for editor state the rules cannot see.
  *
- * Rules run against a parsed document and nothing else, so two facts never
- * reach them: where the caret is, and which sections are linked. Both are
- * applied here rather than passed into `RuleContext`, because this runs on
- * every snapshot while the lint itself is memoized on the document — a link
- * made or taken off changes no text, and a suggestion that outlived the press
- * that answered it would sit there until the next keystroke.
+ * Rules run against a parsed document and nothing else, so three facts never
+ * reach them: where the caret is, which sections are linked, and whether the
+ * document is still being typed. All three are applied here rather than passed
+ * into `RuleContext`, because this runs on every snapshot while the lint itself
+ * is memoized on the document — a link made or taken off changes no text, and a
+ * suggestion that outlived the press that answered it would sit there until the
+ * next keystroke.
+ *
+ * The last of the three is `settlesOn`, and it is the reason this function is
+ * worth its cost. A rule sees a document mid-composition as a finished one, so
+ * most of the catalog spends the keystrokes between two words asserting things
+ * the next keystroke refutes. Measured over one short verse typed a character at
+ * a time, 21 cards appeared and 16 of them were doomed — `[` is an unbalanced
+ * bracket for eight keystrokes, `thoug` is one edit from `though`, and a song
+ * has one distinct verse until the second one is written.
+ *
+ * **Deferral is a statement about a document being written, not about where the
+ * caret is parked.** Only `caret` waits on the caret alone; `line` wants the
+ * caret *and* live typing, because a caret at rest is not a line being composed.
+ * Reading it the other way cost two real findings: the landing page's demo seeds
+ * a collapsed caret at offset 0 and never moves it, so the `section.header-prose`
+ * the page's own copy names went permanently undrawn; and a transcriber who
+ * types the last line of a song and stops leaves the caret there forever, which
+ * hid that line's findings from the panel *and* from the `Fix N automatically`
+ * batch, which plans over what is visible.
  */
 export function filterForEditorState(
 	snapshot: EditorSnapshot,
 	diagnostics: readonly Diagnostic[],
-	sectionLinks: readonly SectionLink[] = []
+	sectionLinks: readonly SectionLink[] = [],
+	options: EditorStateFilter = {}
 ): Diagnostic[] {
-	return deferActiveLineTrailingWhitespace(
-		snapshot,
-		dropLinkedRepeats(snapshot, diagnostics, sectionLinks),
-		sectionLinks
+	const settled = options.settled ?? true;
+	const kept = dropLinkedRepeats(snapshot, diagnostics, sectionLinks);
+	if (settled && kept.every((diagnostic) => (diagnostic.settlesOn ?? 'line') !== 'caret')) {
+		return [...kept];
+	}
+	const caretLines = linesUnderTheCaret(snapshot, sectionLinks);
+	// One left-to-right pass rather than `lineNumberAt` per diagnostic, which is
+	// an O(offset) walk: this used to run for two rule ids and now runs for
+	// nearly every finding, on every keystroke and every caret move.
+	const lineAt = lineNumberLookup(snapshot.text);
+	return kept.filter((diagnostic) => {
+		switch (diagnostic.settlesOn ?? 'line') {
+			case 'character':
+				return true;
+			case 'document':
+				return settled;
+			case 'caret':
+				return !caretLines.has(lineAt(diagnostic.from));
+			default:
+				return settled || !caretLines.has(lineAt(diagnostic.from));
+		}
+	});
+}
+
+/** Line numbers for many offsets in one pass, in the order they are asked for. */
+function lineNumberLookup(text: string): (offset: number) => number {
+	let starts: number[] | undefined;
+	return (offset) => {
+		if (!starts) {
+			starts = [0];
+			for (let index = 0; index < text.length; index += 1) {
+				if (text[index] === '\n') starts.push(index + 1);
+			}
+		}
+		let low = 0;
+		let high = starts.length - 1;
+		while (low < high) {
+			const mid = (low + high + 1) >> 1;
+			if (starts[mid]! <= offset) low = mid;
+			else high = mid - 1;
+		}
+		return low + 1;
+	};
+}
+
+/**
+ * The lines the caret is composing: its own, and — where the caret sits in a
+ * linked section — the lines its edits are being mirrored onto, which are being
+ * written just as much as the one under it.
+ *
+ * A selection defers nothing. A range is not somewhere a word is being typed; it
+ * is a decision already made about text that is already there, and hiding
+ * findings under it would take away the ones the user selected them to read.
+ *
+ * **A mirrored line is only a peer where the peer section actually has one.**
+ * The offset arithmetic assumes every member of a link runs to the same length,
+ * which the merge-structure link model explicitly does not require — two
+ * choruses differing by a line is the shape the whole feature was rebuilt for.
+ * Unbounded, a caret on the fourth line of a long chorus resolved to a line in
+ * whichever section happened to sit at that offset from the peer's header, and
+ * suppressed a finding in a section that was not in the link at all.
+ */
+function linesUnderTheCaret(
+	snapshot: EditorSnapshot,
+	sectionLinks: readonly SectionLink[]
+): Set<number> {
+	if (snapshot.selection.anchor !== snapshot.selection.head) return new Set();
+
+	const { text } = snapshot;
+	const caret = snapshot.selection.head;
+	const activeLine = lineNumberAt(text, caret);
+	const lines = new Set([activeLine]);
+	const section = snapshot.parsed.sections.find(
+		(candidate) =>
+			candidate.header &&
+			candidate.lines.some((line) => line.from <= caret && caret <= line.lineEndingRange.from)
 	);
+	if (!section?.header) return lines;
+
+	const headerLine = lineNumberAt(text, section.header.from);
+	const link = sectionLinks.find((candidate) => candidate.lines.includes(headerLine));
+	for (const peerHeaderLine of link?.lines ?? []) {
+		if (peerHeaderLine === headerLine) continue;
+		const peer = snapshot.parsed.sections.find(
+			(candidate) =>
+				candidate.header && lineNumberAt(text, candidate.header.from) === peerHeaderLine
+		);
+		const peerLast = peer?.lines.at(-1);
+		if (!peerLast) continue;
+		const mirrored = peerHeaderLine + activeLine - headerLine;
+		if (mirrored > peerHeaderLine && mirrored <= lineNumberAt(text, peerLast.from)) {
+			lines.add(mirrored);
+		}
+	}
+	return lines;
 }
 
 /**
@@ -106,42 +274,6 @@ function dropLinkedRepeats(
 			!(
 				diagnostic.ruleId === 'section.unlinked-repeat' &&
 				linkedLines.has(lineNumberAt(snapshot.text, diagnostic.from))
-			)
-	);
-}
-
-/** Hide unfinished trailing whitespace until the caret leaves its line. */
-function deferActiveLineTrailingWhitespace(
-	snapshot: EditorSnapshot,
-	diagnostics: readonly Diagnostic[],
-	sectionLinks: readonly SectionLink[] = []
-): Diagnostic[] {
-	if (snapshot.selection.anchor !== snapshot.selection.head) return [...diagnostics];
-
-	const { text } = snapshot;
-	const caret = snapshot.selection.head;
-	const activeLine = lineNumberAt(text, caret);
-	const deferredLines = new Set([activeLine]);
-	const section = snapshot.parsed.sections.find(
-		(candidate) =>
-			candidate.header &&
-			candidate.lines.some((line) => line.from <= caret && caret <= line.lineEndingRange.from)
-	);
-	if (section?.header) {
-		const headerLine = lineNumberAt(text, section.header.from);
-		const link = sectionLinks.find((candidate) => candidate.lines.includes(headerLine));
-		for (const peerHeaderLine of link?.lines ?? []) {
-			deferredLines.add(peerHeaderLine + activeLine - headerLine);
-		}
-	}
-
-	return diagnostics.filter(
-		(diagnostic) =>
-			!(
-				diagnostic.ruleId === 'text.invisible-characters' &&
-				deferredLines.has(lineNumberAt(text, diagnostic.from)) &&
-				(diagnostic.to === text.length || /[\r\n]/u.test(text[diagnostic.to] ?? '')) &&
-				/^[^\S\r\n]+$/u.test(text.slice(diagnostic.from, diagnostic.to))
 			)
 	);
 }

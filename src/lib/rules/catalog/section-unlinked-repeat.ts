@@ -148,6 +148,8 @@ export const sectionUnlinkedRepeatRule: RuleDefinition = {
 	defaultSeverity: 'suggestion',
 	fixability: 'none',
 	sourceIds: ['G-SECTIONS', 'G-REPEATS'],
+	// There is no repeat to point at until the second copy exists.
+	settlesOn: 'document',
 	check(document, context) {
 		const diagnostics: Diagnostic[] = [];
 		for (const { source, matching, members } of linkableRepeatGroups(document, context.language)) {

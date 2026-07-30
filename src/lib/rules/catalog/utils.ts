@@ -23,6 +23,10 @@ export function diagnostic(
 		message,
 		explanation,
 		sourceIds,
+		// `line` is the default rather than `character`, so a rule added without a
+		// thought about typing is quiet while its line is being written instead of
+		// arguing with every prefix of every word.
+		settlesOn: rule.settlesOn ?? 'line',
 		...(fixes && fixes.length > 0 ? { fixes } : {})
 	};
 }

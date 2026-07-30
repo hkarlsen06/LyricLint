@@ -447,6 +447,132 @@ remembering to. It has to run _before_ the dispatch, because the editor emits th
 snapshot from inside it, and it must not run on a paste that never reached the document — a lead
 left armed fires on whatever the user types next.
 
+### A rule sees a finished song, and the document under the caret is not one
+
+Every rule runs against a whole parsed document on every keystroke, so a transcription
+mid-composition is linted as if the user had already stopped. Most of what this catalog checks is
+therefore asserted about text the next keystroke is about to change — and those cards are not
+merely early. They are wrong, they argue with the transcriber, and they retract themselves.
+
+Measured over one short invented verse typed a character at a time: **21 cards appeared and 16 of
+them were doomed**, occupying 46 keystrokes. `[` is `syntax.unbalanced-brackets` for the eight
+keystrokes it takes to type `[Verse 1]`, and letters two through five each replaced the card with a
+fresh `section.header-unrecognized` naming the prefix so far — `“V”`, `“Ve”`, `“Ver”` — with
+`section.header-language` telling the user their English was wrong in the middle of the word
+"Verse". That is the first thing anybody meets in this application.
+
+**The axis is not time and it is not the line. It is how far to the right a change can still
+reach.** Both of the obvious repairs are wrong, and each is wrong in the direction the other is
+right:
+
+- **A global debounce fixes almost nothing measured.** The doomed episodes ran 7–11 keystrokes,
+  which is one to two seconds of ordinary typing — longer than any debounce anybody would tolerate.
+  It also makes the correct findings late, and the one thing it would catch (a word passing through
+  a fuzzy spelling target) it catches only if the user pauses mid-word, which is exactly when they
+  are stuck and least want it.
+- **Deferring everything until the caret leaves the line breaks the other half.** A curly quote is a
+  curly quote the instant it lands. Holding those means typing a whole song and meeting forty cards
+  at the end, which is not a linter.
+
+So `settlesOn` is a declaration on the rule — four tiers, `line` by default, because a rule added
+without a thought about typing should be quiet while its line is being written rather than arguing
+with every prefix of every word:
+
+- **`character`** — a fact about text already committed whose **message** is settled as well as its
+  existence. `symbols.special-characters` and the invisible-character half of
+  `text.invisible-characters`. These draw at once, wherever the caret is.
+- **`caret`** — provisional while the caret is on its line, typing or not. Exactly one finding is
+  here, and it is the one this mechanism replaced: a trailing run of spaces. Every space between two
+  words is trailing whitespace for a moment, and the transcription loop is listen, pause, type — so
+  a pause mid-line is the commonest thing that happens in this application, and being told about the
+  space you are standing in is the churn wearing a different hat.
+- **`line`** — the rule reads a whole line, so its answer is provisional while that line is being
+  written. This is where every mid-word misfire lives, and where the header family lives, which is
+  why **the unclosed bracket needed no special case**: a caret inside `[` is on that line, so the
+  whole family stands down for free. The cost is finding out one Enter later.
+- **`document`** — a claim about the shape of the song, which is not finished until typing stops.
+  `section.verse-numbering` said `Do not number a song with only one distinct verse` from the moment
+  `[Verse 1` existed, which for a transcriber working top to bottom is most of the session: it told
+  them to unnumber a verse they were on their way to numbering correctly. `section.header-missing`
+  fired on the document's **first keystroke**, because somebody transcribing by ear types the words
+  before the header. `capitalization.title-case` is here too and is the subtle member: it needs two
+  title-cased lines in one section and then reports on both, so typing line N+1 decides whether line
+  N is flagged — a card that lands on a line the caret is not on, which `line` cannot help with.
+
+**`line` needs live typing and `caret` does not, and that difference is two real findings that went
+undrawn.** Deferral is a statement about a document being written, not about where a caret is
+parked. Read the other way, the landing page's demo — which seeds a collapsed caret at offset 0 and
+never moves it — permanently hid the `section.header-prose` its own copy points at; and a
+transcriber who types the last line of a song and stops leaves the caret there for good, hiding that
+line from the panel **and** from the `Fix N automatically` batch, which plans over what is visible.
+`caret` is the narrow exception, for the one finding whose whole existence is caused by the caret
+being there.
+
+**A `character` finding is one whose wording cannot change either, and `quotes.typewriter` is the
+near miss worth recording.** The finding is settled the instant the mark lands, but its _message_ is
+not: `isApostrophe` reads the character after the mark, so `Don’` reports a closing curly single
+quote and `Don’t` reports a curly apostrophe. At `character` the card was replaced by a differently
+worded one on the next keystroke, on every `don't`, `I'm` and `ain't` in the song. It is `line`.
+
+**A diagnostic may override its rule's tier, and one does.** `text.invisible-characters` reports a
+zero-width space, which is wrong the moment it exists, and a trailing run of spaces, which is only
+trailing until the next word — every space between two words is trailing whitespace for a moment.
+Carried on the `Diagnostic` rather than split into two rules, for the reason `presumedCorrect` is.
+
+**This replaced `deferActiveLineTrailingWhitespace`, which was this idea hand-rolled for exactly one
+rule**, and re-adding a second mechanism beside `settlesOn` is the drift this section exists to
+prevent. There is one gate, in `filterForEditorState`, and it runs there rather than in
+`RuleContext` for the reason the section links already give: the lint is memoized on the document,
+so a filter is free while a context change would re-run 54 rules.
+
+**The `document` tier is the one place a timer is right, and it is a settle, not a debounce.** It
+waits for the user to stop making the answer change, so `settleDelay` is 1500ms — under a second it
+fires mid-sentence, which is the noise it exists to remove. Two things it owes:
+
+- **Text that arrived whole is a finished document.** Opening a draft, pasting a transcription,
+  loading the sample and applying a bulk fix all deliver one in a single change, and their shape
+  findings are right immediately — waiting on those would read as the linter being slow.
+  `isTypingChange` is that question, and it measures the **changed span** rather than the length
+  delta: `Fix all 2 · Replace with '` rewrites two characters in different verses for a net delta of
+  zero, so a length comparison called the loudest bulk press in the application "typing" and blinked
+  every shape finding off the panel. Comparing from both ends catches it. Two characters rather than
+  one, so an IME commit, a bracket auto-close and a `\r\n` all count as typing.
+
+  **What it still gets wrong, knowingly:** a single-occurrence fix (`Dont` → `Don't`) inserts one
+  character at the caret and is indistinguishable from typing one there, so it costs 1.5s in which
+  that line's other findings and the song's shape findings wait. The honest repair is for the
+  atomic-edit path to say so rather than for this to guess better — `dispatchAtomic` knows what
+  `isTypingChange` is trying to infer.
+
+- **The pause has to re-publish the snapshot in hand**, because nothing else emits one when typing
+  merely stops. It costs what `republishForSectionLinks` costs, which is nothing: the lint is
+  memoized on the document, so it re-filters findings already computed.
+
+**A selection defers nothing.** A range is not somewhere a word is being typed — it is a decision
+already made about text that is already there, and hiding findings under it would take away the ones
+the user selected them to read.
+
+**A mirrored line is only a peer where the peer section has one.** A caret in a linked section defers
+the lines its edits are being carried onto, and that offset arithmetic assumes every member of the
+link runs to the same length — which the merge-structure link model explicitly does not require, two
+choruses differing by a line being the shape the whole feature was rebuilt for. Unbounded, a caret on
+the fourth line of a long chorus resolved to whatever line sat at that offset from the peer's header
+and suppressed a finding in a section that was not in the link at all. It is clamped to the peer's own
+line range now. This was survivable while it could only ever hide a trailing-whitespace card; it is
+not, now that it governs the default tier.
+
+**One line-number pass, not one per finding.** `lineNumberAt` is an O(offset) character walk, and it
+used to run for two rule ids — it now runs for nearly every finding, on every keystroke and every
+caret move. `filterForEditorState` builds one line table instead, lazily, and returns early when
+nothing is deferred at all.
+
+Implementation: `SettlesOn` and both fields in `src/lib/core/types.ts`, the default in `diagnostic()`
+in `rules/catalog/utils.ts`, `filterForEditorState` and `isTypingChange` in
+`src/lib/ui/state/wiring.ts`, and the settle timer in `Workspace.svelte`.
+`src/lib/rules/typing-churn.test.ts` is the harness that produced the numbers above, kept as a
+regression: it types the verse a character at a time and asserts the doomed-episode list is
+**empty**. A rule added at the wrong tier fails there rather than in somebody's transcription.
+
 ### Some findings lead with the answer that nothing is wrong
 
 Most of the time the reason a diagnostic is on screen is that the text is wrong and the fix is

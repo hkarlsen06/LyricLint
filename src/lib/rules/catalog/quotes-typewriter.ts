@@ -35,6 +35,12 @@ export const quotesTypewriterRule: RuleDefinition = {
 	defaultSeverity: 'warning',
 	fixability: 'safe',
 	sourceIds: ['G-TYPEWRITER'],
+	// Not `character`, though the *finding* would qualify: `isApostrophe` reads
+	// `text[index + 1]`, so `Don’` reports the closing curly single quote and
+	// `Don’t` reports a curly apostrophe. Left at `character` the card was
+	// replaced by a differently worded one on the next keystroke, on every
+	// `don't`, `I'm` and `ain't` in the song — which is constantly.
+	settlesOn: 'line',
 	check(document, context) {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>

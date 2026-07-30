@@ -178,6 +178,40 @@ export interface DetectedDiagnosticLanguage {
 	displayName: string;
 }
 
+/**
+ * When a finding's answer stops being able to change from typing.
+ *
+ * A rule runs against a whole parsed document on every keystroke, so a document
+ * mid-composition is linted as if it were finished — and for most of what this
+ * catalog checks, that is a claim the text to the right of the caret is about to
+ * refute. `[` is an unbalanced bracket for as long as it takes to type `Verse`;
+ * `thoug` is one character from `though`; a song has one distinct verse until
+ * the second one exists. Every one of those is a card that appears, argues with
+ * the transcriber, and retracts itself.
+ *
+ * The axis is not time and it is not the line — it is how far to the right a
+ * change can still reach:
+ *
+ * - `character` — a fact about text already committed, whose *message* as well as
+ *   whose existence is settled. Drawn at once, wherever the caret is.
+ * - `caret` — provisional while the caret is on its line, typing or not. Every
+ *   space between two words is trailing whitespace for a moment, and a
+ *   transcriber pausing to listen must not be told about the one they are
+ *   standing in.
+ * - `line` — the rule reads a whole line, so its answer is provisional while that
+ *   line is being written. This is the default, because most of the catalog
+ *   matches words and line shapes. Unlike `caret` it needs live typing as well:
+ *   a caret parked at the end of a finished song is not composing anything, and
+ *   holding its line forever hides findings from the panel and from the bulk-fix
+ *   batch that plans over what is visible.
+ * - `document` — the rule is a claim about the shape of the song, which is not
+ *   finished until typing stops.
+ *
+ * `filterForEditorState` is where this is spent; `deferActiveLineTrailingWhitespace`
+ * was the one hand-rolled instance of it.
+ */
+export type SettlesOn = 'character' | 'caret' | 'line' | 'document';
+
 /** A source-backed finding against the same revision as its parsed document. */
 export interface Diagnostic extends TextRange {
 	ruleId: string;
@@ -185,6 +219,16 @@ export interface Diagnostic extends TextRange {
 	message: string;
 	explanation: string;
 	sourceIds: string[];
+	/**
+	 * Overrides the rule's own tier for this one finding.
+	 *
+	 * A rule can report findings that settle differently: `text.invisible-characters`
+	 * flags a zero-width space, which is wrong the moment it exists, and a trailing
+	 * run of spaces, which is only trailing until the next character. Carried on the
+	 * diagnostic rather than split into two rules, for the same reason
+	 * `presumedCorrect` is.
+	 */
+	settlesOn?: SettlesOn;
 	/** Additional document ranges described by this same finding. */
 	relatedRanges?: readonly TextRange[];
 	/** Present when resolving the finding means selecting an inferred language. */
@@ -226,6 +270,15 @@ export interface RuleDefinition {
 	defaultSeverity: Severity;
 	sourceIds: string[];
 	fixability?: Fixability;
+	/**
+	 * How far right a change can still reach and alter this rule's answer.
+	 *
+	 * Defaults to `line`, which is the safe reading: a rule that matches a word or
+	 * a line shape is provisional until the caret leaves. Declare `character` only
+	 * where a finding is about text that cannot be extended into something else,
+	 * and `document` where the rule is a claim about the whole song.
+	 */
+	settlesOn?: SettlesOn;
 	check(document: ParsedDocument, context: RuleContext): Diagnostic[];
 }
 

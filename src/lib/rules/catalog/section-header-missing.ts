@@ -32,6 +32,9 @@ export const sectionHeaderMissingRule: RuleDefinition = {
 	defaultSeverity: 'warning',
 	fixability: 'preview',
 	sourceIds: ['G-SECTIONS'],
+	// A section has no header until one is typed, and somebody transcribing by ear
+	// types the words first. This fired on the document's first keystroke.
+	settlesOn: 'document',
 	check(document, context) {
 		return document.sections.flatMap((section, index) => {
 			if (

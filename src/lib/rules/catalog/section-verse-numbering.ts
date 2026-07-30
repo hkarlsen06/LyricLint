@@ -47,6 +47,11 @@ export const sectionVerseNumberingRule: RuleDefinition = {
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-SECTION-NUMBERING'],
+	// Whether a song has one distinct verse is unanswerable until it has been
+	// written. Typed top to bottom a song has exactly one verse for the first
+	// third of the session, so this fired on `[Verse 1` and told the transcriber
+	// to unnumber a verse they were about to number correctly.
+	settlesOn: 'document',
 	check(document, context) {
 		const diagnostics: Diagnostic[] = [];
 		const verses: Section[] = [];

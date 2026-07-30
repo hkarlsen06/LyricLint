@@ -251,6 +251,12 @@ function convertLint(
 			...range,
 			ruleId: ruleIdFor(kind),
 			severity: 'suggestion',
+			// The one diagnostic constructor outside `rules/catalog/utils.ts`, so it
+			// states the tier rather than inheriting the default by omission. `line`
+			// is right and is the loudest case the deferral exists for: a dictionary
+			// meeting a half-typed word looks for the nearest words it knows, so
+			// Harper misfires on the way through almost every long one.
+			settlesOn: 'line' as const,
 			message: plainMessage(lint.message()),
 			explanation: `${kindLabel} detected by Harper's local English proofreader. Lyrics often use deliberate fragments, dialect, repetition, and nonstandard spelling, so review this suggestion in context.`,
 			sourceIds: [harperSourceId],

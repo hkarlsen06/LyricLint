@@ -8,6 +8,7 @@ import {
 	computeDiagnostics,
 	filterForEditorState,
 	everyLyricLineTimed,
+	isTypingChange,
 	orderPerformersByAppearance,
 	resolveVoiceGroupRanges
 } from './wiring.js';
@@ -71,6 +72,57 @@ describe('UI wiring', () => {
 				[{ lines: [1, 5] }]
 			)
 		).toEqual(diagnostics);
+	});
+
+	// A `document`-tier finding is a claim about the shape of the whole song, and
+	// the shape of a song being typed is wrong the entire way down. It waits for
+	// the typing to stop rather than for the caret to leave a line, because no
+	// line is where the answer lives.
+	test('holds document-shape findings while the document is being typed', () => {
+		const text = '[Verse 1]\nA plain lyric line here';
+		const parsed = parseDocument(text);
+		const diagnostics = computeDiagnostics(
+			parsed,
+			buildRuleContext('en', [], currentRuleSet.version, 3)
+		);
+		const snapshot = {
+			...createTestWorkbench({ text, revision: 3 }).controller.snapshot,
+			parsed,
+			diagnostics,
+			selection: { anchor: 0, head: 0 }
+		};
+		const numbering = (settled: boolean) =>
+			filterForEditorState(snapshot, diagnostics, [], { settled }).filter(
+				(diagnostic) => diagnostic.ruleId === 'section.verse-numbering'
+			).length;
+
+		expect(numbering(false)).toBe(0);
+		expect(numbering(true)).toBe(1);
+		// Absent the option, a caller is one looking at a document nobody is typing
+		// into — a test, or the landing page's demo.
+		expect(
+			filterForEditorState(snapshot, diagnostics).filter(
+				(diagnostic) => diagnostic.ruleId === 'section.verse-numbering'
+			).length
+		).toBe(1);
+	});
+
+	// What separates a song being written from one that arrived whole. Opening a
+	// draft, pasting, loading the sample and applying a bulk fix all deliver a
+	// finished document in one change, and its shape findings are right at once.
+	test('tells typing from text arriving whole', () => {
+		expect(isTypingChange('', 'a')).toBe(true);
+		expect(isTypingChange('Hold on', 'Hold on ')).toBe(true);
+		expect(isTypingChange('Hold on\r', 'Hold on\r\n')).toBe(true);
+		// A deletion is typing too — backspacing through a word must not publish a
+		// shape finding on every character on the way out.
+		expect(isTypingChange('Hold on', 'Hold o')).toBe(true);
+		// A paste, a draft opening, the sample.
+		expect(isTypingChange('', '[Verse 1]\nA plain lyric line here')).toBe(false);
+		expect(isTypingChange('[Verse 1]\nA plain lyric line here', '')).toBe(false);
+		// A snapshot that changed nothing is not a change at all; a selection move
+		// must not restart the wait.
+		expect(isTypingChange('Hold on', 'Hold on')).toBe(false);
 	});
 
 	// The rules see a parsed document and nothing else, so a linked group still

@@ -26,6 +26,7 @@
 		computeDiagnostics,
 		filterForEditorState,
 		everyLyricLineTimed,
+		isTypingChange,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
 	import ControlTooltip from '../primitives/ControlTooltip.svelte';
@@ -119,6 +120,48 @@
 	const harperDelay = 250;
 	const languageDetectorDelay = 150;
 
+	// Whether the shape of the song is worth an opinion yet. A `document`-tier
+	// rule is a claim about the whole transcription, and a transcription being
+	// typed is one whose shape is wrong the entire way down — one distinct verse
+	// until the second is written, one chorus until the repeat exists. So those
+	// findings wait for a pause rather than for a line.
+	//
+	// Long, and deliberately so: this is not a debounce buying the linter time to
+	// think, it is the linter waiting for the user to stop making the answer
+	// change. Under a second it fires mid-sentence, which is the noise it exists
+	// to remove.
+	const settleDelay = 1500;
+	let documentSettled = true;
+	let settleTimer: ReturnType<typeof setTimeout> | undefined;
+	let settledText = '';
+
+	function noteDocumentChange(snapshot: EditorSnapshot): void {
+		if (snapshot.text === settledText) return;
+		const typing = isTypingChange(settledText, snapshot.text);
+		settledText = snapshot.text;
+		if (settleTimer !== undefined) clearTimeout(settleTimer);
+		settleTimer = undefined;
+		if (!typing) {
+			// Text that arrived whole — a draft opened, a paste, the sample, a bulk
+			// fix — is a finished document, so its shape findings are right now.
+			documentSettled = true;
+			return;
+		}
+		documentSettled = false;
+		settleTimer = setTimeout(() => {
+			settleTimer = undefined;
+			// `documentSettled` cannot be true here — every assignment of it clears
+			// this timer first — so `destroyed` is the whole guard.
+			if (destroyed) return;
+			documentSettled = true;
+			// Nothing else emits a snapshot when typing merely stops, so the pause
+			// has to re-publish the one in hand. Free, for the reason
+			// `republishForSectionLinks` gives: the lint is memoized on the document,
+			// so this only re-filters findings already computed.
+			publishSnapshot(controller.snapshot);
+		}, settleDelay);
+	}
+
 	function lintKey(snapshot: EditorSnapshot): string {
 		const performerKey = controller.performers
 			.map(
@@ -182,7 +225,12 @@
 					controller.onSnapshot(
 						{
 							...current,
-							diagnostics: filterForEditorState(current, merged, editorHandle?.getSectionLinks?.())
+							diagnostics: filterForEditorState(
+								current,
+								merged,
+								editorHandle?.getSectionLinks?.(),
+								{ settled: documentSettled }
+							)
 						},
 						merged
 					);
@@ -216,6 +264,7 @@
 	}
 
 	function enrichSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
+		noteDocumentChange(snapshot);
 		if (!snapshot.composing) {
 			const key = lintKey(snapshot);
 			if (key === lastLintKey) {
@@ -224,7 +273,8 @@
 					diagnostics: filterForEditorState(
 						snapshot,
 						lastDiagnostics,
-						editorHandle?.getSectionLinks?.()
+						editorHandle?.getSectionLinks?.(),
+						{ settled: documentSettled }
 					)
 				};
 			}
@@ -246,7 +296,8 @@
 			diagnostics: filterForEditorState(
 				snapshot,
 				lastDiagnostics,
-				editorHandle?.getSectionLinks?.()
+				editorHandle?.getSectionLinks?.(),
+				{ settled: documentSettled }
 			)
 		};
 	}
@@ -278,6 +329,7 @@
 
 	onDestroy(() => {
 		destroyed = true;
+		if (settleTimer !== undefined) clearTimeout(settleTimer);
 		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
 		invalidateHarper();
 		void harperProvider

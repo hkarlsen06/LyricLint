@@ -57,6 +57,8 @@ export const sectionImmediateRepeatSpacingRule: RuleDefinition = {
 	defaultSeverity: 'warning',
 	fixability: 'safe',
 	sourceIds: ['G-SECTIONS', 'G-REPEATS'],
+	// Two headers are only adjacent until the lines between them are written.
+	settlesOn: 'document',
 	check(document, context) {
 		const diagnostics: Diagnostic[] = [];
 		for (let index = 1; index < document.sections.length; index += 1) {

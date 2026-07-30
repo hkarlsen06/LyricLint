@@ -28,6 +28,9 @@ export const symbolsSpecialCharactersRule: RuleDefinition = {
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-SYMBOLS'],
+	// A flagged symbol is that symbol whatever follows it; the match is a single
+	// character and cannot grow into something else.
+	settlesOn: 'character',
 	check(document, context) {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) => {
