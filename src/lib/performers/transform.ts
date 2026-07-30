@@ -9,12 +9,14 @@ import type {
 	PerformerRecord,
 	RemoveDifferentiationRequest,
 	Section,
+	SectionHeader,
 	SerializedSelection,
 	StyleSlot,
 	SupportedStyleSpan,
 	TextEdit,
 	TextRange
 } from '$lib/core/types.js';
+import { headerNameIsEmpty } from '$lib/core/parser.js';
 import { serializeLegend, styleTags, wrapVoiceSpan } from '$lib/serialization/genius-markup.js';
 import { allocateStyleSlot } from './allocation.js';
 import { makeVoiceGroupKey } from './identity.js';
@@ -966,6 +968,24 @@ export function assignVoiceLegend(request: LegendAssignmentRequest): DocumentTra
 	};
 }
 
+/**
+ * The span a chosen name is written into: the empty header's own brackets.
+ *
+ * `[]` is a header the user has opened and not named, and the one thing they
+ * asked for by typing it is that the header goes *here* — so filling it is the
+ * edit, not opening a second header line above it. The slot stops at the colon
+ * where there is one, because a legend is a decision about voices that has
+ * nothing to do with the part being named: `[: Ari]` becomes `[Chorus: Ari]`.
+ */
+function emptyHeaderNameSlot(text: string, header: SectionHeader): TextRange | undefined {
+	if (!header.closed || !headerNameIsEmpty(header)) {
+		return undefined;
+	}
+	const from = header.from + 1;
+	const to = header.legendRange ? text.lastIndexOf(':', header.legendRange.from) : header.to - 1;
+	return to >= from ? { from, to } : undefined;
+}
+
 /** Insert a chosen section header as one undoable atomic edit. */
 export function insertSectionHeader(request: InsertSectionHeaderRequest): DocumentTransformResult {
 	if (request.document.text !== request.text) {
@@ -976,17 +996,22 @@ export function insertSectionHeader(request: InsertSectionHeaderRequest): Docume
 	);
 	const section = request.document.sections[sectionIndex];
 	const headerName = request.headerName.trim();
-	if (!section || section.header || headerName.length === 0) {
+	const nameSlot = section?.header ? emptyHeaderNameSlot(request.text, section.header) : undefined;
+	// A section that already names its part is not something a picker overwrites.
+	// An empty one is the exception, and it is the only one.
+	if (!section || (section.header && !nameSlot) || headerName.length === 0) {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 
 	const ordinal = request.ordinal === undefined ? '' : ` ${request.ordinal}`;
 	const edits: TextEdit[] = [
-		{
-			from: section.from,
-			to: section.from,
-			insert: `[${headerName}${ordinal}]${lineEndingForInsertion(request.text, section.from)}`
-		}
+		nameSlot
+			? { from: nameSlot.from, to: nameSlot.to, insert: `${headerName}${ordinal}` }
+			: {
+					from: section.from,
+					to: section.from,
+					insert: `[${headerName}${ordinal}]${lineEndingForInsertion(request.text, section.from)}`
+				}
 	];
 	if (request.ordinal !== undefined && request.numberedHeaderTerms?.length) {
 		const matchingTerms = new Set(

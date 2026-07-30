@@ -128,6 +128,19 @@ describe('rule regressions', () => {
 		expect(finding?.fixes).toBeUndefined();
 	});
 
+	it('leaves an unnamed header to section.header-empty rather than reviewing it', () => {
+		// One card, not two, and not the wrong one. `Review the custom section
+		// header “”` quoted nothing back at the user and offered `It's correct`
+		// about it, which is the first thing anybody typing a header met.
+		for (const input of ['[]\nA lyric', '[ ]\nA lyric', '[: Ari]\nA lyric', '[\nA lyric']) {
+			expect(diagnostics('section.header-unrecognized', input), input).toEqual([]);
+		}
+		expect(diagnostics('section.header-empty', '[]\nA lyric')).toHaveLength(1);
+		// A section that has a header line, empty or not, is not a section with
+		// none — so the two picker findings never both fire on one line.
+		expect(diagnostics('section.header-missing', '[]\nA lyric')).toEqual([]);
+	});
+
 	it('accepts the optional quoted title header on a non-English song', () => {
 		expect(
 			diagnostics('section.header-unrecognized', '[Letra de “Chantaje” ft. Maluma]\nHola', 'es')

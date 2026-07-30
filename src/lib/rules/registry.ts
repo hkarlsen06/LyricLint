@@ -23,6 +23,7 @@ import { punctuationLineEndingRule } from './catalog/punctuation-line-ending.js'
 import { punctuationQuestionRule } from './catalog/punctuation-question.js';
 import { quotesTypewriterRule } from './catalog/quotes-typewriter.js';
 import { repeatPlaceholderRule } from './catalog/repeat-placeholder.js';
+import { sectionHeaderEmptyRule } from './catalog/section-header-empty.js';
 import { sectionHeaderLanguageRule } from './catalog/section-header-language.js';
 import { sectionHeaderMissingRule } from './catalog/section-header-missing.js';
 import { sectionHeaderProseRule } from './catalog/section-header-prose.js';
@@ -62,6 +63,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	syntaxUnsupportedVoiceMarkupRule,
 	languageSelectionMismatchRule,
 	sectionHeaderMissingRule,
+	sectionHeaderEmptyRule,
 	sectionHeaderProseRule,
 	sectionHeaderSpacingRule,
 	sectionHeaderLanguageRule,

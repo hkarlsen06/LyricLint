@@ -74,8 +74,14 @@
 		diagnostic.ruleId === 'section.header-unrecognized' || diagnostic.presumedCorrect === true
 	);
 	const isUnresolvedUnknown = $derived(diagnostic.ruleId === 'unknown.unresolved');
+	// Two findings, one answer: a section with no header line, and a header line
+	// with no name in it. Both are settled by choosing a reviewed header, and the
+	// transform decides which of the two edits that is — a card that offered a
+	// different control for each would be two ways to ask the same question.
 	const offersHeaderPicker = $derived(
-		diagnostic.ruleId === 'section.header-missing' && onChooseHeader !== undefined
+		(diagnostic.ruleId === 'section.header-missing' ||
+			diagnostic.ruleId === 'section.header-empty') &&
+			onChooseHeader !== undefined
 	);
 	// The picker, not the link itself: a batch that rewrites three sections is
 	// worth seeing named before it runs, and the card has no room to show the

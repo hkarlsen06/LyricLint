@@ -3104,6 +3104,66 @@ Implementation: `isProseHeaderLine` in `rules/catalog/section-header-prose.ts`,
 regressions in `catalog-policy.test.ts` — which is where cross-rule interactions are pinned, so the
 two halves cannot be re-broken one at a time.
 
+### An empty header is not a custom one, and the picker fills the brackets it finds
+
+Type `[` and `]` and stop, and the workbench used to answer `Review the custom section header “”.` —
+`section.header-unrecognized`, quoting nothing back at the reader, explaining that “” is in no
+reviewed catalog, and leading with `It's correct` about it. Three things were wrong at once, and the
+first is the one that matters: **a name that is not there is not a name somebody chose.** That rule
+exists for `[Chor]`, a header a transcriber typed on purpose which LyricLint cannot vouch for, and
+its whole shape — manual review, no fix, an affirmative control leading the row — is built on the
+likelihood that the words are already right. Nothing about `[]` is right yet. It also drew its
+underline over the empty name part, which is a zero-width range, so the one line the card was about
+was marked with nothing at all. And it was the first thing anybody typing a header met.
+
+`section.header-empty` owns that line now, at `warning`, and it says the thing that is true: the
+brackets are here and the song part they open is not named. **Its one control is `Choose header`,
+the same control `section.header-missing` carries**, because the two findings ask the same question
+— which reviewed song part is this? — and a card that offered a second, differently worded way to
+pick a header would be two ways to ask it. `offersHeaderPicker` in `DiagnosticActions.svelte` is
+therefore an id pair rather than an id, and the surfaces stay identical because they already share
+that row.
+
+**What differs is the edit, and the transform decides it rather than the card.** A section with no
+header line takes a new one above its first lyric; a section whose header is `[]` is a user who has
+already said where the header goes, so the chosen name is written **between the brackets they
+typed**. `emptyHeaderNameSlot` in `performers/transform.ts` is that span, and it stops at the colon
+where there is one: a legend is a decision about voices and has nothing to do with naming the part,
+so `[: Ari]` becomes `[Chorus: Ari]`. Both are one `TextEdit`, so filling the brackets is one undo,
+and the later-verse renumbering runs on either path. `insertSectionHeader`'s refusal to touch a
+section that already has a header is otherwise unchanged — the empty one is the exception, and it is
+the only one.
+
+Four things this depends on:
+
+- **The finding is anchored at `section.from`, not at the header.** The two surfaces reach the
+  picker by different routes — the popover hands the diagnostic's own `from` to
+  `createSectionHeaderEdit`, while the panel selects the range and lets `containingSectionRange`
+  answer from the caret — and `insertSectionHeader` looks the section up by `from`. Anchored on
+  `header.from` instead, an indented `  []` resolves from one path and is refused from the other.
+- **Only a _closed_ empty header is reported.** `[` on its own is
+  `syntax.unbalanced-brackets`' finding, and half the keystrokes in `[Verse 1]` are spent in that
+  state, so flagging it here would put two cards on one line for most of the time it takes to write
+  a header. The rule's `ambiguous` policy case is exactly that, so the decision is a reviewed
+  example rather than a comment.
+- **`section.header-unrecognized` steps aside on the name alone, closed or not.** It has nothing to
+  say about a name that is not there in either state, and the predicate is the parser's
+  `headerNameIsEmpty` — beside `isSectionHeaderLine`, for the same reason: three surfaces need the
+  same answer and two of them are not rules, so neither the transform nor a second rule may arrive
+  at it with a check of its own.
+- **`section.header-missing` is untouched and cannot collide.** A section with a header line, empty
+  or not, is not a section without one, so the two picker findings never both draw on one line.
+
+The tier is the default `line`: the name is being typed on that line, so the card waits until the
+caret leaves it or typing settles. `typing-churn.test.ts` is unaffected because `[Verse 1]` typed a
+character at a time is never both closed and nameless.
+
+Implementation: `rules/catalog/section-header-empty.ts`, `headerNameIsEmpty` in `core/parser.ts`,
+`emptyHeaderNameSlot` in `performers/transform.ts`, and the id pair in
+`diagnostics/DiagnosticActions.svelte`. The cross-rule regression is in `catalog-policy.test.ts`
+with the others, and `section-header-empty.test.ts` drives the real transform from the real
+finding's range — the one contract neither file would catch alone.
+
 ### An `ambiguous` policy case is a decision, and widening a rule past one is how a safe fix stops being safe
 
 `unknown.marker` flags `(?)` and `[??]` and offers `[?]` as a one-press **safe** fix, and its own

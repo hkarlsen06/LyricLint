@@ -108,8 +108,8 @@ const previousRuleSet: RuleSetManifest = {
 export const previousKnownGoodRuleSet = previousRuleSet;
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.07.29.0',
-	publishedAt: '2026-07-29',
+	version: '2026.07.30.0',
+	publishedAt: '2026-07-30',
 	sourceIds: [
 		...previousRuleSet.sourceIds,
 		'G-SYMBOLS',
@@ -129,6 +129,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'syntax.unsupported-voice-markup',
 		'language.selection-mismatch',
 		'section.header-missing',
+		'section.header-empty',
 		'section.header-prose',
 		'section.header-spacing',
 		'section.header-language',

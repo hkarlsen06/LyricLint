@@ -830,6 +830,81 @@ describe('section transforms', () => {
 		}
 	});
 
+	it('writes a chosen name into the brackets an empty header already has', () => {
+		for (const [input, expected] of [
+			['[]\nA lyric', '[Chorus 2]\nA lyric'],
+			['[ ]\nA lyric', '[Chorus 2]\nA lyric'],
+			// A legend is a decision about voices, and naming the part is not a
+			// reason to take it away.
+			['[: Ari]\nA lyric', '[Chorus 2: Ari]\nA lyric']
+		]) {
+			const document = parseDocument(input ?? '');
+			const result = insertSectionHeader({
+				revision: 3,
+				text: input ?? '',
+				document,
+				sectionFrom: document.sections[0]?.from ?? -1,
+				headerName: 'Chorus',
+				ordinal: 2
+			});
+
+			expect(result.status, input).toBe('applied');
+			if (result.status === 'applied') {
+				// One edit, so filling the brackets is one undo — and no second
+				// header line opened above the one the user typed.
+				expect(result.edit.edits, input).toHaveLength(1);
+				expect(applyEdits(input ?? '', result.edit.edits), input).toBe(expected);
+			}
+		}
+	});
+
+	it('renumbers later verses when an empty header is the one being named', () => {
+		const input = '[]\nFirst\n\n[Verse 2]\nSecond';
+		const document = parseDocument(input);
+		const result = insertSectionHeader({
+			revision: 6,
+			text: input,
+			document,
+			sectionFrom: document.sections[0]?.from ?? -1,
+			headerName: 'Verse',
+			ordinal: 2,
+			numberedHeaderTerms: ['Verse']
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(applyEdits(input, result.edit.edits)).toBe('[Verse 2]\nFirst\n\n[Verse 3]\nSecond');
+		}
+	});
+
+	it('refuses to overwrite a header that already names its part', () => {
+		const input = '[Verse]\nA lyric';
+		const document = parseDocument(input);
+		expect(
+			insertSectionHeader({
+				revision: 3,
+				text: input,
+				document,
+				sectionFrom: document.sections[0]?.from ?? -1,
+				headerName: 'Chorus'
+			}).status
+		).toBe('blocked');
+	});
+
+	it('refuses an unclosed header, which is a bracket to finish rather than a name to fill', () => {
+		const input = '[\nA lyric';
+		const document = parseDocument(input);
+		expect(
+			insertSectionHeader({
+				revision: 3,
+				text: input,
+				document,
+				sectionFrom: document.sections[0]?.from ?? -1,
+				headerName: 'Chorus'
+			}).status
+		).toBe('blocked');
+	});
+
 	it('removes only supported differentiation as one atomic edit set', () => {
 		const input = '[Chorus: A & <i>B</i>]\nA\n<i>B</i>\n<u>Unknown</u>';
 		const document = parseDocument(input);

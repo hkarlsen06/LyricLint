@@ -4,6 +4,7 @@ import {
 	getLanguagePack,
 	reviewedLanguagePacks
 } from '$lib/languages/registry.js';
+import { headerNameIsEmpty } from '$lib/core/parser.js';
 import { diagnostic } from './utils.js';
 
 function isRecognizedHeader(name: string): boolean {
@@ -54,8 +55,15 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 	check(document, context) {
 		return document.sections.flatMap((section, sectionIndex) => {
 			const header = section.header;
+			// A nameless header is not a custom one. `Review the custom section
+			// header “”` quoted nothing back at the user, offered `It's correct`
+			// about it, and drew its underline over a zero-width range — and it was
+			// the first thing anybody typing `[` and `]` met. `section.header-empty`
+			// owns that line, and it owns it whether or not the bracket was closed:
+			// this rule has nothing to say about a name that is not there.
 			if (
 				!header ||
+				headerNameIsEmpty(header) ||
 				isRecognizedHeader(header.namePart) ||
 				isNonEnglishTitleHeader(header.namePart, context.language, sectionIndex)
 			) {

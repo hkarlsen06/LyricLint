@@ -228,6 +228,40 @@ describe('DiagnosticDetails preview flow', () => {
 		expect(onApplyFix).toHaveBeenCalledWith(removeBlankLine);
 	});
 
+	it('offers the same header picker for brackets that name nothing', async () => {
+		// The empty header asks the same question a headerless section does, so it
+		// gets the same control and not a second one worded differently. There is
+		// no fix beside it: the name is the whole of what is missing, and the
+		// picker is where it is chosen.
+		const onChooseHeader = vi.fn();
+		await render(DiagnosticDetails, {
+			diagnostic: {
+				ruleId: 'section.header-empty',
+				severity: 'warning',
+				from: 0,
+				to: 2,
+				message: 'This section header is empty.',
+				explanation: 'The brackets are here, but the song part they open is not named.',
+				sourceIds: []
+			},
+			onChooseHeader,
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn()
+		});
+
+		const chooseHeader = page.getByRole('button', { name: 'Choose header' });
+		await expect.element(chooseHeader).toHaveClass('button--contrast');
+		// The card that used to draw here claimed `[]` was a custom header the
+		// user might mean, and led with agreeing to it.
+		await expect
+			.element(page.getByRole('button', { name: "It's correct" }))
+			.not.toBeInTheDocument();
+		await chooseHeader.click();
+		expect(onChooseHeader).toHaveBeenCalledOnce();
+	});
+
 	it('offers guided performer assignment for an unresolved styled voice', async () => {
 		const onAssignPerformers = vi.fn();
 		await render(DiagnosticDetails, {

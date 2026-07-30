@@ -115,6 +115,23 @@ export function isLyricLine(text: string): boolean {
 	return trimmed.length > 0 && !isSectionHeaderLine(trimmed);
 }
 
+/**
+ * Whether a bracketed header names no song part at all.
+ *
+ * Here rather than in the rule that reports it, for the reason
+ * `isSectionHeaderLine` is here: three surfaces need the same answer, and the
+ * two that are not rules may not import one. `section.header-empty` reports it,
+ * `section.header-unrecognized` steps aside for it — a name that is not there
+ * is not a custom one — and `insertSectionHeader` reads it to decide whether a
+ * chosen header opens a new line or fills the brackets already on this one.
+ *
+ * The name part arrives with any ordinal and any `: legend` already split off,
+ * so `[]`, `[ ]` and `[: Ari]` are all nameless while `[2]` is not.
+ */
+export function headerNameIsEmpty(header: SectionHeader): boolean {
+	return header.rawNamePart.trim().length === 0;
+}
+
 function isHeaderCandidate(line: PhysicalLine): boolean {
 	return isSectionHeaderLine(line.text);
 }

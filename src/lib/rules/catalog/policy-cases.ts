@@ -76,6 +76,16 @@ export const policyCases: readonly RulePolicyCase[] = [
 		ambiguous: '   '
 	},
 	{
+		id: 'section.header-empty',
+		title: 'Name every section header',
+		invalid: '[]\nA lyric',
+		valid: '[Verse]\nA lyric',
+		// A header still being typed has no closing bracket yet, and that line
+		// belongs to `syntax.unbalanced-brackets`. Flagging it here would put two
+		// cards on one line for most of the keystrokes it takes to write a header.
+		ambiguous: '[\nA lyric'
+	},
+	{
 		id: 'section.header-prose',
 		title: 'Song part names go in brackets',
 		invalid: 'Verse 1:\nA lyric',
