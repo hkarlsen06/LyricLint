@@ -121,6 +121,37 @@ describe('EditorPane', () => {
 		expect(handle.getSnapshot().revision).toBe(6);
 	});
 
+	// The shell spends this on whether a document is being composed or was changed
+	// by a press, which decides when the song's shape findings are worth drawing.
+	// It used to be estimated from how much text moved, and that cannot be right:
+	// a one-occurrence fix inserts one character at the caret exactly as typing one
+	// there would, and `Fix all` over two verses is a net delta of zero.
+	it('reports a dispatched edit as atomic and a keystroke as not', async () => {
+		const { handle, editorCallbacks } = await mountEditor({ text: '[Verse]\nHello' });
+		const snapshots = vi.mocked(editorCallbacks.onSnapshot);
+		snapshots.mockClear();
+
+		handle.dispatchAtomic({
+			baseRevision: 0,
+			edits: [{ from: 12, to: 13, insert: 'o' }]
+		});
+		expect(snapshots.mock.calls.at(-1)?.[0].atomic).toBe(true);
+
+		const content = document.querySelector<HTMLElement>('.cm-content');
+		if (!content) throw new Error('CodeMirror did not render its content.');
+		content.focus();
+		handle.setSelection({ anchor: 13, head: 13 });
+		snapshots.mockClear();
+		await userEvent.keyboard('!');
+		expect(snapshots.mock.calls.at(-1)?.[0].text).toBe('[Verse]\nHello!');
+		expect(snapshots.mock.calls.at(-1)?.[0].atomic).toBeUndefined();
+
+		// A selection moving is not an edit, so it may not report one either.
+		snapshots.mockClear();
+		handle.setSelection({ anchor: 0, head: 0 });
+		expect(snapshots.mock.calls.at(-1)?.[0].atomic).toBeUndefined();
+	});
+
 	it('reveals a selected line near the upper third of the editor', async () => {
 		const lines = Array.from({ length: 80 }, (_, index) => `Line ${index + 1}`);
 		const text = lines.join('\n');

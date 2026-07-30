@@ -666,6 +666,22 @@ export interface EditorSnapshot {
 	composing: boolean;
 	canUndo: boolean;
 	canRedo: boolean;
+	/**
+	 * This snapshot's document change arrived as one complete edit rather than as
+	 * composition: a fix, a bulk fix, an inserted marker or header, a performer
+	 * assignment, a whole document replaced.
+	 *
+	 * The shell cannot infer this and used to guess at it from how much text
+	 * changed, which is wrong in both directions — `Fix all 2 · Replace with '`
+	 * rewrites two characters in different verses for a net delta of zero, and a
+	 * single-occurrence fix inserts one character at the caret exactly as typing
+	 * one there would. `dispatchAtomicEdit` has always annotated its transaction
+	 * `input.atomic`; this is that annotation reaching the shell, so `settlesOn`
+	 * can tell a press from a keystroke instead of estimating.
+	 *
+	 * Absent on a selection-only snapshot, which changes no text.
+	 */
+	atomic?: true;
 }
 
 /** Shell-safe control surface for the CodeMirror-owned editor. */

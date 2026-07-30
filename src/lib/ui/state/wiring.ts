@@ -86,12 +86,14 @@ export function computeDiagnostics(parsed: ParsedDocument, context: RuleContext)
  * Two characters rather than one, so an IME commit, a bracket auto-close and a
  * `\r\n` all count as typing.
  *
- * **What it still gets wrong, knowingly:** a single-occurrence fix (`Dont` →
- * `Don't`) inserts one character at the caret and is indistinguishable from
- * typing one there. The cost is 1.5s in which that line's other findings and the
- * song's shape findings wait, and the honest repair is for the atomic-edit path
- * to say so rather than for this to guess better — `dispatchAtomic` knows what
- * this function is trying to infer.
+ * **It is the fallback, not the whole answer.** A change dispatched as one
+ * complete edit says so on the snapshot (`EditorSnapshot.atomic`, off
+ * `dispatchAtomicEdit`'s own `input.atomic` annotation), because the case this
+ * function cannot ever get right is a single-occurrence fix: `Dont` → `Don't`
+ * inserts one character at the caret and is indistinguishable from typing one
+ * there. What is left for this to judge is the changes nobody dispatched —
+ * keystrokes, pastes, drops — where the size of the change is genuinely all
+ * there is to go on.
  */
 export function isTypingChange(previousText: string, nextText: string): boolean {
 	if (previousText === nextText) return false;

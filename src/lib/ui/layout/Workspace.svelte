@@ -137,13 +137,17 @@
 
 	function noteDocumentChange(snapshot: EditorSnapshot): void {
 		if (snapshot.text === settledText) return;
-		const typing = isTypingChange(settledText, snapshot.text);
+		// The editor says outright when a change was one complete edit rather than
+		// composition, so a press is never estimated from how much text moved.
+		// `isTypingChange` is what is left: the changes nobody dispatched, which is
+		// keystrokes, pastes and drops.
+		const typing = !snapshot.atomic && isTypingChange(settledText, snapshot.text);
 		settledText = snapshot.text;
 		if (settleTimer !== undefined) clearTimeout(settleTimer);
 		settleTimer = undefined;
 		if (!typing) {
-			// Text that arrived whole — a draft opened, a paste, the sample, a bulk
-			// fix — is a finished document, so its shape findings are right now.
+			// Text that arrived whole — a draft opened, a paste, the sample, a fix —
+			// is a finished document, so its shape findings are right now.
 			documentSettled = true;
 			return;
 		}

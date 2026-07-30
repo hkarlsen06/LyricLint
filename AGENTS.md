@@ -530,19 +530,26 @@ waits for the user to stop making the answer change, so `settleDelay` is 1500ms 
 fires mid-sentence, which is the noise it exists to remove. Two things it owes:
 
 - **Text that arrived whole is a finished document.** Opening a draft, pasting a transcription,
-  loading the sample and applying a bulk fix all deliver one in a single change, and their shape
-  findings are right immediately — waiting on those would read as the linter being slow.
-  `isTypingChange` is that question, and it measures the **changed span** rather than the length
-  delta: `Fix all 2 · Replace with '` rewrites two characters in different verses for a net delta of
-  zero, so a length comparison called the loudest bulk press in the application "typing" and blinked
-  every shape finding off the panel. Comparing from both ends catches it. Two characters rather than
-  one, so an IME commit, a bracket auto-close and a `\r\n` all count as typing.
+  loading the sample, inserting a header and applying a fix all deliver one in a single change, and
+  their shape findings are right immediately — waiting on those would read as the linter being slow.
 
-  **What it still gets wrong, knowingly:** a single-occurrence fix (`Dont` → `Don't`) inserts one
-  character at the caret and is indistinguishable from typing one there, so it costs 1.5s in which
-  that line's other findings and the song's shape findings wait. The honest repair is for the
-  atomic-edit path to say so rather than for this to guess better — `dispatchAtomic` knows what
-  `isTypingChange` is trying to infer.
+  **The editor says which it was; the shell does not estimate it.** `dispatchAtomicEdit` has always
+  annotated its transaction `input.atomic`, and that annotation now reaches the shell as
+  `EditorSnapshot.atomic`, so every path that replaces text as one complete edit is covered by the
+  one place that dispatches them. This replaced a guess, and the guess could not have been made to
+  work: a one-occurrence fix (`Dont` → `Don't`) inserts one character at the caret exactly as typing
+  one there would. Only a **document change** may be atomic — a selection moving is not an edit, and
+  reporting it as one would tell the shell a press had landed when nothing had.
+
+  `isTypingChange` is what is left, and it judges only the changes nobody dispatched — keystrokes,
+  pastes, drops. It measures the **changed span** rather than the length delta, because
+  `Fix all 2 · Replace with '` rewrites two characters in different verses for a net delta of zero;
+  that press is atomic now and never reaches this function, but a paste with the same shape would.
+  Two characters rather than one, so an IME commit, a bracket auto-close and a `\r\n` count as typing.
+
+  **`MockEditorPane` reports `atomic` too**, off its own `dispatchAtomic`. A mock that never did
+  would make every component test look like typing, which is the state the real editor is in least
+  often when a test drives it.
 
 - **The pause has to re-publish the snapshot in hand**, because nothing else emits one when typing
   merely stops. It costs what `republishForSectionLinks` costs, which is nothing: the lint is
@@ -566,9 +573,11 @@ used to run for two rule ids — it now runs for nearly every finding, on every 
 caret move. `filterForEditorState` builds one line table instead, lazily, and returns early when
 nothing is deferred at all.
 
-Implementation: `SettlesOn` and both fields in `src/lib/core/types.ts`, the default in `diagnostic()`
-in `rules/catalog/utils.ts`, `filterForEditorState` and `isTypingChange` in
-`src/lib/ui/state/wiring.ts`, and the settle timer in `Workspace.svelte`.
+Implementation: `SettlesOn`, `Diagnostic.settlesOn` and `EditorSnapshot.atomic` in
+`src/lib/core/types.ts`; the tier default in `diagnostic()` in `rules/catalog/utils.ts`;
+`filterForEditorState` and `isTypingChange` in `src/lib/ui/state/wiring.ts`; the `input.atomic`
+read in `extensions/update-bridge.ts` against `dispatchAtomicEdit`'s annotation in
+`transaction-adapter.ts`; and the settle timer in `Workspace.svelte`.
 `src/lib/rules/typing-churn.test.ts` is the harness that produced the numbers above, kept as a
 regression: it types the verse a character at a time and asserts the doomed-episode list is
 **empty**. A rule added at the wrong tier fails there rather than in somebody's transcription.

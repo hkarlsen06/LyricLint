@@ -11,7 +11,7 @@ import {
 	setComposingEffect
 } from './editor-state.js';
 
-export function snapshotFromState(state: EditorState): EditorSnapshot {
+export function snapshotFromState(state: EditorState, atomic = false): EditorSnapshot {
 	const text = state.doc.toString();
 	const selection = state.selection.main;
 	const context = state.field(editorContextField);
@@ -25,7 +25,8 @@ export function snapshotFromState(state: EditorState): EditorSnapshot {
 		diagnostics: diagnosticsForState(state),
 		composing: state.field(editorComposingField),
 		canUndo: undoDepth(state) > 0,
-		canRedo: redoDepth(state) > 0
+		canRedo: redoDepth(state) > 0,
+		...(atomic ? { atomic: true as const } : {})
 	};
 }
 
@@ -64,7 +65,15 @@ export function createUpdateListener(callback: (snapshot: EditorSnapshot) => voi
 			// so emitting here would form an infinite update cycle.
 			const resumedComposition = update.startState.field(editorComposingField);
 			if (update.docChanged || update.selectionSet || resumedComposition) {
-				callback(snapshotFromState(update.state));
+				// `input.atomic` is `dispatchAtomicEdit`'s own annotation, so every
+				// path that replaces text as one complete edit is covered by the one
+				// place that dispatches them. Only a document change can be atomic: a
+				// selection moving is not an edit, and reporting it as one would tell
+				// the shell a press had landed when nothing had.
+				const atomic =
+					update.docChanged &&
+					update.transactions.some((transaction) => transaction.isUserEvent('input.atomic'));
+				callback(snapshotFromState(update.state, atomic));
 			}
 		})
 	];

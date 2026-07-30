@@ -27,7 +27,7 @@
 	let future = $state<string[]>([]);
 	let sectionLinks = $state<SectionLink[]>([]);
 
-	function currentSnapshot(): EditorSnapshot {
+	function currentSnapshot(atomic = false): EditorSnapshot {
 		return {
 			revision,
 			text,
@@ -36,21 +36,27 @@
 			diagnostics: [],
 			composing: false,
 			canUndo: history.length > 0,
-			canRedo: future.length > 0
+			canRedo: future.length > 0,
+			...(atomic ? { atomic: true as const } : {})
 		};
 	}
 
-	function emitSnapshot(): void {
-		callbacks.onSnapshot(currentSnapshot());
+	function emitSnapshot(atomic = false): void {
+		callbacks.onSnapshot(currentSnapshot(atomic));
 	}
 
-	function replace(nextText: string, nextSelection = selection): void {
+	// The real pane reports `atomic` off `dispatchAtomicEdit`'s own transaction
+	// annotation, and the shell spends it on whether a document is being composed
+	// or was changed by a press. A mock that never reported it would make every
+	// component test look like typing, which is the state the real editor is in
+	// least often when a test drives it.
+	function replace(nextText: string, nextSelection = selection, atomic = false): void {
 		history = [...history, text];
 		future = [];
 		text = nextText;
 		selection = { ...nextSelection };
 		revision += 1;
-		emitSnapshot();
+		emitSnapshot(atomic);
 	}
 
 	function applyAtomic(edit: AtomicDocumentEdit): void {
@@ -59,7 +65,7 @@
 		for (const change of [...edit.edits].sort((left, right) => right.from - left.from)) {
 			nextText = `${nextText.slice(0, change.from)}${change.insert}${nextText.slice(change.to)}`;
 		}
-		replace(nextText, edit.selectionAfter ?? selection);
+		replace(nextText, edit.selectionAfter ?? selection, true);
 	}
 
 	const editorHandle: EditorPaneProps['handle'] = {
