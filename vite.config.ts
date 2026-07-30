@@ -155,6 +155,47 @@ export default defineConfig({
 						provider: playwright(),
 						instances: [{ browser: 'chromium', headless: true }]
 					},
+					/**
+					 * A ceiling on how many test files are in a browser at once. It is a
+					 * ceiling rather than a repair, and the measurements are recorded here
+					 * because the reasoning that first proposed it was wrong twice.
+					 *
+					 * The guess was that Vitest sizes its pool from the CPU count, so eight
+					 * cores would mean eight Chromium instances at a few hundred MB each, and
+					 * that an 8-core / 15GiB box would swap and report it as a timeout on a
+					 * different file each run — a memory ceiling wearing the costume of a
+					 * race. Both halves are wrong. Browser mode launches *one* Chromium and
+					 * opens a page per file, so the per-file cost is a renderer child rather
+					 * than a browser; and the pool never saturates anyway, because these
+					 * files are individually quick.
+					 *
+					 * Measured on this repo, 122 files and 1520 tests: the whole suite runs
+					 * in ~30s and peaks at 6.8GB of 15GiB with zero swap, capped or not.
+					 * So the cap currently costs nothing and prevents nothing.
+					 *
+					 * It stays because the file count only goes up and the failure it guards
+					 * against is the expensive kind to diagnose — but re-measure before
+					 * believing any of the above. These are one machine's numbers, and a
+					 * suite with slower individual files would saturate a pool this one
+					 * leaves idle.
+					 *
+					 * The `server` project is deliberately uncapped — its 85 files are the
+					 * bulk of the run and a node worker is cheap enough to have one per core.
+					 */
+					maxWorkers: 4,
+					/**
+					 * Vitest refuses two projects that disagree about `maxWorkers` while
+					 * sharing a group, because a group is what it sizes a pool for — so the
+					 * cap above is only expressible if these two run in separate groups.
+					 * The node project takes group 0 and this one group 1.
+					 *
+					 * Running second is the right half of that anyway: the 85 node files
+					 * finish in about six seconds and are where a broken rule or transform
+					 * shows up, so putting them first is the faster failure. It also hands
+					 * the browsers a machine the node pool has already let go of, which is
+					 * the memory argument the cap is making, for free.
+					 */
+					sequence: { groupOrder: 1 },
 					// Loads the token stylesheet so computed-style assertions see the
 					// real design system rather than CSS fallbacks.
 					setupFiles: ['./vitest-setup-client.ts'],
@@ -168,6 +209,11 @@ export default defineConfig({
 				test: {
 					name: 'server',
 					environment: 'node',
+					// Group 0, so these run before the browser project — see the note on
+					// `sequence.groupOrder` there. Deliberately no `maxWorkers`: a node worker
+					// is cheap enough to have one per core, and these 85 files are the bulk of
+					// the run.
+					sequence: { groupOrder: 0 },
 					include: ['src/**/*.{test,spec}.{js,ts}'],
 					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
 				}
