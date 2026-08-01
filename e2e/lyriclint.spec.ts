@@ -76,23 +76,46 @@ test('the homepage and workbench align the wordmark and link it home', async ({ 
 
 	await expect(page.getByRole('link', { name: 'About' })).toHaveAttribute('aria-current', 'page');
 	const siteWordmark = page.locator('.site-header .app-wordmark');
+	const siteHeader = page.locator('.site-header');
 	await expect(siteWordmark).toHaveAttribute('data-state', 'static');
 	await expect(siteWordmark).toHaveCSS('transition-property', 'none');
-	const siteHeaderBox = await page.locator('.site-header').boundingBox();
+	await expect(siteHeader).not.toHaveAttribute('data-scrolled');
+	const borderAtRest = await siteHeader.evaluate(
+		(element) => getComputedStyle(element).borderBottomColor
+	);
+	const siteHeaderBox = await siteHeader.boundingBox();
 	const siteWordmarkBox = await siteWordmark.boundingBox();
+
+	// The masthead's contents align with the page container, not the viewport:
+	// the brand shares a left edge with the headline and every paragraph.
+	const heroInner = page.locator('.lp-hero__inner');
+	const heroInnerBox = await heroInner.boundingBox();
+	const heroGutter = await heroInner.evaluate((element) =>
+		Number.parseFloat(getComputedStyle(element).paddingLeft)
+	);
+
+	// The transparent border is present at rest so the band never moves; only
+	// its paint arrives once content starts travelling underneath the sticky
+	// masthead.
+	await page.evaluate(() => window.scrollTo(0, 40));
+	await expect(siteHeader).toHaveAttribute('data-scrolled', 'true');
+	await expect
+		.poll(() => siteHeader.evaluate((element) => getComputedStyle(element).borderBottomColor))
+		.not.toBe(borderAtRest);
+	expect((await siteHeader.boundingBox())?.height).toBe(siteHeaderBox?.height);
 
 	await page.getByRole('link', { name: 'Open the workbench' }).first().click();
 	await expect(editor(page)).toBeVisible();
 	const toolbarBox = await page.locator('.document-toolbar').boundingBox();
-	const toolbarWordmarkBox = await page.locator('.document-toolbar .app-wordmark').boundingBox();
 
 	expect(siteHeaderBox).not.toBeNull();
 	expect(siteWordmarkBox).not.toBeNull();
+	expect(heroInnerBox).not.toBeNull();
 	expect(toolbarBox).not.toBeNull();
-	expect(toolbarWordmarkBox).not.toBeNull();
+	// The band is still exactly the workbench toolbar's height, so arriving at
+	// the tool reads as the same window rather than a second product.
 	expect(siteHeaderBox!.height).toBe(toolbarBox!.height);
-	expect(siteWordmarkBox!.x).toBeCloseTo(toolbarWordmarkBox!.x, 1);
-	expect(siteWordmarkBox!.y).toBeCloseTo(toolbarWordmarkBox!.y, 1);
+	expect(siteWordmarkBox!.x).toBeCloseTo(heroInnerBox!.x + heroGutter, 1);
 
 	await page.getByRole('link', { name: 'LyricLint home' }).click();
 	await expect(page).toHaveURL(/\/$/u);
@@ -200,11 +223,11 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 
 	const sitemap = await sitemapResponse.text();
 	// The home page, the rule index, and one page per rule — so this number moves
-	// by one every time a rule ships. It read 49 against 52 rules for three
+	// by one every time a rule ships. It read 52 against 55 rules for three
 	// releases, which is what a bare figure with nothing saying what it counts
 	// costs; the arithmetic is written out so the next mismatch is legible.
 	const rulePages = sitemap.match(/<loc>https:\/\/lyriclint\.com\/rules\/[^/]+\/<\/loc>/gu) ?? [];
-	expect(rulePages).toHaveLength(52);
+	expect(rulePages).toHaveLength(55);
 	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + 2);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/</loc>');

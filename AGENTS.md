@@ -2807,85 +2807,183 @@ Canonical implementations: `src/lib/editor/overlays/SectionPicker.svelte`,
 `src/lib/editor/overlays/PerformerPicker.svelte`, `src/lib/editor/overlays/DiagnosticPopover.svelte`,
 and `src/lib/ui/layout/DraftMenu.svelte`.
 
-### The hero is a claim, a sentence, and a line of facts
+### The landing page is a composition, and the workbench is the evidence in it
 
-The landing page opened with a headline, four muted lines restating the entire product, two
-actions, and two more muted lines explaining what the product could not do — all at the same
-spacing, so nothing led and the loudest control on the page was followed immediately by a caveat
-about it. Six blocks of grey before the reader reached the live demo that would have convinced
-them. Overwhelming is a symptom of mass; unconfident is a symptom of saying everything at once
-and then apologising.
+The rest of this system is a tool. The landing page is the one surface nobody operates, read once
+by somebody who has never heard of the product, and it is laid out for that rather than for the
+compact UI ramp everything else here uses.
 
-Three things, in three different sizes, and nothing else:
+**The hero carries the claim and the proof in the same screen.** The previous arrangement reserved
+a viewport for four small centred elements — headline, lede, two actions, a line of facts — and
+sized itself to leave a peek of the live demo showing underneath, cut off, as the scroll
+affordance. That was the right answer to the problem it had, which is that the evidence was below
+the fold. The product shot is _in_ the hero now, directly under the actions, so there is nothing
+left to peek at and nothing to reserve: `--site-hero-reserved`, the `svh` arithmetic, and the
+`32rem` cap are all gone, and with them three measured numbers that had to be re-measured every
+time the heading's margins moved.
 
-- **The headline is the claim**, at `--font-size-3xl` — the one step past the display size, fluid
-  between a phone and an 800px viewport, and the only use of it in the system. It is
-  `text-wrap: balance`d so it breaks between phrases instead of wherever the column runs out, and
-  its tracking is negative, because the spacing that keeps 15px UI text legible reads as loose at
-  40px.
-- **The lede is one sentence**, and it says the one thing that separates this from a
-  spellchecker: the guideline behind each finding. Everything it used to say beyond that —
-  what the product is, what the workflow is, what the copied markup is worth — already has a
-  section of its own further down, and a first paragraph that says all of it is the drift this
-  section exists to prevent.
-- **What it costs is a line of facts**, in the meta idiom the diagnostic card established:
-  interpuncts, muted, small, `Free · No account · Desktop or laptop`. A requirement stated as a
-  specification reads as a specification; the same requirement spelled out in two sentences under
-  the button reads as an apology for the button. There are three because a fourth wrapped at a
-  phone's width, and the one that went is the privacy claim — the footer of every page already
-  carries it.
+Four moves, and each answers a way the page failed before:
 
-The separator and the fact after it are one flex item (`.site-meta__fact`), so a wrap can never
-leave an interpunct dangling at the end of a line with nothing to separate.
+- **A claim at display size over a lit grid.** `--lp-display` is a marketing ramp of its own, and
+  it is not `--font-size-3xl`: that token tops out at 2.5rem because it is sized for a headline
+  sitting in a column of prose, and at 2.5rem, alone on a screen, it reads as a heading rather
+  than as a claim. Tracking is negative all the way up, because the spacing that keeps 15px UI
+  text legible reads as loose at 60px.
+- **Sections announce themselves in the margin.** An eyebrow in mono caps — `Live demo`,
+  `Sourced rules`, `Local first` — says what kind of thing is coming, so the heading under it can
+  be a sentence rather than a label and a reader skimming has a rail of short words to skim.
+- **Runs of facts are one bordered object with hairlines inside it**, exactly as the linter draws
+  a run of diagnostics, and for the same reason: the run is what is separated from the page, and
+  the members are separated from each other by the line where they meet. Four bordered cards with
+  gaps between them is four boundaries doing one boundary's job.
+- **The measure stays narrow even though the page is wide.** `.lp-container` is `--measure-split`
+  because what it sizes is an arrangement; every paragraph inside it caps itself again at
+  `--measure-prose`. **The measure goes on the heading itself, never on the block around it** —
+  `ch` resolves against the element's own font, so a cap set on the wrapper is a cap in _body_
+  text, and the display-sized heading inside it then breaks into three short lines in a narrow
+  column with half the page empty beside it.
 
-The three are **centred, and they are the only centred thing on the site.** The hero is a stack
-read as one object with a screen of space around it; everything below it is prose, and prose is
-read down a left edge.
+**The floating marks are the notation, not a logo.** The composition this is modelled on floats
+the logos of the products it integrates with; this one integrates with nothing, so the equivalent
+is the marks a transcriber actually types — `[Verse 1]`, `<i>Blair</i>`, `[?]`, `(Yeah)` — set in
+the face the editor sets them in, which says what the tool is about before a word of copy is read.
+They are `aria-hidden` and every one is explained in prose further down, so nothing is carried by
+them alone.
 
-No border and no fill: a hero that boxed itself would be a card separating its contents from
-nothing. The space around it is the boundary.
+Two constraints place them, and both are about what a mark must not land on. Sideways: the
+headline is centred and `balance`d, so its longest line reaches the middle two thirds of the
+container at every width, and the marks sit outside that band — below `64rem` they are removed
+outright, because there is no outside left. Downwards: the product shot occupies the bottom half
+of the section and nothing may drift over the evidence, so the marks are confined to the top 40%.
+A fifth mark reading `[Chorus: Avery & Blair]` was **cut rather than repositioned**: it is the
+longest string of the set, so it reached the words at one width and the screenshot at the next.
 
-**It takes the screen and leaves exactly one thing on it: the top of what comes next.** A first
-screen that is only a headline is a claim with no evidence under it, and one that ends at a clean
-viewport edge reads as the end of the page — either way the reader never reaches the live demo,
-which is the only thing here that proves any of it. So the hero is sized to stop short, and the
-next heading and the top edge of the editor stay on screen underneath it, cut off. That is the
-scroll affordance; there is no chevron, and adding one would be saying it twice.
+**The product shot is generated, not taken.** `scripts/render-workbench-shot.mjs` drives the real
+workbench in a real browser and screenshots it, for the reason `render-social-preview.mjs` is a
+script — a picture taken by hand goes stale the first time a severity color or the toolbar's
+arrangement moves, silently, and it is the first thing anybody sees. Four things it owes:
 
-**The heading sits directly on the demo, and what the sample gets wrong is read back afterwards.**
-That paragraph used to lead into the editor with a colon, which put four lines of prose in the peek
-describing a picture the reader could not see yet — and it cost the hero the same four lines, so
-the claim sat higher up the screen than it had to. Underneath the demo it names findings that are
-already on screen, so it needs no colon and no forward reference, and the peek is the pair worth
-peeking at.
+- **The transcription in it is invented, line by line.** This is the one screenshot that must not
+  contain a real transcription: it ships in the bundle and on every social card, so anything
+  quoted in it is quoted permanently. It is written to be wrong in several ordinary ways at once,
+  because a linter showing an empty panel is a picture of nothing happening.
+- **It opens a finding**, which puts the card's explanation, its citation and its fix on screen
+  _and_ previews that fix in the document as a diff — so both halves of the product are in one
+  frame. It presses the panel's leading diagnostic rather than naming a rule, so the shot follows
+  `diagnostics/order.ts` instead of pinning it.
+- **The viewport is 1280 and not a laptop's full width.** The lyric column is capped at
+  `--measure-editor` and left-aligned, so every pixel past the panel is empty document; at 1440 a
+  third of the picture was bare canvas, which reads as an application with nothing in it.
+- **`reducedMotion: 'reduce'`, and the focus is blurred before the capture.** The wordmark springs
+  open on arrival, and a still taken mid-spring catches the brand halfway; a focus ring in a
+  photograph reads as a control the reader is being asked to press.
 
-Three things that arithmetic depends on:
+**The performer section has a shot of its own, from the same script** (`--performers`), and it is
+the opposite of the hero's in every deliberate way. It is **portrait**: it stands beside the
+section's copy in an `.lp-split` on a desktop rather than under it, so what fills its height is a
+whole short song — three legends, the picker over a pointer selection in Verse 2 — and the crop
+is sized off the text's real extent rather than the editor column's, because a `.cm-line`'s own
+box is the full content width. It is _clean_, because a column of unrelated underlines would
+compete with the one thing the picture is about; that includes the apostrophes, which are
+typewriter ones on purpose — a curly `we’d` drew a finding whose fix the document-replacement lead
+then previewed as a diff in the shot. The selection is the **last line of Verse 2**, because the
+picker prefers the space above the selection and anywhere else it covered a section header — a
+hidden header reads as a song with a hole in it — and because that puts the roster beside the
+section title's reading path instead of near the foot of the image. The script adds the performers through the roster
+before pasting, so the legends resolve instead of arriving as unresolved voices, and it dismisses
+the roster's confirmation toasts before capturing — a toast in a product shot is a notification
+about work the reader never did. There is deliberately no second chorus: two would raise
+`section.unlinked-repeat`, a real finding that is not this picture's subject. `.lp-shot--detail`
+is the hero frame without the hero's theatre: no tilt and the bloom turned down, because the tilt
+is the opening gesture and repeating it down the page turns a device into a tic.
 
-- **`svh`, never `dvh`.** A phone's URL bar retracts on the first scroll, and `dvh` grows the hero
-  underneath the reader as it goes, closing the gap the hero exists to hold open.
-- **`--site-hero-reserved` is measured, not guessed** — the header band, the page's own top
-  padding, and the peek. It is _smaller_ on a phone (`14rem` against `18.5rem`), because the phone
-  gives back the header's padding and the peek is only the heading and the editor's top edge.
-  Re-measure it if the heading's margins, the header, or what sits between them changes.
-- **On a short phone the subtraction stops governing**, and nothing peeks: below roughly a 600px
-  visible viewport the hero's own content — a four-line headline, the lede, two stacked actions,
-  the fact line — is taller than the `min-height` this arithmetic computes, so the box grows to fit
-  and the next heading lands at the fold. That is not a regression to hunt; it is the floor of what
-  the hero contains. Fixing it means making the hero's contents shorter at that height, not tuning
-  the reservation.
-- **The height is capped at `32rem`.** The subtraction alone is right on a laptop, which is wide
-  and short; a tablet held in portrait is a thousand pixels tall, and centring four small elements
-  in all of it puts a hundred and fifty pixels of nothing above the headline and the same below.
-  Past the cap the hero stops growing and the page moves up instead, which is the right trade — a
-  taller screen showing more of the demo is more evidence, while a taller screen showing more
-  empty canvas is only a longer scroll to the same place.
+**The grammar section's shot is real too** (`--harper`), and it replaced a hand-drawn `<pre>`
+mock-up of the same card — which is the drift a generated shot exists to prevent: the mock's
+wording, marks and layout were already three releases behind the popover it imitated. The script
+hovers the flagged word the way a reader does (through `HoverIntent`, so the pointer arrives and
+stays) and captures the popover with the fix previewed as a diff in the line, the Harper citation,
+and the advisory explanation — the section's own argument in the product's own words. Its document
+is four lines with exactly one finding, so the card is most of the picture.
 
-Below `32rem` the two actions stop fitting on one row by about two pixels, so they become a column
-on purpose, at one width. Two centred buttons of unequal width stacked on each other read as a row
-that broke rather than as a column that was meant.
+The frame states the image's aspect ratio and the image fills it, or the page reflows by several
+hundred pixels when the PNG lands — directly under the headline, which is the worst place on the
+site for the layout to move. **The border is inside the radius, drawn by the same element that
+clips**, which is the rule `.site-demo` already states at length. And **the glow is behind the
+frame rather than on it**: a shadow alone under a near-black screenshot on a near-black page is
+invisible, so what separates the two is an accent-tinted bloom cast onto the page from behind the
+frame's own edges, which is also what makes the shot read as lit.
 
-Implementation: `.site-hero` in `src/lib/ui/styles/site.css` and
-`src/routes/(site)/+page.svelte`.
+**The hero asks for one press, so it draws one button.** The rule reference is a quiet text link
+_under_ the contrast action, not a second button beside it: two buttons of equal weight at the
+head of the page are two answers to "what do I do now", asked of a reader who has read nothing
+yet. The closing CTA is the other way round on purpose — by then the argument has been made, both
+destinations are earned, and the pair sits side by side (`.lp-cta__actions`). Below `32rem` that
+pair becomes a column, at one width, because two centred buttons of unequal width stacked on each
+other read as a row that broke rather than as a column that was meant; the hero's actions are
+already a column at every width.
+
+Implementation: `src/lib/ui/styles/landing.css` (the whole system),
+`src/routes/(site)/+page.svelte`, and `scripts/render-workbench-shot.mjs`. `.site-meta__fact`
+survives in `site.css` because three surfaces draw a meta line, not one.
+
+### The marketing site pins its scheme, and pinning one is not a handful of overrides
+
+The workbench follows `prefers-color-scheme`, because it is a tool somebody sits in front of for
+an hour in whatever light they are in. The site does not. Its whole composition — a lit grid
+behind the headline, marks floating over it, a screenshot that reads as a screen standing in the
+page — is a dark composition, and rendered light none of it is merely paler: the glow has nothing
+to glow against and the shot becomes a rectangle of night stapled to a white page. So `.site`
+declares a complete palette and `color-scheme: dark`, and it is the one surface in the system that
+does.
+
+**It is a complete palette rather than a few overrides, and it has to be**, because the live demo
+mounts the real editor inside it — severity underlines, performer bars, selection, and every fill
+the diagnostic card uses all resolve there.
+
+**Two halves, answering to different things.** The surfaces are the site's own and deeper than the
+app's dark scheme: the workbench's canvas is a charcoal chosen so a document can sit on it for an
+hour, while a landing page wants the contrast under a display headline. The product colors —
+severity, accent, focus, the performer identities — are the workbench's verbatim, because they are
+what the demo is a demonstration _of_, and a page showing a different amber for a warning than the
+tool does would be misreporting the thing it is selling.
+
+**The derived tokens have to be restated, and leaving them out looks exactly like working CSS.**
+This is the part worth remembering. A custom property is inherited as its _substituted_ value:
+`--color-control: var(--color-surface)` is declared on `:root`, so it resolves against `:root`'s
+own `--color-surface` — the light one — and what reaches `.site` is already a colour. Overriding
+`--color-surface` further down the tree does not reach back and change it. The app's own dark
+scheme never meets this because it redeclares the anchors on `:root` too, where every derivation
+re-substitutes for free.
+
+The failure is silent and partial: the page renders, most of it is right, and a handful of
+surfaces keep light-mode values. It shipped exactly once, as a near-white light-mode fill under
+near-white dark-mode text, which made `Browse the rules` beside the hero's contrast action
+invisible.
+
+`site-palette.test.ts` is the guard, and it **walks the derivation graph** rather than trusting the
+list in `site.css` to stay complete: every token the dark scheme moves is restated, and so is
+every token that reaches one of those through any chain of `var()` references. It deliberately
+does _not_ assert that a restated derivation still points at the same base — `--color-chrome` is
+`--color-fill-subtle` in the app and its own value here, so the header band sits under the page's
+cards rather than level with them. What the site owes is that a token is declared at all: declared,
+it is the site's own decision either way; missing, it is silently the light theme's.
+
+One thing that test had to learn about this repository: **it strips comments before parsing.**
+These stylesheets quote the declarations they explain, and the note on `.site` contains the literal
+text `--color-control: var(--color-surface)` with no semicolon after it — so a declaration matcher
+run over the raw file starts there and swallows everything up to the next `;`, taking the real
+declarations in between with it. That is how its first run reported `--color-overlay` missing from
+a block that declares it on the line it was pointing at.
+
+Implementation: the `.site` block and `.site::after` in `src/lib/ui/styles/site.css`, and
+`src/lib/ui/styles/site-palette.test.ts`.
+
+**The noise film over the page is not decoration.** It is `fixed`, 3% opacity, and never seen as
+texture — it is seen as the flat fields under it _not_ banding. This page spends most of its area
+on very dark near-neutral surfaces and two large radial gradients, which is precisely the
+arrangement an 8-bit-per-channel display draws as visible rings; a fractional dither breaks the
+step up. It takes no press, and it sits above the content but below every overlay tier, because a
+texture painting over a popover would be the one thing here anybody actually notices.
 
 ### On a phone the site header is not a band, and the masthead never underlines
 
@@ -2897,10 +2995,26 @@ the page said was that it was two mismatched bands, before it said anything abou
 Below `46rem` the fill comes off, and the border with it. A band separates pinned chrome from
 content moving under it; at this width the header scrolls away with the document like everything
 else, so it separates nothing, and a hairline under a band the same color as the page is a rule
-drawn across the canvas for no reason. The footer keeps its rule and loses its fill for the same
-trade — the rule is what marks the end of the article, and it does that job alone. **On a laptop
-the band stays**, because there it is the workbench's own band over a wide page with no browser
-tint above it to disagree with.
+drawn across the canvas for no reason. **On a laptop the masthead stays and travels with the
+reader** — it is `position: sticky`, its fill is the site's chrome grey, translucent, and a
+`backdrop-filter` keeps the type legible once a paragraph or a screenshot scrolls behind it.
+Chrome rather than canvas, because what the band sits over is the hero's lit grid, whose hairlines
+lift that region a step above bare canvas — a pure-canvas band up there read as a black strip on a
+grey field, which is the two-mismatched-bands failure this section opens with, arrived at from the
+other direction. Its border is transparent for the same reason a phone's is absent: a hairline
+under a band near the colour of the page rules a line across the canvas for nothing.
+
+**Its height is fixed by something outside `site.css` and must not move; its contents align with
+the page, not the viewport.** `e2e/lyriclint.spec.ts` asserts that this band is exactly as tall as
+the workbench's document toolbar — which is what makes arriving at the tool from here read as the
+same window rather than as a second product — and that the wordmark's left edge is the page
+container's own gutter (`.site-header__inner`, `--measure-split` plus the `--space-5` every
+`.lp-container` carries). A marketing masthead belongs to the column being read; the workbench's
+toolbar belongs to the window being operated, which is why the two brands no longer share an x.
+
+The footer keeps its rule and loses its fill at every width — a filled band at the foot of a page
+that ends in a call to action is a second surface competing with the last thing the reader is meant
+to press, and the hairline already says where the article stops.
 
 Two things that follow, and both are load-bearing:
 

@@ -8,6 +8,11 @@
 	let { children } = $props();
 	const socialImageUrl = siteUrl('/social-preview.png');
 
+	// The masthead's hairline arrives with the first scroll (see `.site-header`
+	// in site.css). Read off the window, so the rule reference — whose shell
+	// scrolls internally and never moves the document — simply never draws it.
+	let scrollY = $state(0);
+
 	// Trailing slashes and the index route both have to match, so compare the
 	// path prefix rather than the string. `/rules/spelling-standardized` is still
 	// inside Rules.
@@ -58,20 +63,27 @@
      workbench's own: exactly the viewport tall, and the scrolling happens inside
      it. `site.css` drops back to `document` on narrow screens, where there is
      only one column on show and the document is the honest scroller again. -->
+<svelte:window bind:scrollY />
+
 <div class="site" data-shell={current('/rules') ? 'window' : 'document'}>
-	<header class="site-header">
-		<a class="site-home" href={resolve('/')}>
-			<AppWordmark animated={!current('/')} />
-			<span class="sr-only">LyricLint home</span>
-		</a>
-		<nav class="site-nav" aria-label="LyricLint">
-			<a href={resolve('/')} aria-current={current('/')}>About</a>
-			<a href={resolve('/rules/')} aria-current={current('/rules')}>Rules</a>
-			<!-- Dropped on a phone, where it is the one link in the masthead that
-			     cannot lead anywhere: the workbench is removed at that size and the
-			     gate takes its place. See `site.css`. -->
-			<a href={resolve('/lint/')}>Open the app</a>
-		</nav>
+	<header class="site-header" data-scrolled={scrollY > 8 ? true : undefined}>
+		<!-- The band spans the window; its contents align with the page container,
+		     so the brand shares a left edge with the headline and every paragraph
+		     rather than hugging the viewport. -->
+		<div class="site-header__inner">
+			<a class="site-home" href={resolve('/')}>
+				<AppWordmark animated={!current('/')} />
+				<span class="sr-only">LyricLint home</span>
+			</a>
+			<nav class="site-nav" aria-label="LyricLint">
+				<a href={resolve('/')} aria-current={current('/')}>About</a>
+				<a href={resolve('/rules/')} aria-current={current('/rules')}>Rules</a>
+				<!-- Dropped on a phone, where it is the one link in the masthead that
+				     cannot lead anywhere: the workbench is removed at that size and the
+				     gate takes its place. See `site.css`. -->
+				<a href={resolve('/lint/')}>Open the app</a>
+			</nav>
+		</div>
 	</header>
 
 	{@render children()}

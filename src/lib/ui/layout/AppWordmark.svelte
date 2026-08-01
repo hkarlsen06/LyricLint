@@ -45,11 +45,13 @@
 	let {
 		entrance = 'hold',
 		animated = true,
-		visible = true
+		visible = true,
+		markOnly = false
 	}: {
 		entrance?: 'hold' | 'handoff' | 'reveal';
 		animated?: boolean;
 		visible?: boolean;
+		markOnly?: boolean;
 	} = $props();
 
 	/**
@@ -92,7 +94,7 @@
 
 	$effect(() => {
 		const reveal = entrance === 'reveal';
-		if (!visible || !animated || prefersReducedMotion) return;
+		if (markOnly || !visible || !animated || prefersReducedMotion) return;
 		// Reading `entrance` in here is deliberate: a client-side navigation between
 		// the site pages swaps the mode without remounting the header's lockup, and
 		// re-running the timer is what plays the arriving page's entrance. Resetting
@@ -133,15 +135,17 @@
 	// modes would have reached; the wordmark carries the most brand for the least
 	// movement, so it is the right thing to sit still as.
 	const openState = $derived(
-		!animated || prefersReducedMotion
-			? 'static'
-			: latched === true
-				? 'latched'
-				: latched === false
-					? 'released'
-					: introOpen
-						? 'intro'
-						: 'idle'
+		markOnly
+			? 'mark'
+			: !animated || prefersReducedMotion
+				? 'static'
+				: latched === true
+					? 'latched'
+					: latched === false
+						? 'released'
+						: introOpen
+							? 'intro'
+							: 'idle'
 	);
 </script>
 
@@ -167,8 +171,8 @@
 	data-visible={visible}
 	role="img"
 	aria-label="LyricLint"
-	onclick={togglePress}
-	onpointerleave={releaseLatch}
+	onclick={markOnly ? undefined : togglePress}
+	onpointerleave={markOnly ? undefined : releaseLatch}
 >
 	<span class="app-wordmark__lead" aria-hidden="true">
 		<span class="app-wordmark__letters">

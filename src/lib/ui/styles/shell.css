@@ -303,6 +303,13 @@
 	transition: none;
 }
 
+.app-wordmark[data-state='mark'] {
+	--wm-open: 0;
+	cursor: default;
+	pointer-events: none;
+	transition: none;
+}
+
 /* The boot screen leaves the same lockup behind in the toolbar, drawn from left
    to right after the travel beat so the second drawing reads as a handoff rather
    than waiting chrome.

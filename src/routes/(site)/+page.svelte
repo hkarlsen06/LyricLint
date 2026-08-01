@@ -3,6 +3,7 @@
 	import { enabledRules, sourceRegistry } from '$lib/rules/index.js';
 	import { siteUrl } from '$lib/seo.js';
 	import LiveDemo from '$lib/ui/site/LiveDemo.svelte';
+	import LyricIcon from '$lib/ui/site/LyricIcon.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 
 	// Read off the registry rather than typed into the copy. A landing page that
@@ -46,6 +47,22 @@ and the "quiet" part was never really quiet`;
 I have counted every streetlight on the way
 You said we'd drive until the radio gave out (Yeah)
 And the "quiet" part was never really quiet`;
+
+	// The notation itself, floating over the hero. t3.codes floats the logos of
+	// the agents it orchestrates; this product integrates with nothing, so the
+	// equivalent is the marks a transcriber actually types — a bracketed header,
+	// a performer tag, the unknown-lyric marker, an ad-lib.
+	//
+	// Decorative and `aria-hidden`: every one of them is explained in prose
+	// further down, so nothing is carried by these alone. They are also all
+	// short, which is a constraint rather than a coincidence — see the note above
+	// their positions in `landing.css`.
+	const marks = [
+		{ key: 'verse', text: '[Verse 1]' },
+		{ key: 'voice', text: '<i>Blair</i>' },
+		{ key: 'unknown', text: '[?]' },
+		{ key: 'adlib', text: '(Yeah)' }
+	];
 </script>
 
 <svelte:head>
@@ -63,156 +80,468 @@ And the "quiet" part was never really quiet`;
 
 <StructuredData data={structuredData} />
 
-<main class="site-main site-prose">
-	<!-- Three things, and no more — see `.site-hero` in site.css for why the
-	     block that used to say the whole product up here says one sentence of it
-	     now. The `Desktop or laptop` fact used to be two sentences explaining
-	     that the editor and the linter work side by side; the phone gate already
-	     says exactly that, in full, to the only readers it matters to.
+<main class="lp">
+	<!-- The hero carries the claim and the evidence in one screen. It used to
+	     reserve a viewport for four small centred elements and leave a peek of
+	     the demo showing underneath, which was the right answer while the
+	     evidence was below the fold; the product shot is *in* the hero now, so
+	     there is nothing left to peek at and nothing to reserve. -->
+	<section class="lp-hero">
+		<div class="lp-hero__grid" aria-hidden="true"></div>
 
-	     Three facts and not four, and the one that went is the privacy claim: the
-	     footer of every page already carries it and it has a section of its own
-	     further down. What is left is what this surface owes a reader deciding
-	     whether to press the button — what it costs and what it needs — and it
-	     stays on one line down to a 390px screen, which a fourth did not. -->
-	<header class="site-hero">
-		<h1>Catch Genius formatting problems before you submit.</h1>
-
-		<p class="site-lede">
-			Paste a transcription and see every formatting problem — each one with the Genius guideline
-			behind it.
-		</p>
-
-		<div class="site-actions">
-			<a class="button button--contrast" href={resolve('/lint/')}>Open the workbench</a>
-			<a class="button" href={resolve('/rules/')}>Browse the {ruleCount} rules</a>
+		<div class="lp-hero__float" aria-hidden="true">
+			{#each marks as mark (mark.key)}
+				<span class="lp-hero__mark lp-hero__mark--{mark.key}">{mark.text}</span>
+			{/each}
 		</div>
 
-		<p class="site-meta">
-			<span>Free</span>
-			<span class="site-meta__fact">
-				<span class="site-meta__separator" aria-hidden="true">·</span>On device
-			</span>
-			<span class="site-meta__fact">
-				<span class="site-meta__separator" aria-hidden="true">·</span>Desktop or laptop
-			</span>
-		</p>
-	</header>
+		<div class="lp-container lp-hero__inner">
+			<h1>Catch Genius formatting problems before you submit.</h1>
 
-	<!-- The heading and the demo, with nothing between them. What the sample is
-	     wrong about used to lead into it with a colon; it reads the findings back
-	     afterwards instead, so the first screen's peek is the heading and the top
-	     of the editor rather than a paragraph the reader has no picture for yet.
-	     `--site-hero-reserved` is measured against exactly that pair. -->
-	<h2>What it looks like</h2>
+			<p class="lp-hero__sub">
+				Paste a transcription and see every formatting problem — each one with the Genius guideline
+				behind it.
+			</p>
 
-	<LiveDemo text={messy} performerNames={['Avery', 'Blair']} />
+			<!-- One button, and the rules as a quiet link under it rather than a
+			     second button beside it — see `.lp-hero__actions` in landing.css.
+			     The closing CTA offers both as buttons, after the argument. -->
+			<div class="lp-hero__actions">
+				<a class="button button--contrast" href={resolve('/lint/')}>
+					<LyricIcon />
+					<span>Open the workbench</span>
+				</a>
+				<a class="lp-hero__alt" href={resolve('/rules/')}>
+					<!-- The mark names the destination the way t3's octocat names
+					     GitHub: the reference is a book, in the link's own ink. -->
+					<svg
+						width="15"
+						height="15"
+						viewBox="0 0 16 16"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="1.5"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						aria-hidden="true"
+					>
+						<path
+							d="M8 3.6C6.6 2.7 4.9 2.2 3 2.2c-.4 0-.8.3-.8.7v9c0 .4.4.7.8.7 1.9 0 3.6.5 5 1.4 1.4-.9 3.1-1.4 5-1.4.4 0 .8-.3.8-.7v-9c0-.4-.4-.7-.8-.7-1.9 0-3.6.5-5 1.4Z"
+						/>
+						<path d="M8 3.6V14" />
+					</svg>
+					<span>Browse the {ruleCount} rules</span>
+				</a>
+			</div>
 
-	<p>
-		That transcription has a written-out section header, a lowercase line start, a subject and verb
-		that disagree, a stray comma, and an ad-lib nobody parenthesised.
-	</p>
+			<!-- What it costs and what it needs, as a specification rather than as
+			     two sentences of apology under the button. Three facts and not four:
+			     the privacy claim has a section of its own below and the footer of
+			     every page carries it, and a fourth wrapped at a phone's width. -->
+			<p class="site-meta">
+				<span>Free</span>
+				<span class="site-meta__fact">
+					<span class="site-meta__separator" aria-hidden="true">·</span>On device
+				</span>
+				<span class="site-meta__fact">
+					<span class="site-meta__separator" aria-hidden="true">·</span>Desktop or laptop
+				</span>
+			</p>
 
-	<p>
-		Apply the fixes it offers and you are left with the document you meant to submit — the same
-		plain text and literal Genius markup you would have typed by hand:
-	</p>
+			<!-- Generated by `scripts/render-workbench-shot.mjs`, which drives the
+			     real workbench in a real browser. Its dimensions are stated so the
+			     page does not reflow by several hundred pixels when the PNG lands
+			     directly under the headline. -->
+			<div class="lp-shot">
+				<div class="lp-shot__frame">
+					<img
+						src="{resolve('/')}workbench.png"
+						width="2560"
+						height="1640"
+						alt="The LyricLint workbench: a transcription in the editor with problems underlined, and a panel beside it listing each finding with the Genius guideline behind it."
+						fetchpriority="high"
+					/>
+				</div>
+			</div>
+		</div>
+	</section>
 
-	<figure class="site-sample site-sample--valid">
-		<figcaption class="site-sample__label">Clean</figcaption>
-		<pre class="site-sample__text">{clean}</pre>
-	</figure>
+	<!-- The demo is the product, not a picture of it: the same editor, the same
+	     rule set, the same cards. It reads its findings back afterwards rather
+	     than introducing them with a colon, so the section leads with the thing
+	     worth looking at. -->
+	<section class="lp-section">
+		<div class="lp-container">
+			<div class="lp-head">
+				<span class="lp-eyebrow">Live demo</span>
+				<h2>This is the real editor, running on this page.</h2>
+				<p>
+					Not a screenshot and not a video. Hover an underline for the finding, the guideline behind
+					it, and the fix — or type into it and see what else it catches.
+				</p>
+			</div>
 
-	<h2>Grammar checking that stays on your device</h2>
+			<LiveDemo text={messy} performerNames={['Avery', 'Blair']} />
 
-	<p>
-		<a href={harperUrl} rel="external">Harper</a> catches
-		<code class="site-code">I has</code> above and suggests <code class="site-code">I have</code>.
-		The open-source English grammar and spelling engine runs inside the page, so your lyrics are not
-		sent to Harper or to a LyricLint server.
-	</p>
+			<p class="lp-prose">
+				That transcription has a written-out section header, a lowercase line start, a subject and
+				verb that disagree, a stray comma, and an ad-lib nobody parenthesised.
+			</p>
 
-	<p>
-		Lyrics are not ordinary prose, so Harper stays advisory: its fixes are always shown for review.
-		Performer names and reviewed Genius spellings such as <code class="site-code">ayy</code> are added
-		to its dictionary, and LyricLint's sourced Genius rules take precedence wherever the two disagree.
-	</p>
+			<p class="lp-prose">
+				Apply the fixes it offers and you are left with the document you meant to submit — the same
+				plain text and literal Genius markup you would have typed by hand.
+			</p>
 
-	<h2>Performer tagging without hand-writing the HTML</h2>
+			<figure class="lp-panel">
+				<figcaption class="lp-panel__head">What you copy out</figcaption>
+				<pre class="lp-panel__body">{clean}</pre>
+			</figure>
+		</div>
+	</section>
 
-	<p>
-		Marking up who sings what is the part of a Genius transcription that costs the most and goes
-		wrong the most. The markup is literal HTML, it has to be balanced, the style slots have to be
-		used in a consistent order, and the section header's legend has to agree with every span
-		underneath it — all of it typed by hand, in a plain textarea, one
-		<code class="site-code">&lt;i&gt;</code> at a time.
-	</p>
+	<!-- One bordered run with hairlines between the members, the way the linter
+	     draws a run of diagnostics. Four separate cards with gaps between them
+	     would be four boundaries doing one boundary's job. -->
+	<section class="lp-section">
+		<div class="lp-container">
+			<div class="lp-head">
+				<span class="lp-eyebrow">What it checks</span>
+				<h2>{ruleCount} reviewed rules, and the judgement calls stay yours.</h2>
+				<p>
+					Every rule required an exact Genius URL or annotation ID, a written interpretation, a
+					human review, and a last-verified date before it was allowed to ship.
+				</p>
+			</div>
 
-	<p>
-		LyricLint does it as a selection. Select the words, choose the voice, and the wrapper, the slot,
-		and the header legend are written together as one edit you can undo in one press. Every
-		performer keeps a color, so you can see who is singing each passage at a glance — and the color
-		is display only. It never reaches the markup you copy out, which stays exactly what Genius
-		expects.
-	</p>
+			<ul class="lp-run">
+				<li>
+					<span class="lp-run__mark" aria-hidden="true">[ ]</span>
+					<span class="lp-run__title">Section headers</span>
+					<p class="lp-run__body">
+						Bracketed song parts, recognised names, verse numbering, and the repeats that should be
+						one chorus rather than three copies of it.
+					</p>
+				</li>
+				<li>
+					<span class="lp-run__mark" aria-hidden="true">&lt;i&gt;</span>
+					<span class="lp-run__title">Performer markup</span>
+					<p class="lp-run__body">
+						Literal HTML that has to balance, use its style slots in a consistent order, and agree
+						with the legend in the header above it.
+					</p>
+				</li>
+				<li>
+					<span class="lp-run__mark" aria-hidden="true">&rsquo;</span>
+					<span class="lp-run__title">Punctuation and spelling</span>
+					<p class="lp-run__body">
+						Typewriter quotes, missing contraction apostrophes, reviewed Genius spellings, censored
+						masks, and invisible whitespace.
+					</p>
+				</li>
+				<li>
+					<span class="lp-run__mark" aria-hidden="true">&#9888;</span>
+					<span class="lp-run__title">Calls you have to make</span>
+					<p class="lp-run__body">
+						Where a convention is genuinely contextual, the finding says so and its fix is previewed
+						for you to confirm instead of applied.
+					</p>
+				</li>
+			</ul>
 
-	<p>
-		The demo above has two performers on its roster already. Select any part of a line and hand it
-		to one of them — after you've fixed the header!
-	</p>
+			<p class="lp-note">
+				<span class="lp-note__item">
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+						<path
+							d="M3 8.5 6.5 12 13 4.5"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+					</svg>
+					Sourced, versioned, and bundled with the app
+				</span>
+				<span class="lp-note__item">
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+						<path
+							d="M3 8.5 6.5 12 13 4.5"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+					</svg>
+					Never a live scraper
+				</span>
+				<span class="lp-note__item">
+					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+						<path
+							d="M3 8.5 6.5 12 13 4.5"
+							stroke="currentColor"
+							stroke-width="2"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+						/>
+					</svg>
+					Nothing changes unless you press the control that changes it
+				</span>
+			</p>
+		</div>
+	</section>
 
-	<h2>Every warning carries its source</h2>
+	<!-- The evidence first and the explanation under it, which is also the order
+	     they stack in when the columns collapse. -->
+	<section class="lp-section">
+		<div class="lp-container lp-split">
+			<div class="lp-panel">
+				<div class="lp-panel__head">Linter</div>
+				<div class="lp-finding">
+					<span class="lp-finding__message">Write this section header as [Verse 1].</span>
+					<span class="lp-finding__meta">
+						<span class="lp-finding__severity" aria-hidden="true">&#9888;</span>
+						<span>Warning</span>
+						<span class="lp-finding__separator" aria-hidden="true">·</span>
+						<span>Line 1</span>
+						<span class="lp-finding__separator" aria-hidden="true">·</span>
+						<a href={resolve('/rules/')}>How to Add Songs to Genius</a>
+					</span>
+				</div>
+				<div class="lp-finding">
+					<span class="lp-finding__message">This likely ad-lib may need parentheses.</span>
+					<span class="lp-finding__meta">
+						<span class="lp-finding__severity" aria-hidden="true">&#9432;</span>
+						<span>Suggestion</span>
+						<span class="lp-finding__separator" aria-hidden="true">·</span>
+						<span>Line 3</span>
+						<span class="lp-finding__separator" aria-hidden="true">·</span>
+						<a href={resolve('/rules/')}>Ad-libs</a>
+					</span>
+				</div>
+			</div>
 
-	<p>
-		A linter that cannot say why it is complaining is just an opinion with a red underline. Every
-		rule here required an exact Genius URL or annotation ID, a written interpretation, a human
-		review, and a last-verified date before it was allowed to ship — and each finding links to the
-		guideline it came from, so you can check the ruling rather than take it.
-	</p>
+			<div class="lp-split__copy">
+				<span class="lp-eyebrow">Sourced rules</span>
+				<h2>Every warning carries its source.</h2>
+				<p class="lp-prose">
+					A linter that cannot say why it is complaining is just an opinion with a red underline.
+					Each finding links to the guideline it came from, so you can check the ruling rather than
+					take it.
+				</p>
+				<p class="lp-prose">
+					<a href={resolve('/rules/')}>Read the full rule reference</a>, including the sources
+					behind each one.
+				</p>
+			</div>
+		</div>
+	</section>
 
-	<p>
-		Where a convention is genuinely contextual — an ad-lib that may or may not want parentheses, a
-		spelling that changes the meaning — the finding says so and its fix is previewed for you to
-		confirm instead of applied. Judgement is labelled as judgement.
-	</p>
+	<section class="lp-section">
+		<div class="lp-container lp-split">
+			<!-- Generated by `scripts/render-workbench-shot.mjs --performers`: the
+			     real editor, cropped portrait around a whole marked-up song with a
+			     pointer selection and the picker open over it — tall on purpose, so
+			     it stands beside this copy on a desktop instead of under it.
+			     Dimensions stated for the same no-reflow reason as the hero
+			     shot's. -->
+			<div class="lp-shot lp-shot--detail">
+				<div class="lp-shot__frame">
+					<img
+						src="{resolve('/')}workbench-performers.png"
+						width="1094"
+						height="1574"
+						alt="A whole transcription in the editor with a lyric line selected and the performer picker open over it, asking who sings this and offering the roster's two performers, Avery and Blair, as coloured chips. The chorus, bridge, and outro are already marked up with legends, and each performer's colour runs down the gutter beside their lines."
+						loading="lazy"
+					/>
+				</div>
+			</div>
 
-	<p>
-		<a href={resolve('/rules/')}>Read the full rule reference</a>, including the sources behind each
-		one.
-	</p>
+			<div class="lp-split__copy">
+				<span class="lp-eyebrow">Performer tagging</span>
+				<h2>Credit a voice by selecting it, not by writing the HTML.</h2>
 
-	<h2>Your lyrics stay in your browser</h2>
+				<p class="lp-prose">
+					Marking up who sings what is the part of a Genius transcription that costs the most and
+					goes wrong the most: the markup is literal HTML, it has to be balanced, the style slots
+					have to be used in a consistent order, and the section header's legend has to agree with
+					every span underneath it — all of it typed by hand, in a plain textarea, one
+					<code class="site-code">&lt;i&gt;</code> at a time.
+				</p>
 
-	<p>
-		There is no account, no server, and no upload. Your 'scribes autosave to local storage in your
-		own browser, so closing the tab does not lose work and a crash does not either. Once the page
-		has loaded it keeps working offline, which matters when the rules you are checking against live
-		on a site that is not always reachable.
-	</p>
+				<p class="lp-prose">
+					LyricLint does it as a selection. Select the words, choose the voice, and the wrapper, the
+					slot, and the header legend are written together as one edit you can undo in one press.
+					Every performer keeps a colour, so you can see who is singing each passage at a glance —
+					and <strong>the colour is display only</strong>. It never reaches the markup you copy out,
+					which stays exactly what Genius expects.
+				</p>
 
-	<p>
-		There is one exception, and you choose it 'scribe by 'scribe: you can play the song you are
-		transcribing alongside the lyrics. That could be an audio file off your own disk, which is never
-		uploaded and never copied into the browser, a YouTube video, which loads Google's player into
-		the page and lets Google see which video it is, or an Apple Music track. A 'scribe using the
-		online options stops working offline.
-	</p>
+				<p class="lp-prose">
+					The demo above has two performers on its roster already. Select any part of a line and
+					hand it to one of them — after you've fixed the header.
+				</p>
+			</div>
+		</div>
+	</section>
 
-	<h2>What it is not</h2>
+	<section class="lp-section">
+		<div class="lp-container lp-split lp-split--flip">
+			<!-- Generated by `scripts/render-workbench-shot.mjs --harper`: a real
+			     Harper underline hovered in the real editor, popover open — the fix
+			     previewed as a diff in the line, the citation, and the advisory
+			     explanation, which is the section's own argument in the product's
+			     own words. This replaced a hand-drawn <pre> mock-up of the same
+			     card, which is the drift a generated shot exists to prevent. -->
+			<div class="lp-shot lp-shot--detail">
+				<div class="lp-shot__frame">
+					<img
+						src="{resolve('/')}workbench-harper.png"
+						width="1044"
+						height="566"
+						alt="A lyric line reading 'I has counted every streetlight' with a wavy underline under the disagreement, previewing 'has' struck through and 'have' beside it. The popover under it explains that the verb must agree in number with the pronoun, cites Harper, advises reviewing the suggestion in context, and offers Replace with have and Ignore."
+						loading="lazy"
+					/>
+				</div>
+			</div>
 
-	<ul>
-		<li>Not a way to edit Genius directly. You copy the finished markup out and paste it in.</li>
-		<li>Not an automated transcriber, and not a chat assistant.</li>
-		<li>
-			Not a live scraper. The rules are a reviewed, versioned snapshot bundled with the app, so what
-			it checks today is what it checked yesterday.
-		</li>
-		<li>
-			Not a rewriter. Nothing changes in your document unless you press the control that changes it.
-		</li>
-	</ul>
+			<div class="lp-split__copy">
+				<span class="lp-eyebrow">On-device grammar</span>
+				<h2>Spelling and grammar that never leave the page.</h2>
+				<p class="lp-prose">
+					<a href={harperUrl} rel="external">Harper</a>, the open-source English grammar engine,
+					runs inside the page — so your lyrics are not sent to Harper or to a LyricLint server.
+				</p>
+				<p class="lp-prose">
+					Lyrics are not ordinary prose, so it stays advisory: its fixes are always shown for
+					review. Performer names and reviewed Genius spellings such as
+					<code class="site-code">ayy</code> are added to its dictionary, and LyricLint's sourced Genius
+					rules take precedence wherever the two disagree.
+				</p>
+			</div>
+		</div>
+	</section>
 
-	<div class="site-actions">
-		<a class="button button--contrast" href={resolve('/lint/')}>Open the workbench</a>
-	</div>
+	<section class="lp-section">
+		<div class="lp-container lp-split lp-split--flip">
+			<div class="lp-panel">
+				<div class="lp-panel__head">Local data</div>
+				<ul class="lp-points">
+					<li>
+						<span class="lp-points__mark" aria-hidden="true">
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+								<path
+									d="M3 8.5 6.5 12 13 4.5"
+									stroke="currentColor"
+									stroke-width="2.2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</span>
+						<span
+							><strong>No account and no upload.</strong> There is no server to send one to.</span
+						>
+					</li>
+					<li>
+						<span class="lp-points__mark" aria-hidden="true">
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+								<path
+									d="M3 8.5 6.5 12 13 4.5"
+									stroke="currentColor"
+									stroke-width="2.2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</span>
+						<span>
+							<strong>Autosaved in your own browser.</strong> Closing the tab does not lose work, and
+							a crash does not either.
+						</span>
+					</li>
+					<li>
+						<span class="lp-points__mark" aria-hidden="true">
+							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+								<path
+									d="M3 8.5 6.5 12 13 4.5"
+									stroke="currentColor"
+									stroke-width="2.2"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								/>
+							</svg>
+						</span>
+						<span>
+							<strong>Works offline once loaded</strong>, which matters when the rules you are
+							checking against live on a site that is not always reachable.
+						</span>
+					</li>
+				</ul>
+			</div>
+
+			<div class="lp-split__copy">
+				<span class="lp-eyebrow">Local first</span>
+				<h2>Your lyrics stay in your browser.</h2>
+				<p class="lp-prose">
+					There is one exception, and you choose it 'scribe by 'scribe: you can play the song you
+					are transcribing alongside the lyrics. That could be an audio file off your own disk,
+					which is never uploaded and never copied into the browser, a YouTube video, which loads
+					Google's player into the page and lets Google see which video it is, or an Apple Music
+					track. A 'scribe using the online options stops working offline.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- What it is not, in the same run idiom as what it checks. Said plainly and
+	     once, rather than as a list of caveats under the button. -->
+	<section class="lp-section">
+		<div class="lp-container">
+			<div class="lp-head">
+				<span class="lp-eyebrow">Scope</span>
+				<h2>What it is not.</h2>
+			</div>
+
+			<ul class="lp-run">
+				<li>
+					<span class="lp-run__title">Not a way to edit Genius</span>
+					<p class="lp-run__body">You copy the finished markup out and paste it in.</p>
+				</li>
+				<li>
+					<span class="lp-run__title">Not an automated transcriber</span>
+					<p class="lp-run__body">And not a chat assistant.</p>
+				</li>
+				<li>
+					<span class="lp-run__title">Not a live scraper</span>
+					<p class="lp-run__body">
+						The rules are a reviewed, versioned snapshot, so what it checks today is what it checked
+						yesterday.
+					</p>
+				</li>
+				<li>
+					<span class="lp-run__title">Not a rewriter</span>
+					<p class="lp-run__body">
+						Nothing changes in your document unless you press the control that changes it.
+					</p>
+				</li>
+			</ul>
+		</div>
+	</section>
+
+	<section class="lp-cta">
+		<div class="lp-container">
+			<h2>Submit it right the first time.</h2>
+			<p>
+				Free, no account, and nothing leaves your browser. Paste a transcription and see what it
+				finds.
+			</p>
+			<div class="lp-cta__actions">
+				<a class="button button--contrast" href={resolve('/lint/')}>
+					<LyricIcon />
+					<span>Open the workbench</span>
+				</a>
+				<a class="button" href={resolve('/rules/')}>Browse the {ruleCount} rules</a>
+			</div>
+		</div>
+	</section>
 </main>

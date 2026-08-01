@@ -1,0 +1,840 @@
+/*
+ * The landing page.
+ *
+ * Everything else in this system is a tool: a compact UI ramp, two elevation
+ * levels, and a rule that a border has to be earning something. This page is
+ * the one surface that is not being operated, and it is laid out for a reader
+ * who has never heard of the product and will decide in one screen. So it keeps
+ * the system's material vocabulary — the same tokens, the same three button
+ * tiers, the same "a boundary separates something from something" test — and
+ * spends it on a wider ramp than the workbench has any use for.
+ *
+ * The composition is four moves, and each one is answering a way the previous
+ * version of this page failed:
+ *
+ * - **A claim at display size over a lit grid**, with the product shot directly
+ *   under it. The old hero held a screen with nothing on it but four small
+ *   centred elements and a promise that there was more below; the evidence for
+ *   the claim now arrives in the same screen as the claim.
+ * - **Sections announce themselves in the margin**, not in the heading. An
+ *   eyebrow in mono caps says what kind of thing is coming — `Live demo`,
+ *   `Sourced rules` — so the heading itself can be a sentence rather than a
+ *   label, and a reader skimming has a rail of short words to skim.
+ * - **Runs of facts are one bordered object with hairlines inside it**, exactly
+ *   as the linter draws a run of diagnostics. Four separate cards with gaps
+ *   between them is four boundaries where the content only needed one.
+ * - **The measure stays narrow even though the page is wide.** The container is
+ *   `--measure-split` for structure; every paragraph inside it is still capped
+ *   at a reading measure, because a full-width line of body copy at this width
+ *   is unreadable no matter how good the section looks.
+ */
+
+.lp {
+	/*
+	 * The marketing display ramp, which is deliberately not the UI ramp.
+	 *
+	 * `--font-size-3xl` is the largest thing in the system and is sized for a
+	 * headline sitting in a column of prose — it tops out at 2.5rem, which reads
+	 * as a heading rather than as a claim when it is the only thing on a screen.
+	 * These three steps exist for this page alone and are fluid for the reason
+	 * that one is: a single size cannot serve a 320px phone and a monitor, and a
+	 * breakpoint in the middle of a headline is a headline that jumps.
+	 *
+	 * Tracking is optical and therefore negative all the way up: the letter
+	 * spacing that keeps 15px UI text legible reads as loose at 60px.
+	 */
+	--lp-display: clamp(2.5rem, 1.4rem + 4.8vw, 4.5rem);
+	--lp-heading: clamp(1.75rem, 1.2rem + 2.2vw, 3rem);
+	--lp-tracking: -0.032em;
+
+	/* The band a section occupies, top and bottom, and the same at every section
+	   so the page has one rhythm rather than a spacing decision per block. Two
+	   of these meet between any two sections, which is what the ceiling is
+	   sized against: past about 12rem of clear space the reader stops reading a
+	   page and starts scrolling through separate ones. */
+	--lp-band: clamp(var(--space-8), 8vw, 6rem);
+
+	position: relative;
+	/* Over the noise film, which is fixed at `--layer-editor-panel`. The page's
+	   own overlays — the demo's diagnostic popover — sit above both. */
+	z-index: var(--layer-editor-panel);
+	width: 100%;
+}
+
+/* The structural width. Wider than any measure here, because what it is sizing
+   is an arrangement — a screenshot, a run of cells, two columns — rather than a
+   line of text. Every run of prose inside it caps itself again. */
+.lp-container {
+	width: 100%;
+	max-width: var(--measure-split);
+	padding-inline: var(--space-5);
+	margin-inline: auto;
+}
+
+.lp-section {
+	padding-block: var(--lp-band);
+}
+
+/*
+ * A section announces itself in the margin.
+ *
+ * Mono, small, uppercase, wide-tracked, muted: the one place on the site that
+ * sets type this way, so it reads as a label rather than as more copy. It is
+ * `--font-size-2xs` because it is not being read so much as counted — a reader
+ * skimming the page uses these to find the section they want, and then reads
+ * the heading.
+ */
+.lp-eyebrow {
+	display: block;
+	margin: 0 0 var(--space-3);
+	color: var(--color-text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-2xs);
+	font-weight: var(--font-weight-medium);
+	letter-spacing: 0.14em;
+	line-height: var(--line-height-ui);
+	text-transform: uppercase;
+}
+
+.lp-head {
+	margin: 0 0 var(--space-7);
+}
+
+/*
+ * The measure goes on the heading itself, not on the block around it.
+ *
+ * `ch` resolves against the element's own font, so a cap set on the wrapper is
+ * a cap in *body* text — about 400px — and the display-sized heading inside it
+ * then breaks into three short lines in a narrow column with half the page
+ * empty beside it. Set here it is 24 characters of the heading's own size,
+ * which is two lines at every width this page is read at.
+ */
+.lp-head h2 {
+	max-width: 24ch;
+	margin: 0 0 var(--space-4);
+	font-size: var(--lp-heading);
+	font-weight: var(--font-weight-semibold);
+	letter-spacing: var(--lp-tracking);
+	line-height: 1.06;
+	text-wrap: balance;
+}
+
+.lp-head p {
+	max-width: var(--measure-prose);
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-lg);
+	line-height: var(--line-height-body);
+}
+
+/* Body copy inside a section. Capped at the reading measure independently of
+   the container, which is the whole reason the two are separate. */
+.lp-prose {
+	max-width: var(--measure-prose);
+	margin: 0 0 var(--space-4);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-lg);
+	line-height: var(--line-height-body);
+}
+
+.lp-prose:last-child {
+	margin-bottom: 0;
+}
+
+/* The demo's own caption is written for a page whose body copy is capped at a
+   reading measure; dropped into this container it ran the full structural
+   width, which at 1440px is a single 1100px line of small muted type. It takes
+   the same measure as everything else here rather than growing one of its own. */
+.lp .site-demo__hint {
+	max-width: var(--measure-prose);
+}
+
+.lp-prose strong {
+	color: var(--color-text);
+	font-weight: var(--font-weight-semibold);
+}
+
+/*
+ * ── The hero ─────────────────────────────────────────────────────────────────
+ *
+ * It no longer reserves a screen and holds a peek under it. That arrangement
+ * was solving the problem that the evidence was below the fold; the product
+ * shot is *in* the hero now, so the first screen carries the claim and the
+ * proof together and there is nothing left to peek at.
+ */
+.lp-hero {
+	position: relative;
+	/* The claim gets a band of clear canvas above it before it speaks — the
+	   reference composition spends ~120px there, and the difference between that
+	   and a section's ordinary padding is the difference between a page opening
+	   and a page continuing. */
+	padding-block: clamp(var(--space-8), 9.5vw, 7.5rem) var(--lp-band);
+	/* The grid and the marks are absolutely placed against this box and are
+	   allowed to run past its edges; nothing may leak sideways and give the page
+	   a horizontal scroll. */
+	overflow: hidden;
+	text-align: center;
+}
+
+/*
+ * The lit grid behind the headline.
+ *
+ * Two hairline gradients at a 48px pitch, masked to a soft ellipse so the grid
+ * has no edge — an unmasked grid ends in a hard rectangle somewhere down the
+ * page and reads as a background image that failed to load the rest of itself.
+ * It is the faintest thing on the page by a distance: at full strength it
+ * competes with the type it sits behind, and the job is to give the dark field
+ * a sense of depth rather than to be seen.
+ */
+.lp-hero__grid {
+	position: absolute;
+	background-image:
+		linear-gradient(
+			90deg,
+			var(--color-border) var(--border-width),
+			transparent var(--border-width)
+		),
+		linear-gradient(var(--color-border) var(--border-width), transparent var(--border-width));
+	background-size: 48px 48px;
+	inset: 0;
+	mask-image: radial-gradient(78% 58% at 50% 34%, oklch(0% 0 0) 38%, transparent 100%);
+	opacity: 0.65;
+	pointer-events: none;
+}
+
+/*
+ * The marks drifting over the grid.
+ *
+ * t3's hero floats the logos of the agents it orchestrates. The equivalent here
+ * is not a logo — this product integrates with nothing — it is the *notation*:
+ * the bracketed headers, the ad-lib parentheses, the unknown-lyric marker, the
+ * performer tag. They are the literal strings a transcriber types, set in the
+ * face the editor sets them in, which makes the hero say what the tool is about
+ * before a word of copy has been read.
+ *
+ * They are `aria-hidden` and decorative. Every one of them is explained in
+ * prose further down the page, so nothing is carried by these alone.
+ */
+.lp-hero__float {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.lp-hero__mark {
+	position: absolute;
+	display: grid;
+	padding: var(--space-3) var(--space-4);
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-lg);
+	background: var(--color-surface);
+	box-shadow: var(--shadow-overlay);
+	color: var(--color-text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-md);
+	line-height: 1;
+	place-items: center;
+	white-space: nowrap;
+}
+
+/*
+ * Two constraints decide every one of these positions, and both are about what
+ * a mark must not land on.
+ *
+ * Sideways: the headline is centred and `balance`d, so its longest line reaches
+ * roughly the middle two thirds of the container at every width. The marks sit
+ * outside that band, and below `64rem` they are removed outright (see the media
+ * query at the foot of this file) because there is no outside left.
+ *
+ * Downwards: the product shot occupies the bottom half of this section, and it
+ * is the evidence — nothing may drift over it. So the marks are confined to the
+ * top ~40%, which is the band holding the headline and the actions. A fifth
+ * mark reading `[Chorus: Avery & Blair]` was cut here rather than repositioned:
+ * it is the longest string of the set, so it was the one that reached the words
+ * at one width and the screenshot at the next, and four marks say the same
+ * thing.
+ */
+.lp-hero__mark--verse {
+	top: 5%;
+	left: 3%;
+	rotate: -7deg;
+}
+
+.lp-hero__mark--voice {
+	top: 12%;
+	right: 4%;
+	rotate: 6deg;
+}
+
+.lp-hero__mark--unknown {
+	top: 31%;
+	left: 7%;
+	rotate: 4deg;
+}
+
+.lp-hero__mark--adlib {
+	top: 36%;
+	right: 8%;
+	rotate: -5deg;
+}
+
+/* The drift is one keyframe shared by all five, offset per mark so they are
+   never in step — five things moving together reads as the page scrolling
+   rather than as marks floating. Motion here answers nothing the reader did, so
+   it goes entirely under `prefers-reduced-motion`. */
+@media (prefers-reduced-motion: no-preference) {
+	.lp-hero__mark {
+		animation: lp-drift 9s var(--ease-out-quart) infinite;
+	}
+
+	.lp-hero__mark--voice {
+		animation-delay: -2.5s;
+	}
+
+	.lp-hero__mark--unknown {
+		animation-delay: -5s;
+	}
+
+	.lp-hero__mark--adlib {
+		animation-delay: -7s;
+	}
+}
+
+@keyframes lp-drift {
+	0%,
+	100% {
+		translate: 0 0;
+	}
+
+	50% {
+		translate: 0 -12px;
+	}
+}
+
+.lp-hero__inner {
+	position: relative;
+}
+
+.lp-hero h1 {
+	/* The measure is what does the work here, not the wrap: capped in `ch`, the
+	   headline breaks into two or three lines of similar length at every width,
+	   and `balance` evens out whatever is left. */
+	max-width: 18ch;
+	margin: 0 auto var(--space-5);
+	font-size: var(--lp-display);
+	font-weight: var(--font-weight-semibold);
+	letter-spacing: var(--lp-tracking);
+	line-height: 1.03;
+	text-wrap: balance;
+}
+
+.lp-hero__sub {
+	max-width: 56ch;
+	margin: 0 auto var(--space-6);
+	color: var(--color-text-muted);
+	font-size: clamp(var(--font-size-lg), 1.4vw, var(--font-size-xl));
+	line-height: var(--line-height-body);
+	text-wrap: pretty;
+}
+
+/*
+ * The hero asks for one press, so it draws one button.
+ *
+ * The rule reference is still a step away — as a quiet text link *under* the
+ * action rather than a second button beside it. Two buttons of equal weight at
+ * the head of the page are two answers to "what do I do now", and the reader
+ * who wants the rules first is the reader who will find a link. The closing
+ * CTA is the other way round on purpose: by then the argument has been made,
+ * both destinations are earned, and two buttons side by side read as a choice
+ * rather than a hedge.
+ */
+.lp-hero__actions {
+	display: flex;
+	gap: var(--space-4);
+	flex-direction: column;
+	align-items: center;
+}
+
+.lp-cta__actions {
+	display: flex;
+	gap: var(--space-3);
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+/* The largest targets on the page and the only ones the reader came to press.
+   Same silhouette as every other button in the system, at the size this
+   surface calls for — a marketing page's one action is pressed from further
+   away than a toolbar's, so it steps past the control ramp's `lg`. */
+.lp-hero__actions .button,
+.lp-cta__actions .button {
+	min-height: 3.25rem;
+	padding-inline: var(--space-6);
+	font-size: var(--font-size-lg);
+	text-decoration: none;
+}
+
+.lp-hero__alt {
+	display: inline-flex;
+	gap: var(--space-2);
+	align-items: center;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+	text-decoration: none;
+}
+
+.lp-hero__alt svg {
+	flex: none;
+}
+
+.lp-hero__alt:hover,
+.lp-hero__alt:focus-visible {
+	color: var(--color-text);
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+}
+
+.lp-hero .site-meta {
+	justify-content: center;
+	margin: var(--space-5) 0 0;
+}
+
+/*
+ * ── The product shot ────────────────────────────────────────────────────────
+ *
+ * A picture of the workbench, tilted a couple of degrees back so it reads as a
+ * screen standing in the page rather than as an image pasted flat onto it, and
+ * straightening under the pointer.
+ *
+ * Three things it depends on:
+ *
+ * - **The frame declares the image's aspect ratio and the image fills it.**
+ *   Without that the page reflows by several hundred pixels when the PNG
+ *   arrives — directly under the headline, which is the worst place on the site
+ *   for the layout to move.
+ * - **The border is inside the radius, drawn by the same element that clips.**
+ *   A wrapper with its own rounding one border-width outside a rounded child
+ *   leaves four corners where the child's curve falls outside the parent's, and
+ *   the surface spills through each of them. This is the same rule `.site-demo`
+ *   states at length: one element paints the border, the radius, the background
+ *   and the clip.
+ * - **The glow is behind it, not on it.** A shadow alone under a near-black
+ *   screenshot on a near-black page is invisible; what separates the two is a
+ *   soft accent-tinted bloom cast onto the page from behind the frame's own
+ *   edges, which is also what makes the shot read as lit.
+ */
+.lp-shot {
+	position: relative;
+	max-width: 74rem;
+	margin: clamp(var(--space-7), 5vw, var(--space-8)) auto 0;
+}
+
+.lp-shot::before {
+	position: absolute;
+	background: radial-gradient(60% 50% at 50% 40%, var(--color-accent-soft), transparent 70%);
+	content: '';
+	filter: blur(48px);
+	inset: -6% -4% -10%;
+	opacity: 0.55;
+	pointer-events: none;
+}
+
+.lp-shot__frame {
+	position: relative;
+	display: block;
+	border: var(--border-width) solid var(--color-border-strong);
+	border-radius: var(--radius-lg);
+	background: var(--color-canvas);
+	box-shadow: var(--shadow-overlay);
+	overflow: hidden;
+	rotate: x 2deg;
+	transform-origin: center bottom;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.lp-shot__frame {
+		transition: rotate var(--duration-slow) var(--ease-out-quart);
+	}
+}
+
+.lp-shot:hover .lp-shot__frame {
+	rotate: x 0deg;
+}
+
+.lp-shot__frame img {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+/*
+ * A detail shot inside a section: the same frame as the hero's, without the
+ * hero's theatre. No tilt — the tilt is the opening gesture and repeating it
+ * down the page turns a device into a tic — and the bloom is turned down, so
+ * the picture reads as evidence in the argument rather than as a second hero.
+ * It is left-aligned with the prose it follows, because this section is not
+ * centred.
+ */
+.lp-shot--detail {
+	max-width: 56rem;
+	margin: var(--space-7) 0 0;
+}
+
+/* Beside copy in a split, the column already places it — the margin above is
+   for the standalone form, under a run of prose. */
+.lp-split .lp-shot--detail {
+	margin: 0;
+}
+
+.lp-shot--detail .lp-shot__frame {
+	rotate: none;
+}
+
+.lp-shot--detail::before {
+	opacity: 0.3;
+}
+
+/*
+ * ── A run of cells ──────────────────────────────────────────────────────────
+ *
+ * One border around the run and hairlines between the members, which is how the
+ * linter draws a run of diagnostics and for the same reason: the run is what is
+ * being separated from the page, and the members are separated from each other
+ * by the line where they meet. Four bordered cards with gaps between them would
+ * be four boundaries doing one boundary's job.
+ */
+.lp-run {
+	display: grid;
+	padding: 0;
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-panel);
+	margin: 0;
+	background: var(--color-surface);
+	grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+	list-style: none;
+	overflow: hidden;
+}
+
+.lp-run > li {
+	display: grid;
+	padding: var(--space-5);
+	gap: var(--space-2);
+	align-content: start;
+	/* The hairline is on every cell's start edges and the run clips, so the ones
+	   that land on the outside are cut off by `overflow: hidden` rather than
+	   having to be selected away — which is what makes this correct at any
+	   column count `auto-fit` happens to resolve to. */
+	box-shadow:
+		calc(-1 * var(--border-width)) 0 0 var(--color-border),
+		0 calc(-1 * var(--border-width)) 0 var(--color-border);
+}
+
+.lp-run__mark {
+	display: grid;
+	width: 3rem;
+	height: 3rem;
+	border: var(--border-width) solid var(--color-border-strong);
+	border-radius: var(--radius-md);
+	margin-bottom: var(--space-3);
+	background: var(--color-fill-subtle);
+	color: var(--color-text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xl);
+	place-items: center;
+}
+
+.lp-run__title {
+	font-size: var(--font-size-lg);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.lp-run__body {
+	margin: 0;
+	color: var(--color-text-muted);
+	line-height: var(--line-height-body);
+}
+
+/* A trailing line of facts under a run, ruled off with a dashed hairline. The
+   dash is what separates it from the run's own solid border: this is a footnote
+   about the thing above it rather than another member of it. */
+.lp-note {
+	display: flex;
+	padding-top: var(--space-4);
+	border-top: var(--border-width) dashed var(--color-border);
+	gap: var(--space-5);
+	flex-wrap: wrap;
+	margin-top: var(--space-5);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+}
+
+.lp-note__item {
+	display: inline-flex;
+	gap: var(--space-2);
+	align-items: center;
+}
+
+.lp-note__item svg {
+	flex: none;
+	color: var(--color-success);
+}
+
+/*
+ * ── Two columns ─────────────────────────────────────────────────────────────
+ *
+ * A panel of evidence beside the copy explaining it. The copy is second in the
+ * DOM on purpose: on a narrow screen the columns stack and the explanation
+ * should arrive under the thing it explains, not above it.
+ */
+.lp-split {
+	display: grid;
+	gap: clamp(var(--space-6), 4vw, var(--space-8));
+	align-items: center;
+	grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+}
+
+/*
+ * Flipped, the copy leads and the evidence sits to its right. The page's four
+ * splits alternate: evidence left, picture left, then the two bottom sections
+ * flipped, so a reader scrolling meets the panels on both sides rather than a
+ * single rail of them. The flip is visual only: the evidence stays first in
+ * the DOM, so when the columns stack on a narrow screen it still arrives above
+ * the copy that explains it, and the order is reset in the stack's own media
+ * query below.
+ */
+.lp-split--flip {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+}
+
+.lp-split--flip > :first-child {
+	order: 2;
+}
+
+.lp-split__copy h2 {
+	max-width: 20ch;
+	margin: 0 0 var(--space-4);
+	font-size: var(--lp-heading);
+	font-weight: var(--font-weight-semibold);
+	letter-spacing: var(--lp-tracking);
+	line-height: 1.06;
+	text-wrap: balance;
+}
+
+/*
+ * A quiet panel. It earns its border the way `.site-sample` does — it holds a
+ * different material from the prose beside it, either a verbatim piece of a
+ * document or a reproduction of one of the workbench's own surfaces — and it is
+ * never nested inside anything else that has one.
+ */
+/*
+ * Two things here are load-bearing, and both are `<figure>` and `<pre>` behaving
+ * exactly as the UA stylesheet says they should.
+ *
+ * `margin: 0` cancels the UA's `figure { margin: 1em 40px }`. Left standing, a
+ * panel that is a figure sits 40px inside a panel that is a div, so the two
+ * forms of this component do not line up with each other or with the prose
+ * either side of them.
+ *
+ * `grid-template-columns: minmax(0, 1fr)` is what keeps a `white-space: pre`
+ * body from widening the entire page. A block in normal flow contributes its
+ * *min-content* width to its parent, and the min-content of preformatted text is
+ * its longest line — so the sample of copied-out markup propagated a ~570px
+ * floor all the way up through `.lp-container` and `main` to `.site`, and every
+ * section on the page laid out 180px wider than a 390px phone. The `overflow-x:
+ * auto` on the body did not save it: a scroll container still reports that
+ * min-content in block flow. As a grid item its automatic minimum size is zero
+ * instead, so the body takes the column it is given and scrolls inside it, which
+ * is what the `auto` was always for.
+ */
+.lp-panel {
+	display: grid;
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-panel);
+	margin: 0;
+	background: var(--color-surface);
+	grid-template-columns: minmax(0, 1fr);
+	overflow: hidden;
+}
+
+/* The panel's own strip, in the idiom the workbench uses for a header over a
+   run: chrome, a hairline under it, and a mono label that names what is below
+   rather than describing it. */
+.lp-panel__head {
+	display: flex;
+	padding: var(--space-2-5) var(--space-4);
+	border-bottom: var(--border-width) solid var(--color-border);
+	gap: var(--space-2);
+	align-items: center;
+	background: var(--color-chrome);
+	color: var(--color-text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-2xs);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.lp-panel__body {
+	padding: var(--space-4);
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-editor);
+	overflow-x: auto;
+	white-space: pre;
+	tab-size: 2;
+}
+
+/* A reproduction of the diagnostic card's meta line, which is the one idiom on
+   this page lifted straight from the product: severity, then where, then what
+   said so, interpuncts between. It is markup rather than a screenshot so it
+   stays legible at any width and in the accessible tree. */
+.lp-finding {
+	display: grid;
+	padding: var(--space-4);
+	gap: var(--space-2);
+	border-top: var(--border-width) solid var(--color-border);
+}
+
+.lp-finding__message {
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.lp-finding__meta {
+	display: flex;
+	gap: var(--space-2);
+	flex-wrap: wrap;
+	align-items: center;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+.lp-finding__severity {
+	color: var(--color-warning);
+}
+
+.lp-finding__separator {
+	color: var(--color-border-strong);
+}
+
+/*
+ * A list of claims with a mark against each. The mark is a small accent-tinted
+ * chip rather than a bullet, because these are the page's summary of what it
+ * has already argued and want to read as a checklist.
+ */
+.lp-points {
+	display: grid;
+	padding: 0;
+	gap: var(--space-4);
+	margin: 0;
+	list-style: none;
+}
+
+/* Inside a panel the list is the panel's whole body, so it takes the inset the
+   body would have had — the panel's head already draws the boundary and a
+   second box around the list would be the nesting this system forbids. */
+.lp-panel .lp-points {
+	padding: var(--space-5);
+}
+
+.lp-points li {
+	display: grid;
+	gap: var(--space-3);
+	align-items: start;
+	color: var(--color-text-muted);
+	grid-template-columns: auto minmax(0, 1fr);
+	line-height: var(--line-height-body);
+}
+
+.lp-points strong {
+	color: var(--color-text);
+	font-weight: var(--font-weight-semibold);
+}
+
+.lp-points__mark {
+	display: grid;
+	width: 1.375rem;
+	height: 1.375rem;
+	border: var(--border-width) solid
+		color-mix(in oklch, var(--color-accent) 30%, var(--color-border));
+	border-radius: var(--radius-sm);
+	margin-top: 0.1em;
+	background: var(--color-accent-soft);
+	color: var(--color-accent);
+	place-items: center;
+}
+
+/*
+ * ── The closing action ──────────────────────────────────────────────────────
+ *
+ * The same claim the hero makes, at the moment the reader has finished the
+ * argument for it. It repeats the hero's display size deliberately: a page that
+ * ends in a small heading ends by trailing off.
+ */
+.lp-cta {
+	padding-block: var(--lp-band);
+	border-top: var(--border-width) solid var(--color-border);
+	text-align: center;
+}
+
+.lp-cta h2 {
+	max-width: 20ch;
+	margin: 0 auto var(--space-5);
+	font-size: var(--lp-display);
+	font-weight: var(--font-weight-semibold);
+	letter-spacing: var(--lp-tracking);
+	line-height: 1.03;
+	text-wrap: balance;
+}
+
+.lp-cta p {
+	max-width: 52ch;
+	margin: 0 auto var(--space-6);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-lg);
+	line-height: var(--line-height-body);
+}
+
+/* ── Narrower screens ───────────────────────────────────────────────────────*/
+
+@media (max-width: 64rem) {
+	/* The columns stack, so `align-items: center` has nothing left to centre and
+	   the panel would sit in the middle of a column it now spans. The flip comes
+	   off with them: stacked, the evidence leads again in DOM order. */
+	.lp-split {
+		align-items: start;
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.lp-split--flip > :first-child {
+		order: 0;
+	}
+
+	/*
+	 * The floating marks go entirely, and this is the width they have to go at.
+	 * They are placed in the container's outer margins, which is the only band
+	 * the centred headline never reaches — below this the headline takes the
+	 * full width and there is no outer margin left, so every mark would land on
+	 * the words it is decorating.
+	 */
+	.lp-hero__float {
+		display: none;
+	}
+}
+
+@media (max-width: 32rem) {
+	/* Two centred buttons of unequal width stacked on each other read as a row
+	   that broke rather than as a column that was meant. Below the width where
+	   they stop fitting they are a column on purpose, at one width — which is
+	   also the larger touch target. The hero's actions are already a column at
+	   every width, so only the closing pair changes here. */
+	.lp-cta__actions {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.lp-container {
+		padding-inline: var(--space-5);
+	}
+}
