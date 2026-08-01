@@ -461,7 +461,8 @@
 	rotate: x 0deg;
 }
 
-.lp-shot__frame img {
+.lp-shot__frame img,
+.lp-shot__frame video {
 	display: block;
 	width: 100%;
 	height: auto;

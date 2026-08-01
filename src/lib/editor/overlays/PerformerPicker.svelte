@@ -11,6 +11,16 @@
 		placement?: 'above' | 'below';
 		initialSelectedIds?: readonly PerformerId[];
 		prompt?: string;
+		/**
+		 * Which step of a multi-step flow this is, 1-based, and how many there
+		 * are. Drawn as a bar under the question rather than written into it: the
+		 * `· 1 of 2` the prompt used to carry was four words of chrome on the one
+		 * line of this card that has something to ask, and it changed the
+		 * question's width at every step. Both are omitted for a single-step
+		 * prompt, which then draws no bar at all.
+		 */
+		step?: number;
+		stepCount?: number;
 		applyLabel?: string;
 		/**
 		 * What applying with nobody selected does, when that is a real answer —
@@ -33,6 +43,8 @@
 		placement = 'above',
 		initialSelectedIds = [],
 		prompt,
+		step,
+		stepCount,
 		applyLabel = 'Apply',
 		emptyApplyLabel,
 		returnFocusOnApply = true,
@@ -52,11 +64,34 @@
 	let pendingAddName = $state<string | undefined>();
 	let root: HTMLDivElement;
 	let addInput = $state<HTMLInputElement | undefined>();
+	/** `[1, 2]` for a two-step flow, empty for a prompt that is not one. */
+	const stepStops = $derived(
+		stepCount && stepCount > 1 ? Array.from({ length: stepCount }, (_, i) => i + 1) : []
+	);
 	const removalSelected = $derived(selectedIds.length === 0 && initialSelectedIds.length > 0);
 	const canRemoveFormatting = $derived(
 		allowRemoval && removalAvailable && initialSelectedIds.length > 0
 	);
 	const removalUnavailable = $derived(allowRemoval && removalSelected && !canRemoveFormatting);
+	/*
+	 * The action's label and its tier are one decision read once, rather than the
+	 * same three-branch ternary written out in the markup and again in a class.
+	 * Two copies of this would disagree the first time a branch moved, and the
+	 * one that drifted would be the tier — which is invisible in a diff.
+	 */
+	const showsRemoval = $derived(removalSelected && allowRemoval);
+	const showsEmptyAnswer = $derived(
+		!showsRemoval && selectedIds.length === 0 && emptyApplyLabel !== undefined
+	);
+	const actionLabel = $derived(
+		showsRemoval
+			? removalUnavailable
+				? 'Already plain text'
+				: 'Remove formatting'
+			: showsEmptyAnswer
+				? emptyApplyLabel
+				: applyLabel
+	);
 	const selectionChanged = $derived(
 		selectedIds.length !== initialSelectedIds.length ||
 			selectedIds.some((id) => !initialSelectedIds.includes(id))
@@ -327,7 +362,21 @@
 		}}
 	>
 		{#if prompt}
-			<span class="picker__prompt">{prompt}</span>
+			<div class="picker__prompt">
+				<span class="picker__question">{prompt}</span>
+				{#if stepStops.length > 1}
+					<!-- The bar is the picture; the sentence beside it is the whole of
+					     what a screen reader gets, since a run of empty spans says
+					     nothing. `aria-hidden` on the bar keeps the two from being
+					     announced twice — the same split the citation tooltip makes. -->
+					<span class="sr-only">Step {step} of {stepCount}</span>
+					<span class="picker__steps" aria-hidden="true">
+						{#each stepStops as stop (stop)}
+							<span class="picker__step" class:picker__step--done={stop <= (step ?? 0)}></span>
+						{/each}
+					</span>
+				{/if}
+			</div>
 		{/if}
 		<div class="roster" class:roster--scrollable={rosterScrollable} aria-label="Performer roster">
 			<div class="roster__track" {@attach trackRosterOverflow}>
@@ -345,22 +394,6 @@
 					>
 						<span class="chip__dot" aria-hidden="true"></span>
 						{performer.displayName}
-						{#if selectedIds.includes(performer.id)}
-							<svg
-								class="chip__check"
-								aria-hidden="true"
-								viewBox="0 0 16 16"
-								width="11"
-								height="11"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-							>
-								<path d="m3.2 8.6 3 3.1 6.6-7.2" />
-							</svg>
-						{/if}
 					</button>
 				{/each}
 			</div>
@@ -406,20 +439,26 @@
 			{/if}
 		</div>
 		<div class="actions">
+			<!--
+				The empty answer steps down a tier. `Skip` is a real answer — the
+				rest of the section can be named later — but it is not the one this
+				card is asking for, and the contrast tier is how a surface says
+				"this is what you came to press". Left contrast, the loudest control
+				on the card was advertising *not* answering the question. Bordered
+				is the middle tier, so it stays plainly clickable without being
+				encouraged, and the card simply carries no contrast action while
+				nobody is picked — which is honest, because at that moment there is
+				nothing to press it *for*.
+			-->
 			<button
 				type="button"
-				class="button button--contrast apply"
+				class="button apply"
+				class:button--contrast={!showsEmptyAnswer}
 				disabled={!canApply}
 				aria-describedby={removalUnavailable ? 'performer-removal-unavailable' : undefined}
 				onclick={apply}
 			>
-				{removalSelected && allowRemoval
-					? removalUnavailable
-						? 'Already plain text'
-						: 'Remove formatting'
-					: selectedIds.length === 0 && emptyApplyLabel
-						? emptyApplyLabel
-						: applyLabel}
+				{actionLabel}
 				<span aria-hidden="true" class="apply__key">↵</span>
 			</button>
 			{#if removalUnavailable}
@@ -462,10 +501,52 @@
 	   looked like the same card glitching: the only thing that had changed was a
 	   few grey words the eye skips. It takes the picker's own type and full
 	   contrast, and the step counter rides along in it. */
+	/*
+	 * The question, centred over the bar that says how far through this flow it
+	 * is. The step used to be four words appended to the question — `· 1 of 2` —
+	 * which spent the one line of this card that asks something on chrome, and
+	 * changed the question's width at every step.
+	 *
+	 * **The block is floored at the widest question the flow can put in it**, so
+	 * `Who sings this?` and `Who sings the rest?` occupy the same box and the
+	 * roster beside them does not slide as the flow advances. That is also what
+	 * makes the bar honest: it spans the block rather than the text, so both
+	 * steps draw the same bar in the same place and only the fill moves. Centring
+	 * is what the floor buys — a shorter question left-aligned in a wider box
+	 * would read as indented rather than as centred.
+	 */
 	.picker__prompt {
 		flex: none;
+		display: flex;
+		flex-direction: column;
+		min-width: 10.5rem;
+		gap: var(--space-1);
+		align-items: center;
 		font-weight: var(--font-weight-semibold);
 		white-space: nowrap;
+	}
+
+	.picker__steps {
+		display: flex;
+		width: 100%;
+		gap: var(--space-1);
+	}
+
+	/*
+	 * Each stop is an equal share of the bar. `--color-border` against
+	 * `--color-accent` is a lightness step as well as a hue one, so which stop is
+	 * reached survives a greyscale print — and the `sr-only` sentence beside it is
+	 * what carries the same fact where neither colour nor shape reaches.
+	 */
+	.picker__step {
+		flex: 1;
+		height: 0.1875rem;
+		border-radius: var(--radius-pill);
+		background: var(--color-border);
+	}
+
+	.picker__step--done {
+		background: var(--color-accent);
 	}
 
 	.anchored {
@@ -523,16 +604,43 @@
 		background: var(--color-control-hover);
 	}
 
+	/*
+	 * Selection is the chip's own colour, drawn as a border and a light fill.
+	 *
+	 * It used to be a check glyph appended after the name, which made a chip
+	 * change *width* when it was pressed — so choosing one performer shifted
+	 * every chip after it sideways, in a row the pointer is in the middle of
+	 * working along. The state is the whole control now rather than something
+	 * added to the end of it, and nothing in the row moves.
+	 *
+	 * The colour is the performer's own, because that is what it is for
+	 * everywhere else in this workbench: the dot on this chip, the bar in the
+	 * gutter, the name in the legend. A neutral accent here would have been the
+	 * one place a voice is picked without its identity on it.
+	 *
+	 * **It is not colour carrying the state, and that distinction is the reason
+	 * the fill is here at all.** What separates the two is a *fill against no
+	 * fill*, which is a lightness difference that survives a greyscale print;
+	 * the hue only says which performer. The border moves off
+	 * `--color-control-border` at the same time, so there are two cues, exactly
+	 * as `.filter-chip` carries two for its unpressed state. `aria-pressed`
+	 * carries it for anything that cannot see either.
+	 */
+	button.chip[aria-pressed='true'] {
+		border-color: var(--dot-color);
+		background: color-mix(in oklch, var(--dot-color) 16%, transparent);
+	}
+
+	button.chip[aria-pressed='true']:hover {
+		background: color-mix(in oklch, var(--dot-color) 26%, transparent);
+	}
+
 	.chip__dot {
 		width: 0.55rem;
 		height: 0.55rem;
 		border-radius: var(--radius-round);
 		background: var(--dot-color);
 		box-shadow: inset 0 0 0 1px color-mix(in oklch, currentColor 30%, transparent);
-	}
-
-	.chip__check {
-		flex: none;
 	}
 
 	.add-slot {
@@ -640,6 +748,28 @@
 		gap: var(--space-1-5);
 		padding-inline-start: var(--space-2);
 		border-inline-start: var(--border-width) solid var(--color-border);
+	}
+
+	/*
+	 * A floor under the action, because its label changes underneath the pointer
+	 * that is about to press it.
+	 *
+	 * The two-voice flow rewrites this button three times without the user going
+	 * anywhere: `Next` on step one, then `Skip` while step two has nobody picked,
+	 * then `Apply` the moment somebody is. Each is a different width, and the
+	 * button is the last thing in the row — so the card's whole right edge stepped
+	 * in and out while the reader was working along the roster, and the target
+	 * moved between deciding to press it and pressing it.
+	 *
+	 * The floor is sized to the widest of those three rather than to the widest
+	 * label the component has. `Remove formatting` is far wider and simply exceeds
+	 * it, which is correct: a `min-width` that reserved room for a label this flow
+	 * never shows would leave the ordinary case sitting in a hand of empty pill.
+	 * `PerformerPicker.svelte.test.ts` measures the three against each other, since
+	 * the number is only right for as long as the labels and the type agree with it.
+	 */
+	.actions button {
+		min-width: 5.25rem;
 	}
 
 	@media (prefers-reduced-motion: no-preference) {

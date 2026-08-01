@@ -17,18 +17,20 @@
  * shot — a hovered Harper underline with its popover open, fix preview and
  * citation included. Every file lands in `static/`.
  *
- * The document below is invented, line by line, exactly as the landing page's
- * own demo sample is. A product shot of a lyric linter is the one screenshot
- * that must not contain a real transcription: the picture ships in the bundle
- * and on every social card, so anything quoted in it is quoted permanently. It
- * is written to be wrong in several ordinary ways at once — a written-out
- * section label, a lowercase line start, a subject and verb that disagree, a
- * typewriter apostrophe, a trailing comma, a bare ad-lib — because a linter
- * showing an empty panel is a picture of nothing happening.
+ * The documents these are taken of, and the performer scene's own setup, live
+ * in `shot-scene.mjs` — `render-performer-motion.mjs` films the same scene this
+ * photographs, and a second copy of either is a copy that drifts.
  */
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
+import {
+	harperTranscription,
+	preparePerformerScene,
+	selectionPoints,
+	transcription,
+	waitForWorkbench
+} from './shot-scene.mjs';
 
 const origin = process.env.ORIGIN ?? 'http://127.0.0.1:5173';
 const light = process.argv.includes('--light');
@@ -43,84 +45,6 @@ const outputPath = resolve(
 				? 'static/workbench-light.png'
 				: 'static/workbench.png'
 );
-
-/*
- * The performer-tagging detail shot's document — invented like the other, but
- * deliberately *clean*: its subject is the picker over a selection, and a
- * column of unrelated underlines would compete with it. It is a whole short
- * song rather than an excerpt, because the shot is cropped *portrait* — it
- * sits beside the section's copy on a desktop, so what fills its height is a
- * long transcription. The chorus and the bridge are already marked up, legend
- * and spans, so the roster's colours are on screen above the selection being
- * assigned. There is deliberately no second chorus: two of them would raise
- * `section.unlinked-repeat` on the headers, which is a real finding and not
- * this picture's subject.
- */
-const performersTranscription = `[Verse 1]
-I counted every streetlight on the way
-You said we'd drive until the radio gave out (Yeah)
-And the quiet part was never really quiet
-We let the engine hum instead of answering
-
-[Chorus: Avery & <i>Blair</i>]
-Hold the line, hold the line
-<i>We were never gonna make it quietly</i>
-Hold the line before the morning comes
-
-[Verse 2]
-The map you drew was a coffee ring and a guess
-I keep it folded in the door where the cold gets in
-We counted three exits and took none of them
-Somewhere past the bridge the signal dropped again
-
-[Bridge: Blair]
-Tell me what the quiet part was for
-You can say it now, no one is on the road
-
-[Verse 3]
-The morning came in sideways through the glass
-You wrote our names in breath and let them fade
-I held the wheel like it was listening
-And hummed the part we never wrote down
-
-[Outro: Avery]
-Leave the radio on for me
-Leave the radio on`;
-
-/*
- * The grammar detail shot's document. One Harper finding and nothing else, so
- * the hovered popover — message, Harper citation, previewed fix — is the whole
- * picture. `I has` is the disagreement; every other line is clean, the header
- * is unnumbered because a single `[Verse 1]` raises `section.verse-numbering`
- * on the `1`, and the lines are short so the crop hugs the popover instead of
- * trailing empty editor to the right of it.
- */
-const harperTranscription = `[Verse]
-I has counted every streetlight
-You said we'd drive all night
-And the quiet part was never quiet`;
-
-/** Invented. See the note at the top of this file. */
-const transcription = `Verse 1:
-i has counted every streetlight on the way
-you said we'd drive until the radio gave out, yeah
-and the "quiet" part was never really quiet
-
-Chorus:
-hold the line, hold the line
-we was never gonna make it definately
-hold the line til the morning comes, yeah
-
-Verse 2:
-the map you drew was a coffee ring and a guess
-i keep it folded in the door where the cold gets in
-we counted 3 exits and took none of them
-somewhere past the bridge the signal dropped again
-
-Bridge:
-(dont look back)
-so tell me what the quiet part was for
-tell me what the quiet part was for   `;
 
 await mkdir(resolve('static'), { recursive: true });
 
@@ -147,67 +71,20 @@ try {
 
 	await page.goto(`${origin}/lint/`);
 
-	const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
-	await editor.waitFor({ state: 'visible', timeout: 60_000 });
-
-	// The boot screen owns the window until the workbench behind it is ready, and
-	// it is above every layer in the scale — including anything this script could
-	// wait on inside the shell.
-	await page.locator('.boot-screen').waitFor({ state: 'detached', timeout: 60_000 });
+	const editor = await waitForWorkbench(page);
 
 	if (performers) {
-		// The roster first, so the pasted chorus's legend resolves against real
-		// performers instead of arriving as unresolved voices. This is the same
-		// order the section's copy tells a reader to work in.
-		await page.getByRole('tab', { name: 'Performers' }).click();
-		for (const name of ['Avery', 'Blair']) {
-			await page.locator('#new-performer').fill(name);
-			await page.getByRole('button', { name: 'Add', exact: true }).click();
-		}
-
-		// Each add raises a confirmation toast, and a toast in a product shot is a
-		// notification about work the reader never did. Dismissed by their own
-		// control rather than waited out, because their countdown is longer than
-		// anything else this script waits for.
-		const dismiss = page.getByRole('button', { name: 'Dismiss notification' });
-		while (await dismiss.count()) await dismiss.first().click();
-		await page.locator('.toast').first().waitFor({ state: 'detached', timeout: 10_000 });
-
-		await editor.click();
-		await page.keyboard.press('Control+A');
-		await editor.fill(performersTranscription);
-		await page.waitForTimeout(2000);
+		await preparePerformerScene(page, editor);
 
 		// The picker opens on a *pointer* selection and on nothing else, so the
 		// selection is made the way a user makes one: a drag across the words.
-		// The endpoints are measured off the line's own text rather than guessed
-		// in pixels, or the shot selects a different phrase every time the editor
-		// font moves.
 		// The last line of a verse, so the picker — which prefers the space above
 		// the selection — covers two plain lyric lines rather than a section
 		// header (a hidden header reads as a song with a hole in it). Verse 2
 		// specifically: the shot stands beside the section's heading, so the
 		// picker lands in the upper half of the picture, where the eye already is
 		// while reading the title.
-		const phrase = 'Somewhere past the bridge';
-		const points = await page.evaluate((text) => {
-			const line = [...document.querySelectorAll('.cm-line')].find((candidate) =>
-				candidate.textContent.startsWith(text)
-			);
-			if (!line) return undefined;
-			const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
-			const first = walker.nextNode();
-			if (!first) return undefined;
-			const range = document.createRange();
-			range.setStart(first, 0);
-			range.setEnd(first, Math.min(text.length, first.textContent.length));
-			const box = range.getBoundingClientRect();
-			return {
-				from: { x: box.left + 1, y: box.top + box.height / 2 },
-				to: { x: box.right, y: box.top + box.height / 2 }
-			};
-		}, phrase);
-		if (!points) throw new Error(`no editor line starts with "${phrase}"`);
+		const points = await selectionPoints(page);
 
 		await page.mouse.move(points.from.x, points.from.y);
 		await page.mouse.down();

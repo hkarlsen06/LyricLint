@@ -1,11 +1,50 @@
 <script lang="ts">
+	import { dev } from '$app/environment';
+	import { base } from '$app/paths';
 	import { provideFeedbackState } from '$lib/ui/state/feedback.svelte.js';
 	import '$lib/ui/styles/global.css';
+	import { onMount } from 'svelte';
 
 	let { children } = $props();
 	// Provided at the root rather than inside `(app)` so the error page — which
 	// sits above both groups — still resolves the context if it ever announces.
 	provideFeedbackState();
+
+	// The offline worker is a production promise, and registering it against a dev
+	// server breaks the dev server. It is cache-first over every same-origin GET,
+	// which in dev is every Vite module request, and its miss path throws rather
+	// than failing the way a network error fails — so an ordinary restart or dep
+	// re-optimize becomes a rejected dynamic import, which the browser caches
+	// against that module's URL for the life of the document. The tab lands on
+	// `+error.svelte` and cannot leave it. It also answers `static/` from the
+	// cache first, so an edited asset stays the old one.
+	//
+	// `kit.serviceWorker.register` is off for that reason, so this is the only
+	// registration; `type: 'classic'` matches what SvelteKit builds for the
+	// non-dev branch it replaces.
+	//
+	// Unregistering under `dev` is not tidiness: a worker installed by an earlier
+	// build of this app goes on controlling `localhost` until something takes it
+	// off, so leaving the branch out would fix new checkouts and no existing one.
+	onMount(() => {
+		if (!('serviceWorker' in navigator)) return;
+
+		if (!dev) {
+			void navigator.serviceWorker.register(`${base}/service-worker.js`, { type: 'classic' });
+			return;
+		}
+
+		void (async () => {
+			for (const registration of await navigator.serviceWorker.getRegistrations()) {
+				await registration.unregister();
+			}
+			// Its own precache only. Anything else on this origin belongs to whatever
+			// else the developer runs here.
+			for (const name of await caches.keys()) {
+				if (name.startsWith('lyriclint-')) await caches.delete(name);
+			}
+		})();
+	});
 </script>
 
 <svelte:head>

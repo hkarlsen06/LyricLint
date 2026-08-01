@@ -348,7 +348,7 @@ describe('performer assignment', () => {
 		});
 	});
 
-	// "Name later" is a real answer: it commits step one exactly as pressing
+	// "Skip" is a real answer: it commits step one exactly as pressing
 	// Apply would have before the question existed.
 	it('commits the selection alone when no section voice is named', () => {
 		const open = askSectionVoice(openPerformerPicker(closedOverlaySession(), selection), ['avery']);

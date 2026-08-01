@@ -557,12 +557,12 @@ describe('EditorPane', () => {
 		handle.focus();
 		await userEvent.keyboard('{Alt>}p{/Alt}');
 
-		await expect.element(page.getByText('Who sings this? · 1 of 2')).toBeVisible();
+		await expect.element(page.getByText('Who sings this?')).toBeVisible();
 		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
 		await userEvent.click(page.getByRole('button', { name: /Next/u }));
 
 		expect(createPerformerEdit).not.toHaveBeenCalled();
-		await expect.element(page.getByText('Who sings the rest? · 2 of 2')).toBeVisible();
+		await expect.element(page.getByText('Who sings the rest?')).toBeVisible();
 		await userEvent.click(page.getByRole('button', { name: /Avery/u }));
 		await userEvent.click(page.getByRole('button', { name: /Apply/u }));
 
@@ -590,7 +590,7 @@ describe('EditorPane', () => {
 		await userEvent.keyboard('{Alt>}p{/Alt}');
 		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
 		await userEvent.click(page.getByRole('button', { name: /Next/u }));
-		await userEvent.click(page.getByRole('button', { name: /Name later/u }));
+		await userEvent.click(page.getByRole('button', { name: /Skip/u }));
 
 		expect(createPerformerEdit).toHaveBeenCalledWith({
 			range: { from, to },
@@ -694,13 +694,13 @@ describe('EditorPane', () => {
 		await userEvent.keyboard('{F2}');
 		await userEvent.click(page.getByRole('button', { name: 'Assign section performers' }));
 
-		await expect.element(page.getByText('General section voice · 1 of 2')).toBeVisible();
+		await expect.element(page.getByText('General section voice')).toBeVisible();
 		await expect
 			.element(page.getByRole('button', { name: /Avery/u }))
 			.toHaveAttribute('aria-pressed', 'true');
 		await userEvent.click(page.getByRole('button', { name: /Next/u }));
 
-		await expect.element(page.getByText('Styled passage · 2 of 2')).toBeVisible();
+		await expect.element(page.getByText('Styled passage')).toBeVisible();
 		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
 		await userEvent.click(page.getByRole('button', { name: /^Apply/u }));
 
@@ -773,7 +773,7 @@ describe('EditorPane', () => {
 		await userEvent.click(page.getByRole('button', { name: 'Assign section performers' }));
 
 		await expect.element(page.getByText('Section voice · formatting removed')).toBeVisible();
-		await expect.element(page.getByText('General section voice · 1 of 2')).not.toBeInTheDocument();
+		await expect.element(page.getByText('General section voice')).not.toBeInTheDocument();
 		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
 		await userEvent.click(page.getByRole('button', { name: /^Apply/u }));
 

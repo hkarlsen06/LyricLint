@@ -112,7 +112,25 @@ export default defineConfig({
 			// Cloudflare Pages consumes `_headers` as platform config and 404s its
 			// URL. Left in `$service-worker` `files` it fails the precache validation,
 			// so every new worker dies at install and stale clients never update.
-			serviceWorker: { files: (file) => !file.startsWith('_') }
+			//
+			// `register: false` because SvelteKit's own registration runs in dev too,
+			// and this worker is cache-first over every same-origin GET — which on a
+			// dev server means every Vite module request. Its miss path ends in a
+			// throw, so a dev server that restarts, re-optimizes a dep, or invalidates
+			// a module URL stops producing a retriable network error and starts
+			// producing a rejected dynamic import. The browser caches that rejection
+			// against the URL, SvelteKit renders `+error.svelte`, and the tab cannot
+			// route out of it. It also serves `static/` cache-first, so an edited
+			// asset goes on being the old one. The workbench registers it itself,
+			// under `dev`, in the root layout.
+			//
+			// The `.gif` is the motion loop's sharing copy — a README, an issue, a
+			// post. No page references it, so precaching it would spend every
+			// visitor's bandwidth on an asset only ever fetched from outside the app.
+			serviceWorker: {
+				register: false,
+				files: (file) => !file.startsWith('_') && !file.endsWith('.gif')
+			}
 		}),
 		loopbackLiteralUrls()
 	],

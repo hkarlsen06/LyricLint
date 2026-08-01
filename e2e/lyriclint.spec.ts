@@ -560,3 +560,76 @@ test('offline reopen from cache via the service worker', async ({ page, context 
 	await expectDocText(page, text);
 	await context.setOffline(false);
 });
+
+/**
+ * The offline snapshot is the app, not the site: `/` and `/lint/` are precached
+ * and the ~57 rule reference pages — most of the deploy by bytes, re-fetched
+ * per visitor per deploy when they were precached — are not. A rules page joins
+ * the snapshot by being read, which is the navigation strategy writing what it
+ * serves. Both halves are pinned: re-adding the reference to the precache is
+ * the specific cost regression, and losing the runtime write would quietly
+ * shrink the offline promise to the two precached pages.
+ */
+test('the offline snapshot precaches the app and admits a rules page when read', async ({
+	page,
+	context
+}) => {
+	await openWorkspace(page);
+	await page.evaluate(() => navigator.serviceWorker.ready);
+	await expect
+		.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null))
+		.toBe(true);
+
+	const cachedPages = () =>
+		page.evaluate(async () => {
+			const paths: string[] = [];
+			for (const name of await caches.keys()) {
+				const cache = await caches.open(name);
+				paths.push(...(await cache.keys()).map((request) => new URL(request.url).pathname));
+			}
+			return paths.filter((path) => !path.startsWith('/_app/'));
+		});
+
+	await expect.poll(cachedPages).toContain('/lint/');
+	expect(await cachedPages()).not.toContainEqual(expect.stringMatching(/^\/rules\//u));
+
+	await page.goto('/rules/');
+	await expect.poll(cachedPages).toContain('/rules/');
+
+	await context.setOffline(true);
+	await page.reload();
+	await expect(page.getByRole('heading', { name: 'Genius lyric formatting rules' })).toBeVisible();
+	await context.setOffline(false);
+});
+
+/**
+ * The error page's way out has to be a new document.
+ *
+ * This screen is on the reader precisely because the client runtime failed, and
+ * the failure is usually a rejected dynamic import — which the browser caches
+ * against that module's URL, so a client-side navigation re-imports it and fails
+ * instantly, forever. The button then does nothing on the one screen whose whole
+ * job is offering a way out.
+ *
+ * Asserted as behaviour rather than as `data-sveltekit-reload`, because what has
+ * to hold is that the document is replaced; the attribute is only how.
+ */
+test('the error page leaves by loading a new document, not by routing', async ({ page }) => {
+	await page.goto('/this-route-does-not-exist/');
+	await expect(
+		page.getByRole('heading', { name: 'LyricLint could not open this page' })
+	).toBeVisible();
+
+	// Survives a client-side navigation; destroyed by a document load.
+	await page.evaluate(() => {
+		(window as unknown as { __errorPageDocument?: string }).__errorPageDocument = 'same document';
+	});
+
+	await page.getByRole('link', { name: 'Return to the workspace' }).click();
+	await expect(editor(page)).toBeVisible();
+	expect(
+		await page.evaluate(
+			() => (window as unknown as { __errorPageDocument?: string }).__errorPageDocument
+		)
+	).toBeUndefined();
+});

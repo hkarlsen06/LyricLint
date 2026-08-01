@@ -1,19 +1,67 @@
 /// <reference lib="webworker" />
 
-import { build, files, prerendered, version } from '$service-worker';
+import { base, build, files, prerendered, version } from '$service-worker';
+
+/**
+ * The worker is an offline snapshot, and it must never stand between the user
+ * and the network. Three strategies, chosen by what a URL can honestly promise,
+ * and anything that matches none of them is not intercepted at all:
+ *
+ * - A hashed build asset is content-addressed, so its URL never changes meaning:
+ *   cache-first forever, and a network copy may be cached on sight. That
+ *   self-heal is what lets an old worker serve a newer deploy's page — the
+ *   page's new chunks miss the old snapshot, come from the network, and join it.
+ * - A navigation is network-first. What the user sees online is the deployed
+ *   site, always; the snapshot answers only when the network cannot. The
+ *   worker's version therefore decides nothing about freshness — it is only
+ *   how good the offline copy is.
+ * - A static or prerendered URL can change between deploys, so it belongs to
+ *   this version's snapshot alone and is never written outside install, except
+ *   by a navigation landing fresh markup over its own stale copy.
+ */
 
 const worker = self as unknown as ServiceWorkerGlobalScope;
-const cacheName = `lyriclint-${version}`;
-const runtimeAssets = new Set(
-	build
-		.filter((asset) => asset.endsWith('.wasm'))
-		.map((asset) => new URL(asset, worker.location.href).pathname)
-);
-const applicationAssets = [
-	...build.filter((asset) => !runtimeAssets.has(new URL(asset, worker.location.href).pathname)),
-	...files,
-	...prerendered
-];
+const cachePrefix = 'lyriclint-';
+const cacheName = `${cachePrefix}${version}`;
+
+const toPathname = (asset: string): string => new URL(asset, worker.location.href).pathname;
+
+const immutablePaths = new Set(build.map(toPathname));
+
+// The Harper wasm is 18MB — most of the build. It is cached the first time the
+// workbench actually loads it (the immutable strategy writes on sight), so the
+// offline promise still covers it without every landing-page visitor paying for
+// it at install.
+const precachedImmutable = build.filter((asset) => !asset.endsWith('.wasm'));
+
+/**
+ * Only the app's own pages are precached: the workbench, and the front page the
+ * offline navigation fallback serves. The other ~57 prerendered pages are the
+ * rule reference, ~6MB of markup that changes every deploy and that most
+ * sessions never open — precaching it made install the most expensive thing
+ * this application did, per visitor, per deploy. A rules page is cached when it
+ * is actually read (the navigation strategy writes what it serves), which keeps
+ * the pages someone uses offline without shipping the whole reference to
+ * everyone.
+ */
+const precachedPages = prerendered.filter((page) => {
+	const path = toPathname(page).replace(/\/$/u, '');
+	return path === base || path === `${base}/lint`;
+});
+const pagePaths = new Set(prerendered.map(toPathname));
+const staticPaths = new Set(files.map(toPathname));
+const shellPath = toPathname(`${base}/`);
+
+async function copyForward(cache: Cache, olderCaches: Cache[], asset: string): Promise<boolean> {
+	for (const older of olderCaches) {
+		const cached = await older.match(asset);
+		if (cached) {
+			await cache.put(asset, cached);
+			return true;
+		}
+	}
+	return false;
+}
 
 function expectedContentType(pathname: string): string | undefined {
 	if (pathname.endsWith('.js')) return 'javascript';
@@ -23,14 +71,35 @@ function expectedContentType(pathname: string): string | undefined {
 
 async function precacheApplication(): Promise<void> {
 	const cache = await caches.open(cacheName);
+	const olderNames = (await caches.keys()).filter(
+		(name) => name.startsWith(cachePrefix) && name !== cacheName
+	);
+	const olderCaches = await Promise.all(olderNames.map((name) => caches.open(name)));
 
 	try {
-		// Fetch and validate the complete snapshot before writing any of it. Some
+		// Hashed assets already held for a previous version are copied across
+		// rather than refetched: content-addressing is what makes that sound, and
+		// it is what keeps an update from re-downloading a bundle that did not
+		// change. Only assets in *this* build's manifest are copied, so retired
+		// chunks die with the old cache.
+		const copied = await Promise.all(
+			precachedImmutable.map(async (asset) => ({
+				asset,
+				held: await copyForward(cache, olderCaches, asset)
+			}))
+		);
+		const missing = [
+			...copied.filter(({ held }) => !held).map(({ asset }) => asset),
+			...files,
+			...precachedPages
+		];
+
+		// Fetch and validate the whole remainder before writing any of it. Some
 		// static hosts answer a missing immutable asset with the HTML app shell
 		// and a 200 status; Cache.addAll accepts that response and permanently
 		// poisons the JavaScript URL in a cache-first worker.
 		const assets = await Promise.all(
-			applicationAssets.map(async (asset) => {
+			missing.map(async (asset) => {
 				const request = new Request(asset, { cache: 'reload' });
 				const response = await fetch(request);
 				if (!response.ok) {
@@ -56,19 +125,77 @@ async function precacheApplication(): Promise<void> {
 }
 
 worker.addEventListener('install', (event) => {
-	event.waitUntil(precacheApplication().then(() => worker.skipWaiting()));
+	// Deliberately no skipWaiting: this worker activates only once no page from
+	// the previous version is open anywhere. Activation is when the previous
+	// snapshot is deleted, and a deploy used to do both mid-session — so a tab
+	// still running the old document lost the cache its own lazy imports resolved
+	// from, and the next dynamic import rejected for the life of that document.
+	// Waiting costs nothing the user can see, because navigations are
+	// network-first: the site is current the moment it is deployed, worker or no.
+	event.waitUntil(precacheApplication());
 });
 
 worker.addEventListener('activate', (event) => {
 	event.waitUntil(
-		caches
-			.keys()
-			.then((names) =>
-				Promise.all(names.filter((name) => name !== cacheName).map((name) => caches.delete(name)))
-			)
-			.then(() => worker.clients.claim())
+		(async () => {
+			// Network-first navigations pay the worker's own startup on every page
+			// load; preload starts the request beside the worker instead of after it.
+			await worker.registration.navigationPreload?.enable();
+			// Only this application's own caches, not every cache on the origin —
+			// whatever else runs here owns its own storage.
+			const names = await caches.keys();
+			await Promise.all(
+				names
+					.filter((name) => name.startsWith(cachePrefix) && name !== cacheName)
+					.map((name) => caches.delete(name))
+			);
+			await worker.clients.claim();
+		})()
 	);
 });
+
+async function immutableAsset(event: FetchEvent): Promise<Response> {
+	const cached = await caches.match(event.request);
+	if (cached) return cached;
+	const response = await fetch(event.request);
+	if (response.ok) {
+		const copy = response.clone();
+		event.waitUntil(caches.open(cacheName).then((cache) => cache.put(event.request, copy)));
+	}
+	return response;
+}
+
+async function navigation(event: FetchEvent): Promise<Response> {
+	const request = event.request;
+	try {
+		const preloaded = (await event.preloadResponse) as Response | undefined;
+		const response = preloaded ?? (await fetch(request));
+		// A page of ours that arrived whole refreshes its own offline copy — this
+		// is how a visited rules page earns a place in the snapshot, and how the
+		// precached pair stays current between worker updates.
+		if (response.ok && pagePaths.has(new URL(request.url).pathname)) {
+			const copy = response.clone();
+			event.waitUntil(caches.open(cacheName).then((cache) => cache.put(request, copy)));
+		}
+		// An origin answering 5xx is an outage, and a snapshot of the page beats
+		// an error about it. A 404 is not: it is answered truthfully.
+		if (response.status >= 500) {
+			const cached = await caches.match(request, { ignoreSearch: true });
+			if (cached) return cached;
+		}
+		return response;
+	} catch {
+		const cached = await caches.match(request, { ignoreSearch: true });
+		if (cached) return cached;
+		const shell = await caches.match(shellPath);
+		if (shell) return shell;
+		throw new Error('This page is not in the offline snapshot.');
+	}
+}
+
+async function staticAsset(request: Request): Promise<Response> {
+	return (await caches.match(request)) ?? fetch(request);
+}
 
 worker.addEventListener('fetch', (event) => {
 	const request = event.request;
@@ -77,28 +204,19 @@ worker.addEventListener('fetch', (event) => {
 	const url = new URL(request.url);
 	if (url.origin !== worker.location.origin) return;
 
-	let fetched = false;
-	const response = caches.match(request).then(async (cached) => {
-		if (cached) return cached;
-		try {
-			fetched = true;
-			return await fetch(request);
-		} catch {
-			if (request.mode === 'navigate') {
-				const shell = await caches.match('/');
-				if (shell) return shell;
-			}
-			throw new Error('Requested resource is not available offline.');
-		}
-	});
-	event.respondWith(response);
-	if (runtimeAssets.has(url.pathname)) {
-		event.waitUntil(
-			response.then((result) =>
-				fetched && result.ok
-					? caches.open(cacheName).then((cache) => cache.put(request, result.clone()))
-					: undefined
-			)
-		);
+	if (immutablePaths.has(url.pathname)) {
+		event.respondWith(immutableAsset(event));
+		return;
 	}
+	if (request.mode === 'navigate') {
+		event.respondWith(navigation(event));
+		return;
+	}
+	if (staticPaths.has(url.pathname) || pagePaths.has(url.pathname)) {
+		event.respondWith(staticAsset(request));
+	}
+	// Anything else is not this worker's to answer. Failing open is the rule the
+	// dev-server incident taught: a worker that proxies traffic it has no
+	// strategy for turns somebody else's transient failure into its own
+	// permanent one.
 });

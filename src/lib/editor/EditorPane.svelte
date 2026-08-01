@@ -139,17 +139,20 @@
 	// The step counter belongs to the two-voice flow only. A styled-only section
 	// names one voice, and the prompt says up front that its markup goes with the
 	// assignment — the picker is where that consequence is agreed to.
+	// The step is carried beside the question rather than written into it: the
+	// picker draws it as a bar under the words, so `· 1 of 2` in the string would
+	// be the same fact twice and would change the question's width at every step.
 	const legendPrompt = $derived(
 		legend
 			? legend.promoteToPlain
-				? 'Section voice · formatting removed'
+				? { text: 'Section voice · formatting removed' }
 				: legend.step === 'section'
-					? 'General section voice · 1 of 2'
-					: 'Styled passage · 2 of 2'
+					? { text: 'General section voice', step: 1, stepCount: 2 }
+					: { text: 'Styled passage', step: 2, stepCount: 2 }
 			: pendingVoice
-				? 'Who sings the rest? · 2 of 2'
+				? { text: 'Who sings the rest?', step: 2, stepCount: 2 }
 				: needsSectionVoice()
-					? 'Who sings this? · 1 of 2'
+					? { text: 'Who sings this?', step: 1, stepCount: 2 }
 					: undefined
 	);
 
@@ -737,9 +740,11 @@
 			removalAvailable={!legend &&
 				!pendingVoice &&
 				canRemoveFormattingForRange(performerOverlay.range)}
-			prompt={legendPrompt}
+			prompt={legendPrompt?.text}
+			step={legendPrompt?.step}
+			stepCount={legendPrompt?.stepCount}
 			applyLabel={legend?.step === 'section' || needsSectionVoice() ? 'Next' : 'Apply'}
-			emptyApplyLabel={pendingVoice ? 'Name later' : undefined}
+			emptyApplyLabel={pendingVoice ? 'Skip' : undefined}
 			returnFocusOnApply={legend?.step !== 'section' && !needsSectionVoice()}
 			allowRemoval={!legend && !pendingVoice}
 			anchor={overlayAnchor}

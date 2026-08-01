@@ -2764,6 +2764,74 @@ sentence, because a shortcut that silently does nothing reads as a shortcut that
 does not, a header does not — and `transform-boundaries.test.ts` pins the predicate against the
 transform's own `blocked` verdicts, so the two cannot drift apart.
 
+**A picked performer is the chip, not a mark added to the end of it.** Selection used to be a check
+glyph after the name, which made the chip change _width_ on being pressed — so choosing one voice
+shifted every chip after it sideways, in a row the pointer is in the middle of working along. It is
+a border and a light fill now, and nothing in the row moves.
+
+The colour is the **performer's own**, because that is what colour means everywhere else here: the
+dot on this chip, the bar in the gutter, the name in the legend. A neutral accent would have made
+this the one place a voice is chosen without its identity on it, and with two performers picked at
+once — which is the ordinary case the section header's legend exists for — the row reads as the two
+colours the gutter is about to draw.
+
+**It is not colour carrying the state**, which is the rule this would otherwise break. What
+separates the two is a fill against _no_ fill, a lightness difference that survives a greyscale
+print; the hue only says which performer. The border leaves `--color-control-border` at the same
+time, so there are two cues, exactly as `.filter-chip` carries two for its unpressed state — and
+`aria-pressed` was always the carrier for anything that can see neither. `PerformerPicker.svelte.test.ts`
+measures the width across a press as well as the two cues, because the width is the part that looks
+like working CSS when it breaks.
+
+**The action has a floor under its width, because its label changes underneath the pointer that is
+about to press it.** The two-voice flow rewrites that one button three times without the user going
+anywhere: `Next` on step one, `Skip` while step two has nobody picked, `Apply` the moment somebody
+is. Each is a different width and the button is the last thing in the row, so the card's right edge
+stepped in and out while the reader was working along the roster — and the target moved between
+deciding to press it and pressing it. `min-width` on `.actions button` is that floor.
+
+It is sized to the widest of those _three_ and not to the widest label the component has.
+`Remove formatting` belongs to a different flow, is far wider, and simply exceeds the floor, which
+is correct: reserving room for a label this flow never shows would leave the ordinary case sitting
+in a hand of empty pill. The test measures the three against each other **and against the floor**,
+because three labels that had all outgrown it would still agree with one another while the
+`min-width` had silently stopped doing anything.
+
+**`Skip` rather than `Name later`.** The old label was a promise about the future — it said what the
+user would do afterwards rather than what the press does now — and at three words it was also the
+widest thing this flow ever put in that slot, which is what made the row move in the first place.
+The two facts are one fix: the shorter, plainer word is both the better label and the one the floor
+can be sized around.
+
+**And `Skip` is not the contrast tier.** It is a real answer — the rest of the section can be named
+later — but it is not the one the card is asking for, and the contrast tier is how a surface says
+_this is what you came to press_. Left contrast, the loudest control on the card was advertising not
+answering the question. It is the bordered middle tier now, so it stays plainly clickable without
+being encouraged, and while nobody is picked the card carries **no** contrast action at all — which
+is honest rather than a gap, because at that moment there is nothing to press it _for_. The label
+and the tier are one derived answer (`actionLabel` and `showsEmptyAnswer`), not the same
+three-branch ternary written once in the markup and again in a class: two copies would disagree the
+first time a branch moved, and the one that drifted would be the tier, which is invisible in a diff.
+
+**The step is a bar under the question, not four words appended to it.** `· 1 of 2` spent the one
+line of this card that asks something on chrome, and it changed the question's width at every step.
+The picker takes `step` and `stepCount` instead and draws one stop per step, filled up to the
+current one; a prompt that is not part of a flow passes neither and draws no bar.
+
+Three things it owes:
+
+- **The block is floored at the widest question the flow can put in it.** `Who sings this?` and
+  `Who sings the rest?` are different lengths and the roster sits directly beside them, so a prompt
+  sized to its own text slid every chip along as the flow advanced. Floored, both steps produce the
+  same card width — the whole card, both edges, measured across all three states.
+- **The bar spans the block rather than the words**, which is what makes it honest: both steps draw
+  the same bar in the same place and only the fill moves. Centring the question is what the floor
+  buys — a shorter question left-aligned in a wider box reads as indented rather than as centred.
+- **The bar is `aria-hidden` and a `sr-only` sentence carries the fact.** A run of empty spans says
+  nothing, and `Step 2 of 2` beside it says everything the old suffix did. Described rather than
+  hidden, the two would be announced twice — the same split `SourceCitation.svelte` makes, in the
+  direction where the visible copy is the second one.
+
 ### Every transient surface dismisses on an outside press
 
 Anything that floats over the workbench — a picker, a popover, a menu — closes three ways, and
@@ -2896,6 +2964,84 @@ about work the reader never did. There is deliberately no second chorus: two wou
 `section.unlinked-repeat`, a real finding that is not this picture's subject. `.lp-shot--detail`
 is the hero frame without the hero's theatre: no tilt and the bloom turned down, because the tilt
 is the opening gesture and repeating it down the page turns a device into a tic.
+
+**That shot is now the poster on a loop, and the loop is the section's actual argument.**
+`render-performer-motion.mjs` films the same scene one frame at a time — the pointer drags a
+phrase, the picker opens, a name is pressed, `Next`, then _both_ names for the rest of the
+section, then `Apply`. A still could only assert that the markup is never typed; watching it
+written is the whole claim, and the second step takes two performers on purpose, because one name
+per step reads as a radio group and leaves a viewer thinking a passage belongs to exactly one
+voice. The scene, the song and the phrase come out of **`shot-scene.mjs`**, which both scripts
+import, so the picture and the loop cannot drift — the rule `copySectionLinks` is written down
+for, applied to a product shot.
+
+Seven things it depends on, and most of them cost a round to find:
+
+- **Frames, not a screen recording.** Playwright's own bundled ffmpeg is built
+  `--disable-everything`: no GIF encoder, no `palettegen`, one MJPEG decoder. Screenshotting each
+  beat is lossless and makes the timing _declared_ rather than observed, so the loop is identical
+  run to run instead of coming out slower on a busy machine. It needs a **real** ffmpeg on the
+  path to encode.
+- **Run it with `node`, not `bun`.** Bun resolves `playwright-core` out of its own global cache,
+  which is routinely a different version from `node_modules` and then demands a browser build that
+  was never downloaded.
+- **The cursor is ours.** Playwright's mouse moves the page and draws nothing, so an arrow follows
+  the same coordinates the real mouse is given. `pointer-events: none` is load-bearing rather than
+  tidy: every transient surface here dismisses on an outside `pointerdown` in the capture phase, so
+  anything under the pointer that could take a hit would close the picker being filmed.
+- **The crop is the union across time, never the opening frame's.** Assigning the phrase writes the
+  header's legend, which runs past the longest line the song had before it — so the still's own
+  crop, taken from the opening state, cuts the end off the one line the loop exists to produce.
+- **The caret is parked at the top before filming.** CodeMirror's active-line wash follows the
+  _selection_, and `activeLineHighlighter` never asks whether the view is focused, so blurring does
+  not clear it. Left where the paste ends, the loop opens on a band across its last line that
+  vanishes on the first drag, which reads as a rendering fault.
+- **The pointer rests inside the crop.** Nudged by an offset from wherever `Apply` landed it left
+  the frame entirely, and the loop's longest beat ran with no pointer in it — which reads as the
+  recording having stopped.
+- **A GIF is written beside the WebM and is not what the page plays.** GIF cannot be paused, has no
+  poster, and pays for a dark UI full of antialiased text twice over. It is the sharing copy — a
+  README, an issue, a post. `diff_mode=rectangle` with `stats_mode=diff` is what keeps it near the
+  WebM's size rather than ten times it.
+
+**On the page it is a `<video>` and nothing else — no `poster`, no `<img>` — and it starts when
+the section is read rather than when the page loads.**
+
+The poster went because it was a **layout shift**, and the shape of that bug is worth keeping.
+A `<video>` takes its intrinsic aspect ratio from the poster until metadata arrives and from the
+media afterwards, and these two are framed differently on purpose: the loop's crop is the union
+across time, wide enough for the header legend it is about to write, while the still only ever had
+to hold the opening state. 1094×1574 against 1202×1572, in a column that gives it 555px, is a box
+798px tall that snaps to 726px the moment metadata lands — under the headline, halfway down the
+page. **Matching the numbers in `width`/`height` would not have fixed it**, because those were
+already the video's; the poster was the thing disagreeing with them. One medium in the slot is the
+only arrangement with one aspect ratio in it.
+
+What replaces it is the video's own first frame: `preload="auto"` has `readyState` at 4 before
+anything scrolls, so frame one — the unmarked verse the loop opens on — paints exactly where the
+still used to be, at the crop that cannot then shift. That is also the whole no-JavaScript story,
+and `static/workbench-performers.png` is deleted rather than left unreferenced. `--performers` on
+`render-workbench-shot.mjs` still writes it if a still is ever wanted somewhere else.
+
+An `IntersectionObserver` ties the eleven seconds to the reader, because the shot sits most of a
+screen below the hero and a loop started at load has run itself out twice before anybody arrives.
+It **rewinds on both edges rather than resuming** — the loop opens on an unmarked verse and ends on
+a marked one, so met halfway the result arrives before the gesture that produced it, and a section
+scrolled past is left on the state it rests on rather than frozen mid-gesture. It pauses on the way
+out, and `prefers-reduced-motion` keeps it on frame one entirely, which is the same argument in the
+medium this page used before.
+
+`layout-shift` entries are the check, not the reasoning: with the poster gone the box is 726px from
+attach through playback, and no shift entry names the `VIDEO`.
+
+**It carries no play/pause control, which is a decision and not an oversight.** A loop over five
+seconds that starts on its own is the one thing a pause control exists for, and the reduced-motion
+gate is what stands in for it here. A control was built and taken out: on a marketing shot it is a
+button parked permanently over the evidence, and the earlier version of it also shipped the exact
+desync the editor's search toggle has a rule about — the label was written from `play()`'s promise,
+which resolves when playback is _permitted_, so it read `Pause` over a video that had never drawn a
+frame. Anything that restores a control here reads its state from `onplay` / `onpause` and from
+nothing else.
 
 **The grammar section's shot is real too** (`--harper`), and it replaced a hand-drawn `<pre>`
 mock-up of the same card — which is the drift a generated shot exists to prevent: the mock's
@@ -3641,6 +3787,65 @@ Three things about it:
   which is why the value is read in the component body rather than at module scope.
 
 Implementation: `src/lib/ui/layout/DocumentTitle.svelte`.
+
+### The service worker is an offline snapshot, and it never stands between the user and the network
+
+The worker exists for two promises and nothing else: a workbench somebody opened comes back
+offline, and the installed home-screen app does not white-screen without a connection. Its first
+version tried to be more than that — cache-first over every same-origin GET, the whole deploy
+precached, `skipWaiting` plus `clients.claim` on update — and every one of those choices did harm
+the snapshot never required:
+
+- **Registered against the dev server, it broke the dev server.** Every Vite module request went
+  through a cache-first worker whose miss path threw, so an ordinary restart or dep re-optimize
+  stopped being a retriable network error and became a rejected dynamic import — which the browser
+  caches against that module's URL for the life of the document. The tab landed on `+error.svelte`
+  and could not route out of it, because the error page's links were client-side navigations asking
+  the runtime that had just failed. Both halves are fixed separately: the links carry
+  `data-sveltekit-reload`, because a new document with a new module graph is the only thing that
+  recovers; and `kit.serviceWorker.register` is off, with the root layout registering the worker
+  under `!dev` and **unregistering it under `dev`** — that branch is not tidiness, since a worker
+  installed by an earlier build goes on controlling `localhost` until something takes it off.
+- **`skipWaiting` was the same poisoning in production.** Activation is when the previous snapshot
+  is deleted, and a deploy used to do both mid-session — so a tab still running the old document
+  lost the cache its own lazy imports resolved from, on a host that no longer serves the old hashed
+  filenames. The worker now waits until no page from the previous version is open anywhere, which
+  is when deleting the old cache can no longer break a live document.
+- **Cache-first navigations pinned every visitor to the deploy their worker had snapshotted.**
+  Navigations are network-first now (with navigation preload, so the worker's own startup is not a
+  tax on every page load), which is also what makes waiting free: the site is current the moment it
+  is deployed, worker or no. **The worker's version decides nothing about freshness — it is only
+  how good the offline copy is.**
+- **Precaching the whole deploy made install the most expensive thing the application did.**
+  ~8.5MB per visitor, and again in full on every deploy, because the cache key is a per-build
+  timestamp and nothing was carried over — although the 1.5MB immutable bundle is content-addressed
+  and by definition unchanged. ~6MB of it was the ~57 prerendered rule reference pages, which most
+  sessions never open. The precache is now `/`, `/lint/`, the static files, and the non-wasm
+  immutable assets; install **copies immutable assets forward** from the previous version's cache
+  instead of refetching them; a rules page joins the snapshot by being read, because the navigation
+  strategy writes what it serves. The Harper wasm keeps its exclusion — 18MB cached the first time
+  the workbench actually loads it — and the motion loop's `.gif` is excluded in `vite.config.ts`,
+  since it is the sharing copy and no page references it.
+
+What is left is three strategies, chosen by what a URL can honestly promise, and **anything
+matching none of them is not intercepted at all** — failing open is the rule the dev incident
+taught, because a worker that proxies traffic it has no strategy for turns somebody else's
+transient failure into its own permanent one. A hashed build asset is cache-first forever and
+cached on sight from the network; that self-heal is what lets an old worker serve a newer deploy's
+page, whose new chunks miss the old snapshot, arrive from the network, and join it. A navigation
+is network-first, falls back to its cached copy (then the `/` shell) when the network cannot
+answer, and treats a 5xx as an outage worth answering from the snapshot — a 404 is answered
+truthfully. A static or prerendered URL can change between deploys, so it is served from this
+version's snapshot and never written outside install, except by a navigation landing fresh markup
+over its own stale copy.
+
+Two regressions are pinned in `e2e/lyriclint.spec.ts`: the offline reopen (`offline reopen from
+cache via the service worker`), and the precache scope with the read-a-rules-page write (`the
+offline snapshot precaches the app and admits a rules page when read`). The waiting-not-activating
+update path needs two real builds and is verified by hand rather than in the suite.
+
+Implementation: `src/service-worker.ts`, the registration in `src/routes/+layout.svelte`, the
+`serviceWorker` options in `vite.config.ts`, and the reload links in `src/routes/+error.svelte`.
 
 ### Design system
 

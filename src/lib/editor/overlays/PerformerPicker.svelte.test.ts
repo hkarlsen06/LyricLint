@@ -272,3 +272,191 @@ describe('PerformerPicker dismissal', () => {
 		expect(onCancel).not.toHaveBeenCalled();
 	});
 });
+
+describe('PerformerPicker selection state', () => {
+	beforeAll(async () => {
+		await page.viewport(900, 600);
+	});
+
+	afterAll(async () => {
+		await page.viewport(414, 896);
+	});
+
+	it('carries selection on the chip itself rather than on a glyph appended to it', async () => {
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			initialSelectedIds: [],
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		const chip = () => document.querySelectorAll<HTMLElement>('[data-picker-chip]')[0];
+		const restingWidth = chip().getBoundingClientRect().width;
+		// Read as strings, never held as a `CSSStyleDeclaration`: that object is a
+		// *live* view of the element, so a "before" kept across the press reports
+		// the state after it and the comparison below passes against itself.
+		const restingBackground = getComputedStyle(chip()).backgroundColor;
+		const restingBorder = getComputedStyle(chip()).borderTopColor;
+		// Nothing is drawn behind an unpicked chip, so the fill below is a real
+		// presence-against-absence rather than one tone against another.
+		expect(restingBackground).toBe('rgba(0, 0, 0, 0)');
+
+		await userEvent.click(page.getByRole('button', { name: 'Leif Tore' }));
+
+		expect(chip().getAttribute('aria-pressed')).toBe('true');
+		// Two cues, both surviving a greyscale print: a fill arrives, and the
+		// border leaves the neutral control token for the performer's own colour.
+		expect(getComputedStyle(chip()).backgroundColor).not.toBe(restingBackground);
+		expect(getComputedStyle(chip()).borderTopColor).not.toBe(restingBorder);
+
+		// The check glyph is gone. It is the reason this test measures width at
+		// all: appended after the name, it grew the chip on being pressed and
+		// shifted every chip after it along a row the pointer is working through.
+		expect(chip().querySelector('svg')).toBeNull();
+		expect(Math.abs(chip().getBoundingClientRect().width - restingWidth)).toBeLessThan(0.5);
+	});
+});
+
+describe('PerformerPicker action width', () => {
+	beforeAll(async () => {
+		await page.viewport(900, 600);
+	});
+
+	afterAll(async () => {
+		await page.viewport(414, 896);
+	});
+
+	/** The action's box for one set of labels, with the roster left untouched. */
+	async function actionWidth(props: Record<string, unknown>): Promise<number> {
+		const { unmount } = await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			allowRemoval: false,
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {},
+			...props
+		});
+		const action = document.querySelector<HTMLElement>('.actions button');
+		expect(action).not.toBeNull();
+		const width = action!.getBoundingClientRect().width;
+		unmount();
+		return width;
+	}
+
+	it('holds one width across the three labels the two-voice flow rewrites', async () => {
+		// Step one offers `Next`; step two offers `Skip` until somebody is picked
+		// and `Apply` once one is. All three land in the same slot, at the end of
+		// the row, so a width that follows the label drags the card's right edge
+		// in and out while the reader is working along the roster — and moves the
+		// target between deciding to press it and pressing it.
+		const next = await actionWidth({ initialSelectedIds: ['leif tore'], applyLabel: 'Next' });
+		const skip = await actionWidth({ initialSelectedIds: [], emptyApplyLabel: 'Skip' });
+		const apply = await actionWidth({ initialSelectedIds: ['leif tore'], applyLabel: 'Apply' });
+
+		expect(skip).toBeCloseTo(next, 1);
+		expect(apply).toBeCloseTo(next, 1);
+
+		// The floor has to be doing the work: if the widest of the three had grown
+		// past it the three would still agree here while the min-width had
+		// silently stopped mattering.
+		const floor = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) * 5.25;
+		expect(next).toBeCloseTo(floor, 0);
+	});
+});
+
+describe('PerformerPicker step bar', () => {
+	beforeAll(async () => {
+		await page.viewport(900, 600);
+	});
+
+	afterAll(async () => {
+		await page.viewport(414, 896);
+	});
+
+	it('holds one prompt width across the questions a two-step flow asks', async () => {
+		// The two questions are different lengths, and the roster sits directly
+		// beside them — so a prompt that sized itself to its own text slid every
+		// chip along as the flow advanced.
+		const widths: number[] = [];
+		const bars: Array<{ bar: number; question: number }> = [];
+		for (const [prompt, step] of [
+			['Who sings this?', 1],
+			['Who sings the rest?', 2]
+		] as const) {
+			const { unmount } = await render(PerformerPicker, {
+				performers: crowdedRoster(),
+				initialSelectedIds: [],
+				prompt,
+				step,
+				stepCount: 2,
+				onApply: vi.fn(),
+				onCancel: vi.fn(),
+				returnFocus: () => {}
+			});
+			const box = (selector: string) =>
+				document.querySelector<HTMLElement>(selector)!.getBoundingClientRect().width;
+			widths.push(box('.picker__prompt'));
+			bars.push({ bar: box('.picker__steps'), question: box('.picker__question') });
+
+			// The reached stops are the visual half; the sentence is the whole of
+			// what a screen reader gets, since a run of empty spans says nothing.
+			const stops = [...document.querySelectorAll('.picker__step')];
+			expect(stops).toHaveLength(2);
+			expect(stops.filter((s) => s.classList.contains('picker__step--done'))).toHaveLength(step);
+			expect(document.querySelector('.picker__prompt .sr-only')?.textContent?.trim()).toBe(
+				`Step ${step} of 2`
+			);
+			unmount();
+		}
+
+		expect(widths[1]).toBeCloseTo(widths[0], 1);
+		// The bar spans the floored block rather than the words, so both steps draw
+		// the same bar in the same place and only the fill moves.
+		for (const { bar, question } of bars) expect(bar).toBeGreaterThanOrEqual(question);
+	});
+
+	it('draws no bar for a prompt that is not a step in a flow', async () => {
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			initialSelectedIds: ['leif tore'],
+			prompt: 'Section voice · formatting removed',
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		expect(document.querySelector('.picker__steps')).toBeNull();
+		expect(document.querySelector('.picker__prompt .sr-only')).toBeNull();
+	});
+
+	it('drops the empty answer out of the contrast tier and puts it back on a real one', async () => {
+		// `Skip` is a real answer but not the one the card is asking for, so it
+		// must not be the loudest control on the surface — otherwise the card's
+		// primary action advertises not answering the question.
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			initialSelectedIds: [],
+			allowRemoval: false,
+			prompt: 'Who sings the rest?',
+			step: 2,
+			stepCount: 2,
+			emptyApplyLabel: 'Skip',
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		const action = () => document.querySelector<HTMLButtonElement>('.actions button')!;
+		expect(action().textContent).toContain('Skip');
+		expect(action().classList.contains('button')).toBe(true);
+		expect(action().classList.contains('button--contrast')).toBe(false);
+		// Still a real control: quiet is not disabled.
+		expect(action().disabled).toBe(false);
+
+		await userEvent.click(page.getByRole('button', { name: 'Leif Tore' }));
+
+		expect(action().textContent).toContain('Apply');
+		expect(action().classList.contains('button--contrast')).toBe(true);
+	});
+});
