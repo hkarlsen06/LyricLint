@@ -107,18 +107,16 @@ Leave the radio on`;
  * the frame once it closes, and they are clean, because a column of unrelated
  * underlines would compete with the one finding this picture is about.
  *
- * **And it may not grow much beyond this, which is a fact about Harper rather
- * than about the shot.** Lyrics carry no terminal punctuation, so a whole
- * transcription reads to a proofreader as one enormous run-on sentence — and
- * past roughly 200 characters of it, Harper stops reporting the `I has`
- * agreement altogether. Measured: 7 lines and 198 characters reports it, 8
- * lines and 225 characters reports nothing, and 7 *longer* lines at 372
- * characters also reports nothing, so it follows the size of the sentence
- * rather than the number of lines. It is not a timing race — a twelve-second
- * wait changes nothing — and no error reaches the console, which is exactly why
- * `render-motion.mjs` asserts that this document produces **one** finding
- * before it films: grown past the limit, the loop is a pointer hovering over
- * text with nothing to say.
+ * **The scene's length is a regression the integration now owns.** Lyrics carry
+ * no terminal punctuation, so a whole transcription reads to Harper as one
+ * enormous run-on sentence. Past roughly 200 characters Harper adds a
+ * document-wide Readability finding; its own overlap removal used to let that
+ * prose-only result swallow the useful `I has` agreement before LyricLint
+ * filtered Readability out. The provider removes inapplicable findings before
+ * it removes overlaps now, and the real-WASM regression in `harper.test.ts`
+ * crosses that threshold. `render-motion.mjs` still asserts that this document
+ * produces **one** finding before it films, so a later change fails loudly
+ * instead of recording a pointer hovering over text with nothing to say.
  */
 export const harperTranscription = `[Verse]
 I has counted every streetlight

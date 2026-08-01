@@ -43,9 +43,16 @@ function lintAt(
 	};
 }
 
-function engineReturning(makeLints: (text: string) => ReturnType<typeof lintAt>[]) {
+function engineReturning(
+	makeLints: (
+		text: string,
+		options: { language: 'plaintext'; dedup: boolean }
+	) => ReturnType<typeof lintAt>[]
+) {
 	return {
-		lint: vi.fn(async (text: string) => makeLints(text)),
+		lint: vi.fn(async (text: string, options: { language: 'plaintext'; dedup: boolean }) =>
+			makeLints(text, options)
+		),
 		clearWords: vi.fn(async () => {}),
 		importWords: vi.fn(async (words: string[]) => {
 			void words;
@@ -205,6 +212,63 @@ describe('Harper diagnostic provider', () => {
 				revision: 1
 			})
 		).resolves.toEqual([]);
+	});
+
+	it('keeps a real agreement finding past the document-wide readability threshold', async () => {
+		const text = `[Verse]
+I has counted every streetlight
+You said we drive all night
+And the quiet part was never quiet
+We let the engine hum instead
+The map you drew was a coffee ring
+I keep it folded in the door
+I heard it calling through the wall`;
+		const [{ LocalLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+
+		try {
+			const diagnostics = await provider.lint({
+				text,
+				document: parseDocument(text),
+				language: 'en',
+				performers: [],
+				revision: 9
+			});
+
+			expect(text.length).toBeGreaterThan(200);
+			expect(diagnostics).toHaveLength(1);
+			expect(diagnostics[0]).toMatchObject({
+				from: text.indexOf('has'),
+				to: text.indexOf('has') + 3,
+				ruleId: 'grammar.harper',
+				message: 'The form of the verb must agree in grammatical number with the pronoun.'
+			});
+		} finally {
+			await provider.dispose();
+		}
+	});
+
+	it('still keeps only the first of applicable overlapping findings', async () => {
+		const text = '[Verse]\nThis are wrong';
+		const engine = engineReturning((projected) => [
+			lintAt(projected, 'are', { kind: 'Agreement', message: 'Agreement finding.' }),
+			lintAt(projected, 'are', { kind: 'Grammar', message: 'Overlapping grammar finding.' })
+		]);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+
+		const diagnostics = await provider.lint({
+			text,
+			document: parseDocument(text),
+			language: 'en',
+			performers: [],
+			revision: 1
+		});
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0]?.message).toBe('Agreement finding.');
 	});
 
 	it('translates insertion suggestions into zero-width document edits', async () => {

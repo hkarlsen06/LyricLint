@@ -181,6 +181,29 @@ function appliesToLyrics(lint: HarperLint): boolean {
 	return lint.lint_kind() !== 'Readability';
 }
 
+function rangesOverlap(left: TextRange, right: TextRange): boolean {
+	return left.from < right.to && right.from < left.to;
+}
+
+/**
+ * Apply Harper's overlap removal only after LyricLint has removed findings that
+ * do not apply to lyrics.
+ *
+ * Harper deduplicates before returning its results. A long transcription with
+ * no terminal punctuation produces one document-wide Readability finding, and
+ * that finding used to swallow every useful finding inside it before
+ * `appliesToLyrics` could discard the prose-only result. Preserve Harper's
+ * first-finding-wins ordering among the diagnostics that survive our filter.
+ */
+function deduplicateApplicableDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {
+	const accepted: Diagnostic[] = [];
+	for (const diagnostic of diagnostics) {
+		if (accepted.some((existing) => rangesOverlap(existing, diagnostic))) continue;
+		accepted.push(diagnostic);
+	}
+	return accepted;
+}
+
 function fixForSuggestion(
 	suggestion: HarperSuggestion,
 	range: TextRange,
@@ -330,7 +353,9 @@ export function createHarperDiagnosticProvider(
 			const projection = projectLyricsForHarper(request.document);
 			const lints = await harper.lint(projection.text, {
 				language: 'plaintext',
-				dedup: true
+				// Harper's overlap removal has to run after LyricLint drops prose-only
+				// findings, or one document-wide Readability lint hides everything in it.
+				dedup: false
 			});
 
 			const diagnostics: Diagnostic[] = [];
@@ -343,7 +368,7 @@ export function createHarperDiagnosticProvider(
 					lint.free?.();
 				}
 			}
-			return sortDiagnostics(diagnostics);
+			return sortDiagnostics(deduplicateApplicableDiagnostics(diagnostics));
 		},
 		async dispose() {
 			const pending = enginePromise;

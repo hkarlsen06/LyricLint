@@ -3057,15 +3057,20 @@ Two things it taught, and the second is the one that will be re-broken:
   caret, pressing `Escape` and switching the panel's tab were all tried, and the diff survives each,
   because none of them is a _different_ diagnostic to lead with. So the loop opens the way the
   workbench opens, and what the hover adds is the half a diff cannot carry.
-- **The document may not grow much past 200 characters, and that is a fact about Harper.** Lyrics
-  carry no terminal punctuation, so a transcription reads to a proofreader as one enormous run-on
-  sentence — and past roughly that length Harper stops reporting the `I has` agreement at all.
-  Measured: 7 lines and 198 characters reports it; 8 lines and 225 reports nothing; 7 _longer_ lines
-  at 372 characters also reports nothing, so it follows the sentence's size rather than the line
-  count. It is not a timing race — a twelve-second wait changes nothing — and **no error reaches the
-  console**, which is why the script asserts the document produces exactly one finding before it
-  films. Grown past the limit, the loop is a pointer hovering over text with nothing to say, and
-  nothing anywhere would have said so.
+- **The document's length must not silence applicable Harper findings.** Lyrics carry no terminal
+  punctuation, so a transcription reads to a proofreader as one enormous run-on sentence. Measured:
+  7 lines and 198 characters reported the `I has` agreement; 8 lines and 225 reported nothing; 7
+  _longer_ lines at 372 characters also reported nothing. It was not a timing race — a twelve-second
+  wait changed nothing — and no error reached the console.
+
+  Harper had not stopped finding the agreement. Past its sentence-length threshold it also produced
+  one document-wide `Readability` finding, and `dedup: true` removed every finding overlapping that
+  span before returning. LyricLint then correctly dropped the prose-only readability result and was
+  left with zero. The provider asks Harper for the un-deduplicated set now, removes findings that do
+  not apply to lyrics, and only then removes overlaps among the survivors. `harper.test.ts` drives
+  the real WASM above 200 characters so the ordering cannot regress behind a mock. The filming
+  script still asserts exactly one finding before it moves the pointer; a changed scene must fail
+  loudly rather than record a pointer hovering over text with nothing to say.
 
 Its document was lengthened to seven lines all the same, because the loop's crop is the union across
 time and has to hold a card that is only open for half of it — at four lines the frames either side
