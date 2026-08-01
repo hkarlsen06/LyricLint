@@ -97,5 +97,8 @@
 	<div class="site-actions">
 		<a class="button" href={resolve('/lint/')}>Check a transcription in the workbench</a>
 	</div>
-	<p class="site-aside">Runs entirely in your browser — no account, no upload.</p>
+	<p class="site-aside">
+		Linting runs entirely in your browser — no account, no upload. The optional assistant above the
+		index sends only the question you type it.
+	</p>
 </main>

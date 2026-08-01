@@ -598,6 +598,12 @@ The finished `package.json` should expose exactly these core scripts:
 | `lint` | `prettier --check . && eslint .` | Formatting verification and static lint. |
 | `format` | `prettier --write .` | Apply repository formatting. |
 | `check` | `svelte-kit sync && svelte-check --tsconfig ./tsconfig.json` | Generate SvelteKit types and run strict Svelte/TypeScript checking. |
+| `assistant:corpus` | `bun scripts/generate-rules-context.ts` | Regenerate the rules-assistant knowledge corpus from the reviewed data; parity tests fail while it is stale. |
+| `assistant:test` | `cd services/rules-assistant && bun install --frozen-lockfile && bun run check && bun run test` | Type-check and test the answering Worker (validation, quotas, sessions, structured output). |
+
+The rules-assistant Worker (`services/rules-assistant`) is its own package with its own
+`wrangler.jsonc`, deployed separately from the Pages build; see `docs/architecture.md` for its
+design and `services/rules-assistant/eval/` for the release-gate evaluation set.
 
 `playwright.config.ts` should start `npm run preview -- --host 127.0.0.1` through `webServer`, use a fixed local port, and test Chromium at minimum. Firefox/WebKit should be added for the IME/selection/IndexedDB-sensitive release gate where CI capacity permits.
 

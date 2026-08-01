@@ -159,7 +159,7 @@ interrupt anybody's editing.
 | Audio sources | 4 | 4 (deliberately) |
 | Outputs | Genius markup, `.txt` | + `.lrc`, `.vtt`, cover art, song facts |
 | Surfaces | Web workbench | + browser extension, phone-first sync |
-| Reaches a network | YouTube, Spotify, Apple — each opted into | unchanged |
+| Reaches a network | YouTube, Spotify, Apple, the rules assistant — each opted into | unchanged |
 
 ## What stays off the roadmap, and why it is written down
 
@@ -167,7 +167,11 @@ interrupt anybody's editing.
   LyricLint an automated transcription product, which `PRODUCT.md` names as an anti-reference. The
   tool's value is that a person heard the words.
 - **Lyrics on a server.** Not in analytics, not in error telemetry, not in a sync default. The
-  footer's claim is load-bearing.
+  footer's claim is load-bearing. The rules assistant (shipped August 2026) does not move this
+  line: it answers questions about the guidelines, receives only what is typed into its own
+  composer, and can never see a draft — a boundary its own tests pin.
+- **AI edits to the document.** The assistant explains rules; it does not hold a pen. Fixes stay
+  deterministic, reviewed, and pressed by the user.
 - **A fifth audio source.** Four is already more integration surface than the transcription loop
   needs, and every one of them is a third party whose terms this repository has had to read.
 - **Accounts as a requirement.** Optional in Q4 means optional forever.

@@ -2,6 +2,7 @@
 	// LyricLint "Ask the Rules" assistant — a Worker separate from the Pages deployment.
 	// Secrets (set with `wrangler secret put`, never committed):
 	//   AI_GATEWAY_TOKEN      — Cloudflare AI Gateway authentication token
+	//   OPENAI_API_KEY        — OpenAI project API key (BYOK through the Gateway)
 	//   TURNSTILE_SECRET      — Turnstile server-side secret
 	//   ABUSE_HMAC_SECRET     — HMAC key for hashing session/IP abuse identifiers
 	//   SESSION_SIGNING_SECRET — HMAC key for the anonymous session cookie
@@ -9,16 +10,17 @@
 	"name": "lyriclint-rules-assistant",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-07-01",
-	"routes": [{ "pattern": "api.lyriclint.com/v1/*", "zone_name": "lyriclint.com" }],
+	// A Worker custom domain manages DNS and TLS for the whole host, including
+	// `/health` outside the `/v1/` API prefix.
+	"routes": [{ "pattern": "api.lyriclint.com", "custom_domain": true }],
 	"observability": { "enabled": true },
 	"vars": {
 		// The kill switch: set to "true" (via dashboard or `wrangler versions`) to refuse
 		// new requests with `service_disabled` without a frontend deployment.
 		"ASSISTANT_DISABLED": "false",
-		"ALLOWED_ORIGIN": "https://lyriclint.com",
-		// AI Gateway endpoint (account id + gateway name are not secrets).
-		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/ACCOUNT_ID/lyriclint-assistant/compat",
-		"TURNSTILE_SITE_KEY": "REPLACE_WITH_PRODUCTION_SITE_KEY"
+		"ALLOWED_ORIGIN": "https://lyriclint.com,https://dev.lyriclint.com",
+		// Provider-native OpenAI endpoint (account and gateway ids are not secrets).
+		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/ffdf1ff5874475b8eaf9f691e42f27ce/lyriclint-assistant/openai"
 	},
 	"durable_objects": {
 		"bindings": [{ "name": "QUOTAS", "class_name": "QuotaCounter" }]
@@ -41,15 +43,10 @@
 			}
 		]
 	},
-	"analytics_engine_datasets": [{ "binding": "METRICS", "dataset": "rules_assistant_metrics" }],
-	"env": {
-		"development": {
-			"vars": {
-				"ASSISTANT_DISABLED": "false",
-				"ALLOWED_ORIGIN": "https://127.0.0.1:5173",
-				"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/ACCOUNT_ID/lyriclint-assistant-dev/compat",
-				"TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
-			}
-		}
-	}
+	"analytics_engine_datasets": [{ "binding": "METRICS", "dataset": "rules_assistant_metrics" }]
+	// No `env.development` block on purpose: Wrangler environments do not
+	// inherit durable_objects/unsafe/migrations, so a vars-only environment
+	// loses the QUOTAS binding and `wrangler dev --env development` crashes.
+	// Local overrides live in `.dev.vars` (gitignored) instead — copy
+	// `.dev.vars.example` and run plain `wrangler dev`.
 }

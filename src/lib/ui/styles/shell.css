@@ -49,7 +49,7 @@
 	/* What the find bar keeps clear so the tray never covers its way out. It is a
 	   constant because the tray is a fixed set of glyphs, and it is asserted
 	   against the tray's measured width rather than trusted. */
-	--editor-actions-reserve: 9rem;
+	--editor-actions-reserve: 11rem;
 
 	position: relative;
 	display: grid;

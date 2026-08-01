@@ -219,14 +219,21 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 		},
 
 		async deleteAll() {
+			// Assistant conversations are cleared here too: the Tools panel promises
+			// that "Delete all local data" leaves nothing behind, and the chats are
+			// the one other thing this browser keeps.
 			await database.transaction(
 				'rw',
 				database.drafts,
 				database.appMetadata,
 				database.mediaHandles,
+				database.assistantChats,
+				database.assistantMessages,
 				async () => {
 					await database.drafts.clear();
 					await database.mediaHandles.clear();
+					await database.assistantChats.clear();
+					await database.assistantMessages.clear();
 					await database.appMetadata.delete(CURRENT_DRAFT_KEY);
 				}
 			);

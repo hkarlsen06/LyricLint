@@ -2,6 +2,8 @@ import Dexie, { type EntityTable } from 'dexie';
 
 import type {
 	AppMetadataRecord,
+	AssistantChatRecord,
+	AssistantMessageRecord,
 	BackupHandleRecord,
 	DraftRecord,
 	MediaHandleRecord
@@ -26,6 +28,14 @@ export class LyricLintDatabase extends Dexie {
 	mediaHandles!: EntityTable<MediaHandleRecord, 'draftId'>;
 	/** The user-granted destination for full-workspace autosaves. */
 	backupHandles!: EntityTable<BackupHandleRecord, 'key'>;
+	/**
+	 * Rules-assistant conversations. Browser-local like everything else here:
+	 * they are never uploaded anywhere, the workspace backup deliberately leaves
+	 * them out (it is a transcription backup), and `Delete all local data`
+	 * clears them along with the drafts.
+	 */
+	assistantChats!: EntityTable<AssistantChatRecord, 'id'>;
+	assistantMessages!: EntityTable<AssistantMessageRecord, 'id'>;
 
 	constructor(name = DEFAULT_DATABASE_NAME) {
 		super(name);
@@ -46,6 +56,15 @@ export class LyricLintDatabase extends Dexie {
 			appMetadata: 'key',
 			mediaHandles: 'draftId',
 			backupHandles: 'key'
+		});
+
+		this.version(4).stores({
+			drafts: 'id, updatedAt',
+			appMetadata: 'key',
+			mediaHandles: 'draftId',
+			backupHandles: 'key',
+			assistantChats: 'id, updatedAt',
+			assistantMessages: 'id, chatId, createdAt'
 		});
 	}
 }

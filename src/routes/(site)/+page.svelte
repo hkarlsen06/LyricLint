@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import type { Attachment } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
 	import { enabledRules, sourceRegistry } from '$lib/rules/index.js';
 	import { siteUrl } from '$lib/seo.js';
@@ -8,61 +8,62 @@
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 
 	/*
-	 * The performer loop plays as an enhancement, never as the markup's own
-	 * state. There is no `autoplay` attribute, so a reader with no JavaScript
-	 * gets frame one — the unmarked verse the loop opens on, which is the same
-	 * thing the still used to say — rather than a section that starts halfway
-	 * through explaining itself. Motion is something the page adds once it knows
-	 * it is allowed to.
+	 * A section's loop plays as an enhancement, never as the markup's own state.
+	 * There is no `autoplay` attribute, so a reader with no JavaScript gets frame
+	 * one — the state the loop opens on, which is the same thing the still it
+	 * replaced used to say — rather than a section that starts halfway through
+	 * explaining itself. Motion is something the page adds once it knows it is
+	 * allowed to.
 	 *
 	 * **It starts when the section is actually being read, not when the page
-	 * loads.** The shot sits most of a screen below the hero, so a loop started
-	 * at load has already run itself out — twice — by the time anybody scrolls to
-	 * it, and what they arrive at is the last frame of a demonstration they never
-	 * saw. An `IntersectionObserver` is what ties the eleven seconds to the
-	 * reader rather than to the clock, and it stops the loop again on the way
-	 * past, so a page left open on another section is not decoding video into an
-	 * empty viewport.
+	 * loads.** Both loops sit most of a screen below the hero, so one started at
+	 * load has already run itself out by the time anybody scrolls to it, and what
+	 * they arrive at is the last frame of a demonstration they never saw. An
+	 * `IntersectionObserver` is what ties the seconds to the reader rather than to
+	 * the clock, and it stops the loop again on the way past, so a page left open
+	 * on another section is not decoding video into an empty viewport.
 	 *
 	 * `prefers-reduced-motion` gates the whole thing, as it gates every other
-	 * transition here: asked for stillness, the section keeps the poster, which
-	 * is exactly the still it carried before any of this — so the argument is
-	 * made either way and only the medium changes.
+	 * transition here: asked for stillness, a section keeps frame one, which is
+	 * the picture it carried before any of this — so the argument is made either
+	 * way and only the medium changes.
+	 *
+	 * It is an **attachment** rather than one bound element and an `onMount`,
+	 * because there are two of these now and there will not always be two. A
+	 * rule written per video is a rule that gets copied, and the copy that
+	 * drifted would be the one nobody is scrolled to.
 	 */
-	let demo = $state<HTMLVideoElement | undefined>();
-
-	onMount(() => {
-		if (!demo || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-		const video = demo;
+	const autoplayInView: Attachment<HTMLVideoElement> = (video) => {
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 		const observer = new IntersectionObserver(
 			([entry]) => {
 				if (!entry.isIntersecting) {
 					video.pause();
-					// Wound back on the way out as well as on the way in, so a
-					// section scrolled past is left showing the state it rests on
-					// rather than frozen mid-gesture.
+					// Wound back on the way out as well as on the way in, so a section
+					// scrolled past is left showing the state it rests on rather than
+					// frozen mid-gesture.
 					video.currentTime = 0;
 					return;
 				}
-				// Rewound on every arrival, not resumed. This is a demonstration
-				// rather than a film: it opens on an unmarked verse and ends on a
-				// marked one, so a reader who scrolls back to a copy left halfway
-				// through meets the result before the gesture that produced it,
-				// which is the one order in which none of it explains anything.
+				// Rewound on every arrival, not resumed. These are demonstrations
+				// rather than films: each opens on a problem and ends on it fixed, so
+				// a reader who scrolls back to a copy left halfway through meets the
+				// result before the gesture that produced it, which is the one order
+				// in which none of it explains anything.
 				video.currentTime = 0;
-				// A browser may refuse to start even a muted video, and the refusal
-				// is nothing to act on: what is behind it is the poster, which is a
+				// A browser may refuse to start even a muted video, and the refusal is
+				// nothing to act on: what is behind it is frame one, which is a
 				// complete answer on its own.
 				void video.play().catch(() => undefined);
 			},
 			// Enough of the frame showing that the reader is looking at it rather
-			// than passing it — the shot is tall, so a threshold on its own area is
-			// the honest measure of "on screen".
+			// than passing it — these shots are tall, so a threshold on their own
+			// area is the honest measure of "on screen".
 			{ threshold: 0.35 }
 		);
 		observer.observe(video);
 		return () => observer.disconnect();
-	});
+	};
 
 	// Read off the registry rather than typed into the copy. A landing page that
 	// states a count is making a claim about the product, and a hand-written one
@@ -71,7 +72,7 @@
 	const pageTitle = 'LyricLint · For Genius transcribers';
 	const pageDescription = `LyricLint checks Genius lyric transcriptions against ${ruleCount} reviewed rules plus local grammar and spelling checks for section headers, performer markup, punctuation, and more. Runs in your browser.`;
 	const socialDescription =
-		'Paste a transcription, see every formatting problem with the Genius source that backs it, and copy clean markup. Nothing leaves your browser.';
+		'Paste a transcription, see every formatting problem with the Genius source that backs it, and copy clean markup. Your lyrics stay in your browser.';
 	const canonicalUrl = siteUrl('/');
 	const appUrl = siteUrl('/lint/');
 	const harperUrl = sourceRegistry.get('T-HARPER')?.url ?? 'https://writewithharper.com/';
@@ -435,7 +436,7 @@ And the "quiet" part was never really quiet`;
 					     controls, so what is left — an embedded object with an
 					     accessible name — is the honest description of it. -->
 					<video
-						bind:this={demo}
+						{@attach autoplayInView}
 						src="{resolve('/')}workbench-performers.webm"
 						width="1202"
 						height="1572"
@@ -478,21 +479,31 @@ And the "quiet" part was never really quiet`;
 
 	<section class="lp-section">
 		<div class="lp-container lp-split lp-split--flip">
-			<!-- Generated by `scripts/render-workbench-shot.mjs --harper`: a real
-			     Harper underline hovered in the real editor, popover open — the fix
-			     previewed as a diff in the line, the citation, and the advisory
-			     explanation, which is the section's own argument in the product's
-			     own words. This replaced a hand-drawn <pre> mock-up of the same
-			     card, which is the drift a generated shot exists to prevent. -->
+			<!-- Generated by `scripts/render-motion.mjs --harper`: a real Harper
+			     underline in the real editor, hovered the way a reader hovers it,
+			     read, and fixed. The still it replaced could show the open card and
+			     stop there; what the loop adds is the press — that the button beside
+			     the explanation does what the explanation says.
+
+			     No `poster`, for the reason the performer loop's own comment gives
+			     at length: a `<video>` takes its aspect ratio from the poster until
+			     metadata arrives and from the media afterwards, and two assets
+			     framed differently are two ratios in one slot. Frame one is the
+			     document with the finding already underlined, which is exactly what
+			     the still said. -->
 			<div class="lp-shot lp-shot--detail">
 				<div class="lp-shot__frame">
-					<img
-						src="{resolve('/')}workbench-harper.png"
+					<video
+						{@attach autoplayInView}
+						src="{resolve('/')}workbench-harper.webm"
 						width="1044"
-						height="566"
-						alt="A lyric line reading 'I has counted every streetlight' with a wavy underline under the disagreement, previewing 'has' struck through and 'have' beside it. The popover under it explains that the verb must agree in number with the pronoun, cites Harper, advises reviewing the suggestion in context, and offers Replace with have and Ignore."
-						loading="lazy"
-					/>
+						height="570"
+						aria-label="A lyric line reading 'I has counted every streetlight' with a wavy underline under the disagreement, previewing 'has' struck through and 'have' beside it. Hovering the underline opens a popover explaining that the verb must agree in number with the pronoun, citing Harper and advising that the suggestion be reviewed in context; pressing Replace with have corrects the line and the underline goes."
+						loop
+						muted
+						playsinline
+						preload="auto"
+					></video>
 				</div>
 			</div>
 
@@ -575,11 +586,13 @@ And the "quiet" part was never really quiet`;
 				<span class="lp-eyebrow">Local first</span>
 				<h2>Your lyrics stay in your browser.</h2>
 				<p class="lp-prose">
-					There is one exception, and you choose it 'scribe by 'scribe: you can play the song you
-					are transcribing alongside the lyrics. That could be an audio file off your own disk,
-					which is never uploaded and never copied into the browser, a YouTube video, which loads
-					Google's player into the page and lets Google see which video it is, or an Apple Music
-					track. A 'scribe using the online options stops working offline.
+					The exceptions are yours to choose, each on its own press. You can play the song you are
+					transcribing alongside the lyrics: an audio file off your own disk, which is never
+					uploaded and never copied into the browser, a YouTube video, which loads Google's player
+					into the page and lets Google see which video it is, or an Apple Music track — a 'scribe
+					using the online options stops working offline. And you can ask the rules assistant a
+					question about the guidelines, which sends that question — never your draft — to be
+					answered. <a href={resolve('/privacy/')}>The privacy page</a> lists everything.
 				</p>
 			</div>
 		</div>
@@ -601,7 +614,11 @@ And the "quiet" part was never really quiet`;
 				</li>
 				<li>
 					<span class="lp-run__title">Not an automated transcriber</span>
-					<p class="lp-run__body">And not a chat assistant.</p>
+					<p class="lp-run__body">
+						Linting is deterministic, reviewed rules — no model rewrites your words. The one AI
+						surface is the optional rules assistant, which answers questions about the guidelines
+						and can never see your draft.
+					</p>
 				</li>
 				<li>
 					<span class="lp-run__title">Not a live scraper</span>
@@ -624,8 +641,8 @@ And the "quiet" part was never really quiet`;
 		<div class="lp-container">
 			<h2>Submit it right the first time.</h2>
 			<p>
-				Free, no account, and nothing leaves your browser. Paste a transcription and see what it
-				finds.
+				Free, no account, and your lyrics stay in your browser. Paste a transcription and see what
+				it finds.
 			</p>
 			<div class="lp-cta__actions">
 				<a class="button button--contrast" href={resolve('/lint/')}>

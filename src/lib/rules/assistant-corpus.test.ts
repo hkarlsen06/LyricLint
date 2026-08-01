@@ -1,0 +1,94 @@
+/**
+ * Parity between the committed assistant corpus artifact and the reviewed data
+ * it is generated from. These fail when a rule, source, or language pack is
+ * added without regenerating (`bun run assistant:corpus`), when the artifact
+ * drifts from the frontend ruleset version, or when anything unreviewed leaks
+ * into what the assistant is allowed to cite.
+ */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { reviewedLanguagePacks } from '$lib/languages/registry.js';
+import {
+	buildAssistantCorpusContent,
+	corpusContentHash,
+	type AssistantCorpus
+} from './assistant-corpus.js';
+import { currentRuleSet } from './data/rule-set.js';
+import { sourceRegistry } from './data/sources.js';
+import { harperRuleIds } from './harper.js';
+import { enabledRules } from './registry.js';
+
+const root = join(__dirname, '../../..');
+const rulesMd = readFileSync(join(root, 'docs/rules.md'), 'utf8');
+const committed = JSON.parse(
+	readFileSync(join(root, 'services/rules-assistant/generated/rules-context.json'), 'utf8')
+) as AssistantCorpus;
+
+describe('assistant corpus parity', () => {
+	it('contains every enabled rule exactly once, with its slug, and nothing else', () => {
+		const corpusIds = committed.rules.map((rule) => rule.id);
+		expect(new Set(corpusIds).size).toBe(corpusIds.length);
+		expect([...corpusIds].sort()).toEqual(enabledRules.map((rule) => rule.id).sort());
+		const slugs = committed.rules.map((rule) => rule.slug);
+		expect(new Set(slugs).size).toBe(slugs.length);
+	});
+
+	it('accounts for the full shipped ruleset: enabled rules plus Harper', () => {
+		const all = [...committed.rules.map((rule) => rule.id), ...committed.harper.ruleIds].sort();
+		expect(all).toEqual([...currentRuleSet.ruleIds].sort());
+		expect(committed.harper.ruleIds).toEqual([...harperRuleIds]);
+	});
+
+	it('cites only reviewed sources, and every source a rule cites is present', () => {
+		const corpusSourceIds = new Set(committed.sources.map((source) => source.id));
+		expect(corpusSourceIds.size).toBe(committed.sources.length);
+		for (const source of committed.sources) {
+			expect(sourceRegistry.get(source.id)?.reviewStatus).toBe('reviewed');
+		}
+		for (const rule of committed.rules) {
+			expect(rule.sourceIds.length).toBeGreaterThan(0);
+			for (const sourceId of rule.sourceIds) {
+				expect(corpusSourceIds.has(sourceId), `${rule.id} cites missing source ${sourceId}`).toBe(
+					true
+				);
+			}
+		}
+	});
+
+	it('represents all reviewed language packs and no unreviewed inventory entries', () => {
+		expect(committed.languages.map((language) => language.tag).sort()).toEqual(
+			reviewedLanguagePacks.map((pack) => pack.tag).sort()
+		);
+		expect(committed.languages).toHaveLength(8);
+	});
+
+	it('matches the frontend ruleset version', () => {
+		expect(committed.ruleSetVersion).toBe(currentRuleSet.version);
+	});
+
+	it('is not stale: regenerating from the reviewed data reproduces the committed hash', async () => {
+		const content = buildAssistantCorpusContent(rulesMd);
+		expect(await corpusContentHash(content)).toBe(committed.contentHash);
+	});
+
+	it('is deterministic', async () => {
+		const first = buildAssistantCorpusContent(rulesMd);
+		const second = buildAssistantCorpusContent(rulesMd);
+		expect(await corpusContentHash(first)).toBe(await corpusContentHash(second));
+		expect(second).toEqual(first);
+	});
+
+	it('excludes unreviewed sources and the unreviewed language inventory', () => {
+		const unreviewed = [...sourceRegistry.values()].filter(
+			(source) => source.reviewStatus !== 'reviewed'
+		);
+		const corpusSourceIds = new Set(committed.sources.map((source) => source.id));
+		for (const source of unreviewed) {
+			expect(corpusSourceIds.has(source.id)).toBe(false);
+		}
+		// The unreviewed 64-language inventory must not ride along; a reviewed
+		// pack always carries header vocabulary.
+		expect(committed.languages.every((language) => language.headerTerms.length > 0)).toBe(true);
+	});
+});

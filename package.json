@@ -20,7 +20,9 @@
 		"test:e2e": "playwright install && playwright test",
 		"test": "bun run test:unit -- --run && bun run test:e2e",
 		"test:unit": "vitest",
-		"token:apple": "node scripts/apple-music-token.mjs"
+		"token:apple": "node scripts/apple-music-token.mjs",
+		"assistant:corpus": "bun scripts/generate-rules-context.ts",
+		"assistant:test": "cd services/rules-assistant && bun install --frozen-lockfile && bun run check && bun run test"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

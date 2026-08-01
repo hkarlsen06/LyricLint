@@ -1,0 +1,62 @@
+/**
+ * The generated knowledge corpus. `generated/rules-context.json` is produced by
+ * `bun run assistant:corpus` at the repository root from the frontend's own
+ * reviewed data (currentRuleSet, RuleReference derivations, the source
+ * registry, the reviewed language packs, and docs/rules.md) — never edited by
+ * hand. Parity tests in the main app fail when it goes stale.
+ */
+import corpusJson from '../generated/rules-context.json';
+
+export interface CorpusSource {
+	id: string;
+	pageTitle: string;
+	sectionTitle: string;
+	url: string;
+	lastVerifiedAt: string;
+}
+
+export interface CorpusRule {
+	id: string;
+	slug: string;
+	title: string;
+	group: string;
+	groupTitle: string;
+	severity: 'error' | 'warning' | 'suggestion' | 'manual-review';
+	message: string;
+	explanation: string;
+	/** How the workbench can repair it: a one-press safe fix, a previewed fix
+	 * confirmed one at a time, or no automatic fix. */
+	fix: 'safe' | 'preview' | 'none';
+	fixLabel?: string;
+	language: string;
+	flaggedExample: string;
+	acceptedExample: string;
+	sourceIds: string[];
+}
+
+export interface CorpusLanguage {
+	tag: string;
+	displayName: string;
+	policy: string;
+	headerTerms: Array<{ semanticPart: string; terms: string[] }>;
+}
+
+export interface RulesCorpus {
+	formatVersion: number;
+	ruleSetVersion: string;
+	generatedAt: string;
+	/** SHA-256 over the canonical corpus content, excluding generatedAt and itself. */
+	contentHash: string;
+	rules: CorpusRule[];
+	sources: CorpusSource[];
+	languages: CorpusLanguage[];
+	harper: { ruleIds: string[]; behavior: string; limitations: string[] };
+	policyNotes: string[];
+}
+
+export const corpus = corpusJson as unknown as RulesCorpus;
+
+export const corpusRuleIds: ReadonlySet<string> = new Set(corpus.rules.map((rule) => rule.id));
+export const corpusSourceIds: ReadonlySet<string> = new Set(
+	corpus.sources.map((source) => source.id)
+);

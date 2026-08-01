@@ -5,7 +5,12 @@ import type { RequestHandler } from './$types.js';
 
 export const prerender = true;
 
-const paths = ['/', '/rules/', ...ruleReferences().map((reference) => `/rules/${reference.slug}/`)];
+const paths = [
+	'/',
+	'/rules/',
+	'/privacy/',
+	...ruleReferences().map((reference) => `/rules/${reference.slug}/`)
+];
 
 function escapeXml(value: string): string {
 	return value

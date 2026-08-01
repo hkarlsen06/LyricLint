@@ -77,6 +77,34 @@ export interface MediaHandleRecord {
 	attachedAt: string;
 }
 
+/**
+ * One rules-assistant conversation. Browser-local and accountless: retained
+ * until the user deletes it (or deletes all local data), never part of the
+ * transcription backup, and never sent anywhere except as the bounded history
+ * window of its own next question.
+ */
+export interface AssistantChatRecord {
+	id: string;
+	title: string;
+	createdAt: string;
+	updatedAt: string;
+	/** The ruleset the conversation was answered against when it began. */
+	ruleSetVersion: string;
+}
+
+/** One message in an assistant conversation. */
+export interface AssistantMessageRecord {
+	id: string;
+	chatId: string;
+	role: 'user' | 'assistant';
+	createdAt: string;
+	/** `pending` survives only within a session; a reload marks it `interrupted`. */
+	status: 'pending' | 'complete' | 'failed' | 'interrupted';
+	content: string;
+	answer?: import('$lib/assistant/types.js').StructuredAssistantAnswer;
+	requestId?: string;
+}
+
 /** Browser-local capability for the workspace backup file. Never exported. */
 export interface BackupHandleRecord {
 	key: 'workspace';

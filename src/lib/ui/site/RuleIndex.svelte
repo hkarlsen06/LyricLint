@@ -15,6 +15,7 @@
 		severityOrder
 	} from '$lib/rules/reference-search.js';
 	import type { RuleReferenceGroup } from '$lib/rules/reference.js';
+	import AssistantPrompt from '$lib/ui/assistant/AssistantPrompt.svelte';
 
 	let {
 		groups,
@@ -72,6 +73,10 @@
 </script>
 
 <div class="rules__index" data-sveltekit-noscroll>
+	<!-- The way to ask a model about the guidelines, above the way to search
+	     them: unboxed prose and a field, and only in builds that actually have
+	     an assistant endpoint behind it. -->
+	<AssistantPrompt />
 	<!-- The finder rides the top of the column rather than scrolling away with the
 	     rows: on a wide screen this column is its own scroll port, and a field
 	     fifty rows above the reader is a field they have to travel back to. It is

@@ -18,6 +18,8 @@
 		type HarperDiagnosticProvider
 	} from '$lib/rules/index.js';
 	import { resolve } from '$app/paths';
+	import { assistantAvailable } from '$lib/assistant/api.js';
+	import { useAssistantState } from '$lib/assistant/assistant.svelte.js';
 	import { onDestroy, type Component, untrack } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
@@ -55,6 +57,10 @@
 
 	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
 	const EditorComponent = $derived(editorComponent);
+
+	// Undefined in a workspace rendered on its own, which is how every component
+	// test renders it — the control simply does not draw there.
+	const assistant = useAssistantState();
 
 	/** The stacked layout, in step with the `68rem` block in responsive.css. */
 	const stacked = new MediaQuery('(max-width: 68rem)');
@@ -636,7 +642,10 @@
 		<!-- Level with the panel's tab strip, so the two read as one band under the
 		     toolbar: the editor's commands at the left of the window, the panel's
 		     tabs at the right. -->
-		<EditorActions {controller} />
+		<EditorActions
+			{controller}
+			onAskRules={assistant && assistantAvailable() ? () => void assistant.open() : undefined}
+		/>
 
 		<div class="editor-host" data-testid="editor-region">
 			{#key controller.draftId}

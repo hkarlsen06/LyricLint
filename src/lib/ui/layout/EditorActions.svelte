@@ -2,7 +2,8 @@
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let { controller, onAskRules }: { controller: WorkbenchController; onAskRules?: () => void } =
+		$props();
 
 	// The same question `transportModifier` asks, and deliberately not that
 	// function: the transport folds a chord down to one modifier because it has
@@ -23,7 +24,7 @@
 	// Three is near the ceiling. Each glyph costs about 30px of the document's own
 	// top row, so a fourth is the last one that fits before this is the full-width
 	// band it replaced, wearing icons.
-	const actions = [
+	const actions = $derived([
 		{
 			id: 'section',
 			mark: '[+]',
@@ -53,8 +54,20 @@
 			caption: mac ? '⌘F' : 'Ctrl+F',
 			keyshortcuts: mac ? 'Meta+F' : 'Control+F',
 			run: () => controller.toggleSearch()
-		}
-	];
+		},
+		...(onAskRules
+			? [
+					{
+						id: 'assistant',
+						mark: undefined,
+						label: 'Ask the rules',
+						caption: undefined,
+						keyshortcuts: undefined,
+						run: onAskRules
+					}
+				]
+			: [])
+	]);
 </script>
 
 <!--
@@ -96,7 +109,7 @@
 		>
 			{#if action.mark}
 				<span class="editor-actions__mark" aria-hidden="true">{action.mark}</span>
-			{:else}
+			{:else if action.id === 'find'}
 				<!-- `1em` and `currentColor`, the rule `.spinner` states: a glyph in a
 				     button belongs to whatever it is inside, and here that is a row of
 				     marks it has to sit at the same optical size as. -->
@@ -113,6 +126,16 @@
 				>
 					<circle cx="7" cy="7" r="4.25" />
 					<path d="M10.25 10.25 14 14" />
+				</svg>
+			{:else}
+				<svg
+					class="editor-actions__glyph"
+					viewBox="0 0 16 16"
+					aria-hidden="true"
+					fill="currentColor"
+				>
+					<path d="M6 1l1.2 3.3L10.5 5.5 7.2 6.7 6 10 4.8 6.7 1.5 5.5l3.3-1.2z" />
+					<path d="M11.5 8.5l.85 2.3 2.3.85-2.3.85-.85 2.3-.85-2.3-2.3-.85 2.3-.85z" />
 				</svg>
 			{/if}
 		</button>

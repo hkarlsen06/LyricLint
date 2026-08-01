@@ -228,9 +228,11 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 	// costs; the arithmetic is written out so the next mismatch is legible.
 	const rulePages = sitemap.match(/<loc>https:\/\/lyriclint\.com\/rules\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(rulePages).toHaveLength(55);
-	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + 2);
+	// Plus the home page, the rule index, and the privacy page.
+	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + 3);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/</loc>');
+	expect(sitemap).toContain('<loc>https://lyriclint.com/privacy/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/spelling-arabic-common/</loc>');
 	expect(sitemap).not.toContain('/lint/');
 
@@ -632,4 +634,31 @@ test('the error page leaves by loading a new document, not by routing', async ({
 			() => (window as unknown as { __errorPageDocument?: string }).__errorPageDocument
 		)
 	).toBeUndefined();
+});
+
+/**
+ * Both assistant entry points open the same conversation, and the conversation
+ * survives a full navigation because it is persisted, not because the modal
+ * stayed mounted. No assistant backend runs under this suite, so the send
+ * lands as a failed turn — which is itself half the assertion: the question is
+ * kept, the failure is stated in words, and a retry is offered.
+ */
+test('the rules prompt and the workbench toolbar open one persisted conversation', async ({
+	page
+}) => {
+	await page.goto('/rules/');
+	const prompt = page.getByLabel('Ask about the guidelines');
+	await prompt.fill('When does a chorus need its own header?');
+	await prompt.press('Enter');
+
+	const dialog = page.getByRole('dialog');
+	await expect(dialog).toBeVisible();
+	await expect(dialog).toContainText('When does a chorus need its own header?');
+	await expect(dialog.getByRole('button', { name: 'Retry' })).toBeVisible();
+
+	// The same conversation from the workbench's own entry point, across a real
+	// navigation.
+	await openWorkspace(page);
+	await page.getByRole('button', { name: 'Ask the rules' }).click();
+	await expect(page.getByRole('dialog')).toContainText('When does a chorus need its own header?');
 });

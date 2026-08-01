@@ -88,13 +88,17 @@ rather than quietly overwritten.
 ### Local first
 
 - Transcriptions are stored in your browser and never sent to a LyricLint
-  server. There is no account and no backend.
+  server. There is no account, and drafts have no backend.
 - The workbench keeps working offline once it has loaded, and installs as an
   app.
-- Attaching audio from YouTube or Apple Music is the one thing that contacts a
-  third party. It is asked for per session, and nothing is loaded until you say
-  so.
-- `Delete all local data` in the Tools panel means it.
+- Two things contact a third party, each only when you ask: attaching audio
+  from YouTube, Spotify, or Apple Music loads that provider's player per
+  session; and the optional **rules assistant** sends the question you type
+  into it (never your draft) to LyricLint's answering service, which forwards
+  it to OpenAI through Cloudflare AI Gateway. Conversations are stored in your
+  browser only — see [/privacy/](https://lyriclint.com/privacy/).
+- `Delete all local data` in the Tools panel means it — drafts and assistant
+  chats alike.
 
 ## Development
 

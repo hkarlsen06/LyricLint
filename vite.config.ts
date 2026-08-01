@@ -70,7 +70,14 @@ export default defineConfig({
 	 * over the tailnet the proxy is what makes the origin secure, so the phone
 	 * gets its secure context without this checkout owning a key.
 	 */
-	server: { https: devHttps(), allowedHosts: ['dev.lyriclint.com'] },
+	server: {
+		https: devHttps(),
+		allowedHosts: ['dev.lyriclint.com'],
+		// Rule attachments resolve canonical facts from the generated assistant
+		// corpus. SvelteKit's dev allowlist otherwise contains only `src`, so the
+		// lazy JSON import is rejected even though it lives in this repository.
+		fs: { allow: ['services/rules-assistant/generated'] }
+	},
 	build: {
 		/**
 		 * Inline Apple's badge, whatever its size.
@@ -161,7 +168,12 @@ export default defineConfig({
 			// development build, so a developer's own dev-tab label would otherwise
 			// rename every tab `DocumentTitle` asserts on. The test that covers the
 			// label stubs it per render.
-			PUBLIC_DEV_TAB_TITLE: ''
+			PUBLIC_DEV_TAB_TITLE: '',
+			// Pinned so the assistant surfaces draw for their tests regardless of
+			// what a developer's env files say. The URL is never fetched — every
+			// test injects its own `ask` — and the site key never renders a widget.
+			PUBLIC_ASSISTANT_ANSWERS_URL: 'https://assistant.test/v1/answers',
+			PUBLIC_TURNSTILE_SITE_KEY: 'test-site-key'
 		},
 		projects: [
 			{

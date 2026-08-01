@@ -1,0 +1,22 @@
+# Copy to `.dev.vars` (gitignored) for `wrangler dev`. Entries here override
+# the vars in wrangler.jsonc and stand in for the production secrets.
+
+# Match whatever origin your app dev server actually serves — the Worker
+# refuses any other Origin header outright.
+ALLOWED_ORIGIN=http://127.0.0.1:5173
+
+# Cloudflare's provider-native OpenAI endpoint. The account and gateway ids are
+# not secrets.
+AI_GATEWAY_BASE_URL=https://gateway.ai.cloudflare.com/v1/YOUR_ACCOUNT_ID/lyriclint-assistant-dev/openai
+
+# The Gateway authentication token and your OpenAI project key.
+AI_GATEWAY_TOKEN=
+OPENAI_API_KEY=
+
+# Turnstile's official always-passing test pair. The matching site key for the
+# frontend is 1x00000000000000000000AA.
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+
+# Any random strings locally (`openssl rand -base64 32`).
+ABUSE_HMAC_SECRET=dev-abuse-secret
+SESSION_SIGNING_SECRET=dev-session-secret

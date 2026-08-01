@@ -177,7 +177,10 @@
 	{#if controller.backup}
 		<section>
 			<h3>Workspace backup</h3>
-			<p>Backs up everything. Imports add to this workspace, but local audio needs reconnecting.</p>
+			<p>
+				Backs up every 'scribe and its settings — not assistant chats, which stay in this browser
+				only. Imports add to this workspace, but local audio needs reconnecting.
+			</p>
 
 			<div class="tool-actions">
 				<button type="button" class="button" disabled={importingBackup} onclick={runBackupAction}>
@@ -227,8 +230,9 @@
 	<section>
 		<h3>Local data</h3>
 		<p>
-			'Scribes stay in this browser; audio stays on your disk. Everything works offline except
-			YouTube playback, which needs permission each session.
+			'Scribes and assistant chats stay in this browser; audio stays on your disk. Linting works
+			offline; online playback and the rules assistant need a connection. Deleting all local data
+			removes the 'scribes and the chats together.
 		</p>
 		<!--
 			Two ways out, one row, and exactly one question open at a time. The

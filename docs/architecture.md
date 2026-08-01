@@ -239,12 +239,21 @@ Roster-only metadata changes use a separate action with toast undo. A normal doc
 
 ## Security and privacy
 
-- No lyric content leaves the browser in the initial product.
+- No lyric content leaves the browser. Draft linting is entirely local; the rules assistant (below) transmits only text typed into its own composer.
 - Analytics, if added, must never include lyric text, selections, performer names, draft titles, or source markup.
 - Pasted content is treated as untrusted plain text.
 - External source links open with safe new-tab attributes.
-- Local data has an explicit delete-all control.
+- Local data has an explicit delete-all control, and it covers assistant conversations as well as drafts.
 - The copy action copies canonical Genius markup, not rendered DOM text.
+
+## The rules assistant service
+
+The one backend in the product, and it is deliberately not a backend for drafts. `services/rules-assistant` is a separate Cloudflare Worker behind Cloudflare AI Gateway answering `POST /v1/answers` for the accountless "Ask the rules" modal.
+
+- **Knowledge corpus.** `services/rules-assistant/generated/rules-context.json` is generated (`bun run assistant:corpus`) from `currentRuleSet`, the `RuleReference` derivations, the reviewed source registry, the eight reviewed language packs, and the policy sections of `docs/rules.md`. Parity tests in `src/lib/rules/assistant-corpus.test.ts` fail when it goes stale, when anything unreviewed leaks in, or when its version drifts from the frontend ruleset.
+- **Model call.** OpenAI Responses API (`gpt-5.6-luna`, reasoning effort high, `store: false`, 8192 output tokens) through an authenticated Cloudflare AI Gateway, using LyricLint's OpenAI project API key. Strict structured output contains typed blocks, each carrying zero or more rule ids. The Worker rejects unknown ids, duplicate rich-reference assignments, more than four distinct references, reviewed claims without reviewed citations, and invented source ids — an invalid answer is a 502, never partially rendered. Prompt order is stable instructions → corpus → cache breakpoint → pruned history → question, cached under a key derived from the ruleset version and corpus hash.
+- **Abuse control, layered.** WAF, two Worker Rate Limiting bindings (5/min per session, 15/min per IP), a SQLite-backed Durable Object for exact daily (25 session / 75 IP), concurrency (1 session / 3 IP) and spend accounting (~$0.50 per session, $15 global), the AI Gateway spend ceiling above it all, and a kill switch (`ASSISTANT_DISABLED`) that needs no frontend deploy. First request passes Turnstile and earns a signed, `HttpOnly`, `SameSite=Strict` 24-hour anonymous session cookie; rechallenge after ten requests. Session and IP identifiers are HMAC-hashed before storage or metrics; raw IPs and prompt text are never logged, and gateway payload logging is off.
+- **Frontend.** The browser resolves cited rule ids against the same generated corpus and renders each as a compact, visibly attached canonical reference with a new-tab link to the complete rule page — model text is never trusted for rule facts. Validated answers use an NDJSON content stream, so prose arrives incrementally while citations appear only when their supporting block is complete. Conversations live in Dexie (`assistantChats` / `assistantMessages`, database version 4), stay in the browser, and are cleared by delete-all; the workspace backup deliberately excludes them.
 
 ## Deferred decisions
 

@@ -23,6 +23,10 @@ interface ImportMetaEnv {
 	 * `DocumentTitle.svelte`.
 	 */
 	readonly PUBLIC_DEV_TAB_TITLE?: string;
+	/** Complete public endpoint for the accountless rules assistant. */
+	readonly PUBLIC_ASSISTANT_ANSWERS_URL?: string;
+	/** Public Turnstile widget key used by the rules assistant. */
+	readonly PUBLIC_TURNSTILE_SITE_KEY?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars -- interface merging

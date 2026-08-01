@@ -1,6 +1,11 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { base } from '$app/paths';
+	import {
+		createDefaultAssistantState,
+		provideAssistantState
+	} from '$lib/assistant/assistant.svelte.js';
+	import AssistantHost from '$lib/ui/assistant/AssistantHost.svelte';
 	import { provideFeedbackState } from '$lib/ui/state/feedback.svelte.js';
 	import '$lib/ui/styles/global.css';
 	import { onMount } from 'svelte';
@@ -9,6 +14,11 @@
 	// Provided at the root rather than inside `(app)` so the error page — which
 	// sits above both groups — still resolves the context if it ever announces.
 	provideFeedbackState();
+	// The assistant is provided here for the opposite reason as well: both the
+	// rule reference under `(site)` and the workbench under `(app)` open the
+	// same conversation, and a request stays live while the modal is closed
+	// because this state outlives every page under it.
+	const assistant = provideAssistantState(createDefaultAssistantState());
 
 	// The offline worker is a production promise, and registering it against a dev
 	// server breaks the dev server. It is cache-first over every same-origin GET,
@@ -100,8 +110,9 @@
 	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161618" />
 </svelte:head>
 
-<!-- Nothing but the head and the stylesheet live here. The workbench's shell
-     wrapper, its feedback regions, and the phone gate belong to `(app)`: the
-     gate removes the app on a phone, and the pages under `(site)` are the ones
-     a phone is meant to be able to read. -->
+<!-- Nothing but the head, the stylesheet, and the assistant modal live here.
+     The workbench's shell wrapper, its feedback regions, and the phone gate
+     belong to `(app)`: the gate removes the app on a phone, and the pages
+     under `(site)` are the ones a phone is meant to be able to read. -->
 {@render children()}
+<AssistantHost {assistant} />
