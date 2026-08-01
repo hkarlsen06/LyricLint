@@ -224,7 +224,9 @@
 	--color-control-hover-on-scrim: oklch(100% 0 0 / 0.18);
 
 	/* Toolbars and status bars are chrome, not an interaction state; the alias
-	   keeps that intent legible where the fill ramp is reused for a flat band. */
+	   keeps that intent legible where the fill ramp is reused for a flat band.
+	   Light only — dark re-anchors this between the canvas and the paper rather
+	   than a step above the paper, and the note down there says why. */
 	--color-chrome: var(--color-fill-subtle);
 
 	--color-text: oklch(23% 0.012 285);
@@ -379,25 +381,66 @@
 		 * Same two families, same directions: elevation lightens away from the
 		 * canvas, fill steps toward the text. Only the anchors move.
 		 *
-		 * The dark anchors sit higher, and nearer to neutral, than they used to.
-		 * The old canvas at 15.5% was almost the bottom of the range, which left
-		 * the whole ramp compressed into the darkest fifth: the tab strip and the
-		 * panel read as one black field, and every step above them had to be tiny
-		 * to fit. Charcoal rather than near-black gives each level room to be
-		 * told apart, and dropping the chroma takes the violet cast off surfaces
-		 * that are supposed to be neutral behind colored diagnostics.
+		 * THIS IS THE SITE'S PALETTE, AND THERE IS NOW ONLY ONE DARK SCHEME.
+		 *
+		 * For a while there were two. The marketing pages pinned a deeper set of
+		 * their own — the reasoning being that a landing page wants contrast under
+		 * a display headline where a workbench wants a document somebody can sit
+		 * in front of for an hour — and the two were near enough to look like the
+		 * same product in a screenshot and plainly not the same product when a
+		 * reader pressed `Open the workbench` and watched every surface in the
+		 * window lift four points. The header band that `site.css` goes to some
+		 * trouble to make the same height as the document toolbar arrived a
+		 * different colour than the toolbar it was matched to. A tool and its
+		 * marketing site are one thing, so they are one palette, and `.site` is
+		 * now this block restated rather than a second scheme —
+		 * `site-palette.test.ts` is what says so and what stops the two drifting
+		 * again.
+		 *
+		 * Which of the two won is the site's, because it is the one with a
+		 * composition built on it: the lit grid, the marks floating over it, and a
+		 * product shot that has to read as a lit screen rather than as a picture
+		 * pasted onto paper. Nothing in the workbench was built on the four points
+		 * this gives up, and the ramp is the same shape either way — canvas to
+		 * paper is 4.5 points here as it was there, so a diagnostic card still
+		 * sits the same distance above the column behind it.
 		 */
-		--color-canvas: oklch(20% 0.004 285);
-		--color-surface: oklch(24.5% 0.005 285);
-		--color-fill-subtle: oklch(28.5% 0.006 285);
-		--color-fill: oklch(32.5% 0.007 285);
-		--color-fill-strong: oklch(37% 0.008 285);
-		--color-text: oklch(94% 0.004 285);
+		--color-canvas: oklch(15% 0.004 285);
+		--color-surface: oklch(19.5% 0.004 285);
+		--color-fill-subtle: oklch(23% 0.005 285);
+		--color-fill: oklch(27% 0.006 285);
+		--color-fill-strong: oklch(32% 0.007 285);
+		/*
+		 * Chrome is the one token that stops being `--color-fill-subtle` here, and
+		 * it is a re-anchoring rather than a tweak.
+		 *
+		 * The alias says chrome is one step from the paper toward the ink, which
+		 * puts a toolbar *above* the document in dark. That is one reading of a
+		 * band, and the site takes the other: chrome sits between the canvas and
+		 * the paper, so the bands read as the window the page is mounted in and
+		 * the cards read as the things on it. Both are defensible; what is not is
+		 * two answers in one product, and the site's is the one the marketing
+		 * composition depends on.
+		 *
+		 * What it costs is the step between a chrome band and the canvas, which
+		 * falls from 8.5 points of lightness to 2.5 — and one surface in the
+		 * workbench reads that step. The bulk-fix strip is chrome hanging
+		 * directly over a run of cards whose *selected* member drops to
+		 * `--color-canvas`, and it was made chrome precisely so it would not be
+		 * read as a continuation of whichever card was open below it. At 2.5
+		 * points the fill no longer carries that on its own — what does is the
+		 * hairline the strip already draws along its bottom edge (`.linter-panel__bulk`
+		 * in `linter.css`, and `__filters` above it), which is 8.5 points off
+		 * either surface and is the same way the site's own header is told apart
+		 * from the hero it sits on. Do not take that border off.
+		 */
+		--color-chrome: oklch(17.5% 0.004 285);
+		--color-text: oklch(97% 0.002 285);
 		--color-text-muted: oklch(72% 0.008 285);
-		--color-text-disabled: oklch(56% 0.008 285);
-		--color-border: oklch(34% 0.008 285);
-		--color-border-strong: oklch(49% 0.012 285);
-		--color-border-disabled: oklch(39% 0.008 285);
+		--color-text-disabled: oklch(54% 0.008 285);
+		--color-border: oklch(26% 0.005 285);
+		--color-border-strong: oklch(34% 0.008 285);
+		--color-border-disabled: oklch(29% 0.005 285);
 		--color-accent: oklch(71% 0.12 255);
 		--color-accent-hover: oklch(77% 0.11 255);
 		--color-accent-active: oklch(81% 0.1 255);

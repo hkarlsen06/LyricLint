@@ -3120,16 +3120,36 @@ to glow against and the shot becomes a rectangle of night stapled to a white pag
 declares a complete palette and `color-scheme: dark`, and it is the one surface in the system that
 does.
 
-**It is a complete palette rather than a few overrides, and it has to be**, because the live demo
-mounts the real editor inside it — severity underlines, performer bars, selection, and every fill
-the diagnostic card uses all resolve there.
+**It is a complete palette rather than a few overrides, and it has to be**, because a visitor in
+light mode gets none of `tokens.css`'s dark block, and the live demo mounts the real editor inside
+this subtree — severity underlines, performer bars, selection, and every fill the diagnostic card
+uses all resolve there.
 
-**Two halves, answering to different things.** The surfaces are the site's own and deeper than the
-app's dark scheme: the workbench's canvas is a charcoal chosen so a document can sit on it for an
-hour, while a landing page wants the contrast under a display headline. The product colors —
-severity, accent, focus, the performer identities — are the workbench's verbatim, because they are
-what the demo is a demonstration _of_, and a page showing a different amber for a warning than the
-tool does would be misreporting the thing it is selling.
+**What it pins is the workbench's own dark scheme, value for value.** It used to be a second
+palette: deeper surfaces of the site's own, on the reasoning that a landing page wants contrast
+under a display headline where a workbench wants a document somebody can live in. Read one after
+the other that was two products — pressing `Open the workbench` lifted every surface in the window
+four points of lightness, including the masthead `site.css` goes to some trouble to draw at
+_exactly_ the document toolbar's height, so the band arrived a different colour than the band it
+was matched to. It was never wrong enough to catch in a screenshot and always wrong in the
+transition. The site's numbers won, because they are the ones a composition is built on and
+nothing in the workbench was built on the four points it gives up; `tokens.css` states them for
+both schemes now, and the ramp is the same shape it was — canvas to paper is still 4.5 points, so
+a diagnostic card sits the same distance above the column behind it.
+
+**`--color-chrome` is the one token that re-anchors rather than moving.** It is
+`var(--color-fill-subtle)` in light, which puts a band one step from the paper toward the ink; in
+dark it is its own value _between_ the canvas and the paper, so the bands read as the window the
+document is mounted in rather than as a surface above it. What that costs is the step from a chrome
+band to the canvas, 8.5 points down to 2.5 — and the bulk-fix strip reads that step, because it
+hangs over a run of cards whose selected member drops to `--color-canvas` and it was made chrome
+precisely so it would not be taken for one. The hairline along its bottom edge is what carries it
+now (`.linter-panel__bulk` and `__filters` in `linter.css`), which is how the site's own header is
+told apart from the hero it sits on. **Do not take that border off.**
+
+The product colors — severity, accent, focus, the performer identities — were always shared, because
+they are what the demo is a demonstration _of_, and a page showing a different amber for a warning
+than the tool does would be misreporting the thing it is selling.
 
 **The derived tokens have to be restated, and leaving them out looks exactly like working CSS.**
 This is the part worth remembering. A custom property is inherited as its _substituted_ value:
@@ -3146,11 +3166,13 @@ invisible.
 
 `site-palette.test.ts` is the guard, and it **walks the derivation graph** rather than trusting the
 list in `site.css` to stay complete: every token the dark scheme moves is restated, and so is
-every token that reaches one of those through any chain of `var()` references. It deliberately
-does _not_ assert that a restated derivation still points at the same base — `--color-chrome` is
-`--color-fill-subtle` in the app and its own value here, so the header band sits under the page's
-cards rather than level with them. What the site owes is that a token is declared at all: declared,
-it is the site's own decision either way; missing, it is silently the light theme's.
+every token that reaches one of those through any chain of `var()` references. It then asserts the
+two blocks **state the same value** for every token both declare, which is what stops a retune of
+either one from quietly re-creating the second palette. It deliberately does _not_ assert that a
+restated derivation still points at the same base — `--color-chrome` is `var(--color-fill-subtle)`
+at `:root` and its own value in dark, so the text of the two declarations differs where the
+rendered colour does not. What a token owes is to be declared at all: declared, it is a decision
+either way; missing, it is silently the light theme's.
 
 One thing that test had to learn about this repository: **it strips comments before parsing.**
 These stylesheets quote the declarations they explain, and the note on `.site` contains the literal

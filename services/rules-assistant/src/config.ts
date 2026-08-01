@@ -44,7 +44,7 @@ export const SESSION_RULES = {
 export const MODEL = {
 	/** Provider-native OpenAI model id, routed through Cloudflare AI Gateway. */
 	id: 'gpt-5.6-luna',
-	reasoning: { effort: 'high', context: 'current_turn' },
+	reasoning: { effort: 'max', context: 'current_turn' },
 	maxOutputTokens: 8192,
 	/** A hung provider call must release concurrency slots; abort after this. */
 	providerTimeoutMs: 120_000,

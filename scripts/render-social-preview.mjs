@@ -1,3 +1,15 @@
+/*
+ * The Open Graph card: a standalone page set with the app's own faces and its
+ * own dark palette, rendered offscreen into `static/social-preview.png`.
+ *
+ * It builds its own document rather than photographing the site, so the colours
+ * below are a *hand copy* of the dark scheme in `src/lib/ui/styles/tokens.css` —
+ * canvas, text, border, border-strong, text-muted and the warning ramp the mark
+ * is drawn in. Nothing enforces that copy the way `theme-color.test.ts` enforces
+ * the meta tag's, so a palette retune means re-reading it here and re-running
+ * `bun run render:social`. Copies that stayed behind are how the theme-color tag
+ * spent months on a warm hue after the palette went cool.
+ */
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
@@ -47,8 +59,8 @@ try {
 
 			body {
 				overflow: hidden;
-				background: oklch(20% 0.004 285);
-				color: oklch(94% 0.004 285);
+				background: oklch(15% 0.004 285);
+				color: oklch(97% 0.002 285);
 				font-family: "Plex Sans", sans-serif;
 			}
 
@@ -64,7 +76,7 @@ try {
 			.card::after {
 				position: absolute;
 				inset: 0;
-				border: 1px solid oklch(34% 0.008 285);
+				border: 1px solid oklch(26% 0.005 285);
 				content: "";
 				pointer-events: none;
 			}
@@ -150,11 +162,11 @@ try {
 			}
 
 			.separator {
-				color: oklch(49% 0.012 285);
+				color: oklch(34% 0.008 285);
 			}
 
 			.domain {
-				color: oklch(94% 0.004 285);
+				color: oklch(97% 0.002 285);
 				font-family: "Plex Mono", monospace;
 				font-size: 20px;
 				font-weight: 700;

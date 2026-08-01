@@ -15,7 +15,7 @@
  */
 
 /*
- * The marketing site pins its own scheme, and it is the one surface in the
+ * The marketing site pins the dark scheme, and it is the one surface in the
  * system that does.
  *
  * The workbench follows the visitor's preference, because it is a tool somebody
@@ -27,28 +27,29 @@
  * against and the screenshot becomes a rectangle of night stapled to a white
  * page.
  *
- * So this is a complete palette rather than a handful of overrides, and it has
- * to be, because the live demo mounts the real editor inside it: severity
- * underlines, performer bars, selection, and every fill the diagnostic card
- * uses all resolve here. A partial pin would leave the workbench's light values
- * showing through the one component on this page that is the product.
+ * WHAT IS PINNED IS THE APP'S OWN DARK SCHEME, VALUE FOR VALUE. This block used
+ * to be a second palette — deeper surfaces of the site's own, on the reasoning
+ * that a landing page wants contrast under a display headline where a workbench
+ * wants a document somebody can live in. Read side by side that was two
+ * products: a reader pressed `Open the workbench` and watched every surface in
+ * the window lift four points, including the header band this file goes to some
+ * trouble to draw at exactly the document toolbar's height. The site's numbers
+ * won, because they are the ones a composition is built on, and `tokens.css`
+ * now states them for both. `site-palette.test.ts` asserts the two blocks agree
+ * token for token, so neither can be retuned alone.
  *
- * Two halves, and they answer to different things:
- *
- * - **The surfaces are the site's own, and deeper than the app's dark scheme.**
- *   The workbench's canvas is a charcoal chosen so a document can sit on it for
- *   an hour; a landing page wants the contrast under a display headline, so the
- *   anchors drop and the steps between them widen.
- * - **The product colors are the workbench's, verbatim.** Severity, accent,
- *   focus, and the performer identities are what the demo is a demonstration
- *   *of* — a page that showed a different amber for a warning than the tool
- *   does would be misreporting the thing it is selling. If those move in
- *   `tokens.css`, they move here, and `site-palette.test.ts` is what says so.
+ * It is still a complete palette rather than a handful of overrides, and it
+ * still has to be — that is the *pinning*, not the deepening. A visitor in
+ * light mode gets none of `tokens.css`'s dark block, and the live demo mounts
+ * the real editor inside this subtree: severity underlines, performer bars,
+ * selection, and every fill the diagnostic card uses resolve here. A partial
+ * pin leaves the light values showing through the one component on this page
+ * that is the product.
  */
 .site {
 	color-scheme: dark;
 
-	/* Surfaces — the site's own. */
+	/* Surfaces — `tokens.css`'s dark block, restated. */
 	--color-canvas: oklch(15% 0.004 285);
 	--color-surface: oklch(19.5% 0.004 285);
 	--color-fill-subtle: oklch(23% 0.005 285);
@@ -94,7 +95,10 @@
 	--color-playhead: var(--color-warning);
 	--color-playhead-soft: var(--color-warning-soft);
 
-	/* Product colors — the workbench's dark scheme, unchanged. */
+	/* Product colors — the same dark block, unchanged. Severity, accent, focus and
+	   the performer identities are what the demo is a demonstration *of*, so a
+	   page showing a different amber for a warning than the tool does would be
+	   misreporting the thing it is selling. */
 	--color-accent: oklch(71% 0.12 255);
 	--color-accent-hover: oklch(77% 0.11 255);
 	--color-accent-active: oklch(81% 0.1 255);

@@ -57,7 +57,9 @@ const answerBlockSchema = z
 		/** 'general' blocks are broader language guidance and may cite nothing. */
 		kind: z.enum(['prose', 'example', 'general']),
 		text: z.string().min(1),
-		/** Rule ids whose compact canonical attachment renders after this block. */
+		/** Rule ids this block cites. Rendered as a superscript footnote number
+		 * on the block, with the rule itself as a numbered card collected under
+		 * the answer. */
 		ruleIds: z.array(z.string()),
 		/** Reviewed source ids this block leans on beyond its rules' own citations. */
 		sourceIds: z.array(z.string())

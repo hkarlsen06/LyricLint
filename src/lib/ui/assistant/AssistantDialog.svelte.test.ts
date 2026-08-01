@@ -7,6 +7,7 @@ import { AssistantError, type StructuredAssistantAnswer } from '$lib/assistant/t
 import AssistantDialog from './AssistantDialog.svelte';
 
 const RULE = corpus.rules.find((rule) => rule.id === 'syntax.unbalanced-brackets')!;
+const EXAMPLE_RULE = corpus.rules.find((rule) => rule.id === 'unknown.improvised-marker')!;
 
 function citedAnswer(): StructuredAssistantAnswer {
 	return {
@@ -19,9 +20,19 @@ function citedAnswer(): StructuredAssistantAnswer {
 				sourceIds: []
 			},
 			{
+				// A rule cited only from an example block: its number has to be
+				// drawn somewhere, or the card at the foot answers to nothing.
+				kind: 'example',
+				text: '[Verse\nI heard [?]',
+				ruleIds: [EXAMPLE_RULE.id],
+				sourceIds: []
+			},
+			{
 				kind: 'general',
 				text: 'More broadly, matching delimiters is a plain proofreading habit.',
-				ruleIds: [],
+				// The same rule cited twice, so the collected citations have a
+				// duplicate to fold away.
+				ruleIds: [RULE.id],
 				sourceIds: []
 			}
 		]
@@ -42,7 +53,7 @@ function makeAssistant(overrides: Partial<AssistantDeps> = {}) {
 afterEach(cleanup);
 
 describe('the assistant dialog', () => {
-	test('a sent question renders a compact rule attachment after its passage', async () => {
+	test('citations collect once at the foot of the answer as compact rule cards', async () => {
 		const assistant = makeAssistant();
 		const { container } = render(AssistantDialog, { assistant });
 		await assistant.open();
@@ -52,28 +63,58 @@ describe('the assistant dialog', () => {
 			expect(container.querySelector('.assistant-rule')).not.toBeNull();
 		});
 
-		// The compact attachment identifies the canonical local rule and sends the
-		// complete reference to a new tab.
+		// The card is a title over one meta line: severity, fix behavior, and the
+		// reviewed source — all resolved from the local corpus, never from model
+		// output. The raw rule id and the corpus explanation are deliberately
+		// absent: both are the linter's voice, not an answer.
 		const preview = container.querySelector('.assistant-rule')!;
 		expect(preview.querySelector('.assistant-rule__title')!.textContent?.trim()).toBe(RULE.title);
-		expect(preview.textContent).toContain(RULE.id);
-		expect(preview.textContent).toContain('Attached rule');
+		expect(preview.querySelector('.severity')).not.toBeNull();
 		expect(preview.textContent).toContain('Fixed automatically');
+		expect(preview.textContent).not.toContain(RULE.id);
 		expect(preview.textContent).not.toContain(RULE.explanation);
+		expect(preview.textContent).not.toContain('Attached rule');
 		expect(preview.querySelector('pre')).toBeNull();
 		const rulePage = preview.querySelector('a');
 		expect(rulePage?.getAttribute('href')).toContain(RULE.slug);
 		expect(rulePage?.getAttribute('target')).toBe('_blank');
 		expect(rulePage?.getAttribute('rel')).toBe('noopener noreferrer');
 
-		// The preview sits directly after the block that cited it, before the
-		// general block that follows.
+		// The rule's reviewed source rides the meta line, linked, with the cited
+		// section and its verified date in the link's tooltip — the citation
+		// idiom the diagnostic card uses.
+		const sourceLink = preview.querySelector('a.assistant-rule__source');
+		expect(sourceLink?.textContent).toContain('Use song part headers');
+		expect(sourceLink?.getAttribute('title')).toContain('verified');
+
+		// Two rules cited across three blocks — one of them twice — and the
+		// collected section draws each once, after the whole answer: a card
+		// after every paragraph chopped the answer into fragments.
+		expect(container.querySelectorAll('.assistant-rule')).toHaveLength(2);
+		expect(container.textContent).toContain('Cited rules');
 		const blocks = [...container.querySelectorAll('.assistant-block, .assistant-rule')];
 		expect(blocks.map((node) => node.className.includes('assistant-rule'))).toEqual([
 			false,
+			false,
+			false,
 			true,
-			false
+			true
 		]);
+
+		// The tie between a passage and its rule is a superscript number. The
+		// first and last blocks cite rule 1; the example block cites rule 2, and
+		// its mark rides the example's own corner — dropping example marks is how
+		// a number went missing from a real answer.
+		const refs = container.querySelectorAll('.assistant-block__refs');
+		expect(refs).toHaveLength(3);
+		expect(refs[0]!.textContent).toBe('1');
+		expect(refs[1]!.textContent).toBe('2');
+		expect(refs[2]!.textContent).toBe('1');
+		expect(container.querySelector('.assistant-example .assistant-block__refs')).toBe(refs[1]);
+		const cardNumbers = [...container.querySelectorAll('.assistant-rule')].map(
+			(card) => card.querySelector('.assistant-citation-number')?.textContent
+		);
+		expect(cardNumbers).toEqual(['1', '2']);
 	});
 
 	test('a pending answer shows a bouncing three-dot status', async () => {
@@ -196,6 +237,47 @@ describe('the assistant dialog', () => {
 		await waitFor(() => {
 			expect(container.textContent).toContain('You are offline');
 		});
+	});
+
+	test('user turns are bubbles, assistant turns are prose, and no visible role captions remain', async () => {
+		const assistant = makeAssistant();
+		const { container } = render(AssistantDialog, { assistant });
+		await assistant.open();
+		await assistant.send('How do I mark a chorus?');
+		await waitFor(() => {
+			expect(container.querySelector('.assistant-rule')).not.toBeNull();
+		});
+
+		// Whose turn it is is carried by layout, not by a printed "You"/"Assistant"
+		// caption — those stay sr-only for readers who cannot see the layout.
+		const userTurn = container.querySelector('.assistant-turn[data-role="user"]')!;
+		expect(userTurn.textContent).toContain('How do I mark a chorus?');
+		expect(userTurn.querySelector('.sr-only')?.textContent).toContain('You');
+		const assistantTurn = container.querySelector('.assistant-turn[data-role="assistant"]')!;
+		expect(assistantTurn.querySelector('.sr-only')?.textContent).toContain('Assistant');
+		expect(container.querySelector('.assistant-turn__meta')).toBeNull();
+	});
+
+	test('conversations live in a popover, and deleting one is a confirm in the row', async () => {
+		const assistant = makeAssistant();
+		const { container, getByRole, queryByRole } = render(AssistantDialog, { assistant });
+		await assistant.open();
+		await assistant.send('First question?');
+		await waitFor(() => expect(assistant.chats).toHaveLength(1));
+
+		// The header carries no bare `Delete` acting on the whole conversation.
+		expect(queryByRole('button', { name: /^Delete chat/ })).toBeNull();
+
+		await fireEvent.click(getByRole('button', { name: 'Conversations' }));
+		const row = container.querySelector('.assistant-chats__list .list-row')!;
+		expect(row.textContent).toContain('First question?');
+
+		// Two presses in one place: the trash arms a confirm that takes its slot.
+		await fireEvent.click(getByRole('button', { name: 'Delete First question?' }));
+		await fireEvent.click(getByRole('button', { name: 'Delete' }));
+		await waitFor(() => expect(assistant.chats).toHaveLength(0));
+		expect(container.querySelector('.assistant-chats')).toBeNull();
+		expect(container.textContent).toContain('What would you like to check?');
 	});
 
 	test('the transcript never contains draft text and the disclosure names the boundary', async () => {

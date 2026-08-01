@@ -82,7 +82,7 @@ describe('prompt assembly', () => {
 		);
 		expect(request).toMatchObject({
 			model: 'gpt-5.6-luna',
-			reasoning: { effort: 'high', context: 'current_turn' },
+			reasoning: { effort: 'max', context: 'current_turn' },
 			store: false,
 			max_output_tokens: 8192,
 			safety_identifier: 'll-test'

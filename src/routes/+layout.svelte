@@ -105,9 +105,9 @@
 	     converts both canvas tokens and asserts these two hexes, so the pair below
 	     is the value of record; this comment is not. Keep in sync with tokens.css:
 	       light #dfdfe3 = oklch(90.5% 0.006 285)
-	       dark  #161618 = oklch(20% 0.004 285) -->
+	       dark  #0b0b0d = oklch(15% 0.004 285) -->
 	<meta name="theme-color" media="(prefers-color-scheme: light)" content="#dfdfe3" />
-	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#161618" />
+	<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b0b0d" />
 </svelte:head>
 
 <!-- Nothing but the head, the stylesheet, and the assistant modal live here.

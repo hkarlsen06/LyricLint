@@ -1,8 +1,15 @@
 /*
  * The rules assistant: one modal conversation, shared by the /rules/ prompt
- * and the workbench toolbar. The transcript is one continuous run — spacing and
- * hairlines, never message cards — and a cited rule's reference renders fully
- * expanded inside that run, directly after the passage it supports.
+ * and the workbench toolbar.
+ *
+ * The transcript reads as a conversation, not a log: the user's words are a
+ * compact filled bubble on the right — the one familiar mark every chat reader
+ * already knows — and the assistant answers as plain prose on the surface, so
+ * neither turn needs a "You"/"Assistant" caption or a hairline to say whose it
+ * is. Those captions stay in the accessible tree (`sr-only`), because position
+ * and fill reach nobody who cannot see them. The whole run sits in one centered
+ * reading column, and a cited rule is one quiet meta line in the diagnostics
+ * idiom rather than a labelled attachment block.
  */
 
 .assistant-dialog {
@@ -11,7 +18,7 @@
 	left: 50%;
 	z-index: var(--layer-picker);
 	transform: translate(-50%, -50%);
-	width: min(48rem, calc(100vw - var(--space-4)));
+	width: min(46rem, calc(100vw - var(--space-4)));
 	height: min(42rem, calc(100dvh - var(--space-6)));
 	max-height: 52rem;
 	padding: 0;
@@ -35,9 +42,12 @@
 	flex-direction: column;
 }
 
+/* The header splits on what a control acts on: the identity at one end, the
+ * commands at the other — no icon tile, because a decorated box beside a title
+ * separates nothing. */
 .assistant-dialog__header {
 	display: flex;
-	padding: var(--space-3) var(--space-4) var(--space-3) var(--space-5);
+	padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
 	border-bottom: var(--border-width) solid var(--color-border);
 	align-items: center;
 	gap: var(--space-2);
@@ -46,61 +56,117 @@
 .assistant-dialog__title {
 	display: flex;
 	min-width: 0;
-	align-items: center;
-	gap: var(--space-2-5);
-}
-
-.assistant-dialog__mark,
-.assistant-empty__mark {
-	display: grid;
-	place-items: center;
-	flex: none;
-	color: var(--color-text);
-}
-
-.assistant-dialog__mark {
-	width: var(--control-height-lg);
-	height: var(--control-height-lg);
-	border-radius: var(--radius-md);
-	background: var(--color-fill-subtle);
+	align-items: baseline;
+	gap: var(--space-2);
 }
 
 .assistant-dialog__heading {
 	margin: 0;
-	font-size: var(--font-size-lg);
+	font-size: var(--font-size-md);
 	font-weight: var(--font-weight-semibold);
 }
 
 .assistant-dialog__title p {
 	margin: 0;
+	overflow: hidden;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.assistant-dialog__chats {
+.assistant-dialog__commands {
 	display: flex;
 	margin-inline-start: auto;
 	align-items: center;
-	gap: var(--space-2);
+	gap: var(--space-1);
 }
 
-.assistant-dialog__new {
+/* The conversations popover: the drafts menu's shape — a quiet disclosure, one
+ * line per chat, commands as glyphs on the name's own line. */
+.assistant-chats {
+	position: relative;
+}
+
+.assistant-chats > summary {
+	list-style: none;
+}
+
+.assistant-chats > summary::-webkit-details-marker {
+	display: none;
+}
+
+.assistant-chats__trigger {
 	display: inline-flex;
 	align-items: center;
-	gap: var(--space-1-5);
+	justify-content: center;
 }
 
-.assistant-dialog__select {
-	max-width: 14rem;
-	height: var(--control-height-md);
-	padding-inline: var(--space-2);
-	border: var(--border-width) solid var(--color-control-border);
-	border-radius: var(--radius-control);
-	background: var(--color-control);
+.assistant-chats__popover {
+	position: absolute;
+	z-index: var(--layer-menu);
+	top: calc(100% + var(--space-2));
+	right: 0;
+	width: min(24rem, calc(100vw - 2rem));
+	max-height: min(24rem, 60vh);
+	padding: var(--space-2);
+	overflow: auto;
+	border: var(--border-width) solid var(--color-border-strong);
+	border-radius: var(--radius-overlay);
+	background: var(--color-overlay);
+	box-shadow: var(--shadow-overlay);
+}
+
+.assistant-chats__heading {
+	padding: var(--space-1) var(--space-2) var(--space-2);
+	margin: 0 0 var(--space-1);
+	border-bottom: var(--border-width) solid var(--color-border);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+}
+
+.assistant-chats__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.assistant-chats__name {
+	display: flex;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	gap: var(--space-4);
+	flex: 1;
+	justify-content: space-between;
+	align-items: baseline;
+	background: transparent;
 	color: var(--color-text);
+	font: inherit;
 	font-size: var(--font-size-sm);
+	text-align: start;
+	cursor: pointer;
 }
 
+.assistant-chats__name--static {
+	cursor: default;
+}
+
+.assistant-chats__list > li.current .list-row__name {
+	font-weight: var(--font-weight-bold);
+}
+
+.assistant-chats__name time {
+	flex: none;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* The transcript is one centered reading column; spacing separates the turns,
+ * so no hairlines between them. */
 .assistant-transcript {
 	overflow-y: auto;
 	flex: 1;
@@ -108,26 +174,50 @@
 	padding: var(--space-5);
 }
 
+.assistant-transcript > * {
+	width: 100%;
+	max-width: 40rem;
+	margin-inline: auto;
+}
+
+.assistant-turn {
+	padding-block: var(--space-3);
+}
+
+.assistant-turn[data-role='user'] {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.assistant-turn[data-role='user'] .assistant-turn__text {
+	max-width: min(85%, 32rem);
+	padding: var(--space-2) var(--space-3);
+	border-radius: var(--radius-lg);
+	background: var(--color-fill-subtle);
+}
+
+.assistant-turn__text {
+	margin: 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+
+.assistant-turn .button {
+	margin-block-start: var(--space-2);
+}
+
+/* The empty state is prose on the surface — a question, one sentence, and the
+ * suggestions as quiet rows. What the assistant cannot see is said once, in
+ * the disclosure under the composer, not repeated here. */
 .assistant-empty {
 	display: flex;
-	width: min(100%, 34rem);
 	height: 100%;
 	min-height: 20rem;
-	margin-inline: auto;
 	align-items: center;
 	justify-content: center;
 	flex-direction: column;
 	text-align: center;
 	color: var(--color-text-muted);
-}
-
-.assistant-empty__mark {
-	width: 3rem;
-	height: 3rem;
-	margin-block-end: var(--space-3);
-	border-radius: var(--radius-lg);
-	background: var(--color-fill-subtle);
-	color: var(--color-text);
 }
 
 .assistant-empty h3 {
@@ -138,59 +228,42 @@
 }
 
 .assistant-empty > p {
-	max-width: 30rem;
+	max-width: 28rem;
 	margin: 0;
+	font-size: var(--font-size-sm);
 }
 
 .assistant-suggestions {
-	display: flex;
-	justify-content: center;
-	flex-wrap: wrap;
-	gap: var(--space-2);
-	margin-block: var(--space-5);
+	display: grid;
+	width: min(100%, 24rem);
+	gap: var(--space-0-5);
+	margin-block-start: var(--space-5);
 }
 
 .assistant-suggestions button {
-	min-height: var(--control-height-lg);
-	padding: var(--space-2) var(--space-3);
-	border: var(--border-width) solid var(--color-control-border);
-	border-radius: var(--radius-pill);
+	display: flex;
+	min-height: var(--control-height-md);
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-1-5) var(--space-3);
+	border: 0;
+	border-radius: var(--radius-md);
 	background: transparent;
 	color: var(--color-text);
 	font: inherit;
 	font-size: var(--font-size-sm);
+	text-align: start;
 	cursor: pointer;
+}
+
+.assistant-suggestions button svg {
+	flex: none;
+	color: var(--color-text-muted);
 }
 
 .assistant-suggestions button:hover {
 	background: var(--color-control-hover);
-}
-
-.assistant-empty .assistant-empty__privacy {
-	font-size: var(--font-size-xs);
-}
-
-.assistant-turn {
-	padding-block: var(--space-3);
-}
-
-.assistant-turn + .assistant-turn {
-	border-top: var(--border-width) solid var(--color-border);
-}
-
-.assistant-turn__meta {
-	display: flex;
-	margin-block-end: var(--space-1);
-	align-items: baseline;
-	gap: var(--space-2);
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-}
-
-.assistant-turn__text {
-	margin: 0;
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
 }
 
 .assistant-block {
@@ -209,11 +282,23 @@
 }
 
 .assistant-block__sources {
-	margin: calc(-1 * var(--space-2)) 0 var(--space-3);
+	margin: 0;
 	padding: 0;
 	list-style: none;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
+}
+
+.assistant-block__sources .assistant-citation-number {
+	margin-inline-end: var(--space-0-5);
+}
+
+.assistant-block__sources a {
+	color: inherit;
+}
+
+.assistant-block__sources a:hover {
+	color: var(--color-text);
 }
 
 .assistant-general {
@@ -238,29 +323,18 @@
 	font-size: var(--font-size-xs);
 }
 
-/* A compact rule attachment. The short connector and explicit label make its
- * relationship to the preceding passage visible without drawing another card. */
-.assistant-rule {
-	position: relative;
-	margin: calc(-1 * var(--space-1)) 0 var(--space-3) var(--space-2);
-	padding: var(--space-2) 0 var(--space-1) var(--space-3);
-	border-left: var(--border-width) solid var(--color-border-strong);
+/* The answer's citations, collected once at its foot — cards after every
+ * paragraph chopped the answer into fragments, and the same source was cited
+ * three times down one reply. The cards are one bordered run with a hairline
+ * between neighbours, the linter's idiom, and each is a title over one meta
+ * line: severity, fix behavior, source. */
+.assistant-citations {
+	display: grid;
+	gap: var(--space-2);
+	margin-block: var(--space-4) var(--space-3);
 }
 
-.assistant-rule::before {
-	position: absolute;
-	top: 0;
-	left: calc(-1 * var(--space-2));
-	width: var(--space-2);
-	border-top: var(--border-width) solid var(--color-border-strong);
-	content: '';
-}
-
-.assistant-rule__attachment {
-	display: flex;
-	align-items: center;
-	gap: var(--space-1);
-	margin: 0 0 var(--space-1);
+.assistant-citations__label {
 	color: var(--color-text-muted);
 	font-size: var(--font-size-2xs);
 	font-weight: var(--font-weight-semibold);
@@ -268,11 +342,74 @@
 	text-transform: uppercase;
 }
 
-.assistant-rule__head {
-	display: grid;
-	gap: var(--space-1);
+.assistant-rule-run {
+	overflow: hidden;
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-md);
 }
 
+/* One mark for a citation everywhere it appears: superscript in the prose, the
+ * rail of a card, the head of a direct-source line. A plain footnote number,
+ * not a boxed chip — a filled box around a digit is a keycap drawn for nothing,
+ * and it read as a control. Never pressable. */
+.assistant-citation-number {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-2xs);
+	font-weight: var(--font-weight-semibold);
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+}
+
+.assistant-block__refs {
+	display: inline-flex;
+	gap: var(--space-1);
+	margin-inline-start: var(--space-0-5);
+	vertical-align: 0.35em;
+}
+
+/* The example's marks ride the block's own corner — inside the `pre` they
+ * would read as part of the quoted document. */
+.assistant-example {
+	position: relative;
+}
+
+.assistant-block__refs--example {
+	position: absolute;
+	top: var(--space-2);
+	right: var(--space-3);
+	margin: 0;
+}
+
+/* The number is a rail beside the card, so the title and the meta line keep
+ * one left edge under each other. */
+.assistant-rule {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	column-gap: var(--space-2);
+	row-gap: var(--space-1);
+	padding: var(--space-2-5) var(--space-3);
+}
+
+.assistant-rule > .assistant-citation-number {
+	align-self: center;
+	min-width: 1ch;
+	font-size: var(--font-size-xs);
+	text-align: end;
+}
+
+.assistant-rule__title,
+.assistant-rule__meta {
+	grid-column: 2;
+}
+
+.assistant-rule + .assistant-rule {
+	border-top: var(--border-width) solid var(--color-border);
+}
+
+/* The card was three shades of accent blue per row — title, arrow, source —
+ * and a run of three cards was a wall of it. The title rests in the text
+ * color and earns its underline under the pointer; the muted arrow is the
+ * mark that says the press leaves. */
 .assistant-rule__title {
 	margin: 0;
 	font-size: var(--font-size-md);
@@ -283,15 +420,44 @@
 	display: inline-flex;
 	align-items: baseline;
 	gap: var(--space-1);
+	color: var(--color-text);
+	text-decoration: none;
 }
 
+.assistant-rule__title a:hover {
+	text-decoration: underline;
+}
+
+.assistant-rule__title svg {
+	flex: none;
+	color: var(--color-text-muted);
+}
+
+/* The source is one fact on the meta line, so it wears the line's own muted
+ * color; the underline is what says it is a link. */
+.assistant-rule__source {
+	color: inherit;
+}
+
+a.assistant-rule__source:hover {
+	color: var(--color-text);
+}
+
+/* `center`, not `baseline`: the severity tag is an inline-flex led by its
+ * glyph, which has no text baseline, so a baseline row seats it high — the
+ * diagnostic meta row makes the same choice for the same reason. */
 .assistant-rule__meta {
 	display: flex;
-	align-items: baseline;
+	margin: 0;
+	align-items: center;
 	flex-wrap: wrap;
-	gap: var(--space-2);
+	gap: var(--space-1-5);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
+}
+
+.assistant-rule__separator {
+	color: var(--color-text-muted);
 }
 
 .assistant-thinking {
@@ -348,7 +514,7 @@
 	display: flex;
 	align-items: center;
 	gap: var(--space-2);
-	padding: var(--space-2) var(--space-4);
+	padding: var(--space-2) var(--space-5);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-sm);
 }
@@ -358,12 +524,12 @@
 }
 
 .assistant-challenge {
-	padding: var(--space-2) var(--space-4);
+	padding: var(--space-2) var(--space-5);
 }
 
 .assistant-composer {
 	display: grid;
-	padding: var(--space-3) var(--space-5) var(--space-1);
+	padding: var(--space-2) var(--space-5) var(--space-1);
 	gap: var(--space-1);
 }
 
@@ -374,7 +540,6 @@
 	border: var(--border-width) solid var(--color-border-input);
 	border-radius: var(--radius-lg);
 	background: var(--color-surface);
-	box-shadow: var(--shadow-raised);
 }
 
 .assistant-composer textarea {
@@ -416,12 +581,6 @@
 	cursor: not-allowed;
 }
 
-.assistant-composer__hint {
-	margin: 0 var(--space-2);
-	color: var(--color-text-muted);
-	font-size: var(--font-size-2xs);
-}
-
 .assistant-disclosure {
 	margin: 0;
 	padding: var(--space-1) var(--space-5) var(--space-3);
@@ -440,18 +599,14 @@
 		padding-inline: var(--space-3);
 	}
 
-	.assistant-dialog__title p,
-	.assistant-dialog__new span,
-	.assistant-composer__hint {
+	.assistant-dialog__title p {
 		display: none;
 	}
 
-	.assistant-dialog__select {
-		max-width: 8rem;
-	}
-
 	.assistant-transcript,
-	.assistant-composer {
+	.assistant-composer,
+	.assistant-status,
+	.assistant-challenge {
 		padding-inline: var(--space-3);
 	}
 

@@ -3,6 +3,11 @@
 	 * The conversation modal. Bits UI owns focus trapping, Escape/outside-press
 	 * dismissal, and focus restoration. Closing never cancels a request — request
 	 * state lives in the root-level store.
+	 *
+	 * Past conversations live in a popover behind one quiet trigger, the drafts
+	 * menu's own idiom: one line per chat, and deleting one is a confirm that
+	 * takes the trigger's slot rather than a bare `Delete` in the header acting
+	 * on the whole conversation without a question.
 	 */
 	import { resolve } from '$app/paths';
 	import { Dialog } from 'bits-ui';
@@ -13,6 +18,9 @@
 		type RulePreviewSource
 	} from '$lib/assistant/rule-previews.js';
 	import { renderChallenge, type ChallengeHandle } from '$lib/assistant/turnstile.js';
+	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
+	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
+	import { formatDraftDate, fullDraftDate } from '$lib/ui/drafts/draft-date.js';
 	import AssistantAnswer from './AssistantAnswer.svelte';
 
 	let { assistant }: { assistant: AssistantState } = $props();
@@ -25,6 +33,9 @@
 	let referencesFailedToLoad = $state(false);
 	let challengeFailedToRun = $state(false);
 	let challengeHandle: ChallengeHandle | undefined;
+	let chatsOpen = $state(false);
+	let chatsTrigger = $state<HTMLElement>();
+	let deleteChatId = $state<string | undefined>();
 
 	$effect(() => {
 		if (assistant.isOpen) {
@@ -98,15 +109,40 @@
 		}
 	}
 
-	const activeChatTitle = $derived(
-		assistant.chats.find((chat) => chat.id === assistant.activeChatId)?.title
-	);
-	const quotaLow = $derived(assistant.quota !== undefined && assistant.quota.browserRemaining <= 3);
+	// Leaving the popover abandons a pending delete confirm — reopening it must
+	// not present a primed question the user already walked away from.
+	function dismissChats(): void {
+		if (!chatsOpen) return;
+		chatsOpen = false;
+		deleteChatId = undefined;
+	}
+
+	function openChat(id: string): void {
+		chatsOpen = false;
+		deleteChatId = undefined;
+		void assistant.selectChat(id);
+	}
+
+	// The confirm the press landed on unmounts with the row, so focus has to be
+	// handed somewhere deliberate: the popover's own trigger while the list
+	// stands, the composer once the last conversation is gone with it.
+	async function deleteChat(id: string): Promise<void> {
+		await assistant.deleteChat(id);
+		deleteChatId = undefined;
+		if (assistant.chats.length === 0) {
+			chatsOpen = false;
+			composerInput?.focus();
+		} else {
+			chatsTrigger?.focus();
+		}
+	}
+
 	const suggestions = [
 		'How should I format a chorus?',
 		'When should I use an em dash?',
 		'How do I mark an unknown lyric?'
 	];
+	const quotaLow = $derived(assistant.quota !== undefined && assistant.quota.browserRemaining <= 3);
 </script>
 
 <Dialog.Root
@@ -124,70 +160,99 @@
 		}}
 	>
 		<div class="assistant-dialog__surface">
-			<div class="assistant-dialog__header">
+			<header class="assistant-dialog__header">
 				<div class="assistant-dialog__title">
-					<span class="assistant-dialog__mark" aria-hidden="true">
-						<svg viewBox="0 0 20 20" width="18" height="18">
-							<path
-								d="M4.25 3.5h11.5v9H9l-3.75 3v-3h-1z"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.5"
-								stroke-linejoin="round"
-							/>
-							<path
-								d="M7 7h6M7 9.75h4"
-								stroke="currentColor"
-								stroke-width="1.5"
-								stroke-linecap="round"
-							/>
-						</svg>
-					</span>
-					<div>
-						<Dialog.Title class="assistant-dialog__heading">Ask the rules</Dialog.Title>
-						<p>LyricLint’s guidelines assistant</p>
-					</div>
+					<Dialog.Title class="assistant-dialog__heading">Ask the rules</Dialog.Title>
+					<p>LyricLint’s guidelines assistant</p>
 				</div>
-				<div class="assistant-dialog__chats">
+				<div class="assistant-dialog__commands">
 					{#if assistant.chats.length > 0}
-						<label class="sr-only" for="assistant-chat-select">Conversation</label>
-						<select
-							id="assistant-chat-select"
-							class="assistant-dialog__select"
-							value={assistant.activeChatId ?? ''}
-							disabled={assistant.busy || assistant.challengePending}
-							onchange={(event) => {
-								const id = event.currentTarget.value;
-								if (id) void assistant.selectChat(id);
-							}}
+						<details
+							class="assistant-chats"
+							bind:open={chatsOpen}
+							{@attach dismissOnOutside(dismissChats)}
 						>
-							{#if !assistant.activeChatId}
-								<option value="">New chat</option>
-							{/if}
-							{#each assistant.chats as chat (chat.id)}
-								<option value={chat.id}>{chat.title}</option>
-							{/each}
-						</select>
-						{#if assistant.activeChatId}
-							<button
-								type="button"
-								class="button button--quiet"
-								disabled={assistant.busy || assistant.challengePending}
-								onclick={() => {
-									const id = assistant.activeChatId;
-									if (id) void assistant.deleteChat(id);
-								}}
-								aria-label={`Delete chat ${activeChatTitle ?? ''}`}>Delete</button
+							<!-- svelte-ignore a11y_no_redundant_roles -->
+							<summary
+								class="button--quiet icon-button assistant-chats__trigger"
+								role="button"
+								aria-label="Conversations"
+								title="Conversations"
+								aria-expanded={chatsOpen}
+								bind:this={chatsTrigger}
 							>
-						{/if}
+								<svg
+									aria-hidden="true"
+									viewBox="0 0 16 16"
+									width="15"
+									height="15"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.5"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+								>
+									<circle cx="8" cy="8" r="5.6" />
+									<path d="M8 5.2V8l2 1.6" />
+								</svg>
+							</summary>
+							<div class="assistant-chats__popover">
+								<h3 class="assistant-chats__heading">Conversations</h3>
+								<ul class="assistant-chats__list">
+									{#each assistant.chats as chat (chat.id)}
+										<li class="list-row" class:current={chat.id === assistant.activeChatId}>
+											{#if deleteChatId === chat.id}
+												<!-- The row stops being a way into the chat while its
+												     deletion is the question: one decision on screen. -->
+												<span class="assistant-chats__name assistant-chats__name--static">
+													<span class="list-row__name">{chat.title}</span>
+												</span>
+												<div class="list-row__commands">
+													<RemoveButton
+														subject={chat.title}
+														pending
+														onRequest={() => (deleteChatId = chat.id)}
+														onCancel={() => (deleteChatId = undefined)}
+														onConfirm={() => deleteChat(chat.id)}
+													/>
+												</div>
+											{:else}
+												<button
+													type="button"
+													class="assistant-chats__name"
+													aria-current={chat.id === assistant.activeChatId ? 'true' : undefined}
+													onclick={() => openChat(chat.id)}
+												>
+													<span class="list-row__name">{chat.title}</span>
+													<time datetime={chat.updatedAt} title={fullDraftDate(chat.updatedAt)}>
+														{formatDraftDate(chat.updatedAt)}
+													</time>
+												</button>
+												<div class="list-row__commands">
+													<RemoveButton
+														subject={chat.title}
+														pending={false}
+														onRequest={() => (deleteChatId = chat.id)}
+														onCancel={() => (deleteChatId = undefined)}
+														onConfirm={() => deleteChat(chat.id)}
+													/>
+												</div>
+											{/if}
+										</li>
+									{/each}
+								</ul>
+							</div>
+						</details>
 					{/if}
 					<button
 						type="button"
-						class="button assistant-dialog__new"
+						class="button--quiet icon-button"
 						disabled={assistant.busy || assistant.challengePending}
+						aria-label="New chat"
+						title="New chat"
 						onclick={() => void assistant.newChat()}
 					>
-						<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+						<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
 							<path
 								d="M8 3v10M3 8h10"
 								stroke="currentColor"
@@ -195,7 +260,6 @@
 								stroke-linecap="round"
 							/>
 						</svg>
-						<span>New chat</span>
 					</button>
 					<Dialog.Close class="icon-button button--quiet" aria-label="Close">
 						<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
@@ -203,28 +267,11 @@
 						</svg>
 					</Dialog.Close>
 				</div>
-			</div>
+			</header>
 
 			<div class="assistant-transcript" aria-label="Conversation">
 				{#if assistant.messages.length === 0}
 					<div class="assistant-empty">
-						<span class="assistant-empty__mark" aria-hidden="true">
-							<svg viewBox="0 0 24 24" width="24" height="24">
-								<path
-									d="M5 4.5h14v11H11l-4.5 4v-4H5z"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.5"
-									stroke-linejoin="round"
-								/>
-								<path
-									d="M8.5 9h7M8.5 12h4.5"
-									stroke="currentColor"
-									stroke-width="1.5"
-									stroke-linecap="round"
-								/>
-							</svg>
-						</span>
 						<h3>What would you like to check?</h3>
 						<p>
 							Ask about Genius transcription or grammar in any reviewed language. Answers cite the
@@ -232,14 +279,21 @@
 						</p>
 						<div class="assistant-suggestions" aria-label="Suggested questions">
 							{#each suggestions as suggestion (suggestion)}
-								<button type="button" onclick={() => void assistant.send(suggestion)}
-									>{suggestion}</button
-								>
+								<button type="button" onclick={() => void assistant.send(suggestion)}>
+									<span>{suggestion}</span>
+									<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
+										<path
+											d="M4 2.5L8 6l-4 3.5"
+											fill="none"
+											stroke="currentColor"
+											stroke-width="1.4"
+											stroke-linecap="round"
+											stroke-linejoin="round"
+										/>
+									</svg>
+								</button>
 							{/each}
 						</div>
-						<p class="assistant-empty__privacy">
-							The assistant never sees your draft—only what you send here.
-						</p>
 					</div>
 				{:else}
 					{#each assistant.messages as message, index (message.id)}
@@ -249,11 +303,10 @@
 							</p>
 						{/if}
 						<div class="assistant-turn" data-role={message.role}>
+							<span class="sr-only">{message.role === 'user' ? 'You:' : 'Assistant:'}</span>
 							{#if message.role === 'user'}
-								<p class="assistant-turn__meta">You</p>
 								<p class="assistant-turn__text">{message.content}</p>
 							{:else if message.status === 'pending' && message.answer}
-								<p class="assistant-turn__meta">Assistant</p>
 								<AssistantAnswer
 									answer={message.answer}
 									{previews}
@@ -264,14 +317,12 @@
 									<i></i><i></i><i></i>
 								</span>
 							{:else if message.status === 'pending'}
-								<p class="assistant-turn__meta">Assistant</p>
 								<p class="assistant-turn__text" aria-busy="true">
 									<span class="assistant-thinking" role="status" aria-label="Answering">
 										<i></i><i></i><i></i>
 									</span>
 								</p>
 							{:else if message.status === 'complete' && message.answer}
-								<p class="assistant-turn__meta">Assistant</p>
 								<AssistantAnswer
 									answer={message.answer}
 									{previews}
@@ -279,7 +330,6 @@
 									{referencesFailedToLoad}
 								/>
 							{:else}
-								<p class="assistant-turn__meta">Assistant</p>
 								<p class="assistant-turn__text">
 									{message.status === 'interrupted'
 										? 'This answer was interrupted before it arrived.'

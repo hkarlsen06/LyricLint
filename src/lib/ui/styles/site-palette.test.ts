@@ -131,14 +131,40 @@ describe('the marketing site pins a complete dark palette', () => {
 	});
 
 	/*
-	 * There is deliberately no assertion that a restated derivation still reads
-	 * `var(--the-same-base)`.
+	 * And every token both blocks state, they state identically.
 	 *
-	 * It was written and removed, because the site legitimately re-anchors one:
-	 * `--color-chrome` is `--color-fill-subtle` in the app, and here it is its
-	 * own value between the canvas and the surface, so the header band sits
-	 * *under* the page's cards rather than level with them. What the site owes is
-	 * that a token is declared at all — declared, it is the site's own decision
-	 * either way; missing, it is silently the light theme's.
+	 * The site used to run a deeper set of surfaces of its own, and read side by
+	 * side that was two products: pressing `Open the workbench` lifted every
+	 * surface in the window four points, the masthead this stylesheet draws at
+	 * exactly the document toolbar's height arrived a different colour than the
+	 * toolbar, and the two were near enough that nobody caught it in a
+	 * screenshot. There is one dark scheme now. This is what stops a retune of
+	 * either block from quietly restoring the other one.
+	 *
+	 * Only the intersection, because the two blocks are not the same list and
+	 * should not be: `.site` also restates the derivations `:root` declares
+	 * (`--color-control: var(--color-surface)` and its kind), which the dark
+	 * block never has to touch because a derivation declared on `:root`
+	 * re-substitutes there for free. Those are covered by the two assertions
+	 * above.
+	 */
+	it('states the same value as the dark scheme for every token both declare', () => {
+		const disagreements = [...darkDeclarations]
+			.filter(([property]) => siteDeclarations.has(property))
+			.filter(([property, value]) => siteDeclarations.get(property) !== value)
+			.map(
+				([property, value]) => `${property}: ${value} (site: ${siteDeclarations.get(property)})`
+			);
+
+		expect(disagreements, 'the site pins the dark scheme, so these have to match').toEqual([]);
+	});
+
+	/*
+	 * There is deliberately no assertion that a restated derivation still reads
+	 * `var(--the-same-base)`. `--color-chrome` is the case that killed it: it is
+	 * `var(--color-fill-subtle)` at `:root` and its own value in dark, so the
+	 * text of the two declarations differs even where the rendered colour does
+	 * not. What a token owes is to be declared at all — declared, it is a
+	 * decision either way; missing, it is silently the light theme's.
 	 */
 });
