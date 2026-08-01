@@ -55,7 +55,7 @@ proofreader — no network, no account. Its findings arrive as ordinary
 diagnostics, and where a reviewed rule already covers a token, the reviewed one
 wins, so the panel never argues with itself.
 
-![A hovered grammar underline showing its popover: the message, the Harper citation, and the fix previewed in the line as a diff.](static/workbench-harper.png)
+![Hovering a wavy underline under “I has” opens a popover explaining that the verb must agree in number with the pronoun, citing Harper and advising that the suggestion be reviewed in context. Pressing “Replace with have” corrects the line and the underline goes.](static/workbench-harper.gif)
 
 ### Transcribe against the audio
 
@@ -127,8 +127,8 @@ card's shape moves. Against a running dev server:
 
 ```sh
 bun run render:workbench             # the hero shot
-bun run render:workbench --harper    # the grammar popover
 bun run render:motion                # the performer loop (webm + gif)
+bun run render:motion --harper       # the grammar loop (webm + gif)
 ```
 
 The transcription in every one of them is invented line by line: a product shot

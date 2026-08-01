@@ -1,21 +1,23 @@
 /*
- * The performer-tagging section's moving picture: the real workbench, driven by
- * a real browser, filmed one frame at a time.
+ * The landing page's moving pictures: the real workbench, driven by a real
+ * browser, filmed one frame at a time.
  *
- * It is the same scene as `render-workbench-shot.mjs --performers` and shares
- * its setup, because the still and the loop are one picture of one product —
- * the roster, the song, and the phrase all come from `shot-scene.mjs` so the
- * two cannot drift. What this adds is the part a still cannot argue: that the
- * markup is *never typed*. A reader looking at the finished `<i>` spans has to
- * take on faith that nobody wrote them; a reader watching the pointer drag a
- * phrase and press two names has seen it.
+ * Each is the same scene as its own still from `render-workbench-shot.mjs`, and
+ * shares that still's setup — the roster, the songs and the phrase all come from
+ * `shot-scene.mjs`, so a picture and its loop cannot drift. What a loop adds is
+ * the part a still cannot argue. A reader looking at finished `<i>` spans has to
+ * take on faith that nobody typed them; a reader watching the pointer drag a
+ * phrase and press two names has seen it. A reader looking at an open grammar
+ * card has to take on faith that the fix beside the explanation does what it
+ * says.
  *
  *     bun run vite dev --host 127.0.0.1 --port 5173
- *     node scripts/render-performer-motion.mjs
+ *     node scripts/render-motion.mjs              # performer tagging
+ *     node scripts/render-motion.mjs --harper     # on-device grammar
  *
- * `ORIGIN` overrides the server it drives. Two files land in `static/`:
- * `workbench-performers.webm` for the page, and `workbench-performers.gif`
- * for anywhere a video tag is not welcome — a README, an issue, a social post.
+ * `ORIGIN` overrides the server it drives. Each scene writes two files into
+ * `static/`: a `.webm` for the page, and a `.gif` for anywhere a video tag is
+ * not welcome — a README, an issue, a social post.
  *
  * Run it with **node**, not bun: bun resolves `playwright-core` out of its own
  * global cache, which is routinely a different version from the one in
@@ -38,12 +40,19 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
-import { preparePerformerScene, selectionPoints, waitForWorkbench } from './shot-scene.mjs';
+import {
+	harperTranscription,
+	preparePerformerScene,
+	selectionPoints,
+	waitForWorkbench
+} from './shot-scene.mjs';
 
 const run = promisify(execFile);
 const origin = process.env.ORIGIN ?? 'http://127.0.0.1:5173';
-const webmPath = resolve('static/workbench-performers.webm');
-const gifPath = resolve('static/workbench-performers.gif');
+const harper = process.argv.includes('--harper');
+const stem = harper ? 'workbench-harper' : 'workbench-performers';
+const webmPath = resolve(`static/${stem}.webm`);
+const gifPath = resolve(`static/${stem}.gif`);
 
 /**
  * 20fps. The cursor is the only thing moving for most of the loop, and a
@@ -127,10 +136,11 @@ async function main() {
 
 	try {
 		const page = await browser.newPage({
-			// The same window the still is taken in: narrower than a laptop on
-			// purpose, and tall enough to hold the whole song plus the picker
-			// under the selection.
-			viewport: { width: 1280, height: 1150 },
+			// The same window each still is taken in: narrower than a laptop on
+			// purpose, and — for the performer scene — tall enough to hold the whole
+			// song plus the picker under the selection. The grammar scene's document
+			// is four lines, so it needs no more room than the hero's.
+			viewport: { width: 1280, height: harper ? 820 : 1150 },
 			deviceScaleFactor: SCALE,
 			colorScheme: 'dark',
 			// The transport, the drafts menu and the wordmark all animate on
@@ -142,21 +152,46 @@ async function main() {
 
 		await page.goto(`${origin}/lint/`);
 		const editor = await waitForWorkbench(page);
-		await preparePerformerScene(page, editor);
 
-		// The paste leaves the caret at the end of the song, and CodeMirror's
-		// active-line wash follows the caret rather than the focus — the
-		// highlighter decorates off `state.selection` and never asks whether the
-		// view is focused, so blurring does not clear it. Left there, the loop
-		// opens on a band across its last line that vanishes the moment the drag
-		// starts, which reads as a rendering fault rather than as a caret. Parked
-		// at the top it reads as what it is: a transcription just opened. The blur
-		// is still worth making, because it takes the caret itself out of the
-		// frames the loop rests on.
+		if (harper) {
+			await editor.click();
+			await page.keyboard.press('Control+A');
+			await editor.fill(harperTranscription);
+			// Harper runs beside the native rules and arrives a beat later; the
+			// settle wait covers both.
+			await page.waitForTimeout(2500);
+		} else {
+			await preparePerformerScene(page, editor);
+		}
+
+		/*
+		 * The caret goes to the top of the document, and both halves of that matter.
+		 *
+		 * CodeMirror's active-line wash follows the caret rather than the focus —
+		 * the highlighter decorates off `state.selection` and never asks whether the
+		 * view is focused, so blurring does not clear it. Left where the paste ends,
+		 * the loop opens on a band across its last line that vanishes on the first
+		 * gesture, which reads as a rendering fault rather than as a caret.
+		 *
+		 * The blur is still worth making, because it takes the caret itself out of
+		 * the frames the loop rests on.
+		 *
+		 * **The grammar scene opens with its fix already previewed as a diff, and
+		 * that is the product rather than a leftover.** `DiagnosticList` expands the
+		 * leading card whenever nothing else has been chosen — "so the panel is
+		 * never a wall of closed rows" — and an expanded card previews its fix in
+		 * the document. With exactly one finding there is therefore no state in
+		 * which that card is closed: moving the caret, pressing Escape and switching
+		 * the panel's tab were all tried, and the diff is still there after each,
+		 * because none of them is a *different* diagnostic to lead with. So the loop
+		 * opens the way the workbench opens, and what the hover adds is the half a
+		 * diff cannot carry: the message, the source it comes from, and the button.
+		 */
 		await page.keyboard.press('Control+Home');
 		await page.evaluate(() =>
 			document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
 		);
+		await page.waitForTimeout(300);
 		await page.evaluate(CURSOR_SCRIPT);
 
 		/*
@@ -204,7 +239,9 @@ async function main() {
 							bottom: box.bottom
 						});
 					}
+					// Whichever surface this scene opens over the document.
 					push(document.querySelector('.picker-layer .picker'));
+					push(document.querySelector('.popover'));
 					return rects;
 				}))
 			);
@@ -218,7 +255,22 @@ async function main() {
 		 * resetting, which is honest, and once for the pointer teleporting, which
 		 * only reads as a dropped frame.
 		 */
-		const restPosition = { x: region.x + region.width * 0.62, y: region.y + 90 };
+		const firstLineTop = await page.evaluate(
+			() => document.querySelector('.cm-line').getBoundingClientRect().top
+		);
+		const restPosition = harper
+			? { x: region.x + region.width * 0.45, y: firstLineTop + 6 }
+			: { x: region.x + region.width * 0.62, y: region.y + 90 };
+		// The crop is the union of what the scene drew, and the pointer is drawn by
+		// us rather than by the page — so its home has to be entered into that union
+		// by hand or the arrow can rest just outside the frame. The box is the
+		// arrow's own, measured down and right from the hotspot.
+		seen.push({
+			left: restPosition.x - 4,
+			top: restPosition.y - 4,
+			right: restPosition.x + 30,
+			bottom: restPosition.y + 34
+		});
 		let cursor = { ...restPosition };
 		let frameIndex = 0;
 
@@ -280,89 +332,153 @@ async function main() {
 		await observe();
 		await hold(14);
 
-		// ── 2. The pointer arrives at the phrase and drags across it. The picker
-		//       opens on a *pointer* selection and on nothing else, so this is the
-		//       gesture a reader would actually make.
-		const points = await selectionPoints(page);
-		await glide(points.from, 15);
-		await hold(3);
+		async function filmPerformers() {
+			// ── 2. The pointer arrives at the phrase and drags across it. The picker
+			//       opens on a *pointer* selection and on nothing else, so this is the
+			//       gesture a reader would actually make.
+			const points = await selectionPoints(page);
+			await glide(points.from, 15);
+			await hold(3);
 
-		await page.mouse.move(points.from.x, points.from.y);
-		await page.mouse.down();
-		await capture(0.05);
-		await glide(points.to, 13);
-		await page.mouse.up();
-		await capture();
+			await page.mouse.move(points.from.x, points.from.y);
+			await page.mouse.down();
+			await capture(0.05);
+			await glide(points.to, 13);
+			await page.mouse.up();
+			await capture();
 
-		await page.locator('.picker-layer .picker').waitFor({ state: 'visible', timeout: 10_000 });
-		await observe();
-		await hold(14);
+			await page.locator('.picker-layer .picker').waitFor({ state: 'visible', timeout: 10_000 });
+			await observe();
+			await hold(14);
 
-		// ── 3. `Who sings this? · 1 of 2` — the phrase's own voice.
-		await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Avery'), 13);
-		await clickHere(11);
-		await observe();
+			// ── 3. `Who sings this? · 1 of 2` — the phrase's own voice.
+			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Avery'), 13);
+			await clickHere(11);
+			await observe();
 
-		// ── 4. `Next`, because this section has no legend yet and applying would
-		//       otherwise promise an assignment and then ask a second question.
-		await glide(await centreOf('.picker-layer .picker .actions button', 'Next'), 11);
-		await clickHere(14);
-		await page.waitForTimeout(200);
-		await observe();
+			// ── 4. `Next`, because this section has no legend yet and applying would
+			//       otherwise promise an assignment and then ask a second question.
+			await glide(await centreOf('.picker-layer .picker .actions button', 'Next'), 11);
+			await clickHere(14);
+			await page.waitForTimeout(200);
+			await observe();
+
+			/*
+			 * ── 5. `Who sings the rest? · 2 of 2` — the section's general voice, and
+			 *       **both** performers are pressed for it.
+			 *
+			 * The obvious cut picks one name here and one there, which reads as a
+			 * radio group: a viewer comes away thinking a passage belongs to exactly
+			 * one voice. The roster is a multiple selection, and two performers
+			 * singing the same line together is ordinary in the songs this tool is
+			 * used on — so the loop spends one extra press answering the question the
+			 * shorter version left open. The first step took one name and this one
+			 * takes two, which shows both shapes in the same eleven seconds without
+			 * either needing a caption.
+			 */
+			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Avery'), 12);
+			await clickHere(8);
+			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Blair'), 11);
+			await clickHere(12);
+			await observe();
+
+			// ── 6. Apply. The wrapper, the slot and the header legend are written
+			//       together as one edit.
+			await glide(await centreOf('.picker-layer .picker .actions button', 'Apply'), 11);
+			await page.mouse.move(cursor.x, cursor.y);
+			await page.mouse.down();
+			await capture(0.05);
+			await page.mouse.up();
+			for (const p of [0.35, 0.6, 0.85]) await capture(p);
+			await page.waitForTimeout(600);
+
+			// Applying returns focus to the editor. Nothing should carry a focus ring
+			// in the frames the loop rests on — it reads as a control the viewer is
+			// being asked to press — and the loop restarts on a document that looks
+			// like the one it opened on, minus the markup it just wrote.
+			await page.evaluate(() =>
+				document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
+			);
+			await observe();
+
+			// The pointer goes home, so the last thing on screen is the result rather
+			// than an arrow parked on the line it just wrote — and so the loop closes
+			// on the frame it opened with. It is `restPosition` rather than an offset
+			// nudged from wherever `Apply` happened to be: nudged, it left the crop
+			// entirely and the longest beat ran with no pointer in it at all, which
+			// reads as the recording having stopped.
+			await glide(restPosition, 14);
+			await hold(38);
+
+			const result = await page.evaluate(() =>
+				[...document.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n')
+			);
+			if (!/\[Verse 2: .+\]/.test(result) || !/<i>Somewhere past the bridge<\/i>/.test(result)) {
+				throw new Error(`the assignment did not land:\n${result}`);
+			}
+		}
 
 		/*
-		 * ── 5. `Who sings the rest? · 2 of 2` — the section's general voice, and
-		 *       **both** performers are pressed for it.
-		 *
-		 * The obvious cut picks one name here and one there, which reads as a
-		 * radio group: a viewer comes away thinking a passage belongs to exactly
-		 * one voice. The roster is a multiple selection, and two performers
-		 * singing the same line together is ordinary in the songs this tool is
-		 * used on — so the loop spends one extra press answering the question the
-		 * shorter version left open. The first step took one name and this one
-		 * takes two, which shows both shapes in the same eleven seconds without
-		 * either needing a caption.
+		 * The grammar scene. One finding, hovered the way a reader hovers it, read,
+		 * and fixed — which is the whole of what this section claims and the half a
+		 * still cannot show: that the button beside the explanation does what the
+		 * explanation says.
 		 */
-		await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Avery'), 12);
-		await clickHere(8);
-		await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Blair'), 11);
-		await clickHere(12);
-		await observe();
+		async function filmHarper() {
+			// The scene's whole premise is one finding, so it is asserted rather than
+			// assumed: a second underline anywhere in this document would put a card
+			// the loop never opens beside the one it does, and the extra lines below
+			// are exactly where one could appear unnoticed.
+			const found = await page.locator('.ll-diagnostic-range').count();
+			if (found !== 1) throw new Error(`expected exactly one finding, found ${found}`);
 
-		// ── 6. Apply. The wrapper, the slot and the header legend are written
-		//       together as one edit.
-		await glide(await centreOf('.picker-layer .picker .actions button', 'Apply'), 11);
-		await page.mouse.move(cursor.x, cursor.y);
-		await page.mouse.down();
-		await capture(0.05);
-		await page.mouse.up();
-		for (const p of [0.35, 0.6, 0.85]) await capture(p);
-		await page.waitForTimeout(600);
+			// The pointer arrives at the underline and *stays*: the popover opens
+			// through `HoverIntent`, which is a wait rather than an event, so a
+			// pointer that merely crosses the word opens nothing.
+			const underline = await centreOf('.ll-diagnostic-range');
+			await glide(underline, 16);
+			await page.mouse.move(underline.x, underline.y);
+			await page.locator('.popover').waitFor({ state: 'visible', timeout: 10_000 });
+			await observe();
 
-		// Applying returns focus to the editor. Nothing should carry a focus ring
-		// in the frames the loop rests on — it reads as a control the viewer is
-		// being asked to press — and the loop restarts on a document that looks
-		// like the one it opened on, minus the markup it just wrote.
-		await page.evaluate(() =>
-			document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
-		);
-		await observe();
+			// Long enough to read the message, the citation and the diff, because
+			// that is what the card is for.
+			await hold(26);
 
-		// The pointer goes home, so the last thing on screen is the result rather
-		// than an arrow parked on the line it just wrote — and so the loop closes
-		// on the frame it opened with. It is `restPosition` rather than an offset
-		// nudged from wherever `Apply` happened to be: nudged, it left the crop
-		// entirely and the longest beat ran with no pointer in it at all, which
-		// reads as the recording having stopped.
-		await glide(restPosition, 14);
-		await hold(38);
+			/*
+			 * Onto the fix. The travel from the underline to the button crosses open
+			 * document, and the card is watching for exactly that — but it allows a
+			 * grace margin and a short delay so the diagonal from underline to
+			 * popover does not close it early. The glide is short for the same
+			 * reason: a slow crawl through the gap is how that grace gets spent.
+			 */
+			await glide(await centreOf('.popover .diagnostic-actions__fix'), 10);
+			await page.locator('.popover').waitFor({ state: 'visible', timeout: 2_000 });
+			await observe();
+			await hold(6);
 
-		const result = await page.evaluate(() =>
-			[...document.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n')
-		);
-		if (!/\[Verse 2: .+\]/.test(result) || !/<i>Somewhere past the bridge<\/i>/.test(result)) {
-			throw new Error(`the assignment did not land:\n${result}`);
+			await clickHere(16);
+			await page.evaluate(() =>
+				document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
+			);
+			await observe();
+
+			await glide(restPosition, 14);
+			await hold(34);
+
+			const fixed = await page.evaluate(() => ({
+				text: [...document.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n'),
+				underlines: document.querySelectorAll('.ll-diagnostic-range').length
+			}));
+			if (!/I have counted/.test(fixed.text)) {
+				throw new Error(`the fix did not land:\n${fixed.text}`);
+			}
+			if (fixed.underlines > 0) {
+				throw new Error(`${fixed.underlines} underline(s) left after the fix`);
+			}
 		}
+
+		await (harper ? filmHarper() : filmPerformers());
 
 		await browser.close();
 

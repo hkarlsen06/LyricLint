@@ -1,0 +1,22 @@
+{
+	"name": "lyriclint-rules-assistant",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"scripts": {
+		"dev": "wrangler dev",
+		"deploy": "wrangler deploy",
+		"check": "tsc --noEmit",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"openai": "^6.9.0",
+		"zod": "^4.1.8"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20260720.0",
+		"typescript": "^6.0.3",
+		"vitest": "^4.1.8",
+		"wrangler": "^4.118.0"
+	}
+}

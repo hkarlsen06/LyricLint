@@ -97,11 +97,36 @@ Leave the radio on`;
  * is unnumbered because a single `[Verse 1]` raises `section.verse-numbering`
  * on the `1`, and the lines are short so the crop hugs the popover instead of
  * trailing empty editor to the right of it.
+ *
+ * **It runs past the popover's foot on purpose.** The still crops to the card
+ * and stops, so four lines were enough for it — but the loop's crop is the
+ * union across time, and it has to hold a card that is only open for half of
+ * it. At four lines the frames either side of that were two thirds empty
+ * editor, which reads as a document that has run out rather than as one being
+ * worked on. The extra lines sit *behind* the card while it is open and fill
+ * the frame once it closes, and they are clean, because a column of unrelated
+ * underlines would compete with the one finding this picture is about.
+ *
+ * **And it may not grow much beyond this, which is a fact about Harper rather
+ * than about the shot.** Lyrics carry no terminal punctuation, so a whole
+ * transcription reads to a proofreader as one enormous run-on sentence — and
+ * past roughly 200 characters of it, Harper stops reporting the `I has`
+ * agreement altogether. Measured: 7 lines and 198 characters reports it, 8
+ * lines and 225 characters reports nothing, and 7 *longer* lines at 372
+ * characters also reports nothing, so it follows the size of the sentence
+ * rather than the number of lines. It is not a timing race — a twelve-second
+ * wait changes nothing — and no error reaches the console, which is exactly why
+ * `render-motion.mjs` asserts that this document produces **one** finding
+ * before it films: grown past the limit, the loop is a pointer hovering over
+ * text with nothing to say.
  */
 export const harperTranscription = `[Verse]
 I has counted every streetlight
 You said we'd drive all night
-And the quiet part was never quiet`;
+And the quiet part was never quiet
+We let the engine hum instead
+The map you drew was a coffee ring
+I keep it folded in the door`;
 
 /** The performers both shots put on the roster, in the order they are added. */
 export const performerNames = ['Avery', 'Blair'];

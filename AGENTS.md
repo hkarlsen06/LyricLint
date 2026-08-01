@@ -3043,7 +3043,40 @@ which resolves when playback is _permitted_, so it read `Pause` over a video tha
 frame. Anything that restores a control here reads its state from `onplay` / `onpause` and from
 nothing else.
 
-**The grammar section's shot is real too** (`--harper`), and it replaced a hand-drawn `<pre>`
+**The grammar section is a loop too** (`render-motion.mjs --harper`), and it is the shorter of the
+two: the pointer arrives at the underline, the card opens, the fix is pressed, the line is correct
+and the underline is gone. Seven seconds. A still could show the open card and stop there; the press
+is the half it cannot carry — that the button beside the explanation does what the explanation says.
+
+Two things it taught, and the second is the one that will be re-broken:
+
+- **It opens with its fix already previewed as a diff, and that is the product rather than a
+  leftover.** `DiagnosticList` expands the leading card whenever nothing else has been chosen — "so
+  the panel is never a wall of closed rows" — and an expanded card previews its fix in the document.
+  With exactly one finding there is therefore no state in which that card is closed: moving the
+  caret, pressing `Escape` and switching the panel's tab were all tried, and the diff survives each,
+  because none of them is a _different_ diagnostic to lead with. So the loop opens the way the
+  workbench opens, and what the hover adds is the half a diff cannot carry.
+- **The document may not grow much past 200 characters, and that is a fact about Harper.** Lyrics
+  carry no terminal punctuation, so a transcription reads to a proofreader as one enormous run-on
+  sentence — and past roughly that length Harper stops reporting the `I has` agreement at all.
+  Measured: 7 lines and 198 characters reports it; 8 lines and 225 reports nothing; 7 _longer_ lines
+  at 372 characters also reports nothing, so it follows the sentence's size rather than the line
+  count. It is not a timing race — a twelve-second wait changes nothing — and **no error reaches the
+  console**, which is why the script asserts the document produces exactly one finding before it
+  films. Grown past the limit, the loop is a pointer hovering over text with nothing to say, and
+  nothing anywhere would have said so.
+
+Its document was lengthened to seven lines all the same, because the loop's crop is the union across
+time and has to hold a card that is only open for half of it — at four lines the frames either side
+were two thirds empty editor, which reads as a document that has run out rather than one being
+worked on. The extra lines sit behind the card while it is open and fill the frame once it closes.
+
+**Both loops share one `autoplayInView` attachment** rather than a bound element and an `onMount`
+each. A rule written per video is a rule that gets copied, and the copy that drifted would be the
+one nobody is scrolled to.
+
+**The still it replaced** (`render-workbench-shot.mjs --harper`) replaced a hand-drawn `<pre>`
 mock-up of the same card — which is the drift a generated shot exists to prevent: the mock's
 wording, marks and layout were already three releases behind the popover it imitated. The script
 hovers the flagged word the way a reader does (through `HoverIntent`, so the pointer arrives and
