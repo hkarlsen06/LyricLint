@@ -12,12 +12,14 @@
  * says.
  *
  *     bun run vite dev --host 127.0.0.1 --port 5173
+ *     node scripts/render-motion.mjs --hero       # the landing page's first screen
  *     node scripts/render-motion.mjs              # performer tagging
  *     node scripts/render-motion.mjs --harper     # on-device grammar
  *
- * `ORIGIN` overrides the server it drives. Each scene writes two files into
- * `static/`: a `.webm` for the page, and a `.gif` for anywhere a video tag is
- * not welcome — a README, an issue, a social post.
+ * `ORIGIN` overrides the server it drives. The two detail scenes write two files
+ * each into `static/`: a `.webm` for the page, and a `.gif` for anywhere a video
+ * tag is not welcome — a README, an issue, a social post. The hero writes only
+ * the `.webm`, for the reason given where the GIF is encoded.
  *
  * Run it with **node**, not bun: bun resolves `playwright-core` out of its own
  * global cache, which is routinely a different version from the one in
@@ -41,7 +43,9 @@ import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
 import {
+	assertHeroSelection,
 	harperTranscription,
+	prepareHeroScene,
 	preparePerformerScene,
 	selectionPoints,
 	waitForWorkbench
@@ -50,7 +54,8 @@ import {
 const run = promisify(execFile);
 const origin = process.env.ORIGIN ?? 'http://127.0.0.1:5173';
 const harper = process.argv.includes('--harper');
-const stem = harper ? 'workbench-harper' : 'workbench-performers';
+const hero = process.argv.includes('--hero');
+const stem = hero ? 'workbench' : harper ? 'workbench-harper' : 'workbench-performers';
 const webmPath = resolve(`static/${stem}.webm`);
 const gifPath = resolve(`static/${stem}.gif`);
 
@@ -140,7 +145,7 @@ async function main() {
 			// purpose, and — for the performer scene — tall enough to hold the whole
 			// song plus the picker under the selection. The grammar scene's document
 			// is four lines, so it needs no more room than the hero's.
-			viewport: { width: 1280, height: harper ? 820 : 1150 },
+			viewport: { width: 1280, height: harper || hero ? 820 : 1150 },
 			deviceScaleFactor: SCALE,
 			colorScheme: 'dark',
 			// The transport, the drafts menu and the wordmark all animate on
@@ -153,7 +158,11 @@ async function main() {
 		await page.goto(`${origin}/lint/`);
 		const editor = await waitForWorkbench(page);
 
-		if (harper) {
+		if (hero) {
+			// The whole hero scene, shared with the still it opens on — the loop's
+			// first frame has to *be* that picture.
+			await prepareHeroScene(page, editor);
+		} else if (harper) {
 			await editor.click();
 			await page.keyboard.press('Control+A');
 			await editor.fill(harperTranscription);
@@ -187,11 +196,20 @@ async function main() {
 		 * opens the way the workbench opens, and what the hover adds is the half a
 		 * diff cannot carry: the message, the source it comes from, and the button.
 		 */
-		await page.keyboard.press('Control+Home');
-		await page.evaluate(() =>
-			document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
-		);
-		await page.waitForTimeout(300);
+		/*
+		 * **The hero scene is exempt from both halves, and that is not an
+		 * oversight.** Its opening state is the still's, which is a *selection*: the
+		 * phrase the performer picker is open over. `Control+Home` would collapse it
+		 * and take the picker with it, and the caret it parks at the top is a caret
+		 * the still does not have either. `prepareHeroScene` has already blurred.
+		 */
+		if (!hero) {
+			await page.keyboard.press('Control+Home');
+			await page.evaluate(() =>
+				document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
+			);
+			await page.waitForTimeout(300);
+		}
 		await page.evaluate(CURSOR_SCRIPT);
 
 		/*
@@ -203,15 +221,27 @@ async function main() {
 		 * from the opening frame — which is exactly the still's own crop — cuts
 		 * the end off the one line the whole loop exists to produce.
 		 */
-		const region = await page.evaluate(() => {
-			const box = document.querySelector('.editor-region').getBoundingClientRect();
-			return {
-				x: Math.round(box.left),
-				y: Math.round(box.top),
-				width: Math.round(box.width),
-				height: Math.round(box.height)
-			};
-		});
+		/*
+		 * **The hero films the whole window, and its crop is the whole window too.**
+		 * Every other loop here is a detail shot of the editor column, so it captures
+		 * that column and works the crop out afterwards from what the scene drew.
+		 * This one's subject is the *panel* — a queue of findings emptying, card by
+		 * card, beside the document each press rewrites — so both columns have to be
+		 * in frame at once, and there is nothing left for a union to decide. It is
+		 * the still's own frame, which is what lets the two share a slot on the page
+		 * without the box changing size when the video's metadata lands.
+		 */
+		const region = hero
+			? { x: 0, y: 0, width: 1280, height: 820 }
+			: await page.evaluate(() => {
+					const box = document.querySelector('.editor-region').getBoundingClientRect();
+					return {
+						x: Math.round(box.left),
+						y: Math.round(box.top),
+						width: Math.round(box.width),
+						height: Math.round(box.height)
+					};
+				});
 
 		/** Every box worth keeping in frame, unioned as the scene plays. */
 		const seen = [];
@@ -258,9 +288,22 @@ async function main() {
 		const firstLineTop = await page.evaluate(
 			() => document.querySelector('.cm-line').getBoundingClientRect().top
 		);
-		const restPosition = harper
-			? { x: region.x + region.width * 0.45, y: firstLineTop + 6 }
-			: { x: region.x + region.width * 0.62, y: region.y + 90 };
+		/*
+		 * The hero's home is the empty canvas to the right of the lyric, and every
+		 * word of that is a constraint. The lyric column is capped at
+		 * `--measure-editor` and left-aligned, so the band between the longest line
+		 * and the panel's edge is the one large region of this window that nothing
+		 * is drawn in and nothing answers a pointer. It has to be nothing: a pointer
+		 * that *stays* is what `HoverIntent` is waiting for, so an arrow parked on an
+		 * underline, on a line's count badge or on the action tray would spend the
+		 * loop's longest holds pulling a surface open behind it. Well below the tray,
+		 * for the same reason.
+		 */
+		const restPosition = hero
+			? { x: region.x + region.width * 0.66, y: region.y + 300 }
+			: harper
+				? { x: region.x + region.width * 0.45, y: firstLineTop + 6 }
+				: { x: region.x + region.width * 0.62, y: region.y + 90 };
 		// The crop is the union of what the scene drew, and the pointer is drawn by
 		// us rather than by the page — so its home has to be entered into that union
 		// by hand or the arrow can rest just outside the frame. The box is the
@@ -419,6 +462,282 @@ async function main() {
 		}
 
 		/*
+		 * The hero scene: a whole transcription cleaned, finding by finding, and
+		 * then wound back so it can be watched again.
+		 *
+		 * The still this replaces could show a workbench with findings in it. What
+		 * it could not show is the thing anybody actually wants to know before
+		 * pasting a transcription into a stranger's website — that pressing the
+		 * buttons empties the panel, and that what is left is their song with the
+		 * markup right. So the loop is the queue going to zero, in the product's own
+		 * time, with nothing cut.
+		 *
+		 * ## What the run is allowed to press
+		 *
+		 * Only what the panel offers. There is no scripted list of rules and no
+		 * hand-written repair anywhere in here: at every step it presses whatever
+		 * the leading card carries, which is the same press a reader makes, and the
+		 * order it works in is `diagnostics/order.ts`. A rule that changed its fix,
+		 * its label or its position changes the film rather than breaking it.
+		 *
+		 * That is also the honest reason the scene needs no manual editing. A
+		 * finding whose card offered no way out would stop this run dead — and one
+		 * does, so it is worth naming: **the bulk fix creates the link
+		 * suggestion.** Bracketing the two written-out `Chorus:` labels is what
+		 * turns them into real sections, which is what lets
+		 * `section.unlinked-repeat` see a repeat at all, and its answer is a guided
+		 * action rather than a text edit. The run takes it — opens the picker, ticks
+		 * the second chorus, applies — because that is the answer the product gives.
+		 *
+		 * And it is the best thing in the loop. From there every chorus fix lands in
+		 * both copies at once through the link's own mirror, so the counter falls by
+		 * two and four at a time and the last eight findings go in six presses. The
+		 * feature demonstrates itself, in the middle of a video about something
+		 * else, without a word of copy.
+		 *
+		 * ## The rewind
+		 *
+		 * A loop has to come back, and there are only two ways: cut to the start, or
+		 * undo. The cut is a splice — one frame where a finished song becomes a
+		 * broken one — which reads as the video having been edited, in a picture
+		 * whose entire argument is that nothing here is staged. So the pointer holds
+		 * the toolbar's own Undo down and the document rewinds under it, which is a
+		 * true statement about the workbench as well as a way home: every one of
+		 * these presses is one undo step, including the batch of five.
+		 *
+		 * It stops on the *document*, not on a count of presses. The bulk fix was
+		 * the first edit of the run, and the thing it did first was bracket line 1 —
+		 * so the moment that line reads `Verse 1:` again, the run is exactly undone
+		 * and the performer assignment underneath it is untouched. Counting presses
+		 * instead would mean knowing whether applying a link that moved no text
+		 * costs a history entry, which is a question this script should not have an
+		 * opinion about.
+		 */
+		async function filmHero() {
+			const findings = () =>
+				page.evaluate(() => document.querySelectorAll('.diagnostic-list > li').length);
+
+			/**
+			 * Wait for the workbench, *without* filming the wait.
+			 *
+			 * This is the same argument the header of this file makes for frames over
+			 * a screen recording: the timing is declared rather than observed. A lint
+			 * is memoized and an atomic edit skips the settle, so these waits are
+			 * short — but they are a busy machine's to vary, and a loop that came out
+			 * three seconds longer on a laptop under load would not be the same loop.
+			 */
+			const until = async (predicate, what) => {
+				const deadline = Date.now() + 25_000;
+				for (;;) {
+					if (await predicate()) return;
+					if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
+					await page.waitForTimeout(80);
+				}
+			};
+
+			/** The centre of a box that may not be there, for asking which it is. */
+			const maybe = async (selector) =>
+				page.evaluate((sel) => {
+					const el = document.querySelector(sel);
+					if (!el) return undefined;
+					const r = el.getBoundingClientRect();
+					return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+				}, selector);
+
+			/**
+			 * Arrive at a control, *read what it is about*, and press it.
+			 *
+			 * The dwell is the whole difference between a demo and a macro. Pressed
+			 * the moment the pointer lands, the run reads as a script executing —
+			 * fourteen buttons hit at machine speed, with no frame in which anybody
+			 * could have decided anything — and a viewer's honest conclusion is that
+			 * the fixes were never looked at. Which is the opposite of what this
+			 * product asks of them: every one of these cards is a suggestion with a
+			 * source, and the transcriber is supposed to weigh it.
+			 *
+			 * **It is graded rather than constant, because that is what a person
+			 * actually does.** The first card is a card nobody has seen before, so it
+			 * gets read whole — message, explanation, the Genius guideline under it —
+			 * and the second gets most of that. By the third the shape is familiar and
+			 * what is left to check is the one line that changed, which is a glance.
+			 * A constant dwell long enough for the first card would spend forty
+			 * seconds proving the reader can still read; one short enough for the
+			 * fourteenth is the macro. Anything with a new surface in it — the bulk
+			 * strip, the link picker — resets to the slow end, because there is
+			 * something unfamiliar on screen again.
+			 */
+			const dwellFor = (step) => (step === 0 ? 28 : step === 1 ? 18 : step < 4 ? 12 : 9);
+			const settleFor = (step) => (step === 0 ? 18 : step === 1 ? 12 : 8);
+
+			/** Read, press, let the surface answer off camera, then hold on the result. */
+			const press = async (dwell, settle, expect) => {
+				await hold(dwell);
+				await clickHere(0);
+				if (expect) await until(expect.test, expect.what);
+				await hold(settle);
+			};
+
+			const start = await findings();
+			if (start === 0) throw new Error('the hero scene opened with nothing to fix');
+
+			// A beat on the opening picture before anything moves. The loop restarts
+			// here, and a viewer arriving mid-scroll needs a moment on the workbench
+			// as it stands before the pointer starts changing it.
+			await hold(12);
+
+			// ── 1. Every safe fix in the panel, in one press and one undo step.
+			//       The performer picker the scene opens on goes here, dismissed by
+			//       the outside press like every other transient surface.
+			await glide(await centreOf('.linter-panel__bulk button'), 16);
+			await press(20, 20, {
+				test: async () => (await findings()) < start,
+				what: 'the bulk fix to land'
+			});
+
+			// ── 2. Whatever the leading card offers, until the panel is empty. Only
+			//       the expanded card renders an action row, so the selectors below
+			//       can afford to be this blunt: there is only ever one.
+			let left = await findings();
+			for (let step = 0; left > 0; step += 1) {
+				if (step > 40) throw new Error(`the fix run did not converge; ${left} left`);
+				const before = left;
+				const fix =
+					(await maybe('.diagnostic-actions__fix')) ??
+					(await maybe('.diagnostic-actions__fix-all'));
+
+				if (fix) {
+					await glide(fix, step === 0 ? 10 : 7);
+					await press(dwellFor(step), settleFor(step), {
+						test: async () => (await findings()) < before,
+						what: 'the fix to land'
+					});
+				} else {
+					// The guided answer — `section.unlinked-repeat`, and the reason the
+					// run needs no scripted repair. Linking is a state effect rather
+					// than a text edit, so it cannot arrive as a fix button.
+					const guided = await maybe('.diagnostic-actions__guided');
+					if (!guided) {
+						const stuck = await page.evaluate(
+							() =>
+								document
+									.querySelector('.diagnostic-list > li .diagnostic-list__navigate')
+									?.textContent?.trim() ?? '(no card)'
+						);
+						throw new Error(`nothing to press on «${stuck}»`);
+					}
+					// A card that offers something other than a fix is a card worth
+					// stopping on, so this whole branch runs at the slow end: it is a
+					// new question, and then a surface nothing else in the run has put
+					// on screen.
+					const picker = page.locator('.picker-layer .picker');
+					await glide(guided, 9);
+					await press(22, 0);
+					await picker.waitFor({ state: 'visible', timeout: 10_000 });
+					await hold(20);
+
+					// The peer copy. `.row--current` is this section, drawn ticked and
+					// disabled, so the one row left is the chorus being tied to it.
+					await glide(await centreOf('.picker-layer .picker .rows .row:not(.row--current)'), 10);
+					// Ticking it is what draws the comparison underneath, which is the
+					// thing in this picker actually worth reading.
+					await press(12, 22);
+
+					await glide(await centreOf('.picker-layer .picker button.apply'), 10);
+					await press(10, 0);
+					await picker.waitFor({ state: 'detached', timeout: 10_000 });
+					await until(
+						async () => (await findings()) < before,
+						'the link to answer its own suggestion'
+					);
+					await hold(16);
+				}
+				left = await findings();
+			}
+
+			// ── 3. The empty panel, held. This is the frame the whole run is for,
+			//       and the one worth actually reading: a clean document beside a
+			//       panel that says so.
+			await hold(36);
+
+			/*
+			 * ── 4. The rewind. Two frames a press, so the document unwinds at about
+			 *       ten a second: fast enough to read as one gesture rather than as
+			 *       twenty edits, slow enough that the eye catches the markup coming
+			 *       back off. `.document-toolbar__history` is Undo then Redo, so the
+			 *       first is the one.
+			 */
+			await glide(await centreOf('.document-toolbar__history'), 16);
+			await hold(10);
+			const openedOn = async () =>
+				page.evaluate(() =>
+					(document.querySelector('.cm-line')?.textContent ?? '').startsWith('Verse 1:')
+				);
+			for (let undos = 0; !(await openedOn()); undos += 1) {
+				if (undos > 60) throw new Error('the rewind never reached the opening document');
+				await page.mouse.down();
+				await capture(0.5);
+				await page.mouse.up();
+				await capture(0.15);
+			}
+			await until(async () => (await findings()) === start, 'the opening findings to come back');
+			await hold(10);
+
+			/*
+			 * ── 5. Back to the picture the loop opened on. The document is already
+			 *       there; what is left is the two things the still's own setup does
+			 *       after pasting — the leading card open, and the phrase selected
+			 *       with the picker over it — so they are made here the same way,
+			 *       with the pointer, rather than dispatched behind the frames.
+			 */
+			await page.evaluate(() => {
+				// The one thing that is reset rather than performed. A list that lost
+				// its scroll during the run would put the opening frame's own cards
+				// somewhere else, and there is no gesture that means "back to the top"
+				// worth spending three seconds of a loop on.
+				for (const el of document.querySelectorAll('.right-panel__pane, .diagnostic-list')) {
+					el.scrollTop = 0;
+				}
+			});
+			await glide(await centreOf('.diagnostic-list__navigate'), 14);
+			await clickHere(0);
+			await page.waitForTimeout(600);
+			await hold(6);
+
+			const points = await selectionPoints(page);
+			await glide(points.from, 14);
+			await page.mouse.move(points.from.x, points.from.y);
+			await page.mouse.down();
+			await capture(0.05);
+			await glide(points.to, 12);
+			await page.mouse.up();
+			await capture();
+			await page.locator('.picker-layer .picker').waitFor({ state: 'visible', timeout: 10_000 });
+			// The same assertion the still makes: Avery comes up pressed because the
+			// document says so, not because anything here pressed a name.
+			await assertHeroSelection(page);
+			await hold(6);
+
+			await glide(restPosition, 14);
+			await hold(30);
+
+			const final = await page.evaluate(() => ({
+				count: document.querySelectorAll('.diagnostic-list > li').length,
+				text: [...document.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n')
+			}));
+			if (final.count !== start) {
+				throw new Error(`the rewind left ${final.count} findings, not the ${start} it opened on`);
+			}
+			// The rewind has to stop *above* the performer assignment: it is part of
+			// the picture the loop opens on, and one undo too many takes it off.
+			if (
+				!/\[Verse 2: .+\]/.test(final.text) ||
+				!/<i>Somewhere past the bridge<\/i>/.test(final.text)
+			) {
+				throw new Error(`the rewind undid the performer assignment:\n${final.text}`);
+			}
+		}
+
+		/*
 		 * The grammar scene. One finding, hovered the way a reader hovers it, read,
 		 * and fixed — which is the whole of what this section claims and the half a
 		 * still cannot show: that the button beside the explanation does what the
@@ -478,7 +797,7 @@ async function main() {
 			}
 		}
 
-		await (harper ? filmHarper() : filmPerformers());
+		await (hero ? filmHero() : harper ? filmHarper() : filmPerformers());
 
 		await browser.close();
 
@@ -487,15 +806,13 @@ async function main() {
 		//    subsamples chroma and an odd dimension is rejected outright.
 		const pad = { top: 20, bottom: 24, right: 28 };
 		const left = region.x;
-		const top = Math.max(region.y, Math.min(...seen.map((r) => r.top)) - pad.top);
-		const right = Math.min(
-			region.x + region.width,
-			Math.max(...seen.map((r) => r.right)) + pad.right
-		);
-		const bottom = Math.min(
-			region.y + region.height,
-			Math.max(...seen.map((r) => r.bottom)) + pad.bottom
-		);
+		const top = hero ? region.y : Math.max(region.y, Math.min(...seen.map((r) => r.top)) - pad.top);
+		const right = hero
+			? region.x + region.width
+			: Math.min(region.x + region.width, Math.max(...seen.map((r) => r.right)) + pad.right);
+		const bottom = hero
+			? region.y + region.height
+			: Math.min(region.y + region.height, Math.max(...seen.map((r) => r.bottom)) + pad.bottom);
 		const even = (n) => Math.max(2, Math.round(n) - (Math.round(n) % 2));
 		const crop = {
 			x: even((left - region.x) * SCALE),
@@ -534,6 +851,25 @@ async function main() {
 			'-an',
 			webmPath
 		]);
+
+		/*
+		 * **The hero writes no GIF, and the arithmetic is why.** A GIF is the
+		 * sharing copy for a detail shot: a few hundred frames of one column, most
+		 * of it unchanging, which `diff_mode=rectangle` compresses to almost
+		 * nothing. This scene is the opposite on every term — the whole window,
+		 * three times the pixels, five times the frames, and both halves of it
+		 * changing at once as the panel empties beside a document being rewritten.
+		 * The result is tens of megabytes, which is not a thing anybody drops into
+		 * a README or a post. What serves that job here is the still: this loop's
+		 * own opening frame, already generated by `render-workbench-shot.mjs` and
+		 * already what `README.md` points at.
+		 */
+		if (hero) {
+			const { size } = await (await import('node:fs/promises')).stat(webmPath);
+			console.log(`wrote ${webmPath} (webm, ${(size / 1024).toFixed(0)}KB)`);
+			console.log('no gif for the hero scene — the still is its sharing copy');
+			return;
+		}
 
 		// The GIF is 1x. It is the sharing copy rather than the page's, and GIF
 		// pays for a wider picture twice over — in palette error across a dark UI

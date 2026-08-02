@@ -694,6 +694,48 @@ the panel card's action row exactly; only the keyboard-opened one adds a control
 Anything else that appears on one and not the other is a bug, and
 `src/lib/diagnostics/diagnostic-parity.svelte.test.ts` renders both and compares them.
 
+### The panel reads reviewed rules first, and Harper only after all of them
+
+`orderDiagnostics` is worst-first-then-down-the-document, and it now ranks the **provider** ahead
+of both: every native finding, then every Harper one. That is a layout bug's repair, and the bug
+was the visible half of something worse.
+
+Harper is a WASM proofreader that answers about 250ms behind the rule engine, so **every edit
+publishes twice** — the native findings at once, then the union re-sorted when Harper lands
+(`scheduleHarper` in `Workspace.svelte`, `mergeHarperDiagnostics`). Interleaved by severity and
+position, a Harper finding earlier in the document than the card the reader is on was _inserted
+above it_ on that second publish. After a fix that card is the one `leadAfterFix` has just
+expanded, so the tall open card — the one whose button the pointer is aimed at, in a panel whose
+whole use is pressing fixes in a run — slid down a row on a delay.
+
+Underneath it, `leadAfterFix` was choosing that card from an **incomplete list**: the lead is
+picked on the native-only publish, and a late arrival can change which finding is actually first,
+leaving the wash on one finding and the open card on another. That is precisely the disagreement
+the single sort exists to prevent. Ranking the provider fixes both, because a late Harper finding
+can now only ever land _below_ every native card and never above the lead.
+
+Three things about it:
+
+- **It is a rank, not a rule about arrival.** The order stays a pure function of the findings, so
+  the same document lists the same way whether Harper answered first, last or twice. Sorting late
+  arrivals to the bottom _because_ they were late would make the list depend on history and this
+  sort unrepeatable; `order.test.ts` pins the two orderings against each other.
+- **It says something true.** A reviewed rule cites a Genius guideline and carries a checked
+  example; Harper is a general-purpose English proofreader that cites itself and knows nothing
+  about lyrics. The merge already lets any native finding win a shared range, and the reference
+  names Harper and gives it no pages. Reading order now agrees with both.
+- **The editor's own sorts are deliberately untouched.** `lint-decorations.ts` orders marks and
+  badges _in the document_, where position is the only order that means anything and a provider
+  rank would shuffle the marks on one line. This is the panel's reading order, and the panel is a
+  list.
+
+`harperRuleIds` moved to `src/lib/rules/harper-ids.ts` for this and is re-exported from
+`harper.ts`. `order.ts` is imported by the editor as well as the shell, and `harper.ts` statically
+pulls the language registry and the spelling table on its way to the WASM bridge — so asking it
+"is this Harper's" there would drag the grammar integration into every chunk that sorts a list. A
+second copy of the three strings was the other way out, and it is the one this file keeps a rule
+about.
+
 ### A diagnostic's facts are one line, and its provenance is on it
 
 The card used to open with a filled severity badge on a line of its own and close with a footer of
@@ -2967,6 +3009,58 @@ arrangement moves, silently, and it is the first thing anybody sees. Four things
 - **`reducedMotion: 'reduce'`, and the focus is blurred before the capture.** The wordmark springs
   open on arrival, and a still taken mid-spring catches the brand halfway; a focus ring in a
   photograph reads as a control the reader is being asked to press.
+
+**And that still is now the poster on a loop, because the one thing it could not show is the
+thing a visitor came to find out.** A picture of a workbench with findings in it says the product
+detects things. It says nothing about whether pressing the buttons _works_ — which is the whole
+question somebody has before pasting a transcription into a stranger's website. So the hero is the
+run: `render-motion.mjs --hero` films every safe fix landing in one press, then card after card,
+then the two choruses linked, then a panel with nothing left to report, then the document rewound
+so it can be watched again.
+
+- **The scene is the still's, shared rather than rebuilt.** `prepareHeroScene` in `shot-scene.mjs`
+  is the roster, the paste, the rename, the two-step performer assignment, the opened leading card
+  and the re-selected phrase; the still is now that function plus a shutter, and the loop is that
+  function plus a camera. It runs **twice** in the loop, because the last frame has to be the
+  first — which is also what turns the still into a regression test for the refactor: it came out
+  byte-identical.
+- **Nothing in the run is scripted.** There is no list of rules and no hand-written repair: at each
+  step it presses whatever the leading card offers, so the order is `diagnostics/order.ts` and a
+  rule that changes its fix changes the film rather than breaking it. The one card that offers no
+  fix is `section.unlinked-repeat`, and it is _created by the bulk fix_ — bracketing the two
+  written-out `Chorus:` labels is what makes them sections a repeat can be seen between. Its guided
+  action is taken, and from there every chorus fix lands in both copies through the link's own
+  mirror, so the counter falls by two and four at a time. The feature demonstrates itself in the
+  middle of a video about something else.
+- **It rewinds by holding the toolbar's Undo, and it stops on the document rather than on a
+  count.** A cut back to the start is one frame in which a finished song becomes a broken one,
+  which reads as an edit in a picture whose argument is that nothing here is staged. The stop
+  condition is line 1 reading `Verse 1:` again — the bulk fix was the run's first edit and
+  bracketing that header was the first thing it did, so that string is exactly "the run is undone
+  and the performer assignment underneath it is not". Counting presses instead would mean having an
+  opinion about whether applying a link that moved no text costs a history entry.
+- **The pointer reads before it presses, and the dwell is graded.** Pressed on arrival, fourteen
+  buttons at machine speed read as a macro — no frame in which anybody could have decided anything,
+  which is the opposite of what a panel of sourced _suggestions_ asks of a transcriber. The first
+  card is read whole, the second nearly, and by the third what is left to check is the line that
+  changed. Anything with an unfamiliar surface on screen — the bulk strip, the link picker — resets
+  to the slow end. That is what makes it 44 seconds; a constant dwell is either a macro or twice
+  as long.
+- **This one keeps a `poster`, and the performer loop's rule is why rather than an exception.**
+  What that rule is about is two media of _different framings_ in one slot: a `<video>` takes its
+  ratio from the poster until metadata arrives and from the media after. Here the poster **is**
+  frame one, at the same 2560×1640, so there is no ratio to disagree about — and having one matters,
+  because this slot is the page's LCP and the still is 316KB against the loop's ~2.6MB.
+  `preload="metadata"` keeps the video out of that race, and both no-JavaScript and
+  `prefers-reduced-motion` are left looking at exactly the picture this section carried before.
+- **It writes no GIF.** A GIF is the sharing copy for a detail shot — a few hundred frames of one
+  column, mostly unchanging. This is the whole window, three times the pixels and five times the
+  frames, with both halves moving; the result is tens of megabytes. The still is what `README.md`
+  points at and is this loop's sharing copy.
+- **First and last frame differ by one glyph, and it is the honest one.** The toolbar's Redo is
+  disabled at the start and enabled at the end, because the loop really did just undo seventeen
+  things. Everything else in the frame is identical, which is worth keeping true — the check is a
+  thresholded difference of the two frames.
 
 **The performer section has a shot of its own, from the same script** (`--performers`), and it is
 the opposite of the hero's in every deliberate way. It is **portrait**: it stands beside the

@@ -17,10 +17,15 @@ const maximumFixes = 3;
  * rules in the shipped rule set with no catalog entry and no reference page —
  * Harper's suggestions cite Harper — so the rule-set manifest is checked against
  * the registry plus exactly these, and `ruleIdFor` may return nothing else.
+ *
+ * They are declared in `harper-ids.ts` and re-exported here, so that a module
+ * that only needs to *recognise* one — the panel's sort does — can ask without
+ * importing this file's WASM bridge. Every existing importer still reads them
+ * from here.
  */
-export const harperRuleIds = ['spelling.harper', 'style.harper', 'grammar.harper'] as const;
+export { harperRuleIds, isHarperRuleId, type HarperRuleId } from './harper-ids.js';
 
-type HarperRuleId = (typeof harperRuleIds)[number];
+import type { HarperRuleId } from './harper-ids.js';
 
 interface HarperSpan {
 	start: number;
