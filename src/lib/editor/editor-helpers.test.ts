@@ -1,10 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { EditorState } from '@codemirror/state';
-import { describe, expect, it } from 'vitest';
+import { EditorState, StateEffect } from '@codemirror/state';
+import { describe, expect, it, vi } from 'vitest';
 import type { Diagnostic, LanguagePack, PerformerRecord } from '$lib/core/types.js';
 import { norwegianLanguagePack } from '$lib/languages/no.js';
-import { prepareInitialDocument } from './create-editor.js';
+import type { LyricEditorCallbacks } from './contracts.js';
+import {
+	createCallbackProxy,
+	lyricEditorCallbackKeys,
+	prepareInitialDocument
+} from './create-editor.js';
 import {
 	clusterDiagnostics,
 	diagnosticsForState,
@@ -12,7 +17,13 @@ import {
 	setDiagnosticsEffect
 } from './extensions/lint-decorations.js';
 import { performerPalette, voiceGroupStyle } from './extensions/performer-decorations.js';
-import { editorCallbacksField, editorRevisionField } from './extensions/editor-state.js';
+import {
+	editorCallbacksField,
+	editorRevisionField,
+	parsedDocumentForState
+} from './extensions/editor-state.js';
+import { setPlayheadEffect } from './extensions/line-anchors.js';
+import { transactionsHaveOnlyPlayheadEffects } from './extensions/selection-anchor.js';
 import { safeExternalUrl } from '$lib/diagnostics/source-url.js';
 import { sectionHeaderOptions, suggestNextOrdinal } from './overlays/section-picker.js';
 import { validateAtomicEdit } from './transaction-adapter.js';
@@ -70,6 +81,35 @@ function contrastRatio(first: string, second: string): number {
 }
 
 describe('editor pure helpers', () => {
+	it('memoizes one parsed document per editor state', () => {
+		const state = EditorState.create({ doc: '[Verse]\nHello' });
+
+		expect(parsedDocumentForState(state)).toBe(parsedDocumentForState(state));
+	});
+
+	it('keeps the live callback proxy exhaustive with the callback contract', () => {
+		const callbacks: LyricEditorCallbacks = {
+			onSnapshot: vi.fn(),
+			onAssignRequest: vi.fn(),
+			onSectionHeaderRequest: vi.fn(),
+			onDiagnosticActivate: vi.fn(),
+			onAnnouncement: vi.fn()
+		};
+		const proxy = createCallbackProxy(() => callbacks);
+
+		expect(Object.keys(proxy).sort()).toEqual([...lyricEditorCallbackKeys].sort());
+	});
+
+	it('recognizes effect-only playhead transactions', () => {
+		const state = EditorState.create({ doc: 'Hello' });
+		const tick = state.update({ effects: setPlayheadEffect.of(1) });
+		const otherEffect = StateEffect.define<boolean>();
+		const mixed = state.update({ effects: [setPlayheadEffect.of(1), otherEffect.of(true)] });
+
+		expect(transactionsHaveOnlyPlayheadEffects([tick])).toBe(true);
+		expect(transactionsHaveOnlyPlayheadEffects([mixed])).toBe(false);
+	});
+
 	it('clusters only intersecting same-line diagnostics in severity order', () => {
 		const clusters = clusterDiagnostics(
 			[

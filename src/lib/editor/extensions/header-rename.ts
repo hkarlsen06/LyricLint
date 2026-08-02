@@ -1,14 +1,18 @@
 import { EditorState, StateEffect, StateField, Transaction } from '@codemirror/state';
 import type { ChangeDesc, Extension, TransactionSpec } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { parseDocument } from '$lib/core/parser.js';
 import type { PerformerId, TextEdit, TextRange } from '$lib/core/types.js';
 import {
 	findHeaderRenameTargets,
 	isMirrorableHeaderName,
 	nameBreaksHeaderStructure
 } from '$lib/performers/header-rename.js';
-import { editorCallbacksField, editorComposingField, editorContextField } from './editor-state.js';
+import {
+	editorCallbacksField,
+	editorComposingField,
+	editorContextField,
+	parsedDocumentForState
+} from './editor-state.js';
 
 /** The performer name currently being edited and the headers mirroring it. */
 export interface HeaderRenameSession {
@@ -89,9 +93,7 @@ function beginSession(state: EditorState, change: TextRange): HeaderRenameSessio
 		return undefined;
 	}
 
-	const text = state.doc.toString();
-	const parsed = context?.parsed?.text === text ? context.parsed : parseDocument(text);
-	return findHeaderRenameTargets(parsed, roster, change);
+	return findHeaderRenameTargets(parsedDocumentForState(state), roster, change);
 }
 
 /**

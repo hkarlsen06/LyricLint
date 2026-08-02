@@ -1,4 +1,5 @@
 import type { RuleDefinition } from '$lib/core/types.js';
+import { isEnglishLanguage } from '$lib/languages/registry.js';
 import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
 
 export const contractions: Record<string, string> = {
@@ -36,15 +37,15 @@ export const contractionApostropheRule: RuleDefinition = {
 	fixability: 'preview',
 	sourceIds: ['G-CONTRACTIONS'],
 	check(document, context) {
-		if (context.language !== 'en') {
+		if (!isEnglishLanguage(context.language)) {
 			return [];
 		}
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>
 				matchesOutsideMarkup(line, contractionPattern).map((match) => {
-					const preferred = contractions[match.text.toLocaleLowerCase()] ?? match.text;
+					const preferred = contractions[match.text.toLocaleLowerCase('en')] ?? match.text;
 					const replacement =
-						match.text.toLocaleLowerCase() === 'im'
+						match.text.toLocaleLowerCase('en') === 'im'
 							? preferred
 							: preserveCase(match.text, preferred);
 					return diagnostic(

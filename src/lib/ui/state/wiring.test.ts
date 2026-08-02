@@ -295,5 +295,11 @@ describe('UI wiring', () => {
 		).toBe(false);
 		// Nothing to tap is not finished work, so the control keeps offering the job.
 		expect(everyLyricLineTimed('[Verse 1]\n\n', [])).toBe(false);
+		expect(
+			everyLyricLineTimed('[Verse 1]\rFirst line\r\rSecond line', [
+				{ line: 2, time: 1 },
+				{ line: 4, time: 5 }
+			])
+		).toBe(true);
 	});
 });

@@ -2,14 +2,14 @@ import type { RuleContext, RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 function knownLabel(label: string, context: RuleContext): boolean {
-	const normalized = label.trim().toLocaleLowerCase();
+	const normalized = label.trim().toLocaleLowerCase('en');
 	if (/^(?:all|both|together|solo|duet|[a-z])$/iu.test(normalized)) {
 		return true;
 	}
 	return context.performers.some(
 		(performer) =>
-			performer.displayName.toLocaleLowerCase() === normalized ||
-			performer.aliases.some((alias) => alias.toLocaleLowerCase() === normalized)
+			performer.displayName.toLocaleLowerCase('en') === normalized ||
+			performer.aliases.some((alias) => alias.toLocaleLowerCase('en') === normalized)
 	);
 }
 

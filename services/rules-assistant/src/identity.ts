@@ -6,7 +6,7 @@
  * payload is JSON: { sid, iat, uses }. `uses` counts successful requests since
  * the last Turnstile pass so the Worker can rechallenge after ten.
  */
-import { SESSION_RULES } from './config';
+import { SESSION_RULES, TURNSTILE_HOSTNAMES } from './config';
 import { ApiError } from './errors';
 
 export interface SessionState {
@@ -108,18 +108,32 @@ export interface TurnstileVerifier {
 
 export function turnstileVerifier(
 	secret: string,
+	allowLocalhost = false,
 	fetcher: typeof fetch = fetch
 ): TurnstileVerifier {
 	return async (token, remoteIp) => {
-		const body = new URLSearchParams({ secret, response: token });
+		const body = new URLSearchParams({
+			secret,
+			response: token,
+			idempotency_key: crypto.randomUUID()
+		});
 		if (remoteIp) body.set('remoteip', remoteIp);
 		const response = await fetcher('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
 			method: 'POST',
 			body
 		});
 		if (!response.ok) throw new ApiError('provider_error', 'Challenge verification unavailable.');
-		const result = (await response.json()) as { success?: boolean };
-		return result.success === true;
+		const result = (await response.json()) as { success?: boolean; hostname?: string };
+		if (result.success !== true) return false;
+		const allowed = new Set<string>(TURNSTILE_HOSTNAMES);
+		if (allowLocalhost) {
+			allowed.add('localhost');
+			allowed.add('127.0.0.1');
+		}
+		if (!result.hostname || !allowed.has(result.hostname)) {
+			throw new ApiError('challenge_required', 'Complete the challenge and try again.');
+		}
+		return true;
 	};
 }
 

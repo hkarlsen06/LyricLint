@@ -9,7 +9,7 @@ export const LIMITS = {
 	/** Requests per day per browser session (exact, Durable Object). Testing-
 	 * phase allowance: an agent turn is several requests, and the owner burned
 	 * the earlier 25 in one afternoon of testing. The spend caps below are the
-	 * real ceiling; tighten these counts again at launch. */
+	 * real ceiling; tighten these counts again at launch. See ../LAUNCH.md. */
 	sessionPerDay: 100,
 	/** Requests per day per hashed IP (exact, Durable Object). */
 	ipPerDay: 300,
@@ -19,9 +19,18 @@ export const LIMITS = {
 	ipConcurrent: 3,
 	/** Approximate daily AI spend per browser session, USD. */
 	sessionDailySpendUsd: 2,
+	/** Approximate daily AI spend per hashed IP, USD. */
+	ipDailySpendUsd: 4,
+	/** Deployment-wide in-flight requests. Spend reservations are the primary
+	 * global overshoot guard; this also bounds upstream pressure. */
+	globalConcurrent: 8,
 	/** Global daily AI spend ceiling, USD (also enforced at the AI Gateway). */
 	globalDailySpendUsd: 15
 } as const;
+
+/** Production Turnstile hostnames. Local names are added only under the
+ * explicit development flag in `turnstileVerifier`. */
+export const TURNSTILE_HOSTNAMES = ['lyriclint.com', 'dev.lyriclint.com'] as const;
 
 export const REQUEST_RULES = {
 	/** Maximum request body, bytes. */
@@ -77,6 +86,12 @@ export const MODEL = {
 	estOutputUsdPerMTok: 6
 } as const;
 
+/** Worst-case output spend held while a global request is in flight. The
+ * provider cannot emit more than `maxOutputTokens`, so settling actual usage
+ * can overshoot the global ceiling by at most one request. */
+export const GLOBAL_REQUEST_SPEND_RESERVATION_USD =
+	(MODEL.maxOutputTokens * MODEL.estOutputUsdPerMTok) / 1_000_000;
+
 export const ANSWER_RULES = {
 	/** Maximum distinct rich rule references per response. */
 	maxRuleReferences: 4
@@ -89,6 +104,7 @@ export interface Env {
 	AI_GATEWAY_TOKEN: string;
 	OPENAI_API_KEY: string;
 	TURNSTILE_SECRET: string;
+	TURNSTILE_ALLOW_LOCALHOST?: string;
 	ABUSE_HMAC_SECRET: string;
 	SESSION_SIGNING_SECRET: string;
 	QUOTAS: DurableObjectNamespace;

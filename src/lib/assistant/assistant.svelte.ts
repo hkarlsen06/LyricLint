@@ -2,7 +2,7 @@
  * The one assistant conversation state, owned by the root-level host so every
  * entry point sees the same transcript and a live browser-executed tool turn.
  */
-import { getContext, setContext } from 'svelte';
+import { getContext, setContext, untrack } from 'svelte';
 import { resolveAnchor } from '$lib/core/text-anchors.js';
 import { diffWords } from '$lib/core/word-diff.js';
 import type { AtomicDocumentEdit, TextRange } from '$lib/core/types.js';
@@ -290,6 +290,20 @@ export function createAssistantState(deps: AssistantDeps) {
 		currentAttempt = undefined;
 	}
 
+	/** A tool turn is bound to the draft whose bridge produced it. Once that
+	 * bridge changes, none of its parked decisions may be continued against the
+	 * replacement draft. Keep the existing interrupted transcript state so the
+	 * old controls become inert and retry remains the only recovery path. */
+	function interruptToolSessionForDraftChange(): void {
+		const assistantMessageId = toolSession?.assistantMessageId;
+		if (!assistantMessageId) return;
+		toolSession = undefined;
+		currentAttempt = undefined;
+		void patchMessage(assistantMessageId, { status: 'interrupted' }).catch((error) => {
+			console.error('assistant_draft_switch_interrupt_failed', error);
+		});
+	}
+
 	function fail(error: unknown): AssistantFailure {
 		const code = error instanceof AssistantError ? error.code : 'provider_error';
 		if (code !== 'challenge_required') {
@@ -420,6 +434,10 @@ export function createAssistantState(deps: AssistantDeps) {
 					onProgress: showProgress,
 					...(turnstileToken ? { turnstileToken } : {})
 				});
+				// A draft switch can interrupt a parked or in-flight tool turn while
+				// its provider response is on the way back. Never let that late response
+				// recreate the session against the replacement bridge.
+				if (currentMessage(assistantMessageId)?.status !== 'pending') return;
 				// A token is for the request it resumed, not every later tool round.
 				turnstileToken = undefined;
 				challengePending = false;
@@ -740,6 +758,15 @@ export function createAssistantState(deps: AssistantDeps) {
 		},
 
 		registerDraftBridge(bridge: AssistantDraftBridge): () => void {
+			// Registration runs inside the workspace's own $effect, and this guard
+			// reads the very state the registration writes — untracked, or the
+			// effect depends on itself and boot never settles.
+			untrack(() => {
+				const previousDraftId = draftBridge?.draftId();
+				if (toolSession && previousDraftId !== undefined && previousDraftId !== bridge.draftId()) {
+					interruptToolSessionForDraftChange();
+				}
+			});
 			draftBridge = bridge;
 			draftAccessState = undefined;
 			bridgeGeneration += 1;
@@ -756,6 +783,7 @@ export function createAssistantState(deps: AssistantDeps) {
 				});
 			return () => {
 				if (draftBridge !== bridge) return;
+				interruptToolSessionForDraftChange();
 				bridge.clearPreview();
 				draftBridge = undefined;
 				draftAccessState = undefined;

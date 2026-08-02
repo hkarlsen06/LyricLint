@@ -2,7 +2,7 @@ import type { RuleDefinition } from '$lib/core/types.js';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
 import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
 
-const replacements: Readonly<Record<string, string>> = {
+export const replacements: Readonly<Record<string, string>> = {
 	sinembargo: 'sin embargo',
 	agusto: 'a gusto',
 	através: 'a través',

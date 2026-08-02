@@ -9,10 +9,10 @@ import { localizedHeaderPreference } from './section-localized-header-preference
 import { diagnostic } from './utils.js';
 
 function isRecognizedHeader(name: string): boolean {
-	const normalized = name.trim().toLocaleLowerCase();
+	const normalized = name.trim().toLocaleLowerCase('en');
 	return reviewedLanguagePacks.some((pack) =>
 		pack.headers.some((header) =>
-			header.terms.some((term) => term.toLocaleLowerCase() === normalized)
+			header.terms.some((term) => term.toLocaleLowerCase('en') === normalized)
 		)
 	);
 }

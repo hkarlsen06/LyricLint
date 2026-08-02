@@ -1,5 +1,5 @@
 import type { RuleDefinition } from '$lib/core/types.js';
-import { resolveLanguageTag } from '$lib/languages/registry.js';
+import { isEnglishLanguage } from '$lib/languages/registry.js';
 import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
 
 export const replacements: Readonly<Record<string, string>> = {
@@ -23,7 +23,7 @@ export const spellingEnglishCommonRule: RuleDefinition = {
 	fixability: 'preview',
 	sourceIds: ['L-EN-COMMON', 'L-EN-MORE', 'L-EN-TOP50'],
 	check(document, context) {
-		if (resolveLanguageTag(context.language) !== 'en') {
+		if (!isEnglishLanguage(context.language)) {
 			return [];
 		}
 

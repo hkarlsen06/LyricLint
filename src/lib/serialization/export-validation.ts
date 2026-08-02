@@ -113,9 +113,3 @@ export function validateExport(text: string, parsed: ParsedDocument): ExportVali
 	);
 	return { valid: result.length === 0, issues: result, text };
 }
-
-/** Copy/export always returns the canonical string, even when validation warns. */
-export function prepareCanonicalCopy(text: string, parsed: ParsedDocument): string {
-	void parsed;
-	return text;
-}

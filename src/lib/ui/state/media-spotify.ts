@@ -14,6 +14,7 @@ import type { PollScheduler } from './media-youtube.js';
  * source's.
  */
 export const spotifyPollIntervalMs = 250;
+export const spotifyConnectTimeoutMs = 20_000;
 
 /** The seek settle window, exactly as the YouTube bridge uses it. */
 const settleToleranceSeconds = 1;
@@ -451,6 +452,21 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 	 */
 	function connect(): Promise<void> {
 		ready ??= new Promise<void>((resolve, reject) => {
+			let settled = false;
+			const timeout = setTimeout(() => {
+				if (settled) return;
+				settled = true;
+				const message = 'The Spotify player could not be loaded.';
+				events.failed(message);
+				reject(new Error(message));
+			}, spotifyConnectTimeoutMs);
+			const fail = (message: string) => {
+				if (settled) return;
+				settled = true;
+				clearTimeout(timeout);
+				events.failed(message);
+				reject(new Error(message));
+			};
 			const built = new (sdk as SpotifySdk).Player({
 				name: 'LyricLint',
 				getOAuthToken: (callback) => {
@@ -463,6 +479,9 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 			player = built;
 
 			built.addListener('ready', ((payload: { device_id: string }) => {
+				if (settled) return;
+				settled = true;
+				clearTimeout(timeout);
 				deviceId = payload.device_id;
 				resolve();
 			}) as (payload: never) => void);
@@ -484,14 +503,19 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 				built.addListener(kind, ((payload: { message?: string }) => {
 					const message =
 						spotifyErrorMessages[kind] ?? payload?.message ?? 'Spotify could not play that track.';
-					events.failed(message);
 					// Only the errors that mean no device will ever arrive settle the
 					// wait; a playback error on one track leaves the player usable.
-					if (kind !== 'playback_error') reject(new Error(message));
+					if (kind === 'playback_error' || settled) events.failed(message);
+					else fail(message);
 				}) as (payload: never) => void);
 			}
 
-			void built.connect();
+			void built
+				.connect()
+				.then((connected) => {
+					if (!connected) fail('The Spotify player could not be loaded.');
+				})
+				.catch(() => fail('The Spotify player could not be loaded.'));
 		});
 		return ready;
 	}
@@ -571,6 +595,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 				await connect();
 			} catch {
 				// Already reported through `failed` by the listener that rejected.
+				teardown();
 			}
 		},
 
@@ -582,12 +607,12 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 					return;
 				}
 				await player?.resume();
-			})();
+			})().catch(() => events.failed('Spotify could not play that track.'));
 		},
 
 		pause() {
 			wantPlaying = false;
-			void player?.pause();
+			void player?.pause().catch(() => events.stopped());
 		},
 
 		seek(seconds) {
@@ -597,7 +622,11 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 			// Before the first press there is no track on the device to seek in, so
 			// the position is simply remembered and spent as `position_ms` when the
 			// track finally starts.
-			if (started) void player?.seek(Math.max(0, Math.round(seconds * 1000)));
+			if (started) {
+				void player
+					?.seek(Math.max(0, Math.round(seconds * 1000)))
+					.catch(() => events.failed('Spotify could not play that track.'));
+			}
 		},
 
 		setRate() {

@@ -67,7 +67,8 @@ export interface AnswerProvider {
 		safetyIdentifier: string,
 		signal: AbortSignal,
 		toolsAvailable?: boolean,
-		onOutputTextDelta?: (delta: string) => void
+		onOutputTextDelta?: (delta: string) => void,
+		onUsage?: (usage: ProviderUsage) => void
 	): Promise<ProviderResult>;
 }
 
@@ -440,7 +441,14 @@ export function createOpenAiProvider(
 		apiKey: openAiApiKey,
 		defaultHeaders: gatewayHeaders(gatewayToken)
 	});
-	return async (messages, safetyIdentifier, signal, toolsAvailable = false, onOutputTextDelta) => {
+	return async (
+		messages,
+		safetyIdentifier,
+		signal,
+		toolsAvailable = false,
+		onOutputTextDelta,
+		onUsage
+	) => {
 		let response: OpenAI.Responses.Response;
 		try {
 			const stream = client.responses.stream(
@@ -449,6 +457,17 @@ export function createOpenAiProvider(
 			);
 			if (onOutputTextDelta) {
 				stream.on('response.output_text.delta', (event) => onOutputTextDelta(event.delta));
+			}
+			if (onUsage) {
+				for (const eventName of [
+					'response.completed',
+					'response.failed',
+					'response.incomplete'
+				] as const) {
+					stream.on(eventName, (event: { response: OpenAI.Responses.Response }) =>
+						onUsage(responseUsage(event.response))
+					);
+				}
 			}
 			// The helper accumulates the completed stream back into the same Response
 			// shape the parsing, tool extraction, and spend accounting already consume.

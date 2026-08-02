@@ -9,6 +9,10 @@ export const setEditorContextEffect = StateEffect.define<EditorDisplayContext>()
 export const setEditorCallbacksEffect = StateEffect.define<LyricEditorCallbacks>();
 export const setComposingEffect = StateEffect.define<boolean>();
 
+// Editor states are immutable, so their document and context parse can never
+// become stale. Weak keys let discarded transaction states release the parse.
+const parsedDocuments = new WeakMap<EditorState, ParsedDocument>();
+
 export const editorContextField = StateField.define<EditorDisplayContext | undefined>({
 	create: () => undefined,
 	update(value, transaction) {
@@ -31,9 +35,14 @@ export const editorContextField = StateField.define<EditorDisplayContext | undef
  * first time one of them learned about a new invalidation.
  */
 export function parsedDocumentForState(state: EditorState): ParsedDocument {
+	const memoized = parsedDocuments.get(state);
+	if (memoized) return memoized;
+
 	const text = state.doc.toString();
 	const parsed = state.field(editorContextField, false)?.parsed;
-	return parsed?.text === text ? parsed : parseDocument(text);
+	const current = parsed?.text === text ? parsed : parseDocument(text);
+	parsedDocuments.set(state, current);
+	return current;
 }
 
 export function parsedDocumentForView(view: EditorView): ParsedDocument {

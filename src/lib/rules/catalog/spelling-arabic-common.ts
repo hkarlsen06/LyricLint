@@ -1,7 +1,7 @@
 import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
-const replacements: Readonly<Record<string, string>> = {
+export const replacements: Readonly<Record<string, string>> = {
 	لاكن: 'لكن',
 	هاذا: 'هذا',
 	هاذه: 'هذه',

@@ -482,6 +482,25 @@ describe('createAppleMusicSource', () => {
 		expect(events.log).toContain('ended');
 	});
 
+	it('reports rejected play and seek presses, and settles a rejected stop', async () => {
+		const { instance, emit } = stubMusic({
+			play: vi.fn(async () => Promise.reject(new Error('subscription lapsed'))),
+			seekToTime: vi.fn(async () => Promise.reject(new Error('drm failed'))),
+			stop: vi.fn(async () => Promise.reject(new Error('transfer failed')))
+		});
+		const { source, events } = build(instance);
+		await source.load(songId);
+		emit('playbackStateDidChange', { state: playbackStates.playing });
+
+		source.play();
+		source.seek(30);
+		source.clear();
+		await vi.waitFor(() => {
+			expect(events.log).toContain('failed:Apple Music could not play that song.');
+			expect(events.log).toContain('stopped');
+		});
+	});
+
 	// A subscriber who is already signed in from a previous session must not be
 	// sent through Apple's window again — MusicKit keeps its own user token, and
 	// this is the same trade the file source makes with an already-granted

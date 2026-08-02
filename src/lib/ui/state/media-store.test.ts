@@ -203,6 +203,34 @@ describe('media store across sessions', () => {
 		expect((await repository.get('draft-2'))?.position).toBe(5);
 	});
 
+	it('keeps the newer draft when two opens interleave', async () => {
+		const base = createInMemoryMediaRepository([
+			{ draftId: 'draft-1', name: 'older.mp3', attachedAt: '2020-01-01T00:00:00.000Z' },
+			{ draftId: 'draft-2', name: 'newer.mp3', attachedAt: '2020-01-01T00:00:00.000Z' }
+		]);
+		let releaseOlder = (): void => {};
+		const olderGate = new Promise<void>((resolve) => {
+			releaseOlder = resolve;
+		});
+		const repository: MediaRepository = {
+			...base,
+			async get(draftId) {
+				if (draftId === 'draft-1') await olderGate;
+				return base.get(draftId);
+			}
+		};
+		const { media } = setup({ repository });
+
+		const older = media.openFor('draft-1');
+		await Promise.resolve();
+		const newer = media.openFor('draft-2');
+		await newer;
+		releaseOlder();
+		await older;
+
+		expect(media.pendingName).toBe('newer.mp3');
+	});
+
 	it('keeps a local file record saying so, so nothing has to guess later', async () => {
 		const { media, repository } = setup();
 		await media.attachFile(new File([''], 'track.mp3'));

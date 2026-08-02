@@ -216,7 +216,7 @@ function performerRecordsFor(names: readonly string[]): PerformerRecord[] {
 	return names.map((displayName, order) => ({
 		id: `p-${order}`,
 		displayName,
-		normalizedKey: displayName.toLocaleLowerCase(),
+		normalizedKey: displayName.toLocaleLowerCase('en'),
 		aliases: [],
 		colorId: `c-${order}`,
 		order

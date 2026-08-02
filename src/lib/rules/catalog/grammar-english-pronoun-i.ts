@@ -1,4 +1,5 @@
 import type { RuleDefinition } from '$lib/core/types.js';
+import { isEnglishLanguage } from '$lib/languages/registry.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 const lowercasePronounI =
@@ -11,7 +12,7 @@ export const grammarEnglishPronounIRule: RuleDefinition = {
 	fixability: 'preview',
 	sourceIds: ['G-CAPS'],
 	check(document, context) {
-		if (!/^en(?:-|$)/iu.test(context.language)) {
+		if (!isEnglishLanguage(context.language)) {
 			return [];
 		}
 

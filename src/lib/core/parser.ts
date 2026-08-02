@@ -29,7 +29,7 @@ interface MutableSection {
 	lines: LyricLine[];
 }
 
-function scanPhysicalLines(text: string): PhysicalLine[] {
+export function scanPhysicalLines(text: string): PhysicalLine[] {
 	const lines: PhysicalLine[] = [];
 	let from = 0;
 

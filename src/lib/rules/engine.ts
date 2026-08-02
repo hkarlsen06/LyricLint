@@ -85,11 +85,3 @@ export function collectSafeFixes(diagnostics: readonly Diagnostic[]): Diagnostic
 	}
 	return accepted;
 }
-
-/** Pure ignore filter; session-storage ownership remains outside the rule layer. */
-export function filterIgnored(
-	diagnostics: readonly Diagnostic[],
-	isIgnored: (diagnostic: Diagnostic) => boolean
-): Diagnostic[] {
-	return diagnostics.filter((diagnostic) => !isIgnored(diagnostic));
-}

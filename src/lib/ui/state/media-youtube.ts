@@ -81,6 +81,7 @@ interface YouTubeGlobal {
 }
 
 const apiScriptUrl = 'https://www.youtube.com/iframe_api';
+export const youtubeApiLoadTimeoutMs = 20_000;
 
 let injected: Promise<YouTubeApi> | undefined;
 
@@ -110,8 +111,13 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 		// already there keeps this from being the one thing on the page allowed to
 		// own that name.
 		const previous = scope.onYouTubeIframeAPIReady;
+		const timeout = setTimeout(
+			() => reject(new Error('The YouTube player did not load in time.')),
+			youtubeApiLoadTimeoutMs
+		);
 		scope.onYouTubeIframeAPIReady = () => {
 			previous?.();
+			clearTimeout(timeout);
 			if (scope.YT?.Player) resolve(scope.YT);
 			else reject(new Error('The YouTube player did not load.'));
 		};
@@ -119,9 +125,10 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 		const script = document.createElement('script');
 		script.src = apiScriptUrl;
 		script.async = true;
-		script.addEventListener('error', () =>
-			reject(new Error('The YouTube player could not be reached.'))
-		);
+		script.addEventListener('error', () => {
+			clearTimeout(timeout);
+			reject(new Error('The YouTube player could not be reached.'));
+		});
 		document.head.appendChild(script);
 	});
 

@@ -48,10 +48,11 @@ describe('contraction.apostrophe', () => {
 		);
 	});
 
-	it('runs only for the exact English tag', () => {
-		for (const language of ['en-US', 'de']) {
-			expect(checkRule(rule, '[Verse]\nDont go', { language })).toEqual([]);
+	it('runs for regional English tags only', () => {
+		for (const language of ['en-US', 'en-GB']) {
+			expect(checkRule(rule, '[Verse]\nDont go', { language })).toHaveLength(1);
 		}
+		expect(checkRule(rule, '[Verse]\nDont go', { language: 'de' })).toEqual([]);
 	});
 
 	it('reports every contraction on a line in order', () => {

@@ -1498,6 +1498,24 @@ describe('EditorPane', () => {
 		expect(handle.getSnapshot().text).toBe('hello!');
 	});
 
+	it('keeps an atomic fix preview when applying a stale edit is rejected', async () => {
+		const { handle } = await mountEditor({ text: 'hello!' });
+
+		handle.previewAtomic?.({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 5, insert: 'world' }]
+		});
+
+		expect(() =>
+			handle.dispatchAtomic({
+				baseRevision: handle.getSnapshot().revision + 1,
+				edits: [{ from: 0, to: 5, insert: 'world' }]
+			})
+		).toThrow(/targets revision/);
+		await expect.element(page.getByText('world', { exact: true })).toBeVisible();
+		expect(handle.getSnapshot().text).toBe('hello!');
+	});
+
 	it('renders a replacement as a diff, keeping the outgoing text struck through', async () => {
 		const { handle } = await mountEditor({ text: 'hello!' });
 

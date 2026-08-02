@@ -132,6 +132,17 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	const feedback = deps.feedback;
 	const bindings = deps.bindings;
 
+	/**
+	 * A refused draft operation draws a toast *and* announces. The toast region
+	 * is not a live region and the live region draws nothing, so either alone
+	 * loses an audience — the same split `report` makes in the editor session.
+	 * Successes keep announcing only: the change on screen is the confirmation.
+	 */
+	function reportFailure(message: string): void {
+		feedback.announce(message);
+		feedback.addToast({ message });
+	}
+
 	function draftFromSnapshot(currentSnapshot = bindings.snapshot): DraftRecord {
 		return {
 			id: draftId,
@@ -206,7 +217,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			.delete(discardedId)
 			.then(() => store.refreshDrafts())
 			.catch(() => {
-				feedback.announce('Local storage could not be updated.');
+				reportFailure('Local storage could not be updated.');
 			});
 	}
 
@@ -311,7 +322,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				noteSaveStatus(deps.autosave.status());
 			} catch {
 				noteSaveStatus('failed');
-				feedback.announce('Local save failed. Keep this tab open and try again.');
+				reportFailure('Local save failed. Keep this tab open and try again.');
 			}
 		},
 		async setTitle(nextTitle) {
@@ -326,7 +337,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				await store.refreshDrafts();
 			} catch {
 				noteSaveStatus('failed');
-				feedback.announce("'Scribe title could not be saved locally.");
+				reportFailure("'Scribe title could not be saved locally.");
 			}
 		},
 		setLanguage(nextLanguage) {
@@ -335,10 +346,26 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			scheduleSave();
 		},
 		async refreshDrafts() {
-			drafts = await deps.repository.list();
+			// A failed read is deliberately quiet: the list simply stays as it was,
+			// and a message about a menu nobody has opened is noise. Not rejecting
+			// also keeps an operation that already landed — a delete, a rename —
+			// from reading as failed because the re-read after it did.
+			try {
+				drafts = await deps.repository.list();
+			} catch {
+				// Keep the previous list.
+			}
 		},
 		async createDraft() {
-			await deps.autosave.flush();
+			try {
+				await deps.autosave.flush();
+			} catch {
+				// Swapping to a fresh draft over a failed flush would abandon the
+				// unsaved work; keep the user where their words still are.
+				noteSaveStatus('failed');
+				reportFailure('Local save failed. Keep this tab open and try again.');
+				return;
+			}
 			// Nothing is written here. A new draft is empty by definition, and the
 			// first save with text in it is what creates the record and takes over
 			// the current-draft pointer — so a new draft abandoned untouched leaves
@@ -349,17 +376,21 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			feedback.announce("New 'scribe created.");
 		},
 		async openDraft(id) {
-			await deps.autosave.flush();
-			if (id === draftId) return;
-			const draft = await deps.repository.get(id);
-			if (!draft) {
-				feedback.announce("That 'scribe is no longer available.");
-				return;
+			try {
+				await deps.autosave.flush();
+				if (id === draftId) return;
+				const draft = await deps.repository.get(id);
+				if (!draft) {
+					feedback.announce("That 'scribe is no longer available.");
+					return;
+				}
+				await deps.repository.setCurrent(id);
+				loadDraft(draft, true);
+				await store.refreshDrafts();
+				feedback.announce(`Opened ${draft.title}.`);
+			} catch {
+				reportFailure("That 'scribe could not be opened.");
 			}
-			await deps.repository.setCurrent(id);
-			loadDraft(draft, true);
-			await store.refreshDrafts();
-			feedback.announce(`Opened ${draft.title}.`);
 		},
 		async renameDraft(id, nextTitle) {
 			const trimmed = nextTitle.trim() || DEFAULT_DRAFT_TITLE;
@@ -369,7 +400,12 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				feedback.announce(`Renamed 'scribe to ${trimmed}.`);
 				return;
 			}
-			await deps.repository.rename(id, trimmed);
+			try {
+				await deps.repository.rename(id, trimmed);
+			} catch {
+				reportFailure("'Scribe title could not be saved locally.");
+				return;
+			}
 			if (id === draftId) {
 				title = trimmed;
 				scheduleSave();
@@ -378,47 +414,64 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			feedback.announce(`Renamed 'scribe to ${trimmed}.`);
 		},
 		async duplicateDraft(id) {
-			await deps.autosave.flush();
-			const duplicate = await deps.repository.duplicate(id, deps.idFactory());
-			await store.refreshDrafts();
-			feedback.announce(`Duplicated ${duplicate.title.replace(/ copy$/, '')}.`);
+			try {
+				await deps.autosave.flush();
+				const duplicate = await deps.repository.duplicate(id, deps.idFactory());
+				await store.refreshDrafts();
+				feedback.announce(`Duplicated ${duplicate.title.replace(/ copy$/, '')}.`);
+			} catch {
+				reportFailure("The 'scribe could not be duplicated.");
+			}
 		},
 		async exportDraft(id = draftId) {
-			const draft = id === draftId ? draftFromSnapshot() : await deps.repository.get(id);
+			let draft: DraftRecord | undefined;
+			try {
+				draft = id === draftId ? draftFromSnapshot() : await deps.repository.get(id);
+			} catch {
+				draft = undefined;
+			}
 			if (!draft) {
-				feedback.announce("That 'scribe could not be exported.");
+				reportFailure("That 'scribe could not be exported.");
 				return;
 			}
 			deps.exportText(draft.text, safeFilename(draft.title));
 			feedback.announce(`Exported ${draft.title} as UTF-8 text.`);
 		},
 		async deleteDraft(id) {
-			const deleted = await deps.repository.get(id);
-			if (deps.autosave.cancelDraft) {
-				deps.autosave.cancelDraft(id);
-			} else if (id === draftId) {
-				deps.autosave.cancel();
-			}
-			await deps.repository.delete(id);
-			if (id === draftId) {
-				const remaining = await deps.repository.list();
-				const next = remaining[0] ? await deps.repository.get(remaining[0].id) : undefined;
-				if (next) {
-					await deps.repository.setCurrent(next.id);
-					loadDraft(next, true);
-				} else {
-					loadDraft(emptyTransientDraft(), false);
+			try {
+				const deleted = await deps.repository.get(id);
+				if (deps.autosave.cancelDraft) {
+					deps.autosave.cancelDraft(id);
+				} else if (id === draftId) {
+					deps.autosave.cancel();
 				}
+				await deps.repository.delete(id);
+				if (id === draftId) {
+					const remaining = await deps.repository.list();
+					const next = remaining[0] ? await deps.repository.get(remaining[0].id) : undefined;
+					if (next) {
+						await deps.repository.setCurrent(next.id);
+						loadDraft(next, true);
+					} else {
+						loadDraft(emptyTransientDraft(), false);
+					}
+				}
+				await store.refreshDrafts();
+				feedback.announce(`Deleted ${deleted?.title ?? "'scribe"}.`);
+			} catch {
+				reportFailure("The 'scribe could not be deleted.");
 			}
-			await store.refreshDrafts();
-			feedback.announce(`Deleted ${deleted?.title ?? "'scribe"}.`);
 		},
 		async deleteAllDrafts() {
-			deps.autosave.cancel();
-			await deps.repository.deleteAll();
-			drafts = [];
-			loadDraft(emptyTransientDraft(), false);
-			feedback.announce("All local 'scribes deleted.");
+			try {
+				deps.autosave.cancel();
+				await deps.repository.deleteAll();
+				drafts = [];
+				loadDraft(emptyTransientDraft(), false);
+				feedback.announce("All local 'scribes deleted.");
+			} catch {
+				reportFailure("Local 'scribes could not be deleted.");
+			}
 		}
 	};
 

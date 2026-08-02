@@ -11,9 +11,9 @@ import { diagnostic, replacementFix } from './utils.js';
 function semanticPart(header: SectionHeader, language: string): string | undefined {
 	const pack = getLanguagePack(language);
 	if (!canLintHeaderLanguage(pack)) return undefined;
-	const normalized = header.namePart.trim().toLocaleLowerCase();
+	const normalized = header.namePart.trim().toLocaleLowerCase(pack.tag);
 	return pack.headers.find((entry) =>
-		entry.terms.some((term) => term.toLocaleLowerCase() === normalized)
+		entry.terms.some((term) => term.toLocaleLowerCase(pack.tag) === normalized)
 	)?.semanticPart;
 }
 

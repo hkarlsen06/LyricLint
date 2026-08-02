@@ -5,9 +5,20 @@ import type {
 	SpotifySdk,
 	SpotifySource
 } from './media-spotify.js';
-import { createSpotifySource, parseSpotifyTrackId, searchSpotifyTracks } from './media-spotify.js';
+import {
+	createSpotifySource,
+	parseSpotifyTrackId,
+	searchSpotifyTracks,
+	spotifyConnectTimeoutMs
+} from './media-spotify.js';
 import type { MediaSourceEvents } from './media-player.svelte.js';
-import { setSpotifyTokens, spotifyRedirectAllowed, spotifySignedIn } from './spotify-auth.js';
+import {
+	beginSpotifySignIn,
+	completeSpotifySignIn,
+	setSpotifyTokens,
+	spotifyRedirectAllowed,
+	spotifySignedIn
+} from './spotify-auth.js';
 
 const trackId = '4cOdK2wGLETKBW3PvgPWqT';
 
@@ -319,6 +330,66 @@ describe('createSpotifySource', () => {
 		expect(harness.player.disconnected).toBe(true);
 		expect(harness.source.time).toBe(0);
 	});
+
+	it('reports rejected play, pause, and seek presses', async () => {
+		const harness = await attach();
+		harness.source.play();
+		await vi.waitFor(() => expect(harness.playCalls()).toHaveLength(1));
+		harness.player.resume = async () => {
+			throw new Error('transfer failed');
+		};
+		harness.player.pause = async () => {
+			throw new Error('subscription lapsed');
+		};
+		harness.player.seek = async () => {
+			throw new Error('drm failed');
+		};
+
+		harness.source.play();
+		harness.source.pause();
+		harness.source.seek(20);
+		await vi.waitFor(() => {
+			expect(harness.events.failed).toHaveBeenCalledWith('Spotify could not play that track.');
+			expect(harness.events.stopped).toHaveBeenCalled();
+		});
+	});
+
+	it('fails a device registration that never becomes ready', async () => {
+		vi.useFakeTimers();
+		const events = {
+			timeChanged: vi.fn(),
+			durationChanged: vi.fn(),
+			ratesChanged: vi.fn(),
+			named: vi.fn(),
+			artworkChanged: vi.fn(),
+			detailsChanged: vi.fn(),
+			started: vi.fn(),
+			stopped: vi.fn(),
+			ended: vi.fn(),
+			failed: vi.fn()
+		};
+		const sdk: SpotifySdk = {
+			Player: class extends StubSpotifyPlayer {} as unknown as SpotifySdk['Player']
+		};
+		const source = createSpotifySource({
+			events,
+			loadSdk: async () => sdk,
+			token: async () => 'token',
+			request: (async () =>
+				new Response(JSON.stringify({ name: 'Track', duration_ms: 1000 }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' }
+				})) as typeof fetch,
+			schedule: () => () => {}
+		});
+		const loading = source.load(trackId);
+		await Promise.resolve();
+		await vi.advanceTimersByTimeAsync(spotifyConnectTimeoutMs);
+		await loading;
+
+		expect(events.failed).toHaveBeenCalledWith('The Spotify player could not be loaded.');
+		vi.useRealTimers();
+	});
 });
 
 describe('spotifyRedirectAllowed', () => {
@@ -348,6 +419,70 @@ describe('spotifyRedirectAllowed', () => {
 });
 
 describe('the Spotify session', () => {
+	it('sends and verifies OAuth state while preserving unrelated URL state', async () => {
+		const store = new Map<string, string>();
+		const assign = vi.fn();
+		vi.stubGlobal('sessionStorage', {
+			getItem: (key: string) => store.get(key) ?? null,
+			setItem: (key: string, value: string) => void store.set(key, value),
+			removeItem: (key: string) => void store.delete(key)
+		});
+		vi.stubGlobal('location', {
+			protocol: 'https:',
+			hostname: '127.0.0.1',
+			origin: 'https://127.0.0.1',
+			pathname: '/lint/',
+			search: '',
+			hash: '',
+			href: 'https://127.0.0.1/lint/',
+			assign
+		});
+
+		await beginSpotifySignIn('query');
+		const authorization = new URL(String(assign.mock.calls[0]?.[0]));
+		const state = authorization.searchParams.get('state');
+		expect(state).toBe(store.get('lyriclint:spotify:state'));
+
+		vi.stubGlobal('location', {
+			origin: 'https://127.0.0.1',
+			pathname: '/lint/',
+			search: '?panel=tools&code=code&state=wrong',
+			hash: '#draft',
+			href: 'https://127.0.0.1/lint/?panel=tools&code=code&state=wrong#draft'
+		});
+		const replaceState = vi.fn();
+		vi.stubGlobal('history', { state: { kept: true }, replaceState });
+		const request = vi.fn();
+		vi.stubGlobal('fetch', request);
+
+		expect(await completeSpotifySignIn()).toEqual({
+			error: 'That Spotify sign-in could not be completed.'
+		});
+		expect(request).not.toHaveBeenCalled();
+		expect(store.has('lyriclint:spotify:intent')).toBe(false);
+		expect(replaceState).toHaveBeenCalledWith({ kept: true }, '', '/lint/?panel=tools#draft');
+		vi.unstubAllGlobals();
+	});
+
+	it('does not throw or redirect when private storage refuses the auth intent', async () => {
+		const assign = vi.fn();
+		vi.stubGlobal('sessionStorage', {
+			setItem: () => {
+				throw new Error('denied');
+			}
+		});
+		vi.stubGlobal('location', {
+			protocol: 'https:',
+			hostname: '127.0.0.1',
+			origin: 'https://127.0.0.1',
+			assign
+		});
+
+		await expect(beginSpotifySignIn('query')).resolves.toBeUndefined();
+		expect(assign).not.toHaveBeenCalled();
+		vi.unstubAllGlobals();
+	});
+
 	// A reload used to send the user back to Spotify's authorize screen for a
 	// session the browser still considered open. Module memory dies on reload;
 	// a browser session does not, and ends with the tab — which is what

@@ -6,7 +6,15 @@
  * completion remain behind that gate. Nothing a client can say selects a
  * model, prompt, or corpus.
  */
-import { LIMITS, MAX_TOOL_ROUNDS, MODEL, REQUEST_RULES, SESSION_RULES, type Env } from './config';
+import {
+	GLOBAL_REQUEST_SPEND_RESERVATION_USD,
+	LIMITS,
+	MAX_TOOL_ROUNDS,
+	MODEL,
+	REQUEST_RULES,
+	SESSION_RULES,
+	type Env
+} from './config';
 import { corpus, corpusRuleIds, corpusSourceIds } from './corpus';
 import { ApiError, errorBody } from './errors';
 import {
@@ -187,7 +195,9 @@ export function createHandler(options: HandlerOptions = {}) {
 			// --- Anonymous session -------------------------------------------------
 			const ip = request.headers.get('cf-connecting-ip') ?? undefined;
 			const ipHash = ip ? await hashIdentifier('ip', ip, env.ABUSE_HMAC_SECRET) : 'no-ip';
-			const verify = options.verifyTurnstile ?? turnstileVerifier(env.TURNSTILE_SECRET);
+			const verify =
+				options.verifyTurnstile ??
+				turnstileVerifier(env.TURNSTILE_SECRET, env.TURNSTILE_ALLOW_LOCALHOST === 'true');
 			let session = await verifySession(
 				readSessionCookie(request),
 				env.SESSION_SIGNING_SECRET,
@@ -251,15 +261,17 @@ export function createHandler(options: HandlerOptions = {}) {
 			const ipQuota = sessionQuota.ok
 				? await begin(`i:${ipHash}`, {
 						dailyLimit: LIMITS.ipPerDay,
-						concurrentLimit: LIMITS.ipConcurrent
+						concurrentLimit: LIMITS.ipConcurrent,
+						spendLimitUsd: LIMITS.ipDailySpendUsd
 					})
 				: undefined;
 			const globalQuota =
 				ipQuota?.ok === true
 					? await begin('global', {
 							dailyLimit: Number.MAX_SAFE_INTEGER,
-							concurrentLimit: Number.MAX_SAFE_INTEGER,
-							spendLimitUsd: LIMITS.globalDailySpendUsd
+							concurrentLimit: LIMITS.globalConcurrent,
+							spendLimitUsd: LIMITS.globalDailySpendUsd,
+							reserveSpendUsd: GLOBAL_REQUEST_SPEND_RESERVATION_USD
 						})
 					: undefined;
 			const refusal = [sessionQuota, ipQuota, globalQuota].find((result) => result && !result.ok);
@@ -289,6 +301,20 @@ export function createHandler(options: HandlerOptions = {}) {
 					const encoder = new TextEncoder();
 					let cancelled = false;
 					let finalized: Promise<void> | undefined;
+					let usage:
+						| {
+								inputTokens: number;
+								cachedInputTokens: number;
+								cacheWriteTokens: number;
+								outputTokens: number;
+						  }
+						| undefined;
+					let streamedOutputChars = 0;
+					let accountedSpendUsd = 0;
+					const streamSpendUsd = () =>
+						usage
+							? estimateSpendUsd(usage)
+							: (Math.ceil(streamedOutputChars / 4) * MODEL.estOutputUsdPerMTok) / 1_000_000;
 
 					const stream = new ReadableStream<Uint8Array>({
 						start(controller) {
@@ -296,19 +322,11 @@ export function createHandler(options: HandlerOptions = {}) {
 								if (!cancelled) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 							};
 							const answerStream = new IncrementalAnswerStream(requestId, emit);
-							let usage:
-								| {
-										inputTokens: number;
-										cachedInputTokens: number;
-										cacheWriteTokens: number;
-										outputTokens: number;
-								  }
-								| undefined;
-							let spendUsd = 0;
 							const finalize = (outcome: 'ok' | 'error', code?: string): Promise<void> => {
 								finalized ??= (async () => {
+									accountedSpendUsd = streamSpendUsd();
 									try {
-										await releaseAll('/finish', spendUsd);
+										await releaseAll('/finish', accountedSpendUsd);
 									} catch {
 										// The HTTP status is already committed, so an accounting outage
 										// must not strand the browser in an unterminated answer stream.
@@ -323,7 +341,7 @@ export function createHandler(options: HandlerOptions = {}) {
 										cachedInputTokens: usage?.cachedInputTokens,
 										cacheWriteTokens: usage?.cacheWriteTokens,
 										outputTokens: usage?.outputTokens,
-										spendUsd,
+										spendUsd: accountedSpendUsd,
 										requestId
 									});
 								})();
@@ -350,8 +368,12 @@ export function createHandler(options: HandlerOptions = {}) {
 										body.toolsAvailable === true,
 										(delta) => {
 											deltaCount += 1;
+											streamedOutputChars += delta.length;
 											firstDeltaAtMs ??= now() - startedAt;
 											answerStream.push(delta);
+										},
+										(providerUsage) => {
+											usage = providerUsage;
 										}
 									);
 									console.warn('assistant_delta_profile', {
@@ -361,7 +383,6 @@ export function createHandler(options: HandlerOptions = {}) {
 										totalMs: now() - startedAt
 									});
 									usage = result.usage;
-									spendUsd = estimateSpendUsd(result.usage);
 									if (result.kind === 'tool_calls') {
 										if (!body.toolsAvailable) {
 											throw new ApiError(
@@ -427,8 +448,9 @@ export function createHandler(options: HandlerOptions = {}) {
 							cancelled = true;
 							providerController.abort();
 							finalized ??= (async () => {
+								accountedSpendUsd = streamSpendUsd();
 								try {
-									await releaseAll('/finish');
+									await releaseAll('/finish', accountedSpendUsd);
 								} catch {
 									console.error('assistant_quota_release_failed', { requestId });
 								}
@@ -437,6 +459,11 @@ export function createHandler(options: HandlerOptions = {}) {
 									code: 'provider_error',
 									latencyMs: now() - startedAt,
 									sessionHash,
+									inputTokens: usage?.inputTokens,
+									cachedInputTokens: usage?.cachedInputTokens,
+									cacheWriteTokens: usage?.cacheWriteTokens,
+									outputTokens: usage?.outputTokens,
+									spendUsd: accountedSpendUsd,
 									requestId
 								});
 							})();

@@ -210,6 +210,7 @@ describe('line anchors and the playhead', () => {
 		const second = first.update({ effects: setPlayheadEffect.of(13) }).state;
 		const crossed = second.update({ effects: setPlayheadEffect.of(21) }).state;
 
+		expect(second.field(lineAnchorField)).toBe(first.field(lineAnchorField));
 		expect(second.field(lineAnchorField).currentFrom).toBe(
 			first.field(lineAnchorField).currentFrom
 		);

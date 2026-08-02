@@ -36,7 +36,9 @@ export const spellingLanguageVariantRule: RuleDefinition = {
 					/\b(?:stay|wait|work|dance|sing|hold|keep)\s+(?<variant>till)\b/giu
 				).map((match) => {
 					const variant = match.groups.variant ?? 'till';
-					const local = match.text.toLocaleLowerCase().lastIndexOf(variant.toLocaleLowerCase());
+					const local = match.text
+						.toLocaleLowerCase('en')
+						.lastIndexOf(variant.toLocaleLowerCase('en'));
 					const range = { from: match.from + local, to: match.from + local + variant.length };
 					return diagnostic(
 						this,

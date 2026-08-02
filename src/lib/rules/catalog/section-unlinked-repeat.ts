@@ -24,6 +24,8 @@ function bodyText(section: Section): string {
  * case linking is for.
  */
 const SHARED_ENOUGH = 0.5;
+const ALIGNMENT_CACHE_LIMIT = 64;
+const alignmentCache = new Map<string, ReturnType<typeof alignBodies>>();
 
 /**
  * Whether these copies have enough in common to be worth keeping in step.
@@ -69,7 +71,15 @@ function sharesEnough(left: string, right: string): boolean {
 	if (left === right) {
 		return true;
 	}
-	const holes = alignBodies([left, right]);
+	const key = `${left.length}:${left}${right}`;
+	let holes = alignmentCache.get(key);
+	if (!holes) {
+		holes = alignBodies([left, right]);
+		if (alignmentCache.size >= ALIGNMENT_CACHE_LIMIT) {
+			alignmentCache.clear();
+		}
+		alignmentCache.set(key, holes);
+	}
 	const own = (holes[0] ?? []).reduce((total, hole) => total + (hole.to - hole.from), 0);
 	// Shared length is the same number read off either copy, so one will do.
 	return left.length - own >= Math.min(left.length, right.length) * SHARED_ENOUGH;

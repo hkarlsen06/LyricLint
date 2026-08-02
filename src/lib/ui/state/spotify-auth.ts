@@ -44,6 +44,7 @@ const scopes = [
 
 const verifierKey = 'lyriclint:spotify:verifier';
 const intentKey = 'lyriclint:spotify:intent';
+const stateKey = 'lyriclint:spotify:state';
 const tokenKey = 'lyriclint:spotify:tokens';
 
 /** How long before an access token actually expires it is treated as expired. */
@@ -227,8 +228,23 @@ export async function beginSpotifySignIn(intent: string): Promise<void> {
 	if (!spotifyRedirectAllowed()) return;
 
 	const verifier = randomVerifier();
-	sessionStorage.setItem(verifierKey, verifier);
-	sessionStorage.setItem(intentKey, intent);
+	const state = randomVerifier();
+	try {
+		sessionStorage.setItem(verifierKey, verifier);
+		sessionStorage.setItem(intentKey, intent);
+		sessionStorage.setItem(stateKey, state);
+	} catch {
+		// Private mode, or storage full. A redirect cannot be completed without
+		// these values, so leave the page in place and let the caller finish cleanly.
+		try {
+			sessionStorage.removeItem(verifierKey);
+			sessionStorage.removeItem(intentKey);
+			sessionStorage.removeItem(stateKey);
+		} catch {
+			// The same refusal can apply to removal; nothing else can be done here.
+		}
+		return;
+	}
 
 	const url = new URL(authorizeEndpoint);
 	url.search = new URLSearchParams({
@@ -237,6 +253,7 @@ export async function beginSpotifySignIn(intent: string): Promise<void> {
 		redirect_uri: spotifyRedirectUri(),
 		code_challenge_method: 'S256',
 		code_challenge: await challengeFor(verifier),
+		state,
 		scope: scopes
 	}).toString();
 
@@ -290,11 +307,29 @@ export async function completeSpotifySignIn(): Promise<SpotifyReturn | undefined
 	const refusal = params.get('error');
 	if (code === null && refusal === null) return undefined;
 
-	const verifier = sessionStorage.getItem(verifierKey);
-	const intent = sessionStorage.getItem(intentKey) ?? undefined;
-	sessionStorage.removeItem(verifierKey);
-	sessionStorage.removeItem(intentKey);
-	history.replaceState(null, '', location.pathname);
+	let verifier: string | null = null;
+	let intent: string | undefined;
+	let expectedState: string | null = null;
+	try {
+		verifier = sessionStorage.getItem(verifierKey);
+		intent = sessionStorage.getItem(intentKey) ?? undefined;
+		expectedState = sessionStorage.getItem(stateKey);
+		sessionStorage.removeItem(verifierKey);
+		sessionStorage.removeItem(intentKey);
+		sessionStorage.removeItem(stateKey);
+	} catch {
+		// Storage refusal is the same as a missing verifier: this return cannot be
+		// authenticated or exchanged safely.
+	}
+	const clean = new URL(location.href);
+	clean.searchParams.delete('code');
+	clean.searchParams.delete('state');
+	clean.searchParams.delete('error');
+	history.replaceState(history.state, '', `${clean.pathname}${clean.search}${clean.hash}`);
+
+	if (params.get('state') === null || params.get('state') !== expectedState) {
+		return { error: 'That Spotify sign-in could not be completed.' };
+	}
 
 	if (refusal !== null) return { error: 'Spotify sign-in was cancelled.' };
 	if (code === null || verifier === null)

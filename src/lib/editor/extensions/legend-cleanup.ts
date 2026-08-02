@@ -1,8 +1,7 @@
 import { EditorState, Transaction } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
-import { parseDocument } from '$lib/core/parser.js';
 import { cleanupLegendSlots } from '$lib/performers/legend-cleanup.js';
-import { editorComposingField } from './editor-state.js';
+import { editorComposingField, parsedDocumentForState } from './editor-state.js';
 
 /**
  * Append legend-slot cleanup to the user transaction that made a slot unused.
@@ -26,7 +25,7 @@ export function legendCleanupFilter(): Extension {
 		if (userEvent === 'undo' || userEvent === 'redo') {
 			return transaction;
 		}
-		const edits = cleanupLegendSlots(parseDocument(transaction.newDoc.toString()));
+		const edits = cleanupLegendSlots(parsedDocumentForState(transaction.state));
 		if (edits.length === 0) {
 			return transaction;
 		}

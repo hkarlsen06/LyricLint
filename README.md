@@ -115,7 +115,12 @@ Run the project checks with:
 bun run check
 bun run lint
 bun run test:unit -- --run
+bun run e2e
+bun run assistant:test
+bun run assistant:corpus
 ```
+
+Regenerate the assistant corpus after changing lint rules.
 
 Create a production build with:
 

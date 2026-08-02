@@ -46,7 +46,7 @@ function removalRange(span: UnsupportedStyleSpan): TextRange | undefined {
 function tagName(span: UnsupportedStyleSpan): { closing: boolean; name: string } | undefined {
 	const match = COMPLETE_TAG.exec(span.rawTag);
 	return match
-		? { closing: match[1] === '/', name: (match[2] ?? '').toLocaleLowerCase() }
+		? { closing: match[1] === '/', name: (match[2] ?? '').toLocaleLowerCase('en') }
 		: undefined;
 }
 

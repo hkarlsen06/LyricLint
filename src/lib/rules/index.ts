@@ -6,7 +6,7 @@ export function getEnabledRules(): RuleDefinition[] {
 	return [...enabledRules];
 }
 
-export { collectSafeFixes, filterIgnored, runRules, sortDiagnostics } from './engine.js';
+export { collectSafeFixes, runRules, sortDiagnostics } from './engine.js';
 export {
 	createHarperDiagnosticProvider,
 	mergeHarperDiagnostics,

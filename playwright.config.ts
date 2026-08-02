@@ -7,6 +7,8 @@ export default defineConfig({
 	testDir: './e2e',
 	testMatch: '**/*.spec.ts',
 	fullyParallel: true,
+	retries: process.env.CI ? 2 : 0,
+	forbidOnly: !!process.env.CI,
 	use: {
 		baseURL,
 		permissions: ['clipboard-read', 'clipboard-write'],
@@ -17,7 +19,7 @@ export default defineConfig({
 		: {
 				command: `bun run build && bun run preview -- --host 127.0.0.1 --port ${port}`,
 				url: baseURL,
-				reuseExistingServer: true,
+				reuseExistingServer: !process.env.CI,
 				timeout: 120_000
 			}
 });

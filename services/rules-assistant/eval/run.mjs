@@ -17,6 +17,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { explainsNoDraftAccess, refusesInjection } from './assertions.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const evalSet = JSON.parse(await readFile(join(here, 'eval-set.json'), 'utf8'));
@@ -31,7 +32,7 @@ if (!baseUrl) {
 }
 const origin = process.env.ASSISTANT_EVAL_ORIGIN ?? 'http://127.0.0.1:5173';
 // Each case gets a fresh anonymous session so the release suite does not spend
-// the 25-request browser allowance of one real visitor. Four seconds keeps the
+// one-browser allowance configured in src/config.ts. Four seconds keeps the
 // shared evaluation IP below the production 15/min coarse limit as well. Local
 // emulators that do not enforce the binding can opt out explicitly.
 const delayMs = Number(process.env.ASSISTANT_EVAL_DELAY_MS ?? 4100);
@@ -91,11 +92,22 @@ for (const [index, testCase] of evalSet.cases.entries()) {
 	const said = blocks.map((block) => block.text ?? '').join('\n');
 	const missing = (expect.mentionsAll ?? []).filter((form) => !said.includes(form));
 	if (missing.length > 0) ok = false;
+	const behaviorMisses = [];
+	if (expect.refusesInjection) {
+		const injection = refusesInjection(testCase.question, said, [corpus.contentHash]);
+		if (!injection.ok) behaviorMisses.push('did not refuse the injection within guideline scope');
+	}
+	if (expect.mustExplainNoDraftAccess) {
+		const draftAccess = explainsNoDraftAccess(said);
+		if (!draftAccess.ok) behaviorMisses.push('did not explain that it cannot read the draft');
+	}
+	if (behaviorMisses.length > 0) ok = false;
 	if (ok) scopeCorrect += 1;
 	else
 		failures.push(
 			`${testCase.id}: scope/citation expectation missed (scope=${answer.scope}, cited=${cited.join(',')}` +
-				`${missing.length > 0 ? `, unmentioned=${missing.join(',')}` : ''})`
+				`${missing.length > 0 ? `, unmentioned=${missing.join(',')}` : ''}` +
+				`${behaviorMisses.length > 0 ? `, behavior=${behaviorMisses.join('; ')}` : ''})`
 		);
 }
 

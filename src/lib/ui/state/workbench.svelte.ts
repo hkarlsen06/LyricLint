@@ -702,7 +702,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	};
 
 	roster.importFromSnapshot(deps.initialSnapshot);
-	void controller.refreshDrafts();
+	void controller.refreshDrafts().catch(() => {});
 	// The draft the page boots with never travels through `onDraftLoaded` — that
 	// hook fires on a *switch* — so without this a reload came back to a workbench
 	// with no audio and no sign there had been any.
@@ -712,6 +712,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	// track as pending, and re-attaching it is exactly what the resumed intent
 	// does. The other way round, `openFor` would arrive second and detach what the
 	// user had just signed in to hear.
-	void media?.openFor(deps.initialDraft.id).then(() => media?.resumeSignIn());
+	void media
+		?.openFor(deps.initialDraft.id)
+		.then(() => media?.resumeSignIn())
+		.catch((error) => console.error('Could not restore draft media.', error));
 	return controller;
 }

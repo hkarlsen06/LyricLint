@@ -47,7 +47,7 @@ export const capitalizationLineStartRule: RuleDefinition = {
 								'preview',
 								`Capitalize ${first}`,
 								range,
-								first.toLocaleUpperCase()
+								first.toLocaleUpperCase(context.language)
 							)
 						]
 					)

@@ -53,6 +53,10 @@ export function hasUnsupportedMarkup(line: LyricLine): boolean {
 }
 
 export function maskedMarkupText(line: LyricLine): string {
+	const cached = maskedMarkupTextCache.get(line.text);
+	if (cached !== undefined) {
+		return cached;
+	}
 	// split('') preserves one array entry per UTF-16 code unit, matching parser offsets.
 	const characters = line.text.split('');
 	for (const match of line.text.matchAll(/<[^>]*>/gu)) {
@@ -61,8 +65,16 @@ export function maskedMarkupText(line: LyricLine): string {
 			characters[index] = ' ';
 		}
 	}
-	return characters.join('');
+	const masked = characters.join('');
+	if (maskedMarkupTextCache.size >= MASKED_MARKUP_CACHE_LIMIT) {
+		maskedMarkupTextCache.clear();
+	}
+	maskedMarkupTextCache.set(line.text, masked);
+	return masked;
 }
+
+const MASKED_MARKUP_CACHE_LIMIT = 2_000;
+const maskedMarkupTextCache = new Map<string, string>();
 
 export interface AbsoluteMatch {
 	from: number;
@@ -75,14 +87,27 @@ export function matchesOutsideMarkup(line: LyricLine, pattern: RegExp): Absolute
 	if (hasUnsupportedMarkup(line)) {
 		return [];
 	}
-	const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
-	const safePattern = new RegExp(pattern.source, flags);
+	const safePattern = pattern.global ? pattern : globalPattern(pattern);
+	safePattern.lastIndex = 0;
 	return Array.from(maskedMarkupText(line).matchAll(safePattern), (match) => ({
 		from: line.from + match.index,
 		to: line.from + match.index + match[0].length,
 		text: line.text.slice(match.index, match.index + match[0].length),
 		groups: match.groups ?? {}
 	}));
+}
+
+const globalPatterns = new Map<string, RegExp>();
+
+function globalPattern(pattern: RegExp): RegExp {
+	const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
+	const key = `${pattern.source}\u0000${flags}`;
+	let cached = globalPatterns.get(key);
+	if (!cached) {
+		cached = new RegExp(pattern.source, flags);
+		globalPatterns.set(key, cached);
+	}
+	return cached;
 }
 
 export function visibleLineStart(line: LyricLine): { offset: number; text: string } | undefined {

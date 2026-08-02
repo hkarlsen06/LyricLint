@@ -1,27 +1,24 @@
 import { redoDepth, undoDepth } from '@codemirror/commands';
 import type { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { parseDocument } from '$lib/core/parser.js';
 import type { EditorSnapshot } from '$lib/core/types.js';
 import { diagnosticsForState } from './lint-decorations.js';
 import {
 	editorComposingField,
-	editorContextField,
 	editorRevisionField,
+	parsedDocumentForState,
 	setComposingEffect
 } from './editor-state.js';
 
 export function snapshotFromState(state: EditorState, atomic = false): EditorSnapshot {
 	const text = state.doc.toString();
 	const selection = state.selection.main;
-	const context = state.field(editorContextField);
-	const parsed = context?.parsed?.text === text ? context.parsed : parseDocument(text);
 
 	return {
 		revision: state.field(editorRevisionField),
 		text,
 		selection: { anchor: selection.anchor, head: selection.head },
-		parsed,
+		parsed: parsedDocumentForState(state),
 		diagnostics: diagnosticsForState(state),
 		composing: state.field(editorComposingField),
 		canUndo: undoDepth(state) > 0,

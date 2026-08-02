@@ -809,6 +809,46 @@ describe('workbench draft safety', () => {
 		expect(await repository.get(first.id)).toBeUndefined();
 	});
 
+	test('a refused delete reports the failure instead of failing silently', async () => {
+		const first = draft('draft-a');
+		const second = draft('draft-b');
+		const baseRepository = createInMemoryDraftRepository([first, second]);
+		const repository: DraftRepository = {
+			...baseRepository,
+			async delete() {
+				throw new Error('quota exceeded');
+			}
+		};
+		const { controller } = setup({ initial: first, repository });
+
+		await controller.deleteDraft(second.id);
+
+		expect(controller.feedback.announcement).toBe("The 'scribe could not be deleted.");
+		expect(controller.feedback.toasts.map((toast) => toast.message)).toContain(
+			"The 'scribe could not be deleted."
+		);
+		expect(await baseRepository.get(second.id)).toBeDefined();
+	});
+
+	test('a refused duplicate reports the failure instead of failing silently', async () => {
+		const first = draft('draft-a');
+		const baseRepository = createInMemoryDraftRepository([first]);
+		const repository: DraftRepository = {
+			...baseRepository,
+			async duplicate() {
+				throw new Error('quota exceeded');
+			}
+		};
+		const { controller } = setup({ initial: first, repository });
+
+		await controller.duplicateDraft(first.id);
+
+		expect(controller.feedback.announcement).toBe("The 'scribe could not be duplicated.");
+		expect(controller.feedback.toasts.map((toast) => toast.message)).toContain(
+			"The 'scribe could not be duplicated."
+		);
+	});
+
 	test('queues the current draft again after rename so an older title cannot win', async () => {
 		const first = draft('draft-a');
 		const repository = createInMemoryDraftRepository([first]);

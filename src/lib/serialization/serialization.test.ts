@@ -2,14 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from '$lib/core/parser.js';
-import {
-	escapeLegendText,
-	mergeEquivalentSpans,
-	prepareCanonicalCopy,
-	serializeLegend,
-	validateExport,
-	wrapVoiceSpan
-} from './index.js';
+import { escapeLegendText, serializeLegend, validateExport, wrapVoiceSpan } from './index.js';
 
 interface LyricFixture {
 	id: string;
@@ -47,27 +40,17 @@ describe('Genius performer serialization', () => {
 		);
 	});
 
-	it('wraps all four slots and merges only adjacent equivalent wrappers', () => {
+	it('wraps all four slots', () => {
 		expect([1, 2, 3, 4].map((slot) => wrapVoiceSpan('A', slot as 1 | 2 | 3 | 4))).toEqual([
 			'A',
 			'<i>A</i>',
 			'<b>A</b>',
 			'<i><b>A</b></i>'
 		]);
-		expect(mergeEquivalentSpans('<i>A</i><i>B</i> <u>C</u>')).toBe('<i>AB</i> <u>C</u>');
 	});
 });
 
 describe('canonical export validation', () => {
-	it.each(['rtl-arabic-document', 'malformed-nested-html', 'too-many-voice-groups'])(
-		'returns %s byte-for-byte from canonical copy',
-		(id) => {
-			const source = fixture(id);
-			const parsed = parseDocument(source.input);
-			expect(prepareCanonicalCopy(source.input, parsed)).toBe(source.input);
-		}
-	);
-
 	it('reports unsupported and malformed markup without changing source text', () => {
 		const source = fixture('malformed-nested-html');
 		const parsed = parseDocument(source.input);

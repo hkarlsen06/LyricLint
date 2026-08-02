@@ -17,13 +17,13 @@ function recognizeInOtherReviewedPack(
 	name: string,
 	selected: LanguagePack
 ): RecognizedHeader | undefined {
-	const normalized = name.trim().toLocaleLowerCase();
+	const normalized = name.trim().toLocaleLowerCase('en');
 	for (const pack of reviewedLanguagePacks) {
 		if (pack.tag === selected.tag) {
 			continue;
 		}
 		for (const header of pack.headers) {
-			if (header.terms.some((term) => term.toLocaleLowerCase() === normalized)) {
+			if (header.terms.some((term) => term.toLocaleLowerCase('en') === normalized)) {
 				return { pack, semanticPart: header.semanticPart };
 			}
 		}

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createFeedbackState } from './feedback.svelte.js';
 import {
 	createMediaPlayer,
@@ -7,6 +7,28 @@ import {
 	resumeRewindSeconds
 } from './media-player.svelte.js';
 import { StubAudio } from './media-test-audio.js';
+import { loadYouTubeApi, youtubeApiLoadTimeoutMs } from './media-youtube.js';
+
+describe('YouTube API loading', () => {
+	it('rejects when the script never answers', async () => {
+		vi.useFakeTimers();
+		vi.stubGlobal('document', {
+			createElement: () => ({
+				src: '',
+				async: false,
+				addEventListener: vi.fn()
+			}),
+			head: { appendChild: vi.fn() }
+		});
+		const loading = loadYouTubeApi();
+		const rejected = expect(loading).rejects.toThrow('did not load in time');
+
+		await vi.advanceTimersByTimeAsync(youtubeApiLoadTimeoutMs);
+		await rejected;
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+});
 
 function setup(durationSeconds = 200) {
 	const audio = new StubAudio();
@@ -389,6 +411,28 @@ describe('a press that arrives before the source is ready', () => {
 		await attaching;
 
 		expect(calls).toEqual(['play']);
+	});
+
+	it('clears a failed remote attachment so a later file can play', async () => {
+		const audio = new StubAudio();
+		const player = createMediaPlayer({
+			feedback: createFeedbackState(),
+			createAudio: () => audio.asMediaElement(),
+			createObjectUrl: () => 'blob:test',
+			revokeObjectUrl: () => {},
+			loadYouTubeApi: async () => {
+				throw new Error('blocked');
+			}
+		});
+
+		await player.attachVideo({ videoId: 'dQw4w9WgXcQ' });
+		expect(player.error).toBe('The YouTube player could not be loaded.');
+
+		player.attach(new File([''], 'replacement.mp3'));
+		player.play();
+
+		expect(audio.paused).toBe(false);
+		expect(player.playing).toBe(true);
 	});
 });
 

@@ -1,4 +1,5 @@
 import type { RuleDefinition } from '$lib/core/types.js';
+import { isEnglishLanguage } from '$lib/languages/registry.js';
 import { isProseHeaderLine } from './section-header-prose.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
@@ -31,7 +32,7 @@ export const numbersSpellOutRule: RuleDefinition = {
 	fixability: 'preview',
 	sourceIds: ['G-NUMBERS'],
 	check(document, context) {
-		if (context.language !== 'en') {
+		if (!isEnglishLanguage(context.language)) {
 			return [];
 		}
 		return document.sections.flatMap((section) =>

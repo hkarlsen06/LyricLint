@@ -386,10 +386,10 @@ function memberGroups(state: EditorState, parsed: ParsedDocument): number[][] {
  */
 export function groupShape(
 	state: EditorState,
+	parsed: ParsedDocument,
 	headers: readonly number[],
 	options: { realign?: boolean } = {}
 ): MemberShape[] | undefined {
-	const parsed = parsedDocumentForState(state);
 	const holes = state.field(linkHolesField, false) ?? [];
 	const shapes = headers.map((header) => memberShape(parsed, holes, header));
 	if (shapes.some((shape) => !shape)) {
@@ -501,7 +501,7 @@ export function linkDifferencesFor(
 	headers: readonly number[],
 	options: { realign?: boolean } = {}
 ): LinkDifference[] {
-	const members = groupShape(state, headers, options);
+	const members = groupShape(state, parsedDocumentForState(state), headers, options);
 	if (!members || members.length < 2) {
 		return [];
 	}
@@ -584,12 +584,15 @@ function winningWording(
  */
 export function linkSections(view: EditorView, choice: SectionLinkChoice): number {
 	const { headers } = choice;
+	const parsed = parsedDocumentForState(view.state);
 	if (headers.length < 2) {
 		view.dispatch({
 			selection: { anchor: headers[0] ?? view.state.selection.main.head },
 			effects: [
 				setSectionLinkEffect.of({ headers: [...headers] }),
-				setLinkHolesEffect.of(holesOutside(view.state, groupShape(view.state, headers) ?? []))
+				setLinkHolesEffect.of(
+					holesOutside(view.state, groupShape(view.state, parsed, headers) ?? [])
+				)
 			]
 		});
 		return headers.length;
@@ -598,7 +601,7 @@ export function linkSections(view: EditorView, choice: SectionLinkChoice): numbe
 	// `groupShape` decides for itself whether this set already has a shape worth
 	// honouring: a membership that is changing is aligned afresh, while a group
 	// answering only for its own differences keeps the intent it carries.
-	const members = groupShape(view.state, headers);
+	const members = groupShape(view.state, parsed, headers);
 	if (!members) {
 		return 0;
 	}
@@ -780,7 +783,7 @@ export function sectionLinkMirror(): Extension {
 				return !(body && body.from <= change.from && change.to <= body.to);
 			})
 		];
-		const members = groupShape(transaction.startState, ordered);
+		const members = groupShape(transaction.startState, parsed, ordered);
 		const source = members?.[0];
 		if (!members || !source) {
 			return transaction;

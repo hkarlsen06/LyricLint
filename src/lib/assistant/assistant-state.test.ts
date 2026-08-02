@@ -59,7 +59,7 @@ function manageLinksCall(actions: AssistantLinkAction[], callId = 'links-1') {
 	return toolCalls([{ callId, name: 'manage_links', input: { actions } }]);
 }
 
-function draftBridge(initial = 'hello world', applyResult = true) {
+function draftBridge(initial = 'hello world', applyResult = true, draftId = 'draft-1') {
 	let text = initial;
 	let links: Array<{ lines: number[] }> = [];
 	let linkable: (headerLines: number[]) => boolean = () => true;
@@ -71,7 +71,7 @@ function draftBridge(initial = 'hello world', applyResult = true) {
 	const clearPreview = vi.fn();
 	const reveal = vi.fn();
 	const bridge: AssistantDraftBridge = {
-		draftId: () => 'draft-1',
+		draftId: () => draftId,
 		readText: () => text,
 		revision: () => 7,
 		preview,
@@ -541,6 +541,42 @@ describe('the assistant state', () => {
 		expect(setAccess).toHaveBeenCalledWith('draft-1', 'granted');
 		expect(ask).toHaveBeenCalledTimes(2);
 		expect(state.messages[1]!.status).toBe('complete');
+	});
+
+	it('interrupts a parked tool turn when the registered draft changes', async () => {
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(readCall())
+			.mockResolvedValueOnce(readCall('read-2'))
+			.mockResolvedValueOnce(answer('Used the new draft permission.'));
+		const getAccess = vi.fn(async (draftId: string) =>
+			draftId === 'draft-b' ? ('denied' as const) : undefined
+		);
+		const { state } = makeState({ ask, getDraftAccess: getAccess });
+		const draftA = draftBridge('[Verse]\nA', true, 'draft-a');
+		const unregisterA = state.registerDraftBridge(draftA.bridge);
+		await state.open();
+		await state.send('Read it.');
+		expect(state.toolSession?.phase).toBe('awaiting-permission');
+
+		const draftB = draftBridge('[Verse]\nB', true, 'draft-b');
+		state.registerDraftBridge(draftB.bridge);
+		unregisterA();
+
+		expect(state.toolSession).toBeUndefined();
+		expect(state.messages[1]!.status).toBe('interrupted');
+		await state.allowDraftRead();
+		await state.denyDraftRead();
+		expect(ask).toHaveBeenCalledTimes(1);
+		expect(getAccess).toHaveBeenCalledWith('draft-b');
+		await vi.waitFor(() => expect(state.draftAccessState).toBe('denied'));
+
+		await state.send('Read the new draft.');
+		expect(ask).toHaveBeenCalledTimes(3);
+		expect(vi.mocked(ask).mock.calls[2]![0].messages.at(-1)).toEqual({
+			role: 'tool',
+			results: [{ callId: 'read-2', name: 'read_scribe', result: { status: 'denied' } }]
+		});
 	});
 
 	it('persists an explicit denial before continuing with the denied result', async () => {

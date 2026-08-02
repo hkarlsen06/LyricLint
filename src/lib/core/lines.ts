@@ -144,9 +144,6 @@ export function extractLineStyleSpans(lineText: string, lineRange: TextRange): V
 	return spans;
 }
 
-/** Alias used by rule and performer workers for per-line voice markup scanning. */
-export const extractStyleSpans = extractLineStyleSpans;
-
 /**
  * Parse performer wrappers across a section body, then project each supported
  * wrapper back onto the physical lines it touches. Genius commonly keeps one

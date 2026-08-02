@@ -15,7 +15,7 @@ function records(names: string[]): PerformerRecord[] {
 	return names.map((displayName, order) => ({
 		id: `p-${order}`,
 		displayName,
-		normalizedKey: displayName.toLocaleLowerCase(),
+		normalizedKey: displayName.toLocaleLowerCase('en'),
 		aliases: [],
 		colorId: `c-${order}`,
 		order
@@ -63,6 +63,28 @@ describe('every enabled rule has valid, invalid, and ambiguous policy coverage',
 		};
 		const diagnostics = rule.check(parseDocument(input), context);
 		expect(diagnostics.map((item) => input.slice(item.from, item.to))).toEqual(['“', '”']);
+	});
+});
+
+const englishGatedRuleIds = new Set([
+	'contraction.apostrophe',
+	'grammar.english-pronoun-i',
+	'numbers.spell-out',
+	'spelling.english-common',
+	'spelling.texting-shorthand'
+]);
+
+describe.each(['en-US', 'en-GB'])('English policy coverage under %s', (language) => {
+	it.each(cases.filter((caseData) => englishGatedRuleIds.has(caseData.id)))('$id', (caseData) => {
+		for (const [label, text, ambiguous] of [
+			['invalid', caseData.invalid, false],
+			['valid', caseData.valid, false],
+			['ambiguous', caseData.ambiguous, true]
+		] as const) {
+			expect(lint({ ...caseData, language }, text, ambiguous), label).toBe(
+				lint({ ...caseData, language: 'en' }, text, ambiguous)
+			);
+		}
 	});
 });
 

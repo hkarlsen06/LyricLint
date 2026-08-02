@@ -1,4 +1,5 @@
 import type { PerformerRecord, RuleDefinition } from '$lib/core/types.js';
+import { isEnglishLanguage } from '$lib/languages/registry.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 /**
@@ -90,7 +91,7 @@ function rosterNames(performers: readonly PerformerRecord[]): Set<string> {
 	return new Set(
 		performers
 			.flatMap((performer) => [performer.displayName, ...performer.aliases])
-			.map((name) => name.trim().toLocaleLowerCase())
+			.map((name) => name.trim().toLocaleLowerCase('en'))
 	);
 }
 
@@ -109,7 +110,7 @@ function writtenForm(found: string, expansion: string): string {
 	if (/^\p{Lu}/u.test(expansion) || !/^\p{Lu}/u.test(found)) {
 		return expansion;
 	}
-	return `${expansion.slice(0, 1).toLocaleUpperCase()}${expansion.slice(1)}`;
+	return `${expansion.slice(0, 1).toLocaleUpperCase('en')}${expansion.slice(1)}`;
 }
 
 export const spellingTextingShorthandRule: RuleDefinition = {
@@ -119,17 +120,17 @@ export const spellingTextingShorthandRule: RuleDefinition = {
 	fixability: 'preview',
 	sourceIds: ['G-SPELLING', 'G-AS-SPOKEN'],
 	check(document, context) {
-		if (context.language !== 'en') {
+		if (!isEnglishLanguage(context.language)) {
 			return [];
 		}
 		const roster = rosterNames(context.performers);
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>
 				matchesOutsideMarkup(line, shorthandPattern)
-					.filter((match) => !roster.has(match.text.toLocaleLowerCase()))
+					.filter((match) => !roster.has(match.text.toLocaleLowerCase('en')))
 					.map((match) => {
-						const wordings = (expansions[match.text.toLocaleLowerCase()] ?? []).map((expansion) =>
-							writtenForm(match.text, expansion)
+						const wordings = (expansions[match.text.toLocaleLowerCase('en')] ?? []).map(
+							(expansion) => writtenForm(match.text, expansion)
 						);
 						return diagnostic(
 							this,

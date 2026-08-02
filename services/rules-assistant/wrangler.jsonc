@@ -18,6 +18,7 @@
 		// The kill switch: set to "true" (via dashboard or `wrangler versions`) to refuse
 		// new requests with `service_disabled` without a frontend deployment.
 		"ASSISTANT_DISABLED": "false",
+		"TURNSTILE_ALLOW_LOCALHOST": "false",
 		"ALLOWED_ORIGIN": "https://lyriclint.com,https://dev.lyriclint.com",
 		// Provider-native OpenAI endpoint (account and gateway ids are not secrets).
 		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/ffdf1ff5874475b8eaf9f691e42f27ce/lyriclint-assistant/openai"

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from '$lib/core/parser.js';
 import type { Diagnostic, RuleContext, RuleDefinition, SourceReference } from '$lib/core/types.js';
-import { collectSafeFixes, filterIgnored, runRules, sortDiagnostics } from './engine.js';
+import { collectSafeFixes, runRules, sortDiagnostics } from './engine.js';
 import { enabledRules, validateRuleRegistry } from './registry.js';
 import { sourceRegistry } from './data/sources.js';
 
@@ -59,16 +59,13 @@ describe('rule engine', () => {
 		]);
 	});
 
-	it('collects only safe fixes and filters ignores without storage access', () => {
+	it('collects only safe fixes', () => {
 		const diagnostics = [
 			finding('safe', 'warning', 0, 'safe'),
 			finding('preview', 'warning', 2, 'preview'),
 			finding('none', 'warning', 4)
 		];
 		expect(collectSafeFixes(diagnostics).map((fix) => fix.kind)).toEqual(['safe']);
-		expect(
-			filterIgnored(diagnostics, (item) => item.ruleId === 'preview').map((item) => item.ruleId)
-		).toEqual(['safe', 'none']);
 	});
 
 	it('returns identical diagnostics for identical input and context', () => {

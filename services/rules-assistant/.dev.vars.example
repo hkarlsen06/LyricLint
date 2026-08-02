@@ -16,6 +16,7 @@ OPENAI_API_KEY=
 # Turnstile's official always-passing test pair. The matching site key for the
 # frontend is 1x00000000000000000000AA.
 TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+TURNSTILE_ALLOW_LOCALHOST=true
 
 # Any random strings locally (`openssl rand -base64 32`).
 ABUSE_HMAC_SECRET=dev-abuse-secret

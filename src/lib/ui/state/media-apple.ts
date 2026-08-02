@@ -777,7 +777,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		},
 
 		play() {
-			void music?.play();
+			void music?.play().catch(() => events.failed('Apple Music could not play that song.'));
 		},
 
 		pause() {
@@ -793,7 +793,9 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			if (!started) return;
 			target = seconds;
 			targetEvents = 0;
-			void music?.seekToTime(Math.max(0, seconds));
+			void music
+				?.seekToTime(Math.max(0, seconds))
+				.catch(() => events.failed('Apple Music could not play that song.'));
 		},
 
 		setRate(next) {
@@ -802,7 +804,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		},
 
 		clear() {
-			void music?.stop();
+			void music?.stop().catch(() => events.stopped());
 			songId = undefined;
 			started = false;
 			known = 0;

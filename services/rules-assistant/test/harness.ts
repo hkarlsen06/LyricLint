@@ -26,7 +26,7 @@ class FakeStorage {
 
 export class FakeQuotaNamespace {
 	readonly instances = new Map<string, QuotaCounter>();
-	readonly calls: Array<{ name: string; path: string }> = [];
+	readonly calls: Array<{ name: string; path: string; body: unknown }> = [];
 	idFromName(name: string): unknown {
 		return name;
 	}
@@ -40,7 +40,11 @@ export class FakeQuotaNamespace {
 		const held = instance;
 		return {
 			fetch: (url, init) => {
-				this.calls.push({ name, path: new URL(url).pathname });
+				this.calls.push({
+					name,
+					path: new URL(url).pathname,
+					body: init?.body ? JSON.parse(String(init.body)) : undefined
+				});
 				return held.fetch(new Request(url, init));
 			}
 		};
@@ -69,6 +73,7 @@ export function makeEnv(
 		AI_GATEWAY_TOKEN: 'gateway-token',
 		OPENAI_API_KEY: 'openai-key',
 		TURNSTILE_SECRET: 'turnstile-secret',
+		TURNSTILE_ALLOW_LOCALHOST: 'false',
 		ABUSE_HMAC_SECRET: 'abuse-secret',
 		SESSION_SIGNING_SECRET: 'session-secret',
 		QUOTAS: quotaNamespace as unknown as DurableObjectNamespace,

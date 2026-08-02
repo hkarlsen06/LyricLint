@@ -170,9 +170,18 @@ describe('the answers endpoint', () => {
 
 		await reader.cancel();
 		expect(providerAborted).toBe(true);
-		expect(env.quotaNamespace.calls.filter((call) => call.path === '/finish')).toHaveLength(3);
+		const finishes = env.quotaNamespace.calls.filter((call) => call.path === '/finish');
+		expect(finishes).toHaveLength(3);
+		expect(
+			finishes.every(
+				(call) =>
+					(call.body as { spendUsd?: number }).spendUsd !== undefined &&
+					(call.body as { spendUsd: number }).spendUsd > 0
+			)
+		).toBe(true);
 		expect(env.points).toHaveLength(1);
 		expect(env.points[0]!.blobs?.[0]).toBe('error');
+		expect(env.points[0]!.doubles?.[5]).toBeGreaterThan(0);
 	});
 
 	it('runs a browser tool and continuation as two full POSTs', async () => {
@@ -747,6 +756,48 @@ describe('the answers endpoint', () => {
 			expect(refused.status).toBe(429);
 			const body = (await refused.json()) as { error: { code: string } };
 			expect(body.error.code).toBe('spend_limit_reached');
+		});
+
+		it('shares a spend ceiling across fresh sessions on the same IP', async () => {
+			const env = makeEnv();
+			const expensive = providerReturning(validAnswer(), {
+				inputTokens: 1000,
+				cachedInputTokens: 0,
+				cacheWriteTokens: 0,
+				outputTokens: 700_000
+			});
+			const handler = createHandler({ provider: expensive, verifyTurnstile: goodTurnstile });
+			const first = await handler(
+				makeRequest(requestBody({ turnstileToken: 'good-token' }), { ip: '198.51.100.22' }),
+				env
+			);
+			expect(first.status).toBe(200);
+
+			// No cookie: this is a new anonymous session after another challenge,
+			// but the IP Durable Object retains the first request's spend.
+			const fresh = await handler(
+				makeRequest(requestBody({ turnstileToken: 'good-token' }), { ip: '198.51.100.22' }),
+				env
+			);
+			expect(fresh.status).toBe(429);
+			expect(await fresh.json()).toMatchObject({ error: { code: 'spend_limit_reached' } });
+		});
+
+		it('uses the configured IP spend ceiling and finite reserved global slots', async () => {
+			const env = makeEnv();
+			const handler = createHandler({
+				provider: providerReturning(validAnswer()),
+				verifyTurnstile: goodTurnstile
+			});
+			await handler(makeRequest(requestBody({ turnstileToken: 'good-token' })), env);
+			const begins = env.quotaNamespace.calls.filter((call) => call.path === '/begin');
+			expect(begins.find((call) => call.name.startsWith('i:'))?.body).toMatchObject({
+				spendLimitUsd: LIMITS.ipDailySpendUsd
+			});
+			expect(begins.find((call) => call.name === 'global')?.body).toMatchObject({
+				concurrentLimit: LIMITS.globalConcurrent,
+				reserveSpendUsd: expect.any(Number)
+			});
 		});
 
 		it('stops everyone when the global daily budget is spent', async () => {

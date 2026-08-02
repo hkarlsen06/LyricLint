@@ -37,11 +37,14 @@ describe('numbers.spell-out', () => {
 		expect(checkRule(rule, '[Verse]\nBorn in 2026')).toEqual([]);
 	});
 
-	it('runs only for the exact English tag', () => {
+	it('runs for regional English tags only', () => {
 		expect(fixInserts(checkRule(rule, '[Verse]\nI need 5 reasons'))).toEqual(['five']);
-		for (const language of ['en-US', 'en-GB', 'no']) {
-			expect(checkRule(rule, '[Verse]\nI need 5 reasons', { language })).toEqual([]);
+		for (const language of ['en-US', 'en-GB']) {
+			expect(fixInserts(checkRule(rule, '[Verse]\nI need 5 reasons', { language }))).toEqual([
+				'five'
+			]);
 		}
+		expect(checkRule(rule, '[Verse]\nI need 5 reasons', { language: 'no' })).toEqual([]);
 	});
 
 	it('leaves the documented time, money, percentage, and reference contexts alone', () => {

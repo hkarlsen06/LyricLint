@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import lyricCases from '../../../fixtures/lyrics/cases.json';
 import { assistantDraftAccessKey } from '$lib/assistant/permissions.js';
 import { createAutosaveController } from './autosave.js';
+import { createWorkspaceBackup, parseWorkspaceBackup } from './backup.js';
 import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.js';
 import { createDraftRepository } from './draft-repository.js';
 import { createMediaRepository } from './media-repository.js';
@@ -475,7 +476,7 @@ describe('autosave and recovery', () => {
 		const database = await openDatabase(name);
 		openDatabases.add(database);
 		const repository = createDraftRepository(database);
-		const complete: DraftRecord = {
+		const complete = {
 			...draft({ id: 'whole-draft', text: '[Verse]\nFirst line\nSecond line' }),
 			originalText: '[Verse]\noriginal',
 			editorSelection: { anchor: 3, head: 7 },
@@ -496,11 +497,24 @@ describe('autosave and recovery', () => {
 					]
 				}
 			]
-		};
+		} satisfies Required<DraftRecord>;
 		const autosave = createAutosaveController(repository, { debounceMs: 10 });
+
+		const created = await repository.create(complete);
+		expect(created).toEqual(complete);
+		expect(Object.keys(created).sort()).toEqual(Object.keys(complete).sort());
 
 		autosave.schedule({ revision: 1, draft: complete });
 		await autosave.flush();
+
+		const backup = createWorkspaceBackup(database, {
+			now: () => '2026-01-02T00:00:00.000Z'
+		});
+		const parsed = parseWorkspaceBackup(await backup.serialize()).drafts[0];
+		expect(parsed).toEqual(complete);
+		expect(Object.keys(parsed).sort()).toEqual(Object.keys(complete).sort());
+		backup.destroy();
+
 		closeTestDatabase(database);
 
 		const reopened = await openDatabase(name);

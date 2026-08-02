@@ -1,7 +1,7 @@
 import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
 
-const replacements: Readonly<Record<string, string>> = {
+export const replacements: Readonly<Record<string, string>> = {
 	garnicht: 'gar nicht',
 	nähmlich: 'nämlich',
 	bischen: 'bisschen',
@@ -30,7 +30,7 @@ export const spellingGermanCommonRule: RuleDefinition = {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>
 				matchesOutsideMarkup(line, commonGermanError).map((match) => {
-					const preferred = replacements[match.text.toLocaleLowerCase()] ?? match.text;
+					const preferred = replacements[match.text.toLocaleLowerCase('de')] ?? match.text;
 					const replacement = preserveCase(match.text, preferred);
 					return diagnostic(
 						this,

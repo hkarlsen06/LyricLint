@@ -1,7 +1,7 @@
 import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
 
-const replacements: Readonly<Record<string, string>> = {
+export const replacements: Readonly<Record<string, string>> = {
 	desverre: 'dessverre',
 	interresant: 'interessant',
 	nyskjerrig: 'nysgjerrig',
@@ -40,7 +40,7 @@ export const spellingNorwegianCommonRule: RuleDefinition = {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>
 				matchesOutsideMarkup(line, commonNorwegianError).map((match) => {
-					const found = match.text.toLocaleLowerCase();
+					const found = match.text.toLocaleLowerCase('no');
 					const wrongAccent = found === accentedOg;
 					const preferred = replacements[found] ?? match.text;
 					const replacement = preserveCase(match.text, preferred);

@@ -589,10 +589,19 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 			}
 		}
 
-		if (anchors === value.anchors && playhead === value.playhead && adjusting === value.adjusting) {
+		const currentFrom = currentAnchorFrom(anchors, playhead);
+		// Exact time has no visual consumer here: attachment is its definedness and
+		// the marked cell is `currentFrom`. Keeping the value identical within that
+		// cell prevents every dependent facet from recomputing on playback ticks.
+		if (
+			anchors === value.anchors &&
+			currentFrom === value.currentFrom &&
+			adjusting === value.adjusting &&
+			(playhead === undefined) === (value.playhead === undefined)
+		) {
 			return value;
 		}
-		return derive(anchors, playhead, adjusting);
+		return { anchors, playhead, currentFrom, adjusting };
 	}
 });
 

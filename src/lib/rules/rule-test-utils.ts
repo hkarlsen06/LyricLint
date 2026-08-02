@@ -25,7 +25,7 @@ export function performerRecords(names: readonly string[]): PerformerRecord[] {
 	return names.map((displayName, order) => ({
 		id: `performer-${order}`,
 		displayName,
-		normalizedKey: displayName.toLocaleLowerCase(),
+		normalizedKey: displayName.toLocaleLowerCase('en'),
 		aliases: [],
 		colorId: `color-${order}`,
 		order

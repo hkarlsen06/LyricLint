@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 
 import Dexie from 'dexie';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createWorkspaceBackup, parseWorkspaceBackup, WorkspaceBackupError } from './backup.js';
 import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.js';
@@ -73,6 +73,21 @@ afterEach(async () => {
 });
 
 describe('workspace backup', () => {
+	it('stays disconnected when the remembered handle cannot be read', async () => {
+		const db = await database('handle-read-failure');
+		vi.spyOn(db.backupHandles, 'get').mockRejectedValueOnce(new Error('storage refused'));
+		const backup = createWorkspaceBackup(db);
+
+		backup.schedule();
+		await expect(backup.flush()).resolves.toBeUndefined();
+		backup.schedule();
+		await expect(backup.flush()).resolves.toBeUndefined();
+		expect(backup.state()).toMatchObject({ status: 'idle' });
+		expect(backup.state().linkedFileName).toBeUndefined();
+
+		backup.destroy();
+	});
+
 	it('adds imported drafts without changing local workspace data', async () => {
 		const source = await database('source');
 		await source.drafts.bulkAdd([draft('a', '[Verse]\nOne'), draft('b', '[Chorus]\nTwo')]);

@@ -12,14 +12,14 @@ export const sectionDeprecatedHookRule: RuleDefinition = {
 		const selectedPack = getLanguagePack(context.language);
 		const selectedTerms = new Set(
 			selectedPack.headers.flatMap((header) =>
-				header.terms.map((term) => term.trim().toLocaleLowerCase())
+				header.terms.map((term) => term.trim().toLocaleLowerCase(selectedPack.tag))
 			)
 		);
 		return document.sections.flatMap((section) => {
 			const header = section.header;
 			if (
 				!header ||
-				header.namePart.trim().toLocaleLowerCase() !== 'hook' ||
+				header.namePart.trim().toLocaleLowerCase(selectedPack.tag) !== 'hook' ||
 				selectedTerms.has('hook')
 			)
 				return [];

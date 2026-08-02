@@ -51,7 +51,9 @@ export const adlibParenthesesRule: RuleDefinition = {
 					new RegExp(`,\\s*(?<word>${adlib})\\s*$`, 'giu')
 				)) {
 					const word = match.groups.word ?? '';
-					const localFrom = match.text.toLocaleLowerCase().lastIndexOf(word.toLocaleLowerCase());
+					const localFrom = match.text
+						.toLocaleLowerCase('en')
+						.lastIndexOf(word.toLocaleLowerCase('en'));
 					const wrapped = `(${word[0]?.toUpperCase() ?? ''}${word.slice(1)})`;
 					const wordRange = {
 						from: match.from + localFrom,

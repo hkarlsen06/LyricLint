@@ -172,6 +172,12 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		);
 	}
 
+	const unignoredDiagnostics = $derived.by(() => unignoredIn(deps.snapshot().diagnostics));
+	const visibleDiagnostics = $derived(
+		unignoredDiagnostics.filter((diagnostic) => severityFilter.includes(diagnostic.severity))
+	);
+	const bulkFixPlan = $derived(planBulkFix(visibleDiagnostics));
+
 	/**
 	 * Mark a diagnostic's card and put the editor's selection — and with it the
 	 * active-line wash — on its text, without scrolling deliberately: the
@@ -235,12 +241,8 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		feedback.announce(announcement);
 	}
 
-	function bulkPlan(): BulkFixPlan {
-		return planBulkFix(visibleIn(deps.snapshot().diagnostics));
-	}
-
 	function matchingFixes(diagnostic: Diagnostic, fix: DiagnosticFix): DiagnosticFix[] {
-		return collectMatchingFixes(visibleIn(deps.snapshot().diagnostics), diagnostic, fix);
+		return collectMatchingFixes(visibleDiagnostics, diagnostic, fix);
 	}
 
 	return {
@@ -254,13 +256,13 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			return severityFilter;
 		},
 		get unignoredDiagnostics() {
-			return unignoredIn(deps.snapshot().diagnostics);
+			return unignoredDiagnostics;
 		},
 		get visibleDiagnostics() {
-			return visibleIn(deps.snapshot().diagnostics);
+			return visibleDiagnostics;
 		},
 		get bulkFixPlan() {
-			return bulkPlan();
+			return bulkFixPlan;
 		},
 		get ignoredDiagnosticKeys() {
 			return ignoredDiagnosticKeys;
@@ -377,7 +379,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			dispatchFixEdit(mergeFixes(fixes), `${fix.label} applied to ${fixes.length} findings.`);
 		},
 		applyBulkFix() {
-			const plan = bulkPlan();
+			const plan = bulkFixPlan;
 			if (plan.fixes.length === 0) {
 				feedback.announce('No issues can be fixed automatically.');
 				return;

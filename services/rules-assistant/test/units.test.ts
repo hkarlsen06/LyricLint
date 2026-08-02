@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
 	MAX_LINK_ACTIONS,
+	GLOBAL_REQUEST_SPEND_RESERVATION_USD,
 	MODEL,
 	MAX_LINK_SUMMARIES,
 	MAX_LINK_SUMMARY_CHARS,
@@ -12,7 +13,7 @@ import {
 } from '../src/config';
 import { corpus } from '../src/corpus';
 import { ApiError } from '../src/errors';
-import { signSession, verifySession } from '../src/identity';
+import { signSession, turnstileVerifier, verifySession } from '../src/identity';
 import { buildPromptInput, CACHE_BREAKPOINT, promptCacheKey, pruneHistory } from '../src/prompt';
 import {
 	DRAFT_TOOLS,
@@ -852,6 +853,41 @@ describe('session signing', () => {
 	});
 });
 
+describe('Turnstile verification', () => {
+	function response(hostname: string) {
+		return vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+			const body = init?.body as URLSearchParams;
+			expect(body.get('idempotency_key')).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+			);
+			return Response.json({ success: true, hostname });
+		});
+	}
+
+	it('accepts only a production hostname and sends an idempotency key', async () => {
+		const fetcher = response('lyriclint.com');
+		await expect(turnstileVerifier('secret', false, fetcher)('token', '203.0.113.9')).resolves.toBe(
+			true
+		);
+		expect(fetcher).toHaveBeenCalledOnce();
+	});
+
+	it('routes a hostname mismatch back through challenge_required', async () => {
+		await expect(
+			turnstileVerifier('secret', false, response('attacker.example'))('token', undefined)
+		).rejects.toMatchObject({ code: 'challenge_required' });
+	});
+
+	it('allows local Turnstile hostnames only under the explicit development flag', async () => {
+		await expect(
+			turnstileVerifier('secret', false, response('localhost'))('token', undefined)
+		).rejects.toMatchObject({ code: 'challenge_required' });
+		await expect(
+			turnstileVerifier('secret', true, response('127.0.0.1'))('token', undefined)
+		).resolves.toBe(true);
+	});
+});
+
 describe('QuotaCounter', () => {
 	function counter() {
 		const map = new Map<string, unknown>();
@@ -922,6 +958,34 @@ describe('QuotaCounter', () => {
 			spendLimitUsd: 0.5
 		});
 		expect(refused.error).toBe('spend_limit_reached');
+	});
+
+	it('reserves worst-case spend so concurrent begins cannot cross the global ceiling', async () => {
+		const quota = counter();
+		const limit = 15;
+		const seed = await quota.call('/begin', {
+			dailyLimit: 100,
+			concurrentLimit: 8,
+			spendLimitUsd: limit
+		});
+		await quota.call('/finish', {
+			slot: seed.slot,
+			spendUsd: limit - GLOBAL_REQUEST_SPEND_RESERVATION_USD * 1.5
+		});
+		const first = await quota.call('/begin', {
+			dailyLimit: 100,
+			concurrentLimit: 8,
+			spendLimitUsd: limit,
+			reserveSpendUsd: GLOBAL_REQUEST_SPEND_RESERVATION_USD
+		});
+		const second = await quota.call('/begin', {
+			dailyLimit: 100,
+			concurrentLimit: 8,
+			spendLimitUsd: limit,
+			reserveSpendUsd: GLOBAL_REQUEST_SPEND_RESERVATION_USD
+		});
+		expect(first.ok).toBe(true);
+		expect(second.error).toBe('spend_limit_reached');
 	});
 
 	it('resets counters at the UTC day boundary', async () => {

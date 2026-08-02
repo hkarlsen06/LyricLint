@@ -26,6 +26,11 @@ function baseTag(tag: string): string {
 	return tag.trim().toLowerCase().replaceAll('_', '-').split('-')[0] ?? 'und';
 }
 
+/** Whether a BCP-47-like tag names English, including regional variants. */
+export function isEnglishLanguage(tag: string): boolean {
+	return /^en(?:-|$)/iu.test(tag.trim().replaceAll('_', '-'));
+}
+
 /** Resolve a BCP-47-like tag to the supported base tag, or `und` when unknown. */
 export function resolveLanguageTag(tag: string): string {
 	const normalized = baseTag(tag);

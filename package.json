@@ -19,7 +19,7 @@
 		"render:motion": "node scripts/render-motion.mjs",
 		"measure:landing": "bun scripts/measure-landing.mjs",
 		"test:e2e": "playwright install && playwright test",
-		"test": "bun run test:unit -- --run && bun run test:e2e",
+		"test": "bun run check && bun run lint && bun run test:unit -- --run && bun run assistant:test && bun run test:e2e",
 		"test:unit": "vitest",
 		"token:apple": "node scripts/apple-music-token.mjs",
 		"assistant:corpus": "bun scripts/generate-rules-context.ts",

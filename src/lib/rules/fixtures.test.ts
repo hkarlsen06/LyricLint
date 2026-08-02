@@ -23,7 +23,7 @@ function performer(name: string, order: number): PerformerRecord {
 	return {
 		id: `performer-${order}`,
 		displayName: name,
-		normalizedKey: name.toLocaleLowerCase(),
+		normalizedKey: name.toLocaleLowerCase('en'),
 		aliases: [],
 		colorId: `color-${order}`,
 		order

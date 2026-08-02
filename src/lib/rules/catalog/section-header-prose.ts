@@ -29,7 +29,7 @@ interface RecognizedTerm {
  * already owns that decision and will see the bracketed header afterwards.
  */
 function canonicalTerm(name: string, language: string): RecognizedTerm | undefined {
-	const normalized = name.trim().toLocaleLowerCase();
+	const normalized = name.trim().toLocaleLowerCase('en');
 	const selected = getLanguagePack(language);
 	const packs = canLintHeaderLanguage(selected)
 		? [selected, ...reviewedLanguagePacks.filter((pack) => pack.tag !== selected.tag)]
@@ -38,7 +38,7 @@ function canonicalTerm(name: string, language: string): RecognizedTerm | undefin
 	for (const pack of packs) {
 		for (const header of pack.headers) {
 			for (const term of header.terms) {
-				if (term.toLocaleLowerCase() === normalized) {
+				if (term.toLocaleLowerCase('en') === normalized) {
 					return { term, sourceIds: pack.sourceIds };
 				}
 			}
@@ -49,7 +49,7 @@ function canonicalTerm(name: string, language: string): RecognizedTerm | undefin
 
 /** True only for cased scripts, so Hangul and Arabic never read as shouting. */
 function isAllCaps(name: string): boolean {
-	return /\p{Lu}/u.test(name) && name === name.toLocaleUpperCase();
+	return /\p{Lu}/u.test(name) && name === name.toLocaleUpperCase('en');
 }
 
 /**

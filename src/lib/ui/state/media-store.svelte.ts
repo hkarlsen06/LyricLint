@@ -324,6 +324,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	const pickFile = deps.pickFile ?? defaultPickFile;
 
 	const clock = deps.clock ?? (() => Date.now());
+	let openGeneration = 0;
 
 	let pendingName = $state<string | undefined>(undefined);
 	let pendingSource = $state<MediaSourceKind | undefined>(undefined);
@@ -863,9 +864,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		},
 
 		async openFor(draftId) {
+			const generation = ++openGeneration;
 			// Whatever was playing belongs to the draft being left, so its last
 			// position is written against that draft before the owner moves.
 			await store.flushPosition();
+			if (generation !== openGeneration) return;
 			ownerDraftId = undefined;
 			player.detach();
 			forget();
@@ -877,6 +880,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			} catch {
 				return;
 			}
+			if (generation !== openGeneration) return;
 			if (!record) return;
 
 			pendingName = record.name;

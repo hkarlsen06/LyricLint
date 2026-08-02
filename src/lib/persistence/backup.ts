@@ -422,14 +422,21 @@ export function createWorkspaceBackup(
 		}
 	}
 
-	const ready = database.backupHandles.get(HANDLE_KEY).then(async (record) => {
-		if (!record || destroyed) return;
-		handle = record.handle as WritableFileHandle;
-		publish({
-			linkedFileName: record.name,
-			permission: await permissionFor(handle)
+	const ready = database.backupHandles
+		.get(HANDLE_KEY)
+		.then(async (record) => {
+			if (!record || destroyed) return;
+			handle = record.handle as WritableFileHandle;
+			publish({
+				linkedFileName: record.name,
+				permission: await permissionFor(handle)
+			});
+		})
+		.catch(() => {
+			// IndexedDB can refuse the boot read (notably in private browsing). Treat
+			// that exactly like an absent remembered handle so autosaves stay local.
+			handle = undefined;
 		});
-	});
 
 	const databasePrefix = `idb://${database.name}/`;
 	const mutationListener = (parts: Record<string, unknown>) => {

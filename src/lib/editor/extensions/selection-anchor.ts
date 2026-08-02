@@ -1,12 +1,27 @@
-import type { Extension } from '@codemirror/state';
+import type { Extension, Transaction } from '@codemirror/state';
 import { ViewPlugin } from '@codemirror/view';
 import type { EditorView, ViewUpdate } from '@codemirror/view';
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { SelectionAnchor } from '../contracts.js';
 import { linkableHeaderAt } from '../section-links.js';
 import { editorComposingField, editorContextField, parsedDocumentForView } from './editor-state.js';
+import { setPlayheadEffect } from './line-anchors.js';
 
 const VIEWPORT_MARGIN = 8;
+
+/** Playback ticks change no selection geometry and must not delay its report. */
+export function transactionsHaveOnlyPlayheadEffects(transactions: readonly Transaction[]): boolean {
+	return (
+		transactions.length > 0 &&
+		transactions.every(
+			(transaction) =>
+				!transaction.docChanged &&
+				!transaction.selection &&
+				transaction.effects.length > 0 &&
+				transaction.effects.every((effect) => effect.is(setPlayheadEffect))
+		)
+	);
+}
 
 function isWhitespaceSelection(view: EditorView, from: number, to: number): boolean {
 	return view.state.doc.sliceString(from, to).trim().length === 0;
@@ -103,6 +118,7 @@ class SelectionAnchorReporter {
 			this.schedule(pointerDriven);
 			return;
 		}
+		if (transactionsHaveOnlyPlayheadEffects(update.transactions)) return;
 		if (
 			update.docChanged ||
 			update.viewportChanged ||

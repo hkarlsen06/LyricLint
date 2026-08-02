@@ -12,6 +12,8 @@ export interface BeginBody {
 	concurrentLimit: number;
 	/** USD; omit for identifiers without a spend ceiling. */
 	spendLimitUsd?: number;
+	/** USD held against the spend ceiling until this slot settles. */
+	reserveSpendUsd?: number;
 }
 
 export interface BeginResult {
@@ -29,8 +31,8 @@ interface DayState {
 	day: string;
 	count: number;
 	spendUsd: number;
-	/** In-flight slot start times, keyed by slot token. */
-	slots: Record<string, number>;
+	/** In-flight slots and any spend held for them, keyed by slot token. */
+	slots: Record<string, number | { startedAt: number; reservedSpendUsd: number }>;
 }
 
 /** In-flight slots older than this are presumed leaked (a Worker eviction the
@@ -61,7 +63,8 @@ export class QuotaCounter implements DurableObject {
 		if (!stored || stored.day !== day) {
 			return { day, count: 0, spendUsd: 0, slots: {} };
 		}
-		for (const [slot, startedAt] of Object.entries(stored.slots)) {
+		for (const [slot, entry] of Object.entries(stored.slots)) {
+			const startedAt = typeof entry === 'number' ? entry : entry.startedAt;
 			if (now - startedAt > STALE_SLOT_MS) delete stored.slots[slot];
 		}
 		return stored;
@@ -87,7 +90,17 @@ export class QuotaCounter implements DurableObject {
 			const body = (await request.json()) as BeginBody;
 			const resetsAt = nextUtcMidnight(now);
 			const respond = (result: BeginResult) => Response.json(result);
-			if (body.spendLimitUsd !== undefined && state.spendUsd >= body.spendLimitUsd) {
+			const reservedSpendUsd = Object.values(state.slots).reduce<number>(
+				(total, entry) =>
+					total + (typeof entry === 'number' ? 0 : Math.max(0, entry.reservedSpendUsd)),
+				0
+			);
+			const requestedReservation = Math.max(0, body.reserveSpendUsd ?? 0);
+			if (
+				body.spendLimitUsd !== undefined &&
+				(state.spendUsd >= body.spendLimitUsd ||
+					state.spendUsd + reservedSpendUsd + requestedReservation > body.spendLimitUsd)
+			) {
 				return respond({
 					ok: false,
 					error: 'spend_limit_reached',
@@ -108,7 +121,7 @@ export class QuotaCounter implements DurableObject {
 			}
 			const slot = crypto.randomUUID();
 			state.count += 1;
-			state.slots[slot] = now;
+			state.slots[slot] = { startedAt: now, reservedSpendUsd: requestedReservation };
 			await this.save(state);
 			return respond({
 				ok: true,
@@ -120,8 +133,10 @@ export class QuotaCounter implements DurableObject {
 
 		if (url.pathname === '/finish') {
 			const body = (await request.json()) as { slot: string; spendUsd?: number };
-			delete state.slots[body.slot];
-			state.spendUsd += body.spendUsd ?? 0;
+			if (body.slot in state.slots) {
+				delete state.slots[body.slot];
+				state.spendUsd += Math.max(0, body.spendUsd ?? 0);
+			}
 			await this.save(state);
 			return Response.json({ ok: true });
 		}

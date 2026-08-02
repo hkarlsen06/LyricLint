@@ -474,13 +474,59 @@ function audioFileDrop(callbacks: LyricEditorCallbacks): Extension {
 	];
 }
 
-function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEditorCallbacks {
+const lyricEditorCallbackKeySet = {
+	onSnapshot: true,
+	onAssignRequest: true,
+	onSectionHeaderRequest: true,
+	onDiagnosticActivate: true,
+	onAnnouncement: true,
+	createPerformerEdit: true,
+	createPerformerLegendEdit: true,
+	createSectionHeaderEdit: true,
+	onApplyDiagnosticFix: true,
+	countDiagnosticFixBatch: true,
+	onApplyDiagnosticFixBatch: true,
+	onIgnoreDiagnostic: true,
+	onSetLanguage: true,
+	onAddPerformer: true,
+	onPerformerRenamed: true,
+	onDiagnosticActivateIntent: true,
+	onAudioFileDropped: true,
+	onRequestMediaTime: true,
+	onSeekMedia: true,
+	onLineAnchorsChanged: true,
+	onLyricSyncChange: true,
+	onDiagnosticHighlight: true,
+	onDiagnosticDismiss: true,
+	onSectionLinkRequest: true,
+	onSectionLinksChanged: true,
+	onUnknownMarkerRequest: true,
+	onSearchOpenChange: true
+} as const satisfies Record<keyof LyricEditorCallbacks, true>;
+
+export const lyricEditorCallbackKeys = Object.keys(
+	lyricEditorCallbackKeySet
+) as (keyof LyricEditorCallbacks)[];
+
+export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEditorCallbacks {
 	return {
 		onSnapshot: (snapshot) => read().onSnapshot(snapshot),
 		onAssignRequest: (request) => read().onAssignRequest(request),
 		onSectionHeaderRequest: (request) => read().onSectionHeaderRequest(request),
 		onDiagnosticActivate: (diagnostic) => read().onDiagnosticActivate(diagnostic),
 		onAnnouncement: (message) => read().onAnnouncement(message),
+		createPerformerEdit: (choice) => read().createPerformerEdit?.(choice),
+		createPerformerLegendEdit: (choice) => read().createPerformerLegendEdit?.(choice),
+		createSectionHeaderEdit: (choice) => read().createSectionHeaderEdit?.(choice),
+		onApplyDiagnosticFix: (diagnostic, fix) => read().onApplyDiagnosticFix?.(diagnostic, fix),
+		countDiagnosticFixBatch: (diagnostic, fix) =>
+			read().countDiagnosticFixBatch?.(diagnostic, fix) ?? 0,
+		onApplyDiagnosticFixBatch: (diagnostic, fix) =>
+			read().onApplyDiagnosticFixBatch?.(diagnostic, fix),
+		onIgnoreDiagnostic: (diagnostic) => read().onIgnoreDiagnostic?.(diagnostic),
+		onSetLanguage: (language) => read().onSetLanguage?.(language),
+		onAddPerformer: (displayName) => read().onAddPerformer?.(displayName),
+		onPerformerRenamed: (rename) => read().onPerformerRenamed?.(rename),
 		onDiagnosticActivateIntent: (diagnostic, intent) => {
 			const callbacks = read();
 			if (callbacks.onDiagnosticActivateIntent) {
@@ -502,6 +548,7 @@ function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEditorCallb
 		onSeekMedia: (time) => read().onSeekMedia?.(time),
 		onLyricSyncChange: (active, startAt) => read().onLyricSyncChange?.(active, startAt),
 		onLineAnchorsChanged: () => read().onLineAnchorsChanged?.(),
+		onDiagnosticHighlight: (diagnostic) => read().onDiagnosticHighlight?.(diagnostic),
 		// Same allow-list, same trap: a hook left out of here is never called, with
 		// nothing to see at either end. The link request is what the `Ctrl-Alt-L`
 		// binding fires, and the change hook is the only thing that saves an unlink,
@@ -760,11 +807,13 @@ export function createLyricEditor(
 			return snapshotFromState(view.state);
 		},
 		dispatchAtomic(edit) {
+			// Validation belongs before cleanup: a stale edit throws without changing
+			// either the document or the preview the reader is still considering.
+			dispatchAtomicEdit(view, edit);
 			view.dispatch({
 				effects: setFixPreviewEffect.of(undefined),
 				annotations: Transaction.addToHistory.of(false)
 			});
-			dispatchAtomicEdit(view, edit);
 		},
 		previewAtomic(edit) {
 			if (edit.baseRevision !== view.state.field(editorRevisionField)) {

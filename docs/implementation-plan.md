@@ -2,7 +2,7 @@ I reviewed all seven requested files completely. References below use:
 
 - **P** — [PRODUCT.md](/Users/hjalmarkarlsen/Repositories/LyricLint_for_Genius/PRODUCT.md)
 - **A** — [docs/architecture.md](/Users/hjalmarkarlsen/Repositories/LyricLint_for_Genius/docs/architecture.md)
-- **R** — [docs/rules.md](/Users/hjalmarkarlsen/Repositories/LyricLint_for_Genius/docs/rules.md)
+- **R** — [docs/rules.md](./rules.md)
 - **T** — [docs/performer-tagging.md](/Users/hjalmarkarlsen/Repositories/LyricLint_for_Genius/docs/performer-tagging.md)
 - **L** — [docs/genius-language-source-inventory.md](/Users/hjalmarkarlsen/Repositories/LyricLint_for_Genius/docs/genius-language-source-inventory.md)
 - **F** — [fixtures/lyrics/cases.json](/Users/hjalmarkarlsen/Repositories/LyricLint_for_Genius/fixtures/lyrics/cases.json)

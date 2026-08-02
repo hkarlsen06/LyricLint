@@ -79,28 +79,3 @@ export function styleTags(styleSlot: StyleSlot): { opening: string; closing: str
 		closing: wrapped.slice(markerFrom + marker.length)
 	};
 }
-
-const EQUIVALENT_SPAN_PATTERNS: readonly RegExp[] = [
-	/<i><b>([^<>]*)<\/b><\/i><i><b>([^<>]*)<\/b><\/i>/gu,
-	/<i>([^<>]*)<\/i><i>([^<>]*)<\/i>/gu,
-	/<b>([^<>]*)<\/b><b>([^<>]*)<\/b>/gu
-];
-
-/**
- * Merge only directly adjacent canonical wrappers. Unsupported or malformed
- * markup never matches these patterns and therefore remains byte-for-byte.
- */
-export function mergeEquivalentSpans(text: string): string {
-	let merged = text;
-	let previous: string;
-
-	do {
-		previous = merged;
-		merged = merged
-			.replace(EQUIVALENT_SPAN_PATTERNS[0], '<i><b>$1$2</b></i>')
-			.replace(EQUIVALENT_SPAN_PATTERNS[1], '<i>$1$2</i>')
-			.replace(EQUIVALENT_SPAN_PATTERNS[2], '<b>$1$2</b>');
-	} while (merged !== previous);
-
-	return merged;
-}

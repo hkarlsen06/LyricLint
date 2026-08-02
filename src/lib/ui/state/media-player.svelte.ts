@@ -559,6 +559,8 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	let wantPlaying = $state(false);
 	/** Whether a source is still being handed what it was told to load. */
 	let attaching = false;
+	/** Identifies the newest attachment even when two loads reuse one source. */
+	let attachmentGeneration = 0;
 
 	let active: MediaSource | undefined;
 	let fileSource: FileSource | undefined;
@@ -735,9 +737,13 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	}
 
 	/** Hand the transport to a source, before that source is told what to load. */
-	function beginAttachment(next: MediaSource, label: string): void {
+	function beginAttachment(next: MediaSource, label: string): number {
+		const generation = ++attachmentGeneration;
 		if (active && active !== next) active.clear();
 		active = next;
+		// A newer attachment supersedes any remote load still settling behind it.
+		// Its eventual `finally` may only clear this flag while it is still active.
+		attaching = false;
 		sourceKind = next.kind;
 		name = label;
 		error = undefined;
@@ -746,6 +752,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		// outgoing song's facts must not be read as the incoming one's.
 		artwork = undefined;
 		songDetails = undefined;
+		return generation;
 	}
 
 	/**
@@ -837,40 +844,62 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 
 		async attachVideo(video) {
 			const source = youtube();
-			beginAttachment(source, video.name ?? video.videoId);
+			const generation = beginAttachment(source, video.name ?? video.videoId);
 			attaching = true;
 			const loading = source.load(video.videoId, video.startAt);
 			settleAttachment(video.startAt);
 			deps.feedback.announce(`${name} attached.`);
-			await loading;
-			attaching = false;
-			if (active !== source) return;
+			try {
+				await loading;
+			} catch {
+				if (generation === attachmentGeneration) {
+					eventsFor(() => source).failed('The YouTube player could not be loaded.');
+				}
+			} finally {
+				if (generation === attachmentGeneration) attaching = false;
+			}
+			if (generation !== attachmentGeneration || active !== source) return;
 			source.setRate(rate);
 			playIfAsked(source);
 		},
 
 		async attachTrack(track) {
 			const source = spotify();
-			beginAttachment(source, track.name ?? track.trackId);
+			const generation = beginAttachment(source, track.name ?? track.trackId);
 			attaching = true;
 			const loading = source.load(track.trackId, track.startAt);
 			settleAttachment(track.startAt);
 			deps.feedback.announce(`${name} attached.`);
-			await loading;
-			attaching = false;
+			try {
+				await loading;
+			} catch {
+				if (generation === attachmentGeneration) {
+					eventsFor(() => source).failed('The Spotify player could not be loaded.');
+				}
+			} finally {
+				if (generation === attachmentGeneration) attaching = false;
+			}
+			if (generation !== attachmentGeneration || active !== source) return;
 			playIfAsked(source);
 		},
 
 		async attachSong(song) {
 			const source = apple();
-			beginAttachment(source, song.name ?? song.songId);
+			const generation = beginAttachment(source, song.name ?? song.songId);
 			attaching = true;
 			const loading = source.load(song.songId, song.startAt);
 			settleAttachment(song.startAt);
 			deps.feedback.announce(`${name} attached.`);
-			await loading;
-			attaching = false;
-			if (active !== source) return;
+			try {
+				await loading;
+			} catch {
+				if (generation === attachmentGeneration) {
+					eventsFor(() => source).failed('Apple Music could not be loaded.');
+				}
+			} finally {
+				if (generation === attachmentGeneration) attaching = false;
+			}
+			if (generation !== attachmentGeneration || active !== source) return;
 			// Unlike the other two, this one can actually honour it.
 			source.setRate(rate);
 			playIfAsked(source);
@@ -881,6 +910,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		},
 
 		detach() {
+			attachmentGeneration += 1;
 			active?.clear();
 			active = undefined;
 			sourceKind = undefined;
@@ -889,6 +919,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			songDetails = undefined;
 			playing = false;
 			wantPlaying = false;
+			attaching = false;
 			currentTime = 0;
 			duration = Number.NaN;
 			error = undefined;

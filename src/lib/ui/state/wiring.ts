@@ -3,7 +3,7 @@ import { sourceRegistry } from '$lib/rules/index.js';
 import { findExactPerformer } from '$lib/performers/index.js';
 import type { VoiceGroupRange } from '$lib/editor/index.js';
 import { lineNumberAt } from '$lib/editor/section-links.js';
-import { isLyricLine } from '$lib/core/parser.js';
+import { isLyricLine, scanPhysicalLines } from '$lib/core/parser.js';
 import type {
 	Diagnostic,
 	EditorSnapshot,
@@ -29,10 +29,9 @@ const voiceGroupRangeCache = new WeakMap<
  */
 export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]): boolean {
 	const timed = new Set(anchors.map((anchor) => anchor.line));
-	const lines = text.split('\n');
 	let stampable = 0;
-	for (let index = 0; index < lines.length; index += 1) {
-		if (!isLyricLine(lines[index])) continue;
+	for (const [index, line] of scanPhysicalLines(text).entries()) {
+		if (!isLyricLine(line.text)) continue;
 		stampable += 1;
 		if (!timed.has(index + 1)) return false;
 	}
