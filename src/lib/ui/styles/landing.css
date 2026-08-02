@@ -468,6 +468,29 @@
 	height: auto;
 }
 
+/* The native video poster disappears at playback start, which can be earlier
+   than the first decoded frame. This duplicate uses the same cached asset but
+   stays above the media until `autoplayInView` marks that frame paintable. */
+.lp-shot__frame .lp-shot__poster {
+	position: absolute;
+	z-index: 1;
+	inset: 0;
+	height: 100%;
+	object-fit: cover;
+	opacity: 1;
+	pointer-events: none;
+}
+
+.lp-shot__frame[data-video-ready] .lp-shot__poster {
+	opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.lp-shot__poster {
+		transition: opacity var(--duration-fast) var(--ease-out-quart);
+	}
+}
+
 /*
  * A detail shot inside a section: the same frame as the hero's, without the
  * hero's theatre. No tilt — the tilt is the opening gesture and repeating it

@@ -167,6 +167,28 @@ test('the landing page activates its real editor only near the live demo', async
 	await expect(fallback).toHaveCount(0);
 });
 
+test('a landing video keeps its still until its first frame is ready', async ({ page }) => {
+	let releaseVideo!: () => void;
+	const videoReleased = new Promise<void>((resolve) => {
+		releaseVideo = resolve;
+	});
+	await page.route('**/workbench.webm', async (route) => {
+		await videoReleased;
+		await route.continue();
+	});
+
+	await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+	const frame = page.locator('.lp-shot__frame').first();
+	const poster = frame.locator('.lp-shot__poster');
+	await expect(poster).toBeVisible();
+	await expect(frame).not.toHaveAttribute('data-video-ready', '');
+
+	releaseVideo();
+	await expect(frame).toHaveAttribute('data-video-ready', '');
+	await expect(poster).toHaveCSS('opacity', '0');
+});
+
 test('the rule reference exposes article metadata and language semantics', async ({ page }) => {
 	await page.goto('/rules/');
 

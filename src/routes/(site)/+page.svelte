@@ -37,8 +37,32 @@
 	 */
 	const autoplayInView: Attachment<HTMLVideoElement> = (video) => {
 		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+		const frame = video.parentElement;
+		const poster = frame?.querySelector<HTMLImageElement>('.lp-shot__poster');
+		// A video's native poster is removed when playback starts, not when the
+		// first decoded frame is ready to replace it. Keep a real image over the
+		// media until the decoder and compositor have both had a turn; otherwise
+		// the browser exposes the video's black backing canvas between the two.
+		let revealFrame: number | undefined;
+		const revealVideo = () => {
+			cancelAnimationFrame(revealFrame ?? 0);
+			revealFrame = requestAnimationFrame(() => {
+				revealFrame = requestAnimationFrame(() => frame?.setAttribute('data-video-ready', ''));
+			});
+		};
+		video.addEventListener('loadeddata', revealVideo);
+		if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) revealVideo();
+
+		// Starting behind an image that has not decoded yet would recreate the
+		// same gap at the other edge of the hand-off. The stills are small and
+		// already requested as native posters, so this normally resolves from the
+		// shared cache and does not hold up the video request.
+		const posterReady = poster?.decode().catch(() => undefined) ?? Promise.resolve();
+		let shouldPlay = false;
 		const observer = new IntersectionObserver(
 			([entry]) => {
+				shouldPlay = entry.isIntersecting;
 				if (!entry.isIntersecting) {
 					video.pause();
 					// Wound back on the way out as well as on the way in, so a section
@@ -52,11 +76,14 @@
 				// a reader who scrolls back to a copy left halfway through meets the
 				// result before the gesture that produced it, which is the one order
 				// in which none of it explains anything.
-				video.currentTime = 0;
-				// A browser may refuse to start even a muted video, and the refusal is
-				// nothing to act on: what is behind it is frame one, which is a
-				// complete answer on its own.
-				void video.play().catch(() => undefined);
+				void posterReady.then(() => {
+					if (!shouldPlay || !video.isConnected) return;
+					video.currentTime = 0;
+					// A browser may refuse to start even a muted video, and the refusal is
+					// nothing to act on: what is behind it is frame one, which is a
+					// complete answer on its own.
+					void video.play().catch(() => undefined);
+				});
 			},
 			// Enough of the frame showing that the reader is looking at it rather
 			// than passing it — these shots are tall, so a threshold on their own
@@ -64,7 +91,11 @@
 			{ threshold: 0.35 }
 		);
 		observer.observe(video);
-		return () => observer.disconnect();
+		return () => {
+			observer.disconnect();
+			video.removeEventListener('loadeddata', revealVideo);
+			cancelAnimationFrame(revealFrame ?? 0);
+		};
 	};
 
 	// Read off the registry rather than typed into the copy. A landing page that
@@ -271,6 +302,14 @@ And the "quiet" part was never really quiet`;
 			     carried before it moved. -->
 			<div class="lp-shot">
 				<div class="lp-shot__frame">
+					<img
+						class="lp-shot__poster"
+						src="{resolve('/')}workbench.webp"
+						width="2560"
+						height="1640"
+						alt=""
+						aria-hidden="true"
+					/>
 					<!-- Named by `aria-label` for the reason the performer loop is, and
 					     deliberately not `role="img"`, which the platform refuses on a
 					     `<video>`. -->
@@ -485,6 +524,14 @@ And the "quiet" part was never really quiet`;
 			     JavaScript, without giving the box a second geometry. -->
 			<div class="lp-shot lp-shot--detail">
 				<div class="lp-shot__frame">
+					<img
+						class="lp-shot__poster"
+						src="{resolve('/')}workbench-performers.webp"
+						width="1226"
+						height="1572"
+						alt=""
+						aria-hidden="true"
+					/>
 					<!-- Named by `aria-label`, carrying the description the still
 					     carried, because a silent loop of a pointer using the product
 					     should be announced the way the picture it replaces was.
@@ -551,6 +598,14 @@ And the "quiet" part was never really quiet`;
 			     before then and when JavaScript is unavailable. -->
 			<div class="lp-shot lp-shot--detail">
 				<div class="lp-shot__frame">
+					<img
+						class="lp-shot__poster"
+						src="{resolve('/')}workbench-harper.webp"
+						width="1044"
+						height="570"
+						alt=""
+						aria-hidden="true"
+					/>
 					<video
 						{@attach autoplayInView}
 						src="{resolve('/')}workbench-harper.webm"
