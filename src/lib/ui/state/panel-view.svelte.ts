@@ -4,6 +4,7 @@ import type {
 	DiagnosticFix,
 	EditorHandle,
 	EditorSnapshot,
+	RuleContext,
 	SessionIgnoreStore,
 	Severity
 } from '$lib/core/types.js';
@@ -13,6 +14,7 @@ import {
 	ignoredDiagnosticRuleId
 } from '$lib/diagnostics/ignore.js';
 import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
+import { filterProvisionalVerseNumbering } from '$lib/diagnostics/prerequisites.js';
 import { resolveLegendAssignment } from '$lib/performers/legend-assignment.js';
 import { collectMatchingFixes, mergeFixes, planBulkFix } from '$lib/rules/bulk-fix.js';
 import type { BulkFixPlan } from '$lib/rules/bulk-fix.js';
@@ -26,6 +28,7 @@ const allSeverities: Severity[] = ['error', 'warning', 'suggestion', 'manual-rev
 export interface PanelViewDependencies {
 	editor: () => EditorHandle;
 	snapshot: () => EditorSnapshot;
+	ruleContext: () => RuleContext;
 	draftId: () => string;
 	ignoreStore: SessionIgnoreStore;
 	feedback: FeedbackState;
@@ -157,7 +160,10 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		const ignored = [
 			...matchIgnoredDiagnostics(diagnostics, deps.snapshot().text, ignoredDiagnosticKeys).values()
 		];
-		return diagnostics.filter((diagnostic) => !ignored.includes(diagnosticKey(diagnostic)));
+		const unignored = diagnostics.filter(
+			(diagnostic) => !ignored.includes(diagnosticKey(diagnostic))
+		);
+		return filterProvisionalVerseNumbering(unignored, deps.snapshot().parsed, deps.ruleContext());
 	}
 
 	function visibleIn(diagnostics: readonly Diagnostic[]): Diagnostic[] {

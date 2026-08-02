@@ -61,7 +61,7 @@ export const markupDimField = StateField.define<DecorationSet>({
 		}
 		for (const effect of transaction.effects) {
 			if (effect.is(setHeaderlessSectionsEffect)) {
-				value = buildDimRanges(transaction.state, effect.value);
+				value = buildDimRanges(transaction.state, effect.value.parsed);
 			}
 		}
 		return value;

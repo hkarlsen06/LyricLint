@@ -94,8 +94,8 @@
 				{#if assistantEnabled}
 					<Tabs.Trigger value="assistant">Assistant</Tabs.Trigger>
 				{/if}
-				<Tabs.Trigger value="tools">Tools</Tabs.Trigger>
 				<Tabs.Trigger id="performers-panel-tab" value="performers">Performers</Tabs.Trigger>
+				<Tabs.Trigger value="tools">Details</Tabs.Trigger>
 			</Tabs.List>
 		</div>
 

@@ -25,8 +25,11 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
 import {
+	assignedPhrase,
 	harperTranscription,
+	performerNames,
 	preparePerformerScene,
+	preparePerformerRoster,
 	selectionPoints,
 	transcription,
 	waitForWorkbench
@@ -179,6 +182,11 @@ try {
 		await page.screenshot({ path: outputPath, type: 'png', clip });
 		console.log(`wrote ${outputPath} (${clip.width * 2}x${clip.height * 2})`);
 	} else {
+		// The hero borrows the performer detail scene's roster before pasting its
+		// untagged Verse 2. The assignment below then resolves its generated legend
+		// against real performers and draws both colours in the editor.
+		await preparePerformerRoster(page);
+
 		await editor.click();
 		await page.keyboard.press('Control+A');
 		await editor.fill(transcription);
@@ -189,10 +197,30 @@ try {
 		const title = page.getByRole('textbox', { name: "'Scribe title" }).first();
 		if (await title.count()) await title.fill('Hold the Line');
 
+		// Run the performer detail's actual two-step assignment on Verse 2: Avery
+		// sings the selected phrase, then Avery and Blair are chosen for the rest.
+		// The resulting legend, markup and colours are therefore produced by the
+		// workbench instead of being hand-written into a second fixture.
+		let points = await selectionPoints(page, assignedPhrase);
+		await page.mouse.move(points.from.x, points.from.y);
+		await page.mouse.down();
+		await page.mouse.move(points.to.x, points.to.y, { steps: 12 });
+		await page.mouse.up();
+
+		const picker = page.locator('.picker-layer .picker');
+		await picker.waitFor({ state: 'visible', timeout: 10_000 });
+		await picker.getByRole('button', { name: performerNames[0], exact: true }).click();
+		await picker.getByRole('button', { name: 'Next', exact: true }).click();
+		await picker.getByRole('button', { name: performerNames[0], exact: true }).click();
+		await picker.getByRole('button', { name: performerNames[1], exact: true }).click();
+		await picker.getByRole('button', { name: 'Apply', exact: true }).click();
+		await picker.waitFor({ state: 'detached', timeout: 10_000 });
+
 		// The `document`-tier rules settle 1500ms after typing stops, and they are the
 		// ones that say the most about a whole song. Screenshotting before they land
 		// photographs a panel that is still filling.
 		await page.waitForTimeout(2500);
+		await page.getByRole('tab', { name: 'Linter' }).click();
 
 		// Open a finding, which is what puts a card's explanation, its citation, and
 		// its fix on screen — and previews that fix in the document as a diff, so the
@@ -209,7 +237,27 @@ try {
 		await page.evaluate(() =>
 			document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
 		);
-		await page.waitForTimeout(200);
+
+		// Reopen the generated Avery-only assignment. The picker derives its initial
+		// selection from the legend and span the first pass wrote, so Avery must
+		// already be pressed without the script choosing a performer this time.
+		points = await selectionPoints(page, assignedPhrase);
+		await page.mouse.move(points.from.x, points.from.y);
+		await page.mouse.down();
+		await page.mouse.move(points.to.x, points.to.y, { steps: 12 });
+		await page.mouse.up();
+
+		await picker.waitFor({ state: 'visible', timeout: 10_000 });
+		const avery = picker.getByRole('button', { name: performerNames[0], exact: true });
+		await avery.waitFor({ state: 'visible' });
+		if ((await avery.getAttribute('aria-pressed')) !== 'true') {
+			throw new Error(`${performerNames[0]} was not preselected for the tagged Verse 2 phrase`);
+		}
+		const blair = picker.getByRole('button', { name: performerNames[1], exact: true });
+		if ((await blair.getAttribute('aria-pressed')) !== 'false') {
+			throw new Error(`${performerNames[1]} was selected for the Avery-only Verse 2 phrase`);
+		}
+		await page.waitForTimeout(400);
 
 		await page.screenshot({ path: outputPath, type: 'png' });
 		console.log(`wrote ${outputPath}`);

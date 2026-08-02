@@ -1376,6 +1376,32 @@ describe('EditorPane', () => {
 		expect(handle.getSnapshot().text).toBe('A lyric line');
 	});
 
+	it('does not offer a second header above a prose header awaiting its formatting fix', async () => {
+		const text = 'Verse 1:\nA lyric line';
+		const parsed = parseDocument(text);
+		await mountEditor({
+			text,
+			displayContext: context({
+				parsed,
+				diagnostics: {
+					revision: 0,
+					items: [
+						testDiagnostic({
+							ruleId: 'section.header-prose',
+							from: 0,
+							to: 'Verse 1:'.length,
+							message: 'Write this section header as [Verse 1].'
+						})
+					]
+				}
+			})
+		});
+
+		await expect
+			.element(page.getByRole('button', { name: '+ Add section header' }))
+			.not.toBeInTheDocument();
+	});
+
 	// Also the landing page's demo: a pane in an article rather than a column to
 	// fill, so it is as tall as its verse and grows when one is typed into it. The
 	// assertions are computed styles because that is where the whole feature lives

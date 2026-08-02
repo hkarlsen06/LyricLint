@@ -2,10 +2,15 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { ParsedDocument, TextRange } from '$lib/core/types.js';
+import type { Diagnostic, ParsedDocument, TextRange } from '$lib/core/types.js';
 import { editorCallbacksField } from './editor-state.js';
 
-export const setHeaderlessSectionsEffect = StateEffect.define<ParsedDocument>();
+export interface SectionGhostContext {
+	parsed: ParsedDocument;
+	diagnostics: readonly Diagnostic[];
+}
+
+export const setHeaderlessSectionsEffect = StateEffect.define<SectionGhostContext>();
 
 class SectionGhostWidget extends WidgetType {
 	constructor(
@@ -37,7 +42,8 @@ class SectionGhostWidget extends WidgetType {
 	}
 }
 
-function buildGhosts(state: EditorState, parsed: ParsedDocument): DecorationSet {
+function buildGhosts(state: EditorState, context: SectionGhostContext): DecorationSet {
+	const { parsed, diagnostics } = context;
 	if (parsed.text !== state.doc.toString()) {
 		return Decoration.none;
 	}
@@ -47,6 +53,20 @@ function buildGhosts(state: EditorState, parsed: ParsedDocument): DecorationSet 
 	for (const section of parsed.sections) {
 		const firstLine = section.lines[0];
 		if (section.header || !firstLine) {
+			continue;
+		}
+		// A prose-header finding means the line already names this section; its
+		// repair is to bracket that line, not to insert a second header above it.
+		// The diagnostics here are already occurrence-filtered, so ignoring that
+		// finding deliberately restores this fallback action.
+		if (
+			diagnostics.some(
+				(diagnostic) =>
+					diagnostic.ruleId === 'section.header-prose' &&
+					diagnostic.from === firstLine.from &&
+					diagnostic.to === firstLine.to
+			)
+		) {
 			continue;
 		}
 		const range = { from: firstLine.from, to: firstLine.to };

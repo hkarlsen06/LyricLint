@@ -15,11 +15,19 @@
  * it is quoted permanently.
  */
 
+/** The performers used throughout the product-shot scenes. */
+export const performerNames = ['Avery', 'Blair'];
+
+/** The phrase the performer scene hands to Avery. */
+export const assignedPhrase = 'Somewhere past the bridge';
+
 /**
  * The hero shot's document — written to be wrong in several ordinary ways at
  * once (a written-out section label, a lowercase line start, a subject and verb
  * that disagree, a typewriter apostrophe, a trailing comma, a bare ad-lib),
  * because a linter showing an empty panel is a picture of nothing happening.
+ * Verse 2 is the clean, initially untagged passage from the performer scene;
+ * the hero-shot script runs that scene's assignment before it captures.
  */
 export const transcription = `Verse 1:
 i has counted every streetlight on the way
@@ -31,11 +39,11 @@ hold the line, hold the line
 we was never gonna make it definately
 hold the line til the morning comes, yeah
 
-Verse 2:
-the map you drew was a coffee ring and a guess
-i keep it folded in the door where the cold gets in
-we counted 3 exits and took none of them
-somewhere past the bridge the signal dropped again
+[Verse 2]
+The map you drew was a coffee ring and a guess
+I keep it folded in the door where the cold gets in
+We counted three exits and took none of them
+Somewhere past the bridge the signal dropped again
 
 Bridge:
 (dont look back)
@@ -126,12 +134,6 @@ We let the engine hum instead
 The map you drew was a coffee ring
 I keep it folded in the door`;
 
-/** The performers both shots put on the roster, in the order they are added. */
-export const performerNames = ['Avery', 'Blair'];
-
-/** The phrase both shots hand to a performer. */
-export const assignedPhrase = 'Somewhere past the bridge';
-
 /**
  * Wait for the workbench to be the workbench: the editor present, and the boot
  * screen — which owns the window above every layer in the scale, including
@@ -145,13 +147,13 @@ export async function waitForWorkbench(page) {
 }
 
 /**
- * The performer scene: a populated roster, then the song.
+ * Populate the product-shot roster before its tagged document is pasted.
  *
  * The roster comes first so the pasted chorus's legend resolves against real
  * performers instead of arriving as unresolved voices — the same order the
  * landing page's own copy tells a reader to work in.
  */
-export async function preparePerformerScene(page, editor) {
+export async function preparePerformerRoster(page) {
 	await page.getByRole('tab', { name: 'Performers' }).click();
 	for (const name of performerNames) {
 		await page.locator('#new-performer').fill(name);
@@ -165,6 +167,11 @@ export async function preparePerformerScene(page, editor) {
 	const dismiss = page.getByRole('button', { name: 'Dismiss notification' });
 	while (await dismiss.count()) await dismiss.first().click();
 	await page.locator('.toast').first().waitFor({ state: 'detached', timeout: 10_000 });
+}
+
+/** The performer detail scene: a populated roster, then the full song. */
+export async function preparePerformerScene(page, editor) {
+	await preparePerformerRoster(page);
 
 	await editor.click();
 	await page.keyboard.press('Control+A');
@@ -185,15 +192,32 @@ export async function preparePerformerScene(page, editor) {
 export async function selectionPoints(page, phrase = assignedPhrase) {
 	const points = await page.evaluate((text) => {
 		const line = [...document.querySelectorAll('.cm-line')].find((candidate) =>
-			candidate.textContent.startsWith(text)
+			candidate.textContent.includes(text)
 		);
 		if (!line) return undefined;
+		const phraseFrom = line.textContent.indexOf(text);
 		const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
-		const first = walker.nextNode();
-		if (!first) return undefined;
+		let node = walker.nextNode();
+		let offset = 0;
+		let start;
+		let end;
+		while (node) {
+			const length = node.textContent?.length ?? 0;
+			if (!start && phraseFrom >= offset && phraseFrom < offset + length) {
+				start = { node, offset: phraseFrom - offset };
+			}
+			const phraseTo = phraseFrom + text.length;
+			if (phraseTo > offset && phraseTo <= offset + length) {
+				end = { node, offset: phraseTo - offset };
+				break;
+			}
+			offset += length;
+			node = walker.nextNode();
+		}
+		if (!start || !end) return undefined;
 		const range = document.createRange();
-		range.setStart(first, 0);
-		range.setEnd(first, Math.min(text.length, first.textContent.length));
+		range.setStart(start.node, start.offset);
+		range.setEnd(end.node, end.offset);
 		const box = range.getBoundingClientRect();
 		return {
 			from: { x: box.left + 1, y: box.top + box.height / 2 },

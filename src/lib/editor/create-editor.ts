@@ -742,7 +742,10 @@ export function createLyricEditor(
 					groups: context.voiceGroups ?? [],
 					performers: context.performers
 				}),
-				setHeaderlessSectionsEffect.of(parsed),
+				setHeaderlessSectionsEffect.of({
+					parsed,
+					diagnostics: context.diagnostics?.items ?? []
+				}),
 				setEditorCallbacksEffect.of(activeCallbacks)
 			],
 			annotations: Transaction.addToHistory.of(false)

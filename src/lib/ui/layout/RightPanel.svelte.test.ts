@@ -93,7 +93,7 @@ describe('RightPanel', () => {
 		expect(shown()).toHaveLength(1);
 		expect(shown()[0]!.hasAttribute('hidden')).toBe(false);
 
-		await fireEvent.click(screen.getByRole('tab', { name: 'Tools' }));
+		await fireEvent.click(screen.getByRole('tab', { name: 'Details' }));
 		await waitFor(() => expect(shown()).toHaveLength(1));
 		expect(shown()[0]!.textContent).toContain('Local data');
 
@@ -155,8 +155,8 @@ describe('RightPanel', () => {
 		expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
 			'Linter',
 			'Assistant',
-			'Tools',
-			'Performers'
+			'Performers',
+			'Details'
 		]);
 
 		const performersTab = screen.getByRole('tab', { name: 'Performers' });
@@ -171,12 +171,12 @@ describe('RightPanel', () => {
 		expect(document.activeElement?.textContent).toContain('Assistant');
 
 		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
-		await waitFor(() => expect(controller.activeTab).toBe('tools'));
-		expect(document.activeElement?.textContent).toContain('Tools');
-
-		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
 		await waitFor(() => expect(controller.activeTab).toBe('performers'));
 		expect(document.activeElement?.textContent).toContain('Performers');
+
+		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+		await waitFor(() => expect(controller.activeTab).toBe('tools'));
+		expect(document.activeElement?.textContent).toContain('Details');
 	});
 
 	test('keeps the existing three tabs and mounts no assistant pane when unavailable', async () => {
@@ -188,8 +188,8 @@ describe('RightPanel', () => {
 		await waitFor(() => expect(controller.activeTab).toBe('linter'));
 		expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
 			'Linter',
-			'Tools',
-			'Performers'
+			'Performers',
+			'Details'
 		]);
 		expect(screen.queryByRole('tab', { name: 'Assistant' })).toBeNull();
 		expect(document.querySelectorAll('.right-panel__pane')).toHaveLength(3);

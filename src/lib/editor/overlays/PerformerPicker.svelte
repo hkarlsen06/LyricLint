@@ -4,6 +4,7 @@
 	import type { PerformerId, PerformerRecord } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import type { ScreenRect } from '../contracts.js';
+	import { preferredControlPlacement } from './anchored-position.js';
 
 	interface Props {
 		performers: readonly PerformerRecord[];
@@ -64,6 +65,8 @@
 	let pendingAddName = $state<string | undefined>();
 	let root: HTMLDivElement;
 	let addInput = $state<HTMLInputElement | undefined>();
+	let pickerHeight = $state(0);
+	let viewportHeight = $state(0);
 	/** `[1, 2]` for a two-step flow, empty for a prompt that is not one. */
 	const stepStops = $derived(
 		stepCount && stepCount > 1 ? Array.from({ length: stepCount }, (_, i) => i + 1) : []
@@ -101,11 +104,37 @@
 			(!allowRemoval || selectionChanged)
 	);
 
+	/*
+	 * The roster belongs under the selection in reading order. Its measured box
+	 * is the answer to whether that is possible: flip above only when the whole
+	 * current picker would cross the viewport edge. The incoming placement stays
+	 * as the first-render fallback until there is a box to measure.
+	 */
+	const resolvedPlacement = $derived(
+		anchor && pickerHeight > 0 && viewportHeight > 0
+			? preferredControlPlacement(anchor, pickerHeight, viewportHeight)
+			: placement
+	);
 	const position = $derived(
 		anchor
-			? `--ll-anchor-left: ${Math.max(8, anchor.left)}px; top: ${Math.max(8, placement === 'above' ? anchor.top : anchor.bottom + 6)}px;`
+			? `--ll-anchor-left: ${Math.max(8, anchor.left)}px; top: ${Math.max(8, resolvedPlacement === 'above' ? anchor.top : anchor.bottom + 6)}px;`
 			: undefined
 	);
+
+	const measurePlacement: Attachment<HTMLDivElement> = (node) => {
+		const update = (): void => {
+			pickerHeight = node.getBoundingClientRect().height;
+			viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+		};
+		const observer = new ResizeObserver(update);
+		observer.observe(node);
+		window.addEventListener('resize', update);
+		update();
+		return () => {
+			observer.disconnect();
+			window.removeEventListener('resize', update);
+		};
+	};
 
 	function chipButtons(): HTMLButtonElement[] {
 		return root ? [...root.querySelectorAll<HTMLButtonElement>('[data-picker-chip]')] : [];
@@ -343,12 +372,13 @@
 <div
 	class="picker-layer"
 	class:anchored={anchor}
-	class:below={anchor && placement === 'below'}
+	class:below={anchor && resolvedPlacement === 'below'}
 	style={position}
 	{@attach dismissOnOutside(dismiss)}
 >
 	<div
 		bind:this={root}
+		{@attach measurePlacement}
 		class="picker"
 		class:show-focus={keyboardNavigated}
 		role="toolbar"

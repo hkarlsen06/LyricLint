@@ -24,6 +24,7 @@ import { createMediaPlayer } from './media-player.svelte.js';
 import { StubAudio } from './media-test-audio.js';
 import { sampleDraftText } from '../sample-draft.js';
 import { createWorkbenchController } from './workbench.svelte.js';
+import { buildRuleContext, computeDiagnostics } from './wiring.js';
 
 function draft(id: string, text = '[Verse]\nLine'): DraftRecord {
 	return {
@@ -1063,6 +1064,37 @@ describe('workbench diagnostic navigation', () => {
 
 		controller.onSnapshot({ ...snapshot(record, 4, text), diagnostics: [finding] });
 		expect(controller.visibleDiagnostics).toEqual([finding]);
+	});
+
+	test('shows provisional verse numbering only when its prose-header prerequisite is ignored', () => {
+		const text = 'Verse 1:\nFirst\n\n[Verse 2]\nSecond';
+		const record = draft('draft-a', text);
+		const { controller } = setup({ initial: record });
+		const next = snapshot(record, 1, text);
+		const diagnostics = computeDiagnostics(
+			next.parsed,
+			buildRuleContext(record.language, record.performers, record.ruleSetVersion, next.revision)
+		);
+		const proseHeader = diagnostics.find(
+			(diagnostic) => diagnostic.ruleId === 'section.header-prose'
+		);
+
+		expect(proseHeader).toBeDefined();
+		expect(diagnostics.map((diagnostic) => diagnostic.ruleId)).toContain('section.verse-numbering');
+		controller.onSnapshot({ ...next, diagnostics }, diagnostics);
+		expect(controller.unignoredDiagnostics.map((diagnostic) => diagnostic.ruleId)).not.toContain(
+			'section.verse-numbering'
+		);
+
+		controller.ignoreDiagnostic(proseHeader!);
+		expect(controller.unignoredDiagnostics.map((diagnostic) => diagnostic.ruleId)).toContain(
+			'section.verse-numbering'
+		);
+
+		controller.restoreDiagnostic(controller.ignoredDiagnosticKeys[0]!);
+		expect(controller.unignoredDiagnostics.map((diagnostic) => diagnostic.ruleId)).not.toContain(
+			'section.verse-numbering'
+		);
 	});
 
 	test('offers the assignment only where the document can take one', () => {

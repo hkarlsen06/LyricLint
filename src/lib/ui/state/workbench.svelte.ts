@@ -40,6 +40,7 @@ import { createMediaStore } from './media-store.svelte.js';
 import { isPhoneLayout } from './phone-layout.js';
 import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persistence/backup.js';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
+import { buildRuleContext } from './wiring.js';
 
 export { performerColorIds } from './roster-store.svelte.js';
 export type { RosterMergeSuggestion } from './roster-store.svelte.js';
@@ -404,6 +405,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	const panel = createPanelView({
 		editor: () => editorSession.editor,
 		snapshot: () => editorSession.snapshot,
+		ruleContext: () =>
+			buildRuleContext(
+				draft.language,
+				roster.performers,
+				deps.ruleSet?.version ?? 'unavailable',
+				editorSession.snapshot.revision
+			),
 		draftId: () => draft.draftId,
 		ignoreStore: deps.ignoreStore,
 		feedback,

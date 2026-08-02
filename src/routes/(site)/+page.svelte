@@ -232,7 +232,7 @@ And the "quiet" part was never really quiet`;
 						src="{resolve('/')}workbench.png"
 						width="2560"
 						height="1640"
-						alt="The LyricLint workbench: a transcription in the editor with problems underlined, and a panel beside it listing each finding with the Genius guideline behind it."
+						alt="The LyricLint workbench: Avery and Blair colour-tagged together through most of Verse 2, its final phrase tagged to Avery alone and selected with Avery preselected in the performer roster, and the linter panel listing sourced findings beside it."
 						fetchpriority="high"
 					/>
 				</div>

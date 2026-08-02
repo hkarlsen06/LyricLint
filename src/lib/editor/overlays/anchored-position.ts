@@ -6,6 +6,20 @@ const GAP = 6;
 const EDGE = 8;
 
 /**
+ * Prefer the expected reading direction for a compact anchored control: below
+ * its selection. Only flip above when the measured control would cross the
+ * viewport edge, rather than merely because the upper half is roomier.
+ */
+export function preferredControlPlacement(
+	anchor: ScreenRect,
+	controlHeight: number,
+	viewportHeight: number
+): 'above' | 'below' {
+	const below = viewportHeight - anchor.bottom - GAP - EDGE;
+	return below >= controlHeight ? 'below' : 'above';
+}
+
+/**
  * The inline style for a `position: fixed` card anchored to a document range.
  *
  * A card that only ever hangs *below* its anchor runs off the bottom of the
