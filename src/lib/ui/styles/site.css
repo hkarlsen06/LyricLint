@@ -909,6 +909,108 @@
 }
 
 /*
+ * The ways one convention goes wrong, as a run of links under the statement of
+ * it. Muted and one step down, like every other meta line here: the paragraph
+ * above is what the section is read for, and this is the way into the detail
+ * once the reader has stopped on it.
+ *
+ * A run rather than a list, because nineteen bulleted lists of two-to-eleven
+ * items is the column beside this one drawn a second time — the links are
+ * inside prose here, which is the whole difference between a guide and a finder.
+ */
+.rules__checks {
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+}
+
+.rules__checks a {
+	color: inherit;
+}
+
+.rules__checks a:hover {
+	color: var(--color-text);
+}
+
+/* The collapsed family reads as one name with its packs in a parenthesis after
+   it rather than joining the interpuncts around them — read inline,
+   `English · Norwegian · German` would be eight more entries in a run of eleven
+   rather than one. The brackets are in the markup, not in a `::before`: see the
+   comment on this run in `+page.svelte` for what generated punctuation costs a
+   screen reader. */
+.rules__checks-family {
+	white-space: normal;
+}
+
+/* The guide is read top to bottom, so its headings need the air a document
+   gives them rather than the tighter rhythm of a rule page's two sections. */
+.rules__guide h2 {
+	margin-block-start: var(--space-7);
+}
+
+/*
+ * One convention that exists once per language pack, drawn as one row with its
+ * packs as the links — the eight spelling rules that were eight near-identical
+ * rows on the reader's second screen. See `ruleIndexEntries`.
+ *
+ * It is a row in the same run as the rules around it, not a nested box: the run
+ * is the boundary and a member of it does not get a second one. What differs is
+ * that the row is read rather than pressed, so it carries its own padding the
+ * way a lookup row does — `.site-run a` is not there to supply it — and it is
+ * the links inside that are the targets.
+ */
+.rules__family {
+	display: grid;
+	padding: var(--space-3) var(--space-4);
+	gap: var(--space-1);
+}
+
+.rules__family p {
+	margin: 0;
+}
+
+/*
+ * The packs, as a wrapping row of quiet links. Underlined only under the
+ * pointer, like every other name-as-a-control in this application, and the open
+ * one is marked the way a rule row is — recessed, since it is the same "you are
+ * here" and the marker lives on the link rather than on the row around it.
+ */
+.rules__languages {
+	display: flex;
+	flex-wrap: wrap;
+	margin: 0;
+	padding: 0;
+	gap: var(--space-1) var(--space-2);
+	list-style: none;
+}
+
+/* `display` is declared rather than inherited, and that is the trap here: these
+   sit inside a `.site-run`, whose own `a` rule makes every link a full-width
+   grid row with the row's padding. At equal specificity this block wins only
+   the properties it names, so an undeclared `display` would leave eight
+   language links stacked down the column as eight rows — which is the shape
+   this collapse exists to remove, arriving through the stylesheet. */
+.rules__languages a {
+	display: inline-block;
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--radius-control);
+	color: var(--color-text);
+	font-size: var(--font-size-sm);
+	text-decoration: none;
+}
+
+.rules__languages a:hover {
+	background: var(--color-fill-subtle);
+	text-decoration: underline;
+}
+
+.rules__index .rules__languages a[aria-current='page'],
+.rules__index .rules__languages a[aria-current='page']:hover {
+	background: var(--color-canvas);
+	box-shadow: var(--shadow-recessed);
+	text-decoration: none;
+}
+
+/*
  * What the reader's own search matched, marked on the page they opened out of
  * it — the title, the explanation, both examples, and every row of a lookup
  * table. See `RuleSearchHighlight.svelte`.

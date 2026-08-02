@@ -56,6 +56,12 @@ export interface RuleReference {
 	explanation: string;
 	/** The lead fix of the example diagnostic, when the rule offers one. */
 	fix?: { label: string; kind: DiagnosticFix['kind'] };
+	/**
+	 * The convention this rule is one language's copy of, straight off the
+	 * policy case. See `RulePolicyCase.variant` for why eight spelling rules
+	 * have one and why the index collapses them.
+	 */
+	variant?: { family: string; language: string };
 	/** The reviewed example pair the diagnostic above was produced from. */
 	invalid: string;
 	valid: string;
@@ -274,6 +280,7 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 		message: lead.message,
 		explanation: lead.explanation,
 		...(fix ? { fix: { label: fix.label, kind: fix.kind } } : {}),
+		...(policy.variant ? { variant: { ...policy.variant } } : {}),
 		invalid: policy.invalid,
 		valid: policy.valid,
 		sources,
@@ -329,6 +336,8 @@ export function ruleReferenceFromSlug(slug: string): RuleReference | undefined {
 
 /** One index section: a titled, contiguous slice of the reference. */
 export interface RuleReferenceGroup {
+	/** The ID prefix the section is built from, and the key `groupGuidance` uses. */
+	group: string;
 	title: string;
 	rules: RuleReference[];
 }
@@ -344,7 +353,7 @@ export function groupedRuleReferences(): RuleReferenceGroup[] {
 	for (const reference of ruleReferences()) {
 		let group = groups.get(reference.group);
 		if (!group) {
-			group = { title: reference.groupTitle, rules: [] };
+			group = { group: reference.group, title: reference.groupTitle, rules: [] };
 			groups.set(reference.group, group);
 		}
 		group.rules.push(reference);

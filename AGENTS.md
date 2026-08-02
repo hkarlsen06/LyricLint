@@ -3308,7 +3308,7 @@ Implementation: `autoHeightTheme` and both options in `src/lib/editor/create-edi
 `.editor-pane.auto-height` in `src/lib/editor/EditorPane.svelte`, `.site-demo*` in
 `src/lib/ui/styles/site.css`, and the pane's own tests in `EditorPane.svelte.test.ts`.
 
-### A rule has a name, and the reference is found by symptom
+### A rule is named for what it catches, and `/rules/` is a guide with a finder beside it
 
 The rule reference is derived from the linter rather than written about it, and for a long time
 that included what each rule was _called_ — the index row and the page's `<h1>` were both the
@@ -3328,6 +3328,101 @@ on `RulePolicyCase` rather than in a map keyed by ID so the _type_ is what enfor
 already ships with a reviewed example or it does not ship, and now the same object is where its
 name has to be. `reference.test.ts` pins that the titles are unique, trimmed, under 44 characters,
 not a sentence, and never equal to the message.
+
+#### The title names the failure, not the convention
+
+The first set of written titles restated the rule, and inside a family that made every row the same
+row. Eleven section-header rules read `Every song part has a header`, `Name every section header`,
+`Song part names go in brackets`, `A blank line before a header` — eleven paraphrases of one
+instruction, carrying the same three nouns, in three different grammatical moods. Somebody who
+already knew the rules could tell them apart. Nobody else could, which is the wrong way round: the
+reader who needs this column is the one who does _not_ know them.
+
+**What separates these rules is what each one finds, so that is what the title says.** `A section
+with no header`, `Brackets with no song part in them`, `A header written as a plain line`, `No blank
+line above a header` — the same eleven, distinct at a glance. This is the workbench's own idiom
+arriving in the reference: a diagnostic card leads with what is wrong, not with the rule's name.
+
+The register is the middle one of three, and both neighbours were shipped and rejected. The
+`message` is too specific, because it is about one occurrence; `ruleName()`'s derived form is too
+generic. A title is the thing in between.
+
+#### One convention per language pack is one row
+
+Eight of the eleven rules in the Spelling family are the same rule instantiated per language —
+`A common English misspelling`, `A common Norwegian misspelling`, and six more. They look alike in
+the index because they **are** alike, and no amount of retitling touches that: a transcriber works
+in one language, so seven of those eight rows are noise to every reader who ever sees them. It is
+the second group on the page, so the repetition landed on the first screen.
+
+The engine needs them apart — different data, different citations, a different `check`. The reader
+does not. Publishing the registry's decomposition one-for-one is the same mistake `groupOrder` was
+making when it was registry order: an implementation detail deciding what is on the reader's first
+screen.
+
+`RulePolicyCase.variant` is the declaration and `ruleIndexEntries` is the collapse. Four things it
+owes:
+
+- **Only the drawing collapses.** `groupedRuleReferences()` stays exhaustive, so the sitemap, the
+  prerender entries, the structured data and the search all still see all 55 rules. Every
+  `/rules/<slug>/` URL is untouched, and the build output was diffed against the previous one to
+  prove it rather than argued about.
+- **A family takes the position of its first member**, so collapsing never reorders the group
+  around it, and the packs inside keep registry order.
+- **A family of one draws as an ordinary rule row.** Under a query that keeps only the Norwegian
+  rule, a family row is a heading over a single link — one press wearing two rows, which is what
+  `Fix all 1` refuses in the workbench. The rule's own row says more, because it carries the
+  message and the severity.
+- **The shared meta line is drawn only where every member agrees.** All eight are `suggestion` with
+  a previewed fix today; a family that disagreed would be stating one member's severity over the
+  rest, so it states none.
+
+`family` and `language` are written on the case rather than derived from the ID, because
+`spelling.arabic-common` is not a _common misspelling_ rule in the sense the other five are and its
+own title says so. What makes the eight one family is editorial, exactly as `groupOrder` is.
+
+#### `/rules/` is the guide, and the list beside it is the finder
+
+The detail column at `/rules/` used to be a page **about** the list: how the reference is derived,
+how to search it, which chips narrow what. All true, and all written for a reader who already knew
+what they were looking for. The one this section actually has to serve arrives from the landing
+page not knowing the conventions at all, and was handed 55 checks and an explanation of the
+filtering — the catalog is a list of failures a linter detects, and it was being presented as
+though it were a guide.
+
+So the conventions are the content now: one section per family, in `groupOrder`, each stating what
+to do, with its rules underneath as the ways it goes wrong. `groupGuidance` in
+`rules/reference-guide.ts` is that prose, and three things bound it:
+
+- **It is the only written prose in the reference, and it must not restate a rule.** A sentence
+  there that quoted a message or an explanation would have to be re-edited whenever that rule
+  changed its wording, with nothing to say so — which is the drift the whole reference is derived
+  to avoid. `reference.test.ts` asserts no guidance string contains any rule's message or
+  explanation.
+- **Where LyricLint goes beyond the reviewed sources, the guide says so.** Three families carry a
+  check the Genius guidance does not mandate — the blank line above a header, one space between
+  words, the period at the end of a line — and each of those sentences hedges here exactly as the
+  rule's own explanation hedges on its page. A guide presenting our preferences as somebody else's
+  policy is worth less than no guide.
+- **It is a module with no imports.** `reference.ts` pulls the parser, all 55 rules and the ~330KB
+  language-detection corpus, so an index page cannot import it — that is what `+layout.server.ts`
+  exists for. A `Record` of strings is importable directly, and it never rides on a group, so it
+  costs the other 54 prerendered payloads nothing.
+
+**The checks under each convention are an interpunct run, not a bulleted list.** Nineteen bulleted
+lists is the column beside this one drawn a second time; inside prose the links read as the ways
+the sentence above them goes wrong, which is the whole difference between a guide and a finder.
+The same collapse applies, so the spelling section reads `Spellings the reviewed guides correct
+(English, Norwegian, …)` rather than eight more names.
+
+**Every separator in that run is a value, not markup whitespace and not generated content**, and
+both alternatives shipped first. Markup whitespace is at the mercy of the formatter: the run read
+`standardizes· A spelling`, with the space on the wrong side of the interpunct, because a line
+break landed after the `</a>`. `::before` is worse — the brackets around the language packs were
+generated content for one round, which draws them for a reader with eyes and leaves
+`correctEnglish, Norwegian` for a screen reader. Punctuation separating two facts is content. The
+constants exist because a string literal in a mustache is `svelte/no-useless-mustaches`, and the
+rule is right about every other case.
 
 **The row leads with the title and keeps the message under it**, because the message is still the
 most useful thing on the row once the reader has stopped on it — it is what the workbench will
@@ -3593,11 +3688,13 @@ reader concluding the reference is incomplete. `style` is in `groupTitles` for t
 it will never have a page, but `ruleName` reads the same map, and without an entry the
 ignored-rules footer printed the raw ID at the reader.
 
-Implementation: `title` on `RulePolicyCase` in `rules/catalog/policy-cases.ts`, `groupOrder` in
-`rules/reference.ts`, `rules/reference-search.ts` (the fold, the filter, the counts, the popular
-list — pure, so the component holds no logic of its own), `revealSelected` in
-`src/lib/ui/site/RuleIndex.svelte` with its trigger in `routes/(site)/rules/+layout.svelte`, and
-`.rules__finder` in `site.css`.
+Implementation: `title` and `variant` on `RulePolicyCase` in `rules/catalog/policy-cases.ts`,
+`groupOrder` in `rules/reference.ts`, `groupGuidance` in `rules/reference-guide.ts`,
+`rules/reference-search.ts` (the fold, the filter, the counts, the popular list, `ruleIndexEntries`
+and the highlight arithmetic — pure, so neither the component nor the page holds logic of its own),
+`revealSelected` in `src/lib/ui/site/RuleIndex.svelte` with its trigger in
+`routes/(site)/rules/+layout.svelte`, the guide in `routes/(site)/rules/+page.svelte`, and
+`.rules__finder`, `.rules__family`, `.rules__checks` and `.rules__hit` in `site.css`.
 
 ### A line that is a header is not a lyric, and every rule has to agree about which
 

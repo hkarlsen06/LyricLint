@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { policyCases } from './catalog/policy-cases.js';
 import { sourceRegistry } from './data/sources.js';
+import { groupGuidance } from './reference-guide.js';
 import { ruleLookupTables } from './lookup-tables.js';
 import {
 	groupedRuleReferences,
@@ -45,9 +46,57 @@ describe('rule reference derivation', () => {
 			// A title that is the message is the drift this field exists to end:
 			// fifty-two occurrence-specific messages is what the index used to be.
 			expect(reference.title, reference.id).not.toBe(reference.message);
-			// It names the convention, so it is not a sentence about one occurrence.
+			// It names what the rule catches, so it is a noun phrase rather than a
+			// sentence about one occurrence.
 			expect(reference.title, reference.id).not.toMatch(/\.$/u);
 		}
+	});
+
+	it('states every family’s convention, and states it once', () => {
+		// The guide is the connective tissue the reference could not derive: the
+		// index gave a reader arriving from the landing page 55 checks, which is
+		// the shape a linter decomposes into rather than an answer to “what are
+		// the conventions”. Exhaustive, so a rule family cannot ship into the
+		// index with no statement of what it is for.
+		const families = groupedRuleReferences().map((group) => group.group);
+		expect(Object.keys(groupGuidance).sort()).toEqual([...families].sort());
+		for (const family of families) {
+			const guidance = groupGuidance[family]!;
+			expect(guidance.trim(), family).toBe(guidance);
+			expect(guidance.length, family).toBeGreaterThan(80);
+		}
+
+		// And it is the *only* written prose in the reference, which is the bound
+		// that keeps it from drifting: a sentence here that restated a rule's
+		// message or explanation would have to be re-edited whenever that rule
+		// changed its wording, and nothing would say so.
+		const written = Object.values(groupGuidance).join('\n');
+		for (const reference of ruleReferences()) {
+			expect(written, reference.id).not.toContain(reference.message);
+			expect(written, reference.id).not.toContain(reference.explanation);
+		}
+	});
+
+	it('carries a variant marker only where a convention exists once per language', () => {
+		const variants = ruleReferences().filter((reference) => reference.variant);
+		expect(variants.map((reference) => reference.variant!.language)).toEqual([
+			'English',
+			'Norwegian',
+			'German',
+			'Spanish',
+			'French',
+			'Arabic',
+			'Japanese',
+			'Korean'
+		]);
+		// One family, named once. Two spellings of it would draw two rows.
+		expect(new Set(variants.map((reference) => reference.variant!.family)).size).toBe(1);
+		// The collapse is presentation only: every one of them is still its own
+		// entry here, which is what the sitemap, the prerender entries and the
+		// structured data all read.
+		expect(groupedRuleReferences().flatMap((group) => group.rules)).toHaveLength(
+			enabledRules.length
+		);
 	});
 
 	it('has no policy case for a rule that is not enabled', () => {

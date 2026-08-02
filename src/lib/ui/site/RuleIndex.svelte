@@ -14,6 +14,7 @@
 		presentFacets,
 		ruleCounts,
 		ruleFixability,
+		ruleIndexEntries,
 		severityOrder
 	} from '$lib/rules/reference-search.js';
 	import type { RuleReference, RuleReferenceGroup } from '$lib/rules/reference.js';
@@ -64,6 +65,18 @@
 		suggestion: 'Suggestions',
 		'manual-review': 'Manual review'
 	};
+
+	/**
+	 * Whether a collapsed family can state one severity and one fix kind for all
+	 * of its members. Where they disagree the row states neither, rather than
+	 * printing the first member's answer over the rest.
+	 */
+	function sharedMeta(rules: readonly RuleReference[]): boolean {
+		return rules.every(
+			(rule) =>
+				rule.severity === rules[0]!.severity && ruleFixability(rule) === ruleFixability(rules[0]!)
+		);
+	}
 
 	function toggle<T>(list: T[], value: T): T[] {
 		return list.includes(value) ? list.filter((entry) => entry !== value) : [...list, value];
@@ -246,6 +259,42 @@
 		</li>
 	{/snippet}
 
+	<!-- One convention, one row, and its language packs as the links.
+	     `ruleIndexEntries` has the reasoning; what this markup owes is that the
+	     open rule is still marked, which it is because the marker lives on the
+	     link rather than on the row.
+
+	     The meta line is drawn only where every member agrees, which today they
+	     all do — eight `suggestion` rules with a previewed fix. A family whose
+	     members disagreed would be stating one member's severity over all of
+	     them, so it states none and the reader finds it on the page they open. -->
+	{#snippet family(title: string, rules: RuleReference[])}
+		<li class="rules__family">
+			<p class="site-run__title">{title}</p>
+			<p class="rules__row-message">
+				One rule per language pack, each citing that language's own reviewed source.
+			</p>
+			<ul class="rules__languages">
+				{#each rules as rule (rule.id)}
+					<li>
+						<a
+							href={resolve('/(site)/rules/[rule]', { rule: rule.slug })}
+							aria-current={rule.slug === selectedSlug ? 'page' : undefined}
+						>
+							{rule.variant?.language ?? rule.title}
+						</a>
+					</li>
+				{/each}
+			</ul>
+			{#if sharedMeta(rules)}
+				<p class="site-run__meta">
+					<SeverityTag severity={rules[0]!.severity} />
+					<span>{fixabilityLabel(ruleFixability(rules[0]!))}</span>
+				</p>
+			{/if}
+		</li>
+	{/snippet}
+
 	<nav aria-label="All formatting rules">
 		<!-- The six conventions a transcriber has to be told, before the nineteen
 		     families. Both copies of the open rule's row carry `aria-current`: they
@@ -264,8 +313,12 @@
 		{#each filtered as group (group.title)}
 			<h2 class="rules__group">{group.title}</h2>
 			<ul class="site-run">
-				{#each group.rules as rule (rule.id)}
-					{@render row(rule)}
+				{#each ruleIndexEntries(group.rules) as entry (entry.kind === 'rule' ? entry.rule.id : entry.family)}
+					{#if entry.kind === 'rule'}
+						{@render row(entry.rule)}
+					{:else}
+						{@render family(entry.family, entry.rules)}
+					{/if}
 				{/each}
 			</ul>
 		{/each}

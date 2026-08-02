@@ -1,13 +1,13 @@
 {
 	"formatVersion": 2,
 	"ruleSetVersion": "2026.07.30.0",
-	"generatedAt": "2026-08-02T13:04:48.214Z",
-	"contentHash": "fa71d397d53bfb694a27858a2f665cc863771756bdeab61cf1f46eadd1ec8bd0",
+	"generatedAt": "2026-08-02T14:13:59.580Z",
+	"contentHash": "3dc0ab663701d1472131274e2e9ed82d60602b11a26efa837d5b3ae05005ddb2",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
 			"slug": "syntax-unbalanced-brackets",
-			"title": "Close every section header bracket",
+			"title": "A header bracket left open",
 			"group": "syntax",
 			"groupTitle": "Syntax and markup",
 			"severity": "error",
@@ -23,7 +23,7 @@
 		{
 			"id": "syntax.unsupported-voice-markup",
 			"slug": "syntax-unsupported-voice-markup",
-			"title": "Only italic and bold performer markup",
+			"title": "Markup that is not italic or bold",
 			"group": "syntax",
 			"groupTitle": "Syntax and markup",
 			"severity": "error",
@@ -39,7 +39,7 @@
 		{
 			"id": "language.selection-mismatch",
 			"slug": "language-selection-mismatch",
-			"title": "The selected language matches the lyrics",
+			"title": "Lyrics not in the selected language",
 			"group": "language",
 			"groupTitle": "Language selection",
 			"severity": "warning",
@@ -54,7 +54,7 @@
 		{
 			"id": "section.header-missing",
 			"slug": "section-header-missing",
-			"title": "Every song part has a header",
+			"title": "A section with no header",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "warning",
@@ -69,7 +69,7 @@
 		{
 			"id": "section.header-empty",
 			"slug": "section-header-empty",
-			"title": "Name every section header",
+			"title": "Brackets with no song part in them",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "warning",
@@ -84,7 +84,7 @@
 		{
 			"id": "section.header-prose",
 			"slug": "section-header-prose",
-			"title": "Song part names go in brackets",
+			"title": "A header written as a plain line",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "warning",
@@ -100,7 +100,7 @@
 		{
 			"id": "section.header-spacing",
 			"slug": "section-header-spacing",
-			"title": "A blank line before a header",
+			"title": "No blank line above a header",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "suggestion",
@@ -116,7 +116,7 @@
 		{
 			"id": "section.header-language",
 			"slug": "section-header-language",
-			"title": "Headers from the selected language",
+			"title": "A header from the wrong language pack",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "warning",
@@ -132,7 +132,7 @@
 		{
 			"id": "section.localized-header-preference",
 			"slug": "section-localized-header-preference",
-			"title": "Prefer the localized song part name",
+			"title": "An English name for a localized part",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "suggestion",
@@ -148,7 +148,7 @@
 		{
 			"id": "section.header-unrecognized",
 			"slug": "section-header-unrecognized",
-			"title": "Check an unrecognized header",
+			"title": "A header no reviewed catalog knows",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "manual-review",
@@ -173,7 +173,7 @@
 		{
 			"id": "section.deprecated-hook",
 			"slug": "section-deprecated-hook",
-			"title": "[Hook] is deprecated",
+			"title": "[Hook], which Genius has retired",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "warning",
@@ -189,7 +189,7 @@
 		{
 			"id": "section.immediate-repeat-spacing",
 			"slug": "section-immediate-repeat-spacing",
-			"title": "One header for an immediate repeat",
+			"title": "An immediate repeat split in two",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "warning",
@@ -205,7 +205,7 @@
 		{
 			"id": "section.unlinked-repeat",
 			"slug": "section-unlinked-repeat",
-			"title": "Link repeated song parts",
+			"title": "Repeated parts that are not linked",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "suggestion",
@@ -220,7 +220,7 @@
 		{
 			"id": "section.verse-numbering",
 			"slug": "section-verse-numbering",
-			"title": "Number distinct verses",
+			"title": "Distinct verses left unnumbered",
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "suggestion",
@@ -236,7 +236,7 @@
 		{
 			"id": "performer.header-required",
 			"slug": "performer-header-required",
-			"title": "Styled vocals need a performer legend",
+			"title": "Styled vocals with no legend",
 			"group": "performer",
 			"groupTitle": "Performer attribution",
 			"severity": "warning",
@@ -252,7 +252,7 @@
 		{
 			"id": "performer.style-order",
 			"slug": "performer-style-order",
-			"title": "Legend styles in slot order",
+			"title": "A legend whose styles are out of order",
 			"group": "performer",
 			"groupTitle": "Performer attribution",
 			"severity": "warning",
@@ -268,7 +268,7 @@
 		{
 			"id": "performer.inline-mismatch",
 			"slug": "performer-inline-mismatch",
-			"title": "Every inline style is in the legend",
+			"title": "A styled voice missing from the legend",
 			"group": "performer",
 			"groupTitle": "Performer attribution",
 			"severity": "warning",
@@ -283,7 +283,7 @@
 		{
 			"id": "performer.parenthetical-boundary",
 			"slug": "performer-parenthetical-boundary",
-			"title": "Style the whole parenthetical",
+			"title": "A parenthesis left outside the style",
 			"group": "performer",
 			"groupTitle": "Performer attribution",
 			"severity": "warning",
@@ -299,7 +299,7 @@
 		{
 			"id": "performer.redundant-markup",
 			"slug": "performer-redundant-markup",
-			"title": "Merge adjacent performer markup",
+			"title": "The same voice reopened line after line",
 			"group": "performer",
 			"groupTitle": "Performer attribution",
 			"severity": "suggestion",
@@ -315,7 +315,7 @@
 		{
 			"id": "performer.unused-legend-slot",
 			"slug": "performer-unused-legend-slot",
-			"title": "No unused legend slots",
+			"title": "A legend slot the section never uses",
 			"group": "performer",
 			"groupTitle": "Performer attribution",
 			"severity": "suggestion",
@@ -331,7 +331,7 @@
 		{
 			"id": "performer.too-many-groups",
 			"slug": "performer-too-many-groups",
-			"title": "More voices than formatting slots",
+			"title": "More voices than there are style slots",
 			"group": "performer",
 			"groupTitle": "Performer attribution",
 			"severity": "warning",
@@ -346,7 +346,7 @@
 		{
 			"id": "performer.line-label-forbidden",
 			"slug": "performer-line-label-forbidden",
-			"title": "No performer labels on lyric lines",
+			"title": "A performer named on the lyric line",
 			"group": "performer",
 			"groupTitle": "Performer attribution",
 			"severity": "warning",
@@ -362,7 +362,7 @@
 		{
 			"id": "spelling.standardized",
 			"slug": "spelling-standardized",
-			"title": "Standardized lyric spellings",
+			"title": "A spelling the guide standardizes",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -378,7 +378,7 @@
 		{
 			"id": "spelling.language-variant",
 			"slug": "spelling-language-variant",
-			"title": "Match the selected English variant",
+			"title": "A spelling from the other English",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "manual-review",
@@ -393,7 +393,7 @@
 		{
 			"id": "spelling.texting-shorthand",
 			"slug": "spelling-texting-shorthand",
-			"title": "Write texting shorthand out in full",
+			"title": "Texting shorthand in a sung line",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -409,7 +409,7 @@
 		{
 			"id": "quotes.typewriter",
 			"slug": "quotes-typewriter",
-			"title": "Straight quotes in lyric text",
+			"title": "A curly quote in lyric text",
 			"group": "quotes",
 			"groupTitle": "Quotation marks",
 			"severity": "warning",
@@ -425,7 +425,7 @@
 		{
 			"id": "contraction.apostrophe",
 			"slug": "contraction-apostrophe",
-			"title": "Apostrophes in contractions",
+			"title": "A contraction missing its apostrophe",
 			"group": "contraction",
 			"groupTitle": "Contractions",
 			"severity": "warning",
@@ -441,7 +441,7 @@
 		{
 			"id": "grammar.english-pronoun-i",
 			"slug": "grammar-english-pronoun-i",
-			"title": "Capitalize the pronoun “I”",
+			"title": "A lowercase “i” for the pronoun",
 			"group": "grammar",
 			"groupTitle": "Grammar",
 			"severity": "suggestion",
@@ -457,7 +457,7 @@
 		{
 			"id": "spelling.english-common",
 			"slug": "spelling-english-common",
-			"title": "Common English misspellings",
+			"title": "A common English misspelling",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -473,7 +473,7 @@
 		{
 			"id": "spelling.norwegian-common",
 			"slug": "spelling-norwegian-common",
-			"title": "Common Norwegian misspellings",
+			"title": "A common Norwegian misspelling",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -489,7 +489,7 @@
 		{
 			"id": "spelling.german-common",
 			"slug": "spelling-german-common",
-			"title": "Common German misspellings",
+			"title": "A common German misspelling",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -505,7 +505,7 @@
 		{
 			"id": "grammar.spanish-contractions",
 			"slug": "grammar-spanish-contractions",
-			"title": "Spanish “al” and “del” contractions",
+			"title": "“a el” where Spanish wants “al”",
 			"group": "grammar",
 			"groupTitle": "Grammar",
 			"severity": "suggestion",
@@ -521,7 +521,7 @@
 		{
 			"id": "spelling.spanish-common",
 			"slug": "spelling-spanish-common",
-			"title": "Common Spanish misspellings",
+			"title": "A common Spanish misspelling",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -537,7 +537,7 @@
 		{
 			"id": "spelling.french-common",
 			"slug": "spelling-french-common",
-			"title": "Common French misspellings",
+			"title": "A common French misspelling",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -553,7 +553,7 @@
 		{
 			"id": "spelling.arabic-common",
 			"slug": "spelling-arabic-common",
-			"title": "Standard Arabic spellings",
+			"title": "A non-standard Arabic spelling",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -569,7 +569,7 @@
 		{
 			"id": "spelling.japanese-common",
 			"slug": "spelling-japanese-common",
-			"title": "Standard Japanese spellings",
+			"title": "A non-standard Japanese spelling",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -585,7 +585,7 @@
 		{
 			"id": "spelling.korean-common",
 			"slug": "spelling-korean-common",
-			"title": "Standard Korean spellings",
+			"title": "A non-standard Korean spelling",
 			"group": "spelling",
 			"groupTitle": "Spelling",
 			"severity": "suggestion",
@@ -601,7 +601,7 @@
 		{
 			"id": "symbols.special-characters",
 			"slug": "symbols-special-characters",
-			"title": "Spell out symbols in lyrics",
+			"title": "A symbol standing in for a word",
 			"group": "symbols",
 			"groupTitle": "Symbols and special characters",
 			"severity": "suggestion",
@@ -617,7 +617,7 @@
 		{
 			"id": "text.invisible-characters",
 			"slug": "text-invisible-characters",
-			"title": "No invisible or trailing whitespace",
+			"title": "Whitespace you cannot see",
 			"group": "text",
 			"groupTitle": "Text spacing and invisible characters",
 			"severity": "warning",
@@ -633,7 +633,7 @@
 		{
 			"id": "text.multiple-spaces",
 			"slug": "text-multiple-spaces",
-			"title": "One space between words",
+			"title": "More than one space between words",
 			"group": "text",
 			"groupTitle": "Text spacing and invisible characters",
 			"severity": "suggestion",
@@ -649,7 +649,7 @@
 		{
 			"id": "unknown.marker",
 			"slug": "unknown-marker",
-			"title": "[?] for an unclear lyric",
+			"title": "A near-miss of the [?] marker",
 			"group": "unknown",
 			"groupTitle": "Unknown lyrics",
 			"severity": "warning",
@@ -665,7 +665,7 @@
 		{
 			"id": "unknown.improvised-marker",
 			"slug": "unknown-improvised-marker",
-			"title": "Question marks are not the [?] marker",
+			"title": "A run of question marks for a lyric",
 			"group": "unknown",
 			"groupTitle": "Unknown lyrics",
 			"severity": "suggestion",
@@ -681,7 +681,7 @@
 		{
 			"id": "unknown.unresolved",
 			"slug": "unknown-unresolved",
-			"title": "Resolve [?] where you can",
+			"title": "A [?] left in the finished lyric",
 			"group": "unknown",
 			"groupTitle": "Unknown lyrics",
 			"severity": "suggestion",
@@ -696,7 +696,7 @@
 		{
 			"id": "repeat.placeholder",
 			"slug": "repeat-placeholder",
-			"title": "Write repeats out in full",
+			"title": "A placeholder instead of the repeat",
 			"group": "repeat",
 			"groupTitle": "Repeated sections",
 			"severity": "warning",
@@ -711,7 +711,7 @@
 		{
 			"id": "sound-effect.asterisks",
 			"slug": "sound-effect-asterisks",
-			"title": "Asterisks around a sound effect",
+			"title": "A sound effect not wrapped in stars",
 			"group": "sound-effect",
 			"groupTitle": "Sound effects",
 			"severity": "warning",
@@ -727,7 +727,7 @@
 		{
 			"id": "censored.mask",
 			"slug": "censored-mask",
-			"title": "Four asterisks for a censored word",
+			"title": "A censor mask that is not four stars",
 			"group": "censored",
 			"groupTitle": "Censored words",
 			"severity": "warning",
@@ -743,7 +743,7 @@
 		{
 			"id": "adlib.parentheses",
 			"slug": "adlib-parentheses",
-			"title": "Capitalize a parenthesized ad-lib",
+			"title": "A lowercase ad-lib in parentheses",
 			"group": "adlib",
 			"groupTitle": "Ad-libs",
 			"severity": "suggestion",
@@ -759,7 +759,7 @@
 		{
 			"id": "adlib.separator",
 			"slug": "adlib-separator",
-			"title": "Separate consecutive ad-libs",
+			"title": "Two ad-libs run together",
 			"group": "adlib",
 			"groupTitle": "Ad-libs",
 			"severity": "suggestion",
@@ -775,7 +775,7 @@
 		{
 			"id": "capitalization.line-start",
 			"slug": "capitalization-line-start",
-			"title": "Capitalize the start of a line",
+			"title": "A line starting in lowercase",
 			"group": "capitalization",
 			"groupTitle": "Capitalization",
 			"severity": "suggestion",
@@ -791,7 +791,7 @@
 		{
 			"id": "capitalization.title-case",
 			"slug": "capitalization-title-case",
-			"title": "Sentence case, not title case",
+			"title": "A line capitalized like a title",
 			"group": "capitalization",
 			"groupTitle": "Capitalization",
 			"severity": "suggestion",
@@ -806,7 +806,7 @@
 		{
 			"id": "punctuation.line-ending",
 			"slug": "punctuation-line-ending",
-			"title": "No period at the end of a line",
+			"title": "A period at the end of a line",
 			"group": "punctuation",
 			"groupTitle": "Punctuation",
 			"severity": "warning",
@@ -822,7 +822,7 @@
 		{
 			"id": "punctuation.question",
 			"slug": "punctuation-question",
-			"title": "A question mark on a question",
+			"title": "A question with no question mark",
 			"group": "punctuation",
 			"groupTitle": "Punctuation",
 			"severity": "suggestion",
@@ -838,7 +838,7 @@
 		{
 			"id": "punctuation.dropped-word-dash",
 			"slug": "punctuation-dropped-word-dash",
-			"title": "No comma after an em dash",
+			"title": "A comma straight after an em dash",
 			"group": "punctuation",
 			"groupTitle": "Punctuation",
 			"severity": "warning",
@@ -854,7 +854,7 @@
 		{
 			"id": "line.prose-density",
 			"slug": "line-prose-density",
-			"title": "Break a prose-like line",
+			"title": "A line that reads like prose",
 			"group": "line",
 			"groupTitle": "Line length",
 			"severity": "suggestion",
@@ -869,7 +869,7 @@
 		{
 			"id": "numbers.spell-out",
 			"slug": "numbers-spell-out",
-			"title": "Spell out small numbers",
+			"title": "A digit where the word is sung",
 			"group": "numbers",
 			"groupTitle": "Numbers",
 			"severity": "suggestion",

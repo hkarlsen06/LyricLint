@@ -42,8 +42,27 @@ function popularRows(): HTMLAnchorElement[] {
 	return [...document.querySelectorAll<HTMLAnchorElement>('.rules__popular a')];
 }
 
+/**
+ * What each link in the list is called.
+ *
+ * A rule's own row carries the title inside the link; a language pack's link
+ * inside a collapsed family is the language, and its title belongs to the row
+ * around it. Both are links to a rule page, which is what keeps every count
+ * assertion below reading against `total` — collapsing changed how the rules
+ * are grouped into rows, not how many of them there are.
+ */
 function titles(list: HTMLAnchorElement[] = rows()): string[] {
-	return list.map((row) => row.querySelector('.site-run__title')?.textContent?.trim() ?? '');
+	return list.map(
+		(row) =>
+			row.querySelector('.site-run__title')?.textContent?.trim() ?? row.textContent?.trim() ?? ''
+	);
+}
+
+/** The title of every collapsed family row, in order. */
+function families(): string[] {
+	return [...document.querySelectorAll('.rules__family .site-run__title')].map(
+		(title) => title.textContent?.trim() ?? ''
+	);
 }
 
 function headings(): string[] {
@@ -57,17 +76,54 @@ function field() {
 }
 
 describe('RuleIndex', () => {
-	it('leads each row with the rule’s name and keeps the linter’s message under it', async () => {
+	it('names each row by what the rule catches, and keeps the linter’s message under it', async () => {
 		render(RuleIndex, { groups });
 
 		expect(rows()).toHaveLength(total);
-		// The specific regression: the row used to be titled with the message, so
-		// the index of a reference read as a dump of somebody else's diagnostics.
-		expect(titles()).toContain('Common English misspellings');
-		expect(titles()).not.toContain('“definately” is a common English spelling error.');
-		await expect
-			.element(page.getByText('“definately” is a common English spelling error.'))
-			.toBeVisible();
+		// Two regressions in one row. The row used to be titled with the *message*,
+		// so the index of a reference read as a dump of somebody else's
+		// diagnostics; and the titles that replaced it restated the convention, so
+		// eleven header rules were eleven paraphrases of one instruction. A title
+		// names the failure now.
+		expect(titles()).toContain('A section with no header');
+		expect(titles()).toContain('A header written as a plain line');
+		expect(titles()).not.toContain('This lyric section has no header.');
+		// `.first()`, because this rule is in the popular block as well as in its
+		// own family and the message is therefore drawn twice.
+		await expect.element(page.getByText('This lyric section has no header.').first()).toBeVisible();
+	});
+
+	it('draws one row for a convention that exists once per language pack', () => {
+		render(RuleIndex, { groups });
+
+		// Eight of the eleven spelling rules are the same rule per language, and
+		// eight near-identical rows landed on the second screen of a reader who
+		// came to find out what the conventions are.
+		expect(families()).toEqual(['Spellings the reviewed guides correct']);
+		const packs = [...document.querySelectorAll<HTMLAnchorElement>('.rules__languages a')];
+		expect(packs.map((link) => link.textContent?.trim())).toEqual([
+			'English',
+			'Norwegian',
+			'German',
+			'Spanish',
+			'French',
+			'Arabic',
+			'Japanese',
+			'Korean'
+		]);
+		// Every pack is still its own page, so the list is exhaustive and the
+		// count under the field is still a count of rules.
+		expect(rows()).toHaveLength(total);
+		for (const link of packs) expect(link.getAttribute('href')).toMatch(/\/rules\/spelling-/u);
+	});
+
+	it('gives a family of one its own row back, because a heading over one link is two rows for one press', async () => {
+		render(RuleIndex, { groups });
+
+		await field().fill('desverre');
+
+		expect(families()).toEqual([]);
+		expect(titles()).toEqual(['A common Norwegian misspelling']);
 	});
 
 	it('says nothing about a count while nothing is narrowing the list', () => {
@@ -83,7 +139,7 @@ describe('RuleIndex', () => {
 
 		await field().fill('definately');
 
-		expect(titles()).toEqual(['Common English misspellings']);
+		expect(titles()).toEqual(['A common English misspelling']);
 		// A group that keeps nothing is dropped, not left standing empty.
 		expect(headings()).toEqual(['Spelling']);
 		await expect.element(page.getByText(`1 of ${total} rules`)).toBeVisible();
@@ -93,10 +149,10 @@ describe('RuleIndex', () => {
 		render(RuleIndex, { groups });
 
 		await field().fill('spelling-standardized');
-		expect(titles()).toEqual(['Standardized lyric spellings']);
+		expect(titles()).toEqual(['A spelling the guide standardizes']);
 
 		await field().fill('parenthetical');
-		expect(titles()).toContain('Style the whole parenthetical');
+		expect(titles()).toContain('A parenthesis left outside the style');
 	});
 
 	it('searches the prose a table-shaped rule’s page is mostly made of', async () => {
@@ -107,7 +163,7 @@ describe('RuleIndex', () => {
 		// looking at, and for a while none of it was reachable by typing the words
 		// in it.
 		await field().fill('cousin');
-		expect(titles()).toEqual(['Standardized lyric spellings']);
+		expect(titles()).toEqual(['A spelling the guide standardizes']);
 	});
 
 	it('publishes the query, because the rule it opens marks what was searched for', async () => {
@@ -247,12 +303,12 @@ describe('RuleIndex', () => {
 		expect(rows()).toHaveLength(total);
 		expect(headings()[0]).toBe('Popular');
 		expect(titles(popularRows())).toEqual([
-			'Every song part has a header',
-			'Song part names go in brackets',
-			'Styled vocals need a performer legend',
-			'Standardized lyric spellings',
-			'No period at the end of a line',
-			'[?] for an unclear lyric'
+			'A section with no header',
+			'A header written as a plain line',
+			'Styled vocals with no legend',
+			'A spelling the guide standardizes',
+			'A period at the end of a line',
+			'A near-miss of the [?] marker'
 		]);
 
 		// A search is the reader saying what they are looking for, so the shortcut

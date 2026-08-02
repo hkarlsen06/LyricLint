@@ -248,6 +248,63 @@ function foldWithOffsets(text: string): FoldedWithOffsets {
 	return { folded, starts, ends };
 }
 
+/**
+ * One row of the index: a rule, or the several rules that are one convention
+ * per language pack.
+ */
+export type RuleIndexEntry =
+	| { kind: 'rule'; rule: RuleReference }
+	| { kind: 'family'; family: string; rules: RuleReference[] };
+
+/**
+ * A group's rules as the rows the index actually draws.
+ *
+ * Eight of the eleven rules in the Spelling family are one rule per language
+ * pack, and they look alike in the index because they are alike. A transcriber
+ * works in one language, so seven of those eight rows are noise to every reader
+ * who ever sees them — and it is the second group on the page, which means the
+ * repetition lands on the first screen of a reader who came to find out what
+ * the conventions are.
+ *
+ * Only the *drawing* collapses. `groupedRuleReferences()` stays exhaustive, so
+ * the sitemap, the prerender entries, the structured data and the search all
+ * still see all 55 rules and every `/rules/<slug>/` URL is untouched.
+ *
+ * Two things it owes:
+ *
+ * - **A family takes the position of its first member**, so collapsing never
+ *   reorders the group around it. Within the row the languages keep the
+ *   registry's order for the same reason.
+ * - **A family of one draws as an ordinary rule row.** Under a query that keeps
+ *   only the Norwegian rule, a family row would be a heading over a single
+ *   link — one press wearing two rows — which is the same complaint `Fix all 1`
+ *   answers in the workbench. The rule's own row says more, because it carries
+ *   the message and the severity.
+ */
+export function ruleIndexEntries(rules: readonly RuleReference[]): RuleIndexEntry[] {
+	const entries: RuleIndexEntry[] = [];
+	const familyAt = new Map<string, number>();
+	for (const rule of rules) {
+		const family = rule.variant?.family;
+		if (family === undefined) {
+			entries.push({ kind: 'rule', rule });
+			continue;
+		}
+		const at = familyAt.get(family);
+		if (at === undefined) {
+			familyAt.set(family, entries.length);
+			entries.push({ kind: 'family', family, rules: [rule] });
+			continue;
+		}
+		(entries[at] as { rules: RuleReference[] }).rules.push(rule);
+	}
+	return entries.map((entry) =>
+		entry.kind === 'family' && entry.rules.length === 1
+			? { kind: 'rule', rule: entry.rules[0]! }
+			: entry
+	);
+}
+
 /** A run of the original text that one of the query's terms matched. */
 export interface TextRange {
 	from: number;
@@ -368,7 +425,7 @@ export function filterRuleGroups(
 				fixabilities.has(ruleFixability(rule)) &&
 				matchesQuery(rule, tokens)
 		);
-		if (rules.length > 0) filtered.push({ title: group.title, rules });
+		if (rules.length > 0) filtered.push({ group: group.group, title: group.title, rules });
 	}
 	return filtered;
 }

@@ -161,12 +161,35 @@ test('the rule reference exposes article metadata and language semantics', async
 		.poll(() => page.locator('script[type="application/ld+json"]').textContent())
 		.toContain('"@type":"CollectionPage"');
 
+	// `/rules/` is the guide: the conventions written out, one section per
+	// family, in the same order the list beside it runs. It used to be a page
+	// *about* the list — how the reference is derived, how to use the search
+	// field — which is documentation for somebody who already knew what they
+	// were looking for, while the reader arriving from the landing page did not
+	// know the conventions at all.
+	const conventions = page.locator('main.rules__guide h2');
+	expect(await conventions.count()).toBeGreaterThan(15);
+	await expect(conventions.first()).toHaveText('Section headers');
+	await expect(page.locator('main.rules__guide h2#spelling')).toBeVisible();
+	// Every section states its convention and then names the ways it goes
+	// wrong, which are links into the rules themselves.
+	await expect(page.locator('#section + p')).toContainText('Every distinct song part carries');
+	await expect(
+		page.locator('.rules__checks a', { hasText: 'A section with no header' }).first()
+	).toHaveAttribute('href', /\/rules\/section-header-missing\/?$/u);
+	// The eight per-language spelling rules are one entry with its packs after
+	// it, here and in the list, rather than eight near-identical names.
+	await expect(page.locator('.rules__checks-family')).toHaveText(
+		'Spellings the reviewed guides correct (English, Norwegian, German, Spanish, French, Arabic, Japanese, Korean)'
+	);
+
 	await page.goto('/rules/spelling-arabic-common/');
-	// The page is named for the rule, not for the one misspelling its reviewed
-	// example happens to carry — the index row that opens it says the same words.
-	// The message is still on the page, under the example that produces it.
-	await expect(page).toHaveTitle('Standard Arabic spellings · LyricLint');
-	await expect(page.locator('main h1')).toHaveText('Standard Arabic spellings');
+	// The page is named for what the rule catches rather than for the one
+	// misspelling its reviewed example happens to carry — the index row that
+	// opens it says the same words. The message is still on the page, under the
+	// example that produces it.
+	await expect(page).toHaveTitle('A non-standard Arabic spelling · LyricLint');
+	await expect(page.locator('main h1')).toHaveText('A non-standard Arabic spelling');
 	// Scoped to the element rather than by text: the same words are in the
 	// paragraph and in the `<strong>` inside it, so a bare `getByText` resolves
 	// two nodes and fails strict mode.
@@ -199,7 +222,7 @@ test('the rule index is searched by symptom and narrowed by chip', async ({ page
 	// that word lives only in the reviewed example on this page.
 	await page.getByRole('searchbox', { name: 'Search the formatting rules' }).fill('definately');
 	await expect(rows).toHaveCount(1);
-	await expect(rows.first()).toContainText('Common English misspellings');
+	await expect(rows.first()).toContainText('A common English misspelling');
 	await expect(page.getByText(`1 of ${total} rules`)).toBeVisible();
 
 	// The search survives opening one of its own results, because the list and
@@ -230,7 +253,7 @@ test('the rule index is searched by symptom and narrowed by chip', async ({ page
 	await expect(rows.first()).toBeVisible();
 	// It narrows rather than groups — the assumption this was left out on.
 	expect(await rows.count()).toBeLessThan(total / 2);
-	await rows.filter({ hasText: 'Prefer the localized song part name' }).click();
+	await rows.filter({ hasText: 'An English name for a localized part' }).click();
 	const cited = page.locator('.source-reference a mark.rules__hit');
 	await expect(cited.first()).toHaveText('Languages');
 

@@ -10,6 +10,9 @@
 	import { fixabilityLabel } from '$lib/rules/reference-search.js';
 	import { siteUrl } from '$lib/seo.js';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
+	// Shared with the guide on `/rules/`, which quotes forms in its prose the
+	// same way a lookup table's conditions do.
+	import { codeSegments } from '$lib/ui/site/code-segments.js';
 	// Every string on this page goes through it, so the reader who arrived by
 	// searching can see what matched instead of hunting for it down a wall of
 	// prose and a thirty-row table. Nothing is marked while the field is empty,
@@ -56,20 +59,6 @@
 			...(entry.fuzzy ? ['one-character typos'] : [])
 		];
 		return `Also catches ${parts.join(' and ')}`;
-	}
-
-	/**
-	 * A condition is written in the rule's own words, and those quote a form in
-	 * backticks. Rendered raw the reader gets a stray grave accent around the very
-	 * word the sentence is about; this sets it in the page's own code idiom
-	 * instead. Odd segments are the quoted ones, so an unpaired backtick simply
-	 * renders as text rather than swallowing the rest of the sentence.
-	 */
-	function codeSegments(text: string): { code: boolean; text: string }[] {
-		return text
-			.split('`')
-			.map((part, index) => ({ code: index % 2 === 1, text: part }))
-			.filter((segment) => segment.text.length > 0);
 	}
 
 	// Picked out of the layout's data rather than loaded again: the whole index is
