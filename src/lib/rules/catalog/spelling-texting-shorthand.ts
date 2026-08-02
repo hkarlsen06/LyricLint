@@ -31,7 +31,7 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
  * `you're`, and a rule that picked one would be right half the time in a card
  * that can just as easily offer both.
  */
-const expansions: Record<string, readonly string[]> = {
+export const expansions: Record<string, readonly string[]> = {
 	abt: ['about'],
 	'b/c': ['because'],
 	bc: ['because'],

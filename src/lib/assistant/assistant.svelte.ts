@@ -616,10 +616,24 @@ export function createAssistantState(deps: AssistantDeps) {
 			await initialize();
 		},
 
-		/** The /rules/ prompt: open the modal and send in one gesture. */
+		/**
+		 * The /rules/ prompt: open the modal and send in one gesture.
+		 *
+		 * Every question asked from that field starts its own chat, because that
+		 * field is not in a conversation. `initialize()` re-seats the last chat the
+		 * user had open — which is what the workbench panel and the modal's own
+		 * composer want, since both are looking at the transcript they are adding
+		 * to — so a question typed on the rule reference landed at the foot of a
+		 * conversation the reader had not seen, possibly from another day, and the
+		 * model answered it with that history as context. `newChat()` writes no
+		 * record; `send()` is what creates one, so an empty question leaves the
+		 * transcript alone rather than replacing it with a chat that never existed.
+		 */
 		async openWithQuestion(question: string): Promise<void> {
 			await this.open();
-			if (question.trim()) await this.send(question);
+			if (!question.trim()) return;
+			await this.newChat();
+			await this.send(question);
 		},
 
 		/** Closing never cancels a request; state lives here, not in the dialog. */

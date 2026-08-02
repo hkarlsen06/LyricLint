@@ -1,7 +1,7 @@
 import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
 
-const contractions: Record<string, string> = {
+export const contractions: Record<string, string> = {
 	arent: "aren't",
 	cant: "can't",
 	couldnt: "couldn't",

@@ -6,7 +6,7 @@ export interface LocalizedHeaderPreference {
 	languageName: string;
 }
 
-const norwegianPreferences = new Map<string, LocalizedHeaderPreference>([
+export const norwegianPreferences = new Map<string, LocalizedHeaderPreference>([
 	['chorus', { replacement: 'Refreng', languageName: 'Norwegian' }],
 	['bridge', { replacement: 'Bro', languageName: 'Norwegian' }]
 ]);

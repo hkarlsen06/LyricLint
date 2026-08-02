@@ -2,7 +2,7 @@ import type { RuleDefinition } from '$lib/core/types.js';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
-const contractions: Record<string, string> = {
+export const contractions: Record<string, string> = {
 	'a el': 'al',
 	'de el': 'del'
 };

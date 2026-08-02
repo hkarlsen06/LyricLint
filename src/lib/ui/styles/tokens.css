@@ -137,6 +137,11 @@
 	/* Focus, motion, and interaction states */
 	--focus-ring-width: 2px;
 	--focus-ring-offset: 2px;
+	/* How far the ring reaches outside a control's own border box. A scroll port
+	   clips at its padding edge, so anything focusable that sits flush against
+	   one needs this much padding there or the ring is cut off along that edge —
+	   which reads as a broken border rather than as a clipped outline. */
+	--focus-ring-reach: calc(var(--focus-ring-width) + var(--focus-ring-offset));
 	--duration-fast: 120ms;
 	--duration-medium: 180ms;
 	--duration-slow: 240ms;

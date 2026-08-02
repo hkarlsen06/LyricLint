@@ -34,6 +34,46 @@ event follows it.
   when it is stale.
 - `eval/` — the versioned release-gate evaluation set and its runner.
 
+## What the corpus is, and what it is deliberately not
+
+A rule enters the corpus as its reference page does: derived by running the
+rule against its reviewed `invalid` policy example. That is right for a rule
+that is a judgment and wrong for one that is a **table**, because a page is
+written about the occurrence in front of the reader. `spelling.standardized`
+arrived here as the single pair `Imma` → `I'ma`, so the assistant, asked what
+the standardized spellings are, answered with one pair — correctly, and
+uselessly.
+
+`lookups` is the rest of those seven rules: the reviewed spellings, the common
+English misspellings, the texting-shorthand expansions, the two contraction
+maps, the digits, the curly quotes, and the Norwegian header preferences, in
+full. It is built by `src/lib/rules/lookup-tables.ts` from the same constants
+the rules check against, so a spelling added to `data/spelling.ts` reaches the
+assistant without anybody remembering to copy it, and `lookup-tables.test.ts`
+fails if a flattened entry drifts from its source table.
+
+Two things it carries that a bare list would lose, both of them load-bearing
+for what the assistant is allowed to say:
+
+- **`curatedMisspellings` are LyricLint's own.** `coz`, `couse` and `tryina`
+  are detected like an alternate and named by no reviewed guideline. Merged
+  into `instead` they would read as Genius policy, which is the one thing the
+  developer instructions forbid.
+- **`fix` is per entry.** A rule's `fixability` is a ceiling — most reviewed
+  spellings are a one-press fix under `spelling.standardized`'s `preview`
+  ceiling — so reporting the rule's kind for a whole table would tell the
+  visitor every spelling needs confirming.
+
+**A source is still a pointer, and no Genius prose is stored.** `sources.ts`
+holds an id, a URL, a page and section title, and a verified date; nothing in
+this repository quotes a guideline. Transcribing some would make it the only
+hand-written content in an artifact whose entire design is that it is
+generated and hash-checked — there would be no generator to re-derive it, and
+`docs/rules.md` already states that community annotations change and that live
+scraping is not part of the editing path. If reviewed excerpts are ever wanted,
+they belong on `SourceReference` beside `lastVerifiedAt`, so re-verifying a
+source is what re-verifies its quotation.
+
 ## Commands
 
 ```bash

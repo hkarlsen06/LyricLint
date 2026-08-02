@@ -34,6 +34,24 @@ export interface CorpusRule {
 	sourceIds: string[];
 }
 
+/** One replacement pair out of a table-shaped rule's lookup table. */
+export interface CorpusLookupEntry {
+	preferred: string[];
+	instead: string[];
+	/** LyricLint's own curated transcription mistakes — never reviewed guidance. */
+	curatedMisspellings?: string[];
+	appliesWhen?: string;
+	note?: string;
+	/** Absent where the entry records an accepted variant that nothing flags. */
+	fix?: 'safe' | 'preview';
+}
+
+export interface CorpusLookup {
+	ruleId: string;
+	description: string;
+	entries: CorpusLookupEntry[];
+}
+
 export interface CorpusLanguage {
 	tag: string;
 	displayName: string;
@@ -48,6 +66,11 @@ export interface RulesCorpus {
 	/** SHA-256 over the canonical corpus content, excluding generatedAt and itself. */
 	contentHash: string;
 	rules: CorpusRule[];
+	/**
+	 * What the table-shaped rules check against, in full. A rule's own entry
+	 * carries one worked example, which for these seven is not the rule.
+	 */
+	lookups: CorpusLookup[];
 	sources: CorpusSource[];
 	languages: CorpusLanguage[];
 	harper: { ruleIds: string[]; behavior: string; limitations: string[] };

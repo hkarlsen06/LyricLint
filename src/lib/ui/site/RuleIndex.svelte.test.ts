@@ -1,10 +1,11 @@
 import { page, userEvent } from 'vitest/browser';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 import { groupedRuleReferences, type RuleReferenceGroup } from '$lib/rules/reference.js';
 import { countRules } from '$lib/rules/reference-search.js';
 import RuleIndex from './RuleIndex.svelte';
+import { ruleSearchQuery, setRuleSearchQuery } from './rule-search.svelte.js';
 
 // The real index, not a fixture: what this component has to survive is fifty-two
 // rules in nineteen groups, and a hand-made pair of them would pass every
@@ -24,12 +25,25 @@ beforeAll(async () => {
 	total = countRules(groups);
 });
 
+// The query outlives this component on purpose — the rule the reader opens
+// marks what they searched for, and a list has nothing to hand its sibling
+// column — so it also outlives a render. Every test below starts from a field
+// nobody has typed in; without this, a test asserting the list is unnarrowed
+// would pass or fail on whatever the test above it happened to type.
+beforeEach(() => setRuleSearchQuery(''));
+
+// The index proper. The popular block is the same rules drawn again, so counting
+// it here would make every assertion about "the whole list" six rows too many.
 function rows(): HTMLAnchorElement[] {
-	return [...document.querySelectorAll<HTMLAnchorElement>('.site-run a')];
+	return [...document.querySelectorAll<HTMLAnchorElement>('.site-run:not(.rules__popular) a')];
 }
 
-function titles(): string[] {
-	return rows().map((row) => row.querySelector('.site-run__title')?.textContent?.trim() ?? '');
+function popularRows(): HTMLAnchorElement[] {
+	return [...document.querySelectorAll<HTMLAnchorElement>('.rules__popular a')];
+}
+
+function titles(list: HTMLAnchorElement[] = rows()): string[] {
+	return list.map((row) => row.querySelector('.site-run__title')?.textContent?.trim() ?? '');
 }
 
 function headings(): string[] {
@@ -83,6 +97,31 @@ describe('RuleIndex', () => {
 
 		await field().fill('parenthetical');
 		expect(titles()).toContain('Style the whole parenthetical');
+	});
+
+	it('searches the prose a table-shaped rule’s page is mostly made of', async () => {
+		render(RuleIndex, { groups });
+
+		// For the eight rules that are a lookup table, the table is the page — so
+		// the conditions written down its rows are most of what the reader is
+		// looking at, and for a while none of it was reachable by typing the words
+		// in it.
+		await field().fill('cousin');
+		expect(titles()).toEqual(['Standardized lyric spellings']);
+	});
+
+	it('publishes the query, because the rule it opens marks what was searched for', async () => {
+		render(RuleIndex, { groups });
+
+		// The list and the rule are sibling columns under the section's layout,
+		// with no way to hand each other anything — so the field writes to module
+		// state and `RuleSearchHighlight` reads it. A local mirror here would look
+		// identical on this page and mark nothing on the one it opens.
+		await field().fill('cousin');
+		expect(ruleSearchQuery()).toBe('cousin');
+
+		await userEvent.keyboard('{Escape}');
+		expect(ruleSearchQuery()).toBe('');
 	});
 
 	it('answers a search nothing matches with a sentence rather than an empty column', async () => {
@@ -160,12 +199,116 @@ describe('RuleIndex', () => {
 		expect(document.querySelector('.rules__readout')).toBeNull();
 	});
 
-	it('marks the open rule’s row as the page', () => {
+	// This column is its own scroll port, so it clips at its padding edge — a
+	// full-width field flush against the start of it had the left side of its
+	// focus ring cut off, which reads as a control whose border is broken rather
+	// than as an outline that ran out of room. The lane is measured against the
+	// margin that gives it back, because a padding that indented the whole column
+	// by four pixels would look exactly like this fix working.
+	it('reserves the focus ring’s lane at the start of the column without indenting it', async () => {
+		// Past 62rem, where the columns stop stacking and this one becomes a scroll
+		// port. Below it nothing clips and the lane is correctly zero, which is the
+		// width a component test runs at by default.
+		await page.viewport(1100, 800);
+		try {
+			render(RuleIndex, { groups });
+
+			const column = document.querySelector('.rules__index')!;
+			const style = getComputedStyle(column);
+			const lane = Number.parseFloat(style.paddingInlineStart);
+
+			expect(lane).toBeGreaterThan(0);
+			expect(Number.parseFloat(style.marginInlineStart)).toBe(-lane);
+		} finally {
+			await page.viewport(414, 896);
+		}
+	});
+
+	it('marks the open rule’s row as the page, in both places it is drawn', () => {
+		// `section.header-missing` leads the index and is also one of the six in the
+		// popular block, so it is the case that has two rows pointing at one page.
+		// Both are marked: they are the same link, and a shortcut that refused the
+		// marker would be the one row in this column where "you are here" is false.
 		const slug = groups[0]?.rules[0]?.slug;
 		render(RuleIndex, { groups, selectedSlug: slug });
 
-		const current = document.querySelectorAll('.site-run a[aria-current="page"]');
-		expect(current).toHaveLength(1);
-		expect(current[0]?.getAttribute('href')).toContain(slug);
+		const current = [...document.querySelectorAll('.site-run a[aria-current="page"]')];
+		expect(current).toHaveLength(2);
+		for (const row of current) expect(row.getAttribute('href')).toContain(slug);
+		// And a rule that is not popular keeps exactly one.
+		expect(rows().filter((row) => row.getAttribute('aria-current') === 'page')).toHaveLength(1);
+	});
+
+	it('leads with the rules a transcriber has to be told, and drops them once asked', async () => {
+		render(RuleIndex, { groups });
+
+		// The index proper is untouched — the block is the same rules drawn again,
+		// as a way onto the first screen rather than as a twentieth family.
+		expect(rows()).toHaveLength(total);
+		expect(headings()[0]).toBe('Popular');
+		expect(titles(popularRows())).toEqual([
+			'Every song part has a header',
+			'Song part names go in brackets',
+			'Styled vocals need a performer legend',
+			'Standardized lyric spellings',
+			'No period at the end of a line',
+			'[?] for an unclear lyric'
+		]);
+
+		// A search is the reader saying what they are looking for, so the shortcut
+		// goes: six duplicated rows over their answer are six rows of noise, and
+		// they would stand in front of a readout counting a different number.
+		await field().fill('definately');
+
+		expect(popularRows()).toHaveLength(0);
+		expect(headings()).toEqual(['Spelling']);
+	});
+
+	// A rule is a URL, so most arrivals are not presses on this list. The row is
+	// marked the whole time; forty rows below the fold it says that to nobody.
+	// Measured against a real scroll port rather than trusted: the column only
+	// becomes one past 62rem, and it needs a height to overflow.
+	it('brings the open rule’s row into view for a reader who arrived by its URL', async () => {
+		await page.viewport(1100, 800);
+		try {
+			const last = groups.at(-1)?.rules.at(-1);
+			const { component } = render(RuleIndex, { groups, selectedSlug: last?.slug });
+			const column = document.querySelector<HTMLElement>('.rules__index')!;
+			column.style.height = '400px';
+			expect(column.scrollTop).toBe(0);
+
+			await component.revealSelected();
+
+			expect(column.scrollTop).toBeGreaterThan(0);
+			// And clear of the finder pinned over the top of the column, which is the
+			// half `scrollIntoView({ block: 'nearest' })` knows nothing about: it
+			// would call a row underneath the field visible and move nothing.
+			const row = column.querySelector<HTMLElement>('a[aria-current="page"]')!;
+			const finder = column.querySelector<HTMLElement>('.rules__finder')!;
+			expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+				finder.getBoundingClientRect().bottom - 1
+			);
+		} finally {
+			await page.viewport(414, 896);
+		}
+	});
+
+	it('leaves the list alone when the row is already in view', async () => {
+		await page.viewport(1100, 800);
+		try {
+			// The other half of "pressing a row may not move the list the row is in":
+			// the row a reader pressed is by definition one they can see.
+			const first = groups[0]?.rules[0];
+			const { component } = render(RuleIndex, { groups, selectedSlug: first?.slug });
+			const column = document.querySelector<HTMLElement>('.rules__index')!;
+			column.style.height = '400px';
+			column.scrollTop = 0;
+
+			await component.revealSelected();
+
+			expect(column.scrollTop).toBe(0);
+		} finally {
+			await page.viewport(414, 896);
+		}
 	});
 });

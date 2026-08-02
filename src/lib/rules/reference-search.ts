@@ -8,9 +8,9 @@ import type { RuleReference, RuleReferenceGroup } from './reference.js';
  * Fifty-two rules in nineteen groups is past what anyone reads down, and the
  * reader arriving here almost never knows the rule's name: they know the
  * symptom — a bracket, an apostrophe, a word the linter underlined. So the
- * query is matched against everything a page says, the reviewed examples
- * included, which is what makes searching “definately” or “Imma” land on the
- * rule that flagged it.
+ * query is matched against everything a page says, the reviewed examples and
+ * the lookup tables included, which is what makes searching “definately”,
+ * “Imma” or “tryna” land on the rule that flagged it.
  */
 
 /**
@@ -34,13 +34,84 @@ export function ruleFixability(reference: RuleReference): Fixability {
 }
 
 /**
+ * The handful of rules a reader most often arrives here for, drawn again as a
+ * short block at the head of the index.
+ *
+ * `groupOrder` in `reference.ts` gets the right family onto the first screen;
+ * this gets the right *rows* onto it. Section headers is eleven rules deep, so
+ * ranking it first still opens the page on eleven headings' worth of scrolling
+ * before the reader meets a spelling — and the two conventions a first-time
+ * transcriber actually has to be told are one rule from each end of that.
+ *
+ * Curated, not counted, exactly as `groupOrder` is and for the same reason:
+ * nothing here measures anything. What these six have in common is that each is
+ * a Genius convention somebody has to be *told* — brackets around a song part,
+ * a legend before a styled voice, `[?]` for a lyric nobody could make out — as
+ * opposed to a rule whose own message is the whole of what there is to know
+ * about it. `capitalization.line-start` is deliberately absent for that reason,
+ * and it would otherwise be an obvious member.
+ *
+ * Six, and that is a ceiling rather than a round number: this block costs the
+ * real index its own place on the first screen, and past about six it *is* the
+ * first screen, which defeats a shortcut into a list.
+ *
+ * It is drawn only while nothing is narrowing the list. A search is the reader
+ * saying what they are looking for, and a duplicated shortcut standing over
+ * their answer is noise — it would also put six rows in front of a readout that
+ * counts a different number.
+ */
+export const popularRuleIds: readonly string[] = [
+	'section.header-missing',
+	'section.header-prose',
+	'performer.header-required',
+	'spelling.standardized',
+	'punctuation.line-ending',
+	'unknown.marker'
+];
+
+/**
+ * `popularRuleIds` resolved against the index, in the order declared there. A
+ * rule that has left the catalog is skipped rather than thrown for — losing a
+ * shortcut is not worth failing a page render over, and `reference-search.test.ts`
+ * is what turns a stale ID into a failure where somebody can see it.
+ */
+export function popularRules(groups: readonly RuleReferenceGroup[]): RuleReference[] {
+	const byId = new Map(groups.flatMap((group) => group.rules).map((rule) => [rule.id, rule]));
+	return popularRuleIds.flatMap((id) => {
+		const rule = byId.get(id);
+		return rule ? [rule] : [];
+	});
+}
+
+/**
  * Everything the query is matched against, folded once per rule.
  *
- * Deliberately not the severity or the fixability, which the chips own. A row
+ * The list is the rule's own page read top to bottom — its name, the linter's
+ * wording, the explanation, both reviewed examples, the fix's label, the
+ * citations under them, and for a table-shaped rule the table's prose and every
+ * form in it. That is the whole of what the reader can see, which is the only
+ * definition of "searchable" that does not have to be re-argued every time a
+ * page grows a section.
+ *
+ * **The citations were left out once, and the argument for it was wrong by an
+ * amount that could have been measured.** The reasoning was that all 55 rules
+ * cite the same handful of Genius pages, so a citation term would group the
+ * index rather than narrow it. They do not: the most-cited page title covers 18
+ * rules and is `Use song part headers`, which landing on the eighteen header
+ * rules is a correct answer rather than a grouping; every other title covers
+ * three or fewer, and the 47 distinct section titles are as specific as
+ * `Reviewed Norwegian section-header vocabulary`. What it actually cost was a
+ * reader typing `languages` at a page whose citation reads `Song Headers in
+ * Different Languages` and being told no rule matches — the exact distrust that
+ * widening this list exists to prevent.
+ *
+ * What stays out is **severity and fixability**, which the chips own. A row
  * surfacing because the reader typed “warning” would be a second, invisible
- * control for the axis they can already see, and the two would disagree about
+ * control for an axis they can already see, and the two would disagree about
  * what the word means the first time a rule's explanation used it in a
- * sentence.
+ * sentence. The page's boilerplate about a fix goes with them: “resolving it is
+ * a judgment call” is the same sentence on every rule that has none, so it is
+ * the fixability chip wearing words.
  */
 function haystack(reference: RuleReference): string {
 	return foldForSearch(
@@ -56,7 +127,16 @@ function haystack(reference: RuleReference): string {
 			reference.slug,
 			reference.fix?.label ?? '',
 			reference.invalid,
-			reference.valid
+			reference.valid,
+			// What the rule cites, in both the words the block draws: the page and
+			// the part of it that was reviewed. Already on the reference — every
+			// page lists them — so this costs the payload nothing.
+			...reference.sources.flatMap((source) => [source.pageTitle, source.sectionTitle]),
+			// Every form in the rule's table, where it has one. Without this the
+			// example is all a table-shaped rule is searchable by, so `Imma` found
+			// `spelling.standardized` while `tryna` — one of its other 28 entries —
+			// found nothing at all, which reads as the reference not covering it.
+			reference.lookupTerms ?? ''
 		].join('\n')
 	);
 }
@@ -118,6 +198,121 @@ export function searchTokens(query: string): readonly string[] {
 	return foldForSearch(query)
 		.split(/\s+/u)
 		.filter((token) => token.length > 0);
+}
+
+/**
+ * The same fold, kept alongside where each of its characters came from.
+ *
+ * Marking the query inside the page it opened is the one job the plain fold
+ * cannot do: it changes the string's length in three separate ways — NFD splits
+ * a letter into a letter and a mark, the mark is then dropped, and a few
+ * characters lowercase to more than one — so an offset found in the folded text
+ * names nothing in the text on screen. `ça` folds to `ca`, and a match at
+ * folded 0..2 is two characters of a three-character string.
+ *
+ * So the fold runs one source character at a time and records, per folded code
+ * unit, the span of the character that produced it. A match then resolves to
+ * the first source character's start and the last one's end, which is what
+ * makes a highlight land on whole characters: half of a `ç` is not a thing a
+ * `<mark>` can hold, and a combining mark between two matched letters is
+ * carried along by the range being contiguous rather than by being matched.
+ *
+ * Code units rather than code points, because `indexOf` counts in code units
+ * and the two disagree the moment an example carries an emoji or a rare CJK
+ * character.
+ */
+interface FoldedWithOffsets {
+	folded: string;
+	/** Where in the original the character behind each folded unit begins. */
+	starts: number[];
+	/** Where that character ends. */
+	ends: number[];
+}
+
+function foldWithOffsets(text: string): FoldedWithOffsets {
+	const starts: number[] = [];
+	const ends: number[] = [];
+	let folded = '';
+	let at = 0;
+	while (at < text.length) {
+		const source = String.fromCodePoint(text.codePointAt(at)!);
+		const end = at + source.length;
+		const piece = foldForSearch(source);
+		for (let unit = 0; unit < piece.length; unit += 1) {
+			starts.push(at);
+			ends.push(end);
+		}
+		folded += piece;
+		at = end;
+	}
+	return { folded, starts, ends };
+}
+
+/** A run of the original text that one of the query's terms matched. */
+export interface TextRange {
+	from: number;
+	to: number;
+}
+
+/**
+ * Where the query's terms sit in a piece of the page, merged.
+ *
+ * Every term is marked rather than only the first, because every term had to
+ * match for the rule to be listed at all — showing one of them would answer
+ * half the question the reader is asking by having the page open. Overlapping
+ * and touching runs are merged so two terms that met in the middle of a word
+ * are one mark rather than two abutting ones with a seam between them.
+ */
+export function highlightRanges(text: string, tokens: readonly string[]): TextRange[] {
+	if (tokens.length === 0 || text.length === 0) return [];
+	const { folded, starts, ends } = foldWithOffsets(text);
+	const found: TextRange[] = [];
+	for (const token of tokens) {
+		let at = folded.indexOf(token);
+		while (at >= 0) {
+			found.push({ from: starts[at]!, to: ends[at + token.length - 1]! });
+			// From the next unit rather than past the match, so `aa` in `aaa` is
+			// found twice and the two are merged into the one run they look like.
+			at = folded.indexOf(token, at + 1);
+		}
+	}
+	if (found.length === 0) return [];
+	found.sort((a, b) => a.from - b.from || a.to - b.to);
+	const merged: TextRange[] = [found[0]!];
+	for (const range of found.slice(1)) {
+		const last = merged[merged.length - 1]!;
+		if (range.from <= last.to) last.to = Math.max(last.to, range.to);
+		else merged.push(range);
+	}
+	return merged;
+}
+
+/** A piece of text, and whether the query is why it is being pointed at. */
+export interface TextSegment {
+	text: string;
+	match: boolean;
+}
+
+/**
+ * A string cut into what the query matched and what it did not, ready to be
+ * rendered as text and `<mark>`s.
+ *
+ * Empty text produces no segments at all rather than one empty one, so a
+ * component rendering these draws nothing for a field a rule does not carry.
+ */
+export function highlightSegments(text: string, tokens: readonly string[]): TextSegment[] {
+	if (text.length === 0) return [];
+	const ranges = highlightRanges(text, tokens);
+	if (ranges.length === 0) return [{ text, match: false }];
+	const segments: TextSegment[] = [];
+	let at = 0;
+	for (const range of ranges) {
+		if (range.from > at) segments.push({ text: text.slice(at, range.from), match: false });
+		segments.push({ text: text.slice(range.from, range.to), match: true });
+		at = range.to;
+	}
+	if (at < text.length) segments.push({ text: text.slice(at), match: false });
+	return segments;
 }
 
 export interface RuleFilter {

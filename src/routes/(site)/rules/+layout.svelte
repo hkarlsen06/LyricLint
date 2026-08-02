@@ -29,6 +29,23 @@
 	// behind it and has to be sent to the list the ordinary way.
 	let arrivedFromIndex = $state(false);
 
+	let index = $state<{ revealSelected(): Promise<void> }>();
+
+	/**
+	 * Whether a navigation started somewhere the list was already on screen —
+	 * which is to say, whether the reader got here by pressing one of its rows.
+	 *
+	 * Deliberately the whole section rather than the index page alone, because
+	 * `arrivedFromIndex` above answers a different question: that one is "is the
+	 * list one entry back in history", for the back button. Going from one rule to
+	 * another is a press on a row too, and it never passes through `/rules`.
+	 */
+	function pressedARow(navigation: { from: { url: URL } | null }): boolean {
+		if (!navigation.from) return false;
+		const path = navigation.from.url.pathname.replace(/\/$/, '');
+		return path === indexPath || path.startsWith(`${indexPath}/`);
+	}
+
 	afterNavigate((navigation) => {
 		arrivedFromIndex =
 			navigation.type === 'link' && navigation.from?.url.pathname.replace(/\/$/, '') === indexPath;
@@ -37,6 +54,15 @@
 		// restored it. That is the whole mechanism behind the control above, so
 		// nothing here may overwrite it.
 		if (navigation.type === 'popstate') return;
+
+		// A rule is a URL, so it is routinely opened from outside this list — a
+		// shared link, a search result, a reload. The list is then at whatever
+		// offset it was left at, which for a fresh load is the top, and the row
+		// marked as the page is somewhere below the fold saying so to nobody. The
+		// index owns how it does that; this only says when, because it is the
+		// arrival that decides it, and the one arrival that must move nothing is a
+		// press on a row the reader can already see.
+		if (!pressedARow(navigation)) void index?.revealSelected();
 
 		// Neither column unmounts, so both arrive carrying the offset of the rule
 		// before this one — and the two want opposite things. The detail column
@@ -98,5 +124,5 @@
 		{@render children()}
 	</div>
 
-	<RuleIndex {groups} {selectedSlug} />
+	<RuleIndex bind:this={index} {groups} {selectedSlug} />
 </div>

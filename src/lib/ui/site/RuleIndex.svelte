@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import type { Fixability, Severity } from '$lib/core/types.js';
 	import SeverityIcon from '$lib/diagnostics/SeverityIcon.svelte';
@@ -9,26 +10,36 @@
 		fixabilityLabel,
 		fixabilityOrder,
 		isFiltering,
+		popularRules,
 		presentFacets,
 		ruleCounts,
 		ruleFixability,
 		severityOrder
 	} from '$lib/rules/reference-search.js';
-	import type { RuleReferenceGroup } from '$lib/rules/reference.js';
+	import type { RuleReference, RuleReferenceGroup } from '$lib/rules/reference.js';
 	import AssistantPrompt from '$lib/ui/assistant/AssistantPrompt.svelte';
+	import { ruleSearchQuery, setRuleSearchQuery } from './rule-search.svelte.js';
 
 	let {
 		groups,
 		selectedSlug
 	}: { groups: readonly RuleReferenceGroup[]; selectedSlug?: string | undefined } = $props();
 
-	// The list and its filters are mounted by the section's layout, so this state
-	// outlives opening a rule: a reader who searched, pressed a row, and came back
-	// finds the search they were in the middle of rather than a list reset behind
-	// their back. That is also why none of it is in the URL — a filter is a way of
-	// looking at the list, not a place, and a history entry per keystroke would
-	// make the back button walk the query backwards one letter at a time.
-	let query = $state('');
+	// The list and its filters outlive opening a rule: a reader who searched,
+	// pressed a row, and came back finds the search they were in the middle of
+	// rather than a list reset behind their back. That is also why none of it is
+	// in the URL — a filter is a way of looking at the list, not a place, and a
+	// history entry per keystroke would make the back button walk the query
+	// backwards one letter at a time.
+	//
+	// The query is the one part of it held outside this component, because the
+	// rule the reader opens marks what they searched for and there is no way for
+	// a list to hand anything to its sibling column. `rule-search.svelte.ts` has
+	// the rest of that reasoning. The chips stay here: they narrow the list and
+	// say nothing about the page beside it. The field binds to the pair of
+	// functions rather than to a local mirror, or the two copies disagree for
+	// exactly as long as it takes an effect to run.
+	const query = $derived(ruleSearchQuery());
 	let shownSeverities = $state<Severity[]>([...severityOrder]);
 	let shownFixabilities = $state<Fixability[]>([...fixabilityOrder]);
 
@@ -43,6 +54,9 @@
 	const shown = $derived(countRules(filtered));
 	const counts = $derived(ruleCounts(groups, query));
 	const filtering = $derived(isFiltering(filter));
+	// Only at rest: a search is the reader saying what they are looking for, and
+	// six rows of shortcut standing over their answer are six rows of noise.
+	const popular = $derived(filtering ? [] : popularRules(groups));
 
 	const severityLabels: Record<Severity, string> = {
 		error: 'Errors',
@@ -56,9 +70,58 @@
 	}
 
 	function clear(): void {
-		query = '';
+		setRuleSearchQuery('');
 		shownSeverities = [...severityOrder];
 		shownFixabilities = [...fixabilityOrder];
+	}
+
+	let column = $state<HTMLElement>();
+
+	/**
+	 * Bring the open rule's row into the column, for a reader who did not press
+	 * it here.
+	 *
+	 * A rule is a URL, so most arrivals are not presses on this list: a shared
+	 * link, a search result, a reload, a link from elsewhere on the site. The row
+	 * is marked `aria-current` and drawn recessed the whole time, which is the
+	 * whole of the "you are here" — and forty rows above the fold it says that to
+	 * nobody. The column then reads as a list with nothing selected in it, beside
+	 * a page that came from one of its rows.
+	 *
+	 * Two things it owes, and the second is why this is arithmetic rather than
+	 * `scrollIntoView`:
+	 *
+	 * - **A row already wholly in view is not moved.** The layout only calls this
+	 *   for an arrival, and this is the second half of the same guarantee — the
+	 *   rule that pressing a row may not move the list the row is in.
+	 * - **The finder is pinned over the top of this column**, so a row the browser
+	 *   would call visible can be entirely underneath it. `block: 'nearest'` knows
+	 *   nothing about that and would leave the row covered; the free space starts
+	 *   at the finder's own bottom edge, and it is measured rather than restated
+	 *   here, because the chips wrap and the readout comes and goes.
+	 *
+	 * It moves the scroll and not the focus. The reader opened a rule to read it,
+	 * and focus parked in a `<nav>` of fifty-five links would send their first Tab
+	 * away from the document they came for — the same reason the workbench leaves
+	 * the editor unfocused after a fix.
+	 */
+	export async function revealSelected(): Promise<void> {
+		await tick();
+		const list = column;
+		const row = list?.querySelector<HTMLElement>('a[aria-current="page"]');
+		// No row at all under a filter that excludes it, and no box below 62rem,
+		// where the columns stack and the list is `display: none` while a rule is
+		// open. Neither is a failure: there is nothing on screen to bring into view.
+		if (!list || !row || row.offsetParent === null) return;
+
+		const port = list.getBoundingClientRect();
+		const finder = list.querySelector<HTMLElement>('.rules__finder');
+		const free = port.top + (finder?.getBoundingClientRect().height ?? 0);
+		const rect = row.getBoundingClientRect();
+		if (rect.top >= free && rect.bottom <= port.bottom) return;
+		// Instant, and clamped by the scroller itself at both ends. A smooth scroll
+		// here would still be animating while the reader started reading.
+		list.scrollTop += rect.top - free;
 	}
 
 	// Escape empties the field, which is the one convention a search input owes
@@ -68,11 +131,11 @@
 	function onFieldKeydown(event: KeyboardEvent): void {
 		if (event.key !== 'Escape' || query === '') return;
 		event.preventDefault();
-		query = '';
+		setRuleSearchQuery('');
 	}
 </script>
 
-<div class="rules__index" data-sveltekit-noscroll>
+<div class="rules__index" data-sveltekit-noscroll bind:this={column}>
 	<!-- The way to ask a model about the guidelines, above the way to search
 	     them: unboxed prose and a field, and only in builds that actually have
 	     an assistant endpoint behind it. -->
@@ -91,7 +154,7 @@
 			autocomplete="off"
 			spellcheck="false"
 			placeholder={`Search ${total} rules`}
-			bind:value={query}
+			bind:value={ruleSearchQuery, setRuleSearchQuery}
 			onkeydown={onFieldKeydown}
 		/>
 
@@ -158,30 +221,51 @@
 	     router's default reset would throw the reader back to the top of it every
 	     time they opened a rule; where there is one column, the layout's
 	     `afterNavigate` pays the reset back by hand. -->
+	<!-- One row, rendered by both lists. The popular block is the same rows drawn
+	     again, so a snippet is what keeps it from becoming a second copy of the
+	     row's markup that drifts from this one. -->
+	{#snippet row(rule: RuleReference)}
+		<li>
+			<a
+				href={resolve('/(site)/rules/[rule]', { rule: rule.slug })}
+				aria-current={rule.slug === selectedSlug ? 'page' : undefined}
+			>
+				<!-- The rule's name leads, and what the linter actually says about
+				     it sits underneath as the example. The other way round — which
+				     is how this list read for a long time — makes fifty-two rows of
+				     occurrence-specific messages, so the index of a reference
+				     scanned as a dump of somebody else's diagnostics. -->
+				<span class="site-run__title">{rule.title}</span>
+				<span class="rules__row-message">{rule.message}</span>
+				<span class="site-run__meta">
+					<SeverityTag severity={rule.severity} />
+					<span class="site-code">{rule.id}</span>
+					<span>{fixabilityLabel(ruleFixability(rule))}</span>
+				</span>
+			</a>
+		</li>
+	{/snippet}
+
 	<nav aria-label="All formatting rules">
+		<!-- The six conventions a transcriber has to be told, before the nineteen
+		     families. Both copies of the open rule's row carry `aria-current`: they
+		     are the same link to the same page, and a shortcut that refused the
+		     marker would be the one row in this column where "you are here" is
+		     false. -->
+		{#if popular.length > 0}
+			<h2 class="rules__group">Popular</h2>
+			<ul class="site-run rules__popular">
+				{#each popular as rule (rule.id)}
+					{@render row(rule)}
+				{/each}
+			</ul>
+		{/if}
+
 		{#each filtered as group (group.title)}
 			<h2 class="rules__group">{group.title}</h2>
 			<ul class="site-run">
 				{#each group.rules as rule (rule.id)}
-					<li>
-						<a
-							href={resolve('/(site)/rules/[rule]', { rule: rule.slug })}
-							aria-current={rule.slug === selectedSlug ? 'page' : undefined}
-						>
-							<!-- The rule's name leads, and what the linter actually says about
-							     it sits underneath as the example. The other way round — which
-							     is how this list read for a long time — makes fifty-two rows of
-							     occurrence-specific messages, so the index of a reference
-							     scanned as a dump of somebody else's diagnostics. -->
-							<span class="site-run__title">{rule.title}</span>
-							<span class="rules__row-message">{rule.message}</span>
-							<span class="site-run__meta">
-								<SeverityTag severity={rule.severity} />
-								<span class="site-code">{rule.id}</span>
-								<span>{fixabilityLabel(ruleFixability(rule))}</span>
-							</span>
-						</a>
-					</li>
+					{@render row(rule)}
 				{/each}
 			</ul>
 		{/each}

@@ -184,7 +184,12 @@ test('the rule reference exposes article metadata and language semantics', async
 test('the rule index is searched by symptom and narrowed by chip', async ({ page }) => {
 	await page.goto('/rules/');
 
-	const rows = page.locator('.rules__index .site-run a');
+	// The index proper. The `Popular` block at the head of the column is six of
+	// these same rules drawn again, so counting it here makes every assertion
+	// about "the whole list" six rows too many — and the readout underneath
+	// counts rules rather than rows, so the two disagree. `RuleIndex.svelte.test.ts`
+	// excludes it in exactly the same place and for exactly the same reason.
+	const rows = page.locator('.rules__index .site-run:not(.rules__popular) a');
 	const total = await rows.count();
 	expect(total).toBeGreaterThan(40);
 	// Nothing is narrowing the list, so there is no count to state.
@@ -203,7 +208,49 @@ test('the rule index is searched by symptom and narrowed by chip', async ({ page
 	await expect(page).toHaveURL(/\/rules\/spelling-english-common\/$/u);
 	await expect(rows).toHaveCount(1);
 
+	// And the rule says why it matched, rather than leaving the reader to find
+	// the word themselves down a page of prose and a nine-row table. Three
+	// times over: the linter's own wording, the reviewed example, and the row
+	// of the table that carries the misspelling. Four, because the reviewed
+	// part of the third citation names it too — which is the citations being
+	// text on the page like everything else rather than a coincidence.
+	await expect(page.locator('main mark.rules__hit')).toHaveCount(4);
+	await expect(page.locator('main mark.rules__hit').first()).toHaveText('definately');
+	// The example is set in a `<pre>`, so the marks may not have cost it a
+	// character. This is the one place that is observable end to end.
+	await expect(page.locator('.site-sample--invalid pre')).toHaveText(
+		'[Verse]\nI will definately stay'
+	);
+
+	// A citation is text on the page too, and searching it is what the reader
+	// does when the link in front of them has the word in it. `languages` is
+	// the reported case: `Song Headers in Different Languages`, on screen, and
+	// the list used to answer `No rule matches this search`.
+	await page.getByRole('searchbox', { name: 'Search the formatting rules' }).fill('languages');
+	await expect(rows.first()).toBeVisible();
+	// It narrows rather than groups — the assumption this was left out on.
+	expect(await rows.count()).toBeLessThan(total / 2);
+	await rows.filter({ hasText: 'Prefer the localized song part name' }).click();
+	const cited = page.locator('.source-reference a mark.rules__hit');
+	await expect(cited.first()).toHaveText('Languages');
+
+	// And it gives up the accent inside the link. Measured, accent blue on this
+	// fill is 3.92:1 in the dark scheme against the body colour's 9.28:1 — under
+	// AA, on the one element added to help somebody read. The underline running
+	// through the mark is what still says "link".
+	const [marked, prose] = await Promise.all([
+		cited.first().evaluate((node) => getComputedStyle(node).color),
+		page
+			.locator('main p')
+			.first()
+			.evaluate((node) => getComputedStyle(node).color)
+	]);
+	expect(marked).toBe(prose);
+
 	await page.getByRole('button', { name: 'Clear filters' }).click();
+	// Clearing the filters unmarks the rule as well as widening the list: the
+	// query is one answer, read by both columns.
+	await expect(page.locator('main mark.rules__hit')).toHaveCount(0);
 	await expect(rows).toHaveCount(total);
 
 	// Leaving `No automatic fix` alone is the list of rules that are judgment

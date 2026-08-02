@@ -2,7 +2,7 @@ import type { RuleDefinition } from '$lib/core/types.js';
 import { isProseHeaderLine } from './section-header-prose.js';
 import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
-const numberWords = [
+export const numberWords = [
 	'zero',
 	'one',
 	'two',

@@ -344,6 +344,20 @@ describe('prompt assembly', () => {
 		expect(input.slice(1).map((entry) => entry.role)).toEqual(['user', 'assistant', 'user']);
 	});
 
+	it('puts the whole of a table-shaped rule in the cached prefix, not one example', () => {
+		const stable = buildPromptInput(corpus, [message('user', 5)])[0]!.content;
+		const spellings = corpus.lookups.find((lookup) => lookup.ruleId === 'spelling.standardized')!;
+		// The failure this fixed: `Imma` → `I'ma` is the rule's policy example, and
+		// for a long time it was the only pair the model could see.
+		expect(spellings.entries.length).toBeGreaterThan(20);
+		for (const form of ["'til", 'tryna', "y'all", 'bougie']) {
+			expect(stable, `${form} is missing from the prompt`).toContain(form);
+		}
+		// And the reviewed/curated line survives serialization, since the
+		// instructions above it tell the model to read it.
+		expect(stable).toContain('curatedMisspellings');
+	});
+
 	it('places a real explicit cache breakpoint after the stable corpus prefix', () => {
 		const request = providerRequest(
 			[

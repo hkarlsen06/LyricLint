@@ -40,6 +40,8 @@ await writeFile(
 console.log(
 	`Wrote ${target}\n` +
 		`  ruleset ${corpus.ruleSetVersion} · ${corpus.rules.length} rules · ` +
-		`${corpus.sources.length} sources · ${corpus.languages.length} languages\n` +
+		`${corpus.sources.length} sources · ${corpus.languages.length} languages · ` +
+		`${corpus.lookups.reduce((sum, lookup) => sum + lookup.entries.length, 0)} lookup entries ` +
+		`across ${corpus.lookups.length} tables\n` +
 		`  content hash ${corpus.contentHash}`
 );

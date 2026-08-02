@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { policyCases } from './catalog/policy-cases.js';
 import { sourceRegistry } from './data/sources.js';
+import { ruleLookupTables } from './lookup-tables.js';
 import {
 	groupedRuleReferences,
 	ruleFromSlug,
@@ -76,6 +77,49 @@ describe('rule reference derivation', () => {
 		}
 	});
 
+	it('carries a table-shaped rule’s search terms and nothing heavier', () => {
+		const references = ruleReferences();
+		const tabled = new Set(ruleLookupTables().map((table) => table.ruleId));
+		for (const reference of references) {
+			expect(
+				reference.lookupTerms !== undefined,
+				`${reference.id} disagrees with lookup-tables about having a table`
+			).toBe(tabled.has(reference.id));
+		}
+		const spellings = references.find((entry) => entry.id === 'spelling.standardized')!;
+		// Every form, so the index's search can find any of them.
+		expect(spellings.lookupTerms).toContain('tryna');
+		expect(spellings.lookupTerms).toContain("y'all");
+		// And the prose the page is mostly made of, which for these eight rules is
+		// the table's own description and the conditions written down its rows —
+		// deduped, because a gate is repeated on row after row and a haystack has
+		// no use for the copies.
+		expect(spellings.lookupTerms).toContain('remains valid when it means cousin');
+		const unflagged = 'LyricLint reports neither form';
+		expect(spellings.lookupTerms).toContain(unflagged);
+		expect(
+			spellings.lookupTerms!.split(unflagged),
+			'a condition two rows share is carried once, not twice'
+		).toHaveLength(2);
+
+		// And no more than that. The reference travels in the section layout's
+		// data, so it is copied into all 55 prerendered payloads; what the search
+		// needs is 5.8% of that payload against the full table's 16.2%, for content
+		// six of every seven pages never draw. The page loads its own through
+		// `+page.server.ts`, which is why the structure never rides along — only
+		// the text.
+		const payload = JSON.stringify(groupedRuleReferences()).length;
+		const terms = references.reduce(
+			(sum, reference) => sum + (reference.lookupTerms?.length ?? 0),
+			0
+		);
+		const full = JSON.stringify(ruleLookupTables()).length;
+		expect(terms / payload).toBeLessThan(0.07);
+		expect(terms / full).toBeLessThan(0.5);
+		expect(full / payload).toBeGreaterThan(0.1);
+		expect(JSON.stringify(references)).not.toContain('appliesWhen');
+	});
+
 	it('keeps meta descriptions within what result pages display', () => {
 		for (const reference of ruleReferences()) {
 			expect(reference.seoDescription.length, reference.id).toBeLessThanOrEqual(155);
@@ -88,5 +132,20 @@ describe('rule reference derivation', () => {
 		const flattened = groups.flatMap((group) => group.rules.map((reference) => reference.id));
 		expect(new Set(flattened).size).toBe(enabledRules.length);
 		expect(new Set(groups.map((group) => group.title)).size).toBe(groups.length);
+	});
+
+	it('opens the index on what a transcriber actually looks up', () => {
+		// `groupedRuleReferences` throws for a family with no place in `groupOrder`,
+		// so exhaustiveness is already a build error and needs no assertion. What is
+		// worth pinning is the decision itself: this order is editorial — nothing
+		// here is measured, because the product measures nothing — so it has to be
+		// something a reorder changes on purpose rather than a side effect of the
+		// order the rules happen to run in.
+		const titles = groupedRuleReferences().map((group) => group.title);
+		expect(titles.slice(0, 2)).toEqual(['Section headers', 'Spelling']);
+		// The specific regression: registry order is the pipeline's order, and it
+		// put one rule nobody arrives looking for on the reader's first screen.
+		expect(titles.at(-1)).toBe('Language selection');
+		expect(titles.indexOf('Spelling')).toBeLessThan(titles.indexOf('Performer attribution'));
 	});
 });

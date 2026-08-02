@@ -163,6 +163,34 @@ describe('the assistant state', () => {
 		]);
 	});
 
+	// The rule reference's prompt is not in a conversation, so a question asked
+	// from it may not land at the foot of whichever chat `initialize()` re-seated
+	// — the reader would not see that history, and the model would answer with it
+	// as context.
+	it('starts a new chat for every question asked from the rules prompt', async () => {
+		const { state, deps } = makeState();
+		await state.open();
+		await state.send('First?');
+		await state.openWithQuestion('Second?');
+		expect(state.chats).toHaveLength(2);
+		expect(state.messages).toHaveLength(2);
+		expect(state.messages[0]!.content).toBe('Second?');
+		expect(vi.mocked(deps.ask).mock.calls.at(-1)![0].messages).toEqual([
+			{ role: 'user', content: 'Second?' }
+		]);
+	});
+
+	it('leaves the transcript alone when the rules prompt has nothing to send', async () => {
+		const { state } = makeState();
+		await state.open();
+		await state.send('First?');
+		const activeId = state.activeChatId;
+		await state.openWithQuestion('   ');
+		expect(state.activeChatId).toBe(activeId);
+		expect(state.messages).toHaveLength(2);
+		expect(state.chats).toHaveLength(1);
+	});
+
 	it('keeps a request live across the modal closing', async () => {
 		let release!: (value: AnswerTurnResponse) => void;
 		const ask = vi.fn(() => new Promise<AnswerTurnResponse>((resolve) => (release = resolve)));

@@ -89,23 +89,18 @@
 	{@render children()}
 
 	<footer class="site-footer">
-		<!-- The claim has to stay true of the workbench, not only of this page. A
-		     draft can be pointed at a YouTube video for playback, and that loads
-		     Google's player — so the footer names the exception rather than
-		     promising something the tool no longer promises. -->
-		<span
-			>Local-first. No account, no upload, nothing third-party unless you ask for it.
-			<a href={resolve('/privacy/')}>Privacy</a></span
-		>
-		<span class="site-code">
-			Rule set {currentRuleSet.version} · published {currentRuleSet.publishedAt}
-		</span>
-		<!-- Required by the Apple Music Identity Guidelines, which the Developer
-		     Program License Agreement makes binding on anything that calls MusicKit.
-		     Once per site, wherever the legal copy is, which is here. -->
-		<span
-			>Apple and Apple Music are trademarks of Apple Inc., registered in the U.S. and other
-			countries.</span
-		>
+		<div class="site-footer__inner">
+			<span>Local-first · <a href={resolve('/privacy/')}>Privacy</a></span>
+			<span class="site-code">
+				Rule set {currentRuleSet.version}
+			</span>
+			<!-- Required by the Apple Music Identity Guidelines, which the Developer
+			     Program License Agreement makes binding on anything that calls MusicKit.
+			     Once per site, wherever the legal copy is, which is here. -->
+			<span
+				>Apple and Apple Music are trademarks of Apple Inc., registered in the U.S. and other
+				countries.</span
+			>
+		</div>
 	</footer>
 </div>

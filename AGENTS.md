@@ -23,6 +23,24 @@ Prefer rebasing over merge commits when integrating branches. Rebase the topic b
 current target branch, then use a fast-forward merge so history stays linear. Do not create a
 merge commit unless the user explicitly requests one or rebasing would rewrite shared history.
 
+### Undo your own hunks, never the file
+
+**Do not run `git checkout -- <file>` (or `git restore <file>`) unless you have just checked that
+the file contains no changes but your own.** It discards everything uncommitted in that file, and
+work that was never staged is not recoverable — not from the reflog, not from a stash, not from
+Vite's caches, which hold transforms in memory only and drop them the moment the watcher sees the
+file change.
+
+This working tree is normally carrying a large set of the user's own modified files, so any file
+worth experimenting in is likely to already hold work that is not yours. Backing an experiment out
+means inverting **your** edits: `Edit` them back, or reverse-apply your own hunks from `git diff`.
+Where you know in advance that you are about to try something you may abandon, `git stash` the
+file first and restore it after.
+
+The cost of getting this wrong is not a rerun. It is somebody's unsaved afternoon, and the only
+place it may still exist is their editor's undo buffer — so if it happens, say so immediately and
+tell them to check that before you offer to rebuild anything from memory.
+
 ## UI rules
 
 ### No cards inside cards
@@ -3333,6 +3351,196 @@ to be right for. Every term has to match — two words narrow.
 to break that grouping, so short terms matching a few extra rules is the accepted cost. A group
 that keeps nothing is dropped rather than left standing as a heading over no rows.
 
+**The groups themselves are ranked, and the ranking is editorial rather than measured.** Their
+order used to be each family's first appearance in the registry, which is the order the _pipeline_
+takes a document apart — so `language.selection-mismatch` was the second heading on the page. That
+is one rule, and it is the one a reader only ever meets by having chosen the wrong language pack;
+above it, and above every spelling, sat nothing anybody arrives here looking for. The reader's
+first screen was decided by an implementation detail.
+
+`groupOrder` in `reference.ts` is the ranking, and what it is ranked by is how often a transcriber
+_meets_ that family — headers, spellings, the markup itself and the voices lead; then the
+conventions that apply line by line; then the narrow families one particular song runs into; and
+last the two that exist only under a condition the reader has to have hit. It cannot be ranked by
+anything better than that, and the reason is the product: LyricLint measures nothing, so there is
+no "most accessed" to read off. Sorting by an invented number would be the automatic anchor stamp
+again — plausible, and wrong by an amount nobody can see — so this is a judgment, written down,
+and `reference.test.ts` pins the head and the tail of it so a reorder is a deliberate edit rather
+than something registry order does behind the page's back.
+
+**Order _within_ a group stays registry order**, which is already written strongest-first inside
+each family: `spelling.standardized` leads the spellings and the nine language-specific ones trail
+it. Hand-ranking all 55 would be a great deal of judgment for very little movement.
+
+The list is **exhaustive and throws** for a family it does not know, exactly as `groupTitles` does.
+Prerendering every page is part of the build, so a rule family added without a place in it fails
+the build rather than landing silently at one end of the index.
+
+**And six of them are drawn twice, at the head of the column.** `groupOrder` gets the right family
+onto the first screen; `Popular` gets the right _rows_ onto it. Section headers is eleven rules
+deep, so ranking it first still opens the page on eleven headings' worth of scrolling before the
+reader meets a spelling — and the two conventions a first-time transcriber actually has to be told
+are one rule from each end of that.
+
+`popularRuleIds` in `reference-search.ts` is the list, and it is curated rather than counted for
+the reason `groupOrder` is. What its members have in common is that each is a Genius convention
+somebody has to be _told_ — brackets around a song part, a legend before a styled voice, `[?]` for
+a lyric nobody could make out — as against a rule whose own message is the whole of what there is
+to know about it. `capitalization.line-start` is absent for exactly that reason, and would
+otherwise be the obvious seventh.
+
+Four things it owes:
+
+- **Six is a ceiling, not a round number.** This block costs the real index its own place on the
+  first screen, and past about six it _is_ the first screen, which defeats a shortcut into a list.
+- **It draws only while nothing is narrowing the list.** A search is the reader saying what they
+  are looking for, and a duplicated shortcut standing over their answer is noise — it would also
+  put six rows in front of a readout counting a different number.
+- **One row implementation, rendered by both lists.** The row is a snippet, because a second copy
+  of that markup is the drift `DiagnosticActions` has a whole section about, and the copy that
+  drifted would be the one at the top of the page.
+- **Both copies of the open rule carry `aria-current`.** They are the same link to the same page,
+  and a shortcut that refused the marker would be the one row in this column where "you are here"
+  is false. `revealSelected` therefore finds the popular copy first, which is already on screen,
+  so a deep link to one of these six scrolls nothing and is marked immediately.
+
+`rows()` in `RuleIndex.svelte.test.ts` excludes `.rules__popular`, or every assertion about "the
+whole list" is six rows too many — which is also the reason the block is not a twentieth entry in
+`groupedRuleReferences()`: that value is prerendered into every payload in the section and read by
+the sitemap, and a rule listed twice there is a duplicate URL rather than a shortcut. **The e2e
+spec's own locator excludes it in the same place**, and did not for a while: `total` counted 61
+rows against a readout that counts 55 rules, so the two disagreed on a page where both were right
+about their own thing.
+
+#### What is searchable is what the page says, and the page says which part matched
+
+The haystack is the rule's page read top to bottom — its name, the linter's wording, the
+explanation, both reviewed examples, the fix's label, the citations under them, and for a
+table-shaped rule the table's own prose and every form in it. That is the whole of what the reader
+can see, and it is the only definition of "searchable" that does not have to be re-argued each time
+a page grows a section.
+
+**A table-shaped rule is where that was a hole rather than a nicety.** For those eight the table
+_is_ the page: the reviewed example demonstrates one of thirty rows, so most of what the reader is
+looking at is the conditions written down the others — `Not where the word means cousin`, `British
+English uses till`, `The closing curly single quote`. None of it was reachable by typing the words
+in it, which is a search that answers for a page's headings and not for its body.
+
+`lookupSearchTerms` carries it, and **the conditions are deduped**, which is what keeps the
+addition cheap: a gate is written once and repeated down the table, so 29 reviewed spellings carry
+12 distinct sentences between them. That is 5.8% of the layout payload against the full table's
+16.2% — the ratio the reference has always been split on, since this value rides into all 55
+prerendered pages and the table itself is loaded by the one page that draws it.
+
+**The citations were left out of it once, and the argument was wrong by an amount that could have
+been measured.** The reasoning — written into this file, which is why it is being corrected here
+rather than quietly deleted — was that all 55 rules cite the same handful of Genius pages, so a
+citation term would group the index rather than narrow it. They do not. The most-cited page title
+covers 18 rules and is `Use song part headers`, where landing on the eighteen header rules is a
+correct answer rather than a grouping; every other title covers three or fewer, and the 47 distinct
+section titles are as specific as `Reviewed Norwegian section-header vocabulary`. What the omission
+actually cost was a reader looking at a link reading `Song Headers in Different Languages`, typing
+`languages`, and being told **no rule matches this search** — the precise distrust this section
+exists to prevent, produced by the section itself. `languages` returns 7 of 55 now.
+
+That is also the general lesson, and it is the one `groupOrder` and the automatic anchor stamp
+already state from other directions: **a claim about how a set is distributed is a measurement, not
+a judgment**, and one made by eye is wrong by an amount nobody can see. What is left outside the
+haystack is severity and fixability, which the chips own — a control the reader can already see —
+along with the sentences the page writes _about_ a fix, which are identical on every rule that has
+none and are therefore the fixability chip wearing words.
+
+**Which means `SourceLink.svelte` takes an optional `text` snippet.** A citation that matched and
+draws no mark is the same complaint arriving from the other side, and the marker cannot simply be
+reached for from inside that component: `src/lib/diagnostics/` sits outside `src/lib/ui/` on
+purpose, because the editor may not depend on the shell and the linter's popover draws this same
+block. So the surface that knows about a query passes one in, and the two that do not — the popover
+and the tools panel — get the text.
+
+**And a mark inside a link gives up the accent.** Measured, accent blue on `--color-text-selection`
+is 3.92:1 in the dark scheme where the body colour on it is 9.28:1 — under AA, on the one element
+added to help somebody read. The underline runs through the mark and the external-link glyph is at
+the end of the same link, so what says "link" here was never the colour alone, which is this
+system's own rule about colour applied to the one run of a link that has a second thing to say. The
+e2e spec compares the marked text's computed colour against the page's body colour rather than
+restating a ratio.
+
+**A rule opened out of a search marks what was searched for.** `Standardized lyric spellings`
+matching `cousin` is a true answer and an unreadable one: the word is in row three of a
+twenty-nine-row table, several screens down, and the reader has to find it themselves. This is the
+same argument the workbench makes by previewing a fix as a diff — show it rather than making the
+reader ask — and it is what closes the loop the widened haystack opens, because a page that can
+match on any of its own text has to be able to say _which_ of it matched.
+
+- **The query is module state** (`ui/site/rule-search.svelte.ts`), and it has to be. The list and
+  the rule are sibling columns under the section's layout with nothing to hand each other, so the
+  component that takes the query cannot be the one that owns it. What that costs is a query
+  surviving a trip out of the section entirely — and nothing about that state is hidden, since the
+  field is showing it and the readout under it says `3 of 55 rules` with `Clear filters` beside it.
+  It also means **a component test has to reset it**: `RuleIndex.svelte.test.ts` would otherwise
+  pass or fail on whatever the test above it happened to type.
+- **The fold is run one character at a time, because the plain one changes the string's length.**
+  NFD splits a letter into a letter and a mark, the mark is then dropped, and a few characters
+  lowercase to more than one — so `ça` folds to `ca` and an offset found in the folded text names
+  nothing in the text on screen. `foldWithOffsets` records, per folded code unit, the span of the
+  source character behind it, so a match resolves to the first character's start and the last one's
+  end. Whole characters only: half a `ç` is not something a `<mark>` can hold.
+- **Every term is marked, and overlapping runs are merged.** Every term had to match for the rule
+  to be listed at all, so marking one of them answers half the question. Two terms that meet in the
+  middle of a word are one mark rather than two with a seam between them.
+- **`<mark>`, and `--color-text-selection`.** The element's semantics are exactly this — text marked
+  for reference to something outside the document — which also puts the fact in the accessible tree
+  where colour cannot go. The tone is the system's one answer for a run of text picked out of a
+  page, already opaque, already vetted to leave the glyphs on it readable, and already restated in
+  the `.site` palette, so this adds nothing to either scheme. The yellow a browser draws `<mark>` in
+  is what `--color-warning-soft` means here, and this page is covered in severities. `color:
+inherit` is not optional: a `<mark>` takes the browser's own black `marktext`, which over the dark
+  scheme's selection blue is text nobody can read, on the one element added to help somebody read.
+
+**`RuleSearchHighlight.svelte` draws text and nothing else — no wrapper — so it stands inside a
+heading, a `<pre>`, a muted `<span>` and a run of code segments without any of them knowing it is
+there. Which makes the whitespace in its template load-bearing.** Svelte does not trim a template
+that opens with a comment node, so the markup around the comment that first stood over the block —
+the newline under the script, the blank line, the indentation — came out as a real text node in
+front of every string it drew. In the reviewed examples, which are set in a `<pre>`, that is three
+lines of a transcription nobody typed at the top of every rule page on the site. The comment is in
+the script now and the block is one unbroken line. **Both the component test and the e2e spec
+measure the rendered text against the string that went in**, because it is a formatter that will
+break this and it looks exactly like working markup when it does.
+
+**Opening a rule by its URL scrolls the list to it; pressing a row in the list does not.** A rule
+_is_ a URL, so most arrivals here are not presses on this column — a shared link, a search result,
+a reload, a link from elsewhere on the site. The row is marked `aria-current` and drawn recessed
+the whole time, which is the entire "you are here", and forty rows below the fold it says that to
+nobody: the column then reads as a list with nothing selected in it, beside a page that plainly
+came out of one of its rows.
+
+Four things it owes, and two of them are the reasons it is arithmetic rather than
+`scrollIntoView`:
+
+- **The layout says when and the index says how.** `+layout.svelte` already owns what a navigation
+  means for these two columns — the detail goes to its top, the list must not move — and this is
+  the third case in that same hook. `pressedARow` is its predicate, and it is deliberately the
+  whole section rather than the index page alone: `arrivedFromIndex` beside it answers a different
+  question, "is the list one entry back in history", for the back button, and going from one rule
+  to another is a press on a row that never passes through `/rules`.
+- **A row already wholly in view is not moved**, which is the other half of the rule that pressing
+  a row may not move the list the row is in. Nothing has to trust the predicate for the ordinary
+  case.
+- **The finder is pinned over the top of this column**, so a row the browser would call visible can
+  be entirely underneath it — `block: 'nearest'` knows nothing about that and would leave it
+  covered. The free space starts at the finder's own measured bottom edge, measured rather than
+  restated as a length, because the chips wrap and the readout comes and goes.
+- **It moves the scroll and not the focus.** The reader opened a rule to read it, and focus parked
+  in a `<nav>` of fifty-five links would send their first Tab away from the document they came
+  for — the same reason the workbench leaves the editor unfocused after a fix.
+
+Below 62rem there is nothing to do: the columns stack and the list is `display: none` while a rule
+is open, which `revealSelected` reads off the row having no box at all rather than by restating the
+breakpoint. `RuleIndex.svelte.test.ts` drives it against a real scroll port at 1100px and asserts
+both halves — the deep-linked row clears the finder, and a row already in view moves the column by
+nothing.
+
 **Two axes, one chip, and the chip is the linter panel's own.** `.filter-chip` moved to
 `controls.css` when this shipped: the same control filtering the same severities out of a list,
 drawn twice, is two copies of the dashed-and-struck-through unpressed state that carries the whole
@@ -3385,9 +3593,11 @@ reader concluding the reference is incomplete. `style` is in `groupTitles` for t
 it will never have a page, but `ruleName` reads the same map, and without an entry the
 ignored-rules footer printed the raw ID at the reader.
 
-Implementation: `title` on `RulePolicyCase` in `rules/catalog/policy-cases.ts`,
-`rules/reference-search.ts` (the fold, the filter, the counts — pure, so the component holds no
-logic of its own), `src/lib/ui/site/RuleIndex.svelte`, and `.rules__finder` in `site.css`.
+Implementation: `title` on `RulePolicyCase` in `rules/catalog/policy-cases.ts`, `groupOrder` in
+`rules/reference.ts`, `rules/reference-search.ts` (the fold, the filter, the counts, the popular
+list — pure, so the component holds no logic of its own), `revealSelected` in
+`src/lib/ui/site/RuleIndex.svelte` with its trigger in `routes/(site)/rules/+layout.svelte`, and
+`.rules__finder` in `site.css`.
 
 ### A line that is a header is not a lyric, and every rule has to agree about which
 
@@ -3524,6 +3734,17 @@ Three things it owes:
 A new rule is four registrations and a count: `registry.ts`, `currentRuleSet.ruleIds` in
 `data/rule-set.ts` (**never** `previousRuleSet`), a `RulePolicyCase` with all three examples, the row
 in `docs/rules.md`, and the hard-coded total in `engine.test.ts`.
+
+**And a fifth where the rule is a table rather than a judgment.** A rule that checks against a
+lookup — a map of misspellings, a set of expansions, a list of preferred forms — reaches the rules
+assistant as its one reviewed example and nothing else, because the corpus derives a rule the way
+the reference page does. `spelling.standardized` shipped that way: asked what the standardized
+spellings are, the assistant could see exactly one pair and said so. Export the table and add it to
+`ruleLookupTables()` in `src/lib/rules/lookup-tables.ts`, which carries per-entry fix behavior — a
+rule's `fixability` is a ceiling, not what every row of its table gets — and keeps LyricLint's own
+curated misspellings labelled apart from the reviewed forms. `services/rules-assistant/README.md`
+is where the rest of that decision is written down, including why a reviewed source is still a
+pointer and no Genius prose is stored.
 
 ### The way to quiet Harper is to know something Harper does not
 

@@ -1,8 +1,8 @@
 {
-	"formatVersion": 1,
+	"formatVersion": 2,
 	"ruleSetVersion": "2026.07.30.0",
-	"generatedAt": "2026-08-02T11:59:32.540Z",
-	"contentHash": "8b6d474b222d6778e9431907c437ac444f2871010d43d2bd687d455ee4be4c4c",
+	"generatedAt": "2026-08-02T13:04:48.214Z",
+	"contentHash": "fa71d397d53bfb694a27858a2f665cc863771756bdeab61cf1f46eadd1ec8bd0",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -881,6 +881,333 @@
 			"flaggedExample": "[Verse]\nI need 5 reasons",
 			"acceptedExample": "[Verse]\nI need five reasons",
 			"sourceIds": ["G-NUMBERS"]
+		}
+	],
+	"lookups": [
+		{
+			"ruleId": "spelling.standardized",
+			"description": "The reviewed Genius spelling guide's preferred lyric forms. Case is preserved from the text being corrected, so a line-initial occurrence keeps its capital. Where an entry is marked fuzzy, any one-character typo of the preferred form is caught as well — always as a previewed fix, even where the entry’s own listed forms are safe.",
+			"entries": [
+				{
+					"preferred": ["I'ma"],
+					"instead": ["I'mma", "Ima", "Imma"],
+					"curatedMisspellings": ["im'a"],
+					"fuzzy": true,
+					"fix": "safe"
+				},
+				{
+					"preferred": ["'cause"],
+					"instead": ["cause", "cos"],
+					"curatedMisspellings": ["coz", "couse"],
+					"fuzzy": true,
+					"fix": "safe"
+				},
+				{
+					"preferred": ["'cause"],
+					"instead": ["cuz"],
+					"appliesWhen": "`cuz` remains valid when it means cousin.",
+					"fix": "preview"
+				},
+				{
+					"preferred": ["okay"],
+					"instead": ["ok", "O.K."],
+					"curatedMisspellings": ["okey"],
+					"fuzzy": true,
+					"fix": "safe"
+				},
+				{
+					"preferred": ["'til"],
+					"instead": ["til"],
+					"appliesWhen": "British English uses `till` and is not rewritten.",
+					"fix": "preview"
+				},
+				{
+					"preferred": ["tryna"],
+					"instead": ["trynna"],
+					"curatedMisspellings": ["tryina"],
+					"fuzzy": true,
+					"fix": "safe"
+				},
+				{
+					"preferred": ["ayy"],
+					"instead": ["aye", "ay"],
+					"curatedMisspellings": ["ey", "eyy", "ei", "eii", "ayee", "ayyy"],
+					"fix": "safe"
+				},
+				{
+					"preferred": ["ho"],
+					"instead": ["hoe"],
+					"appliesWhen": "`hoe` remains valid for the gardening tool or its use.",
+					"fix": "preview"
+				},
+				{
+					"preferred": ["though"],
+					"instead": ["tho"],
+					"curatedMisspellings": ["thoe", "thogh", "thoug"],
+					"fix": "safe"
+				},
+				{
+					"preferred": ["ya"],
+					"instead": ["yah"],
+					"appliesWhen": "`yah` remains valid when it means yeah or yes.",
+					"fix": "preview"
+				},
+				{
+					"preferred": ["y'all"],
+					"instead": ["ya’ll"],
+					"curatedMisspellings": ["yall", "ya'll"],
+					"fuzzy": true,
+					"fix": "safe"
+				},
+				{ "preferred": ["skrrt"], "instead": ["skrt"], "fuzzy": true, "fix": "safe" },
+				{
+					"preferred": ["Perc'", "Perky"],
+					"instead": ["Perk", "Percy"],
+					"appliesWhen": "The replacement applies only when the word refers to Percocet.",
+					"fix": "preview"
+				},
+				{
+					"preferred": ["bougie"],
+					"instead": ["boujee", "boujie"],
+					"curatedMisspellings": ["bougi", "bougy", "bouji", "bourgie"],
+					"fuzzy": true,
+					"fix": "safe"
+				},
+				{
+					"preferred": ["shawty", "shorty"],
+					"instead": [],
+					"appliesWhen": "Both forms are accepted according to pronunciation.",
+					"note": "LyricLint reports neither form; the entry records the accepted variants and seeds Harper."
+				},
+				{ "preferred": ["lil'"], "instead": ["lil", "li'l"], "fix": "safe" },
+				{
+					"preferred": ["woah"],
+					"instead": ["whoa"],
+					"curatedMisspellings": ["whoah", "whao", "woa"],
+					"fix": "safe"
+				},
+				{
+					"preferred": ["dog"],
+					"instead": ["dawg"],
+					"appliesWhen": "Depends on the recording: Genius also allows a distinct or deliberate pronunciation to be written as heard, so compare the audio before replacing it.",
+					"fix": "preview"
+				},
+				{
+					"preferred": ["chopper"],
+					"instead": ["choppa"],
+					"curatedMisspellings": ["choper"],
+					"fuzzy": true,
+					"appliesWhen": "Depends on the recording: Genius also allows a distinct or deliberate pronunciation to be written as heard, so compare the audio before replacing it.",
+					"fix": "preview"
+				},
+				{ "preferred": ["oughta"], "instead": ["oughtta"], "fuzzy": true, "fix": "safe" },
+				{
+					"preferred": ["naive"],
+					"instead": ["naïve"],
+					"curatedMisspellings": ["naieve", "niaive", "neive"],
+					"fuzzy": true,
+					"fix": "safe"
+				},
+				{
+					"preferred": ["cliché"],
+					"instead": ["cliche"],
+					"curatedMisspellings": ["clichè", "clichê", "clichee"],
+					"fuzzy": true,
+					"fix": "safe"
+				},
+				{
+					"preferred": ["alright", "all right"],
+					"instead": [],
+					"appliesWhen": "Both forms are accepted.",
+					"note": "LyricLint reports neither form; the entry records the accepted variants and seeds Harper."
+				},
+				{
+					"preferred": ["a.k.a.", "a.k.a.s"],
+					"instead": ["AKA", "AKAs", "A.K.A", "A.K.A.s"],
+					"appliesWhen": "Which preferred form applies follows the position in the line.",
+					"fix": "preview"
+				},
+				{
+					"preferred": ["GOAT", "GOATs"],
+					"instead": ["G.O.A.T.", "G.O.A.T.s"],
+					"curatedMisspellings": ["G.O.A.T", "G.O.A.Ts"],
+					"fix": "safe"
+				},
+				{
+					"preferred": ["VIP", "VIPs"],
+					"instead": ["V.I.P.", "V.I.P.s"],
+					"curatedMisspellings": ["vip", "vips", "V.I.P", "V.I.Ps"],
+					"fix": "safe"
+				},
+				{
+					"preferred": ["ASAP"],
+					"instead": ["A.S.A.P."],
+					"curatedMisspellings": ["asap", "A.S.A.P"],
+					"appliesWhen": "A$AP performer names remain unchanged.",
+					"fix": "safe"
+				},
+				{
+					"preferred": ["cream"],
+					"instead": ["CREAM", "C.R.E.A.M."],
+					"curatedMisspellings": ["creem"],
+					"appliesWhen": "Keep C.R.E.A.M. when naming the Wu-Tang Clan song.",
+					"fix": "preview"
+				},
+				{
+					"preferred": ["HAM"],
+					"instead": ["H.A.M."],
+					"curatedMisspellings": ["H.A.M"],
+					"fix": "safe"
+				}
+			]
+		},
+		{
+			"ruleId": "spelling.english-common",
+			"description": "High-frequency English misspellings and the correct word. English 'scribes only.",
+			"entries": [
+				{ "preferred": ["definitely"], "instead": ["definately"], "fix": "preview" },
+				{ "preferred": ["tomorrow"], "instead": ["tommorrow"], "fix": "preview" },
+				{ "preferred": ["separate"], "instead": ["seperate"], "fix": "preview" },
+				{ "preferred": ["achieve"], "instead": ["acheive"], "fix": "preview" },
+				{ "preferred": ["because"], "instead": ["becouse"], "fix": "preview" },
+				{ "preferred": ["friend"], "instead": ["freind"], "fix": "preview" },
+				{ "preferred": ["until"], "instead": ["untill"], "fix": "preview" },
+				{ "preferred": ["receive"], "instead": ["recieve"], "fix": "preview" }
+			]
+		},
+		{
+			"ruleId": "spelling.texting-shorthand",
+			"description": "Written-only shorthand and the words it stands in for. An entry carries more than one wording where the shorthand genuinely reads more than one way. The expansion is never shouted to match an initialism-cased token: only a leading capital survives.",
+			"entries": [
+				{ "preferred": ["about"], "instead": ["abt"], "fix": "preview" },
+				{ "preferred": ["because"], "instead": ["b/c"], "fix": "preview" },
+				{ "preferred": ["because"], "instead": ["bc"], "fix": "preview" },
+				{ "preferred": ["be right back"], "instead": ["brb"], "fix": "preview" },
+				{ "preferred": ["by the way"], "instead": ["btw"], "fix": "preview" },
+				{ "preferred": ["for real"], "instead": ["fr"], "fix": "preview" },
+				{ "preferred": ["I don't care"], "instead": ["idc"], "fix": "preview" },
+				{ "preferred": ["I don't know"], "instead": ["idk"], "fix": "preview" },
+				{ "preferred": ["I know, right"], "instead": ["ikr"], "fix": "preview" },
+				{ "preferred": ["I love you"], "instead": ["ily"], "fix": "preview" },
+				{ "preferred": ["in my opinion"], "instead": ["imo"], "fix": "preview" },
+				{ "preferred": ["let me know"], "instead": ["lmk"], "fix": "preview" },
+				{ "preferred": ["never mind"], "instead": ["nvm"], "fix": "preview" },
+				{ "preferred": ["on my way"], "instead": ["omw"], "fix": "preview" },
+				{ "preferred": ["please"], "instead": ["pls"], "fix": "preview" },
+				{ "preferred": ["please"], "instead": ["plz"], "fix": "preview" },
+				{ "preferred": ["people"], "instead": ["ppl"], "fix": "preview" },
+				{ "preferred": ["really"], "instead": ["rly"], "fix": "preview" },
+				{ "preferred": ["right now"], "instead": ["rn"], "fix": "preview" },
+				{ "preferred": ["shaking my head"], "instead": ["smh"], "fix": "preview" },
+				{ "preferred": ["seriously"], "instead": ["srsly"], "fix": "preview" },
+				{ "preferred": ["to be honest"], "instead": ["tbh"], "fix": "preview" },
+				{ "preferred": ["thanks"], "instead": ["thx"], "fix": "preview" },
+				{ "preferred": ["tomorrow"], "instead": ["tmrw"], "fix": "preview" },
+				{ "preferred": ["talk to you later"], "instead": ["ttyl"], "fix": "preview" },
+				{ "preferred": ["you"], "instead": ["u"], "fix": "preview" },
+				{ "preferred": ["your", "you're"], "instead": ["ur"], "fix": "preview" },
+				{ "preferred": ["with"], "instead": ["w/"], "fix": "preview" },
+				{ "preferred": ["without"], "instead": ["w/o"], "fix": "preview" }
+			]
+		},
+		{
+			"ruleId": "contraction.apostrophe",
+			"description": "English contractions written without their apostrophe. English 'scribes only.",
+			"entries": [
+				{ "preferred": ["aren't"], "instead": ["arent"], "fix": "preview" },
+				{ "preferred": ["can't"], "instead": ["cant"], "fix": "preview" },
+				{ "preferred": ["couldn't"], "instead": ["couldnt"], "fix": "preview" },
+				{ "preferred": ["didn't"], "instead": ["didnt"], "fix": "preview" },
+				{ "preferred": ["doesn't"], "instead": ["doesnt"], "fix": "preview" },
+				{ "preferred": ["don't"], "instead": ["dont"], "fix": "preview" },
+				{ "preferred": ["hasn't"], "instead": ["hasnt"], "fix": "preview" },
+				{ "preferred": ["haven't"], "instead": ["havent"], "fix": "preview" },
+				{ "preferred": ["I'm"], "instead": ["im"], "fix": "preview" },
+				{ "preferred": ["isn't"], "instead": ["isnt"], "fix": "preview" },
+				{ "preferred": ["I've"], "instead": ["ive"], "fix": "preview" },
+				{ "preferred": ["shouldn't"], "instead": ["shouldnt"], "fix": "preview" },
+				{ "preferred": ["that's"], "instead": ["thats"], "fix": "preview" },
+				{ "preferred": ["they're"], "instead": ["theyre"], "fix": "preview" },
+				{ "preferred": ["wasn't"], "instead": ["wasnt"], "fix": "preview" },
+				{ "preferred": ["weren't"], "instead": ["werent"], "fix": "preview" },
+				{ "preferred": ["what's"], "instead": ["whats"], "fix": "preview" },
+				{ "preferred": ["won't"], "instead": ["wont"], "fix": "preview" },
+				{ "preferred": ["wouldn't"], "instead": ["wouldnt"], "fix": "preview" },
+				{ "preferred": ["you're"], "instead": ["youre"], "fix": "preview" }
+			]
+		},
+		{
+			"ruleId": "grammar.spanish-contractions",
+			"description": "Obligatory Spanish contractions. Spanish 'scribes only.",
+			"entries": [
+				{ "preferred": ["al"], "instead": ["a el"], "fix": "preview" },
+				{ "preferred": ["del"], "instead": ["de el"], "fix": "preview" }
+			]
+		},
+		{
+			"ruleId": "numbers.spell-out",
+			"description": "Digits a lyric spells out. Numbers reading as data rather than as words — times, money, percentages, and anything joined by a separator — are exempt, as is a digit inside a written-out song part label.",
+			"entries": [
+				{ "preferred": ["zero"], "instead": ["0"], "fix": "preview" },
+				{ "preferred": ["one"], "instead": ["1"], "fix": "preview" },
+				{ "preferred": ["two"], "instead": ["2"], "fix": "preview" },
+				{ "preferred": ["three"], "instead": ["3"], "fix": "preview" },
+				{ "preferred": ["four"], "instead": ["4"], "fix": "preview" },
+				{ "preferred": ["five"], "instead": ["5"], "fix": "preview" },
+				{ "preferred": ["six"], "instead": ["6"], "fix": "preview" },
+				{ "preferred": ["seven"], "instead": ["7"], "fix": "preview" },
+				{ "preferred": ["eight"], "instead": ["8"], "fix": "preview" },
+				{ "preferred": ["nine"], "instead": ["9"], "fix": "preview" },
+				{ "preferred": ["ten"], "instead": ["10"], "fix": "preview" }
+			]
+		},
+		{
+			"ruleId": "quotes.typewriter",
+			"description": "Curly quotation marks and the typewriter mark each becomes. A closing curly single quote between two letters is named as an apostrophe rather than as the closing half of a pair, which is most of what this rule points at in real lyrics.",
+			"entries": [
+				{
+					"preferred": ["'"],
+					"instead": ["‘"],
+					"note": "The opening curly single quote.",
+					"fix": "safe"
+				},
+				{
+					"preferred": ["'"],
+					"instead": ["’"],
+					"note": "The closing curly single quote.",
+					"fix": "safe"
+				},
+				{
+					"preferred": ["\""],
+					"instead": ["“"],
+					"note": "The opening curly double quote.",
+					"fix": "safe"
+				},
+				{
+					"preferred": ["\""],
+					"instead": ["”"],
+					"note": "The closing curly double quote.",
+					"fix": "safe"
+				}
+			]
+		},
+		{
+			"ruleId": "section.localized-header-preference",
+			"description": "Song parts whose reviewed Norwegian pack prefers a Norwegian header over the English one. Matched without regard to case or diacritics, and a single adjacent transposition of the preferred spelling is caught too.",
+			"entries": [
+				{
+					"preferred": ["Refreng"],
+					"instead": ["chorus"],
+					"appliesWhen": "Norwegian 'scribes only.",
+					"fix": "safe"
+				},
+				{
+					"preferred": ["Bro"],
+					"instead": ["bridge"],
+					"appliesWhen": "Norwegian 'scribes only.",
+					"fix": "safe"
+				}
+			]
 		}
 	],
 	"sources": [

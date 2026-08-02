@@ -5,7 +5,10 @@ import {
 	fixabilityLabel,
 	fixabilityOrder,
 	foldForSearch,
+	highlightSegments,
 	isFiltering,
+	popularRuleIds,
+	popularRules,
 	presentFacets,
 	ruleCounts,
 	ruleFixability,
@@ -41,6 +44,69 @@ describe('rule reference search', () => {
 		// them, and it appears nowhere but the example on most of these pages.
 		expect(idsFor('definately')).toEqual(['spelling.english-common']);
 		expect(idsFor('Imma')).toEqual(['spelling.standardized']);
+	});
+
+	it('matches any form in a rule’s lookup table, not just the one in its example', () => {
+		// The example is one row of a table with 29 in it, and for a long time it
+		// was the only row the search could see — so `Imma` found the rule and
+		// `tryna` found nothing, which reads as the reference not covering it.
+		expect(idsFor('tryna')).toEqual(['spelling.standardized']);
+		expect(idsFor('bougie')).toEqual(['spelling.standardized']);
+		expect(idsFor('skrrt')).toEqual(['spelling.standardized']);
+		// A curated misspelling is searchable too: it is what the reader typed.
+		expect(idsFor('tryina')).toEqual(['spelling.standardized']);
+		// Matching is substring, so a short form legitimately lands on more than
+		// one rule — `couse` is inside `becouse`, which another table also carries.
+		// Both rows are true answers, so this widens rather than misfires.
+		expect(idsFor('couse')).toEqual(['spelling.standardized', 'spelling.english-common']);
+		// And the other tables, whose examples name one token each.
+		expect(idsFor('tmrw')).toEqual(['spelling.texting-shorthand']);
+		expect(idsFor('wouldnt')).toEqual(['contraction.apostrophe']);
+		expect(idsFor('untill')).toEqual(['spelling.english-common']);
+	});
+
+	it('matches what a rule cites, which the page draws in full', () => {
+		// The specific complaint: `section.localized-header-preference` cites
+		// `Song Headers in Different Languages`, in a link the reader is looking
+		// at, and typing the word in it answered `No rule matches this search`.
+		const cited = idsFor('languages');
+		expect(cited).toContain('section.localized-header-preference');
+		// It widens rather than groups, which is the thing this was left out for
+		// on an assumption nobody measured. The most-cited page covers 18 of 55
+		// rules; every other title covers three or fewer.
+		expect(cited.length).toBeLessThan(countRules(groups) / 2);
+		// And the reviewed part of the page, which is the more specific of the two
+		// strings a citation draws — three rules read that vocabulary and all
+		// three are true answers to having typed it.
+		expect(idsFor('norwegian section-header vocabulary')).toEqual([
+			'section.header-language',
+			'section.localized-header-preference',
+			'section.header-unrecognized'
+		]);
+	});
+
+	it('matches the prose a table-shaped rule’s page is mostly made of', () => {
+		// For these eight rules the table *is* the page, so the conditions written
+		// down its rows are most of what the reader is looking at — and for a long
+		// time none of it was reachable by typing the words in it. A search that
+		// answers for a page's headings and not for its body is one the reader
+		// learns to distrust.
+		expect(idsFor('cousin')).toEqual(['spelling.standardized']);
+		// The name of the mark, which the table writes on the row for it and
+		// nowhere else on the page. `quotation mark` alone is a fair match for
+		// `punctuation.line-ending` as well, which is the filter widening honestly
+		// rather than misfiring.
+		expect(idsFor('closing curly single')).toEqual(['quotes.typewriter']);
+		// The table's own description, which is what the rule checks against
+		// stated once above the run.
+		expect(idsFor('case is preserved')).toEqual(['spelling.standardized']);
+	});
+
+	it('folds a table’s forms like everything else, so the reader types what they have', () => {
+		// `'cause` and `y'all` carry the typewriter apostrophe in the table and the
+		// reader may well type the curly one, or neither.
+		expect(idsFor('y’all')).toEqual(['spelling.standardized']);
+		expect(idsFor("y'all")).toEqual(['spelling.standardized']);
 	});
 
 	it('matches either spelling of the identifier', () => {
@@ -173,11 +239,91 @@ describe('rule reference search', () => {
 		expect(foldForSearch('됐')).toBe('됐'.normalize('NFD'));
 	});
 
+	it('resolves every rule in the popular block against the index', () => {
+		// The block is a hand-written list of IDs, and a rule leaving the catalog
+		// would otherwise shorten it silently — `popularRules` skips what it cannot
+		// find, because losing a shortcut is not worth failing a page render over.
+		// This is where a stale ID is supposed to be caught instead.
+		expect(popularRules(groups).map((rule) => rule.id)).toEqual(popularRuleIds);
+		// A shortcut into the list has to be shorter than the first screen it is a
+		// shortcut past.
+		expect(popularRuleIds.length).toBeLessThanOrEqual(6);
+	});
+
 	it('names a fixability in the words the rule’s own page uses', () => {
 		expect(fixabilityOrder.map(fixabilityLabel)).toEqual([
 			'Automatic fix',
 			'Previewed fix',
 			'No automatic fix'
 		]);
+	});
+});
+
+/** The segments as one string again, which has to be what went in. */
+function rejoin(segments: readonly { text: string }[]): string {
+	return segments.map((segment) => segment.text).join('');
+}
+
+/** Only the marked runs, in order, which is what a reader would see marked. */
+function marked(text: string, query: string): string[] {
+	return highlightSegments(text, searchTokens(query))
+		.filter((segment) => segment.match)
+		.map((segment) => segment.text);
+}
+
+describe('marking the query inside the rule it opened', () => {
+	it('marks nothing while nothing has been asked for', () => {
+		expect(highlightSegments('Use song part headers', [])).toEqual([
+			{ text: 'Use song part headers', match: false }
+		]);
+		// Nothing at all rather than one empty segment, so a component drawing
+		// these puts no element on the page for a field the rule does not carry.
+		expect(highlightSegments('', searchTokens('header'))).toEqual([]);
+	});
+
+	it('marks every term, because every term is why the rule was listed', () => {
+		expect(marked('Use [Verse 1] rather than Verse 1:', 'verse bracket')).toEqual([
+			'Verse',
+			'Verse'
+		]);
+		expect(marked('Wrap the ad-lib in parentheses', 'ad-lib parentheses')).toEqual([
+			'ad-lib',
+			'parentheses'
+		]);
+	});
+
+	it('marks whole characters where the fold changed the string’s length', () => {
+		// The whole reason the fold is run one character at a time: `Ça` folds to
+		// `ca`, so an offset taken from the folded text names a different run of
+		// the text on screen. Half a `Ç` is not something a mark can hold.
+		expect(marked('Ça va bien', 'ca va')).toEqual(['Ça', 'va']);
+		expect(rejoin(highlightSegments('Ça va bien', searchTokens('ca va')))).toBe('Ça va bien');
+		// And the same in the other direction: the reader types the apostrophe
+		// their keyboard has and the page is written with the curly one.
+		expect(marked('Don’t stop', "don't")).toEqual(['Don’t']);
+	});
+
+	it('merges runs that overlap rather than drawing a seam through a word', () => {
+		expect(marked('apostrophe', 'apo ost')).toEqual(['apost']);
+		// Two occurrences of one term stay two marks, because they are two.
+		expect(marked('la la la', 'la')).toEqual(['la', 'la', 'la']);
+	});
+
+	it('never changes the text it is marking', () => {
+		// The segments are rendered in place of the string, examples included —
+		// and those are set in a `<pre>`, where a character gained or lost is a
+		// transcription nobody typed.
+		for (const group of groups) {
+			for (const rule of group.rules) {
+				for (const text of [rule.title, rule.message, rule.explanation, rule.invalid, rule.valid]) {
+					for (const query of ['e', 'the verse', 'don’t', 'ça']) {
+						expect(
+							rejoin(highlightSegments(text, searchTokens(query))),
+							`${rule.id}: ${text}`
+						).toBe(text);
+					}
+				}
+			}
+		}
 	});
 });

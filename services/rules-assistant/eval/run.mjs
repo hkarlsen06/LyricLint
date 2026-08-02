@@ -83,10 +83,19 @@ for (const [index, testCase] of evalSet.cases.entries()) {
 	if (expect.citesNone && cited.length > 0) ok = false;
 	if (expect.minRuleCitations && new Set(cited).size < expect.minRuleCitations) ok = false;
 	if (expect.maxRuleCitations && new Set(cited).size > expect.maxRuleCitations) ok = false;
+	// A table-shaped rule reaches the model as its whole lookup table, and the
+	// failure that produced one is invisible to every check above: the answer is
+	// structurally perfect, cites the right rule, and knows one pair. So these
+	// cases assert on the prose, against forms that appear nowhere in the rule's
+	// own reviewed example.
+	const said = blocks.map((block) => block.text ?? '').join('\n');
+	const missing = (expect.mentionsAll ?? []).filter((form) => !said.includes(form));
+	if (missing.length > 0) ok = false;
 	if (ok) scopeCorrect += 1;
 	else
 		failures.push(
-			`${testCase.id}: scope/citation expectation missed (scope=${answer.scope}, cited=${cited.join(',')})`
+			`${testCase.id}: scope/citation expectation missed (scope=${answer.scope}, cited=${cited.join(',')}` +
+				`${missing.length > 0 ? `, unmentioned=${missing.join(',')}` : ''})`
 		);
 }
 

@@ -5,10 +5,22 @@
  * output, committed so the Worker builds from a reviewed artifact and the
  * parity tests can catch it going stale. Everything in it comes from data the
  * frontend already ships or derives — `currentRuleSet`, the `RuleReference`
- * derivations, the reviewed source registry, the reviewed language packs, and
- * the policy sections of `docs/rules.md`. Nothing unreviewed enters: sources
- * are filtered to `reviewStatus === 'reviewed'`, and the 64-language inventory
- * of unreviewed Genius annotations is deliberately absent.
+ * derivations, the catalog's own lookup tables, the reviewed source registry,
+ * the reviewed language packs, and the policy sections of `docs/rules.md`.
+ * Nothing unreviewed enters: sources are filtered to
+ * `reviewStatus === 'reviewed'`, and the 64-language inventory of unreviewed
+ * Genius annotations is deliberately absent.
+ *
+ * **A rule enters as one worked example, which for a table-shaped rule is not
+ * the rule.** `ruleReferences()` derives a page by running the rule against its
+ * reviewed `invalid` case, so `spelling.standardized` arrived here as the single
+ * pair `Imma` → `I'ma` and the assistant, asked what the standardized spellings
+ * are, could only answer with that pair. `lookups` is the rest of it: the seven
+ * catalog tables in full, from `lookup-tables.ts`, derived from the same
+ * constants the rules check against so an added spelling cannot go missing here.
+ * A pointer to a guideline is deliberately still all a source carries — the
+ * registry stores no Genius prose, and transcribing some would make this the one
+ * hand-written thing in an artifact whose whole design is that it is generated.
  *
  * Server-side only, like `reference.ts` beside it: deriving the references in
  * a browser throws by design.
@@ -18,9 +30,11 @@ import { reviewedLanguagePacks } from '$lib/languages/registry.js';
 import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { harperRuleIds } from './harper.js';
+import { ruleLookupTables, type RuleLookupTable } from './lookup-tables.js';
 import { ruleReferences } from './reference.js';
 
-export const CORPUS_FORMAT_VERSION = 1;
+/** 2 added `lookups`. */
+export const CORPUS_FORMAT_VERSION = 2;
 
 export interface AssistantCorpusRule {
 	id: string;
@@ -60,6 +74,8 @@ export interface AssistantCorpus {
 	generatedAt: string;
 	contentHash: string;
 	rules: AssistantCorpusRule[];
+	/** What the table-shaped rules check against, in full. */
+	lookups: RuleLookupTable[];
 	sources: AssistantCorpusSource[];
 	languages: AssistantCorpusLanguage[];
 	harper: { ruleIds: string[]; behavior: string; limitations: string[] };
@@ -150,6 +166,7 @@ export function buildAssistantCorpusContent(
 		formatVersion: CORPUS_FORMAT_VERSION,
 		ruleSetVersion: currentRuleSet.version,
 		rules,
+		lookups: ruleLookupTables(),
 		sources,
 		languages,
 		harper: {
@@ -183,6 +200,7 @@ export async function buildAssistantCorpus(
 		generatedAt,
 		contentHash,
 		rules: content.rules,
+		lookups: content.lookups,
 		sources: content.sources,
 		languages: content.languages,
 		harper: content.harper,

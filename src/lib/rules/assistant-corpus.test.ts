@@ -16,7 +16,9 @@ import {
 } from './assistant-corpus.js';
 import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
+import { standardizedSpellings } from './data/spelling.js';
 import { harperRuleIds } from './harper.js';
+import { ruleLookupTables } from './lookup-tables.js';
 import { enabledRules } from './registry.js';
 
 const root = join(__dirname, '../../..');
@@ -38,6 +40,35 @@ describe('assistant corpus parity', () => {
 		const all = [...committed.rules.map((rule) => rule.id), ...committed.harper.ruleIds].sort();
 		expect(all).toEqual([...currentRuleSet.ruleIds].sort());
 		expect(committed.harper.ruleIds).toEqual([...harperRuleIds]);
+	});
+
+	it('carries the table-shaped rules in full, not just their worked example', () => {
+		expect(committed.lookups).toEqual(ruleLookupTables());
+		const ruleIds = new Set(committed.rules.map((rule) => rule.id));
+		for (const lookup of committed.lookups) {
+			expect(ruleIds.has(lookup.ruleId), `${lookup.ruleId} has a table but no rule`).toBe(true);
+		}
+		// The regression this shipped for: `spelling.standardized` reached the
+		// assistant as the single pair its policy example is, so asked what the
+		// standardized spellings are it could only answer `Imma` → `I'ma`.
+		const spellings = committed.lookups.find((lookup) => lookup.ruleId === 'spelling.standardized');
+		expect(spellings?.entries).toHaveLength(standardizedSpellings.length);
+		expect(spellings?.entries.length).toBeGreaterThan(20);
+	});
+
+	it('labels curated transcription mistakes so they cannot be cited as Genius policy', () => {
+		const curated = committed.lookups
+			.flatMap((lookup) => lookup.entries)
+			.flatMap((entry) => entry.curatedMisspellings ?? []);
+		expect(curated.length).toBeGreaterThan(0);
+		const reviewedForms = new Set(
+			committed.lookups
+				.flatMap((lookup) => lookup.entries)
+				.flatMap((entry) => [...entry.preferred, ...entry.instead])
+		);
+		for (const mistake of curated) {
+			expect(reviewedForms.has(mistake), `${mistake} is offered as reviewed guidance`).toBe(false);
+		}
 	});
 
 	it('cites only reviewed sources, and every source a rule cites is present', () => {

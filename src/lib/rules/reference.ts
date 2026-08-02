@@ -9,6 +9,7 @@ import type {
 	SourceReference
 } from '$lib/core/types.js';
 import { policyCases, type RulePolicyCase } from './catalog/policy-cases.js';
+import { lookupSearchTerms, ruleLookupTable } from './lookup-tables.js';
 import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { sortDiagnostics } from './engine.js';
@@ -62,6 +63,15 @@ export interface RuleReference {
 	sources: SourceReference[];
 	/** The explanation cut to meta-description length for the page's head. */
 	seoDescription: string;
+	/**
+	 * Every form in this rule's lookup table, for the index's search — and only
+	 * the forms. The table itself is loaded by the rule's own page, because this
+	 * entry travels in the section layout's data and is therefore copied into all
+	 * 55 prerendered payloads: the whole table is 17.8% of that payload for
+	 * content six of every seven pages never draw, and the terms are 2.5%.
+	 * Absent on a rule that is a judgment rather than a table.
+	 */
+	lookupTerms?: string;
 }
 
 /**
@@ -129,6 +139,71 @@ function groupTitle(prefix: string): string {
 	return title;
 }
 
+/**
+ * The order the index draws its groups in, most-consulted first.
+ *
+ * It used to be each group's first appearance in the registry, which is an
+ * ordering of the *pipeline* — rules run roughly in the order a document is
+ * taken apart — and it put `language.selection-mismatch` second on the page.
+ * That is one rule, and it is the one a reader only ever meets by having chosen
+ * the wrong language pack; above it, and above spelling, sat nothing anybody
+ * arrives here looking for. A reader's first screen was decided by an
+ * implementation detail.
+ *
+ * This is an editorial ranking rather than a measurement, and it has to be:
+ * LyricLint collects nothing — 'scribes stay in the browser, there is no
+ * analytics on the site, and the deployed build phones nobody but the audio
+ * source the user attached. So there is no "most accessed" to read off, and the
+ * honest proxy is how often a transcriber meets that family at all. Inventing a
+ * number to sort by would be the same failure as the automatic anchor stamp:
+ * plausible, and wrong by an amount nobody can see.
+ *
+ * The shape of it: what every transcription has (headers, spellings, the markup
+ * itself, the voices) leads; then the conventions that apply line by line; then
+ * the narrow families a particular song runs into; and last the two that only
+ * exist under a condition the reader has to have hit — a prose-dense line, and
+ * the wrong pack selected.
+ *
+ * Order *within* a group stays registry order, which is already written
+ * strongest-first inside each family — `spelling.standardized` leads the
+ * spellings and the nine language-specific ones trail it — so a second hand-run
+ * ranking of all 55 rules would be a lot of judgment for very little movement.
+ *
+ * Exhaustive, and it throws for a prefix it does not know, exactly as
+ * `groupTitle` does: prerendering every page is part of the build, so a rule
+ * family added without a place in this list fails the build rather than landing
+ * silently at one end of the index.
+ */
+const groupOrder: readonly string[] = [
+	'section',
+	'spelling',
+	'syntax',
+	'performer',
+	'capitalization',
+	'punctuation',
+	'unknown',
+	'contraction',
+	'quotes',
+	'adlib',
+	'text',
+	'grammar',
+	'repeat',
+	'symbols',
+	'numbers',
+	'censored',
+	'sound-effect',
+	'line',
+	'language'
+];
+
+function groupRank(prefix: string): number {
+	const rank = groupOrder.indexOf(prefix);
+	if (rank < 0) {
+		throw new Error(`No reference group order for rule prefix "${prefix}"`);
+	}
+	return rank;
+}
+
 // Mirrors how catalog-policy.test.ts builds its roster, so the reference runs
 // each rule under the same conditions its policy example is verified under.
 function performerRecordsFor(names: readonly string[]): PerformerRecord[] {
@@ -187,6 +262,7 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 	});
 	const prefix = rule.id.slice(0, rule.id.indexOf('.'));
 	const fix = lead.fixes?.[0];
+	const lookup = ruleLookupTable(rule.id);
 	return {
 		id: rule.id,
 		title: policy.title,
@@ -201,7 +277,8 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 		invalid: policy.invalid,
 		valid: policy.valid,
 		sources,
-		seoDescription: seoDescription(lead.explanation)
+		seoDescription: seoDescription(lead.explanation),
+		...(lookup ? { lookupTerms: lookupSearchTerms(lookup) } : {})
 	};
 }
 
@@ -257,10 +334,10 @@ export interface RuleReferenceGroup {
 }
 
 /**
- * The reference grouped for the index, ordered by each group's first
- * appearance in the registry. Grouping by prefix pulls the spelling rules that
- * the registry interleaves with grammar back into one section, while keeping
- * the registry's own broad ordering — syntax first, conventions last.
+ * The reference grouped for the index, in `groupOrder` — most-consulted first.
+ * Grouping by prefix pulls the spelling rules that the registry interleaves
+ * with grammar back into one section; the rules inside each group keep the
+ * registry's own order.
  */
 export function groupedRuleReferences(): RuleReferenceGroup[] {
 	const groups = new Map<string, RuleReferenceGroup>();
@@ -272,5 +349,7 @@ export function groupedRuleReferences(): RuleReferenceGroup[] {
 		}
 		group.rules.push(reference);
 	}
-	return [...groups.values()];
+	return [...groups.entries()]
+		.sort(([a], [b]) => groupRank(a) - groupRank(b))
+		.map(([, group]) => group);
 }

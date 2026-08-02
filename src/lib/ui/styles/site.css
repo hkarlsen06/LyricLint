@@ -193,12 +193,6 @@
    not a change of material — the same band, the same brand, in the same place. */
 .site-header,
 .site-footer {
-	display: flex;
-	padding: var(--space-3) var(--space-5);
-	gap: var(--space-4);
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
 	background: var(--color-chrome);
 }
 
@@ -224,6 +218,7 @@
  * paragraph or a screenshot scrolls behind it.
  */
 .site-header {
+	display: flex;
 	position: sticky;
 	z-index: var(--layer-toolbar);
 	min-height: var(--header-height);
@@ -271,11 +266,22 @@
    competing with the last thing the reader is meant to press; the hairline
    already says where the article stops. */
 .site-footer {
-	padding: var(--space-5) var(--space-5) var(--space-6);
 	border-top: var(--border-width) solid var(--color-border);
 	background: transparent;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
+}
+
+.site-footer__inner {
+	display: flex;
+	width: 100%;
+	max-width: var(--measure-split);
+	padding: var(--space-3) var(--space-5);
+	gap: var(--space-4);
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	margin-inline: auto;
 }
 
 /* The lockup is the link, so the link may not paint over it: the wordmark tints
@@ -392,6 +398,22 @@
 	display: inline-flex;
 	gap: var(--space-2);
 	align-items: center;
+}
+
+.site-meta__link {
+	color: inherit;
+	text-decoration: none;
+}
+
+.site-meta__github {
+	flex: none;
+}
+
+.site-meta__link:hover,
+.site-meta__link:focus-visible {
+	color: var(--color-text);
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
 }
 
 .site-actions {
@@ -682,7 +704,7 @@
 	width: 100%;
 	max-width: var(--measure-split);
 	min-height: 0;
-	padding: var(--space-6) var(--space-5);
+	padding: var(--space-6) var(--space-5) 0;
 	gap: var(--space-6);
 	grid-template-rows: minmax(0, 1fr);
 	grid-template-columns: minmax(0, 1fr) minmax(0, 34rem);
@@ -710,11 +732,20 @@
  * answers both: it is the lane the overlay bar floats in, and the gap between
  * the text and a classic one. `stable` is here for the second case only, so a
  * short rule and a long one do not sit at different widths.
+ *
+ * The inline-start padding is the focus ring's lane, and the negative margin is
+ * what keeps it from being an indent: a scroll port clips at its padding edge,
+ * so a full-width field flush against the start of this column had the left
+ * side of its ring cut off — which reads as a control whose border is broken on
+ * one side rather than as an outline that ran out of room. The margin gives the
+ * four pixels back to the section's own inline padding, so every row, heading
+ * and field keeps the x it had.
  */
 .rules__index,
 .rules__detail {
 	min-height: 0;
-	padding-inline-end: var(--space-3);
+	padding-inline: var(--focus-ring-reach) var(--space-3);
+	margin-inline-start: calc(-1 * var(--focus-ring-reach));
 	overflow: auto;
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable;
@@ -812,6 +843,111 @@
 	font-size: var(--font-size-sm);
 }
 
+/*
+ * A row of a lookup table, in the `.site-run` the index's rows already use —
+ * the run is one bordered object with hairlines inside it either way, and a
+ * second run class for the same material is the drift that idiom exists to
+ * prevent. What differs is that these rows are read rather than pressed, so
+ * `.site-run a` is not there to carry the padding and the row supplies its own.
+ */
+.rules__lookup-row {
+	display: grid;
+	padding: var(--space-3) var(--space-4);
+	gap: var(--space-1);
+}
+
+/*
+ * `.site-prose` puts a bottom margin on every `p` and `li` inside it, and this
+ * run is inside one — at `(0,1,1)`, which outranks a single class, so the row's
+ * own `gap` was being *added* to a `--space-4` margin under each of its three
+ * lines and a `--space-2` margin under the row itself. Three short lines read as
+ * a paragraph of empty surface, with the deepest gap under the last one where
+ * nothing follows it. The run supplies its own rhythm, so the prose defaults
+ * come back off at the specificity that set them. The index's copy of this run
+ * never hit it: `RuleIndex` is not mounted inside `.site-prose`.
+ */
+.site-prose .rules__lookup-row,
+.site-prose .rules__lookup-row p {
+	margin: 0;
+}
+
+/* The forms are literal strings the reader types into a document, so they are
+   set in the source face wherever they appear — the same reason `.site-code`
+   exists. The preferred form takes the body color and the form it replaces is
+   muted: the answer is what the row is for. That is emphasis and not a state
+   carrier, since the arrow and the order already say which is which. */
+.rules__lookup-forms {
+	display: flex;
+	gap: var(--space-2);
+	flex-wrap: wrap;
+	align-items: baseline;
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+}
+
+.rules__lookup-from,
+.rules__lookup-arrow {
+	color: var(--color-text-muted);
+}
+
+.rules__lookup-to {
+	font-weight: var(--font-weight-medium);
+}
+
+.rules__lookup-meta {
+	margin: 0;
+}
+
+/* The condition on the replacement, in the rule's own words. Muted and one step
+   down, like the index row's message: the pair above is what the reader scans
+   and this is what they read once they have stopped on it. */
+.rules__lookup-note {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+/*
+ * What the reader's own search matched, marked on the page they opened out of
+ * it — the title, the explanation, both examples, and every row of a lookup
+ * table. See `RuleSearchHighlight.svelte`.
+ *
+ * `--color-text-selection` rather than a highlighter yellow, and rather than a
+ * token of its own. This is the system's one tone for a run of text picked out
+ * of a page, its own comment already states that it is opaque and light enough
+ * to leave the glyphs on top readable, and it is restated in the `.site`
+ * palette — so this needs nothing added to either scheme. The yellow a browser
+ * draws `<mark>` in is what `--color-warning-soft` means here, and this page is
+ * covered in severities: a warning tint on text that is not a warning is the
+ * drift the severity glyphs were reworked to stop.
+ *
+ * `color: inherit` is not optional. A `<mark>` takes the browser's own
+ * `marktext` foreground, which is black — over the dark scheme's selection blue
+ * that is text nobody can read, on the one element added to help somebody read.
+ */
+.rules__hit {
+	border-radius: var(--radius-xs);
+	background: var(--color-text-selection);
+	color: inherit;
+}
+
+/*
+ * Except inside a link, where inheriting is what breaks it. The citations are
+ * searched with the rest of the page, so a mark lands on accent-blue text — and
+ * measured, that is 3.92:1 against this fill in the dark scheme where the body
+ * colour is 9.28:1. Under AA, on the one element added to help somebody read.
+ *
+ * The word gives up the accent and keeps everything else: the underline runs
+ * through it and the external-link glyph is at the end of the same link, so
+ * what says "link" here was never the colour on its own — which is this
+ * system's rule about colour everywhere else, applied to the one run of a link
+ * that has a second thing to say.
+ */
+.rules__page a .rules__hit {
+	color: var(--color-text);
+}
+
 /* Prose on the canvas, like every other full-column message on this site: a
    single box in an empty column separates its contents from nothing at all. */
 .rules__empty {
@@ -878,10 +1014,13 @@
 		grid-template-areas: 'detail' 'index';
 	}
 
+	/* Nothing clips here, so neither lane is needed: the scrollbar's, nor the
+	   focus ring's. */
 	.rules__index,
 	.rules__detail {
 		min-height: auto;
-		padding-inline-end: 0;
+		padding-inline: 0;
+		margin-inline-start: 0;
 		overflow: visible;
 		overscroll-behavior: auto;
 		scrollbar-gutter: auto;
@@ -935,11 +1074,8 @@
 	 * band the workbench wears, which is the point of it.
 	 */
 	.site-footer {
-		/* The gutter is the prose gutter, so the wordmark, the headline, and every
-		   paragraph under it start on one edge. The header's gutter lives on
-		   `.site-header__inner`, which carries the same `--space-5` at every
-		   width, so only the footer needs restating here. */
-		padding: var(--space-3) var(--space-5);
+		/* The inner carries the same gutter as the header at every width; the
+		   footer itself only owns the full-width hairline. */
 		background: transparent;
 	}
 

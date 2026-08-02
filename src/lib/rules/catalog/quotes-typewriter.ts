@@ -12,7 +12,7 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
  * does not: `“` and `”` differ by the direction of a curl at 15px, which is
  * exactly the size the panel draws them at.
  */
-const curlyQuotes: Record<string, { straight: string; name: string }> = {
+export const curlyQuotes: Record<string, { straight: string; name: string }> = {
 	'‘': { straight: "'", name: 'opening curly single quote' },
 	'’': { straight: "'", name: 'closing curly single quote' },
 	'“': { straight: '"', name: 'opening curly double quote' },
