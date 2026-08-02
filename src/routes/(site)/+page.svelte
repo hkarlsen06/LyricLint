@@ -76,6 +76,15 @@
 	const canonicalUrl = siteUrl('/');
 	const appUrl = siteUrl('/lint/');
 	const harperUrl = sourceRegistry.get('T-HARPER')?.url ?? 'https://writewithharper.com/';
+	// The `WebSite` node is what Google's site-name feature reads — without it,
+	// results print the bare domain where the brand should be. It belongs on the
+	// homepage and only the homepage, which is where Google looks for it.
+	const websiteData = {
+		'@context': 'https://schema.org',
+		'@type': 'WebSite',
+		name: 'LyricLint',
+		url: canonicalUrl
+	};
 	const structuredData = {
 		'@context': 'https://schema.org',
 		'@type': 'WebApplication',
@@ -137,6 +146,7 @@ And the "quiet" part was never really quiet`;
 	<meta name="twitter:description" content={socialDescription} />
 </svelte:head>
 
+<StructuredData data={websiteData} />
 <StructuredData data={structuredData} />
 
 <main class="lp">

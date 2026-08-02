@@ -1,21 +1,19 @@
 <svg
 	xmlns="http://www.w3.org/2000/svg"
-	viewBox="3.6 3.6 24.8 24.8"
+	viewBox="8.4 12.3 15.2 7.4"
 	width="32"
 	height="32"
 	role="img"
 	aria-label="LyricLint"
 >
 	<title>LyricLint</title>
-	<!-- No tile: the mark is the icon. It carries #dea645 so it clears Safari's
+	<!-- No tile, and no brackets: at the ~16-18px a tab strip or a search result
+	     renders, brackets and a waveform are three strokes fighting for the same
+	     pixels, so the icon is the waveform alone — the same geometry the lockup
+	     draws, cropped to its own bounding box plus half a unit so the stroke
+	     lands as thick as 16px allows. It carries #dea645 so it clears Safari's
 	     contrast threshold against its #282828 dark tab bar on its own — a mark
-	     any darker than this comes back on a white plate. The viewBox is cropped
-	     to the mark's bounding box plus half a unit, so the strokes land thicker
-	     at 16px than they would inside a tile. -->
-	<g fill="none" stroke="#dea645" stroke-width="2.2">
-		<path d="M9 8.5H5.2v15H9" />
-		<path d="M23 8.5h3.8v15H23" />
-	</g>
+	     any darker than this comes back on a white plate. -->
 	<path
 		d="M9.9 16Q12.95 11.6 16 16T22.1 16"
 		fill="none"

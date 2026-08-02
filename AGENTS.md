@@ -3994,13 +3994,16 @@ Three things the arithmetic depends on, all easy to break:
   whole brand by setting `font-size`, and that is the only override it is allowed.
 
 Implementation: `src/lib/ui/layout/AppWordmark.svelte` (state and markup only) and the arithmetic
-in `src/lib/ui/styles/shell.css`. `src/lib/assets/lyriclint-mark.svg` and the favicon are the
-static mark and carry the same geometry — the closed lockup has to keep matching them.
+in `src/lib/ui/styles/shell.css`. `src/lib/assets/lyriclint-mark.svg` is the static mark and
+carries the same geometry — the closed lockup has to keep matching it.
 
-**The favicon is the bare mark in `#dea645`, and the color is contrast, not taste.** There is no
-tile: brackets and waveform on transparency, the `viewBox` cropped to the mark's own bounding box
-plus half a unit so the strokes land as thick as 16px allows. The brand's dark ink is the one thing
-it may not have, because:
+**The favicon is the waveform alone in `#dea645`, and both choices are contrast, not taste.**
+There is no tile, and no brackets: at the ~16–18px a tab strip or a search result's chip renders,
+brackets and a waveform are three strokes fighting for the same pixels, and the full mark came out
+illegible in Google's own results. So the icon is the waveform by itself — the lockup's exact
+geometry, not a redrawing — with the `viewBox` cropped to the wave's own bounding box plus half a
+unit, which lands its stroke nearly twice as thick at 16px as the full mark managed. The brand's
+dark ink is the one thing it may not have, because:
 
 **Safari draws its own background behind any favicon whose contrast against the tab bar is too
 low.** Its dark-mode tab bar is `#282828`; the brand's `#1c1c22` scores 1.15:1 against it, which is
