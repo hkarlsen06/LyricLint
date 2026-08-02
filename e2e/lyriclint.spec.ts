@@ -129,7 +129,7 @@ test('marketing home opens the workbench at /lint', async ({ page }) => {
 	).toBeVisible();
 	// The title the page actually ships. It was shortened in 220ded2 and this
 	// assertion was not, so it had been failing since.
-	await expect(page).toHaveTitle('LyricLint · For Genius transcribers');
+	await expect(page).toHaveTitle('Free lyric formatter for Genius transcriptions · LyricLint');
 	await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Genius/u);
 	await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
 	await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
