@@ -165,7 +165,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		// A guided action, in the bordered tier, like the other two that open a
 		// picker rather than changing the document where they stand.
 		const expected = [
-			{ label: 'Link these sections', classes: 'button diagnostic-actions__guided' },
+			{ label: 'Manage linking', classes: 'button diagnostic-actions__guided' },
 			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
 		];
 		expect(panelActions(diagnostic)).toEqual(expected);

@@ -5,7 +5,7 @@
 import { getContext, setContext } from 'svelte';
 import { resolveAnchor } from '$lib/core/text-anchors.js';
 import { diffWords } from '$lib/core/word-diff.js';
-import type { AtomicDocumentEdit } from '$lib/core/types.js';
+import type { AtomicDocumentEdit, TextRange } from '$lib/core/types.js';
 import type {
 	AssistantChatRecord,
 	AssistantMessageRecord,
@@ -76,7 +76,7 @@ const FAILURE_MESSAGES: Record<AssistantErrorCode, string> = {
 	'not-configured': 'The assistant is not configured in this build.'
 };
 
-const TOOL_ROUND_FAILURE = `The assistant may use draft tools at most ${MAX_TOOL_ROUNDS} times in one turn.`;
+const TOOL_ROUND_FAILURE = `The assistant may use 'scribe tools at most ${MAX_TOOL_ROUNDS} times in one turn.`;
 
 function chatTitle(question: string): string {
 	const line = question.trim().split('\n')[0] ?? '';
@@ -109,6 +109,30 @@ function phaseFor(calls: AssistantToolCallRecord[]): AssistantToolSession['phase
 		return 'awaiting-review';
 	}
 	return 'continuing';
+}
+
+/**
+ * The calls a restored turn is still waiting on the user for, or undefined
+ * where there is nothing to wait on.
+ *
+ * A turn parked on an unanswered tool call is not an interrupted request: it
+ * waits on a person rather than on the network, and everything its
+ * continuation needs — the calls, the outcomes recorded so far, and every
+ * round's `providerItems` — is on the record, so the request the decision
+ * sends is byte for byte the one the lost session would have sent. A turn cut
+ * off mid-stream has none of that, and is swept.
+ */
+function decisionPending(
+	message: AssistantMessageRecord | undefined
+): AssistantToolCallRecord[] | undefined {
+	if (!message || message.role !== 'assistant' || message.status !== 'pending') return undefined;
+	const turns = message.toolTurns;
+	const latest = turns?.at(-1);
+	if (!turns || !latest || callsAcknowledged(latest.calls)) return undefined;
+	// `liveToolSuffix` throws on a round with no provider items, and a resume
+	// that throws is a worse answer than the sweep this would spare the turn
+	// from — the completing patch strips them, so only a live turn has them.
+	return turns.every((turn) => turn.providerItems) ? latest.calls : undefined;
 }
 
 function linkFailure(
@@ -167,9 +191,24 @@ function atomicProposalEdit(
 	};
 }
 
+/**
+ * The span a proposal's edits cover, from the first change's start to the
+ * last one's end — which is the whole of what the card's diff is about,
+ * shared context aside. Undefined where a proposal changes nothing, since
+ * there is then nothing to scroll to.
+ */
+function editedSpan(edit: AtomicDocumentEdit): TextRange | undefined {
+	if (edit.edits.length === 0) return undefined;
+	return {
+		from: Math.min(...edit.edits.map((one) => one.from)),
+		to: Math.max(...edit.edits.map((one) => one.to))
+	};
+}
+
 function withoutProviderItems(turns: AssistantToolTurnRecord[] | undefined) {
 	// Rest-spread, not a field list: a listed copier silently drops whatever
 	// field the record gains next (it already dropped `narration` once).
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars -- the omitted field is the point
 	return turns?.map(({ providerItems: _providerItems, ...turn }) => turn);
 }
 
@@ -212,17 +251,43 @@ export function createAssistantState(deps: AssistantDeps) {
 	function initialize(): Promise<void> {
 		initializePromise ??= (async () => {
 			const repo = await repository();
-			// A reload cannot resume provider state held by the previous JS session.
-			await repo.markPendingInterrupted();
+			// A reload cannot resume the provider round a streaming answer was in
+			// the middle of. A turn parked on an unanswered tool call is a
+			// different thing — it waits on the user, not on the network — so it is
+			// spared here and re-seated below.
+			await repo.markPendingInterrupted((message) => decisionPending(message) !== undefined);
 			chats = await repo.listChats();
 			const latest = chats[0];
 			if (latest) {
 				activeChatId = latest.id;
 				messages = await repo.messagesFor(latest.id);
+				restoreToolSession();
 			}
 			ready = true;
 		})();
 		return initializePromise;
+	}
+
+	/**
+	 * A spared turn comes back with its prompt still drawn, and `toolSession` is
+	 * what every decision control checks before it does anything — without it
+	 * the Allow, Deny, Approve and Reject the transcript redraws are dead
+	 * controls above a sentence saying the turn is over. Only the last message
+	 * can hold one: a turn is answered or abandoned before the next question.
+	 */
+	function restoreToolSession(): void {
+		const last = messages.at(-1);
+		const calls = last ? decisionPending(last) : undefined;
+		toolSession =
+			last && calls ? { assistantMessageId: last.id, phase: phaseFor(calls) } : undefined;
+	}
+
+	/** Leaving a conversation abandons the decision it was waiting on; the
+	 * record keeps it, so coming back re-seats the session through the same
+	 * `restoreToolSession`. */
+	function abandonToolSession(): void {
+		toolSession = undefined;
+		currentAttempt = undefined;
 	}
 
 	function fail(error: unknown): AssistantFailure {
@@ -562,34 +627,44 @@ export function createAssistantState(deps: AssistantDeps) {
 			isOpen = false;
 		},
 
+		// None of these three refuse on `toolSession` any more, and dropping that
+		// term unlocks exactly one state: a turn waiting on a decision. A round
+		// actually in flight is `busy`, which still refuses. A decision is not in
+		// flight — nothing is running, the record holds everything, and a session
+		// restored at boot would otherwise trap the panel in a conversation whose
+		// question the user no longer wants to answer.
 		async newChat(): Promise<void> {
-			if (busy || challengePending || toolSession) return;
+			if (busy || challengePending) return;
 			await initialize();
 			activeChatId = undefined;
 			messages = [];
+			abandonToolSession();
 			failure = undefined;
 			challengePending = false;
 			contextDividerIndex = undefined;
 		},
 
 		async selectChat(id: string): Promise<void> {
-			if (busy || challengePending || toolSession) return;
+			if (busy || challengePending) return;
 			const repo = await repository();
 			activeChatId = id;
 			messages = await repo.messagesFor(id);
+			currentAttempt = undefined;
+			restoreToolSession();
 			failure = undefined;
 			challengePending = false;
 			contextDividerIndex = undefined;
 		},
 
 		async deleteChat(id: string): Promise<void> {
-			if (busy || challengePending || toolSession) return;
+			if (busy || challengePending) return;
 			const repo = await repository();
 			await repo.deleteChat(id);
 			chats = await repo.listChats();
 			if (activeChatId === id) {
 				activeChatId = undefined;
 				messages = [];
+				abandonToolSession();
 			}
 		},
 
@@ -762,7 +837,20 @@ export function createAssistantState(deps: AssistantDeps) {
 			const proposal = pendingProposal(id);
 			if (!bridge || !proposal) return false;
 			const edit = atomicProposalEdit(bridge, proposal);
-			return 'reason' in edit ? false : bridge.preview(edit);
+			if ('reason' in edit) return false;
+			if (!bridge.preview(edit)) return false;
+			// A diagnostic's preview deliberately never scrolls, because whatever
+			// selected it has already brought its range into view. Nothing has
+			// here: a proposal quotes a line the user did not navigate to and
+			// usually cannot see, so a diff drawn in silence is a card claiming an
+			// edit with no evidence anywhere on screen. The reveal is what makes
+			// the preview readable, and it comes after the preview for the reason
+			// `revealDiagnostic` states — CodeMirror applies queued scrolls in its
+			// measure phase, so the deliberate placement has to be the last one
+			// asked for. It moves no caret and no selection.
+			const span = editedSpan(edit);
+			if (span) bridge.reveal(span);
+			return true;
 		},
 
 		endProposalPreview(id: string): void {

@@ -44,6 +44,10 @@ export interface AssistantProposalAnchor {
 	exact: string;
 	before: string;
 	after: string;
+	/** 1-based line `exact` begins on, from the numbered draft the model read.
+	 * Null where the model could not name one; absent on proposals stored before
+	 * the draft was numbered. */
+	line?: number | null;
 }
 
 /** One minimal edit the assistant offers for explicit review. */

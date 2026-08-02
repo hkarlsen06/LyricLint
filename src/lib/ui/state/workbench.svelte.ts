@@ -677,7 +677,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				await draft.flushAutosave();
 				const count = await deps.backup.restore(file);
 				feedback.announce(
-					`${count} ${count === 1 ? 'draft' : 'drafts'} imported. Reloading the workbench.`
+					`${count} ${count === 1 ? "'scribe" : "'scribes"} imported. Reloading the workbench.`
 				);
 				deps.onBackupRestored?.();
 				return true;

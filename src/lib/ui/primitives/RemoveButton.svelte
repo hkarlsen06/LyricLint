@@ -48,18 +48,18 @@
 {#if pending}
 	<button
 		type="button"
+		class="button button--quiet remove-button__cancel"
+		onclick={() => onCancel()}
+	>
+		Cancel
+	</button>
+	<button
+		type="button"
 		class="button button--danger remove-button__confirm"
 		bind:this={confirmButton}
 		onclick={(event) => onConfirm(event.currentTarget)}
 	>
 		{label}
-	</button>
-	<button
-		type="button"
-		class="button button--quiet remove-button__cancel"
-		onclick={() => onCancel()}
-	>
-		Cancel
 	</button>
 {:else}
 	<button

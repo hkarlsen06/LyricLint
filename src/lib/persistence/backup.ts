@@ -317,7 +317,7 @@ export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
 	const ignoredDiagnostics = value.ignoredDiagnostics.map(parseIgnoredDiagnostics);
 	unique(
 		drafts.map((draft) => draft.id),
-		'draft IDs'
+		"'scribe IDs"
 	);
 	unique(
 		appMetadata.map((metadata) => metadata.key),

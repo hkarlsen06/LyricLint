@@ -591,7 +591,7 @@ And the "quiet" part was never really quiet`;
 					uploaded and never copied into the browser, a YouTube video, which loads Google's player
 					into the page and lets Google see which video it is, or an Apple Music track — a 'scribe
 					using the online options stops working offline. And you can ask the rules assistant a
-					question about the guidelines, which sends that question — never your draft — to be
+					question about the guidelines, which sends that question — never your 'scribe — to be
 					answered. <a href={resolve('/privacy/')}>The privacy page</a> lists everything.
 				</p>
 			</div>
@@ -617,7 +617,7 @@ And the "quiet" part was never really quiet`;
 					<p class="lp-run__body">
 						Linting is deterministic, reviewed rules — no model rewrites your words. The one AI
 						surface is the optional rules assistant, which answers questions about the guidelines
-						and can never see your draft.
+						and can never see your 'scribe.
 					</p>
 				</li>
 				<li>

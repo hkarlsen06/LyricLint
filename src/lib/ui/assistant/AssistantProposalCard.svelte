@@ -8,10 +8,15 @@
 
 	let {
 		proposal,
-		assistant
+		assistant,
+		decidable
 	}: {
 		proposal: AssistantProposalRecord;
 		assistant: AssistantState;
+		/** Whether this turn still holds the live tool session — see the same
+		 * prop on `AssistantToolTurn`. A pending record whose session is gone is
+		 * an offer nobody can take, and `pendingProposal` refuses it. */
+		decidable: boolean;
 	} = $props();
 
 	const segments = $derived(wordDiffSegments(proposal.anchor.exact, proposal.replacement));
@@ -36,7 +41,7 @@
 	}
 
 	function beginPreview(): void {
-		if (proposal.status !== 'pending' || releasePreview) return;
+		if (proposal.status !== 'pending' || !decidable || releasePreview) return;
 		releasePreview = acquirePreview(
 			() => {
 				assistant.previewProposal(proposal.id);
@@ -72,11 +77,11 @@
 	function failureReason(reason: string | undefined): string {
 		switch (reason) {
 			case 'not-found':
-				return 'The quoted text could not be found in the draft.';
+				return "The quoted text could not be found in the 'scribe.";
 			case 'ambiguous':
-				return 'The quoted text appears more than once in the draft.';
+				return "The quoted text appears more than once in the 'scribe.";
 			case 'apply-failed':
-				return 'The draft changed before the edit could be applied.';
+				return "The 'scribe changed before the edit could be applied.";
 			default:
 				return reason
 					? `The edit could not be applied: ${reason}.`
@@ -110,7 +115,9 @@
 	</p>
 	<p class="assistant-proposal__note">{proposal.note}</p>
 
-	{#if proposal.status === 'pending'}
+	{#if proposal.status === 'pending' && !decidable}
+		<p class="assistant-proposal__outcome">Left undecided.</p>
+	{:else if proposal.status === 'pending'}
 		<div class="assistant-proposal__actions">
 			<button
 				type="button"

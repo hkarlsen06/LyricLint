@@ -56,6 +56,7 @@
 
 .assistant-panel {
 	height: 100%;
+	container-type: inline-size;
 }
 
 .assistant-conversation__foot {
@@ -154,6 +155,16 @@
 	box-shadow: var(--shadow-overlay);
 }
 
+/* In the workbench this control lives in the narrow panel, whose left edge is
+ * also a clipping boundary. Cap the popover to that host rather than only to
+ * the viewport; at large text sizes 24rem can otherwise extend under the
+ * editor and the start of every row disappears. The menu is anchored to the
+ * history control, so its available width also reserves the panel's two
+ * insets, the New chat control to its right, and the gap between them. */
+.assistant-panel .assistant-chats__popover {
+	width: min(24rem, calc(100cqi - 2 * var(--space-3) - 2rem - var(--space-1)));
+}
+
 .assistant-chats__heading {
 	padding: var(--space-1) var(--space-2) var(--space-2);
 	margin: 0 0 var(--space-1);
@@ -244,7 +255,9 @@
 }
 
 /* Tool permission is part of the assistant's prose, never a box nested inside
- * the turn. Once answered, the whole prompt collapses to one sentence. */
+ * the turn: the question is addressed to the reader, so it is set as one of the
+ * assistant's own sentences. Once answered, the whole prompt collapses to a
+ * receipt. */
 .assistant-tool-turn {
 	display: grid;
 	gap: var(--space-2);
@@ -253,6 +266,24 @@
 
 .assistant-tool-turn p {
 	margin: 0;
+}
+
+/* A resolved tool turn is a record of what the workbench did, not something the
+ * assistant said — set in the answer's own type it read as the whole reply to
+ * the question, at the size and weight the prose above it uses. It is the meta
+ * idiom instead: the tool's glyph, muted, small, and mono, so a reader scanning
+ * the transcript tells an action from an answer without reading either. */
+.assistant-tool-turn__receipt {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1-5);
+	color: var(--color-text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-xs);
+}
+
+.assistant-tool-turn__receipt svg {
+	flex: none;
 }
 
 .assistant-tool-turn__actions,

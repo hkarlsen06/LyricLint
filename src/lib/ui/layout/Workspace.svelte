@@ -93,6 +93,28 @@
 			clearPreview() {
 				controller.editor.clearPreview?.();
 			},
+			reveal(range) {
+				// The same two moves `revealDiagnostic` makes, in the same order.
+				// The selection is what draws the full-width active-line wash, so
+				// a scroll on its own puts the diff on screen without saying which
+				// line it is in; and the reveal has to come last, because
+				// CodeMirror applies queued scrolls in its measure phase and the
+				// selection's own nearest-edge nudge would otherwise replace the
+				// deliberate upper-third placement. Neither call focuses: a wash
+				// with no caret in it reads as a location, which is what this is.
+				//
+				// Both assert the span against the live document, so a draft
+				// edited between resolving the anchor and the hover throws rather
+				// than moving. A preview the user cannot see beats a pointer
+				// crossing a card and raising.
+				const editor = controller.editor;
+				try {
+					editor.setSelection({ anchor: range.from, head: range.to });
+					editor.revealRange(range);
+				} catch {
+					/* the span no longer exists */
+				}
+			},
 			apply(edit) {
 				const editor = controller.editor;
 				try {

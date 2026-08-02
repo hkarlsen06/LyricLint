@@ -39,7 +39,8 @@ describe('an assistant section-link action card', () => {
 	test('states the operation and note in words without an editor diff', () => {
 		const { container } = render(AssistantLinkActionCard, {
 			action: action(),
-			assistant: assistantStub()
+			assistant: assistantStub(),
+			decidable: true
 		});
 		expect(container.textContent).toContain('Link [Chorus] and [Chorus] (2nd)');
 		expect(container.textContent).toContain('These copies repeat the same words.');
@@ -48,30 +49,50 @@ describe('an assistant section-link action card', () => {
 
 	test('approve and reject call the store and settled outcomes replace the controls', async () => {
 		const assistant = assistantStub();
-		const view = render(AssistantLinkActionCard, { action: action(), assistant });
+		const view = render(AssistantLinkActionCard, { action: action(), assistant, decidable: true });
 
 		await fireEvent.click(view.getByRole('button', { name: 'Approve' }));
 		expect(assistant.approveLinkAction).toHaveBeenCalledWith('link-1');
 
-		await view.rerender({ action: action('applied'), assistant });
+		await view.rerender({ action: action('applied'), assistant, decidable: true });
 		expect(view.container.textContent).toContain('Linked.');
 		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
 
-		await view.rerender({ action: action('pending', undefined, 'unlink'), assistant });
+		await view.rerender({
+			action: action('pending', undefined, 'unlink'),
+			assistant,
+			decidable: true
+		});
 		expect(view.container.textContent).toContain('Unlink [Chorus]');
 		await fireEvent.click(view.getByRole('button', { name: 'Reject' }));
 		expect(assistant.rejectLinkAction).toHaveBeenCalledWith('link-1');
-		await view.rerender({ action: action('applied', undefined, 'unlink'), assistant });
+		await view.rerender({
+			action: action('applied', undefined, 'unlink'),
+			assistant,
+			decidable: true
+		});
 		expect(view.container.textContent).toContain('Unlinked.');
 	});
 
 	test('an unresolvable action states why and offers no approval', () => {
 		const view = render(AssistantLinkActionCard, {
 			action: action('failed', 'not-linkable'),
-			assistant: assistantStub()
+			assistant: assistantStub(),
+			decidable: true
 		});
 		expect(view.container.textContent).toContain('Failed.');
 		expect(view.container.textContent).toContain('Only choruses');
+		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
+		expect(view.queryByRole('button', { name: 'Reject' })).toBeNull();
+	});
+
+	test('a pending action whose session is gone is history, not an offer', () => {
+		const view = render(AssistantLinkActionCard, {
+			action: action(),
+			assistant: assistantStub(),
+			decidable: false
+		});
+		expect(view.container.textContent).toContain('Left undecided.');
 		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
 		expect(view.queryByRole('button', { name: 'Reject' })).toBeNull();
 	});

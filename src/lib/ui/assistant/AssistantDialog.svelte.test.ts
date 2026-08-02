@@ -274,6 +274,9 @@ describe('the assistant dialog', () => {
 
 		// Two presses in one place: the trash arms a confirm that takes its slot.
 		await fireEvent.click(getByRole('button', { name: 'Delete First question?' }));
+		expect([...row.querySelectorAll('button')].map((button) => button.textContent?.trim())).toEqual(
+			['Cancel', 'Delete']
+		);
 		await fireEvent.click(getByRole('button', { name: 'Delete' }));
 		await waitFor(() => expect(assistant.chats).toHaveLength(0));
 		expect(container.querySelector('.assistant-chats')).toBeNull();
@@ -285,7 +288,7 @@ describe('the assistant dialog', () => {
 		const { container } = render(AssistantDialog, { assistant });
 		await assistant.open();
 		expect(container.querySelector('.assistant-conversation')).not.toBeNull();
-		expect(container.textContent).toContain('cannot see your draft');
+		expect(container.textContent).toContain("cannot see your 'scribe");
 		expect(container.querySelector('.assistant-empty .assistant-disclosure a')).not.toBeNull();
 		expect(
 			container.querySelector('.assistant-conversation__foot .assistant-disclosure')

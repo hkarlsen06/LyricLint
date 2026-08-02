@@ -6,16 +6,19 @@ export const LIMITS = {
 	sessionPerMinute: 5,
 	/** Requests per minute per hashed IP (rate-limit binding). */
 	ipPerMinute: 15,
-	/** Requests per day per browser session (exact, Durable Object). */
-	sessionPerDay: 25,
+	/** Requests per day per browser session (exact, Durable Object). Testing-
+	 * phase allowance: an agent turn is several requests, and the owner burned
+	 * the earlier 25 in one afternoon of testing. The spend caps below are the
+	 * real ceiling; tighten these counts again at launch. */
+	sessionPerDay: 100,
 	/** Requests per day per hashed IP (exact, Durable Object). */
-	ipPerDay: 75,
+	ipPerDay: 300,
 	/** Concurrent requests per browser session. */
 	sessionConcurrent: 1,
 	/** Concurrent requests per hashed IP. */
 	ipConcurrent: 3,
 	/** Approximate daily AI spend per browser session, USD. */
-	sessionDailySpendUsd: 0.5,
+	sessionDailySpendUsd: 2,
 	/** Global daily AI spend ceiling, USD (also enforced at the AI Gateway). */
 	globalDailySpendUsd: 15
 } as const;

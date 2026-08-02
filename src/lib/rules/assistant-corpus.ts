@@ -76,7 +76,7 @@ const HARPER_LIMITATIONS = [
 	'English only; it does not run for the other reviewed languages.',
 	'Its suggestions are general proofreading, not reviewed Genius policy, and have no reference pages.',
 	'Prose-assuming readability measures are filtered out, because lyrics use deliberate fragments, dialect, repetition, and nonstandard spelling.',
-	'It is seeded with the reviewed preferred spellings and the draft’s performer names so it does not fight the Genius-specific rules.'
+	"It is seeded with the reviewed preferred spellings and the 'scribe’s performer names so it does not fight the Genius-specific rules."
 ];
 
 /** Sections of docs/rules.md that bear on rule interpretation. The catalog

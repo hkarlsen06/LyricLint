@@ -48,7 +48,7 @@ describe('assistant chat repository', () => {
 		expect(messages[0]!.content).toContain('chorus');
 	});
 
-	it('marks pending messages interrupted on the boot sweep', async () => {
+	it('marks pending messages interrupted on the boot sweep, and spares what the caller keeps', async () => {
 		const repo = createAssistantChatRepository(await database());
 		const chat = await repo.createChat('t', 'v');
 		const pending = await repo.addMessage({
@@ -65,10 +65,25 @@ describe('assistant chat repository', () => {
 			status: 'complete',
 			content: 'done'
 		});
-		await repo.markPendingInterrupted();
+		// The sweep is offered every pending record and takes the caller's word
+		// for which of them a later session can still carry on.
+		const spared = await repo.addMessage({
+			chatId: chat.id,
+			role: 'assistant',
+			createdAt: new Date().toISOString(),
+			status: 'pending',
+			content: 'waiting on the user'
+		});
+		const seen: string[] = [];
+		await repo.markPendingInterrupted((message) => {
+			seen.push(message.id);
+			return message.id === spared.id;
+		});
 		const messages = await repo.messagesFor(chat.id);
+		expect(seen).not.toContain(complete.id);
 		expect(messages.find((message) => message.id === pending.id)!.status).toBe('interrupted');
 		expect(messages.find((message) => message.id === complete.id)!.status).toBe('complete');
+		expect(messages.find((message) => message.id === spared.id)!.status).toBe('pending');
 	});
 
 	it('deletes a chat with its messages', async () => {

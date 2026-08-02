@@ -39,9 +39,9 @@
 	</p>
 	<ul>
 		<li>
-			Your draft leaves the browser only after you explicitly grant the assistant read access.
-			Permission is remembered for that draft alone and can be revoked at any time; without it, only
-			text you type into the assistant's own composer leaves the browser.
+			Your 'scribe leaves the browser only after you explicitly grant the assistant read access.
+			Permission is remembered for that 'scribe alone and can be revoked at any time; without it,
+			only text you type into the assistant's own composer leaves the browser.
 		</li>
 		<li>
 			Requests are sent with <code>store: false</code>, and request and response payload logging is

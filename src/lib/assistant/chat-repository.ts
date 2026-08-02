@@ -20,8 +20,13 @@ export interface AssistantChatRepository {
 		message: Omit<AssistantMessageRecord, 'id'> & { id?: string }
 	): Promise<AssistantMessageRecord>;
 	updateMessage(id: string, patch: Partial<AssistantMessageRecord>): Promise<void>;
-	/** Boot-time sweep: a `pending` answer cannot outlive the session that asked. */
-	markPendingInterrupted(): Promise<void>;
+	/**
+	 * Boot-time sweep: a `pending` answer cannot outlive the session that asked
+	 * it — unless `resumable` says this one can. The caller owns that rule,
+	 * because what makes a turn resumable is a fact about the tool protocol
+	 * rather than about storage.
+	 */
+	markPendingInterrupted(resumable: (message: AssistantMessageRecord) => boolean): Promise<void>;
 }
 
 /** Exported for the store as well: a plain module may hold a transient Date,
@@ -88,9 +93,9 @@ export function createAssistantChatRepository(
 			await database.assistantMessages.update(id, patch);
 		},
 
-		async markPendingInterrupted() {
+		async markPendingInterrupted(resumable) {
 			await database.assistantMessages
-				.filter((message) => message.status === 'pending')
+				.filter((message) => message.status === 'pending' && !resumable(message))
 				.modify({ status: 'interrupted' });
 		}
 	};

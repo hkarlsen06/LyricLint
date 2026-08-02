@@ -102,6 +102,52 @@ describe('RightPanel', () => {
 		expect(shown()[0]!.textContent).toContain('What would you like to check?');
 	});
 
+	// The pane carries chrome at both ends — the chat tray above, the composer
+	// below — so it fits the body rather than growing it. Grown, the body becomes
+	// the scroll port for the whole pane and both controls leave the screen: the
+	// tray off the top, the composer under the fold.
+	test('scrolls the assistant transcript alone and pins the tray and composer', async () => {
+		const { controller } = createTestWorkbench();
+		controller.setActiveTab('assistant');
+		const assistant = panelAssistant();
+		Object.defineProperty(assistant, 'messages', {
+			value: Array.from({ length: 16 }, (_, index) => ({
+				id: `m-${index}`,
+				chatId: 'chat-1',
+				role: 'user' as const,
+				status: 'complete' as const,
+				createdAt: '2026-08-02T10:00:00.000Z',
+				content: `Question ${index} about how a chorus header is written in a transcription.`
+			}))
+		});
+		render(RightPanel, { controller, assistant });
+		const panel = document.querySelector<HTMLElement>('.right-panel')!;
+		panel.style.height = '32rem';
+
+		const body = document.querySelector<HTMLElement>('.right-panel__body')!;
+		const transcript = document.querySelector<HTMLElement>('.assistant-transcript')!;
+		const tray = document.querySelector<HTMLElement>('.assistant-panel__controls')!;
+		const composer = document.querySelector<HTMLElement>('.assistant-composer')!;
+
+		await waitFor(() => expect(transcript.scrollHeight).toBeGreaterThan(transcript.clientHeight));
+		expect(body.scrollHeight).toBeLessThanOrEqual(body.clientHeight + 1);
+		expect(tray.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+			panel.getBoundingClientRect().top - 1
+		);
+		expect(composer.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+			panel.getBoundingClientRect().bottom + 1
+		);
+
+		// Reading the conversation leaves both of the controls it is driven from
+		// exactly where they were.
+		const before = [tray.getBoundingClientRect().top, composer.getBoundingClientRect().bottom];
+		transcript.scrollTop = transcript.scrollHeight;
+		expect(transcript.scrollTop).toBeGreaterThan(0);
+		expect([tray.getBoundingClientRect().top, composer.getBoundingClientRect().bottom]).toEqual(
+			before
+		);
+	});
+
 	test('switches tabs with keyboard-operable Bits UI tabs', async () => {
 		const { controller } = createTestWorkbench();
 		render(RightPanel, { controller, assistant: panelAssistant() });

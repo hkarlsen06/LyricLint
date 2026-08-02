@@ -38,15 +38,15 @@
 	const quotaLow = $derived(assistant.quota !== undefined && assistant.quota.browserRemaining <= 3);
 	const disclosure = $derived.by(() => {
 		if (!assistant.draftToolsAvailable) {
-			return 'Messages are processed by OpenAI through Cloudflare. The assistant cannot see your draft.';
+			return "Messages are processed by OpenAI through Cloudflare. The assistant cannot see your 'scribe.";
 		}
 		if (assistant.draftAccessState === 'granted') {
-			return 'Messages are processed by OpenAI through Cloudflare. This draft is shared only when the assistant asks to read it.';
+			return "Messages are processed by OpenAI through Cloudflare. This 'scribe is shared only when the assistant asks to read it.";
 		}
 		if (assistant.draftAccessState === 'denied') {
-			return 'Messages are processed by OpenAI through Cloudflare. This draft is not shared.';
+			return "Messages are processed by OpenAI through Cloudflare. This 'scribe is not shared.";
 		}
-		return 'Messages are processed by OpenAI through Cloudflare. The assistant asks before reading this draft.';
+		return "Messages are processed by OpenAI through Cloudflare. The assistant asks before reading this 'scribe.";
 	});
 
 	// The panel mounts this surface without anyone calling `open()`, so the
@@ -142,6 +142,15 @@
 		);
 	}
 
+	// Every decision control in a tool card runs against the live session, so a
+	// card belonging to a turn that no longer holds one draws a question nobody
+	// can answer — which is what a transcript restored from before this session
+	// used to do, Allow and Deny included. The store's own guards read exactly
+	// this, so the card and the press cannot disagree about it.
+	function decidable(messageId: string): boolean {
+		return assistant.toolSession?.assistantMessageId === messageId;
+	}
+
 	async function revokeAccess(): Promise<void> {
 		if (revoking) return;
 		revoking = true;
@@ -189,8 +198,8 @@
 							onclick={() => void revokeAccess()}
 						>
 							{assistant.draftAccessState === 'granted'
-								? 'Stop sharing this draft'
-								: 'Ask again before sharing this draft'}
+								? "Stop sharing this 'scribe"
+								: "Ask again before sharing this 'scribe"}
 						</button>
 					{/if}
 				</div>
@@ -218,17 +227,25 @@
 							{/if}
 							{#each turn.calls as call (call.callId)}
 								{#if call.name === 'read_scribe'}
-									<AssistantToolTurn {call} {assistant} />
+									<AssistantToolTurn {call} {assistant} decidable={decidable(message.id)} />
 								{:else if call.name === 'propose_edits'}
-									<div class="assistant-proposals" aria-label="Proposed draft edits">
+									<div class="assistant-proposals" aria-label="Proposed 'scribe edits">
 										{#each call.proposals as proposal (proposal.id)}
-											<AssistantProposalCard {proposal} {assistant} />
+											<AssistantProposalCard
+												{proposal}
+												{assistant}
+												decidable={decidable(message.id)}
+											/>
 										{/each}
 									</div>
 								{:else}
 									<div class="assistant-proposals" aria-label="Proposed section-link changes">
 										{#each call.actions as action (action.id)}
-											<AssistantLinkActionCard {action} {assistant} />
+											<AssistantLinkActionCard
+												{action}
+												{assistant}
+												decidable={decidable(message.id)}
+											/>
 										{/each}
 									</div>
 								{/if}

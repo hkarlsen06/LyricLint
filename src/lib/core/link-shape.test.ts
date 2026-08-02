@@ -63,10 +63,7 @@ describe('aligning the copies of a song part', () => {
 	});
 
 	it('keeps repeated words on their own side of a line break', () => {
-		const bodies = [
-			"\na bathroom, she's\nlike b",
-			"\na bathroom\nShe's bathroom, she's like b"
-		];
+		const bodies = ["\na bathroom, she's\nlike b", "\na bathroom\nShe's bathroom, she's like b"];
 		const differences = wordings(bodies);
 
 		// Repeated `bathroom` and `she's` must not be worth more than the newline:

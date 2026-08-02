@@ -1708,12 +1708,16 @@ until some are ticked**, because what two copies differ on is a question about a
 not chosen yet. Once a peer is ticked, the card grows a **diff** and then the one decision, as a
 **radio pair**:
 
-- ◉ Keep each version as it is
-- ○ Replace them with Chorus 1's words
+- ◉ Respect differences between them
+- ○ Replace them with `Chorus 1 ⌄`
 
-**The radio names the copy, not the kind.** `Replace them with this chorus's words` is ambiguous the
-moment there are three of them — the reader has to work out which chorus "this" is from the greyed
-row further up. `sourceLabel` is the section's own name.
+**The second radio names the copy, and it names it in a control rather than in its label.**
+`Replace them with this chorus's words` is ambiguous the moment there are three of them — the reader
+has to work out which chorus "this" is from the greyed row further up — so the copy is the dropdown
+that follows the words, which is the same control described under _Whose version wins is a dropdown_
+below. The radio's own accessible name says what it does without it
+(`Replace them with another section's version`), because a name that stops mid-sentence at a
+`<select>` is not a sentence.
 
 **The diff shows each version inside its own line.** `før, du kunne spørt meg` on its own says
 nothing about where in the chorus it sits, or that the other copies simply stop there. So each row

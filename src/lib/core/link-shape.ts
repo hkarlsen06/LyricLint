@@ -90,8 +90,7 @@ function lcsPairs(left: readonly Token[], right: readonly Token[]): Map<number, 
 			const text = left[row]?.text;
 			table[row * stride + col] =
 				text === right[col]?.text
-					? (table[(row + 1) * stride + col + 1] ?? 0) +
-						(text === '\n' ? 2 : 1)
+					? (table[(row + 1) * stride + col + 1] ?? 0) + (text === '\n' ? 2 : 1)
 					: Math.max(table[(row + 1) * stride + col] ?? 0, table[row * stride + col + 1] ?? 0);
 		}
 	}

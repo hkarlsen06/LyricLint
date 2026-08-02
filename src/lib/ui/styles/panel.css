@@ -46,6 +46,20 @@
 	flex-direction: column;
 }
 
+/* A pane that carries its own chrome at both ends has to fit the body instead
+   of growing it: grown, the body becomes the scroll port for the whole pane, so
+   the assistant's chat tray scrolled off the top and its composer sat below the
+   fold — the two controls a conversation is driven from, both unreachable while
+   reading it. `min-height: 0` is what lets a flex column shrink under its own
+   content; without it the automatic minimum size is that content and the
+   overflow reappears in the body. Stacked, the whole column is the scroll port
+   instead and this is not enough on its own; `responsive.css` makes the same
+   exception there, in the 68rem block, and the two have to move together. */
+.right-panel__pane--fit:not([hidden]) {
+	min-height: 0;
+	overflow: hidden;
+}
+
 /* Chrome at both ends of the panel: the tab strip above, this below, and the
    scrolling list of diagnostics framed between them. */
 .right-panel__footer {

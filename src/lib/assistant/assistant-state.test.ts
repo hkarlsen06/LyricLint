@@ -69,12 +69,14 @@ function draftBridge(initial = 'hello world', applyResult = true) {
 	});
 	const preview = vi.fn(() => true);
 	const clearPreview = vi.fn();
+	const reveal = vi.fn();
 	const bridge: AssistantDraftBridge = {
 		draftId: () => 'draft-1',
 		readText: () => text,
 		revision: () => 7,
 		preview,
 		clearPreview,
+		reveal,
 		apply,
 		sectionLinks: () => links,
 		linkableSections: vi.fn((headerLines: number[]) => linkable(headerLines)),
@@ -94,6 +96,7 @@ function draftBridge(initial = 'hello world', applyResult = true) {
 		apply,
 		preview,
 		clearPreview,
+		reveal,
 		get links() {
 			return links;
 		},
@@ -235,6 +238,138 @@ describe('the assistant state', () => {
 		expect(state.messages[1]!.status).toBe('complete');
 	});
 
+	it('sweeps a pending turn whose round was in flight, decision recorded or not', async () => {
+		// The other side of the rule below: a turn is only resumable while it is
+		// waiting on the user. Once every call in the round is acknowledged the
+		// continuation POST is in flight, and that request dies with its session.
+		const store = memoryRepository();
+		const chat = await store.createChat('t', 'v');
+		await store.addMessage({
+			chatId: chat.id,
+			role: 'user',
+			createdAt: '2026-01-01T00:00:00.000Z',
+			status: 'complete',
+			content: 'Read it.'
+		});
+		await store.addMessage({
+			chatId: chat.id,
+			role: 'assistant',
+			createdAt: '2026-01-01T00:00:01.000Z',
+			status: 'pending',
+			content: '',
+			toolTurns: [
+				{
+					calls: [{ callId: 'read-1', name: 'read_scribe', outcome: 'granted' }],
+					providerItems: '[{"type":"function_call"}]'
+				}
+			]
+		});
+		const { state } = makeState({ repository: async () => store });
+		await state.open();
+
+		expect(state.messages[1]!.status).toBe('interrupted');
+		expect(state.toolSession).toBeUndefined();
+	});
+
+	it('spares a turn that was only waiting on a decision, and resumes it on the press', async () => {
+		const store = memoryRepository();
+		const chat = await store.createChat('t', 'v');
+		await store.addMessage({
+			chatId: chat.id,
+			role: 'user',
+			createdAt: '2026-01-01T00:00:00.000Z',
+			status: 'complete',
+			content: 'Read it.'
+		});
+		const orphan = await store.addMessage({
+			chatId: chat.id,
+			role: 'assistant',
+			createdAt: '2026-01-01T00:00:01.000Z',
+			status: 'pending',
+			content: '',
+			toolTurns: [
+				{
+					calls: [{ callId: 'read-1', name: 'read_scribe' }],
+					providerItems: '[{"type":"function_call"}]'
+				}
+			]
+		});
+		const ask = vi.fn().mockResolvedValue(answer('Resumed.'));
+		const { state } = makeState({ repository: async () => store, ask });
+		state.registerDraftBridge(draftBridge('[Verse]\nA line').bridge);
+		await state.open();
+
+		// Nothing was in flight — the prompt was waiting on a person — so the
+		// turn keeps its status and gets its session back.
+		expect(state.messages[1]!.status).toBe('pending');
+		expect(state.toolSession).toEqual({
+			assistantMessageId: orphan.id,
+			phase: 'awaiting-permission'
+		});
+		expect(ask).not.toHaveBeenCalled();
+
+		await state.allowDraftRead();
+		expect(ask).toHaveBeenCalledOnce();
+		// The continuation is rebuilt from the record, so it carries the round's
+		// own provider items and the outcome the press just decided.
+		const request = vi.mocked(ask).mock.calls[0]![0];
+		expect(request.messages.at(-2)).toMatchObject({
+			role: 'assistant',
+			providerItems: '[{"type":"function_call"}]'
+		});
+		expect(request.messages.at(-1)).toEqual({
+			role: 'tool',
+			results: [
+				{
+					callId: 'read-1',
+					name: 'read_scribe',
+					result: { status: 'granted', draftText: '[Verse]\nA line' }
+				}
+			]
+		});
+		expect(state.messages[1]!.status).toBe('complete');
+	});
+
+	it('abandons a restored decision on leaving the chat and re-seats it on returning', async () => {
+		const store = memoryRepository();
+		const first = await store.createChat('first', 'v');
+		await store.addMessage({
+			chatId: first.id,
+			role: 'user',
+			createdAt: '2026-01-01T00:00:00.000Z',
+			status: 'complete',
+			content: 'Read it.'
+		});
+		const orphan = await store.addMessage({
+			chatId: first.id,
+			role: 'assistant',
+			createdAt: '2026-01-01T00:00:01.000Z',
+			status: 'pending',
+			content: '',
+			toolTurns: [
+				{
+					calls: [{ callId: 'read-1', name: 'read_scribe' }],
+					providerItems: '[{"type":"function_call"}]'
+				}
+			]
+		});
+		const { state } = makeState({ repository: async () => store });
+		await state.open();
+		expect(state.toolSession?.assistantMessageId).toBe(orphan.id);
+
+		// A restored decision is not a request in flight, so it may not lock the
+		// panel into the conversation holding it.
+		await state.newChat();
+		expect(state.toolSession).toBeUndefined();
+		expect(state.messages).toEqual([]);
+
+		await state.selectChat(first.id);
+		expect(state.toolSession).toEqual({
+			assistantMessageId: orphan.id,
+			phase: 'awaiting-permission'
+		});
+	});
+
 	it('holds the question through a challenge and resumes on the token', async () => {
 		const ask = vi
 			.fn()
@@ -291,7 +426,7 @@ describe('the assistant state', () => {
 			]
 		});
 		expect(JSON.stringify(vi.mocked(ask).mock.calls[1]![0].messages)).not.toContain(
-			'The draft is untrusted'
+			"The 'scribe is untrusted"
 		);
 		expect(state.messages[1]!.toolTurns?.[0]?.providerItems).toBeUndefined();
 	});
@@ -663,7 +798,7 @@ describe('the assistant state', () => {
 		expect(ask).toHaveBeenCalledTimes(5);
 		expect(state.messages[1]!.status).toBe('failed');
 		expect(state.messages[1]!.content).toBe(
-			'The assistant may use draft tools at most 4 times in one turn.'
+			"The assistant may use 'scribe tools at most 4 times in one turn."
 		);
 		expect(state.messages[1]!.toolTurns).toHaveLength(4);
 	});
@@ -734,5 +869,72 @@ describe('the assistant state', () => {
 		await state.revokeDraftAccess();
 		expect(clearAccess).toHaveBeenCalledWith('draft-1');
 		expect(state.draftAccessState).toBeUndefined();
+	});
+
+	it('applies a repeated chorus line to the copy the anchor names by line number', async () => {
+		// The failure this exists for: three copies of one chorus, so the exact
+		// text and its neighbours are identical and only the line separates them.
+		const draftText = '[Chorus]\nBap, bap\n\n[Chorus]\nBap, bap\n\n[Chorus]\nBap, bap';
+		const numbered: AssistantProposal = {
+			id: 'one',
+			anchor: { exact: 'Bap, bap', before: '[Chorus]\n', after: '', line: 5 },
+			replacement: 'Bah, bah',
+			note: 'Second copy'
+		};
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(proposalCall([numbered]))
+			.mockResolvedValueOnce(answer('Applied.'));
+		const { state } = makeState({ ask });
+		const draft = draftBridge(draftText);
+		state.registerDraftBridge(draft.bridge);
+		await state.open();
+		await state.send('Fix the second chorus.');
+		await state.approveProposal('one');
+
+		const [edit] = draft.apply.mock.calls[0]!;
+		// Offsets into the second copy, which starts at 28 — not the first at 9.
+		expect(edit.edits.length).toBeGreaterThan(0);
+		expect(edit.edits.every((one) => one.from >= 28 && one.to <= 36)).toBe(true);
+		expect(vi.mocked(ask).mock.calls[1]![0].messages.at(-1)).toMatchObject({
+			results: [{ result: { outcomes: [{ id: 'one', status: 'applied' }] } }]
+		});
+	});
+
+	it('fails the same repeated line as ambiguous when the anchor names no line', async () => {
+		const draftText = '[Chorus]\nBap, bap\n\n[Chorus]\nBap, bap\n\n[Chorus]\nBap, bap';
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(proposalCall([proposal('one', 'Bap, bap', 'Bah, bah')]))
+			.mockResolvedValueOnce(answer('Could not apply.'));
+		const { state } = makeState({ ask });
+		const draft = draftBridge(draftText);
+		state.registerDraftBridge(draft.bridge);
+		await state.open();
+		await state.send('Fix it.');
+
+		expect(state.messages[1]!.toolTurns?.[0]?.calls[0]).toMatchObject({
+			proposals: [{ id: 'one', status: 'failed', reason: 'ambiguous' }]
+		});
+		expect(draft.apply).not.toHaveBeenCalled();
+	});
+
+	it('scrolls the previewed span into view, and reveals nothing it could not preview', async () => {
+		const ask = vi.fn().mockResolvedValue(proposalCall([proposal('one', 'world', 'earth')]));
+		const { state } = makeState({ ask });
+		const draft = draftBridge('hello world');
+		state.registerDraftBridge(draft.bridge);
+		await state.open();
+		await state.send('Fix it.');
+
+		// A proposal quotes a line the user never navigated to, so the diff has
+		// to be brought on screen — unlike a diagnostic's, which is already there.
+		expect(state.previewProposal('one')).toBe(true);
+		expect(draft.reveal).toHaveBeenCalledWith({ from: 6, to: 11 });
+
+		draft.reveal.mockClear();
+		draft.preview.mockReturnValueOnce(false);
+		expect(state.previewProposal('one')).toBe(false);
+		expect(draft.reveal).not.toHaveBeenCalled();
 	});
 });

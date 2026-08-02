@@ -67,15 +67,35 @@ describe('the assistant panel', () => {
 		expect(screen.getByRole('button', { name: 'Conversations' })).not.toBeNull();
 	});
 
+	test('keeps the conversations popover inside the narrow panel', async () => {
+		const { assistant } = panelAssistant();
+		const { container, getByRole } = render(AssistantPanel, { assistant });
+		const panel = container.querySelector<HTMLElement>('.assistant-panel')!;
+		panel.style.width = '21rem';
+		panel.style.overflow = 'hidden';
+
+		await fireEvent.click(getByRole('button', { name: 'Conversations' }));
+
+		const panelBox = panel.getBoundingClientRect();
+		const popoverBox = container
+			.querySelector<HTMLElement>('.assistant-chats__popover')!
+			.getBoundingClientRect();
+		expect(popoverBox.left).toBeGreaterThanOrEqual(panelBox.left);
+		expect(popoverBox.right).toBeLessThanOrEqual(panelBox.right);
+		expect(container.querySelector('.assistant-chats')!.getBoundingClientRect().right).toBe(
+			popoverBox.right
+		);
+	});
+
 	test('shows the revoke control only for a stored decision', async () => {
 		const undecided = panelAssistant();
 		const first = render(AssistantPanel, { assistant: undecided.assistant });
-		expect(first.queryByRole('button', { name: /sharing this draft/i })).toBeNull();
+		expect(first.queryByRole('button', { name: /sharing this 'scribe/i })).toBeNull();
 		first.unmount();
 
 		const granted = panelAssistant('granted');
 		const second = render(AssistantPanel, { assistant: granted.assistant });
-		const revoke = second.getByRole('button', { name: 'Stop sharing this draft' });
+		const revoke = second.getByRole('button', { name: "Stop sharing this 'scribe" });
 		expect(revoke.classList).toContain('button--quiet');
 		expect(revoke.classList).toContain('button--flush');
 		await fireEvent.click(revoke);
@@ -85,7 +105,7 @@ describe('the assistant panel', () => {
 		const denied = panelAssistant('denied');
 		const third = render(AssistantPanel, { assistant: denied.assistant });
 		expect(
-			third.getByRole('button', { name: 'Ask again before sharing this draft' })
+			third.getByRole('button', { name: "Ask again before sharing this 'scribe" })
 		).not.toBeNull();
 	});
 });

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
+import type { TextRange } from '$lib/core/types.js';
 import type { HarperDiagnosticProvider } from '$lib/rules/index.js';
 import LiveRegion from '../primitives/LiveRegion.svelte';
 import { createTestWorkbench } from '../test-utils.js';
@@ -833,6 +834,34 @@ describe('Workspace and toolbar', () => {
 		).toBe(true);
 		expect(controller.snapshot.text).toBe('[Verse]\nNew lyric');
 		expect(controller.snapshot.revision).toBe(8);
+
+		// A hovered proposal selects its span — which is what moves the wash —
+		// and then scrolls it into view, against the handle the editor has
+		// published rather than the one the workspace started with. The reveal
+		// comes last so the selection's own nudge cannot replace it, and neither
+		// call focuses: the caret is a location here, not a place to type.
+		const editorHandle = controller.editor;
+		const order: string[] = [];
+		const revealed: TextRange[] = [];
+		editorHandle.revealRange = (range) => {
+			order.push('reveal');
+			revealed.push(range);
+		};
+		const setSelection = vi.spyOn(editorHandle, 'setSelection').mockImplementation(() => {
+			order.push('selection');
+		});
+		const focus = vi.spyOn(editorHandle, 'focus');
+		bridge?.reveal({ from: 8, to: 15 });
+		expect(setSelection).toHaveBeenCalledWith({ anchor: 8, head: 15 });
+		expect(revealed).toEqual([{ from: 8, to: 15 }]);
+		expect(order).toEqual(['selection', 'reveal']);
+		expect(focus).not.toHaveBeenCalled();
+		// And a span the live document no longer has is refused rather than
+		// raised out of a pointer entering a card.
+		editorHandle.revealRange = () => {
+			throw new RangeError('out of range');
+		};
+		expect(() => bridge?.reveal({ from: 400, to: 500 })).not.toThrow();
 
 		workspace.unmount();
 		expect(unregister).toHaveBeenCalledOnce();

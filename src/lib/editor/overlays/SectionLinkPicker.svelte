@@ -110,6 +110,7 @@
 	 * by construction and therefore does not need to be repeated in the key.
 	 */
 	const replaceOptions = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a local accumulator inside a derived, discarded before anything reads it
 		const groups = new Map<string, number[]>();
 		for (const header of headers) {
 			const version = JSON.stringify(

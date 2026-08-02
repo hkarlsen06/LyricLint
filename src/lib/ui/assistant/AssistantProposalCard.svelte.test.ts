@@ -37,7 +37,11 @@ afterEach(cleanup);
 describe('an assistant proposal card', () => {
 	test('renders deletion, insertion, and muted context as a wrapping non-control diff', () => {
 		const assistant = assistantStub();
-		const { container } = render(AssistantProposalCard, { proposal: proposal(), assistant });
+		const { container } = render(AssistantProposalCard, {
+			proposal: proposal(),
+			assistant,
+			decidable: true
+		});
 		const diff = container.querySelector<HTMLElement>('.assistant-proposal__diff')!;
 		const deletion = diff.querySelector('del')!;
 		const insertion = diff.querySelector('ins')!;
@@ -59,7 +63,11 @@ describe('an assistant proposal card', () => {
 		const backgroundEmpty = vi.fn();
 		const releaseBackground = acquirePreview(backgroundShow, backgroundEmpty);
 		const assistant = assistantStub();
-		const view = render(AssistantProposalCard, { proposal: proposal(), assistant });
+		const view = render(AssistantProposalCard, {
+			proposal: proposal(),
+			assistant,
+			decidable: true
+		});
 		const card = view.container.querySelector('.assistant-proposal')!;
 
 		await fireEvent.pointerEnter(card);
@@ -77,7 +85,11 @@ describe('an assistant proposal card', () => {
 
 	test('clears the editor when it is the last preview owner', async () => {
 		const assistant = assistantStub();
-		const { container } = render(AssistantProposalCard, { proposal: proposal(), assistant });
+		const { container } = render(AssistantProposalCard, {
+			proposal: proposal(),
+			assistant,
+			decidable: true
+		});
 		const card = container.querySelector('.assistant-proposal')!;
 
 		await fireEvent.pointerEnter(card);
@@ -87,20 +99,24 @@ describe('an assistant proposal card', () => {
 
 	test('approve and reject call the store, and outcomes replace both controls', async () => {
 		const assistant = assistantStub();
-		const view = render(AssistantProposalCard, { proposal: proposal(), assistant });
+		const view = render(AssistantProposalCard, {
+			proposal: proposal(),
+			assistant,
+			decidable: true
+		});
 
 		await fireEvent.click(view.getByRole('button', { name: 'Approve' }));
 		expect(assistant.approveProposal).toHaveBeenCalledWith('proposal-1');
 
-		await view.rerender({ proposal: proposal('applied'), assistant });
+		await view.rerender({ proposal: proposal('applied'), assistant, decidable: true });
 		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
 		expect(view.queryByRole('button', { name: 'Reject' })).toBeNull();
 		expect(view.container.textContent).toContain('Applied.');
 
-		await view.rerender({ proposal: proposal(), assistant });
+		await view.rerender({ proposal: proposal(), assistant, decidable: true });
 		await fireEvent.click(view.getByRole('button', { name: 'Reject' }));
 		expect(assistant.rejectProposal).toHaveBeenCalledWith('proposal-1');
-		await view.rerender({ proposal: proposal('rejected'), assistant });
+		await view.rerender({ proposal: proposal('rejected'), assistant, decidable: true });
 		expect(view.container.textContent).toContain('Rejected.');
 		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
 	});
@@ -109,12 +125,36 @@ describe('an assistant proposal card', () => {
 		const assistant = assistantStub();
 		const { container, queryByRole } = render(AssistantProposalCard, {
 			proposal: proposal('failed', 'ambiguous'),
-			assistant
+			assistant,
+			decidable: true
 		});
 
 		expect(container.textContent).toContain('Failed.');
 		expect(container.textContent).toContain('appears more than once');
 		expect(queryByRole('button', { name: 'Approve' })).toBeNull();
 		expect(queryByRole('button', { name: 'Reject' })).toBeNull();
+	});
+
+	test('a pending proposal whose session is gone is history, not an offer', async () => {
+		// A transcript restored from a previous session redraws its cards from
+		// the record, and the record cannot say whether anything can still act on
+		// them. `pendingProposal` refuses without a live session, so Approve here
+		// would be a control that silently does nothing.
+		const assistant = assistantStub();
+		const { container, queryByRole } = render(AssistantProposalCard, {
+			proposal: proposal(),
+			assistant,
+			decidable: false
+		});
+
+		expect(queryByRole('button', { name: 'Approve' })).toBeNull();
+		expect(queryByRole('button', { name: 'Reject' })).toBeNull();
+		expect(container.textContent).toContain('Left undecided.');
+		// The diff is still worth reading; only the offer went.
+		expect(container.querySelector('.assistant-proposal__diff')).not.toBeNull();
+
+		// And it does not take the preview slot for an edit it cannot apply.
+		await fireEvent.pointerEnter(container.querySelector('.assistant-proposal')!);
+		expect(assistant.previewProposal).not.toHaveBeenCalled();
 	});
 });

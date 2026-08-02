@@ -6,8 +6,17 @@
 		AssistantLinkHeader
 	} from '$lib/assistant/types.js';
 
-	let { action, assistant }: { action: AssistantLinkActionRecord; assistant: AssistantState } =
-		$props();
+	let {
+		action,
+		assistant,
+		decidable
+	}: {
+		action: AssistantLinkActionRecord;
+		assistant: AssistantState;
+		/** Whether this turn still holds the live tool session — see the same
+		 * prop on `AssistantToolTurn`. */
+		decidable: boolean;
+	} = $props();
 
 	let resolving = $state(false);
 
@@ -52,7 +61,7 @@
 	function failureReason(reason: AssistantLinkFailureReason | undefined): string {
 		switch (reason) {
 			case 'not-found':
-				return 'One of those section headers could not be found in the draft.';
+				return "One of those section headers could not be found in the 'scribe.";
 			case 'not-linkable':
 				return 'Only choruses, pre-choruses, and post-choruses can be linked.';
 			case 'already-linked':
@@ -71,7 +80,9 @@
 	<p class="assistant-link-action__title">{heading}</p>
 	<p class="assistant-proposal__note">{action.note}</p>
 
-	{#if action.status === 'pending'}
+	{#if action.status === 'pending' && !decidable}
+		<p class="assistant-proposal__outcome">Left undecided.</p>
+	{:else if action.status === 'pending'}
 		<div class="assistant-proposal__actions">
 			<button
 				type="button"

@@ -74,6 +74,24 @@
 		overflow: visible;
 	}
 
+	/* The assistant is the exception to the panel scrolling as one column, and it
+	   is the same exception it makes on a wide screen: a conversation is driven
+	   from the two controls at its ends — the chat tray above, the composer below
+	   — so scrolling the column to read it takes both away, and the composer is
+	   the one thing a reader wants at the moment they have finished reading. The
+	   column keeps its own overflow while such a pane is active and the body takes
+	   what is left rather than growing past it, so the transcript is the scroll
+	   port and everything under it — the player, the status bar — stays on the
+	   floor of the panel where a fitted column puts it. */
+	.right-panel__tabs-root:has(> .right-panel__body > .right-panel__pane--fit:not([hidden])) {
+		overflow: hidden;
+	}
+
+	.right-panel__body:has(> .right-panel__pane--fit:not([hidden])) {
+		flex: 1 1 auto;
+		overflow: hidden;
+	}
+
 	/* A band across the window wraps into two ends and spaces them apart; a block
 	   one panel wide has no two ends, so `space-between` has nothing to space and
 	   the row packs left instead.

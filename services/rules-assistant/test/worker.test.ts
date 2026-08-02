@@ -734,12 +734,12 @@ describe('the answers endpoint', () => {
 
 		it('stops a session that has spent its daily budget', async () => {
 			const env = makeEnv();
-			// One answer whose output alone estimates past $0.50 at $6/MTok.
+			// One answer whose output alone estimates past the $2 session cap at $6/MTok.
 			const expensive = providerReturning(validAnswer(), {
 				inputTokens: 1000,
 				cachedInputTokens: 0,
 				cacheWriteTokens: 0,
-				outputTokens: 100_000
+				outputTokens: 400_000
 			});
 			const handler = createHandler({ provider: expensive, verifyTurnstile: goodTurnstile });
 			const cookie = await firstSession(handler, env);

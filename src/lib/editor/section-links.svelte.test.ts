@@ -478,7 +478,7 @@ describe('the link card', () => {
 		await expect.element(card).toBeVisible();
 		await expect.element(card.getByText(/They differ in/)).not.toBeInTheDocument();
 		await expect
-			.element(page.getByRole('radio', { name: 'Keep each version as it is' }))
+			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
 			.not.toBeInTheDocument();
 	});
 
@@ -518,7 +518,7 @@ describe('the link card', () => {
 		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
 		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
 
-		const keep = page.getByRole('radio', { name: 'Keep each version as it is' });
+		const keep = page.getByRole('radio', { name: 'Respect differences between them' });
 		await expect.element(keep).toBeChecked();
 		await expect
 			.element(page.getByRole('radio', { name: /Replace them with another section/ }))
@@ -642,7 +642,7 @@ describe('the link card', () => {
 
 		await expect.element(page.getByText('These copies say the same thing.')).toBeVisible();
 		await expect
-			.element(page.getByRole('radio', { name: 'Keep each version as it is' }))
+			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
 			.not.toBeInTheDocument();
 	});
 

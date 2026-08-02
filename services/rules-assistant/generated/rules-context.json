@@ -1,8 +1,8 @@
 {
 	"formatVersion": 1,
 	"ruleSetVersion": "2026.07.30.0",
-	"generatedAt": "2026-08-01T23:25:53.155Z",
-	"contentHash": "edde2fbd19b80c42a5607bd5a95a1be3974643a630312a5b671769d72287e1aa",
+	"generatedAt": "2026-08-02T11:59:32.540Z",
+	"contentHash": "8b6d474b222d6778e9431907c437ac444f2871010d43d2bd687d455ee4be4c4c",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -1447,7 +1447,7 @@
 			"English only; it does not run for the other reviewed languages.",
 			"Its suggestions are general proofreading, not reviewed Genius policy, and have no reference pages.",
 			"Prose-assuming readability measures are filtered out, because lyrics use deliberate fragments, dialect, repetition, and nonstandard spelling.",
-			"It is seeded with the reviewed preferred spellings and the draft’s performer names so it does not fight the Genius-specific rules."
+			"It is seeded with the reviewed preferred spellings and the 'scribe’s performer names so it does not fight the Genius-specific rules."
 		]
 	},
 	"policyNotes": [

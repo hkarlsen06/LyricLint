@@ -112,8 +112,12 @@
 			<Tabs.Content value="tools" class="right-panel__pane">
 				<ToolsPanel {controller} />
 			</Tabs.Content>
+			<!-- The assistant is the one pane that fits rather than grows: its
+			     transcript is its own scroll port, framed between the chat tray above
+			     and the composer below, both of which have to stay put while it
+			     scrolls. -->
 			{#if assistantEnabled && assistant}
-				<Tabs.Content value="assistant" class="right-panel__pane">
+				<Tabs.Content value="assistant" class="right-panel__pane right-panel__pane--fit">
 					<AssistantPanel {assistant} />
 				</Tabs.Content>
 			{/if}

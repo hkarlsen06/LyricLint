@@ -31,7 +31,11 @@ export const proposalSchema = z
 			.object({
 				exact: z.string().min(1),
 				before: z.string(),
-				after: z.string()
+				after: z.string(),
+				/** The 1-based line of the numbered draft `exact` begins on. Nullable
+				 * rather than absent: a strict provider schema requires every property,
+				 * and null is the model saying it could not name one. */
+				line: z.number().int().min(1).nullable()
 			})
 			.strict(),
 		replacement: z.string(),
