@@ -138,14 +138,33 @@ test('marketing home opens the workbench at /lint', async ({ page }) => {
 	);
 	await expectSocialPreview(page);
 	await expect
-		.poll(() => page.locator('script[type="application/ld+json"]').textContent())
-		.toContain('"@type":"WebApplication"');
+		.poll(async () =>
+			(await page.locator('script[type="application/ld+json"]').allTextContents()).some((json) =>
+				json.includes('"@type":"WebApplication"')
+			)
+		)
+		.toBe(true);
 	await page.getByRole('link', { name: 'Open the workbench' }).first().click();
 
 	await expect(page).toHaveURL(/\/lint\/$/u);
 	await expect(editor(page)).toBeVisible();
 	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
 	await expect(page.locator('main.workspace h1')).toHaveText('LyricLint transcription workbench');
+});
+
+test('the landing page activates its real editor only near the live demo', async ({ page }) => {
+	await page.goto('/');
+
+	const fallback = page.locator('.site-demo__fallback');
+	await expect(fallback).toBeVisible();
+	await expect(editor(page)).toHaveCount(0);
+
+	// Reaching the prerendered stand-in crosses the component's look-ahead
+	// boundary. CodeMirror replaces the same-shaped text rather than joining the
+	// first navigation, and the fallback retires once the real editor is ready.
+	await fallback.scrollIntoViewIfNeeded();
+	await expect(editor(page)).toBeVisible();
+	await expect(fallback).toHaveCount(0);
 });
 
 test('the rule reference exposes article metadata and language semantics', async ({ page }) => {
@@ -734,8 +753,8 @@ test('the rules dialog and workbench tab share one persisted conversation', asyn
 	const tabs = page.getByRole('tablist', { name: 'Document panels' }).getByRole('tab');
 	await expect(tabs).toHaveCount(4);
 	await expect(tabs.nth(1)).toHaveText('Assistant');
-	await expect(tabs.nth(2)).toHaveText('Tools');
-	await expect(tabs.nth(3)).toHaveText('Performers');
+	await expect(tabs.nth(2)).toHaveText('Performers');
+	await expect(tabs.nth(3)).toHaveText('Details');
 	await tabs.nth(1).click();
 
 	const assistantPanel = page.getByRole('tabpanel', { name: 'Assistant' });

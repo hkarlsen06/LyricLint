@@ -5,7 +5,6 @@
 		createDefaultAssistantState,
 		provideAssistantState
 	} from '$lib/assistant/assistant.svelte.js';
-	import AssistantHost from '$lib/ui/assistant/AssistantHost.svelte';
 	import { provideFeedbackState } from '$lib/ui/state/feedback.svelte.js';
 	import '$lib/ui/styles/global.css';
 	import { onMount } from 'svelte';
@@ -19,6 +18,25 @@
 	// same conversation, and a request stays live while the modal is closed
 	// because this state outlives every page under it.
 	const assistant = provideAssistantState(createDefaultAssistantState());
+
+	/*
+	 * The modal draws nothing until assistant.open() is called, so its dialog,
+	 * conversation, markdown, and Bits UI graph do not belong in every route's
+	 * first navigation. The state remains rooted here — a live answer still
+	 * survives navigation between the rules and the workbench — while the view
+	 * joins it only when that state says there is something to show.
+	 */
+	type AssistantHostComponent = typeof import('$lib/ui/assistant/AssistantHost.svelte').default;
+	let AssistantHost = $state<AssistantHostComponent>();
+	let assistantHostLoading = false;
+
+	$effect(() => {
+		if (!assistant.isOpen || AssistantHost || assistantHostLoading) return;
+		assistantHostLoading = true;
+		void import('$lib/ui/assistant/AssistantHost.svelte').then(({ default: component }) => {
+			AssistantHost = component;
+		});
+	});
 
 	// The offline worker is a production promise, and registering it against a dev
 	// server breaks the dev server. It is cache-first over every same-origin GET,
@@ -115,4 +133,6 @@
      belong to `(app)`: the gate removes the app on a phone, and the pages
      under `(site)` are the ones a phone is meant to be able to read. -->
 {@render children()}
-<AssistantHost {assistant} />
+{#if AssistantHost}
+	<AssistantHost {assistant} />
+{/if}

@@ -3,7 +3,9 @@
 	import { resolve } from '$app/paths';
 	import { siteUrl } from '$lib/seo.js';
 	import AppWordmark from '$lib/ui/layout/AppWordmark.svelte';
-	import { currentRuleSet } from '$lib/rules/index.js';
+	// Import the manifest directly. The rules barrel also exports the engine and
+	// Harper adapter; a footer version must not pull either into every site page.
+	import { currentRuleSet } from '$lib/rules/data/rule-set.js';
 
 	let { children } = $props();
 	const socialImageUrl = siteUrl('/social-preview.png');
@@ -26,6 +28,19 @@
 </script>
 
 <svelte:head>
+	<!-- The landing page's first layout uses this face for every prose line and
+	     control. Starting it with the document avoids a fallback-font layout
+	     followed by a measurable shift when fonts.css is discovered and the
+	     final metrics arrive. The same preload is useful on every site route,
+	     whose masthead and reading column share the face. -->
+	<link
+		rel="preload"
+		href="{resolve('/')}fonts/ibm-plex-sans-latin-wght-normal.woff2"
+		as="font"
+		type="font/woff2"
+		fetchpriority="high"
+		crossorigin="anonymous"
+	/>
 	<meta property="og:site_name" content="LyricLint" />
 	<meta property="og:image" content={socialImageUrl} />
 	<meta property="og:image:type" content="image/png" />
