@@ -10,7 +10,12 @@
 		assignVoiceLegend,
 		insertSectionHeader
 	} from '$lib/performers/index.js';
-	import { getLanguagePack, resolveLanguageTag } from '$lib/languages/registry.js';
+	import {
+		getLanguagePack,
+		linkableSemantic,
+		resolveLanguageTag
+	} from '$lib/languages/registry.js';
+	import { lineNumberAt } from '$lib/editor/section-links.js';
 	import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 	import {
 		createHarperDiagnosticProvider,
@@ -18,8 +23,8 @@
 		type HarperDiagnosticProvider
 	} from '$lib/rules/index.js';
 	import { resolve } from '$app/paths';
-	import { assistantAvailable } from '$lib/assistant/api.js';
 	import { useAssistantState } from '$lib/assistant/assistant.svelte.js';
+	import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
 	import { onDestroy, type Component, untrack } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
@@ -61,6 +66,117 @@
 	// Undefined in a workspace rendered on its own, which is how every component
 	// test renders it — the control simply does not draw there.
 	const assistant = useAssistantState();
+
+	// The assistant store outlives this workspace and deliberately knows nothing
+	// about the editor. This bridge reads the controller's current handle at call
+	// time, so a keyed editor remount cannot leave it pointing at the editor that
+	// was just destroyed. Tracking the draft id re-registers the seam when the
+	// open draft changes, which also reloads that draft's stored access decision.
+	$effect(() => {
+		if (!assistant) return;
+		const draftId = controller.draftId;
+		const bridge: AssistantDraftBridge = {
+			draftId: () => draftId,
+			readText: () => controller.snapshot.text,
+			revision: () => controller.snapshot.revision,
+			preview(edit) {
+				if (edit.baseRevision !== controller.snapshot.revision) return false;
+				const editor = controller.editor;
+				if (!editor.previewAtomic) return false;
+				try {
+					editor.previewAtomic(edit);
+					return true;
+				} catch {
+					return false;
+				}
+			},
+			clearPreview() {
+				controller.editor.clearPreview?.();
+			},
+			apply(edit) {
+				const editor = controller.editor;
+				try {
+					editor.clearPreview?.();
+					if (edit.baseRevision !== controller.snapshot.revision) return false;
+					editor.dispatchAtomic(edit);
+					return true;
+				} catch {
+					return false;
+				}
+			},
+			sectionLinks() {
+				return controller.sectionLinks.map((group) => ({ lines: [...group.lines] }));
+			},
+			linkableSections(headerLines) {
+				const snapshot = controller.snapshot;
+				const pack = getLanguagePack(controller.language);
+				const semantics = headerLines.map((line) => {
+					const section = snapshot.parsed.sections.find(
+						(candidate) =>
+							candidate.header && lineNumberAt(snapshot.text, candidate.header.from) === line
+					);
+					return linkableSemantic(pack, section?.header?.rawNamePart);
+				});
+				return (
+					semantics.length > 0 &&
+					semantics.every((semantic) => semantic !== undefined && semantic === semantics[0])
+				);
+			},
+			linkSections(headerLines) {
+				const editor = controller.editor;
+				if (!editor.linkSections || !bridge.linkableSections(headerLines)) return false;
+				const snapshot = controller.snapshot;
+				const headers = headerLines.map(
+					(line) =>
+						snapshot.parsed.sections.find(
+							(section) =>
+								section.header && lineNumberAt(snapshot.text, section.header.from) === line
+						)?.header?.from
+				);
+				if (headers.some((header) => header === undefined)) return false;
+				try {
+					// Every difference stays deliberate. Nothing names `replaceFrom`, so
+					// this is the same non-destructive choice the picker opens on.
+					editor.linkSections({
+						headers: headers as number[],
+						keepDifferent: (editor.getLinkDifferences?.(headers as number[]) ?? []).map(() => true)
+					});
+					return true;
+				} catch {
+					return false;
+				}
+			},
+			unlinkSection(headerLine) {
+				const editor = controller.editor;
+				if (!editor.linkSections) return false;
+				const group = bridge
+					.sectionLinks()
+					.find((candidate) => candidate.lines.includes(headerLine));
+				if (!group) return false;
+				const snapshot = controller.snapshot;
+				const headers = group.lines.map(
+					(line) =>
+						snapshot.parsed.sections.find(
+							(section) =>
+								section.header && lineNumberAt(snapshot.text, section.header.from) === line
+						)?.header?.from
+				);
+				if (headers.some((header) => header === undefined)) return false;
+				try {
+					// The picker's unlink path names one member. Repeating that path
+					// through all but the last member dissolves a group of any size;
+					// once only one survives, the field drops it by invariant.
+					for (const header of (headers as number[]).slice(0, -1)) {
+						editor.linkSections({ headers: [header] });
+					}
+					return true;
+				} catch {
+					return false;
+				}
+			}
+		};
+		return assistant.registerDraftBridge(bridge);
+	});
 
 	/** The stacked layout, in step with the `68rem` block in responsive.css. */
 	const stacked = new MediaQuery('(max-width: 68rem)');
@@ -642,10 +758,7 @@
 		<!-- Level with the panel's tab strip, so the two read as one band under the
 		     toolbar: the editor's commands at the left of the window, the panel's
 		     tabs at the right. -->
-		<EditorActions
-			{controller}
-			onAskRules={assistant && assistantAvailable() ? () => void assistant.open() : undefined}
-		/>
+		<EditorActions {controller} />
 
 		<div class="editor-host" data-testid="editor-region">
 			{#key controller.draftId}
@@ -683,7 +796,7 @@
 		has no viewport to ask — emits the grid row, which is where the CSS still
 		puts it until the query resolves.
 	-->
-	<RightPanel {controller} footer={stacked.current ? statusBar : undefined} />
+	<RightPanel {controller} {assistant} footer={stacked.current ? statusBar : undefined} />
 
 	{#if !stacked.current}
 		{@render statusBar()}

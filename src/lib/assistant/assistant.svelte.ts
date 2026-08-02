@@ -1,32 +1,63 @@
 /**
  * The one assistant conversation state, owned by the root-level host so every
- * entry point — the /rules/ prompt and the workbench toolbar — opens the same
- * conversation, and a request stays live while the modal is closed.
+ * entry point sees the same transcript and a live browser-executed tool turn.
  */
 import { getContext, setContext } from 'svelte';
-import type { AssistantChatRecord, AssistantMessageRecord } from '$lib/persistence/types.js';
+import { resolveAnchor } from '$lib/core/text-anchors.js';
+import { diffWords } from '$lib/core/word-diff.js';
+import type { AtomicDocumentEdit } from '$lib/core/types.js';
+import type {
+	AssistantChatRecord,
+	AssistantMessageRecord,
+	AssistantToolCallRecord,
+	AssistantToolTurnRecord
+} from '$lib/persistence/types.js';
 import { currentRuleSet } from '$lib/rules/data/rule-set.js';
 import { askAssistant, type AskOptions } from './api.js';
 import { nowIso, type AssistantChatRepository } from './chat-repository.js';
-import { boundedHistory } from './history.js';
+import type { AssistantDraftBridge } from './draft-bridge.js';
+import { boundedHistory, liveToolSuffix } from './history.js';
+import { resolveLinkAction } from './link-actions.js';
+import {
+	clearDraftAccess,
+	getDraftAccess,
+	setDraftAccess,
+	type DraftAccessDecision
+} from './permissions.js';
 import {
 	AssistantError,
+	MAX_DRAFT_CHARS,
 	MAX_QUESTION_CHARS,
-	type AnswerResponse,
+	MAX_TOOL_ROUNDS,
 	type AssistantErrorCode,
-	type AssistantQuota
+	type AssistantLinkAction,
+	type AssistantLinkActionRecord,
+	type AssistantLinkFailureReason,
+	type AssistantProposal,
+	type AssistantProposalRecord,
+	type AssistantQuota,
+	type TurnResponse
 } from './types.js';
 
 export interface AssistantDeps {
 	/** Lazy so nothing opens Dexie until the assistant is first used. */
 	repository(): Promise<AssistantChatRepository>;
-	ask(options: AskOptions): Promise<AnswerResponse>;
+	ask(options: AskOptions): Promise<TurnResponse>;
 	ruleSetVersion: string;
+	/** Test seams for the otherwise appMetadata-backed permission decision. */
+	getDraftAccess?(draftId: string): Promise<DraftAccessDecision | undefined>;
+	setDraftAccess?(draftId: string, decision: DraftAccessDecision): Promise<void>;
+	clearDraftAccess?(draftId: string): Promise<void>;
 }
 
 export interface AssistantFailure {
 	code: AssistantErrorCode;
 	message: string;
+}
+
+export interface AssistantToolSession {
+	assistantMessageId: string;
+	phase: 'awaiting-permission' | 'awaiting-review' | 'continuing';
 }
 
 const FAILURE_MESSAGES: Record<AssistantErrorCode, string> = {
@@ -45,9 +76,101 @@ const FAILURE_MESSAGES: Record<AssistantErrorCode, string> = {
 	'not-configured': 'The assistant is not configured in this build.'
 };
 
+const TOOL_ROUND_FAILURE = `The assistant may use draft tools at most ${MAX_TOOL_ROUNDS} times in one turn.`;
+
 function chatTitle(question: string): string {
 	const line = question.trim().split('\n')[0] ?? '';
 	return line.length > 60 ? `${line.slice(0, 59).trimEnd()}…` : line || 'New chat';
+}
+
+function callsAcknowledged(calls: AssistantToolCallRecord[]): boolean {
+	return calls.every((call) =>
+		call.name === 'read_scribe'
+			? call.outcome !== undefined
+			: (call.name === 'propose_edits' ? call.proposals : call.actions).every(
+					(record) => record.status !== 'pending'
+				)
+	);
+}
+
+function phaseFor(calls: AssistantToolCallRecord[]): AssistantToolSession['phase'] {
+	if (calls.some((call) => call.name === 'read_scribe' && !call.outcome)) {
+		return 'awaiting-permission';
+	}
+	if (
+		calls.some(
+			(call) =>
+				call.name !== 'read_scribe' &&
+				(call.name === 'propose_edits' ? call.proposals : call.actions).some(
+					(record) => record.status === 'pending'
+				)
+		)
+	) {
+		return 'awaiting-review';
+	}
+	return 'continuing';
+}
+
+function linkFailure(
+	bridge: AssistantDraftBridge | undefined,
+	action: AssistantLinkAction
+): AssistantLinkFailureReason | undefined {
+	if (!bridge) return 'not-found';
+	const resolution = resolveLinkAction(bridge.readText(), action);
+	if (!resolution.ok) return resolution.reason;
+	if (!bridge.linkableSections(resolution.headerLines)) return 'not-linkable';
+	const groups = bridge.sectionLinks();
+	if (action.action === 'link') {
+		return groups.some((group) =>
+			resolution.headerLines.every((line) => group.lines.includes(line))
+		)
+			? 'already-linked'
+			: undefined;
+	}
+	return groups.some((group) => group.lines.includes(resolution.headerLines[0]!))
+		? undefined
+		: 'not-linked';
+}
+
+function resolveLinkForRecord(
+	bridge: AssistantDraftBridge | undefined,
+	action: AssistantLinkAction
+): AssistantLinkActionRecord {
+	const reason = linkFailure(bridge, action);
+	return reason ? { ...action, status: 'failed', reason } : { ...action, status: 'pending' };
+}
+
+function resolveForRecord(
+	proposal: AssistantProposal,
+	document: string | undefined
+): AssistantProposalRecord {
+	if (document === undefined) return { ...proposal, status: 'failed', reason: 'not-found' };
+	const resolution = resolveAnchor(document, proposal.anchor);
+	return resolution.ok
+		? { ...proposal, status: 'pending' }
+		: { ...proposal, status: 'failed', reason: resolution.reason };
+}
+
+function atomicProposalEdit(
+	bridge: AssistantDraftBridge,
+	proposal: AssistantProposal
+): AtomicDocumentEdit | { reason: 'not-found' | 'ambiguous' } {
+	const resolution = resolveAnchor(bridge.readText(), proposal.anchor);
+	if (!resolution.ok) return { reason: resolution.reason };
+	return {
+		baseRevision: bridge.revision(),
+		edits: diffWords(proposal.anchor.exact, proposal.replacement).map((edit) => ({
+			...edit,
+			from: edit.from + resolution.from,
+			to: edit.to + resolution.from
+		}))
+	};
+}
+
+function withoutProviderItems(turns: AssistantToolTurnRecord[] | undefined) {
+	// Rest-spread, not a field list: a listed copier silently drops whatever
+	// field the record gains next (it already dropped `narration` once).
+	return turns?.map(({ providerItems: _providerItems, ...turn }) => turn);
 }
 
 export function createAssistantState(deps: AssistantDeps) {
@@ -62,31 +185,139 @@ export function createAssistantState(deps: AssistantDeps) {
 	let failure = $state<AssistantFailure | undefined>(undefined);
 	let challengePending = $state(false);
 	let contextDividerIndex = $state<number | undefined>(undefined);
-	/** The attempt a challenge or retry resumes. */
+	// `$state.raw`, not `$state`: a proxied bridge would fail the identity
+	// comparisons the unregister hand-back and the access-read guard rely on.
+	let draftBridge = $state.raw<AssistantDraftBridge | undefined>(undefined);
+	let draftAccessState = $state<DraftAccessDecision | undefined>(undefined);
+	let toolSession = $state<AssistantToolSession | undefined>(undefined);
+	let bridgeGeneration = 0;
+	/** The attempt a challenge resumes. */
 	let currentAttempt: { assistantMessageId: string } | undefined;
+
+	const readAccess = deps.getDraftAccess ?? getDraftAccess;
+	const writeAccess = deps.setDraftAccess ?? setDraftAccess;
+	const removeAccess = deps.clearDraftAccess ?? clearDraftAccess;
 
 	async function repository(): Promise<AssistantChatRepository> {
 		repositoryPromise ??= deps.repository();
 		return repositoryPromise;
 	}
 
-	async function initialize(): Promise<void> {
-		if (ready) return;
-		const repo = await repository();
-		// A reload cannot resume a request it no longer holds.
-		await repo.markPendingInterrupted();
-		chats = await repo.listChats();
-		const latest = chats[0];
-		if (latest) {
-			activeChatId = latest.id;
-			messages = await repo.messagesFor(latest.id);
-		}
-		ready = true;
+	let initializePromise: Promise<void> | undefined;
+
+	// Memoized on the in-flight promise, not on `ready` alone: `open()` and the
+	// conversation surface's own `ensureLoaded()` run together on a dialog opened
+	// with a question, and a second concurrent load would overwrite the messages
+	// the first caller's `send()` had already appended.
+	function initialize(): Promise<void> {
+		initializePromise ??= (async () => {
+			const repo = await repository();
+			// A reload cannot resume provider state held by the previous JS session.
+			await repo.markPendingInterrupted();
+			chats = await repo.listChats();
+			const latest = chats[0];
+			if (latest) {
+				activeChatId = latest.id;
+				messages = await repo.messagesFor(latest.id);
+			}
+			ready = true;
+		})();
+		return initializePromise;
 	}
 
 	function fail(error: unknown): AssistantFailure {
 		const code = error instanceof AssistantError ? error.code : 'provider_error';
+		if (code !== 'challenge_required') {
+			// A Turnstile challenge is routine; everything else the user only ever
+			// sees as the worded FAILURE_MESSAGES entry. The cause — a client-side
+			// bug, or the protocol layer's detail ("interrupted" vs "did not
+			// finish" vs the worker's own error text) — is invisible everywhere
+			// unless it is named here.
+			console.error('assistant_turn_failed', error);
+		}
 		return { code, message: FAILURE_MESSAGES[code] };
+	}
+
+	async function patchMessage(
+		assistantMessageId: string,
+		update: Partial<AssistantMessageRecord>
+	): Promise<void> {
+		messages = messages.map((message) =>
+			message.id === assistantMessageId ? { ...message, ...update } : message
+		);
+		// A patch routinely carries values read back out of `messages`, which are
+		// `$state` proxies — and IndexedDB's structured clone refuses a proxy, so
+		// the write dies as a DataCloneError mid-turn. Snapshot at this one choke
+		// point rather than at every call site that might forget.
+		await (
+			await repository()
+		).updateMessage(assistantMessageId, $state.snapshot(update) as Partial<AssistantMessageRecord>);
+	}
+
+	function currentMessage(assistantMessageId: string): AssistantMessageRecord | undefined {
+		return messages.find((message) => message.id === assistantMessageId);
+	}
+
+	async function handleToolCalls(
+		assistantMessageId: string,
+		response: Extract<TurnResponse, { kind: 'tool_calls' }>
+	): Promise<'continue' | 'wait' | 'failed'> {
+		const message = currentMessage(assistantMessageId);
+		const priorTurns = message?.toolTurns ?? [];
+		quota = response.quota;
+		if (priorTurns.length >= MAX_TOOL_ROUNDS) {
+			failure = { code: 'invalid_answer', message: TOOL_ROUND_FAILURE };
+			await patchMessage(assistantMessageId, { status: 'failed', content: TOOL_ROUND_FAILURE });
+			currentAttempt = undefined;
+			toolSession = undefined;
+			return 'failed';
+		}
+
+		const bridge = draftBridge;
+		const document = bridge?.readText();
+		let storedDecision: DraftAccessDecision | undefined;
+		if (response.calls.some((call) => call.name === 'read_scribe') && bridge) {
+			storedDecision = await readAccess(bridge.draftId());
+			draftAccessState = storedDecision;
+		}
+		const calls: AssistantToolCallRecord[] = response.calls.map((call) => {
+			if (call.name === 'read_scribe') {
+				return {
+					callId: call.callId,
+					name: call.name,
+					...(storedDecision ? { outcome: storedDecision } : {})
+				};
+			}
+			if (call.name === 'propose_edits') {
+				return {
+					callId: call.callId,
+					name: call.name,
+					proposals: call.input.proposals.map((proposal) => resolveForRecord(proposal, document))
+				};
+			}
+			return {
+				callId: call.callId,
+				name: call.name,
+				actions: call.input.actions.map((action) => resolveLinkForRecord(bridge, action))
+			};
+		});
+		const streamed = message?.answer;
+		const turn: AssistantToolTurnRecord = {
+			calls,
+			providerItems: response.providerItems,
+			...(streamed && streamed.blocks.length > 0 ? { narration: streamed } : {})
+		};
+		// The live answer slot resets with the turn recorded, or a round that
+		// streams nothing shows — and would re-record — the previous narration.
+		await patchMessage(assistantMessageId, {
+			toolTurns: [...priorTurns, turn],
+			answer: undefined
+		});
+		const phase = phaseFor(calls);
+		toolSession = { assistantMessageId, phase };
+		if (phase === 'continuing') return 'continue';
+		busy = false;
+		return 'wait';
 	}
 
 	async function attempt(assistantMessageId: string, turnstileToken?: string): Promise<void> {
@@ -99,53 +330,170 @@ export function createAssistantState(deps: AssistantDeps) {
 		busy = true;
 		failure = undefined;
 		currentAttempt = { assistantMessageId };
-		const patch = async (update: Partial<AssistantMessageRecord>) => {
-			messages = messages.map((message) =>
-				message.id === assistantMessageId ? { ...message, ...update } : message
-			);
-			await repo.updateMessage(assistantMessageId, update);
-		};
-		const showProgress = async (answer: AnswerResponse['assistant']) => {
+		const showProgress = (answer: Extract<TurnResponse, { kind: 'answer' }>['assistant']) => {
 			messages = messages.map((message) =>
 				message.id === assistantMessageId ? { ...message, answer } : message
 			);
-			await new Promise<void>((resolve) => setTimeout(resolve, 16));
 		};
 		try {
-			await patch({ status: 'pending' });
-			const window = boundedHistory(messages.slice(0, assistantIndex - 1), userMessage.content);
-			contextDividerIndex = window.firstIncludedIndex;
-			const response = await deps.ask({
-				chatId: activeChatId,
-				messages: window.messages,
-				clientRuleSetVersion: deps.ruleSetVersion,
-				onProgress: showProgress,
-				...(turnstileToken ? { turnstileToken } : {})
-			});
-			challengePending = false;
-			currentAttempt = undefined;
-			quota = response.quota;
-			await patch({
-				status: 'complete',
-				answer: response.assistant,
-				requestId: response.requestId,
-				content: response.assistant.blocks.map((block) => block.text).join('\n\n')
-			});
-			await repo.touchChat(activeChatId);
-			chats = await repo.listChats();
+			await patchMessage(assistantMessageId, { status: 'pending' });
+			while (true) {
+				const pending = currentMessage(assistantMessageId);
+				if (!pending) return;
+				const window = boundedHistory(messages.slice(0, assistantIndex - 1), userMessage.content);
+				contextDividerIndex = window.firstIncludedIndex;
+				const bridge = draftBridge;
+				const draftText = bridge?.readText().slice(0, MAX_DRAFT_CHARS) ?? '';
+				const response = await deps.ask({
+					chatId: activeChatId,
+					messages: [
+						...window.messages,
+						...liveToolSuffix(pending.toolTurns, draftText, bridge?.sectionLinks() ?? [])
+					],
+					clientRuleSetVersion: deps.ruleSetVersion,
+					toolsAvailable: draftBridge !== undefined,
+					onProgress: showProgress,
+					...(turnstileToken ? { turnstileToken } : {})
+				});
+				// A token is for the request it resumed, not every later tool round.
+				turnstileToken = undefined;
+				challengePending = false;
+				if (response.kind === 'tool_calls') {
+					const disposition = await handleToolCalls(assistantMessageId, response);
+					if (disposition !== 'continue') return;
+					continue;
+				}
+
+				currentAttempt = undefined;
+				toolSession = undefined;
+				quota = response.quota;
+				await patchMessage(assistantMessageId, {
+					status: 'complete',
+					answer: response.assistant,
+					requestId: response.requestId,
+					content: response.assistant.blocks.map((block) => block.text).join('\n\n'),
+					toolTurns: withoutProviderItems(pending.toolTurns)
+				});
+				await repo.touchChat(activeChatId);
+				chats = await repo.listChats();
+				return;
+			}
 		} catch (error) {
 			const described = fail(error);
 			failure = described;
 			if (described.code === 'challenge_required' || described.code === 'challenge_failed') {
-				// The question stands; the widget resolves it.
+				// The message record is the continuation checkpoint the widget resumes.
 				challengePending = true;
 			} else {
 				currentAttempt = undefined;
-				await patch({ status: 'failed' });
+				toolSession = undefined;
+				await patchMessage(assistantMessageId, { status: 'failed' });
 			}
 		} finally {
 			busy = false;
 		}
+	}
+
+	async function updateLatestTurn(
+		assistantMessageId: string,
+		update: (calls: AssistantToolCallRecord[]) => AssistantToolCallRecord[]
+	): Promise<void> {
+		const message = currentMessage(assistantMessageId);
+		const turns = message?.toolTurns;
+		const latest = turns?.at(-1);
+		if (!turns || !latest) return;
+		const nextCalls = update(latest.calls);
+		const nextTurns = [...turns.slice(0, -1), { ...latest, calls: nextCalls }];
+		await patchMessage(assistantMessageId, { toolTurns: nextTurns });
+		const phase = phaseFor(nextCalls);
+		toolSession = { assistantMessageId, phase };
+		if (callsAcknowledged(nextCalls)) await attempt(assistantMessageId);
+	}
+
+	function pendingProposal(id: string): AssistantProposalRecord | undefined {
+		const assistantMessageId = toolSession?.assistantMessageId;
+		if (!assistantMessageId) return undefined;
+		const calls = currentMessage(assistantMessageId)?.toolTurns?.at(-1)?.calls ?? [];
+		for (const call of calls) {
+			if (call.name !== 'propose_edits') continue;
+			const proposal = call.proposals.find(
+				(candidate) => candidate.id === id && candidate.status === 'pending'
+			);
+			if (proposal) return proposal;
+		}
+		return undefined;
+	}
+
+	function pendingLinkAction(id: string): AssistantLinkActionRecord | undefined {
+		const assistantMessageId = toolSession?.assistantMessageId;
+		if (!assistantMessageId) return undefined;
+		const calls = currentMessage(assistantMessageId)?.toolTurns?.at(-1)?.calls ?? [];
+		for (const call of calls) {
+			if (call.name !== 'manage_links') continue;
+			const action = call.actions.find(
+				(candidate) => candidate.id === id && candidate.status === 'pending'
+			);
+			if (action) return action;
+		}
+		return undefined;
+	}
+
+	async function settleProposal(
+		id: string,
+		status: 'applied' | 'rejected' | 'failed',
+		reason?: string
+	): Promise<void> {
+		const assistantMessageId = toolSession?.assistantMessageId;
+		if (!assistantMessageId) return;
+		const settled = (proposal: AssistantProposalRecord): AssistantProposalRecord => {
+			if (status === 'failed') {
+				return { ...proposal, status, ...(reason ? { reason } : {}) };
+			}
+			const { id: proposalId, anchor, replacement, note } = proposal;
+			return { id: proposalId, anchor, replacement, note, status };
+		};
+		await updateLatestTurn(assistantMessageId, (calls) =>
+			calls.map((call) =>
+				call.name === 'propose_edits'
+					? {
+							...call,
+							proposals: call.proposals.map((proposal) =>
+								proposal.id === id && proposal.status === 'pending' ? settled(proposal) : proposal
+							)
+						}
+					: call
+			)
+		);
+	}
+
+	async function settleLinkAction(
+		id: string,
+		status: 'applied' | 'rejected' | 'failed',
+		reason?: AssistantLinkFailureReason
+	): Promise<void> {
+		const assistantMessageId = toolSession?.assistantMessageId;
+		if (!assistantMessageId) return;
+		await updateLatestTurn(assistantMessageId, (calls) =>
+			calls.map((call) =>
+				call.name === 'manage_links'
+					? {
+							...call,
+							actions: call.actions.map((action): AssistantLinkActionRecord => {
+								if (action.id !== id || action.status !== 'pending') return action;
+								const base = {
+									id: action.id,
+									action: action.action,
+									headers: action.headers,
+									note: action.note
+								};
+								return status === 'failed'
+									? { ...base, status, ...(reason ? { reason } : {}) }
+									: { ...base, status };
+							})
+						}
+					: call
+			)
+		);
 	}
 
 	return {
@@ -179,9 +527,27 @@ export function createAssistantState(deps: AssistantDeps) {
 		get contextDividerIndex() {
 			return contextDividerIndex;
 		},
+		get toolSession() {
+			return toolSession;
+		},
+		get draftToolsAvailable() {
+			return draftBridge !== undefined;
+		},
+		get draftAccessState() {
+			return draftAccessState;
+		},
 
 		async open(): Promise<void> {
 			isOpen = true;
+			await initialize();
+		},
+
+		/**
+		 * Load the stored conversation without opening the modal. The workbench
+		 * panel is always mounted, so its transcript has to arrive without the
+		 * side effect `open()` exists for.
+		 */
+		async ensureLoaded(): Promise<void> {
 			await initialize();
 		},
 
@@ -197,7 +563,7 @@ export function createAssistantState(deps: AssistantDeps) {
 		},
 
 		async newChat(): Promise<void> {
-			if (busy || challengePending) return;
+			if (busy || challengePending || toolSession) return;
 			await initialize();
 			activeChatId = undefined;
 			messages = [];
@@ -207,7 +573,7 @@ export function createAssistantState(deps: AssistantDeps) {
 		},
 
 		async selectChat(id: string): Promise<void> {
-			if (busy || challengePending) return;
+			if (busy || challengePending || toolSession) return;
 			const repo = await repository();
 			activeChatId = id;
 			messages = await repo.messagesFor(id);
@@ -217,7 +583,7 @@ export function createAssistantState(deps: AssistantDeps) {
 		},
 
 		async deleteChat(id: string): Promise<void> {
-			if (busy || challengePending) return;
+			if (busy || challengePending || toolSession) return;
 			const repo = await repository();
 			await repo.deleteChat(id);
 			chats = await repo.listChats();
@@ -229,7 +595,7 @@ export function createAssistantState(deps: AssistantDeps) {
 
 		async send(question: string): Promise<void> {
 			const text = question.trim();
-			if (!text || busy || challengePending) return;
+			if (!text || busy || challengePending || toolSession) return;
 			if ([...text].length > MAX_QUESTION_CHARS) {
 				failure = { code: 'invalid_request', message: FAILURE_MESSAGES.invalid_request };
 				return;
@@ -260,19 +626,156 @@ export function createAssistantState(deps: AssistantDeps) {
 			await attempt(placeholder.id);
 		},
 
-		/** Retry a failed or interrupted answer in place. */
+		/** Retry starts the logical turn over; provider state and old outcomes are not reusable. */
 		async retry(assistantMessageId: string): Promise<void> {
 			if (busy) return;
 			const target = messages.find((message) => message.id === assistantMessageId);
 			if (!target || target.role !== 'assistant' || target.status === 'complete') return;
+			toolSession = undefined;
+			challengePending = false;
+			await patchMessage(assistantMessageId, {
+				status: 'pending',
+				content: '',
+				answer: undefined,
+				requestId: undefined,
+				toolTurns: undefined
+			});
 			await attempt(assistantMessageId);
 		},
 
-		/** The Turnstile widget passed; resume the attempt it interrupted. */
+		/** The Turnstile widget passed; rebuild and resume the interrupted POST. */
 		async submitChallenge(token: string): Promise<void> {
 			const attemptRef = currentAttempt;
 			challengePending = false;
 			if (attemptRef) await attempt(attemptRef.assistantMessageId, token);
+		},
+
+		registerDraftBridge(bridge: AssistantDraftBridge): () => void {
+			draftBridge = bridge;
+			draftAccessState = undefined;
+			bridgeGeneration += 1;
+			const generation = bridgeGeneration;
+			void readAccess(bridge.draftId())
+				.then((decision) => {
+					if (generation === bridgeGeneration && draftBridge === bridge) {
+						draftAccessState = decision;
+					}
+				})
+				.catch(() => {
+					// A disclosure read is advisory; a tool request repeats it on
+					// the awaited path and reports a real persistence failure there.
+				});
+			return () => {
+				if (draftBridge !== bridge) return;
+				bridge.clearPreview();
+				draftBridge = undefined;
+				draftAccessState = undefined;
+				bridgeGeneration += 1;
+			};
+		},
+
+		async allowDraftRead(): Promise<void> {
+			const bridge = draftBridge;
+			const assistantMessageId = toolSession?.assistantMessageId;
+			if (!bridge || !assistantMessageId || toolSession?.phase !== 'awaiting-permission') return;
+			await writeAccess(bridge.draftId(), 'granted');
+			bridgeGeneration += 1;
+			draftAccessState = 'granted';
+			await updateLatestTurn(assistantMessageId, (calls) =>
+				calls.map((call) =>
+					call.name === 'read_scribe' && !call.outcome ? { ...call, outcome: 'granted' } : call
+				)
+			);
+		},
+
+		async denyDraftRead(): Promise<void> {
+			const bridge = draftBridge;
+			const assistantMessageId = toolSession?.assistantMessageId;
+			if (!bridge || !assistantMessageId || toolSession?.phase !== 'awaiting-permission') return;
+			await writeAccess(bridge.draftId(), 'denied');
+			bridgeGeneration += 1;
+			draftAccessState = 'denied';
+			await updateLatestTurn(assistantMessageId, (calls) =>
+				calls.map((call) =>
+					call.name === 'read_scribe' && !call.outcome ? { ...call, outcome: 'denied' } : call
+				)
+			);
+		},
+
+		async approveProposal(id: string): Promise<void> {
+			const bridge = draftBridge;
+			const proposal = pendingProposal(id);
+			if (!proposal) return;
+			if (!bridge) {
+				await settleProposal(id, 'failed', 'not-found');
+				return;
+			}
+			const edit = atomicProposalEdit(bridge, proposal);
+			if ('reason' in edit) {
+				await settleProposal(id, 'failed', edit.reason);
+				return;
+			}
+			if (!bridge.apply(edit)) {
+				await settleProposal(id, 'failed', 'apply-failed');
+				return;
+			}
+			await settleProposal(id, 'applied');
+		},
+
+		async rejectProposal(id: string): Promise<void> {
+			if (!pendingProposal(id)) return;
+			await settleProposal(id, 'rejected');
+		},
+
+		async approveLinkAction(id: string): Promise<void> {
+			const bridge = draftBridge;
+			const action = pendingLinkAction(id);
+			if (!action) return;
+			const reason = linkFailure(bridge, action);
+			if (reason) {
+				await settleLinkAction(id, 'failed', reason);
+				return;
+			}
+			const resolution = resolveLinkAction(bridge!.readText(), action);
+			if (!resolution.ok) {
+				await settleLinkAction(id, 'failed', resolution.reason);
+				return;
+			}
+			const applied =
+				action.action === 'link'
+					? bridge!.linkSections(resolution.headerLines)
+					: bridge!.unlinkSection(resolution.headerLines[0]!);
+			await settleLinkAction(
+				id,
+				applied ? 'applied' : 'failed',
+				applied ? undefined : 'apply-failed'
+			);
+		},
+
+		async rejectLinkAction(id: string): Promise<void> {
+			if (!pendingLinkAction(id)) return;
+			await settleLinkAction(id, 'rejected');
+		},
+
+		previewProposal(id: string): boolean {
+			const bridge = draftBridge;
+			const proposal = pendingProposal(id);
+			if (!bridge || !proposal) return false;
+			const edit = atomicProposalEdit(bridge, proposal);
+			return 'reason' in edit ? false : bridge.preview(edit);
+		},
+
+		endProposalPreview(id: string): void {
+			void id;
+			draftBridge?.clearPreview();
+		},
+
+		async revokeDraftAccess(): Promise<void> {
+			const bridge = draftBridge;
+			if (!bridge) return;
+			await removeAccess(bridge.draftId());
+			bridgeGeneration += 1;
+			draftAccessState = undefined;
 		}
 	};
 }

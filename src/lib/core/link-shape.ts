@@ -70,7 +70,16 @@ function tokenize(body: string): Token[] {
 	return tokens;
 }
 
-/** Longest common subsequence of two token lists, as `left index → right index`. */
+/**
+ * Longest common subsequence of two token lists, as `left index → right index`.
+ *
+ * A line break is worth two word tokens. Lyrics repeat words constantly, so an
+ * unweighted LCS can gain one word by abandoning a matching newline
+ * and aligning that word with the line beside it. The resulting hole crosses
+ * the boundary and the picker draws both neighbouring lines as one replacement.
+ * Keeping line breaks as anchors leaves word-level alignment to happen inside
+ * the lines they actually belong to.
+ */
 function lcsPairs(left: readonly Token[], right: readonly Token[]): Map<number, number> {
 	const rows = left.length;
 	const cols = right.length;
@@ -78,9 +87,11 @@ function lcsPairs(left: readonly Token[], right: readonly Token[]): Map<number, 
 	const table = new Uint32Array((rows + 1) * stride);
 	for (let row = rows - 1; row >= 0; row -= 1) {
 		for (let col = cols - 1; col >= 0; col -= 1) {
+			const text = left[row]?.text;
 			table[row * stride + col] =
-				left[row]?.text === right[col]?.text
-					? (table[(row + 1) * stride + col + 1] ?? 0) + 1
+				text === right[col]?.text
+					? (table[(row + 1) * stride + col + 1] ?? 0) +
+						(text === '\n' ? 2 : 1)
 					: Math.max(table[(row + 1) * stride + col] ?? 0, table[row * stride + col + 1] ?? 0);
 		}
 	}
@@ -88,7 +99,12 @@ function lcsPairs(left: readonly Token[], right: readonly Token[]): Map<number, 
 	let row = 0;
 	let col = 0;
 	while (row < rows && col < cols) {
-		if (left[row]?.text === right[col]?.text) {
+		const text = left[row]?.text;
+		const match =
+			text === right[col]?.text
+				? (table[(row + 1) * stride + col + 1] ?? 0) + (text === '\n' ? 2 : 1)
+				: -1;
+		if (match === table[row * stride + col]) {
 			pairs.set(row, col);
 			row += 1;
 			col += 1;

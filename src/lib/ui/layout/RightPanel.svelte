@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { Tabs } from 'bits-ui';
+	import { assistantAvailable } from '$lib/assistant/api.js';
+	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
+	import AssistantPanel from '../assistant/AssistantPanel.svelte';
 	import LinterPanel from '../linter/LinterPanel.svelte';
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
 	import MediaVideo from '../media/MediaVideo.svelte';
@@ -11,9 +14,11 @@
 
 	let {
 		controller,
+		assistant,
 		footer
 	}: {
 		controller: WorkbenchController;
+		assistant?: AssistantState;
 		/**
 		 * The window's status bar, handed down while the layout is stacked: there
 		 * the panel is the scroll port for everything under the tab strip, and a
@@ -23,6 +28,17 @@
 		 */
 		footer?: import('svelte').Snippet;
 	} = $props();
+
+	const assistantEnabled = $derived(assistant !== undefined && assistantAvailable());
+
+	// A bookmarked Assistant tab still needs a pane in a build where the service
+	// is disabled. Fall back to the default rather than leaving the panel body
+	// with no active content.
+	$effect(() => {
+		if (!assistantEnabled && controller.activeTab === 'assistant') {
+			controller.setActiveTab('linter');
+		}
+	});
 
 	// The badge shows a bare numeral, so its accessible name is the only place
 	// the noun appears — and "1 visible diagnostics" is exactly the kind of thing
@@ -36,7 +52,12 @@
 	);
 
 	function changeTab(value: string): void {
-		if (value === 'linter' || value === 'performers' || value === 'tools') {
+		if (
+			value === 'linter' ||
+			value === 'performers' ||
+			value === 'tools' ||
+			(value === 'assistant' && assistantEnabled)
+		) {
 			controller.setActiveTab(value as RightPanelTab);
 		}
 	}
@@ -70,8 +91,11 @@
 						>
 					{/if}
 				</Tabs.Trigger>
-				<Tabs.Trigger id="performers-panel-tab" value="performers">Performers</Tabs.Trigger>
+				{#if assistantEnabled}
+					<Tabs.Trigger value="assistant">Assistant</Tabs.Trigger>
+				{/if}
 				<Tabs.Trigger value="tools">Tools</Tabs.Trigger>
+				<Tabs.Trigger id="performers-panel-tab" value="performers">Performers</Tabs.Trigger>
 			</Tabs.List>
 		</div>
 
@@ -88,6 +112,11 @@
 			<Tabs.Content value="tools" class="right-panel__pane">
 				<ToolsPanel {controller} />
 			</Tabs.Content>
+			{#if assistantEnabled && assistant}
+				<Tabs.Content value="assistant" class="right-panel__pane">
+					<AssistantPanel {assistant} />
+				</Tabs.Content>
+			{/if}
 		</div>
 
 		<!-- The footer is a real boundary only once there is something behind it. -->

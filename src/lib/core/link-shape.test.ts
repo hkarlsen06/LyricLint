@@ -62,6 +62,22 @@ describe('aligning the copies of a song part', () => {
 		).toEqual([['Tonight', 'Again', 'Tonight']]);
 	});
 
+	it('keeps repeated words on their own side of a line break', () => {
+		const bodies = [
+			"\na bathroom, she's\nlike b",
+			"\na bathroom\nShe's bathroom, she's like b"
+		];
+		const differences = wordings(bodies);
+
+		// Repeated `bathroom` and `she's` must not be worth more than the newline:
+		// every divergent run stays within one lyric line.
+		expect(differences.flat().every((wording) => !wording.includes('\n'))).toBe(true);
+		expect(differences).toEqual([
+			["bathroom, she's", 'bathroom'],
+			['', "She's bathroom, she's "]
+		]);
+	});
+
 	it('refuses a run whose words match but whose spacing does not', () => {
 		// Two spaces in one copy: the tokens pair up, the text between them does
 		// not, so the run is not shared and the difference is reported instead.

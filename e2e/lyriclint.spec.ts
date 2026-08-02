@@ -637,28 +637,42 @@ test('the error page leaves by loading a new document, not by routing', async ({
 });
 
 /**
- * Both assistant entry points open the same conversation, and the conversation
- * survives a full navigation because it is persisted, not because the modal
- * stayed mounted. No assistant backend runs under this suite, so the send
- * lands as a failed turn — which is itself half the assertion: the question is
- * kept, the failure is stated in words, and a retry is offered.
+ * The site keeps the assistant as an answers-only dialog; the workbench puts
+ * that same persisted conversation in its fourth panel tab. No assistant
+ * backend runs under this suite, so the request is blocked explicitly and the
+ * failed turn gives both surfaces a transcript and a retry to render.
  */
-test('the rules prompt and the workbench toolbar open one persisted conversation', async ({
-	page
-}) => {
+test('the rules dialog and workbench tab share one persisted conversation', async ({ page }) => {
+	await page.route('**/v1/answers', (route) => route.abort());
 	await page.goto('/rules/');
 	const prompt = page.getByLabel('Ask about the guidelines');
 	await prompt.fill('When does a chorus need its own header?');
 	await prompt.press('Enter');
 
-	const dialog = page.getByRole('dialog');
+	const dialog = page.getByRole('dialog', { name: 'Ask the rules' });
 	await expect(dialog).toBeVisible();
-	await expect(dialog).toContainText('When does a chorus need its own header?');
+	await expect(dialog.getByLabel('Conversation', { exact: true })).toContainText(
+		'When does a chorus need its own header?'
+	);
+	await expect(dialog.getByLabel('Your question')).toBeVisible();
 	await expect(dialog.getByRole('button', { name: 'Retry' })).toBeVisible();
+	await expect(dialog.getByRole('button', { name: 'Allow' })).toHaveCount(0);
 
-	// The same conversation from the workbench's own entry point, across a real
-	// navigation.
+	// The same conversation survives a real navigation, but its workbench home
+	// is the second tab rather than another modal entry point.
 	await openWorkspace(page);
-	await page.getByRole('button', { name: 'Ask the rules' }).click();
-	await expect(page.getByRole('dialog')).toContainText('When does a chorus need its own header?');
+	const tabs = page.getByRole('tablist', { name: 'Document panels' }).getByRole('tab');
+	await expect(tabs).toHaveCount(4);
+	await expect(tabs.nth(1)).toHaveText('Assistant');
+	await expect(tabs.nth(2)).toHaveText('Tools');
+	await expect(tabs.nth(3)).toHaveText('Performers');
+	await tabs.nth(1).click();
+
+	const assistantPanel = page.getByRole('tabpanel', { name: 'Assistant' });
+	await expect(assistantPanel.getByLabel('Conversation', { exact: true })).toContainText(
+		'When does a chorus need its own header?'
+	);
+	await expect(assistantPanel.getByLabel('Your question')).toBeVisible();
+	await expect(assistantPanel.getByRole('button', { name: 'Retry' })).toBeVisible();
+	await expect(page.getByRole('dialog')).toHaveCount(0);
 });

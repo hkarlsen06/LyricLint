@@ -1,6 +1,6 @@
 /*
- * The rules assistant: one modal conversation, shared by the /rules/ prompt
- * and the workbench toolbar.
+ * The rules assistant: one conversation shared by the /rules/ modal and the
+ * workbench panel.
  *
  * The transcript reads as a conversation, not a log: the user's words are a
  * compact filled bubble on the right — the one familiar mark every chat reader
@@ -39,7 +39,28 @@
 .assistant-dialog__surface {
 	display: flex;
 	height: 100%;
+	min-height: 0;
 	flex-direction: column;
+}
+
+/* Both hosts give the conversation their remaining height. The transcript is
+ * the only scrolling region; the composer stays at the foot while the privacy
+ * disclosure belongs to the empty state above it. */
+.assistant-conversation,
+.assistant-panel {
+	display: flex;
+	min-height: 0;
+	flex: 1;
+	flex-direction: column;
+}
+
+.assistant-panel {
+	height: 100%;
+}
+
+.assistant-conversation__foot {
+	flex: none;
+	margin-top: auto;
 }
 
 /* The header splits on what a control acts on: the identity at one end, the
@@ -80,6 +101,22 @@
 	margin-inline-start: auto;
 	align-items: center;
 	gap: var(--space-1);
+}
+
+.assistant-chat-controls {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+}
+
+/* The panel's controls are a small command tray on the pane edge. It has no
+ * fill or border of its own, so it does not turn two glyphs into a full-width
+ * decorative band. */
+.assistant-panel__controls {
+	display: flex;
+	flex: none;
+	justify-content: flex-end;
+	padding: var(--space-1) var(--space-3) 0;
 }
 
 /* The conversations popover: the drafts menu's shape — a quiet disclosure, one
@@ -206,9 +243,103 @@
 	margin-block-start: var(--space-2);
 }
 
-/* The empty state is prose on the surface — a question, one sentence, and the
- * suggestions as quiet rows. What the assistant cannot see is said once, in
- * the disclosure under the composer, not repeated here. */
+/* Tool permission is part of the assistant's prose, never a box nested inside
+ * the turn. Once answered, the whole prompt collapses to one sentence. */
+.assistant-tool-turn {
+	display: grid;
+	gap: var(--space-2);
+	margin-block-end: var(--space-3);
+}
+
+.assistant-tool-turn p {
+	margin: 0;
+}
+
+.assistant-tool-turn__actions,
+.assistant-proposal__actions {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.assistant-tool-turn__actions .button,
+.assistant-proposal__actions .button {
+	margin: 0;
+}
+
+/* Proposals repeat as independently reviewable units, so each earns one
+ * border. The diff is information rather than a target; hover/focus on the
+ * card only borrows the editor's single preview slot. */
+.assistant-proposals {
+	display: grid;
+	gap: var(--space-2);
+	margin-block: var(--space-2) var(--space-3);
+}
+
+.assistant-proposal {
+	display: grid;
+	gap: var(--space-2);
+	padding: var(--space-3);
+	border: var(--border-width) solid var(--color-border);
+	border-radius: var(--radius-md);
+	background: var(--color-surface);
+}
+
+.assistant-proposal:focus-within {
+	border-color: var(--color-focus);
+	box-shadow: 0 0 0 var(--focus-ring-width) var(--color-focus-soft);
+}
+
+.assistant-proposal__diff {
+	margin: 0;
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-snug);
+	overflow-wrap: anywhere;
+	white-space: pre-wrap;
+}
+
+.assistant-proposal__context {
+	color: var(--color-text-muted);
+}
+
+.assistant-proposal__diff del {
+	color: var(--color-danger);
+	text-decoration: line-through;
+}
+
+.assistant-proposal__diff ins {
+	color: var(--color-success);
+	text-decoration: underline;
+}
+
+.assistant-proposal__diff del + ins {
+	margin-inline-start: var(--space-1);
+}
+
+.assistant-proposal__note,
+.assistant-proposal__outcome {
+	margin: 0;
+	font-size: var(--font-size-xs);
+}
+
+.assistant-link-action__title {
+	margin: 0;
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+}
+
+.assistant-proposal__note {
+	color: var(--color-text-muted);
+}
+
+.assistant-proposal__outcome {
+	color: var(--color-text);
+}
+
+/* The empty state is prose on the surface — a question, one sentence, the
+ * suggestions as quiet rows, then the privacy boundary while the reader is
+ * deciding whether to begin. */
 .assistant-empty {
 	display: flex;
 	height: 100%;
@@ -582,11 +713,37 @@ a.assistant-rule__source:hover {
 }
 
 .assistant-disclosure {
-	margin: 0;
-	padding: var(--space-1) var(--space-5) var(--space-3);
+	max-width: 30rem;
+	padding: 0;
+	margin-block-start: var(--space-5);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-2xs);
 	text-align: center;
+}
+
+.assistant-disclosure p {
+	margin: 0;
+}
+
+.assistant-disclosure .button {
+	min-height: var(--control-height-sm);
+	margin-block-start: var(--space-1);
+	font-size: var(--font-size-xs);
+}
+
+.assistant-panel .assistant-transcript {
+	min-height: 0;
+	padding: var(--space-3);
+}
+
+.assistant-panel .assistant-empty {
+	min-height: 14rem;
+}
+
+.assistant-panel .assistant-composer,
+.assistant-panel .assistant-status,
+.assistant-panel .assistant-challenge {
+	padding-inline: var(--space-3);
 }
 
 @media (max-width: 36rem) {

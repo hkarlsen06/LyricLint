@@ -9,9 +9,12 @@ visitor types into the assistant's own composer.
 Design notes live in `docs/architecture.md` at the repository root ("The rules
 assistant service"). The public contract is `POST /v1/answers` and `GET /health`.
 The answer endpoint returns its documented JSON response by default. Clients
-that send `Accept: application/x-ndjson` receive the same fully validated answer
-as ordered scope, text-delta, citation-completion, and quota events; validation
-still finishes before any model-written text is exposed.
+that send `Accept: application/x-ndjson` receive answer text as the model writes
+it. Scope, block starts, and text deltas are soft-gated by a tolerant partial
+parse; citation-bearing block completions and the final quota event are emitted
+only after the complete answer passes validation. A provider or validation
+failure after streaming starts is an in-stream `error` event, and no `done`
+event follows it.
 
 ## Layout
 

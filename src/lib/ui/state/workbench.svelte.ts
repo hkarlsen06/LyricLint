@@ -159,6 +159,8 @@ export interface WorkbenchController {
 	 * would keep writing a link the user had just taken off.
 	 */
 	onSectionLinksChanged(): void;
+	/** Current groups, addressed by their persisted 1-based header lines. */
+	readonly sectionLinks: readonly SectionLink[];
 	/**
 	 * How many lines in this draft are timed. Read by the two surfaces that act on
 	 * them — the delete and the timed-lyrics export — so each draws only where
@@ -552,6 +554,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		get lineAnchorCount() {
 			return knownLineAnchors.length;
+		},
+		get sectionLinks() {
+			return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
 		},
 		clearLineAnchors() {
 			// Both halves, in this order: the editor's own field is what the next

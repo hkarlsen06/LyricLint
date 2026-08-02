@@ -5,6 +5,7 @@ import {
 	reviewedLanguagePacks
 } from '$lib/languages/registry.js';
 import { headerNameIsEmpty } from '$lib/core/parser.js';
+import { localizedHeaderPreference } from './section-localized-header-preference.js';
 import { diagnostic } from './utils.js';
 
 function isRecognizedHeader(name: string): boolean {
@@ -37,7 +38,7 @@ function orderedSourceIds(language: string, sourceIds: readonly string[]): strin
 
 export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 	id: 'section.header-unrecognized',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'manual-review',
 	fixability: 'none',
 	sourceIds: [
@@ -65,6 +66,7 @@ export const sectionHeaderUnrecognizedRule: RuleDefinition = {
 				!header ||
 				headerNameIsEmpty(header) ||
 				isRecognizedHeader(header.namePart) ||
+				localizedHeaderPreference(context.language, header.namePart) ||
 				isNonEnglishTitleHeader(header.namePart, context.language, sectionIndex)
 			) {
 				return [];

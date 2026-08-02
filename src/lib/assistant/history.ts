@@ -4,13 +4,22 @@
  * on screen with a divider saying they were not included as model context —
  * `firstIncludedIndex` is where that divider goes.
  */
-import type { AssistantMessageRecord } from '$lib/persistence/types.js';
-import { HISTORY_WINDOW_CHARS } from './types.js';
+import type {
+	AssistantMessageRecord,
+	AssistantToolCallRecord,
+	AssistantToolTurnRecord
+} from '$lib/persistence/types.js';
+import {
+	HISTORY_WINDOW_CHARS,
+	MAX_LINK_SUMMARIES,
+	MAX_LINK_SUMMARY_CHARS,
+	type AssistantLinkActionOutcome,
+	type WireMessageV2,
+	type WireToolResult
+} from './types.js';
+import { composeSectionLinks } from './link-actions.js';
 
-export interface WireMessage {
-	role: 'user' | 'assistant';
-	content: string;
-}
+export type WireMessage = Extract<WireMessageV2, { content: string }>;
 
 export interface BoundedHistory {
 	/** What the backend receives, oldest first, question last. */
@@ -19,6 +28,123 @@ export interface BoundedHistory {
 	 * `history.length` when no prior exchange was included. Everything before
 	 * this index draws under the "not included as context" divider. */
 	firstIncludedIndex: number;
+}
+
+function wireToolCall(call: AssistantToolCallRecord) {
+	if (call.name === 'read_scribe') {
+		return { callId: call.callId, name: call.name, arguments: '{}' };
+	}
+	if (call.name === 'propose_edits') {
+		return {
+			callId: call.callId,
+			name: call.name,
+			arguments: JSON.stringify({
+				proposals: call.proposals.map(({ id, anchor, replacement, note }) => ({
+					id,
+					anchor,
+					replacement,
+					note
+				}))
+			})
+		};
+	}
+	return {
+		callId: call.callId,
+		name: call.name,
+		arguments: JSON.stringify({
+			actions: call.actions.map(({ id, action, headers, note }) => ({
+				id,
+				action,
+				headers,
+				note
+			}))
+		})
+	};
+}
+
+function wireToolResult(
+	call: AssistantToolCallRecord,
+	grantedDraftText: string,
+	sectionLinks: string[]
+): WireToolResult | undefined {
+	if (call.name === 'read_scribe') {
+		if (!call.outcome) return undefined;
+		return call.outcome === 'granted'
+			? {
+					callId: call.callId,
+					name: call.name,
+					result: {
+						status: 'granted',
+						draftText: grantedDraftText,
+						...(sectionLinks.length > 0 ? { sectionLinks } : {})
+					}
+				}
+			: { callId: call.callId, name: call.name, result: { status: 'denied' } };
+	}
+	const outcomesFor = (
+		records: Array<{
+			id: string;
+			status: 'pending' | 'applied' | 'rejected' | 'failed';
+			reason?: string;
+		}>
+	) => {
+		if (records.some((record) => record.status === 'pending')) return undefined;
+		return records.map((record) => {
+			if (record.status === 'pending') {
+				throw new Error('A pending tool action cannot be serialized as an outcome.');
+			}
+			return record.status === 'failed'
+				? {
+						id: record.id,
+						status: record.status,
+						...(record.reason ? { reason: record.reason } : {})
+					}
+				: { id: record.id, status: record.status };
+		});
+	};
+	if (call.name === 'propose_edits') {
+		const outcomes = outcomesFor(call.proposals);
+		return outcomes ? { callId: call.callId, name: call.name, result: { outcomes } } : undefined;
+	}
+	const outcomes = outcomesFor(call.actions);
+	return outcomes
+		? {
+				callId: call.callId,
+				name: call.name,
+				result: { outcomes: outcomes as AssistantLinkActionOutcome[] }
+			}
+		: undefined;
+}
+
+/**
+ * Rebuild the private live suffix from the pending record. Tool traffic is
+ * deliberately absent from `boundedHistory`, so it can never leak into a
+ * later settled exchange.
+ */
+export function liveToolSuffix(
+	toolTurns: AssistantToolTurnRecord[] | undefined,
+	grantedDraftText: string,
+	storedSectionLinks: Array<{ lines: number[] }> = []
+): WireMessageV2[] {
+	if (!toolTurns?.length) return [];
+	const sectionLinks = composeSectionLinks(grantedDraftText, storedSectionLinks)
+		.filter((summary) => summary.length <= MAX_LINK_SUMMARY_CHARS)
+		.slice(0, MAX_LINK_SUMMARIES);
+	const messages: WireMessageV2[] = [];
+	for (const turn of toolTurns) {
+		if (!turn.providerItems) throw new Error('A live tool turn is missing its provider items.');
+		const results = turn.calls.map((call) => wireToolResult(call, grantedDraftText, sectionLinks));
+		if (results.some((result) => !result)) {
+			throw new Error('A live tool turn still has unresolved calls.');
+		}
+		messages.push({
+			role: 'assistant',
+			toolCalls: turn.calls.map(wireToolCall),
+			providerItems: turn.providerItems
+		});
+		messages.push({ role: 'tool', results: results as WireToolResult[] });
+	}
+	return messages;
 }
 
 function wireContent(message: AssistantMessageRecord): string {

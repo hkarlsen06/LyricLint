@@ -1,11 +1,12 @@
 /**
  * The rules-assistant Worker. One answering endpoint, one health endpoint,
  * layered abuse control (WAF and the AI Gateway ceiling sit outside this
- * file), and nothing a client can say that selects a model, prompt, or
- * corpus. `createHandler` takes its provider and clock as parameters so the
- * whole pipeline is testable without the network.
+ * file), and browser-executed draft tools whose results return in a later
+ * request. Answer text may stream before its final validation; citations and
+ * completion remain behind that gate. Nothing a client can say selects a
+ * model, prompt, or corpus.
  */
-import { LIMITS, MODEL, REQUEST_RULES, SESSION_RULES, type Env } from './config';
+import { LIMITS, MAX_TOOL_ROUNDS, MODEL, REQUEST_RULES, SESSION_RULES, type Env } from './config';
 import { corpus, corpusRuleIds, corpusSourceIds } from './corpus';
 import { ApiError, errorBody } from './errors';
 import {
@@ -19,9 +20,20 @@ import {
 	type SessionState,
 	type TurnstileVerifier
 } from './identity';
-import { createOpenAiProvider, estimateSpendUsd, type AnswerProvider } from './provider';
+import {
+	createOpenAiProvider,
+	estimateSpendUsd,
+	type AnswerProvider,
+	type ProviderToolCall
+} from './provider';
 import type { BeginResult } from './quota-do';
-import { answerRequestSchema, validateAnswer, validateConversation } from './schema';
+import {
+	answerRequestSchema,
+	toolRoundCount,
+	validateAnswer,
+	validateConversation
+} from './schema';
+import { IncrementalAnswerStream } from './stream';
 
 export { QuotaCounter } from './quota-do';
 
@@ -70,51 +82,29 @@ function json(
 	return Response.json(body, { status, headers: { ...corsHeaders(env, origin), ...extra } });
 }
 
-function streamedAnswer(
+function streamedToolCalls(
 	env: Env,
 	body: {
-		requestId: string;
-		assistant: ReturnType<typeof validateAnswer>;
+		calls: ProviderToolCall[];
+		providerItems: string;
 		quota: { browserRemaining: number; ipRemaining: number; resetsAt: string };
 	},
 	extra?: Record<string, string>,
 	origin?: string
 ): Response {
-	const events: unknown[] = [
-		{ type: 'start', requestId: body.requestId, scope: body.assistant.scope }
+	const events = [
+		{ type: 'tool_calls', calls: body.calls, providerItems: body.providerItems },
+		{ type: 'done', quota: body.quota }
 	];
-	for (const block of body.assistant.blocks) {
-		events.push({ type: 'block_start', kind: block.kind });
-		for (let offset = 0; offset < block.text.length; offset += 48) {
-			events.push({ type: 'text_delta', delta: block.text.slice(offset, offset + 48) });
+	return new Response(events.map((event) => `${JSON.stringify(event)}\n`).join(''), {
+		status: 200,
+		headers: {
+			...corsHeaders(env, origin),
+			...extra,
+			'content-type': 'application/x-ndjson; charset=utf-8',
+			'cache-control': 'no-store'
 		}
-		events.push({ type: 'block_done', ruleIds: block.ruleIds, sourceIds: block.sourceIds });
-	}
-	events.push({ type: 'done', quota: body.quota });
-
-	const encoder = new TextEncoder();
-	let index = 0;
-	return new Response(
-		new ReadableStream({
-			pull(controller) {
-				const event = events[index++];
-				if (event === undefined) {
-					controller.close();
-					return;
-				}
-				controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-			}
-		}),
-		{
-			status: 200,
-			headers: {
-				...corsHeaders(env, origin),
-				...extra,
-				'content-type': 'application/x-ndjson; charset=utf-8',
-				'cache-control': 'no-store'
-			}
-		}
-	);
+	});
 }
 
 /** Operational metadata only: no raw IPs, no prompt or answer text. */
@@ -284,20 +274,244 @@ export function createHandler(options: HandlerOptions = {}) {
 				createOpenAiProvider(env.AI_GATEWAY_BASE_URL, env.OPENAI_API_KEY, env.AI_GATEWAY_TOKEN);
 			let spendUsd = 0;
 			try {
+				const providerSafetyIdentifier = await safetyIdentifier(state.sid, env.ABUSE_HMAC_SECRET);
+				const quota = {
+					browserRemaining: sessionQuota.remaining,
+					ipRemaining: ipQuota!.remaining,
+					resetsAt: sessionQuota.resetsAt
+				};
+				if (request.headers.get('accept')?.includes('application/x-ndjson')) {
+					// The response status and headers must be committed before provider tokens
+					// arrive. From here on, failures are part of the NDJSON protocol.
+					state.uses += 1;
+					const responseHeaders = { 'set-cookie': await setCookie() };
+					const providerController = new AbortController();
+					const encoder = new TextEncoder();
+					let cancelled = false;
+					let finalized: Promise<void> | undefined;
+
+					const stream = new ReadableStream<Uint8Array>({
+						start(controller) {
+							const emit = (event: unknown) => {
+								if (!cancelled) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+							};
+							const answerStream = new IncrementalAnswerStream(requestId, emit);
+							let usage:
+								| {
+										inputTokens: number;
+										cachedInputTokens: number;
+										cacheWriteTokens: number;
+										outputTokens: number;
+								  }
+								| undefined;
+							let spendUsd = 0;
+							const finalize = (outcome: 'ok' | 'error', code?: string): Promise<void> => {
+								finalized ??= (async () => {
+									try {
+										await releaseAll('/finish', spendUsd);
+									} catch {
+										// The HTTP status is already committed, so an accounting outage
+										// must not strand the browser in an unterminated answer stream.
+										console.error('assistant_quota_release_failed', { requestId });
+									}
+									writeMetric(env, {
+										outcome,
+										...(code ? { code } : {}),
+										latencyMs: now() - startedAt,
+										sessionHash,
+										inputTokens: usage?.inputTokens,
+										cachedInputTokens: usage?.cachedInputTokens,
+										cacheWriteTokens: usage?.cacheWriteTokens,
+										outputTokens: usage?.outputTokens,
+										spendUsd,
+										requestId
+									});
+								})();
+								return finalized;
+							};
+
+							void (async () => {
+								const timeout = setTimeout(
+									() => providerController.abort(),
+									MODEL.providerTimeoutMs
+								);
+								try {
+									// One line per streamed answer: how long the model thought before
+									// its first visible token, and how many deltas followed. This is
+									// the number to look at before believing "streaming is broken" —
+									// a late first delta with a fast tail is reasoning time, not a
+									// buffer (that diagnosis has been paid for once already).
+									let deltaCount = 0;
+									let firstDeltaAtMs: number | undefined;
+									const result = await provider(
+										body.messages,
+										providerSafetyIdentifier,
+										providerController.signal,
+										body.toolsAvailable === true,
+										(delta) => {
+											deltaCount += 1;
+											firstDeltaAtMs ??= now() - startedAt;
+											answerStream.push(delta);
+										}
+									);
+									console.warn('assistant_delta_profile', {
+										requestId,
+										deltaCount,
+										firstDeltaAtMs,
+										totalMs: now() - startedAt
+									});
+									usage = result.usage;
+									spendUsd = estimateSpendUsd(result.usage);
+									if (result.kind === 'tool_calls') {
+										if (!body.toolsAvailable) {
+											throw new ApiError(
+												'invalid_answer',
+												'Draft tools were used when none were offered.'
+											);
+										}
+										if (toolRoundCount(body.messages) >= MAX_TOOL_ROUNDS) {
+											throw new ApiError(
+												'invalid_answer',
+												`The assistant may use draft tools at most ${MAX_TOOL_ROUNDS} times in one turn.`
+											);
+										}
+										const finishing = finalize('ok');
+										emit({
+											type: 'tool_calls',
+											calls: result.calls,
+											providerItems: result.providerItems
+										});
+										await finishing;
+										emit({ type: 'done', quota });
+									} else {
+										const answer = validateAnswer(
+											result.raw,
+											corpusRuleIds,
+											corpusSourceIds,
+											body.toolsAvailable === true
+										);
+										const finishing = finalize('ok');
+										answerStream.flush(answer);
+										await finishing;
+										emit({ type: 'done', quota });
+									}
+									if (!cancelled) controller.close();
+								} catch (error) {
+									const apiError =
+										error instanceof ApiError
+											? error
+											: new ApiError('provider_error', 'Something went wrong.');
+									// The browser only ever sees the worded code; the cause behind a
+									// provider_error is invisible everywhere unless it is logged here.
+									console.error('assistant_turn_failed', {
+										requestId,
+										code: apiError.code,
+										cause: error instanceof Error ? error.message : String(error)
+									});
+									if (apiError.code === 'invalid_answer') {
+										console.warn('assistant_invalid_answer', {
+											requestId,
+											reason: apiError.message.split(':', 1)[0]
+										});
+									}
+									const finishing = finalize('error', apiError.code);
+									emit({ type: 'error', requestId, error: errorBody(apiError).error });
+									await finishing;
+									if (!cancelled) controller.close();
+								} finally {
+									clearTimeout(timeout);
+								}
+							})();
+						},
+						cancel() {
+							cancelled = true;
+							providerController.abort();
+							finalized ??= (async () => {
+								try {
+									await releaseAll('/finish');
+								} catch {
+									console.error('assistant_quota_release_failed', { requestId });
+								}
+								writeMetric(env, {
+									outcome: 'error',
+									code: 'provider_error',
+									latencyMs: now() - startedAt,
+									sessionHash,
+									requestId
+								});
+							})();
+							return finalized;
+						}
+					});
+					return new Response(stream, {
+						status: 200,
+						headers: {
+							...corsHeaders(env, responseOrigin),
+							...responseHeaders,
+							'content-type': 'application/x-ndjson; charset=utf-8',
+							'cache-control': 'no-store'
+						}
+					});
+				}
 				const controller = new AbortController();
 				const timeout = setTimeout(() => controller.abort(), MODEL.providerTimeoutMs);
 				let result;
 				try {
 					result = await provider(
 						body.messages,
-						await safetyIdentifier(state.sid, env.ABUSE_HMAC_SECRET),
-						controller.signal
+						providerSafetyIdentifier,
+						controller.signal,
+						body.toolsAvailable === true
 					);
 				} finally {
 					clearTimeout(timeout);
 				}
 				spendUsd = estimateSpendUsd(result.usage);
-				const answer = validateAnswer(result.raw, corpusRuleIds, corpusSourceIds);
+				if (result.kind === 'tool_calls') {
+					if (!body.toolsAvailable) {
+						throw new ApiError('invalid_answer', 'Draft tools were used when none were offered.');
+					}
+					if (toolRoundCount(body.messages) >= MAX_TOOL_ROUNDS) {
+						throw new ApiError(
+							'invalid_answer',
+							`The assistant may use draft tools at most ${MAX_TOOL_ROUNDS} times in one turn.`
+						);
+					}
+
+					state.uses += 1;
+					await releaseAll('/finish', spendUsd);
+					writeMetric(env, {
+						outcome: 'ok',
+						latencyMs: now() - startedAt,
+						sessionHash,
+						inputTokens: result.usage.inputTokens,
+						cachedInputTokens: result.usage.cachedInputTokens,
+						cacheWriteTokens: result.usage.cacheWriteTokens,
+						outputTokens: result.usage.outputTokens,
+						spendUsd,
+						requestId
+					});
+					return streamedToolCalls(
+						env,
+						{
+							calls: result.calls,
+							providerItems: result.providerItems,
+							quota: {
+								browserRemaining: sessionQuota.remaining,
+								ipRemaining: ipQuota!.remaining,
+								resetsAt: sessionQuota.resetsAt
+							}
+						},
+						{ 'set-cookie': await setCookie() },
+						responseOrigin
+					);
+				}
+				const answer = validateAnswer(
+					result.raw,
+					corpusRuleIds,
+					corpusSourceIds,
+					body.toolsAvailable === true
+				);
 
 				state.uses += 1;
 				await releaseAll('/finish', spendUsd);
@@ -322,9 +536,7 @@ export function createHandler(options: HandlerOptions = {}) {
 					}
 				};
 				const responseHeaders = { 'set-cookie': await setCookie() };
-				return request.headers.get('accept')?.includes('application/x-ndjson')
-					? streamedAnswer(env, responseBody, responseHeaders, responseOrigin)
-					: json(env, responseBody, 200, responseHeaders, responseOrigin);
+				return json(env, responseBody, 200, responseHeaders, responseOrigin);
 			} catch (error) {
 				// The attempt happened: keep the daily unit, release the slots, count
 				// any spend the failed call still incurred.
@@ -341,6 +553,13 @@ export function createHandler(options: HandlerOptions = {}) {
 		} catch (error) {
 			const apiError =
 				error instanceof ApiError ? error : new ApiError('provider_error', 'Something went wrong.');
+			// The browser only ever sees the worded code; the cause behind a
+			// provider_error is invisible everywhere unless it is logged here.
+			console.error('assistant_turn_failed', {
+				requestId,
+				code: apiError.code,
+				cause: error instanceof Error ? error.message : String(error)
+			});
 			if (apiError.code === 'invalid_answer') {
 				// Record only the invariant category, never the model payload or an
 				// unknown model-written identifier that may contain user text.

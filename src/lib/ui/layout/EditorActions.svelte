@@ -2,8 +2,7 @@
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
-	let { controller, onAskRules }: { controller: WorkbenchController; onAskRules?: () => void } =
-		$props();
+	let { controller }: { controller: WorkbenchController } = $props();
 
 	// The same question `transportModifier` asks, and deliberately not that
 	// function: the transport folds a chord down to one modifier because it has
@@ -54,19 +53,7 @@
 			caption: mac ? '⌘F' : 'Ctrl+F',
 			keyshortcuts: mac ? 'Meta+F' : 'Control+F',
 			run: () => controller.toggleSearch()
-		},
-		...(onAskRules
-			? [
-					{
-						id: 'assistant',
-						mark: undefined,
-						label: 'Ask the rules',
-						caption: undefined,
-						keyshortcuts: undefined,
-						run: onAskRules
-					}
-				]
-			: [])
+		}
 	]);
 </script>
 
@@ -126,16 +113,6 @@
 				>
 					<circle cx="7" cy="7" r="4.25" />
 					<path d="M10.25 10.25 14 14" />
-				</svg>
-			{:else}
-				<svg
-					class="editor-actions__glyph"
-					viewBox="0 0 16 16"
-					aria-hidden="true"
-					fill="currentColor"
-				>
-					<path d="M6 1l1.2 3.3L10.5 5.5 7.2 6.7 6 10 4.8 6.7 1.5 5.5l3.3-1.2z" />
-					<path d="M11.5 8.5l.85 2.3 2.3.85-2.3.85-.85 2.3-.85-2.3-2.3-.85 2.3-.85z" />
 				</svg>
 			{/if}
 		</button>

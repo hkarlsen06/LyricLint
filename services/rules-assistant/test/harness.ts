@@ -26,6 +26,7 @@ class FakeStorage {
 
 export class FakeQuotaNamespace {
 	readonly instances = new Map<string, QuotaCounter>();
+	readonly calls: Array<{ name: string; path: string }> = [];
 	idFromName(name: string): unknown {
 		return name;
 	}
@@ -37,7 +38,12 @@ export class FakeQuotaNamespace {
 			this.instances.set(name, instance);
 		}
 		const held = instance;
-		return { fetch: (url, init) => held.fetch(new Request(url, init)) };
+		return {
+			fetch: (url, init) => {
+				this.calls.push({ name, path: new URL(url).pathname });
+				return held.fetch(new Request(url, init));
+			}
+		};
 	}
 }
 
@@ -51,8 +57,11 @@ export function fakeRateLimit(succeed: () => boolean): RateLimit {
 	return { limit: vi.fn(async () => ({ success: succeed() })) };
 }
 
-export function makeEnv(overrides: Partial<Env> = {}): Env & { points: MetricPoint[] } {
+export function makeEnv(
+	overrides: Partial<Env> = {}
+): Env & { points: MetricPoint[]; quotaNamespace: FakeQuotaNamespace } {
 	const points: MetricPoint[] = [];
+	const quotaNamespace = new FakeQuotaNamespace();
 	return {
 		ASSISTANT_DISABLED: 'false',
 		ALLOWED_ORIGIN: 'https://lyriclint.com,https://dev.lyriclint.com',
@@ -62,7 +71,7 @@ export function makeEnv(overrides: Partial<Env> = {}): Env & { points: MetricPoi
 		TURNSTILE_SECRET: 'turnstile-secret',
 		ABUSE_HMAC_SECRET: 'abuse-secret',
 		SESSION_SIGNING_SECRET: 'session-secret',
-		QUOTAS: new FakeQuotaNamespace() as unknown as DurableObjectNamespace,
+		QUOTAS: quotaNamespace as unknown as DurableObjectNamespace,
 		SESSION_MINUTE_LIMIT: fakeRateLimit(() => true),
 		IP_MINUTE_LIMIT: fakeRateLimit(() => true),
 		METRICS: {
@@ -71,8 +80,9 @@ export function makeEnv(overrides: Partial<Env> = {}): Env & { points: MetricPoi
 			}
 		} as unknown as AnalyticsEngineDataset,
 		points,
+		quotaNamespace,
 		...overrides
-	} as Env & { points: MetricPoint[] };
+	} as Env & { points: MetricPoint[]; quotaNamespace: FakeQuotaNamespace };
 }
 
 export const RULE_ID = corpus.rules[0]!.id;
@@ -98,7 +108,7 @@ export function providerReturning(
 	raw: unknown,
 	usage = { inputTokens: 1000, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 200 }
 ) {
-	return vi.fn(async (): Promise<ProviderResult> => ({ raw, usage }));
+	return vi.fn(async (): Promise<ProviderResult> => ({ kind: 'answer', raw, usage }));
 }
 
 export function requestBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {

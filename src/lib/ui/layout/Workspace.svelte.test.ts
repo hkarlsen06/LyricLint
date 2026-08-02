@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
+import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
 import type { HarperDiagnosticProvider } from '$lib/rules/index.js';
 import LiveRegion from '../primitives/LiveRegion.svelte';
 import { createTestWorkbench } from '../test-utils.js';
@@ -10,6 +12,18 @@ import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import DocumentToolbar from './DocumentToolbar.svelte';
 import Workspace from './Workspace.svelte';
+
+const assistantContext = vi.hoisted(() => ({
+	current: undefined as AssistantState | undefined
+}));
+
+vi.mock('$lib/assistant/assistant.svelte.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('$lib/assistant/assistant.svelte.js')>();
+	return {
+		...actual,
+		useAssistantState: () => assistantContext.current
+	};
+});
 
 const noHarper: HarperDiagnosticProvider = {
 	lint: async () => [],
@@ -26,7 +40,9 @@ function renderWorkspace(
 describe('Workspace and toolbar', () => {
 	afterEach(() => {
 		cleanup();
+		assistantContext.current = undefined;
 		vi.unstubAllGlobals();
+		vi.unstubAllEnvs();
 	});
 
 	test('copies the exact canonical string and announces copy completion', async () => {
@@ -774,6 +790,7 @@ describe('Workspace and toolbar', () => {
 		// of the document's own top row for two commands.
 		expect(bar.querySelectorAll('kbd')).toHaveLength(0);
 		expect(bar.textContent).not.toContain('Section header');
+		expect(screen.queryByRole('button', { name: 'Ask the rules' })).toBeNull();
 
 		await fireEvent.click(unknown);
 		expect(calls.dispatched).toEqual([
@@ -783,6 +800,101 @@ describe('Workspace and toolbar', () => {
 				selectionAfter: { anchor: 13, head: 13 }
 			}
 		]);
+	});
+
+	test('registers the assistant draft bridge for the workspace lifetime', async () => {
+		// Keep this test on the bridge seam: an unavailable service hides the pane,
+		// but the workspace still registers editor access with the shared store.
+		vi.stubEnv('PUBLIC_ASSISTANT_ANSWERS_URL', '');
+		let bridge: AssistantDraftBridge | undefined;
+		const unregister = vi.fn();
+		const registerDraftBridge = vi.fn((next: AssistantDraftBridge) => {
+			bridge = next;
+			return unregister;
+		});
+		assistantContext.current = { registerDraftBridge } as unknown as AssistantState;
+		const { controller, calls } = createTestWorkbench({ text: '[Verse]\nA lyric', revision: 7 });
+
+		const workspace = renderWorkspace(controller);
+		await waitFor(() => expect(registerDraftBridge).toHaveBeenCalledOnce());
+
+		expect(bridge?.draftId()).toBe('draft-1');
+		expect(bridge?.readText()).toBe('[Verse]\nA lyric');
+		expect(bridge?.revision()).toBe(7);
+		expect(bridge?.apply({ baseRevision: 6, edits: [{ from: 0, to: 0, insert: 'stale' }] })).toBe(
+			false
+		);
+		expect(calls.dispatched).toEqual([]);
+		expect(
+			bridge?.preview({ baseRevision: 7, edits: [{ from: 8, to: 15, insert: 'Preview' }] })
+		).toBe(false);
+		expect(
+			bridge?.apply({ baseRevision: 7, edits: [{ from: 8, to: 15, insert: 'New lyric' }] })
+		).toBe(true);
+		expect(controller.snapshot.text).toBe('[Verse]\nNew lyric');
+		expect(controller.snapshot.revision).toBe(8);
+
+		workspace.unmount();
+		expect(unregister).toHaveBeenCalledOnce();
+	});
+
+	test('maps assistant link actions from header lines onto editor choices', async () => {
+		vi.stubEnv('PUBLIC_ASSISTANT_ANSWERS_URL', '');
+		let bridge: AssistantDraftBridge | undefined;
+		assistantContext.current = {
+			registerDraftBridge(next: AssistantDraftBridge) {
+				bridge = next;
+				return () => {};
+			}
+		} as unknown as AssistantState;
+		const text = '[Chorus]\nA\n[Chorus]\nB\n[Chorus]\nC\n[Verse]\nD';
+		const { controller } = createTestWorkbench({ text });
+		renderWorkspace(controller);
+		await waitFor(() => expect(bridge).toBeDefined());
+
+		const editor = controller.editor;
+		let links = [{ lines: [1, 3, 5] }];
+		editor.getSectionLinks = () => links;
+		editor.getLinkDifferences = () => [
+			{ index: 0, wordings: [] },
+			{ index: 1, wordings: [] }
+		];
+		const headerOffsets = controller.snapshot.parsed.sections.map(
+			(section) => section.header!.from
+		);
+		const applyChoice = vi.fn((choice: Parameters<NonNullable<typeof editor.linkSections>>[0]) => {
+			if (choice.headers.length > 1) {
+				links = [{ lines: [1, 3, 5] }];
+				return;
+			}
+			const line = headerOffsets.indexOf(choice.headers[0]!) * 2 + 1;
+			links = links
+				.map((group) => ({ lines: group.lines.filter((candidate) => candidate !== line) }))
+				.filter((group) => group.lines.length >= 2);
+		});
+		editor.linkSections = applyChoice;
+
+		expect(bridge!.sectionLinks()).toEqual([{ lines: [1, 3, 5] }]);
+		expect(bridge!.linkableSections([1, 3])).toBe(true);
+		expect(bridge!.linkableSections([1, 7])).toBe(false);
+		expect(bridge!.linkSections([1, 3, 5])).toBe(true);
+		expect(applyChoice).toHaveBeenLastCalledWith({
+			headers: headerOffsets.slice(0, 3),
+			keepDifferent: [true, true]
+		});
+		expect(applyChoice.mock.calls.at(-1)![0]).not.toHaveProperty('replaceFrom');
+
+		applyChoice.mockClear();
+		expect(bridge!.unlinkSection(3)).toBe(true);
+		expect(applyChoice.mock.calls.map(([choice]) => choice)).toEqual([
+			{ headers: [headerOffsets[0]] },
+			{ headers: [headerOffsets[1]] }
+		]);
+		expect(links).toEqual([]);
+
+		editor.linkSections = undefined;
+		expect(bridge!.linkSections([1, 3])).toBe(false);
+		expect(bridge!.unlinkSection(1)).toBe(false);
 	});
 
 	// It is a tray hanging off the toolbar at the right of the column, against the

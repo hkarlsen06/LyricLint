@@ -22,7 +22,7 @@ export const LIMITS = {
 
 export const REQUEST_RULES = {
 	/** Maximum request body, bytes. */
-	maxBodyBytes: 64 * 1024,
+	maxBodyBytes: 256 * 1024,
 	/** Maximum question length in Unicode code points. */
 	maxQuestionChars: 2000,
 	/** Maximum messages a client may supply before server pruning. */
@@ -30,6 +30,18 @@ export const REQUEST_RULES = {
 	/** History window sent to the model, in characters of complete exchanges. */
 	historyWindowChars: 24_000
 } as const;
+
+/** The live draft-tool suffix is deliberately small because every round is a
+ * full-priced, stateless provider request. */
+export const MAX_TOOL_ROUNDS = 4;
+export const MAX_PROPOSALS = 8;
+export const MAX_LINK_ACTIONS = 8;
+export const MAX_LINK_HEADERS = 12;
+export const MAX_LINK_SUMMARY_CHARS = 200;
+export const MAX_LINK_SUMMARIES = 64;
+export const MAX_TOOL_ARGUMENT_CHARS = 16_384;
+export const MAX_DRAFT_CHARS = 30_000;
+export const MAX_PROVIDER_ITEMS_CHARS = 100_000;
 
 export const SESSION_RULES = {
 	/** Signed anonymous session cookie lifetime. */
@@ -44,8 +56,13 @@ export const SESSION_RULES = {
 export const MODEL = {
 	/** Provider-native OpenAI model id, routed through Cloudflare AI Gateway. */
 	id: 'gpt-5.6-luna',
-	reasoning: { effort: 'max', context: 'current_turn' },
-	maxOutputTokens: 8192,
+	// Not 'max': reasoning tokens count against maxOutputTokens, and at max
+	// effort ordinary questions burned the whole budget thinking — the response
+	// came back `incomplete` with zero answer tokens, which the browser saw as
+	// the model being down. Max effort also put 20-100s of silence before the
+	// first streamed token, which reads as a hang beside an interactive chat.
+	reasoning: { effort: 'high', context: 'current_turn' },
+	maxOutputTokens: 16_384,
 	/** A hung provider call must release concurrency slots; abort after this. */
 	providerTimeoutMs: 120_000,
 	/** Standard-processing prices per 1M tokens. Gateway spend limits remain the

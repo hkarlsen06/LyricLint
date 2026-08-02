@@ -284,7 +284,11 @@ describe('the assistant dialog', () => {
 		const assistant = makeAssistant();
 		const { container } = render(AssistantDialog, { assistant });
 		await assistant.open();
+		expect(container.querySelector('.assistant-conversation')).not.toBeNull();
 		expect(container.textContent).toContain('cannot see your draft');
-		expect(container.querySelector('.assistant-disclosure a')).not.toBeNull();
+		expect(container.querySelector('.assistant-empty .assistant-disclosure a')).not.toBeNull();
+		expect(
+			container.querySelector('.assistant-conversation__foot .assistant-disclosure')
+		).toBeNull();
 	});
 });

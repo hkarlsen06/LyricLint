@@ -1,22 +1,8 @@
-<script module lang="ts">
-	/**
-	 * The document has one preview slot, and two surfaces can be showing the same
-	 * finding at once: the panel card and the popover over its underline. The slot
-	 * belongs to whichever mounted last, and a surface leaving hands it back to
-	 * whoever is still open rather than clearing it — otherwise a hovered popover
-	 * closing took the expanded card's diff with it, and the card sat there
-	 * describing a change the document no longer showed.
-	 *
-	 * Deliberately not reactive: nothing renders from it, and a `$state` registry
-	 * read inside the effect that writes it is a loop.
-	 */
-	const shownPreviews: (() => void)[] = [];
-</script>
-
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { previewableFix, previewSignature } from '$lib/core/fix-preview.js';
 	import type { Diagnostic, DiagnosticFix } from '$lib/core/types.js';
+	import { acquirePreview } from './preview-slot.js';
 
 	interface Props {
 		diagnostic: Diagnostic;
@@ -110,20 +96,7 @@
 			return;
 		}
 		const show = () => untrack(() => onPreviewFix(fix));
-		shownPreviews.push(show);
-		show();
-		return () => {
-			shownPreviews.splice(shownPreviews.indexOf(show), 1);
-			// Hand the slot to the surface that is still open, in mount order, so
-			// which of the two Svelte tears down first cannot decide whether the
-			// document keeps its diff.
-			const remaining = shownPreviews.at(-1);
-			if (remaining) {
-				remaining();
-			} else {
-				untrack(() => onCancelPreview());
-			}
-		};
+		return acquirePreview(show, () => untrack(() => onCancelPreview()));
 	});
 
 	// Only one fix can sit in the document at a time, so reaching for a fix moves
@@ -187,7 +160,7 @@
 	{/if}
 	{#if offersSectionLink}
 		<button type="button" class="button diagnostic-actions__guided" onclick={onLinkSections}>
-			Link these sections
+			Manage linking
 		</button>
 	{/if}
 	{#if detectedLanguage && onSetLanguage}

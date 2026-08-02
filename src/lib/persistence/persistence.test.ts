@@ -4,6 +4,7 @@ import Dexie from 'dexie';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import lyricCases from '../../../fixtures/lyrics/cases.json';
+import { assistantDraftAccessKey } from '$lib/assistant/permissions.js';
 import { createAutosaveController } from './autosave.js';
 import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.js';
 import { createDraftRepository } from './draft-repository.js';
@@ -141,15 +142,21 @@ describe('draft repository', () => {
 	});
 
 	it('deleteAll removes every draft and the current pointer', async () => {
-		const { repository } = await createRepository('delete-all');
+		const { database, repository } = await createRepository('delete-all');
 		await repository.create({ id: 'draft-a', text: 'A' });
 		await repository.create({ id: 'draft-b', text: 'B' });
 		await repository.setCurrent('draft-b');
+		await database.appMetadata.put({
+			key: assistantDraftAccessKey('draft-a'),
+			value: '{"decision":"granted","decidedAt":"2026-01-01T00:00:00.000Z"}',
+			updatedAt: '2026-01-01T00:00:00.000Z'
+		});
 
 		await repository.deleteAll();
 
 		expect(await repository.list()).toEqual([]);
 		expect(await repository.getCurrent()).toBeUndefined();
+		expect(await database.appMetadata.get(assistantDraftAccessKey('draft-a'))).toBeUndefined();
 	});
 
 	// The tools panel promises "Delete all local data" leaves nothing behind, and
@@ -168,6 +175,29 @@ describe('draft repository', () => {
 
 		expect(await media.get('draft-a')).toBeUndefined();
 		expect((await media.get('draft-b'))?.name).toBe('b.mp3');
+	});
+
+	it('takes the assistant read decision with the draft it belongs to', async () => {
+		const { database, repository } = await createRepository('assistant-access-delete');
+		await repository.create({ id: 'draft-a', text: 'A' });
+		await repository.create({ id: 'draft-b', text: 'B' });
+		await database.appMetadata.bulkPut([
+			{
+				key: assistantDraftAccessKey('draft-a'),
+				value: '{"decision":"granted","decidedAt":"2026-01-01T00:00:00.000Z"}',
+				updatedAt: '2026-01-01T00:00:00.000Z'
+			},
+			{
+				key: assistantDraftAccessKey('draft-b'),
+				value: '{"decision":"denied","decidedAt":"2026-01-01T00:00:00.000Z"}',
+				updatedAt: '2026-01-01T00:00:00.000Z'
+			}
+		]);
+
+		await repository.delete('draft-a');
+
+		expect(await database.appMetadata.get(assistantDraftAccessKey('draft-a'))).toBeUndefined();
+		expect(await database.appMetadata.get(assistantDraftAccessKey('draft-b'))).toBeDefined();
 	});
 
 	// Every source's id has to survive the trip, and `trackId` is the field a
@@ -343,6 +373,53 @@ describe('draft repository', () => {
 
 		await reopenedRepository.deleteAll();
 		expect(await reopenedRepository.getRecentLanguages()).toEqual(['fr', 'ja', 'es', 'de', 'no']);
+	});
+});
+
+describe('assistant message persistence', () => {
+	it('keeps tool turns and their opaque provider items across a reopen', async () => {
+		const name = databaseName('assistant-tool-turns');
+		const first = await openDatabase(name);
+		openDatabases.add(first);
+		await first.assistantMessages.add({
+			id: 'message-a',
+			chatId: 'chat-a',
+			role: 'assistant',
+			createdAt: '2026-01-01T00:00:00.000Z',
+			status: 'pending',
+			content: '',
+			toolTurns: [
+				{
+					calls: [
+						{
+							callId: 'call-a',
+							name: 'propose_edits',
+							proposals: [
+								{
+									id: 'proposal-a',
+									anchor: { exact: 'Dont', before: '', after: ' stop' },
+									replacement: "Don't",
+									note: 'Use the contraction.',
+									status: 'pending'
+								}
+							]
+						}
+					],
+					providerItems: '[{"type":"reasoning","encrypted_content":"opaque"}]'
+				}
+			]
+		});
+		closeTestDatabase(first);
+
+		const reopened = await openDatabase(name);
+		openDatabases.add(reopened);
+		const message = await reopened.assistantMessages.get('message-a');
+
+		expect(message?.toolTurns?.[0]?.providerItems).toContain('encrypted_content');
+		expect(message?.toolTurns?.[0]?.calls[0]).toMatchObject({
+			name: 'propose_edits',
+			proposals: [{ id: 'proposal-a', status: 'pending' }]
+		});
 	});
 });
 

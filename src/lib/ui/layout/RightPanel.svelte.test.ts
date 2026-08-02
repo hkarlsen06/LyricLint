@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { userEvent } from 'vitest/browser';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import LiveRegion from '../primitives/LiveRegion.svelte';
 import ToastRegion from '../primitives/ToastRegion.svelte';
 import type { DraftRecord } from '$lib/core/types.js';
@@ -24,6 +25,27 @@ function savedDraft(id: string, title: string, text = '[Verse]\nLine'): DraftRec
 		ruleSetVersion: '2026.7',
 		editorSelection: { anchor: 0, head: 0 }
 	};
+}
+
+function panelAssistant(): AssistantState {
+	return {
+		chats: [],
+		messages: [],
+		quota: undefined,
+		failure: undefined,
+		challengePending: false,
+		busy: false,
+		contextDividerIndex: undefined,
+		toolSession: undefined,
+		draftToolsAvailable: true,
+		draftAccessState: undefined,
+		send: vi.fn(async () => undefined),
+		newChat: vi.fn(async () => undefined),
+		retry: vi.fn(async () => undefined),
+		submitChallenge: vi.fn(async () => undefined),
+		ensureLoaded: vi.fn(async () => undefined),
+		revokeDraftAccess: vi.fn(async () => undefined)
+	} as unknown as AssistantState;
 }
 
 /**
@@ -52,18 +74,21 @@ function withAudio(options: Parameters<typeof createTestWorkbench>[0] = {}) {
 }
 
 describe('RightPanel', () => {
-	afterEach(cleanup);
+	afterEach(() => {
+		cleanup();
+		vi.unstubAllEnvs();
+	});
 
 	// The panes are flex columns so the linter can pin its foot to the bottom of
 	// the panel. Bits UI hides the inactive ones with the `hidden` attribute, and
 	// a `display` declaration that does not exclude them outranks the rule that
-	// honours it — all three panels stack into one column.
+	// honours it — all four panels stack into one column.
 	test('draws only the active pane despite the panes being flex columns', async () => {
 		const { controller } = createTestWorkbench();
-		render(RightPanel, { controller });
+		render(RightPanel, { controller, assistant: panelAssistant() });
 
 		const panes = () => [...document.querySelectorAll('.right-panel__pane')];
-		expect(panes().length).toBe(3);
+		expect(panes().length).toBe(4);
 		const shown = () => panes().filter((pane) => getComputedStyle(pane).display !== 'none');
 		expect(shown()).toHaveLength(1);
 		expect(shown()[0]!.hasAttribute('hidden')).toBe(false);
@@ -71,21 +96,63 @@ describe('RightPanel', () => {
 		await fireEvent.click(screen.getByRole('tab', { name: 'Tools' }));
 		await waitFor(() => expect(shown()).toHaveLength(1));
 		expect(shown()[0]!.textContent).toContain('Local data');
+
+		await fireEvent.click(screen.getByRole('tab', { name: 'Assistant' }));
+		await waitFor(() => expect(shown()).toHaveLength(1));
+		expect(shown()[0]!.textContent).toContain('What would you like to check?');
 	});
 
 	test('switches tabs with keyboard-operable Bits UI tabs', async () => {
 		const { controller } = createTestWorkbench();
-		render(RightPanel, { controller });
+		render(RightPanel, { controller, assistant: panelAssistant() });
+
+		expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
+			'Linter',
+			'Assistant',
+			'Tools',
+			'Performers'
+		]);
 
 		const performersTab = screen.getByRole('tab', { name: 'Performers' });
 		await fireEvent.click(performersTab);
 		expect(controller.activeTab).toBe('performers');
 		expect(screen.getByText('Add performer')).toBeTruthy();
 
-		performersTab.focus();
-		await fireEvent.keyDown(performersTab, { key: 'ArrowRight' });
+		const linterTab = screen.getByRole('tab', { name: /Linter/ });
+		linterTab.focus();
+		await fireEvent.keyDown(linterTab, { key: 'ArrowRight' });
+		await waitFor(() => expect(controller.activeTab).toBe('assistant'));
+		expect(document.activeElement?.textContent).toContain('Assistant');
+
+		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
 		await waitFor(() => expect(controller.activeTab).toBe('tools'));
 		expect(document.activeElement?.textContent).toContain('Tools');
+
+		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+		await waitFor(() => expect(controller.activeTab).toBe('performers'));
+		expect(document.activeElement?.textContent).toContain('Performers');
+	});
+
+	test('keeps the existing three tabs and mounts no assistant pane when unavailable', async () => {
+		vi.stubEnv('PUBLIC_ASSISTANT_ANSWERS_URL', '');
+		const { controller } = createTestWorkbench();
+		controller.setActiveTab('assistant');
+		render(RightPanel, { controller, assistant: panelAssistant() });
+
+		await waitFor(() => expect(controller.activeTab).toBe('linter'));
+		expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
+			'Linter',
+			'Tools',
+			'Performers'
+		]);
+		expect(screen.queryByRole('tab', { name: 'Assistant' })).toBeNull();
+		expect(document.querySelectorAll('.right-panel__pane')).toHaveLength(3);
+		expect(document.querySelector('.assistant-panel')).toBeNull();
+		expect(
+			[...document.querySelectorAll('.right-panel__pane')].filter(
+				(pane) => getComputedStyle(pane).display !== 'none'
+			)
+		).toHaveLength(1);
 	});
 
 	test('mirrors diagnostics, filters severity, and navigates to the exact editor range', async () => {
@@ -614,7 +681,7 @@ describe('RightPanel', () => {
 			message: 'Add a section header'
 		});
 		const { controller, youtube } = withAudio({ diagnostics: [finding] });
-		render(RightPanel, { controller });
+		render(RightPanel, { controller, assistant: panelAssistant() });
 
 		// Nothing attached draws nothing, and nothing has been asked of Google.
 		expect(document.querySelector('.media-video')).toBeNull();
@@ -645,14 +712,14 @@ describe('RightPanel', () => {
 	// rebuilt on every tab switch — a black flash and a lost playhead each time.
 	test('keeps the same video element across a tab switch', async () => {
 		const { controller } = withAudio();
-		render(RightPanel, { controller });
+		render(RightPanel, { controller, assistant: panelAssistant() });
 
 		await controller.media!.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
 		await waitFor(() => expect(document.querySelector('.media-video__frame')).not.toBeNull());
 		const frame = document.querySelector('.media-video__frame');
 
-		await fireEvent.click(screen.getByRole('tab', { name: 'Tools' }));
-		await waitFor(() => expect(controller.activeTab).toBe('tools'));
+		await fireEvent.click(screen.getByRole('tab', { name: 'Assistant' }));
+		await waitFor(() => expect(controller.activeTab).toBe('assistant'));
 		expect(document.querySelector('.media-video__frame')).toBe(frame);
 	});
 

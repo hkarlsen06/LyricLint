@@ -7,9 +7,17 @@ describe('right panel URL state', () => {
 		['https://lyriclint.app/lint?panel=linter', 'linter'],
 		['https://lyriclint.app/lint?panel=performers', 'performers'],
 		['https://lyriclint.app/lint?panel=tools', 'tools'],
+		['https://lyriclint.app/lint?panel=assistant', 'assistant'],
 		['https://lyriclint.app/lint?panel=unknown', 'linter']
 	] as const)('reads %s as %s', (href, expected) => {
 		expect(rightPanelTabFromUrl(new URL(href))).toBe(expected);
+	});
+
+	test('round-trips the assistant panel', () => {
+		const next = urlForRightPanelTab(new URL('https://lyriclint.app/lint?draft=one'), 'assistant');
+
+		expect(next.href).toBe('https://lyriclint.app/lint?draft=one&panel=assistant');
+		expect(rightPanelTabFromUrl(next)).toBe('assistant');
 	});
 
 	test('preserves unrelated URL state when selecting a panel', () => {

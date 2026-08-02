@@ -92,6 +92,33 @@ export interface AssistantChatRecord {
 	ruleSetVersion: string;
 }
 
+export type AssistantToolCallRecord =
+	| {
+			callId: string;
+			name: 'read_scribe';
+			outcome?: 'granted' | 'denied';
+	  }
+	| {
+			callId: string;
+			name: 'propose_edits';
+			proposals: import('$lib/assistant/types.js').AssistantProposalRecord[];
+	  }
+	| {
+			callId: string;
+			name: 'manage_links';
+			actions: import('$lib/assistant/types.js').AssistantLinkActionRecord[];
+	  };
+
+/** One live agent-loop round retained on its pending assistant message. */
+export interface AssistantToolTurnRecord {
+	calls: AssistantToolCallRecord[];
+	/** Opaque provider state needed only until this logical turn completes. */
+	providerItems?: string;
+	/** What the round streamed before its tool calls. The transcript keeps it,
+	 * because text the user watched arrive must not be erased by the next round. */
+	narration?: import('$lib/assistant/types.js').StructuredAssistantAnswer;
+}
+
 /** One message in an assistant conversation. */
 export interface AssistantMessageRecord {
 	id: string;
@@ -103,6 +130,8 @@ export interface AssistantMessageRecord {
 	content: string;
 	answer?: import('$lib/assistant/types.js').StructuredAssistantAnswer;
 	requestId?: string;
+	/** Tool traffic belongs only to this logical turn and is never compacted into later history. */
+	toolTurns?: AssistantToolTurnRecord[];
 }
 
 /** Browser-local capability for the workspace backup file. Never exported. */

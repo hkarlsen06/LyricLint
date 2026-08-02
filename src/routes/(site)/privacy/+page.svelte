@@ -17,10 +17,9 @@
 <main class="site-main site-prose">
 	<h1>Privacy</h1>
 	<p>
-		LyricLint is local-first. Your transcriptions are stored in this browser, autosave to this
-		browser, and are never sent to a LyricLint server — there is no account and no backend for
-		drafts. A few optional features contact a third party, each one only when you ask for it. This
-		page lists all of them.
+		LyricLint is local-first. Your transcriptions are stored in this browser and autosave to this
+		browser; there is no account. A few optional features contact a third party, each one only when
+		you ask for it. This page lists all of them.
 	</p>
 
 	<h2>What stays local</h2>
@@ -36,11 +35,14 @@
 		The assistant answers questions about the transcription guidelines. When you press <em>Ask</em>,
 		the question you typed — plus the recent turns of that same conversation, up to a bounded window
 		— is sent to LyricLint's answering service, a Cloudflare Worker, which forwards it to OpenAI's
-		API through Cloudflare AI Gateway. Nothing else is sent:
+		API through Cloudflare AI Gateway. Anything else depends on one explicit permission:
 	</p>
 	<ul>
-		<li>Your draft is never transmitted. The assistant cannot see it and will say so if asked.</li>
-		<li>Only text you type into the assistant's own composer leaves the browser.</li>
+		<li>
+			Your draft leaves the browser only after you explicitly grant the assistant read access.
+			Permission is remembered for that draft alone and can be revoked at any time; without it, only
+			text you type into the assistant's own composer leaves the browser.
+		</li>
 		<li>
 			Requests are sent with <code>store: false</code>, and request and response payload logging is
 			disabled at the gateway. LyricLint authenticates to OpenAI with its own project API key;

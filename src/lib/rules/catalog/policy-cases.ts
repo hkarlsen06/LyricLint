@@ -164,8 +164,8 @@ export const policyCases: readonly RulePolicyCase[] = [
 	{
 		id: 'section.localized-header-preference',
 		title: 'Prefer the localized song part name',
-		invalid: '[Chorus]\nEn natt',
-		valid: '[Refreng]\nEn natt',
+		invalid: '[Bridge]\nEn natt',
+		valid: '[Bro]\nEn natt',
 		ambiguous: '[Eget parti]\nEn natt',
 		language: 'no'
 	},

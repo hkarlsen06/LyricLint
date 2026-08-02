@@ -587,6 +587,13 @@ describe('the link card', () => {
 		// Choosing a copy is choosing to replace, so the radio follows the dropdown.
 		const choice = page.getByRole('combobox', { name: /Which section/ });
 		await expect.element(choice).toBeVisible();
+		// Opening a native select is its mousedown default action. The picker keeps
+		// mouse presses from refocusing the editor, but must leave this gesture
+		// alone or the dropdown looks enabled and never opens.
+		const select = choice.element() as HTMLSelectElement;
+		expect(
+			select.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
+		).toBe(true);
 		await choice.selectOptions('Chorus 2');
 		await expect
 			.element(page.getByRole('radio', { name: /Replace them with another section/ }))
@@ -598,6 +605,29 @@ describe('the link card', () => {
 		const matched = handle.getSnapshot().text;
 		expect(matched.split('And I will be there again')).toHaveLength(3);
 		expect(matched).not.toContain('tonight');
+	});
+
+	it('lists identical copies as one replacement version', async () => {
+		const repeatedVersions = [
+			'[Chorus]',
+			'And I will be there tonight',
+			'',
+			'[Chorus 2]',
+			'And I will be there again',
+			'',
+			'[Chorus 3]',
+			'And I will be there tonight'
+		].join('\n');
+		const handle = await mount(repeatedVersions);
+		const caret = offsetOf(repeatedVersions, 'And I will be there tonight');
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.requestSectionLink?.();
+
+		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
+		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
+		await expect.element(page.getByRole('option', { name: 'Chorus 1 & 3' })).toBeInTheDocument();
+		await expect.element(page.getByRole('option', { name: 'Chorus 2' })).toBeInTheDocument();
+		expect(document.querySelectorAll('.outcome__select option')).toHaveLength(2);
 	});
 
 	// Nothing to decide where there is nothing to decide about: the radio pair is

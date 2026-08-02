@@ -2,7 +2,7 @@
  * and a canned answer factory. Nothing here touches Dexie or the network. */
 import type { AssistantMessageRecord } from '$lib/persistence/types.js';
 import type { AssistantChatRepository } from './chat-repository.js';
-import type { AnswerResponse, StructuredAssistantAnswer } from './types.js';
+import type { AnswerTurnResponse, StructuredAssistantAnswer } from './types.js';
 
 export function memoryRepository(): AssistantChatRepository {
 	const chats = new Map<
@@ -67,6 +67,11 @@ export function memoryRepository(): AssistantChatRepository {
 export function cannedAnswer(
 	assistant: StructuredAssistantAnswer,
 	quota = { browserRemaining: 24, ipRemaining: 74, resetsAt: '2026-08-02T00:00:00.000Z' }
-): AnswerResponse {
-	return { requestId: `req-${Math.random().toString(36).slice(2)}`, assistant, quota };
+): AnswerTurnResponse {
+	return {
+		kind: 'answer',
+		requestId: `req-${Math.random().toString(36).slice(2)}`,
+		assistant,
+		quota
+	};
 }

@@ -103,6 +103,38 @@
 		)
 	);
 
+	/**
+	 * Copies that say the same thing are one possible replacement, not several
+	 * choices with different names and the same result. Their complete vector of
+	 * divergent wordings is the identity of a version; shared text is identical
+	 * by construction and therefore does not need to be repeated in the key.
+	 */
+	const replaceOptions = $derived.by(() => {
+		const groups = new Map<string, number[]>();
+		for (const header of headers) {
+			const version = JSON.stringify(
+				differences.map(
+					(difference) =>
+						difference.wordings.find((wording) => wording.headerFrom === header)?.text ?? ''
+				)
+			);
+			groups.set(version, [...(groups.get(version) ?? []), header]);
+		}
+		return [...groups.values()].map((members) => {
+			const ordinals = members.map(
+				(header) => occurrences.find((occurrence) => occurrence.headerFrom === header)?.ordinal ?? 0
+			);
+			const suffix =
+				ordinals.length < 3
+					? ordinals.join(' & ')
+					: `${ordinals.slice(0, -1).join(', ')} & ${ordinals.at(-1)}`;
+			return { value: members[0] ?? currentHeaderFrom, members, label: `${kind} ${suffix}` };
+		});
+	});
+	const replaceOptionValue = $derived(
+		replaceOptions.find((option) => option.members.includes(replaceFrom))?.value ?? replaceFrom
+	);
+
 	// Whether the card *opened* on a group that was already complete, which is the
 	// one state where the note has no linking left to describe: every peer is in,
 	// so all that is on offer is taking one out.
@@ -350,7 +382,15 @@
 		tabindex="-1"
 		aria-label={`Link this ${kindWord}`}
 		onkeydown={handleKeydown}
-		onmousedown={(event) => event.preventDefault()}
+		onmousedown={(event) => {
+			// Keep presses on the card from handing focus back to the editor, but do
+			// not cancel the native gesture that opens the version picker. A select
+			// needs its mousedown default action in browsers even though its later
+			// change event is all the application itself handles.
+			if (!(event.target instanceof HTMLElement && event.target.closest('select'))) {
+				event.preventDefault();
+			}
+		}}
 	>
 		<p class="picker__prompt">Link this {kindWord} to</p>
 		<ul class="rows">
@@ -440,7 +480,7 @@
 						checked={!replaceWords}
 						onchange={() => (replaceWords = false)}
 					/>
-					<span>Keep each version as it is</span>
+					<span>Respect differences between them</span>
 				</label>
 				<div class="outcome__choice">
 					<input
@@ -459,14 +499,14 @@
 					<select
 						class="outcome__select"
 						aria-label="Which section’s version to use"
-						value={replaceFrom}
+						value={replaceOptionValue}
 						onchange={(event) => {
 							replaceFrom = Number(event.currentTarget.value);
 							replaceWords = true;
 						}}
 					>
-						{#each headers as header (header)}
-							<option value={header}>{labelFor.get(header) ?? ''}</option>
+						{#each replaceOptions as option (option.value)}
+							<option value={option.value}>{option.label}</option>
 						{/each}
 					</select>
 					<label for="link-words-replace">’s version</label>

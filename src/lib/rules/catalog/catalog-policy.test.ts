@@ -170,15 +170,38 @@ describe('rule regressions', () => {
 		);
 		expect(finding).toMatchObject({
 			severity: 'suggestion',
-			message: `Prefer “${replacement}” over “${input}” in Norwegian lyrics.`
+			message: `Use the reviewed Norwegian header “${replacement}” instead of “${input}”.`
 		});
-		expect(finding?.explanation).toContain('preference, not an error');
+		expect(finding?.explanation).toContain(
+			`recognizes “${replacement}” as the Norwegian term for “${input}”`
+		);
 		expect(finding?.fixes?.[0]).toMatchObject({
 			kind: 'safe',
 			label: `Use ${replacement}`,
 			edit: { edits: [{ insert: replacement }] }
 		});
 	});
+
+	it.each(['Bridge', 'Brídge', 'Brigde'])(
+		'routes a Norwegian %s header to the sourced Bro action, not custom-header review',
+		(header) => {
+			const input = `[${header}: Mul]\nEn natt`;
+			const [finding] = diagnostics('section.localized-header-preference', input, 'no');
+
+			expect(diagnostics('section.header-unrecognized', input, 'no')).toEqual([]);
+			expect(finding).toMatchObject({
+				message: `Use the reviewed Norwegian header “Bro” instead of “${header}”.`,
+				sourceIds: ['G-LANG-PURPOSE', 'G-LANG-NO'],
+				fixes: [
+					{
+						kind: 'safe',
+						label: 'Use Bro',
+						edit: { edits: [{ from: 1, to: 7, insert: 'Bro' }] }
+					}
+				]
+			});
+		}
+	);
 
 	it('does not duplicate the Norwegian Bridge preference as a language warning', () => {
 		expect(diagnostics('section.header-language', '[Bridge]\nEn natt', 'no')).toEqual([]);

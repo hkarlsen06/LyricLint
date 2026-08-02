@@ -39,7 +39,7 @@
 
 /* `:not([hidden])` is load bearing: Bits UI hides the inactive panes with the
    attribute, and a bare `display: flex` here outranks the UA rule that honours
-   it — all three panels stack up in one column. */
+   it — all four panels stack up in one column. */
 .right-panel__pane:not([hidden]) {
 	display: flex;
 	flex: 1;

@@ -1,4 +1,8 @@
 import { randomId } from '../core/random-id.js';
+import {
+	ASSISTANT_DRAFT_ACCESS_PREFIX,
+	assistantDraftAccessKey
+} from '../assistant/permissions.js';
 import { copySectionLinks } from './copy.js';
 import type { AppMetadataRecord, DraftCreateInput, DraftRecord, DraftRepository } from './types.js';
 import type { LyricLintDatabase } from './database.js';
@@ -197,10 +201,9 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			return copyDraft(duplicate);
 		},
 
-		// Deleting a draft takes its attached audio with it, here rather than in
-		// the caller. The Tools panel promises that "Delete all local data" leaves
-		// nothing behind, and a promise kept by every call site remembering to make
-		// a second call is a promise that will eventually be broken.
+		// Deleting a draft takes its attached audio and assistant permission with it,
+		// here rather than in the caller. A cleanup promise kept by every call site
+		// remembering to make a second call is one that will eventually be broken.
 		async delete(id) {
 			await database.transaction(
 				'rw',
@@ -210,6 +213,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 				async () => {
 					await database.drafts.delete(id);
 					await database.mediaHandles.delete(id);
+					await database.appMetadata.delete(assistantDraftAccessKey(id));
 					const current = await database.appMetadata.get(CURRENT_DRAFT_KEY);
 					if (current?.value === id) {
 						await database.appMetadata.delete(CURRENT_DRAFT_KEY);
@@ -234,6 +238,10 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 					await database.mediaHandles.clear();
 					await database.assistantChats.clear();
 					await database.assistantMessages.clear();
+					await database.appMetadata
+						.where('key')
+						.startsWith(ASSISTANT_DRAFT_ACCESS_PREFIX)
+						.delete();
 					await database.appMetadata.delete(CURRENT_DRAFT_KEY);
 				}
 			);

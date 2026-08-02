@@ -11,14 +11,15 @@
  */
 import {
 	AssistantError,
-	type AnswerResponse,
 	type AssistantAnswerBlock,
 	type AssistantAnswerScope,
 	type AssistantErrorCode,
 	type AssistantQuota,
-	type StructuredAssistantAnswer
+	type AssistantToolCall,
+	type StructuredAssistantAnswer,
+	type TurnResponse,
+	type WireMessageV2
 } from './types.js';
-import type { WireMessage } from './history.js';
 
 const DEFAULT_ANSWERS_URL = 'https://api.lyriclint.com/v1/answers';
 
@@ -47,15 +48,16 @@ const KNOWN_CODES: ReadonlySet<string> = new Set([
 
 export interface AskOptions {
 	chatId: string;
-	messages: WireMessage[];
+	messages: WireMessageV2[];
 	clientRuleSetVersion: string;
+	toolsAvailable?: boolean;
 	turnstileToken?: string;
 	onProgress?(answer: StructuredAssistantAnswer): void | Promise<void>;
 	fetcher?: typeof fetch;
 	signal?: AbortSignal;
 }
 
-export async function askAssistant(options: AskOptions): Promise<AnswerResponse> {
+export async function askAssistant(options: AskOptions): Promise<TurnResponse> {
 	if (!assistantAvailable()) throw new AssistantError('not-configured');
 	if (typeof navigator !== 'undefined' && navigator.onLine === false) {
 		throw new AssistantError('offline', 'You are offline. The assistant needs a connection.');
@@ -72,6 +74,7 @@ export async function askAssistant(options: AskOptions): Promise<AnswerResponse>
 				chatId: options.chatId,
 				messages: options.messages,
 				clientRuleSetVersion: options.clientRuleSetVersion,
+				...(options.toolsAvailable ? { toolsAvailable: true } : {}),
 				...(options.turnstileToken ? { turnstileToken: options.turnstileToken } : {})
 			})
 		});
@@ -95,33 +98,53 @@ export async function askAssistant(options: AskOptions): Promise<AnswerResponse>
 	if (response.headers.get('content-type')?.includes('application/x-ndjson')) {
 		return readAnswerStream(response, options.onProgress);
 	}
-	return (await response.json()) as AnswerResponse;
+	const answer = (await response.json()) as Omit<Extract<TurnResponse, { kind: 'answer' }>, 'kind'>;
+	return { kind: 'answer', ...answer };
 }
 
 type StreamEvent =
 	| { type: 'start'; requestId: string; scope: AssistantAnswerScope }
 	| { type: 'block_start'; kind: AssistantAnswerBlock['kind'] }
 	| { type: 'text_delta'; delta: string }
-	| { type: 'block_done'; ruleIds: string[]; sourceIds: string[] }
+	| {
+			type: 'block_done';
+			kind?: AssistantAnswerBlock['kind'];
+			ruleIds: string[];
+			sourceIds: string[];
+	  }
+	| { type: 'tool_calls'; calls: AssistantToolCall[]; providerItems: string }
+	| { type: 'error'; requestId: string; error: { code: string; message: string } }
 	| { type: 'done'; quota: AssistantQuota };
 
 async function readAnswerStream(
 	response: Response,
 	onProgress?: AskOptions['onProgress']
-): Promise<AnswerResponse> {
+): Promise<TurnResponse> {
 	if (!response.body) throw new AssistantError('provider_error', 'The answer stream was empty.');
 	const reader = response.body.getReader();
 	const decoder = new TextDecoder();
 	let buffer = '';
 	let requestId = '';
 	let scope: AssistantAnswerScope | undefined;
-	let current: AssistantAnswerBlock | undefined;
-	let blocks: AssistantAnswerBlock[] = [];
+	// The worker cannot close a block before validation — rule and source ids
+	// only leave it after the whole answer passes the gate — so `block_start`
+	// for block N+1 routinely arrives while block N is still open, and every
+	// `block_done` arrives at the end, oldest block first. The reader is
+	// therefore a queue, not a single `current` slot: text appends to the
+	// newest open block, and a close settles the oldest.
+	let open: AssistantAnswerBlock[] = [];
+	let closed: AssistantAnswerBlock[] = [];
+	let toolCalls: AssistantToolCall[] | undefined;
+	let providerItems: string | undefined;
 	let quota: AssistantQuota | undefined;
+	let lastPublishedAt = Number.NEGATIVE_INFINITY;
 
-	const publish = async () => {
+	const publish = async (force = false) => {
 		if (!scope || !onProgress) return;
-		await onProgress({ scope, blocks: current ? [...blocks, current] : [...blocks] });
+		const now = Date.now();
+		if (!force && now - lastPublishedAt < 32) return;
+		lastPublishedAt = now;
+		await onProgress({ scope, blocks: [...closed, ...open] });
 	};
 	const consume = async (line: string) => {
 		const event = JSON.parse(line) as StreamEvent;
@@ -131,19 +154,43 @@ async function readAnswerStream(
 				scope = event.scope;
 				break;
 			case 'block_start':
-				current = { kind: event.kind, text: '', ruleIds: [], sourceIds: [] };
+				open = [...open, { kind: event.kind, text: '', ruleIds: [], sourceIds: [] }];
 				break;
-			case 'text_delta':
-				if (!current) throw new Error('Text arrived outside an answer block.');
-				current = { ...current, text: current.text + event.delta };
+			case 'text_delta': {
+				const newest = open.at(-1);
+				if (!newest) throw new Error('Text arrived outside an answer block.');
+				open = [...open.slice(0, -1), { ...newest, text: newest.text + event.delta }];
 				await publish();
 				break;
-			case 'block_done':
-				if (!current) throw new Error('A block ended before it started.');
-				blocks = [...blocks, { ...current, ruleIds: event.ruleIds, sourceIds: event.sourceIds }];
-				current = undefined;
-				await publish();
+			}
+			case 'block_done': {
+				const [oldest, ...rest] = open;
+				if (!oldest) throw new Error('A block ended before it started.');
+				open = rest;
+				closed = [
+					...closed,
+					{
+						...oldest,
+						// The close carries the validated kind, which normalization may
+						// have moved off the kind the block streamed under.
+						...(event.kind ? { kind: event.kind } : {}),
+						ruleIds: event.ruleIds,
+						sourceIds: event.sourceIds
+					}
+				];
+				await publish(true);
 				break;
+			}
+			case 'tool_calls':
+				toolCalls = event.calls;
+				providerItems = event.providerItems;
+				break;
+			case 'error': {
+				const code = KNOWN_CODES.has(event.error.code)
+					? (event.error.code as AssistantErrorCode)
+					: 'provider_error';
+				throw new AssistantError(code, event.error.message);
+			}
 			case 'done':
 				quota = event.quota;
 				break;
@@ -163,11 +210,21 @@ async function readAnswerStream(
 			}
 			if (done) break;
 		}
-	} catch {
+	} catch (error) {
+		if (error instanceof AssistantError) throw error;
+		// The worded error the user sees never carries the cause; without this
+		// line a parser bug and a dropped connection are indistinguishable.
+		console.error('assistant_stream_interrupted', error);
 		throw new AssistantError('provider_error', 'The answer stream was interrupted.');
 	}
-	if (!requestId || !scope || !quota || current) {
+	if (!quota || open.length > 0) {
 		throw new AssistantError('provider_error', 'The answer stream did not finish.');
 	}
-	return { requestId, assistant: { scope, blocks }, quota };
+	if (toolCalls && providerItems !== undefined) {
+		return { kind: 'tool_calls', calls: toolCalls, providerItems, quota };
+	}
+	if (!requestId || !scope) {
+		throw new AssistantError('provider_error', 'The answer stream did not finish.');
+	}
+	return { kind: 'answer', requestId, assistant: { scope, blocks: closed }, quota };
 }

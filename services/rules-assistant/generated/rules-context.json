@@ -1,8 +1,8 @@
 {
 	"formatVersion": 1,
 	"ruleSetVersion": "2026.07.30.0",
-	"generatedAt": "2026-08-01T17:30:57.226Z",
-	"contentHash": "ab6675465adb1776fbe34c603ee215dd588f07b669b4f03fcfbfc538b4031239",
+	"generatedAt": "2026-08-01T23:25:53.155Z",
+	"contentHash": "edde2fbd19b80c42a5607bd5a95a1be3974643a630312a5b671769d72287e1aa",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -136,13 +136,13 @@
 			"group": "section",
 			"groupTitle": "Section headers",
 			"severity": "suggestion",
-			"message": "Prefer “Refreng” over “Chorus” in Norwegian lyrics.",
-			"explanation": "“Refreng” is the culturally localized Norwegian term for this section. Using it keeps the transcription linguistically consistent; this is a preference, not an error.",
+			"message": "Use the reviewed Norwegian header “Bro” instead of “Bridge”.",
+			"explanation": "The Genius international section-header source recognizes “Bro” as the Norwegian term for “Bridge”. Using the reviewed header keeps the transcription aligned with the selected language pack.",
 			"fix": "safe",
-			"fixLabel": "Use Refreng",
+			"fixLabel": "Use Bro",
 			"language": "no",
-			"flaggedExample": "[Chorus]\nEn natt",
-			"acceptedExample": "[Refreng]\nEn natt",
+			"flaggedExample": "[Bridge]\nEn natt",
+			"acceptedExample": "[Bro]\nEn natt",
 			"sourceIds": ["G-LANG-PURPOSE", "G-LANG-NO"]
 		},
 		{
