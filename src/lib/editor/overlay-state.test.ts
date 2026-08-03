@@ -100,6 +100,20 @@ describe('overlay state', () => {
 			})
 		).toEqual({ from: 14, to: 15 });
 	});
+
+	it('anchors a shared diagnostic to the particular related occurrence that opened it', () => {
+		const issue = diagnostic({ relatedRanges: [{ from: 40, to: 48 }] });
+		const related = { from: 40, to: 48 };
+		const opened = activateDiagnostic(closedOverlaySession(), issue, false, related);
+
+		expect(overlayRange(opened.overlay)).toEqual(related);
+		expect(activateDiagnostic(opened, issue, false, related)).toBe(opened);
+		expect(
+			overlayRange(
+				activateDiagnostic(opened, issue, false, { from: issue.from, to: issue.to }).overlay
+			)
+		).toEqual({ from: issue.from, to: issue.to });
+	});
 });
 
 describe('overlay mutual exclusion', () => {

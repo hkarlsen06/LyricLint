@@ -1022,15 +1022,34 @@ export function insertSectionHeader(request: InsertSectionHeaderRequest): Docume
 
 	const ordinal = request.ordinal === undefined ? '' : ` ${request.ordinal}`;
 	const insertionFrom = section?.from ?? request.sectionFrom;
+	const lineEnding = lineEndingForInsertion(request.text, insertionFrom);
 	const edits: TextEdit[] = [
 		nameSlot
 			? { from: nameSlot.from, to: nameSlot.to, insert: `${headerName}${ordinal}` }
 			: {
 					from: insertionFrom,
 					to: insertionFrom,
-					insert: `[${headerName}${ordinal}]${lineEndingForInsertion(request.text, insertionFrom)}`
+					insert: `[${headerName}${ordinal}]${lineEnding}`
 				}
 	];
+	// The header tool leaves the editor ready for lyrics, never on the header it
+	// just wrote. A newly inserted header already opens a line before the target.
+	// Naming an empty `[]` uses the line that follows it, or opens one when the
+	// empty header is the document's final physical line.
+	let lyricLineFrom = insertionFrom;
+	if (nameSlot) {
+		const ending = /\r\n|\r|\n/u.exec(request.text.slice(section!.header!.to));
+		if (ending) {
+			lyricLineFrom = section!.header!.to + ending.index + ending[0].length;
+		} else {
+			lyricLineFrom = request.text.length;
+			edits.push({
+				from: request.text.length,
+				to: request.text.length,
+				insert: lineEnding
+			});
+		}
+	}
 	if (request.ordinal !== undefined && request.numberedHeaderTerms?.length) {
 		const matchingTerms = new Set(
 			request.numberedHeaderTerms.map((term) => term.trim().toLocaleLowerCase())
@@ -1057,7 +1076,10 @@ export function insertSectionHeader(request: InsertSectionHeaderRequest): Docume
 
 	return {
 		status: 'applied',
-		edit: makeAtomicEdit(request.revision, request.text.length, edits)
+		edit: makeAtomicEdit(request.revision, request.text.length, edits, {
+			anchor: mapOriginalOffset(lyricLineFrom, edits),
+			head: mapOriginalOffset(lyricLineFrom, edits)
+		})
 	};
 }
 

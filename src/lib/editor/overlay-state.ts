@@ -43,7 +43,13 @@ export interface LegendTarget {
  */
 export type OverlayState =
 	| { kind: 'none' }
-	| { kind: 'diagnostic'; diagnostic: Diagnostic; takesFocus: boolean }
+	| {
+			kind: 'diagnostic';
+			diagnostic: Diagnostic;
+			takesFocus: boolean;
+			/** The particular primary or related occurrence that opened the popover. */
+			anchorRange?: TextRange;
+	  }
 	| {
 			kind: 'performer';
 			range: TextRange;
@@ -97,6 +103,9 @@ export function overlayRange(overlay: OverlayState): TextRange | undefined {
 		case 'none':
 			return undefined;
 		case 'diagnostic': {
+			if (overlay.anchorRange) {
+				return overlay.anchorRange;
+			}
 			const diagnostic = overlay.diagnostic;
 			return diagnostic.from === diagnostic.to && diagnostic.relatedRanges?.[0]
 				? diagnostic.relatedRanges[0]
@@ -160,17 +169,27 @@ export function cancelSectionLinkPicker(session: OverlaySession): OverlaySession
 export function activateDiagnostic(
 	session: OverlaySession,
 	diagnostic: Diagnostic,
-	takesFocus: boolean
+	takesFocus: boolean,
+	anchorRange?: TextRange
 ): OverlaySession {
 	const current = session.overlay;
 	if (
 		current.kind === 'diagnostic' &&
 		current.diagnostic === diagnostic &&
-		current.takesFocus === takesFocus
+		current.takesFocus === takesFocus &&
+		(current.anchorRange === anchorRange ||
+			(current.anchorRange !== undefined &&
+				anchorRange !== undefined &&
+				rangeKey(current.anchorRange) === rangeKey(anchorRange)))
 	) {
 		return session;
 	}
-	return withOverlay(session, { kind: 'diagnostic', diagnostic, takesFocus });
+	return withOverlay(session, {
+		kind: 'diagnostic',
+		diagnostic,
+		takesFocus,
+		...(anchorRange ? { anchorRange } : {})
+	});
 }
 
 /** Close whatever is open without recording a dismissal. */

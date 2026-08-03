@@ -24,8 +24,10 @@ export interface DiagnosticCluster {
 
 export const setDiagnosticsEffect = StateEffect.define<RevisionedDiagnostics>();
 
-/** Serialized `from:to` of the diagnostic a severity underline belongs to. */
+/** Serialized primary `from:to` of the diagnostic an underline belongs to. */
 const diagnosticRangeAttribute = 'data-ll-diagnostic-range';
+/** Serialized `from:to` of the particular primary or related range being drawn. */
+const diagnosticAnchorAttribute = 'data-ll-diagnostic-anchor';
 
 export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {
 	return [...diagnostics].sort(
@@ -198,12 +200,19 @@ class DiagnosticBadge extends WidgetType {
 }
 
 class BlankLineDiagnosticWidget extends WidgetType {
-	constructor(readonly diagnostic: Diagnostic) {
+	constructor(
+		readonly diagnostic: Diagnostic,
+		readonly range: TextRange
+	) {
 		super();
 	}
 
 	eq(other: BlankLineDiagnosticWidget): boolean {
-		return other.diagnostic === this.diagnostic;
+		return (
+			other.diagnostic === this.diagnostic &&
+			other.range.from === this.range.from &&
+			other.range.to === this.range.to
+		);
 	}
 
 	toDOM(): HTMLElement {
@@ -214,6 +223,7 @@ class BlankLineDiagnosticWidget extends WidgetType {
 		marker.textContent = '↵';
 		marker.setAttribute('aria-label', `${this.diagnostic.severity}: ${this.diagnostic.message}`);
 		marker.setAttribute(diagnosticRangeAttribute, `${this.diagnostic.from}:${this.diagnostic.to}`);
+		marker.setAttribute(diagnosticAnchorAttribute, `${this.range.from}:${this.range.to}`);
 		return marker;
 	}
 
@@ -259,7 +269,7 @@ function buildDecorations(
 			if (text.trim().length === 0 && /[\r\n]/u.test(text)) {
 				ranges.push(
 					Decoration.widget({
-						widget: new BlankLineDiagnosticWidget(diagnostic),
+						widget: new BlankLineDiagnosticWidget(diagnostic, range),
 						side: 1
 					}).range(range.from)
 				);
@@ -275,9 +285,11 @@ function buildDecorations(
 						// No native `title`: the popover is this underline's tooltip, and
 						// a browser tooltip would sit on top of it saying the same thing.
 						//
-						// The underline carries its own range so hovering resolves back to
-						// the exact diagnostic without re-deriving it from coordinates.
-						[diagnosticRangeAttribute]: `${diagnostic.from}:${diagnostic.to}`
+						// Keep the diagnostic identity and the occurrence it draws separate.
+						// Related ranges share the first, while the popover must hang from the
+						// particular second one under the pointer.
+						[diagnosticRangeAttribute]: `${diagnostic.from}:${diagnostic.to}`,
+						[diagnosticAnchorAttribute]: `${range.from}:${range.to}`
 					}
 				}).range(range.from, range.to)
 			);
@@ -376,18 +388,30 @@ export function diagnosticsForState(state: EditorState): Diagnostic[] {
 	return value.diagnostics;
 }
 
-/** Resolve the underline's own range back to the diagnostic that drew it. */
+interface DiagnosticHit {
+	diagnostic: Diagnostic;
+	range: TextRange;
+}
+
+/** Resolve the underline's own occurrence back to the diagnostic that drew it. */
 function diagnosticForUnderline(
 	underline: Element,
 	diagnostics: readonly Diagnostic[]
-): Diagnostic | undefined {
-	const [from, to] = (underline.getAttribute(diagnosticRangeAttribute) ?? '')
-		.split(':')
-		.map(Number);
-	if (!Number.isSafeInteger(from) || !Number.isSafeInteger(to)) {
+): DiagnosticHit | undefined {
+	const serializedRange = (attribute: string): TextRange | undefined => {
+		const [from, to] = (underline.getAttribute(attribute) ?? '').split(':').map(Number);
+		return Number.isSafeInteger(from) && Number.isSafeInteger(to) ? { from, to } : undefined;
+	};
+	const identity = serializedRange(diagnosticRangeAttribute);
+	if (!identity) {
 		return undefined;
 	}
-	return diagnostics.find((candidate) => candidate.from === from && candidate.to === to);
+	const diagnostic = diagnostics.find(
+		(candidate) => candidate.from === identity.from && candidate.to === identity.to
+	);
+	return diagnostic
+		? { diagnostic, range: serializedRange(diagnosticAnchorAttribute) ?? identity }
+		: undefined;
 }
 
 /**
@@ -398,14 +422,20 @@ function diagnosticForUnderline(
 function diagnosticAtPosition(
 	diagnostics: readonly Diagnostic[],
 	position: number
-): Diagnostic | undefined {
-	return (
-		diagnostics.find((candidate) => candidate.from <= position && position < candidate.to) ??
-		diagnostics.find((candidate) => candidate.from <= position && position <= candidate.to)
-	);
+): DiagnosticHit | undefined {
+	for (const inclusiveEnd of [false, true]) {
+		for (const diagnostic of diagnostics) {
+			for (const range of [diagnostic, ...(diagnostic.relatedRanges ?? [])]) {
+				if (range.from <= position && (inclusiveEnd ? position <= range.to : position < range.to)) {
+					return { diagnostic, range: { from: range.from, to: range.to } };
+				}
+			}
+		}
+	}
+	return undefined;
 }
 
-function diagnosticAtPointer(event: MouseEvent, view: EditorView): Diagnostic | undefined {
+function diagnosticAtPointer(event: MouseEvent, view: EditorView): DiagnosticHit | undefined {
 	const target = event.target instanceof Element ? event.target : undefined;
 	const diagnostics = diagnosticsForState(view.state);
 	const underline = target?.closest('.ll-diagnostic-range');
@@ -450,12 +480,13 @@ export function diagnosticRangeHoverHandler(): Extension {
 	return ViewPlugin.fromClass(
 		class {
 			readonly hover: HoverIntent<Diagnostic>;
+			range?: TextRange;
 
 			constructor(view: EditorView) {
 				// Resolved when the wait elapses rather than now: a re-lint between
 				// arming and firing must not reveal through a retired callback set.
 				this.hover = new HoverIntent<Diagnostic>((diagnostic) =>
-					view.state.field(editorCallbacksField)?.onDiagnosticActivate(diagnostic)
+					view.state.field(editorCallbacksField)?.onDiagnosticActivate(diagnostic, this.range)
 				);
 			}
 
@@ -472,10 +503,14 @@ export function diagnosticRangeHoverHandler(): Extension {
 					// outright.
 					const busy =
 						event.buttons !== 0 || view.composing || view.state.field(editorComposingField, false);
-					const diagnostic = busy ? undefined : diagnosticAtPointer(event, view);
-					if (diagnostic) {
-						this.hover.arm(diagnostic);
+					const hit = busy ? undefined : diagnosticAtPointer(event, view);
+					if (hit) {
+						this.range = hit.range;
+						// The diagnostic is the stable hover identity; the exact occurrence is
+						// kept beside it so repeated pointer moves do not restart the wait.
+						this.hover.arm(hit.diagnostic);
 					} else {
+						this.range = undefined;
 						this.hover.cancel();
 					}
 					// Never handled: pointer moves belong to selection dragging.
@@ -484,10 +519,12 @@ export function diagnosticRangeHoverHandler(): Extension {
 				// Leaving the text and pressing into it are both answers to the
 				// question the wait was asking. Neither may be followed by a card.
 				mouseleave() {
+					this.range = undefined;
 					this.hover.cancel();
 					return false;
 				},
 				mousedown() {
+					this.range = undefined;
 					this.hover.cancel();
 					return false;
 				}

@@ -766,7 +766,9 @@ describe('section transforms', () => {
 
 		expect(result.status).toBe('applied');
 		if (result.status === 'applied') {
-			expect(applyEdits('', result.edit.edits)).toBe('[Verse]\n');
+			const output = applyEdits('', result.edit.edits);
+			expect(output).toBe('[Verse]\n');
+			expect(result.edit.selectionAfter).toEqual({ anchor: output.length, head: output.length });
 		}
 	});
 
@@ -783,7 +785,13 @@ describe('section transforms', () => {
 
 		expect(result.status).toBe('applied');
 		if (result.status === 'applied') {
-			expect(applyEdits(input, result.edit.edits)).toBe('[Verse]\nFirst line\n[Chorus]\nNext part');
+			const output = applyEdits(input, result.edit.edits);
+			expect(output).toBe('[Verse]\nFirst line\n[Chorus]\nNext part');
+			const lyricLineFrom = output.indexOf('Next part');
+			expect(result.edit.selectionAfter).toEqual({
+				anchor: lyricLineFrom,
+				head: lyricLineFrom
+			});
 		}
 	});
 
@@ -881,7 +889,9 @@ describe('section transforms', () => {
 			['[ ]\nA lyric', '[Chorus 2]\nA lyric'],
 			// A legend is a decision about voices, and naming the part is not a
 			// reason to take it away.
-			['[: Ari]\nA lyric', '[Chorus 2: Ari]\nA lyric']
+			['[: Ari]\nA lyric', '[Chorus 2: Ari]\nA lyric'],
+			// With no following physical line, the tool opens one for the caret.
+			['[]', '[Chorus 2]\n']
 		]) {
 			const document = parseDocument(input ?? '');
 			const result = insertSectionHeader({
@@ -895,10 +905,13 @@ describe('section transforms', () => {
 
 			expect(result.status, input).toBe('applied');
 			if (result.status === 'applied') {
-				// One edit, so filling the brackets is one undo — and no second
-				// header line opened above the one the user typed.
-				expect(result.edit.edits, input).toHaveLength(1);
-				expect(applyEdits(input ?? '', result.edit.edits), input).toBe(expected);
+				const output = applyEdits(input ?? '', result.edit.edits);
+				expect(output, input).toBe(expected);
+				const lyricLineFrom = output.indexOf('\n') + 1;
+				expect(result.edit.selectionAfter, input).toEqual({
+					anchor: lyricLineFrom,
+					head: lyricLineFrom
+				});
 			}
 		}
 	});

@@ -872,11 +872,31 @@ describe('EditorPane', () => {
 			})
 		});
 
+		const underlines = () => [...document.querySelectorAll('.ll-diagnostic-range')];
 		const underlinedText = () =>
-			[...document.querySelectorAll('.ll-diagnostic-range')]
+			underlines()
 				.map((range) => range.textContent)
 				.join('');
 		expect(underlinedText()).toBe('[Chorus][Chorus 2]');
+		expect([
+			...new Set(underlines().map((range) => range.getAttribute('data-ll-diagnostic-anchor')))
+		]).toEqual(['0:8', '14:24']);
+
+		const relatedUnderline = underlines().find(
+			(range) => range.getAttribute('data-ll-diagnostic-anchor') === '14:24'
+		);
+		if (!relatedUnderline) throw new Error('Related diagnostic underline did not render.');
+		await userEvent.hover(relatedUnderline);
+		await expect.element(page.getByText(issue.message, { exact: true })).toBeVisible();
+		const relatedRect = relatedUnderline.getBoundingClientRect();
+		const popover = document.querySelector<HTMLElement>('.popover');
+		if (!popover) throw new Error('Diagnostic popover did not render.');
+		const anchoredBelow = popover.style.top.length > 0;
+		expect(Number.parseFloat(anchoredBelow ? popover.style.top : popover.style.bottom)).toBeCloseTo(
+			anchoredBelow ? relatedRect.bottom + 6 : window.innerHeight - relatedRect.top + 6,
+			0
+		);
+
 		handle.setSelection({ anchor: issue.from, head: issue.to });
 		expect(
 			[...document.querySelectorAll('.ll-diagnostic-range--active')]
@@ -1405,6 +1425,7 @@ describe('EditorPane', () => {
 			expect.objectContaining({ range: { from: 0, to: 0 }, headerName: 'Verse' })
 		);
 		expect(handle.getSnapshot().text).toBe('[Verse]\n');
+		expect(handle.getSnapshot().selection).toEqual({ anchor: 8, head: 8 });
 	});
 
 	it('targets the caret line when adding a header inside an already headed section', async () => {
@@ -1447,7 +1468,13 @@ describe('EditorPane', () => {
 				ordinal: 2
 			})
 		);
-		expect(handle.getSnapshot().text).toBe('[Verse 1]\nFirst line\n[Verse 2]\nNext part');
+		const output = '[Verse 1]\nFirst line\n[Verse 2]\nNext part';
+		expect(handle.getSnapshot().text).toBe(output);
+		const lyricLineFrom = output.indexOf('Next part');
+		expect(handle.getSnapshot().selection).toEqual({
+			anchor: lyricLineFrom,
+			head: lyricLineFrom
+		});
 	});
 
 	it('shows a non-document ghost row for a headerless section', async () => {

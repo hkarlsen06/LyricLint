@@ -529,6 +529,31 @@ describe('the link card', () => {
 		expect(handle.getSnapshot().text).toBe(REPEAT);
 	});
 
+	it('fills an empty copy without offering emptiness as a difference to preserve', async () => {
+		const handle = await mount(SONG);
+		const caret = offsetOf(SONG, 'Hold on tight');
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.requestSectionLink?.();
+		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
+		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
+
+		await expect
+			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
+			.not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('radio', { name: /Replace them with another section/ }))
+			.not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('combobox', { name: /Which section/ }))
+			.not.toBeInTheDocument();
+
+		await page.getByRole('button', { name: /Link 2 sections/ }).click();
+		const filled = handle
+			.getSnapshot()
+			.parsed.sections.find((section) => section.header?.rawNamePart === 'Chorus 3');
+		expect(filled?.lines.map((line) => line.text)).toEqual(['Hold on tight', 'Never let go']);
+	});
+
 	it('replaces the other copies when that outcome is chosen', async () => {
 		const handle = await mount(REPEAT);
 		const caret = offsetOf(REPEAT, 'Hold on tight');

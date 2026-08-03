@@ -88,6 +88,26 @@
 	 * handled by pinning the card's top instead — see `pinnedTop`.
 	 */
 	const differences = $derived(headers.length > 1 ? differencesFor(headers) : []);
+	/**
+	 * A missing body is not a lyric variation worth preserving. When every
+	 * disagreement is one real wording against emptiness, filling the empty copy
+	 * is the only meaningful link outcome, so there is no decision to ask for.
+	 */
+	const fillsOnlyEmptyCopies = $derived(
+		differences.length > 0 &&
+			differences.every((difference) => {
+				const nonEmpty = new Set(
+					difference.wordings
+						.map((wording) => wording.text)
+						.filter((wording) => wording.trim().length > 0)
+				);
+				return (
+					nonEmpty.size === 1 &&
+					difference.wordings.some((wording) => wording.text.trim().length === 0)
+				);
+			})
+	);
+	const replacing = $derived(replaceWords || fillsOnlyEmptyCopies);
 
 	// Roving tabindex counts only the section rows that can be pressed — the
 	// source's own row is in the list, greyed, because that is where the reader
@@ -169,7 +189,7 @@
 		selected.length !== initialSelected.length ||
 			selected.some((headerFrom) => !initialSelected.includes(headerFrom))
 	);
-	const changed = $derived(membershipChanged || replaceWords || pendingSelection !== undefined);
+	const changed = $derived(membershipChanged || replacing || pendingSelection !== undefined);
 
 	const top = $derived(
 		pinnedTop ?? Math.max(8, placement === 'above' ? (anchor?.top ?? 8) : (anchor?.bottom ?? 0) + 6)
@@ -243,7 +263,7 @@
 		// showing the offer for all of them, which is a different list.
 		onApply({
 			headers,
-			keepDifferent: (headers.length > 1 ? differencesFor(headers) : []).map(() => !replaceWords),
+			keepDifferent: (headers.length > 1 ? differencesFor(headers) : []).map(() => !replacing),
 			makeDifferent: pendingSelection,
 			replaceFrom
 		});
@@ -447,8 +467,8 @@
 					{#each differences as difference (difference.index)}
 						{@const winning = winningText(difference)}
 						{#each difference.wordings as wording (wording.headerFrom)}
-							{@const settled = !replaceWords || wording.text === winning}
-							<li class="compare__side" class:compare__side--settled={replaceWords && settled}>
+							{@const settled = !replacing || wording.text === winning}
+							<li class="compare__side" class:compare__side--settled={replacing && settled}>
 								<span class="compare__who">{labelFor.get(wording.headerFrom) ?? ''}</span>
 								<span class="compare__line" title={fullLine(wording)}
 									><span class="compare__shared">{lead(wording.before)}</span
@@ -469,7 +489,7 @@
 			{/if}
 		{/if}
 
-		{#if differences.length > 0}
+		{#if differences.length > 0 && !fillsOnlyEmptyCopies}
 			<!-- The one decision, stated as two outcomes rather than as a tick whose
 			     polarity has to be worked out. -->
 			<fieldset class="outcome">
@@ -542,7 +562,7 @@
 					? `Link ${selected.length + 1} sections`
 					: membershipChanged
 						? 'Unlink'
-						: replaceWords
+						: replacing
 							? 'Replace words'
 							: pendingSelection
 								? 'Leave out'

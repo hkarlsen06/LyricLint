@@ -333,8 +333,8 @@
 			// Every caller of this one is a pointer: the hovered underline and the
 			// cluster badge. It shows the card where the text already is; the shell
 			// only gets to mark the matching entry, never to travel to it.
-			onDiagnosticActivate(diagnostic) {
-				session = activateDiagnostic(session, diagnostic, false);
+			onDiagnosticActivate(diagnostic, range) {
+				session = activateDiagnostic(session, diagnostic, false, range);
 				callbacks.onDiagnosticHighlight?.(diagnostic);
 			},
 			onDiagnosticActivateIntent(diagnostic) {
@@ -383,7 +383,10 @@
 		if (current.kind !== 'diagnostic' || !view) {
 			return;
 		}
-		const position = Math.min(current.diagnostic.from, view.state.doc.length);
+		const position = Math.min(
+			overlayRange(current)?.from ?? current.diagnostic.from,
+			view.state.doc.length
+		);
 		if (view.coordsAtPos(position, 1) === null) {
 			const released = releaseUnanchoredDiagnostic(session);
 			session = released.session;

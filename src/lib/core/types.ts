@@ -835,6 +835,7 @@ export interface EditorCallbacks {
 	onSnapshot(snapshot: EditorSnapshot): void;
 	onAssignRequest(request: EditorAnchorRequest): void;
 	onSectionHeaderRequest(request: EditorAnchorRequest): void;
-	onDiagnosticActivate(diagnostic: Diagnostic): void;
+	/** The exact rendered occurrence is supplied when a related range was aimed at. */
+	onDiagnosticActivate(diagnostic: Diagnostic, range?: TextRange): void;
 	onAnnouncement(message: string): void;
 }
