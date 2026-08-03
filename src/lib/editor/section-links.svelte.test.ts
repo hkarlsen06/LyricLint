@@ -371,7 +371,7 @@ describe('making linked copies agree', () => {
 	});
 });
 
-describe('setting words aside by hand', () => {
+describe('recording a deliberate difference', () => {
 	// Selecting the words that differ and pressing the shortcut is the gesture the
 	// second list is driven by: the card opens with the selection offered as a
 	// difference, ticked, because setting it aside is what the user asked for.
@@ -413,6 +413,111 @@ describe('setting words aside by hand', () => {
 		expect(target?.selection).toEqual({ from: words, to: words + 5 });
 		// The predicate the anchor plugin reads answers nothing here.
 		expect(linkableHeaderAt(parsed, englishLanguagePack, words, words + 5)).toBeUndefined();
+	});
+});
+
+describe('typing only in one linked copy', () => {
+	it('arms the caret before writing and keeps the whole typing run local', async () => {
+		const announcements: string[] = [];
+		const onSectionLinksChanged = vi.fn();
+		const handle = await mount(SAME, englishLanguagePack, {
+			onAnnouncement: (message) => void announcements.push(message),
+			onSectionLinksChanged
+		});
+		handle.linkSections?.({
+			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
+		});
+		onSectionLinksChanged.mockClear();
+		await new Promise((resolve) => setTimeout(resolve, 600));
+
+		const caret = SAME.indexOf('tight') + 'tight'.length;
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.requestSectionLink?.();
+
+		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+		await expect
+			.element(
+				page.getByText('Your next edit at the caret won’t be copied to the other linked sections.')
+			)
+			.toBeVisible();
+
+		await page.getByRole('button', { name: /Type only here/ }).click();
+		await expect
+			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
+			.not.toBeInTheDocument();
+		expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+		expect(announcements.at(-1)).toContain('won’t be copied');
+
+		await userEvent.keyboard('er');
+		const typed = handle.getSnapshot().text;
+		expect(typed).toContain('[Chorus]\nHold on tighter');
+		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
+		expect(document.querySelector('.ll-type-only-here')).toBeNull();
+		expect(onSectionLinksChanged).toHaveBeenCalledTimes(1);
+		expect(
+			handle
+				.getLinkDifferences?.([offsetOf(typed, '[Chorus]'), offsetOf(typed, '[Chorus 2]')])?.[0]
+				?.wordings.map((wording) => wording.text)
+		).toEqual(['er', '']);
+
+		// Reopening elsewhere in the group keeps that empty peer wording as the
+		// deliberate variation just created. It must not be mistaken for a newly
+		// linked empty section and offered for automatic replacement.
+		const sharedCaret = typed.indexOf('Never let go') + 'Never'.length;
+		handle.setSelection({ anchor: sharedCaret, head: sharedCaret });
+		handle.requestSectionLink?.();
+		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+		await expect
+			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
+			.toBeChecked();
+		await page.getByRole('button', { name: 'Cancel' }).click();
+
+		// The local words and the exception that kept them local are one history
+		// event. A half-undo would leave the next edit with the wrong scope.
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(SAME);
+		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(0);
+		expect(onSectionLinksChanged).toHaveBeenCalledTimes(2);
+	});
+
+	it('uses a selection as the words the next local edit replaces', async () => {
+		const handle = await mount(SAME);
+		const header = offsetOf(SAME, '[Chorus]');
+		handle.linkSections?.({ headers: [header, offsetOf(SAME, '[Chorus 2]')] });
+		await new Promise((resolve) => setTimeout(resolve, 600));
+
+		const from = SAME.indexOf('tight');
+		handle.setSelection({ anchor: from, head: from + 'tight'.length });
+		expect(handle.canTypeOnlyHere?.(header)).toBe(true);
+		handle.requestSectionLink?.();
+		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: /Leave out/ })).not.toBeInTheDocument();
+		await page.getByRole('button', { name: /Type only here/ }).click();
+		await userEvent.keyboard('close');
+
+		const typed = handle.getSnapshot().text;
+		expect(typed).toContain('[Chorus]\nHold on close');
+		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
+	});
+
+	it('lets Escape cancel before the next edit', async () => {
+		const announcements: string[] = [];
+		const handle = await mount(SAME, englishLanguagePack, {
+			onAnnouncement: (message) => void announcements.push(message)
+		});
+		const header = offsetOf(SAME, '[Chorus]');
+		handle.linkSections?.({ headers: [header, offsetOf(SAME, '[Chorus 2]')] });
+		const caret = SAME.indexOf('tight') + 'tight'.length;
+		handle.setSelection({ anchor: caret, head: caret });
+		expect(handle.typeOnlyHere?.(header)).toBe(true);
+		handle.focus();
+
+		await userEvent.keyboard('{Escape}');
+		expect(document.querySelector('.ll-type-only-here')).toBeNull();
+		expect(announcements.at(-1)).toBe('Typing only here cancelled.');
+		await userEvent.keyboard('!');
+		expect(handle.getSnapshot().text.split('Hold on tight!')).toHaveLength(3);
 	});
 });
 
@@ -763,7 +868,7 @@ describe('the link card', () => {
 		handle.requestSectionLink?.();
 
 		expect(announcements).toEqual([
-			'Put the cursor in a chorus, pre-chorus, or post-chorus to link it to the others, or select the words that differ.'
+			'Put the cursor in a chorus, pre-chorus, or post-chorus to link it to the others, or select words you want to change only there.'
 		]);
 		await expect
 			.element(page.getByRole('dialog', { name: 'Link this chorus' }))

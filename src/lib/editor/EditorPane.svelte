@@ -514,6 +514,17 @@
 		session = closeOverlay(session);
 	}
 
+	function beginTypeOnlyHere(headerFrom: number): void {
+		if (!editor?.handle.typeOnlyHere?.(headerFrom)) {
+			callbacks.onAnnouncement('Place the caret in shared lyrics before choosing Type only here.');
+			return;
+		}
+		callbacks.onAnnouncement(
+			'Your next edit at the caret won’t be copied to the other linked sections. Press Escape to cancel.'
+		);
+		session = closeOverlay(session);
+	}
+
 	function existingHeaders(): string[] {
 		return (
 			editor?.handle
@@ -770,6 +781,7 @@
 	{/key}
 {:else if linkOverlay}
 	{@const occurrences = sectionsToLink(linkOverlay.headerFrom)}
+	{@const typeOnlyHereAvailable = editor?.handle.canTypeOnlyHere?.(linkOverlay.headerFrom) ?? false}
 	<SectionLinkPicker
 		{occurrences}
 		currentHeaderFrom={linkOverlay.headerFrom}
@@ -781,9 +793,11 @@
 					.getSnapshot()
 					.text.slice(linkOverlay.selection.from, linkOverlay.selection.to)
 			: undefined}
+		{typeOnlyHereAvailable}
 		anchor={overlayAnchor}
 		placement={overlayPlacement}
 		onApply={applySectionLink}
+		onTypeOnlyHere={() => beginTypeOnlyHere(linkOverlay.headerFrom)}
 		onCancel={() => (session = cancelSectionLinkPicker(session))}
 		{returnFocus}
 	/>

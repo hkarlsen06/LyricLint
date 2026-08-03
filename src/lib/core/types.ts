@@ -753,6 +753,16 @@ export interface EditorHandle {
 	 * own wording — what the picker's second list is built from.
 	 */
 	getLinkDifferences?(headerOffsets: readonly number[]): LinkDifference[];
+	/** Whether `Type only here` can be armed at the current caret or selection. */
+	canTypeOnlyHere?(headerFrom: number): boolean;
+	/**
+	 * Keep the next edit at the current caret in this linked section.
+	 *
+	 * The first edit creates a divergent run in every member as part of the same
+	 * history event. Continued typing then stays local because it is inside that
+	 * run; everything outside it remains linked.
+	 */
+	typeOnlyHere?(headerFrom: number): boolean;
 	/** Every line anchor, for the shell to write down. */
 	getLineAnchors?(): LineAnchor[];
 	/** Replace every line anchor, for a draft being opened. */

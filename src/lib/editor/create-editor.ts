@@ -81,6 +81,7 @@ import {
 	setHeaderlessSectionsEffect
 } from './extensions/section-ghosts.js';
 import {
+	canTypeOnlyHere,
 	linkDifferencesFor,
 	linkHolesField,
 	linkSections as linkSectionsCommand,
@@ -90,7 +91,10 @@ import {
 	sectionLinkMirror,
 	sectionLinkTheme,
 	sectionLinksFor,
-	setSectionLinksEffect
+	setSectionLinksEffect,
+	typeOnlyHere,
+	typeOnlyHereField,
+	typeOnlyHereNotifier
 } from './extensions/section-links.js';
 import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
 import { searchReplace } from './extensions/search-replace.js';
@@ -673,8 +677,10 @@ export function createLyricEditor(
 		// one only ever reads a header and the other only ever reads a body.
 		sectionLinkField,
 		linkHolesField,
+		typeOnlyHereField,
 		sectionLinkHistory,
 		sectionLinkMirror(),
+		typeOnlyHereNotifier(),
 		sectionLinkDecorations,
 		fixPreviewField,
 		documentPlaceholderField,
@@ -901,6 +907,12 @@ export function createLyricEditor(
 		},
 		getLinkDifferences(headerOffsets) {
 			return linkDifferencesFor(view.state, headerOffsets);
+		},
+		canTypeOnlyHere(headerFrom) {
+			return canTypeOnlyHere(view.state, headerFrom);
+		},
+		typeOnlyHere(headerFrom) {
+			return typeOnlyHere(view, headerFrom);
 		},
 		getLineAnchors() {
 			return lineAnchorsFor(view.state);

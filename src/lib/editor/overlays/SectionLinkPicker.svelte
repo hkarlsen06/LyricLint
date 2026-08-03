@@ -18,9 +18,11 @@
 		 * not stored anywhere, it is worked out from the words.
 		 */
 		differencesFor: (headerOffsets: number[]) => LinkDifference[];
-		/** Words the user had selected when they asked, to be kept out of the link. */
+		/** Words selected for a local replacement or a new link difference. */
 		pendingSelection?: TextRange;
 		pendingSelectionText?: string;
+		/** The caret is in shared text of this already-linked section. */
+		typeOnlyHereAvailable?: boolean;
 		anchor?: ScreenRect;
 		placement?: 'above' | 'below';
 		onApply: (choice: {
@@ -29,6 +31,7 @@
 			makeDifferent?: TextRange;
 			replaceFrom?: number;
 		}) => void;
+		onTypeOnlyHere?: () => void;
 		onCancel: () => void;
 		returnFocus: () => void;
 	}
@@ -40,9 +43,11 @@
 		differencesFor,
 		pendingSelection,
 		pendingSelectionText,
+		typeOnlyHereAvailable = false,
 		anchor,
 		placement = 'above',
 		onApply,
+		onTypeOnlyHere,
 		onCancel,
 		returnFocus
 	}: Props = $props();
@@ -75,6 +80,11 @@
 	let root: HTMLDivElement;
 
 	const headers = $derived([currentHeaderFrom, ...selected]);
+	const wasLinked = $derived(initialSelected.length > 0);
+	const membershipChanged = $derived(
+		selected.length !== initialSelected.length ||
+			selected.some((headerFrom) => !initialSelected.includes(headerFrom))
+	);
 
 	/**
 	 * What the ticked copies disagree on — and nothing at all until some are
@@ -90,11 +100,14 @@
 	const differences = $derived(headers.length > 1 ? differencesFor(headers) : []);
 	/**
 	 * A missing body is not a lyric variation worth preserving. When every
-	 * disagreement is one real wording against emptiness, filling the empty copy
-	 * is the only meaningful link outcome, so there is no decision to ask for.
+	 * disagreement is one real wording against emptiness while membership is
+	 * changing, filling the empty copy is the only meaningful link outcome, so
+	 * there is no decision to ask for. An empty wording in a group already linked
+	 * can be a deliberate `Type only here` insertion and must stay a difference.
 	 */
 	const fillsOnlyEmptyCopies = $derived(
-		differences.length > 0 &&
+		membershipChanged &&
+			differences.length > 0 &&
 			differences.every((difference) => {
 				const nonEmpty = new Set(
 					difference.wordings
@@ -184,12 +197,14 @@
 	 */
 	let pinnedTop = $state<number | undefined>();
 
-	const wasLinked = $derived(initialSelected.length > 0);
-	const membershipChanged = $derived(
-		selected.length !== initialSelected.length ||
-			selected.some((headerFrom) => !initialSelected.includes(headerFrom))
-	);
 	const changed = $derived(membershipChanged || replacing || pendingSelection !== undefined);
+	const typeOnlyHereReady = $derived(
+		wasLinked &&
+			!membershipChanged &&
+			!replacing &&
+			typeOnlyHereAvailable &&
+			onTypeOnlyHere !== undefined
+	);
 
 	const top = $derived(
 		pinnedTop ?? Math.max(8, placement === 'above' ? (anchor?.top ?? 8) : (anchor?.bottom ?? 0) + 6)
@@ -270,6 +285,15 @@
 		void tick().then(restoreFocus);
 	}
 
+	function beginTypeOnlyHere(): void {
+		if (!typeOnlyHereReady || !onTypeOnlyHere) {
+			return;
+		}
+		const restoreFocus = returnFocus;
+		onTypeOnlyHere();
+		void tick().then(restoreFocus);
+	}
+
 	function cancel(): void {
 		const restoreFocus = returnFocus;
 		onCancel();
@@ -289,7 +313,11 @@
 		}
 		if (event.key === 'Enter') {
 			event.preventDefault();
-			apply();
+			if (typeOnlyHereReady) {
+				beginTypeOnlyHere();
+			} else {
+				apply();
+			}
 			return;
 		}
 		if (event.key === 'Escape') {
@@ -535,7 +563,7 @@
 			</fieldset>
 		{/if}
 
-		{#if pendingSelection}
+		{#if pendingSelection && !typeOnlyHereReady}
 			<p class="picker__note">
 				The words you selected — <span class="picker__quote">{pendingSelectionText?.trim()}</span> — will
 				be left out of the link.
@@ -551,26 +579,38 @@
 						: 'Linked sections stay in sync as you edit them.'}
 			</p>
 		{/if}
+		{#if typeOnlyHereReady}
+			<p class="picker__note">
+				Your next edit at the caret won’t be copied to the other linked sections.
+			</p>
+		{/if}
 		<div class="actions">
-			<button
-				type="button"
-				class="button button--contrast apply"
-				disabled={!changed}
-				onclick={apply}
-			>
-				{membershipChanged && selected.length > 0
-					? `Link ${selected.length + 1} sections`
-					: membershipChanged
-						? 'Unlink'
-						: replacing
-							? 'Replace words'
-							: pendingSelection
-								? 'Leave out'
-								: wasLinked
-									? 'Unlink'
-									: 'Link'}
-				<span aria-hidden="true" class="apply__key">↵</span>
-			</button>
+			{#if typeOnlyHereReady}
+				<button type="button" class="button button--contrast apply" onclick={beginTypeOnlyHere}>
+					Type only here
+					<span aria-hidden="true" class="apply__key">↵</span>
+				</button>
+			{:else}
+				<button
+					type="button"
+					class="button button--contrast apply"
+					disabled={!changed}
+					onclick={apply}
+				>
+					{membershipChanged && selected.length > 0
+						? `Link ${selected.length + 1} sections`
+						: membershipChanged
+							? 'Unlink'
+							: replacing
+								? 'Replace words'
+								: pendingSelection
+									? 'Leave out'
+									: wasLinked
+										? 'Unlink'
+										: 'Link'}
+					<span aria-hidden="true" class="apply__key">↵</span>
+				</button>
+			{/if}
 			<button type="button" class="button button--quiet" onclick={cancel}>Cancel</button>
 		</div>
 	</div>

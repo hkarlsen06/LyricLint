@@ -71,7 +71,7 @@ export type OverlayState =
 			 * selection still sitting there, so the two have to be the same range.
 			 */
 			range: TextRange;
-			/** Lyrics the user had selected, which the card offers to set aside. */
+			/** Lyrics selected for a local replacement or a new link difference. */
 			selection?: TextRange;
 			/** The header's own offset, which is what every link hook is keyed to. */
 			headerFrom: number;

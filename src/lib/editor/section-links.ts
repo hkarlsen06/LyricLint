@@ -145,9 +145,9 @@ export function linkableHeaderAt(
  * user had in hand when they asked.
  *
  * A selection of *lyrics* inside a linkable section resolves to that section's
- * header and reports itself, because selecting the words that differ and asking
- * is how a difference gets made by hand — the gesture the whole second list is
- * driven by.
+ * header and reports itself. In an existing group it is the span `Type only
+ * here` will replace; while linking new members it can still be set aside as a
+ * difference immediately.
  *
  * Deliberately not `linkableHeaderAt`, which stays exactly as narrow as it was.
  * That predicate answers the *pointer* path, where a card opens uninvited on a

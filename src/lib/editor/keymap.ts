@@ -5,6 +5,7 @@ import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js'
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import { linkTargetAt } from './section-links.js';
+import { cancelTypeOnlyHere } from './extensions/section-links.js';
 import {
 	editorComposingField,
 	editorContextField,
@@ -77,7 +78,7 @@ export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallb
 	if (!target) {
 		return announce(
 			callbacks,
-			'Put the cursor in a chorus, pre-chorus, or post-chorus to link it to the others, or select the words that differ.'
+			'Put the cursor in a chorus, pre-chorus, or post-chorus to link it to the others, or select words you want to change only there.'
 		);
 	}
 	callbacks.onSectionLinkRequest?.({
@@ -303,6 +304,9 @@ export function lyricLintKeymap(
 		// the caret's own line. `M` marks; `Enter` goes.
 		{ key: 'Ctrl-Alt-m', run: anchorCurrentLine(callbacks), preventDefault: true },
 		{ key: 'Ctrl-Alt-Enter', run: playFromCurrentLine(callbacks), preventDefault: true },
+		// A pending local edit is the most immediate transient state in the editor;
+		// Escape retires it before reaching an older diagnostic behind it.
+		{ key: 'Escape', run: cancelTypeOnlyHere },
 		{ key: 'Escape', run: dismissDiagnostic(callbacks) },
 		...defaultKeymap,
 		...historyKeymap

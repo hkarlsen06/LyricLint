@@ -77,6 +77,24 @@ export const setSectionLinkEffect = StateEffect.define<{ headers: readonly numbe
 export const setLinkHolesEffect = StateEffect.define<readonly TextRange[]>();
 
 /**
+ * The one edit the user has asked to keep in this copy.
+ *
+ * The range is the editor selection at the moment `Type only here` is pressed:
+ * a point for an insertion or deletion, and a span for a replacement. It is a
+ * mode only until the next edit (or until the selection moves), so it is editor
+ * state rather than anything persisted on the draft.
+ */
+interface TypeOnlyHereState {
+	header: number;
+	range: TextRange;
+}
+
+const setTypeOnlyHereEffect = StateEffect.define<TypeOnlyHereState | undefined>();
+
+/** Marks the transaction that consumed `Type only here` and changed link shape. */
+const typeOnlyHereAppliedEffect = StateEffect.define<null>();
+
+/**
  * Put the groups and their divergent runs back exactly as they were, in the
  * coordinates of the document the effect lands in.
  *
@@ -287,6 +305,37 @@ export const linkHolesField = StateField.define<readonly TextRange[]>({
 	}
 });
 
+/** The one local edit currently armed, if any. */
+export const typeOnlyHereField = StateField.define<TypeOnlyHereState | undefined>({
+	create: () => undefined,
+	update(value, transaction) {
+		for (const effect of transaction.effects) {
+			if (effect.is(setTypeOnlyHereEffect)) {
+				return effect.value;
+			}
+		}
+		if (!value) {
+			return undefined;
+		}
+		// The edit itself consumes the mode. The filter adds the difference before
+		// this field is updated, in the same transaction and therefore the same undo.
+		if (transaction.docChanged) {
+			return undefined;
+		}
+		// "At the caret" is literal. Moving the caret or changing the selection
+		// retires the promise rather than applying it somewhere else later.
+		if (transaction.selection) {
+			const selection = transaction.selection.main;
+			const from = Math.min(selection.anchor, selection.head);
+			const to = Math.max(selection.anchor, selection.head);
+			if (from !== value.range.from || to !== value.range.to) {
+				return undefined;
+			}
+		}
+		return value;
+	}
+});
+
 /**
  * Make undo reverse the links along with the words.
  *
@@ -430,6 +479,74 @@ function holesOutside(state: EditorState, members: readonly MemberShape[]): Text
 	return holes.filter(
 		(hole) => !members.some((member) => member.body.from <= hole.from && hole.to <= member.body.to)
 	);
+}
+
+/** Whether the current selection can become the next local edit in this member. */
+export function canTypeOnlyHere(state: EditorState, headerFrom: number): boolean {
+	const parsed = parsedDocumentForState(state);
+	const group = memberGroups(state, parsed).find((headers) => headers.includes(headerFrom));
+	if (!group) {
+		return false;
+	}
+	// The named copy leads so the selection and every translated range are read
+	// from the same member, regardless of where that copy falls in the song.
+	const ordered = [headerFrom, ...group.filter((header) => header !== headerFrom)];
+	const members = groupShape(state, parsed, ordered);
+	const source = members?.[0];
+	if (!members || !source) {
+		return false;
+	}
+	const selection = state.selection.main;
+	const range = {
+		from: Math.min(selection.anchor, selection.head),
+		to: Math.max(selection.anchor, selection.head)
+	};
+	if (range.from < source.body.from || range.to > source.body.to) {
+		return false;
+	}
+	const relative = {
+		from: range.from - source.body.from,
+		to: range.to - source.body.from
+	};
+	// It already types only here inside a stored difference. Offering a mode for
+	// a fact that is standing true would make the button appear to do nothing.
+	if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
+		return false;
+	}
+	const probe = members.map((member) => ({ ...member, holes: [...member.holes] }));
+	return addDifference(members, probe, range, true);
+}
+
+/** Arm one local edit at the editor's current caret or selection. */
+export function typeOnlyHere(view: EditorView, headerFrom: number): boolean {
+	if (!canTypeOnlyHere(view.state, headerFrom)) {
+		return false;
+	}
+	const selection = view.state.selection.main;
+	view.dispatch({
+		effects: setTypeOnlyHereEffect.of({
+			header: headerFrom,
+			range: {
+				from: Math.min(selection.anchor, selection.head),
+				to: Math.max(selection.anchor, selection.head)
+			}
+		}),
+		annotations: Transaction.addToHistory.of(false)
+	});
+	return true;
+}
+
+/** Escape's first claim while a local linked-section edit is waiting. */
+export function cancelTypeOnlyHere(view: EditorView): boolean {
+	if (!view.state.field(typeOnlyHereField, false)) {
+		return false;
+	}
+	view.dispatch({
+		effects: setTypeOnlyHereEffect.of(undefined),
+		annotations: Transaction.addToHistory.of(false)
+	});
+	view.state.field(editorCallbacksField, false)?.onAnnouncement('Typing only here cancelled.');
+	return true;
 }
 
 /** Every link, as header line numbers and the runs each member keeps its own. */
@@ -678,25 +795,30 @@ export function linkSections(view: EditorView, choice: SectionLinkChoice): numbe
  * nearest difference in every copy, so "these five characters" means the same
  * five characters everywhere without a word of either copy being compared.
  */
-function addDifference(members: MemberShape[], into: MemberShape[], span: TextRange): void {
+function addDifference(
+	members: MemberShape[],
+	into: MemberShape[],
+	span: TextRange,
+	allowEmpty = false
+): boolean {
 	const source = members[0];
 	if (!source) {
-		return;
+		return false;
 	}
 	const relative = { from: span.from - source.body.from, to: span.to - source.body.from };
 	if (
 		relative.from < 0 ||
 		relative.to > source.body.to - source.body.from ||
-		relative.from >= relative.to ||
+		(allowEmpty ? relative.from > relative.to : relative.from >= relative.to) ||
 		holeContaining(source.holes, relative.from, relative.to) !== undefined
 	) {
-		return;
+		return false;
 	}
 	const widened = expandOverHoles(source.holes, relative.from, relative.to);
 	if (widened.firstHole !== widened.lastHole) {
 		// The selection reached across a difference that is already there, so what
 		// it names is not one new run but a rewrite of several. Left alone.
-		return;
+		return false;
 	}
 	const sourceLength = source.body.to - source.body.from;
 	const added = members.map((member) =>
@@ -712,7 +834,7 @@ function addDifference(members: MemberShape[], into: MemberShape[], span: TextRa
 	// group with different counts, which every translation downstream refuses —
 	// the link would go quiet rather than fail, which is the worse failure.
 	if (added.some((range) => !range)) {
-		return;
+		return false;
 	}
 	added.forEach((range, position) => {
 		const member = into[position];
@@ -720,6 +842,7 @@ function addDifference(members: MemberShape[], into: MemberShape[], span: TextRa
 		member.holes.push(range);
 		member.holes.sort((left, right) => left.from - right.from || left.to - right.to);
 	});
+	return true;
 }
 
 /**
@@ -741,6 +864,15 @@ function addDifference(members: MemberShape[], into: MemberShape[], span: TextRa
  * the document is a restructuring rather than a rewrite of the words, and
  * guessing at those is how a link would eat work the user meant to keep.
  */
+function changeTouchesArmedRange(change: TextRange, armed: TextRange): boolean {
+	if (armed.from !== armed.to) {
+		return armed.from <= change.from && change.to <= armed.to;
+	}
+	// Insert, Backspace and Delete describe the three useful shapes around a
+	// caret: a point, a range ending at it, and a range beginning at it.
+	return change.from === armed.from || change.to === armed.from;
+}
+
 export function sectionLinkMirror(): Extension {
 	return EditorState.transactionFilter.of((transaction) => {
 		if (!transaction.docChanged) {
@@ -748,9 +880,6 @@ export function sectionLinkMirror(): Extension {
 		}
 		const links = transaction.startState.field(sectionLinkField, false);
 		if (!links || links.size === 0) {
-			return transaction;
-		}
-		if (transaction.startState.field(editorComposingField, false)) {
 			return transaction;
 		}
 		const userEvent = transaction.annotation(Transaction.userEvent);
@@ -790,6 +919,36 @@ export function sectionLinkMirror(): Extension {
 		}
 
 		const relative = { from: change.from - source.body.from, to: change.to - source.body.from };
+		const local = transaction.startState.field(typeOnlyHereField, false);
+		if (local?.header === source.header && changeTouchesArmedRange(change, local.range)) {
+			// If this range was already its own, the requested outcome already holds.
+			// Still mark the edit as consumed so the shell refreshes the persisted
+			// mapped range after the words change.
+			if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
+				return [transaction, { effects: typeOnlyHereAppliedEffect.of(null) }];
+			}
+			const localMembers = members.map((member) => ({
+				...member,
+				holes: [...member.holes]
+			}));
+			if (addDifference(members, localMembers, change, true)) {
+				return [
+					transaction,
+					{
+						effects: [
+							setLinkHolesEffect.of([
+								...holesOutside(transaction.startState, members),
+								...absoluteHoles(localMembers)
+							]),
+							typeOnlyHereAppliedEffect.of(null)
+						]
+					}
+				];
+			}
+		}
+		if (transaction.startState.field(editorComposingField, false)) {
+			return transaction;
+		}
 		if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
 			return transaction;
 		}
@@ -835,6 +994,38 @@ export function sectionLinkMirror(): Extension {
 		const mirrored: TransactionSpec = { changes: edits, sequential: true };
 		return [transaction, mirrored];
 	});
+}
+
+/** Keep the shell's persisted copy of link ranges current after apply and undo. */
+export function typeOnlyHereNotifier(): Extension {
+	return EditorView.updateListener.of((update) => {
+		const changed = update.transactions.some((transaction) =>
+			transaction.effects.some(
+				(effect) => effect.is(typeOnlyHereAppliedEffect) || effect.is(restoreSectionLinksEffect)
+			)
+		);
+		if (changed) {
+			update.state.field(editorCallbacksField, false)?.onSectionLinksChanged?.();
+		}
+	});
+}
+
+class TypeOnlyHereMarker extends WidgetType {
+	eq(other: TypeOnlyHereMarker): boolean {
+		return other instanceof TypeOnlyHereMarker;
+	}
+
+	toDOM(): HTMLElement {
+		const marker = document.createElement('span');
+		marker.className = 'll-type-only-here';
+		marker.textContent = 'Typing only here';
+		marker.setAttribute('aria-hidden', 'true');
+		return marker;
+	}
+
+	ignoreEvent(): boolean {
+		return true;
+	}
 }
 
 class SectionLinkMarker extends WidgetType {
@@ -897,7 +1088,7 @@ class SectionLinkMarker extends WidgetType {
  * there to draw on. The card is where those are named.
  */
 export const sectionLinkDecorations = EditorView.decorations.compute(
-	[sectionLinkField, linkHolesField],
+	[sectionLinkField, linkHolesField, typeOnlyHereField],
 	(state): DecorationSet => {
 		const field = state.field(sectionLinkField, false);
 		if (!field || field.size === 0) {
@@ -913,6 +1104,15 @@ export const sectionLinkDecorations = EditorView.decorations.compute(
 				}).range(cursor.to)
 			);
 			cursor.next();
+		}
+		const local = state.field(typeOnlyHereField, false);
+		if (local) {
+			marks.push(
+				Decoration.widget({
+					widget: new TypeOnlyHereMarker(),
+					side: 1
+				}).range(clamp(state, local.range.to))
+			);
 		}
 		// Nothing further to draw, and — since this runs on every keystroke in a
 		// document that has links — nothing to parse either. A group whose copies
@@ -968,5 +1168,15 @@ export const sectionLinkTheme = EditorView.baseTheme({
 		textDecorationThickness: '1px',
 		textDecorationColor: 'var(--color-border-strong)',
 		textUnderlineOffset: '0.25em'
+	},
+	'.ll-type-only-here': {
+		marginInlineStart: '0.55em',
+		color: 'var(--color-text-muted)',
+		fontFamily: 'var(--font-ui)',
+		fontSize: 'var(--font-size-xs)',
+		fontStyle: 'italic',
+		fontWeight: 'var(--font-weight-medium)',
+		pointerEvents: 'none',
+		whiteSpace: 'nowrap'
 	}
 });
