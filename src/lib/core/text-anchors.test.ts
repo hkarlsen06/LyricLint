@@ -89,7 +89,15 @@ describe('text anchors', () => {
 		});
 	});
 
-	it('rejects an empty exact anchor instead of matching every offset', () => {
+	it('resolves the one zero-width range in an empty document', () => {
+		expect(resolveAnchor('', { exact: '', before: '', after: '', line: 1 })).toEqual({
+			ok: true,
+			from: 0,
+			to: 0
+		});
+	});
+
+	it('rejects an empty exact anchor in a non-empty document instead of matching every offset', () => {
 		expect(resolveAnchor('Anything', { exact: '', before: '', after: '' })).toEqual({
 			ok: false,
 			reason: 'not-found'

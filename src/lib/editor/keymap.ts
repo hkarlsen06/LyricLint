@@ -92,17 +92,23 @@ function linkSections(callbacks: LyricEditorCallbacks): (view: EditorView) => bo
 	return (view) => requestSectionLink(view, callbacks);
 }
 
-function containingSectionRange(view: EditorView): TextRange {
+function sectionHeaderTargetRange(view: EditorView): TextRange {
 	const position = view.state.selection.main.head;
 	const section = parsedDocumentForView(view).sections.find(
 		(candidate) => candidate.from <= position && position <= candidate.to
 	);
-	if (!section) {
-		const line = view.state.doc.lineAt(position);
-		return { from: line.from, to: line.to };
+	// A headerless parsed section is one unit: adding its header belongs at the
+	// section's start even when the caret is several lyric lines into it. Once a
+	// section already has a header, this command creates the *next* section at the
+	// caret's line instead of resolving back to (and then refusing to overwrite)
+	// the existing header. An empty document and a blank separator take this same
+	// line path; neither has a parsed section to target.
+	if (section && !section.header) {
+		const firstLine = view.state.doc.lineAt(section.from);
+		return { from: section.from, to: firstLine.to };
 	}
-	const firstLine = view.state.doc.lineAt(section.from);
-	return { from: section.from, to: firstLine.to };
+	const line = view.state.doc.lineAt(position);
+	return { from: line.from, to: line.to };
 }
 
 /** Open the section picker for the parsed section containing the cursor. */
@@ -111,7 +117,7 @@ export function requestSectionHeader(view: EditorView, callbacks: EditorCallback
 		return true;
 	}
 	callbacks.onSectionHeaderRequest({
-		range: containingSectionRange(view),
+		range: sectionHeaderTargetRange(view),
 		prefer: 'above'
 	});
 	return true;

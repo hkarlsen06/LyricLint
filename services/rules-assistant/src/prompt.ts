@@ -36,6 +36,10 @@ Prefer an anchor within a single line for a replacement. A removal is different:
 its exact must also take the whitespace that separated it — one adjacent line
 break when removing a whole line, the adjacent space when removing a token from
 inside a line — or the deletion leaves a blank line or a stray space behind.
+An empty shared 'scribe is the one exception to exact quoting: to put requested
+conversation text into it, make one proposal whose anchor has empty exact,
+before, and after, line 1, and whose replacement is the entire text. Never use
+an empty exact for a non-empty 'scribe; it is refused rather than guessed.
 Never say an edit landed unless its reported outcome is applied; rejected and
 failed proposals did not change the 'scribe.
 

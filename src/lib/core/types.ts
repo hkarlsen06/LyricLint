@@ -572,7 +572,14 @@ export type AssignmentResult =
 	| { status: 'applied'; edit: AtomicDocumentEdit; styleSlot: StyleSlot }
 	| { status: 'blocked'; reason: AssignmentBlockReason };
 
-/** Inputs for inserting a header into an exact headerless section. */
+/**
+ * Inputs for inserting a header at a section boundary.
+ *
+ * `sectionFrom` is either the start of an existing headerless section (including
+ * an empty `[]` header) or the start of a physical line where a new section is
+ * being created. The latter is what lets the editor command work in a blank
+ * document and split an already headed section at the caret.
+ */
 export interface InsertSectionHeaderRequest {
 	revision: number;
 	text: string;

@@ -91,9 +91,9 @@ function diagnostic(from: number, to: number, message: string, withFix = false):
 }
 
 describe('LyricLint keyboard commands through CodeMirror', () => {
-	it('opens the section picker for the section containing the caret', async () => {
+	it('opens the section picker at the caret line when its section already has a header', async () => {
 		const text = '[Verse]\nFirst\n\n[Chorus]\nSecond';
-		const secondSectionFrom = text.indexOf('[Chorus]');
+		const caretLineFrom = text.indexOf('Second');
 		const editorCallbacks = callbacks();
 		const { handle } = await mount({
 			text,
@@ -107,7 +107,7 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
 		expect(editorCallbacks.onSectionHeaderRequest).toHaveBeenCalledOnce();
 		expect(editorCallbacks.onSectionHeaderRequest).toHaveBeenCalledWith({
-			range: { from: secondSectionFrom, to: secondSectionFrom + '[Chorus]'.length },
+			range: { from: caretLineFrom, to: text.length },
 			prefer: 'above'
 		});
 	});

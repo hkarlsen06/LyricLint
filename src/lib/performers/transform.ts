@@ -997,27 +997,47 @@ export function insertSectionHeader(request: InsertSectionHeaderRequest): Docume
 	const section = request.document.sections[sectionIndex];
 	const headerName = request.headerName.trim();
 	const nameSlot = section?.header ? emptyHeaderNameSlot(request.text, section.header) : undefined;
+	const targetIsLineStart =
+		request.sectionFrom === 0 ||
+		(request.sectionFrom > 0 &&
+			(request.text[request.sectionFrom - 1] === '\n' ||
+				(request.text[request.sectionFrom - 1] === '\r' &&
+					request.text[request.sectionFrom] !== '\n')));
 	// A section that already names its part is not something a picker overwrites.
-	// An empty one is the exception, and it is the only one.
-	if (!section || (section.header && !nameSlot) || headerName.length === 0) {
+	// An empty one is the exception. When no section begins at the target, a line
+	// boundary creates one: empty documents and blank lines do not exist in the
+	// parsed section list, while a lyric line inside an already headed section
+	// needs to be split out before it can receive its own header.
+	if (
+		(section?.header && !nameSlot) ||
+		(!section &&
+			(!Number.isInteger(request.sectionFrom) ||
+				request.sectionFrom < 0 ||
+				request.sectionFrom > request.text.length ||
+				!targetIsLineStart)) ||
+		headerName.length === 0
+	) {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 
 	const ordinal = request.ordinal === undefined ? '' : ` ${request.ordinal}`;
+	const insertionFrom = section?.from ?? request.sectionFrom;
 	const edits: TextEdit[] = [
 		nameSlot
 			? { from: nameSlot.from, to: nameSlot.to, insert: `${headerName}${ordinal}` }
 			: {
-					from: section.from,
-					to: section.from,
-					insert: `[${headerName}${ordinal}]${lineEndingForInsertion(request.text, section.from)}`
+					from: insertionFrom,
+					to: insertionFrom,
+					insert: `[${headerName}${ordinal}]${lineEndingForInsertion(request.text, insertionFrom)}`
 				}
 	];
 	if (request.ordinal !== undefined && request.numberedHeaderTerms?.length) {
 		const matchingTerms = new Set(
 			request.numberedHeaderTerms.map((term) => term.trim().toLocaleLowerCase())
 		);
-		for (const followingSection of request.document.sections.slice(sectionIndex + 1)) {
+		for (const followingSection of request.document.sections.filter(
+			(candidate) => candidate.from > insertionFrom
+		)) {
 			const header = followingSection.header;
 			if (
 				!header?.ordinalRange ||

@@ -38,7 +38,15 @@ function lineNumberAt(document: string, offset: number): number {
  * than vetoing — the same rule context itself already follows.
  */
 export function resolveAnchor(document: string, anchor: TextAnchor): AnchorResolution {
-	if (anchor.exact.length === 0) return { ok: false, reason: 'not-found' };
+	// An empty document has exactly one zero-width range. That is the anchor used
+	// when the assistant offers to put conversation text into a fresh 'scribe.
+	// The same anchor in a non-empty document would name every boundary, so keep
+	// refusing it there instead of guessing where an insertion belongs.
+	if (anchor.exact.length === 0) {
+		return document.length === 0
+			? { ok: true, from: 0, to: 0 }
+			: { ok: false, reason: 'not-found' };
+	}
 
 	const occurrences: Array<{ from: number; to: number }> = [];
 	let searchFrom = 0;

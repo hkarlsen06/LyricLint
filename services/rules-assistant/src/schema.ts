@@ -29,7 +29,9 @@ export const proposalSchema = z
 		id: z.string().min(1),
 		anchor: z
 			.object({
-				exact: z.string().min(1),
+				// Empty names the sole zero-width range in an empty 'scribe. The
+				// browser resolver refuses that anchor once any document text exists.
+				exact: z.string(),
 				before: z.string(),
 				after: z.string(),
 				/** The 1-based line of the numbered draft `exact` begins on. Nullable

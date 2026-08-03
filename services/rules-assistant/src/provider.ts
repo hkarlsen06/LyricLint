@@ -83,7 +83,8 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 	{
 		type: 'function',
 		name: 'propose_edits',
-		description: "Offer minimal anchor-text edits for a 'scribe already read in this turn.",
+		description:
+			"Offer minimal anchor-text edits for a 'scribe already read in this turn, including a whole-text insertion into an empty 'scribe.",
 		strict: true,
 		parameters: {
 			type: 'object',

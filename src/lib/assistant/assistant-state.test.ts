@@ -890,6 +890,40 @@ describe('the assistant state', () => {
 		});
 	});
 
+	it("offers and applies conversation text to an empty shared 'scribe", async () => {
+		const practiceLyrics = '[Verse]\nNatta ligger over byen';
+		const insertion: AssistantProposal = {
+			id: 'insert-practice-lyrics',
+			anchor: { exact: '', before: '', after: '', line: 1 },
+			replacement: practiceLyrics,
+			note: 'Insert the practice lyrics.'
+		};
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(readCall())
+			.mockResolvedValueOnce(proposalCall([insertion]))
+			.mockResolvedValueOnce(answer('Inserted.'));
+		const { state, access } = makeState({ ask });
+		access.set('draft-1', 'granted');
+		const draft = draftBridge('');
+		state.registerDraftBridge(draft.bridge);
+		await state.open();
+		await state.send('Put those lyrics in.');
+
+		expect(state.toolSession?.phase).toBe('awaiting-review');
+		expect(state.messages[1]!.toolTurns?.[1]?.calls[0]).toMatchObject({
+			proposals: [{ id: insertion.id, status: 'pending' }]
+		});
+
+		await state.approveProposal(insertion.id);
+
+		expect(draft.apply).toHaveBeenCalledWith({
+			baseRevision: 7,
+			edits: [{ from: 0, to: 0, insert: practiceLyrics }]
+		});
+		expect(state.messages[1]!.status).toBe('complete');
+	});
+
 	it('reports a bridge refusal as a failed proposal outcome', async () => {
 		const ask = vi
 			.fn()

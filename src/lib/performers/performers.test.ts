@@ -755,6 +755,51 @@ describe('performer assignment transforms', () => {
 });
 
 describe('section transforms', () => {
+	it('creates the first section in an empty document', () => {
+		const result = insertSectionHeader({
+			revision: 0,
+			text: '',
+			document: parseDocument(''),
+			sectionFrom: 0,
+			headerName: 'Verse'
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(applyEdits('', result.edit.edits)).toBe('[Verse]\n');
+		}
+	});
+
+	it('splits an already headed section at a lyric line', () => {
+		const input = '[Verse]\nFirst line\nNext part';
+		const sectionFrom = input.indexOf('Next part');
+		const result = insertSectionHeader({
+			revision: 2,
+			text: input,
+			document: parseDocument(input),
+			sectionFrom,
+			headerName: 'Chorus'
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(applyEdits(input, result.edit.edits)).toBe('[Verse]\nFirst line\n[Chorus]\nNext part');
+		}
+	});
+
+	it('refuses to create a section in the middle of a physical line', () => {
+		const input = '[Verse]\nFirst line';
+		expect(
+			insertSectionHeader({
+				revision: 2,
+				text: input,
+				document: parseDocument(input),
+				sectionFrom: input.indexOf('line'),
+				headerName: 'Chorus'
+			}).status
+		).toBe('blocked');
+	});
+
 	it('inserts a chosen header in one atomic edit', () => {
 		const input = '[Verse]\nFirst\n\nOrphan line';
 		const document = parseDocument(input);

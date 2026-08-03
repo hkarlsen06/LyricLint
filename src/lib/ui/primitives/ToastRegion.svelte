@@ -8,8 +8,8 @@
 		typeof window !== 'undefined' &&
 		typeof window.matchMedia === 'function' &&
 		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-	// The region hangs under the toolbar, so a toast arrives from behind it.
-	const motion = { y: -6, duration: reducedMotion ? 0 : 150 };
+	// The region stands above the footer, so a toast rises into place from it.
+	const motion = { y: 6, duration: reducedMotion ? 0 : 150 };
 
 	function stillEngaged(toast: HTMLElement, next: EventTarget | null): boolean {
 		if (next instanceof Node && toast.contains(next)) return true;

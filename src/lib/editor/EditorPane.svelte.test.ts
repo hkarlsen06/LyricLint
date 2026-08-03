@@ -9,6 +9,7 @@ import type {
 	SourceReference
 } from '$lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
+import { insertSectionHeader } from '$lib/performers/transform.js';
 import EditorPane from './EditorPane.svelte';
 import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
 import PerformerPicker from './overlays/PerformerPicker.svelte';
@@ -1367,6 +1368,86 @@ describe('EditorPane', () => {
 		handle.setSelection({ anchor: 14, head: 14 });
 		handle.requestSectionHeader?.();
 		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
+	});
+
+	it('adds the first section header to an empty document', async () => {
+		const languagePack = {
+			tag: 'en',
+			displayName: 'English',
+			policy: 'localized' as const,
+			headers: [{ semanticPart: 'verse', terms: ['Verse'] }],
+			sourceIds: [],
+			reviewed: true
+		};
+		const createSectionHeaderEdit = vi.fn(({ range, headerName, ordinal, numberedHeaderTerms }) => {
+			const result = insertSectionHeader({
+				revision: 0,
+				text: '',
+				document: parseDocument(''),
+				sectionFrom: range.from,
+				headerName,
+				ordinal,
+				numberedHeaderTerms
+			});
+			return result.status === 'applied' ? result.edit : undefined;
+		});
+		const { handle } = await mountEditor({
+			text: '',
+			displayContext: context({ languagePack }),
+			editorCallbacks: { ...callbacks(), createSectionHeaderEdit }
+		});
+
+		handle.requestSectionHeader?.();
+		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
+		await userEvent.click(page.getByRole('button', { name: 'Verse' }));
+
+		expect(createSectionHeaderEdit).toHaveBeenCalledWith(
+			expect.objectContaining({ range: { from: 0, to: 0 }, headerName: 'Verse' })
+		);
+		expect(handle.getSnapshot().text).toBe('[Verse]\n');
+	});
+
+	it('targets the caret line when adding a header inside an already headed section', async () => {
+		const text = '[Verse 1]\nFirst line\nNext part';
+		const sectionFrom = text.indexOf('Next part');
+		const languagePack = {
+			tag: 'en',
+			displayName: 'English',
+			policy: 'localized' as const,
+			headers: [{ semanticPart: 'verse', terms: ['Verse'] }],
+			sourceIds: [],
+			reviewed: true
+		};
+		const createSectionHeaderEdit = vi.fn(({ range, headerName, ordinal, numberedHeaderTerms }) => {
+			const result = insertSectionHeader({
+				revision: 0,
+				text,
+				document: parseDocument(text),
+				sectionFrom: range.from,
+				headerName,
+				ordinal,
+				numberedHeaderTerms
+			});
+			return result.status === 'applied' ? result.edit : undefined;
+		});
+		const { handle } = await mountEditor({
+			text,
+			selection: { anchor: sectionFrom + 3, head: sectionFrom + 3 },
+			displayContext: context({ languagePack }),
+			editorCallbacks: { ...callbacks(), createSectionHeaderEdit }
+		});
+
+		handle.requestSectionHeader?.();
+		await userEvent.click(page.getByRole('button', { name: 'Verse 2' }));
+
+		expect(createSectionHeaderEdit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				range: { from: sectionFrom, to: text.length },
+				headerName: 'Verse',
+				ordinal: 2
+			})
+		);
+		expect(handle.getSnapshot().text).toBe('[Verse 1]\nFirst line\n[Verse 2]\nNext part');
 	});
 
 	it('shows a non-document ghost row for a headerless section', async () => {

@@ -532,11 +532,19 @@
 			return {};
 		}
 
+		const target = sections[targetIndex];
+		// When the command points at a lyric line inside an already headed section,
+		// that section's header is before the new boundary. Count it when choosing
+		// the next ordinal and offer it as the nearest previous part. A diagnostic
+		// targeting the section's own empty header keeps the older shape: that
+		// header is the thing being named, not a predecessor.
+		const splitsHeadedSection = target?.header !== undefined && range.from > target.header.to;
+		const headersBeforeEnd = targetIndex + (splitsHeadedSection ? 1 : 0);
 		const headersBefore = sections
-			.slice(0, targetIndex)
+			.slice(0, headersBeforeEnd)
 			.flatMap((section) => (section.header ? [section.header.rawNamePart] : []));
 		let previousHeader: string | undefined;
-		for (let index = targetIndex - 1; index >= 0; index -= 1) {
+		for (let index = headersBeforeEnd - 1; index >= 0; index -= 1) {
 			const header = sections[index]?.header;
 			if (header) {
 				previousHeader = header.rawNamePart;

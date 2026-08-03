@@ -26,6 +26,7 @@ import { QuotaCounter } from '../src/quota-do';
 import {
 	answerRequestSchema,
 	manageLinksArgumentsSchema,
+	proposeEditsArgumentsSchema,
 	providerItemsSchema,
 	validateAnswer,
 	validateConversation,
@@ -47,6 +48,23 @@ const providerItem = {
 	arguments: '{}',
 	status: 'completed'
 };
+
+describe('proposal validation', () => {
+	it("accepts a whole-text insertion anchored to an empty 'scribe", () => {
+		expect(
+			proposeEditsArgumentsSchema.safeParse({
+				proposals: [
+					{
+						id: 'insert-practice-lyrics',
+						anchor: { exact: '', before: '', after: '', line: 1 },
+						replacement: '[Verse]\nAn original lyric',
+						note: 'Insert the practice lyrics.'
+					}
+				]
+			}).success
+		).toBe(true);
+	});
+});
 
 function toolRound(index: number): WireMessageV2[] {
 	const callId = `call-${index}`;
