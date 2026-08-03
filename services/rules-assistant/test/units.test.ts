@@ -829,6 +829,50 @@ describe('general answer normalization', () => {
 			'A superscript mid-sentence¹ stays put.'
 		]);
 	});
+
+	it('strips hand-typed trailing rule ids and interleaved citation markers', () => {
+		const validated = validateAnswer(
+			{
+				scope: 'reviewed',
+				blocks: [
+					{
+						kind: 'prose',
+						text: 'The edit was applied.[syntax.unsupported-voice-markup]',
+						ruleIds: [RULE_ID],
+						sourceIds: []
+					},
+					{
+						kind: 'prose',
+						text: 'The first edit is done.[spelling.standardized]¹',
+						ruleIds: [RULE_ID],
+						sourceIds: []
+					},
+					{
+						kind: 'prose',
+						text: 'The second edit is done.¹[spelling.standardized]',
+						ruleIds: [RULE_ID],
+						sourceIds: []
+					},
+					{ kind: 'example', text: '[Chorus]', ruleIds: [], sourceIds: [] },
+					{
+						kind: 'prose',
+						text: 'Keep [spelling.standardized] when it appears mid-text.',
+						ruleIds: [],
+						sourceIds: []
+					}
+				]
+			},
+			knownRules,
+			knownSources
+		);
+		expect(validated.blocks.map((block) => block.text)).toEqual([
+			'The edit was applied.',
+			'The first edit is done.',
+			'The second edit is done.',
+			'[Chorus]',
+			'Keep [spelling.standardized] when it appears mid-text.'
+		]);
+	});
 });
 
 describe('session signing', () => {

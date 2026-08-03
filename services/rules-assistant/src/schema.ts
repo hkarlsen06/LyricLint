@@ -360,14 +360,17 @@ export function validateAnswer(
 
 	// The interface draws the footnote number after each cited block, and the
 	// model — prompted about that presentation — sometimes types the superscript
-	// itself, so the block rendered "…sjekker.¹ ¹". A trailing superscript run
-	// is that mistake, never content; strip it rather than retract the answer.
-	const trailingSuperscripts = /(?:\s*[⁰¹²³⁴-⁹]+)+\s*$/;
+	// or rule id itself, so the block rendered "…sjekker.¹ ¹" or drew the same
+	// citation as both "[syntax.unsupported-voice-markup]" and a chip. A trailing
+	// citation run is that mistake, never content; strip it rather than retract
+	// the answer.
+	const trailingCitations =
+		/(?:\s*(?:[⁰¹²³⁴-⁹]+|\[[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*\]))+\s*$/;
 	answer = {
 		...answer,
 		blocks: answer.blocks.map((block) =>
-			trailingSuperscripts.test(block.text)
-				? { ...block, text: block.text.replace(trailingSuperscripts, '') }
+			trailingCitations.test(block.text)
+				? { ...block, text: block.text.replace(trailingCitations, '') }
 				: block
 		)
 	};
