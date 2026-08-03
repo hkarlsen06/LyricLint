@@ -114,6 +114,9 @@
 		{/each}
 	</p>
 	<p class="assistant-proposal__note">{proposal.note}</p>
+	{#if proposal.applyTo === 'this_section_only'}
+		<p class="assistant-proposal__scope">Only this section will change.</p>
+	{/if}
 
 	{#if proposal.status === 'pending' && !decidable}
 		<p class="assistant-proposal__outcome">Left undecided.</p>

@@ -422,6 +422,46 @@ describe('assistant message persistence', () => {
 			proposals: [{ id: 'proposal-a', status: 'pending' }]
 		});
 	});
+
+	it('keeps the apply target on a reviewed proposal', async () => {
+		const name = databaseName('assistant-proposal-scope');
+		const database = await openDatabase(name);
+		openDatabases.add(database);
+		await database.assistantMessages.add({
+			id: 'message-scope',
+			chatId: 'chat-scope',
+			role: 'assistant',
+			createdAt: '2026-01-01T00:00:00.000Z',
+			status: 'complete',
+			content: '',
+			toolTurns: [
+				{
+					calls: [
+						{
+							callId: 'call-scope',
+							name: 'propose_edits',
+							proposals: [
+								{
+									id: 'proposal-scope',
+									anchor: { exact: 'Hold on', before: '', after: '' },
+									replacement: 'Let go',
+									note: 'Keep this copy different.',
+									applyTo: 'this_section_only',
+									status: 'applied'
+								}
+							]
+						}
+					]
+				}
+			]
+		});
+
+		expect(
+			(await database.assistantMessages.get('message-scope'))?.toolTurns?.[0]?.calls[0]
+		).toMatchObject({
+			proposals: [{ id: 'proposal-scope', applyTo: 'this_section_only', status: 'applied' }]
+		});
+	});
 });
 
 describe('autosave and recovery', () => {

@@ -6,6 +6,7 @@ import type { EditorHandle, LanguagePack } from '$lib/core/types.js';
 import { germanLanguagePack } from '$lib/languages/de.js';
 import { norwegianLanguagePack } from '$lib/languages/no.js';
 import { englishLanguagePack } from '$lib/languages/en.js';
+import ControlTooltip from '$lib/ui/primitives/ControlTooltip.svelte';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
 import {
@@ -417,6 +418,39 @@ describe('recording a deliberate difference', () => {
 });
 
 describe('typing only in one linked copy', () => {
+	it('applies a multi-part atomic edit locally and undoes its words and exception together', async () => {
+		const onSectionLinksChanged = vi.fn();
+		const handle = await mount(SAME, englishLanguagePack, { onSectionLinksChanged });
+		handle.linkSections?.({
+			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
+		});
+		onSectionLinksChanged.mockClear();
+		await new Promise((resolve) => setTimeout(resolve, 600));
+
+		const from = SAME.indexOf('Hold on tight');
+		const to = from + 'Hold on tight'.length;
+		handle.dispatchAtomicOnlyHere?.(
+			{
+				baseRevision: handle.getSnapshot().revision,
+				edits: [
+					{ from, to: from + 'Hold'.length, insert: 'Stay' },
+					{ from: to - 'tight'.length, to, insert: 'close' }
+				]
+			},
+			{ from, to }
+		);
+
+		const changed = handle.getSnapshot().text;
+		expect(changed).toContain('[Chorus]\nStay on close');
+		expect(changed).toContain('[Chorus 2]\nHold on tight');
+		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(2);
+		expect(onSectionLinksChanged).toHaveBeenCalledOnce();
+
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(SAME);
+		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(0);
+	});
+
 	it('arms the caret before writing and keeps the whole typing run local', async () => {
 		const announcements: string[] = [];
 		const onSectionLinksChanged = vi.fn();
@@ -432,17 +466,54 @@ describe('typing only in one linked copy', () => {
 
 		const caret = SAME.indexOf('tight') + 'tight'.length;
 		handle.setSelection({ anchor: caret, head: caret });
+		render(ControlTooltip, { props: {} });
 		handle.requestSectionLink?.();
 
 		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+		const typeOnlyHereButton = page.getByRole('button', { name: /Type only here/ });
+		await expect.element(typeOnlyHereButton).toBeVisible();
+		await expect.element(typeOnlyHereButton).toHaveAttribute('aria-keyshortcuts', 'Control+Alt+H');
+		await expect.element(page.getByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+		const typeOnlyElement = typeOnlyHereButton.element();
+		const localExplanation = page.getByText(
+			'Your next edit at the caret won’t be copied to the other linked sections.'
+		);
+		const localGroup = typeOnlyElement.closest('.type-only-here-action');
+		expect(localGroup?.contains(localExplanation.element())).toBe(true);
+		const linkedStatus = page.getByText(
+			'These 2 sections are linked: editing one edits the others.'
+		);
+		const statusRect = linkedStatus.element().getBoundingClientRect();
+		const explanationRect = localExplanation.element().getBoundingClientRect();
+		const actionRect = typeOnlyElement.getBoundingClientRect();
+		expect(explanationRect.top - statusRect.bottom).toBeGreaterThan(
+			actionRect.top - explanationRect.bottom
+		);
+		expect(typeOnlyElement.querySelector('.apply__key')).toBeNull();
+		const accentProbe = document.createElement('span');
+		accentProbe.style.background = getComputedStyle(typeOnlyElement)
+			.getPropertyValue('--color-accent')
+			.trim();
+		document.body.append(accentProbe);
+		expect(getComputedStyle(typeOnlyElement).backgroundColor).toBe(
+			getComputedStyle(accentProbe).backgroundColor
+		);
+		accentProbe.remove();
+		typeOnlyElement.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }));
+		await expect
+			.poll(() => document.querySelector('.control-tooltip')?.textContent)
+			.toContain('Type only here');
+		const shortcut = navigator.platform.toLocaleLowerCase().includes('mac') ? '⌃⌥H' : 'Ctrl+Alt+H';
+		expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe(shortcut);
+		typeOnlyElement.dispatchEvent(new PointerEvent('pointerleave', { bubbles: false }));
 		await expect
 			.element(
 				page.getByText('Your next edit at the caret won’t be copied to the other linked sections.')
 			)
 			.toBeVisible();
 
-		await page.getByRole('button', { name: /Type only here/ }).click();
+		typeOnlyElement.focus();
+		await userEvent.keyboard('{Control>}{Alt>}h{/Alt}{/Control}');
 		await expect
 			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
 			.not.toBeInTheDocument();
@@ -471,7 +542,8 @@ describe('typing only in one linked copy', () => {
 		await expect
 			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
 			.toBeChecked();
-		await page.getByRole('button', { name: 'Cancel' }).click();
+		await expect.element(page.getByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+		await userEvent.keyboard('{Escape}');
 
 		// The local words and the exception that kept them local are one history
 		// event. A half-undo would leave the next edit with the wrong scope.
@@ -479,6 +551,28 @@ describe('typing only in one linked copy', () => {
 		expect(handle.getSnapshot().text).toBe(SAME);
 		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(0);
 		expect(onSectionLinksChanged).toHaveBeenCalledTimes(2);
+	});
+
+	it('arms the same local edit directly with Ctrl-Alt-H', async () => {
+		const announcements: string[] = [];
+		const handle = await mount(SAME, englishLanguagePack, {
+			onAnnouncement: (message) => void announcements.push(message)
+		});
+		handle.linkSections?.({
+			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
+		});
+		const caret = SAME.indexOf('tight') + 'tight'.length;
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.focus();
+
+		await userEvent.keyboard('{Control>}{Alt>}h{/Alt}{/Control}');
+
+		expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+		expect(announcements.at(-1)).toContain('won’t be copied');
+		await userEvent.keyboard('er');
+		const typed = handle.getSnapshot().text;
+		expect(typed).toContain('[Chorus]\nHold on tighter');
+		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
 	});
 
 	it('uses a selection as the words the next local edit replaces', async () => {

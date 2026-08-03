@@ -58,6 +58,20 @@ describe('an assistant proposal card', () => {
 		);
 	});
 
+	test('names a proposal that will stay in only the addressed section', () => {
+		const assistant = assistantStub();
+		const local = { ...proposal(), applyTo: 'this_section_only' as const };
+		const { container } = render(AssistantProposalCard, {
+			proposal: local,
+			assistant,
+			decidable: true
+		});
+
+		expect(container.querySelector('.assistant-proposal__scope')?.textContent).toBe(
+			'Only this section will change.'
+		);
+	});
+
 	test('hover borrows the preview slot and leave or unmount hands it back', async () => {
 		const backgroundShow = vi.fn();
 		const backgroundEmpty = vi.fn();

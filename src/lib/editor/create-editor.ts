@@ -81,6 +81,7 @@ import {
 	setHeaderlessSectionsEffect
 } from './extensions/section-ghosts.js';
 import {
+	applyOnlyHereAnnotation,
 	canTypeOnlyHere,
 	linkDifferencesFor,
 	linkHolesField,
@@ -816,6 +817,16 @@ export function createLyricEditor(
 			// Validation belongs before cleanup: a stale edit throws without changing
 			// either the document or the preview the reader is still considering.
 			dispatchAtomicEdit(view, edit);
+			view.dispatch({
+				effects: setFixPreviewEffect.of(undefined),
+				annotations: Transaction.addToHistory.of(false)
+			});
+		},
+		dispatchAtomicOnlyHere(edit, range) {
+			// The scope annotation and the words land in one transaction: section
+			// links can neither copy the proposal first nor record its exception
+			// after a snapshot has already escaped.
+			dispatchAtomicEdit(view, edit, [applyOnlyHereAnnotation.of(range)]);
 			view.dispatch({
 				effects: setFixPreviewEffect.of(undefined),
 				annotations: Transaction.addToHistory.of(false)

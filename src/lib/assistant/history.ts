@@ -39,11 +39,12 @@ function wireToolCall(call: AssistantToolCallRecord) {
 			callId: call.callId,
 			name: call.name,
 			arguments: JSON.stringify({
-				proposals: call.proposals.map(({ id, anchor, replacement, note }) => ({
+				proposals: call.proposals.map(({ id, anchor, replacement, note, applyTo }) => ({
 					id,
 					anchor,
 					replacement,
-					note
+					note,
+					applyTo: applyTo ?? 'linked_sections'
 				}))
 			})
 		};

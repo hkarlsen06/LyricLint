@@ -249,11 +249,12 @@ which this is the full-width band it replaced, wearing icons. Bold and italic we
 refused: `<i>` and `<b>` are the performer voice slots, the picker and the roster are how a voice is
 marked here, and a command is offered once.
 
-**Only commands a caret alone can carry out.** `Ctrl-Alt-P` and `Mod-Shift-L` are deliberately
-absent: each needs a selection or a chorus and announces a refusal the rest of the time, and a bar
-that spends most of its life offering answers it cannot give is what `availableRates` and
-`spotifyAvailable` both exist to prevent. That leaves two, which is also all a row of this width
-holds — the same constraint that moved `Add audio` out of the tools panel.
+**Only commands a caret alone can carry out.** `Ctrl-Alt-P`, `Ctrl-Alt-H`, and `Mod-Shift-L` are
+deliberately absent: each needs a selection, shared lyrics in an existing link, or a chorus and
+announces a refusal the rest of the time, and a bar that spends most of its life offering answers
+it cannot give is what `availableRates` and `spotifyAvailable` both exist to prevent. That leaves
+two, which is also all a row of this width holds — the same constraint that moved `Add audio` out
+of the tools panel.
 
 **It draws at every state, including over an empty document.** A band that appeared on the first
 keystroke would shove the editor down at the moment somebody started typing, and the reader who has
@@ -297,14 +298,16 @@ the row. `describeControl` adds nothing to any control's box.
 focus are separate: a pointer crossing one control while the keyboard sits on another would leave
 two up. `ControlTooltip` is mounted in `Workspace.svelte` rather than the app layout, so a workspace
 rendered on its own — which is how every component test renders it — still has somewhere to draw.
+The section-link picker's `Type only here` action later joined these controls rather than growing a
+popover-specific tooltip.
 
-**The placement is read off the control, never passed in.** The two surfaces want opposite answers
-on both axes and neither should have to say so: the tray hangs at the top-right of the document,
-where a box laid out leftward runs off the panel edge, and the transport is the last row above the
-status bar, where there is no room below at all. `placeControlHint` is that arithmetic, exported and
-unit-tested against synthetic rects rather than trusted — it flips to `bottom` when the control is
-within a two-line box of the foot, lays out from whichever edge the control is nearer, and clamps at
-8px so nothing starts off screen.
+**The placement is read off the control, never passed in.** The surfaces occupy different edges and
+none should have to say so: the tray hangs at the top-right of the document, the link picker can sit
+on either side of its anchor, and the transport is the last row above the status bar, where there is
+no room below at all. `placeControlHint` is that arithmetic, exported and unit-tested against
+synthetic rects rather than trusted — it flips to `bottom` when the control is within a two-line box
+of the foot, lays out from whichever edge the control is nearer, and clamps at 8px so nothing starts
+off screen.
 
 **It is `aria-hidden`, not `aria-describedby`, and this is the one place that direction reverses.**
 Both facts in it are already the control's own accessible name and `aria-keyshortcuts`, so

@@ -178,16 +178,22 @@ function resolveForRecord(
 function atomicProposalEdit(
 	bridge: AssistantDraftBridge,
 	proposal: AssistantProposal
-): AtomicDocumentEdit | { reason: 'not-found' | 'ambiguous' } {
+): { edit: AtomicDocumentEdit; range: TextRange } | { reason: 'not-found' | 'ambiguous' } {
 	const resolution = resolveAnchor(bridge.readText(), proposal.anchor);
 	if (!resolution.ok) return { reason: resolution.reason };
-	return {
+	const edit: AtomicDocumentEdit = {
 		baseRevision: bridge.revision(),
-		edits: diffWords(proposal.anchor.exact, proposal.replacement).map((edit) => ({
-			...edit,
-			from: edit.from + resolution.from,
-			to: edit.to + resolution.from
+		edits: diffWords(proposal.anchor.exact, proposal.replacement).map((change) => ({
+			...change,
+			from: change.from + resolution.from,
+			to: change.to + resolution.from
 		}))
+	};
+	return {
+		edit,
+		// One link difference spans only the changed runs, not unchanged anchor
+		// context that should continue to behave like shared text.
+		range: editedSpan(edit) ?? { from: resolution.from, to: resolution.to }
 	};
 }
 
@@ -534,8 +540,16 @@ export function createAssistantState(deps: AssistantDeps) {
 			if (status === 'failed') {
 				return { ...proposal, status, ...(reason ? { reason } : {}) };
 			}
-			const { id: proposalId, anchor, replacement, note } = proposal;
-			return { id: proposalId, anchor, replacement, note, status };
+			const offered: AssistantProposal = {
+				id: proposal.id,
+				anchor: proposal.anchor,
+				replacement: proposal.replacement,
+				note: proposal.note,
+				...(proposal.applyTo ? { applyTo: proposal.applyTo } : {})
+			};
+			return status === 'applied'
+				? { ...offered, status: 'applied' }
+				: { ...offered, status: 'rejected' };
 		};
 		await updateLatestTurn(assistantMessageId, (calls) =>
 			calls.map((call) =>
@@ -829,12 +843,19 @@ export function createAssistantState(deps: AssistantDeps) {
 				await settleProposal(id, 'failed', 'not-found');
 				return;
 			}
-			const edit = atomicProposalEdit(bridge, proposal);
-			if ('reason' in edit) {
-				await settleProposal(id, 'failed', edit.reason);
+			const resolved = atomicProposalEdit(bridge, proposal);
+			if ('reason' in resolved) {
+				await settleProposal(id, 'failed', resolved.reason);
 				return;
 			}
-			if (!bridge.apply(edit)) {
+			const applied =
+				proposal.applyTo === 'this_section_only'
+					? bridge.apply(resolved.edit, {
+							applyTo: proposal.applyTo,
+							range: resolved.range
+						})
+					: bridge.apply(resolved.edit);
+			if (!applied) {
 				await settleProposal(id, 'failed', 'apply-failed');
 				return;
 			}
@@ -880,9 +901,9 @@ export function createAssistantState(deps: AssistantDeps) {
 			const bridge = draftBridge;
 			const proposal = pendingProposal(id);
 			if (!bridge || !proposal) return false;
-			const edit = atomicProposalEdit(bridge, proposal);
-			if ('reason' in edit) return false;
-			if (!bridge.preview(edit)) return false;
+			const resolved = atomicProposalEdit(bridge, proposal);
+			if ('reason' in resolved) return false;
+			if (!bridge.preview(resolved.edit)) return false;
 			// A diagnostic's preview deliberately never scrolls, because whatever
 			// selected it has already brought its range into view. Nothing has
 			// here: a proposal quotes a line the user did not navigate to and
@@ -892,7 +913,7 @@ export function createAssistantState(deps: AssistantDeps) {
 			// `revealDiagnostic` states — CodeMirror applies queued scrolls in its
 			// measure phase, so the deliberate placement has to be the last one
 			// asked for. It moves no caret and no selection.
-			const span = editedSpan(edit);
+			const span = editedSpan(resolved.edit);
 			if (span) bridge.reveal(span);
 			return true;
 		},

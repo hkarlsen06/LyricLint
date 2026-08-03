@@ -51,18 +51,42 @@ const providerItem = {
 
 describe('proposal validation', () => {
 	it("accepts a whole-text insertion anchored to an empty 'scribe", () => {
+		const parsed = proposeEditsArgumentsSchema.safeParse({
+			proposals: [
+				{
+					id: 'insert-practice-lyrics',
+					anchor: { exact: '', before: '', after: '', line: 1 },
+					replacement: '[Verse]\nAn original lyric',
+					note: 'Insert the practice lyrics.'
+				}
+			]
+		});
+		expect(parsed.success).toBe(true);
+		if (parsed.success) {
+			expect(parsed.data.proposals[0]?.applyTo).toBe('linked_sections');
+		}
+	});
+
+	it('accepts an explicit edit confined to the addressed linked copy', () => {
 		expect(
 			proposeEditsArgumentsSchema.safeParse({
 				proposals: [
 					{
-						id: 'insert-practice-lyrics',
-						anchor: { exact: '', before: '', after: '', line: 1 },
-						replacement: '[Verse]\nAn original lyric',
-						note: 'Insert the practice lyrics.'
+						id: 'local-chorus-wording',
+						anchor: { exact: 'Hold on tight', before: '', after: '', line: 8 },
+						replacement: 'Hold me tight',
+						note: 'Keep this variation in the second chorus.',
+						applyTo: 'this_section_only'
 					}
 				]
 			}).success
 		).toBe(true);
+		const proposalTool = DRAFT_TOOLS.find((tool) => tool.name === 'propose_edits');
+		const parameters = proposalTool?.parameters as unknown as {
+			properties: { proposals: { items: { required: string[] } } };
+		};
+		const items = parameters.properties.proposals.items;
+		expect(items?.required).toContain('applyTo');
 	});
 });
 

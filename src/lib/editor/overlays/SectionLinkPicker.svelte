@@ -2,6 +2,7 @@
 	import { onMount, tick, untrack } from 'svelte';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import type { LinkDifference, TextRange } from '$lib/core/types.js';
+	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';
 	import type { ScreenRect } from '../contracts.js';
 	import type { LinkOccurrence } from '../section-links.js';
 
@@ -78,6 +79,9 @@
 	let activeIndex = $state(0);
 	let keyboardNavigated = $state(false);
 	let root: HTMLDivElement;
+	const mac =
+		typeof navigator === 'undefined' ? false : /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
+	const typeOnlyHereShortcut = mac ? '⌃⌥H' : 'Ctrl+Alt+H';
 
 	const headers = $derived([currentHeaderFrom, ...selected]);
 	const wasLinked = $derived(initialSelected.length > 0);
@@ -307,6 +311,16 @@
 	}
 
 	function handleKeydown(event: KeyboardEvent): void {
+		if (
+			typeOnlyHereReady &&
+			event.ctrlKey &&
+			event.altKey &&
+			event.key.toLocaleLowerCase() === 'h'
+		) {
+			event.preventDefault();
+			beginTypeOnlyHere();
+			return;
+		}
 		if (event.key === 'Tab') {
 			trapTab(event);
 			return;
@@ -580,17 +594,27 @@
 			</p>
 		{/if}
 		{#if typeOnlyHereReady}
-			<p class="picker__note">
-				Your next edit at the caret won’t be copied to the other linked sections.
-			</p>
-		{/if}
-		<div class="actions">
-			{#if typeOnlyHereReady}
-				<button type="button" class="button button--contrast apply" onclick={beginTypeOnlyHere}>
-					Type only here
-					<span aria-hidden="true" class="apply__key">↵</span>
-				</button>
-			{:else}
+			<div class="type-only-here-action">
+				<p class="picker__note">
+					Your next edit at the caret won’t be copied to the other linked sections.
+				</p>
+				<div class="actions actions--single">
+					<button
+						type="button"
+						class="button apply type-only-here"
+						aria-keyshortcuts="Control+Alt+H"
+						onclick={beginTypeOnlyHere}
+						{@attach describeControl(() => ({
+							label: 'Type only here',
+							shortcut: typeOnlyHereShortcut
+						}))}
+					>
+						Type only here
+					</button>
+				</div>
+			</div>
+		{:else}
+			<div class="actions">
 				<button
 					type="button"
 					class="button button--contrast apply"
@@ -610,9 +634,9 @@
 										: 'Link'}
 					<span aria-hidden="true" class="apply__key">↵</span>
 				</button>
-			{/if}
-			<button type="button" class="button button--quiet" onclick={cancel}>Cancel</button>
-		</div>
+				<button type="button" class="button button--quiet" onclick={cancel}>Cancel</button>
+			</div>
+		{/if}
 	</div>
 </div>
 
@@ -947,9 +971,42 @@
 		grid-template-columns: 1fr auto;
 	}
 
+	/* A separate thought from the link status above, then a tight explanation →
+	   action pair. No border or fill: grouping is spatial, not another card
+	   inside the picker. */
+	.type-only-here-action {
+		display: grid;
+		margin-block-start: var(--space-3);
+		gap: var(--space-1-5);
+	}
+
+	.actions--single {
+		grid-template-columns: 1fr;
+	}
+
 	.apply {
 		min-height: var(--control-height-sm);
 		padding: var(--space-1) var(--space-2-5);
+	}
+
+	/* This is the one decision in the already-linked state, and unlike the
+	   ordinary link form there is no Cancel competing beside it. Blue names it
+	   as the deliberate local exception without inventing another global tier. */
+	.button.type-only-here {
+		border-color: var(--color-accent);
+		background: var(--color-accent);
+		color: var(--color-accent-text);
+	}
+
+	.button.type-only-here:hover:not(:disabled) {
+		border-color: var(--color-accent-hover);
+		background: var(--color-accent-hover);
+		color: var(--color-accent-text);
+	}
+
+	.button.type-only-here:active:not(:disabled) {
+		border-color: var(--color-accent-active);
+		background: var(--color-accent-active);
 	}
 
 	/* Secondary through weight and a mix against the button's own fill, never

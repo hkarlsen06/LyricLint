@@ -115,12 +115,17 @@
 					/* the span no longer exists */
 				}
 			},
-			apply(edit) {
+			apply(edit, options) {
 				const editor = controller.editor;
 				try {
 					editor.clearPreview?.();
 					if (edit.baseRevision !== controller.snapshot.revision) return false;
-					editor.dispatchAtomic(edit);
+					if (options?.applyTo === 'this_section_only') {
+						if (!editor.dispatchAtomicOnlyHere) return false;
+						editor.dispatchAtomicOnlyHere(edit, options.range);
+					} else {
+						editor.dispatchAtomic(edit);
+					}
 					return true;
 				} catch {
 					return false;

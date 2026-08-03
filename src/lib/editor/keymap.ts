@@ -5,7 +5,7 @@ import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js'
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import { linkTargetAt } from './section-links.js';
-import { cancelTypeOnlyHere } from './extensions/section-links.js';
+import { cancelTypeOnlyHere, typeOnlyHere } from './extensions/section-links.js';
 import {
 	editorComposingField,
 	editorContextField,
@@ -91,6 +91,32 @@ export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallb
 
 function linkSections(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
 	return (view) => requestSectionLink(view, callbacks);
+}
+
+/** Keep the next edit in the linked copy containing the caret or selection. */
+function typeOnlyInLinkedSection(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
+	return (view) => {
+		if (composing(view)) {
+			return true;
+		}
+		const range = logicalSelection(view);
+		const target = linkTargetAt(
+			parsedDocumentForView(view),
+			view.state.field(editorContextField, false)?.languagePack,
+			range.from,
+			range.to
+		);
+		if (!target || !typeOnlyHere(view, target.header.from)) {
+			return announce(
+				callbacks,
+				'Place the caret or a selection in shared lyrics of a linked section before choosing Type only here.'
+			);
+		}
+		return announce(
+			callbacks,
+			'Your next edit at the caret won’t be copied to the other linked sections. Press Escape to cancel.'
+		);
+	};
 }
 
 function sectionHeaderTargetRange(view: EditorView): TextRange {
@@ -277,6 +303,10 @@ export function lyricLintKeymap(
 		// twice. This belongs beside `Mod-Shift-H` anyway — both are commands about
 		// the song's structure rather than about its audio.
 		{ key: 'Mod-Shift-l', run: linkSections(callbacks), preventDefault: true },
+		// H for “here”. This arms the local exception directly; unlike the link
+		// command above it changes no membership and needs only shared text in an
+		// existing group. It stays out of J/K/L, which belong to the transport.
+		{ key: 'Ctrl-Alt-h', run: typeOnlyInLinkedSection(callbacks), preventDefault: true },
 		// `Ctrl-Alt-U` for the unknown marker, in the same family as the anchor
 		// pair below and free on both platforms. Deliberately no
 		// `preventDefault: true`: that option prevents the default even when the

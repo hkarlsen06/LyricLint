@@ -349,6 +349,7 @@
 }
 
 .assistant-proposal__note,
+.assistant-proposal__scope,
 .assistant-proposal__outcome {
 	margin: 0;
 	font-size: var(--font-size-xs);
@@ -362,6 +363,11 @@
 
 .assistant-proposal__note {
 	color: var(--color-text-muted);
+}
+
+.assistant-proposal__scope {
+	font-weight: var(--font-weight-semibold);
+	color: var(--color-text);
 }
 
 .assistant-proposal__outcome {

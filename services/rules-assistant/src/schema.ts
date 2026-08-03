@@ -41,7 +41,10 @@ export const proposalSchema = z
 			})
 			.strict(),
 		replacement: z.string(),
-		note: z.string()
+		note: z.string(),
+		// The default accepts a live call created just before this field shipped;
+		// the strict provider tool below requires every new call to choose.
+		applyTo: z.enum(['linked_sections', 'this_section_only']).default('linked_sections')
 	})
 	.strict();
 

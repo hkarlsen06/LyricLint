@@ -98,7 +98,7 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 					items: {
 						type: 'object',
 						additionalProperties: false,
-						required: ['id', 'anchor', 'replacement', 'note'],
+						required: ['id', 'anchor', 'replacement', 'note', 'applyTo'],
 						properties: {
 							id: { type: 'string' },
 							anchor: {
@@ -116,7 +116,13 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 								}
 							},
 							replacement: { type: 'string' },
-							note: { type: 'string' }
+							note: { type: 'string' },
+							applyTo: {
+								type: 'string',
+								enum: ['linked_sections', 'this_section_only'],
+								description:
+									'Use linked_sections for a correction every linked copy should share, or this_section_only for an intentional variation in the addressed copy.'
+							}
 						}
 					}
 				}

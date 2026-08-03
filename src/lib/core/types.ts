@@ -696,6 +696,11 @@ export interface EditorHandle {
 	focus(): void;
 	getSnapshot(): EditorSnapshot;
 	dispatchAtomic(edit: AtomicDocumentEdit): void;
+	/**
+	 * Apply an atomic edit without carrying it to linked peers, recording the
+	 * addressed span as a deliberate difference in the same undo step.
+	 */
+	dispatchAtomicOnlyHere?(edit: AtomicDocumentEdit, range: TextRange): void;
 	/** Render an atomic edit as a non-mutating editor decoration. */
 	previewAtomic?(edit: AtomicDocumentEdit): void;
 	/** Remove the current non-mutating edit preview. */

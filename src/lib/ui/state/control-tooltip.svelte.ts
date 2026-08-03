@@ -42,15 +42,16 @@ export function hideControlHint(): void {
  * Where the box goes, measured from the control it describes.
  *
  * `position: fixed`, so both decisions are against the viewport rather than
- * against whatever scroll port the control is sitting in — the action tray is
- * inside the editor region's grid and the transport is inside a horizontal
- * scroller, and a box in either one's flow would grow the thing it annotates.
+ * against whatever scroll port or overlay the control is sitting in — the
+ * action tray is inside the editor region's grid, the link action is in an
+ * anchored picker, and the transport is inside a horizontal scroller. A box in
+ * any one's flow would grow the thing it annotates.
  *
- * It flips on both axes rather than taking a placement prop, because the two
- * surfaces that use it want opposite answers and neither should have to say so:
- * the tray hangs at the top-right of the document, where a box laid out
- * leftward runs off the panel edge, and the transport is the last row above the
- * status bar, where there is no room below at all.
+ * It flips on both axes rather than taking a placement prop, because its
+ * surfaces occupy different edges and none should have to say so: the tray
+ * hangs at the top-right of the document, the link picker can sit on either
+ * side of its anchor, and the transport is the last row above the status bar,
+ * where there is no room below at all.
  */
 export function placeControlHint(
 	rect: { top: number; bottom: number; left: number; right: number; width: number },
@@ -107,7 +108,14 @@ export function describeControl(hint: () => ControlHint | undefined): Attachment
 		// Guarded on ownership, so the pointer leaving a control the keyboard has
 		// since moved on from cannot close the box that control no longer owns.
 		const hide = (): void => {
-			if (owner === node) hideControlHint();
+			if (owner !== node) return;
+			// Removing a focused node fires `blur` during Svelte's branch teardown.
+			// Retire the plain owner immediately, then wait until that render effect
+			// has finished before mutating the rune that draws the shared box.
+			owner = undefined;
+			queueMicrotask(() => {
+				if (owner === undefined) shown = undefined;
+			});
 		};
 		const onKeydown = (event: Event): void => {
 			if ((event as KeyboardEvent).key === 'Escape' && owner === node) {

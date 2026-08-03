@@ -1,5 +1,12 @@
 import { invertedEffects } from '@codemirror/commands';
-import { EditorState, RangeSet, RangeValue, StateEffect, StateField } from '@codemirror/state';
+import {
+	Annotation,
+	EditorState,
+	RangeSet,
+	RangeValue,
+	StateEffect,
+	StateField
+} from '@codemirror/state';
 import type { ChangeDesc, Extension, Range, TransactionSpec } from '@codemirror/state';
 import { Transaction } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
@@ -75,6 +82,13 @@ export const setSectionLinkEffect = StateEffect.define<{ headers: readonly numbe
  * out — twice, once here and once in the caller.
  */
 export const setLinkHolesEffect = StateEffect.define<readonly TextRange[]>();
+
+/**
+ * Keep this programmatic edit in the addressed linked copy. Unlike the
+ * one-shot UI mode, the span travels on the edit itself, so resolving a model
+ * proposal and applying it cannot be split by a selection change.
+ */
+export const applyOnlyHereAnnotation = Annotation.define<TextRange>();
 
 /**
  * The one edit the user has asked to keep in this copy.
@@ -886,30 +900,68 @@ export function sectionLinkMirror(): Extension {
 		if (userEvent === 'undo' || userEvent === 'redo') {
 			return transaction;
 		}
+		const onlyHere = transaction.annotation(applyOnlyHereAnnotation);
 		const change = singleChangedRange(transaction.changes);
-		if (!change) {
+		if (!onlyHere && !change) {
 			return transaction;
+		}
+		const addressed = onlyHere ?? change!;
+		if (
+			onlyHere &&
+			(!Number.isSafeInteger(onlyHere.from) ||
+				!Number.isSafeInteger(onlyHere.to) ||
+				onlyHere.from < 0 ||
+				onlyHere.from > onlyHere.to ||
+				onlyHere.to > transaction.startState.doc.length)
+		) {
+			throw new RangeError('The local linked-section edit has an invalid range.');
+		}
+		if (onlyHere) {
+			let insideAddressedRange = true;
+			transaction.changes.iterChangedRanges((from, to) => {
+				if (from < onlyHere.from || to > onlyHere.to) insideAddressedRange = false;
+			});
+			if (!insideAddressedRange) {
+				throw new RangeError('The local linked-section edit leaves its addressed range.');
+			}
 		}
 
 		const parsed = parsedDocumentForState(transaction.startState);
 		const group = memberGroups(transaction.startState, parsed).find((headers) =>
 			headers.some((header) => {
 				const body = sectionBodyRange(parsed, header);
-				return body && body.from <= change.from && change.to <= body.to;
+				return body && body.from <= addressed.from && addressed.to <= body.to;
 			})
 		);
 		if (!group) {
+			if (onlyHere) {
+				const changedInsideLinkedMember = memberGroups(transaction.startState, parsed).some(
+					(headers) =>
+						headers.some((header) => {
+							const body = sectionBodyRange(parsed, header);
+							if (!body) return false;
+							let inside = false;
+							transaction.changes.iterChangedRanges((from, to) => {
+								if (body.from <= from && to <= body.to) inside = true;
+							});
+							return inside;
+						})
+				);
+				if (changedInsideLinkedMember) {
+					throw new RangeError('A local edit must address one linked section body.');
+				}
+			}
 			return transaction;
 		}
 		// The edited copy leads, because every offset below is measured from it.
 		const ordered = [
 			...group.filter((header) => {
 				const body = sectionBodyRange(parsed, header);
-				return body && body.from <= change.from && change.to <= body.to;
+				return body && body.from <= addressed.from && addressed.to <= body.to;
 			}),
 			...group.filter((header) => {
 				const body = sectionBodyRange(parsed, header);
-				return !(body && body.from <= change.from && change.to <= body.to);
+				return !(body && body.from <= addressed.from && addressed.to <= body.to);
 			})
 		];
 		const members = groupShape(transaction.startState, parsed, ordered);
@@ -918,9 +970,44 @@ export function sectionLinkMirror(): Extension {
 			return transaction;
 		}
 
-		const relative = { from: change.from - source.body.from, to: change.to - source.body.from };
+		if (onlyHere) {
+			const relative = {
+				from: onlyHere.from - source.body.from,
+				to: onlyHere.to - source.body.from
+			};
+			// It is already local. The marker effect still makes the shell persist
+			// any positions mapped by the edit.
+			if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
+				return [transaction, { effects: typeOnlyHereAppliedEffect.of(null) }];
+			}
+			const localMembers = members.map((member) => ({
+				...member,
+				holes: [...member.holes]
+			}));
+			if (!addDifference(members, localMembers, onlyHere, true)) {
+				throw new RangeError('The proposal cannot become one linked-section difference.');
+			}
+			return [
+				transaction,
+				{
+					effects: [
+						setLinkHolesEffect.of([
+							...holesOutside(transaction.startState, members),
+							...absoluteHoles(localMembers)
+						]),
+						typeOnlyHereAppliedEffect.of(null)
+					]
+				}
+			];
+		}
+
+		const normalChange = change!;
+		const relative = {
+			from: normalChange.from - source.body.from,
+			to: normalChange.to - source.body.from
+		};
 		const local = transaction.startState.field(typeOnlyHereField, false);
-		if (local?.header === source.header && changeTouchesArmedRange(change, local.range)) {
+		if (local?.header === source.header && changeTouchesArmedRange(normalChange, local.range)) {
 			// If this range was already its own, the requested outcome already holds.
 			// Still mark the edit as consumed so the shell refreshes the persisted
 			// mapped range after the words change.
@@ -931,7 +1018,7 @@ export function sectionLinkMirror(): Extension {
 				...member,
 				holes: [...member.holes]
 			}));
-			if (addDifference(members, localMembers, change, true)) {
+			if (addDifference(members, localMembers, normalChange, true)) {
 				return [
 					transaction,
 					{

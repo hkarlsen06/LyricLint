@@ -670,6 +670,32 @@ describe('the assistant state', () => {
 		});
 	});
 
+	it('applies a local proposal with its resolved section span and preserves its scope', async () => {
+		const local = {
+			...proposal('local', 'Hold on tight', 'Hold me tight'),
+			applyTo: 'this_section_only' as const
+		};
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(proposalCall([local]))
+			.mockResolvedValueOnce(answer('Done.'));
+		const { state } = makeState({ ask });
+		const draft = draftBridge('Hold on tight');
+		state.registerDraftBridge(draft.bridge);
+		await state.open();
+		await state.send('Change only this copy.');
+
+		await state.approveProposal('local');
+
+		expect(draft.apply).toHaveBeenCalledWith(
+			{ baseRevision: 7, edits: expect.any(Array) },
+			{ applyTo: 'this_section_only', range: { from: 5, to: 7 } }
+		);
+		expect(state.messages[1]!.toolTurns?.[0]?.calls[0]).toMatchObject({
+			proposals: [{ id: 'local', applyTo: 'this_section_only', status: 'applied' }]
+		});
+	});
+
 	it('resolves section-link actions at render time with honest failure reasons', async () => {
 		const draftText = '[Chorus]\nA\n[Verse]\nB\n[Chorus]\nA\n[Pre-Chorus]\nC';
 		const actions = [

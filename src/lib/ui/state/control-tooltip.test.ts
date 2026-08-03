@@ -4,12 +4,11 @@ import { placeControlHint } from './control-tooltip.svelte.js';
 const viewport = { width: 1440, height: 900 };
 
 /**
- * The two surfaces that name their controls want opposite answers on both axes,
- * and neither should have to say so: the action tray hangs at the top-right of
- * the document, where a box laid out leftward runs off the panel edge, and the
- * transport is the last row above the status bar, where there is nothing below.
- * So the placement is read off the control rather than passed in, and this is
- * the arithmetic that does it.
+ * The surfaces that name their controls occupy different edges, and none should
+ * have to say so: the action tray hangs at the top-right of the document, the
+ * link picker can sit on either side of its anchor, and the transport is the
+ * last row above the status bar. So placement is read off the control rather
+ * than passed in, and this is the arithmetic that does it.
  */
 describe('placeControlHint', () => {
 	it('hangs below a control with room under it', () => {

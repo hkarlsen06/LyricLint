@@ -193,16 +193,18 @@
  * together at the one moment either is being asked for.
  *
  * One box for the whole workbench (`ControlTooltip.svelte`), filled by whichever
- * control `describeControl` is attached to — the editor's action tray and the
- * three transport buttons, in the strip and again on the artwork band. It
+ * control `describeControl` is attached to — the editor's action tray, the
+ * section-link picker, and the three transport buttons in the strip and again
+ * on the artwork band. It
  * replaced a `title` on every one of them, which is slow, unstyled, and says the
  * same thing in a different voice on every platform.
  *
  * `position: fixed`, measured from the control, exactly as the citation's
- * tooltip is: the tray sits inside the editor region's grid and the transport
- * inside a horizontal scroller, and a box in either one's flow would grow the
- * thing it annotates. Which corner it hangs from is decided per control in
- * `place()`, because the two surfaces want opposite answers on both axes.
+ * tooltip is: the tray sits inside the editor region's grid, the link picker is
+ * an anchored overlay, and the transport sits inside a horizontal scroller; a
+ * box in any one's flow would grow the thing it annotates. Which corner it hangs
+ * from is decided per control in `place()`, because the surfaces occupy
+ * different viewport edges.
  */
 .control-tooltip {
 	position: fixed;

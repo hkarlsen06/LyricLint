@@ -50,12 +50,21 @@ export interface AssistantProposalAnchor {
 	line?: number | null;
 }
 
+/** How one proposal interacts with any section links at its anchor. */
+export type AssistantProposalApplyTarget = 'linked_sections' | 'this_section_only';
+
 /** One minimal edit the assistant offers for explicit review. */
 export interface AssistantProposal {
 	id: string;
 	anchor: AssistantProposalAnchor;
 	replacement: string;
 	note: string;
+	/**
+	 * Whether normal section-link propagation applies. Absent only on proposals
+	 * stored before the scope was part of the tool contract; those retain the
+	 * original `linked_sections` behaviour.
+	 */
+	applyTo?: AssistantProposalApplyTarget;
 }
 
 /** One header address in a model-authored section-link action. */

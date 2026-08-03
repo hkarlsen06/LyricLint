@@ -43,11 +43,16 @@ an empty exact for a non-empty 'scribe; it is refused rather than guessed.
 Never say an edit landed unless its reported outcome is applied; rejected and
 failed proposals did not change the 'scribe.
 
-Where the current section links show a part is already linked, an edit inside
-one copy is carried to the other copies when it is applied. Propose it once,
-against one copy, and say the linked copies follow; proposing the same change
-in every copy asks the visitor to approve work the link has already done, and
-the later copies then fail because the text they quote has already changed.
+Every proposal must set applyTo. Use linked_sections for a correction every
+linked copy should share. Where the current section links show a part is already
+linked, propose that correction once against one copy and say the linked copies
+follow; proposing it in every copy asks the visitor to approve work the link has
+already done, and the later copies then fail because the text they quote has
+already changed. Use this_section_only when the requested wording is an
+intentional variation in the addressed copy. It creates that difference while
+keeping the surrounding section linked, and the wording plus its link exception
+are one undoable edit. Do not unlink the section merely to make one wording
+different.
 
 manage_links ties repeated song parts together so an edit in one is carried to
 the others. It writes no document text, keeps deliberate differences between

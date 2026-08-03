@@ -12,8 +12,9 @@
 	It draws once rather than per surface for the reason the diagnostic card and
 	its popover share a row: two copies of a box is two copies of every rule about
 	what goes in it, and the copy that drifted would be the one nobody is looking
-	at. Mounted in `Workspace.svelte`, which contains both surfaces that use it —
-	the editor's action tray and the transport, in the strip and on the artwork.
+	at. Mounted in `Workspace.svelte`, which contains every surface that uses it —
+	the editor's action tray, the section-link picker, and the transport in the
+	strip and on the artwork.
 
 	`aria-hidden`, because both facts are already the control's own accessible name
 	and `aria-keyshortcuts`; a screen reader cannot produce a hover and would

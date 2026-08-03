@@ -835,12 +835,26 @@ describe('Workspace and toolbar', () => {
 		expect(controller.snapshot.text).toBe('[Verse]\nNew lyric');
 		expect(controller.snapshot.revision).toBe(8);
 
+		const editorHandle = controller.editor;
+		const dispatchAtomicOnlyHere = vi.fn();
+		editorHandle.dispatchAtomicOnlyHere = dispatchAtomicOnlyHere;
+		const localEdit = {
+			baseRevision: 8,
+			edits: [{ from: 8, to: 11, insert: 'One' }]
+		};
+		expect(
+			bridge?.apply(localEdit, {
+				applyTo: 'this_section_only',
+				range: { from: 8, to: 17 }
+			})
+		).toBe(true);
+		expect(dispatchAtomicOnlyHere).toHaveBeenCalledWith(localEdit, { from: 8, to: 17 });
+
 		// A hovered proposal selects its span — which is what moves the wash —
 		// and then scrolls it into view, against the handle the editor has
 		// published rather than the one the workspace started with. The reveal
 		// comes last so the selection's own nudge cannot replace it, and neither
 		// call focuses: the caret is a location here, not a place to type.
-		const editorHandle = controller.editor;
 		const order: string[] = [];
 		const revealed: TextRange[] = [];
 		editorHandle.revealRange = (range) => {

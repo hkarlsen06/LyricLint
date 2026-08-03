@@ -1,4 +1,5 @@
 import { EditorSelection, Transaction } from '@codemirror/state';
+import type { Annotation } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import type { AtomicDocumentEdit, TextEdit } from '$lib/core/types.js';
 import { editorRevisionField } from './extensions/editor-state.js';
@@ -72,7 +73,11 @@ export function validateAtomicEdit(
 /**
  * Validate and dispatch a complete domain edit as exactly one CM transaction.
  */
-export function dispatchAtomicEdit(view: EditorView, edit: AtomicDocumentEdit): void {
+export function dispatchAtomicEdit(
+	view: EditorView,
+	edit: AtomicDocumentEdit,
+	annotations: readonly Annotation<unknown>[] = []
+): void {
 	const currentRevision = view.state.field(editorRevisionField);
 	validateAtomicEdit(edit, view.state.doc.length, currentRevision);
 
@@ -81,6 +86,10 @@ export function dispatchAtomicEdit(view: EditorView, edit: AtomicDocumentEdit): 
 		selection: edit.selectionAfter
 			? EditorSelection.single(edit.selectionAfter.anchor, edit.selectionAfter.head)
 			: undefined,
-		annotations: [Transaction.userEvent.of('input.atomic'), Transaction.addToHistory.of(true)]
+		annotations: [
+			Transaction.userEvent.of('input.atomic'),
+			Transaction.addToHistory.of(true),
+			...annotations
+		]
 	});
 }
