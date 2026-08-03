@@ -2,10 +2,14 @@
  * bindings (approximate, fast); everything here that is exact — daily counts,
  * concurrency, spend — is enforced by the QuotaCounter Durable Object. */
 export const LIMITS = {
-	/** Requests per minute per anonymous browser session (rate-limit binding). */
-	sessionPerMinute: 5,
-	/** Requests per minute per hashed IP (rate-limit binding). */
-	ipPerMinute: 15,
+	/** Provider requests per minute per anonymous browser session (rate-limit
+	 * binding). One logical user turn may legitimately spend five requests — the
+	 * initial call plus four draft-tool continuations — so leave room for six
+	 * conversational turns before treating the traffic as a burst. */
+	sessionPerMinute: 30,
+	/** Requests per minute per hashed IP (rate-limit binding). Keep room for
+	 * three independently active sessions behind one address. */
+	ipPerMinute: 90,
 	/** Requests per day per browser session (exact, Durable Object). Testing-
 	 * phase allowance: an agent turn is several requests, and the owner burned
 	 * the earlier 25 in one afternoon of testing. The spend caps below are the
@@ -68,22 +72,24 @@ export const SESSION_RULES = {
 export const MODEL = {
 	/** Provider-native OpenAI model id, routed through Cloudflare AI Gateway. */
 	id: 'gpt-5.6-luna',
-	// Not 'max': reasoning tokens count against maxOutputTokens, and at max
-	// effort ordinary questions burned the whole budget thinking — the response
-	// came back `incomplete` with zero answer tokens, which the browser saw as
-	// the model being down. Max effort also put 20-100s of silence before the
-	// first streamed token, which reads as a hang beside an interactive chat.
-	reasoning: { effort: 'high', context: 'current_turn' },
+	// Medium keeps this interactive rules assistant on GPT-5.6's conversational
+	// baseline. Higher efforts spend more of maxOutputTokens on reasoning and can
+	// put long stretches of silence before the first streamed token.
+	reasoning: { effort: 'medium', context: 'current_turn' },
+	/** GPT-5.6 answer-length default. The prompt already bounds what an answer
+	 * must contain (lookup-table summaries, the four-rule cap); this trims the
+	 * prose around that content rather than the content itself. */
+	verbosity: 'low',
 	maxOutputTokens: 16_384,
 	/** A hung provider call must release concurrency slots; abort after this. */
 	providerTimeoutMs: 120_000,
 	/** Standard-processing prices per 1M tokens. Gateway spend limits remain the
 	 * authoritative global ceiling; these enforce the per-session approximation. */
-	estInputUsdPerMTok: 1,
-	estCachedInputUsdPerMTok: 0.1,
+	estInputUsdPerMTok: 0.2,
+	estCachedInputUsdPerMTok: 0.02,
 	/** GPT-5.6 explicit cache writes are billed at 1.25x uncached input. */
-	estCacheWriteUsdPerMTok: 1.25,
-	estOutputUsdPerMTok: 6
+	estCacheWriteUsdPerMTok: 0.25,
+	estOutputUsdPerMTok: 1.2
 } as const;
 
 /** Worst-case output spend held while a global request is in flight. The

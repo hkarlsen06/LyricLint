@@ -23,7 +23,8 @@
 		"test:unit": "vitest",
 		"token:apple": "node scripts/apple-music-token.mjs",
 		"assistant:corpus": "bun scripts/generate-rules-context.ts",
-		"assistant:test": "cd services/rules-assistant && bun install --frozen-lockfile && bun run check && bun run test"
+		"assistant:test": "cd services/rules-assistant && bun install --frozen-lockfile && bun run check && bun run test",
+		"assistant:deploy": "cd services/rules-assistant && bunx wrangler deploy"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

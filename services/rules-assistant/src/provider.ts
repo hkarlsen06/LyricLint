@@ -288,6 +288,7 @@ export function providerRequest(
 			? { tools: DRAFT_TOOLS, include: ['reasoning.encrypted_content' as const] }
 			: {}),
 		text: {
+			verbosity: MODEL.verbosity,
 			format: {
 				type: 'json_schema',
 				name: 'assistant_answer',

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHandler } from '../src/index';
-import { LIMITS, MAX_TOOL_ROUNDS, REQUEST_RULES, SESSION_RULES } from '../src/config';
+import { LIMITS, MAX_TOOL_ROUNDS, MODEL, REQUEST_RULES, SESSION_RULES } from '../src/config';
 import { corpus } from '../src/corpus';
 import { providerRequest, type AnswerProvider, type ProviderResult } from '../src/provider';
 import type { WireMessageV2 } from '../src/schema';
@@ -19,6 +19,10 @@ import {
 
 const QUESTION = 'How do I mark a chorus?';
 const USAGE = { inputTokens: 100, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 20 };
+
+function outputTokensPast(spendLimitUsd: number): number {
+	return Math.floor((spendLimitUsd * 1_000_000) / MODEL.estOutputUsdPerMTok) + 1;
+}
 
 async function firstSession(
 	handler: ReturnType<typeof createHandler>,
@@ -743,12 +747,12 @@ describe('the answers endpoint', () => {
 
 		it('stops a session that has spent its daily budget', async () => {
 			const env = makeEnv();
-			// One answer whose output alone estimates past the $2 session cap at $6/MTok.
+			// One answer whose output alone estimates past the session cap.
 			const expensive = providerReturning(validAnswer(), {
 				inputTokens: 1000,
 				cachedInputTokens: 0,
 				cacheWriteTokens: 0,
-				outputTokens: 400_000
+				outputTokens: outputTokensPast(LIMITS.sessionDailySpendUsd)
 			});
 			const handler = createHandler({ provider: expensive, verifyTurnstile: goodTurnstile });
 			const cookie = await firstSession(handler, env);
@@ -764,7 +768,7 @@ describe('the answers endpoint', () => {
 				inputTokens: 1000,
 				cachedInputTokens: 0,
 				cacheWriteTokens: 0,
-				outputTokens: 700_000
+				outputTokens: outputTokensPast(LIMITS.ipDailySpendUsd)
 			});
 			const handler = createHandler({ provider: expensive, verifyTurnstile: goodTurnstile });
 			const first = await handler(
@@ -802,12 +806,12 @@ describe('the answers endpoint', () => {
 
 		it('stops everyone when the global daily budget is spent', async () => {
 			const env = makeEnv();
-			// Global ceiling is $15; 2.6M output tokens at $6/MTok estimates past it.
+			// One answer whose output alone estimates past the global ceiling.
 			const expensive = providerReturning(validAnswer(), {
 				inputTokens: 1000,
 				cachedInputTokens: 0,
 				cacheWriteTokens: 0,
-				outputTokens: 2_600_000
+				outputTokens: outputTokensPast(LIMITS.globalDailySpendUsd)
 			});
 			const handler = createHandler({ provider: expensive, verifyTurnstile: goodTurnstile });
 			await firstSession(handler, env);

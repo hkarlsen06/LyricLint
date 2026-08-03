@@ -34,13 +34,14 @@
 				"name": "SESSION_MINUTE_LIMIT",
 				"type": "ratelimit",
 				"namespace_id": "1101",
-				"simple": { "limit": 5, "period": 60 }
+				// A user turn can be five provider requests when it uses all four tool rounds.
+				"simple": { "limit": 30, "period": 60 }
 			},
 			{
 				"name": "IP_MINUTE_LIMIT",
 				"type": "ratelimit",
 				"namespace_id": "1102",
-				"simple": { "limit": 15, "period": 60 }
+				"simple": { "limit": 90, "period": 60 }
 			}
 		]
 	},
