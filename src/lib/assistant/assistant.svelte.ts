@@ -414,6 +414,7 @@ export function createAssistantState(deps: AssistantDeps) {
 				message.id === assistantMessageId ? { ...message, answer } : message
 			);
 		};
+		const resetProgress = () => patchMessage(assistantMessageId, { answer: undefined });
 		try {
 			await patchMessage(assistantMessageId, { status: 'pending' });
 			while (true) {
@@ -432,6 +433,7 @@ export function createAssistantState(deps: AssistantDeps) {
 					clientRuleSetVersion: deps.ruleSetVersion,
 					toolsAvailable: draftBridge !== undefined,
 					onProgress: showProgress,
+					onRetry: resetProgress,
 					...(turnstileToken ? { turnstileToken } : {})
 				});
 				// A draft switch can interrupt a parked or in-flight tool turn while

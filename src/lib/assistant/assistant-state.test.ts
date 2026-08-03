@@ -150,6 +150,32 @@ describe('the assistant state', () => {
 		);
 	});
 
+	it('clears speculative live blocks when the stream retries', async () => {
+		const stateRef: { current?: ReturnType<typeof createAssistantState> } = {};
+		let answerAfterReset: unknown = 'not observed';
+		const ask = vi.fn(async (options: Parameters<AssistantDeps['ask']>[0]) => {
+			await options.onProgress?.({
+				scope: 'reviewed',
+				blocks: [{ kind: 'prose', text: 'Speculative.', ruleIds: [], sourceIds: [] }]
+			});
+			await options.onRetry?.();
+			answerAfterReset = stateRef.current?.messages[1]?.answer;
+			await options.onProgress?.({
+				scope: 'general',
+				blocks: [{ kind: 'general', text: 'Corrected.', ruleIds: [], sourceIds: [] }]
+			});
+			return answer('Corrected.');
+		});
+		const { state } = makeState({ ask });
+		stateRef.current = state;
+
+		await state.open();
+		await state.send('Question?');
+
+		expect(answerAfterReset).toBeUndefined();
+		expect(state.messages[1]!.answer?.blocks[0]!.text).toBe('Corrected.');
+	});
+
 	it('sends complete prior exchanges as context on the next question', async () => {
 		const { state, deps } = makeState();
 		await state.open();

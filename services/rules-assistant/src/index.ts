@@ -32,6 +32,8 @@ import {
 	createOpenAiProvider,
 	estimateSpendUsd,
 	type AnswerProvider,
+	type ProviderResult,
+	type ProviderUsage,
 	type ProviderToolCall
 } from './provider';
 import type { BeginResult } from './quota-do';
@@ -39,7 +41,9 @@ import {
 	answerRequestSchema,
 	toolRoundCount,
 	validateAnswer,
-	validateConversation
+	validateConversation,
+	type AnswerRequest,
+	type StructuredAnswer
 } from './schema';
 import { IncrementalAnswerStream } from './stream';
 
@@ -48,6 +52,46 @@ export { QuotaCounter } from './quota-do';
 interface QuotaHandle {
 	name: string;
 	slot: string;
+}
+
+export const REPAIR_INSTRUCTION = (message: string): string =>
+	`Your previous answer failed validation: ${message}. It was not shown to the visitor. Answer the question again, corrected, as a complete structured answer.`;
+
+function repairMessages(
+	messages: AnswerRequest['messages'],
+	raw: unknown,
+	message: string
+): AnswerRequest['messages'] {
+	return [
+		...messages,
+		{ role: 'assistant', content: JSON.stringify(raw) ?? 'null' },
+		{ role: 'user', content: REPAIR_INSTRUCTION(message) }
+	];
+}
+
+function sumUsage(...values: Array<ProviderUsage | undefined>): ProviderUsage | undefined {
+	const present = values.filter((value): value is ProviderUsage => value !== undefined);
+	if (present.length === 0) return undefined;
+	return present.reduce<ProviderUsage>(
+		(total, value) => ({
+			inputTokens: total.inputTokens + value.inputTokens,
+			cachedInputTokens: total.cachedInputTokens + value.cachedInputTokens,
+			cacheWriteTokens: total.cacheWriteTokens + value.cacheWriteTokens,
+			outputTokens: total.outputTokens + value.outputTokens
+		}),
+		{ inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 }
+	);
+}
+
+function invalidAnswerReason(error: ApiError): string {
+	return error.message.split(':', 1)[0] ?? error.message;
+}
+
+function warnInvalidAnswer(requestId: string, error: ApiError): void {
+	console.warn('assistant_invalid_answer', {
+		requestId,
+		reason: invalidAnswerReason(error)
+	});
 }
 
 async function quotaCall<T>(env: Env, name: string, path: string, body: unknown): Promise<T> {
@@ -158,6 +202,8 @@ export function createHandler(options: HandlerOptions = {}) {
 		const requestId = crypto.randomUUID();
 		let sessionHash: string | undefined;
 		let responseOrigin: string | undefined;
+		let metricUsage: ProviderUsage | undefined;
+		let metricSpendUsd = 0;
 		try {
 			if (env.ASSISTANT_DISABLED === 'true') {
 				throw new ApiError('service_disabled', 'The assistant is switched off right now.');
@@ -301,14 +347,7 @@ export function createHandler(options: HandlerOptions = {}) {
 					const encoder = new TextEncoder();
 					let cancelled = false;
 					let finalized: Promise<void> | undefined;
-					let usage:
-						| {
-								inputTokens: number;
-								cachedInputTokens: number;
-								cacheWriteTokens: number;
-								outputTokens: number;
-						  }
-						| undefined;
+					let usage: ProviderUsage | undefined;
 					let streamedOutputChars = 0;
 					let accountedSpendUsd = 0;
 					const streamSpendUsd = () =>
@@ -321,7 +360,7 @@ export function createHandler(options: HandlerOptions = {}) {
 							const emit = (event: unknown) => {
 								if (!cancelled) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 							};
-							const answerStream = new IncrementalAnswerStream(requestId, emit);
+							let answerStream = new IncrementalAnswerStream(requestId, emit);
 							const finalize = (outcome: 'ok' | 'error', code?: string): Promise<void> => {
 								finalized ??= (async () => {
 									accountedSpendUsd = streamSpendUsd();
@@ -349,10 +388,11 @@ export function createHandler(options: HandlerOptions = {}) {
 							};
 
 							void (async () => {
-								const timeout = setTimeout(
-									() => providerController.abort(),
-									MODEL.providerTimeoutMs
-								);
+								let timeout = setTimeout(() => providerController.abort(), MODEL.providerTimeoutMs);
+								const resetProviderTimeout = () => {
+									clearTimeout(timeout);
+									timeout = setTimeout(() => providerController.abort(), MODEL.providerTimeoutMs);
+								};
 								try {
 									// One line per streamed answer: how long the model thought before
 									// its first visible token, and how many deltas followed. This is
@@ -361,7 +401,7 @@ export function createHandler(options: HandlerOptions = {}) {
 									// buffer (that diagnosis has been paid for once already).
 									let deltaCount = 0;
 									let firstDeltaAtMs: number | undefined;
-									const result = await provider(
+									let result = await provider(
 										body.messages,
 										providerSafetyIdentifier,
 										providerController.signal,
@@ -405,12 +445,58 @@ export function createHandler(options: HandlerOptions = {}) {
 										await finishing;
 										emit({ type: 'done', quota });
 									} else {
-										const answer = validateAnswer(
-											result.raw,
-											corpusRuleIds,
-											corpusSourceIds,
-											body.toolsAvailable === true
-										);
+										let answer: StructuredAnswer;
+										try {
+											answer = validateAnswer(
+												result.raw,
+												corpusRuleIds,
+												corpusSourceIds,
+												body.toolsAvailable === true
+											);
+										} catch (error) {
+											if (
+												!(error instanceof ApiError) ||
+												error.code !== 'invalid_answer' ||
+												body.supportsRetry !== true
+											) {
+												throw error;
+											}
+											warnInvalidAnswer(requestId, error);
+											const firstUsage = result.usage;
+											emit({ type: 'retrying' });
+											answerStream = new IncrementalAnswerStream(requestId, emit);
+											resetProviderTimeout();
+											result = await provider(
+												repairMessages(body.messages, result.raw, error.message),
+												providerSafetyIdentifier,
+												providerController.signal,
+												body.toolsAvailable === true,
+												(delta) => {
+													streamedOutputChars += delta.length;
+													answerStream.push(delta);
+												},
+												(providerUsage) => {
+													usage = sumUsage(firstUsage, providerUsage);
+												}
+											);
+											usage = sumUsage(firstUsage, result.usage);
+											if (result.kind !== 'answer') {
+												throw new ApiError(
+													'invalid_answer',
+													'The assistant returned draft tools instead of a corrected answer.'
+												);
+											}
+											answer = validateAnswer(
+												result.raw,
+												corpusRuleIds,
+												corpusSourceIds,
+												body.toolsAvailable === true
+											);
+											console.warn('assistant_answer_repaired', {
+												requestId,
+												reason: invalidAnswerReason(error)
+											});
+										}
 										const finishing = finalize('ok');
 										answerStream.flush(answer);
 										await finishing;
@@ -429,12 +515,7 @@ export function createHandler(options: HandlerOptions = {}) {
 										code: apiError.code,
 										cause: error instanceof Error ? error.message : String(error)
 									});
-									if (apiError.code === 'invalid_answer') {
-										console.warn('assistant_invalid_answer', {
-											requestId,
-											reason: apiError.message.split(':', 1)[0]
-										});
-									}
+									if (apiError.code === 'invalid_answer') warnInvalidAnswer(requestId, apiError);
 									const finishing = finalize('error', apiError.code);
 									emit({ type: 'error', requestId, error: errorBody(apiError).error });
 									await finishing;
@@ -481,78 +562,132 @@ export function createHandler(options: HandlerOptions = {}) {
 					});
 				}
 				const controller = new AbortController();
-				const timeout = setTimeout(() => controller.abort(), MODEL.providerTimeoutMs);
-				let result;
+				let timeout = setTimeout(() => controller.abort(), MODEL.providerTimeoutMs);
+				const resetProviderTimeout = () => {
+					clearTimeout(timeout);
+					timeout = setTimeout(() => controller.abort(), MODEL.providerTimeoutMs);
+				};
+				let result: ProviderResult;
+				let answer: StructuredAnswer;
 				try {
 					result = await provider(
 						body.messages,
 						providerSafetyIdentifier,
 						controller.signal,
-						body.toolsAvailable === true
+						body.toolsAvailable === true,
+						undefined,
+						(providerUsage) => {
+							metricUsage = providerUsage;
+							spendUsd = estimateSpendUsd(providerUsage);
+							metricSpendUsd = spendUsd;
+						}
 					);
-				} finally {
-					clearTimeout(timeout);
-				}
-				spendUsd = estimateSpendUsd(result.usage);
-				if (result.kind === 'tool_calls') {
-					if (!body.toolsAvailable) {
-						throw new ApiError('invalid_answer', 'Draft tools were used when none were offered.');
-					}
-					if (toolRoundCount(body.messages) >= MAX_TOOL_ROUNDS) {
-						throw new ApiError(
-							'invalid_answer',
-							`The assistant may use draft tools at most ${MAX_TOOL_ROUNDS} times in one turn.`
+					metricUsage = result.usage;
+					spendUsd = estimateSpendUsd(result.usage);
+					metricSpendUsd = spendUsd;
+					if (result.kind === 'tool_calls') {
+						if (!body.toolsAvailable) {
+							throw new ApiError('invalid_answer', 'Draft tools were used when none were offered.');
+						}
+						if (toolRoundCount(body.messages) >= MAX_TOOL_ROUNDS) {
+							throw new ApiError(
+								'invalid_answer',
+								`The assistant may use draft tools at most ${MAX_TOOL_ROUNDS} times in one turn.`
+							);
+						}
+
+						state.uses += 1;
+						await releaseAll('/finish', spendUsd);
+						writeMetric(env, {
+							outcome: 'ok',
+							latencyMs: now() - startedAt,
+							sessionHash,
+							inputTokens: result.usage.inputTokens,
+							cachedInputTokens: result.usage.cachedInputTokens,
+							cacheWriteTokens: result.usage.cacheWriteTokens,
+							outputTokens: result.usage.outputTokens,
+							spendUsd,
+							requestId
+						});
+						return streamedToolCalls(
+							env,
+							{
+								calls: result.calls,
+								providerItems: result.providerItems,
+								quota: {
+									browserRemaining: sessionQuota.remaining,
+									ipRemaining: ipQuota!.remaining,
+									resetsAt: sessionQuota.resetsAt
+								}
+							},
+							{ 'set-cookie': await setCookie() },
+							responseOrigin
 						);
+					}
+					try {
+						answer = validateAnswer(
+							result.raw,
+							corpusRuleIds,
+							corpusSourceIds,
+							body.toolsAvailable === true
+						);
+					} catch (error) {
+						if (!(error instanceof ApiError) || error.code !== 'invalid_answer') throw error;
+						warnInvalidAnswer(requestId, error);
+						const firstResult = result;
+						resetProviderTimeout();
+						result = await provider(
+							repairMessages(body.messages, firstResult.raw, error.message),
+							providerSafetyIdentifier,
+							controller.signal,
+							body.toolsAvailable === true,
+							undefined,
+							(providerUsage) => {
+								const combinedUsage = sumUsage(firstResult.usage, providerUsage)!;
+								metricUsage = combinedUsage;
+								spendUsd = estimateSpendUsd(combinedUsage);
+								metricSpendUsd = spendUsd;
+							}
+						);
+						const combinedUsage = sumUsage(firstResult.usage, result.usage)!;
+						metricUsage = combinedUsage;
+						spendUsd = estimateSpendUsd(combinedUsage);
+						metricSpendUsd = spendUsd;
+						if (result.kind !== 'answer') {
+							throw new ApiError(
+								'invalid_answer',
+								'The assistant returned draft tools instead of a corrected answer.'
+							);
+						}
+						answer = validateAnswer(
+							result.raw,
+							corpusRuleIds,
+							corpusSourceIds,
+							body.toolsAvailable === true
+						);
+						console.warn('assistant_answer_repaired', {
+							requestId,
+							reason: invalidAnswerReason(error)
+						});
 					}
 
 					state.uses += 1;
 					await releaseAll('/finish', spendUsd);
+					const finalUsage = metricUsage!;
 					writeMetric(env, {
 						outcome: 'ok',
 						latencyMs: now() - startedAt,
 						sessionHash,
-						inputTokens: result.usage.inputTokens,
-						cachedInputTokens: result.usage.cachedInputTokens,
-						cacheWriteTokens: result.usage.cacheWriteTokens,
-						outputTokens: result.usage.outputTokens,
+						inputTokens: finalUsage.inputTokens,
+						cachedInputTokens: finalUsage.cachedInputTokens,
+						cacheWriteTokens: finalUsage.cacheWriteTokens,
+						outputTokens: finalUsage.outputTokens,
 						spendUsd,
 						requestId
 					});
-					return streamedToolCalls(
-						env,
-						{
-							calls: result.calls,
-							providerItems: result.providerItems,
-							quota: {
-								browserRemaining: sessionQuota.remaining,
-								ipRemaining: ipQuota!.remaining,
-								resetsAt: sessionQuota.resetsAt
-							}
-						},
-						{ 'set-cookie': await setCookie() },
-						responseOrigin
-					);
+				} finally {
+					clearTimeout(timeout);
 				}
-				const answer = validateAnswer(
-					result.raw,
-					corpusRuleIds,
-					corpusSourceIds,
-					body.toolsAvailable === true
-				);
-
-				state.uses += 1;
-				await releaseAll('/finish', spendUsd);
-				writeMetric(env, {
-					outcome: 'ok',
-					latencyMs: now() - startedAt,
-					sessionHash,
-					inputTokens: result.usage.inputTokens,
-					cachedInputTokens: result.usage.cachedInputTokens,
-					cacheWriteTokens: result.usage.cacheWriteTokens,
-					outputTokens: result.usage.outputTokens,
-					spendUsd,
-					requestId
-				});
 				const responseBody = {
 					requestId,
 					assistant: answer,
@@ -590,16 +725,18 @@ export function createHandler(options: HandlerOptions = {}) {
 			if (apiError.code === 'invalid_answer') {
 				// Record only the invariant category, never the model payload or an
 				// unknown model-written identifier that may contain user text.
-				console.warn('assistant_invalid_answer', {
-					requestId,
-					reason: apiError.message.split(':', 1)[0]
-				});
+				warnInvalidAnswer(requestId, apiError);
 			}
 			writeMetric(env, {
 				outcome: 'error',
 				code: apiError.code,
 				latencyMs: now() - startedAt,
 				sessionHash,
+				inputTokens: metricUsage?.inputTokens,
+				cachedInputTokens: metricUsage?.cachedInputTokens,
+				cacheWriteTokens: metricUsage?.cacheWriteTokens,
+				outputTokens: metricUsage?.outputTokens,
+				spendUsd: metricSpendUsd,
 				requestId
 			});
 			const headers = (apiError as ApiError & { headers?: Record<string, string> }).headers;

@@ -772,6 +772,27 @@ describe('draft-work answer validation', () => {
 		).toThrowError(expect.objectContaining({ code: 'invalid_answer' }));
 	});
 
+	it('lets an uncited example lead a cited answer instead of retracting it', () => {
+		const validated = validateAnswer(
+			{
+				scope: 'reviewed',
+				blocks: [
+					{ kind: 'example', text: 'A lyric\n\nAnother lyric', ruleIds: [], sourceIds: [] },
+					{
+						kind: 'prose',
+						text: 'A blank line starts a new section, which needs its own header.',
+						ruleIds: [RULE_ID],
+						sourceIds: []
+					}
+				]
+			},
+			knownRules,
+			knownSources
+		);
+		expect(validated.scope).toBe('reviewed');
+		expect(validated.blocks.map((block) => block.kind)).toEqual(['example', 'prose']);
+	});
+
 	it('rejects draft-work when tools were not offered', () => {
 		expect(() =>
 			validateAnswer(

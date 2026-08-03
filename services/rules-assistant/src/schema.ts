@@ -198,7 +198,8 @@ export const answerRequestSchema = z
 		messages: z.array(wireMessageV2Schema).min(1).max(REQUEST_RULES.maxSuppliedMessages),
 		turnstileToken: z.string().min(1).max(4096).optional(),
 		clientRuleSetVersion: z.string().min(1).max(64),
-		toolsAvailable: z.boolean().optional()
+		toolsAvailable: z.boolean().optional(),
+		supportsRetry: z.boolean().optional()
 	})
 	.strict();
 
@@ -474,6 +475,11 @@ export function validateAnswer(
 			reviewedSupportSeen = true;
 			return false;
 		}
+		// An uncited example is an illustration, not a reviewed claim — the
+		// prose beside it carries the citation. Binding it to the ordering rule
+		// retracted whole streamed answers that led with a short example before
+		// their cited explanation, which is an ordinary answer shape.
+		if (block.kind === 'example') return false;
 		// Once a block has attached the canonical reference, later blocks may
 		// continue that same explanation without attaching the rule twice.
 		return !reviewedSupportSeen;

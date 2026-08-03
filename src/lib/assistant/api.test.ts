@@ -51,6 +51,64 @@ describe('assistant answer streaming', () => {
 				headers: { 'content-type': 'application/json', accept: 'application/x-ndjson' }
 			})
 		);
+		const sent = JSON.parse(vi.mocked(fetcher).mock.calls[0]![1]!.body as string) as Record<
+			string,
+			unknown
+		>;
+		expect(sent.supportsRetry).toBe(true);
+	});
+
+	it('discards speculative blocks and restarts from the repaired answer', async () => {
+		const events = [
+			{ type: 'start', requestId: 'req-repair', scope: 'reviewed' },
+			{ type: 'block_start', kind: 'prose' },
+			{ type: 'text_delta', delta: 'Invented answer.' },
+			{ type: 'retrying' },
+			{ type: 'start', requestId: 'req-repair', scope: 'general' },
+			{ type: 'block_start', kind: 'general' },
+			{ type: 'text_delta', delta: 'Corrected answer.' },
+			{ type: 'block_done', kind: 'general', ruleIds: [], sourceIds: [] },
+			{
+				type: 'done',
+				quota: { browserRemaining: 24, ipRemaining: 74, resetsAt: '2026-08-02T00:00:00Z' }
+			}
+		];
+		const progress = vi.fn();
+		const retry = vi.fn();
+		const fetcher = vi.fn(
+			async () =>
+				new Response(`${events.map((event) => JSON.stringify(event)).join('\n')}\n`, {
+					headers: { 'content-type': 'application/x-ndjson' }
+				})
+		);
+
+		const response = await askAssistant({
+			chatId: 'chat-repair',
+			messages: [{ role: 'user', content: 'Question' }],
+			clientRuleSetVersion: 'v1',
+			fetcher,
+			onProgress: progress,
+			onRetry: retry
+		});
+
+		expect(retry).toHaveBeenCalledTimes(1);
+		expect(response).toMatchObject({
+			kind: 'answer',
+			assistant: {
+				scope: 'general',
+				blocks: [{ kind: 'general', text: 'Corrected answer.', ruleIds: [], sourceIds: [] }]
+			}
+		});
+		expect(progress).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				blocks: [expect.objectContaining({ text: 'Corrected answer.' })]
+			})
+		);
+		expect(progress).not.toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				blocks: [expect.objectContaining({ text: 'Invented answer.' })]
+			})
+		);
 	});
 
 	it('reads the worker ordering: every block opens before any block closes', async () => {
@@ -153,6 +211,7 @@ describe('assistant answer streaming', () => {
 			}
 		];
 		const progress = vi.fn();
+		const retry = vi.fn();
 		const fetcher = vi.fn(
 			async () =>
 				new Response(`${events.map((event) => JSON.stringify(event)).join('\n')}\n`, {
@@ -165,7 +224,8 @@ describe('assistant answer streaming', () => {
 			messages: [{ role: 'user', content: 'Question' }],
 			clientRuleSetVersion: 'v1',
 			fetcher,
-			onProgress: progress
+			onProgress: progress,
+			onRetry: retry
 		});
 		await expect(request).rejects.toEqual(
 			expect.objectContaining<Partial<AssistantError>>({
@@ -177,6 +237,7 @@ describe('assistant answer streaming', () => {
 			scope: 'general',
 			blocks: [{ kind: 'general', text: 'Unvalidated text', ruleIds: [], sourceIds: [] }]
 		});
+		expect(retry).not.toHaveBeenCalled();
 	});
 
 	it('maps an unknown in-stream error code to provider_error', async () => {

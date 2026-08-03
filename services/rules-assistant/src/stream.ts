@@ -2,6 +2,7 @@ import { answerScopes, type AnswerBlock, type AnswerScope, type StructuredAnswer
 
 export type AnswerStreamEvent =
 	| { type: 'start'; requestId: string; scope: AnswerScope }
+	| { type: 'retrying' }
 	| { type: 'block_start'; kind: AnswerBlock['kind'] }
 	| { type: 'text_delta'; delta: string }
 	| { type: 'block_done'; kind: AnswerBlock['kind']; ruleIds: string[]; sourceIds: string[] };

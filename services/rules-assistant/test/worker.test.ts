@@ -60,6 +60,41 @@ describe('the answers endpoint', () => {
 		expect(response.headers.get('set-cookie')).toMatch(/HttpOnly; Secure; SameSite=Strict/);
 	});
 
+	it('repairs an invalid JSON answer once before responding', async () => {
+		const env = makeEnv();
+		const invalid = validAnswer({
+			blocks: [{ kind: 'prose', text: 'Invented.', ruleIds: ['made.up'], sourceIds: [] }]
+		});
+		const repaired = validAnswer({
+			blocks: [{ kind: 'prose', text: 'Corrected.', ruleIds: [RULE_ID], sourceIds: [] }]
+		});
+		const provider: AnswerProvider = vi
+			.fn()
+			.mockResolvedValueOnce({ kind: 'answer', raw: invalid, usage: USAGE })
+			.mockResolvedValueOnce({ kind: 'answer', raw: repaired, usage: USAGE });
+		const handler = createHandler({ provider, verifyTurnstile: goodTurnstile });
+
+		const response = await handler(makeRequest(requestBody({ turnstileToken: 'good-token' })), env);
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as {
+			assistant: { blocks: Array<{ text: string; ruleIds: string[] }> };
+		};
+		expect(body.assistant.blocks).toEqual([
+			expect.objectContaining({ text: 'Corrected.', ruleIds: [RULE_ID] })
+		]);
+		expect(provider).toHaveBeenCalledTimes(2);
+		const repairInput = vi.mocked(provider).mock.calls[1]![0];
+		expect(repairInput.slice(-2)).toEqual([
+			{ role: 'assistant', content: JSON.stringify(invalid) },
+			expect.objectContaining({
+				role: 'user',
+				content: expect.stringContaining('Your previous answer failed validation:')
+			})
+		]);
+		expect(env.points.at(-1)?.blobs?.[0]).toBe('ok');
+		expect(env.points.at(-1)?.doubles?.slice(1, 5)).toEqual([200, 0, 0, 40]);
+	});
+
 	it('falls back to ordered NDJSON when a fake provider does not emit deltas', async () => {
 		const env = makeEnv();
 		const handler = createHandler({
@@ -355,7 +390,54 @@ describe('the answers endpoint', () => {
 		expect(events.at(-1)).toMatchObject({ error: { code: 'invalid_answer' } });
 		expect(events.some((event) => event.type === 'block_done')).toBe(false);
 		expect(events.some((event) => event.type === 'done')).toBe(false);
+		expect(events.some((event) => event.type === 'retrying')).toBe(false);
+		expect(provider).toHaveBeenCalledTimes(1);
 		expect(env.quotaNamespace.calls.filter((call) => call.path === '/finish')).toHaveLength(3);
+	});
+
+	it('restarts a supported answer stream after one invalid attempt', async () => {
+		const env = makeEnv();
+		const invalid = validAnswer({
+			blocks: [{ kind: 'prose', text: 'Speculative.', ruleIds: ['invented.rule'], sourceIds: [] }]
+		});
+		const repaired = validAnswer({
+			blocks: [{ kind: 'prose', text: 'Validated.', ruleIds: [RULE_ID], sourceIds: [] }]
+		});
+		const attempts = [invalid, repaired];
+		const provider: AnswerProvider = vi.fn(
+			async (_messages, _safetyIdentifier, _signal, _toolsAvailable, onDelta) => {
+				const raw = attempts[vi.mocked(provider).mock.calls.length - 1]!;
+				onDelta?.(JSON.stringify(raw));
+				return { kind: 'answer' as const, raw, usage: USAGE };
+			}
+		);
+		const handler = createHandler({ provider, verifyTurnstile: goodTurnstile });
+
+		const response = await handler(
+			makeRequest(requestBody({ turnstileToken: 'good-token', supportsRetry: true }), {
+				accept: 'application/x-ndjson'
+			}),
+			env
+		);
+		const events = (await response.text())
+			.trim()
+			.split('\n')
+			.map((line) => JSON.parse(line) as Record<string, unknown>);
+		expect(events.map((event) => event.type)).toEqual([
+			'start',
+			'block_start',
+			'text_delta',
+			'retrying',
+			'start',
+			'block_start',
+			'text_delta',
+			'block_done',
+			'done'
+		]);
+		expect(events.filter((event) => event.type === 'start')).toHaveLength(2);
+		expect(events.some((event) => event.type === 'error')).toBe(false);
+		expect(provider).toHaveBeenCalledTimes(2);
+		expect(env.points.at(-1)?.doubles?.slice(1, 5)).toEqual([200, 0, 0, 40]);
 	});
 
 	describe('kill switch', () => {
@@ -857,6 +939,28 @@ describe('the answers endpoint', () => {
 			],
 			['prose instead of the schema', { answer: 'Just some text' }]
 		];
+
+		it('surfaces the second invalid JSON answer after exactly one repair call', async () => {
+			const env = makeEnv();
+			const first = invalidAnswers[0]![1];
+			const second = invalidAnswers[2]![1];
+			const provider: AnswerProvider = vi
+				.fn()
+				.mockResolvedValueOnce({ kind: 'answer', raw: first, usage: USAGE })
+				.mockResolvedValueOnce({ kind: 'answer', raw: second, usage: USAGE });
+			const handler = createHandler({ provider, verifyTurnstile: goodTurnstile });
+
+			const response = await handler(
+				makeRequest(requestBody({ turnstileToken: 'good-token' })),
+				env
+			);
+			expect(response.status).toBe(502);
+			const body = (await response.json()) as { error: { code: string } };
+			expect(body.error.code).toBe('invalid_answer');
+			expect(provider).toHaveBeenCalledTimes(2);
+			expect(env.points.at(-1)?.blobs?.slice(0, 2)).toEqual(['error', 'invalid_answer']);
+			expect(env.points.at(-1)?.doubles?.slice(1, 5)).toEqual([200, 0, 0, 40]);
+		});
 
 		for (const [name, raw] of invalidAnswers) {
 			it(`refuses ${name} as invalid_answer`, async () => {

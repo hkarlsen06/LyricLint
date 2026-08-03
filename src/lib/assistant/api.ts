@@ -53,6 +53,7 @@ export interface AskOptions {
 	toolsAvailable?: boolean;
 	turnstileToken?: string;
 	onProgress?(answer: StructuredAssistantAnswer): void | Promise<void>;
+	onRetry?(): void | Promise<void>;
 	fetcher?: typeof fetch;
 	signal?: AbortSignal;
 }
@@ -74,6 +75,7 @@ export async function askAssistant(options: AskOptions): Promise<TurnResponse> {
 				chatId: options.chatId,
 				messages: options.messages,
 				clientRuleSetVersion: options.clientRuleSetVersion,
+				supportsRetry: true,
 				...(options.toolsAvailable ? { toolsAvailable: true } : {}),
 				...(options.turnstileToken ? { turnstileToken: options.turnstileToken } : {})
 			})
@@ -96,7 +98,7 @@ export async function askAssistant(options: AskOptions): Promise<TurnResponse> {
 		throw new AssistantError(code, message);
 	}
 	if (response.headers.get('content-type')?.includes('application/x-ndjson')) {
-		return readAnswerStream(response, options.onProgress);
+		return readAnswerStream(response, options.onProgress, options.onRetry);
 	}
 	const answer = (await response.json()) as Omit<Extract<TurnResponse, { kind: 'answer' }>, 'kind'>;
 	return { kind: 'answer', ...answer };
@@ -104,6 +106,7 @@ export async function askAssistant(options: AskOptions): Promise<TurnResponse> {
 
 type StreamEvent =
 	| { type: 'start'; requestId: string; scope: AssistantAnswerScope }
+	| { type: 'retrying' }
 	| { type: 'block_start'; kind: AssistantAnswerBlock['kind'] }
 	| { type: 'text_delta'; delta: string }
 	| {
@@ -118,7 +121,8 @@ type StreamEvent =
 
 async function readAnswerStream(
 	response: Response,
-	onProgress?: AskOptions['onProgress']
+	onProgress?: AskOptions['onProgress'],
+	onRetry?: AskOptions['onRetry']
 ): Promise<TurnResponse> {
 	if (!response.body) throw new AssistantError('provider_error', 'The answer stream was empty.');
 	const reader = response.body.getReader();
@@ -138,6 +142,7 @@ async function readAnswerStream(
 	let providerItems: string | undefined;
 	let quota: AssistantQuota | undefined;
 	let lastPublishedAt = Number.NEGATIVE_INFINITY;
+	let awaitingRetryStart = false;
 
 	const publish = async (force = false) => {
 		if (!scope || !onProgress) return;
@@ -148,10 +153,26 @@ async function readAnswerStream(
 	};
 	const consume = async (line: string) => {
 		const event = JSON.parse(line) as StreamEvent;
+		if (awaitingRetryStart && event.type !== 'start' && event.type !== 'error') {
+			throw new Error('A repaired answer did not restart its stream.');
+		}
 		switch (event.type) {
 			case 'start':
 				requestId = event.requestId;
 				scope = event.scope;
+				awaitingRetryStart = false;
+				break;
+			case 'retrying':
+				requestId = '';
+				scope = undefined;
+				open = [];
+				closed = [];
+				toolCalls = undefined;
+				providerItems = undefined;
+				quota = undefined;
+				lastPublishedAt = Number.NEGATIVE_INFINITY;
+				awaitingRetryStart = true;
+				await onRetry?.();
 				break;
 			case 'block_start':
 				open = [...open, { kind: event.kind, text: '', ruleIds: [], sourceIds: [] }];
