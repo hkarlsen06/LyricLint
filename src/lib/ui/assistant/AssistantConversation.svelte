@@ -32,7 +32,7 @@
 
 	const suggestions = [
 		'How should I format a chorus?',
-		'When should I use an em dash?',
+		'Can you help me proofread a lyric?',
 		'How do I mark an unknown lyric?'
 	];
 	const quotaLow = $derived(assistant.quota !== undefined && assistant.quota.browserRemaining <= 3);
@@ -168,8 +168,8 @@
 			<div class="assistant-empty">
 				<h3>What would you like to check?</h3>
 				<p>
-					Ask about Genius transcription or grammar in any reviewed language. Answers cite the
-					relevant LyricLint rules.
+					Ask about Genius transcription, proofreading, grammar, or wording. Answers cite a relevant
+					reviewed rule when one applies.
 				</p>
 				<div class="assistant-suggestions" aria-label="Suggested questions">
 					{#each suggestions as suggestion (suggestion)}
@@ -328,7 +328,7 @@
 					bind:this={composerInput}
 					bind:value={draft}
 					rows="1"
-					placeholder="Ask a question about the guidelines…"
+					placeholder="Ask about the guidelines or proofreading…"
 					oninput={(event) => resizeComposer(event.currentTarget)}
 					onkeydown={onComposerKeydown}></textarea>
 				<button

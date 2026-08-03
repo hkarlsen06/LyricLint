@@ -9,7 +9,12 @@ interface EvalCase {
 	category: string;
 	language: string;
 	question: string;
-	expect?: { scopes?: string[]; citesAny?: string[]; mentionsAll?: string[] };
+	expect?: {
+		scopes?: string[];
+		citesAny?: string[];
+		citesNone?: boolean;
+		mentionsAll?: string[];
+	};
 }
 
 const evalSet = evalSetJson as unknown as { version: number; cases: EvalCase[] };
@@ -59,6 +64,12 @@ describe('the evaluation set', () => {
 		]) {
 			expect(categories.has(required), `missing category "${required}"`).toBe(true);
 		}
+	});
+
+	it('covers general help both with and without a useful reviewed rule', () => {
+		const cases = evalSet.cases.filter((testCase) => testCase.category === 'general-guidance');
+		expect(cases.some((testCase) => testCase.expect?.citesNone)).toBe(true);
+		expect(cases.some((testCase) => (testCase.expect?.citesAny?.length ?? 0) > 0)).toBe(true);
 	});
 
 	it('asks the lookup-table cases for forms the rule’s own example does not contain', () => {

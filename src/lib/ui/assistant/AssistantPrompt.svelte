@@ -21,7 +21,7 @@
 
 {#if assistant && assistantAvailable()}
 	<form class="assistant-prompt" onsubmit={submit}>
-		<label for="assistant-rules-question">Ask about the guidelines</label>
+		<label for="assistant-rules-question">Ask about transcription or wording</label>
 		<div class="assistant-prompt__row">
 			<input
 				id="assistant-rules-question"
@@ -32,8 +32,9 @@
 			<button type="submit" class="button" disabled={question.trim() === ''}>Ask</button>
 		</div>
 		<p class="assistant-prompt__hint">
-			Answered by a model with the reviewed rules in hand; cited rules render in full. Your question
-			leaves the browser — nothing else does. <a href={resolve('/(site)/privacy')}>Privacy</a>
+			Answered by a model with the reviewed rules in hand; relevant citations render in full, while
+			general proofreading needs none. Your question leaves the browser — nothing else does.
+			<a href={resolve('/(site)/privacy')}>Privacy</a>
 		</p>
 	</form>
 {/if}

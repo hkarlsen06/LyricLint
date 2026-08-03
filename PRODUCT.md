@@ -34,7 +34,7 @@ The product should feel like a focused editorial instrument: dense enough for ex
 ## Anti-references
 
 - Not a visual clone of Genius.
-- Not an automated transcription product, and not a chat wrapper around the editor: linting is deterministic, reviewed rules running locally. The one AI surface is the optional rules assistant, which answers questions about the guidelines in its own modal, receives only the text typed into its own composer, and can never see a draft.
+- Not an automated transcription product, and not a chat wrapper around the editor: linting is deterministic, reviewed rules running locally. The one AI surface is the optional rules assistant, which answers questions about the guidelines and offers general proofreading and convention help in its own modal, receives only the text typed into its own composer, and can never see a draft.
 - Not a toy text area covered in decorative colors.
 - Not a full IDE with irrelevant programming affordances.
 - Not a warning-heavy validator that silently rewrites user work.

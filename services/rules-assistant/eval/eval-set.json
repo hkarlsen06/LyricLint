@@ -1,6 +1,6 @@
 {
-	"version": 2,
-	"description": "Release-gate evaluation set for the rules assistant. Categories cover every rule family, all eight reviewed languages, policy-vs-grammar separation, unsupported questions, prompt injection, draft-access refusal, conflicting-language questions, multi-rule answers, and the table-shaped rules, whose whole lookup table has to reach the answer rather than the one pair their reviewed example is.",
+	"version": 3,
+	"description": "Release-gate evaluation set for the rules assistant. Categories cover every rule family, all eight reviewed languages, general proofreading and conventions, policy-vs-grammar separation, unsupported questions, prompt injection, draft-access refusal, conflicting-language questions, multi-rule answers, and the table-shaped rules, whose whole lookup table has to reach the answer rather than the one pair their reviewed example is.",
 	"cases": [
 		{
 			"id": "family-syntax",
@@ -279,6 +279,37 @@
 			"expect": {
 				"scopes": ["general"],
 				"citesNone": true
+			}
+		},
+		{
+			"id": "general-proofreading",
+			"category": "general-guidance",
+			"language": "en",
+			"question": "Can you proofread this lyric line and suggest a correction: 'Every night she walk home' ?",
+			"expect": {
+				"scopes": ["general"],
+				"citesNone": true,
+				"mentionsAll": ["walks"]
+			}
+		},
+		{
+			"id": "general-wording-convention",
+			"category": "general-guidance",
+			"language": "en",
+			"question": "For a lyric, is conversational wording like 'the street I grew up on' acceptable, or should I change it to the more formal 'the street on which I grew up'?",
+			"expect": {
+				"scopes": ["general"],
+				"citesNone": true
+			}
+		},
+		{
+			"id": "proofreading-with-reviewed-support",
+			"category": "general-guidance",
+			"language": "en",
+			"question": "Please proofread this lyric line: 'Dont leave me'",
+			"expect": {
+				"scopes": ["reviewed", "mixed"],
+				"citesAny": ["contraction.apostrophe"]
 			}
 		},
 		{

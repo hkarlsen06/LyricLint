@@ -2,7 +2,9 @@
 
 The one backend in the product, and deliberately not a backend for drafts: a
 Cloudflare Worker behind Cloudflare AI Gateway that answers questions about the
-Genius transcription guidelines for the accountless "Ask the rules" modal.
+Genius transcription guidelines and offers general proofreading and convention
+help for the accountless "Ask the rules" modal. Reviewed claims carry canonical
+references when relevant; general language advice does not need one.
 Draft linting stays in the browser; this service only ever receives what a
 visitor types into the assistant's own composer.
 

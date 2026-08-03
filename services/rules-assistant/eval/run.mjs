@@ -81,7 +81,7 @@ for (const [index, testCase] of evalSet.cases.entries()) {
 	const expect = testCase.expect ?? {};
 	let ok = !expect.scopes || expect.scopes.includes(answer.scope);
 	if (expect.citesAny && !expect.citesAny.some((id) => cited.includes(id))) ok = false;
-	if (expect.citesNone && cited.length > 0) ok = false;
+	if (expect.citesNone && (cited.length > 0 || citedSources.length > 0)) ok = false;
 	if (expect.minRuleCitations && new Set(cited).size < expect.minRuleCitations) ok = false;
 	if (expect.maxRuleCitations && new Set(cited).size > expect.maxRuleCitations) ok = false;
 	// A table-shaped rule reaches the model as its whole lookup table, and the
