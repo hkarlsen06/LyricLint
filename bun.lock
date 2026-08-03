@@ -14,7 +14,7 @@
         "@fontsource/ibm-plex-mono": "^5.3.0",
         "bits-ui": "^2.18.1",
         "dexie": "^4.4.4",
-        "harper.js": "2.4.0",
+        "harper.js": "2.7.0",
         "languagedetect": "2.0.0",
       },
       "devDependencies": {
@@ -400,7 +400,7 @@
 
     "globals": ["globals@17.7.0", "", {}, "sha512-Czmyns5dUsq4seFBR/Kdydhmo8y9kC79hiSkPn0YcGtNnYWnrgt0vjrSjx9tspoDGWm2CMarffRuLjM4xUz8xg=="],
 
-    "harper.js": ["harper.js@2.4.0", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-tFSoBJ9MfVoIVYBCrUXS0ovJr6uZ9l4HjGmpaEcsm7Ea/OnBf+LPSwgcVJUfHQVktMmuWyYXoV2ejUU1HnXkug=="],
+    "harper.js": ["harper.js@2.7.0", "", { "dependencies": { "fflate": "^0.8.2" } }, "sha512-INDnUMNJvQzv5Zv9lhgGuIRYNIpDvOXcieCbo5ED/dwn8V/02zVW5kKvU6jSJJHq1MpY0VDyg+5RjE7z5D+FeA=="],
 
     "html-encoding-sniffer": ["html-encoding-sniffer@6.0.0", "", { "dependencies": { "@exodus/bytes": "^1.6.0" } }, "sha512-CV9TW3Y3f8/wT0BRFc1/KAVQ3TUHiXmaAb6VW9vtiMFf7SLoMd1PdAc4W3KFOFETBJUb90KatHqlsZMWV+R9Gg=="],
 
