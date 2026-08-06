@@ -649,7 +649,11 @@
 			} else {
 				player?.pause();
 			}
-		}
+		},
+		// A toast and nothing else. The editor has already announced the same
+		// sentence — it owns the run and the message is its own — so announcing here
+		// as well would read it into the live region twice for one event.
+		onLyricSyncNotice: (message) => void controller.feedback.addToast({ message })
 	};
 
 	let syncing = $state(false);

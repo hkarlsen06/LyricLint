@@ -58,7 +58,13 @@ import {
 	setLineAnchorsEffect,
 	setPlayheadEffect
 } from './extensions/line-anchors.js';
-import { lyricSync, lyricSyncTap, lyricSyncTheme, setLyricSync } from './extensions/lyric-sync.js';
+import {
+	lyricSync,
+	lyricSyncTap,
+	lyricSyncTheme,
+	setLyricSync,
+	syncMoveTo
+} from './extensions/lyric-sync.js';
 import { invisibleMarks, invisibleMarksTheme } from './extensions/invisible-marks.js';
 import { markupDimField, markupDimTheme } from './extensions/markup-dim.js';
 import {
@@ -501,6 +507,7 @@ const lyricEditorCallbackKeySet = {
 	onSeekMedia: true,
 	onLineAnchorsChanged: true,
 	onLyricSyncChange: true,
+	onLyricSyncNotice: true,
 	onDiagnosticHighlight: true,
 	onDiagnosticDismiss: true,
 	onSectionLinkRequest: true,
@@ -552,6 +559,7 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		onRequestMediaTime: () => read().onRequestMediaTime?.(),
 		onSeekMedia: (time) => read().onSeekMedia?.(time),
 		onLyricSyncChange: (active, startAt) => read().onLyricSyncChange?.(active, startAt),
+		onLyricSyncNotice: (message) => read().onLyricSyncNotice?.(message),
 		onLineAnchorsChanged: () => read().onLineAnchorsChanged?.(),
 		onDiagnosticHighlight: (diagnostic) => read().onDiagnosticHighlight?.(diagnostic),
 		// Same allow-list, same trap: a hook left out of here is never called, with
@@ -614,9 +622,21 @@ export function createLyricEditor(
 		onSeek: (time: number) => callbackProxy.onSeekMedia?.(time),
 		onChange: (active: boolean, startAt?: number) =>
 			callbackProxy.onLyricSyncChange?.(active, startAt),
-		announce: (message: string) => callbackProxy.onAnnouncement(message)
+		announce: (message: string) => callbackProxy.onAnnouncement(message),
+		// The second audience. `announce` above reaches the `sr-only` region and
+		// nothing else, and a run filling a whole section from a linked peer is the
+		// one thing it does that has to be readable on screen as well.
+		notify: (message: string) => callbackProxy.onLyricSyncNotice?.(message)
 	};
 	const syncTap = lyricSyncTap(syncOptions);
+
+	// Held rather than inlined for the same reason the tap is: the line-number
+	// press is one gesture with two meanings — play from here, and, while a run is
+	// under way, tap from here — and they have to arrive in that order.
+	const seekOnLineNumber = anchorSeekOnLineNumber({
+		onSeek: (time) => callbackProxy.onSeekMedia?.(time),
+		currentTime: () => callbackProxy.onRequestMediaTime?.()
+	});
 
 	const extensions: Extension[] = [
 		history(),
@@ -626,10 +646,19 @@ export function createLyricEditor(
 		// `anchorSeekOnLineNumber`.
 		lineNumbers({
 			domEventHandlers: {
-				mousedown: anchorSeekOnLineNumber({
-					onSeek: (time) => callbackProxy.onSeekMedia?.(time),
-					currentTime: () => callbackProxy.onRequestMediaTime?.()
-				})
+				mousedown: (view, line, event) => {
+					// An untimed line is not this control's, so the press is left unclaimed
+					// and the run is not told about it either — a rewind on a row with no
+					// pointer cursor is an affordance that works on some lines and silently
+					// not on others.
+					if (!seekOnLineNumber(view, line, event)) return false;
+					// The tape moved, so in a run the caret moves with it: the caret is
+					// where the next tap lands, and the two ends of a run cannot be in
+					// different places. This is also the way out of a section filled from a
+					// linked peer.
+					syncMoveTo(view, line.from);
+					return true;
+				}
 			}
 		}),
 		performerGutter(),

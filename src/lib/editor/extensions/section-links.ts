@@ -437,6 +437,27 @@ function memberGroups(state: EditorState, parsed: ParsedDocument): number[][] {
 }
 
 /**
+ * The other members of this header's group, in document order.
+ *
+ * Exported for sync mode, which needs to know that the section a run has just
+ * walked into is the same words as one it has already timed. It answers off the
+ * membership ranges alone and never looks at the divergent runs: a peer whose
+ * last line is its own is still a peer whose *first* lines were typed once, and
+ * a run copying its timings is copying a rhythm rather than any text.
+ *
+ * Takes the parse rather than reaching for one, like `memberGroups` itself, so
+ * a caller on the tap path pays for one.
+ */
+export function linkedPeerHeaders(
+	state: EditorState,
+	parsed: ParsedDocument,
+	headerFrom: number
+): number[] {
+	const group = memberGroups(state, parsed).find((headers) => headers.includes(headerFrom));
+	return group ? group.filter((header) => header !== headerFrom) : [];
+}
+
+/**
  * The shape of one group, re-derived from the words if what is stored cannot
  * describe it.
  *

@@ -26,6 +26,8 @@ async function mount(options: {
 	seek: ReturnType<typeof vi.fn>;
 	syncChanges: { active: boolean; startAt?: number }[];
 	announcements: string[];
+	/** What the shell would have drawn as a toast. */
+	notices: string[];
 	anchorsChanged: ReturnType<typeof vi.fn>;
 }> {
 	let handle: EditorHandle | undefined;
@@ -33,6 +35,7 @@ async function mount(options: {
 	const anchorsChanged = vi.fn();
 	const syncChanges: { active: boolean; startAt?: number }[] = [];
 	const announcements: string[] = [];
+	const notices: string[] = [];
 	const callbacks: LyricEditorCallbacks = {
 		onSnapshot: vi.fn(),
 		onAssignRequest: vi.fn(),
@@ -43,6 +46,7 @@ async function mount(options: {
 		onSeekMedia: seek,
 		onLyricSyncChange: (active: boolean, startAt?: number) =>
 			void syncChanges.push({ active, startAt }),
+		onLyricSyncNotice: (message: string) => void notices.push(message),
 		onLineAnchorsChanged: anchorsChanged
 	};
 
@@ -59,7 +63,7 @@ async function mount(options: {
 	});
 	await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
 	if (!handle) throw new Error('CodeMirror did not publish its editor handle.');
-	return { handle, seek, syncChanges, announcements, anchorsChanged };
+	return { handle, seek, syncChanges, announcements, notices, anchorsChanged };
 }
 
 /**
@@ -999,5 +1003,202 @@ describe('sync mode', () => {
 		// The space went to the document rather than timing a line, which is the
 		// other half of the same claim.
 		expect(handle.getLineAnchors?.()).toEqual([]);
+	});
+});
+
+/*
+ * A chorus is typed once and sung three times, and a link is the document saying
+ * so. A run that has already timed one copy therefore knows the shape of the
+ * next: the words are the same words, and all that is left to establish is where
+ * in the song this repeat starts — which is exactly what the tap walking into it
+ * says. So the tap dates the first line and the peer's own intervals date the
+ * rest, the tape moves past what it just answered, and a toast says what happened
+ * and how to refuse it.
+ */
+describe('sync mode across linked sections', () => {
+	const linkedLines = [
+		'[Verse 1]', // 1
+		'first line', // 2
+		'', // 3
+		'[Chorus]', // 4
+		'hold on tight', // 5
+		'we go again', // 6
+		'all night long', // 7
+		'', // 8
+		'[Verse 2]', // 9
+		'second line', // 10
+		'', // 11
+		'[Chorus 2]', // 12
+		'hold on tight', // 13
+		'we go again', // 14
+		'all night long', // 15
+		'', // 16
+		'[Outro]', // 17
+		'fade away' // 18
+	];
+	const linkedSong = linkedLines.join('\n');
+
+	/** The first chorus timed by hand, the verses with it, the repeat still bare. */
+	const timedFirstCopy = [
+		{ line: 2, time: 5 },
+		{ line: 5, time: 10 },
+		{ line: 6, time: 12 },
+		{ line: 7, time: 14.5 },
+		{ line: 10, time: 20 }
+	];
+
+	async function halfTimed(now: () => number) {
+		const mounted = await mount({
+			text: linkedSong,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: now
+		});
+		// The column only draws once the shell has said where the audio is, and the
+		// line numbers only answer a press while it has.
+		await withColumn(mounted.handle, 0);
+		mounted.handle.setLineAnchors?.(timedFirstCopy);
+		mounted.handle.setSectionLinks?.([{ lines: [4, 12] }]);
+		return mounted;
+	}
+
+	function times(handle: EditorHandle): Record<number, number> {
+		return Object.fromEntries(
+			(handle.getLineAnchors?.() ?? []).map(({ line, time }) => [line, time])
+		);
+	}
+
+	// The times themselves are never copied — a peer's anchors belong to its own
+	// moment in the song, and carried over outright every jump into the second
+	// chorus would land in the first. What repeats is the distance between lines.
+	it('times a linked repeat from the intervals of the copy already timed', async () => {
+		let now = 0;
+		const { handle, seek, syncChanges, notices, announcements } = await halfTimed(() => now);
+
+		handle.setLyricSync?.(true);
+		// The run resumes on the last line that already has a time, so its first tap
+		// advances onto the repeat exactly as any other tap would.
+		expect(syncChanges.at(-1)).toEqual({ active: true, startAt: 20 });
+
+		now = 100;
+		handle.tapLyricSync?.();
+
+		const anchored = times(handle);
+		// The tap dates the first line, biased early by the usual offset.
+		expect(anchored[13]).toBeCloseTo(99.88, 5);
+		// And the peer's own 2s and 4.5s gaps date the two after it.
+		expect(anchored[14]).toBeCloseTo(101.88, 5);
+		expect(anchored[15]).toBeCloseTo(104.38, 5);
+		// The copy it was taken from is untouched.
+		expect(anchored[5]).toBe(10);
+
+		// The caret is on the last line of the repeat, so the next tap starts the
+		// section after it.
+		expect(handle.getSnapshot().selection.head).toBe(linkedSong.lastIndexOf('all night long'));
+		// And the tape goes with it: listening through a chorus that is already timed
+		// is waiting for a tap nobody is going to make.
+		expect(seek).toHaveBeenCalledTimes(1);
+		expect(seek.mock.calls[0]?.[0]).toBeCloseTo(104.38, 5);
+
+		const message =
+			'Chorus 2 timed from Chorus — 3 lines. Press a line number to time it by hand instead.';
+		// Both audiences: the toast region is not a live region, and either alone
+		// loses one of them.
+		expect(notices).toEqual([message]);
+		expect(announcements).toContain(message);
+
+		// The run carries on into the outro rather than ending on the fill.
+		expect(syncChanges.at(-1)?.active).toBe(true);
+		now = 120;
+		handle.tapLyricSync?.();
+		expect(times(handle)[18]).toBeCloseTo(119.88, 5);
+	});
+
+	// The way out, and the only one. Pressing the repeat's first line number sends
+	// the tape back to it and the run's caret with it — the two ends of a run
+	// cannot be in different places — and the section is not written a second time,
+	// or the shortcut would take the correction away on the very press it exists
+	// for.
+	it('hands the section back on a press of its line number, and does not refill it', async () => {
+		let now = 0;
+		const { handle, seek, notices } = await halfTimed(() => now);
+		handle.setLyricSync?.(true);
+		now = 100;
+		handle.tapLyricSync?.();
+
+		const first = lineNumberElements().find((element) => element.textContent === '13');
+		expect(first?.classList.contains('ll-line-seek')).toBe(true);
+		first?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+		// The press plays from the line, as it does outside a run.
+		expect(seek.mock.calls.at(-1)?.[0]).toBeCloseTo(99.88, 5);
+		expect(handle.getSnapshot().selection.head).toBe(linkedSong.lastIndexOf('hold on tight'));
+
+		// Disarmed, so the next tap times the line the press named rather than the
+		// one after it — and it stays a plain tap, with nothing written below it.
+		now = 200;
+		handle.tapLyricSync?.();
+		expect(times(handle)[13]).toBeCloseTo(199.88, 5);
+		expect(times(handle)[14]).toBeCloseTo(101.88, 5);
+		expect(notices).toHaveLength(1);
+
+		now = 210;
+		handle.tapLyricSync?.();
+		expect(times(handle)[14]).toBeCloseTo(209.88, 5);
+	});
+
+	// Only from a copy that comes earlier. A later peer is the same words and would
+	// date this section just as well, but a section written by the one below it
+	// reads as the document filling itself in backwards — and the run has not been
+	// there yet, so those are the times the user is on their way to correcting.
+	it('never fills a copy from the one below it', async () => {
+		let now = 0;
+		const { handle, notices } = await mount({
+			text: linkedSong,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => now
+		});
+		await withColumn(handle, 0);
+		// This time the *second* chorus is the one already timed.
+		handle.setLineAnchors?.([
+			{ line: 13, time: 60 },
+			{ line: 14, time: 62 },
+			{ line: 15, time: 64.5 }
+		]);
+		handle.setSectionLinks?.([{ lines: [4, 12] }]);
+
+		handle.setLyricSync?.(true);
+		now = 10;
+		handle.tapLyricSync?.();
+		now = 20;
+		handle.tapLyricSync?.();
+
+		// The first chorus's opening line is timed by the tap and nothing else is.
+		expect(times(handle)[5]).toBeCloseTo(19.88, 5);
+		expect(times(handle)[6]).toBeUndefined();
+		expect(handle.getSnapshot().selection.head).toBe(linkedSong.indexOf('hold on tight'));
+		expect(notices).toEqual([]);
+	});
+
+	// A link the user has not made says nothing about the words, so two choruses
+	// that happen to match are still tapped one line at a time.
+	it('says nothing about a repeat that is not linked', async () => {
+		let now = 0;
+		const { handle, seek, notices } = await mount({
+			text: linkedSong,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => now
+		});
+		await withColumn(handle, 0);
+		handle.setLineAnchors?.(timedFirstCopy);
+
+		handle.setLyricSync?.(true);
+		now = 100;
+		handle.tapLyricSync?.();
+
+		expect(times(handle)[13]).toBeCloseTo(99.88, 5);
+		expect(times(handle)[14]).toBeUndefined();
+		expect(handle.getSnapshot().selection.head).toBe(linkedSong.lastIndexOf('hold on tight'));
+		expect(seek).not.toHaveBeenCalled();
+		expect(notices).toEqual([]);
 	});
 });

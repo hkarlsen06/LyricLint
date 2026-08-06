@@ -164,6 +164,21 @@ export interface EditorOverlayCallbacks {
 	 */
 	onLyricSyncChange?(active: boolean, startAt?: number): void;
 	/**
+	 * A run did something on its own that the user has to be able to see.
+	 *
+	 * There is one of these: walking into a linked section whose earlier copy is
+	 * already timed writes the whole section from that copy's intervals and moves
+	 * the tape past it. Every other thing a run does is announced and drawn — the
+	 * caret, the rail, the times — and needs no toast; this one dates lines nobody
+	 * tapped, so it says what it did and how to refuse it.
+	 *
+	 * The editor announces the same sentence itself, so a shell that leaves this
+	 * hook off loses the toast and not the message. The shell draws it and does
+	 * **not** announce again: two live-region writes for one event is the message
+	 * read twice.
+	 */
+	onLyricSyncNotice?(message: string): void;
+	/**
 	 * The pointer is resting on a diagnostic's underline.
 	 *
 	 * Deliberately not `onDiagnosticActivate`: pointing is not navigation. The

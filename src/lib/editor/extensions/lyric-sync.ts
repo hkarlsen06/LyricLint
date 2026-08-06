@@ -1,6 +1,7 @@
 import { EditorState, Prec, StateEffect, StateField } from '@codemirror/state';
 import type { Extension, Line } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
+import type { Section } from '$lib/core/types.js';
 import {
 	anchorLineEffect,
 	anchorTimeAt,
@@ -9,6 +10,8 @@ import {
 	holdReadingLine,
 	isStampableLine
 } from './line-anchors.js';
+import { parsedDocumentForState } from './editor-state.js';
+import { linkedPeerHeaders } from './section-links.js';
 
 /**
  * Timing a whole lyric by tapping along with the song.
@@ -46,6 +49,9 @@ export const setLyricSyncEffect = StateEffect.define<boolean>();
 /** Internal: the caret's line has been timed by this run, or it has not. */
 const armEffect = StateEffect.define<boolean>();
 
+/** Internal: this section has had its timings written from a linked peer. */
+const markFilledEffect = StateEffect.define<number>();
+
 interface LyricSyncState {
 	active: boolean;
 	/**
@@ -59,17 +65,31 @@ interface LyricSyncState {
 	 * a line from the second.
 	 */
 	armed: boolean;
+	/**
+	 * The headers this run has already filled from a linked peer.
+	 *
+	 * One fill per section per run, and that is what makes the way out real: a
+	 * user who does not want the copied rhythm presses the section's first line
+	 * number, which sends the tape and the caret back there — and a tap that
+	 * filled the section a second time would take the escape hatch away on the
+	 * very press it exists for. Bare offsets rather than mapped positions,
+	 * because a document change ends the run and clears this with it.
+	 */
+	filled: readonly number[];
 }
 
 export const lyricSyncField = StateField.define<LyricSyncState>({
-	create: () => ({ active: false, armed: false }),
+	create: () => ({ active: false, armed: false, filled: [] }),
 	update(value, transaction) {
 		let next = value;
 		for (const effect of transaction.effects) {
 			// Entering or leaving always disarms: a new run starts by timing the line
 			// it starts on, not by skipping past it.
-			if (effect.is(setLyricSyncEffect)) next = { active: effect.value, armed: false };
+			if (effect.is(setLyricSyncEffect)) next = { active: effect.value, armed: false, filled: [] };
 			else if (effect.is(armEffect)) next = { ...next, armed: effect.value };
+			else if (effect.is(markFilledEffect)) {
+				next = { ...next, filled: [...next.filled, effect.value] };
+			}
 		}
 		return next;
 	}
@@ -118,6 +138,147 @@ export interface LyricSyncOptions {
 	 */
 	onChange(active: boolean, startAt?: number): void;
 	announce(message: string): void;
+	/**
+	 * Something happened in the run that the user has to be able to *see*.
+	 *
+	 * `announce` reaches the `sr-only` live region and nothing else, which is the
+	 * right channel for every other thing a run says: entering, resuming, stepping
+	 * back and stopping are all loud on screen already — the rail, the caret and
+	 * the times say them. Filling a section from a linked peer is not. Several
+	 * lines are dated at once, the caret jumps past them, and the tape moves,
+	 * without a press having asked for any of it, so the one thing it owes is a
+	 * sentence saying what it did and how to undo the decision.
+	 *
+	 * Both are called, because the toast region is not a live region and either
+	 * alone loses an audience — the same split `report` in `editor-session` makes.
+	 */
+	notify(message: string): void;
+}
+
+/** Every line of one section a run would tap, in order. */
+function stampableLines(state: EditorState, section: Section): Line[] {
+	const lines: Line[] = [];
+	const first = state.doc.lineAt(Math.min(section.from, state.doc.length)).number;
+	const last = state.doc.lineAt(Math.min(section.to, state.doc.length)).number;
+	for (let number = first; number <= last; number += 1) {
+		const line = state.doc.line(number);
+		if (isStampableLine(line)) lines.push(line);
+	}
+	return lines;
+}
+
+/** A header as the reader wrote it, ordinal and all: `Chorus 2`. */
+function headerLabel(section: Section | undefined): string {
+	return (section?.header?.rawNamePart.trim() || section?.header?.raw.trim()) ?? '';
+}
+
+/** What a run writes when it walks into a section it has already timed elsewhere. */
+interface LinkedFill {
+	/** The filled section's header, so one run fills it at most once. */
+	header: number;
+	label: string;
+	peerLabel: string;
+	/** Every line after the tapped one this peer can date, and when. */
+	anchors: readonly { pos: number; time: number }[];
+	/** The last line the fill reached, which is where the run carries on from. */
+	last: Line;
+	lastTime: number;
+}
+
+/**
+ * Time the rest of a linked section from the copy that is already timed.
+ *
+ * A chorus is typed once and sung three times, so a run that has timed the first
+ * one already knows the shape of the other two: the words are the same words —
+ * that is what a link *is* — and what is left to establish is where in the song
+ * this repeat starts, which is exactly what the tap that walks into it says. So
+ * the tap dates the first line and the peer's own intervals date the rest.
+ *
+ * **What is carried is the shape, never the times.** A peer's absolute anchors
+ * belong to its own moment in the song; copied outright they would send every
+ * jump into the second chorus back to the first. Each line is written at the
+ * tap plus that line's distance from the peer's opening line, so what repeats is
+ * the rhythm the transcriber already tapped by hand.
+ *
+ * Four things it refuses, and each is a case where a guess would be worse than
+ * the dash it replaces:
+ *
+ * - **Only on the way in.** A tap in the middle of a section is the user timing
+ *   that line, and nothing about it asks for the rest to be written for them.
+ * - **Only from a copy that comes earlier.** A later peer is the same words and
+ *   would date this section just as well, but a section written by the one below
+ *   it reads as the document filling itself in backwards — and the run has not
+ *   been there yet, so its times are the ones the user is on their way to
+ *   correcting.
+ * - **It stops at the peer's first gap** rather than skipping over it. Dating the
+ *   lines after a hole would leave an untimed line behind the caret, which is a
+ *   line the run never comes back to; stopping there hands the tapping back.
+ * - **It stops where the peer's own times go backwards.** Everything downstream —
+ *   the marked cell, the step back, the follow — reads anchors as ordered, and a
+ *   peer with broken data must not spread it.
+ */
+function linkedFill(state: EditorState, line: Line, at: number): LinkedFill | undefined {
+	const parsed = parsedDocumentForState(state);
+	const section = parsed.sections.find(
+		(candidate) => candidate.from <= line.from && line.to <= candidate.to
+	);
+	const header = section?.header;
+	if (!section || !header) return undefined;
+
+	const own = stampableLines(state, section);
+	if (own[0]?.from !== line.from || own.length < 2) return undefined;
+
+	const peers = linkedPeerHeaders(state, parsed, header.from)
+		.filter((peer) => peer < header.from)
+		.sort((left, right) => right - left);
+
+	for (const peer of peers) {
+		const peerSection = parsed.sections.find((candidate) => candidate.header?.from === peer);
+		if (!peerSection) continue;
+		const peerLines = stampableLines(state, peerSection);
+		const base = peerLines[0] ? anchorTimeAt(state, peerLines[0].from) : undefined;
+		if (base === undefined) continue;
+
+		const anchors: { pos: number; time: number }[] = [];
+		let last = line;
+		let lastTime = at;
+		for (let index = 1; index < own.length && index < peerLines.length; index += 1) {
+			const target = own[index];
+			const peerLine = peerLines[index];
+			if (!target || !peerLine) break;
+			const peerTime = anchorTimeAt(state, peerLine.from);
+			if (peerTime === undefined) break;
+			const time = at + (peerTime - base);
+			if (time <= lastTime) break;
+			anchors.push({ pos: target.from, time });
+			last = target;
+			lastTime = time;
+		}
+		if (anchors.length === 0) continue;
+		return {
+			header: header.from,
+			label: headerLabel(section),
+			peerLabel: headerLabel(peerSection),
+			anchors,
+			last,
+			lastTime
+		};
+	}
+	return undefined;
+}
+
+/**
+ * One short sentence: what was written, and the way out of it.
+ *
+ * The way out is half the message rather than a nicety. Nothing else on screen
+ * says that these times were derived, and the section may well be the one place
+ * this song departs from itself — so the sentence that reports the shortcut is
+ * also the only place the user is told they can refuse it.
+ */
+function fillMessage(fill: LinkedFill): string {
+	const name = fill.label || 'The linked section';
+	const from = fill.peerLabel || 'its earlier copy';
+	return `${name} timed from ${from} — ${fill.anchors.length + 1} lines. Press a line number to time it by hand instead.`;
 }
 
 function end(view: EditorView, options: LyricSyncOptions, message: string): boolean {
@@ -163,23 +324,52 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 		const line = sync.armed ? stampableFrom(view.state, caret.number + 1) : caret;
 		if (!line) return end(view, options, 'Every line is timed. Sync finished.');
 
+		const at = Math.max(0, time - tapOffsetSeconds);
+		// A section this run has already filled taps like any other: the user went
+		// back to it on purpose, and writing it again would be the shortcut taking
+		// the correction away from them.
+		const candidate = linkedFill(view.state, line, at);
+		const fill = candidate && !sync.filled.includes(candidate.header) ? candidate : undefined;
+		const landed = fill?.last ?? line;
+
 		view.dispatch({
 			effects: [
 				// It overwrites, because timing a song is the act of replacing whatever
 				// the last pass got wrong — a sync that refused would do nothing on a
 				// second run over a part-timed draft, which is the common case.
-				anchorLineEffect.of({ pos: line.from, time: Math.max(0, time - tapOffsetSeconds) }),
-				armEffect.of(true)
+				anchorLineEffect.of({ pos: line.from, time: at }),
+				// One transaction for the whole section, so the fill is one undo and one
+				// save exactly as a single tap is.
+				...(fill?.anchors ?? []).map((anchor) =>
+					anchorLineEffect.of({ pos: anchor.pos, time: anchor.time })
+				),
+				armEffect.of(true),
+				...(fill ? [markFilledEffect.of(fill.header)] : [])
 			],
-			selection: { anchor: line.from }
+			selection: { anchor: landed.from }
 		});
-		holdReadingLine(view, line.from);
+		holdReadingLine(view, landed.from);
+
+		if (fill) {
+			// The tape goes where the caret went. A run is one pass over the document
+			// against one pass of the audio, and the section between them has just been
+			// answered — leaving the user to listen through a chorus that is already
+			// timed is asking them to wait for a tap they are not going to make.
+			options.onSeek(fill.lastTime);
+			const message = fillMessage(fill);
+			options.announce(message);
+			options.notify(message);
+		}
 
 		// Nothing left to time, so the run is over — and it ends here rather than on
 		// a further tap, because a press that only stopped the mode would be a press
 		// the user made expecting to time something.
-		if (!stampableFrom(view.state, line.number + 1)) {
-			return end(view, options, `Last line timed at ${formatAnchorTime(time)}. Sync finished.`);
+		if (!stampableFrom(view.state, landed.number + 1)) {
+			return end(
+				view,
+				options,
+				`Last line timed at ${formatAnchorTime(fill?.lastTime ?? time)}. Sync finished.`
+			);
 		}
 		return true;
 	};
@@ -226,6 +416,38 @@ function stepBack(options: LyricSyncOptions) {
 		if (resumeAt !== undefined) options.onSeek(resumeAt);
 		return true;
 	};
+}
+
+/**
+ * Put a run's caret on the line the pointer just sent the tape to.
+ *
+ * A press on an anchored line's number plays from that moment, and outside a run
+ * that is the whole of what it does. Inside one it cannot be: the caret is where
+ * the next tap lands, so a tape that moved without it would leave the two ends of
+ * the run in different places — which is the failure `stepBack` seeks for, met
+ * from the other side.
+ *
+ * It is the way out of a section filled from a linked peer, and the only one:
+ * pressing that section's first line number rewinds to it, disarmed, so the next
+ * tap times that very line and the run walks the copy by hand from there.
+ *
+ * Called only from the line-number press, which is already narrowed to lines that
+ * carry a time — so nothing here promises a rewind on a row the pointer cursor
+ * says nothing about.
+ */
+export function syncMoveTo(view: EditorView, pos: number): boolean {
+	const sync = view.state.field(lyricSyncField, false);
+	if (!sync?.active) return false;
+	const line = view.state.doc.lineAt(Math.min(Math.max(pos, 0), view.state.doc.length));
+	if (!isStampableLine(line)) return false;
+	view.dispatch({
+		// Disarmed: the press names the line the user wants timed, not the one after
+		// it. A tap that advanced first would skip the line they came back for.
+		effects: armEffect.of(false),
+		selection: { anchor: line.from }
+	});
+	holdReadingLine(view, line.from);
+	return true;
 }
 
 export function lyricSync(options: LyricSyncOptions): Extension {

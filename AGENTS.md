@@ -1588,14 +1588,64 @@ The rest is five decisions:
   passes with or without the guard. The one that bites is stepping back once the document is already
   scrolled — without the guard that hauls the page up to re-centre a row already in plain view.
 
+#### A repeat is timed once, and the run walks over the copies
+
+A chorus is typed once and sung three times, and a link is the document already saying so. So a run
+that has timed one copy knows the shape of the next: the words are the same words — that is what a
+link _is_ — and the only thing left to establish is where in the song this repeat starts, which is
+exactly what the tap walking into it says. The tap dates the section's first line, the peer's own
+intervals date the rest, the tape moves to the last line of the repeat, and the run carries on from
+there. A three-chorus song is one pass with a chorus's worth of tapping in it instead of three.
+
+**What is carried is the shape, never the times.** A peer's anchors are absolute moments in the
+song, and copied outright every jump into the second chorus would land in the first. Each line is
+written at the tap plus that line's distance from the peer's own opening line, so what repeats is
+the rhythm the transcriber already tapped by hand.
+
+Five refusals, and each is a case where a guess is worse than the dash it would replace:
+
+- **Only on the way in.** A tap in the middle of a section is the user timing that line, and nothing
+  about it asks for the rest to be written for them.
+- **Only from a copy that comes earlier.** A later peer is the same words and would date this
+  section just as well, but a section written by the one below it reads as the document filling
+  itself in backwards — and the run has not reached that copy yet, so its times are the ones the
+  user is on their way to correcting.
+- **It stops at the peer's first gap** rather than skipping it. Dating the lines after a hole leaves
+  an untimed line _behind_ the caret, which is a line the run never comes back to; stopping there
+  hands the tapping back at the point the peer stops answering.
+- **It stops where the peer's times go backwards.** The marked cell, the step back and the follow
+  all read anchors as ordered, and a peer carrying broken data must not spread it.
+- **Once per section per run**, which is what makes the way out real. `filled` on the sync field is
+  that record — bare offsets, because a document change ends the run and clears it with them.
+
+**The way out is the line number, and it had to grow half of itself.** Pressing an anchored line's
+number plays from that moment, and outside a run that is all it does; inside one it cannot be,
+because the caret is where the next tap lands and a tape that moved without it would leave the two
+ends of the run in different places — which is the failure `stepBack` seeks for, met from the other
+side. `syncMoveTo` is that second half: it lands the caret on the line the press named, **disarmed**,
+so the next tap times that very line and the copy is walked by hand from there. It runs only where
+the seek was claimed, so no line without the pointer cursor promises a rewind.
+
+**And the fill is the one thing a run does that owes a toast.** Everything else it does is loud on
+screen already — the rail, the caret, the times — so `announce` and its `sr-only` region are the
+whole of what those need. This one dates several lines nobody tapped, jumps the caret past them and
+moves the tape, without a press having asked for any of it, so it says what it did _and_ how to
+refuse it: `Chorus 2 timed from Chorus — 3 lines. Press a line number to time it by hand instead.`
+Nothing else on screen says those times were derived, and the section may be the one place this song
+departs from itself. `onLyricSyncNotice` is the hook, the editor announces the same sentence itself
+so a shell that leaves it off loses the toast and not the message, and the shell draws it **without**
+announcing again — two live-region writes for one event is the message read twice.
+
 The editor owns the mode and the shell reacts (`onLyricSyncChange`), which is what keeps the tape
 and the mode from disagreeing: `Escape` and the end of the document both end a run without the shell
 being asked, and both arrive through that one hook. The shell answers by playing or pausing, and by
 focusing the editor on entry — the tap is a keystroke, so a run cannot start with focus in the
 button that started it.
 
-Implementation: `src/lib/editor/extensions/lyric-sync.ts`, the control in `MediaStrip.svelte`, and
-the wiring in `Workspace.svelte`.
+Implementation: `src/lib/editor/extensions/lyric-sync.ts` (`linkedFill` and `syncMoveTo` are the
+repeat's half of it), `linkedPeerHeaders` in `extensions/section-links.ts`, the line-number handler
+in `create-editor.ts` where the seek and the caret move are ordered, the control in
+`MediaStrip.svelte`, and the wiring in `Workspace.svelte`.
 
 ### A chorus is typed once, and what its repeats do differently is said out loud
 
