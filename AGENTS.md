@@ -1570,6 +1570,23 @@ The rest is five decisions:
   the word you came back to check is the one you miss.
 - **The stamp and the advance are one transaction.** One press has to be one undo, and a selection
   change and an effect go in one dispatch.
+- **And so is the wash, which is what stopped it trailing the caret by a tick.** The marked line is
+  the last anchor at or before the **playhead**, and the playhead the editor holds is
+  `player.currentTime` — a `timeupdate`-fed mirror, up to a tick stale, which the media section
+  already says is near enough for a readout and not for a write. A tap stamps its line from
+  `liveTime()` minus `tapOffsetSeconds`, so whenever that mirror was more than 120ms behind, the line
+  just timed sorted _after_ the playhead on record: the caret moved and the yellow band stayed on the
+  previous line until the next tick pushed it along. That is about half of all taps, and a run is the
+  one place the two are read against each other.
+
+  So the tap publishes the reading it already took, in the same transaction as the stamp. It is not a
+  guessed position — `currentTime()` is `liveTime()`, the source's own playhead read at the moment of
+  the press, strictly fresher than the mirror it replaces, and the next tick can only confirm it. A
+  linked fill publishes `lastTime` instead, because the seek that follows is issued in the same
+  synchronous block: published live, the wash would land on the section's first line while the caret
+  sat on its last, and the follow listener would scroll to one and then the other. Neither case
+  touches the field's own rule, which is still that the wash follows the playhead and nothing else.
+
 - **The document follows the run, at a reading line a third from the top — and not before the caret
   gets there.** Far enough down that the lines already timed stay readable above it, high enough
   that the two thirds below show what is coming, which is what the user reads ahead into while

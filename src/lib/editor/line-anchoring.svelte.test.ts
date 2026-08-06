@@ -904,6 +904,43 @@ describe('sync mode', () => {
 		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
 	});
 
+	/*
+	 * The wash and the caret are read against each other on every tap, and they
+	 * were not moving together. The marked line is the last anchor at or before the
+	 * *playhead*, and the playhead the editor holds is `currentTime` — a
+	 * `timeupdate`-fed mirror, up to a tick stale — while a tap stamps its line
+	 * from `liveTime`. Whenever the mirror was more than the 120ms tap offset
+	 * behind, the line just timed sorted after the playhead on record: the caret
+	 * moved and the yellow band stayed a line behind it until the next tick.
+	 *
+	 * The mirror is deliberately never pushed here, so the only thing that can put
+	 * the band on the right line is the tap publishing the reading it took.
+	 */
+	it('moves the wash with the caret, without waiting for the next playhead tick', async () => {
+		let now = 30;
+		const { handle } = await mount({
+			text: song,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => now
+		});
+		// A tick from a second ago, which is what the shell would still be holding.
+		await withColumn(handle, 29);
+
+		handle.setLyricSync?.(true);
+		handle.tapLyricSync?.();
+
+		const washed = () => document.querySelector('.cm-line.ll-current-line')?.textContent;
+		await vi.waitFor(() => expect(washed()).toBe('first line'));
+
+		now = 40;
+		handle.tapLyricSync?.();
+
+		await vi.waitFor(() => expect(washed()).toBe('second line'));
+		// One band, not two: the previous line gives the mark up in the same
+		// transaction it hands the caret on.
+		expect(document.querySelectorAll('.cm-line.ll-current-line')).toHaveLength(1);
+	});
+
 	it('ends itself on the last line, and says so', async () => {
 		const { handle, syncChanges, announcements } = await mount({
 			text: song,
@@ -1094,6 +1131,21 @@ describe('sync mode across linked sections', () => {
 		// The caret is on the last line of the repeat, so the next tap starts the
 		// section after it.
 		expect(handle.getSnapshot().selection.head).toBe(linkedSong.lastIndexOf('all night long'));
+		// And the wash is on that same line rather than on the one the tap landed
+		// on: a fill publishes where the tape is being sent, or the band would sit at
+		// the top of the section the caret has just left. Read off the marked
+		// timestamp, which is unique where the lyric is not — the repeat's last line
+		// reads the same words as the first copy's.
+		await vi.waitFor(() => {
+			expect(
+				[...document.querySelectorAll<HTMLElement>('.ll-time-value--current')].map(
+					(value) => value.textContent
+				)
+			).toEqual(['1:44']);
+			expect(document.querySelector('.cm-line.ll-current-line')?.textContent).toBe(
+				'all night long'
+			);
+		});
 		// And the tape goes with it: listening through a chorus that is already timed
 		// is waiting for a tap nobody is going to make.
 		expect(seek).toHaveBeenCalledTimes(1);

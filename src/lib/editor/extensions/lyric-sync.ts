@@ -8,7 +8,8 @@ import {
 	clearLineAnchorEffect,
 	formatAnchorTime,
 	holdReadingLine,
-	isStampableLine
+	isStampableLine,
+	setPlayheadEffect
 } from './line-anchors.js';
 import { parsedDocumentForState } from './editor-state.js';
 import { linkedPeerHeaders } from './section-links.js';
@@ -344,7 +345,28 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 					anchorLineEffect.of({ pos: anchor.pos, time: anchor.time })
 				),
 				armEffect.of(true),
-				...(fill ? [markFilledEffect.of(fill.header)] : [])
+				...(fill ? [markFilledEffect.of(fill.header)] : []),
+				// The wash moves with the caret, in the same transaction.
+				//
+				// The marked line is the last anchor at or before the *playhead*, and the
+				// playhead the field holds is `currentTime` — a `timeupdate`-fed mirror,
+				// up to a tick stale. A tap stamps its line at `liveTime` minus the tap
+				// offset, so whenever the mirror is more than 120ms behind, the line just
+				// timed sorts *after* the playhead on record: the caret moved, and the
+				// yellow band stayed on the previous line until the next tick caught up.
+				// That is about half of all taps, and it is the one moment in a run where
+				// the two are read against each other.
+				//
+				// So the tap publishes the reading it already has. This is not a guessed
+				// position — `currentTime()` is `liveTime()`, the source's own playhead
+				// read at the moment of the press, which is strictly fresher than the
+				// mirror it replaces, and the next tick can only confirm it.
+				//
+				// A fill publishes where the tape is being sent instead, because the seek
+				// below is issued in this same synchronous block: published live, the wash
+				// would land on the section's first line while the caret sat on its last,
+				// and the follow listener would scroll to one and then the other.
+				setPlayheadEffect.of(fill?.lastTime ?? time)
 			],
 			selection: { anchor: landed.from }
 		});
