@@ -17,6 +17,47 @@ bun run lint
 bun run test:unit -- --run
 ```
 
+### Two TypeScripts are installed on purpose
+
+`typescript` is 6 and `@typescript/native` is 7, aliased (`npm:typescript@7`). That is not a
+half-finished migration — it is the arrangement svelte-check documents, and both halves are load
+bearing.
+
+TypeScript 7 is the native Go port, and the package no longer ships the JS compiler API: its `.`
+export is `lib/version.cjs`, which carries `version` and `versionMajorMinor` and nothing else.
+Everything that reads the compiler API off the name `typescript` therefore breaks on a naive bump —
+**svelte-check** refuses to start, and **typescript-eslint** throws `does not support TS 7.0` before
+a single file is linted. Two of the three commands above, from one version number.
+
+So the name `typescript` stays on 6, where those two tools find the API they expect, and the Go
+binary arrives under a second name that nothing else resolves. `bun run check` opts in with
+`--tsgo`; `bun run lint` is untouched and never learns any of this happened. Measured here, that is
+~9.9s to ~3.7s on `check`, with identical diagnostics — a planted error in a `.ts` file and in a
+`.svelte` file are both still reported at the same line and column, and `check` still exits
+non-zero.
+
+Four things it depends on:
+
+- **`--tsgo` writes transpiled Svelte to disk** (`.svelte-kit/.svelte-check`, ~1.1MB) and spawns the
+  binary against an overlay tsconfig. That path is already inside the gitignored `.svelte-kit`, so
+  it costs the repository nothing — but it is why the mode cannot simply be the default.
+- **It reports a much smaller file count** — 75 against 1298 — and that is a reporting difference,
+  not a coverage gap. Do not read the smaller number as the check having quietly stopped looking;
+  the planted-error probes above are what actually establishes that, and they are the thing to
+  re-run if this is ever doubted.
+- **It inherits `--incremental`'s limitation**: a Svelte file outside the tsconfig's root dir is not
+  properly type-checked. Every `.svelte` file here lives under `src/`, so the cost today is zero —
+  and a Svelte file added anywhere else is what would silently change that.
+- **Dependabot is told to hold `typescript` at major 6 for the root package only.** The alias is
+  still tracked, so TS 7 goes on updating; what is refused is the one bump that always reconstructs
+  the broken arrangement. `services/rules-assistant` carries no such hold and runs TS 7 as
+  `typescript` directly, because it is plain `tsc` with neither svelte-check nor typescript-eslint
+  in front of it — which is also the cleanest demonstration that the blocker is those two tools
+  rather than the compiler.
+
+The whole thing is a workaround with an expiry date. When svelte-check supports TS 7 without the
+dual install, this collapses to one dependency and the `--tsgo` flag goes away.
+
 ## Git history
 
 Prefer rebasing over merge commits when integrating branches. Rebase the topic branch onto the
