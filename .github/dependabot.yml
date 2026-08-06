@@ -8,10 +8,16 @@ updates:
       # `typescript` is deliberately held at 6 here. svelte-check and
       # typescript-eslint both read the compiler API off that package name, and
       # TS 7 no longer ships one. TS 7 is consumed through the
-      # @typescript/native alias instead, which Dependabot still tracks — so a
-      # major bump of this entry is always the broken arrangement.
+      # @typescript/native alias instead — so a major bump of this entry is
+      # always the broken arrangement.
       - dependency-name: typescript
         update-types: [version-update:semver-major]
+      # The alias target, and it has to be skipped entirely rather than pinned.
+      # `@typescript/native` is not a package on npm — it is only the name the
+      # alias is installed under — so Dependabot's lookup 404s and the whole
+      # update run for this directory reports a failure. Bump it by hand
+      # alongside svelte-check, which is what decides the flag anyway.
+      - dependency-name: '@typescript/native'
 
   # No such hold here: the assistant is plain tsc with no svelte-check and no
   # typescript-eslint, so it runs TS 7 as the `typescript` package directly.

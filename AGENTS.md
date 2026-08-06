@@ -48,12 +48,16 @@ Four things it depends on:
 - **It inherits `--incremental`'s limitation**: a Svelte file outside the tsconfig's root dir is not
   properly type-checked. Every `.svelte` file here lives under `src/`, so the cost today is zero —
   and a Svelte file added anywhere else is what would silently change that.
-- **Dependabot is told to hold `typescript` at major 6 for the root package only.** The alias is
-  still tracked, so TS 7 goes on updating; what is refused is the one bump that always reconstructs
-  the broken arrangement. `services/rules-assistant` carries no such hold and runs TS 7 as
-  `typescript` directly, because it is plain `tsc` with neither svelte-check nor typescript-eslint
-  in front of it — which is also the cleanest demonstration that the blocker is those two tools
-  rather than the compiler.
+- **Dependabot is told to skip both halves for the root package only**, and each for its own
+  reason. `typescript` is held at major 6, because that bump always reconstructs the broken
+  arrangement. `@typescript/native` is skipped outright, because **it is not a package on npm** —
+  it is only the name the alias is installed under, so Dependabot's lookup 404s and the whole
+  update run for this directory reports a failure while still opening everyone else's PRs. That
+  cost one red run before it was noticed. The consequence is that **TS 7 does not update itself
+  here**: bump it by hand alongside svelte-check, which is what decides the `--tsgo` flag anyway.
+  `services/rules-assistant` carries neither hold and runs TS 7 as `typescript` directly, because
+  it is plain `tsc` with neither svelte-check nor typescript-eslint in front of it — which is also
+  the cleanest demonstration that the blocker is those two tools rather than the compiler.
 
 The whole thing is a workaround with an expiry date. When svelte-check supports TS 7 without the
 dual install, this collapses to one dependency and the `--tsgo` flag goes away.
