@@ -756,7 +756,7 @@ test('the error page leaves by loading a new document, not by routing', async ({
 test('the rules dialog and workbench tab share one persisted conversation', async ({ page }) => {
 	await page.route('**/v1/answers', (route) => route.abort());
 	await page.goto('/rules/');
-	const prompt = page.getByLabel('Ask about the guidelines');
+	const prompt = page.getByLabel('Ask about transcription or wording');
 	await prompt.fill('When does a chorus need its own header?');
 	await prompt.press('Enter');
 
