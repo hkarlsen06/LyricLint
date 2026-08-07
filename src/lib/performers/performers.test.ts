@@ -379,11 +379,12 @@ describe('performer assignment transforms', () => {
 			}
 		});
 
-		// Skipping step two must not put the first-heard voice back into italics:
-		// the selection stays plain and the wrapped rest simply goes unnamed,
-		// which is the state `performer.inline-mismatch` exists to ask about —
-		// the same deferral the trailing case takes through `performer.style-order`.
-		it('keeps a leading selection plain when the rest is named later', () => {
+		// Skipping step two on a leading selection writes the legend and nothing
+		// else. Skip is the user declining to make a claim about the rest —
+		// often because several voices sing it in different parts — so no
+		// wrapper is written for a voice nobody named: the plain legend is
+		// incomplete rather than wrong, and it raises no finding.
+		it('names the leading voice alone and touches no lyric when the rest is skipped', () => {
 			const records = roster(['A', 'B']);
 			const from = partial.indexOf('First');
 			const result = assignVoiceGroup({
@@ -398,11 +399,35 @@ describe('performer assignment transforms', () => {
 			expect(result.status).toBe('applied');
 			if (result.status === 'applied') {
 				const output = applyEdits(partial, result.edit.edits);
-				expect(output).toBe('[Verse: B]\nFirst line\n<i>Second line</i>');
+				expect(output).toBe('[Verse: B]\nFirst line\nSecond line');
 				expect(
 					output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)
 				).toBe('First line');
 				expect(result.styleSlot).toBe(1);
+			}
+		});
+
+		// The state Skip leaves behind is the state every later selection builds
+		// on: claiming another part wraps it in the next styled slot and joins
+		// the legend, so the deferral costs nothing to unwind.
+		it('lets a later selection claim its part after a skipped rest', () => {
+			const records = roster(['A', 'B']);
+			const named = '[Verse: B]\nFirst line\nSecond line';
+			const from = named.indexOf('Second');
+			const result = assignVoiceGroup({
+				revision: 2,
+				text: named,
+				document: parseDocument(named),
+				selection: { anchor: from, head: from + 'Second line'.length },
+				performerIds: [records[0]?.id ?? ''],
+				roster: records
+			});
+
+			expect(result.status).toBe('applied');
+			if (result.status === 'applied') {
+				expect(applyEdits(named, result.edit.edits)).toBe(
+					'[Verse: B & <i>A</i>]\nFirst line\n<i>Second line</i>'
+				);
 			}
 		});
 

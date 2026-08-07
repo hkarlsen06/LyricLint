@@ -6,7 +6,7 @@ import {
 	StateEffect,
 	StateField
 } from '@codemirror/state';
-import type { ChangeDesc, Extension, Range } from '@codemirror/state';
+import type { ChangeDesc, Extension, Range, Text, Transaction } from '@codemirror/state';
 import {
 	Decoration,
 	EditorView,
@@ -461,6 +461,70 @@ function dropErasedAnchors(
 }
 
 /**
+ * The lines a change set rewrote in place, each with the time it carried.
+ *
+ * A replacement covering a line's whole span reads as erasure to both the
+ * collapse test above and `MapMode.TrackDel`, and for a deleted line that is
+ * the right answer. But an edit can cover every character of a line without
+ * removing the line. Wrapping a lyric in performer tags replaces `Gamma` with
+ * `<i>Gamma</i>` — no shared first or last character, so even the narrowed
+ * edit spans the whole line — and a wrapper closed several lines down arrives
+ * as one change spanning every line between. Assigning performers to a
+ * selection therefore silently cleared its timestamps.
+ *
+ * The line survived exactly when the change adds and removes no line break:
+ * then the k-th line of what was deleted is the k-th line of what was
+ * inserted, and the anchor's time still belongs to it. These times only fill
+ * lines the mapped set left bare, so nothing here overrides an anchor the
+ * ordinary pipeline kept — and a change that leaves the line with no text is
+ * not rescued, because deleting every word of a line stays what it always
+ * was: the end of that anchor.
+ */
+function rescueRewrittenLines(
+	anchors: RangeSet<AnchorValue>,
+	transaction: Transaction
+): Map<number, number> {
+	const rescued = new Map<number, number>();
+	const startDoc = transaction.startState.doc;
+	const cursor = anchors.iter();
+	while (cursor.value) {
+		const { from, to, value } = cursor;
+		let overlap: { fromA: number; toA: number; fromB: number; inserted: Text } | undefined;
+		let overlaps = 0;
+		transaction.changes.iterChanges((fromA, toA, fromB, _toB, inserted) => {
+			if (fromA < to && toA > from) {
+				overlaps += 1;
+				overlap = { fromA, toA, fromB, inserted };
+			}
+		});
+		if (overlaps === 1 && overlap) {
+			const removedBreaks =
+				startDoc.lineAt(overlap.toA).number - startDoc.lineAt(overlap.fromA).number;
+			if (removedBreaks === overlap.inserted.lines - 1) {
+				// A line whose start the change never reached keeps it in place;
+				// one swallowed whole re-seats on its ordinal line of the insert.
+				const point =
+					from < overlap.fromA
+						? transaction.changes.mapPos(from, 1)
+						: overlap.fromB +
+							overlap.inserted.line(
+								startDoc.lineAt(from).number - startDoc.lineAt(overlap.fromA).number + 1
+							).from;
+				const line = transaction.state.doc.lineAt(Math.min(point, transaction.state.doc.length));
+				if (line.length > 0) {
+					const existing = rescued.get(line.number);
+					if (existing === undefined || value.time < existing) {
+						rescued.set(line.number, value.time);
+					}
+				}
+			}
+		}
+		cursor.next();
+	}
+	return rescued;
+}
+
+/**
  * Re-seat every anchor on the line it now covers, one anchor per line.
  *
  * Mapping keeps an anchor with its text but not necessarily flush with the
@@ -468,8 +532,15 @@ function dropErasedAnchors(
  * backspace at the start of a line and two of them merge along with the text.
  * Where that happens the earlier time wins, because the merged line begins with
  * the earlier line's words and that is the moment its audio starts.
+ *
+ * `fills` are the rescued in-place rewrites, and they only land on lines the
+ * mapped anchors left bare.
  */
-function normalize(state: EditorState, anchors: RangeSet<AnchorValue>): RangeSet<AnchorValue> {
+function normalize(
+	state: EditorState,
+	anchors: RangeSet<AnchorValue>,
+	fills?: ReadonlyMap<number, number>
+): RangeSet<AnchorValue> {
 	const times = new Map<number, number>();
 	const cursor = anchors.iter();
 	while (cursor.value) {
@@ -479,6 +550,13 @@ function normalize(state: EditorState, anchors: RangeSet<AnchorValue>): RangeSet
 			times.set(lineNumber, cursor.value.time);
 		}
 		cursor.next();
+	}
+	if (fills) {
+		for (const [lineNumber, time] of fills) {
+			if (!times.has(lineNumber)) {
+				times.set(lineNumber, time);
+			}
+		}
 	}
 	return rangesForLines(state, times);
 }
@@ -550,7 +628,8 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 		let anchors = transaction.docChanged
 			? normalize(
 					transaction.state,
-					dropErasedAnchors(value.anchors, transaction.changes).map(transaction.changes)
+					dropErasedAnchors(value.anchors, transaction.changes).map(transaction.changes),
+					rescueRewrittenLines(value.anchors, transaction)
 				)
 			: value.anchors;
 		let playhead = value.playhead;

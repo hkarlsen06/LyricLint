@@ -857,10 +857,6 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	// slot, its text untouched, and the *rest* is the passage that gets wrapped
 	// and named second. Without this, selecting a verse's opening lines wrote
 	// `[Verse: Rest & <i>Selected</i>]` with the first-heard voice in italics.
-	// A skipped second step inverts the same way — `[Verse: <i>Selected</i>]`
-	// was the same wrong claim with the rest left unnamed — and the wrapped rest
-	// simply gets no legend entry, which is the state `performer.inline-mismatch`
-	// exists to ask about.
 	const bounds = lyricBounds(section);
 	const trailing = bounds
 		? trimWhitespaceRange(request.text, { from: selection.to, to: bounds.to })
@@ -874,6 +870,38 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		trailing.from < trailing.to &&
 		request.text.slice(bounds.from, selection.from).trim().length === 0;
 	const wrapRange = invert && trailing ? trailing : selection;
+
+	// A skipped second step on a leading selection writes the legend and
+	// nothing else: `[Verse: Selected]`, every lyric untouched. Skip is the
+	// user declining to make a claim about the rest — often because it is
+	// several voices singing different parts — and a wrapper with nobody named
+	// in it is that claim made anyway, seventeen lines of
+	// `performer.inline-mismatch` included. The plain name is incomplete rather
+	// than wrong: each remaining part is claimed by its own later selection,
+	// which takes the next styled slot and joins the legend, and nothing
+	// written here has to be unwound on the way.
+	if (invert && sectionPerformers.length === 0) {
+		const plainEdit = headerLegendEdit(section, [
+			{ styleSlot: 1, raw: serializeLegend([{ styleSlot: 1, members: selectedPerformers }]) }
+		]);
+		if (!plainEdit) {
+			return { status: 'blocked', reason: 'invalid-range' };
+		}
+		const edits = [plainEdit];
+		const forwardSelection = request.selection.anchor <= request.selection.head;
+		const from = mapOriginalOffset(selection.from, edits);
+		const to = mapOriginalOffset(selection.to, edits);
+		return {
+			status: 'applied',
+			styleSlot: 1,
+			edit: makeAtomicEdit(
+				request.revision,
+				request.text.length,
+				edits,
+				forwardSelection ? { anchor: from, head: to } : { anchor: to, head: from }
+			)
+		};
+	}
 
 	// A wrapper spanning several lines may be restyled when the wrap range
 	// covers all of it: every line of the chain re-renders with balanced tags
@@ -931,20 +959,16 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		: lineTransforms.map(({ transform }) => transform);
 	const edits: TextEdit[] = [];
 	if (allocation.status === 'available') {
-		// Inverted with step two skipped, the wrapped rest has nobody to name:
-		// its markup stands alone and `performer.inline-mismatch` asks the
-		// skipped question, exactly as `performer.style-order` does for the
-		// unnamed plain lyrics the other way round.
+		// Inverted, the rest is the styled passage, so the rest's voices are the
+		// ones its legend group names. A skipped rest never reaches here — it
+		// returned above with the legend alone.
 		const styledMembers = invert ? sectionPerformers : selectedPerformers;
-		const styledLegendGroups: RawLegendGroup[] =
-			styledMembers.length > 0
-				? [
-						{
-							styleSlot: allocation.styleSlot,
-							raw: serializeLegend([{ styleSlot: allocation.styleSlot, members: styledMembers }])
-						}
-					]
-				: [];
+		const styledLegendGroups: RawLegendGroup[] = [
+			{
+				styleSlot: allocation.styleSlot,
+				raw: serializeLegend([{ styleSlot: allocation.styleSlot, members: styledMembers }])
+			}
+		];
 		const retainedLegendGroups = extraction.voiceGroups
 			.filter((group) => group.sectionFrom === section.from && !group.unresolved)
 			.sort((left, right) => (left.sourceRange?.from ?? 0) - (right.sourceRange?.from ?? 0))

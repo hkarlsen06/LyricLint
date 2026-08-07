@@ -1,8 +1,9 @@
 import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { isLyricLine } from '$lib/core/parser.js';
-import type { EditorHandle } from '$lib/core/types.js';
+import { isLyricLine, parseDocument } from '$lib/core/parser.js';
+import type { EditorHandle, PerformerRecord } from '$lib/core/types.js';
+import { assignVoiceGroup } from '$lib/performers/transform.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import { tapOffsetSeconds } from './extensions/lyric-sync.js';
 import EditorPane from './EditorPane.svelte';
@@ -106,6 +107,16 @@ function cellFor(lineText: string): HTMLElement {
 
 const lyric = ['[Verse 1]', 'first line', 'second line'].join('\n');
 
+/** A two-name roster for the performer-assignment regression below. */
+const anchorRoster: PerformerRecord[] = ['A', 'B'].map((displayName, order) => ({
+	id: `performer-${order + 1}`,
+	displayName,
+	normalizedKey: displayName.toLowerCase(),
+	aliases: [],
+	colorId: `performer-${order + 1}` as PerformerRecord['colorId'],
+	order
+}));
+
 /** A press on one of a cell's controls, which the gutter reads on `mousedown`. */
 function press(cell: HTMLElement, selector: string): void {
 	const control = cell.querySelector<HTMLElement>(selector);
@@ -179,6 +190,64 @@ describe('line anchoring while transcribing', () => {
 		await userEvent.keyboard('{Control>}{Alt>}m{/Alt}{/Control}');
 
 		expect(handle.getLineAnchors?.()).toEqual([{ line: 3, time: 300 }]);
+	});
+
+	/*
+	 * Wrapping a lyric in performer tags replaces `Gamma` with `<i>Gamma</i>` —
+	 * no shared first or last character, so even the narrowed edit covers the
+	 * line's whole span, and a wrapper closed several lines down covers every
+	 * line between as one change. Both read as the line being erased, so
+	 * assigning performers to a selection silently cleared its timestamps. The
+	 * change adds no line break, so the lines survived, and their times must.
+	 */
+	it('keeps the timestamps of lines a performer assignment wraps', async () => {
+		const song = ['[Verse 1]', 'first line', 'second line', 'third line'].join('\n');
+		const { handle } = await mount({ text: song });
+		handle.setLineAnchors?.([
+			{ line: 2, time: 10 },
+			{ line: 3, time: 20 },
+			{ line: 4, time: 30 }
+		]);
+
+		const snapshot = handle.getSnapshot();
+		const from = song.indexOf('first line');
+		const result = assignVoiceGroup({
+			revision: snapshot.revision,
+			text: snapshot.text,
+			document: parseDocument(snapshot.text),
+			selection: { anchor: from, head: from + 'first line'.length },
+			performerIds: [anchorRoster[0]!.id],
+			sectionPerformerIds: [anchorRoster[1]!.id],
+			roster: anchorRoster
+		});
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') throw new Error(result.reason);
+		handle.dispatchAtomic(result.edit);
+
+		expect(handle.getSnapshot().text).toBe(
+			['[Verse 1: A & <i>B</i>]', 'first line', '<i>second line', 'third line</i>'].join('\n')
+		);
+		expect(handle.getLineAnchors?.()).toEqual([
+			{ line: 2, time: 10 },
+			{ line: 3, time: 20 },
+			{ line: 4, time: 30 }
+		]);
+	});
+
+	it('still drops the timestamp of a line that is deleted', async () => {
+		const { handle } = await mount({ text: lyric });
+		handle.setLineAnchors?.([
+			{ line: 2, time: 10 },
+			{ line: 3, time: 20 }
+		]);
+
+		const from = lyric.indexOf('first line');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from, to: lyric.indexOf('second line'), insert: '' }]
+		});
+
+		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 20 }]);
 	});
 
 	it('plays from the caret line with Ctrl+Alt+Enter', async () => {
