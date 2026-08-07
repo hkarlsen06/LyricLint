@@ -349,6 +349,58 @@ describe('performer assignment transforms', () => {
 			}
 		});
 
+		// Slots follow the order the voices are heard. Selecting a section's
+		// opening lines and answering both of the picker's questions used to
+		// write `[Verse: Rest & <i>Selected</i>]` — the first-heard voice in
+		// italics — because the selection was always the passage that got
+		// wrapped. When the selection opens the section, the selected voice
+		// keeps the plain slot untouched and the rest is wrapped instead.
+		it('keeps the first-heard voice plain when the selection opens the section', () => {
+			const records = roster(['A', 'B']);
+			const from = partial.indexOf('First');
+			const result = assignVoiceGroup({
+				revision: 1,
+				text: partial,
+				document: parseDocument(partial),
+				selection: { anchor: from, head: from + 'First line'.length },
+				performerIds: [records[1]?.id ?? ''],
+				sectionPerformerIds: [records[0]?.id ?? ''],
+				roster: records
+			});
+
+			expect(result.status).toBe('applied');
+			if (result.status === 'applied') {
+				const output = applyEdits(partial, result.edit.edits);
+				expect(output).toBe('[Verse: B & <i>A</i>]\nFirst line\n<i>Second line</i>');
+				expect(
+					output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)
+				).toBe('First line');
+				expect(result.styleSlot).toBe(1);
+			}
+		});
+
+		it('wraps the whole rest as one span when it runs over several lines', () => {
+			const song = '[Verse]\nOne\nTwo\nThree\nFour';
+			const records = roster(['A', 'B']);
+			const from = song.indexOf('One');
+			const result = assignVoiceGroup({
+				revision: 1,
+				text: song,
+				document: parseDocument(song),
+				selection: { anchor: from, head: from + 'One\nTwo'.length },
+				performerIds: [records[0]?.id ?? ''],
+				sectionPerformerIds: [records[1]?.id ?? ''],
+				roster: records
+			});
+
+			expect(result.status).toBe('applied');
+			if (result.status === 'applied') {
+				expect(applyEdits(song, result.edit.edits)).toBe(
+					'[Verse: A & <i>B</i>]\nOne\nTwo\n<i>Three\nFour</i>'
+				);
+			}
+		});
+
 		// `[Chorus: Frikk & <i>Frikk</i>]` — two legend groups, one singer, and a
 		// passage wrapped to distinguish someone from themselves.
 		it('writes one plain group when the same voice sings the selection and the rest', () => {

@@ -13,9 +13,18 @@
 		readonly active: boolean;
 		/** Every line a run would tap already has a time. */
 		readonly complete?: boolean;
+		/**
+		 * A run standing here has timed lines between it and the next untimed one,
+		 * so `skip` would actually move. False hides the control rather than
+		 * disabling it: a skip with nowhere to go is a state that could not have
+		 * been otherwise, like the empty transport.
+		 */
+		readonly canSkip?: boolean;
 		toggle(): void;
 		/** One tap of a run. The same command `Space` runs — see `tapLyricSync`. */
 		tap(): void;
+		/** Jump the run to the last timed line before the next untimed one. */
+		skip?(): void;
 	}
 
 	/**
@@ -275,6 +284,32 @@
 			{/if}
 
 			{#if sync?.active}
+				{#if sync.canSkip && sync.skip}
+					<!--
+						The way past lyrics that are already timed. A song synced once and
+						then edited — a line split into several, in more than one place — is
+						timed everywhere except the new lines, and a run walking towards the
+						next one re-listens through whole verses that are already right.
+						The press lands the run on the last timed line before the next
+						untimed one and plays from that line's own moment, so there is a
+						whole line of run-up to tap against, exactly as a resumed run gives
+						itself.
+
+						It draws only while there is somewhere to skip to. Offered over a
+						song with no gap ahead it would be a press that does nothing, which
+						is the failure `availableRates` exists to prevent — and its own
+						disappearance after the last gap is the one sign the run gives that
+						nothing ahead still wants a time.
+					-->
+					<button
+						type="button"
+						class="button media-strip__skip"
+						title="Play from the last timed line before the next untimed one"
+						onclick={sync.skip}
+					>
+						Skip timed lines
+					</button>
+				{/if}
 				<!--
 					The tap itself, because a finger has no `Space`. It takes the slot the
 					hint took — the run's instruction is now the thing you press, which is

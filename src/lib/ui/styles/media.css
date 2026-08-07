@@ -506,6 +506,15 @@
 	white-space: nowrap;
 }
 
+/* The skip past already-timed lines, drawn only while a run has somewhere to
+   skip to. It sits before the tap so the tap keeps its place next to the hint —
+   responsive.css hides `Esc stops` off that adjacency — and it never takes the
+   row's slack: the control found without looking is the tap, not this one. */
+.media-strip__skip {
+	flex: none;
+	white-space: nowrap;
+}
+
 .media-strip__hint {
 	white-space: nowrap;
 }

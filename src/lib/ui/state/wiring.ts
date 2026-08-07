@@ -39,6 +39,39 @@ export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]
 }
 
 /**
+ * Whether a sync run has timed lines to skip past.
+ *
+ * The song this is for was synced once and then edited — a long line split in
+ * two, in several places — so it is timed everywhere except the new lines, and
+ * a run walking towards the next one re-listens through whole verses that are
+ * already right. The skip is meaningful exactly when the first untimed lyric
+ * line at or after the caret has a *timed* lyric line between it and the caret:
+ * that predecessor is where the jump lands, and if it is the caret's own line
+ * the next tap is already aimed at the gap and there is nothing to skip.
+ *
+ * This mirrors the editor's own `lyricSyncSkipTarget` off values the shell
+ * already holds — the same arrangement `everyLyricLineTimed` has with
+ * `runStart` — because the strip draws the control from the shell's state, and
+ * a handle asked inside a derived would never be re-asked.
+ */
+export function timedLinesSkippable(
+	text: string,
+	anchors: readonly LineAnchor[],
+	caretOffset: number
+): boolean {
+	const caretLine = lineNumberAt(text, caretOffset);
+	const timed = new Set(anchors.map((anchor) => anchor.line));
+	let landing: number | undefined;
+	for (const [index, line] of scanPhysicalLines(text).entries()) {
+		const number = index + 1;
+		if (number < caretLine || !isLyricLine(line.text)) continue;
+		if (!timed.has(number)) return landing !== undefined && landing > caretLine;
+		landing = number;
+	}
+	return false;
+}
+
+/**
  * Build the immutable rule context for one document revision. Sources come from
  * the bundled reviewed registry; no network access is involved.
  */

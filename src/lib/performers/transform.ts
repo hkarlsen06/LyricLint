@@ -830,11 +830,35 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		};
 	}
 
+	// Slots follow the order the voices are heard: the section's first voice is
+	// the plain one, and every voice after it is the styled one. The two-step
+	// flow always asked its questions about the selection first and the rest
+	// second, and writing the answers in that order is only honest while the
+	// rest is what the section opens with. Where the selection is the section's
+	// own opening lyrics, the selected voice sings first — so it keeps the plain
+	// slot, its text untouched, and the *rest* is the passage that gets wrapped
+	// and named second. Without this, selecting a verse's opening lines wrote
+	// `[Verse: Rest & <i>Selected</i>]` with the first-heard voice in italics.
+	const bounds = lyricBounds(section);
+	const trailing = bounds
+		? trimWhitespaceRange(request.text, { from: selection.to, to: bounds.to })
+		: undefined;
+	const invert =
+		allocation.status === 'available' &&
+		sectionPerformers.length > 0 &&
+		section.header.legendGroups.length === 0 &&
+		section.lines.every((line) => line.styleSpans.length === 0) &&
+		bounds !== undefined &&
+		trailing !== undefined &&
+		trailing.from < trailing.to &&
+		request.text.slice(bounds.from, selection.from).trim().length === 0;
+	const wrapRange = invert && trailing ? trailing : selection;
+
 	const lineTransforms: { line: LyricLine; transform: LineTransform }[] = [];
 	for (const line of section.lines) {
 		const lineSelection = trimWhitespaceRange(request.text, {
-			from: Math.max(selection.from, line.from),
-			to: Math.min(selection.to, line.to)
+			from: Math.max(wrapRange.from, line.from),
+			to: Math.min(wrapRange.to, line.to)
 		});
 		if (lineSelection.from >= lineSelection.to) {
 			continue;
@@ -861,7 +885,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	const edits: TextEdit[] = [];
 	if (allocation.status === 'available') {
 		const newLegendGroup = serializeLegend([
-			{ styleSlot: allocation.styleSlot, members: selectedPerformers }
+			{ styleSlot: allocation.styleSlot, members: invert ? sectionPerformers : selectedPerformers }
 		]);
 		const retainedLegendGroups = extraction.voiceGroups
 			.filter((group) => group.sectionFrom === section.from && !group.unresolved)
@@ -873,18 +897,21 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 					? request.text.slice(group.sourceRange.from, group.sourceRange.to)
 					: (group.rawNameText ?? '')
 			}));
-		// The picker's second step, when it ran: the unstyled lyrics get their own
+		// The picker's second step, when it ran: the plain lyrics get their own
 		// group so the legend begins at plain, instead of opening with the italic
-		// group this assignment just created. Nothing to add when the section
-		// already names a plain voice, or when the user chose to name one later.
+		// group this assignment just created. Which voice that is follows the
+		// order of appearance — the selection's own where it opens the section,
+		// the rest's everywhere else. Nothing to add when the section already
+		// names a plain voice, or when the user chose to name one later.
+		const plainMembers = invert ? selectedPerformers : sectionPerformers;
 		const plainVoiceGroup: RawLegendGroup[] =
-			sectionPerformers.length > 0 &&
+			plainMembers.length > 0 &&
 			allocation.styleSlot !== 1 &&
 			!retainedLegendGroups.some((group) => group.styleSlot === 1)
 				? [
 						{
 							styleSlot: 1,
-							raw: serializeLegend([{ styleSlot: 1, members: sectionPerformers }])
+							raw: serializeLegend([{ styleSlot: 1, members: plainMembers }])
 						}
 					]
 				: [];
@@ -914,17 +941,28 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}
 
-	const mappedFrom = first.edit
-		? insertedOffset(first.edit, first.selectedFrom - first.edit.from, edits)
-		: mapOriginalOffset(first.selectedFrom, edits);
-	const mappedTo = last.edit
-		? insertedOffset(last.edit, last.selectedTo - last.edit.from, edits)
-		: mapOriginalOffset(last.selectedTo, edits);
+	// Inverted, the wrapped passage is the rest of the section and the user's
+	// own selection is text no edit touches — it stays selected where it is,
+	// shifted only by the legend rewrite above it. An edit inserted exactly at
+	// its end is the rest's opening tag, which the selection must not swallow.
+	const mappedFrom = invert
+		? mapOriginalOffset(selection.from, edits)
+		: first.edit
+			? insertedOffset(first.edit, first.selectedFrom - first.edit.from, edits)
+			: mapOriginalOffset(first.selectedFrom, edits);
+	const mappedTo = invert
+		? mapOriginalOffset(
+				selection.to,
+				edits.filter((edit) => edit.from < selection.to)
+			)
+		: last.edit
+			? insertedOffset(last.edit, last.selectedTo - last.edit.from, edits)
+			: mapOriginalOffset(last.selectedTo, edits);
 	const forwards = request.selection.anchor <= request.selection.head;
 
 	return {
 		status: 'applied',
-		styleSlot: allocation.styleSlot,
+		styleSlot: invert ? 1 : allocation.styleSlot,
 		edit: makeAtomicEdit(
 			request.revision,
 			request.text.length,

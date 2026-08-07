@@ -60,6 +60,7 @@ import {
 } from './extensions/line-anchors.js';
 import {
 	lyricSync,
+	lyricSyncSkip,
 	lyricSyncTap,
 	lyricSyncTheme,
 	setLyricSync,
@@ -629,6 +630,7 @@ export function createLyricEditor(
 		notify: (message: string) => callbackProxy.onLyricSyncNotice?.(message)
 	};
 	const syncTap = lyricSyncTap(syncOptions);
+	const syncSkip = lyricSyncSkip(syncOptions);
 
 	// Held rather than inlined for the same reason the tap is: the line-number
 	// press is one gesture with two meanings — play from here, and, while a run is
@@ -982,6 +984,11 @@ export function createLyricEditor(
 		// there — the caret walks on its own and nothing is being typed.
 		tapLyricSync() {
 			syncTap(view);
+		},
+		// The skip, from the same transport row. Like the tap it does not focus
+		// the editor: the press is in the strip, and the caret walks on its own.
+		skipLyricSync() {
+			syncSkip(view);
 		},
 		setFollowPlayhead(follow) {
 			view.dispatch({

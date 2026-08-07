@@ -686,6 +686,40 @@ describe('following the playhead', () => {
 		});
 	});
 
+	// Typing is not the playhead moving. `currentFrom` is an offset, so an edit
+	// above the marked line shifts it — and the follow used to read that raw
+	// difference as the mark crossing onto another line, so any keystroke hauled
+	// the reader from the line they were editing back to the reading line.
+	it('does not scroll for a keystroke that only shifted the marked line', async () => {
+		const long = ['[Verse 1]', ...Array.from({ length: 60 }, (_, i) => `line ${i + 1}`)].join('\n');
+		const { handle } = await mount({ text: long, mediaTime: () => 30 });
+		handle.setLineAnchors?.(Array.from({ length: 60 }, (_, i) => ({ line: i + 2, time: i + 1 })));
+
+		const pane = document.querySelector<HTMLElement>('.editor-pane')!;
+		pane.style.height = '300px';
+		const scroller = document.querySelector<HTMLElement>('.cm-scroller')!;
+		await vi.waitFor(() => {
+			if (scroller.clientHeight < 200) throw new Error('the pane has no height yet');
+		});
+
+		handle.setMediaPlayhead?.(30);
+		await vi.waitFor(() => {
+			if (scroller.scrollTop === 0) throw new Error('the follow has not scrolled yet');
+		});
+		// Let the eased scroll finish, or its remaining frames overwrite the
+		// reader's own position below.
+		await new Promise((resolve) => setTimeout(resolve, 500));
+
+		// The reader scrolls back up to fix an earlier line and types into it.
+		scroller.scrollTop = 0;
+		await userEvent.click(page.getByText('line 1', { exact: true }));
+		scroller.scrollTop = 0;
+		await userEvent.keyboard('!');
+
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		expect(scroller.scrollTop).toBe(0);
+	});
+
 	it('stops following once the shell turns it off', async () => {
 		const long = ['[Verse 1]', ...Array.from({ length: 60 }, (_, i) => `line ${i + 1}`)].join('\n');
 		const { handle } = await mount({ text: long, mediaTime: () => 0 });
@@ -1109,6 +1143,104 @@ describe('sync mode', () => {
 		// The space went to the document rather than timing a line, which is the
 		// other half of the same claim.
 		expect(handle.getLineAnchors?.()).toEqual([]);
+	});
+
+	/*
+	 * A song synced once and then edited — a line split into two, in several
+	 * places — is timed everywhere except the new lines. A resumed run only knows
+	 * how to pick up before the *first* gap; the skip is how the run reaches the
+	 * later ones without re-listening through verses that are already right.
+	 */
+	describe('skipping past timed lines', () => {
+		// Line 3 (`second line`) and line 6 (`fifth line`) are the halves a split
+		// left untimed; everything else already carries a time.
+		const gapped = [
+			'[Verse 1]',
+			'first line',
+			'second line',
+			'third line',
+			'fourth line',
+			'fifth line',
+			'sixth line'
+		].join('\n');
+		const gappedAnchors = [
+			{ line: 2, time: 10 },
+			{ line: 4, time: 30 },
+			{ line: 5, time: 40 },
+			{ line: 7, time: 60 }
+		];
+
+		it('lands the run on the last timed line before the next untimed one, tape rewound to it', async () => {
+			let now = 20;
+			const { handle, seek, announcements } = await mount({
+				text: gapped,
+				selection: { anchor: 0, head: 0 },
+				mediaTime: () => now
+			});
+			handle.setLineAnchors?.(gappedAnchors);
+
+			// The run resumes before the first gap and the tap times it, exactly as
+			// it always has. The second gap is now three timed lines away.
+			handle.setLyricSync?.(true);
+			handle.tapLyricSync?.();
+			expect(handle.getSnapshot().selection.head).toBe(gapped.indexOf('second line'));
+			seek.mockClear();
+
+			handle.skipLyricSync?.();
+
+			// The landing is `fourth line` — timed, directly before the untimed
+			// `fifth line` — and the tape goes to its own anchor, so there is a whole
+			// line of run-up to tap against.
+			expect(handle.getSnapshot().selection.head).toBe(gapped.indexOf('fourth line'));
+			expect(seek).toHaveBeenCalledWith(40);
+			expect(announcements.at(-1)).toBe(
+				'Skipped the timed lines to 0:40. The next line is untimed.'
+			);
+
+			// Armed by the jump: the next tap belongs to the untimed line below.
+			now = 50;
+			handle.tapLyricSync?.();
+			const anchors = handle.getLineAnchors?.() ?? [];
+			expect(anchors.find((anchor) => anchor.line === 6)?.time).toBeCloseTo(
+				50 - tapOffsetSeconds,
+				5
+			);
+		});
+
+		// The next tap is already aimed at the gap, so a jump would move nothing —
+		// and a jump anywhere further would leave an untimed line behind the caret,
+		// which is a line the run never comes back to.
+		it('refuses when the next untimed line is the one the next tap already times', async () => {
+			const { handle, seek } = await mount({
+				text: gapped,
+				selection: { anchor: 0, head: 0 },
+				mediaTime: () => 20
+			});
+			handle.setLineAnchors?.(gappedAnchors);
+			handle.setLyricSync?.(true);
+			const resumed = handle.getSnapshot().selection.head;
+			seek.mockClear();
+
+			handle.skipLyricSync?.();
+
+			expect(handle.getSnapshot().selection.head).toBe(resumed);
+			expect(seek).not.toHaveBeenCalled();
+		});
+
+		// Outside a run it is a no-op, exactly like the tap it sits beside.
+		it('does nothing while no run is under way', async () => {
+			const { handle, seek } = await mount({
+				text: gapped,
+				selection: { anchor: 0, head: 0 },
+				mediaTime: () => 20
+			});
+			handle.setLineAnchors?.(gappedAnchors);
+
+			handle.skipLyricSync?.();
+
+			expect(handle.getSnapshot().selection.head).toBe(0);
+			expect(seek).not.toHaveBeenCalled();
+		});
 	});
 });
 

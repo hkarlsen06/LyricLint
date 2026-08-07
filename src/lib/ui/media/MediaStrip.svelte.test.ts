@@ -393,6 +393,53 @@ describe('MediaStrip', () => {
 		expect(taps).toBe(1);
 	});
 
+	// The skip past already-timed lines is contextual twice over: it exists only
+	// while a run is under way, and only while the run has timed lines between it
+	// and the next untimed one. Offered the rest of the time it would be a press
+	// that does nothing — the failure `availableRates` exists to prevent — and
+	// its own disappearance after the last gap is the one sign the run gives
+	// that nothing ahead still wants a time.
+	it('offers the skip only while a run has timed lines to skip past', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		let active = $state(false);
+		let canSkip = $state(false);
+		let skips = 0;
+		const sync = {
+			get active() {
+				return active;
+			},
+			get canSkip() {
+				return canSkip;
+			},
+			toggle: () => {
+				active = !active;
+			},
+			tap: () => {},
+			skip: () => {
+				skips += 1;
+			}
+		};
+
+		render(MediaStrip, { props: { media, sync } });
+
+		await page.getByRole('button', { name: 'Sync lyrics' }).click();
+
+		// A run with no gap ahead draws no skip — absent, not disabled.
+		await expect.element(page.getByRole('button', { name: 'Tap each line' })).toBeVisible();
+		expect(page.getByRole('button', { name: 'Skip timed lines' }).elements()).toHaveLength(0);
+
+		canSkip = true;
+		// The press runs the run's own command, like the tap beside it.
+		await page.getByRole('button', { name: 'Skip timed lines' }).click();
+		expect(skips).toBe(1);
+
+		canSkip = false;
+		await expect
+			.element(page.getByRole('button', { name: 'Skip timed lines' }))
+			.not.toBeInTheDocument();
+	});
+
 	// A finished song states that it is finished, and is still the same one-press
 	// control: `runStart` reads a fully timed lyric as a fresh pass from the top,
 	// so a readout here would take away the only way to re-time a song.

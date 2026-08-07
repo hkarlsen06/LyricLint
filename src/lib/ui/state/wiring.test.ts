@@ -10,7 +10,8 @@ import {
 	everyLyricLineTimed,
 	isTypingChange,
 	orderPerformersByAppearance,
-	resolveVoiceGroupRanges
+	resolveVoiceGroupRanges,
+	timedLinesSkippable
 } from './wiring.js';
 
 describe('UI wiring', () => {
@@ -300,6 +301,59 @@ describe('UI wiring', () => {
 				{ line: 2, time: 1 },
 				{ line: 4, time: 5 }
 			])
+		).toBe(true);
+	});
+
+	// The strip's skip control draws off this answer, and it mirrors the editor's
+	// own `lyricSyncSkipTarget`: a skip is real exactly when the first untimed
+	// lyric line at or after the caret has a *timed* lyric line between it and the
+	// caret — that predecessor is where the jump lands.
+	test('timed lines are skippable only when the jump would actually move', () => {
+		// Lines: 1 header, then First…Fifth on lines 2–6.
+		const text = '[Verse 1]\nFirst\nSecond\nThird\nFourth\nFifth';
+
+		// Everything timed up to a gap at `Fifth`.
+		const timedToTheGap = [
+			{ line: 2, time: 10 },
+			{ line: 3, time: 20 },
+			{ line: 4, time: 30 },
+			{ line: 5, time: 40 }
+		];
+		// Two timed lines stand between the caret and the gap: somewhere to go.
+		expect(timedLinesSkippable(text, timedToTheGap, text.indexOf('Second'))).toBe(true);
+		// The gap is the very next lyric line, which the next tap already times.
+		expect(timedLinesSkippable(text, timedToTheGap, text.indexOf('Fourth'))).toBe(false);
+		// The caret stands on the gap itself: tap it, do not jump over it.
+		expect(timedLinesSkippable(text, timedToTheGap, text.indexOf('Fifth'))).toBe(false);
+
+		// Two gaps, at `Second` and `Fifth` — the split-line song this is for.
+		const twoGaps = [
+			{ line: 2, time: 10 },
+			{ line: 4, time: 30 },
+			{ line: 5, time: 40 }
+		];
+		// Resume already stands directly before the first gap, and a jump to the
+		// second would leave the first behind the caret — a line the run never
+		// comes back to.
+		expect(timedLinesSkippable(text, twoGaps, text.indexOf('First'))).toBe(false);
+		// Past the first gap, the second is reachable across the timed lines.
+		expect(timedLinesSkippable(text, twoGaps, text.indexOf('Third'))).toBe(true);
+
+		// A wholly untimed song has no timed run-up to land on.
+		expect(timedLinesSkippable(text, [], 0)).toBe(false);
+
+		// Structure between the caret and the gap changes nothing: the blank line
+		// and the header are not lines a run taps.
+		const sectioned = '[Verse 1]\nFirst\nSecond\n\n[Chorus]\nThird';
+		expect(
+			timedLinesSkippable(
+				sectioned,
+				[
+					{ line: 2, time: 10 },
+					{ line: 3, time: 20 }
+				],
+				sectioned.indexOf('First')
+			)
 		).toBe(true);
 	});
 });

@@ -483,6 +483,80 @@ function stepBack(options: LyricSyncOptions) {
 }
 
 /**
+ * Where a skip forward would land: the timed line standing directly before the
+ * next untimed one, and the moment it carries.
+ *
+ * `undefined` is most of the answer, and each branch is a refusal rather than a
+ * miss. No untimed line ahead means there is nothing to skip to. An untimed
+ * line whose predecessor is the caret's own line — or the caret line itself —
+ * means the run is already aimed at it: the next tap times that line, and a
+ * jump would move nothing or, worse, leave an untimed line behind the caret,
+ * which is a line the run never comes back to.
+ *
+ * Exported on its own because the strip has to know whether to draw the
+ * control at all: a skip that is offered and refuses is a press that reads as
+ * broken, which is the failure `availableRates` exists to prevent.
+ */
+export function lyricSyncSkipTarget(state: EditorState): { line: Line; time: number } | undefined {
+	const caret = state.doc.lineAt(state.selection.main.head);
+	for (let candidate = caret.number; candidate <= state.doc.lines; candidate += 1) {
+		const line = state.doc.line(candidate);
+		if (!isStampableLine(line)) continue;
+		if (anchorTimeAt(state, line.from) !== undefined) continue;
+		// The first untimed stampable line at or after the caret. Everything
+		// stampable between the caret and it is timed by construction, so landing
+		// on its immediate predecessor never jumps over a line that still wants a
+		// time.
+		const previous = stampableBefore(state, line.number - 1);
+		if (!previous || previous.number <= caret.number) return undefined;
+		const time = anchorTimeAt(state, previous.from);
+		if (time === undefined) return undefined;
+		return { line: previous, time };
+	}
+	return undefined;
+}
+
+/**
+ * Jump a run past the lines that are already timed.
+ *
+ * A song synced once and then edited — a long line split into two, in several
+ * places — is timed everywhere except the new lines, and a resumed run only
+ * knows how to pick up before the *first* gap. Reaching the later ones meant
+ * listening through whole verses that were already right, or aiming a
+ * line-number press by eye. This is that jump as one press: the caret lands on
+ * the last timed line before the next untimed one, `armed`, and the tape goes
+ * to that line's own anchor — so there is a whole line of run-up to tap
+ * against, exactly as a resumed run gives itself.
+ *
+ * The seek goes through `onSeek`, the hook every other jump to an anchor uses,
+ * so skipping and pressing a line number cannot come to mean different things
+ * about where the tape ends up. The playhead is published in the same
+ * transaction for the fill's reason: the seek is issued in this same
+ * synchronous block, and read live the wash would land a tick behind the line
+ * the caret just moved to.
+ */
+export function lyricSyncSkip(options: LyricSyncOptions) {
+	return (view: EditorView): boolean => {
+		if (!view.state.field(lyricSyncField).active) return false;
+		const target = lyricSyncSkipTarget(view.state);
+		if (!target) return false;
+		view.dispatch({
+			// Armed, because the landing line already has a time: the next tap
+			// belongs to the untimed line below it, which is the whole point of the
+			// jump.
+			effects: [armEffect.of(true), setPlayheadEffect.of(target.time)],
+			selection: { anchor: target.line.from }
+		});
+		holdReadingLine(view, target.line.from);
+		options.onSeek(target.time);
+		options.announce(
+			`Skipped the timed lines to ${formatAnchorTime(target.time)}. The next line is untimed.`
+		);
+		return true;
+	};
+}
+
+/**
  * Put a run's caret on the line the pointer just sent the tape to.
  *
  * A press on an anchored line's number plays from that moment, and outside a run

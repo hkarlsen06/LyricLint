@@ -34,6 +34,7 @@
 		filterForEditorState,
 		everyLyricLineTimed,
 		isTypingChange,
+		timedLinesSkippable,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
 	import ControlTooltip from '../primitives/ControlTooltip.svelte';
@@ -666,6 +667,16 @@
 	// carry their own line numbers and the text is already here.
 	const allLinesTimed = $derived(everyLyricLineTimed(controller.snapshot.text, anchors));
 
+	// Whether a run standing here has timed lines to skip past — a song synced
+	// once and then split into more lines is timed everywhere except the new
+	// ones, and re-listening through verses that are already right is the wait
+	// the skip control exists to remove. Off the snapshot for the same reason as
+	// `allLinesTimed`, plus the selection: a tap moves the caret and writes an
+	// anchor, and both arrive here as state this derivation already reads.
+	const skippableAhead = $derived(
+		timedLinesSkippable(controller.snapshot.text, anchors, controller.snapshot.selection.head)
+	);
+
 	// Two timed lines is the floor for a scroll to mean anything: with one, the
 	// document never moves and the control would promise something it cannot do.
 	const followControl = {
@@ -688,8 +699,12 @@
 		get complete() {
 			return allLinesTimed;
 		},
+		get canSkip() {
+			return skippableAhead;
+		},
 		toggle: () => editorHandle?.setLyricSync?.(!syncing),
-		tap: () => editorHandle?.tapLyricSync?.()
+		tap: () => editorHandle?.tapLyricSync?.(),
+		skip: () => editorHandle?.skipLyricSync?.()
 	};
 
 	// A handle arriving is the only thing this pass answers to, so the hand-off

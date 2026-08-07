@@ -802,6 +802,16 @@ export interface EditorHandle {
 	 * the binding.
 	 */
 	tapLyricSync?(): void;
+	/**
+	 * Jump a run past lines that are already timed, landing on the last timed
+	 * line before the next untimed one — with the tape rewound to that line's
+	 * own anchor, so there is a whole line of run-up to tap against, exactly as
+	 * a resumed run gives itself.
+	 *
+	 * A no-op outside a run and where there is nothing to skip: no untimed line
+	 * remains ahead of the caret, or the next tap is already aimed at it.
+	 */
+	skipLyricSync?(): void;
 	/** Whether the document scrolls to keep the playing line at the reading line. */
 	setFollowPlayhead?(follow: boolean): void;
 }

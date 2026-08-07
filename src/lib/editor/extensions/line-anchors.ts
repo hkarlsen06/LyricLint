@@ -829,7 +829,14 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 			if (!update.state.field(followPlayheadField)) return;
 			const before = update.startState.field(lineAnchorField).currentFrom;
 			const after = update.state.field(lineAnchorField).currentFrom;
-			if (after !== undefined && after !== before) holdReadingLine(update.view, after);
+			if (after === undefined) return;
+			// `currentFrom` is an offset, and an edit above the marked line shifts
+			// every offset below it — so the raw values differ on a keystroke that
+			// moved no mark at all, and comparing them scrolled the document under
+			// someone typing. Map the old position through the edit first: a mark
+			// that only travelled with the text is not the playhead crossing lines.
+			const mapped = before === undefined ? undefined : update.changes.mapPos(before);
+			if (after !== mapped) holdReadingLine(update.view, after);
 		}),
 		EditorView.updateListener.of((update) => {
 			// A restore is the draft being read back, not a change worth writing. Left
