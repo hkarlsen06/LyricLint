@@ -4257,9 +4257,12 @@ Three things it owes:
   rule flags only runs mixed with letters. A lone `???` is not ambiguous about what it is, only about
   whether it was meant; there is exactly one form it can be steering toward, and `[?]` is it.
 
-A new rule is four registrations and a count: `registry.ts`, `currentRuleSet.ruleIds` in
+A new rule is four registrations and **two** counts: `registry.ts`, `currentRuleSet.ruleIds` in
 `data/rule-set.ts` (**never** `previousRuleSet`), a `RulePolicyCase` with all three examples, the row
-in `docs/rules.md`, and the hard-coded total in `engine.test.ts`.
+in `docs/rules.md`, the hard-coded total in `engine.test.ts` — and the sitemap total in
+`e2e/lyriclint.spec.ts`, which no local command runs and which has therefore been missed on every
+rule that shipped without it (see _The catalog's size is pinned in two suites, and only one of
+them runs locally_ below).
 
 **Then regenerate the assistant corpus**, `bun run assistant:corpus`, because
 `services/rules-assistant/generated/rules-context.json` is a committed artifact stamped with
@@ -4277,6 +4280,36 @@ rule's `fixability` is a ceiling, not what every row of its table gets — and k
 curated misspellings labelled apart from the reviewed forms. `services/rules-assistant/README.md`
 is where the rest of that decision is written down, including why a reviewed source is still a
 pointer and no Genius prose is stored.
+
+### The catalog's size is pinned in two suites, and only one of them runs locally
+
+Every rule is a prerendered page, so the sitemap grows by one URL per rule — and
+`e2e/lyriclint.spec.ts` pins that count (`expect(rulePages).toHaveLength(…)`), a second copy of the
+total `engine.test.ts` already holds. The two go out of step the same way every time, and it has
+now happened enough to write down: a rule is added, the checklist above is followed,
+`bun run check`, `bun run lint` and `bun run test:unit -- --run` all pass, the work is pushed —
+and CI goes red on the sitemap count, because **none of the three commands in Tooling runs the
+Playwright suite**. The e2e spec is only exercised in CI, so the failure is discovered after the
+push, and since the Cloudflare deploys do not gate on CI, the site ships anyway and the red run is
+easy to shrug at. That is also this assertion's second lesson, not its first: the spec's own
+comment records that the count once read 52 against 55 rules for three releases, which is what a
+bare figure with nothing saying what it counts costs.
+
+Two things follow:
+
+- **Changing how many rules exist means updating both totals in the same commit** —
+  `engine.test.ts` and the sitemap assertion in `e2e/lyriclint.spec.ts`. The e2e number is the unit
+  number plus nothing: one page per rule, and the index, home and privacy pages are counted
+  separately on the next line.
+- **The check costs about a minute, so run it rather than trusting the arithmetic:**
+  `bunx playwright test -g "sitemap"` builds the site and verifies the count locally. This is the
+  cheap slice of the e2e suite, not the whole of it.
+
+The general shape is worth keeping in mind beyond this one assertion: the e2e spec is where
+counts and cross-surface facts get pinned _outside_ the unit suite — it has its own copy of the
+rules readout, its own row locators, its own layout measurements — so any change that moves a
+number the reference states should be grepped for in `e2e/` before it is called done. A local
+suite that cannot fail on the change is not evidence the change is complete.
 
 ### The way to quiet Harper is to know something Harper does not
 

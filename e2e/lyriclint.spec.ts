@@ -338,7 +338,7 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 	// releases, which is what a bare figure with nothing saying what it counts
 	// costs; the arithmetic is written out so the next mismatch is legible.
 	const rulePages = sitemap.match(/<loc>https:\/\/lyriclint\.com\/rules\/[^/]+\/<\/loc>/gu) ?? [];
-	expect(rulePages).toHaveLength(56);
+	expect(rulePages).toHaveLength(58);
 	// Plus the home page, the rule index, and the privacy page.
 	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + 3);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
