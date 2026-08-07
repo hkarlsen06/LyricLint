@@ -6,6 +6,30 @@ import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 
 /**
+ * The port both local servers listen on.
+ *
+ * `vite dev` defaults to 5173 and `vite preview` to 4173, which makes the built
+ * site a different origin than the one it was developed on — and this
+ * application has two things registered against an exact origin. Spotify
+ * matches a redirect URI as a whole string, so a sign-in from the preview
+ * server comes back `INVALID_CLIENT: Invalid redirect URI`; MusicKit keeps its
+ * user token per origin, so checking a build means signing into Apple Music
+ * again. Neither is a failure the port is an obvious suspect for.
+ *
+ * The port is the half of an origin this can settle, and on a machine carrying
+ * a `bun run certs` pair it is only half: `server` takes that certificate and
+ * `preview` deliberately does not, for the reason written down beside it, so
+ * the two still differ by scheme there. A build that has to be checked against
+ * a signed-in Spotify or Apple Music account is one to open through the dev
+ * server's own origin.
+ *
+ * One constant rather than a number in each block, so the two cannot drift
+ * apart the next time either is touched. Vite falls forward to the next free
+ * port when one server is already up, since `strictPort` is left off.
+ */
+const DEV_PORT = 5173;
+
+/**
  * The dev server's certificate, when this machine has made one.
  *
  * `vite dev --host` on plain http is not a secure context anywhere but
@@ -71,6 +95,7 @@ export default defineConfig({
 	 * gets its secure context without this checkout owning a key.
 	 */
 	server: {
+		port: DEV_PORT,
 		https: devHttps(),
 		allowedHosts: ['dev.lyriclint.com'],
 		// Rule attachments resolve canonical facts from the generated assistant
@@ -78,6 +103,12 @@ export default defineConfig({
 		// lazy JSON import is rejected even though it lives in this repository.
 		fs: { allow: ['services/rules-assistant/generated'] }
 	},
+	// The built site is served on the dev port — see `DEV_PORT`. Deliberately no
+	// `https` here, unlike `server`: `playwright.config.ts` drives this command
+	// with an `http://127.0.0.1` base URL, so a certificate picked up from a
+	// machine that has run `bun run certs` would fail the e2e suite there and
+	// nowhere else.
+	preview: { port: DEV_PORT },
 	build: {
 		/**
 		 * Inline Apple's badge, whatever its size.
