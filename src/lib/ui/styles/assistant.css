@@ -695,9 +695,15 @@ a.assistant-rule__source:hover {
 	padding: var(--space-2) var(--space-5);
 }
 
+/* The composer's foot is its own gutter, so the field sits in an even inset
+ * rather than pressed against the bottom edge. It is one custom property
+ * because the dialog and the panel gutter differently and the two edges must
+ * not be able to disagree. */
 .assistant-composer {
+	--composer-gutter: var(--space-5);
+
 	display: grid;
-	padding: var(--space-2) var(--space-5) var(--space-1);
+	padding: var(--space-2) var(--composer-gutter) var(--composer-gutter);
 	gap: var(--space-1);
 }
 
@@ -777,10 +783,13 @@ a.assistant-rule__source:hover {
 	min-height: 14rem;
 }
 
-.assistant-panel .assistant-composer,
 .assistant-panel .assistant-status,
 .assistant-panel .assistant-challenge {
 	padding-inline: var(--space-3);
+}
+
+.assistant-panel .assistant-composer {
+	--composer-gutter: var(--space-3);
 }
 
 @media (max-width: 36rem) {
@@ -798,10 +807,13 @@ a.assistant-rule__source:hover {
 	}
 
 	.assistant-transcript,
-	.assistant-composer,
 	.assistant-status,
 	.assistant-challenge {
 		padding-inline: var(--space-3);
+	}
+
+	.assistant-composer {
+		--composer-gutter: var(--space-3);
 	}
 
 	.assistant-disclosure {

@@ -13,6 +13,7 @@
 		type RulePreviewSource
 	} from '$lib/assistant/rule-previews.js';
 	import { renderChallenge, type ChallengeHandle } from '$lib/assistant/turnstile.js';
+	import { stickToBottom } from '$lib/interaction/stick-to-bottom.js';
 	import AssistantAnswer from './AssistantAnswer.svelte';
 	import AssistantLinkActionCard from './AssistantLinkActionCard.svelte';
 	import AssistantProposalCard from './AssistantProposalCard.svelte';
@@ -29,6 +30,7 @@
 	let challengeFailedToRun = $state(false);
 	let challengeHandle: ChallengeHandle | undefined;
 	let revoking = $state(false);
+	const transcript = stickToBottom();
 
 	const suggestions = [
 		'How should I format a chorus?',
@@ -54,6 +56,15 @@
 	// dialog, whose `open()` has already loaded it.
 	$effect(() => {
 		void assistant.ensureLoaded();
+	});
+
+	// Another conversation is another transcript, and one is read from its foot:
+	// the last thing said in it is where it was left off. This is the second of
+	// the two gestures that re-pin the follow — the first is asking a question,
+	// below — and both are the user saying where they want to be looking.
+	$effect(() => {
+		void assistant.activeChatId;
+		transcript.pin();
 	});
 
 	$effect(() => {
@@ -105,11 +116,19 @@
 		composerInput?.focus();
 	}
 
+	// Every way of asking goes through here, so the follow cannot be re-pinned by
+	// one of them and not another: asking a question is a request to see the
+	// answer to it, whichever control was pressed.
+	function ask(question: string): Promise<void> {
+		transcript.pin();
+		return assistant.send(question);
+	}
+
 	async function submit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
 		const question = draft;
 		resetComposer();
-		await assistant.send(question);
+		await ask(question);
 	}
 
 	function resizeComposer(textarea: HTMLTextAreaElement): void {
@@ -131,7 +150,7 @@
 			event.preventDefault();
 			const question = draft;
 			resetComposer();
-			void assistant.send(question);
+			void ask(question);
 		}
 	}
 
@@ -163,7 +182,7 @@
 </script>
 
 <div class="assistant-conversation">
-	<div class="assistant-transcript" aria-label="Conversation">
+	<div class="assistant-transcript" aria-label="Conversation" {@attach transcript.attach}>
 		{#if assistant.messages.length === 0}
 			<div class="assistant-empty">
 				<h3>What would you like to check?</h3>
@@ -173,7 +192,7 @@
 				</p>
 				<div class="assistant-suggestions" aria-label="Suggested questions">
 					{#each suggestions as suggestion (suggestion)}
-						<button type="button" onclick={() => void assistant.send(suggestion)}>
+						<button type="button" onclick={() => void ask(suggestion)}>
 							<span>{suggestion}</span>
 							<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
 								<path
@@ -289,7 +308,10 @@
 								type="button"
 								class="button"
 								disabled={assistant.busy}
-								onclick={() => void assistant.retry(message.id)}>Retry</button
+								onclick={() => {
+									transcript.pin();
+									void assistant.retry(message.id);
+								}}>Retry</button
 							>
 						{/if}
 					{/if}

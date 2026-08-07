@@ -969,7 +969,14 @@ export const lineAnchorTheme = EditorView.baseTheme({
 		minWidth: 'calc(9ch + var(--space-5))',
 		padding: 'var(--space-0-5) var(--space-2) 0',
 		gap: 'var(--space-1)',
-		alignItems: 'center',
+		// Top, not centre, because a gutter element is as tall as the block it
+		// stands beside: a lyric long enough to wrap makes this box two or three
+		// lines deep, and centred in it the time slid to the middle of the block
+		// while the line number stayed on the first row — two facts about one line,
+		// drawn on different rows. The cell below takes one line of that height and
+		// centres inside it, so where the time sits is decided by the row it is
+		// about rather than by how far the words ran on.
+		alignItems: 'flex-start',
 		justifyContent: 'flex-end'
 	},
 	'.ll-time-value': {
@@ -1097,6 +1104,16 @@ export const lineAnchorTheme = EditorView.baseTheme({
 		// The containing block for the `−` hanging off its start.
 		position: 'relative',
 		width: '100%',
+		// One row of the document, minus the padding above it, whatever the block
+		// behind it is: the editor's own type times its own line height, which is
+		// what CodeMirror measures a line at. Centring the time inside *that* is
+		// what lands it level with the line number — the number column is pushed
+		// down by `lineNumbers`' hidden width spacer, whose height is that column's
+		// own padding, and this centring absorbs the couple of pixels without
+		// either column having to know the other's arithmetic. Stated as a height
+		// rather than left to the content, or a wrapped row would centre the time
+		// in the whole block again.
+		height: 'calc(var(--font-size-editor) * var(--line-height-editor) - var(--space-0-5))',
 		gap: 'var(--space-1)',
 		alignItems: 'center',
 		justifyContent: 'space-between'

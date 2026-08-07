@@ -1437,7 +1437,7 @@ being pressed. It is one at a time and it belongs to the field, not to the cell:
 marker would be destroyed by the next rebuild, and the playhead rebuilds this column whenever it
 crosses a line.
 
-Four things that arrangement depends on:
+Six things that arrangement depends on:
 
 - **It draws whenever audio is attached, anchors or not**, and it does not wait for a first anchor
   the way the transport waits for a first file. With no audio the column goes entirely —
@@ -1458,6 +1458,18 @@ Four things that arrangement depends on:
   and the rest for the control. An empty row reserves it too, so anchoring a song never moves a
   single wrap point in the document, and the hover control is `visibility: hidden` rather than
   removed for the same reason. (`visibility`, not `opacity`: opacity is never a state carrier here.)
+- **A cell is one line of the document tall, never as tall as its block.** A gutter element is as
+  tall as the line it stands beside, so a lyric long enough to wrap makes this box two or three rows
+  deep — and centred in that box the time slid to the middle of the block while the line number
+  stayed on the first row, which is two facts about one line drawn on different rows. So the element
+  aligns its cell to the start and `.ll-time-cell` states the height itself, `--font-size-editor`
+  times `--line-height-editor` less the padding above it, which is what CodeMirror measures an
+  unwrapped line at. Centring inside _that_ is also what absorbs the couple of pixels the number
+  column is pushed down by `lineNumbers`' own hidden width spacer — a `border-box` element cannot be
+  shorter than what it pads by, so a spacer of height 0 is still that column's `--space-0-5` tall.
+  Matching the two by hand-tuning the paddings instead would put one column's arithmetic in the
+  other's stylesheet, and it would silently stop being true the next time CodeMirror changed the
+  spacer.
 - **The marked cell is the last anchor at or before the playhead**, not the nearest, or the accent
   jumps to the next line halfway through the current one. `lineMarkerChange` is keyed on
   `currentFrom` rather than on the time, so a tick that stays inside one line costs one transaction
@@ -3148,6 +3160,51 @@ comparing `event.target` to the dialog (`src/lib/ui/layout/LanguagePicker.svelte
 Canonical implementations: `src/lib/editor/overlays/SectionPicker.svelte`,
 `src/lib/editor/overlays/PerformerPicker.svelte`, `src/lib/editor/overlays/DiagnosticPopover.svelte`,
 and `src/lib/ui/layout/DraftMenu.svelte`.
+
+### The assistant's transcript follows its own foot, and a scroll up is the end of that
+
+An answer arrives a token at a time, so a transcript that does not follow its own bottom edge
+shows the reader the top of a message and leaves them pressing End for the rest of it. The hard
+half is the other one: a reader scrolls up to check what was said earlier **while the stream is
+still running**, and a follower that reads "the content grew" as "go to the bottom" hauls them out
+of the message they are reading several times a second, with no way to win.
+
+So the rule is not about growth. **It is about which way the scroll moved.** Appending to the foot
+of a scroller never moves `scrollTop`, so growth cannot look like a scroll — which is what makes
+an upward move a safe signal where the distance to the bottom is not. That distance grows with
+every token, so a follower reading _it_ unpins itself in the middle of its own answer. A pinned
+transcript is therefore unpinned only by the position moving up, and an unpinned one re-pins only
+by reaching the foot, because arriving there is the one gesture that plainly means "I am caught
+up".
+
+**One race remains, and it is the one that actually loses somebody's place.** A wheel updates
+`scrollTop` at once, but its `scroll` event is dispatched at the top of the next frame — so a
+chunk landing in between is followed while the module still believes it is pinned, and the
+reader's scroll is eaten with nothing on screen to say so. Two things close it, and both are
+needed because neither is true on every frame. The follow is deferred to a
+`requestAnimationFrame`, which the frame's specified ordering runs _after_ the scroll steps. And
+the pointer gestures are read for intent directly — `wheel` upward, a touch drag downward — which
+unpins before the scroll has happened at all. The scroll is instant and never smooth, for sync
+mode's reason: a smooth scroll started on one chunk is still animating when the next arrives.
+
+**The way back is a gesture that already exists, and no control was added for it.** Asking a
+question is a request to see the answer to it, and switching conversations is a request to see
+another transcript — both `pin()`, and both are things the reader was going to press anyway. A
+`Jump to latest` button would be a second control for a press already on the surface, over a
+transcript the reader can simply scroll; if one is ever wanted, it reads its state from `pinned`
+and from nothing else, the way the editor's search toggle reads its own.
+
+`stickToBottom()` is a shared attachment beside `dismissOnOutside` rather than a handler in the
+component, because the rule is the same wherever a surface streams into a scroller and the copy
+that drifted would be the one nobody is watching.
+`src/lib/interaction/stick-to-bottom.svelte.test.ts` drives it against a real scroll port — every
+assertion is about `scrollTop` and about the frame something moved in, neither of which exists
+under a simulated DOM — and `AssistantPanel.svelte.test.ts` pins the wiring, which is the half
+that goes missing silently when the transcript's markup is rearranged.
+
+Implementation: `src/lib/interaction/stick-to-bottom.ts` and the transcript in
+`src/lib/ui/assistant/AssistantConversation.svelte`, which is shared by the workbench panel and
+the modal, so neither surface can acquire a follow of its own.
 
 ### The landing page is a composition, and the workbench is the evidence in it
 

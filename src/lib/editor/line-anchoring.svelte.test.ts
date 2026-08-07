@@ -395,6 +395,37 @@ describe('the timestamp column', () => {
 		expect(shown('first line')).toBe('hidden');
 	});
 
+	// A gutter element is as tall as the block it stands beside, so a line long
+	// enough to wrap makes this cell two or three lines deep. Centred in that box
+	// the time sat in the middle of the block while the line number stayed at the
+	// top, and the two facts about one line were drawn on different rows.
+	it('keeps a wrapped line’s time level with its line number', async () => {
+		const long = `long ${'la '.repeat(120)}line`;
+		const text = ['[Verse 1]', 'first line', long].join('\n');
+		const { handle } = await mount({ text, mediaTime: () => 0 });
+		handle.setLineAnchors?.([
+			{ line: 2, time: 10 },
+			{ line: 3, time: 20 }
+		]);
+		await withColumn(handle);
+
+		// Where each column's glyphs start: the box's own top plus whatever it pads
+		// by. Both are set in the gutter's own type at the same line height, so a
+		// difference here is the time having drifted down the row.
+		const numberTop = (element: Element) =>
+			element.getBoundingClientRect().top + parseFloat(getComputedStyle(element).paddingTop);
+		const timeTop = (lineText: string) =>
+			cellFor(lineText).querySelector('.ll-time-value')!.getBoundingClientRect().top;
+		const numbers = lineNumberElements();
+		const rowHeight = numbers[1].getBoundingClientRect().height;
+
+		// The wrapped assertion is worth nothing unless the row really did wrap.
+		expect(numbers[2].getBoundingClientRect().height).toBeGreaterThan(rowHeight * 1.5);
+
+		expect(timeTop('first line')).toBeCloseTo(numberTop(numbers[1]), 0);
+		expect(timeTop(long)).toBeCloseTo(numberTop(numbers[2]), 0);
+	});
+
 	// With no song there is nothing to show a time for and nothing to anchor to,
 	// so the column goes rather than standing there as an empty rail — which is
 	// also what keeps it out of the landing page's demo editor.

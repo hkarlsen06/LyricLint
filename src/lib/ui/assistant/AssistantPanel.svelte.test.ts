@@ -4,10 +4,11 @@ import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { DraftAccessDecision } from '$lib/assistant/permissions.js';
 import AssistantPanel from './AssistantPanel.svelte';
 
-function panelAssistant(decision?: DraftAccessDecision) {
+function panelAssistant(decision?: DraftAccessDecision, messages: unknown[] = []) {
 	const revokeDraftAccess = vi.fn(async () => undefined);
+	const send = vi.fn(async () => undefined);
 	const assistant = {
-		messages: [],
+		messages,
 		quota: undefined,
 		failure: undefined,
 		challengePending: false,
@@ -25,7 +26,7 @@ function panelAssistant(decision?: DraftAccessDecision) {
 		],
 		draftToolsAvailable: true,
 		draftAccessState: decision,
-		send: vi.fn(async () => undefined),
+		send,
 		newChat: vi.fn(async () => undefined),
 		selectChat: vi.fn(async () => undefined),
 		deleteChat: vi.fn(async () => undefined),
@@ -33,7 +34,41 @@ function panelAssistant(decision?: DraftAccessDecision) {
 		ensureLoaded: vi.fn(async () => undefined),
 		revokeDraftAccess
 	} as unknown as AssistantState;
-	return { assistant, revokeDraftAccess };
+	return { assistant, revokeDraftAccess, send };
+}
+
+/** A transcript long enough to overflow the pane it is rendered into. */
+function transcriptOf(turns: number): unknown[] {
+	return Array.from({ length: turns }, (_, index) => ({
+		id: `message-${index}`,
+		role: 'user',
+		content: `Question ${index} about how a chorus header should be written out.`,
+		status: 'complete'
+	}));
+}
+
+/**
+ * Three frames. A `ResizeObserver` delivers after the frame's animation
+ * callbacks, so the follow it schedules is a frame behind the resize that
+ * caused it, and a frame behind that again before this continuation is reached.
+ */
+function frames(): Promise<void> {
+	return new Promise((resolve) => {
+		requestAnimationFrame(() =>
+			requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+		);
+	});
+}
+
+/**
+ * How far the foot is, in whole pixels. Fractional layout — this transcript is
+ * text at the workbench's own ramp, not round boxes — rounds `scrollHeight` and
+ * `clientHeight` independently, so a transcript scrolled all the way down still
+ * reports a pixel of slack. That pixel is the reason the rule has a threshold at
+ * all, and it is what these read against rather than an exact zero.
+ */
+function distanceFromBottom(node: HTMLElement): number {
+	return node.scrollHeight - node.clientHeight - node.scrollTop;
 }
 
 function declaredMarginTop(selector: string): string | undefined {
@@ -85,6 +120,57 @@ describe('the assistant panel', () => {
 		expect(container.querySelector('.assistant-chats')!.getBoundingClientRect().right).toBe(
 			popoverBox.right
 		);
+	});
+
+	/**
+	 * `stick-to-bottom.svelte.test.ts` pins the rule itself. What these two pin is
+	 * that the transcript is the element it is attached to, and that asking a
+	 * question is one of the gestures that takes the pin back — the wiring, which
+	 * is what silently goes missing when this markup is rearranged.
+	 */
+	test('opens a stored transcript at its foot and follows an answer as it arrives', async () => {
+		const { assistant } = panelAssistant(undefined, transcriptOf(20));
+		const { container } = render(AssistantPanel, { assistant });
+		container.querySelector<HTMLElement>('.assistant-panel')!.style.height = '320px';
+		const transcript = container.querySelector<HTMLElement>('.assistant-transcript')!;
+		await frames();
+
+		expect(transcript.scrollHeight).toBeGreaterThan(transcript.clientHeight);
+		expect(distanceFromBottom(transcript)).toBeLessThanOrEqual(1);
+
+		// A token landing at the foot of the answer being written.
+		transcript.querySelector('.assistant-turn:last-child p')!.textContent =
+			'A much longer answer than the one that was there a moment ago, '.repeat(12);
+		await frames();
+
+		expect(distanceFromBottom(transcript)).toBeLessThanOrEqual(1);
+	});
+
+	test('leaves a reader who has scrolled up alone until they ask something', async () => {
+		const { assistant, send } = panelAssistant(undefined, transcriptOf(20));
+		const { container } = render(AssistantPanel, { assistant });
+		container.querySelector<HTMLElement>('.assistant-panel')!.style.height = '320px';
+		const transcript = container.querySelector<HTMLElement>('.assistant-transcript')!;
+		await frames();
+
+		transcript.dispatchEvent(new WheelEvent('wheel', { deltaY: -200, bubbles: true }));
+		transcript.scrollTop -= 200;
+		transcript.dispatchEvent(new Event('scroll'));
+		const readingAt = transcript.scrollTop;
+
+		transcript.querySelector('.assistant-turn:last-child p')!.textContent =
+			'The answer carries on underneath them. '.repeat(12);
+		await frames();
+
+		expect(transcript.scrollTop).toBe(readingAt);
+
+		const composer = container.querySelector<HTMLTextAreaElement>('#assistant-question')!;
+		await fireEvent.input(composer, { target: { value: 'And what about a pre-chorus?' } });
+		await fireEvent.submit(container.querySelector('.assistant-composer')!);
+		await frames();
+
+		expect(send).toHaveBeenCalledWith('And what about a pre-chorus?');
+		expect(distanceFromBottom(transcript)).toBeLessThanOrEqual(1);
 	});
 
 	test('shows the revoke control only for a stored decision', async () => {
