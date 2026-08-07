@@ -70,8 +70,10 @@ export const groupGuidance: Record<string, string> = {
 	punctuation:
 		'Lyrics carry the punctuation that changes how a line is read rather than the punctuation ' +
 		'that ends a sentence — a question mark on a question, an exclamation mark for delivery. ' +
-		'A period closing a line is the one LyricLint suggests removing without the Genius guide ' +
-		'stating a ban, so it is always offered for review rather than applied.',
+		'A period closing a line is one LyricLint suggests removing without the Genius guide ' +
+		'stating a ban, so it is always offered for review rather than applied — and spacing a ' +
+		'parenthesis apart from the letter it touches is likewise LyricLint’s own reading of how ' +
+		'the reviewed ad-lib examples are set.',
 	unknown:
 		'A lyric nobody can make out is marked `[?]` — that exact form, brackets included, rather ' +
 		'than `(?)` or a run of question marks. It is a last resort and not a shortcut: ' +

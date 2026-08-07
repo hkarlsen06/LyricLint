@@ -97,6 +97,14 @@ export const policyCases: readonly RulePolicyCase[] = [
 		ambiguous: '[Verse]\nA bracket [ in a lyric'
 	},
 	{
+		id: 'syntax.unbalanced-parentheses',
+		title: 'A parenthesis left open in a lyric',
+		invalid: '[Verse]\nHold me close (Yeah',
+		valid: '[Verse]\nHold me close (Yeah)',
+		// Nested marks are unusual and still balanced, so nothing is stray.
+		ambiguous: '[Verse]\nHold me (so (very) close)'
+	},
+	{
 		id: 'syntax.unsupported-voice-markup',
 		title: 'Markup that is not italic or bold',
 		invalid: '[Verse]\n<u>Voice</u>',
@@ -518,6 +526,15 @@ export const policyCases: readonly RulePolicyCase[] = [
 		invalid: '[Verse]\nA word—, then silence',
 		valid: '[Verse]\nA word—then silence',
 		ambiguous: '[Verse]\nA well--being note'
+	},
+	{
+		id: 'punctuation.parenthesis-spacing',
+		title: 'A parenthesis flush against a letter',
+		invalid: '[Verse]\nHold me close(Yeah)',
+		valid: '[Verse]\nHold me close (Yeah)',
+		// A stray mark beside a letter is likely a typo for its other half, so it
+		// belongs to `syntax.unbalanced-parentheses` and this rule stays quiet.
+		ambiguous: '[Verse]\nHold me close(Yeah'
 	},
 	{
 		id: 'line.prose-density',

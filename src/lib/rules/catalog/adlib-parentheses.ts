@@ -1,11 +1,11 @@
 import type { Diagnostic, RuleDefinition } from '$lib/core/types.js';
-import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
+import { diagnostic, maskedMarkupText, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 const adlib = "yeah|ayy|uh|ooh|woo|hey|let's go";
 
 export const adlibParenthesesRule: RuleDefinition = {
 	id: 'adlib.parentheses',
-	version: 2,
+	version: 3,
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-ADLIBS'],
@@ -51,6 +51,23 @@ export const adlibParenthesesRule: RuleDefinition = {
 					new RegExp(`,\\s*(?<word>${adlib})\\s*$`, 'giu')
 				)) {
 					const word = match.groups.word ?? '';
+					// `Yeah, yeah, yeah` is the line repeating its own word, not a vocal
+					// sitting behind it: where the token right before the comma is the same
+					// ad-lib, the phrase is the lead's refrain and nothing is offered. Read
+					// off the masked text so a repeat inside markup still counts as one.
+					const lowerWord = word.toLocaleLowerCase('en');
+					const beforeComma = maskedMarkupText(line)
+						.slice(0, match.from - line.from)
+						.replace(/\s+$/u, '')
+						.toLocaleLowerCase('en');
+					if (
+						beforeComma.endsWith(lowerWord) &&
+						!/[\p{L}\p{M}\p{N}]/u.test(
+							beforeComma.charAt(beforeComma.length - lowerWord.length - 1)
+						)
+					) {
+						continue;
+					}
 					const localFrom = match.text
 						.toLocaleLowerCase('en')
 						.lastIndexOf(word.toLocaleLowerCase('en'));

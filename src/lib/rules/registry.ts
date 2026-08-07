@@ -20,6 +20,7 @@ import { performerStyleOrderRule } from './catalog/performer-style-order.js';
 import { performerTooManyGroupsRule } from './catalog/performer-too-many-groups.js';
 import { punctuationDroppedWordDashRule } from './catalog/punctuation-dropped-word-dash.js';
 import { punctuationLineEndingRule } from './catalog/punctuation-line-ending.js';
+import { punctuationParenthesisSpacingRule } from './catalog/punctuation-parenthesis-spacing.js';
 import { punctuationQuestionRule } from './catalog/punctuation-question.js';
 import { quotesTypewriterRule } from './catalog/quotes-typewriter.js';
 import { repeatPlaceholderRule } from './catalog/repeat-placeholder.js';
@@ -48,6 +49,7 @@ import { spellingSpanishCommonRule } from './catalog/spelling-spanish-common.js'
 import { spellingStandardizedRule } from './catalog/spelling-standardized.js';
 import { spellingTextingShorthandRule } from './catalog/spelling-texting-shorthand.js';
 import { syntaxUnbalancedBracketsRule } from './catalog/syntax-unbalanced-brackets.js';
+import { syntaxUnbalancedParenthesesRule } from './catalog/syntax-unbalanced-parentheses.js';
 import { syntaxUnsupportedVoiceMarkupRule } from './catalog/syntax-unsupported-voice-markup.js';
 import { symbolsSpecialCharactersRule } from './catalog/symbols-special-characters.js';
 import { textInvisibleCharactersRule } from './catalog/text-invisible-characters.js';
@@ -61,6 +63,7 @@ import { sourceRegistry } from './data/sources.js';
 
 export const enabledRules: readonly RuleDefinition[] = [
 	syntaxUnbalancedBracketsRule,
+	syntaxUnbalancedParenthesesRule,
 	syntaxUnsupportedVoiceMarkupRule,
 	languageSelectionMismatchRule,
 	sectionHeaderMissingRule,
@@ -114,6 +117,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	punctuationLineEndingRule,
 	punctuationQuestionRule,
 	punctuationDroppedWordDashRule,
+	punctuationParenthesisSpacingRule,
 	lineProseDensityRule,
 	numbersSpellOutRule
 ];

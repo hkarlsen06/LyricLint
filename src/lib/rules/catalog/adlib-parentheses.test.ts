@@ -77,6 +77,20 @@ describe('adlib.parentheses', () => {
 		expect(checkRule(rule, '[Verse]\n(Yeah)')).toEqual([]);
 	});
 
+	it('leaves a phrase that repeats the word right before the comma', () => {
+		// `Yeah, yeah, yeah` is the line's own refrain, not a vocal behind it,
+		// so nothing is offered — in any casing, and through markup.
+		expect(checkRule(rule, '[Verse]\nYeah, yeah, yeah')).toEqual([]);
+		expect(checkRule(rule, '[Verse]\nyeah, Yeah')).toEqual([]);
+		expect(checkRule(rule, "[Verse]\nLet's go, let's go")).toEqual([]);
+		expect(checkRule(rule, '[Verse]\n<i>Yeah</i>, yeah')).toEqual([]);
+	});
+
+	it('still reads an ad-lib whose preceding word merely ends the same way', () => {
+		const text = '[Verse]\nOkayeah, yeah';
+		expect(markedText(text, checkRule(rule, text))).toEqual([', yeah']);
+	});
+
 	it('only reads an ad-lib that ends the line', () => {
 		expect(checkRule(rule, '[Verse]\nYeah I know')).toEqual([]);
 		expect(checkRule(rule, '[Verse]\nWe run, yeah we do')).toEqual([]);

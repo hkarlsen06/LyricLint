@@ -108,8 +108,8 @@ const previousRuleSet: RuleSetManifest = {
 export const previousKnownGoodRuleSet = previousRuleSet;
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.08.07.1',
-	publishedAt: '2026-08-07',
+	version: '2026.08.08.0',
+	publishedAt: '2026-08-08',
 	sourceIds: [
 		...previousRuleSet.sourceIds,
 		'G-SYMBOLS',
@@ -126,6 +126,7 @@ export const currentRuleSet: RuleSetManifest = {
 	// `rule-set.test.ts` is what keeps this list and the registry in agreement.
 	ruleIds: [
 		'syntax.unbalanced-brackets',
+		'syntax.unbalanced-parentheses',
 		'syntax.unsupported-voice-markup',
 		'language.selection-mismatch',
 		'section.header-missing',
@@ -182,6 +183,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'punctuation.line-ending',
 		'punctuation.question',
 		'punctuation.dropped-word-dash',
+		'punctuation.parenthesis-spacing',
 		'line.prose-density',
 		'numbers.spell-out'
 	]

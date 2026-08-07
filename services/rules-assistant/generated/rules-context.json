@@ -1,8 +1,8 @@
 {
 	"formatVersion": 2,
-	"ruleSetVersion": "2026.08.07.1",
-	"generatedAt": "2026-08-07T16:26:47.206Z",
-	"contentHash": "a386346684e758b33febb91131085f0f9fe8e1a5e83fee8a13bf3554d10f98c9",
+	"ruleSetVersion": "2026.08.08.0",
+	"generatedAt": "2026-08-07T22:02:02.956Z",
+	"contentHash": "4594659d0beaf7d0324616e5c6cca5bf9bfc958d0efe6e13b896ba2547f03b98",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -19,6 +19,21 @@
 			"flaggedExample": "[Verse\nLine",
 			"acceptedExample": "[Verse]\nLine",
 			"sourceIds": ["G-SECTIONS"]
+		},
+		{
+			"id": "syntax.unbalanced-parentheses",
+			"slug": "syntax-unbalanced-parentheses",
+			"title": "A parenthesis left open in a lyric",
+			"group": "syntax",
+			"groupTitle": "Syntax and markup",
+			"severity": "warning",
+			"message": "This parenthesis is never closed.",
+			"explanation": "Parentheses wrap a vocal sitting behind the lead, so every opening mark needs its closing half on the same line. Detecting the imbalance is a product-safety check derived from that convention, not an explicit Genius catalog of every malformed case — and where the mark should close is a judgment about the vocal, so no automatic repair is offered.",
+			"fix": "none",
+			"language": "en",
+			"flaggedExample": "[Verse]\nHold me close (Yeah",
+			"acceptedExample": "[Verse]\nHold me close (Yeah)",
+			"sourceIds": ["G-ADLIBS"]
 		},
 		{
 			"id": "syntax.unsupported-voice-markup",
@@ -866,6 +881,22 @@
 			"flaggedExample": "[Verse]\nA word—, then silence",
 			"acceptedExample": "[Verse]\nA word—then silence",
 			"sourceIds": ["G-DASHES"]
+		},
+		{
+			"id": "punctuation.parenthesis-spacing",
+			"slug": "punctuation-parenthesis-spacing",
+			"title": "A parenthesis flush against a letter",
+			"group": "punctuation",
+			"groupTitle": "Punctuation",
+			"severity": "warning",
+			"message": "Add a space before this parenthesis.",
+			"explanation": "A parenthesized vocal is a word of its own, so the parenthesis does not sit flush against the letter beside it. Inserting the space is mechanically safe. This spacing check is derived from how the reviewed ad-lib examples are set, not an explicit Genius rule.",
+			"fix": "safe",
+			"fixLabel": "Add a space",
+			"language": "en",
+			"flaggedExample": "[Verse]\nHold me close(Yeah)",
+			"acceptedExample": "[Verse]\nHold me close (Yeah)",
+			"sourceIds": ["G-ADLIBS"]
 		},
 		{
 			"id": "line.prose-density",

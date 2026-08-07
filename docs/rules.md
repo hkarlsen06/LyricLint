@@ -114,6 +114,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | Rule ID | Default severity | Detection | Fixability | Source |
 | --- | --- | --- | --- | --- |
 | `syntax.unbalanced-brackets` | Error | Uneven square brackets in section markup | Safe when the missing delimiter is unambiguous | `G-SECTIONS` plus parser contract |
+| `syntax.unbalanced-parentheses` | Warning | A parenthesis in a lyric line that never closes, or closes without opening | No fix; where the vocal ends is a judgment call | `G-ADLIBS` plus product safety |
 | `syntax.unsupported-voice-markup` | Error | Performer differentiation uses tags other than supported `<i>` and `<b>` combinations | Preview only | `G-SECTIONS` |
 | `language.selection-mismatch` | Warning | Sufficient lyric text clearly matches a different language than the selected one | Explain only; local statistical estimate | `T-LANGUAGE-DETECT` |
 | `section.header-missing` | Warning | A blank-line section contains lyrics but no section header | Insert chosen localized header | `G-SECTIONS` |
@@ -160,17 +161,20 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `repeat.placeholder` | Warning | Text such as `[Chorus x2]` or `repeat chorus` substitutes for repeated lyrics | Explain only | `G-REPEATS` |
 | `sound-effect.asterisks` | Warning | A likely sound effect uses braces or an unsupported wrapper | Preview replacement | `G-SFX` |
 | `censored.mask` | Warning | A censored word uses a mask other than exactly four asterisks | Preview replacement | `G-CENSORED` |
-| `adlib.parentheses` | Suggestion | A likely ad-lib lacks parentheses or starts lowercase | Contextual fix preview | `G-ADLIBS` |
+| `adlib.parentheses` | Suggestion | A likely ad-lib lacks parentheses or starts lowercase | Contextual fix preview; a phrase repeating the word right before its comma, as in `Yeah, yeah, yeah`, is the line's own refrain and is not flagged | `G-ADLIBS` |
 | `adlib.separator` | Suggestion | Two or more recognized ad-libs run together with only whitespace between, as in `(Yeah yeah yeah)` or `(Uh huh)` | Preview a comma-separated or hyphen-joined run; ad-libs that double as ordinary words need a third before they count | `G-ADLIBS` |
 | `capitalization.line-start` | Suggestion | A lyric line starts lowercase without a known contextual reason | Contextual fix preview | `G-CAPS` |
 | `capitalization.title-case` | Suggestion | Several lyric lines appear to capitalize nearly every word | Explain only because names and intentional styling need review | `G-CAPS` |
 | `punctuation.line-ending` | Warning | A lyric line ends in a comma or period, including before a closing quote or parenthesis | Preview removal; ellipses are excluded | `APPLE-LINE-PUNCTUATION`, `G-QE-MARKS` |
 | `punctuation.question` | Suggestion | A clearly interrogative line has no question mark | Explain or preview | `G-QE-MARKS` |
 | `punctuation.dropped-word-dash` | Warning | A dropped word uses an incorrect dash form or an em dash followed by a comma | Preview replacement | `G-DASHES` |
+| `punctuation.parenthesis-spacing` | Warning | A matched parenthesis sits flush against a letter or digit; stray marks belong to `syntax.unbalanced-parentheses` | Safe insertion of the missing space | `G-ADLIBS` plus product safety |
 | `line.prose-density` | Suggestion | A very long prose-like line may contain several lyric lines | Explain only; no fixed character limit | `G-LINES` |
 | `numbers.spell-out` | Suggestion | A numeric form conflicts with a reviewed case and no documented exception applies | Contextual fix preview | `G-NUMBERS` |
 
 `syntax.unbalanced-brackets` is partly a product-safety rule. The source establishes the bracketed header form, while the parser establishes syntactic validity. Its explanation must not imply that Genius explicitly documents every malformed bracket case.
+
+`syntax.unbalanced-parentheses` and `punctuation.parenthesis-spacing` are derivations in the same sense: the ad-lib guidance establishes parenthesized background vocals, and these two read the malformed cases off that convention rather than off an explicit Genius catalog. They split on matchedness so one character gets one finding — a stray mark is the balance rule's and is never offered a spacing fix, since it is likely a typo for its other half.
 
 `text.invisible-characters` is likewise a hygiene rule rather than a quotation of Genius guidance, and its character set is a closed list in `src/lib/core/invisible-characters.ts`. Two families are excluded on purpose and must stay excluded: the joiners `U+200C` and `U+200D`, which hold emoji sequences and Persian and Indic words together, and the bidi controls `U+200E`, `U+200F`, `U+202A`–`U+202E`, and `U+2066`–`U+2069`, which are load-bearing in the right-to-left documents this product preserves exactly. Adding a character to that list means deciding it is never intentional in any language LyricLint accepts.
 
