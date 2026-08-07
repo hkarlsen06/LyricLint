@@ -108,7 +108,7 @@ const previousRuleSet: RuleSetManifest = {
 export const previousKnownGoodRuleSet = previousRuleSet;
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.08.07.0',
+	version: '2026.08.07.1',
 	publishedAt: '2026-08-07',
 	sourceIds: [
 		...previousRuleSet.sourceIds,

@@ -62,6 +62,7 @@ describe('media player transport', () => {
 
 	it('rewinds only once per pause, not on every play call', () => {
 		const { audio, player } = setup();
+		const play = vi.spyOn(audio, 'play');
 
 		player.play();
 		audio.currentTime = 40;
@@ -70,6 +71,9 @@ describe('media player transport', () => {
 		player.play();
 
 		expect(audio.currentTime).toBe(40 - resumeRewindSeconds);
+		// A second caller asking for the state already requested must not become a
+		// second source command. Media elements tolerate that; MusicKit rejects it.
+		expect(play).toHaveBeenCalledTimes(2);
 	});
 
 	it('never rewinds past the start of the track', () => {
@@ -411,6 +415,22 @@ describe('a press that arrives before the source is ready', () => {
 		await attaching;
 
 		expect(calls).toEqual(['play']);
+	});
+
+	// A loaded remote source still has an asynchronous gap between accepting
+	// `play()` and reporting its playing state. MusicKit rejects a second command
+	// in that gap instead of treating it as an idempotent request.
+	it('issues one remote play command while the first start is still outstanding', async () => {
+		const { player, calls, release, attaching } = slowAttachment();
+		release();
+		await attaching;
+
+		player.play();
+		player.play();
+		player.play();
+
+		expect(calls).toEqual(['play']);
+		expect(player.starting).toBe(true);
 	});
 
 	it('clears a failed remote attachment so a later file can play', async () => {

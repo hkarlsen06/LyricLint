@@ -930,6 +930,15 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		play() {
 			const source = active;
 			if (source === undefined) return;
+			// `play` is an instruction to reach a state, not an event to forward once
+			// per caller. The same instruction is reachable from the transport, the
+			// media-session buttons, a timestamp press and sync mode; two of those can
+			// arrive before the source has reported that the first request started.
+			// MusicKit rejects the second request outright ("play() ... without a
+			// previous stop() or pause()"), while a media element happens to tolerate
+			// it. Keep the transport's contract independent of that source difference:
+			// one outstanding or already-landed start is already the requested state.
+			if (playing || wantPlaying) return;
 			// Recorded before anything else, so the control flips and the spinner
 			// appears on the press rather than on whatever answers it. A press that
 			// works but shows nothing for a second is still a press somebody makes

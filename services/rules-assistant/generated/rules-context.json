@@ -1,8 +1,8 @@
 {
 	"formatVersion": 2,
-	"ruleSetVersion": "2026.08.07.0",
-	"generatedAt": "2026-08-07T01:28:22.137Z",
-	"contentHash": "bd4a45d6b07274b0a0f9642ebf4837e76f9715db3920f55e2c4d0584fb4a3f5d",
+	"ruleSetVersion": "2026.08.07.1",
+	"generatedAt": "2026-08-07T16:26:47.206Z",
+	"contentHash": "a386346684e758b33febb91131085f0f9fe8e1a5e83fee8a13bf3554d10f98c9",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -194,13 +194,13 @@
 			"groupTitle": "Section headers",
 			"severity": "warning",
 			"message": "The [Hook] section name is deprecated.",
-			"explanation": "The current Genius section guide replaces [Hook] with [Chorus] or [Refrain]. Choose the term that matches the song structure.",
+			"explanation": "The current Genius section guide replaces [Hook] with [Chorus] or [Refrain]. These replacements use the canonical names from the selected English language pack; choose the term that matches the song structure.",
 			"fix": "preview",
 			"fixLabel": "Replace with Chorus",
 			"language": "en",
 			"flaggedExample": "[Hook]\nSing it",
 			"acceptedExample": "[Chorus]\nSing it",
-			"sourceIds": ["G-SECTION-HOOK"]
+			"sourceIds": ["G-SECTION-HOOK", "G-LANG-EN"]
 		},
 		{
 			"id": "section.immediate-repeat-spacing",

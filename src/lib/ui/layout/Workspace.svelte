@@ -659,6 +659,7 @@
 	let syncing = $state(false);
 	let following = $state(true);
 	let anchors = $state<readonly LineAnchor[]>([]);
+	let syncOwner: EditorHandle | undefined;
 	const anchorCount = $derived(anchors.length);
 
 	// Read off the snapshot rather than asked for through the handle: the anchors
@@ -698,6 +699,19 @@
 	$effect(() => {
 		const handle = editorHandle;
 		untrack(() => {
+			// Sync mode belongs to one editor instance. A draft switch replaces that
+			// editor, but the shell survives the keyed remount; carrying its `syncing`
+			// mirror across made the fresh editor draw `Stop syncing` while its own mode
+			// was already off. Pressing the control then asked that editor to turn off
+			// again, produced no change callback, and left the shell stuck forever.
+			//
+			// Treat an editor hand-off as the end of the old run. This also covers an
+			// HMR/remount without coupling the rule to draft navigation specifically.
+			if (handle !== syncOwner) {
+				syncOwner = handle;
+				if (syncing) controller.media?.player.pause();
+				syncing = false;
+			}
 			controller.setEditorHandle(handle);
 			// Read the anchors back on the same pass, because that call is where a
 			// remount gets the draft's own timings re-seated onto it — through

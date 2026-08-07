@@ -1100,6 +1100,39 @@ describe('Workspace and toolbar', () => {
 		expect(player.playing).toBe(false);
 	});
 
+	test('ends sync mode when a draft replaces the editor', async () => {
+		const audio = new StubAudio();
+		const player = createMediaPlayer({
+			feedback: createFeedbackState(),
+			createAudio: () => audio.asMediaElement(),
+			createObjectUrl: () => 'blob:test',
+			revokeObjectUrl: () => {},
+			loadYouTubeApi: createStubYouTubeApi().load,
+			scheduleYouTubePoll: createStubPoll().schedule
+		});
+		const { controller } = createTestWorkbench({
+			media: { repository: createInMemoryMediaRepository([]), player }
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await controller.media!.attachFile(new File([''], 'first.mp3', { type: 'audio/mpeg' }));
+		audio.setDuration(200);
+		renderWorkspace(controller);
+
+		await fireEvent.click(await screen.findByRole('button', { name: 'Sync lyrics' }));
+		expect(screen.getByRole('button', { name: 'Stop syncing' })).toBeTruthy();
+
+		const firstDraft = controller.draftId;
+		await fireEvent.click(screen.getByRole('button', { name: "New 'scribe" }));
+		await waitFor(() => expect(controller.draftId).not.toBe(firstDraft));
+		await waitFor(() => expect(player.attached).toBe(false));
+
+		await controller.media!.attachFile(new File([''], 'second.mp3', { type: 'audio/mpeg' }));
+		audio.setDuration(200);
+
+		expect(await screen.findByRole('button', { name: 'Sync lyrics' })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Stop syncing' })).toBeNull();
+	});
+
 	test('keeps the panel mounted at a narrow viewport with no way to dismiss it', async () => {
 		vi.stubGlobal(
 			'matchMedia',
