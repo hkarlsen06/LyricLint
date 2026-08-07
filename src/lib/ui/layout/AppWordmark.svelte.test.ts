@@ -30,6 +30,26 @@ function arrived(element: HTMLElement): number {
 }
 
 /**
+ * Fonts settled, before a width is read off the lockup.
+ *
+ * `global.css` declares the Plex faces `font-display: swap`, so a lockup drawn
+ * here is laid out in the fallback face and laid out again when Plex decodes —
+ * measured at the moment these tests take their baseline, `document.fonts` is
+ * still `loading` with fourteen faces outstanding. Every width assertion below
+ * compares a baseline against a later measurement, so a swap landing between
+ * the two is a ratio taken across two different typefaces. It holds on a quiet
+ * machine, where the swap falls outside the pair, and fails under load, where
+ * it falls inside — which is the whole of why this file was intermittent.
+ *
+ * It is awaited after the render rather than in a `beforeAll`: a face is only
+ * fetched once something needs its glyphs, so asked for before anything is on
+ * screen this resolves immediately and buys nothing.
+ */
+async function fontsSettled(): Promise<void> {
+	await document.fonts.ready;
+}
+
+/**
  * The four boxes that draw the lockup, measured rather than trusted: the handoff
  * takes a fraction of `--wm-width`, and that has to be the width its own parts
  * occupy or the arrived wordmark is clipped short or trails empty space.
@@ -50,6 +70,7 @@ describe('AppWordmark', () => {
 		try {
 			await render(AppWordmark);
 			const element = lockup();
+			await fontsSettled();
 
 			// Open on mount, which is also what prerendered HTML says: the intro is
 			// a hold on the state the page loaded in, not an animation that plays.
@@ -87,6 +108,7 @@ describe('AppWordmark', () => {
 		try {
 			await render(AppWordmark, { entrance: 'reveal' });
 			const element = lockup();
+			await fontsSettled();
 
 			// Closed on mount, and closed in the prerendered HTML with it: the mark is
 			// what the landing page loads as, and the word grows out of it. The beat
@@ -112,6 +134,7 @@ describe('AppWordmark', () => {
 	it('hands the boot wordmark into the header from the left', async () => {
 		await render(AppWordmark, { entrance: 'handoff' });
 		const element = lockup();
+		await fontsSettled();
 
 		expect(element.dataset.state).toBe('intro');
 		expect(getComputedStyle(element).animationName).toBe('wordmark-handoff-left');

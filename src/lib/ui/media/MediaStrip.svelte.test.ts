@@ -39,6 +39,25 @@ function store(options: { records?: MediaHandleRecord[]; file?: File } = {}) {
 	return { audio, media, player, youtube };
 }
 
+/**
+ * Fonts settled, before a box is measured.
+ *
+ * `vitest-setup-client.ts` loads `global.css`, which declares the Plex faces
+ * `font-display: swap` — so a row drawn here is laid out in the fallback face
+ * and laid out again when Plex decodes. The two assertions below take a
+ * measurement and compare a later one against it, which a swap landing between
+ * them turns into a comparison across two typefaces. It holds on a quiet
+ * machine, where the swap falls outside the pair, and fails under load, where
+ * it falls inside.
+ *
+ * Awaited after the render, not in a `beforeAll`: a face is only fetched once
+ * something needs its glyphs, so asked for before anything is on screen this
+ * resolves immediately and buys nothing.
+ */
+async function fontsSettled(): Promise<void> {
+	await document.fonts.ready;
+}
+
 describe('MediaStrip', () => {
 	/*
 	 * The three transport controls name themselves through the same box the
@@ -64,6 +83,7 @@ describe('MediaStrip', () => {
 
 		const play = page.getByRole('button', { name: 'Play' });
 		await expect.element(play).toBeVisible();
+		await fontsSettled();
 		const before = play.element().getBoundingClientRect().height;
 
 		play.element().dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }));
@@ -129,6 +149,7 @@ describe('MediaStrip', () => {
 		// `responsive.css` raises every `.button` to `lg` and the box stops
 		// reporting what is inside it.
 		const detach = page.getByRole('button', { name: 'Detach track.mp3' });
+		await fontsSettled();
 		const parts = [...play.element().children].map((part) => part.getBoundingClientRect());
 		const stack =
 			Math.max(...parts.map((part) => part.bottom)) - Math.min(...parts.map((part) => part.top));
