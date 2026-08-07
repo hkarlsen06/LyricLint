@@ -16,12 +16,15 @@ import { sveltekit } from '@sveltejs/kit/vite';
  * user token per origin, so checking a build means signing into Apple Music
  * again. Neither is a failure the port is an obvious suspect for.
  *
- * The port is the half of an origin this can settle, and on a machine carrying
- * a `bun run certs` pair it is only half: `server` takes that certificate and
- * `preview` deliberately does not, for the reason written down beside it, so
- * the two still differ by scheme there. A build that has to be checked against
- * a signed-in Spotify or Apple Music account is one to open through the dev
- * server's own origin.
+ * The port is the only half that needs settling. The scheme follows on its own,
+ * because Vite resolves every preview option it shares with the dev server as
+ * `preview?.x ?? server.x` — so a `bun run certs` pair reaches `preview` without
+ * being named there, and the two are genuinely one origin rather than two that
+ * merely agree about a number.
+ *
+ * Which is worth knowing before trusting a green e2e run on a machine that has
+ * made certs: `playwright.config.ts` drives `bun run preview` with an
+ * `http://127.0.0.1` base URL, and inherited TLS is what that would run into.
  *
  * One constant rather than a number in each block, so the two cannot drift
  * apart the next time either is touched. Vite falls forward to the next free
@@ -103,12 +106,28 @@ export default defineConfig({
 		// lazy JSON import is rejected even though it lives in this repository.
 		fs: { allow: ['services/rules-assistant/generated'] }
 	},
-	// The built site is served on the dev port — see `DEV_PORT`. Deliberately no
-	// `https` here, unlike `server`: `playwright.config.ts` drives this command
-	// with an `http://127.0.0.1` base URL, so a certificate picked up from a
-	// machine that has run `bun run certs` would fail the e2e suite there and
-	// nowhere else.
-	preview: { port: DEV_PORT },
+	/**
+	 * Serve the built site the way the dev server serves the source: on the dev
+	 * port, on every interface.
+	 *
+	 * `vite preview` binds loopback alone and says so — `Network: use --host to
+	 * expose` — so Caddy on the VPS, which forwards `dev.lyriclint.com` over the
+	 * tailnet address, met a refused connection and a preview build could only be
+	 * opened on the machine that ran it. `host: true` is what the dev script's own
+	 * `--host` flag does, and it belongs here rather than in that script because a
+	 * flag on one command cannot reach the other: Vite resolves `preview.host` as
+	 * `preview?.host ?? server.host`, and `server.host` is unset in this file
+	 * precisely because dev takes it from the CLI.
+	 *
+	 * `allowedHosts` and `https` are deliberately *not* repeated. That same `??`
+	 * fallback already hands preview both, so the proxied Host header is accepted
+	 * and a `bun run certs` pair is picked up without either being named twice —
+	 * and a second copy is one that drifts.
+	 */
+	preview: {
+		port: DEV_PORT,
+		host: true
+	},
 	build: {
 		/**
 		 * Inline Apple's badge, whatever its size.
