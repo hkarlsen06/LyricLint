@@ -53,6 +53,17 @@ export type OverlayState =
 	| {
 			kind: 'performer';
 			range: TextRange;
+			/**
+			 * Whether the card may take the focus as it opens, exactly as the
+			 * diagnostic popover's own `takesFocus` decides. A card the user asked
+			 * for — `Ctrl-Alt-P`, or a legend action pressed in a diagnostic — is
+			 * theirs to drive, so it takes focus and answers Enter. The card that
+			 * opens itself off a pointer selection has not been asked for anything,
+			 * and taking the focus there is the bug this flag exists for: a
+			 * double-click selects a word, the picker mounts, the caret leaves the
+			 * document, and the keystroke meant to replace the word lands nowhere.
+			 */
+			takesFocus: boolean;
 			legend?: LegendAssignment;
 			/**
 			 * Step two of a selection assignment: the voices already chosen for the
@@ -124,17 +135,26 @@ function withOverlay(session: OverlaySession, overlay: OverlayState): OverlaySes
  * The card opens even with an empty roster: it then offers the inline "+" add
  * flow so assignment never dead-ends on a missing performer.
  */
-export function openPerformerPicker(session: OverlaySession, range: TextRange): OverlaySession {
-	return withOverlay(session, { kind: 'performer', range });
+export function openPerformerPicker(
+	session: OverlaySession,
+	range: TextRange,
+	takesFocus: boolean
+): OverlaySession {
+	return withOverlay(session, { kind: 'performer', range, takesFocus });
 }
 
-/** Start the legend flow on the diagnostic's own range, at step one of two. */
+/**
+ * Start the legend flow on the diagnostic's own range, at step one of two.
+ *
+ * It takes focus: the press that reached it was a control in a diagnostic card,
+ * which had already blurred the editor, so there is no caret here to protect.
+ */
 export function beginLegendAssignment(
 	session: OverlaySession,
 	range: TextRange,
 	legend: LegendAssignment
 ): OverlaySession {
-	return withOverlay(session, { kind: 'performer', range, legend });
+	return withOverlay(session, { kind: 'performer', range, takesFocus: true, legend });
 }
 
 export function openSectionPicker(session: OverlaySession, range: TextRange): OverlaySession {
@@ -386,8 +406,12 @@ export function reportSelectionAnchor(
 	if (key === session.dismissedSelection || alreadyOpen) {
 		return { session, assignRequested: false };
 	}
+	// `false`: this is the one path nobody pressed. The selection under it is
+	// live text the user is in the middle of working on — most often a
+	// double-clicked word they are about to type over — so the card draws itself
+	// beside the caret and leaves it exactly where it was.
 	if (anchor.offersAssignment) {
-		return { session: openPerformerPicker(session, anchor.range), assignRequested: true };
+		return { session: openPerformerPicker(session, anchor.range, false), assignRequested: true };
 	}
 	// No `assignRequested`: the shell has nothing to arbitrate about a link, so
 	// there is no request to forward. The pane opens the card and that is all.

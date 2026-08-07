@@ -1806,6 +1806,34 @@ An edit lands in one member's body. What happens next is two lines:
 `carryHoles` in the field and `expandOverHoles` in the mirror name **the same set from opposite
 ends**, which is why the counts stay equal without anything having to count them.
 
+**Which puts the whole invariant at the mercy of every edit reporting its own size honestly, and one
+did not.** An edit's range is a claim about what the user wrote over, and the two rules above are
+read off nothing else — so an edit that says it replaced more than it did ends differences nobody
+touched. `transformLine` in `performers/transform.ts` renders a lyric line whole, every piece
+concatenated, and used to hand back `{ from: line.from, to: line.to }` for it. Tagging a performer
+on an ad-lib that exists in one chorus only is an insertion of two tags around five characters; it
+arrived as a claim to have rewritten the line, so the difference died and the ad-lib was copied into
+every other copy. Silently, with the source line correct, and only visible on the peer the user was
+not looking at. It was reported from a real transcription, on an ad-lib in the middle of a line —
+the position decides nothing, and the trailing one that looked fine was fine only because it had
+been styled before the sections were linked.
+
+`narrowEdit` is the repair: the common text at both ends stays put and the range covers what
+changed, so wrapping words that are this copy's own is an edit _contained_ in the run and the rule
+above answers correctly on its own. Two things it owes. The trims are **clamped to the selected
+content's own span**, because `insertedOffset` maps the selection as an offset into the edit's
+`insert` and an edit that started after that offset would have nothing to measure. And neither trim
+may stop **between the halves of a surrogate pair**, which is the one way a shorter range could be
+worse than the long one it replaces.
+
+The fix is deliberately in the transform and not in the mirror. An exemption for performer markup
+would be a second rule beside the containment one, and the copy that drifted would be the one nobody
+is looking at — while the honest range is owed to line anchors and to undo granularity anyway. The
+pair in `section-links.svelte.test.ts` pins both halves: an ad-lib tagged in one copy stays there
+whichever position it sits in, and a performer tagged on **shared** words still reaches every copy.
+`transform-boundaries.test.ts` pins the seeds themselves, so a rewrite that goes back to claiming
+whole lines fails there rather than in somebody's second chorus.
+
 **A run's ends map outwards** — `from` backwards, `to` forwards — so it is greedy at its edges:
 typing at the end of a word that was deliberately this copy's own leaves it this copy's own. The
 containment rule agrees with this by construction, because an insertion at either edge is contained.
@@ -2938,6 +2966,29 @@ Closing on the first unassignable selection would shut the card the moment a use
 is assignable is the bug this section exists to prevent, so both call the one predicate; what
 differs is what a refusal costs. The uninvited surface stays quiet, and the aimed press gets a
 sentence, because a shortcut that silently does nothing reads as a shortcut that is broken.
+
+**And the uninvited surface does not take the focus**, which is the same rule applied to the caret
+rather than to the announcement, and it shipped wrong for a long time. The card focused its first
+chip on mount however it had been opened — so a double-click, which is how anybody selects a word
+they are about to type over, pulled the caret out of the document a settle later. The replacement
+keystroke then landed on the roster, where nothing is bound to a letter, and did nothing at all;
+the way back was a _second_ double-click, which only worked because the press outside dismissed
+the card first and the dismissal then suppressed its own reopening. Two gestures to replace a
+word, in the editor's most common one.
+
+`takesFocus` on the performer overlay is that distinction, and it is deliberately the same flag
+name the diagnostic popover already carries for the same split. The two aimed ways in take the
+focus, because neither has a pointer behind it to drive the roster with: `Ctrl-Alt-P`, and the
+legend action pressed in a diagnostic card — which had already blurred the editor, so there is no
+caret there to protect. The pointer-selection path takes `false` and leaves the caret exactly
+where the user put it. Typing then retires the card on the next settled anchor, and the character
+lands where it was typed, which is the rule sync mode states from the other end.
+
+**The `↵` on the action comes off with the focus.** It is a promise about a key, and Enter only
+reaches this card while the card holds focus; opened uninvited, Enter belongs to the document and
+breaks the line. A glyph naming a key that does something else is worse than no glyph.
+`PerformerPicker.svelte.test.ts` pins the pair at both states, and `EditorPane.svelte.test.ts`
+pins the whole regression end to end — double-click, then a typed character replacing the word.
 
 `EditorPane.svelte.test.ts` pins all four cases — pointer opens, keyboard does not, programmatic
 does not, a header does not — and `transform-boundaries.test.ts` pins the predicate against the

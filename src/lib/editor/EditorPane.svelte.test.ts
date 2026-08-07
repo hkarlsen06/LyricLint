@@ -416,6 +416,34 @@ describe('EditorPane', () => {
 		expect(selection.anchor).not.toBe(selection.head);
 	});
 
+	// The card opened itself; nobody asked it for anything, and what it would
+	// have taken the focus away from is the word the user just double-clicked —
+	// which is very often a word they are about to type over. Taking the caret
+	// out of the document sent that keystroke to the roster, where it did
+	// nothing at all, and the way back was a second double-click that only
+	// worked because it dismissed the card first.
+	it('leaves the caret in the document, so typing replaces the word it opened over', async () => {
+		const { handle } = await mountEditor({
+			text: '[Verse]\nHello world',
+			displayContext: context({ performers: performers() })
+		});
+
+		await page.getByText('Hello world').dblClick();
+		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
+
+		const chip = document.querySelector<HTMLElement>('[data-picker-chip]');
+		expect(chip).not.toBe(document.activeElement);
+		// A promise about Enter is only honest while the card holds the focus.
+		expect(document.querySelector('.apply__key')).toBeNull();
+
+		await userEvent.keyboard('x');
+
+		expect(handle.getSnapshot().text).toBe('[Verse]\nHello x');
+		await expect
+			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.not.toBeInTheDocument();
+	});
+
 	it('ignores a programmatic selection', async () => {
 		const { handle } = await mountEditor({
 			text: '[Verse]\nHello world',

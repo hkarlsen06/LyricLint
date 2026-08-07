@@ -258,6 +258,38 @@ describe('PerformerPicker dismissal', () => {
 		expect(returnFocus).not.toHaveBeenCalled();
 	});
 
+	// The card that opens itself off a pointer selection has been asked for
+	// nothing, so it leaves the caret where the user put it — and drops the `↵`
+	// with it, because Enter then belongs to the document rather than to this
+	// card. `EditorPane.svelte.test.ts` pins the same pair end to end.
+	it('takes no focus and promises no Enter when it opened uninvited', async () => {
+		const elsewhere = outside();
+		elsewhere.focus();
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			takesFocus: false,
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: vi.fn()
+		});
+
+		expect(document.activeElement).toBe(elsewhere);
+		expect(document.querySelector('.apply__key')).toBeNull();
+	});
+
+	it('takes the focus and offers Enter when the press asked for it', async () => {
+		outside().focus();
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: vi.fn()
+		});
+
+		expect(document.activeElement).toBe(document.querySelector('[data-picker-chip]'));
+		expect(document.querySelector('.apply__key')).not.toBeNull();
+	});
+
 	it('stays open while the pointer works inside the card', async () => {
 		const onCancel = vi.fn();
 		await render(PerformerPicker, {

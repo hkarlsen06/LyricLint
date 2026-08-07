@@ -29,6 +29,23 @@
 		 * them later". Omitted, an empty selection leaves Apply disabled.
 		 */
 		emptyApplyLabel?: string;
+		/**
+		 * Whether this card may take the focus as it opens.
+		 *
+		 * A card the user asked for takes it: `Ctrl-Alt-P` and the diagnostic
+		 * card's legend action both arrive with no pointer to drive the roster, so
+		 * the keyboard has to land somewhere, and Enter applies.
+		 *
+		 * The card that opens itself off a pointer selection must not. It has been
+		 * asked for nothing, and what it would take the focus away from is a live
+		 * selection the user is in the middle of a gesture on — a double-clicked
+		 * word is most often a word about to be typed over, and pulling the caret
+		 * out of the document meant the replacement keystroke landed on the roster
+		 * and did nothing at all. The card sits beside the selection instead and
+		 * waits for the pointer that opened it; typing retires it, and the
+		 * character lands where it was typed.
+		 */
+		takesFocus?: boolean;
 		returnFocusOnApply?: boolean;
 		allowRemoval?: boolean;
 		removalAvailable?: boolean;
@@ -48,6 +65,7 @@
 		stepCount,
 		applyLabel = 'Apply',
 		emptyApplyLabel,
+		takesFocus = true,
 		returnFocusOnApply = true,
 		allowRemoval = true,
 		removalAvailable = initialSelectedIds.length > 0,
@@ -354,7 +372,9 @@
 	}
 
 	onMount(() => {
-		focusActive();
+		if (takesFocus) {
+			focusActive();
+		}
 		// The picker grabs focus the moment it opens, so :focus-visible would ring
 		// the first chip before anyone navigated to it — that reads as a highlight
 		// pointing at something rather than as a focus indicator. Reveal it on the
@@ -489,7 +509,14 @@
 				onclick={apply}
 			>
 				{actionLabel}
-				<span aria-hidden="true" class="apply__key">↵</span>
+				<!-- The glyph is a promise about Enter, and Enter only reaches this
+				     card while it holds the focus. Opened uninvited off a pointer
+				     selection the caret is still in the document, where Enter breaks
+				     the line — so the promise comes off with the focus rather than
+				     naming a key that does something else. -->
+				{#if takesFocus}
+					<span aria-hidden="true" class="apply__key">↵</span>
+				{/if}
 			</button>
 			{#if removalUnavailable}
 				<span class="sr-only" id="performer-removal-unavailable">

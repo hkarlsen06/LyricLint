@@ -2,7 +2,8 @@ import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { parseDocument } from '$lib/core/parser.js';
-import type { EditorHandle, LanguagePack } from '$lib/core/types.js';
+import type { EditorHandle, LanguagePack, PerformerRecord } from '$lib/core/types.js';
+import { assignVoiceGroup, normalizePerformerKey } from '$lib/performers/index.js';
 import { germanLanguagePack } from '$lib/languages/de.js';
 import { norwegianLanguagePack } from '$lib/languages/no.js';
 import { englishLanguagePack } from '$lib/languages/en.js';
@@ -42,6 +43,16 @@ function offsetOf(text: string, needle: string): number {
 	if (index < 0) throw new Error(`${needle} is not in the fixture.`);
 	return index;
 }
+
+/** A roster for the assignments the mirror has to reason about. */
+const performers: PerformerRecord[] = ['Avery', 'Blair'].map((displayName, order) => ({
+	id: `performer-${order + 1}`,
+	displayName,
+	normalizedKey: normalizePerformerKey(displayName),
+	aliases: [],
+	colorId: `performer-${order + 1}`,
+	order
+}));
 
 function callbacks(overrides: Partial<LyricEditorCallbacks> = {}): LyricEditorCallbacks {
 	return {
@@ -276,6 +287,94 @@ describe('linking sections that do not agree throughout', () => {
 		// The first chorus is untouched, and did not gain a second `tonight`.
 		expect(typed).toContain('And I will be there tonight\n');
 		expect(typed.split('be there tonight')).toHaveLength(2);
+	});
+
+	// Tagging a performer is a rewrite of *a few characters*, however it is
+	// computed. `transformLine` renders the whole line and used to report the
+	// whole line as its edit, which `carryHoles` reads as writing over the
+	// difference — so styling an ad-lib that exists in one chorus only ended the
+	// difference and copied the ad-lib into every other copy, silently. The
+	// position within the line decides nothing: an ad-lib in the middle is the
+	// same claim as one at the end.
+	it.each([
+		['at the end of the line', 'The night is young (ayy)'],
+		['in the middle of the line', 'The night (ayy) is young']
+	])('keeps a one-copy ad-lib local when a performer is tagged %s', async (_label, adlibLine) => {
+		const song = [
+			'[Chorus: Avery & <i>Blair</i>]',
+			'Hold on tight',
+			adlibLine,
+			'',
+			'[Chorus 2: Avery]',
+			'Hold on tight',
+			'The night is young'
+		].join('\n');
+		const handle = await mount(song);
+		handle.linkSections?.({
+			headers: [offsetOf(song, '[Chorus:'), offsetOf(song, '[Chorus 2:')]
+		});
+		await new Promise((resolve) => setTimeout(resolve, 600));
+
+		const text = handle.getSnapshot().text;
+		const from = text.indexOf('(ayy)');
+		const result = assignVoiceGroup({
+			revision: handle.getSnapshot().revision,
+			text,
+			document: parseDocument(text),
+			selection: { anchor: from, head: from + '(ayy)'.length },
+			performerIds: [performers[1]!.id],
+			roster: performers
+		});
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') throw new Error(result.reason);
+		handle.dispatchAtomic(result.edit);
+
+		const tagged = handle.getSnapshot().text;
+		expect(tagged).toContain(adlibLine.replace('(ayy)', '<i>(ayy)</i>'));
+		// The peer never sang it, so it does not gain the ad-lib or its markup.
+		expect(tagged.split('(ayy)')).toHaveLength(2);
+		expect(tagged).toContain('[Chorus 2: Avery]\nHold on tight\nThe night is young');
+		// And the difference is still a difference, ready to be told apart again.
+		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(2);
+	});
+
+	// The complement, and the reason the repair is a narrower edit rather than an
+	// exemption for performer markup: text both copies share is still carried.
+	// The header already names the slot, so this is one change and the mirror
+	// sees it — an assignment that also writes a legend group arrives as two
+	// ranges and is left alone, which is the mirror's own rule about scattered
+	// edits rather than anything about performers.
+	it('carries a performer tagged on shared words into every copy', async () => {
+		const song = [
+			'[Chorus: Avery & <i>Blair</i>]',
+			'Hold on tight',
+			'The night is young (ayy)',
+			'',
+			'[Chorus 2: Avery]',
+			'Hold on tight',
+			'The night is young'
+		].join('\n');
+		const handle = await mount(song);
+		handle.linkSections?.({
+			headers: [offsetOf(song, '[Chorus:'), offsetOf(song, '[Chorus 2:')]
+		});
+		await new Promise((resolve) => setTimeout(resolve, 600));
+
+		const text = handle.getSnapshot().text;
+		const from = text.indexOf('Hold on tight');
+		const result = assignVoiceGroup({
+			revision: handle.getSnapshot().revision,
+			text,
+			document: parseDocument(text),
+			selection: { anchor: from, head: from + 'Hold on tight'.length },
+			performerIds: [performers[1]!.id],
+			roster: performers
+		});
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') throw new Error(result.reason);
+		handle.dispatchAtomic(result.edit);
+
+		expect(handle.getSnapshot().text.split('<i>Hold on tight</i>')).toHaveLength(3);
 	});
 
 	// Writing across a difference's edge is how a difference is ended: the run is

@@ -51,6 +51,18 @@ interface BoundaryCase {
 	selection(input: string): SerializedSelection;
 	expected: string;
 	selectedText: string;
+	/**
+	 * The exact text each edit replaces — which is what changed and not the line
+	 * it was computed over.
+	 *
+	 * An edit's range is read downstream as a claim about what the user wrote
+	 * over: `carryHoles` in `extensions/section-links.ts` keeps a divergent run a
+	 * change is contained in and destroys one it merely overlaps, and line
+	 * anchors map the same way. A whole-line claim for two inserted tags
+	 * therefore mirrored a one-copy ad-lib into every linked chorus. These are
+	 * the seeds `narrowEdit` leaves, and each is clamped so the selection stays
+	 * inside its own edit — which is why case three keeps the tail it does.
+	 */
 	undoSeeds: string[];
 }
 
@@ -64,7 +76,7 @@ const boundaryCases: BoundaryCase[] = [
 		},
 		expected: `${header}H<i>ell</i>o world`,
 		selectedText: 'ell',
-		undoSeeds: ['Hello world']
+		undoSeeds: ['ell']
 	},
 	{
 		name: 'leading and trailing whitespace',
@@ -74,7 +86,7 @@ const boundaryCases: BoundaryCase[] = [
 		},
 		expected: `${header} <i>Hello world</i> `,
 		selectedText: 'Hello world',
-		undoSeeds: [' Hello world ']
+		undoSeeds: ['Hello world']
 	},
 	{
 		name: 'selection crossing an existing italic span boundary',
@@ -87,7 +99,7 @@ const boundaryCases: BoundaryCase[] = [
 		},
 		expected: `${header}He<i>llo world</i>`,
 		selectedText: 'lo world',
-		undoSeeds: ['He<i>llo wo</i>rld']
+		undoSeeds: ['lo wo</i>rld']
 	},
 	{
 		name: 'equivalent spans adjacent on both sides',
@@ -98,7 +110,7 @@ const boundaryCases: BoundaryCase[] = [
 		},
 		expected: `${header}<i>Hithere!</i>`,
 		selectedText: 'there',
-		undoSeeds: ['<i>Hi</i>there<i>!</i>']
+		undoSeeds: ['</i>there<i>']
 	},
 	{
 		name: 'partial ZWJ emoji grapheme',
@@ -109,7 +121,7 @@ const boundaryCases: BoundaryCase[] = [
 		},
 		expected: `${header}A <i>👩‍🎤</i> sings`,
 		selectedText: '👩‍🎤',
-		undoSeeds: ['A 👩‍🎤 sings']
+		undoSeeds: ['👩‍🎤']
 	},
 	{
 		name: 'partial flag grapheme',
@@ -120,7 +132,7 @@ const boundaryCases: BoundaryCase[] = [
 		},
 		expected: `${header}A <i>🇳🇴</i> sings`,
 		selectedText: '🇳🇴',
-		undoSeeds: ['A 🇳🇴 sings']
+		undoSeeds: ['🇳🇴']
 	}
 ];
 

@@ -326,6 +326,67 @@ function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
 	return { text, selectedFrom, selectedTo };
 }
 
+/**
+ * The edit a rewrite actually makes, rather than the line it was computed over.
+ *
+ * A rendered line is built whole — every piece, styled or not, concatenated —
+ * so the naive edit replaces the physical line even where the only difference is
+ * an opening and a closing tag around five characters in the middle of it. That
+ * is not merely wasteful: an edit's range is read as a claim about what the user
+ * wrote over, and two features downstream act on it. `carryHoles` in
+ * `extensions/section-links.ts` keeps a divergent run that a change is
+ * *contained* in and destroys one a change merely *overlaps*, so a whole-line
+ * claim ends the difference and mirrors an ad-lib that exists in one chorus
+ * only into every other copy. Line anchors map the same way.
+ *
+ * So the common text at both ends stays put and the range covers what changed.
+ * The trims are clamped to `keep`, the selected content's own span in the
+ * rendered text, which is what `insertedOffset` measures the mapped selection
+ * against — the caller's local offset stays valid because the edit can never
+ * start after it or end before it. Neither trim is allowed to stop between the
+ * halves of a surrogate pair.
+ */
+function narrowEdit(from: number, original: string, insert: string, keep: TextRange): TextEdit {
+	const isHighSurrogate = (unit: string | undefined): boolean =>
+		unit !== undefined && unit >= '\uD800' && unit <= '\uDBFF';
+	const isLowSurrogate = (unit: string | undefined): boolean =>
+		unit !== undefined && unit >= '\uDC00' && unit <= '\uDFFF';
+
+	let prefix = 0;
+	const prefixLimit = Math.min(original.length, insert.length, keep.from);
+	while (prefix < prefixLimit && original[prefix] === insert[prefix]) {
+		prefix += 1;
+	}
+	if (isHighSurrogate(insert[prefix - 1]) && isLowSurrogate(insert[prefix])) {
+		prefix -= 1;
+	}
+
+	let suffix = 0;
+	const suffixLimit = Math.min(
+		original.length - prefix,
+		insert.length - prefix,
+		insert.length - keep.to
+	);
+	while (
+		suffix < suffixLimit &&
+		original[original.length - 1 - suffix] === insert[insert.length - 1 - suffix]
+	) {
+		suffix += 1;
+	}
+	if (
+		isLowSurrogate(insert[insert.length - suffix]) &&
+		isHighSurrogate(insert[insert.length - suffix - 1])
+	) {
+		suffix -= 1;
+	}
+
+	return {
+		from: from + prefix,
+		to: from + original.length - suffix,
+		insert: insert.slice(prefix, insert.length - suffix)
+	};
+}
+
 function transformLine(
 	text: string,
 	line: LyricLine,
@@ -356,7 +417,10 @@ function transformLine(
 		edit:
 			rendered.text === line.text
 				? undefined
-				: { from: line.from, to: line.to, insert: rendered.text },
+				: narrowEdit(line.from, line.text, rendered.text, {
+						from: rendered.selectedFrom,
+						to: rendered.selectedTo
+					}),
 		selectedFrom: line.from + rendered.selectedFrom,
 		selectedTo: line.from + rendered.selectedTo
 	};
@@ -423,7 +487,10 @@ function combineLineTransforms(
 		return undefined;
 	}
 	return {
-		edit: { from: first.line.from, to: last.line.to, insert },
+		edit: narrowEdit(first.line.from, text.slice(first.line.from, last.line.to), insert, {
+			from: selectedFrom - first.line.from,
+			to: selectedTo - first.line.from
+		}),
 		selectedFrom,
 		selectedTo
 	};

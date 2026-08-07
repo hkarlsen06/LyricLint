@@ -68,7 +68,7 @@ function anchor(overrides: Partial<SelectionAnchor> = {}): SelectionAnchor {
 /** Every way an overlay can be opened, for the mutual-exclusion sweep. */
 const openings: ReadonlyArray<{ name: string; open: (session: OverlaySession) => OverlaySession }> =
 	[
-		{ name: 'performer picker', open: (session) => openPerformerPicker(session, selection) },
+		{ name: 'performer picker', open: (session) => openPerformerPicker(session, selection, true) },
 		{
 			name: 'legend assignment',
 			open: (session) => beginLegendAssignment(session, selection, legend())
@@ -87,7 +87,9 @@ describe('overlay state', () => {
 
 	it('reports the anchor range of every variant', () => {
 		expect(overlayRange({ kind: 'none' })).toBeUndefined();
-		expect(overlayRange({ kind: 'performer', range: selection })).toEqual(selection);
+		expect(overlayRange({ kind: 'performer', range: selection, takesFocus: true })).toEqual(
+			selection
+		);
 		expect(overlayRange({ kind: 'section', range: otherRange })).toEqual(otherRange);
 		expect(
 			overlayRange({ kind: 'diagnostic', diagnostic: diagnostic(), takesFocus: false })
@@ -135,9 +137,10 @@ describe('overlay mutual exclusion', () => {
 		const pending = beginLegendAssignment(closedOverlaySession(), selection, legend());
 		expect(pending.overlay).toMatchObject({ kind: 'performer', legend: { step: 'section' } });
 
-		expect(openPerformerPicker(pending, selection).overlay).toEqual({
+		expect(openPerformerPicker(pending, selection, true).overlay).toEqual({
 			kind: 'performer',
-			range: selection
+			range: selection,
+			takesFocus: true
 		});
 		expect(openSectionPicker(pending, otherRange).overlay).toEqual({
 			kind: 'section',
@@ -174,7 +177,7 @@ describe('diagnostic dismissal', () => {
 	it('reports the Escape as unhandled when no popover is open', () => {
 		for (const session of [
 			closedOverlaySession(),
-			openPerformerPicker(closedOverlaySession(), selection),
+			openPerformerPicker(closedOverlaySession(), selection, true),
 			openSectionPicker(closedOverlaySession(), otherRange)
 		]) {
 			const result = dismissDiagnostic(session);
@@ -202,7 +205,7 @@ describe('diagnostic dismissal', () => {
 	});
 
 	it('leaves a picker alone when the scroll check finds no popover', () => {
-		const picker = openPerformerPicker(closedOverlaySession(), selection);
+		const picker = openPerformerPicker(closedOverlaySession(), selection, true);
 
 		expect(releaseUnanchoredDiagnostic(picker)).toEqual({ session: picker, returnFocus: false });
 	});
@@ -210,7 +213,9 @@ describe('diagnostic dismissal', () => {
 
 describe('dismissed selections', () => {
 	it('suppresses the selection the user cancelled out of', () => {
-		const cancelled = cancelPerformerPicker(openPerformerPicker(closedOverlaySession(), selection));
+		const cancelled = cancelPerformerPicker(
+			openPerformerPicker(closedOverlaySession(), selection, true)
+		);
 
 		expect(cancelled).toEqual({
 			overlay: { kind: 'none' },
@@ -219,7 +224,9 @@ describe('dismissed selections', () => {
 	});
 
 	it('does not reopen the picker for a selection already dismissed', () => {
-		const cancelled = cancelPerformerPicker(openPerformerPicker(closedOverlaySession(), selection));
+		const cancelled = cancelPerformerPicker(
+			openPerformerPicker(closedOverlaySession(), selection, true)
+		);
 
 		const report = reportSelectionAnchor(cancelled, anchor());
 
@@ -227,29 +234,53 @@ describe('dismissed selections', () => {
 	});
 
 	it('still opens the picker for a different selection', () => {
-		const cancelled = cancelPerformerPicker(openPerformerPicker(closedOverlaySession(), selection));
+		const cancelled = cancelPerformerPicker(
+			openPerformerPicker(closedOverlaySession(), selection, true)
+		);
 
 		const report = reportSelectionAnchor(cancelled, anchor({ range: otherRange }));
 
 		expect(report).toEqual({
-			session: { overlay: { kind: 'performer', range: otherRange }, dismissedSelection: '4:9' },
+			session: {
+				overlay: { kind: 'performer', range: otherRange, takesFocus: false },
+				dismissedSelection: '4:9'
+			},
 			assignRequested: true
 		});
 	});
 
 	it('retires the dismissal once the document revision moves the offsets', () => {
-		const cancelled = cancelPerformerPicker(openPerformerPicker(closedOverlaySession(), selection));
+		const cancelled = cancelPerformerPicker(
+			openPerformerPicker(closedOverlaySession(), selection, true)
+		);
 
 		const reopened = reportSelectionAnchor(forgetDismissedSelection(cancelled), anchor());
 
 		expect(reopened).toEqual({
-			session: { overlay: { kind: 'performer', range: selection } },
+			session: { overlay: { kind: 'performer', range: selection, takesFocus: false } },
 			assignRequested: true
 		});
 	});
 
+	// The one path nobody pressed. A double-clicked word is most often a word
+	// about to be typed over, so the card that draws itself beside it may not
+	// take the caret out of the document — the aimed presses may, because
+	// neither has a pointer behind it to drive the roster with.
+	it('opens the uninvited card without the focus, and the aimed ones with it', () => {
+		expect(reportSelectionAnchor(closedOverlaySession(), anchor()).session.overlay).toMatchObject({
+			kind: 'performer',
+			takesFocus: false
+		});
+		expect(openPerformerPicker(closedOverlaySession(), selection, true).overlay).toMatchObject({
+			takesFocus: true
+		});
+		expect(
+			beginLegendAssignment(closedOverlaySession(), selection, legend()).overlay
+		).toMatchObject({ takesFocus: true });
+	});
+
 	it('leaves an untouched session identical so a revision bump cannot churn state', () => {
-		const open = openPerformerPicker(closedOverlaySession(), selection);
+		const open = openPerformerPicker(closedOverlaySession(), selection, true);
 
 		expect(forgetDismissedSelection(open)).toBe(open);
 	});
@@ -280,7 +311,7 @@ describe('selection anchor reports', () => {
 	// The picker is open on the range the user is answering; a selection made
 	// somewhere unassignable while it stands says nothing about that answer.
 	it('leaves an open picker standing when a later selection offers nothing', () => {
-		const open = openPerformerPicker(closedOverlaySession(), selection);
+		const open = openPerformerPicker(closedOverlaySession(), selection, true);
 
 		expect(
 			reportSelectionAnchor(open, anchor({ range: otherRange, offersAssignment: false }))
@@ -291,7 +322,7 @@ describe('selection anchor reports', () => {
 	});
 
 	it('does not re-request assignment for the picker already on that range', () => {
-		const open = openPerformerPicker(closedOverlaySession(), selection);
+		const open = openPerformerPicker(closedOverlaySession(), selection, true);
 
 		expect(reportSelectionAnchor(open, anchor())).toEqual({
 			session: open,
@@ -303,13 +334,13 @@ describe('selection anchor reports', () => {
 		const pending = beginLegendAssignment(closedOverlaySession(), selection, legend());
 
 		expect(reportSelectionAnchor(pending, anchor({ range: otherRange }))).toEqual({
-			session: { overlay: { kind: 'performer', range: otherRange } },
+			session: { overlay: { kind: 'performer', range: otherRange, takesFocus: false } },
 			assignRequested: true
 		});
 	});
 
 	it('retires the performer picker when the selection stops being anchorable', () => {
-		const open = openPerformerPicker(closedOverlaySession(), selection);
+		const open = openPerformerPicker(closedOverlaySession(), selection, true);
 
 		expect(reportSelectionAnchor(open, undefined)).toEqual({
 			session: { overlay: { kind: 'none' } },
@@ -337,7 +368,7 @@ describe('performer assignment', () => {
 	});
 
 	it('commits an ordinary selection over the picker range', () => {
-		const open = openPerformerPicker(closedOverlaySession(), selection);
+		const open = openPerformerPicker(closedOverlaySession(), selection, true);
 
 		const outcome = applyPerformerPicker(open, ['avery', 'blair']);
 
@@ -352,7 +383,9 @@ describe('performer assignment', () => {
 	// is the section's voice — the selection's own was chosen a step earlier and
 	// has to survive the second press.
 	it('carries the selection voice through the section-voice step', () => {
-		const open = askSectionVoice(openPerformerPicker(closedOverlaySession(), selection), ['avery']);
+		const open = askSectionVoice(openPerformerPicker(closedOverlaySession(), selection, true), [
+			'avery'
+		]);
 
 		expect(applyPerformerPicker(open, ['blair'])).toEqual({
 			kind: 'range',
@@ -365,7 +398,9 @@ describe('performer assignment', () => {
 	// "Skip" is a real answer: it commits step one exactly as pressing
 	// Apply would have before the question existed.
 	it('commits the selection alone when no section voice is named', () => {
-		const open = askSectionVoice(openPerformerPicker(closedOverlaySession(), selection), ['avery']);
+		const open = askSectionVoice(openPerformerPicker(closedOverlaySession(), selection, true), [
+			'avery'
+		]);
 
 		expect(applyPerformerPicker(open, [])).toEqual({
 			kind: 'range',
@@ -375,7 +410,7 @@ describe('performer assignment', () => {
 	});
 
 	it('suppresses the selection an applied assignment consumed', () => {
-		const open = openPerformerPicker(closedOverlaySession(), selection);
+		const open = openPerformerPicker(closedOverlaySession(), selection, true);
 		const outcome = applyPerformerPicker(open, ['avery']);
 		if (outcome.kind !== 'range') {
 			throw new Error('An open picker over a selection must commit a range assignment.');
@@ -398,6 +433,7 @@ describe('performer assignment', () => {
 		expect(outcome.session.overlay).toEqual({
 			kind: 'performer',
 			range: selection,
+			takesFocus: true,
 			legend: {
 				sectionFrom: 0,
 				styleSlot: 2,

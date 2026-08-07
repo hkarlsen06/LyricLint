@@ -311,8 +311,12 @@
 				}
 				callbacks.onSnapshot(snapshot);
 			},
+			// The keyboard's own way in, `Ctrl-Alt-P` — a press that meant only
+			// this, and one with no pointer behind it to drive the card, so it
+			// takes the focus. The pointer path never reaches here: it opens
+			// through `reportSelectionAnchor` and forwards to the outer callbacks.
 			onAssignRequest(request) {
-				session = openPerformerPicker(session, request.range);
+				session = openPerformerPicker(session, request.range, true);
 				callbacks.onAssignRequest(request);
 			},
 			onSectionHeaderRequest(request) {
@@ -768,6 +772,7 @@
 			applyLabel={legend?.step === 'section' || needsSectionVoice() ? 'Next' : 'Apply'}
 			emptyApplyLabel={pendingVoice ? 'Skip' : undefined}
 			returnFocusOnApply={legend?.step !== 'section' && !needsSectionVoice()}
+			takesFocus={performerOverlay.takesFocus}
 			allowRemoval={!legend && !pendingVoice}
 			anchor={overlayAnchor}
 			placement={overlayPlacement}
