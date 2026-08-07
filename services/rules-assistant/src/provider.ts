@@ -9,6 +9,7 @@ import {
 	MAX_LINK_ACTIONS,
 	MAX_LINK_HEADERS,
 	MAX_PROPOSALS,
+	MAX_REFERENCES,
 	MAX_TOOL_ARGUMENT_CHARS,
 	MODEL
 } from './config';
@@ -21,6 +22,7 @@ import {
 	providerItemsSchema,
 	proposeEditsArgumentsSchema,
 	readScribeArgumentsSchema,
+	showLyricsArgumentsSchema,
 	type AnswerRequest,
 	type WireToolResult
 } from './schema';
@@ -44,6 +46,11 @@ export type ProviderToolCall =
 			callId: string;
 			name: 'manage_links';
 			input: ReturnType<typeof manageLinksArgumentsSchema.parse>;
+	  }
+	| {
+			callId: string;
+			name: 'show_lyrics';
+			input: ReturnType<typeof showLyricsArgumentsSchema.parse>;
 	  };
 
 export type ProviderResult =
@@ -171,6 +178,48 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 				}
 			}
 		}
+	},
+	{
+		type: 'function',
+		name: 'show_lyrics',
+		description:
+			"Point the visitor at exact lyric text in a 'scribe already read in this turn. Each reference draws in the conversation and reveals its quoted lines in the visitor's editor; nothing is changed and no approval is asked.",
+		strict: true,
+		parameters: {
+			type: 'object',
+			additionalProperties: false,
+			required: ['references'],
+			properties: {
+				references: {
+					type: 'array',
+					minItems: 1,
+					maxItems: MAX_REFERENCES,
+					items: {
+						type: 'object',
+						additionalProperties: false,
+						required: ['id', 'anchor', 'note'],
+						properties: {
+							id: { type: 'string' },
+							anchor: {
+								type: 'object',
+								additionalProperties: false,
+								required: ['exact', 'before', 'after', 'line'],
+								properties: {
+									exact: { type: 'string' },
+									before: { type: 'string' },
+									after: { type: 'string' },
+									// Nullable rather than absent: a strict schema requires every
+									// property it lists, and the line is what separates repeated
+									// copies of a chorus.
+									line: { type: ['integer', 'null'], minimum: 1 }
+								}
+							},
+							note: { type: 'string' }
+						}
+					}
+				}
+			}
+		}
 	}
 ];
 
@@ -204,7 +253,11 @@ export function numberDraftLines(draftText: string): string {
 }
 
 function toolResultOutput(result: WireToolResult): string {
-	if (result.name === 'propose_edits' || result.name === 'manage_links') {
+	if (
+		result.name === 'propose_edits' ||
+		result.name === 'manage_links' ||
+		result.name === 'show_lyrics'
+	) {
 		return JSON.stringify({ outcomes: result.result.outcomes });
 	}
 	if (result.result.status === 'denied') return JSON.stringify({ status: 'denied' });
@@ -355,6 +408,13 @@ function parseToolCall(item: OpenAI.Responses.ResponseFunctionToolCall): Provide
 	}
 	if (item.name === 'manage_links') {
 		const parsed = manageLinksArgumentsSchema.safeParse(raw);
+		if (!parsed.success) {
+			throw new ApiError('invalid_answer', 'The assistant returned malformed tool arguments.');
+		}
+		return { callId: item.call_id, name: item.name, input: parsed.data };
+	}
+	if (item.name === 'show_lyrics') {
+		const parsed = showLyricsArgumentsSchema.safeParse(raw);
 		if (!parsed.success) {
 			throw new ApiError('invalid_answer', 'The assistant returned malformed tool arguments.');
 		}

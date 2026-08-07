@@ -49,6 +49,15 @@ function wireToolCall(call: AssistantToolCallRecord) {
 			})
 		};
 	}
+	if (call.name === 'show_lyrics') {
+		return {
+			callId: call.callId,
+			name: call.name,
+			arguments: JSON.stringify({
+				references: call.references.map(({ id, anchor, note }) => ({ id, anchor, note }))
+			})
+		};
+	}
 	return {
 		callId: call.callId,
 		name: call.name,
@@ -106,6 +115,25 @@ function wireToolResult(
 	if (call.name === 'propose_edits') {
 		const outcomes = outcomesFor(call.proposals);
 		return outcomes ? { callId: call.callId, name: call.name, result: { outcomes } } : undefined;
+	}
+	if (call.name === 'show_lyrics') {
+		// References resolve when the call arrives and are never pending, so a
+		// live turn holding one is always serializable.
+		return {
+			callId: call.callId,
+			name: call.name,
+			result: {
+				outcomes: call.references.map((reference) =>
+					reference.status === 'failed'
+						? {
+								id: reference.id,
+								status: reference.status,
+								...(reference.reason ? { reason: reference.reason } : {})
+							}
+						: { id: reference.id, status: reference.status }
+				)
+			}
+		};
 	}
 	const outcomes = outcomesFor(call.actions);
 	return outcomes

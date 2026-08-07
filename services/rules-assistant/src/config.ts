@@ -51,6 +51,7 @@ export const REQUEST_RULES = {
  * full-priced, stateless provider request. */
 export const MAX_TOOL_ROUNDS = 4;
 export const MAX_PROPOSALS = 8;
+export const MAX_REFERENCES = 8;
 export const MAX_LINK_ACTIONS = 8;
 export const MAX_LINK_HEADERS = 12;
 export const MAX_LINK_SUMMARY_CHARS = 200;

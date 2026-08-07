@@ -37,7 +37,7 @@ export interface AnswerResponse {
 }
 
 /** The browser-executed capabilities the v2 assistant protocol exposes. */
-export type AssistantToolName = 'read_scribe' | 'propose_edits' | 'manage_links';
+export type AssistantToolName = 'read_scribe' | 'propose_edits' | 'manage_links' | 'show_lyrics';
 
 /** An exact-text anchor emitted by the model instead of fragile document offsets. */
 export interface AssistantProposalAnchor {
@@ -66,6 +66,33 @@ export interface AssistantProposal {
 	 */
 	applyTo?: AssistantProposalApplyTarget;
 }
+
+/**
+ * One place in the 'scribe the assistant points at without proposing anything.
+ * A proposal minus its replacement: the same anchor, and a note saying why the
+ * place is being shown.
+ */
+export interface AssistantReference {
+	id: string;
+	anchor: AssistantProposalAnchor;
+	note: string;
+}
+
+/**
+ * A reference resolves when its call arrives and is never pending: there is no
+ * decision to park a turn on. 'shown' is the record of the card drawing with a
+ * live place behind it; hovering re-resolves against the text as it stands.
+ */
+export type AssistantReferenceRecord = AssistantReference &
+	(
+		| { status: 'shown'; reason?: never }
+		| { status: 'failed'; reason?: AssistantAnchorFailureReason }
+	);
+
+/** The compact result returned to the model for one reference. */
+export type AssistantReferenceOutcome =
+	| { id: string; status: 'shown'; reason?: never }
+	| { id: string; status: 'failed'; reason?: AssistantAnchorFailureReason };
 
 /** One header address in a model-authored section-link action. */
 export interface AssistantLinkHeader {
@@ -152,6 +179,11 @@ export type WireToolResult =
 			callId: string;
 			name: 'manage_links';
 			result: { outcomes: AssistantLinkActionOutcome[] };
+	  }
+	| {
+			callId: string;
+			name: 'show_lyrics';
+			result: { outcomes: AssistantReferenceOutcome[] };
 	  };
 
 /**
@@ -176,6 +208,11 @@ export type AssistantToolCall =
 			callId: string;
 			name: 'manage_links';
 			input: { actions: AssistantLinkAction[] };
+	  }
+	| {
+			callId: string;
+			name: 'show_lyrics';
+			input: { references: AssistantReference[] };
 	  };
 
 /** The final structured answer returned by one model turn. */
@@ -226,6 +263,9 @@ export const MAX_TOOL_ROUNDS = 4;
 
 /** Maximum proposals accepted in one `propose_edits` call. */
 export const MAX_PROPOSALS = 8;
+
+/** Maximum references accepted in one `show_lyrics` call. */
+export const MAX_REFERENCES = 8;
 
 /** Maximum operations accepted in one `manage_links` call. */
 export const MAX_LINK_ACTIONS = 8;

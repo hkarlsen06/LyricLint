@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
 	MAX_LINK_ACTIONS,
 	GLOBAL_REQUEST_SPEND_RESERVATION_USD,
+	MAX_REFERENCES,
 	MODEL,
 	MAX_LINK_SUMMARIES,
 	MAX_LINK_SUMMARY_CHARS,
@@ -28,6 +29,7 @@ import {
 	manageLinksArgumentsSchema,
 	proposeEditsArgumentsSchema,
 	providerItemsSchema,
+	showLyricsArgumentsSchema,
 	validateAnswer,
 	validateConversation,
 	wireToolResultSchema,
@@ -87,6 +89,38 @@ describe('proposal validation', () => {
 		};
 		const items = parameters.properties.proposals.items;
 		expect(items?.required).toContain('applyTo');
+	});
+});
+
+describe('reference validation', () => {
+	const anchor = { exact: 'Whenever you call', before: 'And I said ', after: '', line: 12 };
+
+	it('accepts a reference anchored like a proposal, without a replacement', () => {
+		expect(
+			showLyricsArgumentsSchema.safeParse({
+				references: [{ id: 'ref-1', anchor, note: 'The second verse opens here.' }]
+			}).success
+		).toBe(true);
+		expect(DRAFT_TOOLS.some((tool) => tool.name === 'show_lyrics')).toBe(true);
+	});
+
+	it.each([
+		[
+			'an empty exact, which only ever names an empty scribe with nothing to show',
+			{ references: [{ id: 'ref-1', anchor: { ...anchor, exact: '' }, note: 'Empty.' }] }
+		],
+		[
+			'more than eight references',
+			{
+				references: Array.from({ length: MAX_REFERENCES + 1 }, (_, index) => ({
+					id: `ref-${index}`,
+					anchor,
+					note: 'One of too many.'
+				}))
+			}
+		]
+	] as const)('rejects %s', (_name, input) => {
+		expect(showLyricsArgumentsSchema.safeParse(input).success).toBe(false);
 	});
 });
 
@@ -587,6 +621,49 @@ describe('prompt assembly', () => {
 		);
 	});
 
+	it('serializes show-lyrics outcomes as worker-controlled function output', () => {
+		const referenceItem = {
+			type: 'function_call',
+			call_id: 'call-show',
+			name: 'show_lyrics',
+			arguments: '{"references":[]}'
+		};
+		const request = providerRequest(
+			[
+				{ role: 'user', content: 'Where does it say Whenever?' },
+				{
+					role: 'assistant',
+					toolCalls: [
+						{ callId: 'call-show', name: 'show_lyrics', arguments: referenceItem.arguments }
+					],
+					providerItems: JSON.stringify([referenceItem])
+				},
+				{
+					role: 'tool',
+					results: [
+						{
+							callId: 'call-show',
+							name: 'show_lyrics',
+							result: {
+								outcomes: [
+									{ id: 'ref-1', status: 'shown' },
+									{ id: 'ref-2', status: 'failed', reason: 'not-found' }
+								]
+							}
+						}
+					]
+				}
+			],
+			'll-test',
+			true
+		);
+		const input = request.input as unknown as Array<Record<string, unknown>>;
+		const output = input.find((item) => item.type === 'function_call_output');
+		expect(output?.output).toBe(
+			'{"outcomes":[{"id":"ref-1","status":"shown"},{"id":"ref-2","status":"failed","reason":"not-found"}]}'
+		);
+	});
+
 	it('keys the prompt cache on the ruleset version and corpus hash', () => {
 		const key = promptCacheKey(corpus);
 		expect(key).toContain(corpus.ruleSetVersion);
@@ -694,6 +771,46 @@ describe('provider response extraction', () => {
 				}
 			]
 		});
+	});
+
+	it('extracts validated show-lyrics references into tool calls', () => {
+		const argumentsJson = JSON.stringify({
+			references: [
+				{
+					id: 'ref-1',
+					anchor: { exact: 'Whenever you call', before: '', after: '', line: 12 },
+					note: 'The second verse opens here.'
+				}
+			]
+		});
+		const item = {
+			type: 'function_call',
+			id: 'fc-show',
+			call_id: 'call-show',
+			name: 'show_lyrics',
+			arguments: argumentsJson,
+			status: 'completed'
+		};
+		const parsed = parseProviderResponse(response([item]));
+		expect(parsed).toMatchObject({
+			kind: 'tool_calls',
+			calls: [{ callId: 'call-show', name: 'show_lyrics', input: JSON.parse(argumentsJson) }]
+		});
+	});
+
+	it('rejects an empty-exact reference as malformed show-lyrics arguments', () => {
+		const item = {
+			...providerItem,
+			name: 'show_lyrics',
+			arguments: JSON.stringify({
+				references: [
+					{ id: 'ref-1', anchor: { exact: '', before: '', after: '', line: null }, note: '' }
+				]
+			})
+		};
+		expect(() => parseProviderResponse(response([item]))).toThrowError(
+			expect.objectContaining({ code: 'invalid_answer' })
+		);
 	});
 
 	it.each([

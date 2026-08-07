@@ -17,6 +17,7 @@
 	import AssistantAnswer from './AssistantAnswer.svelte';
 	import AssistantLinkActionCard from './AssistantLinkActionCard.svelte';
 	import AssistantProposalCard from './AssistantProposalCard.svelte';
+	import AssistantReferenceCard from './AssistantReferenceCard.svelte';
 	import AssistantToolTurn from './AssistantToolTurn.svelte';
 
 	let { assistant }: { assistant: AssistantState } = $props();
@@ -255,6 +256,12 @@
 												{assistant}
 												decidable={decidable(message.id)}
 											/>
+										{/each}
+									</div>
+								{:else if call.name === 'show_lyrics'}
+									<div class="assistant-proposals" aria-label="Referenced lyrics">
+										{#each call.references as reference (reference.id)}
+											<AssistantReferenceCard {reference} {assistant} />
 										{/each}
 									</div>
 								{:else}

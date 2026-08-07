@@ -15,31 +15,34 @@ import {
 	MAX_LINK_SUMMARY_CHARS,
 	MAX_PROPOSALS,
 	MAX_PROVIDER_ITEMS_CHARS,
+	MAX_REFERENCES,
 	MAX_TOOL_ARGUMENT_CHARS,
 	MAX_TOOL_ROUNDS,
 	REQUEST_RULES
 } from './config';
 import { ApiError } from './errors';
 
-export const toolNames = ['read_scribe', 'propose_edits', 'manage_links'] as const;
+export const toolNames = ['read_scribe', 'propose_edits', 'manage_links', 'show_lyrics'] as const;
 export type ToolName = (typeof toolNames)[number];
+
+const anchorSchema = z
+	.object({
+		// Empty names the sole zero-width range in an empty 'scribe. The
+		// browser resolver refuses that anchor once any document text exists.
+		exact: z.string(),
+		before: z.string(),
+		after: z.string(),
+		/** The 1-based line of the numbered draft `exact` begins on. Nullable
+		 * rather than absent: a strict provider schema requires every property,
+		 * and null is the model saying it could not name one. */
+		line: z.number().int().min(1).nullable()
+	})
+	.strict();
 
 export const proposalSchema = z
 	.object({
 		id: z.string().min(1),
-		anchor: z
-			.object({
-				// Empty names the sole zero-width range in an empty 'scribe. The
-				// browser resolver refuses that anchor once any document text exists.
-				exact: z.string(),
-				before: z.string(),
-				after: z.string(),
-				/** The 1-based line of the numbered draft `exact` begins on. Nullable
-				 * rather than absent: a strict provider schema requires every property,
-				 * and null is the model saying it could not name one. */
-				line: z.number().int().min(1).nullable()
-			})
-			.strict(),
+		anchor: anchorSchema,
 		replacement: z.string(),
 		note: z.string(),
 		// The default accepts a live call created just before this field shipped;
@@ -51,6 +54,23 @@ export const proposalSchema = z
 export const readScribeArgumentsSchema = z.object({}).strict();
 export const proposeEditsArgumentsSchema = z
 	.object({ proposals: z.array(proposalSchema).min(1).max(MAX_PROPOSALS) })
+	.strict();
+
+/** A proposal without a replacement: a place in the 'scribe worth pointing at. */
+export const referenceSchema = z
+	.object({
+		// An empty exact is refused outright rather than left to the resolver: it
+		// only ever names an empty 'scribe, and there is nothing there to show.
+		id: z.string().min(1),
+		anchor: anchorSchema.refine((anchor) => anchor.exact.length > 0, {
+			message: 'A reference must quote some exact text.'
+		}),
+		note: z.string()
+	})
+	.strict();
+
+export const showLyricsArgumentsSchema = z
+	.object({ references: z.array(referenceSchema).min(1).max(MAX_REFERENCES) })
 	.strict();
 
 const linkHeaderSchema = z
@@ -150,6 +170,30 @@ export const wireToolResultSchema = z.discriminatedUnion('name', [
 			callId: z.string().min(1),
 			name: z.literal('manage_links'),
 			result: z.object({ outcomes: z.array(toolOutcomeSchema).max(MAX_LINK_ACTIONS) }).strict()
+		})
+		.strict(),
+	z
+		.object({
+			callId: z.string().min(1),
+			name: z.literal('show_lyrics'),
+			// 'shown' rather than 'applied': a reference changes nothing, so the
+			// approve/reject vocabulary of the other tools would be a claim about a
+			// decision nobody was asked to make.
+			result: z
+				.object({
+					outcomes: z
+						.array(
+							z
+								.object({
+									id: z.string().min(1),
+									status: z.enum(['shown', 'failed']),
+									reason: z.string().optional()
+								})
+								.strict()
+						)
+						.max(MAX_REFERENCES)
+				})
+				.strict()
 		})
 		.strict()
 ]);

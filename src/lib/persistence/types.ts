@@ -107,6 +107,11 @@ export type AssistantToolCallRecord =
 			callId: string;
 			name: 'manage_links';
 			actions: import('$lib/assistant/types.js').AssistantLinkActionRecord[];
+	  }
+	| {
+			callId: string;
+			name: 'show_lyrics';
+			references: import('$lib/assistant/types.js').AssistantReferenceRecord[];
 	  };
 
 /** One live agent-loop round retained on its pending assistant message. */

@@ -7,6 +7,7 @@ import {
 	type AnswerTurnResponse,
 	type AssistantLinkAction,
 	type AssistantProposal,
+	type AssistantReference,
 	type ToolCallsTurnResponse
 } from './types.js';
 
@@ -53,6 +54,14 @@ function linkAction(
 	headers: AssistantLinkAction['headers']
 ): AssistantLinkAction {
 	return { id, action, headers, note: `Manage ${id}` };
+}
+
+function reference(id: string, exact: string): AssistantReference {
+	return { id, anchor: { exact, before: '', after: '' }, note: `Shown ${id}` };
+}
+
+function showLyricsCall(references: AssistantReference[], callId = 'show-1') {
+	return toolCalls([{ callId, name: 'show_lyrics', input: { references } }]);
 }
 
 function manageLinksCall(actions: AssistantLinkAction[], callId = 'links-1') {
@@ -856,6 +865,72 @@ describe('the assistant state', () => {
 			{ role: 'user', content: 'Link them.' }
 		]);
 		expect(state.messages[1]!.toolTurns).toBeUndefined();
+	});
+
+	it('resolves references on arrival and continues the round without a decision', async () => {
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(
+				showLyricsCall([reference('where', 'world'), reference('gone', 'absent text')])
+			)
+			.mockResolvedValueOnce(answer('It is in the first line.'));
+		const { state } = makeState({ ask });
+		const draft = draftBridge('hello world');
+		state.registerDraftBridge(draft.bridge);
+		await state.open();
+		await state.send('Where does it say world?');
+
+		// Nothing was pending, so the loop continued into the answer by itself.
+		expect(ask).toHaveBeenCalledTimes(2);
+		expect(state.toolSession).toBeUndefined();
+		expect(state.messages[1]!.status).toBe('complete');
+		const call = state.messages[1]!.toolTurns?.[0]?.calls[0];
+		if (call?.name !== 'show_lyrics') throw new Error('Expected references.');
+		expect(call.references.map(({ id, status, reason }) => ({ id, status, reason }))).toEqual([
+			{ id: 'where', status: 'shown', reason: undefined },
+			{ id: 'gone', status: 'failed', reason: 'not-found' }
+		]);
+		expect(vi.mocked(ask).mock.calls[1]![0].messages.at(-1)).toEqual({
+			role: 'tool',
+			results: [
+				{
+					callId: 'show-1',
+					name: 'show_lyrics',
+					result: {
+						outcomes: [
+							{ id: 'where', status: 'shown' },
+							{ id: 'gone', status: 'failed', reason: 'not-found' }
+						]
+					}
+				}
+			]
+		});
+	});
+
+	it('reveals a reference after its turn, and only while the quote survives', async () => {
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(showLyricsCall([reference('where', 'world')]))
+			.mockResolvedValueOnce(answer());
+		const { state } = makeState({ ask });
+		const draft = draftBridge('hello world');
+		state.registerDraftBridge(draft.bridge);
+		await state.open();
+		await state.send('Where?');
+
+		// The turn is over and no session survives it; the card still answers,
+		// because a reference is an answer to "where" rather than a parked offer.
+		expect(state.toolSession).toBeUndefined();
+		const call = state.messages[1]!.toolTurns?.[0]?.calls[0];
+		if (call?.name !== 'show_lyrics') throw new Error('Expected references.');
+		const anchor = call.references[0]!.anchor;
+		expect(state.revealReference(anchor)).toBe(true);
+		expect(draft.reveal).toHaveBeenCalledWith({ from: 6, to: 11 });
+
+		// Edited away, the quote reveals nothing rather than somewhere invented.
+		draft.mutate('hello earth');
+		expect(state.revealReference(anchor)).toBe(false);
+		expect(draft.reveal).toHaveBeenCalledTimes(1);
 	});
 
 	it('resumes the exact continuation after a mid-loop challenge', async () => {

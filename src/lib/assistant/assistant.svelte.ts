@@ -34,8 +34,11 @@ import {
 	type AssistantLinkActionRecord,
 	type AssistantLinkFailureReason,
 	type AssistantProposal,
+	type AssistantProposalAnchor,
 	type AssistantProposalRecord,
 	type AssistantQuota,
+	type AssistantReference,
+	type AssistantReferenceRecord,
 	type TurnResponse
 } from './types.js';
 
@@ -83,13 +86,24 @@ function chatTitle(question: string): string {
 	return line.length > 60 ? `${line.slice(0, 59).trimEnd()}…` : line || 'New chat';
 }
 
+/**
+ * The per-item records a call carries. A `show_lyrics` reference resolves the
+ * moment its call arrives and is never pending, so a turn made only of
+ * references acknowledges itself and the loop continues without a decision.
+ */
+function callRecords(
+	call: Exclude<AssistantToolCallRecord, { name: 'read_scribe' }>
+): Array<{ status: 'pending' | 'shown' | 'applied' | 'rejected' | 'failed' }> {
+	if (call.name === 'propose_edits') return call.proposals;
+	if (call.name === 'manage_links') return call.actions;
+	return call.references;
+}
+
 function callsAcknowledged(calls: AssistantToolCallRecord[]): boolean {
 	return calls.every((call) =>
 		call.name === 'read_scribe'
 			? call.outcome !== undefined
-			: (call.name === 'propose_edits' ? call.proposals : call.actions).every(
-					(record) => record.status !== 'pending'
-				)
+			: callRecords(call).every((record) => record.status !== 'pending')
 	);
 }
 
@@ -101,9 +115,7 @@ function phaseFor(calls: AssistantToolCallRecord[]): AssistantToolSession['phase
 		calls.some(
 			(call) =>
 				call.name !== 'read_scribe' &&
-				(call.name === 'propose_edits' ? call.proposals : call.actions).some(
-					(record) => record.status === 'pending'
-				)
+				callRecords(call).some((record) => record.status === 'pending')
 		)
 	) {
 		return 'awaiting-review';
@@ -173,6 +185,17 @@ function resolveForRecord(
 	return resolution.ok
 		? { ...proposal, status: 'pending' }
 		: { ...proposal, status: 'failed', reason: resolution.reason };
+}
+
+function resolveReferenceForRecord(
+	reference: AssistantReference,
+	document: string | undefined
+): AssistantReferenceRecord {
+	if (document === undefined) return { ...reference, status: 'failed', reason: 'not-found' };
+	const resolution = resolveAnchor(document, reference.anchor);
+	return resolution.ok
+		? { ...reference, status: 'shown' }
+		: { ...reference, status: 'failed', reason: resolution.reason };
 }
 
 function atomicProposalEdit(
@@ -378,6 +401,15 @@ export function createAssistantState(deps: AssistantDeps) {
 					callId: call.callId,
 					name: call.name,
 					proposals: call.input.proposals.map((proposal) => resolveForRecord(proposal, document))
+				};
+			}
+			if (call.name === 'show_lyrics') {
+				return {
+					callId: call.callId,
+					name: call.name,
+					references: call.input.references.map((reference) =>
+						resolveReferenceForRecord(reference, document)
+					)
 				};
 			}
 			return {
@@ -921,6 +953,27 @@ export function createAssistantState(deps: AssistantDeps) {
 		endProposalPreview(id: string): void {
 			void id;
 			draftBridge?.clearPreview();
+		},
+
+		/**
+		 * Show where a `show_lyrics` reference points: the selection wash moves
+		 * onto the quoted range and the viewport scrolls to it, exactly as a
+		 * proposal's preview reveals its diff — minus the diff, because a
+		 * reference changes nothing.
+		 *
+		 * Deliberately not gated on the tool session: a proposal is an offer that
+		 * expires with the turn, while a reference is an answer to "where", which
+		 * stays true for as long as the text it quotes is still in the draft. It
+		 * re-resolves at hover time, so a card restored against a draft that no
+		 * longer carries the quote quietly reveals nothing.
+		 */
+		revealReference(anchor: AssistantProposalAnchor): boolean {
+			const bridge = draftBridge;
+			if (!bridge || anchor.exact.length === 0) return false;
+			const resolution = resolveAnchor(bridge.readText(), anchor);
+			if (!resolution.ok) return false;
+			bridge.reveal({ from: resolution.from, to: resolution.to });
+			return true;
 		},
 
 		async revokeDraftAccess(): Promise<void> {
