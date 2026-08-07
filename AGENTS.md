@@ -2597,7 +2597,14 @@ other two need and this one does not.**
 What it does share with Spotify is that **a seek before the first press has nowhere to land**:
 `seekToTime` needs a `nowPlayingItem`, which does not exist until playback has started. So a
 restored position is spent as the queue's `startTime` rather than as a seek, and `started` is what
-tells the two apart.
+tells the two apart. **A seek made in that window is remembered and spent on the first play**,
+which is the debt Spotify settles as `position_ms` — and the window is not a corner case, because
+the reconnect press takes seconds and a lyric line tapped while it settles is a seek with no
+`nowPlayingItem` yet. Dropped, it produced the worst kind of wrong answer: the readout said the
+tapped line while the audio came in from wherever the queue pointed. The queue is built at `known`
+rather than at the load's own `startAt`, so a seek that lands mid-load costs nothing extra, and a
+first play whose position no longer matches where the queue was built (`queuedAt`) rebuilds the
+queue around it before starting — MusicKit's only pre-start positioning.
 
 **A remembered song is always pending, and that is a deliberate divergence.** Spotify can come
 back without a press where the session already holds a token, because that question is one

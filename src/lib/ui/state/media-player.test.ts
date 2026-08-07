@@ -303,12 +303,14 @@ describe('a press that arrives before the source is ready', () => {
 			release = resolve;
 		});
 		const calls: string[] = [];
+		const queues: (number | undefined)[] = [];
 		const listeners = new Map<string, (event: never) => void>();
 		const instance = {
 			isAuthorized: true,
 			storefrontId: 'no',
 			playbackRate: 1,
-			setQueue: async () => {
+			setQueue: async (options: { startTime?: number }) => {
+				queues.push(options.startTime);
 				await opened;
 			},
 			play: async () => void calls.push('play'),
@@ -335,7 +337,7 @@ describe('a press that arrives before the source is ready', () => {
 		// MusicKit's own `playing` state number. Nothing reports playback until this
 		// is fired, which is the point: `play()` is a request, not a fact.
 		const reportPlaying = () => listeners.get('playbackStateDidChange')?.({ state: 2 } as never);
-		return { player, calls, release, attaching, reportPlaying };
+		return { player, calls, queues, release, attaching, reportPlaying };
 	}
 
 	it('spends the press once the source can take it, rather than dropping it', async () => {
@@ -351,6 +353,25 @@ describe('a press that arrives before the source is ready', () => {
 		await attaching;
 
 		expect(calls).toEqual(['play']);
+	});
+
+	/**
+	 * A seek in the same gap is the line the user tapped, and the queued press
+	 * has to start there. It used to be remembered by the readout and dropped by
+	 * the audio: the queue kept whatever position the load was built around, so
+	 * the song came in from the beginning while the strip said the tapped line.
+	 */
+	it('starts a press queued behind the load from the position seeked to during it', async () => {
+		const { player, calls, queues, release, attaching } = slowAttachment();
+
+		player.seek(30);
+		player.play();
+		release();
+		await attaching;
+		await vi.waitFor(() => expect(calls).toContain('play'));
+
+		expect(queues.at(-1)).toBe(30);
+		expect(player.currentTime).toBe(30);
 	});
 
 	/**

@@ -379,6 +379,33 @@ describe('performer assignment transforms', () => {
 			}
 		});
 
+		// Skipping step two must not put the first-heard voice back into italics:
+		// the selection stays plain and the wrapped rest simply goes unnamed,
+		// which is the state `performer.inline-mismatch` exists to ask about —
+		// the same deferral the trailing case takes through `performer.style-order`.
+		it('keeps a leading selection plain when the rest is named later', () => {
+			const records = roster(['A', 'B']);
+			const from = partial.indexOf('First');
+			const result = assignVoiceGroup({
+				revision: 1,
+				text: partial,
+				document: parseDocument(partial),
+				selection: { anchor: from, head: from + 'First line'.length },
+				performerIds: [records[1]?.id ?? ''],
+				roster: records
+			});
+
+			expect(result.status).toBe('applied');
+			if (result.status === 'applied') {
+				const output = applyEdits(partial, result.edit.edits);
+				expect(output).toBe('[Verse: B]\nFirst line\n<i>Second line</i>');
+				expect(
+					output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)
+				).toBe('First line');
+				expect(result.styleSlot).toBe(1);
+			}
+		});
+
 		it('wraps the whole rest as one span when it runs over several lines', () => {
 			const song = '[Verse]\nOne\nTwo\nThree\nFour';
 			const records = roster(['A', 'B']);
@@ -397,6 +424,32 @@ describe('performer assignment transforms', () => {
 			if (result.status === 'applied') {
 				expect(applyEdits(song, result.edit.edits)).toBe(
 					'[Verse: A & <i>B</i>]\nOne\nTwo\n<i>Three\nFour</i>'
+				);
+			}
+		});
+
+		// A selection that ends mid-line hands the rest a wrapper that opens
+		// mid-line, and the multi-line combine used to fail its own boundary
+		// check against exactly that shape — quietly wrapping every remaining
+		// line on its own and raising a merge finding per line.
+		it('wraps a rest that starts mid-line as one span', () => {
+			const song = '[Refreng]\nAlpha beta\nGamma\nDelta';
+			const records = roster(['A', 'B']);
+			const from = song.indexOf('Alpha');
+			const result = assignVoiceGroup({
+				revision: 1,
+				text: song,
+				document: parseDocument(song),
+				selection: { anchor: from, head: from + 'Alpha'.length },
+				performerIds: [records[0]?.id ?? ''],
+				sectionPerformerIds: [records[1]?.id ?? ''],
+				roster: records
+			});
+
+			expect(result.status).toBe('applied');
+			if (result.status === 'applied') {
+				expect(applyEdits(song, result.edit.edits)).toBe(
+					'[Refreng: A & <i>B</i>]\nAlpha <i>beta\nGamma\nDelta</i>'
 				);
 			}
 		});
@@ -443,6 +496,28 @@ describe('performer assignment transforms', () => {
 				);
 			}
 		});
+	});
+
+	// The same mid-line boundary on the selection's own side: a drag starting
+	// partway through a line and running over the next used to come out as one
+	// wrapper per line rather than one around the passage.
+	it('wraps a selection that starts mid-line as one span', () => {
+		const input = '[Verse]\nOne two\nThree';
+		const records = roster(['A', 'B']);
+		const from = input.indexOf('two');
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: input.length },
+			performerIds: [records[1]?.id ?? ''],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			expect(applyEdits(input, result.edit.edits)).toBe('[Verse: <i>B</i>]\nOne <i>two\nThree</i>');
+		}
 	});
 
 	it('reuses the plain slot when replacing the performer across the whole section', () => {

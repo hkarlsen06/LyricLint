@@ -596,7 +596,10 @@ export interface AppleMusicSource extends MediaSource {
  * What it does share with Spotify is that a seek before the first press has
  * nowhere to land: `seekToTime` needs a `nowPlayingItem`, which does not exist
  * until playback has started. So a restored position is spent as `startTime` on
- * the queue rather than as a seek, and `started` is what tells the two apart.
+ * the queue rather than as a seek, and `started` is what tells the two apart —
+ * and a seek made in that window is remembered and spent on the first play, by
+ * rebuilding the queue around it, which is the same debt Spotify settles as
+ * `position_ms`.
  */
 export function createAppleMusicSource(deps: AppleMusicSourceDependencies): AppleMusicSource {
 	const events = deps.events;
@@ -607,6 +610,11 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	let songId: string | undefined;
 	let started = false;
 	let known = 0;
+	// Where the queue was built to start. A seek before the first press has no
+	// `nowPlayingItem` to land in, so `known` is all it can move — and the first
+	// play compares the two to know whether the queue still points at the right
+	// moment or has to be rebuilt around the seek.
+	let queuedAt = 0;
 	let reportedDuration = Number.NaN;
 	let rate = 1;
 
@@ -793,21 +801,48 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			// lets the transport treat "attached" as "ready to play".
 			const naming = fetchSong(instance, nextSongId);
 
+			// `known`, not `startAt`: a seek made while this load was settling — a
+			// lyric line tapped during the reconnect press — has already moved it,
+			// and the queue may as well be built where the first play will start.
+			const startTime = known;
 			try {
 				await instance.setQueue({
 					song: nextSongId,
 					startPlaying: false,
-					...(startAt === undefined ? {} : { startTime: startAt })
+					...(startTime === 0 ? {} : { startTime })
 				});
 			} catch {
 				events.failed('Apple Music would not queue that song.');
 				return;
 			}
+			queuedAt = startTime;
 			instance.playbackRate = rate;
 			await naming;
 		},
 
 		play() {
+			const instance = music;
+			const id = songId;
+			// A first start plays from wherever the queue points, and a seek made
+			// before it — a lyric line tapped while the song was still loading —
+			// only moved `known`, because there was no `nowPlayingItem` to land in.
+			// Rebuilding the queue around it is MusicKit's one pre-start
+			// positioning, so that is how the remembered press is spent; dropped,
+			// the readout says the tapped line while the audio starts somewhere
+			// else.
+			if (instance && id !== undefined && !started && known !== queuedAt) {
+				const startTime = Math.max(0, known);
+				void (async () => {
+					await instance.setQueue({ song: id, startPlaying: false, startTime });
+					// A newer load or a detach superseded this press while the queue
+					// was rebuilding; starting playback now would answer a question
+					// nobody is still asking.
+					if (songId !== id) return;
+					queuedAt = startTime;
+					await instance.play();
+				})().catch(() => events.failed('Apple Music could not play that song.'));
+				return;
+			}
 			void music?.play().catch(() => events.failed('Apple Music could not play that song.'));
 		},
 
@@ -818,9 +853,10 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		seek(seconds) {
 			known = seconds;
 			// Before the first press there is no `nowPlayingItem` to seek within, so
-			// the position is simply remembered — the queue was built with it as
-			// `startTime`, and a play from here starts in the right place. Nothing is
-			// reporting a playhead yet either, so there is no gap to hold open.
+			// the position is only remembered — and the first play compares it with
+			// where the queue points, rebuilding the queue where the two disagree.
+			// Nothing is reporting a playhead yet either, so there is no gap to
+			// hold open.
 			if (!started) return;
 			target = seconds;
 			targetEvents = 0;
@@ -839,6 +875,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			songId = undefined;
 			started = false;
 			known = 0;
+			queuedAt = 0;
 			target = undefined;
 			reportedDuration = Number.NaN;
 		},

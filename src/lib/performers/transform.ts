@@ -391,16 +391,23 @@ function transformLine(
 	text: string,
 	line: LyricLine,
 	selection: TextRange,
-	styleSlot: StyleSlot
+	styleSlot: StyleSlot,
+	rewritableContinuedSpans?: ReadonlySet<SupportedStyleSpan>
 ): LineTransform | undefined {
 	if (line.styleSpans.some((span) => 'unsupported' in span)) {
 		return undefined;
 	}
 	// Rewriting only one physical line cannot safely preserve an outer wrapper
-	// whose opening or closing tag lives on another line. Keep the source
-	// lossless until a section-aware transform can normalize the whole wrapper.
+	// whose opening or closing tag lives on another line — unless the transform
+	// covers the whole wrapper, in which case it is being rewritten rather than
+	// preserved, and every line of it re-renders with its own balanced tags.
+	// The caller names those spans; anything else continued stays lossless.
 	if (
-		supportedSpans(line).some((span) => span.continuedFromPreviousLine || span.continuesToNextLine)
+		supportedSpans(line).some(
+			(span) =>
+				(span.continuedFromPreviousLine || span.continuesToNextLine) &&
+				!rewritableContinuedSpans?.has(span)
+		)
 	) {
 		return undefined;
 	}
@@ -446,7 +453,18 @@ function combineLineTransforms(
 	let selectedTo: number | undefined;
 
 	for (const [index, entry] of lineTransforms.entries()) {
-		let rendered = entry.transform.edit?.insert ?? entry.line.text;
+		// A line transform's edit is narrowed to the span that changed, so the
+		// rendered line has to be rebuilt around it: the offsets walked below are
+		// line-relative, and reading them against the narrowed insert made every
+		// line whose wrapper opens or closes mid-line — a selection ending
+		// mid-line, or the rest of a section starting there — fail the boundary
+		// check and drop the whole passage back to one wrapper per line.
+		const edit = entry.transform.edit;
+		let rendered = edit
+			? entry.line.text.slice(0, edit.from - entry.line.from) +
+				edit.insert +
+				entry.line.text.slice(edit.to - entry.line.from)
+			: entry.line.text;
 		let localFrom = entry.transform.selectedFrom - entry.line.from;
 		let localTo = entry.transform.selectedTo - entry.line.from;
 
@@ -839,13 +857,16 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	// slot, its text untouched, and the *rest* is the passage that gets wrapped
 	// and named second. Without this, selecting a verse's opening lines wrote
 	// `[Verse: Rest & <i>Selected</i>]` with the first-heard voice in italics.
+	// A skipped second step inverts the same way — `[Verse: <i>Selected</i>]`
+	// was the same wrong claim with the rest left unnamed — and the wrapped rest
+	// simply gets no legend entry, which is the state `performer.inline-mismatch`
+	// exists to ask about.
 	const bounds = lyricBounds(section);
 	const trailing = bounds
 		? trimWhitespaceRange(request.text, { from: selection.to, to: bounds.to })
 		: undefined;
 	const invert =
 		allocation.status === 'available' &&
-		sectionPerformers.length > 0 &&
 		section.header.legendGroups.length === 0 &&
 		section.lines.every((line) => line.styleSpans.length === 0) &&
 		bounds !== undefined &&
@@ -853,6 +874,26 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		trailing.from < trailing.to &&
 		request.text.slice(bounds.from, selection.from).trim().length === 0;
 	const wrapRange = invert && trailing ? trailing : selection;
+
+	// A wrapper spanning several lines may be restyled when the wrap range
+	// covers all of it: every line of the chain re-renders with balanced tags
+	// of its own, so nothing half-seen is ever broken. A chain reaching past
+	// the range keeps `transformLine`'s per-line refusal.
+	const rewritableContinuedSpans = new Set<SupportedStyleSpan>();
+	for (const chain of supportedStyleChains(section)) {
+		const chainFirst = chain[0];
+		const chainLast = chain.at(-1);
+		if (
+			chainFirst &&
+			chainLast &&
+			wrapRange.from <= chainFirst.from &&
+			chainLast.to <= wrapRange.to
+		) {
+			for (const span of chain) {
+				rewritableContinuedSpans.add(span);
+			}
+		}
+	}
 
 	const lineTransforms: { line: LyricLine; transform: LineTransform }[] = [];
 	for (const line of section.lines) {
@@ -863,7 +904,13 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		if (lineSelection.from >= lineSelection.to) {
 			continue;
 		}
-		const transform = transformLine(request.text, line, lineSelection, allocation.styleSlot);
+		const transform = transformLine(
+			request.text,
+			line,
+			lineSelection,
+			allocation.styleSlot,
+			rewritableContinuedSpans
+		);
 		if (!transform) {
 			return { status: 'blocked', reason: 'invalid-range' };
 		}
@@ -884,9 +931,20 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		: lineTransforms.map(({ transform }) => transform);
 	const edits: TextEdit[] = [];
 	if (allocation.status === 'available') {
-		const newLegendGroup = serializeLegend([
-			{ styleSlot: allocation.styleSlot, members: invert ? sectionPerformers : selectedPerformers }
-		]);
+		// Inverted with step two skipped, the wrapped rest has nobody to name:
+		// its markup stands alone and `performer.inline-mismatch` asks the
+		// skipped question, exactly as `performer.style-order` does for the
+		// unnamed plain lyrics the other way round.
+		const styledMembers = invert ? sectionPerformers : selectedPerformers;
+		const styledLegendGroups: RawLegendGroup[] =
+			styledMembers.length > 0
+				? [
+						{
+							styleSlot: allocation.styleSlot,
+							raw: serializeLegend([{ styleSlot: allocation.styleSlot, members: styledMembers }])
+						}
+					]
+				: [];
 		const retainedLegendGroups = extraction.voiceGroups
 			.filter((group) => group.sectionFrom === section.from && !group.unresolved)
 			.sort((left, right) => (left.sourceRange?.from ?? 0) - (right.sourceRange?.from ?? 0))
@@ -918,7 +976,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		const edit = headerLegendEdit(section, [
 			...plainVoiceGroup,
 			...retainedLegendGroups,
-			{ styleSlot: allocation.styleSlot, raw: newLegendGroup }
+			...styledLegendGroups
 		]);
 		if (!edit) {
 			return { status: 'blocked', reason: 'invalid-range' };

@@ -423,6 +423,44 @@ describe('createAppleMusicSource', () => {
 		expect(source.time).toBe(30);
 	});
 
+	/**
+	 * The other direction of the same asymmetry, and the one a reloaded draft
+	 * actually meets: the reconnect press builds the queue around the restored
+	 * position, and a lyric line tapped while that load settles is a seek with
+	 * nowhere to land. Remembered but never spent, the readout said the tapped
+	 * line while the audio started wherever the queue pointed — so the first
+	 * play rebuilds the queue around the remembered position before starting.
+	 */
+	it('spends a pre-start seek on the first play by rebuilding the queue', async () => {
+		const { instance } = stubMusic();
+		const { source } = build(instance);
+
+		await source.load(songId, 92);
+		source.seek(30);
+
+		source.play();
+		await vi.waitFor(() => expect(instance.play).toHaveBeenCalled());
+
+		expect(instance.setQueue).toHaveBeenLastCalledWith(
+			expect.objectContaining({ song: songId, startPlaying: false, startTime: 30 })
+		);
+		expect(instance.seekToTime).not.toHaveBeenCalled();
+		expect(source.time).toBe(30);
+	});
+
+	// The rebuild is owed only where a seek moved the position: an untouched
+	// first press must stay one `play()`, not a queue round trip in front of it.
+	it('plays without re-queueing when nothing moved the position', async () => {
+		const { instance } = stubMusic();
+		const { source } = build(instance);
+
+		await source.load(songId, 92);
+		source.play();
+		await vi.waitFor(() => expect(instance.play).toHaveBeenCalled());
+
+		expect(instance.setQueue).toHaveBeenCalledTimes(1);
+	});
+
 	it('seeks for real once playback has started', async () => {
 		const { instance, emit } = stubMusic();
 		const { source } = build(instance);
