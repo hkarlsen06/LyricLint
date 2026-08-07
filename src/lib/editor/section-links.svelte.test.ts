@@ -712,6 +712,88 @@ describe('typing only in one linked copy', () => {
 		await userEvent.keyboard('!');
 		expect(handle.getSnapshot().text.split('Hold on tight!')).toHaveLength(3);
 	});
+
+	// A run that is empty in this copy is the one difference the document cannot
+	// draw, so the caret standing in it looks exactly like a caret in shared
+	// text — and it is precisely where a transcriber goes to write the ad-lib
+	// the other copy already has. Refusing the control there reported the
+	// opposite of the truth about the only position where the truth is invisible.
+	describe('where the peer has words and this copy has none', () => {
+		const ADLIB = [
+			'[Chorus]',
+			'Hold on tight (Yeah)',
+			'Never let go',
+			'',
+			'[Verse 1]',
+			'Something about the way',
+			'',
+			'[Chorus 2]',
+			'Hold on tight',
+			'Never let go'
+		].join('\n');
+
+		/** The caret at the empty run: the end of the plain copy's first line. */
+		function emptyRunCaret(text: string): number {
+			return text.lastIndexOf('Hold on tight') + 'Hold on tight'.length;
+		}
+
+		async function linked(): Promise<EditorHandle> {
+			const handle = await mount(ADLIB);
+			handle.linkSections?.({
+				headers: [offsetOf(ADLIB, '[Chorus]'), offsetOf(ADLIB, '[Chorus 2]')]
+			});
+			await new Promise((resolve) => setTimeout(resolve, 600));
+			return handle;
+		}
+
+		it('offers the control at the empty run rather than hiding it', async () => {
+			const handle = await linked();
+			const header = offsetOf(ADLIB, '[Chorus 2]');
+			const caret = emptyRunCaret(ADLIB);
+			handle.setSelection({ anchor: caret, head: caret });
+
+			expect(handle.canTypeOnlyHere?.(header)).toBe(true);
+			handle.requestSectionLink?.();
+			await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+			await userEvent.keyboard('{Escape}');
+		});
+
+		it('keeps the typed ad-lib in this copy and adds no second difference', async () => {
+			const handle = await linked();
+			const header = offsetOf(ADLIB, '[Chorus 2]');
+			const caret = emptyRunCaret(ADLIB);
+			handle.setSelection({ anchor: caret, head: caret });
+			expect(handle.typeOnlyHere?.(header)).toBe(true);
+			handle.focus();
+			expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+
+			await userEvent.keyboard(' (Woo)');
+
+			const typed = handle.getSnapshot().text;
+			expect(typed).toContain('[Chorus]\nHold on tight (Yeah)\n');
+			expect(typed).toContain('[Chorus 2]\nHold on tight (Woo)\n');
+			// The difference was already recorded; typing into it fills the empty
+			// side rather than opening a second run beside it.
+			const differences = handle.getLinkDifferences?.([
+				offsetOf(typed, '[Chorus]'),
+				offsetOf(typed, '[Chorus 2]')
+			]);
+			expect(differences).toHaveLength(1);
+			expect(differences?.[0]?.wordings.map((wording) => wording.text).sort()).toEqual([
+				' (Woo)',
+				' (Yeah)'
+			]);
+		});
+
+		it('still refuses the control inside a run this copy draws', async () => {
+			const handle = await linked();
+			const header = offsetOf(ADLIB, '[Chorus]');
+			const caret = ADLIB.indexOf('(Yeah)') + '(Yeah'.length;
+			handle.setSelection({ anchor: caret, head: caret });
+
+			expect(handle.canTypeOnlyHere?.(header)).toBe(false);
+		});
+	});
 });
 
 describe('the link card', () => {

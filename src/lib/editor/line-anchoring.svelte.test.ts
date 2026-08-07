@@ -676,7 +676,7 @@ describe('sync mode', () => {
 		expect(anchor?.line).toBe(2);
 		// Biased early by the tap offset, because every human tap lands late and
 		// starting a moment before the line is the forgiving direction.
-		expect(anchor?.time).toBeCloseTo(29.88, 5);
+		expect(anchor?.time).toBeCloseTo(30 - tapOffsetSeconds, 5);
 		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
 	});
 
@@ -698,7 +698,7 @@ describe('sync mode', () => {
 
 		const anchors = handle.getLineAnchors?.() ?? [];
 		expect(anchors.map((anchor) => anchor.line)).toEqual([2, 5]);
-		expect(anchors[0]?.time).toBeCloseTo(29.88, 5);
+		expect(anchors[0]?.time).toBeCloseTo(30 - tapOffsetSeconds, 5);
 		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('second line'));
 	});
 
@@ -909,7 +909,7 @@ describe('sync mode', () => {
 	 * were not moving together. The marked line is the last anchor at or before the
 	 * *playhead*, and the playhead the editor holds is `currentTime` — a
 	 * `timeupdate`-fed mirror, up to a tick stale — while a tap stamps its line
-	 * from `liveTime`. Whenever the mirror was more than the 120ms tap offset
+	 * from `liveTime`. Whenever the mirror was more than the tap offset itself
 	 * behind, the line just timed sorted after the playhead on record: the caret
 	 * moved and the yellow band stayed a line behind it until the next tick.
 	 *
@@ -1121,10 +1121,10 @@ describe('sync mode across linked sections', () => {
 
 		const anchored = times(handle);
 		// The tap dates the first line, biased early by the usual offset.
-		expect(anchored[13]).toBeCloseTo(99.88, 5);
+		expect(anchored[13]).toBeCloseTo(100 - tapOffsetSeconds, 5);
 		// And the peer's own 2s and 4.5s gaps date the two after it.
-		expect(anchored[14]).toBeCloseTo(101.88, 5);
-		expect(anchored[15]).toBeCloseTo(104.38, 5);
+		expect(anchored[14]).toBeCloseTo(102 - tapOffsetSeconds, 5);
+		expect(anchored[15]).toBeCloseTo(104.5 - tapOffsetSeconds, 5);
 		// The copy it was taken from is untouched.
 		expect(anchored[5]).toBe(10);
 
@@ -1149,7 +1149,7 @@ describe('sync mode across linked sections', () => {
 		// And the tape goes with it: listening through a chorus that is already timed
 		// is waiting for a tap nobody is going to make.
 		expect(seek).toHaveBeenCalledTimes(1);
-		expect(seek.mock.calls[0]?.[0]).toBeCloseTo(104.38, 5);
+		expect(seek.mock.calls[0]?.[0]).toBeCloseTo(104.5 - tapOffsetSeconds, 5);
 
 		const message =
 			'Chorus 2 timed from Chorus — 3 lines. Press a line number to time it by hand instead.';
@@ -1162,7 +1162,7 @@ describe('sync mode across linked sections', () => {
 		expect(syncChanges.at(-1)?.active).toBe(true);
 		now = 120;
 		handle.tapLyricSync?.();
-		expect(times(handle)[18]).toBeCloseTo(119.88, 5);
+		expect(times(handle)[18]).toBeCloseTo(120 - tapOffsetSeconds, 5);
 	});
 
 	// The way out, and the only one. Pressing the repeat's first line number sends
@@ -1182,20 +1182,45 @@ describe('sync mode across linked sections', () => {
 		first?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
 
 		// The press plays from the line, as it does outside a run.
-		expect(seek.mock.calls.at(-1)?.[0]).toBeCloseTo(99.88, 5);
+		expect(seek.mock.calls.at(-1)?.[0]).toBeCloseTo(100 - tapOffsetSeconds, 5);
 		expect(handle.getSnapshot().selection.head).toBe(linkedSong.lastIndexOf('hold on tight'));
 
-		// Disarmed, so the next tap times the line the press named rather than the
-		// one after it — and it stays a plain tap, with nothing written below it.
+		// Armed, exactly as a resumed run is: the press landed on a line that already
+		// carries a time — the user's own tap, in this case — so the next tap belongs
+		// to the line after it, which is the first one the fill wrote. A press that
+		// cost a dead tap here is what this run was reported as doing.
 		now = 200;
 		handle.tapLyricSync?.();
-		expect(times(handle)[13]).toBeCloseTo(199.88, 5);
-		expect(times(handle)[14]).toBeCloseTo(101.88, 5);
+		expect(times(handle)[13]).toBeCloseTo(100 - tapOffsetSeconds, 5);
+		expect(times(handle)[14]).toBeCloseTo(200 - tapOffsetSeconds, 5);
+		// And it stays a plain tap, with nothing written below it.
+		expect(times(handle)[15]).toBeCloseTo(104.5 - tapOffsetSeconds, 5);
 		expect(notices).toHaveLength(1);
 
 		now = 210;
 		handle.tapLyricSync?.();
-		expect(times(handle)[14]).toBeCloseTo(209.88, 5);
+		expect(times(handle)[15]).toBeCloseTo(210 - tapOffsetSeconds, 5);
+	});
+
+	// The complaint this arrived as: hit sync, press a numbered line that already
+	// has a time, and the first tap went nowhere. It could not have gone anywhere —
+	// the press seeks to that line's own stored anchor, so a tap against it rewrites
+	// the moment it just rewound to and the caret does not move.
+	it('times the next line on the first tap after a jump', async () => {
+		let now = 0;
+		const { handle } = await halfTimed(() => now);
+		handle.setLyricSync?.(true);
+
+		const second = lineNumberElements().find((element) => element.textContent === '6');
+		second?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+		expect(handle.getSnapshot().selection.head).toBe(linkedSong.indexOf('we go again'));
+
+		now = 50;
+		handle.tapLyricSync?.();
+		// One press, one line timed: the line pressed keeps the time that sent the
+		// tape there, and the tap lands on the one below it.
+		expect(times(handle)[6]).toBeCloseTo(12, 5);
+		expect(times(handle)[7]).toBeCloseTo(50 - tapOffsetSeconds, 5);
 	});
 
 	// Only from a copy that comes earlier. A later peer is the same words and would
@@ -1225,7 +1250,7 @@ describe('sync mode across linked sections', () => {
 		handle.tapLyricSync?.();
 
 		// The first chorus's opening line is timed by the tap and nothing else is.
-		expect(times(handle)[5]).toBeCloseTo(19.88, 5);
+		expect(times(handle)[5]).toBeCloseTo(20 - tapOffsetSeconds, 5);
 		expect(times(handle)[6]).toBeUndefined();
 		expect(handle.getSnapshot().selection.head).toBe(linkedSong.indexOf('hold on tight'));
 		expect(notices).toEqual([]);
@@ -1247,7 +1272,7 @@ describe('sync mode across linked sections', () => {
 		now = 100;
 		handle.tapLyricSync?.();
 
-		expect(times(handle)[13]).toBeCloseTo(99.88, 5);
+		expect(times(handle)[13]).toBeCloseTo(100 - tapOffsetSeconds, 5);
 		expect(times(handle)[14]).toBeUndefined();
 		expect(handle.getSnapshot().selection.head).toBe(linkedSong.lastIndexOf('hold on tight'));
 		expect(seek).not.toHaveBeenCalled();

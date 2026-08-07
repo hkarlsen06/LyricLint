@@ -98,12 +98,21 @@
 /* Centred just above the status bar, where the notification stays close to the
    action that raised it without covering the document summary. Equal inline
    insets plus auto margins do the centring rather than a transform: the fly
-   transition owns `transform` while a toast enters or leaves. */
+   transition owns `transform` while a toast enters or leaves.
+
+   The transport stands between the two whenever audio is attached, and a toast
+   drawn over it covers the row a transcriber is operating — the loop is listen,
+   pause, type, and nearly everything that raises a toast happens in the middle
+   of it. So the strip's height joins the offset while the strip is drawn.
+   `--media-strip-height` is published by the row itself (`MediaStrip.svelte`),
+   because it is not a constant and this region is fixed and nowhere near it in
+   the tree; absent, the fallback is the status bar alone, which is every surface
+   in the app that has no transport. */
 .toast-region {
 	position: fixed;
 	z-index: var(--layer-toast);
 	right: var(--space-3);
-	bottom: calc(var(--control-height-md) + var(--space-2));
+	bottom: calc(var(--control-height-md) + var(--media-strip-height, 0px) + var(--space-2));
 	left: var(--space-3);
 	display: grid;
 	width: min(25rem, calc(100vw - 2rem));

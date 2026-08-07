@@ -185,6 +185,25 @@
 }
 
 /*
+ * The toasts ride above the strip, wherever the strip is.
+ *
+ * `.toast-region` clears the transport by adding the row's own published height
+ * to the status bar's — which is the right sum only while the strip is in the
+ * flow above that bar. Here it has left it, so the same offset would put a toast
+ * under the keyboard, invisible, on the one device where the notice is most
+ * likely the only thing reporting what just happened.
+ *
+ * `--keyboard-top` is the strip's *bottom* edge, so the row's height is added
+ * again to clear its top. The percentage resolves against the layout viewport,
+ * which is what a fixed element's offsets are measured from and what
+ * `--keyboard-top` is expressed in — the same coordinate space `.workspace::after`
+ * pins its own top to.
+ */
+:root[data-keyboard-inset] .toast-region {
+	bottom: calc(100% - var(--keyboard-top) + var(--media-strip-height, 0px) + var(--space-2));
+}
+
+/*
  * The floor the strip stands on.
  *
  * Below the visible viewport there is a band the browser owns — Safari's address

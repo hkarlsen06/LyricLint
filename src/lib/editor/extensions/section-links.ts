@@ -543,10 +543,24 @@ export function canTypeOnlyHere(state: EditorState, headerFrom: number): boolean
 		from: range.from - source.body.from,
 		to: range.to - source.body.from
 	};
-	// It already types only here inside a stored difference. Offering a mode for
-	// a fact that is standing true would make the button appear to do nothing.
-	if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
-		return false;
+	const containing = holeContaining(source.holes, relative.from, relative.to);
+	if (containing !== undefined) {
+		// It already types only here inside a stored difference, so the mode is a
+		// fact that is standing true — and where the run has words in it the
+		// document says so itself, with the dotted underline the caret is sitting
+		// in. Offering a control for that would make the button appear to do
+		// nothing.
+		//
+		// A run that is *empty* in this copy draws nothing, because there is
+		// nothing there to draw on. That leaves one position per empty run where
+		// typing already stays in this copy and no mark anywhere says so — which
+		// is the one place in a linked body the reassurance is most worth having,
+		// and it is exactly the caret a transcriber puts down to write the ad-lib
+		// a peer already has. Pressing it arms the mode, the marker draws, and the
+		// mirror's own "already local" branch spends it without adding a second
+		// run for the difference that is already recorded.
+		const hole = source.holes[containing];
+		return hole !== undefined && hole.from === hole.to;
 	}
 	const probe = members.map((member) => ({ ...member, holes: [...member.holes] }));
 	return addDifference(members, probe, range, true);

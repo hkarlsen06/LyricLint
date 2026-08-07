@@ -10,6 +10,7 @@ import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtub
 import { appleStore, spotifyStore } from '../state/media-test-stores.js';
 import type { MediaHandleRecord } from '$lib/persistence/index.js';
 import ControlTooltip from '../primitives/ControlTooltip.svelte';
+import ToastRegion from '../primitives/ToastRegion.svelte';
 import MediaStrip from './MediaStrip.svelte';
 
 function store(options: { records?: MediaHandleRecord[]; file?: File } = {}) {
@@ -486,6 +487,57 @@ describe('MediaStrip', () => {
 		expect(media.pendingName).toBeUndefined();
 		await media.openFor('draft-1');
 		expect(media.pendingName).toBeUndefined();
+	});
+});
+
+/*
+ * The row's other hand-off, and the only one that leaves this component
+ * entirely: a toast is drawn by a fixed region the app layout mounts, so the
+ * strip's height is published on `<html>` and read there. Measured rather than
+ * compared against a constant, because the whole reason it is published is that
+ * the row's height is not one.
+ */
+describe('MediaStrip and the toasts above it', () => {
+	function toastOffset(): number {
+		const region = document.querySelector('.toast-region');
+		if (!region) throw new Error('no toast region');
+		return Number.parseFloat(getComputedStyle(region).bottom);
+	}
+
+	it('lifts the toast region by the row it would otherwise cover', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+
+		render(ToastRegion, { props: { feedback: createFeedbackState() } });
+		const overStatusBar = toastOffset();
+
+		render(MediaStrip, { props: { media } });
+		await fontsSettled();
+
+		const strip = page.getByTestId('media-strip').element();
+		const height = strip.getBoundingClientRect().height;
+		expect(height).toBeGreaterThan(0);
+
+		// The observer writes on the frame after layout, so this is polled rather
+		// than read: a strip whose height never reaches the region is the bug.
+		await expect.poll(() => toastOffset()).toBeCloseTo(overStatusBar + height, 0);
+	});
+
+	// The other half, and the same failure wearing the other hat: a height left on
+	// `<html>` after the row goes holds every later toast above a strip that is no
+	// longer drawn.
+	it('gives the height back when the strip goes', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+
+		render(ToastRegion, { props: { feedback: createFeedbackState() } });
+		const overStatusBar = toastOffset();
+
+		const strip = render(MediaStrip, { props: { media } });
+		await expect.poll(() => toastOffset()).toBeGreaterThan(overStatusBar);
+
+		strip.unmount();
+		await expect.poll(() => toastOffset()).toBeCloseTo(overStatusBar, 0);
 	});
 });
 

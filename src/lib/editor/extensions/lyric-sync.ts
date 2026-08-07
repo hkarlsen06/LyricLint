@@ -42,8 +42,21 @@ import { linkedPeerHeaders } from './section-links.js';
  * its first syllable — the annoying direction, because the word you came back to
  * check is the one you miss. A small constant biases the error the other way,
  * where it costs a moment of the previous line's tail and nothing else.
+ *
+ * It is small because one number is serving two jobs that want opposite things.
+ * A *seek* wants a lead; a *follow* wants none, and the marked cell and the
+ * document scroll that hangs off it are read against the audio continuously
+ * rather than once. At 120ms — where this started — the mark landed visibly
+ * ahead of the line being sung, which is roughly where a visual event leading
+ * audio stops reading as simultaneous. 50ms is under that and still keeps a
+ * jump off the first syllable.
+ *
+ * If the lead is ever wanted back for seeking, the answer is a second constant
+ * spent at the four places that seek to an anchor — the timestamp press, the
+ * line-number press, `Ctrl-Alt-Enter` and `stepBack` — and not this one growing.
+ * An anchor is a claim about when a line started, and it should stay one.
  */
-export const tapOffsetSeconds = 0.12;
+export const tapOffsetSeconds = 0.05;
 
 export const setLyricSyncEffect = StateEffect.define<boolean>();
 
@@ -351,7 +364,7 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 				// The marked line is the last anchor at or before the *playhead*, and the
 				// playhead the field holds is `currentTime` — a `timeupdate`-fed mirror,
 				// up to a tick stale. A tap stamps its line at `liveTime` minus the tap
-				// offset, so whenever the mirror is more than 120ms behind, the line just
+				// offset, so whenever the mirror is more than that behind, the line just
 				// timed sorts *after* the playhead on record: the caret moved, and the
 				// yellow band stayed on the previous line until the next tick caught up.
 				// That is about half of all taps, and it is the one moment in a run where
@@ -450,8 +463,9 @@ function stepBack(options: LyricSyncOptions) {
  * from the other side.
  *
  * It is the way out of a section filled from a linked peer, and the only one:
- * pressing that section's first line number rewinds to it, disarmed, so the next
- * tap times that very line and the run walks the copy by hand from there.
+ * pressing that section's first line number rewinds the tape to it and the run
+ * walks the copy by hand from the line after, which is the first one the fill
+ * wrote rather than the user's own tap.
  *
  * Called only from the line-number press, which is already narrowed to lines that
  * carry a time — so nothing here promises a rewind on a row the pointer cursor
@@ -463,9 +477,23 @@ export function syncMoveTo(view: EditorView, pos: number): boolean {
 	const line = view.state.doc.lineAt(Math.min(Math.max(pos, 0), view.state.doc.length));
 	if (!isStampableLine(line)) return false;
 	view.dispatch({
-		// Disarmed: the press names the line the user wants timed, not the one after
-		// it. A tap that advanced first would skip the line they came back for.
-		effects: armEffect.of(false),
+		// Armed, for the same reason a resumed run is: the press landed on a line
+		// that already has a time, so the next tap belongs to the one after it.
+		//
+		// It was disarmed once, on the reading that the press names the line the user
+		// wants timed — and that tap could not have timed anything. The seek goes to
+		// the pressed line's own stored anchor, so a tap against it can only rewrite
+		// the moment it just rewound to, to within the reaction it takes to make it:
+		// the caret does not move, the cell redraws the same `m:ss`, and the press
+		// reads as swallowed. Every tap after it then works, which is the shape this
+		// was reported in — one dead press per jump.
+		//
+		// A line whose time is actually wrong is not fixable that way either. Wrong
+		// late means the rewind starts *after* the line began, so its opening is gone
+		// before the tape is playing. Re-timing one line is `Ctrl-Alt-M` and the
+		// column's own ± pair; stepping back onto one is `Backspace`, which clears the
+		// anchor first and seeks to the line *before* it, so there is a run-up.
+		effects: armEffect.of(true),
 		selection: { anchor: line.from }
 	});
 	holdReadingLine(view, line.from);

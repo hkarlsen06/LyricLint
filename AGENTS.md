@@ -1396,7 +1396,7 @@ never the correction wanted, and it destroys the one that was. Re-stamping outri
 **The step is a quarter second, so the open cell — and only the open cell — shows `m:ss.cc`.** A
 step nothing on screen answers is a press that reads as broken, and three presses in every four move
 a time `m:ss` goes on printing unchanged. The anchors were never whole seconds anyway; a sync tap is
-written 120ms early. But a whole column of hundredths is two digits per row nobody is reading, and
+written 50ms early. But a whole column of hundredths is two digits per row nobody is reading, and
 the resting job of this rail is to say where a line sits in the song. So the precision arrives with
 the controls that spend it and leaves with them, which is why `formatAnchorTimePrecise` is a second
 function rather than a flag on the first. The announcements stay whole for the same reason:
@@ -1610,19 +1610,30 @@ The rest is five decisions:
   progress. Where there is no earlier line, or the one there is carries no time, nothing is seeked:
   the tap comes off and the audio is left where it is rather than sent somewhere invented.
 
-- **Every tap is written `tapOffsetSeconds` early** (120ms). Human taps land late, and without the
+- **Every tap is written `tapOffsetSeconds` early** (50ms). Human taps land late, and without the
   offset jumping to a line starts just after its first syllable — the annoying direction, because
   the word you came back to check is the one you miss.
+
+  **It is small because one number is serving two jobs that want opposite things.** A _seek_ wants
+  a lead; a _follow_ wants none, and the marked cell — along with the document scroll keyed on it —
+  is read against the audio continuously rather than once. It was 120ms, which is past the point
+  where a visual event leading audio stops reading as simultaneous, so the mark and the scroll both
+  arrived a beat before the line was sung and the rail read as running ahead of the song. 50ms is
+  under that and still keeps a jump off the first syllable. **If a longer lead is ever wanted for
+  seeking, it is a second constant spent at the four places that seek to an anchor** — the timestamp
+  press, the line-number press, `Ctrl-Alt-Enter` and `stepBack` — rather than this one growing back.
+  An anchor is a claim about when a line started, and the follow is only honest while it stays one.
+
 - **The stamp and the advance are one transaction.** One press has to be one undo, and a selection
   change and an effect go in one dispatch.
 - **And so is the wash, which is what stopped it trailing the caret by a tick.** The marked line is
   the last anchor at or before the **playhead**, and the playhead the editor holds is
   `player.currentTime` — a `timeupdate`-fed mirror, up to a tick stale, which the media section
   already says is near enough for a readout and not for a write. A tap stamps its line from
-  `liveTime()` minus `tapOffsetSeconds`, so whenever that mirror was more than 120ms behind, the line
-  just timed sorted _after_ the playhead on record: the caret moved and the yellow band stayed on the
-  previous line until the next tick pushed it along. That is about half of all taps, and a run is the
-  one place the two are read against each other.
+  `liveTime()` minus `tapOffsetSeconds`, so whenever that mirror was more than the offset itself
+  behind, the line just timed sorted _after_ the playhead on record: the caret moved and the yellow
+  band stayed on the previous line until the next tick pushed it along. That is about half of all
+  taps, and a run is the one place the two are read against each other.
 
   So the tap publishes the reading it already took, in the same transaction as the stamp. It is not a
   guessed position — `currentTime()` is `liveTime()`, the source's own playhead read at the moment of
@@ -1684,9 +1695,21 @@ Five refusals, and each is a case where a guess is worse than the dash it would 
 number plays from that moment, and outside a run that is all it does; inside one it cannot be,
 because the caret is where the next tap lands and a tape that moved without it would leave the two
 ends of the run in different places — which is the failure `stepBack` seeks for, met from the other
-side. `syncMoveTo` is that second half: it lands the caret on the line the press named, **disarmed**,
-so the next tap times that very line and the copy is walked by hand from there. It runs only where
-the seek was claimed, so no line without the pointer cursor promises a rewind.
+side. `syncMoveTo` is that second half: it lands the caret on the line the press named, **armed** —
+the press only ever lands on a line that already has a time, which is the same thing a resumed run
+starts on — so the next tap belongs to the line below and the copy is walked by hand from there. It
+runs only where the seek was claimed, so no line without the pointer cursor promises a rewind.
+
+**It was disarmed once, and that tap could not have timed anything.** The reading was that the press
+names the line the user wants timed. What it actually named was the moment the seek had just gone
+to: an anchor is what the press seeks to, so a tap against it rewrites the value it rewound to, to
+within the reaction it takes to make the press. The caret does not move, the cell redraws the same
+`m:ss`, and the tap reads as swallowed — one dead press per jump, with every tap after it working,
+which is the shape it was reported in. It cannot repair a wrong time either: wrong _late_ means the
+rewind starts after the line began, so its opening is gone before the tape is playing. Re-timing one
+line is `Ctrl-Alt-M` and the column's own ± pair, and stepping back onto one is `Backspace`, which
+clears the anchor first and seeks to the line _before_ it so there is a run-up to tap against — the
+three controls that were built for exactly that.
 
 **And the fill is the one thing a run does that owes a toast.** Everything else it does is loud on
 screen already — the rail, the caret, the times — so `announce` and its `sr-only` region are the
@@ -1903,6 +1926,27 @@ states, applied to a second surface that wanted the same gesture.
 **And the answer about existing differences is resolved before a new one is added.** Inserting first
 would shift every index the user's ticks were given against, silently, and collapse the wrong
 difference.
+
+**`Type only here` is refused inside a difference that is already there, and the empty ones are the
+exception.** The reasoning for the refusal is sound and stays: the mode would be a fact standing
+true, and a control for that appears to do nothing. What it missed is that the fact is only
+_visible_ where the run has words in it — the dotted underline the caret is sitting in is what says
+so. A run that is empty in this copy draws nothing, because there is nothing there to draw on, so
+those were the one set of positions in a linked body where typing already stays put and no mark
+anywhere says it.
+
+That is not an edge case, it is the feature's most ordinary use. A peer with an ad-lib the other
+copy lacks puts an empty run at exactly the caret a transcriber goes to when they want to write
+their own — the end of the line for a trailing `(Yeah)`, mid-sentence for an inline one — so the
+button vanished precisely where it was being looked for, and read as the workbench refusing. It was
+reported as being unable to write a second chorus's ad-lib at all, on a caret where typing would in
+fact have stayed local the whole time.
+
+So `canTypeOnlyHere` answers on the run's **width** rather than on its existence. Pressing it there
+arms the mode, the `Typing only here` marker draws, and the mirror's own "already local" branch
+spends the press without adding a second run beside the difference already recorded — machinery
+that was written for this and could not previously be reached. Nothing about a run with words in it
+changed.
 
 #### The card asks one thing at a time, and shows a diff
 

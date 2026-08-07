@@ -654,8 +654,9 @@ export function createLyricEditor(
 					if (!seekOnLineNumber(view, line, event)) return false;
 					// The tape moved, so in a run the caret moves with it: the caret is
 					// where the next tap lands, and the two ends of a run cannot be in
-					// different places. This is also the way out of a section filled from a
-					// linked peer.
+					// different places. The pressed line keeps the time it already had —
+					// the tap after a jump goes to the line below — which is also the way
+					// out of a section filled from a linked peer.
 					syncMoveTo(view, line.from);
 					return true;
 				}

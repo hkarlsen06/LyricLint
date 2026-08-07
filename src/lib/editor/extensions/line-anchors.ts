@@ -159,7 +159,7 @@ export function formatAnchorTime(seconds: number): string {
 /**
  * `m:ss.cc`, for a cell whose nudge pair is open and nothing else.
  *
- * The anchors are not whole seconds and never were — a sync tap is written 120ms
+ * The anchors are not whole seconds and never were — a sync tap is written 50ms
  * early, and the pair moves a quarter second at a time — so `m:ss` alone answers
  * three presses in every four with no visible change. At rest it is the right
  * readout and this one is noise, which is why the two are separate functions

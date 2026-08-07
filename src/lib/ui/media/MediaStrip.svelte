@@ -72,6 +72,38 @@
 		return () => node.removeEventListener('mousedown', onPress);
 	}
 
+	/**
+	 * Publish this row's height, so a toast can clear it.
+	 *
+	 * The toast region is `position: fixed`, centred on the window, and mounted by
+	 * the app layout — nowhere near this element in the tree — so nothing in CSS
+	 * can tell it how tall this row currently is. Left at the status bar's height
+	 * alone, a toast raised while audio is attached lands over the transport: the
+	 * one row a transcriber is operating while everything that raises a toast is
+	 * happening.
+	 *
+	 * It has to be measured rather than named as a constant, for the same reason
+	 * `responsive.css` moves this row onto the keyboard with a `- 100%` translate
+	 * instead of an offset: the row is one control tall at rest, taller under a
+	 * coarse pointer where every `.button` steps up to `--control-height-lg`, and
+	 * taller again while a decode error wraps across it.
+	 *
+	 * On `<html>`, beside `--keyboard-top`, and removed on teardown — a height left
+	 * behind holds every later toast above a strip that is no longer drawn, which
+	 * is this same bug wearing the other hat.
+	 */
+	function publishStripHeight(node: HTMLElement) {
+		const root = document.documentElement;
+		const observer = new ResizeObserver(() => {
+			root.style.setProperty('--media-strip-height', `${node.getBoundingClientRect().height}px`);
+		});
+		observer.observe(node);
+		return () => {
+			observer.disconnect();
+			root.style.removeProperty('--media-strip-height');
+		};
+	}
+
 	// A remote source is *loaded* and a local file is *reconnected*, because what
 	// the press actually spends differs: one is a session's consent or sign-in, the
 	// other is the permission the browser will only re-grant to a gesture.
@@ -106,7 +138,7 @@
 	source is attached shows in this row only in which rates the speed control
 	offers.
 -->
-<div class="media-strip" data-testid="media-strip" {@attach keepFocus}>
+<div class="media-strip" data-testid="media-strip" {@attach keepFocus} {@attach publishStripHeight}>
 	{#if player.attached}
 		<div class="media-strip__transport">
 			<MediaTransport {player} />
