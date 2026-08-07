@@ -47,6 +47,11 @@ interface LineTransform {
 
 const STYLE_SLOTS: readonly StyleSlot[] = [1, 2, 3, 4];
 
+/** Whether a slice of lyric carries anything actually sung — letters, marks, or digits. */
+function hasSungText(text: string): boolean {
+	return /[\p{L}\p{M}\p{N}]/u.test(text);
+}
+
 function orderedSelection(selection: SerializedSelection): TextRange {
 	return {
 		from: Math.min(selection.anchor, selection.head),
@@ -345,15 +350,25 @@ function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
  * against — the caller's local offset stays valid because the edit can never
  * start after it or end before it. Neither trim is allowed to stop between the
  * halves of a surrogate pair.
+ *
+ * Exported for the section-link mirror, which makes the same overstated claim
+ * from the other side: it writes a peer's whole shared run for one edit, and
+ * a range read as "wrote over these lines" erases every line anchor in them.
+ * That caller carries no mapped selection, so `keep` is optional.
  */
-function narrowEdit(from: number, original: string, insert: string, keep: TextRange): TextEdit {
+export function narrowEdit(
+	from: number,
+	original: string,
+	insert: string,
+	keep?: TextRange
+): TextEdit {
 	const isHighSurrogate = (unit: string | undefined): boolean =>
 		unit !== undefined && unit >= '\uD800' && unit <= '\uDBFF';
 	const isLowSurrogate = (unit: string | undefined): boolean =>
 		unit !== undefined && unit >= '\uDC00' && unit <= '\uDFFF';
 
 	let prefix = 0;
-	const prefixLimit = Math.min(original.length, insert.length, keep.from);
+	const prefixLimit = Math.min(original.length, insert.length, keep?.from ?? Infinity);
 	while (prefix < prefixLimit && original[prefix] === insert[prefix]) {
 		prefix += 1;
 	}
@@ -365,7 +380,7 @@ function narrowEdit(from: number, original: string, insert: string, keep: TextRa
 	const suffixLimit = Math.min(
 		original.length - prefix,
 		insert.length - prefix,
-		insert.length - keep.to
+		insert.length - (keep?.to ?? 0)
 	);
 	while (
 		suffix < suffixLimit &&
@@ -857,6 +872,10 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	// slot, its text untouched, and the *rest* is the passage that gets wrapped
 	// and named second. Without this, selecting a verse's opening lines wrote
 	// `[Verse: Rest & <i>Selected</i>]` with the first-heard voice in italics.
+	// What may stand before a leading selection is anything nobody sings:
+	// selecting the first phrase inside `(La oss feste litt, …)` starts one
+	// character into the line, and the `(` must not demote the first voice to
+	// italics — only words before the selection mean somebody sang first.
 	const bounds = lyricBounds(section);
 	const trailing = bounds
 		? trimWhitespaceRange(request.text, { from: selection.to, to: bounds.to })
@@ -868,7 +887,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		bounds !== undefined &&
 		trailing !== undefined &&
 		trailing.from < trailing.to &&
-		request.text.slice(bounds.from, selection.from).trim().length === 0;
+		!hasSungText(request.text.slice(bounds.from, selection.from));
 	const wrapRange = invert && trailing ? trailing : selection;
 
 	// A skipped second step on a leading selection writes the legend and

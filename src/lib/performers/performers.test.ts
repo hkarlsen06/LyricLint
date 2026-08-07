@@ -407,6 +407,37 @@ describe('performer assignment transforms', () => {
 			}
 		});
 
+		// Punctuation before the selection is not somebody singing first: the
+		// `(` of an ad-lib line stands ahead of its first phrase, and reading it
+		// as a preceding voice demoted the selection to italics — an
+		// italic-only legend and a wrapped selection, from a Skip that meant
+		// "this voice leads".
+		it('still leads past unsung punctuation ahead of the selection', () => {
+			const song = [
+				'[Pre-Chorus]',
+				'(La oss feste litt, la oss feste litt)',
+				'(La oss feste litt, la oss feste litt, la oss feste litt)',
+				'(La oss feste litt, la oss feste litt, ayy)'
+			].join('\n');
+			const records = roster(['A', 'B']);
+			const from = song.indexOf('La oss');
+			const result = assignVoiceGroup({
+				revision: 1,
+				text: song,
+				document: parseDocument(song),
+				selection: { anchor: from, head: from + 'La oss feste litt'.length },
+				performerIds: [records[0]?.id ?? ''],
+				roster: records
+			});
+
+			expect(result.status).toBe('applied');
+			if (result.status === 'applied') {
+				const output = applyEdits(song, result.edit.edits);
+				expect(output).toContain('[Pre-Chorus: A]');
+				expect(output).not.toContain('<i>');
+			}
+		});
+
 		// The state Skip leaves behind is the state every later selection builds
 		// on: claiming another part wraps it in the next styled slot and joins
 		// the legend, so the deferral costs nothing to unwind.

@@ -713,6 +713,48 @@ describe('the timestamp column', () => {
 	});
 });
 
+describe('line anchors in linked sections', () => {
+	// The mirror used to dispatch a peer's whole shared run as one replacement,
+	// and `dropErasedAnchors` reads a line wholly inside a replacement as erased
+	// — so typing one character in a linked chorus silently deleted every line
+	// timing its peers carried. The mirrored edit is narrowed now, so an anchor
+	// on a line the edit did not actually change maps through like any other.
+	it('keeps the peer sections’ timings when an edit is mirrored into them', async () => {
+		const doc = [
+			'[Chorus]',
+			'Hold on tight',
+			'Never let go',
+			'',
+			'[Chorus 2]',
+			'Hold on tight',
+			'Never let go'
+		].join('\n');
+		const { handle } = await mount({ text: doc, mediaTime: () => 0 });
+		handle.linkSections?.({ headers: [doc.indexOf('[Chorus]'), doc.indexOf('[Chorus 2]')] });
+		handle.setLineAnchors?.([
+			{ line: 2, time: 1 },
+			{ line: 3, time: 3 },
+			{ line: 6, time: 20 },
+			{ line: 7, time: 23 }
+		]);
+
+		const caret = doc.indexOf('tight');
+		handle.focus();
+		handle.setSelection({ anchor: caret, head: caret });
+		await userEvent.keyboard('x');
+
+		// The edit reached both copies…
+		expect(handle.getSnapshot().text.split('xtight')).toHaveLength(3);
+		// …and took no timing with it.
+		expect(handle.getLineAnchors?.()).toEqual([
+			{ line: 2, time: 1 },
+			{ line: 3, time: 3 },
+			{ line: 6, time: 20 },
+			{ line: 7, time: 23 }
+		]);
+	});
+});
+
 /*
  * Timing a whole lyric by tapping along with the song.
  *
@@ -787,6 +829,48 @@ describe('following the playhead', () => {
 
 		await new Promise((resolve) => setTimeout(resolve, 500));
 		expect(scroller.scrollTop).toBe(0);
+	});
+
+	// The report this pins: with follow on and the marked line inside a linked
+	// section, typing in the *other* linked section scrolled the reader away.
+	// The mirror's whole-run replacement erased the peer's anchors, the mark
+	// fell back to the last survivor, and the follow read that as the playhead
+	// moving. With the mirrored edit narrowed, nothing moves and nothing is lost.
+	it('stays put when typing in a linked section while the mark is in its peer', async () => {
+		const lines = Array.from({ length: 24 }, (_, i) => `line ${i + 1}`);
+		const doc = ['[Chorus]', ...lines, '', '[Chorus 2]', ...lines].join('\n');
+		const { handle } = await mount({ text: doc, mediaTime: () => 50 });
+		handle.linkSections?.({ headers: [doc.indexOf('[Chorus]'), doc.indexOf('[Chorus 2]')] });
+		handle.setLineAnchors?.([
+			...lines.map((_, i) => ({ line: 2 + i, time: 1 + i })),
+			...lines.map((_, i) => ({ line: 28 + i, time: 40 + i }))
+		]);
+
+		const pane = document.querySelector<HTMLElement>('.editor-pane')!;
+		pane.style.height = '300px';
+		const scroller = document.querySelector<HTMLElement>('.cm-scroller')!;
+		await vi.waitFor(() => {
+			if (scroller.clientHeight < 200) throw new Error('the pane has no height yet');
+		});
+
+		// Playhead at 50 marks a line deep in the second chorus; the follow parks it.
+		handle.setMediaPlayhead?.(50);
+		await vi.waitFor(() => {
+			if (scroller.scrollTop === 0) throw new Error('the follow has not scrolled yet');
+		});
+		await new Promise((resolve) => setTimeout(resolve, 500));
+
+		// The reader scrolls back up and types into the first chorus.
+		handle.focus();
+		const caret = doc.indexOf('line 1');
+		handle.setSelection({ anchor: caret, head: caret });
+		scroller.scrollTop = 0;
+		await userEvent.keyboard('!');
+
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		expect(scroller.scrollTop).toBe(0);
+		// And the second chorus kept every timing it had.
+		expect(handle.getLineAnchors?.()).toHaveLength(48);
 	});
 
 	it('stops following once the shell turns it off', async () => {

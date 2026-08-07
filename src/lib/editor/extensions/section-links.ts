@@ -28,6 +28,7 @@ import {
 	translateSpan,
 	widenToRuns
 } from '$lib/core/link-shape.js';
+import { narrowEdit } from '$lib/performers/transform.js';
 import { sectionBodyRange } from '../section-links.js';
 import {
 	editorCallbacksField,
@@ -1161,13 +1162,27 @@ export function sectionLinkMirror(): Extension {
 			}
 			const from = member.body.from + target.from;
 			const to = member.body.from + target.to;
-			if (transaction.startState.doc.sliceString(from, to) === text) {
+			const original = transaction.startState.doc.sliceString(from, to);
+			if (original === text) {
 				continue;
 			}
+			// The *span* is still the whole run — that is what makes the write
+			// idempotent where the group is in step and a repair where it is not —
+			// but the *edit* dispatched is trimmed to where the two texts actually
+			// differ, because a change's range is a claim other features read. A
+			// line wholly inside a replacement reads as rewritten in
+			// `line-anchors.ts`: its anchor survives only through the rescue,
+			// re-seated at a position `mapPos` cannot explain, so the playhead
+			// follow took every mirrored keystroke for the mark moving and
+			// scrolled the reader away from the line they were typing. Old prefix
+			// + trimmed slice + old suffix is the run's new text by construction,
+			// so the document comes out byte for byte the same; only the claim
+			// stops overstating.
+			const narrowed = narrowEdit(from, original, text);
 			edits.push({
-				from: transaction.changes.mapPos(from, 1),
-				to: transaction.changes.mapPos(to, 1),
-				insert: text
+				from: transaction.changes.mapPos(narrowed.from, 1),
+				to: transaction.changes.mapPos(narrowed.to, 1),
+				insert: narrowed.insert
 			});
 		}
 		if (edits.length === 0) {

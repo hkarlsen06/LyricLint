@@ -740,13 +740,20 @@ export const readingLineFraction = 1 / 3;
  * follow than a jump — a new `scrollTo` supersedes an in-flight one, so taps
  * faster than the animation just retarget it, and each tap recomputes from live
  * positions so any mid-animation drift corrects itself on the next one.
+ *
+ * `lineBlockAt` rather than `coordsAtPos`, because the target is routinely not
+ * on screen — a seek across the song marks a line far outside the rendered
+ * viewport, and `coordsAtPos` answers null there, which made the follow silently
+ * do nothing for exactly the jumps most worth following. The block's estimated
+ * top is near enough: CodeMirror re-measures as the scroll brings the region in,
+ * and the next mark movement recomputes from the corrected layout.
  */
 export function holdReadingLine(view: EditorView, pos: number): void {
-	const coords = view.coordsAtPos(pos);
-	if (!coords) return;
 	const scroller = view.scrollDOM;
-	const box = scroller.getBoundingClientRect();
-	const to = scroller.scrollTop + (coords.top - box.top) - box.height * readingLineFraction;
+	const to =
+		view.lineBlockAt(pos).top +
+		view.documentPadding.top -
+		scroller.clientHeight * readingLineFraction;
 	tweenScroll(scroller, to);
 }
 
