@@ -458,6 +458,67 @@ export function linkedPeerHeaders(
 }
 
 /**
+ * How far down two linked members a run may pair lines by position.
+ *
+ * `linkedFill` dates a repeat's lines from a peer's by index, and that
+ * arithmetic assumes the two copies share a line structure — which the merge
+ * model deliberately does not require: a chorus carrying a line its peer lacks
+ * is the shape the whole feature was rebuilt for. Every line at or after such a
+ * difference pairs with the wrong peer line, and the time it would take is
+ * plausible and wrong by an amount nobody can see — the automatic anchor
+ * stamp's failure, arriving through the link. Nothing downstream can catch it:
+ * the derived times still increase, so the monotonicity guard passes.
+ *
+ * A shared run is byte-identical in every member by construction, so pairing is
+ * provably safe up to the first divergent run that moves a line boundary — one
+ * whose text, in either member, contains a line break. A word-level difference
+ * (`my love` against `my friend`) moves nothing and pairs on, which is the
+ * common case the fill must keep.
+ *
+ * It aligns the pair afresh rather than reading the stored runs, and that is
+ * the semantics rather than caution. Stored intent is the mirror's question —
+ * a mistake against a decision — and the fill is not asking it: what pairs a
+ * line with a line is the text as it stands, and a record written without runs
+ * (`{ lines: [...] }`, every draft from before differences existed) describes
+ * exactly the group this most needs to be true of.
+ *
+ * Returns each member's own document position for that run's start: line starts
+ * strictly *before* it pair one-to-one. `Infinity` where nothing in either copy
+ * moves a line boundary, and `undefined` where the pair's shape cannot be
+ * described at all, which is a peer no fill should trust.
+ */
+export function linePairingLimits(
+	state: EditorState,
+	parsed: ParsedDocument,
+	headerFrom: number,
+	peerFrom: number
+): { own: number; peer: number } | undefined {
+	const shapes = groupShape(state, parsed, [headerFrom, peerFrom], { realign: true });
+	const own = shapes?.[0];
+	const peer = shapes?.[1];
+	if (!own || !peer || own.holes.length !== peer.holes.length) {
+		return undefined;
+	}
+	for (let index = 0; index < own.holes.length; index += 1) {
+		const ownHole = own.holes[index];
+		const peerHole = peer.holes[index];
+		if (!ownHole || !peerHole) {
+			return undefined;
+		}
+		const moved = [
+			{ member: own, hole: ownHole },
+			{ member: peer, hole: peerHole }
+		].some(({ member, hole }) =>
+			state.doc.sliceString(member.body.from + hole.from, member.body.from + hole.to).includes('\n')
+		);
+		if (moved) {
+			return { own: own.body.from + ownHole.from, peer: peer.body.from + peerHole.from };
+		}
+	}
+	return { own: Infinity, peer: Infinity };
+}
+
+/**
  * The shape of one group, re-derived from the words if what is stored cannot
  * describe it.
  *

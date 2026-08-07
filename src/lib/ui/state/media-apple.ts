@@ -618,8 +618,39 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	let target: number | undefined;
 	let targetEvents = 0;
 
+	/**
+	 * MusicKit's own playhead, read now rather than remembered.
+	 *
+	 * `known` is written by `playbackTimeDidChange` and by nothing else, so a
+	 * source answering `time` from it hands the *same* stale number to the mirror
+	 * and to `liveTime()` — and `liveTime()` is what a sync tap stamps. Every
+	 * anchor was therefore written early by however long had passed since the last
+	 * event, by a different amount each tap, which is the one thing the
+	 * live-versus-mirror split exists to prevent: on playback the wash led the
+	 * vocal, and it led it by a different distance on every line.
+	 *
+	 * `currentPlaybackTime` is the live property, exactly as YouTube's
+	 * `getCurrentTime()` is, and it is read the same defensive way — the two
+	 * bridges front third-party players that are entitled to throw.
+	 *
+	 * Only once playback has started. Before the first press there is no
+	 * `nowPlayingItem` for the property to describe, and `known` is the restored
+	 * position the queue was built around — the same distinction `seek` makes one
+	 * screen down, and reading live through it would report a reopened draft at
+	 * 0:00 until something pressed play.
+	 */
+	function rawTime(): number {
+		if (!music || !started) return known;
+		try {
+			const value = music.currentPlaybackTime;
+			return typeof value === 'number' && Number.isFinite(value) ? value : known;
+		} catch {
+			return known;
+		}
+	}
+
 	function position(): number {
-		return target ?? known;
+		return target ?? rawTime();
 	}
 
 	function reportDuration(seconds: number): void {

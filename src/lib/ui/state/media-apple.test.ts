@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AppleMusicInstance, AppleMusicSource } from './media-apple.js';
+import type { AppleMusicInstance, AppleMusicSource, AppleMusicTimeEvent } from './media-apple.js';
 import {
 	appleMusicConfigured,
 	appleMusicTokenExpiry,
@@ -178,9 +178,31 @@ function stubMusic(overrides: Partial<AppleMusicInstance> = {}) {
 		seekToTime: ReturnType<typeof vi.fn>;
 		authorize: ReturnType<typeof vi.fn>;
 	};
+	/**
+	 * The player runs on without saying so.
+	 *
+	 * `currentPlaybackTime` is a live property and `playbackTimeDidChange` is a
+	 * periodic announcement about it, so between two events the property moves and
+	 * nothing fires. That gap is the whole reason `time` reads the property: a
+	 * source answering from the last event hands `liveTime()` — which is what a
+	 * sync tap stamps — the same stale number the mirror already holds.
+	 */
+	const advance = (seconds: number) => {
+		(instance as unknown as { currentPlaybackTime: number }).currentPlaybackTime = seconds;
+	};
+
 	return {
 		instance,
-		emit: (name: string, event: unknown) => listeners.get(name)?.(event as never)
+		advance,
+		// An event fires *because* the property moved, so a stub letting the two
+		// disagree would be modelling a player that does not exist.
+		emit: (name: string, event: unknown) => {
+			if (name === 'playbackTimeDidChange') {
+				const time = (event as AppleMusicTimeEvent | undefined)?.currentPlaybackTime;
+				if (typeof time === 'number') advance(time);
+			}
+			listeners.get(name)?.(event as never);
+		}
 	};
 }
 
@@ -466,6 +488,46 @@ describe('createAppleMusicSource', () => {
 
 		expect(source.time).toBe(41.5);
 		expect(events.log).toContain('time:41.5');
+	});
+
+	/**
+	 * `time` is a reading, not a memory — and `liveTime()` is what a sync tap
+	 * stamps.
+	 *
+	 * Answered from the last `playbackTimeDidChange`, it was the same stale number
+	 * the mirror already held, so every anchor a run wrote was early by however
+	 * long had passed since that event — a different amount on every tap. On
+	 * playback that is a wash leading the vocal by a distance that changes line to
+	 * line, which is how it was reported.
+	 */
+	it('reads the playhead live between time events', async () => {
+		const { instance, emit, advance } = stubMusic();
+		const { source } = build(instance);
+
+		await source.load(songId);
+		emit('playbackStateDidChange', { state: playbackStates.playing });
+		emit('playbackTimeDidChange', { currentPlaybackTime: 41.5 });
+
+		// The song runs on and MusicKit says nothing until its next announcement.
+		advance(42.3);
+
+		expect(source.time).toBe(42.3);
+	});
+
+	/**
+	 * Before the first press there is no `nowPlayingItem` for the property to
+	 * describe, so it reads 0 while the restored position is what the queue was
+	 * built around — the same distinction `seek` makes, which is why the live read
+	 * sits behind `started` too. Without that guard a reopened draft reports 0:00
+	 * until something presses play.
+	 */
+	it('reports the restored position until playback starts', async () => {
+		const { instance } = stubMusic();
+		const { source } = build(instance);
+
+		await source.load(songId, 64);
+
+		expect(source.time).toBe(64);
 	});
 
 	it('translates MusicKit’s state numbers into the transport’s events', async () => {

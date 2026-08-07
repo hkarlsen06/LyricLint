@@ -965,9 +965,25 @@ export const lineAnchorTheme = EditorView.baseTheme({
 		// element's own inline padding as well — reserving only the content leaves
 		// the row's contents governing the width, which is how the number slid
 		// sideways once already: `+` is a shade wider than the glyph it replaces,
-		// and with no slack the gutter grew by exactly that.
-		minWidth: 'calc(9ch + var(--space-5))',
-		padding: 'var(--space-0-5) var(--space-2) 0',
+		// and with no slack the gutter grew by exactly that. One `--space-4` is that
+		// padding and the row's own slack; the other is the lane below.
+		minWidth: 'calc(9ch + var(--space-4) + var(--space-4))',
+		// The inline end is the scrollbar's lane, and it is wider than the inline
+		// start on purpose: this column is the last thing before the scroller's own
+		// edge, so whatever sits at the end of the cell — `+` while the pair is open,
+		// the stamp glyph the rest of the time — is what a vertical scrollbar lands
+		// on. At `--space-2` it did. A classic bar takes its width out of the
+		// scrollport, so the sticky column stops beside it and eight pixels is merely
+		// a tight gap; an overlay bar — macOS, and any touch device — takes no layout
+		// space at all and paints over the last dozen or so pixels of the scrollport,
+		// where it also wins the press, so aiming at `+` scrubbed the document
+		// instead. The lane is the width the widest of those bars needs, which is the
+		// same answer `.rules__index` reaches from the other side: padding rather
+		// than `scrollbar-gutter`, because only padding is a lane an overlay bar can
+		// float in. It costs the document `--space-2` of width it did not spend
+		// before, and the lyric column is capped at `--measure-editor` anyway, so on
+		// anything but the narrowest pane it costs nothing at all.
+		padding: 'var(--space-0-5) var(--space-4) 0 var(--space-2)',
 		gap: 'var(--space-1)',
 		// Top, not centre, because a gutter element is as tall as the block it
 		// stands beside: a lyric long enough to wrap makes this box two or three

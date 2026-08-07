@@ -12,7 +12,7 @@ import {
 	setPlayheadEffect
 } from './line-anchors.js';
 import { parsedDocumentForState } from './editor-state.js';
-import { linkedPeerHeaders } from './section-links.js';
+import { linePairingLimits, linkedPeerHeaders } from './section-links.js';
 
 /**
  * Timing a whole lyric by tapping along with the song.
@@ -214,7 +214,7 @@ interface LinkedFill {
  * tap plus that line's distance from the peer's opening line, so what repeats is
  * the rhythm the transcriber already tapped by hand.
  *
- * Four things it refuses, and each is a case where a guess would be worse than
+ * Five things it refuses, and each is a case where a guess would be worse than
  * the dash it replaces:
  *
  * - **Only on the way in.** A tap in the middle of a section is the user timing
@@ -230,8 +230,24 @@ interface LinkedFill {
  * - **It stops where the peer's own times go backwards.** Everything downstream —
  *   the marked cell, the step back, the follow — reads anchors as ordered, and a
  *   peer with broken data must not spread it.
+ * - **It stops where the copies' line structures part ways.** The pairing is by
+ *   line index, and a copy carrying a line its peer lacks — the shape the link
+ *   model was rebuilt for — puts every later line against the wrong peer line.
+ *   `linePairingLimits` says how far the two structures agree, and past that the
+ *   tapping is handed back, exactly as at a gap. A word-level difference moves
+ *   no line boundary and fills on.
+ *
+ * And among the peers that remain, **one this run tapped outranks one it
+ * derived**, nearest-first within each. A filled section's times are a rhythm at
+ * one remove already, and a chain of fills would carry any error of the first
+ * one down the whole song; `filled` is the record of which is which.
  */
-function linkedFill(state: EditorState, line: Line, at: number): LinkedFill | undefined {
+function linkedFill(
+	state: EditorState,
+	line: Line,
+	at: number,
+	filled: readonly number[]
+): LinkedFill | undefined {
 	const parsed = parsedDocumentForState(state);
 	const section = parsed.sections.find(
 		(candidate) => candidate.from <= line.from && line.to <= candidate.to
@@ -242,21 +258,34 @@ function linkedFill(state: EditorState, line: Line, at: number): LinkedFill | un
 	const own = stampableLines(state, section);
 	if (own[0]?.from !== line.from || own.length < 2) return undefined;
 
-	const peers = linkedPeerHeaders(state, parsed, header.from)
+	const nearest = linkedPeerHeaders(state, parsed, header.from)
 		.filter((peer) => peer < header.from)
 		.sort((left, right) => right - left);
+	const peers = [
+		...nearest.filter((peer) => !filled.includes(peer)),
+		...nearest.filter((peer) => filled.includes(peer))
+	];
 
 	for (const peer of peers) {
 		const peerSection = parsed.sections.find((candidate) => candidate.header?.from === peer);
 		if (!peerSection) continue;
+		const limits = linePairingLimits(state, parsed, header.from, peer);
+		if (!limits) continue;
 		const peerLines = stampableLines(state, peerSection);
 		const base = peerLines[0] ? anchorTimeAt(state, peerLines[0].from) : undefined;
 		if (base === undefined) continue;
 
+		// Line pairing is only trusted up to the first divergent run that moves a
+		// line boundary, in either copy.
+		const cap = Math.min(
+			own.filter((candidate) => candidate.from < limits.own).length,
+			peerLines.filter((candidate) => candidate.from < limits.peer).length
+		);
+
 		const anchors: { pos: number; time: number }[] = [];
 		let last = line;
 		let lastTime = at;
-		for (let index = 1; index < own.length && index < peerLines.length; index += 1) {
+		for (let index = 1; index < cap; index += 1) {
 			const target = own[index];
 			const peerLine = peerLines[index];
 			if (!target || !peerLine) break;
@@ -342,7 +371,7 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 		// A section this run has already filled taps like any other: the user went
 		// back to it on purpose, and writing it again would be the shortcut taking
 		// the correction away from them.
-		const candidate = linkedFill(view.state, line, at);
+		const candidate = linkedFill(view.state, line, at, sync.filled);
 		const fill = candidate && !sync.filled.includes(candidate.header) ? candidate : undefined;
 		const landed = fill?.last ?? line;
 

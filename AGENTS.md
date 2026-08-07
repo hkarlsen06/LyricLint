@@ -1422,12 +1422,27 @@ is pressable, and cannot be seen. `.ll-time-gutter` is `overflow: visible`: ever
 ours, the only thing that ever leaves it is that chip, and it spills inwards over the text rather
 than outwards past the scroller.
 
-**The reserved width is the widest state written out, padding included.** `calc(9ch + var(--space-5))`
-is seven characters of `m:ss.cc`, the gap, two for the pair, and the element's own inline padding —
-it is a `min-width` on a `border-box` element, so reserving only the content leaves the row's
-contents governing the width. That is how the number slid sideways once already: the pair is a
-fraction of a pixel wider than the glyph it replaces, and with no slack the gutter grew by exactly
-that much and dragged every row left.
+**The reserved width is the widest state written out, padding included.**
+`calc(9ch + var(--space-4) + var(--space-4))` is seven characters of `m:ss.cc`, the gap, two for the
+pair, and the element's own inline padding — it is a `min-width` on a `border-box` element, so
+reserving only the content leaves the row's contents governing the width. That is how the number
+slid sideways once already: the pair is a fraction of a pixel wider than the glyph it replaces, and
+with no slack the gutter grew by exactly that much and dragged every row left.
+
+**And its inline end is the scrollbar's lane, wider than its inline start on purpose.** This column
+is the last thing before the scroller's own edge, so whatever sits at the end of a cell — `+` while
+the pair is open, the stamp glyph the rest of the time — is what a vertical scrollbar lands on. A
+classic bar takes its width out of the scrollport, so the sticky column stops beside it and the
+padding is merely a tight gap; an overlay bar — macOS, and any touch device — takes no layout space
+at all, paints over the last dozen or so pixels of the scrollport, and **wins the press there**, so
+at the `--space-2` this used to reserve, aiming at `+` scrubbed the document instead of moving the
+time. That is the same answer `.rules__index` reaches from the other side: padding rather than
+`scrollbar-gutter`, because only padding is a lane an overlay bar can float in. It costs the
+document `--space-2` of width it did not spend before, and the lyric column is capped at
+`--measure-editor`, so on anything but the narrowest pane it costs nothing at all.
+`line-anchoring.svelte.test.ts` measures the clearance against the **scrollport** rather than
+against the padding it comes from: a cell's own contents can grow into that lane without the
+stylesheet changing, and the lane going quietly back to a gap looks exactly like working CSS.
 
 It closes the way every transient surface in the workbench closes — a press anywhere else, read on
 `pointerdown` in the capture phase, plus a second press on the pencil that opened it. The listener is
@@ -1687,7 +1702,7 @@ song, and copied outright every jump into the second chorus would land in the fi
 written at the tap plus that line's distance from the peer's own opening line, so what repeats is
 the rhythm the transcriber already tapped by hand.
 
-Five refusals, and each is a case where a guess is worse than the dash it would replace:
+Six refusals, and each is a case where a guess is worse than the dash it would replace:
 
 - **Only on the way in.** A tap in the middle of a section is the user timing that line, and nothing
   about it asks for the rest to be written for them.
@@ -1700,8 +1715,28 @@ Five refusals, and each is a case where a guess is worse than the dash it would 
   hands the tapping back at the point the peer stops answering.
 - **It stops where the peer's times go backwards.** The marked cell, the step back and the follow
   all read anchors as ordered, and a peer carrying broken data must not spread it.
+- **It stops where the copies' line structures part ways**, and this one shipped late. The pairing
+  is by line index, and the merge model deliberately lets a copy carry a line its peer lacks — the
+  shape the whole feature was rebuilt for — so every line at or past such a difference paired with
+  the _wrong_ peer line. The derived times still increase, so the monotonicity refusal above passes,
+  and the toast reports a successful fill: a plausible number wrong by an amount nobody can see,
+  which is the automatic anchor stamp's failure arriving through the link. `linePairingLimits` in
+  `extensions/section-links.ts` says how far the two structures agree — pairing is provably safe up
+  to the first divergent run whose text, in either member, contains a line break, because a shared
+  run is byte-identical in every member by construction. It aligns the pair afresh rather than
+  reading the stored runs, and that is semantics rather than caution: stored intent is the mirror's
+  question, a mistake against a decision, and the fill is not asking it — what pairs a line with a
+  line is the text as it stands, and a record written without runs (every draft from before
+  differences existed) describes exactly the group this most needs to be true of. A word-level
+  difference moves no line boundary and fills on, which keeps the commonest linked shape working.
 - **Once per section per run**, which is what makes the way out real. `filled` on the sync field is
   that record — bare offsets, because a document change ends the run and clears it with them.
+
+**And among the peers that survive the refusals, one the run tapped outranks one it derived**,
+nearest-first within each — `filled` is the record of which is which. A filled section's times are a
+rhythm at one remove already, and nearest-first alone would date chorus three from chorus two's
+derived times rather than from the copy the user actually tapped, carrying any error of the first
+fill down the whole song.
 
 **The way out is the line number, and it had to grow half of itself.** Pressing an anchored line's
 number plays from that moment, and outside a run that is all it does; inside one it cannot be,
@@ -1740,9 +1775,9 @@ focusing the editor on entry — the tap is a keystroke, so a run cannot start w
 button that started it.
 
 Implementation: `src/lib/editor/extensions/lyric-sync.ts` (`linkedFill` and `syncMoveTo` are the
-repeat's half of it), `linkedPeerHeaders` in `extensions/section-links.ts`, the line-number handler
-in `create-editor.ts` where the seek and the caret move are ordered, the control in
-`MediaStrip.svelte`, and the wiring in `Workspace.svelte`.
+repeat's half of it), `linkedPeerHeaders` and `linePairingLimits` in `extensions/section-links.ts`,
+the line-number handler in `create-editor.ts` where the seek and the caret move are ordered, the
+control in `MediaStrip.svelte`, and the wiring in `Workspace.svelte`.
 
 ### A chorus is typed once, and what its repeats do differently is said out loud
 
@@ -2529,6 +2564,32 @@ other two need and this one does not.**
   which is the whole shape of the Spotify module.
 - **There is a `playbackTimeDidChange` event**, so nothing here polls. Both other bridges run a
   250ms timer because their players report no such thing.
+
+  **But an event is what feeds the mirror, and it is never what `time` answers from.** That
+  distinction shipped wrong and cost a whole feature its accuracy. `known` is written by the event
+  handler and by nothing else, so a `position()` returning it handed the same stale number to
+  `currentTime` _and_ to `liveTime()` — and `liveTime()` is what a sync tap stamps, precisely
+  because the media section says it is "the source's own playhead read at the moment of the press,
+  strictly fresher than the mirror it replaces". Here it was the mirror. Every anchor a run wrote
+  was early by however long had passed since the last announcement, by a different amount on every
+  tap, and on playback the wash led the vocal by a distance that changed line to line — which is
+  how it was reported, and which no amount of tuning `tapOffsetSeconds` could have fixed, because
+  the error is jitter rather than an offset. `currentPlaybackTime` is the live property, was
+  already declared on `AppleMusicInstance`, and was read by nothing; `rawTime()` reads it the same
+  defensive way YouTube reads `getCurrentTime()`. **The event goes on driving `events.timeChanged`
+  and should**: the follow lagging the audio by up to one announcement is a separate effect, it is
+  always in the same direction, and it is not what a tap is measured against.
+
+  **It is behind `started`, for `seek`'s own reason.** Before the first press there is no
+  `nowPlayingItem` for the property to describe, so it reads 0 while `known` holds the restored
+  position the queue was built around — read live through that window, a reopened draft reports
+  0:00 until something presses play.
+
+  **The stub had to learn it too, and that is the half that hides this bug.** A `currentPlaybackTime`
+  frozen at 0 while the emitted events climb models a player that does not exist, and it makes a
+  source reading either one look correct. `stubMusic`'s `emit` moves the property with the event,
+  and `advance()` moves it _without_ one — which is the gap the whole fix is about.
+
 - **There is a rate**, and the source claims it back on every attach. The transport does not reset
   `availableRates` between attachments, so a song attached after a Spotify track would otherwise
   inherit that source's narrowing to `[1]`.

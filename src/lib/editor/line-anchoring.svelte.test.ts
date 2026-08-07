@@ -502,6 +502,44 @@ describe('the timestamp column', () => {
 		expect(cellFor('second line').querySelector('.ll-time-value')?.textContent).toBe('–');
 	});
 
+	/*
+	 * This column is the last thing before the scroller's own edge, so whatever
+	 * sits at the end of a cell — `+` while the pair is open, the stamp glyph the
+	 * rest of the time — is what a vertical scrollbar lands on. An overlay bar
+	 * takes no layout space at all and paints over the last dozen or so pixels of
+	 * the scrollport, where it also wins the press, so at the eight pixels this
+	 * used to reserve, aiming at `+` scrubbed the document instead of moving the
+	 * time.
+	 *
+	 * Measured rather than trusted, and against the scrollport rather than against
+	 * the padding it comes from: a cell's own contents can grow into that lane
+	 * without the stylesheet changing, which is how the number slid sideways once
+	 * already, and the lane going quietly back to a gap looks exactly like working
+	 * CSS.
+	 */
+	it('keeps a scrollbar lane between the cell’s last control and the scrollport', async () => {
+		// The widest an overlay scrollbar draws itself, expanded, on the platforms
+		// that have them. A classic bar takes its width out of the scrollport
+		// instead, so the column simply stops beside it and this is the gap.
+		const overlayScrollbarWidth = 16;
+		const { handle } = await mount({ text: lyric, mediaTime: () => 75 });
+		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
+		await withColumn(handle);
+
+		const scrollport = () => document.querySelector('.cm-scroller')!.getBoundingClientRect().right;
+		const clearance = (selector: string) =>
+			scrollport() - cellFor('first line').querySelector(selector)!.getBoundingClientRect().right;
+
+		expect(clearance('.ll-time-stamp')).toBeGreaterThanOrEqual(overlayScrollbarWidth);
+
+		press(cellFor('first line'), '.ll-time-stamp');
+		await vi.waitFor(() => {
+			if (!document.querySelector('.ll-time-nudge--on')) throw new Error('the pair never opened');
+		});
+
+		expect(clearance('.ll-time-nudge--on')).toBeGreaterThanOrEqual(overlayScrollbarWidth);
+	});
+
 	// The precision arrives with the controls that spend it and leaves with them: a
 	// column of `m:ss.cc` is two digits per row nobody is reading, and the resting
 	// job of this rail is to say where a line sits in the song.
@@ -1308,5 +1346,202 @@ describe('sync mode across linked sections', () => {
 		expect(handle.getSnapshot().selection.head).toBe(linkedSong.lastIndexOf('hold on tight'));
 		expect(seek).not.toHaveBeenCalled();
 		expect(notices).toEqual([]);
+	});
+
+	/*
+	 * The fill pairs lines by index, and the link model deliberately allows the
+	 * copies to differ — a chorus carrying a line its peer lacks is the shape the
+	 * merge model was rebuilt for. Pairing past such a line dates every later line
+	 * with the *next* peer line's offset: times that still increase, so the
+	 * monotonicity guard passes, and nothing on screen says they are wrong. So the
+	 * fill stops where the line structures part ways, exactly as it stops at a
+	 * peer's first gap, and the tapping is handed back.
+	 */
+	it('refuses to fill past a line the timed copy does not have', async () => {
+		const divergedLines = [
+			'[Verse 1]', // 1
+			'first line', // 2
+			'', // 3
+			'[Chorus]', // 4
+			'hold on tight', // 5
+			'we go again', // 6
+			'all night long', // 7
+			'', // 8
+			'[Verse 2]', // 9
+			'second line', // 10
+			'', // 11
+			'[Chorus 2]', // 12
+			'hold on tight', // 13
+			'oh yeah', // 14 — this copy's own line, second from the top
+			'we go again', // 15
+			'all night long' // 16
+		];
+		const divergedSong = divergedLines.join('\n');
+		let now = 0;
+		const { handle, seek, notices } = await mount({
+			text: divergedSong,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => now
+		});
+		await withColumn(handle, 0);
+		handle.setLineAnchors?.(timedFirstCopy);
+		handle.setSectionLinks?.([{ lines: [4, 12] }]);
+
+		handle.setLyricSync?.(true);
+		now = 100;
+		handle.tapLyricSync?.();
+
+		// The structures part ways one line in, so there is nothing left for the
+		// peer to date and the tap is a plain tap: positional pairing would have put
+		// 'we go again' — +2s in the copy it repeats — at +4.5s, and left the last
+		// line untimed behind a caret that had moved past it.
+		expect(times(handle)[13]).toBeCloseTo(100 - tapOffsetSeconds, 5);
+		expect(times(handle)[14]).toBeUndefined();
+		expect(times(handle)[15]).toBeUndefined();
+		expect(times(handle)[16]).toBeUndefined();
+		expect(handle.getSnapshot().selection.head).toBe(divergedSong.lastIndexOf('hold on tight'));
+		expect(seek).not.toHaveBeenCalled();
+		expect(notices).toEqual([]);
+
+		// The run carries on by hand, and the copy's own line is timed like any
+		// other.
+		now = 110;
+		handle.tapLyricSync?.();
+		expect(times(handle)[14]).toBeCloseTo(110 - tapOffsetSeconds, 5);
+	});
+
+	// The commonest divergence is a trailing line one copy adds, and there the
+	// fill still earns its keep: everything before the difference is dated, and
+	// the tapping is handed back exactly at the line the peer cannot vouch for.
+	it('fills up to a trailing difference and hands the rest back', async () => {
+		const trailingLines = [
+			'[Verse 1]', // 1
+			'first line', // 2
+			'', // 3
+			'[Chorus]', // 4
+			'hold on tight', // 5
+			'we go again', // 6
+			'all night long', // 7
+			'', // 8
+			'[Verse 2]', // 9
+			'second line', // 10
+			'', // 11
+			'[Chorus 2]', // 12
+			'hold on tight', // 13
+			'we go again', // 14
+			'all night long', // 15
+			'and never let go' // 16 — this copy's own closing line
+		];
+		const trailingSong = trailingLines.join('\n');
+		let now = 0;
+		const { handle, seek, notices } = await mount({
+			text: trailingSong,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => now
+		});
+		await withColumn(handle, 0);
+		handle.setLineAnchors?.(timedFirstCopy);
+		handle.setSectionLinks?.([{ lines: [4, 12] }]);
+
+		handle.setLyricSync?.(true);
+		now = 100;
+		handle.tapLyricSync?.();
+
+		// The shared lines take the peer's intervals; the copy's own line does not.
+		expect(times(handle)[13]).toBeCloseTo(100 - tapOffsetSeconds, 5);
+		expect(times(handle)[14]).toBeCloseTo(102 - tapOffsetSeconds, 5);
+		expect(times(handle)[15]).toBeCloseTo(104.5 - tapOffsetSeconds, 5);
+		expect(times(handle)[16]).toBeUndefined();
+		// The caret and the tape stop on the last line the peer could date, so the
+		// next tap belongs to the line the fill refused.
+		expect(handle.getSnapshot().selection.head).toBe(trailingSong.lastIndexOf('all night long'));
+		expect(seek.mock.calls.at(-1)?.[0]).toBeCloseTo(104.5 - tapOffsetSeconds, 5);
+		expect(notices).toEqual([
+			'Chorus 2 timed from Chorus — 3 lines. Press a line number to time it by hand instead.'
+		]);
+
+		now = 110;
+		handle.tapLyricSync?.();
+		expect(times(handle)[16]).toBeCloseTo(110 - tapOffsetSeconds, 5);
+	});
+
+	// A word-level difference moves no line boundary, so it must not cost the
+	// fill: two choruses kept deliberately apart on one word are still the same
+	// rhythm, which is all the fill copies.
+	it('fills across a difference that stays inside its line', async () => {
+		const wordedLines = [...linkedLines];
+		wordedLines[14] = 'all night here';
+		const wordedSong = wordedLines.join('\n');
+		let now = 0;
+		const { handle, notices } = await mount({
+			text: wordedSong,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => now
+		});
+		await withColumn(handle, 0);
+		handle.setLineAnchors?.(timedFirstCopy);
+		handle.setSectionLinks?.([{ lines: [4, 12] }]);
+
+		handle.setLyricSync?.(true);
+		now = 100;
+		handle.tapLyricSync?.();
+
+		expect(times(handle)[13]).toBeCloseTo(100 - tapOffsetSeconds, 5);
+		expect(times(handle)[14]).toBeCloseTo(102 - tapOffsetSeconds, 5);
+		expect(times(handle)[15]).toBeCloseTo(104.5 - tapOffsetSeconds, 5);
+		expect(notices).toHaveLength(1);
+	});
+
+	// A peer this run derived is a rhythm at one remove, and a chain of fills
+	// would carry any error of the first one down the whole song — so a peer the
+	// user actually tapped outranks a nearer one the run wrote itself. The label
+	// in the notice is what says which peer won.
+	it('fills a third copy from the tapped peer, not the derived one', async () => {
+		const threeLines = [
+			'[Verse 1]', // 1
+			'first line', // 2
+			'', // 3
+			'[Chorus]', // 4
+			'hold on tight', // 5
+			'we go again', // 6
+			'', // 7
+			'[Chorus 2]', // 8
+			'hold on tight', // 9
+			'we go again', // 10
+			'', // 11
+			'[Chorus 3]', // 12
+			'hold on tight', // 13
+			'we go again' // 14
+		];
+		const threeSong = threeLines.join('\n');
+		let now = 0;
+		const { handle, notices } = await mount({
+			text: threeSong,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => now
+		});
+		await withColumn(handle, 0);
+		handle.setLineAnchors?.([
+			{ line: 2, time: 5 },
+			{ line: 5, time: 10 },
+			{ line: 6, time: 12 }
+		]);
+		handle.setSectionLinks?.([{ lines: [4, 8, 12] }]);
+
+		handle.setLyricSync?.(true);
+		now = 50;
+		handle.tapLyricSync?.();
+		expect(notices).toEqual([
+			'Chorus 2 timed from Chorus — 2 lines. Press a line number to time it by hand instead.'
+		]);
+
+		now = 150;
+		handle.tapLyricSync?.();
+		// Nearest-first alone would name Chorus 2 here.
+		expect(notices[1]).toBe(
+			'Chorus 3 timed from Chorus — 2 lines. Press a line number to time it by hand instead.'
+		);
+		expect(times(handle)[13]).toBeCloseTo(150 - tapOffsetSeconds, 5);
+		expect(times(handle)[14]).toBeCloseTo(152 - tapOffsetSeconds, 5);
 	});
 });
