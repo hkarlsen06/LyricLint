@@ -4092,6 +4092,12 @@ A new rule is four registrations and a count: `registry.ts`, `currentRuleSet.rul
 `data/rule-set.ts` (**never** `previousRuleSet`), a `RulePolicyCase` with all three examples, the row
 in `docs/rules.md`, and the hard-coded total in `engine.test.ts`.
 
+**Then regenerate the assistant corpus**, `bun run assistant:corpus`, because
+`services/rules-assistant/generated/rules-context.json` is a committed artifact stamped with
+`currentRuleSet.version` and `assistant-corpus.test.ts` compares it against the registry. Bump that
+version at the same time: the manifest is a record of what a version of the rule set shipped, so a
+set that gained a rule under an unchanged version number is one version meaning two things.
+
 **And a fifth where the rule is a table rather than a judgment.** A rule that checks against a
 lookup — a map of misspellings, a set of expansions, a list of preferred forms — reaches the rules
 assistant as its one reviewed example and nothing else, because the corpus derives a rule the way

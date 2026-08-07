@@ -27,7 +27,9 @@ LyricLint records both sources and keeps removal preview-only.
 
 The blank-line-before-header check is a LyricLint readability suggestion, not a direct Genius
 policy claim. The reviewed Genius source establishes that headers sit above distinct song parts
-but does not explicitly require an empty line before each header.
+but does not explicitly require an empty line before each header. The check on a run of more than
+one blank line between parts is the same suggestion read from the other side, and is a preference
+for the same reason: the reviewed source is silent on how many empty lines a separator holds.
 
 The texting-shorthand check is a LyricLint reading of two reviewed Genius sources rather than a
 distinct annotation of its own. No verified Genius page names `idk` or `ur`. What the sources do
@@ -118,6 +120,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `section.header-empty` | Warning | A closed section header contains no song-part name, such as `[]` or `[: Ari]` | Opens the section-header picker; never a text fix. The chosen name is written between the existing brackets and the rest of the line, legend included, is left alone | `G-SECTIONS`, reviewed language source |
 | `section.header-prose` | Warning | A whole line is a reviewed song-part name written as prose, such as `Verse 1:` or `CHORUS`, or a bare reviewed name leading a headerless section with lyrics beneath it | Safely replace the line with the bracketed header, using the reviewed spelling | `G-SECTIONS`, reviewed language source |
 | `section.header-spacing` | Suggestion | A section header immediately follows preceding content without a blank line | Safely insert one matching line ending | `G-SECTIONS` as context; LyricLint readability preference |
+| `section.extra-blank-lines` | Suggestion | More than one blank line separates two song parts | Safely delete the extra lines, keeping the first blank line exactly as it was written | `G-SECTIONS` as context; LyricLint readability preference |
 | `section.header-language` | Warning | A recognized header conflicts with the selected lyric-language catalog or its reviewed capitalization | Safely normalize capitalization; preview a localized replacement | `G-SECTIONS`, reviewed language source |
 | `section.localized-header-preference` | Suggestion | A valid header has a culturally preferred localized equivalent | Safely replace with the localized term | `G-LANG-PURPOSE`, reviewed language source |
 | `section.header-unrecognized` | Manual review | A bracketed header is absent from every reviewed header catalog and is not an optional first non-English title header | Explain only; preserve the custom text | `G-SECTIONS`, reviewed language sources, `G-NON-ENGLISH` |

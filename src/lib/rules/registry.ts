@@ -27,6 +27,7 @@ import { sectionHeaderEmptyRule } from './catalog/section-header-empty.js';
 import { sectionHeaderLanguageRule } from './catalog/section-header-language.js';
 import { sectionHeaderMissingRule } from './catalog/section-header-missing.js';
 import { sectionHeaderProseRule } from './catalog/section-header-prose.js';
+import { sectionExtraBlankLinesRule } from './catalog/section-extra-blank-lines.js';
 import { sectionHeaderSpacingRule } from './catalog/section-header-spacing.js';
 import { sectionHeaderUnrecognizedRule } from './catalog/section-header-unrecognized.js';
 import { sectionLocalizedHeaderPreferenceRule } from './catalog/section-localized-header-preference.js';
@@ -66,6 +67,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	sectionHeaderEmptyRule,
 	sectionHeaderProseRule,
 	sectionHeaderSpacingRule,
+	sectionExtraBlankLinesRule,
 	sectionHeaderLanguageRule,
 	sectionLocalizedHeaderPreferenceRule,
 	sectionHeaderUnrecognizedRule,

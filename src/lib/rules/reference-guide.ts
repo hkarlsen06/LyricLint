@@ -42,9 +42,9 @@ export const groupGuidance: Record<string, string> = {
 		'`[Verse 1]`, `[Chorus]`, `[Bridge]` — naming a part from the reviewed catalog for the ' +
 		'language you are transcribing in. Distinct verses are numbered in order, a part repeated ' +
 		'word for word stays under one header rather than being written twice, and blank lines ' +
-		'separate parts rather than splitting one part into stanzas. LyricLint also suggests a ' +
-		'blank line above each header, which makes a long transcription easier to scan but is not ' +
-		'something the Genius guidance requires.',
+		'separate parts rather than splitting one part into stanzas. LyricLint also suggests one ' +
+		'blank line above each header — no fewer and no more — which makes a long transcription ' +
+		'easier to scan but is not something the Genius guidance requires.',
 	spelling:
 		'Lyrics are written in standardized spelling rather than in the spelling of a text ' +
 		'message. Where a word has a reviewed preferred lyric form Genius uses it, and each ' +

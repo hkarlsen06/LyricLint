@@ -160,6 +160,16 @@ export const policyCases: readonly RulePolicyCase[] = [
 		ambiguous: '[Chorus]\nAgain\n[Chorus]\nAgain'
 	},
 	{
+		id: 'section.extra-blank-lines',
+		title: 'More than one blank line between parts',
+		invalid: '[Verse]\nFirst\n\n\n[Chorus]\nSecond',
+		valid: '[Verse]\nFirst\n\n[Chorus]\nSecond',
+		// An exact repeat split apart belongs under one header, so the gap goes
+		// entirely — `section.immediate-repeat-spacing`'s finding rather than this
+		// one, however many blank lines are in it.
+		ambiguous: '[Chorus]\nAgain\n\n\n[Chorus]\nAgain'
+	},
+	{
 		id: 'section.deprecated-hook',
 		title: '[Hook], which Genius has retired',
 		invalid: '[Hook]\nSing it',

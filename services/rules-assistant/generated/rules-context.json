@@ -1,8 +1,8 @@
 {
 	"formatVersion": 2,
-	"ruleSetVersion": "2026.07.30.0",
-	"generatedAt": "2026-08-02T14:13:59.580Z",
-	"contentHash": "3dc0ab663701d1472131274e2e9ed82d60602b11a26efa837d5b3ae05005ddb2",
+	"ruleSetVersion": "2026.08.07.0",
+	"generatedAt": "2026-08-07T01:28:22.137Z",
+	"contentHash": "bd4a45d6b07274b0a0f9642ebf4837e76f9715db3920f55e2c4d0584fb4a3f5d",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -110,6 +110,22 @@
 			"fixLabel": "Add blank line",
 			"language": "en",
 			"flaggedExample": "[Verse]\nFirst\n[Chorus]\nSecond",
+			"acceptedExample": "[Verse]\nFirst\n\n[Chorus]\nSecond",
+			"sourceIds": ["G-SECTIONS"]
+		},
+		{
+			"id": "section.extra-blank-lines",
+			"slug": "section-extra-blank-lines",
+			"title": "More than one blank line between parts",
+			"group": "section",
+			"groupTitle": "Section headers",
+			"severity": "suggestion",
+			"message": "Leave one blank line between song parts.",
+			"explanation": "The reviewed Genius guidance places headers above distinct song parts and does not say how many empty lines go between them. LyricLint keeps the separation to a single blank line so the gaps down a transcription stay even.",
+			"fix": "safe",
+			"fixLabel": "Remove extra blank lines",
+			"language": "en",
+			"flaggedExample": "[Verse]\nFirst\n\n\n[Chorus]\nSecond",
 			"acceptedExample": "[Verse]\nFirst\n\n[Chorus]\nSecond",
 			"sourceIds": ["G-SECTIONS"]
 		},
@@ -1778,7 +1794,7 @@
 		]
 	},
 	"policyNotes": [
-		"Policy\nLyricLint does not claim that a rule is authoritative merely because it appears on a Genius page.\n\nA production lint rule requires:\n\n- An exact policy-source URL. Any behavior described as a Genius rule requires an exact Genius\n  URL or annotation ID.\n- A locally stored source title and rule paraphrase.\n- A last-verified date.\n- Human review of the interpretation.\n- Tests covering valid, invalid, and ambiguous examples.\n\nCommunity annotations can change. Rule data is versioned, reviewed, and bundled with the application. Live scraping is not part of the editing path.\n\nThe content-language mismatch check is a product-safety diagnostic rather than\na Genius policy claim. It uses a bundled statistical detector, runs locally,\nand links to the detector implementation as tooling provenance.\n\nThe line-ending comma/period check is cross-platform guidance, not a direct Genius policy\nclaim. Apple Music for Artists explicitly disallows both marks at the end of a lyric line.\nGenius's current verified guide does not state that blanket ban; its punctuation annotation\ninstead requires question marks for questions and reserves exclamation marks for excitement.\nLyricLint records both sources and keeps removal preview-only.\n\nThe blank-line-before-header check is a LyricLint readability suggestion, not a direct Genius\npolicy claim. The reviewed Genius source establishes that headers sit above distinct song parts\nbut does not explicitly require an empty line before each header.\n\nThe texting-shorthand check is a LyricLint reading of two reviewed Genius sources rather than a\ndistinct annotation of its own. No verified Genius page names `idk` or `ur`. What the sources do\nestablish is that lyrics use standardized spellings and reflect what is actually sung, and\nwritten-only shorthand is neither: the letters are a way of writing words the vocal performs in\nfull. The rule therefore stays a suggestion with preview-only fixes, and it is deliberately silent\non initialisms that are themselves said aloud, where expanding one would assert something about\nthe delivery that no source supports.",
+		"Policy\nLyricLint does not claim that a rule is authoritative merely because it appears on a Genius page.\n\nA production lint rule requires:\n\n- An exact policy-source URL. Any behavior described as a Genius rule requires an exact Genius\n  URL or annotation ID.\n- A locally stored source title and rule paraphrase.\n- A last-verified date.\n- Human review of the interpretation.\n- Tests covering valid, invalid, and ambiguous examples.\n\nCommunity annotations can change. Rule data is versioned, reviewed, and bundled with the application. Live scraping is not part of the editing path.\n\nThe content-language mismatch check is a product-safety diagnostic rather than\na Genius policy claim. It uses a bundled statistical detector, runs locally,\nand links to the detector implementation as tooling provenance.\n\nThe line-ending comma/period check is cross-platform guidance, not a direct Genius policy\nclaim. Apple Music for Artists explicitly disallows both marks at the end of a lyric line.\nGenius's current verified guide does not state that blanket ban; its punctuation annotation\ninstead requires question marks for questions and reserves exclamation marks for excitement.\nLyricLint records both sources and keeps removal preview-only.\n\nThe blank-line-before-header check is a LyricLint readability suggestion, not a direct Genius\npolicy claim. The reviewed Genius source establishes that headers sit above distinct song parts\nbut does not explicitly require an empty line before each header. The check on a run of more than\none blank line between parts is the same suggestion read from the other side, and is a preference\nfor the same reason: the reviewed source is silent on how many empty lines a separator holds.\n\nThe texting-shorthand check is a LyricLint reading of two reviewed Genius sources rather than a\ndistinct annotation of its own. No verified Genius page names `idk` or `ur`. What the sources do\nestablish is that lyrics use standardized spellings and reflect what is actually sung, and\nwritten-only shorthand is neither: the letters are a way of writing words the vocal performs in\nfull. The rule therefore stays a suggestion with preview-only fixes, and it is deliberately silent\non initialisms that are themselves said aloud, where expanding one would assert something about\nthe delivery that no source supports.",
 		"Reviewed guidance without a text-only diagnostic\n- Quotation marks depend on whether a phrase names a song, quotes speech, or refers to a word.\n- Pronunciation depends on the recording; the linter can only keep affected spelling fixes out of bulk fixing.\n- `[Instrumental]` is already a recognized section name, but only song-page metadata can establish that the whole track is instrumental.\n- Translation and romanization separation is page-level metadata, not a property of the canonical lyric string."
 	]
 }
