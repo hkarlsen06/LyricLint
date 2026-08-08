@@ -3,6 +3,7 @@
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { onMount } from 'svelte';
 	import AppWordmark from './AppWordmark.svelte';
+	import CompareDialog from './CompareDialog.svelte';
 	import DraftMenu from './DraftMenu.svelte';
 	import LanguagePicker from './LanguagePicker.svelte';
 	import SongFacts, { hasSongFacts } from '../media/SongFacts.svelte';
@@ -289,6 +290,10 @@
 			</svg>
 		</button>
 		<LanguagePicker {controller} />
+		<!-- Reviewing what the copy will change on the page is the step before
+		     copying it, so it sits beside the action it precedes. The component
+		     gates itself on the document being empty. -->
+		<CompareDialog {controller} />
 		{#if controller.isEmpty}
 			<button
 				type="button"

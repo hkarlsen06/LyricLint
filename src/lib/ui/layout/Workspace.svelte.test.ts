@@ -348,11 +348,15 @@ describe('Workspace and toolbar', () => {
 		const undo = screen.getByRole('button', { name: 'Undo' });
 		const redo = screen.getByRole('button', { name: 'Redo' });
 		const language = screen.getByRole('button', { name: 'Lyric language: English' });
+		// Comparing acts on the whole document, so its trigger belongs to this
+		// strip — beside the contrast action whose press it is the review before.
+		const compare = screen.getByRole('button', { name: 'Compare' });
 		const copy = screen.getByRole('button', { name: 'Copy lyrics' });
 		expect([...commands!.children].filter((child) => child.matches('button, details'))).toEqual([
 			undo,
 			redo,
 			language,
+			compare,
 			copy
 		]);
 		// Navigation between drafts left the strip for the draft's own name, and
