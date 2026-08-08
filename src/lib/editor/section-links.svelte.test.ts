@@ -934,6 +934,35 @@ describe('the link card', () => {
 		expect(filled?.lines.map((line) => line.text)).toEqual(['Hold on tight', 'Never let go']);
 	});
 
+	// An ad-lib present in one copy and absent from the others is a hole inside a
+	// worded body, not an untyped copy asking to be filled. Reading it as a fill
+	// forced the ad-lib into every chorus with the respect option never drawn —
+	// and where in the line the hole sits decides nothing.
+	it('offers to respect an ad-lib hole in a worded copy rather than forcing the fill', async () => {
+		const ADLIB = [
+			'[Chorus]',
+			'Hold on <i>(Yeah)</i> tight',
+			'Never let go',
+			'',
+			'[Chorus 2]',
+			'Hold on tight',
+			'Never let go'
+		].join('\n');
+		const handle = await mount(ADLIB);
+		const caret = offsetOf(ADLIB, 'Never let go');
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.requestSectionLink?.();
+		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
+		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
+
+		const keep = page.getByRole('radio', { name: 'Respect differences between them' });
+		await expect.element(keep).toBeChecked();
+
+		// Applying the default keeps the ad-lib where it was written and nowhere else.
+		await page.getByRole('button', { name: /Link 2 sections/ }).click();
+		expect(handle.getSnapshot().text).toBe(ADLIB);
+	});
+
 	it('replaces the other copies when that outcome is chosen', async () => {
 		const handle = await mount(REPEAT);
 		const caret = offsetOf(REPEAT, 'Hold on tight');

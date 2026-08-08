@@ -102,12 +102,27 @@
 	 * handled by pinning the card's top instead — see `pinnedTop`.
 	 */
 	const differences = $derived(headers.length > 1 ? differencesFor(headers) : []);
+	/** Copies with no lyrics at all — an untyped section, not a variation. */
+	const emptyBodies = $derived(
+		new Set(
+			occurrences
+				.filter((occurrence) => occurrence.comparison === 'empty')
+				.map((occurrence) => occurrence.headerFrom)
+		)
+	);
 	/**
 	 * A missing body is not a lyric variation worth preserving. When every
-	 * disagreement is one real wording against emptiness while membership is
-	 * changing, filling the empty copy is the only meaningful link outcome, so
-	 * there is no decision to ask for. An empty wording in a group already linked
-	 * can be a deliberate `Type only here` insertion and must stay a difference.
+	 * disagreement is one real wording against an *untyped copy* while membership
+	 * is changing, filling that copy is the only meaningful link outcome, so
+	 * there is no decision to ask for.
+	 *
+	 * The emptiness has to be the whole copy's, not a hole inside one that has
+	 * words: an ad-lib present in one chorus and absent from the others is the
+	 * commonest deliberate difference this feature exists for, and reading that
+	 * hole as a request to be filled forced the ad-lib into every copy with the
+	 * respect option never drawn. An empty wording in a group already linked can
+	 * likewise be a deliberate `Type only here` insertion and must stay a
+	 * difference.
 	 */
 	const fillsOnlyEmptyCopies = $derived(
 		membershipChanged &&
@@ -120,7 +135,10 @@
 				);
 				return (
 					nonEmpty.size === 1 &&
-					difference.wordings.some((wording) => wording.text.trim().length === 0)
+					difference.wordings.some((wording) => wording.text.trim().length === 0) &&
+					difference.wordings.every(
+						(wording) => wording.text.trim().length > 0 || emptyBodies.has(wording.headerFrom)
+					)
 				);
 			})
 	);
