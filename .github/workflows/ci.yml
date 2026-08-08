@@ -62,3 +62,34 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bunx playwright install --with-deps chromium
       - run: bunx playwright test
+
+  # The production deploy depends on CI. Cloudflare Pages' own automatic
+  # production-branch deployments are disabled; this job triggers the build
+  # through a deploy hook instead, and only after every CI job is green.
+  # Cloudflare still runs the build itself (its build variables, e.g.
+  # PUBLIC_APPLE_MUSIC_TOKEN, stay where they are), and PR preview
+  # deployments are untouched.
+  #
+  # CLOUDFLARE_DEPLOY_HOOK_URL is a repository secret holding a deploy hook
+  # created for the production branch (Pages project → Settings → Builds &
+  # deployments → Deploy hooks). A missing secret fails this job loudly
+  # rather than skipping the deploy in silence.
+  deploy:
+    name: deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [checks, assistant, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Trigger the Cloudflare Pages production deploy
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "CLOUDFLARE_DEPLOY_HOOK_URL is not set" >&2
+            exit 1
+          fi
+          curl -fsS -X POST "$DEPLOY_HOOK_URL" > /dev/null

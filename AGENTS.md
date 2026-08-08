@@ -4290,8 +4290,10 @@ now happened enough to write down: a rule is added, the checklist above is follo
 `bun run check`, `bun run lint` and `bun run test:unit -- --run` all pass, the work is pushed —
 and CI goes red on the sitemap count, because **none of the three commands in Tooling runs the
 Playwright suite**. The e2e spec is only exercised in CI, so the failure is discovered after the
-push, and since the Cloudflare deploys do not gate on CI, the site ships anyway and the red run is
-easy to shrug at. That is also this assertion's second lesson, not its first: the spec's own
+push. The production deploy now gates on CI — `ci.yml`'s `deploy` job triggers the Cloudflare
+Pages build through a deploy hook only after every CI job is green, with Cloudflare's own
+automatic production deploys disabled — so a red run is no longer shrugged at: it is the site not
+shipping. That is also this assertion's second lesson, not its first: the spec's own
 comment records that the count once read 52 against 55 rules for three releases, which is what a
 bare figure with nothing saying what it counts costs.
 
