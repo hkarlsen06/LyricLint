@@ -296,7 +296,11 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		alternates: ['lil', "li'l"],
 		contextGate: 'general',
 		safe: true,
-		pattern: new RegExp("(?<![\\p{L}\\p{N}_])(?:li'l|lil)(?![\\p{L}\\p{N}_'’])", 'giu')
+		// An elision apostrophe on either side belongs to the form: `'lil` is
+		// matched whole so the fix rewrites it to `lil'` instead of stacking a
+		// second apostrophe beside one the pattern could not see, and `lil'` is
+		// already the preferred spelling.
+		pattern: new RegExp("(?<![\\p{L}\\p{N}_'’])['’]?(?:li'l|lil)(?![\\p{L}\\p{N}_'’])", 'giu')
 	},
 	{
 		preferred: ['woah'],

@@ -25,6 +25,23 @@ describe('standardized spelling data', () => {
 		expect(replacements("'cause 'til lil' okay cream")).toEqual([]);
 	});
 
+	it('reads an edge apostrophe as part of the lil form rather than stacking a second one', () => {
+		expect(replacements('my lil homie')).toEqual(["lil'"]);
+		expect(
+			lookupSpellingCandidates("my 'lil homie", { language: 'en-US' }).map((candidate) => [
+				candidate.found,
+				candidate.replacement
+			])
+		).toEqual([["'lil", "lil'"]]);
+		expect(
+			lookupSpellingCandidates('my ’lil homie', { language: 'en-US' }).map((candidate) => [
+				candidate.found,
+				candidate.replacement
+			])
+		).toEqual([['’lil', "lil'"]]);
+		expect(replacements("my 'lil' homie")).toEqual([]);
+	});
+
 	it('models cousin, tool, regional, and meaning exceptions', () => {
 		expect(replacements('My cuz fixed the garden hoe')).toEqual([]);
 		expect(replacements('Cuz I know that hoe')).toEqual(["'Cause", 'ho']);

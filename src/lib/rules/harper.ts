@@ -190,6 +190,40 @@ function rangesOverlap(left: TextRange, right: TextRange): boolean {
 	return left.from < right.to && right.from < left.to;
 }
 
+const edgeApostrophes = new Set(["'", '’']);
+
+function foldApostrophes(word: string): string {
+	return word.replaceAll('’', "'").toLocaleLowerCase('en');
+}
+
+/**
+ * Harper tokenizes a word's edge apostrophes as punctuation, so a form its own
+ * imported dictionary endorses — `lil'`, `'til` — reaches it as the bare token
+ * and comes back as a spelling finding whose leading suggestion is the very
+ * word already in the document. Applying that fix rewrites only the token and
+ * leaves the document's apostrophe outside the edit, which re-creates the
+ * finding: an infinite loop, one appended apostrophe per press. A token that
+ * spells a dictionary word once its neighbouring apostrophe is read with it is
+ * already correct, so the finding is dropped rather than re-ranged.
+ */
+function isApostropheEdgedDictionaryWord(
+	text: string,
+	range: TextRange,
+	dictionary: ReadonlySet<string>
+): boolean {
+	const token = text.slice(range.from, range.to);
+	const before = text[range.from - 1];
+	const after = text[range.to];
+	return (
+		(after !== undefined &&
+			edgeApostrophes.has(after) &&
+			dictionary.has(foldApostrophes(`${token}'`))) ||
+		(before !== undefined &&
+			edgeApostrophes.has(before) &&
+			dictionary.has(foldApostrophes(`'${token}`)))
+	);
+}
+
 /**
  * Apply Harper's overlap removal only after LyricLint has removed findings that
  * do not apply to lyrics.
@@ -363,12 +397,20 @@ export function createHarperDiagnosticProvider(
 				dedup: false
 			});
 
+			const dictionary = new Set(words.map(foldApostrophes));
 			const diagnostics: Diagnostic[] = [];
 			for (const lint of lints) {
 				try {
 					if (!appliesToLyrics(lint)) continue;
 					const diagnostic = convertLint(lint, projection, request.text, request.revision);
-					if (diagnostic) diagnostics.push(diagnostic);
+					if (!diagnostic) continue;
+					if (
+						diagnostic.ruleId === 'spelling.harper' &&
+						isApostropheEdgedDictionaryWord(request.text, diagnostic, dictionary)
+					) {
+						continue;
+					}
+					diagnostics.push(diagnostic);
 				} finally {
 					lint.free?.();
 				}

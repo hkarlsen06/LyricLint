@@ -22,6 +22,7 @@
 		"test": "bun run check && bun run lint && bun run test:unit -- --run && bun run assistant:test && bun run test:e2e",
 		"test:unit": "vitest",
 		"token:apple": "node scripts/apple-music-token.mjs",
+		"harper:rules": "bun scripts/harper-rules.mjs",
 		"assistant:corpus": "bun scripts/generate-rules-context.ts",
 		"assistant:test": "cd services/rules-assistant && bun install --frozen-lockfile && bun run check && bun run test",
 		"assistant:deploy": "cd services/rules-assistant && bunx wrangler deploy"

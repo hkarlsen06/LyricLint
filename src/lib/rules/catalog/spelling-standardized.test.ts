@@ -111,6 +111,13 @@ describe('spelling.standardized', () => {
 		expect(checkRule(rule, "[Verse]\nlil' homie")).toEqual([]);
 		expect(checkRule(rule, "[Verse]\n'cause I said")).toEqual([]);
 
+		// A leading elision apostrophe is rewritten with the word, so the fix
+		// lands on `lil'` instead of appending an apostrophe beside it.
+		const leadingApostrophe = "[Verse]\n'lil homie";
+		expect(markedText(leadingApostrophe, checkRule(rule, leadingApostrophe))).toEqual(["'lil"]);
+		expect(applyRuleFixes(rule, leadingApostrophe)).toBe("[Verse]\nlil' homie");
+		expect(checkRule(rule, "[Verse]\n'lil' homie")).toEqual([]);
+
 		const alreadyPreferred = '[Verse]\nayy and ay and aye';
 		expect(markedText(alreadyPreferred, checkRule(rule, alreadyPreferred))).toEqual(['ay', 'aye']);
 	});

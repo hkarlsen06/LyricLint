@@ -174,6 +174,36 @@ describe('Harper diagnostic provider', () => {
 		expect(engine.importWords).toHaveBeenCalledWith(expect.arrayContaining(['ayy']));
 	});
 
+	it('drops a spelling guess whose token joined with its edge apostrophe is a taught word', async () => {
+		// Harper tokenizes edge apostrophes as punctuation, so the already-correct
+		// `lil'` reaches it as bare `lil` and its dictionary offers `lil'` back —
+		// a fix that appends a second apostrophe and re-creates the finding
+		// forever. The curly form and the leading-apostrophe form (`'til`) take
+		// the same path; a token with no adjacent apostrophe must still pass.
+		const text = "[Verse]\nStay 'til my lil' homie ’cause we sing";
+		const engine = engineReturning((projected) => [
+			lintAt(projected, 'til', { kind: 'Spelling', replacement: "'til" }),
+			lintAt(projected, 'lil', { kind: 'Spelling', replacement: "lil'" }),
+			lintAt(projected, 'cause', { kind: 'Spelling', replacement: 'because' }),
+			lintAt(projected, 'sing', { kind: 'Spelling', replacement: 'sting' })
+		]);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+
+		const diagnostics = await provider.lint({
+			text,
+			document: parseDocument(text),
+			language: 'en',
+			performers: [],
+			revision: 1
+		});
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0]).toMatchObject({
+			from: text.indexOf('sing'),
+			ruleId: 'spelling.harper'
+		});
+	});
+
 	it('drops findings that touch masked document structure', async () => {
 		const text = '[Verse]\nClean line';
 		const engine = engineReturning((projected) => [
@@ -246,6 +276,37 @@ I heard it calling through the wall`;
 				ruleId: 'grammar.harper',
 				message: 'The form of the verb must agree in grammatical number with the pronoun.'
 			});
+		} finally {
+			await provider.dispose();
+		}
+	});
+
+	it('does not re-flag a reviewed apostrophe-edged spelling the document already uses', async () => {
+		// The state every user lands in after accepting `Replace with lil'` from
+		// the native rule. Real Harper reads `lil'` as bare `lil` plus
+		// punctuation and offered `lil'` back, which appended an apostrophe per
+		// press forever; the stub test above pins the filter, this one pins the
+		// tokenization it exists for.
+		const text = "[Verse]\nRollin' with my lil' homie";
+		const [{ LocalLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+
+		try {
+			const diagnostics = await provider.lint({
+				text,
+				document: parseDocument(text),
+				language: 'en',
+				performers: [],
+				revision: 3
+			});
+
+			const lilFrom = text.indexOf('lil');
+			expect(
+				diagnostics.filter((diagnostic) => diagnostic.from < lilFrom + 3 && diagnostic.to > lilFrom)
+			).toEqual([]);
 		} finally {
 			await provider.dispose();
 		}
