@@ -1,11 +1,11 @@
-import type { Diagnostic, RuleDefinition } from '$lib/core/types.js';
+import type { Diagnostic, RuleDefinition, SupportedStyleSpan, TextRange } from '$lib/core/types.js';
 import { diagnostic, maskedMarkupText, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 const adlib = "yeah|ayy|uh|ooh|woo|hey|let's go";
 
 export const adlibParenthesesRule: RuleDefinition = {
 	id: 'adlib.parentheses',
-	version: 3,
+	version: 4,
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-ADLIBS'],
@@ -71,22 +71,57 @@ export const adlibParenthesesRule: RuleDefinition = {
 					const localFrom = match.text
 						.toLocaleLowerCase('en')
 						.lastIndexOf(word.toLocaleLowerCase('en'));
-					const wrapped = `(${word[0]?.toUpperCase() ?? ''}${word.slice(1)})`;
+					const capitalized = `${word[0]?.toUpperCase() ?? ''}${word.slice(1)}`;
+					const wrapped = `(${capitalized})`;
 					const wordRange = {
 						from: match.from + localFrom,
 						to: match.from + localFrom + word.length
 					};
-					// The comma only separated the ad-lib from the lyric, so parenthesizing the
-					// ad-lib strands it. Swallow it with the fix, but only when nothing except
-					// whitespace sits between it and the word: `matchesOutsideMarkup` masks markup
-					// as spaces, so a gap holding a tag would otherwise be deleted with the comma.
-					const strandsComma = /^\s*$/u.test(match.text.slice(1, localFrom));
 					const before = line.text.slice(0, match.from - line.from);
-					const range = strandsComma ? { from: match.from, to: wordRange.to } : wordRange;
-					// `A, yeah` closes up to `A (Yeah)`; `A , yeah` and a line-leading comma must
-					// not gain a second space.
-					const replacement =
-						strandsComma && before.length > 0 && !/\s$/u.test(before) ? ` ${wrapped}` : wrapped;
+					// An ad-lib that is the whole of a performer wrapper keeps its wrapper —
+					// but the parentheses go outside it, the form the reviewed guide's own
+					// examples write, so the wrap must not hand
+					// `performer.parenthetical-boundary` a finding of its own making.
+					const styleWrapper = line.styleSpans
+						.filter((span): span is SupportedStyleSpan => !('unsupported' in span))
+						.find(
+							(span) =>
+								span.contentFrom === wordRange.from &&
+								span.contentTo === wordRange.to &&
+								!span.continuedFromPreviousLine &&
+								!span.continuesToNextLine
+						);
+					let range: TextRange;
+					let replacement: string;
+					if (styleWrapper) {
+						const opening = line.text.slice(
+							styleWrapper.from - line.from,
+							styleWrapper.contentFrom - line.from
+						);
+						const closing = line.text.slice(
+							styleWrapper.contentTo - line.from,
+							styleWrapper.to - line.from
+						);
+						const styled = `(${opening}${capitalized}${closing})`;
+						const gap = line.text.slice(match.from + 1 - line.from, styleWrapper.from - line.from);
+						const swallowsComma = /^\s*$/u.test(gap);
+						range = swallowsComma
+							? { from: match.from, to: styleWrapper.to }
+							: { from: styleWrapper.from, to: styleWrapper.to };
+						replacement =
+							swallowsComma && before.length > 0 && !/\s$/u.test(before) ? ` ${styled}` : styled;
+					} else {
+						// The comma only separated the ad-lib from the lyric, so parenthesizing the
+						// ad-lib strands it. Swallow it with the fix, but only when nothing except
+						// whitespace sits between it and the word: `matchesOutsideMarkup` masks markup
+						// as spaces, so a gap holding a tag would otherwise be deleted with the comma.
+						const strandsComma = /^\s*$/u.test(match.text.slice(1, localFrom));
+						range = strandsComma ? { from: match.from, to: wordRange.to } : wordRange;
+						// `A, yeah` closes up to `A (Yeah)`; `A , yeah` and a line-leading comma must
+						// not gain a second space.
+						replacement =
+							strandsComma && before.length > 0 && !/\s$/u.test(before) ? ` ${wrapped}` : wrapped;
+					}
 					diagnostics.push({
 						...diagnostic(
 							this,

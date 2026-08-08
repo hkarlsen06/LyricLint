@@ -224,18 +224,54 @@ describe('UI wiring', () => {
 
 		// Genius allows one style wrapper to span physical lyric lines. Every
 		// line inside it belongs to the styled performer, while surrounding
-		// plain text remains attributed to the first legend slot.
+		// plain text remains attributed to the first legend slot. The
+		// parentheses around the styled ad-lib are notation, like the tag
+		// characters beside them, so no range claims them.
 		expect(highlighted).toEqual([
 			{ text: 'Mein', ids: ['mein'], legend: true },
 			{ text: 'KrissyB', ids: ['krissyb'], legend: true },
 			{ text: 'Plain line', ids: ['mein'], legend: false },
-			{ text: 'Ad lib (', ids: ['mein'], legend: false },
+			{ text: 'Ad lib', ids: ['mein'], legend: false },
 			{ text: 'La oss', ids: ['krissyb'], legend: false },
-			{ text: ')', ids: ['mein'], legend: false },
 			{ text: 'Open across lines', ids: ['krissyb'], legend: false },
 			{ text: 'Interior line', ids: ['krissyb'], legend: false },
 			{ text: 'Closing here', ids: ['krissyb'], legend: false },
 			{ text: 'Plain again', ids: ['mein'], legend: false }
+		]);
+	});
+
+	test('leaves parentheses uncolored only where the pair encloses styled content', () => {
+		const roster = [performer('a', 'A', 0), performer('b', 'B', 1)];
+		const text =
+			'[Chorus: A & <i>B</i>]\n' +
+			'Lead (<i>Echo</i>) on\n' +
+			'Keep (a plain aside) whole\n' +
+			'Mixed (inner <i>voice</i>) here\n' +
+			'Stray ( <i>solo</i>';
+		const ranges = resolveVoiceGroupRanges(parseDocument(text), roster);
+		const highlighted = ranges
+			.filter((range) => !range.legend)
+			.map((range) => ({ text: text.slice(range.from, range.to), ids: range.group.performerIds }));
+
+		expect(highlighted).toEqual([
+			// A matched pair around styled content is attribution notation: both
+			// parens go unclaimed, in one gesture.
+			{ text: 'Lead', ids: ['a'] },
+			{ text: 'Echo', ids: ['b'] },
+			{ text: 'on', ids: ['a'] },
+			// A pair wrapping only plain text is the plain voice's own aside — no
+			// hole is punched into a wash that was making a true claim.
+			{ text: 'Keep (a plain aside) whole', ids: ['a'] },
+			// Mixed content: the parens are neutral while the plain words inside
+			// them stay the plain voice's.
+			{ text: 'Mixed', ids: ['a'] },
+			{ text: 'inner', ids: ['a'] },
+			{ text: 'voice', ids: ['b'] },
+			{ text: 'here', ids: ['a'] },
+			// An unmatched parenthesis is not a pair, so it keeps today's color
+			// rather than flickering neutral while a line is being typed.
+			{ text: 'Stray (', ids: ['a'] },
+			{ text: 'solo', ids: ['b'] }
 		]);
 	});
 

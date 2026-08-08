@@ -114,12 +114,12 @@ const contracts: FixContract[] = [
 	},
 	{
 		id: 'performer.parenthetical-boundary',
-		input: '[Verse: A & <i>B</i>]\nA (<i>Voice</i>)',
+		input: '[Verse: A & <i>B</i>]\nA <i>(Voice)</i>',
 		language: 'en',
 		range: [24, 38],
-		expected: '[Verse: A & <i>B</i>]\nA <i>(Voice)</i>',
+		expected: '[Verse: A & <i>B</i>]\nA (<i>Voice</i>)',
 		kind: 'safe',
-		label: 'Include parentheses in performer formatting'
+		label: 'Move formatting inside the parentheses'
 	},
 	{
 		id: 'performer.header-required',
@@ -459,8 +459,8 @@ const safeFixBatches: SafeFixBatch[] = [
 	},
 	{
 		id: 'performer.parenthetical-boundary',
-		input: '[Verse: A & <i>B</i>]\nA (<i>First</i>)\nB (<i>Second</i>)',
-		expected: '[Verse: A & <i>B</i>]\nA <i>(First)</i>\nB <i>(Second)</i>',
+		input: '[Verse: A & <i>B</i>]\nA <i>(First)</i>\nB <i>(Second)</i>',
+		expected: '[Verse: A & <i>B</i>]\nA (<i>First</i>)\nB (<i>Second</i>)',
 		fixes: 2,
 		performers: ['A', 'B']
 	},
@@ -595,21 +595,25 @@ describe('cross-rule safe fixes', () => {
 		expect(safeFixesOffered(remaining)).toEqual([]);
 	});
 
-	it('lets the parenthetical boundary fix subsume redundant wrappers', () => {
+	it('converges a split parenthetical on the guide’s form, parentheses outside', () => {
+		// Two wrappers filling one parenthetical are redundant-markup's finding
+		// alone — the parentheses are already outside the formatting, which is the
+		// form the guide's own examples write, so the boundary rule has nothing to
+		// say before the merge or after it.
 		const source = '[Verse: A & <i>B</i>]\n(<i>Call</i> <i>back</i>)';
 		const context = ruleContext({ performers: ['A', 'B'] });
 		const diagnostics = runRules(parseDocument(source), context);
-		const offered = safeFixesOffered(diagnostics);
 		const batch = collectSafeFixes(diagnostics);
 
-		expect(diagnostics.map((finding) => finding.ruleId)).toContain(
+		expect(diagnostics.map((finding) => finding.ruleId)).not.toContain(
 			'performer.parenthetical-boundary'
 		);
 		expect(diagnostics.map((finding) => finding.ruleId)).toContain('performer.redundant-markup');
-		expect(offered).toHaveLength(2);
-		expect(batch).toHaveLength(1);
-		expect(applyEdits(source, batch[0]!.edit.edits)).toBe(
-			'[Verse: A & <i>B</i>]\n<i>(Call back)</i>'
+		const merged = applyEdits(source, batch[0]!.edit.edits);
+		expect(merged).toBe('[Verse: A & <i>B</i>]\n(<i>Call back</i>)');
+		const remaining = runRules(parseDocument(merged), context);
+		expect(remaining.map((finding) => finding.ruleId)).not.toContain(
+			'performer.parenthetical-boundary'
 		);
 	});
 

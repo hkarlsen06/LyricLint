@@ -567,6 +567,43 @@ function headerLegendEdit(
 	return { from: insertionPoint, to: insertionPoint, insert: `: ${legend}` };
 }
 
+/** Whether the `(` at `from` is matched by the `)` at `to - 1`. */
+function enclosesOneParenthesisPair(text: string, range: TextRange): boolean {
+	let depth = 0;
+	for (let index = range.from; index < range.to; index += 1) {
+		if (text[index] === '(') {
+			depth += 1;
+		} else if (text[index] === ')') {
+			depth -= 1;
+			if (depth === 0) {
+				return index === range.to - 1;
+			}
+		}
+	}
+	return false;
+}
+
+/**
+ * A selection that is exactly one parenthetical assigns the words inside it.
+ * The reviewed guide keeps parentheses outside performer formatting —
+ * `(<i>Yeah</i>)`, never `<i>(Yeah)</i>` — so wrapping from the parens outward
+ * would write the very shape `performer.parenthetical-boundary` flags, and the
+ * picker's own output must not argue with the linter.
+ */
+function shrinkInsideParentheses(text: string, range: TextRange): TextRange {
+	let current = range;
+	while (
+		current.to - current.from >= 2 &&
+		text[current.from] === '(' &&
+		text[current.to - 1] === ')' &&
+		enclosesOneParenthesisPair(text, current) &&
+		hasSungText(text.slice(current.from + 1, current.to - 1))
+	) {
+		current = trimWhitespaceRange(text, { from: current.from + 1, to: current.to - 1 });
+	}
+	return current;
+}
+
 /**
  * The range an assignment actually acts on: a collapsed caret grows to its whole
  * line, surrounding whitespace comes off, and the ends land on grapheme
@@ -591,6 +628,7 @@ function normalizeSelection(
 	if (range.from === range.to) {
 		return 'whitespace-selection';
 	}
+	range = shrinkInsideParentheses(document.text, range);
 	return expandToGraphemeBoundaries(document.text, range);
 }
 

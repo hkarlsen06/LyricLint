@@ -132,7 +132,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `performer.header-required` | Warning | A multi-vocalist section has inline differentiation but no performer legend | Safely remove performer formatting | `G-SECTIONS` |
 | `performer.style-order` | Warning | Header voice groups do not use plain, italic, bold, bold-italic slot order | Preview the legend reorder, or the legend and body restyle, that shifts every group into slot order | `G-SECTIONS` |
 | `performer.inline-mismatch` | Warning | Inline style refers to no resolvable header voice group | Choose the section and styled performers | `G-SECTIONS` |
-| `performer.parenthetical-boundary` | Warning | A parenthetical belongs entirely to one styled performer but one or both parentheses sit outside that formatting | Safely expand the existing performer formatting over the parentheses | `G-SECTIONS` |
+| `performer.parenthetical-boundary` | Warning | A styled performer's parenthetical carries its parentheses inside the formatting, which the reviewed guide's examples keep plain | Safely move the performer formatting inside the parentheses | `G-SECTIONS` |
 | `performer.redundant-markup` | Suggestion | Adjacent same-performer wrappers use more formatting markers than necessary | Safely merge the adjacent wrappers | `G-SECTIONS` |
 | `performer.unused-legend-slot` | Suggestion | A clean section header declares a performer style absent from its lyrics | Safely remove the unused legend slot | `G-SECTIONS` |
 | `performer.too-many-groups` | Warning | More than four distinct style groups occur, exceeding the documented four-slot format | Explain the source's context and options only | `G-SECTIONS` |

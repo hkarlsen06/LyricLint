@@ -220,12 +220,18 @@ const sources: SourceReference[] = [
 		'Use standardized spellings',
 		'Preferred spellings with contextual exceptions'
 	),
-	annotation(
-		'G-SECTIONS',
-		9250687,
-		'Use song part headers',
-		'Section headers, performer legends, and four differentiation styles'
-	),
+	{
+		// Re-read in full on 2026-08-08, correcting `performer.parenthetical-boundary`:
+		// the guide's own examples keep parentheses outside performer formatting —
+		// `(<i>If Young Metro don't trust you…</i>)` — never inside it.
+		...annotation(
+			'G-SECTIONS',
+			9250687,
+			'Use song part headers',
+			'Section headers, performer legends, and four differentiation styles'
+		),
+		lastVerifiedAt: '2026-08-08'
+	},
 	annotation(
 		'G-SECTION-NUMBERING',
 		16107272,

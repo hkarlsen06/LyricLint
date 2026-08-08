@@ -262,10 +262,10 @@ export const policyCases: readonly RulePolicyCase[] = [
 	},
 	{
 		id: 'performer.parenthetical-boundary',
-		title: 'A parenthesis left outside the style',
-		invalid: '[Verse: A & <i>B</i>]\nA (<i>Second voice</i>)',
-		valid: '[Verse: A & <i>B</i>]\nA <i>(Second voice)</i>',
-		ambiguous: '[Verse: A & <i>B</i>]\nA (plain <i>mixed voice</i>)'
+		title: 'Formatting wrapped around the parentheses',
+		invalid: '[Verse: A & <i>B</i>]\nA <i>(Second voice)</i>',
+		valid: '[Verse: A & <i>B</i>]\nA (<i>Second voice</i>)',
+		ambiguous: '[Verse: A & <i>B</i>]\n<i>Sung words (echo) in one passage</i>'
 	},
 	{
 		id: 'performer.unused-legend-slot',

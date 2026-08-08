@@ -53,10 +53,13 @@ describe('adlib.parentheses', () => {
 		expect(applyRuleFixes(rule, '[Verse]\n, yeah')).toBe('[Verse]\n(Yeah)');
 	});
 
-	it('keeps the comma when markup sits between it and the ad-lib', () => {
+	it('wraps outside the markup when the ad-lib is the whole of a performer wrapper', () => {
+		// The parentheses stay outside the formatting — the reviewed guide's own
+		// form — so this wrap must not write the shape
+		// `performer.parenthetical-boundary` exists to flag.
 		const text = '[Verse]\nWe run, <i>yeah</i>';
-		expect(markedText(text, checkRule(rule, text))).toEqual(['yeah']);
-		expect(applyRuleFixes(rule, text)).toBe('[Verse]\nWe run, <i>(Yeah)</i>');
+		expect(markedText(text, checkRule(rule, text))).toEqual([', <i>yeah</i>']);
+		expect(applyRuleFixes(rule, text)).toBe('[Verse]\nWe run (<i>Yeah</i>)');
 	});
 
 	it('separates the ad-lib from markup that closes right before the comma', () => {

@@ -152,7 +152,7 @@ describe('RuleIndex', () => {
 		expect(titles()).toEqual(['A spelling the guide standardizes']);
 
 		await field().fill('parenthetical');
-		expect(titles()).toContain('A parenthesis left outside the style');
+		expect(titles()).toContain('Formatting wrapped around the parentheses');
 	});
 
 	it('searches the prose a table-shaped rule’s page is mostly made of', async () => {

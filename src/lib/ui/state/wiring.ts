@@ -427,20 +427,53 @@ export function resolveVoiceGroupRanges(
 				.filter((span): span is Extract<typeof span, { slot: number }> => 'slot' in span)
 				.sort((left, right) => left.from - right.from);
 
+			// Parentheses enclosing styled content are notation, like the tag
+			// characters they sit against (which color nothing): the pair marks
+			// whose background vocal this is, so another voice's wash must not
+			// claim it. A pair wrapping only plain text is the plain voice's own
+			// aside and keeps its color, and an unmatched parenthesis is lyric
+			// still being typed, not a pair. Each matched pair answers for itself.
+			const neutralParens = new Set<number>();
+			if (linePlainGroup && supported.length > 0) {
+				const openStack: number[] = [];
+				for (let offset = line.from; offset < line.to; offset += 1) {
+					const character = parsed.text[offset];
+					if (character === '(') {
+						openStack.push(offset);
+					} else if (character === ')') {
+						const open = openStack.pop();
+						if (
+							open !== undefined &&
+							supported.some((span) => span.from > open && span.to <= offset)
+						) {
+							neutralParens.add(open);
+							neutralParens.add(offset);
+						}
+					}
+				}
+			}
+			const pushPlain = (from: number, to: number): void => {
+				if (!linePlainGroup) return;
+				let start = from;
+				for (let offset = from; offset < to; offset += 1) {
+					if (neutralParens.has(offset)) {
+						const trimmed = trimRange(parsed.text, start, offset);
+						if (trimmed) ranges.push({ ...trimmed, group: linePlainGroup });
+						start = offset + 1;
+					}
+				}
+				const trimmed = trimRange(parsed.text, start, to);
+				if (trimmed) ranges.push({ ...trimmed, group: linePlainGroup });
+			};
+
 			let cursor = line.from;
 			for (const span of supported) {
-				if (linePlainGroup && span.from > cursor) {
-					const trimmed = trimRange(parsed.text, cursor, span.from);
-					if (trimmed) ranges.push({ ...trimmed, group: linePlainGroup });
-				}
+				if (span.from > cursor) pushPlain(cursor, span.from);
 				const group = resolvedGroups.get(span.slot);
 				if (group) ranges.push({ from: span.contentFrom, to: span.contentTo, group });
 				cursor = span.to;
 			}
-			if (linePlainGroup && cursor < line.to) {
-				const trimmed = trimRange(parsed.text, cursor, line.to);
-				if (trimmed) ranges.push({ ...trimmed, group: linePlainGroup });
-			}
+			if (cursor < line.to) pushPlain(cursor, line.to);
 		}
 	}
 

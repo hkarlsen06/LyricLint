@@ -1,149 +1,44 @@
-import type {
-	Diagnostic,
-	LyricLine,
-	RuleDefinition,
-	StyleSlot,
-	SupportedStyleSpan,
-	TextRange
-} from '$lib/core/types.js';
+import type { Diagnostic, LyricLine, RuleDefinition, SupportedStyleSpan } from '$lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
-
-const wrappers: Record<Exclude<StyleSlot, 1>, { opening: string; closing: string }> = {
-	2: { opening: '<i>', closing: '</i>' },
-	3: { opening: '<b>', closing: '</b>' },
-	4: { opening: '<i><b>', closing: '</b></i>' }
-};
-
-interface ParenthesisPair {
-	open: number;
-	close: number;
-}
 
 function supportedSpans(line: LyricLine): SupportedStyleSpan[] {
 	return line.styleSpans.filter((span): span is SupportedStyleSpan => !('unsupported' in span));
 }
 
-function parenthesisPairs(text: string): ParenthesisPair[] {
-	const stack: number[] = [];
-	const pairs: ParenthesisPair[] = [];
-
-	for (let index = 0; index < text.length; index += 1) {
+/**
+ * Whether the `(` at `from` is matched by the `)` at `to - 1`, so the whole
+ * range is one parenthetical rather than `(a) (b)`.
+ */
+function enclosesOnePair(text: string, from: number, to: number): boolean {
+	let depth = 0;
+	for (let index = from; index < to; index += 1) {
 		if (text[index] === '(') {
-			stack.push(index);
+			depth += 1;
 		} else if (text[index] === ')') {
-			const open = stack.pop();
-			if (open !== undefined) {
-				pairs.push({ open, close: index });
+			depth -= 1;
+			if (depth === 0) {
+				return index === to - 1;
 			}
 		}
 	}
-
-	return pairs;
+	return false;
 }
 
-function contains(range: TextRange, offset: number): boolean {
-	return range.from <= offset && offset < range.to;
-}
-
-function removeRanges(text: string, absoluteFrom: number, ranges: readonly TextRange[]): string {
-	let output = text;
-	for (const range of [...ranges].sort((left, right) => right.from - left.from)) {
-		const from = range.from - absoluteFrom;
-		const to = range.to - absoluteFrom;
-		output = `${output.slice(0, from)}${output.slice(to)}`;
+function trimmedSpan(text: string, from: number, to: number): { from: number; to: number } {
+	let start = from;
+	let end = to;
+	while (start < end && /\s/u.test(text[start] ?? '')) {
+		start += 1;
 	}
-	return output;
-}
-
-function candidateForPair(
-	documentText: string,
-	line: LyricLine,
-	spans: readonly SupportedStyleSpan[],
-	pair: ParenthesisPair
-):
-	| {
-			range: TextRange;
-			editRange: TextRange;
-			replacement: string;
-	  }
-	| undefined {
-	const open = line.from + pair.open;
-	const close = line.from + pair.close;
-	const markerRanges = spans.flatMap((span) => [
-		{ from: span.from, to: span.contentFrom },
-		{ from: span.contentTo, to: span.to }
-	]);
-	const slotAt = (offset: number): StyleSlot | undefined =>
-		spans.find((span) => span.contentFrom <= offset && offset < span.contentTo)?.slot;
-
-	let slot: Exclude<StyleSlot, 1> | undefined;
-	for (let offset = open + 1; offset < close; offset += 1) {
-		if (
-			markerRanges.some((range) => contains(range, offset)) ||
-			/\s/u.test(documentText[offset] ?? '')
-		) {
-			continue;
-		}
-
-		const contentSlot = slotAt(offset);
-		if (!contentSlot || contentSlot === 1 || (slot !== undefined && contentSlot !== slot)) {
-			return undefined;
-		}
-		slot = contentSlot;
+	while (end > start && /\s/u.test(text[end - 1] ?? '')) {
+		end -= 1;
 	}
-
-	if (!slot) {
-		return undefined;
-	}
-
-	const openSlot = slotAt(open);
-	const closeSlot = slotAt(close);
-	if (
-		(openSlot !== undefined && openSlot !== slot) ||
-		(closeSlot !== undefined && closeSlot !== slot) ||
-		(openSlot === slot && closeSlot === slot)
-	) {
-		return undefined;
-	}
-
-	const relevantSpans = spans.filter(
-		(span) => span.slot === slot && span.contentFrom < close && span.contentTo > open + 1
-	);
-	if (
-		relevantSpans.length === 0 ||
-		relevantSpans.some((span) => span.continuedFromPreviousLine || span.continuesToNextLine)
-	) {
-		return undefined;
-	}
-
-	const editRange = {
-		from: Math.min(open, ...relevantSpans.map((span) => span.from)),
-		to: Math.max(close + 1, ...relevantSpans.map((span) => span.to))
-	};
-	const spansToUnwrap = spans.filter(
-		(span) => span.slot === slot && span.from >= editRange.from && span.to <= editRange.to
-	);
-	const tagRanges = spansToUnwrap.flatMap((span) => [
-		{ from: span.from, to: span.contentFrom },
-		{ from: span.contentTo, to: span.to }
-	]);
-	const unwrapped = removeRanges(
-		documentText.slice(editRange.from, editRange.to),
-		editRange.from,
-		tagRanges
-	);
-	const wrapper = wrappers[slot];
-
-	return {
-		range: { from: open, to: close + 1 },
-		editRange,
-		replacement: `${wrapper.opening}${unwrapped}${wrapper.closing}`
-	};
+	return { from: start, to: end };
 }
 
 export const performerParentheticalBoundaryRule: RuleDefinition = {
 	id: 'performer.parenthetical-boundary',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'warning',
 	fixability: 'safe',
 	sourceIds: ['G-SECTIONS'],
@@ -156,26 +51,50 @@ export const performerParentheticalBoundaryRule: RuleDefinition = {
 					continue;
 				}
 
-				const spans = supportedSpans(line);
-				for (const pair of parenthesisPairs(line.text)) {
-					const candidate = candidateForPair(document.text, line, spans, pair);
-					if (!candidate) {
+				for (const span of supportedSpans(line)) {
+					if (span.slot === 1 || span.continuedFromPreviousLine || span.continuesToNextLine) {
 						continue;
 					}
+
+					// Only a wrapper whose content is exactly one parenthetical is
+					// unambiguous. A parenthetical inside a longer styled run is that
+					// performer's own passage, and the guide says nothing about it.
+					const content = trimmedSpan(document.text, span.contentFrom, span.contentTo);
+					if (
+						content.to - content.from < 2 ||
+						document.text[content.from] !== '(' ||
+						document.text[content.to - 1] !== ')' ||
+						!enclosesOnePair(document.text, content.from, content.to)
+					) {
+						continue;
+					}
+					const inner = document.text.slice(content.from + 1, content.to - 1);
+					if (inner.trim().length === 0 || inner.includes('<')) {
+						continue;
+					}
+
+					const opening = document.text.slice(span.from, span.contentFrom);
+					const closing = document.text.slice(span.contentTo, span.to);
+					const lead = document.text.slice(span.contentFrom, content.from);
+					const trail = document.text.slice(content.to, span.contentTo);
+					const innerBody = trimmedSpan(document.text, content.from + 1, content.to - 1);
+					const innerLead = document.text.slice(content.from + 1, innerBody.from);
+					const innerTrail = document.text.slice(innerBody.to, content.to - 1);
+					const body = document.text.slice(innerBody.from, innerBody.to);
 
 					diagnostics.push(
 						diagnostic(
 							this,
-							candidate.range,
-							'Include the parentheses in this performer formatting.',
-							'Everything inside this parenthetical belongs to one styled performer. Leaving either delimiter outside the wrapper assigns that punctuation to the section’s plain performer.',
+							{ from: span.from, to: span.to },
+							'Keep the parentheses outside this performer formatting.',
+							'The reviewed guide styles only the words of a parenthetical and leaves both parentheses plain — the performer’s italics or bold sit just inside them. This wrapper carries the parentheses along with the words.',
 							[
 								replacementFix(
 									context,
 									'safe',
-									'Include parentheses in performer formatting',
-									candidate.editRange,
-									candidate.replacement
+									'Move formatting inside the parentheses',
+									{ from: span.from, to: span.to },
+									`${lead}(${innerLead}${opening}${body}${closing}${innerTrail})${trail}`
 								)
 							]
 						)

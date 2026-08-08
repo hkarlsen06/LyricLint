@@ -83,9 +83,13 @@ function retrievedOn(id: string): string {
 	return id === 'APPLE-LINE-PUNCTUATION' || id.startsWith('L-') ? '2026-07-25' : '2026-07-24';
 }
 
-// Two annotations were re-read without being re-fetched, so their verification
-// outruns their retrieval by a day.
+// Three annotations were re-read without being re-fetched, so their
+// verification outruns their retrieval. `G-SECTIONS` was re-read in full on
+// 2026-08-08, when its examples corrected `performer.parenthetical-boundary`.
 function verifiedOn(id: string): string {
+	if (id === 'G-SECTIONS') {
+		return '2026-08-08';
+	}
 	return id === 'G-ADD-SONGS' || id === 'G-QE-MARKS' ? '2026-07-25' : retrievedOn(id);
 }
 

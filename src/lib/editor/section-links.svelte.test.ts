@@ -330,9 +330,11 @@ describe('linking sections that do not agree throughout', () => {
 		handle.dispatchAtomic(result.edit);
 
 		const tagged = handle.getSnapshot().text;
-		expect(tagged).toContain(adlibLine.replace('(ayy)', '<i>(ayy)</i>'));
+		// The parentheses stay outside the formatting — the transform writes the
+		// guide's own form, so only the words inside them take the style.
+		expect(tagged).toContain(adlibLine.replace('(ayy)', '(<i>ayy</i>)'));
 		// The peer never sang it, so it does not gain the ad-lib or its markup.
-		expect(tagged.split('(ayy)')).toHaveLength(2);
+		expect(tagged.split('ayy')).toHaveLength(2);
 		expect(tagged).toContain('[Chorus 2: Avery]\nHold on tight\nThe night is young');
 		// And the difference is still a difference, ready to be told apart again.
 		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(2);

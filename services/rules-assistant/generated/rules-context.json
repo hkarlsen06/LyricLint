@@ -1,8 +1,8 @@
 {
 	"formatVersion": 2,
-	"ruleSetVersion": "2026.08.08.0",
-	"generatedAt": "2026-08-07T22:02:02.956Z",
-	"contentHash": "4594659d0beaf7d0324616e5c6cca5bf9bfc958d0efe6e13b896ba2547f03b98",
+	"ruleSetVersion": "2026.08.08.1",
+	"generatedAt": "2026-08-08T15:59:21.692Z",
+	"contentHash": "2b5b49c0ebeabb05aa8572da610ca5c771bc6d9ff7e995d352a8fdeccec7e38f",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -314,17 +314,17 @@
 		{
 			"id": "performer.parenthetical-boundary",
 			"slug": "performer-parenthetical-boundary",
-			"title": "A parenthesis left outside the style",
+			"title": "Formatting wrapped around the parentheses",
 			"group": "performer",
 			"groupTitle": "Performer attribution",
 			"severity": "warning",
-			"message": "Include the parentheses in this performer formatting.",
-			"explanation": "Everything inside this parenthetical belongs to one styled performer. Leaving either delimiter outside the wrapper assigns that punctuation to the section’s plain performer.",
+			"message": "Keep the parentheses outside this performer formatting.",
+			"explanation": "The reviewed guide styles only the words of a parenthetical and leaves both parentheses plain — the performer’s italics or bold sit just inside them. This wrapper carries the parentheses along with the words.",
 			"fix": "safe",
-			"fixLabel": "Include parentheses in performer formatting",
+			"fixLabel": "Move formatting inside the parentheses",
 			"language": "en",
-			"flaggedExample": "[Verse: A & <i>B</i>]\nA (<i>Second voice</i>)",
-			"acceptedExample": "[Verse: A & <i>B</i>]\nA <i>(Second voice)</i>",
+			"flaggedExample": "[Verse: A & <i>B</i>]\nA <i>(Second voice)</i>",
+			"acceptedExample": "[Verse: A & <i>B</i>]\nA (<i>Second voice</i>)",
 			"sourceIds": ["G-SECTIONS"]
 		},
 		{
@@ -1459,7 +1459,7 @@
 			"pageTitle": "Use song part headers",
 			"sectionTitle": "Section headers, performer legends, and four differentiation styles",
 			"url": "https://genius.com/9250687",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-08-08"
 		},
 		{
 			"id": "G-SFX",
