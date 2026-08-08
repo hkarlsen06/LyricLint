@@ -4692,13 +4692,36 @@ truthfully. A static or prerendered URL can change between deploys, so it is ser
 version's snapshot and never written outside install, except by a navigation landing fresh markup
 over its own stale copy.
 
+**A hotfix reaches a long-lived tab on its own next navigation, and nothing is drawn to ask for
+it.** The strategies above make every full-page load fresh — but a client-side navigation reuses
+the running app, stale code included, so a tab that only ever routed client-side could carry a
+superseded build for as long as it stayed open. `kit.version.pollInterval` in `vite.config.ts`
+polls `_app/version.json` once a minute, and the root layout's `beforeNavigate` turns the first
+navigation after a deploy into a full-page one (`location.href`), which the network-first strategy
+then answers with the new build. Three things it depends on:
+
+- **Neither cache layer can pin the poll.** SvelteKit sends it with its own `no-cache` headers,
+  which is what keeps Safari's HTTP cache out of it, and `_app/version.json` matches none of the
+  worker's three strategies, so it falls open to the network. A worker strategy added later that
+  swallows that URL re-opens the exact staleness this exists to close.
+- **It is silent on purpose.** Drafts autosave, so the full-page navigation costs nothing the user
+  can see, and an "update available" toast would be a control for a press the user's own next
+  gesture already makes — the same reason the save readout draws nothing while saving is going
+  well. `willUnload` navigations are already leaving the document, so they are left alone.
+- **It upgrades on a gesture, never mid-session.** A tab that never navigates keeps running the
+  build it opened with, which is the deliberate boundary: reloading a document under someone's
+  caret is the class of harm the no-`skipWaiting` rule exists to prevent, arrived at from the
+  other side.
+
 Two regressions are pinned in `e2e/lyriclint.spec.ts`: the offline reopen (`offline reopen from
 cache via the service worker`), and the precache scope with the read-a-rules-page write (`the
 offline snapshot precaches the app and admits a rules page when read`). The waiting-not-activating
-update path needs two real builds and is verified by hand rather than in the suite.
+update path needs two real builds and is verified by hand rather than in the suite — as is the
+version-poll upgrade, whose trigger is a deploy happening under an open tab.
 
-Implementation: `src/service-worker.ts`, the registration in `src/routes/+layout.svelte`, the
-`serviceWorker` options in `vite.config.ts`, and the reload links in `src/routes/+error.svelte`.
+Implementation: `src/service-worker.ts`, the registration and the version upgrade in
+`src/routes/+layout.svelte`, the `serviceWorker` and `version` options in `vite.config.ts`, and
+the reload links in `src/routes/+error.svelte`.
 
 ### Design system
 

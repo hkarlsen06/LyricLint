@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
+	import { beforeNavigate } from '$app/navigation';
 	import { base } from '$app/paths';
+	import { updated } from '$app/state';
 	import {
 		createDefaultAssistantState,
 		provideAssistantState
@@ -36,6 +38,21 @@
 		void import('$lib/ui/assistant/AssistantHost.svelte').then(({ default: component }) => {
 			AssistantHost = component;
 		});
+	});
+
+	// A deploy while a tab is open reaches it here, on the user's own next
+	// gesture. A full-page load is already fresh — navigations are network-first
+	// through the worker — but a client-side navigation reuses the running app,
+	// stale code included. The version poll (`vite.config.ts`) marks `updated`
+	// once a newer build is live, and the first navigation after that becomes a
+	// full-page one instead, so a hotfix lands without a toast asking for a
+	// reload nobody owes it. Silent on purpose: drafts autosave, so the
+	// navigation costs nothing the user can see. A `willUnload` navigation is
+	// already leaving the document, so there is nothing to upgrade.
+	beforeNavigate((navigation) => {
+		if (updated.current && !navigation.willUnload && navigation.to?.url) {
+			location.href = navigation.to.url.href;
+		}
 	});
 
 	// The offline worker is a production promise, and registering it against a dev

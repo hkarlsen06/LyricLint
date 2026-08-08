@@ -187,7 +187,18 @@ export default defineConfig({
 			serviceWorker: {
 				register: false,
 				files: (file) => !file.startsWith('_') && !file.endsWith('.gif')
-			}
+			},
+			// A deploy reaches a client on their next full-page load — navigations
+			// are network-first through the worker, and a new build's chunks match
+			// no strategy in an old one — but a client-side navigation reuses the
+			// running app, stale code included, so a tab that only ever routed
+			// client-side could carry a superseded build for as long as it stayed
+			// open. The poll marks `updated`, and the root layout turns the first
+			// navigation after that into a full-page one. Neither cache layer can
+			// pin the poll: SvelteKit sends it with its own `no-cache` headers, and
+			// `_app/version.json` matches none of the worker's strategies, so it
+			// falls open to the network.
+			version: { pollInterval: 60_000 }
 		}),
 		loopbackLiteralUrls()
 	],
