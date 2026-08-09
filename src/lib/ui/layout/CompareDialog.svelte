@@ -98,9 +98,18 @@
 	 */
 	function revealRow(at: number): void {
 		dialog.close();
-		controller.editor.setSelection({ anchor: at, head: at });
-		controller.editor.revealRange({ from: at, to: at });
-		controller.editor.focus();
+		// A closing modal restores focus to its trigger — synchronously on some
+		// engines, a task later on WebKit — so editor focus taken in the same
+		// tick is either trampled or lands while the page is still leaving the
+		// dialog's inert state. Either way CodeMirror's cursor layer goes on
+		// drawing an unfocused view: a caret that types but cannot be seen. One
+		// frame later the restoration has already happened, and the editor's
+		// focus is the final word.
+		requestAnimationFrame(() => {
+			controller.editor.setSelection({ anchor: at, head: at });
+			controller.editor.revealRange({ from: at, to: at });
+			controller.editor.focus();
+		});
 	}
 
 	/** The character position under a point, on whichever API this engine has. */

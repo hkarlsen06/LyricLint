@@ -65,9 +65,11 @@ describe('CompareDialog', () => {
 
 		await fireEvent.click(screen.getByText('Lyne').closest('button')!);
 		expect(openDialog().open).toBe(false);
+		// The hand-off is a frame behind the close, so the browser's own focus
+		// restoration cannot trample it — hence the wait.
 		// '[Verse]\nLine' — line 2 starts at offset 8, and the caret is collapsed
 		// there rather than selecting: the press aimed at a line to edit.
-		expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 });
+		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 }));
 		expect(calls.revealed.at(-1)).toEqual({ from: 8, to: 8 });
 		// Unlike a diagnostic press, this caret is exactly where the user put it,
 		// so the editor takes focus with it.
@@ -88,6 +90,7 @@ describe('CompareDialog', () => {
 			clientX: rect.left + rect.width * 0.6,
 			clientY: rect.top + rect.height / 2
 		});
+		await waitFor(() => expect(calls.selections.length).toBeGreaterThan(0));
 		const anchor = calls.selections.at(-1)!.anchor;
 		expect(anchor).toBeGreaterThan(8);
 		expect(anchor).toBeLessThanOrEqual(12);
@@ -107,7 +110,7 @@ describe('CompareDialog', () => {
 			clientX: rect.left + rect.width * 0.6,
 			clientY: rect.top + rect.height / 2
 		});
-		expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 });
+		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 }));
 	});
 
 	test('a context row is a press too, parking the caret on the unchanged line', async () => {
@@ -118,7 +121,7 @@ describe('CompareDialog', () => {
 
 		await fireEvent.click(screen.getByText('[Verse]').closest('button')!);
 		expect(openDialog().open).toBe(false);
-		expect(calls.selections.at(-1)).toEqual({ anchor: 0, head: 0 });
+		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 0, head: 0 }));
 	});
 
 	test('the baseline is kept, so reopening shows the diff at once', async () => {
