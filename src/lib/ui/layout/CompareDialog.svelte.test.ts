@@ -53,20 +53,32 @@ describe('CompareDialog', () => {
 		expect(added?.textContent).toBe('Line');
 	});
 
-	test('pressing a hunk closes the dialog and puts the selection on its range', async () => {
+	test('pressing a changed line closes the dialog and parks the caret on it, focused', async () => {
 		const { controller, calls } = createTestWorkbench();
 		render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
-		await fireEvent.click(screen.getByText('Line 2').closest('button')!);
+		await fireEvent.click(screen.getByText('Lyne').closest('button')!);
 		expect(openDialog().open).toBe(false);
-		// '[Verse]\nLine' — line 2 spans offsets 8–12.
-		expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 12 });
-		expect(calls.revealed.at(-1)).toEqual({ from: 8, to: 12 });
-		// The editor is deliberately left unfocused: the wash is a location, and
-		// a caret nobody placed would arm the next keystroke over it.
-		expect(calls.focusCount).toBe(0);
+		// '[Verse]\nLine' — line 2 starts at offset 8, and the caret is collapsed
+		// there rather than selecting: the press aimed at a line to edit.
+		expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 });
+		expect(calls.revealed.at(-1)).toEqual({ from: 8, to: 8 });
+		// Unlike a diagnostic press, this caret is exactly where the user put it,
+		// so the editor takes focus with it.
+		expect(calls.focusCount).toBe(1);
+	});
+
+	test('a context row is a press too, parking the caret on the unchanged line', async () => {
+		const { controller, calls } = createTestWorkbench();
+		render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		await pasteBaseline('[Verse]\nLyne');
+
+		await fireEvent.click(screen.getByText('[Verse]').closest('button')!);
+		expect(openDialog().open).toBe(false);
+		expect(calls.selections.at(-1)).toEqual({ anchor: 0, head: 0 });
 	});
 
 	test('the baseline is kept, so reopening shows the diff at once', async () => {

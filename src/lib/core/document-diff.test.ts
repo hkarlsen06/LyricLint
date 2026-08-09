@@ -19,14 +19,21 @@ describe('diffDocuments', () => {
 
 		const hunk = diff.hunks[0];
 		expect(hunk.line).toBe(2);
-		// The press selects the changed line in the current document.
 		expect(current.slice(hunk.from, hunk.to)).toBe('Hello world');
-		expect(hunk.rows).toHaveLength(1);
-		const row = hunk.rows[0];
-		if (row.kind !== 'changed') throw new Error('expected a changed row');
-		expect(row.segments).toEqual([
-			{ kind: 'shared', text: 'Hello ' },
-			{ kind: 'change', deleted: 'wrld', inserted: 'world' }
+		// The change arrives inside its surroundings: the header above — which
+		// is also the neighbour — and the line below.
+		expect(hunk.rows).toEqual([
+			{ kind: 'context', text: '[Verse 1]', line: 1, at: 0 },
+			{
+				kind: 'changed',
+				segments: [
+					{ kind: 'shared', text: 'Hello ' },
+					{ kind: 'change', deleted: 'wrld', inserted: 'world' }
+				],
+				line: 2,
+				at: 10
+			},
+			{ kind: 'context', text: 'Second line', line: 3, at: 22 }
 		]);
 		// A real word change carries no note; the rendered pair already shows it.
 		expect(hunk.notes).toHaveLength(0);
@@ -39,7 +46,11 @@ describe('diffDocuments', () => {
 		expect(diff.hunks).toHaveLength(1);
 		expect(diff.addedLines).toBe(1);
 		const hunk = diff.hunks[0];
-		expect(hunk.rows).toEqual([{ kind: 'added', text: 'Two' }]);
+		expect(hunk.rows).toEqual([
+			{ kind: 'context', text: 'One', line: 1, at: 0 },
+			{ kind: 'added', text: 'Two', line: 2, at: 4 },
+			{ kind: 'context', text: 'Three', line: 3, at: 8 }
+		]);
 		expect(current.slice(hunk.from, hunk.to)).toBe('Two');
 	});
 
@@ -50,7 +61,13 @@ describe('diffDocuments', () => {
 		expect(diff.hunks).toHaveLength(1);
 		expect(diff.removedLines).toBe(1);
 		const hunk = diff.hunks[0];
-		expect(hunk.rows).toEqual([{ kind: 'removed', text: 'Two' }]);
+		// The removal draws between the two lines it used to sit between, and a
+		// press on it parks the caret at the point the removal left behind.
+		expect(hunk.rows).toEqual([
+			{ kind: 'context', text: 'One', line: 1, at: 0 },
+			{ kind: 'removed', text: 'Two', at: 4 },
+			{ kind: 'context', text: 'Three', line: 2, at: 4 }
+		]);
 		expect(hunk.from).toBe(hunk.to);
 		expect(hunk.from).toBe(current.indexOf('Three'));
 		expect(hunk.line).toBe(2);
@@ -64,6 +81,32 @@ describe('diffDocuments', () => {
 		const hunk = diff.hunks[0];
 		expect(hunk.from).toBe(hunk.to);
 		expect(hunk.from).toBe(current.length);
+		expect(hunk.rows).toEqual([
+			{ kind: 'context', text: 'One', line: 1, at: 0 },
+			{ kind: 'removed', text: 'Two', at: current.length }
+		]);
+	});
+
+	test('a change deep in a section carries its header, an ellipsis, and the neighbours', () => {
+		const baseline = '[Chorus]\nAlpha\nBravo\nCharlie\nDelta\nEcho';
+		const current = '[Chorus]\nAlpha\nBravo\nCharlie\nDelts\nEcho';
+		const diff = diffDocuments(baseline, current);
+		expect(diff.hunks).toHaveLength(1);
+		const kinds = diff.hunks[0].rows.map((row) => row.kind);
+		// Header, skipped distance, neighbour above, the change, neighbour below.
+		expect(kinds).toEqual(['context', 'gap', 'context', 'changed', 'context']);
+		const [header] = diff.hunks[0].rows;
+		if (header.kind !== 'context') throw new Error('expected the header row');
+		expect(header.text).toBe('[Chorus]');
+		expect(header.at).toBe(0);
+	});
+
+	test('a header directly above the neighbour needs no ellipsis', () => {
+		const baseline = '[Chorus]\nAlpha\nBravo';
+		const current = '[Chorus]\nAlpha\nBrava';
+		const diff = diffDocuments(baseline, current);
+		const kinds = diff.hunks[0].rows.map((row) => row.kind);
+		expect(kinds).toEqual(['context', 'context', 'changed']);
 	});
 
 	test('separate edits arrive as separate hunks in document order', () => {
@@ -129,8 +172,14 @@ describe('diffDocuments', () => {
 		expect(removals).toHaveLength(2);
 		expect(removals[0].from).toBe(removals[1].from);
 		expect(removals[0].line).toBe(removals[1].line);
-		expect(removals[0].rows).toEqual([{ kind: 'removed', text: 'b' }]);
-		expect(removals[1].rows).toEqual([{ kind: 'removed', text: 'a' }]);
+		const removedRows = (rows: (typeof removals)[number]['rows']) =>
+			rows.filter((row) => row.kind === 'removed');
+		expect(removedRows(removals[0].rows)).toEqual([
+			{ kind: 'removed', text: 'b', at: removals[0].from }
+		]);
+		expect(removedRows(removals[1].rows)).toEqual([
+			{ kind: 'removed', text: 'a', at: removals[1].from }
+		]);
 	});
 
 	test('a note is stated once per hunk however many lines repeat it', () => {

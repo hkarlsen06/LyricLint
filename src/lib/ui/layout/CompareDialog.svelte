@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { diffDocuments, type DiffHunk } from '$lib/core/document-diff.js';
+	import { diffDocuments } from '$lib/core/document-diff.js';
 	import { formatDraftDate } from '../drafts/draft-date.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
@@ -89,17 +89,18 @@
 	}
 
 	/**
-	 * The press that makes the modal a review rather than a report: the hunk
-	 * closes the surface and puts the editor's selection — and with it the wash —
-	 * on its own range. The editor is deliberately left unfocused, exactly as it
-	 * is after a diagnostic card's press: a wash with no caret reads as a
-	 * location, and a caret the user did not place would arm their next
-	 * keystroke over it.
+	 * The press that makes the modal a review rather than a report: every row —
+	 * context and header included — closes the surface and parks the caret at
+	 * that line in the editor. Unlike a diagnostic card's press, the editor
+	 * takes focus: the diagnostic idiom protects a caret the user never placed,
+	 * and this caret is exactly where they aimed, on a line they pressed in
+	 * order to go and edit.
 	 */
-	function revealHunk(hunk: DiffHunk): void {
+	function revealRow(at: number): void {
 		dialog.close();
-		controller.editor.setSelection({ anchor: hunk.from, head: hunk.to });
-		controller.editor.revealRange({ from: hunk.from, to: hunk.to });
+		controller.editor.setSelection({ anchor: at, head: at });
+		controller.editor.revealRange({ from: at, to: at });
+		controller.editor.focus();
 	}
 </script>
 
@@ -222,7 +223,7 @@
 					     is only pressable is a control nobody discovers. -->
 					<div class="compare-dialog__meta">
 						<div>
-							<p>{summary} — press a change to jump to it in your 'scribe.</p>
+							<p>{summary} — press any line to put the caret on it in your 'scribe.</p>
 							<p class="compare-dialog__age">
 								{#if baselineStale}
 									Baseline from {baselineDate} — the page may have changed since; replace it to be sure.
@@ -241,34 +242,42 @@
 						     legitimately collapse to the same offset and line label — a
 						     key built from those crashed the render as a duplicate. -->
 						{#each diff.hunks as hunk, hunkIndex (hunkIndex)}
-							<li>
-								<button type="button" class="compare-diff__hunk" onclick={() => revealHunk(hunk)}>
-									<span class="compare-diff__line">Line {hunk.line}</span>
-									{#each hunk.rows as row, rowIndex (rowIndex)}
-										{#if row.kind === 'removed'}
-											<span class="compare-diff__row"
-												><del class="compare-diff__drop">{@render lineText(row.text)}</del></span
-											>
-										{:else if row.kind === 'added'}
-											<span class="compare-diff__row"
-												><ins class="compare-diff__add">{@render lineText(row.text)}</ins></span
-											>
-										{:else}
-											<span class="compare-diff__row"
-												>{#each row.segments as segment, segmentIndex (segmentIndex)}{#if segment.kind === 'shared'}<span
+							<li class="compare-diff__hunk">
+								<span class="compare-diff__line">Line {hunk.line}</span>
+								{#each hunk.rows as row, rowIndex (rowIndex)}
+									{#if row.kind === 'gap'}
+										<!-- Lines skipped between the section header and the
+										     neighbour; aria-hidden because "some lines omitted"
+										     is already what a list of separate rows announces. -->
+										<span class="compare-diff__gap" aria-hidden="true">⋯</span>
+									{:else}
+										<button
+											type="button"
+											class="compare-diff__row"
+											class:compare-diff__row--context={row.kind === 'context'}
+											onclick={() => revealRow(row.at)}
+										>
+											{#if row.kind === 'removed'}
+												<del class="compare-diff__drop">{@render lineText(row.text)}</del>
+											{:else if row.kind === 'added'}
+												<ins class="compare-diff__add">{@render lineText(row.text)}</ins>
+											{:else if row.kind === 'context'}
+												{@render lineText(row.text)}
+											{:else}
+												{#each row.segments as segment, segmentIndex (segmentIndex)}{#if segment.kind === 'shared'}<span
 															class="compare-diff__shared">{segment.text}</span
 														>{:else}{#if segment.deleted}<del class="compare-diff__drop"
 																>{segment.deleted}</del
 															>{/if}{#if segment.inserted}<ins class="compare-diff__add"
 																>{segment.inserted}</ins
-															>{/if}{/if}{/each}</span
-											>
-										{/if}
-									{/each}
-									{#if hunk.notes.length > 0}
-										<span class="compare-diff__notes">{hunk.notes.join(' · ')}</span>
+															>{/if}{/if}{/each}
+											{/if}
+										</button>
 									{/if}
-								</button>
+								{/each}
+								{#if hunk.notes.length > 0}
+									<span class="compare-diff__notes">{hunk.notes.join(' · ')}</span>
+								{/if}
 							</li>
 						{/each}
 					</ul>
@@ -393,23 +402,9 @@
 		list-style: none;
 	}
 
-	/* The hunk is the control all the way down, so the whole card is one button:
-	   its rows are display-block spans, which phrasing content allows and a
-	   nested block element would not. */
 	.compare-diff__hunk {
 		display: block;
-		width: 100%;
 		padding: var(--space-2) var(--space-2-5);
-		border: 0;
-		border-radius: var(--radius-control);
-		background: transparent;
-		color: var(--color-text);
-		text-align: start;
-	}
-
-	.compare-diff__hunk:hover,
-	.compare-diff__hunk:focus-visible {
-		background: var(--color-control-hover);
 	}
 
 	.compare-diff__line {
@@ -420,15 +415,44 @@
 		font-weight: var(--font-weight-semibold);
 	}
 
-	/* Spacing differences have to occupy their own width, so every row keeps its
+	/* Every line is its own press, so every line is its own button — the row
+	   that lights up is exactly the line the caret will land on. Spacing
+	   differences have to occupy their own width, so every row keeps its
 	   whitespace; the invisible ones are what the notes line is for. */
 	.compare-diff__row {
 		display: block;
+		width: 100%;
+		padding: 0 var(--space-1);
+		border: 0;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: var(--color-text);
 		font-family: var(--font-mono);
 		font-size: var(--font-size-sm);
 		line-height: var(--line-height-normal);
+		text-align: start;
 		white-space: pre-wrap;
 		overflow-wrap: anywhere;
+	}
+
+	.compare-diff__row:hover,
+	.compare-diff__row:focus-visible {
+		background: var(--color-control-hover);
+	}
+
+	/* Orientation, not change: the header and the neighbours read as the quiet
+	   surroundings the marked lines sit in. */
+	.compare-diff__row--context {
+		color: var(--color-text-muted);
+	}
+
+	.compare-diff__gap {
+		display: block;
+		padding: 0 var(--space-1);
+		color: var(--color-text-muted);
+		font-family: var(--font-mono);
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-normal);
 	}
 
 	.compare-diff__shared {

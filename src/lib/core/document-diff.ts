@@ -1,4 +1,5 @@
 import { INVISIBLE_CHARACTERS } from './invisible-characters.js';
+import { isSectionHeaderLine } from './parser.js';
 import { wordDiffSegments, type WordDiffSegment } from './word-diff.js';
 
 /*
@@ -13,14 +14,28 @@ import { wordDiffSegments, type WordDiffSegment } from './word-diff.js';
  * line walk already knows them, rather than re-derived by the surface.
  */
 
-/** One line of a hunk, in reading order. */
+/**
+ * One row of a hunk's display, in reading order. Every row except `gap`
+ * carries `at`, the current-document offset a press on it parks the caret at —
+ * computed here, where the line walk already knows the offsets, so the dialog
+ * and the editor cannot disagree about where a line is.
+ */
 export type DiffRow =
+	/**
+	 * An unchanged current-document line shown for orientation: the section
+	 * header the change sings under, and one neighbouring line to each side.
+	 * This is a lyric diff, and a bare changed line with no header over it
+	 * answers "what changed" while refusing "where in the song".
+	 */
+	| { kind: 'context'; text: string; line: number; at: number }
+	/** Lines omitted between the section header and the nearest neighbour. */
+	| { kind: 'gap' }
 	/** A line the baseline has and the current document does not. */
-	| { kind: 'removed'; text: string }
+	| { kind: 'removed'; text: string; at: number }
 	/** A line the current document has and the baseline does not. */
-	| { kind: 'added'; text: string }
+	| { kind: 'added'; text: string; line: number; at: number }
 	/** A line present in both, rewritten in part: word-level del/ins pairs. */
-	| { kind: 'changed'; segments: readonly WordDiffSegment[] };
+	| { kind: 'changed'; segments: readonly WordDiffSegment[]; line: number; at: number };
 
 export interface DiffHunk {
 	/** 1-based line number in the current document where the hunk sits. */
@@ -284,26 +299,6 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 
 	const closePending = (): void => {
 		if (!pending) return;
-		const rows: DiffRow[] = [];
-		const notes: string[] = [];
-		const pairCount = Math.min(pending.removed.length, pending.added.length);
-		for (let index = 0; index < pairCount; index += 1) {
-			rows.push({
-				kind: 'changed',
-				segments: wordDiffSegments(pending.removed[index], pending.added[index])
-			});
-			notes.push(...describePair(pending.removed[index], pending.added[index]));
-		}
-		for (let index = pairCount; index < pending.removed.length; index += 1) {
-			rows.push({ kind: 'removed', text: pending.removed[index] });
-		}
-		for (let index = pairCount; index < pending.added.length; index += 1) {
-			rows.push({ kind: 'added', text: pending.added[index] });
-		}
-		changedLines += pairCount;
-		removedLines += pending.removed.length - pairCount;
-		addedLines += pending.added.length - pairCount;
-
 		const lineEnd = (lineIndex: number): number =>
 			currentStarts[lineIndex] + (currentLines[lineIndex]?.length ?? 0);
 		const pureRemoval = pending.lastCurrentLine === pending.firstCurrentLine;
@@ -312,6 +307,71 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 			current.length
 		);
 		const to = pureRemoval ? from : Math.min(lineEnd(pending.lastCurrentLine - 1), current.length);
+
+		const rows: DiffRow[] = [];
+		const notes: string[] = [];
+		const contextRow = (lineIndex: number): DiffRow => ({
+			kind: 'context',
+			text: currentLines[lineIndex],
+			line: lineIndex + 1,
+			at: currentStarts[lineIndex]
+		});
+
+		// Above the change: the section header it sings under, an ellipsis for
+		// whatever distance is skipped, and the immediate neighbour. Where the
+		// neighbour is the header, one row is all three.
+		const neighbourAbove = pending.firstCurrentLine - 1;
+		if (neighbourAbove >= 0) {
+			let headerIndex = -1;
+			for (let lineIndex = neighbourAbove; lineIndex >= 0; lineIndex -= 1) {
+				if (isSectionHeaderLine(currentLines[lineIndex])) {
+					headerIndex = lineIndex;
+					break;
+				}
+			}
+			if (headerIndex >= 0 && headerIndex < neighbourAbove) {
+				rows.push(contextRow(headerIndex));
+				if (headerIndex < neighbourAbove - 1) rows.push({ kind: 'gap' });
+			}
+			rows.push(contextRow(neighbourAbove));
+		}
+
+		// The added lines of a hunk are consecutive current lines from its first
+		// — removals advance no current index — so the k-th pair and the k-th
+		// leftover addition both know exactly which line they describe.
+		const pairCount = Math.min(pending.removed.length, pending.added.length);
+		for (let index = 0; index < pairCount; index += 1) {
+			const lineIndex = pending.firstCurrentLine + index;
+			rows.push({
+				kind: 'changed',
+				segments: wordDiffSegments(pending.removed[index], pending.added[index]),
+				line: lineIndex + 1,
+				at: currentStarts[lineIndex]
+			});
+			notes.push(...describePair(pending.removed[index], pending.added[index]));
+		}
+		for (let index = pairCount; index < pending.removed.length; index += 1) {
+			rows.push({ kind: 'removed', text: pending.removed[index], at: from });
+		}
+		for (let index = pairCount; index < pending.added.length; index += 1) {
+			const lineIndex = pending.firstCurrentLine + index;
+			rows.push({
+				kind: 'added',
+				text: pending.added[index],
+				line: lineIndex + 1,
+				at: currentStarts[lineIndex]
+			});
+		}
+
+		const neighbourBelow = pureRemoval ? pending.firstCurrentLine : pending.lastCurrentLine;
+		if (neighbourBelow < currentLines.length) {
+			rows.push(contextRow(neighbourBelow));
+		}
+
+		changedLines += pairCount;
+		removedLines += pending.removed.length - pairCount;
+		addedLines += pending.added.length - pairCount;
+
 		hunks.push({
 			line: Math.min(pending.firstCurrentLine, Math.max(currentLines.length - 1, 0)) + 1,
 			from,
