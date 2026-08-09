@@ -99,6 +99,15 @@ describe('standardized spelling data', () => {
 		]);
 	});
 
+	it('keeps the one-edit guesses to English drafts', () => {
+		// Norwegian “tryne” (to faceplant) is one edit from “tryna” and a typo
+		// of nothing, so the fuzzy pass stands down outside English.
+		expect(replacements("Så i kveld så ska' vi tryne", 'no')).toEqual([]);
+		expect(replacements('vi tryne', 'en')).toEqual(['tryna']);
+		// Exact reviewed alternates are not guesses and still match everywhere.
+		expect(replacements('trynna tryina', 'no')).toEqual(['tryna', 'tryna']);
+	});
+
 	it('does not report reviewed spellings or nearby real words', () => {
 		expect(
 			replacements("ayy okay y'all bougie woah chopper naive cliché a.k.a. GOAT VIP ASAP HAM")

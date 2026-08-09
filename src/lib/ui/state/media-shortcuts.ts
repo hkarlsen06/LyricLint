@@ -80,6 +80,51 @@ export function matchTransportAction(
 }
 
 /**
+ * The Escape family drives the transport, and it is the cluster a transcriber
+ * can actually reach for in the heat of the moment. Escape is the keyboard's one
+ * large key that can never write a character into the document, and neither can
+ * it while a modifier is held — so a fumbled press costs nothing, where a fumbled
+ * `Alt-J` lands a letter in somebody's lyric that they now have to find and
+ * erase, at exactly the moment they had no attention to spare. Bare Escape
+ * toggles, Shift+Escape backs up, and Alt+Escape (Option+Escape) goes forward:
+ * one key under the pinky and a modifier under the other fingers or the thumb, so
+ * the whole triad is a shape the hand holds without leaving Escape. A mistimed
+ * modifier degrades to a bare Escape, which merely pauses.
+ *
+ * Shift-and-Alt together is refused rather than answered, the same no-superset
+ * discipline `matchTransportAction` keeps: a handler that answered to a superset
+ * of its own binding would swallow a keystroke somebody else had a use for.
+ *
+ * The family is the bottom of the Escape stack, never the top. Every other Escape
+ * in the workbench means "close the surface on top" — dismiss a popover, cancel
+ * a find, end a sync run, reset the draft's name — and each of those claims the
+ * event by preventing its default or stopping its propagation. So the binding
+ * reads `defaultPrevented` and stands down, and it stands down for an open modal
+ * by the press's target rather than by the flag, because a native `<dialog>`
+ * closes on Escape without reliably marking the keydown. What is left — an
+ * Escape with nothing above it to close — is the case this exists for: the caret
+ * is just sitting in the document, and the tape needs to stop.
+ */
+export function matchEscapeAction(event: KeyboardEvent): TransportAction | undefined {
+	if (event.key !== 'Escape') return undefined;
+	if (event.ctrlKey || event.metaKey) return undefined;
+	if (event.shiftKey && event.altKey) return undefined;
+	if (event.altKey) return 'forward';
+	if (event.shiftKey) return 'back';
+	return 'toggle';
+}
+
+/**
+ * Whether the press landed inside a modal that owns Escape for its own close.
+ * A native `<dialog>` and a Bits UI dialog (`role="dialog"`) both close on
+ * Escape, and the first does it without setting `defaultPrevented` — so this is
+ * read off the target, which is trapped inside the open dialog either way.
+ */
+function targetInDialog(target: EventTarget | null): boolean {
+	return target instanceof Element && target.closest('dialog, [role="dialog"]') !== null;
+}
+
+/**
  * Whether this element owns the space bar already: a field being typed into (the
  * lyric editor is `contenteditable`, the draft name and performer names are
  * inputs), or a control a space would press.
@@ -142,6 +187,13 @@ export interface TransportShortcutOptions {
 	 * False leaves the keystroke to the toggle, exactly as before.
 	 */
 	tap?: () => boolean;
+	/**
+	 * Load a source that is remembered but not yet attached, and say whether there
+	 * was one to load. A bare Escape spends this when nothing is playing: the tape
+	 * is not here yet, so the reach-for key brings it — the same press the strip's
+	 * `Load …` / `Reconnect …` control makes. False leaves the keystroke alone.
+	 */
+	load?: () => boolean;
 	/** Exact play and pause operations for the OS media-session buttons. */
 	play?: () => boolean;
 	pause?: () => boolean;
@@ -200,7 +252,43 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 		keystroke.stopPropagation();
 	}
 
+	// Escape and Shift+Escape are the reach-for keys, and unlike the triad they
+	// defer to everything: this listener is in the bubble phase, so every
+	// surface-level Escape handler in the window has already run and either
+	// prevented the default or stopped the event before it arrives here. What
+	// reaches this is an Escape nobody else wanted — the caret sitting in the
+	// document — which is precisely the press that means "stop the tape".
+	function handleEscape(event: Event): void {
+		const keystroke = event as KeyboardEvent;
+		// Something above claimed it — a popover, a find bar, a sync run, the draft
+		// title's own reset — so leave the keystroke alone.
+		if (keystroke.defaultPrevented) return;
+		const action = matchEscapeAction(keystroke);
+		if (action === undefined) return;
+		// A modal owns Escape for its own close, and a native dialog does it
+		// without marking the event; read that off the target, not the flag.
+		if (targetInDialog(keystroke.target)) return;
+		// Held down, a back is a scrub worth having; held down, the pause would
+		// start and stop the track dozens of times a second, exactly as the
+		// triad's toggle would.
+		if (action === 'toggle' && keystroke.repeat) return;
+		if (options.transport(action)) {
+			keystroke.preventDefault();
+			keystroke.stopPropagation();
+			return;
+		}
+		// Nothing playing took the press. A bare Escape then loads a source that is
+		// remembered but waiting on a gesture — the tape is not here yet, and the
+		// reach-for key is what brings it. The nudges have no such fallback: there
+		// is nothing to step through until something is loaded.
+		if (action === 'toggle' && options.load?.()) {
+			keystroke.preventDefault();
+			keystroke.stopPropagation();
+		}
+	}
+
 	target.addEventListener('keydown', handle, true);
+	target.addEventListener('keydown', handleEscape, false);
 
 	const registeredActions: MediaSessionAction[] = [];
 	const mediaActions: Array<[MediaSessionAction, () => void]> = [
@@ -223,6 +311,7 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 
 	return () => {
 		target.removeEventListener('keydown', handle, true);
+		target.removeEventListener('keydown', handleEscape, false);
 		for (const action of registeredActions) {
 			try {
 				mediaSession?.setActionHandler(action, null);

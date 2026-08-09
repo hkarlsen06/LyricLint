@@ -812,15 +812,29 @@
 	// a finding, aiming a scrubber, renaming the draft — so a binding that only
 	// answered inside the editor answered in the wrong half of the loop.
 	//
-	// Attachment state is the only reactive player value read here, so the
-	// listener follows attach and detach without rebinding on every playhead tick.
+	// Attachment and a remembered-but-unloaded source are the only reactive media
+	// values read here, so the listener follows attach, detach, and a pending
+	// source arriving or being spent — a handful of transitions, not every
+	// playhead tick. It binds while there is anything to control *or* anything to
+	// load: a bare Escape brings a remembered song that is waiting on a gesture.
 	$effect(() => {
-		const player = controller.media?.player;
-		if (!player?.attached) return;
+		const media = controller.media;
+		const player = media?.player;
+		if (!player?.attached && media?.pendingName === undefined) return;
 		return bindTransportShortcuts({
 			transport: (action) => {
-				if (!player.attached) return false;
+				if (!player?.attached) return false;
 				player.transport(action);
+				return true;
+			},
+			// The tape is remembered but not here yet, and a bare Escape is what the
+			// strip's `Load …` control makes — so the reach-for key makes it too.
+			// Nothing to load while something is attached or a load is in flight.
+			load: () => {
+				if (!media || media.player.attached || media.pendingName === undefined || media.busy) {
+					return false;
+				}
+				void media.reconnect();
 				return true;
 			},
 			// While a run is under way, a bare space is the tap wherever it lands —
@@ -835,12 +849,12 @@
 				return true;
 			},
 			play: () => {
-				if (!player.attached) return false;
+				if (!player?.attached) return false;
 				player.play();
 				return true;
 			},
 			pause: () => {
-				if (!player.attached) return false;
+				if (!player?.attached) return false;
 				player.pause();
 				return true;
 			}

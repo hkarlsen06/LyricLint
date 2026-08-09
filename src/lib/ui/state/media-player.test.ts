@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createFeedbackState } from './feedback.svelte.js';
 import {
 	createMediaPlayer,
+	cueStepReach,
 	formatTime,
 	nudgeSeconds,
 	resumeRewindSeconds
@@ -131,11 +132,13 @@ describe('media player transport', () => {
 	// them. Outside the timed part of the song the plain nudge is what is left.
 	it('steps between cue points, and nudges outside them', () => {
 		const { audio, player } = setup(200);
-		player.setCuePoints([61, 12, 30]);
+		player.setCuePoints([24, 12, 18]);
 
-		player.seek(45);
+		player.seek(25);
 		player.transport('back');
-		expect(audio.currentTime).toBe(30);
+		expect(audio.currentTime).toBe(24);
+		player.transport('back');
+		expect(audio.currentTime).toBe(18);
 		player.transport('back');
 		expect(audio.currentTime).toBe(12);
 
@@ -143,13 +146,42 @@ describe('media player transport', () => {
 		player.transport('back');
 		expect(audio.currentTime).toBe(12 - nudgeSeconds);
 
-		player.seek(61);
+		player.seek(24);
 		player.transport('forward');
-		expect(audio.currentTime).toBe(61 + nudgeSeconds);
+		expect(audio.currentTime).toBe(24 + nudgeSeconds);
 
-		player.seek(20);
+		player.seek(13);
 		player.transport('forward');
-		expect(audio.currentTime).toBe(30);
+		expect(audio.currentTime).toBe(18);
+	});
+
+	// The step to a cue is a "replay this line" — only worth it while the playhead
+	// is actually inside that line. Past the last timed line, or across an untimed
+	// stretch between two of them, the nearest cue can be far enough back that
+	// leaping to it is worse than the two-second nudge it replaced. Beyond
+	// `cueStepReach`, the nudge takes over in both directions.
+	it('nudges instead of leaping to a distant cue', () => {
+		const { audio, player } = setup(200);
+		player.setCuePoints([12, 30, 61]);
+
+		// Sitting in the untimed gap between two timed lines: neither cue is within
+		// reach, so both keys nudge rather than jump across the gap.
+		player.seek(45);
+		player.transport('back');
+		expect(audio.currentTime).toBe(45 - nudgeSeconds);
+		player.seek(45);
+		player.transport('forward');
+		expect(audio.currentTime).toBe(45 + nudgeSeconds);
+
+		// Just past the last cue is still inside its line, so back replays it.
+		player.seek(61 + cueStepReach - 1);
+		player.transport('back');
+		expect(audio.currentTime).toBe(61);
+
+		// Far past the last cue — the reported bug — nudges rather than leaping back.
+		player.seek(61 + cueStepReach + 5);
+		player.transport('back');
+		expect(audio.currentTime).toBe(61 + cueStepReach + 5 - nudgeSeconds);
 	});
 
 	it('nudges when the song has no cue points', () => {

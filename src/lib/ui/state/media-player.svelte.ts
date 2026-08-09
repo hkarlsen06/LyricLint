@@ -22,6 +22,26 @@ export const resumeRewindSeconds = 2;
 export const nudgeSeconds = 2;
 
 /**
+ * How far a cue may sit from the playhead and still be a step target, in
+ * seconds.
+ *
+ * Stepping back to a cue replays the line it starts, which is exactly what a
+ * transcriber wants while they are inside that line. But the nearest cue is not
+ * always the current line's start: past the last timed line, or across an
+ * untimed stretch between two timed ones, it can be twenty seconds off — and a
+ * "previous line" that leaps that far is worse than the plain two-second nudge it
+ * was meant to improve on. So a cue only counts as a step when the playhead is
+ * within this reach of it; beyond that it is a distant marker rather than a line
+ * the user is in, and the nudge is what is left — the same behaviour the timed
+ * navigation already falls back to before the first cue and after the last.
+ *
+ * Ten seconds clears any sung line while staying well under the leap that
+ * prompted this. A held phrase longer than that costs a couple of nudges to walk
+ * back over, which is the safe direction to be wrong in.
+ */
+export const cueStepReach = 10;
+
+/**
  * Playback rates the workbench offers, slow to fast.
  *
  * Everything below 1 is the point: dense or slurred passages are the reason a
@@ -678,20 +698,23 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	}
 
 	/**
-	 * The step back and the step forward, or nothing when the playhead is already
-	 * outside the timed part of the song.
+	 * The step back and the step forward, or nothing when the playhead is outside
+	 * the timed part of the song *or too far from the nearest cue to be inside its
+	 * line* — `cueStepReach` is that distance, and past it the nudge takes over.
 	 *
-	 * The margin is what makes repeated presses walk: landing exactly on a cue and
-	 * then asking for the one before it must not answer with the cue underfoot,
+	 * The 0.25 margin is what makes repeated presses walk: landing exactly on a cue
+	 * and then asking for the one before it must not answer with the cue underfoot,
 	 * and a source that reports its own rounding — or the seek it was last told to
 	 * make — can be a few milliseconds either side of the number it was given.
 	 */
 	function cueBefore(time: number): number | undefined {
-		return cuePoints.findLast((cue) => cue < time - 0.25);
+		const cue = cuePoints.findLast((candidate) => candidate < time - 0.25);
+		return cue !== undefined && cue >= time - cueStepReach ? cue : undefined;
 	}
 
 	function cueAfter(time: number): number | undefined {
-		return cuePoints.find((cue) => cue > time + 0.25);
+		const cue = cuePoints.find((candidate) => candidate > time + 0.25);
+		return cue !== undefined && cue <= time + cueStepReach ? cue : undefined;
 	}
 
 	function file(): FileSource {

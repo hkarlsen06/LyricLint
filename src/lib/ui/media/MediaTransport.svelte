@@ -16,13 +16,15 @@
 	const backLabel = $derived(timed ? 'Previous line' : 'Back 2 seconds');
 	const forwardLabel = $derived(timed ? 'Next line' : 'Forward 2 seconds');
 
-	// One keystroke, the one a transcriber's hands can actually reach for: the
-	// one-modifier triad on the physical J K L keys. `F7`–`F9` and the universal
-	// `Ctrl-Alt` fallback stay in `aria-keyshortcuts`, because a control that
-	// listed every way to press it would be a legend rather than a name — and the
-	// function row is the alternative nobody reaches for first.
-	const key = (letter: string): string =>
-		fallbackModifier === 'Control' ? `⌃${letter}` : `${fallbackModifier}+${letter}`;
+	// One keystroke per control, the one a transcriber's hands can actually reach
+	// for: the Escape family. Escape toggles, Shift+Escape backs up, Alt+Escape
+	// (Option+Escape) goes forward — one key under the pinky and a modifier under
+	// the other fingers or the thumb, none of which can write into the document.
+	// The physical J K L triad, `F7`–`F9`, and the universal `Ctrl-Alt` fallback
+	// stay in `aria-keyshortcuts`, because a control that named every way to press
+	// it would be a legend rather than a name.
+	const shiftEscape = fallbackModifier === 'Control' ? '⇧Esc' : 'Shift+Esc';
+	const altEscape = fallbackModifier === 'Control' ? '⌥Esc' : 'Alt+Esc';
 </script>
 
 <!--
@@ -58,8 +60,8 @@
 	class="button button--quiet media-strip__transport-button"
 	onclick={() => player.transport('back')}
 	aria-label={backLabel}
-	aria-keyshortcuts={`F7 ${fallbackModifier}+J Control+Alt+J`}
-	{@attach describeControl(() => ({ label: backLabel, shortcut: key('J') }))}
+	aria-keyshortcuts={`Shift+Escape F7 ${fallbackModifier}+J Control+Alt+J`}
+	{@attach describeControl(() => ({ label: backLabel, shortcut: shiftEscape }))}
 >
 	<SkipBack aria-hidden="true" size={14} strokeWidth={2.4} />
 </button>
@@ -70,10 +72,10 @@
 	onclick={() => player.transport('toggle')}
 	aria-label={player.playing ? 'Pause' : 'Play'}
 	aria-busy={player.starting}
-	aria-keyshortcuts={`F8 Space ${fallbackModifier}+K Control+Alt+K`}
+	aria-keyshortcuts={`Escape F8 Space ${fallbackModifier}+K Control+Alt+K`}
 	{@attach describeControl(() => ({
 		label: player.playing ? 'Pause' : 'Play',
-		shortcut: key('K')
+		shortcut: 'Esc'
 	}))}
 >
 	<!--
@@ -100,8 +102,8 @@
 	class="button button--quiet media-strip__transport-button"
 	onclick={() => player.transport('forward')}
 	aria-label={forwardLabel}
-	aria-keyshortcuts={`F9 ${fallbackModifier}+L Control+Alt+L`}
-	{@attach describeControl(() => ({ label: forwardLabel, shortcut: key('L') }))}
+	aria-keyshortcuts={`Alt+Escape F9 ${fallbackModifier}+L Control+Alt+L`}
+	{@attach describeControl(() => ({ label: forwardLabel, shortcut: altEscape }))}
 >
 	<SkipForward aria-hidden="true" size={14} strokeWidth={2.4} />
 </button>

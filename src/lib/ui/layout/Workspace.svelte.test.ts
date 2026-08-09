@@ -492,9 +492,11 @@ describe('Workspace and toolbar', () => {
 	});
 
 	// The line count is of sung text only. Blank lines and bracket-shaped lines
-	// — headers, an unclosed `[Bridge`, a lone `[?]` — are structure, and the
-	// parser keeps all of them out of `section.lines`; this pins that the
-	// status bar inherits the distinction rather than counting rows.
+	// — headers, an unclosed `[Bridge` — are structure, and the parser keeps
+	// them out of `section.lines`; this pins that the status bar inherits the
+	// distinction rather than counting rows. A lone `[?]` is the exception the
+	// parser makes: it wears the header's brackets but stands where a line
+	// nobody could make out was sung, so it counts as the lyric it marks.
 	test('counts only lyric lines in the status bar', () => {
 		const { controller } = createTestWorkbench({
 			text: '[Verse 1]\nOne\nTwo\n\n[Chorus]\nThree\n   \n[?]\n[Bridge'
@@ -502,7 +504,7 @@ describe('Workspace and toolbar', () => {
 		renderWorkspace(controller);
 
 		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
-		expect(summary.textContent).toContain('3 lines');
+		expect(summary.textContent).toContain('4 lines');
 	});
 
 	test('states no counts at all for an empty document', () => {

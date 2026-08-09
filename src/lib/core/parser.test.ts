@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { SupportedStyleSpan } from './types.js';
-import { parseDocument } from './parser.js';
+import { isLyricLine, isSectionHeaderLine, parseDocument } from './parser.js';
 
 interface LyricFixture {
 	id: string;
@@ -53,6 +53,27 @@ describe('parseDocument', () => {
 		expect(missing.sections[1]?.header).toBeUndefined();
 		expect(arabic.sections).toHaveLength(2);
 		expect(arabic.sections.map((section) => section.header?.name)).toEqual(['المقطع', 'اللازمة']);
+	});
+
+	it('keeps a lone [?] line as a lyric of its section, never a header', () => {
+		// The unknown-lyric marker wears the header's brackets when a whole line
+		// could not be made out. Parsed as a header it opened a section named "?",
+		// which is what put the custom-header review on the marker the editor's
+		// own tray inserts — and took the line out of `section.lines`, where every
+		// unknown rule and sync mode's tap look for it.
+		const document = parseDocument('[Intro]\nEikeli\n[?]\nEikeli');
+
+		expect(document.sections).toHaveLength(1);
+		expect(document.sections[0]?.lines.map((line) => line.text)).toEqual([
+			'Eikeli',
+			'[?]',
+			'Eikeli'
+		]);
+		expect(isSectionHeaderLine('[?]')).toBe(false);
+		expect(isSectionHeaderLine('[??]')).toBe(false);
+		expect(isLyricLine('[?]')).toBe(true);
+		// A question mark beside a name is still a custom header somebody chose.
+		expect(isSectionHeaderLine('[Chorus?]')).toBe(true);
 	});
 
 	it('records exact header name and legend ranges', () => {

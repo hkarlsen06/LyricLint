@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TransportAction } from './media-player.svelte.js';
 import {
 	bindTransportShortcuts,
+	matchEscapeAction,
 	matchTransportAction,
 	transportModifier
 } from './media-shortcuts.js';
@@ -72,6 +73,25 @@ describe('matchTransportAction', () => {
 		expect(
 			matchTransportAction(keystroke({ code: 'KeyM', ctrlKey: true, altKey: true }))
 		).toBeUndefined();
+	});
+});
+
+describe('matchEscapeAction', () => {
+	it('toggles bare, backs up on Shift, and goes forward on Alt', () => {
+		expect(matchEscapeAction(keystroke({ key: 'Escape' }))).toBe('toggle');
+		expect(matchEscapeAction(keystroke({ key: 'Escape', shiftKey: true }))).toBe('back');
+		expect(matchEscapeAction(keystroke({ key: 'Escape', altKey: true }))).toBe('forward');
+	});
+
+	// Shift-and-Alt together is a superset of both bindings, so it answers to
+	// neither — the same discipline the triad keeps.
+	it('refuses Shift and Alt together, and the browser modifiers outright', () => {
+		expect(
+			matchEscapeAction(keystroke({ key: 'Escape', shiftKey: true, altKey: true }))
+		).toBeUndefined();
+		expect(matchEscapeAction(keystroke({ key: 'Escape', ctrlKey: true }))).toBeUndefined();
+		expect(matchEscapeAction(keystroke({ key: 'Escape', metaKey: true }))).toBeUndefined();
+		expect(matchEscapeAction(keystroke({ key: 'k' }))).toBeUndefined();
 	});
 });
 
@@ -252,6 +272,139 @@ describe('bindTransportShortcuts', () => {
 		press(target, { code: 'Space', repeat: true });
 
 		expect(tap).toHaveBeenCalledOnce();
+	});
+
+	// The reach-for keys: Escape toggles, Shift+Escape backs up, Alt+Escape goes
+	// forward, from anywhere nothing else has claimed the press.
+	it('toggles, backs up, and goes forward on the Escape family from the page', () => {
+		const target = document.createElement('div');
+		const actions: TransportAction[] = [];
+		bindTransportShortcuts({
+			target,
+			transport: (action) => {
+				actions.push(action);
+				return true;
+			}
+		});
+
+		const toggled = press(target, { key: 'Escape' });
+		const backed = press(target, { key: 'Escape', shiftKey: true });
+		const forwarded = press(target, { key: 'Escape', altKey: true });
+
+		expect(actions).toEqual(['toggle', 'back', 'forward']);
+		expect(toggled.defaultPrevented).toBe(true);
+		expect(backed.defaultPrevented).toBe(true);
+		expect(forwarded.defaultPrevented).toBe(true);
+	});
+
+	// The tape is remembered but not attached yet, so a bare Escape loads it —
+	// the same press the strip's `Load …` control makes. Only the bare toggle
+	// does; the nudges have nothing to step through until something is loaded.
+	it('loads a pending source on a bare Escape when nothing is playing', () => {
+		const target = document.createElement('div');
+		const load = vi.fn(() => true);
+		bindTransportShortcuts({ target, transport: () => false, load });
+
+		const loaded = press(target, { key: 'Escape' });
+		press(target, { key: 'Escape', shiftKey: true });
+		press(target, { key: 'Escape', altKey: true });
+
+		expect(load).toHaveBeenCalledTimes(1);
+		expect(loaded.defaultPrevented).toBe(true);
+	});
+
+	// A press that plays takes precedence: load is the fallback for when there was
+	// nothing to play, so it never runs while a track is attached.
+	it('does not load when a press already drove the transport', () => {
+		const target = document.createElement('div');
+		const load = vi.fn(() => true);
+		bindTransportShortcuts({ target, transport: () => true, load });
+
+		press(target, { key: 'Escape' });
+
+		expect(load).not.toHaveBeenCalled();
+	});
+
+	// Nothing playing and nothing to load: the Escape is left to mean whatever
+	// else it might, exactly as an unclaimed nudge is.
+	it('leaves the Escape alone when there is nothing to play or load', () => {
+		const target = document.createElement('div');
+		const load = vi.fn(() => false);
+		bindTransportShortcuts({ target, transport: () => false, load });
+
+		const event = press(target, { key: 'Escape' });
+
+		expect(load).toHaveBeenCalledOnce();
+		expect(event.defaultPrevented).toBe(false);
+	});
+
+	// Every other Escape in the workbench means "close the surface on top", and
+	// each claims the event before it reaches the window. A press already
+	// prevented is a press this leaves entirely alone.
+	it('defers to a surface that already prevented the Escape', () => {
+		const target = document.createElement('div');
+		const surface = document.createElement('div');
+		target.append(surface);
+		// A surface-level handler runs first in the bubble phase and claims it.
+		surface.addEventListener('keydown', (event) => event.preventDefault());
+		const transport = vi.fn(() => true);
+		bindTransportShortcuts({ target, transport });
+
+		press(surface, { key: 'Escape' });
+
+		expect(transport).not.toHaveBeenCalled();
+	});
+
+	// A native <dialog> closes on Escape without reliably marking the keydown, so
+	// deferral there is read off the target rather than the prevented flag.
+	it('defers to an open modal by its target', () => {
+		const target = document.createElement('div');
+		const dialog = document.createElement('dialog');
+		const field = document.createElement('input');
+		dialog.append(field);
+		target.append(dialog);
+		const transport = vi.fn(() => true);
+		bindTransportShortcuts({ target, transport });
+
+		press(field, { key: 'Escape' });
+
+		expect(transport).not.toHaveBeenCalled();
+	});
+
+	// Held down, the pause would start and stop the track dozens of times a
+	// second; a held nudge is a scrub worth having, exactly as the triad splits.
+	it('does not repeat the Escape pause but repeats the nudges', () => {
+		const target = document.createElement('div');
+		const actions: TransportAction[] = [];
+		bindTransportShortcuts({
+			target,
+			transport: (action) => {
+				actions.push(action);
+				return true;
+			}
+		});
+
+		press(target, { key: 'Escape' });
+		press(target, { key: 'Escape', repeat: true });
+		press(target, { key: 'Escape', shiftKey: true });
+		press(target, { key: 'Escape', shiftKey: true, repeat: true });
+		press(target, { key: 'Escape', altKey: true });
+		press(target, { key: 'Escape', altKey: true, repeat: true });
+
+		expect(actions).toEqual(['toggle', 'back', 'back', 'forward', 'forward']);
+	});
+
+	// Nothing attached is nothing to control, so an unclaimed Escape is left to
+	// mean whatever else it might — the transport does not eat it.
+	it('leaves the Escape alone when there is nothing to transport', () => {
+		const target = document.createElement('div');
+		const transport = vi.fn(() => false);
+		bindTransportShortcuts({ target, transport });
+
+		const event = press(target, { key: 'Escape' });
+
+		expect(transport).toHaveBeenCalledWith('toggle');
+		expect(event.defaultPrevented).toBe(false);
 	});
 
 	// Held down, a nudge is a scrub worth having; held down, play/pause would start

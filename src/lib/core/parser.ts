@@ -86,6 +86,18 @@ function trimmedRange(text: string, from: number, to: number): TextRange {
 }
 
 /**
+ * A whole line that is nothing but a bracketed run of question marks — `[?]`,
+ * and the `[??]` near-misses `unknown.marker` rewrites to it. It wears the
+ * header's brackets, but it is the unknown-lyric marker standing where a line
+ * nobody could make out was sung: sung text, not structure. Read as a header it
+ * was `section.header-unrecognized`'s custom header “?” with
+ * `section.header-spacing` piling on above it — while the unknown rules, which
+ * walk `section.lines`, could never reach a line the parser had already taken
+ * out of them. It also could not be timed, and sync mode skipped over it.
+ */
+const unknownLyricLine = /^\[\s*\?+\s*\]$/u;
+
+/**
  * Whether a line of text opens a section rather than being sung.
  *
  * Exported because the editor needs the same answer and must not arrive at it
@@ -95,7 +107,7 @@ function trimmedRange(text: string, from: number, to: number): TextRange {
  */
 export function isSectionHeaderLine(text: string): boolean {
 	const trimmed = text.trim();
-	if (!trimmed.startsWith('[')) {
+	if (!trimmed.startsWith('[') || unknownLyricLine.test(trimmed)) {
 		return false;
 	}
 

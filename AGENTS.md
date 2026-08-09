@@ -1123,6 +1123,45 @@ take the same path. Keyboards without media keys use one modifier with the physi
 `Ctrl-J/K/L` on macOS, where Option types characters, and `Alt-J/K/L` on Windows and Linux, where
 Control belongs to the browser. `Ctrl-Alt-J/K/L` remains the universal fallback.
 
+**But the reach-for keys are the `Escape` family, because a fumbled chord writes into the document
+and a fumbled `Escape` does not.** The transcription loop is listen, pause, fix, replay, and the
+pause is wanted at the moment the ear catches a mistake — which is the worst moment to be aiming a
+two-letter combination whose miss cost is a character dropped into somebody's lyric that they now
+have to find and erase. `Escape` is the keyboard's one large key that can never type a character, and
+neither can it while a modifier is held. Bare `Escape` toggles, `Shift+Escape` backs up, and
+`Alt+Escape` (`Option+Escape`) goes forward: one key under the pinky and a modifier under the other
+fingers or the thumb, so the whole triad is a shape the hand holds without leaving `Escape`, and a
+mistimed modifier degrades to a bare `Escape`, which merely pauses. `Shift`-and-`Alt` together is a
+superset of both nudges and answers to neither, the same no-superset discipline the J/K/L triad
+keeps. These three are the keys named on the transport tooltips (`Esc`, `Shift+Esc`, `Alt+Esc`); the
+triad and the function row stay in `aria-keyshortcuts` only, the same split the one-modifier fallback
+follows.
+
+**They are the bottom of the Escape stack, never the top.** Every other `Escape` in the workbench
+means "close the surface on top" — dismiss a popover, cancel a find, end a sync run, reset the
+draft's name — and each claims the event by preventing its default or stopping its propagation. So
+the transport's `Escape` listener is the one place the triad's rule reverses: it is in the **bubble
+phase**, not capture, so every surface-level handler in the window has already run, and it stands
+down on a press already `defaultPrevented`. A native `<dialog>` closes on `Escape` without reliably
+marking the keydown, so deferral to an open modal is read off the press's **target** (trapped inside
+the dialog) rather than off the flag. What reaches the transport is an `Escape` nobody else wanted —
+the caret sitting in the document — which is exactly the press that means "stop the tape". A held
+`Escape` does not repeat the pause, exactly as the triad's toggle does not; a held `Shift+Escape` or
+`Alt+Escape` is a scrub and does. `Ctrl-L` is deliberately not a forward alias on Linux for the
+reason the triad already gives — it is the browser's address bar — and two of the Escape modifiers
+collide with the desktop rather than the page: `Shift+Escape` is Chromium's task manager, and
+`Alt+Escape` cycles windows on Windows and some Linux desktops. Both reach the page cleanly on macOS,
+where `Option+Escape` was the ask; the collisions are the platform note worth verifying by hand.
+
+**And when there is no tape yet, a bare `Escape` loads the one the draft remembers.** A restored or
+pasted source sits pending until a gesture pays for its permission, sign-in, or script — the state
+the strip draws as `Load …` / `Reconnect …` — and the reach-for key is what brings it, the same press
+that control makes. It is a fallback under the toggle, not a second meaning: a bare `Escape` tries to
+play first, and only loads when nothing was attached to take it (`load` on `TransportShortcutOptions`,
+answered by the shell against `pendingName` and `busy`). The nudges have no such fallback — there is
+nothing to step through until something is loaded — so only the bare press loads, and the transport
+listener now binds while a source is merely pending, not only while one is attached.
+
 **Back and forward step between the timed lines once there are any**, and move two seconds when
 there are not. A transcriber checking a line wants the line, not two seconds of wherever the last
 press left off — and a song with anchors already says where its lines begin, so the step is free.
@@ -1133,6 +1172,20 @@ first cue, after the last — there is nothing to step to and the nudge is what 
 also the whole of the behaviour for an untimed draft. The controls are named for what they
 currently do (`Previous line` against `Back 2 seconds`); a button naming a number of seconds it no
 longer moves is worse than one naming none.
+
+**But "after the last" is a distance, not a boundary, and reading it as a boundary was a bug.** The
+step exists to replay the line the playhead is _inside_, and the nearest cue is only that line's
+start while the playhead is near it. Past the final timed line, or sitting in an untimed stretch
+between two timed ones, the nearest cue behind can be twenty seconds off — and `back` leaping that
+far was the exact complaint, a "previous line" that hurled the playhead across an untimed outro
+instead of nudging two seconds through it. So a cue counts as a step target only while the playhead
+is within `cueStepReach` (ten seconds) of it; beyond that it is a distant marker rather than a line
+the user is in, and the nudge takes over in both directions — the same fallback that already applied
+before the first cue and after the last, now measured rather than assumed. Ten seconds clears any
+sung line and stays well under the leap that prompted it; a held phrase longer than that costs a
+couple of nudges, which is the safe way to be wrong. `cueBefore`/`cueAfter` in
+`media-player.svelte.ts` carry the reach, and `media-player.test.ts` pins both the walk between near
+cues and the nudge past a far one.
 
 **The one-modifier fallback is in the control's tooltip, and nowhere else on screen.** It was
 printed under each glyph as a caption, for as long as it had nowhere else to live — the reasoning
@@ -2842,6 +2895,22 @@ other two need and this one does not.**
   frozen at 0 while the emitted events climb models a player that does not exist, and it makes a
   source reading either one look correct. `stubMusic`'s `emit` moves the property with the event,
   and `advance()` moves it _without_ one — which is the gap the whole fix is about.
+
+  **The seek hold is what keeps that gap off the screen, and its backstop had to learn the burst.**
+  `position()` reports the seek `target` until the player agrees, the way both other bridges hide the
+  same async gap — but MusicKit answers a `seekToTime` with a _burst_ of `playbackTimeDidChange`
+  events all still carrying the position the skip started from, and the give-up backstop was a tally
+  of those events. The burst spent the whole tally before the real position landed, released the
+  hold, and dropped the readout back to the origin for a tick — the "yellow line flashes back to the
+  previous line before going forward again" a skip was reported to show, in both directions, because
+  the stale burst carries the origin whichever way the seek went. So the tally is no longer of all
+  events: `origin` is captured at the seek (read from `rawTime()` before `known` is overwritten), an
+  event still within `settleToleranceSeconds` of it is the burst and is held through uncounted, and
+  only an event that has moved somewhere that is neither the origin nor the target — a seek the player
+  redirected or ignored — counts toward giving up, which is the one case the backstop is actually
+  for. The landing event (within tolerance of the target) still clears the hold at once.
+  `media-apple.test.ts` drives a burst longer than `settleMaxEvents` and pins that the readout never
+  reports the origin after the skip.
 
 - **There is a rate**, and the source claims it back on every attach. The transport does not reset
   `availableRates` between attachments, so a song attached after a Spotify track would otherwise

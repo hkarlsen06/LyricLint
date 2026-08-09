@@ -27,7 +27,7 @@ const settleToleranceSeconds = 1;
  * `playbackTimeDidChange`, which is why the number is smaller — it is a backstop
  * for a `seekToTime` that never lands, not the ordinary path.
  */
-const settleMaxEvents = 4;
+export const settleMaxEvents = 4;
 const musicKitScriptUrl = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
 
 /** Where MusicKit puts a listener's payload. Narrowed to what is read. */
@@ -624,6 +624,16 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	// readout goes target, back to where it was, and only then to the new time —
 	// which is the async gap the YouTube and Spotify bridges already hide.
 	let target: number | undefined;
+	// Where that seek started from. The stale burst above all carries this
+	// position, so it is how a stale event is told from a real one: an event still
+	// at the origin is the burst and is held through, while one that has moved
+	// somewhere that is neither the origin nor the target is a seek the player
+	// redirected or ignored, and only those count toward giving the hold up.
+	// Counting the burst instead — which is what an event tally alone did — spent
+	// the whole budget before the seek landed and dropped the readout back to the
+	// origin for a tick, the "flash to the previous line" a skip was reported to
+	// show.
+	let origin: number | undefined;
 	let targetEvents = 0;
 
 	/**
@@ -677,9 +687,24 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		if (typeof event.currentPlaybackTime !== 'number') return;
 		known = event.currentPlaybackTime;
 		if (target !== undefined) {
-			targetEvents += 1;
-			if (Math.abs(known - target) <= settleToleranceSeconds || targetEvents >= settleMaxEvents) {
+			if (Math.abs(known - target) <= settleToleranceSeconds) {
+				// The seek landed. Stop holding and report the player's own time.
 				target = undefined;
+				origin = undefined;
+				targetEvents = 0;
+			} else if (origin === undefined || Math.abs(known - origin) > settleToleranceSeconds) {
+				// The player has moved off the position it was seeked from but not
+				// onto the target — a seek it redirected or ignored, so count it
+				// toward giving the hold up rather than stranding the readout on a
+				// moment nothing is playing from. The events still carrying the origin
+				// are the stale burst and are deliberately not counted, or the burst
+				// would spend the budget and flash the readout back.
+				targetEvents += 1;
+				if (targetEvents >= settleMaxEvents) {
+					target = undefined;
+					origin = undefined;
+					targetEvents = 0;
+				}
 			}
 		}
 		events.timeChanged(position());
@@ -851,6 +876,10 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		},
 
 		seek(seconds) {
+			// Where the seek starts from, read before `known` is overwritten — the
+			// stale events MusicKit is about to emit all carry this, and the hold
+			// uses it to tell them from the event that means the seek has landed.
+			const from = rawTime();
 			known = seconds;
 			// Before the first press there is no `nowPlayingItem` to seek within, so
 			// the position is only remembered — and the first play compares it with
@@ -859,6 +888,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			// hold open.
 			if (!started) return;
 			target = seconds;
+			origin = from;
 			targetEvents = 0;
 			void music
 				?.seekToTime(Math.max(0, seconds))

@@ -165,6 +165,17 @@ describe('spelling.standardized', () => {
 		expect(gated?.fixes).toBeUndefined();
 	});
 
+	it('keeps the one-edit guesses to English drafts', () => {
+		const norwegian = "[Vers 1]\nSå i kveld så ska' vi tryne";
+		expect(checkRule(rule, norwegian, { language: 'no' })).toEqual([]);
+
+		const english = '[Verse]\nvi tryne';
+		expect(markedText(english, checkRule(rule, english))).toEqual(['tryne']);
+		expect(fixInserts(checkRule(rule, '[Vers 1]\nvi trynna', { language: 'no' }))).toEqual([
+			'tryna'
+		]);
+	});
+
 	it('gates the American “til” spelling on the selected language', () => {
 		expect(checkRule(rule, '[Verse]\nStay til dawn')).toEqual([]);
 		expect(checkRule(rule, '[Verse]\nStay til dawn', { language: 'en-US' })).toHaveLength(1);

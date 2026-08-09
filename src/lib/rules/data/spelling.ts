@@ -1,3 +1,5 @@
+import { isEnglishLanguage } from '$lib/languages/registry.js';
+
 export type SpellingContextGate =
 	| 'general'
 	| 'american-english'
@@ -520,40 +522,47 @@ export function lookupSpellingCandidates(
 		}
 	}
 
-	const occupiedRanges = new Set(
-		candidates.map((candidate) => `${candidate.from}:${candidate.to}`)
-	);
-	for (const match of text.matchAll(fuzzyWord)) {
-		const from = match.index;
-		const to = from + match[0].length;
-		if (intersectsHtml({ from, to }, htmlRanges) || occupiedRanges.has(`${from}:${to}`)) {
-			continue;
-		}
-
-		const normalized = normalizedSpelling(match[0]);
-		const characters = Array.from(normalized);
-		const matches = fuzzySpellings.flatMap(({ spelling, preferred, excluded }) =>
-			!excluded.has(normalized)
-				? preferred
-						.filter((candidate) => isSingleEditApart(characters, candidate.characters))
-						.map((candidate) => ({ spelling, preferred: candidate.value }))
-				: []
+	// A fuzzy candidate is a guess that a word is a one-edit typo of an English
+	// form, and the guess only holds where the selected language says the words
+	// are English — Norwegian “tryne” is one edit from “tryna” and a typo of
+	// nothing. The exact patterns above still match in every language, because
+	// somebody who typed “trynna” typed the English form wherever they typed it.
+	if (isEnglishLanguage(context.language)) {
+		const occupiedRanges = new Set(
+			candidates.map((candidate) => `${candidate.from}:${candidate.to}`)
 		);
-		if (matches.length !== 1) {
-			continue;
-		}
+		for (const match of text.matchAll(fuzzyWord)) {
+			const from = match.index;
+			const to = from + match[0].length;
+			if (intersectsHtml({ from, to }, htmlRanges) || occupiedRanges.has(`${from}:${to}`)) {
+				continue;
+			}
 
-		const [{ spelling, preferred }] = matches;
-		const replacement = preserveSimpleCase(match[0], preferred);
-		candidates.push({
-			from,
-			to,
-			found: match[0],
-			replacement,
-			contextGate: spelling.contextGate,
-			safe: false,
-			fuzzy: true
-		});
+			const normalized = normalizedSpelling(match[0]);
+			const characters = Array.from(normalized);
+			const matches = fuzzySpellings.flatMap(({ spelling, preferred, excluded }) =>
+				!excluded.has(normalized)
+					? preferred
+							.filter((candidate) => isSingleEditApart(characters, candidate.characters))
+							.map((candidate) => ({ spelling, preferred: candidate.value }))
+					: []
+			);
+			if (matches.length !== 1) {
+				continue;
+			}
+
+			const [{ spelling, preferred }] = matches;
+			const replacement = preserveSimpleCase(match[0], preferred);
+			candidates.push({
+				from,
+				to,
+				found: match[0],
+				replacement,
+				contextGate: spelling.contextGate,
+				safe: false,
+				fuzzy: true
+			});
+		}
 	}
 
 	return candidates.sort((left, right) => left.from - right.from || left.to - right.to);

@@ -398,6 +398,7 @@
 			class="button button--quiet media-strip__reconnect"
 			onclick={() => void media.reconnect()}
 			disabled={media.busy}
+			aria-keyshortcuts="Escape"
 		>
 			{pendingLabel}
 		</button>

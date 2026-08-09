@@ -92,11 +92,11 @@ describe('MediaStrip', () => {
 			.poll(() => document.querySelector('.control-tooltip')?.textContent)
 			.toContain('Play');
 		const tooltip = document.querySelector('.control-tooltip')!;
-		// One keystroke, the one a transcriber's hands actually reach for. `F8` and
-		// the universal `Ctrl-Alt` fallback stay in `aria-keyshortcuts`: a control
-		// listing every way to press it is a legend rather than a name.
-		const modifier = navigator.platform.toLocaleLowerCase().includes('mac') ? 'Control' : 'Alt';
-		expect(tooltip.querySelector('kbd')?.textContent).toBe(modifier === 'Control' ? '⌃K' : 'Alt+K');
+		// One keystroke, the one a transcriber's hands actually reach for: Escape,
+		// the large key that cannot write into the document. `F8`, Space and the
+		// chords stay in `aria-keyshortcuts`, because a control listing every way
+		// to press it is a legend rather than a name.
+		expect(tooltip.querySelector('kbd')?.textContent).toBe('Esc');
 		expect(tooltip.textContent).not.toContain('F8');
 		expect(tooltip.getAttribute('aria-hidden')).toBe('true');
 		// `title` is gone: two tooltips for one control is the platform's and ours
@@ -127,13 +127,13 @@ describe('MediaStrip', () => {
 		await expect.element(forward).toBeVisible();
 		await expect
 			.element(back)
-			.toHaveAttribute('aria-keyshortcuts', `F7 ${modifier}+J Control+Alt+J`);
+			.toHaveAttribute('aria-keyshortcuts', `Shift+Escape F7 ${modifier}+J Control+Alt+J`);
 		await expect
 			.element(play)
-			.toHaveAttribute('aria-keyshortcuts', `F8 Space ${modifier}+K Control+Alt+K`);
+			.toHaveAttribute('aria-keyshortcuts', `Escape F8 Space ${modifier}+K Control+Alt+K`);
 		await expect
 			.element(forward)
-			.toHaveAttribute('aria-keyshortcuts', `F9 ${modifier}+L Control+Alt+L`);
+			.toHaveAttribute('aria-keyshortcuts', `Alt+Escape F9 ${modifier}+L Control+Alt+L`);
 		// Nothing is printed under the glyphs. The keystroke was a caption for as
 		// long as it had nowhere else to live; it lives in the shared tooltip now,
 		// and drawn in both places it was the same fact twice, six pixels apart, in

@@ -6,7 +6,8 @@ import {
 	authorizeAppleMusic,
 	createAppleMusicSource,
 	parseAppleMusicSongId,
-	searchAppleMusicSongs
+	searchAppleMusicSongs,
+	settleMaxEvents
 } from './media-apple.js';
 import type { MediaSourceEvents } from './media-player.svelte.js';
 
@@ -496,6 +497,41 @@ describe('createAppleMusicSource', () => {
 
 		emit('playbackTimeDidChange', { currentPlaybackTime: 38.2 });
 		expect(source.time).toBe(38.2);
+	});
+
+	// The reported flash: skipping forward showed the target, dropped back to the
+	// line the skip started on, then went forward again. MusicKit emits a burst of
+	// stale events all carrying the pre-seek position, and an event tally alone
+	// spent its whole budget on that burst and released the hold before the seek
+	// had landed. The burst must be held through, however long it runs.
+	it('holds the target through the whole stale burst without flashing back', async () => {
+		const { instance, emit } = stubMusic();
+		const { source, events } = build(instance);
+
+		await source.load(songId);
+		emit('playbackStateDidChange', { state: playbackStates.playing });
+
+		// A real playback position — where the skip starts from.
+		emit('playbackTimeDidChange', { currentPlaybackTime: 50 });
+		expect(source.time).toBe(50);
+		const settledLog = events.log.length;
+
+		// Skip forward; the readout jumps to the target at once.
+		source.seek(70);
+		expect(source.time).toBe(70);
+
+		// The stale burst — more events than the give-up backstop — all carrying
+		// the position the skip started from. The readout must not drop back to it.
+		for (let index = 0; index < settleMaxEvents + 3; index += 1) {
+			emit('playbackTimeDidChange', { currentPlaybackTime: 50 });
+			expect(source.time).toBe(70);
+		}
+
+		// Then the seek lands, and the player's own time takes over.
+		emit('playbackTimeDidChange', { currentPlaybackTime: 70 });
+		expect(source.time).toBe(70);
+		// Nothing after the skip ever reported the position it started from.
+		expect(events.log.slice(settledLog)).not.toContain('time:50');
 	});
 
 	// A seek the player never carries out must not strand the readout on a
