@@ -29,6 +29,7 @@
 	import Workspace from '$lib/ui/layout/Workspace.svelte';
 	import { useFeedbackState } from '$lib/ui/state/feedback.svelte.js';
 	import { noticeTouchLayout } from '$lib/ui/state/touch-notice.js';
+	import { ensurePersistentStorage } from '$lib/ui/state/storage-persistence.svelte.js';
 	import {
 		createWorkbenchController,
 		type WorkbenchController
@@ -74,6 +75,11 @@
 
 	onMount(() => {
 		let cancelled = false;
+
+		// Resolve whether this origin's storage survives eviction, and take the
+		// silent grant where the browser already reports one. Never shows UI —
+		// the prompting path waits for the control in Preferences → Local data.
+		void ensurePersistentStorage();
 
 		void (async () => {
 			try {

@@ -88,12 +88,18 @@ describe('RightPanel', () => {
 		render(RightPanel, { controller, assistant: panelAssistant() });
 
 		const panes = () => [...document.querySelectorAll('.right-panel__pane')];
-		expect(panes().length).toBe(4);
+		expect(panes().length).toBe(5);
 		const shown = () => panes().filter((pane) => getComputedStyle(pane).display !== 'none');
 		expect(shown()).toHaveLength(1);
 		expect(shown()[0]!.hasAttribute('hidden')).toBe(false);
 
-		await fireEvent.click(screen.getByRole('tab', { name: 'Details' }));
+		// The catch-all tab split: `Local data` is on Preferences now, `Export .txt`
+		// on Song.
+		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
+		await waitFor(() => expect(shown()).toHaveLength(1));
+		expect(shown()[0]!.textContent).toContain('Export .txt');
+
+		await fireEvent.click(screen.getByRole('tab', { name: 'Preferences' }));
 		await waitFor(() => expect(shown()).toHaveLength(1));
 		expect(shown()[0]!.textContent).toContain('Local data');
 
@@ -152,12 +158,12 @@ describe('RightPanel', () => {
 		const { controller } = createTestWorkbench();
 		render(RightPanel, { controller, assistant: panelAssistant() });
 
-		expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
-			'Linter',
-			'Assistant',
-			'Performers',
-			'Details'
-		]);
+		// Assistant is a glyph with no text, so tabs are read by accessible name.
+		expect(
+			screen
+				.getAllByRole('tab')
+				.map((tab) => tab.getAttribute('aria-label') ?? tab.textContent?.trim())
+		).toEqual(['Linter', 'Assistant', 'Performers', 'Song', 'Preferences']);
 
 		const performersTab = screen.getByRole('tab', { name: 'Performers' });
 		await fireEvent.click(performersTab);
@@ -168,18 +174,22 @@ describe('RightPanel', () => {
 		linterTab.focus();
 		await fireEvent.keyDown(linterTab, { key: 'ArrowRight' });
 		await waitFor(() => expect(controller.activeTab).toBe('assistant'));
-		expect(document.activeElement?.textContent).toContain('Assistant');
+		expect(document.activeElement?.getAttribute('aria-label')).toBe('Assistant');
 
 		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
 		await waitFor(() => expect(controller.activeTab).toBe('performers'));
 		expect(document.activeElement?.textContent).toContain('Performers');
 
 		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
-		await waitFor(() => expect(controller.activeTab).toBe('tools'));
-		expect(document.activeElement?.textContent).toContain('Details');
+		await waitFor(() => expect(controller.activeTab).toBe('song'));
+		expect(document.activeElement?.textContent).toContain('Song');
+
+		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+		await waitFor(() => expect(controller.activeTab).toBe('preferences'));
+		expect(document.activeElement?.textContent).toContain('Preferences');
 	});
 
-	test('keeps the existing three tabs and mounts no assistant pane when unavailable', async () => {
+	test('keeps the four base tabs and mounts no assistant pane when unavailable', async () => {
 		vi.stubEnv('PUBLIC_ASSISTANT_ANSWERS_URL', '');
 		const { controller } = createTestWorkbench();
 		controller.setActiveTab('assistant');
@@ -189,10 +199,11 @@ describe('RightPanel', () => {
 		expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
 			'Linter',
 			'Performers',
-			'Details'
+			'Song',
+			'Preferences'
 		]);
 		expect(screen.queryByRole('tab', { name: 'Assistant' })).toBeNull();
-		expect(document.querySelectorAll('.right-panel__pane')).toHaveLength(3);
+		expect(document.querySelectorAll('.right-panel__pane')).toHaveLength(4);
 		expect(document.querySelector('.assistant-panel')).toBeNull();
 		expect(
 			[...document.querySelectorAll('.right-panel__pane')].filter(

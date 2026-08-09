@@ -343,6 +343,7 @@
 		const request = invalidateHarper();
 		if (
 			harperUnavailable ||
+			!controller.grammarCheckEnabled ||
 			resolveLanguageTag(controller.language) !== 'en' ||
 			snapshot.text.trim().length === 0
 		) {
@@ -740,6 +741,24 @@
 			// decide what the linter shows.
 			republishForSectionLinks();
 		});
+	});
+
+	// Re-lint when grammar checking is switched on or off. Toggling the preference
+	// changes no text, so nothing else republishes — this is the same explicit
+	// re-adoption `republishForSectionLinks` exists for. Clearing `lastLintKey`
+	// makes the native pass recompute and `scheduleHarper` run again; when the
+	// preference is off that call early-returns, so the merged Harper findings drop
+	// on the way past. The first run only records the value the controller booted
+	// with (the async preference load may flip it a tick later, which re-runs this).
+	let appliedGrammarCheck: boolean | undefined;
+	$effect(() => {
+		const enabled = controller.grammarCheckEnabled;
+		if (appliedGrammarCheck === enabled) return;
+		const first = appliedGrammarCheck === undefined;
+		appliedGrammarCheck = enabled;
+		if (first) return;
+		lastLintKey = '';
+		publishSnapshot(controller.snapshot);
 	});
 
 	// The transport keys, bound to the window and not to the document. The pause

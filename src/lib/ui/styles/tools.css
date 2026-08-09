@@ -1,23 +1,116 @@
-/* The tools tab: action rows, metadata list, source list, and inline confirms. */
+/* The Song and Preferences tabs: action rows, metadata list, source list, the
+   settings toggle, and inline confirms. Both panels share this file because
+   they are the two halves of one tab that was split, not two unrelated panels. */
 
-/* Separators go *between* sections. The old `.tools-panel section` (which
-   lived in performers.css) matched the first section too, drawing a rule a
-   few pixels under the panel header's own border-bottom — two parallel lines
-   framing nothing. `section + section` is used rather than :not(:first-child)
-   or :first-of-type because it encodes the between-ness directly: a section
-   only gets a top rule when another section actually precedes it, so it
-   survives any section being removed behind an {#if} and any non-section
-   content appearing before or after. */
-.tools-panel section + section {
+/* Separators go *between* sections. Matching the first section too (as an older
+   `.tools-panel section` rule did) drew a rule a few pixels under the panel
+   header's own border-bottom — two parallel lines framing nothing. `section +
+   section` is used rather than :not(:first-child) or :first-of-type because it
+   encodes the between-ness directly: a section only gets a top rule when another
+   section actually precedes it, so it survives any section being removed behind
+   an {#if} and any non-section content appearing before or after. */
+.panel-sections section + section {
 	margin-top: var(--space-5);
 	padding-top: var(--space-4);
 	border-top: var(--border-width) solid var(--color-border);
+}
+
+/* A settings row: the label at one end, the switch at the other, which is the
+   arrangement every settings surface has taught. */
+.toggle-field {
+	display: flex;
+	gap: var(--space-3);
+	align-items: center;
+	justify-content: space-between;
+}
+
+.toggle-field label {
+	cursor: pointer;
+}
+
+/* The switch itself (Bits UI Switch: a real `button[role="switch"]`, so the
+   global focus ring and `aria-checked` come for free). A switch rather than a
+   native checkbox, because a live setting acts the moment it is flipped — no
+   form, no submit — and the checkbox rendered as the platform's own dated
+   widget in a panel that draws everything else itself.
+
+   The pill radius is the track, not a button silhouette — this is the chip and
+   badge family's radius on a state control, not a fourth button tier. State is
+   never color alone: the thumb's *position* is the cue that survives greyscale,
+   `aria-checked` carries it for a reader, and the fill only underlines it. */
+.switch {
+	--switch-width: 2.25rem;
+	--switch-thumb: 0.875rem;
+
+	position: relative;
+	width: var(--switch-width);
+	height: 1.25rem;
+	flex: none;
+	padding: 0;
+	border: var(--border-width) solid var(--color-control-border);
+	border-radius: var(--radius-pill);
+	background: var(--color-control);
+	cursor: pointer;
+}
+
+.switch[data-state='unchecked']:hover {
+	background: var(--color-control-hover);
+}
+
+.switch[data-state='checked'] {
+	border-color: var(--color-accent);
+	background: var(--color-accent);
+}
+
+.switch[data-state='checked']:hover {
+	border-color: var(--color-accent-hover);
+	background: var(--color-accent-hover);
+}
+
+/* The travel is the track's inner width less the thumb — spelled out rather
+   than eyeballed, so resizing either variable keeps the resting places true. */
+.switch__thumb {
+	position: absolute;
+	top: 50%;
+	left: var(--space-0-5);
+	display: block;
+	width: var(--switch-thumb);
+	height: var(--switch-thumb);
+	border-radius: var(--radius-round);
+	background: var(--color-text-muted);
+	transform: translateY(-50%);
+}
+
+.switch[data-state='checked'] .switch__thumb {
+	background: var(--color-accent-text);
+	transform: translate(
+		calc(
+			var(--switch-width) - var(--switch-thumb) - 2 * var(--space-0-5) - 2 * var(--border-width)
+		),
+		-50%
+	);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.switch__thumb {
+		transition:
+			transform var(--duration-fast) var(--ease-out-quart),
+			background-color var(--duration-fast) var(--ease-out-quart);
+	}
 }
 
 .tool-actions {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--space-2);
+}
+
+/* An action row closes the thought its sentence opened, so whatever follows it
+   starts a new one. Paragraphs bring their own margins; a bare row of controls
+   brings none, which is how `Protect storage` ended up touching the reset
+   control below it — two different questions reading as one stack of buttons. */
+.panel-sections .tool-actions + * {
+	margin-top: var(--space-4);
 }
 
 /* `button--flush` for a row: the first label is read against the paragraph

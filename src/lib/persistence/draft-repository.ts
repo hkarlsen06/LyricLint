@@ -1,8 +1,5 @@
 import { randomId } from '../core/random-id.js';
-import {
-	ASSISTANT_DRAFT_ACCESS_PREFIX,
-	assistantDraftAccessKey
-} from '../assistant/permissions.js';
+import { assistantDraftAccessKey } from '../assistant/permissions.js';
 import { copySectionLinks } from './copy.js';
 import type { AppMetadataRecord, DraftCreateInput, DraftRecord, DraftRepository } from './types.js';
 import type { LyricLintDatabase } from './database.js';
@@ -223,9 +220,15 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 		},
 
 		async deleteAll() {
-			// Assistant conversations are cleared here too: the Tools panel promises
-			// that "Delete all local data" leaves nothing behind, and the chats are
-			// the one other thing this browser keeps.
+			// This is the Preferences panel's "Reset LyricLint": a return to the
+			// initial state, so the whole metadata table goes — preferences, recent
+			// languages, assistant permissions and the current-draft pointer — along
+			// with the content. It used to sweep appMetadata selectively, which left
+			// `pref:` rows standing behind a control that promised all local data.
+			// The backup link is not this table's to clear: the controller unlinks
+			// it *before* calling here, which both severs it and stops the backup
+			// mirror from writing an empty workspace over the one file that could
+			// undo the press.
 			await database.transaction(
 				'rw',
 				database.drafts,
@@ -238,11 +241,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 					await database.mediaHandles.clear();
 					await database.assistantChats.clear();
 					await database.assistantMessages.clear();
-					await database.appMetadata
-						.where('key')
-						.startsWith(ASSISTANT_DRAFT_ACCESS_PREFIX)
-						.delete();
-					await database.appMetadata.delete(CURRENT_DRAFT_KEY);
+					await database.appMetadata.clear();
 				}
 			);
 		},

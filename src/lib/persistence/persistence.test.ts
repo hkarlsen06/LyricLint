@@ -142,11 +142,13 @@ describe('draft repository', () => {
 		expect(stored).not.toHaveProperty('diagnostics');
 	});
 
-	it('deleteAll removes every draft and the current pointer', async () => {
+	it('deleteAll resets to the initial state, preferences included', async () => {
 		const { database, repository } = await createRepository('delete-all');
 		await repository.create({ id: 'draft-a', text: 'A' });
 		await repository.create({ id: 'draft-b', text: 'B' });
 		await repository.setCurrent('draft-b');
+		await repository.setPreference('grammarCheck', 'false');
+		await repository.rememberLanguage('no');
 		await database.appMetadata.put({
 			key: assistantDraftAccessKey('draft-a'),
 			value: '{"decision":"granted","decidedAt":"2026-01-01T00:00:00.000Z"}',
@@ -158,6 +160,10 @@ describe('draft repository', () => {
 		expect(await repository.list()).toEqual([]);
 		expect(await repository.getCurrent()).toBeUndefined();
 		expect(await database.appMetadata.get(assistantDraftAccessKey('draft-a'))).toBeUndefined();
+		// The Preferences panel calls this "Reset LyricLint", so a preference row
+		// that survives it is the sweep under-delivering on its own label.
+		expect(await repository.getPreference('grammarCheck')).toBeUndefined();
+		expect(await repository.getRecentLanguages()).toEqual([]);
 	});
 
 	// The tools panel promises "Delete all local data" leaves nothing behind, and
@@ -372,8 +378,12 @@ describe('draft repository', () => {
 		const reopenedRepository = createDraftRepository(reopenedDatabase);
 		expect(await reopenedRepository.getRecentLanguages()).toEqual(['fr', 'ja', 'es', 'de', 'no']);
 
+		// `deleteAll` is the Preferences panel's "Reset LyricLint", a return to the
+		// initial state — the history goes with the rest of the metadata. This
+		// assertion used to pin the opposite, from when the action was named
+		// `Delete all local data` and read as being about content alone.
 		await reopenedRepository.deleteAll();
-		expect(await reopenedRepository.getRecentLanguages()).toEqual(['fr', 'ja', 'es', 'de', 'no']);
+		expect(await reopenedRepository.getRecentLanguages()).toEqual([]);
 	});
 });
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { siteUrl } from '$lib/seo.js';
 
 	const pageTitle = 'Privacy · LyricLint';
@@ -90,6 +89,6 @@
 
 	<p class="site-aside">
 		Questions about any of this are welcome — the whole workbench is
-		<a href={resolve('/(site)/rules')}>documented in the open</a>.
+		<a href="https://github.com/hkarlsen06/LyricLint" rel="external">documented in the open</a>.
 	</p>
 </main>

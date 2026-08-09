@@ -85,29 +85,54 @@
 	background: var(--color-chrome);
 }
 
+/* Five tabs can outgrow the panel's 21rem floor, so the strip scrolls sideways
+   rather than squeezing its members — squeezed, the Linter tab wrapped its own
+   count badge onto a second line. The bar is hidden the way the media strip
+   hides its own: the strip is aimed rather than read, and roving tab focus
+   already scrolls an offscreen member into view. */
 .panel-tabs {
 	display: flex;
 	align-self: stretch;
 	gap: var(--space-4);
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.panel-tabs::-webkit-scrollbar {
+	display: none;
 }
 
 .panel-tabs button {
 	position: relative;
+	flex: none;
 	padding: 0 var(--space-1);
 	border: 0;
 	background: transparent;
 	color: var(--color-text-muted);
 	font-weight: var(--font-weight-semibold);
+	white-space: nowrap;
 }
 
 .panel-tabs button[data-state='active'] {
 	color: var(--color-text);
 }
 
+/* The Assistant tab is a glyph rather than a word: five tabs at this width, and
+   `Performers`/`Preferences` are the two longest labels here. The row is
+   centred, so the icon sits on the same line as its worded neighbours. */
+.panel-tabs__icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+/* `bottom: 0`, not `-1px`: the strip is a scroll container now, which clips at
+   its own box, so an indicator hung 1px below it comes back clipped to a 1px
+   sliver. Sitting flush above the header's hairline instead of over it costs
+   the active tab that one line of separation and nothing else. */
 .panel-tabs button[data-state='active']::after {
 	position: absolute;
 	right: 0;
-	bottom: -1px;
+	bottom: 0;
 	left: 0;
 	height: 2px;
 	background: var(--color-text);

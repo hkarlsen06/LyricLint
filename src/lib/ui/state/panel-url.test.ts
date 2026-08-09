@@ -6,7 +6,11 @@ describe('right panel URL state', () => {
 		['https://lyriclint.app/lint', 'linter'],
 		['https://lyriclint.app/lint?panel=linter', 'linter'],
 		['https://lyriclint.app/lint?panel=performers', 'performers'],
-		['https://lyriclint.app/lint?panel=tools', 'tools'],
+		['https://lyriclint.app/lint?panel=song', 'song'],
+		['https://lyriclint.app/lint?panel=preferences', 'preferences'],
+		// `tools` was the id of the catch-all tab before it split; a shared link
+		// lands on the song half, which is where its metadata and exports now live.
+		['https://lyriclint.app/lint?panel=tools', 'song'],
 		['https://lyriclint.app/lint?panel=assistant', 'assistant'],
 		['https://lyriclint.app/lint?panel=unknown', 'linter']
 	] as const)('reads %s as %s', (href, expected) => {

@@ -182,6 +182,16 @@ export interface WorkbenchController {
 	 */
 	readonly artworkOpen: boolean;
 	setArtworkOpen(open: boolean): void;
+	/**
+	 * Whether Harper, the English grammar proofreader, runs alongside the reviewed
+	 * rules. A preference rather than a per-finding ignore because it is a stance
+	 * on a whole provider — Harper cites itself and knows nothing about lyrics — so
+	 * turning it off is one decision, not fifty. Default on; persisted through the
+	 * repository like every other preference, so it survives a reload and is
+	 * covered by the workspace backup and by `Delete all local data`.
+	 */
+	readonly grammarCheckEnabled: boolean;
+	setGrammarCheckEnabled(enabled: boolean): void;
 	toggleSeverity(severity: Severity): void;
 	setTitle(title: string): Promise<void>;
 	setLanguage(language: string): void;
@@ -232,8 +242,9 @@ export interface WorkbenchController {
 
 const largePasteThreshold = 32;
 
-/** The one preference key this controller owns. */
+/** The preference keys this controller owns. */
 const artworkOpenPreference = 'artworkOpen';
+const grammarCheckPreference = 'grammarCheck';
 
 /**
  * Compose the workbench from its four stores — editor session, draft, roster,
@@ -364,6 +375,21 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		.getPreference(artworkOpenPreference)
 		.then((stored) => {
 			if (stored !== undefined) artworkOpen = stored === 'true';
+		})
+		.catch(() => {
+			// A preference that cannot be read is a preference at its default.
+		});
+
+	// Grammar checking is on by default: the feedback that prompted the toggle
+	// called the corrections nice and only wanted a way out. The stored value
+	// arrives a tick later and flips the flag if the user turned it off; Workspace
+	// watches the flag and re-lints, so a stored `false` drops Harper's findings
+	// without a keystroke.
+	let grammarCheckEnabled = $state(true);
+	void deps.repository
+		.getPreference(grammarCheckPreference)
+		.then((stored) => {
+			if (stored !== undefined) grammarCheckEnabled = stored === 'true';
 		})
 		.catch(() => {
 			// A preference that cannot be read is a preference at its default.
@@ -599,6 +625,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// a message.
 			void deps.repository.setPreference(artworkOpenPreference, String(open)).catch(() => {});
 		},
+		get grammarCheckEnabled() {
+			return grammarCheckEnabled;
+		},
+		setGrammarCheckEnabled(enabled) {
+			grammarCheckEnabled = enabled;
+			void deps.repository.setPreference(grammarCheckPreference, String(enabled)).catch(() => {});
+		},
 		toggleSeverity: panel.toggleSeverity,
 		setTitle: draft.setTitle,
 		setLanguage: draft.setLanguage,
@@ -646,8 +679,16 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		exportDraft: draft.exportDraft,
 		deleteDraft: draft.deleteDraft,
 		async deleteAllDrafts() {
+			// The order is load-bearing: unlinking first stops the backup mirror
+			// from writing the freshly emptied workspace over the one file that
+			// could undo this press. The file itself stays on the user's disk.
 			await deps.backup?.unlink();
 			await draft.deleteAllDrafts();
+			// A reset returns the running session to its defaults too — the stored
+			// rows are already gone, and a switch still showing the old choice would
+			// be reporting a preference that no longer exists.
+			grammarCheckEnabled = true;
+			artworkOpen = !(deps.phoneLayout ?? isPhoneLayout)();
 		},
 		async backupWorkspace() {
 			if (!deps.backup) return;

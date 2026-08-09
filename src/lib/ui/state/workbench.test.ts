@@ -891,7 +891,7 @@ describe('workbench diagnostic navigation', () => {
 
 	test('returns to the linter tab when the header picker is requested', () => {
 		const { controller } = setup({});
-		controller.setActiveTab('tools');
+		controller.setActiveTab('preferences');
 
 		controller.chooseSectionHeader(diagnostic);
 

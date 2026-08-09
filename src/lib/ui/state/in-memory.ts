@@ -86,8 +86,12 @@ export function createInMemoryDraftRepository(
 			if (currentId === id) currentId = undefined;
 		},
 		async deleteAll() {
+			// The real repository resets to the initial state — preferences and
+			// recent languages included — so the stub keeps the same meaning.
 			drafts.clear();
 			currentId = undefined;
+			preferences.clear();
+			recentLanguages = [];
 		},
 		async setCurrent(id) {
 			currentId = id;

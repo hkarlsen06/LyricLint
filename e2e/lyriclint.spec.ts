@@ -773,10 +773,12 @@ test('the rules dialog and workbench tab share one persisted conversation', asyn
 	// is the second tab rather than another modal entry point.
 	await openWorkspace(page);
 	const tabs = page.getByRole('tablist', { name: 'Document panels' }).getByRole('tab');
-	await expect(tabs).toHaveCount(4);
-	await expect(tabs.nth(1)).toHaveText('Assistant');
+	await expect(tabs).toHaveCount(5);
+	// Assistant is a glyph, so it is found by accessible name rather than by text.
+	await expect(tabs.nth(1)).toHaveAccessibleName('Assistant');
 	await expect(tabs.nth(2)).toHaveText('Performers');
-	await expect(tabs.nth(3)).toHaveText('Details');
+	await expect(tabs.nth(3)).toHaveText('Song');
+	await expect(tabs.nth(4)).toHaveText('Preferences');
 	await tabs.nth(1).click();
 
 	const assistantPanel = page.getByRole('tabpanel', { name: 'Assistant' });
