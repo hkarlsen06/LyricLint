@@ -44,9 +44,13 @@ export function downloadBlob(blob: Blob, filename: string): void {
 	URL.revokeObjectURL(url);
 }
 
-export function downloadUtf8Text(text: string, filename: string): void {
+export function downloadUtf8Text(
+	text: string,
+	filename: string,
+	mimeType = 'text/plain;charset=utf-8'
+): void {
 	const bytes = new TextEncoder().encode(text);
-	downloadBlob(new Blob([bytes], { type: 'text/plain;charset=utf-8' }), filename);
+	downloadBlob(new Blob([bytes], { type: mimeType }), filename);
 }
 
 /**

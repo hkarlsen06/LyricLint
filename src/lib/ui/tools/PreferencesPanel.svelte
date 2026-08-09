@@ -191,7 +191,7 @@
 				<button type="button" class="button" onclick={protectStorage}>Protect storage</button>
 			</div>
 		{:else if persistence === 'denied'}
-			<p class="backup-status">
+			<p class="backup-status backup-status--warning">
 				This browser declined protected storage, so keep a workspace backup as the durable copy.
 			</p>
 		{/if}

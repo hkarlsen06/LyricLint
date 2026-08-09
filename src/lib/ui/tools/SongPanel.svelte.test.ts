@@ -14,7 +14,7 @@ import SongPanel from './SongPanel.svelte';
 describe('SongPanel skimmability', () => {
 	afterEach(cleanup);
 
-	test('leaves only song-scoped sections here, and Document one export', () => {
+	test('leaves only song-scoped sections here, with portable and project exports', () => {
 		const { controller } = createTestWorkbench();
 		const { container } = render(SongPanel, { controller });
 
@@ -28,7 +28,7 @@ describe('SongPanel skimmability', () => {
 			?.querySelector('.tool-actions');
 		expect(
 			[...(documentActions?.querySelectorAll('button') ?? [])].map((b) => b.textContent?.trim())
-		).toEqual(['Export .txt']);
+		).toEqual(['Export .txt', 'Export Scribe']);
 
 		// App-management moved to the Preferences tab; none of it may be here, and
 		// neither may the toolbar's own contrast action.

@@ -128,8 +128,14 @@
 			<button type="button" class="button" onclick={() => controller.exportDraft()}>
 				Export .txt
 			</button>
+			<button type="button" class="button" onclick={() => controller.exportScribe()}>
+				Export Scribe
+			</button>
 		</div>
-		<p>The file holds the exact canonical string, including literal supported markup.</p>
+		<p>
+			Text holds the canonical lyrics. A Scribe keeps the editable LyricLint project as an .lls
+			file.
+		</p>
 	</section>
 
 	<!--

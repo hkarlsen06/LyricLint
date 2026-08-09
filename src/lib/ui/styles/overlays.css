@@ -40,11 +40,19 @@
 }
 
 /* The rows lost their hairlines, so the one rule that is still worth drawing is
-   the one that separates the list from what names it. */
-.draft-menu__heading {
+   the one that separates the list from its title and project-level action. */
+.draft-menu__titlebar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
 	padding: var(--space-1) var(--space-2) var(--space-2);
 	margin: 0 0 var(--space-1);
 	border-bottom: var(--border-width) solid var(--color-border);
+}
+
+.draft-menu__heading {
+	margin: 0;
 	font-size: var(--font-size-md);
 	line-height: var(--line-height-tight);
 }

@@ -40,7 +40,13 @@ describe('DraftMenu', () => {
 		await controller.refreshDrafts();
 		render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
-		expect(screen.getByRole('heading', { name: "Saved 'scribes", level: 2 })).toBeTruthy();
+		const heading = screen.getByRole('heading', { name: "Saved 'scribes", level: 2 });
+		const titlebar = heading.closest('.draft-menu__titlebar');
+		const importButton = within(titlebar as HTMLElement).getByRole('button', {
+			name: 'Import Scribe…'
+		});
+		expect(importButton.classList.contains('button')).toBe(true);
+		expect(importButton.classList.contains('button--quiet')).toBe(false);
 
 		await fireEvent.click(screen.getByRole('button', { name: /^Second song/ }));
 		expect(controller.draftId).toBe('draft-2');
@@ -50,8 +56,8 @@ describe('DraftMenu', () => {
 		// them in the accessible tree.
 		await fireEvent.click(within(secondRow!).getByRole('button', { name: 'Export Second song' }));
 		expect(exported[0]).toEqual({
-			text: '[Chorus]\nAnother line',
-			filename: 'Second song.txt'
+			text: expect.stringContaining('"format": "LYRICLINT_SCRIBE"'),
+			filename: 'Second song.lls'
 		});
 
 		await fireEvent.click(within(secondRow!).getByRole('button', { name: 'Rename Second song' }));

@@ -43,6 +43,7 @@ import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persi
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 import { headerNameAtoms, isMirrorableHeaderName } from '$lib/performers/index.js';
 import { buildRuleContext } from './wiring.js';
+import { parseScribe, serializeScribe, ScribeFormatError } from '$lib/scribe/format.js';
 
 export { performerColorIds } from './roster-store.svelte.js';
 export type { RosterMergeSuggestion } from './roster-store.svelte.js';
@@ -78,7 +79,7 @@ export interface WorkbenchDependencies {
 	ruleSet?: RuleSetManifest;
 	copy?: (text: string) => Promise<void>;
 	readClipboard?: () => Promise<string>;
-	exportText?: (text: string, filename: string) => void;
+	exportText?: (text: string, filename: string, mimeType?: string) => void;
 	idFactory?: () => string;
 	now?: () => string;
 	onOpenDraft?: (draft: DraftRecord) => EditorSnapshot | void;
@@ -237,6 +238,10 @@ export interface WorkbenchController {
 	renameDraft(id: string, title: string): Promise<void>;
 	duplicateDraft(id: string): Promise<void>;
 	exportDraft(id?: string): Promise<void>;
+	/** Save the current editable project, including its LyricLint-only state. */
+	exportScribe(id?: string): Promise<void>;
+	/** Validate and import a Scribe as a new local draft, without overwriting this one. */
+	importScribe(file: File): Promise<boolean>;
 	deleteDraft(id: string): Promise<void>;
 	deleteAllDrafts(): Promise<void>;
 	backupWorkspace(): Promise<void>;
@@ -756,6 +761,130 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		renameDraft: draft.renameDraft,
 		duplicateDraft: draft.duplicateDraft,
 		exportDraft: draft.exportDraft,
+		async exportScribe(id = draft.draftId) {
+			let exported: DraftRecord | undefined;
+			try {
+				exported = id === draft.draftId ? draft.draftFromSnapshot() : await deps.repository.get(id);
+			} catch {
+				exported = undefined;
+			}
+			if (!exported) {
+				const message = "That 'scribe could not be exported.";
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+
+			let song = id === draft.draftId ? media?.clipboardSource() : undefined;
+			if (!song && deps.mediaRepository) {
+				try {
+					const stored = await deps.mediaRepository.get(id);
+					const source = stored?.source;
+					const sourceId =
+						source === 'youtube'
+							? stored?.videoId
+							: source === 'spotify'
+								? stored?.trackId
+								: source === 'apple'
+									? stored?.songId
+									: undefined;
+					if (source && source !== 'file' && sourceId) {
+						song = { kind: source, id: sourceId, name: stored.name };
+					}
+				} catch {
+					// The project is still useful without an unavailable media reference.
+				}
+			}
+			exportText(
+				serializeScribe({
+					title: exported.title,
+					language: exported.language,
+					lyrics: exported.text,
+					...(exported.originalText === undefined ? {} : { originalText: exported.originalText }),
+					...(exported.editorSelection === undefined
+						? {}
+						: { selection: exported.editorSelection }),
+					...(exported.compareBaseline === undefined
+						? {}
+						: { compareBaseline: exported.compareBaseline }),
+					performers: exported.performers,
+					sectionLinks: exported.sectionLinks ?? [],
+					lineAnchors: exported.lineAnchors ?? [],
+					ignoredDiagnostics: deps.ignoreStore.list(id),
+					...(song === undefined ? {} : { song })
+				}),
+				safeFilename(exported.title, 'lls'),
+				'application/vnd.lyriclint.scribe+json;charset=utf-8'
+			);
+			feedback.announce(`Exported ${exported.title} as a LyricLint Scribe.`);
+		},
+		async importScribe(file) {
+			if (!file.name.toLocaleLowerCase().endsWith('.lls')) {
+				const message = 'Choose a LyricLint Scribe file ending in .lls.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+
+			let project;
+			try {
+				project = parseScribe(await file.text());
+			} catch (error) {
+				const message =
+					error instanceof ScribeFormatError ? error.message : 'This Scribe could not be read.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+
+			const timestamp = now();
+			const imported: DraftRecord = {
+				id: idFactory(),
+				title: project.document.title.trim() || DEFAULT_DRAFT_TITLE,
+				text: project.document.lyrics,
+				language: project.document.language,
+				performers: project.performers,
+				createdAt: timestamp,
+				updatedAt: timestamp,
+				ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,
+				...(project.document.originalText === undefined
+					? {}
+					: { originalText: project.document.originalText }),
+				...(project.document.selection === undefined
+					? {}
+					: { editorSelection: project.document.selection }),
+				...(project.document.compareBaseline === undefined
+					? {}
+					: { compareBaseline: project.document.compareBaseline }),
+				...(project.lineAnchors.length === 0 ? {} : { lineAnchors: project.lineAnchors }),
+				...(project.sectionLinks.length === 0 ? {} : { sectionLinks: project.sectionLinks })
+			};
+
+			try {
+				await draft.flushAutosave();
+				await deps.repository.create(imported);
+				for (const key of project.ignoredDiagnostics) deps.ignoreStore.ignore(imported.id, key);
+				if (project.song && deps.mediaRepository) {
+					const source = project.song;
+					await deps.mediaRepository.attach({
+						draftId: imported.id,
+						name: source.name ?? `${source.kind}:${source.id}`,
+						source: source.kind,
+						...(source.kind === 'youtube' ? { videoId: source.id } : {}),
+						...(source.kind === 'spotify' ? { trackId: source.id } : {}),
+						...(source.kind === 'apple' ? { songId: source.id } : {})
+					});
+				}
+				await draft.openDraft(imported.id);
+				feedback.announce(`Imported ${imported.title}.`);
+				return true;
+			} catch {
+				const message = 'The Scribe could not be imported into local storage.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+		},
 		deleteDraft: draft.deleteDraft,
 		async deleteAllDrafts() {
 			// The order is load-bearing: unlinking first stops the backup mirror

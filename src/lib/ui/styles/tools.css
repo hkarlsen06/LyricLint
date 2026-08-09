@@ -218,6 +218,10 @@
 	color: var(--color-text-muted);
 }
 
+.backup-status.backup-status--warning {
+	color: var(--color-warning);
+}
+
 .confirm-row {
 	display: inline-flex;
 	flex-wrap: wrap;

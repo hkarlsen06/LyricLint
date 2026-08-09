@@ -13,6 +13,8 @@
 	let renameValue = $state('');
 	let deleteId = $state<string | undefined>();
 	let menuTrigger: HTMLElement;
+	let importInput: HTMLInputElement;
+	let importing = $state(false);
 
 	function beginRename(id: string, title: string): void {
 		renameId = id;
@@ -64,6 +66,16 @@
 			menuTrigger.focus();
 		}
 	}
+
+	async function importScribe(file: File | undefined): Promise<void> {
+		if (!file || importing) return;
+		importing = true;
+		try {
+			if (await controller.importScribe(file)) open = false;
+		} finally {
+			importing = false;
+		}
+	}
 </script>
 
 <!-- The name and the date are one line whether or not the row is pressable, so
@@ -109,7 +121,23 @@
 		</svg>
 	</summary>
 	<div class="draft-menu__popover">
-		<h2 class="draft-menu__heading">Saved 'scribes</h2>
+		<div class="draft-menu__titlebar">
+			<h2 class="draft-menu__heading">Saved 'scribes</h2>
+			<button type="button" class="button" disabled={importing} onclick={() => importInput.click()}>
+				{importing ? 'Importing…' : 'Import Scribe…'}
+			</button>
+		</div>
+		<input
+			bind:this={importInput}
+			hidden
+			type="file"
+			accept="application/vnd.lyriclint.scribe+json,.lls"
+			onchange={(event) => {
+				const input = event.currentTarget;
+				void importScribe(input.files?.[0]);
+				input.value = '';
+			}}
+		/>
 
 		{#if controller.drafts.length === 0}
 			<p class="empty-state">
@@ -216,8 +244,8 @@
 									type="button"
 									class="button--quiet icon-button"
 									aria-label="Export {draft.title}"
-									title="Export (.txt)"
-									onclick={() => controller.exportDraft(draft.id)}
+									title="Export Scribe (.lls)"
+									onclick={() => controller.exportScribe(draft.id)}
 								>
 									<svg
 										aria-hidden="true"

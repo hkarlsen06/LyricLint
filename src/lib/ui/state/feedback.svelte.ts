@@ -13,8 +13,8 @@ export interface ToastMessage {
 }
 
 /** Informational toasts linger briefly; actionable ones long enough to react. */
-export const INFO_TOAST_DURATION = 4000;
-export const ACTION_TOAST_DURATION = 8000;
+export const INFO_TOAST_DURATION = 2000;
+export const ACTION_TOAST_DURATION = 4000;
 /** Visible-toast cap: the oldest toast collapses first beyond this. */
 export const MAX_VISIBLE_TOASTS = 3;
 
