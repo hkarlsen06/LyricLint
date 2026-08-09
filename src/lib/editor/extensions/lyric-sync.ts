@@ -9,7 +9,8 @@ import {
 	formatAnchorTime,
 	holdReadingLine,
 	isStampableLine,
-	setPlayheadEffect
+	setPlayheadEffect,
+	suppressPlayheadFollow
 } from './line-anchors.js';
 import { parsedDocumentForState } from './editor-state.js';
 import { linePairingLimits, linkedPeerHeaders } from './section-links.js';
@@ -55,6 +56,14 @@ import { linePairingLimits, linkedPeerHeaders } from './section-links.js';
  * spent at the four places that seek to an anchor — the timestamp press, the
  * line-number press, `Ctrl-Alt-Enter` and `stepBack` — and not this one growing.
  * An anchor is a claim about when a line started, and it should stay one.
+ *
+ * **It is a wall-clock quantity, so the tap spends it in track time by
+ * multiplying by the playback rate.** The lateness it compensates belongs to a
+ * hand, and a hand is no later at 0.5× — but the track only advances half as
+ * far during that lateness, so the fixed 50ms would over-correct every anchor
+ * written at a practice rate and stamp them early. Slowing the tape down is
+ * exactly what a transcriber does when the lines come too fast to tap, so the
+ * practice rate is where a run's accuracy matters most, not a corner case.
  */
 export const tapOffsetSeconds = 0.05;
 
@@ -65,6 +74,9 @@ const armEffect = StateEffect.define<boolean>();
 
 /** Internal: this section has had its timings written from a linked peer. */
 const markFilledEffect = StateEffect.define<number>();
+
+/** Internal: this run ends on the line starting here — it covers a selection. */
+const scopeEffect = StateEffect.define<number>();
 
 interface LyricSyncState {
 	active: boolean;
@@ -90,6 +102,17 @@ interface LyricSyncState {
 	 * because a document change ends the run and clears this with it.
 	 */
 	filled: readonly number[];
+	/**
+	 * Where this run stops: the start of the last line it may time, or undefined
+	 * for a pass over the whole song.
+	 *
+	 * A run entered over a selection covers the selection and nothing else — the
+	 * selection is the one gesture that deliberately names a region, so the run
+	 * ends the moment that line is timed, exactly as an unscoped run ends on the
+	 * document's last stampable line. A bare offset for `filled`'s reason: a
+	 * document change ends the run and clears this with it.
+	 */
+	until?: number;
 }
 
 export const lyricSyncField = StateField.define<LyricSyncState>({
@@ -97,10 +120,12 @@ export const lyricSyncField = StateField.define<LyricSyncState>({
 	update(value, transaction) {
 		let next = value;
 		for (const effect of transaction.effects) {
-			// Entering or leaving always disarms: a new run starts by timing the line
-			// it starts on, not by skipping past it.
+			// Entering or leaving always disarms and drops the scope: a new run
+			// starts by timing the line it starts on, over whatever region its own
+			// entry names.
 			if (effect.is(setLyricSyncEffect)) next = { active: effect.value, armed: false, filled: [] };
 			else if (effect.is(armEffect)) next = { ...next, armed: effect.value };
+			else if (effect.is(scopeEffect)) next = { ...next, until: effect.value };
 			else if (effect.is(markFilledEffect)) {
 				next = { ...next, filled: [...next.filled, effect.value] };
 			}
@@ -132,8 +157,17 @@ function stampableBefore(state: EditorState, number: number): Line | undefined {
 }
 
 export interface LyricSyncOptions {
-	/** Where the audio is, or undefined when nothing is attached. */
-	currentTime(): number | undefined;
+	/**
+	 * One reading of the transport, or undefined when nothing is attached.
+	 *
+	 * A tap asks three things at the moment of the press: where the tape is
+	 * (`liveTime()`, the source's own playhead rather than the mirrored readout),
+	 * how fast it is running (the offset is a wall-clock quantity, spent in track
+	 * time), and whether it is running at all — a paused tape still reports its
+	 * parked position, and a tap spent against that would stamp the pause's own
+	 * moment onto the next line, wrong by the length of the pause.
+	 */
+	playback(): { time: number; rate: number; playing: boolean } | undefined;
 	/**
 	 * Put the tape at `time`.
 	 *
@@ -147,10 +181,14 @@ export interface LyricSyncOptions {
 	 * The mode turned on or off, however it happened.
 	 *
 	 * `startAt` is where the audio has to be for the run to line up with the caret
-	 * — 0 for a fresh pass, and the resumed line's own time for a half-timed song.
-	 * It is the editor's answer because the anchors are the editor's.
+	 * — 0 for a fresh pass, the resumed line's own time for a half-timed song, and
+	 * absent when the tape must be left where the user parked it: a
+	 * selection-scoped run with no timed line above the selection has no moment of
+	 * its own to name, and the user's own placement is the only honest answer.
+	 * It is the editor's answer because the anchors are the editor's. `scoped`
+	 * says the run covers a selection rather than the song.
 	 */
-	onChange(active: boolean, startAt?: number): void;
+	onChange(active: boolean, startAt?: number, scoped?: boolean): void;
 	announce(message: string): void;
 	/**
 	 * Something happened in the run that the user has to be able to *see*.
@@ -358,21 +396,62 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 		const sync = view.state.field(lyricSyncField);
 		if (!sync.active) return false;
 
-		const time = options.currentTime();
-		if (time === undefined || !Number.isFinite(time)) {
+		const reading = options.playback();
+		if (reading === undefined || !Number.isFinite(reading.time)) {
 			return end(view, options, 'Sync stopped: the audio was detached.');
 		}
+
+		// **A tap against a paused tape is refused, and the run holds.** The
+		// transcription loop is listen, pause, think — and the transport keys are
+		// bound to the window, so the tape can be stopped mid-run without the mode
+		// ending. What a pause must not do is take taps: `liveTime()` goes on
+		// reporting wherever the tape was parked, so a tap spent there would write
+		// the pause's own moment onto the next line — wrong by however long the
+		// pause lasted, with nothing on screen saying so, which is the automatic
+		// stamp's failure arriving through `F8`. Refusing changes nothing visible
+		// at all, so the sentence goes out on both channels: `announce` for the
+		// live region, `notify` for a toast, because either alone loses an
+		// audience. The key is still claimed — `Space` belongs to the run, paused
+		// or not, and must not fall through to the document.
+		if (!reading.playing) {
+			const message = 'Sync is paused. Press play to keep tapping.';
+			options.announce(message);
+			options.notify(message);
+			return true;
+		}
+		const time = reading.time;
 
 		const caret = view.state.doc.lineAt(view.state.selection.main.head);
 		const line = sync.armed ? stampableFrom(view.state, caret.number + 1) : caret;
 		if (!line) return end(view, options, 'Every line is timed. Sync finished.');
 
-		const at = Math.max(0, time - tapOffsetSeconds);
+		// The offset is a hand's wall-clock lateness, so what it costs in track
+		// time scales with how fast the track is moving under that hand.
+		const at = Math.max(0, time - tapOffsetSeconds * reading.rate);
 		// A section this run has already filled taps like any other: the user went
 		// back to it on purpose, and writing it again would be the shortcut taking
 		// the correction away from them.
 		const candidate = linkedFill(view.state, line, at, sync.filled);
-		const fill = candidate && !sync.filled.includes(candidate.header) ? candidate : undefined;
+		let fill = candidate && !sync.filled.includes(candidate.header) ? candidate : undefined;
+		// A scoped run stops the fill at its own boundary, exactly as the fill
+		// already stops at a peer's first gap: the user selected these lines and no
+		// others, and a shortcut that dated lines outside the selection would break
+		// the one promise the scope makes. Truncated rather than refused, so a
+		// whole linked chorus selected at once still times itself in one tap.
+		if (fill && sync.until !== undefined) {
+			const boundary = sync.until;
+			const kept = fill.anchors.filter((anchor) => anchor.pos <= boundary);
+			if (kept.length === 0) fill = undefined;
+			else if (kept.length < fill.anchors.length) {
+				const lastKept = kept[kept.length - 1]!;
+				fill = {
+					...fill,
+					anchors: kept,
+					last: view.state.doc.lineAt(lastKept.pos),
+					lastTime: lastKept.time
+				};
+			}
+		}
 		const landed = fill?.last ?? line;
 
 		view.dispatch({
@@ -400,7 +479,7 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 				// the two are read against each other.
 				//
 				// So the tap publishes the reading it already has. This is not a guessed
-				// position — `currentTime()` is `liveTime()`, the source's own playhead
+				// position — `playback().time` is `liveTime()`, the source's own playhead
 				// read at the moment of the press, which is strictly fresher than the
 				// mirror it replaces, and the next tick can only confirm it.
 				//
@@ -408,11 +487,16 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 				// below is issued in this same synchronous block: published live, the wash
 				// would land on the section's first line while the caret sat on its last,
 				// and the follow listener would scroll to one and then the other.
-				setPlayheadEffect.of(fill?.lastTime ?? time)
+				setPlayheadEffect.of(fill?.lastTime ?? time),
+				// A scoped run nudges nearest-edge instead of holding a reading line —
+				// nothing moves while the landed line is visible, which it is in every
+				// selection short of a viewport, and a taller one still keeps its
+				// caret on screen.
+				...(sync.until !== undefined ? [EditorView.scrollIntoView(landed.from)] : [])
 			],
 			selection: { anchor: landed.from }
 		});
-		holdReadingLine(view, landed.from);
+		if (sync.until === undefined) holdReadingLine(view, landed.from);
 
 		if (fill) {
 			// The tape goes where the caret went. A run is one pass over the document
@@ -427,12 +511,14 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 
 		// Nothing left to time, so the run is over — and it ends here rather than on
 		// a further tap, because a press that only stopped the mode would be a press
-		// the user made expecting to time something.
-		if (!stampableFrom(view.state, landed.number + 1)) {
+		// the user made expecting to time something. A scoped run's "nothing left"
+		// is the selection's own last line, timed just now.
+		const scopeDone = sync.until !== undefined && landed.from >= sync.until;
+		if (scopeDone || !stampableFrom(view.state, landed.number + 1)) {
 			return end(
 				view,
 				options,
-				`Last line timed at ${formatAnchorTime(fill?.lastTime ?? time)}. Sync finished.`
+				`Last ${scopeDone ? 'selected ' : ''}line timed at ${formatAnchorTime(fill?.lastTime ?? time)}. Sync finished.`
 			);
 		}
 		return true;
@@ -473,10 +559,14 @@ function stepBack(options: LyricSyncOptions) {
 		const previous = stampableBefore(view.state, line.number - 1);
 		const resumeAt = previous ? anchorTimeAt(view.state, previous.from) : undefined;
 		view.dispatch({
-			effects: [clearLineAnchorEffect.of({ pos: line.from }), armEffect.of(previous !== undefined)],
+			effects: [
+				clearLineAnchorEffect.of({ pos: line.from }),
+				armEffect.of(previous !== undefined),
+				...(previous && sync.until !== undefined ? [EditorView.scrollIntoView(previous.from)] : [])
+			],
 			...(previous ? { selection: { anchor: previous.from } } : {})
 		});
-		if (previous) holdReadingLine(view, previous.from);
+		if (previous && sync.until === undefined) holdReadingLine(view, previous.from);
 		if (resumeAt !== undefined) options.onSeek(resumeAt);
 		return true;
 	};
@@ -498,9 +588,14 @@ function stepBack(options: LyricSyncOptions) {
  * broken, which is the failure `availableRates` exists to prevent.
  */
 export function lyricSyncSkipTarget(state: EditorState): { line: Line; time: number } | undefined {
+	// A scoped run's skip may not reach past its own boundary — the strip hides
+	// the control for those runs, and this is the same refusal kept where the
+	// command lives, so a caller that never learned about scopes cannot jump one.
+	const until = state.field(lyricSyncField, false)?.until;
 	const caret = state.doc.lineAt(state.selection.main.head);
 	for (let candidate = caret.number; candidate <= state.doc.lines; candidate += 1) {
 		const line = state.doc.line(candidate);
+		if (until !== undefined && line.from > until) return undefined;
 		if (!isStampableLine(line)) continue;
 		if (anchorTimeAt(state, line.from) !== undefined) continue;
 		// The first untimed stampable line at or after the caret. Everything
@@ -596,16 +691,32 @@ export function syncMoveTo(view: EditorView, pos: number): boolean {
 		// before the tape is playing. Re-timing one line is `Ctrl-Alt-M` and the
 		// column's own ± pair; stepping back onto one is `Backspace`, which clears the
 		// anchor first and seeks to the line *before* it, so there is a run-up.
-		effects: armEffect.of(true),
+		effects: [
+			armEffect.of(true),
+			...(sync.until !== undefined ? [EditorView.scrollIntoView(line.from)] : [])
+		],
 		selection: { anchor: line.from }
 	});
-	holdReadingLine(view, line.from);
+	if (sync.until === undefined) holdReadingLine(view, line.from);
 	return true;
 }
 
 export function lyricSync(options: LyricSyncOptions): Extension {
 	return [
 		lyricSyncField,
+		// **A scoped run does not scroll, and that includes the playhead follow.**
+		// The reading-line hold exists for a pass over the whole song, where the
+		// caret descends out of view; a scoped run's lines were on screen when the
+		// user selected them, so pulling the document to a reading position on
+		// entry — or on every playhead crossing while the run plays through its
+		// few lines — is a jump nobody asked for, right after they carefully put
+		// a selection where they were looking. The run's own moves use a
+		// nearest-edge nudge instead, which scrolls nothing while the line is
+		// visible; this facet is what stands the follow listener down.
+		suppressPlayheadFollow.compute([lyricSyncField], (state) => {
+			const sync = state.field(lyricSyncField);
+			return sync.active && sync.until !== undefined;
+		}),
 		// **Typing ends the run, and the character lands where it was typed.**
 		//
 		// The mode used to hold the document `EditorState.readOnly`, on the
@@ -687,16 +798,24 @@ export function lyricSync(options: LyricSyncOptions): Extension {
 			// Where the tape has to start, decided here rather than in the shell,
 			// because the anchors are the editor's and this is the one moment their
 			// answer matters to anyone else. `armed` on entry means exactly one
-			// thing: the run resumed onto a line that already has a time, so that is
-			// the moment to play from.
+			// thing: the run begins on a line that already has a time — a resumed
+			// pass, or a scoped run entering with a run-up — so that is the moment
+			// to play from. A scoped run with no such line names no moment at all:
+			// the tape stays where the user parked it, which is the only position
+			// anybody deliberately chose.
+			const scoped = state.until !== undefined;
 			const resumeAt = state.armed
 				? anchorTimeAt(update.state, update.state.selection.main.head)
 				: undefined;
-			options.onChange(true, resumeAt ?? 0);
+			options.onChange(true, resumeAt ?? (scoped ? undefined : 0), scoped);
 			options.announce(
-				resumeAt === undefined
-					? 'Sync started from the top.'
-					: `Sync resumed at ${formatAnchorTime(resumeAt)}.`
+				scoped
+					? resumeAt === undefined
+						? 'Syncing the selection. The tape is where you left it.'
+						: `Syncing the selection from ${formatAnchorTime(resumeAt)}.`
+					: resumeAt === undefined
+						? 'Sync started from the top.'
+						: `Sync resumed at ${formatAnchorTime(resumeAt)}.`
 			);
 		}),
 		EditorView.editorAttributes.of((view) =>
@@ -740,6 +859,38 @@ function runStart(state: EditorState): { line: Line | undefined; armed: boolean 
 }
 
 /**
+ * The lines a selection would scope a run to, if it names any.
+ *
+ * A selection is the one gesture that deliberately names a region — a caret is
+ * parked somewhere after every interaction and carries no intent, which is why
+ * the caret was refused this job. The scope is the stampable lines the
+ * selection touches: headers and blanks inside it are skipped exactly as a
+ * full pass skips them, and a selection touching none falls back to an
+ * ordinary run, which is also what the strip's label promised in that state —
+ * both read the same `isLyricLine` underneath, so the two cannot drift.
+ *
+ * A selection ending exactly at a line's start does not include that line:
+ * sweeping over two whole lines routinely lands the head on the third's first
+ * character, and timing a line nobody swept over would be the run guessing.
+ */
+function selectionScope(state: EditorState): { first: Line; last: Line } | undefined {
+	const range = state.selection.main;
+	if (range.empty) return undefined;
+	const firstNumber = state.doc.lineAt(range.from).number;
+	let lastNumber = state.doc.lineAt(range.to).number;
+	if (lastNumber > firstNumber && range.to === state.doc.line(lastNumber).from) lastNumber -= 1;
+	let first: Line | undefined;
+	let last: Line | undefined;
+	for (let number = firstNumber; number <= lastNumber; number += 1) {
+		const line = state.doc.line(number);
+		if (!isStampableLine(line)) continue;
+		first ??= line;
+		last = line;
+	}
+	return first && last ? { first, last } : undefined;
+}
+
+/**
  * Turn the mode on or off from outside.
  *
  * The caret and the tape have to begin in the same place — a run is one pass over
@@ -752,6 +903,42 @@ export function setLyricSync(view: EditorView, active: boolean): void {
 	if (active === lyricSyncActive(view.state)) return;
 	if (!active) {
 		view.dispatch({ effects: setLyricSyncEffect.of(false) });
+		return;
+	}
+
+	// A standing selection scopes the run to its own lines: the first tap times
+	// the selection's first line, and timing its last ends the run. Where the
+	// stampable line directly above the selection already has a time, the run
+	// enters resume-style — caret on that line, armed, tape sent to its anchor —
+	// so there is a whole line of run-up to tap against, exactly as a resumed
+	// pass gives itself. Where it has none, the run starts disarmed on the
+	// selection's first line and the tape is left alone (see `onChange`):
+	// wherever the user parked it is the only position anybody chose, and the
+	// worst a badly parked tape costs is waiting, never a wrong anchor — a tap
+	// stamps `liveTime()`, so it is true whenever it is made. Entering collapses
+	// the selection, which is also what consumed it: the run is its answer.
+	const scope = selectionScope(view.state);
+	if (scope) {
+		const before = stampableBefore(view.state, scope.first.number - 1);
+		const runup =
+			before && anchorTimeAt(view.state, before.from) !== undefined ? before : undefined;
+		const start = runup ?? scope.first;
+		view.dispatch({
+			// Order matters twice here: `setLyricSyncEffect` disarms and drops the
+			// scope as it enters, so both the scope and any arming have to follow it.
+			// No reading-line hold on the way in — the selection was on screen when
+			// the user made it, and entry throwing the document to a reading
+			// position is the scroll this mode has no use for. The nearest-edge
+			// nudge moves nothing while the start line is visible and covers the one
+			// case it is not: a run-up line sitting just above the fold.
+			effects: [
+				setLyricSyncEffect.of(true),
+				scopeEffect.of(scope.last.from),
+				...(runup ? [armEffect.of(true)] : []),
+				EditorView.scrollIntoView(start.from)
+			],
+			selection: { anchor: start.from }
+		});
 		return;
 	}
 

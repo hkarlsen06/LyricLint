@@ -1609,6 +1609,86 @@ when the command returns _false_, so it swallows the space bar, backspace and th
 editor that is not syncing, which is to say almost always. Returning true already prevents the
 default, and returning false is exactly the case that must not. This cost a green suite once.
 
+**Pausing holds the run, and a tap against a paused tape is refused out loud.** The transcription
+loop is listen, pause, type, and the transport keys are bound to the window — so the tape can be
+stopped in the middle of a run, and stopping it must not end a mode the user is coming back to.
+What it must also not do is take taps: `liveTime()` goes on reporting wherever the tape was
+parked, so a tap spent there writes the pause's own moment onto the next line — wrong by the
+length of the pause, with nothing on screen saying so, which is the automatic stamp's failure
+arriving through `F8`. The refusal changes nothing visible either, so the sentence goes out on
+both channels (`announce` and `notify`, the split `report` in `editor-session` makes), the key is
+still claimed — `Space` belongs to the run, paused or not — and the run stays armed exactly where
+it was. Resuming is the transport's ordinary resume, two-second run-in included, which is the
+run-up a rhythm is re-entered on. The tap reads the tape through `onRequestMediaPlayback` — one
+reading carrying the position, the rate, and whether it is running, taken at the moment of the
+press for `liveTime()`'s own reason — and a shell that wires only `onRequestMediaTime` is read as
+playing at 1×, which is the behaviour taps always had. `playing` is the player's intent-inclusive
+answer, so a tap made while a queued start is still settling counts as one the user meant.
+
+**And while a run is under way, a bare space is the tap from anywhere short of a surface that
+types or presses with it.** The transport binds bare space to play/pause at the window level and
+defers to every input — so the moment focus left the editor, the run's one key paused the tape
+instead of timing a line. And mid-run is exactly when focus leaves the editor, because the
+scrubber is where a scoped run's own design sends the user to park the tape. The tap outranks the
+toggle in `bindTransportShortcuts` (the `tap` hook, asked before `matchTransportAction`), and it
+deliberately claims **more** than the toggle defers to: a range input neither types nor presses on
+space, so a space on the scrubber taps, while the draft's name, every real control, and the
+editor's own `contenteditable` keep theirs — the run's keymap stays the only handler of a space
+landing in the document, so the one keystroke never grows a second implementation. A held space is
+dropped exactly as the toggle's repeat is, or it would machine-gun anchors down the document. The
+shell's hook declines while no run is on, which leaves the space bar meaning what it always meant.
+
+**A selection scopes a run, and the strip's control says so before the press.** A transcriber who
+wants only the chorus timed — or a botched bridge re-timed — selects those lines, and the control
+reads `Sync selection`: the first tap times the selection's first line, timing its last ends the
+run exactly as running off the document does, and entering collapses the selection, which is also
+what consumed it. The selection is the gate because it is the one gesture that deliberately names
+a region; the **caret was considered for this job and refused**, because a caret is parked
+somewhere after every interaction and carries no intent — read at entry it starts the
+first-time syncer's run on whatever line typing left it, and every repair (a churning label, a
+silent announcement, a sensibleness predicate) costs more than the selection it stands in for.
+Seven things the scope owes:
+
+- **The label outranks `Lyrics synced`**, because selected lines over a fully timed song are a
+  request to re-time exactly those — and it changes _before_ the press, since the scope is decided
+  at entry and a label that only changed afterwards would be a control doing something it never
+  offered. The shell's predicate (`selectionCoversLyricLine` in `wiring.ts`) and the editor's own
+  entry (`selectionScope`) both come down to `isLyricLine` over the lines the selection touches,
+  which is what keeps the two from drifting; a selection touching no lyric line falls back to the
+  ordinary pass, which is also what the label promised in that state. A selection ending exactly
+  at a line's start does not include that line — sweeping two whole lines routinely lands the head
+  on the third's first character, and a run must not time a line nobody swept over.
+- **Where the stampable line directly above the selection is timed, the run enters resume-style** —
+  caret on that line, armed, tape sent to its anchor — so there is a whole line of run-up to tap
+  against, exactly as a resumed pass gives itself.
+- **Where it is not, the tape is left alone.** The run has no moment of its own to name, and
+  wherever the user parked the tape is the only position anybody chose — the worst a badly parked
+  tape costs is waiting, never a wrong anchor, because a tap stamps `liveTime()` and is true
+  whenever it is made. The contract carries this as an **absent `startAt`** on
+  `onLyricSyncChange`, which is why the shell seeks only when one is named and why
+  `MockEditorPane` passes `0` explicitly — a mock that passed nothing would read as "leave the
+  tape", the opposite of the fresh pass it models.
+- **The boundary is `until` on the sync field**, the last selected stampable line's start — a bare
+  offset for `filled`'s reason: a document change ends the run and clears it.
+- **The linked fill truncates at the boundary**, exactly as it already stops at a peer's first
+  gap: a shortcut that dated lines outside the selection would break the one promise the scope
+  makes. Truncated rather than refused, so a whole linked chorus selected at once still times
+  itself in one tap.
+- **The skip is withheld** (`scoped` on `onLyricSyncChange`): it is a jump measured against the
+  whole document, and inside a selection's few lines it would be a control that mostly refuses —
+  `lyricSyncSkipTarget` also refuses past the boundary itself, so a caller that never learned
+  about scopes cannot jump one.
+- **A scoped run does not scroll — not on entry, not on the playhead follow, not on a tap.** The
+  reading-line hold exists for a pass over the whole song, where the caret descends out of view; a
+  scoped run's lines were on screen when the user selected them, and the document jumping to a
+  reading position right after they carefully put a selection where they were looking is a jump
+  nobody asked for. Entry, the taps and the step back use a nearest-edge nudge instead, which
+  moves nothing while the line is visible and covers the one case it is not; the playhead follow
+  stands down for the length of the run through `suppressPlayheadFollow` in `line-anchors.ts` — a
+  facet rather than a read of the sync field, because the imports point the other way and asking
+  directly would close a cycle. The user's own follow toggle is untouched: the facet is a second
+  gate beside `followPlayheadField`, never a write to it.
+
 **A finger has no `Space`, so the tap is also a control.** While a run is under way the strip's
 name slot becomes `Tap each line`, which is the run's instruction and the thing you press at once —
 and on a phone it is the only way to drive a run at all. Three things about it:
@@ -1699,6 +1779,13 @@ The rest is five decisions:
   seeking, it is a second constant spent at the four places that seek to an anchor** — the timestamp
   press, the line-number press, `Ctrl-Alt-Enter` and `stepBack` — rather than this one growing back.
   An anchor is a claim about when a line started, and the follow is only honest while it stays one.
+
+  **And it is a wall-clock quantity, spent in track time by multiplying by the playback rate.** The
+  lateness it compensates belongs to a hand, and a hand is no later at 0.5× — but the tape moves
+  half as far during it, so the fixed 50ms over-corrected every anchor written at a slowed rate and
+  stamped them early. Slowing the tape is the sanctioned way to tap a fast song — the sync
+  control's idle tooltip says so, because nothing else on screen connects the two controls — which
+  makes the practice rate the case this arithmetic most owes, not a corner of it.
 
 - **The stamp and the advance are one transaction.** One press has to be one undo, and a selection
   change and an effect go in one dispatch.
@@ -1821,7 +1908,12 @@ The editor owns the mode and the shell reacts (`onLyricSyncChange`), which is wh
 and the mode from disagreeing: `Escape` and the end of the document both end a run without the shell
 being asked, and both arrive through that one hook. The shell answers by playing or pausing, and by
 focusing the editor on entry — the tap is a keystroke, so a run cannot start with focus in the
-button that started it.
+button that started it. **That focus is deferred one frame**, because the hook fires synchronously
+inside the press that turned the mode on: the click's own default processing and the re-render the
+state flip schedules both run after a synchronous call, and either can take the focus straight
+back. Left synchronous, a run started with focus on the scrubber — where a scoped run's own design
+just had the user parking the tape — came up with the space bar answering nothing, and the repair
+was re-clicking the very line the entry had already selected.
 
 Implementation: `src/lib/editor/extensions/lyric-sync.ts` (`linkedFill` and `syncMoveTo` are the
 repeat's half of it), `linkedPeerHeaders` and `linePairingLimits` in `extensions/section-links.ts`,

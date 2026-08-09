@@ -22,10 +22,16 @@ async function mount(options: {
 	selection?: { anchor: number; head: number };
 	/** What the shell's audio would answer, or undefined for "nothing attached". */
 	mediaTime?: () => number | undefined;
+	/** The transport's playback rate, 1 unless a test says otherwise. */
+	mediaRate?: () => number;
+	/** Whether the tape is running, true unless a test pauses it. */
+	mediaPlaying?: () => boolean;
+	/** Mirror the shell: focus the editor when a run starts, as `Workspace` does. */
+	focusEditorOnSync?: boolean;
 }): Promise<{
 	handle: EditorHandle;
 	seek: ReturnType<typeof vi.fn>;
-	syncChanges: { active: boolean; startAt?: number }[];
+	syncChanges: { active: boolean; startAt?: number; scoped?: boolean }[];
 	announcements: string[];
 	/** What the shell would have drawn as a toast. */
 	notices: string[];
@@ -34,7 +40,7 @@ async function mount(options: {
 	let handle: EditorHandle | undefined;
 	const seek = vi.fn();
 	const anchorsChanged = vi.fn();
-	const syncChanges: { active: boolean; startAt?: number }[] = [];
+	const syncChanges: { active: boolean; startAt?: number; scoped?: boolean }[] = [];
 	const announcements: string[] = [];
 	const notices: string[] = [];
 	const callbacks: LyricEditorCallbacks = {
@@ -44,9 +50,26 @@ async function mount(options: {
 		onDiagnosticActivate: vi.fn(),
 		onAnnouncement: (message: string) => void announcements.push(message),
 		onRequestMediaTime: options.mediaTime ?? (() => undefined),
+		// The tap's own hook, derived from the same time so the two cannot
+		// disagree about whether audio is attached.
+		onRequestMediaPlayback: () => {
+			const time = options.mediaTime?.();
+			if (time === undefined) return undefined;
+			return {
+				time,
+				rate: options.mediaRate?.() ?? 1,
+				playing: options.mediaPlaying?.() ?? true
+			};
+		},
 		onSeekMedia: seek,
-		onLyricSyncChange: (active: boolean, startAt?: number) =>
-			void syncChanges.push({ active, startAt }),
+		onLyricSyncChange: (active: boolean, startAt?: number, scoped?: boolean) => {
+			syncChanges.push({ active, startAt, scoped });
+			// Deferred a frame exactly as the shell defers it, so this drives the
+			// call with the timing it really has.
+			if (active && options.focusEditorOnSync) {
+				requestAnimationFrame(() => handle?.focus());
+			}
+		},
 		onLyricSyncNotice: (message: string) => void notices.push(message),
 		onLineAnchorsChanged: anchorsChanged
 	};
@@ -797,6 +820,53 @@ describe('following the playhead', () => {
 		});
 	});
 
+	// A scoped run does not scroll — not on entry, not on the playhead follow,
+	// not on a tap. The reading-line hold exists for a pass over the whole song,
+	// where the caret descends out of view; a scoped run's lines were on screen
+	// when the user selected them, and the document jumping to a reading
+	// position right after they carefully put a selection where they were
+	// looking is a jump nobody asked for. The follow stands down through the
+	// `suppressPlayheadFollow` facet, and the run's own moves are a nearest-edge
+	// nudge, which scrolls nothing while the line is visible.
+	it('holds the document still through a scoped run', async () => {
+		const long = ['[Verse 1]', ...Array.from({ length: 60 }, (_, i) => `line ${i + 1}`)].join('\n');
+		const { handle } = await mount({ text: long, mediaTime: () => 30 });
+		// Timed lines far below the viewport, so the follow would have somewhere
+		// dramatic to go when the playhead crosses them — the top-of-document clamp
+		// must not be what passes this test.
+		handle.setLineAnchors?.([
+			{ line: 41, time: 1 },
+			{ line: 42, time: 2 }
+		]);
+
+		const pane = document.querySelector<HTMLElement>('.editor-pane')!;
+		pane.style.height = '300px';
+		const scroller = document.querySelector<HTMLElement>('.cm-scroller')!;
+		await vi.waitFor(() => {
+			if (scroller.clientHeight < 200) throw new Error('the pane has no height yet');
+		});
+		handle.setMediaPlayhead?.(0.5);
+
+		// Two visible lines low enough in the viewport that the reading-line hold
+		// would have pulled them up on entry.
+		const from = long.indexOf('line 10');
+		handle.setSelection({ anchor: from, head: long.indexOf('line 11') + 'line 11'.length });
+		handle.setLyricSync?.(true);
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		expect(scroller.scrollTop).toBe(0);
+
+		// The playhead crossing a marked line is the follow's own trigger, and the
+		// marked lines sit forty rows down — suppressed, nothing moves.
+		handle.setMediaPlayhead?.(1.5);
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		expect(scroller.scrollTop).toBe(0);
+
+		// A tap lands on a visible line, so the nearest-edge nudge moves nothing.
+		handle.tapLyricSync?.();
+		await new Promise((resolve) => setTimeout(resolve, 500));
+		expect(scroller.scrollTop).toBe(0);
+	});
+
 	// Typing is not the playhead moving. `currentFrom` is an offset, so an edit
 	// above the marked line shifts it — and the follow used to read that raw
 	// difference as the mark crossing onto another line, so any keystroke hauled
@@ -907,7 +977,7 @@ describe('sync mode', () => {
 
 		handle.setLyricSync?.(true);
 
-		expect(syncChanges).toEqual([{ active: true, startAt: 0 }]);
+		expect(syncChanges).toEqual([{ active: true, startAt: 0, scoped: false }]);
 		// Line 2, not line 1 — the top of a lyric is usually a section header, and a
 		// tap spent on one is a tap thrown away.
 		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
@@ -971,6 +1041,216 @@ describe('sync mode', () => {
 		handle.tapLyricSync?.();
 
 		expect(handle.getLineAnchors?.() ?? []).toEqual([]);
+	});
+
+	// The tap offset is a wall-clock fact about a hand, so what it costs in track
+	// time scales with the playback rate: at 0.5× the tape moves half as far
+	// during the same human lateness, and a fixed 50ms would stamp every anchor
+	// written at a practice rate early. Slowing the tape down is exactly what a
+	// transcriber does when the lines come too fast, so the practice rate is where
+	// a run's accuracy matters most.
+	it('scales the tap offset by the playback rate', async () => {
+		const { handle } = await mount({
+			text: song,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => 30,
+			mediaRate: () => 0.5
+		});
+		handle.setLyricSync?.(true);
+
+		handle.tapLyricSync?.();
+
+		const [anchor] = handle.getLineAnchors?.() ?? [];
+		expect(anchor?.time).toBeCloseTo(30 - tapOffsetSeconds * 0.5, 5);
+	});
+
+	// Pausing holds the run rather than ending it — the transcription loop is
+	// listen, pause, think, and the transport keys are bound to the window — and a
+	// tap made against the parked tape is refused out loud instead of spent. Spent,
+	// it would write the pause's own moment onto the next line, wrong by the length
+	// of the pause with nothing on screen saying so. Refusing changes nothing
+	// visible either, so the sentence goes out on both channels.
+	it('refuses a tap while the tape is paused and keeps the run armed', async () => {
+		let time = 30;
+		let playing = true;
+		const { handle, syncChanges, announcements, notices } = await mount({
+			text: song,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => time,
+			mediaPlaying: () => playing
+		});
+		handle.setLyricSync?.(true);
+
+		handle.tapLyricSync?.();
+		playing = false;
+		handle.tapLyricSync?.();
+
+		// The refused tap wrote nothing and moved nothing.
+		expect(handle.getLineAnchors?.() ?? []).toHaveLength(1);
+		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
+		expect(announcements.at(-1)).toBe('Sync is paused. Press play to keep tapping.');
+		expect(notices.at(-1)).toBe('Sync is paused. Press play to keep tapping.');
+		// And the mode never turned off: nothing reported an exit to the shell.
+		expect(syncChanges.every((change) => change.active)).toBe(true);
+
+		// Resuming needs no re-entry — the next tap is an ordinary tap, advancing
+		// onto the next line exactly as if the pause had never happened.
+		playing = true;
+		time = 42;
+		handle.tapLyricSync?.();
+		const anchors = handle.getLineAnchors?.() ?? [];
+		expect(anchors.map((anchor) => anchor.line)).toEqual([2, 5]);
+		expect(anchors[1]?.time).toBeCloseTo(42 - tapOffsetSeconds, 5);
+	});
+
+	// A selection scopes a run: entering collapses it, the first tap times the
+	// selection's first line, and timing its last ends the run — the selection is
+	// the one gesture that deliberately names a region, so the run covers it and
+	// nothing else. With no timed line above it the editor names no start moment
+	// at all (`startAt` undefined), because wherever the user parked the tape is
+	// the only position anybody chose — and a tap stamps `liveTime()`, so it is
+	// true whenever it is made.
+	it('scopes a run to the selection and finishes on its last line', async () => {
+		const verse = ['[Verse 1]', 'first line', 'second line', '', '[Chorus]', 'third line'].join(
+			'\n'
+		);
+		const from = verse.indexOf('first line');
+		const { handle, syncChanges, announcements } = await mount({
+			text: verse,
+			selection: { anchor: from, head: verse.indexOf('second line') + 'second line'.length },
+			mediaTime: () => 30
+		});
+
+		handle.setLyricSync?.(true);
+
+		expect(syncChanges.at(-1)).toEqual({ active: true, startAt: undefined, scoped: true });
+		expect(handle.getSnapshot().selection.head).toBe(from);
+		expect(announcements.at(-1)).toBe('Syncing the selection. The tape is where you left it.');
+
+		handle.tapLyricSync?.();
+		handle.tapLyricSync?.();
+
+		// Both selected lines are timed, the chorus line is not this run's to
+		// time, and the run said so on its way out.
+		const anchors = handle.getLineAnchors?.() ?? [];
+		expect(anchors.map((anchor) => anchor.line)).toEqual([2, 3]);
+		expect(syncChanges.at(-1)?.active).toBe(false);
+		expect(announcements.at(-1)).toContain('Last selected line timed');
+	});
+
+	// Where the stampable line directly above the selection already has a time,
+	// a scoped run enters resume-style — caret on that line, armed, tape sent to
+	// its anchor — so there is a whole line of run-up to tap against, exactly as
+	// a resumed pass gives itself.
+	it('enters a scoped run with a run-up from the timed line above the selection', async () => {
+		const verse = ['[Verse 1]', 'first line', 'second line', 'third line'].join('\n');
+		const { handle, syncChanges } = await mount({ text: verse, mediaTime: () => 50 });
+		handle.setLineAnchors?.([{ line: 2, time: 12 }]);
+		const from = verse.indexOf('second line');
+		handle.setSelection({ anchor: from, head: from + 'second line'.length });
+
+		handle.setLyricSync?.(true);
+
+		expect(syncChanges.at(-1)).toEqual({ active: true, startAt: 12, scoped: true });
+		expect(handle.getSnapshot().selection.head).toBe(verse.indexOf('first line'));
+
+		// The first tap advances off the run-up line and times the selection's own
+		// first line, which is what the arming is for — and that line is also the
+		// selection's last, so the run is done.
+		handle.tapLyricSync?.();
+		expect((handle.getLineAnchors?.() ?? []).map((anchor) => anchor.line)).toEqual([2, 3]);
+		expect(syncChanges.at(-1)?.active).toBe(false);
+	});
+
+	// The run's first tap is a keystroke, so entry must leave the editor holding
+	// focus even when the press that started the run was made with focus parked
+	// somewhere else — on the scrubber the user just aimed, most likely, since
+	// parking the tape is exactly what a scoped run's own design tells them to
+	// do. The shell focuses on entry; this drives that call from where it really
+	// runs, inside the dispatch that turned the mode on.
+	it('taps from the keyboard immediately after a scoped entry made with focus elsewhere', async () => {
+		const verse = ['[Verse 1]', 'first line', 'second line'].join('\n');
+		const from = verse.indexOf('first line');
+		const { handle } = await mount({
+			text: verse,
+			selection: { anchor: from, head: verse.length },
+			mediaTime: () => 30,
+			focusEditorOnSync: true
+		});
+		const outside = document.createElement('button');
+		document.body.append(outside);
+		try {
+			outside.focus();
+			expect(document.activeElement).toBe(outside);
+
+			handle.setLyricSync?.(true);
+			// The shell's focus lands one frame after the press has played out.
+			await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
+			await userEvent.keyboard(' ');
+
+			const anchors = handle.getLineAnchors?.() ?? [];
+			expect(anchors.map((anchor) => anchor.line)).toEqual([2]);
+		} finally {
+			outside.remove();
+		}
+	});
+
+	// A selection touching no lyric line at all is not a scope: the press falls
+	// back to the ordinary pass, which is also what the strip's label promised in
+	// that state — both read the same `isLyricLine` underneath.
+	it('falls back to a full pass when the selection covers no lyric line', async () => {
+		const { handle, syncChanges } = await mount({
+			text: song,
+			selection: { anchor: 0, head: '[Verse 1]'.length },
+			mediaTime: () => 30
+		});
+
+		handle.setLyricSync?.(true);
+
+		expect(syncChanges.at(-1)).toEqual({ active: true, startAt: 0, scoped: false });
+		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('first line'));
+	});
+
+	// A scoped run stops the linked fill at its own boundary, exactly as the fill
+	// already stops at a peer's first gap: the user selected these lines and no
+	// others, and a shortcut that dated lines outside the selection would break
+	// the one promise the scope makes. Truncated rather than refused, so the
+	// selected part of the copy still times itself in one tap.
+	it('truncates a linked fill at the selection boundary', async () => {
+		const doc = [
+			'[Chorus]',
+			'Hold on tight',
+			'Never let go',
+			'Stay with me',
+			'',
+			'[Chorus 2]',
+			'Hold on tight',
+			'Never let go',
+			'Stay with me'
+		].join('\n');
+		const { handle, notices, syncChanges } = await mount({ text: doc, mediaTime: () => 60 });
+		handle.linkSections?.({ headers: [doc.indexOf('[Chorus]'), doc.indexOf('[Chorus 2]')] });
+		handle.setLineAnchors?.([
+			{ line: 2, time: 10 },
+			{ line: 3, time: 13 },
+			{ line: 4, time: 16 }
+		]);
+		// The second chorus's first two lines only.
+		const from = doc.lastIndexOf('Hold on tight');
+		handle.setSelection({
+			anchor: from,
+			head: doc.lastIndexOf('Never let go') + 'Never let go'.length
+		});
+		handle.setLyricSync?.(true);
+
+		handle.tapLyricSync?.();
+
+		// The tap timed line 7, the fill dated line 8 from the peer's interval and
+		// stopped there — line 9 is outside the selection and stays untimed — and
+		// landing on the boundary ended the run.
+		expect((handle.getLineAnchors?.() ?? []).map((anchor) => anchor.line)).toEqual([2, 3, 4, 7, 8]);
+		expect(notices.at(-1)).toContain('2 lines');
+		expect(syncChanges.at(-1)?.active).toBe(false);
 	});
 
 	// The advance is deferred to the front of the next tap, which is the moment it
@@ -1468,7 +1748,7 @@ describe('sync mode across linked sections', () => {
 		handle.setLyricSync?.(true);
 		// The run resumes on the last line that already has a time, so its first tap
 		// advances onto the repeat exactly as any other tap would.
-		expect(syncChanges.at(-1)).toEqual({ active: true, startAt: 20 });
+		expect(syncChanges.at(-1)).toEqual({ active: true, startAt: 20, scoped: false });
 
 		now = 100;
 		handle.tapLyricSync?.();

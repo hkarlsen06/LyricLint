@@ -1,5 +1,6 @@
 import {
 	EditorState,
+	Facet,
 	MapMode,
 	RangeSet,
 	RangeValue,
@@ -120,6 +121,21 @@ export const followPlayheadField = StateField.define<boolean>({
 		}
 		return next;
 	}
+});
+
+/**
+ * Extensions that need the reading-line follow to stand down contribute true.
+ *
+ * This is not the user's follow toggle — that is `followPlayheadField`, and it
+ * must stay the user's alone. A selection-scoped sync run is the contributor
+ * today: its lines were on screen when the user selected them, and the follow
+ * pulling the document to a reading position mid-run is exactly the scroll
+ * that mode has no use for. A facet rather than a read of the sync field,
+ * because this module is what `lyric-sync.ts` imports from — asking the
+ * question directly would close an import cycle.
+ */
+export const suppressPlayheadFollow = Facet.define<boolean, boolean>({
+	combine: (values) => values.some(Boolean)
 });
 
 interface LineAnchorState {
@@ -913,6 +929,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 		followPlayheadField,
 		EditorView.updateListener.of((update) => {
 			if (!update.state.field(followPlayheadField)) return;
+			if (update.state.facet(suppressPlayheadFollow)) return;
 			const before = update.startState.field(lineAnchorField).currentFrom;
 			const after = update.state.field(lineAnchorField).currentFrom;
 			if (after === undefined) return;

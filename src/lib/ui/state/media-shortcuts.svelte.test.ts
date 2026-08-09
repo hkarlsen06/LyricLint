@@ -177,6 +177,83 @@ describe('bindTransportShortcuts', () => {
 		expect(event.defaultPrevented).toBe(false);
 	});
 
+	// The bare-space toggle answers from the page at large, and a run is on the
+	// page at large the moment the user aims the scrubber — the control a scoped
+	// run's own design sends them to. While a run is under way the tap outranks
+	// the toggle, and it claims the scrubber the toggle defers to; declined, the
+	// space bar means exactly what it meant before.
+	it('taps instead of toggling while a run is under way, the scrubber included', () => {
+		const target = document.createElement('div');
+		const scrubber = document.createElement('input');
+		scrubber.type = 'range';
+		target.append(scrubber);
+		const actions: TransportAction[] = [];
+		let running = false;
+		let taps = 0;
+		bindTransportShortcuts({
+			target,
+			transport: (action) => {
+				actions.push(action);
+				return true;
+			},
+			tap: () => {
+				if (!running) return false;
+				taps += 1;
+				return true;
+			}
+		});
+
+		// No run: the page-level space is the toggle, and the scrubber's own
+		// space belongs to nobody.
+		press(target, { code: 'Space' });
+		press(scrubber, { code: 'Space' });
+		expect(actions).toEqual(['toggle']);
+		expect(taps).toBe(0);
+
+		// A run claims both — the page, and the scrubber the toggle defers to.
+		running = true;
+		const fromPage = press(target, { code: 'Space' });
+		const fromScrubber = press(scrubber, { code: 'Space' });
+		expect(taps).toBe(2);
+		expect(actions).toEqual(['toggle']);
+		expect(fromPage.defaultPrevented).toBe(true);
+		expect(fromScrubber.defaultPrevented).toBe(true);
+	});
+
+	// The two meanings the tap must not take away: a space that types, and a
+	// space that presses. The draft's name is an input, a control activates, and
+	// the editor's own keymap stays the only handler of a space landing in the
+	// document — the run does not grow a second implementation of its own key.
+	it('leaves spaces that type or press to their owners, run or no run', () => {
+		const target = document.createElement('div');
+		const name = document.createElement('input');
+		const button = document.createElement('button');
+		const editor = document.createElement('div');
+		editor.setAttribute('contenteditable', 'true');
+		target.append(name, button, editor);
+		const tap = vi.fn(() => true);
+		bindTransportShortcuts({ target, transport: () => true, tap });
+
+		press(name, { code: 'Space' });
+		press(button, { code: 'Space' });
+		press(editor, { code: 'Space' });
+
+		expect(tap).not.toHaveBeenCalled();
+	});
+
+	// Held down, a repeating space would machine-gun anchors down the document —
+	// the same reason the toggle answers once per press.
+	it('does not repeat a held tap', () => {
+		const target = document.createElement('div');
+		const tap = vi.fn(() => true);
+		bindTransportShortcuts({ target, transport: () => true, tap });
+
+		press(target, { code: 'Space' });
+		press(target, { code: 'Space', repeat: true });
+
+		expect(tap).toHaveBeenCalledOnce();
+	});
+
 	// Held down, a nudge is a scrub worth having; held down, play/pause would start
 	// and stop the track dozens of times and settle wherever the last repeat landed.
 	it('repeats a nudge and does not repeat the pause', () => {

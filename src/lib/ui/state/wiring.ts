@@ -54,6 +54,33 @@ export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]
  * `runStart` — because the strip draws the control from the shell's state, and
  * a handle asked inside a derived would never be re-asked.
  */
+/**
+ * Whether the selection names lines a sync run could be scoped to.
+ *
+ * The strip's control follows this before the press — `Sync selection` over
+ * `Sync lyrics` — so it has to be the same question the editor's own
+ * `selectionScope` answers on entry, and both come down to `isLyricLine` over
+ * the lines the selection touches, which is what keeps the two from drifting.
+ * A selection ending exactly at a line's start does not include that line, for
+ * the editor's own reason: sweeping over two whole lines routinely lands the
+ * head on the third's first character, and a run must not time a line nobody
+ * swept over.
+ */
+export function selectionCoversLyricLine(
+	text: string,
+	selection: { anchor: number; head: number }
+): boolean {
+	const from = Math.min(selection.anchor, selection.head);
+	const to = Math.max(selection.anchor, selection.head);
+	if (from >= to) return false;
+	for (const line of scanPhysicalLines(text)) {
+		if (line.from > to || (line.from === to && line.from > from)) break;
+		if (line.to < from) continue;
+		if (isLyricLine(line.text)) return true;
+	}
+	return false;
+}
+
 export function timedLinesSkippable(
 	text: string,
 	anchors: readonly LineAnchor[],

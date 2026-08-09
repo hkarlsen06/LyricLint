@@ -103,9 +103,12 @@
 		// The real editor owns the mode and reports it back, which is what the
 		// shell reacts to. The mock owes it the same shape: a `setLyricSync` that
 		// swallowed the call would leave the shell's half of the feature — rewind
-		// the song, focus the editor — with no way to be exercised at all.
+		// the song, focus the editor — with no way to be exercised at all. The 0
+		// is load-bearing: the mock holds no anchors and models no scope, so a run
+		// it starts is always a fresh pass from the top, and an absent `startAt`
+		// now means the opposite — leave the tape where it is.
 		setLyricSync(active) {
-			callbacks.onLyricSyncChange?.(active);
+			callbacks.onLyricSyncChange?.(active, active ? 0 : undefined);
 		},
 		// The draft's links are re-seated onto whichever editor mounts, and the
 		// shell reads them straight back to decide whether a `section.unlinked-repeat`

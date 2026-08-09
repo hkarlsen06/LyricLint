@@ -512,6 +512,7 @@ const lyricEditorCallbackKeySet = {
 	onDiagnosticActivateIntent: true,
 	onAudioFileDropped: true,
 	onRequestMediaTime: true,
+	onRequestMediaPlayback: true,
 	onRequestMediaSource: true,
 	onMediaSourcePasted: true,
 	onSeekMedia: true,
@@ -567,13 +568,15 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		// transaction and on every press of a gutter marker, so a callback missing
 		// from here would look exactly like a feature that silently does nothing.
 		onRequestMediaTime: () => read().onRequestMediaTime?.(),
+		onRequestMediaPlayback: () => read().onRequestMediaPlayback?.(),
 		// Same allow-list, same trap, for the clipboard pair: left out of here, a
 		// copy would simply never carry its source and a pasted one would land on
 		// the floor, both without a visible failure anywhere.
 		onRequestMediaSource: () => read().onRequestMediaSource?.(),
 		onMediaSourcePasted: (source) => read().onMediaSourcePasted?.(source),
 		onSeekMedia: (time) => read().onSeekMedia?.(time),
-		onLyricSyncChange: (active, startAt) => read().onLyricSyncChange?.(active, startAt),
+		onLyricSyncChange: (active, startAt, scoped) =>
+			read().onLyricSyncChange?.(active, startAt, scoped),
 		onLyricSyncNotice: (message) => read().onLyricSyncNotice?.(message),
 		onLineAnchorsChanged: () => read().onLineAnchorsChanged?.(),
 		onDiagnosticHighlight: (diagnostic) => read().onDiagnosticHighlight?.(diagnostic),
@@ -630,13 +633,23 @@ export function createLyricEditor(
 	// the handle below — and both have to be the same command over the same
 	// options or a tap and a press would stop meaning the same thing.
 	const syncOptions = {
-		currentTime: () => callbackProxy.onRequestMediaTime?.(),
+		// The triple a tap needs — where the tape is, how fast it runs, and whether
+		// it is running at all. A shell that wires only the plain time is read as
+		// playing at 1×, which is exactly the behaviour taps had before pause and
+		// rate were facts a tap could ask about — so the demo and every older
+		// harness keep working without learning the new hook.
+		playback: () => {
+			const reading = callbackProxy.onRequestMediaPlayback?.();
+			if (reading) return reading;
+			const time = callbackProxy.onRequestMediaTime?.();
+			return time === undefined ? undefined : { time, rate: 1, playing: true };
+		},
 		// The same hook the timestamp column and `Ctrl-Alt-Enter` seek through, so
 		// backing a run up and jumping to a line cannot come to mean different
 		// things about where the tape ends up.
 		onSeek: (time: number) => callbackProxy.onSeekMedia?.(time),
-		onChange: (active: boolean, startAt?: number) =>
-			callbackProxy.onLyricSyncChange?.(active, startAt),
+		onChange: (active: boolean, startAt?: number, scoped?: boolean) =>
+			callbackProxy.onLyricSyncChange?.(active, startAt, scoped),
 		announce: (message: string) => callbackProxy.onAnnouncement(message),
 		// The second audience. `announce` above reaches the `sr-only` region and
 		// nothing else, and a run filling a whole section from a linked peer is the

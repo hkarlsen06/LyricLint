@@ -11,6 +11,7 @@ import {
 	isTypingChange,
 	orderPerformersByAppearance,
 	resolveVoiceGroupRanges,
+	selectionCoversLyricLine,
 	timedLinesSkippable
 } from './wiring.js';
 
@@ -391,5 +392,26 @@ describe('UI wiring', () => {
 				sectioned.indexOf('First')
 			)
 		).toBe(true);
+	});
+
+	// The strip's sync label draws off this answer before the press, so it has to
+	// be the same question the editor's own `selectionScope` asks at entry — both
+	// come down to `isLyricLine` over the lines the selection touches.
+	test('a selection scopes a sync run only where it touches a lyric line', () => {
+		const text = '[Verse 1]\nFirst line\n\nSecond line';
+
+		// Any part of a lyric line qualifies, whichever way the selection ran.
+		const inside = text.indexOf('First') + 2;
+		expect(selectionCoversLyricLine(text, { anchor: inside, head: inside + 3 })).toBe(true);
+		expect(selectionCoversLyricLine(text, { anchor: inside + 3, head: inside })).toBe(true);
+
+		// A collapsed caret is not a selection, and a header alone is not a scope.
+		expect(selectionCoversLyricLine(text, { anchor: inside, head: inside })).toBe(false);
+		expect(selectionCoversLyricLine(text, { anchor: 0, head: '[Verse 1]'.length })).toBe(false);
+
+		// A selection ending exactly at a lyric line's start does not include it:
+		// sweeping over the header routinely lands the head on the lyric's first
+		// character, and a run must not time a line nobody swept over.
+		expect(selectionCoversLyricLine(text, { anchor: 0, head: text.indexOf('First') })).toBe(false);
 	});
 });

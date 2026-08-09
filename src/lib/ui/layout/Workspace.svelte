@@ -34,6 +34,7 @@
 		filterForEditorState,
 		everyLyricLineTimed,
 		isTypingChange,
+		selectionCoversLyricLine,
 		timedLinesSkippable,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';
@@ -604,6 +605,15 @@
 			const player = controller.media?.player;
 			return player?.attached ? player.liveTime() : undefined;
 		},
+		// The sync tap's whole question in one read, taken at the moment of the
+		// press for the same reason the time above is `liveTime()`. `playing` is
+		// the player's own intent-inclusive answer, so a tap made while a start is
+		// still settling counts as a tap the user meant.
+		onRequestMediaPlayback: () => {
+			const player = controller.media?.player;
+			if (!player?.attached) return undefined;
+			return { time: player.liveTime(), rate: player.rate, playing: player.playing };
+		},
 		// The clipboard pair: what a metadata-carrying copy says about this
 		// draft's song, and what a pasted fragment's source is worth here. Both
 		// are the media store's questions — the editor has no standing in either.
@@ -637,21 +647,35 @@
 		// The editor owns the mode and this only reacts, which is what keeps the
 		// tape and the mode from ever disagreeing: `Escape` and running out of lines
 		// end a run without the shell being asked, and both arrive here.
-		onLyricSyncChange: (active, startAt) => {
+		onLyricSyncChange: (active, startAt, scoped) => {
 			syncing = active;
+			syncScoped = active && (scoped ?? false);
 			const player = controller.media?.player;
 			if (active) {
 				// Wherever the editor put the caret, because a run is one pass over the
 				// document against one pass of the audio and the two ends have to begin
 				// in the same place. That is 0 for a fresh pass and the resumed line's
 				// own time for a half-timed song; the editor decides which, because the
-				// anchors are the editor's.
-				player?.seek(startAt ?? 0);
+				// anchors are the editor's. An absent `startAt` is the editor saying
+				// the tape must be left where the user parked it — a selection-scoped
+				// run with no timed line above the selection — so seeking anywhere,
+				// 0 included, would destroy the one position somebody chose.
+				if (startAt !== undefined) player?.seek(startAt);
 				player?.play();
 				// The tap is a keystroke, so the run cannot start with focus in the
 				// button that started it. This is a deliberate focus move into a mode
-				// the user just asked for, not the editor grabbing the caret.
-				editorHandle?.focus();
+				// the user just asked for, not the editor grabbing the caret — and it
+				// is deferred a frame, because this hook fires synchronously inside
+				// the press that turned the mode on: the click's own default
+				// processing and the re-render the state flip schedules both run
+				// after a synchronous call, and either can take the focus straight
+				// back. Left synchronous, a run started with focus on the scrubber —
+				// which is where a scoped run's own design just had the user parking
+				// the tape — came up with the space bar answering nothing. One frame
+				// later the press has fully played out and nothing contests it.
+				requestAnimationFrame(() => {
+					if (syncing) editorHandle?.focus();
+				});
 			} else {
 				player?.pause();
 			}
@@ -663,6 +687,9 @@
 	};
 
 	let syncing = $state(false);
+	// Whether the active run covers a selection rather than the song — reported
+	// by the editor with the mode itself, because the editor owns the scope.
+	let syncScoped = $state(false);
 	let following = $state(true);
 	let anchors = $state<readonly LineAnchor[]>([]);
 	let syncOwner: EditorHandle | undefined;
@@ -680,6 +707,14 @@
 	// anchor, and both arrive here as state this derivation already reads.
 	const skippableAhead = $derived(
 		timedLinesSkippable(controller.snapshot.text, anchors, controller.snapshot.selection.head)
+	);
+
+	// Whether a press on the sync control would scope the run to the selection —
+	// the same question the editor's own `selectionScope` answers on entry, off
+	// the snapshot the shell already holds, so the strip's label can say what the
+	// press will do before it is made.
+	const selectionSyncable = $derived(
+		selectionCoversLyricLine(controller.snapshot.text, controller.snapshot.selection)
 	);
 
 	// Two timed lines is the floor for a scroll to mean anything: with one, the
@@ -704,8 +739,14 @@
 		get complete() {
 			return allLinesTimed;
 		},
+		get scopesSelection() {
+			return selectionSyncable;
+		},
 		get canSkip() {
-			return skippableAhead;
+			// A scoped run hides the skip rather than capping it: the jump is
+			// measured against the whole document, and inside a selection's few
+			// lines it would be a control that mostly refuses.
+			return skippableAhead && !syncScoped;
 		},
 		toggle: () => editorHandle?.setLyricSync?.(!syncing),
 		tap: () => editorHandle?.tapLyricSync?.(),
@@ -731,6 +772,7 @@
 				syncOwner = handle;
 				if (syncing) controller.media?.player.pause();
 				syncing = false;
+				syncScoped = false;
 			}
 			controller.setEditorHandle(handle);
 			// Read the anchors back on the same pass, because that call is where a
@@ -779,6 +821,17 @@
 			transport: (action) => {
 				if (!player.attached) return false;
 				player.transport(action);
+				return true;
+			},
+			// While a run is under way, a bare space is the tap wherever it lands —
+			// short of a surface that types or presses with it. Without this, the
+			// space bar paused the tape the moment focus left the editor, which is
+			// exactly where a scoped run's own design sends it: to the scrubber, to
+			// park the tape. Read here rather than rebinding on run changes, because
+			// the callbacks close over the live state.
+			tap: () => {
+				if (!syncing) return false;
+				editorHandle?.tapLyricSync?.();
 				return true;
 			},
 			play: () => {

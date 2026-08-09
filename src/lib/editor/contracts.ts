@@ -72,6 +72,20 @@ export interface SectionHeaderChoice {
 }
 
 /**
+ * One reading of the transport, taken at the moment of a sync tap.
+ *
+ * `time` is the source's own playhead — `liveTime()`, not the mirrored
+ * readout — and `playing` includes a press still starting, because a queued
+ * start is the user's stated intent and a tap made against it is a tap they
+ * meant.
+ */
+export interface MediaPlaybackReading {
+	time: number;
+	rate: number;
+	playing: boolean;
+}
+
+/**
  * Optional overlay hooks missing from the frozen foundation callbacks.
  *
  * Returning an edit lets the editor dispatch the domain-produced transform as
@@ -135,6 +149,20 @@ export interface EditorOverlayCallbacks {
 	 */
 	onRequestMediaTime?(): number | undefined;
 	/**
+	 * How the tape is running right now, for a tap in sync mode.
+	 *
+	 * A tap needs two facts the plain time cannot carry. Whether the tape is
+	 * playing at all — `liveTime()` goes on reporting wherever a paused tape is
+	 * parked, so a tap spent there would stamp the pause's own moment onto the
+	 * next line, wrong by the length of the pause with nothing on screen saying
+	 * so. And the playback rate, because the tap offset is a wall-clock fact
+	 * about a hand and the track only advances `rate` seconds per second under
+	 * it. `undefined` means nothing is attached, exactly as `onRequestMediaTime`
+	 * answers; a shell that wires only that hook is read as playing at 1×, which
+	 * is the behaviour taps always had.
+	 */
+	onRequestMediaPlayback?(): MediaPlaybackReading | undefined;
+	/**
 	 * The remote source the attached audio came from, for a copy to carry.
 	 *
 	 * Read only while a copy is being claimed for its metadata, and answered only
@@ -180,19 +208,30 @@ export interface EditorOverlayCallbacks {
 	 * playback, so those two never disagree about whether a run is under way.
 	 *
 	 * `startAt` is where the audio has to be for the run to line up with the
-	 * caret: 0 for a fresh pass, and the resumed line's own time when a half-timed
-	 * song picks up where it was left. The editor decides it, because the anchors
-	 * are the editor's.
+	 * caret: 0 for a fresh pass, the resumed line's own time when a half-timed
+	 * song picks up where it was left, and **absent when the tape must be left
+	 * where the user parked it** — a selection-scoped run with no timed line
+	 * above the selection has no moment of its own to name, and seeking anywhere
+	 * would destroy the one position somebody deliberately chose. The editor
+	 * decides it, because the anchors are the editor's.
+	 *
+	 * `scoped` says the run covers a selection rather than the song. The strip
+	 * reads it to withhold the skip control: the skip is a jump measured against
+	 * the whole document, and offered inside a scope it would be a press that
+	 * refuses — the failure `availableRates` exists to prevent.
 	 */
-	onLyricSyncChange?(active: boolean, startAt?: number): void;
+	onLyricSyncChange?(active: boolean, startAt?: number, scoped?: boolean): void;
 	/**
 	 * A run did something on its own that the user has to be able to see.
 	 *
-	 * There is one of these: walking into a linked section whose earlier copy is
+	 * There are two of these. Walking into a linked section whose earlier copy is
 	 * already timed writes the whole section from that copy's intervals and moves
-	 * the tape past it. Every other thing a run does is announced and drawn — the
-	 * caret, the rail, the times — and needs no toast; this one dates lines nobody
-	 * tapped, so it says what it did and how to refuse it.
+	 * the tape past it — that one dates lines nobody tapped, so it says what it
+	 * did and how to refuse it. And a tap made while the tape is paused is
+	 * refused rather than spent, which changes nothing on screen at all — the
+	 * sentence saying why is the whole of the feedback for the press. Every other
+	 * thing a run does is announced and drawn — the caret, the rail, the times —
+	 * and needs no toast.
 	 *
 	 * The editor announces the same sentence itself, so a shell that leaves this
 	 * hook off loses the toast and not the message. The shell draws it and does

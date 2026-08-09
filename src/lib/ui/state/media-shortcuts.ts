@@ -93,6 +93,39 @@ function ownsSpace(target: EventTarget | null): boolean {
 	);
 }
 
+/** A bare space: the key with nothing held, however the event spells it. */
+function isBareSpace(event: KeyboardEvent): boolean {
+	if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return false;
+	return event.code === 'Space' || event.key === ' ';
+}
+
+/**
+ * Whether a space on this element types a character or presses a control —
+ * the two meanings a run's tap must not take away.
+ *
+ * Deliberately narrower than `ownsSpace`. The toggle defers to every input,
+ * the scrubber included, because pausing from a slider nobody is typing into
+ * is merely unnecessary. The tap cannot afford that deference: the scrubber is
+ * exactly where a run's own design just sent the user to park the tape, and a
+ * tap that went dead the moment they aimed it is the mode refusing its one
+ * gesture at the one moment it is needed. A range input neither types nor
+ * presses on space, so the tap claims it; a text field and every real control
+ * keep theirs. The editor stays exempt through `contenteditable`, so the run's
+ * own keymap remains the only handler of a space landing in the document.
+ */
+function spaceTypesOrPresses(target: EventTarget | null): boolean {
+	if (!(target instanceof Element)) return false;
+	if (
+		target.closest(
+			"textarea, select, button, summary, a[href], [role='button'], [contenteditable='true']"
+		) !== null
+	) {
+		return true;
+	}
+	const input = target.closest('input');
+	return input !== null && input.type !== 'range';
+}
+
 type MediaSessionControls = Pick<MediaSession, 'setActionHandler'>;
 
 export interface TransportShortcutOptions {
@@ -102,6 +135,13 @@ export interface TransportShortcutOptions {
 	 * key press, which is the same rule the editor's own hook followed.
 	 */
 	transport: (action: TransportAction) => boolean;
+	/**
+	 * Time a line, and say whether a run was under way to time it in. While one
+	 * is, a bare space is the tap wherever it lands — the run's one gesture
+	 * outranks the toggle, and it claims the scrubber the toggle defers to.
+	 * False leaves the keystroke to the toggle, exactly as before.
+	 */
+	tap?: () => boolean;
 	/** Exact play and pause operations for the OS media-session buttons. */
 	play?: () => boolean;
 	pause?: () => boolean;
@@ -128,6 +168,23 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 
 	function handle(event: Event): void {
 		const keystroke = event as KeyboardEvent;
+
+		// A run's tap comes first, or the toggle underneath pauses the tape out
+		// from under it: the bare-space toggle answers from the page at large, and
+		// a run is on the page at large the moment the user aims the scrubber.
+		// A held space must not machine-gun anchors down the document, so a
+		// repeat is dropped exactly as the toggle drops one.
+		if (
+			isBareSpace(keystroke) &&
+			!keystroke.repeat &&
+			!spaceTypesOrPresses(keystroke.target) &&
+			options.tap?.()
+		) {
+			keystroke.preventDefault();
+			keystroke.stopPropagation();
+			return;
+		}
+
 		const action = matchTransportAction(keystroke);
 		if (action === undefined) return;
 
