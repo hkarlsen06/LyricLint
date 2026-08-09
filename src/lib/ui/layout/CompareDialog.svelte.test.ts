@@ -74,6 +74,42 @@ describe('CompareDialog', () => {
 		expect(calls.focusCount).toBe(1);
 	});
 
+	test('a tap resolves to the character under it, not the start of the line', async () => {
+		const { controller, calls } = createTestWorkbench();
+		render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		await pasteBaseline('[Verse]\nLyne');
+
+		// Aim inside the inserted word, past its first character. The caret must
+		// land within line 2 (offsets 8–12), not at its start.
+		const inserted = openDialog().querySelector('ins')!;
+		const rect = inserted.getBoundingClientRect();
+		await fireEvent.click(inserted.closest('button')!, {
+			clientX: rect.left + rect.width * 0.6,
+			clientY: rect.top + rect.height / 2
+		});
+		const anchor = calls.selections.at(-1)!.anchor;
+		expect(anchor).toBeGreaterThan(8);
+		expect(anchor).toBeLessThanOrEqual(12);
+	});
+
+	test('a tap on deleted text lands at the boundary its deletion left behind', async () => {
+		const { controller, calls } = createTestWorkbench();
+		render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		await pasteBaseline('[Verse]\nLyne');
+
+		// The struck-through characters are not in the document, so no character
+		// under the tap exists to land on — the boundary is the honest answer.
+		const dropped = openDialog().querySelector('del')!;
+		const rect = dropped.getBoundingClientRect();
+		await fireEvent.click(dropped.closest('button')!, {
+			clientX: rect.left + rect.width * 0.6,
+			clientY: rect.top + rect.height / 2
+		});
+		expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 });
+	});
+
 	test('a context row is a press too, parking the caret on the unchanged line', async () => {
 		const { controller, calls } = createTestWorkbench();
 		render(CompareDialog, { controller });

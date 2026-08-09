@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { diffDocuments } from '$lib/core/document-diff.js';
+	import { diffDocuments, type DiffRow } from '$lib/core/document-diff.js';
 	import { formatDraftDate } from '../drafts/draft-date.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
@@ -101,6 +101,61 @@
 		controller.editor.setSelection({ anchor: at, head: at });
 		controller.editor.revealRange({ from: at, to: at });
 		controller.editor.focus();
+	}
+
+	/** The character position under a point, on whichever API this engine has. */
+	function caretFromPoint(x: number, y: number): { node: Node; offset: number } | undefined {
+		const doc = document as Document & {
+			caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null;
+			caretRangeFromPoint?(x: number, y: number): Range | null;
+		};
+		// The standard first; caretRangeFromPoint is the WebKit fallback.
+		if (doc.caretPositionFromPoint) {
+			const position = doc.caretPositionFromPoint(x, y);
+			return position ? { node: position.offsetNode, offset: position.offset } : undefined;
+		}
+		const range = doc.caretRangeFromPoint?.(x, y);
+		return range ? { node: range.startContainer, offset: range.startOffset } : undefined;
+	}
+
+	type PressableRow = Exclude<DiffRow, { kind: 'gap' }>;
+
+	/**
+	 * Where in the document a press landed, to the character where the browser
+	 * can say and to the row's own line where it cannot — a keyboard activation
+	 * carries no point at all, and a press on the gutter or the padding names
+	 * the line rather than a character in it.
+	 *
+	 * Each rendered piece of a row carries its own document length, so the tap
+	 * resolves by summing the pieces before the one under the pointer and
+	 * adding the offset inside it. A del run carries zero — its characters are
+	 * not in the document, so a tap on one lands at the boundary its deletion
+	 * left behind. A removed row has no line at all and always names the point
+	 * the removal left.
+	 */
+	function tapOffset(row: PressableRow, event: MouseEvent): number {
+		if (row.kind === 'removed') return row.at;
+		const target = event.currentTarget;
+		if (!(target instanceof HTMLElement)) return row.at;
+		const text = target.querySelector('.compare-diff__text');
+		const position = caretFromPoint(event.clientX, event.clientY);
+		if (
+			!text ||
+			!position ||
+			position.node.nodeType !== Node.TEXT_NODE ||
+			!text.contains(position.node)
+		) {
+			return row.at;
+		}
+		let offset = 0;
+		for (const piece of text.querySelectorAll<HTMLElement>('[data-doc-len]')) {
+			const length = Number(piece.dataset.docLen ?? '0');
+			if (piece.contains(position.node)) {
+				return row.at + offset + Math.min(position.offset, length);
+			}
+			offset += length;
+		}
+		return row.at;
 	}
 </script>
 
@@ -262,7 +317,7 @@
 											type="button"
 											class="compare-diff__row"
 											class:compare-diff__row--context={row.kind === 'context'}
-											onclick={() => revealRow(row.at)}
+											onclick={(event) => revealRow(tapOffset(row, event))}
 										>
 											<span class="compare-diff__num">{row.kind === 'removed' ? '' : row.line}</span
 											>
@@ -270,16 +325,21 @@
 												{#if row.kind === 'removed'}
 													<del class="compare-diff__drop">{@render lineText(row.text)}</del>
 												{:else if row.kind === 'added'}
-													<ins class="compare-diff__add">{@render lineText(row.text)}</ins>
+													<ins class="compare-diff__add" data-doc-len={row.text.length}
+														>{@render lineText(row.text)}</ins
+													>
 												{:else if row.kind === 'context'}
-													{@render lineText(row.text)}
+													<span data-doc-len={row.text.length}>{@render lineText(row.text)}</span>
 												{:else}
 													{#each row.segments as segment, segmentIndex (segmentIndex)}{#if segment.kind === 'shared'}<span
-																class="compare-diff__shared">{segment.text}</span
-															>{:else}{#if segment.deleted}<del class="compare-diff__drop"
-																	>{segment.deleted}</del
-																>{/if}{#if segment.inserted}<ins class="compare-diff__add"
-																	>{segment.inserted}</ins
+																class="compare-diff__shared"
+																data-doc-len={segment.text.length}>{segment.text}</span
+															>{:else}{#if segment.deleted}<del
+																	class="compare-diff__drop"
+																	data-doc-len="0">{segment.deleted}</del
+																>{/if}{#if segment.inserted}<ins
+																	class="compare-diff__add"
+																	data-doc-len={segment.inserted.length}>{segment.inserted}</ins
 																>{/if}{/if}{/each}
 												{/if}
 											</span>
