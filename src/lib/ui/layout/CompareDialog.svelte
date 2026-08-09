@@ -202,7 +202,11 @@
 						</button>
 					</div>
 					<ul class="compare-diff" aria-label="Changes against the page">
-						{#each diff.hunks as hunk (hunk.from + ':' + hunk.line)}
+						<!-- Keyed by position: a hunk has no identity of its own, and two
+						     removals straddling a kept line near the document's end
+						     legitimately collapse to the same offset and line label — a
+						     key built from those crashed the render as a duplicate. -->
+						{#each diff.hunks as hunk, hunkIndex (hunkIndex)}
 							<li>
 								<button type="button" class="compare-diff__hunk" onclick={() => revealHunk(hunk)}>
 									<span class="compare-diff__line">Line {hunk.line}</span>

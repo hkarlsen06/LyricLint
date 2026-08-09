@@ -119,6 +119,20 @@ describe('diffDocuments', () => {
 		expect(rows.length).toBeGreaterThan(0);
 	});
 
+	test('two removals straddling a kept line may collapse to one offset — both hunks survive', () => {
+		// Near the end of a document, distinct removal hunks legitimately share
+		// their collapse point and line label. They are separate decisions and
+		// must stay separate hunks; a renderer therefore may not treat the
+		// (from, line) pair as an identity — doing so crashed the dialog once.
+		const diff = diffDocuments('a\nb\n\na', 'c\na\n');
+		const removals = diff.hunks.filter((hunk) => hunk.from === hunk.to);
+		expect(removals).toHaveLength(2);
+		expect(removals[0].from).toBe(removals[1].from);
+		expect(removals[0].line).toBe(removals[1].line);
+		expect(removals[0].rows).toEqual([{ kind: 'removed', text: 'b' }]);
+		expect(removals[1].rows).toEqual([{ kind: 'removed', text: 'a' }]);
+	});
+
 	test('a note is stated once per hunk however many lines repeat it', () => {
 		const diff = diffDocuments('One \nTwo ', 'One\nTwo');
 		expect(diff.hunks).toHaveLength(1);

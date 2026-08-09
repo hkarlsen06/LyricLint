@@ -120,6 +120,22 @@ describe('CompareDialog', () => {
 		expect(screen.getByText('Trailing whitespace removed', { exact: false })).toBeTruthy();
 	});
 
+	test('hunks that collapse to the same offset and line label both render', async () => {
+		// Two removals straddling a kept line near the document's end share
+		// their collapse point. Keyed on that point, the each block threw
+		// each_key_duplicate mid-flush — the first Show changes press appeared
+		// to do nothing while the baseline was already stored, and the press
+		// after it stored the emptied paste area as the baseline.
+		const { controller } = createTestWorkbench({ text: 'c\na\n' });
+		render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		await pasteBaseline('a\nb\n\na');
+
+		const dropped = [...openDialog().querySelectorAll('del')].map((el) => el.textContent);
+		expect(dropped).toEqual(['b', 'a']);
+		expect(screen.getAllByText('Line 3')).toHaveLength(2);
+	});
+
 	test('a press on the backdrop closes the dialog', async () => {
 		const { controller } = createTestWorkbench();
 		render(CompareDialog, { controller });
