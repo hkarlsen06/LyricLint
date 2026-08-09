@@ -4371,6 +4371,69 @@ two rules here that read a source rather than quote one.
 Implementation: `src/lib/rules/catalog/spelling-texting-shorthand.ts`, its policy case in
 `policy-cases.ts`, and the merge regression at the foot of `harper.test.ts`.
 
+### Harper is audited against the performance, and a refused rule is named with its reason
+
+Harper is a general-purpose English proofreader with prose opinions, and some of those opinions
+are the opposite of transcription policy. Measured against ordinary lyric lines, the default
+engine offered `****` and `fudge` for a sung `fuck`, Unicode primes for `5'2"`, `because` for a
+`cuz` that meant cousin, and `Take` for a performed `have a look` — each one a card telling the
+transcriber to move the document _away_ from the performance. The repair is not a wider merge and
+not a taught word: it is refusing the rules whose **purpose** contradicts the guidance, and the
+line matters. A rule that merely misfires sometimes — an idiom correction, agreement on a dialect
+`We was` — stays on behind the preview tier and the card's review-in-context sentence, because it
+is also what catches real typos, and no rule can hear which happened.
+
+Three mechanisms, one per class of harm:
+
+- **`disabledHarperLints` names the rules whose job is the contradiction**, switched off through
+  `setLintConfig` once, when the engine is created. `AvoidCurses` censors, and lyrics are censored
+  only where the recording is. The initialism and informal-register expanders rewrite the register
+  the catalog curates per token (`spelling.texting-shorthand`, and `cuz`/`tho` in the reviewed
+  spellings), so every one either duplicates a native rule — which already wins the shared range —
+  or contradicts a reviewed refusal: `OMG` stays as sung. `CauseItIsBecause` fires on the
+  _preferred_ `'Cause`, because the elision apostrophe is tokenized away before the rule looks.
+  `FootInchMinuteSecondSymbols` wants typography Genius lyrics do not use, and `UnclosedQuotes`
+  falls with it — the inch mark that refusal keeps is a quotation mark Harper can never see
+  closed, so every height in a lyric would read as sloppy quoting. The list is pinned against the
+  real engine's own config in `harper.test.ts`: a Harper upgrade that renames a rule fails there
+  loudly, and so does one that ships a new censoring or expanding rule, matched by description.
+- **The `Regionalism` kind is dropped whole in `appliesToLyrics`**, beside `Readability` and for
+  the same shape of reason: a dialect performed is the transcription, and a kind-level drop covers
+  the preferences a Harper upgrade adds without an edit here. `FedUpWith` and `InOnTheCards`
+  prefer dialects without wearing the kind, so they are in the name list instead.
+- **A marked g-drop is filtered in the provider**, because no config reaches it: `runnin'` is the
+  as-spoken form, Harper sees bare `runnin`, and what its dictionary guesses is never the word
+  being sung — measured, `Lovin` → `Loin`, `rollin` → `roll in`, `somethin` → `some thin`. The
+  trailing apostrophe is the gate. An unmarked `somethin` is a misspelling Harper is right to
+  question, so it still comes through, exactly as the apostrophe-edged dictionary filter beside it
+  only vouches for words the reviewed spellings taught.
+
+**And the unmarked g-drop keeps its card and changes its answer.** A bare `Killin` used to offer
+only dictionary guesses — `Killing`, `Kill's`, `Kelvin` — when the transcription-first repair is
+the mark: `Killin'`. Harper cannot know to offer it, but it does prove the token is a g-drop, by
+carrying the `-ing` form in its own suggestion list. `elisionMarkFixes` reads that endorsement off
+the raw suggestions — raw rather than the capped fixes, because `Lovin` carries `Loving` third,
+behind two guesses — and rewrites the row: the synthesized `Replace with Killin'` leads, the
+`-ing` form stays second for the vocal that really sang it, and the nearest-word noise goes. The
+endorsement is the whole gate. `chillin` comes back as `chill in` with no `chilling` beside it, so
+it keeps Harper's ordinary fixes: an `-in'` synthesized without the dictionary's word behind it
+would be the automatic anchor stamp's failure again — plausible, and wrong by an amount nobody can
+see.
+
+What stays on is deliberate too. The its/it's and missing-possessive-apostrophe family matches the
+same standard punctuation `contraction.apostrophe` already enforces natively, so refusing it would
+be the catalog disagreeing with itself. What remains open is the slang Harper's dictionary simply
+lacks — `finna`, `shawty`, `hunnid`, `gon'` all drew spelling guesses in the same probes — which is
+a curation question for the reviewed spellings or a taught lexicon, not a filter. And a per-user
+toggle for Harper as a whole is a settings surface this workbench does not have yet; the audit
+removes what is wrong for everyone, and only that.
+
+Implementation: `disabledHarperLints`, `appliesToLyrics`, `isMarkedGDrop` and `elisionMarkFixes`
+in `src/lib/rules/harper.ts`, and the pins in `harper.test.ts` — the stub tests for the ordering,
+the filters and the synthesized row, and the real-WASM set: a document of every measured misfire
+answered with silence, `Killin` leading with its mark against the real dictionary, and the
+loud-failure guard against an upgrade renaming or re-adding a refused rule.
+
 ### The mark and the wordmark are one object
 
 There is one pair of brackets in the brand, not two. The mark's brackets and the `[Lint]`

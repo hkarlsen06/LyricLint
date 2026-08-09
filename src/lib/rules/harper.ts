@@ -1,5 +1,6 @@
 import type {
 	Diagnostic,
+	DiagnosticFix,
 	ParsedDocument,
 	PerformerRecord,
 	TextEdit,
@@ -50,6 +51,7 @@ interface HarperLint {
 
 interface HarperEngine {
 	lint(text: string, options: { language: 'plaintext'; dedup: boolean }): Promise<HarperLint[]>;
+	setLintConfig(config: Record<string, boolean>): Promise<void>;
 	clearWords(): Promise<void>;
 	importWords(words: string[]): Promise<void>;
 	dispose(): Promise<void>;
@@ -69,6 +71,86 @@ export interface HarperDiagnosticProvider {
 }
 
 export type HarperEngineFactory = () => Promise<HarperEngine>;
+
+/**
+ * Harper lints switched off because what they advise is what the reviewed
+ * Genius guidance refuses. This is a curated refusal, not a tuning: every
+ * entry names a rule whose *purpose* contradicts transcription policy, and a
+ * rule that merely misfires sometimes stays on behind the preview tier and
+ * the card's own review-in-context explanation.
+ *
+ * - `AvoidCurses` censors. Its leading suggestions for an uncensored vocal
+ *   are `****` and euphemisms, and lyrics are transcribed exactly as
+ *   performed — censored only where the recording itself censors.
+ * - The expanders rewrite informal register into prose. The catalog owns
+ *   that decision per token: `spelling.texting-shorthand` expands only what
+ *   nobody sings the letters of, and `spelling.standardized` answers `cuz`
+ *   and `tho` behind reviewed gates. Harper's blanket family therefore
+ *   either duplicates a native rule — which already wins the shared range —
+ *   or contradicts a reviewed refusal: `OMG` stays as sung, and a `cuz` that
+ *   means cousin is not `because`.
+ * - `CauseItIsBecause` fires on the *preferred* form. `'Cause it is` reaches
+ *   Harper with its elision apostrophe tokenized away as punctuation and
+ *   comes back `Prefer because it is` — a finding on the exact spelling the
+ *   reviewed data standardizes toward.
+ * - `FootInchMinuteSecondSymbols` wants Unicode primes in `5'2"`. Lyric
+ *   typography belongs to the quotes rules, and Genius lyrics are plain
+ *   text. `UnclosedQuotes` falls with it: the inch mark that refusal keeps
+ *   in the document is a quotation mark Harper can never see closed, so
+ *   every height in a lyric would be reported as sloppy quoting.
+ * - `FedUpWith` and `InOnTheCards` prefer one dialect's idiom over
+ *   another's without arriving under the `Regionalism` kind that
+ *   `appliesToLyrics` drops whole, so they are named here instead.
+ *
+ * Every name is pinned against the real engine's own config in
+ * `harper.test.ts`, so a Harper upgrade that renames one fails loudly there
+ * instead of silently re-enabling it.
+ */
+export const disabledHarperLints: readonly string[] = [
+	'AvoidCurses',
+	// Initialism expanders.
+	'AsFarAsIKnow',
+	'AsSoonAsPossible',
+	'BeRightBack',
+	'ByTheWay',
+	'ExplainLikeImFive',
+	'ForWhatItsWorth',
+	'ForYourInformation',
+	'IDontKnow',
+	'IfIRecallCorrectly',
+	'IfIUnderstandCorrectly',
+	'IfYouKnowYouKnow',
+	'InCaseYouMissedIt',
+	'InMyHumbleOpinion',
+	'InMyOpinion',
+	'InRealLife',
+	'LetMeKnow',
+	'NeverMind',
+	'OhMyGod',
+	'PleaseTakeALook',
+	'Really',
+	'TalkToYouLater',
+	'ToBeHonest',
+	// Informal-register expanders.
+	'Cybersec',
+	'ExpandBecause',
+	'ExpandControl',
+	'ExpandThough',
+	'ExpandThrough',
+	// Fires on the reviewed-preferred `'Cause`.
+	'CauseItIsBecause',
+	// Measurement primes are not lyric typography, and the inch mark that
+	// refusal keeps is a quote Harper can never see closed.
+	'FootInchMinuteSecondSymbols',
+	'UnclosedQuotes',
+	// Dialect preference outside the Regionalism kind.
+	'FedUpWith',
+	'InOnTheCards'
+];
+
+const harperLintConfig: Record<string, boolean> = Object.fromEntries(
+	disabledHarperLints.map((name) => [name, false])
+);
 
 interface HarperProjection {
 	text: string;
@@ -183,7 +265,14 @@ function appliesToLyrics(lint: HarperLint): boolean {
 	// Readability measures such as sentence length assume prose. A lyric can run
 	// through many physical lines without sentence punctuation, so those findings
 	// describe the transcription form rather than a problem in the lyrics.
-	return lint.lint_kind() !== 'Readability';
+	//
+	// Regionalism prefers one dialect's form over another's — `take a look`
+	// over `have a look`, `to date` over `till date` — and a lyric performed
+	// in a dialect is transcribed in it. The kind is dropped whole rather than
+	// rule by rule, so a Harper upgrade that adds a new dialect preference
+	// stays quiet without an edit to `disabledHarperLints`.
+	const kind = lint.lint_kind();
+	return kind !== 'Readability' && kind !== 'Regionalism';
 }
 
 function rangesOverlap(left: TextRange, right: TextRange): boolean {
@@ -221,6 +310,27 @@ function isApostropheEdgedDictionaryWord(
 		(before !== undefined &&
 			edgeApostrophes.has(before) &&
 			dictionary.has(foldApostrophes(`'${token}`)))
+	);
+}
+
+/**
+ * A trailing elision apostrophe after an `-in` token is a g-dropped form the
+ * transcriber marked deliberately — `runnin'`, `sippin'`, `somethin'` — and
+ * the as-spoken guideline keeps it. Harper's dictionary cannot hold every
+ * dropped `g`, and what it guesses instead is never the word being sung
+ * (measured: `Lovin` → `Loin`, `rollin` → `roll in`, `somethin` →
+ * `some thin`). The apostrophe is required: a bare `somethin` with no elision
+ * mark is a misspelling Harper is right to question. The length floor keeps
+ * two-letter stems (`doin'`) while leaving short quoted words alone.
+ */
+function isMarkedGDrop(text: string, range: TextRange): boolean {
+	const token = text.slice(range.from, range.to);
+	const after = text[range.to];
+	return (
+		token.length >= 4 &&
+		token.toLocaleLowerCase('en').endsWith('in') &&
+		after !== undefined &&
+		edgeApostrophes.has(after)
 	);
 }
 
@@ -271,6 +381,40 @@ function fixForSuggestion(
 	}
 }
 
+/**
+ * A flagged `-in` token whose own suggestion list carries the `-ing` form is a
+ * g-drop typed without its elision mark: Harper's dictionary has endorsed
+ * `Killing`, so `Killin` is that word as sung. The transcription-first repair
+ * is the apostrophe, not the `g` — the as-spoken guideline keeps the dropped
+ * `g` and marks it — so the fix Harper cannot know to offer leads the row,
+ * the `-ing` form stays second for the vocal that really sang it, and the
+ * dictionary's remaining nearest-word guesses (`Kill's`, `Kelvin`) are noise
+ * once the token is understood. Synthesis happens only on the dictionary's
+ * own endorsement: `chillin`, which Harper answers with `chill in` and no
+ * `-ing` form, keeps its ordinary fixes rather than a guess of ours.
+ */
+function elisionMarkFixes(
+	suggestions: readonly HarperSuggestion[],
+	range: TextRange,
+	problemText: string,
+	revision: number
+): DiagnosticFix[] | undefined {
+	const folded = problemText.toLocaleLowerCase('en');
+	if (folded.length < 4 || !folded.endsWith('in')) return undefined;
+	const gForm = suggestions.find(
+		(suggestion) =>
+			suggestion.kind() === 0 &&
+			suggestion.get_replacement_text().toLocaleLowerCase('en') === `${folded}g`
+	);
+	if (!gForm) return undefined;
+	const fixFor = (insert: string): DiagnosticFix => ({
+		kind: 'preview',
+		label: `Replace with ${insert}`,
+		edit: { baseRevision: revision, edits: [{ ...range, insert }] }
+	});
+	return [fixFor(`${problemText}'`), fixFor(gForm.get_replacement_text())];
+}
+
 function convertLint(
 	lint: HarperLint,
 	projection: HarperProjection,
@@ -283,7 +427,8 @@ function convertLint(
 		if (!range) return undefined;
 
 		const problemText = original.slice(range.from, range.to);
-		const fixes = [];
+		const kind = lint.lint_kind();
+		let fixes: DiagnosticFix[] = [];
 		const seenEdits = new Set<string>();
 		const suggestions = lint.suggestions();
 		try {
@@ -303,11 +448,15 @@ function convertLint(
 				});
 				if (fixes.length === maximumFixes) break;
 			}
+			// Read off the raw suggestions rather than the capped fixes: `Lovin`
+			// carries its `-ing` form third, behind two guesses.
+			if (ruleIdFor(kind) === 'spelling.harper') {
+				fixes = elisionMarkFixes(suggestions, range, problemText, revision) ?? fixes;
+			}
 		} finally {
 			for (const suggestion of suggestions) suggestion.free?.();
 		}
 
-		const kind = lint.lint_kind();
 		const kindLabel = lint.lint_kind_pretty().trim() || kind;
 		return {
 			...range,
@@ -366,7 +515,14 @@ export function createHarperDiagnosticProvider(
 	let importedWordKey: string | undefined;
 
 	function engine(): Promise<HarperEngine> {
-		enginePromise ??= createEngine();
+		// The audited refusals are applied before the first lint ever runs: the
+		// config is a property of the engine, not of any one document, and a
+		// finding produced under the default config would censor or formalize a
+		// lyric on the engine's very first answer.
+		enginePromise ??= createEngine().then(async (harper) => {
+			await harper.setLintConfig(harperLintConfig);
+			return harper;
+		});
 		return enginePromise;
 	}
 
@@ -406,7 +562,8 @@ export function createHarperDiagnosticProvider(
 					if (!diagnostic) continue;
 					if (
 						diagnostic.ruleId === 'spelling.harper' &&
-						isApostropheEdgedDictionaryWord(request.text, diagnostic, dictionary)
+						(isApostropheEdgedDictionaryWord(request.text, diagnostic, dictionary) ||
+							isMarkedGDrop(request.text, diagnostic))
 					) {
 						continue;
 					}

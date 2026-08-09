@@ -3,6 +3,7 @@ import { parseDocument } from '$lib/core/parser.js';
 import type { Diagnostic, PerformerRecord } from '$lib/core/types.js';
 import {
 	createHarperDiagnosticProvider,
+	disabledHarperLints,
 	mergeHarperDiagnostics,
 	projectLyricsForHarper
 } from './harper.js';
@@ -20,26 +21,25 @@ function lintAt(
 		kind?: string;
 		prettyKind?: string;
 		replacement?: string;
+		replacements?: string[];
 		suggestionKind?: number;
 		message?: string;
 	} = {}
 ) {
 	const from = text.indexOf(problem);
 	const start = scalarOffset(text, from);
+	const replacements =
+		options.replacements ?? (options.replacement === undefined ? [] : [options.replacement]);
 	return {
 		lint_kind: () => options.kind ?? 'Grammar',
 		lint_kind_pretty: () => options.prettyKind ?? 'Grammar',
 		message: () => options.message ?? `Review \`${problem}\`.`,
 		span: () => ({ start, end: start + [...problem].length }),
 		suggestions: () =>
-			options.replacement === undefined
-				? []
-				: [
-						{
-							get_replacement_text: () => options.replacement!,
-							kind: () => options.suggestionKind ?? 0
-						}
-					]
+			replacements.map((replacement) => ({
+				get_replacement_text: () => replacement,
+				kind: () => options.suggestionKind ?? 0
+			}))
 	};
 }
 
@@ -53,6 +53,9 @@ function engineReturning(
 		lint: vi.fn(async (text: string, options: { language: 'plaintext'; dedup: boolean }) =>
 			makeLints(text, options)
 		),
+		setLintConfig: vi.fn(async (config: Record<string, boolean>) => {
+			void config;
+		}),
 		clearWords: vi.fn(async () => {}),
 		importWords: vi.fn(async (words: string[]) => {
 			void words;
@@ -204,6 +207,135 @@ describe('Harper diagnostic provider', () => {
 		});
 	});
 
+	it('switches the audited refusals off once, before the first lint', async () => {
+		const engine = engineReturning(() => []);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+		const text = '[Verse]\nClean line';
+		const request = {
+			text,
+			document: parseDocument(text),
+			language: 'en',
+			performers: [],
+			revision: 1
+		};
+
+		await provider.lint(request);
+		await provider.lint(request);
+
+		expect(engine.setLintConfig).toHaveBeenCalledOnce();
+		expect(engine.setLintConfig).toHaveBeenCalledWith(
+			Object.fromEntries(disabledHarperLints.map((name) => [name, false]))
+		);
+		expect(engine.setLintConfig.mock.invocationCallOrder[0]).toBeLessThan(
+			engine.lint.mock.invocationCallOrder[0]
+		);
+	});
+
+	it('drops dialect-preference findings arriving under the Regionalism kind', async () => {
+		// `have a look` against `take a look` is a fact about dialects, not about
+		// the lyric — a regionalism performed is the transcription.
+		const text = '[Verse]\nHave a look at my heart';
+		const engine = engineReturning((projected) => [
+			lintAt(projected, 'Have', {
+				kind: 'Regionalism',
+				replacement: 'Take',
+				message: 'American English prefers `take a look` over `have a look`.'
+			})
+		]);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+
+		await expect(
+			provider.lint({
+				text,
+				document: parseDocument(text),
+				language: 'en',
+				performers: [],
+				revision: 1
+			})
+		).resolves.toEqual([]);
+	});
+
+	it('drops a spelling guess at a g-drop the transcription marks with an apostrophe', async () => {
+		// `Runnin'` is the as-spoken form; Harper's dictionary sees bare `Runnin`
+		// and guesses. The unmarked `somethin` must still come through — with no
+		// elision apostrophe it is a misspelling Harper is right to question.
+		const text = "[Verse]\nRunnin' from somethin real";
+		const engine = engineReturning((projected) => [
+			lintAt(projected, 'Runnin', { kind: 'Spelling', replacement: 'Running' }),
+			lintAt(projected, 'somethin', { kind: 'Spelling', replacement: 'something' })
+		]);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+
+		const diagnostics = await provider.lint({
+			text,
+			document: parseDocument(text),
+			language: 'en',
+			performers: [],
+			revision: 1
+		});
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0]).toMatchObject({
+			from: text.indexOf('somethin'),
+			ruleId: 'spelling.harper'
+		});
+	});
+
+	it("leads a bare g-drop with the elision mark Harper's own -ing form vouches for", async () => {
+		// `Killin` typed without its apostrophe used to offer only dictionary
+		// guesses — `Killing`, `Kill's`, `Kelvin` — when the transcription-first
+		// repair is the mark: `Killin'`. The `-ing` form in Harper's own list is
+		// what proves the token is a g-drop, so the synthesized fix leads, the
+		// `-ing` form stays second, and the nearest-word noise goes.
+		const text = '[Verse]\nKillin the game';
+		const engine = engineReturning((projected) => [
+			lintAt(projected, 'Killin', {
+				kind: 'Spelling',
+				replacements: ['Killing', "Kill's", 'Kelvin']
+			})
+		]);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+
+		const diagnostics = await provider.lint({
+			text,
+			document: parseDocument(text),
+			language: 'en',
+			performers: [],
+			revision: 6
+		});
+
+		const from = text.indexOf('Killin');
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0]?.fixes?.map((fix) => fix.label)).toEqual([
+			"Replace with Killin'",
+			'Replace with Killing'
+		]);
+		expect(diagnostics[0]?.fixes?.[0]?.edit.edits).toEqual([
+			{ from, to: from + 'Killin'.length, insert: "Killin'" }
+		]);
+	});
+
+	it('keeps ordinary fixes for a flagged token the dictionary endorses no -ing form of', async () => {
+		// `chillin` comes back from real Harper as `chill in` with no `chilling`
+		// beside it, so there is no endorsement to synthesize from — a guess of
+		// ours would be the automatic-anchor mistake, plausible and unverifiable.
+		const text = '[Verse]\nchillin all day';
+		const engine = engineReturning((projected) => [
+			lintAt(projected, 'chillin', { kind: 'Typo', replacement: 'chill in' })
+		]);
+		const provider = createHarperDiagnosticProvider(async () => engine);
+
+		const diagnostics = await provider.lint({
+			text,
+			document: parseDocument(text),
+			language: 'en',
+			performers: [],
+			revision: 6
+		});
+
+		expect(diagnostics[0]?.fixes?.map((fix) => fix.label)).toEqual(['Replace with chill in']);
+	});
+
 	it('drops findings that touch masked document structure', async () => {
 		const text = '[Verse]\nClean line';
 		const engine = engineReturning((projected) => [
@@ -310,6 +442,100 @@ I heard it calling through the wall`;
 		} finally {
 			await provider.dispose();
 		}
+	});
+
+	it('keeps quiet about lyrics transcribed exactly as performed', async () => {
+		// Every line here drew a finding from the default engine, measured before
+		// the audit: `fuck` → `****`/`fudge` (AvoidCurses), `Runnin`/`lovin` →
+		// `Running`/`Loin` (dictionary guesses at marked g-drops), `Cause it is` →
+		// `Because it is` on the reviewed-preferred `'Cause` (CauseItIsBecause),
+		// `5'2"` → prime symbols (FootInchMinuteSecondSymbols), `Fed up of` →
+		// `with` (FedUpWith), and `Have a look` → `Take` (Regionalism kind).
+		// Transcription follows the performance, so the answer to all of it is
+		// silence.
+		const text = `[Verse]
+I don't give a fuck tonight
+Runnin' and lovin' through the lights
+'Cause it is what it is
+She's 5'2" with an attitude
+Fed up of all the lies
+Have a look at my heart`;
+		const [{ LocalLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+
+		try {
+			await expect(
+				provider.lint({
+					text,
+					document: parseDocument(text),
+					language: 'en',
+					performers: [],
+					revision: 5
+				})
+			).resolves.toEqual([]);
+		} finally {
+			await provider.dispose();
+		}
+	});
+
+	it('offers the elision mark first against the real dictionary', async () => {
+		// The stub test above pins the synthesis; this one pins the endorsement
+		// it reads — real Harper answering `Killin` with `Killing` in its list.
+		const text = '[Verse]\nKillin the game';
+		const [{ LocalLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+
+		try {
+			const diagnostics = await provider.lint({
+				text,
+				document: parseDocument(text),
+				language: 'en',
+				performers: [],
+				revision: 8
+			});
+
+			expect(diagnostics).toHaveLength(1);
+			expect(diagnostics[0]?.fixes?.map((fix) => fix.label)).toEqual([
+				"Replace with Killin'",
+				'Replace with Killing'
+			]);
+		} finally {
+			await provider.dispose();
+		}
+	});
+
+	it('names real Harper lints and leaves no censoring or expanding rule enabled', async () => {
+		// Two loud failures a Harper upgrade must produce rather than silently
+		// undoing the audit: a renamed rule no longer exists in the engine's own
+		// config, and a newly added censoring or register-formalizing rule is
+		// enabled without an entry in `disabledHarperLints`.
+		const [{ LocalLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		const linter = new LocalLinter({ binary });
+		const config = await linter.getDefaultLintConfig();
+		const descriptions = await linter.getLintDescriptions();
+
+		for (const name of disabledHarperLints) {
+			expect(config, `Harper no longer knows the lint ${name}`).toHaveProperty(name);
+		}
+
+		const uncovered = Object.entries(descriptions)
+			.filter(
+				([name, description]) =>
+					config[name] !== false &&
+					!disabledHarperLints.includes(name) &&
+					/censor|euphemism|expands an initialism|informal/iu.test(description)
+			)
+			.map(([name]) => name);
+		expect(uncovered).toEqual([]);
 	});
 
 	it('still keeps only the first of applicable overlapping findings', async () => {
