@@ -530,10 +530,11 @@ And the "quiet" part was never really quiet`;
 				</p>
 
 				<p class="lp-prose">
-					LyricLint does it as a selection. Select the words and choose the voice, then the section header gets updated as one edit you can undo in one press.
-					Every performer keeps a colour, so you can see who is singing each passage at a glance —
-					and <strong>the colour is display only</strong>. It never reaches the markup you copy out,
-					which stays exactly what Genius expects.
+					LyricLint does it as a selection. Select the words and choose the voice, then the section
+					header gets updated as one edit you can undo in one press. Every performer keeps a colour,
+					so you can see who is singing each passage at a glance — and <strong
+						>the colour is display only</strong
+					>. It never reaches the markup you copy out, which stays exactly what Genius expects.
 				</p>
 
 				<p class="lp-prose">
