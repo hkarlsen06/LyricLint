@@ -169,10 +169,11 @@ export const sectionUnlinkedRepeatRule: RuleDefinition = {
 			// Each branch says only what applies to it: copies that already match
 			// need no reassurance about differences, and copies that differ need
 			// nothing else so much as that reassurance.
+			const differing = members.length - matching.length;
 			const explanation =
 				matching.length === members.length
 					? `This song part appears ${members.length} times, and every copy already matches or is still empty. Linked, editing one edits them all, so a correction can never land in just one copy.`
-					: `This song part appears ${members.length} times, and ${members.length - matching.length} of the copies are sung a little differently. Linking ties only the words they share — the differences are kept exactly as they are.`;
+					: `This song part appears ${members.length} times, and ${differing} of the copies ${differing === 1 ? 'is' : 'are'} sung a little differently. Linking ties only the words they share — the differences are kept exactly as they are.`;
 			diagnostics.push({
 				...diagnostic(
 					this,

@@ -101,6 +101,28 @@ describe('diffDocuments', () => {
 		expect(header.at).toBe(0);
 	});
 
+	test('a blank neighbour is dropped — a placeholder line orients nobody', () => {
+		// Change on a section's last line: the line below is the blank between
+		// sections. "(blank line)" as context says nothing about where the
+		// change sits; the placeholder is only owed where a blank line is
+		// itself the change.
+		const baseline = '[Chorus]\nAlpha\nBravo\n\n[Verse]\nCharlie';
+		const current = '[Chorus]\nAlpha\nBrava\n\n[Verse]\nCharlie';
+		const diff = diffDocuments(baseline, current);
+		const kinds = diff.hunks[0].rows.map((row) => row.kind);
+		expect(kinds).toEqual(['context', 'context', 'changed']);
+	});
+
+	test('a gap that skips only blank lines draws no ellipsis', () => {
+		const baseline = '[Chorus]\n\nAlpha';
+		const current = '[Chorus]\n\nAlpha!';
+		const diff = diffDocuments(baseline, current);
+		const kinds = diff.hunks[0].rows.map((row) => row.kind);
+		// The header stands directly over the change; the blank between them is
+		// section spacing, and an ⋯ standing for it reads as hidden lyrics.
+		expect(kinds).toEqual(['context', 'changed']);
+	});
+
 	test('a header directly above the neighbour needs no ellipsis', () => {
 		const baseline = '[Chorus]\nAlpha\nBravo';
 		const current = '[Chorus]\nAlpha\nBrava';

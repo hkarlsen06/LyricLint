@@ -39,18 +39,22 @@ describe('CompareDialog', () => {
 		expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
 	});
 
-	test('a pasted baseline becomes a diff of del and ins with the line named', async () => {
+	test('a pasted baseline becomes a diff of del and ins with the line numbered per row', async () => {
 		const { controller } = createTestWorkbench();
 		render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
 		expect(screen.getByText('1 line changed', { exact: false })).toBeTruthy();
-		expect(screen.getByText('Line 2')).toBeTruthy();
 		const dropped = openDialog().querySelector('del');
 		const added = openDialog().querySelector('ins');
 		expect(dropped?.textContent).toBe('Lyne');
 		expect(added?.textContent).toBe('Line');
+		// The number rides the row it is true of — no "Line N" heading, which
+		// named the first changed line over a card that starts at the header.
+		const changedRow = screen.getByText('Lyne').closest('button');
+		expect(changedRow?.querySelector('.compare-diff__num')?.textContent).toBe('2');
+		expect(screen.queryByText('Line 2')).toBeNull();
 	});
 
 	test('pressing a changed line closes the dialog and parks the caret on it, focused', async () => {
@@ -91,7 +95,7 @@ describe('CompareDialog', () => {
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		expect(screen.queryByRole('textbox', { name: 'The lyrics as the page has them' })).toBeNull();
-		expect(screen.getByText('Line 2')).toBeTruthy();
+		expect(screen.getByText('Lyne')).toBeTruthy();
 	});
 
 	test('the baseline is written to the draft record, so it survives a reload', async () => {
@@ -141,7 +145,7 @@ describe('CompareDialog', () => {
 		expect(screen.getByRole('textbox', { name: 'The lyrics as the page has them' })).toBeTruthy();
 		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 		expect(screen.queryByRole('textbox', { name: 'The lyrics as the page has them' })).toBeNull();
-		expect(screen.getByText('Line 2')).toBeTruthy();
+		expect(screen.getByText('Lyne')).toBeTruthy();
 	});
 
 	test('an invisible-only change is carried by a sentence, not by the rows alone', async () => {
@@ -166,7 +170,12 @@ describe('CompareDialog', () => {
 
 		const dropped = [...openDialog().querySelectorAll('del')].map((el) => el.textContent);
 		expect(dropped).toEqual(['b', 'a']);
-		expect(screen.getAllByText('Line 3')).toHaveLength(2);
+		// A removed line has no line in the document any more, so its gutter
+		// cell is honestly empty.
+		for (const del of openDialog().querySelectorAll('del')) {
+			const num = del.closest('button')?.querySelector('.compare-diff__num');
+			expect(num?.textContent).toBe('');
+		}
 	});
 
 	test('a press on the backdrop closes the dialog', async () => {

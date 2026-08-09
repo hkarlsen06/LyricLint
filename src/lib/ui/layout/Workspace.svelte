@@ -222,18 +222,16 @@
 	}
 
 	// Read-only presentation stats for the status bar; derived from the snapshot
-	// the controller already holds, never written back.
+	// the controller already holds, never written back. `section.lines` holds
+	// only sung text — the parser keeps blank lines and bracket-shaped lines
+	// out of it — so the count is of lyric lines, not of the document's rows.
 	const documentStats = $derived.by(() => {
 		const parsed = controller.snapshot.parsed;
 		const lines = parsed.sections.reduce((total, section) => total + section.lines.length, 0);
-		const voiceGroups = new Set(
-			parsed.sections.flatMap((section) => section.voiceGroups.map((group) => group.id))
-		).size;
 		return {
 			lines,
 			sections: parsed.sections.length,
-			performers: controller.performers.length,
-			voiceGroups
+			performers: controller.performers.length
 		};
 	});
 
@@ -244,14 +242,8 @@
 	const documentCounts = $derived(
 		[
 			documentStats.lines > 0 ? count(documentStats.lines, 'line') : undefined,
-			documentStats.sections > 0 ? count(documentStats.sections, 'section') : undefined
-		].filter((label) => label !== undefined)
-	);
-
-	const voiceCounts = $derived(
-		[
-			documentStats.performers > 0 ? count(documentStats.performers, 'performer') : undefined,
-			documentStats.voiceGroups > 0 ? count(documentStats.voiceGroups, 'voice group') : undefined
+			documentStats.sections > 0 ? count(documentStats.sections, 'section') : undefined,
+			documentStats.performers > 0 ? count(documentStats.performers, 'performer') : undefined
 		].filter((label) => label !== undefined)
 	);
 
@@ -903,9 +895,6 @@
 			{/if}
 			{#if documentCounts.length > 0}
 				<span>{documentCounts.join(' · ')}</span>
-			{/if}
-			{#if voiceCounts.length > 0}
-				<span>{voiceCounts.join(' · ')}</span>
 			{/if}
 		</span>
 		<!-- The way out of the workbench, and the only one on the desktop layout.

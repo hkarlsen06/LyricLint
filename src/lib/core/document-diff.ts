@@ -317,9 +317,16 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 			at: currentStarts[lineIndex]
 		});
 
-		// Above the change: the section header it sings under, an ellipsis for
-		// whatever distance is skipped, and the immediate neighbour. Where the
-		// neighbour is the header, one row is all three.
+		// Above the change: the section header it sings under, an ellipsis where
+		// lyrics are skipped, and the immediate neighbour. Where the neighbour is
+		// the header, one row is all three.
+		//
+		// A blank neighbour is dropped rather than drawn: "(blank line)" as
+		// orientation orients nobody, and the placeholder is only owed where a
+		// blank line is itself the change. Blank lines do not earn the ellipsis
+		// either — an ⋯ standing for nothing but the spacing between sections
+		// reads as lyrics being hidden.
+		const isBlank = (lineIndex: number): boolean => currentLines[lineIndex].trim().length === 0;
 		const neighbourAbove = pending.firstCurrentLine - 1;
 		if (neighbourAbove >= 0) {
 			let headerIndex = -1;
@@ -329,11 +336,17 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 					break;
 				}
 			}
-			if (headerIndex >= 0 && headerIndex < neighbourAbove) {
+			const neighbourShown = !isBlank(neighbourAbove) && headerIndex !== neighbourAbove;
+			if (headerIndex >= 0) {
 				rows.push(contextRow(headerIndex));
-				if (headerIndex < neighbourAbove - 1) rows.push({ kind: 'gap' });
+				const boundary = neighbourShown ? neighbourAbove : pending.firstCurrentLine;
+				let skippedLyrics = false;
+				for (let lineIndex = headerIndex + 1; lineIndex < boundary; lineIndex += 1) {
+					if (!isBlank(lineIndex)) skippedLyrics = true;
+				}
+				if (skippedLyrics) rows.push({ kind: 'gap' });
 			}
-			rows.push(contextRow(neighbourAbove));
+			if (neighbourShown) rows.push(contextRow(neighbourAbove));
 		}
 
 		// The added lines of a hunk are consecutive current lines from its first
@@ -364,7 +377,7 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 		}
 
 		const neighbourBelow = pureRemoval ? pending.firstCurrentLine : pending.lastCurrentLine;
-		if (neighbourBelow < currentLines.length) {
+		if (neighbourBelow < currentLines.length && !isBlank(neighbourBelow)) {
 			rows.push(contextRow(neighbourBelow));
 		}
 

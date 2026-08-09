@@ -5,7 +5,7 @@ import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
 import type { TextRange } from '$lib/core/types.js';
 import type { HarperDiagnosticProvider } from '$lib/rules/index.js';
 import LiveRegion from '../primitives/LiveRegion.svelte';
-import { createTestWorkbench } from '../test-utils.js';
+import { createTestWorkbench, performer } from '../test-utils.js';
 import { createFeedbackState } from '../state/feedback.svelte.js';
 import { createInMemoryMediaRepository } from '../state/in-memory.js';
 import { createMediaPlayer } from '../state/media-player.svelte.js';
@@ -462,16 +462,47 @@ describe('Workspace and toolbar', () => {
 		expect(summary.textContent).not.toContain('1 sections');
 	});
 
+	// The counts are one run of facts with interpuncts between them, exactly as
+	// a diagnostic's meta line is — the performer count joins the run rather
+	// than sitting in a spaced-apart group of its own.
+	test('joins the performer count into the one interpunct run', () => {
+		const { controller } = createTestWorkbench({
+			text: '[Verse]\nA lyric',
+			performers: [performer('p1', 'Ari', 0)]
+		});
+		renderWorkspace(controller);
+
+		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
+		expect(summary.textContent).toContain('1 line · 1 section · 1 performer');
+	});
+
 	// A count worth stating is one that could have been otherwise. This document
 	// has lines and sections but no performers, so the roster half of the row is
-	// absent rather than reporting two zeros.
+	// absent rather than reporting a zero. The voice-group count is gone
+	// outright: it summed legend entries over the whole document — offset-keyed,
+	// so three identical choruses counted three — which is a number nobody
+	// could read anything from. Re-adding it is the specific regression.
 	test('omits a status bar count until it has something to report', () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
 		renderWorkspace(controller);
 
 		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
 		expect(summary.textContent).not.toContain('0 performers');
-		expect(summary.textContent).not.toContain('0 voice groups');
+		expect(summary.textContent).not.toContain('voice group');
+	});
+
+	// The line count is of sung text only. Blank lines and bracket-shaped lines
+	// — headers, an unclosed `[Bridge`, a lone `[?]` — are structure, and the
+	// parser keeps all of them out of `section.lines`; this pins that the
+	// status bar inherits the distinction rather than counting rows.
+	test('counts only lyric lines in the status bar', () => {
+		const { controller } = createTestWorkbench({
+			text: '[Verse 1]\nOne\nTwo\n\n[Chorus]\nThree\n   \n[?]\n[Bridge'
+		});
+		renderWorkspace(controller);
+
+		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
+		expect(summary.textContent).toContain('3 lines');
 	});
 
 	test('states no counts at all for an empty document', () => {

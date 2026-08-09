@@ -241,15 +241,22 @@
 						     removals straddling a kept line near the document's end
 						     legitimately collapse to the same offset and line label — a
 						     key built from those crashed the render as a duplicate. -->
+						<!-- No "Line N" heading over a hunk: the card starts at the section
+						     header, several lines above the change the heading would name,
+						     so any one number over the card is wrong for most of its rows.
+						     The number rides each row instead, in the editor's own gutter
+						     idiom — and a removed line, which has no line in the document
+						     any more, honestly draws none. -->
 						{#each diff.hunks as hunk, hunkIndex (hunkIndex)}
 							<li class="compare-diff__hunk">
-								<span class="compare-diff__line">Line {hunk.line}</span>
 								{#each hunk.rows as row, rowIndex (rowIndex)}
 									{#if row.kind === 'gap'}
-										<!-- Lines skipped between the section header and the
+										<!-- Lyrics skipped between the section header and the
 										     neighbour; aria-hidden because "some lines omitted"
 										     is already what a list of separate rows announces. -->
-										<span class="compare-diff__gap" aria-hidden="true">⋯</span>
+										<span class="compare-diff__gap" aria-hidden="true"
+											><span class="compare-diff__num"></span><span>⋯</span></span
+										>
 									{:else}
 										<button
 											type="button"
@@ -257,21 +264,25 @@
 											class:compare-diff__row--context={row.kind === 'context'}
 											onclick={() => revealRow(row.at)}
 										>
-											{#if row.kind === 'removed'}
-												<del class="compare-diff__drop">{@render lineText(row.text)}</del>
-											{:else if row.kind === 'added'}
-												<ins class="compare-diff__add">{@render lineText(row.text)}</ins>
-											{:else if row.kind === 'context'}
-												{@render lineText(row.text)}
-											{:else}
-												{#each row.segments as segment, segmentIndex (segmentIndex)}{#if segment.kind === 'shared'}<span
-															class="compare-diff__shared">{segment.text}</span
-														>{:else}{#if segment.deleted}<del class="compare-diff__drop"
-																>{segment.deleted}</del
-															>{/if}{#if segment.inserted}<ins class="compare-diff__add"
-																>{segment.inserted}</ins
-															>{/if}{/if}{/each}
-											{/if}
+											<span class="compare-diff__num">{row.kind === 'removed' ? '' : row.line}</span
+											>
+											<span class="compare-diff__text">
+												{#if row.kind === 'removed'}
+													<del class="compare-diff__drop">{@render lineText(row.text)}</del>
+												{:else if row.kind === 'added'}
+													<ins class="compare-diff__add">{@render lineText(row.text)}</ins>
+												{:else if row.kind === 'context'}
+													{@render lineText(row.text)}
+												{:else}
+													{#each row.segments as segment, segmentIndex (segmentIndex)}{#if segment.kind === 'shared'}<span
+																class="compare-diff__shared">{segment.text}</span
+															>{:else}{#if segment.deleted}<del class="compare-diff__drop"
+																	>{segment.deleted}</del
+																>{/if}{#if segment.inserted}<ins class="compare-diff__add"
+																	>{segment.inserted}</ins
+																>{/if}{/if}{/each}
+												{/if}
+											</span>
 										</button>
 									{/if}
 								{/each}
@@ -407,20 +418,20 @@
 		padding: var(--space-2) var(--space-2-5);
 	}
 
-	.compare-diff__line {
-		display: block;
-		margin-bottom: var(--space-0-5);
-		color: var(--color-text-muted);
-		font-size: var(--font-size-xs);
-		font-weight: var(--font-weight-semibold);
+	/* One run of hunks, hairlines where they meet — not a heading over each. */
+	.compare-diff__hunk + .compare-diff__hunk {
+		margin-top: var(--space-1);
+		padding-top: var(--space-2);
+		border-top: var(--border-width) solid var(--color-border);
 	}
 
 	/* Every line is its own press, so every line is its own button — the row
 	   that lights up is exactly the line the caret will land on. Spacing
 	   differences have to occupy their own width, so every row keeps its
 	   whitespace; the invisible ones are what the notes line is for. */
-	.compare-diff__row {
-		display: block;
+	.compare-diff__row,
+	.compare-diff__gap {
+		display: flex;
 		width: 100%;
 		padding: 0 var(--space-1);
 		border: 0;
@@ -430,14 +441,29 @@
 		font-family: var(--font-mono);
 		font-size: var(--font-size-sm);
 		line-height: var(--line-height-normal);
+		gap: var(--space-2);
 		text-align: start;
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
 	}
 
 	.compare-diff__row:hover,
 	.compare-diff__row:focus-visible {
 		background: var(--color-control-hover);
+	}
+
+	/* The row's own line number, in the editor's gutter idiom. A removed line
+	   has no line in the document any more, so its cell is honestly empty. */
+	.compare-diff__num {
+		flex: none;
+		min-width: 3ch;
+		color: var(--color-text-disabled);
+		text-align: end;
+	}
+
+	.compare-diff__text {
+		min-width: 0;
+		flex: 1;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
 	}
 
 	/* Orientation, not change: the header and the neighbours read as the quiet
@@ -447,12 +473,7 @@
 	}
 
 	.compare-diff__gap {
-		display: block;
-		padding: 0 var(--space-1);
 		color: var(--color-text-muted);
-		font-family: var(--font-mono);
-		font-size: var(--font-size-sm);
-		line-height: var(--line-height-normal);
 	}
 
 	.compare-diff__shared {

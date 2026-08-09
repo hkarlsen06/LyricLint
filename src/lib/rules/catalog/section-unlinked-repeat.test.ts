@@ -126,7 +126,7 @@ describe('section.unlinked-repeat', () => {
 
 		expect(markedText(text, found)).toEqual(['[Chorus]']);
 		expect(found[0]?.explanation).toContain('appears 3 times');
-		expect(found[0]?.explanation).toContain('1 of the copies are sung a little differently');
+		expect(found[0]?.explanation).toContain('1 of the copies is sung a little differently');
 		expect(found[0]?.relatedRanges?.map(({ from, to }) => text.slice(from, to))).toEqual([
 			'[Chorus 2]',
 			'[Chorus 3]'
