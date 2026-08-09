@@ -76,7 +76,7 @@ describe('the assistant dialog', () => {
 		expect(preview.textContent).not.toContain('Attached rule');
 		expect(preview.querySelector('pre')).toBeNull();
 		const rulePage = preview.querySelector('a');
-		expect(rulePage?.getAttribute('href')).toContain(RULE.slug);
+		expect(rulePage?.getAttribute('href')?.endsWith(`/${RULE.slug}/`)).toBe(true);
 		expect(rulePage?.getAttribute('target')).toBe('_blank');
 		expect(rulePage?.getAttribute('rel')).toBe('noopener noreferrer');
 

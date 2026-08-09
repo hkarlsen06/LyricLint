@@ -217,7 +217,10 @@ test('the rule reference exposes article metadata and language semantics', async
 	await expect(page.locator('#section + p')).toContainText('Every distinct song part carries');
 	await expect(
 		page.locator('.rules__checks a', { hasText: 'A section with no header' }).first()
-	).toHaveAttribute('href', /\/rules\/section-header-missing\/?$/u);
+		// The slash is required, not optional: `trailingSlash: 'always'` makes the
+		// bare path a 301, and links carrying it were why Search Console credited
+		// no rule page as an internal-link target.
+	).toHaveAttribute('href', /\/rules\/section-header-missing\/$/u);
 	// The eight per-language spelling rules are one entry with its packs after
 	// it, here and in the list, rather than eight near-identical names.
 	await expect(page.locator('.rules__checks-family')).toHaveText(

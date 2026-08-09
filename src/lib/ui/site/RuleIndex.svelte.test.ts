@@ -114,7 +114,11 @@ describe('RuleIndex', () => {
 		// Every pack is still its own page, so the list is exhaustive and the
 		// count under the field is still a count of rules.
 		expect(rows()).toHaveLength(total);
-		for (const link of packs) expect(link.getAttribute('href')).toMatch(/\/rules\/spelling-/u);
+		// The trailing slash is the URL's final form under `trailingSlash: 'always'`
+		// — `resolve` alone emits the bare path, which 301s on every press and is
+		// what kept Search Console from crediting rule pages as link targets.
+		for (const link of packs)
+			expect(link.getAttribute('href')).toMatch(/\/rules\/spelling-[a-z-]+\/$/u);
 	});
 
 	it('gives a family of one its own row back, because a heading over one link is two rows for one press', async () => {
@@ -290,7 +294,7 @@ describe('RuleIndex', () => {
 
 		const current = [...document.querySelectorAll('.site-run a[aria-current="page"]')];
 		expect(current).toHaveLength(2);
-		for (const row of current) expect(row.getAttribute('href')).toContain(slug);
+		for (const row of current) expect(row.getAttribute('href')?.endsWith(`/${slug}/`)).toBe(true);
 		// And a rule that is not popular keeps exactly one.
 		expect(rows().filter((row) => row.getAttribute('aria-current') === 'page')).toHaveLength(1);
 	});

@@ -30,7 +30,7 @@
 	<span class="assistant-citation-number">{number}</span>
 	<h4 class="assistant-rule__title">
 		<a
-			href={resolve('/(site)/rules/[rule]', { rule: rule.slug })}
+			href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/"
 			target="_blank"
 			rel="noopener noreferrer"
 		>

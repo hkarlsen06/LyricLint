@@ -140,10 +140,11 @@
 				{#if index > 0}<span class="site-meta__separator" aria-hidden="true"
 						>{punctuation.between}</span
 					>{/if}{#if entry.kind === 'rule'}<a
-						href={resolve('/(site)/rules/[rule]', { rule: entry.rule.slug })}>{entry.rule.title}</a
+						href="{resolve('/(site)/rules/[rule]', { rule: entry.rule.slug })}/"
+						>{entry.rule.title}</a
 					>{:else}<span class="rules__checks-family"
 						>{entry.family}{punctuation.open}{#each entry.rules as rule, at (rule.id)}{#if at > 0}{punctuation.comma}{/if}<a
-								href={resolve('/(site)/rules/[rule]', { rule: rule.slug })}
+								href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/"
 								>{rule.variant?.language ?? rule.title}</a
 							>{/each}{punctuation.close}</span
 					>{/if}

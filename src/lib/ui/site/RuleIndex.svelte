@@ -239,8 +239,13 @@
 	     row's markup that drifts from this one. -->
 	{#snippet row(rule: RuleReference)}
 		<li>
+			<!-- The appended slash is load-bearing: `resolve` interpolates the route
+			     pattern and knows nothing about `trailingSlash: 'always'`, so the bare
+			     result is a URL every visit 301s away from — which is also what kept
+			     Search Console from crediting any rule page as an internal-link
+			     target. Canonicals and the sitemap already carry the slash. -->
 			<a
-				href={resolve('/(site)/rules/[rule]', { rule: rule.slug })}
+				href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/"
 				aria-current={rule.slug === selectedSlug ? 'page' : undefined}
 			>
 				<!-- The rule's name leads, and what the linter actually says about
@@ -278,7 +283,7 @@
 				{#each rules as rule (rule.id)}
 					<li>
 						<a
-							href={resolve('/(site)/rules/[rule]', { rule: rule.slug })}
+							href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/"
 							aria-current={rule.slug === selectedSlug ? 'page' : undefined}
 						>
 							{rule.variant?.language ?? rule.title}
