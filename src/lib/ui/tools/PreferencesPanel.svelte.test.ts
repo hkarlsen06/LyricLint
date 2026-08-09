@@ -201,9 +201,7 @@ describe('PreferencesPanel storage persistence', () => {
 		const { controller } = createTestWorkbench();
 		render(PreferencesPanel, { controller });
 
-		expect(screen.getByText(/declined protected storage/u)).toHaveClass(
-			'backup-status--warning'
-		);
+		expect(screen.getByText(/declined protected storage/u)).toHaveClass('backup-status--warning');
 		expect(screen.queryByRole('button', { name: 'Protect storage' })).toBeNull();
 	});
 
