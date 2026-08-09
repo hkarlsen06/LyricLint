@@ -1,7 +1,7 @@
 import { StateField } from '@codemirror/state';
 import type { EditorState } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
-import type { DecorationSet } from '@codemirror/view';
+import type { DecorationSet, Rect } from '@codemirror/view';
 import type { LanguagePack } from '$lib/core/types.js';
 import { editorContextField, setEditorContextEffect } from './editor-state.js';
 
@@ -78,6 +78,20 @@ class DocumentPlaceholderWidget extends WidgetType {
 		}
 		return wrap;
 	}
+
+	// A caret beside the ghost stands at the ghost's first row, one row tall.
+	// Taking the widget out of flow (see the theme below) keeps the *native*
+	// caret a single row, because the browser sizes that caret to the line box —
+	// but anything that asks CodeMirror where position 0 is (`coordsAtPos`, and
+	// through it the drawn caret layer) falls back to this widget's own client
+	// rect, which is still four rows tall however it is positioned. So the
+	// widget answers the measurement itself, with the start of its first row.
+	coordsAt(dom: HTMLElement): Rect | null {
+		const firstRow = dom.firstElementChild;
+		if (!firstRow) return null;
+		const rect = firstRow.getBoundingClientRect();
+		return { left: rect.left, right: rect.left, top: rect.top, bottom: rect.bottom };
+	}
 }
 
 function build(state: EditorState): DecorationSet {
@@ -114,6 +128,11 @@ export const documentPlaceholderField = StateField.define<DecorationSet>({
  * where the caret is) while line 1's box stays a single row, and the caret with
  * it. The line is the containing block so the ghost scrolls and clips with the
  * document rather than floating over the editor.
+ *
+ * That only covers the native caret. The drawn caret layer measures through
+ * `coordsAtPos`, which falls back to the widget's own client rect and brought
+ * the four-row caret back; the widget's `coordsAt` above is the same rule for
+ * that path.
  */
 export const documentPlaceholderTheme = EditorView.baseTheme({
 	'.cm-line:has(.ll-placeholder)': {
