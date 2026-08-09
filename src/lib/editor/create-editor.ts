@@ -104,6 +104,7 @@ import {
 	typeOnlyHereField,
 	typeOnlyHereNotifier
 } from './extensions/section-links.js';
+import { caretLayer } from './extensions/caret-layer.js';
 import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
 import { searchReplace } from './extensions/search-replace.js';
 import { createUpdateListener, snapshotFromState } from './extensions/update-bridge.js';
@@ -237,7 +238,12 @@ const editorTheme = EditorView.theme({
 	},
 	'.cm-content': {
 		padding: 'var(--space-5) var(--space-4) var(--space-8) var(--space-2)',
-		caretColor: 'var(--color-accent)'
+		// The visible caret is the drawn layer (extensions/caret-layer.ts): the
+		// native one paints under any child with a background, and this editor's
+		// lines are covered in deliberate fills — on a performer-tinted line it
+		// typed into the right place and could not be seen. Transparent rather
+		// than removed, so there are not two carets where the fills are absent.
+		caretColor: 'transparent'
 	},
 	'.cm-line': {
 		padding: '0 var(--space-1)',
@@ -734,6 +740,7 @@ export function createLyricEditor(
 		markupDimField,
 		highlightActiveLine(),
 		highlightActiveLineGutter(),
+		caretLayer(),
 		performerDecorationTheme,
 		lintDecorationTheme,
 		...(sectionGhosts ? [sectionGhostTheme] : []),
