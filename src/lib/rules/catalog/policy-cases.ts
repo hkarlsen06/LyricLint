@@ -551,5 +551,14 @@ export const policyCases: readonly RulePolicyCase[] = [
 		invalid: '[Verse]\nI need 5 reasons',
 		valid: '[Verse]\nI need five reasons',
 		ambiguous: '[Verse]\nMeet at 5:30 with $5'
+	},
+	{
+		id: 'numbers.decade-apostrophe',
+		title: 'An apostrophe on the wrong side of a decade',
+		invalid: "[Verse]\nBack in the 90's we had it all",
+		valid: "[Verse]\nParty like it's the '90s",
+		// `45's` is somebody's records or somebody's jersey — the possessive is
+		// as likely as the plural, so a non-decade number is left alone.
+		ambiguous: "[Verse]\nSpinning 45's all night"
 	}
 ];

@@ -69,6 +69,7 @@ describe('every enabled rule has valid, invalid, and ambiguous policy coverage',
 const englishGatedRuleIds = new Set([
 	'contraction.apostrophe',
 	'grammar.english-pronoun-i',
+	'numbers.decade-apostrophe',
 	'numbers.spell-out',
 	'spelling.english-common',
 	'spelling.texting-shorthand'

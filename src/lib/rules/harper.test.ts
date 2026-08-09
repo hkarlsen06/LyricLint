@@ -75,6 +75,22 @@ describe('Harper lyric projection', () => {
 		);
 		expect(projection.originalOffsets[projectedExample]).toBe(source.indexOf('example'));
 	});
+
+	// Harper tokenizes `'90s` as a number followed by a one-letter word and
+	// spell-checks the `s` into `so`, `as` and `is` — a fix preview reading
+	// `'90s` → `'90so` — and its decade lint on `90's` would stand where
+	// `numbers.decade-apostrophe`'s reviewed finding belongs. Every
+	// decade-shaped token with an apostrophe is therefore masked, right or
+	// wrong, curly or straight; the bare `90s` is a clean token and stays.
+	it('masks decade tokens with apostrophes so Harper never tokenizes the trailing s', () => {
+		const source = "[Intro]\n'90s Argentina in the 90's and the ’80s\nStill in my 20s";
+		const projection = projectLyricsForHarper(parseDocument(source));
+
+		expect(projection.text).toBe(
+			'       \n     Argentina in the      and the     \nStill in my 20s'
+		);
+		expect([...projection.text].length).toBe([...source].length);
+	});
 });
 
 describe('Harper diagnostic provider', () => {
@@ -439,6 +455,32 @@ I heard it calling through the wall`;
 			expect(
 				diagnostics.filter((diagnostic) => diagnostic.from < lilFrom + 3 && diagnostic.to > lilFrom)
 			).toEqual([]);
+		} finally {
+			await provider.dispose();
+		}
+	});
+
+	// The reported failure verbatim: over `'90s Argentina`, real Harper offered
+	// to respell the `s` of a correctly written decade. Driven through the real
+	// WASM because the bug lives in Harper's tokenizer, which no stub reproduces.
+	it('has nothing to say about a correctly written decade', async () => {
+		const text = "[Intro]\n'90s Argentina";
+		const [{ LocalLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+
+		try {
+			const diagnostics = await provider.lint({
+				text,
+				document: parseDocument(text),
+				language: 'en',
+				performers: [],
+				revision: 9
+			});
+
+			expect(diagnostics).toEqual([]);
 		} finally {
 			await provider.dispose();
 		}

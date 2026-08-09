@@ -7,6 +7,7 @@ import type {
 	TextRange
 } from '$lib/core/types.js';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
+import { decadeApostropheTokenPattern } from './catalog/numbers-decade-apostrophe.js';
 import { standardizedSpellings } from './data/spelling.js';
 import { sortDiagnostics } from './engine.js';
 
@@ -193,6 +194,20 @@ export function projectLyricsForHarper(document: ParsedDocument): HarperProjecti
 				}
 				markRange(mask, { from: span.from, to: span.contentFrom });
 				markRange(mask, { from: span.contentTo, to: span.to });
+			}
+
+			// The one masked thing that is lyric content rather than Genius
+			// structure. Harper tokenizes `'90s` as a number followed by a
+			// one-letter word and spell-checks the `s`, so every decade-shaped
+			// token with an apostrophe — right or wrong — belongs to the catalog:
+			// `numbers.decade-apostrophe` reports the wrong forms and nothing
+			// needs to report the right ones.
+			decadeApostropheTokenPattern.lastIndex = 0;
+			for (const match of line.text.matchAll(decadeApostropheTokenPattern)) {
+				markRange(mask, {
+					from: line.from + match.index,
+					to: line.from + match.index + match[0].length
+				});
 			}
 		}
 	}

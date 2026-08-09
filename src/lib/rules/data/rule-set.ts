@@ -108,8 +108,8 @@ const previousRuleSet: RuleSetManifest = {
 export const previousKnownGoodRuleSet = previousRuleSet;
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.08.08.1',
-	publishedAt: '2026-08-08',
+	version: '2026.08.09.0',
+	publishedAt: '2026-08-09',
 	sourceIds: [
 		...previousRuleSet.sourceIds,
 		'G-SYMBOLS',
@@ -185,6 +185,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'punctuation.dropped-word-dash',
 		'punctuation.parenthesis-spacing',
 		'line.prose-density',
-		'numbers.spell-out'
+		'numbers.spell-out',
+		'numbers.decade-apostrophe'
 	]
 };

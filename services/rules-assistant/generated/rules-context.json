@@ -1,8 +1,8 @@
 {
 	"formatVersion": 2,
-	"ruleSetVersion": "2026.08.08.1",
-	"generatedAt": "2026-08-08T15:59:21.692Z",
-	"contentHash": "2b5b49c0ebeabb05aa8572da610ca5c771bc6d9ff7e995d352a8fdeccec7e38f",
+	"ruleSetVersion": "2026.08.09.0",
+	"generatedAt": "2026-08-09T00:16:23.568Z",
+	"contentHash": "216249ed9d5e9796e0fd29f95f5c63fd37838e1c37f51b414d9548b8836fb7b6",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -928,6 +928,22 @@
 			"flaggedExample": "[Verse]\nI need 5 reasons",
 			"acceptedExample": "[Verse]\nI need five reasons",
 			"sourceIds": ["G-NUMBERS"]
+		},
+		{
+			"id": "numbers.decade-apostrophe",
+			"slug": "numbers-decade-apostrophe",
+			"title": "An apostrophe on the wrong side of a decade",
+			"group": "numbers",
+			"groupTitle": "Numbers",
+			"severity": "suggestion",
+			"message": "Use “'90s” or “90s” instead of “90's”.",
+			"explanation": "An apostrophe stands in for the dropped century, so it goes before the numerals ('90s); an age range or a plain plural takes none (90s). An apostrophe after the numerals reads as a possessive, which a line can genuinely mean, so check the reading before replacing.",
+			"fix": "preview",
+			"fixLabel": "Replace with '90s",
+			"language": "en",
+			"flaggedExample": "[Verse]\nBack in the 90's we had it all",
+			"acceptedExample": "[Verse]\nParty like it's the '90s",
+			"sourceIds": ["G-NUMBERS", "G-SPELLING"]
 		}
 	],
 	"lookups": [

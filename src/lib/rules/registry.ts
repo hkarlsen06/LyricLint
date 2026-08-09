@@ -9,6 +9,7 @@ import { grammarEnglishPronounIRule } from './catalog/grammar-english-pronoun-i.
 import { grammarSpanishContractionsRule } from './catalog/grammar-spanish-contractions.js';
 import { languageSelectionMismatchRule } from './catalog/language-selection-mismatch.js';
 import { lineProseDensityRule } from './catalog/line-prose-density.js';
+import { numbersDecadeApostropheRule } from './catalog/numbers-decade-apostrophe.js';
 import { numbersSpellOutRule } from './catalog/numbers-spell-out.js';
 import { performerHeaderRequiredRule } from './catalog/performer-header-required.js';
 import { performerInlineMismatchRule } from './catalog/performer-inline-mismatch.js';
@@ -119,7 +120,8 @@ export const enabledRules: readonly RuleDefinition[] = [
 	punctuationDroppedWordDashRule,
 	punctuationParenthesisSpacingRule,
 	lineProseDensityRule,
-	numbersSpellOutRule
+	numbersSpellOutRule,
+	numbersDecadeApostropheRule
 ];
 
 /** Validate uniqueness and reviewed provenance for every enabled rule. */
