@@ -4,6 +4,7 @@
 	 * dismissal, and focus restoration; AssistantConversation owns everything
 	 * below this header and is shared verbatim with the workbench panel.
 	 */
+	import { X } from 'lucide-svelte';
 	import { Dialog } from 'bits-ui';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import AssistantChatControls from './AssistantChatControls.svelte';
@@ -40,9 +41,7 @@
 						onConversationEmptied={() => conversation?.focusComposer()}
 					/>
 					<Dialog.Close class="icon-button button--quiet" aria-label="Close">
-						<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
-							<path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" fill="none" />
-						</svg>
+						<X aria-hidden="true" size={12} strokeWidth={3} />
 					</Dialog.Close>
 				</div>
 			</header>

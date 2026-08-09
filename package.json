@@ -67,6 +67,7 @@
 		"bits-ui": "^2.18.1",
 		"dexie": "^4.4.4",
 		"harper.js": "2.7.0",
-		"languagedetect": "2.0.0"
+		"languagedetect": "2.0.0",
+		"lucide-svelte": "^1.0.1"
 	}
 }

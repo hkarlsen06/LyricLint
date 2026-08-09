@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Check, Globe, Search, X } from 'lucide-svelte';
 	import { getLanguagePack } from '$lib/languages/registry.js';
 	import { languageSourceInventory } from '$lib/languages/inventory.js';
 	import { tick } from 'svelte';
@@ -95,19 +96,7 @@
 			<span class="language-option__meta">
 				<code>{tag}</code>
 				{#if tag === controller.language}
-					<svg
-						aria-label="Selected"
-						viewBox="0 0 16 16"
-						width="16"
-						height="16"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.6"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="m3.25 8.25 3 3 6.5-6.5" />
-					</svg>
+					<Check aria-label="Selected" size={16} strokeWidth={2.4} />
 				{/if}
 			</span>
 		</button>
@@ -122,22 +111,7 @@
 	aria-label={`Lyric language: ${selectedLabel}`}
 	onclick={open}
 >
-	<svg
-		aria-hidden="true"
-		viewBox="0 0 16 16"
-		width="15"
-		height="15"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="1.4"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-	>
-		<circle cx="8" cy="8" r="5.75" />
-		<path
-			d="M2.5 8h11M8 2.25c1.55 1.6 2.35 3.5 2.35 5.75S9.55 12.15 8 13.75M8 2.25C6.45 3.85 5.65 5.75 5.65 8s.8 4.15 2.35 5.75"
-		/>
-	</svg>
+	<Globe aria-hidden="true" size={15} strokeWidth={2.1} />
 	<span aria-hidden="true">{controller.language.toUpperCase()}</span>
 </button>
 
@@ -151,35 +125,12 @@
 		<div class="language-dialog__header">
 			<strong id="language-dialog-title">Lyric language</strong>
 			<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
-				<svg
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="16"
-					height="16"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-				>
-					<path d="m4 4 8 8M12 4l-8 8" />
-				</svg>
+				<X aria-hidden="true" size={16} strokeWidth={2.25} />
 			</button>
 		</div>
 
 		<label class="language-search" for="language-search-input">
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="16"
-				height="16"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-			>
-				<circle cx="7" cy="7" r="4.25" />
-				<path d="m10.25 10.25 3 3" />
-			</svg>
+			<Search aria-hidden="true" size={16} strokeWidth={2.25} />
 			<input
 				bind:this={searchInput}
 				bind:value={query}
@@ -226,7 +177,7 @@
 		white-space: nowrap;
 	}
 
-	.language-trigger svg {
+	.language-trigger :global(svg) {
 		flex: none;
 		color: var(--color-text-muted);
 	}
@@ -283,7 +234,7 @@
 		outline-offset: var(--focus-ring-offset);
 	}
 
-	.language-search svg {
+	.language-search :global(svg) {
 		margin-inline-start: var(--space-2-5);
 		color: var(--color-text-muted);
 	}

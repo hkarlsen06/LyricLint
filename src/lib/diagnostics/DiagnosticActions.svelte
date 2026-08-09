@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { Check } from 'lucide-svelte';
 	import { previewableFix, previewSignature } from '$lib/core/fix-preview.js';
 	import type { Diagnostic, DiagnosticFix } from '$lib/core/types.js';
 	import { acquirePreview } from './preview-slot.js';
@@ -129,19 +130,7 @@
 			onclick={(event) => onIgnore(event.currentTarget)}
 		>
 			It's correct
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="14"
-				height="14"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.8"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M3.5 8.2 6.5 11l6-6" />
-			</svg>
+			<Check aria-hidden="true" size={14} strokeWidth={2.4} />
 		</button>
 	{/if}
 	{#if offersHeaderPicker}

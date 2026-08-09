@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { BookOpen, Check } from 'lucide-svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
 	import { siteUrl } from '$lib/seo.js';
@@ -218,22 +219,7 @@ And the "quiet" part was never really quiet`;
 				<a class="lp-hero__alt" href={resolve('/rules/')}>
 					<!-- The mark names the destination the way t3's octocat names
 					     GitHub: the reference is a book, in the link's own ink. -->
-					<svg
-						width="15"
-						height="15"
-						viewBox="0 0 16 16"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						aria-hidden="true"
-					>
-						<path
-							d="M8 3.6C6.6 2.7 4.9 2.2 3 2.2c-.4 0-.8.3-.8.7v9c0 .4.4.7.8.7 1.9 0 3.6.5 5 1.4 1.4-.9 3.1-1.4 5-1.4.4 0 .8-.3.8-.7v-9c0-.4-.4-.7-.8-.7-1.9 0-3.6.5-5 1.4Z"
-						/>
-						<path d="M8 3.6V14" />
-					</svg>
+					<BookOpen aria-hidden="true" size={15} strokeWidth={2.25} />
 					<span>Browse the {ruleCount} rules</span>
 				</a>
 			</div>
@@ -415,39 +401,15 @@ And the "quiet" part was never really quiet`;
 
 			<p class="lp-note">
 				<span class="lp-note__item">
-					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-						<path
-							d="M3 8.5 6.5 12 13 4.5"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
+					<Check aria-hidden="true" size={14} strokeWidth={3} />
 					Sourced, versioned, and bundled with the app
 				</span>
 				<span class="lp-note__item">
-					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-						<path
-							d="M3 8.5 6.5 12 13 4.5"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
+					<Check aria-hidden="true" size={14} strokeWidth={3} />
 					Never a live scraper
 				</span>
 				<span class="lp-note__item">
-					<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-						<path
-							d="M3 8.5 6.5 12 13 4.5"
-							stroke="currentColor"
-							stroke-width="2"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
+					<Check aria-hidden="true" size={14} strokeWidth={3} />
 					Nothing changes unless you press the control that changes it
 				</span>
 			</p>
@@ -645,15 +607,7 @@ And the "quiet" part was never really quiet`;
 				<ul class="lp-points">
 					<li>
 						<span class="lp-points__mark" aria-hidden="true">
-							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-								<path
-									d="M3 8.5 6.5 12 13 4.5"
-									stroke="currentColor"
-									stroke-width="2.2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								/>
-							</svg>
+							<Check size={12} strokeWidth={3.3} />
 						</span>
 						<span
 							><strong>No account and no upload.</strong> There is no server to send one to.</span
@@ -661,15 +615,7 @@ And the "quiet" part was never really quiet`;
 					</li>
 					<li>
 						<span class="lp-points__mark" aria-hidden="true">
-							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-								<path
-									d="M3 8.5 6.5 12 13 4.5"
-									stroke="currentColor"
-									stroke-width="2.2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								/>
-							</svg>
+							<Check size={12} strokeWidth={3.3} />
 						</span>
 						<span>
 							<strong>Autosaved in your own browser.</strong> Closing the tab does not lose work, and
@@ -678,15 +624,7 @@ And the "quiet" part was never really quiet`;
 					</li>
 					<li>
 						<span class="lp-points__mark" aria-hidden="true">
-							<svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-								<path
-									d="M3 8.5 6.5 12 13 4.5"
-									stroke="currentColor"
-									stroke-width="2.2"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								/>
-							</svg>
+							<Check size={12} strokeWidth={3.3} />
 						</span>
 						<span>
 							<strong>Works offline once loaded</strong>, which matters when the rules you are

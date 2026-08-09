@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { fly } from 'svelte/transition';
+	import { X } from 'lucide-svelte';
 	import type { FeedbackState } from '../state/feedback.svelte.js';
 
 	let { feedback }: { feedback: FeedbackState } = $props();
@@ -53,18 +54,7 @@
 					aria-label="Dismiss notification"
 					onclick={() => feedback.dismissToast(toast.id)}
 				>
-					<svg
-						aria-hidden="true"
-						viewBox="0 0 16 16"
-						width="16"
-						height="16"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-					>
-						<path d="m4 4 8 8M12 4l-8 8" />
-					</svg>
+					<X aria-hidden="true" size={16} strokeWidth={2.25} />
 				</button>
 			</div>
 		</div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Trash2 } from 'lucide-svelte';
 	/**
 	 * Taking a row out of a list, in one place, in two presses.
 	 *
@@ -69,21 +70,6 @@
 		title={label}
 		onclick={() => onRequest()}
 	>
-		<svg
-			aria-hidden="true"
-			viewBox="0 0 16 16"
-			width="14"
-			height="14"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.5"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path
-				d="M2.8 4.2h10.4M6.5 4.2V2.9h3v1.3M4.2 4.2l.6 8.4a.8.8 0 0 0 .8.7h4.8a.8.8 0 0 0 .8-.7l.6-8.4"
-			/>
-			<path d="M6.8 6.8v4M9.2 6.8v4" />
-		</svg>
+		<Trash2 aria-hidden="true" size={14} strokeWidth={2.25} />
 	</button>
 {/if}

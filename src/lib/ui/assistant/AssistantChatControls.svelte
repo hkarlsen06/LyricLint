@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Clock3, Plus } from 'lucide-svelte';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
@@ -52,20 +53,7 @@
 				aria-expanded={chatsOpen}
 				bind:this={chatsTrigger}
 			>
-				<svg
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="15"
-					height="15"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<circle cx="8" cy="8" r="5.6" />
-					<path d="M8 5.2V8l2 1.6" />
-				</svg>
+				<Clock3 aria-hidden="true" size={15} strokeWidth={2.25} />
 			</summary>
 			<div class="assistant-chats__popover">
 				<h3 class="assistant-chats__heading">Conversations</h3>
@@ -121,8 +109,6 @@
 		title="New chat"
 		onclick={() => void assistant.newChat()}
 	>
-		<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
-			<path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-		</svg>
+		<Plus aria-hidden="true" size={15} strokeWidth={2.25} />
 	</button>
 </div>

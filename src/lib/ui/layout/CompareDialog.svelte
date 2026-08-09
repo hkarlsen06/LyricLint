@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Diff, X } from 'lucide-svelte';
 	import { tick } from 'svelte';
 	import { diffDocuments, type DiffRow } from '$lib/core/document-diff.js';
 	import { formatDraftDate } from '../drafts/draft-date.js';
@@ -183,24 +184,7 @@
 		aria-haspopup="dialog"
 		onclick={open}
 	>
-		<!-- Lucide's “diff” glyph (ISC-licensed), geometry unmodified; rendered at
-		     15px from its own 24 grid, the stroke width alone raised so its drawn
-		     weight matches the 1.4 the strip's other glyphs carry. -->
-		<svg
-			aria-hidden="true"
-			viewBox="0 0 24 24"
-			width="15"
-			height="15"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="2.2"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="M12 3v14" />
-			<path d="M5 10h14" />
-			<path d="M5 21h14" />
-		</svg>
+		<Diff aria-hidden="true" size={15} strokeWidth={2.2} />
 		Compare
 	</button>
 {/if}
@@ -217,18 +201,7 @@
 			<div class="compare-dialog__header">
 				<strong id="compare-dialog-title">Compare with the page</strong>
 				<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
-					<svg
-						aria-hidden="true"
-						viewBox="0 0 16 16"
-						width="16"
-						height="16"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-					>
-						<path d="m4 4 8 8M12 4l-8 8" />
-					</svg>
+					<X aria-hidden="true" size={16} strokeWidth={2.25} />
 				</button>
 			</div>
 
@@ -372,7 +345,7 @@
 		white-space: nowrap;
 	}
 
-	.compare-trigger svg {
+	.compare-trigger :global(svg) {
 		flex: none;
 		color: var(--color-text-muted);
 	}

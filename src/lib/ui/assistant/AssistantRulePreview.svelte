@@ -8,6 +8,7 @@
 	 * here is resolved from the local corpus, never from model output, and the
 	 * complete reference opens on the rule's own page in a new tab.
 	 */
+	import { ExternalLink } from 'lucide-svelte';
 	import { resolve } from '$app/paths';
 	import type { Severity } from '$lib/core/types.js';
 	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
@@ -34,16 +35,7 @@
 			rel="noopener noreferrer"
 		>
 			{rule.title}
-			<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
-				<path
-					d="M4 2h6v6M10 2L3 9"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				/>
-			</svg>
+			<ExternalLink aria-hidden="true" size={11} strokeWidth={2.4} />
 		</a>
 	</h4>
 	<p class="assistant-rule__meta">

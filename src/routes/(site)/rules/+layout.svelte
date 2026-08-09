@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { List } from 'lucide-svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -105,18 +106,7 @@
 			     It goes back rather than forward to a fresh `/rules`, so the reader
 			     lands on the row they pressed instead of at the top of the list. -->
 			<button class="button button--quiet rules__back" type="button" onclick={showIndex}>
-				<svg
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="15"
-					height="15"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-				>
-					<path d="M2.5 4h11M2.5 8h11M2.5 12h11" />
-				</svg>
+				<List aria-hidden="true" size={15} strokeWidth={2.25} />
 				All rules
 			</button>
 		{/if}

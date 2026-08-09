@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ChevronDown, Copy, Download, Pencil } from 'lucide-svelte';
 	import type { DraftSummary } from '$lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
@@ -105,20 +106,7 @@
 		aria-expanded={open}
 		bind:this={menuTrigger}
 	>
-		<svg
-			class="draft-menu__chevron"
-			aria-hidden="true"
-			viewBox="0 0 16 16"
-			width="13"
-			height="13"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.5"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="m4 6.3 4 3.9 4-3.9" />
-		</svg>
+		<ChevronDown class="draft-menu__chevron" aria-hidden="true" size={13} strokeWidth={2.25} />
 	</summary>
 	<div class="draft-menu__popover">
 		<div class="draft-menu__titlebar">
@@ -201,20 +189,7 @@
 									title="Rename"
 									onclick={() => beginRename(draft.id, draft.title)}
 								>
-									<svg
-										aria-hidden="true"
-										viewBox="0 0 16 16"
-										width="14"
-										height="14"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="1.5"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<path d="m10.6 2.9 2.5 2.5-7.4 7.4-3.1.6.6-3.1 7.4-7.4Z" />
-										<path d="m9.1 4.4 2.5 2.5" />
-									</svg>
+									<Pencil aria-hidden="true" size={14} strokeWidth={2.25} />
 								</button>
 								<button
 									type="button"
@@ -223,22 +198,7 @@
 									title="Duplicate"
 									onclick={() => controller.duplicateDraft(draft.id)}
 								>
-									<svg
-										aria-hidden="true"
-										viewBox="0 0 16 16"
-										width="14"
-										height="14"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="1.5"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
-										<path
-											d="M10.5 3.5v-.8a1.2 1.2 0 0 0-1.2-1.2H3.7a1.2 1.2 0 0 0-1.2 1.2v5.6a1.2 1.2 0 0 0 1.2 1.2h.8"
-										/>
-									</svg>
+									<Copy aria-hidden="true" size={14} strokeWidth={2.25} />
 								</button>
 								<button
 									type="button"
@@ -247,20 +207,7 @@
 									title="Export Scribe (.lls)"
 									onclick={() => controller.exportScribe(draft.id)}
 								>
-									<svg
-										aria-hidden="true"
-										viewBox="0 0 16 16"
-										width="14"
-										height="14"
-										fill="none"
-										stroke="currentColor"
-										stroke-width="1.5"
-										stroke-linecap="round"
-										stroke-linejoin="round"
-									>
-										<path d="M8 2.5v7.2M5.2 7 8 9.8 10.8 7" />
-										<path d="M2.9 12.6h10.2" />
-									</svg>
+									<Download aria-hidden="true" size={14} strokeWidth={2.25} />
 								</button>
 								<RemoveButton
 									subject={draft.title}

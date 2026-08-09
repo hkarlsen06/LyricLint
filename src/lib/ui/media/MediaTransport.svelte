@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Pause, Play, SkipBack, SkipForward } from 'lucide-svelte';
 	import type { MediaPlayer } from '../state/media-player.svelte.js';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { transportModifier } from '../state/media-shortcuts.js';
@@ -60,20 +61,7 @@
 	aria-keyshortcuts={`F7 ${fallbackModifier}+J Control+Alt+J`}
 	{@attach describeControl(() => ({ label: backLabel, shortcut: key('J') }))}
 >
-	<svg
-		aria-hidden="true"
-		viewBox="0 0 16 16"
-		width="14"
-		height="14"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="1.6"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-	>
-		<path d="M13 3.5v9L6.5 8Z" />
-		<path d="M3.5 3.5v9" />
-	</svg>
+	<SkipBack aria-hidden="true" size={14} strokeWidth={2.4} />
 </button>
 
 <button
@@ -99,20 +87,11 @@
 	{#if player.starting}
 		<LoadingMark />
 	{:else}
-		<svg
-			aria-hidden="true"
-			viewBox="0 0 16 16"
-			width="14"
-			height="14"
-			fill="currentColor"
-			stroke="none"
-		>
-			{#if player.playing}
-				<path d="M4 3h2.6v10H4zM9.4 3H12v10H9.4z" />
-			{:else}
-				<path d="M4.5 2.8 13 8l-8.5 5.2Z" />
-			{/if}
-		</svg>
+		{#if player.playing}
+			<Pause aria-hidden="true" size={14} strokeWidth={2.4} fill="currentColor" />
+		{:else}
+			<Play aria-hidden="true" size={14} strokeWidth={2.4} fill="currentColor" />
+		{/if}
 	{/if}
 </button>
 
@@ -124,18 +103,5 @@
 	aria-keyshortcuts={`F9 ${fallbackModifier}+L Control+Alt+L`}
 	{@attach describeControl(() => ({ label: forwardLabel, shortcut: key('L') }))}
 >
-	<svg
-		aria-hidden="true"
-		viewBox="0 0 16 16"
-		width="14"
-		height="14"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="1.6"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-	>
-		<path d="M3 3.5v9L9.5 8Z" />
-		<path d="M12.5 3.5v9" />
-	</svg>
+	<SkipForward aria-hidden="true" size={14} strokeWidth={2.4} />
 </button>

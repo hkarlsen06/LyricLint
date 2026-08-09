@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Search } from 'lucide-svelte';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
@@ -100,20 +101,7 @@
 				<!-- `1em` and `currentColor`, the rule `.spinner` states: a glyph in a
 				     button belongs to whatever it is inside, and here that is a row of
 				     marks it has to sit at the same optical size as. -->
-				<svg
-					class="editor-actions__glyph"
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="1em"
-					height="1em"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-				>
-					<circle cx="7" cy="7" r="4.25" />
-					<path d="M10.25 10.25 14 14" />
-				</svg>
+				<Search class="editor-actions__glyph" aria-hidden="true" size="1em" strokeWidth={2.25} />
 			{/if}
 		</button>
 	{/each}

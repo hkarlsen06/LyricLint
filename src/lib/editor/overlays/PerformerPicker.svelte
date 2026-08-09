@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Plus } from 'lucide-svelte';
 	import { onMount, tick, untrack } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import type { PerformerId, PerformerRecord } from '$lib/core/types.js';
@@ -468,18 +469,7 @@
 							onclick={beginAdd}
 							onfocus={() => (activeIndex = performers.length)}
 						>
-							<svg
-								aria-hidden="true"
-								viewBox="0 0 16 16"
-								width="16"
-								height="16"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.8"
-								stroke-linecap="round"
-							>
-								<path d="M8 3.2v9.6M3.2 8h9.6" />
-							</svg>
+							<Plus aria-hidden="true" size={16} strokeWidth={2.7} />
 						</button>
 					</span>
 					{#if performers.length === 0}
@@ -740,7 +730,7 @@
 		color: inherit;
 	}
 
-	.chip--add svg {
+	.chip--add :global(svg) {
 		flex: none;
 		width: var(--font-size-md);
 		height: var(--font-size-md);

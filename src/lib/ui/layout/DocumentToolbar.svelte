@@ -1,4 +1,14 @@
 <script lang="ts">
+	import {
+		Check,
+		CircleCheckBig,
+		ClipboardPaste,
+		Copy,
+		Plus,
+		Redo,
+		TriangleAlert,
+		Undo
+	} from 'lucide-svelte';
 	import { resolve } from '$app/paths';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { onMount } from 'svelte';
@@ -178,18 +188,7 @@
 			title="New 'scribe"
 			onclick={() => controller.createDraft()}
 		>
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="15"
-				height="15"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-			>
-				<path d="M8 2.5v11M2.5 8h11" />
-			</svg>
+			<Plus aria-hidden="true" size={15} strokeWidth={2.25} />
 		</button>
 		<!-- Nothing is drawn while saving is going well: a disk glyph that is always
 		     there reports a state that never changes, and the slot went to the plus.
@@ -206,21 +205,7 @@
 			title={saveStatusText}
 		>
 			{#if controller.saveStatus === 'failed'}
-				<svg
-					class="save-status__icon"
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="13"
-					height="13"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="M8 2.4 15 13.6H1Z" />
-					<path d="M8 6.7v3M8 11.6h.01" />
-				</svg>
+				<TriangleAlert class="save-status__icon" aria-hidden="true" size={13} strokeWidth={2.25} />
 				Save failed
 			{/if}
 		</span>
@@ -251,20 +236,7 @@
 			disabled={!controller.snapshot.canUndo}
 			onclick={() => controller.undo()}
 		>
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="15"
-				height="15"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M3 6.5h6.2a3.8 3.8 0 0 1 0 7.6H6.5" />
-				<path d="M5.8 3.4 2.7 6.5l3.1 3.1" />
-			</svg>
+			<Undo aria-hidden="true" size={15} strokeWidth={2.25} />
 		</button>
 		<button
 			type="button"
@@ -274,20 +246,7 @@
 			disabled={!controller.snapshot.canRedo}
 			onclick={() => controller.redo()}
 		>
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="15"
-				height="15"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.5"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="M13 6.5H6.8a3.8 3.8 0 0 0 0 7.6h2.7" />
-				<path d="M10.2 3.4l3.1 3.1-3.1 3.1" />
-			</svg>
+			<Redo aria-hidden="true" size={15} strokeWidth={2.25} />
 		</button>
 		<LanguagePicker {controller} />
 		<!-- Reviewing what the copy will change on the page is the step before
@@ -300,47 +259,16 @@
 				class="button button--contrast"
 				onclick={() => controller.pasteLyrics()}
 			>
-				<svg
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="14"
-					height="14"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path
-						d="M6.2 2.9H4.7a1.2 1.2 0 0 0-1.2 1.2v9.2a1.2 1.2 0 0 0 1.2 1.2h6.6a1.2 1.2 0 0 0 1.2-1.2V4.1a1.2 1.2 0 0 0-1.2-1.2H9.8"
-					/>
-					<rect x="6.2" y="1.5" width="3.6" height="2.6" rx="0.8" />
-					<path d="M8 6.9v4.3M6.3 9.5 8 11.2l1.7-1.7" />
-				</svg>
+				<ClipboardPaste aria-hidden="true" size={14} strokeWidth={2.25} />
 				Paste lyrics
 			</button>
 		{:else}
 			<button type="button" class="button button--contrast" onclick={copyLyrics}>
-				<svg
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="14"
-					height="14"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					{#if copied}
-						<path d="M3 8.4 6.4 11.8 13 5.2" />
-					{:else}
-						<rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
-						<path
-							d="M10.5 3.5v-.8a1.2 1.2 0 0 0-1.2-1.2H3.7a1.2 1.2 0 0 0-1.2 1.2v5.6a1.2 1.2 0 0 0 1.2 1.2h.8"
-						/>
-					{/if}
-				</svg>
+				{#if copied}
+					<Check aria-hidden="true" size={14} strokeWidth={2.25} />
+				{:else}
+					<Copy aria-hidden="true" size={14} strokeWidth={2.25} />
+				{/if}
 				{copied ? 'Lyrics copied' : 'Copy lyrics'}
 			</button>
 		{/if}
@@ -367,21 +295,7 @@
 		<!-- The mark says the copy landed, so the heading and the sentence under it
 		     are free to say what to do with it. `aria-hidden`, because the heading
 		     is already the words this draws. -->
-		<svg
-			class="copy-receipt__mark"
-			aria-hidden="true"
-			viewBox="0 0 32 32"
-			width="44"
-			height="44"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.75"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<circle cx="16" cy="16" r="14" />
-			<path d="m9.5 16.6 4.4 4.4 9-9.4" />
-		</svg>
+		<CircleCheckBig class="copy-receipt__mark" aria-hidden="true" size={44} strokeWidth={1.75} />
 		<h2 id="copy-receipt-title">Lyrics copied</h2>
 		<!-- The last clause is the whole of the instructions for the list under it.
 		     A value that is only pressable is a control nobody discovers — the same
@@ -441,7 +355,7 @@
 		text-align: center;
 	}
 
-	.copy-receipt__mark {
+	:global(.copy-receipt__mark) {
 		align-self: center;
 		color: var(--color-success);
 	}

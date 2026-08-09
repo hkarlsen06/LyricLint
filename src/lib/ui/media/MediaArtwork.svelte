@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ChevronDown } from 'lucide-svelte';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import MediaTransport from './MediaTransport.svelte';
 	import MediaAttribution from './MediaAttribution.svelte';
@@ -103,20 +104,7 @@
 		title={open ? 'Hide artwork' : 'Show artwork'}
 		onclick={() => onToggle?.(!open)}
 	>
-		<svg
-			class="media-artwork__chevron"
-			aria-hidden="true"
-			viewBox="0 0 16 16"
-			width="12"
-			height="12"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.5"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="m4 6 4 4 4-4" />
-		</svg>
+		<ChevronDown class="media-artwork__chevron" aria-hidden="true" size={12} strokeWidth={2.25} />
 	</button>
 {/snippet}
 

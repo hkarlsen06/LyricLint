@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ChevronDown } from 'lucide-svelte';
 	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
 	import SeverityTag from './SeverityTag.svelte';
 	import SourceCitation from './SourceCitation.svelte';
@@ -83,20 +84,12 @@
 				     `aria-expanded` are what carry the open state, so the control does
 				     not rewrite itself under the pointer that just pressed it. -->
 				Sources
-				<svg
+				<ChevronDown
 					class="diagnostic-meta__chevron"
 					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="11"
-					height="11"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.6"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="m4 6.5 4 4 4-4" />
-				</svg>
+					size={11}
+					strokeWidth={2.4}
+				/>
 			</button>
 		{:else}
 			{#each citations as citation, index (citation.id)}

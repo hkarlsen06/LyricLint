@@ -5,6 +5,7 @@
 	 * and workbench panel share this component so a tool turn cannot acquire a
 	 * second rendering or a different privacy claim on either surface.
 	 */
+	import { ArrowUp, ChevronRight } from 'lucide-svelte';
 	import { resolve } from '$app/paths';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import {
@@ -195,16 +196,7 @@
 					{#each suggestions as suggestion (suggestion)}
 						<button type="button" onclick={() => void ask(suggestion)}>
 							<span>{suggestion}</span>
-							<svg viewBox="0 0 12 12" width="11" height="11" aria-hidden="true">
-								<path
-									d="M4 2.5L8 6l-4 3.5"
-									fill="none"
-									stroke="currentColor"
-									stroke-width="1.4"
-									stroke-linecap="round"
-									stroke-linejoin="round"
-								/>
-							</svg>
+							<ChevronRight aria-hidden="true" size={11} strokeWidth={2.8} />
 						</button>
 					{/each}
 				</div>
@@ -366,16 +358,7 @@
 					disabled={assistant.busy || assistant.challengePending || draft.trim() === ''}
 					aria-label="Ask"
 				>
-					<svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true">
-						<path
-							d="M9 14V4M5 8l4-4 4 4"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="1.7"
-							stroke-linecap="round"
-							stroke-linejoin="round"
-						/>
-					</svg>
+					<ArrowUp aria-hidden="true" size={17} strokeWidth={2.25} />
 				</button>
 			</div>
 		</form>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { FileText } from 'lucide-svelte';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import type { AssistantToolCallRecord } from '$lib/persistence/types.js';
 
@@ -38,21 +39,7 @@
 
 {#snippet receipt(text: string)}
 	<p class="assistant-tool-turn__receipt">
-		<svg
-			viewBox="0 0 14 14"
-			width="12"
-			height="12"
-			aria-hidden="true"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.3"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-		>
-			<path d="M3.5 1.5h4.2L11 4.8v7.7H3.5z" />
-			<path d="M7.5 1.7v3.3h3.3" />
-			<path d="M5.4 8h3.2M5.4 10.2h2.2" />
-		</svg>
+		<FileText aria-hidden="true" size={12} strokeWidth={2.2} />
 		<span>{text}</span>
 	</p>
 {/snippet}
