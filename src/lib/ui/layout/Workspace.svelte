@@ -599,6 +599,13 @@
 			const player = controller.media?.player;
 			return player?.attached ? player.liveTime() : undefined;
 		},
+		// The clipboard pair: what a metadata-carrying copy says about this
+		// draft's song, and what a pasted fragment's source is worth here. Both
+		// are the media store's questions — the editor has no standing in either.
+		onRequestMediaSource: () => controller.media?.clipboardSource(),
+		onMediaSourcePasted: (source) => {
+			void controller.media?.adoptPastedSource(source);
+		},
 		// The marker says "Play from 1:23", so it plays: seeking without starting
 		// would leave the user to press a second control to get what the first one
 		// promised. The seek cancels the resume rewind on its way through, so

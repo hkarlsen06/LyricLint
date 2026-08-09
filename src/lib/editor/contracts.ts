@@ -16,6 +16,9 @@ import type {
 	TextRange,
 	VoiceGroup
 } from '$lib/core/types.js';
+import type { ClipboardMediaSource } from './clipboard-metadata.js';
+
+export type { ClipboardMediaSource };
 
 /** Diagnostics are accepted only when their source revision is explicit. */
 export interface RevisionedDiagnostics {
@@ -131,6 +134,25 @@ export interface EditorOverlayCallbacks {
 	 * attached, and no anchor is recorded.
 	 */
 	onRequestMediaTime?(): number | undefined;
+	/**
+	 * The remote source the attached audio came from, for a copy to carry.
+	 *
+	 * Read only while a copy is being claimed for its metadata, and answered only
+	 * for a source that is an id — YouTube, Spotify, Apple Music. A local file is
+	 * a handle only this browser can redeem, so a shell answers `undefined` for
+	 * one exactly as it does for no audio at all.
+	 */
+	onRequestMediaSource?(): ClipboardMediaSource | undefined;
+	/**
+	 * A pasted fragment arrived carrying the source it was transcribed from.
+	 *
+	 * The shell decides what that is worth: a draft that already has audio —
+	 * attached or pending — keeps it, because an attachment is deliberate work
+	 * and a paste must not overwrite it. Nothing here may contact anyone on its
+	 * own; a source adopted from a paste waits on a press exactly as a restored
+	 * record does.
+	 */
+	onMediaSourcePasted?(source: ClipboardMediaSource): void;
 	/**
 	 * Play from a line's anchored moment.
 	 *

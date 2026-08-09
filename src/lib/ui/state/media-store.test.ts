@@ -38,6 +38,7 @@ function setup(
 		file?: File;
 		handle?: FileSystemFileHandle;
 		loadMusicKit?: MusicKitLoader;
+		onTitleSuggestion?: (title: string) => void;
 	} = {}
 ) {
 	const audio = new StubAudio();
@@ -62,7 +63,8 @@ function setup(
 		draftId: options.draftId ?? (() => 'draft-1'),
 		player,
 		pickFile: async () => ({ file, handle: options.handle }),
-		clock: options.now ?? (() => 0)
+		clock: options.now ?? (() => 0),
+		...(options.onTitleSuggestion ? { onTitleSuggestion: options.onTitleSuggestion } : {})
 	});
 
 	return { audio, file, media, player, repository, youtube };
@@ -519,3 +521,125 @@ function stubMusicKitRefusingSignIn() {
 		PlaybackStates: { playing: 2, paused: 3, stopped: 4, ended: 5, completed: 10 }
 	} as unknown as Awaited<ReturnType<MusicKitLoader>>;
 }
+
+describe('a source pasted with a fragment', () => {
+	it('lands as a pending source, persisted for next session, contacting nobody', async () => {
+		const titles: string[] = [];
+		const { media, player, repository, youtube } = setup({
+			onTitleSuggestion: (title) => titles.push(title)
+		});
+
+		const taken = await media.adoptPastedSource({
+			kind: 'youtube',
+			id: 'dQw4w9WgXcQ',
+			name: 'Artist — Title'
+		});
+
+		expect(taken).toBe(true);
+		expect(player.attached).toBe(false);
+		expect(youtube.loads).toBe(0);
+		expect(media.pendingSource).toBe('youtube');
+		expect(media.pendingName).toBe('Artist — Title');
+		expect(media.videoId).toBe('dQw4w9WgXcQ');
+		expect(titles).toEqual(['Artist — Title']);
+
+		const record = await repository.get('draft-1');
+		expect(record?.source).toBe('youtube');
+		expect(record?.videoId).toBe('dQw4w9WgXcQ');
+		expect(record?.name).toBe('Artist — Title');
+	});
+
+	// A copy made before the catalogue answered carries the provisional label,
+	// and a draft must never be titled after an address.
+	it('does not title the draft after a provisional label', async () => {
+		const titles: string[] = [];
+		const { media } = setup({ onTitleSuggestion: (title) => titles.push(title) });
+
+		await media.adoptPastedSource({
+			kind: 'youtube',
+			id: 'dQw4w9WgXcQ',
+			name: 'youtu.be/dQw4w9WgXcQ'
+		});
+
+		expect(media.pendingName).toBe('youtu.be/dQw4w9WgXcQ');
+		expect(titles).toEqual([]);
+	});
+
+	it('takes the same no-press shortcut a reload takes once consent exists', async () => {
+		const { media, player } = setup();
+		// The consent is a press this session already made; letting that video go
+		// does not take the consent with it.
+		await media.attachYouTube('https://youtu.be/abcdefghijk');
+		await media.detach();
+
+		const taken = await media.adoptPastedSource({ kind: 'youtube', id: 'dQw4w9WgXcQ' });
+
+		expect(taken).toBe(true);
+		expect(player.attached).toBe(true);
+		expect(media.videoId).toBe('dQw4w9WgXcQ');
+	});
+
+	it('never overwrites audio the draft already has', async () => {
+		const { media, player, repository } = setup();
+		await media.attach();
+		expect(player.attached).toBe(true);
+
+		const taken = await media.adoptPastedSource({ kind: 'apple', id: '1091453645' });
+
+		expect(taken).toBe(false);
+		expect((await repository.get('draft-1'))?.source ?? 'file').toBe('file');
+	});
+
+	it('leaves a restored record still waiting on its press alone too', async () => {
+		const repository = createInMemoryMediaRepository();
+		const file = new File([''], 'sensommer.mp3', { type: 'audio/mpeg' });
+		await repository.attach({
+			draftId: 'draft-1',
+			name: 'sensommer.mp3',
+			handle: fakeHandle(file, 'prompt')
+		});
+		const { media } = setup({ repository });
+		await media.openFor('draft-1');
+		expect(media.pendingName).toBe('sensommer.mp3');
+
+		expect(await media.adoptPastedSource({ kind: 'apple', id: '1091453645' })).toBe(false);
+		expect((await repository.get('draft-1'))?.name).toBe('sensommer.mp3');
+	});
+});
+
+describe('what a copy says about the song', () => {
+	it('answers with the remote source and never with a file', async () => {
+		const { media } = setup();
+		expect(media.clipboardSource()).toBeUndefined();
+
+		await media.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
+		expect(media.clipboardSource()).toEqual({
+			kind: 'youtube',
+			id: 'dQw4w9WgXcQ',
+			name: 'youtu.be/dQw4w9WgXcQ'
+		});
+
+		await media.detach();
+		await media.attach();
+		expect(media.clipboardSource()).toBeUndefined();
+	});
+
+	it('answers for a pending song without loading anything', async () => {
+		const repository = createInMemoryMediaRepository();
+		await repository.attach({
+			draftId: 'draft-1',
+			name: 'Kygo — Stole the Show',
+			source: 'apple',
+			songId: '1091453645'
+		});
+		const { media, player } = setup({ repository });
+		await media.openFor('draft-1');
+
+		expect(player.attached).toBe(false);
+		expect(media.clipboardSource()).toEqual({
+			kind: 'apple',
+			id: '1091453645',
+			name: 'Kygo — Stole the Show'
+		});
+	});
+});

@@ -2317,6 +2317,118 @@ what makes an empty `[Chorus 3]` take a peer's words with no special case — re
 at the end of a header line with `"\nHold on tight"` is an ordinary edit, while a body measured from
 the first lyric of a section that has none has no position to describe at all.
 
+### A copy carries its timings and links in a second flavor, and the plain text never learns
+
+A clipboard entry is a set of representations and the paste target picks the one it understands. So
+a copy made in the editor carries two: `text/plain` is the lyrics, byte for byte the selection's own
+slice — clean lyrics on the clipboard are this application's entire output, and every text field in
+the world reads this flavor and only this flavor — and `text/html` is the same lyrics with the line
+anchors and the section links in one `data-lyriclint` attribute, where only the paste handler on the
+other side of the trip ever looks. Copy a synced, linked chorus out of one 'scribe and paste it into
+another and the timings and the link arrive with it; paste the same clipboard into a Genius lyrics
+box and nothing but the words was ever there.
+
+**The paste is the sanctioned exception to wholesale replacement losing everything.** The rule that
+a document replaced whole loses its anchors and links is about guessing — re-attaching them to
+re-pasted text would mean guessing which of the new headers used to be which, and a link that is
+silently wrong overwrites work. A payload riding the paste is the one case where that stops being a
+guess: it says which fragment line owns which time and which headers move together, so applying it
+is arithmetic rather than inference. Everything in it is **fragment-relative** — 0-based lines into
+the copied text, because the paste has no idea where in which document the copy was made — and the
+fragment's own line count rides along as the guard: a `text/plain` that no longer splits into that
+many lines is not the text the metadata describes (a clipboard manager merging flavors from two
+copies is the way this happens), and the honest answer is the text alone, through the default path.
+
+**The editor's copy carries it; the toolbar's `Copy lyrics` deliberately does not.** The toolbar
+copy is the application's one output, aimed at a song page, and it stays exactly what
+`copyCanonicalMarkup` has always written; the selection copy is a working gesture inside the tool.
+Whole-document transfer is select-all and copy, which is the same gesture. The empty-draft
+`Paste lyrics` button reads the clipboard through `readText`, so it is plain as well — the keyboard
+paste into the editor is the carrying path, and it is also the only one whose read
+(`getData('text/html')` on the paste event) no browser gates behind a permission or sanitizes.
+
+**The song rides too, where it is an id and only as a rider.** A remote source — a YouTube video,
+a Spotify track, an Apple Music song — is nothing but an id in a known alphabet, which is exactly
+what a clipboard can carry; a local file is a handle only this browser can redeem, so it never
+travels and its absence is the design rather than a gap. It is a rider, never the trigger: it joins
+a copy that already carries timings or links, because it is carried as the thing the timings are
+seconds into, and a copy that is only words says nothing about a song — claiming every copy in
+every draft with audio attached would put the whole workbench's copy path through this extension
+for a fact the words do not state. Four rules on the paste side, and each is an existing rule
+arriving here:
+
+- **A draft with audio keeps it.** Attached or pending, an attachment is deliberate work, and a
+  paste must not overwrite it (`adoptPastedSource` returns false and nothing changes).
+- **A pasted source is a restored record, not a press.** It lands persisted, named, and waiting on
+  the press that pays for its script or its sign-in — the exact state a reload restores — because
+  the paste was aimed at the document, not at Google. The one shortcut it takes is the one a reload
+  takes: consent already given in this session stands, so a pasted video plays at once where
+  `youtubeAllowed` is already true, and a pasted track where the session is already signed in.
+  Nothing is contacted that a reload would not contact.
+- **A build that cannot carry the source out does not adopt it** — a pasted Spotify track in a
+  build with no client id would be a pending press whose sign-in has nowhere to go, which is
+  `spotifyAvailable`'s rule met from the clipboard.
+- **The carried name may be provisional, and a provisional name titles nothing.** A copy made
+  before the catalogue answered carries `youtu.be/dQw4w9WgXcQ`; it labels the pending press, and
+  the title-suggestion guard the adopt paths already hold applies to the pending path as well, so
+  the target draft is never named after an address.
+
+The editor's half of this is two hooks — `onRequestMediaSource` answers the copy,
+`onMediaSourcePasted` hands the paste over — both in **`createCallbackProxy`**, and both decisions
+are the shell's: the editor has no standing in what a draft's song is or what a pasted one is
+worth. `clipboardSource` and `adoptPastedSource` on the media store are the two answers.
+
+Five things the extension owes, and each was a wrong version first:
+
+- **A copy with something to carry is owned outright; every other copy is left to CodeMirror
+  untouched.** Adding a flavor beside the built-in handler's cannot work — it opens with
+  `clearData()` — so the extension claims the event whole, and it claims only the one shape whose
+  plain flavor it can reproduce byte for byte: a single non-empty selection range. Multi-range
+  selections, line-wise empty-selection copies, and any copy with no anchors and no whole link in it
+  fall through, so the extension cannot drift from the default copy on the copies it adds nothing to.
+- **A copy is only claimed where the live DOM selection is the editor's own.** A page-wide selection
+  that reaches into the editor bubbles its copy event through `.cm-content`, and CodeMirror's own
+  handler steps aside for it by exactly this test; a handler without it would overwrite a copy of
+  half the page with whatever the editor's internal selection happened to be.
+- **A link travels only where its group is wholly inside the copy.** A member's header line has to
+  start inside the fragment and its whole body has to end there, because the paste re-seats
+  membership by line arithmetic and a section it only has half of has no lines to seat it on.
+  Members outside the copy are dropped and the survivors carry on — the rule deleting a linked
+  section already follows — and fewer than two survivors is not a link. On the paste side a header
+  that landed mid-line is not a header any more, and the **whole group** stands down rather than one
+  member at a time: the members' divergent runs correspond by ordinal, and a partial group would
+  carry one copy's differences under another copy's words.
+- **Landed links go through `setSectionLinkEffect`, never the restore effect.** The restore is the
+  draft being read back and is deliberately invisible to the shell's save — links applied through it
+  would be correct on screen and gone on reload, which is the exact class of bug the four-copier
+  history of `SectionLink` exists to warn about. One effect per group, exactly as the picker links,
+  recorded by the history and reported through `onSectionLinksChanged`. It is a second transaction
+  after the insert because it has to be: the effect maps its headers through its own transaction's
+  changes, and a position inside text an insertion is still creating is not reachable from the old
+  document by any mapping. The anchors need no such step — `anchorLineEffect` reads its positions
+  against the new state, so they ride the insert itself.
+- **The parse trusts nothing and drops what it cannot read.** The payload is versioned, every line
+  index is checked against the stated count, and an unreadable anchor or hole is dropped while the
+  rest applies — the same trade `backup.ts` makes, because losing one difference costs a re-tick
+  while refusing the whole payload costs the timings beside it. Anybody else's HTML has no
+  `data-lyriclint` and reads as no metadata at all, which is what hands an ordinary rich-text paste
+  straight back to CodeMirror.
+
+What the HTML flavor costs is named rather than hidden: a rich-text surface — a document editor, an
+email composer — picks it over the plain one, so such a paste is an HTML paste. The flavor's markup
+is the escaped lyrics in a `<pre>` and nothing else, so what those surfaces paste is still the
+words; the attribute is dropped by any editor that does not know it, which is all of them.
+
+Implementation: `src/lib/editor/clipboard-metadata.ts` (the payload, the serializing, the parse —
+pure strings, no CodeMirror, tested as arithmetic in `clipboard-metadata.test.ts`),
+`src/lib/editor/extensions/clipboard-metadata.ts` (the three event handlers), and
+`clipboardSource` / `adoptPastedSource` in `src/lib/ui/state/media-store.svelte.ts`, wired in
+`Workspace.svelte`. `clipboard-metadata.svelte.test.ts` drives the real editor with real
+`DataTransfer`s and pins the promise both ways: the plain flavor byte-identical on a carrying copy,
+and the fall-through — plain pastes, foreign HTML, mismatched counts — landing text and nothing
+else. `media-store.test.ts` pins the adoption rules against the stubbed sources, so "contacting
+nobody" is its usual assertion — a loads count of zero — rather than a hope.
+
 ### YouTube is a second source behind the same transport, and it is asked for every session
 
 Transcribers' audio is usually on YouTube, so it is the source most of them actually have. It is also

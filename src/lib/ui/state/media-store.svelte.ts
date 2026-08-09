@@ -1,3 +1,4 @@
+import type { ClipboardMediaSource } from '$lib/editor/contracts.js';
 import type { MediaRepository } from '$lib/persistence/media-repository.js';
 import type { FeedbackState } from './feedback.svelte.js';
 import type { MediaPlayer, MediaSourceKind } from './media-player.svelte.js';
@@ -254,6 +255,27 @@ export interface MediaStore {
 	 * the user was in the middle of adding.
 	 */
 	resumeSignIn(): Promise<void>;
+	/**
+	 * What a metadata-carrying copy says about this draft's song.
+	 *
+	 * The remote source's id and name — attached or still pending, because a
+	 * pending song is no less what the draft is *of* — and `undefined` for a
+	 * local file, which is a handle only this browser can redeem, exactly as for
+	 * no audio at all.
+	 */
+	clipboardSource(): ClipboardMediaSource | undefined;
+	/**
+	 * Take a source that arrived on a pasted fragment, where this draft has none.
+	 *
+	 * A draft with audio — attached or pending — keeps it: an attachment is
+	 * deliberate work, and a paste must not overwrite it. Where the draft has
+	 * none, the pasted source lands in exactly a restored record's state —
+	 * persisted, named, and waiting on the press that pays for its script or its
+	 * sign-in — except where this session has already said yes, which is the
+	 * same shortcut a reload takes. Nothing here contacts anyone a reload would
+	 * not. True when the source was taken.
+	 */
+	adoptPastedSource(source: ClipboardMediaSource): Promise<boolean>;
 	reconnect(): Promise<void>;
 	detach(): Promise<void>;
 	/** Move the attached audio to whichever draft is now open. */
@@ -771,6 +793,91 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		 * browser drops the prompt on the floor otherwise, and the draft would look
 		 * as though its audio had simply vanished.
 		 */
+		clipboardSource() {
+			const name = (player.attached ? player.name : undefined) ?? pendingName;
+			const carry = (kind: ClipboardMediaSource['kind'], id: string): ClipboardMediaSource =>
+				name === undefined ? { kind, id } : { kind, id, name };
+			// The durable fact, not the loaded one: `currentVideoId` stands whether
+			// the video is playing or still waiting on this session's consent.
+			if (currentVideoId !== undefined) return carry('youtube', currentVideoId);
+			if (currentTrackId !== undefined) return carry('spotify', currentTrackId);
+			if (currentSongId !== undefined) return carry('apple', currentSongId);
+			return undefined;
+		},
+
+		async adoptPastedSource(source) {
+			if (busy) return false;
+			// An attachment — loaded or pending — is deliberate work, and a paste
+			// must not overwrite it.
+			if (player.attached || pendingSource !== undefined) return false;
+			// The picker's rule, kept here too: never adopt an answer this build
+			// cannot carry out. A pasted track in a build with no Spotify app behind
+			// it would be a pending press whose sign-in has nowhere to go.
+			if (source.kind === 'spotify' && !spotifyConfigured()) return false;
+			if (source.kind === 'apple' && !appleMusicConfigured()) return false;
+
+			busy = true;
+			try {
+				const provisional =
+					source.kind === 'youtube'
+						? provisionalName(source.id)
+						: source.kind === 'spotify'
+							? provisionalTrackName(source.id)
+							: provisionalSongName(source.id);
+				const name = source.name ?? provisional;
+				try {
+					await deps.repository.attach({
+						draftId: deps.draftId(),
+						name,
+						source: source.kind,
+						...(source.kind === 'youtube' ? { videoId: source.id } : {}),
+						...(source.kind === 'spotify' ? { trackId: source.id } : {}),
+						...(source.kind === 'apple' ? { songId: source.id } : {})
+					});
+				} catch {
+					feedback.announce('The pasted song could not be remembered for next time.');
+				}
+
+				// The no-press shortcuts a reload takes, and only those: consent
+				// already given in this session stands, and nothing else is contacted.
+				if (source.kind === 'youtube' && youtubeAllowed) {
+					await adoptVideo(source.id, name);
+					return true;
+				}
+				if (source.kind === 'spotify' && spotifySignedIn()) {
+					await adoptTrack(source.id, name);
+					return true;
+				}
+
+				// Otherwise the pasted source is exactly a restored record: pending,
+				// named, waiting on the press that pays for its script or its sign-in.
+				pendingName = name;
+				pendingSource = source.kind;
+				if (source.kind === 'youtube') {
+					pendingVideoId = source.id;
+					currentVideoId = source.id;
+				} else if (source.kind === 'spotify') {
+					pendingTrackId = source.id;
+					currentTrackId = source.id;
+				} else {
+					pendingSongId = source.id;
+					currentSongId = source.id;
+				}
+				// The document says nothing about an attachment, so nothing else would
+				// schedule the save that keeps a wordless draft's row from the sweep.
+				deps.onAttached?.();
+				// The adopt paths above guard their own suggestions; the pending path
+				// has to as well, or a copy made before the catalogue answered would
+				// title the target draft after an address.
+				if (source.name !== undefined && source.name !== provisional) {
+					deps.onTitleSuggestion?.(source.name);
+				}
+				return true;
+			} finally {
+				busy = false;
+			}
+		},
+
 		async reconnect() {
 			if (busy) return;
 			busy = true;

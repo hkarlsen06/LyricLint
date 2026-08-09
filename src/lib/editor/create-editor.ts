@@ -105,6 +105,7 @@ import {
 	typeOnlyHereNotifier
 } from './extensions/section-links.js';
 import { caretLayer } from './extensions/caret-layer.js';
+import { clipboardMetadata } from './extensions/clipboard-metadata.js';
 import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
 import { searchReplace } from './extensions/search-replace.js';
 import { createUpdateListener, snapshotFromState } from './extensions/update-bridge.js';
@@ -511,6 +512,8 @@ const lyricEditorCallbackKeySet = {
 	onDiagnosticActivateIntent: true,
 	onAudioFileDropped: true,
 	onRequestMediaTime: true,
+	onRequestMediaSource: true,
+	onMediaSourcePasted: true,
 	onSeekMedia: true,
 	onLineAnchorsChanged: true,
 	onLyricSyncChange: true,
@@ -564,6 +567,11 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		// transaction and on every press of a gutter marker, so a callback missing
 		// from here would look exactly like a feature that silently does nothing.
 		onRequestMediaTime: () => read().onRequestMediaTime?.(),
+		// Same allow-list, same trap, for the clipboard pair: left out of here, a
+		// copy would simply never carry its source and a pasted one would land on
+		// the floor, both without a visible failure anywhere.
+		onRequestMediaSource: () => read().onRequestMediaSource?.(),
+		onMediaSourcePasted: (source) => read().onMediaSourcePasted?.(source),
 		onSeekMedia: (time) => read().onSeekMedia?.(time),
 		onLyricSyncChange: (active, startAt) => read().onLyricSyncChange?.(active, startAt),
 		onLyricSyncNotice: (message) => read().onLyricSyncNotice?.(message),
@@ -751,6 +759,7 @@ export function createLyricEditor(
 		editorTheme,
 		...(options.autoHeight ? [autoHeightTheme] : []),
 		audioFileDrop(callbackProxy),
+		clipboardMetadata(),
 		lineAnchors({
 			onSeek: (time) => callbackProxy.onSeekMedia?.(time),
 			currentTime: () => callbackProxy.onRequestMediaTime?.(),
