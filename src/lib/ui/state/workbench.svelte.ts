@@ -1,6 +1,7 @@
 import type {
 	AutosaveController,
 	AutosaveStatus,
+	CompareBaselineRecord,
 	Diagnostic,
 	DiagnosticFix,
 	DraftRecord,
@@ -115,6 +116,9 @@ export interface WorkbenchController {
 	readonly ignoredDiagnosticKeys: readonly string[];
 	readonly ignoredDiagnosticCount: number;
 	readonly saveStatus: AutosaveStatus;
+	/** The Compare dialog's stored baseline for the current draft, if any. */
+	readonly compareBaseline: CompareBaselineRecord | undefined;
+	setCompareBaseline(text: string): void;
 	readonly drafts: readonly DraftSummary[];
 	readonly feedback: FeedbackState;
 	readonly toasts: readonly ToastMessage[];
@@ -504,6 +508,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get saveStatus() {
 			return draft.saveStatus;
 		},
+		get compareBaseline() {
+			return draft.compareBaseline;
+		},
+		setCompareBaseline: (text: string) => draft.setCompareBaseline(text),
 		get drafts() {
 			return draft.drafts;
 		},

@@ -166,19 +166,19 @@ export const sectionUnlinkedRepeatRule: RuleDefinition = {
 			if (!source.header) {
 				continue;
 			}
-			// How much of the work the copies have already done for themselves, so the
-			// reader knows whether they are being offered a formality or a real
-			// reconciliation. Neither number changes what linking does.
-			const scope =
+			// Each branch says only what applies to it: copies that already match
+			// need no reassurance about differences, and copies that differ need
+			// nothing else so much as that reassurance.
+			const explanation =
 				matching.length === members.length
-					? `This song part appears ${members.length} times, and every copy either already matches the others or is still empty.`
-					: `This song part appears ${members.length} times, and ${members.length - matching.length} of the copies are sung a little differently.`;
+					? `This song part appears ${members.length} times, and every copy already matches or is still empty. Linked, editing one edits them all, so a correction can never land in just one copy.`
+					: `This song part appears ${members.length} times, and ${members.length - matching.length} of the copies are sung a little differently. Linking ties only the words they share — the differences are kept exactly as they are.`;
 			diagnostics.push({
 				...diagnostic(
 					this,
 					{ from: source.header.from, to: source.header.to },
 					'Link these repeats so one correction reaches them all.',
-					`${scope} Linking ties them together so that editing one edits the rest, and a correction can never land in only one copy. Nothing is overwritten: the words the copies already disagree on are kept exactly as they are and left out of the link, so a chorus that changes one line at the end can still be tied to the others.`
+					explanation
 				),
 				relatedRanges: members.flatMap((section) =>
 					section.header && section.header !== source.header

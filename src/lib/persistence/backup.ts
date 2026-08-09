@@ -216,6 +216,16 @@ function parseDraft(value: unknown): DraftRecord {
 		});
 	}
 
+	// A baseline that cannot be read is dropped rather than throwing: it is a
+	// paste the user can repeat in one press, while refusing the whole backup
+	// costs them the draft.
+	if (isRecord(value.compareBaseline)) {
+		const { text: baselineText, pastedAt } = value.compareBaseline;
+		if (typeof baselineText === 'string' && typeof pastedAt === 'string') {
+			draft.compareBaseline = { text: baselineText, pastedAt };
+		}
+	}
+
 	return draft;
 }
 

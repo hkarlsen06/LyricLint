@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import { diffDocuments, type DiffHunk } from '$lib/core/document-diff.js';
-	import { compareBaseline, setCompareBaseline } from '../state/compare-baseline.svelte.js';
+	import { formatDraftDate } from '../drafts/draft-date.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
 	let { controller }: { controller: WorkbenchController } = $props();
@@ -18,10 +18,28 @@
 	 */
 	let isOpen = $state(false);
 
-	const baseline = $derived(compareBaseline(controller.draftId));
+	const baseline = $derived(controller.compareBaseline);
 	const asking = $derived(baseline === undefined || replacing);
 	const diff = $derived(
-		isOpen && baseline !== undefined ? diffDocuments(baseline, controller.snapshot.text) : undefined
+		isOpen && baseline !== undefined
+			? diffDocuments(baseline.text, controller.snapshot.text)
+			: undefined
+	);
+
+	/**
+	 * The baseline persists with the draft, so a review can run against a page
+	 * that has moved on since the paste — the age is therefore stated where the
+	 * diff is being trusted, with the repair beside it, rather than warned about
+	 * after the copy has already been made.
+	 */
+	const baselineDate = $derived.by(() => {
+		if (baseline === undefined) return '';
+		const word = formatDraftDate(baseline.pastedAt);
+		return word === 'Today' || word === 'Yesterday' ? word.toLowerCase() : word;
+	});
+	const baselineStale = $derived(
+		baseline !== undefined &&
+			new Date(baseline.pastedAt).toDateString() !== new Date().toDateString()
 	);
 
 	const summary = $derived.by(() => {
@@ -60,7 +78,7 @@
 	 */
 	function adoptBaseline(): void {
 		const normalized = pasted.replace(/\r\n?/g, '\n').replace(/\n$/, '');
-		setCompareBaseline(controller.draftId, normalized);
+		controller.setCompareBaseline(normalized);
 		pasted = '';
 		replacing = false;
 	}
@@ -184,6 +202,13 @@
 				{#if diff.identical}
 					<div class="compare-dialog__ask">
 						<p>Your 'scribe matches the page exactly — there is nothing to update on Genius.</p>
+						<p class="compare-dialog__age">
+							{#if baselineStale}
+								Baseline from {baselineDate} — the page may have changed since; replace it to be sure.
+							{:else}
+								Baseline from {baselineDate}.
+							{/if}
+						</p>
 						<div class="compare-dialog__ask-actions">
 							<button type="button" class="button" onclick={() => (replacing = true)}>
 								Change baseline
@@ -196,7 +221,16 @@
 					     comparison. The press hint rides the count, because a row that
 					     is only pressable is a control nobody discovers. -->
 					<div class="compare-dialog__meta">
-						<p>{summary} — press a change to jump to it in your 'scribe.</p>
+						<div>
+							<p>{summary} — press a change to jump to it in your 'scribe.</p>
+							<p class="compare-dialog__age">
+								{#if baselineStale}
+									Baseline from {baselineDate} — the page may have changed since; replace it to be sure.
+								{:else}
+									Baseline from {baselineDate}.
+								{/if}
+							</p>
+						</div>
 						<button type="button" class="button" onclick={() => (replacing = true)}>
 							Change baseline
 						</button>
@@ -340,6 +374,16 @@
 		margin: 0;
 		color: var(--color-text-muted);
 		font-size: var(--font-size-sm);
+	}
+
+	/* The baseline's age is a fact about the comparison, in the meta idiom:
+	   muted, small, under the count it qualifies. The staleness nudge stays in
+	   the sentence rather than becoming a tinted box — a warning reads as prose
+	   in the section it belongs to. */
+	.compare-dialog__age {
+		margin: var(--space-0-5) 0 0;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
 	}
 
 	.compare-diff {

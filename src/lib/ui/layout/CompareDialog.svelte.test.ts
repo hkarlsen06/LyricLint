@@ -1,6 +1,5 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
 import { afterEach, describe, expect, test } from 'vitest';
-import { resetCompareBaselines } from '../state/compare-baseline.svelte.js';
 import { createTestWorkbench } from '../test-utils.js';
 import CompareDialog from './CompareDialog.svelte';
 
@@ -17,12 +16,7 @@ async function pasteBaseline(text: string): Promise<void> {
 }
 
 describe('CompareDialog', () => {
-	afterEach(() => {
-		cleanup();
-		// The baseline is module state on purpose — a session survives component
-		// mounts — so each test starts the session over.
-		resetCompareBaselines();
-	});
+	afterEach(cleanup);
 
 	test('the trigger does not draw over an empty document', () => {
 		const { controller } = createTestWorkbench({ text: '' });
@@ -75,7 +69,7 @@ describe('CompareDialog', () => {
 		expect(calls.focusCount).toBe(0);
 	});
 
-	test('the baseline is kept for the session, so reopening shows the diff at once', async () => {
+	test('the baseline is kept, so reopening shows the diff at once', async () => {
 		const { controller } = createTestWorkbench();
 		render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
@@ -86,6 +80,33 @@ describe('CompareDialog', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		expect(screen.queryByRole('textbox', { name: 'The lyrics as the page has them' })).toBeNull();
 		expect(screen.getByText('Line 2')).toBeTruthy();
+	});
+
+	test('the baseline is written to the draft record, so it survives a reload', async () => {
+		const { controller, repository } = createTestWorkbench();
+		render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		await pasteBaseline('[Verse]\nLyne');
+
+		// Setting a baseline changes no text, so the set schedules its own save —
+		// the record on disk is what a reload comes back to.
+		await waitFor(async () => {
+			const record = await repository.get(controller.draftId);
+			expect(record?.compareBaseline?.text).toBe('[Verse]\nLyne');
+			expect(record?.compareBaseline?.pastedAt).toBeTruthy();
+		});
+	});
+
+	test('the diff states the baseline age, and a stale one carries the nudge', async () => {
+		const { controller } = createTestWorkbench();
+		render(CompareDialog, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
+		await pasteBaseline('[Verse]\nLyne');
+
+		// The test workbench stamps `now()` in July 2026, which is long past by
+		// the real clock this component reads — so the stale wording must show.
+		expect(screen.getByText(/Baseline from/)).toBeTruthy();
+		expect(screen.getByText(/the page may have changed since/)).toBeTruthy();
 	});
 
 	test('line endings and the trailing newline a select-all drags along are not differences', async () => {

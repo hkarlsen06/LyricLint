@@ -546,7 +546,11 @@ describe('autosave and recovery', () => {
 						{ line: 4, column: 4, endLine: 4, endColumn: 7 }
 					]
 				}
-			]
+			],
+			compareBaseline: {
+				text: '[Verse]\nFirst line as the page had it',
+				pastedAt: '2026-01-01T12:00:00.000Z'
+			}
 		} satisfies Required<DraftRecord>;
 		const autosave = createAutosaveController(repository, { debounceMs: 10 });
 

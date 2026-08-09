@@ -1,4 +1,4 @@
-import type { SectionLink } from '../core/types.js';
+import type { CompareBaselineRecord, SectionLink } from '../core/types.js';
 
 /**
  * A deep copy of a draft's section links.
@@ -19,4 +19,13 @@ export function copySectionLinks(links: readonly SectionLink[]): SectionLink[] {
 		lines: [...link.lines],
 		...(link.holes ? { holes: link.holes.map((hole) => ({ ...hole })) } : {})
 	}));
+}
+
+/**
+ * A copy of the Compare dialog's baseline, shared by the same four copiers for
+ * the same reason as the links above: a field spelled out by hand in each of
+ * them is dropped in silence by whichever one a later change misses.
+ */
+export function copyCompareBaseline(baseline: CompareBaselineRecord): CompareBaselineRecord {
+	return { text: baseline.text, pastedAt: baseline.pastedAt };
 }

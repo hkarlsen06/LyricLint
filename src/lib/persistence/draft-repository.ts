@@ -1,6 +1,6 @@
 import { randomId } from '../core/random-id.js';
 import { assistantDraftAccessKey } from '../assistant/permissions.js';
-import { copySectionLinks } from './copy.js';
+import { copyCompareBaseline, copySectionLinks } from './copy.js';
 import type { AppMetadataRecord, DraftCreateInput, DraftRecord, DraftRepository } from './types.js';
 import type { LyricLintDatabase } from './database.js';
 
@@ -76,6 +76,10 @@ function copyDraft(record: DraftRecord): DraftRecord {
 		copy.sectionLinks = copySectionLinks(record.sectionLinks);
 	}
 
+	if (record.compareBaseline !== undefined) {
+		copy.compareBaseline = copyCompareBaseline(record.compareBaseline);
+	}
+
 	return copy;
 }
 
@@ -106,6 +110,10 @@ function createRecord(input: DraftCreateInput): DraftRecord {
 
 	if (input.sectionLinks !== undefined) {
 		record.sectionLinks = copySectionLinks(input.sectionLinks);
+	}
+
+	if (input.compareBaseline !== undefined) {
+		record.compareBaseline = copyCompareBaseline(input.compareBaseline);
 	}
 
 	return copyDraft(record);

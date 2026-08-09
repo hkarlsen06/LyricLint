@@ -1,7 +1,8 @@
-import { copySectionLinks } from '$lib/persistence/copy.js';
+import { copyCompareBaseline, copySectionLinks } from '$lib/persistence/copy.js';
 import type {
 	AutosaveController,
 	AutosaveStatus,
+	CompareBaselineRecord,
 	DraftRecord,
 	LineAnchor,
 	DraftRepository,
@@ -86,6 +87,14 @@ export interface DraftStore {
 	readonly recentLanguages: readonly string[];
 	readonly drafts: readonly DraftSummary[];
 	readonly saveStatus: AutosaveStatus;
+	/** The Compare dialog's pasted page text for this draft, if one is stored. */
+	readonly compareBaseline: CompareBaselineRecord | undefined;
+	/**
+	 * Store the Compare dialog's baseline, stamped now. Its own save trigger,
+	 * like the anchors' — a baseline changes no text, so nothing else would
+	 * write it.
+	 */
+	setCompareBaseline(text: string): void;
 	/** The shared save seam: the current draft as it would be persisted now. */
 	draftFromSnapshot(currentSnapshot?: EditorSnapshot): DraftRecord;
 	scheduleSave(): void;
@@ -117,6 +126,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	);
 	let createdAt = $state(deps.initialDraft.createdAt);
 	let originalText = $state(deps.initialDraft.originalText);
+	let compareBaseline = $state(deps.initialDraft.compareBaseline);
 	let drafts = $state<DraftSummary[]>([]);
 	let saveStatus = $state<AutosaveStatus>(deps.autosave.status());
 	let statusRefreshTimer: ReturnType<typeof setTimeout> | undefined;
@@ -156,7 +166,10 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			editorSelection: { ...currentSnapshot.selection },
 			lineAnchors: bindings.lineAnchors.map((anchor) => ({ ...anchor })),
 			sectionLinks: copySectionLinks(bindings.sectionLinks),
-			...(originalText === undefined ? {} : { originalText })
+			...(originalText === undefined ? {} : { originalText }),
+			...(compareBaseline === undefined
+				? {}
+				: { compareBaseline: copyCompareBaseline(compareBaseline) })
 		};
 	}
 
@@ -272,6 +285,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		rememberLanguage(nextDraft.language);
 		createdAt = nextDraft.createdAt;
 		originalText = nextDraft.originalText;
+		compareBaseline = nextDraft.compareBaseline;
 		bindings.onDraftLoaded(nextDraft);
 	}
 
@@ -308,6 +322,13 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		},
 		get saveStatus() {
 			return saveStatus;
+		},
+		get compareBaseline() {
+			return compareBaseline;
+		},
+		setCompareBaseline(text) {
+			compareBaseline = { text, pastedAt: deps.now() };
+			scheduleSave();
 		},
 		draftFromSnapshot,
 		scheduleSave: () => scheduleSave(),

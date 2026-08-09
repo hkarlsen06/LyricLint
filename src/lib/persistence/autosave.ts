@@ -1,4 +1,4 @@
-import { copySectionLinks } from './copy.js';
+import { copyCompareBaseline, copySectionLinks } from './copy.js';
 import type {
 	AutosaveController,
 	AutosaveOptions,
@@ -58,6 +58,10 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 
 	if (draft.sectionLinks !== undefined) {
 		copy.sectionLinks = copySectionLinks(draft.sectionLinks);
+	}
+
+	if (draft.compareBaseline !== undefined) {
+		copy.compareBaseline = copyCompareBaseline(draft.compareBaseline);
 	}
 
 	return copy;

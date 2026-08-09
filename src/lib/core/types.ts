@@ -341,6 +341,23 @@ export interface DraftRecord {
 	 * saves the words.
 	 */
 	sectionLinks?: SectionLink[];
+	/**
+	 * The Genius page's lyrics as the user pasted them into the Compare dialog,
+	 * stamped with when — persisted so a review session survives a reload, and
+	 * dated so the dialog can state the baseline's age instead of letting a
+	 * review run silently against a page that has moved on.
+	 *
+	 * Not `originalText`, which preserves this draft's own bytes as they first
+	 * arrived: this is somebody else's page, pasted only to be compared against.
+	 */
+	compareBaseline?: CompareBaselineRecord;
+}
+
+/** The Compare dialog's pasted page text and the moment it was pasted. */
+export interface CompareBaselineRecord {
+	text: string;
+	/** ISO timestamp of the paste, for stating the baseline's age. */
+	pastedAt: string;
 }
 
 /**
