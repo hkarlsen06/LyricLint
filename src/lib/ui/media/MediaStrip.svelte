@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { Check, ListEnd, Pointer, TextAlignStart, Timer, X } from 'lucide-svelte';
 	import { drawsCoverBand, formatTime } from '../state/media-player.svelte.js';
 	import type { MediaStore } from '../state/media-store.svelte.js';
+	import { pendingMediaLabel } from './pending-media-label.js';
 	import MediaTransport from './MediaTransport.svelte';
 	import MediaAttribution from './MediaAttribution.svelte';
 
@@ -13,6 +15,13 @@
 		readonly active: boolean;
 		/** Every line a run would tap already has a time. */
 		readonly complete?: boolean;
+		/**
+		 * A selection is standing, so the press scopes the run to it: the first
+		 * tap times the selection's first line, and timing its last ends the run.
+		 * It outranks `complete` in the label — a user who has selected lines over
+		 * a fully timed song is asking to re-time exactly those.
+		 */
+		readonly scopesSelection?: boolean;
 		/**
 		 * A run standing here has timed lines between it and the next untimed one,
 		 * so `skip` would actually move. False hides the control rather than
@@ -117,13 +126,9 @@
 	// the press actually spends differs: one is a session's consent or sign-in, the
 	// other is the permission the browser will only re-grant to a gesture.
 	const pendingLabel = $derived(
-		media.pendingSource === 'youtube'
-			? `Load ${media.pendingName} from YouTube`
-			: media.pendingSource === 'spotify'
-				? `Load ${media.pendingName} from Spotify`
-				: media.pendingSource === 'apple'
-					? `Load ${media.pendingName} from Apple Music`
-					: `Reconnect ${media.pendingName}`
+		media.pendingName === undefined
+			? undefined
+			: pendingMediaLabel(media.pendingName, media.pendingSource)
 	);
 </script>
 
@@ -223,20 +228,11 @@
 					title={follow.active ? 'Stop following the playing line' : 'Follow the playing line'}
 					onclick={follow.toggle}
 				>
-					<svg
-						aria-hidden="true"
-						viewBox="0 0 16 16"
-						width="14"
-						height="14"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.6"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						<path d="M2.5 4h11M2.5 8h6M2.5 12h4" />
-						{#if follow.active}<path d="M11.5 9.5v4M9.75 11.75 11.5 13.5l1.75-1.75" />{/if}
-					</svg>
+					{#if follow.active}
+						<ListEnd aria-hidden="true" size={14} strokeWidth={2.4} />
+					{:else}
+						<TextAlignStart aria-hidden="true" size={14} strokeWidth={2.4} />
+					{/if}
 				</button>
 			{/if}
 
@@ -248,37 +244,44 @@
 					reading of pressing sync on finished work. The checkmark is the state
 					and the title is what the press does — a readout that could not be
 					pressed would take away the only way to re-time a song.
+
+					A standing selection renames the press before it is made — `Sync
+					selection` — because the scope is decided at entry, and a label that
+					only changed afterwards would be a control doing something it never
+					offered. It outranks the finished state: selected lines over a fully
+					timed song are a request to re-time exactly those lines.
+
+					The idle title also names the slower rate, because slow-rate tapping
+					is the sanctioned way to time a fast song and nothing else on screen
+					connects the two controls: the tap offset scales with the rate, so a
+					practice-rate run is as accurate as a full-speed one, and the anchors
+					come out in track time either way.
 				-->
 				<button
 					type="button"
 					class="button media-strip__sync"
 					title={sync.active
 						? 'Stop timing and go back to editing'
-						: sync.complete
-							? 'Every line is timed. Play the song from the start and tap Space to time it again'
-							: 'Play the song from the start and tap Space at each line to time it'}
+						: sync.scopesSelection
+							? 'Play and tap Space at each selected line to time it. The run stops after the last selected line'
+							: sync.complete
+								? 'Every line is timed. Play the song from the start and tap Space to time it again'
+								: 'Play the song from the start and tap Space at each line to time it. Slowing the playback rate makes fast lines easier to tap'}
 					onclick={sync.toggle}
 				>
-					<svg
-						aria-hidden="true"
-						viewBox="0 0 16 16"
-						width="13"
-						height="13"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.5"
-						stroke-linecap="round"
-						stroke-linejoin="round"
-					>
-						{#if !sync.active && sync.complete}
-							<path d="M2.75 8.5 6.25 12l7-8" />
-						{:else}
-							<circle cx="8" cy="9.25" r="5.25" />
-							<path d="M8 6.75v2.5h2M6.25 1.75h3.5" />
-						{/if}
-					</svg>
+					{#if !sync.active && sync.complete && !sync.scopesSelection}
+						<Check aria-hidden="true" size={13} strokeWidth={2.25} />
+					{:else}
+						<Timer aria-hidden="true" size={13} strokeWidth={2.25} />
+					{/if}
 					<span>
-						{sync.active ? 'Stop syncing' : sync.complete ? 'Lyrics synced' : 'Sync lyrics'}
+						{sync.active
+							? 'Stop syncing'
+							: sync.scopesSelection
+								? 'Sync selection'
+								: sync.complete
+									? 'Lyrics synced'
+									: 'Sync lyrics'}
 					</span>
 				</button>
 			{/if}
@@ -326,15 +329,27 @@
 					`Space` and `Enter` both activate a focused button, and both are the
 					run's own keys — so a press here leaves the keyboard path working
 					exactly as it did, on the button instead of in the document.
+
+					The visible label is one word and a mark, and the mark is the
+					tapping hand — the gesture the button exists for, drawn as every
+					touch UI already draws it. A target pressed in rhythm is found by
+					shape, not by reading three words, and the word beside the glyph
+					confirms rather than instructs. The stopwatch would tie this to
+					the mode better, but the sync control beside it already wears it,
+					and one glyph on two adjacent controls is no glyph at all. The
+					whole instruction stays the accessible name, because a glyph says
+					nothing to a screen reader.
 				-->
 				<button
 					type="button"
 					class="button media-strip__tap"
+					aria-label="Tap each line"
 					aria-keyshortcuts="Space Enter"
 					title="Time the line that is starting now"
 					onclick={sync.tap}
 				>
-					Tap each line
+					<Pointer aria-hidden="true" size={14} strokeWidth={2.25} />
+					Tap
 				</button>
 				<span class="media-strip__hint">Esc stops</span>
 			{:else}
@@ -358,27 +373,17 @@
 				{/if}
 			{/if}
 
-			<button
-				type="button"
-				class="button--quiet icon-button"
-				onclick={() => void media.detach()}
-				aria-label={`Detach ${player.name}`}
-				title="Detach audio"
-			>
-				<svg
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="14"
-					height="14"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.6"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-				>
-					<path d="m4.5 4.5 7 7M11.5 4.5l-7 7" />
-				</svg>
-			</button>
+			<!--
+				No detach control, and there used to be one: an X at the end of the
+				most-operated row in the window, a few pixels from the transport, so
+				the press that missed threw the track away in the middle of the loop
+				this row exists to serve. Detaching is a decision about what the
+				draft's song is, not a transport operation, so it lives in the audio
+				dialog beside every other answer to that question
+				(`MediaPicker.svelte`), behind the same deliberate press. The pending
+				row below keeps its X: that state draws no transport, so there is
+				nothing beside it to miss.
+			-->
 		</div>
 	{:else if media.pendingName}
 		<!--
@@ -404,19 +409,7 @@
 			aria-label={`Forget ${media.pendingName}`}
 			title="Forget this audio"
 		>
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="14"
-				height="14"
-				fill="none"
-				stroke="currentColor"
-				stroke-width="1.6"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			>
-				<path d="m4.5 4.5 7 7M11.5 4.5l-7 7" />
-			</svg>
+			<X aria-hidden="true" size={14} strokeWidth={2.4} />
 		</button>
 	{/if}
 </div>

@@ -4,6 +4,7 @@ import type { WorkbenchController } from '../state/workbench.svelte.js';
 import type { SongDetails } from '../state/media-player.svelte.js';
 import { createTestWorkbench } from '../test-utils.js';
 import SongPanel from './SongPanel.svelte';
+import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
 /*
  * The song half of the split tab. It carries only what is about the
@@ -18,10 +19,14 @@ describe('SongPanel skimmability', () => {
 		const { controller } = createTestWorkbench();
 		const { container } = render(SongPanel, { controller });
 
-		// A fresh draft with no song and no timings is just the export.
+		// A locally named draft can search for its song before anything is attached.
 		expect([...container.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual([
+			'Song metadata',
 			'Document'
 		]);
+		expect((screen.getByRole('link', { name: 'Search YouTube' }) as HTMLAnchorElement).href).toBe(
+			'https://www.youtube.com/results?search_query=Test%20draft'
+		);
 
 		const documentActions = [...container.querySelectorAll('section')]
 			.find((section) => section.querySelector('h3')?.textContent === 'Document')
@@ -45,6 +50,40 @@ describe('SongPanel skimmability', () => {
 
 		expect(screen.queryByRole('button', { name: /audio/iu })).toBeNull();
 		expect(screen.queryByRole('button', { name: /YouTube/iu })).toBeNull();
+	});
+
+	test('opens the shared audio-source dialog from the Song tab', async () => {
+		const { controller } = createTestWorkbench();
+		const openMediaPicker = vi.fn();
+		render(SongPanel, { controller, openMediaPicker });
+
+		const trigger = screen.getByRole('button', { name: 'Add audio source' });
+		expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
+		await fireEvent.click(trigger);
+		expect(openMediaPicker).toHaveBeenCalledWith(trigger);
+	});
+
+	test('loads a remembered source directly from the Song tab', async () => {
+		const reconnect = vi.fn(async () => {});
+		const controller = {
+			...createTestWorkbench().controller,
+			media: {
+				pendingName: 'Roc Boyz & Vinni — Håpløs',
+				pendingSource: 'apple',
+				busy: false,
+				reconnect,
+				player: { attached: false }
+			}
+		} as unknown as WorkbenchController;
+		render(SongPanel, { controller, openMediaPicker: vi.fn() });
+
+		await fireEvent.click(
+			screen.getByRole('button', {
+				name: 'Load Apple Music audio'
+			})
+		);
+		expect(reconnect).toHaveBeenCalledOnce();
+		expect(screen.getByRole('button', { name: 'Change audio source' })).toBeTruthy();
 	});
 });
 
@@ -102,6 +141,7 @@ describe('SongPanel song metadata', () => {
 		const { controller } = createTestWorkbench();
 		return {
 			...controller,
+			title: 'Mul — Sensommer',
 			media: {
 				videoId: media.videoId,
 				player: {
@@ -126,12 +166,46 @@ describe('SongPanel song metadata', () => {
 
 	test('offers each control only where its own fact exists, and leads the tab', () => {
 		const { container } = render(SongPanel, {
-			controller: withSong({ artwork: 'https://i.scdn.co/image/640' })
+			controller: withSong({
+				artwork: 'https://i.scdn.co/image/640',
+				songDetails: { isrc: 'USUG11500642' }
+			})
 		});
 
 		expect(headings(container)[0]).toBe('Song metadata');
+		expect(screen.getByRole('button', { name: 'Copy image URL' })).toBeTruthy();
 		expect(screen.getByRole('button', { name: 'Download album art' })).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Copy image URL' }).parentElement).toBe(
+			screen.getByRole('button', { name: 'Download album art' }).parentElement
+		);
+		expect(
+			screen.getByRole('button', { name: 'Copy image URL' }).parentElement?.classList
+		).toContain('artwork-actions');
 		expect(screen.queryByRole('button', { name: 'Copy YouTube link' })).toBeNull();
+		const search = screen.getByRole('link', { name: 'Search YouTube' }) as HTMLAnchorElement;
+		expect(search.href).toBe(
+			'https://www.youtube.com/results?search_query=Mul%20%E2%80%94%20Sensommer'
+		);
+		expect(search.target).toBe('_blank');
+		expect(search.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+
+		const section = songSection(container)!;
+		const actions = section.querySelector('.tool-actions') as HTMLElement;
+		expect(getComputedStyle(actions).marginTop).toBe('16px');
+	});
+
+	test('copies the known artwork URL without downloading it', async () => {
+		const copied: string[] = [];
+		const clipboard = { writeText: async (text: string) => void copied.push(text) };
+		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as unknown as Clipboard);
+
+		const controller = withSong({ artwork: 'https://i.scdn.co/image/640' });
+		render(SongPanel, { controller });
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Copy image URL' }));
+		await waitFor(() => expect(copied).toEqual(['https://i.scdn.co/image/640']));
+		expect(screen.getByRole('button', { name: 'Image URL copied' })).toBeTruthy();
+		expect(controller.feedback.announcement).toBe('Image URL copied.');
 	});
 
 	test('copies the watch page for an attached video, contacting nobody', async () => {
@@ -143,6 +217,7 @@ describe('SongPanel song metadata', () => {
 			controller: withSong({ videoId: 'dQw4w9WgXcQ', artwork: 'https://i.ytimg.com/vi/x/hq.jpg' })
 		});
 
+		expect(screen.queryByRole('link', { name: 'Search YouTube' })).toBeNull();
 		await fireEvent.click(screen.getByRole('button', { name: 'Copy YouTube link' }));
 		await waitFor(() => expect(copied).toEqual(['https://www.youtube.com/watch?v=dQw4w9WgXcQ']));
 	});
@@ -152,14 +227,18 @@ describe('SongPanel song metadata', () => {
 			controller: withSong({ songDetails: { artist: 'Mul', title: 'Sensommer' } })
 		});
 
-		expect(headings(container)).not.toContain('Song metadata');
-		expect(songSection(container)).toBeUndefined();
+		expect(headings(container)).toContain('Song metadata');
+		expect(songSection(container)?.querySelector('.metadata-list')).toBeNull();
+		expect(screen.getByRole('link', { name: 'Search YouTube' })).toBeTruthy();
 	});
 
-	test('draws nothing for a song with neither', () => {
-		const { container } = render(SongPanel, { controller: withSong({}) });
+	test('draws nothing for an untitled draft with no song facts or media', () => {
+		const controller = { ...withSong({}), title: DEFAULT_DRAFT_TITLE } as WorkbenchController;
+		const { container } = render(SongPanel, { controller });
 
 		expect(headings(container)).not.toContain('Song metadata');
+		expect(screen.queryByRole('link', { name: 'Search YouTube' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Copy image URL' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Download album art' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Copy YouTube link' })).toBeNull();
 	});

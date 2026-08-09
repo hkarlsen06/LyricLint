@@ -317,4 +317,27 @@ describe('MediaPicker', () => {
 
 		expect(dialog()?.querySelector('a[href*="results?search_query"]')).toBeNull();
 	});
+
+	/*
+	 * The way out, which used to be an X at the end of the transport row and was
+	 * hit by accident more often than on purpose. It lives here now, behind the
+	 * same deliberate press every other answer to "where is the song?" is — and
+	 * it draws only while there is something to detach, the rule every
+	 * conditional answer in this dialog follows.
+	 */
+	it('offers detach only while something is attached, and the press detaches and closes', async () => {
+		const { media } = setup();
+		await page.getByRole('button', { name: 'Add audio' }).click();
+
+		expect(page.getByRole('button', { name: 'Detach', exact: false }).elements()).toHaveLength(0);
+		dialog()?.close();
+
+		await media.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		await page.getByRole('button', { name: 'Change audio' }).click();
+		await page.getByRole('button', { name: 'Detach track.mp3' }).click();
+
+		expect(media.player.attached).toBe(false);
+		expect(media.pendingName).toBeUndefined();
+		expect(dialog()?.open).toBe(false);
+	});
 });

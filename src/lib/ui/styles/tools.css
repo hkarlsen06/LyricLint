@@ -201,8 +201,28 @@
 	white-space: pre;
 }
 
-.metadata-list + .tool-actions {
+.song-metadata-actions--after-facts {
+	/* The list's final value and the first bordered action are different kinds of
+	 * content. A full stack gap keeps the button from reading as part of that last
+	 * row, especially when a long value wraps onto a second line. This is an
+	 * explicit class because SongFacts's visually hidden live region sits between
+	 * the list and this row, so an adjacent-sibling selector cannot reach it. */
 	margin-top: var(--space-4);
+}
+
+.youtube-logo {
+	flex: none;
+}
+
+/* Copying the cover's address and saving its bytes are the two forms of one
+ * artwork action. They travel as one flex item in the larger command row so a
+ * preceding search control cannot strand the download button on its own line.
+ * The inner wrap remains for a panel narrower than the pair itself. */
+.artwork-actions {
+	display: inline-flex;
+	max-width: 100%;
+	flex-wrap: wrap;
+	gap: var(--space-2);
 }
 
 .source-list {

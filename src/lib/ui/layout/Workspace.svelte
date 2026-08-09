@@ -62,7 +62,12 @@
 	} = $props();
 
 	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
+	let mediaPicker = $state<{ open(source?: HTMLButtonElement): Promise<void> }>();
 	const EditorComponent = $derived(editorComponent);
+
+	function openMediaPicker(source: HTMLButtonElement): void {
+		void mediaPicker?.open(source);
+	}
 
 	// Undefined in a workspace rendered on its own, which is how every component
 	// test renders it — the control simply does not draw there.
@@ -874,7 +879,12 @@
 		has no viewport to ask — emits the grid row, which is where the CSS still
 		puts it until the query resolves.
 	-->
-	<RightPanel {controller} {assistant} footer={stacked.current ? statusBar : undefined} />
+	<RightPanel
+		{controller}
+		{assistant}
+		openMediaPicker={controller.media ? openMediaPicker : undefined}
+		footer={stacked.current ? statusBar : undefined}
+	/>
 
 	{#if !stacked.current}
 		{@render statusBar()}
@@ -898,7 +908,11 @@
 				<!-- The title rides along so the picker can offer a search for the song
 				     this draft is already named after, rather than only for one that
 				     has been attached. -->
-				<MediaPicker media={controller.media} draftTitle={controller.title} />
+				<MediaPicker
+					bind:this={mediaPicker}
+					media={controller.media}
+					draftTitle={controller.title}
+				/>
 			{/if}
 			{#if documentCounts.length > 0}
 				<span>{documentCounts.join(' · ')}</span>

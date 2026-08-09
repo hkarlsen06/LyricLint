@@ -1,14 +1,28 @@
 <script lang="ts">
+	import { Check, Copy, Music2 } from 'lucide-svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
+	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 	import { copyText, downloadImage } from '../clipboard.js';
 	import SongFacts, { hasSongFacts } from '../media/SongFacts.svelte';
+	import { pendingMediaActionLabel } from '../media/pending-media-label.js';
 	import LoadingMark from '../primitives/LoadingMark.svelte';
+	import { youtubeSearchTerm } from '../state/media-youtube.js';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let {
+		controller,
+		openMediaPicker
+	}: {
+		controller: WorkbenchController;
+		openMediaPicker?: (source: HTMLButtonElement) => void;
+	} = $props();
 	let confirmClearAnchors = $state(false);
 	let savingArtwork = $state(false);
+	let copiedArtworkUrl = $state(false);
+	let copiedArtworkTimer: ReturnType<typeof setTimeout> | undefined;
 	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
+
+	$effect(() => () => clearTimeout(copiedArtworkTimer));
 
 	const artwork = $derived(controller.media?.player.artwork);
 	const details = $derived(controller.media?.player.songDetails);
@@ -19,6 +33,15 @@
 	 * already say them.
 	 */
 	const listedFacts = $derived(hasSongFacts(details));
+	const audioSourceLabel = $derived(
+		controller.media?.player.attached || controller.media?.pendingName
+			? 'Change audio source'
+			: 'Add audio source'
+	);
+	const searchName = $derived.by(() => {
+		const title = controller.title.trim();
+		return title === DEFAULT_DRAFT_TITLE ? undefined : youtubeSearchTerm(title);
+	});
 	/**
 	 * The watch page for an attached video, which the workbench already knows.
 	 *
@@ -56,6 +79,18 @@
 			controller.feedback.announce('The link could not be copied.');
 		}
 	}
+
+	async function copyArtworkUrl(url: string): Promise<void> {
+		try {
+			await copyText(url);
+			copiedArtworkUrl = true;
+			clearTimeout(copiedArtworkTimer);
+			copiedArtworkTimer = setTimeout(() => (copiedArtworkUrl = false), 2000);
+			controller.feedback.announce('Image URL copied.');
+		} catch {
+			controller.feedback.announce('The image URL could not be copied.');
+		}
+	}
 </script>
 
 <!--
@@ -75,41 +110,87 @@
 
 		It leads, because it is the one section here that comes and goes with the
 		attachment — a section that is only sometimes there leads or it is somewhere
-		different on every draft. Each part draws only where its own fact exists, so
-		a local file shows no heading at all, and nothing here contacts anyone: the
-		facts and the cover's address arrived on the read that named the song, and
-		the link is derived from the id the draft already stores.
+		different on every draft. Each fact draws only where it exists; the audio
+		control is the one way this section can lead before any fact has arrived,
+		because it opens the shared picker that attaches one. Nothing else here
+		contacts anyone: the facts and the cover's address arrived on the read that
+		named the song, and the link is derived from the id the draft already stores.
 	-->
-	{#if artwork || videoUrl || listedFacts}
+	{#if artwork || videoUrl || listedFacts || searchName || openMediaPicker}
 		<section>
 			<!-- No sentence under the heading. `Song metadata` over a column of
-			     labelled facts and two self-describing commands is already the whole
+			     labelled facts and self-describing commands is already the whole
 			     of what a paragraph there would have said. -->
 			<h3>Song metadata</h3>
 			{#if details && listedFacts}
 				<SongFacts {details} />
 			{/if}
-			<div class="tool-actions">
+			<div class="tool-actions" class:song-metadata-actions--after-facts={details && listedFacts}>
+				{#if controller.media?.pendingName}
+					<button
+						type="button"
+						class="button"
+						disabled={controller.media.busy}
+						onclick={() => void controller.media?.reconnect()}
+					>
+						{pendingMediaActionLabel(controller.media.pendingSource)}
+					</button>
+				{/if}
+				{#if openMediaPicker}
+					<button
+						type="button"
+						class="button"
+						aria-haspopup="dialog"
+						onclick={(event) => openMediaPicker(event.currentTarget)}
+					>
+						<Music2 aria-hidden="true" size={14} strokeWidth={2.25} />
+						{audioSourceLabel}
+					</button>
+				{/if}
+				{#if searchName && !videoUrl}
+					<a
+						class="button"
+						href={`https://www.youtube.com/results?search_query=${encodeURIComponent(searchName)}`}
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						<svg class="youtube-logo" viewBox="0 0 24 18" width="20" height="15" aria-hidden="true">
+							<rect x="0" y="0" width="24" height="18" rx="5" fill="#ff0033" />
+							<path d="M10 5.2 16.5 9 10 12.8Z" fill="white" />
+						</svg>
+						Search YouTube
+					</a>
+				{/if}
 				{#if videoUrl}
 					<button type="button" class="button" onclick={() => copyVideoUrl(videoUrl)}>
 						Copy YouTube link
 					</button>
 				{/if}
 				{#if artwork}
-					<!-- The label stays put and a loading mark joins it: a control whose text
-					     changes under the press reflows the row it was pressed in. -->
-					<button
-						type="button"
-						class="button"
-						disabled={savingArtwork}
-						aria-busy={savingArtwork}
-						onclick={() => saveArtwork(artwork)}
-					>
-						{#if savingArtwork}
-							<LoadingMark />
-						{/if}
-						Download album art
-					</button>
+					<div class="artwork-actions">
+						<button type="button" class="button" onclick={() => copyArtworkUrl(artwork)}>
+							{#if copiedArtworkUrl}
+								<Check aria-hidden="true" size={14} strokeWidth={2.25} />
+							{:else}
+								<Copy aria-hidden="true" size={14} strokeWidth={2.25} />
+							{/if}
+							{copiedArtworkUrl ? 'Image URL copied' : 'Copy image URL'}
+						</button>
+						<!-- The label stays put and a loading mark joins it: a control whose text
+						     changes under the press reflows the row it was pressed in. -->
+						<button
+							type="button"
+							class="button"
+							disabled={savingArtwork}
+							aria-busy={savingArtwork}
+							onclick={() => saveArtwork(artwork)}
+						>
+							{#if savingArtwork}
+								<LoadingMark />
+							{/if}
+							Download album art
+						</button>
+					</div>
 				{/if}
 			</div>
 		</section>

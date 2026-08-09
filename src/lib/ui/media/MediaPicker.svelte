@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Music2, X } from 'lucide-svelte';
 	import { tick } from 'svelte';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import type { SpotifySearchResult } from '../state/media-spotify.js';
@@ -29,6 +30,7 @@
 
 	let dialog: HTMLDialogElement;
 	let trigger: HTMLButtonElement;
+	let opener: HTMLButtonElement;
 	let urlInput: HTMLInputElement;
 	let url = $state('');
 	let query = $state('');
@@ -73,7 +75,8 @@
 	// selected, because the two things done to a link that is already there are
 	// copying it out and typing over it, and a selection is the one state that
 	// serves both without a clearing press first.
-	async function open(): Promise<void> {
+	export async function open(source = trigger): Promise<void> {
+		opener = source;
 		url = media.videoId ? `https://youtu.be/${media.videoId}` : '';
 		error = undefined;
 		trackError = undefined;
@@ -110,10 +113,11 @@
 
 	function close(): void {
 		dialog.close();
-		trigger.focus();
+		opener.focus();
 	}
 
-	// Escape and the close control hand focus back; an outside press does not,
+	// Escape and the close control hand focus back to whichever of the two
+	// triggers opened this shared dialog; an outside press does not,
 	// because the press has already named where the user is going.
 	function dismissOnBackdrop(event: MouseEvent): void {
 		if (event.target === dialog) dialog.close();
@@ -121,6 +125,13 @@
 
 	async function chooseFile(): Promise<void> {
 		if (await media.attach()) close();
+	}
+
+	// Detaching answers the dialog's one question with "nowhere", so the
+	// dialog's work is as done as it is after any attach.
+	async function detach(): Promise<void> {
+		await media.detach();
+		close();
 	}
 
 	async function useVideo(): Promise<void> {
@@ -220,23 +231,9 @@
 	type="button"
 	class="button--quiet status-bar__media"
 	aria-haspopup="dialog"
-	onclick={open}
+	onclick={() => open(trigger)}
 >
-	<svg
-		aria-hidden="true"
-		viewBox="0 0 16 16"
-		width="13"
-		height="13"
-		fill="none"
-		stroke="currentColor"
-		stroke-width="1.5"
-		stroke-linecap="round"
-		stroke-linejoin="round"
-	>
-		<path d="M6 12.25V3.5l7-1.25v8.5" />
-		<circle cx="4.25" cy="12.25" r="1.75" />
-		<circle cx="11.25" cy="10.75" r="1.75" />
-	</svg>
+	<Music2 aria-hidden="true" size={13} strokeWidth={2.25} />
 	<span>{label}</span>
 </button>
 
@@ -280,18 +277,7 @@
 		<div class="media-dialog__header">
 			<h2 id="media-dialog-title">Add audio</h2>
 			<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
-				<svg
-					aria-hidden="true"
-					viewBox="0 0 16 16"
-					width="16"
-					height="16"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.5"
-					stroke-linecap="round"
-				>
-					<path d="m4 4 8 8M12 4l-8 8" />
-				</svg>
+				<X aria-hidden="true" size={16} strokeWidth={2.25} />
 			</button>
 		</div>
 
@@ -538,6 +524,27 @@
 				</button>
 				<p class="media-dialog__meta">Plays from your disk · Nothing is uploaded</p>
 			</section>
+
+			<!--
+				The way out, offered where the question is asked. This press used to be
+				an X at the end of the transport row, where it was hit by accident more
+				often than on purpose — a detach is a decision about what the draft's
+				song is, so it belongs behind the same deliberate press every other
+				answer here is. It draws only while there is something to detach, the
+				rule every conditional answer above follows, and the facts under it say
+				what the press does not cost: the timings live on the 'scribe, and no
+				file is touched.
+			-->
+			{#if media.player.attached || media.pendingName}
+				<section>
+					<button type="button" class="button" onclick={() => void detach()} disabled={media.busy}>
+						Detach {media.player.name ?? media.pendingName}
+					</button>
+					<p class="media-dialog__meta">
+						Line timings stay on this 'scribe · Nothing is deleted from your disk
+					</p>
+				</section>
+			{/if}
 		</div>
 	</div>
 </dialog>
@@ -556,12 +563,12 @@
 		font-size: var(--font-size-xs);
 	}
 
-	.status-bar__media svg {
+	.status-bar__media :global(svg) {
 		flex: none;
 		color: var(--color-text-muted);
 	}
 
-	.status-bar__media:hover svg {
+	.status-bar__media:hover :global(svg) {
 		color: var(--color-text);
 	}
 

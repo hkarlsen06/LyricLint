@@ -149,12 +149,12 @@ describe('MediaStrip', () => {
 		// document. Content and not the box, because at narrow widths
 		// `responsive.css` raises every `.button` to `lg` and the box stops
 		// reporting what is inside it.
-		const detach = page.getByRole('button', { name: 'Detach track.mp3' });
+		const rate = page.getByRole('combobox');
 		await fontsSettled();
 		const parts = [...play.element().children].map((part) => part.getBoundingClientRect());
 		const stack =
 			Math.max(...parts.map((part) => part.bottom)) - Math.min(...parts.map((part) => part.top));
-		expect(stack).toBeLessThanOrEqual((detach.element() as HTMLElement).offsetHeight);
+		expect(stack).toBeLessThanOrEqual((rate.element() as HTMLElement).offsetHeight);
 		await expect.element(page.getByTestId('media-elapsed')).toHaveTextContent('0:00');
 		await expect.element(page.getByText('2:05')).toBeVisible();
 		await expect.element(page.getByText('track.mp3')).toBeVisible();
@@ -393,6 +393,33 @@ describe('MediaStrip', () => {
 		expect(taps).toBe(1);
 	});
 
+	// A standing selection renames the press before it is made — the run it
+	// starts covers the selection and nothing else, and a label that only changed
+	// afterwards would be a control doing something it never offered. It outranks
+	// the finished state, because selected lines over a fully timed song are a
+	// request to re-time exactly those lines.
+	it('renames the control while a selection scopes the run', async () => {
+		const { media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		let scopes = $state(true);
+		const sync = {
+			active: false,
+			complete: true,
+			get scopesSelection() {
+				return scopes;
+			},
+			toggle: () => {},
+			tap: () => {}
+		};
+
+		render(MediaStrip, { props: { media, sync } });
+
+		await expect.element(page.getByRole('button', { name: 'Sync selection' })).toBeVisible();
+
+		scopes = false;
+		await expect.element(page.getByRole('button', { name: 'Lyrics synced' })).toBeVisible();
+	});
+
 	// The skip past already-timed lines is contextual twice over: it exists only
 	// while a run is under way, and only while the run has timed lines between it
 	// and the next untimed one. Offered the rest of the time it would be a press
@@ -522,18 +549,19 @@ describe('MediaStrip', () => {
 		}
 	});
 
-	it('detaching clears the strip and forgets the file for this draft', async () => {
-		const { media, player } = store();
+	// The X sat at the end of the most-operated row in the window and was hit by
+	// accident more often than on purpose. Detaching lives in the audio dialog
+	// now, behind a deliberate press; re-adding a control for it here is the
+	// regression. The pending row's `Forget` keeps its X — that state draws no
+	// transport, so there is nothing beside it to miss.
+	it('offers no detach control while audio is attached', async () => {
+		const { media } = store();
 		await media.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
 		render(MediaStrip, { props: { media } });
 
-		await page.getByRole('button', { name: 'Detach track.mp3' }).click();
-
-		expect(player.attached).toBe(false);
-		expect(media.pendingName).toBeUndefined();
-		await media.openFor('draft-1');
-		expect(media.pendingName).toBeUndefined();
+		await expect.element(page.getByRole('slider', { name: 'Seek' })).toBeVisible();
+		expect(page.getByRole('button', { name: 'Detach track.mp3' }).elements()).toHaveLength(0);
 	});
 });
 

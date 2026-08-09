@@ -1093,6 +1093,28 @@ describe('Workspace and toolbar', () => {
 		expect(styles.textDecorationLine).toBe('underline');
 	});
 
+	test('opens the one shared audio picker from the Song tab', async () => {
+		const player = createMediaPlayer({
+			feedback: createFeedbackState(),
+			createAudio: () => new StubAudio().asMediaElement(),
+			createObjectUrl: () => 'blob:test',
+			revokeObjectUrl: () => {},
+			loadYouTubeApi: createStubYouTubeApi().load,
+			scheduleYouTubePoll: createStubPoll().schedule
+		});
+		const { controller } = createTestWorkbench({
+			media: { repository: createInMemoryMediaRepository([]), player }
+		});
+		const { container } = renderWorkspace(controller);
+
+		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
+		const songPane = screen.getByRole('tabpanel', { name: 'Song' });
+		await fireEvent.click(within(songPane).getByRole('button', { name: 'Add audio source' }));
+
+		expect(screen.getByRole('dialog', { name: 'Add audio' }).hasAttribute('open')).toBe(true);
+		expect(container.querySelectorAll('dialog.media-dialog')).toHaveLength(1);
+	});
+
 	// The strip's own control is the only way in, so it has to be findable: a
 	// bordered command among the row's quiet glyphs and readouts, not another
 	// muted word beside the track's name.
