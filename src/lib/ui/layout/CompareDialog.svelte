@@ -100,19 +100,23 @@
 		aria-haspopup="dialog"
 		onclick={open}
 	>
+		<!-- Lucide's “diff” glyph (ISC-licensed), geometry unmodified; rendered at
+		     15px from its own 24 grid, the stroke width alone raised so its drawn
+		     weight matches the 1.4 the strip's other glyphs carry. -->
 		<svg
 			aria-hidden="true"
-			viewBox="0 0 16 16"
+			viewBox="0 0 24 24"
 			width="15"
 			height="15"
 			fill="none"
 			stroke="currentColor"
-			stroke-width="1.4"
+			stroke-width="2.2"
 			stroke-linecap="round"
+			stroke-linejoin="round"
 		>
-			<path d="M2.5 4.75h4.4M4.7 2.55v4.4" />
-			<path d="M9.1 11.25h4.4" />
-			<path d="M8 2v12" stroke-dasharray="1.5 2" />
+			<path d="M12 3v14" />
+			<path d="M5 10h14" />
+			<path d="M5 21h14" />
 		</svg>
 		Compare
 	</button>
