@@ -953,6 +953,55 @@ performer roster); `src/lib/ui/drafts/draft-date.ts` for the dates; what each su
 `overlays.css`, `linter.css`, and `performers.css`; and the persistence rule in
 `draft-store.svelte.ts` and `persistence/recovery.ts`.
 
+### A performer's rename runs in both directions, and the headers are the point of it
+
+A performer's name lives in two places — the roster record, and every section-header legend that
+names them — and a rename made in either has to reach both, because a legend the roster no longer
+recognizes is an unresolved voice and a duplicate import waiting to happen. Editing the name inside
+one header was already mirrored: `headerRenameFilter` rewrites the other headers in the same
+transaction and the roster adopts the spelling (`adoptHeaderRename`, silently, keeping the old one
+as an alias). **The roster-side rename shipped without the reverse half**, so the Performers tab
+said `Renamed KrissyB to KrissyC.` over a document whose every header still read KrissyB — the one
+job a roster rename exists for, reported as done and not done.
+
+`renamePerformer` on the controller is that reverse half, and it is on the controller rather than
+in the roster store because it is the one place that holds both the editor session and the roster.
+Six decisions in it:
+
+- **The rewrite is one atomic edit over every header occurrence** — `headerNameAtoms` filtered to
+  the performer, which is the same resolution the forward mirror reads — so it is one editor undo,
+  exactly as a mirrored header edit is.
+- **The roster half goes through `adoptHeaderRename`, not the plain record rename**, so the old
+  spelling survives as an alias and an editor undo of the rewrite still resolves the headers to
+  this performer instead of importing a duplicate.
+- **The roster is adopted _before_ the dispatch**, because the re-lint arrives from inside it: a
+  long enough new name crosses the import threshold, and an extraction run against the old roster
+  would read the freshly written name as a stranger and import it as one.
+- **The toast's Undo is the same rename run in reverse**, recomputed against the document as it
+  stands — pressed after further edits it reverses the rename and nothing else. A restored roster
+  clone alone would recreate the mismatch this exists to fix, pointed the other way.
+- **A name that would change how a header parses is kept out of the document**
+  (`isMirrorableHeaderName`, the same refusal the forward mirror makes), and the toast says so
+  rather than reporting a rewrite that did not happen. The alias is what keeps the untouched
+  headers resolving. A performer named in no header renames in the roster alone, exactly as
+  before.
+- **A settled rename re-derives the color, and only a settled one.** The color is allocated
+  _from the name_ (`allocatePerformerColor`, hue hashed off the normalized spelling), so a rename
+  that kept the old token left the performer wearing a color derived from a name they no longer
+  have. The performer's own token is left out of the usage count when re-deriving — it is the one
+  being replaced, and counting it would push the new name off its own nearest token. What must
+  not recolor is `adoptHeaderRename` itself: it fires per keystroke while a name is typed in a
+  header, and re-deriving there would strobe every bar in the document through the palette
+  mid-word. `recolorPerformer` on the roster store is therefore its own call, made by the settled
+  paths — the roster-tab rename, in all three of its branches — and by nothing per-keystroke. A
+  header-typed rename keeps its color for now; if that is ever wanted, the settle moment is the
+  rename session ending, which needs a hook the editor does not yet report.
+
+Implementation: `renamePerformer` in `src/lib/ui/state/workbench.svelte.ts`, over
+`headerNameAtoms` / `isMirrorableHeaderName` in `src/lib/performers/header-rename.ts`, with the
+recolor in `renamePerformer` and `recolorPerformer` in `roster-store.svelte.ts`; the regressions
+are the `workbench performer renames` block in `workbench.test.ts`.
+
 ### The audio is a transport, and it is never at rest
 
 Nobody opens LyricLint to listen to music. The loop is listen, pause, type, back up, replay, so the

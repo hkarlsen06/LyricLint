@@ -1247,3 +1247,143 @@ describe('workbench performer imports', () => {
 		);
 	});
 });
+
+describe('workbench performer renames', () => {
+	const text = '[Verse 1: Avery]\nA line\n\n[Chorus: Avery]\nAnother line';
+
+	/** A stub editor that applies dispatched edits and re-emits the snapshot. */
+	function applyingEditor(
+		controller: ReturnType<typeof setup>['controller'],
+		editor: EditorHandle,
+		record: DraftRecord
+	): { readonly text: string } {
+		let currentText = record.text;
+		let revision = 0;
+		editor.dispatchAtomic = (edit) => {
+			// Back to front, so earlier offsets stay valid while later ones move.
+			for (const change of [...edit.edits].sort((left, right) => right.from - left.from)) {
+				currentText =
+					currentText.slice(0, change.from) + change.insert + currentText.slice(change.to);
+			}
+			revision += 1;
+			controller.onSnapshot(snapshot(record, revision, currentText));
+		};
+		return {
+			get text() {
+				return currentText;
+			}
+		};
+	}
+
+	// The mirror already runs the other way — editing a name inside one header
+	// rewrites the others and the roster adopts it — so a roster rename that
+	// stopped at the record left the legend reading the old name, which is the
+	// one job a roster rename exists for.
+	test('renaming a performer in the roster rewrites every header that names them', () => {
+		const record = draft('draft-a', text);
+		const { controller, editor } = setup({ initial: record });
+		const dispatched: Parameters<EditorHandle['dispatchAtomic']>[0][] = [];
+		editor.dispatchAtomic = (edit) => {
+			dispatched.push(edit);
+			controller.onSnapshot(snapshot(record, 1, text.replaceAll('Avery', 'Avery Stone')));
+		};
+		const avery = controller.performers.find((entry) => entry.displayName === 'Avery');
+
+		controller.renamePerformer(avery?.id ?? '', 'Avery Stone');
+
+		const verse = text.indexOf('Avery');
+		const chorus = text.lastIndexOf('Avery');
+		expect(dispatched).toEqual([
+			{
+				baseRevision: 0,
+				edits: [
+					{ from: verse, to: verse + 'Avery'.length, insert: 'Avery Stone' },
+					{ from: chorus, to: chorus + 'Avery'.length, insert: 'Avery Stone' }
+				]
+			}
+		]);
+		// The old spelling stays resolvable, so an editor undo of the rewrite
+		// does not import a duplicate performer — and the color is re-derived,
+		// because it was derived from a name the performer no longer has.
+		// `Avery` ranks olive and `Avery Stone` ranks plum, so the pair proves
+		// the reallocation actually ran.
+		expect(controller.performers.find((entry) => entry.id === avery?.id)).toEqual(
+			expect.objectContaining({
+				displayName: 'Avery Stone',
+				aliases: ['Avery'],
+				colorId: 'plum'
+			})
+		);
+		expect(controller.feedback.toasts.at(-1)?.message).toBe(
+			'Renamed Avery to Avery Stone in 2 headers.'
+		);
+	});
+
+	test('the rename toast’s Undo puts the old spelling back in the headers', () => {
+		const record = draft('draft-a', text);
+		const { controller, editor } = setup({ initial: record });
+		const document = applyingEditor(controller, editor, record);
+		const avery = controller.performers.find((entry) => entry.displayName === 'Avery');
+
+		controller.renamePerformer(avery?.id ?? '', 'Averie');
+		expect(document.text).toBe('[Verse 1: Averie]\nA line\n\n[Chorus: Averie]\nAnother line');
+
+		controller.feedback.toasts.at(-1)?.action?.();
+
+		expect(document.text).toBe(text);
+		expect(controller.performers.find((entry) => entry.id === avery?.id)?.displayName).toBe(
+			'Avery'
+		);
+	});
+
+	test('a performer named in no header renames in the roster alone', () => {
+		const record = draft('draft-a', '[Verse]\nA line');
+		const { controller, editor } = setup({ initial: record });
+		controller.addPerformer('Blair');
+		const dispatched: unknown[] = [];
+		editor.dispatchAtomic = (edit) => dispatched.push(edit);
+		const blair = controller.performers.find((entry) => entry.displayName === 'Blair');
+
+		controller.renamePerformer(blair?.id ?? '', 'Blaire');
+
+		expect(dispatched).toEqual([]);
+		// `Blair` and `Blaire` both rank olive: a rename whose new name derives
+		// the color the performer already wears moves nothing.
+		expect(controller.performers.find((entry) => entry.id === blair?.id)).toEqual(
+			expect.objectContaining({ displayName: 'Blaire', colorId: 'olive' })
+		);
+	});
+
+	// `adoptHeaderRename` fires per keystroke while a name is typed in a header,
+	// so re-deriving the color there would strobe every bar in the document
+	// through the palette mid-word. Only settled renames recolor.
+	test('a header rename typed in the document keeps its color while in flight', () => {
+		const record = draft('draft-a', text);
+		const { controller } = setup({ initial: record });
+		const avery = controller.performers.find((entry) => entry.displayName === 'Avery');
+		const before = avery?.colorId;
+
+		controller.adoptHeaderRename(avery?.id ?? '', 'Avery', 'Avery Stone');
+
+		expect(controller.performers.find((entry) => entry.id === avery?.id)?.colorId).toBe(before);
+	});
+
+	// The header-side mirror refuses to spread a name that would change how a
+	// header parses; the roster-side rename owes the same refusal, and the alias
+	// is what keeps the untouched headers resolving to the renamed performer.
+	test('a name that cannot sit in a header renames the record and leaves the document alone', () => {
+		const record = draft('draft-a', text);
+		const { controller, editor } = setup({ initial: record });
+		const dispatched: unknown[] = [];
+		editor.dispatchAtomic = (edit) => dispatched.push(edit);
+		const avery = controller.performers.find((entry) => entry.displayName === 'Avery');
+
+		controller.renamePerformer(avery?.id ?? '', 'Avery, The Voice');
+
+		expect(dispatched).toEqual([]);
+		expect(controller.performers.find((entry) => entry.id === avery?.id)).toEqual(
+			expect.objectContaining({ displayName: 'Avery, The Voice', aliases: ['Avery'] })
+		);
+		expect(controller.feedback.toasts.at(-1)?.message).toContain('The headers keep Avery');
+	});
+});

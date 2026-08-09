@@ -41,6 +41,7 @@ import { createMediaStore } from './media-store.svelte.js';
 import { isPhoneLayout } from './phone-layout.js';
 import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persistence/backup.js';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
+import { headerNameAtoms, isMirrorableHeaderName } from '$lib/performers/index.js';
 import { buildRuleContext } from './wiring.js';
 
 export { performerColorIds } from './roster-store.svelte.js';
@@ -450,6 +451,76 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		onIgnoredDiagnosticsChange: deps.backup?.schedule
 	});
 
+	/**
+	 * Rename a performer from the roster, carrying the new spelling into every
+	 * section header that names them.
+	 *
+	 * The mirror already runs the other way — editing a name inside one header
+	 * rewrites the others and the roster adopts it — so a roster rename that
+	 * stopped at the record left the workbench contradicting itself: the toast
+	 * said renamed, the legend went on reading the old name, and the new name
+	 * appeared nowhere in the document. Keeping the headers in step is the one
+	 * job a roster rename exists for.
+	 *
+	 * The rewrite is one atomic edit over every header occurrence, so it is one
+	 * editor undo, exactly as a mirrored header edit is. The roster half goes
+	 * through `adoptHeaderRename` rather than the plain rename, so the old
+	 * spelling survives as an alias and an editor undo of the rewrite still
+	 * resolves the headers to this performer instead of importing a duplicate.
+	 * The roster is adopted *before* the dispatch, because the re-lint arrives
+	 * from inside it: a large enough rename crosses the import threshold, and an
+	 * extraction run against the old roster would read the freshly written name
+	 * as a stranger.
+	 *
+	 * The toast's Undo is the same rename run in reverse. It recomputes against
+	 * the document as it stands, so pressed after further edits it reverses the
+	 * rename and nothing else.
+	 */
+	function renamePerformer(id: string, displayName: string): void {
+		const trimmed = displayName.trim();
+		const current = roster.performers.find((performer) => performer.id === id);
+		if (!current || !trimmed || current.displayName === trimmed) return;
+		const previousName = current.displayName;
+		const snapshot = editorSession.snapshot;
+		const occurrences = headerNameAtoms(snapshot.parsed, roster.performers).filter(
+			(atom) => atom.performerId === id && atom.text !== trimmed
+		);
+		if (occurrences.length === 0) {
+			// Named in no header: the record is the whole of the rename.
+			roster.renamePerformer(id, trimmed);
+			return;
+		}
+		if (!isMirrorableHeaderName(trimmed)) {
+			// A name that would change how a header parses is kept out of the
+			// document, exactly as the header-side mirror refuses to spread one.
+			// The alias is what keeps the untouched headers resolving.
+			roster.adoptHeaderRename(id, previousName, trimmed);
+			roster.recolorPerformer(id);
+			const message = `Renamed ${previousName} to ${trimmed}. The headers keep ${previousName}, because the new name cannot be written inside one.`;
+			feedback.announce(message);
+			feedback.addToast({
+				message,
+				actionLabel: 'Undo',
+				action: () => renamePerformer(id, previousName)
+			});
+			return;
+		}
+		roster.adoptHeaderRename(id, previousName, trimmed);
+		roster.recolorPerformer(id);
+		editorSession.editor.dispatchAtomic({
+			baseRevision: snapshot.revision,
+			edits: occurrences.map(({ from, to }) => ({ from, to, insert: trimmed }))
+		});
+		const headers = occurrences.length === 1 ? 'header' : 'headers';
+		const message = `Renamed ${previousName} to ${trimmed} in ${occurrences.length} ${headers}.`;
+		feedback.announce(message);
+		feedback.addToast({
+			message,
+			actionLabel: 'Undo',
+			action: () => renamePerformer(id, previousName)
+		});
+	}
+
 	const controller: WorkbenchController = {
 		get editor() {
 			return editorSession.editor;
@@ -675,7 +746,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		toggleSearch: editorSession.toggleSearch,
 		noteSearchOpen: editorSession.noteSearchOpen,
 		addPerformer: roster.addPerformer,
-		renamePerformer: roster.renamePerformer,
+		renamePerformer,
 		adoptHeaderRename: roster.adoptHeaderRename,
 		mergePerformers: roster.mergePerformers,
 		removePerformer: roster.removePerformer,

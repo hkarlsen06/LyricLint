@@ -47,6 +47,17 @@ export interface RosterStore {
 	addPerformer(displayName: string): void;
 	renamePerformer(id: string, displayName: string): void;
 	adoptHeaderRename(id: string, previousName: string, displayName: string): void;
+	/**
+	 * Re-derive a performer's color from their current name.
+	 *
+	 * A performer's color is allocated from their name, so a rename that kept the
+	 * old token would leave them wearing a color derived from a name they no
+	 * longer have. It is its own call rather than part of `adoptHeaderRename`
+	 * because that adoption fires per keystroke while a name is typed in a
+	 * header, and re-deriving there would strobe every bar in the document
+	 * through the palette mid-word. Settled renames ask for it explicitly.
+	 */
+	recolorPerformer(id: string): void;
 	mergePerformers(sourceId: string, targetId: string): void;
 	removePerformer(id: string): void;
 }
@@ -185,7 +196,15 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 						? {
 								...performer,
 								displayName: trimmed,
-								normalizedKey: normalizedKey(trimmed)
+								normalizedKey: normalizedKey(trimmed),
+								// The color follows the name it was derived from. The
+								// performer's own token is left out of the usage count: it is
+								// the one being replaced, and counting it would push the new
+								// name off its own nearest token.
+								colorId: allocatePerformerColor(
+									trimmed,
+									performers.filter((other) => other.id !== id)
+								)
 							}
 						: performer
 				),
@@ -223,6 +242,18 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 							}
 						: performer
 				)
+			);
+		},
+		recolorPerformer(id) {
+			const current = performers.find((performer) => performer.id === id);
+			if (!current) return;
+			const colorId = allocatePerformerColor(
+				current.displayName,
+				performers.filter((other) => other.id !== id)
+			);
+			if (colorId === current.colorId) return;
+			setRoster(
+				performers.map((performer) => (performer.id === id ? { ...performer, colorId } : performer))
 			);
 		},
 		mergePerformers(sourceId, targetId) {
