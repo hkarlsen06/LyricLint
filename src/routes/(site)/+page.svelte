@@ -359,8 +359,10 @@ And the "quiet" part was never really quiet`;
 				<span class="lp-eyebrow">What it checks</span>
 				<h2>{ruleCount} reviewed rules, and the judgement calls stay yours.</h2>
 				<p>
-					Every rule required an exact Genius URL or annotation ID, a written interpretation, a
-					human review, and a last-verified date before it was allowed to ship.
+					Every rule required an exact source URL, a written interpretation, a human review, and a
+					last-verified date before it was allowed to ship. Genius conventions cite the guideline's
+					own annotation; spellings cite the language authorities that correct them; and where a
+					check is our own reading of the sources, its page says so.
 				</p>
 			</div>
 

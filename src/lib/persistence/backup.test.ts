@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createWorkspaceBackup, parseWorkspaceBackup, WorkspaceBackupError } from './backup.js';
 import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.js';
-import { createSessionIgnoreStore } from './session-ignores.js';
-import type { DraftRecord, SessionStorageLike } from './types.js';
+import { createDraftIgnoreStore } from './draft-ignores.js';
+import type { DraftRecord } from './types.js';
 
 const databases = new Map<string, LyricLintDatabase>();
 
@@ -41,27 +41,6 @@ async function database(label: string): Promise<LyricLintDatabase> {
 	const opened = await openDatabase(name);
 	databases.set(name, opened);
 	return opened;
-}
-
-function memoryStorage(): SessionStorageLike {
-	const values = new Map<string, string>();
-	return {
-		get length() {
-			return values.size;
-		},
-		getItem(key) {
-			return values.get(key) ?? null;
-		},
-		key(index) {
-			return [...values.keys()][index] ?? null;
-		},
-		setItem(key, value) {
-			values.set(key, value);
-		},
-		removeItem(key) {
-			values.delete(key);
-		}
-	};
 }
 
 afterEach(async () => {
@@ -125,7 +104,7 @@ describe('workspace backup', () => {
 				attachedAt: '2026-07-02T10:00:00.000Z'
 			}
 		]);
-		const sourceIgnores = createSessionIgnoreStore(memoryStorage());
+		const sourceIgnores = await createDraftIgnoreStore(source);
 		sourceIgnores.ignore('a', 'diagnostic:a');
 
 		const sourceBackup = createWorkspaceBackup(source, {
@@ -169,7 +148,7 @@ describe('workspace backup', () => {
 			position: 7,
 			attachedAt: '2026-07-20T10:00:00.000Z'
 		});
-		const destinationIgnores = createSessionIgnoreStore(memoryStorage());
+		const destinationIgnores = await createDraftIgnoreStore(destination);
 		destinationIgnores.ignore('a', 'diagnostic:local');
 		const destinationBackup = createWorkspaceBackup(destination, {
 			now: () => '2026-07-27T13:00:00.000Z',
@@ -212,6 +191,10 @@ describe('workspace backup', () => {
 		});
 		expect(destinationIgnores.list('a')).toEqual(['diagnostic:local']);
 		expect(destinationIgnores.list(importedCollision?.id as string)).toEqual(['diagnostic:a']);
+		// The restore wrote through the store, so a reload's fresh hydration —
+		// a new store over the same database — sees the imported ignores too.
+		const rehydrated = await createDraftIgnoreStore(destination);
+		expect(rehydrated.list(importedCollision?.id as string)).toEqual(['diagnostic:a']);
 		sourceBackup.destroy();
 		destinationBackup.destroy();
 	});

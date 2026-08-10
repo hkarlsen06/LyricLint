@@ -86,6 +86,33 @@
 }
 
 /*
+ * The check is LyricLint's own reading of the sources cited after it — the
+ * `derivation` set docs/rules.md names — and this is where the card says so.
+ * The mark is the deployed favicon's waveform, the one mark this application
+ * owns; the words beside it carry the fact for anything that cannot see it.
+ */
+.diagnostic-meta__derivation {
+	display: inline-flex;
+	gap: 0.25rem;
+	align-items: center;
+	font-weight: var(--font-weight-semibold);
+}
+
+/* The mark is the actual `lyriclint-mark.svg`, inlined so its brackets take
+   `currentColor` from this line's own text — the waveform keeps its fixed
+   amber, exactly as the favicon and the wordmark draw it. No radius: this is
+   our mark, not a square tile fetched from somebody else's site. */
+.diagnostic-meta__derivation-mark {
+	display: inline-flex;
+	flex: none;
+}
+
+.diagnostic-meta__derivation-mark svg {
+	width: 1em;
+	height: 1em;
+}
+
+/*
  * One citation is the meta line's last word. Two or more would wrap the line
  * into a second and a third, so they fold behind this and the line keeps its
  * length whatever a rule cites. The label names what is behind it and does not
@@ -156,6 +183,25 @@
 }
 
 /*
+ * The favicon of the page the citation links to, the way a reference row in a
+ * search result or an assistant's answer carries one: it identifies the link's
+ * target, at the text's own size, and claims nothing else. `1em` rather than a
+ * pixel count, so it rides the meta line's type wherever the citation is drawn.
+ */
+.source-citation__favicon,
+.source-reference__favicon {
+	flex: none;
+	width: 1em;
+	height: 1em;
+	/* Rounded the way the idiom's marks are everywhere else — a favicon is a
+	   square tile from whatever corner of the web it came from, and the radius
+	   is what keeps fourteen of them reading as one set. Half of `--radius-xs`
+	   rather than the token itself: at a mark this small the full 4px reads as
+	   a circle, and a mark that has gone circular is cropping its own tile. */
+	border-radius: calc(var(--radius-xs) / 2);
+}
+
+/*
  * Fixed rather than absolute: the citation sits inside the linter panel's
  * scroller and inside the editor popover's, either of which would clip a box
  * that stayed in flow. Above `--layer-popover`, because the popover is one of
@@ -164,6 +210,10 @@
 .source-tooltip {
 	position: fixed;
 	z-index: var(--layer-tooltip);
+	/* A tooltip is a readout, never a target: without this, the box under the
+	   pointer's path intercepted the hover it was reporting on — leaving the
+	   link, flickering, and shielding whatever link it happened to overlap. */
+	pointer-events: none;
 	display: grid;
 	box-sizing: border-box;
 	width: max-content;

@@ -11,14 +11,8 @@ import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.
 import { createDraftRepository } from './draft-repository.js';
 import { createMediaRepository } from './media-repository.js';
 import { recoverStartupDraft } from './recovery.js';
-import { createSessionIgnoreStore } from './session-ignores.js';
-import type {
-	AutosaveSnapshot,
-	DraftRecord,
-	DraftRepository,
-	PerformerRecord,
-	SessionStorageLike
-} from './types.js';
+import { createDraftIgnoreStore } from './draft-ignores.js';
+import type { AutosaveSnapshot, DraftRecord, DraftRepository, PerformerRecord } from './types.js';
 
 const databaseNames = new Set<string>();
 const openDatabases = new Set<LyricLintDatabase>();
@@ -870,59 +864,49 @@ describe('autosave and recovery', () => {
 	});
 });
 
-class MemorySessionStorage implements SessionStorageLike {
-	private readonly entries = new Map<string, string>();
-
-	get length(): number {
-		return this.entries.size;
-	}
-
-	getItem(key: string): string | null {
-		return this.entries.get(key) ?? null;
-	}
-
-	key(index: number): string | null {
-		return [...this.entries.keys()][index] ?? null;
-	}
-
-	setItem(key: string, value: string): void {
-		this.entries.set(key, value);
-	}
-
-	removeItem(key: string): void {
-		this.entries.delete(key);
-	}
-
-	keys(): string[] {
-		return [...this.entries.keys()];
-	}
-}
-
-describe('session ignores', () => {
-	it('survives a same-tab reload, isolates drafts, restores, and expires with fresh storage', () => {
-		const sameTabStorage = new MemorySessionStorage();
-		const firstLoad = createSessionIgnoreStore(sameTabStorage);
+describe('draft ignores', () => {
+	it('survives a reload, isolates drafts, restores, and lists sorted', async () => {
+		const database = await openDatabase(databaseName('ignores'));
+		openDatabases.add(database);
+		const firstLoad = await createDraftIgnoreStore(database);
 
 		firstLoad.ignore('draft:A', 'rule:markup');
 		expect(firstLoad.isIgnored('draft:A', 'rule:markup')).toBe(true);
 		expect(firstLoad.isIgnored('draft:B', 'rule:markup')).toBe(false);
-		expect(sameTabStorage.keys()[0]).toContain(encodeURIComponent('draft:A'));
-		expect(sameTabStorage.keys()[0]).toContain(encodeURIComponent('rule:markup'));
 
-		const reloaded = createSessionIgnoreStore(sameTabStorage);
+		// A reload is a fresh store hydrated from the same database. The ignores
+		// used to live in sessionStorage and die with the tab; this is the
+		// assertion that they now come back the way the lyrics and timings do.
+		const reloaded = await createDraftIgnoreStore(database);
 		expect(reloaded.list('draft:A')).toEqual(['rule:markup']);
 
 		reloaded.restore('draft:A', 'rule:markup');
 		expect(reloaded.isIgnored('draft:A', 'rule:markup')).toBe(false);
 
-		reloaded.ignore('draft:A', 'rule:first');
 		reloaded.ignore('draft:A', 'rule:second');
+		reloaded.ignore('draft:A', 'rule:first');
 		reloaded.ignore('draft:B', 'rule:first');
+		expect(reloaded.list('draft:A')).toEqual(['rule:first', 'rule:second']);
 		reloaded.clearDraft('draft:A');
 		expect(reloaded.list('draft:A')).toEqual([]);
 		expect(reloaded.list('draft:B')).toEqual(['rule:first']);
+		expect((await createDraftIgnoreStore(database)).list('draft:A')).toEqual([]);
+		expect((await createDraftIgnoreStore(database)).list('draft:B')).toEqual(['rule:first']);
+	});
 
-		const newSession = createSessionIgnoreStore(new MemorySessionStorage());
-		expect(newSession.isIgnored('draft:B', 'rule:first')).toBe(false);
+	it('is cleared by the repository transactions that delete a draft', async () => {
+		const { database, repository } = await createRepository('ignore-delete');
+		const store = await createDraftIgnoreStore(database);
+		await repository.create(draft({ id: 'kept', text: '[Verse]\nKeep' }));
+		await repository.create(draft({ id: 'gone', text: '[Verse]\nGo' }));
+		store.ignore('kept', 'rule:kept');
+		store.ignore('gone', 'rule:gone');
+
+		await repository.delete('gone');
+		expect((await createDraftIgnoreStore(database)).list('gone')).toEqual([]);
+		expect((await createDraftIgnoreStore(database)).list('kept')).toEqual(['rule:kept']);
+
+		await repository.deleteAll();
+		expect((await createDraftIgnoreStore(database)).list('kept')).toEqual([]);
 	});
 });

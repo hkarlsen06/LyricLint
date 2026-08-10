@@ -92,7 +92,7 @@
 				// rather than instructed.
 				title: 'Nothing left to show',
 				detail:
-					'Every finding here is set aside for this session. Bring any of them back from Ignored diagnostics below.'
+					"Every finding here is set aside for this 'scribe. Bring any of them back from Ignored diagnostics below."
 			};
 		}
 		return {

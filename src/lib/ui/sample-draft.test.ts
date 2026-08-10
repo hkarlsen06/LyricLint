@@ -26,8 +26,33 @@ describe('the sample transcription', () => {
 			'contraction.apostrophe [warning]',
 			'quotes.typewriter [warning]',
 			'quotes.typewriter [warning]',
+			'punctuation.line-ending [warning]',
+			'spelling.english-common [suggestion]',
 			'grammar.english-pronoun-i [suggestion]'
 		]);
+	});
+
+	// The sample is also the first place a reader meets the meta line's
+	// provenance marks, so its findings deliberately span the origins the panel
+	// can cite: Genius annotations, the language authorities behind a
+	// misspelling, and a LyricLint reading wearing the derivation mark. (The
+	// fourth origin, Harper's `I has` agreement finding, is pinned against the
+	// real WASM in `harper.test.ts` so this suite stays fast.)
+	it('spans the citation origins rather than citing Genius alone', () => {
+		const diagnostics = lint(sampleDraftText);
+
+		const derivations = diagnostics.filter((diagnostic) => diagnostic.derivation);
+		expect(derivations.map((diagnostic) => diagnostic.ruleId)).toEqual(['punctuation.line-ending']);
+
+		const spelling = diagnostics.find(
+			(diagnostic) => diagnostic.ruleId === 'spelling.english-common'
+		);
+		expect(spelling?.sourceIds).toContain('L-EN-TOP50');
+
+		const geniusCited = diagnostics.filter((diagnostic) =>
+			diagnostic.sourceIds.some((id) => sourceRegistry.get(id)?.url.includes('genius.com'))
+		);
+		expect(geniusCited.length).toBeGreaterThan(0);
 	});
 
 	// Both curly quotes are on line 4, so severity, line number and citation are
@@ -54,7 +79,7 @@ describe('the sample transcription', () => {
 		);
 
 		expect(fixKinds.filter((kind) => kind === 'safe')).toHaveLength(2);
-		expect(fixKinds.filter((kind) => kind === 'preview')).toHaveLength(2);
+		expect(fixKinds.filter((kind) => kind === 'preview')).toHaveLength(4);
 	});
 
 	// Loading English lyrics under another selection is a true finding about a

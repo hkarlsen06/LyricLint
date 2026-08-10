@@ -2,11 +2,13 @@
 	import { ExternalLink } from 'lucide-svelte';
 	import type { SourceReference } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
+	import { sourceFavicon } from './source-favicons.js';
 	import { safeExternalUrl } from './source-url.js';
 
 	let { source }: { source: SourceReference } = $props();
 
 	const safeUrl = $derived(safeExternalUrl(source.url));
+	const favicon = $derived(sourceFavicon(source.url));
 	const describedBy = $derived(`source-citation-${source.id}`);
 
 	// The tooltip is positioned as a fixed overlay measured from the link, not as
@@ -17,11 +19,24 @@
 	let position = $state<string | undefined>();
 	let anchor = $state<HTMLElement>();
 
+	// Above the link, not below it. Below was where it began, and in the
+	// unfolded sources list — citations stacked one per row — a box under the
+	// hovered link landed exactly on the next citation, hiding the very link
+	// the pointer was travelling to. Above, it can only cover text already
+	// read. `translateY(-100%)` does the height arithmetic, so nothing has to
+	// measure a box that has not rendered yet; the one case with no room above
+	// is a link near the viewport's own top edge, which falls back to below,
+	// where by construction there is nothing stacked under it to hide.
+	const clearanceAbove = 96;
+
 	function place(): void {
 		const rect = anchor?.getBoundingClientRect();
 		if (!rect) return;
 		const left = Math.max(8, Math.min(rect.left, window.innerWidth - 8 - 260));
-		position = `left: ${left}px; top: ${rect.bottom + 6}px;`;
+		position =
+			rect.top < clearanceAbove
+				? `left: ${left}px; top: ${rect.bottom + 6}px;`
+				: `left: ${left}px; top: ${rect.top - 6}px; translate: 0 -100%;`;
 	}
 
 	function show(): void {
@@ -68,6 +83,12 @@
 				}
 			}}
 		>
+			<!-- The mark says where the link goes, which the title beside it already
+			     says in words — decorative, so an empty alt keeps it out of the
+			     accessible name rather than announcing the source twice. -->
+			{#if favicon}
+				<img class="source-citation__favicon" src={favicon} alt="" />
+			{/if}
 			{source.pageTitle}
 			<ExternalLink
 				class="source-citation__external"

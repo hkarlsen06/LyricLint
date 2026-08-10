@@ -69,3 +69,36 @@ describe('unknown.improvised-marker', () => {
 		expect(checkRule(unknownUnresolvedRule, fixed)).toHaveLength(1);
 	});
 });
+
+describe('unknown.unresolved', () => {
+	it('keeps the single-marker message for one [?]', () => {
+		const input = '[Verse]\nI heard [?] tonight';
+		const diagnostics = checkRule(unknownUnresolvedRule, input);
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0].message).toBe('Try to identify the lyric marked [?].');
+		expect(markedText(input, diagnostics)).toEqual(['[?]']);
+	});
+
+	// Every `[?]` is the same request, so a song with three of them draws one
+	// card carrying the count rather than three identical cards — anchored on
+	// the first marker, because that is where the listening starts.
+	it('coalesces several markers into one counted card on the first', () => {
+		const input = '[Verse]\nI heard [?] tonight\nAnd [?] again\n\n[Chorus]\nStill [?]';
+		const diagnostics = checkRule(unknownUnresolvedRule, input);
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0].message).toBe('Try to identify the 3 lyrics marked [?].');
+		expect(markedText(input, diagnostics)).toEqual(['[?]']);
+		expect(diagnostics[0].from).toBe(input.indexOf('[?]'));
+	});
+
+	// Two markers on one line are still one card, which is the shape the panel
+	// complaint arrived in — Line 52 twice, saying the same sentence.
+	it('coalesces two markers on the same line', () => {
+		const diagnostics = checkRule(unknownUnresolvedRule, '[Verse]\nI heard [?] and [?]');
+
+		expect(diagnostics).toHaveLength(1);
+		expect(diagnostics[0].message).toBe('Try to identify the 2 lyrics marked [?].');
+	});
+});

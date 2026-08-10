@@ -9,6 +9,9 @@ export const languageSelectionMismatchRule: RuleDefinition = {
 	defaultSeverity: 'warning',
 	fixability: 'none',
 	sourceIds: ['T-LANGUAGE-DETECT'],
+	// A product-safety diagnostic rather than a Genius policy claim: the citation
+	// is tooling provenance, and the ruling about the mismatch is LyricLint's.
+	derivation: true,
 	// A language guessed from a half-typed document is a guess about a sample that
 	// is still arriving.
 	settlesOn: 'document',

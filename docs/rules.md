@@ -157,7 +157,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `text.multiple-spaces` | Suggestion | Two or more ordinary spaces occur between words on a lyric line | Safely collapse the run to one space | `G-ADD-SONGS` as context; LyricLint text-hygiene preference |
 | `unknown.marker` | Warning | An unknown lyric uses `(?)` or another recognized nonstandard marker instead of `[?]` | Safe only for exact known markers | `G-UNKNOWN` |
 | `unknown.improvised-marker` | Suggestion | A bare run of question marks stands as its own token where words would go, as in `I heard ??? tonight` | Preview replacement, because the same characters can be deliberate punctuation | `G-UNKNOWN` |
-| `unknown.unresolved` | Suggestion | A `[?]` marks an audible lyric that remains unidentified | Explain only | `G-UNKNOWN` |
+| `unknown.unresolved` | Suggestion | One or more `[?]` markers leave audible lyrics unidentified; reported as one finding per document, carrying the count | Explain only | `G-UNKNOWN` |
 | `repeat.placeholder` | Warning | Text such as `[Chorus x2]` or `repeat chorus` substitutes for repeated lyrics | Explain only | `G-REPEATS` |
 | `sound-effect.asterisks` | Warning | A likely sound effect uses braces or an unsupported wrapper | Preview replacement | `G-SFX` |
 | `censored.mask` | Warning | A censored word uses a mask other than exactly four asterisks | Preview replacement | `G-CENSORED` |

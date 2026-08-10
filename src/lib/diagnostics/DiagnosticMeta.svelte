@@ -3,6 +3,17 @@
 	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
 	import SeverityTag from './SeverityTag.svelte';
 	import SourceCitation from './SourceCitation.svelte';
+	// The actual mark, raw and inline rather than an `<img>`: its brackets are
+	// stroked with `currentColor`, which only an inline SVG can take from the
+	// meta line's own text — in an image element they render black in every
+	// scheme. Raw rather than redrawn, so the geometry cannot drift from the
+	// asset the wordmark has to keep matching.
+	import lyricLintMarkRaw from '$lib/assets/lyriclint-mark.svg?raw';
+
+	// Only the label comes off, never the geometry: the words beside the mark
+	// already say LyricLint, and an inline `<title>` also draws a native browser
+	// tooltip on hover, which an `aria-hidden` wrapper does nothing to stop.
+	const lyricLintMark = lyricLintMarkRaw.replace(/<title>[^<]*<\/title>\s*/u, '');
 
 	let {
 		diagnostic,
@@ -68,8 +79,29 @@
 		{#if line !== undefined}
 			<span class="diagnostic-meta__line">Line {line}</span>
 		{/if}
-		{#if folded}
+		{#if diagnostic.derivation}
 			{#if line !== undefined}
+				<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
+			{/if}
+			<!--
+				The check is LyricLint's own reading of the sources cited after it, and
+				the card is the one surface where that fact was carried by the
+				explanation's prose alone. The mark is `lyriclint-mark.svg` itself, and
+				the words beside it are what a screen reader gets, so the mark stays
+				decorative. The `@html` is our own committed asset, not anything
+				user-supplied, and the wrapper hides the SVG's own `LyricLint` label
+				from assistive technology.
+			-->
+			<span class="diagnostic-meta__derivation">
+				<span class="diagnostic-meta__derivation-mark" aria-hidden="true">
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					{@html lyricLintMark}
+				</span>
+				LyricLint reading
+			</span>
+		{/if}
+		{#if folded}
+			{#if line !== undefined || diagnostic.derivation}
 				<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
 			{/if}
 			<button
@@ -93,7 +125,7 @@
 			</button>
 		{:else}
 			{#each citations as citation, index (citation.id)}
-				{#if line !== undefined || index > 0}
+				{#if line !== undefined || diagnostic.derivation || index > 0}
 					<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
 				{/if}
 				{#if citation.source}

@@ -9,6 +9,9 @@ export const punctuationLineEndingRule: RuleDefinition = {
 	defaultSeverity: 'warning',
 	fixability: 'preview',
 	sourceIds: ['APPLE-LINE-PUNCTUATION', 'G-QE-MARKS'],
+	// Cross-platform guidance, not a Genius claim: Apple states the ban, Genius
+	// does not, and docs/rules.md records the reading. The meta line says so.
+	derivation: true,
 	check(document, context) {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) => {

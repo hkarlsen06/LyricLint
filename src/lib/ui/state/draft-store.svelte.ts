@@ -44,7 +44,7 @@ function prependRecentLanguage(languages: readonly string[], language: string): 
 
 /**
  * The parts of a loaded draft the draft store does not own itself. Switching
- * drafts has to move the roster, the session ignores, and the editor along with
+ * drafts has to move the roster, the stored ignores, and the editor along with
  * the draft identity, so the composing controller supplies that step.
  */
 export interface DraftStoreBindings {

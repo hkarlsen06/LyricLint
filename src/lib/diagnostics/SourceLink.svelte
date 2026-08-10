@@ -2,6 +2,7 @@
 	import { ExternalLink } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import type { SourceReference } from '$lib/core/types.js';
+	import { sourceFavicon } from './source-favicons.js';
 	import { safeExternalUrl } from './source-url.js';
 
 	/**
@@ -24,6 +25,7 @@
 		$props();
 
 	const safeUrl = $derived(safeExternalUrl(source.url));
+	const favicon = $derived(sourceFavicon(source.url));
 </script>
 
 {#snippet plain(value: string)}{value}{/snippet}
@@ -33,6 +35,9 @@
 		{#if safeUrl}
 			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
 			<a href={safeUrl} target="_blank" rel="noopener noreferrer">
+				{#if favicon}
+					<img class="source-reference__favicon" src={favicon} alt="" />
+				{/if}
 				{@render (text ?? plain)(source.pageTitle)}
 				<ExternalLink
 					class="source-reference__external"

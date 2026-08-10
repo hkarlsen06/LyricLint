@@ -45,6 +45,9 @@ export const sectionExtraBlankLinesRule: RuleDefinition = {
 	defaultSeverity: 'suggestion',
 	fixability: 'safe',
 	sourceIds: ['G-SECTIONS'],
+	// The blank-line-before-header preference read from the other side: the
+	// reviewed source is silent on how many empty lines a separator holds.
+	derivation: true,
 	check(document, context) {
 		const diagnostics: Diagnostic[] = [];
 		for (let index = 1; index < document.sections.length; index += 1) {

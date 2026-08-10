@@ -17,7 +17,7 @@ import type { WorkspaceBackupController } from '$lib/persistence/backup.js';
 import { createFeedbackState } from './state/feedback.svelte.js';
 import type { MediaPlayer } from './state/media-player.svelte.js';
 import {
-	createContractSessionIgnoreStore,
+	createContractIgnoreStore,
 	createInMemoryAutosaveController,
 	createInMemoryDraftRepository,
 	createMemorySessionStorage
@@ -181,7 +181,7 @@ export function createTestWorkbench(options?: {
 	};
 	const repository = createInMemoryDraftRepository(options?.drafts ?? [initialDraft]);
 	const autosave = createInMemoryAutosaveController(repository);
-	const ignoreStore = createContractSessionIgnoreStore(createMemorySessionStorage());
+	const ignoreStore = createContractIgnoreStore(createMemorySessionStorage());
 	const feedback = createFeedbackState();
 	let nextId = 1;
 	const controller = createWorkbenchController({

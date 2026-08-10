@@ -3,7 +3,7 @@ import type { DraftRecord, EditorHandle, EditorSnapshot } from '$lib/core/types.
 import { createAutosaveController } from '$lib/persistence/index.js';
 import { describe, expect, it, vi } from 'vitest';
 import {
-	createContractSessionIgnoreStore,
+	createContractIgnoreStore,
 	createInMemoryDraftRepository,
 	createMemorySessionStorage
 } from './in-memory.js';
@@ -60,7 +60,7 @@ describe('workbench undo after a durable autosave', () => {
 			initialDraft,
 			repository,
 			autosave,
-			ignoreStore: createContractSessionIgnoreStore(createMemorySessionStorage()),
+			ignoreStore: createContractIgnoreStore(createMemorySessionStorage()),
 			now: vi.fn(() => '2026-07-24T08:01:00.000Z')
 		});
 		onUndo = () => {

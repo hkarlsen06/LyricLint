@@ -27,6 +27,7 @@ export function diagnostic(
 		// thought about typing is quiet while its line is being written instead of
 		// arguing with every prefix of every word.
 		settlesOn: rule.settlesOn ?? 'line',
+		...(rule.derivation ? { derivation: true as const } : {}),
 		...(fixes && fixes.length > 0 ? { fixes } : {})
 	};
 }

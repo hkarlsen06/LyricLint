@@ -5,6 +5,7 @@ import type {
 	AssistantChatRecord,
 	AssistantMessageRecord,
 	BackupHandleRecord,
+	DraftIgnoreRecord,
 	DraftRecord,
 	MediaHandleRecord
 } from './types.js';
@@ -36,6 +37,13 @@ export class LyricLintDatabase extends Dexie {
 	 */
 	assistantChats!: EntityTable<AssistantChatRecord, 'id'>;
 	assistantMessages!: EntityTable<AssistantMessageRecord, 'id'>;
+	/**
+	 * The diagnostics set aside per 'scribe. Durable for the same reason the
+	 * playhead is: a decision made about this draft should be there when the
+	 * draft comes back. `delete` and `deleteAll` clear it in their own
+	 * transactions, exactly as they clear `mediaHandles`.
+	 */
+	draftIgnores!: EntityTable<DraftIgnoreRecord, 'draftId'>;
 
 	constructor(name = DEFAULT_DATABASE_NAME) {
 		super(name);
@@ -65,6 +73,16 @@ export class LyricLintDatabase extends Dexie {
 			backupHandles: 'key',
 			assistantChats: 'id, updatedAt',
 			assistantMessages: 'id, chatId, createdAt'
+		});
+
+		this.version(5).stores({
+			drafts: 'id, updatedAt',
+			appMetadata: 'key',
+			mediaHandles: 'draftId',
+			backupHandles: 'key',
+			assistantChats: 'id, updatedAt',
+			assistantMessages: 'id, chatId, createdAt',
+			draftIgnores: 'draftId'
 		});
 	}
 }

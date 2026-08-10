@@ -96,24 +96,47 @@ export const unknownImprovisedMarkerRule: RuleDefinition = {
 	}
 };
 
+/**
+ * One card per document, not one per marker.
+ *
+ * Every `[?]` in a song is the same request — go back and listen again — and a
+ * transcription with three of them was three identical cards saying it, which
+ * is the repetition-that-never-varies the severity word was dropped for. The
+ * count travels in the message instead, so the panel still says how much
+ * listening is left, and the card anchors on the first marker because that is
+ * where the work starts.
+ *
+ * Coalescing is also what makes `It really is unintelligible` mean what it
+ * says: pressed once, it answers for the whole song as it stands. The ignore
+ * identity includes the message, so a *new* `[?]` changes the count and brings
+ * the card back — a fresh unknown is a fresh question.
+ *
+ * `document` tier, for `capitalization.title-case`'s reason: a marker typed on
+ * line 52 rewrites the count on a card anchored at line 3, which is a change
+ * landing on a line the caret is not on and the `line` tier cannot help with.
+ */
 export const unknownUnresolvedRule: RuleDefinition = {
 	id: 'unknown.unresolved',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'suggestion',
 	fixability: 'none',
 	sourceIds: ['G-UNKNOWN'],
+	settlesOn: 'document',
 	check(document) {
-		return document.sections.flatMap((section) =>
-			section.lines.flatMap((line) =>
-				matchesOutsideMarkup(line, /\[\?\]/gu).map((match) =>
-					diagnostic(
-						this,
-						match,
-						'Try to identify the lyric marked [?].',
-						'Aim to transcribe all audible lyrics. Use [?] only when careful listening still cannot determine what is being sung.'
-					)
-				)
-			)
+		const markers = document.sections.flatMap((section) =>
+			section.lines.flatMap((line) => matchesOutsideMarkup(line, /\[\?\]/gu))
 		);
+		const first = markers[0];
+		if (!first) return [];
+		return [
+			diagnostic(
+				this,
+				first,
+				markers.length === 1
+					? 'Try to identify the lyric marked [?].'
+					: `Try to identify the ${markers.length} lyrics marked [?].`,
+				'Aim to transcribe all audible lyrics. Use [?] only when careful listening still cannot determine what is being sung.'
+			)
+		];
 	}
 };

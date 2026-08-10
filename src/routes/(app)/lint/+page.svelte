@@ -17,7 +17,7 @@
 		createAutosaveController,
 		createDraftRepository,
 		createMediaRepository,
-		createSessionIgnoreStore,
+		createDraftIgnoreStore,
 		createWorkspaceBackup,
 		openDatabase,
 		recoverStartupDraft,
@@ -97,7 +97,9 @@
 				}
 
 				database = await openDatabase();
-				const ignoreStore = createSessionIgnoreStore(window.sessionStorage);
+				// Hydrated before the workbench exists to ask: the store's readers are
+				// synchronous, so the one await this costs is spent here, at boot.
+				const ignoreStore = await createDraftIgnoreStore(database);
 				backup = createWorkspaceBackup(database, { ignoreStore });
 				const repository = createDraftRepository(database);
 				const mediaRepository = createMediaRepository(database);

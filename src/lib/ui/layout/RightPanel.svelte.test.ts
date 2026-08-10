@@ -722,7 +722,7 @@ describe('RightPanel', () => {
 		await waitFor(() => expect(screen.getByText('Nothing left to show')).toBeTruthy());
 		expect(
 			screen.getByText(
-				'Every finding here is set aside for this session. Bring any of them back from Ignored diagnostics below.'
+				"Every finding here is set aside for this 'scribe. Bring any of them back from Ignored diagnostics below."
 			)
 		).toBeTruthy();
 	});

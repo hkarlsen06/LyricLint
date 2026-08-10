@@ -4,7 +4,7 @@ import type {
 	DraftRecord,
 	DraftRepository,
 	DraftSummary,
-	SessionIgnoreStore
+	DraftIgnoreStore
 } from '$lib/core/types.js';
 import type {
 	MediaHandleRecord,
@@ -253,7 +253,7 @@ export function createMemorySessionStorage(): SessionStorageLike {
 	};
 }
 
-export function createContractSessionIgnoreStore(storage: SessionStorageLike): SessionIgnoreStore {
+export function createContractIgnoreStore(storage: SessionStorageLike): DraftIgnoreStore {
 	const key = (draftId: string) => `lyriclint:ignored-diagnostics:${draftId}`;
 
 	function read(draftId: string): string[] {

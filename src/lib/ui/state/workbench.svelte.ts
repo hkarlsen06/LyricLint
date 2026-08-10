@@ -13,7 +13,7 @@ import type {
 	PerformerRecord,
 	RuleSetManifest,
 	SectionLink,
-	SessionIgnoreStore,
+	DraftIgnoreStore,
 	Severity,
 	SourceReference,
 	VoiceGroup
@@ -73,7 +73,7 @@ export interface WorkbenchDependencies {
 	/** Omitted by contract tests that do not open IndexedDB. */
 	backup?: WorkspaceBackupController;
 	autosave: AutosaveController;
-	ignoreStore: SessionIgnoreStore;
+	ignoreStore: DraftIgnoreStore;
 	feedback?: FeedbackState;
 	sources?: readonly SourceReference[];
 	ruleSet?: RuleSetManifest;

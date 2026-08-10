@@ -692,4 +692,54 @@ describe('Harper diagnostic merging', () => {
 		expect(native).toHaveLength(1);
 		expect(mergeHarperDiagnostics(native, harper)).toEqual(native);
 	});
+
+	// The sample transcription leaves exactly one mistake for Harper — `I has` —
+	// so the loaded sample cites every origin the meta line can draw, Harper's
+	// GitHub provenance included. The rest of what Harper notices there (`dont`,
+	// `Definately`, the lowercase `i`) is claimed by native rules, which win
+	// their shared ranges in this merge. Real WASM, beside the other real-WASM
+	// pins: a Harper upgrade that starts or stops claiming the sample's lines
+	// has to fail here rather than quietly change the introduction.
+	it('keeps exactly one Harper finding on the sample transcription', async () => {
+		const [{ sampleDraftLanguage, sampleDraftText }, { loadStatisticalLanguageDetector }] =
+			await Promise.all([import('$lib/ui/sample-draft.js'), import('$lib/languages/detect.js')]);
+		const { currentRuleSet, runRules, sourceRegistry } = await import('./index.js');
+		await loadStatisticalLanguageDetector();
+
+		const document = parseDocument(sampleDraftText);
+		const native = runRules(document, {
+			language: sampleDraftLanguage,
+			performers: [],
+			sources: sourceRegistry,
+			ruleSetVersion: currentRuleSet.version,
+			revision: 0
+		});
+		const [{ LocalLinter }, { binary }] = await Promise.all([
+			import('harper.js'),
+			import('harper.js/binary')
+		]);
+		const provider = createHarperDiagnosticProvider(async () => new LocalLinter({ binary }));
+
+		try {
+			const harper = await provider.lint({
+				text: sampleDraftText,
+				document,
+				language: sampleDraftLanguage,
+				performers: [],
+				revision: 0
+			});
+			const surviving = mergeHarperDiagnostics(native, harper).filter((diagnostic) =>
+				diagnostic.ruleId.endsWith('.harper')
+			);
+
+			expect(surviving).toHaveLength(1);
+			expect(surviving[0]).toMatchObject({
+				ruleId: 'grammar.harper',
+				from: sampleDraftText.indexOf('has'),
+				to: sampleDraftText.indexOf('has') + 3
+			});
+		} finally {
+			await provider.dispose();
+		}
+	});
 });

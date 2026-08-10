@@ -13,7 +13,7 @@ import type {
 } from '$lib/core/types.js';
 import { describe, expect, test, vi } from 'vitest';
 import {
-	createContractSessionIgnoreStore,
+	createContractIgnoreStore,
 	createInMemoryDraftRepository,
 	createInMemoryMediaRepository,
 	createMemorySessionStorage
@@ -163,7 +163,7 @@ function setup(options: {
 		initialRecentLanguages: options.initialRecentLanguages,
 		repository,
 		autosave,
-		ignoreStore: createContractSessionIgnoreStore(createMemorySessionStorage()),
+		ignoreStore: createContractIgnoreStore(createMemorySessionStorage()),
 		idFactory: vi.fn(() => `generated-${Math.random().toString(36).slice(2)}`),
 		now: () => '2026-07-20T11:00:00.000Z',
 		readClipboard:

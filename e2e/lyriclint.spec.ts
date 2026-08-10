@@ -488,7 +488,7 @@ test('reload recovers exact text and selection, including the visibility flush p
 	await expectDocText(page, flushText);
 });
 
-test('session ignores survive reload in the same tab and can be restored', async ({ page }) => {
+test('ignored diagnostics survive a reload and can be restored', async ({ page }) => {
 	await openWorkspace(page);
 	await replaceDocument(page, '[Verse]\nImma go');
 	const diagnostic = page.getByRole('button', {
@@ -500,7 +500,7 @@ test('session ignores survive reload in the same tab and can be restored', async
 	// keeps it apart from the “… ignored / Restore” toggle below the list.
 	await page.getByRole('button', { name: 'Ignore', exact: true }).click();
 	await expect(diagnostic).toHaveCount(0);
-	// Persist the draft before reloading: this spec verifies sessionStorage
+	// Persist the draft before reloading: this spec verifies the durable
 	// ignores, not the unload flush path, so the document must survive.
 	await waitForSaved(page);
 	await page.reload();

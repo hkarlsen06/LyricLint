@@ -119,6 +119,9 @@ export const spellingTextingShorthandRule: RuleDefinition = {
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-SPELLING', 'G-AS-SPOKEN'],
+	// No verified Genius page names `idk`: the rule is LyricLint's reading of
+	// what the two cited sources establish, and docs/rules.md records it.
+	derivation: true,
 	check(document, context) {
 		if (!isEnglishLanguage(context.language)) {
 			return [];

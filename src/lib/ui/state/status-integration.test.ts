@@ -3,7 +3,7 @@ import type { DraftRecord, EditorSnapshot } from '$lib/core/types.js';
 import { createAutosaveController } from '$lib/persistence/autosave.js';
 import { describe, expect, test, vi } from 'vitest';
 import {
-	createContractSessionIgnoreStore,
+	createContractIgnoreStore,
 	createInMemoryDraftRepository,
 	createMemorySessionStorage
 } from './in-memory.js';
@@ -62,7 +62,7 @@ describe('real autosave + workbench status integration', () => {
 				initialDraft: record,
 				repository,
 				autosave,
-				ignoreStore: createContractSessionIgnoreStore(createMemorySessionStorage()),
+				ignoreStore: createContractIgnoreStore(createMemorySessionStorage()),
 				now: () => '2026-07-20T11:00:00.000Z'
 			});
 			controllerRef.current = controller;
@@ -111,7 +111,7 @@ describe('real autosave + workbench status integration', () => {
 				initialDraft: fresh,
 				repository,
 				autosave,
-				ignoreStore: createContractSessionIgnoreStore(createMemorySessionStorage()),
+				ignoreStore: createContractIgnoreStore(createMemorySessionStorage()),
 				now: () => '2026-07-20T11:00:00.000Z'
 			});
 			controllerRef.current = controller;
@@ -155,7 +155,7 @@ describe('real autosave + workbench status integration', () => {
 				initialDraft: stale,
 				repository,
 				autosave,
-				ignoreStore: createContractSessionIgnoreStore(createMemorySessionStorage()),
+				ignoreStore: createContractIgnoreStore(createMemorySessionStorage()),
 				now: () => '2026-07-20T11:00:00.000Z'
 			});
 			controllerRef.current = controller;

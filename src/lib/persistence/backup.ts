@@ -8,7 +8,7 @@ import type {
 	DraftRecord,
 	MediaHandleRecord,
 	PerformerRecord,
-	SessionIgnoreStore
+	DraftIgnoreStore
 } from './types.js';
 
 const FORMAT = 'lyriclint-workspace';
@@ -68,7 +68,7 @@ export interface WorkspaceBackupController {
 export interface WorkspaceBackupOptions {
 	showSaveFilePicker?: SaveFilePicker;
 	now?: () => string;
-	ignoreStore?: SessionIgnoreStore;
+	ignoreStore?: DraftIgnoreStore;
 }
 
 export class WorkspaceBackupError extends Error {}
@@ -363,7 +363,7 @@ export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
 async function createBackupFile(
 	database: LyricLintDatabase,
 	now: () => string,
-	ignoreStore?: SessionIgnoreStore
+	ignoreStore?: DraftIgnoreStore
 ): Promise<WorkspaceBackupFile> {
 	const [drafts, appMetadata, media] = await database.transaction(
 		'r',

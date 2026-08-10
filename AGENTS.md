@@ -4959,7 +4959,7 @@ is gone rather than restyled.
   message in the workbench that arrives without the user having done anything — so a phone visitor
   running a screen reader would otherwise be the only person it is about who never hears it.
   `announce` beside `addToast` is the pattern `commitRoster` already uses.
-- **Session-scoped, like the ignored rules, and remembered on the _showing_.** A warning that has
+- **Session-scoped, like the YouTube consent, and remembered on the _showing_.** A warning that has
   been read is noise, and one that is never repeated is a warning the user cannot get back; closing
   the tab forgets it. The dialog could wait for a press because it had to be answered to get out of
   the way; a toast retires itself, so there is no press that means "read" — the X and the countdown

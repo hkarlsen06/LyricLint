@@ -243,6 +243,13 @@ export interface Diagnostic extends TextRange {
 	 */
 	presumedCorrect?: true;
 	/**
+	 * The check is LyricLint's own reading of its cited sources rather than a
+	 * claim they state directly, so the meta line marks the interpretation as
+	 * ours before citing what it reads. Carried onto the finding by
+	 * `diagnostic()` from the rule's own declaration, the way `settlesOn` is.
+	 */
+	derivation?: true;
+	/**
 	 * Labeled fixes for this diagnostic. Only `kind: 'safe'` fixes are eligible
 	 * for bulk application; `preview` fixes require explicit confirmation. Each
 	 * fix carries one atomic edit so it applies as a single undoable transaction.
@@ -279,6 +286,13 @@ export interface RuleDefinition {
 	 * and `document` where the rule is a claim about the whole song.
 	 */
 	settlesOn?: SettlesOn;
+	/**
+	 * The rule is LyricLint's own reading of its sources, not a convention they
+	 * state directly — the set `docs/rules.md` names in its Policy section. Every
+	 * finding it reports carries the flag, so the surfaces can say whose ruling
+	 * it is without re-deriving the list from rule ids.
+	 */
+	derivation?: true;
 	check(document: ParsedDocument, context: RuleContext): Diagnostic[];
 }
 
@@ -671,8 +685,15 @@ export interface AutosaveController {
 	status(): AutosaveStatus;
 }
 
-/** Draft-and-diagnostic keyed session-only ignore operations. */
-export interface SessionIgnoreStore {
+/**
+ * Draft-and-diagnostic keyed ignore operations, durable per 'scribe.
+ *
+ * Synchronous on purpose: every reader is synchronous — the panel filters
+ * findings against this on every snapshot — so the durable implementation
+ * keeps an in-memory mirror and writes through behind it, the way preferences
+ * answer at once and persist after.
+ */
+export interface DraftIgnoreStore {
 	isIgnored(draftId: string, diagnosticKey: string): boolean;
 	ignore(draftId: string, diagnosticKey: string): void;
 	restore(draftId: string, diagnosticKey: string): void;

@@ -5,7 +5,7 @@ import type {
 	EditorHandle,
 	EditorSnapshot,
 	RuleContext,
-	SessionIgnoreStore,
+	DraftIgnoreStore,
 	Severity
 } from '$lib/core/types.js';
 import {
@@ -30,7 +30,7 @@ export interface PanelViewDependencies {
 	snapshot: () => EditorSnapshot;
 	ruleContext: () => RuleContext;
 	draftId: () => string;
-	ignoreStore: SessionIgnoreStore;
+	ignoreStore: DraftIgnoreStore;
 	feedback: FeedbackState;
 	initialActiveTab?: RightPanelTab;
 	onActiveTabChange?: (tab: RightPanelTab) => void;
@@ -53,7 +53,7 @@ export interface PanelView {
 	readonly ignoredDiagnosticKeys: readonly string[];
 	setActiveTab(tab: RightPanelTab): void;
 	toggleSeverity(severity: Severity): void;
-	/** Re-read the session ignores for whichever draft is current now. */
+	/** Re-read the stored ignores for whichever draft is current now. */
 	refreshIgnoredDiagnostics(): void;
 	/** Forget ignored occurrences that no longer exist in a settled lint result. */
 	pruneIgnoredDiagnostics(diagnostics: readonly Diagnostic[]): void;
@@ -396,7 +396,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			const key = diagnosticIgnoreKey(diagnostic, deps.snapshot().text);
 			if (ignoredDiagnosticKeys.includes(key)) return;
 			setIgnored(key, true);
-			const message = `Ignored this “${ruleName(diagnostic.ruleId)}” diagnostic for this session.`;
+			const message = `Ignored this “${ruleName(diagnostic.ruleId)}” diagnostic for this 'scribe.`;
 			feedback.announce(message);
 			feedback.addToast({
 				message,

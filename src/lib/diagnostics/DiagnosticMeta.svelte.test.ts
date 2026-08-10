@@ -72,36 +72,50 @@ describe('the diagnostic meta line', () => {
 	});
 
 	it('shows the section and verified date as the link tooltip, on hover and on focus', async () => {
+		// Away from the viewport's top edge, where the tooltip takes its primary
+		// placement — a card mounted at 0 exercises only the fallback.
+		document.body.style.paddingTop = '300px';
 		const screen = render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
 			line: 47
 		});
 
-		// Nothing is on screen until the reader asks for it by pointing at or
-		// tabbing to the link — the card no longer carries this in a footer.
-		expect(document.querySelector('.source-tooltip')).toBeNull();
+		try {
+			// Nothing is on screen until the reader asks for it by pointing at or
+			// tabbing to the link — the card no longer carries this in a footer.
+			expect(document.querySelector('.source-tooltip')).toBeNull();
 
-		const link = page.getByRole('link', { name: /Page G-LINES/u });
-		await link.hover();
-		const tooltip = document.querySelector('.source-tooltip')!;
-		expect(tooltip.textContent).toContain('Section G-LINES');
-		expect(tooltip.textContent).toContain('2026-07-24');
-		// Drawn again for the eye only: the accessible copy is the description the
-		// link already points at, so nothing is announced twice.
-		expect(tooltip.getAttribute('aria-hidden')).toBe('true');
-		// Fixed, so neither the panel's scroller nor the popover's clips it.
-		expect(getComputedStyle(tooltip).position).toBe('fixed');
+			const link = page.getByRole('link', { name: /Page G-LINES/u });
+			await link.hover();
+			const tooltip = document.querySelector('.source-tooltip')!;
+			expect(tooltip.textContent).toContain('Section G-LINES');
+			expect(tooltip.textContent).toContain('2026-07-24');
+			// Drawn again for the eye only: the accessible copy is the description the
+			// link already points at, so nothing is announced twice.
+			expect(tooltip.getAttribute('aria-hidden')).toBe('true');
+			// Fixed, so neither the panel's scroller nor the popover's clips it.
+			expect(getComputedStyle(tooltip).position).toBe('fixed');
 
-		// The keyboard reaches it the same way the pointer does, and Escape closes
-		// it without leaving the link.
-		const anchor = link.element() as HTMLAnchorElement;
-		anchor.dispatchEvent(new FocusEvent('focus'));
-		expect(document.querySelector('.source-tooltip')).not.toBeNull();
-		anchor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-		await vi.waitFor(() => expect(document.querySelector('.source-tooltip')).toBeNull());
+			// Above the link, not below it: in the unfolded sources list a box under
+			// the hovered link lands exactly on the next citation and hides the link
+			// the pointer is travelling to. And a readout is never a target — the
+			// box must not intercept the hover it reports on.
+			const linkRect = link.element().getBoundingClientRect();
+			expect(tooltip.getBoundingClientRect().bottom).toBeLessThanOrEqual(linkRect.top);
+			expect(getComputedStyle(tooltip).pointerEvents).toBe('none');
 
-		screen.unmount();
+			// The keyboard reaches it the same way the pointer does, and Escape closes
+			// it without leaving the link.
+			const anchor = link.element() as HTMLAnchorElement;
+			anchor.dispatchEvent(new FocusEvent('focus'));
+			expect(document.querySelector('.source-tooltip')).not.toBeNull();
+			anchor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+			await vi.waitFor(() => expect(document.querySelector('.source-tooltip')).toBeNull());
+		} finally {
+			document.body.style.paddingTop = '';
+			screen.unmount();
+		}
 	});
 
 	it('folds two or more citations behind one control so the line stays one line', async () => {
@@ -142,6 +156,60 @@ describe('the diagnostic meta line', () => {
 
 		await expect.element(page.getByRole('button', { name: 'Sources' })).not.toBeInTheDocument();
 		expect(screen.container.querySelectorAll('.diagnostic-meta__row a')).toHaveLength(1);
+		screen.unmount();
+	});
+
+	it('draws the linked page’s favicon inside the citation, decoratively', async () => {
+		const screen = render(DiagnosticMeta, {
+			diagnostic: diagnostic(['G-LINES']),
+			sources: sourcesFor(['G-LINES']),
+			line: 47
+		});
+
+		// The mark rides inside the link it identifies — the citation idiom a
+		// search result or an assistant's reference row uses — and says nothing to
+		// a screen reader, because the title beside it already names the source.
+		const favicon = screen.container.querySelector('.diagnostic-meta__row a img')!;
+		expect(favicon).not.toBeNull();
+		expect(favicon.getAttribute('alt')).toBe('');
+
+		// A decoration must not change what the line says.
+		expect(visibleText(screen.container.querySelector('.diagnostic-meta__row')!)).toBe(
+			'Line 47 · Page G-LINES'
+		);
+		screen.unmount();
+	});
+
+	it('marks a derivation as LyricLint’s reading, ahead of what it reads', async () => {
+		const screen = render(DiagnosticMeta, {
+			diagnostic: { ...diagnostic(['G-LINES']), derivation: true },
+			sources: sourcesFor(['G-LINES']),
+			line: 47
+		});
+
+		// The words carry the fact and the mark is decorative, so the tag reads
+		// the same to a screen reader as to anyone else. The mark is the actual
+		// `lyriclint-mark.svg` inlined — brackets on `currentColor` — inside a
+		// wrapper that hides the SVG's own label from assistive technology.
+		const derivation = screen.container.querySelector('.diagnostic-meta__derivation')!;
+		expect(derivation).not.toBeNull();
+		const mark = derivation.querySelector('.diagnostic-meta__derivation-mark')!;
+		expect(mark.getAttribute('aria-hidden')).toBe('true');
+		expect(mark.querySelector('svg [stroke="currentColor"]')).not.toBeNull();
+		expect(visibleText(screen.container.querySelector('.diagnostic-meta__row')!)).toBe(
+			'Line 47 · LyricLint reading · Page G-LINES'
+		);
+		screen.unmount();
+	});
+
+	it('draws no derivation tag on a finding the sources state directly', async () => {
+		const screen = render(DiagnosticMeta, {
+			diagnostic: diagnostic(['G-LINES']),
+			sources: sourcesFor(['G-LINES']),
+			line: 47
+		});
+
+		expect(screen.container.querySelector('.diagnostic-meta__derivation')).toBeNull();
 		screen.unmount();
 	});
 });

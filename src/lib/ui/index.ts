@@ -25,7 +25,7 @@ export {
 	type ToastMessage
 } from './state/feedback.svelte.js';
 export {
-	createContractSessionIgnoreStore,
+	createContractIgnoreStore,
 	createInMemoryAutosaveController,
 	createInMemoryDraftRepository,
 	createMemorySessionStorage

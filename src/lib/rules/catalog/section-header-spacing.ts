@@ -19,6 +19,9 @@ export const sectionHeaderSpacingRule: RuleDefinition = {
 	defaultSeverity: 'suggestion',
 	fixability: 'safe',
 	sourceIds: ['G-SECTIONS'],
+	// A readability suggestion of LyricLint's own: the reviewed source puts
+	// headers above distinct parts but never requires the blank line.
+	derivation: true,
 	check(document, context) {
 		const diagnostics: Diagnostic[] = [];
 		for (let index = 1; index < document.sections.length; index += 1) {

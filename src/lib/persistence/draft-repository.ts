@@ -206,18 +206,21 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			return copyDraft(duplicate);
 		},
 
-		// Deleting a draft takes its attached audio and assistant permission with it,
-		// here rather than in the caller. A cleanup promise kept by every call site
-		// remembering to make a second call is one that will eventually be broken.
+		// Deleting a draft takes its attached audio, its ignored diagnostics and its
+		// assistant permission with it, here rather than in the caller. A cleanup
+		// promise kept by every call site remembering to make a second call is one
+		// that will eventually be broken.
 		async delete(id) {
 			await database.transaction(
 				'rw',
 				database.drafts,
 				database.appMetadata,
 				database.mediaHandles,
+				database.draftIgnores,
 				async () => {
 					await database.drafts.delete(id);
 					await database.mediaHandles.delete(id);
+					await database.draftIgnores.delete(id);
 					await database.appMetadata.delete(assistantDraftAccessKey(id));
 					const current = await database.appMetadata.get(CURRENT_DRAFT_KEY);
 					if (current?.value === id) {
@@ -239,14 +242,18 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			// undo the press.
 			await database.transaction(
 				'rw',
-				database.drafts,
-				database.appMetadata,
-				database.mediaHandles,
-				database.assistantChats,
-				database.assistantMessages,
+				[
+					database.drafts,
+					database.appMetadata,
+					database.mediaHandles,
+					database.draftIgnores,
+					database.assistantChats,
+					database.assistantMessages
+				],
 				async () => {
 					await database.drafts.clear();
 					await database.mediaHandles.clear();
+					await database.draftIgnores.clear();
 					await database.assistantChats.clear();
 					await database.assistantMessages.clear();
 					await database.appMetadata.clear();

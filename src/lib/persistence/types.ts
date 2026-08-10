@@ -8,7 +8,7 @@ import type {
 	DraftSummary,
 	PerformerRecord,
 	SerializedSelection,
-	SessionIgnoreStore
+	DraftIgnoreStore
 } from '$lib/core/types.js';
 
 export type {
@@ -20,7 +20,7 @@ export type {
 	DraftSummary,
 	PerformerRecord,
 	SerializedSelection,
-	SessionIgnoreStore
+	DraftIgnoreStore
 };
 
 /** Fields accepted when creating a new local draft. Missing fields receive local defaults. */
@@ -156,7 +156,22 @@ export type DraftRepository = Omit<CoreDraftRepository, 'create' | 'duplicate'> 
 	duplicate(id: string, newId?: string): Promise<DraftRecord>;
 };
 
-/** Minimal browser-compatible storage surface used by session ignores. */
+/**
+ * The diagnostics a 'scribe's reader has set aside, one row per draft.
+ *
+ * A table of its own rather than a field on `DraftRecord`, because an ignore
+ * is written by a press in the panel, not by the autosave that follows the
+ * text — the same reason the playhead lives in `mediaHandles`. The keys are
+ * the occurrence identities `diagnostics/ignore.ts` builds, kept sorted so a
+ * row's contents are comparable across saves.
+ */
+export interface DraftIgnoreRecord {
+	draftId: string;
+	keys: string[];
+	updatedAt: string;
+}
+
+/** Minimal browser-compatible storage surface used by in-memory test stores. */
 export interface SessionStorageLike {
 	readonly length: number;
 	getItem(key: string): string | null;

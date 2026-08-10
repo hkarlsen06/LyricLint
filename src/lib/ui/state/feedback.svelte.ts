@@ -66,7 +66,7 @@ export function createFeedbackState(): FeedbackState {
 			startedAt: Date.now(),
 			handle: setTimeout(() => {
 				// Auto-dismiss only hides the toast; any Undo state it referenced
-				// (roster history, session ignores) is untouched.
+				// (roster history, draft ignores) is untouched.
 				removeToast(id);
 			}, remaining)
 		});

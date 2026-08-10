@@ -16,7 +16,7 @@ export type {
 } from './backup.js';
 export { createAutosaveController } from './autosave.js';
 export { recoverStartupDraft } from './recovery.js';
-export { createSessionIgnoreStore } from './session-ignores.js';
+export { createDraftIgnoreStore } from './draft-ignores.js';
 export type {
 	AppMetadataRecord,
 	AutosaveController,
@@ -31,6 +31,6 @@ export type {
 	MediaHandleRecord,
 	PerformerRecord,
 	SerializedSelection,
-	SessionIgnoreStore,
+	DraftIgnoreStore,
 	SessionStorageLike
 } from './types.js';
