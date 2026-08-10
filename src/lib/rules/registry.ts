@@ -11,6 +11,7 @@ import { languageSelectionMismatchRule } from './catalog/language-selection-mism
 import { lineProseDensityRule } from './catalog/line-prose-density.js';
 import { numbersDecadeApostropheRule } from './catalog/numbers-decade-apostrophe.js';
 import { numbersSpellOutRule } from './catalog/numbers-spell-out.js';
+import { performerCollectiveIdentifierRule } from './catalog/performer-collective-identifier.js';
 import { performerHeaderRequiredRule } from './catalog/performer-header-required.js';
 import { performerInlineMismatchRule } from './catalog/performer-inline-mismatch.js';
 import { performerLineLabelForbiddenRule } from './catalog/performer-line-label-forbidden.js';
@@ -87,6 +88,7 @@ export const enabledRules: readonly RuleDefinition[] = [
 	performerUnusedLegendSlotRule,
 	performerTooManyGroupsRule,
 	performerLineLabelForbiddenRule,
+	performerCollectiveIdentifierRule,
 	spellingStandardizedRule,
 	spellingLanguageVariantRule,
 	spellingTextingShorthandRule,

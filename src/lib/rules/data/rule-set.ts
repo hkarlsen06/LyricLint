@@ -108,14 +108,15 @@ const previousRuleSet: RuleSetManifest = {
 export const previousKnownGoodRuleSet = previousRuleSet;
 
 export const currentRuleSet: RuleSetManifest = {
-	version: '2026.08.09.0',
-	publishedAt: '2026-08-09',
+	version: '2026.08.10.0',
+	publishedAt: '2026-08-10',
 	sourceIds: [
 		...previousRuleSet.sourceIds,
 		'G-SYMBOLS',
 		'G-AS-SPOKEN',
 		'G-NON-ENGLISH',
-		'L-NO-ACCENT'
+		'L-NO-ACCENT',
+		'G-HEADER-COLLECTIVE'
 	],
 	// Spelled out rather than spliced from the previous set. The splice read as a
 	// changelog only while every change was an append; the moment one belonged in
@@ -149,6 +150,7 @@ export const currentRuleSet: RuleSetManifest = {
 		'performer.unused-legend-slot',
 		'performer.too-many-groups',
 		'performer.line-label-forbidden',
+		'performer.collective-identifier',
 		'spelling.standardized',
 		'spelling.language-variant',
 		'spelling.texting-shorthand',

@@ -232,6 +232,20 @@ const sources: SourceReference[] = [
 		),
 		lastVerifiedAt: '2026-08-08'
 	},
+	{
+		// A staff reply in a community discussion rather than an accepted
+		// annotation: Gary (Genius staff) rules that artist names are always
+		// written out and never combined under "Both", "All", etc., and names
+		// annotation 9250687 as the staff-approved guideline over the community
+		// headers guide.
+		id: 'G-HEADER-COLLECTIVE',
+		url: 'https://genius.com/discussions/459032-Two-correct-methods-for-identifying-artists-in-section-headers',
+		pageTitle: 'Two "Correct" Methods for Identifying Artists in Section Headers',
+		sectionTitle: 'Staff answer: artist names are written out, never combined under Both or All',
+		retrievedAt: '2026-08-10',
+		lastVerifiedAt: '2026-08-10',
+		reviewStatus: 'reviewed'
+	},
 	annotation(
 		'G-SECTION-NUMBERING',
 		16107272,

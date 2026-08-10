@@ -1,8 +1,8 @@
 {
 	"formatVersion": 2,
-	"ruleSetVersion": "2026.08.09.0",
-	"generatedAt": "2026-08-09T15:17:59.016Z",
-	"contentHash": "19b81573d1e0c3a91057dee7298c18b45ce5c2e689e6ca31887d03bf5a0c44ab",
+	"ruleSetVersion": "2026.08.10.0",
+	"generatedAt": "2026-08-10T19:06:33.611Z",
+	"contentHash": "aa81d3a004267dbc8d395139f8b73be53c54e32c877cd3bab8cd681e8deb24e3",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -389,6 +389,22 @@
 			"flaggedExample": "[Verse: Avery]\n[Avery] A line",
 			"acceptedExample": "[Verse: Avery]\nA line",
 			"sourceIds": ["G-SECTIONS"]
+		},
+		{
+			"id": "performer.collective-identifier",
+			"slug": "performer-collective-identifier",
+			"title": "Both or All standing in for artist names",
+			"group": "performer",
+			"groupTitle": "Performer attribution",
+			"severity": "warning",
+			"message": "Write out the artist names instead of “Both”.",
+			"explanation": "Genius staff guidance is that artist names are always written out in section headers, never combined under identifiers like “Both” or “All”. Performers singing the same lines in unison are grouped with ampersands inside one style slot, so the legend names exactly who shares them.",
+			"fix": "preview",
+			"fixLabel": "Replace with A & B",
+			"language": "en",
+			"flaggedExample": "[Chorus: A, <i>B</i> & <b>Both</b>]\nLine",
+			"acceptedExample": "[Chorus: A, <i>B</i>, <b>A & B</b>]\nLine",
+			"sourceIds": ["G-HEADER-COLLECTIVE", "G-SECTIONS"]
 		},
 		{
 			"id": "spelling.standardized",
@@ -1329,6 +1345,13 @@
 			"sectionTitle": "Dropped words and punctuation around em dashes",
 			"url": "https://genius.com/15594027",
 			"lastVerifiedAt": "2026-07-24"
+		},
+		{
+			"id": "G-HEADER-COLLECTIVE",
+			"pageTitle": "Two \"Correct\" Methods for Identifying Artists in Section Headers",
+			"sectionTitle": "Staff answer: artist names are written out, never combined under Both or All",
+			"url": "https://genius.com/discussions/459032-Two-correct-methods-for-identifying-artists-in-section-headers",
+			"lastVerifiedAt": "2026-08-10"
 		},
 		{
 			"id": "G-INSTRUMENTAL",

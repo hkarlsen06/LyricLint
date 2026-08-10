@@ -25,6 +25,7 @@ const reviewedIds = [
 	'G-ADD-SONGS',
 	'G-SPELLING',
 	'G-SECTIONS',
+	'G-HEADER-COLLECTIVE',
 	'G-SECTION-NUMBERING',
 	'G-SECTION-HOOK',
 	'G-LANG-HEADERS',
@@ -74,6 +75,10 @@ const latestHashes = new Map([
 const reviewedToday = new Set<string>([...latestHashes.keys(), 'L-NO-ACCENT']);
 
 function retrievedOn(id: string): string {
+	// The staff forum answer arrived with `performer.collective-identifier`.
+	if (id === 'G-HEADER-COLLECTIVE') {
+		return '2026-08-10';
+	}
 	if (reviewedToday.has(id)) {
 		return '2026-07-27';
 	}
@@ -107,7 +112,7 @@ describe('source registry', () => {
 		}
 	});
 
-	it('contains only the 55 specified source records', () => {
-		expect(sourceRegistry.size).toBe(55);
+	it('contains only the 56 specified source records', () => {
+		expect(sourceRegistry.size).toBe(56);
 	});
 });

@@ -298,6 +298,13 @@ export const policyCases: readonly RulePolicyCase[] = [
 		performers: ['Avery']
 	},
 	{
+		id: 'performer.collective-identifier',
+		title: 'Both or All standing in for artist names',
+		invalid: '[Chorus: A, <i>B</i> & <b>Both</b>]\nLine',
+		valid: '[Chorus: A, <i>B</i>, <b>A & B</b>]\nLine',
+		ambiguous: '[Chorus: All Time Low]\nLine'
+	},
+	{
 		id: 'spelling.standardized',
 		title: 'A spelling the guide standardizes',
 		invalid: '[Verse]\nImma go',

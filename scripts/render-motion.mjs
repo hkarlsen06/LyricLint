@@ -418,10 +418,17 @@ async function main() {
 			 * shorter version left open. The first step took one name and this one
 			 * takes two, which shows both shapes in the same eleven seconds without
 			 * either needing a caption.
+			 *
+			 * The two presses are one decision, and the tempo has to say so. "Both of
+			 * them" was decided before the pointer moved — nobody reads the roster
+			 * again between Avery and Blair — so a dwell between the presses reads as
+			 * the hand hesitating over a question it already answered. The second
+			 * press is a flick to the adjacent chip with no pause on the first, and
+			 * the read happens afterwards, on the row showing both names pressed.
 			 */
-			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Avery'), 12);
-			await clickHere(8);
-			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Blair'), 11);
+			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Avery'), 9);
+			await clickHere(2);
+			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Blair'), 5);
 			await clickHere(12);
 			await observe();
 
