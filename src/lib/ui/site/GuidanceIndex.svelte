@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ExternalLink } from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
@@ -7,7 +8,7 @@
 		type GuidanceTopicSection
 	} from '$lib/guidance/guidance-search.js';
 	import { entryAnchor, guidanceTopicTitles } from '$lib/guidance/guidance.js';
-	import AssistantPrompt from '$lib/ui/assistant/AssistantPrompt.svelte';
+	import AssistantSpark from '$lib/ui/assistant/AssistantSpark.svelte';
 	import { revealSelectedRow } from './reveal-selected.js';
 
 	let {
@@ -72,26 +73,25 @@
 </script>
 
 <div class="site-split__index" data-sveltekit-noscroll bind:this={column}>
-	<!-- The way to ask a model about the guidelines, above the way to search
-	     them — the same prompt the rule index carries, and only in builds that
-	     actually have an assistant endpoint behind it. -->
-	<AssistantPrompt />
-
 	<!-- The rule reference's own finder, minus its chips: severity and
 	     fixability are facts about linter rules, and most of this list is
-	     guidance the linter cannot check. -->
+	     guidance the linter cannot check. The sparkles beside the field is the
+	     assistant, in the glyph the workbench's tab strip already taught. -->
 	<search class="site-finder">
 		<label class="sr-only" for="guidelines-search">Search the transcription guidelines</label>
-		<input
-			id="guidelines-search"
-			class="site-finder__search"
-			type="search"
-			autocomplete="off"
-			spellcheck="false"
-			placeholder={`Search ${total} lookups`}
-			bind:value={query}
-			onkeydown={onFieldKeydown}
-		/>
+		<div class="site-finder__row">
+			<input
+				id="guidelines-search"
+				class="site-finder__search"
+				type="search"
+				autocomplete="off"
+				spellcheck="false"
+				placeholder={`Search ${total} lookups`}
+				bind:value={query}
+				onkeydown={onFieldKeydown}
+			/>
+			<AssistantSpark />
+		</div>
 
 		{#if narrowing}
 			<p class="site-finder__readout">
@@ -131,7 +131,19 @@
 				{#each linterRules as rule (rule.id)}
 					<li>
 						<a href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/">
-							<span class="site-run__title">{rule.title}</span>
+							<!-- The mark the citations already use for a link that leaves,
+							     because this row does: it opens the rule reference rather
+							     than a page beside this list. Decorative — the rule id in
+							     the meta line already says whose row it is in words. -->
+							<span class="site-run__title"
+								>{rule.title}
+								<ExternalLink
+									class="site-run__external"
+									aria-hidden="true"
+									size={12}
+									strokeWidth={2.2}
+								/></span
+							>
 							<span class="site-run__message">{rule.message}</span>
 							<span class="site-run__meta">
 								<span class="site-code">{rule.id}</span>

@@ -51,26 +51,19 @@
 <main class="site-prose site-split__page">
 	<h1>Genius transcription guidelines</h1>
 	<p class="site-lede">
-		The conventions a Genius transcription follows, compiled from the staff guides, the accepted
-		annotations on them, and staff rulings in community discussions. Some of them the
-		<a href={resolve('/rules/')}>linter</a> enforces itself, and those open its rule reference; the rest
-		— whether a sung line is a question, whether a mark belongs to a brand's name — are stated in LyricLint's
-		own words, with the source behind them.
+		Every guideline we have found for writing lyrics on Genius, compiled from staff guides, accepted
+		annotations, and staff rulings. The ones the workbench's
+		<a href={resolve('/rules/')}>linter</a> checks itself open its rule reference; the rest are stated
+		here with the source behind them.
 	</p>
 	<p>
-		Every entry says how much standing it has, and the standing follows who wrote it on Genius
-		rather than where. Staff guidance ranks highest, whether written in a guide or ruled in a
-		discussion; then annotations reviewed by Genius's community editors; then references outside
-		Genius; and unreviewed community writing — annotations and forum posts alike — ranks lowest. An
-		entry only ever claims the tier its cited sources establish, and it moves up when a
-		higher-ranked source confirms it.
+		Every entry says how much standing it has: staff guidance ranks highest, then editor-reviewed
+		annotations, then outside references, then unreviewed community writing. An entry claims only
+		the tier its sources establish.
 	</p>
 
 	<h2>The topics so far</h2>
-	<p>
-		Every lookup is in the list beside this page; each topic also reads whole, with its guidance
-		spelled out and its examples:
-	</p>
+	<p>Every lookup is in the list beside this page; each topic also reads whole:</p>
 	<ul class="site-run">
 		{#each data.sections as { topic, entries, linterRules } (topic)}
 			<li>

@@ -21,6 +21,7 @@
 	indexHref={resolve('/guidelines/')}
 	detailOpen={selectedTopic !== undefined}
 	backLabel="All guidelines"
+	section="guidelines"
 	reveal={() => index?.revealSelected()}
 >
 	{#snippet list()}

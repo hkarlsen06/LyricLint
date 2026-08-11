@@ -149,8 +149,10 @@ conservative `community` default.
   prerendered topic pages, which draw straight from
   `src/lib/guidance/entries.ts`; the linter lookups ride the section layout's
   server load, because they are derived from the server-only rule reference.
-  The topic pages deliberately do not repeat the linter lookups — those rows
-  live in the index column, and a lookup is offered once.
+  Each topic page closes with its "Checked by the linter" run — the same rows
+  the index column lists, kept on the page so a topic reads whole where the
+  list is off screen — and every row that leaves for the rule reference wears
+  the citations' external-link mark.
 - The assistant corpus carries a `guidance` section (format v3). A guidance
   entry has **no citable id of its own** in the answer schema: the assistant
   cites the entry's `sourceIds`, which the Worker already validates. Giving

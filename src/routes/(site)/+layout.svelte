@@ -25,6 +25,14 @@
 			? 'page'
 			: undefined;
 	}
+
+	// The two reference sections are the window shell — and the window shell has
+	// no footer. Its columns own the viewport's height, so a footer there is a
+	// permanent band of colophon pinned under content somebody is reading, on
+	// every screen, saying nothing about either column. The colophon belongs to
+	// the document pages, which end; the Apple attribution it carries is a
+	// once-per-site requirement and the document pages still state it.
+	const windowShell = $derived(Boolean(current('/rules') || current('/guidelines')));
 </script>
 
 <svelte:head>
@@ -81,7 +89,7 @@
      the honest scroller again. -->
 <svelte:window bind:scrollY />
 
-<div class="site" data-shell={current('/rules') || current('/guidelines') ? 'window' : 'document'}>
+<div class="site" data-shell={windowShell ? 'window' : 'document'}>
 	<header class="site-header" data-scrolled={scrollY > 8 ? true : undefined}>
 		<!-- The band spans the window; its contents align with the page container,
 		     so the brand shares a left edge with the headline and every paragraph
@@ -105,19 +113,21 @@
 
 	{@render children()}
 
-	<footer class="site-footer">
-		<div class="site-footer__inner">
-			<span>Local-first · <a href={resolve('/privacy/')}>Privacy</a></span>
-			<span class="site-code">
-				Rule set {currentRuleSet.version}
-			</span>
-			<!-- Required by the Apple Music Identity Guidelines, which the Developer
-			     Program License Agreement makes binding on anything that calls MusicKit.
-			     Once per site, wherever the legal copy is, which is here. -->
-			<span
-				>Apple and Apple Music are trademarks of Apple Inc., registered in the U.S. and other
-				countries.</span
-			>
-		</div>
-	</footer>
+	{#if !windowShell}
+		<footer class="site-footer">
+			<div class="site-footer__inner">
+				<span>Local-first · <a href={resolve('/privacy/')}>Privacy</a></span>
+				<span class="site-code">
+					Rule set {currentRuleSet.version}
+				</span>
+				<!-- Required by the Apple Music Identity Guidelines, which the Developer
+				     Program License Agreement makes binding on anything that calls MusicKit.
+				     Once per site, wherever the legal copy is, which is here. -->
+				<span
+					>Apple and Apple Music are trademarks of Apple Inc., registered in the U.S. and other
+					countries.</span
+				>
+			</div>
+		</footer>
+	{/if}
 </div>

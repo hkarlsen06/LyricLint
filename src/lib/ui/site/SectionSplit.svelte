@@ -1,13 +1,14 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { List } from 'lucide-svelte';
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate, goto, onNavigate } from '$app/navigation';
 
 	let {
 		indexHref,
 		detailOpen,
 		backLabel,
 		reveal,
+		section,
 		list,
 		children
 	}: {
@@ -23,6 +24,13 @@
 		 * because only the index knows where its rows and its pinned finder are.
 		 */
 		reveal: () => unknown;
+		/**
+		 * A hook for section-specific layout — `site.css` reads it as
+		 * `data-section`. The guidance catalog uses it for its wash's paint
+		 * lane; the arrangement and the choreography are the same for every
+		 * section, so nothing else hangs off it.
+		 */
+		section?: string | undefined;
 		/** The index column — a component rendering `.site-split__index`. */
 		list: Snippet;
 		children: Snippet;
@@ -51,10 +59,40 @@
 	 * index route.
 	 */
 	function pressedARow(navigation: { from: { url: URL } | null }): boolean {
-		if (!navigation.from) return false;
-		const path = navigation.from.url.pathname.replace(/\/$/, '');
+		return inSection(navigation.from?.url);
+	}
+
+	function inSection(url: URL | undefined): boolean {
+		const path = url?.pathname.replace(/\/$/, '') ?? '';
 		return path === indexPath || path.startsWith(`${indexPath}/`);
 	}
+
+	// Opening a page is choreographed rather than swapped: the index view leads
+	// with the intro on the left and the list on the right, and pressing a row
+	// slides the page in from the right while the list crosses to the left and
+	// the intro leaves under it. The columns are named in `site.css`
+	// (`view-transition-name`, read off `data-view`), so the browser animates
+	// the list's real journey between the two grid arrangements; the intro's
+	// exit and the page's entry are the keyframes beside the names. Going back
+	// plays the same choreography reversed, because the names pair the other
+	// way round.
+	//
+	// Only inside the section — a navigation out to another section or the
+	// landing page changes the whole shell, and animating half of it would read
+	// as the site tearing. The reduced-motion gate is the same one every
+	// transition here carries, and a browser without `startViewTransition`
+	// simply swaps, which is what these sections did before.
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return;
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		if (!inSection(navigation.from?.url) || !inSection(navigation.to?.url)) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await navigation.complete;
+			});
+		});
+	});
 
 	afterNavigate((navigation) => {
 		arrivedFromIndex =
@@ -110,12 +148,15 @@
      page's `<h1>`, and the list is a `<nav>` of every lookup in the section —
      which would otherwise stand between a reader and the document they opened.
      The grid areas put it back on the left visually. -->
-<div class="site-split" data-view={detailOpen ? 'detail' : 'index'}>
+<div class="site-split" data-view={detailOpen ? 'detail' : 'index'} data-section={section}>
 	<div class="site-split__detail" bind:this={detail}>
 		{#if detailOpen}
-			<!-- Narrow screens only, where the list is not on screen to return to.
-			     It goes back rather than forward to a fresh index, so the reader
-			     lands on the row they pressed instead of at the top of the list. -->
+			<!-- The way out of an open page and back to the section's welcome view —
+			     which the choreography pushed off screen, so a wide screen needs
+			     this as much as a narrow one, where it is also the way back to the
+			     list. It goes back rather than forward to a fresh index where the
+			     index really is behind this page, so a popped list keeps the scroll
+			     the reader left it at. -->
 			<button class="button button--quiet site-split__back" type="button" onclick={showIndex}>
 				<List aria-hidden="true" size={15} strokeWidth={2.25} />
 				{backLabel}

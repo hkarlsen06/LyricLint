@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { resolve } from '$app/paths';
 	// Straight from the manifest rather than through `$lib/rules/index.js`, whose
 	// barrel re-exports the engine, the registry and Harper — one version string
@@ -11,10 +12,30 @@
 	import type { RuleReferenceGroup } from '$lib/rules/reference.js';
 	import { siteUrl } from '$lib/seo.js';
 	import { codeSegments } from '$lib/ui/site/code-segments.js';
+	import { setHoveredRuleSlug } from '$lib/ui/site/rule-hover.svelte.js';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import type { PageProps } from './$types.js';
 
 	let { data }: PageProps = $props();
+
+	/**
+	 * A pointer resting on a check names its row in the index beside this page
+	 * — the run and the list are the same rules in two shapes, and the row is
+	 * where the severity, the identifier and the fix kind are. Focus rides
+	 * along so the keyboard gets the same answer. The destroy hook is the
+	 * missing `pointerleave`: pressing a check navigates while the pointer is
+	 * still on it, and a destroyed link fires nothing, so without it the row
+	 * stayed lit under a pointer nobody was holding.
+	 */
+	function namesRow(slug: string) {
+		return {
+			onpointerenter: () => setHoveredRuleSlug(slug),
+			onpointerleave: () => setHoveredRuleSlug(undefined),
+			onfocus: () => setHoveredRuleSlug(slug),
+			onblur: () => setHoveredRuleSlug(undefined)
+		};
+	}
+	onDestroy(() => setHoveredRuleSlug(undefined));
 
 	/**
 	 * The detail column at `/rules/` is the guide, and that is a correction.
@@ -33,15 +54,15 @@
 	 */
 	const references = $derived(data.groups.flatMap((group) => group.rules));
 	const ruleCount = $derived(references.length);
-	const pageTitle = 'Genius lyric formatting rules · LyricLint';
+	const pageTitle = 'The rules the linter checks · LyricLint';
 	const pageDescription = $derived(
-		`How Genius transcriptions are formatted — section headers, performer legends, spelling, punctuation, ad-libs and unknown lyrics — each convention with the ${ruleCount} sourced checks LyricLint runs against it.`
+		`The ${ruleCount} sourced checks LyricLint's workbench runs against a transcription — section headers, performer legends, spelling, punctuation, ad-libs and unknown lyrics — each under the convention it enforces.`
 	);
 	const canonicalUrl = siteUrl('/rules/');
 	const structuredData = $derived({
 		'@context': 'https://schema.org',
 		'@type': 'CollectionPage',
-		name: 'Genius lyric formatting rules',
+		name: 'The rules the linter checks',
 		url: canonicalUrl,
 		description: pageDescription,
 		numberOfItems: ruleCount,
@@ -100,18 +121,20 @@
 <StructuredData data={structuredData} />
 
 <main class="site-prose site-split__page rules__guide">
-	<h1>Genius lyric formatting rules</h1>
+	<h1>The rules the linter checks</h1>
 	<p class="site-lede">
-		How a Genius transcription is formatted, one convention at a time — and the {ruleCount} checks LyricLint
-		runs against them.
+		The {ruleCount} checks the workbench runs against a Genius transcription, grouped under the convention
+		each one enforces. For everything we have found about writing lyrics on Genius — checkable or not
+		— see the <a href={resolve('/guidelines/')}>guidelines</a>.
 	</p>
 	<p>
-		Each convention below states what to do. Under it are the ways it goes wrong, which is what the
-		linter actually looks for: press one to see the reviewed example that produces it, the exact
-		wording the workbench uses, whether the change can be made for you, and the Genius guideline it
-		cites — page, section, and the date a person last verified it. Every rule page is produced by
-		running that rule against the example its test suite reviews, so none of it is a description of
-		the linter written alongside it. This is rule set {currentRuleSet.version}.
+		Each convention below states what to do, and the linked checks after it are the ways it goes
+		wrong — which is what the linter actually looks for. Press one, here or in the list beside this
+		page, to see the reviewed example that produces it, the exact wording the workbench uses,
+		whether the change can be made for you, and the Genius guideline it cites — page, section, and
+		the date a person last verified it. Every rule page is produced by running that rule against the
+		example its test suite reviews, so none of it is a description of the linter written alongside
+		it. This is rule set {currentRuleSet.version}.
 	</p>
 	<p class="site-aside">
 		Where LyricLint checks something the Genius guidance does not actually state, the convention
@@ -141,11 +164,11 @@
 						>{punctuation.between}</span
 					>{/if}{#if entry.kind === 'rule'}<a
 						href="{resolve('/(site)/rules/[rule]', { rule: entry.rule.slug })}/"
-						>{entry.rule.title}</a
+						{...namesRow(entry.rule.slug)}>{entry.rule.title}</a
 					>{:else}<span class="rules__checks-family"
 						>{entry.family}{punctuation.open}{#each entry.rules as rule, at (rule.id)}{#if at > 0}{punctuation.comma}{/if}<a
 								href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/"
-								>{rule.variant?.language ?? rule.title}</a
+								{...namesRow(rule.slug)}>{rule.variant?.language ?? rule.title}</a
 							>{/each}{punctuation.close}</span
 					>{/if}
 			{/each}

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ExternalLink } from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import SourceCitation from '$lib/diagnostics/SourceCitation.svelte';
@@ -21,6 +22,15 @@
 	const topicTitle = $derived(guidanceTopicTitles[topic]);
 	const entries = $derived(
 		guidanceTopics().find((candidate) => candidate.topic === topic)!.entries
+	);
+
+	// The topic's other half, read off the section layout's own load rather
+	// than derived again — the same rows the index column lists, drawn here so
+	// the page reads whole: a reader who arrived at the topic sees where the
+	// linter takes over, even on a narrow screen where the list left with the
+	// index view.
+	const linterRules = $derived(
+		data.sections.find((section) => section.topic === topic)?.linterRules ?? []
 	);
 
 	/** The unique sources this page's entries cite, for the structured data. */
@@ -169,10 +179,40 @@
 		</section>
 	{/each}
 
-	<!-- The topic's other half — the conventions the linter checks itself — is
-	     deliberately not repeated here: those rows live in the index column
-	     under this topic's own heading, on screen beside this page, and a
-	     lookup is offered once. -->
+	{#if linterRules.length > 0}
+		<!-- The other half of the topic: the conventions the linter checks itself,
+		     as lookups into the rule reference. Derived from the reference at
+		     prerender time rather than written here, so a rule that ships,
+		     retitles, or retires moves this list on its own. Each row carries the
+		     citations' leaving mark, because each one opens the rule reference
+		     rather than an entry above it. -->
+		<h2>Checked by the linter</h2>
+		<p>
+			The rest of this topic the <a href={resolve('/rules/')}>linter</a> enforces itself — each of these
+			opens the rule's own page, with the reviewed example and the fix:
+		</p>
+		<ul class="site-run">
+			{#each linterRules as rule (rule.id)}
+				<li>
+					<a href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/">
+						<span class="site-run__title"
+							>{rule.title}
+							<ExternalLink
+								class="site-run__external"
+								aria-hidden="true"
+								size={12}
+								strokeWidth={2.2}
+							/></span
+						>
+						<span class="site-run__message">{rule.message}</span>
+						<span class="site-run__meta">
+							<span class="site-code">{rule.id}</span>
+						</span>
+					</a>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 
 	<div class="site-actions">
 		<a class="button" href={resolve('/lint/')}>Check a transcription in the workbench</a>

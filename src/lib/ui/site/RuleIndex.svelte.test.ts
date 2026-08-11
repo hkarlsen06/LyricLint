@@ -5,6 +5,7 @@ import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 import { groupedRuleReferences, type RuleReferenceGroup } from '$lib/rules/reference.js';
 import { countRules } from '$lib/rules/reference-search.js';
 import RuleIndex from './RuleIndex.svelte';
+import { setHoveredRuleSlug } from './rule-hover.svelte.js';
 import { ruleSearchQuery, setRuleSearchQuery } from './rule-search.svelte.js';
 
 // The real index, not a fixture: what this component has to survive is fifty-two
@@ -30,7 +31,12 @@ beforeAll(async () => {
 // column — so it also outlives a render. Every test below starts from a field
 // nobody has typed in; without this, a test asserting the list is unnarrowed
 // would pass or fail on whatever the test above it happened to type.
-beforeEach(() => setRuleSearchQuery(''));
+beforeEach(() => {
+	setRuleSearchQuery('');
+	// The hover outlives a render for the query's own reason — the guide column
+	// writes it and this component only reads it.
+	setHoveredRuleSlug(undefined);
+});
 
 // The index proper. The popular block is the same rules drawn again, so counting
 // it here would make every assertion about "the whole list" six rows too many.
@@ -348,6 +354,36 @@ describe('RuleIndex', () => {
 			expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(
 				finder.getBoundingClientRect().bottom - 1
 			);
+		} finally {
+			await page.viewport(414, 896);
+		}
+	});
+
+	// The guide column's check links name these rows on hover: the row lights at
+	// once and the column travels to it after a beat — immediately, a pointer
+	// crossing the run on its way somewhere else would drag the list through
+	// every rule it passed. Driven through the module state the guide writes,
+	// because the two are sibling columns with nothing to hand each other.
+	it('follows the guide column’s hover to the row it names', async () => {
+		await page.viewport(1100, 800);
+		try {
+			const last = groups.at(-1)?.rules.at(-1);
+			render(RuleIndex, { groups });
+			const column = document.querySelector<HTMLElement>('.site-split__index')!;
+			column.style.height = '400px';
+			expect(column.scrollTop).toBe(0);
+
+			setHoveredRuleSlug(last?.slug);
+			await expect.poll(() => column.querySelector('a[data-hovered]')).not.toBeNull();
+			// The mark is there before the scroll is: the delay is the point.
+			expect(column.scrollTop).toBe(0);
+			await expect.poll(() => column.scrollTop, { timeout: 2000 }).toBeGreaterThan(0);
+
+			// Leaving takes the mark off and moves nothing back.
+			const settled = column.scrollTop;
+			setHoveredRuleSlug(undefined);
+			await expect.poll(() => column.querySelector('a[data-hovered]')).toBeNull();
+			expect(column.scrollTop).toBe(settled);
 		} finally {
 			await page.viewport(414, 896);
 		}

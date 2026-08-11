@@ -33,7 +33,17 @@ import { tick } from 'svelte';
  */
 export async function revealSelectedRow(column: HTMLElement | undefined): Promise<void> {
 	await tick();
-	const row = column?.querySelector<HTMLElement>('a[aria-current="page"]');
+	revealRow(column, column?.querySelector<HTMLElement>('a[aria-current="page"]'));
+}
+
+/**
+ * The arithmetic on its own, for a caller that already knows which row — the
+ * rule reference's guide column asks for the row its hovered check names.
+ */
+export function revealRow(
+	column: HTMLElement | undefined,
+	row: HTMLElement | null | undefined
+): void {
 	// No row at all under a filter that excludes it, and no box below 62rem,
 	// where the columns stack and the list is `display: none` while a page is
 	// open. Neither is a failure: there is nothing on screen to bring into view.

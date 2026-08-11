@@ -4368,12 +4368,12 @@ came out of one of its rows.
 Four things it owes, and two of them are the reasons it is arithmetic rather than
 `scrollIntoView`:
 
-- **The layout says when and the index says how.** `+layout.svelte` already owns what a navigation
-  means for these two columns — the detail goes to its top, the list must not move — and this is
-  the third case in that same hook. `pressedARow` is its predicate, and it is deliberately the
-  whole section rather than the index page alone: `arrivedFromIndex` beside it answers a different
-  question, "is the list one entry back in history", for the back button, and going from one rule
-  to another is a press on a row that never passes through `/rules`.
+- **The shell says when and the index says how.** `SectionSplit.svelte` already owns what a
+  navigation means for these two columns — the detail goes to its top, the list must not move — and
+  this is the third case in that same hook. `pressedARow` is its predicate, and it is deliberately
+  the whole section rather than the index page alone: `arrivedFromIndex` beside it answers a
+  different question, "is the list one entry back in history", for the back button, and going from
+  one rule to another is a press on a row that never passes through `/rules`.
 - **A row already wholly in view is not moved**, which is the other half of the rule that pressing
   a row may not move the list the row is in. Nothing has to trust the predicate for the ordinary
   case.
@@ -4447,9 +4447,83 @@ Implementation: `title` and `variant` on `RulePolicyCase` in `rules/catalog/poli
 `groupOrder` in `rules/reference.ts`, `groupGuidance` in `rules/reference-guide.ts`,
 `rules/reference-search.ts` (the fold, the filter, the counts, the popular list, `ruleIndexEntries`
 and the highlight arithmetic — pure, so neither the component nor the page holds logic of its own),
-`revealSelected` in `src/lib/ui/site/RuleIndex.svelte` with its trigger in
-`routes/(site)/rules/+layout.svelte`, the guide in `routes/(site)/rules/+page.svelte`, and
-`.rules__finder`, `.rules__family`, `.rules__checks` and `.rules__hit` in `site.css`.
+`revealSelectedRow` in `src/lib/ui/site/reveal-selected.ts` (shared with the guidance catalog's
+index) with its trigger in `src/lib/ui/site/SectionSplit.svelte`, the guide in
+`routes/(site)/rules/+page.svelte`, and `.site-finder`, `.rules__family`, `.rules__checks` and
+`.rules__hit` in `site.css`. The shell itself — the grid, the choreography, the back control — is
+the next section's subject.
+
+### The reference sections share one split shell, and opening a page is choreographed
+
+`/rules/` and `/guidelines/` are the same arrangement — a searchable index column beside a reading
+column — and they are one implementation, because a second section arriving is exactly when a
+private layout starts to drift. `SectionSplit.svelte` owns the grid, the narrow-screen collapse,
+the back control, what a navigation means for each column, and the view transition; a section
+supplies its index component (`RuleIndex`, `GuidanceIndex`), which renders `.site-split__index`
+itself and shares `revealSelectedRow` in `reveal-selected.ts` and the `.site-finder` idiom. The
+shared vocabulary in `site.css` is `.site-split*`, `.site-finder*`, `.site-index__*` and
+`.site-run__message`; anything still `rules__`- or `guidelines__`-prefixed is that one section's
+own. `data-section` on the split exists for exactly one such thing, the guidance wash's paint lane
+below.
+
+**The index view leads with the welcome page, not the list.** At `/rules/` and `/guidelines/` the
+intro — the guide, the tier ladder — takes the left column and the list rides the right; opening a
+page swaps them, so the page arrives where the list was and the list crosses to the left. Both the
+grid areas and the transition names are read off `data-view` structurally (`.site-split__detail >
+main` is `section-intro` at the index and `section-detail` with a page open), so no page carries a
+naming class and a new section gets the whole convention for free.
+
+**Opening a page is a view transition, and the motion is the list's real journey.** `SectionSplit`
+starts it in `onNavigate`, behind three gates: `document.startViewTransition` exists, reduced
+motion is not requested, and both ends of the navigation are inside the section — leaving for
+another section changes the whole shell, and animating half of it would read as the site tearing.
+The named list morphs between its two grid positions; the intro exits left as the page slides in
+from the right (the `section-leave-*` / `section-arrive-*` keyframes), and the return plays the
+same choreography reversed, because the names pair the other way round. A press from one detail
+page straight to another pairs `section-detail` with itself, which is the in-place crossfade that
+move deserves.
+
+**The back control draws at every width, and the choreography is why.** It began narrow-only, when
+the index view was still on screen beside an open page; the moment the swap pushed the welcome
+view off, nothing brought it back. `All rules` / `All guidelines` sits quiet at the top of the
+open page, prefers `history.back()` where the index is genuinely behind it — a popped entry keeps
+the scroll the reader left it at — and `goto`s a fresh index otherwise.
+
+**The window shell has no footer.** Its columns own the viewport's height, so a footer there is a
+permanent band of colophon pinned under content somebody is reading, on every screen, saying
+nothing about either column. The colophon — and the Apple attribution it carries, a once-per-site
+requirement — stays on the document pages, which end.
+
+**The assistant's entry point is the sparkles, not a prompt.** Both finders carry
+`AssistantSpark.svelte` beside the search field: the workbench tab strip's own glyph, accessible
+name `Ask the assistant`, opening the shared modal where the question is asked. It replaced a full
+prompt — label, field, button and three lines of hint — that said more about the assistant than
+either column said about its own content, and the e2e conversation test drives the dialog through
+it.
+
+**A row that leaves the section says so.** The guidance list's linter-rule rows and the topic
+page's `Checked by the linter` run open the rule reference, and each wears the citations' own
+`ExternalLink` mark after its title — decorative and `aria-hidden`, because the rule id in the
+meta line already says whose row it is in words. Guidance-entry rows stay inside the section and
+carry nothing. That topic-page run is deliberately the index column's rows drawn again: on a
+narrow screen the list left with the index view, and a topic has to read whole without it.
+
+The guidance column knows one thing the rules one does not: **a guideline is a fragment on its
+topic's page**, so the current row is the route param _and_ the hash together — `afterNavigate`
+covers path changes, and `hashchange` covers the navigation the router never models. And its wash
+taught the shell a clip lesson: the `:target` wash spills `--space-4` past the entry on every
+side, and a scroll port clips at its padding edge, so at the shared focus-ring lane the wash's
+left corners came back square — which reads as the radius failing, not as a clip. The guidance
+detail column widens its start lane to the spill and hands it back with the same negative margin
+(the focus-ring lane's own trick, under `data-section='guidelines'`). Between entries the wash
+sits with an equal `--space-4` breath between itself and the hairlines; the last entry closes on
+no hairline at all, because what follows it is a heading that already separates itself.
+
+Implementation: `src/lib/ui/site/SectionSplit.svelte`, `reveal-selected.ts`,
+`GuidanceIndex.svelte`, `src/lib/ui/assistant/AssistantSpark.svelte`, the `.site-split` /
+`.site-finder` / view-transition blocks in `site.css`, and the section layouts in
+`routes/(site)/rules/` and `routes/(site)/guidelines/`. The guidance catalog's content pipeline —
+what an entry is, the authority ladder, how one is added — is `docs/guidelines.md`.
 
 ### A line that is a header is not a lyric, and every rule has to agree about which
 

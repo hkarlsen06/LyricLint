@@ -1,11 +1,12 @@
 /*
- * The pages outside the workbench: the landing page and the rule reference.
+ * The pages outside the workbench: the landing page, the rule reference, and
+ * the guidance catalog.
  *
  * These are read, not operated. A site page is one ordinary document that
  * scrolls the viewport, and it has to survive a phone, because the phone gate
- * deliberately does not apply here. The rule reference is the exception, and it
- * is the workbench's own arrangement rather than an article — see `data-shell`
- * below.
+ * deliberately does not apply here. The two reference sections are the
+ * exception, and they are the workbench's own arrangement rather than
+ * articles — see `data-shell` below.
  *
  * The material vocabulary is the app's, unchanged. Chrome bands for the header
  * and footer, prose directly on `--color-canvas`, and exactly two things that
@@ -781,17 +782,13 @@
 
 /* Where one entry ends and the next begins: the hairline the linter's run
    draws between neighbours — repeating sections are separated by the line
-   where they meet. The last entry closes the run with the same line, or the
-   foot of the list reads as a hole against the framed entries above it. */
+   where they meet, and only there. The last entry closes on nothing, because
+   what follows it is not another entry: a line under it would separate it
+   from the heading that already separates itself. */
 .guidelines__entry + .guidelines__entry {
 	border-top: var(--border-width) solid var(--color-border);
 	margin-top: var(--space-6);
 	padding-top: var(--space-6);
-}
-
-.guidelines__entry:last-of-type {
-	border-bottom: var(--border-width) solid var(--color-border);
-	padding-bottom: var(--space-6);
 }
 
 /* An entry owns its own rhythm: the prose gap its heading used to carry moves
@@ -840,8 +837,97 @@
 	top: calc(var(--space-6) - var(--space-4));
 }
 
-.guidelines__entry:last-of-type:has(:target)::before {
-	bottom: calc(var(--space-6) - var(--space-4));
+/* The wash above spills `--space-4` past the entry's box on every side, and
+   this column is a scroll port, which clips at its padding edge — at the
+   shared focus-ring lane the wash's left corners were cut off square, which
+   read as the radius failing rather than as a clip. The lane is widened to
+   the spill and handed back with the same negative margin, so every line of
+   content keeps the x it had; only the room the wash paints in is new. */
+.site-split[data-section='guidelines'] .site-split__detail {
+	padding-inline: var(--space-4);
+	margin-inline-start: calc(-1 * var(--space-4));
+}
+
+/* Both split sections open reading-first: at the index the intro leads in the
+   left column and the list of lookups rides the right, and opening a page
+   swaps them — the list crosses to the left and the page takes the right. The
+   crossing is the view transition below. */
+.site-split[data-view='index'] {
+	grid-template-areas: 'detail index';
+}
+
+/* The choreography's names, structural rather than per-page: the list is one
+   element in both arrangements, so naming it makes the browser animate its
+   real journey between the columns; the index view's page and the detail
+   view's page are named *apart*, read off `data-view`, so one leaves as the
+   other arrives instead of the two morphing into each other — and a press
+   from one detail page to another pairs `section-detail` with itself, which
+   is the in-place crossfade that move deserves. Names are inert at rest —
+   they only mean something inside a transition `SectionSplit` starts, and it
+   already declines to start one across the section's boundary, without
+   browser support, or under reduced motion. */
+.site-split__index {
+	view-transition-name: section-index;
+}
+
+.site-split[data-view='index'] .site-split__detail > main {
+	view-transition-name: section-intro;
+}
+
+.site-split[data-view='detail'] .site-split__detail > main {
+	view-transition-name: section-detail;
+}
+
+/* The rides: the opened page flows in from the right and pushes toward its
+   place while the list sweeps left, and the intro is carried out under it.
+   Each pseudo exists only on the side its page exists on, so these same four
+   rules play the return reversed — the detail leaves right, the intro arrives
+   from the left. Gated on reduced motion like every animation here, although
+   the component has already declined to start the transition at all. */
+@media (prefers-reduced-motion: no-preference) {
+	::view-transition-old(section-intro) {
+		animation: section-leave-left var(--duration-slow) var(--ease-out-quart) both;
+	}
+
+	::view-transition-new(section-intro) {
+		animation: section-arrive-left var(--duration-slow) var(--ease-out-quart) both;
+	}
+
+	::view-transition-old(section-detail) {
+		animation: section-leave-right var(--duration-slow) var(--ease-out-quart) both;
+	}
+
+	::view-transition-new(section-detail) {
+		animation: section-arrive-right var(--duration-slow) var(--ease-out-quart) both;
+	}
+}
+
+@keyframes section-leave-left {
+	to {
+		transform: translateX(-30%);
+		opacity: 0;
+	}
+}
+
+@keyframes section-arrive-left {
+	from {
+		transform: translateX(-30%);
+		opacity: 0;
+	}
+}
+
+@keyframes section-leave-right {
+	to {
+		transform: translateX(30%);
+		opacity: 0;
+	}
+}
+
+@keyframes section-arrive-right {
+	from {
+		transform: translateX(30%);
+		opacity: 0;
+	}
 }
 
 .site-index__group {
@@ -882,9 +968,26 @@
 	z-index: 1;
 }
 
+/* The field with the assistant's spark at its end: one row, so the glyph
+   neither wraps under the field nor stretches it. The spark is the workbench
+   tab strip's own glyph-for-the-assistant, quiet until hovered, and it only
+   draws in builds with an endpoint behind it — the row is just the field
+   otherwise. */
+.site-finder__row {
+	display: flex;
+	gap: var(--space-1);
+	align-items: center;
+}
+
 .site-finder__search {
 	width: 100%;
+	min-width: 0;
 	font-size: var(--font-size-sm);
+}
+
+.site-finder__assistant {
+	flex: none;
+	padding-inline: var(--space-2);
 }
 
 .site-finder__chips {
@@ -918,6 +1021,15 @@
 .site-run__message {
 	color: var(--color-text-muted);
 	font-size: var(--font-size-sm);
+}
+
+/* The citations' own mark for a link that leaves, on the run rows that do —
+   a rule lookup in the guidance list opens the rule reference rather than a
+   page beside it. Inline in the title's run rather than a flex item, because
+   the title wraps and the mark belongs after its last word; the nudge sits it
+   on the text's baseline. */
+.site-run__external {
+	vertical-align: -0.1em;
 }
 
 /*
@@ -1134,6 +1246,16 @@
 	color: var(--color-text-muted);
 }
 
+/* The guide column's check links are these rows in another shape, so a pointer
+   resting on one lights its row here exactly as a pointer on the row itself
+   would — the same fill, because it is the same statement. Declared before the
+   current-page marker below so that marker wins by order: a recessed "you are
+   here" must not flicker to a hover wash because the reader crossed its link
+   in the guide. */
+.site-split__index a[data-hovered] {
+	background: var(--color-fill-subtle);
+}
+
 /* Selection is depth, not hue. No accent wash and no ring — the severity tag is
    already the one colored thing in the row, and a second color would compete
    with it.
@@ -1157,10 +1279,16 @@
 	box-shadow: var(--shadow-recessed);
 }
 
-/* Narrow screens only: see the media query below, where the list stops being on
-   screen and this becomes the way back to it. */
+/* The way out of an open page, at every width. On a wide screen it returns to
+   the section's welcome view — the intro the choreography pushed out, which
+   nothing else on screen brings back — and on a narrow one it is also the way
+   back to the list that left with it. Quiet, at the top of the column, where
+   the reader who wants out looks first. */
 .site-split__back {
-	display: none;
+	display: inline-flex;
+	gap: var(--space-1-5);
+	align-items: center;
+	margin-bottom: var(--space-4);
 }
 
 @media (max-width: 62rem) {
@@ -1205,6 +1333,20 @@
 		scrollbar-gutter: auto;
 	}
 
+	/* The wide rules above outrank the resets here by specificity, so both are
+	   stood down by name: the guidance catalog's wash paint lane, whose scroll
+	   port no longer exists to clip anything, and the swapped index
+	   arrangement — two named columns in a one-column template would conjure a
+	   phantom second column. Stacked, the intro still leads. */
+	.site-split[data-section='guidelines'] .site-split__detail {
+		padding-inline: 0;
+		margin-inline-start: 0;
+	}
+
+	.site-split[data-view='index'] {
+		grid-template-areas: 'detail' 'index';
+	}
+
 	.site-split[data-view='detail'] .site-split__index {
 		display: none;
 	}
@@ -1217,13 +1359,6 @@
 	   arrives. */
 	.site-finder {
 		position: static;
-	}
-
-	.site-split__back {
-		display: inline-flex;
-		gap: var(--space-1-5);
-		align-items: center;
-		margin-bottom: var(--space-4);
 	}
 }
 

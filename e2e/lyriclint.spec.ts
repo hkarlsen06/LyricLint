@@ -192,7 +192,7 @@ test('a landing video keeps its still until its first frame is ready', async ({ 
 test('the rule reference exposes article metadata and language semantics', async ({ page }) => {
 	await page.goto('/rules/');
 
-	await expect(page).toHaveTitle('Genius lyric formatting rules · LyricLint');
+	await expect(page).toHaveTitle('The rules the linter checks · LyricLint');
 	await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
 		'href',
 		'https://lyriclint.com/rules/'
@@ -722,7 +722,7 @@ test('the offline snapshot precaches the app and admits a rules page when read',
 
 	await context.setOffline(true);
 	await page.reload();
-	await expect(page.getByRole('heading', { name: 'Genius lyric formatting rules' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'The rules the linter checks' })).toBeVisible();
 	await context.setOffline(false);
 });
 
@@ -767,12 +767,16 @@ test('the error page leaves by loading a new document, not by routing', async ({
 test('the rules dialog and workbench tab share one persisted conversation', async ({ page }) => {
 	await page.route('**/v1/answers', (route) => route.abort());
 	await page.goto('/rules/');
-	const prompt = page.getByLabel('Ask about transcription or wording');
-	await prompt.fill('When does a chorus need its own header?');
-	await prompt.press('Enter');
+	// The assistant's entry point is the sparkles glyph beside the search field —
+	// the workbench tab strip's own glyph, found by accessible name for the same
+	// reason the tab is. It opens the modal empty; the question is asked inside.
+	await page.getByRole('button', { name: 'Ask the assistant' }).click();
 
 	const dialog = page.getByRole('dialog', { name: 'Ask the rules' });
 	await expect(dialog).toBeVisible();
+	const prompt = dialog.getByLabel('Your question');
+	await prompt.fill('When does a chorus need its own header?');
+	await prompt.press('Enter');
 	await expect(dialog.getByLabel('Conversation', { exact: true })).toContainText(
 		'When does a chorus need its own header?'
 	);

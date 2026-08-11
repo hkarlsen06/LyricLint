@@ -17,8 +17,9 @@
 		severityOrder
 	} from '$lib/rules/reference-search.js';
 	import type { RuleReference, RuleReferenceGroup } from '$lib/rules/reference.js';
-	import AssistantPrompt from '$lib/ui/assistant/AssistantPrompt.svelte';
-	import { revealSelectedRow } from './reveal-selected.js';
+	import AssistantSpark from '$lib/ui/assistant/AssistantSpark.svelte';
+	import { revealRow, revealSelectedRow } from './reveal-selected.js';
+	import { hoveredRuleSlug } from './rule-hover.svelte.js';
 	import { ruleSearchQuery, setRuleSearchQuery } from './rule-search.svelte.js';
 
 	let {
@@ -102,6 +103,27 @@
 		await revealSelectedRow(column);
 	}
 
+	/**
+	 * The guide's check links are these rows in another shape, so a pointer
+	 * resting on one lights its row here and brings it into the column. The
+	 * mark is immediate, exactly as a hover is; the scroll waits a beat,
+	 * because the run is a paragraph of links and a pointer crossing it on the
+	 * way somewhere else would otherwise drag the list through every rule it
+	 * passed. Where the hovered rule is popular its popular copy is found
+	 * first, which is already at the top of the column — the same arbitration
+	 * `revealSelected` describes.
+	 */
+	const hovered = $derived(hoveredRuleSlug());
+	const hoverRevealDelay = 150;
+	$effect(() => {
+		if (hovered === undefined) return;
+		const timer = setTimeout(
+			() => revealRow(column, column?.querySelector<HTMLElement>('a[data-hovered]')),
+			hoverRevealDelay
+		);
+		return () => clearTimeout(timer);
+	});
+
 	// Escape empties the field, which is the one convention a search input owes
 	// and the only way out this surface needs: nothing here is pending, and the
 	// readout below carries `Clear everything` for the state the chips can also be
@@ -114,27 +136,27 @@
 </script>
 
 <div class="site-split__index" data-sveltekit-noscroll bind:this={column}>
-	<!-- The way to ask a model about the guidelines, above the way to search
-	     them: unboxed prose and a field, and only in builds that actually have
-	     an assistant endpoint behind it. -->
-	<AssistantPrompt />
 	<!-- The finder rides the top of the column rather than scrolling away with the
 	     rows: on a wide screen this column is its own scroll port, and a field
 	     fifty rows above the reader is a field they have to travel back to. It is
 	     `--color-canvas` because that is the page it is pinned over — the rows are
-	     `--color-surface` and pass underneath it. -->
+	     `--color-surface` and pass underneath it. The sparkles beside the field is
+	     the assistant, in the glyph the workbench's tab strip already taught. -->
 	<search class="site-finder">
 		<label class="sr-only" for="rules-search">Search the formatting rules</label>
-		<input
-			id="rules-search"
-			class="site-finder__search"
-			type="search"
-			autocomplete="off"
-			spellcheck="false"
-			placeholder={`Search ${total} rules`}
-			bind:value={ruleSearchQuery, setRuleSearchQuery}
-			onkeydown={onFieldKeydown}
-		/>
+		<div class="site-finder__row">
+			<input
+				id="rules-search"
+				class="site-finder__search"
+				type="search"
+				autocomplete="off"
+				spellcheck="false"
+				placeholder={`Search ${total} rules`}
+				bind:value={ruleSearchQuery, setRuleSearchQuery}
+				onkeydown={onFieldKeydown}
+			/>
+			<AssistantSpark />
+		</div>
 
 		<!--
 			Two axes, one chip idiom, and the linter panel's own semantics: a pressed
@@ -212,6 +234,7 @@
 			<a
 				href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/"
 				aria-current={rule.slug === selectedSlug ? 'page' : undefined}
+				data-hovered={rule.slug === hovered ? '' : undefined}
 			>
 				<!-- The rule's name leads, and what the linter actually says about
 				     it sits underneath as the example. The other way round — which
@@ -250,6 +273,7 @@
 						<a
 							href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/"
 							aria-current={rule.slug === selectedSlug ? 'page' : undefined}
+							data-hovered={rule.slug === hovered ? '' : undefined}
 						>
 							{rule.variant?.language ?? rule.title}
 						</a>
