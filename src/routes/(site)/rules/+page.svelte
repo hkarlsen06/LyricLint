@@ -99,7 +99,7 @@
 
 <StructuredData data={structuredData} />
 
-<main class="site-prose rules__page rules__guide">
+<main class="site-prose site-split__page rules__guide">
 	<h1>Genius lyric formatting rules</h1>
 	<p class="site-lede">
 		How a Genius transcription is formatted, one convention at a time — and the {ruleCount} checks LyricLint

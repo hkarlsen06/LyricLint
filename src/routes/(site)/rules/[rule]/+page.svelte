@@ -111,7 +111,7 @@
 
 {#snippet sourceText(value: string)}<RuleSearchHighlight text={value} />{/snippet}
 
-<main class="site-prose rules__page">
+<main class="site-prose site-split__page">
 	<h1><RuleSearchHighlight text={reference.title} /></h1>
 
 	<!-- The diagnostic's facts in the diagnostic's idiom: one meta line under the

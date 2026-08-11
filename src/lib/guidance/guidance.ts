@@ -1,0 +1,114 @@
+/**
+ * The guidance catalog: reviewed transcription conventions the linter cannot
+ * check, behind the planned `/guidelines/` pages and the assistant corpus's
+ * guidance section.
+ *
+ * An entry is one checkable claim in LyricLint's own words — never quoted
+ * Genius prose, for the corpus's own reason: a quotation would be hand-written
+ * content with no generator to re-derive it, over annotations that change.
+ * The paraphrase is the human interpretation the source policy already
+ * requires, and the entry's sources are pointers into the same registry every
+ * rule cites.
+ *
+ * A convention the linter later learns to check graduates into a rule and its
+ * entry retires in that rule's favor — an entry and a rule must not state the
+ * same claim under two ids, which is `isProseHeaderLine`'s failure arriving in
+ * the catalog. `relatedRuleIds` is for partial coverage only: the entry states
+ * the whole convention, the rule checks the slice of it a machine can see.
+ */
+import type { SourceAuthority } from '$lib/core/types.js';
+
+/** Topic titles, keyed by the id segment guidance entry ids carry. */
+export const guidanceTopicTitles = {
+	punctuation: 'Punctuation'
+} as const;
+
+export type GuidanceTopic = keyof typeof guidanceTopicTitles;
+
+/**
+ * The linter rule families each topic page also lists, as lookups pointing
+ * into `/rules/<slug>/` — so a topic is one place to look a convention up
+ * whether the linter checks it or not. The list is derived from the rule
+ * reference at prerender time and never written out here; what is editorial
+ * is only which families belong to which topic. Keys are rule-id prefixes
+ * (`punctuation.question` → `punctuation`), and `guidance.test.ts` pins that
+ * every named family still has rules.
+ */
+export const guidanceTopicRuleGroups: Record<GuidanceTopic, readonly string[]> = {
+	punctuation: ['punctuation', 'quotes']
+};
+
+/**
+ * A verbatim illustration, in the rule reference's own labeled-pair shape. A
+ * sample holds only text as it would stand in a document — prose explaining a
+ * sample belongs in the statement or the note, because inside the sample face
+ * it reads as part of the very thing being quoted.
+ */
+export interface GuidanceExample {
+	/** The form the convention wants, exactly as written. */
+	correct?: string;
+	/** The form it corrects, exactly as written. */
+	incorrect?: string;
+}
+
+/** One reviewed transcription convention the linter cannot check whole. */
+export interface GuidanceEntry {
+	/** `guidance.<topic>.<slug>` — stable, and the anchor on the topic page. */
+	id: string;
+	topic: GuidanceTopic;
+	/**
+	 * States what the guideline says, as a compressed instruction — the
+	 * register of Genius's own guide items ("Use standardized spellings"), and
+	 * deliberately NOT the rule reference's failure-naming register. A rules
+	 * reader arrives with a symptom and wants its rule; a guidelines reader
+	 * arrives wondering how something works and searches for the convention.
+	 */
+	title: string;
+	/** LyricLint's reviewed paraphrase of the convention. Never quoted prose. */
+	statement: string;
+	/** Invented illustrations — never a real transcription's lyrics. */
+	example?: GuidanceExample;
+	/**
+	 * The trustworthiness claimed for this entry. Must equal the highest tier
+	 * among the cited sources: promotion is adding the confirming higher-tier
+	 * source to `sourceIds`, never editing this field alone, and
+	 * `guidance.test.ts` enforces the equality structurally.
+	 */
+	authority: SourceAuthority;
+	sourceIds: readonly string[];
+	/** Linter rules that check part of this convention. */
+	relatedRuleIds?: readonly string[];
+	/** Hedges, scope limits, and graduation notes. */
+	note?: string;
+}
+
+/** Higher is more trustworthy as Genius transcription policy. */
+export const authorityRank: Record<SourceAuthority, number> = {
+	staff: 3,
+	editorial: 2,
+	external: 1,
+	community: 0
+};
+
+/** The tier as a reader-facing fact, worded as where the claim comes from. */
+export const authorityLabels: Record<SourceAuthority, string> = {
+	staff: 'Genius staff guidance',
+	editorial: 'Editor-reviewed Genius annotation',
+	external: 'External reference',
+	community: 'Genius community guidance'
+};
+
+/** The anchor a topic page draws an entry at: the id's own last segment. */
+export function entryAnchor(id: string): string {
+	return id.slice(id.lastIndexOf('.') + 1);
+}
+
+/** The tier an entry backed by these sources is entitled to claim. */
+export function highestAuthority(authorities: readonly SourceAuthority[]): SourceAuthority {
+	if (authorities.length === 0) {
+		throw new Error('An entry with no sources has no authority to claim');
+	}
+	return authorities.reduce((highest, candidate) =>
+		authorityRank[candidate] > authorityRank[highest] ? candidate : highest
+	);
+}

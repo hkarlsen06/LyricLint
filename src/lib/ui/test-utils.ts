@@ -47,7 +47,8 @@ const testSource: SourceReference = {
 	sectionTitle: 'Vocalist formatting',
 	retrievedAt: '2026-07-20',
 	lastVerifiedAt: '2026-07-20',
-	reviewStatus: 'reviewed'
+	reviewStatus: 'reviewed',
+	authority: 'editorial'
 };
 
 export function diagnostic(

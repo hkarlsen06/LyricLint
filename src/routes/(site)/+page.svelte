@@ -216,11 +216,11 @@ And the "quiet" part was never really quiet`;
 					<LyricIcon />
 					<span>Open the workbench</span>
 				</a>
-				<a class="lp-hero__alt" href={resolve('/rules/')}>
+				<a class="lp-hero__alt" href={resolve('/guidelines/')}>
 					<!-- The mark names the destination the way t3's octocat names
-					     GitHub: the reference is a book, in the link's own ink. -->
+					     GitHub: the guide is a book, in the link's own ink. -->
 					<BookOpen aria-hidden="true" size={15} strokeWidth={2.25} />
-					<span>Browse the {ruleCount} rules</span>
+					<span>Go to the Guidelines</span>
 				</a>
 			</div>
 
@@ -733,7 +733,7 @@ And the "quiet" part was never really quiet`;
 					<LyricIcon />
 					<span>Open the workbench</span>
 				</a>
-				<a class="button" href={resolve('/rules/')}>Browse the {ruleCount} rules</a>
+				<a class="button" href={resolve('/guidelines/')}>Go to the Guidelines</a>
 			</div>
 		</div>
 	</section>

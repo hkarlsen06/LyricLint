@@ -682,24 +682,25 @@
    1280px without being told. */
 
 /*
- * The rule reference, which is a master and a detail rather than a list that
- * leads away to pages. The list lives in the section's layout, so pressing a
- * row swaps only the column beside it — and the arrangement is the workbench's
- * own: the run you are working through on the left, the thing you are reading
- * about on the right.
+ * A reference section — the rule reference and the guidance catalog both —
+ * which is a master and a detail rather than a list that leads away to pages.
+ * The list lives in the section's layout (`SectionSplit.svelte`), so pressing
+ * a row swaps only the column beside it — and the arrangement is the
+ * workbench's own: the run you are working through on the left, the thing you
+ * are reading about on the right.
  *
  * The DOM order is detail first, list second, and the grid areas are what put
  * the list back on the left. That way the page's `<main>` and its `<h1>` come
- * before a `<nav>` of forty-eight links, instead of behind it.
+ * before a `<nav>` of dozens of links, instead of behind it.
  *
- * Neither column scrolls the page. Forty-eight rows and a rule are two runs of
+ * Neither column scrolls the page. Dozens of rows and a page are two runs of
  * unrelated lengths, and a document scroll would have to serve both with one
  * offset: reading to the bottom of a rule dragged the list along with it and
  * took the header off the top of the screen on the way. So each column is its
  * own scroll port inside the window shell, and the only thing the viewport
  * decides is how tall they are.
  */
-.rules {
+.site-split {
 	display: grid;
 	width: 100%;
 	max-width: var(--measure-split);
@@ -741,8 +742,8 @@
  * four pixels back to the section's own inline padding, so every row, heading
  * and field keeps the x it had.
  */
-.rules__index,
-.rules__detail {
+.site-split__index,
+.site-split__detail {
 	min-height: 0;
 	padding-inline: var(--focus-ring-reach) var(--space-3);
 	margin-inline-start: calc(-1 * var(--focus-ring-reach));
@@ -751,11 +752,11 @@
 	scrollbar-gutter: stable;
 }
 
-.rules__index {
+.site-split__index {
 	grid-area: index;
 }
 
-.rules__detail {
+.site-split__detail {
 	grid-area: detail;
 }
 
@@ -763,24 +764,100 @@
    is what sizes the page. The reviewed examples on these pages are short enough
    that neither measure ever wraps one, so following the editor past a prose
    width would only have widened the copy around them. */
-.rules__page {
+.site-split__page {
 	max-width: var(--measure-reference);
 	padding-bottom: var(--space-5);
 }
 
-.rules__group {
+/* Every guidance entry is a deep-link target — the index and the assistant both
+   name entries by fragment — and on a wide screen the masthead travels with the
+   reader, so a jumped-to heading has to clear it or the one line the link named
+   is the line under the chrome. (The page's own landing re-centers it; this is
+   the no-JavaScript fallback's clearance.) */
+.guidelines__entry h2 {
+	margin-bottom: var(--space-1-5);
+	scroll-margin-top: calc(var(--header-height) + var(--space-4));
+}
+
+/* Where one entry ends and the next begins: the hairline the linter's run
+   draws between neighbours — repeating sections are separated by the line
+   where they meet. The last entry closes the run with the same line, or the
+   foot of the list reads as a hole against the framed entries above it. */
+.guidelines__entry + .guidelines__entry {
+	border-top: var(--border-width) solid var(--color-border);
+	margin-top: var(--space-6);
+	padding-top: var(--space-6);
+}
+
+.guidelines__entry:last-of-type {
+	border-bottom: var(--border-width) solid var(--color-border);
+	padding-bottom: var(--space-6);
+}
+
+/* An entry owns its own rhythm: the prose gap its heading used to carry moves
+   onto the section, and the first and last children give their margins up.
+   Read at rest this is the same page to the pixel — what it buys is the wash
+   below, whose background paints the section's box, child margins included: a
+   heading still carrying `--space-7` on top put a hand of empty blue above the
+   one line the link named. */
+.guidelines__entry {
+	margin-block: var(--space-7) 0;
+}
+
+.guidelines__entry > :first-child {
+	margin-top: 0;
+}
+
+.guidelines__entry > :last-child {
+	margin-bottom: 0;
+}
+
+/* The entry a deep link landed on, washed in the selection tone for as long
+   as the hash names it — the fragment marks the heading, `:has()` hands the
+   wash to the whole entry. The wash is a pseudo-element floated behind the
+   content rather than the entry's own background: the entry's box reaches to
+   the hairlines, so a background would lie against both lines, and the shape
+   wanted is a line, a breath, the box, a breath, a line. The box spills
+   `--space-4` past the content on every side, and where a hairline sits
+   `--space-6` off the content it therefore stops `--space-4` short of the
+   line — the same even gap above and below. `z-index: 0` on the entry scopes
+   the negative layer so the wash cannot slip behind an ancestor's paint. */
+.guidelines__entry:has(:target) {
+	position: relative;
+	z-index: 0;
+}
+
+.guidelines__entry:has(:target)::before {
+	content: '';
+	position: absolute;
+	z-index: -1;
+	inset: calc(-1 * var(--space-4));
+	border-radius: var(--radius-panel);
+	background: var(--color-selected);
+}
+
+.guidelines__entry + .guidelines__entry:has(:target)::before {
+	top: calc(var(--space-6) - var(--space-4));
+}
+
+.guidelines__entry:last-of-type:has(:target)::before {
+	bottom: calc(var(--space-6) - var(--space-4));
+}
+
+.site-index__group {
 	margin: var(--space-6) 0 var(--space-3);
 	font-size: var(--font-size-lg);
 	font-weight: var(--font-weight-semibold);
 	line-height: var(--line-height-tight);
 }
 
-.rules__index nav > .rules__group:first-child {
+.site-split__index nav > .site-index__group:first-child {
 	margin-top: 0;
 }
 
 /*
- * Finding a rule among fifty-two, which is past what anyone reads down.
+ * Finding a lookup among dozens, which is past what anyone reads down. Shared
+ * by both index columns: the rule reference's and the guidance catalog's.
  *
  * It rides the top of the column rather than scrolling away with the rows,
  * because on a wide screen this column is its own scroll port: a reader forty
@@ -793,7 +870,7 @@
  * that filter the list from the list they filter, which is the one place a
  * boundary has nothing to do.
  */
-.rules__finder {
+.site-finder {
 	position: sticky;
 	display: grid;
 	padding-block-end: var(--space-3);
@@ -805,12 +882,12 @@
 	z-index: 1;
 }
 
-.rules__search {
+.site-finder__search {
 	width: 100%;
 	font-size: var(--font-size-sm);
 }
 
-.rules__chips {
+.site-finder__chips {
 	display: flex;
 	flex-wrap: wrap;
 	gap: var(--space-1);
@@ -819,7 +896,7 @@
 /* The readout at one end and the way out of it at the other, so the row is not
    a lone control in half a gutter of empty space. Both halves exist only while
    something is narrowing the list. */
-.rules__readout {
+.site-finder__readout {
 	display: flex;
 	gap: var(--space-2);
 	align-items: baseline;
@@ -829,7 +906,7 @@
 	font-size: var(--font-size-xs);
 }
 
-.rules__clear {
+.site-finder__clear {
 	min-height: auto;
 	padding-block: 0;
 	font-size: var(--font-size-xs);
@@ -838,7 +915,7 @@
 /* What the linter will actually say, under the name of the rule that says it.
    Muted and one step down, because the row is scanned by its title and read by
    this line only once the reader has stopped on it. */
-.rules__row-message {
+.site-run__message {
 	color: var(--color-text-muted);
 	font-size: var(--font-size-sm);
 }
@@ -1003,8 +1080,8 @@
 	text-decoration: underline;
 }
 
-.rules__index .rules__languages a[aria-current='page'],
-.rules__index .rules__languages a[aria-current='page']:hover {
+.site-split__index .rules__languages a[aria-current='page'],
+.site-split__index .rules__languages a[aria-current='page']:hover {
 	background: var(--color-canvas);
 	box-shadow: var(--shadow-recessed);
 	text-decoration: none;
@@ -1046,13 +1123,13 @@
  * system's rule about colour everywhere else, applied to the one run of a link
  * that has a second thing to say.
  */
-.rules__page a .rules__hit {
+.site-split__page a .rules__hit {
 	color: var(--color-text);
 }
 
 /* Prose on the canvas, like every other full-column message on this site: a
    single box in an empty column separates its contents from nothing at all. */
-.rules__empty {
+.site-index__empty {
 	margin: 0;
 	color: var(--color-text-muted);
 }
@@ -1074,23 +1151,23 @@
    with `overflow: hidden`, so an outer shadow on a child is cut off at the
    container's edge and the row simply loses its marker. An inset one is not,
    which is the quiet reason this pattern worked here in the first place. */
-.rules__index a[aria-current='page'],
-.rules__index a[aria-current='page']:hover {
+.site-split__index a[aria-current='page'],
+.site-split__index a[aria-current='page']:hover {
 	background: var(--color-canvas);
 	box-shadow: var(--shadow-recessed);
 }
 
 /* Narrow screens only: see the media query below, where the list stops being on
    screen and this becomes the way back to it. */
-.rules__back {
+.site-split__back {
 	display: none;
 }
 
 @media (max-width: 62rem) {
 	/*
-	 * One column at a time. A rule is a route of its own here rather than a pane
-	 * beside the list, so opening one replaces the list and the control at the
-	 * top of the page goes back to it — back, not forward to a fresh `/rules`,
+	 * One column at a time. A detail page is a route of its own here rather than
+	 * a pane beside the list, so opening one replaces the list and the control at
+	 * the top of the page goes back to it — back, not forward to a fresh index,
 	 * which is what returns the reader to the row they pressed. The scroll that
 	 * restores is the document's, and the document is what scrolled, so there is
 	 * nothing for this stylesheet to preserve: the list must simply not be given
@@ -1108,7 +1185,7 @@
 		overflow: visible;
 	}
 
-	.rules {
+	.site-split {
 		padding: var(--space-5) var(--space-4) var(--space-7);
 		gap: var(--space-5);
 		grid-template-rows: auto;
@@ -1118,8 +1195,8 @@
 
 	/* Nothing clips here, so neither lane is needed: the scrollbar's, nor the
 	   focus ring's. */
-	.rules__index,
-	.rules__detail {
+	.site-split__index,
+	.site-split__detail {
 		min-height: auto;
 		padding-inline: 0;
 		margin-inline-start: 0;
@@ -1128,7 +1205,7 @@
 		scrollbar-gutter: auto;
 	}
 
-	.rules[data-view='rule'] .rules__index {
+	.site-split[data-view='detail'] .site-split__index {
 		display: none;
 	}
 
@@ -1138,11 +1215,11 @@
 	   list glued to the top of a viewport with no chrome in it. It is the first
 	   thing in the section either way, which at this width is where the reader
 	   arrives. */
-	.rules__finder {
+	.site-finder {
 		position: static;
 	}
 
-	.rules__back {
+	.site-split__back {
 		display: inline-flex;
 		gap: var(--space-1-5);
 		align-items: center;
@@ -1190,10 +1267,11 @@
 		padding: var(--space-5) var(--space-5) var(--space-7);
 	}
 
-	/* The rule reference is laid out by `.rules` rather than by `.site-main`, so
-	   it takes the gutter separately or the brand ends up inset further than the
-	   list it sits over. One edge down the page, whichever page it is. */
-	.rules {
+	/* The split sections are laid out by `.site-split` rather than by
+	   `.site-main`, so they take the gutter separately or the brand ends up inset
+	   further than the list it sits over. One edge down the page, whichever page
+	   it is. */
+	.site-split {
 		padding-inline: var(--space-5);
 	}
 

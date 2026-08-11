@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import type { Fixability, Severity } from '$lib/core/types.js';
 	import SeverityIcon from '$lib/diagnostics/SeverityIcon.svelte';
@@ -19,6 +18,7 @@
 	} from '$lib/rules/reference-search.js';
 	import type { RuleReference, RuleReferenceGroup } from '$lib/rules/reference.js';
 	import AssistantPrompt from '$lib/ui/assistant/AssistantPrompt.svelte';
+	import { revealSelectedRow } from './reveal-selected.js';
 	import { ruleSearchQuery, setRuleSearchQuery } from './rule-search.svelte.js';
 
 	let {
@@ -92,49 +92,14 @@
 
 	/**
 	 * Bring the open rule's row into the column, for a reader who did not press
-	 * it here.
-	 *
-	 * A rule is a URL, so most arrivals are not presses on this list: a shared
-	 * link, a search result, a reload, a link from elsewhere on the site. The row
-	 * is marked `aria-current` and drawn recessed the whole time, which is the
-	 * whole of the "you are here" — and forty rows above the fold it says that to
-	 * nobody. The column then reads as a list with nothing selected in it, beside
-	 * a page that came from one of its rows.
-	 *
-	 * Two things it owes, and the second is why this is arithmetic rather than
-	 * `scrollIntoView`:
-	 *
-	 * - **A row already wholly in view is not moved.** The layout only calls this
-	 *   for an arrival, and this is the second half of the same guarantee — the
-	 *   rule that pressing a row may not move the list the row is in.
-	 * - **The finder is pinned over the top of this column**, so a row the browser
-	 *   would call visible can be entirely underneath it. `block: 'nearest'` knows
-	 *   nothing about that and would leave the row covered; the free space starts
-	 *   at the finder's own bottom edge, and it is measured rather than restated
-	 *   here, because the chips wrap and the readout comes and goes.
-	 *
-	 * It moves the scroll and not the focus. The reader opened a rule to read it,
-	 * and focus parked in a `<nav>` of fifty-five links would send their first Tab
-	 * away from the document they came for — the same reason the workbench leaves
-	 * the editor unfocused after a fix.
+	 * it here. The reveal is `reveal-selected.ts`, shared with the guidance
+	 * catalog's index; the one thing this column adds is which of two current
+	 * rows wins — a popular rule is marked twice, and `querySelector` finds the
+	 * popular copy first, which is already at the top of the column, so a deep
+	 * link to one of the six scrolls nothing and is marked immediately.
 	 */
 	export async function revealSelected(): Promise<void> {
-		await tick();
-		const list = column;
-		const row = list?.querySelector<HTMLElement>('a[aria-current="page"]');
-		// No row at all under a filter that excludes it, and no box below 62rem,
-		// where the columns stack and the list is `display: none` while a rule is
-		// open. Neither is a failure: there is nothing on screen to bring into view.
-		if (!list || !row || row.offsetParent === null) return;
-
-		const port = list.getBoundingClientRect();
-		const finder = list.querySelector<HTMLElement>('.rules__finder');
-		const free = port.top + (finder?.getBoundingClientRect().height ?? 0);
-		const rect = row.getBoundingClientRect();
-		if (rect.top >= free && rect.bottom <= port.bottom) return;
-		// Instant, and clamped by the scroller itself at both ends. A smooth scroll
-		// here would still be animating while the reader started reading.
-		list.scrollTop += rect.top - free;
+		await revealSelectedRow(column);
 	}
 
 	// Escape empties the field, which is the one convention a search input owes
@@ -148,7 +113,7 @@
 	}
 </script>
 
-<div class="rules__index" data-sveltekit-noscroll bind:this={column}>
+<div class="site-split__index" data-sveltekit-noscroll bind:this={column}>
 	<!-- The way to ask a model about the guidelines, above the way to search
 	     them: unboxed prose and a field, and only in builds that actually have
 	     an assistant endpoint behind it. -->
@@ -158,11 +123,11 @@
 	     fifty rows above the reader is a field they have to travel back to. It is
 	     `--color-canvas` because that is the page it is pinned over — the rows are
 	     `--color-surface` and pass underneath it. -->
-	<search class="rules__finder">
+	<search class="site-finder">
 		<label class="sr-only" for="rules-search">Search the formatting rules</label>
 		<input
 			id="rules-search"
-			class="rules__search"
+			class="site-finder__search"
 			type="search"
 			autocomplete="off"
 			spellcheck="false"
@@ -185,7 +150,7 @@
 			better question — keep `No automatic fix` alone and the list is every rule
 			that needs your judgment.
 		-->
-		<div class="rules__chips" role="group" aria-label="Filter rules by severity">
+		<div class="site-finder__chips" role="group" aria-label="Filter rules by severity">
 			{#each facets.severities as severity (severity)}
 				<button
 					type="button"
@@ -200,7 +165,7 @@
 			{/each}
 		</div>
 
-		<div class="rules__chips" role="group" aria-label="Filter rules by available fix">
+		<div class="site-finder__chips" role="group" aria-label="Filter rules by available fix">
 			{#each facets.fixabilities as fixability (fixability)}
 				<button
 					type="button"
@@ -220,9 +185,9 @@
 		     there are. `role="status"` is what hands the narrowing to a screen
 		     reader, which cannot see the rows disappear. -->
 		{#if filtering}
-			<p class="rules__readout">
+			<p class="site-finder__readout">
 				<span role="status">{shown} of {total} rules</span>
-				<button type="button" class="button button--quiet rules__clear" onclick={clear}>
+				<button type="button" class="button button--quiet site-finder__clear" onclick={clear}>
 					Clear filters
 				</button>
 			</p>
@@ -254,7 +219,7 @@
 				     occurrence-specific messages, so the index of a reference
 				     scanned as a dump of somebody else's diagnostics. -->
 				<span class="site-run__title">{rule.title}</span>
-				<span class="rules__row-message">{rule.message}</span>
+				<span class="site-run__message">{rule.message}</span>
 				<span class="site-run__meta">
 					<SeverityTag severity={rule.severity} />
 					<span class="site-code">{rule.id}</span>
@@ -276,7 +241,7 @@
 	{#snippet family(title: string, rules: RuleReference[])}
 		<li class="rules__family">
 			<p class="site-run__title">{title}</p>
-			<p class="rules__row-message">
+			<p class="site-run__message">
 				One rule per language pack, each citing that language's own reviewed source.
 			</p>
 			<ul class="rules__languages">
@@ -307,7 +272,7 @@
 		     marker would be the one row in this column where "you are here" is
 		     false. -->
 		{#if popular.length > 0}
-			<h2 class="rules__group">Popular</h2>
+			<h2 class="site-index__group">Popular</h2>
 			<ul class="site-run rules__popular">
 				{#each popular as rule (rule.id)}
 					{@render row(rule)}
@@ -316,7 +281,7 @@
 		{/if}
 
 		{#each filtered as group (group.title)}
-			<h2 class="rules__group">{group.title}</h2>
+			<h2 class="site-index__group">{group.title}</h2>
 			<ul class="site-run">
 				{#each ruleIndexEntries(group.rules) as entry (entry.kind === 'rule' ? entry.rule.id : entry.family)}
 					{#if entry.kind === 'rule'}
@@ -332,7 +297,7 @@
 		     separates its contents from nothing. The way out is the readout's own
 		     `Clear filters` directly above, so this says what happened and stops. -->
 		{#if shown === 0}
-			<p class="rules__empty">
+			<p class="site-index__empty">
 				{#if shownSeverities.length === 0 || shownFixabilities.length === 0}
 					Every severity or every fix kind is switched off, so there is nothing left to list.
 				{:else}

@@ -1,14 +1,17 @@
-import type { SourceReference } from '$lib/core/types.js';
+import type { SourceAuthority, SourceReference } from '$lib/core/types.js';
 
 const reviewedAt = '2026-07-24';
 const latestReviewedAt = '2026-07-27';
 
+// `community` is the conservative default: an annotation whose acceptance is
+// not recorded claims the lowest Genius-annotation tier, and promotion is
+// adding the evidence, never editing the tier alone.
 function annotation(
 	id: string,
 	annotationId: number,
 	pageTitle: string,
 	sectionTitle: string,
-	reviewStatus: SourceReference['reviewStatus'] = 'reviewed'
+	authority: SourceAuthority = 'community'
 ): SourceReference {
 	return {
 		id,
@@ -18,7 +21,8 @@ function annotation(
 		sectionTitle,
 		retrievedAt: reviewedAt,
 		lastVerifiedAt: reviewedAt,
-		reviewStatus
+		reviewStatus: 'reviewed',
+		authority
 	};
 }
 
@@ -30,7 +34,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Local statistical language recognition using bundled text profiles',
 		retrievedAt: reviewedAt,
 		lastVerifiedAt: reviewedAt,
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'T-HARPER',
@@ -39,7 +44,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Version 2.4.0 local English grammar and spelling engine',
 		retrievedAt: '2026-07-26',
 		lastVerifiedAt: '2026-07-26',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-EN-COMMON',
@@ -48,7 +54,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Frequent English misspellings including definitely and tomorrow',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-EN-MORE',
@@ -57,7 +64,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Frequent English misspellings including separate and achieve',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-EN-TOP50',
@@ -67,7 +75,8 @@ const sources: SourceReference[] = [
 			'High-frequency learner misspellings including definately, freind, untill and recieve',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-NO-COMMON',
@@ -76,7 +85,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Frequently searched Bokmål spellings, including dessverre and interessant',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-NO-ACCENT',
@@ -86,7 +96,8 @@ const sources: SourceReference[] = [
 			'Gravis separates the adverb òg from the conjunction og; the acute accent is wrong here',
 		retrievedAt: latestReviewedAt,
 		lastVerifiedAt: latestReviewedAt,
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-DE-COMMON',
@@ -95,7 +106,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Common German misspellings, including garnicht and nähmlich',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-ES-CONTRACTIONS',
@@ -104,7 +116,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Contractions al and del, with proper-name exceptions',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-ES-COMMON',
@@ -113,7 +126,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Frequent Spanish word-division errors such as sinembargo and porfavor',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-FR-COMMON',
@@ -122,7 +136,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Demonstrative-pronoun spellings in ça va and comme ça',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-FR-LEXICAL',
@@ -131,7 +146,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Frequent lexical errors including acceuil and parmis',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-FR-DOUBLES',
@@ -140,7 +156,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Standard spellings with single and doubled consonants',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-AR-COMMON',
@@ -149,7 +166,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Common phonetic spellings لاكن and هاذا and their standard written forms',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-JA-COMMON',
@@ -158,7 +176,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Conventional greeting spellings and ずつ',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-KO-WAENJI',
@@ -167,7 +186,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Standard spelling 왠지',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-KO-ORAENMAN',
@@ -176,7 +196,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Standard spelling 오랜만',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-KO-SEOLLEM',
@@ -185,7 +206,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Misused 설레이다 forms in popular songs and their standard forms',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-KO-IRIRI',
@@ -194,7 +216,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Standard spelling 일일이',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'L-KO-COMMON',
@@ -203,7 +226,8 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Standard spellings 됐 and 며칠',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
 		id: 'G-ADD-SONGS',
@@ -212,13 +236,18 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Index of lyric accuracy and formatting guidance',
 		retrievedAt: reviewedAt,
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'staff'
 	},
+	// Screenshot 2026-08-10: no unreviewed banner, and Genius staff in the
+	// contributor roster (accepted by streetlights; Gary, KST, Yessirre) —
+	// staff among an annotation's contributors is what lifts it to staff.
 	annotation(
 		'G-SPELLING',
 		9298624,
 		'Use standardized spellings',
-		'Preferred spellings with contextual exceptions'
+		'Preferred spellings with contextual exceptions',
+		'staff'
 	),
 	{
 		// Re-read in full on 2026-08-08, correcting `performer.parenthetical-boundary`:
@@ -228,7 +257,8 @@ const sources: SourceReference[] = [
 			'G-SECTIONS',
 			9250687,
 			'Use song part headers',
-			'Section headers, performer legends, and four differentiation styles'
+			'Section headers, performer legends, and four differentiation styles',
+			'staff'
 		),
 		lastVerifiedAt: '2026-08-08'
 	},
@@ -244,19 +274,23 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Staff answer: artist names are written out, never combined under Both or All',
 		retrievedAt: '2026-08-10',
 		lastVerifiedAt: '2026-08-10',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'staff'
 	},
+	// Screenshot 2026-08-10: no unreviewed banner, editor-authored (Pessoa).
 	annotation(
 		'G-SECTION-NUMBERING',
 		16107272,
 		'Song Sections & Headers Guide',
-		'Only verses are enumerated; distinct verses use ascending numbers'
+		'Only verses are enumerated; distinct verses use ascending numbers',
+		'editorial'
 	),
 	annotation(
 		'G-SECTION-HOOK',
 		34151858,
 		'Song Sections & Headers Guide',
-		'Replace the deprecated Hook header with Chorus or Refrain'
+		'Replace the deprecated Hook header with Chorus or Refrain',
+		'editorial'
 	),
 	{
 		id: 'G-LANG-HEADERS',
@@ -265,63 +299,79 @@ const sources: SourceReference[] = [
 		sectionTitle: 'Inventory of language-specific header annotations',
 		retrievedAt: reviewedAt,
 		lastVerifiedAt: reviewedAt,
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'community'
 	},
 	annotation(
 		'G-LANG-PURPOSE',
 		12709276,
 		'Song Headers in Different Languages',
-		'Purpose of localized section-header guidance'
+		'Purpose of localized section-header guidance',
+		'editorial'
 	),
 	annotation(
 		'G-LANG-EN',
 		12744609,
 		'Song Headers in Different Languages',
-		'Reviewed English section-header vocabulary'
+		'Reviewed English section-header vocabulary',
+		'staff'
 	),
 	annotation(
 		'G-LANG-NO',
 		13453292,
 		'Song Headers in Different Languages',
-		'Reviewed Norwegian section-header vocabulary'
+		'Reviewed Norwegian section-header vocabulary',
+		'editorial'
 	),
 	annotation(
 		'G-LANG-AR',
 		12745769,
 		'Song Headers in Different Languages',
-		'Reviewed Arabic section-header vocabulary'
+		'Reviewed Arabic section-header vocabulary',
+		'editorial'
 	),
 	annotation(
 		'G-LANG-DE',
 		12745292,
 		'Song Headers in Different Languages',
-		'Reviewed German genre-dependent section-header vocabulary'
+		'Reviewed German genre-dependent section-header vocabulary',
+		'editorial'
 	),
 	annotation(
 		'G-LANG-ES',
 		12744618,
 		'Song Headers in Different Languages',
-		'Reviewed Spanish section-header vocabulary'
+		'Reviewed Spanish section-header vocabulary',
+		'staff'
 	),
 	annotation(
 		'G-LANG-FR',
 		12745216,
 		'Song Headers in Different Languages',
-		'Reviewed French section-header vocabulary'
+		'Reviewed French section-header vocabulary',
+		'editorial'
 	),
 	annotation(
 		'G-LANG-JA',
 		13322994,
 		'Song Headers in Different Languages',
-		'Japanese song pages use English section headers'
+		'Japanese song pages use English section headers',
+		'editorial'
 	),
 	annotation(
 		'G-LANG-KO',
 		20378931,
 		'Song Headers in Different Languages',
-		'English headers for original Korean songs and Hangul headers for translations'
+		'English headers for original Korean songs and Hangul headers for translations',
+		'editorial'
 	),
-	annotation('G-NUMBERS', 15591905, 'Number spelling', 'Spell out numbers with exceptions'),
+	annotation(
+		'G-NUMBERS',
+		15591905,
+		'Number spelling',
+		'Spell out numbers with exceptions',
+		'staff'
+	),
 	{
 		id: 'APPLE-LINE-PUNCTUATION',
 		url: 'https://artists.apple.com/support/1111-lyrics-guidelines',
@@ -329,64 +379,92 @@ const sources: SourceReference[] = [
 		sectionTitle: 'No periods or commas at the end of lyric lines',
 		retrievedAt: '2026-07-25',
 		lastVerifiedAt: '2026-07-25',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'external'
 	},
 	{
+		// Re-verified 2026-08-10 against a full screenshot of the annotation while
+		// seeding the guidance catalog's punctuation entries; the same screenshot
+		// shows no "This annotation is unreviewed" banner, which is the
+		// editor-reviewed state — every annotation's box reads "Genius
+		// Annotation" regardless. Its contributor roster is unexpanded in the
+		// screenshot, so whether staff are among its 5 contributors — which is
+		// what would lift it to staff — is still unrecorded.
 		...annotation(
 			'G-QE-MARKS',
 			15593987,
 			'Question and exclamation marks',
-			'Punctuation for questions and exclamations'
+			'Punctuation for questions and exclamations',
+			'staff'
 		),
-		lastVerifiedAt: '2026-07-25'
+		lastVerifiedAt: '2026-08-10'
 	},
 	annotation(
 		'G-DASHES',
 		15594027,
 		'Hyphens and em dashes',
-		'Dropped words and punctuation around em dashes'
+		'Dropped words and punctuation around em dashes',
+		'staff'
 	),
 	annotation(
 		'G-CAPS',
 		15545679,
 		'Conventional capitalization',
-		'Lyric-line capitalization with contextual exceptions'
+		'Lyric-line capitalization with contextual exceptions',
+		'staff'
 	),
-	annotation('G-UNKNOWN', 9303373, 'Unknown lyric marker', 'Use [?] for unknown lyrics'),
+	annotation('G-UNKNOWN', 9303373, 'Unknown lyric marker', 'Use [?] for unknown lyrics', 'staff'),
 	annotation(
 		'G-CONTRACTIONS',
 		9290803,
 		'Contraction apostrophes',
-		'Write apostrophes in clear contractions'
+		'Write apostrophes in clear contractions',
+		'staff'
 	),
 	annotation(
 		'G-TYPEWRITER',
 		11293005,
 		'Typewriter quotes',
-		'Use straight apostrophes and quotation marks'
+		'Use straight apostrophes and quotation marks',
+		'staff'
 	),
-	annotation('G-ADLIBS', 9257397, 'Ad-libs', 'Parenthesize and capitalize ad-libs'),
+	annotation('G-ADLIBS', 9257397, 'Ad-libs', 'Parenthesize and capitalize ad-libs', 'staff'),
 	annotation(
 		'G-REPEATS',
 		9290098,
 		'Repeated sections',
-		'Transcribe repeated lyrics instead of placeholders'
+		'Transcribe repeated lyrics instead of placeholders',
+		'staff'
 	),
 	annotation(
 		'G-LINES',
 		9257393,
 		'Individual lyric lines',
-		'Split prose-like transcription into lyric lines'
+		'Split prose-like transcription into lyric lines',
+		'staff'
 	),
 	annotation(
 		'G-SFX',
 		14949930,
 		'Sound effects',
-		'Use asterisks rather than braces for sound effects'
+		'Use asterisks rather than braces for sound effects',
+		'staff'
 	),
-	annotation('G-CENSORED', 15237597, 'Censored words', 'Use four asterisks for a censored word'),
+	annotation(
+		'G-CENSORED',
+		15237597,
+		'Censored words',
+		'Use four asterisks for a censored word',
+		'staff'
+	),
 	{
-		...annotation('G-QUOTES', 15594059, 'Quotation marks', 'When lyric text uses quotation marks'),
+		...annotation(
+			'G-QUOTES',
+			15594059,
+			'Quotation marks',
+			'When lyric text uses quotation marks',
+			'staff'
+		),
 		retrievedAt: latestReviewedAt,
 		lastVerifiedAt: latestReviewedAt,
 		contentHash: 'sha256:af782896da241613e8c43f818e1e29cbd10c737dd3a25085ecdff4f9b85ec49b'
@@ -396,7 +474,8 @@ const sources: SourceReference[] = [
 			'G-SYMBOLS',
 			30242624,
 			'Symbols and special characters',
-			'Omit trademark and decorative symbols; spell out ampersands and degrees outside brands'
+			'Omit trademark and decorative symbols; spell out ampersands and degrees outside brands',
+			'staff'
 		),
 		retrievedAt: latestReviewedAt,
 		lastVerifiedAt: latestReviewedAt,
@@ -407,7 +486,8 @@ const sources: SourceReference[] = [
 			'G-AS-SPOKEN',
 			12332255,
 			'Transcribe as spoken',
-			'Reflect distinct pronunciation unless a phonetic spelling harms comprehension'
+			'Reflect distinct pronunciation unless a phonetic spelling harms comprehension',
+			'staff'
 		),
 		retrievedAt: latestReviewedAt,
 		lastVerifiedAt: latestReviewedAt,
@@ -418,7 +498,8 @@ const sources: SourceReference[] = [
 			'G-NON-ENGLISH',
 			11893156,
 			'Non-English song header',
-			'Optional bracketed title header for non-English songs'
+			'Optional bracketed title header for non-English songs',
+			'staff'
 		),
 		retrievedAt: latestReviewedAt,
 		lastVerifiedAt: latestReviewedAt,
@@ -429,7 +510,8 @@ const sources: SourceReference[] = [
 			'G-INSTRUMENTAL',
 			16427849,
 			'Instrumental songs',
-			'Use [Instrumental] as the lyric text for an instrumental track page'
+			'Use [Instrumental] as the lyric text for an instrumental track page',
+			'staff'
 		),
 		retrievedAt: latestReviewedAt,
 		lastVerifiedAt: latestReviewedAt,
@@ -440,7 +522,8 @@ const sources: SourceReference[] = [
 			'G-ROMANIZED',
 			14835335,
 			'Romanized lyrics',
-			'Host romanized lyrics on a separate page'
+			'Host romanized lyrics on a separate page',
+			'staff'
 		),
 		retrievedAt: latestReviewedAt,
 		lastVerifiedAt: latestReviewedAt,
@@ -451,7 +534,8 @@ const sources: SourceReference[] = [
 			'G-TRANSLATIONS',
 			14949891,
 			'Translations',
-			'Host lyric translations on a separate page'
+			'Host lyric translations on a separate page',
+			'staff'
 		),
 		retrievedAt: latestReviewedAt,
 		lastVerifiedAt: latestReviewedAt,

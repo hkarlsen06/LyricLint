@@ -1970,7 +1970,8 @@ describe('DiagnosticPopover fix flow', () => {
 			sectionTitle: `Section ${id}`,
 			retrievedAt: '2026-07-24',
 			lastVerifiedAt: '2026-07-24',
-			reviewStatus: 'reviewed'
+			reviewStatus: 'reviewed',
+			authority: 'community'
 		}));
 		const screen = await render(DiagnosticPopover, {
 			diagnostic: testDiagnostic({ sourceIds }),

@@ -10,6 +10,7 @@ import type {
 } from '$lib/core/types.js';
 import { policyCases, type RulePolicyCase } from './catalog/policy-cases.js';
 import { lookupSearchTerms, ruleLookupTable } from './lookup-tables.js';
+import { ruleSlug } from './reference-search.js';
 import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { sortDiagnostics } from './engine.js';
@@ -80,15 +81,7 @@ export interface RuleReference {
 	lookupTerms?: string;
 }
 
-/**
- * Dots cannot appear in a static-adapter path segment — the adapter writes the
- * page to disk and `adlib.parentheses` reads as a file named `adlib` with the
- * extension `parentheses`. Hyphens also match the catalog filenames, so a slug
- * doubles as the name of the module implementing it.
- */
-export function ruleSlug(id: string): string {
-	return id.replaceAll('.', '-');
-}
+export { ruleSlug };
 
 // Rule IDs already contain hyphens (`sound-effect.asterisks`), so the flatten
 // is not invertible by string transform. The map is; a collision between two

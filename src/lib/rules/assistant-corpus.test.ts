@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { guidanceEntries } from '$lib/guidance/entries.js';
 import { reviewedLanguagePacks } from '$lib/languages/registry.js';
 import {
 	buildAssistantCorpusContent,
@@ -84,6 +85,29 @@ describe('assistant corpus parity', () => {
 					true
 				);
 			}
+		}
+	});
+
+	it('carries every guidance entry, citing only known sources and rules', () => {
+		expect(committed.guidance.map((entry) => entry.id).sort()).toEqual(
+			guidanceEntries.map((entry) => entry.id).sort()
+		);
+		const corpusSourceIds = new Set(committed.sources.map((source) => source.id));
+		const ruleIds = new Set(committed.rules.map((rule) => rule.id));
+		for (const entry of committed.guidance) {
+			expect(entry.sourceIds.length, entry.id).toBeGreaterThan(0);
+			for (const sourceId of entry.sourceIds) {
+				expect(corpusSourceIds.has(sourceId), `${entry.id} cites missing ${sourceId}`).toBe(true);
+			}
+			for (const ruleId of entry.relatedRuleIds ?? []) {
+				expect(ruleIds.has(ruleId), `${entry.id} points at missing ${ruleId}`).toBe(true);
+			}
+			// The entry's tier must be one its own cited sources establish, so the
+			// assistant can never report a convention above its evidence.
+			const tiers = entry.sourceIds.map(
+				(sourceId) => committed.sources.find((source) => source.id === sourceId)?.authority
+			);
+			expect(tiers, entry.id).toContain(entry.authority);
 		}
 	});
 

@@ -72,15 +72,16 @@
      `data-shell` says which of two things this chrome wraps. `document` is the
      ordinary case and the landing page's: one column of prose that scrolls the
      viewport, header and footer travelling with it. `window` is the rule
-     reference, which is a master and a detail rather than an article — two runs
-     of different lengths, each of which has to be scrolled without moving the
-     other or taking the header off the top of the screen. There the shell is the
-     workbench's own: exactly the viewport tall, and the scrolling happens inside
-     it. `site.css` drops back to `document` on narrow screens, where there is
-     only one column on show and the document is the honest scroller again. -->
+     reference and the guidance catalog, which are a master and a detail rather
+     than an article — two runs of different lengths, each of which has to be
+     scrolled without moving the other or taking the header off the top of the
+     screen. There the shell is the workbench's own: exactly the viewport tall,
+     and the scrolling happens inside it. `site.css` drops back to `document` on
+     narrow screens, where there is only one column on show and the document is
+     the honest scroller again. -->
 <svelte:window bind:scrollY />
 
-<div class="site" data-shell={current('/rules') ? 'window' : 'document'}>
+<div class="site" data-shell={current('/rules') || current('/guidelines') ? 'window' : 'document'}>
 	<header class="site-header" data-scrolled={scrollY > 8 ? true : undefined}>
 		<!-- The band spans the window; its contents align with the page container,
 		     so the brand shares a left edge with the headline and every paragraph
@@ -93,6 +94,7 @@
 			<nav class="site-nav" aria-label="LyricLint">
 				<a href={resolve('/')} aria-current={current('/')}>About</a>
 				<a href={resolve('/rules/')} aria-current={current('/rules')}>Rules</a>
+				<a href={resolve('/guidelines/')} aria-current={current('/guidelines')}>Guidelines</a>
 				<!-- Dropped on a phone, where it is the one link in the masthead that
 				     cannot lead anywhere: the workbench is removed at that size and the
 				     gate takes its place. See `site.css`. -->

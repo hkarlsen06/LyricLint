@@ -7,6 +7,10 @@ Guidance for coding agents working in this repository. `CLAUDE.md` is a symlink 
 LyricLint is a SvelteKit (Svelte 5, runes) workbench for linting Genius lyric transcriptions.
 Reference docs: `PRODUCT.md`, `DESIGN.md`, and `docs/`.
 
+Adding entries to the guidance catalog behind `/guidelines/` — turning supplied screenshots or
+pasted Genius guideline text into reviewed entries, registering sources with their authority
+tier, and verifying annotation acceptance states — follows **`docs/guidelines.md`** exactly.
+
 ## Tooling
 
 Use **bun**, never npm.

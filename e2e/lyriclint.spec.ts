@@ -256,11 +256,11 @@ test('the rule index is searched by symptom and narrowed by chip', async ({ page
 	// about "the whole list" six rows too many — and the readout underneath
 	// counts rules rather than rows, so the two disagree. `RuleIndex.svelte.test.ts`
 	// excludes it in exactly the same place and for exactly the same reason.
-	const rows = page.locator('.rules__index .site-run:not(.rules__popular) a');
+	const rows = page.locator('.site-split__index .site-run:not(.rules__popular) a');
 	const total = await rows.count();
 	expect(total).toBeGreaterThan(40);
 	// Nothing is narrowing the list, so there is no count to state.
-	await expect(page.locator('.rules__readout')).toHaveCount(0);
+	await expect(page.locator('.site-finder__readout')).toHaveCount(0);
 
 	// The reader has the word the linter underlined, not the rule's name — and
 	// that word lives only in the reviewed example on this page.
@@ -342,10 +342,18 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 	// costs; the arithmetic is written out so the next mismatch is legible.
 	const rulePages = sitemap.match(/<loc>https:\/\/lyriclint\.com\/rules\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(rulePages).toHaveLength(60);
-	// Plus the home page, the rule index, and the privacy page.
-	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + 3);
+	// One page per guidance topic — this number moves when `guidanceTopicTitles`
+	// gains a topic with entries, which docs/guidelines.md tells the contributor.
+	const guidelinePages =
+		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/[^/]+\/<\/loc>/gu) ?? [];
+	expect(guidelinePages).toHaveLength(1);
+	// Plus the home page, the rule index, the guidelines index, and the privacy
+	// page.
+	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + guidelinePages.length + 4);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/</loc>');
+	expect(sitemap).toContain('<loc>https://lyriclint.com/guidelines/</loc>');
+	expect(sitemap).toContain('<loc>https://lyriclint.com/guidelines/punctuation/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/privacy/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/spelling-arabic-common/</loc>');
 	expect(sitemap).not.toContain('/lint/');

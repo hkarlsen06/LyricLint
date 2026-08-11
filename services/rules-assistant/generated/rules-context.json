@@ -1,8 +1,8 @@
 {
-	"formatVersion": 2,
+	"formatVersion": 4,
 	"ruleSetVersion": "2026.08.10.0",
-	"generatedAt": "2026-08-10T19:06:33.611Z",
-	"contentHash": "aa81d3a004267dbc8d395139f8b73be53c54e32c877cd3bab8cd681e8deb24e3",
+	"generatedAt": "2026-08-10T22:58:25.016Z",
+	"contentHash": "29ae3d976f5871622ba6fe31b9f3ce53d445f0a65b42a575fa86ccebf83fc8f4",
 	"rules": [
 		{
 			"id": "syntax.unbalanced-brackets",
@@ -1289,398 +1289,504 @@
 			]
 		}
 	],
+	"guidance": [
+		{
+			"id": "guidance.punctuation.unmarked-question",
+			"topic": "punctuation",
+			"topicTitle": "Punctuation",
+			"title": "Questions always end with a question mark",
+			"statement": "Every question ends with a question mark, even though lyric lines never take terminal periods or commas.",
+			"example": {
+				"correct": "Where do we go from here?",
+				"incorrect": "Where do we go from here"
+			},
+			"authority": "staff",
+			"sourceIds": ["G-QE-MARKS"],
+			"relatedRuleIds": ["punctuation.question", "punctuation.line-ending"],
+			"note": "The linter flags only openings that are unmistakably interrogative; whether the rest of a sung line asks a question is a judgment about delivery that only the transcriber can make."
+		},
+		{
+			"id": "guidance.punctuation.exclamation-restraint",
+			"topic": "punctuation",
+			"topicTitle": "Punctuation",
+			"title": "Exclamation marks only mark excitement",
+			"statement": "An exclamation mark records excitement in the delivery; a line performed without it does not take one.",
+			"authority": "staff",
+			"sourceIds": ["G-QE-MARKS"]
+		},
+		{
+			"id": "guidance.punctuation.doubled-exclamation",
+			"topic": "punctuation",
+			"topicTitle": "Punctuation",
+			"title": "One exclamation mark at a time",
+			"statement": "Doubled exclamation marks are never kept: where several arrive in a row, all but one are removed.",
+			"example": { "correct": "Turn it up!", "incorrect": "Turn it up!!" },
+			"authority": "staff",
+			"sourceIds": ["G-QE-MARKS"],
+			"note": "Mechanically checkable, so a candidate to graduate into a linter rule — at which point this entry retires in its favor."
+		},
+		{
+			"id": "guidance.punctuation.brand-name-marks",
+			"topic": "punctuation",
+			"topicTitle": "Punctuation",
+			"title": "Never double a brand name's own mark",
+			"statement": "A line that would take a question or exclamation mark of its own — from its grammatical structure or its apparent excitement — and ends on a brand name already carrying one (Guess Who?, Yahoo!, Chips Ahoy!) does not take a second: the name's single mark holds for the line.",
+			"example": {
+				"correct": "Have you ever played Guess Who?",
+				"incorrect": "Have you ever played Guess Who??"
+			},
+			"authority": "staff",
+			"sourceIds": ["G-QE-MARKS"]
+		}
+	],
 	"sources": [
 		{
 			"id": "APPLE-LINE-PUNCTUATION",
 			"pageTitle": "Review guidelines for submitting lyrics",
 			"sectionTitle": "No periods or commas at the end of lyric lines",
 			"url": "https://artists.apple.com/support/1111-lyrics-guidelines",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "G-ADD-SONGS",
 			"pageTitle": "How to Add Songs to Genius",
 			"sectionTitle": "Index of lyric accuracy and formatting guidance",
 			"url": "https://genius.com/Genius-how-to-add-songs-to-genius-annotated",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "staff"
 		},
 		{
 			"id": "G-ADLIBS",
 			"pageTitle": "Ad-libs",
 			"sectionTitle": "Parenthesize and capitalize ad-libs",
 			"url": "https://genius.com/9257397",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-AS-SPOKEN",
 			"pageTitle": "Transcribe as spoken",
 			"sectionTitle": "Reflect distinct pronunciation unless a phonetic spelling harms comprehension",
 			"url": "https://genius.com/12332255",
-			"lastVerifiedAt": "2026-07-27"
+			"lastVerifiedAt": "2026-07-27",
+			"authority": "staff"
 		},
 		{
 			"id": "G-CAPS",
 			"pageTitle": "Conventional capitalization",
 			"sectionTitle": "Lyric-line capitalization with contextual exceptions",
 			"url": "https://genius.com/15545679",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-CENSORED",
 			"pageTitle": "Censored words",
 			"sectionTitle": "Use four asterisks for a censored word",
 			"url": "https://genius.com/15237597",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-CONTRACTIONS",
 			"pageTitle": "Contraction apostrophes",
 			"sectionTitle": "Write apostrophes in clear contractions",
 			"url": "https://genius.com/9290803",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-DASHES",
 			"pageTitle": "Hyphens and em dashes",
 			"sectionTitle": "Dropped words and punctuation around em dashes",
 			"url": "https://genius.com/15594027",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-HEADER-COLLECTIVE",
 			"pageTitle": "Two \"Correct\" Methods for Identifying Artists in Section Headers",
 			"sectionTitle": "Staff answer: artist names are written out, never combined under Both or All",
 			"url": "https://genius.com/discussions/459032-Two-correct-methods-for-identifying-artists-in-section-headers",
-			"lastVerifiedAt": "2026-08-10"
+			"lastVerifiedAt": "2026-08-10",
+			"authority": "staff"
 		},
 		{
 			"id": "G-INSTRUMENTAL",
 			"pageTitle": "Instrumental songs",
 			"sectionTitle": "Use [Instrumental] as the lyric text for an instrumental track page",
 			"url": "https://genius.com/16427849",
-			"lastVerifiedAt": "2026-07-27"
+			"lastVerifiedAt": "2026-07-27",
+			"authority": "staff"
 		},
 		{
 			"id": "G-LANG-AR",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "Reviewed Arabic section-header vocabulary",
 			"url": "https://genius.com/12745769",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "editorial"
 		},
 		{
 			"id": "G-LANG-DE",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "Reviewed German genre-dependent section-header vocabulary",
 			"url": "https://genius.com/12745292",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "editorial"
 		},
 		{
 			"id": "G-LANG-EN",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "Reviewed English section-header vocabulary",
 			"url": "https://genius.com/12744609",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-LANG-ES",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "Reviewed Spanish section-header vocabulary",
 			"url": "https://genius.com/12744618",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-LANG-FR",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "Reviewed French section-header vocabulary",
 			"url": "https://genius.com/12745216",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "editorial"
 		},
 		{
 			"id": "G-LANG-HEADERS",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "Inventory of language-specific header annotations",
 			"url": "https://genius.com/Genius-song-headers-in-different-languages-annotated",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "community"
 		},
 		{
 			"id": "G-LANG-JA",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "Japanese song pages use English section headers",
 			"url": "https://genius.com/13322994",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "editorial"
 		},
 		{
 			"id": "G-LANG-KO",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "English headers for original Korean songs and Hangul headers for translations",
 			"url": "https://genius.com/20378931",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "editorial"
 		},
 		{
 			"id": "G-LANG-NO",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "Reviewed Norwegian section-header vocabulary",
 			"url": "https://genius.com/13453292",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "editorial"
 		},
 		{
 			"id": "G-LANG-PURPOSE",
 			"pageTitle": "Song Headers in Different Languages",
 			"sectionTitle": "Purpose of localized section-header guidance",
 			"url": "https://genius.com/12709276",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "editorial"
 		},
 		{
 			"id": "G-LINES",
 			"pageTitle": "Individual lyric lines",
 			"sectionTitle": "Split prose-like transcription into lyric lines",
 			"url": "https://genius.com/9257393",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-NON-ENGLISH",
 			"pageTitle": "Non-English song header",
 			"sectionTitle": "Optional bracketed title header for non-English songs",
 			"url": "https://genius.com/11893156",
-			"lastVerifiedAt": "2026-07-27"
+			"lastVerifiedAt": "2026-07-27",
+			"authority": "staff"
 		},
 		{
 			"id": "G-NUMBERS",
 			"pageTitle": "Number spelling",
 			"sectionTitle": "Spell out numbers with exceptions",
 			"url": "https://genius.com/15591905",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-QE-MARKS",
 			"pageTitle": "Question and exclamation marks",
 			"sectionTitle": "Punctuation for questions and exclamations",
 			"url": "https://genius.com/15593987",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-08-10",
+			"authority": "staff"
 		},
 		{
 			"id": "G-QUOTES",
 			"pageTitle": "Quotation marks",
 			"sectionTitle": "When lyric text uses quotation marks",
 			"url": "https://genius.com/15594059",
-			"lastVerifiedAt": "2026-07-27"
+			"lastVerifiedAt": "2026-07-27",
+			"authority": "staff"
 		},
 		{
 			"id": "G-REPEATS",
 			"pageTitle": "Repeated sections",
 			"sectionTitle": "Transcribe repeated lyrics instead of placeholders",
 			"url": "https://genius.com/9290098",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-ROMANIZED",
 			"pageTitle": "Romanized lyrics",
 			"sectionTitle": "Host romanized lyrics on a separate page",
 			"url": "https://genius.com/14835335",
-			"lastVerifiedAt": "2026-07-27"
+			"lastVerifiedAt": "2026-07-27",
+			"authority": "staff"
 		},
 		{
 			"id": "G-SECTION-HOOK",
 			"pageTitle": "Song Sections & Headers Guide",
 			"sectionTitle": "Replace the deprecated Hook header with Chorus or Refrain",
 			"url": "https://genius.com/34151858",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "editorial"
 		},
 		{
 			"id": "G-SECTION-NUMBERING",
 			"pageTitle": "Song Sections & Headers Guide",
 			"sectionTitle": "Only verses are enumerated; distinct verses use ascending numbers",
 			"url": "https://genius.com/16107272",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "editorial"
 		},
 		{
 			"id": "G-SECTIONS",
 			"pageTitle": "Use song part headers",
 			"sectionTitle": "Section headers, performer legends, and four differentiation styles",
 			"url": "https://genius.com/9250687",
-			"lastVerifiedAt": "2026-08-08"
+			"lastVerifiedAt": "2026-08-08",
+			"authority": "staff"
 		},
 		{
 			"id": "G-SFX",
 			"pageTitle": "Sound effects",
 			"sectionTitle": "Use asterisks rather than braces for sound effects",
 			"url": "https://genius.com/14949930",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-SPELLING",
 			"pageTitle": "Use standardized spellings",
 			"sectionTitle": "Preferred spellings with contextual exceptions",
 			"url": "https://genius.com/9298624",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-SYMBOLS",
 			"pageTitle": "Symbols and special characters",
 			"sectionTitle": "Omit trademark and decorative symbols; spell out ampersands and degrees outside brands",
 			"url": "https://genius.com/30242624",
-			"lastVerifiedAt": "2026-07-27"
+			"lastVerifiedAt": "2026-07-27",
+			"authority": "staff"
 		},
 		{
 			"id": "G-TRANSLATIONS",
 			"pageTitle": "Translations",
 			"sectionTitle": "Host lyric translations on a separate page",
 			"url": "https://genius.com/14949891",
-			"lastVerifiedAt": "2026-07-27"
+			"lastVerifiedAt": "2026-07-27",
+			"authority": "staff"
 		},
 		{
 			"id": "G-TYPEWRITER",
 			"pageTitle": "Typewriter quotes",
 			"sectionTitle": "Use straight apostrophes and quotation marks",
 			"url": "https://genius.com/11293005",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "G-UNKNOWN",
 			"pageTitle": "Unknown lyric marker",
 			"sectionTitle": "Use [?] for unknown lyrics",
 			"url": "https://genius.com/9303373",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "staff"
 		},
 		{
 			"id": "L-AR-COMMON",
 			"pageTitle": "لغة الطفل العربي (٢): لغة الطفل في وسائل الإعلام المعاصرة",
 			"sectionTitle": "Common phonetic spellings لاكن and هاذا and their standard written forms",
 			"url": "https://library.ksaa.gov.sa/links/epubs/arabic_child_2.pdf",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-DE-COMMON",
 			"pageTitle": "Häufige Fehler und Falschschreibweisen",
 			"sectionTitle": "Common German misspellings, including garnicht and nähmlich",
 			"url": "https://www.duden.de/haeufige_fehler",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-EN-COMMON",
 			"pageTitle": "Commonly Misspelled Words",
 			"sectionTitle": "Frequent English misspellings including definitely and tomorrow",
 			"url": "https://www.merriam-webster.com/grammar/commonly-misspelled-words",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-EN-MORE",
 			"pageTitle": "More Commonly Misspelled Words",
 			"sectionTitle": "Frequent English misspellings including separate and achieve",
 			"url": "https://www.merriam-webster.com/grammar/more-commonly-misspelled-words/_not-seperate-seprate-seperet_",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-EN-TOP50",
 			"pageTitle": "Spelling: Top 50 spelling mistakes in English",
 			"sectionTitle": "High-frequency learner misspellings including definately, freind, untill and recieve",
 			"url": "https://dictionary.cambridge.org/grammar/british-grammar/spelling-top-50-spelling-mistakes-in-english",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-ES-COMMON",
 			"pageTitle": "La tecnología al servicio de la palabra",
 			"sectionTitle": "Frequent Spanish word-division errors such as sinembargo and porfavor",
 			"url": "https://www.rae.es/sites/default/files/la_tecnologia_al_servicio_de_la_palabra.pdf",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-ES-CONTRACTIONS",
 			"pageTitle": "Ortografía",
 			"sectionTitle": "Contractions al and del, with proper-name exceptions",
 			"url": "https://www.rae.es/diccionario-estudiante/docs/ortografia.pdf",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-FR-COMMON",
 			"pageTitle": "Ça",
 			"sectionTitle": "Demonstrative-pronoun spellings in ça va and comme ça",
 			"url": "https://www.dictionnaire-academie.fr/article/A9C0002",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-FR-DOUBLES",
 			"pageTitle": "Les erreurs fréquentes liées aux consonnes doubles",
 			"sectionTitle": "Standard spellings with single and doubled consonants",
 			"url": "https://vitrinelinguistique.oqlf.gouv.qc.ca/24465/lorthographe/problemes-lies-aux-consonnes/les-erreurs-frequentes-liees-aux-consonnes-doubles",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-FR-LEXICAL",
 			"pageTitle": "Questions d’orthographe lexicales",
 			"sectionTitle": "Frequent lexical errors including acceuil and parmis",
 			"url": "https://www.projet-voltaire.fr/regles-orthographe/categories/lexical/page/5/",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-JA-COMMON",
 			"pageTitle": "現代仮名遣い 本文 第2",
 			"sectionTitle": "Conventional greeting spellings and ずつ",
 			"url": "https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/gendaikana/honbun_dai2.html",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-KO-COMMON",
 			"pageTitle": "온라인가나다 맞춤법 문답",
 			"sectionTitle": "Standard spellings 됐 and 며칠",
 			"url": "https://www.korean.go.kr/front/onlineQna/onlineQnaView.do?mn_id=216&pageIndex=1&qna_seq=317387",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-KO-IRIRI",
 			"pageTitle": "‘일일이’와 ‘일일히’",
 			"sectionTitle": "Standard spelling 일일이",
 			"url": "https://www.korean.go.kr/front/mcfaq/mcfaqView.do?mcfaq_seq=6078&mn_id=62&pageIndex=207",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-KO-ORAENMAN",
 			"pageTitle": "‘오랜만’과 ‘오랫만’",
 			"sectionTitle": "Standard spelling 오랜만",
 			"url": "https://www.korean.go.kr/nkview/news/11/11_3.htm",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-KO-SEOLLEM",
 			"pageTitle": "궁금증을 풀어 드립니다",
 			"sectionTitle": "Misused 설레이다 forms in popular songs and their standard forms",
 			"url": "https://www.korean.go.kr/nkview/nknews/200111/40_9.html",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-KO-WAENJI",
 			"pageTitle": "‘웬지’와 ‘왠지’",
 			"sectionTitle": "Standard spelling 왠지",
 			"url": "https://www.korean.go.kr/front/mcfaq/mcfaqView.do?mcfaq_seq=6103&mn_id=62&pageIndex=207",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "L-NO-ACCENT",
 			"pageTitle": "Aksentteikn",
 			"sectionTitle": "Gravis separates the adverb òg from the conjunction og; the acute accent is wrong here",
 			"url": "https://sprakradet.no/godt-og-korrekt-sprak/rettskriving-og-grammatikk/tegn/aksentteikn/",
-			"lastVerifiedAt": "2026-07-27"
+			"lastVerifiedAt": "2026-07-27",
+			"authority": "external"
 		},
 		{
 			"id": "L-NO-COMMON",
 			"pageTitle": "Ord som mange lurer på",
 			"sectionTitle": "Frequently searched Bokmål spellings, including dessverre and interessant",
 			"url": "https://sprakradet.no/arkiv/ord-som-mange-lurer-pa/",
-			"lastVerifiedAt": "2026-07-25"
+			"lastVerifiedAt": "2026-07-25",
+			"authority": "external"
 		},
 		{
 			"id": "T-HARPER",
 			"pageTitle": "Harper",
 			"sectionTitle": "Version 2.4.0 local English grammar and spelling engine",
 			"url": "https://github.com/Automattic/harper",
-			"lastVerifiedAt": "2026-07-26"
+			"lastVerifiedAt": "2026-07-26",
+			"authority": "external"
 		},
 		{
 			"id": "T-LANGUAGE-DETECT",
 			"pageTitle": "LanguageDetect",
 			"sectionTitle": "Local statistical language recognition using bundled text profiles",
 			"url": "https://github.com/FGRibreau/node-language-detect",
-			"lastVerifiedAt": "2026-07-24"
+			"lastVerifiedAt": "2026-07-24",
+			"authority": "external"
 		}
 	],
 	"languages": [

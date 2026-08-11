@@ -14,7 +14,8 @@ function source(id: string): SourceReference {
 		sectionTitle: `Section ${id}`,
 		retrievedAt: '2026-07-24',
 		lastVerifiedAt: '2026-07-24',
-		reviewStatus: 'reviewed'
+		reviewStatus: 'reviewed',
+		authority: 'community'
 	};
 }
 

@@ -66,43 +66,48 @@ the delivery that no source supports.
 | `L-KO-SEOLLEM` | [국립국어원: 궁금증을 풀어 드립니다](https://www.korean.go.kr/nkview/nknews/200111/40_9.html) | Misused `설레이다` forms in popular songs | Reviewed 2026-07-25 |
 | `L-KO-IRIRI` | [국립국어원: ‘일일이’와 ‘일일히’](https://www.korean.go.kr/front/mcfaq/mcfaqView.do?mcfaq_seq=6078&mn_id=62&pageIndex=207) | Standard spelling `일일이` | Reviewed 2026-07-25 |
 | `G-ADD-SONGS` | [How to Add Songs to Genius](https://genius.com/Genius-how-to-add-songs-to-genius-annotated) | Index of lyric accuracy and formatting guidance | Reviewed 2026-07-24; reverified 2026-07-25 |
-| `G-SPELLING` | [Use standardized spellings, annotation 9298624](https://genius.com/9298624) | Preferred spellings and contextual exceptions | Accepted annotation, reviewed 2026-07-24 |
-| `G-SECTIONS` | [Use song part headers, annotation 9250687](https://genius.com/9250687) | Headers, performer names, four formatting slots, joint performers | Accepted annotation, reviewed 2026-07-24 |
-| `G-HEADER-COLLECTIVE` | [Two “Correct” Methods for Identifying Artists in Section Headers, discussion 459032](https://genius.com/discussions/459032-Two-correct-methods-for-identifying-artists-in-section-headers) | Staff answer: artist names are written out, never combined under `Both` or `All` | Staff reply in community discussion, reviewed 2026-08-10 |
-| `G-SECTION-NUMBERING` | [Verse numbering, annotation 16107272](https://genius.com/16107272) | Only verses are enumerated; distinct verses ascend | Reviewed 2026-07-24 |
-| `G-SECTION-HOOK` | [Deprecated Hook header, annotation 34151858](https://genius.com/34151858) | Replace Hook with Chorus or Refrain | Reviewed 2026-07-24 |
-| `G-LANG-HEADERS` | [Song Headers in Different Languages](https://genius.com/Genius-song-headers-in-different-languages-annotated) | Language-specific header annotations | Page and inventory reviewed 2026-07-24; individual languages require separate review |
-| `G-LANG-PURPOSE` | [Multilingual guide purpose, annotation 12709276](https://genius.com/12709276) | Purpose and use of localized header guidance | Reviewed 2026-07-24 |
-| `G-LANG-EN` | [English headers, annotation 12744609](https://genius.com/12744609) | Standard English header vocabulary | Reviewed 2026-07-24 |
-| `G-LANG-NO` | [Norwegian headers, annotation 13453292](https://genius.com/13453292) | Norwegian header vocabulary | Reviewed 2026-07-24 |
-| `G-LANG-AR` | [Arabic headers, annotation 12745769](https://genius.com/12745769) | Localized Arabic header vocabulary | Reviewed 2026-07-24 |
-| `G-LANG-DE` | [German headers, annotation 12745292](https://genius.com/12745292) | Genre-dependent German alternatives | Reviewed 2026-07-24 |
-| `G-LANG-ES` | [Spanish headers, annotation 12744618](https://genius.com/12744618) | Localized Spanish header vocabulary | Reviewed 2026-07-24 |
-| `G-LANG-FR` | [French headers, annotation 12745216](https://genius.com/12745216) | Localized French header vocabulary | Reviewed 2026-07-24 |
-| `G-LANG-JA` | [Japanese header policy, annotation 13322994](https://genius.com/13322994) | English headers are required on Japanese song pages | Reviewed 2026-07-24 |
-| `G-LANG-KO` | [Korean headers, annotation 20378931](https://genius.com/20378931) | English for original songs; Hangul permitted for translations | Reviewed 2026-07-24 |
-| `G-NUMBERS` | [Number spelling, annotation 15591905](https://genius.com/15591905) | Spell out numbers with documented exceptions | Reviewed 2026-07-24 |
+| `G-SPELLING` | [Use standardized spellings, annotation 9298624](https://genius.com/9298624) | Preferred spellings and contextual exceptions | Staff contributors confirmed 2026-08-10 (staff tier); reviewed 2026-07-24 |
+| `G-SECTIONS` | [Use song part headers, annotation 9250687](https://genius.com/9250687) | Headers, performer names, four formatting slots, joint performers | Reviewed 2026-07-24; re-read 2026-08-08; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-HEADER-COLLECTIVE` | [Two “Correct” Methods for Identifying Artists in Section Headers, discussion 459032](https://genius.com/discussions/459032-Two-correct-methods-for-identifying-artists-in-section-headers) | Staff answer: artist names are written out, never combined under `Both` or `All` | Staff reply in community discussion, reviewed 2026-08-10 (staff tier) |
+| `G-SECTION-NUMBERING` | [Verse numbering, annotation 16107272](https://genius.com/16107272) | Only verses are enumerated; distinct verses ascend | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-SECTION-HOOK` | [Deprecated Hook header, annotation 34151858](https://genius.com/34151858) | Replace Hook with Chorus or Refrain | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-LANG-HEADERS` | [Song Headers in Different Languages](https://genius.com/Genius-song-headers-in-different-languages-annotated) | Language-specific header annotations | Page and inventory reviewed 2026-07-24; track unbadged, confirmed 2026-08-10 (community tier); individual languages require separate review |
+| `G-LANG-PURPOSE` | [Multilingual guide purpose, annotation 12709276](https://genius.com/12709276) | Purpose and use of localized header guidance | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-LANG-EN` | [English headers, annotation 12744609](https://genius.com/12744609) | Standard English header vocabulary | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-LANG-NO` | [Norwegian headers, annotation 13453292](https://genius.com/13453292) | Norwegian header vocabulary | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-LANG-AR` | [Arabic headers, annotation 12745769](https://genius.com/12745769) | Localized Arabic header vocabulary | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-LANG-DE` | [German headers, annotation 12745292](https://genius.com/12745292) | Genre-dependent German alternatives | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-LANG-ES` | [Spanish headers, annotation 12744618](https://genius.com/12744618) | Localized Spanish header vocabulary | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-LANG-FR` | [French headers, annotation 12745216](https://genius.com/12745216) | Localized French header vocabulary | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-LANG-JA` | [Japanese header policy, annotation 13322994](https://genius.com/13322994) | English headers are required on Japanese song pages | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-LANG-KO` | [Korean headers, annotation 20378931](https://genius.com/20378931) | English for original songs; Hangul permitted for translations | Reviewed 2026-07-24; editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
+| `G-NUMBERS` | [Number spelling, annotation 15591905](https://genius.com/15591905) | Spell out numbers with documented exceptions | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
 | `APPLE-LINE-PUNCTUATION` | [Apple Music lyric submission guidelines](https://artists.apple.com/support/1111-lyrics-guidelines) | No periods or commas at the end of lyric lines | Reviewed 2026-07-25 |
-| `G-QE-MARKS` | [Question and exclamation marks, annotation 15593987](https://genius.com/15593987) | Punctuation for questions and exclamations | Reviewed 2026-07-24; reverified 2026-07-25 |
-| `G-DASHES` | [Hyphens and em dashes, annotation 15594027](https://genius.com/15594027) | Dropped words and em dash punctuation | Reviewed 2026-07-24 |
-| `G-CAPS` | [Conventional capitalization, annotation 15545679](https://genius.com/15545679) | Capitalize lyric-line starts with contextual exceptions | Reviewed 2026-07-24 |
-| `G-UNKNOWN` | [Unknown lyric marker, annotation 9303373](https://genius.com/9303373) | Use `[?]` for an incomprehensible lyric | Reviewed 2026-07-24 |
-| `G-CONTRACTIONS` | [Contraction apostrophes, annotation 9290803](https://genius.com/9290803) | Apostrophes in contractions | Reviewed 2026-07-24 |
-| `G-TYPEWRITER` | [Typewriter quotes, annotation 11293005](https://genius.com/11293005) | Straight apostrophes and quotation marks | Reviewed 2026-07-24 |
-| `G-ADLIBS` | [Ad-libs, annotation 9257397](https://genius.com/9257397) | Parentheses and initial capitalization for ad-libs | Reviewed 2026-07-24 |
-| `G-REPEATS` | [Repeated sections, annotation 9290098](https://genius.com/9290098) | Type repeated lyrics instead of placeholders | Reviewed 2026-07-24 |
-| `G-LINES` | [Individual lyric lines, annotation 9257393](https://genius.com/9257393) | Split prose-like lyric transcription into lines | Reviewed 2026-07-24 |
-| `G-SFX` | [Sound effects, annotation 14949930](https://genius.com/14949930) | Surround sound effects with asterisks, not braces | Reviewed 2026-07-24 |
-| `G-CENSORED` | [Censored words, annotation 15237597](https://genius.com/15237597) | Use four asterisks for a censored word | Reviewed 2026-07-24 |
-| `G-QUOTES` | [Quotation marks, annotation 15594059](https://genius.com/15594059) | Song titles, explicit quotations, and words referred to as words | Accepted annotation, reviewed 2026-07-27 |
-| `G-SYMBOLS` | [Symbols and special characters, annotation 30242624](https://genius.com/30242624) | Omit trademark and decorative symbols; spell out ampersands and degrees outside brand names | Accepted annotation, reviewed 2026-07-27 |
-| `G-AS-SPOKEN` | [Transcribe as spoken, annotation 12332255](https://genius.com/12332255) | Preserve distinct pronunciation when readable; use omission apostrophes selectively | Accepted annotation, reviewed 2026-07-27 |
-| `G-NON-ENGLISH` | [Non-English song header, annotation 11893156](https://genius.com/11893156) | Optional bracketed title header for non-English songs | Accepted annotation, reviewed 2026-07-27 |
-| `G-INSTRUMENTAL` | [Instrumental songs, annotation 16427849](https://genius.com/16427849) | Use `[Instrumental]` as the lyric text on an instrumental track page | Accepted annotation, reviewed 2026-07-27 |
-| `G-ROMANIZED` | [Romanized lyrics, annotation 14835335](https://genius.com/14835335) | Host romanized lyrics on a separate page | Accepted annotation, reviewed 2026-07-27 |
-| `G-TRANSLATIONS` | [Translations, annotation 14949891](https://genius.com/14949891) | Host lyric translations on a separate page | Accepted annotation, reviewed 2026-07-27 |
+| `G-QE-MARKS` | [Question and exclamation marks, annotation 15593987](https://genius.com/15593987) | Punctuation for questions and exclamations | Reviewed 2026-07-24; reverified 2026-08-10; staff contributors confirmed (staff tier) |
+| `G-DASHES` | [Hyphens and em dashes, annotation 15594027](https://genius.com/15594027) | Dropped words and em dash punctuation | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-CAPS` | [Conventional capitalization, annotation 15545679](https://genius.com/15545679) | Capitalize lyric-line starts with contextual exceptions | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-UNKNOWN` | [Unknown lyric marker, annotation 9303373](https://genius.com/9303373) | Use `[?]` for an incomprehensible lyric | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-CONTRACTIONS` | [Contraction apostrophes, annotation 9290803](https://genius.com/9290803) | Apostrophes in contractions | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-TYPEWRITER` | [Typewriter quotes, annotation 11293005](https://genius.com/11293005) | Straight apostrophes and quotation marks | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-ADLIBS` | [Ad-libs, annotation 9257397](https://genius.com/9257397) | Parentheses and initial capitalization for ad-libs | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-REPEATS` | [Repeated sections, annotation 9290098](https://genius.com/9290098) | Type repeated lyrics instead of placeholders | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-LINES` | [Individual lyric lines, annotation 9257393](https://genius.com/9257393) | Split prose-like lyric transcription into lines | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-SFX` | [Sound effects, annotation 14949930](https://genius.com/14949930) | Surround sound effects with asterisks, not braces | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-CENSORED` | [Censored words, annotation 15237597](https://genius.com/15237597) | Use four asterisks for a censored word | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-QUOTES` | [Quotation marks, annotation 15594059](https://genius.com/15594059) | Song titles, explicit quotations, and words referred to as words | Reviewed 2026-07-27; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-SYMBOLS` | [Symbols and special characters, annotation 30242624](https://genius.com/30242624) | Omit trademark and decorative symbols; spell out ampersands and degrees outside brand names | Reviewed 2026-07-27; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-AS-SPOKEN` | [Transcribe as spoken, annotation 12332255](https://genius.com/12332255) | Preserve distinct pronunciation when readable; use omission apostrophes selectively | Reviewed 2026-07-27; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-NON-ENGLISH` | [Non-English song header, annotation 11893156](https://genius.com/11893156) | Optional bracketed title header for non-English songs | Reviewed 2026-07-27; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-INSTRUMENTAL` | [Instrumental songs, annotation 16427849](https://genius.com/16427849) | Use `[Instrumental]` as the lyric text on an instrumental track page | Reviewed 2026-07-27; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-ROMANIZED` | [Romanized lyrics, annotation 14835335](https://genius.com/14835335) | Host romanized lyrics on a separate page | Reviewed 2026-07-27; staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-TRANSLATIONS` | [Translations, annotation 14949891](https://genius.com/14949891) | Host lyric translations on a separate page | Reviewed 2026-07-27; staff contributors confirmed 2026-08-10 (staff tier) |
 
-The reviewed Genius annotation for performer formatting is accepted but not marked verified by Genius. LyricLint should describe it as a Genius community guideline source.
+Every annotation's box reads "Genius Annotation" regardless of state, so a source's standing is
+carried by its `authority` tier, decided by the unreviewed banner and by whether Genius staff
+appear in the annotation's contributor roster; a page's own text carries staff standing only
+under the track's verified badge (see the Guidance catalog section and `docs/guidelines.md`).
+The performer-formatting annotation's roster includes Genius staff (confirmed 2026-08-10), so it
+ranks `staff` alongside most of the How to Add Songs annotations.
 
 Quotation context, whether text matches the recording, and whether a draft belongs on a translation
 or romanization page cannot be inferred from the lyric string. These reviewed sources therefore
@@ -268,6 +273,26 @@ The general performer source uses the phrase "too many vocalists" without a univ
 - Pronunciation depends on the recording; the linter can only keep affected spelling fixes out of bulk fixing.
 - `[Instrumental]` is already a recognized section name, but only song-page metadata can establish that the whole track is instrumental.
 - Translation and romanization separation is page-level metadata, not a property of the canonical lyric string.
+
+## Guidance catalog
+
+`src/lib/guidance/` holds reviewed transcription conventions the linter cannot check whole — the
+catalog behind the `/guidelines/` pages and the assistant corpus's guidance section. The
+contributor checklist — how to turn supplied guideline material into entries — is
+`docs/guidelines.md`. An
+entry is one checkable claim in LyricLint's own words, never quoted Genius prose, under the same
+source discipline as a rule: exact URLs or annotation IDs, verified dates, and human review of the
+interpretation. A convention the linter later learns to check graduates into a rule, and its entry
+retires in that rule's favor; `relatedRuleIds` is for partial coverage only.
+
+Every source declares an `authority` tier, and an entry claims the highest tier among the sources
+that state it: `staff` > `editorial` > `external` > `community`. External
+authorities — dictionaries, language academies, other platforms' lyric rules, tooling — rank below
+Genius-accepted policy because they are authoritative about language, not about Genius. Promotion
+is evidence, not an edit: raising an entry's tier means adding the confirming higher-tier source to
+its `sourceIds`, which `guidance.test.ts` enforces structurally. Annotations whose acceptance is
+not recorded in the table above sit at the conservative `community` tier until verified, because
+low is the safe direction to be wrong in.
 
 ## Rule review checklist
 

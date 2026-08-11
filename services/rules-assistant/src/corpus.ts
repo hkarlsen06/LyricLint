@@ -7,12 +7,38 @@
  */
 import corpusJson from '../generated/rules-context.json';
 
+/** How much standing a source has as Genius transcription policy, highest
+ * first: staff > editorial > external > community. */
+export type CorpusSourceAuthority = 'staff' | 'editorial' | 'external' | 'community';
+
 export interface CorpusSource {
 	id: string;
 	pageTitle: string;
 	sectionTitle: string;
 	url: string;
 	lastVerifiedAt: string;
+	authority: CorpusSourceAuthority;
+}
+
+/**
+ * One guidance-catalog entry: a reviewed transcription convention the linter
+ * cannot check whole, paraphrased in LyricLint's own words. Not a rule — it has
+ * no id in the answer schema, and its claims are cited through `sourceIds`.
+ */
+export interface CorpusGuidanceEntry {
+	id: string;
+	topic: string;
+	topicTitle: string;
+	title: string;
+	statement: string;
+	/** Verbatim illustrations: the form the convention wants, and the one it corrects. */
+	example?: { correct?: string; incorrect?: string };
+	/** The highest tier among the entry's cited sources. */
+	authority: CorpusSourceAuthority;
+	sourceIds: string[];
+	/** Linter rules that check part of this convention. */
+	relatedRuleIds?: string[];
+	note?: string;
 }
 
 export interface CorpusRule {
@@ -71,6 +97,8 @@ export interface RulesCorpus {
 	 * carries one worked example, which for these seven is not the rule.
 	 */
 	lookups: CorpusLookup[];
+	/** The guidance catalog: conventions the linter cannot check whole. */
+	guidance: CorpusGuidanceEntry[];
 	sources: CorpusSource[];
 	languages: CorpusLanguage[];
 	harper: { ruleIds: string[]; behavior: string; limitations: string[] };

@@ -128,6 +128,22 @@ entries that answer it and say how many there are in total rather than listing
 every row; where it is about a particular word, give that entry and its
 condition in full.
 
+The corpus's "guidance" section is the guidance catalog: reviewed transcription
+conventions the linter cannot check whole — whether a sung line is a question,
+whether a mark belongs to a brand's name. Each entry is a claim in LyricLint's
+own words with an "authority" tier saying where it comes from, ranked
+staff > editorial > external > community. Treat guidance
+entries as reviewed material: when one supports a claim, cite the entry's
+sourceIds on that block — a guidance entry has no id of its own in the answer
+format. State the convention's standing honestly by tier: staff guidance is
+what Genius requires; an editorial-tier entry is guidance reviewed by Genius's
+community editors; a community-tier entry is community guidance and must never
+be presented as a staff requirement. Where an entry's relatedRuleIds name linter rules, those
+rules check only part of the convention — cite the rule where the question is
+about what LyricLint detects, and the entry's sources where it is about the
+convention itself. Sources also carry the same "authority" field, so weigh and
+describe a directly cited source the same way.
+
 Respond with the structured answer format only. Rules for it:
 - Cite a rule by its exact id from the corpus, attached to the block it
   supports. The interface draws every part of the citation itself: it puts a

@@ -128,6 +128,33 @@ export interface ParsedDocument {
 /** Review status for bundled Genius guideline metadata. */
 export type SourceReviewStatus = 'reviewed' | 'needs-review' | 'retired';
 
+/**
+ * How much standing a source has as Genius transcription policy, highest
+ * first. Three signals decide a Genius item's tier — every annotation's box
+ * reads "Genius Annotation" regardless of state, so none of this is in the
+ * header. An annotation is unreviewed where it carries the red "This
+ * annotation is unreviewed" banner; it is staff-approved where Genius staff
+ * appear in its contributor roster (the circle role badge, or an "Accepted
+ * by" naming a staff member); a page's own body text carries staff standing
+ * only where the track has the verified-by-staff badge. The venue never
+ * decides a tier — the rank of who wrote it on Genius does. `staff` is
+ * anything Genius staff wrote or touched: a staff-verified page's own text,
+ * an annotation with staff among its contributors, or a staff reply in a
+ * community discussion; `editorial` is a reviewed (no-banner) annotation with no staff
+ * in its roster, wherever it sits — editors and moderators review them, and
+ * their act is the same on every page; `external` is an authority outside
+ * Genius — dictionaries, language academies, other platforms' lyric rules,
+ * tooling — ranked below editor-reviewed Genius policy because it is
+ * authoritative about language rather than about Genius; `community` is the
+ * floor — ordinary community voice in any venue, with no ranked author and no
+ * recorded review: an unreviewed annotation, an unbadged page's own text, an
+ * ordinary forum post, or anything whose state is unrecorded. A guidance
+ * entry claims the highest tier among the sources that state it, and is
+ * promoted by adding the confirming higher-tier source — never by editing the
+ * tier alone.
+ */
+export type SourceAuthority = 'staff' | 'editorial' | 'external' | 'community';
+
 /** Versioned provenance for one bundled Genius guideline source. */
 export interface SourceReference {
 	id: string;
@@ -139,6 +166,7 @@ export interface SourceReference {
 	lastVerifiedAt: string;
 	contentHash?: string;
 	reviewStatus: SourceReviewStatus;
+	authority: SourceAuthority;
 }
 
 /** Diagnostic importance, ordered from errors through manual review. */

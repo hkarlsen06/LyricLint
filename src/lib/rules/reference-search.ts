@@ -28,6 +28,18 @@ export const severityOrder: readonly Severity[] = [
 
 export const fixabilityOrder: readonly Fixability[] = ['safe', 'preview', 'none'];
 
+/**
+ * Dots cannot appear in a static-adapter path segment — the adapter writes the
+ * page to disk and `adlib.parentheses` reads as a file named `adlib` with the
+ * extension `parentheses`. Hyphens also match the catalog filenames, so a slug
+ * doubles as the name of the module implementing it. Here rather than in
+ * `reference.ts` because the guidelines pages link rules from the browser, and
+ * that module pulls the parser and the whole registry with it.
+ */
+export function ruleSlug(id: string): string {
+	return id.replaceAll('.', '-');
+}
+
 /** What the rule's own example offers: the lead fix's kind, or nothing. */
 export function ruleFixability(reference: RuleReference): Fixability {
 	return reference.fix?.kind ?? 'none';

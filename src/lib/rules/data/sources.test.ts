@@ -90,12 +90,74 @@ function retrievedOn(id: string): string {
 
 // Three annotations were re-read without being re-fetched, so their
 // verification outruns their retrieval. `G-SECTIONS` was re-read in full on
-// 2026-08-08, when its examples corrected `performer.parenthetical-boundary`.
+// 2026-08-08, when its examples corrected `performer.parenthetical-boundary`;
+// `G-QE-MARKS` on 2026-08-10, seeding the guidance catalog's punctuation
+// entries.
 function verifiedOn(id: string): string {
 	if (id === 'G-SECTIONS') {
 		return '2026-08-08';
 	}
-	return id === 'G-ADD-SONGS' || id === 'G-QE-MARKS' ? '2026-07-25' : retrievedOn(id);
+	if (id === 'G-QE-MARKS') {
+		return '2026-08-10';
+	}
+	return id === 'G-ADD-SONGS' ? '2026-07-25' : retrievedOn(id);
+}
+
+// An annotation with Genius staff among its contributors ranks staff — the
+// roster is the approval signal, per the ruling docs/guidelines.md records.
+// Every annotation's banner and roster were checked by the maintainer on
+// 2026-08-10, in-session; no annotation carried the unreviewed banner.
+const staffAnnotations = new Set([
+	'G-SPELLING',
+	'G-SECTIONS',
+	'G-QE-MARKS',
+	'G-QUOTES',
+	'G-SYMBOLS',
+	'G-AS-SPOKEN',
+	'G-NON-ENGLISH',
+	'G-INSTRUMENTAL',
+	'G-ROMANIZED',
+	'G-TRANSLATIONS',
+	'G-NUMBERS',
+	'G-DASHES',
+	'G-CAPS',
+	'G-UNKNOWN',
+	'G-CONTRACTIONS',
+	'G-TYPEWRITER',
+	'G-ADLIBS',
+	'G-REPEATS',
+	'G-LINES',
+	'G-SFX',
+	'G-CENSORED',
+	'G-LANG-EN',
+	'G-LANG-ES'
+]);
+
+// Reviewed (no unreviewed banner) with editors and moderators only in the
+// roster — no staff. G-LANG-HEADERS is deliberately absent from both sets: it
+// is a page, its track is confirmed unbadged, so its own text stays community.
+const editorialAnnotations = new Set([
+	'G-SECTION-NUMBERING',
+	'G-SECTION-HOOK',
+	'G-LANG-PURPOSE',
+	'G-LANG-NO',
+	'G-LANG-AR',
+	'G-LANG-DE',
+	'G-LANG-FR',
+	'G-LANG-JA',
+	'G-LANG-KO'
+]);
+
+function authorityOf(id: string): string {
+	// The venue never decides a tier, the author's rank does — so the staff
+	// forum reply (G-HEADER-COLLECTIVE) ranks exactly as staff guide content.
+	if (id === 'G-ADD-SONGS' || id === 'G-HEADER-COLLECTIVE' || staffAnnotations.has(id)) {
+		return 'staff';
+	}
+	if (editorialAnnotations.has(id)) {
+		return 'editorial';
+	}
+	return id.startsWith('G-') ? 'community' : 'external';
 }
 
 describe('source registry', () => {
@@ -107,6 +169,7 @@ describe('source registry', () => {
 				retrievedAt: retrievedOn(id),
 				lastVerifiedAt: verifiedOn(id),
 				reviewStatus: 'reviewed',
+				authority: authorityOf(id),
 				...(latestHashes.has(id) ? { contentHash: latestHashes.get(id) } : {})
 			});
 		}

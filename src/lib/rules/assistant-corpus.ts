@@ -25,7 +25,9 @@
  * Server-side only, like `reference.ts` beside it: deriving the references in
  * a browser throws by design.
  */
-import type { SourceReference } from '$lib/core/types.js';
+import type { SourceAuthority, SourceReference } from '$lib/core/types.js';
+import { guidanceEntries } from '$lib/guidance/entries.js';
+import { guidanceTopicTitles } from '$lib/guidance/guidance.js';
 import { reviewedLanguagePacks } from '$lib/languages/registry.js';
 import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
@@ -33,8 +35,9 @@ import { harperRuleIds } from './harper.js';
 import { ruleLookupTables, type RuleLookupTable } from './lookup-tables.js';
 import { ruleReferences } from './reference.js';
 
-/** 2 added `lookups`. */
-export const CORPUS_FORMAT_VERSION = 2;
+/** 2 added `lookups`; 3 added `guidance` and source `authority`; 4 made
+ * guidance examples labeled correct/incorrect pairs. */
+export const CORPUS_FORMAT_VERSION = 4;
 
 export interface AssistantCorpusRule {
 	id: string;
@@ -59,6 +62,28 @@ export interface AssistantCorpusSource {
 	sectionTitle: string;
 	url: string;
 	lastVerifiedAt: string;
+	/** How much standing the source has as Genius transcription policy. */
+	authority: SourceAuthority;
+}
+
+/**
+ * One guidance-catalog entry: a reviewed transcription convention the linter
+ * cannot check whole, in LyricLint's own words. Its `authority` is the highest
+ * tier among its cited sources, and its claims are cited through those
+ * `sourceIds` — a guidance entry is not a rule and has no id of its own in the
+ * answer schema.
+ */
+export interface AssistantCorpusGuidanceEntry {
+	id: string;
+	topic: string;
+	topicTitle: string;
+	title: string;
+	statement: string;
+	example?: { correct?: string; incorrect?: string };
+	authority: SourceAuthority;
+	sourceIds: string[];
+	relatedRuleIds?: string[];
+	note?: string;
 }
 
 export interface AssistantCorpusLanguage {
@@ -76,6 +101,8 @@ export interface AssistantCorpus {
 	rules: AssistantCorpusRule[];
 	/** What the table-shaped rules check against, in full. */
 	lookups: RuleLookupTable[];
+	/** Conventions the linter cannot check whole — the guidance catalog. */
+	guidance: AssistantCorpusGuidanceEntry[];
 	sources: AssistantCorpusSource[];
 	languages: AssistantCorpusLanguage[];
 	harper: { ruleIds: string[]; behavior: string; limitations: string[] };
@@ -122,7 +149,8 @@ function corpusSource(source: SourceReference): AssistantCorpusSource {
 		pageTitle: source.pageTitle,
 		sectionTitle: source.sectionTitle,
 		url: source.url,
-		lastVerifiedAt: source.lastVerifiedAt
+		lastVerifiedAt: source.lastVerifiedAt,
+		authority: source.authority
 	};
 }
 
@@ -152,6 +180,19 @@ export function buildAssistantCorpusContent(
 		.map(corpusSource)
 		.sort((a, b) => a.id.localeCompare(b.id, 'en'));
 
+	const guidance = guidanceEntries.map((entry) => ({
+		id: entry.id,
+		topic: entry.topic,
+		topicTitle: guidanceTopicTitles[entry.topic],
+		title: entry.title,
+		statement: entry.statement,
+		...(entry.example ? { example: { ...entry.example } } : {}),
+		authority: entry.authority,
+		sourceIds: [...entry.sourceIds],
+		...(entry.relatedRuleIds ? { relatedRuleIds: [...entry.relatedRuleIds] } : {}),
+		...(entry.note ? { note: entry.note } : {})
+	}));
+
 	const languages = reviewedLanguagePacks.map((pack) => ({
 		tag: pack.tag,
 		displayName: pack.displayName,
@@ -167,6 +208,7 @@ export function buildAssistantCorpusContent(
 		ruleSetVersion: currentRuleSet.version,
 		rules,
 		lookups: ruleLookupTables(),
+		guidance,
 		sources,
 		languages,
 		harper: {
@@ -201,6 +243,7 @@ export async function buildAssistantCorpus(
 		contentHash,
 		rules: content.rules,
 		lookups: content.lookups,
+		guidance: content.guidance,
 		sources: content.sources,
 		languages: content.languages,
 		harper: content.harper,

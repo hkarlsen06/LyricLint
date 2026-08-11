@@ -340,7 +340,8 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 				sectionTitle: 'Section headers and performer legends',
 				retrievedAt: '2026-07-24',
 				lastVerifiedAt: '2026-07-24',
-				reviewStatus: 'reviewed' as const
+				reviewStatus: 'reviewed' as const,
+				authority: 'community' as const
 			}
 		];
 

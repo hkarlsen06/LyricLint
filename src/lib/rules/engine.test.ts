@@ -119,7 +119,8 @@ describe('registry validation', () => {
 			sectionTitle: 'Candidate',
 			retrievedAt: '2026-07-24',
 			lastVerifiedAt: '2026-07-24',
-			reviewStatus: 'needs-review'
+			reviewStatus: 'needs-review',
+			authority: 'community'
 		};
 		expect(() =>
 			validateRuleRegistry(

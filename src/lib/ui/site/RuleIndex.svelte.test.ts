@@ -66,7 +66,7 @@ function families(): string[] {
 }
 
 function headings(): string[] {
-	return [...document.querySelectorAll('.rules__group')].map(
+	return [...document.querySelectorAll('.site-index__group')].map(
 		(heading) => heading.textContent?.trim() ?? ''
 	);
 }
@@ -135,7 +135,7 @@ describe('RuleIndex', () => {
 
 		// `52 of 52 rules` is a number that could not have been otherwise, and the
 		// page beside this column already states how many there are.
-		expect(document.querySelector('.rules__readout')).toBeNull();
+		expect(document.querySelector('.site-finder__readout')).toBeNull();
 	});
 
 	it('narrows to the rule whose example carries the word the reader typed', async () => {
@@ -256,7 +256,7 @@ describe('RuleIndex', () => {
 		await page.getByRole('button', { name: 'Clear filters' }).click();
 
 		expect(rows()).toHaveLength(total);
-		expect(document.querySelector('.rules__readout')).toBeNull();
+		expect(document.querySelector('.site-finder__readout')).toBeNull();
 	});
 
 	// This column is its own scroll port, so it clips at its padding edge — a
@@ -273,7 +273,7 @@ describe('RuleIndex', () => {
 		try {
 			render(RuleIndex, { groups });
 
-			const column = document.querySelector('.rules__index')!;
+			const column = document.querySelector('.site-split__index')!;
 			const style = getComputedStyle(column);
 			const lane = Number.parseFloat(style.paddingInlineStart);
 
@@ -333,7 +333,7 @@ describe('RuleIndex', () => {
 		try {
 			const last = groups.at(-1)?.rules.at(-1);
 			const { component } = render(RuleIndex, { groups, selectedSlug: last?.slug });
-			const column = document.querySelector<HTMLElement>('.rules__index')!;
+			const column = document.querySelector<HTMLElement>('.site-split__index')!;
 			column.style.height = '400px';
 			expect(column.scrollTop).toBe(0);
 
@@ -344,7 +344,7 @@ describe('RuleIndex', () => {
 			// half `scrollIntoView({ block: 'nearest' })` knows nothing about: it
 			// would call a row underneath the field visible and move nothing.
 			const row = column.querySelector<HTMLElement>('a[aria-current="page"]')!;
-			const finder = column.querySelector<HTMLElement>('.rules__finder')!;
+			const finder = column.querySelector<HTMLElement>('.site-finder')!;
 			expect(row.getBoundingClientRect().top).toBeGreaterThanOrEqual(
 				finder.getBoundingClientRect().bottom - 1
 			);
@@ -360,7 +360,7 @@ describe('RuleIndex', () => {
 			// the row a reader pressed is by definition one they can see.
 			const first = groups[0]?.rules[0];
 			const { component } = render(RuleIndex, { groups, selectedSlug: first?.slug });
-			const column = document.querySelector<HTMLElement>('.rules__index')!;
+			const column = document.querySelector<HTMLElement>('.site-split__index')!;
 			column.style.height = '400px';
 			column.scrollTop = 0;
 
