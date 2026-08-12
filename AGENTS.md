@@ -4490,8 +4490,9 @@ move deserves.
 **The back control draws at every width, and the choreography is why.** It began narrow-only, when
 the index view was still on screen beside an open page; the moment the swap pushed the welcome
 view off, nothing brought it back. `All rules` / `All guidelines` sits quiet at the top of the
-open page, prefers `history.back()` where the index is genuinely behind it — a popped entry keeps
-the scroll the reader left it at — and `goto`s a fresh index otherwise.
+open page — pinned there on a wide screen, which is its own paragraph below — prefers
+`history.back()` where the index is genuinely behind it — a popped entry keeps the scroll the
+reader left it at — and `goto`s a fresh index otherwise.
 
 **The window shell has no footer.** Its columns own the viewport's height, so a footer there is a
 permanent band of colophon pinned under content somebody is reading, on every screen, saying
@@ -4525,17 +4526,71 @@ either column said about its own content. `AssistantSpark.svelte.test.ts` pins t
 strike, the send and the Escape ladder; the e2e conversation test drives the dialog through the ask
 field.
 
-**A row that leaves the section says so.** The guidance list's linter-rule rows and the topic
-page's `Checked by the linter` run open the rule reference, and each wears the citations' own
-`ExternalLink` mark after its title — decorative and `aria-hidden`, because the rule id in the
-meta line already says whose row it is in words. Guidance-entry rows stay inside the section and
-carry nothing. That topic-page run is deliberately the index column's rows drawn again: on a
-narrow screen the list left with the index view, and a topic has to read whole without it.
+**A row that leaves the section says so, and it leaves in a tab.** The guidance list's
+linter-rule rows and the topic page's `Checked by the linter` run open the rule reference, and
+each wears the citations' own `ExternalLink` mark after its title — decorative and `aria-hidden`,
+because the link's own text and the section it lands in already name the destination.
+Guidance-entry rows stay inside the section and carry nothing. That topic-page run is deliberately
+the index column's rows drawn again: on a narrow screen the list left with the index view, and a
+topic has to read whole without it.
 
-**And a linter row is the rule index's row whole.** Severity tag, id, fix kind — the same meta the
-row wears at `/rules/`, because these are that index's rows in another shape and a row dressed
-down to its id alone reads as a different kind of thing than the row it claims to be. The drift
-arrives one omitted field at a time, so `GuidanceIndex.svelte.test.ts` pins the dress.
+**`target="_blank"` is the mark's promise kept, and it is one direction only.** A reader in this
+catalog is working _through_ a topic — down the list, or down a page of entries they have scrolled
+and deep-linked into — and a rule is a lookup beside that rather than the next thing to read.
+Taken in place it costs them the place they had, and nothing on screen gives it back: `All
+guidelines` returns to the catalog's welcome view, not to the entry they were reading. So every
+link out of `/guidelines/` into `/rules/` opens a tab — the rows, and the `Partly checked by` ids
+in an entry's own meta line, which is the worst of the two to lose a scroll position to. The
+**rules section's own rows are unchanged**, because there a rule _is_ the next thing to read, and
+so are guidance-entry rows, which never leave. The `rel` pair is the one every external link here
+carries, and an `sr-only` `(opens in a new tab)` is the whole of what says so to anything that
+cannot see the mark — the mark is `aria-hidden`, and a new tab is a fact about what the press does
+rather than about where it goes. The meta-line ids get no mark at all: a glyph after every id in a
+comma list is a run of marks rather than a note.
+
+**And a linter row is one line, where a guidance row is a statement.** `LinterRuleRow.svelte` is
+the severity as a glyph, the rule's name, and the leaving mark — nothing else. It was the rule
+index's row _whole_ for one release, on the reasoning that these are that index's rows in another
+shape and a row dressed down reads as a different kind of thing; measured in the column that was
+the wrong trade. A topic runs to a dozen of these under the conventions they check, and three
+lines each — the linter's wording on one, severity, id and fix kind on the next — made the half of
+the list this catalog is _not_ about the bulk of what a reader scrolls, for facts that are on the
+rule's own page one press away, whole and in their own context. What must not be stripped the same
+way is a **guidance** row: its statement is the convention itself rather than a pointer to one, so
+the second line there is the content. The severity survives because it is what colors the row and
+costs it nothing, and the word is dropped from it for the reason the diagnostic card drops it —
+down a run of these it is the same word every row. One component, both surfaces, because the index
+column and the topic page's run are the same rows drawn twice.
+
+**Two things stay pinned to the tops of the two columns, and the second is a repair.** The
+finder rides the index column. The way out — `All rules` / `All guidelines`, now an arrow rather
+than a list glyph, because what the press does is go back — rides the detail column, in
+`.site-split__backbar`. It scrolled away with the page at first, which made it a control that
+existed only on the first screen of a rule: the columns are their own scroll ports on a wide
+screen, and a guideline opened by fragment _lands_ mid-column, so the commonest way into an entry
+was also the one arrival that never showed a way back out. Three things the bar owes, and the
+third is the sticky trap the finder already documents from the other side: it bleeds across the
+column's own lanes (`--split-lane-start` / `--split-lane-end`, which the guidance catalog's wider
+wash lane moves for it) or the page shows past it on either edge as it scrolls under; it fills
+with `--color-canvas`, the page it is pinned over; and it carries the focus ring's lane as its own
+block padding, with the column standing its own down — a pinned box is back at the clip edge
+whatever the column's padding says. Below `62rem` it is static again, for the finder's reason:
+there the document is the only scroller, the masthead is already pinned over it, and the control
+is the first thing in the document anyway.
+
+**The masthead names the section, and that is the whole of what tells the two apart at a glance.**
+`/rules/` and `/guidelines/` are deliberately alike — one shell, one finder idiom, one run of rows
+— so the difference between them was `aria-current` on a 15px nav link, which is a difference
+nobody reads. `.site-header__section` is `Linter Rules` or `Guidelines` at `--font-size-xl` beside
+the lockup, which is set at the body size: the biggest type in the band is where you are. It is
+not a heading (the page under it owns the document's outline), the rule before it is drawn rather
+than typed so nothing is announced between the brand and the section, and the nav takes the far
+end through `margin-inline-start: auto` — `space-between` alone stranded the title in the middle
+of the row. It fits inside the band rather than growing it, because `e2e/lyriclint.spec.ts` pins
+that height against the workbench's toolbar. Below `46rem` it comes off: the band has room for the
+brand, the section _or_ the nav, and at that width the columns stack, so the page's own heading is
+the first thing under the masthead — which is exactly the question this title answers on a wide
+screen, where the choreography has pushed that heading away.
 
 **The guidance finder speaks the reader's word and searches the whole page.** Its counts, readout
 and empty state say `conventions` — `lookups` was the implementation's own register leaking into

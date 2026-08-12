@@ -1,15 +1,14 @@
 <script lang="ts">
-	import { ExternalLink } from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
 	import { guidanceTopics } from '$lib/guidance/entries.js';
 	import { authorityLabels, entryAnchor, guidanceTopicTitles } from '$lib/guidance/guidance.js';
 	import { getSource } from '$lib/rules/data/sources.js';
-	import { fixabilityLabel, ruleSlug } from '$lib/rules/reference-search.js';
+	import { ruleSlug } from '$lib/rules/reference-search.js';
 	import { siteUrl } from '$lib/seo.js';
 	import { codeSegments } from '$lib/ui/site/code-segments.js';
 	import GuidanceSearchHighlight from '$lib/ui/site/GuidanceSearchHighlight.svelte';
+	import LinterRuleRow from '$lib/ui/site/LinterRuleRow.svelte';
 	import SiteSourceFold from '$lib/ui/site/SiteSourceFold.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import type { PageProps } from './$types.js';
@@ -52,7 +51,11 @@
 		});
 	}
 
-	const pageTitle = $derived(`${topicTitle} · Genius transcription guidelines · LyricLint`);
+	// Title case for the section's own name, exactly as the index page's tab
+	// carries it: a tab is a label, not a sentence. The topic's title leads,
+	// because a tab shows its first few characters and the topic is what tells
+	// two of these apart.
+	const pageTitle = $derived(`${topicTitle} · Genius Transcription Guidelines · LyricLint`);
 	const pageDescription = $derived(
 		`Genius transcription conventions for ${topicTitle.toLowerCase()}: ${entries
 			.map((entry) => entry.title.toLowerCase())
@@ -108,7 +111,7 @@
 	const structuredData = $derived({
 		'@context': 'https://schema.org',
 		'@type': 'TechArticle',
-		headline: `Genius transcription guidelines: ${topicTitle}`,
+		headline: `Genius Transcription Guidelines: ${topicTitle}`,
 		url: canonicalUrl,
 		mainEntityOfPage: canonicalUrl,
 		description: pageDescription,
@@ -171,10 +174,20 @@
 						     formatter is free to move to the wrong side of the comma —
 						     `punctuation.question,punctuation.line-ending` is what that
 						     looks like, and it looks exactly like working markup. -->
+						<!-- A tab, exactly as the rows below do it and for the same reason:
+						     this one is read mid-entry, which is the worst place in the
+						     section to lose a scroll position to a lookup. No mark beside
+						     it — a glyph after every id in a comma list is a run of marks
+						     rather than a note — so the sr-only text is the whole of what
+						     says the press opens a tab. -->
 						{#each entry.relatedRuleIds as ruleId, index (ruleId)}{#if index > 0}{ruleListSeparator}{/if}<a
 								class="site-code"
 								href="{resolve('/(site)/rules/[rule]', { rule: ruleSlug(ruleId) })}/"
-								><GuidanceSearchHighlight text={ruleId} /></a
+								target="_blank"
+								rel="noopener noreferrer"
+								><GuidanceSearchHighlight text={ruleId} /><span class="sr-only"
+									>(opens in a new tab)</span
+								></a
 							>{/each}
 					</span>
 				{/if}
@@ -264,28 +277,10 @@
 		</p>
 		<ul class="site-run">
 			{#each linterRules as rule (rule.id)}
-				<li>
-					<a href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/">
-						<span class="site-run__title"
-							>{rule.title}
-							<ExternalLink
-								class="site-run__external"
-								aria-hidden="true"
-								size={12}
-								strokeWidth={2.2}
-							/></span
-						>
-						<span class="site-run__message">{rule.message}</span>
-						<!-- The rule index's own meta, whole — these are its rows in
-						     another shape, exactly as in the index column beside this
-						     page. -->
-						<span class="site-run__meta">
-							<SeverityTag severity={rule.severity} />
-							<span class="site-code">{rule.id}</span>
-							<span>{fixabilityLabel(rule.fixability)}</span>
-						</span>
-					</a>
-				</li>
+				<!-- One line each, the index column's own row — `LinterRuleRow` is
+				     shared by both, because these are the same rows drawn twice and
+				     the copy that drifted would be the one nobody is looking at. -->
+				<LinterRuleRow {rule} />
 			{/each}
 		</ul>
 	{/if}

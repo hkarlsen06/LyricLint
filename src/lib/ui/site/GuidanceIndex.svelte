@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { ExternalLink } from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
@@ -8,10 +7,9 @@
 		type GuidanceTopicSection
 	} from '$lib/guidance/guidance-search.js';
 	import { entryAnchor, guidanceTopicTitles } from '$lib/guidance/guidance.js';
-	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
-	import { fixabilityLabel } from '$lib/rules/reference-search.js';
 	import AssistantSpark from '$lib/ui/assistant/AssistantSpark.svelte';
 	import { guidanceSearchQuery, setGuidanceSearchQuery } from './guidance-search.svelte.js';
+	import LinterRuleRow from './LinterRuleRow.svelte';
 	import { revealSelectedRow } from './reveal-selected.js';
 
 	let {
@@ -119,10 +117,11 @@
 			<h2 class="site-index__group">{guidanceTopicTitles[topic]}</h2>
 			<!-- One bordered run per topic, hairlines between rows — the same
 			     material as the rule index's runs. A guidance row opens its entry on
-			     the topic page, anchored and washed; a linter row is a lookup out to
-			     the rule reference, with the rule id in the source face saying whose
-			     row it is. Only guidance rows are ever `aria-current`: a linter row's
-			     page is never this section's. -->
+			     the topic page, anchored and washed, and states the convention where
+			     it stands; a linter row is one line pointing out to the rule
+			     reference, where the same rule is read whole (`LinterRuleRow`). Only
+			     guidance rows are ever `aria-current`: a linter row's page is never
+			     this section's. -->
 			<ul class="site-run">
 				{#each entries as entry (entry.id)}
 					<li>
@@ -136,32 +135,7 @@
 					</li>
 				{/each}
 				{#each linterRules as rule (rule.id)}
-					<li>
-						<a href="{resolve('/(site)/rules/[rule]', { rule: rule.slug })}/">
-							<!-- The mark the citations already use for a link that leaves,
-							     because this row does: it opens the rule reference rather
-							     than a page beside this list. Decorative — the rule id in
-							     the meta line already says whose row it is in words. -->
-							<span class="site-run__title"
-								>{rule.title}
-								<ExternalLink
-									class="site-run__external"
-									aria-hidden="true"
-									size={12}
-									strokeWidth={2.2}
-								/></span
-							>
-							<span class="site-run__message">{rule.message}</span>
-							<!-- The rule index's own meta, whole: these are its rows in
-							     another shape, and a row dressed down here would read as a
-							     different kind of thing than the same row at /rules/. -->
-							<span class="site-run__meta">
-								<SeverityTag severity={rule.severity} />
-								<span class="site-code">{rule.id}</span>
-								<span>{fixabilityLabel(rule.fixability)}</span>
-							</span>
-						</a>
-					</li>
+					<LinterRuleRow {rule} />
 				{/each}
 			</ul>
 		{/each}

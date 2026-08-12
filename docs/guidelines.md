@@ -148,12 +148,23 @@ conservative `community` default.
   guideline reads on the right. Entry rows deep-link `#<slug>` fragments on the
   prerendered topic pages, which draw straight from
   `src/lib/guidance/entries.ts`; the linter lookups ride the section layout's
-  server load, because they are derived from the server-only rule reference —
-  severity and fix kind included, so the rows wear the rule index's own meta.
-  Each topic page closes with its "Checked by the linter" run — the same rows
-  the index column lists, kept on the page so a topic reads whole where the
-  list is off screen — and every row that leaves for the rule reference wears
-  the citations' external-link mark. The spelling topic also draws the
+  server load, because they are derived from the server-only rule reference.
+  **A linter row is one line** (`LinterRuleRow.svelte`): the severity as a
+  glyph, the rule's name, and the citations' external-link mark saying the row
+  leaves the section. It wore the rule index's whole meta once — the linter's
+  wording on a second line and severity, id and fix kind on a third — and in a
+  topic running to a dozen of them that made the half of the list the catalog
+  is *not* about the bulk of what a reader scrolls, for facts that are on the
+  rule's own page one press away. A guidance row keeps its statement, because
+  a guideline's statement is the thing itself rather than a pointer to it.
+  Each topic page closes with its "Checked by the linter" run — the same
+  component, so the two cannot drift — kept on the page so a topic reads whole
+  where the list is off screen. **Every link out of this section into `/rules/`
+  opens a tab** — those rows and the `Partly checked by` ids in an entry's meta
+  line — because a rule is a lookup beside the topic being read rather than the
+  next thing to read, and taken in place it costs the reader a scroll position
+  nothing on this surface gives back. An `sr-only` `(opens in a new tab)` is
+  what says so where the external mark cannot, the mark being `aria-hidden`. The spelling topic also draws the
   standardized-spellings table whole, from the same `ruleLookupTable` the rule
   page loads (one data source, two surfaces; only the reviewed halves — the
   linter's fix kinds and curated catches stay on the rule's page), and

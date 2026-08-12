@@ -33,6 +33,17 @@
 	// the document pages, which end; the Apple attribution it carries is a
 	// once-per-site requirement and the document pages still state it.
 	const windowShell = $derived(Boolean(current('/rules') || current('/guidelines')));
+
+	// The section the reader is in, named in the band at a size that answers the
+	// question from across the room. The two reference sections look alike on
+	// purpose — one shell, one finder idiom, one run of rows — and `aria-current`
+	// on a 15px nav link was the whole of what told them apart, which is a
+	// difference nobody reads. It is drawn only for the sections that have this
+	// problem: the landing page is the brand's own page and the privacy page's
+	// `<h1>` is the first thing under the masthead.
+	const sectionTitle = $derived(
+		current('/rules') ? 'Linter Rules' : current('/guidelines') ? 'Guidelines' : undefined
+	);
 </script>
 
 <svelte:head>
@@ -99,6 +110,14 @@
 				<AppWordmark animated={!current('/')} />
 				<span class="sr-only">LyricLint home</span>
 			</a>
+			{#if sectionTitle}
+				<!-- The brand, then what it is a masthead over — the workbench's own
+				     toolbar arrangement, where the lockup is followed by the name of
+				     the thing on screen. Not a heading: the page under it owns the
+				     document's outline, and this says where the reader is rather than
+				     what they are reading. -->
+				<span class="site-header__section">{sectionTitle}</span>
+			{/if}
 			<nav class="site-nav" aria-label="LyricLint">
 				<a href={resolve('/')} aria-current={current('/')}>About</a>
 				<a href={resolve('/rules/')} aria-current={current('/rules')}>Rules</a>

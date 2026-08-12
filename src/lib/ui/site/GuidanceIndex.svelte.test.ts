@@ -98,18 +98,48 @@ describe('GuidanceIndex', () => {
 		expect(document.querySelector('.site-index__empty')?.textContent).toContain('No convention');
 	});
 
-	it('dresses a linter row in the rule index’s own meta', () => {
-		// The same rows in another shape — a row stripped down to its id here
-		// would read as a different kind of thing than at /rules/, and the drift
-		// arrives one omitted field at a time.
+	it('draws a linter row as one line, and a guidance row as its statement', () => {
+		// A linter row points out of the section, so it is a name, the severity
+		// that colors it, and the leaving mark — the wording, the id and the fix
+		// kind are on the rule's own page, one press away. A guidance row is not
+		// a pointer: its statement is the convention itself, so it keeps it.
 		render(GuidanceIndex, { sections });
 
-		const row = rows().find((candidate) =>
+		const rule = rows().find((candidate) =>
 			candidate.textContent?.includes('A question mark the line needs')
 		);
-		expect(row?.textContent).toContain('punctuation.question');
-		expect(row?.textContent).toContain('Suggestion');
-		expect(row?.textContent).toContain('No automatic fix');
+		expect(rule?.textContent).not.toContain('punctuation.question');
+		expect(rule?.textContent).not.toContain('No automatic fix');
+		expect(rule?.querySelector('.site-run__message')).toBeNull();
+		// The severity is on it as a glyph, with the word left in the accessible
+		// tree rather than on screen.
+		expect(rule?.querySelector('.severity--suggestion')).not.toBeNull();
+		expect(rule?.querySelector('.severity .sr-only')?.textContent).toBe('Suggestion');
+
+		const entry = rows().find((candidate) => candidate.textContent?.includes(firstEntry.title));
+		expect(entry?.querySelector('.site-run__message')?.textContent).toBe(firstEntry.statement);
+	});
+
+	it('opens a linter rule in a tab, and an entry in place', () => {
+		// A rule is a lookup beside the topic being read, so taking it in place
+		// costs the reader the place they were in — and the way back on this
+		// surface returns to the catalog's welcome view, not to their entry. The
+		// mark says the row leaves and the sr-only note says it opens a tab,
+		// which the mark cannot: it is `aria-hidden`, and a new tab is a fact
+		// about the press rather than about the destination.
+		render(GuidanceIndex, { sections });
+
+		const rule = rows().find((candidate) =>
+			candidate.textContent?.includes('A question mark the line needs')
+		);
+		expect(rule?.target).toBe('_blank');
+		expect(rule?.rel).toBe('noopener noreferrer');
+		expect(rule?.textContent).toContain('opens in a new tab');
+
+		// An entry row stays inside the section: it is a fragment on a page of
+		// this catalog, and a tab per convention would be a tab per press.
+		const entry = rows().find((candidate) => candidate.textContent?.includes(firstEntry.title));
+		expect(entry?.target).toBe('');
 	});
 
 	it('marks the entry the fragment names as the page, and only that one', async () => {

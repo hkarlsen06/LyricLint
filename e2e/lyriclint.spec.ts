@@ -418,11 +418,14 @@ test('the spelling topic lists the standardized spellings, and the finder search
 	expect(await rows.count()).toBeGreaterThan(20);
 
 	// A spelling the page lists has to answer the finder — the citation lesson,
-	// arriving here for lookup tables — and the open page marks the form.
+	// arriving here for lookup tables — and the open page marks the form. The
+	// row is located by where it goes rather than by the id in its text: a
+	// linter row here is one line — the severity, the name, the leaving mark —
+	// and the id is on the page it opens.
 	const search = page.getByRole('searchbox', { name: 'Search the transcription guidelines' });
 	await search.fill('whoa');
 	await expect(
-		page.locator('.site-split__index .site-run a', { hasText: 'spelling.standardized' })
+		page.locator('.site-split__index .site-run a[href$="/rules/spelling-standardized/"]')
 	).toBeVisible();
 	await expect(page.locator('main mark.site-hit').first()).toBeVisible();
 });

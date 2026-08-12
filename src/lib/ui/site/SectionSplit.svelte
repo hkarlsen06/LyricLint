@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { List } from 'lucide-svelte';
+	import { ArrowLeft } from 'lucide-svelte';
 	import { afterNavigate, goto, onNavigate } from '$app/navigation';
 
 	let {
@@ -156,11 +156,26 @@
 			     this as much as a narrow one, where it is also the way back to the
 			     list. It goes back rather than forward to a fresh index where the
 			     index really is behind this page, so a popped list keeps the scroll
-			     the reader left it at. -->
-			<button class="button button--quiet site-split__back" type="button" onclick={showIndex}>
-				<List aria-hidden="true" size={15} strokeWidth={2.25} />
-				{backLabel}
-			</button>
+			     the reader left it at.
+
+			     It rides the top of this column rather than scrolling away with the
+			     page, for the reason the index's finder is pinned: this column is
+			     its own scroll port on a wide screen, and a reader who has read
+			     down a page — or who arrived at a guideline by fragment, which
+			     lands them mid-column with the control already above the fold —
+			     would otherwise have to scroll back up to find the way out.
+
+			     An arrow rather than a list glyph: what the press does is go back
+			     to where the row was pressed, and that is the one mark everybody
+			     already reads as exactly that. The label is still the section's own
+			     (`All rules`, `All guidelines`), so the destination is named rather
+			     than left to the arrow. -->
+			<div class="site-split__backbar">
+				<button class="button button--quiet site-split__back" type="button" onclick={showIndex}>
+					<ArrowLeft aria-hidden="true" size={15} strokeWidth={2.25} />
+					{backLabel}
+				</button>
+			</div>
 		{/if}
 
 		{@render children()}

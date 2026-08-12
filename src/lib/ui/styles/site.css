@@ -295,11 +295,46 @@
 	text-decoration: none;
 }
 
+/*
+ * Which of the two reference sections is on screen, said in the band rather
+ * than left to the nav's `aria-current`. The sections are deliberately alike —
+ * one shell, one finder, one run of rows — so at a glance the only difference
+ * between `/rules/` and `/guidelines/` was a 15px link a shade brighter than
+ * its neighbours, which is a difference nobody reads.
+ *
+ * It is the biggest type in the band, and that is the whole of the effect: the
+ * lockup beside it is set at the body size, so what a reader lands on first is
+ * where they are. It fits inside the band's own height rather than growing it —
+ * `e2e/lyriclint.spec.ts` pins that height against the workbench's toolbar, and
+ * `--font-size-xl` on a tight line sits well inside it with the band's padding.
+ *
+ * The divider is drawn rather than typed, so nothing is announced between the
+ * brand and the section, and the rule reads as the seam it is.
+ */
+.site-header__section {
+	display: flex;
+	gap: var(--space-4);
+	align-items: center;
+	font-size: var(--font-size-xl);
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.site-header__section::before {
+	content: '';
+	align-self: stretch;
+	border-inline-start: var(--border-width) solid var(--color-border);
+}
+
+/* The brand and the section it is over sit together at the start of the band,
+   and the nav takes the far end — `space-between` alone would strand the
+   section title in the middle of the row. */
 .site-nav {
 	display: flex;
 	gap: var(--space-4);
 	flex-wrap: wrap;
 	align-items: center;
+	margin-inline-start: auto;
 	font-size: var(--font-size-sm);
 	font-weight: var(--font-weight-medium);
 }
@@ -503,6 +538,31 @@
 
 .site-run__title {
 	font-weight: var(--font-weight-medium);
+}
+
+/*
+ * A row that is one line: the guidance catalog's linter lookups, whose whole
+ * content is a name, the severity that colors it, and the mark that says the
+ * row leaves the section (`LinterRuleRow.svelte` carries the reasoning). The
+ * run's own `a` is a grid stacking a title over a message over a meta line;
+ * this is a flex row, so the glyph sits beside the name rather than above it.
+ *
+ * `align-items: baseline` and not `center`: the glyph is `--font-size-xs` type
+ * against the title's own size, and centred against a title that wraps to two
+ * lines it drifts to the middle of the block, which is the trap the timestamp
+ * gutter's cell states from the other side. The baseline keeps it on the first
+ * line, where the name starts.
+ *
+ * The selector carries the `a` because `.site-run a` does: a single class loses
+ * to it on specificity, and what that looks like is the glyph stacked on its
+ * own line above the name — a grid row where a flex item was wanted, which
+ * reads as a row that has simply gained a line rather than as a rule that
+ * never applied.
+ */
+.site-run a.site-run__lean {
+	display: flex;
+	gap: var(--space-2);
+	align-items: baseline;
 }
 
 .site-run__meta {
@@ -772,10 +832,17 @@
  */
 .site-split__index,
 .site-split__detail {
+	/* The two lanes above, named so the pinned back bar can bleed across them —
+	   a bar that stopped at the content edge would let a line of the page show
+	   past it on either side as the page scrolls under. The guidance catalog
+	   widens the start lane for its wash and therefore moves this with it. */
+	--split-lane-start: var(--focus-ring-reach);
+	--split-lane-end: var(--space-3);
+
 	min-height: 0;
-	padding-inline: var(--focus-ring-reach) var(--space-3);
+	padding-inline: var(--split-lane-start) var(--split-lane-end);
 	margin-block-start: calc(-1 * var(--focus-ring-reach));
-	margin-inline-start: calc(-1 * var(--focus-ring-reach));
+	margin-inline-start: calc(-1 * var(--split-lane-start));
 	overflow: auto;
 	overscroll-behavior: contain;
 	scrollbar-gutter: stable;
@@ -881,8 +948,8 @@
    the spill and handed back with the same negative margin, so every line of
    content keeps the x it had; only the room the wash paints in is new. */
 .site-split[data-section='guidelines'] .site-split__detail {
-	padding-inline: var(--space-4);
-	margin-inline-start: calc(-1 * var(--space-4));
+	--split-lane-start: var(--space-4);
+	--split-lane-end: var(--space-4);
 }
 
 /* Both split sections open reading-first: at the index the intro leads in the
@@ -1388,16 +1455,56 @@
 	box-shadow: var(--shadow-recessed);
 }
 
-/* The way out of an open page, at every width. On a wide screen it returns to
-   the section's welcome view — the intro the choreography pushed out, which
-   nothing else on screen brings back — and on a narrow one it is also the way
-   back to the list that left with it. Quiet, at the top of the column, where
-   the reader who wants out looks first. */
+/*
+ * The way out of an open page, at every width. On a wide screen it returns to
+ * the section's welcome view — the intro the choreography pushed out, which
+ * nothing else on screen brings back — and on a narrow one it is also the way
+ * back to the list that left with it. Quiet, at the top of the column, where
+ * the reader who wants out looks first.
+ *
+ * And it stays there: pinned to the top of this column exactly as the index's
+ * finder is pinned to the top of its own, and for the same reason. Each column
+ * is its own scroll port on a wide screen, so a control that scrolled away with
+ * the page would be gone by the second screen of a rule — and a guideline
+ * opened by fragment *lands* mid-column, with the control already above the
+ * fold and nothing on screen saying the section has a way back at all.
+ *
+ * Three things it owes:
+ *
+ * The bar bleeds across the column's own lanes (`--split-lane-*`), or the page
+ * shows past it on either side as it scrolls under — at the focus ring's lane
+ * on one edge and the scrollbar's on the other. The bleed is the pair the
+ * column itself uses, so the guidance catalog's wider wash lane moves it
+ * without this rule knowing about that section.
+ *
+ * The fill is `--color-canvas`, the page it is pinned over, and the block-end
+ * padding is the breath that keeps the page's first line from touching it on
+ * the way past. `z-index` puts it over the content rather than under it.
+ *
+ * The block-start padding is the focus ring's lane, carried here rather than on
+ * the column, which is the sticky trap the finder documents from the other
+ * side: a pinned box is back at the clip edge whatever the column's padding
+ * says, so a lane held by the column would clip the ring off the one control
+ * that is always on screen. The column stands its own down below.
+ */
+.site-split__backbar {
+	position: sticky;
+	z-index: 1;
+	padding-block: var(--focus-ring-reach) var(--space-3);
+	padding-inline: var(--split-lane-start) var(--split-lane-end);
+	margin-inline: calc(-1 * var(--split-lane-start)) calc(-1 * var(--split-lane-end));
+	background: var(--color-canvas);
+	inset-block-start: 0;
+}
+
+.site-split__detail:has(.site-split__backbar) {
+	padding-block-start: 0;
+}
+
 .site-split__back {
 	display: inline-flex;
 	gap: var(--space-1-5);
 	align-items: center;
-	margin-bottom: var(--space-4);
 }
 
 @media (max-width: 62rem) {
@@ -1446,9 +1553,11 @@
 
 	/* The wide rules above outrank the resets here by specificity, so both are
 	   stood down by name: the guidance catalog's wash paint lane, whose scroll
-	   port no longer exists to clip anything, and the swapped index
-	   arrangement — two named columns in a one-column template would conjure a
-	   phantom second column. Stacked, the intro still leads. */
+	   port no longer exists to clip anything — it is only the lane variables
+	   now, and the reset above zeroes the padding they were spent on, so this
+	   pair is what keeps a bleed from being computed off them — and the swapped
+	   index arrangement, since two named columns in a one-column template would
+	   conjure a phantom second column. Stacked, the intro still leads. */
 	.site-split[data-section='guidelines'] .site-split__detail {
 		padding-inline: 0;
 		margin-inline-start: 0;
@@ -1456,6 +1565,18 @@
 
 	.site-split[data-view='index'] {
 		grid-template-areas: 'detail' 'index';
+	}
+
+	/* Nothing to pin to, the finder's own reason: the document is the only
+	   scroller here, the masthead is already sticky over it, and a second pinned
+	   band under it would spend the short edge of a small screen on chrome — on
+	   the one layout where the control is also the first thing in the document,
+	   which is where the reader arrives. */
+	.site-split__backbar {
+		position: static;
+		padding: 0 0 var(--space-4);
+		margin-inline: 0;
+		background: transparent;
 	}
 
 	.site-split[data-view='detail'] .site-split__index {
@@ -1523,8 +1644,24 @@
 	}
 
 	/* Touch targets, matching what responsive.css already does for the app's
-	   controls at this width. */
+	   controls at this width. And the far-end margin comes off with the section
+	   title it was added for: here the nav wraps to a row of its own, where an
+	   auto margin parks it at the right edge while the brand above it sits at
+	   the page's gutter — two rows of chrome on opposite edges. `space-between`
+	   is what it was, and with nothing beside the brand on the first row it does
+	   the same job the margin does on a wide screen. */
 	.site-nav {
 		gap: var(--space-3);
+		margin-inline-start: 0;
+	}
+
+	/* The band has room for the brand or the section and the nav, not both: with
+	   all three the nav wraps to a second row and the masthead doubles in height,
+	   on the screen with the least of it to spend. The section is what comes off,
+	   because at this width the columns stack and the page's own heading is the
+	   first thing under the band — which is the question this title answers on a
+	   wide screen, where the choreography has pushed that heading away. */
+	.site-header__section {
+		display: none;
 	}
 }

@@ -16,7 +16,10 @@
 	 */
 	const total = $derived(countGuidanceLookups(data.sections));
 
-	const pageTitle = 'Genius transcription guidelines · LyricLint';
+	// Title case, because a tab is a label rather than a sentence: `Genius
+	// transcription guidelines · LyricLint` read as the middle of a sentence
+	// somebody had cut in half, next to a row of tabs that are all names.
+	const pageTitle = 'Genius Transcription Guidelines · LyricLint';
 	const pageDescription = $derived(
 		`Reviewed Genius transcription conventions in one place — ${total} of them, each with its source: the guidance the linter cannot check for you, and the rules it enforces itself.`
 	);
@@ -24,7 +27,7 @@
 	const structuredData = $derived({
 		'@context': 'https://schema.org',
 		'@type': 'CollectionPage',
-		name: 'Genius transcription guidelines',
+		name: 'Genius Transcription Guidelines',
 		url: canonicalUrl,
 		description: pageDescription,
 		numberOfItems: total,
@@ -49,7 +52,7 @@
 <StructuredData data={structuredData} />
 
 <main class="site-prose site-split__page">
-	<h1>Genius transcription guidelines</h1>
+	<h1>Genius Transcription Guidelines</h1>
 	<p class="site-lede">
 		Every guideline we have found for writing lyrics on Genius, compiled from staff guides, accepted
 		annotations, and staff rulings. The ones the workbench's
