@@ -148,11 +148,26 @@ conservative `community` default.
   guideline reads on the right. Entry rows deep-link `#<slug>` fragments on the
   prerendered topic pages, which draw straight from
   `src/lib/guidance/entries.ts`; the linter lookups ride the section layout's
-  server load, because they are derived from the server-only rule reference.
+  server load, because they are derived from the server-only rule reference —
+  severity and fix kind included, so the rows wear the rule index's own meta.
   Each topic page closes with its "Checked by the linter" run — the same rows
   the index column lists, kept on the page so a topic reads whole where the
   list is off screen — and every row that leaves for the rule reference wears
-  the citations' external-link mark.
+  the citations' external-link mark. The spelling topic also draws the
+  standardized-spellings table whole, from the same `ruleLookupTable` the rule
+  page loads (one data source, two surfaces; only the reviewed halves — the
+  linter's fix kinds and curated catches stay on the rule's page), and
+  table-shaped rules' lookup terms are in the linter rows' haystack so `woah`
+  finds the list. The search haystack is everything a
+  topic page says about an entry — the topic title and the citations' titles
+  included — and the topic page marks what matched
+  (`GuidanceSearchHighlight.svelte`), so an entry found by search says which of
+  its words earned it, exactly as a rule page does. Two or more citations on
+  an entry's meta line fold behind the diagnostic card's own `Sources ⌄`
+  (`SiteSourceFold.svelte`), unfolding on a row under the whole line —
+  promotion by evidence means entries accumulate sources, and a second inline
+  citation wraps the line. User-facing copy counts `conventions`, never
+  `lookups`, which is this file's own vocabulary and stays in it.
 - The assistant corpus carries a `guidance` section (format v3). A guidance
   entry has **no citable id of its own** in the answer schema: the assistant
   cites the entry's `sourceIds`, which the Worker already validates. Giving

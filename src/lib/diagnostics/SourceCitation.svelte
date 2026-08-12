@@ -1,11 +1,21 @@
 <script lang="ts">
 	import { ExternalLink } from 'lucide-svelte';
+	import type { Snippet } from 'svelte';
 	import type { SourceReference } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import { sourceFavicon } from './source-favicons.js';
 	import { safeExternalUrl } from './source-url.js';
 
-	let { source }: { source: SourceReference } = $props();
+	/**
+	 * How the title is drawn, for a surface with something to say about it —
+	 * `SourceLink.svelte`'s own arrangement, for its reason: the guidance topic
+	 * pages search their citations along with everything else, so the page a
+	 * search opens has to be able to mark the words that matched, and this
+	 * component may not reach for the marker itself because the linter's popover
+	 * draws it too. The surfaces that know no query simply get the text.
+	 */
+	let { source, text }: { source: SourceReference; text?: Snippet<[string]> | undefined } =
+		$props();
 
 	const safeUrl = $derived(safeExternalUrl(source.url));
 	const favicon = $derived(sourceFavicon(source.url));
@@ -56,6 +66,8 @@
 	the tooltip, because it is what a reader checks before following the link, not
 	something they need in front of them on every card.
 -->
+{#snippet plain(value: string)}{value}{/snippet}
+
 <span class="source-citation" bind:this={anchor}>
 	{#if safeUrl}
 		<!--
@@ -89,7 +101,7 @@
 			{#if favicon}
 				<img class="source-citation__favicon" src={favicon} alt="" />
 			{/if}
-			{source.pageTitle}
+			{@render (text ?? plain)(source.pageTitle)}
 			<ExternalLink
 				class="source-citation__external"
 				aria-hidden="true"
@@ -102,7 +114,9 @@
 		<!-- A citation whose URL is not a web address is not a link, so there is
 		     nothing to hover and no tooltip: its description stays in the
 		     accessible tree alone. -->
-		<span class="source-citation__label" aria-describedby={describedBy}>{source.pageTitle}</span>
+		<span class="source-citation__label" aria-describedby={describedBy}
+			>{@render (text ?? plain)(source.pageTitle)}</span
+		>
 	{/if}
 
 	<!--

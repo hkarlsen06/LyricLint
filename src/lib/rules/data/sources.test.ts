@@ -57,7 +57,11 @@ const reviewedIds = [
 	'G-NON-ENGLISH',
 	'G-INSTRUMENTAL',
 	'G-ROMANIZED',
-	'G-TRANSLATIONS'
+	'G-TRANSLATIONS',
+	'G-STREAMING',
+	'G-REVERSED',
+	'G-YODELING',
+	'G-PLURALS'
 ] as const;
 
 const latestHashes = new Map([
@@ -74,7 +78,15 @@ const latestHashes = new Map([
 // content hash; `L-NO-ACCENT` arrived with the rule that cites it.
 const reviewedToday = new Set<string>([...latestHashes.keys(), 'L-NO-ACCENT']);
 
+// Linked from `G-ADD-SONGS` and never registered until the guidance catalog's
+// sourcing pass reached the end of that index, so these four were retrieved
+// and mined on the same day.
+const sourcedFromIndex = new Set<string>(['G-STREAMING', 'G-REVERSED', 'G-YODELING', 'G-PLURALS']);
+
 function retrievedOn(id: string): string {
+	if (sourcedFromIndex.has(id)) {
+		return '2026-08-12';
+	}
 	// The staff forum answer arrived with `performer.collective-identifier`.
 	if (id === 'G-HEADER-COLLECTIVE') {
 		return '2026-08-10';
@@ -88,25 +100,60 @@ function retrievedOn(id: string): string {
 	return id === 'APPLE-LINE-PUNCTUATION' || id.startsWith('L-') ? '2026-07-25' : '2026-07-24';
 }
 
-// Three annotations were re-read without being re-fetched, so their
-// verification outruns their retrieval. `G-SECTIONS` was re-read in full on
-// 2026-08-08, when its examples corrected `performer.parenthetical-boundary`;
-// `G-QE-MARKS` on 2026-08-10, seeding the guidance catalog's punctuation
-// entries.
+// The guidance catalog's sourcing passes re-read sources without re-fetching
+// them, so their verification outruns their retrieval: `G-QE-MARKS` on
+// 2026-08-10, `G-SECTIONS` on 2026-08-11 (and on 2026-08-08, when its
+// examples corrected `performer.parenthetical-boundary`), and the rest of the
+// mined clusters on 2026-08-12 — `G-LANG-HEADERS` confirmed to be only the
+// inventory, one annotation per language, seeding no entries of its own.
+const guidanceSourcingPass = new Set<string>([
+	'G-SECTION-NUMBERING',
+	'G-SECTION-HOOK',
+	'G-HEADER-COLLECTIVE',
+	'G-LANG-HEADERS',
+	'G-SPELLING',
+	'G-AS-SPOKEN',
+	'G-CONTRACTIONS',
+	'G-CAPS',
+	'G-ADLIBS',
+	'G-SFX',
+	'G-QUOTES',
+	'G-TYPEWRITER',
+	'G-DASHES',
+	'G-SYMBOLS',
+	'G-INSTRUMENTAL',
+	'G-LINES',
+	'G-REPEATS',
+	'G-CENSORED',
+	'G-UNKNOWN',
+	'G-NUMBERS',
+	'G-NON-ENGLISH',
+	'G-ROMANIZED',
+	'G-TRANSLATIONS',
+	'G-LANG-PURPOSE',
+	'G-ADD-SONGS',
+	...sourcedFromIndex
+]);
+
 function verifiedOn(id: string): string {
 	if (id === 'G-SECTIONS') {
-		return '2026-08-08';
+		return '2026-08-11';
 	}
 	if (id === 'G-QE-MARKS') {
 		return '2026-08-10';
 	}
-	return id === 'G-ADD-SONGS' ? '2026-07-25' : retrievedOn(id);
+	if (guidanceSourcingPass.has(id)) {
+		return '2026-08-12';
+	}
+	return retrievedOn(id);
 }
 
 // An annotation with Genius staff among its contributors ranks staff — the
 // roster is the approval signal, per the ruling docs/guidelines.md records.
 // Every annotation's banner and roster were checked by the maintainer on
 // 2026-08-10, in-session; no annotation carried the unreviewed banner.
+// G-LANG-PURPOSE joined on 2026-08-12, promoted from editorial when the
+// guidance sourcing pass re-checked its roster.
 const staffAnnotations = new Set([
 	'G-SPELLING',
 	'G-SECTIONS',
@@ -130,7 +177,11 @@ const staffAnnotations = new Set([
 	'G-SFX',
 	'G-CENSORED',
 	'G-LANG-EN',
-	'G-LANG-ES'
+	'G-LANG-ES',
+	'G-LANG-PURPOSE',
+	'G-STREAMING',
+	'G-REVERSED',
+	'G-PLURALS'
 ]);
 
 // Reviewed (no unreviewed banner) with editors and moderators only in the
@@ -139,13 +190,13 @@ const staffAnnotations = new Set([
 const editorialAnnotations = new Set([
 	'G-SECTION-NUMBERING',
 	'G-SECTION-HOOK',
-	'G-LANG-PURPOSE',
 	'G-LANG-NO',
 	'G-LANG-AR',
 	'G-LANG-DE',
 	'G-LANG-FR',
 	'G-LANG-JA',
-	'G-LANG-KO'
+	'G-LANG-KO',
+	'G-YODELING'
 ]);
 
 function authorityOf(id: string): string {
@@ -175,7 +226,7 @@ describe('source registry', () => {
 		}
 	});
 
-	it('contains only the 56 specified source records', () => {
-		expect(sourceRegistry.size).toBe(56);
+	it('contains only the 60 specified source records', () => {
+		expect(sourceRegistry.size).toBe(60);
 	});
 });

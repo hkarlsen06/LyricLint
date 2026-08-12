@@ -5,6 +5,7 @@
  * into a documentation page's bundle — both guidelines loads read this instead
  * of each holding the derivation.
  */
+import { ruleFixability } from '$lib/rules/reference-search.js';
 import { groupedRuleReferences } from '$lib/rules/reference.js';
 import { guidanceTopicRuleGroups, type GuidanceTopic } from './guidance.js';
 import type { GuidanceLinterRule } from './guidance-search.js';
@@ -18,7 +19,10 @@ export function guidanceTopicLinterRules(topic: GuidanceTopic): GuidanceLinterRu
 				id: rule.id,
 				title: rule.title,
 				message: rule.message,
-				slug: rule.slug
+				slug: rule.slug,
+				severity: rule.severity,
+				fixability: ruleFixability(rule),
+				...(rule.lookupTerms ? { lookupTerms: rule.lookupTerms } : {})
 			}))
 		);
 }

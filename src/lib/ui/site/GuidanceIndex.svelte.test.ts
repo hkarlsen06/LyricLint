@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { guidanceTopics } from '$lib/guidance/entries.js';
 import { countGuidanceLookups, type GuidanceTopicSection } from '$lib/guidance/guidance-search.js';
 import { entryAnchor } from '$lib/guidance/guidance.js';
+import { setGuidanceSearchQuery } from './guidance-search.svelte.js';
 import GuidanceIndex from './GuidanceIndex.svelte';
 
 // The real catalog plus a fixed pair of linter lookups: the entries are what
@@ -18,13 +19,17 @@ const sections: GuidanceTopicSection[] = guidanceTopics().map(({ topic, entries 
 			id: 'punctuation.question',
 			title: 'A question mark the line needs',
 			message: 'This clearly interrogative line may need a question mark.',
-			slug: 'punctuation-question'
+			slug: 'punctuation-question',
+			severity: 'suggestion',
+			fixability: 'none'
 		},
 		{
 			id: 'quotes.typewriter',
 			title: 'Typewriter quotes',
 			message: 'Use a straight apostrophe.',
-			slug: 'quotes-typewriter'
+			slug: 'quotes-typewriter',
+			severity: 'warning',
+			fixability: 'safe'
 		}
 	]
 }));
@@ -43,10 +48,15 @@ function field() {
 // The selection's fragment half is read off the real location, so every test
 // starts from a document with no hash — without this, a test asserting nothing
 // is current would pass or fail on whatever the test above it navigated to.
-beforeEach(() => history.replaceState(null, '', location.pathname));
+// The query is module state for the topic page's highlighting, so it has to be
+// reset the same way — `RuleIndex.svelte.test.ts` makes the same two resets.
+beforeEach(() => {
+	history.replaceState(null, '', location.pathname);
+	setGuidanceSearchQuery('');
+});
 
 describe('GuidanceIndex', () => {
-	it('lists every lookup — guidance entries and linter rules — under topic headings', () => {
+	it('lists every convention — guidance entries and linter rules — under topic headings', () => {
 		render(GuidanceIndex, { sections });
 
 		expect(rows()).toHaveLength(total);
@@ -83,9 +93,23 @@ describe('GuidanceIndex', () => {
 	it('says so when nothing matches, as prose rather than a bare empty column', async () => {
 		render(GuidanceIndex, { sections });
 
-		await field().fill('zzz-no-such-lookup');
+		await field().fill('zzz-no-such-convention');
 		expect(rows()).toHaveLength(0);
-		expect(document.querySelector('.site-index__empty')?.textContent).toContain('No lookup');
+		expect(document.querySelector('.site-index__empty')?.textContent).toContain('No convention');
+	});
+
+	it('dresses a linter row in the rule index’s own meta', () => {
+		// The same rows in another shape — a row stripped down to its id here
+		// would read as a different kind of thing than at /rules/, and the drift
+		// arrives one omitted field at a time.
+		render(GuidanceIndex, { sections });
+
+		const row = rows().find((candidate) =>
+			candidate.textContent?.includes('A question mark the line needs')
+		);
+		expect(row?.textContent).toContain('punctuation.question');
+		expect(row?.textContent).toContain('Suggestion');
+		expect(row?.textContent).toContain('No automatic fix');
 	});
 
 	it('marks the entry the fragment names as the page, and only that one', async () => {

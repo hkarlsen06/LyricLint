@@ -20,7 +20,16 @@ import type { SourceAuthority } from '$lib/core/types.js';
 
 /** Topic titles, keyed by the id segment guidance entry ids carry. */
 export const guidanceTopicTitles = {
-	punctuation: 'Punctuation'
+	'section-headers': 'Section headers',
+	spelling: 'Spelling',
+	capitalization: 'Capitalization',
+	'ad-libs': 'Ad-libs',
+	punctuation: 'Punctuation',
+	lines: 'Lines and repeats',
+	'censored-unknown': 'Censored and unknown words',
+	numbers: 'Numbers',
+	'non-english': 'Non-English songs',
+	sourcing: 'Sourcing lyrics'
 } as const;
 
 export type GuidanceTopic = keyof typeof guidanceTopicTitles;
@@ -35,7 +44,27 @@ export type GuidanceTopic = keyof typeof guidanceTopicTitles;
  * every named family still has rules.
  */
 export const guidanceTopicRuleGroups: Record<GuidanceTopic, readonly string[]> = {
-	punctuation: ['punctuation', 'quotes']
+	'section-headers': ['section', 'performer'],
+	spelling: ['spelling', 'contraction'],
+	capitalization: ['capitalization'],
+	// The sound-effect family sits with the ad-libs: both are marks about what
+	// a voice is doing beside the lead, and G-SFX is this cluster's other half.
+	'ad-libs': ['adlib', 'sound-effect'],
+	punctuation: ['punctuation', 'quotes'],
+	// The text family is whitespace hygiene — doubled spaces, invisible
+	// characters — which is a fact about how a line is laid out, so it sits
+	// with the line-format conventions rather than under any other topic.
+	lines: ['line', 'repeat', 'text'],
+	// Both families are marks standing in for words the transcriber cannot
+	// write as sung — censored by the recording, or impossible to make out —
+	// which is also why the unknown family homes here although its own source
+	// seeds no entries: the [?] rules check the whole of that convention.
+	'censored-unknown': ['censored', 'unknown'],
+	numbers: ['numbers'],
+	'non-english': ['language'],
+	// Sourcing is about where a transcription comes from, which no rule can
+	// see — the empty list is the honest answer, not a placeholder.
+	sourcing: []
 };
 
 /**

@@ -235,24 +235,37 @@ const sources: SourceReference[] = [
 		pageTitle: 'How to Add Songs to Genius',
 		sectionTitle: 'Index of lyric accuracy and formatting guidance',
 		retrievedAt: reviewedAt,
-		lastVerifiedAt: '2026-07-25',
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// never-copy sourcing entry; the rest of the page is the index of the
+		// annotations mined individually, plus page-cataloging policy —
+		// unreleased music, AI-song admission — outside a transcription
+		// catalog's scope. Staff tier reconfirmed.
+		lastVerifiedAt: '2026-08-12',
 		reviewStatus: 'reviewed',
 		authority: 'staff'
 	},
 	// Screenshot 2026-08-10: no unreviewed banner, and Genius staff in the
 	// contributor roster (accepted by streetlights; Gary, KST, Yessirre) —
 	// staff among an annotation's contributors is what lifts it to staff.
-	annotation(
-		'G-SPELLING',
-		9298624,
-		'Use standardized spellings',
-		'Preferred spellings with contextual exceptions',
-		'staff'
-	),
+	// Re-read in full on 2026-08-12, seeding the guidance catalog's
+	// English-variant entry; the preferred-spellings table itself is
+	// `spelling.standardized`'s data. Staff tier reconfirmed.
+	{
+		...annotation(
+			'G-SPELLING',
+			9298624,
+			'Use standardized spellings',
+			'Preferred spellings with contextual exceptions',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
 	{
 		// Re-read in full on 2026-08-08, correcting `performer.parenthetical-boundary`:
 		// the guide's own examples keep parentheses outside performer formatting —
-		// `(<i>If Young Metro don't trust you…</i>)` — never inside it.
+		// `(<i>If Young Metro don't trust you…</i>)` — never inside it. Re-read
+		// again on 2026-08-11, seeding the guidance catalog's section-headers
+		// entries; staff tier reconfirmed.
 		...annotation(
 			'G-SECTIONS',
 			9250687,
@@ -260,7 +273,7 @@ const sources: SourceReference[] = [
 			'Section headers, performer legends, and four differentiation styles',
 			'staff'
 		),
-		lastVerifiedAt: '2026-08-08'
+		lastVerifiedAt: '2026-08-11'
 	},
 	{
 		// A staff reply in a community discussion rather than an accepted
@@ -268,47 +281,77 @@ const sources: SourceReference[] = [
 		// written out and never combined under "Both", "All", etc., and names
 		// annotation 9250687 as the staff-approved guideline over the community
 		// headers guide.
+		// Re-read in full on 2026-08-12: the staff answer also restates the
+		// too-many-vocalists recourse (omit the names, annotate over the
+		// header), so it seconds the guidance catalog's crowded-headers entry.
+		// Staff tier reconfirmed — Gary's reply, in a community discussion.
 		id: 'G-HEADER-COLLECTIVE',
 		url: 'https://genius.com/discussions/459032-Two-correct-methods-for-identifying-artists-in-section-headers',
 		pageTitle: 'Two "Correct" Methods for Identifying Artists in Section Headers',
 		sectionTitle: 'Staff answer: artist names are written out, never combined under Both or All',
 		retrievedAt: '2026-08-10',
-		lastVerifiedAt: '2026-08-10',
+		lastVerifiedAt: '2026-08-12',
 		reviewStatus: 'reviewed',
 		authority: 'staff'
 	},
 	// Screenshot 2026-08-10: no unreviewed banner, editor-authored (Pessoa).
-	annotation(
-		'G-SECTION-NUMBERING',
-		16107272,
-		'Song Sections & Headers Guide',
-		'Only verses are enumerated; distinct verses use ascending numbers',
-		'editorial'
-	),
-	annotation(
-		'G-SECTION-HOOK',
-		34151858,
-		'Song Sections & Headers Guide',
-		'Replace the deprecated Hook header with Chorus or Refrain',
-		'editorial'
-	),
 	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// segue/Parts entry; editorial tier reconfirmed.
+		...annotation(
+			'G-SECTION-NUMBERING',
+			16107272,
+			'Song Sections & Headers Guide',
+			'Only verses are enumerated; distinct verses use ascending numbers',
+			'editorial'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// Hook-by-language entry: the deprecation is scoped to English songs,
+		// and some international communities (Germany) still use Hook.
+		// Editorial tier reconfirmed.
+		...annotation(
+			'G-SECTION-HOOK',
+			34151858,
+			'Song Sections & Headers Guide',
+			'Replace the deprecated Hook header with Chorus or Refrain',
+			'editorial'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read on 2026-08-12 for the guidance catalog sourcing pass: the page
+		// is still only the inventory — one annotation per language, each already
+		// registered as its own `G-LANG-*` source feeding a language pack — so it
+		// seeds no entries of its own. Its guidance value is being the place to
+		// check a language the packs do not cover, which the hook-by-language
+		// entry cites it for. Community tier stands: the track is unbadged, and
+		// the page's own text is the only thing this source vouches for.
 		id: 'G-LANG-HEADERS',
 		url: 'https://genius.com/Genius-song-headers-in-different-languages-annotated',
 		pageTitle: 'Song Headers in Different Languages',
 		sectionTitle: 'Inventory of language-specific header annotations',
 		retrievedAt: reviewedAt,
-		lastVerifiedAt: reviewedAt,
+		lastVerifiedAt: '2026-08-12',
 		reviewStatus: 'reviewed',
 		authority: 'community'
 	},
-	annotation(
-		'G-LANG-PURPOSE',
-		12709276,
-		'Song Headers in Different Languages',
-		'Purpose of localized section-header guidance',
-		'editorial'
-	),
+	{
+		// Promoted editorial → staff on 2026-08-12: the guidance sourcing pass
+		// re-read the annotation — it is the page's own about section — and the
+		// maintainer re-checked its roster and ranked it staff. Seeds the
+		// foreign-language-headers entry alongside G-LANG-HEADERS.
+		...annotation(
+			'G-LANG-PURPOSE',
+			12709276,
+			'Song Headers in Different Languages',
+			'Purpose of localized section-header guidance',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
 	annotation(
 		'G-LANG-EN',
 		12744609,
@@ -365,13 +408,19 @@ const sources: SourceReference[] = [
 		'English headers for original Korean songs and Hangul headers for translations',
 		'editorial'
 	),
-	annotation(
-		'G-NUMBERS',
-		15591905,
-		'Number spelling',
-		'Spell out numbers with exceptions',
-		'staff'
-	),
+	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's numbers
+		// topic — the spelled-out default, the digit exemptions, and the times
+		// format; staff tier reconfirmed.
+		...annotation(
+			'G-NUMBERS',
+			15591905,
+			'Number spelling',
+			'Spell out numbers with exceptions',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
 	{
 		id: 'APPLE-LINE-PUNCTUATION',
 		url: 'https://artists.apple.com/support/1111-lyrics-guidelines',
@@ -399,64 +448,125 @@ const sources: SourceReference[] = [
 		),
 		lastVerifiedAt: '2026-08-10'
 	},
-	annotation(
-		'G-DASHES',
-		15594027,
-		'Hyphens and em dashes',
-		'Dropped words and punctuation around em dashes',
-		'staff'
-	),
-	annotation(
-		'G-CAPS',
-		15545679,
-		'Conventional capitalization',
-		'Lyric-line capitalization with contextual exceptions',
-		'staff'
-	),
-	annotation('G-UNKNOWN', 9303373, 'Unknown lyric marker', 'Use [?] for unknown lyrics', 'staff'),
-	annotation(
-		'G-CONTRACTIONS',
-		9290803,
-		'Contraction apostrophes',
-		'Write apostrophes in clear contractions',
-		'staff'
-	),
-	annotation(
-		'G-TYPEWRITER',
-		11293005,
-		'Typewriter quotes',
-		'Use straight apostrophes and quotation marks',
-		'staff'
-	),
-	annotation('G-ADLIBS', 9257397, 'Ad-libs', 'Parenthesize and capitalize ad-libs', 'staff'),
-	annotation(
-		'G-REPEATS',
-		9290098,
-		'Repeated sections',
-		'Transcribe repeated lyrics instead of placeholders',
-		'staff'
-	),
-	annotation(
-		'G-LINES',
-		9257393,
-		'Individual lyric lines',
-		'Split prose-like transcription into lyric lines',
-		'staff'
-	),
-	annotation(
-		'G-SFX',
-		14949930,
-		'Sound effects',
-		'Use asterisks rather than braces for sound effects',
-		'staff'
-	),
-	annotation(
-		'G-CENSORED',
-		15237597,
-		'Censored words',
-		'Use four asterisks for a censored word',
-		'staff'
-	),
+	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// scatting/stutter entry; the em-dash claims are
+		// `punctuation.dropped-word-dash`'s own. Staff tier reconfirmed.
+		...annotation(
+			'G-DASHES',
+			15594027,
+			'Hyphens and em dashes',
+			'Dropped words and punctuation around em dashes',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// capitalization entries; staff tier reconfirmed.
+		...annotation(
+			'G-CAPS',
+			15545679,
+			'Conventional capitalization',
+			'Lyric-line capitalization with contextual exceptions',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12: the whole claim — [?] for a missing
+		// lyric, brackets never parentheses — is checked outright by
+		// `unknown.marker` and `unknown.improvised-marker`, so it seeds no
+		// guidance entry. Staff tier reconfirmed.
+		...annotation(
+			'G-UNKNOWN',
+			9303373,
+			'Unknown lyric marker',
+			'Use [?] for unknown lyrics',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12, seconding the guidance catalog's
+		// elision-apostrophe entry; staff tier reconfirmed.
+		...annotation(
+			'G-CONTRACTIONS',
+			9290803,
+			'Contraction apostrophes',
+			'Write apostrophes in clear contractions',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12: the whole claim is the glyph form,
+		// which `quotes.typewriter` checks outright, so it seeds no guidance
+		// entry. Staff tier reconfirmed.
+		...annotation(
+			'G-TYPEWRITER',
+			11293005,
+			'Typewriter quotes',
+			'Use straight apostrophes and quotation marks',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's ad-libs
+		// entries; staff tier reconfirmed.
+		...annotation('G-ADLIBS', 9257397, 'Ad-libs', 'Parenthesize and capitalize ad-libs', 'staff'),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// repeats-in-full entry; staff tier reconfirmed.
+		...annotation(
+			'G-REPEATS',
+			9290098,
+			'Repeated sections',
+			'Transcribe repeated lyrics instead of placeholders',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// line-format entries; staff tier reconfirmed.
+		...annotation(
+			'G-LINES',
+			9257393,
+			'Individual lyric lines',
+			'Split prose-like transcription into lyric lines',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// vocalized-sound entry; staff tier reconfirmed.
+		...annotation(
+			'G-SFX',
+			14949930,
+			'Sound effects',
+			'Use asterisks rather than braces for sound effects',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// censored-word entries — the explicit-version preference included;
+		// staff tier reconfirmed.
+		...annotation(
+			'G-CENSORED',
+			15237597,
+			'Censored words',
+			'Use four asterisks for a censored word',
+			'staff'
+		),
+		lastVerifiedAt: '2026-08-12'
+	},
 	{
 		...annotation(
 			'G-QUOTES',
@@ -465,8 +575,10 @@ const sources: SourceReference[] = [
 			'When lyric text uses quotation marks',
 			'staff'
 		),
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// quotation-usage entry; staff tier reconfirmed.
 		retrievedAt: latestReviewedAt,
-		lastVerifiedAt: latestReviewedAt,
+		lastVerifiedAt: '2026-08-12',
 		contentHash: 'sha256:af782896da241613e8c43f818e1e29cbd10c737dd3a25085ecdff4f9b85ec49b'
 	},
 	{
@@ -477,11 +589,15 @@ const sources: SourceReference[] = [
 			'Omit trademark and decorative symbols; spell out ampersands and degrees outside brands',
 			'staff'
 		),
+		// Re-read in full on 2026-08-12, seconding the guidance catalog's
+		// brand-stylization entry; staff tier reconfirmed.
 		retrievedAt: latestReviewedAt,
-		lastVerifiedAt: latestReviewedAt,
+		lastVerifiedAt: '2026-08-12',
 		contentHash: 'sha256:264d9996c30fe27b2d8d51591a3fdf4a26c16569a1ab5849cd48c30449e9f601'
 	},
 	{
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// as-pronounced and readability-limit entries; staff tier reconfirmed.
 		...annotation(
 			'G-AS-SPOKEN',
 			12332255,
@@ -490,7 +606,7 @@ const sources: SourceReference[] = [
 			'staff'
 		),
 		retrievedAt: latestReviewedAt,
-		lastVerifiedAt: latestReviewedAt,
+		lastVerifiedAt: '2026-08-12',
 		contentHash: 'sha256:961751d472f6b006e7c23640f99f18d5f81255f3cec22faf002648b0e648e092'
 	},
 	{
@@ -502,7 +618,9 @@ const sources: SourceReference[] = [
 			'staff'
 		),
 		retrievedAt: latestReviewedAt,
-		lastVerifiedAt: latestReviewedAt,
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// lyrics-header entry; staff tier reconfirmed.
+		lastVerifiedAt: '2026-08-12',
 		contentHash: 'sha256:23f3b830f5078af165503b09bc9e7775a3b4e5623260b3ac1648c2c25d6ae8f1'
 	},
 	{
@@ -513,8 +631,10 @@ const sources: SourceReference[] = [
 			'Use [Instrumental] as the lyric text for an instrumental track page',
 			'staff'
 		),
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// instrumental-page entry; staff tier reconfirmed.
 		retrievedAt: latestReviewedAt,
-		lastVerifiedAt: latestReviewedAt,
+		lastVerifiedAt: '2026-08-12',
 		contentHash: 'sha256:27f047b0a1ab7f56e8cbf9ef46ea08c1441e843f66f41e569afefb2874e55350'
 	},
 	{
@@ -526,7 +646,9 @@ const sources: SourceReference[] = [
 			'staff'
 		),
 		retrievedAt: latestReviewedAt,
-		lastVerifiedAt: latestReviewedAt,
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// romanized-separate entry; staff tier reconfirmed.
+		lastVerifiedAt: '2026-08-12',
 		contentHash: 'sha256:fc82a5078321719e14a6efda974655d32f6d14027547baa53e2d6d9b7979373a'
 	},
 	{
@@ -538,8 +660,62 @@ const sources: SourceReference[] = [
 			'staff'
 		),
 		retrievedAt: latestReviewedAt,
-		lastVerifiedAt: latestReviewedAt,
+		// Re-read in full on 2026-08-12, seeding the guidance catalog's
+		// translations-separate entry; staff tier reconfirmed.
+		lastVerifiedAt: '2026-08-12',
 		contentHash: 'sha256:df8d1a410fbcbf88f912a5d030553840a6145383649e4d194c2bb8dc453fa4eb'
+	},
+	// The four annotations linked from G-ADD-SONGS that had no record of their
+	// own, retrieved and mined on 2026-08-12 during the guidance catalog's
+	// sourcing pass; the maintainer supplied each annotation's text and rank.
+	{
+		// Seeds the streaming-version sourcing entry.
+		...annotation(
+			'G-STREAMING',
+			14949792,
+			'Streaming version',
+			'The lyric page follows the streaming version',
+			'staff'
+		),
+		retrievedAt: '2026-08-12',
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Seeds the reversed-vocals entry.
+		...annotation(
+			'G-REVERSED',
+			14913125,
+			'Reversed lyrics',
+			'Type reversed vocals as they sound',
+			'staff'
+		),
+		retrievedAt: '2026-08-12',
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Seeds the yodeling-and-scatting entry. Editor-reviewed with no staff
+		// contributors (editorial tier).
+		...annotation(
+			'G-YODELING',
+			16912129,
+			'Yodeling and scatting',
+			'Dash yodel and scat syllables, with bracketed fallbacks',
+			'editorial'
+		),
+		retrievedAt: '2026-08-12',
+		lastVerifiedAt: '2026-08-12'
+	},
+	{
+		// Seeds the letter-plurals entry.
+		...annotation(
+			'G-PLURALS',
+			33314316,
+			'Pluralizing letters',
+			'Apostrophe-s for a single letter, bare s for longer',
+			'staff'
+		),
+		retrievedAt: '2026-08-12',
+		lastVerifiedAt: '2026-08-12'
 	}
 ];
 

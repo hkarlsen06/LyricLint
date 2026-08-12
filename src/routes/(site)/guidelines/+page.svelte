@@ -10,7 +10,7 @@
 
 	/**
 	 * The detail column at `/guidelines/` says what the catalog is, the rule
-	 * reference's own arrangement: the finder and every lookup are in the column
+	 * reference's own arrangement: the finder and every convention are in the column
 	 * beside this one, so the page's job is the part a list cannot carry — where
 	 * the conventions come from and how much standing each tier has.
 	 */
@@ -18,7 +18,7 @@
 
 	const pageTitle = 'Genius transcription guidelines · LyricLint';
 	const pageDescription = $derived(
-		`Reviewed Genius transcription conventions in one place — ${total} sourced lookups: the guidance the linter cannot check for you, and the rules it enforces itself.`
+		`Reviewed Genius transcription conventions in one place — ${total} of them, each with its source: the guidance the linter cannot check for you, and the rules it enforces itself.`
 	);
 	const canonicalUrl = siteUrl('/guidelines/');
 	const structuredData = $derived({
@@ -63,7 +63,7 @@
 	</p>
 
 	<h2>The topics so far</h2>
-	<p>Every lookup is in the list beside this page; each topic also reads whole:</p>
+	<p>Every convention is in the list beside this page; each topic also reads whole:</p>
 	<ul class="site-run">
 		{#each data.sections as { topic, entries, linterRules } (topic)}
 			<li>

@@ -592,6 +592,18 @@
 	color: var(--color-border-strong);
 }
 
+/* Two or more citations fold behind the diagnostic card's own `Sources ⌄`
+   (`SiteSourceFold.svelte`), which reuses the card's disclosure classes — this
+   is only the unfolded list's place in the site's wrapping meta row: a full
+   row of its own under the whole line, never a run spliced into the middle of
+   it. The `order` is what keeps that true with facts after the disclosure —
+   the list sorts past them visually while the DOM keeps the citations beside
+   the control that reveals them. */
+.site-meta__sources {
+	flex-basis: 100%;
+	order: 1;
+}
+
 /*
  * The live demo: the workbench's own `EditorPane`, mounted without the shell
  * around it. It gets the same border and surface as a `.site-sample`, because
@@ -742,11 +754,27 @@
  * one side rather than as an outline that ran out of room. The margin gives the
  * four pixels back to the section's own inline padding, so every row, heading
  * and field keeps the x it had.
+ *
+ * The block-start margin is the same lane on the other axis, found the same
+ * way: the search field is the first thing in the index column, so the top of
+ * its ring was cut off flat at the port's edge. Both columns pull their clip
+ * edge up by the ring's reach and hand the height back so every first line
+ * keeps the y it had — but where the room is *reserved* differs, and the
+ * difference is a sticky trap worth keeping. The detail column takes the
+ * inline lane's own pair, padding plus negative margin. The index column must
+ * not: its finder is sticky, and a sticky box cannot sit above its containing
+ * block's content edge — the negative margin that would let it start inside
+ * the column's padding is clamped back to the content edge, which shoves the
+ * field (and every row under it) down by the lane instead. So the index
+ * carries no block padding, and the lane there is the finder's own padding
+ * below, which also holds while the finder is pinned — a pinned box is back
+ * at the clip edge whatever the column's padding says.
  */
 .site-split__index,
 .site-split__detail {
 	min-height: 0;
 	padding-inline: var(--focus-ring-reach) var(--space-3);
+	margin-block-start: calc(-1 * var(--focus-ring-reach));
 	margin-inline-start: calc(-1 * var(--focus-ring-reach));
 	overflow: auto;
 	overscroll-behavior: contain;
@@ -758,6 +786,7 @@
 }
 
 .site-split__detail {
+	padding-block-start: var(--focus-ring-reach);
 	grid-area: detail;
 }
 
@@ -810,20 +839,27 @@
 }
 
 /* The entry a deep link landed on, washed in the selection tone for as long
-   as the hash names it — the fragment marks the heading, `:has()` hands the
-   wash to the whole entry. The wash is a pseudo-element floated behind the
-   content rather than the entry's own background: the entry's box reaches to
-   the hairlines, so a background would lie against both lines, and the shape
-   wanted is a line, a breath, the box, a breath, a line. The box spills
-   `--space-4` past the content on every side, and where a hairline sits
-   `--space-6` off the content it therefore stops `--space-4` short of the
-   line — the same even gap above and below. `z-index: 0` on the entry scopes
-   the negative layer so the wash cannot slip behind an ancestor's paint. */
+   as the hash names it. The page marks it (`data-current`, read off the hash),
+   because `:target` cannot carry this alone: only a native fragment navigation
+   updates the target element, and pressing an index row from another page is
+   the router's `pushState`, which updates nothing — so the wash skipped the
+   first press and lit only on same-path hash presses. `:target` stays in the
+   selector as the no-JavaScript arrival's mark, handed to the whole entry by
+   `:has()`. The wash is a pseudo-element floated behind the content rather
+   than the entry's own background: the entry's box reaches to the hairlines,
+   so a background would lie against both lines, and the shape wanted is a
+   line, a breath, the box, a breath, a line. The box spills `--space-4` past
+   the content on every side, and where a hairline sits `--space-6` off the
+   content it therefore stops `--space-4` short of the line — the same even
+   gap above and below. `z-index: 0` on the entry scopes the negative layer so
+   the wash cannot slip behind an ancestor's paint. */
+.guidelines__entry[data-current],
 .guidelines__entry:has(:target) {
 	position: relative;
 	z-index: 0;
 }
 
+.guidelines__entry[data-current]::before,
 .guidelines__entry:has(:target)::before {
 	content: '';
 	position: absolute;
@@ -833,6 +869,7 @@
 	background: var(--color-selected);
 }
 
+.guidelines__entry + .guidelines__entry[data-current]::before,
 .guidelines__entry + .guidelines__entry:has(:target)::before {
 	top: calc(var(--space-6) - var(--space-4));
 }
@@ -955,11 +992,22 @@
  * No border and no fill of its own: a boundary here would separate the controls
  * that filter the list from the list they filter, which is the one place a
  * boundary has nothing to do.
+ *
+ * The block-start padding is the focus ring's lane, at rest and while pinned.
+ * The index column deliberately reserves none of its own (the sticky trap the
+ * column rule documents), so this padding is the whole of the room above the
+ * field — and carried here it travels with the pin, where a lane held by the
+ * column would put a pinned finder back at the clip edge. The finder's canvas
+ * fill covers it, so no sliver of row shows above the field while the list
+ * scrolls past, and the column's negative block margin is what hands the
+ * height back, so the field and every row under it keep the y they had. The
+ * reveal arithmetic in `reveal-selected.ts` measures port top plus finder
+ * height and is unchanged by the pair for the same reason.
  */
 .site-finder {
 	position: sticky;
 	display: grid;
-	padding-block-end: var(--space-3);
+	padding-block: var(--focus-ring-reach) var(--space-3);
 	gap: var(--space-2);
 	inset-block-start: 0;
 	background: var(--color-canvas);
@@ -972,7 +1020,8 @@
    neither wraps under the field nor stretches it. The spark is the workbench
    tab strip's own glyph-for-the-assistant, quiet until hovered, and it only
    draws in builds with an endpoint behind it — the row is just the field
-   otherwise. */
+   otherwise. Pressed, it sweeps to the head of the row and the field becomes
+   the ask field; `AssistantSpark.svelte` owns the whole exchange. */
 .site-finder__row {
 	display: flex;
 	gap: var(--space-1);
@@ -985,9 +1034,68 @@
 	font-size: var(--font-size-sm);
 }
 
+/* Both bars live in one stacked slot so the toggle's wipe has something on
+   both sides of its edge: the outgoing bar to mask, the incoming one to
+   unveil. At rest only the active layer draws — `visibility`, never opacity,
+   and never `display`, which would take the hidden bar's box away from the
+   clip the wipe animates. The inactive layer's own keyframes hold it visible
+   for exactly the animation's length (`AssistantSpark.svelte`). */
+.site-finder__slot {
+	position: relative;
+	flex: 1;
+	min-width: 0;
+}
+
+.site-finder__layer {
+	min-width: 0;
+}
+
+.site-finder__layer[data-active='false'] {
+	position: absolute;
+	visibility: hidden;
+	inset: 0;
+}
+
 .site-finder__assistant {
 	flex: none;
 	padding-inline: var(--space-2);
+}
+
+/* The ask field is showing. The accent is the same report the editor's search
+   magnifier makes over its bar — `aria-pressed` is what carries the state to
+   anything that cannot see a color, which is why this is a toggle button
+   rather than a class. */
+.site-finder__assistant[aria-pressed='true'] {
+	color: var(--color-accent);
+}
+
+.site-finder__assistant-glyph {
+	position: relative;
+	display: inline-flex;
+}
+
+/* At rest the wand is struck through — the filter chips' unpressed idiom on a
+   control with no word to strike: the assistant is off until the wand is
+   pressed. The slash is the non-color cue beside `aria-pressed`, drawn at the
+   glyph's own stroke weight so it reads as part of the mark rather than as a
+   second one laid over it — and it is the half that carries the state, so the
+   wand steps down to the muted tone underneath it while the slash keeps the
+   full text color. One mark at two weights reads as "a wand, refused"; both at
+   full weight read as two marks fighting for the same pixels. */
+.site-finder__assistant[aria-pressed='false'] .site-finder__assistant-glyph > svg {
+	color: var(--color-text-muted);
+}
+
+.site-finder__assistant[aria-pressed='false'] .site-finder__assistant-glyph::after {
+	content: '';
+	position: absolute;
+	inset-inline: -2px;
+	inset-block-start: 50%;
+	block-size: 2px;
+	border-radius: var(--radius-pill);
+	background: var(--color-text);
+	translate: 0 -50%;
+	rotate: 45deg;
 }
 
 .site-finder__chips {
@@ -1202,7 +1310,8 @@
 /*
  * What the reader's own search matched, marked on the page they opened out of
  * it — the title, the explanation, both examples, and every row of a lookup
- * table. See `RuleSearchHighlight.svelte`.
+ * table. See `SearchHighlight.svelte` — shared by both reference sections,
+ * which is why the class is `site-`prefixed rather than either section's own.
  *
  * `--color-text-selection` rather than a highlighter yellow, and rather than a
  * token of its own. This is the system's one tone for a run of text picked out
@@ -1217,7 +1326,7 @@
  * `marktext` foreground, which is black — over the dark scheme's selection blue
  * that is text nobody can read, on the one element added to help somebody read.
  */
-.rules__hit {
+.site-hit {
 	border-radius: var(--radius-xs);
 	background: var(--color-text-selection);
 	color: inherit;
@@ -1235,7 +1344,7 @@
  * system's rule about colour everywhere else, applied to the one run of a link
  * that has a second thing to say.
  */
-.site-split__page a .rules__hit {
+.site-split__page a .site-hit {
 	color: var(--color-text);
 }
 
@@ -1322,11 +1431,13 @@
 	}
 
 	/* Nothing clips here, so neither lane is needed: the scrollbar's, nor the
-	   focus ring's. */
+	   focus ring's — on either axis. */
 	.site-split__index,
 	.site-split__detail {
 		min-height: auto;
+		padding-block-start: 0;
 		padding-inline: 0;
+		margin-block-start: 0;
 		margin-inline-start: 0;
 		overflow: visible;
 		overscroll-behavior: auto;
@@ -1356,9 +1467,10 @@
 	   engage after they had scrolled past a whole page, then follow them down the
 	   list glued to the top of a viewport with no chrome in it. It is the first
 	   thing in the section either way, which at this width is where the reader
-	   arrives. */
+	   arrives. Unpinned, its ring lane comes off with the columns' above. */
 	.site-finder {
 		position: static;
+		padding-block-start: 0;
 	}
 }
 

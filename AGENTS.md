@@ -4347,7 +4347,7 @@ match on any of its own text has to be able to say _which_ of it matched.
 inherit` is not optional: a `<mark>` takes the browser's own black `marktext`, which over the dark
   scheme's selection blue is text nobody can read, on the one element added to help somebody read.
 
-**`RuleSearchHighlight.svelte` draws text and nothing else — no wrapper — so it stands inside a
+**`SearchHighlight.svelte` draws text and nothing else — no wrapper — so it stands inside a
 heading, a `<pre>`, a muted `<span>` and a run of code segments without any of them knowing it is
 there. Which makes the whitespace in its template load-bearing.** Svelte does not trim a template
 that opens with a comment node, so the markup around the comment that first stood over the block —
@@ -4356,7 +4356,11 @@ front of every string it drew. In the reviewed examples, which are set in a `<pr
 lines of a transcription nobody typed at the top of every rule page on the site. The comment is in
 the script now and the block is one unbroken line. **Both the component test and the e2e spec
 measure the rendered text against the string that went in**, because it is a formatter that will
-break this and it looks exactly like working markup when it does.
+break this and it looks exactly like working markup when it does. It is the base both reference
+sections share — `RuleSearchHighlight.svelte` and `GuidanceSearchHighlight.svelte` are one-line
+wrappers binding it to their own section's tokens, so the guidance catalog marks its hits with the
+same element, the same fold and the same whitespace discipline, and its `.site-hit` mark is
+`site-`prefixed because it stopped being one section's own.
 
 **Opening a rule by its URL scrolls the list to it; pressing a row in the list does not.** A rule
 _is_ a URL, so most arrivals here are not presses on this column — a shared link, a search result,
@@ -4450,7 +4454,7 @@ and the highlight arithmetic — pure, so neither the component nor the page hol
 `revealSelectedRow` in `src/lib/ui/site/reveal-selected.ts` (shared with the guidance catalog's
 index) with its trigger in `src/lib/ui/site/SectionSplit.svelte`, the guide in
 `routes/(site)/rules/+page.svelte`, and `.site-finder`, `.rules__family`, `.rules__checks` and
-`.rules__hit` in `site.css`. The shell itself — the grid, the choreography, the back control — is
+`.site-hit` in `site.css`. The shell itself — the grid, the choreography, the back control — is
 the next section's subject.
 
 ### The reference sections share one split shell, and opening a page is choreographed
@@ -4494,12 +4498,32 @@ permanent band of colophon pinned under content somebody is reading, on every sc
 nothing about either column. The colophon — and the Apple attribution it carries, a once-per-site
 requirement — stays on the document pages, which end.
 
-**The assistant's entry point is the sparkles, not a prompt.** Both finders carry
-`AssistantSpark.svelte` beside the search field: the workbench tab strip's own glyph, accessible
-name `Ask the assistant`, opening the shared modal where the question is asked. It replaced a full
+**The assistant's entry point is the sparkles, and the field it asks in is the search field's own
+slot.** Both finders carry `AssistantSpark.svelte`, which owns the whole finder row so the two
+sections cannot grow separate copies of what a press does: at rest the wand sits at the field's end,
+struck through — the filter chips' unpressed idiom on a control with no word to strike, with the
+wand stepped down to the muted tone under a slash that keeps the full text color, because the slash
+is the half carrying the state and two marks at one weight fight for the same pixels — and the row
+is the section's search field, supplied as a snippet. Pressing the wand sweeps it to the head of the
+row, takes the strike off, draws it accent (the editor magnifier's own report, with `aria-pressed`
+carrying the state and the accessible name `Ask the assistant` never changing), and swaps the field
+for the ask field; Enter there opens the shared modal with the question already sent through
+`openWithQuestion`, which starts its own chat because that field is not in a conversation. Pressing
+the wand again — or Escape in an empty ask field — returns the search, holding whatever query it
+had: the mode swap must not eat a search the reader means to come back to, and the readout still
+discloses a query narrowing the list while the field shows the prompt. The sweep is a wipe with the
+wand as its edge — the outgoing bar stays whole ahead of it and is masked in its wake, where the
+incoming bar is unveiled — which is why both bars are mounted in one stacked slot rather than
+swapped: a wipe needs something on both sides of its edge, so the resting states are a visibility
+question and never presence. Its three animations are measured across the toggle (FLIP), share one
+duration and one easing read off the control's own motion tokens so the mask, the unveil and the
+wand cannot drift apart, and run only under `prefers-reduced-motion: no-preference`; DOM order
+follows the visual order in both states, so the press recreates the button and focus is handed to
+the active field explicitly — which is where the press was headed anyway. This replaced a spark that only opened the modal, which itself replaced a full
 prompt — label, field, button and three lines of hint — that said more about the assistant than
-either column said about its own content, and the e2e conversation test drives the dialog through
-it.
+either column said about its own content. `AssistantSpark.svelte.test.ts` pins the toggle, the
+strike, the send and the Escape ladder; the e2e conversation test drives the dialog through the ask
+field.
 
 **A row that leaves the section says so.** The guidance list's linter-rule rows and the topic
 page's `Checked by the linter` run open the rule reference, and each wears the citations' own
@@ -4508,10 +4532,44 @@ meta line already says whose row it is in words. Guidance-entry rows stay inside
 carry nothing. That topic-page run is deliberately the index column's rows drawn again: on a
 narrow screen the list left with the index view, and a topic has to read whole without it.
 
+**And a linter row is the rule index's row whole.** Severity tag, id, fix kind — the same meta the
+row wears at `/rules/`, because these are that index's rows in another shape and a row dressed
+down to its id alone reads as a different kind of thing than the row it claims to be. The drift
+arrives one omitted field at a time, so `GuidanceIndex.svelte.test.ts` pins the dress.
+
+**The guidance finder speaks the reader's word and searches the whole page.** Its counts, readout
+and empty state say `conventions` — `lookups` was the implementation's own register leaking into
+five user-facing strings, naming neither of the two things the number blends. The haystack is what
+the topic page says, the topic's own title and the citations' titles included; both omissions were
+the rule reference's citation lesson arriving here, and the measured failure is worth keeping:
+`punctuation`, typed under the heading `Punctuation`, dropped every guidance entry and answered
+with the linter rows whose ids happened to carry the word. **And the topic page marks what
+matched**, through `GuidanceSearchHighlight` over the shared `SearchHighlight` base, on every
+string the haystack reads — title, statement, samples, note, tier label, rule ids, citations
+(`SourceCitation.svelte` takes the same optional `text` snippet `SourceLink.svelte` does, for the
+same dependency reason). **Two or more citations on an entry's meta line fold behind the
+diagnostic card's own `Sources ⌄`** (`SiteSourceFold.svelte`, reusing the card's disclosure
+classes so there is one implementation of the control), unfolding on a row under the whole line —
+the list's flex `order` is what keeps that true with facts after the disclosure. Promotion by
+evidence means entries accumulate sources, and a second inline citation wraps the meta line into
+the very rows the card's rule exists to prevent. The query is module state in
+`guidance-search.svelte.ts` for
+`rule-search.svelte.ts`'s own reason — the page and the list are siblings with nothing to hand
+each other — and it is a second module rather than the same one because the two sections are
+searched for different things: one query silently narrowing both lists would be a filter applied
+where nobody typed it.
+
 The guidance column knows one thing the rules one does not: **a guideline is a fragment on its
 topic's page**, so the current row is the route param _and_ the hash together — `afterNavigate`
-covers path changes, and `hashchange` covers the navigation the router never models. And its wash
-taught the shell a clip lesson: the `:target` wash spills `--space-4` past the entry on every
+covers path changes, and `hashchange` covers the navigation the router never models. **The wash
+cannot ride `:target` alone for the same reason.** Only a native fragment navigation updates the
+target element, and pressing an index row from the index page or the other topic is the router's
+`pushState`, which updates nothing — so the first press drew no wash, and only a same-path hash
+press (the one navigation the router leaves to the browser) ever lit one, which read as needing to
+press another entry and come back. The topic page marks the entry itself (`data-current`, off the
+same `afterNavigate` + `hashchange` pair its landing already reads), and `:target` stays in the
+selector as the no-JavaScript arrival's own mark. And its wash
+taught the shell a clip lesson: the wash spills `--space-4` past the entry on every
 side, and a scroll port clips at its padding edge, so at the shared focus-ring lane the wash's
 left corners came back square — which reads as the radius failing, not as a clip. The guidance
 detail column widens its start lane to the spill and hands it back with the same negative margin
@@ -4520,10 +4578,12 @@ sits with an equal `--space-4` breath between itself and the hairlines; the last
 no hairline at all, because what follows it is a heading that already separates itself.
 
 Implementation: `src/lib/ui/site/SectionSplit.svelte`, `reveal-selected.ts`,
-`GuidanceIndex.svelte`, `src/lib/ui/assistant/AssistantSpark.svelte`, the `.site-split` /
-`.site-finder` / view-transition blocks in `site.css`, and the section layouts in
-`routes/(site)/rules/` and `routes/(site)/guidelines/`. The guidance catalog's content pipeline —
-what an entry is, the authority ladder, how one is added — is `docs/guidelines.md`.
+`GuidanceIndex.svelte`, `guidance-search.svelte.ts` and `GuidanceSearchHighlight.svelte` beside
+their rule twins, the haystacks in `src/lib/guidance/guidance-search.ts`,
+`src/lib/ui/assistant/AssistantSpark.svelte`, the `.site-split` / `.site-finder` /
+view-transition blocks in `site.css`, and the section layouts in `routes/(site)/rules/` and
+`routes/(site)/guidelines/`. The guidance catalog's content pipeline — what an entry is, the
+authority ladder, how one is added — is `docs/guidelines.md`.
 
 ### A line that is a header is not a lyric, and every rule has to agree about which
 

@@ -140,23 +140,25 @@
 	     rows: on a wide screen this column is its own scroll port, and a field
 	     fifty rows above the reader is a field they have to travel back to. It is
 	     `--color-canvas` because that is the page it is pinned over — the rows are
-	     `--color-surface` and pass underneath it. The sparkles beside the field is
-	     the assistant, in the glyph the workbench's tab strip already taught. -->
+	     `--color-surface` and pass underneath it. The struck-through sparkles at
+	     the field's end is the assistant's toggle; the spark owns the row, and
+	     this component only supplies its own search field. -->
 	<search class="site-finder">
 		<label class="sr-only" for="rules-search">Search the formatting rules</label>
-		<div class="site-finder__row">
-			<input
-				id="rules-search"
-				class="site-finder__search"
-				type="search"
-				autocomplete="off"
-				spellcheck="false"
-				placeholder={`Search ${total} rules`}
-				bind:value={ruleSearchQuery, setRuleSearchQuery}
-				onkeydown={onFieldKeydown}
-			/>
-			<AssistantSpark />
-		</div>
+		<AssistantSpark prompt="Ask about the formatting rules">
+			{#snippet search()}
+				<input
+					id="rules-search"
+					class="site-finder__search"
+					type="search"
+					autocomplete="off"
+					spellcheck="false"
+					placeholder={`Search ${total} rules`}
+					bind:value={ruleSearchQuery, setRuleSearchQuery}
+					onkeydown={onFieldKeydown}
+				/>
+			{/snippet}
+		</AssistantSpark>
 
 		<!--
 			Two axes, one chip idiom, and the linter panel's own semantics: a pressed

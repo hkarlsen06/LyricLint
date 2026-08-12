@@ -11,6 +11,284 @@ import type { GuidanceEntry } from './guidance.js';
 
 export const guidanceEntries: readonly GuidanceEntry[] = [
 	{
+		id: 'guidance.section-headers.artist-identifiers',
+		topic: 'section-headers',
+		title: 'Name artists in headers when voices differ',
+		statement:
+			"Every header carries artist identifiers when a solo artist's song gives parts to other artists, or when a band or group has multiple vocalists — and none when one voice performs everything: a band with one lead singer, or a solo artist singing every part.",
+		example: { correct: '[Verse 1: Avery]' },
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS'],
+		note: 'In between, identifiers are allowed but not required: songs by several primary artists or an artist-and-producer duo, and one-singer songs whose intro, outro, or interludes are sampled.'
+	},
+	{
+		id: 'guidance.section-headers.voice-order',
+		topic: 'section-headers',
+		title: 'Order voices by prominence or arrival',
+		statement:
+			'Where several artists share one section, the plain slot belongs to the voice with the most lines or the first to sing; italics, bold, and bold italics follow in that order down to the fewest lines, in the header and in the lyrics both, with names separated by their formatting, commas, and an ampersand before the last.',
+		example: { correct: '[Chorus: Avery, <i>Blair</i> & <b>Casey</b>]' },
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS'],
+		relatedRuleIds: ['performer.style-order'],
+		note: 'The linter checks that the four slots appear in order; which artist earned which slot is a count of lines only the transcriber can make.'
+	},
+	{
+		id: 'guidance.section-headers.unison-grouping',
+		topic: 'section-headers',
+		title: 'Group unison voices with ampersands',
+		statement:
+			'Vocalists performing the same lines in unison are one group: their names share one text formatting and are joined with ampersands, and commas separate whole groups from each other, never the voices inside one.',
+		example: { correct: '[Chorus: Avery, <i>Avery & Blair</i>, <b>Avery & Casey</b>]' },
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS']
+	},
+	{
+		id: 'guidance.section-headers.crowded-headers',
+		topic: 'section-headers',
+		title: 'Annotate a header too crowded to format',
+		statement:
+			'Where one section has more vocalists than the four text formats can carry concisely, the header omits the names and an annotation over it breaks down who performs each line; names never stand in brackets at the start of lyric lines, and asterisks or other symbols never stand in for a name.',
+		authority: 'staff',
+		// The staff forum answer restates the recourse word for word when asked
+		// how a five-voice section should be handled, so it seconds the guide.
+		sourceIds: ['G-SECTIONS', 'G-HEADER-COLLECTIVE'],
+		relatedRuleIds: ['performer.too-many-groups', 'performer.line-label-forbidden']
+	},
+	{
+		id: 'guidance.section-headers.fictional-characters',
+		topic: 'section-headers',
+		title: 'Credit performers, not their characters',
+		statement:
+			'A song performed in character is identified by the performers credited on the release — which may itself credit the characters; for a musical, or a musical-style film or television show, the transcriber may use character names where those read more appropriately.',
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS']
+	},
+	{
+		id: 'guidance.section-headers.ai-vocals',
+		topic: 'section-headers',
+		title: 'AI vocal identifiers follow consent',
+		statement:
+			"An AI vocal imitating a specific artist is identified by that artist's name only where the artist or their estate consented, and as AI otherwise; an artist applying AI to their own voice keeps their name, vocals imitating nobody are AI or left unidentified when used as samples, and an AI or virtual artist performs under its own name.",
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS']
+	},
+	{
+		id: 'guidance.section-headers.producer-tags',
+		topic: 'section-headers',
+		title: 'Known sample voices may join the header',
+		statement:
+			"A prominently featured producer tag or vocal sample may carry its vocalist's name in the section header when the vocalist is known.",
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS'],
+		note: 'A sample shorter than a full line, or samples that would push one header past four artists, share a single text formatting instead, with identification left to annotations and song metadata.'
+	},
+	{
+		id: 'guidance.section-headers.sampled-dialogue',
+		topic: 'section-headers',
+		title: 'Sampled dialogue names the actor',
+		statement:
+			'Sampled film or television dialogue is identified by the actors who speak it, never by their characters.',
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS']
+	},
+	{
+		id: 'guidance.section-headers.instrumental',
+		topic: 'section-headers',
+		title: 'An instrumental page reads [Instrumental]',
+		statement:
+			'A track with no lyrics still gets a page: its whole lyrics field is the single line [Instrumental].',
+		example: { correct: '[Instrumental]' },
+		authority: 'staff',
+		sourceIds: ['G-INSTRUMENTAL'],
+		note: 'An instrumental version of an already-existing song is only added where it was released in some official capacity — on streaming, a box set, or similar.'
+	},
+	{
+		id: 'guidance.section-headers.hook-by-language',
+		topic: 'section-headers',
+		title: 'Check whether your language kept Hook',
+		statement:
+			"Replacing the deprecated Hook header with Chorus or Refrain is settled for English songs only; some international communities, German among them, still use Hook — so a transcription in another language follows that community's own ruling, confirmed with its community lead where it is in doubt.",
+		authority: 'editorial',
+		sourceIds: ['G-SECTION-HOOK', 'G-LANG-HEADERS'],
+		relatedRuleIds: ['section.deprecated-hook'],
+		note: "For supported languages the linter already knows the answer: each language pack carries that community's reviewed header vocabulary, and the deprecation warning stands down wherever a pack still lists Hook as a valid term. For a language the packs do not cover, the Song Headers in Different Languages page cited above is the inventory to check before asking a community lead."
+	},
+	{
+		id: 'guidance.section-headers.segue-parts',
+		topic: 'section-headers',
+		title: 'Label a two-song track by Parts',
+		statement:
+			'A track that a segue divides into two distinct songs still never numbers its choruses, intros, or other non-verse parts; the split is carried by Part labels instead — Part I, Part II, and so on.',
+		authority: 'editorial',
+		sourceIds: ['G-SECTION-NUMBERING'],
+		relatedRuleIds: ['section.verse-numbering'],
+		note: 'The linter flags any numbered non-verse header; whether a track is really two songs behind one segue is a judgment only the transcriber can make.'
+	},
+	{
+		id: 'guidance.section-headers.foreign-language-headers',
+		topic: 'section-headers',
+		title: "Check a language's headers before editing",
+		statement:
+			'Standard section headers exist in many languages, and the reviewed inventory of them is the place to check before changing a header in a song whose language is not your own — each community settles its own vocabulary.',
+		authority: 'staff',
+		sourceIds: ['G-LANG-PURPOSE', 'G-LANG-HEADERS'],
+		relatedRuleIds: ['section.header-language'],
+		note: "For the linter's supported languages the packs already carry each community's reviewed header vocabulary; the Song Headers in Different Languages page cited above covers the rest."
+	},
+	{
+		id: 'guidance.spelling.as-pronounced',
+		topic: 'spelling',
+		title: 'Spell deliberate mispronunciations as sung',
+		statement:
+			'A word an artist mispronounces or deliberately bends — local slang, or a rhyme forced into the flow — is transcribed to reflect the pronunciation, within reason; slang built on a mispronounced word is spelled the way it is usually written online, or as it is pronounced.',
+		authority: 'staff',
+		sourceIds: ['G-AS-SPOKEN']
+	},
+	{
+		id: 'guidance.spelling.readability-limit',
+		topic: 'spelling',
+		title: 'Keep the standard spelling when unclear',
+		statement:
+			"Where writing a pronunciation out would make the word hard to recognize, the standard spelling wins: business rather than bini for the Southern pronunciation, and rather than an' where the d softens, of rather than o' where the f does.",
+		authority: 'staff',
+		sourceIds: ['G-AS-SPOKEN']
+	},
+	{
+		id: 'guidance.spelling.elision-apostrophe',
+		topic: 'spelling',
+		title: 'An apostrophe marks the omitted side',
+		statement:
+			"When letters or a syllable are dropped from a word, the remaining characters take an apostrophe on the side of the omission — ballin', gon' for gonna, 'til, 'em — and a contraction's apostrophe always sits on the side its letters left.",
+		example: { correct: "Ballin' like we used to", incorrect: 'Ballin like we used to' },
+		authority: 'staff',
+		sourceIds: ['G-AS-SPOKEN', 'G-CONTRACTIONS'],
+		relatedRuleIds: ['contraction.apostrophe', 'spelling.standardized'],
+		note: "The linter checks the contractions and shortened forms it knows; an elision in a word outside its tables is the transcriber's to mark."
+	},
+	{
+		id: 'guidance.spelling.english-variant',
+		topic: 'spelling',
+		title: "Transcribe in the artist's own English",
+		statement:
+			"A song by a British artist is transcribed in British spellings and one by an American artist in American: the lyric follows the variant its artist uses, never the transcriber's.",
+		authority: 'staff',
+		sourceIds: ['G-SPELLING'],
+		relatedRuleIds: ['spelling.language-variant'],
+		note: "The linter reviews only the 'til/till pair, and only while a British or American English variant is selected; every other variant spelling is the transcriber's to keep consistent."
+	},
+	{
+		id: 'guidance.spelling.reversed-vocals',
+		topic: 'spelling',
+		title: 'Type reversed vocals as they sound',
+		statement:
+			'A vocal the production plays backwards is written out as it sounds, letter for letter, and capitalized as any other line would be; what the words are forwards belongs in an annotation rather than in the lyrics.',
+		example: { correct: 'Emit eht lla ti od I' },
+		authority: 'staff',
+		sourceIds: ['G-REVERSED']
+	},
+	{
+		id: 'guidance.spelling.letter-plurals',
+		topic: 'spelling',
+		title: 'One letter pluralizes with an apostrophe',
+		statement:
+			'Pluralizing one letter takes an apostrophe before the s; pluralizing anything longer than a single letter does not, so an initialism or an abbreviation takes a bare s.',
+		example: { correct: "Two L's and three CDs", incorrect: "Two Ls and three CD's" },
+		authority: 'staff',
+		sourceIds: ['G-PLURALS']
+	},
+	{
+		id: 'guidance.capitalization.conventional-only',
+		topic: 'capitalization',
+		title: 'Capitalize only what convention requires',
+		statement:
+			'Beyond the start of every line and of a parenthetical, capitals belong to proper nouns, religious titles (God, Him), acronyms (TBH), geographical regions (West Coast), and the title casing of works (The Life of Pablo); outside those, words stay lowercase.',
+		authority: 'staff',
+		sourceIds: ['G-CAPS'],
+		relatedRuleIds: [
+			'capitalization.line-start',
+			'capitalization.title-case',
+			'adlib.parentheses',
+			'grammar.english-pronoun-i'
+		],
+		note: "The linter checks the line starts, the parenthetical openings, title-cased runs of lyric, and the standalone lowercase i; whether a word is a proper noun is the transcriber's call."
+	},
+	{
+		id: 'guidance.capitalization.brand-stylization',
+		topic: 'capitalization',
+		title: 'Write brands conventionally, not stylized',
+		statement:
+			"A brand name takes its conventional form over its own stylization — Chanel, not CHANEL; Adidas, not adidas; Macy's, not macy★s — with no trademark marks and no decorative characters, unless the name is an acronym normally written in capitals (GEICO, IMAX); CamelCase stays where the name itself carries it (YouTube, iPhone, eBay), as does a symbol that is genuinely part of the name (H&M, su:m37°), and a brand that has become a generic word may be lowercased (band-aid, popsicle, jet ski).",
+		example: { correct: 'New Glock in my jeans', incorrect: 'New GLOCK in my jeans' },
+		authority: 'staff',
+		// The symbols annotation carries the same principle from the other side —
+		// decoration and ™/® go, a symbol the name itself owns stays.
+		sourceIds: ['G-CAPS', 'G-SYMBOLS'],
+		relatedRuleIds: ['symbols.special-characters']
+	},
+	{
+		id: 'guidance.capitalization.earth',
+		topic: 'capitalization',
+		title: 'Earth is capital only as the planet',
+		statement:
+			'Earth takes a capital only when it names the planet; as the material — dirt, soil — it stays lowercase.',
+		authority: 'staff',
+		sourceIds: ['G-CAPS']
+	},
+	{
+		id: 'guidance.capitalization.directions',
+		topic: 'capitalization',
+		title: 'Capitalize regions, not directions',
+		statement:
+			'North, south, east, and west take capitals where they designate a definite region or belong to a name — the Deep South, the Eastern Seaboard — and stay lowercase as mere directions, like westerly winds or a northern winter.',
+		authority: 'staff',
+		sourceIds: ['G-CAPS']
+	},
+	{
+		id: 'guidance.ad-libs.include-every',
+		topic: 'ad-libs',
+		title: 'Transcribe every ad-lib',
+		statement:
+			'Every ad-lib belongs in the transcription — the most complete lyrics possible are the goal — written in parentheses with its first letter capitalized.',
+		example: { correct: 'Racing down the boulevard (Skrrt)' },
+		authority: 'staff',
+		sourceIds: ['G-ADLIBS'],
+		relatedRuleIds: ['adlib.parentheses'],
+		note: 'The linter checks the shape once an ad-lib is written; hearing one and writing it down is the half only the transcriber can do.'
+	},
+	{
+		id: 'guidance.ad-libs.echo-effects',
+		topic: 'ad-libs',
+		title: 'Echo repeats are not ad-libs',
+		statement:
+			'Words repeated by an echo or delay effect on the vocal are not ad-libs, and the repeats are not transcribed.',
+		authority: 'staff',
+		sourceIds: ['G-ADLIBS']
+	},
+	{
+		id: 'guidance.ad-libs.vocalized-sounds',
+		topic: 'ad-libs',
+		title: 'Asterisks mark produced sounds, not vocals',
+		statement:
+			'A sound effect in the production — a money counter, a gunshot — is wrapped in asterisks either side (*beep*); a sound the artist vocalizes with their own voice is a lyric and is written plain, without them.',
+		example: { correct: "*cash register* Countin' it up all night" },
+		authority: 'staff',
+		sourceIds: ['G-SFX'],
+		relatedRuleIds: ['sound-effect.asterisks'],
+		note: 'The linter flags braces and other wrappers around a likely sound effect; whether a sound came from the booth or the board is a judgment only the transcriber can hear.'
+	},
+	{
+		id: 'guidance.ad-libs.yodel-scat-sections',
+		topic: 'ad-libs',
+		title: 'Bracket a yodel you cannot make out',
+		statement:
+			'A yodel or a scat run is transcribed syllable by syllable, dashes joining the syllables of one run, no dash where a small pause falls, and a comma closing each section; a transcriber not confident of the syllables writes [Yodeling] or [Scatting] where the passage occurs instead of guessing at them.',
+		example: { correct: 'Lay-ee-oh-del-ay-hee, oh-del-ay-hee-hoo' },
+		authority: 'editorial',
+		sourceIds: ['G-YODELING'],
+		note: 'A yodeling page also takes the Yodel tag. Yodels draw on a small set of recurring syllables — dee, del, ee, ho, la, lay, oh, oo, ro, yo — while scatting is free-form and has no such set, so only its segmentation is conventional. The dash itself is the hyphen convention stated with the other dash rules.'
+	},
+	{
 		id: 'guidance.punctuation.unmarked-question',
 		topic: 'punctuation',
 		title: 'Questions always end with a question mark',
@@ -54,6 +332,167 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		},
 		authority: 'staff',
 		sourceIds: ['G-QE-MARKS']
+	},
+	{
+		id: 'guidance.punctuation.quotation-usage',
+		topic: 'punctuation',
+		title: 'Quotes mark titles, speech, and mentions',
+		statement:
+			'Quotation marks serve three jobs in a lyric: a song title the words name, a passage the artist explicitly performs as something said elsewhere, and a word the line refers to as a word.',
+		example: { correct: 'She said, "Meet me where the river bends"' },
+		authority: 'staff',
+		sourceIds: ['G-QUOTES'],
+		relatedRuleIds: ['quotes.typewriter'],
+		note: "The linter checks only the glyphs — typewriter quotation marks, never curly; whether a passage is quoted speech, a named title, or a mentioned word is the transcriber's reading."
+	},
+	{
+		id: 'guidance.punctuation.performance-hyphens',
+		topic: 'punctuation',
+		title: 'Hyphenate scatting and stutters',
+		statement:
+			'Hyphens join rapidly spoken non-lyrical vocalization — scatting — and the repeated fragments of a stuttered word; a stutter produced artificially, by effects, sampling, or scratching, may be left out.',
+		example: { correct: "D-d-don't say it twice" },
+		authority: 'staff',
+		// The yodeling annotation states the same hyphen for a scat or yodel
+		// run, so it seconds this half of the dashes annotation.
+		sourceIds: ['G-DASHES', 'G-YODELING'],
+		relatedRuleIds: ['punctuation.dropped-word-dash'],
+		note: 'The em-dash half of the dashes annotation — a dash for a dropped word or line, never followed by a comma — is checked by the linter outright.'
+	},
+	{
+		id: 'guidance.lines.bar-per-line',
+		topic: 'lines',
+		title: 'Transcribe line by line, not in paragraphs',
+		statement:
+			"Lyrics are transcribed line by line, each line ending where the musical phrase does — in most songs the snare marks the count, and the words landing on it show where a bar's lines break — because a long prose-like run hides where lines stop and how the rhyme scheme runs, especially on a phone.",
+		authority: 'staff',
+		sourceIds: ['G-LINES'],
+		relatedRuleIds: ['line.prose-density'],
+		note: 'The linter flags a line dense enough to read as prose; hearing where the beat actually breaks it is a judgment only the transcriber can make.'
+	},
+	{
+		id: 'guidance.lines.spoken-sections',
+		topic: 'lines',
+		title: 'Spoken sections break into lines too',
+		statement:
+			'A spoken intro, interlude, or outro is transcribed line by line like everything else, split where the speaker pauses and where sentences begin and end — never as one paragraph.',
+		authority: 'staff',
+		sourceIds: ['G-LINES']
+	},
+	{
+		id: 'guidance.lines.repeats-in-full',
+		topic: 'lines',
+		title: 'Type repeated lyrics out in full',
+		statement:
+			'A section the song repeats — a returning chorus, a refrain — is typed out in full at every occurrence, and so are lyrics repeated inside one section: a header or a count never stands in for words the song sings again, so nobody reading along has to scroll back to find them.',
+		authority: 'staff',
+		sourceIds: ['G-REPEATS'],
+		relatedRuleIds: ['repeat.placeholder'],
+		note: 'The linter flags x2 counts and Repeat placeholders outright. On Genius itself, copy each repeated line together with the annotation number it carries in Edit Lyrics mode, so the annotations repeat with the words.'
+	},
+	{
+		id: 'guidance.censored-unknown.explicit-version',
+		topic: 'censored-unknown',
+		title: 'Transcribe the explicit version',
+		statement:
+			'A transcription follows the explicit version of a song, so a censor mask belongs only where the recording itself censors the word — which even explicit versions occasionally do.',
+		authority: 'staff',
+		sourceIds: ['G-CENSORED']
+	},
+	{
+		id: 'guidance.censored-unknown.four-asterisks',
+		topic: 'censored-unknown',
+		title: 'A censored word is four asterisks',
+		statement:
+			'A word the recording censors out is written as exactly four asterisks, however many letters the word has and however much of it survives the censor.',
+		example: { correct: 'Keep that **** away from me' },
+		authority: 'staff',
+		sourceIds: ['G-CENSORED'],
+		relatedRuleIds: ['censored.mask'],
+		note: "The linter flags letters mixed into an asterisk mask; a bare asterisk run could as easily be a divider or emphasis, so its length is the transcriber's to check."
+	},
+	{
+		id: 'guidance.numbers.spelled-out',
+		topic: 'numbers',
+		title: 'Spell numbers out',
+		statement:
+			'Numbers are spelled out rather than written as digits, and a multiple of 100 is spelled as it is pronounced — a hundred, or hunnid where that is what is sung.',
+		example: {
+			correct: 'I got five of them waiting on me',
+			incorrect: 'I got 5 of them waiting on me'
+		},
+		authority: 'staff',
+		sourceIds: ['G-NUMBERS'],
+		relatedRuleIds: ['numbers.spell-out'],
+		note: "The linter reviews only small standalone digits outside its known digit contexts; everything larger, and every exemption call, is the transcriber's."
+	},
+	{
+		id: 'guidance.numbers.digit-exemptions',
+		topic: 'numbers',
+		title: 'Some numbers stay digits',
+		statement:
+			'Digits are kept for proper nouns that carry them, model numbers including firearm and ammunition names, years, phone numbers, terms conventionally written in digits like 24/7, numerical slang for the police (5-0, 12), counts shortened with K that are not multiples of 100 (24K), and times.',
+		example: { correct: 'Grinding 24/7 like it pays' },
+		authority: 'staff',
+		sourceIds: ['G-NUMBERS']
+	},
+	{
+		id: 'guidance.numbers.times',
+		topic: 'numbers',
+		title: 'Write times in digits',
+		statement:
+			"A time is written in digits: a whole number on the hour (8 a.m.), a colon only where minutes are named (7:45 p.m.), and a digit before o'clock (6 o'clock); ante and post meridiem abbreviate to lowercase a.m. and p.m. with periods.",
+		example: { correct: 'Meet me at 8 a.m. sharp', incorrect: 'Meet me at 8:00 A.M. sharp' },
+		authority: 'staff',
+		sourceIds: ['G-NUMBERS']
+	},
+	{
+		id: 'guidance.non-english.lyrics-header',
+		topic: 'non-english',
+		title: 'Non-English songs may open with a header',
+		statement:
+			"A song not in English may open with one extra bracketed header for findability — the word lyrics translated into the song's own language, the song's name, and any featured artists — and an English song never carries one.",
+		example: { correct: '[Letra de "Golondrina" ft. Avery]' },
+		authority: 'staff',
+		sourceIds: ['G-NON-ENGLISH'],
+		note: "Languages differ on the exact wording; the How to Add Songs page for the song's language documents its community's form."
+	},
+	{
+		id: 'guidance.non-english.romanized-separate',
+		topic: 'non-english',
+		title: 'Romanized lyrics live on their own page',
+		statement:
+			"Romanized lyrics never join the song's primary page: they get a separate page credited to Genius Romanizations, titled with the artist's name, the song's title, and (Romanized), carrying the release date, audio links, and tags — and omitting featured artists, writers, producers, and every other role.",
+		authority: 'staff',
+		sourceIds: ['G-ROMANIZED']
+	},
+	{
+		id: 'guidance.non-english.translations-separate',
+		topic: 'non-english',
+		title: 'Translations live on their own page',
+		statement:
+			"A translation never joins the song's primary page either: it is hosted on a separate page of its own, formatted per the How to Translate Songs guide.",
+		authority: 'staff',
+		sourceIds: ['G-TRANSLATIONS']
+	},
+	{
+		id: 'guidance.sourcing.never-copy',
+		topic: 'sourcing',
+		title: 'Never copy lyrics from another site',
+		statement:
+			'Lyrics are transcribed, never copied from another lyric website — that is plagiarism. The one exception is lyrics the artist or their team released themselves, on Bandcamp, a video description, press notes, or liner notes; official sheets still carry mistakes, so even those are checked for completeness and accuracy and reformatted to Genius standards before they stand.',
+		authority: 'staff',
+		sourceIds: ['G-ADD-SONGS']
+	},
+	{
+		id: 'guidance.sourcing.streaming-version',
+		topic: 'sourcing',
+		title: 'A page follows the streaming version',
+		statement:
+			"A song's page transcribes the streaming release, so lyrics only a video version carries go in the Q&A rather than into the words; where a video or an album cut differs substantially — different verses, say — it earns a page of its own, titled with (Video Version) or (Album Version) after the song's title.",
+		example: { correct: 'Golondrina (Video Version)' },
+		authority: 'staff',
+		sourceIds: ['G-STREAMING']
 	}
 ];
 

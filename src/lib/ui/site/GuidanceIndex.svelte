@@ -8,7 +8,10 @@
 		type GuidanceTopicSection
 	} from '$lib/guidance/guidance-search.js';
 	import { entryAnchor, guidanceTopicTitles } from '$lib/guidance/guidance.js';
+	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
+	import { fixabilityLabel } from '$lib/rules/reference-search.js';
 	import AssistantSpark from '$lib/ui/assistant/AssistantSpark.svelte';
+	import { guidanceSearchQuery, setGuidanceSearchQuery } from './guidance-search.svelte.js';
 	import { revealSelectedRow } from './reveal-selected.js';
 
 	let {
@@ -21,11 +24,13 @@
 
 	// The list and its search outlive opening a guideline, because the section's
 	// layout mounts this component once: a reader who searched, pressed a row,
-	// and came back finds the search they were in the middle of. Component state
-	// rather than the rule reference's module state, because nothing in the
-	// detail column marks what was searched for here — the day a topic page
-	// highlights hits, this moves to a module the way `rule-search.svelte.ts` did.
-	let query = $state('');
+	// and came back finds the search they were in the middle of. The query is
+	// module state (`guidance-search.svelte.ts`) for the reason the rule
+	// reference's is: the topic page marks what was searched for, and the page
+	// and this list are siblings under the layout with nothing to hand each
+	// other. The field binds to the pair of functions rather than to a local
+	// mirror, or the two copies disagree for as long as an effect takes to run.
+	const query = $derived(guidanceSearchQuery());
 	const total = $derived(countGuidanceLookups(sections));
 	const filtered = $derived(filterGuidanceSections(sections, query));
 	const shown = $derived(countGuidanceLookups(filtered));
@@ -68,38 +73,40 @@
 	function onFieldKeydown(event: KeyboardEvent): void {
 		if (event.key !== 'Escape' || query === '') return;
 		event.preventDefault();
-		query = '';
+		setGuidanceSearchQuery('');
 	}
 </script>
 
 <div class="site-split__index" data-sveltekit-noscroll bind:this={column}>
 	<!-- The rule reference's own finder, minus its chips: severity and
 	     fixability are facts about linter rules, and most of this list is
-	     guidance the linter cannot check. The sparkles beside the field is the
-	     assistant, in the glyph the workbench's tab strip already taught. -->
+	     guidance the linter cannot check. The struck-through sparkles at the
+	     field's end is the assistant's toggle; the spark owns the row, and this
+	     component only supplies its own search field. -->
 	<search class="site-finder">
 		<label class="sr-only" for="guidelines-search">Search the transcription guidelines</label>
-		<div class="site-finder__row">
-			<input
-				id="guidelines-search"
-				class="site-finder__search"
-				type="search"
-				autocomplete="off"
-				spellcheck="false"
-				placeholder={`Search ${total} lookups`}
-				bind:value={query}
-				onkeydown={onFieldKeydown}
-			/>
-			<AssistantSpark />
-		</div>
+		<AssistantSpark prompt="Ask about the transcription guidelines">
+			{#snippet search()}
+				<input
+					id="guidelines-search"
+					class="site-finder__search"
+					type="search"
+					autocomplete="off"
+					spellcheck="false"
+					placeholder={`Search ${total} conventions`}
+					bind:value={guidanceSearchQuery, setGuidanceSearchQuery}
+					onkeydown={onFieldKeydown}
+				/>
+			{/snippet}
+		</AssistantSpark>
 
 		{#if narrowing}
 			<p class="site-finder__readout">
-				<span role="status">{shown} of {total} lookups</span>
+				<span role="status">{shown} of {total} conventions</span>
 				<button
 					type="button"
 					class="button button--quiet site-finder__clear"
-					onclick={() => (query = '')}
+					onclick={() => setGuidanceSearchQuery('')}
 				>
 					Clear search
 				</button>
@@ -145,8 +152,13 @@
 								/></span
 							>
 							<span class="site-run__message">{rule.message}</span>
+							<!-- The rule index's own meta, whole: these are its rows in
+							     another shape, and a row dressed down here would read as a
+							     different kind of thing than the same row at /rules/. -->
 							<span class="site-run__meta">
+								<SeverityTag severity={rule.severity} />
 								<span class="site-code">{rule.id}</span>
+								<span>{fixabilityLabel(rule.fixability)}</span>
 							</span>
 						</a>
 					</li>
@@ -158,7 +170,9 @@
 		     column separates its contents from nothing. The way out is the
 		     readout's own `Clear search` directly above. -->
 		{#if shown === 0}
-			<p class="site-index__empty">No lookup matches this search. Try fewer or shorter words.</p>
+			<p class="site-index__empty">
+				No convention matches this search. Try fewer or shorter words.
+			</p>
 		{/if}
 	</nav>
 </div>

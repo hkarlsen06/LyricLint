@@ -285,6 +285,18 @@ describe('RuleIndex', () => {
 
 			expect(lane).toBeGreaterThan(0);
 			expect(Number.parseFloat(style.marginInlineStart)).toBe(-lane);
+
+			// The same lane on the block axis, or the search field's ring is cut
+			// off flat at the port's top. The column only hands the height back;
+			// the lane itself is the sticky finder's own padding, because a
+			// sticky box cannot be pulled above its containing block's content
+			// edge by a negative margin (the browser clamps it back, which
+			// shoves the field down by the lane instead) — and a lane held by
+			// the column would leave a *pinned* finder back at the clip edge.
+			expect(Number.parseFloat(style.paddingBlockStart)).toBe(0);
+			expect(Number.parseFloat(style.marginBlockStart)).toBe(-lane);
+			const finder = getComputedStyle(document.querySelector('.site-finder')!);
+			expect(Number.parseFloat(finder.paddingBlockStart)).toBe(lane);
 		} finally {
 			await page.viewport(414, 896);
 		}

@@ -281,8 +281,8 @@ test('the rule index is searched by symptom and narrowed by chip', async ({ page
 	// of the table that carries the misspelling. Four, because the reviewed
 	// part of the third citation names it too — which is the citations being
 	// text on the page like everything else rather than a coincidence.
-	await expect(page.locator('main mark.rules__hit')).toHaveCount(4);
-	await expect(page.locator('main mark.rules__hit').first()).toHaveText('definately');
+	await expect(page.locator('main mark.site-hit')).toHaveCount(4);
+	await expect(page.locator('main mark.site-hit').first()).toHaveText('definately');
 	// The example is set in a `<pre>`, so the marks may not have cost it a
 	// character. This is the one place that is observable end to end.
 	await expect(page.locator('.site-sample--invalid pre')).toHaveText(
@@ -298,7 +298,7 @@ test('the rule index is searched by symptom and narrowed by chip', async ({ page
 	// It narrows rather than groups — the assumption this was left out on.
 	expect(await rows.count()).toBeLessThan(total / 2);
 	await rows.filter({ hasText: 'An English name for a localized part' }).click();
-	const cited = page.locator('.source-reference a mark.rules__hit');
+	const cited = page.locator('.source-reference a mark.site-hit');
 	await expect(cited.first()).toHaveText('Languages');
 
 	// And it gives up the accent inside the link. Measured, accent blue on this
@@ -317,7 +317,7 @@ test('the rule index is searched by symptom and narrowed by chip', async ({ page
 	await page.getByRole('button', { name: 'Clear filters' }).click();
 	// Clearing the filters unmarks the rule as well as widening the list: the
 	// query is one answer, read by both columns.
-	await expect(page.locator('main mark.rules__hit')).toHaveCount(0);
+	await expect(page.locator('main mark.site-hit')).toHaveCount(0);
 	await expect(rows).toHaveCount(total);
 
 	// Leaving `No automatic fix` alone is the list of rules that are judgment
@@ -328,6 +328,103 @@ test('the rule index is searched by symptom and narrowed by chip', async ({ page
 	expect(remaining).toBeGreaterThan(0);
 	expect(remaining).toBeLessThan(total);
 	await expect(rows.filter({ hasText: 'No automatic fix' })).toHaveCount(remaining);
+});
+
+test('a guidelines deep link lands on its entry, and a search marks its words', async ({
+	page
+}) => {
+	// A guideline is a fragment on its topic's page, and the landing re-centers
+	// the whole entry — the double-rAF deferral in the topic page is the one
+	// behavior there that was measured rather than reasoned into, and this is
+	// its only end-to-end pin. The native hash jump parks the heading at
+	// `scroll-margin-top`, ~72px under the masthead; centered, the third entry
+	// of four sits well below that, which is what the y-floor separates.
+	await page.goto('/guidelines/punctuation/#doubled-exclamation');
+	// `data-current` is the page's own mark, read off the hash; a full-page
+	// arrival is the one navigation where `:target` also holds, so both are
+	// asserted here — the router-navigation press further down is where
+	// `:target` never updates and the mark is all there is.
+	const washed = page.locator('.guidelines__entry[data-current]');
+	await expect(washed).toHaveCount(1);
+	await expect(page.locator('.guidelines__entry:has(:target)')).toHaveCount(1);
+	await expect(washed.locator('h2')).toHaveText('One exclamation mark at a time');
+	await expect
+		.poll(async () => (await washed.locator('h2').boundingBox())?.y ?? 0)
+		.toBeGreaterThan(140);
+
+	// The index column marks the same entry as the page and brings the row up
+	// under the finder, for a reader who arrived by URL rather than by pressing
+	// it there.
+	const current = page.locator('.site-split__index a[aria-current="page"]');
+	await expect(current).toHaveCount(1);
+	await expect(current).toContainText('One exclamation mark at a time');
+	await expect(current).toBeInViewport();
+
+	// The topic's own name keeps everything under its heading — the query that
+	// used to drop every guidance entry and answer with linter rows alone.
+	const search = page.getByRole('searchbox', { name: 'Search the transcription guidelines' });
+	await search.fill('punctuation');
+	const entryRows = page.locator('.site-split__index .site-run a[href*="#"]');
+	await expect(entryRows).toHaveCount(6);
+
+	// And the page a search opens says which of its words matched, exactly as a
+	// rule page does — including inside the invented sample, which may not have
+	// gained a character for it. Scoped to the washed entry: the topic page
+	// carries one `Incorrect` sample per entry that has one, so the bare
+	// locator resolves several and fails strict mode.
+	await search.fill('turn it up');
+	await page.locator('.site-split__index .site-run a', { hasText: 'One exclamation mark' }).click();
+	await expect(page.locator('main mark.site-hit').first()).toBeVisible();
+	await expect(
+		page.locator('.guidelines__entry[data-current] .site-sample--invalid pre')
+	).toHaveText('Turn it up!!');
+});
+
+test('pressing an entry from the index washes it on the first press', async ({ page }) => {
+	// Pressing an index row from the index page — or from the other topic — is
+	// the router's navigation, a `pushState`, and `:target` only updates on a
+	// native fragment navigation: for a while the first press drew no wash, and
+	// the reader had to press another entry and come back (a same-path hash
+	// press, the one navigation the router leaves to the browser) to see it.
+	// The page marks the entry itself now, and this is that regression's pin at
+	// both broken arrivals.
+	await page.goto('/guidelines/');
+	await page.locator('.site-split__index .site-run a', { hasText: 'One exclamation mark' }).click();
+	const washed = page.locator('.guidelines__entry[data-current]');
+	await expect(washed).toHaveCount(1);
+	await expect(washed.locator('h2')).toHaveText('One exclamation mark at a time');
+
+	// And from one topic straight to the other — the path changes, the hash
+	// arrives with it, and the wash has to land on the pressed entry, not stay
+	// where the last one was.
+	const crossTopic = page
+		.locator('.site-split__index .site-run a[href*="section-headers"][href*="#"]')
+		.first();
+	const crossTitle = await crossTopic.locator('.site-run__title').innerText();
+	await crossTopic.click();
+	await expect(washed).toHaveCount(1);
+	await expect(washed.locator('h2')).toHaveText(crossTitle);
+});
+
+test('the spelling topic lists the standardized spellings, and the finder searches them', async ({
+	page
+}) => {
+	// The table is drawn from the same `ruleLookupTable` the rule page loads —
+	// one data source, two surfaces — so the row count is the reviewed table's
+	// own, not a hand-written excerpt that would go stale beside it.
+	await page.goto('/guidelines/spelling/');
+	const rows = page.locator('.rules__lookup-row');
+	await expect(rows.first()).toBeVisible();
+	expect(await rows.count()).toBeGreaterThan(20);
+
+	// A spelling the page lists has to answer the finder — the citation lesson,
+	// arriving here for lookup tables — and the open page marks the form.
+	const search = page.getByRole('searchbox', { name: 'Search the transcription guidelines' });
+	await search.fill('whoa');
+	await expect(
+		page.locator('.site-split__index .site-run a', { hasText: 'spelling.standardized' })
+	).toBeVisible();
+	await expect(page.locator('main mark.site-hit').first()).toBeVisible();
 });
 
 test('sitemap lists every public page and excludes the workbench', async ({ request }) => {
@@ -346,7 +443,7 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 	// gains a topic with entries, which docs/guidelines.md tells the contributor.
 	const guidelinePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/[^/]+\/<\/loc>/gu) ?? [];
-	expect(guidelinePages).toHaveLength(1);
+	expect(guidelinePages).toHaveLength(10);
 	// Plus the home page, the rule index, the guidelines index, and the privacy
 	// page.
 	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + guidelinePages.length + 4);
@@ -767,16 +864,24 @@ test('the error page leaves by loading a new document, not by routing', async ({
 test('the rules dialog and workbench tab share one persisted conversation', async ({ page }) => {
 	await page.route('**/v1/answers', (route) => route.abort());
 	await page.goto('/rules/');
-	// The assistant's entry point is the sparkles glyph beside the search field —
+	// The assistant's entry point is the sparkles toggle beside the search field —
 	// the workbench tab strip's own glyph, found by accessible name for the same
-	// reason the tab is. It opens the modal empty; the question is asked inside.
-	await page.getByRole('button', { name: 'Ask the assistant' }).click();
+	// reason the tab is. Struck through at rest, pressing it sweeps the wand to
+	// the head of the row and turns the search field into the ask field; Enter
+	// there opens the modal with the question already sent.
+	const spark = page.getByRole('button', { name: 'Ask the assistant' });
+	await expect(spark).toHaveAttribute('aria-pressed', 'false');
+	await spark.click();
+	await expect(spark).toHaveAttribute('aria-pressed', 'true');
+	const ask = page.getByLabel('Ask about the formatting rules');
+	// Hidden, not gone: both bars stay mounted so the toggle's wipe has
+	// something on both sides of its edge.
+	await expect(page.getByLabel('Search the formatting rules')).toBeHidden();
+	await ask.fill('When does a chorus need its own header?');
+	await ask.press('Enter');
 
 	const dialog = page.getByRole('dialog', { name: 'Ask the rules' });
 	await expect(dialog).toBeVisible();
-	const prompt = dialog.getByLabel('Your question');
-	await prompt.fill('When does a chorus need its own header?');
-	await prompt.press('Enter');
 	await expect(dialog.getByLabel('Conversation', { exact: true })).toContainText(
 		'When does a chorus need its own header?'
 	);
