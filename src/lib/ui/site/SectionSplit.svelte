@@ -67,25 +67,47 @@
 		return path === indexPath || path.startsWith(`${indexPath}/`);
 	}
 
+	/**
+	 * Whether the columns have stacked into one — the layout actually in force,
+	 * read off the detail column giving up its own scroll port, rather than the
+	 * breakpoint in `site.css` restated here in a second place that could drift
+	 * from it. `afterNavigate` asks the same question below, for the scroller it
+	 * has to send to the top.
+	 */
+	function stacked(): boolean {
+		return !detail || getComputedStyle(detail).overflowY === 'visible';
+	}
+
 	// Opening a page is choreographed rather than swapped: the index view leads
 	// with the intro on the left and the list on the right, and pressing a row
-	// slides the page in from the right while the list crosses to the left and
-	// the intro leaves under it. The columns are named in `site.css`
-	// (`view-transition-name`, read off `data-view`), so the browser animates
-	// the list's real journey between the two grid arrangements; the intro's
-	// exit and the page's entry are the keyframes beside the names. Going back
-	// plays the same choreography reversed, because the names pair the other
-	// way round.
+	// crosses the two columns over each other. Both are named in `site.css`
+	// (`view-transition-name`), so the browser morphs each between its two grid
+	// positions — the list's real journey — and cross-fades their contents in
+	// place, which is what carries the intro out, the page in, and the back bar
+	// along with it. Going back plays the same crossing reversed, because the
+	// columns simply swap the other way.
 	//
-	// Only inside the section — a navigation out to another section or the
-	// landing page changes the whole shell, and animating half of it would read
-	// as the site tearing. The reduced-motion gate is the same one every
-	// transition here carries, and a browser without `startViewTransition`
-	// simply swaps, which is what these sections did before.
+	// Four gates, and the last is the one that was missing. Only inside the
+	// section: a navigation out to another section or the landing page changes
+	// the whole shell, and animating half of it would read as the site tearing.
+	// Reduced motion, the same gate every transition here carries. A browser
+	// without `startViewTransition` simply swaps, which is what these sections
+	// did before.
+	//
+	// And only while there are two columns to cross. Stacked, there is no
+	// journey to animate and three things are true at once that a transition
+	// cannot survive: the list is `display: none` while a page is open, so a
+	// named column vanishes mid-capture; the document rather than the column is
+	// the scroller, so `afterNavigate` sends the whole page to the top under
+	// the animation; and the two columns occupy one grid area, so the crossing
+	// the names describe does not exist. That is the arrangement a reader is in
+	// when they *tap* a row, which is why this read as unstable exactly where
+	// it was least affordable.
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
 		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 		if (!inSection(navigation.from?.url) || !inSection(navigation.to?.url)) return;
+		if (stacked()) return;
 		return new Promise((resolve) => {
 			document.startViewTransition(async () => {
 				resolve();
@@ -119,13 +141,11 @@
 		// not do, which is why the index column is `data-sveltekit-noscroll`.
 		//
 		// Unless there is only one column, and then the document is the scroller
-		// and the document is what changed. Whether the detail is a scroll port of
-		// its own is the honest question to ask about that: the media query in
-		// `site.css` is what flips it, so this reads the layout in force rather
-		// than restating its breakpoint here in a second place.
+		// and the document is what changed. `stacked()` is that question, asked
+		// the same way the transition gate asks it.
 		if (!detail) return;
 		detail.scrollTop = 0;
-		if (getComputedStyle(detail).overflowY === 'visible') {
+		if (stacked()) {
 			window.scrollTo(0, 0);
 		}
 	});

@@ -781,7 +781,20 @@
 	padding: var(--space-6) var(--space-5) 0;
 	gap: var(--space-6);
 	grid-template-rows: minmax(0, 1fr);
-	grid-template-columns: minmax(0, 1fr) minmax(0, 34rem);
+
+	/*
+	 * Two equal columns, and the equality is what makes the swap below honest
+	 * rather than a stylistic preference. The areas cross on every navigation,
+	 * so unequal columns mean both of them change *width* as well as position:
+	 * the transition group then animates size and stretches the two snapshots
+	 * against each other, and — the half that outlives the animation — each
+	 * scroll port reflows its own content at the new width, so the offset the
+	 * reader left it at lands somewhere else. Equal, the crossing is a pure
+	 * translation and neither column's content moves inside it. The pair was
+	 * `1fr` and `34rem`, which at this measure came to roughly 35rem and 34rem
+	 * anyway, so what this gives up is about a rem.
+	 */
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	grid-template-areas: 'index detail';
 	margin: 0 auto;
 }
@@ -960,77 +973,67 @@
 	grid-template-areas: 'detail index';
 }
 
-/* The choreography's names, structural rather than per-page: the list is one
-   element in both arrangements, so naming it makes the browser animate its
-   real journey between the columns; the index view's page and the detail
-   view's page are named *apart*, read off `data-view`, so one leaves as the
-   other arrives instead of the two morphing into each other — and a press
-   from one detail page to another pairs `section-detail` with itself, which
-   is the in-place crossfade that move deserves. Names are inert at rest —
-   they only mean something inside a transition `SectionSplit` starts, and it
-   already declines to start one across the section's boundary, without
-   browser support, or under reduced motion. */
+/*
+ * The choreography's names, and they are on the two columns rather than on
+ * what is inside them.
+ *
+ * The page itself was named once — `.site-split__detail > main`, keyed off
+ * `data-view` so the intro and an open page were named apart and could be
+ * given a leave and an arrive of their own. That is where the instability
+ * came from, and it is worth writing down because the markup looked right. A
+ * view transition snapshots a named element **unclipped by its ancestors**:
+ * `main` lives inside a scroll port, so a rule or a guideline several
+ * thousand pixels long was captured whole, positioned at its own border-box
+ * origin — which for a column scrolled past its first screen is above the
+ * viewport — and painted over the entire window for the length of the
+ * animation. Nothing about the resting layout says so, and the taller the
+ * page the worse it read.
+ *
+ * The columns are the boxes that actually move, and each one clips its own
+ * overflow, so its snapshot is the screenful the reader can see and nothing
+ * else. Both are named at every view, so the browser morphs each between its
+ * two grid positions — the list's real journey, which is what the
+ * choreography was always for — and cross-fades the contents in place, which
+ * is what carries the intro out and the page in, the back bar's arrival
+ * included. Naming the columns is also what stops that bar from popping in
+ * over a sliding snapshot: it is inside the box being faded rather than
+ * beside it.
+ *
+ * A press from one detail page to another pairs each column with itself, so
+ * neither moves and only the contents cross-fade, which is the in-place
+ * change that move deserves.
+ *
+ * Names are inert at rest — they only mean something inside a transition
+ * `SectionSplit` starts, and it declines to start one across the section's
+ * boundary, without browser support, under reduced motion, or below the
+ * width where these columns stop being columns.
+ */
 .site-split__index {
 	view-transition-name: section-index;
 }
 
-.site-split[data-view='index'] .site-split__detail > main {
-	view-transition-name: section-intro;
-}
-
-.site-split[data-view='detail'] .site-split__detail > main {
+.site-split__detail {
 	view-transition-name: section-detail;
 }
 
-/* The rides: the opened page flows in from the right and pushes toward its
-   place while the list sweeps left, and the intro is carried out under it.
-   Each pseudo exists only on the side its page exists on, so these same four
-   rules play the return reversed — the detail leaves right, the intro arrives
-   from the left. Gated on reduced motion like every animation here, although
-   the component has already declined to start the transition at all. */
+/* The ride is the morph itself, so there are no keyframes here: the columns
+   are equal, so the group animates position and not size, and the default
+   cross-fade of two identically sized snapshots is the content changing
+   underneath it. All four pseudos are given the same pair of tokens, or the
+   images outlive the box they are painted in — the browser's own default is
+   250ms, ten past `--duration-slow`, which is exactly long enough to show as
+   a settle after the columns have stopped. Gated on reduced motion like
+   every animation here, although the component has already declined to start
+   the transition at all. */
 @media (prefers-reduced-motion: no-preference) {
-	::view-transition-old(section-intro) {
-		animation: section-leave-left var(--duration-slow) var(--ease-out-quart) both;
-	}
-
-	::view-transition-new(section-intro) {
-		animation: section-arrive-left var(--duration-slow) var(--ease-out-quart) both;
-	}
-
-	::view-transition-old(section-detail) {
-		animation: section-leave-right var(--duration-slow) var(--ease-out-quart) both;
-	}
-
+	::view-transition-group(section-index),
+	::view-transition-group(section-detail),
+	::view-transition-old(section-index),
+	::view-transition-new(section-index),
+	::view-transition-old(section-detail),
 	::view-transition-new(section-detail) {
-		animation: section-arrive-right var(--duration-slow) var(--ease-out-quart) both;
-	}
-}
-
-@keyframes section-leave-left {
-	to {
-		transform: translateX(-30%);
-		opacity: 0;
-	}
-}
-
-@keyframes section-arrive-left {
-	from {
-		transform: translateX(-30%);
-		opacity: 0;
-	}
-}
-
-@keyframes section-leave-right {
-	to {
-		transform: translateX(30%);
-		opacity: 0;
-	}
-}
-
-@keyframes section-arrive-right {
-	from {
-		transform: translateX(30%);
-		opacity: 0;
+		animation-duration: var(--duration-slow);
+		animation-timing-function: var(--ease-out-quart);
 	}
 }
 

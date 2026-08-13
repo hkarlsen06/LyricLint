@@ -92,6 +92,11 @@ tell them to check that before you offer to rebuild anything from memory.
 
 ## UI rules
 
+### Never use eyebrows
+
+**NEVER EVER USE EYEBROWS.** Do not place a small label, kicker, category, or mono all-caps text
+above a heading. Write a heading that names the section on its own.
+
 ### No cards inside cards
 
 Never nest a card, panel, or bordered/filled box inside another one. If an action needs a
@@ -3622,9 +3627,8 @@ Four moves, and each answers a way the page failed before:
   sitting in a column of prose, and at 2.5rem, alone on a screen, it reads as a heading rather
   than as a claim. Tracking is negative all the way up, because the spacing that keeps 15px UI
   text legible reads as loose at 60px.
-- **Sections announce themselves in the margin.** An eyebrow in mono caps — `Live demo`,
-  `Sourced rules`, `Local first` — says what kind of thing is coming, so the heading under it can
-  be a sentence rather than a label and a reader skimming has a rail of short words to skim.
+- **Section headings name their sections directly.** They stand on their own, without a small
+  label, kicker, category, or mono all-caps text above them.
 - **Runs of facts are one bordered object with hairlines inside it**, exactly as the linter draws
   a run of diagnostics, and for the same reason: the run is what is separated from the page, and
   the members are separated from each other by the line where they meet. Four bordered cards with
@@ -4472,20 +4476,53 @@ below.
 
 **The index view leads with the welcome page, not the list.** At `/rules/` and `/guidelines/` the
 intro — the guide, the tier ladder — takes the left column and the list rides the right; opening a
-page swaps them, so the page arrives where the list was and the list crosses to the left. Both the
-grid areas and the transition names are read off `data-view` structurally (`.site-split__detail >
-main` is `section-intro` at the index and `section-detail` with a page open), so no page carries a
-naming class and a new section gets the whole convention for free.
+page swaps them, so the page arrives where the list was and the list crosses to the left. The grid
+areas are read off `data-view` structurally, so no page carries a naming class and a new section
+gets the whole convention for free.
 
-**Opening a page is a view transition, and the motion is the list's real journey.** `SectionSplit`
-starts it in `onNavigate`, behind three gates: `document.startViewTransition` exists, reduced
-motion is not requested, and both ends of the navigation are inside the section — leaving for
-another section changes the whole shell, and animating half of it would read as the site tearing.
-The named list morphs between its two grid positions; the intro exits left as the page slides in
-from the right (the `section-leave-*` / `section-arrive-*` keyframes), and the return plays the
-same choreography reversed, because the names pair the other way round. A press from one detail
-page straight to another pairs `section-detail` with itself, which is the in-place crossfade that
-move deserves.
+**The two columns are equal width, and that is what makes the swap honest rather than a preference.**
+Unequal, both of them change _size_ as well as position on every navigation: the transition below
+stretches one snapshot against the other, and — the half that outlives the animation — each scroll
+port reflows its own content at the new width, so the offset the reader left it at lands somewhere
+else. The pair was `1fr` and `34rem`, which at this measure came to roughly 35rem and 34rem anyway,
+so what equalizing gives up is about a rem.
+
+**Opening a page is a view transition, and the names are on the columns rather than on what is
+inside them.** `SectionSplit` starts it in `onNavigate`, behind four gates: `document.startViewTransition`
+exists, reduced motion is not requested, both ends of the navigation are inside the section —
+leaving for another section changes the whole shell, and animating half of it would read as the
+site tearing — and the columns are still columns.
+
+**Naming the page instead was the instability, and the markup looked right.** `.site-split__detail >
+main` carried the name, keyed off `data-view` so the intro and an open page were named apart and
+could each be given a leave and an arrive of their own. A view transition snapshots a named element
+**unclipped by its ancestors**, and `main` lives inside a scroll port — so a rule or a guideline
+several thousand pixels long was captured whole, positioned at its own border-box origin, which for
+a column scrolled past its first screen is above the viewport, and painted over the entire window
+for the length of the animation. Nothing in the resting layout says so, and the taller the page the
+worse it read. The columns are the boxes that actually move and each clips its own overflow, so a
+snapshot is the screenful the reader can see and nothing else. The browser morphs each between its
+two grid positions — the list's real journey, which is what the choreography was always for — and
+cross-fades the contents in place, which is what carries the intro out, the page in, and the back
+bar's arrival with it, rather than letting that bar pop in over a sliding snapshot. A press from one
+detail page straight to another pairs each column with itself, so neither moves and only the
+contents cross-fade, which is the in-place change that move deserves.
+
+**There are no keyframes left.** Equal columns mean each group translates without resizing, and the
+default cross-fade of two identically sized snapshots is the content changing underneath it. All
+four pseudos take `--duration-slow` and `--ease-out-quart` together, or the images outlive the box
+they are painted in — the browser's own default is 250ms, ten past the token, which is exactly long
+enough to show as a settle after the columns have stopped.
+
+**And the fourth gate is the one that was missing.** Stacked, there is no journey to animate and
+three things are true at once that a transition cannot survive: the list is `display: none` while a
+page is open, so a named column vanishes mid-capture; the document rather than the column is the
+scroller, so `afterNavigate` sends the whole page to the top _under_ the animation; and both columns
+occupy one grid area, so the crossing the names describe does not exist. That is the arrangement a
+reader is in when they **tap** a row, which is why this read as unstable exactly where it was least
+affordable. `stacked()` is that question, read off the detail column giving up its own scroll port
+rather than restating the breakpoint in a second place — the same signal `afterNavigate` already
+used to decide which scroller to send to the top.
 
 **The back control draws at every width, and the choreography is why.** It began narrow-only, when
 the index view was still on screen beside an open page; the moment the swap pushed the welcome
@@ -4615,8 +4652,48 @@ searched for different things: one query silently narrowing both lists would be 
 where nobody typed it.
 
 The guidance column knows one thing the rules one does not: **a guideline is a fragment on its
-topic's page**, so the current row is the route param _and_ the hash together — `afterNavigate`
-covers path changes, and `hashchange` covers the navigation the router never models. **The wash
+topic's page**, so the current row is the route param _and_ an entry together — `afterNavigate`
+covers path changes, and `hashchange` covers the navigation the router never models.
+
+**And which entry is the one being read, not the one the reader was sent to.** The hash was that
+answer for a while, and it is only true for an instant: a topic page is a column of conventions
+rather than one document, so the reader scrolls off the entry they arrived at almost immediately
+and the marker goes stale, while a topic opened with no fragment marked no row at all. A list
+beside a page it does not follow has stopped answering the one question it exists to answer.
+`guidance-reading.svelte.ts` is the reading position — module state for
+`guidance-search.svelte.ts`'s own reason, the page and the list being siblings with nothing to hand
+each other, and cleared when the page is destroyed exactly as the rule guide clears its hover. The
+hash stays as the fallback for the two states the page cannot answer in: before it has hydrated,
+and at the section's index view, where there is no page.
+
+**The reading line is the middle of the viewport, and that is arithmetic rather than taste.** The
+entry is the last one to have _started_ above it, which is what stays honest for an entry taller
+than the screen. It has to be the middle because the landing already is: `scrollIntoView({ block:
+'center' })` puts a deep-linked entry across the centre, so any line higher sits above a short
+entry's own top and answers with the entry _before_ it — a deep link marking the wrong row, at the
+one moment the reader is checking they arrived where they meant to. It reads a fraction of the
+window rather than the column it is inside, because the detail column is the scroll port on a wide
+screen and the document is on a narrow one, and a fraction of the viewport means the same thing in
+both without the page reaching up into the shell for an ancestor. The landing publishes its own
+answer before it scrolls, or the first frame is computed from a document still at its top and the
+list travels to the first row and is corrected. The scroll listener is bound in the capture phase
+on the document — a scroll event does not bubble, and which element scrolls is the layout's
+business — and coalesces to one pass per frame.
+
+**The list travels with it, and a follow is not a reveal.** `followSelectedRow` nudges to the
+nearest edge rather than aligning to the top: an arrival has no previous position to respect, but a
+reader watching this column does, and hauling a row that had merely slipped past the bottom all the
+way up moves every other row under their eye for a correction of a few pixels. It keeps a row's
+worth of breath at whichever edge it lands against, bounded by a quarter of the free height — in a
+short column the two edges cross and the row is pushed between them forever. And it is the one
+scroll in this section that is **smooth**, because every other one is a jump somebody asked for
+while this is a list travelling with a page nobody pressed anything to move; under
+`prefers-reduced-motion` it is instant like everything else. It needs no width gate: below 62rem
+the list is `display: none` while a page is open, so the row has no box and the follow returns.
+Pressing a row still moves nothing, which is this column's rule everywhere — the row a reader
+pressed is by definition one they can see.
+
+**The wash
 cannot ride `:target` alone for the same reason.** Only a native fragment navigation updates the
 target element, and pressing an index row from the index page or the other topic is the router's
 `pushState`, which updates nothing — so the first press drew no wash, and only a same-path hash
@@ -4632,9 +4709,11 @@ detail column widens its start lane to the spill and hands it back with the same
 sits with an equal `--space-4` breath between itself and the hairlines; the last entry closes on
 no hairline at all, because what follows it is a heading that already separates itself.
 
-Implementation: `src/lib/ui/site/SectionSplit.svelte`, `reveal-selected.ts`,
-`GuidanceIndex.svelte`, `guidance-search.svelte.ts` and `GuidanceSearchHighlight.svelte` beside
-their rule twins, the haystacks in `src/lib/guidance/guidance-search.ts`,
+Implementation: `src/lib/ui/site/SectionSplit.svelte`, `reveal-selected.ts` (both the arrival's
+reveal and the reading follow), `GuidanceIndex.svelte`, `guidance-reading.svelte.ts` with its spy
+in `routes/(site)/guidelines/[topic]/+page.svelte`, `guidance-search.svelte.ts` and
+`GuidanceSearchHighlight.svelte` beside their rule twins, the haystacks in
+`src/lib/guidance/guidance-search.ts`,
 `src/lib/ui/assistant/AssistantSpark.svelte`, the `.site-split` / `.site-finder` /
 view-transition blocks in `site.css`, and the section layouts in `routes/(site)/rules/` and
 `routes/(site)/guidelines/`. The guidance catalog's content pipeline — what an entry is, the

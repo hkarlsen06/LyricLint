@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { guidanceTopics } from '$lib/guidance/entries.js';
 import { countGuidanceLookups, type GuidanceTopicSection } from '$lib/guidance/guidance-search.js';
 import { entryAnchor } from '$lib/guidance/guidance.js';
+import { setReadingAnchor } from './guidance-reading.svelte.js';
 import { setGuidanceSearchQuery } from './guidance-search.svelte.js';
 import GuidanceIndex from './GuidanceIndex.svelte';
 
@@ -53,6 +54,10 @@ function field() {
 beforeEach(() => {
 	history.replaceState(null, '', location.pathname);
 	setGuidanceSearchQuery('');
+	// The reading position is module state the topic page writes, and the topic
+	// page is not mounted here — so without this reset a test asserting on the
+	// fragment would pass or fail on whatever the test above it was reading.
+	setReadingAnchor('');
 });
 
 describe('GuidanceIndex', () => {
@@ -160,5 +165,77 @@ describe('GuidanceIndex', () => {
 		await Promise.resolve();
 
 		expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(0);
+	});
+
+	// The hash is where the reader was *sent*, which stops being true the moment
+	// they scroll off that entry. A topic page is a column of conventions, so
+	// that is most of a visit.
+	it('marks the entry the page says is being read over the fragment it opened at', async () => {
+		const { entries } = sections.find((section) => section.entries.length > 1)!;
+		history.replaceState(null, '', `#${entryAnchor(entries[0]!.id)}`);
+		render(GuidanceIndex, { sections, selectedTopic: entries[1]!.topic });
+		await Promise.resolve();
+
+		setReadingAnchor(entryAnchor(entries[1]!.id));
+		await expect
+			.poll(() => document.querySelector('a[aria-current="page"]')?.textContent)
+			.toContain(entries[1]!.title);
+		expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(1);
+	});
+
+	// And the list travels with it: the mark answers "where am I" only for the
+	// rows on screen, and a topic runs to more of them than the column holds.
+	// Measured against a real scroll port rather than trusted — the column only
+	// becomes one past 62rem, and it needs a height to overflow.
+	it('brings the row it is following back into the column when it scrolls out', async () => {
+		await page.viewport(1100, 800);
+		try {
+			const longest = [...sections].sort((a, b) => b.entries.length - a.entries.length)[0]!;
+			render(GuidanceIndex, { sections, selectedTopic: longest.topic });
+			const column = document.querySelector<HTMLElement>('.site-split__index')!;
+			column.style.height = '400px';
+			expect(column.scrollTop).toBe(0);
+
+			setReadingAnchor(entryAnchor(longest.entries.at(-1)!.id));
+
+			// The follow is smooth, so the settled position is what is asserted —
+			// polling the first pixel of movement would measure the animation
+			// rather than where it was going.
+			const row = () => column.querySelector<HTMLElement>('a[aria-current="page"]')!;
+			await expect
+				.poll(() => row().getBoundingClientRect().bottom, { timeout: 2000 })
+				.toBeLessThanOrEqual(column.getBoundingClientRect().bottom + 1);
+
+			expect(column.scrollTop).toBeGreaterThan(0);
+			// And clear of the finder pinned over the top of the column, which is
+			// the half `scrollIntoView({ block: 'nearest' })` knows nothing about.
+			const finder = column.querySelector<HTMLElement>('.site-finder')!;
+			expect(row().getBoundingClientRect().top).toBeGreaterThanOrEqual(
+				finder.getBoundingClientRect().bottom - 1
+			);
+		} finally {
+			await page.viewport(414, 896);
+		}
+	});
+
+	// The other half of "pressing a row may not move the list the row is in":
+	// the row a reader pressed is one they can see, so the follow finds it
+	// comfortable and returns rather than hauling the column to the top.
+	it('leaves the list alone while the row it is following is already in view', async () => {
+		await page.viewport(1100, 800);
+		try {
+			const longest = [...sections].sort((a, b) => b.entries.length - a.entries.length)[0]!;
+			render(GuidanceIndex, { sections, selectedTopic: longest.topic });
+			const column = document.querySelector<HTMLElement>('.site-split__index')!;
+			column.style.height = '400px';
+			column.scrollTop = 0;
+
+			setReadingAnchor(entryAnchor(longest.entries[0]!.id));
+			await expect.poll(() => document.querySelector('a[aria-current="page"]')).not.toBeNull();
+
+			expect(column.scrollTop).toBe(0);
+		} finally {
+			await page.viewport(414, 896);
+		}
 	});
 });

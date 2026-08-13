@@ -8,9 +8,10 @@
 	} from '$lib/guidance/guidance-search.js';
 	import { entryAnchor, guidanceTopicTitles } from '$lib/guidance/guidance.js';
 	import AssistantSpark from '$lib/ui/assistant/AssistantSpark.svelte';
+	import { readingAnchor } from './guidance-reading.svelte.js';
 	import { guidanceSearchQuery, setGuidanceSearchQuery } from './guidance-search.svelte.js';
 	import LinterRuleRow from './LinterRuleRow.svelte';
-	import { revealSelectedRow } from './reveal-selected.js';
+	import { followSelectedRow, revealSelectedRow } from './reveal-selected.js';
 
 	let {
 		sections,
@@ -55,8 +56,21 @@
 		return () => window.removeEventListener('hashchange', readAnchor);
 	});
 
+	/**
+	 * Which entry the open topic page says the reader is on, published as they
+	 * scroll (`guidance-reading.svelte.ts`). It outranks the hash, and that is
+	 * the whole of what makes this list follow the page beside it: the hash is
+	 * where the reader was *sent*, which stops being true the moment they scroll
+	 * off that entry, and is empty altogether for a topic opened without a
+	 * fragment. The hash is the fallback for the two states the page cannot
+	 * answer in — before it has hydrated, and at the section's index view, where
+	 * there is no page.
+	 */
+	const reading = $derived(readingAnchor());
+
 	function entryCurrent(topic: string, entryId: string): 'page' | undefined {
-		return selectedTopic === topic && anchor === entryAnchor(entryId) ? 'page' : undefined;
+		if (selectedTopic !== topic) return undefined;
+		return (reading || anchor) === entryAnchor(entryId) ? 'page' : undefined;
 	}
 
 	let column = $state<HTMLElement>();
@@ -64,6 +78,23 @@
 	export async function revealSelected(): Promise<void> {
 		await revealSelectedRow(column);
 	}
+
+	/**
+	 * And the list travels with it. The mark alone answers "where am I" only for
+	 * the rows on screen, and a topic runs to more of them than the column holds
+	 * — so the reading position scrolling out of the list is the same list
+	 * silently stopping.
+	 *
+	 * `followSelectedRow` is the nudge rather than the reveal: it moves only when
+	 * the row has actually left, and only as far as the nearer edge. Pressing a
+	 * row therefore still moves nothing, which is the rule this column has
+	 * everywhere else — the row a reader pressed is by definition one they can
+	 * see, so the follow finds it comfortable and returns.
+	 */
+	$effect(() => {
+		if (!reading) return;
+		void followSelectedRow(column);
+	});
 
 	// Escape empties the field, which is the one convention a search input owes
 	// and the only way out this surface needs: nothing here is pending. It stops

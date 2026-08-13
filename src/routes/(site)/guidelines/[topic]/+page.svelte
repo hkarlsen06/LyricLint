@@ -11,6 +11,7 @@
 	import LinterRuleRow from '$lib/ui/site/LinterRuleRow.svelte';
 	import SiteSourceFold from '$lib/ui/site/SiteSourceFold.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
+	import { setReadingAnchor } from '$lib/ui/site/guidance-reading.svelte.js';
 	import type { PageProps } from './$types.js';
 
 	let { data }: PageProps = $props();
@@ -88,6 +89,14 @@
 
 	function landOnHash() {
 		anchor = decodeURIComponent(location.hash.slice(1));
+		// The landing is also this page's first word to the index about where the
+		// reader is, and it is said before the scroll rather than left to the spy
+		// below to work out afterwards. Computed from a document still at its top,
+		// the reading position is the first entry — so the list would mark that
+		// row, travel to it, and be corrected a frame later when the landing
+		// scroll finally fired. Deep-linked, the entry you were sent to is the one
+		// you are reading; with no fragment, it is the first.
+		setReadingAnchor(anchor || entryAnchor(entries[0]!.id));
 		if (!anchor) return;
 		const heading = document.getElementById(anchor);
 		const target = heading?.closest('.guidelines__entry') ?? heading;
@@ -98,6 +107,75 @@
 	}
 
 	afterNavigate(landOnHash);
+
+	/**
+	 * Which entry the reader is on: the last one to have started above the
+	 * middle of the viewport.
+	 *
+	 * The middle is not a taste, it is what agrees with the landing above.
+	 * `scrollIntoView({ block: 'center' })` puts a deep-linked entry across the
+	 * viewport's centre, so a reading line any higher sits *above* a short
+	 * entry's own top and answers with the entry before it — a deep link that
+	 * marks the wrong row, in the list, at the one moment the reader is checking
+	 * they arrived where they meant to. At the centre the two agree by
+	 * construction, for an entry shorter than the screen and for one taller
+	 * than it.
+	 *
+	 * It reads the window rather than the column it is inside: the detail column
+	 * is a scroll port on a wide screen and the document is the scroller on a
+	 * narrow one, and a fraction of the viewport is the one line that means the
+	 * same thing in both without this page reaching up into the shell's markup
+	 * for an ancestor.
+	 */
+	let article = $state<HTMLElement>();
+
+	function readingEntry(): string {
+		const line = window.innerHeight / 2;
+		let current = '';
+		for (const section of article?.querySelectorAll('.guidelines__entry') ?? []) {
+			if (section.getBoundingClientRect().top > line) break;
+			current = section.querySelector('h2')?.id ?? current;
+		}
+		// Above the first heading the reader is in the lede, on their way into the
+		// first convention — which is the row worth marking, and the same answer a
+		// topic opened with no fragment lands on.
+		return current || entryAnchor(entries[0]!.id);
+	}
+
+	// One pass per frame at most, because a scroll fires far faster than a
+	// layout read is worth doing: the handler is a rect per entry, which is
+	// cheap, and doing it a dozen times inside one frame is not. Bound in the
+	// capture phase on the document rather than on the scroll port, since which
+	// element scrolls is the layout's business — the column at one width and the
+	// document at the other — and a scroll event does not bubble to where that
+	// could be ignored.
+	let frame = 0;
+
+	function spy(): void {
+		if (frame) return;
+		frame = requestAnimationFrame(() => {
+			frame = 0;
+			setReadingAnchor(readingEntry());
+		});
+	}
+
+	$effect(() => {
+		// Re-read when the topic changes: the same component draws every topic,
+		// and the entries under it are what this measures.
+		void topic;
+		document.addEventListener('scroll', spy, true);
+		window.addEventListener('resize', spy);
+		return () => {
+			cancelAnimationFrame(frame);
+			frame = 0;
+			document.removeEventListener('scroll', spy, true);
+			window.removeEventListener('resize', spy);
+			// The index outlives this page, so a reading position left behind is a
+			// row marked in a list whose page has gone — the rule guide's hover
+			// clears itself for the same reason.
+			setReadingAnchor('');
+		};
+	});
 
 	// A navigation that changes only the fragment — the reader pasting a second
 	// anchor over the first — is the browser's own, not the router's: no
@@ -141,7 +219,7 @@
      rule pages' own answer, and the reason the query lives in module state. -->
 {#snippet marked(value: string)}<GuidanceSearchHighlight text={value} />{/snippet}
 
-<main class="site-prose site-split__page">
+<main class="site-prose site-split__page" bind:this={article}>
 	<h1><GuidanceSearchHighlight text={topicTitle} /></h1>
 	<p>
 		Conventions the <a href={resolve('/rules/')}>linter</a> cannot check for you, in LyricLint's own words.
