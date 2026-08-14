@@ -3,7 +3,7 @@
  * entry point sees the same transcript and a live browser-executed tool turn.
  */
 import { getContext, setContext, untrack } from 'svelte';
-import { resolveAnchor } from '$lib/core/text-anchors.js';
+import { occurrenceAt, resolveAnchor, type AnchorOccurrence } from '$lib/core/text-anchors.js';
 import { diffWords } from '$lib/core/word-diff.js';
 import type { AtomicDocumentEdit, TextRange } from '$lib/core/types.js';
 import type {
@@ -182,9 +182,12 @@ function resolveForRecord(
 ): AssistantProposalRecord {
 	if (document === undefined) return { ...proposal, status: 'failed', reason: 'not-found' };
 	const resolution = resolveAnchor(document, proposal.anchor);
-	return resolution.ok
-		? { ...proposal, status: 'pending' }
-		: { ...proposal, status: 'failed', reason: resolution.reason };
+	if (!resolution.ok) return { ...proposal, status: 'failed', reason: resolution.reason };
+	// Pin the copy here, while the 'scribe still looks the way the model read
+	// it. Approving the earlier proposals in this same batch is what moves the
+	// later ones' line numbers out from under them.
+	const occurrence = occurrenceAt(document, proposal.anchor.exact, resolution.from);
+	return { ...proposal, status: 'pending', ...(occurrence ? { occurrence } : {}) };
 }
 
 function resolveReferenceForRecord(
@@ -193,16 +196,22 @@ function resolveReferenceForRecord(
 ): AssistantReferenceRecord {
 	if (document === undefined) return { ...reference, status: 'failed', reason: 'not-found' };
 	const resolution = resolveAnchor(document, reference.anchor);
-	return resolution.ok
-		? { ...reference, status: 'shown' }
-		: { ...reference, status: 'failed', reason: resolution.reason };
+	if (!resolution.ok) return { ...reference, status: 'failed', reason: resolution.reason };
+	// A reference re-resolves on every hover, long after the proposals in the
+	// same turn have moved the lines under it, so it is pinned for the same
+	// reason a proposal is.
+	const occurrence = occurrenceAt(document, reference.anchor.exact, resolution.from);
+	return { ...reference, status: 'shown', ...(occurrence ? { occurrence } : {}) };
 }
 
 function atomicProposalEdit(
 	bridge: AssistantDraftBridge,
-	proposal: AssistantProposal
+	proposal: AssistantProposal & { occurrence?: AnchorOccurrence }
 ): { edit: AtomicDocumentEdit; range: TextRange } | { reason: 'not-found' | 'ambiguous' } {
-	const resolution = resolveAnchor(bridge.readText(), proposal.anchor);
+	// Against the text as it stands, never the snapshot the call arrived on:
+	// the visitor may have typed since. The pin recorded then is what keeps a
+	// repeated line resolvable after the proposals above it have been applied.
+	const resolution = resolveAnchor(bridge.readText(), proposal.anchor, proposal.occurrence);
 	if (!resolution.ok) return { reason: resolution.reason };
 	const edit: AtomicDocumentEdit = {
 		baseRevision: bridge.revision(),
@@ -967,10 +976,10 @@ export function createAssistantState(deps: AssistantDeps) {
 		 * re-resolves at hover time, so a card restored against a draft that no
 		 * longer carries the quote quietly reveals nothing.
 		 */
-		revealReference(anchor: AssistantProposalAnchor): boolean {
+		revealReference(anchor: AssistantProposalAnchor, occurrence?: AnchorOccurrence): boolean {
 			const bridge = draftBridge;
 			if (!bridge || anchor.exact.length === 0) return false;
-			const resolution = resolveAnchor(bridge.readText(), anchor);
+			const resolution = resolveAnchor(bridge.readText(), anchor, occurrence);
 			if (!resolution.ok) return false;
 			bridge.reveal({ from: resolution.from, to: resolution.to });
 			return true;

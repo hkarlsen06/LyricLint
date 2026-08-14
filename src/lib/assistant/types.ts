@@ -5,7 +5,20 @@
  * trusts only rule ids it can resolve against its own shipped corpus.
  */
 
+import type { AnchorOccurrence } from '$lib/core/text-anchors.js';
 import type { TextEdit } from '$lib/core/types.js';
+
+/**
+ * The copy of its exact text an anchor landed on when its call arrived. It is
+ * the browser's own measurement rather than anything the model said, which is
+ * why it is on the record and never on the wire: the model addresses a place
+ * by quoting it and naming its line, and this is what keeps that address
+ * resolvable once the edits above it have moved the lines. Absent on records
+ * stored before proposals were pinned, and on an anchor with empty exact.
+ */
+export interface AnchorPin {
+	occurrence?: AnchorOccurrence;
+}
 
 export type AssistantAnswerScope = 'reviewed' | 'mixed' | 'general' | 'not-covered' | 'draft-work';
 
@@ -84,15 +97,20 @@ export interface AssistantReference {
  * live place behind it; hovering re-resolves against the text as it stands.
  */
 export type AssistantReferenceRecord = AssistantReference &
+	AnchorPin &
 	(
 		| { status: 'shown'; reason?: never }
 		| { status: 'failed'; reason?: AssistantAnchorFailureReason }
 	);
 
-/** The compact result returned to the model for one reference. */
+/**
+ * The compact result returned to the model for one reference. Its reason is a
+ * free string rather than the record's terse code, because what the model is
+ * told about a failure is the repair for it — see `FAILURE_GUIDANCE`.
+ */
 export type AssistantReferenceOutcome =
 	| { id: string; status: 'shown'; reason?: never }
-	| { id: string; status: 'failed'; reason?: AssistantAnchorFailureReason };
+	| { id: string; status: 'failed'; reason?: string };
 
 /** One header address in a model-authored section-link action. */
 export interface AssistantLinkHeader {
@@ -143,6 +161,7 @@ export type AssistantProposalResolution =
 
 /** The states retained on a proposal while the user reviews a tool turn. */
 export type AssistantProposalRecord = AssistantProposal &
+	AnchorPin &
 	(
 		| { status: 'pending'; reason?: never }
 		| { status: 'applied'; reason?: never }

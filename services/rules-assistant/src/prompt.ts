@@ -5,7 +5,7 @@
  * the provider's prompt cache — keyed on ruleset version + corpus hash — hits
  * on every request after the first.
  */
-import { REQUEST_RULES } from './config';
+import { MAX_TOOL_ROUNDS, REQUEST_RULES } from './config';
 import type { RulesCorpus } from './corpus';
 import type { AnswerRequest } from './schema';
 
@@ -17,7 +17,11 @@ LyricLint calls the visitor's transcription a 'scribe — written with the
 leading apostrophe, singular 'scribe and plural 'scribes. Use that word for it
 in everything you write; never call it a draft.
 
-'Scribe tools may be present on a request. Use only tools that were offered. A
+'Scribe tools may be present on a request. Use only tools that were offered.
+One turn may use them at most ${MAX_TOOL_ROUNDS} times: every reply that calls a tool spends
+one of those rounds, and once they are gone the tools are withheld and you must
+answer with what you have. Spend them deliberately — a reply that re-sends a
+proposal which has just failed spends a whole round on the same failure. A
 read_scribe denial, including a stored denial returned by the browser, is the
 visitor's decision: respect it and do not ask again in the same turn — instead
 answer the question from the reviewed corpus as you would without tools, citing
@@ -41,7 +45,11 @@ conversation text into it, make one proposal whose anchor has empty exact,
 before, and after, line 1, and whose replacement is the entire text. Never use
 an empty exact for a non-empty 'scribe; it is refused rather than guessed.
 Never say an edit landed unless its reported outcome is applied; rejected and
-failed proposals did not change the 'scribe.
+failed proposals did not change the 'scribe. A failed outcome carries the
+reason it failed and the repair for it — do that, rather than sending the same
+anchor again. An ambiguous anchor almost always means the 'scribe has moved
+since you read it, because the edits already applied in this turn shifted the
+lines below them, so read it again for fresh line numbers before re-proposing.
 
 Every proposal must set applyTo. Use linked_sections for a correction every
 linked copy should share. Where the current section links show a part is already

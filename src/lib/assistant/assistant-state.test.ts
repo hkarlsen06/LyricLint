@@ -121,6 +121,36 @@ function draftBridge(initial = 'hello world', applyResult = true, draftId = 'dra
 	};
 }
 
+/**
+ * A bridge that actually applies what it is given, which is what makes a
+ * batch's later proposals see the document its earlier ones left behind.
+ * `draftBridge` above deliberately does not, because most tests are about the
+ * decision rather than the text.
+ */
+function editableBridge(initial: string, draftId = 'draft-1') {
+	let text = initial;
+	const apply = vi.fn((edit: Parameters<AssistantDraftBridge['apply']>[0]) => {
+		for (const change of [...edit.edits].sort((a, b) => b.from - a.from)) {
+			text = text.slice(0, change.from) + change.insert + text.slice(change.to);
+		}
+		return true;
+	});
+	const bridge: AssistantDraftBridge = {
+		draftId: () => draftId,
+		readText: () => text,
+		revision: () => 7,
+		preview: vi.fn(() => true),
+		clearPreview: vi.fn(),
+		reveal: vi.fn(),
+		apply,
+		sectionLinks: () => [],
+		linkableSections: vi.fn(() => true),
+		linkSections: vi.fn(() => true),
+		unlinkSection: vi.fn(() => true)
+	};
+	return { bridge, apply, text: () => text };
+}
+
 function makeState(overrides: Partial<AssistantDeps> = {}) {
 	const repository = memoryRepository();
 	const access = new Map<string, 'granted' | 'denied'>();
@@ -810,7 +840,15 @@ describe('the assistant state', () => {
 		await state.approveLinkAction('tie');
 
 		expect(vi.mocked(ask).mock.calls[1]![0].messages.at(-1)).toMatchObject({
-			results: [{ result: { outcomes: [{ id: 'tie', status: 'failed', reason: 'apply-failed' }] } }]
+			results: [
+				{
+					result: {
+						outcomes: [
+							{ id: 'tie', status: 'failed', reason: expect.stringMatching(/^apply-failed: /) }
+						]
+					}
+				}
+			]
 		});
 	});
 
@@ -836,7 +874,15 @@ describe('the assistant state', () => {
 
 		expect(draft.bridge.linkSections).not.toHaveBeenCalled();
 		expect(vi.mocked(ask).mock.calls[1]![0].messages.at(-1)).toMatchObject({
-			results: [{ result: { outcomes: [{ id: 'tie', status: 'failed', reason: 'not-found' }] } }]
+			results: [
+				{
+					result: {
+						outcomes: [
+							{ id: 'tie', status: 'failed', reason: expect.stringMatching(/^not-found: /) }
+						]
+					}
+				}
+			]
 		});
 	});
 
@@ -899,7 +945,7 @@ describe('the assistant state', () => {
 					result: {
 						outcomes: [
 							{ id: 'where', status: 'shown' },
-							{ id: 'gone', status: 'failed', reason: 'not-found' }
+							{ id: 'gone', status: 'failed', reason: expect.stringMatching(/^not-found: /) }
 						]
 					}
 				}
@@ -994,6 +1040,48 @@ describe('the assistant state', () => {
 		expect(state.messages[1]!.toolTurns).toHaveLength(4);
 	});
 
+	it('keeps a batch resolvable as its own earlier proposals are applied', async () => {
+		// The failure this pins: three verses opening on the same line, one
+		// proposal per verse putting a header above it. Approving the first
+		// moves every line below it, so the second and third anchors — whose
+		// line numbers were measured against the 'scribe the model read, and
+		// whose neighbours are identical in every copy — used to be refused as
+		// ambiguous. They are the model's own correct proposals, invalidated by
+		// the linter applying the ones before them.
+		const line = 'Sweep me under the rug';
+		const song = [line, '', line, '', line].join('\n');
+		const headers = ['[Verse 1]', '[Verse 2]', '[Verse 3]'].map((header, index) => ({
+			id: header,
+			anchor: { exact: line, before: '', after: '', line: index * 2 + 1 },
+			replacement: `${header}\n\n${line}`,
+			note: `Add ${header}.`
+		}));
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(proposalCall(headers))
+			.mockResolvedValueOnce(answer('Headers added.'));
+		const { state } = makeState({ ask });
+		const draft = editableBridge(song);
+		state.registerDraftBridge(draft.bridge);
+		await state.open();
+		await state.send('Add those headers.');
+
+		for (const header of headers) await state.approveProposal(header.id);
+
+		expect(draft.text()).toBe(
+			['[Verse 1]', '', line, '', '[Verse 2]', '', line, '', '[Verse 3]', '', line].join('\n')
+		);
+		expect(vi.mocked(ask).mock.calls[1]![0].messages.at(-1)).toMatchObject({
+			results: [
+				{
+					result: {
+						outcomes: headers.map((header) => ({ id: header.id, status: 'applied' }))
+					}
+				}
+			]
+		});
+	});
+
 	it('reports approve-time anchor loss instead of applying stale text', async () => {
 		const ask = vi
 			.fn()
@@ -1011,7 +1099,11 @@ describe('the assistant state', () => {
 		expect(vi.mocked(ask).mock.calls[1]![0].messages.at(-1)).toMatchObject({
 			results: [
 				{
-					result: { outcomes: [{ id: 'one', status: 'failed', reason: 'not-found' }] }
+					result: {
+						outcomes: [
+							{ id: 'one', status: 'failed', reason: expect.stringMatching(/^not-found: /) }
+						]
+					}
 				}
 			]
 		});
@@ -1066,7 +1158,11 @@ describe('the assistant state', () => {
 		expect(vi.mocked(ask).mock.calls[1]![0].messages.at(-1)).toMatchObject({
 			results: [
 				{
-					result: { outcomes: [{ id: 'one', status: 'failed', reason: 'apply-failed' }] }
+					result: {
+						outcomes: [
+							{ id: 'one', status: 'failed', reason: expect.stringMatching(/^apply-failed: /) }
+						]
+					}
 				}
 			]
 		});

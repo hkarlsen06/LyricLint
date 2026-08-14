@@ -72,6 +72,27 @@ function wireToolCall(call: AssistantToolCallRecord) {
 	};
 }
 
+/**
+ * What a failure says to the model, as against what the card says to the
+ * visitor. The record keeps the terse reason the card renders; the model needs
+ * the repair, because the anchor it will otherwise send again is the one that
+ * has just failed — which is exactly what it did, twice, burning the rounds
+ * that would have covered the recovery. `ambiguous` in particular is nearly
+ * always a stale line number rather than a badly chosen quote, so the sentence
+ * names re-reading as the way out.
+ */
+const FAILURE_GUIDANCE: Record<string, string> = {
+	ambiguous:
+		"ambiguous: the quoted text appears more than once and no line matched one copy. The 'scribe has moved since you read it — call read_scribe again for fresh line numbers before re-proposing. The same anchor sent again will fail the same way.",
+	'not-found':
+		"not-found: the quoted text is not in the 'scribe as written. Read the 'scribe again and quote it exactly, prefix omitted.",
+	'apply-failed': "apply-failed: the 'scribe changed before the edit could be applied."
+};
+
+function outcomeReason(reason: string): string {
+	return FAILURE_GUIDANCE[reason] ?? reason;
+}
+
 function wireToolResult(
 	call: AssistantToolCallRecord,
 	grantedDraftText: string,
@@ -107,7 +128,7 @@ function wireToolResult(
 				? {
 						id: record.id,
 						status: record.status,
-						...(record.reason ? { reason: record.reason } : {})
+						...(record.reason ? { reason: outcomeReason(record.reason) } : {})
 					}
 				: { id: record.id, status: record.status };
 		});
@@ -128,7 +149,7 @@ function wireToolResult(
 						? {
 								id: reference.id,
 								status: reference.status,
-								...(reference.reason ? { reason: reference.reason } : {})
+								...(reference.reason ? { reason: outcomeReason(reference.reason) } : {})
 							}
 						: { id: reference.id, status: reference.status }
 				)

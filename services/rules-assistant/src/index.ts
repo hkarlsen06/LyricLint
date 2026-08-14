@@ -54,6 +54,18 @@ interface QuotaHandle {
 	slot: string;
 }
 
+/**
+ * What the model is told on the call that follows its last tool round. It is
+ * appended as a visitor-role message for the reason `repairMessages` appends
+ * one: the developer instructions are byte-identical per corpus so the prompt
+ * cache hits, and a per-request fact belongs after the cache breakpoint.
+ */
+export const FINAL_ROUND_INSTRUCTION =
+	`You have now used all ${MAX_TOOL_ROUNDS} 'scribe tool rounds for this turn, so no tools ` +
+	`are available on this reply. Answer with what you have: say what you did, what is still ` +
+	`outstanding and why, and that they can ask again to carry on. Do not claim work you did not ` +
+	`complete.`;
+
 export const REPAIR_INSTRUCTION = (message: string): string =>
 	`Your previous answer failed validation: ${message}. It was not shown to the visitor. Answer the question again, corrected, as a complete structured answer.`;
 
@@ -333,6 +345,22 @@ export function createHandler(options: HandlerOptions = {}) {
 			let spendUsd = 0;
 			try {
 				const providerSafetyIdentifier = await safetyIdentifier(state.sid, env.ABUSE_HMAC_SECRET);
+				// The tool budget is spent by withholding the tools, not by refusing
+				// the call that asks for one. A model offered tools with no rounds
+				// left will use them — it has no way to know the budget exists — and
+				// the turn then died on a gate the visitor reads as "the answer
+				// failed validation", losing everything the earlier rounds
+				// established. Withheld, the last call can only answer, which is what
+				// the visitor is owed at that point. `toolsAvailable` on the request
+				// keeps its own meaning throughout: it is what the answer's
+				// `draft-work` scope is checked against, and a turn that used tools
+				// is still a turn that used them.
+				const toolBudgetSpent =
+					body.toolsAvailable === true && toolRoundCount(body.messages) >= MAX_TOOL_ROUNDS;
+				const providerTools = body.toolsAvailable === true && !toolBudgetSpent;
+				const providerMessages: AnswerRequest['messages'] = toolBudgetSpent
+					? [...body.messages, { role: 'user', content: FINAL_ROUND_INSTRUCTION }]
+					: body.messages;
 				const quota = {
 					browserRemaining: sessionQuota.remaining,
 					ipRemaining: ipQuota!.remaining,
@@ -402,10 +430,10 @@ export function createHandler(options: HandlerOptions = {}) {
 									let deltaCount = 0;
 									let firstDeltaAtMs: number | undefined;
 									let result = await provider(
-										body.messages,
+										providerMessages,
 										providerSafetyIdentifier,
 										providerController.signal,
-										body.toolsAvailable === true,
+										providerTools,
 										(delta) => {
 											deltaCount += 1;
 											streamedOutputChars += delta.length;
@@ -467,10 +495,10 @@ export function createHandler(options: HandlerOptions = {}) {
 											answerStream = new IncrementalAnswerStream(requestId, emit);
 											resetProviderTimeout();
 											result = await provider(
-												repairMessages(body.messages, result.raw, error.message),
+												repairMessages(providerMessages, result.raw, error.message),
 												providerSafetyIdentifier,
 												providerController.signal,
-												body.toolsAvailable === true,
+												providerTools,
 												(delta) => {
 													streamedOutputChars += delta.length;
 													answerStream.push(delta);
@@ -571,10 +599,10 @@ export function createHandler(options: HandlerOptions = {}) {
 				let answer: StructuredAnswer;
 				try {
 					result = await provider(
-						body.messages,
+						providerMessages,
 						providerSafetyIdentifier,
 						controller.signal,
-						body.toolsAvailable === true,
+						providerTools,
 						undefined,
 						(providerUsage) => {
 							metricUsage = providerUsage;
@@ -637,10 +665,10 @@ export function createHandler(options: HandlerOptions = {}) {
 						const firstResult = result;
 						resetProviderTimeout();
 						result = await provider(
-							repairMessages(body.messages, firstResult.raw, error.message),
+							repairMessages(providerMessages, firstResult.raw, error.message),
 							providerSafetyIdentifier,
 							controller.signal,
-							body.toolsAvailable === true,
+							providerTools,
 							undefined,
 							(providerUsage) => {
 								const combinedUsage = sumUsage(firstResult.usage, providerUsage)!;

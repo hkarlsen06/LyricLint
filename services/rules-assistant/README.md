@@ -76,6 +76,38 @@ scraping is not part of the editing path. If reviewed excerpts are ever wanted,
 they belong on `SourceReference` beside `lastVerifiedAt`, so re-verifying a
 source is what re-verifies its quotation.
 
+## The tool budget is spent by withholding the tools
+
+A turn may use the browser-executed 'scribe tools `MAX_TOOL_ROUNDS` times, and
+what happens on the round after that is the difference between an assistant
+that finishes and one that throws away everything it did. The Worker used to
+call the model with tools still offered and then refuse the call that asked for
+one: the model has no way to know a budget exists, so it asked, and the turn
+died as an `invalid_answer` — which the browser words as _the model returned an
+answer that failed validation_. A turn that had read the 'scribe, applied two
+headers and gone back for fresh line numbers ended with nothing shown.
+
+So the budget is spent one call earlier, and quietly: with the rounds gone, the
+provider is called with **no tools** and `FINAL_ROUND_INSTRUCTION` appended
+after the cache breakpoint, so the only thing the model can do is answer with
+what it has and say what is still outstanding. `toolsAvailable` on the request
+keeps its own separate meaning throughout — it is what a `draft-work` answer is
+validated against, and a turn that used tools is still a turn that used them.
+The prompt states the ceiling as well, because a model that knows what a round
+costs spends them differently. The refusal in `index.ts` stays as a backstop for
+a provider that offers tools anyway; it is no longer a path a turn can reach.
+
+The same failure had a second cause on the browser side, and it is written down
+in `src/lib/core/text-anchors.ts`: an anchor's line number is measured against
+the 'scribe the model read, so applying the first proposal in a batch moves the
+lines under every proposal after it, and between repeated verses — whose
+neighbours are identical — the rest were then refused as ambiguous. They were
+the model's own correct proposals, invalidated by the linter applying the ones
+before them, and the rounds spent re-proposing them are what exhausted the
+budget above. Each anchor is pinned to the copy it landed on when its call
+arrived, and the pin outranks the line for exactly as long as the number of
+copies is unchanged.
+
 ## Commands
 
 ```bash

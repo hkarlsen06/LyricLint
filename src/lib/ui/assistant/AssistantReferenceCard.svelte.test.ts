@@ -9,6 +9,7 @@ function shown(): AssistantReferenceRecord {
 		id: 'ref-1',
 		anchor: { exact: 'Whenever you call', before: 'And I said ', after: '\nI will be' },
 		note: 'The second verse opens here.',
+		occurrence: { index: 1, total: 2 },
 		status: 'shown'
 	};
 }
@@ -59,7 +60,9 @@ describe('an assistant lyric-reference card', () => {
 
 		await fireEvent.pointerEnter(container.querySelector('.assistant-reference')!);
 		expect(assistant.revealReference).toHaveBeenCalledTimes(1);
-		expect(assistant.revealReference).toHaveBeenCalledWith(shown().anchor);
+		// The pin travels with the anchor: a reference outlives the proposals in
+		// its own turn, which move the lines under it as they are applied.
+		expect(assistant.revealReference).toHaveBeenCalledWith(shown().anchor, shown().occurrence);
 
 		const quote = getByRole('button', { name: /Show in the 'scribe/ });
 		await fireEvent.click(quote);

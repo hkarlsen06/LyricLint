@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createHandler } from '../src/index';
+import { createHandler, FINAL_ROUND_INSTRUCTION } from '../src/index';
 import { LIMITS, MAX_TOOL_ROUNDS, MODEL, REQUEST_RULES, SESSION_RULES } from '../src/config';
 import { corpus } from '../src/corpus';
 import { providerRequest, type AnswerProvider, type ProviderResult } from '../src/provider';
@@ -22,6 +22,25 @@ const USAGE = { inputTokens: 100, cachedInputTokens: 0, cacheWriteTokens: 0, out
 
 function outputTokensPast(spendLimitUsd: number): number {
 	return Math.floor((spendLimitUsd * 1_000_000) / MODEL.estOutputUsdPerMTok) + 1;
+}
+
+/** A conversation whose whole tool budget has already been spent. */
+function spentToolRounds(): WireMessageV2[] {
+	const messages: WireMessageV2[] = [{ role: 'user', content: 'Keep reviewing my draft.' }];
+	for (let round = 1; round <= MAX_TOOL_ROUNDS; round++) {
+		const callId = `call-${round}`;
+		messages.push(
+			{
+				role: 'assistant',
+				toolCalls: [{ callId, name: 'read_scribe', arguments: '{}' }],
+				providerItems: JSON.stringify([
+					{ type: 'function_call', call_id: callId, name: 'read_scribe', arguments: '{}' }
+				])
+			},
+			{ role: 'tool', results: [{ callId, name: 'read_scribe', result: { status: 'denied' } }] }
+		);
+	}
+	return messages;
 }
 
 async function firstSession(
@@ -1121,25 +1140,59 @@ describe('the answers endpoint', () => {
 		});
 	});
 
-	it('fails a fifth model-requested tool round with a worded invalid_answer', async () => {
+	it('withholds the tools on the reply after the last round and asks for the answer', async () => {
+		// The turn this repairs used its four rounds, asked for a fifth tool,
+		// and died on a gate the visitor reads as "the answer failed
+		// validation" — losing everything the four rounds had established. A
+		// model with no tools in front of it can only answer, which is what is
+		// owed at that point.
 		const env = makeEnv();
-		const messages: WireMessageV2[] = [{ role: 'user', content: 'Keep reviewing my draft.' }];
-		for (let round = 1; round <= MAX_TOOL_ROUNDS; round++) {
-			const callId = `call-${round}`;
-			messages.push(
-				{
-					role: 'assistant',
-					toolCalls: [{ callId, name: 'read_scribe', arguments: '{}' }],
-					providerItems: JSON.stringify([
-						{ type: 'function_call', call_id: callId, name: 'read_scribe', arguments: '{}' }
-					])
+		const messages = spentToolRounds();
+		let toolsOffered: boolean | undefined;
+		let sent: WireMessageV2[] = [];
+		const provider = vi.fn(async (providerMessages, _safetyIdentifier, _signal, available) => {
+			sent = providerMessages as WireMessageV2[];
+			toolsOffered = available;
+			return {
+				kind: 'answer' as const,
+				raw: {
+					scope: 'draft-work',
+					blocks: [
+						{
+							kind: 'prose',
+							text: 'Two headers landed; the last two did not.',
+							ruleIds: [],
+							sourceIds: []
+						}
+					]
 				},
-				{
-					role: 'tool',
-					results: [{ callId, name: 'read_scribe', result: { status: 'denied' } }]
-				}
-			);
-		}
+				usage: USAGE
+			};
+		});
+		const handler = createHandler({
+			provider: provider as unknown as AnswerProvider,
+			verifyTurnstile: goodTurnstile
+		});
+		const response = await handler(
+			makeRequest(requestBody({ toolsAvailable: true, turnstileToken: 'good-token', messages })),
+			env
+		);
+
+		expect(response.status).toBe(200);
+		expect(toolsOffered).toBe(false);
+		expect(sent.at(-1)).toEqual({ role: 'user', content: FINAL_ROUND_INSTRUCTION });
+		// `toolsAvailable` on the request keeps its own meaning: the answer is
+		// still a draft-work answer from a turn that did use tools.
+		expect(await response.json()).toMatchObject({ assistant: { scope: 'draft-work' } });
+	});
+
+	it('still refuses tool calls made after the budget is spent', async () => {
+		// The backstop, for a provider that offers tools anyway: withholding
+		// them is what the model is told, and this is what happens if it is not
+		// believed.
+
+		const env = makeEnv();
+		const messages = spentToolRounds();
 		const providerItems = JSON.stringify([
 			{ type: 'function_call', call_id: 'call-5', name: 'read_scribe', arguments: '{}' }
 		]);

@@ -46,7 +46,7 @@
 	// no longer resolves reveals nothing, silently — the card asked no question,
 	// so it owes no refusal.
 	function reveal(): void {
-		assistant.revealReference(reference.anchor);
+		assistant.revealReference(reference.anchor, reference.occurrence);
 	}
 
 	function failureReason(reason: AssistantAnchorFailureReason | undefined): string {
