@@ -7,7 +7,7 @@
  * claimed here, enforced in `guidance.test.ts` — so promoting an entry means
  * adding the confirming higher-tier source, which is the audit trail.
  */
-import type { GuidanceEntry } from './guidance.js';
+import { guidanceTopicOrder, type GuidanceEntry } from './guidance.js';
 
 export const guidanceEntries: readonly GuidanceEntry[] = [
 	{
@@ -501,7 +501,7 @@ export const guidanceRegistry: ReadonlyMap<string, GuidanceEntry> = new Map(
 	guidanceEntries.map((entry) => [entry.id, entry])
 );
 
-/** The topics that actually have entries, in declaration order, with theirs. */
+/** The topics that actually have entries, in their deliberate learning order. */
 export function guidanceTopics(): Array<{
 	topic: GuidanceEntry['topic'];
 	entries: GuidanceEntry[];
@@ -515,5 +515,8 @@ export function guidanceTopics(): Array<{
 			topics.set(entry.topic, [entry]);
 		}
 	}
-	return [...topics.entries()].map(([topic, entries]) => ({ topic, entries }));
+	return guidanceTopicOrder.flatMap((topic) => {
+		const entries = topics.get(topic);
+		return entries ? [{ topic, entries }] : [];
+	});
 }

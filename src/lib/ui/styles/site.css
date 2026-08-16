@@ -884,7 +884,8 @@
    reader, so a jumped-to heading has to clear it or the one line the link named
    is the line under the chrome. (The page's own landing re-centers it; this is
    the no-JavaScript fallback's clearance.) */
-.guidelines__entry h2 {
+.guidelines__entry h2,
+.guidelines__landmark h2 {
 	margin-bottom: var(--space-1-5);
 	scroll-margin-top: calc(var(--header-height) + var(--space-4));
 }
@@ -916,6 +917,14 @@
 
 .guidelines__entry > :last-child {
 	margin-bottom: 0;
+}
+
+/* An entry gives its last child's margin up so its own selection wash and the
+   hairline rhythm have a definite edge. When the entry is also the page's last
+   section, the action row that follows must supply the missing breath itself;
+   otherwise a final sample's border and the button's border meet as one box. */
+.guidelines__entry + .site-actions {
+	margin-top: var(--space-4);
 }
 
 /* The entry a deep link landed on, washed in the selection tone for as long

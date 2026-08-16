@@ -1,4 +1,5 @@
 import { guidanceTopics } from '$lib/guidance/entries.js';
+import { guidanceTopicLandmarks } from '$lib/guidance/guidance.js';
 import { guidanceTopicLinterRules } from '$lib/guidance/lookups.server.js';
 import type { GuidanceTopicSection } from '$lib/guidance/guidance-search.js';
 import type { LayoutServerLoad } from './$types.js';
@@ -16,6 +17,7 @@ export const load: LayoutServerLoad = () => ({
 	sections: guidanceTopics().map(({ topic, entries }): GuidanceTopicSection => ({
 		topic,
 		entries,
+		landmarks: guidanceTopicLandmarks[topic] ?? [],
 		linterRules: guidanceTopicLinterRules(topic)
 	}))
 });

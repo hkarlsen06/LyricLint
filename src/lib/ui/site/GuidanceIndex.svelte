@@ -144,7 +144,7 @@
 	</search>
 
 	<nav aria-label="Transcription guidelines">
-		{#each filtered as { topic, entries, linterRules } (topic)}
+		{#each filtered as { topic, landmarks, entries, linterRules } (topic)}
 			<h2 class="site-index__group">{guidanceTopicTitles[topic]}</h2>
 			<!-- One bordered run per topic, hairlines between rows — the same
 			     material as the rule index's runs. A guidance row opens its entry on
@@ -154,6 +154,17 @@
 			     guidance rows are ever `aria-current`: a linter row's page is never
 			     this section's. -->
 			<ul class="site-run">
+				{#each landmarks ?? [] as landmark (landmark.id)}
+					<li>
+						<a
+							href="{resolve('/(site)/guidelines/[topic]', { topic })}/#{landmark.id}"
+							aria-current={entryCurrent(topic, landmark.id)}
+						>
+							<span class="site-run__title">{landmark.title}</span>
+							<span class="site-run__message">{landmark.statement}</span>
+						</a>
+					</li>
+				{/each}
 				{#each entries as entry (entry.id)}
 					<li>
 						<a

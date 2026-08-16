@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { guidanceTopics } from '$lib/guidance/entries.js';
 import { countGuidanceLookups, type GuidanceTopicSection } from '$lib/guidance/guidance-search.js';
-import { entryAnchor } from '$lib/guidance/guidance.js';
+import { entryAnchor, guidanceTopicLandmarks } from '$lib/guidance/guidance.js';
 import { setReadingAnchor } from './guidance-reading.svelte.js';
 import { setGuidanceSearchQuery } from './guidance-search.svelte.js';
 import GuidanceIndex from './GuidanceIndex.svelte';
@@ -15,6 +15,7 @@ import GuidanceIndex from './GuidanceIndex.svelte';
 const sections: GuidanceTopicSection[] = guidanceTopics().map(({ topic, entries }) => ({
 	topic,
 	entries,
+	landmarks: guidanceTopicLandmarks[topic] ?? [],
 	linterRules: [
 		{
 			id: 'punctuation.question',
@@ -66,6 +67,7 @@ describe('GuidanceIndex', () => {
 
 		expect(rows()).toHaveLength(total);
 		const titles = rows().map((row) => row.querySelector('.site-run__title')?.textContent?.trim());
+		expect(titles[0]).toBe('The standardized spellings');
 		expect(titles).toContain(firstEntry.title);
 		expect(titles).toContain('A question mark the line needs');
 		// A guidance row opens its entry's fragment on the topic page; a linter row

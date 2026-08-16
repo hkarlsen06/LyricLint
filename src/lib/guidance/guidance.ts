@@ -35,6 +35,45 @@ export const guidanceTopicTitles = {
 export type GuidanceTopic = keyof typeof guidanceTopicTitles;
 
 /**
+ * The catalog's learning order, independent of where its entries are stored.
+ * A new transcriber meets the everyday writing decisions first: spelling is
+ * also the doorway to the standardized-spellings lookup, then the document's
+ * structure, vocal additions, and increasingly situational conventions.
+ */
+export const guidanceTopicOrder: readonly GuidanceTopic[] = [
+	'spelling',
+	'section-headers',
+	'lines',
+	'ad-libs',
+	'censored-unknown',
+	'punctuation',
+	'capitalization',
+	'numbers',
+	'non-english',
+	'sourcing'
+];
+
+/** A substantial lookup that lives on a topic page beside its prose entries. */
+export interface GuidanceTopicLandmark {
+	id: string;
+	title: string;
+	statement: string;
+}
+
+/** Landmarks are searchable rows in the index, not hidden furniture on a page. */
+export const guidanceTopicLandmarks: Partial<
+	Record<GuidanceTopic, readonly GuidanceTopicLandmark[]>
+> = {
+	spelling: [
+		{
+			id: 'standardized-spellings',
+			title: 'The standardized spellings',
+			statement: 'The reviewed preferred forms and the spellings the guide corrects.'
+		}
+	]
+};
+
+/**
  * The linter rule families each topic page also lists, as lookups pointing
  * into `/rules/<slug>/` — so a topic is one place to look a convention up
  * whether the linter checks it or not. The list is derived from the rule

@@ -36,6 +36,34 @@
 		data.sections.find((section) => section.topic === topic)?.linterRules ?? []
 	);
 
+	// The rule keeps context-sensitive spellings as separate records because
+	// they have different fix contracts. This reader-facing table can group
+	// records that land on the same preferred form: the condition remains with
+	// the combined row, without presenting one spelling as two conventions.
+	const displayedSpellings = $derived.by(() => {
+		const grouped: Array<{
+			preferred: string[];
+			instead: string[];
+			appliesWhen: string[];
+			notes: string[];
+		}> = [];
+
+		for (const entry of data.spellings?.entries ?? []) {
+			let row = grouped.find(
+				(candidate) => JSON.stringify(candidate.preferred) === JSON.stringify(entry.preferred)
+			);
+			if (!row) {
+				row = { preferred: entry.preferred, instead: [], appliesWhen: [], notes: [] };
+				grouped.push(row);
+			}
+			row.instead.push(...entry.instead);
+			if (entry.appliesWhen) row.appliesWhen.push(entry.appliesWhen);
+			if (entry.note) row.notes.push(entry.note);
+		}
+
+		return grouped;
+	});
+
 	/** The unique sources this page's entries cite, for the structured data. */
 	const sources = $derived(
 		[...new Set(entries.flatMap((entry) => entry.sourceIds))].flatMap((id) => {
@@ -64,10 +92,9 @@
 	);
 	const canonicalUrl = $derived(siteUrl(`/guidelines/${topic}/`));
 
-	// A deep link names one convention out of a column of them, and the native
-	// hash jump parks it at the very top of its scroll port, where nothing below
-	// it is read. So the landing re-centers the whole entry (not just its
-	// heading); `anchor` below is what marks it (the wash in site.css), and
+	// A deep link names one convention out of a column of them, so the named
+	// heading is the first thing the reader should meet. `anchor` below is what
+	// marks it (the wash in site.css), and
 	// `scrollIntoView` scrolls the detail column, which is its nearest scroll
 	// port on a wide screen and the document on a narrow one. Both frames of the
 	// deferral are load-bearing, and both were measured rather than reasoned
@@ -99,40 +126,39 @@
 		setReadingAnchor(anchor || entryAnchor(entries[0]!.id));
 		if (!anchor) return;
 		const heading = document.getElementById(anchor);
-		const target = heading?.closest('.guidelines__entry') ?? heading;
-		if (!target) return;
+		if (!heading) return;
 		requestAnimationFrame(() =>
-			requestAnimationFrame(() => target.scrollIntoView({ block: 'center' }))
+			requestAnimationFrame(() => heading.scrollIntoView({ block: 'start' }))
 		);
 	}
 
 	afterNavigate(landOnHash);
 
 	/**
-	 * Which entry the reader is on: the last one to have started above the
-	 * middle of the viewport.
+	 * Which entry the reader is on: the last heading to have crossed the reading
+	 * line directly under the pinned chrome.
 	 *
-	 * The middle is not a taste, it is what agrees with the landing above.
-	 * `scrollIntoView({ block: 'center' })` puts a deep-linked entry across the
-	 * viewport's centre, so a reading line any higher sits *above* a short
-	 * entry's own top and answers with the entry before it — a deep link that
-	 * marks the wrong row, in the list, at the one moment the reader is checking
-	 * they arrived where they meant to. At the centre the two agree by
-	 * construction, for an entry shorter than the screen and for one taller
-	 * than it.
-	 *
-	 * It reads the window rather than the column it is inside: the detail column
-	 * is a scroll port on a wide screen and the document is the scroller on a
-	 * narrow one, and a fraction of the viewport is the one line that means the
-	 * same thing in both without this page reaching up into the shell's markup
-	 * for an ancestor.
+	 * The same header-and-gap tokens are the heading's `scroll-margin-top`, so
+	 * the landing and the spy agree by construction. On a wide screen the detail
+	 * column is the scroll port and contributes its own top; on a narrow screen
+	 * the window scrolls and the line starts at the viewport's top.
 	 */
 	let article = $state<HTMLElement>();
 
 	function readingEntry(): string {
-		const line = window.innerHeight / 2;
+		const firstHeading = article?.querySelector<HTMLElement>('h2[id]');
+		const clearance = firstHeading
+			? Number.parseFloat(getComputedStyle(firstHeading).scrollMarginTop)
+			: 0;
+		const detail = article?.closest<HTMLElement>('.site-split__detail');
+		const detailTop =
+			detail && getComputedStyle(detail).overflowY !== 'visible'
+				? detail.getBoundingClientRect().top
+				: 0;
+		const line = detailTop + clearance;
 		let current = '';
-		for (const section of article?.querySelectorAll('.guidelines__entry') ?? []) {
+		for (const section of article?.querySelectorAll('.guidelines__entry, .guidelines__landmark') ??
+			[]) {
 			if (section.getBoundingClientRect().top > line) break;
 			current = section.querySelector('h2')?.id ?? current;
 		}
@@ -226,6 +252,52 @@
 		Each one states its standing and links the exact source it is read from.
 	</p>
 
+	{#if data.spellings}
+		<section class="guidelines__landmark">
+			<!-- The reviewed preferred-spellings list leads the topic page a reader
+		     wondering about a spelling actually opens. Drawn from the same
+		     `ruleLookupTable` the rule page loads — one data source, two surfaces —
+		     and only the reviewed halves of it: the forms and the conditions the
+		     guide itself states. What the linter does about each row (fix kinds,
+		     LyricLint's own curated catches) stays on the rule's page, which is
+		     what the sentence under the heading links. -->
+			<h2 id="standardized-spellings">The standardized spellings</h2>
+			<p>
+				The reviewed preferred forms, each over the spellings the guide corrects. The
+				<a href="{resolve('/(site)/rules/[rule]', { rule: 'spelling-standardized' })}/"
+					>linter checks every row</a
+				>, and its page also lists the transcription typos LyricLint catches on top.
+			</p>
+			<ul class="site-run">
+				{#each displayedSpellings as entry, index (index)}
+					<li class="rules__lookup-row">
+						<p class="rules__lookup-forms">
+							{#if entry.instead.length > 0}
+								<span class="rules__lookup-from"
+									><GuidanceSearchHighlight text={entry.instead.join(', ')} /></span
+								>
+								<span class="rules__lookup-arrow" aria-hidden="true">→</span>
+								<span class="sr-only">becomes</span>
+							{/if}
+							<span class="rules__lookup-to"
+								><GuidanceSearchHighlight text={entry.preferred.join(', ')} /></span
+							>
+						</p>
+						{#each [...entry.appliesWhen, ...entry.notes] as sentence (sentence)}
+							<p class="rules__lookup-note">
+								{#each codeSegments(sentence!) as segment, part (part)}
+									{#if segment.code}<span class="site-code"
+											><GuidanceSearchHighlight text={segment.text} /></span
+										>{:else}<GuidanceSearchHighlight text={segment.text} />{/if}
+								{/each}
+							</p>
+						{/each}
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
 	{#each entries as entry (entry.id)}
 		<section
 			class="guidelines__entry"
@@ -296,50 +368,6 @@
 			{/if}
 		</section>
 	{/each}
-
-	{#if data.spellings}
-		<!-- The reviewed preferred-spellings list, whole, on the topic page a
-		     reader wondering about a spelling actually opens. Drawn from the same
-		     `ruleLookupTable` the rule page loads — one data source, two surfaces —
-		     and only the reviewed halves of it: the forms and the conditions the
-		     guide itself states. What the linter does about each row (fix kinds,
-		     LyricLint's own curated catches) stays on the rule's page, which is
-		     what the sentence under the heading links. -->
-		<h2>The standardized spellings</h2>
-		<p>
-			The reviewed preferred forms, each over the spellings the guide corrects. The
-			<a href="{resolve('/(site)/rules/[rule]', { rule: 'spelling-standardized' })}/"
-				>linter checks every row</a
-			>, and its page also lists the transcription typos LyricLint catches on top.
-		</p>
-		<ul class="site-run">
-			{#each data.spellings.entries as entry, index (index)}
-				<li class="rules__lookup-row">
-					<p class="rules__lookup-forms">
-						{#if entry.instead.length > 0}
-							<span class="rules__lookup-from"
-								><GuidanceSearchHighlight text={entry.instead.join(', ')} /></span
-							>
-							<span class="rules__lookup-arrow" aria-hidden="true">→</span>
-							<span class="sr-only">becomes</span>
-						{/if}
-						<span class="rules__lookup-to"
-							><GuidanceSearchHighlight text={entry.preferred.join(', ')} /></span
-						>
-					</p>
-					{#each [entry.appliesWhen, entry.note].filter(Boolean) as sentence (sentence)}
-						<p class="rules__lookup-note">
-							{#each codeSegments(sentence!) as segment, part (part)}
-								{#if segment.code}<span class="site-code"
-										><GuidanceSearchHighlight text={segment.text} /></span
-									>{:else}<GuidanceSearchHighlight text={segment.text} />{/if}
-							{/each}
-						</p>
-					{/each}
-				</li>
-			{/each}
-		</ul>
-	{/if}
 
 	{#if linterRules.length > 0}
 		<!-- The other half of the topic: the conventions the linter checks itself,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getSource } from '$lib/rules/data/sources.js';
 import { guidanceEntries, guidanceTopics } from './entries.js';
+import { guidanceTopicLandmarks } from './guidance.js';
 import {
 	countGuidanceLookups,
 	filterGuidanceSections,
@@ -10,6 +11,7 @@ import {
 const sections: GuidanceTopicSection[] = guidanceTopics().map(({ topic, entries }) => ({
 	topic,
 	entries,
+	landmarks: guidanceTopicLandmarks[topic] ?? [],
 	linterRules: [
 		{
 			id: 'punctuation.question',
@@ -37,8 +39,21 @@ describe('guidance search', () => {
 	it('returns everything for an empty query', () => {
 		expect(filterGuidanceSections(sections, '')).toEqual(sections);
 		// The fixture attaches its two linter rows to every topic, so the total
-		// follows the topic count rather than assuming one.
-		expect(countGuidanceLookups(sections)).toBe(guidanceEntries.length + sections.length * 2);
+		// follows the topic count rather than assuming one. Topic landmarks are
+		// first-class lookups too: the standardized table must count in the field
+		// whose list it appears in.
+		expect(countGuidanceLookups(sections)).toBe(
+			guidanceEntries.length +
+				sections.length * 2 +
+				sections.reduce((sum, section) => sum + (section.landmarks?.length ?? 0), 0)
+		);
+	});
+
+	it('finds the standardized-spellings landmark by name', () => {
+		const filtered = filterGuidanceSections(sections, 'standardized spellings');
+		expect(filtered.flatMap((section) => section.landmarks ?? []).map(({ id }) => id)).toEqual([
+			'standardized-spellings'
+		]);
 	});
 
 	it('narrows entries and linter rules with one query', () => {

@@ -17,7 +17,8 @@ import {
 	authorityLabels,
 	guidanceTopicTitles,
 	type GuidanceEntry,
-	type GuidanceTopic
+	type GuidanceTopic,
+	type GuidanceTopicLandmark
 } from './guidance.js';
 
 /** A linter rule drawn as a lookup row: what it is, what it says, where. */
@@ -42,6 +43,7 @@ export interface GuidanceLinterRule {
 export interface GuidanceTopicSection {
 	topic: GuidanceTopic;
 	entries: GuidanceEntry[];
+	landmarks?: readonly GuidanceTopicLandmark[];
 	linterRules: GuidanceLinterRule[];
 }
 
@@ -86,6 +88,14 @@ export function filterGuidanceSections(
 	return sections
 		.map((section) => ({
 			topic: section.topic,
+			landmarks: section.landmarks?.filter((landmark) =>
+				matches(
+					foldForSearch(
+						[guidanceTopicTitles[section.topic], landmark.title, landmark.statement].join('\n')
+					),
+					tokens
+				)
+			),
 			entries: section.entries.filter((entry) => matches(entryHaystack(entry), tokens)),
 			linterRules: section.linterRules.filter((rule) =>
 				matches(
@@ -102,13 +112,19 @@ export function filterGuidanceSections(
 				)
 			)
 		}))
-		.filter((section) => section.entries.length > 0 || section.linterRules.length > 0);
+		.filter(
+			(section) =>
+				(section.landmarks?.length ?? 0) > 0 ||
+				section.entries.length > 0 ||
+				section.linterRules.length > 0
+		);
 }
 
 /** Entries and linter lookups counted together: the readout's one number. */
 export function countGuidanceLookups(sections: readonly GuidanceTopicSection[]): number {
 	return sections.reduce(
-		(sum, section) => sum + section.entries.length + section.linterRules.length,
+		(sum, section) =>
+			sum + (section.landmarks?.length ?? 0) + section.entries.length + section.linterRules.length,
 		0
 	);
 }

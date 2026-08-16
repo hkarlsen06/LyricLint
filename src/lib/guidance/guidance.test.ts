@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { currentRuleSet } from '$lib/rules/data/rule-set.js';
 import { assertReviewedSources, getSource } from '$lib/rules/data/sources.js';
-import { guidanceEntries, guidanceRegistry } from './entries.js';
-import { guidanceTopicRuleGroups, guidanceTopicTitles, highestAuthority } from './guidance.js';
+import { guidanceEntries, guidanceRegistry, guidanceTopics } from './entries.js';
+import {
+	guidanceTopicOrder,
+	guidanceTopicRuleGroups,
+	guidanceTopicTitles,
+	highestAuthority
+} from './guidance.js';
 
 const ruleIds = new Set<string>(currentRuleSet.ruleIds);
 
@@ -14,6 +19,12 @@ describe('guidance catalog', () => {
 			expect(entry.id.split('.')[1], entry.id).toBe(entry.topic);
 			expect(entry.topic in guidanceTopicTitles, entry.id).toBe(true);
 		}
+	});
+
+	it('lists topics in the new-transcriber learning order', () => {
+		expect(guidanceTopics().map(({ topic }) => topic)).toEqual(guidanceTopicOrder);
+		expect(guidanceTopicOrder[0]).toBe('spelling');
+		expect(new Set(guidanceTopicOrder)).toEqual(new Set(Object.keys(guidanceTopicTitles)));
 	});
 
 	it('cites only reviewed sources', () => {
