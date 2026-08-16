@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { ArrowLeft } from 'lucide-svelte';
+	import { ArrowLeft, ExternalLink } from 'lucide-svelte';
 	import { afterNavigate, goto, onNavigate } from '$app/navigation';
 
 	let {
@@ -48,18 +48,37 @@
 
 	let detail = $state<HTMLElement>();
 
+	// Where the last press landed — in the index column or anywhere else. Read
+	// off the document in the capture phase so a handler on the way down cannot
+	// eat it; a keyboard activation of a link fires a click too, so this covers
+	// both ways a row is pressed.
+	let lastPressInList = false;
+
+	function notePress(event: Event): void {
+		lastPressInList =
+			event.target instanceof Element && event.target.closest('.site-split__index') !== null;
+	}
+
 	/**
-	 * Whether a navigation started somewhere the list was already on screen —
-	 * which is to say, whether the reader got here by pressing one of its rows.
+	 * Whether the reader got here by pressing one of the list's own rows. Two
+	 * halves, and both are load-bearing. The navigation has to start inside the
+	 * section, because only then was the list on screen at all — deliberately
+	 * the whole section rather than the index page alone, since going from one
+	 * detail page to another is a press on a row too and never passes through
+	 * the index route (`arrivedFromIndex` above answers the different question,
+	 * "is the list one entry back in history", for the back button).
 	 *
-	 * Deliberately the whole section rather than the index page alone, because
-	 * `arrivedFromIndex` above answers a different question: that one is "is the
-	 * list one entry back in history", for the back button. Going from one detail
-	 * page to another is a press on a row too, and it never passes through the
-	 * index route.
+	 * And the press has to have landed in the index column, because an
+	 * in-section origin alone cannot tell a row from a link in the detail
+	 * column — the guidance catalog's topic list on its welcome page, the rule
+	 * guide's check runs — and the difference is the whole question: a row the
+	 * reader pressed is by definition one they can see, so the list must not
+	 * move, while a press in the detail column says nothing about the list,
+	 * which is then left parked wherever it was, marking the arrived-at page to
+	 * nobody.
 	 */
 	function pressedARow(navigation: { from: { url: URL } | null }): boolean {
-		return inSection(navigation.from?.url);
+		return inSection(navigation.from?.url) && lastPressInList;
 	}
 
 	function inSection(url: URL | undefined): boolean {
@@ -78,14 +97,18 @@
 		return !detail || getComputedStyle(detail).overflowY === 'visible';
 	}
 
-	// Opening a page is choreographed rather than swapped: the index view leads
-	// with the intro on the left and the list on the right, and pressing a row
-	// crosses the two columns over each other. Both are named in `site.css`
-	// (`view-transition-name`), so the browser morphs each between its two grid
-	// positions — the list's real journey — and cross-fades their contents in
-	// place, which is what carries the intro out, the page in, and the back bar
-	// along with it. Going back plays the same crossing reversed, because the
-	// columns simply swap the other way.
+	// Opening a page is choreographed rather than swapped: the three views a
+	// section can show — intro, list, page — behave as one strip of paper, and
+	// a navigation pulls the strip one slot sideways through a slit at the
+	// container's edges. Pressing a row pulls it left: the intro is drawn out
+	// through the left edge, the list crosses from the right slot to the left
+	// one, and the page is drawn in through the right; going back pulls the
+	// same strip right. All of it is CSS in `site.css`: the columns carry
+	// `view-transition-name`s, and the detail column's is keyed off
+	// `data-view`, which is what encodes the direction without this component
+	// knowing which way a navigation runs — a name captured on only one side
+	// of the swap is an exit or an entrance, and which side it stood on says
+	// which.
 	//
 	// Four gates, and the last is the one that was missing. Only inside the
 	// section: a navigation out to another section or the landing page changes
@@ -168,6 +191,8 @@
      page's `<h1>`, and the list is a `<nav>` of every lookup in the section —
      which would otherwise stand between a reader and the document they opened.
      The grid areas put it back on the left visually. -->
+<svelte:document onclickcapture={notePress} />
+
 <div class="site-split" data-view={detailOpen ? 'detail' : 'index'} data-section={section}>
 	<div class="site-split__detail" bind:this={detail}>
 		{#if detailOpen}
@@ -199,6 +224,27 @@
 		{/if}
 
 		{@render children()}
+
+		<!-- The way to reach the maintainer, at the foot of the reading column on
+		     every page of both sections: the reader who has just met a wrong call
+		     or a missing convention is at the end of what they were reading, and
+		     this is where they look. It scrolls with the content rather than
+		     pinning — the window shell has no footer, and this is the column's own
+		     last line, not chrome. It opens a tab for the guidance rows' reason:
+		     the contact page is a lookup beside the reading, not the next thing to
+		     read, and taken in place it costs the reader the place they had. The
+		     sr-only note is what the aria-hidden mark cannot say. -->
+		<p class="site-split__suggest">
+			Spotted a mistake, or a convention we're missing?
+			<a href="https://hkarlsen06.dev/en/contact/" target="_blank" rel="noopener noreferrer"
+				>Send a suggestion<ExternalLink
+					class="site-run__external"
+					aria-hidden="true"
+					size={12}
+					strokeWidth={2.2}
+				/></a
+			><span class="sr-only">(opens in a new tab)</span>
+		</p>
 	</div>
 
 	{@render list()}

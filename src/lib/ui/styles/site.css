@@ -977,7 +977,7 @@
 /* Both split sections open reading-first: at the index the intro leads in the
    left column and the list of lookups rides the right, and opening a page
    swaps them — the list crosses to the left and the page takes the right. The
-   crossing is the view transition below. */
+   push is the view transition below. */
 .site-split[data-view='index'] {
 	grid-template-areas: 'detail index';
 }
@@ -1000,17 +1000,24 @@
  *
  * The columns are the boxes that actually move, and each one clips its own
  * overflow, so its snapshot is the screenful the reader can see and nothing
- * else. Both are named at every view, so the browser morphs each between its
- * two grid positions — the list's real journey, which is what the
- * choreography was always for — and cross-fades the contents in place, which
- * is what carries the intro out and the page in, the back bar's arrival
- * included. Naming the columns is also what stops that bar from popping in
- * over a sliding snapshot: it is inside the box being faded rather than
- * beside it.
+ * else.
  *
- * A press from one detail page to another pairs each column with itself, so
- * neither moves and only the contents cross-fade, which is the in-place
- * change that move deserves.
+ * The list is named once, at both views, so the browser morphs it between
+ * its two grid positions — one slot's travel, which is the push's middle
+ * column. The detail column is named *by view*: it is the intro at the
+ * index view and the page at a detail one, and that split is what encodes
+ * the push's direction without a line of script. Opening a page captures an
+ * old `section-intro` with no new one and a new `section-page` with no old
+ * one, so the intro is an exit and the page an entrance, each with a slide
+ * of its own below — and going back lands each name on the other side of
+ * the capture, which reverses the slides with it. The back bar rides inside
+ * the page's own snapshot, so it arrives with the slide rather than popping
+ * in over one.
+ *
+ * A press from one detail page straight to another captures `section-page`
+ * on both sides — the pair the `:only-child` selectors below deliberately
+ * skip — so neither column moves and only the contents cross-fade, which is
+ * the in-place change that move deserves.
  *
  * Names are inert at rest — they only mean something inside a transition
  * `SectionSplit` starts, and it declines to start one across the section's
@@ -1021,28 +1028,122 @@
 	view-transition-name: section-index;
 }
 
-.site-split__detail {
-	view-transition-name: section-detail;
+.site-split[data-view='index'] .site-split__detail {
+	view-transition-name: section-intro;
 }
 
-/* The ride is the morph itself, so there are no keyframes here: the columns
-   are equal, so the group animates position and not size, and the default
-   cross-fade of two identically sized snapshots is the content changing
-   underneath it. All four pseudos are given the same pair of tokens, or the
-   images outlive the box they are painted in — the browser's own default is
-   250ms, ten past `--duration-slow`, which is exactly long enough to show as
-   a settle after the columns have stopped. Gated on reduced motion like
-   every animation here, although the component has already declined to start
-   the transition at all. */
+.site-split[data-view='detail'] .site-split__detail {
+	view-transition-name: section-page;
+}
+
+/* The ride is a push seen through a slit: the three views a section can
+   show — intro, list, page — behave as one strip of paper, and a navigation
+   pulls the strip one slot sideways. Opening a page pulls it left: the
+   intro is drawn out through the container's left edge, the list's own
+   group morph carries it from the right slot to the left one, and the page
+   is drawn in through the right edge. Going back pulls the same strip
+   right.
+
+   The slit is the `overflow: clip` on the two image-pairs. A view
+   transition's snapshots are unclipped by the container, so the exiting
+   column would otherwise glide across the canvas beside the page and pop
+   off whole when the transition ended; clipped to its own slot, it
+   disappears at the edge it is pulled through, which is what makes the
+   motion read as paper under a mask rather than a card flying over one.
+   The list needs no keyframes and no clip — the default morph is exactly
+   its one-slot journey, always inside the container, and the columns are
+   equal, so it translates without resizing. Each slide's travel is the
+   snapshot's own width plus the grid's gap, so the three pieces move in
+   lockstep.
+
+   The easing is the pull: `--ease-in-out-cubic` gathers and settles, where
+   `--ease-out-quart`'s full-speed launch — right for a control answering a
+   press — reads as thrown when a whole column crosses the page. Every
+   pseudo takes the same pair of tokens, or the images outlive the box they
+   are painted in — the browser's own default is 250ms, ten past
+   `--duration-slow` — and the slides carry `animation-fill-mode: both` for
+   the same ten milliseconds: the root's default cross-fade keeps the
+   transition alive past their end, and a slide fallen back to base styles
+   would draw the exited column back over the arrived list for exactly that
+   long. Gated on reduced motion like every animation here, although the
+   component has already declined to start the transition at all. */
 @media (prefers-reduced-motion: no-preference) {
 	::view-transition-group(section-index),
-	::view-transition-group(section-detail),
 	::view-transition-old(section-index),
 	::view-transition-new(section-index),
-	::view-transition-old(section-detail),
-	::view-transition-new(section-detail) {
+	::view-transition-group(section-intro),
+	::view-transition-old(section-intro),
+	::view-transition-new(section-intro),
+	::view-transition-group(section-page),
+	::view-transition-old(section-page),
+	::view-transition-new(section-page) {
 		animation-duration: var(--duration-slow);
-		animation-timing-function: var(--ease-out-quart);
+		animation-timing-function: var(--ease-in-out-cubic);
+	}
+
+	::view-transition-image-pair(section-intro),
+	::view-transition-image-pair(section-page) {
+		overflow: clip;
+	}
+
+	::view-transition-old(section-intro):only-child {
+		animation-name: section-push-out-left;
+		animation-fill-mode: both;
+	}
+
+	::view-transition-new(section-intro):only-child {
+		animation-name: section-push-in-left;
+		animation-fill-mode: both;
+	}
+
+	::view-transition-old(section-page):only-child {
+		animation-name: section-push-out-right;
+		animation-fill-mode: both;
+	}
+
+	::view-transition-new(section-page):only-child {
+		animation-name: section-push-in-right;
+		animation-fill-mode: both;
+	}
+}
+
+@keyframes section-push-out-left {
+	from {
+		transform: translateX(0);
+	}
+
+	to {
+		transform: translateX(calc(-100% - var(--space-6)));
+	}
+}
+
+@keyframes section-push-in-left {
+	from {
+		transform: translateX(calc(-100% - var(--space-6)));
+	}
+
+	to {
+		transform: translateX(0);
+	}
+}
+
+@keyframes section-push-out-right {
+	from {
+		transform: translateX(0);
+	}
+
+	to {
+		transform: translateX(calc(100% + var(--space-6)));
+	}
+}
+
+@keyframes section-push-in-right {
+	from {
+		transform: translateX(calc(100% + var(--space-6)));
+	}
+
+	to {
+		transform: translateX(0);
 	}
 }
 
@@ -1517,6 +1618,21 @@
 	display: inline-flex;
 	gap: var(--space-1-5);
 	align-items: center;
+}
+
+/* The suggestion line at the foot of the reading column. The hairline is the
+   site footer's own rule — it says where the page stops and a note about the
+   catalog begins — and the measure is the page's, so the line ends where every
+   paragraph above it does rather than running on under the scrollbar's lane.
+   Muted and a step down, because it is an offer standing under everything the
+   reader came for, not part of it. */
+.site-split__suggest {
+	max-width: var(--measure-reference);
+	margin-block: 0;
+	padding-block: var(--space-4) var(--space-5);
+	border-top: var(--border-width) solid var(--color-border);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
 }
 
 @media (max-width: 62rem) {

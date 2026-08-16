@@ -406,6 +406,54 @@ test('pressing an entry from the index washes it on the first press', async ({ p
 	await expect(washed.locator('h2')).toHaveText(crossTitle);
 });
 
+test('a topic pressed on the welcome page reveals its rows in the list', async ({ page }) => {
+	// The welcome page's topic list is in the detail column, so pressing a
+	// topic there says nothing about the list — which is then parked wherever
+	// it was, the top for a fresh load, with the arrived-at topic's rows
+	// marking themselves several screens below the fold to nobody. The reveal
+	// has to run for this arrival exactly as for a deep link: `pressedARow`
+	// reads where the press actually landed, not merely that the navigation
+	// started inside the section.
+	await page.goto('/guidelines/');
+	await page.locator('.site-split__detail a', { hasText: 'Ad-libs' }).click();
+	await expect(page).toHaveURL(/\/guidelines\/ad-libs\/$/u);
+
+	const current = page.locator('.site-split__index a[aria-current="page"]');
+	await expect(current).toHaveCount(1);
+	await expect(current).toContainText('Transcribe every ad-lib');
+	await expect(current).toBeInViewport();
+	// In the column rather than under its pinned finder, which `toBeInViewport`
+	// cannot see past.
+	const finder = await page.locator('.site-split__index .site-finder').boundingBox();
+	await expect
+		.poll(async () => (await current.boundingBox())?.y ?? 0)
+		.toBeGreaterThan(finder!.y + finder!.height - 1);
+});
+
+test('pressing a row the reader can see moves the list by nothing', async ({ page }) => {
+	// The other half of the same rule, which the reveal above must not regress:
+	// a row pressed in the list is by definition one the reader can see, so
+	// opening it may not move the list under their pointer.
+	await page.goto('/guidelines/');
+	const column = page.locator('.site-split__index');
+	await column.evaluate((el) => {
+		const heading = [...el.querySelectorAll('.site-index__group')].find(
+			(h) => h.textContent?.trim() === 'Ad-libs'
+		);
+		el.scrollTop += heading!.getBoundingClientRect().top - el.getBoundingClientRect().top - 200;
+	});
+	const before = await column.evaluate((el) => el.scrollTop);
+	await page
+		.locator('.site-split__index .site-run a', { hasText: 'Echo repeats are not ad-libs' })
+		.click();
+	await expect(page.locator('.guidelines__entry[data-current] h2')).toHaveText(
+		'Echo repeats are not ad-libs'
+	);
+	// Give a wrongly armed reveal its frames to fire before reading the offset.
+	await page.waitForTimeout(400);
+	expect(await column.evaluate((el) => el.scrollTop)).toBe(before);
+});
+
 test('the spelling topic lists the standardized spellings, and the finder searches them', async ({
 	page
 }) => {

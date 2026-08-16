@@ -4501,24 +4501,42 @@ several thousand pixels long was captured whole, positioned at its own border-bo
 a column scrolled past its first screen is above the viewport, and painted over the entire window
 for the length of the animation. Nothing in the resting layout says so, and the taller the page the
 worse it read. The columns are the boxes that actually move and each clips its own overflow, so a
-snapshot is the screenful the reader can see and nothing else. The browser morphs each between its
-two grid positions — the list's real journey, which is what the choreography was always for — and
-cross-fades the contents in place, which is what carries the intro out, the page in, and the back
-bar's arrival with it, rather than letting that bar pop in over a sliding snapshot. A press from one
-detail page straight to another pairs each column with itself, so neither moves and only the
-contents cross-fade, which is the in-place change that move deserves.
+snapshot is the screenful the reader can see and nothing else.
 
-**There are no keyframes left.** Equal columns mean each group translates without resizing, and the
-default cross-fade of two identically sized snapshots is the content changing underneath it. All
-four pseudos take `--duration-slow` and `--ease-out-quart` together, or the images outlive the box
-they are painted in — the browser's own default is 250ms, ten past the token, which is exactly long
-enough to show as a settle after the columns have stopped.
+**The ride is a push seen through a slit, and the names encode its direction.** The three views a
+section can show — intro, list, page — behave as one strip of paper, and a navigation pulls the
+strip one slot: opening a page pulls it left — the intro out through the container's left edge, the
+list from the right slot to the left one, the page in through the right edge — and going back pulls
+the same strip right. The list is named once (`section-index`) and needs no keyframes: the default
+group morph is exactly its one-slot journey, and equal columns are what keep it a pure translation.
+The detail column is named **by view**, `section-intro` against `section-page` — the view-keyed
+naming coming back on the box that clips its own overflow rather than on the `main` inside it — and
+that is what encodes the direction without a line of script: a navigation captures each of those
+names on one side of the swap only, so the intro is an exit and the page an entrance, and going
+back lands them on the other side, which reverses the slides with it. A press from one detail page
+straight to another captures `section-page` on both sides — the pair the `:only-child` selectors in
+`site.css` deliberately skip — so neither column moves and only the contents cross-fade, which is
+the in-place change that move deserves. The back bar rides inside the page's own snapshot, so it
+arrives with the slide rather than popping in over one.
+
+**The slit is `overflow: clip` on the two image-pairs, and the easing is the pull.** A snapshot is
+unclipped by the container, so the exiting column would otherwise glide across the canvas beside
+the page and pop off whole at the transition's end — clipped to its own slot, it disappears at the
+edge it is pulled through, which is what makes the motion read as paper under a mask rather than a
+card flying over one. `--ease-in-out-cubic` exists for this travel: `--ease-out-quart`'s full-speed
+launch is right for a control answering a press and reads as thrown when a whole column crosses the
+page, so the pull gathers and settles instead. Every pseudo takes `--duration-slow` and
+`--ease-in-out-cubic` together, or the images outlive the box they are painted in — the browser's
+own default is 250ms, ten past the token — and the slides carry `animation-fill-mode: both` for the
+same ten milliseconds, because the root's default cross-fade keeps the transition alive past their
+end and a slide fallen back to base styles would draw the exited column back over the arrived list
+for exactly that long.
 
 **And the fourth gate is the one that was missing.** Stacked, there is no journey to animate and
 three things are true at once that a transition cannot survive: the list is `display: none` while a
 page is open, so a named column vanishes mid-capture; the document rather than the column is the
 scroller, so `afterNavigate` sends the whole page to the top _under_ the animation; and both columns
-occupy one grid area, so the crossing the names describe does not exist. That is the arrangement a
+occupy one grid area, so the journey the names describe does not exist. That is the arrangement a
 reader is in when they **tap** a row, which is why this read as unstable exactly where it was least
 affordable. `stacked()` is that question, read off the detail column giving up its own scroll port
 rather than restating the breakpoint in a second place — the same signal `afterNavigate` already

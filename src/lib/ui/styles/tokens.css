@@ -146,6 +146,12 @@
 	--duration-medium: 180ms;
 	--duration-slow: 240ms;
 	--ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+	/* Travel between rests — a surface pulled from one place to another rather
+	   than a control answering a press. `--ease-out-quart` launches at full
+	   speed, which is right for a state answer and reads as thrown when a whole
+	   column crosses the page; this one gathers and settles like something
+	   drawn by hand. The reference sections' push is its spender. */
+	--ease-in-out-cubic: cubic-bezier(0.65, 0, 0.35, 1);
 	/* The brand lockup only. A state transition answers a user's action and must
 	   be gone before they look for the result, which is what caps the ramp above
 	   at 240ms; the wordmark answers nothing, so it is allowed the time an
