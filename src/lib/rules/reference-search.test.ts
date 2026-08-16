@@ -303,6 +303,18 @@ describe('marking the query inside the rule it opened', () => {
 		expect(marked('Don’t stop', "don't")).toEqual(['Don’t']);
 	});
 
+	it('marks a Greek word whose last letter the case fold spells two ways', () => {
+		// `toLowerCase` is the one fold here that is not a per-character
+		// operation: it implements `Final_Sigma`, so a whole string ends in `ς`
+		// and the same string folded a character at a time ends in `σ`. The
+		// filter runs the first and the marker runs the second, so without the
+		// sigma fold this query narrows the list to a page that draws no mark at
+		// all — a search whose answer is a page saying nothing matched.
+		expect(searchTokens('λογος')).toEqual([foldForSearch('ΛΟΓΟΣ')]);
+		expect(marked('ΛΟΓΟΣ', 'λογος')).toEqual(['ΛΟΓΟΣ']);
+		expect(marked('λογος', 'λογοσ')).toEqual(['λογος']);
+	});
+
 	it('merges runs that overlap rather than drawing a seam through a word', () => {
 		expect(marked('apostrophe', 'apo ost')).toEqual(['apost']);
 		// Two occurrences of one term stay two marks, because they are two.

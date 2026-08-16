@@ -35,9 +35,20 @@
 	$effect(() => {
 		if (!assistant.isOpen || AssistantHost || assistantHostLoading) return;
 		assistantHostLoading = true;
-		void import('$lib/ui/assistant/AssistantHost.svelte').then(({ default: component }) => {
-			AssistantHost = component;
-		});
+		void import('$lib/ui/assistant/AssistantHost.svelte')
+			.then(({ default: component }) => {
+				AssistantHost = component;
+			})
+			.catch((error: unknown) => {
+				// The latch exists to stop a second import racing the first, so a
+				// refusal has to release it: a chunk that could not be fetched once —
+				// offline, or a deploy that retired it under an open tab — otherwise
+				// makes every later `open()` a silent no-op for the life of the tab,
+				// with an unhandled rejection as the only sign. Released, the next
+				// press asks again, which is the one gesture that can succeed.
+				assistantHostLoading = false;
+				console.error('assistant_host_import_failed', error);
+			});
 	});
 
 	// A deploy while a tab is open reaches it here, on the user's own next

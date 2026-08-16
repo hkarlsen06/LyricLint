@@ -1028,6 +1028,31 @@ describe('sync mode', () => {
 		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('second line'));
 	});
 
+	// A run ends on the document changing, and a selection change is not one — so
+	// the caret can be put on a section header between entering a run and its first
+	// tap. Timed at face value that header would carry an anchor, which every
+	// downstream reader assumes cannot happen: the fill pairs by stampable line,
+	// the gutter draws no cell beside structure, and the skip walks lyric lines
+	// only. The tap walks forward to the next line it can actually time.
+	it('never times a section header the caret was moved onto before the first tap', async () => {
+		const { handle } = await mount({
+			text: song,
+			selection: { anchor: 0, head: 0 },
+			mediaTime: () => 30
+		});
+		handle.setLyricSync?.(true);
+
+		const header = song.indexOf('[Chorus]');
+		handle.setSelection?.({ anchor: header, head: header });
+		handle.tapLyricSync?.();
+
+		const anchors = handle.getLineAnchors?.() ?? [];
+		// Line 4 is the header; line 5 is the lyric under it, which is what a tap
+		// against a caret parked on structure can honestly claim.
+		expect(anchors.map((anchor) => anchor.line)).toEqual([5]);
+		expect(handle.getSnapshot().selection.head).toBe(song.indexOf('second line'));
+	});
+
 	// Outside a run it is a no-op, exactly like the binding it stands in for: a
 	// control the shell leaves wired must not write an anchor when nothing asked
 	// for one.

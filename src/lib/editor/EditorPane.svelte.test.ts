@@ -54,6 +54,7 @@ async function mountEditor(options?: {
 	editorCallbacks?: LyricEditorCallbacks;
 	sectionGhosts?: boolean;
 	autoHeight?: boolean;
+	windowFind?: boolean;
 }): Promise<{ handle: EditorHandle; editorCallbacks: LyricEditorCallbacks }> {
 	const editorCallbacks = options?.editorCallbacks ?? callbacks();
 	let handle: EditorHandle | undefined;
@@ -66,6 +67,7 @@ async function mountEditor(options?: {
 			callbacks: editorCallbacks,
 			sectionGhosts: options?.sectionGhosts,
 			autoHeight: options?.autoHeight,
+			windowFind: options?.windowFind,
 			onready: (readyHandle: EditorHandle) => {
 				handle = readyHandle;
 			}
@@ -1069,6 +1071,46 @@ describe('EditorPane', () => {
 		await expect.element(led).toBeVisible();
 	});
 
+	// The rule every transient surface in the workbench follows. Selecting a
+	// diagnostic and pressing the badge again already closed this menu; a press
+	// into the text is a selection-only transaction, which nothing here hears
+	// about, so the menu used to float open over the line the caret had just left.
+	it('closes the cluster menu on a press outside it', async () => {
+		const warning = testDiagnostic({ from: 0, to: 5, message: 'The quieter issue' });
+		const error = testDiagnostic({
+			from: 6,
+			to: 11,
+			severity: 'error',
+			message: 'The louder issue'
+		});
+		await mountEditor({
+			text: 'hello world',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [warning, error] }
+			})
+		});
+		const badge = document.querySelector<HTMLElement>('.ll-diagnostic-badge');
+		const menu = document.querySelector<HTMLElement>('.ll-diagnostic-cluster-menu');
+		const editorContent = document.querySelector<HTMLElement>('.cm-content');
+		if (!badge || !menu || !editorContent) {
+			throw new Error('Cluster badge, its menu, or the editor content was not rendered.');
+		}
+
+		badge.click();
+		expect(menu.hidden).toBe(false);
+		expect(badge.getAttribute('aria-expanded')).toBe('true');
+
+		// The menu survives being pressed, or choosing one of its items would close
+		// it out from under the press that was choosing.
+		menu.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		expect(menu.hidden).toBe(false);
+
+		editorContent.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+
+		expect(menu.hidden).toBe(true);
+		expect(badge.getAttribute('aria-expanded')).toBe('false');
+	});
+
 	it('dismisses a hovered diagnostic when the editor scrolls', async () => {
 		// The line stays rendered, so this is the scroll itself closing the card
 		// rather than the anchor disappearing from the viewport.
@@ -1558,6 +1600,34 @@ describe('EditorPane', () => {
 		// Room to scroll the last line clear of the bottom edge is not room a pane
 		// that never scrolls has any use for, so it matches the space above.
 		expect(getComputedStyle(content!).paddingBottom).toBe(getComputedStyle(content!).paddingTop);
+	});
+
+	// `Mod-F` is bound to the *window* in the workbench, which is right there and
+	// wrong in an article: the landing page's demo is one figure on a page a reader
+	// scrolls, and a pane that claimed the press would take find-in-page away from
+	// every word around it. `search-replace.svelte.test.ts` pins the default, where
+	// the same press is claimed from outside the editor.
+	it('leaves the window’s find alone in a pane that did not ask for it', async () => {
+		await mountEditor({ text: 'A lyric line', windowFind: false });
+
+		const outsideEditor = document.createElement('button');
+		document.body.append(outsideEditor);
+		try {
+			const mac = /Mac|iPhone|iPad|iPod/u.test(navigator.platform);
+			const shortcut = new KeyboardEvent('keydown', {
+				key: 'f',
+				bubbles: true,
+				cancelable: true,
+				metaKey: mac,
+				ctrlKey: !mac
+			});
+			outsideEditor.dispatchEvent(shortcut);
+			// Nothing swallowed it, so the browser's own find is still what it opens.
+			expect(shortcut.defaultPrevented).toBe(false);
+		} finally {
+			outsideEditor.remove();
+		}
+		expect(page.getByRole('textbox', { name: 'Find' }).query()).toBeNull();
 	});
 
 	// The landing page's demo mounts this way: a fixed box a few lines tall, where

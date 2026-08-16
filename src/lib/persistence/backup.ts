@@ -1,6 +1,7 @@
 import Dexie from 'dexie';
 
 import { randomId } from '../core/random-id.js';
+import { ASSISTANT_DRAFT_ACCESS_PREFIX } from '../assistant/permissions.js';
 import type { LyricLintDatabase } from './database.js';
 import type {
 	AppMetadataRecord,
@@ -266,6 +267,27 @@ function parseMedia(value: unknown): SerializableMediaRecord {
 	};
 }
 
+/**
+ * An imported metadata row rewritten for the id its draft actually landed
+ * under, or nothing where it describes a draft this import does not carry.
+ *
+ * `assistantDraftAccess:<id>` names a draft, and a colliding id is remapped on
+ * the way in — so imported verbatim the decision would answer for whichever
+ * local draft happens to hold the old id. A decision whose draft is not in the
+ * import at all is an orphan nothing ever clears, because deleting a draft
+ * sweeps only its own key.
+ */
+function remapImportedMetadata(
+	record: AppMetadataRecord,
+	idMap: ReadonlyMap<string, string>
+): AppMetadataRecord | undefined {
+	if (!record.key.startsWith(ASSISTANT_DRAFT_ACCESS_PREFIX)) return record;
+	const importedId = idMap.get(record.key.slice(ASSISTANT_DRAFT_ACCESS_PREFIX.length));
+	return importedId === undefined
+		? undefined
+		: { ...record, key: `${ASSISTANT_DRAFT_ACCESS_PREFIX}${importedId}` };
+}
+
 function unique(values: readonly string[], label: string): void {
 	if (new Set(values).size !== values.length) {
 		throw new WorkspaceBackupError(`Duplicate ${label} in backup.`);
@@ -504,6 +526,7 @@ export function createWorkspaceBackup(
 				database.drafts,
 				database.appMetadata,
 				database.mediaHandles,
+				database.draftIgnores,
 				async () => {
 					const [localDrafts, localMetadata] = await Promise.all([
 						database.drafts.toArray(),
@@ -526,14 +549,36 @@ export function createWorkspaceBackup(
 					if (importedDrafts.length > 0) await database.drafts.bulkAdd(importedDrafts);
 					if (importedMedia.length > 0) await database.mediaHandles.bulkAdd(importedMedia);
 
+					// The ignores go in here rather than after the transaction commits.
+					// The caller reloads the page the moment this resolves, so a write
+					// left queued behind it is a write the unload aborts — and one put
+					// per key rewrote the whole row every time.
+					const importedIgnores = backup.ignoredDiagnostics.map(({ draftId, keys }) => ({
+						draftId: idMap.get(draftId) as string,
+						keys
+					}));
+					if (importedIgnores.length > 0) {
+						const localIgnores = await database.draftIgnores.bulkGet(
+							importedIgnores.map((record) => record.draftId)
+						);
+						await database.draftIgnores.bulkPut(
+							importedIgnores.map((record, index) => ({
+								draftId: record.draftId,
+								// Merged and sorted, exactly as the in-memory mirror keeps a
+								// row, so the two cannot disagree about what was imported.
+								keys: [...new Set([...(localIgnores[index]?.keys ?? []), ...record.keys])].sort(),
+								updatedAt: now()
+							}))
+						);
+					}
+
 					const metadata = new Map(localMetadata.map((record) => [record.key, record]));
 					const backupMetadata = new Map(backup.appMetadata.map((record) => [record.key, record]));
-					const additions = backup.appMetadata.filter(
-						(record) =>
-							record.key !== CURRENT_DRAFT_KEY &&
-							record.key !== RECENT_LANGUAGES_KEY &&
-							!metadata.has(record.key)
-					);
+					const additions = backup.appMetadata.flatMap((record) => {
+						if (record.key === CURRENT_DRAFT_KEY || record.key === RECENT_LANGUAGES_KEY) return [];
+						const remapped = remapImportedMetadata(record, idMap);
+						return remapped === undefined || metadata.has(remapped.key) ? [] : [remapped];
+					});
 					if (additions.length > 0) await database.appMetadata.bulkAdd(additions);
 
 					const localCurrent = metadata.get(CURRENT_DRAFT_KEY);
@@ -562,6 +607,9 @@ export function createWorkspaceBackup(
 					return idMap;
 				}
 			);
+			// The rows are already written; this is the mirror the doomed pre-reload
+			// session goes on answering from, so a restore made with no reload behind
+			// it still reads back what it imported.
 			if (ignoreStore) {
 				for (const { draftId, keys } of backup.ignoredDiagnostics) {
 					const importedDraftId = draftIdMap.get(draftId) as string;

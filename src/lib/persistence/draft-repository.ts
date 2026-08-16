@@ -158,6 +158,11 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			}));
 		},
 
+		async listRecords() {
+			const records = await database.drafts.orderBy('updatedAt').reverse().toArray();
+			return records.map(copyDraft);
+		},
+
 		async get(id) {
 			const record = await database.drafts.get(id);
 			return record === undefined ? undefined : copyDraft(record);
@@ -196,9 +201,14 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			}
 
 			const timestamp = now();
+			// The copy says so in its name. Two rows carrying one title is the
+			// drafts menu offering the same word twice with no way to tell which
+			// press opens which 'scribe — and the announcement after a duplicate
+			// already strips this suffix to name what was copied.
 			const duplicate = copyDraft({
 				...source,
 				id: newId,
+				title: `${source.title} copy`,
 				createdAt: timestamp,
 				updatedAt: timestamp
 			});

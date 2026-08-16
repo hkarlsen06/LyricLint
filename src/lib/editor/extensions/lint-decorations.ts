@@ -106,11 +106,45 @@ class DiagnosticBadge extends WidgetType {
 	/** The badge's own pending reveal, for the diagnostic it leads with. */
 	private readonly hover = new HoverIntent<Diagnostic>((diagnostic) => this.activate?.(diagnostic));
 
+	/** The open cluster menu's outside-press watcher, while one is open. */
+	private outside?: (event: PointerEvent) => void;
+
 	constructor(
 		readonly cluster: DiagnosticCluster,
 		readonly activate: ((diagnostic: Diagnostic) => void) | undefined
 	) {
 		super();
+	}
+
+	/**
+	 * Close the cluster menu on a press anywhere else.
+	 *
+	 * The rule every transient surface in the workbench follows, and the same two
+	 * decisions `dismissOnOutside` and the timestamp column's own watcher make:
+	 * `pointerdown` in the capture phase, because waiting for `click` leaves the
+	 * menu up through the press and the bubble phase never arrives for a press
+	 * CodeMirror cancels; and nothing here moves focus, because the press has
+	 * already said where the user is going.
+	 *
+	 * It listens on the document rather than the editor, since most of what is
+	 * "anywhere else" — the panel, the toolbar, the transport — is outside it. The
+	 * badge and its items are exempt: the menu has to survive being pressed, and
+	 * the badge is its own way back out.
+	 */
+	private watchOutside(container: HTMLElement, close: () => void): void {
+		if (this.outside) return;
+		this.outside = (event: PointerEvent): void => {
+			const target = event.target;
+			if (target instanceof Node && container.contains(target)) return;
+			close();
+		};
+		document.addEventListener('pointerdown', this.outside, true);
+	}
+
+	private stopWatchingOutside(): void {
+		if (!this.outside) return;
+		document.removeEventListener('pointerdown', this.outside, true);
+		this.outside = undefined;
 	}
 
 	eq(other: DiagnosticBadge): boolean {
@@ -162,12 +196,23 @@ class DiagnosticBadge extends WidgetType {
 		menu.setAttribute('aria-label', 'Overlapping diagnostics');
 		badge.setAttribute('aria-haspopup', 'menu');
 		badge.setAttribute('aria-expanded', 'false');
+		const closeMenu = (): void => {
+			this.stopWatchingOutside();
+			if (menu.hidden) return;
+			menu.hidden = true;
+			badge.setAttribute('aria-expanded', 'false');
+		};
 		badge.addEventListener('click', () => {
 			// A click beat the wait: the menu is the answer now, and a card landing
 			// on top of it a moment later would be answering a question already put.
 			this.hover.cancel();
-			menu.hidden = !menu.hidden;
-			badge.setAttribute('aria-expanded', String(!menu.hidden));
+			if (!menu.hidden) {
+				closeMenu();
+				return;
+			}
+			menu.hidden = false;
+			badge.setAttribute('aria-expanded', 'true');
+			this.watchOutside(container, closeMenu);
 		});
 		for (const diagnostic of this.cluster.diagnostics) {
 			const item = document.createElement('button');
@@ -179,8 +224,7 @@ class DiagnosticBadge extends WidgetType {
 			item.addEventListener('click', () => {
 				this.hover.cancel();
 				this.activate?.(diagnostic);
-				menu.hidden = true;
-				badge.setAttribute('aria-expanded', 'false');
+				closeMenu();
 			});
 			menu.append(item);
 		}
@@ -189,9 +233,11 @@ class DiagnosticBadge extends WidgetType {
 	}
 
 	// The badge is rebuilt whenever its line's diagnostics change; a wait armed
-	// against the old one must not fire against the new.
+	// against the old one must not fire against the new, and a watcher left on the
+	// document would outlive the menu it was closing.
 	destroy(): void {
 		this.hover.cancel();
+		this.stopWatchingOutside();
 	}
 
 	ignoreEvent(): boolean {

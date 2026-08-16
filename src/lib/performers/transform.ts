@@ -372,7 +372,16 @@ export function narrowEdit(
 	while (prefix < prefixLimit && original[prefix] === insert[prefix]) {
 		prefix += 1;
 	}
-	if (isHighSurrogate(insert[prefix - 1]) && isLowSurrogate(insert[prefix])) {
+	// Either string, because the boundary is one position in both and the two
+	// only agree up to it: the characters before `prefix` are equal by the loop
+	// above, and the ones at it are exactly what stopped it. So `insert[prefix]`
+	// can be an ordinary character while `original[prefix]` is the low half of a
+	// pair, and a range starting there cuts that pair in the document being
+	// edited rather than in the text going in.
+	if (
+		isHighSurrogate(insert[prefix - 1]) &&
+		(isLowSurrogate(insert[prefix]) || isLowSurrogate(original[prefix]))
+	) {
 		prefix -= 1;
 	}
 
@@ -388,9 +397,13 @@ export function narrowEdit(
 	) {
 		suffix += 1;
 	}
+	// The mirror of the same reading, counted from the ends: the character *at*
+	// the boundary is shared, and the one before it is where the two strings
+	// part — so the high half can be `original`'s alone.
 	if (
 		isLowSurrogate(insert[insert.length - suffix]) &&
-		isHighSurrogate(insert[insert.length - suffix - 1])
+		(isHighSurrogate(insert[insert.length - suffix - 1]) ||
+			isHighSurrogate(original[original.length - suffix - 1]))
 	) {
 		suffix -= 1;
 	}
@@ -1132,6 +1145,17 @@ export function assignVoiceLegend(request: LegendAssignmentRequest): DocumentTra
 		!header ||
 		!header.closed ||
 		header.legendGroups.some((group) => !group.markupSupported)
+	) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+	// The retained groups are keyed by slot below, and the parser does not
+	// guarantee one group per slot — `[Chorus: <i>A</i>, <i>B</i>]` is two groups
+	// on slot 2. Keyed, the second silently overwrites the first, so a legend the
+	// user wrote in two parts comes back as one and a voice is dropped from the
+	// header without an edit anywhere naming it. Refused instead: a header this
+	// function cannot rewrite losslessly is a header it must not rewrite.
+	if (
+		new Set(header.legendGroups.map((group) => group.styleSlot)).size !== header.legendGroups.length
 	) {
 		return { status: 'blocked', reason: 'invalid-range' };
 	}

@@ -599,13 +599,22 @@ export function createHarperDiagnosticProvider(
 	};
 }
 
-function sameRange(left: Diagnostic, right: Diagnostic): boolean {
-	return left.from === right.from && left.to === right.to;
+/**
+ * Containment, not equality. Every statement of this rule — this module's own
+ * comment, the reference, and `diagnostics/order.ts` — says a native finding
+ * wins a *shared* range, and a native rule routinely covers more than the token
+ * Harper stopped on: a line-range finding over a word Harper also flags left
+ * two cards arguing about the same word. Only this direction is safe. A Harper
+ * finding that contains a native one is a claim about a wider span and is left
+ * standing.
+ */
+function coversRange(native: Diagnostic, harper: Diagnostic): boolean {
+	return native.from <= harper.from && harper.to <= native.to;
 }
 
 /**
- * Native, reviewed LyricLint rules win whenever Harper points at the same
- * source range. This keeps the sample's apostrophe and pronoun findings from
+ * Native, reviewed LyricLint rules win whenever Harper points at a range they
+ * already cover. This keeps the sample's apostrophe and pronoun findings from
  * appearing twice and retains the more specific provenance and explanation.
  */
 export function mergeHarperDiagnostics(
@@ -613,7 +622,7 @@ export function mergeHarperDiagnostics(
 	harperDiagnostics: readonly Diagnostic[]
 ): Diagnostic[] {
 	const additions = harperDiagnostics.filter(
-		(harper) => !nativeDiagnostics.some((native) => sameRange(native, harper))
+		(harper) => !nativeDiagnostics.some((native) => coversRange(native, harper))
 	);
 	return sortDiagnostics([...nativeDiagnostics, ...additions]);
 }

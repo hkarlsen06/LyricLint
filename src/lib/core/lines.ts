@@ -36,12 +36,23 @@ function isMalformedSupportedTagPrefix(value: string): boolean {
 	return /^<\/?[ib](?:\s[^>]*)?$/iu.test(value);
 }
 
+/**
+ * The two probes above, anchored at an offset instead of at the start of a
+ * fresh string. Sticky rather than sliced: a section dense in `<3` copied the
+ * whole remaining body once per `<`, which is quadratic in the section's own
+ * length on every keystroke. `$` still means the end of the text, which is what
+ * the prefix probe was asking about when it read `remaining` to its end.
+ */
+const TAG_LIKE_AT = /<\/?[A-Za-z][^>]*>/uy;
+const MALFORMED_PREFIX_AT = /<\/?[ib](?:\s[^>]*)?$/iuy;
+
 function findNextMarkupStart(text: string, localFrom: number): number {
 	let candidate = text.indexOf('<', localFrom);
 
 	while (candidate !== -1) {
-		const remaining = text.slice(candidate);
-		if (/^<\/?[A-Za-z][^>]*>/u.test(remaining) || isMalformedSupportedTagPrefix(remaining)) {
+		TAG_LIKE_AT.lastIndex = candidate;
+		MALFORMED_PREFIX_AT.lastIndex = candidate;
+		if (TAG_LIKE_AT.test(text) || MALFORMED_PREFIX_AT.test(text)) {
 			return candidate;
 		}
 		candidate = text.indexOf('<', candidate + 1);

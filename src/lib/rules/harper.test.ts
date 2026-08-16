@@ -668,6 +668,37 @@ describe('Harper diagnostic merging', () => {
 		expect(mergeHarperDiagnostics([native], [harper])).toEqual([native]);
 	});
 
+	// Equality was too narrow for what this merge has always promised. Several
+	// reviewed rules report a whole line — `capitalization.title-case` and
+	// `section.header-prose` among them — and Harper stops on one word inside it,
+	// so the two cards stood side by side arguing about the same words. Only
+	// containment in this direction is dropped: a Harper finding *wider* than a
+	// native one is a claim about a span no reviewed rule made.
+	it('drops a Harper finding inside the range a native rule already covers', () => {
+		const line: Diagnostic = {
+			from: 8,
+			to: 31,
+			ruleId: 'capitalization.title-case',
+			severity: 'suggestion',
+			message: 'This line may be capitalized like a title.',
+			explanation: 'Reviewed capitalization.',
+			sourceIds: ['G-CAPS']
+		};
+		const inside: Diagnostic = {
+			from: 16,
+			to: 19,
+			ruleId: 'spelling.harper',
+			severity: 'suggestion',
+			message: 'Did you mean to spell this this way?',
+			explanation: 'Harper spelling.',
+			sourceIds: ['T-HARPER']
+		};
+		const around: Diagnostic = { ...inside, from: 4, to: 40 };
+
+		expect(mergeHarperDiagnostics([line], [inside])).toEqual([line]);
+		expect(mergeHarperDiagnostics([line], [around])).toEqual([around, line]);
+	});
+
 	// Harper's dictionary has no idea what «Idk» is, so it offers «Id», «Ids» and
 	// «Ilk» — three replacements that are not words the vocal could be singing,
 	// under a card asking whether the spelling was meant. That is the failure this

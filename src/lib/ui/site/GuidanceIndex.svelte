@@ -10,6 +10,7 @@
 	import AssistantSpark from '$lib/ui/assistant/AssistantSpark.svelte';
 	import { readingAnchor } from './guidance-reading.svelte.js';
 	import { guidanceSearchQuery, setGuidanceSearchQuery } from './guidance-search.svelte.js';
+	import { safeDecodeHash } from './hash.js';
 	import LinterRuleRow from './LinterRuleRow.svelte';
 	import { followSelectedRow, revealSelectedRow } from './reveal-selected.js';
 
@@ -45,7 +46,10 @@
 	let anchor = $state('');
 
 	function readAnchor(): void {
-		anchor = decodeURIComponent(location.hash.slice(1));
+		// Decoded through the shared helper, because a fragment is somebody else's
+		// string: `#%` throws a `URIError`, and a throw in here takes the column
+		// down on the arrival the deep link was made for.
+		anchor = safeDecodeHash(location.hash.slice(1));
 	}
 
 	afterNavigate(readAnchor);

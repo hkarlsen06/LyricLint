@@ -5,6 +5,18 @@
  * The cookie payload is `v1.<base64url payload>.<base64url hmac>` where the
  * payload is JSON: { sid, iat, uses }. `uses` counts successful requests since
  * the last Turnstile pass so the Worker can rechallenge after ten.
+ *
+ * **That cadence is advisory, and deliberately so.** `uses` lives only in the
+ * cookie, so a client that replays the copy it was first issued keeps the count
+ * at zero and is never rechallenged inside the cookie's TTL. What replaying
+ * buys is one Turnstile pass instead of several — and nothing else: the minute
+ * throttles, the daily counts, the concurrency slots and the spend ceilings are
+ * all keyed on the session and IP hashes in the Durable Objects, which the
+ * cookie cannot move, and `abuseHash` still forces a fresh challenge the moment
+ * the network signal changes. Counting uses in the session QuotaCounter instead
+ * would put a Durable Object round trip in front of Turnstile on every request,
+ * including the ones the challenge gate exists to refuse before they cost
+ * anything.
  */
 import { SESSION_RULES, TURNSTILE_HOSTNAMES } from './config';
 import { ApiError } from './errors';

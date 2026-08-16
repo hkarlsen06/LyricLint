@@ -59,18 +59,34 @@ export function createInMemoryDraftRepository(
 			drafts.set(stored.id, stored);
 			return cloneDraft(stored);
 		},
+		/**
+		 * Import provenance and the creation date are the record's, not the
+		 * snapshot's — the same two fields the real repository refuses to take
+		 * from a save. A double that let a snapshot overwrite them would agree
+		 * with a bug the real one rejects.
+		 */
 		async save(draft) {
-			drafts.set(draft.id, cloneDraft(draft));
+			const existing = drafts.get(draft.id);
+			const record = cloneDraft(draft);
+			if (existing) {
+				record.createdAt = existing.createdAt;
+				if (existing.originalText !== undefined) record.originalText = existing.originalText;
+			}
+			drafts.set(record.id, record);
 		},
 		async rename(id, title) {
 			const draft = drafts.get(id);
 			if (!draft) throw new Error(`'Scribe ${id} was not found.`);
-			drafts.set(id, { ...draft, title });
+			// A rename touches the row, and the drafts list is ordered by
+			// `updatedAt` — the real repository stamps it, so this one does too.
+			drafts.set(id, { ...draft, title, updatedAt: new Date().toISOString() });
 		},
 		async duplicate(id, newId) {
 			const source = drafts.get(id);
 			if (!source) throw new Error(`'Scribe ${id} was not found.`);
 			const now = new Date().toISOString();
+			// ` copy`, as the real repository writes it — the announcement after a
+			// duplicate strips exactly this suffix.
 			const duplicate = {
 				...cloneDraft(source),
 				id: newId,

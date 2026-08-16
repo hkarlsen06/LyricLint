@@ -169,6 +169,21 @@ describe('GuidanceIndex', () => {
 		expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(0);
 	});
 
+	// A fragment is somebody else's string, and a percent sign that opens no
+	// escape is a `URIError` rather than an anchor — `#%C3` is what a chat app
+	// leaves after clipping a shared link to a non-ASCII heading. Thrown from
+	// the effect that reads it, that takes the whole column down, on exactly the
+	// arrival a deep link exists for. It marks no row, which is the same answer
+	// as no fragment at all.
+	it('survives a fragment that is not valid percent-encoding', async () => {
+		history.replaceState(null, '', '#%C3');
+		render(GuidanceIndex, { sections, selectedTopic: firstEntry.topic });
+		await Promise.resolve();
+
+		expect(rows()).toHaveLength(total);
+		expect(document.querySelectorAll('a[aria-current="page"]')).toHaveLength(0);
+	});
+
 	// The hash is where the reader was *sent*, which stops being true the moment
 	// they scroll off that entry. A topic page is a column of conventions, so
 	// that is most of a visit.

@@ -16,6 +16,17 @@ import type { PollScheduler } from './media-youtube.js';
 export const spotifyPollIntervalMs = 250;
 export const spotifyConnectTimeoutMs = 20_000;
 
+/**
+ * How long the SDK script has to answer before the load is called a failure.
+ *
+ * The same twenty seconds the YouTube loader allows, and for the same reason:
+ * a script that never runs — an extension blocking it, a content policy, a
+ * stalled CDN — otherwise leaves this promise pending for the life of the page,
+ * and every `finally` behind it with it. `attachSpotifyTrack` clears `busy` in
+ * one of those, so a hung script does not cost a track, it costs the picker.
+ */
+export const spotifySdkLoadTimeoutMs = 20_000;
+
 /** The seek settle window, exactly as the YouTube bridge uses it. */
 const settleToleranceSeconds = 1;
 const settleMaxPolls = 8;
@@ -93,12 +104,17 @@ export function loadSpotifySdk(): Promise<SpotifySdk> {
 			return;
 		}
 
+		// Armed only once the script is actually in the document, so nothing here
+		// leaves a timer running in an environment that has no DOM to load into.
+		let timeout: ReturnType<typeof setTimeout> | undefined = undefined;
+
 		// The SDK announces itself by calling a global, the way Google's does.
 		// Chaining whatever was there keeps this from being the one thing on the
 		// page allowed to own that name.
 		const previous = scope.onSpotifyWebPlaybackSDKReady;
 		scope.onSpotifyWebPlaybackSDKReady = () => {
 			previous?.();
+			clearTimeout(timeout);
 			if (scope.Spotify?.Player) resolve(scope.Spotify);
 			else reject(new Error('The Spotify player did not load.'));
 		};
@@ -106,10 +122,15 @@ export function loadSpotifySdk(): Promise<SpotifySdk> {
 		const script = document.createElement('script');
 		script.src = sdkScriptUrl;
 		script.async = true;
-		script.addEventListener('error', () =>
-			reject(new Error('The Spotify player could not be reached.'))
-		);
+		script.addEventListener('error', () => {
+			clearTimeout(timeout);
+			reject(new Error('The Spotify player could not be reached.'));
+		});
 		document.head.appendChild(script);
+		timeout = setTimeout(
+			() => reject(new Error('The Spotify player did not load in time.')),
+			spotifySdkLoadTimeoutMs
+		);
 	});
 
 	injected = attempt.catch((error: unknown) => {
@@ -136,6 +157,18 @@ export type SpotifyUrlResult = { trackId: string } | { error: string };
 
 const trackIdPattern = /^[A-Za-z0-9]{22}$/;
 const schemePattern = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/**
+ * Whether this is a track id and nothing else.
+ *
+ * The parser's own alphabet, exported because an id that did not come from the
+ * parser has to be held to it too: one arriving on a pasted fragment is a string
+ * somebody else wrote, and it is interpolated into a path on `api.spotify.com`
+ * that this session's own bearer token is sent with.
+ */
+export function isSpotifyTrackId(id: string): boolean {
+	return trackIdPattern.test(id);
+}
 
 const notALink = 'That is not a Spotify track link.';
 const noTrack = 'That link is not a track — albums and playlists cannot be transcribed against.';
@@ -351,10 +384,25 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 		events.durationChanged(next);
 	}
 
-	async function call(path: string, init?: RequestInit): Promise<Response | undefined> {
+	/**
+	 * A Web API call, with the failures it reports.
+	 *
+	 * `stale` is what keeps a superseded call quiet. A read for the track the user
+	 * has just moved off still has to be waited out, and reporting its refusal
+	 * would put an error on the strip about a track that is no longer attached —
+	 * the same staleness the success path has always checked, on the half that was
+	 * left unguarded.
+	 */
+	async function call(
+		path: string,
+		init?: RequestInit,
+		stale?: () => boolean
+	): Promise<Response | undefined> {
 		const token = await deps.token();
 		if (token === undefined) {
-			events.failed('That Spotify sign-in expired. Add the track again to sign in.');
+			if (!stale?.()) {
+				events.failed('That Spotify sign-in expired. Add the track again to sign in.');
+			}
 			return undefined;
 		}
 		try {
@@ -363,14 +411,21 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 				headers: { ...(init?.headers ?? {}), authorization: `Bearer ${token}` }
 			});
 		} catch {
-			events.failed('Spotify could not be reached.');
+			if (!stale?.()) events.failed('Spotify could not be reached.');
 			return undefined;
 		}
 	}
 
 	/** Name and length without playing a note, so attaching stays silent. */
 	async function fetchTrack(id: string): Promise<void> {
-		const response = await call(`/tracks/${id}`);
+		// Encoded even though every id reaching here has been held to the track
+		// alphabet: this is the one path where a string somebody else wrote is
+		// interpolated into a URL that carries this session's bearer token.
+		const response = await call(
+			`/tracks/${encodeURIComponent(id)}`,
+			undefined,
+			() => trackId !== id
+		);
 		if (!response?.ok) return;
 		const track = (await response.json().catch(() => undefined)) as SpotifyTrack | undefined;
 		if (track?.name === undefined || trackId !== id) return;

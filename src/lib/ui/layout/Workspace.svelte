@@ -262,6 +262,11 @@
 	let harperRequest = 0;
 	let harperPending = false;
 	let harperUnavailable = false;
+	// The document Harper has actually answered for — or has nothing to say
+	// about, which is the same thing to everyone downstream. See the memoized
+	// branch of `enrichSnapshot`, which is where a document can otherwise lose
+	// its request and never ask for another.
+	let harperCoveredKey: string | undefined;
 	let languageDetectorTimer: ReturnType<typeof setTimeout> | undefined;
 	let languageDetectorStarted = false;
 	let destroyed = false;
@@ -324,6 +329,13 @@
 		return `${controller.language}\u0000${performerKey}\u0000${snapshot.revision}\u0000${snapshot.text}`;
 	}
 
+	// What a Harper answer belongs to: the draft as well as the lint key, because
+	// the same words in two drafts are two documents. Written once rather than at
+	// each of the three places that compare it.
+	function harperCoverage(key: string): string {
+		return `${controller.draftId}\u0000${key}`;
+	}
+
 	function invalidateHarper(): number {
 		harperRequest += 1;
 		harperPending = false;
@@ -339,17 +351,21 @@
 		nativeDiagnostics: EditorSnapshot['diagnostics']
 	): void {
 		const request = invalidateHarper();
+		const key = harperCoverage(lintKey(snapshot));
 		if (
 			harperUnavailable ||
 			!controller.grammarCheckEnabled ||
 			resolveLanguageTag(controller.language) !== 'en' ||
 			snapshot.text.trim().length === 0
 		) {
+			// Nothing is coming and nothing is owed: this document is as answered as
+			// it is ever going to be. Left uncovered, the memoized branch below would
+			// ask for it again on every snapshot the document takes.
+			harperCoveredKey = key;
 			return;
 		}
 
 		harperPending = true;
-		const key = `${controller.draftId}\u0000${lintKey(snapshot)}`;
 		const language = controller.language;
 		const performers = [...controller.performers];
 		harperTimer = setTimeout(() => {
@@ -367,12 +383,13 @@
 					if (
 						request !== harperRequest ||
 						current.composing ||
-						`${controller.draftId}\u0000${lintKey(current)}` !== key
+						harperCoverage(lintKey(current)) !== key
 					) {
 						return;
 					}
 
 					harperPending = false;
+					harperCoveredKey = key;
 					const merged = mergeHarperDiagnostics(nativeDiagnostics, harperDiagnostics);
 					lastDiagnostics = merged;
 					controller.onSnapshot(
@@ -391,6 +408,9 @@
 				.catch((error: unknown) => {
 					if (request !== harperRequest || harperUnavailable) return;
 					harperPending = false;
+					// A provider that has failed is one nothing more is coming from,
+					// here or on any later document, so this key is answered too.
+					harperCoveredKey = key;
 					harperUnavailable = true;
 					console.error('Harper grammar checking is unavailable.', error);
 					controller.onSnapshot(controller.snapshot, lastDiagnostics);
@@ -421,6 +441,20 @@
 		if (!snapshot.composing) {
 			const key = lintKey(snapshot);
 			if (key === lastLintKey) {
+				// A composing snapshot invalidates whatever Harper request was in
+				// flight, and a composition that is *cancelled* changes no text — so
+				// the snapshot that follows takes this memoized path, which is the one
+				// path that never schedules, and Harper stays silent on that document
+				// until the next real edit. Nothing on screen says so either: the
+				// request is not pending, so the panel reads as complete.
+				//
+				// The coverage key is what tells "already answered" from "lost its
+				// answer": it is only written once a request has actually landed (or
+				// there was never one to make), so re-asking here cannot double-merge
+				// findings into a list that already holds them.
+				if (!harperPending && harperCoveredKey !== harperCoverage(key)) {
+					scheduleHarper(snapshot, lastDiagnostics);
+				}
 				return {
 					...snapshot,
 					diagnostics: filterForEditorState(
@@ -695,6 +729,18 @@
 	let syncOwner: EditorHandle | undefined;
 	const anchorCount = $derived(anchors.length);
 
+	// Two anchor lists that say the same thing about the same lines. An anchor is
+	// a line and a time and nothing else, so this is the whole of the comparison.
+	function sameAnchors(current: readonly LineAnchor[], next: readonly LineAnchor[]): boolean {
+		return (
+			current.length === next.length &&
+			current.every((anchor, index) => {
+				const other = next[index]!;
+				return anchor.line === other.line && anchor.time === other.time;
+			})
+		);
+	}
+
 	// Read off the snapshot rather than asked for through the handle: the anchors
 	// carry their own line numbers and the text is already here.
 	const allLinesTimed = $derived(everyLyricLineTimed(controller.snapshot.text, anchors));
@@ -871,10 +917,23 @@
 	// is the entire extent of what playback is permitted to do to the document.
 	// It is deliberately not conditional on playing: a paused track still has a
 	// position, and showing it is how the user finds their way back to it.
+	//
+	// The anchors are read on the same pass and deliberately so: an edit that
+	// shifts a timed line arrives as a document change, which `onAnchorsChanged`
+	// stays quiet for, so this tick is what re-reads them. What it must not do is
+	// *assign* them every time — the playhead arrives several times a second, and
+	// a fresh array identity per tick re-ran `everyLyricLineTimed` (a walk of the
+	// whole text), the skip predicate, and the cue-point push over a list that had
+	// not changed since the last tap. Same lines at the same times, same array.
 	$effect(() => {
 		const player = controller.media?.player;
 		editorHandle?.setMediaPlayhead?.(player?.attached ? player.currentTime : undefined);
-		anchors = editorHandle?.getLineAnchors?.() ?? [];
+		const next = editorHandle?.getLineAnchors?.() ?? [];
+		// Untracked, because the comparison reads the very state it may write:
+		// tracked, the effect would depend on its own assignment.
+		untrack(() => {
+			if (!sameAnchors(anchors, next)) anchors = next;
+		});
 	});
 
 	// The timed lines are what the side keys step between. The transport owns the

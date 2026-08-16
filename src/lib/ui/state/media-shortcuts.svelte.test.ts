@@ -61,6 +61,37 @@ describe('matchTransportAction', () => {
 		expect(transportModifier('Win32')).toBe('Alt');
 	});
 
+	/**
+	 * AltGr is not a modifier this transport may read.
+	 *
+	 * Windows and X11 report AltGr as Control **and** Alt — which is the universal
+	 * fallback's own combination — so on a layout where AltGr+L types a character,
+	 * `ł` on a Polish keyboard, this listener claimed the keystroke and prevented
+	 * it. In the capture phase, which means the letter could not be typed anywhere
+	 * in the workbench for as long as audio was attached: not into the document,
+	 * not into the draft's name. A modifier somebody is holding to write with is
+	 * not one this may answer to.
+	 */
+	it('stands down for AltGr, which is reported as Ctrl+Alt', () => {
+		const withAltGraph = (init: KeyboardEventInit) => {
+			const event = keystroke(init);
+			Object.defineProperty(event, 'getModifierState', {
+				value: (name: string) => name === 'AltGraph'
+			});
+			return event;
+		};
+
+		for (const code of ['KeyJ', 'KeyK', 'KeyL']) {
+			expect(
+				matchTransportAction(withAltGraph({ code, ctrlKey: true, altKey: true }))
+			).toBeUndefined();
+		}
+		// And the same chord without AltGr held is still the universal fallback.
+		expect(matchTransportAction(keystroke({ code: 'KeyL', ctrlKey: true, altKey: true }))).toBe(
+			'forward'
+		);
+	});
+
 	// A handler that answered to supersets of its own binding would swallow a
 	// keystroke somebody else had a use for.
 	it('answers to no modifier superset', () => {
@@ -426,5 +457,41 @@ describe('bindTransportShortcuts', () => {
 		press(target, { code: 'KeyK', ctrlKey: true, altKey: true, repeat: true });
 
 		expect(actions).toEqual(['back', 'back', 'toggle']);
+	});
+
+	/**
+	 * A held space pauses once and scrolls never.
+	 *
+	 * The repeat is dropped, which is right — but the repeats of a *bare space*
+	 * still carry their default, and that default is the page scrolling. So the
+	 * first press paused the tape and every repeat after it ran the document out
+	 * from under the reader who was still holding the key. The press that could
+	 * ask `transport` is what records the answer, because a repeat asking would be
+	 * a repeat running the action.
+	 */
+	it('keeps a held space from scrolling the page it just paused', () => {
+		const target = document.createElement('div');
+		const transport = vi.fn(() => true);
+		bindTransportShortcuts({ target, transport });
+
+		const first = press(target, { code: 'Space' });
+		const held = press(target, { code: 'Space', repeat: true });
+
+		expect(transport).toHaveBeenCalledOnce();
+		expect(first.defaultPrevented).toBe(true);
+		expect(held.defaultPrevented).toBe(true);
+	});
+
+	// And a control that is not on screen must not eat a key press, held or not:
+	// nothing answered the first press, so the repeats are the page's own.
+	it('leaves a held space alone when there is nothing to transport', () => {
+		const target = document.createElement('div');
+		bindTransportShortcuts({ target, transport: () => false });
+
+		const first = press(target, { code: 'Space' });
+		const held = press(target, { code: 'Space', repeat: true });
+
+		expect(first.defaultPrevented).toBe(false);
+		expect(held.defaultPrevented).toBe(false);
 	});
 });

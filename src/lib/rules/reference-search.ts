@@ -187,6 +187,15 @@ function haystackFor(reference: RuleReference): string {
  * - **Case goes last**, and with `toLowerCase` rather than a locale-aware
  *   fold: the pages carry nine languages between them and there is no one
  *   locale to be right for.
+ * - **And the Greek final sigma folds to the ordinary one**, which is the one
+ *   place `toLowerCase` is not a per-character operation: it implements
+ *   `Final_Sigma`, so `ΛΟΓΟΣ` lowercases to `λογος` as a whole string and to
+ *   `λογοσ` a character at a time. `foldWithOffsets` below runs it a character
+ *   at a time by construction, so without this the two folds disagree — the
+ *   query matches the filter and the page it opens draws no `<mark>`, which is
+ *   the failure marking the query exists to prevent. It runs after the case
+ *   fold, where both spellings have arrived, and costs the offsets nothing:
+ *   one code unit for one.
  */
 export function foldForSearch(value: string): string {
 	return value
@@ -198,7 +207,8 @@ export function foldForSearch(value: string): string {
 		.replaceAll('”', '"')
 		.replaceAll('—', '-')
 		.replaceAll('–', '-')
-		.toLowerCase();
+		.toLowerCase()
+		.replaceAll('ς', 'σ');
 }
 
 /**

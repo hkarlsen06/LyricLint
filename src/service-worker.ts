@@ -88,10 +88,19 @@ async function precacheApplication(): Promise<void> {
 				held: await copyForward(cache, olderCaches, asset)
 			}))
 		);
+		// `reload` bypasses the HTTP cache entirely, and only two of these three
+		// sets are worth that. A hashed asset the copy-forward could not find is
+		// one this origin has never held, and a precached page's freshness is the
+		// whole point of precaching it. The static files are neither: their bytes
+		// are usually identical from deploy to deploy — the two motion loops are
+		// most of the ~3MB — so forcing them made every install re-download a set
+		// ordinary revalidation answers with 304s. They can still change between
+		// deploys, which is why they are refetched at all rather than copied
+		// forward; a conditional request is what tells the two cases apart.
 		const missing = [
-			...copied.filter(({ held }) => !held).map(({ asset }) => asset),
-			...files,
-			...precachedPages
+			...copied.filter(({ held }) => !held).map(({ asset }) => ({ asset, revalidate: false })),
+			...files.map((asset) => ({ asset, revalidate: true })),
+			...precachedPages.map((asset) => ({ asset, revalidate: false }))
 		];
 
 		// Fetch and validate the whole remainder before writing any of it. Some
@@ -99,8 +108,8 @@ async function precacheApplication(): Promise<void> {
 		// and a 200 status; Cache.addAll accepts that response and permanently
 		// poisons the JavaScript URL in a cache-first worker.
 		const assets = await Promise.all(
-			missing.map(async (asset) => {
-				const request = new Request(asset, { cache: 'reload' });
+			missing.map(async ({ asset, revalidate }) => {
+				const request = new Request(asset, revalidate ? undefined : { cache: 'reload' });
 				const response = await fetch(request);
 				if (!response.ok) {
 					throw new Error(`Could not precache ${asset}: HTTP ${response.status}`);

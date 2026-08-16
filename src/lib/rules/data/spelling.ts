@@ -62,6 +62,14 @@ export interface SpellingCandidate {
 const word = (source: string): RegExp =>
 	new RegExp(`(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])`, 'giu');
 
+/**
+ * The forms in the `ayy` family that are ordinary words somewhere else: `ei` is
+ * the Norwegian indefinite article, `Ei` is a German egg, and `ay` is a Spanish
+ * interjection. The rest of that pattern — `ayy`, `ayee`, `aye` — is nobody's
+ * word in any reviewed pack and stays cross-language.
+ */
+const AMBIGUOUS_AYY = /^(?:ay|e(?:y+|i+))$/iu;
+
 function nearby(context: SpellingMatchContext, radius = 36): string {
 	return context.text
 		.slice(Math.max(0, context.from - radius), Math.min(context.text.length, context.to + radius))
@@ -163,7 +171,18 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		fuzzy: true,
 		contextGate: 'general',
 		safe: true,
-		pattern: new RegExp("(?<![\\p{L}\\p{N}_'’])(?:cause|couse|cos|coz)(?![\\p{L}\\p{N}_])", 'giu')
+		// The trailing lookahead refuses an apostrophe as well as a letter, so the
+		// Italian elision `cos'è` is excluded by shape rather than by the language
+		// gate below — a token that carries its own apostrophe is not this word.
+		pattern: new RegExp(
+			"(?<![\\p{L}\\p{N}_'’])(?:cause|couse|cos|coz)(?![\\p{L}\\p{N}_'’])",
+			'giu'
+		),
+		// English only. This is a safe fix, so an ungated match rewrites correct
+		// lyrics mechanically: `cause` is an ordinary French noun (`à cause de`),
+		// and what the entry states is an English elision spelling rather than a
+		// transcription convention that holds in every language.
+		isSufficientContext: (context) => isEnglishLanguage(context.language)
 	},
 	{
 		preferred: ["'cause"],
@@ -187,6 +206,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		contextGate: 'general',
 		safe: true,
 		pattern: word('O\\.K\\.|okey|ok'),
+		// English only, for `'cause`'s reason: `ok` is written as `ok` in every
+		// reviewed pack and `okey` is an accepted Spanish spelling, so a safe fix
+		// here rewrites lyrics that were already right.
+		isSufficientContext: (context) => isEnglishLanguage(context.language),
 		resolvePreferred: (context) => (isLineStart(context) ? 'Okay' : 'okay')
 	},
 	{
@@ -213,7 +236,12 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		commonMisspellings: ['ey', 'eyy', 'ei', 'eii', 'ayee', 'ayyy'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('ay{3,}|ayee|aye|ay|e(?:y+|i+)')
+		pattern: word('ay{3,}|ayee|aye|ay|e(?:y+|i+)'),
+		// Per match rather than per entry: only the forms that are ordinary words
+		// elsewhere are held to English. Ungated, this safe fix turned a Norwegian
+		// `ei jente` into `ayy jente` under `Fix N automatically`.
+		isSufficientContext: (context) =>
+			!AMBIGUOUS_AYY.test(context.match) || isEnglishLanguage(context.language)
 	},
 	{
 		preferred: ['ho'],
@@ -346,7 +374,11 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		fuzzyExceptions: ['waive'],
 		contextGate: 'general',
 		safe: true,
-		pattern: word('naïve|naieve|niaive|neive')
+		pattern: word('naïve|naieve|niaive|neive'),
+		// English only. Dropping the diaeresis is an English preference, and the
+		// form this entry rewrites first — `naïve` — is the correct French
+		// spelling, so a safe fix in a French draft is the corruption itself.
+		isSufficientContext: (context) => isEnglishLanguage(context.language)
 	},
 	{
 		preferred: ['cliché'],

@@ -58,6 +58,145 @@ describe('assistant answer streaming', () => {
 		expect(sent.supportsRetry).toBe(true);
 	});
 
+	/**
+	 * Validation can shorten a block — a trailing citation run is stripped after
+	 * every delta of it has already been sent — and the client assembles purely
+	 * from deltas, so the close carries the validated text where it differs.
+	 * Streaming is the only mode production uses, so without this the strip was
+	 * invisible exactly where it matters.
+	 */
+	it('takes the validated text from a block that closes carrying one', async () => {
+		const events = [
+			{ type: 'start', requestId: 'req-strip', scope: 'reviewed' },
+			{ type: 'block_start', kind: 'prose' },
+			{ type: 'text_delta', delta: 'A chorus needs a header.' },
+			{ type: 'text_delta', delta: '¹' },
+			{
+				type: 'block_done',
+				text: 'A chorus needs a header.',
+				ruleIds: ['section.header-missing'],
+				sourceIds: []
+			},
+			{
+				type: 'done',
+				quota: { browserRemaining: 24, ipRemaining: 74, resetsAt: '2026-08-02T00:00:00Z' }
+			}
+		];
+		const fetcher = vi.fn(
+			async () =>
+				new Response(`${events.map((event) => JSON.stringify(event)).join('\n')}\n`, {
+					headers: { 'content-type': 'application/x-ndjson' }
+				})
+		);
+
+		const response = await askAssistant({
+			chatId: 'chat-strip',
+			messages: [{ role: 'user', content: 'Chorus?' }],
+			clientRuleSetVersion: 'v1',
+			fetcher
+		});
+		expect(response.kind).toBe('answer');
+		if (response.kind !== 'answer') throw new Error('Expected an answer turn.');
+		expect(response.assistant.blocks).toEqual([
+			{
+				kind: 'prose',
+				text: 'A chorus needs a header.',
+				ruleIds: ['section.header-missing'],
+				sourceIds: []
+			}
+		]);
+	});
+
+	/**
+	 * The narration a tool round streamed is stored off the throttled mirror
+	 * (`handleToolCalls` reads the message's live answer), so deltas landing
+	 * inside the last 32ms before the calls arrive are the ones that would go
+	 * missing from the transcript for good. Only an *open* block can hold any:
+	 * a close already forces its own publish.
+	 *
+	 * What the turn finally resolves to is deliberately not asserted here — the
+	 * worker leaves a narration block open on a tool round, and what the reader
+	 * does with that is a separate question from whether the text reached the
+	 * surface before the calls did.
+	 */
+	it('forces the streamed narration through before the tool calls arrive', async () => {
+		const events = [
+			{ type: 'start', requestId: 'req-tools', scope: 'general' },
+			{ type: 'block_start', kind: 'general' },
+			{ type: 'text_delta', delta: 'Let me read ' },
+			{ type: 'text_delta', delta: "the 'scribe." },
+			{
+				type: 'tool_calls',
+				calls: [{ callId: 'call-1', name: 'read_scribe', input: {} }],
+				providerItems: '[{"type":"function_call"}]'
+			},
+			{
+				type: 'done',
+				quota: { browserRemaining: 24, ipRemaining: 74, resetsAt: '2026-08-02T00:00:00Z' }
+			}
+		];
+		const progress = vi.fn();
+		const fetcher = vi.fn(
+			async () =>
+				new Response(`${events.map((event) => JSON.stringify(event)).join('\n')}\n`, {
+					headers: { 'content-type': 'application/x-ndjson' }
+				})
+		);
+
+		await askAssistant({
+			chatId: 'chat-tools',
+			messages: [{ role: 'user', content: 'Check my draft.' }],
+			clientRuleSetVersion: 'v2',
+			toolsAvailable: true,
+			fetcher,
+			onProgress: progress
+		}).catch(() => undefined);
+
+		// Both deltas land within one throttle window, so only the forced publish
+		// carries the second one.
+		expect(progress).toHaveBeenLastCalledWith({
+			scope: 'general',
+			blocks: [{ kind: 'general', text: "Let me read the 'scribe.", ruleIds: [], sourceIds: [] }]
+		});
+	});
+
+	/**
+	 * NDJSON is newline-delimited, not newline-terminated. A stream whose last
+	 * line arrives without one used to leave a whole event — the `done` carrying
+	 * the quota — in the buffer, and the turn failed with the entire answer in
+	 * hand.
+	 */
+	it('reads a final line that arrives without a trailing newline', async () => {
+		const events = [
+			{ type: 'start', requestId: 'req-tail', scope: 'general' },
+			{ type: 'block_start', kind: 'general' },
+			{ type: 'text_delta', delta: 'Answered.' },
+			{ type: 'block_done', ruleIds: [], sourceIds: [] },
+			{
+				type: 'done',
+				quota: { browserRemaining: 5, ipRemaining: 6, resetsAt: '2026-08-02T00:00:00Z' }
+			}
+		];
+		const fetcher = vi.fn(
+			async () =>
+				new Response(events.map((event) => JSON.stringify(event)).join('\n'), {
+					headers: { 'content-type': 'application/x-ndjson' }
+				})
+		);
+
+		const response = await askAssistant({
+			chatId: 'chat-tail',
+			messages: [{ role: 'user', content: 'Question' }],
+			clientRuleSetVersion: 'v1',
+			fetcher
+		});
+		expect(response).toMatchObject({
+			kind: 'answer',
+			assistant: { blocks: [{ text: 'Answered.' }] },
+			quota: { browserRemaining: 5 }
+		});
+	});
+
 	it('discards speculative blocks and restarts from the repaired answer', async () => {
 		const events = [
 			{ type: 'start', requestId: 'req-repair', scope: 'reviewed' },

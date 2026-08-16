@@ -26,7 +26,7 @@ import {
 	type AnswerRequest,
 	type WireToolResult
 } from './schema';
-import { buildPromptInput, promptCacheKey, pruneHistory } from './prompt';
+import { developerPrompt, promptCacheKey, pruneHistory } from './prompt';
 
 export interface ProviderUsage {
 	inputTokens: number;
@@ -285,9 +285,43 @@ function toolResultOutput(result: WireToolResult): string {
 	].join('\n');
 }
 
-function liveToolInput(messages: AnswerRequest['messages']): OpenAI.Responses.ResponseInputItem[] {
-	const input: OpenAI.Responses.ResponseInputItem[] = [];
-	for (const message of messages) {
+function settledInputItem(
+	role: 'developer' | 'user' | 'assistant',
+	text: string,
+	cacheBreakpoint = false
+): OpenAI.Responses.ResponseInputItem {
+	return {
+		role,
+		content: [
+			{
+				// Each role has its own part type, and the API enforces it: an
+				// assistant turn replays as output_text, and input_text on an
+				// assistant message is a 400. This only fires when the history
+				// holds a COMPLETED exchange — failed turns are pruned — which is
+				// why every single-question test passed over it.
+				type: role === 'assistant' ? ('output_text' as const) : ('input_text' as const),
+				text,
+				...(cacheBreakpoint ? { prompt_cache_breakpoint: { mode: 'explicit' as const } } : {})
+			}
+		]
+	} as OpenAI.Responses.ResponseInputItem;
+}
+
+export function providerRequest(
+	messages: AnswerRequest['messages'],
+	safetyIdentifier: string,
+	toolsAvailable = false
+): Omit<OpenAI.Responses.ResponseCreateParamsNonStreaming, 'stream'> {
+	const pruned = pruneHistory(messages);
+	// The history is walked in order rather than grouped by kind. Grouped — every
+	// settled message, then every tool item — an instruction appended after the
+	// tool rounds arrived before them, so FINAL_ROUND_INSTRUCTION told the model
+	// its rounds were spent above the rounds it was talking about, and a repair
+	// prompt landed the same way.
+	const input: OpenAI.Responses.ResponseInputItem[] = [
+		settledInputItem('developer', developerPrompt(corpus), true)
+	];
+	for (const message of pruned) {
 		if (message.role === 'assistant' && 'toolCalls' in message) {
 			input.push(
 				...(decodeProviderItems(
@@ -302,37 +336,10 @@ function liveToolInput(messages: AnswerRequest['messages']): OpenAI.Responses.Re
 					output: toolResultOutput(result)
 				});
 			}
+		} else {
+			input.push(settledInputItem(message.role, message.content));
 		}
 	}
-	return input;
-}
-
-export function providerRequest(
-	messages: AnswerRequest['messages'],
-	safetyIdentifier: string,
-	toolsAvailable = false
-): Omit<OpenAI.Responses.ResponseCreateParamsNonStreaming, 'stream'> {
-	const pruned = pruneHistory(messages);
-	const prompt = buildPromptInput(corpus, pruned);
-	const input: OpenAI.Responses.ResponseInputItem[] = prompt.map(
-		(message, index) =>
-			({
-				role: message.role,
-				content: [
-					{
-						// Each role has its own part type, and the API enforces it: an
-						// assistant turn replays as output_text, and input_text on an
-						// assistant message is a 400. This only fires when the history
-						// holds a COMPLETED exchange — failed turns are pruned — which is
-						// why every single-question test passed over it.
-						type: message.role === 'assistant' ? ('output_text' as const) : ('input_text' as const),
-						text: message.content,
-						...(index === 0 ? { prompt_cache_breakpoint: { mode: 'explicit' as const } } : {})
-					}
-				]
-			}) as OpenAI.Responses.ResponseInputItem
-	);
-	input.push(...liveToolInput(pruned));
 
 	return {
 		model: MODEL.id,

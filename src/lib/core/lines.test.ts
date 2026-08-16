@@ -63,6 +63,22 @@ describe('extractLineStyleSpans', () => {
 		expect(extractLineStyleSpans(text, { from: 0, to: text.length })).toEqual([]);
 	});
 
+	// The scan for the next markup start probes each `<` where it stands rather
+	// than copying the rest of the text to it, which was quadratic on a line this
+	// shape. The probes are sticky regexes, so the hazard the run of rejected
+	// candidates pins is a `lastIndex` carried from one `<` to the next.
+	it('finds a real wrapper past a run of rejected less-than candidates', () => {
+		const text = `${'I <3 you, '.repeat(500)}<i>tonight</i>`;
+		const spans = extractLineStyleSpans(text, { from: 0, to: text.length });
+
+		expect(spans).toHaveLength(1);
+		expect(spans[0]).toMatchObject({
+			from: text.indexOf('<i>'),
+			to: text.length,
+			slot: 2
+		});
+	});
+
 	it.each(['<i', '</b'])('keeps malformed supported-tag prefixes detectable: %s', (text) => {
 		expect(extractLineStyleSpans(text, { from: 0, to: text.length })).toEqual([
 			{

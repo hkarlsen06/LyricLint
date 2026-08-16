@@ -69,6 +69,30 @@ describe('the clipboard flavor', () => {
 		});
 	});
 
+	// Nothing asked for this parse: every paste into the editor arrives here with
+	// whatever the clipboard is holding, so the work is bounded before it starts
+	// rather than by what turns out to be readable. The same payload under the cap
+	// reads fine, which is what makes this a size refusal and not a shape one.
+	it('refuses a payload too large to have been ours, and reads the small one', () => {
+		const oversized = {
+			v: 1,
+			lines: 200_000,
+			anchors: Array.from({ length: 60_000 }, (_, index) => ({ line: index, time: index })),
+			links: []
+		};
+		const html = (payload: unknown) =>
+			`<div data-lyriclint="${JSON.stringify(payload).replaceAll('"', '&quot;')}"></div>`;
+		expect(JSON.stringify(oversized).length).toBeGreaterThan(1_000_000);
+		expect(metadataFromClipboardHtml(html(oversized))).toBeUndefined();
+
+		const small = { ...oversized, lines: 2, anchors: [{ line: 0, time: 1 }] };
+		expect(metadataFromClipboardHtml(html(small))).toEqual({
+			lines: 2,
+			anchors: [{ line: 0, time: 1 }],
+			links: []
+		});
+	});
+
 	it('reads a payload with nothing in it as no metadata at all', () => {
 		const html = clipboardHtml('one line', { lines: 1, anchors: [], links: [] });
 		expect(metadataFromClipboardHtml(html)).toBeUndefined();

@@ -155,6 +155,23 @@ describe('section.unlinked-repeat', () => {
 		expect(found[0]?.explanation).toContain('appears 2 times');
 	});
 
+	// The alignment behind `sharesEnough` is quadratic in tokens, and this rule
+	// re-runs it for every same-kind pair on every keystroke inside a member —
+	// where the picker aligns once, on a press. A repeated song part is tens of
+	// tokens, so the ceiling only ever refuses something that is not one, and it
+	// refuses it silently: the picker still links whatever it is opened on.
+	it('does not volunteer a link between bodies too large to be a song part', () => {
+		const long = Array.from({ length: 300 }, (_, index) => `line ${index} of it`).join('\n');
+		const other = Array.from({ length: 300 }, (_, index) => `verse ${index} of that`).join('\n');
+
+		expect(findings(`[Chorus]\n${long}\n\n[Verse 1]\nA\n\n[Chorus 2]\n${other}`)).toEqual([]);
+		// Identical copies cost no alignment at all, so the ceiling never reaches
+		// them and the commonest shape is offered at any size.
+		expect(findings(`[Chorus]\n${long}\n\n[Verse 1]\nA\n\n[Chorus 2]\n${long}`)).toEqual([
+			'[Chorus]'
+		]);
+	});
+
 	it('needs more than one occurrence', () => {
 		expect(findings('[Chorus]\nHold the line\n\n[Verse 1]\nA lyric')).toEqual([]);
 	});

@@ -148,6 +148,10 @@ function isHeaderCandidate(line: PhysicalLine): boolean {
 	return isSectionHeaderLine(line.text);
 }
 
+function isAsciiDigit(code: number): boolean {
+	return code >= 48 && code <= 57;
+}
+
 function parseHeaderName(
 	text: string,
 	range: TextRange
@@ -156,19 +160,37 @@ function parseHeaderName(
 	'name' | 'namePart' | 'nameRange' | 'rawNamePart' | 'ordinal' | 'ordinalRange'
 > {
 	const rawNamePart = text.slice(range.from, range.to);
-	const ordinalMatch = /^(.*?)(?:\s+(\d+))$/u.exec(rawNamePart);
+	const unnumbered = {
+		name: rawNamePart,
+		namePart: rawNamePart,
+		nameRange: range,
+		rawNamePart
+	};
 
-	if (!ordinalMatch) {
-		return {
-			name: rawNamePart,
-			namePart: rawNamePart,
-			nameRange: range,
-			rawNamePart
-		};
+	// A trailing run of digits with whitespace in front of it, scanned rather
+	// than matched. `/^(.*?)(?:\s+(\d+))$/u` says the same thing and is
+	// polynomial on a line that never reaches a digit — 685ms at 32,000
+	// characters — and `parseDocument` is the hottest path in the application.
+	let digitsFrom = rawNamePart.length;
+	while (digitsFrom > 0 && isAsciiDigit(rawNamePart.charCodeAt(digitsFrom - 1))) {
+		digitsFrom -= 1;
+	}
+	if (digitsFrom === rawNamePart.length) {
+		return unnumbered;
 	}
 
-	const name = ordinalMatch[1] ?? '';
-	const ordinalText = ordinalMatch[2] ?? '';
+	let nameTo = digitsFrom;
+	while (nameTo > 0 && /\s/u.test(rawNamePart[nameTo - 1] ?? '')) {
+		nameTo -= 1;
+	}
+	// The whitespace is required, so `[2]` names the part `2` rather than
+	// numbering a part with no name at all.
+	if (nameTo === digitsFrom) {
+		return unnumbered;
+	}
+
+	const name = rawNamePart.slice(0, nameTo);
+	const ordinalText = rawNamePart.slice(digitsFrom);
 	const ordinalFrom = range.to - ordinalText.length;
 
 	return {
@@ -187,8 +209,11 @@ function parseSectionHeader(text: string, line: PhysicalLine): HeaderParseResult
 	const headerTo = trimmedLine.to;
 	const contentFrom = trimmedLine.from + 1;
 	const contentTo = closed ? headerTo - 1 : headerTo;
-	const colon = text.indexOf(':', contentFrom);
-	const colonInHeader = colon !== -1 && colon < contentTo ? colon : undefined;
+	// Searched inside the header's own slice, not from the header into the rest
+	// of the document: a header with no colon otherwise scanned to the end of the
+	// text, once per header per keystroke.
+	const colon = text.slice(contentFrom, contentTo).indexOf(':');
+	const colonInHeader = colon === -1 ? undefined : contentFrom + colon;
 	const rawNameRange = trimmedRange(text, contentFrom, colonInHeader ?? contentTo);
 	const parsedName = parseHeaderName(text, rawNameRange);
 	let legend: string | undefined;

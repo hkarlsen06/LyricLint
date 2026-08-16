@@ -841,6 +841,27 @@ describe('performer assignment transforms', () => {
 		}
 	});
 
+	it('refuses a header whose legend names one style slot twice', () => {
+		// The parser does not promise one group per slot: a legend written in two
+		// italic parts is two groups on slot 2, and the retained groups are keyed
+		// by slot on their way into the rewrite. Keyed, the second overwrites the
+		// first — the header comes back naming one of the two voices, with no
+		// edit anywhere saying the other was dropped. A header this cannot
+		// rewrite losslessly is one it must not rewrite.
+		const input = '[Verse: <i>Avery</i>, <i>Blair</i>]\nA plain line\n<i>A styled line</i>';
+		const records = roster(['Avery', 'Blair']);
+		const result = assignVoiceLegend({
+			revision: 4,
+			text: input,
+			document: parseDocument(input),
+			sectionFrom: 0,
+			assignments: [{ styleSlot: 1, performerIds: [records[0]!.id] }],
+			roster: records
+		});
+
+		expect(result).toEqual({ status: 'blocked', reason: 'invalid-range' });
+	});
+
 	it('promotes a styled-only section to plain by unwrapping it in the same edit', () => {
 		// The section has no plain lyrics, so its single voice belongs in slot 1.
 		// Keeping the wrappers would leave an italic legend group with no plain

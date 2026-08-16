@@ -175,6 +175,49 @@ describe('parseDocument', () => {
 		}
 	);
 
+	// The trailing ordinal is scanned rather than matched: the regex that read it
+	// was polynomial on a line that never reaches a digit — 685ms at 32,000
+	// characters, on the hottest path in the application. These pin the split it
+	// replaced, ordinal by ordinal.
+	it.each([
+		['[Verse 12]', 'Verse', 12],
+		['[Verse 1]', 'Verse', 1],
+		['[Chorus]', 'Chorus', undefined],
+		['[Verse  3]', 'Verse', 3],
+		['[ Verse 4 ]', 'Verse', 4],
+		// A digit run with no whitespace in front of it names the part instead of
+		// numbering a part with no name.
+		['[2]', '2', undefined],
+		['[Verse 2b]', 'Verse 2b', undefined],
+		['[Verse 1 2]', 'Verse 1', 2]
+	])('splits a trailing ordinal off the header name: %s', (input, name, ordinal) => {
+		const header = parseDocument(`${input}\nA lyric`).sections[0]?.header;
+
+		expect(header?.name).toBe(name);
+		expect(header?.ordinal).toBe(ordinal);
+		expect(input.slice(header?.nameRange.from ?? 0, header?.nameRange.to ?? 0)).toBe(name);
+		if (ordinal !== undefined) {
+			expect(input.slice(header?.ordinalRange?.from ?? 0, header?.ordinalRange?.to ?? 0)).toBe(
+				String(ordinal)
+			);
+		}
+	});
+
+	it('reads a legend after the ordinal, and only inside the header', () => {
+		const withLegend = parseDocument('[Verse 1: Ari]\nA lyric').sections[0]?.header;
+		expect(withLegend?.name).toBe('Verse');
+		expect(withLegend?.ordinal).toBe(1);
+		expect(withLegend?.legend).toBe('Ari');
+
+		// The colon belongs to the lyric below, not to the header: searching from
+		// the header to the end of the document found it and read the header as
+		// carrying a legend.
+		const colonBelow = parseDocument('[Verse 1]\nA lyric: and more').sections[0]?.header;
+		expect(colonBelow?.name).toBe('Verse');
+		expect(colonBelow?.legend).toBeUndefined();
+		expect(colonBelow?.legendGroups).toEqual([]);
+	});
+
 	it.each(['[Verse]\nI <3 you', '[Verse]\na < b'])(
 		'does not report literal less-than lyric text as markup: %s',
 		(input) => {

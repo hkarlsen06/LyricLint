@@ -66,18 +66,33 @@ let inFlight: Promise<string | undefined> | undefined;
  * No "already hydrated" flag: a miss re-reads, which costs one `getItem` on a
  * path that is about to make a network request anyway, and keeps the module
  * free of a second piece of state that could disagree with the first.
+ *
+ * **What comes back is shape-checked, not merely parsed**, and the reason is that
+ * `JSON.parse` answers a great deal more than an object: `'null'` parses without
+ * throwing, so a stored `null` — or `{}`, or anything else that reached this key —
+ * made `spotifySignedIn()` true over a session that does not exist, and the next
+ * request went out as `Bearer undefined`. A value that is not a pair of an access
+ * token and an expiry is not a session, and it is cleared rather than left to be
+ * re-read on the next miss.
  */
 function held(): SpotifyTokens | undefined {
 	if (tokens !== undefined) return tokens;
 	if (!inBrowser()) return undefined;
+	let parsed: unknown;
 	try {
 		const raw = sessionStorage.getItem(tokenKey);
 		if (raw === null) return undefined;
-		tokens = JSON.parse(raw) as SpotifyTokens;
+		parsed = JSON.parse(raw);
 	} catch {
 		// Unparseable or storage refused. Either way there is no session here.
 		return undefined;
 	}
+	const candidate = parsed as SpotifyTokens | undefined;
+	if (typeof candidate?.accessToken !== 'string' || typeof candidate.expiresAt !== 'number') {
+		remember(undefined);
+		return undefined;
+	}
+	tokens = candidate;
 	return tokens;
 }
 
@@ -219,13 +234,20 @@ async function challengeFor(verifier: string): Promise<string> {
  * would have saved is one the user is not typing into — attaching audio is the
  * one moment a reload costs nothing, because the draft is already autosaved and
  * the workbench boots back into it.
+ *
+ * **It says whether it is leaving**, because the one refusal here is silent
+ * otherwise and it is not rare: a private window that declines `sessionStorage`
+ * cannot carry the verifier across the redirect, so this returns with the page
+ * still standing — and the caller went on to report an empty result. A valid
+ * track link answered `No matches on Spotify` for exactly that reason. False is
+ * the caller's cue to say what actually happened.
  */
-export async function beginSpotifySignIn(intent: string): Promise<void> {
+export async function beginSpotifySignIn(intent: string): Promise<boolean> {
 	const clientId = spotifyClientId();
-	if (clientId === undefined) return;
+	if (clientId === undefined) return false;
 	// Callers check this and say so; leaving without it would land the user on
 	// Spotify's blank `redirect_uri: Insecure` page with nothing to act on.
-	if (!spotifyRedirectAllowed()) return;
+	if (!spotifyRedirectAllowed()) return false;
 
 	const verifier = randomVerifier();
 	const state = randomVerifier();
@@ -243,7 +265,7 @@ export async function beginSpotifySignIn(intent: string): Promise<void> {
 		} catch {
 			// The same refusal can apply to removal; nothing else can be done here.
 		}
-		return;
+		return false;
 	}
 
 	const url = new URL(authorizeEndpoint);
@@ -258,6 +280,7 @@ export async function beginSpotifySignIn(intent: string): Promise<void> {
 	}).toString();
 
 	location.assign(url.toString());
+	return true;
 }
 
 interface TokenResponse {

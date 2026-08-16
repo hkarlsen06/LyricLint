@@ -43,7 +43,12 @@ import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persi
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 import { headerNameAtoms, isMirrorableHeaderName } from '$lib/performers/index.js';
 import { buildRuleContext } from './wiring.js';
-import { parseScribe, serializeScribe, ScribeFormatError } from '$lib/scribe/format.js';
+import {
+	maxScribeBytes,
+	parseScribe,
+	serializeScribe,
+	ScribeFormatError
+} from '$lib/scribe/format.js';
 
 export { performerColorIds } from './roster-store.svelte.js';
 export type { RosterMergeSuggestion } from './roster-store.svelte.js';
@@ -309,6 +314,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		// still wordless on the next snapshot, and without this the record the
 		// attachment created would be swept a keystroke later.
 		hasAttachment: () => media?.player.attached === true || media?.pendingName !== undefined,
+		// A deleted or discarded draft's rows leave the table directly, so the
+		// in-session ignore mirror has to be told or it answers for a draft that
+		// no longer has a record — and loses the ignores on reload.
+		ignoreStore: deps.ignoreStore,
 		bindings: {
 			get snapshot() {
 				return editorSession.snapshot;
@@ -821,6 +830,16 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		async importScribe(file) {
 			if (!file.name.toLocaleLowerCase().endsWith('.lls')) {
 				const message = 'Choose a LyricLint Scribe file ending in .lls.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return false;
+			}
+			// Refused on its size rather than after the browser has decoded it, the
+			// way the workspace backup's own restore is: this is the one path where
+			// a shared file becomes workspace state, and `file.text()` is what
+			// spends the memory.
+			if (file.size > maxScribeBytes) {
+				const message = 'This Scribe file is too large to import.';
 				feedback.announce(message);
 				feedback.addToast({ message });
 				return false;

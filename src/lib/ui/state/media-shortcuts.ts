@@ -68,6 +68,13 @@ export function matchTransportAction(
 		return ownsSpace(event.target) ? undefined : 'toggle';
 	}
 	if (event.metaKey || event.shiftKey) return undefined;
+	// AltGr is reported as Control **and** Alt on Windows and X11, which is the
+	// universal fallback's own combination — so on a layout where AltGr+L types a
+	// character (Polish `ł`), claiming it here would make that letter untypeable
+	// anywhere in the workbench for as long as audio is attached, because this
+	// listener is in the capture phase and prevents what it answers. A modifier
+	// the user is holding to write with is not a modifier this transport may read.
+	if (event.getModifierState?.('AltGraph')) return undefined;
 	const primary =
 		transportModifier(platform) === 'Control'
 			? event.ctrlKey && !event.altKey
@@ -218,6 +225,11 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 			: (options.mediaSession ??
 				(typeof navigator === 'undefined' ? undefined : navigator.mediaSession));
 
+	// Whether the space bar now down is one this listener answered. A repeat can
+	// no longer ask — the question is `transport`, and asking it would run the
+	// action — so the press that could ask is what records the answer.
+	let claimedSpace = false;
+
 	function handle(event: Event): void {
 		const keystroke = event as KeyboardEvent;
 
@@ -232,6 +244,7 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 			!spaceTypesOrPresses(keystroke.target) &&
 			options.tap?.()
 		) {
+			claimedSpace = true;
 			keystroke.preventDefault();
 			keystroke.stopPropagation();
 			return;
@@ -243,13 +256,31 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 		// Held down, a nudge is a scrub and that is worth having. Held down, the
 		// middle key would start and stop the track dozens of times a second and
 		// come to rest wherever the last repeat happened to land, so it answers
-		// once per press. Nothing is prevented on the way past: a repeat of a
-		// modifier combination has no default worth taking.
-		if (action === 'toggle' && keystroke.repeat) return;
+		// once per press. A repeat of a modifier combination has no default worth
+		// taking — but a bare space does, and it is the page scrolling: the first
+		// press pauses the tape, and every repeat after it would run the document
+		// out from under the reader still holding the key. Only a space this
+		// listener actually claimed is held on to, or a held space with nothing
+		// attached would be eaten by a control that is not on screen.
+		if (action === 'toggle' && keystroke.repeat) {
+			if (claimedSpace && isBareSpace(keystroke)) keystroke.preventDefault();
+			return;
+		}
 
-		if (!options.transport(action)) return;
+		if (!options.transport(action)) {
+			if (isBareSpace(keystroke)) claimedSpace = false;
+			return;
+		}
+		if (isBareSpace(keystroke)) claimedSpace = true;
 		keystroke.preventDefault();
 		keystroke.stopPropagation();
+	}
+
+	// The key coming up ends whatever the press claimed, so a later held space
+	// over a detached source cannot inherit an answer from the last attached one.
+	function release(event: Event): void {
+		const keystroke = event as KeyboardEvent;
+		if (keystroke.code === 'Space' || keystroke.key === ' ') claimedSpace = false;
 	}
 
 	// Escape and Shift+Escape are the reach-for keys, and unlike the triad they
@@ -289,6 +320,7 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 
 	target.addEventListener('keydown', handle, true);
 	target.addEventListener('keydown', handleEscape, false);
+	target.addEventListener('keyup', release, true);
 
 	const registeredActions: MediaSessionAction[] = [];
 	const mediaActions: Array<[MediaSessionAction, () => void]> = [
@@ -312,6 +344,7 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 	return () => {
 		target.removeEventListener('keydown', handle, true);
 		target.removeEventListener('keydown', handleEscape, false);
+		target.removeEventListener('keyup', release, true);
 		for (const action of registeredActions) {
 			try {
 				mediaSession?.setActionHandler(action, null);

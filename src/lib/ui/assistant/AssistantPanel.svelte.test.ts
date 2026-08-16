@@ -4,7 +4,11 @@ import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { DraftAccessDecision } from '$lib/assistant/permissions.js';
 import AssistantPanel from './AssistantPanel.svelte';
 
-function panelAssistant(decision?: DraftAccessDecision, messages: unknown[] = []) {
+function panelAssistant(
+	decision?: DraftAccessDecision,
+	messages: unknown[] = [],
+	toolSession?: { assistantMessageId: string; phase: string }
+) {
 	const revokeDraftAccess = vi.fn(async () => undefined);
 	const send = vi.fn(async () => undefined);
 	const assistant = {
@@ -14,7 +18,7 @@ function panelAssistant(decision?: DraftAccessDecision, messages: unknown[] = []
 		challengePending: false,
 		busy: false,
 		contextDividerIndex: undefined,
-		toolSession: undefined,
+		toolSession,
 		chats: [
 			{
 				id: 'chat-1',
@@ -171,6 +175,32 @@ describe('the assistant panel', () => {
 
 		expect(send).toHaveBeenCalledWith('And what about a pre-chorus?');
 		expect(distanceFromBottom(transcript)).toBeLessThanOrEqual(1);
+	});
+
+	/**
+	 * `send()` refuses while a tool turn is waiting on a decision, and both submit
+	 * paths clear the composer before asking — so a question typed during a review
+	 * was destroyed and never sent, with nothing on screen saying why. The Enter
+	 * key is where it was actually lost: the send button already refused two of
+	 * the three refusal states, and the key consulted none of them.
+	 */
+	test('keeps a question typed while a tool turn is awaiting review', async () => {
+		const { assistant, send } = panelAssistant(undefined, [], {
+			assistantMessageId: 'message-0',
+			phase: 'awaiting-review'
+		});
+		const { container } = render(AssistantPanel, { assistant });
+		const composer = container.querySelector<HTMLTextAreaElement>('#assistant-question')!;
+
+		await fireEvent.input(composer, { target: { value: 'And what about a pre-chorus?' } });
+		await fireEvent.keyDown(composer, { key: 'Enter' });
+
+		expect(composer.value).toBe('And what about a pre-chorus?');
+		expect(send).not.toHaveBeenCalled();
+		// The button says the same thing the key now does.
+		expect(container.querySelector<HTMLButtonElement>('.assistant-composer__send')!.disabled).toBe(
+			true
+		);
 	});
 
 	test('shows the revoke control only for a stored decision', async () => {

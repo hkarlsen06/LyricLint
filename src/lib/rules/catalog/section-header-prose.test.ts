@@ -73,6 +73,19 @@ describe('section.header-prose', () => {
 		);
 	});
 
+	// `PROSE_LABEL`'s lazy name group in front of two optional trailing groups is
+	// polynomial against a long run of spaces that never reaches a digit or a
+	// colon — measured at 2.1s for one 32,000-character line, on a rule that runs
+	// per line per keystroke. The length ceiling is what makes that impossible;
+	// the bound here is generous because what it is proving is termination.
+	it('refuses a line no reviewed label could be, before the pattern sees it', () => {
+		const text = `[Verse]\na${' '.repeat(32_000)}5x`;
+		const started = performance.now();
+
+		expect(checkRule(rule, text)).toEqual([]);
+		expect(performance.now() - started).toBeLessThan(200);
+	});
+
 	it('keeps each label its own batch so one card cannot sweep up another', () => {
 		const labels = checkRule(rule, 'Verse 1:\nFirst\n\nChorus:\nSecond').flatMap(
 			(finding) => finding.fixes?.map((fix) => fix.label) ?? []

@@ -37,8 +37,11 @@ interface DayState {
 
 /** In-flight slots older than this are presumed leaked (a Worker eviction the
  * `finally` never ran through) and are reclaimed rather than pinning the
- * identifier at its concurrency ceiling forever. */
-const STALE_SLOT_MS = 3 * 60 * 1000;
+ * identifier at its concurrency ceiling forever. Two provider timeouts plus a
+ * minute of margin: a turn resets that timeout once for the repair retry, so a
+ * shorter window reclaims the slot of a request that is still legitimately
+ * running and lets the same session start a second one beside it. */
+const STALE_SLOT_MS = 5 * 60 * 1000;
 
 function utcDay(now: number): string {
 	return new Date(now).toISOString().slice(0, 10);
@@ -133,10 +136,12 @@ export class QuotaCounter implements DurableObject {
 
 		if (url.pathname === '/finish') {
 			const body = (await request.json()) as { slot: string; spendUsd?: number };
-			if (body.slot in state.slots) {
-				delete state.slots[body.slot];
-				state.spendUsd += Math.max(0, body.spendUsd ?? 0);
-			}
+			// Spend is booked whether or not the slot is still here, so releasing
+			// the slot is an unconditional delete rather than the arm of a guard.
+			// A slot reclaimed as stale, or begun before the UTC day rolled, still
+			// cost the money it reports, and it went missing from every ledger.
+			state.spendUsd += Math.max(0, body.spendUsd ?? 0);
+			delete state.slots[body.slot];
 			await this.save(state);
 			return Response.json({ ok: true });
 		}

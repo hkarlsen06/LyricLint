@@ -198,9 +198,59 @@ export const wireToolResultSchema = z.discriminatedUnion('name', [
 		.strict()
 ]);
 
-const providerItemSchema = z
-	.object({ type: z.enum(['reasoning', 'function_call', 'message']) })
-	.passthrough();
+/** The two part types an assistant message can be replayed with. */
+const providerMessageContentSchema = z.discriminatedUnion('type', [
+	z
+		.object({
+			type: z.literal('output_text'),
+			text: z.string(),
+			annotations: z.array(z.unknown()).optional()
+		})
+		.strict(),
+	z.object({ type: z.literal('refusal'), refusal: z.string() }).strict()
+]);
+
+/**
+ * A replay item is handed straight back to the provider as input, so what a
+ * client may send is exactly what `replayableItem` in provider.ts writes: these
+ * three types, these fields, and nothing else. Under a passthrough a client
+ * could put a developer- or system-role message into the model's own input.
+ */
+const providerItemSchema = z.discriminatedUnion('type', [
+	z
+		.object({
+			type: z.literal('function_call'),
+			id: z.string().optional(),
+			status: z.string().optional(),
+			arguments: z.string().max(MAX_TOOL_ARGUMENT_CHARS),
+			call_id: z.string().min(1),
+			name: z.enum(toolNames)
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal('reasoning'),
+			id: z.string().optional(),
+			status: z.string().optional(),
+			summary: z.array(z.unknown()).optional(),
+			content: z.array(z.unknown()).optional(),
+			// The worker only ever asks for encrypted reasoning, so an item
+			// without it is not one it produced.
+			encrypted_content: z.string()
+		})
+		.strict(),
+	z
+		.object({
+			type: z.literal('message'),
+			id: z.string().optional(),
+			status: z.string().optional(),
+			// Never 'developer' or 'system': the item is replayed into the model's
+			// input, so any other role is a prompt the client wrote.
+			role: z.literal('assistant'),
+			content: z.array(providerMessageContentSchema).optional()
+		})
+		.strict()
+]);
 
 export const providerItemsSchema = z
 	.string()
@@ -223,15 +273,41 @@ export function decodeProviderItems(value: string): Array<Record<string, unknown
 	return JSON.parse(value) as Array<Record<string, unknown>>;
 }
 
+const wireToolCallMessageSchema = z
+	.object({
+		role: z.literal('assistant'),
+		toolCalls: z.array(wireToolCallSchema).min(1),
+		providerItems: providerItemsSchema
+	})
+	.strict()
+	.superRefine((value, context) => {
+		// The items are replayed verbatim, so every function call in them must be
+		// one this message declares: an unmatched call is a tool round the browser
+		// never ran, carrying whatever arguments the client chose.
+		let items: unknown;
+		try {
+			items = JSON.parse(value.providerItems);
+		} catch {
+			return;
+		}
+		if (!Array.isArray(items)) return;
+		const declared = new Set(value.toolCalls.map((call) => `${call.name} ${call.callId}`));
+		for (const item of items as Array<Record<string, unknown>>) {
+			if (!item || item['type'] !== 'function_call') continue;
+			if (!declared.has(`${String(item['name'])} ${String(item['call_id'])}`)) {
+				context.addIssue({
+					code: 'custom',
+					path: ['providerItems'],
+					message: 'A replayed function call must match a declared tool call.'
+				});
+				return;
+			}
+		}
+	});
+
 export const wireMessageV2Schema = z.union([
 	z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1) }).strict(),
-	z
-		.object({
-			role: z.literal('assistant'),
-			toolCalls: z.array(wireToolCallSchema).min(1),
-			providerItems: providerItemsSchema
-		})
-		.strict(),
+	wireToolCallMessageSchema,
 	z.object({ role: z.literal('tool'), results: z.array(wireToolResultSchema) }).strict()
 ]);
 
@@ -414,8 +490,13 @@ export function validateAnswer(
 	// citation as both "[syntax.unsupported-voice-markup]" and a chip. A trailing
 	// citation run is that mistake, never content; strip it rather than retract
 	// the answer.
+	//
+	// One superscript per outer iteration, never `[…]+` inside `(?:…)+`: nested
+	// quantifiers over the same character give the engine an exponential number
+	// of ways to split a run, so a long run followed by a non-matching character
+	// never terminated. The outer `+` still consumes the whole run.
 	const trailingCitations =
-		/(?:\s*(?:[⁰¹²³⁴-⁹]+|\[[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*\]))+\s*$/;
+		/(?:\s*(?:[⁰¹²³⁴-⁹]|\[[a-z][a-z0-9]*(?:-[a-z0-9]+)*\.[a-z][a-z0-9]*(?:-[a-z0-9]+)*\]))+\s*$/;
 	answer = {
 		...answer,
 		blocks: answer.blocks.map((block) =>

@@ -214,6 +214,9 @@ export function createHandler(options: HandlerOptions = {}) {
 		const requestId = crypto.randomUUID();
 		let sessionHash: string | undefined;
 		let responseOrigin: string | undefined;
+		/** Set once a challenge has been passed on this request, so every refusal
+		 * below can hand the cookie back. */
+		let rescueCookie: (() => Promise<string>) | undefined;
 		let metricUsage: ProviderUsage | undefined;
 		let metricSpendUsd = 0;
 		try {
@@ -226,9 +229,21 @@ export function createHandler(options: HandlerOptions = {}) {
 				throw new ApiError('invalid_request', 'Origin not allowed.');
 			}
 
-			// Body size before body shape.
+			// Body size before body shape, and a declared size before the body.
+			const declaredLength = request.headers.get('content-length');
+			if (declaredLength !== null && Number(declaredLength) > REQUEST_RULES.maxBodyBytes) {
+				throw new ApiError('invalid_request', 'Request body too large.');
+			}
 			const bodyText = await request.text();
-			if (new TextEncoder().encode(bodyText).byteLength > REQUEST_RULES.maxBodyBytes) {
+			// UTF-8 spends one to four bytes per UTF-16 unit, so a string longer
+			// than the cap is over it whatever it holds, and one under a quarter of
+			// it is under whatever it holds. Only the band between the two pays for
+			// an encoding pass, and an ordinary question is nowhere near it.
+			if (
+				bodyText.length > REQUEST_RULES.maxBodyBytes ||
+				(bodyText.length * 4 > REQUEST_RULES.maxBodyBytes &&
+					new TextEncoder().encode(bodyText).byteLength > REQUEST_RULES.maxBodyBytes)
+			) {
 				throw new ApiError('invalid_request', 'Request body too large.');
 			}
 			let parsedBody: unknown;
@@ -253,6 +268,13 @@ export function createHandler(options: HandlerOptions = {}) {
 			// --- Anonymous session -------------------------------------------------
 			const ip = request.headers.get('cf-connecting-ip') ?? undefined;
 			const ipHash = ip ? await hashIdentifier('ip', ip, env.ABUSE_HMAC_SECRET) : 'no-ip';
+			// The IP throttle runs ahead of the challenge, because verifying one is
+			// a subrequest to Cloudflare and a flood must not be able to buy one per
+			// request. The session throttle cannot move here: there is no session to
+			// key it on until the cookie has been read or a challenge has passed.
+			if (!(await env.IP_MINUTE_LIMIT.limit({ key: ipHash })).success) {
+				throw new ApiError('rate_limited', 'Slow down a little and try again.');
+			}
 			const verify =
 				options.verifyTurnstile ??
 				turnstileVerifier(env.TURNSTILE_SECRET, env.TURNSTILE_ALLOW_LOCALHOST === 'true');
@@ -288,13 +310,13 @@ export function createHandler(options: HandlerOptions = {}) {
 					await signSession(state, env.SESSION_SIGNING_SECRET),
 					new URL(request.url).protocol === 'https:'
 				);
+			// A passed challenge survives every refusal below — the session
+			// throttle, a quota the Durable Object declines, a failed answer — so
+			// the retry never costs the user a second Turnstile pass.
+			if (needsChallenge) rescueCookie = setCookie;
 
-			// --- Fast approximate minute throttles ---------------------------------
-			const [sessionMinute, ipMinute] = await Promise.all([
-				env.SESSION_MINUTE_LIMIT.limit({ key: sessionHash }),
-				env.IP_MINUTE_LIMIT.limit({ key: ipHash })
-			]);
-			if (!sessionMinute.success || !ipMinute.success) {
+			// --- Fast approximate minute throttle ----------------------------------
+			if (!(await env.SESSION_MINUTE_LIMIT.limit({ key: sessionHash })).success) {
 				throw new ApiError('rate_limited', 'Slow down a little and try again.');
 			}
 
@@ -311,27 +333,42 @@ export function createHandler(options: HandlerOptions = {}) {
 				);
 			};
 
-			const sessionQuota = await begin(`s:${sessionHash}`, {
-				dailyLimit: LIMITS.sessionPerDay,
-				concurrentLimit: LIMITS.sessionConcurrent,
-				spendLimitUsd: LIMITS.sessionDailySpendUsd
-			});
-			const ipQuota = sessionQuota.ok
-				? await begin(`i:${ipHash}`, {
-						dailyLimit: LIMITS.ipPerDay,
-						concurrentLimit: LIMITS.ipConcurrent,
-						spendLimitUsd: LIMITS.ipDailySpendUsd
-					})
-				: undefined;
-			const globalQuota =
-				ipQuota?.ok === true
-					? await begin('global', {
-							dailyLimit: Number.MAX_SAFE_INTEGER,
-							concurrentLimit: LIMITS.globalConcurrent,
-							spendLimitUsd: LIMITS.globalDailySpendUsd,
-							reserveSpendUsd: GLOBAL_REQUEST_SPEND_RESERVATION_USD
-						})
-					: undefined;
+			// A begin that *throws* rather than refusing leaves every slot already
+			// held: unreleased, the session sits at its concurrency ceiling until
+			// the stale window passes and keeps a daily unit for a request that
+			// never reached the model.
+			const beginAll = async (): Promise<
+				[BeginResult, BeginResult | undefined, BeginResult | undefined]
+			> => {
+				try {
+					const forSession = await begin(`s:${sessionHash}`, {
+						dailyLimit: LIMITS.sessionPerDay,
+						concurrentLimit: LIMITS.sessionConcurrent,
+						spendLimitUsd: LIMITS.sessionDailySpendUsd
+					});
+					const forIp = forSession.ok
+						? await begin(`i:${ipHash}`, {
+								dailyLimit: LIMITS.ipPerDay,
+								concurrentLimit: LIMITS.ipConcurrent,
+								spendLimitUsd: LIMITS.ipDailySpendUsd
+							})
+						: undefined;
+					const forGlobal =
+						forIp?.ok === true
+							? await begin('global', {
+									dailyLimit: Number.MAX_SAFE_INTEGER,
+									concurrentLimit: LIMITS.globalConcurrent,
+									spendLimitUsd: LIMITS.globalDailySpendUsd,
+									reserveSpendUsd: GLOBAL_REQUEST_SPEND_RESERVATION_USD
+								})
+							: undefined;
+					return [forSession, forIp, forGlobal];
+				} catch (error) {
+					await releaseAll('/cancel');
+					throw error;
+				}
+			};
+			const [sessionQuota, ipQuota, globalQuota] = await beginAll();
 			const refusal = [sessionQuota, ipQuota, globalQuota].find((result) => result && !result.ok);
 			if (refusal) {
 				await releaseAll('/cancel');
@@ -729,15 +766,10 @@ export function createHandler(options: HandlerOptions = {}) {
 				return json(env, responseBody, 200, responseHeaders, responseOrigin);
 			} catch (error) {
 				// The attempt happened: keep the daily unit, release the slots, count
-				// any spend the failed call still incurred.
+				// any spend the failed call still incurred. The cookie a passed
+				// challenge earned is handed back by the outer catch, which is the
+				// one place every refusal on this request passes through.
 				await releaseAll('/finish', spendUsd);
-				if (error instanceof ApiError && needsChallenge) {
-					// A passed challenge survives a failed answer: the retry must not
-					// cost the user a second Turnstile pass.
-					(error as ApiError & { headers?: Record<string, string> }).headers = {
-						'set-cookie': await setCookie()
-					};
-				}
 				throw error;
 			}
 		} catch (error) {
@@ -767,7 +799,7 @@ export function createHandler(options: HandlerOptions = {}) {
 				spendUsd: metricSpendUsd,
 				requestId
 			});
-			const headers = (apiError as ApiError & { headers?: Record<string, string> }).headers;
+			const headers = rescueCookie ? { 'set-cookie': await rescueCookie() } : undefined;
 			return json(
 				env,
 				{ requestId, ...errorBody(apiError) },

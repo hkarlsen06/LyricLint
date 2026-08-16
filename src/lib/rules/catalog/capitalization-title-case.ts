@@ -1,8 +1,16 @@
 import type { Diagnostic, RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, hasUnsupportedMarkup, maskedMarkupText } from './utils.js';
 
+/**
+ * Words, bounded by what a letter is rather than by `\b`. That escape is ASCII,
+ * so `Ærlig` began at its second character and counted as lowercase, and `Café`
+ * stopped at `Caf` — the two ways this rule misread every accented language it
+ * was pointed at. A combining mark belongs to the letter in front of it.
+ */
+const WORD = /(?<![\p{L}\p{M}'’-])[\p{L}][\p{L}\p{M}'’-]*/gu;
+
 function looksTitleCased(text: string): boolean {
-	const words = Array.from(text.matchAll(/\b[\p{L}][\p{L}'’-]*\b/gu), (match) => match[0]);
+	const words = Array.from(text.matchAll(WORD), (match) => match[0]);
 	if (words.length < 4) {
 		return false;
 	}

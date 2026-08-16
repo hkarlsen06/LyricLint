@@ -3,6 +3,7 @@ import 'fake-indexeddb/auto';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { assistantDraftAccessKey } from '$lib/assistant/permissions.js';
 import { createWorkspaceBackup, parseWorkspaceBackup, WorkspaceBackupError } from './backup.js';
 import { closeDatabase, openDatabase, type LyricLintDatabase } from './database.js';
 import { createDraftIgnoreStore } from './draft-ignores.js';
@@ -191,10 +192,69 @@ describe('workspace backup', () => {
 		});
 		expect(destinationIgnores.list('a')).toEqual(['diagnostic:local']);
 		expect(destinationIgnores.list(importedCollision?.id as string)).toEqual(['diagnostic:a']);
+		// On disk by the time `restore` resolves, and written by the restore's own
+		// transaction rather than by the store behind it: the caller reloads the
+		// page the moment this returns, and a put still queued at unload aborts.
+		expect(await destination.draftIgnores.get(importedCollision?.id as string)).toMatchObject({
+			keys: ['diagnostic:a']
+		});
+		expect(await destination.draftIgnores.get('a')).toMatchObject({
+			keys: ['diagnostic:local']
+		});
 		// The restore wrote through the store, so a reload's fresh hydration —
 		// a new store over the same database — sees the imported ignores too.
 		const rehydrated = await createDraftIgnoreStore(destination);
 		expect(rehydrated.list(importedCollision?.id as string)).toEqual(['diagnostic:a']);
+		sourceBackup.destroy();
+		destinationBackup.destroy();
+	});
+
+	/*
+	 * `assistantDraftAccess:<id>` names a draft, and an import may not land its
+	 * drafts under the ids they were written with — so imported verbatim, a read
+	 * decision answered for whichever local draft happened to hold the old id,
+	 * and one whose draft never made it into the import stayed as an orphan
+	 * nothing sweeps, because deleting a draft clears only its own key.
+	 */
+	it('remaps an imported assistant read decision and drops one with no draft', async () => {
+		const source = await database('assistant-access-source');
+		await source.drafts.add(draft('a', '[Verse]\nOne'));
+		await source.appMetadata.bulkAdd([
+			{
+				key: assistantDraftAccessKey('a'),
+				value: '{"decision":"granted","decidedAt":"2026-07-02T10:00:00.000Z"}',
+				updatedAt: '2026-07-02T10:00:00.000Z'
+			},
+			{
+				key: assistantDraftAccessKey('gone'),
+				value: '{"decision":"denied","decidedAt":"2026-07-02T10:00:00.000Z"}',
+				updatedAt: '2026-07-02T10:00:00.000Z'
+			}
+		]);
+		const sourceBackup = createWorkspaceBackup(source, { now: () => '2026-07-27T12:00:00.000Z' });
+		const json = await sourceBackup.serialize();
+
+		// The destination already holds a draft `a`, so the import lands under a
+		// fresh id and the decision has to follow it.
+		const destination = await database('assistant-access-destination');
+		await destination.drafts.add(draft('a', 'local collision'));
+		const destinationBackup = createWorkspaceBackup(destination, {
+			now: () => '2026-07-27T13:00:00.000Z'
+		});
+
+		await destinationBackup.restore(
+			new File([json], 'LyricLint backup.json', { type: 'application/json' })
+		);
+
+		const imported = (await destination.drafts.toArray()).find(
+			(record) => record.text === '[Verse]\nOne'
+		);
+		expect(
+			await destination.appMetadata.get(assistantDraftAccessKey(imported?.id as string))
+		).toMatchObject({ value: '{"decision":"granted","decidedAt":"2026-07-02T10:00:00.000Z"}' });
+		expect(await destination.appMetadata.get(assistantDraftAccessKey('a'))).toBeUndefined();
+		expect(await destination.appMetadata.get(assistantDraftAccessKey('gone'))).toBeUndefined();
+
 		sourceBackup.destroy();
 		destinationBackup.destroy();
 	});

@@ -7,9 +7,11 @@ import type {
 } from './media-spotify.js';
 import {
 	createSpotifySource,
+	loadSpotifySdk,
 	parseSpotifyTrackId,
 	searchSpotifyTracks,
-	spotifyConnectTimeoutMs
+	spotifyConnectTimeoutMs,
+	spotifySdkLoadTimeoutMs
 } from './media-spotify.js';
 import type { MediaSourceEvents } from './media-player.svelte.js';
 import {
@@ -21,6 +23,34 @@ import {
 } from './spotify-auth.js';
 
 const trackId = '4cOdK2wGLETKBW3PvgPWqT';
+const otherTrackId = '1301WleyT98MSxVHPZCA6M';
+
+/**
+ * The load that never answers, and what it costs three surfaces away.
+ *
+ * An ad blocker, a content policy or a stalled CDN leaves the script tag in the
+ * document and the callback uncalled — and with no timeout that promise is
+ * pending for the life of the page, so `attachSpotifyTrack`'s `finally` never
+ * runs and `busy` stays true, which disables the whole picker. This is the same
+ * assertion the YouTube loader carries in `media-player.test.ts`.
+ */
+describe('loading the Spotify SDK', () => {
+	it('rejects when the script never answers', async () => {
+		vi.useFakeTimers();
+		vi.stubGlobal('document', {
+			createElement: () => ({ src: '', async: false, addEventListener: vi.fn() }),
+			head: { appendChild: vi.fn() }
+		});
+
+		const loading = loadSpotifySdk();
+		const rejected = expect(loading).rejects.toThrow('did not load in time');
+
+		await vi.advanceTimersByTimeAsync(spotifySdkLoadTimeoutMs);
+		await rejected;
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+});
 
 describe('parseSpotifyTrackId', () => {
 	it('reads the forms that actually reach a clipboard', () => {
@@ -140,6 +170,65 @@ class StubSpotifyPlayer implements SpotifyPlayerLike {
 	emit(event: string, payload: unknown): void {
 		this.listeners.get(event)?.(payload as never);
 	}
+}
+
+function spyEvents(): MediaSourceEvents {
+	return {
+		timeChanged: vi.fn(),
+		durationChanged: vi.fn(),
+		ratesChanged: vi.fn(),
+		named: vi.fn(),
+		artworkChanged: vi.fn(),
+		detailsChanged: vi.fn(),
+		started: vi.fn(),
+		stopped: vi.fn(),
+		ended: vi.fn(),
+		failed: vi.fn()
+	};
+}
+
+/** A macrotask, which is long enough for anything queued to have run. */
+async function settle(): Promise<void> {
+	await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * A source whose metadata read for `trackId` hangs until the test answers it.
+ *
+ * Every other read answers at once, so a second `load` can overtake the first —
+ * which is the whole shape of the staleness this is for.
+ */
+function trackReadHarness(events: MediaSourceEvents): {
+	source: SpotifySource;
+	pending: () => boolean;
+	reject: (error: Error) => void;
+} {
+	let rejectRead: ((error: Error) => void) | undefined;
+	const source = createSpotifySource({
+		events,
+		loadSdk: async () => ({
+			Player: class extends StubSpotifyPlayer {} as unknown as SpotifySdk['Player']
+		}),
+		token: async () => 'token',
+		request: (async (url: RequestInfo | URL) => {
+			if (String(url).includes(`/tracks/${trackId}`)) {
+				return await new Promise<Response>((_, reject) => {
+					rejectRead = reject;
+				});
+			}
+			return new Response(JSON.stringify({ name: 'Other' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			});
+		}) as typeof fetch,
+		schedule: () => () => {}
+	});
+
+	return {
+		source,
+		pending: () => rejectRead !== undefined,
+		reject: (error) => rejectRead?.(error)
+	};
 }
 
 interface Harness {
@@ -354,6 +443,42 @@ describe('createSpotifySource', () => {
 		});
 	});
 
+	/**
+	 * A read for the track the user has already moved off says nothing.
+	 *
+	 * The success path has always checked this (`trackId !== id`), because a name
+	 * arriving late for the wrong track would rename the strip. The failure path
+	 * did not, so a read that was still in flight when the user picked another
+	 * track put `Spotify could not be reached.` on a strip that had just attached
+	 * something else — an error about an attachment that no longer exists,
+	 * arriving after the one that replaced it had succeeded.
+	 */
+	it('reports a failed track read only while that track is still the one attached', async () => {
+		const stale = spyEvents();
+		const staleSource = trackReadHarness(stale);
+		void staleSource.source.load(trackId);
+		await vi.waitFor(() => expect(staleSource.pending()).toBe(true));
+
+		// The user picks another track before the first read comes back.
+		void staleSource.source.load(otherTrackId);
+		staleSource.reject(new Error('offline'));
+		await settle();
+
+		expect(stale.failed).not.toHaveBeenCalled();
+
+		// And the same read, unsuperseded, still reports — or the guard above would
+		// be silence rather than staleness.
+		const live = spyEvents();
+		const liveSource = trackReadHarness(live);
+		void liveSource.source.load(trackId);
+		await vi.waitFor(() => expect(liveSource.pending()).toBe(true));
+		liveSource.reject(new Error('offline'));
+
+		await vi.waitFor(() =>
+			expect(live.failed).toHaveBeenCalledWith('Spotify could not be reached.')
+		);
+	});
+
 	it('fails a device registration that never becomes ready', async () => {
 		vi.useFakeTimers();
 		const events = {
@@ -478,8 +603,40 @@ describe('the Spotify session', () => {
 			assign
 		});
 
-		await expect(beginSpotifySignIn('query')).resolves.toBeUndefined();
+		// False rather than nothing: a refusal the caller cannot see is what put
+		// `No matches on Spotify` under a valid track link in a private window.
+		await expect(beginSpotifySignIn('query')).resolves.toBe(false);
 		expect(assign).not.toHaveBeenCalled();
+		vi.unstubAllGlobals();
+	});
+
+	/**
+	 * `JSON.parse` answers more than an object, and one of those answers is `null`.
+	 *
+	 * A stored `null` — or `{}`, or anything else that ever reached this key —
+	 * parsed without throwing, so the module held it as a session: `spotifySignedIn()`
+	 * said yes over nothing at all, the picker offered a search that needed no
+	 * sign-in, and the request went out as `Bearer undefined`. The shape is what
+	 * decides, and what fails it is cleared rather than re-read on the next miss.
+	 */
+	it('reads a stored value that is not a session as no session', () => {
+		const store = new Map<string, string>();
+		vi.stubGlobal('sessionStorage', {
+			getItem: (key: string) => store.get(key) ?? null,
+			setItem: (key: string, value: string) => void store.set(key, value),
+			removeItem: (key: string) => void store.delete(key)
+		});
+		vi.stubGlobal('location', { protocol: 'https:', hostname: '127.0.0.1', origin: 'https://x' });
+
+		for (const stored of ['null', '{}', '{"accessToken":"a"}', '"a"']) {
+			setSpotifyTokens(undefined);
+			store.set('lyriclint:spotify:tokens', stored);
+			expect(spotifySignedIn(), stored).toBe(false);
+			// And it is gone, so the next miss does not re-read the same rubbish.
+			expect(store.size, stored).toBe(0);
+		}
+
+		setSpotifyTokens(undefined);
 		vi.unstubAllGlobals();
 	});
 

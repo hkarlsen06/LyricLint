@@ -176,6 +176,42 @@ describe('spelling.standardized', () => {
 		]);
 	});
 
+	// The exact patterns are cross-language on purpose — somebody who typed
+	// `trynna` typed the English form wherever they typed it — but a handful of
+	// them are ordinary words somewhere else, and every one of those carried a
+	// *safe* fix. `Fix N automatically` therefore rewrote correct Norwegian,
+	// German and French lyrics mechanically, with no card asking anything.
+	it('holds the ambiguous reviewed spellings to English drafts', () => {
+		expect(checkRule(rule, '[Vers 1]\nÆ e ei jente', { language: 'no' })).toEqual([]);
+		expect(checkRule(rule, '[Strophe 1]\nDas Ei ist gut', { language: 'de' })).toEqual([]);
+		expect(checkRule(rule, '[Vers 1]\nDet går ok, cause det må', { language: 'no' })).toEqual([]);
+		expect(checkRule(rule, '[Couplet 1]\nElle est naïve', { language: 'fr' })).toEqual([]);
+
+		// The unambiguous members of the same entries are nobody's word, so they
+		// still match everywhere, exactly as `trynna` does.
+		expect(fixInserts(checkRule(rule, '[Vers 1]\nayee og ayyy', { language: 'no' }))).toEqual([
+			'ayy',
+			'ayy'
+		]);
+	});
+
+	it('still catches those spellings in an English draft', () => {
+		expect(fixInserts(checkRule(rule, '[Verse]\nEy, ei come here'))).toEqual(['Ayy', 'ayy']);
+		expect(fixInserts(checkRule(rule, '[Verse]\nIt goes ok, cause naïve'))).toEqual([
+			'okay',
+			"'cause",
+			'naive'
+		]);
+	});
+
+	// The Italian elision, excluded by shape rather than by the language gate: a
+	// token carrying its own apostrophe is not the word `cos` standing for
+	// `because`, whichever pack is selected.
+	it('never reads an elided token as the shortened “because”', () => {
+		expect(checkRule(rule, '[Verse]\nNon so cos’è')).toEqual([]);
+		expect(checkRule(rule, "[Verse]\nNon so cos'è")).toEqual([]);
+	});
+
 	it('gates the American “til” spelling on the selected language', () => {
 		expect(checkRule(rule, '[Verse]\nStay til dawn')).toEqual([]);
 		expect(checkRule(rule, '[Verse]\nStay til dawn', { language: 'en-US' })).toHaveLength(1);

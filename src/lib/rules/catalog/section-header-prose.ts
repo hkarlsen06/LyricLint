@@ -13,6 +13,17 @@ import { diagnostic, replacementFix } from './utils.js';
  */
 const PROSE_LABEL = /^(?<name>\p{L}[\p{L} '’-]*?)(?:\s+(?<ordinal>\d+))?\s*(?<colon>:)?$/u;
 
+/**
+ * A ceiling on what `PROSE_LABEL` is even shown. The pattern's lazy name group
+ * sits in front of two optional trailing groups, which is polynomial against a
+ * long run of spaces that never reaches a digit or a colon — measured at 2.1s
+ * for a single 32,000-character line, on a rule that runs per line per
+ * keystroke. The longest reviewed song-part term is a few dozen characters, and
+ * a label is one of those plus an ordinal, so nothing this rule can recognize
+ * comes close.
+ */
+const LONGEST_PROSE_LABEL = 120;
+
 interface RecognizedTerm {
 	term: string;
 	sourceIds: readonly string[];
@@ -169,7 +180,12 @@ function proseHeader(
 		return undefined;
 	}
 
-	const groups = PROSE_LABEL.exec(line.text.trim())?.groups;
+	const trimmed = line.text.trim();
+	if (trimmed.length > LONGEST_PROSE_LABEL) {
+		return undefined;
+	}
+
+	const groups = PROSE_LABEL.exec(trimmed)?.groups;
 	const name = groups?.name;
 	if (!name) {
 		return undefined;

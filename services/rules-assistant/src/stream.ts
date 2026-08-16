@@ -5,7 +5,16 @@ export type AnswerStreamEvent =
 	| { type: 'retrying' }
 	| { type: 'block_start'; kind: AnswerBlock['kind'] }
 	| { type: 'text_delta'; delta: string }
-	| { type: 'block_done'; kind: AnswerBlock['kind']; ruleIds: string[]; sourceIds: string[] };
+	| {
+			type: 'block_done';
+			kind: AnswerBlock['kind'];
+			ruleIds: string[];
+			sourceIds: string[];
+			/** The validated text, present only where validation did not merely
+			 * extend what was streamed — a stripped trailing citation is the one
+			 * thing that does this. The client replaces its assembled text with it. */
+			text?: string;
+	  };
 
 interface EmittedBlock {
 	kind: AnswerBlock['kind'];
@@ -136,7 +145,12 @@ export class IncrementalAnswerStream {
 				this.blocks.push(emitted);
 				this.emit({ type: 'block_start', kind: block.kind });
 			}
-			if (block.text.startsWith(emitted.text)) {
+			// Text already sent can only be appended to, so a validated text that
+			// is not an extension of it — validation strips a trailing citation
+			// run, which shortens it — rides the completion as a replacement
+			// rather than going undelivered.
+			const appendsOnly = block.text.startsWith(emitted.text);
+			if (appendsOnly) {
 				const residual = block.text.slice(emitted.text.length);
 				if (residual) {
 					emitted.text = block.text;
@@ -149,8 +163,10 @@ export class IncrementalAnswerStream {
 				// moved this block off the kind its block_start announced.
 				kind: block.kind,
 				ruleIds: block.ruleIds,
-				sourceIds: block.sourceIds
+				sourceIds: block.sourceIds,
+				...(appendsOnly ? {} : { text: block.text })
 			});
+			emitted.text = block.text;
 		}
 	}
 }

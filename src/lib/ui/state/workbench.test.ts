@@ -12,6 +12,7 @@ import type {
 	SectionLink
 } from '$lib/core/types.js';
 import { describe, expect, test, vi } from 'vitest';
+import { createAutosaveController } from '$lib/persistence/autosave.js';
 import {
 	createContractIgnoreStore,
 	createInMemoryDraftRepository,
@@ -441,26 +442,41 @@ describe('workbench draft safety', () => {
 		expect(controlled.scheduled.at(-1)?.draft.text).toBe(first.text);
 	});
 
-	test('accepts revision 1 after two draft switches and schedules the edit', async () => {
+	/*
+	 * Against the *real* autosave controller, because the thing under test is its
+	 * revision guard and a stub has none — driven by one, this test agreed with
+	 * the bug for as long as it existed.
+	 *
+	 * Reopening a draft mounts a fresh editor, whose revisions start again at
+	 * zero, so the mark the first visit left behind stood over a second visit
+	 * whose first save was revision 1 and every save of it was dropped as stale.
+	 * A sync run never out-types the old mark, because an anchor changes no text:
+	 * a reopened draft's whole timing pass was written nowhere.
+	 */
+	test('writes an edit made after two draft switches, past the real revision guard', async () => {
 		const first = draft('draft-a');
 		const second = draft('draft-b');
 		const repository = createInMemoryDraftRepository([first, second]);
-		const controlled = controllableAutosave(repository);
+		const autosave = createAutosaveController(repository, { debounceMs: 0 });
 		const { controller } = setup({
 			initial: first,
 			drafts: [first, second],
 			repository,
-			autosave: controlled.autosave
+			autosave
 		});
+
+		// The first visit types, which is what leaves a high-water mark behind.
+		controller.onSnapshot(snapshot(first, 5, '[Verse]\nTyped before switching away'));
+		await autosave.flush();
 
 		await controller.openDraft(second.id);
 		await controller.openDraft(first.id);
 		const edited = snapshot(first, 1, '[Verse]\nEdited after switching twice');
 		controller.onSnapshot(edited);
+		await autosave.flush();
 
 		expect(controller.snapshot.text).toBe(edited.text);
-		expect(controlled.scheduled.at(-1)?.draft.text).toBe(edited.text);
-		expect(controlled.scheduled.at(-1)?.draft.id).toBe(first.id);
+		expect((await repository.get(first.id))?.text).toBe(edited.text);
 	});
 
 	test('flushes the previous draft before creating a new one, and writes nothing for the new one', async () => {

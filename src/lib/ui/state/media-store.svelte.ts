@@ -3,13 +3,14 @@ import type { MediaRepository } from '$lib/persistence/media-repository.js';
 import type { FeedbackState } from './feedback.svelte.js';
 import type { MediaPlayer, MediaSourceKind } from './media-player.svelte.js';
 import { createMediaPlayer } from './media-player.svelte.js';
-import { parseYouTubeVideoId } from './media-youtube.js';
+import { isYouTubeVideoId, parseYouTubeVideoId } from './media-youtube.js';
 import type { SpotifySearchOutcome } from './media-spotify.js';
-import { parseSpotifyTrackId, searchSpotifyTracks } from './media-spotify.js';
+import { isSpotifyTrackId, parseSpotifyTrackId, searchSpotifyTracks } from './media-spotify.js';
 import type { AppleMusicSearchOutcome } from './media-apple.js';
 import {
 	appleMusicConfigured,
 	configureAppleMusic,
+	isAppleMusicSongId,
 	parseAppleMusicSongId,
 	searchAppleMusicSongs
 } from './media-apple.js';
@@ -69,6 +70,26 @@ const positionWriteIntervalMs = 5000;
  * draft` the user renames beats a title they have to clear first.
  */
 const longestFilenameTitle = 60;
+
+/**
+ * What a press refused for being too early says.
+ *
+ * `undefined` is the *success* contract on every one of these methods, so a busy
+ * branch that answered with it told the picker the link had been taken and let it
+ * close over nothing at all. A refusal has to read as one.
+ */
+const stillAttaching = 'Something else is still being attached. Try that again in a moment.';
+
+/**
+ * And what a sign-in that could not even leave the page says.
+ *
+ * `sessionStorage` is where the PKCE verifier and the intent ride across the
+ * redirect, so a browser refusing it — a private window, storage full — cannot
+ * begin the flow at all. Silent, that came back to the picker as an empty result
+ * set: `No matches on Spotify` over a valid track link.
+ */
+const signInStorageRefused =
+	'Spotify sign-in needs this browser’s session storage, which it is refusing. A normal window rather than a private one will work.';
 
 /**
  * A filename as a draft title, or nothing when it is one of the long ones.
@@ -291,6 +312,13 @@ export interface MediaStore {
 	destroy(): void;
 }
 
+/** Whether a pasted source names its id in that source's own alphabet. */
+function pastedIdIsWellFormed(source: ClipboardMediaSource): boolean {
+	if (source.kind === 'youtube') return isYouTubeVideoId(source.id);
+	if (source.kind === 'spotify') return isSpotifyTrackId(source.id);
+	return isAppleMusicSongId(source.id);
+}
+
 async function defaultPickFile(): Promise<
 	{ file: File; handle?: FileSystemFileHandle } | undefined
 > {
@@ -347,6 +375,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 	const clock = deps.clock ?? (() => Date.now());
 	let openGeneration = 0;
+	// Anything that changes what this draft is attached to supersedes a reconnect
+	// still waiting on a prompt, a picker or a sign-in — see `reconnect`.
+	let attachGeneration = 0;
 
 	let pendingName = $state<string | undefined>(undefined);
 	let pendingSource = $state<MediaSourceKind | undefined>(undefined);
@@ -404,7 +435,25 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		});
 	});
 
-	async function remember(file: File, handle?: FileSystemFileHandle): Promise<void> {
+	/**
+	 * Write the file down, and the playhead it is being reopened at.
+	 *
+	 * The position is a **parameter** rather than a read of `pendingPosition`, and
+	 * that is the whole of a data-loss bug rather than a preference. Every caller
+	 * runs `adopt()` first — which claims the attachment and clears the pending
+	 * fields — so by the time this ran, the position a restored record had just
+	 * handed over was already gone and the record was rewritten without it. The
+	 * dedup in `flushPosition` then made sure nothing put it back, because `claim`
+	 * had recorded that number as the last one written. On Firefox and Safari
+	 * there is no picker API, so *every* reconnect takes the re-pick path: attach
+	 * the file again, close the tab without pressing play, and the playhead was
+	 * gone. The caller reads it before it adopts.
+	 */
+	async function remember(
+		file: File,
+		handle?: FileSystemFileHandle,
+		position?: number
+	): Promise<void> {
 		try {
 			await deps.repository.attach({
 				draftId: deps.draftId(),
@@ -412,7 +461,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				size: file.size,
 				source: 'file',
 				handle,
-				...(pendingPosition === undefined ? {} : { position: pendingPosition })
+				...(position === undefined ? {} : { position })
 			});
 		} catch {
 			// Playback still works for this session; only the memory of it is lost.
@@ -568,8 +617,12 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			try {
 				const picked = await pickFile();
 				if (!picked) return false;
+				// Read before `adopt`, which clears it. The picked file is usually a
+				// different song and carries no position — but a re-pick of the one
+				// the draft was already on is exactly how Firefox and Safari reconnect.
+				const restored = pendingPosition;
 				adopt(picked.file, picked.handle);
-				await remember(picked.file, picked.handle);
+				await remember(picked.file, picked.handle, restored);
 				return true;
 			} finally {
 				busy = false;
@@ -577,8 +630,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		},
 
 		async attachFile(file, handle) {
+			const restored = pendingPosition;
 			adopt(file, handle);
-			await remember(file, handle);
+			await remember(file, handle, restored);
 		},
 
 		/**
@@ -592,7 +646,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		async attachYouTube(url) {
 			const parsed = parseYouTubeVideoId(url);
 			if ('error' in parsed) return parsed.error;
-			if (busy) return undefined;
+			if (busy) return stillAttaching;
 
 			busy = true;
 			try {
@@ -633,11 +687,16 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			const parsed = parseSpotifyTrackId(url);
 			if ('error' in parsed) return parsed.error;
 			if (!spotifyConfigured()) return 'Spotify is not configured for this build.';
-			if (busy) return undefined;
+			if (busy) return stillAttaching;
 
 			if (!spotifySignedIn()) {
 				if (!spotifyRedirectAllowed()) return spotifyInsecureOriginMessage();
-				await beginSpotifySignIn(spotifyLink(parsed.trackId));
+				// False is the page still standing: the flow could not be started, so
+				// the caller has to say so rather than close over a redirect that is
+				// not happening.
+				if (!(await beginSpotifySignIn(spotifyLink(parsed.trackId)))) {
+					return signInStorageRefused;
+				}
 				return undefined;
 			}
 
@@ -669,7 +728,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			// search is not lost to the sign-in that it triggered.
 			if (!spotifySignedIn()) {
 				if (!spotifyRedirectAllowed()) return { error: spotifyInsecureOriginMessage() };
-				await beginSpotifySignIn(trimmed);
+				if (!(await beginSpotifySignIn(trimmed))) return { error: signInStorageRefused };
 				return { signingIn: true };
 			}
 
@@ -815,6 +874,14 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			// it would be a pending press whose sign-in has nowhere to go.
 			if (source.kind === 'spotify' && !spotifyConfigured()) return false;
 			if (source.kind === 'apple' && !appleMusicConfigured()) return false;
+			// An id off a pasted fragment is a string somebody else wrote, and the
+			// clipboard parser only caps its length. Everything downstream reads it
+			// as an id and nothing re-checks: it is interpolated into a catalogue
+			// path that carries this session's own bearer token, into an attribution
+			// link, and into a thumbnail address. Each source's own alphabet is the
+			// gate, asked here because this is the one entry point that did not
+			// already come through a parser.
+			if (!pastedIdIsWellFormed(source)) return false;
 
 			busy = true;
 			try {
@@ -881,6 +948,14 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		async reconnect() {
 			if (busy) return;
 			busy = true;
+			// A reconnect waits on things that take as long as a person does — a
+			// permission prompt, a file picker, a sign-in — and the row it was
+			// pressed from keeps its Forget control the whole time. Detaching in that
+			// window has to win: the handle was read before the await, so a
+			// continuation that carried on would resurrect the attachment the user
+			// has just thrown away, and write its record back.
+			const generation = ++attachGeneration;
+			const superseded = () => generation !== attachGeneration;
 			try {
 				// A remembered video is the same shape of question as a remembered
 				// file handle — the browser will not act on either without a gesture,
@@ -905,7 +980,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 							feedback.announce(spotifyInsecureOriginMessage());
 							return;
 						}
-						await beginSpotifySignIn(spotifyLink(trackId));
+						if (!(await beginSpotifySignIn(spotifyLink(trackId)))) {
+							feedback.announce(signInStorageRefused);
+						}
 						return;
 					}
 					await adoptTrack(trackId, pendingName ?? provisionalTrackName(trackId));
@@ -928,6 +1005,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				const handle = pendingHandle;
 				if (handle?.requestPermission) {
 					const permission = await handle.requestPermission({ mode: 'read' });
+					if (superseded()) return;
 					if (permission !== 'granted') {
 						feedback.announce('Permission to read that audio file was declined.');
 						return;
@@ -936,24 +1014,36 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 				if (handle) {
 					try {
-						adopt(await handle.getFile(), handle);
+						const file = await handle.getFile();
+						if (superseded()) return;
+						adopt(file, handle);
 						return;
 					} catch {
+						if (superseded()) return;
 						// Moved, renamed, or deleted since it was attached.
 						feedback.announce(`${pendingName ?? 'That file'} could not be reopened.`);
 					}
 				}
 
+				// The position the record was carrying, read before `adopt` clears it:
+				// on a browser with no picker API this branch *is* the reconnect, so a
+				// re-pick that dropped it would lose the playhead of every draft on
+				// Firefox and Safari.
+				const restored = pendingPosition;
 				const picked = await pickFile();
-				if (!picked) return;
+				if (!picked || superseded()) return;
 				adopt(picked.file, picked.handle);
-				await remember(picked.file, picked.handle);
+				await remember(picked.file, picked.handle, restored);
 			} finally {
 				busy = false;
 			}
 		},
 
 		async detach() {
+			// Before anything else: a reconnect waiting on a permission prompt or a
+			// picker is answered by this press, and its continuation must not put
+			// back what is being thrown away here.
+			attachGeneration += 1;
 			const detached = player.name ?? pendingName;
 			// Before the player is torn down: its `pause` reports one last position,
 			// and writing that to a record about to be deleted would put the row
@@ -972,6 +1062,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 		async openFor(draftId) {
 			const generation = ++openGeneration;
+			// Another draft is another attachment, so a reconnect still waiting on
+			// the one being left is superseded exactly as a detach supersedes it.
+			attachGeneration += 1;
 			// Whatever was playing belongs to the draft being left, so its last
 			// position is written against that draft before the owner moves.
 			await store.flushPosition();

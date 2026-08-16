@@ -67,9 +67,14 @@ export function trackKeyboardInset(): () => void {
 	 * reads, and it cannot run at all in the state the workbench spends its life
 	 * in. A `requestAnimationFrame` loop would catch the same thing sooner and
 	 * spend sixty frames a second doing it.
+	 *
+	 * It goes through `schedule` rather than measuring directly, so the tick and
+	 * the viewport's own events share one pending frame: `measure` clears the
+	 * frame handle whoever called it, so a direct tick left a scheduled frame the
+	 * teardown could no longer cancel and a second one queued behind it.
 	 */
 	const startPoll = () => {
-		if (!poll) poll = window.setInterval(() => measure(), 500);
+		if (!poll) poll = window.setInterval(() => schedule(), 500);
 	};
 
 	const stopPoll = () => {

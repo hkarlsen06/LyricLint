@@ -30,6 +30,17 @@ const settleToleranceSeconds = 1;
 export const settleMaxEvents = 4;
 const musicKitScriptUrl = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
 
+/**
+ * How long MusicKit has to announce itself before the load is called a failure.
+ *
+ * The same twenty seconds the YouTube loader allows, and for the same reason: a
+ * script that never runs — an extension blocking it, a content policy, a stalled
+ * CDN — otherwise leaves this promise pending for the life of the page, and every
+ * `finally` behind it with it. `attachAppleMusicSong` clears `busy` in one of
+ * those, so a hung script does not cost a song, it costs the whole picker.
+ */
+export const musicKitLoadTimeoutMs = 20_000;
+
 /** Where MusicKit puts a listener's payload. Narrowed to what is read. */
 export interface AppleMusicPlaybackStateEvent {
 	state: number;
@@ -105,9 +116,14 @@ export function loadMusicKit(): Promise<MusicKitGlobal> {
 			return;
 		}
 
+		// Armed only once the script is actually in the document, so nothing here
+		// leaves a timer running in an environment that has no DOM to load into.
+		let timeout: ReturnType<typeof setTimeout> | undefined = undefined;
+
 		document.addEventListener(
 			'musickitloaded',
 			() => {
+				clearTimeout(timeout);
 				if (scope.MusicKit) resolve(scope.MusicKit);
 				else reject(new Error('Apple Music did not load.'));
 			},
@@ -117,8 +133,15 @@ export function loadMusicKit(): Promise<MusicKitGlobal> {
 		const script = document.createElement('script');
 		script.src = musicKitScriptUrl;
 		script.async = true;
-		script.addEventListener('error', () => reject(new Error('Apple Music could not be reached.')));
+		script.addEventListener('error', () => {
+			clearTimeout(timeout);
+			reject(new Error('Apple Music could not be reached.'));
+		});
 		document.head.appendChild(script);
+		timeout = setTimeout(
+			() => reject(new Error('Apple Music did not load in time.')),
+			musicKitLoadTimeoutMs
+		);
 	});
 
 	injected = attempt.catch((error: unknown) => {
@@ -347,6 +370,17 @@ export type AppleMusicUrlResult = { songId: string } | { error: string };
 
 const songIdPattern = /^\d{1,20}$/;
 const schemePattern = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/**
+ * Whether this is a song id and nothing else.
+ *
+ * The parser's own alphabet, exported because an id that did not come from the
+ * parser has to be held to it too: one arriving on a pasted fragment is a string
+ * somebody else wrote, and it goes into a catalogue path.
+ */
+export function isAppleMusicSongId(id: string): boolean {
+	return songIdPattern.test(id);
+}
 
 const notALink = 'That is not an Apple Music link.';
 const noSong = 'That link is not a song — albums and playlists cannot be transcribed against.';
@@ -724,11 +758,17 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		if (event.state === map.paused || event.state === map.stopped) events.stopped();
 	}
 
+	function onError(): void {
+		events.failed('Apple Music could not play that song.');
+	}
+
 	function listen(instance: AppleMusicInstance): void {
 		instance.addEventListener('playbackTimeDidChange', onTime as (event: never) => void);
 		instance.addEventListener('playbackStateDidChange', onState as (event: never) => void);
-		instance.addEventListener('mediaPlaybackError', (() =>
-			events.failed('Apple Music could not play that song.')) as (event: never) => void);
+		// Named rather than anonymous, because `removeEventListener` needs the same
+		// reference: an anonymous one is a listener on a page singleton that no
+		// teardown can ever take off again.
+		instance.addEventListener('mediaPlaybackError', onError as (event: never) => void);
 	}
 
 	/** Name and length without playing a note, so attaching stays silent. */
@@ -837,9 +877,17 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 					...(startTime === 0 ? {} : { startTime })
 				});
 			} catch {
+				// A newer load or a detach superseded this one while the queue was
+				// building, so the refusal belongs to a song nothing is attached to:
+				// reporting it would put an error on the strip about the song the user
+				// has just moved off. The same guard `play`'s own rebuild makes.
+				if (songId !== nextSongId) return;
 				events.failed('Apple Music would not queue that song.');
 				return;
 			}
+			// And a superseded queue that *succeeded* must not claim the bookkeeping
+			// either: `queuedAt` and the rate belong to whatever is attached now.
+			if (songId !== nextSongId) return;
 			queuedAt = startTime;
 			instance.playbackRate = rate;
 			await naming;
@@ -916,6 +964,7 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			// singleton — so they are only given up when the source itself is.
 			music?.removeEventListener('playbackTimeDidChange', onTime as (event: never) => void);
 			music?.removeEventListener('playbackStateDidChange', onState as (event: never) => void);
+			music?.removeEventListener('mediaPlaybackError', onError as (event: never) => void);
 			music = undefined;
 		}
 	};

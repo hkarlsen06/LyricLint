@@ -1,6 +1,6 @@
 import type {
 	AppMetadataRecord,
-	AutosaveController,
+	AutosaveController as CoreAutosaveController,
 	AutosaveSnapshot,
 	AutosaveStatus,
 	DraftRecord,
@@ -13,7 +13,6 @@ import type {
 
 export type {
 	AppMetadataRecord,
-	AutosaveController,
 	AutosaveSnapshot,
 	AutosaveStatus,
 	DraftRecord,
@@ -21,6 +20,19 @@ export type {
 	PerformerRecord,
 	SerializedSelection,
 	DraftIgnoreStore
+};
+
+/**
+ * The persistence implementation broadens the frozen controller contract with
+ * one hook the frozen one has no room for: a draft has been loaded into a fresh
+ * editor, so its revision counter has started over and the mark this controller
+ * holds for it describes a session that is gone.
+ *
+ * Optional, like `cancelDraft` beside it, so a shell driving a controller that
+ * has never heard of it is unchanged.
+ */
+export type AutosaveController = CoreAutosaveController & {
+	noteDraftLoaded?(draftId: string): void;
 };
 
 /** Fields accepted when creating a new local draft. Missing fields receive local defaults. */
@@ -154,6 +166,14 @@ export interface BackupHandleRecord {
 export type DraftRepository = Omit<CoreDraftRepository, 'create' | 'duplicate'> & {
 	create(draft: DraftCreateInput): Promise<DraftRecord>;
 	duplicate(id: string, newId?: string): Promise<DraftRecord>;
+	/**
+	 * Every draft whole, newest first — the same order `list` reports.
+	 *
+	 * Startup recovery reads each draft's text to decide what to sweep, and did
+	 * it as a `list` followed by a `get` per row: N+1 round trips at boot for
+	 * records `list` had already materialized and thrown away.
+	 */
+	listRecords(): Promise<DraftRecord[]>;
 };
 
 /**

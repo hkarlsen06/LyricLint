@@ -40,6 +40,15 @@
 		'How do I mark an unknown lyric?'
 	];
 	const quotaLow = $derived(assistant.quota !== undefined && assistant.quota.browserRemaining <= 3);
+	// The whole of what `send()` refuses on, read in one place. Both submit paths
+	// clear the composer before asking, so a state the store silently declines is
+	// a question destroyed on its way to nowhere — and a tool turn parked on a
+	// decision is exactly that state, live for as long as the user takes to answer
+	// it. The send button knew about two of the three and the Enter key knew about
+	// none, which is why the key is what people lost their question to.
+	const canSend = $derived(
+		!assistant.busy && !assistant.challengePending && assistant.toolSession === undefined
+	);
 	const disclosure = $derived.by(() => {
 		if (!assistant.draftToolsAvailable) {
 			return "Messages are processed by OpenAI through Cloudflare. The assistant cannot see your 'scribe.";
@@ -128,6 +137,7 @@
 
 	async function submit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
+		if (!canSend || draft.trim() === '') return;
 		const question = draft;
 		resetComposer();
 		await ask(question);
@@ -148,12 +158,14 @@
 	}
 
 	function onComposerKeydown(event: KeyboardEvent): void {
-		if (event.key === 'Enter' && !event.shiftKey) {
-			event.preventDefault();
-			const question = draft;
-			resetComposer();
-			void ask(question);
-		}
+		if (event.key !== 'Enter' || event.shiftKey) return;
+		// Enter is this field's send key whether or not the send can land, so it
+		// never breaks the line; refused, it leaves the draft exactly where it is.
+		event.preventDefault();
+		if (!canSend || draft.trim() === '') return;
+		const question = draft;
+		resetComposer();
+		void ask(question);
 	}
 
 	function awaitingReview(messageId: string): boolean {
@@ -355,7 +367,7 @@
 				<button
 					type="submit"
 					class="assistant-composer__send"
-					disabled={assistant.busy || assistant.challengePending || draft.trim() === ''}
+					disabled={!canSend || draft.trim() === ''}
 					aria-label="Ask"
 				>
 					<ArrowUp aria-hidden="true" size={17} strokeWidth={2.25} />

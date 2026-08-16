@@ -112,6 +112,13 @@ type StreamEvent =
 	| {
 			type: 'block_done';
 			kind?: AssistantAnswerBlock['kind'];
+			/**
+			 * The validated text, sent only where it is not what the deltas already
+			 * assembled — validation strips a trailing citation run, and a client
+			 * that assembled purely from deltas would go on showing the stripped
+			 * text in streaming mode, which is the only mode production uses.
+			 */
+			text?: string;
 			ruleIds: string[];
 			sourceIds: string[];
 	  }
@@ -193,8 +200,11 @@ async function readAnswerStream(
 					{
 						...oldest,
 						// The close carries the validated kind, which normalization may
-						// have moved off the kind the block streamed under.
+						// have moved off the kind the block streamed under — and the
+						// validated text where validation changed it, which the deltas
+						// alone cannot report.
 						...(event.kind ? { kind: event.kind } : {}),
+						...(typeof event.text === 'string' ? { text: event.text } : {}),
 						ruleIds: event.ruleIds,
 						sourceIds: event.sourceIds
 					}
@@ -203,6 +213,11 @@ async function readAnswerStream(
 				break;
 			}
 			case 'tool_calls':
+				// The narration a round streamed is stored off the throttled mirror
+				// this publishes, so the deltas of the last 32ms before the calls
+				// arrive are the ones that would be missing from it — forced through
+				// here, exactly as a block's close forces its own.
+				await publish(true);
 				toolCalls = event.calls;
 				providerItems = event.providerItems;
 				break;
@@ -231,6 +246,12 @@ async function readAnswerStream(
 			}
 			if (done) break;
 		}
+		// NDJSON is newline-*delimited*, not newline-terminated: a stream whose
+		// last line arrives without one leaves a whole event — routinely the
+		// `done` that carries the quota — sitting in the buffer, so the answer
+		// failed as "did not finish" with every block of it already in hand.
+		const rest = buffer.trim();
+		if (rest) await consume(rest);
 	} catch (error) {
 		if (error instanceof AssistantError) throw error;
 		// The worded error the user sees never carries the cause; without this

@@ -25,8 +25,14 @@ export const contractions: Record<string, string> = {
 	youre: "you're"
 };
 
+// The lookbehind refuses an apostrophe as well as a letter, because a token
+// already carrying an elision mark is not a contraction missing one: `’im` in
+// `get ’im` is `him` as sung, and matched it offered `I'm` for it. Only the
+// lookbehind — a trailing apostrophe is the possessive this rule is about
+// (`thats'` stays a finding), and `spelling.texting-shorthand` documents the
+// same hazard for its own pattern.
 const contractionPattern = new RegExp(
-	`(?<![\\p{L}\\p{N}_])(?:${Object.keys(contractions).join('|')})(?![\\p{L}\\p{N}_])`,
+	`(?<![\\p{L}\\p{N}_'’])(?:${Object.keys(contractions).join('|')})(?![\\p{L}\\p{N}_])`,
 	'giu'
 );
 

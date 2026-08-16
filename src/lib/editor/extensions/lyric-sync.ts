@@ -422,7 +422,17 @@ export function lyricSyncTap(options: LyricSyncOptions) {
 		const time = reading.time;
 
 		const caret = view.state.doc.lineAt(view.state.selection.main.head);
-		const line = sync.armed ? stampableFrom(view.state, caret.number + 1) : caret;
+		// **The caret's line is not a promise that it can be timed.** A run ends on
+		// the document changing, and a selection change is not one — so between
+		// entering a run and its first tap the user can click a section header or a
+		// blank line, and an un-armed tap taken at face value would stamp it. Every
+		// downstream reader assumes that cannot happen: the linked fill pairs by
+		// stampable line, the gutter draws no cell beside structure, and the skip
+		// walks stampable lines only. So the un-armed tap walks forward from the
+		// caret's own line exactly as an armed one walks forward from the line below
+		// — and a caret already on a lyric line is what `stampableFrom` hands back
+		// unchanged, which is every ordinary tap.
+		const line = stampableFrom(view.state, sync.armed ? caret.number + 1 : caret.number);
 		if (!line) return end(view, options, 'Every line is timed. Sync finished.');
 
 		// The offset is a hand's wall-clock lateness, so what it costs in track

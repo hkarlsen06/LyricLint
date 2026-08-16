@@ -6,6 +6,7 @@ import type {
 	TextEdit
 } from '$lib/core/types.js';
 import { assignVoiceGroup, canAssignVoiceGroup } from './index.js';
+import { narrowEdit } from './transform.js';
 import { describe, expect, it } from 'vitest';
 
 const header = '[Verse: A & <i>B</i>]\n';
@@ -166,6 +167,55 @@ describe('destructive performer transform boundaries', () => {
 			expect(applyEdits(output, inverseEdits(input, result.edit))).toBe(input);
 		}
 	);
+});
+
+// The cases above run through the transform, which only ever hands `narrowEdit`
+// a pair of strings that agree about their surrogates. A caller that does not —
+// the section-link mirror writes a peer's whole shared run against another
+// copy's text — can put the boundary between the halves of a pair in *one* of
+// them, and the guards used to read `insert` alone.
+describe('narrowEdit surrogate boundaries', () => {
+	/** Every index a pair straddles in a string, for the assertion below. */
+	function splitPoints(text: string): number[] {
+		const inside: number[] = [];
+		for (let at = 1; at < text.length; at += 1) {
+			const high = text.charCodeAt(at - 1);
+			const low = text.charCodeAt(at);
+			if (high >= 0xd800 && high <= 0xdbff && low >= 0xdc00 && low <= 0xdfff) inside.push(at);
+		}
+		return inside;
+	}
+
+	it.each([
+		// The pair is `original`'s: the strings part at the low half, so `insert`
+		// carries an ordinary character where the guard used to look.
+		['a pair only the original completes', 'a😀', 'a\uD83Dx'],
+		// And the same from the other end, where the shared character at the
+		// boundary is the low half and only `original` has the high one before it.
+		['a pair only the original opens', '😀b', 'x\uDE00b']
+	])('never cuts %s', (_case, original, insert) => {
+		const edit = narrowEdit(0, original, insert);
+
+		// The edit still says what it says: applied, it produces `insert`.
+		expect(`${original.slice(0, edit.from)}${edit.insert}${original.slice(edit.to)}`).toBe(insert);
+		expect(splitPoints(original)).not.toContain(edit.from);
+		expect(splitPoints(original)).not.toContain(edit.to);
+		expect(splitPoints(insert)).not.toContain(edit.from);
+	});
+
+	// The clamp the rendered-line callers depend on: the mapped selection stays
+	// inside the edit, so a narrower range may never start after it or end
+	// before it.
+	it('keeps the selected span inside the edit it narrowed to', () => {
+		const original = 'Hello world';
+		const insert = 'Hello <i>world</i>';
+		// `world` where it lands in the rendered text, which is what
+		// `insertedOffset` measures a mapped selection against.
+		const edit = narrowEdit(0, original, insert, { from: 9, to: 14 });
+
+		expect(edit.from).toBeLessThanOrEqual(9);
+		expect(insert.length - (original.length - edit.to)).toBeGreaterThanOrEqual(14);
+	});
 });
 
 // The picker asks this before it opens itself over a selection nobody invited

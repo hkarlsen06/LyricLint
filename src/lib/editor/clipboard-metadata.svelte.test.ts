@@ -241,6 +241,39 @@ describe('paste', () => {
 		expect(linksChanged).toHaveBeenCalled();
 	});
 
+	// A run is measured against the fragment's own lines, and one that does not fit
+	// them is dropped rather than clamped to the line it landed in. Pasted in front
+	// of text that was already there, the last fragment line is a prefix of a longer
+	// document line — so a payload overshooting it is claiming words the copy never
+	// carried, which would draw a difference over the draft's own text.
+	it('drops a carried run that does not fit the fragment’s own lines', async () => {
+		const { handle, text } = await mount({ text: 'tail', selection: { anchor: 0, head: 0 } });
+		const forged: ClipboardMetadata = {
+			...carried,
+			links: [
+				{
+					lines: [0, 4],
+					holes: [
+						{ line: 2, column: 12, endLine: 2, endColumn: 17 },
+						{ line: 6, column: 12, endLine: 6, endColumn: 999 }
+					]
+				}
+			]
+		};
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', song);
+		transfer.setData('text/html', clipboardHtml(song, forged));
+
+		clipboard('paste', transfer);
+
+		expect(text()).toBe(`${song}tail`);
+		// The well-formed run survives; the overshooting one is gone rather than
+		// stretched to the end of a document line that now carries `tail`.
+		expect(handle.getSectionLinks?.()).toEqual([
+			{ lines: [1, 5], holes: [{ line: 3, column: 12, endLine: 3, endColumn: 17 }] }
+		]);
+	});
+
 	it('hands a carried source to the shell instead of acting on it', async () => {
 		const { sourcePasted, text } = await mount({ text: '' });
 		const transfer = new DataTransfer();

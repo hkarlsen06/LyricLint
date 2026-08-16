@@ -403,10 +403,18 @@
 			{pendingLabel}
 		</button>
 
+		<!--
+			Disabled while an attachment is in flight, like the reconnect beside it.
+			A detach issued during a permission prompt is a decision the store now
+			honours, but a control that stays live over a press it cannot complete
+			cleanly is a control that reads as broken — and the two buttons in this
+			row have to agree about whether the row is answering.
+		-->
 		<button
 			type="button"
 			class="button--quiet icon-button"
 			onclick={() => void media.detach()}
+			disabled={media.busy}
 			aria-label={`Forget ${media.pendingName}`}
 			title="Forget this audio"
 		>

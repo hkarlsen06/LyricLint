@@ -217,6 +217,17 @@ export type YouTubeUrlResult = { videoId: string } | { error: string };
 const bareIdPattern = /^[A-Za-z0-9_-]{11}$/;
 const schemePattern = /^[a-z][a-z0-9+.-]*:\/\//i;
 
+/**
+ * Whether this is a video id and nothing else.
+ *
+ * The parser's own alphabet, exported because an id that did not come from the
+ * parser has to be held to it too: one arriving on a pasted fragment is a string
+ * somebody else wrote, and it ends up in a thumbnail address and a player call.
+ */
+export function isYouTubeVideoId(id: string): boolean {
+	return bareIdPattern.test(id);
+}
+
 /** Hosts YouTube serves watch pages from, with any `www.` already stripped. */
 const youtubeHosts = new Set([
 	'youtube.com',

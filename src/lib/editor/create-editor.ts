@@ -140,6 +140,19 @@ export interface CreateLyricEditorOptions {
 	 * scrolls inside it. See `autoHeightTheme`.
 	 */
 	autoHeight?: boolean;
+	/**
+	 * Whether `Mod-F` anywhere in the window opens this editor's find bar. On by
+	 * default, and the workbench wants it that way: there the editor is what the
+	 * window is for, so the browser's own find is the wrong answer to that press
+	 * wherever it is made — the tray's magnifier and `Escape` are the visible ways
+	 * back.
+	 *
+	 * It is off in the landing page's demo, where the pane is one figure inside an
+	 * article. A window-level listener there takes find-in-page away from the whole
+	 * marketing page for a four-line verse, which is the reader's own way around a
+	 * document nobody is editing.
+	 */
+	windowFind?: boolean;
 }
 
 function sameReferences<Value>(
@@ -811,6 +824,9 @@ export function createLyricEditor(
 		extensions
 	});
 	const view = new EditorView({ state, parent: host });
+	// Read once, beside the extension list's own options: a listener bound at
+	// mount is not something a pane can take back without remounting.
+	const windowFind = options.windowFind ?? true;
 	const openFind = (event: KeyboardEvent): void => {
 		const modifier = /Mac|iPhone|iPad|iPod/u.test(navigator.platform)
 			? event.metaKey
@@ -822,7 +838,7 @@ export function createLyricEditor(
 		event.stopPropagation();
 		openSearchPanel(view);
 	};
-	window.addEventListener('keydown', openFind, true);
+	if (windowFind) window.addEventListener('keydown', openFind, true);
 
 	function applyContext(context: EditorDisplayContext): void {
 		const revision = view.state.field(editorRevisionField);
@@ -1050,7 +1066,7 @@ export function createLyricEditor(
 			}
 			destroyed = true;
 			options.onSelectionAnchor?.(undefined);
-			window.removeEventListener('keydown', openFind, true);
+			if (windowFind) window.removeEventListener('keydown', openFind, true);
 			view.destroy();
 			host.replaceChildren();
 		}

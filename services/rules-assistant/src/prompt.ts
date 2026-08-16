@@ -214,11 +214,6 @@ export function promptCacheKey(corpus: RulesCorpus): string {
 	return `lyriclint-rules-${corpus.ruleSetVersion}-${corpus.contentHash.slice(0, 16)}`;
 }
 
-export interface PromptMessage {
-	role: 'developer' | 'user' | 'assistant';
-	content: string;
-}
-
 function isSettledMessage(
 	message: AnswerRequest['messages'][number]
 ): message is Extract<AnswerRequest['messages'][number], { content: string }> {
@@ -259,18 +254,11 @@ export function pruneHistory(messages: AnswerRequest['messages']): AnswerRequest
 	return [...kept, question, ...liveSuffix];
 }
 
-export function buildPromptInput(
-	corpus: RulesCorpus,
-	messages: AnswerRequest['messages']
-): PromptMessage[] {
-	const pruned = pruneHistory(messages);
-	return [
-		{
-			role: 'developer',
-			content: `${DEVELOPER_INSTRUCTIONS}\n\n${corpusText(corpus)}\n\n${CACHE_BREAKPOINT}`
-		},
-		...pruned
-			.filter(isSettledMessage)
-			.map((message) => ({ role: message.role, content: message.content }))
-	];
+/**
+ * The whole cached prefix: instructions, corpus, breakpoint. It is the one
+ * item the provider request marks with an explicit cache breakpoint, and it is
+ * byte-identical for a given corpus.
+ */
+export function developerPrompt(corpus: RulesCorpus): string {
+	return `${DEVELOPER_INSTRUCTIONS}\n\n${corpusText(corpus)}\n\n${CACHE_BREAKPOINT}`;
 }

@@ -598,7 +598,7 @@ Carried on the `Diagnostic` rather than split into two rules, for the reason `pr
 rule**, and re-adding a second mechanism beside `settlesOn` is the drift this section exists to
 prevent. There is one gate, in `filterForEditorState`, and it runs there rather than in
 `RuleContext` for the reason the section links already give: the lint is memoized on the document,
-so a filter is free while a context change would re-run 54 rules.
+so a filter is free while a context change would re-run 60 rules.
 
 **The `document` tier is the one place a timer is right, and it is a settle, not a debounce.** It
 waits for the user to stop making the answer change, so `settleDelay` is 1500ms — under a second it
@@ -4123,7 +4123,7 @@ screen.
 owes:
 
 - **Only the drawing collapses.** `groupedRuleReferences()` stays exhaustive, so the sitemap, the
-  prerender entries, the structured data and the search all still see all 55 rules. Every
+  prerender entries, the structured data and the search all still see all 60 rules. Every
   `/rules/<slug>/` URL is untouched, and the build output was diffed against the previous one to
   prove it rather than argued about.
 - **A family takes the position of its first member**, so collapsing never reorders the group
@@ -4145,7 +4145,7 @@ own title says so. What makes the eight one family is editorial, exactly as `gro
 The detail column at `/rules/` used to be a page **about** the list: how the reference is derived,
 how to search it, which chips narrow what. All true, and all written for a reader who already knew
 what they were looking for. The one this section actually has to serve arrives from the landing
-page not knowing the conventions at all, and was handed 55 checks and an explanation of the
+page not knowing the conventions at all, and was handed 60 checks and an explanation of the
 filtering — the catalog is a list of failures a linter detects, and it was being presented as
 though it were a guide.
 
@@ -4163,10 +4163,10 @@ to do, with its rules underneath as the ways it goes wrong. `groupGuidance` in
   words, the period at the end of a line — and each of those sentences hedges here exactly as the
   rule's own explanation hedges on its page. A guide presenting our preferences as somebody else's
   policy is worth less than no guide.
-- **It is a module with no imports.** `reference.ts` pulls the parser, all 55 rules and the ~330KB
+- **It is a module with no imports.** `reference.ts` pulls the parser, all 60 rules and the ~330KB
   language-detection corpus, so an index page cannot import it — that is what `+layout.server.ts`
   exists for. A `Record` of strings is importable directly, and it never rides on a group, so it
-  costs the other 54 prerendered payloads nothing.
+  costs the other 59 prerendered payloads nothing.
 
 **The checks under each convention are an interpunct run, not a bulleted list.** Nineteen bulleted
 lists is the column beside this one drawn a second time; inside prose the links read as the ways
@@ -4224,7 +4224,7 @@ than something registry order does behind the page's back.
 
 **Order _within_ a group stays registry order**, which is already written strongest-first inside
 each family: `spelling.standardized` leads the spellings and the nine language-specific ones trail
-it. Hand-ranking all 55 would be a great deal of judgment for very little movement.
+it. Hand-ranking all 60 would be a great deal of judgment for very little movement.
 
 The list is **exhaustive and throws** for a family it does not know, exactly as `groupTitles` does.
 Prerendering every page is part of the build, so a rule family added without a place in it fails
@@ -4283,19 +4283,19 @@ in it, which is a search that answers for a page's headings and not for its body
 `lookupSearchTerms` carries it, and **the conditions are deduped**, which is what keeps the
 addition cheap: a gate is written once and repeated down the table, so 29 reviewed spellings carry
 12 distinct sentences between them. That is 5.8% of the layout payload against the full table's
-16.2% — the ratio the reference has always been split on, since this value rides into all 55
+16.2% — the ratio the reference has always been split on, since this value rides into all 60
 prerendered pages and the table itself is loaded by the one page that draws it.
 
 **The citations were left out of it once, and the argument was wrong by an amount that could have
 been measured.** The reasoning — written into this file, which is why it is being corrected here
-rather than quietly deleted — was that all 55 rules cite the same handful of Genius pages, so a
+rather than quietly deleted — was that all 60 rules cite the same handful of Genius pages, so a
 citation term would group the index rather than narrow it. They do not. The most-cited page title
 covers 18 rules and is `Use song part headers`, where landing on the eighteen header rules is a
 correct answer rather than a grouping; every other title covers three or fewer, and the 47 distinct
 section titles are as specific as `Reviewed Norwegian section-header vocabulary`. What the omission
 actually cost was a reader looking at a link reading `Song Headers in Different Languages`, typing
 `languages`, and being told **no rule matches this search** — the precise distrust this section
-exists to prevent, produced by the section itself. `languages` returns 7 of 55 now.
+exists to prevent, produced by the section itself. `languages` returns 8 of 60 now.
 
 That is also the general lesson, and it is the one `groupOrder` and the automatic anchor stamp
 already state from other directions: **a claim about how a set is distributed is a measurement, not
@@ -4330,7 +4330,7 @@ match on any of its own text has to be able to say _which_ of it matched.
   the rule are sibling columns under the section's layout with nothing to hand each other, so the
   component that takes the query cannot be the one that owns it. What that costs is a query
   surviving a trip out of the section entirely — and nothing about that state is hidden, since the
-  field is showing it and the readout under it says `3 of 55 rules` with `Clear filters` beside it.
+  field is showing it and the readout under it says `3 of 60 rules` with `Clear filters` beside it.
   It also means **a component test has to reset it**: `RuleIndex.svelte.test.ts` would otherwise
   pass or fail on whatever the test above it happened to type.
 - **The fold is run one character at a time, because the plain one changes the string's length.**
@@ -4390,7 +4390,7 @@ Four things it owes, and two of them are the reasons it is arithmetic rather tha
   covered. The free space starts at the finder's own measured bottom edge, measured rather than
   restated as a length, because the chips wrap and the readout comes and goes.
 - **It moves the scroll and not the focus.** The reader opened a rule to read it, and focus parked
-  in a `<nav>` of fifty-five links would send their first Tab away from the document they came
+  in a `<nav>` of sixty links would send their first Tab away from the document they came
   for — the same reason the workbench leaves the editor unfocused after a fix.
 
 Below 62rem there is nothing to do: the columns stack and the list is `display: none` while a rule
@@ -4425,7 +4425,7 @@ kind with nothing in it is nothing to filter. Here the set is fixed — every ru
 the zero is a fact about the _query_, which the reader is in the middle of typing. Dropping it
 would take the axis off screen mid-keystroke and leave nothing to say why the list is short.
 
-**The readout draws only while something is narrowing the list**, because `52 of 52 rules` is a
+**The readout draws only while something is narrowing the list**, because `60 of 60 rules` is a
 count that could not have been otherwise and the lede beside the column already states the total.
 It carries the count at one end and `Clear filters` at the other — a lone control in half a row of
 empty gutter is the other way this row fails. Nothing matching is a sentence on the canvas, not a

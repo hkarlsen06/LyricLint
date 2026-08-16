@@ -160,16 +160,34 @@ function claimCopy(event: ClipboardEvent, view: EditorView, cut: boolean): boole
  * more, and the whole group stands down rather than one member at a time —
  * the members' runs correspond by ordinal, and a partial group would carry
  * another member's differences under the wrong words.
+ *
+ * A run is measured against the **fragment's** own lines, never the document's,
+ * and one that does not fit them is dropped rather than clamped. Clamping to the
+ * landed line is wrong in both directions: a paste into the middle of a line
+ * leaves the document line longer than the fragment's at both ends, so an
+ * overshooting column — which is only ever a payload lying about text it never
+ * carried — would claim words that were already in the draft as a difference the
+ * copy set aside. Dropping one is `readHole`'s own trade: the link is still good,
+ * and a re-tick costs less than a difference drawn over somebody else's words.
  */
 function applyLinks(
 	view: EditorView,
 	metadata: ClipboardMetadata,
 	base: number,
-	starts: readonly number[]
+	starts: readonly number[],
+	text: string
 ): void {
 	const { state } = view;
 	const effects = [];
 	const landed: TextRange[] = [];
+	// The line as the copy carried it: up to the break before the next one, which
+	// is not part of it, and to the fragment's end for the last.
+	const fragmentLineLength = (index: number): number | undefined => {
+		const start = starts[index];
+		if (start === undefined) return undefined;
+		const next = starts[index + 1];
+		return (next === undefined ? text.length : next - 1) - start;
+	};
 	for (const link of metadata.links) {
 		const headers = link.lines.map((relative) => base + (starts[relative] ?? 0));
 		const intact = headers.every((position) => {
@@ -179,10 +197,15 @@ function applyLinks(
 		if (!intact) continue;
 		effects.push(setSectionLinkEffect.of({ headers }));
 		for (const hole of link.holes ?? []) {
-			const startLine = state.doc.lineAt(base + (starts[hole.line] ?? 0));
-			const endLine = state.doc.lineAt(base + (starts[hole.endLine] ?? 0));
-			const from = Math.min(startLine.from + hole.column, startLine.to);
-			const holeTo = Math.min(endLine.from + hole.endColumn, endLine.to);
+			const startLength = fragmentLineLength(hole.line);
+			const endLength = fragmentLineLength(hole.endLine);
+			if (startLength === undefined || endLength === undefined) continue;
+			if (hole.column > startLength || hole.endColumn > endLength) continue;
+			// Fragment coordinates land through `base` and the fragment's own line
+			// starts, exactly as the anchors above do — a document line is a different
+			// length from the fragment line inside it whenever a paste lands mid-line.
+			const from = base + (starts[hole.line] ?? 0) + hole.column;
+			const holeTo = base + (starts[hole.endLine] ?? 0) + hole.endColumn;
 			if (from <= holeTo) landed.push({ from, to: holeTo });
 		}
 	}
@@ -228,7 +251,7 @@ function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
 		scrollIntoView: true,
 		userEvent: 'input.paste'
 	});
-	applyLinks(view, metadata, from, starts);
+	applyLinks(view, metadata, from, starts, text);
 	// Handed to the shell rather than acted on, because attachment is the
 	// shell's: whether this draft already has a song, and what a pending source
 	// waits on, are decisions the editor has no standing in.

@@ -108,6 +108,39 @@ describe('standardized spelling data', () => {
 		expect(replacements('trynna tryina', 'no')).toEqual(['tryna', 'tryna']);
 	});
 
+	// The exception to that last line, and the reason it is an exception: a few
+	// reviewed forms are ordinary words in a supported pack, and every one of
+	// them carried a *safe* fix, so a bulk fix rewrote correct lyrics outright.
+	// `ei` is the Norwegian article, `Ei` a German egg, `cause` a French noun,
+	// `ok`/`okey` are written as themselves nearly everywhere, and `naïve` is
+	// the correct French spelling of the word this entry drops the diaeresis
+	// from.
+	it('holds the forms that are ordinary words elsewhere to English drafts', () => {
+		expect(replacements('Æ e ei jente', 'no')).toEqual([]);
+		expect(replacements('Das Ei ist gut', 'de')).toEqual([]);
+		expect(replacements('Det går ok, cause det må', 'no')).toEqual([]);
+		expect(replacements('Elle est naïve', 'fr')).toEqual([]);
+
+		expect(replacements('ei ey ok cause naïve', 'en')).toEqual([
+			'ayy',
+			'ayy',
+			'okay',
+			"'cause",
+			'naive'
+		]);
+		// The gate is per match in the `ayy` family, because only some of its
+		// forms are words elsewhere; `'cause`, `okay` and `naive` are gated whole,
+		// since each states an English orthography rather than a transcription
+		// convention that holds in every language.
+		expect(replacements('ayee ayyy', 'no')).toEqual(['ayy', 'ayy']);
+		expect(replacements('niaive', 'no')).toEqual([]);
+	});
+
+	it('reads an elided token as its own word rather than as shortened “because”', () => {
+		expect(replacements('Non so cos’è')).toEqual([]);
+		expect(replacements("Non so cos'è")).toEqual([]);
+	});
+
 	it('does not report reviewed spellings or nearby real words', () => {
 		expect(
 			replacements("ayy okay y'all bougie woah chopper naive cliché a.k.a. GOAT VIP ASAP HAM")

@@ -40,11 +40,11 @@ export async function recoverStartupDraft(
 	repository: DraftRepository,
 	media?: Pick<MediaRepository, 'get'>
 ): Promise<DraftRecord> {
-	const summaries = await repository.list();
+	// `listRecords` rather than a `list` followed by a `get` per row: this runs
+	// before anything is on screen, and the whole record is what the sweep reads.
+	const records = await repository.listRecords();
 	const recoverable: DraftRecord[] = [];
-	for (const summary of summaries) {
-		const draft = await repository.get(summary.id);
-		if (draft === undefined) continue;
+	for (const draft of records) {
 		// A draft with a song attached and no words yet is not one of the empty
 		// rows this sweep exists to clear — it is a transcription about to start,
 		// and deleting it takes the attachment with it, because `delete` clears
@@ -64,7 +64,7 @@ export async function recoverStartupDraft(
 		return current;
 	}
 
-	// `list` is ordered newest first.
+	// `listRecords` is ordered newest first.
 	const newest = recoverable[0];
 	if (newest !== undefined) {
 		await repository.setCurrent(newest.id);

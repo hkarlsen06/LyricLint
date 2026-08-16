@@ -39,6 +39,19 @@ describe('contraction.apostrophe', () => {
 		expect(checkRule(rule, '[Verse]\nWell, ill be')).toEqual([]);
 	});
 
+	// An elision mark in front of a token is part of the token: `’im` is `him` as
+	// sung, and it was offered `I'm`. The lookbehind refuses both apostrophes for
+	// the same reason `spelling.texting-shorthand` does.
+	it('leaves a token that already carries a leading elision mark', () => {
+		expect(checkRule(rule, '[Verse]\nGet ’im now')).toEqual([]);
+		expect(checkRule(rule, "[Verse]\nGet 'im now")).toEqual([]);
+		// A trailing apostrophe is the punctuation this rule is about, so it stays
+		// a finding.
+		expect(markedText("[Verse]\nthats' mine", checkRule(rule, "[Verse]\nthats' mine"))).toEqual([
+			'thats'
+		]);
+	});
+
 	it('only matches complete words', () => {
 		expect(checkRule(rule, '[Verse]\ndontcha')).toEqual([]);
 		expect(checkRule(rule, "[Verse]\ndon't go")).toEqual([]);

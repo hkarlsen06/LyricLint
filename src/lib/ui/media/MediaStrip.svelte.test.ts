@@ -13,7 +13,14 @@ import ControlTooltip from '../primitives/ControlTooltip.svelte';
 import ToastRegion from '../primitives/ToastRegion.svelte';
 import MediaStrip from './MediaStrip.svelte';
 
-function store(options: { records?: MediaHandleRecord[]; file?: File } = {}) {
+function store(
+	options: {
+		records?: MediaHandleRecord[];
+		file?: File;
+		/** Injectable so a test can hold a reconnect open while it looks at the row. */
+		pickFile?: () => Promise<{ file: File; handle?: FileSystemFileHandle } | undefined>;
+	} = {}
+) {
 	const audio = new StubAudio();
 	const feedback = createFeedbackState();
 	// Nothing in this file reaches Google: the API is a stub and the poll is a
@@ -34,7 +41,7 @@ function store(options: { records?: MediaHandleRecord[]; file?: File } = {}) {
 		feedback,
 		draftId: () => 'draft-1',
 		player,
-		pickFile: async () => ({ file })
+		pickFile: options.pickFile ?? (async () => ({ file }))
 	});
 
 	return { audio, media, player, youtube };
@@ -235,6 +242,37 @@ describe('MediaStrip', () => {
 		await expect.element(page.getByRole('button', { name: 'Forget sensommer.mp3' })).toBeVisible();
 		expect(page.getByRole('button', { name: 'Play' }).elements()).toHaveLength(0);
 		expect(page.getByRole('slider', { name: 'Seek' }).elements()).toHaveLength(0);
+	});
+
+	// Both controls in this row answer the same question, so they go quiet
+	// together: a reconnect waits on a permission prompt, and a Forget pressed
+	// into that window is a decision the store now honours but a control that
+	// stays live over a press it cannot complete cleanly reads as broken.
+	it('takes both of the pending row’s controls out of use while one is answering', async () => {
+		let choose: (() => void) | undefined;
+		const { media } = store({
+			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }],
+			// Held open, which is what a real picker is: the row stays on screen with
+			// both its controls in it for as long as somebody takes to answer.
+			pickFile: () =>
+				new Promise((resolve) => {
+					choose = () => resolve({ file: new File([''], 'sensommer.mp3') });
+				})
+		});
+		await media.openFor('draft-1');
+
+		render(MediaStrip, { props: { media } });
+
+		await expect.element(page.getByRole('button', { name: 'Forget sensommer.mp3' })).toBeEnabled();
+
+		const reconnecting = media.reconnect();
+		await expect
+			.element(page.getByRole('button', { name: 'Reconnect sensommer.mp3' }))
+			.toBeDisabled();
+		await expect.element(page.getByRole('button', { name: 'Forget sensommer.mp3' })).toBeDisabled();
+
+		choose?.();
+		await reconnecting;
 	});
 
 	it('reconnects into the full transport when the control is pressed', async () => {

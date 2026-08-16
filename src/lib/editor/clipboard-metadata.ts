@@ -94,6 +94,18 @@ export const clipboardMetadataAttribute = 'data-lyriclint';
 
 const payloadVersion = 1;
 
+/**
+ * The most attribute this parse will read, in characters.
+ *
+ * Nothing here was asked for: every paste into the editor reaches this function
+ * with whatever the clipboard is holding, so the work has to be bounded before
+ * it starts rather than by what turns out to be readable. A megabyte is orders
+ * of magnitude past anything the serializer beside it writes — a song timed line
+ * by line with every difference recorded runs to a few kilobytes — so the cap
+ * refuses only payloads that were never ours.
+ */
+const maximumPayloadLength = 1_000_000;
+
 function escapeAttribute(value: string): string {
 	return value
 		.replaceAll('&', '&amp;')
@@ -210,7 +222,7 @@ function readLink(value: unknown, lines: number): ClipboardLink | undefined {
  */
 export function metadataFromClipboardHtml(html: string): ClipboardMetadata | undefined {
 	const match = new RegExp(`${clipboardMetadataAttribute}="([^"]*)"`).exec(html);
-	if (!match?.[1]) return undefined;
+	if (!match?.[1] || match[1].length > maximumPayloadLength) return undefined;
 	let payload: unknown;
 	try {
 		payload = JSON.parse(unescapeAttribute(match[1]));
@@ -221,8 +233,14 @@ export function metadataFromClipboardHtml(html: string): ClipboardMetadata | und
 	const { lines } = payload;
 	if (typeof lines !== 'number' || !Number.isInteger(lines) || lines < 1) return undefined;
 
+	// Both lists are cut to the fragment's own line count before anything is read
+	// out of them, and neither cut can reach a payload the serializer wrote: an
+	// anchor names a line and no line is claimed twice, and a link is two header
+	// lines at least. What it bounds is the entry count a forged payload can spend
+	// inside the size cap above.
 	const seen = new Set<number>();
 	const anchors = (Array.isArray(payload.anchors) ? payload.anchors : [])
+		.slice(0, lines)
 		.map((anchor) => readAnchor(anchor, lines))
 		.filter((anchor): anchor is ClipboardAnchor => {
 			if (!anchor || seen.has(anchor.line)) return false;
@@ -230,6 +248,7 @@ export function metadataFromClipboardHtml(html: string): ClipboardMetadata | und
 			return true;
 		});
 	const links = (Array.isArray(payload.links) ? payload.links : [])
+		.slice(0, lines)
 		.map((link) => readLink(link, lines))
 		.filter((link): link is ClipboardLink => link !== undefined);
 	const media = readMedia(payload.media);

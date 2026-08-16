@@ -12,6 +12,7 @@
 	import SiteSourceFold from '$lib/ui/site/SiteSourceFold.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import { setReadingAnchor } from '$lib/ui/site/guidance-reading.svelte.js';
+	import { safeDecodeHash } from '$lib/ui/site/hash.js';
 	import type { PageProps } from './$types.js';
 
 	let { data }: PageProps = $props();
@@ -115,7 +116,11 @@
 	let anchor = $state('');
 
 	function landOnHash() {
-		anchor = decodeURIComponent(location.hash.slice(1));
+		// The same shared decode the index column reads its own mark through: a
+		// fragment is somebody else's string, and `#%` is a `URIError` rather than
+		// an anchor — thrown here it would take the topic page down on the arrival
+		// a deep link exists for.
+		anchor = safeDecodeHash(location.hash.slice(1));
 		// The landing is also this page's first word to the index about where the
 		// reader is, and it is said before the scroll rather than left to the spy
 		// below to work out afterwards. Computed from a document still at its top,

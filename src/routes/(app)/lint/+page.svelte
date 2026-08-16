@@ -110,7 +110,15 @@
 				});
 				const initialDraft = await recoverStartupDraft(repository, mediaRepository);
 				const initialRecentLanguages = await repository.getRecentLanguages();
-				if (cancelled) return;
+				// `onDestroy` ran while the open was still in flight, so it found no
+				// database to close and this continuation is the only thing that can:
+				// a connection left open holds a `versionchange` another tab's upgrade
+				// is waiting on, which reads as that tab hanging on boot rather than
+				// as a page this one already left.
+				if (cancelled) {
+					closeDatabase(database);
+					return;
+				}
 
 				let snapshot = snapshotFor(initialDraft);
 				const editor = headlessEditor(() => snapshot);
@@ -166,9 +174,22 @@
 		};
 	});
 
+	// Leaving the page is the other last moment, and the only one the
+	// `visibilitychange` flush above never sees: a client-side navigation — the
+	// `About LyricLint` link in the status bar is one press away from the caret —
+	// hides nothing and unloads nothing. Closing the database under the autosave's
+	// own ~250ms debounce lost the last edit and left the deferred write to throw
+	// against a closed connection, so the flush comes first and the close waits for
+	// it. The failure is reported rather than swallowed by `finally`, which would
+	// otherwise re-throw it as an unhandled rejection out of a destroyed component.
 	onDestroy(() => {
-		if (browser) backup?.destroy();
-		if (browser && database) closeDatabase(database);
+		if (!browser) return;
+		backup?.destroy();
+		void (controller?.flushAutosave() ?? Promise.resolve())
+			.catch((error: unknown) => console.error('The final autosave flush failed.', error))
+			.finally(() => {
+				if (database) closeDatabase(database);
+			});
 	});
 
 	// A history traversal or an externally changed URL must update the already

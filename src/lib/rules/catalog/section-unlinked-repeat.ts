@@ -28,6 +28,36 @@ const ALIGNMENT_CACHE_LIMIT = 64;
 const alignmentCache = new Map<string, ReturnType<typeof alignBodies>>();
 
 /**
+ * A ceiling on what this rule is willing to align, and it is far below
+ * `link-shape`'s own 2000. That one is right for the picker, which aligns once
+ * on a press; here every same-kind pair is re-aligned on every keystroke inside
+ * a member, and the alignment is quadratic — 2000 tokens is a 16MB matrix per
+ * pair per keystroke. A repeated song part is tens of tokens, so what this
+ * refuses is never a chorus, and the only thing it decides is what the linter
+ * volunteers unasked. The picker keeps the full range.
+ */
+const MOST_VOLUNTEERED_TOKENS = 400;
+
+/** `link-shape`'s tokens — words and line breaks — counted rather than built. */
+function tokenCount(body: string): number {
+	let count = 0;
+	let inWord = false;
+	for (let index = 0; index < body.length; index += 1) {
+		const char = body[index];
+		if (char === '\n') {
+			count += 1;
+			inWord = false;
+		} else if (char === ' ' || char === '\t' || char === '\r') {
+			inWord = false;
+		} else if (!inWord) {
+			count += 1;
+			inWord = true;
+		}
+	}
+	return count;
+}
+
+/**
  * Whether these copies have enough in common to be worth keeping in step.
  *
  * Linking stopped being destructive, so this rule was widened to point at every
@@ -70,6 +100,9 @@ function sharesEnough(left: string, right: string): boolean {
 	// The overwhelmingly common answer, and it costs no alignment.
 	if (left === right) {
 		return true;
+	}
+	if (tokenCount(left) > MOST_VOLUNTEERED_TOKENS || tokenCount(right) > MOST_VOLUNTEERED_TOKENS) {
+		return false;
 	}
 	const key = `${left.length}:${left}${right}`;
 	let holes = alignmentCache.get(key);

@@ -308,6 +308,8 @@ export interface EditorPaneProps {
 	sectionGhosts?: boolean;
 	/** See `CreateLyricEditorOptions.autoHeight`. Defaults to off. */
 	autoHeight?: boolean;
+	/** See `CreateLyricEditorOptions.windowFind`. Defaults to on. */
+	windowFind?: boolean;
 }
 
 export interface EditorPaneEvents {

@@ -63,7 +63,8 @@
 		onready,
 		ondestroyed,
 		sectionGhosts = true,
-		autoHeight = false
+		autoHeight = false,
+		windowFind = true
 	}: EditorPaneProps = $props();
 	let host: HTMLDivElement;
 	let editor = $state.raw<LyricEditorInstance | undefined>();
@@ -704,10 +705,12 @@
 				context,
 				callbacks: internalCallbacks(),
 				// Read once, with the rest of the mount options: the extension list
-				// is built when the view is created, so neither of these is something
-				// a pane can change without remounting.
+				// is built when the view is created, and the window listener is bound
+				// with it, so none of these is something a pane can change without
+				// remounting.
 				sectionGhosts,
 				autoHeight,
+				windowFind,
 				onSelectionAnchor(anchor) {
 					selectionAnchorTick = scrollTick;
 					selectionAnchor = anchor;

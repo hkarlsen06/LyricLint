@@ -5,13 +5,17 @@ import {
 	appleMusicTokenExpiry,
 	authorizeAppleMusic,
 	createAppleMusicSource,
+	loadMusicKit,
+	musicKitLoadTimeoutMs,
 	parseAppleMusicSongId,
+	resetAppleMusic,
 	searchAppleMusicSongs,
 	settleMaxEvents
 } from './media-apple.js';
 import type { MediaSourceEvents } from './media-player.svelte.js';
 
 const songId = '1091453645';
+const otherSongId = '1440913430';
 const albumId = '1440913429';
 
 describe('parseAppleMusicSongId', () => {
@@ -49,6 +53,36 @@ describe('parseAppleMusicSongId', () => {
 		]) {
 			expect(parseAppleMusicSongId(input), input).toHaveProperty('error');
 		}
+	});
+});
+
+/**
+ * The load that never answers, and what it costs three surfaces away.
+ *
+ * MusicKit announces itself with a `musickitloaded` event, and an ad blocker, a
+ * content policy or a stalled CDN leaves the script tag in the document and that
+ * event unfired. With no timeout the promise is pending for the life of the page,
+ * so `attachAppleMusicSong`'s `finally` never runs and `busy` stays true — which
+ * is the same three-unrelated-faults presentation a blocked sign-in pop-up had,
+ * arriving one step earlier.
+ */
+describe('loading MusicKit', () => {
+	it('rejects when the script never answers', async () => {
+		vi.useFakeTimers();
+		vi.stubGlobal('document', {
+			addEventListener: vi.fn(),
+			createElement: () => ({ src: '', async: false, addEventListener: vi.fn() }),
+			head: { appendChild: vi.fn() }
+		});
+
+		const loading = loadMusicKit();
+		const rejected = expect(loading).rejects.toThrow('did not load in time');
+
+		await vi.advanceTimersByTimeAsync(musicKitLoadTimeoutMs);
+		await rejected;
+		resetAppleMusic();
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
 	});
 });
 
@@ -204,6 +238,39 @@ function stubMusic(overrides: Partial<AppleMusicInstance> = {}) {
 			}
 			listeners.get(name)?.(event as never);
 		}
+	};
+}
+
+/** A macrotask, which is long enough for anything queued to have run. */
+async function settle(): Promise<void> {
+	await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * A `setQueue` the test answers by hand, one call at a time.
+ *
+ * The queue is the longest await in `load`, so it is where a second load
+ * overtakes the first — and answering the two out of order is the whole of what
+ * a staleness guard has to survive.
+ */
+function deferredQueues() {
+	const calls: { song: string; settle: (error?: Error) => void }[] = [];
+	const setQueue = vi.fn(
+		async (options: { song: string }) =>
+			await new Promise<unknown>((resolve, reject) => {
+				calls.push({
+					song: options.song,
+					settle: (error) => (error ? reject(error) : resolve(undefined))
+				});
+			})
+	);
+
+	return {
+		setQueue,
+		calls: () => calls,
+		pending: () => calls.length,
+		resolve: (index: number) => calls[index]?.settle(),
+		reject: (index: number, error: Error) => calls[index]?.settle(error)
 	};
 }
 
@@ -663,6 +730,80 @@ describe('createAppleMusicSource', () => {
 
 		expect(events.log).toContain('failed:Apple Music sign-in was cancelled.');
 		expect(instance.setQueue).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * A queue built for the song the user has already moved off says nothing, and
+	 * claims nothing.
+	 *
+	 * `load` checks staleness after the instance and after the sign-in, and did
+	 * not after the queue — which is the longest await of the three. So a refused
+	 * queue for the outgoing song put `Apple Music would not queue that song.` on
+	 * a strip that had just attached a different one, and a queue that *succeeded*
+	 * late stamped `queuedAt` with the outgoing song's start time. That second one
+	 * is the quieter half: the next play then found `known !== queuedAt`, rebuilt
+	 * the queue nobody asked it to, and started the song a second time.
+	 */
+	it('says nothing when a superseded queue is refused', async () => {
+		const queues = deferredQueues();
+		const { instance } = stubMusic({ setQueue: queues.setQueue });
+		const { source, events } = build(instance);
+
+		void source.load(songId);
+		await vi.waitFor(() => expect(queues.pending()).toBe(1));
+		void source.load(otherSongId);
+		await vi.waitFor(() => expect(queues.pending()).toBe(2));
+
+		queues.reject(0, new Error('no such song'));
+		await settle();
+
+		expect(events.log.some((entry) => entry.startsWith('failed:'))).toBe(false);
+	});
+
+	it('leaves the bookkeeping to whichever song is attached now', async () => {
+		const queues = deferredQueues();
+		const { instance } = stubMusic({ setQueue: queues.setQueue });
+		const { source } = build(instance);
+
+		// The first song is being reopened where it was left; the second starts
+		// from the top, so a `queuedAt` carried over from the first would disagree
+		// with `known` and send the next press through a queue rebuild.
+		void source.load(songId, 90);
+		await vi.waitFor(() => expect(queues.pending()).toBe(1));
+		void source.load(otherSongId);
+		await vi.waitFor(() => expect(queues.pending()).toBe(2));
+
+		queues.resolve(1);
+		queues.resolve(0);
+		await settle();
+
+		source.play();
+		await settle();
+
+		// Two queues: one per load, and no rebuild behind the press.
+		expect(queues.calls()).toHaveLength(2);
+		expect(instance.play).toHaveBeenCalled();
+	});
+
+	/**
+	 * The playback-error listener comes off with the other two.
+	 *
+	 * The instance is a page singleton, so an anonymous listener added to it is one
+	 * no teardown can ever reach: a source destroyed and replaced left the old one
+	 * reporting into a transport that had been thrown away.
+	 */
+	it('gives up its playback-error listener when the source is destroyed', async () => {
+		const music = stubMusic();
+		const { source, events } = build(music.instance);
+		await source.load(songId);
+
+		music.emit('mediaPlaybackError', {});
+		expect(events.log).toContain('failed:Apple Music could not play that song.');
+
+		source.destroy();
+		const before = events.log.length;
+		music.emit('mediaPlaybackError', {});
+		expect(events.log).toHaveLength(before);
 	});
 
 	/**

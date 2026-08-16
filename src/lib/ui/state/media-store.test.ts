@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createFeedbackState } from './feedback.svelte.js';
 import { createInMemoryMediaRepository } from './in-memory.js';
 import { createMediaPlayer } from './media-player.svelte.js';
@@ -7,6 +7,8 @@ import { StubAudio } from './media-test-audio.js';
 import { createStubYouTubeApi } from './media-test-youtube.js';
 import type { MediaRepository } from '$lib/persistence/index.js';
 import type { MusicKitLoader } from './media-apple.js';
+import { musicKitLoadTimeoutMs, resetAppleMusic } from './media-apple.js';
+import { spotifySdkLoadTimeoutMs } from './media-spotify.js';
 
 /**
  * A file handle whose permission answer the test chooses.
@@ -132,6 +134,34 @@ describe('media store across sessions', () => {
 
 		expect(player.attached).toBe(true);
 		expect(player.currentTime).toBe(61);
+	});
+
+	/**
+	 * And the re-pick writes that position back down, which it did not.
+	 *
+	 * `remember` used to read `pendingPosition` off the module, and every caller
+	 * runs `adopt()` first — which clears it. So the record was rewritten with no
+	 * position at all, and `flushPosition`'s dedup then refused to repair it,
+	 * because `claim` had already recorded 90 as the last number written. On a
+	 * browser with no picker API this branch *is* the reconnect: reopen a draft,
+	 * pick the file again, close the tab without pressing play, and the playhead
+	 * was gone.
+	 */
+	it('writes the restored playhead back down when the file is picked again', async () => {
+		const repository = createInMemoryMediaRepository();
+		await repository.attach({ draftId: 'draft-1', name: 'track.mp3', position: 90 });
+
+		const { audio, media } = setup({ repository });
+		await media.openFor('draft-1');
+		await media.reconnect();
+
+		expect((await repository.get('draft-1'))?.position).toBe(90);
+
+		// The dedup guard is the second half of it: `claim` records 90 as the last
+		// number written, so nothing else was ever going to put it back.
+		audio.setDuration(200);
+		await media.flushPosition();
+		expect((await repository.get('draft-1'))?.position).toBe(90);
 	});
 
 	it('writes the playhead down when playback settles', async () => {
@@ -579,6 +609,37 @@ describe('a source pasted with a fragment', () => {
 		expect(media.videoId).toBe('dQw4w9WgXcQ');
 	});
 
+	/**
+	 * An id off a fragment is a string somebody else wrote.
+	 *
+	 * The clipboard parser caps its length and nothing else looked at it, so a
+	 * crafted `data-lyriclint` payload chose the path a request went to: the
+	 * Spotify metadata read interpolates the id into a URL that carries this
+	 * session's own bearer token, and the attribution link and the video
+	 * thumbnail take it just as readily. Each source's own alphabet is the gate,
+	 * and a mismatch is refused outright rather than sanitised into something
+	 * that would attach the wrong song.
+	 */
+	it('refuses an id that is not one, contacting nobody and writing nothing', async () => {
+		const { media, player, repository, youtube } = setup();
+
+		for (const source of [
+			{ kind: 'spotify' as const, id: '../me' },
+			{ kind: 'spotify' as const, id: '4cOdK2wGLETKBW3PvgPWq' },
+			{ kind: 'youtube' as const, id: '../../watch' },
+			{ kind: 'youtube' as const, id: 'dQw4w9WgXcQextra' },
+			{ kind: 'apple' as const, id: '1091453645/../../me' },
+			{ kind: 'apple' as const, id: 'not-a-number' }
+		]) {
+			expect(await media.adoptPastedSource(source), source.id).toBe(false);
+		}
+
+		expect(player.attached).toBe(false);
+		expect(youtube.loads).toBe(0);
+		expect(media.pendingSource).toBeUndefined();
+		expect(await repository.get('draft-1')).toBeUndefined();
+	});
+
 	it('never overwrites audio the draft already has', async () => {
 		const { media, player, repository } = setup();
 		await media.attach();
@@ -604,6 +665,120 @@ describe('a source pasted with a fragment', () => {
 
 		expect(await media.adoptPastedSource({ kind: 'apple', id: '1091453645' })).toBe(false);
 		expect((await repository.get('draft-1'))?.name).toBe('sensommer.mp3');
+	});
+});
+
+describe('a press made while a reconnect is still waiting', () => {
+	/**
+	 * Detaching during a permission prompt has to win.
+	 *
+	 * `reconnect` reads the handle before it awaits, so the continuation held a
+	 * reference to audio the user had thrown away in the meantime — and it
+	 * attached it, and wrote its record back. The prompt is the window: it is open
+	 * for as long as somebody takes to answer a browser dialog, and the row it was
+	 * pressed from is still on screen with its Forget control in it.
+	 */
+	it('abandons the reconnect that a detach has already answered', async () => {
+		const repository = createInMemoryMediaRepository();
+		const file = new File([''], 'sensommer.mp3', { type: 'audio/mpeg' });
+		let answer: ((permission: 'granted') => void) | undefined;
+		const handle = {
+			kind: 'file' as const,
+			name: file.name,
+			async queryPermission() {
+				return 'prompt' as const;
+			},
+			requestPermission: async () =>
+				await new Promise<'granted'>((resolve) => {
+					answer = resolve;
+				}),
+			async getFile() {
+				return file;
+			}
+		} as unknown as FileSystemFileHandle;
+
+		await repository.attach({ draftId: 'draft-1', name: 'sensommer.mp3', handle });
+
+		const { media, player } = setup({ repository });
+		await media.openFor('draft-1');
+
+		const reconnecting = media.reconnect();
+		await vi.waitFor(() => expect(answer).toBeDefined());
+		await media.detach();
+		answer?.('granted');
+		await reconnecting;
+
+		expect(player.attached).toBe(false);
+		expect(media.pendingName).toBeUndefined();
+		expect(await repository.get('draft-1')).toBeUndefined();
+	});
+});
+
+/**
+ * A third-party script that never runs must not take the picker with it.
+ *
+ * Both loaders resolve on a callback the script makes, so an ad blocker, a
+ * content policy or a stalled CDN leaves the promise pending — and with it every
+ * `finally` behind it. `busy` is the one that hurts: it is what disables the
+ * picker, three surfaces away from the press that hung, which is the same shape
+ * of fault a blocked Apple sign-in produced.
+ */
+describe('a source whose script never answers', () => {
+	/** A document whose script tags are appended and then never run. */
+	function stubDeadScripts(): void {
+		vi.stubGlobal('document', {
+			addEventListener: () => {},
+			createElement: () => ({ src: '', async: false, addEventListener: () => {} }),
+			head: { appendChild: () => {} }
+		});
+	}
+
+	it('hands the workbench back when MusicKit never loads', async () => {
+		vi.useFakeTimers();
+		stubDeadScripts();
+		resetAppleMusic();
+		try {
+			const { media, player } = setup();
+			const attaching = media.attachAppleMusicSong('1091453645', 'Kygo — Stole the Show');
+			expect(media.busy).toBe(true);
+
+			// Still waiting a millisecond short of the timeout, which is what says
+			// the timeout is the thing that ends this rather than an early throw.
+			await vi.advanceTimersByTimeAsync(musicKitLoadTimeoutMs - 1);
+			expect(media.busy).toBe(true);
+
+			await vi.advanceTimersByTimeAsync(1);
+			await attaching;
+
+			expect(media.busy).toBe(false);
+			expect(player.error).toBe('Apple Music could not be loaded.');
+		} finally {
+			resetAppleMusic();
+			vi.useRealTimers();
+			vi.unstubAllGlobals();
+		}
+	});
+
+	it('hands the workbench back when the Spotify SDK never loads', async () => {
+		vi.useFakeTimers();
+		stubDeadScripts();
+		try {
+			const { media, player } = setup();
+			const attaching = media.attachSpotifyTrack('4cOdK2wGLETKBW3PvgPWqT', 'Mul — Sensommer');
+			expect(media.busy).toBe(true);
+
+			await vi.advanceTimersByTimeAsync(spotifySdkLoadTimeoutMs - 1);
+			expect(media.busy).toBe(true);
+
+			await vi.advanceTimersByTimeAsync(1);
+			await attaching;
+
+			expect(media.busy).toBe(false);
+			expect(player.error).toBe('The Spotify player could not be loaded.');
+		} finally {
+			vi.useRealTimers();
+			vi.unstubAllGlobals();
+		}
 	});
 });
 

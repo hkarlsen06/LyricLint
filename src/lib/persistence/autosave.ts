@@ -75,7 +75,9 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
  * become the final durable state.
  */
 export function createAutosaveController(
-	repository: DraftRepository,
+	// Saving is the whole of what this asks of a repository, and saying so is what
+	// lets a test drive the real controller against a repository double.
+	repository: Pick<DraftRepository, 'save'>,
 	options: AutosaveOptions = {}
 ): AutosaveController {
 	const debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
@@ -149,6 +151,18 @@ export function createAutosaveController(
 
 			pending.delete(saveDraftId);
 			clearDraftTimer(saveDraftId);
+
+			// A queued write may not outlive the draft it was scheduled for: a save
+			// whose generation has moved on belongs to a draft that has since been
+			// deleted or discarded, and putting it back recreates the row the
+			// delete removed. `cancelDraft` drops the pending entry as well, so
+			// today this is the second gate on one fact rather than the only one —
+			// it is what keeps the invariant true of any write picked up before it
+			// is issued, which is the shape a queue acquires by accident.
+			if (generationFor(saveDraftId) !== save.generation) {
+				continue;
+			}
+
 			isSaving = true;
 			refreshStatus();
 
@@ -252,6 +266,26 @@ export function createAutosaveController(
 				lastSettledStatus = 'idle';
 			}
 			refreshStatus();
+		},
+
+		/**
+		 * Forget the revision high-water mark for a draft that has just been
+		 * loaded into the editor.
+		 *
+		 * Revisions count from zero within one editor session, and reopening a
+		 * draft mounts a fresh editor that starts over at zero — so a draft opened
+		 * twice in one session came back carrying the previous visit's mark, and
+		 * `schedule` dropped every save until the new session out-typed the old
+		 * one. A sync run never does: an anchor tap changes no text and therefore
+		 * never advances the revision, so a reopened draft's whole timing pass was
+		 * written nowhere.
+		 *
+		 * Deliberately not `cancelDraft`, which bumps the generation as well: that
+		 * would also discard a retained failed save whose text is newer than the
+		 * record being read back.
+		 */
+		noteDraftLoaded(draftId) {
+			latestRevision.delete(draftId);
 		},
 
 		status() {

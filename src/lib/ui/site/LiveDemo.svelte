@@ -402,7 +402,12 @@
 		     lines tall and the row was a quarter of it, above the verse it was
 		     meant to introduce. The sample loses nothing by it: what is wrong with
 		     its header is `section.header-prose`, and that fix rewrites the line
-		     itself, on the line, where the reader is already looking. -->
+		     itself, on the line, where the reader is already looking.
+
+		     And no window-level `Mod-F`. The workbench claims that press because
+		     the editor is what the window is for; here it is one figure in an
+		     article, and claiming it would take find-in-page away from the whole
+		     page for a four-line verse. -->
 		<EditorPane
 			initialText={text}
 			initialSelection={{ anchor: 0, head: 0 }}
@@ -412,6 +417,7 @@
 			bind:handle
 			sectionGhosts={false}
 			autoHeight
+			windowFind={false}
 			onready={() => (editorReady = true)}
 		/>
 	</div>

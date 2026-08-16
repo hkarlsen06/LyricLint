@@ -101,6 +101,9 @@ describe('draft repository', () => {
 
 		const duplicate = await repository.duplicate(original.id);
 		expect(duplicate.id).not.toBe(original.id);
+		// The copy says so in its name, or the menu lists two rows reading
+		// `Renamed` with nothing to tell them apart.
+		expect(duplicate.title).toBe('Renamed copy');
 		expect(duplicate.text).toBe(original.text);
 		expect(duplicate.performers).toEqual(original.performers);
 		expect(duplicate.performers).not.toBe(original.performers);
@@ -700,7 +703,14 @@ describe('autosave and recovery', () => {
 		expect(saveCount).toBe(3);
 		expect((await repository.get('failed-draft'))?.text).toBe('private lyric content');
 		expect(autosave.status()).toBe('saved');
-		expect(Object.keys(autosave)).toEqual(['schedule', 'flush', 'cancel', 'cancelDraft', 'status']);
+		expect(Object.keys(autosave)).toEqual([
+			'schedule',
+			'flush',
+			'cancel',
+			'cancelDraft',
+			'noteDraftLoaded',
+			'status'
+		]);
 	});
 
 	it('cancelDraft drops only that draft so a delayed save cannot recreate it', async () => {
@@ -778,6 +788,93 @@ describe('autosave and recovery', () => {
 		await autosave.flush();
 
 		expect((await repository.get('revision-draft'))?.text).toBe('equal revision replacement');
+	});
+
+	/*
+	 * Revisions are counted by the editor and start again at zero every time one
+	 * is mounted, which is what reopening a draft does — so the mark left by the
+	 * first visit stood over a second visit whose first save was revision 1, and
+	 * every save was refused until the new session out-typed the old one. A sync
+	 * run never does, because an anchor tap changes no text: a reopened draft's
+	 * whole timing pass was written nowhere, silently.
+	 */
+	it('writes a reopened draft again from revision one', async () => {
+		const { repository } = await createRepository('reopen-revision');
+		const autosave = createAutosaveController(repository);
+
+		autosave.schedule({
+			revision: 5,
+			draft: draft({ id: 'reopened-draft', text: 'first visit' })
+		});
+		await autosave.flush();
+		expect((await repository.get('reopened-draft'))?.text).toBe('first visit');
+
+		autosave.noteDraftLoaded?.('reopened-draft');
+		autosave.schedule({
+			revision: 1,
+			draft: draft({ id: 'reopened-draft', text: 'second visit, one keystroke in' })
+		});
+		await autosave.flush();
+
+		expect((await repository.get('reopened-draft'))?.text).toBe('second visit, one keystroke in');
+		expect(autosave.status()).toBe('saved');
+	});
+
+	// Which is why it is not `cancelDraft`: that bumps the generation and drops
+	// the pending write, so a failed save whose text is newer than the record
+	// being read back would be thrown away by the very reopen that follows it.
+	it('noteDraftLoaded keeps a retained failed save that cancelDraft would drop', async () => {
+		const { repository } = await createRepository('reopen-retained-failure');
+		let shouldFail = true;
+		const failingRepository: DraftRepository = {
+			...repository,
+			async save(record) {
+				if (shouldFail) {
+					shouldFail = false;
+					throw new Error('quota exceeded');
+				}
+				await repository.save(record);
+			}
+		};
+		const autosave = createAutosaveController(failingRepository);
+
+		autosave.schedule({
+			revision: 4,
+			draft: draft({ id: 'retained-draft', text: 'newer than the record' })
+		});
+		await autosave.flush();
+		expect(autosave.status()).toBe('failed');
+
+		autosave.noteDraftLoaded?.('retained-draft');
+		await autosave.flush();
+
+		expect((await repository.get('retained-draft'))?.text).toBe('newer than the record');
+		expect(autosave.status()).toBe('saved');
+	});
+
+	// A draft cancelled while the queue is draining is a draft that has just been
+	// deleted or emptied out, and a write that lands after it recreates the row.
+	it('writes nothing for a draft cancelled while an earlier save is in flight', async () => {
+		const { repository } = await createRepository('cancel-mid-drain');
+		const savedIds: string[] = [];
+		const cancellingRepository: DraftRepository = {
+			...repository,
+			async save(record) {
+				savedIds.push(record.id);
+				// Mid-drain: the queue has already picked this write and has not yet
+				// reached the one behind it.
+				if (record.id === 'draft-a') autosave.cancelDraft?.('draft-b');
+				await repository.save(record);
+			}
+		};
+		const autosave = createAutosaveController(cancellingRepository, { debounceMs: 10 });
+
+		autosave.schedule({ revision: 1, draft: draft({ id: 'draft-a', text: 'A' }) });
+		autosave.schedule({ revision: 1, draft: draft({ id: 'draft-b', text: 'B' }) });
+		await autosave.flush();
+
+		expect(savedIds).toEqual(['draft-a']);
+		expect(await repository.get('draft-b')).toBeUndefined();
 	});
 
 	it('restores the current draft before a newer draft', async () => {

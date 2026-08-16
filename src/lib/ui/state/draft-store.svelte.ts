@@ -1,8 +1,11 @@
 import { copyCompareBaseline, copySectionLinks } from '$lib/persistence/copy.js';
+// The broadened controller, not the frozen one: `noteDraftLoaded` is the
+// persistence layer's own hook and is what a reopened draft's saves depend on.
+import type { AutosaveController } from '$lib/persistence/types.js';
 import type {
-	AutosaveController,
 	AutosaveStatus,
 	CompareBaselineRecord,
+	DraftIgnoreStore,
 	DraftRecord,
 	LineAnchor,
 	DraftRepository,
@@ -78,6 +81,21 @@ export interface DraftStoreDependencies {
 	 * at a transient id that no draft would ever carry again.
 	 */
 	hasAttachment?: () => boolean;
+	/**
+	 * The set-aside diagnostics, for the one thing this store does that the
+	 * repository cannot report: dropping a draft's record.
+	 *
+	 * `delete` clears the draft's ignore rows inside its own transaction, while
+	 * the store answers from an in-memory mirror hydrated once at boot — so
+	 * without this, a draft emptied out (or deleted) goes on reporting ignores
+	 * for the rest of the session that a reload will not find. Only `clearDraft`
+	 * is asked for: every other ignore operation belongs to the panel.
+	 *
+	 * Optional, and it is the composing controller that holds the store: a
+	 * controller that does not pass it leaves the mirror answering for a record
+	 * that is gone until the next reload.
+	 */
+	ignoreStore?: Pick<DraftIgnoreStore, 'clearDraft'>;
 }
 
 export interface DraftStore {
@@ -226,6 +244,9 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		if (!persisted) return;
 		persisted = false;
 		const discardedId = draftId;
+		// The record's ignore rows go with it inside `delete`'s own transaction,
+		// so the session's mirror is the only copy left standing.
+		deps.ignoreStore?.clearDraft(discardedId);
 		void deps.repository
 			.delete(discardedId)
 			.then(() => store.refreshDrafts())
@@ -278,6 +299,15 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 
 	/** `isPersisted` is false for a draft that exists only in memory so far. */
 	function loadDraft(nextDraft: DraftRecord, isPersisted: boolean): void {
+		// Loading a draft mounts a fresh editor, whose revisions start again at
+		// zero — so the autosave's high-water mark for this draft describes a
+		// session that no longer exists, and every save made in the new one was
+		// dropped as stale until it out-typed the old one. A sync run never does,
+		// because an anchor changes no text: a reopened draft's whole timing pass
+		// went nowhere. Here rather than in `openDraft`, because every path that
+		// loads a draft into the editor resets that counter — the delete that
+		// opens whatever is left included.
+		deps.autosave.noteDraftLoaded?.(nextDraft.id);
 		persisted = isPersisted;
 		draftId = nextDraft.id;
 		title = nextDraft.title;
@@ -467,6 +497,9 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 					deps.autosave.cancel();
 				}
 				await deps.repository.delete(id);
+				// Same as the discard above: the rows went with the record, and the
+				// mirror is what would otherwise go on answering for a deleted draft.
+				deps.ignoreStore?.clearDraft(id);
 				if (id === draftId) {
 					const remaining = await deps.repository.list();
 					const next = remaining[0] ? await deps.repository.get(remaining[0].id) : undefined;
