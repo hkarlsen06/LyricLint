@@ -166,6 +166,160 @@ export default defineConfig({
 			// as an SPA and rewrites unknown paths to index.html. A missing hashed
 			// asset must remain a 404 rather than becoming 200 text/html.
 			adapter: adapter({ fallback: '404.html' }),
+			/**
+			 * The Content-Security-Policy, carried by SvelteKit rather than by
+			 * `static/_headers`.
+			 *
+			 * Every page here is prerendered (`prerender = true` on the root layout),
+			 * and a prerendered page carries an inline hydration `<script>`. Reaching
+			 * for `script-src 'unsafe-inline'` to admit it would give up most of what a
+			 * CSP is for, so `mode: 'hash'` is the answer instead: SvelteKit hashes its
+			 * own inline script and adds the `sha256-` source itself, and it emits the
+			 * whole policy as a `<meta http-equiv>` in each prerendered document. That
+			 * travels with the markup, which matters here more than usual — the service
+			 * worker serves navigations out of its own cache, where the headers are
+			 * whatever was fetched at install, while a meta tag is part of the document
+			 * being replayed.
+			 *
+			 * `mode` is stated rather than left at `'auto'` even though `'auto'` would
+			 * resolve to the same thing: nonces on a prerendered page are insecure and
+			 * SvelteKit forbids them, so the only mode this site can ever use is this
+			 * one, and saying so keeps a future non-prerendered route from silently
+			 * changing the mechanism.
+			 *
+			 * `frame-ancestors` lives in `static/_headers`, because it is one of the
+			 * three directives (with `report-uri` and `sandbox`) a `<meta>` policy
+			 * ignores — SvelteKit drops it from the tag rather than emitting something
+			 * that does nothing. That split is deliberate and is the whole of the
+			 * hybrid: everything expressible in a document goes here, and the one
+			 * directive that has to be a header goes there, beside the
+			 * `X-Frame-Options: DENY` it restates in the modern spelling.
+			 *
+			 * Every third-party origin below is a script this application injects on a
+			 * press, and nothing is contacted before one — see the media sources and
+			 * the assistant. A wildcard appears only where a vendor's own player
+			 * spreads across subdomains we do not choose.
+			 */
+			csp: {
+				mode: 'hash',
+				directives: {
+					// The floor. Everything not named below resolves to same-origin.
+					'default-src': ['self'],
+
+					// `wasm-unsafe-eval` is Harper: `harper.js` fetches a same-origin
+					// hashed `.wasm` and runs `WebAssembly.instantiateStreaming`, which
+					// Chromium checks against `script-src`. It is NOT `unsafe-eval` —
+					// nothing in the bundle calls `eval` or `new Function`, and the
+					// grammar checker is the only WebAssembly here.
+					//
+					// The four hosts are the four scripts injected by a press:
+					// Turnstile's challenge, YouTube's IFrame API, Spotify's Web
+					// Playback SDK, and Apple's MusicKit. SvelteKit appends the
+					// `sha256-` for its own inline hydration script.
+					'script-src': [
+						'self',
+						'wasm-unsafe-eval',
+						'https://challenges.cloudflare.com',
+						'https://www.youtube.com',
+						'https://sdk.scdn.co',
+						'https://js-cdn.music.apple.com'
+					],
+
+					// Harper's `WorkerLinter` builds its worker from a `blob:` URL — the
+					// worker body is inlined in the package and blob-ified at runtime,
+					// so there is no same-origin URL to name. A blob worker inherits
+					// this document's policy, which is what lets its `.wasm` fetch pass
+					// under `connect-src 'self'`.
+					'worker-src': ['self', 'blob:'],
+
+					// `unsafe-inline` is required and is the one real concession in this
+					// policy, for three independent reasons that cannot be hashed:
+					// CodeMirror injects `<style>` elements through `StyleModule` at
+					// runtime, Svelte's transitions create `<style>` elements for their
+					// keyframes, and the boot screen writes its timings as a `style`
+					// attribute. Under a meta CSP there is no build step that could see
+					// any of them.
+					//
+					// It is also load-bearing that this list carries no hash: a browser
+					// ignores `unsafe-inline` the moment a hash or nonce joins the same
+					// directive, and SvelteKit reads `unsafe-inline` here as its signal
+					// to stop adding style hashes at all. Adding one back would silently
+					// re-break every surface above.
+					'style-src': ['self', 'unsafe-inline'],
+
+					// `data:` is Vite's own inlining — the Apple Music badge lockups by
+					// the exception in `build.assetsInlineLimit`, plus whatever else
+					// falls under the default threshold. The three hosts are album art
+					// and video stills.
+					'img-src': [
+						'self',
+						'data:',
+						'https://i.ytimg.com',
+						'https://*.mzstatic.com',
+						'https://*.scdn.co',
+						'https://*.spotifycdn.com'
+					],
+
+					// Self-hosted in `static/fonts`, so no vendor and no `data:`.
+					'font-src': ['self'],
+
+					// `blob:` is a local audio file through `URL.createObjectURL`, and
+					// is also how MusicKit feeds its media element. YouTube and Spotify
+					// play inside their own frames and need nothing here.
+					'media-src': ['self', 'blob:', 'https://*.apple.com', 'https://*.mzstatic.com'],
+
+					'connect-src': [
+						// The wasm asset, `_app/version.json`, and the service worker.
+						'self',
+						// The rules assistant — a streaming NDJSON POST, not EventSource.
+						'https://api.lyriclint.com',
+						// Spotify: the PKCE token exchange, then the Web API. The
+						// wildcards are the Web Playback SDK's own traffic once it
+						// connects — a websocket to `dealer.spotify.com` and calls to
+						// `spclient` and `apresolve` — which this repository never names
+						// and cannot narrow.
+						'https://accounts.spotify.com',
+						'https://api.spotify.com',
+						'https://*.spotify.com',
+						'wss://*.spotify.com',
+						// Apple: the catalogue read this application makes, then
+						// MusicKit's own — `amp-api`, the iTunes license hosts, metrics.
+						'https://api.music.apple.com',
+						'https://*.apple.com',
+						// Artwork is fetched as well as drawn: `downloadImage` in
+						// `ui/clipboard.ts` has to pull the bytes through `fetch` before
+						// there is a blob to name, because `download` on an anchor is
+						// ignored cross-origin. Without these, `Save artwork` degrades to
+						// opening a tab every time.
+						'https://*.mzstatic.com',
+						'https://*.scdn.co',
+						'https://*.spotifycdn.com',
+						'https://i.ytimg.com',
+						// Cloudflare's own recommendation for Turnstile.
+						'https://challenges.cloudflare.com'
+					],
+
+					// The YouTube player, Turnstile's widget, and the Spotify SDK's DRM
+					// frame. Apple signs in through a pop-up rather than a frame, but
+					// MusicKit is the one remote source the deployed build ships and its
+					// internals are not ours to enumerate.
+					'frame-src': [
+						'https://www.youtube-nocookie.com',
+						'https://challenges.cloudflare.com',
+						'https://sdk.scdn.co',
+						'https://*.apple.com'
+					],
+
+					// No plugins, ever.
+					'object-src': ['none'],
+					// A `<base>` injection cannot re-point every relative URL on the page.
+					'base-uri': ['self'],
+					// Nothing here posts anywhere; Spotify's authorize step is a
+					// top-level redirect rather than a form.
+					'form-action': ['self'],
+					'manifest-src': ['self']
+				}
+			},
 			// Cloudflare Pages consumes `_headers` as platform config and 404s its
 			// URL. Left in `$service-worker` `files` it fails the precache validation,
 			// so every new worker dies at install and stale clients never update.

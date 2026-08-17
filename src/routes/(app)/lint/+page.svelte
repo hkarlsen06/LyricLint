@@ -26,8 +26,10 @@
 	} from '$lib/persistence/index.js';
 	import { currentRuleSet, sourceRegistry } from '$lib/rules/index.js';
 	import DocumentTitle from '$lib/ui/layout/DocumentTitle.svelte';
+	import TabBusyNotice from '$lib/ui/layout/TabBusyNotice.svelte';
 	import Workspace from '$lib/ui/layout/Workspace.svelte';
 	import { useFeedbackState } from '$lib/ui/state/feedback.svelte.js';
+	import { guardWorkbenchTab, type TabGuard } from '$lib/ui/state/tab-guard.js';
 	import { noticeTouchLayout } from '$lib/ui/state/touch-notice.js';
 	import { ensurePersistentStorage } from '$lib/ui/state/storage-persistence.svelte.js';
 	import {
@@ -39,11 +41,19 @@
 
 	let controller = $state<WorkbenchController | undefined>();
 	let bootError = $state<string | undefined>();
+	// Another tab of this browser holds the workbench, so this one has not opened
+	// local storage and is not going to until that tab goes away. It outranks the
+	// boot screen, which would otherwise cover the notice for the whole wait.
+	let tabBusy = $state(false);
 	// The boot screen retires itself once the mark has landed and the workbench is
 	// ready: it is what decides when the workspace is revealed, not this page.
 	let revealed = $state(false);
 	let database: LyricLintDatabase | undefined;
 	let backup: WorkspaceBackupController | undefined;
+	// Held for the life of this tab and given up in `onDestroy`, after the final
+	// flush has landed and the database is closed — never in the mount cleanup,
+	// which returns while that flush is still in flight.
+	let guard: TabGuard | undefined;
 	const feedback = useFeedbackState();
 
 	function snapshotFor(draft: DraftRecord, revision = 0): EditorSnapshot {
@@ -76,6 +86,27 @@
 	onMount(() => {
 		let cancelled = false;
 
+		/**
+		 * One workbench per browser profile, and this tab waits for it.
+		 *
+		 * It is taken here rather than in `Workspace` or the group layout for two
+		 * reasons: this is the one place that opens the database, so the lock is
+		 * held around exactly the work it protects; and every component test mounts
+		 * the workspace directly, so none of them ever meets a lock manager.
+		 *
+		 * The boot is deferred rather than reloaded. Everything below already runs
+		 * after an await and carries a `cancelled` flag, so waiting costs one more
+		 * line — where a `location.reload()` on the way in would throw away the
+		 * document the user is looking at to reach a state this page can simply
+		 * enter.
+		 */
+		guard = guardWorkbenchTab({
+			onWaiting: () => {
+				if (!cancelled) tabBusy = true;
+			}
+		});
+		const held = guard.held;
+
 		// Resolve whether this origin's storage survives eviction, and take the
 		// silent grant where the browser already reports one. Never shows UI —
 		// the prompting path waits for the control in Preferences → Local data.
@@ -83,6 +114,12 @@
 
 		void (async () => {
 			try {
+				// Nothing may touch local storage before this resolves. On the ordinary
+				// path — no other tab — it is already resolved and costs a microtask.
+				await held;
+				if (cancelled) return;
+				tabBusy = false;
+
 				// `?slowboot` holds the workbench back so the boot screen's waiting
 				// state — the mark landed, the waveform running — can be looked at on a
 				// machine where local storage opens in forty milliseconds. Ten seconds
@@ -182,6 +219,13 @@
 	// against a closed connection, so the flush comes first and the close waits for
 	// it. The failure is reported rather than swallowed by `finally`, which would
 	// otherwise re-throw it as an unhandled rejection out of a destroyed component.
+	//
+	// The workbench lock is given up last, after that close, and that ordering is
+	// the whole reason it is released here rather than in the mount cleanup: the
+	// cleanup returns while this flush is still in flight, so a lock released
+	// there would let the next tab boot and read a database this one is still
+	// writing — which is the loss the guard exists to prevent, arrived at from
+	// the teardown side.
 	onDestroy(() => {
 		if (!browser) return;
 		backup?.destroy();
@@ -189,6 +233,7 @@
 			.catch((error: unknown) => console.error('The final autosave flush failed.', error))
 			.finally(() => {
 				if (database) closeDatabase(database);
+				guard?.release();
 			});
 	});
 
@@ -217,6 +262,8 @@
 	<Workspace {controller} editorComponent={EditorPane} brandRevealed={revealed} />
 {:else if bootError}
 	<p class="boot-message" role="alert">{bootError}</p>
+{:else if tabBusy}
+	<TabBusyNotice />
 {/if}
 
 <!-- The touch notice is said as the boot screen leaves, and that hand-off is why
@@ -230,8 +277,14 @@
      anyone saw it. And a boot failure never sets `revealed`, so the notice never
      speaks over an error — which is right twice over: there is no workbench
      behind one, and spending a session-scoped message on a failed load means
-     never seeing it on the reload that works. -->
-{#if !revealed && !bootError}
+     never seeing it on the reload that works.
+
+     A tab waiting for another one is the third state that outranks the sequence,
+     and for the same reason a boot failure is: the boot screen covers the whole
+     window, so left mounted it would hide the notice for as long as the wait
+     lasts — which is the one message that has to be read. It comes back the
+     moment the lock arrives, because from there this is an ordinary boot. -->
+{#if !revealed && !bootError && !tabBusy}
 	<BootScreen
 		ready={Boolean(controller)}
 		ondone={() => {

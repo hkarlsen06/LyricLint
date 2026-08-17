@@ -157,6 +157,10 @@ function setup(options: {
 		revealRange() {},
 		setSelection() {}
 	};
+	// Held rather than passed inline: the draft store clears a discarded or
+	// deleted 'scribe's ignores through this same object, so a test that means to
+	// model that has to be able to reach it.
+	const ignoreStore = createContractIgnoreStore(createMemorySessionStorage());
 	const controller = createWorkbenchController({
 		editor: options.headless ? headless : editor,
 		initialSnapshot: currentSnapshot,
@@ -164,7 +168,7 @@ function setup(options: {
 		initialRecentLanguages: options.initialRecentLanguages,
 		repository,
 		autosave,
-		ignoreStore: createContractIgnoreStore(createMemorySessionStorage()),
+		ignoreStore,
 		idFactory: vi.fn(() => `generated-${Math.random().toString(36).slice(2)}`),
 		now: () => '2026-07-20T11:00:00.000Z',
 		readClipboard:
@@ -188,7 +192,7 @@ function setup(options: {
 				}
 			: {})
 	});
-	return { controller, repository, autosave, editor, headless };
+	return { controller, repository, autosave, editor, headless, ignoreStore };
 }
 
 describe('workbench draft safety', () => {
@@ -1119,6 +1123,34 @@ describe('workbench diagnostic navigation', () => {
 		expect(controller.ignoredDiagnosticCount).toBe(0);
 
 		controller.onSnapshot({ ...snapshot(record, 4, text), diagnostics: [finding] });
+		expect(controller.visibleDiagnostics).toEqual([finding]);
+	});
+
+	/**
+	 * The panel used to mirror the store's list and re-read it only on a draft
+	 * *change*, which misses the other way the store empties: `clearDraft`, run
+	 * from the draft store when an emptied 'scribe is discarded or one is
+	 * deleted. Discarding and undoing never changes which draft is open, so the
+	 * panel went on hiding findings whose ignores no longer existed anywhere —
+	 * and a reload brought them all back, since the rows had gone with the
+	 * record.
+	 */
+	test('stops hiding findings once the stored ignores are cleared under it', () => {
+		const text = '[Verse]\nfirst line';
+		const record = draft('draft-a', text);
+		const { controller, ignoreStore } = setup({ initial: record });
+		const finding: Diagnostic = { ...diagnostic, from: 8, to: 13 };
+		controller.onSnapshot({ ...snapshot(record, 1, text), diagnostics: [finding] });
+		controller.ignoreDiagnostic(finding);
+		expect(controller.visibleDiagnostics).toEqual([]);
+		expect(controller.ignoredDiagnosticKeys).toHaveLength(1);
+
+		ignoreStore.clearDraft('draft-a');
+
+		// The same draft throughout, and the edit that puts the text back is what
+		// republishes — exactly the shape of a discard the user undoes.
+		controller.onSnapshot({ ...snapshot(record, 2, text), diagnostics: [finding] });
+		expect(controller.ignoredDiagnosticKeys).toEqual([]);
 		expect(controller.visibleDiagnostics).toEqual([finding]);
 	});
 

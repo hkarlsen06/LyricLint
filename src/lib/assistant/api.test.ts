@@ -1,6 +1,158 @@
-import { describe, expect, it, vi } from 'vitest';
-import { askAssistant } from './api.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { askAssistant, STREAM_INACTIVITY_MS } from './api.js';
 import { AssistantError } from './types.js';
+
+const DONE = {
+	type: 'done',
+	quota: { browserRemaining: 24, ipRemaining: 74, resetsAt: '2026-08-02T00:00:00Z' }
+};
+
+/**
+ * A stub that behaves like `fetch` in the one way the inactivity watchdog
+ * depends on: aborting the signal errors the response body, so a `read()`
+ * pending on a stalled stream rejects. A stub that took the signal and ignored
+ * it would leave that read hanging forever and make an aborted turn look
+ * exactly like a passing test.
+ */
+function stalledFetcher() {
+	const encoder = new TextEncoder();
+	let controller!: ReadableStreamDefaultController<Uint8Array>;
+	let settled = false;
+	const body = new ReadableStream<Uint8Array>({
+		start(streamController) {
+			controller = streamController;
+		}
+	});
+	const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+		init?.signal?.addEventListener('abort', () => {
+			if (settled) return;
+			settled = true;
+			controller.error(init.signal?.reason ?? new Error('The fetch was aborted.'));
+		});
+		return new Response(body, { headers: { 'content-type': 'application/x-ndjson' } });
+	});
+	return {
+		fetcher,
+		send(...events: unknown[]) {
+			controller.enqueue(
+				encoder.encode(events.map((event) => `${JSON.stringify(event)}\n`).join(''))
+			);
+		},
+		close() {
+			settled = true;
+			controller.close();
+		}
+	};
+}
+
+/**
+ * The watchdog only ever fires against a wedged connection, so every test here
+ * runs on virtual time — a real one would take three minutes to establish that
+ * something did *not* happen.
+ */
+describe('assistant answer stream inactivity', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.restoreAllMocks();
+	});
+
+	it('fails a stream that stops arriving with the connection still open', async () => {
+		vi.useFakeTimers();
+		const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+		const stream = stalledFetcher();
+		let settled = false;
+		const pending = askAssistant({
+			chatId: 'chat-stall',
+			messages: [{ role: 'user', content: 'Question' }],
+			clientRuleSetVersion: 'v1',
+			fetcher: stream.fetcher
+		})
+			.then(() => undefined)
+			.catch((error: unknown) => error)
+			.finally(() => {
+				settled = true;
+			});
+
+		stream.send(
+			{ type: 'start', requestId: 'req-stall', scope: 'general' },
+			{ type: 'block_start', kind: 'general' },
+			{ type: 'text_delta', delta: 'Two chunks ' }
+		);
+		await vi.advanceTimersByTimeAsync(1_000);
+		stream.send({ type: 'text_delta', delta: 'then nothing.' });
+		await vi.advanceTimersByTimeAsync(1_000);
+
+		// The turn is still open here, so the watchdog is a fresh window rather
+		// than a deadline the two chunks have been spending.
+		await vi.advanceTimersByTimeAsync(STREAM_INACTIVITY_MS - 2_000);
+		expect(settled).toBe(false);
+
+		await vi.advanceTimersByTimeAsync(2_000);
+		await expect(pending).resolves.toEqual(
+			expect.objectContaining<Partial<AssistantError>>({
+				code: 'provider_error',
+				message: 'The answer stream was interrupted.'
+			})
+		);
+		// The worded failure never carries the cause, so the abort has to be the
+		// thing in the log or a stall is indistinguishable from a parser bug.
+		expect(logged).toHaveBeenCalledWith('assistant_stream_interrupted', expect.anything());
+	});
+
+	it('leaves a slow stream alone while it is still arriving', async () => {
+		vi.useFakeTimers();
+		const stream = stalledFetcher();
+		const pending = askAssistant({
+			chatId: 'chat-slow',
+			messages: [{ role: 'user', content: 'Question' }],
+			clientRuleSetVersion: 'v1',
+			fetcher: stream.fetcher
+		});
+
+		// Well past the window in total, and never a gap of it: the watchdog
+		// measures silence between chunks, not how long an answer takes.
+		stream.send({ type: 'start', requestId: 'req-slow', scope: 'general' });
+		await vi.advanceTimersByTimeAsync(STREAM_INACTIVITY_MS - 1_000);
+		stream.send({ type: 'block_start', kind: 'general' });
+		await vi.advanceTimersByTimeAsync(STREAM_INACTIVITY_MS - 1_000);
+		stream.send({ type: 'text_delta', delta: 'Slow but alive.' });
+		await vi.advanceTimersByTimeAsync(STREAM_INACTIVITY_MS - 1_000);
+		stream.send({ type: 'block_done', ruleIds: [], sourceIds: [] }, DONE);
+		stream.close();
+
+		await expect(pending).resolves.toMatchObject({
+			kind: 'answer',
+			assistant: { blocks: [{ text: 'Slow but alive.' }] }
+		});
+	});
+
+	it('leaves no timer behind once a turn completes', async () => {
+		vi.useFakeTimers();
+		const events = [
+			{ type: 'start', requestId: 'req-clean', scope: 'general' },
+			{ type: 'block_start', kind: 'general' },
+			{ type: 'text_delta', delta: 'Answered.' },
+			{ type: 'block_done', ruleIds: [], sourceIds: [] },
+			DONE
+		];
+		const fetcher = vi.fn(
+			async () =>
+				new Response(`${events.map((event) => JSON.stringify(event)).join('\n')}\n`, {
+					headers: { 'content-type': 'application/x-ndjson' }
+				})
+		);
+
+		await askAssistant({
+			chatId: 'chat-clean',
+			messages: [{ role: 'user', content: 'Question' }],
+			clientRuleSetVersion: 'v1',
+			fetcher
+		});
+		// A watchdog that outlived its turn would abort a controller nothing is
+		// reading — invisible here, and a leak per question in the workbench.
+		expect(vi.getTimerCount()).toBe(0);
+	});
+});
 
 describe('assistant answer streaming', () => {
 	it('publishes validated text deltas before resolving the complete answer', async () => {

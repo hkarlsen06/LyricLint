@@ -23,6 +23,30 @@ import {
 
 const DEFAULT_ANSWERS_URL = 'https://api.lyriclint.com/v1/answers';
 
+/**
+ * The longest silence the worker can still be alive through.
+ *
+ * It commits its response headers before the provider has said anything and
+ * emits nothing at all until the first visible token — reasoning time is dead
+ * air by design — so a stalled turn and a thinking one look identical on the
+ * wire. What bounds the honest case is the worker's own `MODEL.providerTimeoutMs`
+ * (120s): a provider call that says nothing for that long is aborted and the
+ * worker answers with an `error` event. A repair round resets that same budget
+ * after `retrying`, so 120s is the longest legitimate gap between two chunks
+ * rather than a total. The rest is margin for the abort to reach the provider
+ * stream, the quota release the worker awaits before it emits, and transit.
+ *
+ * Past this, the connection is being held open by something that is never going
+ * to answer — a buffering proxy, a wedged worker — and without a watchdog the
+ * store stays `busy` for the life of the tab: the composer disabled, every chat
+ * command refusing, and no Retry drawn, recoverable only by a reload.
+ *
+ * Deliberately not a setting. A false positive costs one Retry on an answer
+ * that was still coming; there is no number a visitor could pick that is better
+ * informed than the one the worker's own timeout implies.
+ */
+export const STREAM_INACTIVITY_MS = 180_000;
+
 export function assistantAnswersUrl(): string {
 	const configured = import.meta.env.PUBLIC_ASSISTANT_ANSWERS_URL;
 	if (configured !== undefined) return configured.trim();
@@ -64,13 +88,33 @@ export async function askAssistant(options: AskOptions): Promise<TurnResponse> {
 		throw new AssistantError('offline', 'You are offline. The assistant needs a connection.');
 	}
 	const fetcher = options.fetcher ?? fetch;
+	// One controller for the whole turn. The stream watchdog aborts it, and a
+	// caller's own signal is forwarded onto it rather than raced beside it, so
+	// there is exactly one thing that can cancel this fetch.
+	const abort = new AbortController();
+	const caller = options.signal;
+	const forwardAbort = () => abort.abort(caller?.reason);
+	if (caller?.aborted) forwardAbort();
+	else caller?.addEventListener('abort', forwardAbort, { once: true });
+	try {
+		return await sendTurn(options, fetcher, abort);
+	} finally {
+		caller?.removeEventListener('abort', forwardAbort);
+	}
+}
+
+async function sendTurn(
+	options: AskOptions,
+	fetcher: typeof fetch,
+	abort: AbortController
+): Promise<TurnResponse> {
 	let response: Response;
 	try {
 		response = await fetcher(assistantAnswersUrl(), {
 			method: 'POST',
 			credentials: 'include',
 			headers: { 'content-type': 'application/json', accept: 'application/x-ndjson' },
-			signal: options.signal ?? null,
+			signal: abort.signal,
 			body: JSON.stringify({
 				chatId: options.chatId,
 				messages: options.messages,
@@ -98,7 +142,7 @@ export async function askAssistant(options: AskOptions): Promise<TurnResponse> {
 		throw new AssistantError(code, message);
 	}
 	if (response.headers.get('content-type')?.includes('application/x-ndjson')) {
-		return readAnswerStream(response, options.onProgress, options.onRetry);
+		return readAnswerStream(response, abort, options.onProgress, options.onRetry);
 	}
 	const answer = (await response.json()) as Omit<Extract<TurnResponse, { kind: 'answer' }>, 'kind'>;
 	return { kind: 'answer', ...answer };
@@ -128,6 +172,7 @@ type StreamEvent =
 
 async function readAnswerStream(
 	response: Response,
+	abort: AbortController,
 	onProgress?: AskOptions['onProgress'],
 	onRetry?: AskOptions['onRetry']
 ): Promise<TurnResponse> {
@@ -233,9 +278,27 @@ async function readAnswerStream(
 		}
 	};
 
+	// Inter-chunk, not whole-turn: an answer is allowed to take as long as it
+	// keeps arriving. It is armed before the first read rather than after it,
+	// because the worker commits its headers before the provider has said
+	// anything — the gap before the first chunk is the longest one there is, and
+	// the request-level path cannot see it at all, since `fetch` has already
+	// resolved by then.
+	let watchdog: ReturnType<typeof setTimeout> | undefined;
+	const watchStream = () => {
+		clearTimeout(watchdog);
+		watchdog = setTimeout(() => {
+			abort.abort(new Error(`No stream activity for ${STREAM_INACTIVITY_MS}ms.`));
+		}, STREAM_INACTIVITY_MS);
+	};
+
 	try {
+		watchStream();
 		while (true) {
 			const { done, value } = await reader.read();
+			// Every resolved read, `done` included: what is being watched is silence
+			// on the wire, and the tail below still has parsing left to do.
+			watchStream();
 			buffer += decoder.decode(value, { stream: !done });
 			let newline = buffer.indexOf('\n');
 			while (newline !== -1) {
@@ -258,6 +321,10 @@ async function readAnswerStream(
 		// line a parser bug and a dropped connection are indistinguishable.
 		console.error('assistant_stream_interrupted', error);
 		throw new AssistantError('provider_error', 'The answer stream was interrupted.');
+	} finally {
+		// Before the checks below rather than after them: they throw, and a timer
+		// outliving a settled turn would abort a controller nothing is reading.
+		clearTimeout(watchdog);
 	}
 	if (!quota || open.length > 0) {
 		throw new AssistantError('provider_error', 'The answer stream did not finish.');

@@ -510,6 +510,99 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 	expect(robots).toContain('Sitemap: https://lyriclint.com/sitemap.xml');
 });
 
+/**
+ * The Content-Security-Policy, pinned where it can actually fail.
+ *
+ * Every page is prerendered, so the policy rides in a `<meta http-equiv>` that
+ * SvelteKit writes from `csp` in `vite.config.ts` — and the three grants below
+ * are the ones whose loss looks exactly like working code. A missing
+ * `wasm-unsafe-eval` or `worker-src blob:` takes Harper out silently, leaving a
+ * workbench that lints natively and simply never proofreads; and a `style-src`
+ * that grows a hash makes the browser ignore the `unsafe-inline` beside it,
+ * which unstyles CodeMirror, every Svelte transition and the boot screen at
+ * once. None of that is a build error.
+ *
+ * The negative half matters as much: an assertion that the app draws is not
+ * evidence that the policy is enforced rather than absent, so this also refuses
+ * a foreign script, image, frame and object and checks the browser said so.
+ */
+test('the prerendered policy admits the workbench and refuses everything else', async ({
+	page
+}) => {
+	const violations: string[] = [];
+	await page.addInitScript(() => {
+		(window as unknown as { __csp: string[] }).__csp = [];
+		document.addEventListener('securitypolicyviolation', (event) => {
+			(window as unknown as { __csp: string[] }).__csp.push(
+				`${event.effectiveDirective} <- ${event.blockedURI}`
+			);
+		});
+	});
+	page.on('pageerror', (error) => violations.push(`pageerror: ${error.message}`));
+
+	await openWorkspace(page);
+
+	const policy = await page
+		.locator('meta[http-equiv="content-security-policy"]')
+		.getAttribute('content');
+	expect(policy).toBeTruthy();
+	const csp = policy ?? '';
+
+	// Harper: a same-origin wasm compiled inside a worker built from a blob.
+	expect(csp).toContain("'wasm-unsafe-eval'");
+	expect(csp).toMatch(/worker-src[^;]*blob:/u);
+	// Nothing here evals JavaScript, and `wasm-unsafe-eval` is deliberately the
+	// narrower grant rather than a step towards the wider one.
+	expect(csp).not.toContain("'unsafe-eval'");
+
+	// CodeMirror's StyleModule, Svelte's transitions and the boot screen's style
+	// attribute are all inline and none can be hashed under a meta policy — and a
+	// hash in this directive is what would switch `unsafe-inline` off.
+	const styleSrc = /style-src ([^;]*)/u.exec(csp)?.[1] ?? '';
+	expect(styleSrc).toContain("'unsafe-inline'");
+	expect(styleSrc).not.toMatch(/sha(?:256|384|512)-/u);
+
+	// The hydration script is admitted by hash, never by loosening the directive.
+	const scriptSrc = /script-src ([^;]*)/u.exec(csp)?.[1] ?? '';
+	expect(scriptSrc).toMatch(/sha256-/u);
+	expect(scriptSrc).not.toContain("'unsafe-inline'");
+
+	// `frame-ancestors` is one of three directives a meta policy ignores, so it
+	// belongs in `static/_headers` and must not be written here as a no-op.
+	expect(csp).not.toContain('frame-ancestors');
+
+	// The workbench came up and nothing was refused bringing it up.
+	await expect(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+	expect(await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp)).toEqual([]);
+
+	// And the policy is enforced rather than merely present.
+	await page.evaluate(() => {
+		const img = document.createElement('img');
+		img.src = 'https://example.com/blocked.png';
+		document.body.append(img);
+		const script = document.createElement('script');
+		script.src = 'https://example.com/blocked.js';
+		document.head.append(script);
+		const frame = document.createElement('iframe');
+		frame.src = 'https://example.com/';
+		document.body.append(frame);
+		const object = document.createElement('object');
+		object.data = 'https://example.com/blocked.swf';
+		document.body.append(object);
+	});
+	await expect
+		.poll(() => page.evaluate(() => (window as unknown as { __csp: string[] }).__csp))
+		.toEqual(
+			expect.arrayContaining([
+				expect.stringContaining('script-src'),
+				expect.stringContaining('img-src'),
+				expect.stringContaining('frame-src'),
+				expect.stringContaining('object-src')
+			])
+		);
+	expect(violations).toEqual([]);
+});
+
 test('paste → lint → safe fix updates the canonical editor text', async ({ page }) => {
 	await openWorkspace(page);
 	await replaceDocument(page, '[Chorus: Blair]\nImma stay');

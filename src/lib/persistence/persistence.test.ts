@@ -60,6 +60,23 @@ function draft(overrides: Partial<DraftRecord> & Pick<DraftRecord, 'id' | 'text'
 	};
 }
 
+/**
+ * A record written straight into the table, past the repository's own copiers.
+ * That is how a partial write, a hand edit in devtools or a schema slip reaches
+ * the boot — never through `create`, which fills every field in.
+ *
+ * `updatedAt` is required rather than optional because `list` reads the
+ * `updatedAt` index, and IndexedDB leaves a record missing an indexed key out
+ * of that index entirely: such a row would never reach the read these tests are
+ * about.
+ */
+async function seedRawDraft(
+	database: LyricLintDatabase,
+	record: Partial<DraftRecord> & Pick<DraftRecord, 'id' | 'updatedAt'>
+): Promise<void> {
+	await database.drafts.add(record as DraftRecord);
+}
+
 afterEach(async () => {
 	vi.useRealTimers();
 	for (const database of openDatabases) {
@@ -958,6 +975,94 @@ describe('autosave and recovery', () => {
 		expect(recovered.id).toBe('written');
 		expect((await repository.list()).map(({ id }) => id)).toEqual(['written']);
 		expect(await repository.getCurrent()).toBe('written');
+	});
+
+	// One corrupted row used to brick the whole boot: `copyDraft` walks a record
+	// field by field, so a record missing one threw out of `repository.get`, and
+	// the lint page's single boot catch reported local storage as unavailable for
+	// the entire workbench. Every healthy 'scribe was lost to one bad row.
+	it('recovers past records it cannot read, and leaves them on disk', async () => {
+		const { database, repository } = await createRepository('recover-unreadable');
+		await repository.create(
+			draft({ id: 'newest', text: 'newest', updatedAt: '2026-01-04T00:00:00.000Z' })
+		);
+		// Missing a field with a safe default: an absent roster is an empty
+		// roster, so this row is read rather than skipped.
+		await seedRawDraft(database, {
+			id: 'no-performers',
+			title: 'Rosterless',
+			text: 'still a transcription',
+			language: 'en',
+			createdAt: '2026-01-03T00:00:00.000Z',
+			updatedAt: '2026-01-03T00:00:00.000Z',
+			ruleSetVersion: '2026.1'
+		});
+		// Missing the transcription itself, which is not a field to invent one
+		// for, so this row is skipped.
+		await seedRawDraft(database, {
+			id: 'no-text',
+			title: 'Textless',
+			language: 'en',
+			performers: [],
+			createdAt: '2026-01-02T00:00:00.000Z',
+			updatedAt: '2026-01-02T00:00:00.000Z',
+			ruleSetVersion: '2026.1'
+		});
+		await repository.create(
+			draft({ id: 'current', text: 'current', updatedAt: '2026-01-01T00:00:00.000Z' })
+		);
+		await repository.setCurrent('current');
+
+		const recovered = await recoverStartupDraft(repository);
+
+		// The healthy draft the pointer names comes back whole.
+		expect(recovered.id).toBe('current');
+		expect(recovered.text).toBe('current');
+		expect(recovered.performers).toHaveLength(1);
+		expect((await repository.get('newest'))?.text).toBe('newest');
+
+		// A missing roster is defaulted on the way out and never written back:
+		// the row on disk is exactly as it was found.
+		expect(await repository.get('no-performers')).toMatchObject({
+			text: 'still a transcription',
+			performers: []
+		});
+		expect((await database.drafts.get('no-performers'))?.performers).toBeUndefined();
+
+		// A skipped record is not deleted. Deleting somebody's work because we
+		// could not parse it is the worse failure.
+		expect(await database.drafts.get('no-text')).toMatchObject({ title: 'Textless' });
+		expect((await repository.list()).map(({ id }) => id)).toEqual([
+			'newest',
+			'no-performers',
+			'no-text',
+			'current'
+		]);
+	});
+
+	it('boots when the current-draft pointer names a record it cannot read', async () => {
+		const { database, repository } = await createRepository('recover-unreadable-current');
+		await repository.create(
+			draft({ id: 'newest', text: 'newest', updatedAt: '2026-01-02T00:00:00.000Z' })
+		);
+		await seedRawDraft(database, {
+			id: 'no-text',
+			title: 'Textless',
+			language: 'en',
+			performers: [],
+			createdAt: '2026-01-03T00:00:00.000Z',
+			updatedAt: '2026-01-03T00:00:00.000Z',
+			ruleSetVersion: '2026.1'
+		});
+		await repository.setCurrent('no-text');
+
+		const recovered = await recoverStartupDraft(repository);
+
+		// The same fall-through a pointer at a deleted record takes.
+		expect(recovered.id).toBe('newest');
+		expect(recovered.text).toBe('newest');
+		expect(await repository.getCurrent()).toBe('newest');
+		expect(await database.drafts.get('no-text')).toBeDefined();
 	});
 });
 

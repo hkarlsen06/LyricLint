@@ -28,6 +28,20 @@ function blankDraft(): DraftRecord {
 }
 
 /**
+ * The two fields a draft cannot be guessed at without.
+ *
+ * `id` is how every later call names the record, and `text` is the
+ * transcription itself — a draft with no text is not a draft to invent one for,
+ * and one with no id has nothing the current-draft pointer, the media table or
+ * the ignore store could be keyed against. Everything else a record carries is
+ * either optional already or defaulted by `copyDraft`, so a row that clears
+ * this pair is a row worth recovering whatever else it is missing.
+ */
+function isReadableDraft(draft: DraftRecord): boolean {
+	return typeof draft.id === 'string' && draft.id.length > 0 && typeof draft.text === 'string';
+}
+
+/**
  * Restore the current recoverable draft, then the newest draft, then a blank
  * one that is not persisted.
  *
@@ -35,6 +49,15 @@ function blankDraft(): DraftRecord {
  * every new draft, so a session of "new draft, changed my mind" left the list
  * full of empty rows the user never wrote; they carry nothing to recover, so
  * startup is where they go.
+ *
+ * A record that cannot be read is neither recovered nor swept. `listRecords`
+ * has already left out the rows it could not copy at all; this drops the ones
+ * that copied without carrying an id or the transcription itself, and neither
+ * kind is deleted or repaired — deleting somebody's work because we could not
+ * parse it is the worse failure by a long way. That covers the record the
+ * current-draft pointer names as well: it simply never joins the recoverable
+ * list, so the boot falls through to the newest draft exactly as it does for a
+ * pointer at a record that is gone.
  */
 export async function recoverStartupDraft(
 	repository: DraftRepository,
@@ -45,6 +68,7 @@ export async function recoverStartupDraft(
 	const records = await repository.listRecords();
 	const recoverable: DraftRecord[] = [];
 	for (const draft of records) {
+		if (!isReadableDraft(draft)) continue;
 		// A draft with a song attached and no words yet is not one of the empty
 		// rows this sweep exists to clear — it is a transcription about to start,
 		// and deleting it takes the attachment with it, because `delete` clears

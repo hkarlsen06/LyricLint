@@ -4,7 +4,18 @@
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: DENY
   Permissions-Policy: camera=(), microphone=(), geolocation=()
+  # The rest of the Content-Security-Policy is emitted by SvelteKit as a
+  # <meta http-equiv> in each prerendered document (`csp` in vite.config.ts).
+  # `frame-ancestors` is one of three directives a meta policy ignores, so it
+  # is the one that has to be a header — the modern spelling of the
+  # X-Frame-Options above, which stays for browsers that only read that.
+  #
+  # This header deliberately carries nothing else. Two policies on one response
+  # are both enforced and a resource has to satisfy each, so naming a directive
+  # here as well would mean keeping two lists in step and would break a feature
+  # the moment they drifted. Directives absent from a policy are unrestricted
+  # by it, so this one restricts framing and defers everything else to the tag.
+  Content-Security-Policy: frame-ancestors 'none'
 
-# Content-Security-Policy is a deliberate follow-up because the site embeds third-party players.
 /_app/immutable/*
   Cache-Control: public, max-age=31536000, immutable

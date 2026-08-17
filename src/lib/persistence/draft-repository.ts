@@ -35,13 +35,30 @@ function now(): string {
 	return new Date().toISOString();
 }
 
+/**
+ * A field-by-field copy of a draft record.
+ *
+ * The three list-shaped fields tolerate a value that is not a list, and that is
+ * a decision about what a row's absence costs rather than defensiveness. A
+ * record read back off the disk may be a partial write, a hand edit, or a
+ * schema slip, and for these three the honest answer is the one `backup.ts`
+ * already gives a run whose numbers cannot be read: drop what cannot be read
+ * and keep the draft. An absent roster is an empty roster — which is what every
+ * new draft has — and absent timings or links cost a re-sync or a re-tick,
+ * where refusing the record costs the whole transcription.
+ *
+ * The fields with no safe default are not answered here. `recovery.ts` decides
+ * which records are readable at all; this copier keeps its field-list
+ * discipline, and every field a `DraftRecord` gains still has to be added to it
+ * by hand.
+ */
 function copyDraft(record: DraftRecord): DraftRecord {
 	const copy: DraftRecord = {
 		id: record.id,
 		title: record.title,
 		text: record.text,
 		language: record.language,
-		performers: record.performers.map((performer) => ({
+		performers: (record.performers ?? []).map((performer) => ({
 			id: performer.id,
 			displayName: performer.displayName,
 			normalizedKey: performer.normalizedKey,
@@ -65,14 +82,14 @@ function copyDraft(record: DraftRecord): DraftRecord {
 		};
 	}
 
-	if (record.lineAnchors !== undefined) {
+	if (Array.isArray(record.lineAnchors)) {
 		copy.lineAnchors = record.lineAnchors.map((anchor) => ({
 			line: anchor.line,
 			time: anchor.time
 		}));
 	}
 
-	if (record.sectionLinks !== undefined) {
+	if (Array.isArray(record.sectionLinks)) {
 		copy.sectionLinks = copySectionLinks(record.sectionLinks);
 	}
 
@@ -158,9 +175,21 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 			}));
 		},
 
+		// A record this cannot copy is left out rather than thrown. This runs at
+		// boot, ahead of anything on screen, and a throw here reaches the lint
+		// page's single catch — which reports local storage as unavailable for the
+		// entire workbench, so one bad row would cost every healthy 'scribe. The
+		// row itself is untouched on disk: a later build that can read it will
+		// find it still there.
 		async listRecords() {
 			const records = await database.drafts.orderBy('updatedAt').reverse().toArray();
-			return records.map(copyDraft);
+			return records.flatMap((record) => {
+				try {
+					return [copyDraft(record)];
+				} catch {
+					return [];
+				}
+			});
 		},
 
 		async get(id) {

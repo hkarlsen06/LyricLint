@@ -111,7 +111,28 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	let activeTab = $state<RightPanelTab>(deps.initialActiveTab ?? 'linter');
 	let activeDiagnosticKey = $state<string | undefined>();
 	let severityFilter = $state<Severity[]>([...allSeverities]);
-	let ignoredDiagnosticKeys = $state<string[]>(deps.ignoreStore.list(deps.draftId()));
+
+	/**
+	 * The set-aside diagnostics, read from the store rather than mirrored beside
+	 * it. A cached list only had to be re-read on a draft *change*, which is one
+	 * of two ways the store's own contents move: `clearDraft` runs from the draft
+	 * store when a 'scribe is discarded or deleted, and discarding an emptied
+	 * draft and undoing it never changes which draft is open — so the panel went
+	 * on filtering findings against ignores that no longer existed anywhere,
+	 * until something else happened to refresh them.
+	 *
+	 * Deriving it costs a sorted read of a small set on every snapshot, which is
+	 * a fraction of the `matchIgnoredDiagnostics` pass already made there. The
+	 * three tracked terms are exactly the three ways the answer can change: the
+	 * open draft, an edit landing (which is what every path that can empty the
+	 * store publishes on its way past), and this panel's own writes.
+	 */
+	let ignoreEpoch = $state(0);
+	const ignoredDiagnosticKeys = $derived.by(() => {
+		void ignoreEpoch;
+		void deps.snapshot().revision;
+		return deps.ignoreStore.list(deps.draftId());
+	});
 
 	const feedback = deps.feedback;
 
@@ -119,7 +140,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		const draftId = deps.draftId();
 		if (ignored) deps.ignoreStore.ignore(draftId, diagnosticKey);
 		else deps.ignoreStore.restore(draftId, diagnosticKey);
-		ignoredDiagnosticKeys = deps.ignoreStore.list(draftId);
+		ignoreEpoch += 1;
 		deps.onIgnoredDiagnosticsChange?.();
 	}
 
@@ -278,7 +299,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 					);
 		},
 		refreshIgnoredDiagnostics() {
-			ignoredDiagnosticKeys = deps.ignoreStore.list(deps.draftId());
+			ignoreEpoch += 1;
 		},
 		pruneIgnoredDiagnostics(diagnostics) {
 			const current = matchIgnoredDiagnostics(
@@ -290,7 +311,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			if (stale.length === 0) return;
 			const draftId = deps.draftId();
 			for (const key of stale) deps.ignoreStore.restore(draftId, key);
-			ignoredDiagnosticKeys = deps.ignoreStore.list(draftId);
+			ignoreEpoch += 1;
 			deps.onIgnoredDiagnosticsChange?.();
 		},
 		pruneActiveDiagnostic(diagnostics) {
