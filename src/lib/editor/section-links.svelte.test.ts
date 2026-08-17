@@ -696,6 +696,37 @@ describe('typing only in one linked copy', () => {
 		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
 	});
 
+	// The card advertises `⌃⌥H` and matched on the character, which Option
+	// rewrites: on the one platform that tooltip is written for, the shortcut
+	// never fired. The physical key is what carries it.
+	it('answers its own shortcut on a Mac, where Option rewrites the character', async () => {
+		const handle = await mount(SAME);
+		const header = offsetOf(SAME, '[Chorus]');
+		handle.linkSections?.({ headers: [header, offsetOf(SAME, '[Chorus 2]')] });
+		await new Promise((resolve) => setTimeout(resolve, 600));
+
+		const caret = SAME.indexOf('tight') + 'tight'.length;
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.requestSectionLink?.();
+		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+
+		document.activeElement?.dispatchEvent(
+			new KeyboardEvent('keydown', {
+				code: 'KeyH',
+				key: '˙',
+				ctrlKey: true,
+				altKey: true,
+				bubbles: true,
+				cancelable: true
+			})
+		);
+
+		await expect
+			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
+			.not.toBeInTheDocument();
+		expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+	});
+
 	it('lets Escape cancel before the next edit', async () => {
 		const announcements: string[] = [];
 		const handle = await mount(SAME, englishLanguagePack, {
@@ -826,11 +857,68 @@ describe('the link card', () => {
 		});
 		const marker = document.querySelector<HTMLElement>('.ll-section-link-marker');
 		expect(marker).not.toBeNull();
+		const caret = offsetOf(SONG, 'Fading now') + 'Fading'.length;
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.focus();
 
 		await userEvent.hover(marker!);
 
 		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
 		await expect.element(page.getByText('This section · line 4')).toBeVisible();
+
+		// A card nobody asked for leaves the caret where it was. Taking it blurred
+		// the editor — the drawn caret goes with `.cm-focused` — and sent the next
+		// keystrokes into checkboxes, where Space toggles link membership.
+		expect(document.activeElement?.closest('.cm-content')).not.toBeNull();
+		expect(document.querySelector('.apply__key')).toBeNull();
+
+		await userEvent.keyboard('!');
+
+		expect(handle.getSnapshot().text).toContain('Fading! now');
+	});
+
+	// `aria-haspopup="dialog"` is a promise about a press, and it used to be kept
+	// for arriving instead: Tab reached the marker, the card took the focus,
+	// Escape handed it to the editor, and the next Tab was back on the same marker
+	// — a document with linked sections could not be traversed at all.
+	it('opens on a press rather than on arriving, and gives the focus back', async () => {
+		// The real pointer is wherever the last test left it, and a marker drawn
+		// under it opens a card for us before this one presses anything.
+		const corner = document.createElement('button');
+		corner.type = 'button';
+		corner.textContent = 'Elsewhere';
+		corner.style.cssText = 'position: fixed; right: 0; bottom: 0; z-index: 100;';
+		document.body.append(corner);
+		await userEvent.hover(corner);
+		corner.remove();
+
+		const handle = await mount(SONG);
+		handle.linkSections?.({
+			headers: [offsetOf(SONG, '[Chorus]'), offsetOf(SONG, '[Chorus 2]')]
+		});
+		const marker = document.querySelector<HTMLElement>('.ll-section-link-marker');
+		expect(marker).not.toBeNull();
+
+		marker!.focus();
+		await new Promise((resolve) => setTimeout(resolve, 200));
+
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
+
+		await userEvent.keyboard('{Enter}');
+
+		const card = page.getByRole('dialog', { name: 'Link this chorus' });
+		await expect.element(card).toBeVisible();
+		expect(card.element().contains(document.activeElement)).toBe(true);
+		// It holds the focus, so Enter reaches it and the glyph promising that is on.
+		expect(document.querySelector('.apply__key')).not.toBeNull();
+		// The document is unchanged: Enter on a control inside `.cm-content` is a
+		// press CodeMirror would otherwise spend on a line break.
+		expect(handle.getSnapshot().text).toBe(SONG);
+
+		await userEvent.keyboard('{Escape}');
+
+		await expect.element(card).not.toBeInTheDocument();
+		expect(document.activeElement).toBe(marker);
 	});
 
 	it('lists every occurrence, numbered, with the source named rather than offered', async () => {
@@ -888,6 +976,29 @@ describe('the link card', () => {
 			(part) => part.textContent
 		);
 		expect(shared.some((part) => part?.includes('be there'))).toBe(true);
+	});
+
+	// The caret marking where a copy has nothing is a bar with no text in it, so
+	// the words were on an `aria-label` — which a generic `span` does not carry
+	// and most assistive technology never announces.
+	it('says in text where a copy has nothing, rather than labelling a bar', async () => {
+		const handle = await mount(SONG);
+		const caret = offsetOf(SONG, 'Hold on tight');
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.requestSectionLink?.();
+		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
+
+		// Both, so the untyped copy is a difference to respect rather than the one
+		// thing the link would fill — which is the state that draws the caret.
+		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
+		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
+
+		const bar = document.querySelector('.compare__run--empty');
+		expect(bar).not.toBeNull();
+		expect(bar?.getAttribute('aria-label')).toBeNull();
+		expect(bar?.getAttribute('aria-hidden')).toBe('true');
+		expect(bar?.nextElementSibling?.className).toBe('sr-only');
+		expect(bar?.nextElementSibling?.textContent).toBe('nothing here');
 	});
 
 	// The decision is a radio pair stating both outcomes, not a tick per

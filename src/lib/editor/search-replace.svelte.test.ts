@@ -172,4 +172,34 @@ describe('find and replace', () => {
 			.toBe(1);
 		expect(page.getByRole('button', { name: 'Replace all 1' }).elements()).toHaveLength(0);
 	});
+
+	// The shortcut is bound to the window in the capture phase, so over the audio
+	// picker it took a press aimed at a field inside the modal, opened a find bar
+	// behind the dialog, and left that field with no Find of its own.
+	it('stands down for a press inside a modal', async () => {
+		await mount();
+		const dialog = document.createElement('dialog');
+		const field = document.createElement('input');
+		dialog.append(field);
+		document.body.append(dialog);
+		dialog.showModal();
+		field.focus();
+		try {
+			const mac = /Mac|iPhone|iPad|iPod/u.test(navigator.platform);
+			const shortcut = new KeyboardEvent('keydown', {
+				key: 'f',
+				bubbles: true,
+				cancelable: true,
+				metaKey: mac,
+				ctrlKey: !mac
+			});
+			field.dispatchEvent(shortcut);
+
+			expect(shortcut.defaultPrevented).toBe(false);
+			expect(document.querySelectorAll('.ll-find')).toHaveLength(0);
+		} finally {
+			dialog.close();
+			dialog.remove();
+		}
+	});
 });

@@ -84,8 +84,12 @@ describe('DraftMenu', () => {
 		expect(within(renamedRow!).queryByRole('button', { name: /^Bridge notes/ })).toBeNull();
 
 		// Two presses in one place: the confirm takes the trigger's slot, and the
-		// press that armed it carries focus across the swap.
-		const confirm = within(renamedRow!).getByRole('button', { name: 'Delete' });
+		// press that armed it carries focus across the swap. It keeps the draft in
+		// its accessible name, because focus lands on it — a bare "Delete" read out
+		// on arrival names nothing.
+		const confirm = within(renamedRow!).getByRole('button', { name: 'Delete Bridge notes' });
+		expect(confirm.classList.contains('remove-button__confirm')).toBe(true);
+		expect(confirm.textContent?.trim()).toBe('Delete');
 		expect(document.activeElement).toBe(confirm);
 		await fireEvent.click(confirm);
 		await waitFor(async () => expect((await repository.list()).length).toBe(2));
@@ -154,7 +158,9 @@ describe('DraftMenu', () => {
 		await fireEvent.click(within(third).getByRole('button', { name: 'Delete Third song' }));
 
 		expect(within(second).getByRole('button', { name: 'Delete Second song' })).toBeTruthy();
-		expect(within(third).getByRole('button', { name: 'Delete' })).toBeTruthy();
+		expect(within(third).getByRole('button', { name: 'Delete Third song' }).classList).toContain(
+			'remove-button__confirm'
+		);
 	});
 
 	test('closes on a press outside, abandoning any pending confirm', async () => {
@@ -171,7 +177,9 @@ describe('DraftMenu', () => {
 
 		const row = screen.getByText('Second song').closest('li')!;
 		await fireEvent.click(within(row).getByRole('button', { name: 'Delete Second song' }));
-		expect(within(row).getByRole('button', { name: 'Delete' })).toBeTruthy();
+		expect(within(row).getByRole('button', { name: 'Delete Second song' }).classList).toContain(
+			'remove-button__confirm'
+		);
 
 		await fireEvent.pointerDown(document.body);
 		await waitFor(() => expect(menu.open).toBe(false));
@@ -180,6 +188,63 @@ describe('DraftMenu', () => {
 		await fireEvent.click(trigger);
 		const reopened = screen.getByText('Second song').closest('li')!;
 		expect(within(reopened).getByRole('button', { name: 'Delete Second song' })).toBeTruthy();
+	});
+
+	// A `<details>` closes on its summary and on an outside press and on nothing
+	// else, so this menu had two of the three exits every transient surface here
+	// owes — and an armed delete could not be abandoned from the keyboard at all.
+	test('closes on Escape, abandoning any pending confirm and returning focus', async () => {
+		const base = createTestWorkbench();
+		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
+		await controller.refreshDrafts();
+		render(DraftMenu, { controller });
+		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		await fireEvent.click(trigger);
+		const menu = trigger.closest('details')!;
+		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
+
+		const row = screen.getByText('Second song').closest('li')!;
+		await fireEvent.click(within(row).getByRole('button', { name: 'Delete Second song' }));
+
+		await fireEvent.keyDown(menu, { key: 'Escape' });
+
+		await waitFor(() => expect(menu.open).toBe(false));
+		// Escape is the path that hands focus back: nothing else named where the
+		// user was going.
+		expect(document.activeElement).toBe(trigger);
+
+		// And the question the user walked away from is gone rather than primed.
+		await fireEvent.click(trigger);
+		const reopened = screen.getByText('Second song').closest('li')!;
+		expect(reopened.querySelector('.remove-button__confirm')).toBeNull();
+		expect(within(reopened).getByRole('button', { name: 'Delete Second song' })).toBeTruthy();
+	});
+
+	// The armed row used to be a template branch of its own, mounting a *new*
+	// `RemoveButton` with `pending` already true — so its live region was born
+	// holding the question, which is not an update and is therefore not
+	// announced, and focus landed on a confirm named a bare "Delete".
+	test('arms the confirm in place, so its live region and its name both land', async () => {
+		const base = createTestWorkbench();
+		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
+		await controller.refreshDrafts();
+		render(DraftMenu, { controller });
+		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+
+		const row = screen.getByText('Second song').closest('li')!;
+		const region = row.querySelector('[aria-live]')!;
+		expect(region.textContent?.trim()).toBe('');
+
+		await fireEvent.click(within(row).getByRole('button', { name: 'Delete Second song' }));
+
+		// The same node, now saying something: a region replaced wholesale reports
+		// nothing.
+		expect(row.querySelector('[aria-live]')).toBe(region);
+		expect(region.textContent?.trim()).toBe('Delete Second song? Confirm or cancel.');
+
+		const confirm = row.querySelector<HTMLButtonElement>('.remove-button__confirm')!;
+		expect(confirm.getAttribute('aria-label')).toBe('Delete Second song');
+		expect(document.activeElement).toBe(confirm);
 	});
 
 	test('keeps the menu open for a press on the summary or inside the popover', async () => {

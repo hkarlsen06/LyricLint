@@ -120,7 +120,7 @@
 
 <StructuredData data={structuredData} />
 
-<main class="site-prose site-split__page rules__guide">
+<main id="main" tabindex="-1" class="site-prose site-split__page rules__guide">
 	<h1>The rules the linter checks</h1>
 	<p class="site-lede">
 		The {ruleCount} checks the workbench runs against a Genius transcription, grouped under the convention
@@ -193,8 +193,11 @@
 	<div class="site-actions">
 		<a class="button" href={resolve('/lint/')}>Check a transcription in the workbench</a>
 	</div>
+	<!-- No position: the index is beside the guide on a wide screen and under it
+	     on a narrow one, so "above the index" was false at half the widths this
+	     page is read at. The control names itself instead. -->
 	<p class="site-aside">
-		Linting runs entirely in your browser — no account, no upload. The optional assistant above the
-		index sends only the question you type it.
+		Linting runs entirely in your browser — no account, no upload. The optional assistant, behind
+		the sparkles beside the search field, sends only the question you type into it.
 	</p>
 </main>

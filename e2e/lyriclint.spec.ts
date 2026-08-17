@@ -703,7 +703,9 @@ test('performer assignment is applied and undone as one atomic edit', async ({ p
 	await textbox.press('Shift+End');
 	await textbox.press('Alt+p');
 
-	const picker = page.getByRole('toolbar', { name: 'Assign performers' });
+	// A dialog, not a toolbar: the surface contains Tab (dialog-conventional),
+	// where a toolbar promises that Tab exits.
+	const picker = page.getByRole('dialog', { name: 'Assign performers' });
 	await expect(picker).toBeVisible();
 	await picker.getByRole('button', { name: 'Blair' }).click();
 	await picker.getByRole('button', { name: 'Apply' }).click();

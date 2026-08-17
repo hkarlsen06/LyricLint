@@ -432,6 +432,13 @@
 	font-size: var(--font-size-sm);
 }
 
+/* Muted, because it qualifies the row rather than naming it: the rule and the
+   text it was keyed on are what the reader is scanning for. Drawn only where
+   the footer holds both kinds, so the word never runs down every row. */
+.ignored-rules__kind {
+	color: var(--color-text-muted);
+}
+
 .ignored-rules li,
 .merge-suggestions li {
 	display: flex;

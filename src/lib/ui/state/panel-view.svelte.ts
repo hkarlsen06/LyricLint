@@ -9,8 +9,10 @@ import type {
 	Severity
 } from '$lib/core/types.js';
 import {
+	acceptsDiagnosticAsCorrect,
 	diagnosticIgnoreKey,
 	matchIgnoredDiagnostics,
+	ignoredDiagnosticAccepted,
 	ignoredDiagnosticRuleId
 } from '$lib/diagnostics/ignore.js';
 import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
@@ -417,7 +419,12 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			const key = diagnosticIgnoreKey(diagnostic, deps.snapshot().text);
 			if (ignoredDiagnosticKeys.includes(key)) return;
 			setIgnored(key, true);
-			const message = `Ignored this “${ruleName(diagnostic.ruleId)}” diagnostic for this 'scribe.`;
+			// The suppression is the same either way; what the reader answered is
+			// not, and a card that led with `It's correct` must not report back that
+			// the finding was ignored.
+			const message = acceptsDiagnosticAsCorrect(diagnostic)
+				? `Marked this “${ruleName(diagnostic.ruleId)}” diagnostic as correct for this 'scribe.`
+				: `Ignored this “${ruleName(diagnostic.ruleId)}” diagnostic for this 'scribe.`;
 			feedback.announce(message);
 			feedback.addToast({
 				message,
@@ -441,7 +448,13 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 				actionLabel: 'Undo',
 				action: () => {
 					setIgnored(key, true);
-					feedback.announce(`Ignored this diagnostic again.`);
+					// The key says which question was answered, so undoing a restore
+					// puts back the answer that was given rather than an ignore.
+					feedback.announce(
+						ignoredDiagnosticAccepted(key)
+							? `Marked this diagnostic as correct again.`
+							: `Ignored this diagnostic again.`
+					);
 				}
 			});
 		}

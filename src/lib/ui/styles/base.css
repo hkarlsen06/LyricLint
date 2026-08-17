@@ -68,6 +68,16 @@ a:hover {
 }
 
 /*
+ * A link gives up the accent under a selection, the same trade a `<mark>` inside
+ * one already makes: accent ink on the selection wash measures under AA in both
+ * schemes, and what says "link" here was never the colour alone — the underline
+ * runs through the selection and the external-link glyph sits at the end of it.
+ */
+a::selection {
+	color: var(--color-text);
+}
+
+/*
  * Pinned to its containing block's origin rather than left at its static
  * position: an absolutely positioned box escapes the scroll clipping of every
  * ancestor between it and that containing block, so a live region sitting deep

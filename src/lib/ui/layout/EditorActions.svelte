@@ -98,9 +98,9 @@
 			{#if action.mark}
 				<span class="editor-actions__mark" aria-hidden="true">{action.mark}</span>
 			{:else if action.id === 'find'}
-				<!-- `1em` and `currentColor`, the rule `.spinner` states: a glyph in a
-				     button belongs to whatever it is inside, and here that is a row of
-				     marks it has to sit at the same optical size as. -->
+				<!-- `1em` and `currentColor`, the rule the loading mark states: a glyph
+				     in a button belongs to whatever it is inside, and here that is a
+				     row of marks it has to sit at the same optical size as. -->
 				<Search class="editor-actions__glyph" aria-hidden="true" size="1em" strokeWidth={2.25} />
 			{/if}
 		</button>

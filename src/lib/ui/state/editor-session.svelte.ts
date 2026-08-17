@@ -1,5 +1,6 @@
 import type { EditorHandle, EditorSnapshot } from '$lib/core/types.js';
 import type { FeedbackState } from './feedback.svelte.js';
+import { NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 
 /** What an accepted editor snapshot changed relative to the one it replaced. */
 export interface SnapshotChange {
@@ -92,10 +93,15 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 	 * `announce` beside `addToast` rather than the toast alone: the toast region
 	 * is not a live region, so dropping the announcement would trade one
 	 * audience for the other.
+	 *
+	 * The notice duration rather than the confirmation one: a confirmation
+	 * restates something the user just did and can be read in a glance, while
+	 * every sentence below is one they have never seen and two of them are an
+	 * instruction they have to carry out.
 	 */
 	function report(message: string): void {
 		deps.feedback.announce(message);
-		deps.feedback.addToast({ message });
+		deps.feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
 	}
 
 	return {
@@ -191,7 +197,10 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			if (editor.requestSectionHeader) {
 				editor.requestSectionHeader();
 			} else {
-				deps.feedback.announce('Place the cursor in a lyric section before inserting a header.');
+				// An aimed press that declines has to say so where the press can see
+				// it: the live region alone leaves a sighted user looking at a button
+				// that did nothing.
+				report('Place the cursor in a lyric section before inserting a header.');
 			}
 		},
 		get searchOpen() {
@@ -205,7 +214,9 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 			if (editor.toggleSearch) {
 				editor.toggleSearch();
 			} else {
-				deps.feedback.announce('Find and replace is not ready yet.');
+				// Same as `insertSection`: a refusal that only announces reads as a
+				// dead button to everyone who cannot hear the live region.
+				report('Find and replace is not ready yet.');
 			}
 		},
 		noteSearchOpen(open) {

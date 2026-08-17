@@ -82,6 +82,17 @@ export type OverlayState =
 			 * selection still sitting there, so the two have to be the same range.
 			 */
 			range: TextRange;
+			/**
+			 * Whether the card may take the focus as it opens, exactly as the two
+			 * variants above decide it. `Mod-Shift-L`, the diagnostic's guided
+			 * action, and a press on the `⇄` marker are all asked for and take it.
+			 * The two that open uninvited do not: the marker's own hover wait, and
+			 * a pointer selection that happens to cover a header whole. Taking it
+			 * there blurred the editor — the drawn caret goes with `.cm-focused` —
+			 * and sent the next keystrokes into checkboxes where Space toggles
+			 * link membership.
+			 */
+			takesFocus: boolean;
 			/** Lyrics selected for a local replacement or a new link difference. */
 			selection?: TextRange;
 			/** The header's own offset, which is what every link hook is keyed to. */
@@ -165,9 +176,10 @@ export function openSectionLinkPicker(
 	session: OverlaySession,
 	range: TextRange,
 	headerFrom: number,
+	takesFocus: boolean,
 	selection?: TextRange
 ): OverlaySession {
-	return withOverlay(session, { kind: 'link', range, headerFrom, selection });
+	return withOverlay(session, { kind: 'link', range, headerFrom, takesFocus, selection });
 }
 
 /**
@@ -416,8 +428,12 @@ export function reportSelectionAnchor(
 	// No `assignRequested`: the shell has nothing to arbitrate about a link, so
 	// there is no request to forward. The pane opens the card and that is all.
 	if (anchor.linkHeader) {
+		// `false` for the same reason the picker above takes it: nobody pressed
+		// anything. Sweeping a header whole is a selection the user is in the
+		// middle of working with, and a card that took the caret out of the
+		// document there would land their next keystroke in a checkbox.
 		return {
-			session: openSectionLinkPicker(session, anchor.range, anchor.linkHeader.from),
+			session: openSectionLinkPicker(session, anchor.range, anchor.linkHeader.from, false),
 			assignRequested: false
 		};
 	}

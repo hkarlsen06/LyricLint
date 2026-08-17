@@ -173,6 +173,44 @@ describe('the assistant spark', () => {
 		});
 	});
 
+	it('keeps the question when the assistant cannot take it, and opens on the refusal', async () => {
+		// Closing the modal deliberately leaves a request streaming, so this field
+		// can be asked in exactly the state `newChat()` and `send()` decline
+		// silently in — and clearing before asking was the question going with it.
+		const { assistant, ask } = makeAssistant();
+		let release!: () => void;
+		ask.mockImplementationOnce(
+			() =>
+				new Promise(
+					(resolve) => (release = () => resolve(cannedAnswer({ scope: 'mixed', blocks: [] })))
+				)
+		);
+		render(AssistantSpark, { prompt: 'Ask about the formatting rules', search, assistant });
+		await assistant.open();
+		const streaming = assistant.send('The first question?');
+		await vi.waitFor(() => {
+			expect(assistant.busy).toBe(true);
+		});
+		assistant.close();
+
+		wand().click();
+		await vi.waitFor(() => {
+			expect(visible(askField())).toBe(true);
+		});
+		askField().value = 'And a second one?';
+		askField().dispatchEvent(new Event('input', { bubbles: true }));
+		askField().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+		await vi.waitFor(() => {
+			expect(assistant.isOpen).toBe(true);
+		});
+		expect(ask).toHaveBeenCalledOnce();
+		expect(askField().value).toBe('And a second one?');
+
+		release();
+		await streaming;
+	});
+
 	it('draws the bare search field where no assistant is provided', () => {
 		render(AssistantSpark, { prompt: 'Ask about the formatting rules', search });
 

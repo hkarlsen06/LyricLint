@@ -98,6 +98,32 @@ describe('feedback toast lifecycle', () => {
 		expect(feedback.toasts).toHaveLength(0);
 	});
 
+	it('evicts action-less toasts before one holding a live Undo', () => {
+		const feedback = createFeedbackState();
+		feedback.addToast({ message: 'Ignored rule.', actionLabel: 'Undo', action: () => {} });
+		feedback.addToast({ message: 'Saved.' });
+		feedback.addToast({ message: 'Copied.' });
+		feedback.addToast({ message: 'Exported.' });
+		expect(feedback.toasts.map((toast) => toast.message)).toEqual([
+			'Ignored rule.',
+			'Copied.',
+			'Exported.'
+		]);
+	});
+
+	it('never evicts the toast the press just produced, even when every earlier toast holds an action', () => {
+		const feedback = createFeedbackState();
+		feedback.addToast({ message: 'Removed A.', actionLabel: 'Undo', action: () => {} });
+		feedback.addToast({ message: 'Removed B.', actionLabel: 'Undo', action: () => {} });
+		feedback.addToast({ message: 'Removed C.', actionLabel: 'Undo', action: () => {} });
+		feedback.addToast({ message: 'Saved.' });
+		expect(feedback.toasts.map((toast) => toast.message)).toEqual([
+			'Removed B.',
+			'Removed C.',
+			'Saved.'
+		]);
+	});
+
 	it('coalesces a repeated message onto one toast, and its Undo runs every action', () => {
 		const feedback = createFeedbackState();
 		const first = vi.fn();

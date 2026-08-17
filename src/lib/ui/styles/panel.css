@@ -162,7 +162,12 @@
 	margin-top: 0;
 }
 
-.panel-content h3 {
+/* `h2`, not `h3`: the workspace's own heading is the `sr-only` `h1` in
+   `Workspace.svelte`, and every panel section sat directly under it a level
+   down — a hierarchy that skips a level reads to anything walking headings as a
+   missing section rather than as a flat list. The size is unchanged; only the
+   level moved. */
+.panel-content h2 {
 	margin: 0 0 var(--space-3);
 	font-size: var(--font-size-lg);
 	line-height: var(--line-height-tight);

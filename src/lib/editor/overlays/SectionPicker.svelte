@@ -77,7 +77,24 @@
 		onCancel();
 	}
 
+	/**
+	 * Escape belongs to the card, not to the field inside it.
+	 *
+	 * Bound to the `<input>` alone it was dead the moment Tab reached Cancel —
+	 * the one place in the card where somebody is most likely to reach for it.
+	 * The list keys stay with the field, because they are about the field's own
+	 * `aria-activedescendant`, and so does Enter, or Enter on Cancel would choose
+	 * a header instead of pressing the button it landed on.
+	 */
 	function handleKeydown(event: KeyboardEvent): void {
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			void cancel();
+			return;
+		}
+		if (event.target !== input) {
+			return;
+		}
 		if (event.key === 'ArrowDown') {
 			event.preventDefault();
 			activeIndex = options.length ? (activeIndex + 1) % options.length : 0;
@@ -87,9 +104,6 @@
 		} else if (event.key === 'Enter') {
 			event.preventDefault();
 			void choose();
-		} else if (event.key === 'Escape') {
-			event.preventDefault();
-			void cancel();
 		}
 	}
 
@@ -101,7 +115,9 @@
 	class:anchored={anchor}
 	style={position}
 	role="dialog"
+	tabindex="-1"
 	aria-label="Add section header"
+	onkeydown={handleKeydown}
 	{@attach dismissOnOutside(dismiss)}
 >
 	<label for="ll-section-search">Section header</label>
@@ -113,7 +129,6 @@
 		autocomplete="off"
 		aria-controls="ll-section-results"
 		aria-activedescendant={options[activeIndex] ? `ll-section-option-${activeIndex}` : undefined}
-		onkeydown={handleKeydown}
 	/>
 	<ul id="ll-section-results" role="listbox" aria-label={`${languagePack.displayName} headers`}>
 		{#each options as option, index (`${option.headerName}:${option.ordinal ?? ''}:${option.custom ?? false}`)}

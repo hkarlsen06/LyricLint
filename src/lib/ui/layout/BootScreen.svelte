@@ -199,6 +199,22 @@
 	 */
 	const doneMs = $derived(Math.max(exitMs, blastAtMs + BLAST_MS));
 
+	/**
+	 * The wait, in words, and it arrives *after* the region does.
+	 *
+	 * A `role="status"` rendered with its text already in it is not an update, so
+	 * most screen readers say nothing at all — which is the whole of what this
+	 * screen tells someone who cannot see the lockup move. The container mounts
+	 * empty and takes the sentence a task later, which is a change the region can
+	 * report.
+	 */
+	let waitMessage = $state('');
+
+	onMount(() => {
+		const announceWait = setTimeout(() => (waitMessage = 'Loading your workspace…'));
+		return () => clearTimeout(announceWait);
+	});
+
 	onMount(() => {
 		if (prefersReducedMotion) {
 			// The whole point of the sequence is motion, so there is nothing to
@@ -297,5 +313,5 @@
 	     own entrance and its hover and press morph would both be a second opinion
 	     about where `--wm-open` should be. -->
 	<AppWordmark animated={false} />
-	<p class="sr-only" role="status">Loading your workspace…</p>
+	<p class="sr-only" role="status">{waitMessage}</p>
 </div>

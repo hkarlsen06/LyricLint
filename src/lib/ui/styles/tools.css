@@ -238,14 +238,12 @@
 	color: var(--color-text-muted);
 }
 
+/* The warning token is a severity mark's colour, and it is read here as a
+   sentence on the panel's own canvas. Measured, bare `--color-warning` on
+   `--color-canvas` is 4.21:1 in light — under AA at this size — where dark is
+   9.69:1. The token is not retuned for it, because every other surface it is
+   spent on is a glyph or a fill rather than 15px of prose; the text is pulled
+   toward the body colour instead, which is 5.53:1 light and 10.86:1 dark. */
 .backup-status.backup-status--warning {
-	color: var(--color-warning);
-}
-
-.confirm-row {
-	display: inline-flex;
-	flex-wrap: wrap;
-	gap: var(--space-2);
-	align-items: center;
-	color: var(--color-text-muted);
+	color: color-mix(in oklch, var(--color-warning) 80%, var(--color-text));
 }

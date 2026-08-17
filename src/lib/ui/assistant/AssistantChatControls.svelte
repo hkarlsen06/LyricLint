@@ -64,15 +64,6 @@
 								<span class="assistant-chats__name assistant-chats__name--static">
 									<span class="list-row__name">{chat.title}</span>
 								</span>
-								<div class="list-row__commands">
-									<RemoveButton
-										subject={chat.title}
-										pending
-										onRequest={() => (deleteChatId = chat.id)}
-										onCancel={() => (deleteChatId = undefined)}
-										onConfirm={() => deleteChat(chat.id)}
-									/>
-								</div>
 							{:else}
 								<button
 									type="button"
@@ -85,16 +76,21 @@
 										{formatDraftDate(chat.updatedAt)}
 									</time>
 								</button>
-								<div class="list-row__commands">
-									<RemoveButton
-										subject={chat.title}
-										pending={false}
-										onRequest={() => (deleteChatId = chat.id)}
-										onCancel={() => (deleteChatId = undefined)}
-										onConfirm={() => deleteChat(chat.id)}
-									/>
-								</div>
 							{/if}
+							<div class="list-row__commands">
+								<!-- The `RemoveButton` stays the same instance across the arming,
+								     as the drafts menu and the roster keep theirs: mounted afresh
+								     with `pending` already true, its live region is *born* holding
+								     the question, and a region that never changes announces
+								     nothing. -->
+								<RemoveButton
+									subject={chat.title}
+									pending={deleteChatId === chat.id}
+									onRequest={() => (deleteChatId = chat.id)}
+									onCancel={() => (deleteChatId = undefined)}
+									onConfirm={() => deleteChat(chat.id)}
+								/>
+							</div>
 						</li>
 					{/each}
 				</ul>

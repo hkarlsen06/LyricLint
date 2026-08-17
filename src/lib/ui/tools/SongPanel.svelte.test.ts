@@ -20,7 +20,7 @@ describe('SongPanel skimmability', () => {
 		const { container } = render(SongPanel, { controller });
 
 		// A locally named draft can search for its song before anything is attached.
-		expect([...container.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual([
+		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Song metadata',
 			'Document'
 		]);
@@ -29,7 +29,7 @@ describe('SongPanel skimmability', () => {
 		);
 
 		const documentActions = [...container.querySelectorAll('section')]
-			.find((section) => section.querySelector('h3')?.textContent === 'Document')
+			.find((section) => section.querySelector('h2')?.textContent === 'Document')
 			?.querySelector('.tool-actions');
 		expect(
 			[...(documentActions?.querySelectorAll('button') ?? [])].map((b) => b.textContent?.trim())
@@ -154,13 +154,13 @@ describe('SongPanel song metadata', () => {
 	}
 
 	function headings(container: HTMLElement): (string | null)[] {
-		return [...container.querySelectorAll('h3')].map((heading) => heading.textContent);
+		return [...container.querySelectorAll('h2')].map((heading) => heading.textContent);
 	}
 
 	/** Scoped by heading rather than by list class. */
 	function songSection(container: HTMLElement): HTMLElement | undefined {
 		return [...container.querySelectorAll('section')].find(
-			(section) => section.querySelector('h3')?.textContent === 'Song metadata'
+			(section) => section.querySelector('h2')?.textContent === 'Song metadata'
 		);
 	}
 

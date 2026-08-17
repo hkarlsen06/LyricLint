@@ -123,6 +123,42 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		]);
 	});
 
+	// A surface has one contrast action, and a diagnostic can carry several fixes
+	// — Harper offers up to three, and `ur` alone emits two. A tier each made
+	// three answers shout equally in the one place the reader is choosing
+	// *between* them, and erased the precedence the fix ordering had just given
+	// the lead.
+	it('gives the contrast tier to the leading fix alone on both surfaces', () => {
+		const diagnostic: Diagnostic = {
+			...contractionDiagnostic(),
+			ruleId: 'spelling.texting-shorthand',
+			message: '“ur” is texting shorthand.',
+			fixes: [
+				{
+					kind: 'preview',
+					label: 'Replace with your',
+					edit: { baseRevision: 0, edits: [{ from: 0, to: 2, insert: 'your' }] }
+				},
+				{
+					kind: 'preview',
+					label: "Replace with you're",
+					edit: { baseRevision: 0, edits: [{ from: 0, to: 2, insert: "you're" }] }
+				}
+			]
+		};
+
+		const expected = [
+			{ label: 'Replace with your', classes: 'button button--contrast diagnostic-actions__fix' },
+			{ label: "Replace with you're", classes: 'button diagnostic-actions__fix' },
+			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
+		];
+		expect(panelActions(diagnostic)).toEqual(expected);
+		expect(popoverActions(diagnostic)).toEqual(expected);
+		for (const row of [panelActions(diagnostic), popoverActions(diagnostic)]) {
+			expect(row.filter((action) => action.classes.includes('button--contrast'))).toHaveLength(1);
+		}
+	});
+
 	it('adds a way out only where the surface would otherwise trap the keyboard', () => {
 		const diagnostic = contractionDiagnostic();
 

@@ -15,6 +15,13 @@ export interface ToastMessage {
 /** Informational toasts linger briefly; actionable ones long enough to react. */
 export const INFO_TOAST_DURATION = 2000;
 export const ACTION_TOAST_DURATION = 4000;
+/**
+ * Refusals and instructions get longer than a confirmation: a confirmation
+ * restates something the user just did, while a refusal is a sentence they
+ * have never read — the touch notice already made this argument for itself,
+ * and every `report`-style refusal owes the same reading time.
+ */
+export const NOTICE_TOAST_DURATION = 6000;
 /** Visible-toast cap: the oldest toast collapses first beyond this. */
 export const MAX_VISIBLE_TOASTS = 3;
 
@@ -122,7 +129,13 @@ export function createFeedbackState(): FeedbackState {
 			const id = toast.id ?? `toast-${++nextToastId}`;
 			toasts = [...toasts, { ...toast, id }];
 			while (toasts.length > MAX_VISIBLE_TOASTS) {
-				const oldest = toasts[0];
+				// A toast carrying an action is holding a live Undo; evicting it to
+				// make room for a confirmation silently spends the user's way back.
+				// The oldest action-less toast goes first, an action toast is evicted
+				// only when every earlier toast is holding one, and the newest — the
+				// message this press just produced — is never the one that goes.
+				const earlier = toasts.slice(0, -1);
+				const oldest = earlier.find((candidate) => !candidate.action) ?? earlier[0];
 				if (!oldest) break;
 				removeToast(oldest.id);
 			}

@@ -92,7 +92,13 @@
 				// rather than instructed.
 				title: 'Nothing left to show',
 				detail:
-					"Every finding here is set aside for this 'scribe. Bring any of them back from Ignored diagnostics below."
+					// It points at the footer without naming either of the two answers
+					// it lists — findings set aside here may have been ignored or
+					// marked as correct, and one word for both would be wrong about
+					// half of them. Capitalised it named a heading called "Ignored
+					// diagnostics" that nothing on screen draws, so the reader was sent
+					// looking for a section that does not exist.
+					"Every finding here is set aside for this 'scribe. Bring any of them back from the list below."
 			};
 		}
 		return {

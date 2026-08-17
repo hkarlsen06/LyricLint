@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import type {
 		Diagnostic,
 		DiagnosticFix,
@@ -327,11 +327,17 @@
 			// Not forwarded: linking is one document edit repeated, so there is
 			// nothing here for the shell to arbitrate. `request.range` is the
 			// header itself, which the keyboard command resolved from the caret.
-			onSectionLinkRequest(request) {
+			//
+			// No origin means aimed: `Mod-Shift-L` and the diagnostic's guided
+			// action are both presses that meant only this. Only the `⇄` marker
+			// names one, because only it opens the card two ways.
+			onSectionLinkRequest(request, origin) {
+				linkTrigger = origin?.returnFocus;
 				session = openSectionLinkPicker(
 					session,
 					request.range,
 					request.range.from,
+					origin?.takesFocus ?? true,
 					request.selection
 				);
 			},
@@ -357,6 +363,28 @@
 	function returnFocus(): void {
 		editor?.handle.focus();
 	}
+
+	/** What the `⇄` marker that opened the link card hands the focus back to. */
+	let linkTrigger = $state.raw<(() => boolean) | undefined>();
+
+	/**
+	 * Where the focus goes when the link card closes without arming an edit.
+	 *
+	 * A card the pointer opened uninvited never took the caret, so it has none to
+	 * give back — the same rule dismissing a hovered diagnostic follows. One that
+	 * was asked for returns it to whatever asked: the marker, which promises a
+	 * dialog and therefore promises the way back out of one, or the document,
+	 * which is where both keyboard paths were standing.
+	 */
+	const returnFocusFromLink = $derived(
+		linkOverlay?.takesFocus
+			? () => {
+					if (!linkTrigger?.()) {
+						returnFocus();
+					}
+				}
+			: () => {}
+	);
 
 	function bumpScrollTick(): void {
 		scrollTick += 1;
@@ -528,6 +556,11 @@
 			'Your next edit at the caret won’t be copied to the other linked sections. Press Escape to cancel.'
 		);
 		session = closeOverlay(session);
+		// The one path out of this card that does not go back to whatever opened
+		// it: what has just been armed is the *next* edit at the caret, so the
+		// focus owed is the document's. After the tick, so the card that was
+		// pressed is gone rather than taking it straight back.
+		void tick().then(returnFocus);
 	}
 
 	function existingHeaders(): string[] {
@@ -667,13 +700,22 @@
 			callbacks.onIgnoreDiagnostic?.(current.diagnostic);
 		}
 		session = closeOverlay(session);
-		returnFocus();
+		// Same rule as dismissal and as applying a fix: only a popover that held
+		// focus hands it back. A hovered card's control was pressed with a pointer
+		// that never took the caret, so pulling it into the editor would arm the
+		// user's next keystroke over text they never chose.
+		if (current.kind === 'diagnostic' && current.takesFocus) {
+			returnFocus();
+		}
 	}
 
 	function setLanguage(language: string): void {
+		const current = session.overlay;
 		callbacks.onSetLanguage?.(language);
 		session = closeOverlay(session);
-		returnFocus();
+		if (current.kind === 'diagnostic' && current.takesFocus) {
+			returnFocus();
+		}
 	}
 
 	// The preedit owns the surface during composition: nothing anchored may sit
@@ -802,12 +844,13 @@
 					.text.slice(linkOverlay.selection.from, linkOverlay.selection.to)
 			: undefined}
 		{typeOnlyHereAvailable}
+		takesFocus={linkOverlay.takesFocus}
 		anchor={overlayAnchor}
 		placement={overlayPlacement}
 		onApply={applySectionLink}
 		onTypeOnlyHere={() => beginTypeOnlyHere(linkOverlay.headerFrom)}
 		onCancel={() => (session = cancelSectionLinkPicker(session))}
-		{returnFocus}
+		returnFocus={returnFocusFromLink}
 	/>
 {:else if sectionOverlay}
 	<SectionPicker

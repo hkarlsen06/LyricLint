@@ -15,6 +15,7 @@
 	} from '$lib/assistant/rule-previews.js';
 	import { renderChallenge, type ChallengeHandle } from '$lib/assistant/turnstile.js';
 	import { stickToBottom } from '$lib/interaction/stick-to-bottom.js';
+	import LoadingMark from '$lib/ui/primitives/LoadingMark.svelte';
 	import AssistantAnswer from './AssistantAnswer.svelte';
 	import AssistantLinkActionCard from './AssistantLinkActionCard.svelte';
 	import AssistantProposalCard from './AssistantProposalCard.svelte';
@@ -60,6 +61,44 @@
 			return "Messages are processed by OpenAI through Cloudflare. This 'scribe is not shared.";
 		}
 		return "Messages are processed by OpenAI through Cloudflare. The assistant asks before reading this 'scribe.";
+	});
+
+	/*
+	 * One channel per event, so nothing is said twice.
+	 *
+	 * The transcript is a `log`, and it carries its own additions: a turn
+	 * arriving, an answer filling in. What it cannot state is the *transition* a
+	 * reader watching it reads off the thinking indicator disappearing — so the
+	 * moment a pending answer completed is said here, and so is a request that
+	 * failed and a quota running low, which are the two sentences below the
+	 * transcript rather than in it. Nothing that this region speaks is spoken by
+	 * the log, and the paragraphs it stands in for carry no role of their own.
+	 *
+	 * It is mounted empty and filled, never inserted already carrying its text:
+	 * an element born with content is an addition to the accessibility tree
+	 * rather than a change inside a live region, and most screen readers announce
+	 * only the change.
+	 */
+	let announcement = $state('');
+	let answerStatus: string | undefined;
+
+	$effect(() => {
+		const last = assistant.messages.at(-1);
+		const status = last?.role === 'assistant' ? last.status : undefined;
+		// The flip, never the state: a transcript restored with a complete answer
+		// in it has not just answered anything.
+		if (answerStatus === 'pending' && status === 'complete') announcement = 'Answer ready';
+		answerStatus = status;
+	});
+
+	$effect(() => {
+		if (assistant.failure) announcement = assistant.failure.message;
+	});
+
+	$effect(() => {
+		if (quotaLow && assistant.quota) {
+			announcement = `${assistant.quota.browserRemaining} questions left today for this browser.`;
+		}
 	});
 
 	// The panel mounts this surface without anyone calling `open()`, so the
@@ -130,7 +169,7 @@
 	// Every way of asking goes through here, so the follow cannot be re-pinned by
 	// one of them and not another: asking a question is a request to see the
 	// answer to it, whichever control was pressed.
-	function ask(question: string): Promise<void> {
+	function ask(question: string): Promise<boolean> {
 		transcript.pin();
 		return assistant.send(question);
 	}
@@ -140,7 +179,12 @@
 		if (!canSend || draft.trim() === '') return;
 		const question = draft;
 		resetComposer();
-		await ask(question);
+		const consumed = await ask(question);
+		// A refusal only discoverable past the await — the conversation held by
+		// another tab — hands the question back, the same rule the synchronous
+		// busy guard keeps by never clearing at all. Only into a composer still
+		// empty: the reader may have typed on while the probe was out.
+		if (!consumed && draft.trim() === '') draft = question;
 	}
 
 	function resizeComposer(textarea: HTMLTextAreaElement): void {
@@ -196,7 +240,15 @@
 </script>
 
 <div class="assistant-conversation">
-	<div class="assistant-transcript" aria-label="Conversation" {@attach transcript.attach}>
+	<!-- `log`, which is what a transcript is: additions in order, announced
+	     politely, and the role that makes the label a name rather than a string
+	     on a generic box nothing reads. -->
+	<div
+		class="assistant-transcript"
+		role="log"
+		aria-label="Conversation"
+		{@attach transcript.attach}
+	>
 		{#if assistant.messages.length === 0}
 			<div class="assistant-empty">
 				<h3>What would you like to check?</h3>
@@ -204,7 +256,7 @@
 					Ask about Genius transcription, proofreading, grammar, or wording. Answers cite a relevant
 					reviewed rule when one applies.
 				</p>
-				<div class="assistant-suggestions" aria-label="Suggested questions">
+				<div class="assistant-suggestions" role="group" aria-label="Suggested questions">
 					{#each suggestions as suggestion (suggestion)}
 						<button type="button" onclick={() => void ask(suggestion)}>
 							<span>{suggestion}</span>
@@ -213,7 +265,11 @@
 					{/each}
 				</div>
 				<div class="assistant-disclosure">
-					<p>{disclosure} <a href={resolve('/(site)/privacy')}>Privacy</a></p>
+					<!-- The appended slash is load-bearing, exactly as it is on the rule
+					     index's rows: `resolve` interpolates the route pattern and knows
+					     nothing about `trailingSlash: 'always'`, so the bare result is a
+					     URL every visit redirects away from. -->
+					<p>{disclosure} <a href="{resolve('/(site)/privacy')}/">Privacy</a></p>
 					{#if assistant.draftToolsAvailable && assistant.draftAccessState}
 						<button
 							type="button"
@@ -231,7 +287,11 @@
 		{:else}
 			{#each assistant.messages as message, index (message.id)}
 				{#if index === assistant.contextDividerIndex && index > 0}
-					<p class="assistant-divider" role="separator">
+					<!-- No `role="separator"`: a non-focusable separator's children are
+					     presentational, so the sentence — which is the whole of what this
+					     divider says, and it is about what was sent — is pruned from the
+					     accessibility tree. A styled paragraph is the honest element. -->
+					<p class="assistant-divider">
 						Messages above were not included as context for the latest answer.
 					</p>
 				{/if}
@@ -253,7 +313,7 @@
 								{#if call.name === 'read_scribe'}
 									<AssistantToolTurn {call} {assistant} decidable={decidable(message.id)} />
 								{:else if call.name === 'propose_edits'}
-									<div class="assistant-proposals" aria-label="Proposed 'scribe edits">
+									<div class="assistant-proposals" role="group" aria-label="Proposed 'scribe edits">
 										{#each call.proposals as proposal (proposal.id)}
 											<AssistantProposalCard
 												{proposal}
@@ -263,13 +323,17 @@
 										{/each}
 									</div>
 								{:else if call.name === 'show_lyrics'}
-									<div class="assistant-proposals" aria-label="Referenced lyrics">
+									<div class="assistant-proposals" role="group" aria-label="Referenced lyrics">
 										{#each call.references as reference (reference.id)}
 											<AssistantReferenceCard {reference} {assistant} />
 										{/each}
 									</div>
 								{:else}
-									<div class="assistant-proposals" aria-label="Proposed section-link changes">
+									<div
+										class="assistant-proposals"
+										role="group"
+										aria-label="Proposed section-link changes"
+									>
 										{#each call.actions as action (action.id)}
 											<AssistantLinkActionCard
 												{action}
@@ -290,16 +354,16 @@
 								{referencesFailedToLoad}
 							/>
 							{#if !awaitingReview(message.id)}
-								<span class="assistant-thinking" role="status" aria-label="Answering">
-									<i></i><i></i><i></i>
-								</span>
+								<!-- The application's one answer to a wait with no measurable end.
+								     A second indicator here was a second timing scale as well, and
+								     it froze under `prefers-reduced-motion` — where a still mark
+								     reads as a drawing rather than as anything happening. -->
+								<LoadingMark label="Answering" />
 							{/if}
 						{:else if message.status === 'pending'}
 							{#if !awaitingReview(message.id)}
 								<p class="assistant-turn__text" aria-busy="true">
-									<span class="assistant-thinking" role="status" aria-label="Answering">
-										<i></i><i></i><i></i>
-									</span>
+									<LoadingMark label="Answering" />
 								</p>
 							{/if}
 						{:else if message.status === 'complete' && message.answer}
@@ -331,12 +395,16 @@
 		{/if}
 	</div>
 
+	<!-- Both are drawn only, and neither is a live region: they are inserted
+	     already carrying their text, which is an addition to the accessibility
+	     tree rather than a change inside one. The sr-only region at the foot is
+	     the channel that speaks them. -->
 	{#if assistant.failure}
-		<p class="assistant-status assistant-status--failure" role="status">
+		<p class="assistant-status assistant-status--failure">
 			{assistant.failure.message}
 		</p>
 	{:else if quotaLow && assistant.quota}
-		<p class="assistant-status" role="status">
+		<p class="assistant-status">
 			{assistant.quota.browserRemaining} questions left today for this browser.
 		</p>
 	{/if}
@@ -353,6 +421,7 @@
 	{/if}
 
 	<div class="assistant-conversation__foot">
+		<p class="sr-only" role="status" data-testid="assistant-announcement">{announcement}</p>
 		<form class="assistant-composer" onsubmit={submit}>
 			<div class="assistant-composer__field">
 				<label class="sr-only" for="assistant-question">Your question</label>
@@ -364,9 +433,13 @@
 					placeholder="Ask about the guidelines or proofreading…"
 					oninput={(event) => resizeComposer(event.currentTarget)}
 					onkeydown={onComposerKeydown}></textarea>
+				<!-- The shared tiers, not a fourth one: this is the composer's one
+				     destination action, so it is `.icon-button` in the contrast tier and
+				     takes that tier's disabled treatment with it. The class beside them
+				     is sizing only. -->
 				<button
 					type="submit"
-					class="assistant-composer__send"
+					class="icon-button button--contrast assistant-composer__send"
 					disabled={!canSend || draft.trim() === ''}
 					aria-label="Ask"
 				>

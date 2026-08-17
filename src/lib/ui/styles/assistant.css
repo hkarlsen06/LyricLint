@@ -658,49 +658,6 @@ a.assistant-rule__source:hover {
 	color: var(--color-text-muted);
 }
 
-.assistant-thinking {
-	display: inline-flex;
-	align-items: center;
-	min-height: 1.2em;
-	gap: 0.22rem;
-}
-
-.assistant-thinking i {
-	width: 0.32rem;
-	height: 0.32rem;
-	border-radius: 50%;
-	background: currentColor;
-	animation: assistant-dot-bounce 900ms ease-in-out infinite;
-}
-
-.assistant-thinking i:nth-child(2) {
-	animation-delay: 120ms;
-}
-
-.assistant-thinking i:nth-child(3) {
-	animation-delay: 240ms;
-}
-
-@keyframes assistant-dot-bounce {
-	0%,
-	60%,
-	100% {
-		transform: translateY(0);
-		opacity: 0.35;
-	}
-	30% {
-		transform: translateY(-0.28rem);
-		opacity: 1;
-	}
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.assistant-thinking i {
-		animation: none;
-		opacity: 0.65;
-	}
-}
-
 .assistant-divider {
 	margin-block: var(--space-3);
 	color: var(--color-text-muted);
@@ -742,7 +699,7 @@ a.assistant-rule__source:hover {
 	align-items: flex-end;
 	padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
 	border: var(--border-width) solid var(--color-border-input);
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-control);
 	background: var(--color-surface);
 }
 
@@ -766,23 +723,13 @@ a.assistant-rule__source:hover {
 	box-shadow: 0 0 0 var(--focus-ring-width) var(--color-focus-soft);
 }
 
+/* Sizing only. Everything the control *is* — the silhouette, the contrast
+   tier's inversion, and the muted-surface disabled state — comes from
+   `controls.css`, so this cannot drift into a fourth tier again. */
 .assistant-composer__send {
-	display: grid;
-	place-items: center;
 	flex: none;
 	width: var(--control-height-lg);
 	height: var(--control-height-lg);
-	border: 0;
-	border-radius: var(--radius-md);
-	background: var(--color-text);
-	color: var(--color-surface);
-	cursor: pointer;
-}
-
-.assistant-composer__send:disabled {
-	background: var(--color-control-disabled);
-	color: var(--color-text-disabled);
-	cursor: not-allowed;
 }
 
 .assistant-disclosure {

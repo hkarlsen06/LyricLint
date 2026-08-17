@@ -48,7 +48,11 @@ describe('PerformersPanel', () => {
 		// stepping aside while the removal is its only question.
 		await fireEvent.click(within(blairRow!).getByRole('button', { name: 'Remove Blair' }));
 		expect(within(blairRow!).queryByRole('button', { name: /^Rename/ })).toBeNull();
-		const confirm = within(blairRow!).getByRole('button', { name: 'Remove' });
+		// The confirm keeps the performer in its accessible name — focus lands on
+		// it, and a bare "Remove" read out on arrival names nobody.
+		const confirm = within(blairRow!).getByRole('button', { name: 'Remove Blair' });
+		expect(confirm.classList.contains('remove-button__confirm')).toBe(true);
+		expect(confirm.textContent?.trim()).toBe('Remove');
 		expect(document.activeElement).toBe(confirm);
 		await fireEvent.click(confirm);
 		expect(controller.performers.some((candidate) => candidate.displayName === 'Blair')).toBe(
@@ -114,12 +118,36 @@ describe('PerformersPanel', () => {
 		await fireEvent.click(within(averyRow).getByRole('button', { name: 'Remove Avery' }));
 		await fireEvent.click(within(blairRow).getByRole('button', { name: 'Remove Blair' }));
 		expect(within(averyRow).getByRole('button', { name: 'Remove Avery' })).toBeTruthy();
-		expect(within(blairRow).getByRole('button', { name: 'Remove' })).toBeTruthy();
+		expect(within(blairRow).getByRole('button', { name: 'Remove Blair' }).classList).toContain(
+			'remove-button__confirm'
+		);
 
 		await fireEvent.click(within(blairRow).getByRole('button', { name: 'Cancel' }));
 		expect(within(blairRow).getByRole('button', { name: 'Remove Blair' })).toBeTruthy();
 		expect(within(blairRow).getByRole('button', { name: 'Rename Blair' })).toBeTruthy();
 		expect(controller.performers).toHaveLength(2);
+	});
+
+	// The field was seeded once, at mount, and the row survives a rename made in
+	// a header — that is what `adoptHeaderRename` is, and it is the commonest way
+	// a performer's spelling changes. So the row said the new name, the field
+	// opened on the old one, and one Enter ran the rename backwards over every
+	// header in the document.
+	test('the rename field opens on the name the row is currently showing', async () => {
+		const { controller } = createTestWorkbench({
+			performers: [performer('krissy', 'KrissyB', 0)]
+		});
+		render(PerformersPanel, { controller });
+
+		const roster = screen.getByRole('list', { name: "'Scribe performer roster" });
+		// The editor's own mirror, arriving while this row is mounted.
+		controller.adoptHeaderRename('krissy', 'KrissyB', 'KrissyC');
+		await waitFor(() => expect(within(roster).getByText('KrissyC')).toBeTruthy());
+
+		await fireEvent.click(within(roster).getByRole('button', { name: 'Rename KrissyC' }));
+
+		const field = within(roster).getByRole('textbox', { name: 'Performer name' });
+		expect((field as HTMLInputElement).value).toBe('KrissyC');
 	});
 
 	// Renaming one row and removing another are two questions about the roster,
@@ -139,7 +167,7 @@ describe('PerformersPanel', () => {
 		await fireEvent.click(within(blairRow).getByRole('button', { name: 'Rename Blair' }));
 
 		expect(within(averyRow).getByRole('button', { name: 'Remove Avery' })).toBeTruthy();
-		expect(within(averyRow).queryByRole('button', { name: 'Remove' })).toBeNull();
+		expect(averyRow.querySelector('.remove-button__confirm')).toBeNull();
 		expect(controller.performers).toHaveLength(2);
 	});
 

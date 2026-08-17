@@ -191,6 +191,12 @@
 	// would land on the workbench behind this card while it stays open — the
 	// keyboard would then drive the page, not the picker. Cycle within instead;
 	// Escape and Apply remain the ways out.
+	//
+	// That containment is why the card is a `dialog` and not the `toolbar` it was
+	// announced as. A toolbar's whole convention is that Tab leaves it, so the
+	// keyboard was promised an exit this card does not give — and nothing else
+	// named the two it does, since the `↵` glyph is `aria-hidden`. A dialog is
+	// what a surface that holds the keyboard until it is answered actually is.
 	function tabStops(): HTMLElement[] {
 		if (!root) {
 			return [];
@@ -402,7 +408,7 @@
 		{@attach measurePlacement}
 		class="picker"
 		class:show-focus={keyboardNavigated}
-		role="toolbar"
+		role="dialog"
 		tabindex="-1"
 		aria-label="Assign performers"
 		onkeydown={handleKeydown}
@@ -429,7 +435,14 @@
 				{/if}
 			</div>
 		{/if}
-		<div class="roster" class:roster--scrollable={rosterScrollable} aria-label="Performer roster">
+		<!-- A role to carry the label: `aria-label` on a generic element is
+		     prohibited and simply not announced. -->
+		<div
+			class="roster"
+			class:roster--scrollable={rosterScrollable}
+			role="group"
+			aria-label="Performer roster"
+		>
 			<div class="roster__track" {@attach trackRosterOverflow}>
 				{#each performers as performer, index (performer.id)}
 					<button
@@ -750,11 +763,6 @@
 	.picker__empty-hint {
 		color: var(--color-text-muted);
 		white-space: nowrap;
-	}
-
-	button[aria-pressed='true'] {
-		border-color: color-mix(in oklch, var(--dot-color, var(--color-accent)) 65%, transparent);
-		background: color-mix(in oklch, var(--dot-color, var(--color-accent)) 24%, transparent);
 	}
 
 	/* Colors, hover, and disabled treatment come from the global contrast tier;

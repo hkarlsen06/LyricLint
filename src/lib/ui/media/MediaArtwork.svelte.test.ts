@@ -1,7 +1,7 @@
 import { page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { appleStore } from '../state/media-test-stores.js';
+import { appleStore, spotifyStore } from '../state/media-test-stores.js';
 import MediaArtwork from './MediaArtwork.svelte';
 
 const cover = 'https://is1-ssl.mzstatic.com/image/thumb/x/640x640bb.jpg';
@@ -126,24 +126,64 @@ describe('MediaArtwork', () => {
 	});
 
 	/*
-	 * Before the cover lands, nothing draws at all.
+	 * A song with no cover is still a song, and this band is the only surface that
+	 * names one: the strip hands both the title and the mark over here on the
+	 * source kind (`drawsCoverBand`). Gated on the picture, a catalogue read that
+	 * answers 404 or 403 — which reports no artwork ever, not merely late — left
+	 * the workbench playing somebody's track and saying nothing about it, with
+	 * neither required attribution drawn.
 	 *
-	 * The version this replaces stood the row up at attach time with the
-	 * thumbnail's slot empty, so a layout would already be standing when the
-	 * picture arrived. What that produced was a tall band of chrome holding two
-	 * lines and a badge — the emptiest thing in the panel, for exactly as long as
-	 * the catalogue read takes. The strip says nothing either, so the song is
-	 * silent on screen until there is something to show.
+	 * What the old rule was right about is the *tall* shape, so the answer is the
+	 * folded row: one compact line, and no stage.
 	 */
-	it('draws nothing at all until the cover arrives', async () => {
+	it('names the song and draws the mark before — or without — a cover', async () => {
 		const { media, player } = await appleStore();
 		expect(player.artwork).toBeUndefined();
 
 		const { container } = render(MediaArtwork, { props: { media } });
 
-		expect(container.querySelector('.media-artwork')).toBeNull();
-		expect(document.querySelector('.media-artwork__meta')).toBeNull();
-		expect(document.querySelector('.media-attribution__apple')).toBeNull();
+		expect(container.querySelector('.media-artwork')).not.toBeNull();
+		const meta = document.querySelector('.media-artwork__meta') as HTMLElement;
+		expect(meta.querySelector('.media-artwork__title')?.textContent).toBe('Stole the Show');
+		expect(meta.querySelector('.media-artwork__artist')?.textContent).toBe('Kygo');
+		expect(document.querySelector('.media-attribution__apple')).not.toBeNull();
+
+		// No picture, so no stage to expand into and no control that would appear
+		// to do nothing — and never the tall shape, whatever `open` says.
+		expect(document.querySelector('.media-artwork__stage')).toBeNull();
+		expect(document.querySelector('.media-artwork__toggle')).toBeNull();
+		expect(container.querySelector('.media-artwork--folded')).not.toBeNull();
+	});
+
+	// The same, one source over: Spotify's read carries the cover with the name,
+	// so a refused one costs both — and their mark is required wherever the track
+	// is playing.
+	it('names a Spotify track with no cover and keeps their mark on screen', async () => {
+		const { media, player } = await spotifyStore();
+		expect(player.artwork).toBeUndefined();
+
+		render(MediaArtwork, { props: { media } });
+
+		expect(document.querySelector('.media-artwork__title')?.textContent).toBe('Sensommer');
+		expect(document.querySelector('.media-artwork__artist')?.textContent).toBe('Mul');
+		expect(document.querySelector('.media-attribution__spotify')).not.toBeNull();
+	});
+
+	/*
+	 * And when the picture does land, the row it lands into is the one already
+	 * standing: the stage appears above the facts rather than the whole band
+	 * arriving from nothing.
+	 */
+	it('grows the stage in place when the cover arrives', async () => {
+		const { media } = await appleStore();
+		const { rerender } = render(MediaArtwork, { props: { media, open: true } });
+		expect(document.querySelector('.media-artwork__stage')).toBeNull();
+
+		const withArtwork = await withCover();
+		await rerender({ media: withArtwork.media, open: true });
+
+		expect(document.querySelector('.media-artwork__stage')).not.toBeNull();
+		expect(document.querySelector('.media-artwork__cover')?.getAttribute('src')).toBe(cover);
 	});
 
 	/*

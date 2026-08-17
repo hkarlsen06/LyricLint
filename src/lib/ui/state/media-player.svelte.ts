@@ -268,7 +268,21 @@ export interface MediaPlayerDependencies {
 	loadMusicKit?: MusicKitLoader;
 	/** Injectable so a test answers Apple's catalogue without a network. */
 	appleMusicRequest?: typeof fetch;
+	/**
+	 * Where the lock screen reads what is playing. Injectable for tests; null
+	 * deliberately disables the OS-facing half of the transport.
+	 */
+	mediaSession?: MediaSessionMetadataControls | null;
 }
+
+/**
+ * The half of the Media Session API this module owns.
+ *
+ * The action handlers are registered where the keystrokes are
+ * (`media-shortcuts.ts`), because they are presses. What is playing is a fact,
+ * and it changes here.
+ */
+export type MediaSessionMetadataControls = Pick<MediaSession, 'metadata' | 'playbackState'>;
 
 export interface MediaPlayer {
 	/** The attached file's name, or undefined when nothing is attached. */
@@ -542,6 +556,11 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	const createAudio = deps.createAudio ?? (() => new Audio());
 	const createObjectUrl = deps.createObjectUrl ?? ((file: Blob) => URL.createObjectURL(file));
 	const revokeObjectUrl = deps.revokeObjectUrl ?? ((url: string) => URL.revokeObjectURL(url));
+	const mediaSession =
+		deps.mediaSession === null
+			? undefined
+			: (deps.mediaSession ??
+				(typeof navigator === 'undefined' ? undefined : navigator.mediaSession));
 
 	let name = $state<string | undefined>(undefined);
 	let playing = $state(false);
@@ -595,6 +614,44 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	let rewindOnResume = false;
 
 	/**
+	 * Tell the OS what is playing, so the lock screen is not the one surface here
+	 * that is wrong about it.
+	 *
+	 * `media-shortcuts.ts` registers the action handlers, which is why the media
+	 * buttons already work; nothing said what they were operating, so the notification
+	 * shade drew the page's title over a play state left wherever the last session
+	 * put it. The two halves are deliberately apart: a handler is a press, and
+	 * this is a fact that changes.
+	 *
+	 * The metadata is rebuilt rather than patched, because `MediaMetadata` is a
+	 * snapshot rather than a live object. Everything is feature-detected and the
+	 * whole write is guarded: a browser may expose the session without the
+	 * constructor, and the artwork is somebody else's CDN address.
+	 */
+	function publishSession(): void {
+		if (mediaSession === undefined) return;
+		try {
+			mediaSession.playbackState =
+				name === undefined ? 'none' : playing || wantPlaying ? 'playing' : 'paused';
+			if (name === undefined) {
+				mediaSession.metadata = null;
+				return;
+			}
+			if (typeof MediaMetadata === 'undefined') return;
+			// The two halves where a catalogue reported them, and the one-line name
+			// where it did not — the same fallback the cover band's own row makes.
+			mediaSession.metadata = new MediaMetadata({
+				title: songDetails?.title ?? name,
+				...(songDetails?.artist === undefined ? {} : { artist: songDetails.artist }),
+				...(artwork === undefined ? {} : { artwork: [{ src: artwork }] })
+			});
+		} catch {
+			// Exposed without every field on it, which is the same allowance the
+			// action handlers already make for themselves.
+		}
+	}
+
+	/**
 	 * Events from a source that is no longer the attached one are dropped.
 	 *
 	 * A YouTube poll in flight when the user attaches a file would otherwise
@@ -621,24 +678,37 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 				if (!live()) return;
 				name = next;
 				nameListener?.(next);
+				publishSession();
 			},
 			artworkChanged(url) {
 				if (!live()) return;
 				artwork = url;
+				publishSession();
 			},
 			detailsChanged(details) {
 				if (!live()) return;
 				songDetails = details;
+				publishSession();
 			},
 			started() {
 				if (!live()) return;
 				playing = true;
+				// A source that is playing has outlived whatever it failed at. The
+				// error was only ever cleared by an attach or a detach, so one refused
+				// press — an expired token since refreshed, a device that came back —
+				// left the strip printing it over a track that was audibly running,
+				// with the scrubber replaced by that sentence for as long as the
+				// attachment lasted. It also armed `playIfAsked` to refuse the next
+				// queued press.
+				error = undefined;
+				publishSession();
 			},
 			stopped() {
 				if (!live()) return;
 				playing = false;
 				wantPlaying = false;
 				rewindOnResume = true;
+				publishSession();
 				progressListener?.(active?.time ?? currentTime, 'settled');
 			},
 			ended() {
@@ -646,6 +716,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 				playing = false;
 				wantPlaying = false;
 				rewindOnResume = false;
+				publishSession();
 				progressListener?.(active?.time ?? currentTime, 'settled');
 			},
 			failed(message) {
@@ -654,6 +725,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 				playing = false;
 				// Nothing is going to start now, so the control must stop saying it is.
 				wantPlaying = false;
+				publishSession();
 				deps.feedback.announce(message);
 			}
 		};
@@ -775,6 +847,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		// outgoing song's facts must not be read as the incoming one's.
 		artwork = undefined;
 		songDetails = undefined;
+		publishSession();
 		return generation;
 	}
 
@@ -948,6 +1021,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			error = undefined;
 			rewindOnResume = false;
 			availableRates = playbackRates;
+			publishSession();
 		},
 
 		play() {
@@ -967,6 +1041,10 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			// works but shows nothing for a second is still a press somebody makes
 			// twice.
 			wantPlaying = true;
+			// The intent, for the same reason the glyph flips on the press: a lock
+			// screen still offering Play over a track that is starting is a second
+			// press nobody meant to make.
+			publishSession();
 			// Nothing to spend it on yet; the attachment will, when it lands.
 			if (attaching) return;
 			if (rewindOnResume) {
@@ -982,6 +1060,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			// A press to stop something that has not started yet has to count, or the
 			// pending start fires a second later over a user who changed their mind.
 			wantPlaying = false;
+			publishSession();
 			active?.pause();
 		},
 

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { AssistantDraftBridge } from './draft-bridge.js';
 import { memoryRepository } from './assistant-test-utils.js';
 import { createAssistantState, type AssistantDeps } from './assistant.svelte.js';
+import { chatLockName } from './chat-lock.js';
 import {
 	AssistantError,
 	type AnswerTurnResponse,
@@ -329,6 +330,45 @@ describe('the assistant state', () => {
 		expect(state.messages[1]!.status).toBe('interrupted');
 		await state.retry(state.messages[1]!.id);
 		expect(state.messages[1]!.status).toBe('complete');
+	});
+
+	it('leaves a pending answer in a chat it has not opened, and sweeps it when it is', async () => {
+		// The database is shared by every tab of this browser, so a sweep across
+		// all of it is another tab's live stream marked interrupted the moment
+		// somebody opens the assistant on `/rules/`. Only the chat being drawn is
+		// swept, which is also the only chat whose state anybody can read.
+		const repository = memoryRepository();
+		const streaming = await repository.createChat('streaming elsewhere', 'v');
+		const live = await repository.addMessage({
+			chatId: streaming.id,
+			role: 'assistant',
+			createdAt: '2026-01-01T00:00:01.000Z',
+			status: 'pending',
+			content: ''
+		});
+		// The chat this instance boots into is a later one, so the streaming chat
+		// is not what `initialize()` loads. The repository orders by an ISO
+		// timestamp, so the two creations have to land in different milliseconds
+		// or which one is "latest" is a coin toss.
+		await new Promise((resolve) => setTimeout(resolve, 2));
+		const latest = await repository.createChat('this tab', 'v');
+		await repository.addMessage({
+			chatId: latest.id,
+			role: 'user',
+			createdAt: '2026-01-02T00:00:00.000Z',
+			status: 'complete',
+			content: 'Anything?'
+		});
+		const { state } = makeState({ repository: async () => repository });
+
+		await state.open();
+		expect(state.activeChatId).toBe(latest.id);
+		expect((await repository.messagesFor(streaming.id))[0]!.status).toBe('pending');
+
+		// Opening it is when a genuinely orphaned turn is about to be drawn, so
+		// that is when it is marked — crash recovery is unchanged.
+		await state.selectChat(streaming.id);
+		expect(state.messages.find((message) => message.id === live.id)!.status).toBe('interrupted');
 	});
 
 	it('sweeps a pending turn whose round was in flight, decision recorded or not', async () => {
@@ -1257,5 +1297,136 @@ describe('the assistant state', () => {
 		draft.preview.mockReturnValueOnce(false);
 		expect(state.previewProposal('one')).toBe(false);
 		expect(draft.reveal).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * A `LockManager` that can be told another tab is inside a conversation.
+ *
+ * The real one cannot: every page in a test process is the same profile, so a
+ * genuine "held elsewhere" needs a second browser context. Only `ifAvailable`
+ * requests are made, so the stub answers the probe and nothing queues.
+ */
+function stubLocks() {
+	const held = new Set<string>();
+	const manager = {
+		async request(name: string, options: LockOptions, callback: (lock: Lock | null) => unknown) {
+			if (held.has(name)) return callback(null);
+			held.add(name);
+			try {
+				return await callback({ name, mode: options.mode ?? 'exclusive' });
+			} finally {
+				held.delete(name);
+			}
+		}
+	};
+	return {
+		locks: manager as unknown as LockManager,
+		held,
+		/** The other tab entering the conversation, until the returned call lets go. */
+		holdElsewhere(chatId: string) {
+			const name = chatLockName(chatId);
+			held.add(name);
+			return () => held.delete(name);
+		}
+	};
+}
+
+describe('the assistant conversation lock', () => {
+	it('refuses a send into a conversation another tab is answering in', async () => {
+		const { locks, holdElsewhere } = stubLocks();
+		const { state, deps, repository } = makeState({ locks });
+		await state.open();
+		await state.send('First?');
+		const letGo = holdElsewhere('chat-1');
+
+		await state.send('Second?');
+
+		// Worded, not silent and not queued — and the question is untouched on the
+		// way past, so nothing of it is left half-written in a transcript the other
+		// tab is still moving: no row, no placeholder, no request.
+		expect(state.failure?.message).toBe('This conversation is answering in another tab.');
+		expect(state.messages).toHaveLength(2);
+		expect(await repository.messagesFor('chat-1')).toHaveLength(2);
+		expect(deps.ask).toHaveBeenCalledOnce();
+
+		letGo();
+	});
+
+	it('refuses a retry into a conversation another tab is answering in', async () => {
+		const ask = vi.fn().mockRejectedValueOnce(new AssistantError('provider_error'));
+		const { locks, holdElsewhere } = stubLocks();
+		const { state } = makeState({ ask, locks });
+		await state.open();
+		await state.send('First?');
+		const letGo = holdElsewhere('chat-1');
+
+		await state.retry(state.messages[1]!.id);
+
+		// The reset rides inside the lock, so a refused retry leaves the failed
+		// record exactly as it stands rather than stripping it for a turn that
+		// never ran.
+		expect(state.failure?.message).toBe('This conversation is answering in another tab.');
+		expect(state.messages[1]!.status).toBe('failed');
+		expect(ask).toHaveBeenCalledOnce();
+
+		letGo();
+	});
+
+	it('gives the conversation back when the answer lands and when it fails', async () => {
+		const ask = vi
+			.fn()
+			.mockResolvedValueOnce(answer('One.'))
+			.mockRejectedValueOnce(new AssistantError('provider_error'))
+			.mockResolvedValueOnce(answer('Three.'));
+		const { locks, held } = stubLocks();
+		const { state } = makeState({ ask, locks });
+		await state.open();
+
+		await state.send('First?');
+		expect(held.size).toBe(0);
+		await state.send('Second?');
+		// A stream that threw is the way a lock leaks, so the third send is the
+		// assertion: it proceeds, which it could not do behind a held conversation.
+		expect(state.messages[3]!.status).toBe('failed');
+		expect(held.size).toBe(0);
+
+		await state.send('Third?');
+
+		expect(state.failure).toBeUndefined();
+		expect(state.messages[5]!.answer?.blocks[0]!.text).toBe('Three.');
+		expect(held.size).toBe(0);
+	});
+
+	it('sends exactly as before where the browser has no lock manager', async () => {
+		const { state, deps } = makeState({ locks: null });
+		await state.open();
+		await state.send('First?');
+		await state.send('Second?');
+
+		// An old Safari, and every prerender: the conversation is written the way
+		// it was written before any of this existed.
+		expect(state.failure).toBeUndefined();
+		expect(state.messages).toHaveLength(4);
+		expect(deps.ask).toHaveBeenCalledTimes(2);
+	});
+
+	it('sends anyway where the lock manager refuses the request', async () => {
+		const locks = {
+			request: () => Promise.reject(new Error('SecurityError'))
+		} as unknown as LockManager;
+		const { state, deps } = makeState({ locks });
+		await state.open();
+		await state.send('First?');
+
+		// Fails open in this direction too: a manager that will not take the
+		// request is not a reason to swallow somebody's question.
+		expect(state.failure).toBeUndefined();
+		expect(state.messages[1]!.status).toBe('complete');
+		expect(deps.ask).toHaveBeenCalledOnce();
+	});
+
+	it('names one lock per conversation', () => {
+		expect(chatLockName('chat-1')).toBe('lyriclint-chat-chat-1');
 	});
 });

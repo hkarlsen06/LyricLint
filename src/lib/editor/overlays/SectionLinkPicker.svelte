@@ -24,6 +24,14 @@
 		pendingSelectionText?: string;
 		/** The caret is in shared text of this already-linked section. */
 		typeOnlyHereAvailable?: boolean;
+		/**
+		 * Whether the card may take the focus as it opens, exactly as the
+		 * performer picker's own `takesFocus` decides it. A card that was asked
+		 * for is the user's to drive and answers Enter; the two that open
+		 * uninvited — the marker's hover wait, and a pointer selection covering a
+		 * header — leave the caret in the document, where it was put.
+		 */
+		takesFocus?: boolean;
 		anchor?: ScreenRect;
 		placement?: 'above' | 'below';
 		onApply: (choice: {
@@ -45,6 +53,7 @@
 		pendingSelection,
 		pendingSelectionText,
 		typeOnlyHereAvailable = false,
+		takesFocus = true,
 		anchor,
 		placement = 'above',
 		onApply,
@@ -307,13 +316,13 @@
 		void tick().then(restoreFocus);
 	}
 
+	// No hand-off of its own: what this arms is the next edit at the caret, so
+	// the focus it owes is the document's, and the pane makes that one itself.
 	function beginTypeOnlyHere(): void {
 		if (!typeOnlyHereReady || !onTypeOnlyHere) {
 			return;
 		}
-		const restoreFocus = returnFocus;
 		onTypeOnlyHere();
-		void tick().then(restoreFocus);
 	}
 
 	function cancel(): void {
@@ -328,13 +337,16 @@
 		onCancel();
 	}
 
+	// The physical key as well as the character, and the physical one is what
+	// actually carries this on a Mac: Option turns `h` into `˙`, so a match on
+	// `key` alone never fired on the platform the tooltip spells `⌃⌥H` for. The
+	// same trap `lyricLintKeymap` documents at length for `Alt-p`.
+	function isTypeOnlyHereShortcut(event: KeyboardEvent): boolean {
+		return event.code === 'KeyH' || event.key.toLocaleLowerCase() === 'h';
+	}
+
 	function handleKeydown(event: KeyboardEvent): void {
-		if (
-			typeOnlyHereReady &&
-			event.ctrlKey &&
-			event.altKey &&
-			event.key.toLocaleLowerCase() === 'h'
-		) {
+		if (typeOnlyHereReady && event.ctrlKey && event.altKey && isTypeOnlyHereShortcut(event)) {
 			event.preventDefault();
 			beginTypeOnlyHere();
 			return;
@@ -425,7 +437,9 @@
 	}
 
 	onMount(() => {
-		focusActive();
+		if (takesFocus) {
+			focusActive();
+		}
 		// After the first paint, so the measurement is of a card that has drawn.
 		if (anchor && placement === 'above') {
 			requestAnimationFrame(() => {
@@ -534,10 +548,9 @@
 									><span class="compare__shared">{lead(wording.before)}</span
 									>{#if settled}{#if wording.text}<span class="compare__run"
 												>{oneLine(wording.text)}</span
-											>{:else}<span
-												class="compare__run compare__run--empty"
-												aria-label="nothing here"
-											></span>{/if}{:else}{#if wording.text}<del class="compare__drop"
+											>{:else}<span class="compare__run compare__run--empty" aria-hidden="true"
+											></span><span class="sr-only">nothing here</span
+											>{/if}{:else}{#if wording.text}<del class="compare__drop"
 												>{oneLine(wording.text)}</del
 											>{/if}{#if winning}<ins class="compare__add">{oneLine(winning)}</ins
 											>{/if}{/if}<span class="compare__shared">{trail(wording.after)}</span></span
@@ -650,7 +663,14 @@
 									: wasLinked
 										? 'Unlink'
 										: 'Link'}
-					<span aria-hidden="true" class="apply__key">↵</span>
+					<!-- The glyph is a promise about Enter, and Enter only reaches this
+					     card while it holds the focus. Opened uninvited — off the
+					     marker's hover wait, or off a selection that covers a header —
+					     the caret is still in the document, where Enter breaks the
+					     line, so the promise comes off with the focus. -->
+					{#if takesFocus}
+						<span aria-hidden="true" class="apply__key">↵</span>
+					{/if}
 				</button>
 				<button type="button" class="button button--quiet" onclick={cancel}>Cancel</button>
 			</div>

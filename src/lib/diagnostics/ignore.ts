@@ -3,13 +3,25 @@ import { diagnosticKey } from './order.js';
 
 const CONTEXT_LENGTH = 32;
 
+/**
+ * The mark an accepted occurrence carries, and the whole of what it changes.
+ *
+ * Suppression is one mechanism: the same store, the same matching, the same
+ * Restore. What the reader was asked differs, so the key records which question
+ * they answered — and it records it *after* the identity rather than inside it,
+ * because a bit that moved a match would make an acceptance and an ignore two
+ * different occurrences of the same finding.
+ */
+const ACCEPTED_MARKER = 'correct';
+
 type IgnoreIdentity = [
 	ruleId: string,
 	message: string,
 	text: string,
 	before: string,
 	after: string,
-	from: number
+	from: number,
+	accepted?: typeof ACCEPTED_MARKER
 ];
 
 function identity(diagnostic: Diagnostic, text: string): IgnoreIdentity {
@@ -23,12 +35,35 @@ function identity(diagnostic: Diagnostic, text: string): IgnoreIdentity {
 	];
 }
 
+/**
+ * Whether answering this finding's own control accepts the text rather than
+ * setting the finding aside. Two shapes of the same answer: the affirmative
+ * that leads the row (`It's correct`) and the one that stands in the ignore
+ * slot for a lyric nobody could make out (`It really is unintelligible`).
+ *
+ * A custom header is the whole of its rule and an unresolved marker is the
+ * whole of its own, so both are recognized by id; an ad-lib is one of the two
+ * findings its rule reports, which is why the third is carried on the
+ * diagnostic. One predicate, because the button's wording, the key's kind and
+ * the toast are three surfaces answering the same question.
+ */
+export function acceptsDiagnosticAsCorrect(diagnostic: Diagnostic): boolean {
+	return (
+		diagnostic.ruleId === 'section.header-unrecognized' ||
+		diagnostic.ruleId === 'unknown.unresolved' ||
+		diagnostic.presumedCorrect === true
+	);
+}
+
 function parse(key: string): IgnoreIdentity | undefined {
 	try {
 		const value: unknown = JSON.parse(key);
 		if (
 			Array.isArray(value) &&
-			value.length === 6 &&
+			// Six is every key written before acceptances were told apart, and it
+			// reads as an ordinary ignore. A seventh part this function does not
+			// recognize is not a key it can vouch for.
+			(value.length === 6 || (value.length === 7 && value[6] === ACCEPTED_MARKER)) &&
 			value.slice(0, 5).every((part) => typeof part === 'string') &&
 			typeof value[5] === 'number'
 		) {
@@ -40,11 +75,39 @@ function parse(key: string): IgnoreIdentity | undefined {
 }
 
 export function diagnosticIgnoreKey(diagnostic: Diagnostic, text: string): string {
-	return JSON.stringify(identity(diagnostic, text));
+	const parts = identity(diagnostic, text);
+	// Read here rather than passed in, so a caller cannot key an acceptance as an
+	// ignore while its own button says otherwise.
+	return JSON.stringify(
+		acceptsDiagnosticAsCorrect(diagnostic) ? [...parts, ACCEPTED_MARKER] : parts
+	);
+}
+
+/**
+ * Whether this occurrence was accepted as correct rather than ignored.
+ *
+ * Presentation only: nothing downstream of the key matches, prunes or restores
+ * differently for it.
+ */
+export function ignoredDiagnosticAccepted(key: string): boolean {
+	return parse(key)?.[6] === ACCEPTED_MARKER;
 }
 
 export function ignoredDiagnosticRuleId(key: string): string {
 	return parse(key)?.[0] ?? key;
+}
+
+/**
+ * The flagged text an ignore was keyed on, where the key still carries one.
+ *
+ * An ignore is per occurrence, so a rule set aside twice lists twice — and the
+ * rule's name is the same on both rows. The text is already in the key; it is
+ * the only thing that tells the two apart. An old rule-level key has none, and
+ * a whitespace finding's is not worth printing, so both answer nothing.
+ */
+export function ignoredDiagnosticText(key: string): string | undefined {
+	const text = parse(key)?.[2].trim();
+	return text ? text : undefined;
 }
 
 function sharedEdge(left: string, right: string, fromEnd = false): number {

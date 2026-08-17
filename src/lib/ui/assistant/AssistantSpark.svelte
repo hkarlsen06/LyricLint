@@ -130,6 +130,17 @@
 		if (!assistant) return;
 		const asked = question.trim();
 		if (asked === '') return;
+		// `newChat()` and `send()` both decline silently while a round is in
+		// flight or a challenge is up, and closing the modal deliberately leaves
+		// the request streaming — so this field can be asked in exactly the state
+		// its question would be thrown away in. Clearing first was that throw: the
+		// composer's own Enter already refuses without emptying itself, and this
+		// keeps the draft the same way, opening the modal so the state refusing it
+		// is the thing the reader is looking at.
+		if (assistant.busy || assistant.challengePending) {
+			await assistant.open();
+			return;
+		}
 		question = '';
 		await assistant.openWithQuestion(asked);
 	}

@@ -3,6 +3,7 @@
 	import { Check } from 'lucide-svelte';
 	import { previewableFix, previewSignature } from '$lib/core/fix-preview.js';
 	import type { Diagnostic, DiagnosticFix } from '$lib/core/types.js';
+	import { acceptsDiagnosticAsCorrect } from './ignore.js';
 	import { acquirePreview } from './preview-slot.js';
 
 	interface Props {
@@ -49,18 +50,22 @@
 
 	/**
 	 * The finding whose likeliest answer is that the text is already right. The
-	 * quiet `Ignore` is replaced by an affirmative control, which leads the row
-	 * and takes the surface's one contrast tier — so a fix beside it steps down
-	 * to bordered, the way `Fix all N` does beside the change it repeats.
-	 *
-	 * A custom header is the whole of its rule; an ad-lib is one of the two
-	 * findings its rule reports, which is why the second is carried on the
-	 * diagnostic rather than named here by id.
+	 * predicate is shared with the key the answer is stored under and the toast
+	 * that reports it, so the three cannot come to disagree about which question
+	 * this row asked.
 	 */
-	const acceptsAsCorrect = $derived(
-		diagnostic.ruleId === 'section.header-unrecognized' || diagnostic.presumedCorrect === true
-	);
+	const acceptsAsCorrect = $derived(acceptsDiagnosticAsCorrect(diagnostic));
 	const isUnresolvedUnknown = $derived(diagnostic.ruleId === 'unknown.unresolved');
+	/**
+	 * Where the acceptance is drawn, which is the one thing the two shapes of it
+	 * differ by. An unresolved lyric's answer stands in the ignore slot — that is
+	 * where a reader looks for the way out of a finding with no fix — so it never
+	 * leads the row, and the quiet `Ignore` is what it replaces.
+	 *
+	 * Leading, it takes the surface's one contrast tier, so a fix beside it steps
+	 * down to bordered the way `Fix all N` does beside the change it repeats.
+	 */
+	const leadsWithAccept = $derived(acceptsAsCorrect && !isUnresolvedUnknown);
 	// Two findings, one answer: a section with no header line, and a header line
 	// with no name in it. Both are settled by choosing a reviewed header, and the
 	// transform decides which of the two edits that is — a card that offered a
@@ -123,7 +128,7 @@
 </script>
 
 <div class="diagnostic-actions">
-	{#if acceptsAsCorrect}
+	{#if leadsWithAccept}
 		<button
 			type="button"
 			class="button button--contrast diagnostic-actions__accept"
@@ -164,12 +169,18 @@
 	<!-- The fix names itself. "Apply" in front of a label that already reads as a
 	     command ("Apply Replace with Don't") says the same thing twice, so the
 	     button is the label and nothing else. -->
-	{#each diagnostic.fixes ?? [] as fix (`${fix.kind}:${fix.label}`)}
+	<!-- A surface has one contrast action, and a diagnostic can carry several
+	     fixes — Harper offers up to three, and `ur` alone emits two. Drawn a tier
+	     each they were three answers shouting equally in the one place the reader
+	     is choosing *between* them, and the ranked lead fix lost the precedence
+	     the ordering had just given it. Only the first takes the tier; the rest
+	     are bordered alternatives beside it. -->
+	{#each diagnostic.fixes ?? [] as fix, index (`${fix.kind}:${fix.label}`)}
 		{@const batch = batchCount(fix)}
 		<button
 			type="button"
 			class="button diagnostic-actions__fix"
-			class:button--contrast={!offersHeaderPicker && !acceptsAsCorrect}
+			class:button--contrast={index === 0 && !offersHeaderPicker && !leadsWithAccept}
 			onpointerenter={() => showFix(fix)}
 			onfocus={() => showFix(fix)}
 			onclick={() => onApplyFix(fix)}
@@ -194,7 +205,7 @@
 			</button>
 		{/if}
 	{/each}
-	{#if !acceptsAsCorrect}
+	{#if !leadsWithAccept}
 		<button
 			type="button"
 			class={isUnresolvedUnknown

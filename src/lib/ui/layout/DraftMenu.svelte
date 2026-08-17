@@ -54,6 +54,23 @@
 		deleteId = undefined;
 	}
 
+	/**
+	 * A `<details>` closes on its summary and on an outside press, and on nothing
+	 * else — Escape is not one of the element's own behaviours, so this menu was
+	 * the one transient surface in the workbench with two ways out instead of
+	 * three, and an armed delete could not be abandoned from the keyboard at all.
+	 *
+	 * It goes through `dismiss`, so the pending confirm is abandoned exactly as an
+	 * outside press abandons it. Unlike that press, it hands focus back: nothing
+	 * else named where the user is going, and Escape is the path that returns it.
+	 */
+	function handleKeydown(event: KeyboardEvent): void {
+		if (event.key !== 'Escape' || !open) return;
+		event.preventDefault();
+		dismiss();
+		menuTrigger.focus();
+	}
+
 	async function deleteDraftAndMoveFocus(id: string, trigger: HTMLButtonElement): Promise<void> {
 		const nextDraft = trigger
 			.closest('li')
@@ -88,7 +105,13 @@
 	</time>
 {/snippet}
 
-<details class="draft-menu" bind:open {@attach dismissOnOutside(dismiss)}>
+<!-- The keydown is on the `<details>` rather than on the popover inside it,
+     because Escape has to be caught wherever focus is standing — including on
+     the summary, which is outside the popover. The element is not being made
+     interactive: it hosts one handler for the surface it *is*, exactly as it
+     hosts the outside-press attachment beside it. -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+<details class="draft-menu" bind:open onkeydown={handleKeydown} {@attach dismissOnOutside(dismiss)}>
 	<!-- The .button flex styling strips the summary's implicit disclosure role in
 	     Chromium, so restate the button semantics and expansion state explicitly.
 	     Svelte considers the role redundant, but real browsers expose the styled
@@ -152,66 +175,68 @@
 									Cancel
 								</button>
 							</form>
-						{:else if deleteId === draft.id}
+						{:else}
 							<!-- The row stops being a way into the draft while its deletion is
 							     the question: one decision on screen, and the confirm sits in
 							     the slot the trigger just vacated. -->
-							<span class="draft-list__title draft-list__title--static">
-								{@render identity(draft)}
-							</span>
-							<div class="list-row__commands">
-								<RemoveButton
-									subject={draft.title}
-									pending
-									onRequest={() => (deleteId = draft.id)}
-									onCancel={() => (deleteId = undefined)}
-									onConfirm={(trigger) => deleteDraftAndMoveFocus(draft.id, trigger)}
-								/>
-							</div>
-						{:else}
-							<button
-								type="button"
-								class="draft-list__title"
-								aria-current={draft.id === controller.draftId ? 'page' : undefined}
-								onclick={() => closeAnd(() => controller.openDraft(draft.id))}
-							>
-								{@render identity(draft)}
-							</button>
+							{#if deleteId === draft.id}
+								<span class="draft-list__title draft-list__title--static">
+									{@render identity(draft)}
+								</span>
+							{:else}
+								<button
+									type="button"
+									class="draft-list__title"
+									aria-current={draft.id === controller.draftId ? 'page' : undefined}
+									onclick={() => closeAnd(() => controller.openDraft(draft.id))}
+								>
+									{@render identity(draft)}
+								</button>
+							{/if}
 							<!-- Icons, not four words per row: the labels repeated down the
 							     list were the list, and the draft's own name had to compete
 							     with them. Each one keeps the draft in its accessible name so
 							     "Rename" alone is never all a screen reader hears. -->
 							<div class="list-row__commands">
-								<button
-									type="button"
-									class="button--quiet icon-button"
-									aria-label="Rename {draft.title}"
-									title="Rename"
-									onclick={() => beginRename(draft.id, draft.title)}
-								>
-									<Pencil aria-hidden="true" size={14} strokeWidth={2.25} />
-								</button>
-								<button
-									type="button"
-									class="button--quiet icon-button"
-									aria-label="Duplicate {draft.title}"
-									title="Duplicate"
-									onclick={() => controller.duplicateDraft(draft.id)}
-								>
-									<Copy aria-hidden="true" size={14} strokeWidth={2.25} />
-								</button>
-								<button
-									type="button"
-									class="button--quiet icon-button"
-									aria-label="Export {draft.title}"
-									title="Export Scribe (.lls)"
-									onclick={() => controller.exportScribe(draft.id)}
-								>
-									<Download aria-hidden="true" size={14} strokeWidth={2.25} />
-								</button>
+								<!-- Only the competing commands go while the confirm is pending.
+								     The `RemoveButton` itself stays the same instance across the
+								     arming, which is what the roster and the recent-drafts list
+								     already do and what this menu got wrong: mounted afresh with
+								     `pending` already true, its live region was *born* holding
+								     the question, and a region that never changes announces
+								     nothing. -->
+								{#if deleteId !== draft.id}
+									<button
+										type="button"
+										class="button--quiet icon-button"
+										aria-label="Rename {draft.title}"
+										title="Rename"
+										onclick={() => beginRename(draft.id, draft.title)}
+									>
+										<Pencil aria-hidden="true" size={14} strokeWidth={2.25} />
+									</button>
+									<button
+										type="button"
+										class="button--quiet icon-button"
+										aria-label="Duplicate {draft.title}"
+										title="Duplicate"
+										onclick={() => controller.duplicateDraft(draft.id)}
+									>
+										<Copy aria-hidden="true" size={14} strokeWidth={2.25} />
+									</button>
+									<button
+										type="button"
+										class="button--quiet icon-button"
+										aria-label="Export {draft.title}"
+										title="Export Scribe (.lls)"
+										onclick={() => controller.exportScribe(draft.id)}
+									>
+										<Download aria-hidden="true" size={14} strokeWidth={2.25} />
+									</button>
+								{/if}
 								<RemoveButton
 									subject={draft.title}
-									pending={false}
+									pending={deleteId === draft.id}
 									onRequest={() => {
 										renameId = undefined;
 										deleteId = draft.id;

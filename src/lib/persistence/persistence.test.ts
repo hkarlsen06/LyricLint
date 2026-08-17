@@ -13,6 +13,7 @@ import { createMediaRepository } from './media-repository.js';
 import { recoverStartupDraft } from './recovery.js';
 import { createDraftIgnoreStore } from './draft-ignores.js';
 import type { AutosaveSnapshot, DraftRecord, DraftRepository, PerformerRecord } from './types.js';
+import type { CompareBaselineRecord, LineAnchor, LinkHole, SectionLink } from '$lib/core/types.js';
 
 const databaseNames = new Set<string>();
 const openDatabases = new Set<LyricLintDatabase>();
@@ -38,6 +39,11 @@ function closeTestDatabase(database: LyricLintDatabase): void {
 }
 
 function performer(displayName = 'Renée'): PerformerRecord {
+	// `satisfies Required<…>`, not just the return type: the copiers between a
+	// draft and the disk hand-list sub-record fields too, so an optional field
+	// added to `PerformerRecord` has to reach this fixture — and through it the
+	// whole-record round trip below — or it is only as safe as the least careful
+	// copier that rebuilds one.
 	return {
 		id: crypto.randomUUID(),
 		displayName,
@@ -45,7 +51,7 @@ function performer(displayName = 'Renée'): PerformerRecord {
 		aliases: [],
 		colorId: 'blue',
 		order: 0
-	};
+	} satisfies Required<PerformerRecord>;
 }
 
 function draft(overrides: Partial<DraftRecord> & Pick<DraftRecord, 'id' | 'text'>): DraftRecord {
@@ -544,9 +550,13 @@ describe('autosave and recovery', () => {
 			...draft({ id: 'whole-draft', text: '[Verse]\nFirst line\nSecond line' }),
 			originalText: '[Verse]\noriginal',
 			editorSelection: { anchor: 3, head: 7 },
+			// The sub-records carry `satisfies Required<…>` for the same reason the
+			// whole record does: the copiers hand-list these fields too, so an
+			// optional field added to any of them has to force this fixture — and
+			// the round trip below — to grow it.
 			lineAnchors: [
-				{ line: 2, time: 12.5 },
-				{ line: 3, time: 30 }
+				{ line: 2, time: 12.5 } satisfies Required<LineAnchor>,
+				{ line: 3, time: 30 } satisfies Required<LineAnchor>
 			],
 			// Holes and all: a link is two facts now, and the three hand-written
 			// copiers between a draft and the disk each list the fields they keep.
@@ -556,15 +566,15 @@ describe('autosave and recovery', () => {
 				{
 					lines: [1, 3],
 					holes: [
-						{ line: 2, column: 4, endLine: 2, endColumn: 9 },
-						{ line: 4, column: 4, endLine: 4, endColumn: 7 }
+						{ line: 2, column: 4, endLine: 2, endColumn: 9 } satisfies Required<LinkHole>,
+						{ line: 4, column: 4, endLine: 4, endColumn: 7 } satisfies Required<LinkHole>
 					]
-				}
+				} satisfies Required<SectionLink>
 			],
 			compareBaseline: {
 				text: '[Verse]\nFirst line as the page had it',
 				pastedAt: '2026-01-01T12:00:00.000Z'
-			}
+			} satisfies Required<CompareBaselineRecord>
 		} satisfies Required<DraftRecord>;
 		const autosave = createAutosaveController(repository, { debounceMs: 10 });
 

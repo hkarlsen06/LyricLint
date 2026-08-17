@@ -1287,12 +1287,13 @@ bug:
   button is the failure this was supposed to prevent, wearing a different hat.
 - **And the wait is drawn, not merely handled.** A Pause button over silence is only half an
   answer; the half that was missing still read as nothing having happened. `player.starting` is the
-  other half and is the only thing it is for — the transport puts a `.spinner` in the glyph's own
-  slot while it is true, so nothing in the row moves. The label stays `Pause`, because that is
+  other half and is the only thing it is for — the transport puts the loading mark in the glyph's
+  own slot while it is true, so nothing in the row moves. The label stays `Pause`, because that is
   still what the press does, and `aria-busy` carries the wait: a label reading `Loading` would name
   the state and lose the action.
 
-**`.spinner` is the one shared answer to a wait with no measurable end, and it is deliberately
+**The loading mark (`LoadingMark.svelte`, `.loading-mark`) is the one shared answer to a wait with
+no measurable end, and it is deliberately
 scarce.** Every other progress in this application is a state that can be named — saving, attached,
 ready — and says so in words. There are three places where the honest answer is only "a request is
 out": a track told to play before its source could take the instruction, a catalogue search, and
@@ -3129,9 +3130,11 @@ on either to differ about — and no `captions` prop, whose only reader this was
   for the round trip the catalogue read takes. What that missed is that a song is _named_ the
   moment it attaches — so the name and the badge sat in the transport strip for the length of the
   read and then jumped down here, which reads as a glitch rather than as a hand-off. **Before the
-  cover lands the band draws in the shape it would fold into**, thumbnail slot empty, so the
-  picture arrives into a layout that was already standing. The fold control waits for the picture
-  too: a control that folds a stage which is not there is a press that appears to do nothing.
+  cover lands the band draws in the shape it would fold into**, with no thumbnail slot at all —
+  reserving an empty square would be a hole in the row for a picture that may never come — so the
+  picture arrives into a layout that was already standing and the stage grows in place. The fold
+  control waits for the picture too: a control that folds a stage which is not there is a press
+  that appears to do nothing.
 - **One `MediaAttribution.svelte` for both marks and both surfaces.** The mark travels with the
   name, so it is rendered by the band for a catalogue source and by the strip for anything else;
   two copies of that markup would be two copies of every guideline rule above, and the copy that
@@ -3262,8 +3265,8 @@ Wailers` in the artist row is one entity, and splitting it would offer half a ba
   There was a check at the end of the row and it went: a mark says a second time what the user has
   just pressed and is looking at, and the only place to put one that does not shift the line under
   that press is a slot every row reserves — a permanent indent on six rows for a state showing on
-  none of them, which is the complaint `.spinner` answers by going in a slot that already had a
-  size. The `sr-only` announcement is what carries it for a reader with no pointer. A refused
+  none of them, which is the complaint the loading mark answers by going in a slot that already had
+  a size. The `sr-only` announcement is what carries it for a reader with no pointer. A refused
   clipboard draws nothing at all, exactly as the toolbar's own button says nothing.
 - **The row is a flex line with no gap**, so the spacing on it is the credit's own punctuation and
   nothing the stylesheet or the template's indentation added. `SongFacts.svelte.test.ts` measures
@@ -3878,7 +3881,7 @@ frame rather than on it**: a shadow alone under a near-black screenshot on a nea
 invisible, so what separates the two is an accent-tinted bloom cast onto the page from behind the
 frame's own edges, which is also what makes the shot read as lit.
 
-**The hero asks for one press, so it draws one button.** The rule reference is a quiet text link
+**The hero asks for one press, so it draws one button.** The Guidelines are a quiet text link
 _under_ the contrast action, not a second button beside it: two buttons of equal weight at the
 head of the page are two answers to "what do I do now", asked of a reader who has read nothing
 yet. The closing CTA is the other way round on purpose — by then the argument has been made, both

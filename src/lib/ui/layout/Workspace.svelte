@@ -44,6 +44,7 @@
 	import MediaPicker from '../media/MediaPicker.svelte';
 	import MediaStrip from '../media/MediaStrip.svelte';
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
+	import { carryHarperDiagnosticsAcrossEdit } from '../state/harper-continuity.js';
 	import { trackKeyboardInset } from '../state/keyboard-inset.js';
 	import MockEditorPane from './MockEditorPane.svelte';
 	import RightPanel from './RightPanel.svelte';
@@ -257,6 +258,7 @@
 	// snapshot before the controller stores it. Composition revisions reuse the
 	// previous result so linting never runs on incomplete IME input.
 	let lastDiagnostics: EditorSnapshot['diagnostics'] = [];
+	let lastNativeDiagnostics: EditorSnapshot['diagnostics'] = [];
 	let lastLintKey = '';
 	let harperTimer: ReturnType<typeof setTimeout> | undefined;
 	let harperRequest = 0;
@@ -346,18 +348,22 @@
 		return harperRequest;
 	}
 
+	function shouldRunHarper(snapshot: EditorSnapshot): boolean {
+		return (
+			!harperUnavailable &&
+			controller.grammarCheckEnabled &&
+			resolveLanguageTag(controller.language) === 'en' &&
+			snapshot.text.trim().length > 0
+		);
+	}
+
 	function scheduleHarper(
 		snapshot: EditorSnapshot,
 		nativeDiagnostics: EditorSnapshot['diagnostics']
 	): void {
 		const request = invalidateHarper();
 		const key = harperCoverage(lintKey(snapshot));
-		if (
-			harperUnavailable ||
-			!controller.grammarCheckEnabled ||
-			resolveLanguageTag(controller.language) !== 'en' ||
-			snapshot.text.trim().length === 0
-		) {
+		if (!shouldRunHarper(snapshot)) {
 			// Nothing is coming and nothing is owed: this document is as answered as
 			// it is ever going to be. Left uncovered, the memoized branch below would
 			// ask for it again on every snapshot the document takes.
@@ -413,7 +419,23 @@
 					harperCoveredKey = key;
 					harperUnavailable = true;
 					console.error('Harper grammar checking is unavailable.', error);
-					controller.onSnapshot(controller.snapshot, lastDiagnostics);
+					// A carried result was only a bridge to this answer. If no answer can
+					// arrive, retire it instead of leaving a previous revision's opinion
+					// in the document indefinitely.
+					lastDiagnostics = nativeDiagnostics;
+					const current = controller.snapshot;
+					controller.onSnapshot(
+						{
+							...current,
+							diagnostics: filterForEditorState(
+								current,
+								nativeDiagnostics,
+								editorHandle?.getSectionLinks?.(),
+								{ settled: documentSettled }
+							)
+						},
+						nativeDiagnostics
+					);
 				});
 		}, harperDelay);
 	}
@@ -453,7 +475,7 @@
 				// there was never one to make), so re-asking here cannot double-merge
 				// findings into a list that already holds them.
 				if (!harperPending && harperCoveredKey !== harperCoverage(key)) {
-					scheduleHarper(snapshot, lastDiagnostics);
+					scheduleHarper(snapshot, lastNativeDiagnostics);
 				}
 				return {
 					...snapshot,
@@ -471,10 +493,21 @@
 				controller.ruleSet?.version ?? 'unavailable',
 				snapshot.revision
 			);
-			lastDiagnostics = computeDiagnostics(snapshot.parsed, context);
+			const nativeDiagnostics = computeDiagnostics(snapshot.parsed, context);
+			lastNativeDiagnostics = nativeDiagnostics;
+			// A fix is complete the moment this atomic snapshot arrives, but Harper's
+			// replacement answer is still behind its debounce and worker pass. Carry
+			// only unaffected findings across that known edit so the list does not
+			// blink to native-only and back. A republish of an old atomic snapshot is
+			// not an edit, hence the text comparison as well as the annotation.
+			const carriedHarper =
+				snapshot.atomic && snapshot.text !== controller.snapshot.text && shouldRunHarper(snapshot)
+					? carryHarperDiagnosticsAcrossEdit(controller.snapshot, snapshot, lastDiagnostics)
+					: [];
+			lastDiagnostics = mergeHarperDiagnostics(nativeDiagnostics, carriedHarper);
 			lastLintKey = key;
 			scheduleLanguageDetector(snapshot);
-			scheduleHarper(snapshot, lastDiagnostics);
+			scheduleHarper(snapshot, nativeDiagnostics);
 		} else {
 			invalidateHarper();
 		}

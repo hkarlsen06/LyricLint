@@ -52,6 +52,15 @@
 
 	const selectedLabel = $derived(languageName(controller.language));
 
+	// What the results say, as one sentence. The no-match case is the visible
+	// message verbatim: a reader who cannot see it is owed the same answer, not a
+	// count of zero.
+	const resultsStatus = $derived(
+		filteredLanguages.length === 0
+			? `No languages match “${query.trim()}”.`
+			: `${filteredLanguages.length} ${filteredLanguages.length === 1 ? 'language matches' : 'languages match'}.`
+	);
+
 	async function open(): Promise<void> {
 		query = '';
 		dialog.showModal();
@@ -143,7 +152,17 @@
 			/>
 		</label>
 
-		<div class="language-results" aria-live="polite">
+		<!-- The count is the live region, never the list. Wrapped around the results
+		     themselves, every keystroke re-rendered dozens of options inside a
+		     polite region and queued the whole catalogue to be read out; what the
+		     typist actually wants to hear is how many are left. Mounted at every
+		     state and empty until it has something to say, because a live region
+		     that arrives with its text already in it is not announced. -->
+		<p class="sr-only" role="status">
+			{query.trim().length === 0 ? '' : resultsStatus}
+		</p>
+
+		<div class="language-results">
 			{#if filteredLanguages.length}
 				<ul aria-label="Languages">
 					{#if query.trim().length === 0}

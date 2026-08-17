@@ -175,7 +175,14 @@
 			     handed to an element still spanning one second, the browser clamped
 			     the DOM value to 1, and Svelte never pushed it again because
 			     `currentTime` had not changed since the value it cached. The thumb
-			     stayed at 1/161 beside a readout printing 1:52. -->
+			     stayed at 1/161 beside a readout printing 1:52.
+
+			     `aria-valuetext` because the raw pair is a hundredth-of-a-second step
+			     against a duration in seconds: what a screen reader read out was
+			     `112.35 of 241.4`, several times a second while the track ran. It says
+			     what the two readouts either side of it say, in the same `m:ss`, and
+			     before the metadata lands it says why the control cannot be aimed
+			     rather than reporting a range that is not the song's. -->
 			<input
 				class="media-strip__seek"
 				type="range"
@@ -185,6 +192,9 @@
 				value={seekable ? Math.min(player.currentTime, player.duration) : 0}
 				disabled={!seekable}
 				aria-label="Seek"
+				aria-valuetext={seekable
+					? `${formatTime(player.currentTime)} of ${formatTime(player.duration)}`
+					: 'Not seekable yet'}
 				oninput={(event) => player.seek(event.currentTarget.valueAsNumber)}
 			/>
 		{/if}

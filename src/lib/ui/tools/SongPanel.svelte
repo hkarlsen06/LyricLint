@@ -121,7 +121,7 @@
 			<!-- No sentence under the heading. `Song metadata` over a column of
 			     labelled facts and self-describing commands is already the whole
 			     of what a paragraph there would have said. -->
-			<h3>Song metadata</h3>
+			<h2>Song metadata</h2>
 			{#if details && listedFacts}
 				<SongFacts {details} />
 			{/if}
@@ -204,7 +204,7 @@
 		shortened for room — the toolbar names the draft.
 	-->
 	<section>
-		<h3>Document</h3>
+		<h2>Document</h2>
 		<div class="tool-actions">
 			<button type="button" class="button" onclick={() => controller.exportDraft()}>
 				Export .txt
@@ -233,7 +233,7 @@
 	-->
 	{#if controller.lineAnchorCount > 0}
 		<section>
-			<h3>Timed lyrics</h3>
+			<h2>Timed lyrics</h2>
 			<div class="tool-actions">
 				<label class="sr-only" for="timed-lyrics-format">Timed lyrics format</label>
 				<select id="timed-lyrics-format" bind:value={timedLyricsFormat}>

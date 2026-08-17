@@ -358,7 +358,7 @@ describe('EditorPane', () => {
 		await new Promise((resolve) => window.setTimeout(resolve, 100));
 
 		await expect
-			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.element(page.getByRole('dialog', { name: 'Assign performers' }))
 			.not.toBeInTheDocument();
 		await expect
 			.element(page.getByRole('button', { name: /Incomplete composition/u }))
@@ -413,7 +413,7 @@ describe('EditorPane', () => {
 
 		await page.getByText('Hello world').dblClick();
 
-		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
+		await expect.element(page.getByRole('dialog', { name: 'Assign performers' })).toBeVisible();
 		const { selection } = handle.getSnapshot();
 		expect(selection.anchor).not.toBe(selection.head);
 	});
@@ -431,7 +431,7 @@ describe('EditorPane', () => {
 		});
 
 		await page.getByText('Hello world').dblClick();
-		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
+		await expect.element(page.getByRole('dialog', { name: 'Assign performers' })).toBeVisible();
 
 		const chip = document.querySelector<HTMLElement>('[data-picker-chip]');
 		expect(chip).not.toBe(document.activeElement);
@@ -442,7 +442,7 @@ describe('EditorPane', () => {
 
 		expect(handle.getSnapshot().text).toBe('[Verse]\nHello x');
 		await expect
-			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.element(page.getByRole('dialog', { name: 'Assign performers' }))
 			.not.toBeInTheDocument();
 	});
 
@@ -456,7 +456,7 @@ describe('EditorPane', () => {
 		await new Promise((resolve) => window.setTimeout(resolve, 100));
 
 		await expect
-			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.element(page.getByRole('dialog', { name: 'Assign performers' }))
 			.not.toBeInTheDocument();
 	});
 
@@ -476,7 +476,7 @@ describe('EditorPane', () => {
 
 		expect(handle.getSnapshot().selection).toEqual({ anchor: 8, head: 10 });
 		await expect
-			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.element(page.getByRole('dialog', { name: 'Assign performers' }))
 			.not.toBeInTheDocument();
 	});
 
@@ -492,7 +492,7 @@ describe('EditorPane', () => {
 		await new Promise((resolve) => window.setTimeout(resolve, 100));
 
 		await expect
-			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.element(page.getByRole('dialog', { name: 'Assign performers' }))
 			.not.toBeInTheDocument();
 	});
 
@@ -506,7 +506,7 @@ describe('EditorPane', () => {
 		handle.focus();
 		await userEvent.keyboard('{Alt>}p{/Alt}');
 
-		await expect.element(page.getByRole('toolbar', { name: 'Assign performers' })).toBeVisible();
+		await expect.element(page.getByRole('dialog', { name: 'Assign performers' })).toBeVisible();
 	});
 
 	// The press was aimed at this command, so it is answered rather than
@@ -522,7 +522,7 @@ describe('EditorPane', () => {
 		await userEvent.keyboard('{Alt>}p{/Alt}');
 
 		await expect
-			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.element(page.getByRole('dialog', { name: 'Assign performers' }))
 			.not.toBeInTheDocument();
 		expect(editorCallbacks.onAnnouncement).toHaveBeenCalledWith(
 			'Performers are assigned to lyric lines within one section that has a header.'
@@ -684,7 +684,7 @@ describe('EditorPane', () => {
 		await expect.element(popover).toHaveFocus();
 		await expect.element(page.getByText('Test issue')).toBeVisible();
 		await expect
-			.element(page.getByRole('toolbar', { name: 'Assign performers' }))
+			.element(page.getByRole('dialog', { name: 'Assign performers' }))
 			.not.toBeInTheDocument();
 	});
 
@@ -1071,6 +1071,67 @@ describe('EditorPane', () => {
 		await expect.element(led).toBeVisible();
 	});
 
+	// Bare focus previews and a press opens. Focus alone must not take the caret —
+	// that is the loop a card opening on `focus` puts the keyboard in — but the
+	// previewing card withholds `Close` and keeps the pointer-leave watcher armed,
+	// so it is not somewhere the keyboard can be left either.
+	it('gives the keyboard a card it can answer, and a preview a stray mouse cannot take away', async () => {
+		const first = testDiagnostic({ from: 0, to: 5, severity: 'manual-review' });
+		const second = testDiagnostic({
+			from: 6,
+			to: 11,
+			severity: 'manual-review',
+			message: 'The other issue'
+		});
+		await mountEditor({
+			text: 'hello world',
+			displayContext: context({ diagnostics: { revision: 0, items: [first, second] } })
+		});
+		const badge = document.querySelector<HTMLElement>('.ll-diagnostic-badge');
+		const menu = document.querySelector<HTMLElement>('.ll-diagnostic-cluster-menu');
+		if (!badge || !menu) {
+			throw new Error('Cluster badge or its menu was not rendered.');
+		}
+		// Display words, not the raw severity id a screen reader would spell out.
+		expect(badge.getAttribute('aria-label')).toBe(
+			'2 diagnostics on this line, highest severity manual review'
+		);
+		// A group of buttons: `menu`/`menuitem` announced arrow-key navigation
+		// this has never had.
+		expect(menu.getAttribute('role')).toBe('group');
+		expect(badge.getAttribute('aria-haspopup')).toBeNull();
+
+		badge.focus();
+
+		const preview = page.getByRole('group', { name: 'Diagnostic details' });
+		await expect.element(preview).toBeVisible();
+		// Arriving is not asking: the caret stays where the keyboard put it.
+		expect(document.activeElement).toBe(badge);
+		expect(page.getByRole('button', { name: 'Close' }).elements()).toHaveLength(0);
+
+		// A mouse knocked on the way past used to close the preview out from under
+		// the focus that was reading it.
+		window.dispatchEvent(new PointerEvent('pointermove', { clientX: 0, clientY: 0 }));
+		await new Promise((resolve) => setTimeout(resolve, 400));
+		await expect.element(preview).toBeVisible();
+
+		// Enter on the badge is the disclosure it already was; the card the keyboard
+		// can answer is one press further in, on the finding it names.
+		await userEvent.keyboard('{Enter}');
+		expect(badge.getAttribute('aria-expanded')).toBe('true');
+
+		const item = menu.querySelector<HTMLButtonElement>('.ll-diagnostic-cluster-item');
+		if (!item) {
+			throw new Error('Cluster menu item was not rendered.');
+		}
+		expect(item.textContent).toBe('Manual review: Test issue');
+		item.focus();
+		await userEvent.keyboard('{Enter}');
+
+		await expect.element(page.getByRole('dialog', { name: 'Diagnostic details' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Close' })).toBeVisible();
+	});
+
 	// The rule every transient surface in the workbench follows. Selecting a
 	// diagnostic and pressing the badge again already closed this menu; a press
 	// into the text is a selection-only transaction, which nothing here hears
@@ -1173,6 +1234,48 @@ describe('EditorPane', () => {
 			.element(page.getByRole('dialog', { name: 'Diagnostic details' }))
 			.not.toBeInTheDocument();
 		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).not.toHaveFocus();
+	});
+
+	// The same rule as applying a fix, and `Ignore` was the one control on the row
+	// that did not follow it: it handed the caret back to the editor whichever way
+	// the card had been opened.
+	it('leaves the caret out of the editor when a hovered popover ignores a rule', async () => {
+		const editorCallbacks = { ...callbacks(), onIgnoreDiagnostic: vi.fn() };
+		const { handle } = await mountEditor({
+			text: 'hello world',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [testDiagnostic({ from: 0, to: 5 })] }
+			}),
+			editorCallbacks
+		});
+		const underline = document.querySelector<HTMLElement>('.ll-diagnostic-range');
+		if (!underline) {
+			throw new Error('Diagnostic underline was not rendered.');
+		}
+		handle.focus();
+		await userEvent.hover(underline);
+		await userEvent.click(page.getByRole('button', { name: 'Ignore' }));
+
+		expect(editorCallbacks.onIgnoreDiagnostic).toHaveBeenCalledOnce();
+		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).not.toHaveFocus();
+	});
+
+	it('hands the caret back when a keyboard-opened popover ignores a rule', async () => {
+		const editorCallbacks = { ...callbacks(), onIgnoreDiagnostic: vi.fn() };
+		const { handle } = await mountEditor({
+			text: 'hello world',
+			displayContext: context({
+				diagnostics: { revision: 0, items: [testDiagnostic({ from: 0, to: 5 })] }
+			}),
+			editorCallbacks
+		});
+
+		handle.focus();
+		await userEvent.keyboard('{F2}');
+		await userEvent.click(page.getByRole('button', { name: 'Ignore' }));
+
+		expect(editorCallbacks.onIgnoreDiagnostic).toHaveBeenCalledOnce();
+		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toHaveFocus();
 	});
 
 	it('focuses keyboard-opened diagnostics and closes them with Escape from editor focus', async () => {
@@ -1839,15 +1942,18 @@ describe('PerformerPicker keyboard flow', () => {
 			onCancel: vi.fn(),
 			returnFocus: () => focusTarget.focus()
 		});
-		const toolbar = page.getByRole('toolbar', { name: 'Assign performers' });
+		const card = page.getByRole('dialog', { name: 'Assign performers' });
 		await expect.element(page.getByRole('button', { name: 'Avery' })).toHaveFocus();
-		await expect.element(toolbar).not.toHaveClass('show-focus');
+		await expect.element(card).not.toHaveClass('show-focus');
 
 		await userEvent.keyboard('{ArrowRight}');
 
-		await expect.element(toolbar).toHaveClass('show-focus');
+		await expect.element(card).toHaveClass('show-focus');
 	});
 
+	// A `toolbar`'s whole convention is that Tab leaves it, and this card holds
+	// the keyboard until it is answered — so the role promised an exit that does
+	// not exist. A dialog is what a surface that contains Tab actually is.
 	it('keeps Tab inside the card instead of dropping focus onto the page behind it', async () => {
 		const focusTarget = document.createElement('button');
 		focusTarget.dataset.testFocusReturn = 'true';
@@ -1873,6 +1979,8 @@ describe('PerformerPicker keyboard flow', () => {
 		await expect.element(page.getByRole('button', { name: 'Blair' })).toHaveFocus();
 
 		expect(focusTarget).not.toBe(document.activeElement);
+		await expect.element(page.getByRole('dialog', { name: 'Assign performers' })).toBeVisible();
+		expect(page.getByRole('toolbar', { name: 'Assign performers' }).elements()).toHaveLength(0);
 	});
 
 	it('cancels with Escape and returns focus', async () => {

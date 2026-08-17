@@ -185,7 +185,7 @@ And the "quiet" part was never really quiet`;
 <StructuredData data={websiteData} />
 <StructuredData data={structuredData} />
 
-<main class="lp">
+<main id="main" tabindex="-1" class="lp">
 	<!-- The hero carries the claim and the evidence in one screen. It used to
 	     reserve a viewport for four small centred elements and leave a peek of
 	     the demo showing underneath, which was the right answer while the
@@ -323,7 +323,6 @@ And the "quiet" part was never really quiet`;
 	<section class="lp-section">
 		<div class="lp-container">
 			<div class="lp-head">
-				<span class="lp-eyebrow">Live demo</span>
 				<h2>This is the real editor, running on this page.</h2>
 				<p>
 					Not a screenshot and not a video. Hover an underline for the finding, the guideline behind
@@ -356,7 +355,6 @@ And the "quiet" part was never really quiet`;
 	<section class="lp-section">
 		<div class="lp-container">
 			<div class="lp-head">
-				<span class="lp-eyebrow">What it checks</span>
 				<h2>{ruleCount} reviewed rules, and the judgement calls stay yours.</h2>
 				<p>
 					Every rule required an exact source URL, a written interpretation, a human review, and a
@@ -449,7 +447,6 @@ And the "quiet" part was never really quiet`;
 			</div>
 
 			<div class="lp-split__copy">
-				<span class="lp-eyebrow">Sourced rules</span>
 				<h2>Every warning carries its source.</h2>
 				<p class="lp-prose">
 					A linter that cannot say why it is complaining is just an opinion with a red underline.
@@ -520,7 +517,6 @@ And the "quiet" part was never really quiet`;
 			</div>
 
 			<div class="lp-split__copy">
-				<span class="lp-eyebrow">Performer tagging</span>
 				<h2>Credit a voice by selecting it, not by writing the HTML.</h2>
 
 				<p class="lp-prose">
@@ -586,7 +582,6 @@ And the "quiet" part was never really quiet`;
 			</div>
 
 			<div class="lp-split__copy">
-				<span class="lp-eyebrow">On-device grammar</span>
 				<h2>Spelling and grammar that never leave the page.</h2>
 				<p class="lp-prose">
 					<a href={harperUrl} rel="external">Harper</a>, the open-source English grammar engine,
@@ -637,7 +632,6 @@ And the "quiet" part was never really quiet`;
 			</div>
 
 			<div class="lp-split__copy">
-				<span class="lp-eyebrow">Local first</span>
 				<h2>Your lyrics stay in your browser.</h2>
 				<p class="lp-prose">
 					The exceptions are yours to choose, each on its own press. You can play the song you are
@@ -657,7 +651,6 @@ And the "quiet" part was never really quiet`;
 	<section class="lp-section">
 		<div class="lp-container">
 			<div class="lp-head">
-				<span class="lp-eyebrow">Scope</span>
 				<h2>What it is not.</h2>
 			</div>
 
@@ -701,7 +694,6 @@ And the "quiet" part was never really quiet`;
 	<section class="lp-section">
 		<div class="lp-container">
 			<div class="lp-head">
-				<span class="lp-eyebrow">Contribute</span>
 				<h2>Built in the open, and better with help.</h2>
 				<p>
 					Everything on this page — the workbench, the rules, the scripts that film it — is in one

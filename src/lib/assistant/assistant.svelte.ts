@@ -14,6 +14,7 @@ import type {
 } from '$lib/persistence/types.js';
 import { currentRuleSet } from '$lib/rules/data/rule-set.js';
 import { askAssistant, type AskOptions } from './api.js';
+import { browserChatLocks, withChatLock, type ChatLockOutcome } from './chat-lock.js';
 import { nowIso, type AssistantChatRepository } from './chat-repository.js';
 import type { AssistantDraftBridge } from './draft-bridge.js';
 import { boundedHistory, liveToolSuffix } from './history.js';
@@ -47,6 +48,10 @@ export interface AssistantDeps {
 	repository(): Promise<AssistantChatRepository>;
 	ask(options: AskOptions): Promise<TurnResponse>;
 	ruleSetVersion: string;
+	/** The lock manager conversations are written under, supplied by the shipped
+	 * wiring — see `browserChatLocks`. Absent or `null`, writes are unguarded,
+	 * which is what a browser with no Web Locks gets anyway. */
+	locks?: LockManager | null;
 	/** Test seams for the otherwise appMetadata-backed permission decision. */
 	getDraftAccess?(draftId: string): Promise<DraftAccessDecision | undefined>;
 	setDraftAccess?(draftId: string, decision: DraftAccessDecision): Promise<void>;
@@ -80,6 +85,11 @@ const FAILURE_MESSAGES: Record<AssistantErrorCode, string> = {
 };
 
 const TOOL_ROUND_FAILURE = `The assistant may use 'scribe tools at most ${MAX_TOOL_ROUNDS} times in one turn.`;
+
+/** Named rather than queued: see `chat-lock.ts` on why the second tab is
+ * refused. `request_in_progress` is the code for exactly this state and the
+ * message is overridden because the tab it names is not this one. */
+const CHAT_HELD_ELSEWHERE = 'This conversation is answering in another tab.';
 
 function chatTitle(question: string): string {
 	const line = question.trim().split('\n')[0] ?? '';
@@ -280,7 +290,56 @@ export function createAssistantState(deps: AssistantDeps) {
 		return repositoryPromise;
 	}
 
+	/** The conversation this state is already inside. A second request for the
+	 * same exclusive name would refuse itself, so a cycle that has the lock runs
+	 * its inner attempt directly rather than asking for it twice. */
+	let lockedChatId: string | undefined;
+
+	/**
+	 * Run a write cycle as this conversation's only writer, or report that
+	 * another tab is in it. The flag is set from inside the granted callback, so
+	 * it is true only while the lock genuinely is.
+	 */
+	async function withConversationLock<T>(
+		chatId: string,
+		work: () => Promise<T>
+	): Promise<ChatLockOutcome<T>> {
+		if (lockedChatId === chatId) return { held: true, value: await work() };
+		return withChatLock(chatId, deps.locks ?? null, async () => {
+			lockedChatId = chatId;
+			try {
+				return await work();
+			} finally {
+				lockedChatId = undefined;
+			}
+		});
+	}
+
+	function refuseHeldElsewhere(): void {
+		failure = { code: 'request_in_progress', message: CHAT_HELD_ELSEWHERE };
+	}
+
 	let initializePromise: Promise<void> | undefined;
+
+	/**
+	 * A reload cannot resume the provider round a streaming answer was in the
+	 * middle of, so a `pending` record in a chat about to be drawn is orphaned. A
+	 * turn parked on an unanswered tool call is a different thing — it waits on
+	 * the user, not on the network — so it is spared and re-seated instead.
+	 *
+	 * Swept one chat at a time, when that chat is loaded for display, rather than
+	 * across the database at boot. The database is shared by every tab, and a
+	 * global sweep is another tab's live stream marked interrupted the moment
+	 * somebody opens the assistant on `/rules/`. Scoped, a chat nobody has opened
+	 * is left alone, and a turn that really did die is still marked the next time
+	 * anyone looks at it — which is the only moment the state is read.
+	 */
+	async function openChat(repo: AssistantChatRepository, chatId: string): Promise<void> {
+		await repo.markPendingInterrupted(chatId, (message) => decisionPending(message) !== undefined);
+		activeChatId = chatId;
+		messages = await repo.messagesFor(chatId);
+		restoreToolSession();
+	}
 
 	// Memoized on the in-flight promise, not on `ready` alone: `open()` and the
 	// conversation surface's own `ensureLoaded()` run together on a dialog opened
@@ -289,18 +348,9 @@ export function createAssistantState(deps: AssistantDeps) {
 	function initialize(): Promise<void> {
 		initializePromise ??= (async () => {
 			const repo = await repository();
-			// A reload cannot resume the provider round a streaming answer was in
-			// the middle of. A turn parked on an unanswered tool call is a
-			// different thing — it waits on the user, not on the network — so it is
-			// spared here and re-seated below.
-			await repo.markPendingInterrupted((message) => decisionPending(message) !== undefined);
 			chats = await repo.listChats();
 			const latest = chats[0];
-			if (latest) {
-				activeChatId = latest.id;
-				messages = await repo.messagesFor(latest.id);
-				restoreToolSession();
-			}
+			if (latest) await openChat(repo, latest.id);
 			ready = true;
 		})();
 		return initializePromise;
@@ -452,7 +502,27 @@ export function createAssistantState(deps: AssistantDeps) {
 		const userMessage = assistantIndex > 0 ? messages[assistantIndex - 1] : undefined;
 		if (assistantIndex === -1 || !userMessage || userMessage.role !== 'user' || !activeChatId)
 			return;
+		const chatId = activeChatId;
 
+		// Every provider round and every record it writes belongs to one writer.
+		// `send` and `retry` are already holding this conversation, so those come
+		// through free; a resumed challenge and a settled tool decision are where
+		// the lock is genuinely taken here, both being continuations that ran while
+		// nothing was in flight and another tab could have stepped in.
+		const outcome = await withConversationLock(chatId, () =>
+			runAttempt(repo, chatId, assistantMessageId, assistantIndex, userMessage, turnstileToken)
+		);
+		if (!outcome.held) refuseHeldElsewhere();
+	}
+
+	async function runAttempt(
+		repo: AssistantChatRepository,
+		chatId: string,
+		assistantMessageId: string,
+		assistantIndex: number,
+		userMessage: AssistantMessageRecord,
+		turnstileToken?: string
+	): Promise<void> {
 		busy = true;
 		failure = undefined;
 		currentAttempt = { assistantMessageId };
@@ -472,7 +542,7 @@ export function createAssistantState(deps: AssistantDeps) {
 				const bridge = draftBridge;
 				const draftText = bridge?.readText().slice(0, MAX_DRAFT_CHARS) ?? '';
 				const response = await deps.ask({
-					chatId: activeChatId,
+					chatId,
 					messages: [
 						...window.messages,
 						...liveToolSuffix(pending.toolTurns, draftText, bridge?.sectionLinks() ?? [])
@@ -506,7 +576,7 @@ export function createAssistantState(deps: AssistantDeps) {
 					content: response.assistant.blocks.map((block) => block.text).join('\n\n'),
 					toolTurns: withoutProviderItems(pending.toolTurns)
 				});
-				await repo.touchChat(activeChatId);
+				await repo.touchChat(chatId);
 				chats = await repo.listChats();
 				return;
 			}
@@ -736,10 +806,10 @@ export function createAssistantState(deps: AssistantDeps) {
 		async selectChat(id: string): Promise<void> {
 			if (busy || challengePending) return;
 			const repo = await repository();
-			activeChatId = id;
-			messages = await repo.messagesFor(id);
 			currentAttempt = undefined;
-			restoreToolSession();
+			// Opening a conversation is the moment its orphaned turns are drawn, so
+			// it is the moment they are swept — see `openChat`.
+			await openChat(repo, id);
 			failure = undefined;
 			challengePending = false;
 			contextDividerIndex = undefined;
@@ -757,12 +827,18 @@ export function createAssistantState(deps: AssistantDeps) {
 			}
 		},
 
-		async send(question: string): Promise<void> {
+		/**
+		 * Resolves `true` only when the question was consumed — a request actually
+		 * started. A refusal a caller could only discover after an await (the
+		 * conversation held by another tab) resolves `false`, so a composer that
+		 * cleared itself optimistically can hand the question back.
+		 */
+		async send(question: string): Promise<boolean> {
 			const text = question.trim();
-			if (!text || busy || challengePending || toolSession) return;
+			if (!text || busy || challengePending || toolSession) return false;
 			if ([...text].length > MAX_QUESTION_CHARS) {
 				failure = { code: 'invalid_request', message: FAILURE_MESSAGES.invalid_request };
-				return;
+				return false;
 			}
 			await initialize();
 			const repo = await repository();
@@ -772,22 +848,32 @@ export function createAssistantState(deps: AssistantDeps) {
 				chats = await repo.listChats();
 				messages = [];
 			}
-			const user = await repo.addMessage({
-				chatId: activeChatId,
-				role: 'user',
-				createdAt: nowIso(),
-				status: 'complete',
-				content: text
+			const chatId = activeChatId;
+			// The lock is taken before the first row is written, so a conversation
+			// another tab is answering in takes nothing from this one: no question,
+			// no placeholder, no `updatedAt`. A chat created just above cannot be
+			// held anywhere — its id is minted in this call — so only a send into an
+			// existing conversation can be refused here.
+			const outcome = await withConversationLock(chatId, async () => {
+				const user = await repo.addMessage({
+					chatId,
+					role: 'user',
+					createdAt: nowIso(),
+					status: 'complete',
+					content: text
+				});
+				const placeholder = await repo.addMessage({
+					chatId,
+					role: 'assistant',
+					createdAt: nowIso(),
+					status: 'pending',
+					content: ''
+				});
+				messages = [...messages, user, placeholder];
+				await attempt(placeholder.id);
 			});
-			const placeholder = await repo.addMessage({
-				chatId: activeChatId,
-				role: 'assistant',
-				createdAt: nowIso(),
-				status: 'pending',
-				content: ''
-			});
-			messages = [...messages, user, placeholder];
-			await attempt(placeholder.id);
+			if (!outcome.held) refuseHeldElsewhere();
+			return outcome.held;
 		},
 
 		/** Retry starts the logical turn over; provider state and old outcomes are not reusable. */
@@ -795,16 +881,24 @@ export function createAssistantState(deps: AssistantDeps) {
 			if (busy) return;
 			const target = messages.find((message) => message.id === assistantMessageId);
 			if (!target || target.role !== 'assistant' || target.status === 'complete') return;
-			toolSession = undefined;
-			challengePending = false;
-			await patchMessage(assistantMessageId, {
-				status: 'pending',
-				content: '',
-				answer: undefined,
-				requestId: undefined,
-				toolTurns: undefined
+			const chatId = activeChatId;
+			if (!chatId) return;
+			// The reset is inside the lock with the request it precedes: stripped
+			// first and refused after, the record would lose the answer it still has
+			// to a turn that never started.
+			const outcome = await withConversationLock(chatId, async () => {
+				toolSession = undefined;
+				challengePending = false;
+				await patchMessage(assistantMessageId, {
+					status: 'pending',
+					content: '',
+					answer: undefined,
+					requestId: undefined,
+					toolTurns: undefined
+				});
+				await attempt(assistantMessageId);
 			});
-			await attempt(assistantMessageId);
+			if (!outcome.held) refuseHeldElsewhere();
 		},
 
 		/** The Turnstile widget passed; rebuild and resume the interrupted POST. */
@@ -998,9 +1092,11 @@ export function createAssistantState(deps: AssistantDeps) {
 export type AssistantState = ReturnType<typeof createAssistantState>;
 
 /** The production wiring: Dexie behind a lazy import, the real API client,
- * and the shipped ruleset version. */
+ * the shipped ruleset version, and the browser's own lock manager — this is the
+ * one construction where two writers into a conversation are two tabs. */
 export function createDefaultAssistantState(): AssistantState {
 	return createAssistantState({
+		locks: browserChatLocks(),
 		async repository() {
 			const [{ openDatabase }, { createAssistantChatRepository }] = await Promise.all([
 				import('$lib/persistence/database.js'),

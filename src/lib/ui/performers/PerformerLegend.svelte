@@ -29,7 +29,7 @@
 </script>
 
 <section class="performer-legend" aria-label="Section performer legend">
-	<h3>Section legend</h3>
+	<h2>Section legend</h2>
 	{#if sectionsWithVoices.length === 0}
 		<p class="empty-state">
 			Each section's performers and their markup styles are listed here. Assign performers to lyrics
@@ -44,7 +44,11 @@
 						{#each section.voiceGroups as group (group.id)}
 							<li>
 								<span>{groupName(group.performerIds, group.rawNameText)}</span>
-								<span>Slot {group.styleSlot}, {slotLabels[group.styleSlot]}</span>
+								<!-- The style, not the slot it happens to occupy. "Slot 2" is this
+							     application's own bookkeeping and names nothing a transcriber
+							     can see in the document; the word after it already carried
+							     the whole fact. -->
+								<span>{slotLabels[group.styleSlot]}</span>
 							</li>
 						{/each}
 					</ul>

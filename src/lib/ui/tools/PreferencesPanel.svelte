@@ -82,7 +82,7 @@
 		workbench needs it.
 	-->
 	<section>
-		<h3>Grammar checking</h3>
+		<h2>Grammar checking</h2>
 		<!-- A switch, not a checkbox. The row is a live setting — flipping it acts
 		     at once, no form, no submit — and a switch is the control every settings
 		     surface has taught for exactly that, where a checkbox reads as a form
@@ -107,7 +107,7 @@
 
 	{#if controller.backup}
 		<section>
-			<h3>Workspace backup</h3>
+			<h2>Workspace backup</h2>
 			<p>
 				Backs up every 'scribe and its settings — not assistant chats, which stay in this browser
 				only. Imports add to this workspace, but local audio needs reconnecting.
@@ -159,7 +159,7 @@
 	{/if}
 
 	<section>
-		<h3>Local data</h3>
+		<h2>Local data</h2>
 		<p>
 			'Scribes and assistant chats stay in this browser; audio stays on your disk. Linting works
 			offline; online playback and the rules assistant need a connection. Resetting LyricLint
@@ -247,7 +247,7 @@
 	</section>
 
 	<section>
-		<h3>Reviewed rules</h3>
+		<h2>Reviewed rules</h2>
 		{#if controller.ruleSet}
 			<dl class="metadata-list">
 				<div>

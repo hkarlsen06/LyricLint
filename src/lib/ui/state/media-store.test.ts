@@ -11,12 +11,36 @@ import { musicKitLoadTimeoutMs, resetAppleMusic } from './media-apple.js';
 import { spotifySdkLoadTimeoutMs } from './media-spotify.js';
 
 /**
+ * The two halves of the sign-in this suite cannot actually run.
+ *
+ * `beginSpotifySignIn` ends in `location.assign`, which in a test is the runner
+ * navigating away; `spotifyRedirectAllowed` reads a `location` the node half of
+ * the suite does not have. Everything else in the module is the real thing, so
+ * the parser, the configured check and the token store are all untouched.
+ */
+const spotifyFlow = vi.hoisted(() => ({ signedIn: false, leaves: true }));
+
+vi.mock('./spotify-auth.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('./spotify-auth.js')>();
+	return {
+		...actual,
+		spotifySignedIn: () => spotifyFlow.signedIn,
+		spotifyRedirectAllowed: () => true,
+		beginSpotifySignIn: async () => spotifyFlow.leaves
+	};
+});
+
+/**
  * A file handle whose permission answer the test chooses.
  *
  * The browser is the only thing that can mint a real one, so what is under test
  * is the branch the store takes on each answer, not the API itself.
  */
-function fakeHandle(file: File, permission: 'granted' | 'prompt') {
+function fakeHandle(
+	file: File,
+	permission: 'granted' | 'prompt',
+	requested: 'granted' | 'denied' = 'granted'
+) {
 	return {
 		kind: 'file' as const,
 		name: file.name,
@@ -24,7 +48,7 @@ function fakeHandle(file: File, permission: 'granted' | 'prompt') {
 			return permission;
 		},
 		async requestPermission() {
-			return 'granted' as const;
+			return requested;
 		},
 		async getFile() {
 			return file;
@@ -41,6 +65,8 @@ function setup(
 		handle?: FileSystemFileHandle;
 		loadMusicKit?: MusicKitLoader;
 		onTitleSuggestion?: (title: string) => void;
+		/** A Spotify SDK that never registers a device, so nothing reaches Spotify. */
+		spotify?: boolean;
 	} = {}
 ) {
 	const audio = new StubAudio();
@@ -55,7 +81,18 @@ function setup(
 		createObjectUrl: () => 'blob:test',
 		revokeObjectUrl: () => {},
 		loadYouTubeApi: youtube.load,
-		...(options.loadMusicKit ? { loadMusicKit: options.loadMusicKit } : {})
+		...(options.loadMusicKit ? { loadMusicKit: options.loadMusicKit } : {}),
+		...(options.spotify
+			? {
+					// A `Player` with no listeners on it: `connect` throws, the load
+					// gives up, and the attachment still runs its bookkeeping — which is
+					// the half these tests are about.
+					loadSpotifySdk: async () => ({ Player: class {} }) as never,
+					spotifyToken: async () => 'token',
+					spotifyRequest: (async () => new Response(null, { status: 204 })) as typeof fetch,
+					scheduleSpotifyPoll: () => () => {}
+				}
+			: {})
 	});
 	const file = options.file ?? new File([''], 'track.mp3', { type: 'audio/mpeg' });
 	const repository = options.repository ?? createInMemoryMediaRepository();
@@ -69,7 +106,7 @@ function setup(
 		...(options.onTitleSuggestion ? { onTitleSuggestion: options.onTitleSuggestion } : {})
 	});
 
-	return { audio, file, media, player, repository, youtube };
+	return { audio, feedback, file, media, player, repository, youtube };
 }
 
 describe('media store across sessions', () => {
@@ -298,6 +335,55 @@ describe('media store across sessions', () => {
 		expect(await repository.get('draft-1')).toBeUndefined();
 		expect(media.player.attached).toBe(false);
 	});
+
+	/**
+	 * A refusal owes both channels.
+	 *
+	 * `announce` writes to an `sr-only` live region and nothing else, so a
+	 * declined permission was reported to a screen reader and to nobody else: the
+	 * press landed, the row did not change, and nothing on screen said the
+	 * workbench had answered at all. The toast region is not a live region, so
+	 * neither one alone is enough.
+	 */
+	it('says a declined permission on screen as well as to a screen reader', async () => {
+		const repository = createInMemoryMediaRepository();
+		const file = new File([''], 'sensommer.mp3');
+		await repository.attach({
+			draftId: 'draft-1',
+			name: 'sensommer.mp3',
+			handle: fakeHandle(file, 'prompt', 'denied')
+		});
+
+		const { feedback, media } = setup({ repository });
+		await media.openFor('draft-1');
+		await media.reconnect();
+
+		const refusal = 'Permission to read that audio file was declined.';
+		expect(media.player.attached).toBe(false);
+		expect(feedback.announcement).toBe(refusal);
+		expect(feedback.toasts.map((toast) => toast.message)).toEqual([refusal]);
+	});
+
+	/**
+	 * The one storage failure this store used to swallow. Silent, a draft that has
+	 * audio opens with no strip, no pending row and no explanation — which reads
+	 * as the attachment having been thrown away rather than as a read that failed.
+	 */
+	it('says so when the remembered audio cannot be read back at all', async () => {
+		const repository = {
+			...createInMemoryMediaRepository(),
+			get: async () => {
+				throw new Error('storage unavailable');
+			}
+		};
+
+		const { feedback, media } = setup({ repository });
+		await media.openFor('draft-1');
+
+		expect(media.pendingName).toBeUndefined();
+		expect(feedback.announcement).toContain('could not be read from local storage');
+		expect(feedback.toasts).toHaveLength(1);
+	});
 });
 
 describe('the YouTube opt-in', () => {
@@ -439,6 +525,56 @@ describe('a draft on a Spotify track', () => {
 		expect(next.media.trackId).toBe('4cOdK2wGLETKBW3PvgPWqT');
 		// Not signed in, so nothing has been loaded — the press is what pays.
 		expect(next.player.attached).toBe(false);
+	});
+
+	/**
+	 * The sign-in round trip, and what it used to cost.
+	 *
+	 * `resumeSignIn` comes back holding the link and nothing else, so the attach
+	 * behind it named the record after the URL and wrote no position at all — the
+	 * draft lost the title Spotify had already given it and reopened at 0:00. The
+	 * pending record is this same track's, so both are already in hand; they only
+	 * had to be read before `adoptTrack` cleared them.
+	 */
+	it('keeps the remembered title and playhead when the same track attaches again', async () => {
+		const trackId = '4cOdK2wGLETKBW3PvgPWqT';
+		const repository = createInMemoryMediaRepository();
+		await repository.attach({
+			draftId: 'draft-1',
+			name: 'Mul — Sensommer',
+			source: 'spotify',
+			trackId,
+			position: 90
+		});
+
+		const { media, player, repository: store } = setup({ repository, spotify: true });
+		await media.openFor('draft-1');
+		expect(media.pendingName).toBe('Mul — Sensommer');
+
+		// What the sign-in hands back: the provisional name minted from the link.
+		await media.attachSpotifyTrack(trackId, `open.spotify.com/track/${trackId}`);
+
+		const record = await store.get('draft-1');
+		expect(record?.name).toBe('Mul — Sensommer');
+		expect(record?.position).toBe(90);
+		expect(player.currentTime).toBe(90);
+	});
+
+	/**
+	 * A press on a link while signed out leaves for the authorize screen, and
+	 * `attachSpotify` answers `undefined` for that exactly as it does for a landed
+	 * attach. Mapped to an empty result set, the picker rendered `No matches on
+	 * Spotify.` over a valid track link for the whole of the navigation.
+	 */
+	it('reports a departing sign-in rather than an empty catalogue', async () => {
+		spotifyFlow.signedIn = false;
+		const { media } = setup();
+
+		const outcome = await media.searchSpotify(
+			'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT'
+		);
+
+		expect(outcome).toEqual({ signingIn: true });
 	});
 });
 

@@ -369,7 +369,8 @@ describe('a press that arrives before the source is ready', () => {
 		// MusicKit's own `playing` state number. Nothing reports playback until this
 		// is fired, which is the point: `play()` is a request, not a fact.
 		const reportPlaying = () => listeners.get('playbackStateDidChange')?.({ state: 2 } as never);
-		return { player, calls, queues, release, attaching, reportPlaying };
+		const reportError = () => listeners.get('mediaPlaybackError')?.({} as never);
+		return { player, calls, queues, release, attaching, reportPlaying, reportError };
 	}
 
 	it('spends the press once the source can take it, rather than dropping it', async () => {
@@ -486,6 +487,37 @@ describe('a press that arrives before the source is ready', () => {
 		expect(player.starting).toBe(true);
 	});
 
+	/**
+	 * A failure is what the source last said, not what it will always say.
+	 *
+	 * `error` was only ever cleared by an attach or a detach, so one refused press
+	 * — an expired token since refreshed, a device that came back — left the strip
+	 * printing that sentence *instead of the scrubber* for the rest of the
+	 * attachment, over a track the user could hear. It also armed `playIfAsked` to
+	 * refuse the next queued press.
+	 *
+	 * The source reporting that it started is the one honest signal that the
+	 * trouble is over. `play()` deliberately does not clear it: a press is a
+	 * request rather than evidence, and clearing there would wipe the explanation
+	 * for the previous press at the instant the user made the next one.
+	 */
+	it('clears the error when the source reports it is playing after all', async () => {
+		const { player, release, attaching, reportError, reportPlaying } = slowAttachment();
+		release();
+		await attaching;
+
+		reportError();
+		expect(player.error).toBe('Apple Music could not play that song.');
+		expect(player.playing).toBe(false);
+
+		player.play();
+		expect(player.error).toBe('Apple Music could not play that song.');
+
+		reportPlaying();
+		expect(player.error).toBeUndefined();
+		expect(player.playing).toBe(true);
+	});
+
 	it('clears a failed remote attachment so a later file can play', async () => {
 		const audio = new StubAudio();
 		const player = createMediaPlayer({
@@ -506,6 +538,56 @@ describe('a press that arrives before the source is ready', () => {
 
 		expect(audio.paused).toBe(false);
 		expect(player.playing).toBe(true);
+	});
+});
+
+/**
+ * The lock screen is a surface too, and it was the one this workbench was wrong
+ * about: `media-shortcuts.ts` registers the action handlers, so the OS buttons
+ * worked, and nothing ever said what they were operating. What the notification
+ * shade drew was the page's title over a play state left wherever the last
+ * session put it.
+ */
+describe('what the operating system is told about the song', () => {
+	class StubMetadata {
+		title: string;
+		artist: string | undefined;
+		artwork: { src: string }[] | undefined;
+		constructor(init: { title: string; artist?: string; artwork?: { src: string }[] }) {
+			this.title = init.title;
+			this.artist = init.artist;
+			this.artwork = init.artwork;
+		}
+	}
+
+	it('names what is playing and keeps the play state in step with the transport', () => {
+		vi.stubGlobal('MediaMetadata', StubMetadata);
+		const session = { metadata: null as MediaMetadata | null, playbackState: 'none' as string };
+		const player = createMediaPlayer({
+			feedback: createFeedbackState(),
+			createAudio: () => new StubAudio().asMediaElement(),
+			createObjectUrl: () => 'blob:test',
+			revokeObjectUrl: () => {},
+			mediaSession: session as never
+		});
+
+		player.attach(new File([''], 'sensommer.mp3'));
+		expect((session.metadata as unknown as StubMetadata).title).toBe('sensommer.mp3');
+		expect(session.playbackState).toBe('paused');
+
+		player.play();
+		expect(session.playbackState).toBe('playing');
+
+		player.pause();
+		expect(session.playbackState).toBe('paused');
+
+		// Nothing attached is not the same as something paused, and a lock screen
+		// still offering a track this draft has thrown away is a press with nowhere
+		// to land.
+		player.detach();
+		expect(session.metadata).toBeNull();
+		expect(session.playbackState).toBe('none');
+		vi.unstubAllGlobals();
 	});
 });
 

@@ -10,12 +10,16 @@
 <main class="error-page">
 	<div>
 		<h1>LyricLint could not open this page</h1>
+		<!-- Neither sentence may assume the workbench has ever been opened. "Not
+		     part of the installed app" and "your local 'scribes" both name things a
+		     stranger following a truncated rule-page link has never seen — which,
+		     as the note below the copy says, is who most often reads this. -->
 		<p>
 			{page.status === 404
-				? 'This page is not part of the installed app.'
-				: 'The application shell encountered an error before the workspace was ready.'}
+				? 'There is nothing at this address. LyricLint is a tool for checking Genius lyric transcriptions, and the link that brought you here may have been cut short.'
+				: 'Something went wrong before this page could be built.'}
 		</p>
-		<p>Your local 'scribes have not been included in this error page or sent anywhere.</p>
+		<p>Nothing you have written is stored on this page or sent anywhere.</p>
 		<!-- A 404 here is usually a shared link that was truncated or mistyped, which
 		     means the reader may never have seen LyricLint before. Sending them to
 		     the workspace alone hands a stranger an empty editor with no explanation,
@@ -36,6 +40,15 @@
 			</a>
 			<a class="button button--quiet" data-sveltekit-reload href={resolve('/')}>
 				What is LyricLint?
+			</a>
+			<!-- The two reading sections, which is where a truncated share link was
+			     most likely pointing: a rule page or a guideline is a URL people
+			     paste, and the workbench is not. -->
+			<a class="button button--quiet" data-sveltekit-reload href={resolve('/guidelines/')}>
+				Guidelines
+			</a>
+			<a class="button button--quiet" data-sveltekit-reload href={resolve('/rules/')}>
+				Linter rules
 			</a>
 		</p>
 	</div>

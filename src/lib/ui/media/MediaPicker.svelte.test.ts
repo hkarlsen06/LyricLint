@@ -50,6 +50,12 @@ function setup(options: { file?: File | undefined; draftTitle?: string } = {}) {
 
 const dialog = () => document.querySelector('dialog');
 
+/** What this dialog would actually announce, in the regions that announce. */
+const liveText = (): string[] =>
+	[...(dialog()?.querySelectorAll('[aria-live]') ?? [])]
+		.map((region) => region.textContent?.trim() ?? '')
+		.filter((text) => text !== '');
+
 describe('MediaPicker', () => {
 	it('is one trigger in the status bar and nothing else until it is pressed', async () => {
 		const { youtube } = setup();
@@ -262,6 +268,55 @@ describe('MediaPicker', () => {
 		// replaced.
 		await vi.waitFor(() => expect(search.getAttribute('aria-busy')).toBe('false'));
 		expect(search.querySelector('.loading-mark')).toBeNull();
+	});
+
+	/*
+	 * A dialog headed `Add audio` opened from a control reading `Change audio
+	 * source` is two names for one job, and the one the user pressed is the one
+	 * they are holding in their head while they read the heading.
+	 */
+	it('heads the dialog with the label of the control that opened it', async () => {
+		const { media } = setup();
+		await page.getByRole('button', { name: 'Add audio' }).click();
+		await expect.element(page.getByRole('heading', { name: 'Add audio source' })).toBeVisible();
+
+		await media.attachFile(new File([''], 'track.mp3'));
+
+		await expect.element(page.getByRole('heading', { name: 'Change audio source' })).toBeVisible();
+	});
+
+	/*
+	 * Every outcome of a search, in the region that speaks.
+	 *
+	 * Only the error strings were ever in one: the result rows are an ordinary
+	 * list and `No matches` was ordinary prose, so a search that answered — or
+	 * answered with nothing — was silent to a screen reader and the field simply
+	 * sat there. The count is `sr-only` because the rows underneath are the
+	 * sighted answer to it.
+	 */
+	it('says what a search found, and what it did not, where it will be heard', async () => {
+		const { media } = setup();
+		media.searchAppleMusic = async () => ({ results: [] });
+
+		await page.getByRole('button', { name: 'Add audio' }).click();
+		await page.getByLabelText('Apple Music search').fill('kygo');
+		(dialog()?.querySelector('.media-dialog__search') as HTMLButtonElement).click();
+
+		await vi.waitFor(() => expect(liveText()).toContain('No matches on Apple Music.'));
+
+		media.searchAppleMusic = async () => ({
+			results: [
+				{ songId: '1091453645', name: 'Kygo — Stole the Show', durationSeconds: 232 },
+				{ songId: '1091453646', name: 'Kygo — Firestone', durationSeconds: 253 }
+			]
+		});
+		(dialog()?.querySelector('.media-dialog__search') as HTMLButtonElement).click();
+
+		await vi.waitFor(() => expect(liveText()).toContain('2 matches on Apple Music.'));
+		// One state at a time in that region, or a count and a refusal speak over
+		// each other.
+		expect(liveText()).not.toContain('No matches on Apple Music.');
+		expect(dialog()?.querySelectorAll('.media-dialog__result')).toHaveLength(2);
 	});
 
 	/**

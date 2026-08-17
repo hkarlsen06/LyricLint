@@ -13,7 +13,7 @@
 	<link rel="canonical" href={canonicalUrl} />
 </svelte:head>
 
-<main class="site-main site-prose">
+<main id="main" tabindex="-1" class="site-main site-prose">
 	<h1>Privacy</h1>
 	<p>
 		LyricLint is local-first. Your transcriptions are stored in this browser and autosave to this

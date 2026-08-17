@@ -25,6 +25,13 @@
 	let renameButton = $state<HTMLButtonElement>();
 
 	async function beginRename(): Promise<void> {
+		// Seeded at mount and never again, this field opened on whatever the name
+		// was when the row was first drawn — and a rename made inside a header
+		// reaches the roster through `adoptHeaderRename` without this instance
+		// going anywhere. The row said KrissyC, the field said KrissyB, and one
+		// Enter wrote every header back. The field is the row's name at the moment
+		// it opens, not at the moment it was built.
+		name = performer.displayName;
 		// Two questions about one row is one too many.
 		onCancelRemove();
 		editing = true;

@@ -16,10 +16,14 @@ import type {
 	SectionLink
 } from '$lib/core/types.js';
 import type { FeedbackState } from './feedback.svelte.js';
+import { NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import { cloneRoster } from './roster-store.svelte.js';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
 const maxRecentLanguages = 5;
+
+/** What a save that stopped landing says when nothing more specific applies. */
+const saveFailedMessage = 'Local save failed. Keep this tab open and try again.';
 
 /**
  * A draft's title as a filename, with whatever extension the export wants —
@@ -168,7 +172,10 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	 */
 	function reportFailure(message: string): void {
 		feedback.announce(message);
-		feedback.addToast({ message });
+		// A refusal is a sentence the user has never read, and the instruction in
+		// this one is what they have to act on — the confirmation timer is sized
+		// for restating something they just did.
+		feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
 	}
 
 	function draftFromSnapshot(currentSnapshot = bindings.snapshot): DraftRecord {
@@ -217,9 +224,23 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	 *
 	 * A failed read is silent. The list simply stays as it was, and a message
 	 * about a menu nobody has opened is noise.
+	 *
+	 * **A failure is not silent, wherever it came from.** A save that stops
+	 * landing in the background reached exactly one surface — a 13px readout in
+	 * the toolbar, which is not a live region — so persistence could stop with no
+	 * warning at all to a screen reader and nearly none to anyone else. It is
+	 * reported on the way *into* the state rather than on every report of it: the
+	 * status is re-read by this store's own 250ms poll and again by the autosave
+	 * controller, and the same sentence four times a second is the failure wearing
+	 * a different hat. `failure` is the exception, and it is for an aimed press
+	 * whose own refusal is worth saying whether or not the status moved.
 	 */
-	function noteSaveStatus(status: AutosaveStatus): void {
+	function noteSaveStatus(status: AutosaveStatus, failure?: string): void {
+		const wasFailed = saveStatus === 'failed';
 		saveStatus = status;
+		if (status === 'failed' && (failure !== undefined || !wasFailed)) {
+			reportFailure(failure ?? saveFailedMessage);
+		}
 		if (status === 'scheduled' || status === 'saving') {
 			sawPendingSave = true;
 			return;
@@ -372,8 +393,9 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				await deps.autosave.flush();
 				noteSaveStatus(deps.autosave.status());
 			} catch {
+				// `noteSaveStatus` carries the report; a second one here would be the
+				// same sentence twice for one flush.
 				noteSaveStatus('failed');
-				reportFailure('Local save failed. Keep this tab open and try again.');
 			}
 		},
 		async setTitle(nextTitle) {
@@ -387,8 +409,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				scheduleSave();
 				await store.refreshDrafts();
 			} catch {
-				noteSaveStatus('failed');
-				reportFailure("'Scribe title could not be saved locally.");
+				noteSaveStatus('failed', "'Scribe title could not be saved locally.");
 			}
 		},
 		setLanguage(nextLanguage) {
@@ -412,9 +433,9 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 				await deps.autosave.flush();
 			} catch {
 				// Swapping to a fresh draft over a failed flush would abandon the
-				// unsaved work; keep the user where their words still are.
+				// unsaved work; keep the user where their words still are. The report
+				// is `noteSaveStatus`'s, so this press cannot say it twice.
 				noteSaveStatus('failed');
-				reportFailure('Local save failed. Keep this tab open and try again.');
 				return;
 			}
 			// Nothing is written here. A new draft is empty by definition, and the

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import corpus from '../../../../services/rules-assistant/generated/rules-context.json';
 import { cannedAnswer, memoryRepository } from '$lib/assistant/assistant-test-utils.js';
+import { chatLockName } from '$lib/assistant/chat-lock.js';
 import { createAssistantState, type AssistantDeps } from '$lib/assistant/assistant.svelte.js';
 import { AssistantError, type StructuredAssistantAnswer } from '$lib/assistant/types.js';
 import AssistantDialog from './AssistantDialog.svelte';
@@ -117,7 +118,7 @@ describe('the assistant dialog', () => {
 		expect(cardNumbers).toEqual(['1', '2']);
 	});
 
-	test('a pending answer shows a bouncing three-dot status', async () => {
+	test('a pending answer shows the shared loading mark, labelled Answering', async () => {
 		let release!: (value: ReturnType<typeof cannedAnswer>) => void;
 		const ask = vi.fn(
 			() => new Promise<ReturnType<typeof cannedAnswer>>((resolve) => (release = resolve))
@@ -127,11 +128,49 @@ describe('the assistant dialog', () => {
 		await assistant.open();
 		const sending = assistant.send('Slow question?');
 		await waitFor(() => expect(ask).toHaveBeenCalled());
-		await waitFor(() =>
-			expect(container.querySelectorAll('.assistant-thinking i')).toHaveLength(3)
-		);
+		// The application's one wait-with-no-measurable-end indicator, not a second
+		// one of this surface's own — which is also what keeps it moving under
+		// `prefers-reduced-motion` rather than freezing into a drawing.
+		await waitFor(() => expect(container.querySelector('.loading-mark')).not.toBeNull());
+		expect(container.querySelector('.loading-mark [role="status"]')!.textContent).toBe('Answering');
 		release(cannedAnswer(citedAnswer()));
 		await sending;
+	});
+
+	test('the transcript is a log, and completion is announced by a region that was already mounted', async () => {
+		const assistant = makeAssistant();
+		const { container } = render(AssistantDialog, { assistant });
+		await assistant.open();
+
+		// `log`, not a bare div carrying an aria-label nothing reads.
+		expect(container.querySelector('.assistant-transcript')!.getAttribute('role')).toBe('log');
+
+		// Mounted empty and filled, never inserted already carrying its text: an
+		// element born with content is an addition to the accessibility tree
+		// rather than a change inside a live region.
+		const status = container.querySelector('[data-testid="assistant-announcement"]')!;
+		expect(status.getAttribute('role')).toBe('status');
+		expect(status.textContent).toBe('');
+
+		await assistant.send('Why does my header need a closing bracket?');
+		await waitFor(() => expect(status.textContent).toBe('Answer ready'));
+		// One channel per event: the transcript's own log does not also say this.
+		expect(container.querySelector('.assistant-transcript')!.textContent).not.toContain(
+			'Answer ready'
+		);
+	});
+
+	test('the composer sends through the shared control tiers, not a fourth one', async () => {
+		const assistant = makeAssistant();
+		const { container } = render(AssistantDialog, { assistant });
+		await assistant.open();
+
+		// There are exactly three tiers, and the composer's one destination action
+		// takes the top of them rather than a theme-inverting silhouette of its own.
+		const send = container.querySelector('.assistant-composer__send')!;
+		expect([...send.classList]).toEqual(
+			expect.arrayContaining(['icon-button', 'button--contrast'])
+		);
 	});
 
 	test('general guidance is labelled and never grows a rule preview', async () => {
@@ -214,6 +253,43 @@ describe('the assistant dialog', () => {
 		expect((getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
 	});
 
+	test('a conversation held by another tab hands the question back to the composer', async () => {
+		// The busy guard preserves the draft synchronously; the cross-tab refusal
+		// is only discoverable after the lock probe, so the composer clears first
+		// and has to restore itself when `send` reports nothing was consumed.
+		const held = new Set<string>();
+		const locks = {
+			async request(
+				name: string,
+				_options: unknown,
+				callback: (lock: { name: string } | null) => unknown
+			) {
+				if (held.has(name)) return callback(null);
+				held.add(name);
+				try {
+					return await callback({ name });
+				} finally {
+					held.delete(name);
+				}
+			}
+		} as unknown as LockManager;
+		const assistant = makeAssistant({ locks });
+		const { container, getByLabelText } = render(AssistantDialog, { assistant });
+		await assistant.open();
+		await assistant.send('First question?');
+		await waitFor(() => expect(assistant.chats).toHaveLength(1));
+
+		held.add(chatLockName(assistant.chats[0]!.id));
+		const textarea = getByLabelText('Your question') as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: 'A second thought' } });
+		await fireEvent.submit(container.querySelector('form.assistant-composer')!);
+
+		await waitFor(() =>
+			expect(container.textContent).toContain('This conversation is answering in another tab.')
+		);
+		expect(textarea.value).toBe('A second thought');
+	});
+
 	test('quota and offline states are stated in words', async () => {
 		const assistant = makeAssistant({
 			ask: vi
@@ -273,11 +349,19 @@ describe('the assistant dialog', () => {
 		expect(row.textContent).toContain('First question?');
 
 		// Two presses in one place: the trash arms a confirm that takes its slot.
+		// The live region has to be the SAME node across the arming — a region
+		// mounted already holding the question announces nothing.
+		const liveRegion = row.querySelector('[aria-live]')!;
+		expect(liveRegion.textContent?.trim()).toBe('');
 		await fireEvent.click(getByRole('button', { name: 'Delete First question?' }));
+		expect(row.querySelector('[aria-live]')).toBe(liveRegion);
+		expect(liveRegion.textContent).toContain('Delete First question?');
 		expect([...row.querySelectorAll('button')].map((button) => button.textContent?.trim())).toEqual(
 			['Cancel', 'Delete']
 		);
-		await fireEvent.click(getByRole('button', { name: 'Delete' }));
+		// The confirm carries the subject in its accessible name — focus lands on
+		// it the moment it is armed, and a bare "Delete" would point at nothing.
+		await fireEvent.click(getByRole('button', { name: 'Delete First question?' }));
 		await waitFor(() => expect(assistant.chats).toHaveLength(0));
 		expect(container.querySelector('.assistant-chats')).toBeNull();
 		expect(container.textContent).toContain('What would you like to check?');

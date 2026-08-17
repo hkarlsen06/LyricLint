@@ -9,6 +9,37 @@ import {
 import { createTestWorkbench } from '../test-utils.js';
 import PreferencesPanel from './PreferencesPanel.svelte';
 
+/**
+ * A CSS colour's sRGB bytes, whatever space it was written in.
+ *
+ * `color-mix(in oklch, …)` serializes as `oklch(…)`, so the computed value
+ * cannot be read as three numbers — a canvas resolves it the way the compositor
+ * does and hands back the pixels.
+ */
+function srgb(color: string): [number, number, number] {
+	const canvas = document.createElement('canvas');
+	canvas.width = 1;
+	canvas.height = 1;
+	const context = canvas.getContext('2d', { willReadFrequently: true })!;
+	context.fillStyle = color;
+	context.fillRect(0, 0, 1, 1);
+	const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+	return [r!, g!, b!];
+}
+
+function luminance(color: string): number {
+	const [r, g, b] = srgb(color).map((channel) => {
+		const value = channel / 255;
+		return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+	});
+	return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+}
+
+function contrast(foreground: string, background: string): number {
+	const [lighter, darker] = [luminance(foreground), luminance(background)].sort((a, b) => b - a);
+	return (lighter! + 0.05) / (darker! + 0.05);
+}
+
 function backupController(state: WorkspaceBackupState): WorkspaceBackupController {
 	return {
 		state: () => state,
@@ -47,7 +78,7 @@ describe('PreferencesPanel skimmability', () => {
 		});
 		const { container } = render(PreferencesPanel, { controller });
 
-		expect([...container.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual([
+		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Grammar checking',
 			'Workspace backup',
 			'Local data',
@@ -67,7 +98,7 @@ describe('PreferencesPanel skimmability', () => {
 		const { controller } = createTestWorkbench();
 		const { container } = render(PreferencesPanel, { controller });
 
-		expect([...container.querySelectorAll('h3')].map((heading) => heading.textContent)).toEqual([
+		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Grammar checking',
 			'Local data',
 			'Reviewed rules'
@@ -203,6 +234,27 @@ describe('PreferencesPanel storage persistence', () => {
 
 		expect(screen.getByText(/declined protected storage/u)).toHaveClass('backup-status--warning');
 		expect(screen.queryByRole('button', { name: 'Protect storage' })).toBeNull();
+	});
+
+	/*
+	 * Measured, because the failure looks like working CSS. `--color-warning` is a
+	 * severity mark's colour and reads here as a sentence on the panel's own
+	 * canvas: bare, that is 4.21:1 in light, which is under AA at this size. The
+	 * token is not retuned for it — every other surface spends it on a glyph or a
+	 * fill — so the text is pulled toward the body colour, and this is what says
+	 * the pull is still there and still enough.
+	 */
+	test('states the refusal at a readable contrast against the panel', async () => {
+		configureStoragePersistence(storageApi({ permissionState: async () => 'denied' as const }));
+		await ensurePersistentStorage();
+		const { controller } = createTestWorkbench();
+		const { container } = render(PreferencesPanel, { controller });
+
+		const warning = screen.getByText(/declined protected storage/u);
+		// The panel behind it, which `.right-panel` fills with `--color-canvas`.
+		const canvas = getComputedStyle(container).getPropertyValue('--color-canvas');
+
+		expect(contrast(getComputedStyle(warning).color, canvas)).toBeGreaterThanOrEqual(4.5);
 	});
 
 	/*

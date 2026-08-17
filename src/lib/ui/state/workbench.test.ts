@@ -20,7 +20,7 @@ import {
 	createMemorySessionStorage
 } from './in-memory.js';
 import type { MediaRepository } from '$lib/persistence/media-repository.js';
-import { createFeedbackState } from './feedback.svelte.js';
+import { createFeedbackState, NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import { createMediaPlayer } from './media-player.svelte.js';
 import { StubAudio } from './media-test-audio.js';
 import { sampleDraftText } from '../sample-draft.js';
@@ -1043,6 +1043,10 @@ describe('workbench diagnostic navigation', () => {
 		expect(controller.feedback.announcement).toBe(
 			'Press the paste shortcut to paste into the editor.'
 		);
+		// An instruction the user has to carry out, not a confirmation of something
+		// they just did: the two-second timer is sized for the second kind, and a
+		// sentence nobody has read before is off screen before it is read.
+		expect(controller.feedback.toasts[0]?.duration).toBe(NOTICE_TOAST_DURATION);
 	});
 
 	test('draws the refusal when the clipboard holds no text', async () => {

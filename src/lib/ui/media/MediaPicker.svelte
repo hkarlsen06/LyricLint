@@ -177,10 +177,18 @@
 
 	async function useResult(track: SpotifySearchResult): Promise<void> {
 		attachingId = track.trackId;
+		let message;
 		try {
-			await media.attachSpotifyTrack(track.trackId, track.name);
+			message = await media.attachSpotifyTrack(track.trackId, track.name);
 		} finally {
 			attachingId = undefined;
+		}
+		// A refusal keeps the dialog open and says so. Closing on one — which is
+		// what a method answering `undefined` for both outcomes bought — is the
+		// dialog reporting an attachment it did not make.
+		if (message !== undefined) {
+			trackError = message;
+			return;
 		}
 		close();
 	}
@@ -217,10 +225,15 @@
 
 	async function useSong(song: AppleMusicSearchResult): Promise<void> {
 		attachingId = song.songId;
+		let message;
 		try {
-			await media.attachAppleMusicSong(song.songId, song.name);
+			message = await media.attachAppleMusicSong(song.songId, song.name);
 		} finally {
 			attachingId = undefined;
+		}
+		if (message !== undefined) {
+			songError = message;
+			return;
 		}
 		close();
 	}
@@ -275,7 +288,10 @@
 >
 	<div class="media-dialog__surface">
 		<div class="media-dialog__header">
-			<h2 id="media-dialog-title">Add audio</h2>
+			<!-- The trigger's own label: a dialog headed `Add audio` opened from a
+			     control reading `Change audio source` is two names for one job, and the
+			     one the user pressed is the one they are holding in their head. -->
+			<h2 id="media-dialog-title">{label}</h2>
 			<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
 				<X aria-hidden="true" size={16} strokeWidth={2.25} />
 			</button>
@@ -409,9 +425,35 @@
 								</li>
 							{/each}
 						</ul>
-					{:else if songSearched && songQuery.trim() !== ''}
-						<p class="media-dialog__meta">No matches on Apple Music.</p>
 					{/if}
+					<!--
+						Every outcome of a search, in one region and one at a time.
+
+						The results are an ordinary list and `No matches` was ordinary
+						prose, so the only thing this section ever announced was an error —
+						a search that answered, or answered with nothing, was silent to a
+						screen reader and the field simply sat there. Both are now what the
+						region says, and the count is `sr-only` because the rows underneath
+						are the sighted answer to it.
+
+						One region rather than two, or an error and a count can speak over
+						each other; the branches are exclusive for the same reason. It sits
+						above the facts line so the no-matches message keeps the place it
+						had, directly under the field it answers.
+					-->
+					<div aria-live="polite">
+						{#if songError}
+							<p class="media-dialog__error">{songError}</p>
+						{:else if songResults.length > 0}
+							<p class="sr-only">
+								{songResults.length === 1
+									? '1 match on Apple Music.'
+									: `${songResults.length} matches on Apple Music.`}
+							</p>
+						{:else if songSearched && songQuery.trim() !== ''}
+							<p class="media-dialog__meta">No matches on Apple Music.</p>
+						{/if}
+					</div>
 					<!-- Two facts, and no third about the speed control: this source keeps
 					     it, so there is nothing to warn about — the same reason the file
 					     row says nothing about rates either. -->
@@ -419,11 +461,6 @@
 					     technology with its own branding rules — MusicKit's `authorize()`
 					     is an Apple Music authorization and nothing to do with it. -->
 					<p class="media-dialog__meta">Needs an Apple Music subscription · Sign-in required</p>
-					<div aria-live="polite">
-						{#if songError}
-							<p class="media-dialog__error">{songError}</p>
-						{/if}
-					</div>
 				</section>
 			{/if}
 
@@ -494,9 +531,21 @@
 								</li>
 							{/each}
 						</ul>
-					{:else if searched && query.trim() !== ''}
-						<p class="media-dialog__meta">No matches on Spotify.</p>
 					{/if}
+					<!-- The same one region, on the same rule as Apple's above. -->
+					<div aria-live="polite">
+						{#if trackError}
+							<p class="media-dialog__error">{trackError}</p>
+						{:else if results.length > 0}
+							<p class="sr-only">
+								{results.length === 1
+									? '1 match on Spotify.'
+									: `${results.length} matches on Spotify.`}
+							</p>
+						{:else if searched && query.trim() !== ''}
+							<p class="media-dialog__meta">No matches on Spotify.</p>
+						{/if}
+					</div>
 					<!-- The three facts a press here actually costs. The rate one is not
 					     a caveat buried in a sentence: Spotify exposes no playback-rate
 					     control at any layer, so the transport's speed menu collapses to
@@ -505,11 +554,6 @@
 					<p class="media-dialog__meta">
 						Needs Spotify Premium · Signs in with Spotify · No speed control
 					</p>
-					<div aria-live="polite">
-						{#if trackError}
-							<p class="media-dialog__error">{trackError}</p>
-						{/if}
-					</div>
 				</section>
 			{/if}
 

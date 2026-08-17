@@ -20,6 +20,39 @@ import type { ClipboardMediaSource } from './clipboard-metadata.js';
 
 export type { ClipboardMediaSource };
 
+/**
+ * The mark a control in the document carries while it is what opened the
+ * diagnostic popover.
+ *
+ * A card the pointer opened closes when the pointer leaves it, and the count
+ * badge at the end of a line is the one such control the keyboard can be
+ * standing on at the same time — where a mouse nudged by accident would take
+ * the surface out from under the focus. It is named here rather than in either
+ * of the two files that need it: the extension that draws the badge pulls
+ * CodeMirror in, and the overlay that reads it may not.
+ */
+export const diagnosticTriggerAttribute = 'data-ll-diagnostic-trigger';
+
+/**
+ * What asked for a link card, which is the one thing the request itself cannot
+ * say — both keyboard paths and both pointer paths name the same header.
+ *
+ * Absent means aimed, because every caller that names no origin is: the
+ * `Mod-Shift-L` binding and the diagnostic's guided action are presses that
+ * meant only this.
+ */
+export interface SectionLinkOrigin {
+	/** Whether the card may take the focus as it opens. */
+	takesFocus: boolean;
+	/**
+	 * The control that asked, for the focus the card owes back when it closes
+	 * without an edit to carry on typing into. It reports whether the focus
+	 * landed: a trigger the document has rebuilt or removed while the card was
+	 * open is no longer anywhere to return to, and the editor takes it instead.
+	 */
+	returnFocus?: () => boolean;
+}
+
 /** Diagnostics are accepted only when their source revision is explicit. */
 export interface RevisionedDiagnostics {
 	revision: number;
@@ -258,7 +291,7 @@ export interface EditorOverlayCallbacks {
 	 * step afterwards — lives in the editor, because it is one document edit
 	 * repeated, not a domain transform the shell has to arbitrate.
 	 */
-	onSectionLinkRequest?(request: EditorAnchorRequest): void;
+	onSectionLinkRequest?(request: EditorAnchorRequest, origin?: SectionLinkOrigin): void;
 	/**
 	 * A link was made, changed, or dropped without the text necessarily changing.
 	 *

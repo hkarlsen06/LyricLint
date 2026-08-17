@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type {
 	SpotifyPlaybackState,
 	SpotifyPlayerLike,
+	SpotifyPlayerOptions,
 	SpotifySdk,
 	SpotifySource
 } from './media-spotify.js';
@@ -514,6 +515,59 @@ describe('createSpotifySource', () => {
 
 		expect(events.failed).toHaveBeenCalledWith('The Spotify player could not be loaded.');
 		vi.useRealTimers();
+	});
+});
+
+/**
+ * The one Spotify failure with nowhere to report itself.
+ *
+ * The SDK asks for a token whenever it needs one, and a refused refresh answered
+ * by simply not calling the callback: no error event, no timeout of its own, and
+ * — once the device had already arrived — nothing left in this module armed
+ * either. The transport went quiet and stayed quiet, with the glyphs answering
+ * every press. Every Web API path already reports the same case in words.
+ */
+describe('a Spotify session that expires while a track is attached', () => {
+	it('says the sign-in expired rather than going silently dead', async () => {
+		const events = spyEvents();
+		const tokens: (string | undefined)[] = ['token'];
+		let askForToken: SpotifyPlayerOptions['getOAuthToken'] | undefined;
+		let player: StubSpotifyPlayer | undefined;
+
+		const source = createSpotifySource({
+			events,
+			loadSdk: async () => ({
+				Player: class {
+					constructor(options: SpotifyPlayerOptions) {
+						askForToken = options.getOAuthToken;
+						player = new StubSpotifyPlayer();
+						return player as unknown as StubSpotifyPlayer;
+					}
+				} as unknown as SpotifySdk['Player']
+			}),
+			token: async () => tokens.shift(),
+			request: (async () =>
+				new Response(JSON.stringify({ name: 'Sensommer', artists: [{ name: 'Mul' }] }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' }
+				})) as typeof fetch,
+			schedule: () => () => {}
+		});
+
+		const loading = source.load(trackId);
+		await vi.waitFor(() => expect(player).toBeDefined());
+		player?.emit('ready', { device_id: 'device-1' });
+		await loading;
+		expect(events.failed).not.toHaveBeenCalled();
+
+		// The refresh the SDK asks for mid-session, refused: the token queue is
+		// spent, so this one answers `undefined`.
+		askForToken?.(() => {});
+		await settle();
+
+		expect(events.failed).toHaveBeenCalledWith(
+			'That Spotify sign-in expired. Add the track again to sign in.'
+		);
 	});
 });
 

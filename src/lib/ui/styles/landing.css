@@ -16,10 +16,10 @@
  *   under it. The old hero held a screen with nothing on it but four small
  *   centred elements and a promise that there was more below; the evidence for
  *   the claim now arrives in the same screen as the claim.
- * - **Sections announce themselves in the margin**, not in the heading. An
- *   eyebrow in mono caps says what kind of thing is coming — `Live demo`,
- *   `Sourced rules` — so the heading itself can be a sentence rather than a
- *   label, and a reader skimming has a rail of short words to skim.
+ * - **Section headings name their sections directly**, with no label, kicker,
+ *   or mono caps above them. A run of eyebrows was tried and removed: the
+ *   repo-wide rule stands here too, and a heading written as a sentence that
+ *   names its own subject skims as well as the rail of labels did.
  * - **Runs of facts are one bordered object with hairlines inside it**, exactly
  *   as the linter draws a run of diagnostics. Four separate cards with gaps
  *   between them is four boundaries where the content only needed one.
@@ -73,27 +73,6 @@
 
 .lp-section {
 	padding-block: var(--lp-band);
-}
-
-/*
- * A section announces itself in the margin.
- *
- * Mono, small, uppercase, wide-tracked, muted: the one place on the site that
- * sets type this way, so it reads as a label rather than as more copy. It is
- * `--font-size-2xs` because it is not being read so much as counted — a reader
- * skimming the page uses these to find the section they want, and then reads
- * the heading.
- */
-.lp-eyebrow {
-	display: block;
-	margin: 0 0 var(--space-3);
-	color: var(--color-text-muted);
-	font-family: var(--font-mono);
-	font-size: var(--font-size-2xs);
-	font-weight: var(--font-weight-medium);
-	letter-spacing: 0.14em;
-	line-height: var(--line-height-ui);
-	text-transform: uppercase;
 }
 
 .lp-head {

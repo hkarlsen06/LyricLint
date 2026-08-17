@@ -190,6 +190,34 @@
 	overflow: clip;
 }
 
+/*
+ * The first tab stop in the section, drawn only while it holds focus.
+ *
+ * Out of flow at every state, and that is structural rather than cosmetic:
+ * `.site` is a three-row grid, and an in-flow child here would take the row the
+ * header is sized into. It rides above the pinned masthead so a focused skip
+ * link is never behind the band it is skipping.
+ *
+ * Hidden by clipping rather than by fading — opacity is never a state carrier
+ * here — and it takes the shared contrast tier rather than drawing a control of
+ * its own.
+ */
+.site-skip {
+	position: absolute;
+	z-index: var(--layer-menu);
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	inset-block-start: var(--space-2);
+	inset-inline-start: var(--space-2);
+	white-space: nowrap;
+	text-decoration: none;
+}
+
+.site-skip:focus-visible {
+	overflow: visible;
+	clip: auto;
+}
+
 /* Chrome, like the document toolbar, so arriving at the workbench from here is
    not a change of material — the same band, the same brand, in the same place. */
 .site-header,
@@ -363,14 +391,6 @@
 	max-width: var(--measure-prose);
 	padding: var(--space-7) var(--space-5) var(--space-8);
 	margin: 0 auto;
-}
-
-/* Wider than the prose measure, because a run of rows is scanned down its left
-   edge rather than read in wrapping lines. Not the editor's column: that one is
-   a runaway-line cap rather than a reading measure and is far wider than a page
-   of copy wants. */
-.site-main--wide {
-	max-width: var(--measure-reference);
 }
 
 /*
@@ -1729,9 +1749,18 @@
 		background: transparent;
 	}
 
+	/* Unpinned as well as unfilled, which is what the paragraph above claims and
+	   what the fill coming off depends on: a band left `sticky` with no fill of
+	   its own is a transparent blur strip travelling over the article, so every
+	   line the reader scrolls under it is smeared by a `backdrop-filter` that no
+	   longer has a surface to keep type legible against. Both go together — the
+	   band either separates pinned chrome from the content moving under it, or it
+	   scrolls away with the document and separates nothing. */
 	.site-header {
+		position: static;
 		border-bottom: none;
 		background: transparent;
+		backdrop-filter: none;
 	}
 
 	.site-main {

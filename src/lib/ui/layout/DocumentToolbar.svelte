@@ -164,6 +164,11 @@
 		     end of the command strip, named nothing, and was nowhere near the draft
 		     it switched. -->
 		<div class="draft-switcher">
+			<!-- The `<label for>` is the whole of the name. It carried an identical
+			     `aria-label` beside it, which outranks the element and made the label
+			     markup that nothing ever read — two mechanisms for one name is one of
+			     them free to drift. The label is the one kept, because it is what
+			     every other field in the workbench uses. -->
 			<label class="sr-only" for="draft-title">'Scribe title</label>
 			<input
 				id="draft-title"
@@ -174,7 +179,6 @@
 				onchange={(event) => commitTitle(event.currentTarget)}
 				onclick={onTitleClick}
 				onkeydown={onTitleKeydown}
-				aria-label="'Scribe title"
 			/>
 			<DraftMenu {controller} />
 		</div>

@@ -29,6 +29,7 @@ import {
 	widenToRuns
 } from '$lib/core/link-shape.js';
 import { narrowEdit } from '$lib/performers/transform.js';
+import type { SectionLinkOrigin } from '../contracts.js';
 import { sectionBodyRange } from '../section-links.js';
 import {
 	editorCallbacksField,
@@ -37,6 +38,7 @@ import {
 } from './editor-state.js';
 import { singleChangedRange } from './header-rename.js';
 import { HoverIntent } from './hover-intent.js';
+import { pressed } from './widget-press.js';
 
 /**
  * Membership in one link group, carried on a range over the header's own line.
@@ -1245,22 +1247,53 @@ class SectionLinkMarker extends WidgetType {
 		marker.textContent = '⇄';
 		marker.setAttribute('aria-label', 'Edit linked sections');
 		marker.setAttribute('aria-haspopup', 'dialog');
-		const open = () => {
+		const open = (origin: SectionLinkOrigin) => {
 			const line = view.state.doc.lineAt(clamp(view.state, this.headerFrom));
-			view.state.field(editorCallbacksField, false)?.onSectionLinkRequest?.({
-				range: { from: line.from, to: line.to },
-				prefer: 'above'
-			});
+			view.state.field(editorCallbacksField, false)?.onSectionLinkRequest?.(
+				{
+					range: { from: line.from, to: line.to },
+					prefer: 'above'
+				},
+				origin
+			);
 		};
-		// Pointing serves the editor's one hover wait; reaching the marker with the
-		// keyboard is a decision already made and opens at once. There is no click
-		// path because a press focuses the button, and a second `open()` behind the
-		// first would reset a card the user had already started answering.
-		marker.addEventListener('pointerenter', () => this.hover.arm(open));
+		/**
+		 * A press, from either device. `aria-haspopup="dialog"` promises exactly
+		 * this, and the card it opens takes the focus and hands it back here —
+		 * which is what the attribute is a promise of.
+		 */
+		const byPress: SectionLinkOrigin = {
+			takesFocus: true,
+			returnFocus: () => {
+				if (!marker.isConnected) {
+					return false;
+				}
+				marker.focus();
+				return true;
+			}
+		};
+		// Armed with one stable value: `HoverIntent` compares targets by identity,
+		// so a fresh closure per `pointerenter` would re-arm the wait forever and a
+		// pointer that came to a complete stop would never open anything.
+		const openByHover = () => open({ takesFocus: false });
+		// Pointing serves the editor's one hover wait and opens a card nobody
+		// asked for, so it takes no focus.
+		marker.addEventListener('pointerenter', () => this.hover.arm(openByHover));
 		marker.addEventListener('pointerleave', () => this.hover.cancel());
-		marker.addEventListener('focus', () => {
+		// Bare `focus` opened it once, and that made a document with linked
+		// sections untraversable: Tab reached the marker, the card took the focus,
+		// Escape gave it to the editor, and the next Tab was back on the same
+		// marker. Arriving somewhere is not asking for anything — a press is, from
+		// either device. The click path is safe now for the same reason: nothing
+		// opens behind it, so there is no card already being answered for a second
+		// `open()` to reset.
+		marker.addEventListener('click', () => {
 			this.hover.cancel();
-			open();
+			open(byPress);
+		});
+		pressed(marker, () => {
+			this.hover.cancel();
+			open(byPress);
 		});
 		return marker;
 	}

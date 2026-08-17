@@ -3,15 +3,32 @@ import type { EditorState, Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import type { Diagnostic, Severity, TextRange } from '$lib/core/types.js';
+import { diagnosticTriggerAttribute } from '../contracts.js';
 import type { RevisionedDiagnostics } from '../contracts.js';
 import { editorCallbacksField, editorComposingField, editorRevisionField } from './editor-state.js';
 import { HoverIntent } from './hover-intent.js';
+import { pressed } from './widget-press.js';
 
 const severityRank: Record<Severity, number> = {
 	error: 0,
 	warning: 1,
 	suggestion: 2,
 	'manual-review': 3
+};
+
+/**
+ * The words the panel and the rule reference print, for the one place in the
+ * editor a severity is read aloud rather than drawn.
+ *
+ * Spelled out here rather than imported: `SeverityTag.svelte` derives them
+ * inside a component, so there is nothing to import — and this list is what a
+ * screen reader hears, which `manual-review` is not.
+ */
+const severityWord: Record<Severity, string> = {
+	error: 'Error',
+	warning: 'Warning',
+	suggestion: 'Suggestion',
+	'manual-review': 'Manual review'
 };
 
 export interface DiagnosticCluster {
@@ -88,9 +105,9 @@ function isValidRange(range: TextRange, documentLength: number): boolean {
 
 function diagnosticLabel(cluster: DiagnosticCluster): string {
 	if (cluster.diagnostics.length === 1) {
-		return `${cluster.severity}: ${cluster.diagnostics[0]?.message ?? 'Diagnostic'}`;
+		return `${severityWord[cluster.severity]}: ${cluster.diagnostics[0]?.message ?? 'Diagnostic'}`;
 	}
-	return `${cluster.diagnostics.length} diagnostics on this line, highest severity ${cluster.severity}`;
+	return `${cluster.diagnostics.length} diagnostics on this line, highest severity ${severityWord[cluster.severity].toLocaleLowerCase()}`;
 }
 
 function diagnosticClusterKey(cluster: DiagnosticCluster): string {
@@ -111,7 +128,14 @@ class DiagnosticBadge extends WidgetType {
 
 	constructor(
 		readonly cluster: DiagnosticCluster,
-		readonly activate: ((diagnostic: Diagnostic) => void) | undefined
+		readonly activate: ((diagnostic: Diagnostic) => void) | undefined,
+		/**
+		 * The aimed press's own way in: the card that holds focus and therefore
+		 * carries a `Close` and stands down the pointer-leave watcher. Bare focus
+		 * keeps the preview above, so arriving here with Tab neither takes the
+		 * caret nor puts the keyboard somewhere it has to guess its way out of.
+		 */
+		readonly activateIntent: ((diagnostic: Diagnostic) => void) | undefined
 	) {
 		super();
 	}
@@ -154,6 +178,10 @@ class DiagnosticBadge extends WidgetType {
 	toDOM(): HTMLElement {
 		const container = document.createElement('span');
 		container.className = 'll-diagnostic-badge-container';
+		// The whole container, not the badge alone: once the menu is open the
+		// keyboard stands on an item rather than on the badge, and either is focus
+		// the card must not be taken away from.
+		container.setAttribute(diagnosticTriggerAttribute, '');
 		const badge = document.createElement('button');
 		badge.type = 'button';
 		badge.className = `ll-diagnostic-badge ll-diagnostic-badge-${this.cluster.severity}`;
@@ -186,15 +214,28 @@ class DiagnosticBadge extends WidgetType {
 
 		if (this.cluster.diagnostics.length === 1) {
 			badge.addEventListener('click', activate);
+			// Enter and Space are the press, and what a press asks for is the card
+			// that can be read and answered — the previewing one bare focus opened
+			// offers no `Close` and would go on a mouse movement nobody made.
+			pressed(badge, () => {
+				const diagnostic = lead();
+				if (diagnostic) {
+					this.hover.cancel();
+					this.activateIntent?.(diagnostic);
+				}
+			});
 			return container;
 		}
 
 		const menu = document.createElement('span');
 		menu.className = 'll-diagnostic-cluster-menu';
 		menu.hidden = true;
-		menu.setAttribute('role', 'menu');
+		// A group of buttons rather than a `menu` of `menuitem`s: those semantics
+		// announce arrow-key navigation, and there is none here — the items are
+		// ordinary buttons reached with Tab. A disclosure is what this is, so
+		// `aria-expanded` on the badge is the whole of what it needs.
+		menu.setAttribute('role', 'group');
 		menu.setAttribute('aria-label', 'Overlapping diagnostics');
-		badge.setAttribute('aria-haspopup', 'menu');
 		badge.setAttribute('aria-expanded', 'false');
 		const closeMenu = (): void => {
 			this.stopWatchingOutside();
@@ -202,8 +243,8 @@ class DiagnosticBadge extends WidgetType {
 			menu.hidden = true;
 			badge.setAttribute('aria-expanded', 'false');
 		};
-		badge.addEventListener('click', () => {
-			// A click beat the wait: the menu is the answer now, and a card landing
+		const toggleMenu = (): void => {
+			// A press beat the wait: the menu is the answer now, and a card landing
 			// on top of it a moment later would be answering a question already put.
 			this.hover.cancel();
 			if (!menu.hidden) {
@@ -213,17 +254,28 @@ class DiagnosticBadge extends WidgetType {
 			menu.hidden = false;
 			badge.setAttribute('aria-expanded', 'true');
 			this.watchOutside(container, closeMenu);
-		});
+		};
+		badge.addEventListener('click', toggleMenu);
+		// The disclosure the badge already was, now reachable: Enter and Space
+		// never got here, because the document under this widget is
+		// `contenteditable` and CodeMirror answers both of them first.
+		pressed(badge, toggleMenu);
 		for (const diagnostic of this.cluster.diagnostics) {
 			const item = document.createElement('button');
 			item.type = 'button';
 			item.className = `ll-diagnostic-cluster-item ll-diagnostic-badge-${diagnostic.severity}`;
-			item.setAttribute('role', 'menuitem');
-			item.textContent = `${diagnostic.severity}: ${diagnostic.message}`;
+			item.textContent = `${severityWord[diagnostic.severity]}: ${diagnostic.message}`;
 			item.addEventListener('mousedown', (event) => event.preventDefault());
 			item.addEventListener('click', () => {
 				this.hover.cancel();
 				this.activate?.(diagnostic);
+				closeMenu();
+			});
+			// The badge's own split, one level down: a mouse press leaves the caret
+			// where it is and previews, a key press asks for the card it can answer.
+			pressed(item, () => {
+				this.hover.cancel();
+				this.activateIntent?.(diagnostic);
 				closeMenu();
 			});
 			menu.append(item);
@@ -370,7 +422,12 @@ function buildDecorations(
 		};
 		ranges.push(
 			Decoration.widget({
-				widget: new DiagnosticBadge(cluster, callbacks?.onDiagnosticActivate),
+				widget: new DiagnosticBadge(
+					cluster,
+					callbacks?.onDiagnosticActivate,
+					callbacks?.onDiagnosticActivateIntent &&
+						((diagnostic) => callbacks.onDiagnosticActivateIntent?.(diagnostic, 'navigate'))
+				),
 				side: 1
 			}).range(line.to)
 		);

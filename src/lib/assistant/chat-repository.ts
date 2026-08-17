@@ -21,12 +21,21 @@ export interface AssistantChatRepository {
 	): Promise<AssistantMessageRecord>;
 	updateMessage(id: string, patch: Partial<AssistantMessageRecord>): Promise<void>;
 	/**
-	 * Boot-time sweep: a `pending` answer cannot outlive the session that asked
-	 * it — unless `resumable` says this one can. The caller owns that rule,
-	 * because what makes a turn resumable is a fact about the tool protocol
-	 * rather than about storage.
+	 * A `pending` answer cannot outlive the session that asked it — unless
+	 * `resumable` says this one can. The caller owns that rule, because what
+	 * makes a turn resumable is a fact about the tool protocol rather than about
+	 * storage.
+	 *
+	 * Scoped to one chat, and that is the whole of what keeps a second tab
+	 * honest: this database is shared, so a sweep over every pending record
+	 * marks another tab's live stream interrupted the moment anybody opens the
+	 * assistant anywhere. A chat is swept when it is opened, which is when a
+	 * genuinely orphaned turn is about to be drawn.
 	 */
-	markPendingInterrupted(resumable: (message: AssistantMessageRecord) => boolean): Promise<void>;
+	markPendingInterrupted(
+		chatId: string,
+		resumable: (message: AssistantMessageRecord) => boolean
+	): Promise<void>;
 }
 
 /** Exported for the store as well: a plain module may hold a transient Date,
@@ -93,8 +102,10 @@ export function createAssistantChatRepository(
 			await database.assistantMessages.update(id, patch);
 		},
 
-		async markPendingInterrupted(resumable) {
+		async markPendingInterrupted(chatId, resumable) {
 			await database.assistantMessages
+				.where('chatId')
+				.equals(chatId)
 				.filter((message) => message.status === 'pending' && !resumable(message))
 				.modify({ status: 'interrupted' });
 		}

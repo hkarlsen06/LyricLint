@@ -965,9 +965,10 @@ export function setLyricSync(view: EditorView, active: boolean): void {
 }
 
 export const lyricSyncTheme = EditorView.baseTheme({
-	// The mode is modal and the document has stopped taking typing, so it has to
-	// look like somewhere else. A rail down the text's own edge, not a tint over
-	// it: the words are what the user is reading against the music.
+	// The mode is modal — `Space` is the tap rather than a character — so it has
+	// to look like somewhere else. Typing still lands, and ends the run as it
+	// does. A rail down the text's own edge, not a tint over it: the words are
+	// what the user is reading against the music.
 	'.cm-editor.ll-syncing .cm-content': {
 		boxShadow: 'inset 2px 0 0 0 var(--color-accent)'
 	}

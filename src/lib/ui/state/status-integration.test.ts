@@ -8,6 +8,7 @@ import {
 	createMemorySessionStorage
 } from './in-memory.js';
 import { createWorkbenchController } from './workbench.svelte.js';
+import { NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 
 const record: DraftRecord = {
 	id: 'draft-a',
@@ -75,6 +76,64 @@ describe('real autosave + workbench status integration', () => {
 		} finally {
 			vi.useRealTimers();
 		}
+	});
+
+	/*
+	 * A save that stops landing on its own reached exactly one surface — the
+	 * toolbar's readout, which is 13px of static text and not a live region — so
+	 * persistence could fail in the background with no warning at all to a screen
+	 * reader. It is reported on the way *into* the state and not on every report
+	 * of it: the status is re-read by the store's own poll and again by the
+	 * autosave controller, and the same sentence four times a second is the
+	 * failure wearing a different hat.
+	 */
+	test('a background save failure toasts and announces once, not per report', async () => {
+		const repository = createInMemoryDraftRepository([record]);
+		const controllerRef: { current?: ReturnType<typeof createWorkbenchController> } = {};
+		const autosave = createAutosaveController(repository, {
+			onStatusChange: (status) => controllerRef.current?.setSaveStatus(status)
+		});
+		const initialSnapshot = snap(0, record.text);
+		const controller = createWorkbenchController({
+			editor: {
+				focus() {},
+				getSnapshot: () => initialSnapshot,
+				dispatchAtomic() {},
+				undo() {},
+				redo() {},
+				revealRange() {},
+				setSelection() {}
+			},
+			initialSnapshot,
+			initialDraft: record,
+			repository,
+			autosave,
+			ignoreStore: createContractIgnoreStore(createMemorySessionStorage()),
+			now: () => '2026-07-20T11:00:00.000Z'
+		});
+		controllerRef.current = controller;
+		const before = controller.feedback.announcementId;
+
+		controller.setSaveStatus('failed');
+
+		expect(controller.saveStatus).toBe('failed');
+		expect(controller.feedback.announcement).toBe(
+			'Local save failed. Keep this tab open and try again.'
+		);
+		expect(controller.feedback.announcementId).toBe(before + 1);
+		expect(controller.toasts).toHaveLength(1);
+		// A refusal carrying an instruction is not read in the two seconds a
+		// confirmation gets.
+		expect(controller.toasts[0]?.duration).toBe(NOTICE_TOAST_DURATION);
+
+		// The poll and the controller both re-report the same state; neither is a
+		// new thing that happened.
+		controller.setSaveStatus('failed');
+		controller.setSaveStatus('failed');
+
+		expect(controller.feedback.announcementId).toBe(before + 1);
+		expect(controller.toasts).toHaveLength(1);
+		expect(controller.toasts[0]?.count).toBeUndefined();
 	});
 
 	/*

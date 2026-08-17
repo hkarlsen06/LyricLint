@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
-import type { TextRange } from '$lib/core/types.js';
+import type { Diagnostic, TextRange } from '$lib/core/types.js';
 import type { HarperDiagnosticProvider } from '$lib/rules/index.js';
 import LiveRegion from '../primitives/LiveRegion.svelte';
 import { createTestWorkbench, performer } from '../test-utils.js';
@@ -667,6 +667,74 @@ describe('Workspace and toolbar', () => {
 		expect(screen.getByText('Use is here.')).toBeTruthy();
 	});
 
+	test('keeps unaffected Harper findings in place while a normal fix is re-linted', async () => {
+		const text = '[Verse]\nok then song';
+		let callCount = 0;
+		let finishSecondLint: (() => void) | undefined;
+		const lint = vi.fn(({ text: requestText, revision }) => {
+			callCount += 1;
+			const from = requestText.indexOf('song');
+			const findings: Diagnostic[] = [
+				{
+					from,
+					to: from + 4,
+					ruleId: 'spelling.harper',
+					severity: 'suggestion',
+					message: 'Keep this Harper finding.',
+					explanation: 'Spelling detected by Harper.',
+					sourceIds: ['G-SECTIONS'],
+					fixes: [
+						{
+							kind: 'preview',
+							label: 'Replace song',
+							edit: {
+								baseRevision: revision,
+								edits: [{ from, to: from + 4, insert: 'track' }]
+							}
+						}
+					]
+				}
+			];
+			if (callCount === 1) return Promise.resolve(findings);
+			return new Promise<Diagnostic[]>((resolve) => {
+				finishSecondLint = () => resolve(findings);
+			});
+		});
+		const { controller } = createTestWorkbench({ text });
+		renderWorkspace(controller, { lint, dispose: async () => {} });
+
+		await waitFor(() => expect(screen.getByText('Keep this Harper finding.')).toBeTruthy());
+		await fireEvent.click(
+			screen.getByRole('button', { name: 'Go to Use “Okay” instead of “ok”.' })
+		);
+		await fireEvent.click(screen.getByRole('button', { name: 'Replace with Okay' }));
+		await waitFor(() => expect(controller.snapshot.text).toBe('[Verse]\nOkay then song'));
+		await waitFor(() => expect(lint).toHaveBeenCalledTimes(2));
+
+		// The second worker result is deliberately still unresolved. The first
+		// result remains visible at its rebased range instead of disappearing for
+		// the debounce and worker round trip.
+		expect(screen.getByText('Keep this Harper finding.')).toBeTruthy();
+		const carried = controller.snapshot.diagnostics.find(
+			(diagnostic) => diagnostic.message === 'Keep this Harper finding.'
+		);
+		expect(carried).toMatchObject({
+			from: controller.snapshot.text.indexOf('song'),
+			to: controller.snapshot.text.indexOf('song') + 4
+		});
+		expect(carried?.fixes?.[0]?.edit.baseRevision).toBe(controller.snapshot.revision);
+
+		expect(finishSecondLint).toBeDefined();
+		finishSecondLint?.();
+		await waitFor(() =>
+			expect(
+				controller.snapshot.diagnostics.some(
+					(diagnostic) => diagnostic.message === 'Keep this Harper finding.'
+				)
+			).toBe(true)
+		);
+	});
+
 	test('shows and clears a language mismatch issue in the linter panel', async () => {
 		const { controller } = createTestWorkbench({
 			text: '[Verse]\nJe regarde la lumière du matin\nEt je sais que tu resteras avec moi ce soir'
@@ -1113,7 +1181,11 @@ describe('Workspace and toolbar', () => {
 		const songPane = screen.getByRole('tabpanel', { name: 'Song' });
 		await fireEvent.click(within(songPane).getByRole('button', { name: 'Add audio source' }));
 
-		expect(screen.getByRole('dialog', { name: 'Add audio' }).hasAttribute('open')).toBe(true);
+		// The dialog's name follows its trigger's label: a surface announced as
+		// something narrower than what was pressed reads as the wrong dialog.
+		expect(screen.getByRole('dialog', { name: 'Add audio source' }).hasAttribute('open')).toBe(
+			true
+		);
 		expect(container.querySelectorAll('dialog.media-dialog')).toHaveLength(1);
 	});
 

@@ -427,10 +427,9 @@
 }
 
 /* No underline and no color change: the mark is the affordance, and recoloring
-   a brand asset on hover is the thing their guidelines forbid outright. */
-.media-attribution__spotify:hover {
-	color: #1ed760;
-}
+   a brand asset on hover is the thing their guidelines forbid outright. There
+   was a `:hover` here doing exactly that, directly under this sentence — and it
+   was also a second literal green in the one place this stylesheet allows one. */
 
 /*
  * Apple's `Listen on Apple Music` lockup, sized and otherwise left alone.

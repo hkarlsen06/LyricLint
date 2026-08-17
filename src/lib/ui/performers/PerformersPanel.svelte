@@ -11,7 +11,7 @@
 
 	{#if controller.rosterSuggestions.length > 0}
 		<section class="merge-suggestions" aria-label="Performer merge suggestions">
-			<h3>Possible duplicates</h3>
+			<h2>Possible duplicates</h2>
 			<p>Review these names. LyricLint never merges them automatically.</p>
 			<ul>
 				{#each controller.rosterSuggestions as suggestion (`${suggestion.sourceId}-${suggestion.targetId}`)}
@@ -32,7 +32,7 @@
 
 	{#if controller.unresolvedVoiceGroups.length > 0}
 		<section class="unresolved-voices" aria-label="Unresolved imported voices">
-			<h3>Unresolved voices</h3>
+			<h2>Unresolved voices</h2>
 			<p>
 				These inline styles had no matching header entry. Their source markup remains unchanged.
 			</p>

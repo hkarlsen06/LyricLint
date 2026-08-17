@@ -66,4 +66,30 @@ describe('SectionPicker dismissal', () => {
 
 		expect(onCancel).not.toHaveBeenCalled();
 	});
+
+	// Escape belongs to the card, not to the field inside it: bound to the input
+	// alone it was dead the moment Tab reached Cancel, which is the one place in
+	// this card somebody is most likely to reach for it.
+	it('closes on Escape from anywhere inside it, and Enter still presses Cancel', async () => {
+		const onCancel = vi.fn();
+		const onChoose = vi.fn();
+		await render(SectionPicker, {
+			languagePack,
+			range: { from: 0, to: 0 },
+			onChoose,
+			onCancel,
+			returnFocus: vi.fn()
+		});
+		const cancel = document.querySelector<HTMLButtonElement>('.picker > button.button')!;
+		cancel.focus();
+
+		await userEvent.keyboard('{Enter}');
+
+		expect(onChoose).not.toHaveBeenCalled();
+		expect(onCancel).toHaveBeenCalledTimes(1);
+
+		await userEvent.keyboard('{Escape}');
+
+		expect(onCancel).toHaveBeenCalledTimes(2);
+	});
 });

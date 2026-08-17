@@ -4,6 +4,7 @@
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import DiagnosticActions from '$lib/diagnostics/DiagnosticActions.svelte';
 	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
+	import { diagnosticTriggerAttribute } from '../contracts.js';
 	import type { ScreenRect } from '../contracts.js';
 	import { anchoredPosition } from './anchored-position.js';
 
@@ -75,6 +76,21 @@
 	}
 
 	/**
+	 * Whether the keyboard is standing on this card or on the control that opened
+	 * it. Either is focus the pointer-leave watcher may not close out from under:
+	 * a card reached with Tab has no pointer behind it to leave, so a mouse
+	 * knocked on the way past would take away the surface a keyboard user is
+	 * reading with nothing on screen having asked for it.
+	 */
+	function focusHoldsCard(): boolean {
+		const active = document.activeElement;
+		return (
+			(root?.contains(active) ?? false) ||
+			(active instanceof Element && active.closest(`[${diagnosticTriggerAttribute}]`) !== null)
+		);
+	}
+
+	/**
 	 * `Close` is offered only to the card that was opened with the keyboard. That
 	 * one holds focus and is deliberately exempt from the pointer-leave watcher,
 	 * so without a visible control its only exit is a keystroke nobody announced.
@@ -127,7 +143,7 @@
 				}
 			} else if (timer === undefined) {
 				timer = window.setTimeout(() => {
-					if (!root?.contains(document.activeElement)) {
+					if (!focusHoldsCard()) {
 						onDismiss(false);
 					}
 				}, 250);
@@ -143,12 +159,17 @@
 	});
 </script>
 
+<!-- A role either way, because the label needs one to land on: `aria-label` on a
+     generic `div` is prohibited and simply ignored. Only the card that holds the
+     focus and traps Escape is a dialog; the previewing one is a labelled group,
+     which is what it is — something the pointer revealed and the keyboard can
+     read without having been sent into it. -->
 <div
 	bind:this={root}
 	class="popover"
 	class:anchored={anchor}
 	style={position}
-	role={takeFocus ? 'dialog' : undefined}
+	role={takeFocus ? 'dialog' : 'group'}
 	tabindex="-1"
 	aria-label="Diagnostic details"
 	onkeydown={(event) => {

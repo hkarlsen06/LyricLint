@@ -51,7 +51,7 @@
 
 <StructuredData data={structuredData} />
 
-<main class="site-prose site-split__page">
+<main id="main" tabindex="-1" class="site-prose site-split__page">
 	<h1>Genius Transcription Guidelines</h1>
 	<p class="site-lede">
 		Every guideline we have found for writing lyrics on Genius, compiled from staff guides, accepted

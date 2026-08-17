@@ -529,14 +529,75 @@ describe('RightPanel', () => {
 		);
 	});
 
+	// An ignore is per occurrence, so one rule set aside twice is two rows — and
+	// the rule's name is the same on both of them. The flagged text is the only
+	// thing that tells them apart, and the ignore key already carries it.
+	test('names the flagged text on each ignored occurrence', async () => {
+		const text = 'Imma go til dawn';
+		const first = diagnostic({
+			ruleId: 'spelling.standardized',
+			severity: 'suggestion',
+			message: 'Genius prefers “I’ma”.',
+			from: 0,
+			to: 4
+		});
+		const second = diagnostic({
+			ruleId: 'spelling.standardized',
+			severity: 'suggestion',
+			message: 'Genius prefers “’til”.',
+			from: 8,
+			to: 11
+		});
+		const { controller } = createTestWorkbench({ text, diagnostics: [first, second] });
+		render(RightPanel, { controller });
+
+		controller.ignoreDiagnostic(first);
+		controller.ignoreDiagnostic(second);
+		await waitFor(() => expect(controller.ignoredDiagnosticCount).toBe(2));
+
+		await fireEvent.click(screen.getByRole('button', { name: /diagnostics ignored/ }));
+		const rows = [...document.querySelectorAll('.ignored-rules li span')].map((row) =>
+			row.textContent?.replace(/\s+/gu, ' ').trim()
+		);
+
+		expect(rows).toHaveLength(2);
+		expect(rows[0]).not.toBe(rows[1]);
+		expect(rows[0]).toContain('“Imma”');
+		expect(rows[1]).toContain('“til”');
+	});
+
+	// The trailing hint names what is behind the disclosure; the press expands.
+	// Inside the button's accessible name it promised a restore this control does
+	// not do.
+	test('keeps the disclosure hint out of the toggle’s accessible name', async () => {
+		const finding = diagnostic({
+			ruleId: 'section.header-missing',
+			severity: 'warning',
+			message: 'This lyric section has no header.'
+		});
+		const { controller } = createTestWorkbench({ diagnostics: [finding] });
+		render(RightPanel, { controller });
+
+		controller.ignoreDiagnostic(finding);
+		await waitFor(() => expect(controller.ignoredDiagnosticCount).toBe(1));
+
+		const toggle = screen.getByRole('button', { name: /diagnostic ignored/ });
+		expect(toggle.getAttribute('aria-expanded')).toBe('false');
+		expect(toggle.textContent).toContain('Show');
+		expect(toggle.querySelector('.ignored-rules__restore-hint')?.getAttribute('aria-hidden')).toBe(
+			'true'
+		);
+	});
+
 	test('accepts an unrecognized header as correct for the session', async () => {
 		const finding = diagnostic({
 			ruleId: 'section.header-unrecognized',
 			severity: 'manual-review',
 			message: 'Review the custom section header “Chor”.'
 		});
-		const { controller } = createTestWorkbench({ diagnostics: [finding] });
+		const { controller, feedback } = createTestWorkbench({ diagnostics: [finding] });
 		render(RightPanel, { controller });
+		render(LiveRegion, { feedback });
 
 		expect(screen.queryByRole('button', { name: 'Ignore' })).toBeNull();
 		const accept = screen.getByRole('button', { name: "It's correct" });
@@ -545,6 +606,63 @@ describe('RightPanel', () => {
 		await fireEvent.click(accept);
 		expect(controller.ignoredDiagnosticCount).toBe(1);
 		expect(screen.queryByText('Review the custom section header “Chor”.')).toBeNull();
+
+		// The suppression is the ordinary one; what the reader answered is not, so
+		// neither the report nor the footer may call this an ignore.
+		expect(screen.getByTestId('live-region').textContent).toContain(
+			"Marked this “Section headers: header unrecognized” diagnostic as correct for this 'scribe."
+		);
+		expect(screen.getByRole('button', { name: '1 diagnostic marked as correct' })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: /ignored/ })).toBeNull();
+	});
+
+	// One list, two answers. The summary carries both counts and each row says
+	// which it is — but only here, where the footer holds both kinds.
+	test('counts accepted occurrences apart from ignored ones, and restores either', async () => {
+		const text = '[Chor]\nOne line';
+		const header = diagnostic({
+			ruleId: 'section.header-unrecognized',
+			severity: 'manual-review',
+			message: 'Review the custom section header “Chor”.',
+			from: 0,
+			to: 6
+		});
+		const missing = diagnostic({
+			ruleId: 'section.header-missing',
+			severity: 'warning',
+			message: 'This lyric section has no header.',
+			from: 7,
+			to: 15
+		});
+		const { controller } = createTestWorkbench({ text, diagnostics: [header, missing] });
+		render(RightPanel, { controller });
+
+		controller.ignoreDiagnostic(missing);
+		controller.ignoreDiagnostic(header);
+		await waitFor(() => expect(controller.ignoredDiagnosticCount).toBe(2));
+
+		await fireEvent.click(
+			screen.getByRole('button', { name: '1 diagnostic ignored · 1 marked as correct' })
+		);
+		const rowText = () =>
+			[...document.querySelectorAll('.ignored-rules li')].map((row) =>
+				row.textContent?.replace(/\s+/gu, ' ').trim()
+			);
+
+		expect(rowText().some((row) => row?.includes('· Marked as correct'))).toBe(true);
+		expect(rowText().some((row) => row?.includes('· Ignored'))).toBe(true);
+
+		const accepted = [...document.querySelectorAll('.ignored-rules li')].find((row) =>
+			row.textContent?.includes('Marked as correct')
+		);
+		await fireEvent.click(accepted!.querySelector('button')!);
+
+		await waitFor(() => expect(controller.ignoredDiagnosticCount).toBe(1));
+		expect(screen.getByText('Review the custom section header “Chor”.')).toBeTruthy();
+		// Down to one kind, the row's qualifier goes with it: the line above is
+		// already saying which one is left.
+		expect(screen.getByRole('button', { name: '1 diagnostic ignored' })).toBeTruthy();
+		expect(rowText().some((row) => row?.includes('· Ignored'))).toBe(false);
 	});
 
 	test('opens the editor section picker from a missing-header diagnostic', async () => {
@@ -651,7 +769,9 @@ describe('RightPanel', () => {
 		// The confirm takes the trigger's slot, and the row stops offering the
 		// draft while its deletion is the question.
 		expect(screen.queryByRole('button', { name: /^Older song/ })).toBeNull();
-		await fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+		// The confirm keeps the draft in its accessible name: focus lands on it, so
+		// a bare "Delete" would be read out pointing at nothing.
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete Older song' }));
 
 		await waitFor(async () =>
 			expect((await repository.list()).map(({ id }) => id)).not.toContain('draft-2')
@@ -722,7 +842,7 @@ describe('RightPanel', () => {
 		await waitFor(() => expect(screen.getByText('Nothing left to show')).toBeTruthy());
 		expect(
 			screen.getByText(
-				"Every finding here is set aside for this 'scribe. Bring any of them back from Ignored diagnostics below."
+				"Every finding here is set aside for this 'scribe. Bring any of them back from the list below."
 			)
 		).toBeTruthy();
 	});

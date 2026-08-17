@@ -101,6 +101,11 @@
 <svelte:window bind:scrollY />
 
 <div class="site" data-shell={windowShell ? 'window' : 'document'}>
+	<!-- The first tab stop on every page in this section, drawn only while it
+	     holds focus. Every page's `<main>` answers to `#main` and carries
+	     `tabindex="-1"`, because a fragment jump moves the scroll on its own and
+	     not reliably the focus — which is the half a keyboard reader needs. -->
+	<a class="button button--contrast site-skip" href="#main">Skip to content</a>
 	<header class="site-header" data-scrolled={scrollY > 8 ? true : undefined}>
 		<!-- The band spans the window; its contents align with the page container,
 		     so the brand shares a left edge with the headline and every paragraph
@@ -118,7 +123,10 @@
 				     what they are reading. -->
 				<span class="site-header__section">{sectionTitle}</span>
 			{/if}
-			<nav class="site-nav" aria-label="LyricLint">
+			<!-- Named for what it is, not for the product: every landmark on the page
+			     belongs to LyricLint, so "LyricLint" told a reader listing them
+			     nothing about which one this is. -->
+			<nav class="site-nav" aria-label="Site">
 				<a href={resolve('/')} aria-current={current('/')}>About</a>
 				<a href={resolve('/guidelines/')} aria-current={current('/guidelines')}>Guidelines</a>
 				<a href={resolve('/rules/')} aria-current={current('/rules')}>Linter Rules</a>

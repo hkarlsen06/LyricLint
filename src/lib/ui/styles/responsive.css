@@ -355,6 +355,22 @@
 		font-size: var(--font-size-lg);
 	}
 
+	/* The three most-pressed controls in the workbench, at a size a finger can
+	   aim. They are `.button`s, so below 46rem they already step up with every
+	   other control — but that rule is keyed on width, and a tablet in landscape
+	   is a coarse pointer at a wide layout: 28px transport glyphs, on the row this
+	   application exists to operate. The key on this one is the pointer, like
+	   everything else in this block.
+
+	   It costs the strip the height the phone layout already spends — the row is
+	   `--control-height-lg` plus its own padding under a finger, which is what
+	   `publishStripHeight` measures and republishes rather than assuming. The
+	   desktop measurement `MediaStrip.svelte.test.ts` makes is untouched: that
+	   suite runs on a fine pointer, where this block does not apply. */
+	.media-strip__transport-button {
+		min-height: var(--control-height-lg);
+	}
+
 	/* The one control in the window that is pressed in rhythm, on the one pointer
 	   that cannot use the key it stands in for. It takes the row's slack so it can
 	   be found without looking away from the lyric — which is also why the hint

@@ -1,6 +1,7 @@
 import type { ClipboardMediaSource } from '$lib/editor/contracts.js';
 import type { MediaRepository } from '$lib/persistence/media-repository.js';
 import type { FeedbackState } from './feedback.svelte.js';
+import { NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 import type { MediaPlayer, MediaSourceKind } from './media-player.svelte.js';
 import { createMediaPlayer } from './media-player.svelte.js';
 import { isYouTubeVideoId, parseYouTubeVideoId } from './media-youtube.js';
@@ -228,8 +229,15 @@ export interface MediaStore {
 	 * still works and costs no second control.
 	 */
 	searchSpotify(query: string): Promise<SpotifySearchOutcome>;
-	/** Attach a track the user picked out of those results. */
-	attachSpotifyTrack(trackId: string, name: string): Promise<void>;
+	/**
+	 * Attach a track the user picked out of those results.
+	 *
+	 * Resolves to a message when the press was refused and to nothing when it
+	 * landed, exactly as `attachYouTube` does. It used to answer `undefined`
+	 * either way, so a press arriving while something else was still attaching
+	 * told the picker the track had been taken and let it close over nothing.
+	 */
+	attachSpotifyTrack(trackId: string, name: string): Promise<string | undefined>;
 	/**
 	 * Find a song by name, or attach one outright when the query is a link.
 	 *
@@ -239,8 +247,8 @@ export interface MediaStore {
 	 * later, inside the attach, where MusicKit runs it in a window of its own.
 	 */
 	searchAppleMusic(query: string): Promise<AppleMusicSearchOutcome>;
-	/** Attach a song the user picked out of those results. */
-	attachAppleMusicSong(songId: string, name: string): Promise<void>;
+	/** Attach a song the user picked out of those results, on the same contract. */
+	attachAppleMusicSong(songId: string, name: string): Promise<string | undefined>;
 	/**
 	 * Load and configure MusicKit ahead of the press that will sign in.
 	 *
@@ -372,6 +380,25 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	const feedback = deps.feedback;
 	const player = deps.player ?? createMediaPlayer({ feedback });
 	const pickFile = deps.pickFile ?? defaultPickFile;
+
+	/**
+	 * A refusal, on both channels.
+	 *
+	 * `announce` reaches an `sr-only` live region and nothing else, so a sign-in
+	 * that could not start, a permission that was declined and a file that has
+	 * moved were all reported to a screen reader and to nobody else: the press
+	 * landed, the row did not change, and there was no sign anywhere that the
+	 * workbench had answered. The toast region is not a live region, so it is the
+	 * other half rather than a replacement — either alone loses an audience, which
+	 * is the split `report` in `editor-session.svelte.ts` already makes.
+	 *
+	 * `NOTICE_TOAST_DURATION` because every one of these is a sentence the user has
+	 * never read, as against a confirmation of something they just did.
+	 */
+	function report(message: string): void {
+		feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+		feedback.announce(message);
+	}
 
 	const clock = deps.clock ?? (() => Date.now());
 	let openGeneration = 0;
@@ -559,6 +586,37 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		});
 	}
 
+	/**
+	 * What a re-attachment of the source this draft was already pointing at owes
+	 * the record it is about to overwrite.
+	 *
+	 * Three paths land on a remote source the draft already has pending: a Spotify
+	 * sign-in round trip, which comes back through `attachSpotify` with only the
+	 * link in hand; the same link pasted into the picker over a pending row; and a
+	 * search result that happens to be the pending song. Each rewrote the record
+	 * with the provisional URL name and no position at all — so a sign-in that
+	 * landed cost the draft its title and its playhead, silently, and the next
+	 * session opened `open.spotify.com/track/…` at 0:00.
+	 *
+	 * Read **before** `adopt*`, which claims the attachment and clears both. That
+	 * is the same order — and the same data loss — `remember`'s position parameter
+	 * is documented for.
+	 *
+	 * Gated on the id rather than on the pending source alone: a pending file's
+	 * name is not this track's, and a different track's playhead is worse than
+	 * none.
+	 */
+	function resumedAttachment(
+		pendingId: string | undefined,
+		id: string
+	): { name?: string; position?: number } {
+		if (pendingId !== id) return {};
+		return {
+			...(pendingName === undefined ? {} : { name: pendingName }),
+			...(pendingPosition === undefined ? {} : { position: pendingPosition })
+		};
+	}
+
 	/** What a video is called before Google's player says what it actually is. */
 	function provisionalName(videoId: string): string {
 		return `youtu.be/${videoId}`;
@@ -651,14 +709,16 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			busy = true;
 			try {
 				youtubeAllowed = true;
-				const name = provisionalName(parsed.videoId);
+				const resumed = resumedAttachment(pendingVideoId, parsed.videoId);
+				const name = resumed.name ?? provisionalName(parsed.videoId);
 				const attaching = adoptVideo(parsed.videoId, name);
 				try {
 					await deps.repository.attach({
 						draftId: deps.draftId(),
 						name,
 						source: 'youtube',
-						videoId: parsed.videoId
+						videoId: parsed.videoId,
+						...(resumed.position === undefined ? {} : { position: resumed.position })
 					});
 				} catch {
 					feedback.announce('This video could not be remembered for next time.');
@@ -700,8 +760,10 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				return undefined;
 			}
 
-			await store.attachSpotifyTrack(parsed.trackId, provisionalTrackName(parsed.trackId));
-			return undefined;
+			// The provisional name is the floor, not the answer: where this draft was
+			// already pending on this same track — which is every sign-in coming back
+			// — `attachSpotifyTrack` prefers the title the record already carries.
+			return await store.attachSpotifyTrack(parsed.trackId, provisionalTrackName(parsed.trackId));
 		},
 
 		/**
@@ -720,8 +782,17 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 			const parsed = parseSpotifyTrackId(trimmed);
 			if ('trackId' in parsed) {
+				// Which of `attachSpotify`'s two silent outcomes this was, decided
+				// before the call because afterwards there is nothing left to read: a
+				// press made while signed out leaves for the authorize screen, and
+				// `undefined` means "the link was taken" for the attach and "the page
+				// is departing" for the redirect. Mapped to an empty result set, the
+				// picker rendered `No matches on Spotify.` over a valid track link for
+				// the whole of the navigation.
+				const redirecting = !spotifySignedIn();
 				const message = await store.attachSpotify(trimmed);
-				return message === undefined ? { results: [] } : { error: message };
+				if (message !== undefined) return { error: message };
+				return redirecting ? { signingIn: true } : { results: [] };
 			}
 
 			// The query rides across the redirect the way a link does, so a first
@@ -736,21 +807,25 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		},
 
 		async attachSpotifyTrack(trackId, name) {
-			if (busy) return;
+			if (busy) return stillAttaching;
 			busy = true;
 			try {
-				const attaching = adoptTrack(trackId, name);
+				const resumed = resumedAttachment(pendingTrackId, trackId);
+				const label = resumed.name ?? name;
+				const attaching = adoptTrack(trackId, label);
 				try {
 					await deps.repository.attach({
 						draftId: deps.draftId(),
-						name,
+						name: label,
 						source: 'spotify',
-						trackId
+						trackId,
+						...(resumed.position === undefined ? {} : { position: resumed.position })
 					});
 				} catch {
 					feedback.announce('This track could not be remembered for next time.');
 				}
 				await attaching;
+				return undefined;
 			} finally {
 				busy = false;
 			}
@@ -774,8 +849,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 			const parsed = parseAppleMusicSongId(trimmed);
 			if ('songId' in parsed) {
-				await store.attachAppleMusicSong(parsed.songId, provisionalSongName(parsed.songId));
-				return { results: [] };
+				const message = await store.attachAppleMusicSong(
+					parsed.songId,
+					provisionalSongName(parsed.songId)
+				);
+				return message === undefined ? { results: [] } : { error: message };
 			}
 
 			return await searchAppleMusicSongs(trimmed, { music: () => configureAppleMusic() });
@@ -787,21 +865,25 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		},
 
 		async attachAppleMusicSong(songId, name) {
-			if (busy) return;
+			if (busy) return stillAttaching;
 			busy = true;
 			try {
-				const attaching = adoptSong(songId, name);
+				const resumed = resumedAttachment(pendingSongId, songId);
+				const label = resumed.name ?? name;
+				const attaching = adoptSong(songId, label);
 				try {
 					await deps.repository.attach({
 						draftId: deps.draftId(),
-						name,
+						name: label,
 						source: 'apple',
-						songId
+						songId,
+						...(resumed.position === undefined ? {} : { position: resumed.position })
 					});
 				} catch {
 					feedback.announce('This song could not be remembered for next time.');
 				}
 				await attaching;
+				return undefined;
 			} finally {
 				busy = false;
 			}
@@ -825,7 +907,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			const returned = await completeSpotifySignIn();
 			if (returned === undefined) return;
 			if (returned.error !== undefined) {
-				feedback.announce(returned.error);
+				report(returned.error);
 				return;
 			}
 			if (returned.intent === undefined) return;
@@ -842,7 +924,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				return;
 			}
 			const message = await store.attachSpotify(returned.intent);
-			if (message !== undefined) feedback.announce(message);
+			if (message !== undefined) report(message);
 		},
 
 		/**
@@ -977,11 +1059,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 					if (trackId === undefined) return;
 					if (!spotifySignedIn()) {
 						if (!spotifyRedirectAllowed()) {
-							feedback.announce(spotifyInsecureOriginMessage());
+							report(spotifyInsecureOriginMessage());
 							return;
 						}
 						if (!(await beginSpotifySignIn(spotifyLink(trackId)))) {
-							feedback.announce(signInStorageRefused);
+							report(signInStorageRefused);
 						}
 						return;
 					}
@@ -1007,7 +1089,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 					const permission = await handle.requestPermission({ mode: 'read' });
 					if (superseded()) return;
 					if (permission !== 'granted') {
-						feedback.announce('Permission to read that audio file was declined.');
+						report('Permission to read that audio file was declined.');
 						return;
 					}
 				}
@@ -1021,7 +1103,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 					} catch {
 						if (superseded()) return;
 						// Moved, renamed, or deleted since it was attached.
-						feedback.announce(`${pendingName ?? 'That file'} could not be reopened.`);
+						report(`${pendingName ?? 'That file'} could not be reopened.`);
 					}
 				}
 
@@ -1078,6 +1160,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			try {
 				record = await deps.repository.get(draftId);
 			} catch {
+				// Every other storage failure in this store says so, and this is the
+				// one with the most to lose: swallowed, a draft that has audio opens
+				// with no strip, no pending row and no explanation, which reads as the
+				// attachment having been thrown away rather than as a read that failed.
+				report('The audio this ’scribe remembers could not be read from local storage.');
 				return;
 			}
 			if (generation !== openGeneration) return;

@@ -782,6 +782,11 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			`/catalog/${encodeURIComponent(instance.storefrontId)}/songs/${encodeURIComponent(id)}?include=albums`,
 			{ token, request }
 		);
+		// Quiet for the reason the Spotify read is: a refused catalogue read costs a
+		// title and a cover, and the queue is already built — reporting it through
+		// `failed` would put an error on the strip about a song that plays. The
+		// label stays the provisional one the attach carried, and the cover band
+		// draws it rather than waiting on a picture that is not coming.
 		if (!response?.ok) return;
 		const payload = (await response.json().catch(() => undefined)) as
 			{ data?: CatalogSong[] } | undefined;

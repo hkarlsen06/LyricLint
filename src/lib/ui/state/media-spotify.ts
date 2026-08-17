@@ -426,6 +426,12 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 			undefined,
 			() => trackId !== id
 		);
+		// Deliberately quiet, and deliberately not a retry. A refused read costs a
+		// name and a cover; the track itself still plays, so reporting it through
+		// `failed` would replace the scrubber with a sentence about a song the user
+		// can hear. What the label falls back to is the provisional one the attach
+		// carried, and the cover band draws that rather than nothing — the anonymous
+		// playback this used to produce was the band waiting on a picture, not this.
 		if (!response?.ok) return;
 		const track = (await response.json().catch(() => undefined)) as SpotifyTrack | undefined;
 		if (track?.name === undefined || trackId !== id) return;
@@ -526,7 +532,20 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 				name: 'LyricLint',
 				getOAuthToken: (callback) => {
 					void deps.token().then((token) => {
-						if (token !== undefined) callback(token);
+						if (token !== undefined) {
+							callback(token);
+							return;
+						}
+						// A refused refresh, and the SDK has nowhere to report it: the
+						// callback is simply never made, and it arms no timeout of its
+						// own. Left silent, a session that expired mid-track took the
+						// transport dead with it — the glyphs answered and nothing
+						// happened, forever. Before the device arrives `fail` also
+						// settles `connect()`, which would otherwise wait out the
+						// 20-second timeout and then blame the loader.
+						const message = 'That Spotify sign-in expired. Add the track again to sign in.';
+						if (settled) events.failed(message);
+						else fail(message);
 					});
 				},
 				volume: 1

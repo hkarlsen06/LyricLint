@@ -228,6 +228,30 @@ describe('MediaStrip', () => {
 		await expect.element(seek).toHaveValue('112');
 	});
 
+	/*
+	 * What the raw value pair says out loud is `112.35 of 241.4`, several times a
+	 * second while the track runs — the step is a hundredth of a second and the
+	 * range is the song's length in seconds. The readouts either side of the
+	 * control already say the two facts in `m:ss`; this says the same.
+	 */
+	it('reads the playhead out in minutes and seconds rather than in raw steps', async () => {
+		const { audio, media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }), {
+			name: 'track.mp3',
+			startAt: 112
+		});
+
+		render(MediaStrip, { props: { media } });
+
+		const seek = page.getByRole('slider', { name: 'Seek' });
+		// Before the metadata, the control cannot be aimed and says so rather than
+		// reporting a range that is not the song's.
+		await expect.element(seek).toHaveAttribute('aria-valuetext', 'Not seekable yet');
+
+		audio.setDuration(241);
+		await expect.element(seek).toHaveAttribute('aria-valuetext', '1:52 of 4:01');
+	});
+
 	it('names the remembered file in the reconnect control and offers no transport', async () => {
 		const { media } = store({
 			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }]
@@ -302,6 +326,27 @@ describe('MediaStrip', () => {
 		await expect.element(page.getByText('That file could not be played.')).toBeVisible();
 		expect(page.getByRole('slider', { name: 'Seek' }).elements()).toHaveLength(0);
 		await expect.element(page.getByText('broken.mp3')).toBeVisible();
+	});
+
+	/*
+	 * And it gives the scrubber back when the source recovers. The error was only
+	 * ever cleared by an attach or a detach, so one transient failure — a refused
+	 * token since refreshed, a device that came back — left this sentence standing
+	 * in the scrubber's place for the rest of the attachment, over a track the
+	 * user could hear playing.
+	 */
+	it('gives the scrubber back once the source reports it is playing', async () => {
+		const { audio, media, player } = store();
+		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		audio.dispatchEvent(new Event('error'));
+
+		render(MediaStrip, { props: { media } });
+		await expect.element(page.getByText('That file could not be played.')).toBeVisible();
+
+		await audio.play();
+
+		expect(page.getByText('That file could not be played.').elements()).toHaveLength(0);
+		await expect.element(page.getByRole('slider', { name: 'Seek' })).toBeVisible();
 	});
 
 	// The transport is the same transport whichever source is playing, and this row

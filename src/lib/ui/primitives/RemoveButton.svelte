@@ -54,9 +54,15 @@
 	>
 		Cancel
 	</button>
+	<!-- The visible label is the verb alone, because the row it sits in is the
+	     subject. Focus lands here the moment the confirm is armed, though, and
+	     what a screen reader then reads is the button's name on its own — a bare
+	     "Delete" pointing at nothing. The subject rides the accessible name for
+	     the same reason it rides the trigger's. -->
 	<button
 		type="button"
 		class="button button--danger remove-button__confirm"
+		aria-label="{label} {subject}"
 		bind:this={confirmButton}
 		onclick={(event) => onConfirm(event.currentTarget)}
 	>

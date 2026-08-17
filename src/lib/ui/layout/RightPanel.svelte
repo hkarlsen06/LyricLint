@@ -91,7 +91,11 @@
 				<Tabs.Trigger id="linter-panel-tab" value="linter">
 					Linter
 					{#if controller.visibleDiagnostics.length > 0}
-						<span class="tab-count" aria-label={diagnosticBadgeLabel}
+						<!-- `role="img"`, the toast count's own pattern: a name on a bare
+						     `<span>` has no role to attach to, so the badge reached the
+						     tab's accessible name as a loose number with nothing saying
+						     what it counted. -->
+						<span class="tab-count" role="img" aria-label={diagnosticBadgeLabel}
 							>{controller.visibleDiagnostics.length}</span
 						>
 					{/if}

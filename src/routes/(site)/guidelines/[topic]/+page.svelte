@@ -105,6 +105,20 @@
 	// no-JavaScript arrival's own mark.
 	let anchor = $state('');
 
+	/**
+	 * The first section in document order, which is not always the first entry:
+	 * the spelling topic opens on the standardized-spellings landmark, and that
+	 * section carries no entry of its own. Falling back to `entries[0]` marked
+	 * the *second* row while the reader was still at the top of the page — the
+	 * one row the mark is least allowed to be wrong about, since a topic opened
+	 * with no fragment is the commonest arrival there is.
+	 *
+	 * Read off `data.spellings` rather than off the DOM: this is answered before
+	 * the landing scroll and, on the first pass, before anything is bound.
+	 */
+	const SPELLINGS_ANCHOR = 'standardized-spellings';
+	const leadAnchor = $derived(data.spellings ? SPELLINGS_ANCHOR : entryAnchor(entries[0]!.id));
+
 	function landOnHash() {
 		// The same shared decode the index column reads its own mark through: a
 		// fragment is somebody else's string, and `#%` is a `URIError` rather than
@@ -114,11 +128,11 @@
 		// The landing is also this page's first word to the index about where the
 		// reader is, and it is said before the scroll rather than left to the spy
 		// below to work out afterwards. Computed from a document still at its top,
-		// the reading position is the first entry — so the list would mark that
+		// the reading position is the leading section — so the list would mark that
 		// row, travel to it, and be corrected a frame later when the landing
 		// scroll finally fired. Deep-linked, the entry you were sent to is the one
-		// you are reading; with no fragment, it is the first.
-		setReadingAnchor(anchor || entryAnchor(entries[0]!.id));
+		// you are reading; with no fragment, it is whatever leads the page.
+		setReadingAnchor(anchor || leadAnchor);
 		if (!anchor) return;
 		const heading = document.getElementById(anchor);
 		if (!heading) return;
@@ -160,7 +174,7 @@
 		// Above the first heading the reader is in the lede, on their way into the
 		// first convention — which is the row worth marking, and the same answer a
 		// topic opened with no fragment lands on.
-		return current || entryAnchor(entries[0]!.id);
+		return current || leadAnchor;
 	}
 
 	// One pass per frame at most, because a scroll fires far faster than a
@@ -240,7 +254,7 @@
      rule pages' own answer, and the reason the query lives in module state. -->
 {#snippet marked(value: string)}<GuidanceSearchHighlight text={value} />{/snippet}
 
-<main class="site-prose site-split__page" bind:this={article}>
+<main id="main" tabindex="-1" class="site-prose site-split__page" bind:this={article}>
 	<h1><GuidanceSearchHighlight text={topicTitle} /></h1>
 	<p>
 		The reviewed conventions for this topic, in LyricLint's own words. Each one states its standing,
@@ -257,7 +271,7 @@
 		     guide itself states. What the linter does about each row (fix kinds,
 		     LyricLint's own curated catches) stays on the rule's page, which is
 		     what the sentence under the heading links. -->
-			<h2 id="standardized-spellings">The standardized spellings</h2>
+			<h2 id={SPELLINGS_ANCHOR}>The standardized spellings</h2>
 			<p>
 				The reviewed preferred forms, each over the spellings the guide corrects. The
 				<a href="{resolve('/(site)/rules/[rule]', { rule: 'spelling-standardized' })}/"

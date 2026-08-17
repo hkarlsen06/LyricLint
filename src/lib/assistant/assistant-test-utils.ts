@@ -56,9 +56,9 @@ export function memoryRepository(): AssistantChatRepository {
 			const record = messages.get(id);
 			if (record) messages.set(id, { ...record, ...patch });
 		},
-		async markPendingInterrupted(resumable) {
+		async markPendingInterrupted(chatId, resumable) {
 			for (const [key, message] of messages) {
-				if (message.status === 'pending' && !resumable(message)) {
+				if (message.chatId === chatId && message.status === 'pending' && !resumable(message)) {
 					messages.set(key, { ...message, status: 'interrupted' });
 				}
 			}

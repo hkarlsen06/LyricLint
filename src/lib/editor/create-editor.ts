@@ -597,7 +597,7 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		// nothing to see at either end. The link request is what the `Ctrl-Alt-L`
 		// binding fires, and the change hook is the only thing that saves an unlink,
 		// which moves no text at all.
-		onSectionLinkRequest: (request) => read().onSectionLinkRequest?.(request),
+		onSectionLinkRequest: (request, origin) => read().onSectionLinkRequest?.(request, origin),
 		onSectionLinksChanged: () => read().onSectionLinksChanged?.(),
 		// Same allow-list again. `?? false` rather than `?? true`: a shell that
 		// offers no handler has not bound the key, so the press has to reach
@@ -832,6 +832,21 @@ export function createLyricEditor(
 			? event.metaKey
 			: event.ctrlKey;
 		if (event.key.toLowerCase() !== 'f' || !modifier || event.altKey || event.shiftKey) {
+			return;
+		}
+		// A modal owns every key that lands in it, and this listener is bound to
+		// the window in the capture phase — so over the audio picker it took the
+		// press, opened a find bar behind the dialog, and left the field the user
+		// was typing a search into with no Find of its own. Read off the target,
+		// which is trapped inside the open dialog, for the transport's own reason:
+		// a native `<dialog>` handles Escape without marking the press, and the
+		// same is true of the key it never sees.
+		//
+		// Modal, and only modal. The editor's own anchored cards are dialogs too,
+		// and none of them owns anything the document behind it is not still
+		// there to answer.
+		const target = event.target;
+		if (target instanceof Element && target.closest('dialog, [aria-modal="true"]') !== null) {
 			return;
 		}
 		event.preventDefault();
