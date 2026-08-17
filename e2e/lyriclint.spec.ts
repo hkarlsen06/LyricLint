@@ -246,6 +246,17 @@ test('the rule reference exposes article metadata and language semantics', async
 		.poll(() => page.locator('script[type="application/ld+json"]').textContent())
 		.toContain('"@type":"TechArticle"');
 	await expect(page.locator('pre[lang="ar"][dir="rtl"]')).toHaveCount(2);
+
+	// A rule page names the convention behind it in the guidance catalog, and
+	// the press lands the topic page on the entry itself — the reverse of the
+	// entry's own "Checked by" ids, derived from the same mapping.
+	await page.goto('/rules/numbers-spell-out/');
+	await page
+		.locator('main.site-split__page')
+		.getByRole('link', { name: 'Spell numbers out' })
+		.click();
+	await expect(page).toHaveURL(/\/guidelines\/numbers\/#spelled-out$/u);
+	await expect(page.locator('.guidelines__entry[data-current] h2')).toHaveText('Spell numbers out');
 });
 
 test('the rule index is searched by symptom and narrowed by chip', async ({ page }) => {
@@ -348,6 +359,10 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 	await expect(washed).toHaveCount(1);
 	await expect(page.locator('.guidelines__entry:has(:target)')).toHaveCount(1);
 	await expect(washed.locator('h2')).toHaveText('One exclamation mark at a time');
+	// The topic page no longer closes with a `Checked by the linter` run: the
+	// entries' own meta lines carry the rules now, and every rule page links its
+	// guideline back — re-adding the trailing family list is the regression.
+	await expect(page.getByRole('heading', { name: 'Checked by the linter' })).toHaveCount(0);
 	await expect
 		.poll(async () => (await washed.locator('h2').boundingBox())?.y ?? 0)
 		.toBeGreaterThan(140);
@@ -361,11 +376,13 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 	await expect(current).toBeInViewport();
 
 	// The topic's own name keeps everything under its heading — the query that
-	// used to drop every guidance entry and answer with linter rows alone.
+	// used to drop every guidance entry and answer with linter rows alone. The
+	// seventh row is the ad-libs entry, whose meta line names
+	// `punctuation.parenthesis-spacing` among the rules that check its shape.
 	const search = page.getByRole('searchbox', { name: 'Search the transcription guidelines' });
 	await search.fill('punctuation');
 	const entryRows = page.locator('.site-split__index .site-run a[href*="#"]');
-	await expect(entryRows).toHaveCount(6);
+	await expect(entryRows).toHaveCount(7);
 
 	// And the page a search opens says which of its words matched, exactly as a
 	// rule page does — including inside the invented sample, which may not have

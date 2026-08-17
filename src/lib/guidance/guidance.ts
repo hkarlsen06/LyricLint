@@ -10,11 +10,12 @@
  * requires, and the entry's sources are pointers into the same registry every
  * rule cites.
  *
- * A convention the linter later learns to check graduates into a rule and its
- * entry retires in that rule's favor — an entry and a rule must not state the
- * same claim under two ids, which is `isProseHeaderLine`'s failure arriving in
- * the catalog. `relatedRuleIds` is for partial coverage only: the entry states
- * the whole convention, the rule checks the slice of it a machine can see.
+ * An entry states the convention whether or not the linter checks it: the
+ * catalog is the conventions and the rules are the checks, and
+ * `relatedRuleIds` is the one mapping tying the two — the entry's meta line
+ * draws it as "Checked by", and each named rule's page links back through
+ * `guidanceForRule`. What must still not exist is two *entries* stating one
+ * claim, which is `isProseHeaderLine`'s failure arriving in the catalog.
  */
 import type { SourceAuthority } from '$lib/core/types.js';
 
@@ -58,6 +59,8 @@ export interface GuidanceTopicLandmark {
 	id: string;
 	title: string;
 	statement: string;
+	/** Linter rules whose convention this landmark states, as entries have. */
+	relatedRuleIds?: readonly string[];
 }
 
 /** Landmarks are searchable rows in the index, not hidden furniture on a page. */
@@ -68,10 +71,25 @@ export const guidanceTopicLandmarks: Partial<
 		{
 			id: 'standardized-spellings',
 			title: 'The standardized spellings',
-			statement: 'The reviewed preferred forms and the spellings the guide corrects.'
+			statement: 'The reviewed preferred forms and the spellings the guide corrects.',
+			relatedRuleIds: ['spelling.standardized']
 		}
 	]
 };
+
+/**
+ * A rule page's pointer back into the catalog: the guideline whose convention
+ * the rule checks, resolved to the topic page and the entry's own anchor. The
+ * reverse of `relatedRuleIds`, derived in `guidanceForRule` so the two
+ * directions cannot disagree about which rules and entries belong together.
+ */
+export interface RuleGuidelineLink {
+	topic: GuidanceTopic;
+	topicTitle: string;
+	/** The fragment on the topic page: an entry's or a landmark's own anchor. */
+	anchor: string;
+	title: string;
+}
 
 /**
  * The linter rule families each topic page also lists, as lookups pointing
@@ -107,6 +125,18 @@ export const guidanceTopicRuleGroups: Record<GuidanceTopic, readonly string[]> =
 };
 
 /**
+ * An entry's standing: a source tier, or LyricLint's own advisory.
+ *
+ * `lyriclint` is for a convention that is LyricLint's own preference rather
+ * than anything a Genius source states — the blank line between song parts,
+ * the text-hygiene checks. Such an entry still cites sources, but as
+ * *context* the preference reads from rather than as backing, so the
+ * source-equality rule does not apply to it, and its note names the claim as
+ * LyricLint's own. A Genius name never goes on a claim no source states.
+ */
+export type GuidanceAuthority = SourceAuthority | 'lyriclint';
+
+/**
  * A verbatim illustration, in the rule reference's own labeled-pair shape. A
  * sample holds only text as it would stand in a document — prose explaining a
  * sample belongs in the statement or the note, because inside the sample face
@@ -119,7 +149,7 @@ export interface GuidanceExample {
 	incorrect?: string;
 }
 
-/** One reviewed transcription convention the linter cannot check whole. */
+/** One reviewed transcription convention, checked by rules or not at all. */
 export interface GuidanceEntry {
 	/** `guidance.<topic>.<slug>` — stable, and the anchor on the topic page. */
 	id: string;
@@ -140,11 +170,19 @@ export interface GuidanceEntry {
 	 * The trustworthiness claimed for this entry. Must equal the highest tier
 	 * among the cited sources: promotion is adding the confirming higher-tier
 	 * source to `sourceIds`, never editing this field alone, and
-	 * `guidance.test.ts` enforces the equality structurally.
+	 * `guidance.test.ts` enforces the equality structurally. The exception is
+	 * `lyriclint`, whose sources are context rather than backing — see
+	 * `GuidanceAuthority`.
 	 */
-	authority: SourceAuthority;
+	authority: GuidanceAuthority;
 	sourceIds: readonly string[];
-	/** Linter rules that check part of this convention. */
+	/**
+	 * Linter rules that check this convention, in whole or in part. This is
+	 * the one mapping between the two references: the entry's meta line draws
+	 * it as "Checked by", and each named rule's own page links back to this
+	 * entry through `guidanceForRule` — adding a rule id here is what gives
+	 * that rule's page its guideline link.
+	 */
 	relatedRuleIds?: readonly string[];
 	/** Hedges, scope limits, and graduation notes. */
 	note?: string;
@@ -159,11 +197,12 @@ export const authorityRank: Record<SourceAuthority, number> = {
 };
 
 /** The tier as a reader-facing fact, worded as where the claim comes from. */
-export const authorityLabels: Record<SourceAuthority, string> = {
+export const authorityLabels: Record<GuidanceAuthority, string> = {
 	staff: 'Genius staff guidance',
 	editorial: 'Editor-reviewed Genius annotation',
 	external: 'External reference',
-	community: 'Genius community guidance'
+	community: 'Genius community guidance',
+	lyriclint: 'LyricLint advisory'
 };
 
 /** The anchor a topic page draws an entry at: the id's own last segment. */

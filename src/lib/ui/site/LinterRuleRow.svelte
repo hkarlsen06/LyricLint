@@ -25,9 +25,11 @@
 	in its own context — which is what separates this from stripping a *guidance*
 	row, whose statement is the thing itself rather than a pointer to it.
 
-	One implementation, two surfaces: the index column and the topic page's
-	`Checked by the linter` run are the same rows drawn twice, and the copy that
-	drifted would be the one the reader is not looking at.
+	One implementation, one surface now: the index column. The topic pages used
+	to close with a `Checked by the linter` run of these same rows; it went when
+	every entry started naming its own rules in its meta line and every rule
+	page started linking its guideline back — the per-entry links carry the
+	hand-off, and a trailing list of the whole family said it a second time.
 
 	It opens a tab, which is the mark's own promise kept. A reader here is
 	working *through* a topic — down a list, or down a page of entries they have

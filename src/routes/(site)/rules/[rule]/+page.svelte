@@ -22,6 +22,10 @@
 
 	let { data }: PageProps = $props();
 
+	// A constant rather than a literal in the mustache, because a bare `{', '}`
+	// is `svelte/no-useless-mustaches` — the guidelines topic page's own trade.
+	const guidelineSeparator = ', ';
+
 	// Seven rules are a lookup table rather than a judgment, and for those the
 	// table is the rule — the reviewed example below only demonstrates one row of
 	// it. Loaded by this page rather than carried on the reference, because the
@@ -131,6 +135,24 @@
 	</div>
 
 	<p><RuleSearchHighlight text={reference.explanation} /></p>
+
+	<!-- The convention this rule is a check of, in the guidance catalog — the
+	     reverse of the entry's own "checked by" meta line, derived from the same
+	     mapping so the two directions cannot disagree. Same tab, unlike the
+	     catalog's links here: a reader on a rule page is looking the convention
+	     up, and the guideline is the next thing to read, not a lookup beside
+	     one. A deep link lands the topic page on the entry itself. -->
+	{#if reference.guidelines?.length}
+		<p>
+			{reference.guidelines.length === 1
+				? 'The convention behind this rule, in the transcription guidelines: '
+				: 'The conventions behind this rule, in the transcription guidelines: '}{#each reference.guidelines as guideline, index (`${guideline.topic}#${guideline.anchor}`)}{#if index > 0}{guidelineSeparator}{/if}<a
+					href="{resolve('/(site)/guidelines/[topic]', {
+						topic: guideline.topic
+					})}/#{guideline.anchor}"><RuleSearchHighlight text={guideline.title} /></a
+				>{/each}.
+		</p>
+	{/if}
 
 	<!-- The table, above the example rather than below it, because for these
 	     seven rules it is the thing the reader came to look up — the example

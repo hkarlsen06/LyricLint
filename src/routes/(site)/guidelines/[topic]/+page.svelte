@@ -8,7 +8,6 @@
 	import { siteUrl } from '$lib/seo.js';
 	import { codeSegments } from '$lib/ui/site/code-segments.js';
 	import GuidanceSearchHighlight from '$lib/ui/site/GuidanceSearchHighlight.svelte';
-	import LinterRuleRow from '$lib/ui/site/LinterRuleRow.svelte';
 	import SiteSourceFold from '$lib/ui/site/SiteSourceFold.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import { setReadingAnchor } from '$lib/ui/site/guidance-reading.svelte.js';
@@ -26,15 +25,6 @@
 	const topicTitle = $derived(guidanceTopicTitles[topic]);
 	const entries = $derived(
 		guidanceTopics().find((candidate) => candidate.topic === topic)!.entries
-	);
-
-	// The topic's other half, read off the section layout's own load rather
-	// than derived again — the same rows the index column lists, drawn here so
-	// the page reads whole: a reader who arrived at the topic sees where the
-	// linter takes over, even on a narrow screen where the list left with the
-	// index view.
-	const linterRules = $derived(
-		data.sections.find((section) => section.topic === topic)?.linterRules ?? []
 	);
 
 	// The rule keeps context-sensitive spellings as separate records because
@@ -253,8 +243,9 @@
 <main class="site-prose site-split__page" bind:this={article}>
 	<h1><GuidanceSearchHighlight text={topicTitle} /></h1>
 	<p>
-		Conventions the <a href={resolve('/rules/')}>linter</a> cannot check for you, in LyricLint's own words.
-		Each one states its standing and links the exact source it is read from.
+		The reviewed conventions for this topic, in LyricLint's own words. Each one states its standing,
+		links the exact source it is read from, and names the
+		<a href={resolve('/rules/')}>linter</a> rules that check it.
 	</p>
 
 	{#if data.spellings}
@@ -324,7 +315,7 @@
 				{#if entry.relatedRuleIds?.length}
 					<span class="site-meta__separator" aria-hidden="true">·</span>
 					<span>
-						Partly checked by
+						Checked by
 						<!-- The separator is a value, not markup whitespace, which the
 						     formatter is free to move to the wrong side of the comma —
 						     `punctuation.question,punctuation.line-ending` is what that
@@ -373,28 +364,6 @@
 			{/if}
 		</section>
 	{/each}
-
-	{#if linterRules.length > 0}
-		<!-- The other half of the topic: the conventions the linter checks itself,
-		     as lookups into the rule reference. Derived from the reference at
-		     prerender time rather than written here, so a rule that ships,
-		     retitles, or retires moves this list on its own. Each row carries the
-		     citations' leaving mark, because each one opens the rule reference
-		     rather than an entry above it. -->
-		<h2>Checked by the linter</h2>
-		<p>
-			The rest of this topic the <a href={resolve('/rules/')}>linter</a> enforces itself — each of these
-			opens the rule's own page, with the reviewed example and the fix:
-		</p>
-		<ul class="site-run">
-			{#each linterRules as rule (rule.id)}
-				<!-- One line each, the index column's own row — `LinterRuleRow` is
-				     shared by both, because these are the same rows drawn twice and
-				     the copy that drifted would be the one nobody is looking at. -->
-				<LinterRuleRow {rule} />
-			{/each}
-		</ul>
-	{/if}
 
 	<div class="site-actions">
 		<a class="button" href={resolve('/lint/')}>Check a transcription in the workbench</a>

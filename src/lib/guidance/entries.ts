@@ -7,9 +7,34 @@
  * claimed here, enforced in `guidance.test.ts` — so promoting an entry means
  * adding the confirming higher-tier source, which is the audit trail.
  */
-import { guidanceTopicOrder, type GuidanceEntry } from './guidance.js';
+import {
+	entryAnchor,
+	guidanceTopicLandmarks,
+	guidanceTopicOrder,
+	guidanceTopicTitles,
+	type GuidanceEntry,
+	type RuleGuidelineLink
+} from './guidance.js';
 
 export const guidanceEntries: readonly GuidanceEntry[] = [
+	{
+		id: 'guidance.section-headers.bracketed-headers',
+		topic: 'section-headers',
+		title: 'Song parts open with bracketed headers',
+		statement:
+			"Each part of a song stands under its own header — the part's name in square brackets on a line of its own — with Intro, Verse, Refrain, Pre-Chorus, Chorus, Bridge, and Outro the most common names, and further parts documented in the reviewed sections guide.",
+		example: { correct: '[Verse 1]', incorrect: 'Verse 1:' },
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS'],
+		relatedRuleIds: [
+			'section.header-missing',
+			'section.header-prose',
+			'section.header-empty',
+			'syntax.unbalanced-brackets',
+			'section.header-unrecognized'
+		],
+		note: 'The linter checks the whole mechanical convention: a section with no header, a header written as prose, empty brackets, unbalanced ones, and a name outside every reviewed catalog.'
+	},
 	{
 		id: 'guidance.section-headers.artist-identifiers',
 		topic: 'section-headers',
@@ -19,7 +44,8 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		example: { correct: '[Verse 1: Avery]' },
 		authority: 'staff',
 		sourceIds: ['G-SECTIONS'],
-		note: 'In between, identifiers are allowed but not required: songs by several primary artists or an artist-and-producer duo, and one-singer songs whose intro, outro, or interludes are sampled.'
+		relatedRuleIds: ['performer.header-required'],
+		note: 'In between, identifiers are allowed but not required: songs by several primary artists or an artist-and-producer duo, and one-singer songs whose intro, outro, or interludes are sampled. The linter checks the mechanical half — a section with styled voices in its lyrics and no legend in its header; whether a song needs identifiers at all is a judgment about the release.'
 	},
 	{
 		id: 'guidance.section-headers.voice-order',
@@ -30,8 +56,14 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		example: { correct: '[Chorus: Avery, <i>Blair</i> & <b>Casey</b>]' },
 		authority: 'staff',
 		sourceIds: ['G-SECTIONS'],
-		relatedRuleIds: ['performer.style-order'],
-		note: 'The linter checks that the four slots appear in order; which artist earned which slot is a count of lines only the transcriber can make.'
+		relatedRuleIds: [
+			'performer.style-order',
+			'syntax.unsupported-voice-markup',
+			'performer.inline-mismatch',
+			'performer.unused-legend-slot',
+			'performer.redundant-markup'
+		],
+		note: 'The linter checks the mechanics of the four slots — their order, that only the supported italic and bold tags carry them, and that the legend and the lyrics agree about which are in use; which artist earned which slot is a count of lines only the transcriber can make.'
 	},
 	{
 		id: 'guidance.section-headers.unison-grouping',
@@ -41,7 +73,24 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 			'Vocalists performing the same lines in unison are one group: their names share one text formatting and are joined with ampersands, and commas separate whole groups from each other, never the voices inside one.',
 		example: { correct: '[Chorus: Avery, <i>Avery & Blair</i>, <b>Avery & Casey</b>]' },
 		authority: 'staff',
-		sourceIds: ['G-SECTIONS']
+		sourceIds: ['G-SECTIONS'],
+		relatedRuleIds: ['performer.collective-identifier'],
+		note: 'A group is always its members written out: the linter flags a legend naming a collective identifier such as Both or All where the names belong.'
+	},
+	{
+		id: 'guidance.section-headers.parenthetical-formatting',
+		topic: 'section-headers',
+		title: 'Parentheses sit outside voice formatting',
+		statement:
+			"Where a differentiated voice's words are parenthesized — an ad-lib or a backing line — the italic or bold tags wrap the words inside the parentheses, and the parentheses themselves stay unformatted.",
+		example: {
+			correct: 'We own the night (<i>We own it</i>)',
+			incorrect: 'We own the night <i>(We own it)</i>'
+		},
+		authority: 'editorial',
+		sourceIds: ['G-PERF-PARENS'],
+		relatedRuleIds: ['performer.parenthetical-boundary'],
+		note: "The reviewed headers guide's own worked examples keep the same boundary, so the linter's fix moves the formatting inside the parentheses."
 	},
 	{
 		id: 'guidance.section-headers.crowded-headers',
@@ -133,8 +182,30 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 			'Standard section headers exist in many languages, and the reviewed inventory of them is the place to check before changing a header in a song whose language is not your own — each community settles its own vocabulary.',
 		authority: 'staff',
 		sourceIds: ['G-LANG-PURPOSE', 'G-LANG-HEADERS'],
-		relatedRuleIds: ['section.header-language'],
+		relatedRuleIds: ['section.header-language', 'section.localized-header-preference'],
 		note: "For the linter's supported languages the packs already carry each community's reviewed header vocabulary; the Song Headers in Different Languages page cited above covers the rest."
+	},
+	{
+		id: 'guidance.section-headers.header-lyrics-language',
+		topic: 'section-headers',
+		title: "Headers speak the transcription's language",
+		statement:
+			"Song part headers are written in the same language as the transcribed text, and the reviewed inventory of headers in other languages documents each community's forms.",
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS', 'G-LANG-HEADERS'],
+		relatedRuleIds: ['section.header-language', 'section.localized-header-preference'],
+		note: "The linter checks recognized headers against the selected language pack's reviewed vocabulary and offers the community-preferred localized term where one exists."
+	},
+	{
+		id: 'guidance.section-headers.blank-line-spacing',
+		topic: 'section-headers',
+		title: 'One blank line between song parts',
+		statement:
+			'A single blank line separates each song part from the header of the next — and never more than one.',
+		authority: 'lyriclint',
+		sourceIds: ['G-SECTIONS'],
+		relatedRuleIds: ['section.header-spacing', 'section.extra-blank-lines'],
+		note: "This is LyricLint's own readability advisory rather than a stated Genius rule: the reviewed guide's examples all keep the single blank line, but no source spells it out, so the claim carries LyricLint's name instead of theirs."
 	},
 	{
 		id: 'guidance.spelling.as-pronounced',
@@ -143,7 +214,9 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		statement:
 			'A word an artist mispronounces or deliberately bends — local slang, or a rhyme forced into the flow — is transcribed to reflect the pronunciation, within reason; slang built on a mispronounced word is spelled the way it is usually written online, or as it is pronounced.',
 		authority: 'staff',
-		sourceIds: ['G-AS-SPOKEN']
+		sourceIds: ['G-AS-SPOKEN'],
+		relatedRuleIds: ['spelling.texting-shorthand'],
+		note: 'The same convention read the other way is what the linter checks: written-only texting shorthand such as idk stands for words the artist actually sang, so it is expanded to them rather than kept as letters nobody performed.'
 	},
 	{
 		id: 'guidance.spelling.readability-limit',
@@ -176,6 +249,27 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		sourceIds: ['G-SPELLING'],
 		relatedRuleIds: ['spelling.language-variant'],
 		note: "The linter reviews only the 'til/till pair, and only while a British or American English variant is selected; every other variant spelling is the transcriber's to keep consistent."
+	},
+	{
+		id: 'guidance.spelling.standard-orthography',
+		topic: 'spelling',
+		title: "Spelling follows the language's standard",
+		statement:
+			'Outside deliberate as-sung spellings, lyric text follows the standard orthography of its language — the double-checked accuracy the transcription guide asks of every lyric.',
+		authority: 'lyriclint',
+		sourceIds: ['G-ADD-SONGS'],
+		relatedRuleIds: [
+			'spelling.english-common',
+			'spelling.norwegian-common',
+			'spelling.german-common',
+			'grammar.spanish-contractions',
+			'spelling.spanish-common',
+			'spelling.french-common',
+			'spelling.arabic-common',
+			'spelling.japanese-common',
+			'spelling.korean-common'
+		],
+		note: "The per-language checks are LyricLint's own curation against external dictionaries and academies — each rule's page cites its sources — rather than a reviewed Genius list; Genius's own reviewed forms are the standardized-spellings table above."
 	},
 	{
 		id: 'guidance.spelling.reversed-vocals',
@@ -253,8 +347,13 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		example: { correct: 'Racing down the boulevard (Skrrt)' },
 		authority: 'staff',
 		sourceIds: ['G-ADLIBS'],
-		relatedRuleIds: ['adlib.parentheses'],
-		note: 'The linter checks the shape once an ad-lib is written; hearing one and writing it down is the half only the transcriber can do.'
+		relatedRuleIds: [
+			'adlib.parentheses',
+			'adlib.separator',
+			'punctuation.parenthesis-spacing',
+			'syntax.unbalanced-parentheses'
+		],
+		note: 'The linter checks the shape once an ad-lib is written — the parentheses, the space before them, the separators between run-together ad-libs; hearing one and writing it down is the half only the transcriber can do.'
 	},
 	{
 		id: 'guidance.ad-libs.echo-effects',
@@ -318,7 +417,7 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		example: { correct: 'Turn it up!', incorrect: 'Turn it up!!' },
 		authority: 'staff',
 		sourceIds: ['G-QE-MARKS'],
-		note: 'Mechanically checkable, so a candidate to graduate into a linter rule — at which point this entry retires in its favor.'
+		note: 'Mechanically checkable, so a candidate for a linter rule — which this entry would then name as checking it.'
 	},
 	{
 		id: 'guidance.punctuation.brand-name-marks',
@@ -387,8 +486,35 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 			'A section the song repeats — a returning chorus, a refrain — is typed out in full at every occurrence, and so are lyrics repeated inside one section: a header or a count never stands in for words the song sings again, so nobody reading along has to scroll back to find them.',
 		authority: 'staff',
 		sourceIds: ['G-REPEATS'],
-		relatedRuleIds: ['repeat.placeholder'],
-		note: 'The linter flags x2 counts and Repeat placeholders outright. On Genius itself, copy each repeated line together with the annotation number it carries in Edit Lyrics mode, so the annotations repeat with the words.'
+		relatedRuleIds: ['repeat.placeholder', 'section.unlinked-repeat'],
+		note: 'The linter flags x2 counts and Repeat placeholders outright, and offers to link identical choruses so the copies stay identical. On Genius itself, copy each repeated line together with the annotation number it carries in Edit Lyrics mode, so the annotations repeat with the words.'
+	},
+	{
+		id: 'guidance.lines.immediate-repeat',
+		topic: 'lines',
+		title: 'An immediate repeat shares one header',
+		statement:
+			'When an entire song part is sung again immediately, its lyrics are typed out again under the same single header, with no blank line between the copies.',
+		example: {
+			correct: '[Chorus]\nHold on tight\nWe ride tonight\nHold on tight\nWe ride tonight',
+			incorrect:
+				'[Chorus]\nHold on tight\nWe ride tonight\n\n[Chorus]\nHold on tight\nWe ride tonight'
+		},
+		authority: 'staff',
+		sourceIds: ['G-SECTIONS', 'G-REPEATS'],
+		relatedRuleIds: ['section.immediate-repeat-spacing']
+	},
+	{
+		id: 'guidance.lines.clean-text',
+		topic: 'lines',
+		title: 'No doubled spaces or hidden characters',
+		statement:
+			'Lyric text keeps exactly one ordinary space between words and carries no invisible characters — the clean, concise text the transcription guide asks for.',
+		example: { correct: 'Hold on tight', incorrect: 'Hold  on tight' },
+		authority: 'lyriclint',
+		sourceIds: ['G-ADD-SONGS'],
+		relatedRuleIds: ['text.multiple-spaces', 'text.invisible-characters'],
+		note: "The exact checks are LyricLint's own text hygiene rather than a stated Genius rule: the guide asks for clean, accurate text without naming spacing, so this advisory carries LyricLint's name."
 	},
 	{
 		id: 'guidance.censored-unknown.explicit-version',
@@ -410,6 +536,21 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		sourceIds: ['G-CENSORED'],
 		relatedRuleIds: ['censored.mask'],
 		note: "The linter flags letters mixed into an asterisk mask; a bare asterisk run could as easily be a divider or emphasis, so its length is the transcriber's to check."
+	},
+	{
+		id: 'guidance.censored-unknown.unknown-marker',
+		topic: 'censored-unknown',
+		title: "A lyric you can't make out is [?]",
+		statement:
+			'A lyric nobody can decipher yet is represented by a question mark in brackets — [?] — and only that form: parentheses are avoided because they already mark ad-libs on Genius.',
+		example: {
+			correct: 'Counting every [?] till the morning comes',
+			incorrect: 'Counting every (?) till the morning comes'
+		},
+		authority: 'staff',
+		sourceIds: ['G-UNKNOWN'],
+		relatedRuleIds: ['unknown.marker', 'unknown.improvised-marker', 'unknown.unresolved'],
+		note: 'The linter checks the whole convention: recognized nonstandard markers, improvised runs of question marks standing where words would go, and a count of the [?] marks a document still leaves unresolved.'
 	},
 	{
 		id: 'guidance.numbers.spelled-out',
@@ -434,7 +575,9 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 			'Digits are kept for proper nouns that carry them, model numbers including firearm and ammunition names, years, phone numbers, terms conventionally written in digits like 24/7, numerical slang for the police (5-0, 12), counts shortened with K that are not multiples of 100 (24K), and times.',
 		example: { correct: 'Grinding 24/7 like it pays' },
 		authority: 'staff',
-		sourceIds: ['G-NUMBERS']
+		sourceIds: ['G-NUMBERS'],
+		relatedRuleIds: ['numbers.decade-apostrophe'],
+		note: "A decade is one of the digit-kept forms, and the linter checks its written shape: the apostrophe stands in for the century before the digits — '90s — never after them."
 	},
 	{
 		id: 'guidance.numbers.times',
@@ -455,7 +598,8 @@ export const guidanceEntries: readonly GuidanceEntry[] = [
 		example: { correct: '[Letra de "Golondrina" ft. Avery]' },
 		authority: 'staff',
 		sourceIds: ['G-NON-ENGLISH'],
-		note: "Languages differ on the exact wording; the How to Add Songs page for the song's language documents its community's form."
+		relatedRuleIds: ['section.header-unrecognized'],
+		note: "Languages differ on the exact wording; the How to Add Songs page for the song's language documents its community's form. The linter accepts such a header as a song's first line instead of misreporting it as an unrecognized song part."
 	},
 	{
 		id: 'guidance.non-english.romanized-separate',
@@ -519,4 +663,39 @@ export function guidanceTopics(): Array<{
 		const entries = topics.get(topic);
 		return entries ? [{ topic, entries }] : [];
 	});
+}
+
+/**
+ * The guidelines a rule's page links, derived from the same `relatedRuleIds`
+ * the entries' own meta lines draw — one mapping, read from both ends, so the
+ * rule page and the topic page cannot disagree about which convention a rule
+ * checks. Landmarks count too: `spelling.standardized`'s guideline is the
+ * standardized-spellings table itself. Entries come out in catalog order;
+ * a rule no entry names comes out empty, which is the page drawing nothing.
+ */
+export function guidanceForRule(ruleId: string): RuleGuidelineLink[] {
+	const links: RuleGuidelineLink[] = [];
+	for (const topic of guidanceTopicOrder) {
+		for (const landmark of guidanceTopicLandmarks[topic] ?? []) {
+			if (landmark.relatedRuleIds?.includes(ruleId)) {
+				links.push({
+					topic,
+					topicTitle: guidanceTopicTitles[topic],
+					anchor: landmark.id,
+					title: landmark.title
+				});
+			}
+		}
+	}
+	for (const entry of guidanceEntries) {
+		if (entry.relatedRuleIds?.includes(ruleId)) {
+			links.push({
+				topic: entry.topic,
+				topicTitle: guidanceTopicTitles[entry.topic],
+				anchor: entryAnchor(entry.id),
+				title: entry.title
+			});
+		}
+	}
+	return links;
 }

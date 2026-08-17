@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { currentRuleSet } from '$lib/rules/data/rule-set.js';
 import { assertReviewedSources, getSource } from '$lib/rules/data/sources.js';
-import { guidanceEntries, guidanceRegistry, guidanceTopics } from './entries.js';
+import { guidanceEntries, guidanceForRule, guidanceRegistry, guidanceTopics } from './entries.js';
 import {
+	guidanceTopicLandmarks,
 	guidanceTopicOrder,
 	guidanceTopicRuleGroups,
 	guidanceTopicTitles,
@@ -36,9 +37,17 @@ describe('guidance catalog', () => {
 
 	// Promotion is evidence: raising an entry's tier means adding the
 	// confirming higher-tier source, never editing the tier alone — so the
-	// claimed authority must equal the best its sources can back.
+	// claimed authority must equal the best its sources can back. The
+	// `lyriclint` advisories are the exception the type documents: their
+	// sources are context rather than backing, so what they owe instead is a
+	// note naming the claim as LyricLint's own — an advisory whose entry reads
+	// like a sourced convention is a Genius name on a claim no source states.
 	it('claims exactly the authority its sources establish', () => {
 		for (const entry of guidanceEntries) {
+			if (entry.authority === 'lyriclint') {
+				expect(entry.note ?? '', entry.id).toContain('LyricLint');
+				continue;
+			}
 			const authorities = entry.sourceIds.map((id) => {
 				const source = getSource(id);
 				if (!source) throw new Error(`Unknown source ${id} on ${entry.id}`);
@@ -54,6 +63,32 @@ describe('guidance catalog', () => {
 				expect(ruleIds.has(ruleId), `${entry.id} → ${ruleId}`).toBe(true);
 			}
 		}
+		for (const landmarks of Object.values(guidanceTopicLandmarks)) {
+			for (const landmark of landmarks) {
+				for (const ruleId of landmark.relatedRuleIds ?? []) {
+					expect(ruleIds.has(ruleId), `${landmark.id} → ${ruleId}`).toBe(true);
+				}
+			}
+		}
+	});
+
+	// The rule pages read the same mapping backwards, so the derivation is
+	// pinned from that end too: an entry, a landmark, and the empty answer for
+	// a rule nothing names — the state a rule page draws no link in.
+	it('resolves a rule to its guideline links in both shapes', () => {
+		expect(guidanceForRule('numbers.spell-out')).toEqual([
+			{
+				topic: 'numbers',
+				topicTitle: 'Numbers',
+				anchor: 'spelled-out',
+				title: 'Spell numbers out'
+			}
+		]);
+		expect(guidanceForRule('spelling.standardized').map(({ anchor }) => anchor)).toEqual([
+			'standardized-spellings',
+			'elision-apostrophe'
+		]);
+		expect(guidanceForRule('language.selection-mismatch')).toEqual([]);
 	});
 
 	// The topic pages list these families as their linter lookups; a family

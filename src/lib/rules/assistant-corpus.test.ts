@@ -103,11 +103,15 @@ describe('assistant corpus parity', () => {
 				expect(ruleIds.has(ruleId), `${entry.id} points at missing ${ruleId}`).toBe(true);
 			}
 			// The entry's tier must be one its own cited sources establish, so the
-			// assistant can never report a convention above its evidence.
-			const tiers = entry.sourceIds.map(
-				(sourceId) => committed.sources.find((source) => source.id === sourceId)?.authority
-			);
-			expect(tiers, entry.id).toContain(entry.authority);
+			// assistant can never report a convention above its evidence. The
+			// `lyriclint` advisories are the exception: their sources are context,
+			// and the tier itself already says the claim is not Genius's.
+			if (entry.authority !== 'lyriclint') {
+				const tiers = entry.sourceIds.map(
+					(sourceId) => committed.sources.find((source) => source.id === sourceId)?.authority
+				);
+				expect(tiers, entry.id).toContain(entry.authority);
+			}
 		}
 	});
 

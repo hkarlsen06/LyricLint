@@ -4582,19 +4582,22 @@ strike, the send and the Escape ladder; the e2e conversation test drives the dia
 field.
 
 **A row that leaves the section says so, and it leaves in a tab.** The guidance list's
-linter-rule rows and the topic page's `Checked by the linter` run open the rule reference, and
-each wears the citations' own `ExternalLink` mark after its title — decorative and `aria-hidden`,
-because the link's own text and the section it lands in already name the destination.
-Guidance-entry rows stay inside the section and carry nothing. That topic-page run is deliberately
-the index column's rows drawn again: on a narrow screen the list left with the index view, and a
-topic has to read whole without it.
+linter-rule rows open the rule reference, and each wears the citations' own `ExternalLink` mark
+after its title — decorative and `aria-hidden`, because the link's own text and the section it
+lands in already name the destination. Guidance-entry rows stay inside the section and carry
+nothing. The topic pages used to close with a `Checked by the linter` run of these same rows; it
+went when the linking became two-way — every entry names its own rules in its meta line, and every
+rule page links its guideline back (`RuleReference.guidelines`, derived in `guidanceForRule` from
+the same `relatedRuleIds` the meta lines draw, so the two directions cannot disagree) — and a
+trailing list of the whole family said it a second time. The rules the entries do not name stay
+findable through the index column's linter lookups.
 
 **`target="_blank"` is the mark's promise kept, and it is one direction only.** A reader in this
 catalog is working _through_ a topic — down the list, or down a page of entries they have scrolled
 and deep-linked into — and a rule is a lookup beside that rather than the next thing to read.
 Taken in place it costs them the place they had, and nothing on screen gives it back: `All
 guidelines` returns to the catalog's welcome view, not to the entry they were reading. So every
-link out of `/guidelines/` into `/rules/` opens a tab — the rows, and the `Partly checked by` ids
+link out of `/guidelines/` into `/rules/` opens a tab — the rows, and the `Checked by` ids
 in an entry's own meta line, which is the worst of the two to lose a scroll position to. The
 **rules section's own rows are unchanged**, because there a rule _is_ the next thing to read, and
 so are guidance-entry rows, which never leave. The `rel` pair is the one every external link here
@@ -4614,8 +4617,8 @@ rule's own page one press away, whole and in their own context. What must not be
 way is a **guidance** row: its statement is the convention itself rather than a pointer to one, so
 the second line there is the content. The severity survives because it is what colors the row and
 costs it nothing, and the word is dropped from it for the reason the diagnostic card drops it —
-down a run of these it is the same word every row. One component, both surfaces, because the index
-column and the topic page's run are the same rows drawn twice.
+down a run of these it is the same word every row. One component, one surface now: the index
+column, since the topic-page run retired in the two-way links' favor.
 
 **Two things stay pinned to the tops of the two columns, and the second is a repair.** The
 finder rides the index column. The way out — `All rules` / `All guidelines`, now an arrow rather

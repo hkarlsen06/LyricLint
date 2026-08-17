@@ -112,7 +112,7 @@ describe('guidance search', () => {
 	});
 
 	// What is searchable is what the page says — and the page says the citation
-	// and the `Partly checked by` rule ids, so both have to answer a search.
+	// and the `Checked by` rule ids, so both have to answer a search.
 	// The rule reference learned this the long way about its own citations.
 	it('matches an entry by its citation title and its related rule ids', () => {
 		const first = guidanceEntries[0]!;

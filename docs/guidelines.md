@@ -8,13 +8,18 @@ catalog".
 
 ## What the catalog is
 
-`src/lib/guidance/` holds reviewed transcription conventions the linter cannot
-check whole. An entry is **one checkable claim** — "a brand name keeps exactly
-the punctuation it owns", not "the punctuation annotation" — written as
-LyricLint's own paraphrase, never quoted Genius prose, with pointers into the
-same source registry every linter rule cites. A convention the linter later
-learns to check graduates into a rule and its entry retires in that rule's
-favor; `relatedRuleIds` is for partial coverage only.
+`src/lib/guidance/` holds reviewed transcription conventions. An entry is
+**one checkable claim** — "a brand name keeps exactly the punctuation it
+owns", not "the punctuation annotation" — written as LyricLint's own
+paraphrase, never quoted Genius prose, with pointers into the same source
+registry every linter rule cites. The catalog is the conventions and the
+rules are the checks: an entry states its convention whether or not the
+linter checks it, and `relatedRuleIds` names the rules that check it, in
+whole or in part. That field is the one rule↔guideline mapping — the entry's
+meta line draws it as "Checked by", and each named rule's own page links back
+to the entry through `guidanceForRule` — so adding a rule id to an entry is
+what gives that rule's page its guideline link. What must not exist is two
+*entries* stating one claim.
 
 Ground rules, all enforced by `src/lib/guidance/guidance.test.ts`:
 
@@ -36,7 +41,8 @@ Ground rules, all enforced by `src/lib/guidance/guidance.test.ts`:
   **verbatim samples** — text exactly as it would stand in a document, with no
   connective prose, which inside the sample face reads as part of the thing
   being quoted. Explanation belongs in the statement or the note.
-- `authority` must equal the highest tier among the entry's cited sources.
+- `authority` must equal the highest tier among the entry's cited sources —
+  unless it is `lyriclint`, the advisory standing below.
 
 ## The authority ladder
 
@@ -78,6 +84,14 @@ match; editing the enum alone fails `guidance.test.ts`. Demotion follows the
 same rule in reverse. `external` ranks below `editorial` because a dictionary is
 authoritative about language, not about Genius.
 
+**Entries may instead claim `lyriclint` — the advisory standing.** It is for a
+convention that is LyricLint's own preference rather than anything a Genius
+source states: the blank line between song parts, the text-hygiene checks. An
+advisory entry still cites sources, but as *context* the preference reads from
+rather than as backing, so the tier-equality rule does not apply; what
+`guidance.test.ts` requires instead is a note naming the claim as LyricLint's
+own. A Genius name never goes on a claim no source states.
+
 ## Adding entries from supplied material
 
 The user supplies screenshots or pasted text, because genius.com is not
@@ -96,9 +110,10 @@ Genius page probably says** — no source material, no entry.
      `src/lib/rules/data/sources.test.ts`: `retrievedOn`/`verifiedOn`, the
      `authorityOf` mapping, and the registry-size count.
 2. **Write the entries** in `src/lib/guidance/entries.ts`, one per claim.
-   Where a claim is mechanically checkable, still add it — with a `note` naming
-   it a candidate to graduate into a linter rule. Where the linter partially
-   covers it, list the rule ids in `relatedRuleIds`.
+   Where a claim is mechanically checkable and no rule exists yet, still add
+   it — with a `note` naming it a candidate to graduate into a linter rule.
+   Where rules check it, in whole or in part, list them in `relatedRuleIds` —
+   that is also what gives each rule's page its guideline link.
 3. **A new topic** additionally needs: its title in `guidanceTopicTitles`, its
    linter rule families in `guidanceTopicRuleGroups` (both in
    `src/lib/guidance/guidance.ts` — the families draw the topic's derived
@@ -157,10 +172,14 @@ conservative `community` default.
   is *not* about the bulk of what a reader scrolls, for facts that are on the
   rule's own page one press away. A guidance row keeps its statement, because
   a guideline's statement is the thing itself rather than a pointer to it.
-  Each topic page closes with its "Checked by the linter" run — the same
-  component, so the two cannot drift — kept on the page so a topic reads whole
-  where the list is off screen. **Every link out of this section into `/rules/`
-  opens a tab** — those rows and the `Partly checked by` ids in an entry's meta
+  The topic pages used to close with a "Checked by the linter" run of those
+  same rows; it retired when the linking became two-way: every entry names its
+  rules in its meta line through `relatedRuleIds`, and every rule page links
+  its guideline back (`RuleReference.guidelines`, derived in `guidanceForRule`
+  from the same field, so the two directions cannot disagree — which also means
+  adding a rule id to an entry is what gives that rule's page its guideline
+  link). **Every link out of this section into `/rules/`
+  opens a tab** — those rows and the `Checked by` ids in an entry's meta
   line — because a rule is a lookup beside the topic being read rather than the
   next thing to read, and taken in place it costs the reader a scroll position
   nothing on this surface gives back. An `sr-only` `(opens in a new tab)` is

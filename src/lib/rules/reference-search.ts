@@ -148,7 +148,10 @@ function haystack(reference: RuleReference): string {
 			// example is all a table-shaped rule is searchable by, so `Imma` found
 			// `spelling.standardized` while `tryna` — one of its other 28 entries —
 			// found nothing at all, which reads as the reference not covering it.
-			reference.lookupTerms ?? ''
+			reference.lookupTerms ?? '',
+			// The guideline titles the page links under its explanation — what is
+			// searchable is what the page says, and these are on it.
+			...(reference.guidelines ?? []).map((guideline) => guideline.title)
 		].join('\n')
 	);
 }

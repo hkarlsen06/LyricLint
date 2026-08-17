@@ -282,6 +282,16 @@
 			}
 		},
 		{
+			"id": "policy-vs-grammar-as-sung",
+			"category": "policy-vs-grammar",
+			"language": "en",
+			"question": "The artist sings 'where you at?' — should I correct it to 'Where are you?' since that's more grammatical?",
+			"expect": {
+				"scopes": ["general", "mixed", "reviewed"],
+				"mentionsAll": ["where you at"]
+			}
+		},
+		{
 			"id": "general-proofreading",
 			"category": "general-guidance",
 			"language": "en",

@@ -38,6 +38,9 @@ const faviconsByHost: Record<string, string> = {
 	'dictionary.cambridge.org': cambridge,
 	'dictionnaire-academie.fr': academie,
 	'duden.de': duden,
+	// Genius's image CDN carries their editorial reference images; it is
+	// Genius's own content, so it wears their mark.
+	'filepicker-images.genius.com': genius,
 	'genius.com': genius,
 	'github.com': github,
 	'korean.go.kr': korean,

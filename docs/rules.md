@@ -65,9 +65,10 @@ the delivery that no source supports.
 | `L-KO-ORAENMAN` | [국립국어원: ‘오랜만’과 ‘오랫만’](https://www.korean.go.kr/nkview/news/11/11_3.htm) | Standard spelling `오랜만` | Reviewed 2026-07-25 |
 | `L-KO-SEOLLEM` | [국립국어원: 궁금증을 풀어 드립니다](https://www.korean.go.kr/nkview/nknews/200111/40_9.html) | Misused `설레이다` forms in popular songs | Reviewed 2026-07-25 |
 | `L-KO-IRIRI` | [국립국어원: ‘일일이’와 ‘일일히’](https://www.korean.go.kr/front/mcfaq/mcfaqView.do?mcfaq_seq=6078&mn_id=62&pageIndex=207) | Standard spelling `일일이` | Reviewed 2026-07-25 |
-| `G-ADD-SONGS` | [How to Add Songs to Genius](https://genius.com/Genius-how-to-add-songs-to-genius-annotated) | Index of lyric accuracy and formatting guidance | Reviewed 2026-07-24; reverified 2026-07-25; re-read 2026-08-12 (guidance catalog sourcing — seeds the never-copy sourcing entry; page-cataloging policy left out of scope) |
+| `G-ADD-SONGS` | [How to Add Songs to Genius](https://genius.com/Genius-how-to-add-songs-to-genius-annotated) | Index of lyric accuracy and formatting guidance | Reviewed 2026-07-24; reverified 2026-07-25; re-read 2026-08-12 (guidance catalog sourcing — seeds the never-copy sourcing entry; page-cataloging policy left out of scope); full text supplied and re-read 2026-08-17 (rule↔guideline linking — context for the standard-orthography and clean-text advisories) |
 | `G-SPELLING` | [Use standardized spellings, annotation 9298624](https://genius.com/9298624) | Preferred spellings and contextual exceptions | Staff contributors confirmed 2026-08-10 (staff tier); reviewed 2026-07-24; re-read 2026-08-12 (guidance catalog sourcing) |
-| `G-SECTIONS` | [Use song part headers, annotation 9250687](https://genius.com/9250687) | Headers, performer names, four formatting slots, joint performers | Reviewed 2026-07-24; re-read 2026-08-08 and 2026-08-11 (guidance catalog sourcing); staff contributors confirmed 2026-08-10 (staff tier) |
+| `G-SECTIONS` | [Use song part headers, annotation 9250687](https://genius.com/9250687) | Headers, performer names, four formatting slots, joint performers | Reviewed 2026-07-24; re-read 2026-08-08 and 2026-08-11 (guidance catalog sourcing); staff contributors confirmed 2026-08-10 (staff tier); full text supplied and re-read 2026-08-17 (rule↔guideline linking — seeds the bracketed-headers, header-lyrics-language, and immediate-repeat entries) |
+| `G-PERF-PARENS` | [Performer formatting and parentheses (editorial reference image)](https://filepicker-images.genius.com/246a575f42ff058a461512edd78c9fbdb161475306d75fb6fbe33e34bfce6bc0%2Fijecuzgqan) | Parentheses stay outside performer formatting | Supplied and reviewed 2026-08-17 (rule↔guideline linking — seeds the parenthetical-formatting entry; G-SECTIONS' worked examples second it) (editorial tier) |
 | `G-HEADER-COLLECTIVE` | [Two “Correct” Methods for Identifying Artists in Section Headers, discussion 459032](https://genius.com/discussions/459032-Two-correct-methods-for-identifying-artists-in-section-headers) | Staff answer: artist names are written out, never combined under `Both` or `All` | Staff reply in community discussion, reviewed 2026-08-10; re-read 2026-08-12 (guidance catalog sourcing — the reply also restates the too-many-vocalists recourse) (staff tier) |
 | `G-SECTION-NUMBERING` | [Verse numbering, annotation 16107272](https://genius.com/16107272) | Only verses are enumerated; distinct verses ascend | Reviewed 2026-07-24; re-read 2026-08-12 (guidance catalog sourcing); editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
 | `G-SECTION-HOOK` | [Deprecated Hook header, annotation 34151858](https://genius.com/34151858) | Replace Hook with Chorus or Refrain | Reviewed 2026-07-24; re-read 2026-08-12 (guidance catalog sourcing — the deprecation is English-scoped); editor-reviewed with no staff contributors, confirmed 2026-08-10 (editorial tier) |
@@ -86,7 +87,7 @@ the delivery that no source supports.
 | `G-QE-MARKS` | [Question and exclamation marks, annotation 15593987](https://genius.com/15593987) | Punctuation for questions and exclamations | Reviewed 2026-07-24; reverified 2026-08-10; staff contributors confirmed (staff tier) |
 | `G-DASHES` | [Hyphens and em dashes, annotation 15594027](https://genius.com/15594027) | Dropped words and em dash punctuation | Reviewed 2026-07-24; re-read 2026-08-12 (guidance catalog sourcing); staff contributors confirmed 2026-08-10 (staff tier) |
 | `G-CAPS` | [Conventional capitalization, annotation 15545679](https://genius.com/15545679) | Capitalize lyric-line starts with contextual exceptions | Reviewed 2026-07-24; re-read 2026-08-12 (guidance catalog sourcing); staff contributors confirmed 2026-08-10 (staff tier) |
-| `G-UNKNOWN` | [Unknown lyric marker, annotation 9303373](https://genius.com/9303373) | Use `[?]` for an incomprehensible lyric | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier); re-read 2026-08-12 (guidance catalog sourcing — fully checked by the linter, seeds no entry) |
+| `G-UNKNOWN` | [Unknown lyric marker, annotation 9303373](https://genius.com/9303373) | Use `[?]` for an incomprehensible lyric | Reviewed 2026-07-24; staff contributors confirmed 2026-08-10 (staff tier); re-read 2026-08-12 (guidance catalog sourcing); full text supplied and re-read 2026-08-17 (rule↔guideline linking — seeds the unknown-marker entry now that the catalog states fully-checked conventions too) |
 | `G-CONTRACTIONS` | [Contraction apostrophes, annotation 9290803](https://genius.com/9290803) | Apostrophes in contractions | Reviewed 2026-07-24; re-read 2026-08-12 (guidance catalog sourcing); staff contributors confirmed 2026-08-10 (staff tier) |
 | `G-TYPEWRITER` | [Typewriter quotes, annotation 11293005](https://genius.com/11293005) | Straight apostrophes and quotation marks | Reviewed 2026-07-24; re-read 2026-08-12 (guidance catalog sourcing); staff contributors confirmed 2026-08-10 (staff tier) |
 | `G-ADLIBS` | [Ad-libs, annotation 9257397](https://genius.com/9257397) | Parentheses and initial capitalization for ad-libs | Reviewed 2026-07-24; re-read 2026-08-12 (guidance catalog sourcing); staff contributors confirmed 2026-08-10 (staff tier) |
@@ -280,14 +281,19 @@ The general performer source uses the phrase "too many vocalists" without a univ
 
 ## Guidance catalog
 
-`src/lib/guidance/` holds reviewed transcription conventions the linter cannot check whole — the
-catalog behind the `/guidelines/` pages and the assistant corpus's guidance section. The
+`src/lib/guidance/` holds reviewed transcription conventions — the catalog behind the
+`/guidelines/` pages and the assistant corpus's guidance section. The
 contributor checklist — how to turn supplied guideline material into entries — is
 `docs/guidelines.md`. An
 entry is one checkable claim in LyricLint's own words, never quoted Genius prose, under the same
 source discipline as a rule: exact URLs or annotation IDs, verified dates, and human review of the
-interpretation. A convention the linter later learns to check graduates into a rule, and its entry
-retires in that rule's favor; `relatedRuleIds` is for partial coverage only.
+interpretation. The catalog is the conventions and the rules are the checks: an entry states its
+convention whether or not the linter checks it, `relatedRuleIds` names the rules that check it in
+whole or in part, and that one field is the two-way rule↔guideline mapping — the entry's meta line
+draws it as "Checked by", and each named rule's page links back through `guidanceForRule`. Entries
+may also claim the `lyriclint` advisory tier for conventions that are LyricLint's own preference
+rather than anything a Genius source states; their cited sources are context, and their notes say
+whose claim it is.
 
 Every source declares an `authority` tier, and an entry claims the highest tier among the sources
 that state it: `staff` > `editorial` > `external` > `community`. External

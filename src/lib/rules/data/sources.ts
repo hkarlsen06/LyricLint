@@ -239,8 +239,11 @@ const sources: SourceReference[] = [
 		// never-copy sourcing entry; the rest of the page is the index of the
 		// annotations mined individually, plus page-cataloging policy —
 		// unreleased music, AI-song admission — outside a transcription
-		// catalog's scope. Staff tier reconfirmed.
-		lastVerifiedAt: '2026-08-12',
+		// catalog's scope. Full text supplied and re-read on 2026-08-17 for the
+		// rule↔guideline linking pass — its "double-check all spelling" and
+		// "clean and concise" asks are the context the standard-orthography and
+		// clean-text advisories read from. Staff tier reconfirmed.
+		lastVerifiedAt: '2026-08-17',
 		reviewStatus: 'reviewed',
 		authority: 'staff'
 	},
@@ -265,7 +268,10 @@ const sources: SourceReference[] = [
 		// the guide's own examples keep parentheses outside performer formatting —
 		// `(<i>If Young Metro don't trust you…</i>)` — never inside it. Re-read
 		// again on 2026-08-11, seeding the guidance catalog's section-headers
-		// entries; staff tier reconfirmed.
+		// entries; staff tier reconfirmed. Full text supplied and re-read on
+		// 2026-08-17 for the rule↔guideline linking pass, seeding the
+		// bracketed-headers, header-lyrics-language, and immediate-repeat
+		// entries.
 		...annotation(
 			'G-SECTIONS',
 			9250687,
@@ -273,7 +279,23 @@ const sources: SourceReference[] = [
 			'Section headers, performer legends, and four differentiation styles',
 			'staff'
 		),
-		lastVerifiedAt: '2026-08-11'
+		lastVerifiedAt: '2026-08-17'
+	},
+	{
+		// A Genius editorial reference image supplied by the maintainer on
+		// 2026-08-17: performer formatting sits inside a parenthetical's own
+		// parentheses, so the parentheses stay plain — which G-SECTIONS' worked
+		// examples second (`(<i>If Young Metro don't trust you…</i>)`). An
+		// image rather than an annotation, so an object literal, with the
+		// author's standing carried by the tier.
+		id: 'G-PERF-PARENS',
+		url: 'https://filepicker-images.genius.com/246a575f42ff058a461512edd78c9fbdb161475306d75fb6fbe33e34bfce6bc0%2Fijecuzgqan',
+		pageTitle: 'Performer formatting and parentheses',
+		sectionTitle: 'Editorial reference: parentheses stay outside performer formatting',
+		retrievedAt: '2026-08-17',
+		lastVerifiedAt: '2026-08-17',
+		reviewStatus: 'reviewed',
+		authority: 'editorial'
 	},
 	{
 		// A staff reply in a community discussion rather than an accepted
@@ -476,8 +498,11 @@ const sources: SourceReference[] = [
 	{
 		// Re-read in full on 2026-08-12: the whole claim — [?] for a missing
 		// lyric, brackets never parentheses — is checked outright by
-		// `unknown.marker` and `unknown.improvised-marker`, so it seeds no
-		// guidance entry. Staff tier reconfirmed.
+		// `unknown.marker` and `unknown.improvised-marker`. Full text supplied
+		// and re-read on 2026-08-17 for the rule↔guideline linking pass, which
+		// reversed the seeds-no-entry call: the catalog states conventions the
+		// linter checks whole now, so it seeds the unknown-marker entry. Staff
+		// tier reconfirmed.
 		...annotation(
 			'G-UNKNOWN',
 			9303373,
@@ -485,7 +510,7 @@ const sources: SourceReference[] = [
 			'Use [?] for unknown lyrics',
 			'staff'
 		),
-		lastVerifiedAt: '2026-08-12'
+		lastVerifiedAt: '2026-08-17'
 	},
 	{
 		// Re-read in full on 2026-08-12, seconding the guidance catalog's

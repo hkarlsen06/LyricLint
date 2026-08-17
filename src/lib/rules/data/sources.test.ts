@@ -25,6 +25,7 @@ const reviewedIds = [
 	'G-ADD-SONGS',
 	'G-SPELLING',
 	'G-SECTIONS',
+	'G-PERF-PARENS',
 	'G-HEADER-COLLECTIVE',
 	'G-SECTION-NUMBERING',
 	'G-SECTION-HOOK',
@@ -91,6 +92,11 @@ function retrievedOn(id: string): string {
 	if (id === 'G-HEADER-COLLECTIVE') {
 		return '2026-08-10';
 	}
+	// The editorial parenthetical-formatting reference arrived with the
+	// rule↔guideline linking pass.
+	if (id === 'G-PERF-PARENS') {
+		return '2026-08-17';
+	}
 	if (reviewedToday.has(id)) {
 		return '2026-07-27';
 	}
@@ -135,9 +141,15 @@ const guidanceSourcingPass = new Set<string>([
 	...sourcedFromIndex
 ]);
 
+// The rule↔guideline linking pass of 2026-08-17: the maintainer supplied the
+// full text of these pages again, seeding the bracketed-headers,
+// header-lyrics-language, immediate-repeat, and unknown-marker entries and
+// the two G-ADD-SONGS-context advisories.
+const linkingPass = new Set<string>(['G-SECTIONS', 'G-UNKNOWN', 'G-ADD-SONGS']);
+
 function verifiedOn(id: string): string {
-	if (id === 'G-SECTIONS') {
-		return '2026-08-11';
+	if (linkingPass.has(id)) {
+		return '2026-08-17';
 	}
 	if (id === 'G-QE-MARKS') {
 		return '2026-08-10';
@@ -205,7 +217,9 @@ function authorityOf(id: string): string {
 	if (id === 'G-ADD-SONGS' || id === 'G-HEADER-COLLECTIVE' || staffAnnotations.has(id)) {
 		return 'staff';
 	}
-	if (editorialAnnotations.has(id)) {
+	// An editorial reference image rather than an annotation, so it sits
+	// beside the annotation set instead of in it.
+	if (id === 'G-PERF-PARENS' || editorialAnnotations.has(id)) {
 		return 'editorial';
 	}
 	return id.startsWith('G-') ? 'community' : 'external';
@@ -226,7 +240,7 @@ describe('source registry', () => {
 		}
 	});
 
-	it('contains only the 60 specified source records', () => {
-		expect(sourceRegistry.size).toBe(60);
+	it('contains only the 61 specified source records', () => {
+		expect(sourceRegistry.size).toBe(61);
 	});
 });

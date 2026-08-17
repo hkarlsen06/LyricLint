@@ -11,6 +11,11 @@ import corpusJson from '../generated/rules-context.json';
  * first: staff > editorial > external > community. */
 export type CorpusSourceAuthority = 'staff' | 'editorial' | 'external' | 'community';
 
+/** A guidance entry's standing: a source tier, or LyricLint's own advisory —
+ * a preference of the tool's that no Genius source states, whose cited
+ * sources are context rather than backing. */
+export type CorpusGuidanceAuthority = CorpusSourceAuthority | 'lyriclint';
+
 export interface CorpusSource {
 	id: string;
 	pageTitle: string;
@@ -21,9 +26,9 @@ export interface CorpusSource {
 }
 
 /**
- * One guidance-catalog entry: a reviewed transcription convention the linter
- * cannot check whole, paraphrased in LyricLint's own words. Not a rule — it has
- * no id in the answer schema, and its claims are cited through `sourceIds`.
+ * One guidance-catalog entry: a reviewed transcription convention paraphrased
+ * in LyricLint's own words. Not a rule — it has no id in the answer schema,
+ * and its claims are cited through `sourceIds`.
  */
 export interface CorpusGuidanceEntry {
 	id: string;
@@ -33,10 +38,10 @@ export interface CorpusGuidanceEntry {
 	statement: string;
 	/** Verbatim illustrations: the form the convention wants, and the one it corrects. */
 	example?: { correct?: string; incorrect?: string };
-	/** The highest tier among the entry's cited sources. */
-	authority: CorpusSourceAuthority;
+	/** The highest tier among the entry's cited sources, or LyricLint's own advisory. */
+	authority: CorpusGuidanceAuthority;
 	sourceIds: string[];
-	/** Linter rules that check part of this convention. */
+	/** Linter rules that check this convention, in whole or in part. */
 	relatedRuleIds?: string[];
 	note?: string;
 }

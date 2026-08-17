@@ -1,4 +1,6 @@
 import { parseDocument } from '$lib/core/parser.js';
+import { guidanceForRule } from '$lib/guidance/entries.js';
+import type { RuleGuidelineLink } from '$lib/guidance/guidance.js';
 import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 import type {
 	DiagnosticFix,
@@ -79,6 +81,14 @@ export interface RuleReference {
 	 * Absent on a rule that is a judgment rather than a table.
 	 */
 	lookupTerms?: string;
+	/**
+	 * The guideline entries whose convention this rule checks, resolved to their
+	 * topic pages' own anchors. Derived from the guidance catalog's
+	 * `relatedRuleIds` — the same mapping the entries' meta lines draw the other
+	 * way — so the two directions cannot drift apart. Absent while no entry
+	 * names the rule, which is the page drawing nothing.
+	 */
+	guidelines?: RuleGuidelineLink[];
 }
 
 export { ruleSlug };
@@ -262,6 +272,7 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 	const prefix = rule.id.slice(0, rule.id.indexOf('.'));
 	const fix = lead.fixes?.[0];
 	const lookup = ruleLookupTable(rule.id);
+	const guidelines = guidanceForRule(rule.id);
 	return {
 		id: rule.id,
 		title: policy.title,
@@ -278,7 +289,8 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 		valid: policy.valid,
 		sources,
 		seoDescription: seoDescription(lead.explanation),
-		...(lookup ? { lookupTerms: lookupSearchTerms(lookup) } : {})
+		...(lookup ? { lookupTerms: lookupSearchTerms(lookup) } : {}),
+		...(guidelines.length > 0 ? { guidelines } : {})
 	};
 }
 

@@ -21,7 +21,7 @@
 	// somebody had cut in half, next to a row of tabs that are all names.
 	const pageTitle = 'Genius Transcription Guidelines · LyricLint';
 	const pageDescription = $derived(
-		`Reviewed Genius transcription conventions in one place — ${total} of them, each with its source: the guidance the linter cannot check for you, and the rules it enforces itself.`
+		`Reviewed Genius transcription conventions in one place — ${total} of them, each with its source, each naming the linter rules that check it.`
 	);
 	const canonicalUrl = siteUrl('/guidelines/');
 	const structuredData = $derived({
@@ -55,14 +55,15 @@
 	<h1>Genius Transcription Guidelines</h1>
 	<p class="site-lede">
 		Every guideline we have found for writing lyrics on Genius, compiled from staff guides, accepted
-		annotations, and staff rulings. The ones the workbench's
-		<a href={resolve('/rules/')}>linter</a> checks itself open its rule reference; the rest are stated
-		here with the source behind them.
+		annotations, and staff rulings. Each one is stated here with the source behind it, and where the
+		workbench's <a href={resolve('/rules/')}>linter</a> checks a convention, the entry names the rules
+		that do — as each rule's own page links back to its convention here.
 	</p>
 	<p>
 		Every entry says how much standing it has: staff guidance ranks highest, then editor-reviewed
 		annotations, then outside references, then unreviewed community writing. An entry claims only
-		the tier its sources establish.
+		the tier its sources establish — and a few are LyricLint's own advisories, marked as exactly
+		that, because our name goes on a preference no Genius source states.
 	</p>
 
 	<h2>The topics so far</h2>
