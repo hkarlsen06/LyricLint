@@ -540,31 +540,6 @@
 	font-weight: var(--font-weight-medium);
 }
 
-/*
- * A row that is one line: the guidance catalog's linter lookups, whose whole
- * content is a name, the severity that colors it, and the mark that says the
- * row leaves the section (`LinterRuleRow.svelte` carries the reasoning). The
- * run's own `a` is a grid stacking a title over a message over a meta line;
- * this is a flex row, so the glyph sits beside the name rather than above it.
- *
- * `align-items: baseline` and not `center`: the glyph is `--font-size-xs` type
- * against the title's own size, and centred against a title that wraps to two
- * lines it drifts to the middle of the block, which is the trap the timestamp
- * gutter's cell states from the other side. The baseline keeps it on the first
- * line, where the name starts.
- *
- * The selector carries the `a` because `.site-run a` does: a single class loses
- * to it on specificity, and what that looks like is the glyph stacked on its
- * own line above the name — a grid row where a flex item was wanted, which
- * reads as a row that has simply gained a line rather than as a rule that
- * never applied.
- */
-.site-run a.site-run__lean {
-	display: flex;
-	gap: var(--space-2);
-	align-items: baseline;
-}
-
 .site-run__meta {
 	display: flex;
 	gap: var(--space-2);

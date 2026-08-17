@@ -6,11 +6,15 @@
  * finder there has learned this one.
  *
  * The haystack per entry is what its topic page says about it — title,
- * statement, example, note, tier label — and per linter rule its title, so one
- * query answers across both halves of a topic: "question mark" lands on the
- * guidance entry and on `punctuation.question` alike.
+ * statement, example, note, tier label, the rule ids on its meta line — plus
+ * the search terms of the rules it names, so a symptom query still answers
+ * here: "question mark" lands on the unmarked-question entry through
+ * `punctuation.question`'s own title, and `woah` lands on the spelling
+ * entries through `spelling.standardized`'s table. The index used to draw a
+ * row per linter rule and search those; the rows retired when every rule
+ * became reachable through an entry's "Checked by" line, and their terms
+ * folded in here so the finder did not get dumber with them.
  */
-import type { Fixability, Severity } from '$lib/core/types.js';
 import { getSource } from '$lib/rules/data/sources.js';
 import { foldForSearch, searchTokens } from '$lib/rules/reference-search.js';
 import {
@@ -21,30 +25,18 @@ import {
 	type GuidanceTopicLandmark
 } from './guidance.js';
 
-/** A linter rule drawn as a lookup row: what it is, what it says, where. */
-export interface GuidanceLinterRule {
-	id: string;
-	title: string;
-	/** The linter's own wording on the reviewed example — the row's second line. */
-	message: string;
-	slug: string;
-	/** The rule's own severity, so the row wears the same meta it wears at /rules/. */
-	severity: Severity;
-	/** What the rule's example offers, in the rule index's own terms. */
-	fixability: Fixability;
-	/**
-	 * A table-shaped rule's own search terms — every form and condition it
-	 * checks, exactly as the rule index searches them — so `woah` finds the
-	 * standardized-spellings row here the way it finds the rule at `/rules/`.
-	 */
-	lookupTerms?: string;
-}
-
 export interface GuidanceTopicSection {
 	topic: GuidanceTopic;
 	entries: GuidanceEntry[];
 	landmarks?: readonly GuidanceTopicLandmark[];
-	linterRules: GuidanceLinterRule[];
+	/**
+	 * Search terms for the rules this topic's entries and landmarks name —
+	 * each rule's reader-facing title and, for a table-shaped rule, every form
+	 * in its table — keyed by rule id. Derived from the server-only rule
+	 * reference by the section layout's load, which is why it rides the
+	 * section rather than being computed here.
+	 */
+	ruleTerms?: Record<string, string>;
 }
 
 /**
@@ -56,7 +48,14 @@ export interface GuidanceTopicSection {
  * only their ids happened to carry the word. A claim about what a query would
  * or would not distinguish is a measurement, not a judgment.
  */
-function entryHaystack(entry: GuidanceEntry): string {
+function relatedRuleTerms(
+	relatedRuleIds: readonly string[] | undefined,
+	ruleTerms: Record<string, string> | undefined
+): string[] {
+	return (relatedRuleIds ?? []).flatMap((ruleId) => [ruleId, ruleTerms?.[ruleId] ?? '']);
+}
+
+function entryHaystack(entry: GuidanceEntry, ruleTerms?: Record<string, string>): string {
 	return foldForSearch(
 		[
 			guidanceTopicTitles[entry.topic],
@@ -66,7 +65,7 @@ function entryHaystack(entry: GuidanceEntry): string {
 			entry.example?.incorrect ?? '',
 			entry.note ?? '',
 			authorityLabels[entry.authority],
-			...(entry.relatedRuleIds ?? []),
+			...relatedRuleTerms(entry.relatedRuleIds, ruleTerms),
 			...entry.sourceIds.map((id) => getSource(id)?.pageTitle ?? '')
 		].join('\n')
 	);
@@ -88,43 +87,31 @@ export function filterGuidanceSections(
 	return sections
 		.map((section) => ({
 			topic: section.topic,
+			ruleTerms: section.ruleTerms,
 			landmarks: section.landmarks?.filter((landmark) =>
-				matches(
-					foldForSearch(
-						[guidanceTopicTitles[section.topic], landmark.title, landmark.statement].join('\n')
-					),
-					tokens
-				)
-			),
-			entries: section.entries.filter((entry) => matches(entryHaystack(entry), tokens)),
-			linterRules: section.linterRules.filter((rule) =>
 				matches(
 					foldForSearch(
 						[
 							guidanceTopicTitles[section.topic],
-							rule.title,
-							rule.message,
-							rule.id,
-							rule.lookupTerms ?? ''
+							landmark.title,
+							landmark.statement,
+							...relatedRuleTerms(landmark.relatedRuleIds, section.ruleTerms)
 						].join('\n')
 					),
 					tokens
 				)
+			),
+			entries: section.entries.filter((entry) =>
+				matches(entryHaystack(entry, section.ruleTerms), tokens)
 			)
 		}))
-		.filter(
-			(section) =>
-				(section.landmarks?.length ?? 0) > 0 ||
-				section.entries.length > 0 ||
-				section.linterRules.length > 0
-		);
+		.filter((section) => (section.landmarks?.length ?? 0) > 0 || section.entries.length > 0);
 }
 
-/** Entries and linter lookups counted together: the readout's one number. */
+/** Entries and landmarks counted together: the readout's one number. */
 export function countGuidanceLookups(sections: readonly GuidanceTopicSection[]): number {
 	return sections.reduce(
-		(sum, section) =>
-			sum + (section.landmarks?.length ?? 0) + section.entries.length + section.linterRules.length,
+		(sum, section) => sum + (section.landmarks?.length ?? 0) + section.entries.length,
 		0
 	);
 }

@@ -5,7 +5,6 @@ import { guidanceEntries, guidanceForRule, guidanceRegistry, guidanceTopics } fr
 import {
 	guidanceTopicLandmarks,
 	guidanceTopicOrder,
-	guidanceTopicRuleGroups,
 	guidanceTopicTitles,
 	highestAuthority
 } from './guidance.js';
@@ -89,17 +88,6 @@ describe('guidance catalog', () => {
 			'elision-apostrophe'
 		]);
 		expect(guidanceForRule('language.selection-mismatch')).toEqual([]);
-	});
-
-	// The topic pages list these families as their linter lookups; a family
-	// that lost its last rule would silently list nothing.
-	it('maps every topic to linter rule families that still have rules', () => {
-		const prefixes = new Set([...ruleIds].map((ruleId) => ruleId.split('.')[0]));
-		for (const [topic, families] of Object.entries(guidanceTopicRuleGroups)) {
-			for (const family of families) {
-				expect(prefixes.has(family), `${topic} → ${family}`).toBe(true);
-			}
-		}
 	});
 
 	// A title states what the guideline says, compressed — the register of

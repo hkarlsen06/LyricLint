@@ -8,43 +8,31 @@ import {
 	type GuidanceTopicSection
 } from './guidance-search.js';
 
+// The rule terms ride the section exactly as the layout load delivers them:
+// synthetic strings standing in for a rule's reader-facing title and, for a
+// table-shaped rule, its lookup terms. What matters is only that they appear
+// in no other haystack string, so a hit through them is unambiguous.
+const ruleTerms: Record<string, string> = {
+	'punctuation.question': 'A question mark the line needs',
+	'quotes.typewriter': 'Typewriter quotes\nwoah whoa',
+	'spelling.standardized': 'Standardized lyric spellings\nimma tryna'
+};
+
 const sections: GuidanceTopicSection[] = guidanceTopics().map(({ topic, entries }) => ({
 	topic,
 	entries,
 	landmarks: guidanceTopicLandmarks[topic] ?? [],
-	linterRules: [
-		{
-			id: 'punctuation.question',
-			title: 'A question mark the line needs',
-			message: 'This clearly interrogative line may need a question mark.',
-			slug: 'punctuation-question',
-			severity: 'suggestion',
-			fixability: 'none'
-		},
-		{
-			id: 'quotes.typewriter',
-			title: 'Typewriter quotes',
-			message: 'Use a straight apostrophe.',
-			slug: 'quotes-typewriter',
-			severity: 'warning',
-			fixability: 'safe',
-			// Synthetic terms standing in for a table-shaped rule's own — what
-			// matters is only that they appear in no other haystack string.
-			lookupTerms: 'woah whoa'
-		}
-	]
+	ruleTerms
 }));
 
 describe('guidance search', () => {
 	it('returns everything for an empty query', () => {
 		expect(filterGuidanceSections(sections, '')).toEqual(sections);
-		// The fixture attaches its two linter rows to every topic, so the total
-		// follows the topic count rather than assuming one. Topic landmarks are
-		// first-class lookups too: the standardized table must count in the field
-		// whose list it appears in.
+		// Entries and landmarks are the conventions; the readout counts nothing
+		// else — the linter rows the index used to draw are gone, and counting
+		// rules as conventions was the double-count that went with them.
 		expect(countGuidanceLookups(sections)).toBe(
 			guidanceEntries.length +
-				sections.length * 2 +
 				sections.reduce((sum, section) => sum + (section.landmarks?.length ?? 0), 0)
 		);
 	});
@@ -54,18 +42,6 @@ describe('guidance search', () => {
 		expect(filtered.flatMap((section) => section.landmarks ?? []).map(({ id }) => id)).toEqual([
 			'standardized-spellings'
 		]);
-	});
-
-	it('narrows entries and linter rules with one query', () => {
-		const filtered = filterGuidanceSections(sections, 'question');
-		expect(countGuidanceLookups(filtered)).toBeGreaterThan(0);
-		const titles = filtered.flatMap((section) => [
-			...section.entries.map((entry) => entry.title),
-			...section.linterRules.map((rule) => rule.title)
-		]);
-		expect(titles).toContain('Questions always end with a question mark');
-		expect(titles).toContain('A question mark the line needs');
-		expect(titles).not.toContain('Typewriter quotes');
 	});
 
 	it('matches an entry by its statement and note, not just its title', () => {
@@ -87,28 +63,42 @@ describe('guidance search', () => {
 	});
 
 	// The topic's own name — the heading over the rows, and the most obvious
-	// query a newcomer types. Measured before it was in the haystack: it kept
-	// only the linter rows whose ids happened to carry the word and dropped
-	// every guidance entry under the heading that said it.
+	// query a newcomer types. Measured before it was in the haystack: it
+	// dropped every guidance entry under the heading that said it.
 	it('keeps everything under a topic whose own title is the query', () => {
 		const filtered = filterGuidanceSections(sections, 'punctuation');
 		const punctuation = filtered.find((section) => section.topic === 'punctuation');
 		expect(punctuation?.entries).toHaveLength(
 			sections.find((section) => section.topic === 'punctuation')!.entries.length
 		);
-		// The rules under the heading are covered by it too — `quotes.typewriter`
-		// carries the word in neither its id nor its title.
-		expect(punctuation?.linterRules.map((rule) => rule.title)).toContain('Typewriter quotes');
 	});
 
-	// A table-shaped rule's row answers for the forms it checks, exactly as it
-	// does at /rules/ — `woah` has to find the standardized spellings here too,
-	// because the spelling topic page draws that table.
-	it('matches a linter row by its lookup terms', () => {
-		const filtered = filterGuidanceSections(sections, 'whoa');
-		const titles = filtered.flatMap((section) => section.linterRules.map((rule) => rule.title));
-		expect(titles).toContain('Typewriter quotes');
-		expect(titles).not.toContain('A question mark the line needs');
+	// A symptom query still answers here now that the index draws no rule
+	// rows: an entry's haystack folds in the search terms of the rules it
+	// names — the rule's failure-naming title, and a table-shaped rule's own
+	// forms. `whoa` reaches the quotation entry through `quotes.typewriter`'s
+	// terms, exactly as it reaches the rule at /rules/.
+	it("matches an entry through its related rules' titles and lookup terms", () => {
+		const throughTitle = filterGuidanceSections(sections, 'a question mark the line needs')
+			.flatMap((section) => section.entries)
+			.map((entry) => entry.id);
+		expect(throughTitle).toContain('guidance.punctuation.unmarked-question');
+
+		const throughTerms = filterGuidanceSections(sections, 'whoa')
+			.flatMap((section) => section.entries)
+			.map((entry) => entry.id);
+		expect(throughTerms).toContain('guidance.punctuation.quotation-usage');
+		expect(throughTerms).not.toContain('guidance.punctuation.unmarked-question');
+	});
+
+	// The landmark answers for its rules the same way: the standardized table
+	// is `spelling.standardized`'s data, so the table's own forms have to land
+	// on the landmark that draws it.
+	it("matches a landmark through its related rules' lookup terms", () => {
+		const filtered = filterGuidanceSections(sections, 'tryna');
+		expect(filtered.flatMap((section) => section.landmarks ?? []).map(({ id }) => id)).toContain(
+			'standardized-spellings'
+		);
 	});
 
 	// What is searchable is what the page says — and the page says the citation

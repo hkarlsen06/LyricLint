@@ -1,28 +1,36 @@
 /**
- * The per-topic "checked by the linter" lookups, derived from the rule
- * reference at prerender time. A `.server` module because `reference.ts` is
- * server-only by design (deriving it in a browser throws) and must never ride
- * into a documentation page's bundle — both guidelines loads read this instead
- * of each holding the derivation.
+ * Search terms for the linter rules the guidance entries name, derived from
+ * the rule reference at prerender time. A `.server` module because
+ * `reference.ts` is server-only by design (deriving it in a browser throws)
+ * and must never ride into a documentation page's bundle — the guidelines
+ * layout load reads this instead of holding the derivation.
+ *
+ * This is what keeps the guidance finder answering symptom queries now that
+ * the index draws no rule rows of its own: an entry's haystack folds in each
+ * named rule's reader-facing title and, for a table-shaped rule, every form
+ * in its table, so `woah` still lands on the spelling topic and "question
+ * mark" on the unmarked-question entry.
  */
-import { ruleFixability } from '$lib/rules/reference-search.js';
-import { groupedRuleReferences } from '$lib/rules/reference.js';
-import { guidanceTopicRuleGroups, type GuidanceTopic } from './guidance.js';
-import type { GuidanceLinterRule } from './guidance-search.js';
+import { ruleReferences } from '$lib/rules/reference.js';
 
-export function guidanceTopicLinterRules(topic: GuidanceTopic): GuidanceLinterRule[] {
-	const families = new Set<string>(guidanceTopicRuleGroups[topic]);
-	return groupedRuleReferences()
-		.filter((group) => families.has(group.group))
-		.flatMap((group) =>
-			group.rules.map((rule) => ({
-				id: rule.id,
-				title: rule.title,
-				message: rule.message,
-				slug: rule.slug,
-				severity: rule.severity,
-				fixability: ruleFixability(rule),
-				...(rule.lookupTerms ? { lookupTerms: rule.lookupTerms } : {})
-			}))
+let termsById: Map<string, string> | undefined;
+
+/** The searchable terms for these rules, keyed by id; unknown ids drop out. */
+export function guidanceRuleTerms(ruleIds: Iterable<string>): Record<string, string> {
+	if (!termsById) {
+		termsById = new Map(
+			ruleReferences().map((rule) => [
+				rule.id,
+				[rule.title, rule.lookupTerms ?? ''].filter(Boolean).join('\n')
+			])
 		);
+	}
+	const terms: Record<string, string> = {};
+	for (const ruleId of ruleIds) {
+		const entry = termsById.get(ruleId);
+		if (entry !== undefined) {
+			terms[ruleId] = entry;
+		}
+	}
+	return terms;
 }

@@ -92,39 +92,6 @@ export interface RuleGuidelineLink {
 }
 
 /**
- * The linter rule families each topic page also lists, as lookups pointing
- * into `/rules/<slug>/` — so a topic is one place to look a convention up
- * whether the linter checks it or not. The list is derived from the rule
- * reference at prerender time and never written out here; what is editorial
- * is only which families belong to which topic. Keys are rule-id prefixes
- * (`punctuation.question` → `punctuation`), and `guidance.test.ts` pins that
- * every named family still has rules.
- */
-export const guidanceTopicRuleGroups: Record<GuidanceTopic, readonly string[]> = {
-	'section-headers': ['section', 'performer'],
-	spelling: ['spelling', 'contraction'],
-	capitalization: ['capitalization'],
-	// The sound-effect family sits with the ad-libs: both are marks about what
-	// a voice is doing beside the lead, and G-SFX is this cluster's other half.
-	'ad-libs': ['adlib', 'sound-effect'],
-	punctuation: ['punctuation', 'quotes'],
-	// The text family is whitespace hygiene — doubled spaces, invisible
-	// characters — which is a fact about how a line is laid out, so it sits
-	// with the line-format conventions rather than under any other topic.
-	lines: ['line', 'repeat', 'text'],
-	// Both families are marks standing in for words the transcriber cannot
-	// write as sung — censored by the recording, or impossible to make out —
-	// which is also why the unknown family homes here although its own source
-	// seeds no entries: the [?] rules check the whole of that convention.
-	'censored-unknown': ['censored', 'unknown'],
-	numbers: ['numbers'],
-	'non-english': ['language'],
-	// Sourcing is about where a transcription comes from, which no rule can
-	// see — the empty list is the honest answer, not a placeholder.
-	sourcing: []
-};
-
-/**
  * An entry's standing: a source tier, or LyricLint's own advisory.
  *
  * `lyriclint` is for a convention that is LyricLint's own preference rather

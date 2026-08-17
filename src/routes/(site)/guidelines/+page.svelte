@@ -69,14 +69,14 @@
 	<h2>The topics so far</h2>
 	<p>Every convention is in the list beside this page; each topic also reads whole:</p>
 	<ul class="site-run">
-		{#each data.sections as { topic, entries, linterRules } (topic)}
+		{#each data.sections as { topic, entries, landmarks } (topic)}
+			{@const count = entries.length + (landmarks?.length ?? 0)}
 			<li>
 				<a href="{resolve('/(site)/guidelines/[topic]', { topic })}/">
 					<span class="site-run__title">{guidanceTopicTitles[topic]}</span>
 					<span class="site-run__message">
-						{entries.length}
-						{entries.length === 1 ? 'guideline' : 'guidelines'} · {linterRules.length} linter
-						{linterRules.length === 1 ? 'rule' : 'rules'}
+						{count}
+						{count === 1 ? 'convention' : 'conventions'}
 					</span>
 				</a>
 			</li>

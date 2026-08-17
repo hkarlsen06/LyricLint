@@ -11,7 +11,6 @@
 	import { readingAnchor } from './guidance-reading.svelte.js';
 	import { guidanceSearchQuery, setGuidanceSearchQuery } from './guidance-search.svelte.js';
 	import { safeDecodeHash } from './hash.js';
-	import LinterRuleRow from './LinterRuleRow.svelte';
 	import { followSelectedRow, revealSelectedRow } from './reveal-selected.js';
 
 	let {
@@ -112,8 +111,8 @@
 
 <div class="site-split__index" data-sveltekit-noscroll bind:this={column}>
 	<!-- The rule reference's own finder, minus its chips: severity and
-	     fixability are facts about linter rules, and most of this list is
-	     guidance the linter cannot check. The struck-through sparkles at the
+	     fixability are facts about linter rules, and this list is the
+	     conventions rather than the checks. The struck-through sparkles at the
 	     field's end is the assistant's toggle; the spark owns the row, and this
 	     component only supplies its own search field. -->
 	<search class="site-finder">
@@ -148,15 +147,16 @@
 	</search>
 
 	<nav aria-label="Transcription guidelines">
-		{#each filtered as { topic, landmarks, entries, linterRules } (topic)}
+		{#each filtered as { topic, landmarks, entries } (topic)}
 			<h2 class="site-index__group">{guidanceTopicTitles[topic]}</h2>
 			<!-- One bordered run per topic, hairlines between rows — the same
-			     material as the rule index's runs. A guidance row opens its entry on
-			     the topic page, anchored and washed, and states the convention where
-			     it stands; a linter row is one line pointing out to the rule
-			     reference, where the same rule is read whole (`LinterRuleRow`). Only
-			     guidance rows are ever `aria-current`: a linter row's page is never
-			     this section's. -->
+			     material as the rule index's runs. A row opens its entry on the
+			     topic page, anchored and washed, and states the convention where it
+			     stands; the way out to the rule reference is each entry's own
+			     "Checked by" line. The index used to close every topic with a run of
+			     linter-rule rows; they retired when every rule became reachable
+			     through an entry, with their search terms folded into the entries'
+			     haystacks (`ruleTerms` on the section). -->
 			<ul class="site-run">
 				{#each landmarks ?? [] as landmark (landmark.id)}
 					<li>
@@ -179,9 +179,6 @@
 							<span class="site-run__message">{entry.statement}</span>
 						</a>
 					</li>
-				{/each}
-				{#each linterRules as rule (rule.id)}
-					<LinterRuleRow {rule} />
 				{/each}
 			</ul>
 		{/each}

@@ -8,32 +8,18 @@ import { setReadingAnchor } from './guidance-reading.svelte.js';
 import { setGuidanceSearchQuery } from './guidance-search.svelte.js';
 import GuidanceIndex from './GuidanceIndex.svelte';
 
-// The real catalog plus a fixed pair of linter lookups: the entries are what
-// ships, and the two rules pin the half of every assertion that is about the
-// list carrying both kinds of row without depending on which rules a topic's
-// families hold this release.
+// The real catalog, with rule terms as the layout load delivers them:
+// synthetic strings that appear in no entry's own text, so an assertion about
+// a hit through them is unambiguous. The index draws no rule rows — the terms
+// are only searchable facts on the entries that name the rules.
 const sections: GuidanceTopicSection[] = guidanceTopics().map(({ topic, entries }) => ({
 	topic,
 	entries,
 	landmarks: guidanceTopicLandmarks[topic] ?? [],
-	linterRules: [
-		{
-			id: 'punctuation.question',
-			title: 'A question mark the line needs',
-			message: 'This clearly interrogative line may need a question mark.',
-			slug: 'punctuation-question',
-			severity: 'suggestion',
-			fixability: 'none'
-		},
-		{
-			id: 'quotes.typewriter',
-			title: 'Typewriter quotes',
-			message: 'Use a straight apostrophe.',
-			slug: 'quotes-typewriter',
-			severity: 'warning',
-			fixability: 'safe'
-		}
-	]
+	ruleTerms: {
+		'punctuation.question': 'A question mark the line needs',
+		'quotes.typewriter': 'Typewriter quotes\nwoah whoa'
+	}
 }));
 
 const total = countGuidanceLookups(sections);
@@ -62,23 +48,28 @@ beforeEach(() => {
 });
 
 describe('GuidanceIndex', () => {
-	it('lists every convention — guidance entries and linter rules — under topic headings', () => {
+	it('lists every convention under topic headings, and no linter rows', () => {
 		render(GuidanceIndex, { sections });
 
 		expect(rows()).toHaveLength(total);
 		const titles = rows().map((row) => row.querySelector('.site-run__title')?.textContent?.trim());
 		expect(titles[0]).toBe('The standardized spellings');
 		expect(titles).toContain(firstEntry.title);
-		expect(titles).toContain('A question mark the line needs');
-		// A guidance row opens its entry's fragment on the topic page; a linter row
-		// leaves for the rule reference. The two kinds are one run, told apart by
-		// where they go.
+		// Every row is a convention opening its own fragment on a topic page. The
+		// index used to close each topic with rows pointing out to the rule
+		// reference; those retired when every rule became reachable through an
+		// entry's "Checked by" line, so a row leaving the section again is the
+		// regression.
 		const hrefs = rows().map((row) => row.getAttribute('href') ?? '');
 		expect(hrefs.some((href) => href.endsWith(`#${entryAnchor(firstEntry.id)}`))).toBe(true);
-		expect(hrefs.some((href) => href.endsWith('/rules/punctuation-question/'))).toBe(true);
+		expect(hrefs.some((href) => href.includes('/rules/'))).toBe(false);
+		// A row is not a pointer: its statement is the convention itself.
+		const entry = rows().find((candidate) => candidate.textContent?.includes(firstEntry.title));
+		expect(entry?.querySelector('.site-run__message')?.textContent).toBe(firstEntry.statement);
+		expect(entry?.target).toBe('');
 	});
 
-	it('narrows both kinds with one query, and the readout only draws while it narrows', async () => {
+	it('narrows with one query, and the readout only draws while it narrows', async () => {
 		render(GuidanceIndex, { sections });
 
 		// `N of N lookups` under a field nobody has typed in is a count that could
@@ -88,9 +79,15 @@ describe('GuidanceIndex', () => {
 		await field().fill('question');
 		const titles = rows().map((row) => row.querySelector('.site-run__title')?.textContent?.trim());
 		expect(titles).toContain('Questions always end with a question mark');
-		expect(titles).toContain('A question mark the line needs');
-		expect(titles).not.toContain('Typewriter quotes');
 		await expect.element(page.getByRole('status')).toBeVisible();
+
+		// A symptom query answers through the named rules' terms — the searchable
+		// half the retired rule rows left behind, folded into the entries.
+		await field().fill('whoa');
+		const bySymptom = rows().map((row) =>
+			row.querySelector('.site-run__title')?.textContent?.trim()
+		);
+		expect(bySymptom).toContain('Quotes mark titles, speech, and mentions');
 
 		await page.getByRole('button', { name: 'Clear search' }).click();
 		expect(rows()).toHaveLength(total);
@@ -103,50 +100,6 @@ describe('GuidanceIndex', () => {
 		await field().fill('zzz-no-such-convention');
 		expect(rows()).toHaveLength(0);
 		expect(document.querySelector('.site-index__empty')?.textContent).toContain('No convention');
-	});
-
-	it('draws a linter row as one line, and a guidance row as its statement', () => {
-		// A linter row points out of the section, so it is a name, the severity
-		// that colors it, and the leaving mark — the wording, the id and the fix
-		// kind are on the rule's own page, one press away. A guidance row is not
-		// a pointer: its statement is the convention itself, so it keeps it.
-		render(GuidanceIndex, { sections });
-
-		const rule = rows().find((candidate) =>
-			candidate.textContent?.includes('A question mark the line needs')
-		);
-		expect(rule?.textContent).not.toContain('punctuation.question');
-		expect(rule?.textContent).not.toContain('No automatic fix');
-		expect(rule?.querySelector('.site-run__message')).toBeNull();
-		// The severity is on it as a glyph, with the word left in the accessible
-		// tree rather than on screen.
-		expect(rule?.querySelector('.severity--suggestion')).not.toBeNull();
-		expect(rule?.querySelector('.severity .sr-only')?.textContent).toBe('Suggestion');
-
-		const entry = rows().find((candidate) => candidate.textContent?.includes(firstEntry.title));
-		expect(entry?.querySelector('.site-run__message')?.textContent).toBe(firstEntry.statement);
-	});
-
-	it('opens a linter rule in a tab, and an entry in place', () => {
-		// A rule is a lookup beside the topic being read, so taking it in place
-		// costs the reader the place they were in — and the way back on this
-		// surface returns to the catalog's welcome view, not to their entry. The
-		// mark says the row leaves and the sr-only note says it opens a tab,
-		// which the mark cannot: it is `aria-hidden`, and a new tab is a fact
-		// about the press rather than about the destination.
-		render(GuidanceIndex, { sections });
-
-		const rule = rows().find((candidate) =>
-			candidate.textContent?.includes('A question mark the line needs')
-		);
-		expect(rule?.target).toBe('_blank');
-		expect(rule?.rel).toBe('noopener noreferrer');
-		expect(rule?.textContent).toContain('opens in a new tab');
-
-		// An entry row stays inside the section: it is a fragment on a page of
-		// this catalog, and a tab per convention would be a tab per press.
-		const entry = rows().find((candidate) => candidate.textContent?.includes(firstEntry.title));
-		expect(entry?.target).toBe('');
 	});
 
 	it('marks the entry the fragment names as the page, and only that one', async () => {
