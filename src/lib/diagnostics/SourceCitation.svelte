@@ -107,7 +107,16 @@
 				aria-hidden="true"
 				size={11}
 				strokeWidth={2.2}
-			/>
+			/><!--
+				The mark above is aria-hidden, so without this the only thing saying
+				the press leaves the surface is a glyph a screen reader cannot see.
+				It joins the link's own *name*, which is what keeps it clear of the
+				arrangement below: the description stays the tooltip's text, carried
+				by `aria-describedby`. Named and described are two channels, so
+				nothing is announced twice.
+			--><span
+				class="sr-only">(opens in a new tab)</span
+			>
 		</a>
 		<!-- eslint-enable svelte/no-navigation-without-resolve -->
 	{:else}

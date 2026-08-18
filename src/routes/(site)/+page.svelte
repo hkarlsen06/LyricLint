@@ -2,7 +2,9 @@
 	import { BookOpen, Check } from 'lucide-svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
+	import { authorityLabels, type GuidanceAuthority } from '$lib/guidance/guidance.js';
 	import { siteUrl } from '$lib/seo.js';
+	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
 	import LazyLiveDemo from '$lib/ui/site/LazyLiveDemo.svelte';
 	import LyricIcon from '$lib/ui/site/LyricIcon.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
@@ -103,6 +105,8 @@
 	// states a count is making a claim about the product, and a hand-written one
 	// is wrong the first time a rule ships.
 	const ruleCount = $derived(data.ruleCount);
+	const guidanceCount = $derived(data.guidanceCount);
+	const guidanceTopicCount = $derived(data.guidanceTopicCount);
 	const pageTitle = 'Free lyric formatter for Genius transcriptions · LyricLint';
 	const pageDescription = $derived(
 		`A free lyric formatter and checker for Genius transcriptions: ${ruleCount} reviewed formatting rules plus local grammar and spelling checks for section headers, performer markup, punctuation, and more. Runs in your browser.`
@@ -166,6 +170,46 @@ And the "quiet" part was never really quiet`;
 		{ key: 'voice', text: '<i>Blair</i>' },
 		{ key: 'unknown', text: '[?]' },
 		{ key: 'adlib', text: '(Yeah)' }
+	];
+
+	/*
+	 * Three real entries from the guidance catalog, one per tier the catalog
+	 * currently holds, reproduced as markup rather than screenshotted for the
+	 * linter panel's reason: legible at any width and in the accessible tree.
+	 * The titles quote `src/lib/guidance/entries.ts`, so a reworded entry means
+	 * re-quoting it here — grep for the title. The tier label and its ladder
+	 * both come off `authority`, through the same `authorityLabels` and
+	 * `AuthorityLadder` the topic pages draw theirs with, so the reproduction
+	 * cannot come to state a standing differently than the page it reproduces.
+	 */
+	interface LandingGuideline {
+		key: string;
+		title: string;
+		authority: GuidanceAuthority;
+		correct?: string;
+		incorrect?: string;
+	}
+
+	const guidelines: readonly LandingGuideline[] = [
+		{
+			key: 'headers',
+			title: 'Song parts open with bracketed headers',
+			correct: '[Verse 1]',
+			incorrect: 'Verse 1:',
+			authority: 'staff'
+		},
+		{
+			key: 'parens',
+			title: 'Parentheses sit outside voice formatting',
+			correct: 'We own the night (<i>We own it</i>)',
+			incorrect: 'We own the night <i>(We own it)</i>',
+			authority: 'editorial'
+		},
+		{
+			key: 'blank-line',
+			title: 'One blank line between song parts',
+			authority: 'lyriclint'
+		}
 	];
 </script>
 
@@ -641,6 +685,73 @@ And the "quiet" part was never really quiet`;
 					using the online options stops working offline. And you can ask the rules assistant a
 					question about the guidelines, which sends that question — never your 'scribe — to be
 					answered. <a href={resolve('/privacy/')}>The privacy page</a> lists everything.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- The guidance catalog: the conventions themselves, not just the checks.
+	     The evidence is a reproduction of three real entries — the convention as
+	     an instruction, the form it wants over the form it corrects, and the
+	     entry's standing — because the tier ladder is the thing this section has
+	     to show that no other section has. Un-flipped, so the page's splits keep
+	     alternating after the two flipped ones above it. -->
+	<section class="lp-section">
+		<div class="lp-container lp-split">
+			<div class="lp-panel">
+				<div class="lp-panel__head">Guidelines</div>
+				{#each guidelines as entry (entry.key)}
+					<div class="lp-guideline">
+						<span class="lp-guideline__title">{entry.title}</span>
+						{#if entry.correct}
+							<span class="lp-guideline__pair">
+								<span class="lp-guideline__form">
+									<span class="lp-guideline__mark lp-guideline__mark--correct" aria-hidden="true"
+										>✓</span
+									>
+									<span class="sr-only">Correct:</span>
+									<span class="lp-guideline__text">{entry.correct}</span>
+								</span>
+								{#if entry.incorrect}
+									<span class="lp-guideline__form">
+										<span class="lp-guideline__mark lp-guideline__mark--flagged" aria-hidden="true"
+											>✕</span
+										>
+										<span class="sr-only">Flagged:</span>
+										<span class="lp-guideline__text lp-guideline__text--flagged"
+											>{entry.incorrect}</span
+										>
+									</span>
+								{/if}
+							</span>
+						{/if}
+						<span class="lp-guideline__meta">
+							<AuthorityLadder authority={entry.authority} />
+							<span>{authorityLabels[entry.authority]}</span>
+						</span>
+					</div>
+				{/each}
+			</div>
+
+			<div class="lp-split__copy">
+				<h2>Every guideline we could find, in one place.</h2>
+				<p class="lp-prose">
+					Genius's transcription guidance is scattered across staff guides, accepted annotations,
+					and forum rulings. The Guidelines gather it: {guidanceCount} reviewed conventions across
+					{guidanceTopicCount} topics — section headers, spelling, ad-libs, censored and unknown words,
+					non-English songs, and more — each stated plainly with the source behind it, including the conventions
+					no linter could check.
+				</p>
+				<p class="lp-prose">
+					Every entry says how much standing it has: staff guidance ranks above editor-reviewed
+					annotations, and those above outside references and community writing. Where a convention
+					is LyricLint's own preference rather than anything Genius states, it is marked as exactly
+					that — and where the linter checks a convention, the entry names the rules that check it,
+					and each rule's page links back.
+				</p>
+				<p class="lp-prose">
+					<a href={resolve('/guidelines/')}>Go to the Guidelines</a> — they read on their own, before
+					the workbench is ever open.
 				</p>
 			</div>
 		</div>

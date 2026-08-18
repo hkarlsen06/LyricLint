@@ -4596,9 +4596,11 @@ carried the rules' failure-naming titles and, for table-shaped rules, every form
 `guidanceRuleTerms` (`lookups.server.ts`) ships each named rule's title and lookup terms on the
 section as `ruleTerms`, and the entry and landmark haystacks read them — server-derived, because
 the reference is server-only, which is why the terms ride the layout load rather than being
-computed in the browser. `language.selection-mismatch` is deliberately the one rule no entry
-names: it is about the workbench's language picker, not a Genius convention, so it has no
-`/guidelines/` surface at all.
+computed in the browser. `language.selection-mismatch` is deliberately named by no entry: it is
+about the workbench's language picker, not a Genius convention, so it has no `/guidelines/`
+surface at all. The three Harper ids (`spelling.harper`, `grammar.harper`, `style.harper`) are
+the only other unnamed rules, for Harper's own reason — their findings cite Harper rather than a
+guideline, so there is no convention to point an entry at.
 
 **`target="_blank"` is one direction only.** A reader in this catalog is working _through_ a
 topic — down the list, or down a page of entries they have scrolled and deep-linked into — and a

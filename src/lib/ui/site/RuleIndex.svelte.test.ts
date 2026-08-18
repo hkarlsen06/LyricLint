@@ -8,9 +8,11 @@ import RuleIndex from './RuleIndex.svelte';
 import { setHoveredRuleSlug } from './rule-hover.svelte.js';
 import { ruleSearchQuery, setRuleSearchQuery } from './rule-search.svelte.js';
 
-// The real index, not a fixture: what this component has to survive is fifty-two
-// rules in nineteen groups, and a hand-made pair of them would pass every
-// assertion below while telling us nothing about the page that ships.
+// The real index, not a fixture: what this component has to survive is the whole
+// catalog, whatever its size, across nineteen groups — and a hand-made pair of
+// rules would pass every assertion below while telling us nothing about the page
+// that ships. Every count here is read off it rather than written down, or the
+// next rule to be added breaks a test that is about something else.
 //
 // `reference.ts` loads the statistical detector for itself only when there is no
 // `window` — the static builder needs it synchronously, a browser fetches it on
@@ -81,6 +83,20 @@ function field() {
 	return page.getByRole('searchbox', { name: 'Search the formatting rules' });
 }
 
+/**
+ * The visible count, which draws only while something narrows the list, and the
+ * live region beside it, which is always mounted. They carry the same sentence
+ * while the list is narrowed, so both are read off their own element — a
+ * `getByText` for the count would find two of it and refuse.
+ */
+function readout(): string {
+	return document.querySelector('.site-finder__readout span')?.textContent?.trim() ?? '';
+}
+
+function status(): HTMLElement | null {
+	return document.querySelector<HTMLElement>('.site-finder [role="status"]');
+}
+
 describe('RuleIndex', () => {
 	it('names each row by what the rule catches, and keeps the linter’s message under it', async () => {
 		render(RuleIndex, { groups });
@@ -139,9 +155,35 @@ describe('RuleIndex', () => {
 	it('says nothing about a count while nothing is narrowing the list', () => {
 		render(RuleIndex, { groups });
 
-		// `52 of 52 rules` is a number that could not have been otherwise, and the
+		// `N of N rules` is a number that could not have been otherwise, and the
 		// page beside this column already states how many there are.
 		expect(document.querySelector('.site-finder__readout')).toBeNull();
+		// The live region is mounted all the same, and empty: an element inserted
+		// already carrying its text is an addition to the accessibility tree rather
+		// than a change inside a region, and most screen readers announce only the
+		// change — so the first narrowing would be the one that went unsaid.
+		expect(status()?.textContent).toBe('');
+	});
+
+	it('speaks each narrowing, and says the whole list is back rather than falling silent', async () => {
+		render(RuleIndex, { groups });
+
+		await field().fill('definately');
+		await expect.poll(() => status()?.textContent).toBe(`1 of ${total} rules`);
+
+		// Emptying the region announces nothing, so returning to everything has to
+		// be a sentence of its own rather than the absence of one.
+		await page.getByRole('button', { name: 'Clear filters' }).click();
+		await expect.poll(() => status()?.textContent).toBe(`All ${total} rules`);
+	});
+
+	it('speaks a chip’s narrowing too, because a filter is not only what was typed', async () => {
+		render(RuleIndex, { groups });
+
+		await page.getByRole('button', { name: /^Warnings/u }).click();
+
+		await expect.poll(() => status()?.textContent).toBe(`${rows().length} of ${total} rules`);
+		expect(rows().length).toBeLessThan(total);
 	});
 
 	it('narrows to the rule whose example carries the word the reader typed', async () => {
@@ -152,7 +194,7 @@ describe('RuleIndex', () => {
 		expect(titles()).toEqual(['A common English misspelling']);
 		// A group that keeps nothing is dropped, not left standing empty.
 		expect(headings()).toEqual(['Spelling']);
-		await expect.element(page.getByText(`1 of ${total} rules`)).toBeVisible();
+		expect(readout()).toBe(`1 of ${total} rules`);
 	});
 
 	it('searches the guidance and the identifier as well as the examples', async () => {
@@ -197,7 +239,8 @@ describe('RuleIndex', () => {
 
 		expect(rows()).toHaveLength(0);
 		await expect.element(page.getByText('No rule matches this search.')).toBeVisible();
-		await expect.element(page.getByText(`0 of ${total} rules`)).toBeVisible();
+		expect(readout()).toBe(`0 of ${total} rules`);
+		await expect.poll(() => status()?.textContent).toBe(`0 of ${total} rules`);
 	});
 
 	it('clears the field on Escape', async () => {
@@ -315,6 +358,36 @@ describe('RuleIndex', () => {
 		for (const row of current) expect(row.getAttribute('href')?.endsWith(`/${slug}/`)).toBe(true);
 		// And a rule that is not popular keeps exactly one.
 		expect(rows().filter((row) => row.getAttribute('aria-current') === 'page')).toHaveLength(1);
+	});
+
+	// The marked row's depth — a recessed fill and an inset shadow — is erased
+	// wholesale under forced colors, which would leave "you are here" carried by
+	// nothing at all for a Windows High Contrast reader. A border is redrawn in
+	// the forced ink instead, so the row also opens with an upright at its start.
+	// Measured rather than trusted: the rule is one declaration away from being a
+	// selector that matches nothing, and a row with no marker looks exactly like
+	// a row that was never current.
+	it('marks the open rule’s row with a border as well as with depth', () => {
+		const slug = groups[0]?.rules[0]?.slug;
+		render(RuleIndex, { groups, selectedSlug: slug });
+
+		const current = document.querySelector<HTMLElement>('.site-run > li > a[aria-current="page"]')!;
+		const style = getComputedStyle(current);
+
+		expect(style.borderInlineStartStyle).toBe('solid');
+		expect(Number.parseFloat(style.borderInlineStartWidth)).toBe(3);
+		// A colour that resolves, and not the transparent one a missing token
+		// would leave behind — which would draw nothing while measuring 3px.
+		expect(style.borderInlineStartColor).not.toBe('rgba(0, 0, 0, 0)');
+		expect(style.borderInlineStartColor).not.toBe('transparent');
+		// The bar's width comes back out of the padding, so the marked row's text
+		// keeps the x of every row around it.
+		const plain = document.querySelector<HTMLElement>(
+			'.site-run > li > a:not([aria-current="page"])'
+		)!;
+		expect(
+			Number.parseFloat(style.paddingInlineStart) + Number.parseFloat(style.borderInlineStartWidth)
+		).toBeCloseTo(Number.parseFloat(getComputedStyle(plain).paddingInlineStart), 1);
 	});
 
 	it('leads with the rules a transcriber has to be told, and drops them once asked', async () => {

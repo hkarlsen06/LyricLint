@@ -670,7 +670,10 @@ export function guidanceTopics(): Array<{
  * the entries' own meta lines draw — one mapping, read from both ends, so the
  * rule page and the topic page cannot disagree about which convention a rule
  * checks. Landmarks count too: `spelling.standardized`'s guideline is the
- * standardized-spellings table itself. Entries come out in catalog order;
+ * standardized-spellings table itself, and its anchor is derived through
+ * `entryAnchor` exactly as an entry's is — a no-op for every landmark id today,
+ * and one derivation rather than two conventions that happen to agree.
+ * Entries come out in catalog order;
  * a rule no entry names comes out empty, which is the page drawing nothing.
  */
 export function guidanceForRule(ruleId: string): RuleGuidelineLink[] {
@@ -681,7 +684,7 @@ export function guidanceForRule(ruleId: string): RuleGuidelineLink[] {
 				links.push({
 					topic,
 					topicTitle: guidanceTopicTitles[topic],
-					anchor: landmark.id,
+					anchor: entryAnchor(landmark.id),
 					title: landmark.title
 				});
 			}

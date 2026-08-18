@@ -54,6 +54,27 @@ function makeAssistant(overrides: Partial<AssistantDeps> = {}) {
 afterEach(cleanup);
 
 describe('the assistant dialog', () => {
+	test('the header names the assistant, not one of the three doors into it', async () => {
+		const assistant = makeAssistant();
+		const { container, getByRole } = render(AssistantDialog, { assistant });
+		await assistant.open();
+
+		// One modal, three entry points — the rule reference, the guidance
+		// catalog and the workbench — so a title naming the rules alone was
+		// false from two of them and argued with its own subtitle. The name
+		// says who is being asked; the line under it says what they cover.
+		const heading = container.querySelector('.assistant-dialog__heading')!;
+		expect(heading.textContent?.trim()).toBe('Ask LyricLint');
+		expect(container.querySelector('.assistant-dialog__title p')!.textContent?.trim()).toBe(
+			'About the rules and transcription guidelines'
+		);
+		expect(container.textContent).not.toContain('Ask the rules');
+
+		// The title is what names the dialog, so the heading and the accessible
+		// name cannot drift apart.
+		expect(getByRole('dialog', { name: 'Ask LyricLint' })).not.toBeNull();
+	});
+
 	test('citations collect once at the foot of the answer as compact rule cards', async () => {
 		const assistant = makeAssistant();
 		const { container } = render(AssistantDialog, { assistant });
@@ -218,7 +239,14 @@ describe('the assistant dialog', () => {
 		expect(citation.textContent).toContain(source.pageTitle);
 		expect(citation.textContent).toContain(source.sectionTitle);
 		expect(citation.textContent).toContain(source.lastVerifiedAt);
-		expect(citation.querySelector('a')?.getAttribute('href')).toBe(source.url);
+		const link = citation.querySelector('a')!;
+		expect(link.getAttribute('href')).toBe(source.url);
+
+		// A source is a lookup beside the answer being read, so it opens a tab —
+		// and the note saying so rides the link's own name, as it does on every
+		// other external link here.
+		expect(link.getAttribute('target')).toBe('_blank');
+		expect(link.querySelector('.sr-only')?.textContent).toBe('(opens in a new tab)');
 	});
 
 	test('a failed answer offers a retry that lands in place', async () => {

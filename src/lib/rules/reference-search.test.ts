@@ -72,8 +72,10 @@ describe('rule reference search', () => {
 		const cited = idsFor('languages');
 		expect(cited).toContain('section.localized-header-preference');
 		// It widens rather than groups, which is the thing this was left out for
-		// on an assumption nobody measured. The most-cited page covers 18 of 55
-		// rules; every other title covers three or fewer.
+		// on an assumption nobody measured. When it was measured, the most-cited
+		// page covered a third of the catalog — the header rules, a correct
+		// answer — and every other title covered three or fewer; the assertion
+		// below is the half of that worth pinning against a growing catalog.
 		expect(cited.length).toBeLessThan(countRules(groups) / 2);
 		// And the reviewed part of the page, which is the more specific of the two
 		// strings a citation draws — three rules read that vocabulary and all

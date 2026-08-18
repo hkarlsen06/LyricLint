@@ -54,10 +54,11 @@ describe('rule reference derivation', () => {
 
 	it('states every family’s convention, and states it once', () => {
 		// The guide is the connective tissue the reference could not derive: the
-		// index gave a reader arriving from the landing page 55 checks, which is
-		// the shape a linter decomposes into rather than an answer to “what are
-		// the conventions”. Exhaustive, so a rule family cannot ship into the
-		// index with no statement of what it is for.
+		// index used to give a reader arriving from the landing page the whole
+		// catalog of checks bare, which is the shape a linter decomposes into
+		// rather than an answer to “what are the conventions”. Exhaustive, so a
+		// rule family cannot ship into the index with no statement of what it is
+		// for.
 		const families = groupedRuleReferences().map((group) => group.group);
 		expect(Object.keys(groupGuidance).sort()).toEqual([...families].sort());
 		for (const family of families) {

@@ -598,10 +598,10 @@
 }
 
 /*
- * Flipped, the copy leads and the evidence sits to its right. The page's four
- * splits alternate: evidence left, picture left, then the two bottom sections
- * flipped, so a reader scrolling meets the panels on both sides rather than a
- * single rail of them. The flip is visual only: the evidence stays first in
+ * Flipped, the copy leads and the evidence sits to its right. The page's five
+ * splits alternate: evidence left, picture left, two flipped, then the
+ * guidelines panel back on the left, so a reader scrolling meets the panels on
+ * both sides rather than a single rail of them. The flip is visual only: the evidence stays first in
  * the DOM, so when the columns stack on a narrow screen it still arrives above
  * the copy that explains it, and the order is reset in the stack's own media
  * query below.
@@ -719,6 +719,72 @@
 
 .lp-finding__separator {
 	color: var(--color-border-strong);
+}
+
+/*
+ * A reproduction of a guidance entry, the way `.lp-finding` reproduces the
+ * diagnostic card's meta line: the convention as an instruction, the form it
+ * wants over the form it corrects, and the entry's standing underneath.
+ * Markup rather than a screenshot so it stays legible at any width and in the
+ * accessible tree — the verdict marks are `aria-hidden` with `sr-only` labels
+ * beside them, and the flagged form is struck through as well as marked,
+ * because colour is never the only cue.
+ */
+.lp-guideline {
+	display: grid;
+	padding: var(--space-4);
+	gap: var(--space-2);
+}
+
+/* Between rows only: the panel's head already rules its own bottom edge, and
+   a border on every row would double that hairline. */
+.lp-guideline + .lp-guideline {
+	border-top: var(--border-width) solid var(--color-border);
+}
+
+.lp-guideline__title {
+	font-weight: var(--font-weight-semibold);
+	line-height: var(--line-height-tight);
+}
+
+.lp-guideline__pair {
+	display: grid;
+	gap: var(--space-1);
+}
+
+.lp-guideline__form {
+	display: flex;
+	gap: var(--space-2);
+	align-items: baseline;
+	color: var(--color-text-muted);
+	font-family: var(--font-mono);
+	font-size: var(--font-size-sm);
+}
+
+.lp-guideline__mark {
+	flex: none;
+}
+
+.lp-guideline__mark--correct {
+	color: var(--color-success);
+}
+
+.lp-guideline__mark--flagged {
+	color: var(--color-danger);
+}
+
+.lp-guideline__text--flagged {
+	text-decoration: line-through;
+}
+
+/* The ladder itself is `.site-ladder` (`AuthorityLadder.svelte`), shared with
+   the guidance topic pages this panel reproduces. */
+.lp-guideline__meta {
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
 }
 
 /*

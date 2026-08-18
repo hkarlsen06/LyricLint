@@ -33,6 +33,19 @@ function field() {
 	return page.getByRole('searchbox', { name: 'Search the transcription guidelines' });
 }
 
+/**
+ * The visible count, drawn only while the query narrows the list, and the live
+ * region beside it, which is always mounted. Both carry the same sentence while
+ * something is narrowing, so each is read off its own element.
+ */
+function readout(): string {
+	return document.querySelector('.site-finder__readout span')?.textContent?.trim() ?? '';
+}
+
+function status(): HTMLElement | null {
+	return document.querySelector<HTMLElement>('.site-finder [role="status"]');
+}
+
 // The selection's fragment half is read off the real location, so every test
 // starts from a document with no hash — without this, a test asserting nothing
 // is current would pass or fail on whatever the test above it navigated to.
@@ -63,9 +76,14 @@ describe('GuidanceIndex', () => {
 		const hrefs = rows().map((row) => row.getAttribute('href') ?? '');
 		expect(hrefs.some((href) => href.endsWith(`#${entryAnchor(firstEntry.id)}`))).toBe(true);
 		expect(hrefs.some((href) => href.includes('/rules/'))).toBe(false);
-		// A row is not a pointer: its statement is the convention itself.
+		// A row is the title alone. The statement is the exact sentence the press
+		// lands on, so previewing it here was four fifths of the list's height
+		// spent repeating the destination — the rule index keeps its second line
+		// because a diagnostic message is an independent fact, and re-adding one
+		// here is the regression.
 		const entry = rows().find((candidate) => candidate.textContent?.includes(firstEntry.title));
-		expect(entry?.querySelector('.site-run__message')?.textContent).toBe(firstEntry.statement);
+		expect(entry?.querySelector('.site-run__message')).toBeNull();
+		expect(entry?.textContent).not.toContain(firstEntry.statement);
 		expect(entry?.target).toBe('');
 	});
 
@@ -79,7 +97,7 @@ describe('GuidanceIndex', () => {
 		await field().fill('question');
 		const titles = rows().map((row) => row.querySelector('.site-run__title')?.textContent?.trim());
 		expect(titles).toContain('Questions always end with a question mark');
-		await expect.element(page.getByRole('status')).toBeVisible();
+		expect(readout()).toBe(`${rows().length} of ${total} conventions`);
 
 		// A symptom query answers through the named rules' terms — the searchable
 		// half the retired rule rows left behind, folded into the entries.
@@ -92,6 +110,43 @@ describe('GuidanceIndex', () => {
 		await page.getByRole('button', { name: 'Clear search' }).click();
 		expect(rows()).toHaveLength(total);
 		expect(document.querySelector('.site-finder__readout')).toBeNull();
+	});
+
+	// The visible readout comes and goes with the query, so it arrives already
+	// carrying its text — an addition to the accessibility tree rather than a
+	// change inside a live region, which most screen readers do not announce. The
+	// region is mounted empty for exactly that reason, and says the whole list is
+	// back rather than emptying, because emptying announces nothing at all.
+	it('speaks each narrowing, and says the whole list is back rather than falling silent', async () => {
+		render(GuidanceIndex, { sections });
+
+		expect(status()?.textContent).toBe('');
+
+		await field().fill('question');
+		await expect.poll(() => status()?.textContent).toBe(`${rows().length} of ${total} conventions`);
+
+		await page.getByRole('button', { name: 'Clear search' }).click();
+		await expect.poll(() => status()?.textContent).toBe(`All ${total} conventions`);
+	});
+
+	// A landmark's fragment and the comparison that marks it current are one
+	// derivation, not two that happen to agree: `entryCurrent` reads
+	// `entryAnchor`, so a landmark id that ever carried a dot would link to one
+	// fragment and be marked against another. The single landmark there is today
+	// has no dot in it, which is what made the two look interchangeable.
+	it('links a landmark at the anchor its own current-state is compared against', () => {
+		const landmarked = sections.find((section) => (section.landmarks ?? []).length > 0)!;
+		const landmark = landmarked.landmarks![0]!;
+		render(GuidanceIndex, { sections });
+
+		const row = rows().find(
+			(candidate) =>
+				candidate.querySelector('.site-run__title')?.textContent?.trim() === landmark.title
+		)!;
+		const href = row.getAttribute('href') ?? '';
+
+		expect(href).toContain(`/${landmarked.topic}/#`);
+		expect(href.slice(href.indexOf('#') + 1)).toBe(entryAnchor(landmark.id));
 	});
 
 	it('says so when nothing matches, as prose rather than a bare empty column', async () => {

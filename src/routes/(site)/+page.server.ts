@@ -1,3 +1,5 @@
+import { guidanceEntries } from '$lib/guidance/entries.js';
+import { guidanceTopicLandmarks, guidanceTopicOrder } from '$lib/guidance/guidance.js';
 import { enabledRules, sourceRegistry } from '$lib/rules/index.js';
 import type { PageServerLoad } from './$types.js';
 
@@ -13,5 +15,15 @@ import type { PageServerLoad } from './$types.js';
  */
 export const load: PageServerLoad = () => ({
 	ruleCount: enabledRules.length,
+	// The guidance catalog's numbers, counted the way its own page's readout
+	// counts them — entries and landmarks together — so the landing page and
+	// `/guidelines/` cannot state two different totals for one catalog.
+	guidanceCount:
+		guidanceEntries.length +
+		Object.values(guidanceTopicLandmarks).reduce(
+			(sum, landmarks) => sum + (landmarks?.length ?? 0),
+			0
+		),
+	guidanceTopicCount: guidanceTopicOrder.length,
 	harperUrl: sourceRegistry.get('T-HARPER')?.url ?? 'https://writewithharper.com/'
 });

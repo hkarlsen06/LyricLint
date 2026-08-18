@@ -35,6 +35,24 @@
 	const shown = $derived(countGuidanceLookups(filtered));
 	const narrowing = $derived(query.trim().length > 0);
 
+	/*
+	 * The narrowing said out loud, for the reader who cannot watch the rows go —
+	 * the rule reference's own region, for its reasons. The visible readout comes
+	 * and goes with the query, so it arrives already carrying its text, which is
+	 * an addition to the accessibility tree rather than a change inside a live
+	 * region and is therefore not announced. This one is mounted empty and
+	 * filled, stays silent until the reader has narrowed something, and says the
+	 * whole list is back rather than emptying, because an emptied region
+	 * announces nothing at all.
+	 */
+	let hasFiltered = $state(false);
+	$effect(() => {
+		if (narrowing) hasFiltered = true;
+	});
+	const searchStatus = $derived(
+		!hasFiltered ? '' : narrowing ? `${shown} of ${total} conventions` : `All ${total} conventions`
+	);
+
 	// A guideline is a fragment on its topic's page, so "which row is current"
 	// has two halves: the topic is the route's own param, and the entry is the
 	// hash — which the router does not model. `afterNavigate` covers arrivals
@@ -134,7 +152,7 @@
 
 		{#if narrowing}
 			<p class="site-finder__readout">
-				<span role="status">{shown} of {total} conventions</span>
+				<span>{shown} of {total} conventions</span>
 				<button
 					type="button"
 					class="button button--quiet site-finder__clear"
@@ -144,28 +162,40 @@
 				</button>
 			</p>
 		{/if}
+
+		<span class="sr-only" role="status">{searchStatus}</span>
 	</search>
 
 	<nav aria-label="Transcription guidelines">
 		{#each filtered as { topic, landmarks, entries } (topic)}
 			<h2 class="site-index__group">{guidanceTopicTitles[topic]}</h2>
 			<!-- One bordered run per topic, hairlines between rows — the same
-			     material as the rule index's runs. A row opens its entry on the
-			     topic page, anchored and washed, and states the convention where it
-			     stands; the way out to the rule reference is each entry's own
-			     "Checked by" line. The index used to close every topic with a run of
-			     linter-rule rows; they retired when every rule became reachable
-			     through an entry, with their search terms folded into the entries'
-			     haystacks (`ruleTerms` on the section). -->
+			     material as the rule index's runs, minus the rule rows' second
+			     line, and the difference is what a second line would carry. A rule
+			     row's message is an independent fact — the linter's own wording,
+			     one line by construction — while a guidance row's statement is the
+			     exact sentence the tap lands on, and the titles here are written
+			     in the instruction register precisely so they state the convention
+			     alone. Measured, the statements were six times the titles' volume:
+			     four fifths of a list that leads the stacked page on a phone,
+			     previewing text that is one press away. The way out to the rule
+			     reference is each entry's own "Checked by" line. The index used to
+			     close every topic with a run of linter-rule rows; they retired
+			     when every rule became reachable through an entry, with their
+			     search terms folded into the entries' haystacks (`ruleTerms` on
+			     the section). -->
 			<ul class="site-run">
+				<!-- Through `entryAnchor`, not the bare id: `entryCurrent` compares the
+				     anchor, so a landmark whose id ever carries a dot would link to one
+				     fragment and be marked against another. The two agree today only
+				     because the one landmark there is has no dot in it. -->
 				{#each landmarks ?? [] as landmark (landmark.id)}
 					<li>
 						<a
-							href="{resolve('/(site)/guidelines/[topic]', { topic })}/#{landmark.id}"
+							href="{resolve('/(site)/guidelines/[topic]', { topic })}/#{entryAnchor(landmark.id)}"
 							aria-current={entryCurrent(topic, landmark.id)}
 						>
 							<span class="site-run__title">{landmark.title}</span>
-							<span class="site-run__message">{landmark.statement}</span>
 						</a>
 					</li>
 				{/each}
@@ -176,7 +206,6 @@
 							aria-current={entryCurrent(topic, entry.id)}
 						>
 							<span class="site-run__title">{entry.title}</span>
-							<span class="site-run__message">{entry.statement}</span>
 						</a>
 					</li>
 				{/each}

@@ -74,7 +74,12 @@ async function expectSocialPreview(page: Page): Promise<void> {
 test('the homepage and workbench align the wordmark and link it home', async ({ page }) => {
 	await page.goto('/');
 
-	await expect(page.getByRole('link', { name: 'About' })).toHaveAttribute('aria-current', 'page');
+	// The nav is the three destinations that are not already the brand: no
+	// `About` beside a wordmark that links the same page, and `App` at the
+	// width the row actually has. Re-adding a second way home is the
+	// regression.
+	const nav = page.getByRole('navigation', { name: 'Site' });
+	await expect(nav.getByRole('link')).toHaveText(['Guidelines', 'Linter Rules', 'App']);
 	const siteWordmark = page.locator('.site-header .app-wordmark');
 	const siteHeader = page.locator('.site-header');
 	await expect(siteWordmark).toHaveAttribute('data-state', 'static');
@@ -278,7 +283,10 @@ test('the rule index is searched by symptom and narrowed by chip', async ({ page
 	await page.getByRole('searchbox', { name: 'Search the formatting rules' }).fill('definately');
 	await expect(rows).toHaveCount(1);
 	await expect(rows.first()).toContainText('A common English misspelling');
-	await expect(page.getByText(`1 of ${total} rules`)).toBeVisible();
+	// Scoped to the visible readout: the always-mounted `role="status"` region
+	// carries the same sentence for a screen reader, so the bare text resolves
+	// to two elements.
+	await expect(page.locator('.site-finder__readout')).toContainText(`1 of ${total} rules`);
 
 	// The search survives opening one of its own results, because the list and
 	// its filters are mounted by the section's layout rather than by the page.
@@ -493,6 +501,47 @@ test('the spelling topic lists the standardized spellings, and the finder search
 		page.locator('.site-split__index .site-run a[href$="#standardized-spellings"]')
 	).toBeVisible();
 	await expect(page.locator('main mark.site-hit').first()).toBeVisible();
+
+	// A meta line naming more than three rules folds them behind one disclosure,
+	// counted from `relatedRuleIds` at render time — nine consecutive monospace
+	// links used to stand between the tier line and the statement. Unfolded,
+	// the ids land in a full-width row under the whole line (the citations' own
+	// `order` trick) and still open a tab.
+	await search.fill('');
+	const orthography = page.locator('.guidelines__entry:has(#standard-orthography)');
+	const fold = orthography.getByRole('button', { name: '9 rules' });
+	await expect(fold).toHaveAttribute('aria-expanded', 'false');
+	await expect(orthography.locator('a.site-code')).toHaveCount(0);
+	await fold.click();
+	await expect(fold).toHaveAttribute('aria-expanded', 'true');
+	const unfolded = orthography.locator('a.site-code');
+	await expect(unfolded).toHaveCount(9);
+	await expect(unfolded.first()).toHaveAttribute('target', '_blank');
+});
+
+test('a fragment naming nothing falls back to the lead, and a landmark washes', async ({
+	page
+}) => {
+	// A fragment is somebody else's string, so one that resolves to no heading
+	// must not be published as the reading position — that left the index
+	// marking no row at all until the next scroll event. The lead section is
+	// what a topic opened with no fragment lands on, and it is the honest answer
+	// here too.
+	await page.goto('/guidelines/spelling/#no-such-anchor');
+	const current = page.locator('.site-split__index a[aria-current="page"]');
+	await expect(current).toHaveCount(1);
+	await expect(current).toContainText('The standardized spellings');
+	// And no wash: nothing on the page carries the name the link asked for.
+	await expect(
+		page.locator('.guidelines__entry[data-current], .guidelines__landmark[data-current]')
+	).toHaveCount(0);
+
+	// A landmark is a deep-link target exactly as an entry is — the index and
+	// every rule page's guideline link both name its anchor — so it takes the
+	// same arrival wash through the same pair of marks.
+	await page.goto('/guidelines/spelling/#standardized-spellings');
+	await expect(page.locator('.guidelines__landmark[data-current]')).toHaveCount(1);
+	await expect(page.locator('.guidelines__landmark:has(:target)')).toHaveCount(1);
 });
 
 test('sitemap lists every public page and excludes the workbench', async ({ request }) => {
@@ -856,6 +905,57 @@ test('nothing in the panel can scroll the app shell', async ({ page }) => {
 	await expect(toolbar).toBeInViewport();
 });
 
+test.describe('phone reference sections', () => {
+	// The same emulation the workbench's phone block uses: `hasTouch` is what
+	// makes `(pointer: coarse)` match, and the width is under the 62rem stack.
+	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+	test('the stacked index leads with a finder a finger can focus', async ({ page }) => {
+		// The stack leads with the index at the index view — measured the other
+		// way round, the whole guide stood above the search field, ten phone
+		// viewports of prose between a reader and the section's primary control.
+		await page.goto('/rules/');
+		const search = page.getByRole('searchbox', { name: 'Search the formatting rules' });
+		await expect(search).toBeInViewport();
+
+		// And the field computes at least 16px under a coarse pointer, or iOS
+		// Safari answers the focus by zooming the page in and never back out.
+		// The element-selector raise in `responsive.css` loses to any class that
+		// sizes a field, which is exactly how this one shipped at 13px — the
+		// class-level restatement is what this pins. Emulation cannot reproduce
+		// the zoom itself; the size is the whole mechanism.
+		expect(
+			Number.parseFloat(await search.evaluate((field) => getComputedStyle(field).fontSize))
+		).toBeGreaterThanOrEqual(16);
+
+		// The guide still follows, in order, below the rows.
+		const guide = page.getByRole('heading', { name: 'The rules the linter checks' });
+		const guideBox = await guide.boundingBox();
+		const finderBox = await search.boundingBox();
+		expect(guideBox!.y).toBeGreaterThan(finderBox!.y);
+	});
+
+	test('deep in a topic the way back stays pinned, and a jump clears it', async ({ page }) => {
+		// The masthead is static at this width and the index is `display: none`
+		// under an open page, so the pinned back bar is the one piece of
+		// navigation a reader eight viewports into a topic still has.
+		await page.goto('/guidelines/section-headers/');
+		await page.mouse.wheel(0, 6000);
+		await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(3000);
+		const back = page.getByRole('button', { name: 'All guidelines' });
+		await expect(back).toBeInViewport();
+
+		// A deep-linked heading lands clear of the pinned bar: the headings'
+		// `scroll-margin-top` moves with the same seam the bar's top edge does.
+		await page.goto('/guidelines/section-headers/#voice-order');
+		const heading = page.locator('#voice-order');
+		await expect(heading).toBeVisible();
+		const headingBox = await heading.boundingBox();
+		const barBox = await page.locator('.site-split__backbar').boundingBox();
+		expect(headingBox!.y).toBeGreaterThanOrEqual(barBox!.y + barBox!.height - 1);
+	});
+});
+
 test.describe('phone', () => {
 	// A phone is a coarse pointer *and* a small viewport, so the emulation has to
 	// set both: `hasTouch` is what makes `(pointer: coarse)` match. Upright, the
@@ -1043,7 +1143,9 @@ test('the rules dialog and workbench tab share one persisted conversation', asyn
 	await ask.fill('When does a chorus need its own header?');
 	await ask.press('Enter');
 
-	const dialog = page.getByRole('dialog', { name: 'Ask the rules' });
+	// One truthful name from both sections and the workbench: the same modal
+	// opens from `/guidelines/` too, where `Ask the rules` was false on arrival.
+	const dialog = page.getByRole('dialog', { name: 'Ask LyricLint' });
 	await expect(dialog).toBeVisible();
 	await expect(dialog.getByLabel('Conversation', { exact: true })).toContainText(
 		'When does a chorus need its own header?'

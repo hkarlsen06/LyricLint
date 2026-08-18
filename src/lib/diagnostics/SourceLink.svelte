@@ -44,7 +44,10 @@
 					aria-hidden="true"
 					size={11}
 					strokeWidth={2.2}
-				/>
+				/><!-- The mark is aria-hidden, so this note is the whole of what says the
+				     press opens a tab — the convention every external link on the site
+				     pages already follows. -->
+				<span class="sr-only">(opens in a new tab)</span>
 			</a>
 		{:else}
 			<span>{@render (text ?? plain)(source.pageTitle)}</span>

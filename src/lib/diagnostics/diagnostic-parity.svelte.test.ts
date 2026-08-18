@@ -408,7 +408,13 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			const meta = screen.container.querySelector('.diagnostic-meta')!;
 			const link = meta.querySelector('.source-citation a') as HTMLAnchorElement;
 			expect(link.href).toBe('https://genius.com/contractions');
-			expect(link.textContent?.trim()).toBe('Use song part headers');
+			// What the line says on screen is the page title and nothing else. The
+			// note that the press opens a tab is in the link's accessible name only,
+			// because the mark that would otherwise say so is aria-hidden.
+			const visible = link.cloneNode(true) as HTMLElement;
+			for (const hidden of visible.querySelectorAll('.sr-only')) hidden.remove();
+			expect(visible.textContent?.trim()).toBe('Use song part headers');
+			expect(link.querySelector('.sr-only')?.textContent).toBe('(opens in a new tab)');
 			expect(screen.container.querySelector('.diagnostic-sources')).toBeNull();
 
 			// The severity leads the line the citation ends.

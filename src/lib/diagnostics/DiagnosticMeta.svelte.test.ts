@@ -160,6 +160,37 @@ describe('the diagnostic meta line', () => {
 		screen.unmount();
 	});
 
+	it('says the citation opens a tab, in the link’s name rather than in its description', async () => {
+		const screen = render(DiagnosticMeta, {
+			diagnostic: diagnostic(['G-LINES']),
+			sources: sourcesFor(['G-LINES']),
+			line: 47
+		});
+
+		// The external-link mark is aria-hidden and the favicon's alt is empty, so
+		// without this note nothing says the press leaves the surface — the whole
+		// accessible name is the title and the disclosure.
+		const link = screen.container.querySelector('.diagnostic-meta__row a')!;
+		await expect
+			.element(page.getByRole('link', { name: 'Page G-LINES (opens in a new tab)' }))
+			.toBeInTheDocument();
+
+		// It rides the *name*, which is what keeps it clear of the tooltip: the
+		// description stays what `aria-describedby` points at, so the two channels
+		// carry different facts and nothing is announced twice.
+		expect(link.getAttribute('aria-describedby')).toBeTruthy();
+		const description = screen.container.querySelector(
+			`#${link.getAttribute('aria-describedby')}`
+		)!;
+		expect(description.textContent).not.toContain('opens in a new tab');
+
+		// And it is said to a screen reader only — the line on screen is unchanged.
+		expect(visibleText(screen.container.querySelector('.diagnostic-meta__row')!)).toBe(
+			'Line 47 · Page G-LINES'
+		);
+		screen.unmount();
+	});
+
 	it('draws the linked page’s favicon inside the citation, decoratively', async () => {
 		const screen = render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),

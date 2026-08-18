@@ -6,6 +6,7 @@
 	import { getSource } from '$lib/rules/data/sources.js';
 	import { ruleSlug } from '$lib/rules/reference-search.js';
 	import { siteUrl } from '$lib/seo.js';
+	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
 	import { codeSegments } from '$lib/ui/site/code-segments.js';
 	import GuidanceSearchHighlight from '$lib/ui/site/GuidanceSearchHighlight.svelte';
 	import SiteSourceFold from '$lib/ui/site/SiteSourceFold.svelte';
@@ -20,6 +21,18 @@
 	// is `svelte/no-useless-mustaches` — the same trade the rule reference's
 	// interpunct runs make.
 	const ruleListSeparator = ', ';
+
+	/**
+	 * How many rule ids the meta line carries before the run folds. Three is
+	 * what fits beside the tier and the citation without wrapping the line;
+	 * `guidance.spelling.standard-orthography` names nine, which measured seven
+	 * lines of monospace links at 320px and pushed the entry's own statement off
+	 * the screen — a meta line is one line of facts, and a wall of ids is the
+	 * failure the diagnostic card's `Sources ⌄` already answers. Read off the
+	 * list's own length at render time, so an entry that gains or loses a rule
+	 * folds or unfolds without anything here being maintained.
+	 */
+	const INLINE_RULE_IDS = 3;
 
 	const topic = $derived(data.topic);
 	const topicTitle = $derived(guidanceTopicTitles[topic]);
@@ -132,9 +145,16 @@
 		// row, travel to it, and be corrected a frame later when the landing
 		// scroll finally fired. Deep-linked, the entry you were sent to is the one
 		// you are reading; with no fragment, it is whatever leads the page.
-		setReadingAnchor(anchor || leadAnchor);
-		if (!anchor) return;
-		const heading = document.getElementById(anchor);
+		//
+		// Only a fragment that resolves is published, and that is the correction:
+		// a stale or hand-typed `#anythin` names no heading here, and published
+		// anyway it was a reading position no row in the index could match — so
+		// the list marked *nothing* until the reader's next scroll, on the one
+		// arrival where a wrong fragment already left them with no wash either.
+		// The wash keeps the raw hash, because a hash matching no entry correctly
+		// draws nothing.
+		const heading = anchor ? document.getElementById(anchor) : null;
+		setReadingAnchor(heading ? anchor : leadAnchor);
 		if (!heading) return;
 		requestAnimationFrame(() =>
 			requestAnimationFrame(() => heading.scrollIntoView({ block: 'start' }))
@@ -254,6 +274,30 @@
      rule pages' own answer, and the reason the query lives in module state. -->
 {#snippet marked(value: string)}<GuidanceSearchHighlight text={value} />{/snippet}
 
+<!-- The one implementation of the `Checked by` run, rendered inline for a short
+     list and inside the disclosure for a long one, so the two cannot come to
+     draw different links.
+
+     The separator is a value, not markup whitespace, which the formatter is
+     free to move to the wrong side of the comma —
+     `punctuation.question,punctuation.line-ending` is what that looks like, and
+     it looks exactly like working markup.
+
+     A tab, exactly as the rows below do it and for the same reason: this one is
+     read mid-entry, which is the worst place in the section to lose a scroll
+     position to a lookup. No mark beside it — a glyph after every id in a comma
+     list is a run of marks rather than a note — so the sr-only text is the
+     whole of what says the press opens a tab. -->
+{#snippet ruleLinks(
+	ruleIds: readonly string[]
+)}{#each ruleIds as ruleId, index (ruleId)}{#if index > 0}{ruleListSeparator}{/if}<a
+			class="site-code"
+			href="{resolve('/(site)/rules/[rule]', { rule: ruleSlug(ruleId) })}/"
+			target="_blank"
+			rel="noopener noreferrer"
+			><GuidanceSearchHighlight text={ruleId} /><span class="sr-only">(opens in a new tab)</span></a
+		>{/each}{/snippet}
+
 <main id="main" tabindex="-1" class="site-prose site-split__page" bind:this={article}>
 	<h1><GuidanceSearchHighlight text={topicTitle} /></h1>
 	<p>
@@ -263,7 +307,14 @@
 	</p>
 
 	{#if data.spellings}
-		<section class="guidelines__landmark">
+		<!-- A landmark is a deep-link target exactly as an entry is — the index
+		     lists it and every rule page's guideline link can name it — so it
+		     takes the arrival wash through the same mark rather than through
+		     `:target`, which only a native fragment navigation ever sets. -->
+		<section
+			class="guidelines__landmark"
+			data-current={anchor === SPELLINGS_ANCHOR ? true : undefined}
+		>
 			<!-- The reviewed preferred-spellings list leads the topic page a reader
 		     wondering about a spelling actually opens. Drawn from the same
 		     `ruleLookupTable` the rule page loads — one data source, two surfaces —
@@ -319,37 +370,29 @@
 			<!-- The diagnostic card's own meta idiom: the tier, then the citation —
 			     the exact source the claim is read from, whose section and verified
 			     date are the link's tooltip. The tier label and the link are one
-			     fact read together: the source is what makes the tier true. A
-			     folded set still unfolds under the whole line rather than in the
+			     fact read together: the source is what makes the tier true. The
+			     ladder ahead of the label draws that standing as ascending steps
+			     (`AuthorityLadder.svelte`, `aria-hidden` — the label is the fact).
+			     A folded set still unfolds under the whole line rather than in the
 			     middle of it, through the list's own flex `order`. -->
 			<div class="site-meta">
+				<AuthorityLadder authority={entry.authority} />
 				<span><GuidanceSearchHighlight text={authorityLabels[entry.authority]} /></span>
 				<span class="site-meta__separator" aria-hidden="true">·</span>
 				<SiteSourceFold sources={entrySources(entry.sourceIds)} text={marked} />
 				{#if entry.relatedRuleIds?.length}
 					<span class="site-meta__separator" aria-hidden="true">·</span>
-					<span>
-						Checked by
-						<!-- The separator is a value, not markup whitespace, which the
-						     formatter is free to move to the wrong side of the comma —
-						     `punctuation.question,punctuation.line-ending` is what that
-						     looks like, and it looks exactly like working markup. -->
-						<!-- A tab, exactly as the rows below do it and for the same reason:
-						     this one is read mid-entry, which is the worst place in the
-						     section to lose a scroll position to a lookup. No mark beside
-						     it — a glyph after every id in a comma list is a run of marks
-						     rather than a note — so the sr-only text is the whole of what
-						     says the press opens a tab. -->
-						{#each entry.relatedRuleIds as ruleId, index (ruleId)}{#if index > 0}{ruleListSeparator}{/if}<a
-								class="site-code"
-								href="{resolve('/(site)/rules/[rule]', { rule: ruleSlug(ruleId) })}/"
-								target="_blank"
-								rel="noopener noreferrer"
-								><GuidanceSearchHighlight text={ruleId} /><span class="sr-only"
-									>(opens in a new tab)</span
-								></a
-							>{/each}
-					</span>
+					<!-- Short runs read inline as they always have; a long one folds
+					     behind the citations' own disclosure, which is why that
+					     component draws this run too rather than a second control
+					     being written beside it. `Checked by` stays outside the
+					     button, so the label is the count and nothing else. -->
+					<SiteSourceFold
+						prefix="Checked by"
+						folded={entry.relatedRuleIds.length > INLINE_RULE_IDS}
+						label="{entry.relatedRuleIds.length} rules"
+						>{@render ruleLinks(entry.relatedRuleIds)}</SiteSourceFold
+					>
 				{/if}
 			</div>
 			<p><GuidanceSearchHighlight text={entry.statement} /></p>

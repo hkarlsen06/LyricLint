@@ -247,7 +247,15 @@
 	--color-text-disabled: oklch(57% 0.012 285);
 	--color-border: oklch(86% 0.006 285);
 	--color-border-strong: oklch(68% 0.012 285);
-	--color-border-input: var(--color-border-strong);
+	/* Its own value, not `var(--color-border-strong)`: a field or button's border
+	   is the boundary of a control, which WCAG 1.4.11 holds to 3:1 against the
+	   fill it encloses — border-strong reaches 2.83:1 on `--color-surface` here
+	   and 1.55:1 in dark, which is a control whose edges cannot be found. 58%
+	   measures 4.21:1 on the surface and 3.23:1 on the canvas; the dark block
+	   restates it at its own 52% for the same two floors. `site-palette.test.ts`
+	   holds the ratios, so a retune of either scheme fails there rather than in
+	   somebody's search field. */
+	--color-border-input: oklch(58% 0.012 285);
 	--color-border-disabled: oklch(82% 0.006 285);
 	--color-control: var(--color-surface);
 	--color-control-hover: var(--color-fill-subtle);
@@ -451,6 +459,10 @@
 		--color-text-disabled: oklch(54% 0.008 285);
 		--color-border: oklch(26% 0.005 285);
 		--color-border-strong: oklch(34% 0.008 285);
+		/* The control boundary again — see the light block's note. 34% is 1.55:1
+		   against `--color-surface` here; 52% is 3.32:1 on the surface and 3.57:1
+		   on the canvas. Restated verbatim on `.site`, which pins this scheme. */
+		--color-border-input: oklch(52% 0.008 285);
 		--color-border-disabled: oklch(29% 0.005 285);
 		--color-accent: oklch(71% 0.12 255);
 		--color-accent-hover: oklch(77% 0.11 255);

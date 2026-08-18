@@ -3,6 +3,7 @@ import { currentRuleSet } from '$lib/rules/data/rule-set.js';
 import { assertReviewedSources, getSource } from '$lib/rules/data/sources.js';
 import { guidanceEntries, guidanceForRule, guidanceRegistry, guidanceTopics } from './entries.js';
 import {
+	entryAnchor,
 	guidanceTopicLandmarks,
 	guidanceTopicOrder,
 	guidanceTopicTitles,
@@ -88,6 +89,21 @@ describe('guidance catalog', () => {
 			'elision-apostrophe'
 		]);
 		expect(guidanceForRule('language.selection-mismatch')).toEqual([]);
+
+		// One derivation for both shapes: a landmark's fragment comes out of
+		// `entryAnchor` exactly as an entry's does. It is a no-op for every
+		// dotless landmark id today, which is the point — the two anchors cannot
+		// come to be derived differently the first time one gains a segment.
+		for (const [topic, landmarks] of Object.entries(guidanceTopicLandmarks)) {
+			for (const landmark of landmarks) {
+				for (const ruleId of landmark.relatedRuleIds ?? []) {
+					const link = guidanceForRule(ruleId).find(
+						(candidate) => candidate.topic === topic && candidate.title === landmark.title
+					);
+					expect(link?.anchor, landmark.id).toBe(entryAnchor(landmark.id));
+				}
+			}
+		}
 	});
 
 	// A title states what the guideline says, compressed — the register of

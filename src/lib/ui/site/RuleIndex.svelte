@@ -60,6 +60,31 @@
 	// six rows of shortcut standing over their answer are six rows of noise.
 	const popular = $derived(filtering ? [] : popularRules(groups));
 
+	/*
+	 * The narrowing said out loud, for the reader who cannot watch the rows go.
+	 *
+	 * It is a region of its own rather than a role on the visible readout,
+	 * because that readout is drawn only while something narrows the list — and
+	 * an element inserted already carrying its text is an addition to the
+	 * accessibility tree rather than a change inside a live region, which most
+	 * screen readers do not announce. So the one narrowing worth hearing, the
+	 * first, was the one that went unsaid. Mounted empty and filled, exactly as
+	 * `AssistantConversation.svelte` states at length.
+	 *
+	 * Clearing the filters is the other half, and it is why the text does not go
+	 * back to empty: emptying a live region announces nothing, so returning to
+	 * the whole list has to be a sentence of its own. The flag is what keeps the
+	 * region silent until the reader has narrowed something — at rest there is
+	 * no change to report.
+	 */
+	let hasFiltered = $state(false);
+	$effect(() => {
+		if (filtering) hasFiltered = true;
+	});
+	const filterStatus = $derived(
+		!hasFiltered ? '' : filtering ? `${shown} of ${total} rules` : `All ${total} rules`
+	);
+
 	const severityLabels: Record<Severity, string> = {
 		error: 'Errors',
 		warning: 'Warnings',
@@ -203,19 +228,22 @@
 			{/each}
 		</div>
 
-		<!-- The readout draws only while something is narrowing the list: `52 of 52
+		<!-- The readout draws only while something is narrowing the list: `N of N
 		     rules` under a field nobody has typed in is a count that could not have
 		     been otherwise, and the lede beside this column already says how many
-		     there are. `role="status"` is what hands the narrowing to a screen
-		     reader, which cannot see the rows disappear. -->
+		     there are. What hands that count to a screen reader is the region
+		     below, not a role on this line — a line that comes and goes carries its
+		     text in with it, which a live region does not announce. -->
 		{#if filtering}
 			<p class="site-finder__readout">
-				<span role="status">{shown} of {total} rules</span>
+				<span>{shown} of {total} rules</span>
 				<button type="button" class="button button--quiet site-finder__clear" onclick={clear}>
 					Clear filters
 				</button>
 			</p>
 		{/if}
+
+		<span class="sr-only" role="status">{filterStatus}</span>
 	</search>
 
 	<!-- Pressing a row may not move the list the row is in. Where the two columns

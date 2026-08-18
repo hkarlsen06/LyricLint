@@ -87,7 +87,7 @@
 	--color-control-hover: var(--color-fill-subtle);
 	--color-control-active: var(--color-fill);
 	--color-control-disabled: var(--color-fill-subtle);
-	--color-border-input: var(--color-border-strong);
+	--color-border-input: oklch(52% 0.008 285);
 	--color-control-border: var(--color-border-input);
 	--color-selected: var(--color-accent-soft);
 	--color-focus-soft: color-mix(in oklch, var(--color-focus) 28%, transparent);
@@ -660,6 +660,44 @@
 }
 
 /*
+ * The authority ladder (`AuthorityLadder.svelte`): four ascending steps for
+ * the four source tiers, filled up to the tier the entry's sources establish.
+ * The bars are `aria-hidden` — the tier label beside them is the fact — and
+ * an unmet step keeps an opaque muted colour rather than fading, because
+ * opacity is never a state carrier.
+ */
+.site-ladder {
+	display: inline-flex;
+	gap: var(--space-0-5);
+	align-items: flex-end;
+}
+
+.site-ladder__step {
+	width: 0.3rem;
+	background: var(--color-border-strong);
+}
+
+.site-ladder__step--met {
+	background: var(--color-accent);
+}
+
+.site-ladder__step:nth-child(1) {
+	height: 0.3rem;
+}
+
+.site-ladder__step:nth-child(2) {
+	height: 0.45rem;
+}
+
+.site-ladder__step:nth-child(3) {
+	height: 0.6rem;
+}
+
+.site-ladder__step:nth-child(4) {
+	height: 0.75rem;
+}
+
+/*
  * The live demo: the workbench's own `EditorPane`, mounted without the shell
  * around it. It gets the same border and surface as a `.site-sample`, because
  * it is the same material — a piece of document text set apart from the prose
@@ -922,6 +960,15 @@
 	margin-top: var(--space-4);
 }
 
+/* And when that last entry is the one washed, the breath has to clear the
+   wash as well: the wash spills `--space-4` below the entry's box, which is
+   exactly the margin above — so the washed box and the button's border met
+   edge to edge. The spill plus the same breath the hairline rhythm keeps. */
+.guidelines__entry[data-current] + .site-actions,
+.guidelines__entry:has(:target) + .site-actions {
+	margin-top: calc(2 * var(--space-4));
+}
+
 /* The entry a deep link landed on, washed in the selection tone for as long
    as the hash names it. The page marks it (`data-current`, read off the hash),
    because `:target` cannot carry this alone: only a native fragment navigation
@@ -936,15 +983,24 @@
    the content on every side, and where a hairline sits `--space-6` off the
    content it therefore stops `--space-4` short of the line — the same even
    gap above and below. `z-index: 0` on the entry scopes the negative layer so
-   the wash cannot slip behind an ancestor's paint. */
+   the wash cannot slip behind an ancestor's paint.
+
+   A landmark is a deep-link target exactly as an entry is — the index and every
+   rule page's guideline link both name its anchor — so it takes the same wash
+   through the same pair of marks. One mechanism: the page sets the same
+   `data-current`, and `:target` is the same no-JavaScript fallback. */
 .guidelines__entry[data-current],
-.guidelines__entry:has(:target) {
+.guidelines__entry:has(:target),
+.guidelines__landmark[data-current],
+.guidelines__landmark:has(:target) {
 	position: relative;
 	z-index: 0;
 }
 
 .guidelines__entry[data-current]::before,
-.guidelines__entry:has(:target)::before {
+.guidelines__entry:has(:target)::before,
+.guidelines__landmark[data-current]::before,
+.guidelines__landmark:has(:target)::before {
 	content: '';
 	position: absolute;
 	z-index: -1;
@@ -1563,6 +1619,31 @@
 	box-shadow: var(--shadow-recessed);
 }
 
+/* And a structural half beside the depth: a background and an inset shadow are
+   both erased under `forced-colors`, which left "you are here" carried by
+   nothing a Windows High Contrast reader can see. A border survives forced
+   colors by design — it is redrawn in the forced ink — so the recessed row also
+   opens with a short upright at its start, in the muted tone the row's own meta
+   line already wears (the depth still carries it for ordinary vision; the bar
+   is the copy that cannot be erased). The padding gives the bar's width back so
+   the marked row's text keeps the x of every row around it. Direct-child only:
+   the language links inside a family row are marked by their own rule below. */
+.site-split__index .site-run > li > a[aria-current='page'] {
+	border-inline-start: 3px solid var(--color-text-muted);
+	padding-inline-start: calc(var(--space-4) - 3px);
+}
+
+.site-split__index .rules__languages a[aria-current='page'] {
+	border-inline-start: 3px solid var(--color-text-muted);
+	padding-inline-start: calc(var(--space-2) - 3px);
+}
+
+@media (forced-colors: active) {
+	.site-split__index a[aria-current='page'] {
+		border-inline-start-color: Highlight;
+	}
+}
+
 /*
  * The way out of an open page, at every width. On a wide screen it returns to
  * the section's welcome view — the intro the choreography pushed out, which
@@ -1680,38 +1761,86 @@
 	   now, and the reset above zeroes the padding they were spent on, so this
 	   pair is what keeps a bleed from being computed off them — and the swapped
 	   index arrangement, since two named columns in a one-column template would
-	   conjure a phantom second column. Stacked, the intro still leads. */
+	   conjure a phantom second column. */
 	.site-split[data-section='guidelines'] .site-split__detail {
 		padding-inline: 0;
 		margin-inline-start: 0;
 	}
 
+	/* Stacked, the finder leads and the intro follows — the opposite of the wide
+	   swap, and a correction. Intro-first was carried over from the two-column
+	   arrangement, where the list stands beside the intro either way; stacked, it
+	   put the whole guide *above* the index, which at `/rules/` measured ten
+	   phone viewports of prose between the reader and the search field — a
+	   finder nobody scrolls to is a finder the section does not have. Lookup is
+	   the primary phone journey, so the index takes the first screen and the
+	   intro is one flick below the rows, where a reader who wants it still meets
+	   it in order. Detail views are untouched: there the page is the content and
+	   the index is `display: none`. */
 	.site-split[data-view='index'] {
-		grid-template-areas: 'detail' 'index';
+		grid-template-areas: 'index' 'detail';
 	}
 
-	/* Nothing to pin to, the finder's own reason: the document is the only
-	   scroller here, the masthead is already sticky over it, and a second pinned
-	   band under it would spend the short edge of a small screen on chrome — on
-	   the one layout where the control is also the first thing in the document,
-	   which is where the reader arrives. */
+	/* The way out stays pinned at this width, and that is a correction: it used
+	   to unpin with everything else, which left a reader eight viewports into a
+	   topic with no navigation on screen at all — the masthead scrolled away,
+	   the list is `display: none` below, and the way to the next topic was the
+	   whole article back up.
+
+	   What pins is the control, not a band. A full-width canvas strip here read
+	   as a bare slab lying across whatever scrolled under it — and the entry
+	   wash spills past the content edges, so it poked out blue on either side
+	   of the black. So the row is transparent and takes no presses, and the
+	   button inside it becomes a small lifted surface: border, fill and shadow,
+	   the three the workbench's floating chips use, on the radius every control
+	   already carries. Content scrolls past around it, which is what a floating
+	   control over a document looks like.
+
+	   Where its top edge sits follows the masthead. Down to 46rem the masthead is
+	   still sticky above, so the chip rides directly under it; past 46rem the
+	   masthead goes static and the chip takes the top of the viewport. The
+	   heading clearance below moves with the same seam, so a deep-linked entry
+	   still lands clear of whatever is pinned — and the reading spy reads the
+	   headings' own `scroll-margin-top`, so it follows for free. */
 	.site-split__backbar {
-		position: static;
-		padding: 0 0 var(--space-4);
+		position: sticky;
+		z-index: 1;
+		padding: var(--space-2) 0;
 		margin-inline: 0;
 		background: transparent;
+		inset-block-start: var(--header-height);
+		pointer-events: none;
+	}
+
+	/* The quiet tier's border is already there, transparent, so lifting the
+	   control costs no layout shift — the chip is the same box the button was. */
+	.site-split__back {
+		border-color: var(--color-control-border);
+		background: var(--color-control);
+		box-shadow: var(--shadow-raised);
+		pointer-events: auto;
+	}
+
+	/* The pinned bar is taller than the breath the wide layout reserves, so a
+	   jumped-to heading has to clear masthead plus bar here: the bar's own
+	   padding, its `md` control, and a breath. Below 46rem the masthead term
+	   comes off with the masthead. */
+	.guidelines__entry h2,
+	.guidelines__landmark h2 {
+		scroll-margin-top: calc(
+			var(--header-height) + var(--control-height-md) + 2 * var(--space-2) + var(--space-4)
+		);
 	}
 
 	.site-split[data-view='detail'] .site-split__index {
 		display: none;
 	}
 
-	/* Nothing to pin to. The columns stack, so the index sits *below* the rule the
-	   reader is on and the document is the only scroller — a sticky finder would
-	   engage after they had scrolled past a whole page, then follow them down the
-	   list glued to the top of a viewport with no chrome in it. It is the first
-	   thing in the section either way, which at this width is where the reader
-	   arrives. Unpinned, its ring lane comes off with the columns' above. */
+	/* Nothing to pin the finder to: at the index view it is already the first
+	   thing on the screen the reader arrives at (the stack leads with the index),
+	   and a sticky finder following them down the whole list would spend the
+	   short edge of a small screen on chrome they can flick back to. Unpinned,
+	   its ring lane comes off with the columns' above. */
 	.site-finder {
 		position: static;
 		padding-block-start: 0;
@@ -1785,6 +1914,26 @@
 	.site-nav {
 		gap: var(--space-3);
 		margin-inline-start: 0;
+	}
+
+	/* A bare text link's hit box is its line box — ~20px at this size, under a
+	   thumb, in the row every page's navigation runs through. The padding grows
+	   the target without moving the type: block only, because the gap already
+	   spaces the row, and the visual hierarchy is the words, not a box. */
+	.site-nav a {
+		padding-block: var(--space-1);
+	}
+
+	/* The masthead is static at this width, so the back bar takes the top of the
+	   viewport — and the heading clearance drops the masthead's term with it.
+	   The bar's control is `lg` here (every `.button` steps up below 46rem). */
+	.site-split__backbar {
+		inset-block-start: 0;
+	}
+
+	.guidelines__entry h2,
+	.guidelines__landmark h2 {
+		scroll-margin-top: calc(var(--control-height-lg) + 2 * var(--space-2) + var(--space-4));
 	}
 
 	/* The band has room for the brand or the section and the nav, not both: with

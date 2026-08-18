@@ -111,9 +111,13 @@
 		     so the brand shares a left edge with the headline and every paragraph
 		     rather than hugging the viewport. -->
 		<div class="site-header__inner">
+			<!-- The wordmark already carries `LyricLint` as its own accessible name
+			     (`role="img"`), so the sr-only text adds only the word the lockup
+			     cannot say — spelled `LyricLint home` here, the link announced as
+			     `LyricLint LyricLint home`. -->
 			<a class="site-home" href={resolve('/')}>
 				<AppWordmark animated={!current('/')} />
-				<span class="sr-only">LyricLint home</span>
+				<span class="sr-only">home</span>
 			</a>
 			{#if sectionTitle}
 				<!-- The brand, then what it is a masthead over — the workbench's own
@@ -126,14 +130,25 @@
 			<!-- Named for what it is, not for the product: every landmark on the page
 			     belongs to LyricLint, so "LyricLint" told a reader listing them
 			     nothing about which one this is. -->
+			<!-- The three destinations that are not already the brand. There is no
+			     `About`: the wordmark beside this nav links the same landing page
+			     from every page, and two controls for one press on one band is the
+			     duplication the toolbar's own rules remove — a command is offered
+			     once. What that gives up is a *labeled* way to the answer of "what
+			     is this product", carried now by the logo-is-home convention
+			     alone. -->
 			<nav class="site-nav" aria-label="Site">
-				<a href={resolve('/')} aria-current={current('/')}>About</a>
 				<a href={resolve('/guidelines/')} aria-current={current('/guidelines')}>Guidelines</a>
 				<a href={resolve('/rules/')} aria-current={current('/rules')}>Linter Rules</a>
-				<!-- Dropped on a phone, where it is the one link in the masthead that
-				     cannot lead anywhere: the workbench is removed at that size and the
-				     gate takes its place. See `site.css`. -->
-				<a href={resolve('/lint/')}>Workbench</a>
+				<!-- Drawn at every width. A comment here used to claim it was dropped
+				     on a phone, from the era of a whole-phone gate that no longer
+				     exists: the workbench supports a phone held upright (only
+				     landscape is refused, by height and pointer — see
+				     `responsive.css`), so the link leads somewhere on every device
+				     this masthead draws on. `App` rather than `Workbench` for the
+				     row's width — the product's own name for the surface stays
+				     `workbench` everywhere prose has room for it. -->
+				<a href={resolve('/lint/')}>App</a>
 			</nav>
 		</div>
 	</header>

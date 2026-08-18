@@ -896,7 +896,7 @@ describe('Workspace and toolbar', () => {
 		// of the document's own top row for two commands.
 		expect(bar.querySelectorAll('kbd')).toHaveLength(0);
 		expect(bar.textContent).not.toContain('Section header');
-		expect(screen.queryByRole('button', { name: 'Ask the rules' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Ask LyricLint' })).toBeNull();
 
 		await fireEvent.click(unknown);
 		expect(calls.dispatched).toEqual([
