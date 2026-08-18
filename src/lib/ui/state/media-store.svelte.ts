@@ -105,7 +105,7 @@ function titleFromFilename(name: string): string | undefined {
 	return withoutExtension;
 }
 
-export interface MediaStoreDependencies {
+interface MediaStoreDependencies {
 	repository: MediaRepository;
 	feedback: FeedbackState;
 	draftId: () => string;

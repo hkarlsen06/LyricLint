@@ -54,7 +54,7 @@ export { performerColorIds } from './roster-store.svelte.js';
 export type { RosterMergeSuggestion } from './roster-store.svelte.js';
 export type { RightPanelTab } from './panel-view.svelte.js';
 
-export interface WorkbenchDependencies {
+interface WorkbenchDependencies {
 	editor: EditorHandle;
 	initialSnapshot: EditorSnapshot;
 	initialDraft: DraftRecord;

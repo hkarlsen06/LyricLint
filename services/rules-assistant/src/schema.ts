@@ -204,24 +204,43 @@ const providerMessageContentSchema = z.discriminatedUnion('type', [
 		.object({
 			type: z.literal('output_text'),
 			text: z.string(),
-			annotations: z.array(z.unknown()).optional()
+			// This worker enables only function tools, so its intermediate output
+			// cannot carry file or web annotations. Keeping the field exact makes
+			// the replay value assignable to the provider SDK without a cast.
+			annotations: z.array(z.never()).max(0)
 		})
 		.strict(),
 	z.object({ type: z.literal('refusal'), refusal: z.string() }).strict()
 ]);
+
+const providerStatusSchema = z.enum(['in_progress', 'completed', 'incomplete']);
+
+const providerReasoningSummarySchema = z
+	.object({ type: z.literal('summary_text'), text: z.string() })
+	.strict();
+
+const providerReasoningContentSchema = z
+	.object({ type: z.literal('reasoning_text'), text: z.string() })
+	.strict();
 
 /**
  * A replay item is handed straight back to the provider as input, so what a
  * client may send is exactly what `replayableItem` in provider.ts writes: these
  * three types, these fields, and nothing else. Under a passthrough a client
  * could put a developer- or system-role message into the model's own input.
+ *
+ * A field is required here exactly where the provider SDK declares it required
+ * on the item type — that mirroring is what lets a parsed replay item assign to
+ * `ResponseInputItem` without a cast, and it means a provider response missing
+ * one fails validation as `invalid_answer` at serialization time rather than as
+ * an opaque 400 when the continuation is replayed.
  */
 const providerItemSchema = z.discriminatedUnion('type', [
 	z
 		.object({
 			type: z.literal('function_call'),
 			id: z.string().optional(),
-			status: z.string().optional(),
+			status: providerStatusSchema.optional(),
 			arguments: z.string().max(MAX_TOOL_ARGUMENT_CHARS),
 			call_id: z.string().min(1),
 			name: z.enum(toolNames)
@@ -230,10 +249,10 @@ const providerItemSchema = z.discriminatedUnion('type', [
 	z
 		.object({
 			type: z.literal('reasoning'),
-			id: z.string().optional(),
-			status: z.string().optional(),
-			summary: z.array(z.unknown()).optional(),
-			content: z.array(z.unknown()).optional(),
+			id: z.string(),
+			status: providerStatusSchema.optional(),
+			summary: z.array(providerReasoningSummarySchema),
+			content: z.array(providerReasoningContentSchema).optional(),
 			// The worker only ever asks for encrypted reasoning, so an item
 			// without it is not one it produced.
 			encrypted_content: z.string()
@@ -242,12 +261,12 @@ const providerItemSchema = z.discriminatedUnion('type', [
 	z
 		.object({
 			type: z.literal('message'),
-			id: z.string().optional(),
-			status: z.string().optional(),
+			id: z.string(),
+			status: providerStatusSchema,
 			// Never 'developer' or 'system': the item is replayed into the model's
 			// input, so any other role is a prompt the client wrote.
 			role: z.literal('assistant'),
-			content: z.array(providerMessageContentSchema).optional()
+			content: z.array(providerMessageContentSchema)
 		})
 		.strict()
 ]);
@@ -269,8 +288,10 @@ export const providerItemsSchema = z
 		}
 	});
 
-export function decodeProviderItems(value: string): Array<Record<string, unknown>> {
-	return JSON.parse(value) as Array<Record<string, unknown>>;
+const decodedProviderItemsSchema = z.array(providerItemSchema);
+
+export function decodeProviderItems(value: string): z.infer<typeof decodedProviderItemsSchema> {
+	return decodedProviderItemsSchema.parse(JSON.parse(value));
 }
 
 const wireToolCallMessageSchema = z
@@ -291,10 +312,11 @@ const wireToolCallMessageSchema = z
 			return;
 		}
 		if (!Array.isArray(items)) return;
-		const declared = new Set(value.toolCalls.map((call) => `${call.name} ${call.callId}`));
-		for (const item of items as Array<Record<string, unknown>>) {
-			if (!item || item['type'] !== 'function_call') continue;
-			if (!declared.has(`${String(item['name'])} ${String(item['call_id'])}`)) {
+		const declared = new Set(value.toolCalls.map((call) => `${call.name}\0${call.callId}`));
+		for (const item of items) {
+			if (typeof item !== 'object' || item === null || !('type' in item)) continue;
+			if (item.type !== 'function_call' || !('name' in item) || !('call_id' in item)) continue;
+			if (!declared.has(`${String(item.name)}\0${String(item.call_id)}`)) {
 				context.addIssue({
 					code: 'custom',
 					path: ['providerItems'],

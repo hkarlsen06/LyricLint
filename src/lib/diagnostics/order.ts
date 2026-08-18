@@ -1,4 +1,4 @@
-import type { Diagnostic, Severity } from '$lib/core/types.js';
+import { severityRank, type Diagnostic } from '$lib/core/types.js';
 import { isHarperRuleId } from '$lib/rules/harper-ids.js';
 
 /**
@@ -8,13 +8,6 @@ import { isHarperRuleId } from '$lib/rules/harper-ids.js';
 export function diagnosticKey(diagnostic: Diagnostic): string {
 	return `${diagnostic.ruleId}:${diagnostic.from}:${diagnostic.to}`;
 }
-
-const severityOrder: Record<Severity, number> = {
-	error: 0,
-	warning: 1,
-	suggestion: 2,
-	'manual-review': 3
-};
 
 /**
  * Harper's findings sort under every reviewed rule, whatever they say and
@@ -69,7 +62,7 @@ export function orderDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic
 	return [...diagnostics].sort(
 		(left, right) =>
 			providerOrder(left) - providerOrder(right) ||
-			severityOrder[left.severity] - severityOrder[right.severity] ||
+			severityRank[left.severity] - severityRank[right.severity] ||
 			left.from - right.from ||
 			left.ruleId.localeCompare(right.ruleId)
 	);

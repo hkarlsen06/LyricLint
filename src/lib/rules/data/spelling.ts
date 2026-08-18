@@ -12,7 +12,7 @@ export type SpellingContextGate =
 	| 'money-meaning'
 	| 'accepted-variant';
 
-export interface SpellingLookupContext {
+interface SpellingLookupContext {
 	language: string;
 }
 
@@ -49,7 +49,7 @@ export interface StandardizedSpelling {
 	resolvePreferred?: (context: SpellingMatchContext) => string;
 }
 
-export interface SpellingCandidate {
+interface SpellingCandidate {
 	from: number;
 	to: number;
 	found: string;

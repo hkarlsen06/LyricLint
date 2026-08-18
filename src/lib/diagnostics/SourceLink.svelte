@@ -33,7 +33,7 @@
 <div class="source-reference">
 	<span class="source-reference__title">
 		{#if safeUrl}
-			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+			<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- safeUrl is a validated external citation, not an app route. -->
 			<a href={safeUrl} target="_blank" rel="noopener noreferrer">
 				{#if favicon}
 					<img class="source-reference__favicon" src={favicon} alt="" />

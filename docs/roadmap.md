@@ -1,14 +1,15 @@
 # Roadmap — August 2026 to July 2027
 
 This is the optimistic reading of the next year: what LyricLint looks like if the pace of the
-first weeks holds, every source review lands, and nothing external refuses us. It is written
-against what is actually in the tree on 2026-07-30 — 54 enabled rules, 8 reviewed language packs,
+first weeks holds and nothing external refuses us. It is written against what is actually in the
+tree in August 2026 — 60 enabled rules, 8 reviewed language packs,
 four audio sources, a rule reference derived from the linter, and a workbench that already syncs,
 anchors, and links.
 
 Optimistic does not mean unbounded. Two things stay off this roadmap all year, and they are the
-same two `PRODUCT.md` names as anti-references: **automatic transcription** and **anything that
-sends a lyric to a server**. Everything below is a local-first tool getting better at the job a
+same two `PRODUCT.md` names as anti-references: **automatic transcription** and **server-side draft
+storage or synchronization**. The optional assistant can read a 'scribe only across its existing
+explicit consent boundary. Everything below is a local-first tool getting better at the job a
 transcriber is already doing by hand.
 
 Each quarter states a theme, what ships, and the gate that proves it — because this project's
@@ -34,10 +35,6 @@ hand back.
 - **Timed import.** An `.lrc` dropped on the editor is a document and a set of anchors in one
   edit, which is how a transcriber brings work in from elsewhere and picks up where sync mode
   left off.
-- **The five `needs-review` sources clear review.** `G-QUOTES`, `G-SYMBOLS`, `G-AS-SPOKEN`,
-  `G-NON-ENGLISH` and `G-INSTRUMENTAL` are each blocking candidate rules that are already
-  designed. Clearing them takes the catalog from 54 to roughly 65 without inventing a single new
-  policy claim.
 - **Language packs 8 → 20.** `docs/genius-language-source-inventory.md` holds 60+ annotation IDs
   and each one is its own review unit. The next twelve are chosen by where transcription volume
   actually is: Portuguese, Italian, Dutch, Russian, Turkish, Polish, Swedish, Danish, Finnish,
@@ -154,7 +151,7 @@ interrupt anybody's editing.
 
 | | Today | July 2027 |
 |---|---|---|
-| Enabled rules | 54 | ~100 |
+| Enabled rules | 60 | ~100 |
 | Reviewed language packs | 8 | 40 |
 | Audio sources | 4 | 4 (deliberately) |
 | Outputs | Genius markup, `.txt` | + `.lrc`, `.vtt`, cover art, song facts |

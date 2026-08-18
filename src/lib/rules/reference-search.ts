@@ -106,7 +106,7 @@ export function popularRules(groups: readonly RuleReferenceGroup[]): RuleReferen
  * page grows a section.
  *
  * **The citations were left out once, and the argument for it was wrong by an
- * amount that could have been measured.** The reasoning was that all 55 rules
+ * amount that could have been measured.** The reasoning was that all 60 rules
  * cite the same handful of Genius pages, so a citation term would group the
  * index rather than narrow it. They do not: the most-cited page title covers 18
  * rules and is `Use song part headers`, which landing on the eighteen header
@@ -277,7 +277,7 @@ function foldWithOffsets(text: string): FoldedWithOffsets {
  * One row of the index: a rule, or the several rules that are one convention
  * per language pack.
  */
-export type RuleIndexEntry =
+type RuleIndexEntry =
 	| { kind: 'rule'; rule: RuleReference }
 	| { kind: 'family'; family: string; rules: RuleReference[] };
 
@@ -293,7 +293,7 @@ export type RuleIndexEntry =
  *
  * Only the *drawing* collapses. `groupedRuleReferences()` stays exhaustive, so
  * the sitemap, the prerender entries, the structured data and the search all
- * still see all 55 rules and every `/rules/<slug>/` URL is untouched.
+ * still see all 60 rules and every `/rules/<slug>/` URL is untouched.
  *
  * Two things it owes:
  *
@@ -345,7 +345,7 @@ export interface TextRange {
  * and touching runs are merged so two terms that met in the middle of a word
  * are one mark rather than two abutting ones with a seam between them.
  */
-export function highlightRanges(text: string, tokens: readonly string[]): TextRange[] {
+function highlightRanges(text: string, tokens: readonly string[]): TextRange[] {
 	if (tokens.length === 0 || text.length === 0) return [];
 	const { folded, starts, ends } = foldWithOffsets(text);
 	const found: TextRange[] = [];
@@ -370,7 +370,7 @@ export function highlightRanges(text: string, tokens: readonly string[]): TextRa
 }
 
 /** A piece of text, and whether the query is why it is being pointed at. */
-export interface TextSegment {
+interface TextSegment {
 	text: string;
 	match: boolean;
 }
@@ -397,7 +397,7 @@ export function highlightSegments(text: string, tokens: readonly string[]): Text
 	return segments;
 }
 
-export interface RuleFilter {
+interface RuleFilter {
 	query: string;
 	/**
 	 * The severities and fixabilities on show, exactly as the linter panel's own

@@ -16,7 +16,7 @@ import { searchTokens } from '$lib/rules/reference-search.js';
  * `ui/state/`. What it costs is that the query now outlives leaving the section
  * altogether — search, read the landing page, come back, and the list is still
  * narrowed. That is the right end of the trade rather than an oversight: the
- * field is showing the query, the readout under it says `3 of 55 rules` with
+ * field is showing the query, the readout under it says `3 of 60 rules` with
  * `Clear filters` beside it, so nothing about the state is hidden from the
  * person who is in it. A filter is a way of looking at the list, which does not
  * stop being true because the reader looked at something else in between.
@@ -35,7 +35,7 @@ export function setRuleSearchQuery(value: string): void {
  * The query as the terms every surface matches on, derived once rather than
  * re-split per string.
  *
- * The rule page marks a dozen or more strings and the index matches 55 rules,
+ * The rule page marks a dozen or more strings and the index matches 60 rules,
  * and both of them ask this on every keystroke. `searchTokens` folds, which is
  * three passes over the query, so the alternative is that work repeated a
  * hundred times for a value that changed once.

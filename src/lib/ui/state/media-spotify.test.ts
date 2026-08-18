@@ -10,10 +10,9 @@ import {
 	createSpotifySource,
 	loadSpotifySdk,
 	parseSpotifyTrackId,
-	searchSpotifyTracks,
-	spotifyConnectTimeoutMs,
-	spotifySdkLoadTimeoutMs
+	searchSpotifyTracks
 } from './media-spotify.js';
+import { remoteLoadTimeoutMs } from './media-remote-policy.js';
 import type { MediaSourceEvents } from './media-player.svelte.js';
 import {
 	beginSpotifySignIn,
@@ -46,7 +45,7 @@ describe('loading the Spotify SDK', () => {
 		const loading = loadSpotifySdk();
 		const rejected = expect(loading).rejects.toThrow('did not load in time');
 
-		await vi.advanceTimersByTimeAsync(spotifySdkLoadTimeoutMs);
+		await vi.advanceTimersByTimeAsync(remoteLoadTimeoutMs);
 		await rejected;
 		vi.useRealTimers();
 		vi.unstubAllGlobals();
@@ -510,7 +509,7 @@ describe('createSpotifySource', () => {
 		});
 		const loading = source.load(trackId);
 		await Promise.resolve();
-		await vi.advanceTimersByTimeAsync(spotifyConnectTimeoutMs);
+		await vi.advanceTimersByTimeAsync(remoteLoadTimeoutMs);
 		await loading;
 
 		expect(events.failed).toHaveBeenCalledWith('The Spotify player could not be loaded.');

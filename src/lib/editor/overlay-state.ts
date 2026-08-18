@@ -41,7 +41,7 @@ export interface LegendTarget {
  * popover behind a picker, a pending legend step with no picker mounted, or a
  * picker with no range to anchor to.
  */
-export type OverlayState =
+type OverlayState =
 	| { kind: 'none' }
 	| {
 			kind: 'diagnostic';
@@ -253,7 +253,7 @@ export function cancelPerformerPicker(session: OverlaySession): OverlaySession {
 }
 
 /** What applying the performer picker resolves to for the current overlay. */
-export type PerformerApplyOutcome =
+type PerformerApplyOutcome =
 	/** Step one of the legend flow recorded; the picker stays open for step two. */
 	| { kind: 'advance'; session: OverlaySession }
 	/**
@@ -351,10 +351,7 @@ export function askSectionVoice(
 }
 
 /** The outcomes that produce a document edit and therefore settle afterwards. */
-export type CommittedPerformerAssignment = Extract<
-	PerformerApplyOutcome,
-	{ kind: 'legend' | 'range' }
->;
+type CommittedPerformerAssignment = Extract<PerformerApplyOutcome, { kind: 'legend' | 'range' }>;
 
 /**
  * Settle the session after an assignment edit was dispatched (or failed).

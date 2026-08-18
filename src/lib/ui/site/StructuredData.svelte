@@ -8,6 +8,6 @@
 
 <svelte:head>
 	<!-- The tag and escaped payload are built here rather than accepted as markup. -->
-	<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+	<!-- eslint-disable-next-line svelte/no-at-html-tags -- markup is built locally from JSON with closing-tag characters escaped. -->
 	{@html markup}
 </svelte:head>

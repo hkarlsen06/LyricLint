@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, screen } from '@testing-library/dom';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { Diagnostic } from '$lib/core/types.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';

@@ -153,7 +153,7 @@ describe('rule reference derivation', () => {
 		).toHaveLength(2);
 
 		// And no more than that. The reference travels in the section layout's
-		// data, so it is copied into all 55 prerendered payloads; what the search
+		// data, so it is copied into all 60 prerendered payloads; what the search
 		// needs is 5.8% of that payload against the full table's 16.2%, for content
 		// six of every seven pages never draw. The page loads its own through
 		// `+page.server.ts`, which is why the structure never rides along — only

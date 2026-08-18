@@ -24,7 +24,7 @@
  */
 
 /** A timing carried by the copy, keyed into the fragment's own lines. */
-export interface ClipboardAnchor {
+interface ClipboardAnchor {
 	/** 0-based line index into the copied fragment. */
 	line: number;
 	/** Seconds into the source draft's audio. */
@@ -39,7 +39,7 @@ export interface ClipboardAnchor {
  * plain flavor is a byte-identical slice — so a column into a line means the
  * same characters on both sides of the trip.
  */
-export interface ClipboardHole {
+interface ClipboardHole {
 	/** 0-based line the run starts on. */
 	line: number;
 	/** Characters into that line. */
@@ -90,7 +90,7 @@ export interface ClipboardMetadata {
 }
 
 /** The attribute the whole flavor hangs on; nothing else writes or reads it. */
-export const clipboardMetadataAttribute = 'data-lyriclint';
+const clipboardMetadataAttribute = 'data-lyriclint';
 
 const payloadVersion = 1;
 

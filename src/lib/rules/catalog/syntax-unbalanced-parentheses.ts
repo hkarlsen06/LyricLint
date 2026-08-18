@@ -1,7 +1,7 @@
 import type { Diagnostic, LyricLine, RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, hasUnsupportedMarkup, maskedMarkupText } from './utils.js';
 
-export interface ParenthesisScan {
+interface ParenthesisScan {
 	/** Matched pairs, each end an absolute document offset of its own mark. */
 	pairs: { open: number; close: number }[];
 	/** Opening marks that never close, in absolute document offsets. */

@@ -47,7 +47,7 @@ const DEFAULT_ANSWERS_URL = 'https://api.lyriclint.com/v1/answers';
  */
 export const STREAM_INACTIVITY_MS = 180_000;
 
-export function assistantAnswersUrl(): string {
+function assistantAnswersUrl(): string {
 	const configured = import.meta.env.PUBLIC_ASSISTANT_ANSWERS_URL;
 	if (configured !== undefined) return configured.trim();
 	return DEFAULT_ANSWERS_URL;

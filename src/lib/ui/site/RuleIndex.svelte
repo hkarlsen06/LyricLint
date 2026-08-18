@@ -3,6 +3,7 @@
 	import type { Fixability, Severity } from '$lib/core/types.js';
 	import SeverityIcon from '$lib/diagnostics/SeverityIcon.svelte';
 	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
+	import { severityPluralLabels } from '$lib/diagnostics/severity-labels.js';
 	import {
 		countRules,
 		filterRuleGroups,
@@ -84,13 +85,6 @@
 	const filterStatus = $derived(
 		!hasFiltered ? '' : filtering ? `${shown} of ${total} rules` : `All ${total} rules`
 	);
-
-	const severityLabels: Record<Severity, string> = {
-		error: 'Errors',
-		warning: 'Warnings',
-		suggestion: 'Suggestions',
-		'manual-review': 'Manual review'
-	};
 
 	/**
 	 * Whether a collapsed family can state one severity and one fix kind for all
@@ -208,7 +202,7 @@
 					onclick={() => (shownSeverities = toggle(shownSeverities, severity))}
 				>
 					<SeverityIcon {severity} />
-					{severityLabels[severity]}
+					{severityPluralLabels[severity]}
 					<span class="filter-chip__count">{counts.severity[severity]}</span>
 				</button>
 			{/each}

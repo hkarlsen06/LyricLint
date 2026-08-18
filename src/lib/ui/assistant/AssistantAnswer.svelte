@@ -120,7 +120,7 @@
 							     the thing being read, and a source is a lookup beside it — so
 							     the note joins the link's name, as it does on every other
 							     external link in the application. -->
-							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- safeExternalUrl has validated this external citation. -->
 							<a href={url} target="_blank" rel="noopener noreferrer"
 								>{source.pageTitle}<span class="sr-only">(opens in a new tab)</span></a
 							>

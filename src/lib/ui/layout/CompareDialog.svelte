@@ -409,7 +409,7 @@
 		color: var(--color-text);
 		font-family: var(--font-mono);
 		font-size: var(--font-size-sm);
-		line-height: var(--line-height-normal);
+		line-height: var(--line-height-editor);
 		resize: vertical;
 	}
 
@@ -482,7 +482,7 @@
 		color: var(--color-text);
 		font-family: var(--font-mono);
 		font-size: var(--font-size-sm);
-		line-height: var(--line-height-normal);
+		line-height: var(--line-height-editor);
 		gap: var(--space-2);
 		text-align: start;
 	}

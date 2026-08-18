@@ -126,7 +126,7 @@ export interface ParsedDocument {
 }
 
 /** Review status for bundled Genius guideline metadata. */
-export type SourceReviewStatus = 'reviewed' | 'needs-review' | 'retired';
+type SourceReviewStatus = 'reviewed' | 'needs-review' | 'retired';
 
 /**
  * How much standing a source has as Genius transcription policy, highest
@@ -172,6 +172,14 @@ export interface SourceReference {
 /** Diagnostic importance, ordered from errors through manual review. */
 export type Severity = 'error' | 'warning' | 'suggestion' | 'manual-review';
 
+/** Shared severity priority; consumers keep their distinct secondary sorts. */
+export const severityRank: Record<Severity, number> = {
+	error: 0,
+	warning: 1,
+	suggestion: 2,
+	'manual-review': 3
+};
+
 /** Whether a rule's fixes can be applied directly, previewed, or not offered. */
 export type Fixability = 'safe' | 'preview' | 'none';
 
@@ -201,7 +209,7 @@ export interface DiagnosticFix {
 }
 
 /** A language inferred from the document that the shell can select directly. */
-export interface DetectedDiagnosticLanguage {
+interface DetectedDiagnosticLanguage {
 	tag: string;
 	displayName: string;
 }
@@ -238,7 +246,7 @@ export interface DetectedDiagnosticLanguage {
  * `filterForEditorState` is where this is spent; `deferActiveLineTrailingWhitespace`
  * was the one hand-rolled instance of it.
  */
-export type SettlesOn = 'character' | 'caret' | 'line' | 'document';
+type SettlesOn = 'character' | 'caret' | 'line' | 'document';
 
 /** A source-backed finding against the same revision as its parsed document. */
 export interface Diagnostic extends TextRange {
@@ -471,7 +479,7 @@ export interface LinkDifference {
  * says both, and the shared halves are identical in every copy by construction —
  * which is what makes the versions line up under each other on screen.
  */
-export interface LinkWording {
+interface LinkWording {
 	headerFrom: number;
 	/** The divergent run itself. Empty where this copy has nothing there. */
 	text: string;
@@ -663,14 +671,6 @@ export type StyleSlotAllocation =
 	| { status: 'available'; styleSlot: StyleSlot }
 	| { status: 'existing'; styleSlot: StyleSlot }
 	| { status: 'unavailable' };
-
-/** A voice group whose position conflicts with its assigned slot order. */
-export interface StyleSlotOrderIssue {
-	groupId: string;
-	actual: StyleSlot;
-	expected: StyleSlot;
-	range?: TextRange;
-}
 
 /** Serializable storage boundary for draft creation and lifecycle operations. */
 export interface DraftRepository {

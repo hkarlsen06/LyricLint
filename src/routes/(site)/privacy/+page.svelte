@@ -82,9 +82,9 @@
 	<h2>Deleting your data</h2>
 	<p>
 		Assistant conversations can be deleted one at a time inside the assistant, and
-		<em>Delete all local data</em> in the workbench's Tools panel removes every 'scribe and every conversation
-		from this browser. The workspace backup exports transcriptions only — chat history is never part of
-		a backup file.
+		<em>Delete all local data</em> in the workbench's Preferences panel removes every 'scribe and every
+		conversation from this browser. The workspace backup exports transcriptions only — chat history is
+		never part of a backup file.
 	</p>
 
 	<p class="site-aside">

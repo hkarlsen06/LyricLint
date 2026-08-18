@@ -235,6 +235,11 @@ textarea:disabled {
 	color: var(--color-suggestion);
 }
 
+.filter-chip--manual-review[aria-pressed='true'] {
+	background: var(--color-manual-soft);
+	color: var(--color-manual);
+}
+
 /* The count is what pressing the chip puts back. A zero on one is a fact about
    the rule reference's query — the linter panel drops a chip whose kind has
    nothing in it rather than printing one. It used to also drop to

@@ -55,7 +55,7 @@ const BOTTOM_THRESHOLD = 24;
 /** A touch has to travel this far before it is a scroll rather than a press. */
 const TOUCH_DEADZONE = 4;
 
-export interface StickToBottom {
+interface StickToBottom {
 	/** Attach to the scrolling element itself, not to its content. */
 	readonly attach: Attachment<HTMLElement>;
 	/** Whether the transcript is currently following its own foot. */

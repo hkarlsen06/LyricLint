@@ -1,4 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
+import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
+import { userEvent } from 'vitest/browser';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
 import type { DraftRecord } from '$lib/core/types.js';
 import { createTestWorkbench } from '../test-utils.js';
@@ -48,8 +50,9 @@ describe('DraftMenu', () => {
 		expect(importButton.classList.contains('button')).toBe(true);
 		expect(importButton.classList.contains('button--quiet')).toBe(false);
 
-		await fireEvent.click(screen.getByRole('button', { name: /^Second song/ }));
+		await userEvent.click(screen.getByRole('button', { name: /^Second song/ }));
 		expect(controller.draftId).toBe('draft-2');
+		await userEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 		const secondRow = screen.getByText('Second song').closest('li');
 		expect(secondRow).toBeTruthy();
 		// The row's commands are glyphs, so the draft's own name is what carries
@@ -63,7 +66,7 @@ describe('DraftMenu', () => {
 		await fireEvent.click(within(secondRow!).getByRole('button', { name: 'Rename Second song' }));
 		const titleInput = within(secondRow!).getByRole('textbox', { name: "'Scribe title" });
 		// The field takes the row's place, so it takes its focus too.
-		expect(document.activeElement).toBe(titleInput);
+		await waitFor(() => expect(document.activeElement).toBe(titleInput));
 		await fireEvent.input(titleInput, { target: { value: 'Bridge notes' } });
 		await fireEvent.submit(secondRow!.querySelector('form')!);
 		await waitFor(() => expect(screen.getByText('Bridge notes')).toBeTruthy());
@@ -94,9 +97,7 @@ describe('DraftMenu', () => {
 		await fireEvent.click(confirm);
 		await waitFor(async () => expect((await repository.list()).length).toBe(2));
 		await waitFor(() =>
-			expect(document.activeElement?.matches('.draft-list__title, .draft-menu > summary')).toBe(
-				true
-			)
+			expect(document.activeElement?.matches('.list-row__action, .draft-menu > summary')).toBe(true)
 		);
 	});
 

@@ -87,17 +87,19 @@ rather than quietly overwritten.
 
 ### Local first
 
-- Transcriptions are stored in your browser and never sent to a LyricLint
-  server. There is no account, and drafts have no backend.
+- Transcriptions are stored in your browser, and linting never sends them to a
+  server. There is no account or draft-sync backend.
 - The workbench keeps working offline once it has loaded, and installs as an
   app.
 - Two things contact a third party, each only when you ask: attaching audio
   from YouTube, Spotify, or Apple Music loads that provider's player per
-  session; and the optional **rules assistant** sends the question you type
-  into it (never your draft) to LyricLint's answering service, which forwards
-  it to OpenAI through Cloudflare AI Gateway. Conversations are stored in your
-  browser only — see [/privacy/](https://lyriclint.com/privacy/).
-- `Delete all local data` in the Tools panel means it — drafts and assistant
+  session; and the optional **rules assistant** sends the question you type to
+  LyricLint's answering service, which forwards it to OpenAI through Cloudflare
+  AI Gateway. If the assistant asks to read the open 'scribe, it is sent only
+  after your explicit per-'scribe choice; the same consent gates edit proposals.
+  Conversations are stored in your browser only — see
+  [/privacy/](https://lyriclint.com/privacy/).
+- `Delete all local data` in Preferences means it — drafts and assistant
   chats alike.
 
 ## Development
@@ -109,18 +111,17 @@ bun install
 bun run dev
 ```
 
-Run the project checks with:
+Run the complete local equivalent of CI (including a Chromium-only Playwright
+install) with:
 
 ```sh
-bun run check
-bun run lint
-bun run test:unit -- --run
-bun run e2e
-bun run assistant:test
-bun run assistant:corpus
+bun run test
 ```
 
-Regenerate the assistant corpus after changing lint rules.
+The individual commands are `bun run check`, `bun run lint`,
+`bun run test:unit -- --run`, `bun run assistant:test`, and
+`bun run test:e2e`. Regenerate the assistant corpus after changing lint rules
+with `bun run assistant:corpus`.
 
 Create a production build with:
 
@@ -136,6 +137,8 @@ card's shape moves. Against a running dev server:
 
 ```sh
 bun run render:workbench             # the hero shot
+bun run render:workbench --performers # performer poster (PNG source → WebP)
+bun run render:workbench --harper     # grammar poster (PNG source → WebP)
 bun run render:motion                # the performer loop (webm + gif)
 bun run render:motion --harper       # the grammar loop (webm + gif)
 ```

@@ -15,7 +15,7 @@ export type ErrorCode =
 	| 'provider_error'
 	| 'service_disabled';
 
-export const ERROR_STATUS: Record<ErrorCode, number> = {
+const ERROR_STATUS: Record<ErrorCode, number> = {
 	invalid_request: 400,
 	challenge_required: 403,
 	challenge_failed: 403,

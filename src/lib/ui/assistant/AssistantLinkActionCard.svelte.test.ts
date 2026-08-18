@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render } from '@testing-library/svelte';
+import { fireEvent, within } from '@testing-library/dom';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { AssistantLinkActionRecord } from '$lib/assistant/types.js';
@@ -51,12 +52,12 @@ describe('an assistant section-link action card', () => {
 		const assistant = assistantStub();
 		const view = render(AssistantLinkActionCard, { action: action(), assistant, decidable: true });
 
-		await fireEvent.click(view.getByRole('button', { name: 'Approve' }));
+		await fireEvent.click(within(view.container).getByRole('button', { name: 'Approve' }));
 		expect(assistant.approveLinkAction).toHaveBeenCalledWith('link-1');
 
 		await view.rerender({ action: action('applied'), assistant, decidable: true });
 		expect(view.container.textContent).toContain('Linked.');
-		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Approve' })).toBeNull();
 
 		await view.rerender({
 			action: action('pending', undefined, 'unlink'),
@@ -64,7 +65,7 @@ describe('an assistant section-link action card', () => {
 			decidable: true
 		});
 		expect(view.container.textContent).toContain('Unlink [Chorus]');
-		await fireEvent.click(view.getByRole('button', { name: 'Reject' }));
+		await fireEvent.click(within(view.container).getByRole('button', { name: 'Reject' }));
 		expect(assistant.rejectLinkAction).toHaveBeenCalledWith('link-1');
 		await view.rerender({
 			action: action('applied', undefined, 'unlink'),
@@ -82,8 +83,8 @@ describe('an assistant section-link action card', () => {
 		});
 		expect(view.container.textContent).toContain('Failed.');
 		expect(view.container.textContent).toContain('Only choruses');
-		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
-		expect(view.queryByRole('button', { name: 'Reject' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Approve' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Reject' })).toBeNull();
 	});
 
 	test('a pending action whose session is gone is history, not an offer', () => {
@@ -93,7 +94,7 @@ describe('an assistant section-link action card', () => {
 			decidable: false
 		});
 		expect(view.container.textContent).toContain('Left undecided.');
-		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
-		expect(view.queryByRole('button', { name: 'Reject' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Approve' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Reject' })).toBeNull();
 	});
 });

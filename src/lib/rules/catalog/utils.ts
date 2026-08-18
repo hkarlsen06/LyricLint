@@ -77,7 +77,7 @@ export function maskedMarkupText(line: LyricLine): string {
 const MASKED_MARKUP_CACHE_LIMIT = 2_000;
 const maskedMarkupTextCache = new Map<string, string>();
 
-export interface AbsoluteMatch {
+interface AbsoluteMatch {
 	from: number;
 	to: number;
 	text: string;

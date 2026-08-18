@@ -6,13 +6,13 @@ import {
 	authorizeAppleMusic,
 	createAppleMusicSource,
 	loadMusicKit,
-	musicKitLoadTimeoutMs,
 	parseAppleMusicSongId,
 	resetAppleMusic,
 	searchAppleMusicSongs,
 	settleMaxEvents
 } from './media-apple.js';
 import type { MediaSourceEvents } from './media-player.svelte.js';
+import { remoteLoadTimeoutMs } from './media-remote-policy.js';
 
 const songId = '1091453645';
 const otherSongId = '1440913430';
@@ -78,7 +78,7 @@ describe('loading MusicKit', () => {
 		const loading = loadMusicKit();
 		const rejected = expect(loading).rejects.toThrow('did not load in time');
 
-		await vi.advanceTimersByTimeAsync(musicKitLoadTimeoutMs);
+		await vi.advanceTimersByTimeAsync(remoteLoadTimeoutMs);
 		await rejected;
 		resetAppleMusic();
 		vi.useRealTimers();

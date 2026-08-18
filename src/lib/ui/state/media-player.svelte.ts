@@ -192,7 +192,7 @@ export interface MediaSource {
 	destroy(): void;
 }
 
-export interface MediaAttachment {
+interface MediaAttachment {
 	name: string;
 	/** Absent when the browser has no File System Access API to hand one back. */
 	handle?: FileSystemFileHandle;
@@ -208,7 +208,7 @@ export interface MediaAttachment {
 }
 
 /** What `attachVideo` needs. The id is the whole of the durable fact. */
-export interface VideoAttachment {
+interface VideoAttachment {
 	videoId: string;
 	/** What to call it until the player says what it actually is. */
 	name?: string;
@@ -216,14 +216,14 @@ export interface VideoAttachment {
 }
 
 /** What `attachTrack` needs. Same shape as a video: an id and a placeholder. */
-export interface TrackAttachment {
+interface TrackAttachment {
 	trackId: string;
 	name?: string;
 	startAt?: number;
 }
 
 /** What `attachSong` needs. The same shape again, for Apple Music. */
-export interface SongAttachment {
+interface SongAttachment {
 	songId: string;
 	name?: string;
 	startAt?: number;
@@ -236,11 +236,11 @@ export interface SongAttachment {
  * and is the moment a listener should write the position down rather than
  * waiting for its next threshold.
  */
-export type ProgressReason = 'progress' | 'settled';
+type ProgressReason = 'progress' | 'settled';
 
-export type ProgressListener = (time: number, reason: ProgressReason) => void;
+type ProgressListener = (time: number, reason: ProgressReason) => void;
 
-export interface MediaPlayerDependencies {
+interface MediaPlayerDependencies {
 	feedback: FeedbackState;
 	/** Injectable so tests drive a stub instead of a real decoder. */
 	createAudio?: () => HTMLMediaElement;
@@ -282,7 +282,7 @@ export interface MediaPlayerDependencies {
  * (`media-shortcuts.ts`), because they are presses. What is playing is a fact,
  * and it changes here.
  */
-export type MediaSessionMetadataControls = Pick<MediaSession, 'metadata' | 'playbackState'>;
+type MediaSessionMetadataControls = Pick<MediaSession, 'metadata' | 'playbackState'>;
 
 export interface MediaPlayer {
 	/** The attached file's name, or undefined when nothing is attached. */

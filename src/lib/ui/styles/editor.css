@@ -1,4 +1,4 @@
-/* The editor surface: its scroll host and the mock editor textarea. */
+/* The editor surface and its scroll host. */
 
 /* The first row of `.editor-region`, with the transport below it and the action
    tray floating over its top-right corner rather than taking a row of its own.
@@ -10,33 +10,4 @@
 	grid-row: 1;
 	overflow: auto;
 	background: var(--color-surface);
-}
-
-.mock-editor {
-	width: 100%;
-	height: 100%;
-	min-height: inherit;
-}
-
-.mock-editor textarea {
-	display: block;
-	width: 100%;
-	/* The reading measure. The real CodeMirror surface caps at the same token
-	   (via line padding in src/lib/editor/create-editor.ts). */
-	max-width: var(--measure-editor);
-	height: 100%;
-	min-height: 20rem;
-	padding: 2.25rem clamp(1rem, 5vw, 4rem);
-	border: 0;
-	border-radius: 0;
-	resize: none;
-	background: transparent;
-	font-family: var(--font-mono);
-	font-size: var(--font-size-lg);
-	line-height: var(--line-height-editor);
-	tab-size: 2;
-}
-
-.mock-editor textarea:focus-visible {
-	outline-offset: -3px;
 }

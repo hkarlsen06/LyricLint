@@ -10,41 +10,38 @@
  *     bun run vite dev --host 127.0.0.1 --port 5173
  *     bun scripts/render-workbench-shot.mjs
  *
- * `ORIGIN` overrides the server it drives; `--light` writes the light-scheme
- * companion; `--performers` writes the performer-tagging detail shot — the
+ * `ORIGIN` overrides the server it drives; `--performers` writes the
+ * performer-tagging detail shot — the
  * editor cropped portrait around a pointer selection with the performer picker
  * open over it, roster and all; `--harper` writes the on-device-grammar detail
  * shot — a hovered Harper underline with its popover open, fix preview and
  * citation included. Every file lands in `static/`.
  *
  * The documents these are taken of, and the performer scene's own setup, live
- * in `shot-scene.mjs` — `render-performer-motion.mjs` films the same scene this
+ * in `shot-scene.mjs` — `render-motion.mjs` films the same scene this
  * photographs, and a second copy of either is a copy that drifts.
  */
-import { mkdir } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { mkdir, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { promisify } from 'node:util';
 import { chromium } from 'playwright';
 import {
 	harperTranscription,
 	prepareHeroScene,
 	preparePerformerScene,
 	selectionPoints,
+	shotViewport,
 	waitForWorkbench
 } from './shot-scene.mjs';
 
+const run = promisify(execFile);
 const origin = process.env.ORIGIN ?? 'http://127.0.0.1:5173';
-const light = process.argv.includes('--light');
 const performers = process.argv.includes('--performers');
 const harper = process.argv.includes('--harper');
-const outputPath = resolve(
-	performers
-		? 'static/workbench-performers.png'
-		: harper
-			? 'static/workbench-harper.png'
-			: light
-				? 'static/workbench-light.png'
-				: 'static/workbench.png'
-);
+const stem = performers ? 'workbench-performers' : harper ? 'workbench-harper' : 'workbench';
+const outputPath = resolve(`static/${stem}.png`);
+const webpPath = resolve(`static/${stem}.webp`);
 
 await mkdir(resolve('static'), { recursive: true });
 
@@ -58,12 +55,12 @@ try {
 		// in a picture reads as an application with nothing in it. The performers
 		// shot is taller instead: its crop is portrait, and the window has to hold
 		// the whole song plus the picker below the selection.
-		viewport: { width: 1280, height: performers ? 1150 : 820 },
+		viewport: shotViewport(performers ? 'performers' : harper ? 'harper' : 'hero'),
 		// A product shot is scaled down in the page, so it is rendered at 2x and
 		// let the browser resample it — a 1x capture set into a 1180px frame is
 		// visibly soft on every display anybody reads this page on.
 		deviceScaleFactor: 2,
-		colorScheme: light ? 'light' : 'dark',
+		colorScheme: 'dark',
 		// The transport, the drafts menu, and the wordmark all animate on arrival.
 		// A shot taken mid-spring catches the brand halfway open.
 		reducedMotion: 'reduce'
@@ -189,3 +186,10 @@ try {
 } finally {
 	await browser.close();
 }
+
+// Posters are derived from the lossless still by the system ffmpeg's libwebp
+// encoder. Detail PNGs are intermediate source frames; only the README's hero
+// PNG is a shipped asset of its own.
+await run('ffmpeg', ['-y', '-i', outputPath, '-c:v', 'libwebp', '-quality', '82', webpPath]);
+console.log(`wrote ${webpPath}`);
+if (performers || harper) await unlink(outputPath);

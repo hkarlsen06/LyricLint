@@ -26,7 +26,7 @@ export function loadStatisticalLanguageDetector(): Promise<void> {
 		}));
 }
 
-export interface SongLanguageDetection {
+interface SongLanguageDetection {
 	tag: string;
 	displayName: string;
 	confidence: number;

@@ -37,7 +37,7 @@ export type DiffRow =
 	/** A line present in both, rewritten in part: word-level del/ins pairs. */
 	| { kind: 'changed'; segments: readonly WordDiffSegment[]; line: number; at: number };
 
-export interface DiffHunk {
+interface DiffHunk {
 	/** 1-based line number in the current document where the hunk sits. */
 	line: number;
 	/**
@@ -57,7 +57,7 @@ export interface DiffHunk {
 	notes: readonly string[];
 }
 
-export interface DocumentDiff {
+interface DocumentDiff {
 	/** The two texts are byte-identical; `hunks` is empty. */
 	identical: boolean;
 	hunks: readonly DiffHunk[];

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { harperRuleIds } from '../harper.js';
 import { enabledRules } from '../registry.js';
-import { currentRuleSet, previousKnownGoodRuleSet } from './rule-set.js';
+import { currentRuleSet } from './rule-set.js';
 import { sourceRegistry } from './sources.js';
 
 // The manifest is a hand-written record of what a version of the rule set
@@ -48,15 +48,5 @@ describe('current rule-set manifest', () => {
 		for (const id of currentRuleSet.sourceIds) {
 			expect(sourceRegistry.get(id)?.reviewStatus, id).toBe('reviewed');
 		}
-	});
-});
-
-describe('previous known-good rule set', () => {
-	// A rollback target is a record of what shipped, so it is deliberately not
-	// checked against today's registry — only against itself.
-	it('names every rule once', () => {
-		expect(new Set(previousKnownGoodRuleSet.ruleIds).size).toBe(
-			previousKnownGoodRuleSet.ruleIds.length
-		);
 	});
 });

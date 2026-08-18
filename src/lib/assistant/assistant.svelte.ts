@@ -58,12 +58,12 @@ export interface AssistantDeps {
 	clearDraftAccess?(draftId: string): Promise<void>;
 }
 
-export interface AssistantFailure {
+interface AssistantFailure {
 	code: AssistantErrorCode;
 	message: string;
 }
 
-export interface AssistantToolSession {
+interface AssistantToolSession {
 	assistantMessageId: string;
 	phase: 'awaiting-permission' | 'awaiting-review' | 'continuing';
 }

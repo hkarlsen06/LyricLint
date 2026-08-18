@@ -15,7 +15,7 @@ import { sourceRegistry } from './data/sources.js';
  */
 export const testRevision = 41;
 
-export interface RuleTestOptions {
+interface RuleTestOptions {
 	language?: string;
 	performers?: readonly string[];
 	revision?: number;

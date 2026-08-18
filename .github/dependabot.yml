@@ -18,6 +18,16 @@ updates:
       # update run for this directory reports a failure. Bump it by hand
       # alongside svelte-check, which is what decides the flag anyway.
       - dependency-name: '@typescript/native'
+      # Pinned exactly and bumped by hand: a Harper upgrade changes what the
+      # linter says, so it is a reviewed event — harper.test.ts pins the
+      # refused-rule list against the real engine and fails loudly on a rename
+      # or a newly shipped censoring rule — not something a fresh install may
+      # take silently.
+      - dependency-name: harper.js
+      # Pinned exactly: the package is unmaintained and its n-gram data is the
+      # value, so the pin records the dataset the language detection was tuned
+      # against.
+      - dependency-name: languagedetect
 
   # No such hold here: the assistant is plain tsc with no svelte-check and no
   # typescript-eslint, so it runs TS 7 as the `typescript` package directly.

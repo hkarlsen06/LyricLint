@@ -29,7 +29,7 @@
 	z-index: var(--layer-menu);
 	top: calc(100% + var(--space-2));
 	left: 0;
-	width: min(30rem, calc(100vw - 2rem));
+	width: min(30rem, calc(100vw - var(--space-4)));
 	max-height: min(36rem, calc(100vh - 5rem));
 	padding: var(--space-2);
 	overflow: auto;
@@ -69,38 +69,10 @@
 	list-style: none;
 }
 
-.draft-list__title {
-	display: flex;
-	min-width: 0;
-	padding: 0;
-	border: 0;
-	gap: var(--space-4);
-	flex: 1;
-	justify-content: space-between;
-	align-items: baseline;
-	background: transparent;
-	color: var(--color-text);
-	text-align: start;
-}
-
-/* The row keeps its shape while a delete is pending: same line, same columns,
-   with the press taken away rather than the layout rearranged. */
-.draft-list__title--static {
-	cursor: default;
-}
-
 /* The draft being edited is the one the whole window is about, so it is the
    one name in the list drawn at full weight. */
 .draft-list > li.current .list-row__name {
 	font-weight: var(--font-weight-bold);
-}
-
-.draft-list__title time {
-	flex: none;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
 }
 
 /* Centred just above the status bar, where the notification stays close to the

@@ -1,5 +1,6 @@
 import { linkableSemantic } from '$lib/languages/registry.js';
 import type { LanguagePack, ParsedDocument, Section, TextRange } from '$lib/core/types.js';
+import { lineNumberAt } from '$lib/core/line-numbers.js';
 
 function sectionForHeader(parsed: ParsedDocument, headerFrom: number): Section | undefined {
 	return parsed.sections.find((section) => section.header?.from === headerFrom);
@@ -26,19 +27,6 @@ export function sectionBodyRange(
 	}
 	const from = section.header.to;
 	return { from, to: Math.max(from, section.to) };
-}
-
-/** 1-based line number of an offset, matching CodeMirror's own numbering. */
-export function lineNumberAt(text: string, offset: number): number {
-	let line = 1;
-	for (let index = 0; index < offset && index < text.length; index += 1) {
-		if (text[index] === '\n') {
-			line += 1;
-		} else if (text[index] === '\r' && text[index + 1] !== '\n') {
-			line += 1;
-		}
-	}
-	return line;
 }
 
 /** One section of a linkable kind, numbered by where it falls in the song. */

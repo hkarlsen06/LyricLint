@@ -347,7 +347,7 @@ const autoHeightTheme = EditorView.theme({
 	}
 });
 
-export interface PreparedInitialDocument {
+interface PreparedInitialDocument {
 	text: string;
 }
 

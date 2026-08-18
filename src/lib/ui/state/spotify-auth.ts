@@ -50,7 +50,7 @@ const tokenKey = 'lyriclint:spotify:tokens';
 /** How long before an access token actually expires it is treated as expired. */
 const refreshMarginMs = 30_000;
 
-export interface SpotifyTokens {
+interface SpotifyTokens {
 	accessToken: string;
 	refreshToken?: string;
 	/** Epoch milliseconds, already carrying the safety margin. */
@@ -153,7 +153,7 @@ export function spotifyConfigured(): boolean {
  * match a redirect URI registered on the Spotify app exactly, trailing slash
  * included — `trailingSlash: 'always'` means this app's own URLs carry one.
  */
-export function spotifyRedirectUri(): string {
+function spotifyRedirectUri(): string {
 	return new URL('/lint/', location.origin).toString();
 }
 
@@ -308,7 +308,7 @@ async function exchange(body: Record<string, string>): Promise<SpotifyTokens> {
 	};
 }
 
-export interface SpotifyReturn {
+interface SpotifyReturn {
 	/** What the user was attaching when they were sent away, if anything. */
 	intent?: string;
 	/** Set when Spotify sent back a refusal rather than a code. */

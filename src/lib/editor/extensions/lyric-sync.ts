@@ -67,7 +67,7 @@ import { linePairingLimits, linkedPeerHeaders } from './section-links.js';
  */
 export const tapOffsetSeconds = 0.05;
 
-export const setLyricSyncEffect = StateEffect.define<boolean>();
+const setLyricSyncEffect = StateEffect.define<boolean>();
 
 /** Internal: the caret's line has been timed by this run, or it has not. */
 const armEffect = StateEffect.define<boolean>();
@@ -115,7 +115,7 @@ interface LyricSyncState {
 	until?: number;
 }
 
-export const lyricSyncField = StateField.define<LyricSyncState>({
+const lyricSyncField = StateField.define<LyricSyncState>({
 	create: () => ({ active: false, armed: false, filled: [] }),
 	update(value, transaction) {
 		let next = value;
@@ -134,7 +134,7 @@ export const lyricSyncField = StateField.define<LyricSyncState>({
 	}
 });
 
-export function lyricSyncActive(state: EditorState): boolean {
+function lyricSyncActive(state: EditorState): boolean {
 	return state.field(lyricSyncField, false)?.active ?? false;
 }
 
@@ -156,7 +156,7 @@ function stampableBefore(state: EditorState, number: number): Line | undefined {
 	return undefined;
 }
 
-export interface LyricSyncOptions {
+interface LyricSyncOptions {
 	/**
 	 * One reading of the transport, or undefined when nothing is attached.
 	 *

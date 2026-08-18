@@ -2,7 +2,7 @@ import type { Diagnostic, ParsedDocument, StyleSlot } from '$lib/core/types.js';
 import { usedStyleSlots } from './legend-cleanup.js';
 
 /** The section and slot a `performer.inline-mismatch` assignment would write. */
-export interface LegendAssignmentTarget {
+interface LegendAssignmentTarget {
 	sectionFrom: number;
 	styleSlot: StyleSlot;
 	/**
@@ -20,7 +20,7 @@ export interface LegendAssignmentTarget {
  * `needs-plain-lyrics` — two styled slots and no plain text: promoting one
  * still leaves the other ahead of a slot nothing fills.
  */
-export type LegendAssignmentBlockReason = 'not-applicable' | 'no-header' | 'needs-plain-lyrics';
+type LegendAssignmentBlockReason = 'not-applicable' | 'no-header' | 'needs-plain-lyrics';
 
 export type LegendAssignmentResolution =
 	| { status: 'available'; target: LegendAssignmentTarget }

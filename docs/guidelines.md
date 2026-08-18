@@ -210,7 +210,7 @@ conservative `community` default.
   promotion by evidence means entries accumulate sources, and a second inline
   citation wraps the line. User-facing copy counts `conventions`, never
   `lookups`, which is this file's own vocabulary and stays in it.
-- The assistant corpus carries a `guidance` section (format v3). A guidance
+- The assistant corpus carries a `guidance` section (format v5). A guidance
   entry has **no citable id of its own** in the answer schema: the assistant
   cites the entry's `sourceIds`, which the Worker already validates. Giving
   entries first-class citation cards in the assistant UI is a possible later

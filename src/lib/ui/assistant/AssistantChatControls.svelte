@@ -61,13 +61,13 @@
 					{#each assistant.chats as chat (chat.id)}
 						<li class="list-row" class:current={chat.id === assistant.activeChatId}>
 							{#if deleteChatId === chat.id}
-								<span class="assistant-chats__name assistant-chats__name--static">
+								<span class="list-row__action list-row__action--static">
 									<span class="list-row__name">{chat.title}</span>
 								</span>
 							{:else}
 								<button
 									type="button"
-									class="assistant-chats__name"
+									class="list-row__action"
 									aria-current={chat.id === assistant.activeChatId ? 'true' : undefined}
 									onclick={() => openChat(chat.id)}
 								>

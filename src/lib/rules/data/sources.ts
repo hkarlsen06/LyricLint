@@ -38,6 +38,8 @@ const sources: SourceReference[] = [
 		authority: 'external'
 	},
 	{
+		// The reviewed citation remains 2.4.0. package.json now ships Harper
+		// 2.7.0, but no source re-review has been claimed for that upgrade.
 		id: 'T-HARPER',
 		url: 'https://github.com/Automattic/harper',
 		pageTitle: 'Harper',

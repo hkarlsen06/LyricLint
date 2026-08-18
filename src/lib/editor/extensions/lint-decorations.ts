@@ -2,19 +2,12 @@ import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { Diagnostic, Severity, TextRange } from '$lib/core/types.js';
+import { severityRank, type Diagnostic, type Severity, type TextRange } from '$lib/core/types.js';
 import { diagnosticTriggerAttribute } from '../contracts.js';
 import type { RevisionedDiagnostics } from '../contracts.js';
 import { editorCallbacksField, editorComposingField, editorRevisionField } from './editor-state.js';
 import { HoverIntent } from './hover-intent.js';
 import { pressed } from './widget-press.js';
-
-const severityRank: Record<Severity, number> = {
-	error: 0,
-	warning: 1,
-	suggestion: 2,
-	'manual-review': 3
-};
 
 /**
  * The words the panel and the rule reference print, for the one place in the
@@ -31,7 +24,7 @@ const severityWord: Record<Severity, string> = {
 	'manual-review': 'Manual review'
 };
 
-export interface DiagnosticCluster {
+interface DiagnosticCluster {
 	from: number;
 	to: number;
 	line: number;
@@ -59,40 +52,6 @@ export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[
 /**
  * Collapse only intersecting badges on the same physical line.
  */
-export function clusterDiagnostics(
-	diagnostics: readonly Diagnostic[],
-	lineAt: (offset: number) => number
-): DiagnosticCluster[] {
-	const byPosition = [...diagnostics].sort(
-		(left, right) =>
-			lineAt(left.from) - lineAt(right.from) || left.from - right.from || left.to - right.to
-	);
-	const clusters: DiagnosticCluster[] = [];
-
-	for (const diagnostic of byPosition) {
-		const line = lineAt(diagnostic.from);
-		const current = clusters.at(-1);
-		if (current && current.line === line && diagnostic.from <= current.to) {
-			current.from = Math.min(current.from, diagnostic.from);
-			current.to = Math.max(current.to, diagnostic.to);
-			current.diagnostics.push(diagnostic);
-			current.diagnostics = sortDiagnostics(current.diagnostics);
-			current.severity = current.diagnostics[0]?.severity ?? diagnostic.severity;
-			continue;
-		}
-
-		clusters.push({
-			from: diagnostic.from,
-			to: diagnostic.to,
-			line,
-			severity: diagnostic.severity,
-			diagnostics: [diagnostic]
-		});
-	}
-
-	return clusters;
-}
-
 function isValidRange(range: TextRange, documentLength: number): boolean {
 	return (
 		Number.isSafeInteger(range.from) &&

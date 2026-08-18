@@ -7,8 +7,8 @@ import { StubAudio } from './media-test-audio.js';
 import { createStubYouTubeApi } from './media-test-youtube.js';
 import type { MediaRepository } from '$lib/persistence/index.js';
 import type { MusicKitLoader } from './media-apple.js';
-import { musicKitLoadTimeoutMs, resetAppleMusic } from './media-apple.js';
-import { spotifySdkLoadTimeoutMs } from './media-spotify.js';
+import { resetAppleMusic } from './media-apple.js';
+import { remoteLoadTimeoutMs } from './media-remote-policy.js';
 
 /**
  * The two halves of the sign-in this suite cannot actually run.
@@ -880,7 +880,7 @@ describe('a source whose script never answers', () => {
 
 			// Still waiting a millisecond short of the timeout, which is what says
 			// the timeout is the thing that ends this rather than an early throw.
-			await vi.advanceTimersByTimeAsync(musicKitLoadTimeoutMs - 1);
+			await vi.advanceTimersByTimeAsync(remoteLoadTimeoutMs - 1);
 			expect(media.busy).toBe(true);
 
 			await vi.advanceTimersByTimeAsync(1);
@@ -903,7 +903,7 @@ describe('a source whose script never answers', () => {
 			const attaching = media.attachSpotifyTrack('4cOdK2wGLETKBW3PvgPWqT', 'Mul — Sensommer');
 			expect(media.busy).toBe(true);
 
-			await vi.advanceTimersByTimeAsync(spotifySdkLoadTimeoutMs - 1);
+			await vi.advanceTimersByTimeAsync(remoteLoadTimeoutMs - 1);
 			expect(media.busy).toBe(true);
 
 			await vi.advanceTimersByTimeAsync(1);

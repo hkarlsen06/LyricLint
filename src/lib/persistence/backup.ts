@@ -36,7 +36,7 @@ type SaveFilePicker = (options: {
 	types: Array<{ description: string; accept: Record<string, string[]> }>;
 }) => Promise<WritableFileHandle>;
 
-export interface WorkspaceBackupFile {
+interface WorkspaceBackupFile {
 	format: typeof FORMAT;
 	version: typeof VERSION;
 	createdAt: string;
@@ -66,7 +66,7 @@ export interface WorkspaceBackupController {
 	destroy(): void;
 }
 
-export interface WorkspaceBackupOptions {
+interface WorkspaceBackupOptions {
 	showSaveFilePicker?: SaveFilePicker;
 	now?: () => string;
 	ignoreStore?: DraftIgnoreStore;

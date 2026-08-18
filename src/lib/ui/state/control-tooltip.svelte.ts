@@ -1,7 +1,7 @@
 import type { Attachment } from 'svelte/attachments';
 
 /** What a control is, and the keystroke that does the same thing. */
-export interface ControlHint {
+interface ControlHint {
 	label: string;
 	/**
 	 * The keystroke, already written the way it is pressed on this platform.

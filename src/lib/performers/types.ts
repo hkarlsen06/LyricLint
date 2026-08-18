@@ -56,15 +56,15 @@ export const TOO_MANY_GROUP_OPTIONS = [
 	'cancel'
 ] as const;
 
-export type TooManyGroupOption = (typeof TOO_MANY_GROUP_OPTIONS)[number];
+type TooManyGroupOption = (typeof TOO_MANY_GROUP_OPTIONS)[number];
 
-export interface AppliedAssignmentResult {
+interface AppliedAssignmentResult {
 	status: 'applied';
 	edit: AtomicDocumentEdit;
 	styleSlot: StyleSlot;
 }
 
-export interface BlockedAssignmentResult {
+interface BlockedAssignmentResult {
 	status: 'blocked';
 	reason: AssignmentBlockReason;
 	blocked?: AssignmentBlockReason;
@@ -77,7 +77,7 @@ export type DocumentTransformResult =
 	| { status: 'applied'; edit: AtomicDocumentEdit }
 	| { status: 'blocked'; reason: Exclude<AssignmentBlockReason, 'too-many-groups'> };
 
-export interface SlotOrderDeviation {
+interface SlotOrderDeviation {
 	kind: 'style-order';
 	groupId: string;
 	actual: StyleSlot;
@@ -85,7 +85,7 @@ export interface SlotOrderDeviation {
 	range?: TextRange;
 }
 
-export interface UnavailableSlotIssue {
+interface UnavailableSlotIssue {
 	kind: 'unavailable';
 	groupId: string;
 	actual: StyleSlot;

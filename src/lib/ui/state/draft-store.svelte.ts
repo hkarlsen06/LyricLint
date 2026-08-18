@@ -54,7 +54,7 @@ function prependRecentLanguage(languages: readonly string[], language: string): 
  * drafts has to move the roster, the stored ignores, and the editor along with
  * the draft identity, so the composing controller supplies that step.
  */
-export interface DraftStoreBindings {
+interface DraftStoreBindings {
 	readonly snapshot: EditorSnapshot;
 	readonly performers: readonly PerformerRecord[];
 	/** The editor's live anchors, saved with the text they describe. */
@@ -64,7 +64,7 @@ export interface DraftStoreBindings {
 	onDraftLoaded(draft: DraftRecord): void;
 }
 
-export interface DraftStoreDependencies {
+interface DraftStoreDependencies {
 	initialDraft: DraftRecord;
 	initialRecentLanguages?: readonly string[];
 	repository: DraftRepository;
@@ -102,7 +102,7 @@ export interface DraftStoreDependencies {
 	ignoreStore?: Pick<DraftIgnoreStore, 'clearDraft'>;
 }
 
-export interface DraftStore {
+interface DraftStore {
 	readonly draftId: string;
 	readonly title: string;
 	readonly language: string;

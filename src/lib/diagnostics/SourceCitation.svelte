@@ -78,7 +78,7 @@
 		-->
 		<!-- The href is an external citation vetted by `safeExternalUrl`, not an app
 		     route, so there is nothing for `resolve()` to resolve. -->
-		<!-- eslint-disable svelte/no-navigation-without-resolve -->
+		<!-- eslint-disable svelte/no-navigation-without-resolve -- safeUrl is a validated external citation, not an app route. -->
 		<a
 			href={safeUrl}
 			target="_blank"

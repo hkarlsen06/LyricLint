@@ -74,7 +74,7 @@
 	async function deleteDraftAndMoveFocus(id: string, trigger: HTMLButtonElement): Promise<void> {
 		const nextDraft = trigger
 			.closest('li')
-			?.nextElementSibling?.querySelector<HTMLButtonElement>('.draft-list__title');
+			?.nextElementSibling?.querySelector<HTMLButtonElement>('.list-row__action');
 		await controller.deleteDraft(id);
 		deleteId = undefined;
 		await tick();
@@ -180,13 +180,13 @@
 							     the question: one decision on screen, and the confirm sits in
 							     the slot the trigger just vacated. -->
 							{#if deleteId === draft.id}
-								<span class="draft-list__title draft-list__title--static">
+								<span class="list-row__action list-row__action--static">
 									{@render identity(draft)}
 								</span>
 							{:else}
 								<button
 									type="button"
-									class="draft-list__title"
+									class="list-row__action"
 									aria-current={draft.id === controller.draftId ? 'page' : undefined}
 									onclick={() => closeAnd(() => controller.openDraft(draft.id))}
 								>

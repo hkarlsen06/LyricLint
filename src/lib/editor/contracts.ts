@@ -83,14 +83,14 @@ export interface EditorDisplayContext extends EditorContext {
 	sources?: readonly SourceReference[];
 }
 
-export interface PerformerAssignmentChoice {
+interface PerformerAssignmentChoice {
 	range: TextRange;
 	performerIds: PerformerId[];
 	/** Who sings the section's unstyled lyrics, when the picker asked for them. */
 	sectionPerformerIds?: readonly PerformerId[];
 }
 
-export interface PerformerLegendAssignmentChoice {
+interface PerformerLegendAssignmentChoice {
 	sectionFrom: number;
 	assignments: LegendGroupAssignment[];
 	/** Style slots whose wrappers the assignment removes from the section body. */
@@ -112,7 +112,7 @@ export interface SectionHeaderChoice {
  * start is the user's stated intent and a tap made against it is a tap they
  * meant.
  */
-export interface MediaPlaybackReading {
+interface MediaPlaybackReading {
 	time: number;
 	rate: number;
 	playing: boolean;
@@ -124,7 +124,7 @@ export interface MediaPlaybackReading {
  * Returning an edit lets the editor dispatch the domain-produced transform as
  * one transaction. Returning nothing leaves source text unchanged.
  */
-export interface EditorOverlayCallbacks {
+interface EditorOverlayCallbacks {
 	createPerformerEdit?(
 		choice: PerformerAssignmentChoice
 	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
@@ -343,11 +343,6 @@ export interface EditorPaneProps {
 	autoHeight?: boolean;
 	/** See `CreateLyricEditorOptions.windowFind`. Defaults to on. */
 	windowFind?: boolean;
-}
-
-export interface EditorPaneEvents {
-	ready: EditorHandle;
-	destroyed: undefined;
 }
 
 export interface ScreenRect {

@@ -4,21 +4,22 @@ import { describe, expect, it } from 'vitest';
 import { parseDocument } from '$lib/core/parser.js';
 import type { AtomicDocumentEdit, PerformerRecord, Section, TextEdit } from '$lib/core/types.js';
 import { serializeLegend } from '$lib/serialization/genius-markup.js';
+import { allocateStyleSlot, analyzeSlotOrder } from './allocation.js';
+import { cleanupLegendSlots } from './legend-cleanup.js';
+import { extractPerformers } from './import.js';
 import {
-	allocateStyleSlot,
-	analyzeSlotOrder,
+	findExactPerformer,
+	makeVoiceGroupKey,
+	normalizePerformerKey,
+	suggestPerformerMatches
+} from './identity.js';
+import {
 	assignmentNeedsSectionVoice,
 	assignVoiceGroup,
 	assignVoiceLegend,
-	cleanupLegendSlots,
-	extractPerformers,
-	findExactPerformer,
 	insertSectionHeader,
-	makeVoiceGroupKey,
-	normalizePerformerKey,
-	removeDifferentiation,
-	suggestPerformerMatches
-} from './index.js';
+	removeDifferentiation
+} from './transform.js';
 
 interface LyricFixture {
 	id: string;

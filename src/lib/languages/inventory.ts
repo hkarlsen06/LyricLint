@@ -1,6 +1,6 @@
 import type { HeaderPolicy, LanguageInventoryEntry } from './types.js';
 
-export interface LanguageSourceInventoryEntry extends LanguageInventoryEntry {
+interface LanguageSourceInventoryEntry extends LanguageInventoryEntry {
 	tag: string;
 	policy: HeaderPolicy;
 	policyNote?: string;

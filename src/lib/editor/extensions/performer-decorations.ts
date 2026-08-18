@@ -46,12 +46,12 @@ export const performerPalette = [
 	{ id: 'slate', solid: 'var(--performer-slate)', tint: 'var(--performer-slate-tint)' }
 ] as const;
 
-export interface VoiceGroupDecorationPayload {
+interface VoiceGroupDecorationPayload {
 	groups: readonly VoiceGroupRange[];
 	performers: readonly PerformerRecord[];
 }
 
-export interface PerformerSegmentStyle {
+interface PerformerSegmentStyle {
 	/** Stable identity for comparing groups that resolve to the same performers. */
 	identity: string;
 	label: string;

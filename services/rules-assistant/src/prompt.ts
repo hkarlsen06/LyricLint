@@ -9,7 +9,7 @@ import { MAX_TOOL_ROUNDS, REQUEST_RULES } from './config';
 import type { RulesCorpus } from './corpus';
 import type { AnswerRequest } from './schema';
 
-export const DEVELOPER_INSTRUCTIONS = `You are LyricLint's rules assistant. You help an accountless visitor with Genius lyric
+const DEVELOPER_INSTRUCTIONS = `You are LyricLint's rules assistant. You help an accountless visitor with Genius lyric
 transcription guidelines, ordinary proofreading, and broader language and
 transcription conventions. You have no browsing.
 
@@ -147,6 +147,8 @@ detects that no reviewed guideline names. Never present one as a Genius rule.
 Say the reviewed guidance prefers the "preferred" form over the forms in
 "instead", and that LyricLint additionally catches the curated ones.
 
+When "fuzzy" is true, LyricLint also detects a one-character typo of the preferred form and offers it only as a previewed fix.
+
 A table can be long. Where a question is about the whole of one, give the
 entries that answer it and say how many there are in total rather than listing
 every row; where it is about a particular word, give that entry and its
@@ -220,7 +222,7 @@ Respond with the structured answer format only. Rules for it:
 
 export const CACHE_BREAKPOINT = '=== END OF STABLE CONTEXT — conversation follows ===';
 
-export function corpusText(corpus: RulesCorpus): string {
+function corpusText(corpus: RulesCorpus): string {
 	// The JSON artifact is already deterministic; serialize it whole so the
 	// cached prefix is exactly the committed corpus, nothing more or less.
 	return [

@@ -6,7 +6,7 @@ function now(): string {
 }
 
 /** What a caller supplies when attaching audio; the timestamp is stamped here. */
-export interface MediaAttachInput {
+interface MediaAttachInput {
 	draftId: string;
 	name: string;
 	size?: number;

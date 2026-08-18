@@ -180,7 +180,7 @@ function spaceTypesOrPresses(target: EventTarget | null): boolean {
 
 type MediaSessionControls = Pick<MediaSession, 'setActionHandler'>;
 
-export interface TransportShortcutOptions {
+interface TransportShortcutOptions {
 	/**
 	 * Run the action, and say whether there was anything to run it on. False
 	 * leaves the keystroke alone: a control that is not on screen must not eat a

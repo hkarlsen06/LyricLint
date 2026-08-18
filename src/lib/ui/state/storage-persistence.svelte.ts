@@ -25,8 +25,7 @@
  * boot state.
  */
 
-export type StoragePersistenceState =
-	'unknown' | 'unsupported' | 'persistent' | 'prompt' | 'denied';
+type StoragePersistenceState = 'unknown' | 'unsupported' | 'persistent' | 'prompt' | 'denied';
 
 export interface PersistentStorageApi {
 	persisted(): Promise<boolean>;

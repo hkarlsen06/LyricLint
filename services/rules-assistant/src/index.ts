@@ -66,7 +66,7 @@ export const FINAL_ROUND_INSTRUCTION =
 	`outstanding and why, and that they can ask again to carry on. Do not claim work you did not ` +
 	`complete.`;
 
-export const REPAIR_INSTRUCTION = (message: string): string =>
+const REPAIR_INSTRUCTION = (message: string): string =>
 	`Your previous answer failed validation: ${message}. It was not shown to the visitor. Answer the question again, corrected, as a complete structured answer.`;
 
 function repairMessages(
@@ -201,7 +201,7 @@ function writeMetric(
 	});
 }
 
-export interface HandlerOptions {
+interface HandlerOptions {
 	provider?: AnswerProvider;
 	verifyTurnstile?: TurnstileVerifier;
 	now?: () => number;

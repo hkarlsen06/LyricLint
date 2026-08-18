@@ -48,6 +48,7 @@ import {
 	prepareHeroScene,
 	preparePerformerScene,
 	selectionPoints,
+	shotViewport,
 	waitForWorkbench
 } from './shot-scene.mjs';
 
@@ -145,7 +146,7 @@ async function main() {
 			// purpose, and — for the performer scene — tall enough to hold the whole
 			// song plus the picker under the selection. The grammar scene's document
 			// is four lines, so it needs no more room than the hero's.
-			viewport: { width: 1280, height: harper || hero ? 820 : 1150 },
+			viewport: shotViewport(hero ? 'hero' : harper ? 'harper' : 'performers'),
 			deviceScaleFactor: SCALE,
 			colorScheme: 'dark',
 			// The transport, the drafts menu and the wordmark all animate on

@@ -19,6 +19,7 @@ import {
 } from '@codemirror/view';
 import type { BlockInfo } from '@codemirror/view';
 import { isLyricLine } from '$lib/core/parser.js';
+import { prefersReducedMotion } from '$lib/interaction/motion.js';
 import type { Line } from '@codemirror/state';
 import type { LineAnchor } from '$lib/core/types.js';
 
@@ -87,7 +88,7 @@ export const clearLineAnchorEffect = StateEffect.define<{ pos: number }>();
  * wherever the tape happens to be sitting is almost never the correction wanted.
  * The pencil opens `−` and `+` beside the time instead.
  */
-export const setAnchorAdjustEffect = StateEffect.define<number | undefined>();
+const setAnchorAdjustEffect = StateEffect.define<number | undefined>();
 
 /**
  * One press of `−` or `+`.
@@ -98,7 +99,7 @@ export const setAnchorAdjustEffect = StateEffect.define<number | undefined>();
  * press that reads as broken. Exact in binary, so a run of presses does not
  * drift.
  */
-export const anchorNudgeSeconds = 0.25;
+const anchorNudgeSeconds = 0.25;
 
 /**
  * Tell the column where the audio is, or `undefined` when nothing is attached.
@@ -112,7 +113,7 @@ export const setPlayheadEffect = StateEffect.define<number | undefined>();
 /** Whether the document follows the playhead. On until the shell says otherwise. */
 export const setFollowPlayheadEffect = StateEffect.define<boolean>();
 
-export const followPlayheadField = StateField.define<boolean>({
+const followPlayheadField = StateField.define<boolean>({
 	create: () => true,
 	update(value, transaction) {
 		let next = value;
@@ -182,7 +183,7 @@ export function formatAnchorTime(seconds: number): string {
  * rather than a flag. The announcements stay whole for the same reason:
  * hundredths read aloud say nothing anyone asked.
  */
-export function formatAnchorTimePrecise(seconds: number): string {
+function formatAnchorTimePrecise(seconds: number): string {
 	// Rounded to hundredths first and split afterwards, so a time a hair under a
 	// second cannot round its fraction up to `00` while the seconds still read low.
 	const hundredths = Math.round(Math.max(0, seconds) * 100);
@@ -701,7 +702,7 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 });
 
 /** Whether there is audio behind this document at all. */
-export function hasAudio(state: EditorState): boolean {
+function hasAudio(state: EditorState): boolean {
 	return state.field(lineAnchorField, false)?.playhead !== undefined;
 }
 
@@ -738,7 +739,7 @@ export function hasAnchorAt(state: EditorState, pos: number): boolean {
  * coming — which is what the user is reading ahead into while they wait for the
  * next line to start.
  */
-export const readingLineFraction = 1 / 3;
+const readingLineFraction = 1 / 3;
 
 /**
  * Park the line being timed at the reading line.
@@ -812,10 +813,6 @@ function tweenScroll(scroller: HTMLElement, to: number): void {
 	running = { scroller, frame: requestAnimationFrame(step) };
 }
 
-function prefersReducedMotion(): boolean {
-	return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
-}
-
 /**
  * Close the nudge pair on a press anywhere else.
  *
@@ -849,7 +846,7 @@ const dismissAdjustOnOutside = ViewPlugin.fromClass(
 	}
 );
 
-export interface LineAnchorOptions {
+interface LineAnchorOptions {
 	/**
 	 * Seek the audio. Called only from a press on a timestamp — never from a caret
 	 * move, a click in the text, or a selection.

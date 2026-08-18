@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	/**
 	 * The assistant's entry point on the reference sections: the sparkles toggle
 	 * at the end of the search field, owning the whole finder row so the two
@@ -72,13 +73,7 @@
 		await tick();
 		const wand = row?.querySelector('button');
 		const slot = row?.querySelector('.site-finder__slot');
-		if (
-			wandBefore &&
-			slotBefore &&
-			wand &&
-			slot &&
-			window.matchMedia('(prefers-reduced-motion: no-preference)').matches
-		) {
+		if (wandBefore && slotBefore && wand && slot && !prefersReducedMotion()) {
 			// Positive delta is the wand travelling to the head of the row; the
 			// same number is the width the wipe has to cover, because the wand's
 			// journey and the bar it crosses are the same span.

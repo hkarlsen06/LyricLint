@@ -24,7 +24,7 @@ import {
 } from './state/in-memory.js';
 import { createWorkbenchController } from './state/workbench.svelte.js';
 
-export interface EditorCallLog {
+interface EditorCallLog {
 	focusCount: number;
 	revealed: TextRange[];
 	selections: SerializedSelection[];

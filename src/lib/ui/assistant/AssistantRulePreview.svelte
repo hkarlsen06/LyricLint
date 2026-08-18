@@ -49,7 +49,7 @@
 			{#if url}
 				<!-- The URL went through safeExternalUrl, the one gate every citation
 				     link takes. -->
-				<!-- eslint-disable svelte/no-navigation-without-resolve -->
+				<!-- eslint-disable svelte/no-navigation-without-resolve -- safeExternalUrl has validated this external citation. -->
 				<a
 					class="assistant-rule__source"
 					href={url}

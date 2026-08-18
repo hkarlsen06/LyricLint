@@ -31,7 +31,7 @@ export async function readClipboardText(): Promise<string> {
 	return navigator.clipboard.readText();
 }
 
-export function downloadBlob(blob: Blob, filename: string): void {
+function downloadBlob(blob: Blob, filename: string): void {
 	if (typeof document === 'undefined') {
 		return;
 	}

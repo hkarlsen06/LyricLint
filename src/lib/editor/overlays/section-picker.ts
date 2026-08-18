@@ -1,7 +1,7 @@
 import type { HeaderVocabulary, LanguagePack } from '$lib/core/types.js';
-import { headerSemanticKey, semanticPartKey } from '$lib/languages/registry.js';
+import { escapeRegExp, headerSemanticKey, semanticPartKey } from '$lib/languages/registry.js';
 
-export interface SectionHeaderOption {
+interface SectionHeaderOption {
 	label: string;
 	headerName: string;
 	ordinal?: number;
@@ -209,10 +209,6 @@ function queryMatchScore(
 		return 2;
 	}
 	return 1;
-}
-
-function escapeRegExp(value: string): string {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export function suggestNextOrdinal(headerName: string, existingHeaders: readonly string[]): number {

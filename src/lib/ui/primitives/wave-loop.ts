@@ -26,7 +26,7 @@ const WAVE_MID = 16;
 const WAVE_PEAK = 4.65;
 
 /** One wavelength per this long. */
-export const WAVE_PERIOD_MS = 950;
+const WAVE_PERIOD_MS = 950;
 
 /** The wave at a given phase, in wavelengths. Whole numbers are the mark itself. */
 export function wavePath(phase: number): string {
@@ -39,7 +39,7 @@ export function wavePath(phase: number): string {
 	return path;
 }
 
-export interface WaveLoopOptions {
+interface WaveLoopOptions {
 	/**
 	 * A multiplier on the clock. Reduced motion slows the wave rather than
 	 * stopping it: a still wave reads as a drawing, and it is usually the only

@@ -7,7 +7,7 @@
 import { SESSION_RULES } from './config';
 import type { ErrorCode } from './errors';
 
-export interface BeginBody {
+interface BeginBody {
 	dailyLimit: number;
 	concurrentLimit: number;
 	/** USD; omit for identifiers without a spend ceiling. */
@@ -47,7 +47,7 @@ function utcDay(now: number): string {
 	return new Date(now).toISOString().slice(0, 10);
 }
 
-export function nextUtcMidnight(now: number): string {
+function nextUtcMidnight(now: number): string {
 	const date = new Date(now);
 	date.setUTCHours(24, 0, 0, 0);
 	return date.toISOString();

@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
+import { fireEvent, screen, within } from '@testing-library/dom';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { DraftAccessDecision } from '$lib/assistant/permissions.js';
@@ -108,12 +109,12 @@ describe('the assistant panel', () => {
 
 	test('keeps the conversations popover inside the narrow panel', async () => {
 		const { assistant } = panelAssistant();
-		const { container, getByRole } = render(AssistantPanel, { assistant });
+		const { container } = render(AssistantPanel, { assistant });
 		const panel = container.querySelector<HTMLElement>('.assistant-panel')!;
 		panel.style.width = '21rem';
 		panel.style.overflow = 'hidden';
 
-		await fireEvent.click(getByRole('button', { name: 'Conversations' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Conversations' }));
 
 		const panelBox = panel.getBoundingClientRect();
 		const popoverBox = container
@@ -206,12 +207,16 @@ describe('the assistant panel', () => {
 	test('shows the revoke control only for a stored decision', async () => {
 		const undecided = panelAssistant();
 		const first = render(AssistantPanel, { assistant: undecided.assistant });
-		expect(first.queryByRole('button', { name: /sharing this 'scribe/i })).toBeNull();
+		expect(
+			within(first.container).queryByRole('button', { name: /sharing this 'scribe/i })
+		).toBeNull();
 		first.unmount();
 
 		const granted = panelAssistant('granted');
 		const second = render(AssistantPanel, { assistant: granted.assistant });
-		const revoke = second.getByRole('button', { name: "Stop sharing this 'scribe" });
+		const revoke = within(second.container).getByRole('button', {
+			name: "Stop sharing this 'scribe"
+		});
 		expect(revoke.classList).toContain('button--quiet');
 		expect(revoke.classList).toContain('button--flush');
 		await fireEvent.click(revoke);
@@ -221,7 +226,9 @@ describe('the assistant panel', () => {
 		const denied = panelAssistant('denied');
 		const third = render(AssistantPanel, { assistant: denied.assistant });
 		expect(
-			third.getByRole('button', { name: "Ask again before sharing this 'scribe" })
+			within(third.container).getByRole('button', {
+				name: "Ask again before sharing this 'scribe"
+			})
 		).not.toBeNull();
 	});
 });

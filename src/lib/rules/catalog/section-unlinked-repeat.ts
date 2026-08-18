@@ -140,7 +140,7 @@ function sharesEnough(left: string, right: string): boolean {
  * differences to keep, is the picker's question; it names every one of them
  * before anything runs.
  */
-export function linkableRepeatGroups(
+function linkableRepeatGroups(
 	document: ParsedDocument,
 	language: string
 ): { source: Section; matching: Section[]; members: Section[] }[] {

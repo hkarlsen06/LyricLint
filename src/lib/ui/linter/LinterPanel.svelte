@@ -5,6 +5,7 @@
 	import { formatDraftDate, fullDraftDate } from '$lib/ui/drafts/draft-date.js';
 	import DiagnosticList from './DiagnosticList.svelte';
 	import SeverityIcon from '$lib/diagnostics/SeverityIcon.svelte';
+	import { severityPluralLabels } from '$lib/diagnostics/severity-labels.js';
 	import { tick } from 'svelte';
 
 	let { controller }: { controller: WorkbenchController } = $props();
@@ -26,10 +27,10 @@
 	}
 
 	const filters: Array<{ value: Severity; label: string }> = [
-		{ value: 'error', label: 'Errors' },
-		{ value: 'warning', label: 'Warnings' },
-		{ value: 'suggestion', label: 'Suggestions' },
-		{ value: 'manual-review', label: 'Manual review' }
+		{ value: 'error', label: severityPluralLabels.error },
+		{ value: 'warning', label: severityPluralLabels.warning },
+		{ value: 'suggestion', label: severityPluralLabels.suggestion },
+		{ value: 'manual-review', label: severityPluralLabels['manual-review'] }
 	];
 
 	const counts = $derived.by(() => {

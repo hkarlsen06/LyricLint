@@ -21,6 +21,11 @@ export const performerNames = ['Avery', 'Blair'];
 /** The phrase the performer scene hands to Avery. */
 export const assignedPhrase = 'Somewhere past the bridge';
 
+/** The shared browser window for every still and motion scene. */
+export function shotViewport(scene) {
+	return { width: 1280, height: scene === 'performers' ? 1150 : 820 };
+}
+
 /**
  * The hero shot's document — written to be wrong in several ordinary ways at
  * once (a written-out section label, a lowercase line start, a subject and verb

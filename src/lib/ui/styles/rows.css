@@ -34,6 +34,36 @@
 	white-space: nowrap;
 }
 
+/* The row's main press is shared by draft and assistant-history lists. */
+.list-row__action {
+	display: flex;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	gap: var(--space-4);
+	flex: 1;
+	justify-content: space-between;
+	align-items: baseline;
+	background: transparent;
+	color: var(--color-text);
+	font: inherit;
+	font-size: var(--font-size-sm);
+	text-align: start;
+	cursor: pointer;
+}
+
+.list-row__action--static {
+	cursor: default;
+}
+
+.list-row__action time {
+	flex: none;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
 .list-row__commands {
 	display: flex;
 	flex: none;

@@ -30,14 +30,14 @@ function normalizedKey(displayName: string): string {
 	return displayName.trim().toLocaleLowerCase();
 }
 
-export interface RosterStoreDependencies {
+interface RosterStoreDependencies {
 	initialPerformers: readonly PerformerRecord[];
 	feedback: FeedbackState;
 	idFactory: () => string;
 	scheduleSave: () => void;
 }
 
-export interface RosterStore {
+interface RosterStore {
 	readonly performers: readonly PerformerRecord[];
 	readonly suggestions: readonly RosterMergeSuggestion[];
 	readonly unresolvedVoiceGroups: readonly VoiceGroup[];

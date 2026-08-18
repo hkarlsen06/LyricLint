@@ -1,7 +1,7 @@
 import type { RuleDefinition } from '$lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 
-export interface LocalizedHeaderPreference {
+interface LocalizedHeaderPreference {
 	replacement: string;
 	languageName: string;
 }

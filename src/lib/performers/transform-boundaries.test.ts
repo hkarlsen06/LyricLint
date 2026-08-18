@@ -5,7 +5,7 @@ import type {
 	SerializedSelection,
 	TextEdit
 } from '$lib/core/types.js';
-import { assignVoiceGroup, canAssignVoiceGroup } from './index.js';
+import { assignVoiceGroup, canAssignVoiceGroup } from './transform.js';
 import { narrowEdit } from './transform.js';
 import { describe, expect, it } from 'vitest';
 

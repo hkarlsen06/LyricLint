@@ -5,7 +5,7 @@ import type { DecorationSet } from '@codemirror/view';
 import type { Diagnostic, ParsedDocument, TextRange } from '$lib/core/types.js';
 import { editorCallbacksField } from './editor-state.js';
 
-export interface SectionGhostContext {
+interface SectionGhostContext {
 	parsed: ParsedDocument;
 	diagnostics: readonly Diagnostic[];
 }

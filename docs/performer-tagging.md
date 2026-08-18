@@ -170,16 +170,16 @@ Every popover includes:
 - Safe fix, when available
 - Exact Genius source title and URL
 - Last-verified date
-- Ignore rule for this session
+- Ignore action for this occurrence
 
 If a source becomes unavailable, retain the cached citation metadata and diagnostic.
 
 ## Ignoring diagnostics
 
-`Ignore for this session` stores the draft ID and one diagnostic fingerprint in `sessionStorage`.
+Ignoring a finding stores the draft ID and one diagnostic fingerprint in the
+browser-local `draftIgnores` IndexedDB table.
 
-- It survives reload in the same tab.
-- It does not persist into a new browser session.
+- It survives reloads and new browser sessions.
 - The right panel shows the number of ignored diagnostics.
 - Users can inspect and restore ignored diagnostics.
 - A toast offers immediate undo.

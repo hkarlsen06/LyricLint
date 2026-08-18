@@ -27,7 +27,7 @@ export type RightPanelTab = 'linter' | 'performers' | 'song' | 'preferences' | '
 
 const allSeverities: Severity[] = ['error', 'warning', 'suggestion', 'manual-review'];
 
-export interface PanelViewDependencies {
+interface PanelViewDependencies {
 	editor: () => EditorHandle;
 	snapshot: () => EditorSnapshot;
 	ruleContext: () => RuleContext;
@@ -39,7 +39,7 @@ export interface PanelViewDependencies {
 	onIgnoredDiagnosticsChange?: () => void;
 }
 
-export interface PanelView {
+interface PanelView {
 	readonly activeTab: RightPanelTab;
 	readonly activeDiagnosticKey?: string;
 	readonly severityFilter: readonly Severity[];

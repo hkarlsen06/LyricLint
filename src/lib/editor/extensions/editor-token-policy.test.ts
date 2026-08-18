@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -37,6 +37,22 @@ function withoutComments(source: string): string {
 
 function relative(path: string): string {
 	return path.slice(editorDir.length + 1);
+}
+
+function productStyleSources(root: string): { path: string; source: string }[] {
+	const sources: { path: string; source: string }[] = [];
+	for (const entry of readdirSync(root, { withFileTypes: true })) {
+		const path = join(root, entry.name);
+		if (entry.isDirectory()) {
+			sources.push(...productStyleSources(path));
+		} else if (
+			['.css', '.svelte', '.ts'].includes(extname(entry.name)) &&
+			!entry.name.endsWith('.test.ts')
+		) {
+			sources.push({ path, source: readFileSync(path, 'utf8') });
+		}
+	}
+	return sources;
 }
 
 describe('editor theme token policy', () => {
@@ -122,5 +138,29 @@ describe('editor theme token policy', () => {
 			expect(solid).toMatch(/^var\(--performer-[a-z]+\)$/);
 			expect(tint).toBe(solid?.replace(/\)$/, '-tint)'));
 		}
+	});
+});
+
+describe('application custom-property policy', () => {
+	it('reads no statically named custom property the product never defines', () => {
+		const srcDir = join(dirname(editorDir), '..');
+		const sources = productStyleSources(srcDir);
+		const defined = new Set<string>();
+		const read = new Map<string, string>();
+
+		for (const { path, source } of sources) {
+			for (const [, name] of source.matchAll(/(--[a-z0-9-]+)['"]?\s*:/g)) defined.add(name);
+			for (const [, name] of source.matchAll(/setProperty\(\s*['"](--[a-z0-9-]+)['"]/g)) {
+				defined.add(name);
+			}
+			for (const [, name] of source.matchAll(/var\(\s*(--[a-z0-9-]+)(?=\s*[,)]{1})/g)) {
+				if (!read.has(name)) read.set(name, path.slice(srcDir.length + 1));
+			}
+		}
+
+		const orphans = [...read]
+			.filter(([name]) => !defined.has(name))
+			.map(([name, path]) => `${path}: ${name}`);
+		expect(orphans).toEqual([]);
 	});
 });

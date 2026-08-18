@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	// The landing page's demo is the product, not a picture of it.
 	//
 	// This mounts the same `EditorPane` the workbench mounts, running the same
@@ -106,10 +107,7 @@
 		)
 	);
 
-	const reducedMotion =
-		typeof window !== 'undefined' &&
-		typeof window.matchMedia === 'function' &&
-		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const reducedMotion = prefersReducedMotion();
 
 	let harperTimer: ReturnType<typeof setTimeout> | undefined;
 	let harperRequest = 0;

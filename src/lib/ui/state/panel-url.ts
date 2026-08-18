@@ -1,6 +1,6 @@
 import type { RightPanelTab } from './panel-view.svelte.js';
 
-export const defaultRightPanelTab: RightPanelTab = 'linter';
+const defaultRightPanelTab: RightPanelTab = 'linter';
 
 export function rightPanelTabFromUrl(url: URL): RightPanelTab {
 	const panel = url.searchParams.get('panel');

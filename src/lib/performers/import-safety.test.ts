@@ -1,6 +1,7 @@
 import { parseDocument } from '$lib/core/parser.js';
 import type { PerformerRecord } from '$lib/core/types.js';
-import { extractPerformers, normalizePerformerKey } from './index.js';
+import { normalizePerformerKey } from './identity.js';
+import { extractPerformers } from './import.js';
 import { describe, expect, it } from 'vitest';
 
 function performer(displayName: string, id = 'known'): PerformerRecord {

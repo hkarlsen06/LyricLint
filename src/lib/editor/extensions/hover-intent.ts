@@ -5,7 +5,7 @@
  * nothing, short enough to read as immediate to anyone who actually stopped.
  * A pointer merely passing through clears any one target well inside this.
  */
-export const hoverIntentDelay = 110;
+const hoverIntentDelay = 110;
 
 /**
  * The wait a pointer serves before something in the editor reveals itself.

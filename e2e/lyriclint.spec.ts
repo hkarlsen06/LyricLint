@@ -1088,7 +1088,7 @@ test('offline reopen from cache via the service worker', async ({ page, context 
 
 /**
  * The offline snapshot is the app, not the site: `/` and `/lint/` are precached
- * and the ~57 rule reference pages — most of the deploy by bytes, re-fetched
+ * and the 60 rule reference pages — most of the deploy by bytes, re-fetched
  * per visitor per deploy when they were precached — are not. A rules page joins
  * the snapshot by being read, which is the navigation strategy writing what it
  * serves. Both halves are pinned: re-adding the reference to the precache is
@@ -1116,6 +1116,7 @@ test('the offline snapshot precaches the app and admits a rules page when read',
 		});
 
 	await expect.poll(cachedPages).toContain('/lint/');
+	expect(await cachedPages()).not.toContain('/workbench.png');
 	expect(await cachedPages()).not.toContainEqual(expect.stringMatching(/^\/rules\//u));
 
 	await page.goto('/rules/');

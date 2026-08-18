@@ -19,7 +19,7 @@ const JOINT_SEPARATOR_PATTERN = /\s+&\s+/gu;
  * when every member is already an exact roster identity — the same rule import
  * extraction uses, so a performer named `Echo & The Glass` is never split.
  */
-export interface HeaderNameAtom extends TextRange {
+interface HeaderNameAtom extends TextRange {
 	/** Exact source text of the atom. Never normalized. */
 	text: string;
 	/** Set only when the text resolves to one exact roster identity. */
@@ -27,7 +27,7 @@ export interface HeaderNameAtom extends TextRange {
 }
 
 /** One performer name being edited plus every other header that spells it. */
-export interface HeaderRenameTargets {
+interface HeaderRenameTargets {
 	performerId: PerformerId;
 	/** The exact name the performer had before this edit. */
 	previousName: string;

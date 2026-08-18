@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import type { Snippet } from 'svelte';
 	import { ArrowLeft, ExternalLink } from 'lucide-svelte';
 	import { afterNavigate, goto, onNavigate } from '$app/navigation';
@@ -128,7 +129,7 @@
 	// it was least affordable.
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
-		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		if (prefersReducedMotion()) return;
 		if (!inSection(navigation.from?.url) || !inSection(navigation.to?.url)) return;
 		if (stacked()) return;
 		return new Promise((resolve) => {
@@ -179,7 +180,7 @@
 		} else {
 			// The contract is that `indexHref` arrives resolved; the rule cannot
 			// see through a prop, and both callers pass `resolve(...)` inline.
-			// eslint-disable-next-line svelte/no-navigation-without-resolve
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- both callers pass an already-resolved href prop.
 			void goto(indexHref);
 		}
 	}

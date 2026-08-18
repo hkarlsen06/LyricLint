@@ -1,5 +1,11 @@
 import type { MediaSource, MediaSourceEvents } from './media-player.svelte.js';
 import type { PollScheduler } from './media-youtube.js';
+import {
+	remoteLoadTimeoutMs,
+	remotePollIntervalMs,
+	remoteSearchLimit,
+	remoteSeekSettled
+} from './media-remote-policy.js';
 
 /**
  * How often a running Spotify playhead is read, in milliseconds.
@@ -13,8 +19,6 @@ import type { PollScheduler } from './media-youtube.js';
  * at around one read a second and make every line anchor sloppier than the file
  * source's.
  */
-export const spotifyPollIntervalMs = 250;
-export const spotifyConnectTimeoutMs = 20_000;
 
 /**
  * How long the SDK script has to answer before the load is called a failure.
@@ -25,16 +29,10 @@ export const spotifyConnectTimeoutMs = 20_000;
  * and every `finally` behind it with it. `attachSpotifyTrack` clears `busy` in
  * one of those, so a hung script does not cost a track, it costs the picker.
  */
-export const spotifySdkLoadTimeoutMs = 20_000;
-
-/** The seek settle window, exactly as the YouTube bridge uses it. */
-const settleToleranceSeconds = 1;
-const settleMaxPolls = 8;
-
 const webApi = 'https://api.spotify.com/v1';
 const sdkScriptUrl = 'https://sdk.scdn.co/spotify-player.js';
 
-export interface SpotifyTrack {
+interface SpotifyTrack {
 	name: string;
 	artists?: { name: string }[];
 	duration_ms?: number;
@@ -129,7 +127,7 @@ export function loadSpotifySdk(): Promise<SpotifySdk> {
 		document.head.appendChild(script);
 		timeout = setTimeout(
 			() => reject(new Error('The Spotify player did not load in time.')),
-			spotifySdkLoadTimeoutMs
+			remoteLoadTimeoutMs
 		);
 	});
 
@@ -153,7 +151,7 @@ const spotifyErrorMessages: Record<string, string> = {
 	initialization_error: 'This browser cannot run the Spotify player. Attach a file instead.'
 };
 
-export type SpotifyUrlResult = { trackId: string } | { error: string };
+type SpotifyUrlResult = { trackId: string } | { error: string };
 
 const trackIdPattern = /^[A-Za-z0-9]{22}$/;
 const schemePattern = /^[a-z][a-z0-9+.-]*:\/\//i;
@@ -243,7 +241,6 @@ export type SpotifySearchOutcome =
  * **10** for development-mode apps, down from 50, and dropped the default to 5.
  * Raising this past 10 is a 400, not a longer list.
  */
-const searchLimit = 6;
 
 /**
  * Find a track by name, so nobody has to go and fetch a link.
@@ -268,7 +265,7 @@ export async function searchSpotifyTracks(
 	const request = deps.request ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
 	const url =
 		`${webApi}/search?` +
-		new URLSearchParams({ q: trimmed, type: 'track', limit: String(searchLimit) }).toString();
+		new URLSearchParams({ q: trimmed, type: 'track', limit: String(remoteSearchLimit) }).toString();
 
 	let response: Response;
 	try {
@@ -299,7 +296,7 @@ export async function searchSpotifyTracks(
 	};
 }
 
-export interface SpotifySourceDependencies {
+interface SpotifySourceDependencies {
 	events: MediaSourceEvents;
 	loadSdk: SpotifySdkLoader;
 	/** A usable access token, refreshed if need be, or undefined when signed out. */
@@ -490,13 +487,13 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 				}
 				if (target !== undefined) {
 					targetPolls += 1;
-					if (Math.abs(known - target) <= settleToleranceSeconds || targetPolls >= settleMaxPolls) {
+					if (remoteSeekSettled(known, target, targetPolls)) {
 						target = undefined;
 					}
 				}
 				events.timeChanged(position());
 			})();
-		}, spotifyPollIntervalMs);
+		}, remotePollIntervalMs);
 	}
 
 	function endPoll(): void {
@@ -520,7 +517,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 				const message = 'The Spotify player could not be loaded.';
 				events.failed(message);
 				reject(new Error(message));
-			}, spotifyConnectTimeoutMs);
+			}, remoteLoadTimeoutMs);
 			const fail = (message: string) => {
 				if (settled) return;
 				settled = true;

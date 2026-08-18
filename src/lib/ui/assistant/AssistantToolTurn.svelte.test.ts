@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render } from '@testing-library/svelte';
+import { fireEvent, within } from '@testing-library/dom';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { AssistantToolCallRecord } from '$lib/persistence/types.js';
@@ -26,13 +27,13 @@ describe('an assistant draft-read turn', () => {
 		const prose = getComputedStyle(view.container.querySelector('.assistant-tool-turn p')!);
 		const askedIn = { size: prose.fontSize, family: prose.fontFamily, color: prose.color };
 
-		await fireEvent.click(view.getByRole('button', { name: 'Allow' }));
+		await fireEvent.click(within(view.container).getByRole('button', { name: 'Allow' }));
 		expect(assistant.allowDraftRead).toHaveBeenCalledOnce();
 
 		await view.rerender({ call: { ...call, outcome: 'granted' }, assistant, decidable: true });
 		expect(view.container.textContent?.trim()).toBe("'Scribe shared.");
-		expect(view.queryByRole('button', { name: 'Allow' })).toBeNull();
-		expect(view.queryByRole('button', { name: 'Deny' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Allow' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Deny' })).toBeNull();
 
 		// The answer is a record of what the workbench did, not something the
 		// assistant said: the meta idiom — a glyph, muted, smaller, mono — rather
@@ -50,7 +51,7 @@ describe('an assistant draft-read turn', () => {
 		const call: DraftReadCall = { callId: 'read-1', name: 'read_scribe' };
 		const view = render(AssistantToolTurn, { call, assistant, decidable: true });
 
-		await fireEvent.click(view.getByRole('button', { name: 'Deny' }));
+		await fireEvent.click(within(view.container).getByRole('button', { name: 'Deny' }));
 		expect(assistant.denyDraftRead).toHaveBeenCalledOnce();
 		await view.rerender({ call: { ...call, outcome: 'denied' }, assistant, decidable: true });
 		expect(view.container.textContent?.trim()).toBe("'Scribe not shared.");
@@ -64,8 +65,8 @@ describe('an assistant draft-read turn', () => {
 		const call: DraftReadCall = { callId: 'read-1', name: 'read_scribe' };
 		const view = render(AssistantToolTurn, { call, assistant, decidable: false });
 
-		expect(view.queryByRole('button', { name: 'Allow' })).toBeNull();
-		expect(view.queryByRole('button', { name: 'Deny' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Allow' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Deny' })).toBeNull();
 		expect(view.container.textContent?.trim()).toBe("The assistant asked to read this 'scribe.");
 		// The same meta idiom the settled outcomes take, and no live region: a
 		// record of what happened is not something to announce as waiting.

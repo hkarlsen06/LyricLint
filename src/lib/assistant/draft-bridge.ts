@@ -1,7 +1,7 @@
 import type { AtomicDocumentEdit, TextRange } from '$lib/core/types.js';
 import type { AssistantProposalApplyTarget } from './types.js';
 
-export interface AssistantProposalApplyOptions {
+interface AssistantProposalApplyOptions {
 	applyTo: AssistantProposalApplyTarget;
 	range: TextRange;
 }

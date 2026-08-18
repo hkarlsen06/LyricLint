@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+
 	// The brand lockup, as one pair of brackets rather than two. The mark's
 	// brackets and the wordmark's `[Lint]` brackets were always the same shape
 	// drawn twice, so here they are the same object: closed, the brackets hold
@@ -74,10 +76,7 @@
 	const LEAD = ['L', 'y', 'r', 'i', 'c'];
 	const WORD = ['L', 'i', 'n', 't'];
 
-	const prefersReducedMotion =
-		typeof window !== 'undefined' &&
-		typeof window.matchMedia === 'function' &&
-		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const reducedMotion = prefersReducedMotion();
 
 	// The intro's own opinion on whether the lockup is open — the one hover and the
 	// press latch both outrank. It starts at whichever end its mode begins from,
@@ -94,7 +93,7 @@
 
 	$effect(() => {
 		const reveal = entrance === 'reveal';
-		if (markOnly || !visible || !animated || prefersReducedMotion) return;
+		if (markOnly || !visible || !animated || reducedMotion) return;
 		// Reading `entrance` in here is deliberate: a client-side navigation between
 		// the site pages swaps the mode without remounting the header's lockup, and
 		// re-running the timer is what plays the arriving page's entrance. Resetting
@@ -137,7 +136,7 @@
 	const openState = $derived(
 		markOnly
 			? 'mark'
-			: !animated || prefersReducedMotion
+			: !animated || reducedMotion
 				? 'static'
 				: latched === true
 					? 'latched'

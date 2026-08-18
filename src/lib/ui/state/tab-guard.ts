@@ -39,7 +39,7 @@
  */
 export const WORKBENCH_LOCK_NAME = 'lyriclint-workbench';
 
-export interface TabGuardOptions {
+interface TabGuardOptions {
 	/**
 	 * The lock manager to hold the workbench in. Injectable so the guard can be
 	 * driven by a stub — a real `LockManager` cannot be made to say "held

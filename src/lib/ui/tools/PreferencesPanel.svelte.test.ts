@@ -1,4 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/svelte';
+import { fireEvent, screen, waitFor } from '@testing-library/dom';
+import { userEvent } from 'vitest/browser';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { WorkspaceBackupController, WorkspaceBackupState } from '$lib/persistence/backup.js';
 import {
@@ -294,7 +296,7 @@ describe('PreferencesPanel workspace backup', () => {
 		const { controller } = createTestWorkbench({ backup, exportLog });
 		render(PreferencesPanel, { controller });
 
-		await fireEvent.click(await screen.findByRole('button', { name: 'Download backup' }));
+		await userEvent.click(await screen.findByRole('button', { name: 'Download backup' }));
 
 		expect(backup.serialize).toHaveBeenCalledOnce();
 		expect(exportLog).toEqual([

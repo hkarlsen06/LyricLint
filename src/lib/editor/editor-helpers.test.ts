@@ -11,7 +11,6 @@ import {
 	prepareInitialDocument
 } from './create-editor.js';
 import {
-	clusterDiagnostics,
 	diagnosticsForState,
 	lintDecorationField,
 	setDiagnosticsEffect
@@ -108,24 +107,6 @@ describe('editor pure helpers', () => {
 
 		expect(transactionsHaveOnlyPlayheadEffects([tick])).toBe(true);
 		expect(transactionsHaveOnlyPlayheadEffects([mixed])).toBe(false);
-	});
-
-	it('clusters only intersecting same-line diagnostics in severity order', () => {
-		const clusters = clusterDiagnostics(
-			[
-				diagnostic(2, 6, 'suggestion'),
-				diagnostic(4, 8, 'error'),
-				diagnostic(9, 10, 'warning'),
-				diagnostic(12, 14, 'manual-review')
-			],
-			(offset) => (offset < 12 ? 1 : 2)
-		);
-
-		expect(clusters).toHaveLength(3);
-		expect(clusters[0]?.diagnostics.map((item) => item.severity)).toEqual(['error', 'suggestion']);
-		expect(clusters[0]?.severity).toBe('error');
-		expect(clusters[1]?.diagnostics).toHaveLength(1);
-		expect(clusters[2]?.line).toBe(2);
 	});
 
 	it('ignores a delayed stale diagnostic payload without replacing valid current results', () => {

@@ -8,7 +8,8 @@ import {
 	resumeRewindSeconds
 } from './media-player.svelte.js';
 import { StubAudio } from './media-test-audio.js';
-import { loadYouTubeApi, youtubeApiLoadTimeoutMs } from './media-youtube.js';
+import { remoteLoadTimeoutMs } from './media-remote-policy.js';
+import { loadYouTubeApi } from './media-youtube.js';
 
 describe('YouTube API loading', () => {
 	it('rejects when the script never answers', async () => {
@@ -24,7 +25,7 @@ describe('YouTube API loading', () => {
 		const loading = loadYouTubeApi();
 		const rejected = expect(loading).rejects.toThrow('did not load in time');
 
-		await vi.advanceTimersByTimeAsync(youtubeApiLoadTimeoutMs);
+		await vi.advanceTimersByTimeAsync(remoteLoadTimeoutMs);
 		await rejected;
 		vi.useRealTimers();
 		vi.unstubAllGlobals();

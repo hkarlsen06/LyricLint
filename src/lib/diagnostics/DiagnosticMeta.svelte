@@ -94,7 +94,7 @@
 			-->
 			<span class="diagnostic-meta__derivation">
 				<span class="diagnostic-meta__derivation-mark" aria-hidden="true">
-					<!-- eslint-disable-next-line svelte/no-at-html-tags -->
+					<!-- eslint-disable-next-line svelte/no-at-html-tags -- lyricLintMark is a local constant, not user content. -->
 					{@html lyricLintMark}
 				</span>
 				LyricLint reading

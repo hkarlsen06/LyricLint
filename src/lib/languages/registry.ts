@@ -72,7 +72,7 @@ export function semanticPartKey(value: string): string {
 	return value.toLocaleLowerCase().replaceAll(/[\s_-]+/gu, '');
 }
 
-function escapeRegExp(value: string): string {
+export function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 

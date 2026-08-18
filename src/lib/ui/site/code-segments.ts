@@ -1,5 +1,5 @@
 /** One piece of a sentence, and whether it was written as a quoted form. */
-export interface CodeSegment {
+interface CodeSegment {
 	code: boolean;
 	text: string;
 }

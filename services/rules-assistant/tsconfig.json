@@ -4,7 +4,7 @@
 		"module": "es2022",
 		"moduleResolution": "bundler",
 		"lib": ["es2022"],
-		"types": ["@cloudflare/workers-types", "vitest/globals"],
+		"types": ["@cloudflare/workers-types"],
 		"strict": true,
 		"noUncheckedIndexedAccess": true,
 		"forceConsistentCasingInFileNames": true,
@@ -13,5 +13,5 @@
 		"isolatedModules": true,
 		"noEmit": true
 	},
-	"include": ["src/**/*.ts", "test/**/*.ts", "generated/*.json"]
+	"include": ["src/**/*.ts", "test/**/*.ts", "generated/*.{json,ts}"]
 }

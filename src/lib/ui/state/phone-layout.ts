@@ -11,7 +11,8 @@
  * cover band's default fold answers to it, and two copies of a breakpoint are
  * two things to remember when the breakpoint moves.
  */
-export const PHONE_LAYOUT_QUERY = '(pointer: coarse) and (max-width: 68rem)';
+export const STACKED_BREAKPOINT = '68rem';
+export const PHONE_LAYOUT_QUERY = `(pointer: coarse) and (max-width: ${STACKED_BREAKPOINT})`;
 
 /**
  * Whether this is that layout, right now.

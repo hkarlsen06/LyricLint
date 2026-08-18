@@ -33,6 +33,7 @@
 	// than written down twice, because a CSS transition that disagrees with the
 	// timer driving it tears the sequence in half.
 	import AppWordmark from './AppWordmark.svelte';
+	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import { runWave } from '../primitives/wave-loop.js';
 	import { onMount, untrack } from 'svelte';
 
@@ -114,10 +115,7 @@
 	 */
 	const FALL_EXIT_MS = RELEASE_MS + 60;
 
-	const prefersReducedMotion =
-		typeof window !== 'undefined' &&
-		typeof window.matchMedia === 'function' &&
-		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const reducedMotion = prefersReducedMotion();
 
 	// `word` is where the sequence starts and where the prerendered HTML already
 	// is, so the first thing on screen is the product's name rather than a blank
@@ -216,7 +214,7 @@
 	});
 
 	onMount(() => {
-		if (prefersReducedMotion) {
+		if (reducedMotion) {
 			// The whole point of the sequence is motion, so there is nothing to
 			// shorten: park on the mark and let the waveform carry the wait.
 			stage = 'land';
@@ -287,7 +285,7 @@
 		if (!path) return;
 		sparked = true;
 		// Slowed rather than stopped under reduced motion.
-		return runWave(path, { rate: prefersReducedMotion ? 0.35 : 1 });
+		return runWave(path, { rate: reducedMotion ? 0.35 : 1 });
 	});
 
 	// The reveal waits for both: a workspace that arrived early is held behind the
@@ -295,7 +293,7 @@
 	$effect(() => {
 		if (!exiting) return;
 		leaving = true;
-		const timer = setTimeout(ondone, prefersReducedMotion ? 0 : doneMs);
+		const timer = setTimeout(ondone, reducedMotion ? 0 : doneMs);
 		return () => clearTimeout(timer);
 	});
 </script>

@@ -17,7 +17,7 @@ export const performerColorPalette = [
 	{ id: 'slate', hue: 255 }
 ] as const;
 
-export type PerformerPaletteColorId = (typeof performerColorPalette)[number]['id'];
+type PerformerPaletteColorId = (typeof performerColorPalette)[number]['id'];
 
 export const performerColorIds: readonly PerformerPaletteColorId[] = performerColorPalette.map(
 	(color) => color.id

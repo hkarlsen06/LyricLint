@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render } from '@testing-library/svelte';
+import { fireEvent, screen } from '@testing-library/dom';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { AssistantReferenceRecord } from '$lib/assistant/types.js';
@@ -53,7 +54,7 @@ describe('an assistant lyric-reference card', () => {
 
 	test('hovering the card and pressing or focusing the quote all reveal the place', async () => {
 		const assistant = assistantStub();
-		const { container, getByRole } = render(AssistantReferenceCard, {
+		const { container } = render(AssistantReferenceCard, {
 			reference: shown(),
 			assistant
 		});
@@ -64,7 +65,7 @@ describe('an assistant lyric-reference card', () => {
 		// its own turn, which move the lines under it as they are applied.
 		expect(assistant.revealReference).toHaveBeenCalledWith(shown().anchor, shown().occurrence);
 
-		const quote = getByRole('button', { name: /Show in the 'scribe/ });
+		const quote = screen.getByRole('button', { name: /Show in the 'scribe/ });
 		await fireEvent.click(quote);
 		await fireEvent.focus(quote);
 		expect(assistant.revealReference).toHaveBeenCalledTimes(3);

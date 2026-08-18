@@ -5,7 +5,7 @@
  * rule page says: a hand-written copy of an explanation drifts from the rule
  * inside a release. It is wrong for the one question the index could not
  * answer. A reader arriving from the landing page wants to know what the
- * conventions *are*, and what the index gave them was 55 checks — the shape a
+ * conventions *are*, and what the index gave them was 60 checks — the shape a
  * linter decomposes into, which is one rule per thing that can be detected,
  * ignored, fixed and cited independently. Eleven separate header rules is
  * correct for an engine and useless to somebody who has one question: how do I
@@ -27,10 +27,10 @@
  * preferences as somebody else's policy would be worth less than no guide.
  *
  * A module of its own, with no imports, for the reason `+layout.server.ts`
- * gives at length: `reference.ts` pulls the parser, all 55 rules and the
+ * gives at length: `reference.ts` pulls the parser, all 60 rules and the
  * ~330KB language-detection corpus, so the index page cannot import it. This is
  * a `Record` of strings — the page imports it directly and it costs the other
- * 54 prerendered payloads nothing, because it never rides on a group.
+ * 59 other prerendered payloads nothing, because it never rides on a group.
  *
  * Exhaustive, and `reference.test.ts` fails for a family with no entry, exactly
  * as `groupTitle` and `groupRank` do: a rule family added without a place in

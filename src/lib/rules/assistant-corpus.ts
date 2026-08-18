@@ -25,91 +25,23 @@
  * Server-side only, like `reference.ts` beside it: deriving the references in
  * a browser throws by design.
  */
-import type { SourceAuthority, SourceReference } from '$lib/core/types.js';
+import type { SourceReference } from '$lib/core/types.js';
 import { guidanceEntries } from '$lib/guidance/entries.js';
-import { guidanceTopicTitles, type GuidanceAuthority } from '$lib/guidance/guidance.js';
+import { guidanceTopicTitles } from '$lib/guidance/guidance.js';
 import { reviewedLanguagePacks } from '$lib/languages/registry.js';
+import type { AssistantCorpus, AssistantCorpusSource } from './assistant-corpus-types.js';
 import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { harperRuleIds } from './harper.js';
-import { ruleLookupTables, type RuleLookupTable } from './lookup-tables.js';
+import { ruleLookupTables } from './lookup-tables.js';
 import { ruleReferences } from './reference.js';
+
+export type { AssistantCorpus } from './assistant-corpus-types.js';
 
 /** 2 added `lookups`; 3 added `guidance` and source `authority`; 4 made
  * guidance examples labeled correct/incorrect pairs; 5 added the `lyriclint`
  * advisory tier to guidance authorities. */
 export const CORPUS_FORMAT_VERSION = 5;
-
-export interface AssistantCorpusRule {
-	id: string;
-	slug: string;
-	title: string;
-	group: string;
-	groupTitle: string;
-	severity: string;
-	message: string;
-	explanation: string;
-	fix: 'safe' | 'preview' | 'none';
-	fixLabel?: string;
-	language: string;
-	flaggedExample: string;
-	acceptedExample: string;
-	sourceIds: string[];
-}
-
-export interface AssistantCorpusSource {
-	id: string;
-	pageTitle: string;
-	sectionTitle: string;
-	url: string;
-	lastVerifiedAt: string;
-	/** How much standing the source has as Genius transcription policy. */
-	authority: SourceAuthority;
-}
-
-/**
- * One guidance-catalog entry: a reviewed transcription convention in
- * LyricLint's own words. Its `authority` is the highest tier among its cited
- * sources — or `lyriclint`, LyricLint's own advisory, whose sources are
- * context rather than backing — and its claims are cited through those
- * `sourceIds`: a guidance entry is not a rule and has no id of its own in the
- * answer schema.
- */
-export interface AssistantCorpusGuidanceEntry {
-	id: string;
-	topic: string;
-	topicTitle: string;
-	title: string;
-	statement: string;
-	example?: { correct?: string; incorrect?: string };
-	authority: GuidanceAuthority;
-	sourceIds: string[];
-	relatedRuleIds?: string[];
-	note?: string;
-}
-
-export interface AssistantCorpusLanguage {
-	tag: string;
-	displayName: string;
-	policy: string;
-	headerTerms: Array<{ semanticPart: string; terms: string[] }>;
-}
-
-export interface AssistantCorpus {
-	formatVersion: number;
-	ruleSetVersion: string;
-	generatedAt: string;
-	contentHash: string;
-	rules: AssistantCorpusRule[];
-	/** What the table-shaped rules check against, in full. */
-	lookups: RuleLookupTable[];
-	/** The guidance catalog: the conventions, whether or not a rule checks them. */
-	guidance: AssistantCorpusGuidanceEntry[];
-	sources: AssistantCorpusSource[];
-	languages: AssistantCorpusLanguage[];
-	harper: { ruleIds: string[]; behavior: string; limitations: string[] };
-	policyNotes: string[];
-}
 
 const HARPER_BEHAVIOR =
 	'Alongside the reviewed Genius rules, LyricLint runs Harper, a local English proofreader, ' +

@@ -1,4 +1,5 @@
-import { cleanup, render, waitFor } from '@testing-library/svelte';
+import { waitFor } from '@testing-library/dom';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import DocumentTitle from './DocumentTitle.svelte';
 

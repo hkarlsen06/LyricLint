@@ -6,7 +6,8 @@ import {
 	playbackRates,
 	resumeRewindSeconds
 } from './media-player.svelte.js';
-import { parseYouTubeVideoId, youtubePollIntervalMs, youtubeSearchTerm } from './media-youtube.js';
+import { remotePollIntervalMs } from './media-remote-policy.js';
+import { parseYouTubeVideoId, youtubeSearchTerm } from './media-youtube.js';
 import { createStubPoll, createStubYouTubeApi, stubPlayerState } from './media-test-youtube.js';
 
 const id = 'dQw4w9WgXcQ';
@@ -271,8 +272,8 @@ describe('the YouTube poll', () => {
 		player.setProgressListener((time, reason) => seen.push([time, reason]));
 
 		player.play();
-		expect(poll.intervalMs).toBe(youtubePollIntervalMs);
-		expect(youtubePollIntervalMs).toBeLessThanOrEqual(250);
+		expect(poll.intervalMs).toBe(remotePollIntervalMs);
+		expect(remotePollIntervalMs).toBeLessThanOrEqual(250);
 
 		video.currentTime = 4;
 		poll.advance();

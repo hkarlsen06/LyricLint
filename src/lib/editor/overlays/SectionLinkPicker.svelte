@@ -805,7 +805,7 @@
 		min-width: 0;
 		font-family: var(--font-mono);
 		font-size: var(--font-size-xs);
-		line-height: var(--line-height-snug);
+		line-height: var(--line-height-editor);
 		overflow-wrap: anywhere;
 		white-space: pre-wrap;
 	}

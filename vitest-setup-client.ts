@@ -10,3 +10,18 @@
  * the same tokens the app ships.
  */
 import './src/lib/ui/styles/global.css';
+import { configure } from '@testing-library/dom';
+import { flushSync, tick } from 'svelte';
+
+// The browser renderer owns mounting and cleanup. DOM Testing Library remains
+// the query/event layer for tests whose assertions intentionally inspect real
+// elements; teach it Svelte's flush boundaries without reinstating a second
+// component renderer.
+configure({
+	eventWrapper: flushSync,
+	asyncWrapper: async (callback) => {
+		const result = await callback();
+		await tick();
+		return result;
+	}
+});

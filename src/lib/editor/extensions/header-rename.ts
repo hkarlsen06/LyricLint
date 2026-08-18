@@ -15,7 +15,7 @@ import {
 } from './editor-state.js';
 
 /** The performer name currently being edited and the headers mirroring it. */
-export interface HeaderRenameSession {
+interface HeaderRenameSession {
 	performerId: PerformerId;
 	/** The spelling the performer had when this rename began. */
 	previousName: string;
@@ -26,7 +26,7 @@ export interface HeaderRenameSession {
 }
 
 /** One applied step of a header rename, reported to the shell. */
-export interface HeaderRename {
+interface HeaderRename {
 	performerId: PerformerId;
 	previousName: string;
 	displayName: string;

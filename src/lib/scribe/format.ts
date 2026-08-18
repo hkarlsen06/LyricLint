@@ -8,10 +8,10 @@ import type {
 import type { ClipboardMediaSource } from '$lib/editor/contracts.js';
 import { performerColorIds } from '$lib/performers/color.js';
 
-export const scribeFormat = 'LYRICLINT_SCRIBE';
-export const scribeVersion = 1;
+const scribeFormat = 'LYRICLINT_SCRIBE';
+const scribeVersion = 1;
 
-export interface ScribeProject {
+interface ScribeProject {
 	format: typeof scribeFormat;
 	version: typeof scribeVersion;
 	document: {
@@ -29,7 +29,7 @@ export interface ScribeProject {
 	song?: ClipboardMediaSource;
 }
 
-export interface ScribeProjectInput {
+interface ScribeProjectInput {
 	title: string;
 	language: string;
 	lyrics: string;

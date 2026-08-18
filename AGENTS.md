@@ -16,10 +16,18 @@ tier, and verifying annotation acceptance states — follows **`docs/guidelines.
 Use **bun**, never npm.
 
 ```bash
+bun run test
 bun run check
 bun run lint
 bun run test:unit -- --run
+bun run assistant:test
+bun run test:e2e
 ```
+
+`bun run test` is the complete local CI-equivalent chain and installs Chromium
+before either browser-mode suite. The individual commands assume their normal
+project dependencies are already installed; `test:e2e` installs Chromium on a
+clean machine.
 
 ### Two TypeScripts are installed on purpose
 
@@ -3750,7 +3758,7 @@ is the hero frame without the hero's theatre: no tilt and the bloom turned down,
 is the opening gesture and repeating it down the page turns a device into a tic.
 
 **That shot is now the poster on a loop, and the loop is the section's actual argument.**
-`render-performer-motion.mjs` films the same scene one frame at a time — the pointer drags a
+`render-motion.mjs` films the same scene one frame at a time — the pointer drags a
 phrase, the picker opens, a name is pressed, `Next`, then _both_ names for the rest of the
 section, then `Apply`. A still could only assert that the markup is never typed; watching it
 written is the whole claim, and the second step takes two performers on purpose, because one name
@@ -3803,9 +3811,9 @@ only arrangement with one aspect ratio in it.
 
 What replaces it is the video's own first frame: `preload="auto"` has `readyState` at 4 before
 anything scrolls, so frame one — the unmarked verse the loop opens on — paints exactly where the
-still used to be, at the crop that cannot then shift. That is also the whole no-JavaScript story,
-and `static/workbench-performers.png` is deleted rather than left unreferenced. `--performers` on
-`render-workbench-shot.mjs` still writes it if a still is ever wanted somewhere else.
+still used to be, at the crop that cannot then shift. That is also the whole no-JavaScript story.
+`--performers` on `render-workbench-shot.mjs` still captures the documented still scene, converts
+its transient PNG to the shipped `static/workbench-performers.webp`, and removes the intermediate.
 
 An `IntersectionObserver` ties the eleven seconds to the reader, because the shot sits most of a
 screen below the hero and a loop started at load has run itself out twice before anybody arrives.
@@ -5472,6 +5480,13 @@ sees the real tokens. Do not reintroduce literal fallbacks to make a test pass.
 Component behavior is covered by `vitest-browser-svelte` tests next to the component. When a
 UI interaction changes, update the test to assert the new structure — including the absence of
 the thing that was removed.
+
+The renderer is `vitest-browser-svelte`, and nothing else mounts a component. `@testing-library/dom`
+is the query and event layer beside it, for tests whose assertions inspect real elements —
+`within(view.container)` scoping in particular, which the browser locators have no equivalent
+for. It is configured once in `vitest-setup-client.ts`, where `eventWrapper: flushSync` and an
+`asyncWrapper` that awaits `tick()` teach it Svelte's flush boundaries. Adding a second component
+renderer is the drift this split exists to prevent; adding a DOM query helper is not.
 
 ## Final responses
 

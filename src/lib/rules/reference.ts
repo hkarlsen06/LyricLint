@@ -76,7 +76,7 @@ export interface RuleReference {
 	 * Every form in this rule's lookup table, for the index's search — and only
 	 * the forms. The table itself is loaded by the rule's own page, because this
 	 * entry travels in the section layout's data and is therefore copied into all
-	 * 55 prerendered payloads: the whole table is 17.8% of that payload for
+	 * 60 prerendered payloads: the whole table is 17.8% of that payload for
 	 * content six of every seven pages never draw, and the terms are 2.5%.
 	 * Absent on a rule that is a judgment rather than a table.
 	 */
@@ -176,7 +176,7 @@ function groupTitle(prefix: string): string {
  * Order *within* a group stays registry order, which is already written
  * strongest-first inside each family — `spelling.standardized` leads the
  * spellings and the nine language-specific ones trail it — so a second hand-run
- * ranking of all 55 rules would be a lot of judgment for very little movement.
+ * ranking of all 60 rules would be a lot of judgment for very little movement.
  *
  * Exhaustive, and it throws for a prefix it does not know, exactly as
  * `groupTitle` does: prerendering every page is part of the build, so a rule

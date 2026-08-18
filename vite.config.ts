@@ -154,6 +154,8 @@ export default defineConfig({
 	// unset, and its dynamic twin reads `process` at module scope, which the
 	// browser test environment does not have.
 	envPrefix: ['VITE_', 'PUBLIC_'],
+	// CodeMirror's search panel is opened lazily; pre-bundling prevents its first
+	// use in development from invalidating the module graph under a live editor.
 	optimizeDeps: { include: ['@codemirror/search'] },
 	plugins: [
 		sveltekit({
@@ -336,11 +338,12 @@ export default defineConfig({
 			// under `dev`, in the root layout.
 			//
 			// The `.gif` is the motion loop's sharing copy — a README, an issue, a
-			// post. No page references it, so precaching it would spend every
-			// visitor's bandwidth on an asset only ever fetched from outside the app.
+			// post. `workbench.png` serves the same job for the README while the page
+			// uses its WebP. No page references either, so neither belongs in every
+			// visitor's offline snapshot.
 			serviceWorker: {
 				register: false,
-				files: (file) => !file.startsWith('_') && !file.endsWith('.gif')
+				files: (file) => !file.startsWith('_') && !file.endsWith('.gif') && file !== 'workbench.png'
 			},
 			// A deploy reaches a client on their next full-page load — navigations
 			// are network-first through the worker, and a new build's chunks match
@@ -444,8 +447,7 @@ export default defineConfig({
 					// Loads the token stylesheet so computed-style assertions see the
 					// real design system rather than CSS fallbacks.
 					setupFiles: ['./vitest-setup-client.ts'],
-					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-					exclude: ['src/lib/server/**']
+					include: ['src/**/*.svelte.{test,spec}.{js,ts}']
 				}
 			},
 

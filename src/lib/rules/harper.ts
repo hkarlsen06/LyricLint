@@ -58,7 +58,7 @@ interface HarperEngine {
 	dispose(): Promise<void>;
 }
 
-export interface HarperDiagnosticRequest {
+interface HarperDiagnosticRequest {
 	text: string;
 	document: ParsedDocument;
 	language: string;
@@ -71,7 +71,7 @@ export interface HarperDiagnosticProvider {
 	dispose(): Promise<void>;
 }
 
-export type HarperEngineFactory = () => Promise<HarperEngine>;
+type HarperEngineFactory = () => Promise<HarperEngine>;
 
 /**
  * Harper lints switched off because what they advise is what the reviewed

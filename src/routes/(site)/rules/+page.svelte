@@ -44,7 +44,7 @@
 	 * use the search field, which chips narrow what. All true, and all written
 	 * for a reader who already knew what they were looking for — while the one
 	 * this section actually has to serve arrives from the landing page not
-	 * knowing the conventions at all, and was handed 55 checks and an explanation
+	 * knowing the conventions at all, and was handed 60 checks and an explanation
 	 * of the filtering.
 	 *
 	 * So the conventions are the content now, one section per family, with the

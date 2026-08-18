@@ -160,3 +160,34 @@
 		spellcheck="false"
 		dir="auto"></textarea>
 </div>
+
+<style>
+	.mock-editor {
+		width: 100%;
+		height: 100%;
+		min-height: inherit;
+	}
+
+	textarea {
+		display: block;
+		width: 100%;
+		/* The reading measure. The real CodeMirror surface caps at the same token
+		   (via line padding in src/lib/editor/create-editor.ts). */
+		max-width: var(--measure-editor);
+		height: 100%;
+		min-height: 20rem;
+		padding: 2.25rem clamp(1rem, 5vw, 4rem);
+		border: 0;
+		border-radius: 0;
+		resize: none;
+		background: transparent;
+		font-family: var(--font-mono);
+		font-size: var(--font-size-lg);
+		line-height: var(--line-height-editor);
+		tab-size: 2;
+	}
+
+	textarea:focus-visible {
+		outline-offset: -3px;
+	}
+</style>

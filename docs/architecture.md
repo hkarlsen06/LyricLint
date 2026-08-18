@@ -22,7 +22,7 @@ The lyric document, parser, rules, transformations, and source metadata are fram
 | Accessible primitives | Bits UI, used selectively |
 | Styling | Scoped Svelte CSS and global CSS custom properties |
 | Unit tests | Vitest |
-| Component tests | Testing Library for Svelte |
+| Component tests | Vitest browser mode through `vitest-browser-svelte` |
 | Browser tests | Playwright |
 
 Do not disable SSR globally. Prerender the application shell and create the CodeMirror view during `onMount`.
@@ -32,11 +32,15 @@ Do not disable SSR globally. Prerender the application shell and create the Code
 The primary workspace uses two structural regions:
 
 ```text
-┌───────────────────────────────────────────────┬─────────────────────────┐
-│ Document toolbar                              │ Panel tabs              │
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Document toolbar                                                        │
+├───────────────────────────────────────────────┬─────────────────────────┤
+│ Editor commands                                │ Panel tabs              │
 ├───────────────────────────────────────────────┤ Linter                  │
 │                                               │ Performers              │
-│ Lyrics editor                                 │ Tools                   │
+│ Lyrics editor                                 │ Song                    │
+│                                               │ Preferences             │
+│                                               │ Assistant (when enabled)│
 │                                               │                         │
 │ Inline marks, clustered badges,               │ Issue list, sources,    │
 │ selection performer picker                    │ roster, ignored issues  │
@@ -98,7 +102,10 @@ Opening the application creates a blank draft only when there is no current reco
 
 ### Session state
 
-Ignored diagnostics belong in `sessionStorage`, keyed by draft ID and an occurrence fingerprint. They survive reloads in the same tab but not a new browser session, and are included in workspace backups. Ignoring a diagnostic is not part of CodeMirror undo history.
+Ignored diagnostics live in the `draftIgnores` IndexedDB table, keyed by draft
+ID and occurrence fingerprint. They survive browser sessions, are removed with
+their draft or by delete-all, and are included in workspace backups. Ignoring a
+diagnostic is not part of CodeMirror undo history.
 
 ## Canonical document and derived model
 
@@ -128,7 +135,7 @@ interface VoiceGroup {
 
 The parser must recover from malformed input. It should return useful ranges and parse issues rather than reject the document.
 
-Raw HTML is always escaped when rendered outside CodeMirror. Export validation permits only explicitly supported lyric markup. Never pass pasted lyric text to `innerHTML`.
+Raw HTML is always escaped when rendered outside CodeMirror. Canonical serialization emits only explicitly supported lyric markup. Never pass pasted lyric text to `innerHTML`.
 
 ## Editing pipeline
 
@@ -239,7 +246,10 @@ Roster-only metadata changes use a separate action with toast undo. A normal doc
 
 ## Security and privacy
 
-- No lyric content leaves the browser. Draft linting is entirely local; the rules assistant (below) transmits only text typed into its own composer.
+- Draft linting is entirely local. The rules assistant normally transmits only
+  its composer text; if it asks to read the open 'scribe, the browser shares at
+  most the configured draft limit only after the visitor's explicit per-'scribe
+  decision. Edit proposals use that same consent-gated tool session.
 - Analytics, if added, must never include lyric text, selections, performer names, draft titles, or source markup.
 - Pasted content is treated as untrusted plain text.
 - External source links open with safe new-tab attributes.
@@ -248,19 +258,25 @@ Roster-only metadata changes use a separate action with toast undo. A normal doc
 
 ## The rules assistant service
 
-The one backend in the product, and it is deliberately not a backend for drafts. `services/rules-assistant` is a separate Cloudflare Worker behind Cloudflare AI Gateway answering `POST /v1/answers` for the accountless "Ask LyricLint" modal. It gives ordinary proofreading and transcription-convention help without demanding a citation, while attaching reviewed rules whenever they materially support the answer; only Genius- and LyricLint-specific claims must be grounded in the corpus.
+The one backend in the product is not draft storage or synchronization.
+`services/rules-assistant` is a separate Cloudflare Worker behind Cloudflare AI
+Gateway answering `POST /v1/answers` for the accountless "Ask LyricLint" modal.
+It gives ordinary proofreading and transcription-convention help without
+demanding a citation, while attaching reviewed rules whenever they materially
+support the answer; only Genius- and LyricLint-specific claims must be grounded
+in the corpus. Its optional draft-reading and edit-proposal tools run only after
+the consent boundary described above.
 
-- **Knowledge corpus.** `services/rules-assistant/generated/rules-context.json` is generated (`bun run assistant:corpus`) from `currentRuleSet`, the `RuleReference` derivations, the reviewed source registry, the eight reviewed language packs, and the policy sections of `docs/rules.md`. Parity tests in `src/lib/rules/assistant-corpus.test.ts` fail when it goes stale, when anything unreviewed leaks in, or when its version drifts from the frontend ruleset.
-- **Model call.** OpenAI Responses API (`gpt-5.6-luna`, reasoning effort max, `store: false`, 8192 output tokens) through an authenticated Cloudflare AI Gateway, using LyricLint's OpenAI project API key. Strict structured output contains typed blocks, each carrying zero or more rule ids. The Worker rejects unknown ids, duplicate rich-reference assignments, more than four distinct references, reviewed claims without reviewed citations, and invented source ids — an invalid answer is a 502, never partially rendered. Prompt order is stable instructions → corpus → cache breakpoint → pruned history → question, cached under a key derived from the ruleset version and corpus hash.
-- **Abuse control, layered.** WAF, two Worker Rate Limiting bindings (5/min per session, 15/min per IP), a SQLite-backed Durable Object for exact daily (25 session / 75 IP), concurrency (1 session / 3 IP) and spend accounting (~$0.50 per session, $15 global), the AI Gateway spend ceiling above it all, and a kill switch (`ASSISTANT_DISABLED`) that needs no frontend deploy. First request passes Turnstile and earns a signed, `HttpOnly`, `SameSite=Strict` 24-hour anonymous session cookie; rechallenge after ten requests. Session and IP identifiers are HMAC-hashed before storage or metrics; raw IPs and prompt text are never logged, and gateway payload logging is off.
-- **Frontend.** The browser resolves cited rule ids against the same generated corpus and renders each as a compact, visibly attached canonical reference with a new-tab link to the complete rule page — model text is never trusted for rule facts. Validated answers use an NDJSON content stream, so prose arrives incrementally while citations appear only when their supporting block is complete. Conversations live in Dexie (`assistantChats` / `assistantMessages`, database version 4), stay in the browser, and are cleared by delete-all; the workspace backup deliberately excludes them.
+- **Knowledge corpus.** `src/lib/rules/assistant-corpus-types.ts` is the producer-owned, dependency-free corpus contract. `bun run assistant:corpus` copies it into the independently deployable Worker and writes both the JSON artifact and a typed data module beside it. The content comes from `currentRuleSet`, the `RuleReference` derivations, the reviewed source registry, the eight reviewed language packs, and the policy sections of `docs/rules.md`. Parity tests in `src/lib/rules/assistant-corpus.test.ts` fail when the copy or artifact is stale, when anything unreviewed leaks in, or when its version drifts from the frontend ruleset.
+- **Model call.** OpenAI Responses API (`gpt-5.6-luna`, medium reasoning, `store: false`, 16,384 output tokens) through an authenticated Cloudflare AI Gateway, using LyricLint's OpenAI project API key. Strict structured output contains typed blocks, each carrying zero or more rule ids. The Worker rejects unknown ids, duplicate rich-reference assignments, more than four distinct references, reviewed claims without reviewed citations, and invented source ids — an invalid answer is a 502, never partially rendered. Prompt order is stable instructions → corpus → cache breakpoint → pruned history → question, cached under a key derived from the ruleset version and corpus hash.
+- **Abuse control, layered.** WAF, Worker Rate Limiting bindings, and a SQLite-backed Durable Object enforce the minute, daily, concurrency, and spend limits defined in `services/rules-assistant/src/config.ts`; that module is the canonical source for the current operational values. The AI Gateway adds the deployment-wide spend ceiling, and `ASSISTANT_DISABLED` is a kill switch requiring no frontend deploy. First request passes Turnstile and earns a signed, `HttpOnly`, `SameSite=Strict` 24-hour anonymous session cookie; rechallenge after ten successful requests. Session and IP identifiers are HMAC-hashed before storage or metrics; raw IPs and prompt text are never logged, and gateway payload logging is off.
+- **Frontend.** The browser resolves cited rule ids against the same generated corpus and renders each as a compact, visibly attached canonical reference with a new-tab link to the complete rule page — model text is never trusted for rule facts. Validated answers use an NDJSON content stream, so prose arrives incrementally while citations appear only when their supporting block is complete. Conversations live in Dexie (`assistantChats` / `assistantMessages`, database version 5), stay in the browser, and are cleared by delete-all; the workspace backup deliberately excludes them.
 
 ## Deferred decisions
 
 - Direct Genius integration or browser extension
 - Accounts and cross-device sync
 - Collaborative editing
-- Audio playback
 - Hidden-markup or WYSIWYM editing
 - Authorized guideline synchronization
 - Mobile-first editing

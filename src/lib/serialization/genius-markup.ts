@@ -1,16 +1,10 @@
 import type { PerformerRecord, StyleSlot } from '$lib/performers/types.js';
 
-export type LegendMember = string | Pick<PerformerRecord, 'displayName'>;
+type LegendMember = string | Pick<PerformerRecord, 'displayName'>;
 
-export interface SerializableLegendGroup {
+interface SerializableLegendGroup {
 	styleSlot: StyleSlot;
-	/**
-	 * Supplying members is the unambiguous safe path: separators are generated
-	 * outside escaped performer names.
-	 */
-	members?: readonly LegendMember[];
-	/** Compatibility input for a single performer name. */
-	rawNameText?: string;
+	members: readonly LegendMember[];
 }
 
 /** Escape untrusted performer text for literal inclusion in Genius markup. */
@@ -28,11 +22,7 @@ function memberName(member: LegendMember): string {
 }
 
 function serializeGroup(group: SerializableLegendGroup): string {
-	const members = group.members;
-	const name =
-		members && members.length > 0
-			? members.map((member) => escapeLegendText(memberName(member))).join(' & ')
-			: escapeLegendText(group.rawNameText ?? '');
+	const name = group.members.map((member) => escapeLegendText(memberName(member))).join(' & ');
 
 	return wrapVoiceSpan(name, group.styleSlot);
 }

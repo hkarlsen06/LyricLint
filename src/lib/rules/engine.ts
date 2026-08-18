@@ -4,23 +4,16 @@ import type {
 	ParsedDocument,
 	RuleContext,
 	RuleDefinition,
-	Severity,
 	TextEdit
 } from '$lib/core/types.js';
+import { severityRank } from '$lib/core/types.js';
 import { enabledRules } from './registry.js';
-
-const severityOrder: Record<Severity, number> = {
-	error: 0,
-	warning: 1,
-	suggestion: 2,
-	'manual-review': 3
-};
 
 /** Sort diagnostics deterministically by severity, range, rule, and copy. */
 export function sortDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {
 	return [...diagnostics].sort(
 		(left, right) =>
-			severityOrder[left.severity] - severityOrder[right.severity] ||
+			severityRank[left.severity] - severityRank[right.severity] ||
 			left.from - right.from ||
 			left.to - right.to ||
 			left.ruleId.localeCompare(right.ruleId) ||

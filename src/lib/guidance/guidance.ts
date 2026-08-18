@@ -132,7 +132,7 @@ export type GuidanceAuthority = SourceAuthority | 'lyriclint';
  * sample belongs in the statement or the note, because inside the sample face
  * it reads as part of the very thing being quoted.
  */
-export interface GuidanceExample {
+interface GuidanceExample {
 	/** The form the convention wants, exactly as written. */
 	correct?: string;
 	/** The form it corrects, exactly as written. */

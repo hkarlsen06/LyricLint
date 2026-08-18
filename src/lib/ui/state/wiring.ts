@@ -2,7 +2,7 @@ import { runRules } from '$lib/rules/index.js';
 import { sourceRegistry } from '$lib/rules/index.js';
 import { findExactPerformer } from '$lib/performers/index.js';
 import type { VoiceGroupRange } from '$lib/editor/index.js';
-import { lineNumberAt } from '$lib/editor/section-links.js';
+import { lineNumberAt } from '$lib/core/line-numbers.js';
 import { isLyricLine, scanPhysicalLines } from '$lib/core/parser.js';
 import type {
 	Diagnostic,
@@ -171,7 +171,7 @@ export function isTypingChange(previousText: string, nextText: string): boolean 
 	return Math.max(removed, inserted) <= 2;
 }
 
-export interface EditorStateFilter {
+interface EditorStateFilter {
 	/**
 	 * Whether the document has stopped changing under the user's hands.
 	 *

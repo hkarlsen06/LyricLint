@@ -1,36 +1,10 @@
-export {
-	DEFAULT_DATABASE_NAME,
-	LyricLintDatabase,
-	closeDatabase,
-	openDatabase
-} from './database.js';
+export { LyricLintDatabase, closeDatabase, openDatabase } from './database.js';
 export { createDraftRepository } from './draft-repository.js';
 export { createMediaRepository } from './media-repository.js';
-export type { MediaAttachInput, MediaRepository } from './media-repository.js';
-export { WorkspaceBackupError, createWorkspaceBackup, parseWorkspaceBackup } from './backup.js';
-export type {
-	WorkspaceBackupController,
-	WorkspaceBackupFile,
-	WorkspaceBackupOptions,
-	WorkspaceBackupState
-} from './backup.js';
+export type { MediaRepository } from './media-repository.js';
+export { createWorkspaceBackup } from './backup.js';
+export type { WorkspaceBackupController } from './backup.js';
 export { createAutosaveController } from './autosave.js';
 export { recoverStartupDraft } from './recovery.js';
 export { createDraftIgnoreStore } from './draft-ignores.js';
-export type {
-	AppMetadataRecord,
-	AutosaveController,
-	AutosaveOptions,
-	AutosaveSnapshot,
-	AutosaveStatus,
-	BackupHandleRecord,
-	DraftCreateInput,
-	DraftRecord,
-	DraftRepository,
-	DraftSummary,
-	MediaHandleRecord,
-	PerformerRecord,
-	SerializedSelection,
-	DraftIgnoreStore,
-	SessionStorageLike
-} from './types.js';
+export type { MediaHandleRecord, SessionStorageLike } from './types.js';

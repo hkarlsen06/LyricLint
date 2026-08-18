@@ -5,7 +5,7 @@ interface DraftLine {
 	text: string;
 }
 
-export type AssistantLinkActionResolution =
+type AssistantLinkActionResolution =
 	| { ok: true; action: AssistantLinkAction; headerLines: number[] }
 	| { ok: false; action: AssistantLinkAction; reason: 'not-found' };
 

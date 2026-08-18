@@ -1,14 +1,12 @@
 <script lang="ts">
+	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import { fly } from 'svelte/transition';
 	import { X } from 'lucide-svelte';
 	import type { FeedbackState } from '../state/feedback.svelte.js';
 
 	let { feedback }: { feedback: FeedbackState } = $props();
 
-	const reducedMotion =
-		typeof window !== 'undefined' &&
-		typeof window.matchMedia === 'function' &&
-		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const reducedMotion = prefersReducedMotion();
 	// The region stands above the footer, so a toast rises into place from it.
 	const motion = { y: 6, duration: reducedMotion ? 0 : 150 };
 

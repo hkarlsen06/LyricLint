@@ -1,5 +1,7 @@
+import { lineNumberAt } from './line-numbers.js';
+
 /** Exact text plus optional exact adjacent context used to identify one range. */
-export interface TextAnchor {
+interface TextAnchor {
 	exact: string;
 	before: string;
 	after: string;
@@ -7,7 +9,7 @@ export interface TextAnchor {
 	line?: number | null;
 }
 
-export type AnchorResolution =
+type AnchorResolution =
 	{ ok: true; from: number; to: number } | { ok: false; reason: 'not-found' | 'ambiguous' };
 
 /**
@@ -49,17 +51,6 @@ export function occurrenceAt(
 	const occurrences = occurrencesOf(document, exact);
 	const index = occurrences.findIndex((occurrence) => occurrence.from === from);
 	return index === -1 ? undefined : { index, total: occurrences.length };
-}
-
-/** The 1-based line an offset falls on, counting `\n`, `\r\n`, and a lone `\r`. */
-function lineNumberAt(document: string, offset: number): number {
-	let line = 1;
-	for (let index = 0; index < offset; index++) {
-		const code = document.charCodeAt(index);
-		if (code === 10) line += 1;
-		else if (code === 13 && document.charCodeAt(index + 1) !== 10) line += 1;
-	}
-	return line;
 }
 
 /**

@@ -3,8 +3,9 @@
  * faces DESIGN.md names — IBM Plex Sans for UI, IBM Plex Mono for source —
  * ship with the app instead of being requested from a CDN or hoped for on the
  * user's machine. The binaries in /static/fonts are copied verbatim from
- * @fontsource-variable/ibm-plex-sans and @fontsource/ibm-plex-mono (see
- * package.json for the pinned versions; license in /static/fonts/OFL.txt).
+ * @fontsource-variable/ibm-plex-sans 5.3.0 and @fontsource/ibm-plex-mono 5.3.0;
+ * the packages are not runtime inputs after vendoring (license in
+ * /static/fonts/OFL.txt).
  *
  * font-display: swap on every face, deliberately. This is a text editor: a
  * flash of fallback-styled text is a cosmetic blip, but a flash of *invisible*

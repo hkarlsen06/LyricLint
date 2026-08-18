@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	// The brand mark, closed, with its own waveform running through it.
 	//
 	// It scales with the text around it, from a result row to a whole region, and
@@ -20,17 +21,14 @@
 
 	let root = $state<HTMLElement>();
 
-	const prefersReducedMotion =
-		typeof window !== 'undefined' &&
-		typeof window.matchMedia === 'function' &&
-		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const reducedMotion = prefersReducedMotion();
 
 	$effect(() => {
 		const path = root?.querySelector<SVGPathElement>('.app-wordmark__wave path');
 		if (!path) return;
 		// Slowed rather than stopped: a still wave reads as a drawing, and it is
 		// the only thing here reporting that anything is happening at all.
-		return runWave(path, { rate: prefersReducedMotion ? 0.35 : 1 });
+		return runWave(path, { rate: reducedMotion ? 0.35 : 1 });
 	});
 </script>
 

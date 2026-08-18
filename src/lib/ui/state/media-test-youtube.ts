@@ -24,7 +24,7 @@ export const stubPlayerState = {
 	CUED: 5
 } as const;
 
-export class StubYouTubePlayer implements YouTubePlayerLike {
+class StubYouTubePlayer implements YouTubePlayerLike {
 	currentTime = 0;
 	length = 0;
 	rate = 1;
@@ -125,7 +125,7 @@ export class StubYouTubePlayer implements YouTubePlayerLike {
 	}
 }
 
-export interface StubYouTubeApi {
+interface StubYouTubeApi {
 	api: YouTubeApi;
 	/** How many times the loader was called; the opt-in gate is read off this. */
 	loads: number;

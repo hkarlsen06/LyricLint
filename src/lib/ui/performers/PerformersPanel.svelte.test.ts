@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
+import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
 import ToastRegion from '../primitives/ToastRegion.svelte';
 import { createTestWorkbench, performer } from '../test-utils.js';

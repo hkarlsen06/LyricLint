@@ -24,7 +24,7 @@ declare global {
 	}
 }
 
-export function turnstileSiteKey(): string {
+function turnstileSiteKey(): string {
 	const configured = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
 	if (configured !== undefined) return configured.trim();
 	return DEFAULT_SITE_KEY;

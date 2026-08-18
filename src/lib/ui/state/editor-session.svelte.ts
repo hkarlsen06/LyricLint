@@ -3,12 +3,12 @@ import type { FeedbackState } from './feedback.svelte.js';
 import { NOTICE_TOAST_DURATION } from './feedback.svelte.js';
 
 /** What an accepted editor snapshot changed relative to the one it replaced. */
-export interface SnapshotChange {
+interface SnapshotChange {
 	unchanged: boolean;
 	textDelta: number;
 }
 
-export interface EditorSessionDependencies {
+interface EditorSessionDependencies {
 	editor: EditorHandle;
 	initialSnapshot: EditorSnapshot;
 	feedback: FeedbackState;
@@ -23,7 +23,7 @@ export interface EditorSessionDependencies {
 	onBeforeReplace?: () => void;
 }
 
-export interface EditorSession {
+interface EditorSession {
 	readonly editor: EditorHandle;
 	readonly snapshot: EditorSnapshot;
 	setEditorHandle(handle: EditorHandle): void;

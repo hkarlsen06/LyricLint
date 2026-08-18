@@ -46,7 +46,7 @@ the delivery that no source supports.
 | ID | Source | Scope | Status |
 | --- | --- | --- | --- |
 | `T-LANGUAGE-DETECT` | [LanguageDetect](https://github.com/FGRibreau/node-language-detect) | Local statistical language recognition | Version 2.0.0 reviewed 2026-07-24 |
-| `T-HARPER` | [Harper](https://github.com/Automattic/harper) | Local English grammar and spelling suggestions | Version 2.4.0 reviewed 2026-07-26 |
+| `T-HARPER` | [Harper](https://github.com/Automattic/harper) | Local English grammar and spelling suggestions | Version 2.4.0 reviewed 2026-07-26; LyricLint currently ships 2.7.0 without a source re-review |
 | `L-EN-COMMON` | [Merriam-Webster: Commonly Misspelled Words](https://www.merriam-webster.com/grammar/commonly-misspelled-words) | Frequent English misspellings including `definately` and `tommorrow` | Reviewed 2026-07-25 |
 | `L-EN-MORE` | [Merriam-Webster: More Commonly Misspelled Words](https://www.merriam-webster.com/grammar/more-commonly-misspelled-words/_not-seperate-seprate-seperet_) | Frequent English misspellings including `seperate` and `acheive` | Reviewed 2026-07-25 |
 | `L-EN-TOP50` | [Cambridge: Top 50 spelling mistakes in English](https://dictionary.cambridge.org/grammar/british-grammar/spelling-top-50-spelling-mistakes-in-english) | High-frequency mistakes including `definately`, `freind`, `untill`, and `recieve` | Reviewed 2026-07-25 |

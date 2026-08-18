@@ -1,4 +1,5 @@
 import type { MediaSource, MediaSourceEvents, SongDetails } from './media-player.svelte.js';
+import { remoteLoadTimeoutMs, remoteSearchLimit } from './media-remote-policy.js';
 
 /**
  * Apple Music as a fourth source, and the first one with nothing to apologise for.
@@ -30,19 +31,8 @@ const settleToleranceSeconds = 1;
 export const settleMaxEvents = 4;
 const musicKitScriptUrl = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
 
-/**
- * How long MusicKit has to announce itself before the load is called a failure.
- *
- * The same twenty seconds the YouTube loader allows, and for the same reason: a
- * script that never runs — an extension blocking it, a content policy, a stalled
- * CDN — otherwise leaves this promise pending for the life of the page, and every
- * `finally` behind it with it. `attachAppleMusicSong` clears `busy` in one of
- * those, so a hung script does not cost a song, it costs the whole picker.
- */
-export const musicKitLoadTimeoutMs = 20_000;
-
 /** Where MusicKit puts a listener's payload. Narrowed to what is read. */
-export interface AppleMusicPlaybackStateEvent {
+interface AppleMusicPlaybackStateEvent {
 	state: number;
 }
 
@@ -75,7 +65,7 @@ export interface AppleMusicInstance {
 	removeEventListener(name: string, handler: (event: never) => void): void;
 }
 
-export interface MusicKitGlobal {
+interface MusicKitGlobal {
 	configure(options: {
 		developerToken: string;
 		app: { name: string; build: string };
@@ -140,7 +130,7 @@ export function loadMusicKit(): Promise<MusicKitGlobal> {
 		document.head.appendChild(script);
 		timeout = setTimeout(
 			() => reject(new Error('Apple Music did not load in time.')),
-			musicKitLoadTimeoutMs
+			remoteLoadTimeoutMs
 		);
 	});
 
@@ -164,7 +154,7 @@ export function loadMusicKit(): Promise<MusicKitGlobal> {
  * runs — a Cloudflare Pages *build* variable, not a runtime one and not a
  * `wrangler secret`, neither of which reaches the bundle.
  */
-export function appleMusicDeveloperToken(): string | undefined {
+function appleMusicDeveloperToken(): string | undefined {
 	const configuredToken = import.meta.env.PUBLIC_APPLE_MUSIC_TOKEN?.trim();
 	return configuredToken === undefined || configuredToken === '' ? undefined : configuredToken;
 }
@@ -265,10 +255,10 @@ export function resetAppleMusic(): void {
  * is the only one of the four whose repair is a browser setting rather than
  * another press.
  */
-export type AppleAuthorizationOutcome = 'authorized' | 'blocked' | 'refused' | 'unanswered';
+type AppleAuthorizationOutcome = 'authorized' | 'blocked' | 'refused' | 'unanswered';
 
 /** What the user is told, per outcome. `authorized` says nothing. */
-export function appleSignInMessage(outcome: AppleAuthorizationOutcome): string | undefined {
+function appleSignInMessage(outcome: AppleAuthorizationOutcome): string | undefined {
 	if (outcome === 'authorized') return undefined;
 	if (outcome === 'blocked') {
 		return 'Apple Music’s sign-in window was blocked. Allow pop-ups for this site, then press again.';
@@ -366,7 +356,7 @@ export async function authorizeAppleMusic(
 	}
 }
 
-export type AppleMusicUrlResult = { songId: string } | { error: string };
+type AppleMusicUrlResult = { songId: string } | { error: string };
 
 const songIdPattern = /^\d{1,20}$/;
 const schemePattern = /^[a-z][a-z0-9+.-]*:\/\//i;
@@ -436,9 +426,6 @@ export interface AppleMusicSearchResult {
 }
 
 export type AppleMusicSearchOutcome = { results: AppleMusicSearchResult[] } | { error: string };
-
-/** The same six the Spotify picker offers, for the same reason. */
-const searchLimit = 6;
 
 interface CatalogSong {
 	id?: string;
@@ -558,7 +545,7 @@ export async function searchAppleMusicSongs(
 	const search = new URLSearchParams({
 		term: trimmed,
 		types: 'songs',
-		limit: String(searchLimit)
+		limit: String(remoteSearchLimit)
 	}).toString();
 
 	const response = await catalog(
@@ -589,7 +576,7 @@ export async function searchAppleMusicSongs(
 	};
 }
 
-export interface AppleMusicSourceDependencies {
+interface AppleMusicSourceDependencies {
 	events: MediaSourceEvents;
 	/** The configured MusicKit instance, injected so a test drives a stub. */
 	music: () => Promise<AppleMusicInstance>;

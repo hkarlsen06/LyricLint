@@ -19,9 +19,9 @@ import {
 } from './types.js';
 import { composeSectionLinks } from './link-actions.js';
 
-export type WireMessage = Extract<WireMessageV2, { content: string }>;
+type WireMessage = Extract<WireMessageV2, { content: string }>;
 
-export interface BoundedHistory {
+interface BoundedHistory {
 	/** What the backend receives, oldest first, question last. */
 	messages: WireMessage[];
 	/** Index into the *source* history of the oldest message sent as context;

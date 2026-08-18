@@ -4,15 +4,8 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 /**
  * The forms a Genius reader already reads as "unknown lyric": the parenthesized
  * one, and a bracketed one that has simply gained a question mark too many.
- *
- * Exported because `unknown.improvised-marker` has to know what this rule has
- * already claimed. That is the same arrangement `isProseHeaderLine` and
- * `isImmediateRepeat` are in — where two rules can fire on one span, one of them
- * owns the predicate and the other imports it, because two copies disagree the
- * first time either moves and the disagreement presents as the panel arguing
- * with itself.
  */
-export const recognizedUnknownMarker = /\(\s*\?+\s*\)|\[\s*\?{2,}\s*\]/gu;
+const recognizedUnknownMarker = /\(\s*\?+\s*\)|\[\s*\?{2,}\s*\]/gu;
 
 export const unknownMarkerRule: RuleDefinition = {
 	id: 'unknown.marker',

@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render } from '@testing-library/svelte';
+import { fireEvent, screen, within } from '@testing-library/dom';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { AssistantProposalRecord } from '$lib/assistant/types.js';
@@ -119,25 +120,25 @@ describe('an assistant proposal card', () => {
 			decidable: true
 		});
 
-		await fireEvent.click(view.getByRole('button', { name: 'Approve' }));
+		await fireEvent.click(within(view.container).getByRole('button', { name: 'Approve' }));
 		expect(assistant.approveProposal).toHaveBeenCalledWith('proposal-1');
 
 		await view.rerender({ proposal: proposal('applied'), assistant, decidable: true });
-		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
-		expect(view.queryByRole('button', { name: 'Reject' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Approve' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Reject' })).toBeNull();
 		expect(view.container.textContent).toContain('Applied.');
 
 		await view.rerender({ proposal: proposal(), assistant, decidable: true });
-		await fireEvent.click(view.getByRole('button', { name: 'Reject' }));
+		await fireEvent.click(within(view.container).getByRole('button', { name: 'Reject' }));
 		expect(assistant.rejectProposal).toHaveBeenCalledWith('proposal-1');
 		await view.rerender({ proposal: proposal('rejected'), assistant, decidable: true });
 		expect(view.container.textContent).toContain('Rejected.');
-		expect(view.queryByRole('button', { name: 'Approve' })).toBeNull();
+		expect(within(view.container).queryByRole('button', { name: 'Approve' })).toBeNull();
 	});
 
 	test('an unresolvable proposal states why and offers no approval', () => {
 		const assistant = assistantStub();
-		const { container, queryByRole } = render(AssistantProposalCard, {
+		const { container } = render(AssistantProposalCard, {
 			proposal: proposal('failed', 'ambiguous'),
 			assistant,
 			decidable: true
@@ -145,8 +146,8 @@ describe('an assistant proposal card', () => {
 
 		expect(container.textContent).toContain('Failed.');
 		expect(container.textContent).toContain('appears more than once');
-		expect(queryByRole('button', { name: 'Approve' })).toBeNull();
-		expect(queryByRole('button', { name: 'Reject' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull();
 	});
 
 	test('a pending proposal whose session is gone is history, not an offer', async () => {
@@ -155,14 +156,14 @@ describe('an assistant proposal card', () => {
 		// them. `pendingProposal` refuses without a live session, so Approve here
 		// would be a control that silently does nothing.
 		const assistant = assistantStub();
-		const { container, queryByRole } = render(AssistantProposalCard, {
+		const { container } = render(AssistantProposalCard, {
 			proposal: proposal(),
 			assistant,
 			decidable: false
 		});
 
-		expect(queryByRole('button', { name: 'Approve' })).toBeNull();
-		expect(queryByRole('button', { name: 'Reject' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull();
 		expect(container.textContent).toContain('Left undecided.');
 		// The diff is still worth reading; only the offer went.
 		expect(container.querySelector('.assistant-proposal__diff')).not.toBeNull();

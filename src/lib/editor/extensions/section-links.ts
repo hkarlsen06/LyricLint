@@ -535,7 +535,7 @@ export function linePairingLimits(
  * different numbers of runs, where every translation downstream would refuse
  * anyway.
  */
-export function groupShape(
+function groupShape(
 	state: EditorState,
 	parsed: ParsedDocument,
 	headers: readonly number[],

@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, waitFor } from '@testing-library/svelte';
+import { fireEvent, screen, waitFor } from '@testing-library/dom';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import corpus from '../../../../services/rules-assistant/generated/rules-context.json';
 import { cannedAnswer, memoryRepository } from '$lib/assistant/assistant-test-utils.js';
@@ -56,7 +57,7 @@ afterEach(cleanup);
 describe('the assistant dialog', () => {
 	test('the header names the assistant, not one of the three doors into it', async () => {
 		const assistant = makeAssistant();
-		const { container, getByRole } = render(AssistantDialog, { assistant });
+		const { container } = render(AssistantDialog, { assistant });
 		await assistant.open();
 
 		// One modal, three entry points — the rule reference, the guidance
@@ -72,7 +73,7 @@ describe('the assistant dialog', () => {
 
 		// The title is what names the dialog, so the heading and the accessible
 		// name cannot drift apart.
-		expect(getByRole('dialog', { name: 'Ask LyricLint' })).not.toBeNull();
+		expect(screen.getByRole('dialog', { name: 'Ask LyricLint' })).not.toBeNull();
 	});
 
 	test('citations collect once at the foot of the answer as compact rule cards', async () => {
@@ -255,13 +256,13 @@ describe('the assistant dialog', () => {
 			.mockRejectedValueOnce(new AssistantError('provider_error'))
 			.mockResolvedValue(cannedAnswer(citedAnswer()));
 		const assistant = makeAssistant({ ask });
-		const { container, getByRole } = render(AssistantDialog, { assistant });
+		const { container } = render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('Question?');
 		await waitFor(() => {
 			expect(container.textContent).toContain('did not get an answer');
 		});
-		await fireEvent.click(getByRole('button', { name: 'Retry' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
 		await waitFor(() => {
 			expect(container.querySelector('.assistant-rule')).not.toBeNull();
 		});
@@ -269,16 +270,16 @@ describe('the assistant dialog', () => {
 
 	test('the composer sends through the form and disables while busy', async () => {
 		const assistant = makeAssistant();
-		const { container, getByRole, getByLabelText } = render(AssistantDialog, { assistant });
+		const { container } = render(AssistantDialog, { assistant });
 		await assistant.open();
-		const textarea = getByLabelText('Your question') as HTMLTextAreaElement;
+		const textarea = screen.getByLabelText('Your question') as HTMLTextAreaElement;
 		await fireEvent.input(textarea, { target: { value: 'How do I mark a chorus?' } });
 		await fireEvent.submit(container.querySelector('form.assistant-composer')!);
 		await waitFor(() => {
 			expect(container.textContent).toContain('How do I mark a chorus?');
 			expect(container.querySelector('.assistant-rule')).not.toBeNull();
 		});
-		expect((getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
+		expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
 	});
 
 	test('a conversation held by another tab hands the question back to the composer', async () => {
@@ -302,13 +303,13 @@ describe('the assistant dialog', () => {
 			}
 		} as unknown as LockManager;
 		const assistant = makeAssistant({ locks });
-		const { container, getByLabelText } = render(AssistantDialog, { assistant });
+		const { container } = render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('First question?');
 		await waitFor(() => expect(assistant.chats).toHaveLength(1));
 
 		held.add(chatLockName(assistant.chats[0]!.id));
-		const textarea = getByLabelText('Your question') as HTMLTextAreaElement;
+		const textarea = screen.getByLabelText('Your question') as HTMLTextAreaElement;
 		await fireEvent.input(textarea, { target: { value: 'A second thought' } });
 		await fireEvent.submit(container.querySelector('form.assistant-composer')!);
 
@@ -364,15 +365,15 @@ describe('the assistant dialog', () => {
 
 	test('conversations live in a popover, and deleting one is a confirm in the row', async () => {
 		const assistant = makeAssistant();
-		const { container, getByRole, queryByRole } = render(AssistantDialog, { assistant });
+		const { container } = render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('First question?');
 		await waitFor(() => expect(assistant.chats).toHaveLength(1));
 
 		// The header carries no bare `Delete` acting on the whole conversation.
-		expect(queryByRole('button', { name: /^Delete chat/ })).toBeNull();
+		expect(screen.queryByRole('button', { name: /^Delete chat/ })).toBeNull();
 
-		await fireEvent.click(getByRole('button', { name: 'Conversations' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Conversations' }));
 		const row = container.querySelector('.assistant-chats__list .list-row')!;
 		expect(row.textContent).toContain('First question?');
 
@@ -381,7 +382,7 @@ describe('the assistant dialog', () => {
 		// mounted already holding the question announces nothing.
 		const liveRegion = row.querySelector('[aria-live]')!;
 		expect(liveRegion.textContent?.trim()).toBe('');
-		await fireEvent.click(getByRole('button', { name: 'Delete First question?' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete First question?' }));
 		expect(row.querySelector('[aria-live]')).toBe(liveRegion);
 		expect(liveRegion.textContent).toContain('Delete First question?');
 		expect([...row.querySelectorAll('button')].map((button) => button.textContent?.trim())).toEqual(
@@ -389,7 +390,7 @@ describe('the assistant dialog', () => {
 		);
 		// The confirm carries the subject in its accessible name — focus lands on
 		// it the moment it is armed, and a bare "Delete" would point at nothing.
-		await fireEvent.click(getByRole('button', { name: 'Delete First question?' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Delete First question?' }));
 		await waitFor(() => expect(assistant.chats).toHaveLength(0));
 		expect(container.querySelector('.assistant-chats')).toBeNull();
 		expect(container.textContent).toContain('What would you like to check?');

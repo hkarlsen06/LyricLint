@@ -10,7 +10,7 @@
  * invisible would put an underline under nothing.
  */
 
-export interface InvisibleCharacter {
+interface InvisibleCharacter {
 	/** Names the character in a diagnostic message, mid-sentence. */
 	description: string;
 	/** What the safe fix puts in its place; empty means the character is dropped. */

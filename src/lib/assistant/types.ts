@@ -6,7 +6,6 @@
  */
 
 import type { AnchorOccurrence } from '$lib/core/text-anchors.js';
-import type { TextEdit } from '$lib/core/types.js';
 
 /**
  * The copy of its exact text an anchor landed on when its call arrived. It is
@@ -16,7 +15,7 @@ import type { TextEdit } from '$lib/core/types.js';
  * resolvable once the edits above it have moved the lines. Absent on records
  * stored before proposals were pinned, and on an anchor with empty exact.
  */
-export interface AnchorPin {
+interface AnchorPin {
 	occurrence?: AnchorOccurrence;
 }
 
@@ -43,14 +42,14 @@ export interface AssistantQuota {
 	resetsAt: string;
 }
 
-export interface AnswerResponse {
+interface AnswerResponse {
 	requestId: string;
 	assistant: StructuredAssistantAnswer;
 	quota: AssistantQuota;
 }
 
 /** The browser-executed capabilities the v2 assistant protocol exposes. */
-export type AssistantToolName = 'read_scribe' | 'propose_edits' | 'manage_links' | 'show_lyrics';
+type AssistantToolName = 'read_scribe' | 'propose_edits' | 'manage_links' | 'show_lyrics';
 
 /** An exact-text anchor emitted by the model instead of fragile document offsets. */
 export interface AssistantProposalAnchor {
@@ -108,7 +107,7 @@ export type AssistantReferenceRecord = AssistantReference &
  * free string rather than the record's terse code, because what the model is
  * told about a failure is the repair for it — see `FAILURE_GUIDANCE`.
  */
-export type AssistantReferenceOutcome =
+type AssistantReferenceOutcome =
 	| { id: string; status: 'shown'; reason?: never }
 	| { id: string; status: 'failed'; reason?: string };
 
@@ -147,18 +146,6 @@ export type AssistantLinkActionOutcome =
 /** The only two ways an exact-text anchor can fail to identify one range. */
 export type AssistantAnchorFailureReason = 'not-found' | 'ambiguous';
 
-/** A proposal resolved against the current draft and ready to preview or apply. */
-export interface ResolvedAssistantProposal extends AssistantProposal {
-	from: number;
-	to: number;
-	edits: TextEdit[];
-}
-
-/** The render-time result of resolving one proposal against the current draft. */
-export type AssistantProposalResolution =
-	| { ok: true; proposal: ResolvedAssistantProposal }
-	| { ok: false; proposal: AssistantProposal; reason: AssistantAnchorFailureReason };
-
 /** The states retained on a proposal while the user reviews a tool turn. */
 export type AssistantProposalRecord = AssistantProposal &
 	AnchorPin &
@@ -170,7 +157,7 @@ export type AssistantProposalRecord = AssistantProposal &
 	);
 
 /** The compact result returned to the model after a proposal is acknowledged. */
-export type AssistantProposalOutcome =
+type AssistantProposalOutcome =
 	| { id: string; status: 'applied' | 'rejected'; reason?: never }
 	| { id: string; status: 'failed'; reason?: string };
 

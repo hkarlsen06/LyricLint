@@ -1,4 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/svelte';
+import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
+import { userEvent } from 'vitest/browser';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
@@ -12,6 +14,7 @@ import { createMediaPlayer } from '../state/media-player.svelte.js';
 import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import DocumentToolbar from './DocumentToolbar.svelte';
+import MockEditorPane from './MockEditorPane.svelte';
 import Workspace from './Workspace.svelte';
 
 const assistantContext = vi.hoisted(() => ({
@@ -35,7 +38,7 @@ function renderWorkspace(
 	controller: ReturnType<typeof createTestWorkbench>['controller'],
 	harperProvider: HarperDiagnosticProvider = noHarper
 ) {
-	return render(Workspace, { controller, harperProvider });
+	return render(Workspace, { controller, editorComponent: MockEditorPane, harperProvider });
 }
 
 describe('Workspace and toolbar', () => {
@@ -257,7 +260,7 @@ describe('Workspace and toolbar', () => {
 		// The word moved into the accessible name; nothing in the header spells it.
 		expect(trigger.textContent?.trim()).toBe('');
 		expect(trigger.getAttribute('aria-expanded')).toBe('false');
-		await fireEvent.click(trigger);
+		await userEvent.click(trigger);
 		// `bind:open` rides the details element's `toggle` event, which lands a
 		// frame after the click, so the expansion state settles asynchronously.
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
@@ -795,7 +798,7 @@ describe('Workspace and toolbar', () => {
 		await fireEvent.click(trigger);
 		const dialog = screen.getByRole('dialog', { name: 'Lyric language' });
 		const search = within(dialog).getByPlaceholderText('Search languages');
-		expect(document.activeElement).toBe(search);
+		await waitFor(() => expect(document.activeElement).toBe(search));
 
 		await fireEvent.input(search, { target: { value: 'norw' } });
 		expect(within(dialog).getByRole('button', { name: 'Norwegian' })).toBeTruthy();

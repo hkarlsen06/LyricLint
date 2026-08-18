@@ -323,11 +323,7 @@ export function providerRequest(
 	];
 	for (const message of pruned) {
 		if (message.role === 'assistant' && 'toolCalls' in message) {
-			input.push(
-				...(decodeProviderItems(
-					message.providerItems
-				) as unknown as OpenAI.Responses.ResponseInputItem[])
-			);
+			input.push(...decodeProviderItems(message.providerItems));
 		} else if (message.role === 'tool') {
 			for (const result of message.results) {
 				input.push({

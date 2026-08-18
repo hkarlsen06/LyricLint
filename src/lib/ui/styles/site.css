@@ -91,7 +91,6 @@
 	--color-control-border: var(--color-border-input);
 	--color-selected: var(--color-accent-soft);
 	--color-focus-soft: color-mix(in oklch, var(--color-focus) 28%, transparent);
-	--color-danger-border: color-mix(in oklch, var(--color-danger) 45%, var(--color-border));
 	--color-danger-soft: var(--color-danger-surface);
 	--color-playhead: var(--color-warning);
 	--color-playhead-soft: var(--color-warning-soft);

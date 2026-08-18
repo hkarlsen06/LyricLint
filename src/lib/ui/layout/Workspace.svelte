@@ -15,7 +15,8 @@
 		linkableSemantic,
 		resolveLanguageTag
 	} from '$lib/languages/registry.js';
-	import { lineNumberAt } from '$lib/editor/section-links.js';
+	import { lineNumberAt } from '$lib/core/line-numbers.js';
+	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 	import {
 		createHarperDiagnosticProvider,
@@ -46,17 +47,17 @@
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
 	import { carryHarperDiagnosticsAcrossEdit } from '../state/harper-continuity.js';
 	import { trackKeyboardInset } from '../state/keyboard-inset.js';
-	import MockEditorPane from './MockEditorPane.svelte';
+	import { STACKED_BREAKPOINT } from '../state/phone-layout.js';
 	import RightPanel from './RightPanel.svelte';
 
 	let {
 		controller,
-		editorComponent = MockEditorPane,
+		editorComponent,
 		harperProvider = createHarperDiagnosticProvider(),
 		brandRevealed = true
 	}: {
 		controller: WorkbenchController;
-		editorComponent?: Component<EditorPaneProps>;
+		editorComponent: Component<EditorPaneProps>;
 		/** Injectable so component tests never need to instantiate the WASM worker. */
 		harperProvider?: HarperDiagnosticProvider;
 		/** Delays the toolbar lockup until the boot screen has finished leaving. */
@@ -213,13 +214,10 @@
 		return assistant.registerDraftBridge(bridge);
 	});
 
-	/** The stacked layout, in step with the `68rem` block in responsive.css. */
-	const stacked = new MediaQuery('(max-width: 68rem)');
+	/** The stacked layout, in step with the matching block in responsive.css. */
+	const stacked = new MediaQuery(`(max-width: ${STACKED_BREAKPOINT})`);
 
-	const reducedMotion =
-		typeof window !== 'undefined' &&
-		typeof window.matchMedia === 'function' &&
-		window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	const reducedMotion = prefersReducedMotion();
 
 	// Local on purpose: the codebase has no shared pluralizer, and the status
 	// bar is UI chrome (always English), not lyric text, so the language packs
@@ -1033,7 +1031,7 @@
 		is open. One element either way: rendering it twice would put a second
 		`Add audio` dialog and a second copy of every count in the document.
 
-		`stacked` is the same breakpoint as the `68rem` block in responsive.css and
+		`stacked` is the same breakpoint as the documented block in responsive.css and
 		has to be changed with it. Its fallback is false, so a server render — which
 		has no viewport to ask — emits the grid row, which is where the CSS still
 		puts it until the query resolves.

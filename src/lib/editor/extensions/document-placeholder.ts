@@ -40,7 +40,7 @@ function headerTerm(
 }
 
 /** The ghost transcription's lines, top to bottom, for one language pack. */
-export function placeholderLines(pack: LanguagePack | undefined): readonly string[] {
+function placeholderLines(pack: LanguagePack | undefined): readonly string[] {
 	return [
 		`[${headerTerm(pack, 'Verse', 'Verse')} 1]`,
 		placeholderGuidance,

@@ -180,37 +180,8 @@
 	list-style: none;
 }
 
-.assistant-chats__name {
-	display: flex;
-	min-width: 0;
-	padding: 0;
-	border: 0;
-	gap: var(--space-4);
-	flex: 1;
-	justify-content: space-between;
-	align-items: baseline;
-	background: transparent;
-	color: var(--color-text);
-	font: inherit;
-	font-size: var(--font-size-sm);
-	text-align: start;
-	cursor: pointer;
-}
-
-.assistant-chats__name--static {
-	cursor: default;
-}
-
 .assistant-chats__list > li.current .list-row__name {
 	font-weight: var(--font-weight-bold);
-}
-
-.assistant-chats__name time {
-	flex: none;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
 }
 
 /* The transcript is one centered reading column; spacing separates the turns,
@@ -325,7 +296,7 @@
 	margin: 0;
 	font-family: var(--font-mono);
 	font-size: var(--font-size-sm);
-	line-height: var(--line-height-snug);
+	line-height: var(--line-height-editor);
 	overflow-wrap: anywhere;
 	white-space: pre-wrap;
 }
@@ -376,7 +347,7 @@
 	text-align: left;
 	font-family: var(--font-mono);
 	font-size: var(--font-size-sm);
-	line-height: var(--line-height-snug);
+	line-height: var(--line-height-body);
 	overflow-wrap: anywhere;
 }
 

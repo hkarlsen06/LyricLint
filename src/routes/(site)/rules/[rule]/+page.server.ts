@@ -18,14 +18,14 @@ export const entries: EntryGenerator = () =>
  *
  * It returns almost nothing. The rule this page is about is already in the
  * layout's data, and returning it again would copy the entire index into all
- * fifty-five prerendered payloads. What is left to do here is refuse a slug that
+ * sixty prerendered payloads. What is left to do here is refuse a slug that
  * names no rule — which the static host answers on its own in production and
  * nothing answers in development — and hand over this rule's lookup table.
  *
  * **The table is loaded here rather than put on `RuleReference` precisely
  * because of the copying above.** Only seven rules have one, and the full set is
  * 17.8% of the layout payload against the 2.5% its search terms cost; carried on
- * the reference it would ride into all fifty-five payloads so that seven pages
+ * the reference it would ride into all sixty payloads so that seven pages
  * could draw it. `lookupTerms` is the part every page genuinely needs, because
  * the index's search is mounted by the layout.
  */

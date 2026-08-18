@@ -72,7 +72,7 @@ export interface RulePolicyCase {
 	 * reader's first screen. So the index draws one row per `family` with its
 	 * `language`s as the links, while `groupedRuleReferences()` stays exhaustive
 	 * — the sitemap, the prerender entries, the structured data and the search
-	 * all still see all 55.
+	 * all still see all 60.
 	 *
 	 * `family` is the collapsed row's own title and `language` is what the reader
 	 * picks from. Both are written here rather than derived from the rule ID,

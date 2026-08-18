@@ -5,6 +5,7 @@
  * generated corpus the Worker validates citations with, never from model
  * output. Loaded lazily so the artifact stays out of the initial bundle.
  */
+import type { AssistantCorpus } from '$lib/rules/assistant-corpus-types.js';
 
 export interface RulePreviewSource {
 	id: string;
@@ -28,12 +29,6 @@ export interface RulePreview {
 	sources: RulePreviewSource[];
 }
 
-interface CorpusShape {
-	ruleSetVersion: string;
-	rules: Array<Omit<RulePreview, 'sources'> & { sourceIds: string[] }>;
-	sources: RulePreviewSource[];
-}
-
 let cache:
 	| Promise<{
 			ruleSetVersion: string;
@@ -47,9 +42,9 @@ export function loadRulePreviews(): Promise<{
 	previews: Map<string, RulePreview>;
 	sources: Map<string, RulePreviewSource>;
 }> {
-	cache ??= import('../../../services/rules-assistant/generated/rules-context.json').then(
+	cache ??= import('../../../services/rules-assistant/generated/rules-context-data.js').then(
 		(module) => {
-			const corpus = (module.default ?? module) as unknown as CorpusShape;
+			const corpus: AssistantCorpus = module.corpus;
 			const sourcesById = new Map(corpus.sources.map((source) => [source.id, source]));
 			const previews = new Map<string, RulePreview>(
 				corpus.rules.map((rule) => [

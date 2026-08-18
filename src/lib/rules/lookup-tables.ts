@@ -51,7 +51,7 @@ import { expansions as shorthandExpansions } from './catalog/spelling-texting-sh
 import { standardizedSpellings, type SpellingContextGate } from './data/spelling.js';
 
 /** One replacement pair out of a rule's lookup table. */
-export interface RuleLookupEntry {
+interface RuleLookupEntry {
 	/** What the reviewed guidance prefers. More than one where both are accepted. */
 	preferred: string[];
 	/** What it is preferred over, as the reviewed guidance names it. */
@@ -168,7 +168,7 @@ function pairTable(
  * in it.
  *
  * The whole table is far too much to put in the index's payload — it is served
- * by a layout, so it would be copied into all 55 prerendered pages for content
+ * by a layout, so it would be copied into all 60 prerendered pages for content
  * six of every seven of them never draw. This is 6.0% of that payload against
  * 16.2%, and it is all a search needs: a reader who types `tryna` wants the row
  * that has it, not the table.

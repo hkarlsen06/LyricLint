@@ -1,4 +1,5 @@
 import { tick } from 'svelte';
+import { prefersReducedMotion } from '$lib/interaction/motion.js';
 
 /**
  * Bring an index column's selected row into view, for a reader who did not
@@ -106,7 +107,7 @@ export async function followSelectedRow(column: HTMLElement | undefined): Promis
 	if (delta === 0) return;
 
 	const to = column.scrollTop + delta;
-	if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+	if (prefersReducedMotion()) {
 		column.scrollTop = to;
 		return;
 	}

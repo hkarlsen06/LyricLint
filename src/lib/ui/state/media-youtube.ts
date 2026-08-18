@@ -1,4 +1,9 @@
 import type { MediaSource, MediaSourceEvents } from './media-player.svelte.js';
+import {
+	remoteLoadTimeoutMs,
+	remotePollIntervalMs,
+	remoteSeekSettled
+} from './media-remote-policy.js';
 
 /**
  * How often a running YouTube playhead is read, in milliseconds.
@@ -10,8 +15,6 @@ import type { MediaSource, MediaSourceEvents } from './media-player.svelte.js';
  * downstream was tuned against. Anything faster is a postMessage round trip per
  * frame for a readout nobody can read that fast.
  */
-export const youtubePollIntervalMs = 250;
-
 /**
  * How far the player may be from where it was told to go before the transport
  * believes it, and how many polls it will wait for that.
@@ -24,9 +27,6 @@ export const youtubePollIntervalMs = 250;
  * poll cap is there so a seek the player ignored outright cannot leave the
  * readout stuck on a position nothing is playing from.
  */
-const settleToleranceSeconds = 1;
-const settleMaxPolls = 8;
-
 /** Google's IFrame API, narrowed to what the transport actually calls. */
 export interface YouTubePlayerLike {
 	playVideo(): void;
@@ -81,8 +81,6 @@ interface YouTubeGlobal {
 }
 
 const apiScriptUrl = 'https://www.youtube.com/iframe_api';
-export const youtubeApiLoadTimeoutMs = 20_000;
-
 let injected: Promise<YouTubeApi> | undefined;
 
 /**
@@ -113,7 +111,7 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 		const previous = scope.onYouTubeIframeAPIReady;
 		const timeout = setTimeout(
 			() => reject(new Error('The YouTube player did not load in time.')),
-			youtubeApiLoadTimeoutMs
+			remoteLoadTimeoutMs
 		);
 		scope.onYouTubeIframeAPIReady = () => {
 			previous?.();
@@ -181,7 +179,7 @@ function youtubeErrorMessage(code: number): string {
  * is, which is the trade this makes: a cover that is always there beats a
  * sharper one that sometimes is not.
  */
-export function youtubeThumbnailUrl(videoId: string): string {
+function youtubeThumbnailUrl(videoId: string): string {
 	return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 }
 
@@ -212,7 +210,7 @@ export function youtubeSearchTerm(name: string): string | undefined {
 	return term === '' ? undefined : term;
 }
 
-export type YouTubeUrlResult = { videoId: string } | { error: string };
+type YouTubeUrlResult = { videoId: string } | { error: string };
 
 const bareIdPattern = /^[A-Za-z0-9_-]{11}$/;
 const schemePattern = /^[a-z][a-z0-9+.-]*:\/\//i;
@@ -285,7 +283,7 @@ export function parseYouTubeVideoId(input: string): YouTubeUrlResult {
 	return bareIdPattern.test(candidate) ? { videoId: candidate } : { error: noVideo };
 }
 
-export interface YouTubeSourceDependencies {
+interface YouTubeSourceDependencies {
 	events: MediaSourceEvents;
 	loadApi: YouTubeApiLoader;
 	/** Injectable so a test advances the poll by hand rather than on a clock. */
@@ -386,15 +384,12 @@ export function createYouTubeSource(deps: YouTubeSourceDependencies): YouTubeSou
 			reportDuration();
 			if (target !== undefined) {
 				targetPolls += 1;
-				if (
-					Math.abs(rawTime() - target) <= settleToleranceSeconds ||
-					targetPolls >= settleMaxPolls
-				) {
+				if (remoteSeekSettled(rawTime(), target, targetPolls)) {
 					target = undefined;
 				}
 			}
 			events.timeChanged(position());
-		}, youtubePollIntervalMs);
+		}, remotePollIntervalMs);
 	}
 
 	function endPoll(): void {
