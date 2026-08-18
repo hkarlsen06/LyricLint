@@ -792,6 +792,65 @@ describe('performer assignment transforms', () => {
 		}
 	});
 
+	it('reassigns the tail of a multiline voice and balances the part left behind', () => {
+		const input =
+			'[Verse: Mul & <i>Mein</i>]\n' +
+			'Mul line\n' +
+			'<i>(Get what?)\nGet the strap\nTrappe hardt</i>\n' +
+			'Mul again';
+		const records = roster(['Mul', 'Mein']);
+		const from = input.indexOf('Get the strap');
+		const to = input.indexOf('</i>', from) + '</i>'.length;
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: to },
+			performerIds: [records[0]!.id],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			const output = applyEdits(input, result.edit.edits);
+			expect(output).toBe(
+				'[Verse: Mul & <i>Mein</i>]\n' +
+					'Mul line\n' +
+					'<i>(Get what?)</i>\nGet the strap\nTrappe hardt\n' +
+					'Mul again'
+			);
+			expect(
+				output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)
+			).toBe('Get the strap\nTrappe hardt');
+			expect(parseDocument(output).syntaxIssues).toEqual([]);
+		}
+	});
+
+	it('balances a second multiline voice that meets the reassigned one on the same line', () => {
+		const input =
+			'[Verse: A, <i>B</i> & <b>C</b>]\n' + '<i>B first\nB last</i> and <b>C first\nC last</b>';
+		const records = roster(['A', 'B', 'C']);
+		const from = input.indexOf('B first');
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: from + 'B first'.length },
+			performerIds: [records[0]!.id],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status === 'applied') {
+			const output = applyEdits(input, result.edit.edits);
+			expect(output).toBe(
+				'[Verse: A, <i>B</i> & <b>C</b>]\n' +
+					'B first\n<i>B last</i> and <b>C first</b>\n<b>C last</b>'
+			);
+			expect(parseDocument(output).syntaxIssues).toEqual([]);
+		}
+	});
+
 	it('makes an unused performer legend eligible for cleanup after removing its only voice', () => {
 		const input = '[Verse: A & <i>B</i>]\nA line\n<i>Only B line</i>';
 		const records = roster(['A', 'B']);

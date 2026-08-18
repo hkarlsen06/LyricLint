@@ -4,7 +4,7 @@ import { diagnostic, hasUnsupportedMarkup, replacementFix } from './utils.js';
 
 export const spellingStandardizedRule: RuleDefinition = {
 	id: 'spelling.standardized',
-	version: 5,
+	version: 6,
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-SPELLING', 'G-AS-SPOKEN'],

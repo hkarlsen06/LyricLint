@@ -332,6 +332,21 @@ function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
 }
 
 /**
+ * Close and reopen every supported voice run on one physical line.
+ *
+ * A continued wrapper has one opening tag on its first line and one closing
+ * tag on its last. Restyling only part of that wrapper has to make the lines
+ * outside the selection self-contained too; otherwise removing the closing
+ * tag from the selected tail would leave the untouched opening tag active.
+ * The visible text and voice slots stay the same — only the boundary-spanning
+ * serialization becomes one balanced wrapper per affected line.
+ */
+function balanceLine(text: string, line: LyricLine): TextEdit | undefined {
+	const rendered = renderPieces(buildLinePieces(text, line, { from: line.to, to: line.to }));
+	return rendered.text === line.text ? undefined : narrowEdit(line.from, line.text, rendered.text);
+}
+
+/**
  * The edit a rewrite actually makes, rather than the line it was computed over.
  *
  * A rendered line is built whole — every piece, styled or not, concatenated —
@@ -973,33 +988,70 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		};
 	}
 
-	// A wrapper spanning several lines may be restyled when the wrap range
-	// covers all of it: every line of the chain re-renders with balanced tags
-	// of its own, so nothing half-seen is ever broken. A chain reaching past
-	// the range keeps `transformLine`'s per-line refusal.
+	// A wrapper spanning several lines may be restyled in part. Every line in an
+	// overlapping chain is re-rendered with balanced tags of its own: selected
+	// lines take the new slot, while lines outside the selection keep their old
+	// slot. That safely splits a shape such as `<i>first\nsecond\nthird</i>` when
+	// only `second` and `third` are reassigned, instead of silently refusing the
+	// edit because the opening tag lives above the selection.
 	const rewritableContinuedSpans = new Set<SupportedStyleSpan>();
-	for (const chain of supportedStyleChains(section)) {
-		const chainFirst = chain[0];
-		const chainLast = chain.at(-1);
-		if (
-			chainFirst &&
-			chainLast &&
-			wrapRange.from <= chainFirst.from &&
-			chainLast.to <= wrapRange.to
-		) {
+	const styleChains = supportedStyleChains(section);
+	for (const chain of styleChains) {
+		if (chain.some((span) => span.contentFrom < wrapRange.to && wrapRange.from < span.contentTo)) {
 			for (const span of chain) {
 				rewritableContinuedSpans.add(span);
 			}
 		}
 	}
+	// Two continued wrappers can meet on one physical line. Balancing that line
+	// for the first wrapper also balances the second, so carry the rewrite through
+	// the second chain as well; leaving its following line untouched would trade
+	// one unmatched boundary for another.
+	const chainForSpan = new Map<SupportedStyleSpan, SupportedStyleSpan[]>();
+	for (const chain of styleChains) {
+		for (const span of chain) {
+			chainForSpan.set(span, chain);
+		}
+	}
+	let expanded = true;
+	while (expanded) {
+		expanded = false;
+		for (const line of section.lines) {
+			const spans = supportedSpans(line);
+			if (!spans.some((span) => rewritableContinuedSpans.has(span))) {
+				continue;
+			}
+			for (const span of spans) {
+				if (
+					rewritableContinuedSpans.has(span) ||
+					(!span.continuedFromPreviousLine && !span.continuesToNextLine)
+				) {
+					continue;
+				}
+				for (const chainedSpan of chainForSpan.get(span) ?? []) {
+					if (!rewritableContinuedSpans.has(chainedSpan)) {
+						rewritableContinuedSpans.add(chainedSpan);
+						expanded = true;
+					}
+				}
+			}
+		}
+	}
 
 	const lineTransforms: { line: LyricLine; transform: LineTransform }[] = [];
+	const balancingEdits: TextEdit[] = [];
 	for (const line of section.lines) {
 		const lineSelection = trimWhitespaceRange(request.text, {
 			from: Math.max(wrapRange.from, line.from),
 			to: Math.min(wrapRange.to, line.to)
 		});
 		if (lineSelection.from >= lineSelection.to) {
+			if (supportedSpans(line).some((span) => rewritableContinuedSpans.has(span))) {
+				const edit = balanceLine(request.text, line);
+				if (edit) {
+					balancingEdits.push(edit);
+				}
+			}
 			continue;
 		}
 		const transform = transformLine(
@@ -1027,7 +1079,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	const appliedTransforms = combinedTransform
 		? [combinedTransform]
 		: lineTransforms.map(({ transform }) => transform);
-	const edits: TextEdit[] = [];
+	const edits: TextEdit[] = [...balancingEdits];
 	if (allocation.status === 'available') {
 		// Inverted, the rest is the styled passage, so the rest's voices are the
 		// ones its legend group names. A skipped rest never reaches here — it

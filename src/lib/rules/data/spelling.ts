@@ -1,4 +1,4 @@
-import { isEnglishLanguage } from '$lib/languages/registry.js';
+import { isEnglishLanguage, resolveLanguageTag } from '$lib/languages/registry.js';
 
 export type SpellingContextGate =
 	| 'general'
@@ -62,14 +62,6 @@ export interface SpellingCandidate {
 const word = (source: string): RegExp =>
 	new RegExp(`(?<![\\p{L}\\p{N}_])(?:${source})(?![\\p{L}\\p{N}_])`, 'giu');
 
-/**
- * The forms in the `ayy` family that are ordinary words somewhere else: `ei` is
- * the Norwegian indefinite article, `Ei` is a German egg, and `ay` is a Spanish
- * interjection. The rest of that pattern — `ayy`, `ayee`, `aye` — is nobody's
- * word in any reviewed pack and stays cross-language.
- */
-const AMBIGUOUS_AYY = /^(?:ay|e(?:y+|i+))$/iu;
-
 function nearby(context: SpellingMatchContext, radius = 36): string {
 	return context.text
 		.slice(Math.max(0, context.from - radius), Math.min(context.text.length, context.to + radius))
@@ -97,6 +89,26 @@ function preserveSimpleCase(found: string, preferred: string): string {
 
 function normalizedSpelling(value: string): string {
 	return value.normalize('NFC').toLocaleLowerCase('en').replaceAll('’', "'");
+}
+
+/**
+ * Whether a short `ayy`-family form is sufficiently certain in this language.
+ * `ei` is a Norwegian article and a German noun, while `ay` is a Spanish
+ * interjection. Keep only those actual collisions quiet; `ey`, `eyy` and `eii`
+ * are transcription spellings rather than words in the reviewed packs. A comma
+ * immediately after `ei` supplies the missing interjection context.
+ */
+function hasSufficientAyyContext(context: SpellingMatchContext): boolean {
+	const found = normalizedSpelling(context.match);
+	const language = resolveLanguageTag(context.language);
+
+	if (found === 'ei') {
+		return context.text[context.to] === ',' || (language !== 'no' && language !== 'de');
+	}
+	if (found === 'ay') {
+		return language !== 'es';
+	}
+	return true;
 }
 
 /** Whether two strings are one typo apart, including an adjacent transposition. */
@@ -237,11 +249,10 @@ export const standardizedSpellings: readonly StandardizedSpelling[] = [
 		contextGate: 'general',
 		safe: true,
 		pattern: word('ay{3,}|ayee|aye|ay|e(?:y+|i+)'),
-		// Per match rather than per entry: only the forms that are ordinary words
-		// elsewhere are held to English. Ungated, this safe fix turned a Norwegian
-		// `ei jente` into `ayy jente` under `Fix N automatically`.
-		isSufficientContext: (context) =>
-			!AMBIGUOUS_AYY.test(context.match) || isEnglishLanguage(context.language)
+		// Per match rather than per entry: only actual language collisions are
+		// withheld. Ungated, this safe fix turned Norwegian `ei jente` into
+		// `ayy jente` under `Fix N automatically`.
+		isSufficientContext: hasSufficientAyyContext
 	},
 	{
 		preferred: ['ho'],

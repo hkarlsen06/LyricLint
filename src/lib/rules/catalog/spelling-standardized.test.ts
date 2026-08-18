@@ -195,6 +195,12 @@ describe('spelling.standardized', () => {
 		]);
 	});
 
+	it('distinguishes Norwegian interjections from the article ei', () => {
+		const text = '[Vers 1]\nEy, baby mama\nEi jente\nEi, baby mama';
+
+		expect(fixInserts(checkRule(rule, text, { language: 'no' }))).toEqual(['Ayy', 'Ayy']);
+	});
+
 	it('still catches those spellings in an English draft', () => {
 		expect(fixInserts(checkRule(rule, '[Verse]\nEy, ei come here'))).toEqual(['Ayy', 'ayy']);
 		expect(fixInserts(checkRule(rule, '[Verse]\nIt goes ok, cause naïve'))).toEqual([

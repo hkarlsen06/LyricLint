@@ -115,7 +115,7 @@ describe('standardized spelling data', () => {
 	// `ok`/`okey` are written as themselves nearly everywhere, and `naïve` is
 	// the correct French spelling of the word this entry drops the diaeresis
 	// from.
-	it('holds the forms that are ordinary words elsewhere to English drafts', () => {
+	it('holds forms that are ordinary words only in the languages where they collide', () => {
 		expect(replacements('Æ e ei jente', 'no')).toEqual([]);
 		expect(replacements('Das Ei ist gut', 'de')).toEqual([]);
 		expect(replacements('Det går ok, cause det må', 'no')).toEqual([]);
@@ -128,11 +128,18 @@ describe('standardized spelling data', () => {
 			"'cause",
 			'naive'
 		]);
-		// The gate is per match in the `ayy` family, because only some of its
-		// forms are words elsewhere; `'cause`, `okay` and `naive` are gated whole,
-		// since each states an English orthography rather than a transcription
-		// convention that holds in every language.
-		expect(replacements('ayee ayyy', 'no')).toEqual(['ayy', 'ayy']);
+		// The gate is per match and language in the `ayy` family, because only some
+		// forms are words in particular packs. A following comma distinguishes the
+		// interjection `Ei,` from the otherwise protected Norwegian article.
+		expect(replacements('ey eyy eii ayee ayyy Ei, ei jente', 'no')).toEqual([
+			'ayy',
+			'ayy',
+			'ayy',
+			'ayy',
+			'ayy',
+			'Ayy'
+		]);
+		expect(replacements('ay', 'es')).toEqual([]);
 		expect(replacements('niaive', 'no')).toEqual([]);
 	});
 
