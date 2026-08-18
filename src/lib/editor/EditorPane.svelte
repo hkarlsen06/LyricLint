@@ -468,7 +468,12 @@
 								: {})
 						});
 			if (edit) {
-				editor?.handle.dispatchAtomic(edit);
+				const anchor = outcome.kind === 'legend' ? outcome.sectionFrom : outcome.range.from;
+				if (editor?.handle.dispatchLinkedPerformer) {
+					editor.handle.dispatchLinkedPerformer(edit, anchor);
+				} else {
+					editor?.handle.dispatchAtomic(edit);
+				}
 			}
 		} catch (error) {
 			callbacks.onAnnouncement(

@@ -104,8 +104,8 @@ export interface OverlaySession {
 	overlay: OverlayState;
 	/**
 	 * `rangeKey` of a selection whose performer picker the user already
-	 * resolved. The selection itself survives dismissal, so the next settled
-	 * anchor report would otherwise reopen the card the user just closed.
+	 * resolved. While that selection remains standing, the next settled anchor
+	 * report would otherwise reopen the card the user just closed.
 	 */
 	dismissedSelection?: string;
 }
@@ -407,23 +407,32 @@ export function reportSelectionAnchor(
 	// keyboard-opened card on the very next settle. It leaves the way every other
 	// transient surface does: Escape, Cancel, an outside press, or applying.
 	if (!anchor) {
+		// A dismissal suppresses only the selection that is still standing behind
+		// the card. Once the selection collapses there is no stale anchor report
+		// left to guard against, and keeping the key would make selecting the exact
+		// same passage later silently fail to open the picker.
+		const settled = forgetDismissedSelection(session);
 		return {
-			session: session.overlay.kind === 'performer' ? closeOverlay(session) : session,
+			session: settled.overlay.kind === 'performer' ? closeOverlay(settled) : settled,
 			assignRequested: false
 		};
 	}
 	const key = rangeKey(anchor.range);
+	// Moving to any other range retires the old dismissal for the same reason:
+	// returning to that text is a new selection gesture, not the settled report
+	// from the Cancel press that the suppression exists to absorb.
+	const settled = key === session.dismissedSelection ? session : forgetDismissedSelection(session);
 	const alreadyOpen =
-		openedFromSelection && rangeKey(overlayRange(session.overlay) ?? anchor.range) === key;
+		openedFromSelection && rangeKey(overlayRange(settled.overlay) ?? anchor.range) === key;
 	if (key === session.dismissedSelection || alreadyOpen) {
-		return { session, assignRequested: false };
+		return { session: settled, assignRequested: false };
 	}
 	// `false`: this is the one path nobody pressed. The selection under it is
 	// live text the user is in the middle of working on — most often a
 	// double-clicked word they are about to type over — so the card draws itself
 	// beside the caret and leaves it exactly where it was.
 	if (anchor.offersAssignment) {
-		return { session: openPerformerPicker(session, anchor.range, false), assignRequested: true };
+		return { session: openPerformerPicker(settled, anchor.range, false), assignRequested: true };
 	}
 	// No `assignRequested`: the shell has nothing to arbitrate about a link, so
 	// there is no request to forward. The pane opens the card and that is all.
@@ -433,11 +442,11 @@ export function reportSelectionAnchor(
 		// middle of working with, and a card that took the caret out of the
 		// document there would land their next keystroke in a checkbox.
 		return {
-			session: openSectionLinkPicker(session, anchor.range, anchor.linkHeader.from, false),
+			session: openSectionLinkPicker(settled, anchor.range, anchor.linkHeader.from, false),
 			assignRequested: false
 		};
 	}
-	return { session, assignRequested: false };
+	return { session: settled, assignRequested: false };
 }
 
 /**

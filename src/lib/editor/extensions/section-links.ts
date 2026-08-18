@@ -12,10 +12,13 @@ import { Transaction } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import { randomId } from '$lib/core/random-id.js';
+import { parseDocument } from '$lib/core/parser.js';
 import type {
+	AtomicDocumentEdit,
 	LinkDifference,
 	LinkHole,
 	ParsedDocument,
+	SectionHeader,
 	SectionLink,
 	SectionLinkChoice,
 	TextEdit,
@@ -558,6 +561,151 @@ export function groupShape(
 	const bodies = members.map((member) => state.doc.sliceString(member.body.from, member.body.to));
 	const aligned = alignBodies(bodies);
 	return members.map((member, index) => ({ ...member, holes: aligned[index] ?? [] }));
+}
+
+function applyTextEdits(text: string, edits: readonly TextEdit[]): string {
+	let cursor = 0;
+	let output = '';
+	for (const edit of edits) {
+		output += text.slice(cursor, edit.from);
+		output += edit.insert;
+		cursor = edit.to;
+	}
+	return output + text.slice(cursor);
+}
+
+/** Make one peer header carry the source header's exact performer legend. */
+function mirroredLegendEdit(
+	text: string,
+	header: SectionHeader,
+	legend: string | undefined
+): TextEdit | undefined {
+	if (legend === undefined) {
+		if (!header.legendRange) return undefined;
+		const colon = text.lastIndexOf(':', header.legendRange.from);
+		return colon >= header.from
+			? { from: colon, to: header.legendRange.to, insert: '' }
+			: undefined;
+	}
+	if (header.legendRange) {
+		if (text.slice(header.legendRange.from, header.legendRange.to) === legend) return undefined;
+		return { from: header.legendRange.from, to: header.legendRange.to, insert: legend };
+	}
+	const at = header.closed ? header.to - 1 : header.to;
+	return { from: at, to: at, insert: `: ${legend}` };
+}
+
+/**
+ * Expand a validated performer assignment across one linked section group.
+ *
+ * The ordinary mirror deliberately refuses scattered edits. Performer
+ * assignment is the exception whose meaning is known: its header edit names
+ * the slots used by its body edits. Leaving either half local creates markup a
+ * linked peer cannot interpret, so every peer receives both halves in the same
+ * atomic edit and therefore in the same undo step.
+ *
+ * Body edits are copied only while they sit wholly in shared text. A passage
+ * stored as a deliberate difference stays local, exactly as it does under the
+ * ordinary mirror; the legend is still shared because it is the section-wide
+ * key for every styled passage that is shared.
+ */
+export function expandLinkedPerformerEdit(
+	state: EditorState,
+	edit: AtomicDocumentEdit,
+	anchor: number
+): AtomicDocumentEdit {
+	const parsed = parsedDocumentForState(state);
+	const sourceSection = parsed.sections.find(
+		(section) =>
+			section.header &&
+			(section.from === anchor ||
+				section.header.from === anchor ||
+				(section.from <= anchor && anchor <= section.to))
+	);
+	const sourceHeader = sourceSection?.header;
+	if (!sourceSection || !sourceHeader) return edit;
+
+	const group = memberGroups(state, parsed).find((headers) => headers.includes(sourceHeader.from));
+	if (!group) return edit;
+	const ordered = [sourceHeader.from, ...group.filter((header) => header !== sourceHeader.from)];
+	const members = groupShape(state, parsed, ordered);
+	const source = members?.[0];
+	if (!members || !source) return edit;
+
+	const changedText = applyTextEdits(state.doc.toString(), edit.edits);
+	const changedSourceHeader = parseDocument(changedText).sections.find(
+		(section) => section.header?.from === sourceHeader.from
+	)?.header;
+	if (!changedSourceHeader) return edit;
+
+	const additions: TextEdit[] = [];
+	for (const peer of members.slice(1)) {
+		const peerHeader = parsed.sections.find(
+			(section) => section.header?.from === peer.header
+		)?.header;
+		if (!peerHeader) continue;
+		const headerEdit = mirroredLegendEdit(
+			state.doc.toString(),
+			peerHeader,
+			changedSourceHeader.legend
+		);
+		if (headerEdit) additions.push(headerEdit);
+	}
+
+	const bodyEdits = edit.edits.filter(
+		(change) => source.body.from <= change.from && change.to <= source.body.to
+	);
+	const sourceLength = source.body.to - source.body.from;
+	for (const change of bodyEdits) {
+		const relative = {
+			from: change.from - source.body.from,
+			to: change.to - source.body.from
+		};
+		if (holeContaining(source.holes, relative.from, relative.to) !== undefined) continue;
+		const span = expandOverHoles(source.holes, relative.from, relative.to);
+		// Crossing a deliberate difference has no one byte-identical operation to
+		// repeat. Preserve the different words instead of turning formatting into a
+		// lyric rewrite.
+		if (
+			span.firstHole !== span.lastHole ||
+			span.from !== relative.from ||
+			span.to !== relative.to
+		) {
+			continue;
+		}
+		for (const peer of members.slice(1)) {
+			const target = translateSpan(
+				{ holes: source.holes, length: sourceLength },
+				{ holes: peer.holes, length: peer.body.to - peer.body.from },
+				span
+			);
+			if (!target) continue;
+			const from = peer.body.from + target.from;
+			const to = peer.body.from + target.to;
+			if (state.doc.sliceString(from, to) === change.insert) continue;
+			additions.push({ from, to, insert: change.insert });
+		}
+	}
+
+	if (additions.length === 0) return edit;
+	const edits = [...edit.edits, ...additions].sort(
+		(left, right) => left.from - right.from || left.to - right.to
+	);
+	const precedingDelta = additions
+		.filter((change) => change.to <= sourceHeader.from)
+		.reduce((delta, change) => delta + change.insert.length - (change.to - change.from), 0);
+	return {
+		...edit,
+		edits,
+		...(edit.selectionAfter
+			? {
+					selectionAfter: {
+						anchor: edit.selectionAfter.anchor + precedingDelta,
+						head: edit.selectionAfter.head + precedingDelta
+					}
+				}
+			: {})
+	};
 }
 
 /** Body-relative runs put back into document coordinates. */

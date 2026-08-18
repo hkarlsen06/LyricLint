@@ -242,9 +242,22 @@ describe('dismissed selections', () => {
 
 		expect(report).toEqual({
 			session: {
-				overlay: { kind: 'performer', range: otherRange, takesFocus: false },
-				dismissedSelection: '4:9'
+				overlay: { kind: 'performer', range: otherRange, takesFocus: false }
 			},
+			assignRequested: true
+		});
+	});
+
+	it('retires the dismissal when the selection collapses', () => {
+		const cancelled = cancelPerformerPicker(
+			openPerformerPicker(closedOverlaySession(), selection, true)
+		);
+
+		const collapsed = reportSelectionAnchor(cancelled, undefined);
+		const reopened = reportSelectionAnchor(collapsed.session, anchor());
+
+		expect(reopened).toEqual({
+			session: { overlay: { kind: 'performer', range: selection, takesFocus: false } },
 			assignRequested: true
 		});
 	});

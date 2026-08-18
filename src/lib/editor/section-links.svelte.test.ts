@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { parseDocument } from '$lib/core/parser.js';
 import type { EditorHandle, LanguagePack, PerformerRecord } from '$lib/core/types.js';
-import { assignVoiceGroup, normalizePerformerKey } from '$lib/performers/index.js';
+import {
+	assignVoiceGroup,
+	assignVoiceLegend,
+	normalizePerformerKey
+} from '$lib/performers/index.js';
 import { germanLanguagePack } from '$lib/languages/de.js';
 import { norwegianLanguagePack } from '$lib/languages/no.js';
 import { englishLanguagePack } from '$lib/languages/en.js';
@@ -342,10 +346,9 @@ describe('linking sections that do not agree throughout', () => {
 
 	// The complement, and the reason the repair is a narrower edit rather than an
 	// exemption for performer markup: text both copies share is still carried.
-	// The header already names the slot, so this is one change and the mirror
-	// sees it — an assignment that also writes a legend group arrives as two
-	// ranges and is left alone, which is the mirror's own rule about scattered
-	// edits rather than anything about performers.
+	// The header already names the slot, so this is one change and the ordinary
+	// mirror sees it. First assignments use the performer-specific linked
+	// transaction tested below, because they write the legend and body together.
 	it('carries a performer tagged on shared words into every copy', async () => {
 		const song = [
 			'[Chorus: Avery & <i>Blair</i>]',
@@ -377,6 +380,83 @@ describe('linking sections that do not agree throughout', () => {
 		handle.dispatchAtomic(result.edit);
 
 		expect(handle.getSnapshot().text.split('<i>Hold on tight</i>')).toHaveLength(3);
+	});
+
+	it('carries a first performer assignment into every linked header and shared body', async () => {
+		const song = [
+			'[Chorus]',
+			'Avery opens',
+			'Shared refrain',
+			'Ends tonight',
+			'',
+			'[Chorus]',
+			'Avery opens',
+			'Shared refrain',
+			'Ends again'
+		].join('\n');
+		const handle = await mount(song);
+		const firstHeader = song.indexOf('[Chorus]');
+		const secondHeader = song.lastIndexOf('[Chorus]');
+		handle.linkSections?.({ headers: [firstHeader, secondHeader] });
+		await new Promise((resolve) => setTimeout(resolve, 600));
+
+		const text = handle.getSnapshot().text;
+		const from = text.indexOf('Shared refrain');
+		const result = assignVoiceGroup({
+			revision: handle.getSnapshot().revision,
+			text,
+			document: parseDocument(text),
+			selection: { anchor: from, head: from + 'Shared refrain'.length },
+			performerIds: [performers[1]!.id],
+			sectionPerformerIds: [performers[0]!.id],
+			roster: performers
+		});
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') throw new Error(result.reason);
+		expect(handle.dispatchLinkedPerformer).toBeTypeOf('function');
+		handle.dispatchLinkedPerformer?.(result.edit, from);
+
+		const assigned = handle.getSnapshot().text;
+		expect(assigned.split('[Chorus: Avery & <i>Blair</i>]')).toHaveLength(3);
+		expect(assigned.split('<i>Shared refrain</i>')).toHaveLength(3);
+		// Linking still preserves the words each occurrence sings differently.
+		expect(assigned).toContain('Ends tonight');
+		expect(assigned).toContain('Ends again');
+
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(song);
+	});
+
+	it('repairs every linked header when an existing styled voice is assigned', async () => {
+		const song = [
+			'[Chorus]',
+			'<i>Shared refrain</i>',
+			'',
+			'[Chorus]',
+			'<i>Shared refrain</i>'
+		].join('\n');
+		const handle = await mount(song);
+		const firstHeader = song.indexOf('[Chorus]');
+		const secondHeader = song.lastIndexOf('[Chorus]');
+		handle.linkSections?.({ headers: [firstHeader, secondHeader] });
+		await new Promise((resolve) => setTimeout(resolve, 600));
+
+		const text = handle.getSnapshot().text;
+		const result = assignVoiceLegend({
+			revision: handle.getSnapshot().revision,
+			text,
+			document: parseDocument(text),
+			sectionFrom: firstHeader,
+			assignments: [{ styleSlot: 2, performerIds: [performers[1]!.id] }],
+			roster: performers
+		});
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') throw new Error(result.reason);
+		handle.dispatchLinkedPerformer?.(result.edit, firstHeader);
+
+		expect(handle.getSnapshot().text.split('[Chorus: <i>Blair</i>]')).toHaveLength(3);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(song);
 	});
 
 	// Writing across a difference's edge is how a difference is ended: the run is

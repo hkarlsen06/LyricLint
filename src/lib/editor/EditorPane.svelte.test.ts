@@ -418,6 +418,29 @@ describe('EditorPane', () => {
 		expect(selection.anchor).not.toBe(selection.head);
 	});
 
+	it('reopens assignment when the same text is selected again after cancelling', async () => {
+		await mountEditor({
+			text: '[Verse]\nHello world',
+			displayContext: context({ performers: performers() })
+		});
+		const lyrics = page.getByText('Hello world');
+
+		await lyrics.dblClick();
+		await expect.element(page.getByRole('dialog', { name: 'Assign performers' })).toBeVisible();
+		await lyrics.click();
+		await expect
+			.element(page.getByRole('dialog', { name: 'Assign performers' }))
+			.not.toBeInTheDocument();
+
+		// Leaving the range makes a later selection of it a new request. The old
+		// dismissal used to survive this collapse and blacklist the range until the
+		// document revision changed.
+		await new Promise((resolve) => window.setTimeout(resolve, 100));
+		await lyrics.dblClick();
+
+		await expect.element(page.getByRole('dialog', { name: 'Assign performers' })).toBeVisible();
+	});
+
 	// The card opened itself; nobody asked it for anything, and what it would
 	// have taken the focus away from is the word the user just double-clicked —
 	// which is very often a word they are about to type over. Taking the caret

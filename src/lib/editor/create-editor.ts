@@ -90,6 +90,7 @@ import {
 import {
 	applyOnlyHereAnnotation,
 	canTypeOnlyHere,
+	expandLinkedPerformerEdit,
 	linkDifferencesFor,
 	linkHolesField,
 	linkSections as linkSectionsCommand,
@@ -909,6 +910,16 @@ export function createLyricEditor(
 			// Validation belongs before cleanup: a stale edit throws without changing
 			// either the document or the preview the reader is still considering.
 			dispatchAtomicEdit(view, edit);
+			view.dispatch({
+				effects: setFixPreviewEffect.of(undefined),
+				annotations: Transaction.addToHistory.of(false)
+			});
+		},
+		dispatchLinkedPerformer(edit, anchor) {
+			// The expansion is computed against the same revision the domain edit
+			// targets. It reaches every peer before dispatch, so the general mirror
+			// sees one complete multi-range operation and correctly leaves it alone.
+			dispatchAtomicEdit(view, expandLinkedPerformerEdit(view.state, edit, anchor));
 			view.dispatch({
 				effects: setFixPreviewEffect.of(undefined),
 				annotations: Transaction.addToHistory.of(false)

@@ -763,6 +763,17 @@ export interface EditorHandle {
 	getSnapshot(): EditorSnapshot;
 	dispatchAtomic(edit: AtomicDocumentEdit): void;
 	/**
+	 * Apply a performer assignment across every linked copy of the section at
+	 * `anchor`, including the header legend that gives mirrored body markup its
+	 * meaning.
+	 *
+	 * This is deliberately separate from `dispatchAtomic`: the general link
+	 * mirror accepts one contiguous body edit only, while a performer assignment
+	 * is a validated domain operation that may rewrite a header and several lyric
+	 * lines together.
+	 */
+	dispatchLinkedPerformer?(edit: AtomicDocumentEdit, anchor: number): void;
+	/**
 	 * Apply an atomic edit without carrying it to linked peers, recording the
 	 * addressed span as a deliberate difference in the same undo step.
 	 */
