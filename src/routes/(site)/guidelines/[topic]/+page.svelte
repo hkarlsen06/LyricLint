@@ -416,8 +416,15 @@
 						/></pre>
 				</figure>
 			{/if}
+			<!-- The note is the convention's own qualifications — where the rule
+			     bends, which half the linter checks — not a colophon about the
+			     entry. Set as muted small print it read as skippable and was
+			     genuinely hard to read over the dark scheme, so it is ordinary
+			     prose like the statement above it: sitting after the samples is
+			     what says it qualifies them, and position does not need a tone
+			     to help it. -->
 			{#if entry.note}
-				<p class="site-aside"><GuidanceSearchHighlight text={entry.note} /></p>
+				<p><GuidanceSearchHighlight text={entry.note} /></p>
 			{/if}
 		</section>
 	{/each}

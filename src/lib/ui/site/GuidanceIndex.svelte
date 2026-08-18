@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ChevronRight } from 'lucide-svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
@@ -168,7 +169,23 @@
 
 	<nav aria-label="Transcription guidelines">
 		{#each filtered as { topic, landmarks, entries } (topic)}
-			<h2 class="site-index__group">{guidanceTopicTitles[topic]}</h2>
+			<!-- The heading is the way into the whole topic. Every row under it is
+			     a fragment on one page, so the reader who wants the topic read
+			     whole rather than one convention at a time goes in here — and the
+			     press has to be discoverable, which a heading that is secretly a
+			     link is not: the muted chevron advertises it at rest, on every
+			     device, rather than waiting for a hover a finger cannot make. No
+			     fragment on the href, because the press means "from the top". -->
+			<h2 class="site-index__group">
+				<a href="{resolve('/(site)/guidelines/[topic]', { topic })}/">
+					{guidanceTopicTitles[topic]}<ChevronRight
+						class="site-index__group-mark"
+						aria-hidden="true"
+						size={16}
+						strokeWidth={2.25}
+					/>
+				</a>
+			</h2>
 			<!-- One bordered run per topic, hairlines between rows — the same
 			     material as the rule index's runs, minus the rule rows' second
 			     line, and the difference is what a second line would carry. A rule

@@ -367,6 +367,11 @@ test('a guidelines deep link lands on its entry, and a search marks its words', 
 	await expect(washed).toHaveCount(1);
 	await expect(page.locator('.guidelines__entry:has(:target)')).toHaveCount(1);
 	await expect(washed.locator('h2')).toHaveText('One exclamation mark at a time');
+	// And the wash actually paints here: on a wide screen the index stands
+	// beside the page, so the washed entry and the marked row say one thing
+	// together. The stacked width is where it stands down — the phone group
+	// pins that half.
+	expect(await washed.evaluate((el) => getComputedStyle(el, '::before').content)).not.toBe('none');
 	// The topic page no longer closes with a `Checked by the linter` run: the
 	// entries' own meta lines carry the rules now, and every rule page links its
 	// guideline back — re-adding the trailing family list is the regression.
@@ -429,6 +434,20 @@ test('pressing an entry from the index washes it on the first press', async ({ p
 	await crossTopic.click();
 	await expect(washed).toHaveCount(1);
 	await expect(washed.locator('h2')).toHaveText(crossTitle);
+});
+
+test('a topic heading in the index opens the whole topic page from the top', async ({ page }) => {
+	// Every row under a topic heading is a fragment on one page, and the
+	// heading is the way to read that page whole. No fragment rides the press,
+	// so the arrival leads the page and the index marks the leading section —
+	// the same answer a topic opened with no hash lands on.
+	await page.goto('/guidelines/');
+	await page.locator('.site-index__group a', { hasText: 'Punctuation' }).click();
+	await expect(page).toHaveURL(/\/guidelines\/punctuation\/$/u);
+	await expect(page.locator('main h1')).toHaveText('Punctuation');
+
+	const current = page.locator('.site-split__index a[aria-current="page"]');
+	await expect(current).toHaveCount(1);
 });
 
 test('a topic pressed on the welcome page reveals its rows in the list', async ({ page }) => {
@@ -933,6 +952,19 @@ test.describe('phone reference sections', () => {
 		const guideBox = await guide.boundingBox();
 		const finderBox = await search.boundingBox();
 		expect(guideBox!.y).toBeGreaterThan(finderBox!.y);
+	});
+
+	test('the arrival wash stands down where the index is not beside the page', async ({ page }) => {
+		// The wash exists to tie the washed entry to the marked row in the index
+		// column — one selection, said by both columns at once. Stacked, the
+		// list is `display: none` under an open page, so there is no row on
+		// screen to agree with, and the paint stands down; the mark itself
+		// stays, because the index reads the same state when the reader goes
+		// back.
+		await page.goto('/guidelines/punctuation/#doubled-exclamation');
+		const washed = page.locator('.guidelines__entry[data-current]');
+		await expect(washed).toHaveCount(1);
+		expect(await washed.evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
 	});
 
 	test('deep in a topic the way back stays pinned, and a jump clears it', async ({ page }) => {

@@ -923,50 +923,36 @@
 	scroll-margin-top: calc(var(--header-height) + var(--space-4));
 }
 
-/* Where one entry ends and the next begins: the hairline the linter's run
-   draws between neighbours — repeating sections are separated by the line
-   where they meet, and only there. The last entry closes on nothing, because
-   what follows it is not another entry: a line under it would separate it
-   from the heading that already separates itself. */
-.guidelines__entry + .guidelines__entry {
+/* Where one section ends and the next begins: the hairline the linter's run
+   draws between neighbours. Every section opens on one — drawn only between
+   entries, the first convention ran straight on from the topic's own lede
+   with nothing saying where the intro stopped and the catalog began, and the
+   spelling topic's landmark met its first entry the same way. The last entry
+   still closes on nothing, because what follows it is not another section: a
+   line under it would separate it from the heading that already separates
+   itself. */
+.guidelines__entry,
+.guidelines__landmark {
 	border-top: var(--border-width) solid var(--color-border);
 	margin-top: var(--space-6);
 	padding-top: var(--space-6);
 }
 
-/* An entry owns its own rhythm: the prose gap its heading used to carry moves
+/* A section owns its own rhythm: the prose gap its heading used to carry moves
    onto the section, and the first and last children give their margins up.
    Read at rest this is the same page to the pixel — what it buys is the wash
    below, whose background paints the section's box, child margins included: a
-   heading still carrying `--space-7` on top put a hand of empty blue above the
-   one line the link named. */
-.guidelines__entry {
-	margin-block: var(--space-7) 0;
-}
-
-.guidelines__entry > :first-child {
+   heading still carrying its own top margin put a hand of empty blue above
+   the one line the link named. The landmark keeps the same rhythm, because it
+   takes the same wash. */
+.guidelines__entry > :first-child,
+.guidelines__landmark > :first-child {
 	margin-top: 0;
 }
 
-.guidelines__entry > :last-child {
+.guidelines__entry > :last-child,
+.guidelines__landmark > :last-child {
 	margin-bottom: 0;
-}
-
-/* An entry gives its last child's margin up so its own selection wash and the
-   hairline rhythm have a definite edge. When the entry is also the page's last
-   section, the action row that follows must supply the missing breath itself;
-   otherwise a final sample's border and the button's border meet as one box. */
-.guidelines__entry + .site-actions {
-	margin-top: var(--space-4);
-}
-
-/* And when that last entry is the one washed, the breath has to clear the
-   wash as well: the wash spills `--space-4` below the entry's box, which is
-   exactly the margin above — so the washed box and the button's border met
-   edge to edge. The spill plus the same breath the hairline rhythm keeps. */
-.guidelines__entry[data-current] + .site-actions,
-.guidelines__entry:has(:target) + .site-actions {
-	margin-top: calc(2 * var(--space-4));
 }
 
 /* The entry a deep link landed on, washed in the selection tone for as long
@@ -1005,13 +991,12 @@
 	position: absolute;
 	z-index: -1;
 	inset: calc(-1 * var(--space-4));
+	/* Every section opens on a hairline `--space-6` above its content, so the
+	   spill that would otherwise cross it is pulled back to the same
+	   `--space-4` breath the wash keeps on every other side of the line. */
+	top: calc(var(--space-6) - var(--space-4));
 	border-radius: var(--radius-panel);
 	background: var(--color-selected);
-}
-
-.guidelines__entry + .guidelines__entry[data-current]::before,
-.guidelines__entry + .guidelines__entry:has(:target)::before {
-	top: calc(var(--space-6) - var(--space-4));
 }
 
 /* The wash above spills `--space-4` past the entry's box on every side, and
@@ -1207,6 +1192,35 @@
 
 .site-split__index nav > .site-index__group:first-child {
 	margin-top: 0;
+}
+
+/* The guidance catalog's group heading is a link into the whole topic page —
+   the rows under it are fragments on that one page, and this is the "read it
+   all at once" press. It keeps the heading's own ink, because a column of
+   accent-colored headings would out-shout the rows they group, and it
+   underlines under the pointer the way every pressable name here does. The
+   chevron is the resting affordance: muted, always drawn, because a press
+   only discoverable by hovering is one a finger never finds. The rules
+   index's group headings stay plain text — a rule family has no page of its
+   own to open, and this selector is inert there because nothing renders a
+   link inside one. */
+.site-index__group a {
+	display: inline-flex;
+	gap: var(--space-1);
+	align-items: center;
+	color: inherit;
+	text-decoration: none;
+}
+
+.site-index__group a:hover,
+.site-index__group a:focus-visible {
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+}
+
+.site-index__group .site-index__group-mark {
+	flex: none;
+	color: var(--color-text-muted);
 }
 
 /*
@@ -1702,11 +1716,30 @@
    paragraph above it does rather than running on under the scrollbar's lane.
    Muted and a step down, because it is an offer standing under everything the
    reader came for, not part of it. */
+/* The action row is the foot of every page in the split shell, and it hangs
+   *under* the hairline that closes the content, never over it: borderless,
+   above the suggest line's own rule, the button read as the last item inside
+   the entry run while the line beneath it fenced only the colophon. The
+   closing line keeps the run's own rhythm — the same `--space-6` above and
+   below that every section boundary draws — and the margin collapses with
+   whatever the content above still carries, so a guidance entry (whose last
+   margins are zeroed) and ordinary prose land the line at the same breath. A
+   washed last entry needs no compensation any more either: its `--space-4`
+   spill sits inside this margin exactly as it does above any other section
+   boundary. */
+.site-split__detail .site-actions {
+	border-top: var(--border-width) solid var(--color-border);
+	margin-top: var(--space-6);
+	padding-top: var(--space-6);
+}
+
+/* No border of its own: the action row above already closed the page, and a
+   second line directly under one lone button would fence the colophon off
+   from the foot it belongs to. */
 .site-split__suggest {
 	max-width: var(--measure-reference);
 	margin-block: 0;
 	padding-block: var(--space-4) var(--space-5);
-	border-top: var(--border-width) solid var(--color-border);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-sm);
 }
@@ -1767,6 +1800,23 @@
 		margin-inline-start: 0;
 	}
 
+	/* The arrival wash stands down where the index does. On a wide screen the
+	   wash ties the washed entry to the marked row in the column beside it —
+	   one selection, said by both columns at once. Stacked, the list is
+	   `display: none` while a page is open, so there is no row on screen for
+	   the wash to agree with, and what is left is a blue box around one
+	   section of a one-column article: emphasis nobody asked for, saying
+	   nothing the landing scroll does not already say. The mark itself
+	   (`data-current`, and `:target` for the no-JavaScript arrival) stays —
+	   the reading spy and the index still read the same state when the reader
+	   goes back — only the paint goes. */
+	.guidelines__entry[data-current]::before,
+	.guidelines__entry:has(:target)::before,
+	.guidelines__landmark[data-current]::before,
+	.guidelines__landmark:has(:target)::before {
+		content: none;
+	}
+
 	/* Stacked, the finder leads and the intro follows — the opposite of the wide
 	   swap, and a correction. Intro-first was carried over from the two-column
 	   arrangement, where the list stands beside the intro either way; stacked, it
@@ -1788,9 +1838,9 @@
 	   whole article back up.
 
 	   What pins is the control, not a band. A full-width canvas strip here read
-	   as a bare slab lying across whatever scrolled under it — and the entry
-	   wash spills past the content edges, so it poked out blue on either side
-	   of the black. So the row is transparent and takes no presses, and the
+	   as a bare slab lying across whatever scrolled under it — and while the
+	   entry wash still drew at this width, its spill poked out blue on either
+	   side of the black. So the row is transparent and takes no presses, and the
 	   button inside it becomes a small lifted surface: border, fill and shadow,
 	   the three the workbench's floating chips use, on the radius every control
 	   already carries. Content scrolls past around it, which is what a floating

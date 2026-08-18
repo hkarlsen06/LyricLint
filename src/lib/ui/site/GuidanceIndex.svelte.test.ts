@@ -87,6 +87,24 @@ describe('GuidanceIndex', () => {
 		expect(entry?.target).toBe('');
 	});
 
+	// Every row under a topic heading is a fragment on one page, so the heading
+	// itself is the way to read that page whole — and the press is advertised
+	// at rest by the chevron, because a link only discoverable by hovering a
+	// heading is one a finger never finds.
+	it('makes each topic heading the way into the whole topic page', () => {
+		render(GuidanceIndex, { sections });
+
+		const headings = [...document.querySelectorAll<HTMLAnchorElement>('.site-index__group a')];
+		expect(headings).toHaveLength(sections.length);
+		for (const [index, section] of sections.entries()) {
+			const href = headings[index]?.getAttribute('href') ?? '';
+			// No fragment: the press means "from the top", not one convention.
+			expect(href.endsWith(`/guidelines/${section.topic}/`)).toBe(true);
+			expect(href).not.toContain('#');
+		}
+		expect(headings[0]?.querySelector('.site-index__group-mark')).not.toBeNull();
+	});
+
 	it('narrows with one query, and the readout only draws while it narrows', async () => {
 		render(GuidanceIndex, { sections });
 
