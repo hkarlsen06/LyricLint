@@ -2,12 +2,17 @@
 	import { afterNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { guidanceTopics } from '$lib/guidance/entries.js';
-	import { authorityLabels, entryAnchor, guidanceTopicTitles } from '$lib/guidance/guidance.js';
+	import {
+		authorityLabels,
+		entryAnchor,
+		guidanceTopicLandmarks,
+		guidanceTopicTitles
+	} from '$lib/guidance/guidance.js';
 	import { getSource } from '$lib/rules/data/sources.js';
 	import { ruleSlug } from '$lib/rules/reference-search.js';
 	import { siteUrl } from '$lib/seo.js';
 	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
-	import { codeSegments } from '$lib/ui/site/code-segments.js';
+	import CodeProse from '$lib/ui/site/CodeProse.svelte';
 	import GuidanceSearchHighlight from '$lib/ui/site/GuidanceSearchHighlight.svelte';
 	import SiteSourceFold from '$lib/ui/site/SiteSourceFold.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
@@ -68,9 +73,19 @@
 		return grouped;
 	});
 
-	/** The unique sources this page's entries cite, for the structured data. */
+	/**
+	 * The unique sources this page cites, for the structured data — the
+	 * landmarks' as well as the entries', because a landmark states its
+	 * standing on the page and a citation drawn there but missing here would
+	 * describe the page as resting on less than it does.
+	 */
 	const sources = $derived(
-		[...new Set(entries.flatMap((entry) => entry.sourceIds))].flatMap((id) => {
+		[
+			...new Set([
+				...entries.flatMap((entry) => entry.sourceIds),
+				...(guidanceTopicLandmarks[topic] ?? []).flatMap((landmark) => landmark.sourceIds)
+			])
+		].flatMap((id) => {
 			const source = getSource(id);
 			return source ? [source] : [];
 		})
@@ -131,6 +146,16 @@
 	 */
 	const SPELLINGS_ANCHOR = 'standardized-spellings';
 	const leadAnchor = $derived(data.spellings ? SPELLINGS_ANCHOR : entryAnchor(entries[0]!.id));
+
+	/**
+	 * The landmark's own record, for the standing and the citation its section
+	 * draws. Looked up rather than restated here: the tier and the source ids
+	 * are what `guidance.test.ts` holds to the entries' promotion rule, and a
+	 * second copy written into the markup is the one that would drift.
+	 */
+	const spellingsLandmark = $derived(
+		guidanceTopicLandmarks[topic]?.find((landmark) => entryAnchor(landmark.id) === SPELLINGS_ANCHOR)
+	);
 
 	function landOnHash() {
 		// The same shared decode the index column reads its own mark through: a
@@ -323,6 +348,23 @@
 		     LyricLint's own curated catches) stays on the rule's page, which is
 		     what the sentence under the heading links. -->
 			<h2 id={SPELLINGS_ANCHOR}>The standardized spellings</h2>
+			{#if spellingsLandmark}
+				<!-- The entries' own meta idiom, in the section that leads the page:
+				     the ladder, the tier, and the exact source the table is read
+				     from. It carries no "Checked by" run, and that is the one
+				     difference from an entry's line — the sentence directly beneath
+				     already links `spelling.standardized`'s page in prose, and a
+				     second link to it a line above would be the same command
+				     offered twice on one surface. -->
+				<div class="site-meta">
+					<AuthorityLadder authority={spellingsLandmark.authority} />
+					<span
+						><GuidanceSearchHighlight text={authorityLabels[spellingsLandmark.authority]} /></span
+					>
+					<span class="site-meta__separator" aria-hidden="true">·</span>
+					<SiteSourceFold sources={entrySources(spellingsLandmark.sourceIds)} text={marked} />
+				</div>
+			{/if}
 			<p>
 				The reviewed preferred forms, each over the spellings the guide corrects. The
 				<a href="{resolve('/(site)/rules/[rule]', { rule: 'spelling-standardized' })}/"
@@ -345,13 +387,7 @@
 							>
 						</p>
 						{#each [...entry.appliesWhen, ...entry.notes] as sentence (sentence)}
-							<p class="rules__lookup-note">
-								{#each codeSegments(sentence!) as segment, part (part)}
-									{#if segment.code}<span class="site-code"
-											><GuidanceSearchHighlight text={segment.text} /></span
-										>{:else}<GuidanceSearchHighlight text={segment.text} />{/if}
-								{/each}
-							</p>
+							<p class="rules__lookup-note"><CodeProse text={sentence!} mark={marked} /></p>
 						{/each}
 					</li>
 				{/each}
@@ -395,7 +431,13 @@
 					>
 				{/if}
 			</div>
-			<p><GuidanceSearchHighlight text={entry.statement} /></p>
+			<!-- The forms a convention names — `[Verse 1]`, `gon'`, `'90s` — are
+			     written in backticks in the entry and set in the code face here,
+			     because a form left in the sentence's own type is a word of the
+			     sentence: `and rather than an'` reads as a conjunction until the
+			     face says it is being quoted. The catalog's own titles carry
+			     none, since the index draws those as plain strings. -->
+			<p><CodeProse text={entry.statement} mark={marked} /></p>
 			<!-- The pair, incorrect first — the rule pages' own order — with the color
 			     and the word both carrying which is which. A sample holds only text
 			     as it would stand in a document: connective prose set in the sample
@@ -424,7 +466,7 @@
 			     what says it qualifies them, and position does not need a tone
 			     to help it. -->
 			{#if entry.note}
-				<p><GuidanceSearchHighlight text={entry.note} /></p>
+				<p><CodeProse text={entry.note} mark={marked} /></p>
 			{/if}
 		</section>
 	{/each}

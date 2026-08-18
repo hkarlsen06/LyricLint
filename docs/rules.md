@@ -296,7 +296,10 @@ rather than anything a Genius source states; their cited sources are context, an
 whose claim it is.
 
 Every source declares an `authority` tier, and an entry claims the highest tier among the sources
-that state it: `staff` > `editorial` > `external` > `community`. External
+that state it: `staff` > `editorial` > `external` > `community`. A topic landmark — the substantial
+lookup a topic page draws beside its prose entries, the standardized-spellings table being the one
+there is — claims its standing the same way, and its page draws the same tier-and-citation meta line
+an entry's does. External
 authorities — dictionaries, language academies, other platforms' lyric rules, tooling — rank below
 Genius-accepted policy because they are authoritative about language, not about Genius. Promotion
 is evidence, not an edit: raising an entry's tier means adding the confirming higher-tier source to

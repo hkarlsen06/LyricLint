@@ -54,11 +54,29 @@ export const guidanceTopicOrder: readonly GuidanceTopic[] = [
 	'sourcing'
 ];
 
-/** A substantial lookup that lives on a topic page beside its prose entries. */
+/**
+ * A substantial lookup that lives on a topic page beside its prose entries.
+ *
+ * It states its standing exactly as an entry does, and for the same reason: a
+ * landmark is a reviewed claim about what Genius wants, drawn on the page a
+ * reader arrives at, and one drawn without a tier or a citation is the single
+ * section of this catalog asking to be taken on trust. The standardized
+ * spellings led the spelling topic — the first thing the catalog's first topic
+ * says — with neither, while every prose entry under it named both.
+ */
 export interface GuidanceTopicLandmark {
 	id: string;
 	title: string;
 	statement: string;
+	/**
+	 * The trustworthiness claimed for this lookup, under the entries' own rule:
+	 * it must equal the highest tier among `sourceIds`, so promotion is adding
+	 * the confirming source rather than editing this field. `guidance.test.ts`
+	 * enforces the equality over landmarks and entries together.
+	 */
+	authority: GuidanceAuthority;
+	/** Ids into the same source registry every rule and entry cites. */
+	sourceIds: readonly string[];
 	/** Linter rules whose convention this landmark states, as entries have. */
 	relatedRuleIds?: readonly string[];
 }
@@ -72,6 +90,11 @@ export const guidanceTopicLandmarks: Partial<
 			id: 'standardized-spellings',
 			title: 'The standardized spellings',
 			statement: 'The reviewed preferred forms and the spellings the guide corrects.',
+			// The table is `spelling.standardized`'s data, and that rule reads the
+			// staff-tier standardized-spellings annotation — so the lookup's
+			// standing is the annotation's, cited at the same id the rule cites.
+			authority: 'staff',
+			sourceIds: ['G-SPELLING'],
 			relatedRuleIds: ['spelling.standardized']
 		}
 	]
@@ -127,9 +150,24 @@ export interface GuidanceEntry {
 	 * deliberately NOT the rule reference's failure-naming register. A rules
 	 * reader arrives with a symptom and wants its rule; a guidelines reader
 	 * arrives wondering how something works and searches for the convention.
+	 *
+	 * Never backticked, unlike `statement` and `note`: the index draws a title
+	 * as a plain string in a row, so a marker written here would reach the
+	 * reader as a grave accent around the word it was meant to set apart.
 	 */
 	title: string;
-	/** LyricLint's reviewed paraphrase of the convention. Never quoted prose. */
+	/**
+	 * LyricLint's reviewed paraphrase of the convention. Never quoted prose.
+	 *
+	 * A literal form the sentence *names* rather than uses goes in backticks —
+	 * `` `gon'` for `gonna` ``, `` the word `lyrics` ``, `` `'90s` `` — and the
+	 * topic page sets those in its code face (`CodeProse.svelte`). Unmarked, a
+	 * form is a word of the sentence and the reader has to work out which:
+	 * `` `and` rather than `an'` `` reads as a conjunction until the face says
+	 * it is being quoted. A whole line belongs in `example` instead, which is
+	 * the sample face and a different claim — this is for the forms a sentence
+	 * has to carry inside itself.
+	 */
 	statement: string;
 	/** Invented illustrations — never a real transcription's lyrics. */
 	example?: GuidanceExample;
@@ -151,7 +189,7 @@ export interface GuidanceEntry {
 	 * that rule's page its guideline link.
 	 */
 	relatedRuleIds?: readonly string[];
-	/** Hedges, scope limits, and graduation notes. */
+	/** Hedges, scope limits, and graduation notes. Backticks as in `statement`. */
 	note?: string;
 }
 

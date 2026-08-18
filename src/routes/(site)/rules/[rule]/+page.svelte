@@ -10,9 +10,9 @@
 	import { fixabilityLabel } from '$lib/rules/reference-search.js';
 	import { siteUrl } from '$lib/seo.js';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
-	// Shared with the guide on `/rules/`, which quotes forms in its prose the
-	// same way a lookup table's conditions do.
-	import { codeSegments } from '$lib/ui/site/code-segments.js';
+	// Shared with the guide on `/rules/` and with the guidance catalog, all
+	// three of which quote literal forms inside ordinary sentences.
+	import CodeProse from '$lib/ui/site/CodeProse.svelte';
 	// Every string on this page goes through it, so the reader who arrived by
 	// searching can see what matched instead of hunting for it down a wall of
 	// prose and a thirty-row table. Nothing is marked while the field is empty,
@@ -193,11 +193,7 @@
 					{/if}
 					{#each [entry.appliesWhen, entry.note].filter(Boolean) as sentence (sentence)}
 						<p class="rules__lookup-note">
-							{#each codeSegments(sentence!) as segment, part (part)}
-								{#if segment.code}<span class="site-code"
-										><RuleSearchHighlight text={segment.text} /></span
-									>{:else}<RuleSearchHighlight text={segment.text} />{/if}
-							{/each}
+							<CodeProse text={sentence!} mark={sourceText} />
 						</p>
 					{/each}
 				</li>

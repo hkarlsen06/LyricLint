@@ -521,6 +521,15 @@ test('the spelling topic lists the standardized spellings, and the finder search
 	).toBeVisible();
 	await expect(page.locator('main mark.site-hit').first()).toBeVisible();
 
+	// The landmark states its standing beside the entries', which it did not
+	// for a while: the table led the catalog's first topic under a lede
+	// promising every convention names its tier and its source, and was the one
+	// section naming neither. The tier and the citation come off the landmark's
+	// own record, so what is checked here is that the section draws them.
+	const landmark = page.locator('.guidelines__landmark');
+	await expect(landmark.locator('.site-meta')).toContainText('Genius staff guidance');
+	await expect(landmark.locator('.site-meta a[href="https://genius.com/9298624"]')).toHaveCount(1);
+
 	// A meta line naming more than three rules folds them behind one disclosure,
 	// counted from `relatedRuleIds` at render time — nine consecutive monospace
 	// links used to stand between the tier line and the statement. Unfolded,

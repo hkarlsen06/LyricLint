@@ -41,8 +41,26 @@ Ground rules, all enforced by `src/lib/guidance/guidance.test.ts`:
   **verbatim samples** — text exactly as it would stand in a document, with no
   connective prose, which inside the sample face reads as part of the thing
   being quoted. Explanation belongs in the statement or the note.
+- **A form the prose names rather than uses goes in backticks.** The statement
+  and the note are the two fields that carry literal text inside a sentence —
+  `` `gon'` for `gonna` ``, `` the word `lyrics` ``, `` `'90s` `` — and
+  `CodeProse.svelte` sets each marked run in the page's code face. Unmarked,
+  the form is a word of the sentence and the reader has to work out which:
+  `` `and` rather than `an'` `` reads as a conjunction until the face says it
+  is being quoted. **The title takes none**, because the index draws it as a
+  plain string and a marker there reaches the reader as a grave accent. A whole
+  line still belongs in `example`, which is the sample face and a different
+  claim; this is for the forms a sentence has to carry inside itself.
 - `authority` must equal the highest tier among the entry's cited sources —
   unless it is `lyriclint`, the advisory standing below.
+- **A topic landmark states its standing exactly as an entry does.** A landmark
+  is the substantial lookup a topic page draws beside its prose entries — the
+  standardized-spellings table is the one there is — and it carries its own
+  `authority` and `sourceIds` under the same equality rule, because it is a
+  reviewed claim on a page whose lede promises every convention names its tier
+  and its source. `guidance.test.ts` checks landmarks and entries together, and
+  the search haystack reads a landmark's tier label and citation titles as it
+  reads an entry's.
 
 ## The authority ladder
 

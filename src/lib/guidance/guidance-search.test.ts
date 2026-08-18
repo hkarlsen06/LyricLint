@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getSource } from '$lib/rules/data/sources.js';
 import { guidanceEntries, guidanceTopics } from './entries.js';
-import { guidanceTopicLandmarks } from './guidance.js';
+import { authorityLabels, guidanceTopicLandmarks } from './guidance.js';
 import {
 	countGuidanceLookups,
 	filterGuidanceSections,
@@ -99,6 +99,20 @@ describe('guidance search', () => {
 		expect(filtered.flatMap((section) => section.landmarks ?? []).map(({ id }) => id)).toContain(
 			'standardized-spellings'
 		);
+	});
+
+	// A landmark states its tier and cites its source on the page exactly as an
+	// entry does, so both have to answer a search here too — the same rule, met
+	// on the one section of the catalog that draws no entry.
+	it('matches a landmark by its tier label and its citation title', () => {
+		const landmark = guidanceTopicLandmarks.spelling![0]!;
+		const landmarkIds = (query: string) =>
+			filterGuidanceSections(sections, query)
+				.flatMap((section) => section.landmarks ?? [])
+				.map(({ id }) => id);
+
+		expect(landmarkIds(authorityLabels[landmark.authority])).toContain(landmark.id);
+		expect(landmarkIds(getSource(landmark.sourceIds[0]!)!.pageTitle)).toContain(landmark.id);
 	});
 
 	// What is searchable is what the page says — and the page says the citation

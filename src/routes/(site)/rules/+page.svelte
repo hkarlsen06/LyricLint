@@ -11,7 +11,7 @@
 	import { ruleIndexEntries } from '$lib/rules/reference-search.js';
 	import type { RuleReferenceGroup } from '$lib/rules/reference.js';
 	import { siteUrl } from '$lib/seo.js';
-	import { codeSegments } from '$lib/ui/site/code-segments.js';
+	import CodeProse from '$lib/ui/site/CodeProse.svelte';
 	import { setHoveredRuleSlug } from '$lib/ui/site/rule-hover.svelte.js';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import type { PageProps } from './$types.js';
@@ -148,11 +148,7 @@
 	     between them is never re-orienting. -->
 	{#each data.groups as group (group.group)}
 		<h2 id={group.group}>{group.title}</h2>
-		<p>
-			{#each codeSegments(groupGuidance[group.group] ?? '') as segment, part (part)}
-				{#if segment.code}<span class="site-code">{segment.text}</span>{:else}{segment.text}{/if}
-			{/each}
-		</p>
+		<p><CodeProse text={groupGuidance[group.group] ?? ''} /></p>
 		<!-- The checks as an interpunct-separated run rather than a bulleted list.
 		     The titles are failure-shaped now, so read along a line they are the
 		     ways this convention goes wrong; a bullet apiece would make nineteen

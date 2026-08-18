@@ -5,8 +5,9 @@
  * case fold here exactly as they fold at `/rules/`: a reader who learned the
  * finder there has learned this one.
  *
- * The haystack per entry is what its topic page says about it — title,
- * statement, example, note, tier label, the rule ids on its meta line — plus
+ * The haystack per entry — and per landmark, which draws the same meta line —
+ * is what its topic page says about it: title, statement, example, note, tier
+ * label, cited source titles, the rule ids on its meta line, plus
  * the search terms of the rules it names, so a symptom query still answers
  * here: "question mark" lands on the unmarked-question entry through
  * `punctuation.question`'s own title, and `woah` lands on the spelling
@@ -55,6 +56,10 @@ function relatedRuleTerms(
 	return (relatedRuleIds ?? []).flatMap((ruleId) => [ruleId, ruleTerms?.[ruleId] ?? '']);
 }
 
+function sourceTitles(sourceIds: readonly string[]): string[] {
+	return sourceIds.map((id) => getSource(id)?.pageTitle ?? '');
+}
+
 function entryHaystack(entry: GuidanceEntry, ruleTerms?: Record<string, string>): string {
 	return foldForSearch(
 		[
@@ -66,7 +71,31 @@ function entryHaystack(entry: GuidanceEntry, ruleTerms?: Record<string, string>)
 			entry.note ?? '',
 			authorityLabels[entry.authority],
 			...relatedRuleTerms(entry.relatedRuleIds, ruleTerms),
-			...entry.sourceIds.map((id) => getSource(id)?.pageTitle ?? '')
+			...sourceTitles(entry.sourceIds)
+		].join('\n')
+	);
+}
+
+/**
+ * The same haystack for a landmark, which draws the same facts: a landmark
+ * states its tier and cites its source on the topic page exactly as an entry
+ * does, so a query for either has to reach it. Left out, the tier and the
+ * citation would be text on the page that the finder beside it cannot see —
+ * the omission this module already records for the topic title.
+ */
+function landmarkHaystack(
+	landmark: GuidanceTopicLandmark,
+	topic: GuidanceTopic,
+	ruleTerms?: Record<string, string>
+): string {
+	return foldForSearch(
+		[
+			guidanceTopicTitles[topic],
+			landmark.title,
+			landmark.statement,
+			authorityLabels[landmark.authority],
+			...relatedRuleTerms(landmark.relatedRuleIds, ruleTerms),
+			...sourceTitles(landmark.sourceIds)
 		].join('\n')
 	);
 }
@@ -89,17 +118,7 @@ export function filterGuidanceSections(
 			topic: section.topic,
 			ruleTerms: section.ruleTerms,
 			landmarks: section.landmarks?.filter((landmark) =>
-				matches(
-					foldForSearch(
-						[
-							guidanceTopicTitles[section.topic],
-							landmark.title,
-							landmark.statement,
-							...relatedRuleTerms(landmark.relatedRuleIds, section.ruleTerms)
-						].join('\n')
-					),
-					tokens
-				)
+				matches(landmarkHaystack(landmark, section.topic, section.ruleTerms), tokens)
 			),
 			entries: section.entries.filter((entry) =>
 				matches(entryHaystack(entry, section.ruleTerms), tokens)

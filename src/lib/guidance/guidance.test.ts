@@ -7,7 +7,8 @@ import {
 	guidanceTopicLandmarks,
 	guidanceTopicOrder,
 	guidanceTopicTitles,
-	highestAuthority
+	highestAuthority,
+	type GuidanceAuthority
 } from './guidance.js';
 
 const ruleIds = new Set<string>(currentRuleSet.ruleIds);
@@ -28,10 +29,24 @@ describe('guidance catalog', () => {
 		expect(new Set(guidanceTopicOrder)).toEqual(new Set(Object.keys(guidanceTopicTitles)));
 	});
 
+	// Landmarks are held to the entries' own source discipline, and the two are
+	// checked together rather than side by side: a landmark is a reviewed claim
+	// drawn on a topic page, so one without a tier or a citation is the single
+	// section of the catalog asking to be taken on trust. The standardized
+	// spellings led the first topic that way, stating neither, under a lede
+	// promising every convention states both.
+	const landmarks = Object.values(guidanceTopicLandmarks).flatMap((topic) => topic ?? []);
+	const claims: ReadonlyArray<{
+		id: string;
+		authority: GuidanceAuthority;
+		sourceIds: readonly string[];
+		note?: string;
+	}> = [...guidanceEntries, ...landmarks];
+
 	it('cites only reviewed sources', () => {
-		for (const entry of guidanceEntries) {
-			expect(entry.sourceIds.length, entry.id).toBeGreaterThan(0);
-			expect(() => assertReviewedSources(entry.sourceIds), entry.id).not.toThrow();
+		for (const claim of claims) {
+			expect(claim.sourceIds.length, claim.id).toBeGreaterThan(0);
+			expect(() => assertReviewedSources(claim.sourceIds), claim.id).not.toThrow();
 		}
 	});
 
@@ -43,17 +58,17 @@ describe('guidance catalog', () => {
 	// note naming the claim as LyricLint's own — an advisory whose entry reads
 	// like a sourced convention is a Genius name on a claim no source states.
 	it('claims exactly the authority its sources establish', () => {
-		for (const entry of guidanceEntries) {
-			if (entry.authority === 'lyriclint') {
-				expect(entry.note ?? '', entry.id).toContain('LyricLint');
+		for (const claim of claims) {
+			if (claim.authority === 'lyriclint') {
+				expect(claim.note ?? '', claim.id).toContain('LyricLint');
 				continue;
 			}
-			const authorities = entry.sourceIds.map((id) => {
+			const authorities = claim.sourceIds.map((id) => {
 				const source = getSource(id);
-				if (!source) throw new Error(`Unknown source ${id} on ${entry.id}`);
+				if (!source) throw new Error(`Unknown source ${id} on ${claim.id}`);
 				return source.authority;
 			});
-			expect(entry.authority, entry.id).toBe(highestAuthority(authorities));
+			expect(claim.authority, claim.id).toBe(highestAuthority(authorities));
 		}
 	});
 
@@ -118,6 +133,31 @@ describe('guidance catalog', () => {
 			expect(entry.statement, entry.id).toBe(entry.statement.trim());
 			expect(entry.statement.endsWith('.'), entry.id).toBe(true);
 			expect(entry.statement, entry.id).not.toBe(entry.title);
+		}
+	});
+
+	// The forms a sentence names rather than uses are backticked in the data and
+	// set in the code face by `CodeProse`, so an unpaired marker is a grave
+	// accent reaching the reader with the rest of the sentence behind it — and a
+	// marker in a title is one the index draws raw, since a row is a plain
+	// string. Both look exactly like ordinary prose in a diff.
+	it('marks quoted forms in prose, and never in a title', () => {
+		const written: ReadonlyArray<{
+			id: string;
+			title: string;
+			statement: string;
+			note?: string;
+		}> = [...guidanceEntries, ...landmarks];
+
+		for (const claim of written) {
+			expect(claim.title.includes('`'), claim.id).toBe(false);
+			for (const prose of [claim.statement, claim.note ?? '']) {
+				const marks = prose.split('`').length - 1;
+				expect(marks % 2, `${claim.id}: ${prose}`).toBe(0);
+				// An empty pair marks nothing and draws an empty span, which is a
+				// typo rather than a decision.
+				expect(prose.includes('``'), claim.id).toBe(false);
+			}
 		}
 	});
 });
