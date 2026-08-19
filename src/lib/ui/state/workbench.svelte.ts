@@ -38,7 +38,6 @@ import type { MediaRepository } from '$lib/persistence/media-repository.js';
 import type { MediaPlayer } from './media-player.svelte.js';
 import type { MediaStore } from './media-store.svelte.js';
 import { createMediaStore } from './media-store.svelte.js';
-import { isPhoneLayout } from './phone-layout.js';
 import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persistence/backup.js';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 import { headerNameAtoms, isMirrorableHeaderName } from '$lib/performers/index.js';
@@ -62,12 +61,6 @@ interface WorkbenchDependencies {
 	repository: DraftRepository;
 	/** Omitted in tests and on the contract harness: the workbench runs without audio. */
 	mediaRepository?: MediaRepository;
-	/**
-	 * Whether this is the stacked, touch-driven layout. Injectable because the
-	 * default fold of the cover band answers to it and a media query is not a
-	 * thing the server-side suite can have.
-	 */
-	phoneLayout?: () => boolean;
 	/**
 	 * The transport the media store should drive, when it must not be the real
 	 * one. Only a test supplies this: the default player builds an `<audio>`
@@ -185,15 +178,6 @@ export interface WorkbenchController {
 	exportTimedLyrics(format: TimedLyricsFormat): void;
 	setActiveTab(tab: RightPanelTab): void;
 	/**
-	 * Whether the panel's cover band is unfolded, remembered between sessions.
-	 *
-	 * On the controller rather than in the component because it outlives it: the
-	 * band is destroyed whenever the attached source changes, and a flag held in
-	 * its own state would forget the answer every time a user swapped songs.
-	 */
-	readonly artworkOpen: boolean;
-	setArtworkOpen(open: boolean): void;
-	/**
 	 * Whether Harper, the English grammar proofreader, runs alongside the reviewed
 	 * rules. A preference rather than a per-finding ignore because it is a stance
 	 * on a whole provider — Harper cites itself and knows nothing about lyrics — so
@@ -258,7 +242,6 @@ export interface WorkbenchController {
 const largePasteThreshold = 32;
 
 /** The preference keys this controller owns. */
-const artworkOpenPreference = 'artworkOpen';
 const grammarCheckPreference = 'grammarCheck';
 
 /**
@@ -366,38 +349,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		idFactory,
 		scheduleSave: draft.scheduleSave
 	});
-
-	/**
-	 * Whether the cover in the right panel is unfolded.
-	 *
-	 * Durable, because a fold is a statement about how the user wants the window
-	 * laid out and re-making it every reload is the kind of small tax nobody
-	 * reports. It lives in the same `appMetadata` table as the current draft and
-	 * the recent languages rather than in `localStorage`, and that is the whole
-	 * argument for the round trip: that table is what the workspace backup copies
-	 * and what `Delete all local data` clears, so a preference kept anywhere else
-	 * would quietly escape both promises this application makes about local state.
-	 *
-	 * It is only ever written when the user presses the chevron, so the read below
-	 * is the one cost on a boot that never touches it.
-	 *
-	 * **The default is the fold on a phone.** There the panel is stacked under the
-	 * editor rather than beside it, so an open cover is a square of picture between
-	 * the document and the findings — the two things a transcriber is actually
-	 * moving between — on the screen with the least room to give it. Everywhere
-	 * else it opens, because a cover that arrives folded is a feature nobody finds.
-	 * A stored preference still wins either way: this decides what to do before the
-	 * user has said anything, not instead of what they said.
-	 */
-	let artworkOpen = $state(!(deps.phoneLayout ?? isPhoneLayout)());
-	void deps.repository
-		.getPreference(artworkOpenPreference)
-		.then((stored) => {
-			if (stored !== undefined) artworkOpen = stored === 'true';
-		})
-		.catch(() => {
-			// A preference that cannot be read is a preference at its default.
-		});
 
 	// Grammar checking is on by default: the feedback that prompted the toggle
 	// called the corrections nice and only wanted a way out. The stored value
@@ -708,16 +659,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			feedback.announce(`Exported ${draft.title} as ${format.toUpperCase()}.`);
 		},
 		setActiveTab: panel.setActiveTab,
-		get artworkOpen() {
-			return artworkOpen;
-		},
-		setArtworkOpen(open) {
-			artworkOpen = open;
-			// The fold answers at once and the write follows it; a preference is not
-			// worth making a control wait on IndexedDB, and losing one is not worth
-			// a message.
-			void deps.repository.setPreference(artworkOpenPreference, String(open)).catch(() => {});
-		},
 		get grammarCheckEnabled() {
 			return grammarCheckEnabled;
 		},
@@ -915,7 +856,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// rows are already gone, and a switch still showing the old choice would
 			// be reporting a preference that no longer exists.
 			grammarCheckEnabled = true;
-			artworkOpen = !(deps.phoneLayout ?? isPhoneLayout)();
 		},
 		async backupWorkspace() {
 			if (!deps.backup) return;

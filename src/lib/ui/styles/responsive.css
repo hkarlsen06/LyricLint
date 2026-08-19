@@ -346,6 +346,9 @@
  */
 @media (pointer: coarse) {
 	:root {
+		/* The editor's default is `lg` now (tokens.css), so this is a floor rather
+		   than a step up — kept so the token can never drop back under the zoom
+		   threshold on a coarse pointer without this block refusing it. */
 		--font-size-editor: var(--font-size-lg);
 	}
 

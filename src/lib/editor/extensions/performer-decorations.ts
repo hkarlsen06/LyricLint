@@ -516,7 +516,12 @@ export const performerDecorationTheme = EditorView.baseTheme({
 		width: '100%',
 		height: '100%',
 		background: 'var(--ll-performer-solid)',
-		fontSize: 'var(--font-size-md)',
+		// The document's own type, not a UI rung: the inset above is the leading
+		// either side of one lyric line, so both halves of the subtraction have to
+		// resolve against the size the lines are actually set in. This was
+		// `--font-size-md`, which only agreed while the editor happened to sit on
+		// the same rung.
+		fontSize: 'var(--font-size-editor)',
 		lineHeight: 'var(--line-height-editor)'
 	},
 	'.ll-performer-gutter-marker--start': {

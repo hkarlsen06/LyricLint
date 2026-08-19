@@ -13,116 +13,40 @@ const withCover = () => appleStore({ artwork: coverTemplate });
 
 describe('MediaArtwork', () => {
 	/*
-	 * The picture is the surface, so every fact is on it — and the two ends are
-	 * rows rather than four corners, because corners collide the moment an artist
-	 * and a title are both long.
+	 * The compact row is the only shape: thumbnail, title over artist, and the
+	 * mark at the far end. The stage this band used to expand into — and the fold
+	 * that remembered it — are gone, so nothing here may draw a second transport
+	 * or a chevron.
 	 */
-	it('sets the artist and the title at the two ends of the picture’s top row', async () => {
+	it('draws one compact row: thumbnail, title over artist, and the mark', async () => {
 		const { media } = await withCover();
 		render(MediaArtwork, { props: { media } });
 
-		const top = document.querySelector('.media-artwork__top') as HTMLElement;
-		expect(top.querySelector('.media-artwork__artist')?.textContent).toBe('Kygo');
-		expect(top.querySelector('.media-artwork__title')?.textContent).toBe('Stole the Show');
+		const row = document.querySelector('.media-artwork') as HTMLElement;
+		expect(row.querySelector('.media-artwork__cover')?.getAttribute('src')).toBe(cover);
 
-		const artist = top.querySelector('.media-artwork__artist')!.getBoundingClientRect();
-		const title = top.querySelector('.media-artwork__title')!.getBoundingClientRect();
-		expect(artist.left).toBeLessThan(title.left);
-		expect(document.querySelector('.media-artwork__cover')?.getAttribute('src')).toBe(cover);
-	});
+		const meta = row.querySelector('.media-artwork__meta') as HTMLElement;
+		expect(meta.querySelector('.media-artwork__title')?.textContent).toBe('Stole the Show');
+		expect(meta.querySelector('.media-artwork__artist')?.textContent).toBe('Kygo');
 
-	/*
-	 * The other end, and the halves are the other way round: what is operated sits
-	 * under the hand at the left, and the mark that only has to be seen sits at the
-	 * right. Both are measured rather than trusted, because a flex row that has
-	 * lost its `space-between` still renders both elements.
-	 */
-	it('puts the transport bottom left and the mark bottom right', async () => {
-		const { media } = await withCover();
-		render(MediaArtwork, { props: { media } });
+		// Title over artist: the song is what the row is about.
+		const title = meta.querySelector('.media-artwork__title')!.getBoundingClientRect();
+		const artist = meta.querySelector('.media-artwork__artist')!.getBoundingClientRect();
+		expect(title.top).toBeLessThan(artist.top);
 
-		const bottom = document.querySelector('.media-artwork__bottom') as HTMLElement;
-		const controls = bottom.querySelector('.media-artwork__controls')!.getBoundingClientRect();
-		const mark = bottom.querySelector('.media-attribution__apple')!.getBoundingClientRect();
-		expect(controls.left).toBeLessThan(mark.left);
+		// Thumbnail at the head, facts beside it, mark at the far end.
+		const thumb = row.querySelector('.media-artwork__thumb')!.getBoundingClientRect();
+		const aside = row.querySelector('.media-artwork__aside') as HTMLElement;
+		expect(thumb.right).toBeLessThanOrEqual(meta.getBoundingClientRect().left);
+		expect(aside.getBoundingClientRect().left).toBeGreaterThan(meta.getBoundingClientRect().right);
+		expect(aside.querySelector('.media-attribution__apple')).not.toBeNull();
 
-		const stage = document.querySelector('.media-artwork__stage')!.getBoundingClientRect();
-		expect(bottom.getBoundingClientRect().bottom).toBeCloseTo(stage.bottom, 0);
-	});
-
-	/*
-	 * The contrast, and it is not decoration: what these read against is somebody
-	 * else's album art, half the covers in the world are pale, and white alone
-	 * vanishes on a third of them. Both ends are scrimmed because both ends now
-	 * carry something.
-	 */
-	it('scrims both ends of the picture, in opposite directions', async () => {
-		const { media } = await withCover();
-		render(MediaArtwork, { props: { media } });
-
-		const top = getComputedStyle(document.querySelector('.media-artwork__top')!);
-		const bottom = getComputedStyle(document.querySelector('.media-artwork__bottom')!);
-		expect(top.backgroundImage).toContain('gradient');
-		expect(bottom.backgroundImage).toContain('gradient');
-		expect(top.backgroundImage).not.toBe(bottom.backgroundImage);
-		expect(top.color).toBe(bottom.color);
-	});
-
-	/*
-	 * Folded: the picture scales down to the left and the facts stand beside it,
-	 * with the mark under them and no transport — the controls under the document
-	 * are the ones in use while typing, and a second copy of them beside a
-	 * thumbnail is a row of buttons for a picture nobody is looking at.
-	 */
-	it('scales the picture down to the left and stands the facts beside it', async () => {
-		const { media } = await withCover();
-		render(MediaArtwork, { props: { media, open: false } });
-
-		const stage = document.querySelector('.media-artwork__stage')!.getBoundingClientRect();
-		const meta = document.querySelector('.media-artwork__meta')!.getBoundingClientRect();
-		expect(stage.width).toBeGreaterThan(0);
-		expect(stage.right).toBeLessThanOrEqual(meta.left);
-
-		const folded = document.querySelector('.media-artwork__meta') as HTMLElement;
-		expect(folded.querySelector('.media-artwork__artist')?.textContent).toBe('Kygo');
-		expect(folded.querySelector('.media-artwork__title')?.textContent).toBe('Stole the Show');
-
-		// Title over artist here, which is the opposite of the order they take on
-		// the picture: there they are the two ends of one line.
-		const foldedTitle = folded.querySelector('.media-artwork__title')!.getBoundingClientRect();
-		const foldedArtist = folded.querySelector('.media-artwork__artist')!.getBoundingClientRect();
-		expect(foldedTitle.top).toBeLessThan(foldedArtist.top);
-
-		// The way back over the mark, both at the far end, and no transport at all.
-		const aside = document.querySelector('.media-artwork__aside') as HTMLElement;
-		const chevron = aside.querySelector('.media-artwork__toggle')!.getBoundingClientRect();
-		const mark = aside.querySelector('.media-attribution__apple')!.getBoundingClientRect();
-		expect(chevron.top).toBeLessThan(mark.top);
-		expect(aside.getBoundingClientRect().left).toBeGreaterThan(meta.right);
+		// No second transport and no fold: the row is a row.
 		expect(document.querySelector('.media-artwork__controls')).toBeNull();
-		await expect.element(page.getByRole('button', { name: 'Show artwork' })).toBeVisible();
+		expect(document.querySelector('.media-artwork__toggle')).toBeNull();
 
-		// Bigger than the overlay's caption type: these two lines are the row.
-		expect(parseFloat(getComputedStyle(folded).fontSize)).toBeGreaterThan(12);
-	});
-
-	/*
-	 * The same element in both states, which is what makes the fold a scale rather
-	 * than a swap. Two `<img>`s would cross-fade at best and re-request at worst.
-	 */
-	it('folds the picture it already has rather than swapping in another', async () => {
-		const { media } = await withCover();
-		const { rerender } = render(MediaArtwork, { props: { media, open: true } });
-
-		const opened = document.querySelector('.media-artwork__cover');
-		const wide = opened!.getBoundingClientRect().width;
-
-		await rerender({ media, open: false });
-
-		expect(document.querySelector('.media-artwork__cover')).toBe(opened);
-		// Polled rather than read once: the width is a transition, so the frame the
-		// rerender returns on is still the old one — which is the whole point.
-		await vi.waitFor(() => expect(opened!.getBoundingClientRect().width).toBeLessThan(wide));
+		// Bigger than caption type: these two lines are the row.
+		expect(parseFloat(getComputedStyle(meta).fontSize)).toBeGreaterThan(12);
 	});
 
 	/*
@@ -132,9 +56,6 @@ describe('MediaArtwork', () => {
 	 * answers 404 or 403 — which reports no artwork ever, not merely late — left
 	 * the workbench playing somebody's track and saying nothing about it, with
 	 * neither required attribution drawn.
-	 *
-	 * What the old rule was right about is the *tall* shape, so the answer is the
-	 * folded row: one compact line, and no stage.
 	 */
 	it('names the song and draws the mark before — or without — a cover', async () => {
 		const { media, player } = await appleStore();
@@ -148,11 +69,9 @@ describe('MediaArtwork', () => {
 		expect(meta.querySelector('.media-artwork__artist')?.textContent).toBe('Kygo');
 		expect(document.querySelector('.media-attribution__apple')).not.toBeNull();
 
-		// No picture, so no stage to expand into and no control that would appear
-		// to do nothing — and never the tall shape, whatever `open` says.
-		expect(document.querySelector('.media-artwork__stage')).toBeNull();
-		expect(document.querySelector('.media-artwork__toggle')).toBeNull();
-		expect(container.querySelector('.media-artwork--folded')).not.toBeNull();
+		// No picture, so no press that would open one and no dialog to open.
+		expect(document.querySelector('.media-artwork__thumb')).toBeNull();
+		expect(document.querySelector('.artwork-dialog')).toBeNull();
 	});
 
 	// The same, one source over: Spotify's read carries the cover with the name,
@@ -169,112 +88,83 @@ describe('MediaArtwork', () => {
 		expect(document.querySelector('.media-attribution__spotify')).not.toBeNull();
 	});
 
-	/*
-	 * And when the picture does land, the row it lands into is the one already
-	 * standing: the stage appears above the facts rather than the whole band
-	 * arriving from nothing.
-	 */
-	it('grows the stage in place when the cover arrives', async () => {
+	// And when the picture does land, the row it lands into is the one already
+	// standing: the thumbnail appears at its head rather than the band changing
+	// shape.
+	it('grows the thumbnail in place when the cover arrives', async () => {
 		const { media } = await appleStore();
-		const { rerender } = render(MediaArtwork, { props: { media, open: true } });
-		expect(document.querySelector('.media-artwork__stage')).toBeNull();
+		const { rerender } = render(MediaArtwork, { props: { media } });
+		expect(document.querySelector('.media-artwork__thumb')).toBeNull();
 
 		const withArtwork = await withCover();
-		await rerender({ media: withArtwork.media, open: true });
+		await rerender({ media: withArtwork.media });
 
-		expect(document.querySelector('.media-artwork__stage')).not.toBeNull();
+		expect(document.querySelector('.media-artwork__thumb')).not.toBeNull();
 		expect(document.querySelector('.media-artwork__cover')?.getAttribute('src')).toBe(cover);
 	});
 
 	/*
-	 * Expanded, the picture is in nothing: no inset, no rounded corner, the full
-	 * width of the band. Measured against the band rather than trusted to the
-	 * rule, because a stray padding anywhere in the chain reads as working CSS.
+	 * Looking at the picture bigger is a press on the picture: the thumbnail is a
+	 * button and the full-size cover opens in a modal, which also carries the two
+	 * artwork commands the Song panel offers — the same `ArtworkActions`
+	 * component, so the pair cannot drift between the two surfaces.
 	 */
-	it('lets the picture fill the band edge to edge when it is open', async () => {
+	it('opens the full-size cover in a modal with the two artwork commands', async () => {
 		const { media } = await withCover();
-		const { container } = render(MediaArtwork, { props: { media, open: true } });
+		render(MediaArtwork, { props: { media } });
 
-		const band = container.querySelector('.media-artwork')!.getBoundingClientRect();
-		const stage = document.querySelector('.media-artwork__stage')!.getBoundingClientRect();
-		expect(stage.left).toBe(band.left);
-		expect(stage.width).toBe(band.width);
-		expect(getComputedStyle(document.querySelector('.media-artwork__stage')!).borderRadius).toBe(
-			'0px'
-		);
+		const dialog = document.querySelector('.artwork-dialog') as HTMLDialogElement;
+		expect(dialog.open).toBe(false);
+
+		await page.getByRole('button', { name: 'View album art' }).click();
+		expect(dialog.open).toBe(true);
+
+		// The big picture is the same cover, and the header names the track.
+		expect(dialog.querySelector('.artwork-dialog__cover')?.getAttribute('src')).toBe(cover);
+		expect(dialog.querySelector('#artwork-dialog-title')?.textContent).toBe('Stole the Show');
+
+		// Both commands ride the dialog, in the shared actions row.
+		const actions = dialog.querySelector('.artwork-actions') as HTMLElement;
+		expect(actions).not.toBeNull();
+		await expect.element(page.getByRole('button', { name: 'Copy image URL' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Download album art' })).toBeVisible();
+
+		// Its own closing control shuts it again.
+		await page.getByRole('button', { name: 'Close' }).click();
+		expect(dialog.open).toBe(false);
 	});
 
-	/**
-	 * The fold is reported, not owned.
-	 *
-	 * Two things would forget it otherwise: this band is destroyed whenever the
-	 * attached source changes, so a local flag resets on every swapped song, and a
-	 * reload starts over. The controller holds it and writes it beside the current
-	 * draft, which is also what puts it inside the workspace backup and inside
-	 * `Delete all local data`.
-	 */
-	it('draws what it is told and reports the press rather than acting on it', async () => {
+	// The copy is the resolved address the panel would download, and the
+	// confirmation reaches both audiences: the label swaps for the eye and the
+	// announcement carries it for a screen reader.
+	it('copies the cover’s address from the modal and announces it', async () => {
+		const copied: string[] = [];
+		const clipboard = { writeText: async (text: string) => void copied.push(text) };
+		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as unknown as Clipboard);
+
+		const announced: string[] = [];
 		const { media } = await withCover();
-		const toggles: boolean[] = [];
 		render(MediaArtwork, {
-			props: { media, open: true, onToggle: (open: boolean) => toggles.push(open) }
+			props: { media, announce: (message: string) => announced.push(message) }
 		});
 
-		expect(document.querySelector('.media-artwork__top')).not.toBeNull();
-		await page.getByRole('button', { name: 'Hide artwork' }).click();
+		await page.getByRole('button', { name: 'View album art' }).click();
+		await page.getByRole('button', { name: 'Copy image URL' }).click();
 
-		expect(toggles).toEqual([false]);
-		// Nothing moved on its own: the band is still open until it is told.
-		expect(document.querySelector('.media-artwork__top')).not.toBeNull();
+		await vi.waitFor(() => expect(copied).toEqual([cover]));
+		await expect.element(page.getByRole('button', { name: 'Image URL copied' })).toBeVisible();
+		expect(announced).toEqual(['Image URL copied.']);
 	});
 
-	/**
-	 * The transport is on the picture, not in the bar, and it is the strip's own.
-	 *
-	 * Two copies of three buttons would be two copies of every label rule — and
-	 * `Previous line` appearing on one surface while the other still said
-	 * `Back 2 seconds` is the kind of drift nobody notices for months.
-	 *
-	 * They are now identical, which they were not: the strip used to print the
-	 * keystroke under each glyph and this surface deliberately did not. Both
-	 * name themselves through the shared tooltip instead, so there is no caption
-	 * left to differ about — and no `captions` prop, whose only reader this was.
-	 */
-	it('puts the transport over the cover, with no caption under any glyph', async () => {
-		const { media, player } = await withCover();
-		player.setCuePoints([12, 30]);
-		render(MediaArtwork, { props: { media } });
-
-		const controls = document.querySelector('.media-artwork__controls');
-		expect(controls?.contains(page.getByRole('button', { name: 'Play' }).element())).toBe(true);
-		// The same labels the strip uses, from the same component.
-		await expect.element(page.getByRole('button', { name: 'Previous line' })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Next line' })).toBeVisible();
-		expect(controls?.querySelectorAll('kbd')).toHaveLength(0);
-	});
-
-	// Play leads, the way it does in every transport anyone has used — and all
-	// three are player-sized rather than chrome-sized, which is the whole reason
-	// they are on the picture rather than in the bar.
-	it('draws the controls at player size, with play the largest', async () => {
-		const { media } = await withCover();
-		render(MediaArtwork, { props: { media } });
-
-		const glyph = (name: string) =>
-			page.getByRole('button', { name }).element().querySelector('svg')!.getBoundingClientRect()
-				.width;
-
-		expect(glyph('Play')).toBeGreaterThan(glyph('Back 2 seconds'));
-		expect(glyph('Back 2 seconds')).toBeGreaterThan(14);
-	});
-
-	// A cover carries nothing a screen reader can use, and the track is named on
-	// the row directly above it — so an alt here would announce the same fact
-	// twice rather than add one.
-	it('leaves the cover out of the accessible tree', async () => {
+	// A cover carries nothing a screen reader can use: the track is named in the
+	// row beside the thumbnail and in the dialog's own header, and the press
+	// carries its name on the button — so an alt on either image would announce
+	// the same fact twice.
+	it('leaves both copies of the cover out of the accessible tree', async () => {
 		const { media } = await withCover();
 		render(MediaArtwork, { props: { media } });
 
 		expect(document.querySelector('.media-artwork__cover')?.getAttribute('alt')).toBe('');
+		expect(document.querySelector('.artwork-dialog__cover')?.getAttribute('alt')).toBe('');
 	});
 });

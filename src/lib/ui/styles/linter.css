@@ -28,6 +28,37 @@
 	gap: var(--space-1);
 }
 
+/* The clean state is the one that is an achievement rather than a circumstance,
+   so it is composed as a state: centered in the pane's height under the check
+   mark, instead of a caption at the top of an empty column. Still prose on the
+   canvas — the glyph and the centering are the whole of the difference. The
+   other three empty states keep the top: each sits above the thing that
+   resolves it (the sample offer, the drafts at the foot, the chips, the
+   footer), and centering them would strand the message away from its answer. */
+.diagnostic-list__empty--clean {
+	flex: 1;
+	align-content: center;
+	justify-items: center;
+	gap: var(--space-1-5);
+	text-align: center;
+}
+
+/* Each sentence of the detail is its own line: centred prose that wraps
+   mid-sentence at whatever width the pane happens to have reads as a caption
+   that ran out of room, where one fact per line reads as set. The break is a
+   newline in the string, honoured here and collapsed to a space everywhere
+   else an empty state renders. */
+.diagnostic-list__empty--clean p {
+	white-space: pre-line;
+}
+
+.diagnostic-list__empty-mark {
+	width: var(--space-6);
+	height: var(--space-6);
+	margin-bottom: var(--space-2);
+	color: var(--color-success);
+}
+
 .diagnostic-list__empty p {
 	margin: 0;
 	font-size: var(--font-size-sm);
@@ -283,6 +314,19 @@
 	.diagnostic-list > li:has(+ li.diagnostic-card--expanded),
 	.diagnostic-list > li:has(+ li.diagnostic-card--active) {
 		border-bottom-color: var(--color-border);
+	}
+}
+
+/* The depth answers a press, so it arrives at the control tier's rate rather
+   than snapping. Only the tone, the shadow and the seams ease — the card's own
+   expansion stays instant, because a height between two documents' worth of
+   content has no honest intermediate frame. */
+@media (prefers-reduced-motion: no-preference) {
+	.diagnostic-list > li {
+		transition:
+			background-color var(--duration-fast) var(--ease-out-quart),
+			box-shadow var(--duration-fast) var(--ease-out-quart),
+			border-color var(--duration-fast) var(--ease-out-quart);
 	}
 }
 

@@ -222,9 +222,19 @@ const editorTheme = EditorView.theme({
 		height: '100%',
 		minHeight: '12rem',
 		background: 'var(--color-surface)',
-		color: 'var(--color-text)',
-		fontFamily: 'var(--font-mono)',
-		fontSize: 'var(--font-size-editor)'
+		// The reading tone, not the label tone: identical in light, a step down
+		// from `--color-text` in dark, where a document of 97%-lightness glyphs
+		// halates. tokens.css carries the arithmetic.
+		color: 'var(--color-text-reading)',
+		// The words' face, not the markup's: lyric text is prose, so it reads in
+		// `--font-lyrics`, and the markup spans keep `--font-mono` through the
+		// same decoration that dims them (markup-dim.ts). The gutters state
+		// `--font-mono` for themselves below — a timestamp column is tabular.
+		fontFamily: 'var(--font-lyrics)',
+		fontSize: 'var(--font-size-editor)',
+		// Inherited by everything in the editor, and a deliberate no-op on all of
+		// it except the lyric face itself — tokens.css explains the arithmetic.
+		fontSizeAdjust: 'var(--font-lyrics-size-adjust)'
 	},
 	// No focus ring around the editor: the caret and the active-line wash already
 	// show where focus is, and a full-height outline dominates the workspace.
@@ -269,8 +279,8 @@ const editorTheme = EditorView.theme({
 		// edge to edge and keeps clicks anywhere on a row landing in the line —
 		// while the text itself wraps at the measure. --measure-editor is the same
 		// token the mock editor's textarea caps at in ui/styles/editor.css; `ch`
-		// resolves against this element's own mono font, so both surfaces cap at
-		// the same character count. The max() keeps the original --space-1 padding
+		// resolves against this element's own font — `--font-lyrics` on both
+		// surfaces now — so both cap at the same character count. The max() keeps the original --space-1 padding
 		// as the floor when the pane is narrower than the measure, and the logical
 		// property puts the slack on the away-from-text side in RTL documents too.
 		paddingInlineEnd: 'max(var(--space-1), calc(100% - var(--measure-editor)))'

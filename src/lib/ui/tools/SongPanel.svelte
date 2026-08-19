@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { Check, Copy, Music2 } from 'lucide-svelte';
+	import { Music2 } from 'lucide-svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
 	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
-	import { copyText, downloadImage } from '../clipboard.js';
+	import { copyText } from '../clipboard.js';
+	import ArtworkActions from '../media/ArtworkActions.svelte';
 	import SongFacts, { hasSongFacts } from '../media/SongFacts.svelte';
 	import { pendingMediaActionLabel } from '../media/pending-media-label.js';
-	import LoadingMark from '../primitives/LoadingMark.svelte';
 	import { youtubeSearchTerm } from '../state/media-youtube.js';
 
 	let {
@@ -17,12 +17,7 @@
 		openMediaPicker?: (source: HTMLButtonElement) => void;
 	} = $props();
 	let confirmClearAnchors = $state(false);
-	let savingArtwork = $state(false);
-	let copiedArtworkUrl = $state(false);
-	let copiedArtworkTimer: ReturnType<typeof setTimeout> | undefined;
 	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
-
-	$effect(() => () => clearTimeout(copiedArtworkTimer));
 
 	const artwork = $derived(controller.media?.player.artwork);
 	const details = $derived(controller.media?.player.songDetails);
@@ -55,40 +50,12 @@
 			: `https://www.youtube.com/watch?v=${controller.media.videoId}`
 	);
 
-	/** A track name is a filename here, and `Artist — Track` is full of nothing a
-	 *  file system minds except the separators. */
-	function artworkFilename(): string {
-		const name = controller.media?.player.name ?? 'Album art';
-		return `${name.replace(/[\\/:*?"<>|]/gu, '-').trim()}.jpg`;
-	}
-
-	async function saveArtwork(url: string): Promise<void> {
-		savingArtwork = true;
-		try {
-			await downloadImage(url, artworkFilename());
-		} finally {
-			savingArtwork = false;
-		}
-	}
-
 	async function copyVideoUrl(url: string): Promise<void> {
 		try {
 			await copyText(url);
 			controller.feedback.announce('YouTube link copied.');
 		} catch {
 			controller.feedback.announce('The link could not be copied.');
-		}
-	}
-
-	async function copyArtworkUrl(url: string): Promise<void> {
-		try {
-			await copyText(url);
-			copiedArtworkUrl = true;
-			clearTimeout(copiedArtworkTimer);
-			copiedArtworkTimer = setTimeout(() => (copiedArtworkUrl = false), 2000);
-			controller.feedback.announce('Image URL copied.');
-		} catch {
-			controller.feedback.announce('The image URL could not be copied.');
 		}
 	}
 </script>
@@ -167,30 +134,11 @@
 					</button>
 				{/if}
 				{#if artwork}
-					<div class="artwork-actions">
-						<button type="button" class="button" onclick={() => copyArtworkUrl(artwork)}>
-							{#if copiedArtworkUrl}
-								<Check aria-hidden="true" size={14} strokeWidth={2.25} />
-							{:else}
-								<Copy aria-hidden="true" size={14} strokeWidth={2.25} />
-							{/if}
-							{copiedArtworkUrl ? 'Image URL copied' : 'Copy image URL'}
-						</button>
-						<!-- The label stays put and a loading mark joins it: a control whose text
-						     changes under the press reflows the row it was pressed in. -->
-						<button
-							type="button"
-							class="button"
-							disabled={savingArtwork}
-							aria-busy={savingArtwork}
-							onclick={() => saveArtwork(artwork)}
-						>
-							{#if savingArtwork}
-								<LoadingMark />
-							{/if}
-							Download album art
-						</button>
-					</div>
+					<ArtworkActions
+						{artwork}
+						name={controller.media?.player.name}
+						announce={(message) => controller.feedback.announce(message)}
+					/>
 				{/if}
 			</div>
 		</section>

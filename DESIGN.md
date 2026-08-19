@@ -31,13 +31,16 @@ The canonical implementation is `src/lib/ui/styles/tokens.css`. Components consu
 
 - UI: `--font-ui` — IBM Plex Sans, shipped as a self-hosted variable face.
 - Source and markup: `--font-mono` — IBM Plex Mono, shipped as self-hosted static weights, since no variable cut of Plex Mono exists.
+- Lyric words: `--font-lyrics` — Karla, shipped as a self-hosted variable face (normal and italic), with `Programme` leading the stack unshipped (tokens.css says why). The words are prose somebody reads for an hour; the markup inside a line stays `--font-mono` through the same decoration that dims it (`markup-dim.ts`), so "this is source" is carried by tone and type together. Karla runs small in its em, so every surface consuming `--font-lyrics` also applies `--font-lyrics-size-adjust`, which normalizes whatever face the stack resolves to Plex's x-height ratio — a deliberate no-op on every Plex face.
 - Fixed product scale: `--font-size-2xs` through `--font-size-xl`
 - Line-height roles: tight headings, compact UI, body copy, and editor text
 - Weight roles: regular, medium, semibold, bold, and heavy — but IBM Plex tops out at 700, so `--font-weight-heavy` (750) renders identically to bold. Treat the scale as four distinct faces and do not use heavy to mean "heavier than bold".
 
-Both faces are self-hosted from `static/fonts` and declared in `src/lib/ui/styles/fonts.css`. The mono faces carry explicit `font-weight` _ranges_ rather than single values: with static weights and default CSS matching, 550 would resolve to the 600 face and 650 to the 700 face, silently collapsing medium, semibold, and bold into one another in the editor.
+All faces are self-hosted from `static/fonts` and declared in `src/lib/ui/styles/fonts.css`. The mono faces carry explicit `font-weight` _ranges_ rather than single values: with static weights and default CSS matching, 550 would resolve to the 600 face and 650 to the 700 face, silently collapsing medium, semibold, and bold into one another in the editor.
 
-Body text is `--font-size-md`; compact metadata is `--font-size-xs` or `--font-size-sm`.
+Body text is `--font-size-md`; the document is `--font-size-editor` (`lg`), a step above the UI ramp because it is the thing being read and written for an hour at a time; compact metadata is `--font-size-xs` or `--font-size-sm`.
+
+In dark the document also reads in its own tone: `--color-text-reading` steps down from `--color-text`'s 97% to 90%, because a document of near-white glyphs on a near-black surface halates over a long read. Labels and titles keep the full tone; the two are identical in light.
 
 Line length is a token, not a per-component decision: `--measure-prose` (66ch) caps explanatory copy, `--measure-reference` (76ch) caps the rule reference's pages, and `--measure-editor` (96ch) caps both the CodeMirror surface and the mock editor so the two wrap at the same column. A measure cap belongs to the text, never to a box that also carries structure — a `max-width` on an element drawing a divider shortens the divider with it, so cap such an element with end padding instead and let its border box span the surface.
 
@@ -73,6 +76,7 @@ All ordinary buttons share the same control radius, height, padding, focus ring,
 
 - Raised in-flow elements use `--shadow-raised`.
 - Menus and anchored popovers use `--shadow-popover` or `--shadow-overlay`.
+- In dark, every outward shadow token also carries a 1px inset light along its top edge — the light the shadow implies, falling on the edge that faces it. Dark surfaces separate by tone alone and the tones are deliberately close, so without it a raised surface reads as a matte rectangle rather than a lit object. It rides the shadow tokens so no surface can pick up one cue without the other; `--shadow-recessed` stays inward-only, because a well is lit at its floor, not its rim.
 - Named layer tokens keep toolbars, panels, menus, pickers, diagnostics, and toasts predictable.
 
 ## Component Rules

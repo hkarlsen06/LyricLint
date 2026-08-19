@@ -75,9 +75,17 @@ export const markupDimField = StateField.define<DecorationSet>({
  * rules require to stay visible and exactly readable; an opacity took them to
  * roughly 2:1 against the editor surface, and it also dimmed any performer tint
  * or fix-preview background sharing the same run of characters.
+ *
+ * The mono face is stated here too, and this decoration is why the lyric/markup
+ * font split works at all: the document's base face is `--font-lyrics` (prose,
+ * for the words), and the spans this field marks are exactly the spans that are
+ * source rather than song — so the one decoration carries both halves of what
+ * "this is markup" means, the tone and the type, and neither can be lost
+ * without the other.
  */
 export const markupDimTheme = EditorView.baseTheme({
 	'.ll-syntax-dim': {
-		color: 'var(--color-text-muted)'
+		color: 'var(--color-text-muted)',
+		fontFamily: 'var(--font-mono)'
 	}
 });

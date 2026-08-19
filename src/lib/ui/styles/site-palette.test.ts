@@ -45,11 +45,16 @@ function readSource(relativePath: string): string {
 	);
 }
 
-/** The declarations inside a `{ … }` block, as property → value. */
+/** The declarations inside a `{ … }` block, as property → value.
+ *
+ * Internal whitespace is collapsed because it is insignificant in CSS and not
+ * ours to control: a value long enough for prettier to wrap is indented to its
+ * own block's depth, and the two blocks compared here sit at different depths,
+ * so a byte comparison would report a disagreement about a tab. */
 function declarationsIn(block: string): Map<string, string> {
 	const declarations = new Map<string, string>();
 	for (const [, property, value] of block.matchAll(/(--[a-z0-9-]+)\s*:\s*([^;]+);/gu)) {
-		declarations.set(property, value.trim());
+		declarations.set(property, value.replace(/\s+/gu, ' ').trim());
 	}
 	return declarations;
 }

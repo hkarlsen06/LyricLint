@@ -848,9 +848,12 @@ describe('following the playhead', () => {
 		handle.setMediaPlayhead?.(0.5);
 
 		// Two visible lines low enough in the viewport that the reading-line hold
-		// would have pulled them up on entry.
-		const from = long.indexOf('line 10');
-		handle.setSelection({ anchor: from, head: long.indexOf('line 11') + 'line 11'.length });
+		// would have pulled them up on entry — and high enough to still be wholly
+		// on screen in the 300px pane at the editor's own type size, or the
+		// nearest-edge nudge fires for the honest reason and the assertion stops
+		// being about the hold.
+		const from = long.indexOf('line 7');
+		handle.setSelection({ anchor: from, head: long.indexOf('line 8') + 'line 8'.length });
 		handle.setLyricSync?.(true);
 		await new Promise((resolve) => setTimeout(resolve, 500));
 		expect(scroller.scrollTop).toBe(0);
@@ -1546,11 +1549,13 @@ describe('sync mode', () => {
 		handle.focus();
 
 		// Near the top there is nowhere to scroll to: the target is negative and the
-		// browser clamps it away.
-		await userEvent.keyboard('   ');
+		// browser clamps it away. Two taps, not three — the third tap's line sits
+		// within a pixel of the reading third at the editor's own metrics, and this
+		// assertion is about the clamp, not about where the hold's boundary falls.
+		await userEvent.keyboard('  ');
 		expect(scroller.scrollTop).toBe(0);
 
-		await userEvent.keyboard('            ');
+		await userEvent.keyboard('             ');
 		await vi.waitFor(() => {
 			if (scroller.scrollTop === 0) throw new Error('the document has not moved yet');
 		});

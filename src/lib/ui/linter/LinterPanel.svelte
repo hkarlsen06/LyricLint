@@ -104,7 +104,14 @@
 		}
 		return {
 			title: 'No issues found',
-			detail: "This 'scribe passes every enabled rule. Diagnostics reappear as you edit."
+			// The newline is deliberate: centred, the two sentences are two facts,
+			// and each reads on a line of its own (`pre-line` on the clean state)
+			// rather than wrapping mid-sentence wherever the pane's width falls.
+			detail: "This 'scribe passes every enabled rule.\nDiagnostics reappear as you edit.",
+			// The one empty state that is an achievement rather than a circumstance,
+			// so it is the one drawn as a state — centered in the pane, under the
+			// check — instead of as a caption at the top of an empty column.
+			clean: true
 		};
 	});
 

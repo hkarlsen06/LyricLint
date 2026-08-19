@@ -407,7 +407,9 @@
 		border-radius: var(--radius-control);
 		background: var(--color-control);
 		color: var(--color-text);
-		font-family: var(--font-mono);
+		/* Lyric text, so the lyric face — matching the editor the lines came from. */
+		font-family: var(--font-lyrics);
+		font-size-adjust: var(--font-lyrics-size-adjust);
 		font-size: var(--font-size-sm);
 		line-height: var(--line-height-editor);
 		resize: vertical;
@@ -480,7 +482,9 @@
 		border-radius: var(--radius-sm);
 		background: transparent;
 		color: var(--color-text);
-		font-family: var(--font-mono);
+		/* Lyric text, so the lyric face — matching the editor the lines came from. */
+		font-family: var(--font-lyrics);
+		font-size-adjust: var(--font-lyrics-size-adjust);
 		font-size: var(--font-size-sm);
 		line-height: var(--line-height-editor);
 		gap: var(--space-2);

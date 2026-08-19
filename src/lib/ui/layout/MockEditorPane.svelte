@@ -181,8 +181,12 @@
 		border-radius: 0;
 		resize: none;
 		background: transparent;
-		font-family: var(--font-mono);
+		color: var(--color-text-reading);
+		/* The lyric face, matching the real editor's base — a plain textarea
+		   cannot split markup from words, so it takes the words' face whole. */
+		font-family: var(--font-lyrics);
 		font-size: var(--font-size-lg);
+		font-size-adjust: var(--font-lyrics-size-adjust);
 		line-height: var(--line-height-editor);
 		tab-size: 2;
 	}

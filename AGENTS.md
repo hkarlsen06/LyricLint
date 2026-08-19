@@ -380,8 +380,8 @@ is the _only_ copy — which is why that one keeps `aria-describedby` and this o
 the one keystroke worth learning, one modifier and one letter, and _The audio is a transport_ says
 the tooltip carries the function-row and universal fallbacks — that split was described there long
 before anything implemented it. So the box reads `Play` over `F8 · ⌃K`, and the row is unchanged.
-Both surfaces that draw a transport get it, the strip and the artwork band, because they share
-`MediaTransport.svelte`.
+The transport is one component (`MediaTransport.svelte`), so any surface that draws one gets the
+box with it — today that is the strip alone, since the cover band gave up its second transport.
 
 Implementation: `src/lib/ui/state/control-tooltip.svelte.ts` (the store, the placement, the
 attachment), `src/lib/ui/primitives/ControlTooltip.svelte`, and `.control-tooltip` in
@@ -3038,111 +3038,68 @@ Four things that follow, and two of them are traps:
 - **It is 21px tall, matching the Spotify mark** rather than the row, so neither attribution costs
   the strip any height — the same constraint the shortcut captions are measured against.
 
-**The cover takes the video's band, and unlike the video it folds.** It is the same slot at the
+**The cover takes the video's band, and it is one compact row.** It is the same slot at the
 foot of the right panel, chosen for the same reason: a picture is looked at rather than operated,
-so two hundred pixels of it costs a scroll there and would cost the document anywhere else. What
-differs is the one control. YouTube's embed terms require their player visible and unobscured, so
-a collapse control on that band would be a control for breaking them; Apple asks for attribution —
-which this band carries at the foot of the picture, and under the title once it is folded — and
-nothing at all about a picture. So this is the one band in the panel a user can take their height
-back from.
+so its pixels cost a scroll there and would cost the document anywhere else. The row is the whole
+band — thumbnail, title over artist, the mark at the far end — and that is a correction with a
+history worth keeping. The band used to expand into a stage: the full-width picture with the facts
+scrimmed onto its two ends, a second transport drawn over it, a chevron to fold it away, and a
+stored preference (`artworkOpen`) remembering the fold per workspace, defaulted by
+`isPhoneLayout()`. Every part of that was machinery for managing a height the compact row simply
+does not cost. The stage spent two hundred pixels of the findings column on a picture nobody
+operates, and the transport on it was a second copy of the controls already under the document — a
+row of buttons for a picture nobody is looking at. The stage went, and the fold, the chevron, the
+preference, `isPhoneLayout()` and the `--color-scrim*` tokens all went with it, because each
+existed only to serve it.
 
-**The mark is on the picture, and the folded row is why that is safe.** Overlaid on a cover that
-could be folded away, a third party's mark would leave the screen while their song was still
-playing — so the folded state carries it under the title rather than dropping it with the
-artwork.
+**Looking at the picture bigger is a press on the picture.** The thumbnail is a button
+(`View album art`) and the full-size cover opens in a modal — a modal because looking at artwork
+is a detour from transcribing, and the way back is every way out a dialog already has: `Escape`,
+its own close control, and the backdrop press. The dialog names the track in its header, and its
+width caps against the viewport's _height_ as well as its width, because the surface is a square
+picture plus two rows of chrome — a width-only cap pushes the actions below the dialog's own foot
+on a short window.
 
-**The transport is on the picture, and it is the strip's own transport.** Both surfaces render
-`MediaTransport.svelte` rather than mirroring three buttons by hand, for the reason the diagnostic
-card and its popover share theirs: two copies of three controls is two copies of every label rule,
-and `Previous line` appearing on one while the other still said `Back 2 seconds` is drift nobody
-notices for months. **They are identical now, and the caption that used to be the one
-difference is gone.** The strip printed the one-modifier fallback under each glyph and this surface
-deliberately did not; both name themselves through the shared tooltip instead, so there is no legend
-on either to differ about — and no `captions` prop, whose only reader this was.
+**The dialog carries the two artwork commands, and they are one implementation.** `Copy image URL`
+and `Download album art` ride under the picture they act on, and the Song panel's metadata section
+offers the same pair beside the song's facts — both render `ArtworkActions.svelte` rather than
+mirroring the buttons by hand, for the reason the diagnostic card and its popover share their row:
+two copies would be two copies of the copied-confirmation swap and the download's open-in-a-tab
+fallback, and the copy that drifted would be the one nobody is looking at.
 
-- **It draws on a scrim, and that is not decoration.** What the glyphs read against is somebody
-  else's album art, and half the covers in the world are pale — white alone vanishes on a third of
-  them. `--color-scrim`, `--color-text-on-scrim` and `--color-control-hover-on-scrim` are therefore
-  one value for both schemes, exactly like `--color-backdrop` and for the same reason: the job is
-  to read against whatever is there rather than to match a page. They are the only tokens in the
-  system that do not follow the scheme, and a literal here instead would be the second palette
-  `editor-token-policy.test.ts` exists to prevent.
-- **A gradient, not a flat band**, so the picture is given up gradually. A hard edge across a cover
-  reads as a second box drawn over it.
-- **Plain state, not a `<details>`, and that is a correction.** A disclosure was right while the
-  bar was a name and a chevron — the platform owned the state, the keyboard and the semantics for
-  free, the way the drafts menu still does. It stopped being right when controls arrived: a
-  `<summary>` is one activation target, so every button inside it has to `stopPropagation` or
-  pressing play folds the picture away. Three opt-outs from an element's whole reason for existing
-  is the element being wrong, not the buttons. Only the chevron toggles now. (The controls ended up
-  on the cover rather than in the bar, which would have settled it anyway — but the rule is the one
-  to keep.)
-- **The chevron points at the content, not along its own travel.** Open points down at the picture
-  it opened; closed points up at the bar the picture folded into. That is the reading that survives
-  the band being at the _foot_ of a column, where up is where everything else in the panel lives.
-- **It opens by default on a laptop and is folded on a phone**, and either way the fold is
-  remembered. There the panel is stacked _under_ the editor rather than beside it, so an open cover
-  is a square of picture between the document and the findings — the two things a transcriber moves
-  between — on the screen with the least room to give it. `isPhoneLayout()` is the same
-  `(pointer: coarse) and (max-width: 68rem)` the touch notice fires on, shared rather than written
-  out twice, and it is read once at boot rather than watched: a phone does not become a laptop, and
-  re-folding a band the user just opened because they rotated the device would be the layout
-  overriding an instruction. A stored preference outranks it, because a default decides what to do
-  before the user has said anything rather than instead of what they said. Two things would otherwise forget it: the
-  band is destroyed whenever the attached source changes, so a flag held in the component resets on
-  every swapped song, and a reload starts over. So the controller owns it and the component is told
-  — `artworkOpen` / `setArtworkOpen`, written through `getPreference` / `setPreference` on the draft
-  repository. **That round trip is the point rather than an accident of where the code sits:** the
-  `appMetadata` table is what the workspace backup copies and what `Delete all local data` clears,
-  so a preference kept in `localStorage` would quietly escape both promises this application makes
-  about local state. It is a generic key/value pair rather than a method each, because the
-  alternative is two more methods on that contract every time a control learns to remember itself.
-- **The picture is the surface, and the facts sit on it.** Artist at the top left, title at the top
-  right, the transport at the bottom left, the mark at the bottom right, and the fold at the end of
-  the title's own row. This band used to be a chrome bar with a cover under it — the strip's bar,
-  repeated at the foot of the other column — which spent a whole row of the panel's height on two
-  facts and one control, above a picture with four unused corners.
-- **Each end is a row, not a pair of corners.** Absolutely-placed corners collide the moment an
-  artist and a title are both long; a flex row with the ellipsis on both halves cannot.
-- **Two scrims, top and bottom, and they are the contrast.** `--color-scrim-ink` is its own token
-  now because the two gradients differ only in direction, and two hand-copied `oklch()`s is what
-  `--color-backdrop` already exists to prevent. Each end is a gradient rather than a flat fill, so
-  the picture is given up gradually and the middle — the part worth looking at — stays clear of
-  both.
+**The mark is on the row, which never leaves the screen.** A third party's mark must stand
+wherever their song is playing, and the row stands for as long as one is attached. The modal is
+extra, so nothing a guideline requires rides only inside it.
+
+- **Title over artist, centred against the thumbnail.** The song is what the row is about and the
+  artist qualifies it. The type is a step up from caption size, because these two lines _are_ the
+  row and have a thumbnail's height to fill — and `--media-thumb` is read off `--control-height-lg`
+  rather than picked, which keeps the thumbnail in the same family as the strip at the foot of the
+  other column.
 - **Artist and title are separate facts, not a split string.** `SongDetails` carries both; `name`
   stays the one-line `Artist — Title` a single readout wants. Splitting that back up would be
   parsing a separator this application chose, which works until an artist has an em dash in their
   name. Both catalogue sources have the two fields already, so Spotify reports them too — and the
-  tools panel's list therefore gates on the facts _it_ draws rather than on `songDetails` existing,
+  Song panel's list therefore gates on the facts _it_ draws rather than on `songDetails` existing,
   or a Spotify song opens an empty `<dl>` under a heading.
-- **Folded, the picture scales down to the left** and the row is three columns: the thumbnail, the
-  title over the artist centred against it, and the chevron over the mark at the far end. **No
-  transport** — the controls under the document are the ones in use while typing, and a second copy
-  beside a thumbnail is a row of buttons for a picture nobody is looking at. The title leads here
-  and the artist qualifies it, which is the opposite of the order they take on the picture, where
-  they are the two ends of one line. The type is a step up from the overlay's: there the text is a
-  caption on a picture, here the two lines _are_ the row and have a thumbnail's height to fill. The `<img>` is the _same element_ in both states, which is what makes the fold a
-  scale rather than a swap, and `--media-thumb` is read off `--control-height-lg` rather than
-  picked. This is the one animation in the band and a deliberate exception to its own rule that the
-  fold is instant: what moves is the picture the user just pressed, and it moves to where it is
-  going. It is gated on `prefers-reduced-motion: no-preference`, like every other transition here.
 - **The name and the mark are said once, and the band is where a catalogue source says them.** The
   strip draws neither — three words twice on one screen, in the row with least space for them.
 - **The hand-off is `drawsCoverBand(sourceKind)`, and it is one function because it is one
   decision.** The panel asks it whether to draw the band and the strip asks it whether to name the
   song itself; two conditions for that would put the title in both rows or in neither.
-- **It answers on the kind, and the band gates the picture rather than the other way round.** This
+- **The row draws on the name, and the picture only decides whether there is a thumbnail.** This
   is a correction, and the version it replaces looked reasonable: the band waited on the cover, on
-  the grounds that drawing at `sourceKind === 'apple'` would put a square of empty chrome on screen
-  for the round trip the catalogue read takes. What that missed is that a song is _named_ the
-  moment it attaches — so the name and the badge sat in the transport strip for the length of the
-  read and then jumped down here, which reads as a glitch rather than as a hand-off. **Before the
-  cover lands the band draws in the shape it would fold into**, with no thumbnail slot at all —
-  reserving an empty square would be a hole in the row for a picture that may never come — so the
-  picture arrives into a layout that was already standing and the stage grows in place. The fold
-  control waits for the picture too: a control that folds a stage which is not there is a press
-  that appears to do nothing.
+  the grounds that drawing at `sourceKind === 'apple'` would put empty chrome on screen for the
+  round trip the catalogue read takes. What that missed is that a song is _named_ the moment it
+  attaches — so the name and the badge sat in the transport strip for the length of the read and
+  then jumped down here, which reads as a glitch rather than as a hand-off. Worse, a catalogue
+  read that answers 404 or 403 reports no artwork _ever_, so a band gated on the picture left that
+  song anonymous — playing, with neither required mark drawn — for as long as it was attached. The
+  row stands the moment the source names the song, reserves no empty square for a picture that may
+  never come, and the thumbnail grows in at its head when the cover lands.
+- **Both copies of the cover are decorative (`alt=""`).** The track is named in the row beside the
+  thumbnail and in the dialog's own header, and the press carries its name on the button
+  (`View album art`) — an alt on either image would announce the same fact twice.
 - **One `MediaAttribution.svelte` for both marks and both surfaces.** The mark travels with the
   name, so it is rendered by the band for a catalogue source and by the strip for anything else;
   two copies of that markup would be two copies of every guideline rule above, and the copy that
@@ -3218,9 +3175,13 @@ one thing it now has to say about a kind is that a **video does not get one**, b
 own player is already drawing that still directly above it and two bands showing one frame is the
 same thing twice.
 
-**Saving it is in the tools panel, because it is not part of transcribing.** It is a thing a
-transcriber wants once, on the way out, next to `Export .txt` — not a control in the shortest row
-in the window, which has no pixel to spare and is operated constantly.
+**Saving it is never in the strip, because it is not part of transcribing.** It is a thing a
+transcriber wants once, on the way out — not a control in the shortest row in the window, which
+has no pixel to spare and is operated constantly. The two commands it comes to, `Copy image URL`
+and `Download album art`, are one component (`ArtworkActions.svelte`), drawn in the Song panel's
+metadata section and in the artwork dialog the cover band's thumbnail opens — the two places a
+reader is already looking at the picture — so the pair cannot drift between the surfaces that
+offer it.
 
 **It shares a section with the video's link, because they are one job.** `Song metadata` is
 everything the workbench happens to know about the attached song that is not the words, in the

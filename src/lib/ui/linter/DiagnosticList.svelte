@@ -31,9 +31,12 @@
 		/**
 		 * What an empty list means right now — an empty document, filters hiding
 		 * everything, every issue ignored, or a genuinely clean draft — so the
-		 * panel never just stops without saying which.
+		 * panel never just stops without saying which. `clean` marks the last of
+		 * those, which is the only one that is an achievement rather than a
+		 * circumstance: it draws centered in the pane under the check mark, where
+		 * the other three stay captions above the content that resolves them.
 		 */
-		emptyState: { title: string; detail: string };
+		emptyState: { title: string; detail: string; clean?: boolean };
 		/**
 		 * What the reader can do about the empty state, when there is anything.
 		 * Only the untouched-document case has an answer worth a control; the
@@ -149,7 +152,28 @@
 </script>
 
 {#if sortedDiagnostics.length === 0}
-	<div class="empty-state diagnostic-list__empty">
+	<div
+		class="empty-state diagnostic-list__empty"
+		class:diagnostic-list__empty--clean={emptyState.clean}
+	>
+		{#if emptyState.clean}
+			<!-- The check the severity glyphs already use, at reading size and in the
+			     success color. `aria-hidden` because the title beside it is the whole
+			     of what it says. -->
+			<svg
+				class="diagnostic-list__empty-mark"
+				aria-hidden="true"
+				viewBox="0 0 16 16"
+				fill="none"
+				stroke="currentColor"
+				stroke-width="1.6"
+				stroke-linecap="round"
+				stroke-linejoin="round"
+			>
+				<circle cx="8" cy="8" r="6" />
+				<path d="M5.4 8.2 7.2 10l3.4-3.6" />
+			</svg>
+		{/if}
 		<p class="diagnostic-list__empty-title">{emptyState.title}</p>
 		<p>{emptyState.detail}</p>
 		{@render emptyActions?.()}

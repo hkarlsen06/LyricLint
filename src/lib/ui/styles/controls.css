@@ -258,6 +258,21 @@ textarea:disabled {
 	}
 }
 
+/* Every button answers the pointer at the fast tier: the fill, the border and
+   the label color arrive rather than snap. Colors only — nothing here moves or
+   resizes, so no layout a test measures can drift under it. The diagnostic
+   action row already stated the same transition for its own buttons
+   (diagnostics.css); this is that decision applied to the tier system rather
+   than one surface. */
+@media (prefers-reduced-motion: no-preference) {
+	.button {
+		transition:
+			background-color var(--duration-fast) var(--ease-out-quart),
+			border-color var(--duration-fast) var(--ease-out-quart),
+			color var(--duration-fast) var(--ease-out-quart);
+	}
+}
+
 /*
  * A wait with no measurable end: the brand mark, closed, with its own waveform
  * running through it.

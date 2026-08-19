@@ -1404,10 +1404,14 @@ describe('EditorPane', () => {
 		const lastLineRect = markers[2]!.parentElement!.getBoundingClientRect();
 		const textHeight = Number.parseFloat(getComputedStyle(markers[0]!).fontSize);
 		const leadingInset = (firstLineRect.height - textHeight) / 2;
-		expect(firstMarkerRect.top - firstLineRect.top).toBeCloseTo(leadingInset);
-		expect(middleMarkerRect.top).toBeCloseTo(middleLineRect.top);
-		expect(middleMarkerRect.bottom).toBeCloseTo(middleLineRect.bottom);
-		expect(lastLineRect.bottom - lastMarkerRect.bottom).toBeCloseTo(leadingInset);
+		// Precision 1 (±0.05px), not the default ±0.005: the marker's inset is
+		// `calc((1lh - 1em) / 2)` snapped to the layout grid, and the reference here
+		// is a rect measured on a different element, so the two legitimately differ
+		// by a subpixel of rounding. A twentieth of a pixel still pins alignment.
+		expect(firstMarkerRect.top - firstLineRect.top).toBeCloseTo(leadingInset, 1);
+		expect(middleMarkerRect.top).toBeCloseTo(middleLineRect.top, 1);
+		expect(middleMarkerRect.bottom).toBeCloseTo(middleLineRect.bottom, 1);
+		expect(lastLineRect.bottom - lastMarkerRect.bottom).toBeCloseTo(leadingInset, 1);
 		expect(getComputedStyle(markers[0]!).borderTopLeftRadius).not.toContain('%');
 		expect(getComputedStyle(markers[2]!).borderBottomLeftRadius).not.toContain('%');
 

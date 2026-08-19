@@ -22,6 +22,43 @@
 		system-ui, sans-serif;
 	--font-mono:
 		'IBM Plex Mono Web', 'IBM Plex Mono', 'SFMono-Regular', Consolas, ui-monospace, monospace;
+	/* The lyric words' own face, split from the markup's. The words are prose
+	   somebody reads and types for an hour, and nothing in a lyric aligns
+	   column-wise across lines, so they take the reading face; the markup —
+	   brackets, tags — is source, keeps `--font-mono`, and is pinned there by the
+	   same decoration that dims it (markup-dim.ts). One token rather than
+	   spelling the stack per surface, because four surfaces have to agree on it:
+	   the editor, the mock pane the tests drive, the compare dialog's lyric
+	   panes, and the landing page's prerendered stand-in — whose wrap points
+	   only match the editor's while the two are set in the same face.
+
+	   `Programme` leads the stack because it is the face Genius sets lyrics in —
+	   a machine that has it renders the transcription in the type the song page
+	   will publish it in. It is Optimo's commercial face, so it cannot be
+	   *shipped* here: what ships is Karla (fonts.css says why that one), the
+	   nearest OFL face to it, and a licensed `@font-face` for Programme would
+	   light the real thing up for every visitor without touching another line. */
+	--font-lyrics: Programme, 'Programme Pan', 'Karla Variable', Karla, var(--font-ui);
+	/* Karla runs small in its em — x-height 0.478 against Plex's 0.516, measured
+	   from the shipped files — so at the same font-size it drew ~8% smaller
+	   glyphs and the lyric sat visibly short of its line. This normalizes every
+	   face the lyric stack can resolve to Plex's x-height ratio: Karla scales up
+	   to fill the line, every Plex face computes to exactly 1.0 (a no-op), and a
+	   locally-installed Programme is normalized to the same size instead of
+	   whatever its own em happens to hold. Applied by the same four surfaces
+	   that consume `--font-lyrics`; a browser without `font-size-adjust`
+	   (Safari < 17) renders Karla at its own size, which is the state this
+	   corrects rather than a break. */
+	--font-lyrics-size-adjust: 0.516;
+	/* What the document reads in, as against what a label is set in. In light it
+	   is the text color, full stop. In dark the two part ways: `--color-text` at
+	   97% is right for a toolbar word or a card title, but a document of it at
+	   the editor's size is near-white on near-black at ~15:1, which is the
+	   textbook halation setup — bulk glyphs that bright against a surface that
+	   dark bloom and shimmer over a long read, and the reader feels it before
+	   they can name it. 90% is where mature dark reading surfaces sit, and it is
+	   still ~9:1 against the editor surface, past AAA with room to spare. */
+	--color-text-reading: var(--color-text);
 	--font-size-2xs: 0.6875rem;
 	--font-size-xs: 0.75rem;
 	--font-size-sm: 0.8125rem;
@@ -44,13 +81,20 @@
 	--line-height-tight: 1.25;
 	--line-height-ui: 1.4;
 	--line-height-body: 1.5;
-	--line-height-editor: 1.65;
+	/* 1.65 belonged to the mono era: small dense mono wanted the extra leading.
+	   Prose at the editor's size reads at the body's own 1.5, and the looser
+	   value left the lyric sitting in a line box it visibly did not fill. */
+	--line-height-editor: 1.5;
 	/* The lyric text's own size, alongside its own line height and measure. It is
-	   `md` like the rest of the UI and exists as a token of its own because a
-	   coarse pointer raises it (responsive.css) and two surfaces have to move
-	   together when it does: the editor, and the landing page's prerendered
-	   stand-in, which is sized to be the shape the editor will be. */
-	--font-size-editor: var(--font-size-md);
+	   a step above the UI ramp's `md` on purpose: the document is the thing being
+	   read and written for an hour at a time, and 80% of the window's pixels are
+	   lyric lines, so it takes the reading size where the chrome around it stays
+	   at the workbench's own. It exists as a token of its own because a coarse
+	   pointer pins it at `lg` (responsive.css, the iOS 16px zoom rule — satisfied
+	   by default now, and the pin stays as the floor) and two surfaces have to
+	   move together when it changes: the editor, and the landing page's
+	   prerendered stand-in, which is sized to be the shape the editor will be. */
+	--font-size-editor: var(--font-size-lg);
 	--font-weight-regular: 400;
 	--font-weight-medium: 550;
 	--font-weight-semibold: 650;
@@ -215,23 +259,6 @@
 	   page — and it is a token rather than a literal in each `::backdrop` because
 	   two dialogs had already copied the same oklch by hand. */
 	--color-backdrop: oklch(12% 0.008 285 / 0.64);
-
-	/* Controls drawn over a picture — today the album cover in the panel's media
-	   band, where the surface underneath is somebody else's artwork rather than
-	   any of our own. Neither scheme's text color can be trusted against it, so
-	   these are one value for both, exactly like the backdrop above and for the
-	   same reason: the job is to read against whatever is there. The scrim is what
-	   makes that promise keepable on a pale cover.
-
-	   The ink is its own value because the cover band scrims both ends — the
-	   artist and title along the top, the transport and the mark along the
-	   bottom — and the two gradients differ only in direction. Two hand-copied
-	   `oklch()`s is the thing the backdrop token above already exists to prevent. */
-	--color-scrim-ink: oklch(12% 0.008 285 / 0.78);
-	--color-scrim: linear-gradient(to top, var(--color-scrim-ink), transparent);
-	--color-scrim-top: linear-gradient(to bottom, var(--color-scrim-ink), transparent);
-	--color-text-on-scrim: oklch(98% 0 0);
-	--color-control-hover-on-scrim: oklch(100% 0 0 / 0.18);
 
 	/* Toolbars and status bars are chrome, not an interaction state; the alias
 	   keeps that intent legible where the fill ramp is reused for a flat band.
@@ -453,6 +480,9 @@
 		 */
 		--color-chrome: oklch(17.5% 0.004 285);
 		--color-text: oklch(97% 0.002 285);
+		/* The document's own tone — the root token's note says why it steps down
+		   from `--color-text` only here. ~9.3:1 on `--color-surface`. */
+		--color-text-reading: oklch(90% 0.004 285);
 		--color-text-muted: oklch(72% 0.008 285);
 		--color-text-disabled: oklch(54% 0.008 285);
 		--color-border: oklch(26% 0.005 285);
@@ -482,10 +512,20 @@
 		--color-suggestion-soft: oklch(32% 0.065 255);
 		--color-manual: oklch(76% 0.01 285);
 		--color-manual-soft: oklch(32% 0.006 285);
+		/* Every outward shadow in dark also carries a 1px inset light along its top
+		   edge. A dark surface over a dark canvas separates by tone alone, and the
+		   tones here are close on purpose — so a raised surface read as a matte
+		   rectangle rather than a lit object. The highlight is the light the shadow
+		   implies, falling on the edge that faces it; it rides the shadow token
+		   rather than the surfaces so nothing can pick up one cue without the
+		   other. `--shadow-recessed` stays dark-only inward, because a well is lit
+		   at its floor, not its rim. */
 		--shadow-recessed: inset 0 1px 3px oklch(4% 0.005 285 / 0.5);
-		--shadow-raised: 0 1px 2px oklch(4% 0.005 285 / 0.35);
-		--shadow-popover: 0 2px 8px oklch(4% 0.005 285 / 0.4);
-		--shadow-overlay: 0 12px 32px oklch(4% 0.005 285 / 0.55), 0 2px 8px oklch(4% 0.005 285 / 0.45);
+		--shadow-raised: inset 0 1px 0 oklch(100% 0 0 / 0.05), 0 1px 2px oklch(4% 0.005 285 / 0.35);
+		--shadow-popover: inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 2px 8px oklch(4% 0.005 285 / 0.4);
+		--shadow-overlay:
+			inset 0 1px 0 oklch(100% 0 0 / 0.07), 0 12px 32px oklch(4% 0.005 285 / 0.55),
+			0 2px 8px oklch(4% 0.005 285 / 0.45);
 
 		/* Hues are the identity and are held fixed across both themes; only
 		   lightness and chroma move. */

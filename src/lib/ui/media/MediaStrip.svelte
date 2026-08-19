@@ -59,6 +59,14 @@
 	// to span a second.
 	const seekable = $derived(Number.isFinite(player.duration) && player.duration > 0);
 
+	// The elapsed share of the track, for the scrubber's own fill. WebKit has no
+	// progress pseudo-element, so the stylesheet draws the played half as a
+	// hard-stop gradient and this is the stop. It rides the same `currentTime`
+	// mirror the readout beside it prints, so the two cannot disagree.
+	const seekFill = $derived(
+		seekable ? `${(Math.min(player.currentTime, player.duration) / player.duration) * 100}%` : '0%'
+	);
+
 	/**
 	 * Keep the caret where the user put it.
 	 *
@@ -191,6 +199,7 @@
 				step="0.05"
 				value={seekable ? Math.min(player.currentTime, player.duration) : 0}
 				disabled={!seekable}
+				style="--seek-fill: {seekFill}"
 				aria-label="Seek"
 				aria-valuetext={seekable
 					? `${formatTime(player.currentTime)} of ${formatTime(player.duration)}`

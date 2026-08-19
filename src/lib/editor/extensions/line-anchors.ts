@@ -1227,16 +1227,18 @@ export const lineAnchorTheme = EditorView.baseTheme({
 		// The containing block for the `−` hanging off its start.
 		position: 'relative',
 		width: '100%',
-		// One row of the document, minus the padding above it, whatever the block
-		// behind it is: the editor's own type times its own line height, which is
-		// what CodeMirror measures a line at. Centring the time inside *that* is
-		// what lands it level with the line number — the number column is pushed
-		// down by `lineNumbers`' hidden width spacer, whose height is that column's
-		// own padding, and this centring absorbs the couple of pixels without
-		// either column having to know the other's arithmetic. Stated as a height
-		// rather than left to the content, or a wrapped row would centre the time
-		// in the whole block again.
-		height: 'calc(var(--font-size-editor) * var(--line-height-editor) - var(--space-0-5))',
+		// The cell's own line box plus one `--space-0-5` of slack at each end, so
+		// centring the time inside it lands the glyphs exactly one `--space-0-5`
+		// below the cell's top — which is where the line number's glyphs land too,
+		// pushed there by `lineNumbers`' hidden width spacer (a border-box element
+		// cannot be shorter than what it pads by). Stated in the cell's *own* `1lh`
+		// rather than the editor's type arithmetic, because the two columns are
+		// level by construction only while the offset is independent of the
+		// document's size — the old `font-size-editor × line-height` form was tuned
+		// to one rung and drifted the moment the editor's type moved. Stated as a
+		// height at all, rather than left to the content, or a wrapped row would
+		// centre the time in the whole block again.
+		height: 'calc(1lh + var(--space-0-5) + var(--space-0-5))',
 		gap: 'var(--space-1)',
 		alignItems: 'center',
 		justifyContent: 'space-between'

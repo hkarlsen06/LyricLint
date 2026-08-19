@@ -121,7 +121,7 @@
 	onclick={open}
 >
 	<Globe aria-hidden="true" size={15} strokeWidth={2.1} />
-	<span aria-hidden="true">{controller.language.toUpperCase()}</span>
+	<span aria-hidden="true">{controller.language}</span>
 </button>
 
 <dialog

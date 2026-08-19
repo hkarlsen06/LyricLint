@@ -190,8 +190,7 @@
 		{#if controller.media && drawsCoverBand(controller.media.player.sourceKind)}
 			<MediaArtwork
 				media={controller.media}
-				open={controller.artworkOpen}
-				onToggle={(open) => controller.setArtworkOpen(open)}
+				announce={(message) => controller.feedback.announce(message)}
 			/>
 		{/if}
 

@@ -117,54 +117,31 @@
 	flex: none;
 	gap: var(--space-3);
 	align-items: center;
+	padding: var(--space-3);
 	border-top: var(--border-width) solid var(--color-border);
 	background: var(--color-chrome);
 }
 
 /*
- * Expanded, the picture is not in anything: full width of the panel, edge to
- * edge, with the scrims riding directly on the artwork. The inset and the
- * rounding belong to the folded state, where it really is a thumbnail sitting in
- * a row — and they move on the same transition as the width, so the fold reads
- * as one movement rather than a scale plus a jump.
+ * The thumbnail is the way to the full-size picture, so it is a button rather
+ * than a box — no border and no fill of its own, because the press target *is*
+ * the picture, and a frame around it would be a card inside the row.
  */
-.media-artwork--folded {
-	padding: var(--space-3);
-}
-
-/*
- * The picture and everything over it are one stack, and the stack is what clips:
- * rounding the corners here rather than on the image is what keeps the scrims
- * from squaring them off again at either end.
- *
- * The width is the fold. It is the same element in both states — only the
- * `<img>`'s box changes — so the picture scales down to the left rather than
- * being swapped for a smaller one, which is the one animation in this band and
- * the one exception to the rule that its fold is instant: what moves is the
- * thing the user just pressed, and it moves to where it is going.
- */
-.media-artwork__stage {
-	position: relative;
-	flex: none;
-	width: 100%;
-	overflow: hidden;
-}
-
-.media-artwork--folded .media-artwork__stage {
+.media-artwork__thumb {
+	display: block;
 	width: var(--media-thumb);
+	flex: none;
+	overflow: hidden;
+	padding: 0;
+	border: 0;
 	border-radius: var(--radius-sm);
+	background: none;
+	cursor: pointer;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-	.media-artwork {
-		transition: padding var(--duration-medium) var(--ease-out-quart);
-	}
-
-	.media-artwork__stage {
-		transition:
-			width var(--duration-medium) var(--ease-out-quart),
-			border-radius var(--duration-medium) var(--ease-out-quart);
-	}
+.media-artwork__thumb:focus-visible {
+	outline: var(--focus-ring-width) solid var(--color-focus);
+	outline-offset: var(--focus-ring-offset);
 }
 
 .media-artwork__cover {
@@ -177,44 +154,8 @@
 	background: var(--color-canvas);
 }
 
-/*
- * The two ends of the picture, and each is a row rather than a pair of corners:
- * absolutely-placed corners collide the moment an artist and a title are both
- * long, and a flex row with the ellipsis on both halves cannot.
- *
- * The scrim is not decoration and not a state. What the text reads against is
- * somebody else's album art, half the covers in the world are pale, and white
- * alone vanishes on a third of them. Each band is a gradient rather than a flat
- * fill so the picture is given up gradually — a hard edge across a cover reads
- * as a second box drawn over it — and the middle, which is the part worth
- * looking at, stays clear of both.
- */
-.media-artwork__top,
-.media-artwork__bottom {
-	position: absolute;
-	inset-inline: 0;
-	display: flex;
-	gap: var(--space-2);
-	align-items: center;
-	color: var(--color-text-on-scrim);
-}
-
-.media-artwork__top {
-	top: 0;
-	padding: var(--space-2) var(--space-3) var(--space-6);
-	background: var(--color-scrim-top);
-	font-size: var(--font-size-xs);
-}
-
-.media-artwork__bottom {
-	bottom: 0;
-	padding: var(--space-6) var(--space-3) var(--space-2);
-	background: var(--color-scrim);
-	justify-content: space-between;
-}
-
-/* The artist takes the row's slack and gives it back at the ellipsis, so a long
-   title never pushes the fold off the end of its own row. */
+/* Both halves ellipsize, so a long title never pushes the mark off the end of
+   its own row. */
 .media-artwork__artist,
 .media-artwork__title {
 	min-width: 0;
@@ -223,25 +164,11 @@
 	white-space: nowrap;
 }
 
-.media-artwork__top .media-artwork__artist {
-	flex: 1 1 auto;
-}
-
-.media-artwork__top .media-artwork__title {
-	flex: 0 1 auto;
-	text-align: end;
-}
-
 /*
- * Folded: title over artist, centred against the thumbnail, and no transport at
- * all — the controls under the document are the ones in use while typing, and a
- * second copy beside a thumbnail is a row of buttons for a picture nobody is
- * looking at.
- *
- * A step up in type from the overlay's. There the text is a caption on a
- * picture and the picture is the thing; here the two lines *are* the row, with
- * a whole thumbnail's height to fill, and `--font-size-xs` left them stranded
- * against it.
+ * Title over artist, centred against the thumbnail — the song is what the row
+ * is about and the artist qualifies it. These two lines *are* the row, with a
+ * whole thumbnail's height to fill, which is why they sit a step up from
+ * caption type.
  */
 .media-artwork__meta {
 	display: flex;
@@ -264,7 +191,8 @@
 	max-width: 100%;
 }
 
-/* The way back over the mark, in one column at the far end. */
+/* The mark alone at the far end: the one thing in the row that has to be seen
+   rather than pressed. */
 .media-artwork__aside {
 	display: flex;
 	flex: none;
@@ -274,74 +202,59 @@
 	justify-content: center;
 }
 
-.media-artwork__toggle {
-	flex: none;
-}
-
-.media-artwork__top .media-artwork__toggle {
-	color: var(--color-text-on-scrim);
-}
-
-.media-artwork__top .media-artwork__toggle:hover {
-	background: var(--color-control-hover-on-scrim);
-}
-
 /*
- * Open points down, at the picture it opened; closed points up, at the bar the
- * picture folded into. The chevron names where the content is rather than which
- * way the control travels, which is the reading that survives the band being at
- * the *foot* of a column — up is where everything else in this panel lives.
+ * The full-size picture, behind a press on the thumbnail. Looking at artwork is
+ * a detour from transcribing, which is what a modal is for — and the dialog is
+ * where the two artwork commands ride, under the picture they act on.
+ *
+ * The width caps against the viewport's *height* as well as its width, because
+ * the surface is a square picture plus two rows of chrome: on a short window a
+ * width-only cap would push the actions below the fold of the dialog itself.
  */
-.media-artwork__chevron {
-	transform: rotate(180deg);
+.artwork-dialog {
+	width: min(28rem, calc(100vw - var(--space-6)), calc(100dvh - 11rem));
+	max-width: none;
+	padding: 0;
+	border: var(--border-width) solid var(--color-border-strong);
+	border-radius: var(--radius-overlay);
+	background: var(--color-overlay);
+	color: var(--color-text);
+	box-shadow: var(--shadow-overlay);
 }
 
-.media-artwork__toggle[aria-expanded='true'] .media-artwork__chevron {
-	transform: none;
+.artwork-dialog::backdrop {
+	background: var(--color-backdrop);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-	.media-artwork__chevron {
-		transition: transform var(--duration-fast) var(--ease-out-quart);
-	}
-}
-
-.media-artwork__controls {
+.artwork-dialog__header {
 	display: flex;
-	gap: var(--space-2);
+	min-height: 3.25rem;
+	padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+	border-bottom: var(--border-width) solid var(--color-border);
+	gap: var(--space-3);
 	align-items: center;
+	justify-content: space-between;
 }
 
-/*
- * The colors here do not follow the scheme, and the reason is the same one the
- * modal backdrop has: what they read against is not our surface. Here it is
- * somebody else's album art.
- */
-.media-artwork__controls .media-strip__transport-button {
-	padding: var(--space-1-5);
-	border-radius: var(--radius-sm);
-	color: var(--color-text-on-scrim);
+.artwork-dialog__header strong {
+	overflow: hidden;
+	font-size: var(--font-size-lg);
+	font-weight: var(--font-weight-bold);
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.media-artwork__controls .media-strip__transport-button:hover:not(:disabled) {
-	background: var(--color-control-hover-on-scrim);
+.artwork-dialog__cover {
+	display: block;
+	width: 100%;
+	aspect-ratio: 1;
+	object-fit: cover;
+	background: var(--color-canvas);
 }
 
-/* Player-sized, not chrome-sized. The glyphs carry `width`/`height` attributes
-   for the strip, so this is the override that makes them big here. */
-.media-artwork__controls .media-strip__transport-button > svg,
-.media-artwork__controls .loading-mark {
-	width: 20px;
-	height: 20px;
-	font-size: 20px;
-}
-
-/* Play leads, the way it does in every transport anyone has used. */
-.media-artwork__controls .media-strip__transport-button:nth-child(2) > svg,
-.media-artwork__controls .media-strip__transport-button:nth-child(2) .loading-mark {
-	width: 28px;
-	height: 28px;
-	font-size: 28px;
+.artwork-dialog__actions {
+	display: flex;
+	padding: var(--space-3) var(--space-4) var(--space-4);
 }
 
 .media-strip__transport,
@@ -531,15 +444,25 @@
  * It has to opt out of the shared `input` silhouette in controls.css — a range
  * with a border, a fill and a 2rem min-height draws a box around a track — so
  * every one of those is reset here rather than weakened there.
+ *
+ * It is drawn rather than left to `accent-color`, because the browser's stock
+ * range is the one dated control in the most-operated row of the window: a
+ * thick track, no elapsed side, and a thumb sized for a settings page. The
+ * drawn one is the transport idiom every player has taught — a thin track, the
+ * played half filled in accent, a round thumb that grows under the pointer —
+ * and the fill's stop is `--seek-fill`, fed by the component from the same
+ * `currentTime` mirror the readouts print. The input's own box stays a full
+ * control height, so the thin track costs nothing in aimability.
  */
 .media-strip__seek {
 	min-width: 6rem;
 	min-height: 0;
+	height: var(--control-height-sm);
 	flex: 1 1 auto;
 	padding: 0;
 	border: none;
 	background: transparent;
-	accent-color: var(--color-accent);
+	appearance: none;
 	cursor: pointer;
 }
 
@@ -547,12 +470,96 @@
 	border: none;
 }
 
+/* WebKit has no progress pseudo-element, so the played half is a hard-stop
+   gradient. Firefox gets the honest pseudo below. */
+.media-strip__seek::-webkit-slider-runnable-track {
+	height: var(--space-1);
+	border-radius: var(--radius-pill);
+	background: linear-gradient(
+		to right,
+		var(--color-accent) var(--seek-fill, 0%),
+		var(--color-fill-strong) var(--seek-fill, 0%)
+	);
+}
+
+/* The thumb centers on the thin track by its own arithmetic: WebKit positions
+   it against the track's top edge, so half the height difference pulls it up. */
+.media-strip__seek::-webkit-slider-thumb {
+	width: var(--space-3);
+	height: var(--space-3);
+	margin-top: calc((var(--space-1) - var(--space-3)) / 2);
+	border: none;
+	border-radius: var(--radius-round);
+	background: var(--color-accent);
+	appearance: none;
+}
+
+.media-strip__seek::-moz-range-track {
+	height: var(--space-1);
+	border-radius: var(--radius-pill);
+	background: var(--color-fill-strong);
+}
+
+.media-strip__seek::-moz-range-progress {
+	height: var(--space-1);
+	border-radius: var(--radius-pill);
+	background: var(--color-accent);
+}
+
+.media-strip__seek::-moz-range-thumb {
+	width: var(--space-3);
+	height: var(--space-3);
+	border: none;
+	border-radius: var(--radius-round);
+	background: var(--color-accent);
+}
+
+/* The grown thumb is the scrubber answering the pointer that is about to drag
+   it — hover, the drag itself, and keyboard focus all mean the same aim. The
+   growth is a transform, so nothing in the row reflows under the pointer. */
+.media-strip__seek:hover:not(:disabled)::-webkit-slider-thumb,
+.media-strip__seek:active:not(:disabled)::-webkit-slider-thumb,
+.media-strip__seek:focus-visible::-webkit-slider-thumb {
+	transform: scale(1.3);
+}
+
+.media-strip__seek:hover:not(:disabled)::-moz-range-thumb,
+.media-strip__seek:active:not(:disabled)::-moz-range-thumb,
+.media-strip__seek:focus-visible::-moz-range-thumb {
+	transform: scale(1.3);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.media-strip__seek::-webkit-slider-thumb {
+		transition: transform var(--duration-fast) var(--ease-out-quart);
+	}
+
+	.media-strip__seek::-moz-range-thumb {
+		transition: transform var(--duration-fast) var(--ease-out-quart);
+	}
+}
+
 /* Disabled is a real color and a real cursor, never opacity: the track has to
    stay legible while the browser is still reading the file's duration. */
 .media-strip__seek:disabled {
 	background: transparent;
-	accent-color: var(--color-control-disabled);
 	cursor: default;
+}
+
+.media-strip__seek:disabled::-webkit-slider-runnable-track {
+	background: var(--color-fill);
+}
+
+.media-strip__seek:disabled::-webkit-slider-thumb {
+	background: var(--color-control-disabled);
+}
+
+.media-strip__seek:disabled::-moz-range-track {
+	background: var(--color-fill);
+}
+
+.media-strip__seek:disabled::-moz-range-thumb {
+	background: var(--color-control-disabled);
 }
 
 /* No indicator glyph: the number is the control, and a chevron beside four

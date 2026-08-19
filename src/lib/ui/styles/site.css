@@ -58,6 +58,7 @@
 	--color-fill-strong: oklch(32% 0.007 285);
 	--color-chrome: oklch(17.5% 0.004 285);
 	--color-text: oklch(97% 0.002 285);
+	--color-text-reading: oklch(90% 0.004 285);
 	--color-text-muted: oklch(72% 0.008 285);
 	--color-text-disabled: oklch(54% 0.008 285);
 	--color-border: oklch(26% 0.005 285);
@@ -118,9 +119,11 @@
 	--color-manual: oklch(76% 0.01 285);
 	--color-manual-soft: oklch(32% 0.006 285);
 	--shadow-recessed: inset 0 1px 3px oklch(4% 0.005 285 / 0.5);
-	--shadow-raised: 0 1px 2px oklch(4% 0.005 285 / 0.35);
-	--shadow-popover: 0 2px 8px oklch(4% 0.005 285 / 0.4);
-	--shadow-overlay: 0 12px 32px oklch(4% 0.005 285 / 0.55), 0 2px 8px oklch(4% 0.005 285 / 0.45);
+	--shadow-raised: inset 0 1px 0 oklch(100% 0 0 / 0.05), 0 1px 2px oklch(4% 0.005 285 / 0.35);
+	--shadow-popover: inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 2px 8px oklch(4% 0.005 285 / 0.4);
+	--shadow-overlay:
+		inset 0 1px 0 oklch(100% 0 0 / 0.07), 0 12px 32px oklch(4% 0.005 285 / 0.55),
+		0 2px 8px oklch(4% 0.005 285 / 0.45);
 	--performer-olive: oklch(73% 0.14 155);
 	--performer-indigo: oklch(72% 0.14 295);
 	--performer-teal: oklch(72% 0.09 200);
@@ -813,8 +816,16 @@
 .site-demo__fallback {
 	padding: var(--space-5) 19px var(--space-5) 61px;
 	margin: 0;
-	font-family: var(--font-mono);
+	/* The editor's own base face, or the wraps stop matching: the stand-in is a
+	   plain <pre> and cannot split markup from words, so it takes the words'
+	   face whole — which is also what the editor sets every line that wraps in
+	   (headers, the only mono-bracketed lines, are one line always). */
+	color: var(--color-text-reading);
+	font-family: var(--font-lyrics);
 	font-size: var(--font-size-editor);
+	/* The same normalization the editor applies, or the two faces render at
+	   different effective sizes and the wraps stop matching. */
+	font-size-adjust: var(--font-lyrics-size-adjust);
 	line-height: var(--line-height-editor);
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;

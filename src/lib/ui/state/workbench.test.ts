@@ -107,8 +107,6 @@ function setup(options: {
 	 */
 	headless?: boolean;
 	mediaRepository?: MediaRepository;
-	/** The stacked, touch-driven layout, which folds the cover band by default. */
-	phoneLayout?: boolean;
 	exportText?: (text: string, filename: string) => void;
 }) {
 	const initial = options.initial ?? draft('draft-a');
@@ -177,7 +175,6 @@ function setup(options: {
 		copy: options.copy ?? (() => Promise.resolve()),
 		onOpenDraft,
 		exportText: options.exportText,
-		phoneLayout: () => options.phoneLayout === true,
 		...(options.mediaRepository
 			? {
 					mediaRepository: options.mediaRepository,
@@ -614,57 +611,6 @@ describe('workbench draft safety', () => {
 		await controller.media?.attachAppleMusicSong('1091453645', 'music.apple.com/song/1091453645');
 
 		expect(controller.title).toBe('Untitled transcription');
-	});
-
-	/**
-	 * The fold outlives the band that draws it.
-	 *
-	 * It is destroyed whenever the attached source changes, so a flag held in the
-	 * component would forget on every swapped song — and a reload would start over.
-	 * It goes in the same `appMetadata` table as the current draft, which is what
-	 * puts it inside the workspace backup and inside `Delete all local data`.
-	 */
-	/**
-	 * The phone gets the compact row instead, and only until the user says
-	 * otherwise.
-	 *
-	 * There the panel is stacked *under* the editor rather than beside it, so an
-	 * open cover is a square of picture sitting between the document and the
-	 * findings — the two things a transcriber moves between — on the screen with
-	 * the least room to give it.
-	 */
-	test('folds the cover by default on a phone, and opens it everywhere else', () => {
-		expect(setup({ phoneLayout: true }).controller.artworkOpen).toBe(false);
-		expect(setup({}).controller.artworkOpen).toBe(true);
-	});
-
-	// A default decides what to do before the user has said anything, never
-	// instead of what they said.
-	test('lets a stored preference outrank the phone default', async () => {
-		const first = draft('draft-a');
-		const repository = createInMemoryDraftRepository([first]);
-		await repository.setPreference('artworkOpen', 'true');
-
-		const { controller } = setup({ initial: first, repository, phoneLayout: true });
-
-		await vi.waitFor(() => expect(controller.artworkOpen).toBe(true));
-	});
-
-	test('remembers whether the cover was folded, across a reload', async () => {
-		const first = draft('draft-a');
-		const repository = createInMemoryDraftRepository([first]);
-		const { controller } = setup({ initial: first, repository });
-
-		expect(controller.artworkOpen).toBe(true);
-		controller.setArtworkOpen(false);
-		expect(controller.artworkOpen).toBe(false);
-		await vi.waitFor(async () =>
-			expect(await repository.getPreference('artworkOpen')).toBe('false')
-		);
-
-		// A reload is a fresh controller over the same storage.
-		const next = setup({ initial: first, repository });
-		await vi.waitFor(() => expect(next.controller.artworkOpen).toBe(false));
 	});
 
 	// record. Without this the media row was written against a transient id, the
