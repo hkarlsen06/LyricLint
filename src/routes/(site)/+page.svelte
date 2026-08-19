@@ -109,8 +109,10 @@
 	const guidanceCount = $derived(data.guidanceCount);
 	const guidanceTopicCount = $derived(data.guidanceTopicCount);
 	const pageTitle = 'Free lyric formatter for Genius transcriptions · LyricLint';
+	// Kept under 160 characters: Google truncates around there, and a description
+	// cut mid-sentence reads worse than a shorter one that ends on its own.
 	const pageDescription = $derived(
-		`A free lyric formatter and checker for Genius transcriptions: ${ruleCount} reviewed formatting rules plus local grammar and spelling checks for section headers, performer markup, punctuation, and more. Runs in your browser.`
+		`A free lyric formatter and checker for Genius transcriptions — ${ruleCount} reviewed rules plus local grammar and spelling checks, all in your browser.`
 	);
 	const socialDescription =
 		'Paste a transcription, see every formatting problem with the Genius source that backs it, and copy clean markup. Your lyrics stay in your browser.';

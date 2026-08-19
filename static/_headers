@@ -16,6 +16,13 @@
   # the moment they drifted. Directives absent from a policy are unrestricted
   # by it, so this one restricts framing and defers everything else to the tag.
   Content-Security-Policy: frame-ancestors 'none'
+  # HSTS is a header-only fact — a meta policy cannot state it — and it only
+  # does anything on an HTTPS response, which on Cloudflare Pages is every
+  # response. A year, and subdomains included, since every subdomain of this
+  # zone is Cloudflare-terminated TLS too. No `preload` on purpose: the preload
+  # list is close to irrevocable, which is a commitment a header should not
+  # make silently.
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 /_app/immutable/*
   Cache-Control: public, max-age=31536000, immutable

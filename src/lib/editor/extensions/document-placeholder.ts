@@ -138,9 +138,14 @@ export const documentPlaceholderTheme = EditorView.baseTheme({
 	'.cm-line:has(.ll-placeholder)': {
 		position: 'relative'
 	},
+	// Muted, not disabled: the ghost carries an instruction a first-time user has
+	// to be able to read, and `--color-text-disabled` on `--color-surface` sits
+	// under the 4.5:1 AA floor in both schemes (4.38:1 light, 3.61:1 dark) —
+	// disabled is the tone for text nothing asks anyone to read. Muted clears it
+	// at ~7.3:1 in both and is still plainly not the document's own ink.
 	'.ll-placeholder': {
 		position: 'absolute',
-		color: 'var(--color-text-disabled)'
+		color: 'var(--color-text-muted)'
 	},
 	'.ll-placeholder-line': {
 		display: 'block',

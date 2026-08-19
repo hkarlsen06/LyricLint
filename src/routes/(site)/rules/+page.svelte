@@ -55,8 +55,10 @@
 	const references = $derived(data.groups.flatMap((group) => group.rules));
 	const ruleCount = $derived(references.length);
 	const pageTitle = 'The rules the linter checks · LyricLint';
+	// Kept under 160 characters: Google truncates around there, and a description
+	// cut mid-sentence reads worse than a shorter one that ends on its own.
 	const pageDescription = $derived(
-		`The ${ruleCount} sourced checks LyricLint's workbench runs against a transcription — section headers, performer legends, spelling, punctuation, ad-libs and unknown lyrics — each under the convention it enforces.`
+		`The ${ruleCount} sourced checks LyricLint runs against a Genius transcription — headers, performer markup, spelling, punctuation — under the conventions they enforce.`
 	);
 	const canonicalUrl = siteUrl('/rules/');
 	const structuredData = $derived({

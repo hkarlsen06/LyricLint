@@ -234,8 +234,14 @@
 		     last line, not chrome. It opens a tab for the guidance rows' reason:
 		     the contact page is a lookup beside the reading, not the next thing to
 		     read, and taken in place it costs the reader the place they had. The
-		     sr-only note is what the aria-hidden mark cannot say. -->
-		<p class="site-split__suggest">
+		     sr-only note is what the aria-hidden mark cannot say.
+
+		     A <footer> rather than a <p>, because inside a plain div it maps to
+		     the contentinfo landmark — the window shell has no footer of its own,
+		     so this line was the one piece of the page outside every landmark,
+		     which is the thing a screen reader's landmark navigation then cannot
+		     reach. It is also what the line is: the column's colophon. -->
+		<footer class="site-split__suggest">
 			Spotted a mistake, or a convention we're missing?
 			<a href="https://hkarlsen06.dev/en/contact/" target="_blank" rel="noopener noreferrer"
 				>Send a suggestion<ExternalLink
@@ -245,7 +251,7 @@
 					strokeWidth={2.2}
 				/></a
 			><span class="sr-only">(opens in a new tab)</span>
-		</p>
+		</footer>
 	</div>
 
 	{@render list()}

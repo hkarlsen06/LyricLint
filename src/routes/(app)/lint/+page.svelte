@@ -252,6 +252,14 @@
 
 <svelte:head>
 	<meta name="robots" content="noindex, follow" />
+	<!-- Noindexed, so no search snippet reads this — but link previews and
+	     auditors do, and without it the workbench is the one page saying nothing
+	     about itself. The title stays DocumentTitle's: the tab is named after the
+	     transcription, and that is the design rather than a gap. -->
+	<meta
+		name="description"
+		content="Paste a Genius transcription, review every finding against the guideline that backs it, and copy clean markup. Everything stays in your browser."
+	/>
 </svelte:head>
 
 <!-- The workspace is mounted as soon as it exists and the boot screen covers it
