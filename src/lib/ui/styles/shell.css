@@ -938,14 +938,14 @@
 .draft-switcher:hover,
 .draft-switcher:focus-within,
 .draft-switcher:has(.draft-menu[open]) {
-	border-color: var(--color-border-input);
 	background: var(--color-surface);
+	box-shadow: var(--shadow-control);
 }
 
 /* Hugs its own text so the save status sits right beside the title instead of
    being pushed out by a fixed-width field. `size` covers browsers without
-   `field-sizing`. It sits one step below the wordmark's weight so the brand and
-   the document name stay distinguishable side by side. The field draws no box
+   `field-sizing`. It sits below the wordmark's weight so the brand and the
+   document name stay distinguishable side by side. The field draws no box
    of its own at any point — a border inside the group's border is two rectangles
    for one control. */
 .draft-title {
@@ -954,9 +954,10 @@
 	max-width: min(18rem, 30vw);
 	border-color: transparent;
 	background: transparent;
+	box-shadow: none;
 	field-sizing: content;
 	font-size: var(--font-size-md);
-	font-weight: var(--font-weight-semibold);
+	font-weight: var(--font-weight-medium);
 }
 
 /* The disclosure is the field's own end, not a button parked beside it: no box,

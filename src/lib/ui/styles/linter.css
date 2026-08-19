@@ -412,7 +412,7 @@
 }
 
 .diagnostic-list__title {
-	font-weight: var(--font-weight-bold);
+	font-weight: var(--font-weight-semibold);
 }
 
 /* The expanded card's body — explanation and actions — is shared with the
@@ -447,7 +447,7 @@
 	background: transparent;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-sm);
-	font-weight: var(--font-weight-semibold);
+	font-weight: var(--font-weight-medium);
 }
 
 .ignored-rules__toggle:hover {
@@ -456,7 +456,7 @@
 
 .ignored-rules__restore-hint {
 	color: var(--color-accent);
-	font-weight: var(--font-weight-bold);
+	font-weight: var(--font-weight-semibold);
 }
 
 /* The row's height is fixed, so the expanded list carries its own bottom space

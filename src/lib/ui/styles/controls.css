@@ -18,12 +18,17 @@
  * categorical chips and badges only.
  */
 
+/* The default tier is borderless: `--shadow-control` carries the edge — an
+   ambient ring plus a contact shadow — so the control reads as a low object on
+   the surface rather than a ruled rectangle. The border box is kept at its old
+   width, transparent, so nothing a test measures moves. */
 .button,
 .icon-button {
 	min-height: var(--control-height-md);
-	border: var(--border-width) solid var(--color-control-border);
+	border: var(--border-width) solid transparent;
 	border-radius: var(--radius-control);
 	background: var(--color-control);
+	box-shadow: var(--shadow-control);
 	color: var(--color-text);
 }
 
@@ -33,7 +38,10 @@
 	gap: var(--control-gap);
 	align-items: center;
 	justify-content: center;
-	font-weight: var(--font-weight-semibold);
+	/* Medium, not semibold: a row of controls whose every label is near-bold
+	   reads as a row of demands. The tier system carries emphasis; the type
+	   does not have to repeat it. */
+	font-weight: var(--font-weight-medium);
 	line-height: var(--line-height-ui);
 }
 
@@ -47,7 +55,6 @@
 
 .button:hover:not(:disabled),
 .icon-button:hover:not(:disabled) {
-	border-color: var(--color-border-strong);
 	background: var(--color-control-hover);
 }
 
@@ -56,31 +63,36 @@
 	background: var(--color-control-active);
 }
 
-/* Disabled is muted ink and a muted surface, never opacity — the contrast tier
-   keeps its own treatment below, and the quiet tier keeps its transparency and
-   takes only the color. */
+/* Disabled is muted ink, a muted surface, and no lift — never opacity. The
+   shadow coming off is the non-color half of the cue: a control that has lost
+   its edge has stopped being an object to press. */
 .button:disabled,
 .icon-button:disabled {
-	border-color: var(--color-border-disabled);
 	background: var(--color-control-disabled);
+	box-shadow: none;
 	color: var(--color-text-disabled);
 }
 
-/* Borderless, so "quiet" is actually a step down. With a border it was
-   indistinguishable from the default tier anywhere the control sat on the
-   panel canvas — a ~1.03:1 fill difference — which collapsed five named
-   emphasis levels into three by accident rather than by design. */
+/* Flat and unfilled, so "quiet" is still a step down from the default tier now
+   that both are borderless: the default tier keeps its fill and its shadow, the
+   quiet tier has neither until the pointer arrives. `border-color` is stated
+   here and not only on the base tier, because several controls wear this
+   modifier without `.button` — the editor action tray, the status bar's media
+   control — and a bare <button> otherwise keeps the browser's own outset
+   border, which is a beveled box from another decade. */
 .button--quiet {
 	border-color: transparent;
 	background: transparent;
+	box-shadow: none;
 }
 
 .button--quiet:hover:not(:disabled) {
-	border-color: transparent;
 	background: var(--color-control-hover);
 }
 
 .button--quiet:disabled {
+	/* Restated: base.css's `button:disabled` sets a visible border color and
+	   outranks the resting rule above on specificity. */
 	border-color: transparent;
 	background: transparent;
 }
@@ -125,12 +137,16 @@
 	margin-inline: calc(-1 * var(--control-padding-inline));
 }
 
+/* Form fields follow the button tier: the ring in `--shadow-control` is the
+   resting boundary, and the focus ring is the strong one — a field is where
+   the focus outline is guaranteed to arrive the moment it matters. */
 input,
 select,
 textarea {
-	border: var(--border-width) solid var(--color-control-border);
+	border: var(--border-width) solid transparent;
 	border-radius: var(--radius-control);
 	background: var(--color-control);
+	box-shadow: var(--shadow-control);
 	color: var(--color-text);
 }
 
@@ -143,14 +159,14 @@ select {
 input:hover:not(:disabled),
 select:hover:not(:disabled),
 textarea:hover:not(:disabled) {
-	border-color: var(--color-border-strong);
+	background: var(--color-control-hover);
 }
 
 input:disabled,
 select:disabled,
 textarea:disabled {
-	border-color: var(--color-border-disabled);
 	background: var(--color-control-disabled);
+	box-shadow: none;
 	color: var(--color-text-disabled);
 	cursor: not-allowed;
 }
@@ -178,7 +194,7 @@ textarea:disabled {
 	background: transparent;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-semibold);
+	font-weight: var(--font-weight-medium);
 	cursor: pointer;
 	transition:
 		background-color var(--duration-fast) var(--ease-out-quart),

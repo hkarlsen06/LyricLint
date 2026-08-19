@@ -669,9 +669,9 @@ a.assistant-rule__source:hover {
 	display: flex;
 	align-items: flex-end;
 	padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
-	border: var(--border-width) solid var(--color-border-input);
 	border-radius: var(--radius-control);
 	background: var(--color-surface);
+	box-shadow: var(--shadow-control);
 }
 
 .assistant-composer textarea {
@@ -683,6 +683,7 @@ a.assistant-rule__source:hover {
 	border: 0;
 	outline: 0;
 	background: transparent;
+	box-shadow: none;
 	color: var(--color-text);
 	font: inherit;
 	resize: none;

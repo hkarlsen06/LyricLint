@@ -119,6 +119,7 @@
 	--color-manual: oklch(76% 0.01 285);
 	--color-manual-soft: oklch(32% 0.006 285);
 	--shadow-recessed: inset 0 1px 3px oklch(4% 0.005 285 / 0.5);
+	--shadow-control: 0 0 0 1px oklch(100% 0 0 / 0.07);
 	--shadow-raised: inset 0 1px 0 oklch(100% 0 0 / 0.05), 0 1px 2px oklch(4% 0.005 285 / 0.35);
 	--shadow-popover: inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 2px 8px oklch(4% 0.005 285 / 0.4);
 	--shadow-overlay:
@@ -132,14 +133,14 @@
 	--performer-plum: oklch(72% 0.13 330);
 	--performer-copper: oklch(72% 0.11 50);
 	--performer-slate: oklch(72% 0.04 255);
-	--performer-olive-tint: oklch(34% 0.06 155);
-	--performer-indigo-tint: oklch(34% 0.06 295);
-	--performer-teal-tint: oklch(34% 0.055 200);
-	--performer-ochre-tint: oklch(34% 0.055 78);
-	--performer-rose-tint: oklch(34% 0.06 20);
-	--performer-plum-tint: oklch(34% 0.06 330);
-	--performer-copper-tint: oklch(34% 0.06 50);
-	--performer-slate-tint: oklch(34% 0.035 255);
+	--performer-olive-tint: oklch(30% 0.05 155);
+	--performer-indigo-tint: oklch(30% 0.05 295);
+	--performer-teal-tint: oklch(30% 0.048 200);
+	--performer-ochre-tint: oklch(30% 0.048 78);
+	--performer-rose-tint: oklch(30% 0.05 20);
+	--performer-plum-tint: oklch(30% 0.05 330);
+	--performer-copper-tint: oklch(30% 0.05 50);
+	--performer-slate-tint: oklch(30% 0.03 255);
 
 	position: relative;
 	display: grid;

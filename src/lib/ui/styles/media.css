@@ -60,7 +60,6 @@
 	display: flex;
 	flex: none;
 	padding: var(--space-2) var(--space-3);
-	border-top: var(--border-width) solid var(--color-border);
 	background: var(--color-chrome);
 }
 
@@ -118,7 +117,6 @@
 	gap: var(--space-3);
 	align-items: center;
 	padding: var(--space-3);
-	border-top: var(--border-width) solid var(--color-border);
 	background: var(--color-chrome);
 }
 
@@ -230,7 +228,6 @@
 	display: flex;
 	min-height: 3.25rem;
 	padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
-	border-bottom: var(--border-width) solid var(--color-border);
 	gap: var(--space-3);
 	align-items: center;
 	justify-content: space-between;
@@ -239,7 +236,7 @@
 .artwork-dialog__header strong {
 	overflow: hidden;
 	font-size: var(--font-size-lg);
-	font-weight: var(--font-weight-bold);
+	font-weight: var(--font-weight-semibold);
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
@@ -574,13 +571,14 @@
 	padding: 0 var(--space-1);
 	border-color: transparent;
 	background: transparent;
+	box-shadow: none;
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
 	font-variant-numeric: tabular-nums;
 }
 
 .media-strip__rate select:hover:not(:disabled) {
-	border-color: var(--color-border-strong);
+	background: var(--color-control-hover);
 	color: var(--color-text);
 }
 

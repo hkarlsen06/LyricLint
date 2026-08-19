@@ -364,6 +364,12 @@
 	   below it alone reads as the row *below* being lower rather than as this
 	   one being higher. The second layer is the light above it being occluded. */
 	--shadow-recessed: inset 0 1px 3px oklch(20% 0.01 285 / 0.2);
+	/* `--shadow-control` is the bordered tier's edge now that the tier draws no
+	   border: a one-pixel ambient ring carrying the boundary the border used to,
+	   plus a contact shadow so the control reads as sitting on the surface
+	   rather than drawn onto it. It is deliberately the quietest shadow in the
+	   set — a 32px control wearing `--shadow-raised` reads as a card. */
+	--shadow-control: 0 0 0 1px oklch(20% 0.01 285 / 0.12), 0 1px 2px oklch(20% 0.01 285 / 0.08);
 	--shadow-raised: 0 3px 8px oklch(20% 0.01 285 / 0.19), 0 -2px 5px oklch(20% 0.01 285 / 0.09);
 	--shadow-popover: 0 2px 8px oklch(20% 0.01 285 / 0.18), 0 1px 2px oklch(20% 0.01 285 / 0.1);
 	--shadow-overlay: 0 12px 32px oklch(20% 0.01 285 / 0.24), 0 2px 8px oklch(20% 0.01 285 / 0.16);
@@ -409,14 +415,18 @@
 	--performer-copper: oklch(55% 0.12 50);
 	--performer-slate: oklch(52% 0.045 255);
 
-	--performer-olive-tint: oklch(90% 0.06 155);
-	--performer-indigo-tint: oklch(90% 0.06 295);
-	--performer-teal-tint: oklch(90% 0.055 200);
-	--performer-ochre-tint: oklch(90% 0.055 78);
-	--performer-rose-tint: oklch(90% 0.06 20);
-	--performer-plum-tint: oklch(90% 0.06 330);
-	--performer-copper-tint: oklch(90% 0.06 50);
-	--performer-slate-tint: oklch(90% 0.035 255);
+	/* Tints stay within a few points of the surface they wash: the identity is
+	   already carried by the gutter bar, the legend and the voice markup, so
+	   the fill only has to say "this run is claimed", never shout which color
+	   claimed it. */
+	--performer-olive-tint: oklch(92% 0.05 155);
+	--performer-indigo-tint: oklch(92% 0.05 295);
+	--performer-teal-tint: oklch(92% 0.048 200);
+	--performer-ochre-tint: oklch(92% 0.048 78);
+	--performer-rose-tint: oklch(92% 0.05 20);
+	--performer-plum-tint: oklch(92% 0.05 330);
+	--performer-copper-tint: oklch(92% 0.05 50);
+	--performer-slate-tint: oklch(92% 0.03 255);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -521,6 +531,12 @@
 		   other. `--shadow-recessed` stays dark-only inward, because a well is lit
 		   at its floor, not its rim. */
 		--shadow-recessed: inset 0 1px 3px oklch(4% 0.005 285 / 0.5);
+		/* No inset top-light here, deliberately breaking the dark set's own
+		   convention: on a control-sized box the highlight-over-drop pair reads
+		   as an embossed bevel, not a lit object — and the transparent border
+		   offsets the inset by a pixel, which drew a dark lip above the shine.
+		   A faint light ring hugging the border box is the whole edge. */
+		--shadow-control: 0 0 0 1px oklch(100% 0 0 / 0.07);
 		--shadow-raised: inset 0 1px 0 oklch(100% 0 0 / 0.05), 0 1px 2px oklch(4% 0.005 285 / 0.35);
 		--shadow-popover: inset 0 1px 0 oklch(100% 0 0 / 0.06), 0 2px 8px oklch(4% 0.005 285 / 0.4);
 		--shadow-overlay:
@@ -538,13 +554,13 @@
 		--performer-copper: oklch(72% 0.11 50);
 		--performer-slate: oklch(72% 0.04 255);
 
-		--performer-olive-tint: oklch(34% 0.06 155);
-		--performer-indigo-tint: oklch(34% 0.06 295);
-		--performer-teal-tint: oklch(34% 0.055 200);
-		--performer-ochre-tint: oklch(34% 0.055 78);
-		--performer-rose-tint: oklch(34% 0.06 20);
-		--performer-plum-tint: oklch(34% 0.06 330);
-		--performer-copper-tint: oklch(34% 0.06 50);
-		--performer-slate-tint: oklch(34% 0.035 255);
+		--performer-olive-tint: oklch(30% 0.05 155);
+		--performer-indigo-tint: oklch(30% 0.05 295);
+		--performer-teal-tint: oklch(30% 0.048 200);
+		--performer-ochre-tint: oklch(30% 0.048 78);
+		--performer-rose-tint: oklch(30% 0.05 20);
+		--performer-plum-tint: oklch(30% 0.05 330);
+		--performer-copper-tint: oklch(30% 0.05 50);
+		--performer-slate-tint: oklch(30% 0.03 255);
 	}
 }

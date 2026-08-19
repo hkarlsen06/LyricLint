@@ -65,7 +65,6 @@
 .right-panel__footer {
 	flex: none;
 	padding: 0 var(--space-4);
-	border-top: var(--border-width) solid var(--color-border);
 	background: var(--color-chrome);
 }
 
@@ -80,8 +79,9 @@
 	min-height: var(--panel-tabs-height);
 	flex: none;
 	padding: 0 var(--space-3);
-	border-bottom: var(--border-width) solid var(--color-border);
 	align-items: center;
+	/* No hairline under the strip: the chrome tone against the panel canvas is
+	   the separation, as it is at the footer below. */
 	background: var(--color-chrome);
 }
 
@@ -109,7 +109,7 @@
 	border: 0;
 	background: transparent;
 	color: var(--color-text-muted);
-	font-weight: var(--font-weight-semibold);
+	font-weight: var(--font-weight-medium);
 	white-space: nowrap;
 }
 
@@ -150,7 +150,7 @@
 	background: var(--color-warning);
 	color: var(--color-canvas);
 	font-size: var(--font-size-2xs);
-	font-weight: var(--font-weight-heavy);
+	font-weight: var(--font-weight-bold);
 	font-variant-numeric: tabular-nums;
 }
 

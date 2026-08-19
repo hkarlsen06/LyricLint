@@ -72,7 +72,7 @@
 /* The draft being edited is the one the whole window is about, so it is the
    one name in the list drawn at full weight. */
 .draft-list > li.current .list-row__name {
-	font-weight: var(--font-weight-bold);
+	font-weight: var(--font-weight-semibold);
 }
 
 /* Centred just above the status bar, where the notification stays close to the
@@ -135,7 +135,7 @@
 	background: var(--color-accent);
 	color: var(--color-accent-text);
 	font-size: var(--font-size-2xs);
-	font-weight: var(--font-weight-heavy);
+	font-weight: var(--font-weight-bold);
 	font-variant-numeric: tabular-nums;
 }
 
