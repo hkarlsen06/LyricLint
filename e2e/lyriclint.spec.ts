@@ -600,10 +600,11 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 	const guidelinePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(guidelinePages).toHaveLength(10);
-	// Plus the home page, the rule index, the guidelines index, and the privacy
-	// page.
-	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + guidelinePages.length + 4);
+	// Plus the home page, the about page, the rule index, the guidelines index,
+	// and the privacy page.
+	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + guidelinePages.length + 5);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
+	expect(sitemap).toContain('<loc>https://lyriclint.com/about/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/rules/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/guidelines/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/guidelines/punctuation/</loc>');
