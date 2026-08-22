@@ -1,19 +1,10 @@
 import { RangeSet, StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Extension, Range } from '@codemirror/state';
-import {
-	Decoration,
-	EditorView,
-	GutterMarker,
-	ViewPlugin,
-	WidgetType,
-	gutter
-} from '@codemirror/view';
+import { Decoration, EditorView, GutterMarker, ViewPlugin, gutter } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import type { PerformerRecord } from '$lib/core/types.js';
 import type { VoiceGroupRange } from '../contracts.js';
 import { editorCallbacksField } from './editor-state.js';
-
-const MAX_VISIBLE_SEGMENTS = 3;
 
 /**
  * Editor colors keyed to the stable name-derived roster color ids. Unknown
@@ -56,12 +47,13 @@ interface PerformerSegmentStyle {
 	identity: string;
 	label: string;
 	/**
-	 * One solid and one tint per group. Joint groups blend their members into a
-	 * single color rather than splitting the indicator into stripes.
+	 * One solid and one tint per group, always a single palette entry. A joint
+	 * group takes an entry of its own rather than a blend of its members' —
+	 * a mixed hue cannot be decoded back into the members and reads as a third
+	 * performer — and never an entry a member already wears.
 	 */
 	indicator: string;
 	background: string;
-	hiddenCount: number;
 }
 
 export const setVoiceGroupsEffect = StateEffect.define<VoiceGroupDecorationPayload>();
@@ -83,31 +75,49 @@ export const performerGroupsField = StateField.define<VoiceGroupDecorationPayloa
 	}
 });
 
+function hashString(value: string): number {
+	let hash = 0;
+	for (let index = 0; index < value.length; index += 1) {
+		hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+	}
+	return hash;
+}
+
 function paletteIndex(colorId: string): number {
 	const known = performerPalette.findIndex((entry) => entry.id === colorId);
-	if (known >= 0) {
-		return known;
-	}
-	let hash = 0;
-	for (let index = 0; index < colorId.length; index += 1) {
-		hash = (hash * 31 + colorId.charCodeAt(index)) >>> 0;
-	}
-	return hash % performerPalette.length;
+	return known >= 0 ? known : hashString(colorId) % performerPalette.length;
 }
 
-/** Blend member hues into one color: an even mix regardless of member count. */
-function mixColors(colors: readonly string[]): string {
-	if (colors.length === 0) {
-		return 'transparent';
+/**
+ * The palette entry a group draws with. A solo voice is its performer's own
+ * color. A joint group is a voice of its own and takes its own entry: seeded
+ * from the members' normalized names rather than their record ids, because
+ * names are what performer colors are already derived from while ids are
+ * minted per draft, and each name is hashed on its own with the hashes sorted,
+ * so member order cannot move the entry and no separator is needed. The walk
+ * then skips every entry a member wears — the joint voice must never be
+ * dressed as one of the people inside it.
+ */
+function groupPaletteEntry(members: readonly PerformerRecord[]): (typeof performerPalette)[number] {
+	const memberIndexes = members.map((member) => paletteIndex(member.colorId));
+	if (members.length === 1) {
+		return performerPalette[memberIndexes[0] ?? 0];
 	}
-	return colors.reduce((mixed, color, index) =>
-		index === 0
-			? color
-			: `color-mix(in oklch, ${color} ${Math.round(100 / (index + 1))}%, ${mixed})`
-	);
+	const seed = members
+		.map((member) => hashString(member.normalizedKey))
+		.sort((left, right) => left - right)
+		.reduce((mixed, value) => (Math.imul(mixed, 31) + value) >>> 0, 7);
+	const taken = new Set(memberIndexes);
+	for (let step = 0; step < performerPalette.length; step += 1) {
+		const index = (seed + step) % performerPalette.length;
+		if (!taken.has(index)) {
+			return performerPalette[index];
+		}
+	}
+	return performerPalette[seed % performerPalette.length];
 }
 
-/** Stable slot/color IDs become one blended, accessible, theme-aware tint. */
+/** Stable slot/color IDs become one palette entry's solid and tint. */
 export function voiceGroupStyle(
 	performerIds: readonly string[],
 	performers: readonly PerformerRecord[]
@@ -120,40 +130,16 @@ export function voiceGroupStyle(
 		return undefined;
 	}
 
-	const visible = members.slice(0, MAX_VISIBLE_SEGMENTS);
-	const colors = visible.map((performer) => performerPalette[paletteIndex(performer.colorId)]);
+	const entry = groupPaletteEntry(members);
 	return {
 		identity: members
 			.map((member) => member.id)
 			.sort()
 			.join('\u001f'),
 		label: `Performed by ${members.map((member) => member.displayName).join(', ')}`,
-		indicator: mixColors(colors.map((color) => color.solid)),
-		background: mixColors(colors.map((color) => color.tint)),
-		hiddenCount: Math.max(0, members.length - visible.length)
+		indicator: entry.solid,
+		background: entry.tint
 	};
-}
-
-class ExtraMemberWidget extends WidgetType {
-	constructor(
-		readonly count: number,
-		readonly label: string
-	) {
-		super();
-	}
-
-	eq(other: ExtraMemberWidget): boolean {
-		return other.count === this.count && other.label === this.label;
-	}
-
-	toDOM(): HTMLElement {
-		const label = document.createElement('span');
-		label.className = 'll-performer-overflow';
-		label.textContent = `+${this.count}`;
-		label.title = this.label;
-		label.setAttribute('aria-label', `${this.label}, plus ${this.count} additional color segments`);
-		return label;
-	}
 }
 
 function safeRange(group: VoiceGroupRange, documentLength: number): boolean {
@@ -406,15 +392,6 @@ function buildVisuals(state: EditorState, payload: VoiceGroupDecorationPayload):
 				}).range(fragment.from, fragment.to)
 			);
 		}
-		if (group.legend) continue;
-		if (style.hiddenCount > 0) {
-			ranges.push(
-				Decoration.widget({
-					widget: new ExtraMemberWidget(style.hiddenCount, style.label),
-					side: 1
-				}).range(group.to)
-			);
-		}
 	}
 
 	return {
@@ -589,18 +566,5 @@ export const performerDecorationTheme = EditorView.baseTheme({
 	'.ll-performer-slot-4': {
 		fontStyle: 'italic',
 		fontWeight: 'var(--font-weight-semibold)'
-	},
-	'.ll-performer-overflow': {
-		position: 'relative',
-		zIndex: '1',
-		marginInlineStart: 'var(--space-0-5)',
-		padding: '0 var(--space-0-5)',
-		border: 'var(--border-width) solid color-mix(in oklch, currentColor 25%, transparent)',
-		borderRadius: 'var(--radius-xs)',
-		color: 'var(--color-text)',
-		fontFamily: 'var(--font-ui)',
-		fontSize: 'var(--font-size-2xs)',
-		fontWeight: 'var(--font-weight-semibold)',
-		lineHeight: 'var(--line-height-tight)'
 	}
 });

@@ -298,7 +298,7 @@ describe('editor pure helpers', () => {
 		).toBe('Verse');
 	});
 
-	it('blends joint-group performer colors into paired solid and tint values with a cap', () => {
+	it('gives a joint group a palette entry of its own, never a member color and never a blend', () => {
 		const performers: PerformerRecord[] = ['A', 'B', 'C', 'D'].map((name, index) => ({
 			id: name.toLocaleLowerCase(),
 			displayName: name,
@@ -313,14 +313,24 @@ describe('editor pure helpers', () => {
 		);
 
 		expect(style?.label).toBe('Performed by A, B, C, D');
-		expect(style?.hiddenCount).toBe(1);
-		// Joint groups blend into one color instead of striping per member.
-		expect(style?.indicator).toContain('color-mix');
-		expect(style?.indicator).not.toContain('linear-gradient');
-		expect(style?.background).toContain('color-mix');
-		expect(style?.background).not.toContain('linear-gradient');
-		expect(style?.indicator).toContain('var(--performer-');
-		expect(style?.background).toContain('var(--performer-');
+		// One real palette entry, solid and tint from the same id: a color-mix of
+		// the members lands beside their own tints and reads as a third performer
+		// nobody can decode back into its parts.
+		const entry = performerPalette.find((candidate) => candidate.solid === style?.indicator);
+		expect(entry).toBeDefined();
+		expect(style?.background).toBe(entry?.tint);
+		// Never an entry a member already wears, or the joint voice and that
+		// member would be indistinguishable in the gutter and the legend.
+		for (const performer of performers) {
+			const own = voiceGroupStyle([performer.id], performers);
+			expect(own?.indicator).not.toBe(style?.indicator);
+		}
+		// The entry is the group's, not the pick order's.
+		const reversed = voiceGroupStyle(
+			performers.map((performer) => performer.id).reverse(),
+			performers
+		);
+		expect(reversed?.indicator).toBe(style?.indicator);
 	});
 
 	/*
