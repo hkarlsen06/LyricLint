@@ -25,6 +25,19 @@ import { ApiError } from './errors';
 export const toolNames = ['read_scribe', 'propose_edits', 'manage_links', 'show_lyrics'] as const;
 export type ToolName = (typeof toolNames)[number];
 
+/** Anything `JSON.parse` yields and `JSON.stringify` accepts. What crosses this
+ * service's two opaque seams — the provider's replay items and the tolerant
+ * partial parse of a half-written answer — is this and nothing narrower until a
+ * schema here has run over it. */
+export type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
+/** A JSON object, keyed however its writer keyed it. */
+export type JsonObject = { [key: string]: Json };
+
+export function isJsonObject(value: Json): value is JsonObject {
+	return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 const anchorSchema = z
 	.object({
 		// Empty names the sole zero-width range in an empty 'scribe. The
@@ -305,7 +318,7 @@ const wireToolCallMessageSchema = z
 		// The items are replayed verbatim, so every function call in them must be
 		// one this message declares: an unmatched call is a tool round the browser
 		// never ran, carrying whatever arguments the client chose.
-		let items: unknown;
+		let items: Json;
 		try {
 			items = JSON.parse(value.providerItems);
 		} catch {
@@ -314,9 +327,11 @@ const wireToolCallMessageSchema = z
 		if (!Array.isArray(items)) return;
 		const declared = new Set(value.toolCalls.map((call) => `${call.name}\0${call.callId}`));
 		for (const item of items) {
-			if (typeof item !== 'object' || item === null || !('type' in item)) continue;
-			if (item.type !== 'function_call' || !('name' in item) || !('call_id' in item)) continue;
-			if (!declared.has(`${String(item.name)}\0${String(item.call_id)}`)) {
+			if (!isJsonObject(item)) continue;
+			const name = item['name'];
+			const callId = item['call_id'];
+			if (item['type'] !== 'function_call' || name === undefined || callId === undefined) continue;
+			if (!declared.has(`${String(name)}\0${String(callId)}`)) {
 				context.addIssue({
 					code: 'custom',
 					path: ['providerItems'],
@@ -495,7 +510,7 @@ export const answerJsonSchema = {
  * Failures are `invalid_answer` (502): the model produced it, not the client.
  */
 export function validateAnswer(
-	raw: unknown,
+	raw: Json,
 	knownRuleIds: ReadonlySet<string>,
 	knownSourceIds: ReadonlySet<string>,
 	toolsAvailable = false

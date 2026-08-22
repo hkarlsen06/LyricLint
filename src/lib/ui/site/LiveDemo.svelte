@@ -12,6 +12,7 @@
 	// toolbar, no linter panel, no drafts, and no persistence. Nothing here
 	// touches IndexedDB, so reading the landing page never creates a draft and
 	// never disturbs one the reader already has open in another tab.
+	import { browser } from '$app/environment';
 	import { onDestroy, untrack } from 'svelte';
 	import { parseDocument } from '$lib/core/parser.js';
 	import type {
@@ -176,7 +177,7 @@
 						diagnostics: filterForEditorState(snapshot, merged, handle?.getSectionLinks?.())
 					};
 				})
-				.catch((error: unknown) => {
+				.catch((error: Error) => {
 					if (request !== harperRequest || harperUnavailable) return;
 					harperUnavailable = true;
 					console.error('Harper grammar checking is unavailable in the landing demo.', error);
@@ -185,7 +186,7 @@
 	}
 
 	function scheduleLanguageDetector(next: EditorSnapshot): void {
-		if (typeof window === 'undefined' || languageDetectorStarted) return;
+		if (!browser || languageDetectorStarted) return;
 		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
 		if (next.text.length < 40) return;
 
@@ -198,7 +199,7 @@
 					lastLintKey = '';
 					snapshot = enrich(snapshot);
 				})
-				.catch((error: unknown) =>
+				.catch((error: Error) =>
 					console.error('Language recognition is unavailable in the landing demo.', error)
 				);
 		}, languageDetectorDelay);
@@ -268,7 +269,7 @@
 		invalidateHarper();
 		void harperProvider
 			.dispose()
-			.catch((error: unknown) => console.error('Harper demo worker cleanup failed.', error));
+			.catch((error: Error) => console.error('Harper demo worker cleanup failed.', error));
 	});
 
 	const context = $derived<EditorDisplayContext>({

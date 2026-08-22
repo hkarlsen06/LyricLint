@@ -290,6 +290,15 @@ export function alignBodies(bodies: readonly string[]): TextRange[][] {
 }
 
 /**
+ * A span in one member's body together with the divergent runs it covers, as a
+ * half-open `[firstHole, lastHole)` range into that member's own run list.
+ */
+export interface HoleSpan extends TextRange {
+	firstHole: number;
+	lastHole: number;
+}
+
+/**
  * Widen a span until neither end is inside a divergent run, and say which runs
  * that swallowed.
  *
@@ -299,11 +308,7 @@ export function alignBodies(bodies: readonly string[]): TextRange[][] {
  * what makes that expressible: both ends then sit in shared text, where every
  * member has the same coordinates.
  */
-export function expandOverHoles(
-	holes: readonly TextRange[],
-	from: number,
-	to: number
-): { from: number; to: number; firstHole: number; lastHole: number } {
+export function expandOverHoles(holes: readonly TextRange[], from: number, to: number): HoleSpan {
 	let start = from;
 	let end = to;
 	for (const hole of holes) {
@@ -343,11 +348,7 @@ export function expandOverHoles(
  * The hole indices are untouched, because a run boundary is where a hole starts
  * and widening to it crosses nothing.
  */
-export function widenToRuns(
-	holes: readonly TextRange[],
-	length: number,
-	span: { from: number; to: number; firstHole: number; lastHole: number }
-): { from: number; to: number; firstHole: number; lastHole: number } {
+export function widenToRuns(holes: readonly TextRange[], length: number, span: HoleSpan): HoleSpan {
 	return {
 		...span,
 		from: span.firstHole === 0 ? 0 : (holes[span.firstHole - 1]?.to ?? span.from),

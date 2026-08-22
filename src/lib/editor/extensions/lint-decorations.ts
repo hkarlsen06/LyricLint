@@ -17,12 +17,12 @@ import { pressed } from './widget-press.js';
  * inside a component, so there is nothing to import — and this list is what a
  * screen reader hears, which `manual-review` is not.
  */
-const severityWord: Record<Severity, string> = {
+const severityWord = {
 	error: 'Error',
 	warning: 'Warning',
 	suggestion: 'Suggestion',
 	'manual-review': 'Manual review'
-};
+} satisfies Record<Severity, string>;
 
 interface DiagnosticCluster {
 	from: number;

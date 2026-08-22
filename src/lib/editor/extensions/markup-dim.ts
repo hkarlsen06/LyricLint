@@ -2,7 +2,7 @@ import { StateField } from '@codemirror/state';
 import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
-import type { ParsedDocument, SupportedStyleSpan } from '$lib/core/types.js';
+import type { ParsedDocument } from '$lib/core/types.js';
 import { setHeaderlessSectionsEffect } from './section-ghosts.js';
 
 const dim = Decoration.mark({ class: 'll-syntax-dim' });
@@ -43,9 +43,8 @@ function buildDimRanges(state: EditorState, parsed: ParsedDocument): DecorationS
 				if ('unsupported' in span) {
 					continue;
 				}
-				const supported = span as SupportedStyleSpan;
-				pushRange(ranges, supported.from, supported.contentFrom);
-				pushRange(ranges, supported.contentTo, supported.to);
+				pushRange(ranges, span.from, span.contentFrom);
+				pushRange(ranges, span.contentTo, span.to);
 			}
 		}
 	}

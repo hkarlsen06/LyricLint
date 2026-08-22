@@ -118,6 +118,10 @@ export function describeControl(hint: () => ControlHint | undefined): Attachment
 			});
 		};
 		const onKeydown = (event: Event): void => {
+			// SAFETY: registered below for `keydown` alone, which the DOM dispatches
+			// as a `KeyboardEvent`. The parameter is `Event` only because
+			// `ElementEventMap` names no keyboard events, so `Element`'s
+			// `addEventListener` falls back to its untyped overload.
 			if ((event as KeyboardEvent).key === 'Escape' && owner === node) {
 				event.stopPropagation();
 				hideControlHint();

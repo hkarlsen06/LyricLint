@@ -277,9 +277,13 @@ function foldWithOffsets(text: string): FoldedWithOffsets {
  * One row of the index: a rule, or the several rules that are one convention
  * per language pack.
  */
-type RuleIndexEntry =
-	| { kind: 'rule'; rule: RuleReference }
-	| { kind: 'family'; family: string; rules: RuleReference[] };
+interface RuleIndexFamily {
+	kind: 'family';
+	family: string;
+	rules: RuleReference[];
+}
+
+type RuleIndexEntry = { kind: 'rule'; rule: RuleReference } | RuleIndexFamily;
 
 /**
  * A group's rules as the rows the index actually draws.
@@ -308,20 +312,24 @@ type RuleIndexEntry =
  */
 export function ruleIndexEntries(rules: readonly RuleReference[]): RuleIndexEntry[] {
 	const entries: RuleIndexEntry[] = [];
-	const familyAt = new Map<string, number>();
+	// The row itself is what the map holds, so a later member of the same family
+	// is appended to the row already standing in `entries` at its first member's
+	// position — no second lookup, and nothing to assert about what sits there.
+	const rows = new Map<string, RuleIndexFamily>();
 	for (const rule of rules) {
 		const family = rule.variant?.family;
 		if (family === undefined) {
 			entries.push({ kind: 'rule', rule });
 			continue;
 		}
-		const at = familyAt.get(family);
-		if (at === undefined) {
-			familyAt.set(family, entries.length);
-			entries.push({ kind: 'family', family, rules: [rule] });
+		const row = rows.get(family);
+		if (row === undefined) {
+			const added: RuleIndexFamily = { kind: 'family', family, rules: [rule] };
+			rows.set(family, added);
+			entries.push(added);
 			continue;
 		}
-		(entries[at] as { rules: RuleReference[] }).rules.push(rule);
+		row.rules.push(rule);
 	}
 	return entries.map((entry) =>
 		entry.kind === 'family' && entry.rules.length === 1
@@ -459,6 +467,12 @@ export function countRules(groups: readonly RuleReferenceGroup[]): number {
 	return groups.reduce((total, group) => total + group.rules.length, 0);
 }
 
+/** One number per chip, on each of the index's two axes. */
+export interface RuleFacetCounts {
+	severity: Record<Severity, number>;
+	fixability: Record<Fixability, number>;
+}
+
 /**
  * What each chip would show, counted over the *query's* result and blind to the
  * chips themselves — the linter panel counts its severities the same way, and
@@ -468,18 +482,15 @@ export function countRules(groups: readonly RuleReferenceGroup[]): number {
  * other's numbers on every toggle. Read this way a chip's count is what
  * pressing it puts back.
  */
-export function ruleCounts(
-	groups: readonly RuleReferenceGroup[],
-	query: string
-): { severity: Record<Severity, number>; fixability: Record<Fixability, number> } {
+export function ruleCounts(groups: readonly RuleReferenceGroup[], query: string): RuleFacetCounts {
 	const tokens = searchTokens(query);
-	const severity: Record<Severity, number> = {
+	const severity = {
 		error: 0,
 		warning: 0,
 		suggestion: 0,
 		'manual-review': 0
-	};
-	const fixability: Record<Fixability, number> = { safe: 0, preview: 0, none: 0 };
+	} satisfies Record<Severity, number>;
+	const fixability = { safe: 0, preview: 0, none: 0 } satisfies Record<Fixability, number>;
 	for (const group of groups) {
 		for (const rule of group.rules) {
 			if (!matchesQuery(rule, tokens)) continue;
@@ -490,6 +501,12 @@ export function ruleCounts(
 	return { severity, fixability };
 }
 
+/** Which chips the index offers at all, in each axis's own order. */
+export interface PresentRuleFacets {
+	severities: Severity[];
+	fixabilities: Fixability[];
+}
+
 /**
  * Which severities and fixabilities the rule set contains at all, so the chip
  * row offers no answer it cannot carry out — the same rule `availableRates` and
@@ -497,10 +514,7 @@ export function ruleCounts(
  * over the query: a chip that vanished as the reader typed would take the axis
  * with it, and a chip reading zero is what says their query excluded it.
  */
-export function presentFacets(groups: readonly RuleReferenceGroup[]): {
-	severities: Severity[];
-	fixabilities: Fixability[];
-} {
+export function presentFacets(groups: readonly RuleReferenceGroup[]): PresentRuleFacets {
 	const severities = new Set<Severity>();
 	const fixabilities = new Set<Fixability>();
 	for (const group of groups) {

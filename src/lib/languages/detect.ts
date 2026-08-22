@@ -13,17 +13,22 @@ const selectableTags = new Set(['en', ...languageSourceInventory.map((entry) => 
 let detector: LanguageDetect | undefined;
 let detectorPromise: Promise<void> | undefined;
 
+async function loadDetector(): Promise<void> {
+	try {
+		const { default: LanguageDetector } = await import('languagedetect');
+		detector = new LanguageDetector();
+		detector.setLanguageType('iso2');
+	} catch (error) {
+		// A failed load is retried by the next asking editor rather than
+		// remembered, so the promise is cleared before the rejection travels.
+		detectorPromise = undefined;
+		throw error;
+	}
+}
+
 /** Load the statistical profiles only when a non-empty editor asks for them. */
 export function loadStatisticalLanguageDetector(): Promise<void> {
-	return (detectorPromise ??= import('languagedetect')
-		.then(({ default: LanguageDetector }) => {
-			detector = new LanguageDetector();
-			detector.setLanguageType('iso2');
-		})
-		.catch((error: unknown) => {
-			detectorPromise = undefined;
-			throw error;
-		}));
+	return (detectorPromise ??= loadDetector());
 }
 
 interface SongLanguageDetection {
@@ -60,7 +65,13 @@ function maskedVisibleLine(text: string): string {
 		.replaceAll('[?]', '   ');
 }
 
-function visibleLyrics(document: ParsedDocument): { text: string; range?: TextRange } {
+/** The lyric text detection reads, and where its first visible line sits. */
+interface VisibleLyrics {
+	text: string;
+	range?: TextRange;
+}
+
+function visibleLyrics(document: ParsedDocument): VisibleLyrics {
 	const lines = document.sections
 		.flatMap((section) => section.lines)
 		.map((line) => ({ line, masked: maskedVisibleLine(line.text) }));
@@ -114,8 +125,7 @@ function directScriptTag(text: string, letterCount: number): string | undefined 
 	return undefined;
 }
 
-function normalizedDetectorTag(tag: unknown): string | undefined {
-	if (typeof tag !== 'string') return undefined;
+function normalizedDetectorTag(tag: string): string | undefined {
 	const normalized = tag === 'sr' || tag === 'hr' || tag === 'bs' ? 'sh' : tag;
 	return selectableTags.has(normalized) ? normalized : undefined;
 }

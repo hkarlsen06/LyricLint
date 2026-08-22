@@ -3,16 +3,17 @@ import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { DraftAccessDecision } from '$lib/assistant/permissions.js';
+import type { AssistantMessageRecord } from '$lib/persistence/types.js';
 import AssistantPanel from './AssistantPanel.svelte';
 
 function panelAssistant(
 	decision?: DraftAccessDecision,
-	messages: unknown[] = [],
-	toolSession?: { assistantMessageId: string; phase: string }
+	messages: AssistantMessageRecord[] = [],
+	toolSession?: AssistantState['toolSession']
 ) {
 	const revokeDraftAccess = vi.fn(async () => undefined);
-	const send = vi.fn(async () => undefined);
-	const assistant = {
+	const send = vi.fn(async () => false);
+	const assistant: Partial<AssistantState> = {
 		messages,
 		quota: undefined,
 		failure: undefined,
@@ -38,15 +39,17 @@ function panelAssistant(
 		submitChallenge: vi.fn(async () => undefined),
 		ensureLoaded: vi.fn(async () => undefined),
 		revokeDraftAccess
-	} as unknown as AssistantState;
-	return { assistant, revokeDraftAccess, send };
+	};
+	return { assistant: assistant as AssistantState, revokeDraftAccess, send };
 }
 
 /** A transcript long enough to overflow the pane it is rendered into. */
-function transcriptOf(turns: number): unknown[] {
+function transcriptOf(turns: number): AssistantMessageRecord[] {
 	return Array.from({ length: turns }, (_, index) => ({
 		id: `message-${index}`,
+		chatId: 'chat-1',
 		role: 'user',
+		createdAt: '2026-08-02T10:00:00.000Z',
 		content: `Question ${index} about how a chorus header should be written out.`,
 		status: 'complete'
 	}));
@@ -78,7 +81,7 @@ function distanceFromBottom(node: HTMLElement): number {
 
 function declaredMarginTop(selector: string): string | undefined {
 	for (const sheet of document.styleSheets) {
-		for (const rule of [...sheet.cssRules]) {
+		for (const rule of sheet.cssRules) {
 			if (rule instanceof CSSStyleRule && rule.selectorText === selector) {
 				return rule.style.marginTop;
 			}

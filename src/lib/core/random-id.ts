@@ -13,7 +13,7 @@
  * which had none; the guard belongs here and nowhere else.
  */
 export function randomId(): string {
-	if (typeof globalThis.crypto?.randomUUID === 'function') {
+	if (globalThis.crypto?.randomUUID !== undefined) {
 		return globalThis.crypto.randomUUID();
 	}
 

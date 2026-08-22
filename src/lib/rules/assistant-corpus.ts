@@ -29,7 +29,11 @@ import type { SourceReference } from '$lib/core/types.js';
 import { guidanceEntries } from '$lib/guidance/entries.js';
 import { guidanceTopicTitles } from '$lib/guidance/guidance.js';
 import { reviewedLanguagePacks } from '$lib/languages/registry.js';
-import type { AssistantCorpus, AssistantCorpusSource } from './assistant-corpus-types.js';
+import type {
+	AssistantCorpus,
+	AssistantCorpusGuidanceEntry,
+	AssistantCorpusSource
+} from './assistant-corpus-types.js';
 import { currentRuleSet } from './data/rule-set.js';
 import { sourceRegistry } from './data/sources.js';
 import { harperRuleIds } from './harper.js';
@@ -92,40 +96,57 @@ function corpusSource(source: SourceReference): AssistantCorpusSource {
 export function buildAssistantCorpusContent(
 	rulesMd: string
 ): Omit<AssistantCorpus, 'generatedAt' | 'contentHash'> {
-	const rules = ruleReferences().map((reference) => ({
-		id: reference.id,
-		slug: reference.slug,
-		title: reference.title,
-		group: reference.group,
-		groupTitle: reference.groupTitle,
-		severity: reference.severity,
-		message: reference.message,
-		explanation: reference.explanation,
-		fix: reference.fix?.kind ?? ('none' as const),
-		...(reference.fix ? { fixLabel: reference.fix.label } : {}),
-		language: reference.language,
-		flaggedExample: reference.invalid,
-		acceptedExample: reference.valid,
-		sourceIds: reference.sources.map((source) => source.id)
-	}));
+	// `corpusContentHash` hashes `JSON.stringify`, which writes keys in insertion
+	// order — so where an optional key sits is part of the artifact, and an
+	// absent one has to be absent rather than `undefined`. That is why the two
+	// halves either side of `fixLabel` are named: appending it would move it.
+	const rules = ruleReferences().map((reference) => {
+		const head = {
+			id: reference.id,
+			slug: reference.slug,
+			title: reference.title,
+			group: reference.group,
+			groupTitle: reference.groupTitle,
+			severity: reference.severity,
+			message: reference.message,
+			explanation: reference.explanation,
+			fix: reference.fix?.kind ?? ('none' as const)
+		};
+		const example = {
+			language: reference.language,
+			flaggedExample: reference.invalid,
+			acceptedExample: reference.valid,
+			sourceIds: reference.sources.map((source) => source.id)
+		};
+		return reference.fix
+			? { ...head, fixLabel: reference.fix.label, ...example }
+			: { ...head, ...example };
+	});
 
 	const sources = [...sourceRegistry.values()]
 		.filter((source) => source.reviewStatus === 'reviewed')
 		.map(corpusSource)
 		.sort((a, b) => a.id.localeCompare(b.id, 'en'));
 
-	const guidance = guidanceEntries.map((entry) => ({
-		id: entry.id,
-		topic: entry.topic,
-		topicTitle: guidanceTopicTitles[entry.topic],
-		title: entry.title,
-		statement: entry.statement,
-		...(entry.example ? { example: { ...entry.example } } : {}),
-		authority: entry.authority,
-		sourceIds: [...entry.sourceIds],
-		...(entry.relatedRuleIds ? { relatedRuleIds: [...entry.relatedRuleIds] } : {}),
-		...(entry.note ? { note: entry.note } : {})
-	}));
+	// Same key-order rule as `rules` above: `example` sits mid-object, so it is
+	// spread in place; `relatedRuleIds` and `note` already close the shape, so
+	// assigning them in that order leaves the artifact byte-identical.
+	const guidance = guidanceEntries.map((entry) => {
+		const head = {
+			id: entry.id,
+			topic: entry.topic,
+			topicTitle: guidanceTopicTitles[entry.topic],
+			title: entry.title,
+			statement: entry.statement
+		};
+		const attribution = { authority: entry.authority, sourceIds: [...entry.sourceIds] };
+		const record: AssistantCorpusGuidanceEntry = entry.example
+			? { ...head, example: { ...entry.example }, ...attribution }
+			: { ...head, ...attribution };
+		if (entry.relatedRuleIds) record.relatedRuleIds = [...entry.relatedRuleIds];
+		if (entry.note) record.note = entry.note;
+		return record;
+	});
 
 	const languages = reviewedLanguagePacks.map((pack) => ({
 		tag: pack.tag,

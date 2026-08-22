@@ -70,13 +70,12 @@ export function allocatePerformerColor(
 	displayName: string,
 	roster: readonly Pick<PerformerRecord, 'colorId'>[]
 ): PerformerPaletteColorId {
-	const usage = new Map<PerformerPaletteColorId, number>(
-		performerColorIds.map((colorId) => [colorId, 0])
-	);
+	// Keyed by the stored string rather than the palette union: a record can carry
+	// a token this build no longer has, and `has` is what tells the two apart.
+	const usage = new Map<string, number>(performerColorIds.map((colorId) => [colorId, 0]));
 	for (const performer of roster) {
-		if (usage.has(performer.colorId as PerformerPaletteColorId)) {
-			const colorId = performer.colorId as PerformerPaletteColorId;
-			usage.set(colorId, (usage.get(colorId) ?? 0) + 1);
+		if (usage.has(performer.colorId)) {
+			usage.set(performer.colorId, (usage.get(performer.colorId) ?? 0) + 1);
 		}
 	}
 

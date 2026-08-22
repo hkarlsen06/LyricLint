@@ -17,8 +17,13 @@ export function escapeLegendText(value: string): string {
 		.replaceAll("'", '&#39;');
 }
 
+/** A member given as the bare name a legend prints, rather than as a record. */
+function isBareName(member: LegendMember): member is string {
+	return typeof member === 'string';
+}
+
 function memberName(member: LegendMember): string {
-	return typeof member === 'string' ? member : member.displayName;
+	return isBareName(member) ? member : member.displayName;
 }
 
 function serializeGroup(group: SerializableLegendGroup): string {
@@ -54,13 +59,19 @@ export function wrapVoiceSpan(text: string, styleSlot: StyleSlot): string {
 	}
 }
 
+/** The two markers a style slot puts either side of its content. */
+export interface StyleTags {
+	opening: string;
+	closing: string;
+}
+
 /**
  * The exact opening and closing markers one style slot wraps content in.
  *
  * Derived from `wrapVoiceSpan` rather than tabulated separately, so the four
  * slots keep one definition. Slot 1 yields two empty strings.
  */
-export function styleTags(styleSlot: StyleSlot): { opening: string; closing: string } {
+export function styleTags(styleSlot: StyleSlot): StyleTags {
 	const marker = '\u{E000}';
 	const wrapped = wrapVoiceSpan(marker, styleSlot);
 	const markerFrom = wrapped.indexOf(marker);

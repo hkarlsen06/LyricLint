@@ -13,18 +13,19 @@ const realMatchMedia = window.matchMedia;
  * two browser globals it reads — `matchMedia` and a real `sessionStorage` — and
  * a fake of the second would be testing the fake's `try`/`catch` rather than the
  * module's.
+ *
+ * The list is deliberately the two facts the module reads plus the pair a
+ * listener would be hung off. It is never asked to be a whole `MediaQueryList`:
+ * `stubGlobal` takes the value unopposed, and a query that answers once has
+ * nothing to notify anybody about.
  */
 function pointer(matches: boolean) {
-	vi.stubGlobal(
-		'matchMedia',
-		(query: string) =>
-			({
-				matches,
-				media: query,
-				addEventListener: () => {},
-				removeEventListener: () => {}
-			}) as unknown as MediaQueryList
-	);
+	vi.stubGlobal('matchMedia', (query: string) => ({
+		matches,
+		media: query,
+		addEventListener: () => {},
+		removeEventListener: () => {}
+	}));
 }
 
 describe('noticeTouchLayout', () => {

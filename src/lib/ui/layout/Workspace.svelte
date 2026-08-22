@@ -162,20 +162,20 @@
 				const editor = controller.editor;
 				if (!editor.linkSections || !bridge.linkableSections(headerLines)) return false;
 				const snapshot = controller.snapshot;
-				const headers = headerLines.map(
-					(line) =>
-						snapshot.parsed.sections.find(
-							(section) =>
-								section.header && lineNumberAt(snapshot.text, section.header.from) === line
-						)?.header?.from
-				);
-				if (headers.some((header) => header === undefined)) return false;
+				const headers: number[] = [];
+				for (const line of headerLines) {
+					const from = snapshot.parsed.sections.find(
+						(section) => section.header && lineNumberAt(snapshot.text, section.header.from) === line
+					)?.header?.from;
+					if (from === undefined) return false;
+					headers.push(from);
+				}
 				try {
 					// Every difference stays deliberate. Nothing names `replaceFrom`, so
 					// this is the same non-destructive choice the picker opens on.
 					editor.linkSections({
-						headers: headers as number[],
-						keepDifferent: (editor.getLinkDifferences?.(headers as number[]) ?? []).map(() => true)
+						headers,
+						keepDifferent: (editor.getLinkDifferences?.(headers) ?? []).map(() => true)
 					});
 					return true;
 				} catch {
@@ -190,19 +190,19 @@
 					.find((candidate) => candidate.lines.includes(headerLine));
 				if (!group) return false;
 				const snapshot = controller.snapshot;
-				const headers = group.lines.map(
-					(line) =>
-						snapshot.parsed.sections.find(
-							(section) =>
-								section.header && lineNumberAt(snapshot.text, section.header.from) === line
-						)?.header?.from
-				);
-				if (headers.some((header) => header === undefined)) return false;
+				const headers: number[] = [];
+				for (const line of group.lines) {
+					const from = snapshot.parsed.sections.find(
+						(section) => section.header && lineNumberAt(snapshot.text, section.header.from) === line
+					)?.header?.from;
+					if (from === undefined) return false;
+					headers.push(from);
+				}
 				try {
 					// The picker's unlink path names one member. Repeating that path
 					// through all but the last member dissolves a group of any size;
 					// once only one survives, the field drops it by invariant.
-					for (const header of (headers as number[]).slice(0, -1)) {
+					for (const header of headers.slice(0, -1)) {
 						editor.linkSections({ headers: [header] });
 					}
 					return true;
@@ -409,7 +409,7 @@
 						merged
 					);
 				})
-				.catch((error: unknown) => {
+				.catch((error: Error) => {
 					if (request !== harperRequest || harperUnavailable) return;
 					harperPending = false;
 					// A provider that has failed is one nothing more is coming from,
@@ -452,7 +452,7 @@
 					lastLintKey = '';
 					publishSnapshot(controller.snapshot);
 				})
-				.catch((error: unknown) => console.error('Language recognition is unavailable.', error));
+				.catch((error: Error) => console.error('Language recognition is unavailable.', error));
 		}, languageDetectorDelay);
 	}
 
@@ -552,7 +552,7 @@
 		invalidateHarper();
 		void harperProvider
 			.dispose()
-			.catch((error: unknown) => console.error('Harper worker cleanup failed.', error));
+			.catch((error: Error) => console.error('Harper worker cleanup failed.', error));
 	});
 
 	const editorContext = $derived<EditorDisplayContext>({

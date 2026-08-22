@@ -40,12 +40,16 @@ interface PersistableFileHandle extends FileSystemFileHandle {
 	requestPermission?(descriptor: { mode: 'read' }): Promise<PermissionState>;
 }
 
-interface FilePickerWindow {
+/**
+ * The global, seen through the one File System Access entry point the DOM
+ * library omits. Optional, because Firefox and Safari do not have it.
+ */
+type FilePickerWindow = typeof globalThis & {
 	showOpenFilePicker?(options: {
 		multiple?: boolean;
 		types?: { description: string; accept: Record<string, string[]> }[];
 	}): Promise<FileSystemFileHandle[]>;
-}
+};
 
 const audioExtensions = ['.mp3', '.m4a', '.aac', '.wav', '.flac', '.ogg', '.opus', '.webm'];
 
@@ -105,11 +109,27 @@ function titleFromFilename(name: string): string | undefined {
 	return withoutExtension;
 }
 
+/**
+ * The slice of `spotify-auth.js` that reads or leaves through `location`.
+ *
+ * `beginSpotifySignIn` ends in `location.assign` — in a test that is the runner
+ * navigating away — and `spotifyRedirectAllowed` reads a `location` the node
+ * half of the suite does not have. Everything else in that module stays real
+ * wherever this store runs.
+ */
+export interface SpotifySignInFlow {
+	signedIn(): boolean;
+	redirectAllowed(): boolean;
+	beginSignIn(link: string): Promise<boolean>;
+}
+
 interface MediaStoreDependencies {
 	repository: MediaRepository;
 	feedback: FeedbackState;
 	draftId: () => string;
 	player?: MediaPlayer;
+	/** Injectable so tests run the sign-in branches without navigating away. */
+	spotifyAuth?: SpotifySignInFlow;
 	/** Injectable so tests choose a file without a picker. */
 	pickFile?: () => Promise<{ file: File; handle?: FileSystemFileHandle } | undefined>;
 	/** Injectable so tests drive the write throttle without waiting on a clock. */
@@ -320,6 +340,34 @@ export interface MediaStore {
 	destroy(): void;
 }
 
+/**
+ * What the media repository takes when a draft's audio is written down.
+ *
+ * Read off the repository rather than restated, so a field added there cannot
+ * be quietly dropped by the calls here — the same rule the draft record's
+ * hand-written copiers are held to.
+ */
+type MediaAttachInput = Parameters<MediaRepository['attach']>[0];
+
+/**
+ * What the transport takes when it is pointed at a source. Read off the player
+ * for `MediaAttachInput`'s reason: the four shapes are its own.
+ */
+type FileAttachment = NonNullable<Parameters<MediaPlayer['attach']>[1]>;
+type VideoAttachment = Parameters<MediaPlayer['attachVideo']>[0];
+type TrackAttachment = Parameters<MediaPlayer['attachTrack']>[0];
+type SongAttachment = Parameters<MediaPlayer['attachSong']>[0];
+
+/**
+ * What a re-attachment inherits from the pending record it is about to
+ * overwrite. Either field is absent where the record had nothing to hand over,
+ * so a caller's own `??` fallback is what fills it.
+ */
+interface ResumedAttachment {
+	name?: string;
+	position?: number;
+}
+
 /** Whether a pasted source names its id in that source's own alphabet. */
 function pastedIdIsWellFormed(source: ClipboardMediaSource): boolean {
 	if (source.kind === 'youtube') return isYouTubeVideoId(source.id);
@@ -330,9 +378,12 @@ function pastedIdIsWellFormed(source: ClipboardMediaSource): boolean {
 async function defaultPickFile(): Promise<
 	{ file: File; handle?: FileSystemFileHandle } | undefined
 > {
-	const picker = globalThis as unknown as FilePickerWindow;
+	// SAFETY: `FilePickerWindow` is `typeof globalThis` plus one *optional*
+	// method, so every global object is one — the assertion only makes the
+	// undeclared entry point visible, and its presence is checked below.
+	const picker = globalThis as FilePickerWindow;
 
-	if (typeof picker.showOpenFilePicker === 'function') {
+	if (picker.showOpenFilePicker !== undefined) {
 		try {
 			const [handle] = await picker.showOpenFilePicker({
 				multiple: false,
@@ -380,6 +431,11 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	const feedback = deps.feedback;
 	const player = deps.player ?? createMediaPlayer({ feedback });
 	const pickFile = deps.pickFile ?? defaultPickFile;
+	const spotifyAuth: SpotifySignInFlow = deps.spotifyAuth ?? {
+		signedIn: spotifySignedIn,
+		redirectAllowed: spotifyRedirectAllowed,
+		beginSignIn: beginSpotifySignIn
+	};
 
 	/**
 	 * A refusal, on both channels.
@@ -482,14 +538,15 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		position?: number
 	): Promise<void> {
 		try {
-			await deps.repository.attach({
+			const input: MediaAttachInput = {
 				draftId: deps.draftId(),
 				name: file.name,
 				size: file.size,
 				source: 'file',
-				handle,
-				...(position === undefined ? {} : { position })
-			});
+				handle
+			};
+			if (position !== undefined) input.position = position;
+			await deps.repository.attach(input);
 		} catch {
 			// Playback still works for this session; only the memory of it is lost.
 			feedback.announce('This audio could not be remembered for next time.');
@@ -536,12 +593,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		const startAt = claim();
 		const suggestion = titleFromFilename(file.name);
 		if (suggestion !== undefined) deps.onTitleSuggestion?.(suggestion);
-		player.attach(file, {
-			name: file.name,
-			handle,
-			size: file.size,
-			...(startAt === undefined ? {} : { startAt })
-		});
+		const attachment: FileAttachment = { name: file.name, handle, size: file.size };
+		if (startAt !== undefined) attachment.startAt = startAt;
+		player.attach(file, attachment);
 	}
 
 	async function adoptVideo(videoId: string, name: string): Promise<void> {
@@ -551,11 +605,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		// after an address.
 		if (name !== provisionalName(videoId)) deps.onTitleSuggestion?.(name);
 		currentVideoId = videoId;
-		await player.attachVideo({
-			videoId,
-			name,
-			...(startAt === undefined ? {} : { startAt })
-		});
+		const video: VideoAttachment = { videoId, name };
+		if (startAt !== undefined) video.startAt = startAt;
+		await player.attachVideo(video);
 	}
 
 	async function adoptTrack(trackId: string, name: string): Promise<void> {
@@ -565,11 +617,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		// after an address.
 		if (name !== provisionalTrackName(trackId)) deps.onTitleSuggestion?.(name);
 		currentTrackId = trackId;
-		await player.attachTrack({
-			trackId,
-			name,
-			...(startAt === undefined ? {} : { startAt })
-		});
+		const track: TrackAttachment = { trackId, name };
+		if (startAt !== undefined) track.startAt = startAt;
+		await player.attachTrack(track);
 	}
 
 	async function adoptSong(songId: string, name: string): Promise<void> {
@@ -579,11 +629,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 		// after an address.
 		if (name !== provisionalSongName(songId)) deps.onTitleSuggestion?.(name);
 		currentSongId = songId;
-		await player.attachSong({
-			songId,
-			name,
-			...(startAt === undefined ? {} : { startAt })
-		});
+		const song: SongAttachment = { songId, name };
+		if (startAt !== undefined) song.startAt = startAt;
+		await player.attachSong(song);
 	}
 
 	/**
@@ -606,15 +654,12 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	 * name is not this track's, and a different track's playhead is worse than
 	 * none.
 	 */
-	function resumedAttachment(
-		pendingId: string | undefined,
-		id: string
-	): { name?: string; position?: number } {
+	function resumedAttachment(pendingId: string | undefined, id: string): ResumedAttachment {
 		if (pendingId !== id) return {};
-		return {
-			...(pendingName === undefined ? {} : { name: pendingName }),
-			...(pendingPosition === undefined ? {} : { position: pendingPosition })
-		};
+		const resumed: ResumedAttachment = {};
+		if (pendingName !== undefined) resumed.name = pendingName;
+		if (pendingPosition !== undefined) resumed.position = pendingPosition;
+		return resumed;
 	}
 
 	/** What a video is called before Google's player says what it actually is. */
@@ -713,13 +758,14 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				const name = resumed.name ?? provisionalName(parsed.videoId);
 				const attaching = adoptVideo(parsed.videoId, name);
 				try {
-					await deps.repository.attach({
+					const input: MediaAttachInput = {
 						draftId: deps.draftId(),
 						name,
 						source: 'youtube',
-						videoId: parsed.videoId,
-						...(resumed.position === undefined ? {} : { position: resumed.position })
-					});
+						videoId: parsed.videoId
+					};
+					if (resumed.position !== undefined) input.position = resumed.position;
+					await deps.repository.attach(input);
 				} catch {
 					feedback.announce('This video could not be remembered for next time.');
 				}
@@ -749,12 +795,12 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			if (!spotifyConfigured()) return 'Spotify is not configured for this build.';
 			if (busy) return stillAttaching;
 
-			if (!spotifySignedIn()) {
-				if (!spotifyRedirectAllowed()) return spotifyInsecureOriginMessage();
+			if (!spotifyAuth.signedIn()) {
+				if (!spotifyAuth.redirectAllowed()) return spotifyInsecureOriginMessage();
 				// False is the page still standing: the flow could not be started, so
 				// the caller has to say so rather than close over a redirect that is
 				// not happening.
-				if (!(await beginSpotifySignIn(spotifyLink(parsed.trackId)))) {
+				if (!(await spotifyAuth.beginSignIn(spotifyLink(parsed.trackId)))) {
 					return signInStorageRefused;
 				}
 				return undefined;
@@ -789,7 +835,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				// is departing" for the redirect. Mapped to an empty result set, the
 				// picker rendered `No matches on Spotify.` over a valid track link for
 				// the whole of the navigation.
-				const redirecting = !spotifySignedIn();
+				const redirecting = !spotifyAuth.signedIn();
 				const message = await store.attachSpotify(trimmed);
 				if (message !== undefined) return { error: message };
 				return redirecting ? { signingIn: true } : { results: [] };
@@ -797,9 +843,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 			// The query rides across the redirect the way a link does, so a first
 			// search is not lost to the sign-in that it triggered.
-			if (!spotifySignedIn()) {
-				if (!spotifyRedirectAllowed()) return { error: spotifyInsecureOriginMessage() };
-				if (!(await beginSpotifySignIn(trimmed))) return { error: signInStorageRefused };
+			if (!spotifyAuth.signedIn()) {
+				if (!spotifyAuth.redirectAllowed()) return { error: spotifyInsecureOriginMessage() };
+				if (!(await spotifyAuth.beginSignIn(trimmed))) return { error: signInStorageRefused };
 				return { signingIn: true };
 			}
 
@@ -814,13 +860,14 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				const label = resumed.name ?? name;
 				const attaching = adoptTrack(trackId, label);
 				try {
-					await deps.repository.attach({
+					const input: MediaAttachInput = {
 						draftId: deps.draftId(),
 						name: label,
 						source: 'spotify',
-						trackId,
-						...(resumed.position === undefined ? {} : { position: resumed.position })
-					});
+						trackId
+					};
+					if (resumed.position !== undefined) input.position = resumed.position;
+					await deps.repository.attach(input);
 				} catch {
 					feedback.announce('This track could not be remembered for next time.');
 				}
@@ -872,13 +919,14 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				const label = resumed.name ?? name;
 				const attaching = adoptSong(songId, label);
 				try {
-					await deps.repository.attach({
+					const input: MediaAttachInput = {
 						draftId: deps.draftId(),
 						name: label,
 						source: 'apple',
-						songId,
-						...(resumed.position === undefined ? {} : { position: resumed.position })
-					});
+						songId
+					};
+					if (resumed.position !== undefined) input.position = resumed.position;
+					await deps.repository.attach(input);
 				} catch {
 					feedback.announce('This song could not be remembered for next time.');
 				}
@@ -975,14 +1023,17 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 							: provisionalSongName(source.id);
 				const name = source.name ?? provisional;
 				try {
-					await deps.repository.attach({
+					const input: MediaAttachInput = {
 						draftId: deps.draftId(),
 						name,
-						source: source.kind,
-						...(source.kind === 'youtube' ? { videoId: source.id } : {}),
-						...(source.kind === 'spotify' ? { trackId: source.id } : {}),
-						...(source.kind === 'apple' ? { songId: source.id } : {})
-					});
+						source: source.kind
+					};
+					// One id field, named for the source's own alphabet — a record that
+					// confused them would fail as a 404 a long way from here.
+					if (source.kind === 'youtube') input.videoId = source.id;
+					if (source.kind === 'spotify') input.trackId = source.id;
+					if (source.kind === 'apple') input.songId = source.id;
+					await deps.repository.attach(input);
 				} catch {
 					feedback.announce('The pasted song could not be remembered for next time.');
 				}
@@ -993,7 +1044,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 					await adoptVideo(source.id, name);
 					return true;
 				}
-				if (source.kind === 'spotify' && spotifySignedIn()) {
+				if (source.kind === 'spotify' && spotifyAuth.signedIn()) {
 					await adoptTrack(source.id, name);
 					return true;
 				}
@@ -1057,12 +1108,12 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				if (pendingSource === 'spotify') {
 					const trackId = pendingTrackId;
 					if (trackId === undefined) return;
-					if (!spotifySignedIn()) {
-						if (!spotifyRedirectAllowed()) {
+					if (!spotifyAuth.signedIn()) {
+						if (!spotifyAuth.redirectAllowed()) {
 							report(spotifyInsecureOriginMessage());
 							return;
 						}
-						if (!(await beginSpotifySignIn(spotifyLink(trackId)))) {
+						if (!(await spotifyAuth.beginSignIn(spotifyLink(trackId)))) {
 							report(signInStorageRefused);
 						}
 						return;
@@ -1172,7 +1223,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 			pendingName = record.name;
 			pendingSource = record.source ?? 'file';
-			pendingHandle = record.handle as PersistableFileHandle | undefined;
+			pendingHandle = record.handle;
 			pendingVideoId = record.videoId;
 			pendingTrackId = record.trackId;
 			pendingSongId = record.songId;
@@ -1195,7 +1246,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			// already signed in — the same trade, with the sign-in standing where
 			// the granted permission and the YouTube consent stand.
 			if (pendingSource === 'spotify') {
-				if (!spotifySignedIn() || pendingTrackId === undefined) return;
+				if (!spotifyAuth.signedIn() || pendingTrackId === undefined) return;
 				await adoptTrack(pendingTrackId, pendingName);
 				return;
 			}

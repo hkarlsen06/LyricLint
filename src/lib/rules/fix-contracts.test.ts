@@ -541,9 +541,9 @@ function safeFixesOffered(diagnostics: readonly Diagnostic[]): DiagnosticFix[] {
 }
 
 function disjoint(fixes: readonly DiagnosticFix[]): boolean {
-	const edits = [...fixes.flatMap((fix) => fix.edit.edits)].sort(
-		(left, right) => left.from - right.from
-	);
+	const edits = fixes
+		.flatMap((fix) => fix.edit.edits)
+		.sort((left, right) => left.from - right.from);
 	return edits.every((edit, index) => index === 0 || edit.from >= edits[index - 1]!.to);
 }
 

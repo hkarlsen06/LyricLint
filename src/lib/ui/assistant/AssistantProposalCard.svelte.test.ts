@@ -20,17 +20,20 @@ function proposal(
 		replacement: 'This is a deliberately long opening before the new lines and a closing line.',
 		note: 'Use the wording consistently.'
 	};
-	if (status === 'failed') return { ...base, status, ...(reason ? { reason } : {}) };
-	return { ...base, status } as AssistantProposalRecord;
+	if (status !== 'failed') return { ...base, status } as AssistantProposalRecord;
+	const record: AssistantProposalRecord = { ...base, status };
+	if (reason) record.reason = reason;
+	return record;
 }
 
-function assistantStub() {
-	return {
+function assistantStub(): AssistantState {
+	const stub: Partial<AssistantState> = {
 		previewProposal: vi.fn(() => true),
 		endProposalPreview: vi.fn(),
 		approveProposal: vi.fn(async () => undefined),
 		rejectProposal: vi.fn(async () => undefined)
-	} as unknown as AssistantState;
+	};
+	return stub as AssistantState;
 }
 
 afterEach(cleanup);

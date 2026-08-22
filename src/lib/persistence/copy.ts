@@ -15,10 +15,11 @@ import type { CompareBaselineRecord, SectionLink } from '../core/types.js';
  * of two to remember.
  */
 export function copySectionLinks(links: readonly SectionLink[]): SectionLink[] {
-	return links.map((link) => ({
-		lines: [...link.lines],
-		...(link.holes ? { holes: link.holes.map((hole) => ({ ...hole })) } : {})
-	}));
+	return links.map((link) => {
+		const copy: SectionLink = { lines: [...link.lines] };
+		if (link.holes) copy.holes = link.holes.map((hole) => ({ ...hole }));
+		return copy;
+	});
 }
 
 /**

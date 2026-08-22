@@ -1,3 +1,4 @@
+import { browser } from '$app/environment';
 import type { TransportAction } from './media-player.svelte.js';
 
 /**
@@ -21,23 +22,23 @@ import type { TransportAction } from './media-player.svelte.js';
  * `key` is the fallback for the environments — and the synthetic events — that
  * report a character but no `code`.
  */
-const transportKeys: Readonly<Record<string, TransportAction>> = {
-	KeyJ: 'back',
-	KeyK: 'toggle',
-	KeyL: 'forward'
-};
+const transportKeys = new Map<string, TransportAction>([
+	['KeyJ', 'back'],
+	['KeyK', 'toggle'],
+	['KeyL', 'forward']
+]);
 
-const directTransportKeys: Readonly<Record<string, TransportAction>> = {
-	F7: 'back',
-	F8: 'toggle',
-	F9: 'forward',
-	MediaTrackPrevious: 'back',
-	MediaPlayPause: 'toggle',
-	MediaTrackNext: 'forward'
-};
+const directTransportKeys = new Map<string, TransportAction>([
+	['F7', 'back'],
+	['F8', 'toggle'],
+	['F9', 'forward'],
+	['MediaTrackPrevious', 'back'],
+	['MediaPlayPause', 'toggle'],
+	['MediaTrackNext', 'forward']
+]);
 
 function currentPlatform(): string {
-	return typeof navigator === 'undefined' ? '' : navigator.platform;
+	return browser ? navigator.platform : '';
 }
 
 export function transportModifier(platform = currentPlatform()): 'Control' | 'Alt' {
@@ -62,7 +63,7 @@ export function matchTransportAction(
 	// The function row and actual media keys need no modifier. Bare Space also
 	// toggles, but only when the press was not aimed at something that owns it.
 	if (!event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey) {
-		const direct = directTransportKeys[event.code] ?? directTransportKeys[event.key];
+		const direct = directTransportKeys.get(event.code) ?? directTransportKeys.get(event.key);
 		if (direct) return direct;
 		if (event.code !== 'Space' && event.key !== ' ') return undefined;
 		return ownsSpace(event.target) ? undefined : 'toggle';
@@ -81,9 +82,9 @@ export function matchTransportAction(
 			: event.altKey && !event.ctrlKey;
 	const universal = event.ctrlKey && event.altKey;
 	if (!primary && !universal) return undefined;
-	const byCode = transportKeys[event.code];
+	const byCode = transportKeys.get(event.code);
 	if (byCode) return byCode;
-	return event.key.length === 1 ? transportKeys[`Key${event.key.toUpperCase()}`] : undefined;
+	return event.key.length === 1 ? transportKeys.get(`Key${event.key.toUpperCase()}`) : undefined;
 }
 
 /**
@@ -222,8 +223,7 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 	const mediaSession =
 		options.mediaSession === null
 			? undefined
-			: (options.mediaSession ??
-				(typeof navigator === 'undefined' ? undefined : navigator.mediaSession));
+			: (options.mediaSession ?? (browser ? navigator.mediaSession : undefined));
 
 	// Whether the space bar now down is one this listener answered. A repeat can
 	// no longer ask — the question is `transport`, and asking it would run the
@@ -231,6 +231,9 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 	let claimedSpace = false;
 
 	function handle(event: Event): void {
+		// SAFETY: registered for `keydown` alone, which the DOM dispatches as a
+		// `KeyboardEvent`. The listener signature is `Event` because the target is an
+		// injectable `EventTarget` rather than a `Window`.
 		const keystroke = event as KeyboardEvent;
 
 		// A run's tap comes first, or the toggle underneath pauses the tape out
@@ -279,6 +282,7 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 	// The key coming up ends whatever the press claimed, so a later held space
 	// over a detached source cannot inherit an answer from the last attached one.
 	function release(event: Event): void {
+		// SAFETY: registered for `keyup` alone, exactly as `handle` is for `keydown`.
 		const keystroke = event as KeyboardEvent;
 		if (keystroke.code === 'Space' || keystroke.key === ' ') claimedSpace = false;
 	}
@@ -290,6 +294,7 @@ export function bindTransportShortcuts(options: TransportShortcutOptions): () =>
 	// reaches this is an Escape nobody else wanted — the caret sitting in the
 	// document — which is precisely the press that means "stop the tape".
 	function handleEscape(event: Event): void {
+		// SAFETY: registered for `keydown` alone, exactly as `handle` is.
 		const keystroke = event as KeyboardEvent;
 		// Something above claimed it — a popover, a find bar, a sync run, the draft
 		// title's own reset — so leave the keystroke alone.

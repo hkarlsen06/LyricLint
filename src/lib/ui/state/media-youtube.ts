@@ -99,6 +99,9 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 	if (injected) return injected;
 
 	const attempt = new Promise<YouTubeApi>((resolve, reject) => {
+		// SAFETY: the IFrame API installs itself as a property of the global object
+		// and calls another, which is all this claims — both are optional, so the
+		// branches below are what establish either is there.
 		const scope = globalThis as YouTubeGlobal;
 		if (scope.YT?.Player) {
 			resolve(scope.YT);
@@ -130,10 +133,17 @@ export function loadYouTubeApi(): Promise<YouTubeApi> {
 		document.head.appendChild(script);
 	});
 
-	injected = attempt.catch((error: unknown) => {
-		injected = undefined;
-		throw error;
-	});
+	// A wrapper around `attempt` rather than the promise itself, so that a failure
+	// raised while this function is still running — a document that cannot be
+	// written to — is forgotten too, by which time the assignment has happened.
+	injected = (async () => {
+		try {
+			return await attempt;
+		} catch (failure) {
+			injected = undefined;
+			throw failure;
+		}
+	})();
 	return injected;
 }
 
@@ -158,16 +168,16 @@ const embedRefused =
  * so the nested player is not a secure context and DRM-protected audio has
  * nothing to decrypt with.
  */
-const youtubeErrorMessages: Record<number, string> = {
-	2: 'That video id is not valid.',
-	5: 'This browser could not play that video. Serving the app over https usually fixes it.',
-	100: 'That video is gone — removed, or private.',
-	101: embedRefused,
-	150: embedRefused
-};
+const youtubeErrorMessages = new Map<number, string>([
+	[2, 'That video id is not valid.'],
+	[5, 'This browser could not play that video. Serving the app over https usually fixes it.'],
+	[100, 'That video is gone — removed, or private.'],
+	[101, embedRefused],
+	[150, embedRefused]
+]);
 
 function youtubeErrorMessage(code: number): string {
-	return youtubeErrorMessages[code] ?? `That video could not be played (error ${code}).`;
+	return youtubeErrorMessages.get(code) ?? `That video could not be played (error ${code}).`;
 }
 
 /**
@@ -283,7 +293,7 @@ export function parseYouTubeVideoId(input: string): YouTubeUrlResult {
 	return bareIdPattern.test(candidate) ? { videoId: candidate } : { error: noVideo };
 }
 
-interface YouTubeSourceDependencies {
+export interface YouTubeSourceDependencies {
 	events: MediaSourceEvents;
 	loadApi: YouTubeApiLoader;
 	/** Injectable so a test advances the poll by hand rather than on a clock. */

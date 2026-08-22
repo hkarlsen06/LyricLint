@@ -276,15 +276,15 @@ describe('AppWordmark', () => {
 		// Suppressed rather than shortened: the lockup reports nothing, so a faster
 		// version of it would be motion with nothing to say. It parks open, which
 		// is the state that carries the most brand for the least movement.
-		const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation(
-			(query: string) =>
-				({
-					matches: query.includes('prefers-reduced-motion: reduce'),
-					media: query,
-					addEventListener: () => {},
-					removeEventListener: () => {}
-				}) as unknown as MediaQueryList
-		);
+		const matchMedia = vi.spyOn(window, 'matchMedia').mockImplementation((query: string) => {
+			const list: Partial<MediaQueryList> = {
+				matches: query.includes('prefers-reduced-motion: reduce'),
+				media: query,
+				addEventListener: () => {},
+				removeEventListener: () => {}
+			};
+			return list as MediaQueryList;
+		});
 		vi.useFakeTimers();
 		try {
 			await render(AppWordmark);

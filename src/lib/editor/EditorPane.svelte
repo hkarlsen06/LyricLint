@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount, tick, untrack } from 'svelte';
 	import type {
+		AtomicDocumentEdit,
 		Diagnostic,
 		DiagnosticFix,
 		EditorSnapshot,
@@ -52,6 +53,9 @@
 	import SectionPicker from './overlays/SectionPicker.svelte';
 	import type { SectionHeaderNeighbors } from './overlays/section-picker.js';
 	import { linkOccurrences, type LinkOccurrence } from './section-links.js';
+
+	/** What `createPerformerEdit` takes, read off the contract rather than restated here. */
+	type PerformerChoice = Parameters<NonNullable<LyricEditorCallbacks['createPerformerEdit']>>[0];
 
 	let {
 		initialText,
@@ -453,20 +457,21 @@
 			return;
 		}
 		try {
-			const edit =
-				outcome.kind === 'legend'
-					? await callbacks.createPerformerLegendEdit?.({
-							sectionFrom: outcome.sectionFrom,
-							assignments: outcome.assignments,
-							unwrapSlots: outcome.unwrapSlots
-						})
-					: await callbacks.createPerformerEdit?.({
-							range: outcome.range,
-							performerIds: [...outcome.performerIds],
-							...(outcome.sectionPerformerIds
-								? { sectionPerformerIds: outcome.sectionPerformerIds }
-								: {})
-						});
+			let edit: AtomicDocumentEdit | undefined;
+			if (outcome.kind === 'legend') {
+				edit = await callbacks.createPerformerLegendEdit?.({
+					sectionFrom: outcome.sectionFrom,
+					assignments: outcome.assignments,
+					unwrapSlots: outcome.unwrapSlots
+				});
+			} else {
+				const choice: PerformerChoice = {
+					range: outcome.range,
+					performerIds: [...outcome.performerIds]
+				};
+				if (outcome.sectionPerformerIds) choice.sectionPerformerIds = outcome.sectionPerformerIds;
+				edit = await callbacks.createPerformerEdit?.(choice);
+			}
 			if (edit) {
 				const anchor = outcome.kind === 'legend' ? outcome.sectionFrom : outcome.range.from;
 				if (editor?.handle.dispatchLinkedPerformer) {

@@ -288,20 +288,20 @@ describe('the assistant dialog', () => {
 		// and has to restore itself when `send` reports nothing was consumed.
 		const held = new Set<string>();
 		const locks = {
-			async request(
+			async request<T>(
 				name: string,
-				_options: unknown,
-				callback: (lock: { name: string } | null) => unknown
-			) {
-				if (held.has(name)) return callback(null);
+				options: LockOptions,
+				callback: LockGrantedCallback<T>
+			): Promise<Awaited<T>> {
+				if (held.has(name)) return await callback(null);
 				held.add(name);
 				try {
-					return await callback({ name });
+					return await callback({ name, mode: options.mode ?? 'exclusive' });
 				} finally {
 					held.delete(name);
 				}
 			}
-		} as unknown as LockManager;
+		} as LockManager;
 		const assistant = makeAssistant({ locks });
 		const { container } = render(AssistantDialog, { assistant });
 		await assistant.open();

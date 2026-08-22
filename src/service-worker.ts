@@ -20,7 +20,10 @@ import { base, build, files, prerendered, version } from '$service-worker';
  *   by a navigation landing fresh markup over its own stale copy.
  */
 
-const worker = self as unknown as ServiceWorkerGlobalScope;
+// The webworker lib's own `self`, shadowing the DOM `Window` one that the
+// project's shared lib set would otherwise put in scope here.
+declare const self: ServiceWorkerGlobalScope;
+const worker = self;
 const cachePrefix = 'lyriclint-';
 const cacheName = `${cachePrefix}${version}`;
 
@@ -177,7 +180,7 @@ async function immutableAsset(event: FetchEvent): Promise<Response> {
 async function navigation(event: FetchEvent): Promise<Response> {
 	const request = event.request;
 	try {
-		const preloaded = (await event.preloadResponse) as Response | undefined;
+		const preloaded: Response | undefined = await event.preloadResponse;
 		const response = preloaded ?? (await fetch(request));
 		// A page of ours that arrived whole refreshes its own offline copy — this
 		// is how a visited rules page earns a place in the snapshot, and how the

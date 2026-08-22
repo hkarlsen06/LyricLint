@@ -6,6 +6,9 @@ import { DEFAULT_DRAFT_TITLE } from './draft-repository.js';
 const DEFAULT_TITLE = DEFAULT_DRAFT_TITLE;
 const DEFAULT_LANGUAGE = 'en';
 
+/** A stored row whose id and transcription really are the strings it claims. */
+type ReadableDraft = DraftRecord & { id: string; text: string };
+
 /**
  * A draft that exists only in memory. Nothing is written for it: a document
  * with no text has nothing to recover, and a record for it would come back as
@@ -36,8 +39,14 @@ function blankDraft(): DraftRecord {
  * the ignore store could be keyed against. Everything else a record carries is
  * either optional already or defaulted by `copyDraft`, so a row that clears
  * this pair is a row worth recovering whatever else it is missing.
+ *
+ * A predicate rather than a plain boolean because the record's type is what a
+ * row was written as, not what came back: a database somebody else's build —
+ * or a failed write — left a half-row in hands back a `DraftRecord` whose id
+ * and text are whatever IndexedDB stored, so the check is the only thing that
+ * makes the declared type true.
  */
-function isReadableDraft(draft: DraftRecord): boolean {
+function isReadableDraft(draft: DraftRecord): draft is ReadableDraft {
 	return typeof draft.id === 'string' && draft.id.length > 0 && typeof draft.text === 'string';
 }
 

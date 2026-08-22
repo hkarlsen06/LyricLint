@@ -39,7 +39,7 @@
 			.then(({ default: component }) => {
 				AssistantHost = component;
 			})
-			.catch((error: unknown) => {
+			.catch((error: Error) => {
 				// The latch exists to stop a second import racing the first, so a
 				// refusal has to release it: a chunk that could not be fetched once —
 				// offline, or a deploy that retired it under an open tab — otherwise

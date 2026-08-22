@@ -9,6 +9,7 @@ import {
 	type AssistantLinkAction,
 	type AssistantProposal,
 	type AssistantReference,
+	type StructuredAssistantAnswer,
 	type ToolCallsTurnResponse
 } from './types.js';
 
@@ -191,8 +192,11 @@ describe('the assistant state', () => {
 	});
 
 	it('clears speculative live blocks when the stream retries', async () => {
-		const stateRef: { current?: ReturnType<typeof createAssistantState> } = {};
-		let answerAfterReset: unknown = 'not observed';
+		interface StateRef {
+			current?: ReturnType<typeof createAssistantState>;
+		}
+		const stateRef: StateRef = {};
+		let answerAfterReset: StructuredAssistantAnswer | string | undefined = 'not observed';
 		const ask = vi.fn(async (options: Parameters<AssistantDeps['ask']>[0]) => {
 			await options.onProgress?.({
 				scope: 'reviewed',
@@ -1310,8 +1314,12 @@ describe('the assistant state', () => {
 function stubLocks() {
 	const held = new Set<string>();
 	const manager = {
-		async request(name: string, options: LockOptions, callback: (lock: Lock | null) => unknown) {
-			if (held.has(name)) return callback(null);
+		async request<T>(
+			name: string,
+			options: LockOptions,
+			callback: LockGrantedCallback<T>
+		): Promise<Awaited<T>> {
+			if (held.has(name)) return await callback(null);
 			held.add(name);
 			try {
 				return await callback({ name, mode: options.mode ?? 'exclusive' });
@@ -1321,7 +1329,7 @@ function stubLocks() {
 		}
 	};
 	return {
-		locks: manager as unknown as LockManager,
+		locks: manager as LockManager,
 		held,
 		/** The other tab entering the conversation, until the returned call lets go. */
 		holdElsewhere(chatId: string) {
@@ -1412,9 +1420,10 @@ describe('the assistant conversation lock', () => {
 	});
 
 	it('sends anyway where the lock manager refuses the request', async () => {
-		const locks = {
+		const locks: LockManager = {
+			query: () => Promise.reject(new Error('SecurityError')),
 			request: () => Promise.reject(new Error('SecurityError'))
-		} as unknown as LockManager;
+		};
 		const { state, deps } = makeState({ locks });
 		await state.open();
 		await state.send('First?');

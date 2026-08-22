@@ -1,5 +1,6 @@
 import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
+import type { ComponentProps } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 import { createInMemoryMediaRepository } from '../state/in-memory.js';
@@ -39,12 +40,9 @@ function setup(options: { file?: File | undefined; draftTitle?: string } = {}) {
 		pickFile: async () => (file ? { file } : undefined)
 	});
 
-	render(MediaPicker, {
-		props: {
-			media,
-			...(options.draftTitle === undefined ? {} : { draftTitle: options.draftTitle })
-		}
-	});
+	const props: ComponentProps<typeof MediaPicker> = { media };
+	if (options.draftTitle !== undefined) props.draftTitle = options.draftTitle;
+	render(MediaPicker, { props });
 	return { media, youtube };
 }
 
@@ -300,7 +298,7 @@ describe('MediaPicker', () => {
 
 		await page.getByRole('button', { name: 'Add audio' }).click();
 		await page.getByLabelText('Apple Music search').fill('kygo');
-		(dialog()?.querySelector('.media-dialog__search') as HTMLButtonElement).click();
+		dialog()!.querySelector<HTMLButtonElement>('.media-dialog__search')!.click();
 
 		await vi.waitFor(() => expect(liveText()).toContain('No matches on Apple Music.'));
 
@@ -310,7 +308,7 @@ describe('MediaPicker', () => {
 				{ songId: '1091453646', name: 'Kygo — Firestone', durationSeconds: 253 }
 			]
 		});
-		(dialog()?.querySelector('.media-dialog__search') as HTMLButtonElement).click();
+		dialog()!.querySelector<HTMLButtonElement>('.media-dialog__search')!.click();
 
 		await vi.waitFor(() => expect(liveText()).toContain('2 matches on Apple Music.'));
 		// One state at a time in that region, or a count and a refusal speak over

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from '$lib/core/parser.js';
-import type { PerformerRecord } from '$lib/core/types.js';
+import type { PerformerRecord, TextRange } from '$lib/core/types.js';
 import {
 	findHeaderRenameTargets,
 	headerNameAtoms,
@@ -28,7 +28,7 @@ const document = [
 	'<i>Jun answers</i>'
 ].join('\n');
 
-function atomAt(text: string, needle: string, occurrence = 0): { from: number; to: number } {
+function atomAt(text: string, needle: string, occurrence = 0): TextRange {
 	let from = -1;
 	for (let index = 0; index <= occurrence; index += 1) {
 		from = text.indexOf(needle, from + 1);

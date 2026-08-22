@@ -173,12 +173,12 @@ export interface SourceReference {
 export type Severity = 'error' | 'warning' | 'suggestion' | 'manual-review';
 
 /** Shared severity priority; consumers keep their distinct secondary sorts. */
-export const severityRank: Record<Severity, number> = {
+export const severityRank = {
 	error: 0,
 	warning: 1,
 	suggestion: 2,
 	'manual-review': 3
-};
+} satisfies Record<Severity, number>;
 
 /** Whether a rule's fixes can be applied directly, previewed, or not offered. */
 export type Fixability = 'safe' | 'preview' | 'none';

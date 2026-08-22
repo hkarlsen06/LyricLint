@@ -25,6 +25,8 @@
  * boot state.
  */
 
+import { browser } from '$app/environment';
+
 type StoragePersistenceState = 'unknown' | 'unsupported' | 'persistent' | 'prompt' | 'denied';
 
 export interface PersistentStorageApi {
@@ -34,18 +36,19 @@ export interface PersistentStorageApi {
 }
 
 function browserApi(): PersistentStorageApi | undefined {
-	if (typeof navigator === 'undefined' || typeof navigator.storage?.persist !== 'function') {
-		return undefined;
-	}
-	const storage = navigator.storage;
+	// There is no `navigator` under prerender. `StorageManager` is declared as
+	// always present and always complete, which is what the two runtime checks
+	// under it are for: an insecure context has no `navigator.storage` at all,
+	// and browsers that predate the Storage API ship it without `persist`.
+	if (!browser) return undefined;
+	const storage: StorageManager | undefined = navigator.storage;
+	if (!storage || !('persist' in storage)) return undefined;
 	return {
 		persisted: () => storage.persisted(),
 		persist: () => storage.persist(),
 		async permissionState() {
 			try {
-				const status = await navigator.permissions.query({
-					name: 'persistent-storage' as PermissionName
-				});
+				const status = await navigator.permissions.query({ name: 'persistent-storage' });
 				return status.state;
 			} catch {
 				// A browser that cannot answer for this permission name is a browser

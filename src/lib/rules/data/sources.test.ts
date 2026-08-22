@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { SourceAuthority, SourceReference } from '$lib/core/types.js';
 import { assertReviewedSources, getSource, sourceRegistry } from './sources.js';
 
 const reviewedIds = [
@@ -211,7 +212,7 @@ const editorialAnnotations = new Set([
 	'G-YODELING'
 ]);
 
-function authorityOf(id: string): string {
+function authorityOf(id: string): SourceAuthority {
 	// The venue never decides a tier, the author's rank does — so the staff
 	// forum reply (G-HEADER-COLLECTIVE) ranks exactly as staff guide content.
 	if (id === 'G-ADD-SONGS' || id === 'G-HEADER-COLLECTIVE' || staffAnnotations.has(id)) {
@@ -229,14 +230,16 @@ describe('source registry', () => {
 	it('contains every reviewed source with exact review dates', () => {
 		expect(() => assertReviewedSources(reviewedIds)).not.toThrow();
 		for (const id of reviewedIds) {
-			expect(getSource(id)).toMatchObject({
+			const expected: Partial<SourceReference> = {
 				id,
 				retrievedAt: retrievedOn(id),
 				lastVerifiedAt: verifiedOn(id),
 				reviewStatus: 'reviewed',
-				authority: authorityOf(id),
-				...(latestHashes.has(id) ? { contentHash: latestHashes.get(id) } : {})
-			});
+				authority: authorityOf(id)
+			};
+			const contentHash = latestHashes.get(id);
+			if (contentHash !== undefined) expected.contentHash = contentHash;
+			expect(getSource(id)).toMatchObject(expected);
 		}
 	});
 

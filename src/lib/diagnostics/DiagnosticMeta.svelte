@@ -31,10 +31,15 @@
 		line?: number;
 	} = $props();
 
+	/** Which of the two shapes the surface handed over. */
+	function isSourceList(
+		value: ReadonlyMap<string, SourceReference> | readonly SourceReference[]
+	): value is readonly SourceReference[] {
+		return Array.isArray(value);
+	}
+
 	const lookup = $derived(
-		sources instanceof Map
-			? (sources as ReadonlyMap<string, SourceReference>)
-			: new Map((sources as readonly SourceReference[]).map((source) => [source.id, source]))
+		isSourceList(sources) ? new Map(sources.map((source) => [source.id, source])) : sources
 	);
 	const citations = $derived(
 		diagnostic.sourceIds.map((sourceId) => ({ id: sourceId, source: lookup.get(sourceId) }))

@@ -144,17 +144,18 @@ function currentDraftMetadata(id: string): AppMetadataRecord {
 	};
 }
 
+/** A stored language tag with something in it, as read back from metadata JSON. */
+function isFilledString(value: unknown): value is string {
+	return typeof value === 'string' && value.trim().length > 0;
+}
+
 function parseRecentLanguages(value: string | undefined): string[] {
 	if (!value) return [];
 	try {
 		const parsed: unknown = JSON.parse(value);
 		if (!Array.isArray(parsed)) return [];
 		return [
-			...new Set(
-				parsed.flatMap((language) =>
-					typeof language === 'string' && language.trim().length > 0 ? [language.trim()] : []
-				)
-			)
+			...new Set(parsed.flatMap((language) => (isFilledString(language) ? [language.trim()] : [])))
 		].slice(0, MAX_RECENT_LANGUAGES);
 	} catch {
 		return [];

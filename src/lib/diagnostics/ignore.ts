@@ -55,19 +55,27 @@ export function acceptsDiagnosticAsCorrect(diagnostic: Diagnostic): boolean {
 	);
 }
 
+function isString(part: unknown): part is string {
+	return typeof part === 'string';
+}
+
+function isIgnoreIdentity(value: unknown): value is IgnoreIdentity {
+	return (
+		Array.isArray(value) &&
+		// Six is every key written before acceptances were told apart, and it
+		// reads as an ordinary ignore. A seventh part this function does not
+		// recognize is not a key it can vouch for.
+		(value.length === 6 || (value.length === 7 && value[6] === ACCEPTED_MARKER)) &&
+		value.slice(0, 5).every(isString) &&
+		typeof value[5] === 'number'
+	);
+}
+
 function parse(key: string): IgnoreIdentity | undefined {
 	try {
 		const value: unknown = JSON.parse(key);
-		if (
-			Array.isArray(value) &&
-			// Six is every key written before acceptances were told apart, and it
-			// reads as an ordinary ignore. A seventh part this function does not
-			// recognize is not a key it can vouch for.
-			(value.length === 6 || (value.length === 7 && value[6] === ACCEPTED_MARKER)) &&
-			value.slice(0, 5).every((part) => typeof part === 'string') &&
-			typeof value[5] === 'number'
-		) {
-			return value as IgnoreIdentity;
+		if (isIgnoreIdentity(value)) {
+			return value;
 		}
 	} catch {
 		// Old rule-level session keys are deliberately not occurrence ignores.

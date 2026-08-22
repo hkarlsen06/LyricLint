@@ -14,7 +14,7 @@ export function snapshotFromState(state: EditorState, atomic = false): EditorSna
 	const text = state.doc.toString();
 	const selection = state.selection.main;
 
-	return {
+	const snapshot: EditorSnapshot = {
 		revision: state.field(editorRevisionField),
 		text,
 		selection: { anchor: selection.anchor, head: selection.head },
@@ -22,9 +22,10 @@ export function snapshotFromState(state: EditorState, atomic = false): EditorSna
 		diagnostics: diagnosticsForState(state),
 		composing: state.field(editorComposingField),
 		canUndo: undoDepth(state) > 0,
-		canRedo: redoDepth(state) > 0,
-		...(atomic ? { atomic: true as const } : {})
+		canRedo: redoDepth(state) > 0
 	};
+	if (atomic) snapshot.atomic = true;
+	return snapshot;
 }
 
 /**

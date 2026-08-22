@@ -31,11 +31,13 @@ export function resolveLinkAction(
 	text: string,
 	action: AssistantLinkAction
 ): AssistantLinkActionResolution {
-	const headerLines = action.headers.map((header) => resolveHeaderLine(text, header));
-	if (headerLines.some((line) => line === undefined)) {
-		return { ok: false, action, reason: 'not-found' };
+	const headerLines: number[] = [];
+	for (const header of action.headers) {
+		const line = resolveHeaderLine(text, header);
+		if (line === undefined) return { ok: false, action, reason: 'not-found' };
+		headerLines.push(line);
 	}
-	return { ok: true, action, headerLines: headerLines as number[] };
+	return { ok: true, action, headerLines };
 }
 
 /**

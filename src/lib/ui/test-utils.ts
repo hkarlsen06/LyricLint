@@ -79,6 +79,16 @@ export function performer(
 	};
 }
 
+/**
+ * Which of the two clipboard stubs a test supplied: a fixed string, or a reader
+ * that can also be made to reject, which is how the refusal paths are driven.
+ */
+function readsClipboard(
+	source: string | (() => Promise<string>) | undefined
+): source is () => Promise<string> {
+	return typeof source === 'function';
+}
+
 export function createTestWorkbench(options?: {
 	text?: string;
 	diagnostics?: Diagnostic[];
@@ -113,9 +123,11 @@ export function createTestWorkbench(options?: {
 		createdAt: '2026-07-20T10:00:00.000Z',
 		updatedAt: '2026-07-20T10:00:00.000Z',
 		ruleSetVersion: '2026.7',
-		editorSelection: selection,
-		...(options?.sectionLinks ? { sectionLinks: options.sectionLinks } : {})
+		editorSelection: selection
 	};
+	// Absent rather than empty where a test asked for none: a reload re-seats
+	// only the links the record actually carries.
+	if (options?.sectionLinks) initialDraft.sectionLinks = options.sectionLinks;
 	let snapshot: EditorSnapshot = {
 		revision: options?.revision ?? 4,
 		text,
@@ -185,7 +197,7 @@ export function createTestWorkbench(options?: {
 	const ignoreStore = createContractIgnoreStore(createMemorySessionStorage());
 	const feedback = createFeedbackState();
 	let nextId = 1;
-	const controller = createWorkbenchController({
+	const workbenchDeps: Parameters<typeof createWorkbenchController>[0] = {
 		editor,
 		initialSnapshot: snapshot,
 		initialDraft,
@@ -194,10 +206,6 @@ export function createTestWorkbench(options?: {
 		autosave,
 		ignoreStore,
 		feedback,
-		...(options?.media
-			? { mediaRepository: options.media.repository, mediaPlayer: options.media.player }
-			: {}),
-		...(options?.backup ? { backup: options.backup } : {}),
 		sources: [testSource],
 		ruleSet: {
 			version: '2026.7',
@@ -205,16 +213,9 @@ export function createTestWorkbench(options?: {
 			sourceIds: ['G-SECTIONS'],
 			ruleIds: ['section.header-missing']
 		},
-		...(options?.copyLog
-			? {
-					copy: async (canonicalText: string) => {
-						options.copyLog?.push(canonicalText);
-					}
-				}
-			: {}),
 		readClipboard: async () => {
 			const source = options?.clipboardText;
-			if (typeof source === 'function') return source();
+			if (readsClipboard(source)) return source();
 			if (source === undefined) throw new Error('Clipboard reads are unavailable.');
 			return source;
 		},
@@ -236,7 +237,20 @@ export function createTestWorkbench(options?: {
 			};
 			return snapshot;
 		}
-	});
+	};
+	// Each of these stays off the object where the test did not ask for it: the
+	// controller branches on the key's presence, not on its value.
+	if (options?.media) {
+		workbenchDeps.mediaRepository = options.media.repository;
+		workbenchDeps.mediaPlayer = options.media.player;
+	}
+	if (options?.backup) workbenchDeps.backup = options.backup;
+	if (options?.copyLog) {
+		workbenchDeps.copy = async (canonicalText: string) => {
+			options.copyLog?.push(canonicalText);
+		};
+	}
+	const controller = createWorkbenchController(workbenchDeps);
 
 	return { controller, repository, feedback, calls, editor, initialDraft };
 }

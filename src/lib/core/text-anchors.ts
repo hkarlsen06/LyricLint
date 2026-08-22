@@ -106,9 +106,9 @@ export function resolveAnchor(
 	}
 
 	const onLine =
-		typeof anchor.line === 'number'
-			? occurrences.filter(({ from }) => lineNumberAt(document, from) === anchor.line)
-			: [];
+		anchor.line === undefined || anchor.line === null
+			? []
+			: occurrences.filter(({ from }) => lineNumberAt(document, from) === anchor.line);
 	const candidates = onLine.length > 0 ? onLine : occurrences;
 	if (candidates.length === 1) return { ok: true, ...candidates[0]! };
 

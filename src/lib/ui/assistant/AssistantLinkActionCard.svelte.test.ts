@@ -22,16 +22,18 @@ function action(
 				: [{ text: '[Chorus]', occurrence: 1 }],
 		note: 'These copies repeat the same words.'
 	};
-	return status === 'failed'
-		? { ...base, status, ...(reason ? { reason } : {}) }
-		: ({ ...base, status } as AssistantLinkActionRecord);
+	if (status !== 'failed') return { ...base, status } as AssistantLinkActionRecord;
+	const record: AssistantLinkActionRecord = { ...base, status };
+	if (reason) record.reason = reason;
+	return record;
 }
 
-function assistantStub() {
-	return {
+function assistantStub(): AssistantState {
+	const stub: Partial<AssistantState> = {
 		approveLinkAction: vi.fn(async () => undefined),
 		rejectLinkAction: vi.fn(async () => undefined)
-	} as unknown as AssistantState;
+	};
+	return stub as AssistantState;
 }
 
 afterEach(cleanup);

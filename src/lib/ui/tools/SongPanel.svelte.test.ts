@@ -2,7 +2,8 @@ import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { WorkbenchController } from '../state/workbench.svelte.js';
-import type { SongDetails } from '../state/media-player.svelte.js';
+import type { MediaPlayer, SongDetails } from '../state/media-player.svelte.js';
+import type { MediaStore } from '../state/media-store.svelte.js';
 import { createTestWorkbench } from '../test-utils.js';
 import SongPanel from './SongPanel.svelte';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
@@ -66,16 +67,18 @@ describe('SongPanel skimmability', () => {
 
 	test('loads a remembered source directly from the Song tab', async () => {
 		const reconnect = vi.fn(async () => {});
-		const controller = {
+		const player: Partial<MediaPlayer> = { attached: false };
+		const media: Partial<MediaStore> = {
+			pendingName: 'Roc Boyz & Vinni — Håpløs',
+			pendingSource: 'apple',
+			busy: false,
+			reconnect,
+			player: player as MediaPlayer
+		};
+		const controller: WorkbenchController = {
 			...createTestWorkbench().controller,
-			media: {
-				pendingName: 'Roc Boyz & Vinni — Håpløs',
-				pendingSource: 'apple',
-				busy: false,
-				reconnect,
-				player: { attached: false }
-			}
-		} as unknown as WorkbenchController;
+			media: media as MediaStore
+		};
 		render(SongPanel, { controller, openMediaPicker: vi.fn() });
 
 		await fireEvent.click(
@@ -140,18 +143,16 @@ describe('SongPanel song metadata', () => {
 		songDetails?: SongDetails;
 	}): WorkbenchController {
 		const { controller } = createTestWorkbench();
-		return {
-			...controller,
-			title: 'Mul — Sensommer',
-			media: {
-				videoId: media.videoId,
-				player: {
-					artwork: media.artwork,
-					songDetails: media.songDetails,
-					name: 'Mul — Sensommer'
-				}
-			}
-		} as unknown as WorkbenchController;
+		const player: Partial<MediaPlayer> = {
+			artwork: media.artwork,
+			songDetails: media.songDetails,
+			name: 'Mul — Sensommer'
+		};
+		const store: Partial<MediaStore> = {
+			videoId: media.videoId,
+			player: player as MediaPlayer
+		};
+		return { ...controller, title: 'Mul — Sensommer', media: store as MediaStore };
 	}
 
 	function headings(container: HTMLElement): (string | null)[] {
@@ -197,8 +198,10 @@ describe('SongPanel song metadata', () => {
 
 	test('copies the known artwork URL without downloading it', async () => {
 		const copied: string[] = [];
-		const clipboard = { writeText: async (text: string) => void copied.push(text) };
-		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as unknown as Clipboard);
+		const clipboard: Partial<Clipboard> = {
+			writeText: async (text: string) => void copied.push(text)
+		};
+		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as Clipboard);
 
 		const controller = withSong({ artwork: 'https://i.scdn.co/image/640' });
 		render(SongPanel, { controller });
@@ -211,8 +214,10 @@ describe('SongPanel song metadata', () => {
 
 	test('copies the watch page for an attached video, contacting nobody', async () => {
 		const copied: string[] = [];
-		const clipboard = { writeText: async (text: string) => void copied.push(text) };
-		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as unknown as Clipboard);
+		const clipboard: Partial<Clipboard> = {
+			writeText: async (text: string) => void copied.push(text)
+		};
+		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as Clipboard);
 
 		render(SongPanel, {
 			controller: withSong({ videoId: 'dQw4w9WgXcQ', artwork: 'https://i.ytimg.com/vi/x/hq.jpg' })

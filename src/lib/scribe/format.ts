@@ -57,23 +57,44 @@ export class ScribeFormatError extends Error {}
  */
 export const maxScribeBytes = 50 * 1024 * 1024;
 
-function record(value: unknown): value is Record<string, unknown> {
+/**
+ * A value read out of a parsed `.lls` payload: JSON, or a key the file does not
+ * have at all. Nothing below takes `unknown`, because what arrives here has
+ * already been through `JSON.parse` — what is still open is which of JSON's own
+ * six shapes each field turned out to be, and answering that is this module's
+ * whole job.
+ */
+type JsonValue = string | number | boolean | null | JsonValue[] | JsonObject | undefined;
+
+interface JsonObject {
+	readonly [key: string]: JsonValue;
+}
+
+function record(value: JsonValue): value is JsonObject {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function string(value: unknown, field: string): string {
-	if (typeof value !== 'string') throw new ScribeFormatError(`${field} must be text.`);
+function text(value: JsonValue): value is string {
+	return typeof value === 'string';
+}
+
+function number(value: JsonValue): value is number {
+	return typeof value === 'number';
+}
+
+function string(value: JsonValue, field: string): string {
+	if (!text(value)) throw new ScribeFormatError(`${field} must be text.`);
 	return value;
 }
 
-function finiteNumber(value: unknown, field: string): number {
-	if (typeof value !== 'number' || !Number.isFinite(value)) {
+function finiteNumber(value: JsonValue, field: string): number {
+	if (!number(value) || !Number.isFinite(value)) {
 		throw new ScribeFormatError(`${field} must be a finite number.`);
 	}
 	return value;
 }
 
-function integer(value: unknown, field: string, minimum = 0): number {
+function integer(value: JsonValue, field: string, minimum = 0): number {
 	const parsed = finiteNumber(value, field);
 	if (!Number.isInteger(parsed) || parsed < minimum) {
 		throw new ScribeFormatError(`${field} must be an integer of at least ${minimum}.`);
@@ -81,16 +102,16 @@ function integer(value: unknown, field: string, minimum = 0): number {
 	return parsed;
 }
 
-function optionalString(value: unknown, field: string): string | undefined {
+function optionalString(value: JsonValue, field: string): string | undefined {
 	return value === undefined ? undefined : string(value, field);
 }
 
-function stringArray(value: unknown, field: string): string[] {
+function stringArray(value: JsonValue, field: string): string[] {
 	if (!Array.isArray(value)) throw new ScribeFormatError(`${field} must be a list.`);
 	return value.map((item, index) => string(item, `${field}[${index}]`));
 }
 
-function parseSelection(value: unknown): SerializedSelection | undefined {
+function parseSelection(value: JsonValue): SerializedSelection | undefined {
 	if (value === undefined) return undefined;
 	if (!record(value)) throw new ScribeFormatError('document.selection must be an object.');
 	return {
@@ -99,7 +120,7 @@ function parseSelection(value: unknown): SerializedSelection | undefined {
 	};
 }
 
-function parseBaseline(value: unknown): CompareBaselineRecord | undefined {
+function parseBaseline(value: JsonValue): CompareBaselineRecord | undefined {
 	if (value === undefined) return undefined;
 	if (!record(value)) throw new ScribeFormatError('document.compareBaseline must be an object.');
 	return {
@@ -108,7 +129,7 @@ function parseBaseline(value: unknown): CompareBaselineRecord | undefined {
 	};
 }
 
-function parsePerformers(value: unknown): PerformerRecord[] {
+function parsePerformers(value: JsonValue): PerformerRecord[] {
 	if (!Array.isArray(value)) throw new ScribeFormatError('performers must be a list.');
 	return value.map((item, index) => {
 		if (!record(item)) throw new ScribeFormatError(`performers[${index}] must be an object.`);
@@ -120,7 +141,7 @@ function parsePerformers(value: unknown): PerformerRecord[] {
 		// cannot vouch for — a Scribe carrying one is a file this build did not
 		// write, and the rest of it is no more trustworthy.
 		const colorId = string(item.colorId, `performers[${index}].colorId`);
-		if (!performerColorIds.includes(colorId as (typeof performerColorIds)[number])) {
+		if (!performerColorIds.some((paletteId) => paletteId === colorId)) {
 			throw new ScribeFormatError(`performers[${index}].colorId is not a performer color.`);
 		}
 		return {
@@ -134,7 +155,7 @@ function parsePerformers(value: unknown): PerformerRecord[] {
 	});
 }
 
-function parseLinks(value: unknown): SectionLink[] {
+function parseLinks(value: JsonValue): SectionLink[] {
 	if (!Array.isArray(value)) throw new ScribeFormatError('sectionLinks must be a list.');
 	return value.map((item, index) => {
 		if (!record(item)) throw new ScribeFormatError(`sectionLinks[${index}] must be an object.`);
@@ -179,7 +200,7 @@ function parseLinks(value: unknown): SectionLink[] {
 	});
 }
 
-function parseAnchors(value: unknown): LineAnchor[] {
+function parseAnchors(value: JsonValue): LineAnchor[] {
 	if (!Array.isArray(value)) throw new ScribeFormatError('lineAnchors must be a list.');
 	return value.map((item, index) => {
 		if (!record(item)) throw new ScribeFormatError(`lineAnchors[${index}] must be an object.`);
@@ -198,13 +219,13 @@ function parseAnchors(value: unknown): LineAnchor[] {
  * be. A `.lls` that names a kind and carries an id from another one is a
  * pending press that can only ever come back a 404, several steps from here.
  */
-const songIdShapes: Record<ClipboardMediaSource['kind'], RegExp> = {
+const songIdShapes = {
 	youtube: /^[A-Za-z0-9_-]{11}$/u,
 	spotify: /^[A-Za-z0-9]{22}$/u,
 	apple: /^\d{1,20}$/u
-};
+} satisfies Record<ClipboardMediaSource['kind'], RegExp>;
 
-function parseSong(value: unknown): ClipboardMediaSource | undefined {
+function parseSong(value: JsonValue): ClipboardMediaSource | undefined {
 	if (value === undefined) return undefined;
 	if (!record(value)) throw new ScribeFormatError('song must be an object.');
 	if (value.kind !== 'youtube' && value.kind !== 'spotify' && value.kind !== 'apple') {
@@ -229,37 +250,39 @@ function parseSong(value: unknown): ClipboardMediaSource | undefined {
 
 /** Serialize a complete, editable LyricLint project. */
 export function serializeScribe(input: ScribeProjectInput): string {
+	const scribeDocument: ScribeProject['document'] = {
+		title: input.title,
+		language: input.language,
+		lyrics: input.lyrics
+	};
+	if (input.originalText !== undefined) scribeDocument.originalText = input.originalText;
+	if (input.selection !== undefined) scribeDocument.selection = { ...input.selection };
+	if (input.compareBaseline !== undefined) {
+		scribeDocument.compareBaseline = { ...input.compareBaseline };
+	}
 	const project: ScribeProject = {
 		format: scribeFormat,
 		version: scribeVersion,
-		document: {
-			title: input.title,
-			language: input.language,
-			lyrics: input.lyrics,
-			...(input.originalText === undefined ? {} : { originalText: input.originalText }),
-			...(input.selection === undefined ? {} : { selection: { ...input.selection } }),
-			...(input.compareBaseline === undefined
-				? {}
-				: { compareBaseline: { ...input.compareBaseline } })
-		},
+		document: scribeDocument,
 		performers: input.performers.map((performer) => ({
 			...performer,
 			aliases: [...performer.aliases]
 		})),
-		sectionLinks: input.sectionLinks.map((link) => ({
-			lines: [...link.lines],
-			...(link.holes ? { holes: link.holes.map((hole) => ({ ...hole })) } : {})
-		})),
+		sectionLinks: input.sectionLinks.map((link) => {
+			const copy: SectionLink = { lines: [...link.lines] };
+			if (link.holes) copy.holes = link.holes.map((hole) => ({ ...hole }));
+			return copy;
+		}),
 		lineAnchors: input.lineAnchors.map((anchor) => ({ ...anchor })),
-		ignoredDiagnostics: [...new Set(input.ignoredDiagnostics)].sort(),
-		...(input.song === undefined ? {} : { song: { ...input.song } })
+		ignoredDiagnostics: [...new Set(input.ignoredDiagnostics)].sort()
 	};
+	if (input.song !== undefined) project.song = { ...input.song };
 	return `${JSON.stringify(project, null, 2)}\n`;
 }
 
 /** Parse and validate an untrusted `.lls` payload before any workspace state changes. */
 export function parseScribe(source: string): ScribeProject {
-	let value: unknown;
+	let value: JsonValue;
 	try {
 		value = JSON.parse(source);
 	} catch {
@@ -271,7 +294,7 @@ export function parseScribe(source: string): ScribeProject {
 	}
 	if (value.version !== scribeVersion) {
 		throw new ScribeFormatError(
-			typeof value.version === 'number' && value.version > scribeVersion
+			number(value.version) && value.version > scribeVersion
 				? 'This Scribe was made by a newer version of LyricLint.'
 				: 'This Scribe version is not supported.'
 		);
@@ -303,21 +326,24 @@ export function parseScribe(source: string): ScribeProject {
 	if (new Set(performers.map((performer) => performer.id)).size !== performers.length) {
 		throw new ScribeFormatError('Performer identifiers must be unique.');
 	}
-	return {
+	const scribeDocument: ScribeProject['document'] = {
+		title: string(value.document.title, 'document.title'),
+		language: string(value.document.language, 'document.language'),
+		lyrics
+	};
+	if (originalText !== undefined) scribeDocument.originalText = originalText;
+	if (selection !== undefined) scribeDocument.selection = selection;
+	if (compareBaseline !== undefined) scribeDocument.compareBaseline = compareBaseline;
+	const project: ScribeProject = {
 		format: scribeFormat,
 		version: scribeVersion,
-		document: {
-			title: string(value.document.title, 'document.title'),
-			language: string(value.document.language, 'document.language'),
-			lyrics,
-			...(originalText === undefined ? {} : { originalText }),
-			...(selection === undefined ? {} : { selection }),
-			...(compareBaseline === undefined ? {} : { compareBaseline })
-		},
+		document: scribeDocument,
 		performers,
 		sectionLinks,
 		lineAnchors,
-		ignoredDiagnostics: stringArray(value.ignoredDiagnostics, 'ignoredDiagnostics'),
-		...(value.song === undefined ? {} : { song: parseSong(value.song)! })
+		ignoredDiagnostics: stringArray(value.ignoredDiagnostics, 'ignoredDiagnostics')
 	};
+	const song = parseSong(value.song);
+	if (song !== undefined) project.song = song;
+	return project;
 }

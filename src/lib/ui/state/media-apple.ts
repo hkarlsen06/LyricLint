@@ -42,11 +42,48 @@ export interface AppleMusicTimeEvent {
 }
 
 /**
+ * What each MusicKit event this module listens for carries.
+ *
+ * Hand-written for the same reason `AppleMusicInstance` is, and it is what keeps
+ * a listener from having to be cast on its way in. `mediaPlaybackError` is
+ * `unknown` because this module reports the failure and reads no field of the
+ * payload — naming fields nobody has verified would be a claim about Apple's
+ * shape rather than a record of what is actually read.
+ */
+export interface AppleMusicEventMap {
+	playbackTimeDidChange: AppleMusicTimeEvent;
+	playbackStateDidChange: AppleMusicPlaybackStateEvent;
+	mediaPlaybackError: unknown;
+}
+
+/**
+ * Whether MusicKit filled a field of an event with a number.
+ *
+ * The interfaces above are hand-written rather than imported, so what is in a
+ * payload is a claim this module makes and only a runtime check establishes —
+ * and a field that arrived as something else must be skipped rather than passed
+ * on as a duration or a playhead.
+ */
+function isReportedNumber(value: unknown): value is number {
+	return typeof value === 'number';
+}
+
+/** What a song is queued with. Named so the queue can be built a field at a time. */
+export interface AppleMusicQueueRequest {
+	song: string;
+	startPlaying?: boolean;
+	startTime?: number;
+}
+
+/**
  * MusicKit's instance, narrowed to what the transport actually calls.
  *
  * Written out rather than imported because Apple ships no types for the web SDK,
  * and a hand-written interface is also the one place the surface this depends on
  * is documented — a stub in a test implements this and nothing else.
+ *
+ * The four commands are `Promise<void>` because that is the whole of the
+ * contract this module holds MusicKit to: it awaits them and reads nothing back.
  */
 export interface AppleMusicInstance {
 	readonly isAuthorized: boolean;
@@ -56,16 +93,22 @@ export interface AppleMusicInstance {
 	readonly currentPlaybackDuration: number;
 	playbackRate: number;
 	authorize(): Promise<string>;
-	setQueue(options: { song: string; startPlaying?: boolean; startTime?: number }): Promise<unknown>;
-	play(): Promise<unknown>;
+	setQueue(options: AppleMusicQueueRequest): Promise<void>;
+	play(): Promise<void>;
 	pause(): void;
-	stop(): Promise<unknown>;
-	seekToTime(seconds: number): Promise<unknown>;
-	addEventListener(name: string, handler: (event: never) => void): void;
-	removeEventListener(name: string, handler: (event: never) => void): void;
+	stop(): Promise<void>;
+	seekToTime(seconds: number): Promise<void>;
+	addEventListener<K extends keyof AppleMusicEventMap>(
+		name: K,
+		handler: (event: AppleMusicEventMap[K]) => void
+	): void;
+	removeEventListener<K extends keyof AppleMusicEventMap>(
+		name: K,
+		handler: (event: AppleMusicEventMap[K]) => void
+	): void;
 }
 
-interface MusicKitGlobal {
+export interface MusicKitGlobal {
 	configure(options: {
 		developerToken: string;
 		app: { name: string; build: string };
@@ -100,6 +143,9 @@ export function loadMusicKit(): Promise<MusicKitGlobal> {
 	if (injected) return injected;
 
 	const attempt = new Promise<MusicKitGlobal>((resolve, reject) => {
+		// SAFETY: MusicKit installs itself as a property of the global object, which
+		// is all this claims — the property is optional, so the branch below is what
+		// establishes it is there.
 		const scope = globalThis as MusicKitWindow;
 		if (scope.MusicKit) {
 			resolve(scope.MusicKit);
@@ -134,10 +180,19 @@ export function loadMusicKit(): Promise<MusicKitGlobal> {
 		);
 	});
 
-	injected = attempt.catch((error: unknown) => {
-		injected = undefined;
-		throw error;
-	});
+	// A failed load forgets itself, so a second attempt is a second attempt rather
+	// than the first one's rejection handed back forever. It is a wrapper around
+	// `attempt` rather than the promise itself, so that a rejection raised while
+	// this function is still running — a document that cannot be written to — is
+	// forgotten too, by which time the assignment below has happened.
+	injected = (async () => {
+		try {
+			return await attempt;
+		} catch (failure) {
+			injected = undefined;
+			throw failure;
+		}
+	})();
 	return injected;
 }
 
@@ -172,11 +227,21 @@ export function appleMusicTokenExpiry(token: string): number | undefined {
 	if (payload === undefined) return undefined;
 	try {
 		const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-		const exp = (JSON.parse(json) as { exp?: unknown }).exp;
-		return typeof exp === 'number' ? exp * 1000 : undefined;
+		const claims: unknown = JSON.parse(json);
+		return hasNumericExpiry(claims) ? claims.exp * 1000 : undefined;
 	} catch {
 		return undefined;
 	}
+}
+
+/** Whether a parsed JWT payload carries the one claim this module reads. */
+function hasNumericExpiry(claims: unknown): claims is { exp: number } {
+	return (
+		typeof claims === 'object' &&
+		claims !== null &&
+		'exp' in claims &&
+		typeof claims.exp === 'number'
+	);
 }
 
 /**
@@ -224,7 +289,7 @@ export function configureAppleMusic(
 	const existing = configuredFor.get(load);
 	if (existing) return existing;
 
-	const attempt = (async () => {
+	const configuring = (async () => {
 		const token = appleMusicDeveloperToken();
 		if (token === undefined) throw new Error('Apple Music is not configured for this build.');
 		const musicKit = await load();
@@ -232,10 +297,18 @@ export function configureAppleMusic(
 			developerToken: token,
 			app: { name: 'LyricLint', build: '1' }
 		});
-	})().catch((error: unknown) => {
-		configuredFor.delete(load);
-		throw error;
-	});
+	})();
+
+	// A wrapper rather than the attempt itself, so a configure that fails
+	// synchronously is still forgotten after the map below has been written.
+	const attempt = (async () => {
+		try {
+			return await configuring;
+		} catch (failure) {
+			configuredFor.delete(load);
+			throw failure;
+		}
+	})();
 
 	configuredFor.set(load, attempt);
 	return attempt;
@@ -283,6 +356,17 @@ const signInBackstopMs = 5 * 60_000;
 type WindowOpen = (typeof globalThis)['open'];
 
 /**
+ * Whether this scope has a `window.open` to watch at all.
+ *
+ * The DOM's own typing says it always does, and outside a browser there is no
+ * such function — which is a fact only a runtime check establishes, and the one
+ * that keeps this wrapper safe to call anywhere.
+ */
+function isWindowOpen(value: unknown): value is WindowOpen {
+	return typeof value === 'function';
+}
+
+/**
  * Sign in, and never hang doing it.
  *
  * `authorize()` opens Apple's sign-in in a pop-up, and MusicKit's own bookkeeping
@@ -315,7 +399,7 @@ export async function authorizeAppleMusic(
 	instance: AppleMusicInstance,
 	deps: { scope?: { open: WindowOpen }; timeoutMs?: number } = {}
 ): Promise<AppleAuthorizationOutcome> {
-	const scope = deps.scope ?? (globalThis as { open: WindowOpen });
+	const scope = deps.scope ?? globalThis;
 	const timeoutMs = deps.timeoutMs ?? signInBackstopMs;
 
 	let reportBlocked: (() => void) | undefined;
@@ -327,13 +411,13 @@ export async function authorizeAppleMusic(
 	// simply nothing to watch, and the backstop is the whole guarantee. This is
 	// what keeps the wrapper safe to call outside a browser.
 	const nativeOpen = scope.open;
-	const watchable = typeof nativeOpen === 'function';
+	const watchable = isWindowOpen(nativeOpen);
 	if (watchable) {
-		scope.open = function patchedOpen(this: unknown, ...args: Parameters<WindowOpen>) {
+		scope.open = function patchedOpen(...args: Parameters<WindowOpen>) {
 			const opened = nativeOpen.apply(scope, args);
 			if (!opened) reportBlocked?.();
 			return opened;
-		} as WindowOpen;
+		};
 	}
 
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -562,8 +646,12 @@ export async function searchAppleMusicSongs(
 		};
 	}
 
-	const payload = (await response.json().catch(() => undefined)) as
-		{ results?: { songs?: { data?: CatalogSong[] } } } | undefined;
+	// Annotated rather than asserted: `Response.json()` answers `any`, so the shape
+	// is a claim either way — and every field of it is optional and read through an
+	// optional chain, with the one field that is spent re-checked below.
+	const payload: { results?: { songs?: { data?: CatalogSong[] } } } | undefined = await response
+		.json()
+		.catch(() => undefined);
 
 	return {
 		results: (payload?.results?.songs?.data ?? [])
@@ -576,7 +664,7 @@ export async function searchAppleMusicSongs(
 	};
 }
 
-interface AppleMusicSourceDependencies {
+export interface AppleMusicSourceDependencies {
 	events: MediaSourceEvents;
 	/** The configured MusicKit instance, injected so a test drives a stub. */
 	music: () => Promise<AppleMusicInstance>;
@@ -681,8 +769,10 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	function rawTime(): number {
 		if (!music || !started) return known;
 		try {
+			// `Number.isFinite` coerces nothing, so it is also the check that this is
+			// a number at all — MusicKit is untyped and entitled to answer anything.
 			const value = music.currentPlaybackTime;
-			return typeof value === 'number' && Number.isFinite(value) ? value : known;
+			return Number.isFinite(value) ? value : known;
 		} catch {
 			return known;
 		}
@@ -702,10 +792,10 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	}
 
 	function onTime(event: AppleMusicTimeEvent): void {
-		if (typeof event.currentPlaybackDuration === 'number') {
+		if (isReportedNumber(event.currentPlaybackDuration)) {
 			reportDuration(event.currentPlaybackDuration);
 		}
-		if (typeof event.currentPlaybackTime !== 'number') return;
+		if (!isReportedNumber(event.currentPlaybackTime)) return;
 		known = event.currentPlaybackTime;
 		if (target !== undefined) {
 			if (Math.abs(known - target) <= settleToleranceSeconds) {
@@ -750,12 +840,12 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 	}
 
 	function listen(instance: AppleMusicInstance): void {
-		instance.addEventListener('playbackTimeDidChange', onTime as (event: never) => void);
-		instance.addEventListener('playbackStateDidChange', onState as (event: never) => void);
+		instance.addEventListener('playbackTimeDidChange', onTime);
+		instance.addEventListener('playbackStateDidChange', onState);
 		// Named rather than anonymous, because `removeEventListener` needs the same
 		// reference: an anonymous one is a listener on a page singleton that no
 		// teardown can ever take off again.
-		instance.addEventListener('mediaPlaybackError', onError as (event: never) => void);
+		instance.addEventListener('mediaPlaybackError', onError);
 	}
 
 	/** Name and length without playing a note, so attaching stays silent. */
@@ -775,8 +865,10 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 		// label stays the provisional one the attach carried, and the cover band
 		// draws it rather than waiting on a picture that is not coming.
 		if (!response?.ok) return;
-		const payload = (await response.json().catch(() => undefined)) as
-			{ data?: CatalogSong[] } | undefined;
+		// Annotated rather than asserted, exactly as the search read above is.
+		const payload: { data?: CatalogSong[] } | undefined = await response
+			.json()
+			.catch(() => undefined);
 		const song = payload?.data?.[0];
 		if (song?.attributes?.name === undefined || songId !== id) return;
 		events.named(describe(song.attributes));
@@ -862,12 +954,12 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			// lyric line tapped during the reconnect press — has already moved it,
 			// and the queue may as well be built where the first play will start.
 			const startTime = known;
+			// Built a field at a time rather than spread conditionally: the top of a
+			// song is the absence of `startTime`, not a `startTime` of zero.
+			const queue: AppleMusicQueueRequest = { song: nextSongId, startPlaying: false };
+			if (startTime !== 0) queue.startTime = startTime;
 			try {
-				await instance.setQueue({
-					song: nextSongId,
-					startPlaying: false,
-					...(startTime === 0 ? {} : { startTime })
-				});
+				await instance.setQueue(queue);
 			} catch {
 				// A newer load or a detach superseded this one while the queue was
 				// building, so the refusal belongs to a song nothing is attached to:
@@ -954,9 +1046,9 @@ export function createAppleMusicSource(deps: AppleMusicSourceDependencies): Appl
 			source.clear();
 			// The listeners outlive one song on purpose — the instance is a page
 			// singleton — so they are only given up when the source itself is.
-			music?.removeEventListener('playbackTimeDidChange', onTime as (event: never) => void);
-			music?.removeEventListener('playbackStateDidChange', onState as (event: never) => void);
-			music?.removeEventListener('mediaPlaybackError', onError as (event: never) => void);
+			music?.removeEventListener('playbackTimeDidChange', onTime);
+			music?.removeEventListener('playbackStateDidChange', onState);
+			music?.removeEventListener('mediaPlaybackError', onError);
 			music = undefined;
 		}
 	};

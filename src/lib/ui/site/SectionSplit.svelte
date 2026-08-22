@@ -24,7 +24,7 @@
 		 * not press it here. Wired to the index component's own `revealSelected`,
 		 * because only the index knows where its rows and its pinned finder are.
 		 */
-		reveal: () => unknown;
+		reveal: () => void;
 		/**
 		 * A hook for section-specific layout — `site.css` reads it as
 		 * `data-section`. The guidance catalog uses it for its wash's paint

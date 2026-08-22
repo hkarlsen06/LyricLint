@@ -54,21 +54,18 @@ export const sectionHeaderMissingRule: RuleDefinition = {
 					? { from: previous.to + lineEnding.length, to: section.from }
 					: undefined;
 
-			return [
-				{
-					...diagnostic(
-						this,
-						{ from: section.from, to: section.from },
-						'This lyric section has no header.',
-						'Every blank-line lyric section needs a song-part header. If these lines continue the previous song part, remove the blank line instead—Genius does not allow blank lines to split one part into smaller stanzas. Otherwise, choose a reviewed localized term or enter a custom header; the source text remains unchanged until confirmation.',
-						blankLineRange
-							? [replacementFix(context, 'preview', 'Remove blank line', blankLineRange, '')]
-							: undefined,
-						headerSourceIds(context.language)
-					),
-					...(blankLineRange ? { relatedRanges: [blankLineRange] } : {})
-				}
-			];
+			const finding = diagnostic(
+				this,
+				{ from: section.from, to: section.from },
+				'This lyric section has no header.',
+				'Every blank-line lyric section needs a song-part header. If these lines continue the previous song part, remove the blank line instead—Genius does not allow blank lines to split one part into smaller stanzas. Otherwise, choose a reviewed localized term or enter a custom header; the source text remains unchanged until confirmation.',
+				blankLineRange
+					? [replacementFix(context, 'preview', 'Remove blank line', blankLineRange, '')]
+					: undefined,
+				headerSourceIds(context.language)
+			);
+			if (blankLineRange) finding.relatedRanges = [blankLineRange];
+			return [finding];
 		});
 	}
 };

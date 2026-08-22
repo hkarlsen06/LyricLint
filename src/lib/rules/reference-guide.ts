@@ -36,7 +36,18 @@
  * as `groupTitle` and `groupRank` do: a rule family added without a place in
  * the guide would land in the index with no statement of what it is for.
  */
-export const groupGuidance: Record<string, string> = {
+/**
+ * The guide, keyed by rule-family prefix. A named contract rather than a
+ * `Record` because the key is a prefix computed off a rule ID at runtime, so
+ * the readers of this table index it with an ordinary string and answer a miss
+ * themselves — `reference.test.ts` by failing, the index page by drawing
+ * nothing.
+ */
+export interface GroupGuidance {
+	readonly [group: string]: string;
+}
+
+export const groupGuidance: GroupGuidance = {
 	section:
 		'Every distinct song part carries a header of its own line, in square brackets — ' +
 		'`[Verse 1]`, `[Chorus]`, `[Bridge]` — naming a part from the reviewed catalog for the ' +

@@ -22,6 +22,17 @@ const record: DraftRecord = {
 	editorSelection: { anchor: 0, head: 0 }
 };
 
+/**
+ * A hole the autosave's status callback reads the controller out of.
+ *
+ * The two are built in the wrong order for a direct reference — the controller
+ * takes the autosave controller as a dependency — so the callback closes over
+ * this instead and finds it filled by the time a status can arrive.
+ */
+interface ControllerRef {
+	current?: ReturnType<typeof createWorkbenchController>;
+}
+
 function snap(revision: number, text: string): EditorSnapshot {
 	return {
 		revision,
@@ -41,7 +52,7 @@ describe('real autosave + workbench status integration', () => {
 		try {
 			const repository = createInMemoryDraftRepository([record]);
 			const statusEvents: string[] = [];
-			const controllerRef: { current?: ReturnType<typeof createWorkbenchController> } = {};
+			const controllerRef: ControllerRef = {};
 			const autosave = createAutosaveController(repository, {
 				onStatusChange: (status) => {
 					statusEvents.push(status);
@@ -89,7 +100,7 @@ describe('real autosave + workbench status integration', () => {
 	 */
 	test('a background save failure toasts and announces once, not per report', async () => {
 		const repository = createInMemoryDraftRepository([record]);
-		const controllerRef: { current?: ReturnType<typeof createWorkbenchController> } = {};
+		const controllerRef: ControllerRef = {};
 		const autosave = createAutosaveController(repository, {
 			onStatusChange: (status) => controllerRef.current?.setSaveStatus(status)
 		});
@@ -151,7 +162,7 @@ describe('real autosave + workbench status integration', () => {
 			// empty transient one, which has no record until it has words.
 			const repository = createInMemoryDraftRepository([]);
 			const fresh: DraftRecord = { ...record, text: '', title: 'Untitled transcription' };
-			const controllerRef: { current?: ReturnType<typeof createWorkbenchController> } = {};
+			const controllerRef: ControllerRef = {};
 			const autosave = createAutosaveController(repository, {
 				onStatusChange: (status) => controllerRef.current?.setSaveStatus(status)
 			});
@@ -195,7 +206,7 @@ describe('real autosave + workbench status integration', () => {
 		try {
 			const stale: DraftRecord = { ...record, updatedAt: '2026-07-19T10:00:00.000Z' };
 			const repository = createInMemoryDraftRepository([stale]);
-			const controllerRef: { current?: ReturnType<typeof createWorkbenchController> } = {};
+			const controllerRef: ControllerRef = {};
 			const autosave = createAutosaveController(repository, {
 				onStatusChange: (status) => controllerRef.current?.setSaveStatus(status)
 			});

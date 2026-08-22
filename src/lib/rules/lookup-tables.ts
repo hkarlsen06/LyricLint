@@ -95,7 +95,7 @@ export interface RuleLookupTable {
  * wherever a spelling carries one, so this is the fallback rather than the
  * first answer — printing both puts one sentence on the row twice.
  */
-const GATE_CONDITIONS: Record<SpellingContextGate, string | undefined> = {
+const GATE_CONDITIONS = {
 	general: undefined,
 	'american-english': 'American English only.',
 	'cousin-meaning': 'Not where the word means cousin.',
@@ -107,15 +107,17 @@ const GATE_CONDITIONS: Record<SpellingContextGate, string | undefined> = {
 	'line-position': 'Which preferred form applies follows the position in the line.',
 	'money-meaning': 'Only where the word refers to money.',
 	'accepted-variant': 'Both forms are accepted.'
-};
+} satisfies Record<SpellingContextGate, string | undefined>;
 
 const UNFLAGGED_NOTE =
 	'LyricLint reports neither form; the entry records the accepted variants and seeds Harper.';
 
-// Optional keys are spread in rather than assigned `undefined`, because the
-// corpus is hashed as JSON: `{ note: undefined }` and `{}` serialize alike but
-// compare differently, so an absent note would fail the determinism test's
-// structural half while passing its hash half.
+// Optional keys are assigned only where they are present, never set to
+// `undefined`, because the corpus is hashed as JSON: `{ note: undefined }` and
+// `{}` serialize alike but compare differently, so an absent note would fail
+// the determinism test's structural half while passing its hash half. They are
+// also assigned in declaration order, because `JSON.stringify` writes keys in
+// insertion order and that order is part of what the hash covers.
 
 function spellingTable(): RuleLookupTable {
 	return {
@@ -127,21 +129,25 @@ function spellingTable(): RuleLookupTable {
 			'well — always as a previewed fix, even where the entry’s own listed forms are safe.',
 		entries: standardizedSpellings.map((spelling) => {
 			const appliesWhen = spelling.exceptionDescription ?? GATE_CONDITIONS[spelling.contextGate];
-			return {
+			const entry: RuleLookupEntry = {
 				preferred: [...spelling.preferred],
-				instead: [...spelling.alternates],
-				...(spelling.commonMisspellings?.length
-					? { curatedMisspellings: [...spelling.commonMisspellings] }
-					: {}),
-				...(spelling.fuzzy ? { fuzzy: true } : {}),
-				...(appliesWhen ? { appliesWhen } : {}),
-				...(spelling.pattern ? {} : { note: UNFLAGGED_NOTE }),
-				...(spelling.pattern
-					? { fix: spelling.safe ? ('safe' as const) : ('preview' as const) }
-					: {})
+				instead: [...spelling.alternates]
 			};
+			if (spelling.commonMisspellings?.length) {
+				entry.curatedMisspellings = [...spelling.commonMisspellings];
+			}
+			if (spelling.fuzzy) entry.fuzzy = true;
+			if (appliesWhen) entry.appliesWhen = appliesWhen;
+			if (spelling.pattern) entry.fix = spelling.safe ? 'safe' : 'preview';
+			else entry.note = UNFLAGGED_NOTE;
+			return entry;
 		})
 	};
+}
+
+/** Whether a table's value side is the single wording rather than a list of them. */
+function isOneWording(preferred: string | readonly string[]): preferred is string {
+	return typeof preferred === 'string';
 }
 
 /** A table that is one wording per token, with one fix behavior throughout. */
@@ -155,7 +161,7 @@ function pairTable(
 		ruleId,
 		description,
 		entries: [...pairs].map(([instead, preferred]) => ({
-			preferred: typeof preferred === 'string' ? [preferred] : [...preferred],
+			preferred: isOneWording(preferred) ? [preferred] : [...preferred],
 			instead: [instead],
 			fix
 		}))

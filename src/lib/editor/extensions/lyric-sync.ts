@@ -1,5 +1,5 @@
 import { EditorState, Prec, StateEffect, StateField } from '@codemirror/state';
-import type { Extension, Line } from '@codemirror/state';
+import type { Extension, Line, TransactionSpec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import type { Section } from '$lib/core/types.js';
 import {
@@ -568,14 +568,15 @@ function stepBack(options: LyricSyncOptions) {
 		const line = view.state.doc.lineAt(view.state.selection.main.head);
 		const previous = stampableBefore(view.state, line.number - 1);
 		const resumeAt = previous ? anchorTimeAt(view.state, previous.from) : undefined;
-		view.dispatch({
+		const spec: TransactionSpec = {
 			effects: [
 				clearLineAnchorEffect.of({ pos: line.from }),
 				armEffect.of(previous !== undefined),
 				...(previous && sync.until !== undefined ? [EditorView.scrollIntoView(previous.from)] : [])
-			],
-			...(previous ? { selection: { anchor: previous.from } } : {})
-		});
+			]
+		};
+		if (previous) spec.selection = { anchor: previous.from };
+		view.dispatch(spec);
 		if (previous && sync.until === undefined) holdReadingLine(view, previous.from);
 		if (resumeAt !== undefined) options.onSeek(resumeAt);
 		return true;
@@ -844,6 +845,16 @@ function firstUntimed(state: EditorState): Line | undefined {
 }
 
 /**
+ * Where a run begins, and whether that line is already timed — `armed`, so the
+ * first tap advances off it rather than rewriting it. No line at all is a
+ * document with nothing stampable in it.
+ */
+interface LyricSyncRunStart {
+	line: Line | undefined;
+	armed: boolean;
+}
+
+/**
  * Where a run begins, and whether it begins mid-song.
  *
  * A half-timed song picks up where it was left rather than starting over: the run
@@ -860,7 +871,7 @@ function firstUntimed(state: EditorState): Line | undefined {
  * The line is the first *stampable* one rather than line 1: the top of a lyric is
  * usually a section header, and a tap spent on one is a tap thrown away.
  */
-function runStart(state: EditorState): { line: Line | undefined; armed: boolean } {
+function runStart(state: EditorState): LyricSyncRunStart {
 	const untimed = firstUntimed(state);
 	if (!untimed) return { line: stampableFrom(state, 1), armed: false };
 	const resume = stampableBefore(state, untimed.number - 1);
@@ -953,14 +964,15 @@ export function setLyricSync(view: EditorView, active: boolean): void {
 	}
 
 	const { line, armed } = runStart(view.state);
-	view.dispatch({
+	const spec: TransactionSpec = {
 		// Order matters: `setLyricSyncEffect` disarms as it enters, so the arming
 		// for a resumed run has to come after it.
 		effects: armed
 			? [setLyricSyncEffect.of(true), armEffect.of(true)]
-			: [setLyricSyncEffect.of(true)],
-		...(line ? { selection: { anchor: line.from } } : {})
-	});
+			: [setLyricSyncEffect.of(true)]
+	};
+	if (line) spec.selection = { anchor: line.from };
+	view.dispatch(spec);
 	if (line) holdReadingLine(view, line.from);
 }
 

@@ -4,7 +4,7 @@
 	import type { Attachment } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
 	import { authorityLabels, type GuidanceAuthority } from '$lib/guidance/guidance.js';
-	import { siteUrl } from '$lib/seo.js';
+	import { maintainerStructuredData, siteUrl } from '$lib/seo.js';
 	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
 	import LazyLiveDemo from '$lib/ui/site/LazyLiveDemo.svelte';
 	import LyricIcon from '$lib/ui/site/LyricIcon.svelte';
@@ -126,7 +126,8 @@
 		'@context': 'https://schema.org',
 		'@type': 'WebSite',
 		name: 'LyricLint',
-		url: canonicalUrl
+		url: canonicalUrl,
+		creator: maintainerStructuredData
 	};
 	const structuredData = $derived({
 		'@context': 'https://schema.org',
@@ -134,6 +135,7 @@
 		name: 'LyricLint',
 		url: appUrl,
 		description: pageDescription,
+		author: maintainerStructuredData,
 		applicationCategory: 'UtilitiesApplication',
 		operatingSystem: 'Any',
 		browserRequirements: 'Requires a desktop or laptop web browser',

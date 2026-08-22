@@ -158,7 +158,10 @@
 	{#if !windowShell}
 		<footer class="site-footer">
 			<div class="site-footer__inner">
-				<span>Local-first · <a href={resolve('/privacy/')}>Privacy</a></span>
+				<span
+					>Local-first · <a href={resolve('/about/')}>About</a> ·
+					<a href={resolve('/privacy/')}>Privacy</a></span
+				>
 				<span class="site-code">
 					Rule set {currentRuleSet.version}
 				</span>

@@ -13,13 +13,13 @@ function ladder() {
 
 describe('AuthorityLadder', () => {
 	it('draws four steps at every tier, filled to the tier the sources establish', () => {
-		const filled: Record<GuidanceAuthority, number> = {
+		const filled = {
 			staff: 4,
 			editorial: 3,
 			external: 2,
 			community: 1,
 			lyriclint: 1
-		};
+		} satisfies Record<GuidanceAuthority, number>;
 		for (const [authority, met] of Object.entries(filled)) {
 			document.body.innerHTML = '';
 			render(AuthorityLadder, { authority: authority as GuidanceAuthority });

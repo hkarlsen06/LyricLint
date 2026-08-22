@@ -8,7 +8,7 @@ import type {
 	TextEdit,
 	TextRange
 } from '$lib/core/types.js';
-import { diagnostic } from './utils.js';
+import { type CatalogLookup, diagnostic } from './utils.js';
 
 /**
  * How much of the section a collective identifier claims to cover.
@@ -29,7 +29,7 @@ type CollectiveKind = 'pair' | 'group';
  * routinely. Japanese has no list of its own because its header policy is
  * English outright.
  */
-const collectiveWords: Record<string, Record<string, CollectiveKind>> = {
+const collectiveWords: CatalogLookup<CatalogLookup<CollectiveKind>> = {
 	en: {
 		both: 'pair',
 		all: 'group',

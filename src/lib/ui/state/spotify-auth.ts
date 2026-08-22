@@ -87,13 +87,30 @@ function held(): SpotifyTokens | undefined {
 		// Unparseable or storage refused. Either way there is no session here.
 		return undefined;
 	}
-	const candidate = parsed as SpotifyTokens | undefined;
-	if (typeof candidate?.accessToken !== 'string' || typeof candidate.expiresAt !== 'number') {
+	if (!isSpotifyTokens(parsed)) {
 		remember(undefined);
 		return undefined;
 	}
-	tokens = candidate;
+	tokens = parsed;
 	return tokens;
+}
+
+/**
+ * Whether what came out of storage is a session at all.
+ *
+ * The shape check the doc above is about, as a parser rather than as an inline
+ * narrowing: `'null'` parses without throwing, so a stored `null` — or `{}` —
+ * would otherwise be read back as a session and sent out as `Bearer undefined`.
+ */
+function isSpotifyTokens(value: unknown): value is SpotifyTokens {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'accessToken' in value &&
+		typeof value.accessToken === 'string' &&
+		'expiresAt' in value &&
+		typeof value.expiresAt === 'number'
+	);
 }
 
 function remember(next: SpotifyTokens | undefined): void {
@@ -189,7 +206,7 @@ const refusedHosts = new Set(['localhost', '::1', '[::1]']);
  * with it, which is a lot of blast radius for a query string nobody asked about.
  */
 function inBrowser(): boolean {
-	return typeof location !== 'undefined';
+	return 'location' in globalThis;
 }
 
 export function spotifyRedirectAllowed(): boolean {
@@ -297,15 +314,21 @@ async function exchange(body: Record<string, string>): Promise<SpotifyTokens> {
 		headers: { 'content-type': 'application/x-www-form-urlencoded' },
 		body: new URLSearchParams(body).toString()
 	});
-	const payload = (await response.json().catch(() => ({}))) as TokenResponse;
+	// Annotated rather than asserted: `Response.json()` answers `any`, so the shape
+	// is a claim either way — and every field of it is optional, with the one that
+	// decides whether this is a session at all checked on the next line.
+	const payload: TokenResponse = await response.json().catch(() => ({}));
 	if (!response.ok || payload.access_token === undefined) {
 		throw new Error(payload.error_description ?? payload.error ?? 'Spotify refused the sign-in.');
 	}
-	return {
+	// Built a field at a time rather than spread conditionally: a grant that came
+	// back with no refresh token has none, rather than one that is there and empty.
+	const granted: SpotifyTokens = {
 		accessToken: payload.access_token,
-		...(payload.refresh_token === undefined ? {} : { refreshToken: payload.refresh_token }),
 		expiresAt: Date.now() + (payload.expires_in ?? 3600) * 1000 - refreshMarginMs
 	};
+	if (payload.refresh_token !== undefined) granted.refreshToken = payload.refresh_token;
+	return granted;
 }
 
 interface SpotifyReturn {
@@ -375,7 +398,11 @@ export async function completeSpotifySignIn(): Promise<SpotifyReturn | undefined
 		return { error: error instanceof Error ? error.message : 'Spotify refused the sign-in.' };
 	}
 
-	return { ...(intent === undefined ? {} : { intent }) };
+	// Built a field at a time rather than spread conditionally: a sign-in nobody
+	// was in the middle of anything for carries no intent at all.
+	const landed: SpotifyReturn = {};
+	if (intent !== undefined) landed.intent = intent;
+	return landed;
 }
 
 /** Whether this session has a Spotify token in hand. */

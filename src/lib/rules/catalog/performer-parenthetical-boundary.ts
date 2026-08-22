@@ -1,4 +1,10 @@
-import type { Diagnostic, LyricLine, RuleDefinition, SupportedStyleSpan } from '$lib/core/types.js';
+import type {
+	Diagnostic,
+	LyricLine,
+	RuleDefinition,
+	SupportedStyleSpan,
+	TextRange
+} from '$lib/core/types.js';
 import { diagnostic, replacementFix } from './utils.js';
 
 function supportedSpans(line: LyricLine): SupportedStyleSpan[] {
@@ -24,7 +30,7 @@ function enclosesOnePair(text: string, from: number, to: number): boolean {
 	return false;
 }
 
-function trimmedSpan(text: string, from: number, to: number): { from: number; to: number } {
+function trimmedSpan(text: string, from: number, to: number): TextRange {
 	let start = from;
 	let end = to;
 	while (start < end && /\s/u.test(text[start] ?? '')) {

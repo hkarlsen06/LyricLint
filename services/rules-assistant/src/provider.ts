@@ -23,7 +23,10 @@ import {
 	proposeEditsArgumentsSchema,
 	readScribeArgumentsSchema,
 	showLyricsArgumentsSchema,
+	isJsonObject,
 	type AnswerRequest,
+	type Json,
+	type JsonObject,
 	type WireToolResult
 } from './schema';
 import { developerPrompt, promptCacheKey, pruneHistory } from './prompt';
@@ -57,7 +60,7 @@ export type ProviderResult =
 	| {
 			kind: 'answer';
 			/** Parsed JSON of the structured answer (unvalidated). */
-			raw: unknown;
+			raw: Json;
 			usage: ProviderUsage;
 	  }
 	| {
@@ -285,26 +288,37 @@ function toolResultOutput(result: WireToolResult): string {
 	].join('\n');
 }
 
+/**
+ * One content part of a settled history message. `prompt_cache_breakpoint` is a
+ * documented request field the SDK's part types carry no declaration for, which
+ * is why the message it goes into is asserted rather than inferred.
+ */
+interface SettledContentPart {
+	type: 'output_text' | 'input_text';
+	text: string;
+	prompt_cache_breakpoint?: { mode: 'explicit' };
+}
+
 function settledInputItem(
 	role: 'developer' | 'user' | 'assistant',
 	text: string,
 	cacheBreakpoint = false
 ): OpenAI.Responses.ResponseInputItem {
-	return {
-		role,
-		content: [
-			{
-				// Each role has its own part type, and the API enforces it: an
-				// assistant turn replays as output_text, and input_text on an
-				// assistant message is a 400. This only fires when the history
-				// holds a COMPLETED exchange — failed turns are pruned — which is
-				// why every single-question test passed over it.
-				type: role === 'assistant' ? ('output_text' as const) : ('input_text' as const),
-				text,
-				...(cacheBreakpoint ? { prompt_cache_breakpoint: { mode: 'explicit' as const } } : {})
-			}
-		]
-	} as OpenAI.Responses.ResponseInputItem;
+	const part: SettledContentPart = {
+		// Each role has its own part type, and the API enforces it: an
+		// assistant turn replays as output_text, and input_text on an
+		// assistant message is a 400. This only fires when the history
+		// holds a COMPLETED exchange — failed turns are pruned — which is
+		// why every single-question test passed over it.
+		type: role === 'assistant' ? 'output_text' : 'input_text',
+		text
+	};
+	if (cacheBreakpoint) part.prompt_cache_breakpoint = { mode: 'explicit' };
+	// SAFETY: the pairing the SDK expresses through separate message types is
+	// established on the line above — an assistant turn carries `output_text` and
+	// every other role `input_text` — and the only field beyond those types is
+	// `prompt_cache_breakpoint`, which the API accepts and the SDK never declares.
+	return { role, content: [part] } as OpenAI.Responses.ResponseInputItem;
 }
 
 export function providerRequest(
@@ -337,7 +351,7 @@ export function providerRequest(
 		}
 	}
 
-	return {
+	const request: Omit<OpenAI.Responses.ResponseCreateParamsNonStreaming, 'stream'> = {
 		model: MODEL.id,
 		input,
 		reasoning: MODEL.reasoning,
@@ -346,22 +360,31 @@ export function providerRequest(
 		safety_identifier: safetyIdentifier,
 		prompt_cache_key: `${promptCacheKey(corpus)}${toolsAvailable ? '-tools' : ''}`,
 		prompt_cache_options: { mode: 'explicit', ttl: '30m' },
-		...(toolsAvailable
-			? { tools: DRAFT_TOOLS, include: ['reasoning.encrypted_content' as const] }
-			: {}),
 		text: {
 			verbosity: MODEL.verbosity,
 			format: {
 				type: 'json_schema',
 				name: 'assistant_answer',
 				strict: true,
-				schema: answerJsonSchema as unknown as Record<string, unknown>
+				schema: answerJsonSchema
 			}
 		}
 	};
+	if (toolsAvailable) {
+		request.tools = DRAFT_TOOLS;
+		request.include = ['reasoning.encrypted_content'];
+	}
+	return request;
 }
 
-export function gatewayHeaders(gatewayToken: string): Record<string, string> {
+/** The three per-request headers the Gateway itself is addressed with. */
+export type GatewayHeaders = {
+	'cf-aig-authorization': string;
+	'cf-aig-skip-cache': string;
+	'cf-aig-collect-log': string;
+};
+
+export function gatewayHeaders(gatewayToken: string): GatewayHeaders {
 	return {
 		'cf-aig-authorization': `Bearer ${gatewayToken}`,
 		// The cache is skipped, not tuned. Measured against production: with a
@@ -426,6 +449,16 @@ function parseToolCall(item: OpenAI.Responses.ResponseFunctionToolCall): Provide
 	throw new ApiError('invalid_answer', 'The assistant requested an unknown tool.');
 }
 
+/** The allowlisted entries a source object actually carries, in the order named.
+ * A key the item does not have is dropped rather than written as `undefined`,
+ * which `JSON.stringify` would omit anyway and the API would reject if it did not. */
+function entriesOf(source: JsonObject, keys: readonly string[]): [string, Json][] {
+	return keys.flatMap((key): [string, Json][] => {
+		const value = source[key];
+		return value === undefined ? [] : [[key, value]];
+	});
+}
+
 /**
  * Reduce an output item to the fields the Responses API accepts back as input.
  * The SDK's streaming helper decorates its final response — `parsed_arguments`
@@ -433,12 +466,9 @@ function parseToolCall(item: OpenAI.Responses.ResponseFunctionToolCall): Provide
  * rejects the whole continuation with a 400 for any field it does not know.
  * An allowlist per type is the only shape that survives future decorations.
  */
-export function replayableItem(item: OpenAI.Responses.ResponseOutputItem): Record<string, unknown> {
-	const source = item as unknown as Record<string, unknown>;
-	const pick = (keys: string[]) =>
-		Object.fromEntries(
-			keys.filter((key) => source[key] !== undefined).map((key) => [key, source[key]])
-		);
+export function replayableItem(item: OpenAI.Responses.ResponseOutputItem): JsonObject {
+	const source: JsonObject = Object.fromEntries(Object.entries(item));
+	const pick = (keys: string[]): JsonObject => Object.fromEntries(entriesOf(source, keys));
 	if (item.type === 'function_call') {
 		return pick(['type', 'id', 'status', 'arguments', 'call_id', 'name']);
 	}
@@ -450,16 +480,11 @@ export function replayableItem(item: OpenAI.Responses.ResponseOutputItem): Recor
 	const base = pick(['type', 'id', 'status', 'role']);
 	const content = source['content'];
 	if (Array.isArray(content)) {
-		base['content'] = content.map((part) => {
-			const p = part as Record<string, unknown>;
-			return p['type'] === 'output_text'
-				? Object.fromEntries(
-						['type', 'text', 'annotations']
-							.filter((key) => p[key] !== undefined)
-							.map((key) => [key, p[key]])
-					)
-				: part;
-		});
+		base['content'] = content.map((part) =>
+			isJsonObject(part) && part['type'] === 'output_text'
+				? Object.fromEntries(entriesOf(part, ['type', 'text', 'annotations']))
+				: part
+		);
 	}
 	return base;
 }
@@ -493,7 +518,7 @@ export function parseProviderResponse(response: OpenAI.Responses.Response): Prov
 	if (!response.output_text) {
 		throw new ApiError('provider_error', 'The model did not finish an answer.');
 	}
-	let raw: unknown;
+	let raw: Json;
 	try {
 		raw = JSON.parse(response.output_text);
 	} catch {

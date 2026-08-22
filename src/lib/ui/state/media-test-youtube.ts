@@ -140,13 +140,15 @@ export function createStubYouTubeApi(): StubYouTubeApi {
 		loads: 0,
 		players: [],
 		api: {
-			Player: class {
+			// A subclass rather than a class that builds one and returns it: the
+			// instance *is* the stub player, so nothing has to be asserted about it
+			// on the way to `YouTubeApi['Player']`.
+			Player: class extends StubYouTubePlayer {
 				constructor(host: HTMLElement, options: YouTubePlayerOptions) {
-					const player = new StubYouTubePlayer(host, options);
-					stub.players.push(player);
-					return player as unknown as StubYouTubePlayer;
+					super(host, options);
+					stub.players.push(this);
 				}
-			} as unknown as YouTubeApi['Player'],
+			},
 			PlayerState: stubPlayerState
 		},
 		async load() {

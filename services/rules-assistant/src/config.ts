@@ -114,10 +114,26 @@ export interface Env {
 	TURNSTILE_ALLOW_LOCALHOST?: string;
 	ABUSE_HMAC_SECRET: string;
 	SESSION_SIGNING_SECRET: string;
-	QUOTAS: DurableObjectNamespace;
+	QUOTAS: QuotaNamespace;
 	SESSION_MINUTE_LIMIT: RateLimit;
 	IP_MINUTE_LIMIT: RateLimit;
 	METRICS?: AnalyticsEngineDataset;
+}
+
+/** One `QuotaCounter`, addressed the only way this Worker addresses one. */
+export interface QuotaStub {
+	fetch(url: string, init?: RequestInit): Promise<Response>;
+}
+
+/**
+ * The two operations this Worker performs on the quota binding: name an object,
+ * then fetch it. Cloudflare's `DurableObjectNamespace` satisfies this, and
+ * naming it rather than requiring the whole binding is what lets the test suite
+ * drive the real `QuotaCounter` against in-memory storage.
+ */
+export interface QuotaNamespace {
+	idFromName(name: string): DurableObjectId;
+	get(id: DurableObjectId): QuotaStub;
 }
 
 /** Worker Rate Limiting binding surface (unsafe binding, not yet in workers-types). */

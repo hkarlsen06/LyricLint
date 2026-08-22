@@ -39,8 +39,15 @@ function diagnostic(from: number, to: number, severity: Diagnostic['severity']):
 	};
 }
 
+/** The three channels of an `oklch()` color, lightness normalized to 0–1. */
+interface OklchChannels {
+	lightness: number;
+	chroma: number;
+	hue: number;
+}
+
 /** Accepts both `oklch(0.9 …)` and the stylesheet's `oklch(90% …)` spelling. */
-function parseOklch(oklch: string): { lightness: number; chroma: number; hue: number } {
+function parseOklch(oklch: string): OklchChannels {
 	const match = /^oklch\(([\d.]+)(%?) ([\d.]+) ([\d.]+)\)$/u.exec(oklch.trim());
 	if (!match) {
 		throw new Error(`Unsupported test color: ${oklch}`);

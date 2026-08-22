@@ -28,7 +28,7 @@
 	let sectionLinks = $state<SectionLink[]>([]);
 
 	function currentSnapshot(atomic = false): EditorSnapshot {
-		return {
+		const snapshot: EditorSnapshot = {
 			revision,
 			text,
 			selection: { ...selection },
@@ -36,9 +36,10 @@
 			diagnostics: [],
 			composing: false,
 			canUndo: history.length > 0,
-			canRedo: future.length > 0,
-			...(atomic ? { atomic: true as const } : {})
+			canRedo: future.length > 0
 		};
+		if (atomic) snapshot.atomic = true;
+		return snapshot;
 	}
 
 	function emitSnapshot(atomic = false): void {
@@ -137,14 +138,14 @@
 		};
 	});
 
-	function onInput(event: Event): void {
-		const target = event.currentTarget as HTMLTextAreaElement;
+	function onInput(event: Event & { currentTarget: HTMLTextAreaElement }): void {
+		const target = event.currentTarget;
 		selection = { anchor: target.selectionStart, head: target.selectionEnd };
 		replace(target.value, selection);
 	}
 
-	function onSelect(event: Event): void {
-		const target = event.currentTarget as HTMLTextAreaElement;
+	function onSelect(event: Event & { currentTarget: HTMLTextAreaElement }): void {
+		const target = event.currentTarget;
 		selection = { anchor: target.selectionStart, head: target.selectionEnd };
 		emitSnapshot();
 	}

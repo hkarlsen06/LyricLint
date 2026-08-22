@@ -18,19 +18,21 @@ function shown(): AssistantReferenceRecord {
 function failed(
 	reason?: Extract<AssistantReferenceRecord, { status: 'failed' }>['reason']
 ): AssistantReferenceRecord {
-	return {
+	const record: AssistantReferenceRecord = {
 		id: 'ref-1',
 		anchor: { exact: 'Whenever you call', before: '', after: '' },
 		note: 'The second verse opens here.',
-		status: 'failed',
-		...(reason ? { reason } : {})
+		status: 'failed'
 	};
+	if (reason) record.reason = reason;
+	return record;
 }
 
-function assistantStub() {
-	return {
+function assistantStub(): AssistantState {
+	const stub: Partial<AssistantState> = {
 		revealReference: vi.fn(() => true)
-	} as unknown as AssistantState;
+	};
+	return stub as AssistantState;
 }
 
 afterEach(cleanup);

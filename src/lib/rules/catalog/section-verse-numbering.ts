@@ -168,28 +168,27 @@ export const sectionVerseNumberingRule: RuleDefinition = {
 				? `This song has ${verses.length} verses, and each one has different words.`
 				: `This song has ${verses.length} verse headers and ${uniqueBodies.size} distinct verses; an exact repeated verse keeps the number of its first occurrence.`;
 		const only = wanted.length === 1;
-		diagnostics.push({
-			...diagnostic(
-				this,
-				{ from: lead.header.from, to: lead.header.to },
-				only ? `This verse should be numbered ${lead.expected}.` : "Number this song's verses.",
-				`${scope} The Genius section guide enumerates distinct verses in ascending order, so a reader can tell which verse is which.`,
-				[
-					{
-						kind: 'preview',
-						label: only ? `Number this verse ${lead.expected}` : 'Number the verses',
-						edit: {
-							baseRevision: context.revision,
-							edits: wanted.map(({ header, expected }) => numberEdit(header, expected))
-						}
+		const finding = diagnostic(
+			this,
+			{ from: lead.header.from, to: lead.header.to },
+			only ? `This verse should be numbered ${lead.expected}.` : "Number this song's verses.",
+			`${scope} The Genius section guide enumerates distinct verses in ascending order, so a reader can tell which verse is which.`,
+			[
+				{
+					kind: 'preview',
+					label: only ? `Number this verse ${lead.expected}` : 'Number the verses',
+					edit: {
+						baseRevision: context.revision,
+						edits: wanted.map(({ header, expected }) => numberEdit(header, expected))
 					}
-				],
-				sourceIds
-			),
-			...(rest.length > 0
-				? { relatedRanges: rest.map(({ header }) => ({ from: header.from, to: header.to })) }
-				: {})
-		});
+				}
+			],
+			sourceIds
+		);
+		if (rest.length > 0) {
+			finding.relatedRanges = rest.map(({ header }) => ({ from: header.from, to: header.to }));
+		}
+		diagnostics.push(finding);
 		return diagnostics;
 	}
 };

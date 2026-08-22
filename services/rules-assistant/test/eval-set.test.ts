@@ -17,7 +17,12 @@ interface EvalCase {
 	};
 }
 
-const evalSet = evalSetJson as unknown as { version: number; cases: EvalCase[] };
+interface EvalSet {
+	version: number;
+	cases: EvalCase[];
+}
+
+const evalSet = evalSetJson as EvalSet;
 
 describe('the evaluation set', () => {
 	it('is versioned and has unique case ids', () => {

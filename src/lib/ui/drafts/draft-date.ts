@@ -23,11 +23,9 @@ export function formatDraftDate(iso: string, now: Date = new Date()): string {
 	// English, like the rest of the application's own words: the browser locale
 	// put a Norwegian month on the same line as "Yesterday" one row above it.
 	// The document's language is about the lyrics, not about the chrome.
-	return updated.toLocaleDateString('en-GB', {
-		day: 'numeric',
-		month: 'short',
-		...(updated.getFullYear() === now.getFullYear() ? {} : { year: 'numeric' })
-	});
+	const format: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
+	if (updated.getFullYear() !== now.getFullYear()) format.year = 'numeric';
+	return updated.toLocaleDateString('en-GB', format);
 }
 
 /** Whole calendar days from `updated` to `now`, in local time. */

@@ -139,8 +139,10 @@ describe('MediaArtwork', () => {
 	// announcement carries it for a screen reader.
 	it('copies the cover’s address from the modal and announces it', async () => {
 		const copied: string[] = [];
-		const clipboard = { writeText: async (text: string) => void copied.push(text) };
-		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as unknown as Clipboard);
+		const clipboard: Partial<Clipboard> = {
+			writeText: async (text: string) => void copied.push(text)
+		};
+		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as Clipboard);
 
 		const announced: string[] = [];
 		const { media } = await withCover();

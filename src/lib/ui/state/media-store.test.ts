@@ -15,26 +15,35 @@ import { remoteLoadTimeoutMs } from './media-remote-policy.js';
  *
  * `beginSpotifySignIn` ends in `location.assign`, which in a test is the runner
  * navigating away; `spotifyRedirectAllowed` reads a `location` the node half of
- * the suite does not have. Everything else in the module is the real thing, so
- * the parser, the configured check and the token store are all untouched.
+ * the suite does not have. The store injects exactly that slice
+ * (`spotifyAuth`), so everything else in the module is the real thing — the
+ * parser, the configured check and the token store are all untouched.
  */
-const spotifyFlow = vi.hoisted(() => ({ signedIn: false, leaves: true }));
+const spotifyFlow = { signedIn: false, leaves: true };
 
-vi.mock('./spotify-auth.js', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('./spotify-auth.js')>();
-	return {
-		...actual,
-		spotifySignedIn: () => spotifyFlow.signedIn,
-		spotifyRedirectAllowed: () => true,
-		beginSpotifySignIn: async () => spotifyFlow.leaves
-	};
-});
+/**
+ * The half of `FileSystemFileHandle` the workbench never reaches for.
+ *
+ * Spread into the fakes below so each one is a whole handle rather than a cast
+ * laundered through `unknown`: an attached song is only ever read, so a write
+ * here is a bug rather than a case worth modelling.
+ */
+const unwritableHandle = {
+	async isSameEntry() {
+		return false;
+	},
+	createWritable(): Promise<FileSystemWritableFileStream> {
+		throw new Error('LyricLint never writes to an attached audio file.');
+	}
+};
 
 /**
  * A file handle whose permission answer the test chooses.
  *
  * The browser is the only thing that can mint a real one, so what is under test
- * is the branch the store takes on each answer, not the API itself.
+ * is the branch the store takes on each answer, not the API itself. The two
+ * permission methods are the ones the DOM library omits, which is what the cast
+ * is for.
  */
 function fakeHandle(
 	file: File,
@@ -42,6 +51,7 @@ function fakeHandle(
 	requested: 'granted' | 'denied' = 'granted'
 ) {
 	return {
+		...unwritableHandle,
 		kind: 'file' as const,
 		name: file.name,
 		async queryPermission() {
@@ -53,7 +63,7 @@ function fakeHandle(
 		async getFile() {
 			return file;
 		}
-	} as unknown as FileSystemFileHandle;
+	} as FileSystemFileHandle;
 }
 
 function setup(
@@ -75,36 +85,43 @@ function setup(
 	// `loads` count is the number of times the real loader would have injected a
 	// script tag, and no test here mounts a frame for it to draw into.
 	const youtube = createStubYouTubeApi();
-	const player = createMediaPlayer({
+	const playerDeps: Parameters<typeof createMediaPlayer>[0] = {
 		feedback,
 		createAudio: () => audio.asMediaElement(),
 		createObjectUrl: () => 'blob:test',
 		revokeObjectUrl: () => {},
-		loadYouTubeApi: youtube.load,
-		...(options.loadMusicKit ? { loadMusicKit: options.loadMusicKit } : {}),
-		...(options.spotify
-			? {
-					// A `Player` with no listeners on it: `connect` throws, the load
-					// gives up, and the attachment still runs its bookkeeping — which is
-					// the half these tests are about.
-					loadSpotifySdk: async () => ({ Player: class {} }) as never,
-					spotifyToken: async () => 'token',
-					spotifyRequest: (async () => new Response(null, { status: 204 })) as typeof fetch,
-					scheduleSpotifyPoll: () => () => {}
-				}
-			: {})
-	});
+		loadYouTubeApi: youtube.load
+	};
+	// Both stay absent unless asked for: the player builds the real loader for
+	// any key it is not given, and a present `undefined` is not the same answer.
+	if (options.loadMusicKit) playerDeps.loadMusicKit = options.loadMusicKit;
+	if (options.spotify) {
+		// A `Player` with no listeners on it: `connect` throws, the load gives up,
+		// and the attachment still runs its bookkeeping — which is the half these
+		// tests are about.
+		playerDeps.loadSpotifySdk = async () => ({ Player: class {} }) as never;
+		playerDeps.spotifyToken = async () => 'token';
+		playerDeps.spotifyRequest = (async () => new Response(null, { status: 204 })) as typeof fetch;
+		playerDeps.scheduleSpotifyPoll = () => () => {};
+	}
+	const player = createMediaPlayer(playerDeps);
 	const file = options.file ?? new File([''], 'track.mp3', { type: 'audio/mpeg' });
 	const repository = options.repository ?? createInMemoryMediaRepository();
-	const media = createMediaStore({
+	const storeDeps: Parameters<typeof createMediaStore>[0] = {
 		repository,
 		feedback,
 		draftId: options.draftId ?? (() => 'draft-1'),
 		player,
 		pickFile: async () => ({ file, handle: options.handle }),
 		clock: options.now ?? (() => 0),
-		...(options.onTitleSuggestion ? { onTitleSuggestion: options.onTitleSuggestion } : {})
-	});
+		spotifyAuth: {
+			signedIn: () => spotifyFlow.signedIn,
+			redirectAllowed: () => true,
+			beginSignIn: async () => spotifyFlow.leaves
+		}
+	};
+	if (options.onTitleSuggestion) storeDeps.onTitleSuggestion = options.onTitleSuggestion;
+	const media = createMediaStore(storeDeps);
 
 	return { audio, feedback, file, media, player, repository, youtube };
 }
@@ -668,7 +685,7 @@ function stubMusicKitRefusingSignIn() {
 		currentPlaybackDuration: 0,
 		playbackRate: 1,
 		authorize: () => {
-			(globalThis as { open?: (url: string, target: string) => unknown }).open?.(
+			(globalThis as { open?: (url: string, target: string) => Window | null }).open?.(
 				'https://authorize.music.apple.com/woa',
 				'apple-auth'
 			);
@@ -685,7 +702,7 @@ function stubMusicKitRefusingSignIn() {
 	return {
 		configure: async () => instance,
 		PlaybackStates: { playing: 2, paused: 3, stopped: 4, ended: 5, completed: 10 }
-	} as unknown as Awaited<ReturnType<MusicKitLoader>>;
+	} as Awaited<ReturnType<MusicKitLoader>>;
 }
 
 describe('a source pasted with a fragment', () => {
@@ -819,6 +836,7 @@ describe('a press made while a reconnect is still waiting', () => {
 		const file = new File([''], 'sensommer.mp3', { type: 'audio/mpeg' });
 		let answer: ((permission: 'granted') => void) | undefined;
 		const handle = {
+			...unwritableHandle,
 			kind: 'file' as const,
 			name: file.name,
 			async queryPermission() {
@@ -831,7 +849,7 @@ describe('a press made while a reconnect is still waiting', () => {
 			async getFile() {
 				return file;
 			}
-		} as unknown as FileSystemFileHandle;
+		} as FileSystemFileHandle;
 
 		await repository.attach({ draftId: 'draft-1', name: 'sensommer.mp3', handle });
 

@@ -1,7 +1,13 @@
 import type { RuleDefinition } from '$lib/core/types.js';
-import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
+import {
+	type CatalogLookup,
+	diagnostic,
+	matchesOutsideMarkup,
+	preserveCase,
+	replacementFix
+} from './utils.js';
 
-export const replacements: Readonly<Record<string, string>> = {
+export const replacements: CatalogLookup<string> = {
 	desverre: 'dessverre',
 	interresant: 'interessant',
 	nyskjerrig: 'nysgjerrig',

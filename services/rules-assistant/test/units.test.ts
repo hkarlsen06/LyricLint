@@ -1,3 +1,4 @@
+import type OpenAI from 'openai';
 import { describe, expect, it, vi } from 'vitest';
 import {
 	MAX_LINK_ACTIONS,
@@ -23,7 +24,12 @@ import {
 	parseProviderResponse,
 	providerRequest
 } from '../src/provider';
-import { QuotaCounter } from '../src/quota-do';
+import {
+	QuotaCounter,
+	type BeginResult,
+	type QuotaRequest,
+	type QuotaStorage
+} from '../src/quota-do';
 import {
 	answerRequestSchema,
 	manageLinksArgumentsSchema,
@@ -33,10 +39,44 @@ import {
 	validateAnswer,
 	validateConversation,
 	wireToolResultSchema,
+	type JsonObject,
 	type WireMessageV2
 } from '../src/schema';
 import { IncrementalAnswerStream, type AnswerStreamEvent } from '../src/stream';
 import { RULE_ID } from './harness';
+
+/** The slice of a tool's JSON Schema these assertions read. */
+type ProposalToolParameters = {
+	properties: { proposals: { items: { required: string[] } } };
+};
+
+/** One content part of a request input item, as it is serialized to the provider. */
+interface SerializedContentPart {
+	type: string;
+	text: string;
+	prompt_cache_breakpoint?: { mode: string };
+}
+
+/** One input item, as it is serialized to the provider. */
+interface SerializedInputItem {
+	type?: string;
+	role?: string;
+	call_id?: string;
+	name?: string;
+	arguments?: string;
+	output?: string;
+	content?: SerializedContentPart[];
+}
+
+/**
+ * The request's input as the provider actually receives it. These assertions are
+ * about `prompt_cache_breakpoint`, which the API accepts and the SDK's part types
+ * never declare, and about items reached by position — so the JSON is the honest
+ * thing to read rather than a walk through the SDK's own union.
+ */
+function serializedInput(request: ReturnType<typeof providerRequest>): SerializedInputItem[] {
+	return JSON.parse(JSON.stringify(request.input ?? [])) as SerializedInputItem[];
+}
 
 function message(role: 'user' | 'assistant', length: number) {
 	return { role, content: 'x'.repeat(length) };
@@ -84,9 +124,7 @@ describe('proposal validation', () => {
 			}).success
 		).toBe(true);
 		const proposalTool = DRAFT_TOOLS.find((tool) => tool.name === 'propose_edits');
-		const parameters = proposalTool?.parameters as unknown as {
-			properties: { proposals: { items: { required: string[] } } };
-		};
+		const parameters = proposalTool?.parameters as ProposalToolParameters;
 		const items = parameters.properties.proposals.items;
 		expect(items?.required).toContain('applyTo');
 	});
@@ -312,7 +350,7 @@ describe('conversation v2 validation', () => {
 		['mismatched', [{ callId: 'another', name: 'read_scribe', result: { status: 'denied' } }]]
 	] as const)('rejects %s tool result call ids', (_name, results) => {
 		const messages = [{ role: 'user', content: 'Question' }, ...toolRound(1)] as WireMessageV2[];
-		messages[2] = { role: 'tool', results: [...results] } as unknown as WireMessageV2;
+		messages[2] = { role: 'tool', results: [...results] };
 		expect(() => validateConversation(conversation(messages))).toThrow(ApiError);
 	});
 
@@ -392,7 +430,7 @@ describe('conversation v2 validation', () => {
 	});
 
 	it('rejects a replayed function call the message never declared', () => {
-		const parse = (item: Record<string, unknown>) =>
+		const parse = (item: JsonObject) =>
 			answerRequestSchema.safeParse({
 				chatId: 'chat-1',
 				clientRuleSetVersion: corpus.ruleSetVersion,
@@ -494,13 +532,12 @@ describe('history pruning', () => {
 
 describe('prompt assembly', () => {
 	it('orders instructions, corpus, breakpoint, history, question', () => {
-		const input = providerRequest(
-			[message('user', 5), message('assistant', 5), message('user', 8)],
-			'll-test'
-		).input as unknown as Array<{ role: string; content: Array<{ text: string }> }>;
+		const input = serializedInput(
+			providerRequest([message('user', 5), message('assistant', 5), message('user', 8)], 'll-test')
+		);
 		expect(input[0]!.role).toBe('developer');
-		expect(input[0]!.content[0]!.text).toContain(corpus.contentHash);
-		expect(input[0]!.content[0]!.text.trimEnd().endsWith(CACHE_BREAKPOINT)).toBe(true);
+		expect(input[0]!.content![0]!.text).toContain(corpus.contentHash);
+		expect(input[0]!.content![0]!.text.trimEnd().endsWith(CACHE_BREAKPOINT)).toBe(true);
 		expect(input.slice(1).map((entry) => entry.role)).toEqual(['user', 'assistant', 'user']);
 	});
 
@@ -529,16 +566,12 @@ describe('prompt assembly', () => {
 		);
 		expect(request.prompt_cache_options).toEqual({ mode: 'explicit', ttl: '30m' });
 		expect(request.prompt_cache_key).toBe(promptCacheKey(corpus));
-		const input = request.input as unknown as Array<{
-			content: Array<Record<string, unknown>>;
-		}>;
-		expect(input[0]!.content[0]!.prompt_cache_breakpoint).toEqual({ mode: 'explicit' });
+		const input = serializedInput(request);
+		expect(input[0]!.content![0]!.prompt_cache_breakpoint).toEqual({ mode: 'explicit' });
 		// The API enforces part types per role: an assistant turn in history must
 		// replay as output_text, and input_text there is a 400 on every follow-up
 		// question after the chat's first completed exchange.
-		const roleTypes = (
-			request.input as unknown as Array<{ role?: string; content?: Array<{ type: string }> }>
-		)
+		const roleTypes = input
 			.filter((item) => item.content)
 			.map((item) => [item.role, item.content![0]!.type]);
 		expect(roleTypes).toContainEqual(['assistant', 'output_text']);
@@ -547,7 +580,7 @@ describe('prompt assembly', () => {
 				role === 'assistant' ? type === 'output_text' : type === 'input_text'
 			)
 		).toBe(true);
-		expect(input.slice(1).every((item) => !('prompt_cache_breakpoint' in item.content[0]!))).toBe(
+		expect(input.slice(1).every((item) => !('prompt_cache_breakpoint' in item.content![0]!))).toBe(
 			true
 		);
 		// The MODEL values are read from config rather than repeated: this test is
@@ -593,7 +626,7 @@ describe('prompt assembly', () => {
 			}
 		];
 		const request = providerRequest(messages, 'll-test', true);
-		const input = request.input as unknown as Array<Record<string, unknown>>;
+		const input = serializedInput(request);
 		expect(input[2]).toEqual(providerItem);
 		expect(input[3]).toMatchObject({ type: 'function_call_output', call_id: 'call-1' });
 		const output = String(input[3]!.output);
@@ -654,7 +687,7 @@ describe('prompt assembly', () => {
 			'll-test',
 			true
 		);
-		const input = request.input as unknown as Array<Record<string, unknown>>;
+		const input = serializedInput(request);
 		const output = input.find((item) => item.type === 'function_call_output');
 		expect(output?.output).toBe(
 			'{"outcomes":[{"id":"edit-1","status":"applied"},{"id":"edit-2","status":"failed","reason":"ambiguous"}]}'
@@ -697,7 +730,7 @@ describe('prompt assembly', () => {
 			'll-test',
 			true
 		);
-		const input = request.input as unknown as Array<Record<string, unknown>>;
+		const input = serializedInput(request);
 		const output = input.find((item) => item.type === 'function_call_output');
 		expect(output?.output).toBe(
 			'{"outcomes":[{"id":"link-1","status":"applied"},{"id":"unlink-1","status":"failed","reason":"not-linked"}]}'
@@ -740,7 +773,7 @@ describe('prompt assembly', () => {
 			'll-test',
 			true
 		);
-		const input = request.input as unknown as Array<Record<string, unknown>>;
+		const input = serializedInput(request);
 		const output = input.find((item) => item.type === 'function_call_output');
 		expect(output?.output).toBe(
 			'{"outcomes":[{"id":"ref-1","status":"shown"},{"id":"ref-2","status":"failed","reason":"not-found"}]}'
@@ -765,17 +798,24 @@ describe('prompt assembly', () => {
 });
 
 describe('provider response extraction', () => {
-	function response(output: unknown[], outputText = '') {
-		return {
+	// A deliberately partial double. `parseProviderResponse` reads the status, the
+	// output items, the output text and the usage, and the rest of the SDK's
+	// `Response` is what a completed one happens to carry beside them. The items
+	// stay unparsed on the way in because half of these tests hand it exactly what
+	// the declared item types forbid — SDK decorations, and malformed arguments.
+	function response(output: unknown[], outputText = ''): OpenAI.Responses.Response {
+		const settled: Partial<OpenAI.Responses.Response> = {
 			status: 'completed',
-			output,
 			output_text: outputText,
 			usage: {
 				input_tokens: 20,
 				input_tokens_details: { cached_tokens: 5, cache_write_tokens: 2 },
-				output_tokens: 10
+				output_tokens: 10,
+				output_tokens_details: { reasoning_tokens: 0 },
+				total_tokens: 30
 			}
-		} as unknown as Parameters<typeof parseProviderResponse>[0];
+		};
+		return { ...settled, output } as OpenAI.Responses.Response;
 	}
 
 	it('extracts function calls and serializes replayable output items', () => {
@@ -809,7 +849,7 @@ describe('provider response extraction', () => {
 		};
 		const parsed = parseProviderResponse(response([decoratedCall, decoratedMessage, providerItem]));
 		if (parsed.kind !== 'tool_calls') throw new Error('expected tool calls');
-		const items = JSON.parse(parsed.providerItems) as Array<Record<string, unknown>>;
+		const items = JSON.parse(parsed.providerItems) as JsonObject[];
 		expect(items[0]).toEqual(providerItem);
 		expect(items[1]).toEqual({
 			type: 'message',
@@ -1212,22 +1252,30 @@ describe('Turnstile verification', () => {
 describe('QuotaCounter', () => {
 	function counter() {
 		const map = new Map<string, unknown>();
-		const storage = {
-			get: async (key: string) => structuredClone(map.get(key)),
-			put: async (key: string, value: unknown) => void map.set(key, structuredClone(value)),
-			deleteAll: async () => void map.clear(),
-			setAlarm: async () => {}
+		const storage: QuotaStorage = {
+			async get<T>(key: string): Promise<T | undefined> {
+				return structuredClone(map.get(key)) as T | undefined;
+			},
+			async put<T>(key: string, value: T): Promise<void> {
+				map.set(key, structuredClone(value));
+			},
+			async deleteAll(): Promise<void> {
+				map.clear();
+			},
+			async setAlarm(): Promise<void> {}
 		};
-		const instance = new QuotaCounter({ storage } as unknown as DurableObjectState);
+		const instance = new QuotaCounter({ storage });
 		return {
-			call: async (path: string, body: unknown) => {
+			// `/begin` answers with the whole `BeginResult`; the other three answer
+			// with `{ ok: true }`, which is why every field here is optional.
+			call: async (path: string, body: QuotaRequest): Promise<Partial<BeginResult>> => {
 				const response = await instance.fetch(
 					new Request(`https://quota.internal${path}`, {
 						method: 'POST',
 						body: JSON.stringify(body)
 					})
 				);
-				return response.json() as Promise<Record<string, unknown>>;
+				return response.json() as Promise<Partial<BeginResult>>;
 			}
 		};
 	}
@@ -1236,7 +1284,7 @@ describe('QuotaCounter', () => {
 		const quota = counter();
 		const begun = await quota.call('/begin', { dailyLimit: 2, concurrentLimit: 1 });
 		expect(begun.ok).toBe(true);
-		await quota.call('/cancel', { slot: begun.slot });
+		await quota.call('/cancel', { slot: begun.slot! });
 		const again = await quota.call('/begin', { dailyLimit: 2, concurrentLimit: 1 });
 		expect(again.remaining).toBe(1);
 	});
@@ -1286,7 +1334,7 @@ describe('QuotaCounter', () => {
 			});
 			await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
 			// The slot has been reclaimed as stale; the money it spent still arrives.
-			await quota.call('/finish', { slot: begun.slot, spendUsd: 1.5 });
+			await quota.call('/finish', { slot: begun.slot!, spendUsd: 1.5 });
 			const refused = await quota.call('/begin', {
 				dailyLimit: 10,
 				concurrentLimit: 1,
@@ -1305,14 +1353,14 @@ describe('QuotaCounter', () => {
 			concurrentLimit: 3,
 			spendLimitUsd: 0.5
 		});
-		await quota.call('/finish', { slot: first.slot, spendUsd: 0.3 });
+		await quota.call('/finish', { slot: first.slot!, spendUsd: 0.3 });
 		const second = await quota.call('/begin', {
 			dailyLimit: 10,
 			concurrentLimit: 3,
 			spendLimitUsd: 0.5
 		});
 		expect(second.ok).toBe(true);
-		await quota.call('/finish', { slot: second.slot, spendUsd: 0.3 });
+		await quota.call('/finish', { slot: second.slot!, spendUsd: 0.3 });
 		const refused = await quota.call('/begin', {
 			dailyLimit: 10,
 			concurrentLimit: 3,
@@ -1330,7 +1378,7 @@ describe('QuotaCounter', () => {
 			spendLimitUsd: limit
 		});
 		await quota.call('/finish', {
-			slot: seed.slot,
+			slot: seed.slot!,
 			spendUsd: limit - GLOBAL_REQUEST_SPEND_RESERVATION_USD * 1.5
 		});
 		const first = await quota.call('/begin', {

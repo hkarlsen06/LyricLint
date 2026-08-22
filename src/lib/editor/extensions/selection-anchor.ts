@@ -67,7 +67,7 @@ export function selectionAnchorForView(
 			)
 		: undefined;
 
-	return {
+	const anchor: SelectionAnchor = {
 		range: { from, to },
 		rect: {
 			left,
@@ -82,9 +82,10 @@ export function selectionAnchorForView(
 		// this plugin reports on every settled scroll, geometry change and typing
 		// pause — which is nearly all of them.
 		offersAssignment:
-			pointerDriven && canAssignVoiceGroup(parsedDocumentForView(view), { anchor: from, head: to }),
-		...(linkHeader ? { linkHeader } : {})
+			pointerDriven && canAssignVoiceGroup(parsedDocumentForView(view), { anchor: from, head: to })
 	};
+	if (linkHeader) anchor.linkHeader = linkHeader;
+	return anchor;
 }
 
 class SelectionAnchorReporter {

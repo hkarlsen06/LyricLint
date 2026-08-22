@@ -1,3 +1,5 @@
+import type { AudioElement } from './media-player.svelte.js';
+
 /**
  * A media element with no decoder behind it.
  *
@@ -9,7 +11,7 @@
  * Test-only, and imported only from `*.test.ts` — it is here rather than beside
  * one of them because both the player's tests and the strip's need it.
  */
-export class StubAudio extends EventTarget {
+export class StubAudio extends EventTarget implements AudioElement {
 	currentTime = 0;
 	duration = Number.NaN;
 	playbackRate = 1;
@@ -41,7 +43,14 @@ export class StubAudio extends EventTarget {
 		this.dispatchEvent(new Event('durationchange'));
 	}
 
-	asMediaElement(): HTMLMediaElement {
-		return this as unknown as HTMLMediaElement;
+	/**
+	 * The stub as the transport takes it.
+	 *
+	 * `AudioElement` is the dozen members the file source actually drives, which
+	 * is what lets this be a return rather than an assertion: a double that had to
+	 * satisfy every member of `HTMLMediaElement` could only ever have been a cast.
+	 */
+	asMediaElement(): AudioElement {
+		return this;
 	}
 }

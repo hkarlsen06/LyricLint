@@ -65,29 +65,28 @@ async function pressMod(key: string, shift = false): Promise<void> {
 }
 
 function diagnostic(from: number, to: number, message: string, withFix = false): Diagnostic {
-	return {
+	const finding: Diagnostic = {
 		ruleId: `test.${from}`,
 		severity: 'warning',
 		from,
 		to,
 		message,
 		explanation: `${message} explanation`,
-		sourceIds: [],
-		...(withFix
-			? {
-					fixes: [
-						{
-							kind: 'safe' as const,
-							label: 'Replace word',
-							edit: {
-								baseRevision: 0,
-								edits: [{ from, to, insert: 'fixed' }]
-							}
-						}
-					]
-				}
-			: {})
+		sourceIds: []
 	};
+	if (withFix) {
+		finding.fixes = [
+			{
+				kind: 'safe',
+				label: 'Replace word',
+				edit: {
+					baseRevision: 0,
+					edits: [{ from, to, insert: 'fixed' }]
+				}
+			}
+		];
+	}
+	return finding;
 }
 
 describe('LyricLint keyboard commands through CodeMirror', () => {

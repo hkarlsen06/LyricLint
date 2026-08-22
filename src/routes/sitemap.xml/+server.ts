@@ -8,6 +8,7 @@ export const prerender = true;
 
 const paths = [
 	'/',
+	'/about/',
 	'/rules/',
 	'/guidelines/',
 	'/privacy/',

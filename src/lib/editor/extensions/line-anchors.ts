@@ -414,9 +414,9 @@ function rangesForLines(
 	times: ReadonlyMap<number, number>
 ): RangeSet<AnchorValue> {
 	const ranges: Range<AnchorValue>[] = [];
-	for (const lineNumber of [...times.keys()].sort((left, right) => left - right)) {
+	for (const [lineNumber, time] of [...times].sort(([left], [right]) => left - right)) {
 		const line = state.doc.line(lineNumber);
-		ranges.push(new AnchorValue(times.get(lineNumber) as number).range(line.from, line.to));
+		ranges.push(new AnchorValue(time).range(line.from, line.to));
 	}
 	return RangeSet.of(ranges, true);
 }
@@ -835,7 +835,7 @@ const dismissAdjustOnOutside = ViewPlugin.fromClass(
 
 		private readonly onPointerDown = (event: PointerEvent): void => {
 			if (this.view.state.field(lineAnchorField).adjusting === undefined) return;
-			const target = event.target as HTMLElement | null;
+			const target = event.target instanceof Element ? event.target : null;
 			if (target?.closest('[data-anchor-nudge],[data-anchor-stamp]')) return;
 			this.view.dispatch({ effects: setAnchorAdjustEffect.of(undefined) });
 		};
@@ -997,7 +997,7 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 			// may have no anchors at all.
 			domEventHandlers: {
 				mousedown: (view, line, event) => {
-					const target = event.target as HTMLElement | null;
+					const target = event.target instanceof Element ? event.target : null;
 
 					const seek = target?.closest<HTMLElement>('[data-anchor-seek]');
 					if (seek) {

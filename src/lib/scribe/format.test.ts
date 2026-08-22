@@ -29,9 +29,18 @@ const input = {
 	song: { kind: 'youtube' as const, id: 'dQw4w9WgXcQ', name: 'Mul — Sensommer' }
 };
 
+/** The written `.lls`, as far into it as the bends below reach. */
+interface SerializedScribe {
+	format: string;
+	version: number;
+	performers: { colorId: string }[];
+	sectionLinks: { lines: number[] }[];
+	song: { kind: string; id: string; name: string };
+}
+
 /** A serialized project with one field bent, for the refusals below. */
-function modify(bend: (raw: Record<string, unknown>) => void): string {
-	const raw = JSON.parse(serializeScribe(input)) as Record<string, unknown>;
+function modify(bend: (raw: SerializedScribe) => void): string {
+	const raw = JSON.parse(serializeScribe(input)) as SerializedScribe;
 	bend(raw);
 	return JSON.stringify(raw);
 }
@@ -39,7 +48,7 @@ function modify(bend: (raw: Record<string, unknown>) => void): string {
 describe('LyricLint Scribe format', () => {
 	test('round-trips every durable project field with its magic identifier and version', () => {
 		const serialized = serializeScribe(input);
-		const raw = JSON.parse(serialized) as Record<string, unknown>;
+		const raw = JSON.parse(serialized) as SerializedScribe;
 
 		expect(raw.format).toBe('LYRICLINT_SCRIBE');
 		expect(raw.version).toBe(1);
@@ -91,31 +100,31 @@ describe('LyricLint Scribe format', () => {
 		[
 			'a color no palette token declares',
 			modify((raw) => {
-				(raw.performers as Record<string, unknown>[])[0]!.colorId = 'chartreuse';
+				raw.performers[0]!.colorId = 'chartreuse';
 			})
 		],
 		[
 			'a link naming one header twice',
 			modify((raw) => {
-				(raw.sectionLinks as Record<string, unknown>[])[0]!.lines = [4, 4];
+				raw.sectionLinks[0]!.lines = [4, 4];
 			})
 		],
 		[
 			'a song id from another catalogue',
 			modify((raw) => {
-				(raw.song as Record<string, unknown>).id = '4cOdK2wGLETKBW3PvgPWqT';
+				raw.song.id = '4cOdK2wGLETKBW3PvgPWqT';
 			})
 		],
 		[
 			'a song name that is only whitespace',
 			modify((raw) => {
-				(raw.song as Record<string, unknown>).name = '   ';
+				raw.song.name = '   ';
 			})
 		],
 		[
 			'a song name longer than a row could ever hold',
 			modify((raw) => {
-				(raw.song as Record<string, unknown>).name = 'x'.repeat(301);
+				raw.song.name = 'x'.repeat(301);
 			})
 		]
 	])('refuses %s', (_case, source) => {
@@ -127,7 +136,7 @@ describe('LyricLint Scribe format', () => {
 	test('sorts a link’s member lines ascending', () => {
 		const parsed = parseScribe(
 			modify((raw) => {
-				(raw.sectionLinks as Record<string, unknown>[])[0]!.lines = [4, 1];
+				raw.sectionLinks[0]!.lines = [4, 1];
 			})
 		);
 

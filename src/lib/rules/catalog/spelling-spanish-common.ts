@@ -1,8 +1,14 @@
 import type { RuleDefinition } from '$lib/core/types.js';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
-import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
+import {
+	type CatalogLookup,
+	diagnostic,
+	matchesOutsideMarkup,
+	preserveCase,
+	replacementFix
+} from './utils.js';
 
-export const replacements: Readonly<Record<string, string>> = {
+export const replacements: CatalogLookup<string> = {
 	sinembargo: 'sin embargo',
 	agusto: 'a gusto',
 	através: 'a través',

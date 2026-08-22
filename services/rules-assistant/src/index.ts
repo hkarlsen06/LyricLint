@@ -16,7 +16,7 @@ import {
 	type Env
 } from './config';
 import { corpus, corpusRuleIds, corpusSourceIds } from './corpus';
-import { ApiError, errorBody } from './errors';
+import { ApiError, errorBody, type ErrorBody } from './errors';
 import {
 	hashIdentifier,
 	readSessionCookie,
@@ -36,16 +36,17 @@ import {
 	type ProviderUsage,
 	type ProviderToolCall
 } from './provider';
-import type { BeginResult } from './quota-do';
+import type { BeginBody, BeginResult, QuotaRequest } from './quota-do';
 import {
 	answerRequestSchema,
 	toolRoundCount,
 	validateAnswer,
 	validateConversation,
 	type AnswerRequest,
+	type Json,
 	type StructuredAnswer
 } from './schema';
-import { IncrementalAnswerStream } from './stream';
+import { IncrementalAnswerStream, type AnswerStreamEvent } from './stream';
 
 export { QuotaCounter } from './quota-do';
 
@@ -53,6 +54,27 @@ interface QuotaHandle {
 	name: string;
 	slot: string;
 }
+
+/** What every answered turn reports back about the allowances it just spent. */
+interface QuotaSnapshot {
+	browserRemaining: number;
+	ipRemaining: number;
+	resetsAt: string;
+}
+
+/** Every body this Worker answers a request with. */
+type ResponseBody =
+	| { requestId: string; assistant: StructuredAnswer; quota: QuotaSnapshot }
+	| (ErrorBody & { requestId?: string })
+	| { status: string; ruleSetVersion: string; corpusHash: string };
+
+/** Everything the NDJSON stream emits: the answer stream's own events, plus the
+ * tool-call, completion and failure envelopes this handler wraps them in. */
+type StreamEvent =
+	| AnswerStreamEvent
+	| { type: 'tool_calls'; calls: ProviderToolCall[]; providerItems: string }
+	| { type: 'done'; quota: QuotaSnapshot }
+	| { type: 'error'; requestId: string; error: ErrorBody['error'] };
 
 /**
  * What the model is told on the call that follows its last tool round. It is
@@ -71,7 +93,7 @@ const REPAIR_INSTRUCTION = (message: string): string =>
 
 function repairMessages(
 	messages: AnswerRequest['messages'],
-	raw: unknown,
+	raw: Json,
 	message: string
 ): AnswerRequest['messages'] {
 	return [
@@ -106,12 +128,15 @@ function warnInvalidAnswer(requestId: string, error: ApiError): void {
 	});
 }
 
-async function quotaCall<T>(env: Env, name: string, path: string, body: unknown): Promise<T> {
+async function quotaCall<T>(env: Env, name: string, path: string, body: QuotaRequest): Promise<T> {
 	const stub = env.QUOTAS.get(env.QUOTAS.idFromName(name));
 	const response = await stub.fetch(`https://quota.internal${path}`, {
 		method: 'POST',
 		body: JSON.stringify(body)
 	});
+	// SAFETY: a Durable Object stub reaches only QuotaCounter.fetch, which answers each
+	// of its paths with the one result shape declared in quota-do.ts — `/begin` with
+	// `BeginResult`, the rest with `{ ok: true }` — which is what `T` names here.
 	return (await response.json()) as T;
 }
 
@@ -126,19 +151,21 @@ function acceptedOrigin(env: Env, origin: string | null): string | undefined {
 }
 
 function corsHeaders(env: Env, origin = allowedOrigins(env)[0]): HeadersInit {
-	return {
-		...(origin ? { 'access-control-allow-origin': origin } : {}),
-		'access-control-allow-credentials': 'true',
-		'access-control-allow-methods': 'GET, POST, OPTIONS',
-		'access-control-allow-headers': 'content-type',
-		'access-control-max-age': '86400',
-		vary: 'origin'
-	};
+	// An origin the allowlist did not match gets no `allow-origin` header at all —
+	// an empty or wildcard one would be a weaker refusal than saying nothing.
+	const headers: Record<string, string> = {};
+	if (origin) headers['access-control-allow-origin'] = origin;
+	headers['access-control-allow-credentials'] = 'true';
+	headers['access-control-allow-methods'] = 'GET, POST, OPTIONS';
+	headers['access-control-allow-headers'] = 'content-type';
+	headers['access-control-max-age'] = '86400';
+	headers['vary'] = 'origin';
+	return headers;
 }
 
 function json(
 	env: Env,
-	body: unknown,
+	body: ResponseBody,
 	status = 200,
 	extra?: Record<string, string>,
 	origin?: string
@@ -151,7 +178,7 @@ function streamedToolCalls(
 	body: {
 		calls: ProviderToolCall[];
 		providerItems: string;
-		quota: { browserRemaining: number; ipRemaining: number; resetsAt: string };
+		quota: QuotaSnapshot;
 	},
 	extra?: Record<string, string>,
 	origin?: string
@@ -172,21 +199,20 @@ function streamedToolCalls(
 }
 
 /** Operational metadata only: no raw IPs, no prompt or answer text. */
-function writeMetric(
-	env: Env,
-	point: {
-		outcome: 'ok' | 'error';
-		code?: string;
-		latencyMs: number;
-		sessionHash?: string;
-		inputTokens?: number;
-		cachedInputTokens?: number;
-		cacheWriteTokens?: number;
-		outputTokens?: number;
-		spendUsd?: number;
-		requestId?: string;
-	}
-): void {
+interface TurnMetric {
+	outcome: 'ok' | 'error';
+	code?: string;
+	latencyMs: number;
+	sessionHash?: string;
+	inputTokens?: number;
+	cachedInputTokens?: number;
+	cacheWriteTokens?: number;
+	outputTokens?: number;
+	spendUsd?: number;
+	requestId?: string;
+}
+
+function writeMetric(env: Env, point: TurnMetric): void {
 	env.METRICS?.writeDataPoint({
 		blobs: [point.outcome, point.code ?? '', MODEL.id, point.requestId ?? ''],
 		doubles: [
@@ -322,7 +348,7 @@ export function createHandler(options: HandlerOptions = {}) {
 
 			// --- Exact daily, concurrency, and spend accounting --------------------
 			const held: QuotaHandle[] = [];
-			const begin = async (name: string, body: Record<string, unknown>): Promise<BeginResult> => {
+			const begin = async (name: string, body: BeginBody): Promise<BeginResult> => {
 				const result = await quotaCall<BeginResult>(env, name, '/begin', body);
 				if (result.ok && result.slot) held.push({ name, slot: result.slot });
 				return result;
@@ -422,7 +448,7 @@ export function createHandler(options: HandlerOptions = {}) {
 
 					const stream = new ReadableStream<Uint8Array>({
 						start(controller) {
-							const emit = (event: unknown) => {
+							const emit = (event: StreamEvent) => {
 								if (!cancelled) controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 							};
 							let answerStream = new IncrementalAnswerStream(requestId, emit);
@@ -436,9 +462,8 @@ export function createHandler(options: HandlerOptions = {}) {
 										// must not strand the browser in an unterminated answer stream.
 										console.error('assistant_quota_release_failed', { requestId });
 									}
-									writeMetric(env, {
+									const metric: TurnMetric = {
 										outcome,
-										...(code ? { code } : {}),
 										latencyMs: now() - startedAt,
 										sessionHash,
 										inputTokens: usage?.inputTokens,
@@ -447,7 +472,9 @@ export function createHandler(options: HandlerOptions = {}) {
 										outputTokens: usage?.outputTokens,
 										spendUsd: accountedSpendUsd,
 										requestId
-									});
+									};
+									if (code) metric.code = code;
+									writeMetric(env, metric);
 								})();
 								return finalized;
 							};

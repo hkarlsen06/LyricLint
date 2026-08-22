@@ -6,11 +6,11 @@ import type { LineAnchor } from './types.js';
  */
 export type TimedLyricsFormat = 'lrc' | 'srt' | 'vtt';
 
-export const timedLyricsExtensions: Record<TimedLyricsFormat, string> = {
+export const timedLyricsExtensions = {
 	lrc: 'lrc',
 	srt: 'srt',
 	vtt: 'vtt'
-};
+} satisfies Record<TimedLyricsFormat, string>;
 
 /**
  * How long the last cue runs for. Every other cue ends where the next one

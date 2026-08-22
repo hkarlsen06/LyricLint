@@ -10,7 +10,7 @@
 	import MediaArtwork from '../media/MediaArtwork.svelte';
 	import { drawsCoverBand } from '../state/media-player.svelte.js';
 	import PerformersPanel from '../performers/PerformersPanel.svelte';
-	import type { RightPanelTab, WorkbenchController } from '../state/workbench.svelte.js';
+	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import SongPanel from '../tools/SongPanel.svelte';
 	import PreferencesPanel from '../tools/PreferencesPanel.svelte';
 
@@ -63,7 +63,7 @@
 			value === 'preferences' ||
 			(value === 'assistant' && assistantEnabled)
 		) {
-			controller.setActiveTab(value as RightPanelTab);
+			controller.setActiveTab(value);
 		}
 	}
 

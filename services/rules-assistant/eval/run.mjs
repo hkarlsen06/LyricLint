@@ -37,6 +37,13 @@ const origin = process.env.ASSISTANT_EVAL_ORIGIN ?? 'http://127.0.0.1:5173';
 // emulators that do not enforce the binding can opt out explicitly.
 const delayMs = Number(process.env.ASSISTANT_EVAL_DELAY_MS ?? 4100);
 
+/**
+ * Whether an answer named a scope at all. JSON carries no string wrappers, so
+ * `String(value) === value` holds for exactly the string values the answer
+ * schema can produce and for nothing else a malformed answer could put here.
+ */
+const namesAScope = (value) => String(value) === value;
+
 let structural = 0;
 let validCitations = 0;
 let validSources = 0;
@@ -65,7 +72,7 @@ for (const [index, testCase] of evalSet.cases.entries()) {
 	const body = await response.json();
 	const answer = body.assistant;
 	const blocks = Array.isArray(answer?.blocks) ? answer.blocks : undefined;
-	if (!answer || !blocks || typeof answer.scope !== 'string') {
+	if (!answer || !blocks || !namesAScope(answer.scope)) {
 		failures.push(`${testCase.id}: structurally invalid`);
 		continue;
 	}

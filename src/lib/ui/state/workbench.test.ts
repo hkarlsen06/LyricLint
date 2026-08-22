@@ -159,7 +159,7 @@ function setup(options: {
 	// deleted 'scribe's ignores through this same object, so a test that means to
 	// model that has to be able to reach it.
 	const ignoreStore = createContractIgnoreStore(createMemorySessionStorage());
-	const controller = createWorkbenchController({
+	const controllerDeps: Parameters<typeof createWorkbenchController>[0] = {
 		editor: options.headless ? headless : editor,
 		initialSnapshot: currentSnapshot,
 		initialDraft: initial,
@@ -174,21 +174,22 @@ function setup(options: {
 			(() => Promise.reject(new Error('Clipboard reads are unavailable.'))),
 		copy: options.copy ?? (() => Promise.resolve()),
 		onOpenDraft,
-		exportText: options.exportText,
-		...(options.mediaRepository
-			? {
-					mediaRepository: options.mediaRepository,
-					// A real player would reach for `new Audio()`, which node has not
-					// got; what is under test here is the draft record, not decoding.
-					mediaPlayer: createMediaPlayer({
-						feedback: createFeedbackState(),
-						createAudio: () => new StubAudio().asMediaElement(),
-						createObjectUrl: () => 'blob:test',
-						revokeObjectUrl: () => {}
-					})
-				}
-			: {})
-	});
+		exportText: options.exportText
+	};
+	// Absent unless the test asked for audio: a controller with a media store is
+	// one more thing running behind every unrelated assertion.
+	if (options.mediaRepository) {
+		controllerDeps.mediaRepository = options.mediaRepository;
+		// A real player would reach for `new Audio()`, which node has not got;
+		// what is under test here is the draft record, not decoding.
+		controllerDeps.mediaPlayer = createMediaPlayer({
+			feedback: createFeedbackState(),
+			createAudio: () => new StubAudio().asMediaElement(),
+			createObjectUrl: () => 'blob:test',
+			revokeObjectUrl: () => {}
+		});
+	}
+	const controller = createWorkbenchController(controllerDeps);
 	return { controller, repository, autosave, editor, headless, ignoreStore };
 }
 
@@ -1246,6 +1247,11 @@ describe('workbench performer imports', () => {
 	});
 });
 
+/** A live view of the document the applying stub editor is rewriting. */
+interface AppliedDocument {
+	readonly text: string;
+}
+
 describe('workbench performer renames', () => {
 	const text = '[Verse 1: Avery]\nA line\n\n[Chorus: Avery]\nAnother line';
 
@@ -1254,7 +1260,7 @@ describe('workbench performer renames', () => {
 		controller: ReturnType<typeof setup>['controller'],
 		editor: EditorHandle,
 		record: DraftRecord
-	): { readonly text: string } {
+	): AppliedDocument {
 		let currentText = record.text;
 		let revision = 0;
 		editor.dispatchAtomic = (edit) => {

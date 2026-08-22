@@ -29,6 +29,8 @@
  * workbench off the screen would be a worse bug than the one it prevents.
  */
 
+import { browser } from '$app/environment';
+
 /**
  * One lock for the workbench, never one per 'scribe.
  *
@@ -72,9 +74,9 @@ export interface TabGuard {
 const HELD_ELSEWHERE = Symbol('held-elsewhere');
 
 function browserLocks(): LockManager | null {
-	// `navigator` is absent under prerender and `locks` is absent on browsers
-	// that predate the API. Both mean the same thing here: no guard.
-	if (typeof navigator === 'undefined') return null;
+	// There is no `navigator` under prerender and no `locks` on browsers that
+	// predate the API. Both mean the same thing here: no guard.
+	if (!browser) return null;
 	return navigator.locks ?? null;
 }
 
@@ -102,7 +104,7 @@ export function guardWorkbenchTab(options: TabGuardOptions = {}): TabGuard {
 	let released = false;
 	// Aborting is how a pending *wait* is abandoned; the hold itself ends by
 	// resolving its own promise, which is what a granted lock's callback returns.
-	const abort = typeof AbortController === 'undefined' ? undefined : new AbortController();
+	const abort = 'AbortController' in globalThis ? new AbortController() : undefined;
 
 	// The lock is held for the life of the tab, so the callback returns a promise
 	// that only settles when `release` is called.
@@ -119,7 +121,7 @@ export function guardWorkbenchTab(options: TabGuardOptions = {}): TabGuard {
 		released = true;
 		letGo?.();
 		abort?.abort();
-		if (typeof window !== 'undefined') window.removeEventListener('pagehide', onPageHide);
+		if (browser) window.removeEventListener('pagehide', onPageHide);
 	};
 
 	/**
@@ -142,7 +144,7 @@ export function guardWorkbenchTab(options: TabGuardOptions = {}): TabGuard {
 		if (!event.persisted) release();
 	}
 
-	if (typeof window !== 'undefined') window.addEventListener('pagehide', onPageHide);
+	if (browser) window.addEventListener('pagehide', onPageHide);
 
 	void (async () => {
 		try {

@@ -1,6 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { askAssistant, STREAM_INACTIVITY_MS } from './api.js';
-import { AssistantError } from './types.js';
+import { AssistantError, type WireMessageV2 } from './types.js';
+
+/** The POST body one turn sends, as the worker's own schema receives it. */
+interface SentTurnRequest {
+	chatId: string;
+	messages: WireMessageV2[];
+	clientRuleSetVersion: string;
+	supportsRetry?: boolean;
+	toolsAvailable?: boolean;
+	turnstileToken?: string;
+}
 
 const DONE = {
 	type: 'done',
@@ -68,7 +78,7 @@ describe('assistant answer stream inactivity', () => {
 			fetcher: stream.fetcher
 		})
 			.then(() => undefined)
-			.catch((error: unknown) => error)
+			.catch((error: AssistantError) => error)
 			.finally(() => {
 				settled = true;
 			});
@@ -203,10 +213,9 @@ describe('assistant answer streaming', () => {
 				headers: { 'content-type': 'application/json', accept: 'application/x-ndjson' }
 			})
 		);
-		const sent = JSON.parse(vi.mocked(fetcher).mock.calls[0]![1]!.body as string) as Record<
-			string,
-			unknown
-		>;
+		const sent = JSON.parse(
+			vi.mocked(fetcher).mock.calls[0]![1]!.body as string
+		) as SentTurnRequest;
 		expect(sent.supportsRetry).toBe(true);
 	});
 
@@ -587,10 +596,9 @@ describe('assistant answer streaming', () => {
 			providerItems: '[{"type":"function_call"}]',
 			quota
 		});
-		const request = JSON.parse(vi.mocked(fetcher).mock.calls[0]![1]!.body as string) as Record<
-			string,
-			unknown
-		>;
+		const request = JSON.parse(
+			vi.mocked(fetcher).mock.calls[0]![1]!.body as string
+		) as SentTurnRequest;
 		expect(request.toolsAvailable).toBe(true);
 	});
 

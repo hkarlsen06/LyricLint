@@ -65,6 +65,21 @@ export async function signSession(state: SessionState, secret: string): Promise<
 	return `v1.${payload}.${base64url(mac)}`;
 }
 
+/**
+ * Decodes a cookie payload into a session. The signature is verified before this
+ * runs, so what is left to establish is that the JSON a past version of this
+ * Worker wrote still carries the three required fields in their declared types.
+ */
+function isSessionState(value: unknown): value is SessionState {
+	if (typeof value !== 'object' || value === null) return false;
+	if (!('sid' in value) || typeof value.sid !== 'string') return false;
+	if (!('iat' in value) || typeof value.iat !== 'number') return false;
+	if (!('uses' in value) || typeof value.uses !== 'number') return false;
+	return (
+		!('abuseHash' in value) || value.abuseHash === undefined || typeof value.abuseHash === 'string'
+	);
+}
+
 export async function verifySession(
 	token: string | undefined,
 	secret: string,
@@ -72,8 +87,9 @@ export async function verifySession(
 ): Promise<SessionState | undefined> {
 	if (!token) return undefined;
 	const parts = token.split('.');
-	if (parts.length !== 3 || parts[0] !== 'v1') return undefined;
-	const [, payload, mac] = parts as [string, string, string];
+	if (parts.length !== 3) return undefined;
+	const [version, payload, mac] = parts;
+	if (version !== 'v1' || payload === undefined || mac === undefined) return undefined;
 	try {
 		const key = await hmacKey(secret);
 		const valid = await crypto.subtle.verify(
@@ -83,15 +99,8 @@ export async function verifySession(
 			encoder.encode(payload)
 		);
 		if (!valid) return undefined;
-		const state = JSON.parse(new TextDecoder().decode(fromBase64url(payload))) as SessionState;
-		if (
-			typeof state.sid !== 'string' ||
-			typeof state.iat !== 'number' ||
-			typeof state.uses !== 'number' ||
-			(state.abuseHash !== undefined && typeof state.abuseHash !== 'string')
-		) {
-			return undefined;
-		}
+		const state: unknown = JSON.parse(new TextDecoder().decode(fromBase64url(payload)));
+		if (!isSessionState(state)) return undefined;
 		if (now - state.iat > SESSION_RULES.cookieTtlMs) return undefined;
 		return state;
 	} catch {
@@ -112,6 +121,12 @@ export function readSessionCookie(request: Request): string | undefined {
 		if (name === SESSION_RULES.cookieName) return rest.join('=');
 	}
 	return undefined;
+}
+
+/** The two fields of Turnstile's siteverify response this gate reads. */
+interface TurnstileVerification {
+	success?: boolean;
+	hostname?: string;
 }
 
 export interface TurnstileVerifier {
@@ -135,7 +150,10 @@ export function turnstileVerifier(
 			body
 		});
 		if (!response.ok) throw new ApiError('provider_error', 'Challenge verification unavailable.');
-		const result = (await response.json()) as { success?: boolean; hostname?: string };
+		// SAFETY: nothing is trusted from this shape — `success` is re-checked against the
+		// literal `true` and `hostname` against the allowlist below, so a body missing or
+		// mistyping either field is refused rather than believed.
+		const result = (await response.json()) as TurnstileVerification;
 		if (result.success !== true) return false;
 		const allowed = new Set<string>(TURNSTILE_HOSTNAMES);
 		if (allowLocalhost) {

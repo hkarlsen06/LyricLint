@@ -8,6 +8,11 @@ import type { ClipboardMetadata } from './clipboard-metadata.js';
 
 const fragment = '[Chorus]\nHold on "tight" & <breathe>\n\n[Chorus]\nHold on "tight" & <breathe>';
 
+/** The versioned wire shape `clipboardHtml` writes, built by hand where a test needs an odd size. */
+interface WirePayload extends ClipboardMetadata {
+	v: number;
+}
+
 const metadata: ClipboardMetadata = {
 	lines: 5,
 	anchors: [
@@ -80,7 +85,7 @@ describe('the clipboard flavor', () => {
 			anchors: Array.from({ length: 60_000 }, (_, index) => ({ line: index, time: index })),
 			links: []
 		};
-		const html = (payload: unknown) =>
+		const html = (payload: WirePayload) =>
 			`<div data-lyriclint="${JSON.stringify(payload).replaceAll('"', '&quot;')}"></div>`;
 		expect(JSON.stringify(oversized).length).toBeGreaterThan(1_000_000);
 		expect(metadataFromClipboardHtml(html(oversized))).toBeUndefined();

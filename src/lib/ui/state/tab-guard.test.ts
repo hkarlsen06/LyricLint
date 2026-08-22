@@ -17,7 +17,10 @@ function stubLocks({ heldElsewhere = false } = {}) {
 	let occupied = heldElsewhere;
 
 	const manager = {
-		async request(name: string, options: LockOptions, callback: (lock: Lock | null) => unknown) {
+		// Generic in what the caller's callback answers, exactly as the real
+		// `request` is: the guard's probe returns either its hold promise or the
+		// held-elsewhere sentinel, and the difference is what it branches on.
+		async request<T>(name: string, options: LockOptions, callback: (lock: Lock | null) => T) {
 			const record = { name, ifAvailable: options.ifAvailable === true, aborted: false };
 			requests.push(record);
 
@@ -29,7 +32,7 @@ function stubLocks({ heldElsewhere = false } = {}) {
 			if (options.ifAvailable) return occupied ? callback(null) : grantNow();
 			if (!occupied) return grantNow();
 
-			return new Promise((resolve, reject) => {
+			return new Promise<T>((resolve, reject) => {
 				const entry = {
 					take: () => resolve(grantNow()),
 					drop: () => {
@@ -48,7 +51,7 @@ function stubLocks({ heldElsewhere = false } = {}) {
 	};
 
 	return {
-		locks: manager as unknown as LockManager,
+		locks: manager as LockManager,
 		requests,
 		/** The other tab closing: whoever is waiting gets the lock. */
 		grant() {

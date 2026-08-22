@@ -14,20 +14,18 @@ export function assistantDraftAccessKey(draftId: string): string {
 	return `${ASSISTANT_DRAFT_ACCESS_PREFIX}${draftId}`;
 }
 
+function isStoredDraftAccess(value: unknown): value is StoredDraftAccess {
+	if (typeof value !== 'object' || value === null) return false;
+	if (!('decision' in value) || !('decidedAt' in value)) return false;
+	if (value.decision !== 'granted' && value.decision !== 'denied') return false;
+	return typeof value.decidedAt === 'string';
+}
+
 function parseDraftAccess(value: string | undefined): StoredDraftAccess | undefined {
 	if (!value) return undefined;
 	try {
 		const parsed: unknown = JSON.parse(value);
-		if (
-			typeof parsed !== 'object' ||
-			parsed === null ||
-			!('decision' in parsed) ||
-			!('decidedAt' in parsed) ||
-			(parsed.decision !== 'granted' && parsed.decision !== 'denied') ||
-			typeof parsed.decidedAt !== 'string'
-		) {
-			return undefined;
-		}
+		if (!isStoredDraftAccess(parsed)) return undefined;
 		return { decision: parsed.decision, decidedAt: parsed.decidedAt };
 	} catch {
 		return undefined;

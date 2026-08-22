@@ -115,6 +115,9 @@
 
 	/** The character position under a point, on whichever API this engine has. */
 	function caretFromPoint(x: number, y: number): { node: Node; offset: number } | undefined {
+		// SAFETY: the widening only adds two optional members, and each is called
+		// through its own presence check below — nothing here claims a capability
+		// this engine was not asked about first.
 		const doc = document as Document & {
 			caretPositionFromPoint?(x: number, y: number): { offsetNode: Node; offset: number } | null;
 			caretRangeFromPoint?(x: number, y: number): Range | null;

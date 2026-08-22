@@ -68,7 +68,7 @@ interface AssistantToolSession {
 	phase: 'awaiting-permission' | 'awaiting-review' | 'continuing';
 }
 
-const FAILURE_MESSAGES: Record<AssistantErrorCode, string> = {
+const FAILURE_MESSAGES = {
 	invalid_request: 'That question could not be sent. Shorten it and try again.',
 	challenge_required: 'Quick check that you are human, then your question goes through.',
 	challenge_failed: 'The check did not pass. Try it again.',
@@ -82,7 +82,7 @@ const FAILURE_MESSAGES: Record<AssistantErrorCode, string> = {
 	service_disabled: 'The assistant is switched off right now.',
 	offline: 'You are offline. The assistant needs a connection; the linter does not.',
 	'not-configured': 'The assistant is not configured in this build.'
-};
+} satisfies Record<AssistantErrorCode, string>;
 
 const TOOL_ROUND_FAILURE = `The assistant may use 'scribe tools at most ${MAX_TOOL_ROUNDS} times in one turn.`;
 
@@ -197,7 +197,9 @@ function resolveForRecord(
 	// it. Approving the earlier proposals in this same batch is what moves the
 	// later ones' line numbers out from under them.
 	const occurrence = occurrenceAt(document, proposal.anchor.exact, resolution.from);
-	return { ...proposal, status: 'pending', ...(occurrence ? { occurrence } : {}) };
+	const record: AssistantProposalRecord = { ...proposal, status: 'pending' };
+	if (occurrence) record.occurrence = occurrence;
+	return record;
 }
 
 function resolveReferenceForRecord(
@@ -211,7 +213,9 @@ function resolveReferenceForRecord(
 	// same turn have moved the lines under it, so it is pinned for the same
 	// reason a proposal is.
 	const occurrence = occurrenceAt(document, reference.anchor.exact, resolution.from);
-	return { ...reference, status: 'shown', ...(occurrence ? { occurrence } : {}) };
+	const record: AssistantReferenceRecord = { ...reference, status: 'shown' };
+	if (occurrence) record.occurrence = occurrence;
+	return record;
 }
 
 function atomicProposalEdit(
@@ -392,15 +396,15 @@ export function createAssistantState(deps: AssistantDeps) {
 		});
 	}
 
-	function fail(error: unknown): AssistantFailure {
-		const code = error instanceof AssistantError ? error.code : 'provider_error';
+	function fail(cause: unknown): AssistantFailure {
+		const code = cause instanceof AssistantError ? cause.code : 'provider_error';
 		if (code !== 'challenge_required') {
 			// A Turnstile challenge is routine; everything else the user only ever
 			// sees as the worded FAILURE_MESSAGES entry. The cause — a client-side
 			// bug, or the protocol layer's detail ("interrupted" vs "did not
 			// finish" vs the worker's own error text) — is invisible everywhere
 			// unless it is named here.
-			console.error('assistant_turn_failed', error);
+			console.error('assistant_turn_failed', cause);
 		}
 		return { code, message: FAILURE_MESSAGES[code] };
 	}
@@ -416,9 +420,11 @@ export function createAssistantState(deps: AssistantDeps) {
 		// `$state` proxies — and IndexedDB's structured clone refuses a proxy, so
 		// the write dies as a DataCloneError mid-turn. Snapshot at this one choke
 		// point rather than at every call site that might forget.
-		await (
-			await repository()
-		).updateMessage(assistantMessageId, $state.snapshot(update) as Partial<AssistantMessageRecord>);
+		// SAFETY: `$state.snapshot` returns `update`'s own shape with the `$state`
+		// proxies removed, and a message record carries only structured-cloneable
+		// data — so the unwrap loses nothing the declared type still claims.
+		const patch = $state.snapshot(update) as Partial<AssistantMessageRecord>;
+		await (await repository()).updateMessage(assistantMessageId, patch);
 	}
 
 	function currentMessage(assistantMessageId: string): AssistantMessageRecord | undefined {
@@ -449,11 +455,12 @@ export function createAssistantState(deps: AssistantDeps) {
 		}
 		const calls: AssistantToolCallRecord[] = response.calls.map((call) => {
 			if (call.name === 'read_scribe') {
-				return {
+				const record: Extract<AssistantToolCallRecord, { name: 'read_scribe' }> = {
 					callId: call.callId,
-					name: call.name,
-					...(storedDecision ? { outcome: storedDecision } : {})
+					name: call.name
 				};
+				if (storedDecision) record.outcome = storedDecision;
+				return record;
 			}
 			if (call.name === 'propose_edits') {
 				return {
@@ -478,11 +485,8 @@ export function createAssistantState(deps: AssistantDeps) {
 			};
 		});
 		const streamed = message?.answer;
-		const turn: AssistantToolTurnRecord = {
-			calls,
-			providerItems: response.providerItems,
-			...(streamed && streamed.blocks.length > 0 ? { narration: streamed } : {})
-		};
+		const turn: AssistantToolTurnRecord = { calls, providerItems: response.providerItems };
+		if (streamed && streamed.blocks.length > 0) turn.narration = streamed;
 		// The live answer slot resets with the turn recorded, or a round that
 		// streams nothing shows — and would re-record — the previous narration.
 		await patchMessage(assistantMessageId, {
@@ -541,7 +545,7 @@ export function createAssistantState(deps: AssistantDeps) {
 				contextDividerIndex = window.firstIncludedIndex;
 				const bridge = draftBridge;
 				const draftText = bridge?.readText().slice(0, MAX_DRAFT_CHARS) ?? '';
-				const response = await deps.ask({
+				const askOptions: AskOptions = {
 					chatId,
 					messages: [
 						...window.messages,
@@ -550,9 +554,10 @@ export function createAssistantState(deps: AssistantDeps) {
 					clientRuleSetVersion: deps.ruleSetVersion,
 					toolsAvailable: draftBridge !== undefined,
 					onProgress: showProgress,
-					onRetry: resetProgress,
-					...(turnstileToken ? { turnstileToken } : {})
-				});
+					onRetry: resetProgress
+				};
+				if (turnstileToken) askOptions.turnstileToken = turnstileToken;
+				const response = await deps.ask(askOptions);
 				// A draft switch can interrupt a parked or in-flight tool turn while
 				// its provider response is on the way back. Never let that late response
 				// recreate the session against the replacement bridge.
@@ -649,15 +654,17 @@ export function createAssistantState(deps: AssistantDeps) {
 		if (!assistantMessageId) return;
 		const settled = (proposal: AssistantProposalRecord): AssistantProposalRecord => {
 			if (status === 'failed') {
-				return { ...proposal, status, ...(reason ? { reason } : {}) };
+				const failed: AssistantProposalRecord = { ...proposal, status };
+				if (reason) failed.reason = reason;
+				return failed;
 			}
 			const offered: AssistantProposal = {
 				id: proposal.id,
 				anchor: proposal.anchor,
 				replacement: proposal.replacement,
-				note: proposal.note,
-				...(proposal.applyTo ? { applyTo: proposal.applyTo } : {})
+				note: proposal.note
 			};
+			if (proposal.applyTo) offered.applyTo = proposal.applyTo;
 			return status === 'applied'
 				? { ...offered, status: 'applied' }
 				: { ...offered, status: 'rejected' };
@@ -696,9 +703,10 @@ export function createAssistantState(deps: AssistantDeps) {
 									headers: action.headers,
 									note: action.note
 								};
-								return status === 'failed'
-									? { ...base, status, ...(reason ? { reason } : {}) }
-									: { ...base, status };
+								if (status !== 'failed') return { ...base, status };
+								const failed: AssistantLinkActionRecord = { ...base, status };
+								if (reason) failed.reason = reason;
+								return failed;
 							})
 						}
 					: call

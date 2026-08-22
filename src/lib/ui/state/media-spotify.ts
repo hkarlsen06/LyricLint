@@ -1,4 +1,4 @@
-import type { MediaSource, MediaSourceEvents } from './media-player.svelte.js';
+import type { MediaSource, MediaSourceEvents, SongDetails } from './media-player.svelte.js';
 import type { PollScheduler } from './media-youtube.js';
 import {
 	remoteLoadTimeoutMs,
@@ -49,11 +49,34 @@ export interface SpotifyPlaybackState {
 	track_window?: { current_track?: SpotifyTrack | null };
 }
 
+/**
+ * What each SDK event this module listens for carries.
+ *
+ * Hand-written for the reason `SpotifyPlayerLike` is — Spotify ships no types
+ * this module can hold them to — and it is what keeps a listener from having to
+ * be cast on its way in. The four error events carry one shape between them.
+ */
+export interface SpotifyPlayerEventMap {
+	ready: { device_id: string };
+	not_ready: { device_id: string };
+	player_state_changed: SpotifyPlaybackState | null;
+	initialization_error: { message?: string };
+	authentication_error: { message?: string };
+	account_error: { message?: string };
+	playback_error: { message?: string };
+}
+
+/** Whatever one of those events carries, for a stub that emits any of them. */
+export type SpotifyPlayerEvent = SpotifyPlayerEventMap[keyof SpotifyPlayerEventMap];
+
 /** Spotify's player, narrowed to what the transport actually calls. */
 export interface SpotifyPlayerLike {
 	connect(): Promise<boolean>;
 	disconnect(): void;
-	addListener(event: string, listener: (payload: never) => void): boolean;
+	addListener<K extends keyof SpotifyPlayerEventMap>(
+		event: K,
+		listener: (payload: SpotifyPlayerEventMap[K]) => void
+	): boolean;
 	getCurrentState(): Promise<SpotifyPlaybackState | null>;
 	pause(): Promise<void>;
 	resume(): Promise<void>;
@@ -96,6 +119,9 @@ export function loadSpotifySdk(): Promise<SpotifySdk> {
 	if (injected) return injected;
 
 	const attempt = new Promise<SpotifySdk>((resolve, reject) => {
+		// SAFETY: the SDK installs itself as a property of the global object, which
+		// is all this claims — both properties are optional, so the branches below
+		// are what establish either is there.
 		const scope = globalThis as SpotifyGlobal;
 		if (scope.Spotify?.Player) {
 			resolve(scope.Spotify);
@@ -131,10 +157,17 @@ export function loadSpotifySdk(): Promise<SpotifySdk> {
 		);
 	});
 
-	injected = attempt.catch((error: unknown) => {
-		injected = undefined;
-		throw error;
-	});
+	// A wrapper around `attempt` rather than the promise itself, so that a failure
+	// raised while this function is still running — a document that cannot be
+	// written to — is forgotten too, by which time the assignment has happened.
+	injected = (async () => {
+		try {
+			return await attempt;
+		} catch (failure) {
+			injected = undefined;
+			throw failure;
+		}
+	})();
 	return injected;
 }
 
@@ -145,11 +178,11 @@ export function loadSpotifySdk(): Promise<SpotifySdk> {
  * Web Playback SDK refuses free accounts outright, and the SDK's own message for
  * it says nothing a user can act on.
  */
-const spotifyErrorMessages: Record<string, string> = {
-	account_error: 'Spotify playback needs a Premium account. Attach a file instead.',
-	authentication_error: 'That Spotify sign-in expired. Add the track again to sign in.',
-	initialization_error: 'This browser cannot run the Spotify player. Attach a file instead.'
-};
+const spotifyErrorMessages = new Map<string, string>([
+	['account_error', 'Spotify playback needs a Premium account. Attach a file instead.'],
+	['authentication_error', 'That Spotify sign-in expired. Add the track again to sign in.'],
+	['initialization_error', 'This browser cannot run the Spotify player. Attach a file instead.']
+]);
 
 type SpotifyUrlResult = { trackId: string } | { error: string };
 
@@ -282,8 +315,10 @@ export async function searchSpotifyTracks(
 		};
 	}
 
-	const payload = (await response.json().catch(() => undefined)) as
-		{ tracks?: { items?: ({ id?: string } & SpotifyTrack)[] } } | undefined;
+	// Annotated rather than asserted: `Response.json()` answers `any`, so the shape
+	// is a claim either way — and the one field spent below is re-checked there.
+	const payload: { tracks?: { items?: ({ id?: string } & SpotifyTrack)[] } } | undefined =
+		await response.json().catch(() => undefined);
 
 	return {
 		results: (payload?.tracks?.items ?? [])
@@ -296,7 +331,7 @@ export async function searchSpotifyTracks(
 	};
 }
 
-interface SpotifySourceDependencies {
+export interface SpotifySourceDependencies {
 	events: MediaSourceEvents;
 	loadSdk: SpotifySdkLoader;
 	/** A usable access token, refreshed if need be, or undefined when signed out. */
@@ -351,7 +386,6 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 	const events = deps.events;
 	const request = deps.request ?? ((...args: Parameters<typeof fetch>) => fetch(...args));
 
-	let sdk: SpotifySdk | undefined;
 	let player: SpotifyPlayerLike | undefined;
 	let deviceId: string | undefined;
 	let ready: Promise<void> | undefined;
@@ -405,7 +439,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 		try {
 			return await request(`${webApi}${path}`, {
 				...init,
-				headers: { ...(init?.headers ?? {}), authorization: `Bearer ${token}` }
+				headers: { ...init?.headers, authorization: `Bearer ${token}` }
 			});
 		} catch {
 			if (!stale?.()) events.failed('Spotify could not be reached.');
@@ -430,7 +464,9 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 		// carried, and the cover band draws that rather than nothing — the anonymous
 		// playback this used to produce was the band waiting on a picture, not this.
 		if (!response?.ok) return;
-		const track = (await response.json().catch(() => undefined)) as SpotifyTrack | undefined;
+		// Annotated rather than asserted, exactly as the search read above is: the
+		// name is what decides whether anything here is reported at all.
+		const track: SpotifyTrack | undefined = await response.json().catch(() => undefined);
 		if (track?.name === undefined || trackId !== id) return;
 		events.named(describe(track));
 		// The read that pays for the name carries the cover with it, so this costs
@@ -440,10 +476,13 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 		// of a row. Everything else Spotify would need for the tools panel's list —
 		// the label above all — is on a request this source does not make, so this
 		// reports what it has rather than a shape with holes in it.
-		events.detailsChanged({
-			...(artistsOf(track).length > 0 ? { artist: artistsOf(track).join(', ') } : {}),
-			title: track.name
-		});
+		// Built a field at a time rather than spread conditionally: a track with no
+		// artist on it reports no artist, rather than one that is there and empty.
+		const details: SongDetails = {};
+		const artists = artistsOf(track);
+		if (artists.length > 0) details.artist = artists.join(', ');
+		details.title = track.name;
+		events.detailsChanged(details);
 		if (track.duration_ms !== undefined) reportDuration(track.duration_ms / 1000);
 	}
 
@@ -508,7 +547,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 	 * and a device registration, and a second track in the same session must
 	 * reuse the device rather than registering another one under the same name.
 	 */
-	function connect(): Promise<void> {
+	function connect(sdk: SpotifySdk): Promise<void> {
 		ready ??= new Promise<void>((resolve, reject) => {
 			let settled = false;
 			const timeout = setTimeout(() => {
@@ -525,7 +564,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 				events.failed(message);
 				reject(new Error(message));
 			};
-			const built = new (sdk as SpotifySdk).Player({
+			const built = new sdk.Player({
 				name: 'LyricLint',
 				getOAuthToken: (callback) => {
 					void deps.token().then((token) => {
@@ -549,36 +588,38 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 			});
 			player = built;
 
-			built.addListener('ready', ((payload: { device_id: string }) => {
+			built.addListener('ready', (payload) => {
 				if (settled) return;
 				settled = true;
 				clearTimeout(timeout);
 				deviceId = payload.device_id;
 				resolve();
-			}) as (payload: never) => void);
+			});
 
-			built.addListener('not_ready', (() => {
+			built.addListener('not_ready', () => {
 				deviceId = undefined;
-			}) as (payload: never) => void);
+			});
 
-			built.addListener('player_state_changed', ((state: SpotifyPlaybackState | null) => {
+			built.addListener('player_state_changed', (state) => {
 				onStateChanged(state);
-			}) as (payload: never) => void);
+			});
 
 			for (const kind of [
 				'initialization_error',
 				'authentication_error',
 				'account_error',
 				'playback_error'
-			]) {
-				built.addListener(kind, ((payload: { message?: string }) => {
+			] as const) {
+				built.addListener(kind, (payload) => {
 					const message =
-						spotifyErrorMessages[kind] ?? payload?.message ?? 'Spotify could not play that track.';
+						spotifyErrorMessages.get(kind) ??
+						payload?.message ??
+						'Spotify could not play that track.';
 					// Only the errors that mean no device will ever arrive settle the
 					// wait; a playback error on one track leaves the player usable.
 					if (kind === 'playback_error' || settled) events.failed(message);
 					else fail(message);
-				}) as (payload: never) => void);
+				});
 			}
 
 			void built
@@ -651,6 +692,7 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 			reportedDuration = Number.NaN;
 			wantPlaying = false;
 
+			let sdk: SpotifySdk;
 			try {
 				sdk = await deps.loadSdk();
 			} catch {
@@ -663,7 +705,10 @@ export function createSpotifySource(deps: SpotifySourceDependencies): SpotifySou
 			// the strip needs before a first press, and it costs no sound.
 			await fetchTrack(nextTrackId);
 			try {
-				await connect();
+				// The SDK is handed over rather than held in the closure: `connect`
+				// memoizes its own promise, so a second track reuses the device this
+				// built, and the only caller is the one that has just loaded it.
+				await connect(sdk);
 			} catch {
 				// Already reported through `failed` by the listener that rejected.
 				teardown();

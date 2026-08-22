@@ -1,5 +1,5 @@
 export async function copyText(text: string): Promise<void> {
-	if (typeof navigator === 'undefined' || !navigator.clipboard) {
+	if (!('navigator' in globalThis) || !navigator.clipboard) {
 		throw new Error('Clipboard access is unavailable.');
 	}
 
@@ -24,7 +24,7 @@ export const copyCanonicalMarkup = copyText;
  * caller is expected to fall back to.
  */
 export async function readClipboardText(): Promise<string> {
-	if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) {
+	if (!('navigator' in globalThis) || !navigator.clipboard?.readText) {
 		throw new Error('Clipboard reads are unavailable.');
 	}
 
@@ -32,7 +32,7 @@ export async function readClipboardText(): Promise<string> {
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
-	if (typeof document === 'undefined') {
+	if (!('document' in globalThis)) {
 		return;
 	}
 

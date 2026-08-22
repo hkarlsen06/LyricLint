@@ -1,6 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import type { ComponentProps } from 'svelte';
 // Layout assertions need the real tokens: control heights, padding, and the
 // card's max width all come from the design system.
 import '$lib/ui/styles/global.css';
@@ -360,7 +361,9 @@ describe('PerformerPicker action width', () => {
 	});
 
 	/** The action's box for one set of labels, with the roster left untouched. */
-	async function actionWidth(props: Record<string, unknown>): Promise<number> {
+	async function actionWidth(
+		props: Partial<ComponentProps<typeof PerformerPicker>>
+	): Promise<number> {
 		const { unmount } = await render(PerformerPicker, {
 			performers: crowdedRoster(),
 			allowRemoval: false,

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AppleMusicInstance, AppleMusicSource, AppleMusicTimeEvent } from './media-apple.js';
+import type {
+	AppleMusicEventMap,
+	AppleMusicInstance,
+	AppleMusicSource,
+	AppleMusicTimeEvent
+} from './media-apple.js';
 import {
 	appleMusicConfigured,
 	appleMusicTokenExpiry,
@@ -183,6 +188,19 @@ function recorder(): MediaSourceEvents & { readonly log: string[] } {
 }
 
 /**
+ * The stub's own view of MusicKit: the same surface, with the two things a test
+ * needs that the real instance does not offer — a playhead it can move, and
+ * spies on the commands whose absence is what the assertions are about.
+ */
+type StubbedMusic = Omit<AppleMusicInstance, 'currentPlaybackTime'> & {
+	currentPlaybackTime: number;
+	setQueue: ReturnType<typeof vi.fn>;
+	play: ReturnType<typeof vi.fn>;
+	seekToTime: ReturnType<typeof vi.fn>;
+	authorize: ReturnType<typeof vi.fn>;
+};
+
+/**
  * MusicKit, stubbed down to the surface `AppleMusicInstance` names.
  *
  * What makes it worth having is that `setQueue` and `play` are spies: they are
@@ -207,12 +225,7 @@ function stubMusic(overrides: Partial<AppleMusicInstance> = {}) {
 		},
 		removeEventListener: (name: string) => void listeners.delete(name),
 		...overrides
-	} as unknown as AppleMusicInstance & {
-		setQueue: ReturnType<typeof vi.fn>;
-		play: ReturnType<typeof vi.fn>;
-		seekToTime: ReturnType<typeof vi.fn>;
-		authorize: ReturnType<typeof vi.fn>;
-	};
+	} as StubbedMusic;
 	/**
 	 * The player runs on without saying so.
 	 *
@@ -223,7 +236,7 @@ function stubMusic(overrides: Partial<AppleMusicInstance> = {}) {
 	 * sync tap stamps — the same stale number the mirror already holds.
 	 */
 	const advance = (seconds: number) => {
-		(instance as unknown as { currentPlaybackTime: number }).currentPlaybackTime = seconds;
+		instance.currentPlaybackTime = seconds;
 	};
 
 	return {
@@ -231,10 +244,10 @@ function stubMusic(overrides: Partial<AppleMusicInstance> = {}) {
 		advance,
 		// An event fires *because* the property moved, so a stub letting the two
 		// disagree would be modelling a player that does not exist.
-		emit: (name: string, event: unknown) => {
+		emit: <K extends keyof AppleMusicEventMap>(name: K, event: AppleMusicEventMap[K]) => {
 			if (name === 'playbackTimeDidChange') {
 				const time = (event as AppleMusicTimeEvent | undefined)?.currentPlaybackTime;
-				if (typeof time === 'number') advance(time);
+				if (time !== undefined) advance(time);
 			}
 			listeners.get(name)?.(event as never);
 		}
@@ -257,10 +270,10 @@ function deferredQueues() {
 	const calls: { song: string; settle: (error?: Error) => void }[] = [];
 	const setQueue = vi.fn(
 		async (options: { song: string }) =>
-			await new Promise<unknown>((resolve, reject) => {
+			await new Promise<void>((resolve, reject) => {
 				calls.push({
 					song: options.song,
-					settle: (error) => (error ? reject(error) : resolve(undefined))
+					settle: (error) => (error ? reject(error) : resolve())
 				});
 			})
 	);
@@ -298,10 +311,16 @@ const songPayload = {
 	]
 };
 
+/** A source and the log of everything it reported, which is what a test reads. */
+interface BuiltSource {
+	source: AppleMusicSource;
+	events: ReturnType<typeof recorder>;
+}
+
 function build(
 	music: AppleMusicInstance,
 	rates: readonly number[] = [0.5, 0.75, 1, 1.25, 1.5]
-): { source: AppleMusicSource; events: ReturnType<typeof recorder> } {
+): BuiltSource {
 	const events = recorder();
 	const source = createAppleMusicSource({
 		events,
@@ -839,9 +858,16 @@ describe('createAppleMusicSource', () => {
 });
 
 describe('authorizeAppleMusic', () => {
-	/** A scope standing in for `window`, so nothing here touches a real one. */
-	function scopeWith(open: () => unknown) {
-		return { open: open as unknown as (typeof globalThis)['open'] };
+	/**
+	 * A scope standing in for `window`, so nothing here touches a real one.
+	 *
+	 * What the wrapper reads is whether a window came back at all, so a stub
+	 * answers with the one property that stands for one — or with `null`, which
+	 * is the blocked pop-up this whole path exists for.
+	 */
+	type StubOpen = (...args: Parameters<(typeof globalThis)['open']>) => { closed: boolean } | null;
+	function scopeWith(open: StubOpen) {
+		return { open: open as (typeof globalThis)['open'] };
 	}
 
 	/**

@@ -7,6 +7,19 @@ import type {
 	TextRange
 } from '$lib/core/types.js';
 
+/**
+ * A catalog lookup keyed by the lyric text as matched.
+ *
+ * The key is whatever the rule's own pattern found in the document, so these
+ * tables are genuinely open rather than a closed set of known forms — a
+ * transcription can hold anything. The name is the contract the value type
+ * cannot state on its own: every entry is one wording the reviewed guidance
+ * names, and a miss is the ordinary case each rule already answers for.
+ */
+export interface CatalogLookup<Value> {
+	readonly [form: string]: Value;
+}
+
 export function diagnostic(
 	rule: RuleDefinition,
 	range: TextRange,
@@ -15,7 +28,7 @@ export function diagnostic(
 	fixes?: DiagnosticFix[],
 	sourceIds: string[] = rule.sourceIds
 ): Diagnostic {
-	return {
+	const finding: Diagnostic = {
 		ruleId: rule.id,
 		severity: rule.defaultSeverity,
 		from: range.from,
@@ -26,10 +39,11 @@ export function diagnostic(
 		// `line` is the default rather than `character`, so a rule added without a
 		// thought about typing is quiet while its line is being written instead of
 		// arguing with every prefix of every word.
-		settlesOn: rule.settlesOn ?? 'line',
-		...(rule.derivation ? { derivation: true as const } : {}),
-		...(fixes && fixes.length > 0 ? { fixes } : {})
+		settlesOn: rule.settlesOn ?? 'line'
 	};
+	if (rule.derivation) finding.derivation = true;
+	if (fixes && fixes.length > 0) finding.fixes = fixes;
+	return finding;
 }
 
 export function replacementFix(

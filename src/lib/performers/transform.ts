@@ -632,6 +632,16 @@ function shrinkInsideParentheses(text: string, range: TextRange): TextRange {
 	return current;
 }
 
+/** Why a selection names no assignable range, in the words the result reports. */
+type SelectionRefusal = 'empty-selection' | 'whitespace-selection';
+
+/** Whether normalizing a selection refused it rather than answering with a range. */
+function isSelectionRefusal(
+	normalized: TextRange | SelectionRefusal
+): normalized is SelectionRefusal {
+	return typeof normalized === 'string';
+}
+
 /**
  * The range an assignment actually acts on: a collapsed caret grows to its whole
  * line, surrounding whitespace comes off, and the ends land on grapheme
@@ -641,7 +651,7 @@ function shrinkInsideParentheses(text: string, range: TextRange): TextRange {
 function normalizeSelection(
 	document: ParsedDocument,
 	selection: SerializedSelection
-): TextRange | 'empty-selection' | 'whitespace-selection' {
+): TextRange | SelectionRefusal {
 	let range = orderedSelection(selection);
 	if (range.from === range.to) {
 		const caretSection = document.sections.find((section) => lineAtCaret(section, range.from));
@@ -681,7 +691,7 @@ export function canAssignVoiceGroup(
 	selection: SerializedSelection
 ): boolean {
 	const range = normalizeSelection(document, selection);
-	if (typeof range === 'string') {
+	if (isSelectionRefusal(range)) {
 		return false;
 	}
 	return sectionForRange(document.sections, range)?.header !== undefined;
@@ -702,7 +712,7 @@ export function assignmentNeedsSectionVoice(
 	selection: SerializedSelection
 ): boolean {
 	const range = normalizeSelection(document, selection);
-	if (typeof range === 'string') {
+	if (isSelectionRefusal(range)) {
 		return false;
 	}
 	const section = sectionForRange(document.sections, range);
@@ -763,11 +773,9 @@ function makeAtomicEdit(
 		throw new RangeError('Performer transform produced an invalid mapped selection.');
 	}
 
-	return {
-		baseRevision,
-		edits: sorted,
-		...(selectionAfter ? { selectionAfter } : {})
-	};
+	const atomic: AtomicDocumentEdit = { baseRevision, edits: sorted };
+	if (selectionAfter) atomic.selectionAfter = selectionAfter;
+	return atomic;
 }
 
 function mapOriginalOffset(offset: number, edits: readonly TextEdit[]): number {
@@ -846,7 +854,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	}
 
 	const normalized = normalizeSelection(request.document, request.selection);
-	if (typeof normalized === 'string') {
+	if (isSelectionRefusal(normalized)) {
 		return { status: 'blocked', reason: normalized };
 	}
 	const selection = normalized;

@@ -88,8 +88,7 @@
 	let activeIndex = $state(0);
 	let keyboardNavigated = $state(false);
 	let root: HTMLDivElement;
-	const mac =
-		typeof navigator === 'undefined' ? false : /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
+	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
 	const typeOnlyHereShortcut = mac ? '⌃⌥H' : 'Ctrl+Alt+H';
 
 	const headers = $derived([currentHeaderFrom, ...selected]);
@@ -371,7 +370,7 @@
 		}
 		// Arrows belong to the radio group while it holds focus, which is what a
 		// radio group is for. Only the section list roves.
-		if (!(document.activeElement as HTMLElement | null)?.hasAttribute('data-link-row')) {
+		if (!document.activeElement?.hasAttribute('data-link-row')) {
 			return;
 		}
 		switch (event.key) {

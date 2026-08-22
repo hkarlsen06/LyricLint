@@ -81,10 +81,11 @@ export interface GuidanceTopicLandmark {
 	relatedRuleIds?: readonly string[];
 }
 
+/** The landmarks a topic page draws, for the topics that have any. */
+type GuidanceTopicLandmarkTable = { [T in GuidanceTopic]?: readonly GuidanceTopicLandmark[] };
+
 /** Landmarks are searchable rows in the index, not hidden furniture on a page. */
-export const guidanceTopicLandmarks: Partial<
-	Record<GuidanceTopic, readonly GuidanceTopicLandmark[]>
-> = {
+export const guidanceTopicLandmarks: GuidanceTopicLandmarkTable = {
 	spelling: [
 		{
 			id: 'standardized-spellings',
@@ -194,21 +195,21 @@ export interface GuidanceEntry {
 }
 
 /** Higher is more trustworthy as Genius transcription policy. */
-export const authorityRank: Record<SourceAuthority, number> = {
+export const authorityRank = {
 	staff: 3,
 	editorial: 2,
 	external: 1,
 	community: 0
-};
+} satisfies Record<SourceAuthority, number>;
 
 /** The tier as a reader-facing fact, worded as where the claim comes from. */
-export const authorityLabels: Record<GuidanceAuthority, string> = {
+export const authorityLabels = {
 	staff: 'Genius staff guidance',
 	editorial: 'Editor-reviewed Genius annotation',
 	external: 'External reference',
 	community: 'Genius community guidance',
 	lyriclint: 'LyricLint advisory'
-};
+} satisfies Record<GuidanceAuthority, string>;
 
 /** The anchor a topic page draws an entry at: the id's own last segment. */
 export function entryAnchor(id: string): string {

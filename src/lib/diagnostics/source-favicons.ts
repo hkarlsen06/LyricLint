@@ -32,7 +32,12 @@ import projetVoltaire from '$lib/assets/favicons/projet-voltaire.png';
 import rae from '$lib/assets/favicons/rae.png';
 import sprakradet from '$lib/assets/favicons/sprakradet.png';
 
-const faviconsByHost: Record<string, string> = {
+/** Hosts are read off a citation's URL, so the table is keyed by whatever it says. */
+interface FaviconsByHost {
+	readonly [host: string]: string | undefined;
+}
+
+const faviconsByHost: FaviconsByHost = {
 	'artists.apple.com': apple,
 	'bunka.go.jp': bunka,
 	'dictionary.cambridge.org': cambridge,

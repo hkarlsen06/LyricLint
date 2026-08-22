@@ -59,15 +59,15 @@ export function createMediaRepository(database: LyricLintDatabase): MediaReposit
 			const record: MediaHandleRecord = {
 				draftId,
 				name,
-				attachedAt: now(),
-				...(size === undefined ? {} : { size }),
-				...(source === undefined ? {} : { source }),
-				...(videoId === undefined ? {} : { videoId }),
-				...(trackId === undefined ? {} : { trackId }),
-				...(songId === undefined ? {} : { songId }),
-				...(handle === undefined ? {} : { handle }),
-				...(position === undefined ? {} : { position })
+				attachedAt: now()
 			};
+			if (size !== undefined) record.size = size;
+			if (source !== undefined) record.source = source;
+			if (videoId !== undefined) record.videoId = videoId;
+			if (trackId !== undefined) record.trackId = trackId;
+			if (songId !== undefined) record.songId = songId;
+			if (handle !== undefined) record.handle = handle;
+			if (position !== undefined) record.position = position;
 			await database.mediaHandles.put(record);
 			return record;
 		},

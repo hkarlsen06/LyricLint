@@ -551,9 +551,11 @@ const lyricEditorCallbackKeySet = {
 	onSearchOpenChange: true
 } as const satisfies Record<keyof LyricEditorCallbacks, true>;
 
-export const lyricEditorCallbackKeys = Object.keys(
-	lyricEditorCallbackKeySet
-) as (keyof LyricEditorCallbacks)[];
+export const lyricEditorCallbackKeys =
+	// SAFETY: the literal above is `as const satisfies Record<keyof LyricEditorCallbacks, true>`, so
+	// its own keys are exactly the callback names — one missing or misspelled fails to compile
+	// there. Only `Object.keys`'s `string[]` return loses that, which is what this restores.
+	Object.keys(lyricEditorCallbackKeySet) as (keyof LyricEditorCallbacks)[];
 
 export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEditorCallbacks {
 	return {
@@ -626,7 +628,7 @@ export function createLyricEditor(
 	host: HTMLElement,
 	options: CreateLyricEditorOptions
 ): LyricEditorInstance {
-	if (typeof window === 'undefined' || typeof document === 'undefined') {
+	if (!('window' in globalThis) || !('document' in globalThis)) {
 		throw new Error('createLyricEditor can only run in a browser.');
 	}
 

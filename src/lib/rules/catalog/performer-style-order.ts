@@ -30,6 +30,8 @@ function rankedSlots(groups: readonly LegendVoiceGroup[]): Map<StyleSlot, StyleS
 		if (ranked.has(group.styleSlot)) {
 			return undefined;
 		}
+		// SAFETY: the refusal above means no two groups share a slot, and there are
+		// four slots, so this loop runs at most four times and `index + 1` is 1…4.
 		ranked.set(group.styleSlot, (index + 1) as StyleSlot);
 	}
 	return ranked;

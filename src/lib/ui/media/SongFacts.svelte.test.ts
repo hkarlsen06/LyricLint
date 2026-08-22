@@ -20,17 +20,23 @@ const KATASTROFE = {
 	label: 'RCA Records Label'
 };
 
+/** What a run of these presses actually reached, and the way to make one refuse. */
+interface StubbedClipboard {
+	copied: string[];
+	refuse: () => void;
+}
+
 /** The clipboard is the only thing these presses touch. */
-function stubClipboard(): { copied: string[]; refuse: () => void } {
+function stubClipboard(): StubbedClipboard {
 	let refusing = false;
 	const copied: string[] = [];
-	const clipboard = {
+	const clipboard: Partial<Clipboard> = {
 		writeText: async (text: string) => {
 			if (refusing) throw new Error('denied');
 			copied.push(text);
 		}
 	};
-	vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as unknown as Clipboard);
+	vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as Clipboard);
 	return {
 		copied,
 		refuse: () => {

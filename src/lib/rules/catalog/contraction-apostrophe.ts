@@ -1,8 +1,14 @@
 import type { RuleDefinition } from '$lib/core/types.js';
 import { isEnglishLanguage } from '$lib/languages/registry.js';
-import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
+import {
+	type CatalogLookup,
+	diagnostic,
+	matchesOutsideMarkup,
+	preserveCase,
+	replacementFix
+} from './utils.js';
 
-export const contractions: Record<string, string> = {
+export const contractions: CatalogLookup<string> = {
 	arent: "aren't",
 	cant: "can't",
 	couldnt: "couldn't",

@@ -49,6 +49,13 @@ import {
 	ScribeFormatError
 } from '$lib/scribe/format.js';
 
+/**
+ * The whole of what a `.lls` file carries, read off the serializer rather than
+ * restated here — a field added there is then a compile error in this one place
+ * rather than a project quietly exported without it.
+ */
+type ScribeProjectInput = Parameters<typeof serializeScribe>[0];
+
 export { performerColorIds } from './roster-store.svelte.js';
 export type { RosterMergeSuggestion } from './roster-store.svelte.js';
 export type { RightPanelTab } from './panel-view.svelte.js';
@@ -383,20 +390,25 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		await draft.setTitle(title);
 	}
 
-	const media = deps.mediaRepository
-		? createMediaStore({
-				repository: deps.mediaRepository,
-				feedback,
-				draftId: () => draft.draftId,
-				// Attaching audio is what makes a wordless draft worth keeping, and
-				// the draft store reads the answer back through `hasAttachment` on
-				// every later save. Both directions are lazy closures because the two
-				// stores need each other and only one of them can be built first.
-				onAttached: () => draft.keepDraft(),
-				onTitleSuggestion: (title) => void nameDraftAfterSource(title),
-				...(deps.mediaPlayer ? { player: deps.mediaPlayer } : {})
-			})
-		: undefined;
+	function buildMediaStore(repository: MediaRepository): MediaStore {
+		const storeDeps: Parameters<typeof createMediaStore>[0] = {
+			repository,
+			feedback,
+			draftId: () => draft.draftId,
+			// Attaching audio is what makes a wordless draft worth keeping, and
+			// the draft store reads the answer back through `hasAttachment` on
+			// every later save. Both directions are lazy closures because the two
+			// stores need each other and only one of them can be built first.
+			onAttached: () => draft.keepDraft(),
+			onTitleSuggestion: (title) => void nameDraftAfterSource(title)
+		};
+		// Absent rather than undefined: the store builds its own player where no
+		// key is supplied, and a present `undefined` would be a null transport.
+		if (deps.mediaPlayer) storeDeps.player = deps.mediaPlayer;
+		return createMediaStore(storeDeps);
+	}
+
+	const media = deps.mediaRepository ? buildMediaStore(deps.mediaRepository) : undefined;
 
 	const panel = createPanelView({
 		editor: () => editorSession.editor,
@@ -745,24 +757,27 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 					// The project is still useful without an unavailable media reference.
 				}
 			}
+			const project: ScribeProjectInput = {
+				title: exported.title,
+				language: exported.language,
+				lyrics: exported.text,
+				performers: exported.performers,
+				sectionLinks: exported.sectionLinks ?? [],
+				lineAnchors: exported.lineAnchors ?? [],
+				ignoredDiagnostics: deps.ignoreStore.list(id)
+			};
+			// Each of these four is absent rather than present-and-undefined: the
+			// Scribe file is JSON, and a key written as `null` is a claim the
+			// record never made.
+			if (exported.originalText !== undefined) project.originalText = exported.originalText;
+			if (exported.editorSelection !== undefined) project.selection = exported.editorSelection;
+			if (exported.compareBaseline !== undefined) {
+				project.compareBaseline = exported.compareBaseline;
+			}
+			if (song !== undefined) project.song = song;
+
 			exportText(
-				serializeScribe({
-					title: exported.title,
-					language: exported.language,
-					lyrics: exported.text,
-					...(exported.originalText === undefined ? {} : { originalText: exported.originalText }),
-					...(exported.editorSelection === undefined
-						? {}
-						: { selection: exported.editorSelection }),
-					...(exported.compareBaseline === undefined
-						? {}
-						: { compareBaseline: exported.compareBaseline }),
-					performers: exported.performers,
-					sectionLinks: exported.sectionLinks ?? [],
-					lineAnchors: exported.lineAnchors ?? [],
-					ignoredDiagnostics: deps.ignoreStore.list(id),
-					...(song === undefined ? {} : { song })
-				}),
+				serializeScribe(project),
 				safeFilename(exported.title, 'lls'),
 				'application/vnd.lyriclint.scribe+json;charset=utf-8'
 			);
@@ -806,19 +821,19 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				performers: project.performers,
 				createdAt: timestamp,
 				updatedAt: timestamp,
-				ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,
-				...(project.document.originalText === undefined
-					? {}
-					: { originalText: project.document.originalText }),
-				...(project.document.selection === undefined
-					? {}
-					: { editorSelection: project.document.selection }),
-				...(project.document.compareBaseline === undefined
-					? {}
-					: { compareBaseline: project.document.compareBaseline }),
-				...(project.lineAnchors.length === 0 ? {} : { lineAnchors: project.lineAnchors }),
-				...(project.sectionLinks.length === 0 ? {} : { sectionLinks: project.sectionLinks })
+				ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion
 			};
+			// Each of these stays absent where the file said nothing, and the two
+			// lists stay absent where they are empty — a record is compared field by
+			// field on its way to disk, and a key nobody set is not a value.
+			const scribed = project.document;
+			if (scribed.originalText !== undefined) imported.originalText = scribed.originalText;
+			if (scribed.selection !== undefined) imported.editorSelection = scribed.selection;
+			if (scribed.compareBaseline !== undefined) {
+				imported.compareBaseline = scribed.compareBaseline;
+			}
+			if (project.lineAnchors.length > 0) imported.lineAnchors = project.lineAnchors;
+			if (project.sectionLinks.length > 0) imported.sectionLinks = project.sectionLinks;
 
 			try {
 				await draft.flushAutosave();
@@ -826,14 +841,17 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				for (const key of project.ignoredDiagnostics) deps.ignoreStore.ignore(imported.id, key);
 				if (project.song && deps.mediaRepository) {
 					const source = project.song;
-					await deps.mediaRepository.attach({
+					const attachment: Parameters<MediaRepository['attach']>[0] = {
 						draftId: imported.id,
 						name: source.name ?? `${source.kind}:${source.id}`,
-						source: source.kind,
-						...(source.kind === 'youtube' ? { videoId: source.id } : {}),
-						...(source.kind === 'spotify' ? { trackId: source.id } : {}),
-						...(source.kind === 'apple' ? { songId: source.id } : {})
-					});
+						source: source.kind
+					};
+					// One id field, named for the source's own alphabet — a record that
+					// confused them would fail as a 404 a long way from here.
+					if (source.kind === 'youtube') attachment.videoId = source.id;
+					if (source.kind === 'spotify') attachment.trackId = source.id;
+					if (source.kind === 'apple') attachment.songId = source.id;
+					await deps.mediaRepository.attach(attachment);
 				}
 				await draft.openDraft(imported.id);
 				feedback.announce(`Imported ${imported.title}.`);

@@ -9,8 +9,7 @@
 	// function: the transport folds a chord down to one modifier because it has
 	// three glyphs and no room for words. These are the editor's own bindings and
 	// are printed as they are actually pressed.
-	const mac =
-		typeof navigator === 'undefined' ? false : /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
+	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
 
 	// Commands that are always available — never a selection, a chorus, or an
 	// attachment away from working. `Ctrl-Alt-P`, `Ctrl-Alt-H`, and `Mod-Shift-L`

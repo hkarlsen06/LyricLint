@@ -1,10 +1,24 @@
+import { browser } from '$app/environment';
 import type { FeedbackState } from './feedback.svelte.js';
-import type { PollScheduler, YouTubeApiLoader, YouTubeSource } from './media-youtube.js';
+import type {
+	PollScheduler,
+	YouTubeApiLoader,
+	YouTubeSource,
+	YouTubeSourceDependencies
+} from './media-youtube.js';
 import { createYouTubeSource, loadYouTubeApi } from './media-youtube.js';
-import type { SpotifySdkLoader, SpotifySource } from './media-spotify.js';
+import type {
+	SpotifySdkLoader,
+	SpotifySource,
+	SpotifySourceDependencies
+} from './media-spotify.js';
 import { createSpotifySource, loadSpotifySdk } from './media-spotify.js';
 import { spotifyAccessToken } from './spotify-auth.js';
-import type { AppleMusicSource, MusicKitLoader } from './media-apple.js';
+import type {
+	AppleMusicSource,
+	AppleMusicSourceDependencies,
+	MusicKitLoader
+} from './media-apple.js';
 import { configureAppleMusic, createAppleMusicSource, loadMusicKit } from './media-apple.js';
 
 /**
@@ -208,7 +222,7 @@ interface MediaAttachment {
 }
 
 /** What `attachVideo` needs. The id is the whole of the durable fact. */
-interface VideoAttachment {
+export interface VideoAttachment {
 	videoId: string;
 	/** What to call it until the player says what it actually is. */
 	name?: string;
@@ -243,7 +257,7 @@ type ProgressListener = (time: number, reason: ProgressReason) => void;
 interface MediaPlayerDependencies {
 	feedback: FeedbackState;
 	/** Injectable so tests drive a stub instead of a real decoder. */
-	createAudio?: () => HTMLMediaElement;
+	createAudio?: () => AudioElement;
 	createObjectUrl?: (file: Blob) => string;
 	revokeObjectUrl?: (url: string) => void;
 	/**
@@ -420,9 +434,32 @@ function clamp(value: number, lower: number, upper: number): number {
 	return Math.min(Math.max(value, lower), Number.isFinite(upper) ? upper : value);
 }
 
+/**
+ * What the file source drives, which is a dozen members of a media element.
+ *
+ * Named rather than taking `HTMLMediaElement` whole because the test double is
+ * the other implementation of it: a real `<audio>` cannot be driven
+ * deterministically — `play()` rejects on a synthetic object URL and
+ * `currentTime` is ignored until metadata arrives — so what the media tests
+ * check is this transport's arithmetic against a stub. A double held to every
+ * member of the DOM interface could only ever have been a cast.
+ */
+export interface AudioElement extends EventTarget {
+	preload: string;
+	preservesPitch: boolean;
+	src: string;
+	currentTime: number;
+	readonly duration: number;
+	playbackRate: number;
+	play(): Promise<void>;
+	pause(): void;
+	load(): void;
+	removeAttribute(name: string): void;
+}
+
 interface FileSourceDependencies {
 	events: MediaSourceEvents;
-	createAudio: () => HTMLMediaElement;
+	createAudio: () => AudioElement;
 	createObjectUrl: (file: Blob) => string;
 	revokeObjectUrl: (url: string) => void;
 }
@@ -443,11 +480,11 @@ interface FileSource extends MediaSource {
 function createFileSource(deps: FileSourceDependencies): FileSource {
 	const events = deps.events;
 
-	let audio: HTMLMediaElement | undefined;
+	let audio: AudioElement | undefined;
 	let objectUrl: string | undefined;
 	let pendingSeek: number | undefined;
 
-	function element(): HTMLMediaElement {
+	function element(): AudioElement {
 		if (audio) return audio;
 		const created = deps.createAudio();
 		created.preload = 'metadata';
@@ -559,8 +596,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	const mediaSession =
 		deps.mediaSession === null
 			? undefined
-			: (deps.mediaSession ??
-				(typeof navigator === 'undefined' ? undefined : navigator.mediaSession));
+			: (deps.mediaSession ?? (browser ? navigator.mediaSession : undefined));
 
 	let name = $state<string | undefined>(undefined);
 	let playing = $state(false);
@@ -637,14 +673,17 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 				mediaSession.metadata = null;
 				return;
 			}
-			if (typeof MediaMetadata === 'undefined') return;
+			// A browser may expose the session without the constructor, which is the
+			// same allowance the action handlers make for themselves.
+			if (!('MediaMetadata' in globalThis)) return;
 			// The two halves where a catalogue reported them, and the one-line name
 			// where it did not — the same fallback the cover band's own row makes.
-			mediaSession.metadata = new MediaMetadata({
-				title: songDetails?.title ?? name,
-				...(songDetails?.artist === undefined ? {} : { artist: songDetails.artist }),
-				...(artwork === undefined ? {} : { artwork: [{ src: artwork }] })
-			});
+			// Built a field at a time rather than spread conditionally: a song with
+			// no artist reports none, rather than one that is there and empty.
+			const metadata: MediaMetadataInit = { title: songDetails?.title ?? name };
+			if (songDetails?.artist !== undefined) metadata.artist = songDetails.artist;
+			if (artwork !== undefined) metadata.artwork = [{ src: artwork }];
+			mediaSession.metadata = new MediaMetadata(metadata);
 		} catch {
 			// Exposed without every field on it, which is the same allowance the
 			// action handlers already make for themselves.
@@ -799,35 +838,48 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		return fileSource;
 	}
 
+	// The three factories below build their dependencies a field at a time rather
+	// than spreading a conditional: each of the injectable ones has a default the
+	// source picks when the field is *absent*, so a key that is there and
+	// undefined is not the same thing as no key at all.
 	function youtube(): YouTubeSource {
-		youtubeSource ??= createYouTubeSource({
-			events: eventsFor(() => youtubeSource),
-			loadApi: deps.loadYouTubeApi ?? loadYouTubeApi,
-			...(deps.scheduleYouTubePoll ? { schedule: deps.scheduleYouTubePoll } : {})
-		});
+		if (!youtubeSource) {
+			const sourceDeps: YouTubeSourceDependencies = {
+				events: eventsFor(() => youtubeSource),
+				loadApi: deps.loadYouTubeApi ?? loadYouTubeApi
+			};
+			if (deps.scheduleYouTubePoll) sourceDeps.schedule = deps.scheduleYouTubePoll;
+			youtubeSource = createYouTubeSource(sourceDeps);
+		}
 		return youtubeSource;
 	}
 
 	function spotify(): SpotifySource {
-		spotifySource ??= createSpotifySource({
-			events: eventsFor(() => spotifySource),
-			loadSdk: deps.loadSpotifySdk ?? loadSpotifySdk,
-			token: deps.spotifyToken ?? spotifyAccessToken,
-			...(deps.spotifyRequest ? { request: deps.spotifyRequest } : {}),
-			...(deps.scheduleSpotifyPoll ? { schedule: deps.scheduleSpotifyPoll } : {})
-		});
+		if (!spotifySource) {
+			const sourceDeps: SpotifySourceDependencies = {
+				events: eventsFor(() => spotifySource),
+				loadSdk: deps.loadSpotifySdk ?? loadSpotifySdk,
+				token: deps.spotifyToken ?? spotifyAccessToken
+			};
+			if (deps.spotifyRequest) sourceDeps.request = deps.spotifyRequest;
+			if (deps.scheduleSpotifyPoll) sourceDeps.schedule = deps.scheduleSpotifyPoll;
+			spotifySource = createSpotifySource(sourceDeps);
+		}
 		return spotifySource;
 	}
 
 	function apple(): AppleMusicSource {
-		const load = deps.loadMusicKit ?? loadMusicKit;
-		appleSource ??= createAppleMusicSource({
-			events: eventsFor(() => appleSource),
-			music: () => configureAppleMusic(load),
-			playbackStates: async () => (await load()).PlaybackStates,
-			rates: playbackRates,
-			...(deps.appleMusicRequest ? { request: deps.appleMusicRequest } : {})
-		});
+		if (!appleSource) {
+			const load = deps.loadMusicKit ?? loadMusicKit;
+			const sourceDeps: AppleMusicSourceDependencies = {
+				events: eventsFor(() => appleSource),
+				music: () => configureAppleMusic(load),
+				playbackStates: async () => (await load()).PlaybackStates,
+				rates: playbackRates
+			};
+			if (deps.appleMusicRequest) sourceDeps.request = deps.appleMusicRequest;
+			appleSource = createAppleMusicSource(sourceDeps);
+		}
 		return appleSource;
 	}
 

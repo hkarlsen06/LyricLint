@@ -23,6 +23,19 @@
  * has no `data-lyriclint` and reads as no metadata at all.
  */
 
+/** One object in a parsed payload, keyed however whoever wrote it saw fit. */
+type JsonObject = { [key: string]: Json };
+
+/**
+ * Anything `JSON.parse` can hand back, and what every read below takes.
+ *
+ * The string came off a clipboard, so nothing about its contents is promised —
+ * but it did come through `JSON.parse`, so the grammar is known, and saying so
+ * is what lets each check below be a predicate about a value rather than a
+ * guess about a representation.
+ */
+type Json = string | number | boolean | null | Json[] | JsonObject;
+
 /** A timing carried by the copy, keyed into the fragment's own lines. */
 interface ClipboardAnchor {
 	/** 0-based line index into the copied fragment. */
@@ -139,23 +152,33 @@ export function clipboardHtml(text: string, metadata: ClipboardMetadata): string
 	return `<div ${clipboardMetadataAttribute}="${escapeAttribute(payload)}"><pre>${escapeText(text)}</pre></div>`;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: Json): value is JsonObject {
 	return typeof value === 'object' && value !== null;
 }
 
-function isLineIndex(value: unknown, lines: number): value is number {
+function isLineIndex(value: Json, lines: number): value is number {
 	return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < lines;
 }
 
-function isColumn(value: unknown): value is number {
+function isColumn(value: Json): value is number {
 	return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
-function readAnchor(value: unknown, lines: number): ClipboardAnchor | undefined {
+/** How many lines the copied text splits into: at least one, and a whole number of them. */
+function isLineCount(value: Json): value is number {
+	return typeof value === 'number' && Number.isInteger(value) && value >= 1;
+}
+
+/** A position in the source draft's audio: finite, and not before the start of it. */
+function isSeconds(value: Json): value is number {
+	return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+function readAnchor(value: Json, lines: number): ClipboardAnchor | undefined {
 	if (!isRecord(value)) return undefined;
 	const { line, time } = value;
 	if (!isLineIndex(line, lines)) return undefined;
-	if (typeof time !== 'number' || !Number.isFinite(time) || time < 0) return undefined;
+	if (!isSeconds(time)) return undefined;
 	return { line, time };
 }
 
@@ -165,7 +188,7 @@ function readAnchor(value: unknown, lines: number): ClipboardAnchor | undefined 
  * a difference costs one re-tick while refusing the whole payload costs the
  * timings beside it.
  */
-function readHole(value: unknown, lines: number): ClipboardHole | undefined {
+function readHole(value: Json, lines: number): ClipboardHole | undefined {
 	if (!isRecord(value)) return undefined;
 	const { line, column, endLine, endColumn } = value;
 	if (!isLineIndex(line, lines) || !isLineIndex(endLine, lines)) return undefined;
@@ -176,25 +199,42 @@ function readHole(value: unknown, lines: number): ClipboardHole | undefined {
 
 const mediaKinds = new Set(['youtube', 'spotify', 'apple']);
 
+/** The set above holds exactly the kinds the interface names, and nothing else writes to it. */
+function isMediaKind(value: Json): value is ClipboardMediaSource['kind'] {
+	return typeof value === 'string' && mediaKinds.has(value);
+}
+
 /**
  * An id is an opaque string in somebody else's alphabet, so the only checks
  * worth making are the ones that keep a lying payload cheap: present, and not
- * absurdly long. A name that cannot be read costs only itself — the source is
- * still worth carrying under its provisional label.
+ * absurdly long.
  */
-function readMedia(value: unknown): ClipboardMediaSource | undefined {
+function isMediaId(value: Json): value is string {
+	return typeof value === 'string' && value.length > 0 && value.length <= 64;
+}
+
+/** A name worth labelling a pending press with: something in it, and not a paragraph. */
+function isMediaName(value: Json): value is string {
+	return typeof value === 'string' && value.trim().length > 0 && value.length <= 300;
+}
+
+/**
+ * A name that cannot be read costs only itself — the source is still worth
+ * carrying under its provisional label.
+ */
+function readMedia(value: Json): ClipboardMediaSource | undefined {
 	if (!isRecord(value)) return undefined;
 	const { kind, id, name } = value;
-	if (typeof kind !== 'string' || !mediaKinds.has(kind)) return undefined;
-	if (typeof id !== 'string' || id.length === 0 || id.length > 64) return undefined;
-	const media: ClipboardMediaSource = { kind: kind as ClipboardMediaSource['kind'], id };
-	if (typeof name === 'string' && name.trim().length > 0 && name.length <= 300) {
+	if (!isMediaKind(kind)) return undefined;
+	if (!isMediaId(id)) return undefined;
+	const media: ClipboardMediaSource = { kind, id };
+	if (isMediaName(name)) {
 		media.name = name;
 	}
 	return media;
 }
 
-function readLink(value: unknown, lines: number): ClipboardLink | undefined {
+function readLink(value: Json, lines: number): ClipboardLink | undefined {
 	if (!isRecord(value)) return undefined;
 	if (!Array.isArray(value.lines)) return undefined;
 	const headerLines = value.lines.filter((line): line is number => isLineIndex(line, lines));
@@ -223,7 +263,7 @@ function readLink(value: unknown, lines: number): ClipboardLink | undefined {
 export function metadataFromClipboardHtml(html: string): ClipboardMetadata | undefined {
 	const match = new RegExp(`${clipboardMetadataAttribute}="([^"]*)"`).exec(html);
 	if (!match?.[1] || match[1].length > maximumPayloadLength) return undefined;
-	let payload: unknown;
+	let payload: Json;
 	try {
 		payload = JSON.parse(unescapeAttribute(match[1]));
 	} catch {
@@ -231,7 +271,7 @@ export function metadataFromClipboardHtml(html: string): ClipboardMetadata | und
 	}
 	if (!isRecord(payload) || payload.v !== payloadVersion) return undefined;
 	const { lines } = payload;
-	if (typeof lines !== 'number' || !Number.isInteger(lines) || lines < 1) return undefined;
+	if (!isLineCount(lines)) return undefined;
 
 	// Both lists are cut to the fragment's own line count before anything is read
 	// out of them, and neither cut can reach a payload the serializer wrote: an

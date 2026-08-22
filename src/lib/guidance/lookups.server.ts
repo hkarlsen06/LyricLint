@@ -15,8 +15,13 @@ import { ruleReferences } from '$lib/rules/reference.js';
 
 let termsById: Map<string, string> | undefined;
 
+/** Searchable terms per rule id, as the guidance sections carry them. */
+export interface GuidanceRuleTerms {
+	[ruleId: string]: string;
+}
+
 /** The searchable terms for these rules, keyed by id; unknown ids drop out. */
-export function guidanceRuleTerms(ruleIds: Iterable<string>): Record<string, string> {
+export function guidanceRuleTerms(ruleIds: Iterable<string>): GuidanceRuleTerms {
 	if (!termsById) {
 		termsById = new Map(
 			ruleReferences().map((rule) => [
@@ -25,7 +30,7 @@ export function guidanceRuleTerms(ruleIds: Iterable<string>): Record<string, str
 			])
 		);
 	}
-	const terms: Record<string, string> = {};
+	const terms: GuidanceRuleTerms = {};
 	for (const ruleId of ruleIds) {
 		const entry = termsById.get(ruleId);
 		if (entry !== undefined) {

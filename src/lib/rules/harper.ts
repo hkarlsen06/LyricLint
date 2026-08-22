@@ -473,7 +473,7 @@ function convertLint(
 		}
 
 		const kindLabel = lint.lint_kind_pretty().trim() || kind;
-		return {
+		const finding: Diagnostic = {
 			...range,
 			ruleId: ruleIdFor(kind),
 			severity: 'suggestion',
@@ -485,9 +485,10 @@ function convertLint(
 			settlesOn: 'line' as const,
 			message: plainMessage(lint.message()),
 			explanation: `${kindLabel} detected by Harper's local English proofreader. Lyrics often use deliberate fragments, dialect, repetition, and nonstandard spelling, so review this suggestion in context.`,
-			sourceIds: [harperSourceId],
-			...(fixes.length > 0 ? { fixes } : {})
+			sourceIds: [harperSourceId]
 		};
+		if (fixes.length > 0) finding.fixes = fixes;
+		return finding;
 	} finally {
 		span.free?.();
 	}
@@ -513,7 +514,7 @@ async function createWorkerEngine(): Promise<HarperEngine> {
 		import('harper.js'),
 		import('harper.js/binary')
 	]);
-	return new WorkerLinter({ binary }) as HarperEngine;
+	return new WorkerLinter({ binary });
 }
 
 /**

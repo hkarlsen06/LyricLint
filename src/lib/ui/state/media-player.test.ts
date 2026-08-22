@@ -563,7 +563,9 @@ describe('what the operating system is told about the song', () => {
 
 	it('names what is playing and keeps the play state in step with the transport', () => {
 		vi.stubGlobal('MediaMetadata', StubMetadata);
-		const session = { metadata: null as MediaMetadata | null, playbackState: 'none' as string };
+		// Typed as the stub the global was just replaced with, so what the transport
+		// wrote can be read back without asserting anything about it.
+		const session = { metadata: null as StubMetadata | null, playbackState: 'none' as string };
 		const player = createMediaPlayer({
 			feedback: createFeedbackState(),
 			createAudio: () => new StubAudio().asMediaElement(),
@@ -573,7 +575,7 @@ describe('what the operating system is told about the song', () => {
 		});
 
 		player.attach(new File([''], 'sensommer.mp3'));
-		expect((session.metadata as unknown as StubMetadata).title).toBe('sensommer.mp3');
+		expect(session.metadata?.title).toBe('sensommer.mp3');
 		expect(session.playbackState).toBe('paused');
 
 		player.play();

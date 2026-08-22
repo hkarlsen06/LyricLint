@@ -70,6 +70,34 @@ const KNOWN_CODES: ReadonlySet<string> = new Set([
 	'service_disabled'
 ] satisfies AssistantErrorCode[]);
 
+function isAssistantErrorCode(code: string): code is AssistantErrorCode {
+	return KNOWN_CODES.has(code);
+}
+
+/** The worker's failure envelope; anything else is read as a bare provider error. */
+interface WireErrorBody {
+	error?: { code?: string; message?: string };
+}
+
+function isWireErrorBody(value: unknown): value is WireErrorBody {
+	if (typeof value !== 'object' || value === null) return false;
+	if (!('error' in value)) return true;
+	const error = value.error;
+	if (typeof error !== 'object' || error === null) return false;
+	if ('code' in error && typeof error.code !== 'string') return false;
+	return !('message' in error) || typeof error.message === 'string';
+}
+
+/** The POST body one turn sends, with the two optional flags the worker reads. */
+interface TurnRequestBody {
+	chatId: string;
+	messages: WireMessageV2[];
+	clientRuleSetVersion: string;
+	supportsRetry: true;
+	toolsAvailable?: true;
+	turnstileToken?: string;
+}
+
 export interface AskOptions {
 	chatId: string;
 	messages: WireMessageV2[];
@@ -84,7 +112,7 @@ export interface AskOptions {
 
 export async function askAssistant(options: AskOptions): Promise<TurnResponse> {
 	if (!assistantAvailable()) throw new AssistantError('not-configured');
-	if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+	if ('navigator' in globalThis && navigator.onLine === false) {
 		throw new AssistantError('offline', 'You are offline. The assistant needs a connection.');
 	}
 	const fetcher = options.fetcher ?? fetch;
@@ -108,6 +136,14 @@ async function sendTurn(
 	fetcher: typeof fetch,
 	abort: AbortController
 ): Promise<TurnResponse> {
+	const body: TurnRequestBody = {
+		chatId: options.chatId,
+		messages: options.messages,
+		clientRuleSetVersion: options.clientRuleSetVersion,
+		supportsRetry: true
+	};
+	if (options.toolsAvailable) body.toolsAvailable = true;
+	if (options.turnstileToken) body.turnstileToken = options.turnstileToken;
 	let response: Response;
 	try {
 		response = await fetcher(assistantAnswersUrl(), {
@@ -115,14 +151,7 @@ async function sendTurn(
 			credentials: 'include',
 			headers: { 'content-type': 'application/json', accept: 'application/x-ndjson' },
 			signal: abort.signal,
-			body: JSON.stringify({
-				chatId: options.chatId,
-				messages: options.messages,
-				clientRuleSetVersion: options.clientRuleSetVersion,
-				supportsRetry: true,
-				...(options.toolsAvailable ? { toolsAvailable: true } : {}),
-				...(options.turnstileToken ? { turnstileToken: options.turnstileToken } : {})
-			})
+			body: JSON.stringify(body)
 		});
 	} catch {
 		throw new AssistantError('offline', 'The assistant could not be reached.');
@@ -131,11 +160,12 @@ async function sendTurn(
 		let code: AssistantErrorCode = 'provider_error';
 		let message: string | undefined;
 		try {
-			const body = (await response.json()) as { error?: { code?: string; message?: string } };
-			if (body.error?.code && KNOWN_CODES.has(body.error.code)) {
-				code = body.error.code as AssistantErrorCode;
+			const failure: unknown = await response.json();
+			if (isWireErrorBody(failure)) {
+				const wireCode = failure.error?.code;
+				if (wireCode !== undefined && isAssistantErrorCode(wireCode)) code = wireCode;
+				message = failure.error?.message;
 			}
-			message = body.error?.message;
 		} catch {
 			// A gateway 502 with an HTML body is still a provider error.
 		}
@@ -144,6 +174,9 @@ async function sendTurn(
 	if (response.headers.get('content-type')?.includes('application/x-ndjson')) {
 		return readAnswerStream(response, abort, options.onProgress, options.onRetry);
 	}
+	// SAFETY: reached only on an `ok` response the worker did not mark NDJSON, which
+	// is its single-shot answer envelope — the same fields the stream below assembles,
+	// minus the `kind` discriminant, which is the client's own and never on the wire.
 	const answer = (await response.json()) as Omit<Extract<TurnResponse, { kind: 'answer' }>, 'kind'>;
 	return { kind: 'answer', ...answer };
 }
@@ -204,6 +237,10 @@ async function readAnswerStream(
 		await onProgress({ scope, blocks: [...closed, ...open] });
 	};
 	const consume = async (line: string) => {
+		// SAFETY: the line arrived on this worker's own NDJSON stream, whose emitter
+		// writes exactly this union. A line that is not one of them carries a `type`
+		// no case below claims and falls through the switch untouched, and a turn
+		// truncated mid-event fails the `quota` / `requestId` / `open` gate at the end.
 		const event = JSON.parse(line) as StreamEvent;
 		if (awaitingRetryStart && event.type !== 'start' && event.type !== 'error') {
 			throw new Error('A repaired answer did not restart its stream.');
@@ -240,20 +277,17 @@ async function readAnswerStream(
 				const [oldest, ...rest] = open;
 				if (!oldest) throw new Error('A block ended before it started.');
 				open = rest;
-				closed = [
-					...closed,
-					{
-						...oldest,
-						// The close carries the validated kind, which normalization may
-						// have moved off the kind the block streamed under — and the
-						// validated text where validation changed it, which the deltas
-						// alone cannot report.
-						...(event.kind ? { kind: event.kind } : {}),
-						...(typeof event.text === 'string' ? { text: event.text } : {}),
-						ruleIds: event.ruleIds,
-						sourceIds: event.sourceIds
-					}
-				];
+				const settled: AssistantAnswerBlock = {
+					...oldest,
+					ruleIds: event.ruleIds,
+					sourceIds: event.sourceIds
+				};
+				// The close carries the validated kind, which normalization may have
+				// moved off the kind the block streamed under — and the validated text
+				// where validation changed it, which the deltas alone cannot report.
+				if (event.kind) settled.kind = event.kind;
+				if (event.text !== undefined) settled.text = event.text;
+				closed = [...closed, settled];
 				await publish(true);
 				break;
 			}
@@ -267,8 +301,8 @@ async function readAnswerStream(
 				providerItems = event.providerItems;
 				break;
 			case 'error': {
-				const code = KNOWN_CODES.has(event.error.code)
-					? (event.error.code as AssistantErrorCode)
+				const code: AssistantErrorCode = isAssistantErrorCode(event.error.code)
+					? event.error.code
 					: 'provider_error';
 				throw new AssistantError(code, event.error.message);
 			}

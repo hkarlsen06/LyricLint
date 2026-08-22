@@ -179,7 +179,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	}
 
 	function draftFromSnapshot(currentSnapshot = bindings.snapshot): DraftRecord {
-		return {
+		const record: DraftRecord = {
 			id: draftId,
 			title,
 			text: currentSnapshot.text,
@@ -190,12 +190,15 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			ruleSetVersion: deps.ruleSet?.version ?? deps.initialDraft.ruleSetVersion,
 			editorSelection: { ...currentSnapshot.selection },
 			lineAnchors: bindings.lineAnchors.map((anchor) => ({ ...anchor })),
-			sectionLinks: copySectionLinks(bindings.sectionLinks),
-			...(originalText === undefined ? {} : { originalText }),
-			...(compareBaseline === undefined
-				? {}
-				: { compareBaseline: copyCompareBaseline(compareBaseline) })
+			sectionLinks: copySectionLinks(bindings.sectionLinks)
 		};
+		// Both stay absent rather than present-and-undefined: a record is compared
+		// field by field on its way to disk, and a key nobody set is not a value.
+		if (originalText !== undefined) record.originalText = originalText;
+		if (compareBaseline !== undefined) {
+			record.compareBaseline = copyCompareBaseline(compareBaseline);
+		}
+		return record;
 	}
 
 	/**

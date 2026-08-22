@@ -7,7 +7,7 @@
 import { SESSION_RULES } from './config';
 import type { ErrorCode } from './errors';
 
-interface BeginBody {
+export interface BeginBody {
 	dailyLimit: number;
 	concurrentLimit: number;
 	/** USD; omit for identifiers without a spend ceiling. */
@@ -27,12 +27,42 @@ export interface BeginResult {
 	slot?: string;
 }
 
+export interface FinishBody {
+	slot: string;
+	/** USD this slot actually cost; booked whether or not the slot is still held. */
+	spendUsd?: number;
+}
+
+export interface CancelBody {
+	slot: string;
+}
+
+export interface PeekBody {
+	dailyLimit: number;
+}
+
+/** Every body the Worker sends to one of this object's four paths. */
+export type QuotaRequest = BeginBody | FinishBody | CancelBody | PeekBody;
+
+interface SlotRecord {
+	startedAt: number;
+	reservedSpendUsd: number;
+}
+
+/** A slot written before spend reservations existed is the bare `startedAt` number,
+ * and records already on disk are read back in that form. */
+type SlotEntry = number | SlotRecord;
+
+function isSlotRecord(entry: SlotEntry): entry is SlotRecord {
+	return typeof entry !== 'number';
+}
+
 interface DayState {
 	day: string;
 	count: number;
 	spendUsd: number;
 	/** In-flight slots and any spend held for them, keyed by slot token. */
-	slots: Record<string, number | { startedAt: number; reservedSpendUsd: number }>;
+	slots: Record<string, SlotEntry>;
 }
 
 /** In-flight slots older than this are presumed leaked (a Worker eviction the
@@ -53,10 +83,27 @@ function nextUtcMidnight(now: number): string {
 	return date.toISOString();
 }
 
-export class QuotaCounter implements DurableObject {
-	private readonly storage: DurableObjectStorage;
+/**
+ * The storage operations this object performs. `DurableObjectState['storage']`
+ * satisfies it, and so does an in-memory stand-in — which is what lets the test
+ * suite exercise the real accounting instead of a re-implementation of it.
+ */
+export interface QuotaStorage {
+	get<T>(key: string): Promise<T | undefined>;
+	put<T>(key: string, value: T): Promise<void>;
+	deleteAll(): Promise<void>;
+	setAlarm(scheduledTime: number): Promise<void>;
+}
 
-	constructor(state: DurableObjectState) {
+/** What Cloudflare hands the constructor, in the one field this object reads. */
+export interface QuotaCounterState {
+	storage: QuotaStorage;
+}
+
+export class QuotaCounter implements DurableObject {
+	private readonly storage: QuotaStorage;
+
+	constructor(state: QuotaCounterState) {
 		this.storage = state.storage;
 	}
 
@@ -67,7 +114,7 @@ export class QuotaCounter implements DurableObject {
 			return { day, count: 0, spendUsd: 0, slots: {} };
 		}
 		for (const [slot, entry] of Object.entries(stored.slots)) {
-			const startedAt = typeof entry === 'number' ? entry : entry.startedAt;
+			const startedAt = isSlotRecord(entry) ? entry.startedAt : entry;
 			if (now - startedAt > STALE_SLOT_MS) delete stored.slots[slot];
 		}
 		return stored;
@@ -90,12 +137,13 @@ export class QuotaCounter implements DurableObject {
 		const state = await this.load(now);
 
 		if (url.pathname === '/begin') {
+			// SAFETY: a Durable Object is reachable only through its binding, never from the
+			// network, so this body is the `BeginBody` index.ts serialised for this stub call.
 			const body = (await request.json()) as BeginBody;
 			const resetsAt = nextUtcMidnight(now);
 			const respond = (result: BeginResult) => Response.json(result);
 			const reservedSpendUsd = Object.values(state.slots).reduce<number>(
-				(total, entry) =>
-					total + (typeof entry === 'number' ? 0 : Math.max(0, entry.reservedSpendUsd)),
+				(total, entry) => total + (isSlotRecord(entry) ? Math.max(0, entry.reservedSpendUsd) : 0),
 				0
 			);
 			const requestedReservation = Math.max(0, body.reserveSpendUsd ?? 0);
@@ -135,7 +183,9 @@ export class QuotaCounter implements DurableObject {
 		}
 
 		if (url.pathname === '/finish') {
-			const body = (await request.json()) as { slot: string; spendUsd?: number };
+			// SAFETY: /finish is reached only through this object's binding, carrying the slot
+			// token /begin minted for the caller and the spend that call settled at.
+			const body = (await request.json()) as FinishBody;
 			// Spend is booked whether or not the slot is still here, so releasing
 			// the slot is an unconditional delete rather than the arm of a guard.
 			// A slot reclaimed as stale, or begun before the UTC day rolled, still
@@ -149,7 +199,9 @@ export class QuotaCounter implements DurableObject {
 		if (url.pathname === '/cancel') {
 			// A later layer refused the request: give back the slot AND the count,
 			// so a refusal elsewhere never costs this identifier a daily unit.
-			const body = (await request.json()) as { slot: string };
+			// SAFETY: /cancel is reached only through this object's binding, carrying the slot
+			// token /begin minted for the caller.
+			const body = (await request.json()) as CancelBody;
 			if (body.slot in state.slots) {
 				delete state.slots[body.slot];
 				state.count = Math.max(0, state.count - 1);
@@ -159,7 +211,9 @@ export class QuotaCounter implements DurableObject {
 		}
 
 		if (url.pathname === '/peek') {
-			const body = (await request.json()) as { dailyLimit: number };
+			// SAFETY: /peek is reached only through this object's binding, carrying the daily
+			// allowance config.ts states for the identifier this object accounts for.
+			const body = (await request.json()) as PeekBody;
 			return Response.json({
 				remaining: Math.max(0, body.dailyLimit - state.count),
 				resetsAt: nextUtcMidnight(now)

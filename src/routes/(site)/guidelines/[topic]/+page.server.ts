@@ -25,13 +25,16 @@ export const entries: EntryGenerator = () => guidanceTopics().map(({ topic }) =>
  * inventories of misspellings, not preferred-spelling policy, and each is
  * already whole on its own rule page.
  */
+function isPublishedTopic(topic: string): topic is keyof typeof guidanceTopicTitles {
+	return guidanceTopics().some((published) => published.topic === topic);
+}
+
 export const load: PageServerLoad = ({ params }) => {
-	const known = guidanceTopics().some(({ topic }) => topic === params.topic);
-	if (!known) {
+	if (!isPublishedTopic(params.topic)) {
 		error(404, `No guidelines are published at "${params.topic}".`);
 	}
 	return {
-		topic: params.topic as keyof typeof guidanceTopicTitles,
+		topic: params.topic,
 		spellings: params.topic === 'spelling' ? ruleLookupTable('spelling.standardized') : undefined
 	};
 };

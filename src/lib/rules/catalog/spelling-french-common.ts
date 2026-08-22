@@ -1,8 +1,14 @@
 import type { RuleDefinition } from '$lib/core/types.js';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
-import { diagnostic, matchesOutsideMarkup, preserveCase, replacementFix } from './utils.js';
+import {
+	type CatalogLookup,
+	diagnostic,
+	matchesOutsideMarkup,
+	preserveCase,
+	replacementFix
+} from './utils.js';
 
-export const corrections: Readonly<Record<string, string>> = {
+export const corrections: CatalogLookup<string> = {
 	'comme sa': 'comme ça',
 	'sa va': 'ça va',
 	acceuil: 'accueil',

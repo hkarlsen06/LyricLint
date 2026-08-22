@@ -55,9 +55,9 @@
 		releasePreview = undefined;
 	}
 
-	function leavesCard(event: FocusEvent): void {
+	function leavesCard(event: FocusEvent & { currentTarget: HTMLElement }): void {
 		const next = event.relatedTarget;
-		const card = event.currentTarget as HTMLElement;
+		const card = event.currentTarget;
 		if (next instanceof Node && card.contains(next)) return;
 		endPreview();
 	}

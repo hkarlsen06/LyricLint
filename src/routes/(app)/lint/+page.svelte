@@ -142,8 +142,6 @@
 				const mediaRepository = createMediaRepository(database);
 				const autosave = createAutosaveController(repository, {
 					onStatusChange: (status: AutosaveStatus) => controller?.setSaveStatus(status)
-				} as Parameters<typeof createAutosaveController>[1] & {
-					onStatusChange: (status: AutosaveStatus) => void;
 				});
 				const initialDraft = await recoverStartupDraft(repository, mediaRepository);
 				const initialRecentLanguages = await repository.getRecentLanguages();
@@ -174,6 +172,9 @@
 					initialActiveTab: rightPanelTabFromUrl(page.url),
 					onActiveTabChange: (tab) => {
 						const next = urlForRightPanelTab(page.url, tab);
+						// SAFETY: `URL.search` is empty or opens with `?`, and `URL.hash` is
+						// empty or opens with `#` — so this is one of exactly the three route
+						// shapes named here, which a template literal type cannot express.
 						const target = `/lint/${next.search}${next.hash}` as
 							'/lint/' | `/lint/?${string}` | `/lint/#${string}`;
 						replaceState(resolve(target), page.state);
@@ -230,7 +231,7 @@
 		if (!browser) return;
 		backup?.destroy();
 		void (controller?.flushAutosave() ?? Promise.resolve())
-			.catch((error: unknown) => console.error('The final autosave flush failed.', error))
+			.catch((error: Error) => console.error('The final autosave flush failed.', error))
 			.finally(() => {
 				if (database) closeDatabase(database);
 				guard?.release();

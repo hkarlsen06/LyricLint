@@ -15,7 +15,7 @@ export type ErrorCode =
 	| 'provider_error'
 	| 'service_disabled';
 
-const ERROR_STATUS: Record<ErrorCode, number> = {
+const ERROR_STATUS = {
 	invalid_request: 400,
 	challenge_required: 403,
 	challenge_failed: 403,
@@ -26,7 +26,7 @@ const ERROR_STATUS: Record<ErrorCode, number> = {
 	invalid_answer: 502,
 	provider_error: 502,
 	service_disabled: 503
-};
+} satisfies Record<ErrorCode, number>;
 
 export class ApiError extends Error {
 	readonly code: ErrorCode;
@@ -43,8 +43,11 @@ export class ApiError extends Error {
 	}
 }
 
-export function errorBody(error: ApiError): {
+/** The JSON body every failure is reported as, and the shape of an in-stream `error` event's payload. */
+export interface ErrorBody {
 	error: { code: ErrorCode; message: string };
-} {
+}
+
+export function errorBody(error: ApiError): ErrorBody {
 	return { error: { code: error.code, message: error.detail ?? error.code } };
 }

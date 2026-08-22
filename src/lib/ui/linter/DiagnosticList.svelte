@@ -107,7 +107,7 @@
 		if (!key || !currentList) return;
 		void tick().then(() => {
 			const card = Array.from(currentList.children).find(
-				(candidate) => (candidate as HTMLElement).dataset.diagnosticKey === key
+				(candidate) => candidate.getAttribute('data-diagnostic-key') === key
 			);
 			card?.scrollIntoView({ block: 'nearest' });
 		});

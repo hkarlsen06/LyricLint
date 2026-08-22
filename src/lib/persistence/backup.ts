@@ -1,4 +1,4 @@
-import Dexie from 'dexie';
+import Dexie, { type ObservabilitySet } from 'dexie';
 
 import { randomId } from '../core/random-id.js';
 import { ASSISTANT_DRAFT_ACCESS_PREFIX } from '../assistant/permissions.js';
@@ -36,6 +36,23 @@ type SaveFilePicker = (options: {
 	types: Array<{ description: string; accept: Record<string, string[]> }>;
 }) => Promise<WritableFileHandle>;
 
+declare global {
+	interface Window {
+		/**
+		 * The File System Access picker, which the DOM types do not declare and
+		 * Firefox does not implement — hence optional, and read through a
+		 * presence check before it is ever called.
+		 */
+		showSaveFilePicker?: SaveFilePicker;
+	}
+}
+
+/** One draft's suppressed occurrences, as the backup carries them. */
+interface IgnoredDiagnosticsRecord {
+	draftId: string;
+	keys: string[];
+}
+
 interface WorkspaceBackupFile {
 	format: typeof FORMAT;
 	version: typeof VERSION;
@@ -43,7 +60,7 @@ interface WorkspaceBackupFile {
 	drafts: DraftRecord[];
 	appMetadata: AppMetadataRecord[];
 	media: SerializableMediaRecord[];
-	ignoredDiagnostics: Array<{ draftId: string; keys: string[] }>;
+	ignoredDiagnostics: IgnoredDiagnosticsRecord[];
 }
 
 export interface WorkspaceBackupState {
@@ -74,39 +91,72 @@ interface WorkspaceBackupOptions {
 
 export class WorkspaceBackupError extends Error {}
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+/**
+ * Anything `JSON.parse` can hand back. A backup file is somebody else's bytes
+ * until every field below has been read out of it, so this is the only thing
+ * the parsers may say about their input before they have checked it.
+ */
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json };
+
+/** A JSON object, which is the shape every record in a backup has to be. */
+type JsonObject = { [key: string]: Json };
+
+function isRecord(value: Json | undefined): value is JsonObject {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function stringField(record: Record<string, unknown>, key: string): string {
+function isString(value: Json | undefined): value is string {
+	return typeof value === 'string';
+}
+
+function isNumber(value: Json | undefined): value is number {
+	return typeof value === 'number';
+}
+
+/** `Number.isInteger` as a narrowing, since it answers false for every non-number. */
+function isInteger(value: Json | undefined): value is number {
+	return Number.isInteger(value);
+}
+
+/** A remembered language tag with something in it. */
+function isFilledString(value: Json | undefined): value is string {
+	return isString(value) && value.trim() !== '';
+}
+
+/** A link's membership is 1-based header lines, so zero and below name nothing. */
+function isHeaderLine(value: Json | undefined): value is number {
+	return isInteger(value) && value >= 1;
+}
+
+function stringField(record: JsonObject, key: string): string {
 	const value = record[key];
-	if (typeof value !== 'string') throw new WorkspaceBackupError(`Invalid ${key} in backup.`);
+	if (!isString(value)) throw new WorkspaceBackupError(`Invalid ${key} in backup.`);
 	return value;
 }
 
-function optionalStringField(record: Record<string, unknown>, key: string): string | undefined {
+function optionalStringField(record: JsonObject, key: string): string | undefined {
 	const value = record[key];
-	if (value !== undefined && typeof value !== 'string') {
+	if (value !== undefined && !isString(value)) {
 		throw new WorkspaceBackupError(`Invalid ${key} in backup.`);
 	}
 	return value;
 }
 
-function optionalNumberField(record: Record<string, unknown>, key: string): number | undefined {
+function optionalNumberField(record: JsonObject, key: string): number | undefined {
 	const value = record[key];
-	if (value !== undefined && (typeof value !== 'number' || !Number.isFinite(value) || value < 0)) {
+	if (value !== undefined && (!isNumber(value) || !Number.isFinite(value) || value < 0)) {
 		throw new WorkspaceBackupError(`Invalid ${key} in backup.`);
 	}
 	return value;
 }
 
-function parsePerformer(value: unknown): PerformerRecord {
+function parsePerformer(value: Json): PerformerRecord {
 	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid performer in backup.');
 	const aliases = value.aliases;
-	if (!Array.isArray(aliases) || !aliases.every((alias) => typeof alias === 'string')) {
+	if (!Array.isArray(aliases) || !aliases.every(isString)) {
 		throw new WorkspaceBackupError('Invalid performer aliases in backup.');
 	}
-	if (typeof value.order !== 'number' || !Number.isInteger(value.order) || value.order < 0) {
+	if (!isNumber(value.order) || !Number.isInteger(value.order) || value.order < 0) {
 		throw new WorkspaceBackupError('Invalid performer order in backup.');
 	}
 	return {
@@ -119,7 +169,7 @@ function parsePerformer(value: unknown): PerformerRecord {
 	};
 }
 
-function parseDraft(value: unknown): DraftRecord {
+function parseDraft(value: Json): DraftRecord {
 	if (!isRecord(value)) throw new WorkspaceBackupError("Invalid 'scribe in backup.");
 	if (!Array.isArray(value.performers)) {
 		throw new WorkspaceBackupError("Invalid 'scribe performers in backup.");
@@ -145,16 +195,16 @@ function parseDraft(value: unknown): DraftRecord {
 		}
 		const { anchor, head } = value.editorSelection;
 		if (
-			!Number.isInteger(anchor) ||
-			!Number.isInteger(head) ||
-			(anchor as number) < 0 ||
-			(head as number) < 0 ||
-			(anchor as number) > text.length ||
-			(head as number) > text.length
+			!isInteger(anchor) ||
+			!isInteger(head) ||
+			anchor < 0 ||
+			head < 0 ||
+			anchor > text.length ||
+			head > text.length
 		) {
 			throw new WorkspaceBackupError('Invalid editor selection in backup.');
 		}
-		draft.editorSelection = { anchor: anchor as number, head: head as number };
+		draft.editorSelection = { anchor, head };
 	}
 
 	if (value.lineAnchors !== undefined) {
@@ -164,15 +214,15 @@ function parseDraft(value: unknown): DraftRecord {
 		draft.lineAnchors = value.lineAnchors.map((anchor) => {
 			if (
 				!isRecord(anchor) ||
-				!Number.isInteger(anchor.line) ||
-				(anchor.line as number) < 1 ||
-				typeof anchor.time !== 'number' ||
+				!isInteger(anchor.line) ||
+				anchor.line < 1 ||
+				!isNumber(anchor.time) ||
 				!Number.isFinite(anchor.time) ||
 				anchor.time < 0
 			) {
 				throw new WorkspaceBackupError('Invalid line anchor in backup.');
 			}
-			return { line: anchor.line as number, time: anchor.time };
+			return { line: anchor.line, time: anchor.time };
 		});
 	}
 
@@ -181,12 +231,11 @@ function parseDraft(value: unknown): DraftRecord {
 			throw new WorkspaceBackupError('Invalid section links in backup.');
 		}
 		draft.sectionLinks = value.sectionLinks.map((link) => {
-			if (
-				!isRecord(link) ||
-				!Array.isArray(link.lines) ||
-				link.lines.length < 2 ||
-				link.lines.some((line) => !Number.isInteger(line) || (line as number) < 1)
-			) {
+			if (!isRecord(link) || !Array.isArray(link.lines)) {
+				throw new WorkspaceBackupError('Invalid section link in backup.');
+			}
+			const lines = link.lines;
+			if (lines.length < 2 || !lines.every(isHeaderLine)) {
 				throw new WorkspaceBackupError('Invalid section link in backup.');
 			}
 			if (link.holes !== undefined && !Array.isArray(link.holes)) {
@@ -195,25 +244,23 @@ function parseDraft(value: unknown): DraftRecord {
 			// A run whose numbers cannot be read is dropped rather than throwing: the
 			// link itself is still good, and losing a difference costs the user one
 			// re-tick, while refusing the whole backup costs them the draft.
-			const holes = ((link.holes ?? []) as unknown[]).flatMap((hole) =>
+			const holes = (link.holes ?? []).flatMap((hole) =>
 				isRecord(hole) &&
-				Number.isInteger(hole.line) &&
-				Number.isInteger(hole.column) &&
-				Number.isInteger(hole.endLine) &&
-				Number.isInteger(hole.endColumn)
+				isInteger(hole.line) &&
+				isInteger(hole.column) &&
+				isInteger(hole.endLine) &&
+				isInteger(hole.endColumn)
 					? [
 							{
-								line: hole.line as number,
-								column: hole.column as number,
-								endLine: hole.endLine as number,
-								endColumn: hole.endColumn as number
+								line: hole.line,
+								column: hole.column,
+								endLine: hole.endLine,
+								endColumn: hole.endColumn
 							}
 						]
 					: []
 			);
-			return holes.length > 0
-				? { lines: link.lines as number[], holes }
-				: { lines: link.lines as number[] };
+			return holes.length > 0 ? { lines, holes } : { lines };
 		});
 	}
 
@@ -222,7 +269,7 @@ function parseDraft(value: unknown): DraftRecord {
 	// costs them the draft.
 	if (isRecord(value.compareBaseline)) {
 		const { text: baselineText, pastedAt } = value.compareBaseline;
-		if (typeof baselineText === 'string' && typeof pastedAt === 'string') {
+		if (isString(baselineText) && isString(pastedAt)) {
 			draft.compareBaseline = { text: baselineText, pastedAt };
 		}
 	}
@@ -230,7 +277,7 @@ function parseDraft(value: unknown): DraftRecord {
 	return draft;
 }
 
-function parseMetadata(value: unknown): AppMetadataRecord {
+function parseMetadata(value: Json): AppMetadataRecord {
 	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid application metadata in backup.');
 	return {
 		key: stringField(value, 'key'),
@@ -241,7 +288,17 @@ function parseMetadata(value: unknown): AppMetadataRecord {
 
 const mediaSources = new Set<string>(['file', 'youtube', 'spotify', 'apple']);
 
-function parseMedia(value: unknown): SerializableMediaRecord {
+/**
+ * One of the four kinds a remembered source can be.
+ *
+ * A set rather than a chain of inequalities: a fourth source made the chain
+ * long enough to read wrong, and a fifth would make it longer.
+ */
+function isMediaSource(value: string): value is NonNullable<SerializableMediaRecord['source']> {
+	return mediaSources.has(value);
+}
+
+function parseMedia(value: Json): SerializableMediaRecord {
 	if (!isRecord(value)) throw new WorkspaceBackupError('Invalid remembered media in backup.');
 	const source = optionalStringField(value, 'source');
 	const videoId = optionalStringField(value, 'videoId');
@@ -249,22 +306,21 @@ function parseMedia(value: unknown): SerializableMediaRecord {
 	const songId = optionalStringField(value, 'songId');
 	const size = optionalNumberField(value, 'size');
 	const position = optionalNumberField(value, 'position');
-	// A set rather than a chain of inequalities: a fourth source made the chain
-	// long enough to read wrong, and a fifth would make it longer.
-	if (source !== undefined && !mediaSources.has(source)) {
+	if (source !== undefined && !isMediaSource(source)) {
 		throw new WorkspaceBackupError('Invalid media source in backup.');
 	}
-	return {
+	const record: SerializableMediaRecord = {
 		draftId: stringField(value, 'draftId'),
 		name: stringField(value, 'name'),
-		attachedAt: stringField(value, 'attachedAt'),
-		...(source === undefined ? {} : { source: source as SerializableMediaRecord['source'] }),
-		...(videoId === undefined ? {} : { videoId }),
-		...(trackId === undefined ? {} : { trackId }),
-		...(songId === undefined ? {} : { songId }),
-		...(size === undefined ? {} : { size }),
-		...(position === undefined ? {} : { position })
+		attachedAt: stringField(value, 'attachedAt')
 	};
+	if (source !== undefined) record.source = source;
+	if (videoId !== undefined) record.videoId = videoId;
+	if (trackId !== undefined) record.trackId = trackId;
+	if (songId !== undefined) record.songId = songId;
+	if (size !== undefined) record.size = size;
+	if (position !== undefined) record.position = position;
+	return record;
 }
 
 /**
@@ -294,16 +350,17 @@ function unique(values: readonly string[], label: string): void {
 	}
 }
 
-function parseIgnoredDiagnostics(value: unknown): { draftId: string; keys: string[] } {
+function parseIgnoredDiagnostics(value: Json): IgnoredDiagnosticsRecord {
 	if (!isRecord(value) || !Array.isArray(value.keys)) {
 		throw new WorkspaceBackupError('Invalid ignored diagnostics in backup.');
 	}
-	if (!value.keys.every((key) => typeof key === 'string')) {
+	const keys = value.keys;
+	if (!keys.every(isString)) {
 		throw new WorkspaceBackupError('Invalid ignored diagnostic in backup.');
 	}
 	return {
 		draftId: stringField(value, 'draftId'),
-		keys: [...new Set(value.keys)].sort()
+		keys: [...new Set(keys)].sort()
 	};
 }
 
@@ -313,11 +370,7 @@ function parseRecentLanguages(value: string | undefined): string[] {
 		const parsed: unknown = JSON.parse(value);
 		if (!Array.isArray(parsed)) return [];
 		return [
-			...new Set(
-				parsed.flatMap((language) =>
-					typeof language === 'string' && language.trim() ? [language.trim()] : []
-				)
-			)
+			...new Set(parsed.flatMap((language) => (isFilledString(language) ? [language.trim()] : [])))
 		];
 	} catch {
 		return [];
@@ -325,7 +378,7 @@ function parseRecentLanguages(value: string | undefined): string[] {
 }
 
 export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
-	let value: unknown;
+	let value: Json;
 	try {
 		value = JSON.parse(text);
 	} catch {
@@ -417,19 +470,25 @@ async function createBackupFile(
 	};
 }
 
+/**
+ * The browser's own save-file picker, where there is a browser carrying one.
+ *
+ * `window` is guaranteed by the DOM types rather than by the runtime — this
+ * module is loaded on the server too — so the optional chain is what stands in
+ * for the environment check the types cannot express.
+ */
+function nativeSaveFilePicker(): SaveFilePicker | undefined {
+	const picker = globalThis.window?.showSaveFilePicker;
+	return picker === undefined ? undefined : picker.bind(window);
+}
+
 export function createWorkspaceBackup(
 	database: LyricLintDatabase,
 	options: WorkspaceBackupOptions = {}
 ): WorkspaceBackupController {
 	const now = options.now ?? (() => new Date().toISOString());
 	const ignoreStore = options.ignoreStore;
-	const browserWindow =
-		typeof window === 'undefined' ? undefined : (window as unknown as Record<string, unknown>);
-	const picker =
-		options.showSaveFilePicker ??
-		(typeof browserWindow?.showSaveFilePicker === 'function'
-			? (browserWindow.showSaveFilePicker as SaveFilePicker).bind(window)
-			: undefined);
+	const picker = options.showSaveFilePicker ?? nativeSaveFilePicker();
 	let currentState: WorkspaceBackupState = {
 		supported: picker !== undefined,
 		status: 'idle'
@@ -458,6 +517,9 @@ export function createWorkspaceBackup(
 		.get(HANDLE_KEY)
 		.then(async (record) => {
 			if (!record || destroyed) return;
+			// SAFETY: the only writer of this row is `chooseFile`, which stores the
+			// handle the save-file picker returned — and a picker handle carries
+			// `createWritable` and the permission pair the record's type omits.
 			handle = record.handle as WritableFileHandle;
 			publish({
 				linkedFileName: record.name,
@@ -471,7 +533,7 @@ export function createWorkspaceBackup(
 		});
 
 	const databasePrefix = `idb://${database.name}/`;
-	const mutationListener = (parts: Record<string, unknown>) => {
+	const mutationListener = (parts: ObservabilitySet) => {
 		if (
 			Object.keys(parts).some((part) =>
 				['drafts', 'appMetadata', 'mediaHandles'].some((table) =>
@@ -541,6 +603,9 @@ export function createWorkspaceBackup(
 						idMap.set(draft.id, id);
 						return id === draft.id ? draft : { ...draft, id };
 					});
+					// SAFETY: `parseWorkspaceBackup` refuses a backup whose media names a
+					// draft it does not carry, and the loop above mapped every draft it
+					// carries — so every one of these ids is in `idMap`.
 					const importedMedia = backup.media.map((media) => ({
 						...media,
 						draftId: idMap.get(media.draftId) as string
@@ -553,6 +618,8 @@ export function createWorkspaceBackup(
 					// The caller reloads the page the moment this resolves, so a write
 					// left queued behind it is a write the unload aborts — and one put
 					// per key rewrote the whole row every time.
+					// SAFETY: the same refusal covers the ignored diagnostics, so each of
+					// these draft ids was mapped with its draft above.
 					const importedIgnores = backup.ignoredDiagnostics.map(({ draftId, keys }) => ({
 						draftId: idMap.get(draftId) as string,
 						keys
@@ -612,6 +679,8 @@ export function createWorkspaceBackup(
 			// it still reads back what it imported.
 			if (ignoreStore) {
 				for (const { draftId, keys } of backup.ignoredDiagnostics) {
+					// SAFETY: the parse refused any ignored-diagnostics row naming a draft
+					// this backup does not carry, and the transaction mapped every draft.
 					const importedDraftId = draftIdMap.get(draftId) as string;
 					for (const key of keys) ignoreStore.ignore(importedDraftId, key);
 				}

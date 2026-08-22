@@ -2,6 +2,16 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
 
+/**
+ * The page-side globals these probes hang on `window`. They exist only inside a
+ * `page.evaluate` callback, written by one of them and read by the next; the
+ * type is erased before the callback is serialised into the browser.
+ */
+interface ProbeWindow extends Window {
+	__csp?: string[];
+	__errorPageDocument?: string;
+}
+
 function editor(page: Page): Locator {
 	return page.getByRole('textbox', { name: 'Lyrics editor' });
 }
@@ -16,10 +26,11 @@ function docText(page: Page): Promise<string | null> {
 		interface ContentHandle {
 			view: { state: { doc: { toString(): string } } };
 		}
-		const content = document.querySelector('.cm-content') as unknown as {
+		interface ContentElement extends Element {
 			cmView?: ContentHandle;
 			cmTile?: ContentHandle;
-		} | null;
+		}
+		const content = document.querySelector<ContentElement>('.cm-content');
 		// Return null (instead of throwing) while the editor is still mounting,
 		// e.g. immediately after a reload, so expect.poll keeps retrying.
 		const handle = content?.cmView ?? content?.cmTile;
@@ -625,11 +636,9 @@ test('the prerendered policy admits the workbench and refuses everything else', 
 }) => {
 	const violations: string[] = [];
 	await page.addInitScript(() => {
-		(window as unknown as { __csp: string[] }).__csp = [];
+		(window as ProbeWindow).__csp = [];
 		document.addEventListener('securitypolicyviolation', (event) => {
-			(window as unknown as { __csp: string[] }).__csp.push(
-				`${event.effectiveDirective} <- ${event.blockedURI}`
-			);
+			(window as ProbeWindow).__csp?.push(`${event.effectiveDirective} <- ${event.blockedURI}`);
 		});
 	});
 	page.on('pageerror', (error) => violations.push(`pageerror: ${error.message}`));
@@ -667,7 +676,7 @@ test('the prerendered policy admits the workbench and refuses everything else', 
 
 	// The workbench came up and nothing was refused bringing it up.
 	await expect(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
-	expect(await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp)).toEqual([]);
+	expect(await page.evaluate(() => (window as ProbeWindow).__csp)).toEqual([]);
 
 	// And the policy is enforced rather than merely present.
 	await page.evaluate(() => {
@@ -685,7 +694,7 @@ test('the prerendered policy admits the workbench and refuses everything else', 
 		document.body.append(object);
 	});
 	await expect
-		.poll(() => page.evaluate(() => (window as unknown as { __csp: string[] }).__csp))
+		.poll(() => page.evaluate(() => (window as ProbeWindow).__csp))
 		.toEqual(
 			expect.arrayContaining([
 				expect.stringContaining('script-src'),
@@ -1148,16 +1157,12 @@ test('the error page leaves by loading a new document, not by routing', async ({
 
 	// Survives a client-side navigation; destroyed by a document load.
 	await page.evaluate(() => {
-		(window as unknown as { __errorPageDocument?: string }).__errorPageDocument = 'same document';
+		(window as ProbeWindow).__errorPageDocument = 'same document';
 	});
 
 	await page.getByRole('link', { name: 'Return to the workspace' }).click();
 	await expect(editor(page)).toBeVisible();
-	expect(
-		await page.evaluate(
-			() => (window as unknown as { __errorPageDocument?: string }).__errorPageDocument
-		)
-	).toBeUndefined();
+	expect(await page.evaluate(() => (window as ProbeWindow).__errorPageDocument)).toBeUndefined();
 });
 
 /**

@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type {
 	SpotifyPlaybackState,
+	SpotifyPlayerEvent,
+	SpotifyPlayerEventMap,
 	SpotifyPlayerLike,
 	SpotifyPlayerOptions,
 	SpotifySdk,
@@ -129,7 +131,7 @@ describe('searchSpotifyTracks', () => {
 		const request = vi.fn();
 		const outcome = await searchSpotifyTracks('   ', {
 			token: async () => 'token',
-			request: request as unknown as typeof fetch
+			request: request as typeof fetch
 		});
 		expect(outcome).toEqual({ results: [] });
 		expect(request).not.toHaveBeenCalled();
@@ -137,7 +139,7 @@ describe('searchSpotifyTracks', () => {
 });
 
 class StubSpotifyPlayer implements SpotifyPlayerLike {
-	readonly listeners = new Map<string, (payload: never) => void>();
+	readonly listeners = new Map<keyof SpotifyPlayerEventMap, (payload: never) => void>();
 	state: SpotifyPlaybackState | null = null;
 	resumed = 0;
 	paused = 0;
@@ -150,8 +152,11 @@ class StubSpotifyPlayer implements SpotifyPlayerLike {
 	disconnect(): void {
 		this.disconnected = true;
 	}
-	addListener(event: string, listener: (payload: never) => void): boolean {
-		this.listeners.set(event, listener);
+	addListener<K extends keyof SpotifyPlayerEventMap>(
+		event: K,
+		listener: (payload: SpotifyPlayerEventMap[K]) => void
+	): boolean {
+		this.listeners.set(event, listener as (payload: never) => void);
 		return true;
 	}
 	async getCurrentState(): Promise<SpotifyPlaybackState | null> {
@@ -167,7 +172,7 @@ class StubSpotifyPlayer implements SpotifyPlayerLike {
 		this.seeks.push(positionMs);
 	}
 
-	emit(event: string, payload: unknown): void {
+	emit(event: keyof SpotifyPlayerEventMap, payload: SpotifyPlayerEvent): void {
 		this.listeners.get(event)?.(payload as never);
 	}
 }
@@ -198,17 +203,17 @@ async function settle(): Promise<void> {
  * Every other read answers at once, so a second `load` can overtake the first —
  * which is the whole shape of the staleness this is for.
  */
-function trackReadHarness(events: MediaSourceEvents): {
+interface TrackReadHarness {
 	source: SpotifySource;
 	pending: () => boolean;
 	reject: (error: Error) => void;
-} {
+}
+
+function trackReadHarness(events: MediaSourceEvents): TrackReadHarness {
 	let rejectRead: ((error: Error) => void) | undefined;
 	const source = createSpotifySource({
 		events,
-		loadSdk: async () => ({
-			Player: class extends StubSpotifyPlayer {} as unknown as SpotifySdk['Player']
-		}),
+		loadSdk: async () => ({ Player: class extends StubSpotifyPlayer {} }),
 		token: async () => 'token',
 		request: (async (url: RequestInfo | URL) => {
 			if (String(url).includes(`/tracks/${trackId}`)) {
@@ -231,28 +236,41 @@ function trackReadHarness(events: MediaSourceEvents): {
 	};
 }
 
+/** One request the source made, as the assertions read it back. */
+interface RecordedCall {
+	url: string;
+	init?: RequestInit;
+}
+
 interface Harness {
 	source: SpotifySource;
 	player: StubSpotifyPlayer;
 	events: MediaSourceEvents;
-	calls: { url: string; init?: RequestInit }[];
-	playCalls: () => { url: string; init?: RequestInit }[];
+	calls: RecordedCall[];
+	playCalls: () => RecordedCall[];
 }
 
 async function attach(startAt?: number): Promise<Harness> {
 	let player: StubSpotifyPlayer | undefined;
+	// A function rather than an assignment in the class body, which would alias
+	// `this` into a variable.
+	const record = (built: StubSpotifyPlayer): void => void (player = built);
 	const sdk: SpotifySdk = {
-		Player: class {
+		Player: class extends StubSpotifyPlayer {
 			constructor() {
-				player = new StubSpotifyPlayer();
-				return player as unknown as StubSpotifyPlayer;
+				super();
+				record(this);
 			}
-		} as unknown as SpotifySdk['Player']
+		}
 	};
 
-	const calls: { url: string; init?: RequestInit }[] = [];
+	const calls: RecordedCall[] = [];
 	const request = (async (url: RequestInfo | URL, init?: RequestInit) => {
-		calls.push({ url: String(url), ...(init === undefined ? {} : { init }) });
+		// Built a field at a time rather than spread conditionally: a call made with
+		// no init has no `init` on it, which is what the assertions read.
+		const call: RecordedCall = { url: String(url) };
+		if (init !== undefined) call.init = init;
+		calls.push(call);
 		if (String(url).includes('/tracks/')) {
 			return new Response(
 				JSON.stringify({
@@ -493,9 +511,7 @@ describe('createSpotifySource', () => {
 			ended: vi.fn(),
 			failed: vi.fn()
 		};
-		const sdk: SpotifySdk = {
-			Player: class extends StubSpotifyPlayer {} as unknown as SpotifySdk['Player']
-		};
+		const sdk: SpotifySdk = { Player: class extends StubSpotifyPlayer {} };
 		const source = createSpotifySource({
 			events,
 			loadSdk: async () => sdk,
@@ -532,17 +548,20 @@ describe('a Spotify session that expires while a track is attached', () => {
 		const tokens: (string | undefined)[] = ['token'];
 		let askForToken: SpotifyPlayerOptions['getOAuthToken'] | undefined;
 		let player: StubSpotifyPlayer | undefined;
+		// A function rather than an assignment in the class body, which would alias
+		// `this` into a variable.
+		const record = (built: StubSpotifyPlayer): void => void (player = built);
 
 		const source = createSpotifySource({
 			events,
 			loadSdk: async () => ({
-				Player: class {
+				Player: class extends StubSpotifyPlayer {
 					constructor(options: SpotifyPlayerOptions) {
+						super();
 						askForToken = options.getOAuthToken;
-						player = new StubSpotifyPlayer();
-						return player as unknown as StubSpotifyPlayer;
+						record(this);
 					}
-				} as unknown as SpotifySdk['Player']
+				}
 			}),
 			token: async () => tokens.shift(),
 			request: (async () =>

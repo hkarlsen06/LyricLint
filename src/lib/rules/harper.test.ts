@@ -11,7 +11,10 @@ import { spellingTextingShorthandRule } from './catalog/spelling-texting-shortha
 import { checkRule } from './rule-test-utils.js';
 
 function scalarOffset(text: string, utf16Offset: number): number {
-	return [...text.slice(0, utf16Offset)].length;
+	// `Array.from` rather than a spread into a literal: the string is being cut
+	// into Unicode scalars, which is exactly what Harper counts in, and the
+	// spread form reads to a linter as a needless copy of an array.
+	return Array.from(text.slice(0, utf16Offset)).length;
 }
 
 function lintAt(

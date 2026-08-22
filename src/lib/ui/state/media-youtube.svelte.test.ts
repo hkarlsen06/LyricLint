@@ -6,6 +6,7 @@ import {
 	playbackRates,
 	resumeRewindSeconds
 } from './media-player.svelte.js';
+import type { VideoAttachment } from './media-player.svelte.js';
 import { remotePollIntervalMs } from './media-remote-policy.js';
 import { parseYouTubeVideoId, youtubeSearchTerm } from './media-youtube.js';
 import { createStubPoll, createStubYouTubeApi, stubPlayerState } from './media-test-youtube.js';
@@ -110,11 +111,11 @@ function setup() {
 		const container = document.createElement('div');
 		document.body.append(container);
 		player.mountVideo(container);
-		await player.attachVideo({
-			videoId: id,
-			name: 'Sensommer',
-			...(startAt === undefined ? {} : { startAt })
-		});
+		// Built a field at a time rather than spread conditionally: a video attached
+		// from the top has no `startAt` on it, which is not the same as one of zero.
+		const attachment: VideoAttachment = { videoId: id, name: 'Sensommer' };
+		if (startAt !== undefined) attachment.startAt = startAt;
+		await player.attachVideo(attachment);
 		const video = stub.players.at(-1);
 		if (!video) throw new Error('The stub API built no player.');
 		return video;

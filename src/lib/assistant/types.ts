@@ -139,9 +139,14 @@ export type AssistantLinkActionRecord = AssistantLinkAction &
 		| { status: 'failed'; reason?: AssistantLinkFailureReason }
 	);
 
+/**
+ * The compact result returned to the model for one link action. Its reason is
+ * the repair sentence `outcomeReason` writes, not the record's terse code —
+ * which is why it is a free string here while the record above keeps the union.
+ */
 export type AssistantLinkActionOutcome =
 	| { id: string; status: 'applied' | 'rejected'; reason?: never }
-	| { id: string; status: 'failed'; reason?: AssistantLinkFailureReason };
+	| { id: string; status: 'failed'; reason?: string };
 
 /** The only two ways an exact-text anchor can fail to identify one range. */
 export type AssistantAnchorFailureReason = 'not-found' | 'ambiguous';

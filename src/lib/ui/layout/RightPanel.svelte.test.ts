@@ -29,7 +29,7 @@ function savedDraft(id: string, title: string, text = '[Verse]\nLine'): DraftRec
 }
 
 function panelAssistant(): AssistantState {
-	return {
+	const stub: Partial<AssistantState> = {
 		chats: [],
 		messages: [],
 		quota: undefined,
@@ -40,13 +40,14 @@ function panelAssistant(): AssistantState {
 		toolSession: undefined,
 		draftToolsAvailable: true,
 		draftAccessState: undefined,
-		send: vi.fn(async () => undefined),
+		send: vi.fn(async () => false),
 		newChat: vi.fn(async () => undefined),
 		retry: vi.fn(async () => undefined),
 		submitChallenge: vi.fn(async () => undefined),
 		ensureLoaded: vi.fn(async () => undefined),
 		revokeDraftAccess: vi.fn(async () => undefined)
-	} as unknown as AssistantState;
+	};
+	return stub as AssistantState;
 }
 
 /**

@@ -165,7 +165,7 @@ export function extractSectionStyleSpans(
 	documentText: string,
 	lineRanges: readonly TextRange[]
 ): VoiceSpan[][] {
-	const byLine = lineRanges.map(() => [] as VoiceSpan[]);
+	const byLine = lineRanges.map((): VoiceSpan[] => []);
 	const first = lineRanges[0];
 	const last = lineRanges.at(-1);
 	if (!first || !last) {
@@ -200,17 +200,18 @@ export function extractSectionStyleSpans(
 				continue;
 			}
 
-			byLine[index]?.push({
+			const projected: SupportedStyleSpan = {
 				from,
 				to,
 				slot: span.slot,
 				rawTag: span.from >= line.from ? span.rawTag : '',
 				contentFrom,
 				contentTo,
-				closingTag: span.to <= line.to ? span.closingTag : '',
-				...(span.from < line.from ? { continuedFromPreviousLine: true } : {}),
-				...(span.to > line.to ? { continuesToNextLine: true } : {})
-			});
+				closingTag: span.to <= line.to ? span.closingTag : ''
+			};
+			if (span.from < line.from) projected.continuedFromPreviousLine = true;
+			if (span.to > line.to) projected.continuesToNextLine = true;
+			byLine[index]?.push(projected);
 		}
 	}
 

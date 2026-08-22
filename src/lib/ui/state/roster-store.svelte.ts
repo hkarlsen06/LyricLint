@@ -152,11 +152,9 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			// noise and a collision in its keyed each.
 			const distinctUnresolved = new SvelteMap<string, VoiceGroup>();
 			for (const group of extraction.unresolvedVoiceGroups) {
-				distinctUnresolved.set(`${group.styleSlot}-${group.id}`, {
-					...group,
-					performerIds: [...group.performerIds],
-					...(group.sourceRange ? { sourceRange: { ...group.sourceRange } } : {})
-				});
+				const copy: VoiceGroup = { ...group, performerIds: [...group.performerIds] };
+				if (group.sourceRange) copy.sourceRange = { ...group.sourceRange };
+				distinctUnresolved.set(`${group.styleSlot}-${group.id}`, copy);
 			}
 			unresolvedVoiceGroups = [...distinctUnresolved.values()];
 

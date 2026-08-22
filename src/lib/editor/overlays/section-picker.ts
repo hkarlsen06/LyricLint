@@ -22,25 +22,29 @@ interface HeaderCandidate {
 	order: number;
 }
 
-const SEMANTIC_PRIORITIES: Readonly<Record<string, number>> = {
-	verse: 100,
-	chorus: 94,
-	refrain: 90,
-	prechorus: 82,
-	postchorus: 74,
-	bridge: 68,
-	intro: 62,
-	part: 58,
-	section: 58,
-	breakdown: 56,
-	instrumentalbreak: 52,
-	interlude: 50,
-	solo: 48,
-	instrumental: 46,
-	build: 44,
-	drop: 42,
-	outro: 40
-};
+/**
+ * A map rather than an object: the key is whatever `semanticPartKey` makes of a
+ * pack's own term, so the lookup is genuinely open and `.get()` is what says so.
+ */
+const SEMANTIC_PRIORITIES: ReadonlyMap<string, number> = new Map([
+	['verse', 100],
+	['chorus', 94],
+	['refrain', 90],
+	['prechorus', 82],
+	['postchorus', 74],
+	['bridge', 68],
+	['intro', 62],
+	['part', 58],
+	['section', 58],
+	['breakdown', 56],
+	['instrumentalbreak', 52],
+	['interlude', 50],
+	['solo', 48],
+	['instrumental', 46],
+	['build', 44],
+	['drop', 42],
+	['outro', 40]
+]);
 
 const SINGLE_USE_SEMANTICS = new Set(['intro', 'outro']);
 
@@ -175,7 +179,7 @@ function likelihoodScore(
 ): number {
 	const key = semanticKey(semanticPart);
 	const count = counts.get(key) ?? 0;
-	let score = SEMANTIC_PRIORITIES[key] ?? 30;
+	let score = SEMANTIC_PRIORITIES.get(key) ?? 30;
 
 	if (!hasExistingHeaders && key === 'intro') {
 		score += 60;

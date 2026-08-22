@@ -4,18 +4,20 @@
  * real while nothing touches the network.
  */
 import { vi } from 'vitest';
-import type { Env, RateLimit } from '../src/config';
+import type { Env, QuotaNamespace, QuotaStub, RateLimit } from '../src/config';
 import { corpus } from '../src/corpus';
 import type { ProviderResult } from '../src/provider';
-import { QuotaCounter } from '../src/quota-do';
-import type { StructuredAnswer } from '../src/schema';
+import { QuotaCounter, type QuotaStorage } from '../src/quota-do';
+import type { Json, StructuredAnswer } from '../src/schema';
 
-class FakeStorage {
+class FakeStorage implements QuotaStorage {
 	private readonly map = new Map<string, unknown>();
 	async get<T>(key: string): Promise<T | undefined> {
+		// SAFETY: this map holds only what `put` wrote under this key, and the object
+		// under test reads each key back at the type it wrote there.
 		return this.map.get(key) as T | undefined;
 	}
-	async put(key: string, value: unknown): Promise<void> {
+	async put<T>(key: string, value: T): Promise<void> {
 		this.map.set(key, structuredClone(value));
 	}
 	async deleteAll(): Promise<void> {
@@ -24,17 +26,24 @@ class FakeStorage {
 	async setAlarm(): Promise<void> {}
 }
 
-export class FakeQuotaNamespace {
+/** One request the Worker made to a counter, recorded for assertions. */
+export interface QuotaCall {
+	name: string;
+	path: string;
+	body: Json | undefined;
+}
+
+export class FakeQuotaNamespace implements QuotaNamespace {
 	readonly instances = new Map<string, QuotaCounter>();
-	readonly calls: Array<{ name: string; path: string; body: unknown }> = [];
-	idFromName(name: string): unknown {
-		return name;
+	readonly calls: QuotaCall[] = [];
+	idFromName(name: string): DurableObjectId {
+		return { name, toString: () => name, equals: (other) => other.toString() === name };
 	}
-	get(id: unknown): { fetch(url: string, init?: RequestInit): Promise<Response> } {
-		const name = String(id);
+	get(id: DurableObjectId): QuotaStub {
+		const name = id.toString();
 		let instance = this.instances.get(name);
 		if (!instance) {
-			instance = new QuotaCounter({ storage: new FakeStorage() } as unknown as DurableObjectState);
+			instance = new QuotaCounter({ storage: new FakeStorage() });
 			this.instances.set(name, instance);
 		}
 		const held = instance;
@@ -51,11 +60,8 @@ export class FakeQuotaNamespace {
 	}
 }
 
-export interface MetricPoint {
-	blobs?: string[];
-	doubles?: number[];
-	indexes?: string[];
-}
+/** The Analytics Engine data point shape, as this suite reads it back. */
+export type MetricPoint = AnalyticsEngineDataPoint;
 
 export function fakeRateLimit(succeed: () => boolean): RateLimit {
 	return { limit: vi.fn(async () => ({ success: succeed() })) };
@@ -76,18 +82,18 @@ export function makeEnv(
 		TURNSTILE_ALLOW_LOCALHOST: 'false',
 		ABUSE_HMAC_SECRET: 'abuse-secret',
 		SESSION_SIGNING_SECRET: 'session-secret',
-		QUOTAS: quotaNamespace as unknown as DurableObjectNamespace,
+		QUOTAS: quotaNamespace,
 		SESSION_MINUTE_LIMIT: fakeRateLimit(() => true),
 		IP_MINUTE_LIMIT: fakeRateLimit(() => true),
 		METRICS: {
-			writeDataPoint: (point: MetricPoint) => {
-				points.push(point);
+			writeDataPoint: (point?: MetricPoint) => {
+				if (point) points.push(point);
 			}
-		} as unknown as AnalyticsEngineDataset,
+		},
 		points,
 		quotaNamespace,
 		...overrides
-	} as Env & { points: MetricPoint[]; quotaNamespace: FakeQuotaNamespace };
+	};
 }
 
 export const RULE_ID = corpus.rules[0]!.id;
@@ -110,13 +116,26 @@ export function validAnswer(overrides: Partial<StructuredAnswer> = {}): Structur
 }
 
 export function providerReturning(
-	raw: unknown,
+	raw: Json,
 	usage = { inputTokens: 1000, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 200 }
 ) {
 	return vi.fn(async (): Promise<ProviderResult> => ({ kind: 'answer', raw, usage }));
 }
 
-export function requestBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+/**
+ * What a client may put on the wire, valid or not: these tests build malformed
+ * bodies on purpose, so a field may be absent, extra, or the wrong type.
+ * `undefined` is a member because a test spelling a field out as absent reads
+ * better than one omitting it.
+ */
+export interface WireRequestBody {
+	[field: string]: Json | undefined;
+}
+
+/** A body sent as text, so the endpoint's own JSON parsing is what refuses it. */
+export type RawRequestBody = string;
+
+export function requestBody(overrides: WireRequestBody = {}): WireRequestBody {
 	return {
 		chatId: 'chat-1',
 		messages: [{ role: 'user', content: 'How do I mark a chorus?' }],
@@ -125,8 +144,12 @@ export function requestBody(overrides: Record<string, unknown> = {}): Record<str
 	};
 }
 
+function isRawRequestBody(body: WireRequestBody | RawRequestBody): body is RawRequestBody {
+	return typeof body === 'string';
+}
+
 export function makeRequest(
-	body: unknown,
+	body: WireRequestBody | RawRequestBody,
 	options: { origin?: string | null; cookie?: string; ip?: string; accept?: string } = {}
 ): Request {
 	const headers = new Headers({ 'content-type': 'application/json' });
@@ -138,7 +161,7 @@ export function makeRequest(
 	return new Request('https://api.lyriclint.com/v1/answers', {
 		method: 'POST',
 		headers,
-		body: typeof body === 'string' ? body : JSON.stringify(body)
+		body: isRawRequestBody(body) ? body : JSON.stringify(body)
 	});
 }
 

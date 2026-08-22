@@ -49,7 +49,7 @@ const HELD_ELSEWHERE = Symbol('held-elsewhere');
 export function browserChatLocks(): LockManager | null {
 	// `navigator` is absent under prerender and `locks` on browsers that predate
 	// the API. Both mean the same thing here: no lock.
-	if (typeof navigator === 'undefined') return null;
+	if (!('navigator' in globalThis)) return null;
 	return navigator.locks ?? null;
 }
 

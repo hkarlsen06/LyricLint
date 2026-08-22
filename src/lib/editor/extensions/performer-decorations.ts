@@ -353,6 +353,19 @@ function buildGutterMarkers(
 	return RangeSet.of(markers, true);
 }
 
+/**
+ * The DOM attributes one highlighted fragment carries.
+ *
+ * An alias rather than an interface: `Decoration.mark` takes a string
+ * dictionary, and only an object type alias carries the implicit index
+ * signature that makes one assignable to it.
+ */
+type PerformerMarkAttributes = {
+	'aria-label': string;
+	style: string;
+	title?: string;
+};
+
 function buildVisuals(state: EditorState, payload: VoiceGroupDecorationPayload): PerformerVisuals {
 	const ranges: Range<Decoration>[] = [];
 	const resolved: ResolvedVoiceRange[] = [];
@@ -374,6 +387,14 @@ function buildVisuals(state: EditorState, payload: VoiceGroupDecorationPayload):
 			const lineVoices = primaryVoices.get(fragment.lineFrom);
 			const mixed = !group.legend && lineVoices?.mixed === true;
 			const secondary = mixed && lineVoices.primary.style.identity !== style.identity;
+			const attributes: PerformerMarkAttributes = {
+				'aria-label': style.label,
+				style: `--ll-performer-tint: ${style.background};`
+			};
+			// Only the legend names a voice in words, so only there is a tooltip
+			// naming it again worth having; on the lyric itself it would follow the
+			// pointer down the whole document.
+			if (group.legend) attributes.title = style.label;
 			ranges.push(
 				Decoration.mark({
 					class:
@@ -381,11 +402,7 @@ function buildVisuals(state: EditorState, payload: VoiceGroupDecorationPayload):
 						(group.legend ? ' ll-performer-legend-name' : '') +
 						(mixed ? ' ll-performer-mixed' : '') +
 						(secondary ? ' ll-performer-secondary' : ''),
-					attributes: {
-						'aria-label': style.label,
-						...(group.legend ? { title: style.label } : {}),
-						style: `--ll-performer-tint: ${style.background};`
-					}
+					attributes
 				}).range(fragment.from, fragment.to)
 			);
 		}

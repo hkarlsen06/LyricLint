@@ -21,7 +21,7 @@ import { enabledRules } from './registry.js';
 // Reference pages are prerendered from real rule output. Browsers load the
 // statistical profiles on demand; the static builder needs them before it
 // derives the language-mismatch example synchronously.
-if (typeof window === 'undefined') {
+if (!('window' in globalThis)) {
 	await loadStatisticalLanguageDetector();
 }
 
@@ -117,31 +117,31 @@ export function ruleFromSlug(slug: string): string | undefined {
  * `ruleName` fell through to its own fallback and printed the raw ID at the
  * reader.
  */
-const groupTitles: Record<string, string> = {
-	syntax: 'Syntax and markup',
-	language: 'Language selection',
-	section: 'Section headers',
-	performer: 'Performer attribution',
-	spelling: 'Spelling',
-	quotes: 'Quotation marks',
-	contraction: 'Contractions',
-	grammar: 'Grammar',
-	style: 'Style',
-	symbols: 'Symbols and special characters',
-	text: 'Text spacing and invisible characters',
-	unknown: 'Unknown lyrics',
-	repeat: 'Repeated sections',
-	'sound-effect': 'Sound effects',
-	censored: 'Censored words',
-	adlib: 'Ad-libs',
-	capitalization: 'Capitalization',
-	punctuation: 'Punctuation',
-	line: 'Line length',
-	numbers: 'Numbers'
-};
+const groupTitles = new Map<string, string>([
+	['syntax', 'Syntax and markup'],
+	['language', 'Language selection'],
+	['section', 'Section headers'],
+	['performer', 'Performer attribution'],
+	['spelling', 'Spelling'],
+	['quotes', 'Quotation marks'],
+	['contraction', 'Contractions'],
+	['grammar', 'Grammar'],
+	['style', 'Style'],
+	['symbols', 'Symbols and special characters'],
+	['text', 'Text spacing and invisible characters'],
+	['unknown', 'Unknown lyrics'],
+	['repeat', 'Repeated sections'],
+	['sound-effect', 'Sound effects'],
+	['censored', 'Censored words'],
+	['adlib', 'Ad-libs'],
+	['capitalization', 'Capitalization'],
+	['punctuation', 'Punctuation'],
+	['line', 'Line length'],
+	['numbers', 'Numbers']
+]);
 
 function groupTitle(prefix: string): string {
-	const title = groupTitles[prefix];
+	const title = groupTitles.get(prefix);
 	if (!title) {
 		throw new Error(`No reference group title for rule prefix "${prefix}"`);
 	}
@@ -273,7 +273,7 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 	const fix = lead.fixes?.[0];
 	const lookup = ruleLookupTable(rule.id);
 	const guidelines = guidanceForRule(rule.id);
-	return {
+	const reference: RuleReference = {
 		id: rule.id,
 		title: policy.title,
 		slug: ruleSlug(rule.id),
@@ -283,15 +283,16 @@ function deriveReference(rule: RuleDefinition, policy: RulePolicyCase): RuleRefe
 		severity: lead.severity,
 		message: lead.message,
 		explanation: lead.explanation,
-		...(fix ? { fix: { label: fix.label, kind: fix.kind } } : {}),
-		...(policy.variant ? { variant: { ...policy.variant } } : {}),
 		invalid: policy.invalid,
 		valid: policy.valid,
 		sources,
-		seoDescription: seoDescription(lead.explanation),
-		...(lookup ? { lookupTerms: lookupSearchTerms(lookup) } : {}),
-		...(guidelines.length > 0 ? { guidelines } : {})
+		seoDescription: seoDescription(lead.explanation)
 	};
+	if (fix) reference.fix = { label: fix.label, kind: fix.kind };
+	if (policy.variant) reference.variant = { ...policy.variant };
+	if (lookup) reference.lookupTerms = lookupSearchTerms(lookup);
+	if (guidelines.length > 0) reference.guidelines = guidelines;
+	return reference;
 }
 
 let cache: RuleReference[] | undefined;
@@ -330,8 +331,9 @@ export function ruleReferences(): RuleReference[] {
 export function ruleName(id: string): string {
 	const [prefix, ...rest] = id.split('.');
 	const detail = rest.join(' ').replaceAll('-', ' ');
-	if (!groupTitles[prefix] || !detail) return id;
-	return `${groupTitles[prefix]}: ${detail}`;
+	const title = groupTitles.get(prefix);
+	if (!title || !detail) return id;
+	return `${title}: ${detail}`;
 }
 
 export function ruleReferenceFromSlug(slug: string): RuleReference | undefined {

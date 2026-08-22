@@ -10,24 +10,14 @@ import LiveRegion from '../primitives/LiveRegion.svelte';
 import { createTestWorkbench, performer } from '../test-utils.js';
 import { createFeedbackState } from '../state/feedback.svelte.js';
 import { createInMemoryMediaRepository } from '../state/in-memory.js';
-import { createMediaPlayer } from '../state/media-player.svelte.js';
+import { createMediaPlayer, type MediaPlayer } from '../state/media-player.svelte.js';
+import type { MediaStore } from '../state/media-store.svelte.js';
 import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import DocumentToolbar from './DocumentToolbar.svelte';
 import MockEditorPane from './MockEditorPane.svelte';
 import Workspace from './Workspace.svelte';
-
-const assistantContext = vi.hoisted(() => ({
-	current: undefined as AssistantState | undefined
-}));
-
-vi.mock('$lib/assistant/assistant.svelte.js', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/assistant/assistant.svelte.js')>();
-	return {
-		...actual,
-		useAssistantState: () => assistantContext.current
-	};
-});
+import WorkspaceWithAssistant from './WorkspaceWithAssistant.svelte';
 
 const noHarper: HarperDiagnosticProvider = {
 	lint: async () => [],
@@ -36,15 +26,20 @@ const noHarper: HarperDiagnosticProvider = {
 
 function renderWorkspace(
 	controller: ReturnType<typeof createTestWorkbench>['controller'],
-	harperProvider: HarperDiagnosticProvider = noHarper
+	harperProvider: HarperDiagnosticProvider = noHarper,
+	assistant?: AssistantState
 ) {
-	return render(Workspace, { controller, editorComponent: MockEditorPane, harperProvider });
+	const props = { controller, editorComponent: MockEditorPane, harperProvider };
+	// With an assistant, mount through the host that provides the real context —
+	// the same door the app layout uses — rather than mocking the module.
+	return assistant
+		? render(WorkspaceWithAssistant, { assistant, ...props })
+		: render(Workspace, props);
 }
 
 describe('Workspace and toolbar', () => {
 	afterEach(() => {
 		cleanup();
-		assistantContext.current = undefined;
 		vi.unstubAllGlobals();
 		vi.unstubAllEnvs();
 	});
@@ -93,14 +88,17 @@ describe('Workspace and toolbar', () => {
 		const writeText = vi.fn(async () => {});
 		vi.stubGlobal('navigator', { clipboard: { writeText } });
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
-		const withSong = {
+		// The toolbar reads one fact off the store — `player.songDetails` — so the
+		// double carries exactly that; the workbench under test has no media store
+		// of its own to borrow one from.
+		const player: Partial<MediaPlayer> = {
+			songDetails: { artist: 'Mul', title: 'Sensommer', label: 'Sony', isrc: 'NOA1234' }
+		};
+		const withSongMedia: Partial<MediaStore> = { player: player as MediaPlayer };
+		const withSong: typeof controller = {
 			...controller,
-			media: {
-				player: {
-					songDetails: { artist: 'Mul', title: 'Sensommer', label: 'Sony', isrc: 'NOA1234' }
-				}
-			}
-		} as unknown as typeof controller;
+			media: withSongMedia as MediaStore
+		};
 
 		const { unmount } = render(DocumentToolbar, { controller: withSong });
 		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
@@ -921,10 +919,10 @@ describe('Workspace and toolbar', () => {
 			bridge = next;
 			return unregister;
 		});
-		assistantContext.current = { registerDraftBridge } as unknown as AssistantState;
+		const bridgeOnly: Partial<AssistantState> = { registerDraftBridge };
 		const { controller, calls } = createTestWorkbench({ text: '[Verse]\nA lyric', revision: 7 });
 
-		const workspace = renderWorkspace(controller);
+		const workspace = renderWorkspace(controller, noHarper, bridgeOnly as AssistantState);
 		await waitFor(() => expect(registerDraftBridge).toHaveBeenCalledOnce());
 
 		expect(bridge?.draftId()).toBe('draft-1');
@@ -992,15 +990,15 @@ describe('Workspace and toolbar', () => {
 	test('maps assistant link actions from header lines onto editor choices', async () => {
 		vi.stubEnv('PUBLIC_ASSISTANT_ANSWERS_URL', '');
 		let bridge: AssistantDraftBridge | undefined;
-		assistantContext.current = {
+		const bridgeOnly: Partial<AssistantState> = {
 			registerDraftBridge(next: AssistantDraftBridge) {
 				bridge = next;
 				return () => {};
 			}
-		} as unknown as AssistantState;
+		};
 		const text = '[Chorus]\nA\n[Chorus]\nB\n[Chorus]\nC\n[Verse]\nD';
 		const { controller } = createTestWorkbench({ text });
-		renderWorkspace(controller);
+		renderWorkspace(controller, noHarper, bridgeOnly as AssistantState);
 		await waitFor(() => expect(bridge).toBeDefined());
 
 		const editor = controller.editor;

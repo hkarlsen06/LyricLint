@@ -1,5 +1,5 @@
 import type { RuleDefinition } from '$lib/core/types.js';
-import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
+import { type CatalogLookup, diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 /**
  * The straight mark each curly one becomes, and the name that tells one
@@ -12,7 +12,7 @@ import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
  * does not: `“` and `”` differ by the direction of a curl at 15px, which is
  * exactly the size the panel draws them at.
  */
-export const curlyQuotes: Record<string, { straight: string; name: string }> = {
+export const curlyQuotes: CatalogLookup<{ straight: string; name: string }> = {
 	'‘': { straight: "'", name: 'opening curly single quote' },
 	'’': { straight: "'", name: 'closing curly single quote' },
 	'“': { straight: '"', name: 'opening curly double quote' },

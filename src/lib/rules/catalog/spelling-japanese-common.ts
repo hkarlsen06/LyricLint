@@ -1,7 +1,7 @@
 import type { RuleDefinition } from '$lib/core/types.js';
-import { diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
+import { type CatalogLookup, diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
-export const replacements: Readonly<Record<string, string>> = {
+export const replacements: CatalogLookup<string> = {
 	こんにちわ: 'こんにちは',
 	こんばんわ: 'こんばんは',
 	づつ: 'ずつ'

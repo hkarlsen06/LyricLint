@@ -13,13 +13,23 @@ import {
 	HISTORY_WINDOW_CHARS,
 	MAX_LINK_SUMMARIES,
 	MAX_LINK_SUMMARY_CHARS,
-	type AssistantLinkActionOutcome,
 	type WireMessageV2,
 	type WireToolResult
 } from './types.js';
 import { composeSectionLinks } from './link-actions.js';
 
 type WireMessage = Extract<WireMessageV2, { content: string }>;
+
+type ReadScribeResult = Extract<WireToolResult, { name: 'read_scribe' }>['result'];
+type GrantedReadResult = Extract<ReadScribeResult, { status: 'granted' }>;
+type ProposalOutcome = Extract<
+	WireToolResult,
+	{ name: 'propose_edits' }
+>['result']['outcomes'][number];
+type ReferenceOutcome = Extract<
+	WireToolResult,
+	{ name: 'show_lyrics' }
+>['result']['outcomes'][number];
 
 interface BoundedHistory {
 	/** What the backend receives, oldest first, question last. */
@@ -81,16 +91,20 @@ function wireToolCall(call: AssistantToolCallRecord) {
  * always a stale line number rather than a badly chosen quote, so the sentence
  * names re-reading as the way out.
  */
-const FAILURE_GUIDANCE: Record<string, string> = {
-	ambiguous:
-		"ambiguous: the quoted text appears more than once and no line matched one copy. The 'scribe has moved since you read it — call read_scribe again for fresh line numbers before re-proposing. The same anchor sent again will fail the same way.",
-	'not-found':
-		"not-found: the quoted text is not in the 'scribe as written. Read the 'scribe again and quote it exactly, prefix omitted.",
-	'apply-failed': "apply-failed: the 'scribe changed before the edit could be applied."
-};
+const FAILURE_GUIDANCE = new Map<string, string>([
+	[
+		'ambiguous',
+		"ambiguous: the quoted text appears more than once and no line matched one copy. The 'scribe has moved since you read it — call read_scribe again for fresh line numbers before re-proposing. The same anchor sent again will fail the same way."
+	],
+	[
+		'not-found',
+		"not-found: the quoted text is not in the 'scribe as written. Read the 'scribe again and quote it exactly, prefix omitted."
+	],
+	['apply-failed', "apply-failed: the 'scribe changed before the edit could be applied."]
+]);
 
 function outcomeReason(reason: string): string {
-	return FAILURE_GUIDANCE[reason] ?? reason;
+	return FAILURE_GUIDANCE.get(reason) ?? reason;
 }
 
 function wireToolResult(
@@ -100,17 +114,12 @@ function wireToolResult(
 ): WireToolResult | undefined {
 	if (call.name === 'read_scribe') {
 		if (!call.outcome) return undefined;
-		return call.outcome === 'granted'
-			? {
-					callId: call.callId,
-					name: call.name,
-					result: {
-						status: 'granted',
-						draftText: grantedDraftText,
-						...(sectionLinks.length > 0 ? { sectionLinks } : {})
-					}
-				}
-			: { callId: call.callId, name: call.name, result: { status: 'denied' } };
+		if (call.outcome !== 'granted') {
+			return { callId: call.callId, name: call.name, result: { status: 'denied' } };
+		}
+		const result: GrantedReadResult = { status: 'granted', draftText: grantedDraftText };
+		if (sectionLinks.length > 0) result.sectionLinks = sectionLinks;
+		return { callId: call.callId, name: call.name, result };
 	}
 	const outcomesFor = (
 		records: Array<{
@@ -120,17 +129,14 @@ function wireToolResult(
 		}>
 	) => {
 		if (records.some((record) => record.status === 'pending')) return undefined;
-		return records.map((record) => {
+		return records.map((record): ProposalOutcome => {
 			if (record.status === 'pending') {
 				throw new Error('A pending tool action cannot be serialized as an outcome.');
 			}
-			return record.status === 'failed'
-				? {
-						id: record.id,
-						status: record.status,
-						...(record.reason ? { reason: outcomeReason(record.reason) } : {})
-					}
-				: { id: record.id, status: record.status };
+			if (record.status !== 'failed') return { id: record.id, status: record.status };
+			const outcome: ProposalOutcome = { id: record.id, status: record.status };
+			if (record.reason) outcome.reason = outcomeReason(record.reason);
+			return outcome;
 		});
 	};
 	if (call.name === 'propose_edits') {
@@ -144,26 +150,20 @@ function wireToolResult(
 			callId: call.callId,
 			name: call.name,
 			result: {
-				outcomes: call.references.map((reference) =>
-					reference.status === 'failed'
-						? {
-								id: reference.id,
-								status: reference.status,
-								...(reference.reason ? { reason: outcomeReason(reference.reason) } : {})
-							}
-						: { id: reference.id, status: reference.status }
-				)
+				outcomes: call.references.map((reference): ReferenceOutcome => {
+					if (reference.status !== 'failed') {
+						return { id: reference.id, status: reference.status };
+					}
+					const outcome: ReferenceOutcome = { id: reference.id, status: reference.status };
+					if (reference.reason) outcome.reason = outcomeReason(reference.reason);
+					return outcome;
+				})
 			}
 		};
 	}
 	const outcomes = outcomesFor(call.actions);
-	return outcomes
-		? {
-				callId: call.callId,
-				name: call.name,
-				result: { outcomes: outcomes as AssistantLinkActionOutcome[] }
-			}
-		: undefined;
+	if (!outcomes) return undefined;
+	return { callId: call.callId, name: call.name, result: { outcomes } };
 }
 
 /**
@@ -183,16 +183,18 @@ export function liveToolSuffix(
 	const messages: WireMessageV2[] = [];
 	for (const turn of toolTurns) {
 		if (!turn.providerItems) throw new Error('A live tool turn is missing its provider items.');
-		const results = turn.calls.map((call) => wireToolResult(call, grantedDraftText, sectionLinks));
-		if (results.some((result) => !result)) {
-			throw new Error('A live tool turn still has unresolved calls.');
+		const results: WireToolResult[] = [];
+		for (const call of turn.calls) {
+			const result = wireToolResult(call, grantedDraftText, sectionLinks);
+			if (!result) throw new Error('A live tool turn still has unresolved calls.');
+			results.push(result);
 		}
 		messages.push({
 			role: 'assistant',
 			toolCalls: turn.calls.map(wireToolCall),
 			providerItems: turn.providerItems
 		});
-		messages.push({ role: 'tool', results: results as WireToolResult[] });
+		messages.push({ role: 'tool', results });
 	}
 	return messages;
 }

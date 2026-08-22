@@ -7,11 +7,12 @@ import AssistantToolTurn from './AssistantToolTurn.svelte';
 
 type DraftReadCall = Extract<AssistantToolCallRecord, { name: 'read_scribe' }>;
 
-function assistantStub() {
-	return {
+function assistantStub(): AssistantState {
+	const stub: Partial<AssistantState> = {
 		allowDraftRead: vi.fn(async () => undefined),
 		denyDraftRead: vi.fn(async () => undefined)
-	} as unknown as AssistantState;
+	};
+	return stub as AssistantState;
 }
 
 afterEach(cleanup);

@@ -11,3 +11,6 @@ bun.lockb
 # Source specifications and untrusted fixture corpus
 docs/
 fixtures/
+
+# Vendored anti-slop oxlint plugin — kept in upstream's own formatting for diffing
+tools/oxlint/anti-slop/

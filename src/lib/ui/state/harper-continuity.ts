@@ -1,4 +1,5 @@
 import type {
+	AtomicDocumentEdit,
 	Diagnostic,
 	DiagnosticFix,
 	EditorSnapshot,
@@ -102,15 +103,9 @@ function mapFix(
 	}
 	const selectionAfter = mapSelection(fix.edit.selectionAfter, change);
 	if (fix.edit.selectionAfter && !selectionAfter) return undefined;
-	return {
-		...fix,
-		edit: {
-			...fix.edit,
-			baseRevision: revision,
-			edits,
-			...(selectionAfter ? { selectionAfter } : {})
-		}
-	};
+	const edit: AtomicDocumentEdit = { ...fix.edit, baseRevision: revision, edits };
+	if (selectionAfter) edit.selectionAfter = selectionAfter;
+	return { ...fix, edit };
 }
 
 /**
@@ -147,12 +142,10 @@ export function carryHarperDiagnosticsAcrossEdit(
 			?.map((fix) => mapFix(fix, change, next.revision, previous.text, next.text))
 			.filter((fix): fix is DiagnosticFix => fix !== undefined);
 
-		carried.push({
-			...diagnostic,
-			...range,
-			...(sourceRelatedRanges ? { relatedRanges } : {}),
-			...(diagnostic.fixes ? { fixes } : {})
-		});
+		const moved: Diagnostic = { ...diagnostic, ...range };
+		if (sourceRelatedRanges) moved.relatedRanges = relatedRanges;
+		if (diagnostic.fixes) moved.fixes = fixes;
+		carried.push(moved);
 	}
 	return carried;
 }

@@ -216,12 +216,13 @@ export function activateDiagnostic(
 	) {
 		return session;
 	}
-	return withOverlay(session, {
+	const overlay: Extract<OverlayState, { kind: 'diagnostic' }> = {
 		kind: 'diagnostic',
 		diagnostic,
-		takesFocus,
-		...(anchorRange ? { anchorRange } : {})
-	});
+		takesFocus
+	};
+	if (anchorRange) overlay.anchorRange = anchorRange;
+	return withOverlay(session, overlay);
 }
 
 /** Close whatever is open without recording a dismissal. */
@@ -294,12 +295,13 @@ export function applyPerformerPicker(
 	// Step two of a selection assignment. An empty answer is the "name them
 	// later" way out, and it commits exactly what step one asked for.
 	if (pendingVoice) {
-		return {
+		const outcome: Extract<PerformerApplyOutcome, { kind: 'range' }> = {
 			kind: 'range',
 			range: overlay.range,
-			performerIds: pendingVoice,
-			...(performerIds.length > 0 ? { sectionPerformerIds: [...performerIds] } : {})
+			performerIds: pendingVoice
 		};
+		if (performerIds.length > 0) outcome.sectionPerformerIds = [...performerIds];
+		return outcome;
 	}
 	if (legend?.step === 'section') {
 		return {
@@ -378,6 +380,16 @@ export function forgetDismissedSelection(session: OverlaySession): OverlaySessio
 }
 
 /**
+ * What a settled anchor report leaves behind: the session it produced, and
+ * whether the shell has an assignment to arbitrate. Only the performer picker
+ * ever raises the second — a link needs nothing from the shell.
+ */
+export interface SelectionAnchorOutcome {
+	session: OverlaySession;
+	assignRequested: boolean;
+}
+
+/**
  * A settled selection anchor.
  *
  * `undefined` means there is no anchored selection at all — collapsed,
@@ -394,7 +406,7 @@ export function forgetDismissedSelection(session: OverlaySession): OverlaySessio
 export function reportSelectionAnchor(
 	session: OverlaySession,
 	anchor: SelectionAnchor | undefined
-): { session: OverlaySession; assignRequested: boolean } {
+): SelectionAnchorOutcome {
 	const openedFromSelection =
 		session.overlay.kind === 'performer' || session.overlay.kind === 'link';
 	// Only the performer picker goes. It exists solely because a range of lyrics

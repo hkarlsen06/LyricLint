@@ -12,7 +12,7 @@ import {
 // synthetic strings standing in for a rule's reader-facing title and, for a
 // table-shaped rule, its lookup terms. What matters is only that they appear
 // in no other haystack string, so a hit through them is unambiguous.
-const ruleTerms: Record<string, string> = {
+const ruleTerms = {
 	'punctuation.question': 'A question mark the line needs',
 	'quotes.typewriter': 'Typewriter quotes\nwoah whoa',
 	'spelling.standardized': 'Standardized lyric spellings\nimma tryna'

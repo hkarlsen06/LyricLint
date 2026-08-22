@@ -230,7 +230,7 @@ export const sectionLinkField = StateField.define<RangeSet<LinkValue>>({
 				// way here, which is exactly what the effect's own `map` is for.
 				links = rebuild(
 					transaction.state,
-					effect.value.groups.map((group) => [randomId(), group] as [string, number[]])
+					effect.value.groups.map((group): [string, readonly number[]] => [randomId(), group])
 				);
 			} else if (effect.is(setSectionLinkEffect)) {
 				const seated = effect.value.headers.map(
@@ -543,10 +543,10 @@ function groupShape(
 ): MemberShape[] | undefined {
 	const holes = state.field(linkHolesField, false) ?? [];
 	const shapes = headers.map((header) => memberShape(parsed, holes, header));
-	if (shapes.some((shape) => !shape)) {
+	const members = shapes.filter((shape): shape is MemberShape => shape !== undefined);
+	if (members.length !== shapes.length) {
 		return undefined;
 	}
-	const members = shapes as MemberShape[];
 	// A set that is not already a group has no stored intent to honour, so it is
 	// aligned afresh — which is what lets the card show two unlinked choruses what
 	// they would disagree on before anything is tied together.
@@ -694,18 +694,14 @@ export function expandLinkedPerformerEdit(
 	const precedingDelta = additions
 		.filter((change) => change.to <= sourceHeader.from)
 		.reduce((delta, change) => delta + change.insert.length - (change.to - change.from), 0);
-	return {
-		...edit,
-		edits,
-		...(edit.selectionAfter
-			? {
-					selectionAfter: {
-						anchor: edit.selectionAfter.anchor + precedingDelta,
-						head: edit.selectionAfter.head + precedingDelta
-					}
-				}
-			: {})
-	};
+	const expanded: AtomicDocumentEdit = { ...edit, edits };
+	if (edit.selectionAfter) {
+		expanded.selectionAfter = {
+			anchor: edit.selectionAfter.anchor + precedingDelta,
+			head: edit.selectionAfter.head + precedingDelta
+		};
+	}
+	return expanded;
 }
 
 /** Body-relative runs put back into document coordinates. */
@@ -1036,14 +1032,15 @@ export function linkSections(view: EditorView, choice: SectionLinkChoice): numbe
 			.filter((change) => change.to <= opened)
 			.reduce((shift, change) => shift + change.insert.length - (change.to - change.from), 0);
 
-	view.dispatch({
-		...(changes.length > 0 ? { changes } : {}),
+	const spec: TransactionSpec = {
 		selection: { anchor: caret },
 		effects: [
 			setSectionLinkEffect.of({ headers: [...headers] }),
 			setLinkHolesEffect.of([...holesOutside(view.state, shaped), ...absoluteHoles(surviving)])
 		]
-	});
+	};
+	if (changes.length > 0) spec.changes = changes;
+	view.dispatch(spec);
 	return headers.length;
 }
 

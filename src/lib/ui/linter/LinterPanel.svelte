@@ -34,12 +34,12 @@
 	];
 
 	const counts = $derived.by(() => {
-		const result: Record<Severity, number> = {
+		const result = {
 			error: 0,
 			warning: 0,
 			suggestion: 0,
 			'manual-review': 0
-		};
+		} satisfies Record<Severity, number>;
 		for (const diagnostic of controller.unignoredDiagnostics) {
 			result[diagnostic.severity] += 1;
 		}

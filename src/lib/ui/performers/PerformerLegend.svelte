@@ -9,12 +9,12 @@
 		performers: readonly PerformerRecord[];
 	} = $props();
 
-	const slotLabels: Record<StyleSlot, string> = {
+	const slotLabels = {
 		1: 'plain',
 		2: 'italic',
 		3: 'bold',
 		4: 'bold italic'
-	};
+	} satisfies Record<StyleSlot, string>;
 
 	function groupName(performerIds: readonly string[], rawNameText?: string): string {
 		const names = performerIds

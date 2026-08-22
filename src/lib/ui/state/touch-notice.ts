@@ -17,6 +17,8 @@
  * by the app layout.
  */
 
+import { browser } from '$app/environment';
+
 import type { FeedbackState } from './feedback.svelte.js';
 
 /**
@@ -93,7 +95,10 @@ function remember(): void {
  */
 export function noticeTouchLayout(feedback: FeedbackState): void {
 	if (alreadySeen()) return;
-	if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+	// Nothing to say under prerender, and nothing to ask on a browser old enough
+	// to be missing `matchMedia` — which is also every non-DOM host this module
+	// could be imported into.
+	if (!browser || !('matchMedia' in window)) return;
 	if (!window.matchMedia(PHONE_LAYOUT_QUERY).matches) return;
 
 	remember();

@@ -92,7 +92,8 @@
 	 */
 	function keepFocus(node: HTMLElement) {
 		const onPress = (event: MouseEvent) => {
-			if ((event.target as Element | null)?.closest('button')) event.preventDefault();
+			const target = event.target;
+			if (target instanceof Element && target.closest('button')) event.preventDefault();
 		};
 		node.addEventListener('mousedown', onPress);
 		return () => node.removeEventListener('mousedown', onPress);
