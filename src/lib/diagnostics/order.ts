@@ -52,15 +52,27 @@ const providerOrder = (diagnostic: Diagnostic): number =>
 	isHarperRuleId(diagnostic.ruleId) ? 1 : 0;
 
 /**
- * The order the linter reads in: reviewed rules before Harper's, then worst
- * first, then down the document. It lives here rather than in the list because
- * the panel has to know which diagnostic the list will lead with — after a fix
- * it hands the editor to exactly that one — and two sorts that only happened to
- * agree would drift apart.
+ * A selected language that disagrees with the lyrics changes how the reader
+ * should interpret every language-specific finding below it. Keep that
+ * document-level decision at the head of the panel, ahead of provider,
+ * severity, and position, so it cannot look like a consequence of those
+ * findings.
+ */
+const decisionOrder = (diagnostic: Diagnostic): number =>
+	diagnostic.ruleId === 'language.selection-mismatch' ? 0 : 1;
+
+/**
+ * The order the linter reads in: a language-selection mismatch first, then
+ * reviewed rules before Harper's, then worst first, then down the document. It
+ * lives here rather than in the list because the panel has to know which
+ * diagnostic the list will lead with — after a fix it hands the editor to
+ * exactly that one — and two sorts that only happened to agree would drift
+ * apart.
  */
 export function orderDiagnostics(diagnostics: readonly Diagnostic[]): Diagnostic[] {
 	return [...diagnostics].sort(
 		(left, right) =>
+			decisionOrder(left) - decisionOrder(right) ||
 			providerOrder(left) - providerOrder(right) ||
 			severityRank[left.severity] - severityRank[right.severity] ||
 			left.from - right.from ||

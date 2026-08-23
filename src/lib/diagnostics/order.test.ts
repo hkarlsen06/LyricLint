@@ -22,6 +22,22 @@ function diagnostic(
 const ids = (diagnostics: readonly Diagnostic[]) => diagnostics.map((one) => one.message);
 
 describe('the panel reading order', () => {
+	it('always leads with the language-selection mismatch', () => {
+		const ordered = orderDiagnostics([
+			diagnostic('grammar.harper', 'error', 0, 'Harper error'),
+			diagnostic('section.header-missing', 'error', 1, 'reviewed error'),
+			diagnostic('language.selection-mismatch', 'warning', 50, 'language mismatch'),
+			diagnostic('section.header-unrecognized', 'warning', 2, 'earlier warning')
+		]);
+
+		expect(ids(ordered)).toEqual([
+			'language mismatch',
+			'reviewed error',
+			'earlier warning',
+			'Harper error'
+		]);
+	});
+
 	it('reads worst first, then down the document', () => {
 		const ordered = orderDiagnostics([
 			diagnostic('section.header-prose', 'suggestion', 40, 'suggestion late'),
