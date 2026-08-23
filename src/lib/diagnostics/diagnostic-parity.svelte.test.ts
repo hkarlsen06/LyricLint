@@ -7,6 +7,8 @@ import type { Diagnostic } from '$lib/core/types.js';
 import DiagnosticPopover from '$lib/editor/overlays/DiagnosticPopover.svelte';
 import DiagnosticDetails from '$lib/ui/linter/DiagnosticDetails.svelte';
 import DiagnosticList from '$lib/ui/linter/DiagnosticList.svelte';
+import { hideControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
+import ControlTooltip from '$lib/ui/primitives/ControlTooltip.svelte';
 
 /** The case from the screenshot: a fix whose label is already a command. */
 function contractionDiagnostic(): Diagnostic {
@@ -157,6 +159,125 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		for (const row of [panelActions(diagnostic), popoverActions(diagnostic)]) {
 			expect(row.filter((action) => action.classes.includes('button--contrast'))).toHaveLength(1);
 		}
+	});
+
+	/*
+	 * The row is where its keyboard twins are learned. This is the most-pressed
+	 * surface in the workbench and the pointer crosses a control here on every
+	 * press, so the shared box — the same one the tray and the transport use —
+	 * arrives with the keystroke at exactly the moment it is worth knowing.
+	 * `Mod-.` reaches the *leading* fix (it selects the nearest fixable finding
+	 * and lands focus on this row), so only that button names it: an alternate
+	 * wearing the same caption would promise a key that reaches its sibling.
+	 * Both surfaces render this row from one component, so the parity suite is
+	 * where the disclosure is pinned.
+	 */
+	it('names the keyboard route to the leading fix, and only to the leading fix', async () => {
+		hideControlHint();
+		const diagnostic: Diagnostic = {
+			...contractionDiagnostic(),
+			ruleId: 'spelling.texting-shorthand',
+			fixes: [
+				{
+					kind: 'preview',
+					label: 'Replace with your',
+					edit: { baseRevision: 0, edits: [{ from: 0, to: 2, insert: 'your' }] }
+				},
+				{
+					kind: 'preview',
+					label: "Replace with you're",
+					edit: { baseRevision: 0, edits: [{ from: 0, to: 2, insert: "you're" }] }
+				}
+			]
+		};
+		const screen = render(DiagnosticDetails, {
+			diagnostic,
+			onChooseHeader: vi.fn(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn()
+		});
+		render(ControlTooltip, { props: {} });
+
+		const fixes = [
+			...screen.container.querySelectorAll<HTMLButtonElement>('.diagnostic-actions__fix')
+		];
+		expect(fixes[0]?.getAttribute('aria-keyshortcuts')).toBe('Control+.');
+		expect(fixes[1]?.getAttribute('aria-keyshortcuts')).toBeNull();
+
+		fixes[0]?.dispatchEvent(new PointerEvent('pointerenter'));
+		await vi.waitFor(() => {
+			expect(document.querySelector('.control-tooltip')?.textContent).toContain(
+				'Replace with your'
+			);
+		});
+		expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe('Ctrl+.');
+
+		// The alternate draws no box at all: a hint that only repeated the label
+		// would be the label twice, six pixels apart.
+		fixes[0]?.dispatchEvent(new PointerEvent('pointerleave'));
+		fixes[1]?.dispatchEvent(new PointerEvent('pointerenter'));
+		await vi.waitFor(() => {
+			expect(document.querySelector('.control-tooltip')).toBeNull();
+		});
+		screen.unmount();
+	});
+
+	// A guided action with a keyboard twin names it; one without a twin names
+	// nothing. `Choose header` is `Mod-Shift-H`'s own press; `Manage linking`
+	// lost its twin when `Mod-Shift-L` became Type only here, so a box there
+	// would only repeat the label.
+	it('names a guided action’s keyboard twin, and only where one exists', async () => {
+		hideControlHint();
+		const headerless: Diagnostic = {
+			...contractionDiagnostic(),
+			ruleId: 'section.header-missing',
+			fixes: undefined
+		};
+		const screen = render(DiagnosticDetails, {
+			diagnostic: headerless,
+			onChooseHeader: vi.fn(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn()
+		});
+		render(ControlTooltip, { props: {} });
+
+		const guided = screen.container.querySelector<HTMLButtonElement>('.diagnostic-actions__guided');
+		expect(guided?.getAttribute('aria-keyshortcuts')).toBe('Control+Shift+H');
+
+		guided?.dispatchEvent(new PointerEvent('pointerenter'));
+		await vi.waitFor(() => {
+			expect(document.querySelector('.control-tooltip')?.textContent).toContain('Choose header');
+		});
+		expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe('Ctrl+Shift+H');
+		guided?.dispatchEvent(new PointerEvent('pointerleave'));
+		screen.unmount();
+
+		const repeat: Diagnostic = {
+			...contractionDiagnostic(),
+			ruleId: 'section.unlinked-repeat',
+			fixes: undefined
+		};
+		const linking = render(DiagnosticDetails, {
+			diagnostic: repeat,
+			onChooseHeader: vi.fn(),
+			onLinkSections: vi.fn(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore: vi.fn()
+		});
+		const manage = linking.container.querySelector<HTMLButtonElement>(
+			'.diagnostic-actions__guided'
+		);
+		expect(manage?.getAttribute('aria-keyshortcuts')).toBeNull();
+		manage?.dispatchEvent(new PointerEvent('pointerenter'));
+		await new Promise((resolve) => setTimeout(resolve, 25));
+		expect(document.querySelector('.control-tooltip')).toBeNull();
+		linking.unmount();
 	});
 
 	it('adds a way out only where the surface would otherwise trap the keyboard', () => {

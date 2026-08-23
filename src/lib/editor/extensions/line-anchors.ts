@@ -20,6 +20,11 @@ import {
 import type { BlockInfo } from '@codemirror/view';
 import { isLyricLine } from '$lib/core/parser.js';
 import { prefersReducedMotion } from '$lib/interaction/motion.js';
+import {
+	hideControlHint,
+	releaseControlHint,
+	showControlHint
+} from '$lib/ui/state/control-tooltip.svelte.js';
 import type { Line } from '@codemirror/state';
 import type { LineAnchor } from '$lib/core/types.js';
 
@@ -270,7 +275,10 @@ class TimeGutterMarker extends GutterMarker {
 			time.textContent = this.adjusting
 				? formatAnchorTimePrecise(this.time)
 				: formatAnchorTime(this.time);
-			time.title = `Play from ${formatAnchorTime(this.time)}`;
+			// No `title`: the cell names itself through the shared box instead (the
+			// delegated hover below), which carries the keystroke a `title` never
+			// could — and two tooltips for one control is the platform's and ours
+			// disagreeing in front of the user.
 			time.dataset.anchorSeek = String(this.time);
 		}
 		cell.append(time);
@@ -287,14 +295,16 @@ class TimeGutterMarker extends GutterMarker {
 
 		// One control for the write, whichever write it is: on an empty line it
 		// stamps the playhead, on a timed one it opens the pair above. It carries no
-		// time in its tooltip on purpose — the playhead moves several times a second
-		// and a title that named it would rebuild this column on every tick.
+		// time in its hint on purpose — the playhead moves several times a second
+		// and a label that named it would go stale between the hover and the press.
+		// Which write is on offer rides the element as data, because the hover that
+		// names it is delegated and must not read editor state to answer.
 		const stamp = document.createElement('button');
 		stamp.type = 'button';
 		stamp.tabIndex = -1;
 		stamp.className = 'll-time-stamp';
-		stamp.title = this.time === undefined ? 'Anchor this line' : 'Adjust this line’s time';
 		stamp.dataset.anchorStamp = 'true';
+		stamp.dataset.anchored = String(this.time !== undefined);
 		stamp.append(stampGlyph(this.time !== undefined));
 		cell.append(stamp);
 
@@ -349,6 +359,131 @@ function adjustingLineStart(state: EditorState): number | undefined {
 }
 
 /**
+ * Printed as pressed, the action tray's idiom (`EditorActions.svelte`).
+ *
+ * The gutters are pointer-only surfaces — CodeMirror holds them `aria-hidden`
+ * and nothing in them may pretend otherwise — so the shared box these captions
+ * feed is the one place their keyboard equivalents are ever named on screen.
+ * The commands themselves announce, but an announcement is feedback for a press
+ * already made, not how anybody discovers the key.
+ */
+const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
+const anchorKeystroke = mac ? '⌃⌥M' : 'Ctrl+Alt+M';
+const seekKeystroke = mac ? '⌃⌥⏎' : 'Ctrl+Alt+Enter';
+
+/**
+ * The control under a pointer event in the timestamp column, and what the
+ * shared box should say about it.
+ *
+ * Delegated off the gutter rather than attached per cell, because the column
+ * rebuilds whenever the playhead crosses a line — a listener pair tied to one
+ * element would be orphaned mid-hover. These are the native `title`s the cells
+ * used to carry, moved into the box every named control uses, plus the one fact
+ * a `title` never held: the keystroke that does the same thing without aiming.
+ * Everything is read off the element itself, never off editor state, so a hover
+ * cannot disagree with the cell it is over.
+ *
+ * **The keystroke is named only on the caret's own line.** `Ctrl-Alt-Enter` and
+ * `Ctrl-Alt-M` act on the line the caret is in, and a cell is any line the
+ * pointer happens to cross — so on every other row the caption promised "the
+ * keystroke that does the same thing" and delivered an action somewhere the
+ * user was not looking, which was reported exactly that way. Hovering your own
+ * line's cell is also the moment the disclosure is true *and* wanted: the
+ * keyboard flow these keys serve is replay-and-restamp of the line being
+ * worked on. `highlightActiveLineGutter` marks the row in every gutter, so the
+ * class is the same field the commands answer from, read off the DOM.
+ */
+function onCaretLine(node: Element): boolean {
+	return node.closest('.cm-gutterElement')?.classList.contains('cm-activeLineGutter') === true;
+}
+
+function timeGutterHint(
+	event: Event
+): { node: Element; label: string; shortcut?: string } | undefined {
+	const target = event.target instanceof Element ? event.target : null;
+	const seek = target?.closest<HTMLElement>('[data-anchor-seek]');
+	if (seek) {
+		return {
+			node: seek,
+			label: `Play from ${formatAnchorTime(Number(seek.dataset.anchorSeek))}`,
+			shortcut: onCaretLine(seek) ? seekKeystroke : undefined
+		};
+	}
+	const nudge = target?.closest<HTMLElement>('[data-anchor-nudge]');
+	if (nudge) {
+		return {
+			node: nudge,
+			label: `${anchorNudgeSeconds}s ${Number(nudge.dataset.anchorNudge) < 0 ? 'earlier' : 'later'}`
+		};
+	}
+	const stamp = target?.closest<HTMLElement>('[data-anchor-stamp]');
+	if (!stamp) return undefined;
+	// The pencil opens the ± pair, and re-stamping a timed line is `Ctrl-Alt-M`'s
+	// own press — different writes, so the pencil names no keystroke it does not
+	// perform. Only the pin, whose press *is* the pointer's `Ctrl-Alt-M`, teaches
+	// it.
+	return stamp.dataset.anchored === 'true'
+		? { node: stamp, label: 'Adjust this line’s time' }
+		: {
+				node: stamp,
+				label: 'Anchor this line',
+				shortcut: onCaretLine(stamp) ? anchorKeystroke : undefined
+			};
+}
+
+/** Show whatever the pointer is over; stand down for everything else. */
+function timeGutterHintOver(_view: EditorView, _line: BlockInfo, event: Event): boolean {
+	const hint = timeGutterHint(event);
+	if (hint) showControlHint(hint.node, { label: hint.label, shortcut: hint.shortcut });
+	return false;
+}
+
+/** Release only on a true leave — crossing into a child is not one. */
+function timeGutterHintOut(_view: EditorView, _line: BlockInfo, event: Event): boolean {
+	const hint = timeGutterHint(event);
+	if (!hint) return false;
+	const related = event instanceof MouseEvent ? event.relatedTarget : null;
+	if (related instanceof Node && hint.node.contains(related)) return false;
+	releaseControlHint(hint.node);
+	return false;
+}
+
+/**
+ * Names an anchored line's number, and the keystroke that plays without aiming.
+ *
+ * The number is the second way to play a line, and its whole affordance was a
+ * cursor change — which answers on some rows and silently not on others, and is
+ * the faintest signal in the editor. `seekableLineMarker` is an `elementClass`
+ * with deliberately no DOM of its own, so there is nothing for an attachment to
+ * hold; the hover is delegated off the gutter exactly as the timestamp column's
+ * is, and the class — computed from the same field the press answers from — is
+ * what says a row is pressable at all.
+ */
+export function anchorHintsOnLineNumbers() {
+	return {
+		mouseover: (_view: EditorView, _line: BlockInfo, event: Event): boolean => {
+			const cell = event.target instanceof Element ? event.target.closest('.ll-line-seek') : null;
+			if (!cell) return false;
+			// The keystroke only on the caret's own line, `timeGutterHint`'s rule:
+			// `Ctrl-Alt-Enter` plays the caret's line, and this cell is any line.
+			showControlHint(cell, {
+				label: 'Play from this line',
+				shortcut: cell.classList.contains('cm-activeLineGutter') ? seekKeystroke : undefined
+			});
+			return false;
+		},
+		mouseout: (_view: EditorView, _line: BlockInfo, event: Event): boolean => {
+			const cell = event.target instanceof Element ? event.target.closest('.ll-line-seek') : null;
+			if (!cell) return false;
+			const related = event instanceof MouseEvent ? event.relatedTarget : null;
+			if (related instanceof Node && cell.contains(related)) return false;
+			releaseControlHint(cell);
+			return false;
+		}
+	};
+}
+
+/**
  * Play from a line by pressing its number.
  *
  * The line number is a wider, always-drawn target than a timestamp that is four
@@ -368,6 +503,10 @@ export function anchorSeekOnLineNumber(
 	options: LineAnchorOptions
 ): (view: EditorView, line: BlockInfo, event: Event) => boolean {
 	return (view, line) => {
+		// A press is a control the user has finished asking about — the rule the
+		// attachment's own click listener states, kept by hand here because the
+		// hover is delegated.
+		hideControlHint();
 		const time = anchorTimeAt(view.state, line.from);
 		if (time === undefined) return false;
 		options.onSeek(time);
@@ -387,7 +526,6 @@ function nudgeButton(direction: 1 | -1): HTMLButtonElement {
 	button.tabIndex = -1;
 	button.className = `ll-time-nudge ll-time-nudge--${direction < 0 ? 'back' : 'on'}`;
 	button.textContent = direction < 0 ? '−' : '+';
-	button.title = `${anchorNudgeSeconds}s ${direction < 0 ? 'earlier' : 'later'}`;
 	button.dataset.anchorNudge = String(direction);
 	return button;
 }
@@ -732,6 +870,27 @@ export function hasAnchorAt(state: EditorState, pos: number): boolean {
 }
 
 /**
+ * The nearest anchored time at or above the line containing `pos`.
+ *
+ * `Ctrl-Alt-Enter`'s question. Answering only for the caret's own line made
+ * the chord a refusal on most of a part-timed song — the caret is usually a
+ * line or two past the last timed line, and "play the passage I am in" is what
+ * the press means. The nearest anchor above is that passage's own start: the
+ * same reading the marked cell gives the playhead, from the other direction.
+ */
+export function anchorTimeAtOrAbove(state: EditorState, pos: number): number | undefined {
+	const field = state.field(lineAnchorField, false);
+	if (!field) return undefined;
+	const line = state.doc.lineAt(pos);
+	let time: number | undefined;
+	// In position order, so the last hit is the nearest line at or above.
+	field.anchors.between(0, line.to, (_from, _to, value) => {
+		time = value.time;
+	});
+	return time;
+}
+
+/**
  * Where the line being timed sits in the viewport once the document is moving.
  *
  * A third from the top: far enough down that the lines already timed stay
@@ -996,7 +1155,14 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 			// marker, drawn with its own controls, in the gutter of a document that
 			// may have no anchors at all.
 			domEventHandlers: {
+				// The hover names the control and its keystroke; the press below is
+				// unchanged. Delegated, for the reason `timeGutterHint` gives.
+				mouseover: timeGutterHintOver,
+				mouseout: timeGutterHintOut,
 				mousedown: (view, line, event) => {
+					// The box must not survive the state it described — a press on the
+					// pin turns it into the pencil.
+					hideControlHint();
 					const target = event.target instanceof Element ? event.target : null;
 
 					const seek = target?.closest<HTMLElement>('[data-anchor-seek]');

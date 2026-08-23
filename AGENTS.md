@@ -311,8 +311,8 @@ which this is the full-width band it replaced, wearing icons. Bold and italic we
 refused: `<i>` and `<b>` are the performer voice slots, the picker and the roster are how a voice is
 marked here, and a command is offered once.
 
-**Only commands a caret alone can carry out.** `Ctrl-Alt-P`, `Ctrl-Alt-H`, and `Mod-Shift-L` are
-deliberately absent: each needs a selection, shared lyrics in an existing link, or a chorus and
+**Only commands a caret alone can carry out.** `Ctrl-Alt-P` and `Mod-Shift-L` are
+deliberately absent: each needs a selection or shared lyrics in an existing link and
 announces a refusal the rest of the time, and a bar that spends most of its life offering answers
 it cannot give is what `availableRates` and `spotifyAvailable` both exist to prevent. That leaves
 two, which is also all a row of this width holds — the same constraint that moved `Add audio` out
@@ -386,6 +386,94 @@ box with it — today that is the strip alone, since the cover band gave up its 
 Implementation: `src/lib/ui/state/control-tooltip.svelte.ts` (the store, the placement, the
 attachment), `src/lib/ui/primitives/ControlTooltip.svelte`, and `.control-tooltip` in
 `overlays.css`.
+
+### A control with a keyboard twin names it, where the press is already aimed
+
+The expert layer was more complete than the UI admitted. `Mod-.` opens the nearest fixable
+finding with focus landed on its fix; guided actions have exact keyboard twins
+(`Mod-Shift-H`, `Ctrl-Alt-P`); the pending reconnect answers a bare `Escape` —
+and none of it appeared in any user-visible string. There is deliberately no legend, no tips system and no
+one-shot "did you know" toast to repair that: the pointer crosses these controls on every press,
+so the shared box is the disclosure, arriving beside the action at the moment it is being aimed
+at — which is a better moment than any toast can buy, and it recurs until the keystroke sticks.
+The one removed legend (`F8` and `⌘.` in the status bar) stays removed; this is its function
+carried by the box instead of its pixels.
+
+So `describeControl` rides the diagnostic action row — the most-pressed surface in the
+workbench, and one component, so the card and the popover cannot disclose differently. Three
+rules on it:
+
+- **Only the leading fix names `Mod-.`**, because it is the one that keystroke lands on; an
+  alternate wearing the same caption would promise a key that reaches its sibling. And with
+  focus already on that control, **the same keystroke applies** — the box over it names `⌘.` as
+  the control's own press, so a second `⌘.` that only re-opened the popover was the disclosure
+  exposed as a lie by the very keystroke it teaches, and it shipped that way once too. The
+  apply is bound on the claimant itself (`applyOnOwnShortcut`), where it also covers the demo;
+  the window's listener stands down for a press landing on anything carrying the
+  `aria-keyshortcuts` claim, which keeps one implementation of "apply". Pressed repeatedly,
+  the chord walks the panel: reach, apply, reach the next.
+- **And `Mod-.` answers from the whole window, or the tooltip teaches a lie.** The row that
+  teaches it lives in the panel, which is exactly where the caret is not — so as an
+  editor-only keymap binding, the keystroke did nothing at the very moment it was being read,
+  and it shipped that way once. It is bound beside the editor's window-level `Mod-F` now, same
+  gate (`windowFind`, so the landing page's demo opts out of both for the same reason), same
+  modal deferral, and it runs the same exported `openAvailableFix` the keymap binds — capture
+  plus stopPropagation is what keeps that one implementation rather than two. `Mod-Shift-.` is
+  the same chord one modifier up and walks the findings instead, wrapping past the last —
+  matched on `event.code`, because `Shift+.` never reports `.` as its key — and it rides the
+  same window listener, so it too answers from the panel.
+- **The box repeats the visible label on purpose.** The label is the accessible name, the
+  keystroke is `aria-keyshortcuts` (added with every disclosure, or the `aria-hidden` box's own
+  premise — that both facts are already the control's — goes false), and nothing announces
+  twice.
+- **`Ignore`, `Fix all N` and `Close` get nothing**, because they have no keystroke and a box
+  that only repeated the label would be the label twice, six pixels apart.
+
+**The gutters disclose through the imperative half, and it exists because they must.**
+`showControlHint`/`releaseControlHint` are `describeControl` without the listeners: the
+timestamp column builds its cells outside Svelte and rebuilds them whenever the playhead
+crosses a line, so an attachment's listener pair would be orphaned mid-hover — the hover is
+delegated off the gutter instead, and every hint is read off the element's own data, never off
+editor state, so a hover cannot disagree with the cell it is over. The cells' native `title`s
+went with it (two tooltips for one control is the platform's and ours disagreeing), and a press
+hides the box by hand, because a delegated hover has no click listener to do it. What each
+control teaches is exact: the timestamp and the anchored line number teach `Ctrl-Alt-Enter`,
+the pin teaches `Ctrl-Alt-M`, and the pencil teaches nothing — it opens the ± pair, and
+re-stamping is `Ctrl-Alt-M`'s own press, so it names no keystroke it does not perform.
+
+**And the keystroke is named only on the caret's own line, because that is the only line it
+acts on.** A cell is any line the pointer happens to cross; `Ctrl-Alt-Enter` and `Ctrl-Alt-M`
+act at the caret — so taught on another row, the caption promised "the keystroke that does the
+same thing" and delivered an action somewhere the user was not looking, which is exactly how it
+was reported. The gate is `.cm-activeLineGutter` read off the cell itself, the same field the
+commands answer from, and it also lands the disclosure at the moment it is wanted: the keyboard
+flow these keys serve is replay-and-restamp of the line being worked on. None of this touches
+the gutter's accessibility posture: the rail is still `aria-hidden` all the way down, and the
+box it feeds is `aria-hidden` too.
+
+**A control with no twin names nothing.** `Manage linking` and the `⇄` marker both open the link
+picker, and neither has a keystroke to claim — `Mod-Shift-L` belongs to `Type only here` — so
+neither carries `aria-keyshortcuts` or a box that would only repeat the label. The marker also
+refuses the box for a second reason: a hover there is already serving `HoverIntent` toward
+opening the card itself, and a tooltip racing the surface it names would lose to it or cover it.
+`Mod-Shift-L` itself is taught where it is answered — the `Type only here` button's own tooltip,
+and one sentence in the picker's linked-state note, because a reader looking at an already-linked
+group is exactly who wants words of their own in one copy.
+
+**What this deliberately does not do is nudge.** A behavioral tip — "you have pressed this five
+times, try `⌘.`" — was considered and refused: touch users have no keyboard, keyboard users
+already found the keys, and pointer users hover the button on every press, which is the tooltip's
+own moment. The touch notice was re-anchored in the same pass — both of its facts now hang on
+the laptop, because the old wording hung "every fix has a keyboard shortcut" on a device that
+has no keyboard.
+
+Implementation: the imperative pair in `control-tooltip.svelte.ts`, the row in
+`DiagnosticActions.svelte`, the delegated hovers in `extensions/line-anchors.ts` (spread into
+`lineNumbers` in `create-editor.ts`), the reconnect control in `MediaStrip.svelte`, and the note
+in `SectionLinkPicker.svelte`. The pins are `diagnostic-parity.svelte.test.ts` (the row's twins,
+leading fix only), `line-anchoring.svelte.test.ts` (the cells, the numbers, the absence of
+titles), `MediaStrip.svelte.test.ts` (the reconnect's `Esc`), and
+`section-links.svelte.test.ts` (the picker's sentence).
 
 ### The empty document is one message, not three
 
@@ -2164,10 +2252,15 @@ asked for.
 This is the same rule the old whole-body link had for bodies, now applied per difference — and the
 empty-section special case collapses into the general model rather than needing its own branch.
 
-#### Setting words aside by hand is a selection and a press
+#### Setting words aside by hand is a selection and a press — and the press was retired
 
-Select the words that differ, press `Mod-Shift-L`, and the card opens with the selection offered as
-a difference, ticked. The span is **translated** into every peer rather than searched for, through
+`requestSectionLink` opens the card with a lyric selection offered as a difference, ticked. Its
+keystroke was `Mod-Shift-L`, and that chord now arms `Type only here` instead — a whole card
+arriving under a keystroke read as the workbench doing something nobody asked, and the local
+exception covers the job this flow was mostly used for (writing your own words in one copy). The
+machinery stays, on the handle, because the translation below is what `Type only here` and the
+picker's own selection path are built on. The span is **translated** into every peer rather than
+searched for, through
 the same arithmetic the mirror uses: a position in shared text is the same distance from the nearest
 difference in every copy, so "these five characters" means the same five characters everywhere
 without a word of either copy being compared. It lands in every member or in none — a run that
@@ -2206,6 +2299,31 @@ arms the mode, the `Typing only here` marker draws, and the mirror's own "alread
 spends the press without adding a second run beside the difference already recorded — machinery
 that was written for this and could not previously be reached. Nothing about a run with words in it
 changed.
+
+**And the marker outlives the mode, because the fact it names does.** Armed-only, it vanished on
+the first keystroke — while the caret stood in the run that keystroke had just created, where
+typing on still stayed local. The reported version of the confusion was worse: local text erased
+back to nothing leaves a zero-width run at the caret, where a further deletion eats _shared_ text
+and reaches every copy while an insertion still stays in this one, and nothing on screen told the
+two apart. So `Typing only here` draws for as long as it is true — whenever the collapsed caret
+stands where an insertion would be contained in one of this copy's runs, read with the mirror's own
+edge-inclusive containment so the label and the next keystroke cannot disagree — and it leaves only
+with the caret. Zero-width runs are exactly the case this is for: they are the one difference the
+dotted underline cannot show.
+
+**And the chord is a toggle, keyed to the state the marker names.** `Mod-Shift-L` armed and
+pressed again stands down; pressed while the marker stands — the caret in one of this copy's runs —
+it closes that one difference (`rejoinLinkedWordsAt`): this copy's wording wins, is written over
+every peer's, and the mirror carries edits here again. The existing ways back were too blunt for
+the question: undo only works immediately, and the card's replace collapses every difference in
+the group at once. Three rules on the rejoin. **This copy's words win unless they are empty**, in
+which case the first copy with words does — `winningWording`'s own rule, because an erased run
+rejoined has nothing to offer and emptying every peer to match it is the one thing rejoining must
+never do. **It is one isolated history event** (`isolateHistory`), because it is pressed right
+after typing and the history otherwise joined it into the typing's group — one undo then silently
+took the local words along with the rejoin, so "undo brings the difference back", which the
+announcement promises, was false. **And it announces with the way back named**, because several
+sections may have changed and only one of them is on screen.
 
 #### The card asks one thing at a time, and shows a diff
 
@@ -2334,7 +2452,7 @@ _because_ a header is selected whole, and the selection survives the edit, so le
 reopen the card the user just answered on the next settled anchor report. A collapsed selection
 reports no anchor at all. **Which is exactly why a missing anchor does not retire this card**, unlike
 the performer picker — that one exists solely because a range of lyrics is selected, while this one
-is anchored to a _header_ that is still there, and it opens from a bare caret through `Mod-Shift-L`.
+is anchored to a _header_ that is still there.
 It leaves the way every other transient surface does: Escape, Cancel, an outside press, or applying.
 
 **A card no anchor describes takes the side that has room**, rather than `above` unconditionally.
@@ -2368,7 +2486,9 @@ clean lyrics on the clipboard are this application's entire output. A mark adds 
 It is drawn as a **dotted** underline because every other underline in the editor is wavy and belongs
 to a diagnostic — this is not a finding, it is a note about what an edit here will and will not
 reach. A run that is empty in this copy draws nothing, because there is nothing there to draw on;
-the card is where those are named.
+the card is where those are named — and the caret is where the `Typing only here` marker names
+them, standing whenever typing at the caret would stay in this copy (see the type-only-here
+section above).
 
 **The mark on the header stayed as it was, and that is a decision.** `⇄` means one thing — this
 section moves with others — and giving linkable-but-unlinked headers a dimmer copy of it would
@@ -2506,11 +2626,17 @@ links to re-pasted text would be guessing at which of the new headers used to be
 that is silently wrong overwrites work. Line anchors behave the same way for the same reason.
 `section-links.svelte.test.ts` pins this as a decision rather than leaving it as a surprise.
 
-**The keyboard's way in is `Mod-Shift-L`, beside `Mod-Shift-H`, and deliberately not the `Ctrl-Alt`
-family the rest of the editor's commands live in** — `Ctrl-Alt-L` is the transport's forward key,
-bound to the window, and two implementations of one keystroke is how every nudge came to fire twice.
-Both ways in run `requestSectionLink`, over the same predicate, so they cannot come to mean different
-things; the pointer opens silently and the aimed press names its refusal out loud.
+**`Mod-Shift-L` belongs to `Type only here` now, and the picker's ways in are the pointer's own** —
+the `⇄` marker and the diagnostic's guided action. The chord opened this card for a while, and a
+whole card arriving under a keystroke read as the workbench doing something nobody asked; arming
+the local exception is the aimed, caret-sized answer, and the card is where the chord is taught
+(its linked-state note, and the `Type only here` button's own tooltip). It is a toggle — pressed
+where the `Typing only here` marker stands, it shares the words again; see the type-only-here
+section above. `Mod-Shift` and
+deliberately not the `Ctrl-Alt` family the rest of the editor's commands live in — `Ctrl-Alt-L` is
+the transport's forward key, bound to the window, and two implementations of one keystroke is how
+every nudge came to fire twice. The keymap binding and the card's own key handler run the same
+`typeOnlyHere` machinery, and the aimed press names its refusal out loud.
 
 Implementation: `src/lib/core/link-shape.ts` (the aligner and the run arithmetic — pure, no
 CodeMirror, tested as arithmetic in `link-shape.test.ts`). **It lives in `core` rather than beside

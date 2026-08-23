@@ -12,11 +12,11 @@
 	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
 
 	// Commands that are always available — never a selection, a chorus, or an
-	// attachment away from working. `Ctrl-Alt-P`, `Ctrl-Alt-H`, and `Mod-Shift-L`
-	// are deliberately absent: each needs a selection, shared linked lyrics, or a
-	// chorus and refuses out loud the rest of the time, and a tray that spends most
-	// of its life offering answers it cannot give is the thing `availableRates`
-	// and `spotifyAvailable` both exist to prevent. Bold and italic are absent for
+	// attachment away from working. `Ctrl-Alt-P` and `Mod-Shift-L` are
+	// deliberately absent: each needs a selection or shared linked lyrics and
+	// refuses out loud the rest of the time, and a tray that spends most of its
+	// life offering answers it cannot give is the thing `availableRates` and
+	// `spotifyAvailable` both exist to prevent. Bold and italic are absent for
 	// the other reason — the performer picker and the roster are how a voice is
 	// marked here, and a command is offered once.
 	//

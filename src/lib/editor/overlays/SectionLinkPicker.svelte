@@ -89,7 +89,10 @@
 	let keyboardNavigated = $state(false);
 	let root: HTMLDivElement;
 	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
-	const typeOnlyHereShortcut = mac ? '⌃⌥H' : 'Ctrl+Alt+H';
+	// `Mod-Shift-L`, the editor's own binding for the same command — one chord,
+	// pressable in the document and in this card alike.
+	const typeOnlyHereShortcut = mac ? '⇧⌘L' : 'Ctrl+Shift+L';
+	const typeOnlyHereKeyshortcuts = mac ? 'Meta+Shift+L' : 'Control+Shift+L';
 
 	const headers = $derived([currentHeaderFrom, ...selected]);
 	const wasLinked = $derived(initialSelected.length > 0);
@@ -336,16 +339,21 @@
 		onCancel();
 	}
 
-	// The physical key as well as the character, and the physical one is what
-	// actually carries this on a Mac: Option turns `h` into `˙`, so a match on
-	// `key` alone never fired on the platform the tooltip spells `⌃⌥H` for. The
-	// same trap `lyricLintKeymap` documents at length for `Alt-p`.
+	// The physical key as well as the character, the trap `lyricLintKeymap`
+	// documents at length for `Alt-p`: a modifier can change what `key` reports,
+	// so the physical `code` is what actually carries a chord across layouts.
 	function isTypeOnlyHereShortcut(event: KeyboardEvent): boolean {
-		return event.code === 'KeyH' || event.key.toLocaleLowerCase() === 'h';
+		return event.code === 'KeyL' || event.key.toLocaleLowerCase() === 'l';
 	}
 
 	function handleKeydown(event: KeyboardEvent): void {
-		if (typeOnlyHereReady && event.ctrlKey && event.altKey && isTypeOnlyHereShortcut(event)) {
+		if (
+			typeOnlyHereReady &&
+			(mac ? event.metaKey : event.ctrlKey) &&
+			event.shiftKey &&
+			!event.altKey &&
+			isTypeOnlyHereShortcut(event)
+		) {
 			event.preventDefault();
 			beginTypeOnlyHere();
 			return;
@@ -613,26 +621,30 @@
 				be left out of the link.
 			</p>
 		{:else}
-			<!-- One sentence per *opening*, never one per tick, so the note cannot
-			     rewrap to a different height under the pointer that just ticked a row. -->
+			<!-- One note per *opening*, never one per tick, so it cannot rewrap to a
+			     different height under the pointer that just ticked a row. The linked
+			     state's note also teaches the type-only-here chord, because a reader
+			     looking at an already-linked group is exactly who wants words of
+			     their own in one copy — and the card is where that command lives. -->
 			<p class="picker__note">
 				{others.length === 0
 					? `This is the only ${kindWord} in the song.`
 					: openedComplete
-						? `These ${occurrences.length} sections are linked: editing one edits the others.`
+						? `These ${occurrences.length} sections are linked: editing one edits the others. To keep an edit in one copy, press ${typeOnlyHereShortcut} at the spot first; pressed in kept words, it shares them again.`
 						: 'Linked sections stay in sync as you edit them.'}
 			</p>
 		{/if}
 		{#if typeOnlyHereReady}
+			<!-- The button leads and its clarifying line follows, as a caption: read
+			     above the control, the sentence joined the run of linking notes it
+			     hangs directly under, and the thing it explains was still a scroll of
+			     the eye away. -->
 			<div class="type-only-here-action">
-				<p class="picker__note">
-					Your next edit at the caret won’t be copied to the other linked sections.
-				</p>
 				<div class="actions actions--single">
 					<button
 						type="button"
 						class="button apply type-only-here"
-						aria-keyshortcuts="Control+Alt+H"
+						aria-keyshortcuts={typeOnlyHereKeyshortcuts}
 						onclick={beginTypeOnlyHere}
 						{@attach describeControl(() => ({
 							label: 'Type only here',
@@ -642,6 +654,9 @@
 						Type only here
 					</button>
 				</div>
+				<p class="picker__note">
+					Your next edit at the caret won’t be copied to the other linked sections.
+				</p>
 			</div>
 		{:else}
 			<div class="actions">
@@ -1008,12 +1023,19 @@
 		grid-template-columns: 1fr auto;
 	}
 
-	/* A separate thought from the link status above, then a tight explanation →
-	   action pair. No border or fill: grouping is spatial, not another card
-	   inside the picker. */
+	/* A separate thought from the link status above: a hairline, then a tight
+	   action → caption pair. The hairline is a separator, not a box — the
+	   audio picker's distinction — and it is here because spatial grouping alone
+	   shipped first and read as one run of grey: three muted paragraphs stack
+	   above this block, and the one that belongs to the button was
+	   indistinguishable from the two that belong to the linking. No fill, and no
+	   border on the pair itself: a second card inside the picker is the thing
+	   this must not become. */
 	.type-only-here-action {
 		display: grid;
 		margin-block-start: var(--space-3);
+		padding-block-start: var(--space-3);
+		border-block-start: var(--border-width) solid var(--color-border);
 		gap: var(--space-1-5);
 	}
 

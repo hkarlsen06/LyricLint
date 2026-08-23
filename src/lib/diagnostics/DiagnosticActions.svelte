@@ -3,6 +3,7 @@
 	import { Check } from 'lucide-svelte';
 	import { previewableFix, previewSignature } from '$lib/core/fix-preview.js';
 	import type { Diagnostic, DiagnosticFix } from '$lib/core/types.js';
+	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';
 	import { acceptsDiagnosticAsCorrect } from './ignore.js';
 	import { acquirePreview } from './preview-slot.js';
 
@@ -112,6 +113,58 @@
 	}
 
 	/**
+	 * The row is where its keyboard twins are learned, and the pointer is who
+	 * they are taught to: this is the most-pressed surface in the workbench, the
+	 * pointer crosses a control here on every press, and the shared box arrives
+	 * with the keystroke at exactly that moment — which no legend or one-shot tip
+	 * can match. Printed as pressed, the action tray's own idiom
+	 * (`EditorActions.svelte`). The box repeats the visible label on purpose: the
+	 * label is the accessible name, the keystroke is `aria-keyshortcuts`, and the
+	 * box is `aria-hidden`, so nothing announces twice.
+	 */
+	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
+	const chooseHeaderKeys = {
+		caption: mac ? '⇧⌘H' : 'Ctrl+Shift+H',
+		keyshortcuts: mac ? 'Meta+Shift+H' : 'Control+Shift+H'
+	};
+	const assignPerformersKeys = {
+		caption: mac ? '⌃⌥P' : 'Ctrl+Alt+P',
+		keyshortcuts: 'Control+Alt+P'
+	};
+	/**
+	 * `Mod-.` selects the nearest fixable finding and lands focus on this row, so
+	 * the disclosure rides the leading fix — the one that press reaches. And with
+	 * focus already here, the same keystroke *applies*: the box over the focused
+	 * control names `⌘.` as its own press, so a second `⌘.` that only re-opened
+	 * the popover would be the disclosure exposed as a lie by the very keystroke
+	 * it teaches. Pressed again after that, the selection has moved on and the
+	 * window's binding reaches the next finding — so the whole panel is walked
+	 * one chord at a time.
+	 */
+	const openFixKeys = {
+		caption: mac ? '⌘.' : 'Ctrl+.',
+		keyshortcuts: mac ? 'Meta+.' : 'Control+.'
+	};
+
+	/**
+	 * The second press, bound on the control that claims the keystroke rather
+	 * than at the window, so it holds wherever this row renders — the panel
+	 * card, the popover, and the landing page's demo, which opts out of the
+	 * window binding entirely. The window's own `Mod-.` listener stands down for
+	 * a press landing on a claimant (`create-editor.ts`), which is what keeps
+	 * this the one implementation of "apply".
+	 */
+	function applyOnOwnShortcut(fix: DiagnosticFix): (event: KeyboardEvent) => void {
+		return (event) => {
+			const modifier = mac ? event.metaKey : event.ctrlKey;
+			if (event.key !== '.' || !modifier || event.altKey || event.shiftKey) return;
+			event.preventDefault();
+			event.stopPropagation();
+			onApplyFix(fix);
+		};
+	}
+
+	/**
 	 * The batch a fix offers, or nothing.
 	 *
 	 * The button appears only above one occurrence, and only for a fix the whole
@@ -142,17 +195,34 @@
 		<button
 			type="button"
 			class="button button--contrast diagnostic-actions__guided"
+			aria-keyshortcuts={chooseHeaderKeys.keyshortcuts}
 			onclick={onChooseHeader}
+			{@attach describeControl(() => ({
+				label: 'Choose header',
+				shortcut: chooseHeaderKeys.caption
+			}))}
 		>
 			Choose header
 		</button>
 	{/if}
 	{#if onAssignPerformers}
-		<button type="button" class="button diagnostic-actions__guided" onclick={onAssignPerformers}>
+		<button
+			type="button"
+			class="button diagnostic-actions__guided"
+			aria-keyshortcuts={assignPerformersKeys.keyshortcuts}
+			onclick={onAssignPerformers}
+			{@attach describeControl(() => ({
+				label: 'Assign section performers',
+				shortcut: assignPerformersKeys.caption
+			}))}
+		>
 			Assign section performers
 		</button>
 	{/if}
 	{#if offersSectionLink}
+		<!-- No keyboard twin to name: `Mod-Shift-L` arms Type only here now, and
+		     the picker's ways in are the pointer's own — this action and the `⇄`
+		     marker. A box that only repeated the label would be the label twice. -->
 		<button type="button" class="button diagnostic-actions__guided" onclick={onLinkSections}>
 			Manage linking
 		</button>
@@ -177,13 +247,21 @@
 	     are bordered alternatives beside it. -->
 	{#each diagnostic.fixes ?? [] as fix, index (`${fix.kind}:${fix.label}`)}
 		{@const batch = batchCount(fix)}
+		<!-- Only the leading fix names `Mod-.`, because it is the one that keystroke
+		     lands on; an alternate wearing the same caption would promise a key that
+		     reaches its sibling. -->
 		<button
 			type="button"
 			class="button diagnostic-actions__fix"
 			class:button--contrast={index === 0 && !offersHeaderPicker && !leadsWithAccept}
+			aria-keyshortcuts={index === 0 ? openFixKeys.keyshortcuts : undefined}
 			onpointerenter={() => showFix(fix)}
 			onfocus={() => showFix(fix)}
 			onclick={() => onApplyFix(fix)}
+			onkeydown={index === 0 ? applyOnOwnShortcut(fix) : undefined}
+			{@attach describeControl(() =>
+				index === 0 ? { label: fix.label, shortcut: openFixKeys.caption } : undefined
+			)}
 		>
 			{fix.label}
 		</button>

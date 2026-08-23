@@ -653,7 +653,9 @@ describe('typing only in one linked copy', () => {
 		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
 		const typeOnlyHereButton = page.getByRole('button', { name: /Type only here/ });
 		await expect.element(typeOnlyHereButton).toBeVisible();
-		await expect.element(typeOnlyHereButton).toHaveAttribute('aria-keyshortcuts', 'Control+Alt+H');
+		await expect
+			.element(typeOnlyHereButton)
+			.toHaveAttribute('aria-keyshortcuts', 'Control+Shift+L');
 		await expect.element(page.getByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
 		const typeOnlyElement = typeOnlyHereButton.element();
 		const localExplanation = page.getByText(
@@ -661,14 +663,32 @@ describe('typing only in one linked copy', () => {
 		);
 		const localGroup = typeOnlyElement.closest('.type-only-here-action');
 		expect(localGroup?.contains(localExplanation.element())).toBe(true);
+		// Ruled off from the linking above it — a separator, not a box. Spatial
+		// grouping alone shipped first and read as one run of grey: three muted
+		// paragraphs stack above this block, and the one that belongs to the
+		// button was indistinguishable from the two that belong to the linking.
+		const groupStyle = getComputedStyle(localGroup as Element);
+		expect(groupStyle.borderTopWidth).toBe('1px');
+		expect(groupStyle.borderTopStyle).toBe('solid');
+		expect(groupStyle.borderTopColor).not.toBe('rgba(0, 0, 0, 0)');
 		const linkedStatus = page.getByText(
 			'These 2 sections are linked: editing one edits the others.'
+		);
+		// The linked state's note teaches the type-only-here chord, because a
+		// reader looking at an already-linked group is exactly who wants words of
+		// their own in one copy.
+		expect(linkedStatus.element().textContent).toContain(
+			'To keep an edit in one copy, press Ctrl+Shift+L at the spot first; pressed in kept words, it shares them again.'
 		);
 		const statusRect = linkedStatus.element().getBoundingClientRect();
 		const explanationRect = localExplanation.element().getBoundingClientRect();
 		const actionRect = typeOnlyElement.getBoundingClientRect();
-		expect(explanationRect.top - statusRect.bottom).toBeGreaterThan(
-			actionRect.top - explanationRect.bottom
+		// The clarifying line is the button's caption, under it — read above the
+		// control it joined the run of linking notes it hung directly beneath —
+		// and the pair is tighter within itself than to the linking above the rule.
+		expect(explanationRect.top).toBeGreaterThanOrEqual(actionRect.bottom);
+		expect(explanationRect.top - actionRect.bottom).toBeLessThan(
+			actionRect.top - statusRect.bottom
 		);
 		expect(typeOnlyElement.querySelector('.apply__key')).toBeNull();
 		const accentProbe = document.createElement('span');
@@ -684,7 +704,9 @@ describe('typing only in one linked copy', () => {
 		await expect
 			.poll(() => document.querySelector('.control-tooltip')?.textContent)
 			.toContain('Type only here');
-		const shortcut = navigator.platform.toLocaleLowerCase().includes('mac') ? '⌃⌥H' : 'Ctrl+Alt+H';
+		const shortcut = navigator.platform.toLocaleLowerCase().includes('mac')
+			? '⇧⌘L'
+			: 'Ctrl+Shift+L';
 		expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe(shortcut);
 		typeOnlyElement.dispatchEvent(new PointerEvent('pointerleave', { bubbles: false }));
 		await expect
@@ -694,7 +716,7 @@ describe('typing only in one linked copy', () => {
 			.toBeVisible();
 
 		typeOnlyElement.focus();
-		await userEvent.keyboard('{Control>}{Alt>}h{/Alt}{/Control}');
+		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
 		await expect
 			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
 			.not.toBeInTheDocument();
@@ -705,7 +727,10 @@ describe('typing only in one linked copy', () => {
 		const typed = handle.getSnapshot().text;
 		expect(typed).toContain('[Chorus]\nHold on tighter');
 		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
-		expect(document.querySelector('.ll-type-only-here')).toBeNull();
+		// The marker outlives the armed one-shot, because the fact it names does:
+		// the caret is standing in the run the edit just created, so typing on
+		// still stays in this copy, and the label draws for as long as that holds.
+		expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
 		expect(onSectionLinksChanged).toHaveBeenCalledTimes(1);
 		expect(
 			handle
@@ -718,6 +743,9 @@ describe('typing only in one linked copy', () => {
 		// linked empty section and offered for automatic replacement.
 		const sharedCaret = typed.indexOf('Never let go') + 'Never'.length;
 		handle.setSelection({ anchor: sharedCaret, head: sharedCaret });
+		// In shared text the fact is false, so the marker is gone: it follows the
+		// caret, never the run.
+		expect(document.querySelector('.ll-type-only-here')).toBeNull();
 		handle.requestSectionLink?.();
 		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
 		await expect
@@ -734,7 +762,7 @@ describe('typing only in one linked copy', () => {
 		expect(onSectionLinksChanged).toHaveBeenCalledTimes(2);
 	});
 
-	it('arms the same local edit directly with Ctrl-Alt-H', async () => {
+	it('arms the same local edit directly with Mod-Shift-L', async () => {
 		const announcements: string[] = [];
 		const handle = await mount(SAME, englishLanguagePack, {
 			onAnnouncement: (message) => void announcements.push(message)
@@ -746,7 +774,7 @@ describe('typing only in one linked copy', () => {
 		handle.setSelection({ anchor: caret, head: caret });
 		handle.focus();
 
-		await userEvent.keyboard('{Control>}{Alt>}h{/Alt}{/Control}');
+		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
 
 		expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
 		expect(announcements.at(-1)).toContain('won’t be copied');
@@ -754,6 +782,121 @@ describe('typing only in one linked copy', () => {
 		const typed = handle.getSnapshot().text;
 		expect(typed).toContain('[Chorus]\nHold on tighter');
 		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
+	});
+
+	// The chord is a toggle, and this is its way back: pressed while the marker
+	// stands, the difference under the caret closes — this copy's words win and
+	// reach every peer — and the mirror carries edits here again. One undo
+	// restores the difference exactly as it stood, words and runs together.
+	it('shares the kept words again on a second press of the chord', async () => {
+		const announcements: string[] = [];
+		const handle = await mount(SAME, englishLanguagePack, {
+			onAnnouncement: (message) => void announcements.push(message)
+		});
+		handle.linkSections?.({
+			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
+		});
+		const caret = SAME.indexOf('tight') + 'tight'.length;
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.focus();
+		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
+		await userEvent.keyboard('er');
+		let text = handle.getSnapshot().text;
+		expect(text).toContain('[Chorus 2]\nHold on tight\n');
+
+		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
+		text = handle.getSnapshot().text;
+		expect(text.split('Hold on tighter')).toHaveLength(3);
+		expect(document.querySelector('.ll-type-only-here')).toBeNull();
+		expect(announcements.at(-1)).toContain('shared with the other linked sections again');
+
+		// The mirror is back: typing at the caret reaches every copy.
+		await userEvent.keyboard('!');
+		text = handle.getSnapshot().text;
+		expect(text.split('Hold on tighter!')).toHaveLength(3);
+
+		// Undo the shared '!' and then the rejoin: the difference comes back
+		// exactly as it stood, words and runs together.
+		handle.undo();
+		handle.undo();
+		text = handle.getSnapshot().text;
+		expect(text).toContain('[Chorus]\nHold on tighter');
+		expect(text).toContain('[Chorus 2]\nHold on tight\n');
+		expect(
+			handle
+				.getLinkDifferences?.([offsetOf(text, '[Chorus]'), offsetOf(text, '[Chorus 2]')])?.[0]
+				?.wordings.map((wording) => wording.text)
+		).toEqual(['er', '']);
+	});
+
+	// Armed and pressed again, the chord stands down — the other half of the
+	// toggle, matching the Escape it already answers to.
+	it('cancels an armed press with a second press of the chord', async () => {
+		const announcements: string[] = [];
+		const handle = await mount(SAME, englishLanguagePack, {
+			onAnnouncement: (message) => void announcements.push(message)
+		});
+		handle.linkSections?.({
+			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
+		});
+		const caret = SAME.indexOf('tight') + 'tight'.length;
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.focus();
+
+		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
+		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+
+		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
+		expect(document.querySelector('.ll-type-only-here')).toBeNull();
+		expect(announcements.at(-1)).toBe('Typing only here cancelled.');
+
+		await userEvent.keyboard('!');
+		expect(handle.getSnapshot().text.split('Hold on tight!')).toHaveLength(3);
+	});
+
+	// The reported confusion, pinned end to end. Local text erased back to
+	// nothing leaves a zero-width run at the caret, where a deletion reaches
+	// into shared text and mirrors while an insertion still stays local — and
+	// nothing on screen told the two apart. The marker is what does: it names
+	// the insertion's fate, which never changed, so it stands through the whole
+	// sequence and leaves only with the caret.
+	it('keeps the marker up for as long as typing stays local', async () => {
+		const handle = await mount(SAME, englishLanguagePack);
+		handle.linkSections?.({
+			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
+		});
+		const caret = SAME.indexOf('tight') + 'tight'.length;
+		handle.setSelection({ anchor: caret, head: caret });
+		handle.focus();
+		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
+
+		await userEvent.keyboard('er');
+		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+
+		// Erased back to nothing, the run is zero width — invisible, and still
+		// the caret's own: an insertion here stays in this copy.
+		await userEvent.keyboard('{Backspace}{Backspace}');
+		expect(handle.getSnapshot().text).toBe(SAME);
+		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+
+		// One more erases shared text, which reaches every copy. The marker
+		// stands: it is about typing, and typing is still local.
+		await userEvent.keyboard('{Backspace}');
+		let text = handle.getSnapshot().text;
+		expect(text).toContain('[Chorus]\nHold on tigh\n');
+		expect(text).toContain('[Chorus 2]\nHold on tigh\n');
+		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+
+		await userEvent.keyboard('ter');
+		text = handle.getSnapshot().text;
+		expect(text).toContain('[Chorus]\nHold on tighter');
+		expect(text).toContain('[Chorus 2]\nHold on tigh\n');
+		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+
+		// Somewhere the fact is false, the marker is gone.
+		const away = text.indexOf('Something about');
+		handle.setSelection({ anchor: away, head: away });
+		expect(document.querySelector('.ll-type-only-here')).toBeNull();
 	});
 
 	it('uses a selection as the words the next local edit replaces', async () => {
@@ -776,10 +919,10 @@ describe('typing only in one linked copy', () => {
 		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
 	});
 
-	// The card advertises `⌃⌥H` and matched on the character, which Option
-	// rewrites: on the one platform that tooltip is written for, the shortcut
-	// never fired. The physical key is what carries it.
-	it('answers its own shortcut on a Mac, where Option rewrites the character', async () => {
+	// The card matches the physical key as well as the character, because a
+	// modifier can change what `key` reports — the trap that once left the
+	// card's own shortcut dead on the platform its tooltip was written for.
+	it('answers its own shortcut by physical key when the layout rewrites the character', async () => {
 		const handle = await mount(SAME);
 		const header = offsetOf(SAME, '[Chorus]');
 		handle.linkSections?.({ headers: [header, offsetOf(SAME, '[Chorus 2]')] });
@@ -792,10 +935,10 @@ describe('typing only in one linked copy', () => {
 
 		document.activeElement?.dispatchEvent(
 			new KeyboardEvent('keydown', {
-				code: 'KeyH',
-				key: '˙',
+				code: 'KeyL',
+				key: 'Λ',
 				ctrlKey: true,
-				altKey: true,
+				shiftKey: true,
 				bubbles: true,
 				cancelable: true
 			})
@@ -869,6 +1012,42 @@ describe('typing only in one linked copy', () => {
 			handle.requestSectionLink?.();
 			await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
 			await userEvent.keyboard('{Escape}');
+		});
+
+		// Rejoining is "make the copies match here", and an empty run has nothing
+		// to offer — emptying the peer's ad-lib to match it would be the one
+		// wrong answer — so the first copy with words wins and its words arrive
+		// at the caret, with the caret landing after them in shared text.
+		it('rejoins an empty run by taking the peer’s words', async () => {
+			const handle = await linked();
+			const caret = emptyRunCaret(ADLIB);
+			handle.setSelection({ anchor: caret, head: caret });
+			handle.focus();
+
+			await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
+
+			const text = handle.getSnapshot().text;
+			expect(text.split('Hold on tight (Yeah)')).toHaveLength(3);
+			expect(document.querySelector('.ll-type-only-here')).toBeNull();
+			expect(handle.getSnapshot().selection).toEqual({
+				anchor: text.lastIndexOf(' (Yeah)') + ' (Yeah)'.length,
+				head: text.lastIndexOf(' (Yeah)') + ' (Yeah)'.length
+			});
+		});
+
+		// The empty run is the one difference the document cannot underline, so
+		// the caret's marker is the only thing that can say typing here stays
+		// local — and it says so without anything armed, because it names a fact
+		// rather than a mode.
+		it('names the empty run at the caret without anything armed', async () => {
+			const handle = await linked();
+			const caret = emptyRunCaret(ADLIB);
+			handle.setSelection({ anchor: caret, head: caret });
+			expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+
+			const away = ADLIB.indexOf('Never let go');
+			handle.setSelection({ anchor: away, head: away });
+			expect(document.querySelector('.ll-type-only-here')).toBeNull();
 		});
 
 		it('keeps the typed ad-lib in this copy and adds no second difference', async () => {

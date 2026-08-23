@@ -259,13 +259,23 @@ describe('MediaStrip', () => {
 		await media.openFor('draft-1');
 
 		render(MediaStrip, { props: { media } });
+		render(ControlTooltip, { props: {} });
 
-		await expect
-			.element(page.getByRole('button', { name: 'Reconnect sensommer.mp3' }))
-			.toBeVisible();
+		const reconnect = page.getByRole('button', { name: 'Reconnect sensommer.mp3' });
+		await expect.element(reconnect).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Forget sensommer.mp3' })).toBeVisible();
 		expect(page.getByRole('button', { name: 'Play' }).elements()).toHaveLength(0);
 		expect(page.getByRole('slider', { name: 'Seek' }).elements()).toHaveLength(0);
+
+		// A bare Escape loads the pending source — the fallback under the
+		// transport's toggle. The keystroke used to live in `aria-keyshortcuts`
+		// alone, which made it the one binding in the workbench nothing on screen
+		// could teach; the shared box is where every other named control says it.
+		reconnect.element().dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }));
+		await expect
+			.poll(() => document.querySelector('.control-tooltip')?.textContent)
+			.toContain('Reconnect sensommer.mp3');
+		expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe('Esc');
 	});
 
 	// Both controls in this row answer the same question, so they go quiet

@@ -5,13 +5,21 @@ import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js'
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import { linkTargetAt } from './section-links.js';
-import { cancelTypeOnlyHere, typeOnlyHere } from './extensions/section-links.js';
+import {
+	cancelTypeOnlyHere,
+	rejoinLinkedWordsAt,
+	typeOnlyHere
+} from './extensions/section-links.js';
 import {
 	editorComposingField,
 	editorContextField,
 	parsedDocumentForView
 } from './extensions/editor-state.js';
-import { anchorLineEffect, anchorTimeAt, formatAnchorTime } from './extensions/line-anchors.js';
+import {
+	anchorLineEffect,
+	anchorTimeAtOrAbove,
+	formatAnchorTime
+} from './extensions/line-anchors.js';
 import { diagnosticsForState, sortDiagnostics } from './extensions/lint-decorations.js';
 
 function logicalSelection(view: EditorView): TextRange {
@@ -89,14 +97,26 @@ export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallb
 	return true;
 }
 
-function linkSections(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
-	return (view) => requestSectionLink(view, callbacks);
-}
-
-/** Keep the next edit in the linked copy containing the caret or selection. */
+/**
+ * Keep the next edit in the linked copy containing the caret or selection —
+ * or, pressed where that is already true, undo it.
+ *
+ * The chord is a toggle keyed to the state the `Typing only here` marker
+ * names. Armed and pressed again, it stands down. Pressed with the caret in
+ * one of this copy's own runs — the marker's own condition — it closes that
+ * difference and the words are shared again (`rejoinLinkedWordsAt`), which is
+ * the way back the card's group-wide replace was too blunt for. Only where
+ * neither is true does it arm.
+ */
 function typeOnlyInLinkedSection(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
 	return (view) => {
 		if (composing(view)) {
+			return true;
+		}
+		if (cancelTypeOnlyHere(view)) {
+			return true;
+		}
+		if (rejoinLinkedWordsAt(view)) {
 			return true;
 		}
 		const range = logicalSelection(view);
@@ -190,7 +210,15 @@ function activateDiagnostic(
 	return true;
 }
 
-function navigateDiagnostic(
+/**
+ * Move to the next or previous finding, wrapping at either end.
+ *
+ * Exported for the same reason `openAvailableFix` is: `Mod-Shift-.` answers
+ * from the whole window, bound in `create-editor.ts` beside its unshifted
+ * sibling, and the window running this same command is what keeps the two ways
+ * in from meaning different things.
+ */
+export function navigateDiagnostic(
 	callbacks: LyricEditorCallbacks,
 	direction: 1 | -1
 ): (view: EditorView) => boolean {
@@ -215,7 +243,17 @@ function navigateDiagnostic(
 	};
 }
 
-function openAvailableFix(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
+/**
+ * Open the nearest fixable finding with its actions focused — `Mod-.`.
+ *
+ * Exported because the keystroke answers from the whole window, not only from
+ * the caret: `create-editor.ts` binds it beside its window-level `Mod-F` and
+ * runs this same command, so the two ways in cannot come to mean different
+ * things. It is taught on the diagnostic row, which lives in the panel — where
+ * the caret is not — so an editor-only binding answered in the wrong half of
+ * the loop, exactly as the transport keys once did.
+ */
+export function openAvailableFix(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
 	return (view) => {
 		if (composing(view)) {
 			return true;
@@ -261,17 +299,20 @@ function anchorCurrentLine(callbacks: LyricEditorCallbacks): (view: EditorView) 
 }
 
 /**
- * Play from this line's anchor.
+ * Play from the caret's line, or from the nearest timed line above it.
  *
  * Nothing about the document moves — not the caret, not the scroll position.
- * The only thing that happens is that the audio goes somewhere.
+ * The only thing that happens is that the audio goes somewhere. It used to
+ * answer only for the caret's own line, which made the chord a refusal on most
+ * of a part-timed song: the caret is usually a line or two past the last timed
+ * line, and "play the passage I am in" is what the press means.
  */
 function playFromCurrentLine(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
 	return (view) => {
 		if (composing(view)) return true;
-		const time = anchorTimeAt(view.state, view.state.selection.main.head);
+		const time = anchorTimeAtOrAbove(view.state, view.state.selection.main.head);
 		if (time === undefined) {
-			return announce(callbacks, 'This line has no audio anchor.');
+			return announce(callbacks, 'No timed line at or above the caret.');
 		}
 		callbacks.onSeekMedia?.(time);
 		return announce(callbacks, `Playing from ${formatAnchorTime(time)}.`);
@@ -297,16 +338,18 @@ export function lyricLintKeymap(
 		{ key: 'Ctrl-Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Mod-Shift-h', run: insertSection(callbacks), preventDefault: true },
-		// `Mod-Shift` and deliberately not the `Ctrl-Alt` family the rest of these
-		// live in: `Ctrl-Alt-L` is the transport's forward key, bound to the window,
-		// and two implementations of one keystroke is how every nudge came to fire
-		// twice. This belongs beside `Mod-Shift-H` anyway — both are commands about
-		// the song's structure rather than about its audio.
-		{ key: 'Mod-Shift-l', run: linkSections(callbacks), preventDefault: true },
-		// H for “here”. This arms the local exception directly; unlike the link
-		// command above it changes no membership and needs only shared text in an
-		// existing group. It stays out of J/K/L, which belong to the transport.
-		{ key: 'Ctrl-Alt-h', run: typeOnlyInLinkedSection(callbacks), preventDefault: true },
+		// `Mod-Shift-L` arms the local exception — the same press as the link
+		// card's `Type only here` button. It used to open the link picker, and a
+		// whole card arriving under a keystroke read as the workbench doing
+		// something nobody asked; the picker's ways in are its own surfaces now,
+		// the `⇄` marker and the diagnostic's guided action. `Mod-Shift` and
+		// deliberately not the `Ctrl-Alt` family the rest of these live in:
+		// `Ctrl-Alt-L` is the transport's forward key, bound to the window, and
+		// two implementations of one keystroke is how every nudge came to fire
+		// twice. The old `Ctrl-Alt-H` went with the swap rather than staying as an
+		// alias — two chords for one command is a legend, and this one is taught
+		// where it is pressed.
+		{ key: 'Mod-Shift-l', run: typeOnlyInLinkedSection(callbacks), preventDefault: true },
 		// `Ctrl-Alt-U` for the unknown marker, in the same family as the anchor
 		// pair below and free on both platforms. Deliberately no
 		// `preventDefault: true`: that option prevents the default even when the
@@ -320,6 +363,10 @@ export function lyricLintKeymap(
 		// on US and Nordic layouts and `.` already means "diagnostic" through
 		// `Mod-.` below.
 		{ key: 'Ctrl-Alt-.', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
+		// One modifier up from `Mod-.`: the chord that opens the nearest fix,
+		// shifted, walks the findings instead — and it wraps, because a "next"
+		// that dead-ends on the last row is a press that reads as broken.
+		{ key: 'Mod-Shift-.', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
 		{ key: 'Ctrl-Alt-,', run: navigateDiagnostic(callbacks, -1), preventDefault: true },
 		{ key: 'F2', run: navigateDiagnostic(callbacks, 1), preventDefault: true },
 		{ key: 'Shift-F2', run: navigateDiagnostic(callbacks, -1), preventDefault: true },

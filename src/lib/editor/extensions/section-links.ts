@@ -1,4 +1,4 @@
-import { invertedEffects } from '@codemirror/commands';
+import { invertedEffects, isolateHistory } from '@codemirror/commands';
 import {
 	Annotation,
 	EditorState,
@@ -806,6 +806,106 @@ export function cancelTypeOnlyHere(view: EditorView): boolean {
 	return true;
 }
 
+/**
+ * Close the difference under the caret, so its words are shared again.
+ *
+ * The way back from `Type only here`, on the same chord: `Mod-Shift-L` pressed
+ * while the `Typing only here` marker stands collapses the one run the caret is
+ * in, exactly as the card's replace does per difference — so from the next
+ * keystroke the mirror carries edits here again. This copy's wording wins,
+ * unless it is empty, in which case the first copy with words does
+ * (`winningWording`'s own rule): an erased run rejoined has nothing to offer,
+ * and emptying every peer to match it is the one thing rejoining must never do.
+ *
+ * One transaction, one undo: `sectionLinkHistory` carries the runs back with
+ * the words, so undo restores the difference exactly as it stood.
+ *
+ * The caret stays put where this copy's words did not change, and lands after
+ * the arriving words where they did — either way it ends in shared text, which
+ * is what retires the marker that taught the press.
+ */
+export function rejoinLinkedWordsAt(view: EditorView): boolean {
+	const state = view.state;
+	const caret = state.selection.main;
+	if (!caret.empty) return false;
+	const pos = caret.head;
+	const parsed = parsedDocumentForState(state);
+	const group = memberGroups(state, parsed).find((headers) =>
+		headers.some((header) => {
+			const body = sectionBodyRange(parsed, header);
+			return body !== undefined && body.from <= pos && pos <= body.to;
+		})
+	);
+	if (!group) return false;
+	const members = groupShape(state, parsed, group);
+	if (!members || members.length < 2) return false;
+	const member = members.find((shape) => shape.body.from <= pos && pos <= shape.body.to);
+	if (!member) return false;
+	// The marker's own containment: a run's ends map outwards, so both edges are
+	// inside, and a zero-width run at the caret is exactly the case the press is
+	// for.
+	const index = member.holes.findIndex(
+		(hole) => member.body.from + hole.from <= pos && pos <= member.body.from + hole.to
+	);
+	if (index < 0) return false;
+
+	const text = winningWording(state, members, index, member.header);
+	const changes: TextEdit[] = [];
+	for (const shape of members) {
+		const hole = shape.holes[index];
+		if (!hole) continue;
+		const from = shape.body.from + hole.from;
+		const to = shape.body.from + hole.to;
+		if (state.doc.sliceString(from, to) !== text) {
+			changes.push({ from, to, insert: text });
+		}
+	}
+	changes.sort((left, right) => left.from - right.from);
+	const surviving = members.map((shape) => ({
+		...shape,
+		holes: shape.holes.filter((_, holeIndex) => holeIndex !== index)
+	}));
+
+	// Where the caret ends up, computed the way `linkSections` computes its own
+	// landing: edits earlier in the document shift it, and words arriving in
+	// this copy put it after them.
+	const own = member.holes[index];
+	const ownFrom = member.body.from + (own?.from ?? 0);
+	const ownTo = member.body.from + (own?.to ?? 0);
+	// Not the own change: a zero-width run's own fill sits exactly at `ownFrom`
+	// and would otherwise count itself into the shift it is the target of.
+	const shift = changes
+		.filter((change) => change.to <= ownFrom && !(change.from === ownFrom && change.to === ownTo))
+		.reduce((sum, change) => sum + change.insert.length - (change.to - change.from), 0);
+	const ownChanged = changes.some((change) => change.from === ownFrom && change.to === ownTo);
+	const anchor = ownChanged ? ownFrom + shift + text.length : pos + shift;
+
+	const spec: TransactionSpec = {
+		selection: { anchor },
+		// Its own history event on both sides, or it is not its own undo: pressed
+		// right after typing — which is exactly when it is pressed — the history
+		// joined it into the typing's group, and one undo silently took the local
+		// words along with the rejoin they had just been shared by.
+		annotations: isolateHistory.of('full'),
+		effects: [
+			// Pre-change coordinates, exactly as `linkSections` emits them: the
+			// field maps the list through this transaction's own changes.
+			setLinkHolesEffect.of([...holesOutside(state, members), ...absoluteHoles(surviving)]),
+			// Rides the notifier every other shape change rides, so the shell's
+			// save hears about a difference that closed without the text moving.
+			typeOnlyHereAppliedEffect.of(null)
+		]
+	};
+	if (changes.length > 0) spec.changes = changes;
+	view.dispatch(spec);
+	state
+		.field(editorCallbacksField, false)
+		?.onAnnouncement(
+			'These words are shared with the other linked sections again. Undo brings the difference back.'
+		);
+	return true;
+}
+
 /** Every link, as header line numbers and the runs each member keeps its own. */
 export function sectionLinksFor(state: EditorState): SectionLink[] {
 	const field = state.field(sectionLinkField, false);
@@ -1392,6 +1492,11 @@ class SectionLinkMarker extends WidgetType {
 		marker.textContent = '⇄';
 		marker.setAttribute('aria-label', 'Edit linked sections');
 		marker.setAttribute('aria-haspopup', 'dialog');
+		// No `aria-keyshortcuts`: `Mod-Shift-L` arms Type only here rather than
+		// opening this card, so the marker has no keyboard twin to claim. And no
+		// `describeControl` box either, because a hover here is already serving
+		// `HoverIntent` toward opening the card itself, and a tooltip racing the
+		// surface it names would lose to it or cover it.
 		const open = (origin: SectionLinkOrigin) => {
 			const line = view.state.doc.lineAt(clamp(view.state, this.headerFrom));
 			view.state.field(editorCallbacksField, false)?.onSectionLinkRequest?.(
@@ -1461,10 +1566,18 @@ class SectionLinkMarker extends WidgetType {
  * finding, it is a note about what an edit here will and will not reach.
  *
  * A run that is empty in this copy draws nothing, because there is nothing
- * there to draw on. The card is where those are named.
+ * there to draw on. The card is where those are named — and the caret is where
+ * the *marker* names them: `Typing only here` draws for as long as it is true,
+ * which is whenever the caret stands where an insertion would be contained in
+ * one of this copy's own runs. It used to draw only while the one-shot was
+ * armed and vanish on the first keystroke, which left the fact invisible at
+ * exactly the moments it was being relied on — typing on inside the fresh run,
+ * and the reported case: local text erased back to nothing, where deletions
+ * had started reaching the peers again while insertions still stayed local,
+ * with nothing on screen distinguishing the two.
  */
 export const sectionLinkDecorations = EditorView.decorations.compute(
-	[sectionLinkField, linkHolesField, typeOnlyHereField],
+	['selection', sectionLinkField, linkHolesField, typeOnlyHereField],
 	(state): DecorationSet => {
 		const field = state.field(sectionLinkField, false);
 		if (!field || field.size === 0) {
@@ -1509,6 +1622,25 @@ export const sectionLinkDecorations = EditorView.decorations.compute(
 				const body = sectionBodyRange(parsed, header);
 				return body ? [body] : [];
 			});
+		// The caret standing in a run, zero-width included: the same containment
+		// the mirror answers an insertion with — a run's ends map outwards, so
+		// both edges are inside — read for display, so what the marker says and
+		// what the next keystroke does cannot disagree. Only a collapsed caret: a
+		// selection is not somewhere typing is happening, and one reaching past
+		// the run is an edit the mirror carries. `!local` because the armed
+		// one-shot already drew the same widget at the same position.
+		const caret = state.selection.main;
+		if (!local && caret.empty) {
+			const inside = holes.find((hole) => hole.from <= caret.head && caret.head <= hole.to);
+			if (inside && bodies.some((body) => body.from <= inside.from && inside.to <= body.to)) {
+				marks.push(
+					Decoration.widget({
+						widget: new TypeOnlyHereMarker(),
+						side: 1
+					}).range(clamp(state, inside.to))
+				);
+			}
+		}
 		const divergent = Decoration.mark({ class: 'll-link-divergent' });
 		for (const hole of holes) {
 			if (

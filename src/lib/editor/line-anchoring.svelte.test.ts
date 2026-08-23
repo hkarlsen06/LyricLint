@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { isLyricLine, parseDocument } from '$lib/core/parser.js';
 import type { EditorHandle, PerformerRecord } from '$lib/core/types.js';
+import { hideControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
+import ControlTooltip from '$lib/ui/primitives/ControlTooltip.svelte';
 import { assignVoiceGroup } from '$lib/performers/transform.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import { tapOffsetSeconds } from './extensions/lyric-sync.js';
@@ -337,10 +339,34 @@ describe('line anchoring stays out of the way', () => {
 
 		const time = cellFor('first line').querySelector<HTMLElement>('.ll-time-value');
 		expect(time?.textContent).toBe('0:10');
-		expect(time?.title).toBe('Play from 0:10');
 		time?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
 
 		expect(seek).toHaveBeenCalledWith(10);
+	});
+
+	// `Ctrl-Alt-Enter` plays the passage the caret is in: its own line where
+	// that line is timed, else the nearest timed line above it. Answering only
+	// for the caret's own line made the chord a refusal on most of a part-timed
+	// song — the caret is usually a line or two past the last tap.
+	it('plays from the nearest timed line at or above the caret', async () => {
+		const caretOnUntimedLine = lyric.indexOf('second line');
+		const { handle, seek, announcements } = await mount({
+			text: lyric,
+			selection: { anchor: caretOnUntimedLine, head: caretOnUntimedLine },
+			mediaTime: () => 0
+		});
+		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
+
+		handle.focus();
+		await userEvent.keyboard('{Control>}{Alt>}{Enter}{/Alt}{/Control}');
+		expect(seek).toHaveBeenCalledWith(10);
+		expect(announcements.at(-1)).toBe('Playing from 0:10.');
+
+		// Above every timed line there is nothing to play, and the refusal says so.
+		handle.setSelection({ anchor: 0, head: 0 });
+		await userEvent.keyboard('{Control>}{Alt>}{Enter}{/Alt}{/Control}');
+		expect(seek).toHaveBeenCalledTimes(1);
+		expect(announcements.at(-1)).toBe('No timed line at or above the caret.');
 	});
 
 	/*
@@ -389,6 +415,131 @@ describe('the timestamp column', () => {
 		expect(empty?.textContent).toBe('–');
 		expect(empty?.disabled).toBe(true);
 		expect(cellFor('first line').querySelector('.ll-time-stamp')).not.toBeNull();
+	});
+
+	/*
+	 * The column is a pointer-only surface — `aria-hidden` all the way down — so
+	 * the shared box is the one place its keyboard equivalents are ever named on
+	 * screen: the timestamp teaches `Ctrl-Alt-Enter` and the pin teaches
+	 * `Ctrl-Alt-M`, at the moment somebody is already aiming at the pointer
+	 * version. The hover is delegated off the gutter rather than attached per
+	 * cell, because the column rebuilds whenever the playhead crosses a line and
+	 * a per-cell listener pair would be orphaned mid-hover.
+	 *
+	 * The keystroke is named only on the caret's own line, because that is the
+	 * only line it acts on: taught on any other row, the caption promised "the
+	 * keystroke that does the same thing" and delivered an action at the caret —
+	 * somewhere the user was not looking, which is exactly how it was reported.
+	 */
+	it('names each cell control, with the keystroke on the caret’s line alone', async () => {
+		hideControlHint();
+		const caretOnFirstLine = lyric.indexOf('first line');
+		const { handle } = await mount({
+			text: lyric,
+			selection: { anchor: caretOnFirstLine, head: caretOnFirstLine },
+			mediaTime: () => 0
+		});
+		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
+		await withColumn(handle);
+		render(ControlTooltip, { props: {} });
+
+		const hover = (element: Element) =>
+			element.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+		const box = () => document.querySelector('.control-tooltip');
+
+		// The timestamp is the play control; on the caret's line the box carries
+		// the keystroke that plays without aiming.
+		hover(cellFor('first line').querySelector('.ll-time-value')!);
+		await vi.waitFor(() => {
+			expect(box()?.textContent).toContain('Play from 0:10');
+		});
+		expect(box()?.querySelector('kbd')?.textContent).toBe('Ctrl+Alt+Enter');
+
+		// A timed line's pencil opens the ± pair, which is not `Ctrl-Alt-M`'s
+		// write, so it names no keystroke it does not perform — caret or no caret.
+		hover(cellFor('first line').querySelector('.ll-time-stamp')!);
+		await vi.waitFor(() => {
+			expect(box()?.textContent).toContain('Adjust this line’s time');
+		});
+		expect(box()?.querySelector('kbd')).toBeNull();
+
+		// Another line's pin still names itself, and stays quiet about a keystroke
+		// that would stamp the caret's line instead of this one.
+		hover(cellFor('second line').querySelector('.ll-time-stamp')!);
+		await vi.waitFor(() => {
+			expect(box()?.textContent).toContain('Anchor this line');
+		});
+		expect(box()?.querySelector('kbd')).toBeNull();
+
+		// With the caret moved onto it, the pin is the pointer's `Ctrl-Alt-M` and
+		// says so.
+		const caretOnSecondLine = lyric.indexOf('second line');
+		handle.setSelection({ anchor: caretOnSecondLine, head: caretOnSecondLine });
+		await vi.waitFor(() => {
+			hover(cellFor('second line').querySelector('.ll-time-stamp')!);
+			expect(box()?.querySelector('kbd')?.textContent).toBe('Ctrl+Alt+M');
+		});
+
+		// No native titles beside the box: two tooltips for one control is the
+		// platform's and ours disagreeing in front of the user.
+		expect(cellFor('first line').querySelector('[title]')).toBeNull();
+		expect(cellFor('second line').querySelector('[title]')).toBeNull();
+	});
+
+	// The number is the second way to play a line, and its whole affordance was
+	// a cursor change. The hover answers only where a press would — a hint on an
+	// untimed number would promise a rewind the press refuses — and the
+	// keystroke follows the caret's line, `timeGutterHint`'s rule.
+	it('names an anchored line number as a way to play, and an untimed one not at all', async () => {
+		hideControlHint();
+		const caretOnFirstLine = lyric.indexOf('first line');
+		const { handle } = await mount({
+			text: lyric,
+			selection: { anchor: caretOnFirstLine, head: caretOnFirstLine },
+			mediaTime: () => 0
+		});
+		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
+		await withColumn(handle);
+		render(ControlTooltip, { props: {} });
+
+		const numbers = lineNumberElements();
+		const anchored = numbers.find((element) => element.classList.contains('ll-line-seek'));
+		const untimed = numbers.find((element) => !element.classList.contains('ll-line-seek'));
+		expect(anchored).toBeDefined();
+		expect(untimed).toBeDefined();
+
+		anchored?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+		await vi.waitFor(() => {
+			expect(document.querySelector('.control-tooltip')?.textContent).toContain(
+				'Play from this line'
+			);
+		});
+		expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe('Ctrl+Alt+Enter');
+
+		// A true leave retires the box.
+		anchored?.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+		await vi.waitFor(() => {
+			expect(document.querySelector('.control-tooltip')).toBeNull();
+		});
+
+		// Off the caret's line the number still names itself, without a keystroke
+		// that would play the caret's line instead.
+		const caretOnSecondLine = lyric.indexOf('second line');
+		handle.setSelection({ anchor: caretOnSecondLine, head: caretOnSecondLine });
+		await vi.waitFor(() => {
+			anchored?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+			const shown = document.querySelector('.control-tooltip');
+			expect(shown?.textContent).toContain('Play from this line');
+			expect(shown?.querySelector('kbd')).toBeNull();
+		});
+		anchored?.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+		await vi.waitFor(() => {
+			expect(document.querySelector('.control-tooltip')).toBeNull();
+		});
+
+		untimed?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+		await new Promise((resolve) => setTimeout(resolve, 25));
+		expect(document.querySelector('.control-tooltip')).toBeNull();
 	});
 
 	// The dash means "a value goes here and is not set yet", which is false on a

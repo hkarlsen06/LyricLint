@@ -50,6 +50,7 @@ import {
 } from './extensions/header-rename.js';
 import { legendCleanupFilter } from './extensions/legend-cleanup.js';
 import {
+	anchorHintsOnLineNumbers,
 	anchorSeekOnLineNumber,
 	lineAnchors,
 	lineAnchorTheme,
@@ -110,7 +111,13 @@ import { clipboardMetadata } from './extensions/clipboard-metadata.js';
 import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
 import { searchReplace } from './extensions/search-replace.js';
 import { createUpdateListener, snapshotFromState } from './extensions/update-bridge.js';
-import { lyricLintKeymap, requestSectionHeader, requestSectionLink } from './keymap.js';
+import {
+	lyricLintKeymap,
+	navigateDiagnostic,
+	openAvailableFix,
+	requestSectionHeader,
+	requestSectionLink
+} from './keymap.js';
 import { dispatchAtomicEdit } from './transaction-adapter.js';
 
 export interface CreateLyricEditorOptions {
@@ -152,6 +159,12 @@ export interface CreateLyricEditorOptions {
 	 * article. A window-level listener there takes find-in-page away from the whole
 	 * marketing page for a four-line verse, which is the reader's own way around a
 	 * document nobody is editing.
+	 *
+	 * `Mod-.` rides the same gate: it too is a window-level reach into this
+	 * editor (the diagnostic row that teaches it lives in the panel, where the
+	 * caret is not), and it too belongs to the workbench and not to a figure in
+	 * an article — a marketing page popping a diagnostic card for a stray press
+	 * is the same wrong answer with a different key.
 	 */
 	windowFind?: boolean;
 }
@@ -701,6 +714,9 @@ export function createLyricEditor(
 		// `anchorSeekOnLineNumber`.
 		lineNumbers({
 			domEventHandlers: {
+				// The hover names an anchored number and the keystroke that plays
+				// without aiming; the press below is unchanged.
+				...anchorHintsOnLineNumbers(),
 				mousedown: (view, line, event) => {
 					// An untimed line is not this control's, so the press is left unclaimed
 					// and the run is not told about it either — a rewind on a row with no
@@ -867,6 +883,56 @@ export function createLyricEditor(
 		openSearchPanel(view);
 	};
 	if (windowFind) window.addEventListener('keydown', openFind, true);
+	// `Mod-.` reaches this editor from the whole window for `openFind`'s reason,
+	// sharpened: the keystroke is *taught* on the diagnostic row, and the row
+	// lives in the panel — the one place the caret never is. Bound only in the
+	// editor's keymap it answered exactly where the tooltip was not being read.
+	// Capture plus stopPropagation keeps it one implementation: with the caret in
+	// the document, this listener runs the same command the keymap binds, before
+	// the keymap can — the transport's rule about two implementations of one
+	// keystroke, honoured from the other side.
+	const openFix = (event: KeyboardEvent): void => {
+		const modifier = /Mac|iPhone|iPad|iPod/u.test(navigator.platform)
+			? event.metaKey
+			: event.ctrlKey;
+		// `event.code`, because the shifted chord never reports `.` as its key —
+		// `Shift+.` is `>` on a US layout and `:` on a Nordic one. The unshifted
+		// key check stays as the fallback for synthetic events with no code.
+		const period = event.code === 'Period' || event.key === '.';
+		if (!period || !modifier || event.altKey) {
+			return;
+		}
+		// The same modal deferral `openFind` documents: a dialog owns every key
+		// that lands in it.
+		const target = event.target;
+		if (target instanceof Element && target.closest('dialog, [aria-modal="true"]') !== null) {
+			return;
+		}
+		// Shifted, the chord walks to the next finding instead of opening a fix —
+		// and it wraps, in the command itself, so the window and the keymap agree.
+		if (event.shiftKey) {
+			event.preventDefault();
+			event.stopPropagation();
+			navigateDiagnostic(callbackProxy, 1)(view);
+			return;
+		}
+		// And a control that claims this keystroke answers it itself: `Mod-.`
+		// lands focus on the leading fix, whose box names `⌘.` as its own press,
+		// and `DiagnosticActions` binds the apply there — where it also covers the
+		// demo, which has no window listener. Standing down keeps one
+		// implementation of "apply" rather than two, the same rule that keeps the
+		// transport keys out of the editor's keymap.
+		if (
+			target instanceof Element &&
+			target.closest('[aria-keyshortcuts="Meta+."], [aria-keyshortcuts="Control+."]') !== null
+		) {
+			return;
+		}
+		event.preventDefault();
+		event.stopPropagation();
+		openAvailableFix(callbackProxy)(view);
+	};
+	if (windowFind) window.addEventListener('keydown', openFix, true);
 
 	function applyContext(context: EditorDisplayContext): void {
 		const revision = view.state.field(editorRevisionField);
@@ -1104,7 +1170,10 @@ export function createLyricEditor(
 			}
 			destroyed = true;
 			options.onSelectionAnchor?.(undefined);
-			if (windowFind) window.removeEventListener('keydown', openFind, true);
+			if (windowFind) {
+				window.removeEventListener('keydown', openFind, true);
+				window.removeEventListener('keydown', openFix, true);
+			}
 			view.destroy();
 			host.replaceChildren();
 		}

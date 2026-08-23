@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Check, ListEnd, Pointer, TextAlignStart, Timer, X } from 'lucide-svelte';
+	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { drawsCoverBand, formatTime } from '../state/media-player.svelte.js';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import { pendingMediaLabel } from './pending-media-label.js';
@@ -413,12 +414,20 @@
 			label plus a generic "Reconnect" would be two controls' worth of words
 			for one control.
 		-->
+		<!-- A bare Escape loads the pending source — the fallback under the
+		     transport's toggle, which the listener binds while a source is merely
+		     pending. The keystroke was in `aria-keyshortcuts` alone, which made it
+		     the one binding in the workbench nothing on screen could teach; the
+		     shared box is where every other named control already says it. -->
 		<button
 			type="button"
 			class="button button--quiet media-strip__reconnect"
 			onclick={() => void media.reconnect()}
 			disabled={media.busy}
 			aria-keyshortcuts="Escape"
+			{@attach describeControl(() =>
+				pendingLabel ? { label: pendingLabel, shortcut: 'Esc' } : undefined
+			)}
 		>
 			{pendingLabel}
 		</button>

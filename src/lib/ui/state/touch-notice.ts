@@ -50,11 +50,13 @@ export const TOUCH_NOTICE_DURATION = 12_000;
 /**
  * The reassurance leads, because the message arrives uninvited and the first
  * thing a visitor needs to know is that they have not hit a wall. What follows
- * is the two facts that are actually different here, rather than a description
- * of the product they are already looking at.
+ * is the two facts that are actually different, rather than a description of
+ * the product they are already looking at — and both are anchored to the
+ * laptop, because the earlier wording hung "every fix has a keyboard shortcut"
+ * on "here", which is a device that has no keyboard.
  */
 export const TOUCH_NOTICE_MESSAGE =
-	'Everything works on a phone, but LyricLint is quicker on a laptop: here the lyrics and the findings stack, and every fix has a keyboard shortcut.';
+	'Everything works on a phone, but LyricLint is quicker on a laptop, where the lyrics sit beside the findings and every fix has a keyboard shortcut.';
 
 // A browser refusing storage reads as "not seen", which shows the notice once
 // per load rather than losing it — the harmless direction of this failure.

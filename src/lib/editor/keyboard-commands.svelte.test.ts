@@ -238,6 +238,30 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 		await expect.element(page.getByText('First issue', { exact: true })).toBeVisible();
 	});
 
+	// `Mod-Shift-.` is `Mod-.` one modifier up: the unshifted chord opens the
+	// nearest fix, the shifted one walks the findings — and it wraps, because a
+	// "next" that dead-ends on the last row is a press that reads as broken. It
+	// rides the same window listener as its unshifted sibling, so it answers
+	// from the panel as well as the document.
+	it('cycles to the next issue with Mod+Shift+., wrapping past the last one', async () => {
+		const issues = [diagnostic(0, 3, 'First issue'), diagnostic(4, 7, 'Second issue')];
+		const { handle } = await mount({
+			text: 'one two',
+			selection: { anchor: 3, head: 3 },
+			diagnostics: issues
+		});
+
+		handle.focus();
+		await pressMod('.', true);
+		expect(handle.getSnapshot().selection).toEqual({ anchor: 4, head: 7 });
+		await expect.element(page.getByText('Second issue', { exact: true })).toBeVisible();
+
+		// On the last issue the same press comes back around to the first.
+		await pressMod('.', true);
+		expect(handle.getSnapshot().selection).toEqual({ anchor: 0, head: 3 });
+		await expect.element(page.getByText('First issue', { exact: true })).toBeVisible();
+	});
+
 	it('opens the available fix with Mod+.', async () => {
 		const { handle } = await mount({
 			text: 'bad word',
@@ -250,6 +274,95 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 
 		await expect.element(page.getByRole('dialog', { name: 'Diagnostic details' })).toBeVisible();
 		await expect.element(page.getByRole('button', { name: /Replace word/u })).toHaveFocus();
+	});
+
+	// The first press lands focus on the leading fix and draws a box over it
+	// naming `⌘.` as that control's own keystroke — so the second press has to
+	// apply, or the disclosure is a lie exposed by the very keystroke it
+	// teaches. The apply is bound on the button itself and the window's listener
+	// stands down for a press landing on the claimant, so it stays one
+	// implementation.
+	it('applies the focused fix with a second Mod+.', async () => {
+		const { handle } = await mount({
+			text: 'bad word',
+			selection: { anchor: 1, head: 1 },
+			diagnostics: [diagnostic(0, 3, 'Fixable issue', true)]
+		});
+
+		handle.focus();
+		await pressMod('.');
+		await expect.element(page.getByRole('button', { name: /Replace word/u })).toHaveFocus();
+
+		await pressMod('.');
+
+		expect(handle.getSnapshot().text).toBe('fixed word');
+		expect(page.getByRole('dialog', { name: 'Diagnostic details' }).query()).toBeNull();
+	});
+
+	// The keystroke is taught on the diagnostic row, and the row lives in the
+	// panel — where the caret is not. So `Mod-.` is bound to the window beside
+	// `Mod-F` and answers wherever it is pressed; an editor-only binding answered
+	// exactly where the tooltip was not being read.
+	it('opens the available fix with Mod+. from outside the editor', async () => {
+		await mount({
+			text: 'bad word',
+			selection: { anchor: 1, head: 1 },
+			diagnostics: [diagnostic(0, 3, 'Fixable issue', true)]
+		});
+
+		const outsideEditor = document.createElement('button');
+		document.body.append(outsideEditor);
+		try {
+			outsideEditor.focus();
+			const mac = /Mac|iPhone|iPad|iPod/u.test(navigator.platform);
+			const shortcut = new KeyboardEvent('keydown', {
+				key: '.',
+				bubbles: true,
+				cancelable: true,
+				metaKey: mac,
+				ctrlKey: !mac
+			});
+			outsideEditor.dispatchEvent(shortcut);
+			expect(shortcut.defaultPrevented).toBe(true);
+		} finally {
+			outsideEditor.remove();
+		}
+
+		await expect.element(page.getByRole('dialog', { name: 'Diagnostic details' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: /Replace word/u })).toHaveFocus();
+	});
+
+	// The same modal deferral the window's `Mod-F` makes: a dialog owns every
+	// key that lands in it, and a popover opening behind the audio picker would
+	// be an answer nobody can see.
+	it('stands down for Mod+. pressed inside a modal', async () => {
+		await mount({
+			text: 'bad word',
+			selection: { anchor: 1, head: 1 },
+			diagnostics: [diagnostic(0, 3, 'Fixable issue', true)]
+		});
+
+		const dialog = document.createElement('dialog');
+		const field = document.createElement('input');
+		dialog.append(field);
+		document.body.append(dialog);
+		try {
+			dialog.show();
+			field.focus();
+			const mac = /Mac|iPhone|iPad|iPod/u.test(navigator.platform);
+			const shortcut = new KeyboardEvent('keydown', {
+				key: '.',
+				bubbles: true,
+				cancelable: true,
+				metaKey: mac,
+				ctrlKey: !mac
+			});
+			field.dispatchEvent(shortcut);
+			expect(shortcut.defaultPrevented).toBe(false);
+		} finally {
+			dialog.remove();
+		}
+		expect(page.getByRole('dialog', { name: 'Diagnostic details' }).query()).toBeNull();
 	});
 
 	it('prunes an unused legend slot in the same transaction and restores it with one undo', async () => {

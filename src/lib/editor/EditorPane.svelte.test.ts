@@ -1754,10 +1754,23 @@ describe('EditorPane', () => {
 			outsideEditor.dispatchEvent(shortcut);
 			// Nothing swallowed it, so the browser's own find is still what it opens.
 			expect(shortcut.defaultPrevented).toBe(false);
+
+			// `Mod-.` rides the same gate: a marketing page popping a diagnostic
+			// card for a stray press is the same wrong answer with a different key.
+			const fixShortcut = new KeyboardEvent('keydown', {
+				key: '.',
+				bubbles: true,
+				cancelable: true,
+				metaKey: mac,
+				ctrlKey: !mac
+			});
+			outsideEditor.dispatchEvent(fixShortcut);
+			expect(fixShortcut.defaultPrevented).toBe(false);
 		} finally {
 			outsideEditor.remove();
 		}
 		expect(page.getByRole('textbox', { name: 'Find' }).query()).toBeNull();
+		expect(page.getByRole('dialog', { name: 'Diagnostic details' }).query()).toBeNull();
 	});
 
 	// The landing page's demo mounts this way: a fixed box a few lines tall, where

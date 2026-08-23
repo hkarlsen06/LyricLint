@@ -33,6 +33,39 @@ export function shownControlHint(): ShownHint | undefined {
 	return shown;
 }
 
+/**
+ * The imperative half of `describeControl`, for controls the attachment cannot
+ * hold onto: the editor's gutters build their cells outside Svelte and rebuild
+ * them whenever the playhead crosses a line, so a listener pair tied to one
+ * element would be orphaned mid-hover. A delegated handler on the gutter calls
+ * this instead, with whatever element is under the pointer right now.
+ */
+export function showControlHint(node: Element, hint: ControlHint): void {
+	owner = node;
+	shown = {
+		...hint,
+		position: placeControlHint(node.getBoundingClientRect(), {
+			width: window.innerWidth,
+			height: window.innerHeight
+		})
+	};
+}
+
+/**
+ * Guarded on ownership, so the pointer leaving a control the keyboard has since
+ * moved on from cannot close the box that control no longer owns. The clear
+ * waits a microtask for `describeControl`'s reason: removing a focused node
+ * fires `blur` during Svelte's branch teardown, and the rune that draws the
+ * shared box must not be written mid-render-effect.
+ */
+export function releaseControlHint(node: Element): void {
+	if (owner !== node) return;
+	owner = undefined;
+	queueMicrotask(() => {
+		if (owner === undefined) shown = undefined;
+	});
+}
+
 export function hideControlHint(): void {
 	owner = undefined;
 	shown = undefined;
@@ -96,27 +129,9 @@ export function describeControl(hint: () => ControlHint | undefined): Attachment
 		const show = (): void => {
 			const current = hint();
 			if (!current) return;
-			owner = node;
-			shown = {
-				...current,
-				position: placeControlHint(node.getBoundingClientRect(), {
-					width: window.innerWidth,
-					height: window.innerHeight
-				})
-			};
+			showControlHint(node, current);
 		};
-		// Guarded on ownership, so the pointer leaving a control the keyboard has
-		// since moved on from cannot close the box that control no longer owns.
-		const hide = (): void => {
-			if (owner !== node) return;
-			// Removing a focused node fires `blur` during Svelte's branch teardown.
-			// Retire the plain owner immediately, then wait until that render effect
-			// has finished before mutating the rune that draws the shared box.
-			owner = undefined;
-			queueMicrotask(() => {
-				if (owner === undefined) shown = undefined;
-			});
-		};
+		const hide = (): void => releaseControlHint(node);
 		const onKeydown = (event: Event): void => {
 			// SAFETY: registered below for `keydown` alone, which the DOM dispatches
 			// as a `KeyboardEvent`. The parameter is `Event` only because
