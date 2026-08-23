@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/media.md — read it before changing this file, and update it with any behavior change.
 import type { ClipboardMediaSource } from '$lib/editor/contracts.js';
 import type { MediaRepository } from '$lib/persistence/media-repository.js';
 import type { FeedbackState } from './feedback.svelte.js';

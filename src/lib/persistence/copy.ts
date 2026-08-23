@@ -1,10 +1,11 @@
+// Decision record: docs/subsystems/drafts.md and docs/subsystems/section-links.md — read both before changing this file, and update them with any behavior change.
 import type { CompareBaselineRecord, SectionLink } from '../core/types.js';
 
 /**
  * A deep copy of a draft's section links.
  *
  * Shared rather than written out at each of the copiers, because this is the
- * exact shape of the bug AGENTS.md already warns about: `copySnapshot` and
+ * exact shape of the bug `docs/subsystems/drafts.md` warns about: `copySnapshot` and
  * `copyDraft` each list the fields they keep by hand, and both of them spelled
  * out `{ lines: [...link.lines] }`. A link that gained a second field — which is
  * what happened the moment two choruses were allowed to differ — would have been

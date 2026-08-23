@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/media-apple.md — read it before changing this file, and update it with any behavior change.
 import type { MediaSource, MediaSourceEvents, SongDetails } from './media-player.svelte.js';
 import { remoteLoadTimeoutMs, remoteSearchLimit } from './media-remote-policy.js';
 

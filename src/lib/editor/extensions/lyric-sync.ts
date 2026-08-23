@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/line-anchors.md — read it before changing this file, and update it with any behavior change.
 import { EditorState, Prec, StateEffect, StateField } from '@codemirror/state';
 import type { Extension, Line, TransactionSpec } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';

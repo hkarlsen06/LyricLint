@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/drafts.md — read it before changing this file, and update it with any behavior change.
 import { randomId } from '../core/random-id.js';
 import { assistantDraftAccessKey } from '../assistant/permissions.js';
 import { copyCompareBaseline, copySectionLinks } from './copy.js';

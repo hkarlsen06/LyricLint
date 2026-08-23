@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/editor.md — read it before changing this file, and update it with any behavior change.
 import type { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { isSectionHeaderLine } from '$lib/core/parser.js';

@@ -1,4 +1,6 @@
 <script lang="ts">
+	// Decision record: docs/subsystems/reference.md — read it before changing
+	// this file, and update it with any behavior change.
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import type { Snippet } from 'svelte';
 	import { ArrowLeft, ExternalLink } from 'lucide-svelte';

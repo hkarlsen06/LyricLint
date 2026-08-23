@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/rules-catalog.md — read it before changing this file, and update it with any behavior change.
 import type {
 	Diagnostic,
 	DiagnosticFix,

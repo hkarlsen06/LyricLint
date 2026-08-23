@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/rules-catalog.md — read it before changing this file, and update it with any behavior change.
 import { runRules } from '$lib/rules/index.js';
 import { sourceRegistry } from '$lib/rules/index.js';
 import { findExactPerformer } from '$lib/performers/index.js';

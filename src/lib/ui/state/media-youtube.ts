@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/media-youtube.md — read it before changing this file, and update it with any behavior change.
 import type { MediaSource, MediaSourceEvents } from './media-player.svelte.js';
 import {
 	remoteLoadTimeoutMs,

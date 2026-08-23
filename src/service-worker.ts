@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/service-worker.md — read it before changing this file, and update it with any behavior change.
 /// <reference lib="webworker" />
 
 import { base, build, files, prerendered, version } from '$service-worker';

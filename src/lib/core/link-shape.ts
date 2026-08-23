@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/section-links.md — read it before changing this file, and update it with any behavior change.
 import type { TextRange } from '$lib/core/types.js';
 
 /**

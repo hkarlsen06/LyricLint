@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/editor.md — read it before changing this file, and update it with any behavior change.
 import { redo as redoCommand, history, undo as undoCommand } from '@codemirror/commands';
 import {
 	closeSearchPanel,

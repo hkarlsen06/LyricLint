@@ -1,4 +1,6 @@
 <script lang="ts">
+	// Decision record: docs/subsystems/diagnostics.md — read it before changing
+	// this file, and update it with any behavior change.
 	import { untrack } from 'svelte';
 	import { Check } from 'lucide-svelte';
 	import { previewableFix, previewSignature } from '$lib/core/fix-preview.js';

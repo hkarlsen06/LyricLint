@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/performers.md and docs/subsystems/section-links.md — read both before changing this file; `narrowEdit` is load-bearing for the link mirror.
 import type {
 	AssignmentRequest,
 	AtomicDocumentEdit,

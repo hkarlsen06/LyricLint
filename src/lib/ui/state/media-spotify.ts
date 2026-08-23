@@ -1,3 +1,4 @@
+// Decision record: docs/subsystems/media-spotify.md — read it before changing this file, and update it with any behavior change.
 import type { MediaSource, MediaSourceEvents, SongDetails } from './media-player.svelte.js';
 import type { PollScheduler } from './media-youtube.js';
 import {
