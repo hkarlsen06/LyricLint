@@ -161,20 +161,20 @@ I have counted every streetlight on the way
 You said we'd drive until the radio gave out (Yeah)
 And the "quiet" part was never really quiet`;
 
-	// The notation itself, floating over the hero. t3.codes floats the logos of
-	// the agents it orchestrates; this product integrates with nothing, so the
-	// equivalent is the marks a transcriber actually types — a bracketed header,
-	// a performer tag, the unknown-lyric marker, an ad-lib.
+	// Two corrections floating over the hero, each a flagged form over the form
+	// the linter writes. They used to be four scattered chips of bare notation —
+	// which was the reference composition's floating-logos gesture with the
+	// content swapped; showing the *fix* instead is the one thing this product
+	// does that a logo cloud cannot, and it puts the editor's own wavy underline
+	// on the first screen.
 	//
-	// Decorative and `aria-hidden`: every one of them is explained in prose
-	// further down, so nothing is carried by these alone. They are also all
-	// short, which is a constraint rather than a coincidence — see the note above
-	// their positions in `landing.css`.
+	// Decorative and `aria-hidden`: both corrections are made again in prose and
+	// in the demo further down, so nothing is carried by these alone. Every
+	// string is short, which is a constraint rather than a coincidence — see the
+	// note above their positions in `landing.css`.
 	const marks = [
-		{ key: 'verse', text: '[Verse 1]' },
-		{ key: 'voice', text: '<i>Blair</i>' },
-		{ key: 'unknown', text: '[?]' },
-		{ key: 'adlib', text: '(Yeah)' }
+		{ key: 'header', flagged: 'Verse 1:', fixed: '[Verse 1]' },
+		{ key: 'adlib', flagged: 'yeah', fixed: '(Yeah)' }
 	];
 
 	/*
@@ -241,11 +241,12 @@ And the "quiet" part was never really quiet`;
 	     evidence was below the fold; the product shot is *in* the hero now, so
 	     there is nothing left to peek at and nothing to reserve. -->
 	<section class="lp-hero">
-		<div class="lp-hero__grid" aria-hidden="true"></div>
-
 		<div class="lp-hero__float" aria-hidden="true">
 			{#each marks as mark (mark.key)}
-				<span class="lp-hero__mark lp-hero__mark--{mark.key}">{mark.text}</span>
+				<span class="lp-hero__mark lp-hero__mark--{mark.key}">
+					<span class="lp-hero__flagged">{mark.flagged}</span>
+					<span class="lp-hero__fixed">{mark.fixed}</span>
+				</span>
 			{/each}
 		</div>
 

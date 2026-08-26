@@ -12,7 +12,7 @@
  * The composition is four moves, and each one is answering a way the previous
  * version of this page failed:
  *
- * - **A claim at display size over a lit grid**, with the product shot directly
+ * - **A claim at display size on bare canvas**, with the product shot directly
  *   under it. The old hero held a screen with nothing on it but four small
  *   centred elements and a promise that there was more below; the evidence for
  *   the claim now arrives in the same screen as the claim.
@@ -156,43 +156,40 @@
 }
 
 /*
- * The lit grid behind the headline.
+ * There is deliberately nothing behind the headline.
  *
- * Two hairline gradients at a 48px pitch, masked to a soft ellipse so the grid
- * has no edge — an unmasked grid ends in a hard rectangle somewhere down the
- * page and reads as a background image that failed to load the rest of itself.
- * It is the faintest thing on the page by a distance: at full strength it
- * competes with the type it sits behind, and the job is to give the dark field
- * a sense of depth rather than to be seen.
+ * The field behind the claim has been several things, each less than the last.
+ * A lit grid of hairlines — the reference composition's backdrop, and the
+ * backdrop of every dev-tool landing page of its generation — said
+ * infrastructure about a page that is about a song. Rows of the brand's
+ * waveform kept the template's texture with the shape swapped; ruled lines had
+ * already failed the same way. A radial amber wash was the last candidate and
+ * the same failure from the other side: glow-behind-a-headline is the other
+ * half of the template the grid came from. This design language is flat fills
+ * and hairlines with nothing atmospheric anywhere else in the system, so the
+ * hero is what the rest of the system is: the canvas, bare. The depth is
+ * carried by the content — the drifting corrections, and the shot below with
+ * the bloom that has a functional job.
  */
-.lp-hero__grid {
-	position: absolute;
-	background-image:
-		linear-gradient(
-			90deg,
-			var(--color-border) var(--border-width),
-			transparent var(--border-width)
-		),
-		linear-gradient(var(--color-border) var(--border-width), transparent var(--border-width));
-	background-size: 48px 48px;
-	inset: 0;
-	mask-image: radial-gradient(78% 58% at 50% 34%, oklch(0% 0 0) 38%, transparent 100%);
-	opacity: 0.65;
-	pointer-events: none;
-}
 
 /*
- * The marks drifting over the grid.
+ * The corrections drifting over the canvas.
  *
- * t3's hero floats the logos of the agents it orchestrates. The equivalent here
- * is not a logo — this product integrates with nothing — it is the *notation*:
- * the bracketed headers, the ad-lib parentheses, the unknown-lyric marker, the
- * performer tag. They are the literal strings a transcriber types, set in the
- * face the editor sets them in, which makes the hero say what the tool is about
- * before a word of copy has been read.
+ * They began as four chips of bare notation — the bracketed header, the ad-lib
+ * parentheses, the unknown-lyric marker, the performer tag — which was the
+ * reference composition's floating-logos gesture with the strings swapped. What
+ * floats now is the *action*: two chips, each holding a flagged form over the
+ * form the linter writes it as, with the editor's own wavy underline under the
+ * flagged one. Notation alone said what the tool is about; a correction says
+ * what the tool *does*, before a word of copy has been read, in the product's
+ * own visual language.
  *
- * They are `aria-hidden` and decorative. Every one of them is explained in
- * prose further down the page, so nothing is carried by these alone.
+ * The flagged line is muted and the fixed line carries the full text color,
+ * because the output is the thing being sold. The underline is the warning
+ * amber the editor draws it in — the squiggle is a shape cue, not a color one,
+ * and both chips are `aria-hidden` decoration: each correction is made again in
+ * prose and in the live demo further down, so nothing is carried by these
+ * alone.
  */
 .lp-hero__float {
 	position: absolute;
@@ -203,79 +200,73 @@
 .lp-hero__mark {
 	position: absolute;
 	display: grid;
+	gap: var(--space-2);
 	padding: var(--space-3) var(--space-4);
 	border: var(--border-width) solid var(--color-border);
 	border-radius: var(--radius-lg);
 	background: var(--color-surface);
 	box-shadow: var(--shadow-overlay);
-	color: var(--color-text-muted);
 	font-family: var(--font-mono);
 	font-size: var(--font-size-md);
-	line-height: 1;
-	place-items: center;
+	justify-items: start;
+	line-height: 1.1;
+	text-align: left;
 	white-space: nowrap;
 }
 
+.lp-hero__flagged {
+	color: var(--color-text-muted);
+	text-decoration-color: var(--color-warning);
+	text-decoration-line: underline;
+	text-decoration-style: wavy;
+	text-decoration-thickness: 0.07em;
+	text-underline-offset: 0.24em;
+}
+
+.lp-hero__fixed {
+	color: var(--color-text);
+}
+
 /*
- * Two constraints decide every one of these positions, and both are about what
- * a mark must not land on.
+ * Two constraints decide these positions, and both are about what a chip must
+ * not land on.
  *
  * Sideways: the headline is centred and `balance`d, so its longest line reaches
- * roughly the middle two thirds of the container at every width. The marks sit
+ * roughly the middle two thirds of the container at every width. The chips sit
  * outside that band, and below `64rem` they are removed outright (see the media
  * query at the foot of this file) because there is no outside left.
  *
  * Downwards: the product shot occupies the bottom half of this section, and it
- * is the evidence — nothing may drift over it. So the marks are confined to the
- * top ~40%, which is the band holding the headline and the actions. A fifth
- * mark reading `[Chorus: Avery & Blair]` was cut here rather than repositioned:
- * it is the longest string of the set, so it was the one that reached the words
- * at one width and the screenshot at the next, and four marks say the same
- * thing.
+ * is the evidence — nothing may drift over it. So the chips are confined to the
+ * top ~40%, which is the band holding the headline and the actions. Every
+ * string stays short for the sideways reason: a fifth mark reading
+ * `[Chorus: Avery & Blair]` was cut from the old set rather than repositioned,
+ * because the longest string is the one that reaches the words at one width and
+ * the screenshot at the next.
  */
-.lp-hero__mark--verse {
-	top: 5%;
-	left: 3%;
-	rotate: -7deg;
-}
-
-.lp-hero__mark--voice {
-	top: 12%;
-	right: 4%;
-	rotate: 6deg;
-}
-
-.lp-hero__mark--unknown {
-	top: 31%;
-	left: 7%;
-	rotate: 4deg;
+.lp-hero__mark--header {
+	top: 6%;
+	left: 4%;
+	rotate: -6deg;
 }
 
 .lp-hero__mark--adlib {
-	top: 36%;
-	right: 8%;
-	rotate: -5deg;
+	top: 15%;
+	right: 5%;
+	rotate: 5deg;
 }
 
-/* The drift is one keyframe shared by all five, offset per mark so they are
-   never in step — five things moving together reads as the page scrolling
-   rather than as marks floating. Motion here answers nothing the reader did, so
-   it goes entirely under `prefers-reduced-motion`. */
+/* The drift is one keyframe shared by both chips, offset so they are never in
+   step — two things moving together reads as the page scrolling rather than as
+   chips floating. Motion here answers nothing the reader did, so it goes
+   entirely under `prefers-reduced-motion`. */
 @media (prefers-reduced-motion: no-preference) {
 	.lp-hero__mark {
 		animation: lp-drift 9s var(--ease-out-quart) infinite;
 	}
 
-	.lp-hero__mark--voice {
-		animation-delay: -2.5s;
-	}
-
-	.lp-hero__mark--unknown {
-		animation-delay: -5s;
-	}
-
 	.lp-hero__mark--adlib {
-		animation-delay: -7s;
+		animation-delay: -4.5s;
 	}
 }
 
@@ -383,9 +374,13 @@
 /*
  * ── The product shot ────────────────────────────────────────────────────────
  *
- * A picture of the workbench, tilted a couple of degrees back so it reads as a
- * screen standing in the page rather than as an image pasted flat onto it, and
- * straightening under the pointer.
+ * A picture of the workbench, flat on the page. It was tilted a couple of
+ * degrees back for a while — the screen-standing-in-space gesture every
+ * dev-tool hero of its generation opens with — and untilting it is a decision,
+ * not a loss of nerve: the site header is drawn at exactly the workbench
+ * toolbar's height so that arriving at the tool reads as the same window, and a
+ * screenshot hovering in perspective is the one element that undid that
+ * argument. A document meets the page the way a document does.
  *
  * Three things it depends on:
  *
@@ -401,8 +396,11 @@
  *   and the clip.
  * - **The glow is behind it, not on it.** A shadow alone under a near-black
  *   screenshot on a near-black page is invisible; what separates the two is a
- *   soft accent-tinted bloom cast onto the page from behind the frame's own
- *   edges, which is also what makes the shot read as lit.
+ *   soft bloom cast onto the page from behind the frame's own edges, which is
+ *   also what makes the shot read as lit. The bloom is the warning-soft amber —
+ *   the mark's hue, the same light the waveform above sheds — where it used to
+ *   be the accent's blue-on-dark, which lit the evidence in a color the brand
+ *   never claimed.
  */
 .lp-shot {
 	position: relative;
@@ -412,7 +410,7 @@
 
 .lp-shot::before {
 	position: absolute;
-	background: radial-gradient(60% 50% at 50% 40%, var(--color-accent-soft), transparent 70%);
+	background: radial-gradient(60% 50% at 50% 40%, var(--color-warning-soft), transparent 70%);
 	content: '';
 	filter: blur(48px);
 	inset: -6% -4% -10%;
@@ -428,18 +426,6 @@
 	background: var(--color-canvas);
 	box-shadow: var(--shadow-overlay);
 	overflow: hidden;
-	rotate: x 2deg;
-	transform-origin: center bottom;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-	.lp-shot__frame {
-		transition: rotate var(--duration-slow) var(--ease-out-quart);
-	}
-}
-
-.lp-shot:hover .lp-shot__frame {
-	rotate: x 0deg;
 }
 
 .lp-shot__frame img,
@@ -473,12 +459,10 @@
 }
 
 /*
- * A detail shot inside a section: the same frame as the hero's, without the
- * hero's theatre. No tilt — the tilt is the opening gesture and repeating it
- * down the page turns a device into a tic — and the bloom is turned down, so
- * the picture reads as evidence in the argument rather than as a second hero.
- * It is left-aligned with the prose it follows, because this section is not
- * centred.
+ * A detail shot inside a section: the same frame as the hero's, with the bloom
+ * turned down, so the picture reads as evidence in the argument rather than as
+ * a second hero. It is left-aligned with the prose it follows, because this
+ * section is not centred.
  */
 .lp-shot--detail {
 	max-width: 56rem;
@@ -489,10 +473,6 @@
    for the standalone form, under a run of prose. */
 .lp-split .lp-shot--detail {
 	margin: 0;
-}
-
-.lp-shot--detail .lp-shot__frame {
-	rotate: none;
 }
 
 .lp-shot--detail::before {

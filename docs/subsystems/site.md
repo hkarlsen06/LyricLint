@@ -10,7 +10,10 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 - The landing page is a composition read once: claim and proof in one screen, `--lp-display`
   is its own marketing ramp, section headings stand alone (no eyebrows), runs of facts are
   one bordered object with hairlines inside, the measure goes on the heading itself. The
-  floating marks are the notation, `aria-hidden`, confined away from the headline band and
+  hero's backdrop is bare canvas (no grid, no pattern, no glow — every candidate is in the
+  decision record), the shot sits flat with the amber bloom behind it (no tilt), and the
+  floating marks are two corrections — a flagged form wearing the editor's wavy underline,
+  over the form the linter writes — `aria-hidden`, confined away from the headline band and
   the shot.
 - Every product shot is generated (`render-workbench-shot.mjs` / `render-motion.mjs` over
   the shared `shot-scene.mjs` — the still and the loop must not drift). Transcriptions in
@@ -72,7 +75,7 @@ time the heading's margins moved.
 
 Four moves, and each answers a way the page failed before:
 
-- **A claim at display size over a lit grid.** `--lp-display` is a marketing ramp of its own, and
+- **A claim at display size on bare canvas.** `--lp-display` is a marketing ramp of its own, and
   it is not `--font-size-3xl`: that token tops out at 2.5rem because it is sized for a headline
   sitting in a column of prose, and at 2.5rem, alone on a screen, it reads as a heading rather
   than as a claim. Tracking is negative all the way up, because the spacing that keeps 15px UI
@@ -90,12 +93,32 @@ Four moves, and each answers a way the page failed before:
   text, and the display-sized heading inside it then breaks into three short lines in a narrow
   column with half the page empty beside it.
 
-**The floating marks are the notation, not a logo.** The composition this is modelled on floats
-the logos of the products it integrates with; this one integrates with nothing, so the equivalent
-is the marks a transcriber actually types — `[Verse 1]`, `<i>Blair</i>`, `[?]`, `(Yeah)` — set in
-the face the editor sets them in, which says what the tool is about before a word of copy is read.
-They are `aria-hidden` and every one is explained in prose further down, so nothing is carried by
-them alone.
+**The floating marks are corrections now — not notation, and never logos.** The composition this
+was modelled on floats the logos of the products it integrates with. The first draft here swapped
+the logos for the notation a transcriber types — `[Verse 1]`, `<i>Blair</i>`, `[?]`, `(Yeah)` —
+which changed the gesture's content and kept the gesture, and four scattered chips of borrowed
+choreography still read as that composition's hero. What floats now is the product's action in
+miniature: two chips, each a flagged form wearing the editor's wavy warning underline over the
+form the linter writes it as (`Verse 1:` over `[Verse 1]`, `yeah` over `(Yeah)`), set in the
+editor's face, muted ink over full ink so the output is the emphasized line. Notation said what
+the tool is about; a correction says what it *does*, before a word of copy is read, in the
+product's own visual language — the squiggle is a shape cue, so the pairing never rests on color
+alone. They are `aria-hidden`, and both corrections are made again in prose and in the live demo
+further down, so nothing is carried by them alone.
+
+The backdrop under them has been four things, and the failures are worth keeping because each
+candidate is the first thing the next redesign will reach for. The lit grid of hairlines — the
+reference composition's field, and the field of every dev-tool landing page of its generation —
+went because a grid says infrastructure and this page is about a song. Ruled lines read as a
+gimmick. Rows of the brand's waveform, tiled as a mask over `--color-warning`, kept the
+template's *texture* with the shape swapped and looked wrong on sight — a patterned field in a
+design language that has no patterned fields anywhere. A soft radial wash of the mark's amber was
+the last candidate and the same failure from the other side: a glow behind a centred headline is
+the other half of the template the grid came from, the atmospheric move every generated landing
+page makes. What stands is nothing — the bare canvas the rest of the system is built on, with the
+depth carried by the content: the drifting corrections, and the shot below with the bloom that
+has a functional job (separating a near-black screenshot from a near-black page). Anything
+proposed for this slot has to answer why it is not one of these four again.
 
 Two constraints place them, and both are about what a mark must not land on. Sideways: the
 headline is centred and `balance`d, so its longest line reaches the middle two thirds of the
@@ -193,8 +216,8 @@ before pasting, so the legends resolve instead of arriving as unresolved voices,
 the roster's confirmation toasts before capturing — a toast in a product shot is a notification
 about work the reader never did. There is deliberately no second chorus: two would raise
 `section.unlinked-repeat`, a real finding that is not this picture's subject. `.lp-shot--detail`
-is the hero frame without the hero's theatre: no tilt and the bloom turned down, because the tilt
-is the opening gesture and repeating it down the page turns a device into a tic.
+is the hero frame with the bloom turned down, because repeating the hero's full glow down the
+page turns a device into a tic.
 
 **That shot is now the poster on a loop, and the loop is the section's actual argument.**
 `render-motion.mjs` films the same scene one frame at a time — the pointer drags a
@@ -325,8 +348,16 @@ hundred pixels when the PNG lands — directly under the headline, which is the 
 site for the layout to move. **The border is inside the radius, drawn by the same element that
 clips**, which is the rule `.site-demo` already states at length. And **the glow is behind the
 frame rather than on it**: a shadow alone under a near-black screenshot on a near-black page is
-invisible, so what separates the two is an accent-tinted bloom cast onto the page from behind the
-frame's own edges, which is also what makes the shot read as lit.
+invisible, so what separates the two is a bloom cast onto the page from behind the frame's own
+edges, which is also what makes the shot read as lit. The bloom is the warning-soft amber — the
+mark's own hue, the one color this brand claims — where it began as the accent's blue, which lit
+the evidence in the default dev-tool color. It earns its place where the hero's backdrop
+candidates did not because it is doing separation work, not atmosphere. **And the frame is
+flat.** It carried a two-degree backward tilt that straightened under the pointer — the
+screen-standing-in-space gesture — but the site header is drawn at exactly the workbench
+toolbar's height so that arriving at the tool reads as the same window, and a screenshot hovering
+in perspective was the one element in the hero arguing against that. A document meets the page
+the way a document does.
 
 **The hero's column is the contrast action over the Discord invite.** The workbench keeps the
 page's one contrast tier; the invite under it wears Discord's identity color instead
