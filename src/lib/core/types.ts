@@ -601,6 +601,26 @@ export interface AssignmentRequest {
 	sectionPerformerIds?: readonly PerformerId[];
 }
 
+/**
+ * Inputs for wrapping a selection as an *unknown* voice: a style slot with no
+ * legend entry, applied when a transcriber hears a distinct voice they cannot
+ * yet name. The header is never touched — the absence of a legend group is
+ * exactly what records the voice as unidentified, and
+ * `performer.inline-mismatch` keeps the remaining work visible.
+ */
+export interface UnknownVoiceRequest {
+	revision: number;
+	text: string;
+	document: ParsedDocument;
+	selection: SerializedSelection;
+	/**
+	 * An existing unaccounted slot to reuse — "the same unknown voice as the
+	 * other italic passages". Omitted, the transform allocates the first styled
+	 * slot free of both the legend and the section body outside the selection.
+	 */
+	styleSlot?: StyleSlot;
+}
+
 /** One performer group to write into an exact section-local legend slot. */
 export interface LegendGroupAssignment {
 	styleSlot: StyleSlot;

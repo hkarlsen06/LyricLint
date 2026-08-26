@@ -9,7 +9,7 @@ describe('performer.header-required', () => {
 
 		expect(markedText(text, [finding!])).toEqual(['Verse']);
 		expect(finding).toMatchObject({
-			message: 'Styled vocals need a performer legend.',
+			message: 'Styled vocals are not yet named in a performer legend.',
 			fixes: [
 				{
 					kind: 'safe',

@@ -3,16 +3,22 @@ import { checkRule, markedText } from '../rule-test-utils.js';
 import { performerInlineMismatchRule as rule } from './performer-inline-mismatch.js';
 
 describe('performer.inline-mismatch', () => {
-	it('marks every styled span whose slot is absent from the legend', () => {
-		const text = '[Verse: A]\n<i>Second voice</i> and <b>third voice</b>';
+	it('marks each unaccounted slot once, anchored on its first styled span', () => {
+		const text = '[Verse: A]\n<i>Second voice</i> and <b>third voice</b>\n<i>Second again</i>';
 		const findings = checkRule(rule, text, { performers: ['A', 'B', 'C'] });
 
 		expect(markedText(text, findings)).toEqual(['<i>Second voice</i>', '<b>third voice</b>']);
 		expect(findings.map((finding) => finding.message)).toEqual([
-			'Inline style has no performer in the section legend.',
-			'Inline style has no performer in the section legend.'
+			'A styled voice is not yet named in the section legend.',
+			'A styled voice is not yet named in the section legend.'
 		]);
 		expect(findings.every((finding) => finding.fixes === undefined)).toBe(true);
+	});
+
+	it('is silent in a section with no legend at all', () => {
+		// That state is performer.header-required's one header-anchored finding —
+		// and, below its roster gate, the formatting-first workflow left in peace.
+		expect(checkRule(rule, '[Verse]\n<i>Second voice</i>', { performers: ['A', 'B'] })).toEqual([]);
 	});
 
 	it('reads slots from the parsed legend rather than the global roster', () => {

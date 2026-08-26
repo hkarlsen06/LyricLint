@@ -17,9 +17,17 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/harper.ts`, `src/lib/rules/reg
   own line range.
 - Where two rules can fire on one line, one owns the predicate and the other imports it:
   `isProseHeaderLine` (header-prose ← header-missing, numbers.spell-out),
-  `isImmediateRepeat`, `recognizedUnknownMarker`, `headerNameIsEmpty`. A rule re-deriving
+  `isImmediateRepeat`, `recognizedUnknownMarker`, `headerNameIsEmpty`, and
+  `unaccountedStyledSlots` (owned by `performers/legend-cleanup.ts`; consumed by
+  `performer.inline-mismatch` and the picker's unknown-voice offers). A rule re-deriving
   another rule's question presents as the panel arguing with itself. Cross-rule interactions
   are pinned in `catalog-policy.test.ts`.
+- The two unnamed-voice findings split by legend presence and are both `suggestion`:
+  `performer.header-required` owns the section with styled text and **no** legend (one
+  header-anchored finding, roster-gated), `performer.inline-mismatch` owns the section
+  **with** a legend missing a styled slot (one finding per unaccounted slot, anchored on the
+  slot's first span). Formatting-first transcription is a workflow, not a defect — see *A
+  styled voice nobody can name yet is work remaining, not a mistake* below.
 - An `ambiguous` policy case is a reviewed decision, not a hole: the answer to a gap beside
   one is a second rule at the right tier (`suggestion` + `preview`), never a wider regex.
 - Adding a rule is four registrations and two counts: `registry.ts`,
@@ -490,3 +498,42 @@ the filters and the synthesized row, and the real-WASM set: a document of every 
 answered with silence, `Killin` leading with its mark against the real dictionary, and the
 loud-failure guard against an upgrade renaming or re-adding a refused rule.
 
+
+### A styled voice nobody can name yet is work remaining, not a mistake
+
+Genius transcription runs formatting-first: hear a distinct voice, style it now, let whoever can
+name the singer complete the header later. The styling is information — it tells the reader a
+separate voice sings there, and it tells the next transcriber the differentiation was heard, not
+imagined. The catalog used to treat that state as a `warning` twice over, and the louder card
+offered to *delete* the information as its one-press fix. Both findings are true — a finished
+page does need the legend — but they are claims about a document mid-transcription, made at the
+volume of a defect, against the workflow the guidance itself assumes.
+
+So both rules dropped to `suggestion`, together, because they are one claim at two
+granularities: demoting only one would have had the workbench say an unknown italic ad-lib is
+acceptable while the header names nobody but becomes a defect the moment the first performer is
+named — backwards, since the partial-legend section is *further along*. The wording moved with
+the tier: "not yet named", and `performer.header-required`'s prose now says the formatting is
+worth keeping until the voices are known, with removal explicitly for sections that no longer
+need differentiation. The `safe` fix survives — it is still mechanically safe — it just stopped
+being the recommended exit.
+
+Two shape changes rode along, and each closes a hole the old shape had:
+
+- **`performer.inline-mismatch` consolidated from one finding per styled span to one per
+  unaccounted slot**, anchored on the slot's first span. Eight italic ad-lib lines are one
+  unidentified voice, not eight findings — a claim is made once, where the reader is deciding.
+  The anchor stays inside a styled span, which is what `resolveLegendAssignment` resolves the
+  guided assignment from, so the name-this-voice flow is untouched. The derivation is
+  `unaccountedStyledSlots`, shared with the picker's unknown-voice chips
+  (`docs/subsystems/performers.md` carries that half).
+- **It also stopped firing in sections with no legend at all.** That state is
+  `performer.header-required`'s one header-anchored finding — the two used to fire together
+  there, span cards under a header card about the same absence — and below that rule's roster
+  gate (fewer than two known performers) the fully-unknown formatting-first document now lints
+  clean, which is the quiet the workflow was owed. Its policy case's `invalid` example has a
+  legend for this reason.
+
+Ruleset `2026.08.27.0`; both rules bumped to version 3, corpus regenerated. The regressions are
+`performer-inline-mismatch.test.ts` (consolidation, legendless silence) and the pinned
+`toHaveLength(1)` in `catalog-policy.test.ts`.

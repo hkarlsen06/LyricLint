@@ -3,9 +3,9 @@ import type { AssistantCorpus } from './rules-context';
 
 export const corpus = {
 	formatVersion: 5,
-	ruleSetVersion: '2026.08.10.0',
-	generatedAt: '2026-08-18T14:37:55.295Z',
-	contentHash: '1d8675a3c651874bd7a405a7dd18efef1c584943be0edcb42346ecaa12ca0b84',
+	ruleSetVersion: '2026.08.27.0',
+	generatedAt: '2026-08-26T22:01:58.396Z',
+	contentHash: '9855b010e5093acffdb3cdf5ebe8295038b3a6a19c64c7b5a9b1e207d47e0b1f',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -291,10 +291,10 @@ export const corpus = {
 			title: 'Styled vocals with no legend',
 			group: 'performer',
 			groupTitle: 'Performer attribution',
-			severity: 'warning',
-			message: 'Styled vocals need a performer legend.',
+			severity: 'suggestion',
+			message: 'Styled vocals are not yet named in a performer legend.',
 			explanation:
-				'This multi-performer section differentiates inline vocals but its header does not identify the style slots. Add a performer legend, or remove the formatting if the section no longer needs performer differentiation.',
+				'This section differentiates inline voices, but its header does not yet say who they are. The formatting is worth keeping until the voices are known — it tells the next transcriber a distinct voice sings here. Add a performer legend when the voices are identified, or remove the formatting only if the section no longer needs differentiation.',
 			fix: 'safe',
 			fixLabel: 'Remove performer formatting',
 			language: 'en',
@@ -325,10 +325,10 @@ export const corpus = {
 			title: 'A styled voice missing from the legend',
 			group: 'performer',
 			groupTitle: 'Performer attribution',
-			severity: 'warning',
-			message: 'Inline style has no performer in the section legend.',
+			severity: 'suggestion',
+			message: 'A styled voice is not yet named in the section legend.',
 			explanation:
-				'The styled lyric is preserved as an unresolved voice. Choose the section voice and this styled voice to add the missing performer legend without changing the lyrics.',
+				'The styled lyrics mark a distinct voice the header does not identify. The formatting itself is worth keeping — it tells the reader, and the next transcriber, that a separate voice sings here. When the voice is known, choose the section voice and this styled voice to add the missing performer legend without changing the lyrics.',
 			fix: 'none',
 			language: 'en',
 			flaggedExample: '[Verse: A]\n<i>Voice</i>',

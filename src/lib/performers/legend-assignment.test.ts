@@ -11,10 +11,10 @@ function mismatch(text: string, styled: string, overrides: Partial<Diagnostic> =
 	}
 	return {
 		ruleId: 'performer.inline-mismatch',
-		severity: 'warning',
+		severity: 'suggestion',
 		from,
 		to: from + styled.length,
-		message: 'Inline style has no performer in the section legend.',
+		message: 'A styled voice is not yet named in the section legend.',
 		explanation: 'The styled lyric is preserved as an unresolved voice.',
 		sourceIds: [],
 		...overrides

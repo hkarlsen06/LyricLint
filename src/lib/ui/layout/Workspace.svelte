@@ -1,11 +1,17 @@
 <script lang="ts">
-	import type { EditorHandle, EditorSnapshot, LineAnchor } from '$lib/core/types.js';
+	import type {
+		EditorHandle,
+		EditorSnapshot,
+		LineAnchor,
+		UnknownVoiceRequest
+	} from '$lib/core/types.js';
 	import type {
 		EditorDisplayContext,
 		EditorPaneProps,
 		LyricEditorCallbacks
 	} from '$lib/editor/index.js';
 	import {
+		assignUnknownVoice,
 		assignVoiceGroup,
 		assignVoiceLegend,
 		insertSectionHeader
@@ -609,6 +615,21 @@
 			if (result.status === 'applied') return result.edit;
 			const reason = (result.blocked ?? result.reason).replaceAll('-', ' ');
 			controller.feedback.announce(`Performer assignment blocked: ${reason}.`);
+			return undefined;
+		},
+		createUnknownVoiceEdit: ({ range, styleSlot }) => {
+			const snapshot = controller.snapshot;
+			const request: UnknownVoiceRequest = {
+				revision: snapshot.revision,
+				text: snapshot.text,
+				document: snapshot.parsed,
+				selection: { anchor: range.from, head: range.to }
+			};
+			if (styleSlot !== undefined) request.styleSlot = styleSlot;
+			const result = assignUnknownVoice(request);
+			if (result.status === 'applied') return result.edit;
+			const reason = (result.blocked ?? result.reason).replaceAll('-', ' ');
+			controller.feedback.announce(`Unknown voice assignment blocked: ${reason}.`);
 			return undefined;
 		},
 		createPerformerLegendEdit: ({ sectionFrom, assignments, unwrapSlots }) => {

@@ -870,7 +870,7 @@ describe('workbench diagnostic navigation', () => {
 		const mismatch = {
 			...diagnostic,
 			ruleId: 'performer.inline-mismatch',
-			message: 'Inline style has no performer in the section legend.'
+			message: 'A styled voice is not yet named in the section legend.'
 		};
 
 		controller.assignDiagnosticPerformers(mismatch);
@@ -1146,7 +1146,7 @@ describe('workbench diagnostic navigation', () => {
 		const styled = (fragment: string): Diagnostic => ({
 			...diagnostic,
 			ruleId: 'performer.inline-mismatch',
-			message: 'Inline style has no performer in the section legend.',
+			message: 'A styled voice is not yet named in the section legend.',
 			from: text.indexOf(fragment),
 			to: text.indexOf(fragment) + fragment.length
 		});

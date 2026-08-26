@@ -15,7 +15,7 @@
 		resolveLegendAssignment,
 		type LegendAssignmentResolution
 	} from '$lib/performers/legend-assignment.js';
-	import { assignmentNeedsSectionVoice } from '$lib/performers/transform.js';
+	import { assignmentNeedsSectionVoice, unknownVoiceOffers } from '$lib/performers/transform.js';
 	import type { CreateLyricEditorOptions, LyricEditorInstance } from './create-editor.js';
 	import type {
 		EditorPaneProps,
@@ -56,6 +56,9 @@
 
 	/** What `createPerformerEdit` takes, read off the contract rather than restated here. */
 	type PerformerChoice = Parameters<NonNullable<LyricEditorCallbacks['createPerformerEdit']>>[0];
+	type UnknownVoiceChoice = Parameters<
+		NonNullable<LyricEditorCallbacks['createUnknownVoiceEdit']>
+	>[0];
 
 	let {
 		initialText,
@@ -141,6 +144,31 @@
 			})
 		);
 	}
+	// The unknown-voice answers this selection could take, read from the same
+	// transform that will honour them (`unknownVoiceOffers`), so a chip drawn
+	// here is an assignment that will not refuse when pressed. Only the plain
+	// selection flow offers them: the legend flow is already naming a known
+	// voice, and step two's question is about the section's plain lyrics, which
+	// an unknown cannot answer — nothing would be written for it.
+	//
+	// A function for the same reason `needsSectionVoice` is one: the press that
+	// consumes it arrives from inside the picker's own `{#key}` block.
+	function unknownVoiceOffer(): ReturnType<typeof unknownVoiceOffers> {
+		const current = session.overlay;
+		if (
+			current.kind !== 'performer' ||
+			current.legend ||
+			current.pendingVoice ||
+			context.parsed === undefined
+		) {
+			return { existingSlots: [], canAllocateNew: false };
+		}
+		return unknownVoiceOffers(context.parsed, {
+			anchor: current.range.from,
+			head: current.range.to
+		});
+	}
+
 	// The step counter belongs to the two-voice flow only. A styled-only section
 	// names one voice, and the prompt says up front that its markup goes with the
 	// assignment — the picker is where that consequence is agreed to.
@@ -493,6 +521,36 @@
 	}
 
 	/**
+	 * An unknown chip pressed: wrap the selection as a styled voice the legend
+	 * never names. One press is the whole answer — no legend means no second
+	 * question about who sings the rest — so the picker closes on it exactly as
+	 * a committed range assignment does, selection suppressed and all.
+	 */
+	async function applyUnknownVoice(styleSlot?: StyleSlot): Promise<void> {
+		const current = session.overlay;
+		if (current.kind !== 'performer') {
+			return;
+		}
+		const range = current.range;
+		try {
+			const choice: UnknownVoiceChoice = styleSlot === undefined ? { range } : { range, styleSlot };
+			const edit = await callbacks.createUnknownVoiceEdit?.(choice);
+			if (edit) {
+				if (editor?.handle.dispatchLinkedPerformer) {
+					editor.handle.dispatchLinkedPerformer(edit, range.from);
+				} else {
+					editor?.handle.dispatchAtomic(edit);
+				}
+			}
+		} catch (error) {
+			callbacks.onAnnouncement(
+				error instanceof Error ? error.message : 'The unknown voice could not be applied.'
+			);
+		}
+		session = finishPerformerAssignment(session, { kind: 'range', range, performerIds: [] });
+	}
+
+	/**
 	 * Every section of the same kind as the one the card was opened from, read
 	 * from the editor's own snapshot rather than from `context.parsed` — the
 	 * shell's parse lands a beat behind the document, and a list of sections that
@@ -809,8 +867,12 @@
 
 {#if performerOverlay}
 	{#key legend?.step ?? (pendingVoice ? 'section-voice' : 'selection')}
+		{@const unknownOffer = unknownVoiceOffer()}
 		<PerformerPicker
 			performers={context.performers}
+			unknownSlots={unknownOffer.existingSlots}
+			canAddUnknown={unknownOffer.canAllocateNew}
+			onAssignUnknown={callbacks.createUnknownVoiceEdit ? applyUnknownVoice : undefined}
 			initialSelectedIds={legend
 				? legend.step === 'section'
 					? legend.sectionPerformerIds

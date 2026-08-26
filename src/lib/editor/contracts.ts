@@ -97,6 +97,16 @@ interface PerformerLegendAssignmentChoice {
 	unwrapSlots?: readonly StyleSlot[];
 }
 
+/**
+ * A selection assigned to an unknown voice: styled, never named in the legend.
+ * `styleSlot` reuses an existing unaccounted slot; omitted, the transform
+ * allocates a fresh one.
+ */
+interface UnknownVoiceChoice {
+	range: TextRange;
+	styleSlot?: StyleSlot;
+}
+
 export interface SectionHeaderChoice {
 	range: TextRange;
 	headerName: string;
@@ -130,6 +140,9 @@ interface EditorOverlayCallbacks {
 	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
 	createPerformerLegendEdit?(
 		choice: PerformerLegendAssignmentChoice
+	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
+	createUnknownVoiceEdit?(
+		choice: UnknownVoiceChoice
 	): AtomicDocumentEdit | undefined | Promise<AtomicDocumentEdit | undefined>;
 	createSectionHeaderEdit?(
 		choice: SectionHeaderChoice

@@ -20,7 +20,8 @@
 		DiagnosticFix,
 		EditorHandle,
 		EditorSnapshot,
-		PerformerRecord
+		PerformerRecord,
+		UnknownVoiceRequest
 	} from '$lib/core/types.js';
 	import {
 		EditorPane,
@@ -31,6 +32,7 @@
 	import { getLanguagePack, resolveLanguageTag } from '$lib/languages/registry.js';
 	import {
 		allocatePerformerColor,
+		assignUnknownVoice,
 		assignVoiceGroup,
 		assignVoiceLegend,
 		insertSectionHeader,
@@ -329,6 +331,17 @@
 				sectionPerformerIds,
 				roster: performers
 			});
+			return result.status === 'applied' ? result.edit : undefined;
+		},
+		createUnknownVoiceEdit: ({ range, styleSlot }) => {
+			const request: UnknownVoiceRequest = {
+				revision: snapshot.revision,
+				text: snapshot.text,
+				document: snapshot.parsed,
+				selection: { anchor: range.from, head: range.to }
+			};
+			if (styleSlot !== undefined) request.styleSlot = styleSlot;
+			const result = assignUnknownVoice(request);
 			return result.status === 'applied' ? result.edit : undefined;
 		},
 		createPerformerLegendEdit: ({ sectionFrom, assignments, unwrapSlots }) => {

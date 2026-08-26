@@ -495,3 +495,82 @@ describe('PerformerPicker step bar', () => {
 		expect(action().classList.contains('button--contrast')).toBe(true);
 	});
 });
+
+describe('PerformerPicker unknown voices', () => {
+	it('draws an act-on-press chip per unknown slot, styled and named without color', async () => {
+		const onAssignUnknown = vi.fn();
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			initialSelectedIds: [],
+			allowRemoval: false,
+			unknownSlots: [2, 3, 4],
+			canAddUnknown: false,
+			onAssignUnknown,
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		const italic = page.getByRole('button', { name: 'Unknown italic voice' });
+		const bold = page.getByRole('button', { name: 'Unknown bold voice' });
+		const boldItalic = page.getByRole('button', { name: 'Unknown bold italic voice' });
+		await expect.element(italic).toBeVisible();
+		await expect.element(bold).toBeVisible();
+		await expect.element(boldItalic).toBeVisible();
+
+		// The slot's own styling is the visual cue that tells the three apart.
+		const labels = document.querySelectorAll<HTMLElement>('.chip--unknown [aria-hidden="true"]');
+		expect(labels).toHaveLength(3);
+		expect(getComputedStyle(labels[0]!).fontStyle).toBe('italic');
+		expect(getComputedStyle(labels[1]!).fontWeight).not.toBe(
+			getComputedStyle(labels[0]!).fontWeight
+		);
+		expect(getComputedStyle(labels[2]!).fontStyle).toBe('italic');
+
+		// No identity, no dot: the dot is a performer color's carrier.
+		expect(document.querySelectorAll('.chip--unknown .chip__dot')).toHaveLength(0);
+
+		// One press is the whole answer, carrying the slot it joins.
+		await userEvent.click(bold);
+		expect(onAssignUnknown).toHaveBeenCalledWith(3);
+	});
+
+	it('offers a new unknown voice only while a slot is free, and mints without a slot', async () => {
+		const onAssignUnknown = vi.fn();
+		const view = await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			initialSelectedIds: [],
+			allowRemoval: false,
+			unknownSlots: [2],
+			canAddUnknown: true,
+			onAssignUnknown,
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		await userEvent.click(page.getByRole('button', { name: 'New unknown voice' }));
+		expect(onAssignUnknown).toHaveBeenCalledWith(undefined);
+
+		await view.rerender({ canAddUnknown: false });
+		expect(document.querySelector('.chip--unknown-new')).toBeNull();
+		// The existing unknown chip stays: it is derived from the document, not
+		// from the free-slot question.
+		await expect.element(page.getByRole('button', { name: 'Unknown italic voice' })).toBeVisible();
+	});
+
+	it('draws no unknown chips without a handler to receive the press', async () => {
+		await render(PerformerPicker, {
+			performers: crowdedRoster(),
+			initialSelectedIds: [],
+			allowRemoval: false,
+			unknownSlots: [2, 3],
+			canAddUnknown: true,
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		expect(document.querySelector('.chip--unknown')).toBeNull();
+	});
+});

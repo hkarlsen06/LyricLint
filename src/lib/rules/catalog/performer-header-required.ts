@@ -23,8 +23,8 @@ function removePerformerFormatting(section: Section): TextEdit[] {
 
 export const performerHeaderRequiredRule: RuleDefinition = {
 	id: 'performer.header-required',
-	version: 2,
-	defaultSeverity: 'warning',
+	version: 3,
+	defaultSeverity: 'suggestion',
 	fixability: 'safe',
 	sourceIds: ['G-SECTIONS'],
 	check(document, context) {
@@ -41,8 +41,8 @@ export const performerHeaderRequiredRule: RuleDefinition = {
 				diagnostic(
 					this,
 					range,
-					'Styled vocals need a performer legend.',
-					'This multi-performer section differentiates inline vocals but its header does not identify the style slots. Add a performer legend, or remove the formatting if the section no longer needs performer differentiation.',
+					'Styled vocals are not yet named in a performer legend.',
+					'This section differentiates inline voices, but its header does not yet say who they are. The formatting is worth keeping until the voices are known — it tells the next transcriber a distinct voice sings here. Add a performer legend when the voices are identified, or remove the formatting only if the section no longer needs differentiation.',
 					[
 						{
 							kind: 'safe',

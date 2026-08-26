@@ -30,10 +30,10 @@ const otherRange: TextRange = { from: 20, to: 24 };
 function diagnostic(overrides: Partial<Diagnostic> = {}): Diagnostic {
 	return {
 		ruleId: 'performer.inline-mismatch',
-		severity: 'warning',
+		severity: 'suggestion',
 		from: 12,
 		to: 18,
-		message: 'Inline style has no performer in the section legend.',
+		message: 'A styled voice is not yet named in the section legend.',
 		explanation: 'The styled passage has no voice in the header.',
 		sourceIds: [],
 		...overrides

@@ -539,6 +539,7 @@ const lyricEditorCallbackKeySet = {
 	onAnnouncement: true,
 	createPerformerEdit: true,
 	createPerformerLegendEdit: true,
+	createUnknownVoiceEdit: true,
 	createSectionHeaderEdit: true,
 	onApplyDiagnosticFix: true,
 	countDiagnosticFixBatch: true,
@@ -580,6 +581,7 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		onAnnouncement: (message) => read().onAnnouncement(message),
 		createPerformerEdit: (choice) => read().createPerformerEdit?.(choice),
 		createPerformerLegendEdit: (choice) => read().createPerformerLegendEdit?.(choice),
+		createUnknownVoiceEdit: (choice) => read().createUnknownVoiceEdit?.(choice),
 		createSectionHeaderEdit: (choice) => read().createSectionHeaderEdit?.(choice),
 		onApplyDiagnosticFix: (diagnostic, fix) => read().onApplyDiagnosticFix?.(diagnostic, fix),
 		countDiagnosticFixBatch: (diagnostic, fix) =>

@@ -2,7 +2,7 @@
 	import { Plus } from 'lucide-svelte';
 	import { onMount, tick, untrack } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
-	import type { PerformerId, PerformerRecord } from '$lib/core/types.js';
+	import type { PerformerId, PerformerRecord, StyleSlot } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import type { ScreenRect } from '../contracts.js';
 	import { preferredControlPlacement } from './anchored-position.js';
@@ -50,6 +50,21 @@
 		returnFocusOnApply?: boolean;
 		allowRemoval?: boolean;
 		removalAvailable?: boolean;
+		/**
+		 * Unaccounted styled slots the selection could join — the section's
+		 * *unknown voices*, derived from styling the legend does not name. Each
+		 * draws as an act-on-press chip in its own styling, because pressing one
+		 * is a whole answer: "the same unknown voice as those passages". They
+		 * carry no identity, so no dot and no performer colour.
+		 */
+		unknownSlots?: readonly StyleSlot[];
+		/**
+		 * Whether a fresh styled slot is free for a voice nobody has marked yet.
+		 * Drawn only when true — an offer the transform would refuse must not draw.
+		 */
+		canAddUnknown?: boolean;
+		/** Pressed with a slot to join it, without one to allocate the next free slot. */
+		onAssignUnknown?: (styleSlot?: StyleSlot) => void | Promise<void>;
 		onApply: (performerIds: PerformerId[]) => void | Promise<void>;
 		onCancel: () => void;
 		returnFocus: () => void;
@@ -70,6 +85,9 @@
 		returnFocusOnApply = true,
 		allowRemoval = true,
 		removalAvailable = initialSelectedIds.length > 0,
+		unknownSlots = [],
+		canAddUnknown = false,
+		onAssignUnknown,
 		onApply,
 		onCancel,
 		returnFocus,
@@ -89,6 +107,13 @@
 	/** `[1, 2]` for a two-step flow, empty for a prompt that is not one. */
 	const stepStops = $derived(
 		stepCount && stepCount > 1 ? Array.from({ length: stepCount }, (_, i) => i + 1) : []
+	);
+	/** Unknown chips only draw with a press to receive; a list without the handler is decoration. */
+	const shownUnknownSlots = $derived(onAssignUnknown ? unknownSlots : []);
+	const showsNewUnknown = $derived(canAddUnknown && onAssignUnknown !== undefined);
+	/** The add chip's roving-tabindex position, after every performer and unknown chip. */
+	const addChipIndex = $derived(
+		performers.length + shownUnknownSlots.length + (showsNewUnknown ? 1 : 0)
 	);
 	const removalSelected = $derived(selectedIds.length === 0 && initialSelectedIds.length > 0);
 	const canRemoveFormatting = $derived(
@@ -258,8 +283,35 @@
 		onCancel();
 	}
 
+	/**
+	 * A whole answer on one press, exactly as the dashed add chip acts on press:
+	 * an unknown voice cannot be combined with a named one — a joint group with
+	 * an unidentified member has no legend to be written into — so there is no
+	 * selection state to accumulate and nothing for Apply to add.
+	 */
+	async function assignUnknown(styleSlot?: StyleSlot): Promise<void> {
+		if (!onAssignUnknown) {
+			return;
+		}
+		const restoreFocus = returnFocusOnApply ? returnFocus : undefined;
+		try {
+			await onAssignUnknown(styleSlot);
+		} finally {
+			await tick();
+			restoreFocus?.();
+		}
+	}
+
+	function unknownVoiceName(slot: StyleSlot): string {
+		return slot === 4
+			? 'Unknown bold italic voice'
+			: slot === 3
+				? 'Unknown bold voice'
+				: 'Unknown italic voice';
+	}
+
 	async function beginAdd(): Promise<void> {
-		activeIndex = performers.length;
+		activeIndex = addChipIndex;
 		adding = true;
 		await tick();
 		addInput?.focus();
@@ -460,6 +512,42 @@
 						{performer.displayName}
 					</button>
 				{/each}
+				{#each shownUnknownSlots as slot, unknownIndex (slot)}
+					<!-- No dot: the dot is an identity's colour, and an unknown voice's
+					     whole point is that it has none. The slot's own styling on the
+					     label is the non-colour cue that separates the three. -->
+					<button
+						type="button"
+						class="chip chip--unknown"
+						data-picker-chip
+						tabindex={performers.length + unknownIndex === activeIndex ? 0 : -1}
+						onclick={() => assignUnknown(slot)}
+						onfocus={() => (activeIndex = performers.length + unknownIndex)}
+					>
+						<span
+							aria-hidden="true"
+							class="chip__unknown-label"
+							class:chip__unknown-label--italic={slot === 2 || slot === 4}
+							class:chip__unknown-label--bold={slot === 3 || slot === 4}>Unknown</span
+						>
+						<span class="sr-only">{unknownVoiceName(slot)}</span>
+					</button>
+				{/each}
+				{#if showsNewUnknown}
+					<!-- Dashed like the add chip, because it is the same kind of answer:
+					     it mints something rather than choosing something already here. -->
+					<button
+						type="button"
+						class="chip chip--unknown chip--unknown-new"
+						data-picker-chip
+						tabindex={performers.length + shownUnknownSlots.length === activeIndex ? 0 : -1}
+						onclick={() => assignUnknown(undefined)}
+						onfocus={() => (activeIndex = performers.length + shownUnknownSlots.length)}
+					>
+						<span aria-hidden="true">Unknown voice</span>
+						<span class="sr-only">New unknown voice</span>
+					</button>
+				{/if}
 			</div>
 			{#if onAddPerformer}
 				{#if adding}
@@ -478,9 +566,9 @@
 							class="chip chip--add"
 							data-picker-chip
 							aria-label="Add a performer"
-							tabindex={activeIndex === performers.length ? 0 : -1}
+							tabindex={activeIndex === addChipIndex ? 0 : -1}
 							onclick={beginAdd}
-							onfocus={() => (activeIndex = performers.length)}
+							onfocus={() => (activeIndex = addChipIndex)}
 						>
 							<Plus aria-hidden="true" size={16} strokeWidth={2.7} />
 						</button>
@@ -724,6 +812,30 @@
 		background: linear-gradient(to right, transparent, var(--color-overlay) var(--space-6));
 		content: '';
 		pointer-events: none;
+	}
+
+	/* An unknown voice has no identity, so the chip has no dot and no performer
+	   colour — the slot's own styling on the label is what tells the three
+	   apart, and the sr-only name says the same where styling does not reach. */
+	.chip--unknown {
+		color: inherit;
+	}
+
+	.chip__unknown-label--italic {
+		font-style: italic;
+	}
+
+	.chip__unknown-label--bold {
+		font-weight: var(--font-weight-bold);
+	}
+
+	.chip--unknown-new {
+		border-style: dashed;
+		color: var(--color-text-muted);
+	}
+
+	.chip--unknown-new:hover {
+		color: inherit;
 	}
 
 	.chip--add {

@@ -87,8 +87,7 @@
 			"Blair"
 		],
 		"expectedRuleIds": [
-			"performer.header-required",
-			"performer.inline-mismatch"
+			"performer.header-required"
 		]
 	},
 	{

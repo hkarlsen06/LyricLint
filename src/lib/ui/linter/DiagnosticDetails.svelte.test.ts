@@ -267,10 +267,10 @@ describe('DiagnosticDetails preview flow', () => {
 		await render(DiagnosticDetails, {
 			diagnostic: {
 				ruleId: 'performer.inline-mismatch',
-				severity: 'warning',
+				severity: 'suggestion',
 				from: 20,
 				to: 38,
-				message: 'Inline style has no performer in the section legend.',
+				message: 'A styled voice is not yet named in the section legend.',
 				explanation: 'Choose the section and styled voices.',
 				sourceIds: []
 			},
@@ -293,10 +293,10 @@ describe('DiagnosticDetails preview flow', () => {
 		await render(DiagnosticDetails, {
 			diagnostic: {
 				ruleId: 'performer.inline-mismatch',
-				severity: 'warning',
+				severity: 'suggestion',
 				from: 20,
 				to: 38,
-				message: 'Inline style has no performer in the section legend.',
+				message: 'A styled voice is not yet named in the section legend.',
 				explanation: 'Choose the section and styled voices.',
 				sourceIds: []
 			},

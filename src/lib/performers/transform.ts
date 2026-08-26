@@ -1,5 +1,6 @@
 // Decision record: docs/subsystems/performers.md and docs/subsystems/section-links.md — read both before changing this file; `narrowEdit` is load-bearing for the link mirror.
 import type {
+	AssignmentBlockReason,
 	AssignmentRequest,
 	AtomicDocumentEdit,
 	InsertSectionHeaderRequest,
@@ -15,13 +16,15 @@ import type {
 	StyleSlot,
 	SupportedStyleSpan,
 	TextEdit,
-	TextRange
+	TextRange,
+	UnknownVoiceRequest
 } from '$lib/core/types.js';
 import { headerNameIsEmpty } from '$lib/core/parser.js';
 import { serializeLegend, styleTags, wrapVoiceSpan } from '$lib/serialization/genius-markup.js';
 import { allocateStyleSlot } from './allocation.js';
 import { makeVoiceGroupKey } from './identity.js';
 import { extractPerformers } from './import.js';
+import { unaccountedStyledSlots } from './legend-cleanup.js';
 import {
 	TOO_MANY_GROUP_OPTIONS,
 	type AssignmentResult,
@@ -840,6 +843,121 @@ function lineEndingForInsertion(text: string, offset: number): string {
 }
 
 /**
+ * Rewrite every line the wrap range touches so its selected pieces carry
+ * `styleSlot`, balancing any continued wrapper the range overlaps.
+ *
+ * This is the lyric-body half of an assignment, shared by `assignVoiceGroup`
+ * and `assignUnknownVoice` — the two differ only in whether a legend edit
+ * accompanies these rewrites, so a second copy of this machinery would let the
+ * named and unknown paths disagree about what a wrap does to the lines.
+ */
+function wrapSelectionTransforms(
+	text: string,
+	section: Section,
+	wrapRange: TextRange,
+	styleSlot: StyleSlot
+):
+	| {
+			status: 'wrapped';
+			lineTransforms: { line: LyricLine; transform: LineTransform }[];
+			balancingEdits: TextEdit[];
+	  }
+	| { status: 'blocked'; reason: 'invalid-range' | 'whitespace-selection' } {
+	// A wrapper spanning several lines may be restyled in part. Every line in an
+	// overlapping chain is re-rendered with balanced tags of its own: selected
+	// lines take the new slot, while lines outside the selection keep their old
+	// slot. That safely splits a shape such as `<i>first\nsecond\nthird</i>` when
+	// only `second` and `third` are reassigned, instead of silently refusing the
+	// edit because the opening tag lives above the selection.
+	const rewritableContinuedSpans = new Set<SupportedStyleSpan>();
+	const styleChains = supportedStyleChains(section);
+	for (const chain of styleChains) {
+		if (chain.some((span) => span.contentFrom < wrapRange.to && wrapRange.from < span.contentTo)) {
+			for (const span of chain) {
+				rewritableContinuedSpans.add(span);
+			}
+		}
+	}
+	// Two continued wrappers can meet on one physical line. Balancing that line
+	// for the first wrapper also balances the second, so carry the rewrite through
+	// the second chain as well; leaving its following line untouched would trade
+	// one unmatched boundary for another.
+	const chainForSpan = new Map<SupportedStyleSpan, SupportedStyleSpan[]>();
+	for (const chain of styleChains) {
+		for (const span of chain) {
+			chainForSpan.set(span, chain);
+		}
+	}
+	let expanded = true;
+	while (expanded) {
+		expanded = false;
+		for (const line of section.lines) {
+			const spans = supportedSpans(line);
+			if (!spans.some((span) => rewritableContinuedSpans.has(span))) {
+				continue;
+			}
+			for (const span of spans) {
+				if (
+					rewritableContinuedSpans.has(span) ||
+					(!span.continuedFromPreviousLine && !span.continuesToNextLine)
+				) {
+					continue;
+				}
+				for (const chainedSpan of chainForSpan.get(span) ?? []) {
+					if (!rewritableContinuedSpans.has(chainedSpan)) {
+						rewritableContinuedSpans.add(chainedSpan);
+						expanded = true;
+					}
+				}
+			}
+		}
+	}
+
+	const lineTransforms: { line: LyricLine; transform: LineTransform }[] = [];
+	const balancingEdits: TextEdit[] = [];
+	for (const line of section.lines) {
+		const lineSelection = trimWhitespaceRange(text, {
+			from: Math.max(wrapRange.from, line.from),
+			to: Math.min(wrapRange.to, line.to)
+		});
+		if (lineSelection.from >= lineSelection.to) {
+			if (supportedSpans(line).some((span) => rewritableContinuedSpans.has(span))) {
+				const edit = balanceLine(text, line);
+				if (edit) {
+					balancingEdits.push(edit);
+				}
+			}
+			continue;
+		}
+		const transform = transformLine(text, line, lineSelection, styleSlot, rewritableContinuedSpans);
+		if (!transform) {
+			return { status: 'blocked', reason: 'invalid-range' };
+		}
+		lineTransforms.push({ line, transform });
+	}
+
+	if (lineTransforms.length === 0) {
+		return { status: 'blocked', reason: 'whitespace-selection' };
+	}
+	return { status: 'wrapped', lineTransforms, balancingEdits };
+}
+
+/**
+ * Where one end of a wrapped selection lands after the edit set applies: inside
+ * the line's own rewrite when it has one, or shifted by the edits before it.
+ */
+function mappedTransformOffset(
+	transform: LineTransform,
+	end: 'from' | 'to',
+	edits: readonly TextEdit[]
+): number {
+	const offset = end === 'from' ? transform.selectedFrom : transform.selectedTo;
+	return transform.edit
+		? insertedOffset(transform.edit, offset - transform.edit.from, edits)
+		: mapOriginalOffset(offset, edits);
+}
+
+/**
  * Build one atomic edit containing the header legend update, every affected
  * lyric-line rewrite, and a direction-preserving semantic selection.
  */
@@ -997,88 +1115,11 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		};
 	}
 
-	// A wrapper spanning several lines may be restyled in part. Every line in an
-	// overlapping chain is re-rendered with balanced tags of its own: selected
-	// lines take the new slot, while lines outside the selection keep their old
-	// slot. That safely splits a shape such as `<i>first\nsecond\nthird</i>` when
-	// only `second` and `third` are reassigned, instead of silently refusing the
-	// edit because the opening tag lives above the selection.
-	const rewritableContinuedSpans = new Set<SupportedStyleSpan>();
-	const styleChains = supportedStyleChains(section);
-	for (const chain of styleChains) {
-		if (chain.some((span) => span.contentFrom < wrapRange.to && wrapRange.from < span.contentTo)) {
-			for (const span of chain) {
-				rewritableContinuedSpans.add(span);
-			}
-		}
+	const wrapped = wrapSelectionTransforms(request.text, section, wrapRange, allocation.styleSlot);
+	if (wrapped.status === 'blocked') {
+		return { status: 'blocked', reason: wrapped.reason };
 	}
-	// Two continued wrappers can meet on one physical line. Balancing that line
-	// for the first wrapper also balances the second, so carry the rewrite through
-	// the second chain as well; leaving its following line untouched would trade
-	// one unmatched boundary for another.
-	const chainForSpan = new Map<SupportedStyleSpan, SupportedStyleSpan[]>();
-	for (const chain of styleChains) {
-		for (const span of chain) {
-			chainForSpan.set(span, chain);
-		}
-	}
-	let expanded = true;
-	while (expanded) {
-		expanded = false;
-		for (const line of section.lines) {
-			const spans = supportedSpans(line);
-			if (!spans.some((span) => rewritableContinuedSpans.has(span))) {
-				continue;
-			}
-			for (const span of spans) {
-				if (
-					rewritableContinuedSpans.has(span) ||
-					(!span.continuedFromPreviousLine && !span.continuesToNextLine)
-				) {
-					continue;
-				}
-				for (const chainedSpan of chainForSpan.get(span) ?? []) {
-					if (!rewritableContinuedSpans.has(chainedSpan)) {
-						rewritableContinuedSpans.add(chainedSpan);
-						expanded = true;
-					}
-				}
-			}
-		}
-	}
-
-	const lineTransforms: { line: LyricLine; transform: LineTransform }[] = [];
-	const balancingEdits: TextEdit[] = [];
-	for (const line of section.lines) {
-		const lineSelection = trimWhitespaceRange(request.text, {
-			from: Math.max(wrapRange.from, line.from),
-			to: Math.min(wrapRange.to, line.to)
-		});
-		if (lineSelection.from >= lineSelection.to) {
-			if (supportedSpans(line).some((span) => rewritableContinuedSpans.has(span))) {
-				const edit = balanceLine(request.text, line);
-				if (edit) {
-					balancingEdits.push(edit);
-				}
-			}
-			continue;
-		}
-		const transform = transformLine(
-			request.text,
-			line,
-			lineSelection,
-			allocation.styleSlot,
-			rewritableContinuedSpans
-		);
-		if (!transform) {
-			return { status: 'blocked', reason: 'invalid-range' };
-		}
-		lineTransforms.push({ line, transform });
-	}
-
-	if (lineTransforms.length === 0) {
-		return { status: 'blocked', reason: 'whitespace-selection' };
-	}
+	const { lineTransforms, balancingEdits } = wrapped;
 
 	const combinedTransform = combineLineTransforms(
 		request.text,
@@ -1160,22 +1201,195 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	// its end is the rest's opening tag, which the selection must not swallow.
 	const mappedFrom = invert
 		? mapOriginalOffset(selection.from, edits)
-		: first.edit
-			? insertedOffset(first.edit, first.selectedFrom - first.edit.from, edits)
-			: mapOriginalOffset(first.selectedFrom, edits);
+		: mappedTransformOffset(first, 'from', edits);
 	const mappedTo = invert
 		? mapOriginalOffset(
 				selection.to,
 				edits.filter((edit) => edit.from < selection.to)
 			)
-		: last.edit
-			? insertedOffset(last.edit, last.selectedTo - last.edit.from, edits)
-			: mapOriginalOffset(last.selectedTo, edits);
+		: mappedTransformOffset(last, 'to', edits);
 	const forwards = request.selection.anchor <= request.selection.head;
 
 	return {
 		status: 'applied',
 		styleSlot: invert ? 1 : allocation.styleSlot,
+		edit: makeAtomicEdit(
+			request.revision,
+			request.text.length,
+			edits,
+			forwards ? { anchor: mappedFrom, head: mappedTo } : { anchor: mappedTo, head: mappedFrom }
+		)
+	};
+}
+
+/** What an unknown-voice request could do with the selection, resolved once. */
+type UnknownSlotAnalysis =
+	| {
+			status: 'analyzed';
+			section: Section;
+			range: TextRange;
+			/**
+			 * Unaccounted slots whose reuse would change the selection — "the same
+			 * unknown voice as the other passages in this style". A slot the whole
+			 * selection already carries is left out: wrapping it again edits nothing.
+			 */
+			existingSlots: StyleSlot[];
+			/** The slot a new unknown voice would take: the first styled slot free of both the legend and the section body. */
+			newSlot: StyleSlot | undefined;
+	  }
+	| {
+			status: 'blocked';
+			reason: Exclude<AssignmentBlockReason, 'grapheme-boundary' | 'too-many-groups'>;
+	  };
+
+function analyzeUnknownSlots(
+	document: ParsedDocument,
+	selection: SerializedSelection
+): UnknownSlotAnalysis {
+	const normalized = normalizeSelection(document, selection);
+	if (isSelectionRefusal(normalized)) {
+		return { status: 'blocked', reason: normalized };
+	}
+	const section = sectionForRange(document.sections, normalized);
+	if (!section) {
+		return { status: 'blocked', reason: 'cross-section' };
+	}
+	if (!section.header) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+
+	const selectionSlots = new Set<StyleSlot>();
+	const bodySlots = new Set<StyleSlot>();
+	for (const line of section.lines) {
+		for (const span of supportedSpans(line)) {
+			bodySlots.add(span.slot);
+		}
+		const lineSelection = trimWhitespaceRange(document.text, {
+			from: Math.max(normalized.from, line.from),
+			to: Math.min(normalized.to, line.to)
+		});
+		if (lineSelection.from >= lineSelection.to) {
+			continue;
+		}
+		for (const piece of buildLinePieces(document.text, line, lineSelection)) {
+			if (piece.selected && piece.text.trim().length > 0) {
+				selectionSlots.add(piece.slot);
+			}
+		}
+	}
+	const uniformSlot = selectionSlots.size === 1 ? [...selectionSlots][0] : undefined;
+
+	const legendSlots = new Set(section.header.legendGroups.map((group) => group.styleSlot));
+	return {
+		status: 'analyzed',
+		section,
+		range: normalized,
+		existingSlots: unaccountedStyledSlots(section)
+			.map((unaccounted) => unaccounted.slot)
+			.filter((slot) => slot !== uniformSlot),
+		newSlot: STYLE_SLOTS.find(
+			(slot) => slot !== 1 && !legendSlots.has(slot) && !bodySlots.has(slot)
+		)
+	};
+}
+
+/**
+ * The unknown-voice answers the picker may draw for a selection.
+ *
+ * The transform's own reading, not a second opinion: `assignUnknownVoice`
+ * resolves the same analysis, so a chip offered here is an assignment that
+ * will not refuse when pressed — `existingSlots` are the section's unnamed
+ * styled voices the selection could join, and `canAllocateNew` is whether a
+ * fresh styled slot is free for a voice nobody has marked yet.
+ */
+export function unknownVoiceOffers(
+	document: ParsedDocument,
+	selection: SerializedSelection
+): { existingSlots: StyleSlot[]; canAllocateNew: boolean } {
+	const analysis = analyzeUnknownSlots(document, selection);
+	return analysis.status === 'blocked'
+		? { existingSlots: [], canAllocateNew: false }
+		: { existingSlots: analysis.existingSlots, canAllocateNew: analysis.newSlot !== undefined };
+}
+
+/**
+ * Wrap the selection as an unknown voice: a styled slot with no legend entry.
+ *
+ * The header is deliberately never edited. A legend group is an identity
+ * claim, and the whole point of an unknown voice is that no identity is known
+ * yet — the styling alone records that a distinct voice sings here, which is
+ * exactly the state `performer.inline-mismatch` keeps visible until somebody
+ * names it. Same prologue as `assignVoiceGroup`, so `canAssignVoiceGroup`
+ * remains the one predicate the picker asks before offering either.
+ */
+export function assignUnknownVoice(request: UnknownVoiceRequest): AssignmentResult {
+	if (
+		request.selection.anchor < 0 ||
+		request.selection.head < 0 ||
+		request.selection.anchor > request.text.length ||
+		request.selection.head > request.text.length ||
+		request.document.text !== request.text
+	) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+	const analysis = analyzeUnknownSlots(request.document, request.selection);
+	if (analysis.status === 'blocked') {
+		return { status: 'blocked', reason: analysis.reason };
+	}
+
+	const slot =
+		request.styleSlot !== undefined
+			? analysis.existingSlots.includes(request.styleSlot)
+				? request.styleSlot
+				: undefined
+			: analysis.newSlot;
+	if (slot === undefined) {
+		// A named explicit slot that is not an unaccounted one is a stale request
+		// — the document changed under the card — while a failed allocation is
+		// the four slots genuinely spent.
+		return request.styleSlot !== undefined
+			? { status: 'blocked', reason: 'invalid-range' }
+			: {
+					status: 'blocked',
+					reason: 'too-many-groups',
+					blocked: 'too-many-groups',
+					options: TOO_MANY_GROUP_OPTIONS
+				};
+	}
+
+	const wrapped = wrapSelectionTransforms(request.text, analysis.section, analysis.range, slot);
+	if (wrapped.status === 'blocked') {
+		return { status: 'blocked', reason: wrapped.reason };
+	}
+	const { lineTransforms, balancingEdits } = wrapped;
+	const combinedTransform = combineLineTransforms(request.text, lineTransforms, slot);
+	const appliedTransforms = combinedTransform
+		? [combinedTransform]
+		: lineTransforms.map(({ transform }) => transform);
+
+	const edits: TextEdit[] = [...balancingEdits];
+	for (const transform of appliedTransforms) {
+		if (transform.edit) {
+			edits.push(transform.edit);
+		}
+	}
+	edits.sort(compareEdits);
+	if (edits.length === 0) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+
+	const first = appliedTransforms[0];
+	const last = appliedTransforms.at(-1);
+	if (!first || !last) {
+		return { status: 'blocked', reason: 'invalid-range' };
+	}
+	const mappedFrom = mappedTransformOffset(first, 'from', edits);
+	const mappedTo = mappedTransformOffset(last, 'to', edits);
+	const forwards = request.selection.anchor <= request.selection.head;
+
+	return {
+		status: 'applied',
+		styleSlot: slot,
 		edit: makeAtomicEdit(
 			request.revision,
 			request.text.length,

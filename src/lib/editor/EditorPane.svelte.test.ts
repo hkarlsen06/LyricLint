@@ -652,6 +652,57 @@ describe('EditorPane', () => {
 		});
 	});
 
+	// A distinct voice with nobody to name it yet: the unknown chips are whole
+	// answers, so one press wraps the selection and skips the two-voice flow —
+	// nothing is written to the header, so there is no second question to ask.
+	it('applies an unknown voice in one press, existing slot or a fresh one', async () => {
+		const text = '[Verse]\n<i>Ayy</i> hello\nSecond line';
+		const from = text.indexOf('Second line');
+		const to = from + 'Second line'.length;
+		const createUnknownVoiceEdit = vi.fn();
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({ performers: performers(), parsed: parseDocument(text) }),
+			editorCallbacks: { ...callbacks(), createUnknownVoiceEdit }
+		});
+
+		handle.setSelection({ anchor: from, head: to });
+		handle.focus();
+		await userEvent.keyboard('{Alt>}p{/Alt}');
+
+		// The two-voice flow is armed for a named answer — and the unknown chip
+		// steps past it, because an unknown writes no legend.
+		await expect.element(page.getByText('Who sings this?')).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'New unknown voice' })).toBeVisible();
+		await userEvent.click(page.getByRole('button', { name: 'Unknown italic voice' }));
+
+		expect(createUnknownVoiceEdit).toHaveBeenCalledWith({ range: { from, to }, styleSlot: 2 });
+		await expect
+			.element(page.getByRole('dialog', { name: 'Assign performers' }))
+			.not.toBeInTheDocument();
+	});
+
+	it('offers no unknown chips on the rest-of-section question', async () => {
+		const text = '[Verse]\nFirst line\nSecond line';
+		const from = text.indexOf('Second line');
+		const to = from + 'Second line'.length;
+		const { handle } = await mountEditor({
+			text,
+			displayContext: context({ performers: performers(), parsed: parseDocument(text) }),
+			editorCallbacks: { ...callbacks(), createUnknownVoiceEdit: vi.fn() }
+		});
+
+		handle.setSelection({ anchor: from, head: to });
+		handle.focus();
+		await userEvent.keyboard('{Alt>}p{/Alt}');
+		await expect.element(page.getByRole('button', { name: 'New unknown voice' })).toBeVisible();
+		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
+		await userEvent.click(page.getByRole('button', { name: /Next/u }));
+
+		await expect.element(page.getByText('Who sings the rest?')).toBeVisible();
+		expect(document.querySelector('.chip--unknown')).toBeNull();
+	});
+
 	it('shows that the plain main performer has no formatting to remove', async () => {
 		const text = '[Verse: Avery]\nAvery stays plain';
 		const from = text.indexOf('Avery stays plain');
@@ -721,7 +772,7 @@ describe('EditorPane', () => {
 			ruleId: 'performer.inline-mismatch',
 			from: styledFrom,
 			to: styledTo,
-			message: 'Inline style has no performer in the section legend.'
+			message: 'A styled voice is not yet named in the section legend.'
 		});
 		const editorCallbacks: LyricEditorCallbacks = {
 			...callbacks(),
@@ -807,7 +858,7 @@ describe('EditorPane', () => {
 			ruleId: 'performer.inline-mismatch',
 			from: styledFrom,
 			to: styledTo,
-			message: 'Inline style has no performer in the section legend.'
+			message: 'A styled voice is not yet named in the section legend.'
 		});
 		const editorCallbacks: LyricEditorCallbacks = {
 			...callbacks(),

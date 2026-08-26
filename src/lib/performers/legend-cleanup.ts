@@ -61,6 +61,38 @@ export function usedStyleSlots(section: Section): Set<StyleSlot> {
 }
 
 /**
+ * Styled slots (2–4) the section body uses that its header's legend does not
+ * name, each with the first supported span that carries it, in slot order.
+ *
+ * This is the workbench's definition of an *unknown voice*: styling in the
+ * lyrics is a claim that a distinct voice sings there, and a slot the legend
+ * has no group for is a voice nobody has identified yet. One owner, consumed
+ * by `performer.inline-mismatch` (one finding per unaccounted slot) and by the
+ * picker's unknown-voice offers (`unknownVoiceOffers` in `transform.ts`) — a
+ * second derivation would let the two surfaces disagree about which voices
+ * are unknown.
+ */
+export function unaccountedStyledSlots(
+	section: Section
+): { slot: StyleSlot; firstSpan: SupportedStyleSpan }[] {
+	const legendSlots = new Set((section.header?.legendGroups ?? []).map((group) => group.styleSlot));
+	const found = new Map<StyleSlot, SupportedStyleSpan>();
+	for (const line of section.lines) {
+		for (const span of line.styleSpans) {
+			if ('unsupported' in span || span.slot === 1 || legendSlots.has(span.slot)) {
+				continue;
+			}
+			if (!found.has(span.slot)) {
+				found.set(span.slot, span);
+			}
+		}
+	}
+	return [...found.entries()]
+		.sort(([left], [right]) => left - right)
+		.map(([slot, firstSpan]) => ({ slot, firstSpan }));
+}
+
+/**
  * Compute the edits that drop legend slots no longer used by a section body.
  *
  * The rule implemented: for every cleanly parsed section whose body has any

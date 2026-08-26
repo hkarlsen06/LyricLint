@@ -34,6 +34,17 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   question, with a `sr-only` `Step 2 of 2` carrying the fact.
 - The roster is `.list-row`: the name *is* the rename (press to edit in place, no pencil), no
   `<strong>`, trash via the shared `RemoveButton`.
+- An **unknown voice** is derived from the text, never stored: a styled slot the section's
+  legend does not name (`unaccountedStyledSlots` in `legend-cleanup.ts`, the one owner). The
+  picker draws one act-on-press chip per unaccounted slot in that slot's own styling (no dot,
+  no performer colour — an unknown has no identity) plus a dashed `Unknown voice` chip while a
+  styled slot is free of both legend and body (`unknownVoiceOffers`, the transform's own
+  reading). Pressing one wraps the selection via `assignUnknownVoice` and **never writes a
+  legend edit** — the missing legend group is what records the voice as unidentified, and
+  `performer.inline-mismatch` keeps the remaining work visible. No second step ever: nothing
+  goes in the header, so there is no rest-of-section question. Chips appear only in the plain
+  selection flow, not the legend flow or step two. Pinned in `unknown-voice.test.ts`,
+  `PerformerPicker.svelte.test.ts`, and `EditorPane.svelte.test.ts`.
 
 ## Decision record
 
@@ -221,3 +232,56 @@ Three things it owes:
   hidden, the two would be announced twice — the same split `SourceCitation.svelte` makes, in the
   direction where the visible copy is the second one.
 
+
+### An unknown voice is the text's own fact, and the roster never learns it
+
+Genius transcription runs formatting-first: a transcriber who hears a distinct voice styles it
+immediately, before anyone knows who sings — the styling helps the reader now, and the
+transcriber who can name the voice completes the header later. The workbench used to treat that
+state as a defect with two exits, add a legend or strip the formatting, and the second exit
+deletes exactly the information the next transcriber needs. What was missing was the third
+answer: *these voices are distinct and unidentified*.
+
+**The model: an unknown voice is a styled slot the section's legend does not name, derived from
+the document on every read and stored nowhere.** The obvious alternative — three "unknown"
+performers in the roster — was rejected for two structural reasons. An unknown is a
+*per-section* fact and the roster is *per-document*: a global "unknown in italic" identity would
+silently claim the italic voice in the Refreng and the italic voice in Vers 2 are the same
+person, a claim the transcriber never made, with the same colour drawn in the gutter of both.
+And a roster entry drags in everything identity means here — a colour hashed from the name
+(three "unknown"s collide), the two-way rename mirror, import dedup, and `context.performers`
+counts that gate the very rules involved. Deriving from the text costs none of that, survives
+copy to Genius, and needs no `DraftRecord` field for the copiers to lose.
+
+Three consequences hold the feature together:
+
+- **One derivation, one owner.** `unaccountedStyledSlots` (in `legend-cleanup.ts`, beside the
+  `usedStyleSlots` it mirrors) answers "which voices are unknown" for both the rule
+  (`performer.inline-mismatch`, one finding per slot) and the picker's chips. The picker's
+  offers come from `unknownVoiceOffers` in `transform.ts` — the transform's own reading, so a
+  chip drawn is an assignment that will not refuse when pressed: an *existing* slot is offered
+  unless the whole selection already carries it (a no-op), and a *new* slot only while one is
+  free of both the legend and the body.
+- **The user never picks the styling.** The picker asks *who*; the transform decides *which
+  slot* (`assignVoiceGroup`'s allocation, and `assignUnknownVoice`'s the same way). The chips
+  are therefore not "unknown italic / unknown bold" choices to select among — the existing ones
+  are the section's actual unnamed voices, rendered in the styling they already have, and the
+  dashed chip mints whatever slot is next free. Presentation is self-limiting: chips exist only
+  where unaccounted styling exists, so the ordinary roster never carries them.
+- **A press is a whole answer, so the chips act on press** (the dashed add chip's precedent).
+  An unknown cannot join a named group — a joint group with an unidentified member has no
+  legend to be written into — so there is no selection state for Apply to accumulate, and no
+  legend write means the two-voice flow's second question never arises. This is also what lets
+  an unknown answer step past an armed `Who sings this?` step.
+
+The resolve path needed no new code: selecting a styled passage and picking a named performer
+already reuses the passage's slot and writes the legend, converting the unknown into a named
+voice in one gesture — which is the flow `performer.inline-mismatch`'s guidance describes.
+
+Implementation: `assignUnknownVoice` / `unknownVoiceOffers` in `performers/transform.ts` (the
+wrap machinery is `wrapSelectionTransforms`, shared with `assignVoiceGroup` so the named and
+unknown paths cannot disagree about what a wrap does), `unaccountedStyledSlots` in
+`performers/legend-cleanup.ts`, the chips in `PerformerPicker.svelte`, the offer and the
+one-press apply in `EditorPane.svelte`, and `createUnknownVoiceEdit` through
+`createCallbackProxy` into `Workspace.svelte` and `LiveDemo.svelte`. Pinned in
+`unknown-voice.test.ts`, `PerformerPicker.svelte.test.ts`, and `EditorPane.svelte.test.ts`.
