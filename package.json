@@ -59,7 +59,7 @@
 		"@codemirror/search": "^6.7.1",
 		"@codemirror/state": "^6.7.1",
 		"@codemirror/view": "^6.43.9",
-		"bits-ui": "^2.18.1",
+		"bits-ui": "^2.19.0",
 		"dexie": "^4.4.5",
 		"harper.js": "2.7.0",
 		"languagedetect": "2.0.0",
