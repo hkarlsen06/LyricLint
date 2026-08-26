@@ -118,11 +118,32 @@ export interface Section extends TextRange {
 	lines: LyricLine[];
 }
 
+/**
+ * One Genius annotation link in the canonical text: `[fragment](id)`.
+ *
+ * The fragment is sung lyrics and the wrapper is Genius's own annotation
+ * anchor, so the whole span is preserved verbatim — stripping it from a
+ * transcription destroys the annotation on Genius. A fragment may cross line
+ * breaks (Genius allows a referent to span lines), which is why annotation
+ * recognition has to sit in the parser: the opening line of a multi-line
+ * fragment starts with `[` and carries no `]`, exactly the shape of a section
+ * header still being typed.
+ */
+export interface AnnotationSpan extends TextRange {
+	/** The sung words inside the brackets, without the delimiters. */
+	fragmentRange: TextRange;
+	/** The digits inside the trailing parentheses. */
+	idRange: TextRange;
+	/** The annotation's numeric Genius id. */
+	id: number;
+}
+
 /** A lossless derived view of the canonical lyric string. */
 export interface ParsedDocument {
 	text: string;
 	sections: Section[];
 	syntaxIssues: ParseIssue[];
+	annotations: AnnotationSpan[];
 }
 
 /** Review status for bundled Genius guideline metadata. */

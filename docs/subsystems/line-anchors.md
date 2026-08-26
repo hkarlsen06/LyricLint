@@ -482,7 +482,13 @@ The rest is five decisions:
   rather than a regex of the editor's. A header sits in the gap before its verse, so a tap spent on
   it would land at the exact moment the verse's first line starts and put every anchor in that
   section one line out. It is also why the run starts on the first _stampable_ line rather than
-  line 1 — the top of a lyric is usually a header.
+  line 1 — the top of a lyric is usually a header. The predicate takes the document alongside the
+  line now (`isStampableLine(line, doc)`), because a line's own text stopped being enough: the
+  opening line of a Genius annotation whose fragment crosses a line break starts with `[` and
+  carries no `]` — a header's exact shape — and only the `](id)` a line or two below says it is
+  sung text that wants a time. `annotationSpansFor` caches the scan per document version, and the wiring's
+  shell-side mirrors (`everyLyricLineTimed` and friends) pass the same context, so the column, the
+  run, and the strip's claim still cannot drift.
 - **The caret lands on the line that was just timed, not on the one coming next.** A tap is a claim
   about the line starting _now_, so the row that lights up has to be the row whose time just
   changed — that is the whole of the feedback for the press, and read on the following line it is

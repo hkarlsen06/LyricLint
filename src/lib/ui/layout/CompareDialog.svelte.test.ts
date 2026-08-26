@@ -197,9 +197,10 @@ describe('CompareDialog', () => {
 		expect(screen.getByText('Trailing whitespace removed', { exact: false })).toBeTruthy();
 	});
 
-	test('hunks that collapse to the same offset and line label both render', async () => {
+	test('rows that collapse to the same offset and line label both render', async () => {
 		// Two removals straddling a kept line near the document's end share
-		// their collapse point. Keyed on that point, the each block threw
+		// their collapse point (they coalesce into one hunk now, but the rows
+		// keep the shared offset). Keyed on that point, the each block threw
 		// each_key_duplicate mid-flush — the first Show changes press appeared
 		// to do nothing while the baseline was already stored, and the press
 		// after it stored the emptied paste area as the baseline.

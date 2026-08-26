@@ -4,6 +4,7 @@ import { sourceRegistry } from '$lib/rules/index.js';
 import { findExactPerformer } from '$lib/performers/index.js';
 import type { VoiceGroupRange } from '$lib/editor/index.js';
 import { lineNumberAt } from '$lib/core/line-numbers.js';
+import { scanAnnotations } from '$lib/core/annotations.js';
 import { isLyricLine, scanPhysicalLines } from '$lib/core/parser.js';
 import type {
 	Diagnostic,
@@ -30,9 +31,10 @@ const voiceGroupRangeCache = new WeakMap<
  */
 export function everyLyricLineTimed(text: string, anchors: readonly LineAnchor[]): boolean {
 	const timed = new Set(anchors.map((anchor) => anchor.line));
+	const annotations = scanAnnotations(text);
 	let stampable = 0;
 	for (const [index, line] of scanPhysicalLines(text).entries()) {
-		if (!isLyricLine(line.text)) continue;
+		if (!isLyricLine(line.text, { annotations, lineFrom: line.from })) continue;
 		stampable += 1;
 		if (!timed.has(index + 1)) return false;
 	}
@@ -74,10 +76,11 @@ export function selectionCoversLyricLine(
 	const from = Math.min(selection.anchor, selection.head);
 	const to = Math.max(selection.anchor, selection.head);
 	if (from >= to) return false;
+	const annotations = scanAnnotations(text);
 	for (const line of scanPhysicalLines(text)) {
 		if (line.from > to || (line.from === to && line.from > from)) break;
 		if (line.to < from) continue;
-		if (isLyricLine(line.text)) return true;
+		if (isLyricLine(line.text, { annotations, lineFrom: line.from })) return true;
 	}
 	return false;
 }
@@ -89,10 +92,12 @@ export function timedLinesSkippable(
 ): boolean {
 	const caretLine = lineNumberAt(text, caretOffset);
 	const timed = new Set(anchors.map((anchor) => anchor.line));
+	const annotations = scanAnnotations(text);
 	let landing: number | undefined;
 	for (const [index, line] of scanPhysicalLines(text).entries()) {
 		const number = index + 1;
-		if (number < caretLine || !isLyricLine(line.text)) continue;
+		if (number < caretLine || !isLyricLine(line.text, { annotations, lineFrom: line.from }))
+			continue;
 		if (!timed.has(number)) return landing !== undefined && landing > caretLine;
 		landing = number;
 	}

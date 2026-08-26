@@ -309,7 +309,9 @@ export default defineConfig({
 						'https://www.youtube-nocookie.com',
 						'https://challenges.cloudflare.com',
 						'https://sdk.scdn.co',
-						'https://*.apple.com'
+						'https://*.apple.com',
+						// The Discord server widget on the landing page's community section.
+						'https://discord.com'
 					],
 
 					// No plugins, ever.

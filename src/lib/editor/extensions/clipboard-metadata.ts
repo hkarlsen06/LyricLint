@@ -2,6 +2,7 @@
 import type { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { isSectionHeaderLine } from '$lib/core/parser.js';
+import { annotationSpansFor } from './annotation-spans.js';
 import type { TextRange } from '$lib/core/types.js';
 import {
 	clipboardHtml,
@@ -193,7 +194,13 @@ function applyLinks(
 		const headers = link.lines.map((relative) => base + (starts[relative] ?? 0));
 		const intact = headers.every((position) => {
 			const line = state.doc.lineAt(position);
-			return line.from === position && isSectionHeaderLine(line.text);
+			return (
+				line.from === position &&
+				isSectionHeaderLine(line.text, {
+					annotations: annotationSpansFor(state.doc),
+					lineFrom: line.from
+				})
+			);
 		});
 		if (!intact) continue;
 		effects.push(setSectionLinkEffect.of({ headers }));

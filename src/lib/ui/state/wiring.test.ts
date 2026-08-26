@@ -339,6 +339,16 @@ describe('UI wiring', () => {
 				{ line: 4, time: 5 }
 			])
 		).toBe(true);
+		// A multi-line annotation's opening line is sung text, so it wants a time
+		// — and it may not read as a header that would excuse it from one.
+		const annotated = '[Verse 1]\n[Det er for mange\nOg ærlig, tre stykker](35524264)';
+		expect(everyLyricLineTimed(annotated, [{ line: 2, time: 1 }])).toBe(false);
+		expect(
+			everyLyricLineTimed(annotated, [
+				{ line: 2, time: 1 },
+				{ line: 3, time: 2 }
+			])
+		).toBe(true);
 	});
 
 	// The strip's skip control draws off this answer, and it mirrors the editor's

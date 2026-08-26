@@ -76,6 +76,65 @@ describe('parseDocument', () => {
 		expect(isSectionHeaderLine('[Chorus?]')).toBe(true);
 	});
 
+	it('keeps an annotation-opening line as a lyric of its section, never a header', () => {
+		// A Genius annotation whose fragment crosses a line break opens with a `[`
+		// and no `]` on its own line — exactly the shape of a header still being
+		// typed. Read as one it split the verse in two, reported a missing
+		// bracket, and stranded the tail's styled spans in a legendless section
+		// the importer answered with an "Unresolved voice" performer.
+		const text = [
+			'[Vers 4: Amara]',
+			'Skal vi se (Nei)',
+			'[Det er for mange white boys i gamet nå',
+			'Og ærlig, det er kun tre stykker jeg føler (Føler)](35524264)',
+			'Pennen, så skarp'
+		].join('\n');
+		const document = parseDocument(text);
+
+		expect(document.sections).toHaveLength(1);
+		expect(document.sections[0]?.header?.name).toBe('Vers');
+		expect(document.sections[0]?.lines).toHaveLength(4);
+		expect(document.syntaxIssues).toEqual([]);
+		expect(document.annotations).toHaveLength(1);
+		expect(document.annotations[0]?.id).toBe(35524264);
+
+		// The classification needs the document: the same line without one falls
+		// back to the line-local answer, which cannot see the closing `](id)`.
+		const opener = '[Det er for mange white boys i gamet nå';
+		expect(
+			isSectionHeaderLine(opener, {
+				annotations: document.annotations,
+				lineFrom: text.indexOf(opener)
+			})
+		).toBe(false);
+		expect(
+			isLyricLine(opener, { annotations: document.annotations, lineFrom: text.indexOf(opener) })
+		).toBe(true);
+		expect(isSectionHeaderLine(opener)).toBe(true);
+	});
+
+	it('keeps a whole-line single-line annotation as a lyric line', () => {
+		const document = parseDocument('[Intro]\n[Patrick](35524236) har ikke\n[Hele linja](7)');
+
+		expect(document.sections).toHaveLength(1);
+		expect(document.sections[0]?.lines.map((line) => line.text)).toEqual([
+			'[Patrick](35524236) har ikke',
+			'[Hele linja](7)'
+		]);
+		expect(document.annotations).toHaveLength(2);
+	});
+
+	it('still reads a header being typed as an unclosed header', () => {
+		// `[Vers` with no annotation close anywhere ahead is somebody typing a
+		// header, and the missing-bracket issue is what tells them so.
+		const document = parseDocument('[Vers\nEn linje');
+
+		expect(document.sections[0]?.header?.name).toBe('Vers');
+		expect(document.syntaxIssues.map((issue) => issue.code)).toEqual([
+			'unbalanced-section-bracket'
+		]);
+	});
+
 	it('records exact header name and legend ranges', () => {
 		const input = fixture('valid-four-voice-slots').input;
 		const document = parseDocument(input);

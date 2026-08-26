@@ -278,9 +278,9 @@
 					</div>
 					<ul class="compare-diff" aria-label="Changes against the page">
 						<!-- Keyed by position: a hunk has no identity of its own, and two
-						     removals straddling a kept line near the document's end
-						     legitimately collapse to the same offset and line label — a
-						     key built from those crashed the render as a duplicate. -->
+						     removed rows near the document's end legitimately collapse to
+						     the same offset and line label — a key built from those
+						     crashed the render as a duplicate. -->
 						<!-- No "Line N" heading over a hunk: the card starts at the section
 						     header, several lines above the change the heading would name,
 						     so any one number over the card is wrong for most of its rows.

@@ -20,6 +20,7 @@ import {
 } from '@codemirror/view';
 import type { BlockInfo } from '@codemirror/view';
 import { isLyricLine } from '$lib/core/parser.js';
+import { annotationSpansFor } from './annotation-spans.js';
 import { prefersReducedMotion } from '$lib/interaction/motion.js';
 import {
 	hideControlHint,
@@ -36,10 +37,14 @@ export type { LineAnchor };
  *
  * The answer is the parser's, not a rule of the editor's: sync mode taps through
  * these lines and the column draws a cell only for them, so the two disagreeing
- * would offer a stamp control for a line a run refuses to visit.
+ * would offer a stamp control for a line a run refuses to visit. The document
+ * rides along because a line's own text cannot answer alone any more: the
+ * opening line of a multi-line annotation starts with `[` and carries no `]`,
+ * and only the document knows the `](id)` that closes it — sung text that gets
+ * timed, not structure.
  */
-export function isStampableLine(line: Line): boolean {
-	return isLyricLine(line.text);
+export function isStampableLine(line: Line, doc: Text): boolean {
+	return isLyricLine(line.text, { annotations: annotationSpansFor(doc), lineFrom: line.from });
 }
 
 /**
@@ -1129,7 +1134,10 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 				// the structure around it and read as finished work. A cell still draws
 				// where a time exists, since `Ctrl-Alt-M` may put one anywhere and a
 				// deliberate anchor must not vanish.
-				if (found === undefined && !isStampableLine(view.state.doc.lineAt(line.from))) {
+				if (
+					found === undefined &&
+					!isStampableLine(view.state.doc.lineAt(line.from), view.state.doc)
+				) {
 					return null;
 				}
 				return new TimeGutterMarker(

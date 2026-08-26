@@ -1,6 +1,8 @@
+import { scanAnnotations } from './annotations.js';
 import { parseLegend } from './legend.js';
 import { extractSectionStyleSpans } from './lines.js';
 import type {
+	AnnotationSpan,
 	LineEndingKind,
 	LyricLine,
 	ParseIssue,
@@ -98,16 +100,46 @@ function trimmedRange(text: string, from: number, to: number): TextRange {
 const unknownLyricLine = /^\[\s*\?+\s*\]$/u;
 
 /**
+ * Where a line sits in its document, for the one classification a line's own
+ * text cannot answer: whether its leading `[` opens a Genius annotation
+ * rather than a section header. An annotation's fragment may cross line
+ * breaks, so the opening line of one reads exactly like a header still being
+ * typed — `[Det er for mange white boys i gamet nå` — and only the document
+ * knows a `](35524264)` closes it two lines down. Callers that hold the
+ * document pass this; a caller that truly has one bare line falls back to the
+ * line-local answer, which cannot see multi-line annotations.
+ */
+export interface LineDocumentContext {
+	annotations: readonly AnnotationSpan[];
+	lineFrom: number;
+}
+
+function opensAnnotation(text: string, context: LineDocumentContext | undefined): boolean {
+	if (!context) {
+		return false;
+	}
+	const bracketAt = context.lineFrom + text.indexOf('[');
+	return context.annotations.some((annotation) => annotation.from === bracketAt);
+}
+
+/**
  * Whether a line of text opens a section rather than being sung.
  *
  * Exported because the editor needs the same answer and must not arrive at it
  * with a regex of its own: sync mode taps through lyric lines and skips the
  * structure between them, and a second definition of "structure" would drift
  * from this one the first time the parser learned about an unclosed bracket.
+ * That first time arrived with annotations: a line whose leading `[` opens an
+ * annotation span is sung text wearing Genius's own link markup, never a
+ * header — which is why the predicate takes the document context and every
+ * caller that holds a document must pass it.
  */
-export function isSectionHeaderLine(text: string): boolean {
+export function isSectionHeaderLine(text: string, context?: LineDocumentContext): boolean {
 	const trimmed = text.trim();
 	if (!trimmed.startsWith('[') || unknownLyricLine.test(trimmed)) {
+		return false;
+	}
+	if (opensAnnotation(text, context)) {
 		return false;
 	}
 
@@ -122,9 +154,9 @@ export function isSectionHeaderLine(text: string): boolean {
  * that every one of them has an anchor. They have to agree, so there is one
  * answer and it lives beside the header test it is built from.
  */
-export function isLyricLine(text: string): boolean {
+export function isLyricLine(text: string, context?: LineDocumentContext): boolean {
 	const trimmed = text.trim();
-	return trimmed.length > 0 && !isSectionHeaderLine(trimmed);
+	return trimmed.length > 0 && !isSectionHeaderLine(text, context);
 }
 
 /**
@@ -144,8 +176,8 @@ export function headerNameIsEmpty(header: SectionHeader): boolean {
 	return header.rawNamePart.trim().length === 0;
 }
 
-function isHeaderCandidate(line: PhysicalLine): boolean {
-	return isSectionHeaderLine(line.text);
+function isHeaderCandidate(line: PhysicalLine, annotations: readonly AnnotationSpan[]): boolean {
+	return isSectionHeaderLine(line.text, { annotations, lineFrom: line.from });
 }
 
 function isAsciiDigit(code: number): boolean {
@@ -331,6 +363,7 @@ function finishSection(section: MutableSection | undefined, sections: Section[])
 export function parseDocument(text: string): ParsedDocument {
 	const sections: Section[] = [];
 	const syntaxIssues: ParseIssue[] = [];
+	const annotations = scanAnnotations(text);
 	let current: MutableSection | undefined;
 
 	for (const line of scanPhysicalLines(text)) {
@@ -340,7 +373,7 @@ export function parseDocument(text: string): ParsedDocument {
 			continue;
 		}
 
-		if (isHeaderCandidate(line)) {
+		if (isHeaderCandidate(line, annotations)) {
 			finishSection(current, sections);
 			const { header, issues } = parseSectionHeader(text, line);
 			syntaxIssues.push(...issues);
@@ -368,5 +401,5 @@ export function parseDocument(text: string): ParsedDocument {
 
 	finishSection(current, sections);
 	parseSectionBodyMarkup(text, sections, syntaxIssues);
-	return { text, sections, syntaxIssues };
+	return { text, sections, syntaxIssues, annotations };
 }

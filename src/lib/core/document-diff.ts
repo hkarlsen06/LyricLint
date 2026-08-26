@@ -1,3 +1,4 @@
+import { scanAnnotations } from './annotations.js';
 import { INVISIBLE_CHARACTERS } from './invisible-characters.js';
 import { isSectionHeaderLine } from './parser.js';
 import { wordDiffSegments, type WordDiffSegment } from './word-diff.js';
@@ -23,9 +24,10 @@ import { wordDiffSegments, type WordDiffSegment } from './word-diff.js';
 export type DiffRow =
 	/**
 	 * An unchanged current-document line shown for orientation: the section
-	 * header the change sings under, and one neighbouring line to each side.
-	 * This is a lyric diff, and a bare changed line with no header over it
-	 * answers "what changed" while refusing "where in the song".
+	 * header the change sings under, one neighbouring line to each side, and
+	 * any kept line between two coalesced changes. This is a lyric diff, and a
+	 * bare changed line with no header over it answers "what changed" while
+	 * refusing "where in the song".
 	 */
 	| { kind: 'context'; text: string; line: number; at: number }
 	/** Lines omitted between the section header and the nearest neighbour. */
@@ -263,13 +265,35 @@ function describePair(baseline: string, current: string): string[] {
 	return notes;
 }
 
-interface PendingHunk {
+/**
+ * Changes this close together share one hunk. A hunk draws one unchanged
+ * neighbour to each side, so two changes separated by up to this many kept
+ * lines would draw the entire gap anyway — split across two cards, with the
+ * section header and its ellipsis printed a second time over the lower one.
+ * Coalesced, the kept lines appear once, as context between the changes.
+ */
+const COALESCE_GAP = 2;
+
+/** One contiguous changed region inside a hunk. */
+interface ChangePart {
+	kind: 'change';
 	removed: string[];
 	added: string[];
+	/** Index into `currentStarts` of the first current line the part covers. */
+	firstCurrentLine: number;
+}
+
+/** A kept line between two changed regions close enough to share a hunk. */
+interface ContextPart {
+	kind: 'context';
+	lineIndex: number;
+}
+
+interface PendingHunk {
+	/** In document order; always opens and closes with a change. */
+	parts: (ChangePart | ContextPart)[];
 	/** Index into `currentStarts` of the first current line the hunk covers. */
 	firstCurrentLine: number;
-	/** One past the last current line the hunk covers; equal means pure removal. */
-	lastCurrentLine: number;
 }
 
 /** Compare the pasted baseline against the current document, hunk by hunk. */
@@ -286,6 +310,9 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 	for (const line of currentLines) {
 		currentStarts.push(currentStarts[currentStarts.length - 1] + line.length + 1);
 	}
+	// A multi-line annotation's opening line reads as a header from its own
+	// text alone; the spans are what let the orientation walk skip it.
+	const currentAnnotations = scanAnnotations(current);
 
 	const ops = diffLines(baselineLines, currentLines);
 	const hunks: DiffHunk[] = [];
@@ -299,14 +326,26 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 
 	const closePending = (): void => {
 		if (!pending) return;
+		const { parts, firstCurrentLine } = pending;
+		pending = undefined;
+		// The parts open and close with a change: kept lines only enter when
+		// another change follows them, and the run past the last change stays in
+		// the gap buffer, which is never flushed here.
+		const lastChange = parts[parts.length - 1];
+		if (lastChange?.kind !== 'change') return;
+
 		const lineEnd = (lineIndex: number): number =>
 			currentStarts[lineIndex] + (currentLines[lineIndex]?.length ?? 0);
-		const pureRemoval = pending.lastCurrentLine === pending.firstCurrentLine;
-		const from = Math.min(
-			currentStarts[pending.firstCurrentLine] ?? current.length,
-			current.length
-		);
-		const to = pureRemoval ? from : Math.min(lineEnd(pending.lastCurrentLine - 1), current.length);
+		const collapsePoint = (lineIndex: number): number =>
+			Math.min(currentStarts[lineIndex] ?? current.length, current.length);
+		const from = collapsePoint(firstCurrentLine);
+		const to =
+			lastChange.added.length === 0
+				? collapsePoint(lastChange.firstCurrentLine)
+				: Math.min(
+						lineEnd(lastChange.firstCurrentLine + lastChange.added.length - 1),
+						current.length
+					);
 
 		const rows: DiffRow[] = [];
 		const notes: string[] = [];
@@ -327,11 +366,16 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 		// either — an ⋯ standing for nothing but the spacing between sections
 		// reads as lyrics being hidden.
 		const isBlank = (lineIndex: number): boolean => currentLines[lineIndex].trim().length === 0;
-		const neighbourAbove = pending.firstCurrentLine - 1;
+		const neighbourAbove = firstCurrentLine - 1;
 		if (neighbourAbove >= 0) {
 			let headerIndex = -1;
 			for (let lineIndex = neighbourAbove; lineIndex >= 0; lineIndex -= 1) {
-				if (isSectionHeaderLine(currentLines[lineIndex])) {
+				if (
+					isSectionHeaderLine(currentLines[lineIndex], {
+						annotations: currentAnnotations,
+						lineFrom: currentStarts[lineIndex] ?? 0
+					})
+				) {
 					headerIndex = lineIndex;
 					break;
 				}
@@ -339,7 +383,7 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 			const neighbourShown = !isBlank(neighbourAbove) && headerIndex !== neighbourAbove;
 			if (headerIndex >= 0) {
 				rows.push(contextRow(headerIndex));
-				const boundary = neighbourShown ? neighbourAbove : pending.firstCurrentLine;
+				const boundary = neighbourShown ? neighbourAbove : firstCurrentLine;
 				let skippedLyrics = false;
 				for (let lineIndex = headerIndex + 1; lineIndex < boundary; lineIndex += 1) {
 					if (!isBlank(lineIndex)) skippedLyrics = true;
@@ -349,72 +393,101 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 			if (neighbourShown) rows.push(contextRow(neighbourAbove));
 		}
 
-		// The added lines of a hunk are consecutive current lines from its first
-		// — removals advance no current index — so the k-th pair and the k-th
-		// leftover addition both know exactly which line they describe.
-		const pairCount = Math.min(pending.removed.length, pending.added.length);
-		for (let index = 0; index < pairCount; index += 1) {
-			const lineIndex = pending.firstCurrentLine + index;
-			rows.push({
-				kind: 'changed',
-				segments: wordDiffSegments(pending.removed[index], pending.added[index]),
-				line: lineIndex + 1,
-				at: currentStarts[lineIndex]
-			});
-			notes.push(...describePair(pending.removed[index], pending.added[index]));
-		}
-		for (let index = pairCount; index < pending.removed.length; index += 1) {
-			rows.push({ kind: 'removed', text: pending.removed[index], at: from });
-		}
-		for (let index = pairCount; index < pending.added.length; index += 1) {
-			const lineIndex = pending.firstCurrentLine + index;
-			rows.push({
-				kind: 'added',
-				text: pending.added[index],
-				line: lineIndex + 1,
-				at: currentStarts[lineIndex]
-			});
+		for (const part of parts) {
+			if (part.kind === 'context') {
+				// A kept line between two coalesced changes. A blank one is dropped
+				// like a blank neighbour — the line numbers carry the skip.
+				if (!isBlank(part.lineIndex)) rows.push(contextRow(part.lineIndex));
+				continue;
+			}
+			// The added lines of a part are consecutive current lines from its
+			// first — removals advance no current index — so the k-th pair and the
+			// k-th leftover addition both know exactly which line they describe.
+			const partFrom = collapsePoint(part.firstCurrentLine);
+			const pairCount = Math.min(part.removed.length, part.added.length);
+			for (let index = 0; index < pairCount; index += 1) {
+				const lineIndex = part.firstCurrentLine + index;
+				rows.push({
+					kind: 'changed',
+					segments: wordDiffSegments(part.removed[index], part.added[index]),
+					line: lineIndex + 1,
+					at: currentStarts[lineIndex]
+				});
+				notes.push(...describePair(part.removed[index], part.added[index]));
+			}
+			for (let index = pairCount; index < part.removed.length; index += 1) {
+				rows.push({ kind: 'removed', text: part.removed[index], at: partFrom });
+			}
+			for (let index = pairCount; index < part.added.length; index += 1) {
+				const lineIndex = part.firstCurrentLine + index;
+				rows.push({
+					kind: 'added',
+					text: part.added[index],
+					line: lineIndex + 1,
+					at: currentStarts[lineIndex]
+				});
+			}
+
+			changedLines += pairCount;
+			removedLines += part.removed.length - pairCount;
+			addedLines += part.added.length - pairCount;
 		}
 
-		const neighbourBelow = pureRemoval ? pending.firstCurrentLine : pending.lastCurrentLine;
+		const neighbourBelow =
+			lastChange.added.length === 0
+				? lastChange.firstCurrentLine
+				: lastChange.firstCurrentLine + lastChange.added.length;
 		if (neighbourBelow < currentLines.length && !isBlank(neighbourBelow)) {
 			rows.push(contextRow(neighbourBelow));
 		}
 
-		changedLines += pairCount;
-		removedLines += pending.removed.length - pairCount;
-		addedLines += pending.added.length - pairCount;
-
 		hunks.push({
-			line: Math.min(pending.firstCurrentLine, Math.max(currentLines.length - 1, 0)) + 1,
+			line: Math.min(firstCurrentLine, Math.max(currentLines.length - 1, 0)) + 1,
 			from,
 			to,
 			rows,
 			notes: [...new Set(notes)]
 		});
-		pending = undefined;
 	};
+
+	// Kept lines seen since the last change, still undecided: a short run is a
+	// bridge to the next change and joins the hunk as context; a long one ends
+	// the hunk, and the run reverts to being the surroundings.
+	let gapRun: number[] = [];
 
 	for (const op of ops) {
 		if (op === 'same') {
-			closePending();
+			if (pending) {
+				gapRun.push(currentIndex);
+				if (gapRun.length > COALESCE_GAP) {
+					closePending();
+					gapRun = [];
+				}
+			}
 			baseIndex += 1;
 			currentIndex += 1;
 			continue;
 		}
-		pending ??= {
-			removed: [],
-			added: [],
-			firstCurrentLine: currentIndex,
-			lastCurrentLine: currentIndex
-		};
+		if (!pending) {
+			pending = { parts: [], firstCurrentLine: currentIndex };
+		} else if (gapRun.length > 0) {
+			for (const lineIndex of gapRun) pending.parts.push({ kind: 'context', lineIndex });
+			gapRun = [];
+		}
+		const tail = pending.parts[pending.parts.length - 1];
+		let part: ChangePart;
+		if (tail?.kind === 'change') {
+			part = tail;
+		} else {
+			part = { kind: 'change', removed: [], added: [], firstCurrentLine: currentIndex };
+			pending.parts.push(part);
+		}
 		if (op === 'removed') {
-			pending.removed.push(baselineLines[baseIndex]);
+			part.removed.push(baselineLines[baseIndex]);
 			baseIndex += 1;
 		} else {
-			pending.added.push(currentLines[currentIndex]);
+			part.added.push(currentLines[currentIndex]);
 			currentIndex += 1;
-			pending.lastCurrentLine = currentIndex;
 		}
 	}
 	closePending();

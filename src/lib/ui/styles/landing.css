@@ -565,20 +565,30 @@
 	color: var(--color-success);
 }
 
-/* The community section's pair of doors — the Discord and the Guidelines it
-   talks about. Both are the bordered tier: the page's one contrast action is
-   opening the workbench, and these two are peers of each other, a choice
-   rather than a ranking. They wrap rather than stack because unlike the CTA
-   pair they are left-aligned against the section's copy, so a wrapped row
-   still reads as deliberate. */
+/* The community section's action row under its copy. The Discord widget
+   beside it carries the join action in its own footer, so the row holds only
+   the repository button — bordered tier, because the page's one contrast
+   action is opening the workbench. It stays a wrapping flex row so a second
+   door can rejoin it without relayout. */
 .lp-join {
 	display: flex;
 	gap: var(--space-3);
 	flex-wrap: wrap;
+	margin-top: var(--space-5);
 }
 
 .lp-join .button {
 	text-decoration: none;
+}
+
+/* Experiment: the embedded Discord widget as the community section's evidence
+   panel, beside the copy the way the product shots sit in their splits. It
+   fills its column's width; the height is the widget's own. */
+.lp-join__widget {
+	display: block;
+	width: 100%;
+	border: none;
+	border-radius: var(--radius-lg);
 }
 
 /*

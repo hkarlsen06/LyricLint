@@ -132,14 +132,42 @@ describe('diffDocuments', () => {
 	});
 
 	test('separate edits arrive as separate hunks in document order', () => {
-		const baseline = 'Alpha\nBravo\nCharlie\nDelta\nEcho';
-		const current = 'Alpha\nBrava\nCharlie\nDelta\nEchoes';
+		const baseline = 'Alpha\nBravo\nCharlie\nDelta\nEcho\nFoxtrot';
+		const current = 'Alpha\nBrava\nCharlie\nDelta\nEcho\nFoxtrots';
 		const diff = diffDocuments(baseline, current);
 		expect(diff.hunks).toHaveLength(2);
 		expect(diff.hunks[0].line).toBe(2);
-		expect(diff.hunks[1].line).toBe(5);
+		expect(diff.hunks[1].line).toBe(6);
 		expect(current.slice(diff.hunks[0].from, diff.hunks[0].to)).toBe('Brava');
-		expect(current.slice(diff.hunks[1].from, diff.hunks[1].to)).toBe('Echoes');
+		expect(current.slice(diff.hunks[1].from, diff.hunks[1].to)).toBe('Foxtrots');
+	});
+
+	test('changes up to two kept lines apart coalesce into one hunk', () => {
+		// Split, the two cards would draw the entire gap anyway — the kept line
+		// as one card's neighbour below and the other's neighbour above — with
+		// the section header printed a second time over the lower card.
+		const baseline = '[Bro]\nOne\nTwo\nThree\nFour';
+		const current = '[Bro]\nOne\nTwoo\nThree\nFourr';
+		const diff = diffDocuments(baseline, current);
+		expect(diff.hunks).toHaveLength(1);
+		const hunk = diff.hunks[0];
+		expect(hunk.rows.map((row) => row.kind)).toEqual([
+			'context', // [Bro], once
+			'context', // One, the neighbour above
+			'changed', // Twoo
+			'context', // Three, the kept line between the changes
+			'changed' // Fourr
+		]);
+		expect(current.slice(hunk.from, hunk.to)).toBe('Twoo\nThree\nFourr');
+		expect(diff.changedLines).toBe(2);
+	});
+
+	test('a blank kept line inside a coalesced hunk is dropped like a blank neighbour', () => {
+		const diff = diffDocuments('One\n\nTwo', 'Onee\n\nTwoo');
+		expect(diff.hunks).toHaveLength(1);
+		// The line numbers on the rows carry the skip; a "(blank line)" row is
+		// only owed where a blank line is itself the change.
+		expect(diff.hunks[0].rows.map((row) => row.kind)).toEqual(['changed', 'changed']);
 	});
 
 	test('a quote made typographic is named, because the glyphs are near-identical', () => {
@@ -184,24 +212,23 @@ describe('diffDocuments', () => {
 		expect(rows.length).toBeGreaterThan(0);
 	});
 
-	test('two removals straddling a kept line may collapse to one offset — both hunks survive', () => {
-		// Near the end of a document, distinct removal hunks legitimately share
-		// their collapse point and line label. They are separate decisions and
-		// must stay separate hunks; a renderer therefore may not treat the
-		// (from, line) pair as an identity — doing so crashed the dialog once.
+	test('removals straddling kept lines coalesce, and share a collapse point at the end', () => {
+		// These were once three hunks, and the two removals near the document's
+		// end shared their collapse point and line label — which is why a
+		// renderer may not treat the (at, line) pair as an identity; keying on it
+		// crashed the dialog once. Coalescing puts them in one hunk now, where
+		// the two removed rows still legitimately carry the same offset.
 		const diff = diffDocuments('a\nb\n\na', 'c\na\n');
-		const removals = diff.hunks.filter((hunk) => hunk.from === hunk.to);
-		expect(removals).toHaveLength(2);
-		expect(removals[0].from).toBe(removals[1].from);
-		expect(removals[0].line).toBe(removals[1].line);
-		const removedRows = (rows: (typeof removals)[number]['rows']) =>
-			rows.filter((row) => row.kind === 'removed');
-		expect(removedRows(removals[0].rows)).toEqual([
-			{ kind: 'removed', text: 'b', at: removals[0].from }
+		expect(diff.hunks).toHaveLength(1);
+		const hunk = diff.hunks[0];
+		expect(hunk.rows.map((row) => row.kind)).toEqual(['added', 'context', 'removed', 'removed']);
+		const removedRows = hunk.rows.filter((row) => row.kind === 'removed');
+		expect(removedRows).toEqual([
+			{ kind: 'removed', text: 'b', at: 4 },
+			{ kind: 'removed', text: 'a', at: 4 }
 		]);
-		expect(removedRows(removals[1].rows)).toEqual([
-			{ kind: 'removed', text: 'a', at: removals[1].from }
-		]);
+		expect(diff.addedLines).toBe(1);
+		expect(diff.removedLines).toBe(2);
 	});
 
 	test('a note is stated once per hunk however many lines repeat it', () => {
