@@ -328,14 +328,24 @@ frame rather than on it**: a shadow alone under a near-black screenshot on a nea
 invisible, so what separates the two is an accent-tinted bloom cast onto the page from behind the
 frame's own edges, which is also what makes the shot read as lit.
 
-**The hero asks for one press, so it draws one button.** The Guidelines are a quiet text link
-_under_ the contrast action, not a second button beside it: two buttons of equal weight at the
-head of the page are two answers to "what do I do now", asked of a reader who has read nothing
-yet. The closing CTA is the other way round on purpose — by then the argument has been made, both
-destinations are earned, and the pair sits side by side (`.lp-cta__actions`). Below `32rem` that
-pair becomes a column, at one width, because two centred buttons of unequal width stacked on each
-other read as a row that broke rather than as a column that was meant; the hero's actions are
-already a column at every width.
+**The hero's column is the contrast action over the Discord invite.** The workbench keeps the
+page's one contrast tier; the invite under it wears Discord's identity color instead
+(`--color-discord`, blurple in both schemes because the livery is theirs, not ours — the
+bordered tier's quiet fill disappeared into the hero's canvas next to the contrast action). It
+is not a fourth button tier: nothing else may take that fill. The two buttons share one width —
+`.lp-hero__actions` is a single centred grid column, so both stretch to the widest label — and
+the invite opens a new tab (`target="_blank"`, with an `sr-only` note saying so), because it
+leaves the site for an external service. The invite's hero placement is the maintainer's call,
+the community door promoted to the first screen. The
+Guidelines are a step away as the fact line's first entry (`.site-meta`, beside `Open source`),
+not a link of their own between the buttons and the facts. The closing CTA draws its pair after
+the argument — by then the argument has been made, both destinations are earned, and the pair
+sits side by side (`.lp-cta__actions`): the workbench as the contrast action and the repository
+as the bordered one. Below `32rem` that pair becomes a column, at one width, because two centred
+buttons of unequal width stacked on each other read as a row that broke rather than as a column
+that was meant; the hero's actions are already a column at every width. The community section
+above the CTA draws its own bordered pair (`.lp-join`), left-aligned against its copy: the
+Discord invite again and a Guidelines button beside it.
 
 Implementation: `src/lib/ui/styles/landing.css` (the whole system),
 `src/routes/(site)/+page.svelte`, and `scripts/render-workbench-shot.mjs`. `.site-meta__fact`

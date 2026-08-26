@@ -317,21 +317,36 @@
 }
 
 /*
- * The hero asks for one press, so it draws one button.
- *
- * The rule reference is still a step away — as a quiet text link *under* the
- * action rather than a second button beside it. Two buttons of equal weight at
- * the head of the page are two answers to "what do I do now", and the reader
- * who wants the rules first is the reader who will find a link. The closing
- * CTA is the other way round on purpose: by then the argument has been made,
- * both destinations are earned, and two buttons side by side read as a choice
- * rather than a hedge.
+ * The hero's column is the contrast action over the Discord invite: the
+ * workbench keeps the page's one contrast tier, and the invite sits under it
+ * bordered, so the pair still reads as a ranking rather than two answers to
+ * "what do I do now". The rule reference is a step away as the fact line's
+ * first entry. The closing CTA draws its own pair after the argument: by then
+ * both destinations — the workbench and the repository behind it — are
+ * earned, and two buttons side by side read as a choice rather than a hedge.
  */
 .lp-hero__actions {
-	display: flex;
+	/* A single centred grid column rather than a flex column: grid items
+	   stretch to the column's width, so the two stacked buttons share the
+	   widest one's box instead of each shrink-wrapping its own label — two
+	   centred buttons of unequal width stacked on each other read as a row
+	   that broke. */
+	display: grid;
 	gap: var(--space-4);
-	flex-direction: column;
-	align-items: center;
+	justify-content: center;
+}
+
+/* The invite wears Discord's identity color instead of the bordered tier's
+   quiet fill, which disappeared into the hero's canvas next to the contrast
+   action above it. The livery is the destination's, not a fourth tier of
+   ours — nothing else may take this fill. */
+.lp-hero__discord.button {
+	background: var(--color-discord);
+	color: var(--color-discord-ink);
+}
+
+.lp-hero__discord.button:hover {
+	background: var(--color-discord-hover);
 }
 
 .lp-cta__actions {
@@ -353,24 +368,11 @@
 	text-decoration: none;
 }
 
-.lp-hero__alt {
-	display: inline-flex;
-	gap: var(--space-2);
-	align-items: center;
-	color: var(--color-text-muted);
-	font-size: var(--font-size-sm);
-	text-decoration: none;
-}
-
-.lp-hero__alt svg {
+/* The fact line's book mark sits inside a link the way the octocat does;
+   without this it grows with the line box instead of holding the fact's own
+   scale. */
+.lp-hero .site-meta__fact svg {
 	flex: none;
-}
-
-.lp-hero__alt:hover,
-.lp-hero__alt:focus-visible {
-	color: var(--color-text);
-	text-decoration: underline;
-	text-underline-offset: 0.2em;
 }
 
 .lp-hero .site-meta {
@@ -581,6 +583,22 @@
 .lp-note__item svg {
 	flex: none;
 	color: var(--color-success);
+}
+
+/* The community section's pair of doors — the Discord and the Guidelines it
+   talks about. Both are the bordered tier: the page's one contrast action is
+   opening the workbench, and these two are peers of each other, a choice
+   rather than a ranking. They wrap rather than stack because unlike the CTA
+   pair they are left-aligned against the section's copy, so a wrapped row
+   still reads as deliberate. */
+.lp-join {
+	display: flex;
+	gap: var(--space-3);
+	flex-wrap: wrap;
+}
+
+.lp-join .button {
+	text-decoration: none;
 }
 
 /*

@@ -296,6 +296,14 @@
 	--color-accent-text: oklch(98.5% 0.002 285);
 	--color-accent-soft: oklch(93% 0.03 255);
 	--color-selected: var(--color-accent-soft);
+
+	/* Discord's own identity color, scheme-independent because it is theirs
+	   rather than ours: the landing hero's invite button wears their livery so
+	   the destination is legible before the label is read. Blurple, stated as
+	   the brand states it, with a pressed step darkened in their own hue. */
+	--color-discord: #5865f2;
+	--color-discord-hover: #4752c4;
+	--color-discord-ink: #ffffff;
 	--color-focus: oklch(54% 0.15 255);
 	--color-focus-soft: color-mix(in oklch, var(--color-focus) 28%, transparent);
 
