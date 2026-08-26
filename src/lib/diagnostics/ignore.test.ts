@@ -51,6 +51,9 @@ describe('an accepted occurrence', () => {
 			acceptsDiagnosticAsCorrect(diagnostic(0, { ruleId: 'section.header-unrecognized' }))
 		).toBe(true);
 		expect(acceptsDiagnosticAsCorrect(diagnostic(0, { ruleId: 'unknown.unresolved' }))).toBe(true);
+		expect(acceptsDiagnosticAsCorrect(diagnostic(0, { ruleId: 'performer.inline-mismatch' }))).toBe(
+			true
+		);
 	});
 
 	it('carries the marker without moving what the key matches', () => {

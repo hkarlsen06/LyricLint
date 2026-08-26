@@ -21,6 +21,10 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   through `posAtDOM`, or the inserted half of the diff is a dead zone.
 - `presumedCorrect` findings lead with `It's correct` in the contrast tier; it is `onIgnore`
   under the hood, per occurrence. `acceptsAsCorrect` is one derived answer for both surfaces.
+  Two acceptances stand in the ignore slot instead of leading: `It really is unintelligible`
+  (`unknown.unresolved`) and `The performer is unknown` (`performer.inline-mismatch`) — the
+  quiet `Ignore` is what each replaces, and `acceptsDiagnosticAsCorrect` in `ignore.ts` is the
+  one predicate the button, the key's `accepted` marker, and the toast all read.
 - `Fix all N` batches by rule *and* fix label; the linter's bulk fix plans over the visible
   diagnostics only; a batch is one `AtomicDocumentEdit` (`mergeFixes` drops `selectionAfter`).
   Counts are of diagnostics, not fixes. The count comes from `countDiagnosticFixBatch` on the
@@ -146,6 +150,19 @@ That is also why `It's correct` is `onIgnore` under the hood and not a new hook 
 per-occurrence (`diagnostics/ignore.ts` keys on the rule, the message, the text and its
 surroundings), so accepting one ad-lib says nothing about the next one. Only the words on the
 button change, and they change because the user is being asked a different question.
+
+**A styled voice nobody can name yet gets the same slot-standing answer.**
+`performer.inline-mismatch` reports an unknown voice — styling the legend does not account for —
+and in the formatting-first workflow that state is often exactly what the transcriber means: they
+heard a distinct voice and cannot name it. `Ignore` there asked them to *set aside* a finding
+they in fact have an answer to, so the slot's words are `The performer is unknown`, the same
+shape `It really is unintelligible` takes for `unknown.unresolved`: recognized by id, standing in
+the ignore slot rather than leading, with the guided `Assign section performers` beside it as the
+path for whoever can name the voice. Per-occurrence keying is what makes this honest — the key
+carries the slot's first span and its surroundings, so confirming the italic voice unknown says
+nothing about a bold voice added later, and the acceptance lists as accepted, not ignored, in the
+preferences panel. The regression is in `DiagnosticDetails.svelte.test.ts`, beside the guided
+assignment's own.
 
 Implementation: `presumedCorrect` on `Diagnostic` in `src/lib/core/types.ts`, set in
 `rules/catalog/adlib-parentheses.ts`; `acceptsAsCorrect` in

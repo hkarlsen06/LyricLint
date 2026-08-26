@@ -39,18 +39,21 @@ function identity(diagnostic: Diagnostic, text: string): IgnoreIdentity {
  * Whether answering this finding's own control accepts the text rather than
  * setting the finding aside. Two shapes of the same answer: the affirmative
  * that leads the row (`It's correct`) and the one that stands in the ignore
- * slot for a lyric nobody could make out (`It really is unintelligible`).
+ * slot — for a lyric nobody could make out (`It really is unintelligible`),
+ * and for a styled voice nobody can name yet (`The performer is unknown`).
  *
- * A custom header is the whole of its rule and an unresolved marker is the
- * whole of its own, so both are recognized by id; an ad-lib is one of the two
- * findings its rule reports, which is why the third is carried on the
- * diagnostic. One predicate, because the button's wording, the key's kind and
- * the toast are three surfaces answering the same question.
+ * A custom header is the whole of its rule, an unresolved marker the whole of
+ * its own, and an unnamed styled voice the whole of its own again, so all
+ * three are recognized by id; an ad-lib is one of the two findings its rule
+ * reports, which is why the fourth is carried on the diagnostic. One
+ * predicate, because the button's wording, the key's kind and the toast are
+ * three surfaces answering the same question.
  */
 export function acceptsDiagnosticAsCorrect(diagnostic: Diagnostic): boolean {
 	return (
 		diagnostic.ruleId === 'section.header-unrecognized' ||
 		diagnostic.ruleId === 'unknown.unresolved' ||
+		diagnostic.ruleId === 'performer.inline-mismatch' ||
 		diagnostic.presumedCorrect === true
 	);
 }

@@ -286,6 +286,35 @@ describe('DiagnosticDetails preview flow', () => {
 		expect(onAssignPerformers).toHaveBeenCalledOnce();
 	});
 
+	it('answers an unnamed styled voice with the performer being unknown, not Ignore', async () => {
+		// The formatting-first transcriber's honest way out: the acceptance stands
+		// in the ignore slot — same press, same per-occurrence key — and the quiet
+		// `Ignore` is what it replaces, exactly as `It really is unintelligible`
+		// does for a lyric nobody could make out.
+		const onIgnore = vi.fn();
+		await render(DiagnosticDetails, {
+			diagnostic: {
+				ruleId: 'performer.inline-mismatch',
+				severity: 'suggestion',
+				from: 20,
+				to: 38,
+				message: 'A styled voice is not yet named in the section legend.',
+				explanation: 'Choose the section and styled voices.',
+				sourceIds: []
+			},
+			onChooseHeader: vi.fn(),
+			onAssignPerformers: vi.fn(),
+			onPreviewFix: vi.fn(),
+			onCancelPreview: vi.fn(),
+			onApplyFix: vi.fn(),
+			onIgnore
+		});
+
+		await expect.element(page.getByRole('button', { name: 'Ignore' })).not.toBeInTheDocument();
+		await page.getByRole('button', { name: 'The performer is unknown' }).click();
+		expect(onIgnore).toHaveBeenCalledOnce();
+	});
+
 	it('offers no assignment when the host cannot make one', async () => {
 		// A section that cannot take a legend — no header, or two styled voices
 		// and no plain lyrics — withholds the handler, and the card withholds the

@@ -37,9 +37,10 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
 - An **unknown voice** is derived from the text, never stored: a styled slot the section's
   legend does not name (`unaccountedStyledSlots` in `legend-cleanup.ts`, the one owner). The
   picker draws one act-on-press chip per unaccounted slot in that slot's own styling (no dot,
-  no performer colour — an unknown has no identity) plus a dashed `Unknown voice` chip while a
-  styled slot is free of both legend and body (`unknownVoiceOffers`, the transform's own
-  reading). Pressing one wraps the selection via `assignUnknownVoice` and **never writes a
+  no performer colour — an unknown has no identity) plus a dashed `+ Unknown voice` chip while
+  a styled slot is free of both legend and body (`unknownVoiceOffers`, the transform's own
+  reading). The plus and the dash mark the minting chip as the add-performer chip's sibling, so
+  "join the existing italic unknown" and "add another unknown voice" cannot read as synonyms. Pressing one wraps the selection via `assignUnknownVoice` and **never writes a
   legend edit** — the missing legend group is what records the voice as unidentified, and
   `performer.inline-mismatch` keeps the remaining work visible. No second step ever: nothing
   goes in the header, so there is no rest-of-section question. Chips appear only in the plain

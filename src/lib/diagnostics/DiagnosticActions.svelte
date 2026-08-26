@@ -59,16 +59,21 @@
 	 */
 	const acceptsAsCorrect = $derived(acceptsDiagnosticAsCorrect(diagnostic));
 	const isUnresolvedUnknown = $derived(diagnostic.ruleId === 'unknown.unresolved');
+	const isUnknownVoice = $derived(diagnostic.ruleId === 'performer.inline-mismatch');
 	/**
-	 * Where the acceptance is drawn, which is the one thing the two shapes of it
+	 * Where the acceptance is drawn, which is the one thing the shapes of it
 	 * differ by. An unresolved lyric's answer stands in the ignore slot — that is
 	 * where a reader looks for the way out of a finding with no fix — so it never
-	 * leads the row, and the quiet `Ignore` is what it replaces.
+	 * leads the row, and the quiet `Ignore` is what it replaces. A styled voice
+	 * nobody can name yet takes the same slot: `The performer is unknown` is the
+	 * formatting-first transcriber's honest answer, while the guided assignment
+	 * beside it stays the path for whoever can name the voice.
 	 *
 	 * Leading, it takes the surface's one contrast tier, so a fix beside it steps
 	 * down to bordered the way `Fix all N` does beside the change it repeats.
 	 */
-	const leadsWithAccept = $derived(acceptsAsCorrect && !isUnresolvedUnknown);
+	const standsInIgnoreSlot = $derived(isUnresolvedUnknown || isUnknownVoice);
+	const leadsWithAccept = $derived(acceptsAsCorrect && !standsInIgnoreSlot);
 	// Two findings, one answer: a section with no header line, and a header line
 	// with no name in it. Both are settled by choosing a reviewed header, and the
 	// transform decides which of the two edits that is — a card that offered a
@@ -288,12 +293,16 @@
 	{#if !leadsWithAccept}
 		<button
 			type="button"
-			class={isUnresolvedUnknown
+			class={standsInIgnoreSlot
 				? 'button button--contrast'
 				: 'button button--quiet diagnostic-actions__ignore'}
 			onclick={(event) => onIgnore(event.currentTarget)}
 		>
-			{isUnresolvedUnknown ? 'It really is unintelligible' : 'Ignore'}
+			{isUnresolvedUnknown
+				? 'It really is unintelligible'
+				: isUnknownVoice
+					? 'The performer is unknown'
+					: 'Ignore'}
 		</button>
 	{/if}
 	{#if onClose}

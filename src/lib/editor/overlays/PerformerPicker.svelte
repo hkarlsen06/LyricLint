@@ -534,8 +534,11 @@
 					</button>
 				{/each}
 				{#if showsNewUnknown}
-					<!-- Dashed like the add chip, because it is the same kind of answer:
-					     it mints something rather than choosing something already here. -->
+					<!-- Dashed, with the plus, like the add chip — because it is the same
+					     kind of answer: it mints something rather than choosing something
+					     already here. An existing unknown draws as a plain styled chip,
+					     and this pair of cues is what keeps "join the italic unknown"
+					     and "add another unknown voice" from reading as synonyms. -->
 					<button
 						type="button"
 						class="chip chip--unknown chip--unknown-new"
@@ -544,6 +547,7 @@
 						onclick={() => assignUnknown(undefined)}
 						onfocus={() => (activeIndex = performers.length + shownUnknownSlots.length)}
 					>
+						<Plus aria-hidden="true" size={14} strokeWidth={2.7} />
 						<span aria-hidden="true">Unknown voice</span>
 						<span class="sr-only">New unknown voice</span>
 					</button>
@@ -832,6 +836,15 @@
 	.chip--unknown-new {
 		border-style: dashed;
 		color: var(--color-text-muted);
+	}
+
+	/* Flex centers the icon on the label's whole line box, but the box carries
+	   its descender space at the bottom, so the glyph mass sits above center —
+	   and a geometrically centered plus reads low against it. One pixel up puts
+	   the crossbar on the lowercase body, which is most of this label. */
+	.chip--unknown-new :global(svg) {
+		flex: none;
+		margin-block-start: -0.0625rem;
 	}
 
 	.chip--unknown-new:hover {
