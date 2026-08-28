@@ -206,6 +206,31 @@ describe('diffDocuments', () => {
 		expect(diff.addedLines).toBe(0);
 	});
 
+	test('a line edited at both ends still pairs, and a markup move draws in place', () => {
+		// The edge score alone missed this line — a comma dropped near the front
+		// and the markup flipped at the tail leave neither edge long enough — so
+		// the word-overlap score is what pairs it. Inside the row, the flip
+		// renders as the tags struck and re-placed around steady lyrics.
+		const baseline = 'One\nHvem er på, som oss? Vi styrer hele byen <i>(City)</i>\nTwo';
+		const current = 'One\nHvem er på som oss? Vi styrer hele byen (<i>City</i>)\nTwo';
+		const diff = diffDocuments(baseline, current);
+		expect(diff.hunks).toHaveLength(1);
+		const changed = diff.hunks[0].rows.find((row) => row.kind === 'changed');
+		if (changed?.kind !== 'changed') throw new Error('expected the pair to draw as changed');
+		expect(changed.segments).toEqual([
+			{ kind: 'shared', text: 'Hvem er på' },
+			{ kind: 'change', deleted: ',', inserted: '' },
+			{ kind: 'shared', text: ' som oss? Vi styrer hele byen ' },
+			{ kind: 'change', deleted: '<i>', inserted: '' },
+			{ kind: 'shared', text: '(' },
+			{ kind: 'change', deleted: '', inserted: '<i>' },
+			{ kind: 'shared', text: 'City' },
+			{ kind: 'change', deleted: '', inserted: '</i>' },
+			{ kind: 'shared', text: ')' },
+			{ kind: 'change', deleted: '</i>', inserted: '' }
+		]);
+	});
+
 	test('unrelated lines do not pair — a rewrite stays whole-line rows', () => {
 		const diff = diffDocuments('One\nAlpha lyric here\nTwo', 'One\nSomething else entirely\nTwo');
 		const kinds = diff.hunks[0].rows.map((row) => row.kind);

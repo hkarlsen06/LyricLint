@@ -69,6 +69,31 @@ describe('word diff', () => {
 		]);
 	});
 
+	it('a run where only the markup moved keeps the lyrics and colors the tags', () => {
+		// The parenthetical boundary flip: italics that wrapped the parens now
+		// sit inside them. The words and parens hold steady as shared text; the
+		// old tags read as deletions where they stood, the new ones as
+		// insertions where they land — how Genius draws the same edit.
+		expect(wordDiffSegments('sang <i>(City)</i>', 'sang (<i>City</i>)')).toEqual([
+			{ kind: 'shared', text: 'sang ' },
+			{ kind: 'change', deleted: '<i>', inserted: '' },
+			{ kind: 'shared', text: '(' },
+			{ kind: 'change', deleted: '', inserted: '<i>' },
+			{ kind: 'shared', text: 'City' },
+			{ kind: 'change', deleted: '', inserted: '</i>' },
+			{ kind: 'shared', text: ')' },
+			{ kind: 'change', deleted: '</i>', inserted: '' }
+		]);
+	});
+
+	it('markup stripped from unchanged lyrics strikes only the tags', () => {
+		expect(wordDiffSegments('<i>City</i>', 'City')).toEqual([
+			{ kind: 'change', deleted: '<i>', inserted: '' },
+			{ kind: 'shared', text: 'City' },
+			{ kind: 'change', deleted: '</i>', inserted: '' }
+		]);
+	});
+
 	it('never splits a surrogate pair between shared and changed text', () => {
 		// 🎵 and 🎶 share their high surrogate; the trim must not claim it.
 		expect(wordDiffSegments('🎵', '🎶')).toEqual([

@@ -72,12 +72,87 @@ function commonSuffixLength(oldText: string, newText: string): number {
 	return length;
 }
 
+/** A markup tag, or one character of anything else. */
+function tokenizeMarkup(text: string): { tag: boolean; text: string }[] {
+	const tokens: { tag: boolean; text: string }[] = [];
+	const tag = /<[^<>]+>/g;
+	let index = 0;
+	while (index < text.length) {
+		tag.lastIndex = index;
+		const match = tag.exec(text);
+		if (match && match.index === index) {
+			tokens.push({ tag: true, text: match[0] });
+			index += match[0].length;
+		} else {
+			tokens.push({ tag: false, text: text[index] });
+			index += 1;
+		}
+	}
+	return tokens;
+}
+
+/**
+ * Segments for a run where only the markup moved — the lyrics, tags stripped,
+ * are identical on both sides. `<i>(City)</i>` against `(<i>City</i>)` is the
+ * canonical case (the parenthetical boundary flip): the words and parens hold
+ * steady as shared text, the old tags read as deletions where they stood, and
+ * the new tags as insertions where they land — which is also how Genius draws
+ * it. Returns undefined where the text itself changed, or where no tag did.
+ */
+function tagMoveSegments(deleted: string, inserted: string): WordDiffSegment[] | undefined {
+	if (!deleted.includes('<') && !inserted.includes('<')) return undefined;
+	const oldTokens = tokenizeMarkup(deleted);
+	const newTokens = tokenizeMarkup(inserted);
+	const skeleton = (tokens: { tag: boolean; text: string }[]): string =>
+		tokens
+			.filter((token) => !token.tag)
+			.map((token) => token.text)
+			.join('');
+	if (skeleton(oldTokens) !== skeleton(newTokens)) return undefined;
+
+	const segments: WordDiffSegment[] = [];
+	let pendingDeleted = '';
+	let pendingInserted = '';
+	const flushPending = (): void => {
+		if (pendingDeleted || pendingInserted) {
+			segments.push({ kind: 'change', deleted: pendingDeleted, inserted: pendingInserted });
+			pendingDeleted = '';
+			pendingInserted = '';
+		}
+	};
+	let oldIndex = 0;
+	let newIndex = 0;
+	while (oldIndex < oldTokens.length || newIndex < newTokens.length) {
+		const oldToken = oldTokens[oldIndex];
+		const newToken = newTokens[newIndex];
+		if (oldToken?.tag) {
+			pendingDeleted += oldToken.text;
+			oldIndex += 1;
+		} else if (newToken?.tag) {
+			pendingInserted += newToken.text;
+			newIndex += 1;
+		} else {
+			// Equal skeletons put the same character on both sides here.
+			flushPending();
+			const previous = segments[segments.length - 1];
+			if (previous?.kind === 'shared') previous.text += oldToken.text;
+			else segments.push({ kind: 'shared', text: oldToken.text });
+			oldIndex += 1;
+			newIndex += 1;
+		}
+	}
+	flushPending();
+	return segments;
+}
+
 /**
  * Trim a divergent run to the characters that differ. Edges only: a run that
  * still differs after the trim is a rewrite, and hunting shared letters
  * inside one ("lov[e]" aligned to "fri[e]nd") is confetti, not a diff.
  * Whitespace the aligner left on a run's edge is handed back to shared text
- * by the same trim, since a space is a character like any other.
+ * by the same trim, since a space is a character like any other. The one
+ * interior comparison made is the tag move, where equal skeletons prove the
+ * shared text is real rather than hunted for.
  */
 function refineChange(deleted: string, inserted: string): WordDiffSegment[] {
 	const prefix = commonPrefixLength(deleted, inserted);
@@ -87,7 +162,9 @@ function refineChange(deleted: string, inserted: string): WordDiffSegment[] {
 	const midDeleted = deleted.slice(prefix, deleted.length - suffix);
 	const midInserted = inserted.slice(prefix, inserted.length - suffix);
 	if (midDeleted.length > 0 || midInserted.length > 0) {
-		segments.push({ kind: 'change', deleted: midDeleted, inserted: midInserted });
+		const moved = tagMoveSegments(midDeleted, midInserted);
+		if (moved) segments.push(...moved);
+		else segments.push({ kind: 'change', deleted: midDeleted, inserted: midInserted });
 	}
 	if (suffix > 0) segments.push({ kind: 'shared', text: deleted.slice(deleted.length - suffix) });
 	return segments;

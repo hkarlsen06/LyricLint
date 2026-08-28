@@ -85,15 +85,12 @@ const ALIGN_LIMIT = 2_250_000;
 const PAIR_THRESHOLD = 500;
 
 /**
- * How alike two lines are, 0–1000: the characters they share at their edges
- * against their combined length. Cheap on purpose — it runs once per cell of
- * the alignment table — and edge-shaped on purpose: the variations that repeat
- * through a lyric are a line plus an ad-lib, a swapped word, a dropped comma,
- * all of which keep one or both edges. Two unrelated lines share almost
- * nothing at their edges and fall well under the threshold.
+ * The characters two lines share at their edges against their combined
+ * length, 0–1000. Edge-shaped on purpose: the variations that repeat through
+ * a lyric are a line plus an ad-lib, a swapped word, a dropped comma, all of
+ * which keep one or both edges.
  */
-function pairScore(baseline: string, current: string): number {
-	if (baseline === current) return 1000;
+function edgeScore(baseline: string, current: string): number {
 	const max = Math.min(baseline.length, current.length);
 	if (max === 0) return 0;
 	let prefix = 0;
@@ -110,6 +107,37 @@ function pairScore(baseline: string, current: string): number {
 		suffix += 1;
 	}
 	return Math.round((2000 * (prefix + suffix)) / (baseline.length + current.length));
+}
+
+/**
+ * A line's words for the overlap score: lowercased, markup and punctuation
+ * dropped, sorted for the multiset intersection. Sorted — and therefore
+ * order-blind — is safe at this altitude: the score only decides whether two
+ * lines pair, and the character diff inside the row then reports honestly.
+ */
+function lineTokens(line: string): string[] {
+	return (line.toLowerCase().replace(/<[^<>]+>/g, ' ').match(/[\p{L}\p{N}']+/gu) ?? []).sort();
+}
+
+/** Dice coefficient over the two lines' word multisets, 0–1000. */
+function tokenScore(baselineTokens: string[], currentTokens: string[]): number {
+	const total = baselineTokens.length + currentTokens.length;
+	if (total === 0) return 0;
+	let common = 0;
+	let i = 0;
+	let j = 0;
+	while (i < baselineTokens.length && j < currentTokens.length) {
+		if (baselineTokens[i] === currentTokens[j]) {
+			common += 1;
+			i += 1;
+			j += 1;
+		} else if (baselineTokens[i] < currentTokens[j]) {
+			i += 1;
+		} else {
+			j += 1;
+		}
+	}
+	return Math.round((2000 * common) / total);
 }
 
 /** Ops over baseline and current lines, in document order. */
@@ -155,14 +183,25 @@ function diffLines(baseline: readonly string[], current: readonly string[]): Lin
  * page showed whole-line removals and additions for what a transcriber reads
  * as one line with its ad-lib struck. Scoring near-identical lines as pairs
  * (`changed`) lets the character diff inside the row tell that story instead.
+ *
+ * Two scores feed each pair, and the better one counts: shared edges, and
+ * shared words. Edges alone missed the line whose changes sit at both ends —
+ * a comma dropped near the front and the markup flipped at the tail — which
+ * is a line every transcriber reads as "the same line, edited".
  */
 function alignOps(baseline: readonly string[], current: readonly string[]): LineOp[] {
 	const cols = current.length + 1;
 	// Scores fit comfortably: at most 1000 per pair over ALIGN_LIMIT-bounded rows.
 	const table = new Uint32Array((baseline.length + 1) * cols);
+	const baselineTokens = baseline.map(lineTokens);
+	const currentTokens = current.map(lineTokens);
 	const scoreAt = (i: number, j: number): number => {
-		const score = pairScore(baseline[i], current[j]);
-		return score === 1000 || score >= PAIR_THRESHOLD ? score : 0;
+		if (baseline[i] === current[j]) return 1000;
+		const score = Math.max(
+			edgeScore(baseline[i], current[j]),
+			tokenScore(baselineTokens[i], currentTokens[j])
+		);
+		return score >= PAIR_THRESHOLD ? score : 0;
 	};
 	for (let i = baseline.length - 1; i >= 0; i -= 1) {
 		for (let j = current.length - 1; j >= 0; j -= 1) {
