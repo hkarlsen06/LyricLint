@@ -148,12 +148,15 @@
 
 	// Deliberately invented lines, not a real song. The page needs a transcription
 	// that is wrong in several ordinary ways at once — a written-out label instead
-	// of a header, a typewriter apostrophe, a lowercase line start, a trailing
-	// comma, a bare ad-lib — and inventing them is also the only way to show a
-	// lyric here at all.
+	// of a header, a typewriter apostrophe, a lowercase line start, a lowercase
+	// ad-lib — and inventing them is also the only way to show a lyric here at
+	// all. The ad-lib is already parenthesized on purpose: whether a bare
+	// trailing `yeah` is the lead's own line or a backing vocal is a judgment
+	// the linter deliberately leaves to the transcriber, so the demo only shows
+	// the half it actually checks.
 	const messy = `Verse 1:
 i has counted every streetlight on the way
-you said we'd drive until the radio gave out, yeah
+you said we'd drive until the radio gave out (yeah)
 and the "quiet" part was never really quiet`;
 
 	const clean = `[Verse 1]
@@ -174,7 +177,7 @@ And the "quiet" part was never really quiet`;
 	// note above their positions in `landing.css`.
 	const marks = [
 		{ key: 'header', flagged: 'Verse 1:', fixed: '[Verse 1]' },
-		{ key: 'adlib', flagged: 'yeah', fixed: '(Yeah)' }
+		{ key: 'adlib', flagged: '(yeah)', fixed: '(Yeah)' }
 	];
 
 	/*
@@ -400,7 +403,7 @@ And the "quiet" part was never really quiet`;
 
 			<p class="lp-prose">
 				That transcription has a written-out section header, a lowercase line start, a subject and
-				verb that disagree, a stray comma, and an ad-lib nobody parenthesised.
+				verb that disagree, and an ad-lib missing its capital.
 			</p>
 
 			<p class="lp-prose">
@@ -500,7 +503,7 @@ And the "quiet" part was never really quiet`;
 					</span>
 				</div>
 				<div class="lp-finding">
-					<span class="lp-finding__message">This likely ad-lib may need parentheses.</span>
+					<span class="lp-finding__message">Capitalize this parenthesized ad-lib.</span>
 					<span class="lp-finding__meta">
 						<span class="lp-finding__severity" aria-hidden="true">&#9432;</span>
 						<span>Suggestion</span>

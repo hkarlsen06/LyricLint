@@ -96,7 +96,6 @@
 	}: Props = $props();
 	let activeIndex = $state(0);
 	let keyboardNavigated = $state(false);
-	let rosterScrollable = $state(false);
 	let selectedIds = $state<PerformerId[]>([...untrack(() => initialSelectedIds)]);
 	let adding = $state(false);
 	let addName = $state('');
@@ -184,21 +183,6 @@
 	function chipButtons(): HTMLButtonElement[] {
 		return root ? [...root.querySelectorAll<HTMLButtonElement>('[data-picker-chip]')] : [];
 	}
-
-	const trackRosterOverflow: Attachment<HTMLDivElement> = (node) => {
-		const update = (): void => {
-			rosterScrollable = node.scrollWidth > node.clientWidth;
-		};
-		const resizeObserver = new ResizeObserver(update);
-		const mutationObserver = new MutationObserver(update);
-		resizeObserver.observe(node);
-		mutationObserver.observe(node, { childList: true, subtree: true, characterData: true });
-		update();
-		return () => {
-			resizeObserver.disconnect();
-			mutationObserver.disconnect();
-		};
-	};
 
 	function focusActive(): void {
 		chipButtons()[activeIndex]?.focus();
@@ -482,70 +466,63 @@
 		{/if}
 		<!-- A role to carry the label: `aria-label` on a generic element is
 		     prohibited and simply not announced. -->
-		<div
-			class="roster"
-			class:roster--scrollable={rosterScrollable}
-			role="group"
-			aria-label="Performer roster"
-		>
-			<div class="roster__track" {@attach trackRosterOverflow}>
-				{#each performers as performer, index (performer.id)}
-					<button
-						type="button"
-						class="chip"
-						data-picker-chip
-						data-performer={performer.id}
-						aria-pressed={selectedIds.includes(performer.id)}
-						tabindex={index === activeIndex ? 0 : -1}
-						style={`--dot-color: var(--performer-${performer.colorId}, var(--color-text-muted));`}
-						onclick={() => toggle(performer.id)}
-						onfocus={() => (activeIndex = index)}
-					>
-						<span class="chip__dot" aria-hidden="true"></span>
-						{performer.displayName}
-					</button>
-				{/each}
-				{#each shownUnknownSlots as slot, unknownIndex (slot)}
-					<!-- No dot: the dot is an identity's colour, and an unknown voice's
+		<div class="roster" role="group" aria-label="Performer roster">
+			{#each performers as performer, index (performer.id)}
+				<button
+					type="button"
+					class="chip"
+					data-picker-chip
+					data-performer={performer.id}
+					aria-pressed={selectedIds.includes(performer.id)}
+					tabindex={index === activeIndex ? 0 : -1}
+					style={`--dot-color: var(--performer-${performer.colorId}, var(--color-text-muted));`}
+					onclick={() => toggle(performer.id)}
+					onfocus={() => (activeIndex = index)}
+				>
+					<span class="chip__dot" aria-hidden="true"></span>
+					{performer.displayName}
+				</button>
+			{/each}
+			{#each shownUnknownSlots as slot, unknownIndex (slot)}
+				<!-- No dot: the dot is an identity's colour, and an unknown voice's
 					     whole point is that it has none. The slot's own styling on the
 					     label is the non-colour cue that separates the three. -->
-					<button
-						type="button"
-						class="chip chip--unknown"
-						data-picker-chip
-						tabindex={performers.length + unknownIndex === activeIndex ? 0 : -1}
-						onclick={() => assignUnknown(slot)}
-						onfocus={() => (activeIndex = performers.length + unknownIndex)}
+				<button
+					type="button"
+					class="chip chip--unknown"
+					data-picker-chip
+					tabindex={performers.length + unknownIndex === activeIndex ? 0 : -1}
+					onclick={() => assignUnknown(slot)}
+					onfocus={() => (activeIndex = performers.length + unknownIndex)}
+				>
+					<span
+						aria-hidden="true"
+						class="chip__unknown-label"
+						class:chip__unknown-label--italic={slot === 2 || slot === 4}
+						class:chip__unknown-label--bold={slot === 3 || slot === 4}>Unknown</span
 					>
-						<span
-							aria-hidden="true"
-							class="chip__unknown-label"
-							class:chip__unknown-label--italic={slot === 2 || slot === 4}
-							class:chip__unknown-label--bold={slot === 3 || slot === 4}>Unknown</span
-						>
-						<span class="sr-only">{unknownVoiceName(slot)}</span>
-					</button>
-				{/each}
-				{#if showsNewUnknown}
-					<!-- Dashed, with the plus, like the add chip — because it is the same
+					<span class="sr-only">{unknownVoiceName(slot)}</span>
+				</button>
+			{/each}
+			{#if showsNewUnknown}
+				<!-- Dashed, with the plus, like the add chip — because it is the same
 					     kind of answer: it mints something rather than choosing something
 					     already here. An existing unknown draws as a plain styled chip,
 					     and this pair of cues is what keeps "join the italic unknown"
 					     and "add another unknown voice" from reading as synonyms. -->
-					<button
-						type="button"
-						class="chip chip--unknown chip--unknown-new"
-						data-picker-chip
-						tabindex={performers.length + shownUnknownSlots.length === activeIndex ? 0 : -1}
-						onclick={() => assignUnknown(undefined)}
-						onfocus={() => (activeIndex = performers.length + shownUnknownSlots.length)}
-					>
-						<Plus aria-hidden="true" size={14} strokeWidth={2.7} />
-						<span aria-hidden="true">Unknown voice</span>
-						<span class="sr-only">New unknown voice</span>
-					</button>
-				{/if}
-			</div>
+				<button
+					type="button"
+					class="chip chip--unknown chip--unknown-new"
+					data-picker-chip
+					tabindex={performers.length + shownUnknownSlots.length === activeIndex ? 0 : -1}
+					onclick={() => assignUnknown(undefined)}
+					onfocus={() => (activeIndex = performers.length + shownUnknownSlots.length)}
+				>
+					<Plus aria-hidden="true" size={14} strokeWidth={2.7} />
+					<span aria-hidden="true">Unknown voice</span>
+					<span class="sr-only">New unknown voice</span>
+				</button>
+			{/if}
 			{#if onAddPerformer}
 				{#if adding}
 					<input
@@ -557,19 +534,17 @@
 						onkeydown={handleAddInputKeydown}
 					/>
 				{:else}
-					<span class="add-slot">
-						<button
-							type="button"
-							class="chip chip--add"
-							data-picker-chip
-							aria-label="Add a performer"
-							tabindex={activeIndex === addChipIndex ? 0 : -1}
-							onclick={beginAdd}
-							onfocus={() => (activeIndex = addChipIndex)}
-						>
-							<Plus aria-hidden="true" size={16} strokeWidth={2.7} />
-						</button>
-					</span>
+					<button
+						type="button"
+						class="chip chip--add"
+						data-picker-chip
+						aria-label="Add a performer"
+						tabindex={activeIndex === addChipIndex ? 0 : -1}
+						onclick={beginAdd}
+						onfocus={() => (activeIndex = addChipIndex)}
+					>
+						<Plus aria-hidden="true" size={16} strokeWidth={2.7} />
+					</button>
 					{#if performers.length === 0}
 						<span class="picker__empty-hint">Add a performer</span>
 					{/if}
@@ -704,29 +679,20 @@
 		transform: none;
 	}
 
+	/* Every chip is always on screen. The roster used to be a scrollable track
+	   with a hidden bar and an edge fade, and a pre-selected chip scrolled past
+	   the edge was still part of what Apply would write — a joint assignment
+	   decided by state the card was not showing. This row is a ballot over a
+	   small closed set, not content to browse, so it wraps instead of scrolling
+	   and the card grows a line when the roster outgrows it. No overflow also
+	   means no clipping, so the focus rings need no reserved padding. */
 	.roster {
-		--ring-space: calc(var(--focus-ring-width) + var(--focus-ring-offset));
-
 		flex: 0 1 auto;
 		display: flex;
+		flex-wrap: wrap;
 		min-width: 0;
 		gap: var(--space-1-5);
 		align-items: center;
-		margin: calc(-1 * var(--ring-space));
-		margin-inline-end: calc(-1 * (var(--ring-space) + var(--space-1)));
-	}
-
-	.roster__track {
-		/* Performer chips own the scroll viewport. The add control is its sibling,
-		   so clipped chip content can never paint on the far side of the plus.
-		   Padding reserves room for focus rings inside the clipped track. */
-		flex: 0 1 auto;
-		display: flex;
-		min-width: 0;
-		max-width: 20rem;
-		gap: var(--space-1-5);
-		padding: var(--ring-space);
-		overflow-x: auto;
 	}
 
 	/* Roster chips are categorical elements, not action buttons, so the pill
@@ -788,29 +754,6 @@
 		box-shadow: inset 0 0 0 1px color-mix(in oklch, currentColor 30%, transparent);
 	}
 
-	.add-slot {
-		position: relative;
-		z-index: 1;
-		flex: none;
-		display: flex;
-		margin-inline-end: var(--ring-space);
-		background: var(--color-overlay);
-		isolation: isolate;
-	}
-
-	/* The track clips every performer at its own edge. This fade bridges that
-	   edge to the fixed add control without needing to cover content behind it. */
-	.roster--scrollable .add-slot::before {
-		position: absolute;
-		z-index: 0;
-		inset-block: calc(-1 * var(--ring-space));
-		inset-inline-end: 0;
-		width: calc(100% + var(--space-6) + var(--space-1-5));
-		background: linear-gradient(to right, transparent, var(--color-overlay) var(--space-6));
-		content: '';
-		pointer-events: none;
-	}
-
 	/* An unknown voice has no identity, so the chip has no dot and no performer
 	   colour — the slot's own styling on the label is what tells the three
 	   apart, and the sr-only name says the same where styling does not reach. */
@@ -845,15 +788,12 @@
 	}
 
 	.chip--add {
-		position: relative;
-		z-index: 1;
 		width: var(--control-height-sm);
 		height: var(--control-height-sm);
 		padding: 0;
 		justify-content: center;
 		border-style: dashed;
 		border-radius: var(--radius-round);
-		background: var(--color-overlay);
 		color: var(--color-text-muted);
 	}
 
@@ -914,7 +854,7 @@
 
 	.actions {
 		/* The roster is the part that gives way when the row runs out of room (it
-		   scrolls); without this the actions box shrinks under its own button and
+		   wraps); without this the actions box shrinks under its own button and
 		   the Apply pill hangs outside the picker's rounded edge. */
 		flex: none;
 		display: flex;
@@ -968,16 +908,6 @@
 
 		.roster {
 			flex-basis: 100%;
-		}
-
-		.roster__track {
-			max-width: none;
-		}
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.picker {
-			scroll-behavior: auto;
 		}
 	}
 </style>

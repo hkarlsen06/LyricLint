@@ -330,9 +330,10 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 	});
 
 	it('leads with acceptance, and steps the fix down, on both surfaces', () => {
-		// An ad-lib the singer performs as part of the line needs no brackets, so
-		// the likelier answer is that the text is right — it takes the row's one
-		// contrast tier and the wrap follows it as an ordinary bordered button.
+		// A synthetic `presumedCorrect` finding — no catalog rule sets it today
+		// (the ad-lib wrap offer that did was retired), but the shell contract
+		// stays pinned: the likelier answer takes the row's one contrast tier
+		// and the fix follows it as an ordinary bordered button.
 		const diagnostic: Diagnostic = {
 			...contractionDiagnostic(),
 			ruleId: 'adlib.parentheses',

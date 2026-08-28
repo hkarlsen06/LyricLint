@@ -29,8 +29,11 @@ export function shotViewport(scene) {
 /**
  * The hero shot's document — written to be wrong in several ordinary ways at
  * once (a written-out section label, a lowercase line start, a subject and verb
- * that disagree, a typewriter apostrophe, a trailing comma, a bare ad-lib),
- * because a linter showing an empty panel is a picture of nothing happening.
+ * that disagree, a typewriter apostrophe, a lowercase ad-lib), because a linter
+ * showing an empty panel is a picture of nothing happening. The ad-libs are
+ * already parenthesized, as the landing demo's are: whether a bare trailing
+ * `yeah` is the lead's own line is a judgment the linter leaves to the
+ * transcriber, so the scenes only stage the half it checks.
  * Verse 2 is the clean, initially untagged passage from the performer scene;
  * the hero-shot script runs that scene's assignment before it captures.
  *
@@ -51,13 +54,13 @@ export function shotViewport(scene) {
  */
 export const transcription = `Verse 1:
 i has counted every streetlight on the way
-you said we'd drive until the radio gave out, yeah
+you said we'd drive until the radio gave out (yeah)
 and the "quiet" part was never really quiet
 
 Chorus:
 hold the line, hold the line
 we was never gonna make it definately
-hold the line til the morning comes, yeah
+hold the line til the morning comes (yeah)
 
 [Verse 2]
 The map you drew was a coffee ring and a guess
@@ -73,7 +76,7 @@ tell me what the quiet part was for
 Chorus:
 hold the line, hold the line
 we was never gonna make it definately
-hold the line til the morning comes, yeah`;
+hold the line til the morning comes (yeah)`;
 
 /**
  * The performer-tagging document — invented like the other, but deliberately

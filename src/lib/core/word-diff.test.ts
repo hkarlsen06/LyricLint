@@ -42,6 +42,40 @@ describe('word diff', () => {
 		]);
 	});
 
+	it('trims a changed run to the characters that differ, as Genius draws it', () => {
+		expect(wordDiffSegments('Hold on tyght', 'Hold on tight')).toEqual([
+			{ kind: 'shared', text: 'Hold on t' },
+			{ kind: 'change', deleted: 'y', inserted: 'i' },
+			{ kind: 'shared', text: 'ght' }
+		]);
+		// A pure insertion inside a word is an empty deletion, not a rewrite.
+		expect(wordDiffSegments('the wrld', 'the world')).toEqual([
+			{ kind: 'shared', text: 'the w' },
+			{ kind: 'change', deleted: '', inserted: 'o' },
+			{ kind: 'shared', text: 'rld' }
+		]);
+		expect(wordDiffSegments('Imma stay', "I'ma stay")).toEqual([
+			{ kind: 'shared', text: 'I' },
+			{ kind: 'change', deleted: 'm', inserted: "'" },
+			{ kind: 'shared', text: 'ma stay' }
+		]);
+	});
+
+	it('keeps a rewrite whole instead of hunting shared letters inside it', () => {
+		expect(wordDiffSegments('my love forever', 'my dear forever')).toEqual([
+			{ kind: 'shared', text: 'my ' },
+			{ kind: 'change', deleted: 'love', inserted: 'dear' },
+			{ kind: 'shared', text: ' forever' }
+		]);
+	});
+
+	it('never splits a surrogate pair between shared and changed text', () => {
+		// 🎵 and 🎶 share their high surrogate; the trim must not claim it.
+		expect(wordDiffSegments('🎵', '🎶')).toEqual([
+			{ kind: 'change', deleted: '🎵', inserted: '🎶' }
+		]);
+	});
+
 	it('uses UTF-16 offsets, including around non-BMP characters', () => {
 		const oldText = '🎵 sing tonight';
 		const newText = '🎵 sing again';

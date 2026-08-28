@@ -50,8 +50,10 @@ describe('an assistant proposal card', () => {
 		const deletion = diff.querySelector('del')!;
 		const insertion = diff.querySelector('ins')!;
 
-		expect(deletion.textContent).toContain('old words');
-		expect(insertion.textContent).toContain('new lines');
+		// The diff is character-level, so the plural `s` both runs share stays
+		// out of the del/ins pair as shared context.
+		expect(deletion.textContent).toContain('old word');
+		expect(insertion.textContent).toContain('new line');
 		expect(diff.querySelector('.assistant-proposal__context')?.textContent).toMatch(/^…/);
 		expect(diff.querySelector('button')).toBeNull();
 		expect(getComputedStyle(diff).whiteSpace).toBe('pre-wrap');

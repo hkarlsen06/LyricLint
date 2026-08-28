@@ -134,6 +134,30 @@ describe('PreferencesPanel grammar toggle', () => {
 		expect(controller.grammarCheckEnabled).toBe(true);
 		expect(setPreference).toHaveBeenLastCalledWith('grammarCheck', 'true');
 	});
+
+	// Harper never runs for a non-English document — the request gate in
+	// harper.ts refuses before the download — so the section drawing under
+	// Norwegian would offer a switch that changes nothing on screen.
+	test('draws only while the document language is English', async () => {
+		const { controller } = createTestWorkbench();
+		const { container } = render(PreferencesPanel, { controller });
+
+		controller.setLanguage('no');
+		await waitFor(() =>
+			expect(screen.queryByRole('switch', { name: 'Check grammar with Harper' })).toBeNull()
+		);
+		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
+			'Local data',
+			'Reviewed rules'
+		]);
+
+		// The toolbar picker can bring it straight back — the preference itself
+		// never left, only the control.
+		controller.setLanguage('en-GB');
+		await waitFor(() =>
+			expect(screen.getByRole('switch', { name: 'Check grammar with Harper' })).toBeTruthy()
+		);
+	});
 });
 
 describe('PreferencesPanel destructive confirm', () => {

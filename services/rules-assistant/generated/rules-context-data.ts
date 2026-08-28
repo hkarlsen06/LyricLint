@@ -3,9 +3,9 @@ import type { AssistantCorpus } from './rules-context';
 
 export const corpus = {
 	formatVersion: 5,
-	ruleSetVersion: '2026.08.27.0',
-	generatedAt: '2026-08-26T22:01:58.396Z',
-	contentHash: '9855b010e5093acffdb3cdf5ebe8295038b3a6a19c64c7b5a9b1e207d47e0b1f',
+	ruleSetVersion: '2026.08.28.0',
+	generatedAt: '2026-08-28T16:37:32.394Z',
+	contentHash: '7319e8e8956b084ba1932e914ff5dc719a481c251c3df0b4ceb01aae19469397',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Switch } from 'bits-ui';
 	import { onMount } from 'svelte';
+	import { isEnglishLanguage } from '$lib/languages/registry.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
 	import type { WorkspaceBackupState } from '$lib/persistence/backup.js';
@@ -80,30 +81,39 @@
 		advisory by design — so turning it off is one decision, not fifty. Off also
 		spares the ~18MB download it would otherwise fetch the first time the
 		workbench needs it.
+
+		The section draws only while the document's language is English. Harper
+		never runs for any other language — the request gate in harper.ts refuses
+		before the download — so under Norwegian or Japanese the switch would be an
+		answer that cannot be carried out, flipping a bit nothing reads. The
+		preference itself is app-scoped and keeps its stored value; only the
+		control waits for a document Harper would actually check.
 	-->
-	<section>
-		<h2>Grammar checking</h2>
-		<!-- A switch, not a checkbox. The row is a live setting — flipping it acts
-		     at once, no form, no submit — and a switch is the control every settings
-		     surface has taught for exactly that, where a checkbox reads as a form
-		     answer and renders as the platform's own dated widget. The label is a
-		     real <label for>, so pressing the words toggles too. -->
-		<div class="toggle-field">
-			<label for="grammar-check-switch">Check grammar with Harper</label>
-			<Switch.Root
-				id="grammar-check-switch"
-				class="switch"
-				checked={controller.grammarCheckEnabled}
-				onCheckedChange={(checked) => controller.setGrammarCheckEnabled(checked)}
-			>
-				<Switch.Thumb class="switch__thumb" />
-			</Switch.Root>
-		</div>
-		<p>
-			An English proofreader that runs beside the reviewed rules. Its suggestions cite Harper, not
-			Genius, and are advisory — they never bulk-fix and are never applied for you.
-		</p>
-	</section>
+	{#if isEnglishLanguage(controller.language)}
+		<section>
+			<h2>Grammar checking</h2>
+			<!-- A switch, not a checkbox. The row is a live setting — flipping it acts
+			     at once, no form, no submit — and a switch is the control every settings
+			     surface has taught for exactly that, where a checkbox reads as a form
+			     answer and renders as the platform's own dated widget. The label is a
+			     real <label for>, so pressing the words toggles too. -->
+			<div class="toggle-field">
+				<label for="grammar-check-switch">Check grammar with Harper</label>
+				<Switch.Root
+					id="grammar-check-switch"
+					class="switch"
+					checked={controller.grammarCheckEnabled}
+					onCheckedChange={(checked) => controller.setGrammarCheckEnabled(checked)}
+				>
+					<Switch.Thumb class="switch__thumb" />
+				</Switch.Root>
+			</div>
+			<p>
+				An English proofreader that runs beside the reviewed rules. Its suggestions cite Harper, not
+				Genius, and are advisory — they never bulk-fix and are never applied for you.
+			</p>
+		</section>
+	{/if}
 
 	{#if controller.backup}
 		<section>

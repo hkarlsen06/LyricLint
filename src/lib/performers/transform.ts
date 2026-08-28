@@ -702,6 +702,27 @@ export function canAssignVoiceGroup(
 }
 
 /**
+ * The range an assignment for this selection would actually rewrite, or
+ * `undefined` where the selection names none.
+ *
+ * This is the range the picker's pre-selection is derived against, for the same
+ * reason `canAssignVoiceGroup` above exists: the question — which voices does
+ * applying touch — has to be the transform's own answer rather than a second
+ * opinion read off the raw selection. Today the two readings agree on every
+ * selection that can reach the picker, but only because the keyboard refuses a
+ * collapsed selection and a voice group can only be overlapped through its own
+ * non-whitespace characters — invariants that live in other files. The chips
+ * lit on open are part of what Apply writes, so they ask the owner.
+ */
+export function assignmentSelectionRange(
+	document: ParsedDocument,
+	selection: SerializedSelection
+): TextRange | undefined {
+	const range = normalizeSelection(document, selection);
+	return isSelectionRefusal(range) ? undefined : range;
+}
+
+/**
  * Whether assigning here would write a legend that does not begin at the plain
  * slot, because unstyled lyrics stay behind with nobody named for them.
  *

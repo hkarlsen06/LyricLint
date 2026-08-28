@@ -42,6 +42,11 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 - A panel section is a heading over at most two things; a claim is made once, where the
   reader is deciding; a command is offered once. `SongPanel.svelte.test.ts` and
   `PreferencesPanel.svelte.test.ts` pin the heading lists and the absences.
+- The grammar-checking section draws only while the document's language is English
+  (`isEnglishLanguage`, the same predicate the catalog rules gate on). Harper refuses every
+  other language before its download, so under Norwegian the switch would be an answer that
+  cannot be carried out. The app-scoped preference keeps its stored value; only the control
+  waits. Pinned in `PreferencesPanel.svelte.test.ts`.
 - Every transient surface dismisses on `Escape`, its own control, and an outside press — use
   `dismissOnOutside`, never a hand-rolled listener; the callback moves no focus and abandons
   pending state. Dropping the closing control requires naming the visible exit that replaces it.

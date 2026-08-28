@@ -5,7 +5,7 @@ import type {
 	SerializedSelection,
 	TextEdit
 } from '$lib/core/types.js';
-import { assignVoiceGroup, canAssignVoiceGroup } from './transform.js';
+import { assignVoiceGroup, assignmentSelectionRange, canAssignVoiceGroup } from './transform.js';
 import { narrowEdit } from './transform.js';
 import { describe, expect, it } from 'vitest';
 
@@ -275,5 +275,45 @@ describe('canAssignVoiceGroup', () => {
 		});
 
 		expect(result.status).toBe('blocked');
+	});
+});
+
+// The picker's pre-selection is derived against this range, not the raw
+// selection: the chips lit on open are part of what Apply writes, so which
+// voice groups they are read from has to be the transform's own answer.
+describe('assignmentSelectionRange', () => {
+	const text = '[Verse: A]\nFirst line\nSecond line (<i>Yeah</i>)';
+	const document = parseDocument(text);
+
+	it('returns a trimmed selection as the transform will act on it', () => {
+		const from = text.indexOf('First line');
+
+		expect(
+			assignmentSelectionRange(document, { anchor: from, head: from + 'First line\n'.length })
+		).toEqual({ from, to: from + 'First line'.length });
+	});
+
+	it('grows a caret to the line the transform would rewrite', () => {
+		const from = text.indexOf('First line');
+
+		expect(assignmentSelectionRange(document, { anchor: from + 2, head: from + 2 })).toEqual({
+			from,
+			to: from + 'First line'.length
+		});
+	});
+
+	it('shrinks a lone parenthetical inside its parens, as the assignment does', () => {
+		const parenthetical = '(<i>Yeah</i>)';
+		const from = text.indexOf(parenthetical);
+
+		expect(
+			assignmentSelectionRange(document, { anchor: from, head: from + parenthetical.length })
+		).toEqual({ from: from + 1, to: from + parenthetical.length - 1 });
+	});
+
+	it('answers a refused selection with undefined', () => {
+		const from = text.indexOf('\n');
+
+		expect(assignmentSelectionRange(document, { anchor: from, head: from + 1 })).toBeUndefined();
 	});
 });

@@ -15,7 +15,11 @@
 		resolveLegendAssignment,
 		type LegendAssignmentResolution
 	} from '$lib/performers/legend-assignment.js';
-	import { assignmentNeedsSectionVoice, unknownVoiceOffers } from '$lib/performers/transform.js';
+	import {
+		assignmentNeedsSectionVoice,
+		assignmentSelectionRange,
+		unknownVoiceOffers
+	} from '$lib/performers/transform.js';
 	import type { CreateLyricEditorOptions, LyricEditorInstance } from './create-editor.js';
 	import type {
 		EditorPaneProps,
@@ -199,6 +203,21 @@
 			reviewed: false
 		}
 	);
+
+	// The range the assignment would actually rewrite — the transform's own
+	// reading of the selection (whitespace trimmed, a lone parenthetical shrunk
+	// inside its parens, a caret grown to its line) rather than a second opinion
+	// read off the raw range. The chips lit on open are part of what Apply
+	// writes, so they are derived against what Apply will touch. The raw range
+	// stands in only while the shell's parse has not arrived.
+	function assignmentRangeFor(range: TextRange): TextRange {
+		if (context.parsed === undefined) {
+			return range;
+		}
+		return (
+			assignmentSelectionRange(context.parsed, { anchor: range.from, head: range.to }) ?? range
+		);
+	}
 
 	function performerIdsForRange(range: TextRange): PerformerId[] {
 		const performerIds: PerformerId[] = [];
@@ -868,6 +887,7 @@
 {#if performerOverlay}
 	{#key legend?.step ?? (pendingVoice ? 'section-voice' : 'selection')}
 		{@const unknownOffer = unknownVoiceOffer()}
+		{@const assignmentRange = assignmentRangeFor(performerOverlay.range)}
 		<PerformerPicker
 			performers={context.performers}
 			unknownSlots={unknownOffer.existingSlots}
@@ -879,10 +899,8 @@
 					: legend.styledPerformerIds
 				: pendingVoice
 					? []
-					: performerIdsForRange(performerOverlay.range)}
-			removalAvailable={!legend &&
-				!pendingVoice &&
-				canRemoveFormattingForRange(performerOverlay.range)}
+					: performerIdsForRange(assignmentRange)}
+			removalAvailable={!legend && !pendingVoice && canRemoveFormattingForRange(assignmentRange)}
 			prompt={legendPrompt?.text}
 			step={legendPrompt?.step}
 			stepCount={legendPrompt?.stepCount}

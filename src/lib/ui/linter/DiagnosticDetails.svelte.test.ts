@@ -13,8 +13,10 @@ function previewDiagnostic(): Diagnostic {
 		message: 'This likely ad-lib may need parentheses.',
 		explanation: 'Review the contextual edit.',
 		sourceIds: [],
-		// As the rule reports it: an ad-lib sung as part of the line needs no
-		// brackets, so the card leads with accepting it.
+		// A synthetic judgment-call finding: no catalog rule sets
+		// `presumedCorrect` today (the ad-lib wrap offer that did was retired),
+		// but the shell contract it exercises — accepting leads, the fix steps
+		// down — stays pinned for the next rule that does.
 		presumedCorrect: true,
 		fixes: [
 			{

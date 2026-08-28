@@ -99,7 +99,7 @@ the logos for the notation a transcriber types — `[Verse 1]`, `<i>Blair</i>`, 
 which changed the gesture's content and kept the gesture, and four scattered chips of borrowed
 choreography still read as that composition's hero. What floats now is the product's action in
 miniature: two chips, each a flagged form wearing the editor's wavy warning underline over the
-form the linter writes it as (`Verse 1:` over `[Verse 1]`, `yeah` over `(Yeah)`), set in the
+form the linter writes it as (`Verse 1:` over `[Verse 1]`, `(yeah)` over `(Yeah)`), set in the
 editor's face, muted ink over full ink so the output is the emphasized line. Notation said what
 the tool is about; a correction says what it *does*, before a word of copy is read, in the
 product's own visual language — the squiggle is a shape cue, so the pairing never rests on color

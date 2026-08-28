@@ -5,7 +5,7 @@ const adlib = "yeah|ayy|uh|ooh|woo|hey|let's go";
 
 export const adlibParenthesesRule: RuleDefinition = {
 	id: 'adlib.parentheses',
-	version: 4,
+	version: 6,
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-ADLIBS'],
@@ -51,7 +51,16 @@ export const adlibParenthesesRule: RuleDefinition = {
 					new RegExp(`,\\s*(?<word>${adlib})\\s*$`, 'giu')
 				)) {
 					const word = match.groups.word ?? '';
-					// `Yeah, yeah, yeah` is the line repeating its own word, not a vocal
+					// Only the titlecased form is a finding. A lowercase trailing ad-lib
+					// is the lead's own line at least as often as a backing vocal, and
+					// only the transcriber can hear which — but a capital after a comma
+					// is conventional in neither reading: part of the line it stays
+					// lowercase, behind the lead it takes parentheses and the capital
+					// moves inside them. An all-caps run is neither and is left alone.
+					if (!/^\p{Lu}/u.test(word) || word.slice(1) !== word.slice(1).toLocaleLowerCase('en')) {
+						continue;
+					}
+					// `Yeah, Yeah` is the line repeating its own word, not a vocal
 					// sitting behind it: where the token right before the comma is the same
 					// ad-lib, the phrase is the lead's refrain and nothing is offered. Read
 					// off the masked text so a repeat inside markup still counts as one.
@@ -68,11 +77,8 @@ export const adlibParenthesesRule: RuleDefinition = {
 					) {
 						continue;
 					}
-					const localFrom = match.text
-						.toLocaleLowerCase('en')
-						.lastIndexOf(word.toLocaleLowerCase('en'));
-					const capitalized = `${word[0]?.toUpperCase() ?? ''}${word.slice(1)}`;
-					const wrapped = `(${capitalized})`;
+					const localFrom = match.text.toLocaleLowerCase('en').lastIndexOf(lowerWord);
+					const wrapped = `(${word})`;
 					const wordRange = {
 						from: match.from + localFrom,
 						to: match.from + localFrom + word.length
@@ -91,8 +97,8 @@ export const adlibParenthesesRule: RuleDefinition = {
 								!span.continuedFromPreviousLine &&
 								!span.continuesToNextLine
 						);
-					let range: TextRange;
-					let replacement: string;
+					let wrapRange: TextRange;
+					let wrapReplacement: string;
 					if (styleWrapper) {
 						const opening = line.text.slice(
 							styleWrapper.from - line.from,
@@ -102,13 +108,13 @@ export const adlibParenthesesRule: RuleDefinition = {
 							styleWrapper.contentTo - line.from,
 							styleWrapper.to - line.from
 						);
-						const styled = `(${opening}${capitalized}${closing})`;
+						const styled = `(${opening}${word}${closing})`;
 						const gap = line.text.slice(match.from + 1 - line.from, styleWrapper.from - line.from);
 						const swallowsComma = /^\s*$/u.test(gap);
-						range = swallowsComma
+						wrapRange = swallowsComma
 							? { from: match.from, to: styleWrapper.to }
 							: { from: styleWrapper.from, to: styleWrapper.to };
-						replacement =
+						wrapReplacement =
 							swallowsComma && before.length > 0 && !/\s$/u.test(before) ? ` ${styled}` : styled;
 					} else {
 						// The comma only separated the ad-lib from the lyric, so parenthesizing the
@@ -116,24 +122,30 @@ export const adlibParenthesesRule: RuleDefinition = {
 						// whitespace sits between it and the word: `matchesOutsideMarkup` masks markup
 						// as spaces, so a gap holding a tag would otherwise be deleted with the comma.
 						const strandsComma = /^\s*$/u.test(match.text.slice(1, localFrom));
-						range = strandsComma ? { from: match.from, to: wordRange.to } : wordRange;
-						// `A, yeah` closes up to `A (Yeah)`; `A , yeah` and a line-leading comma must
+						wrapRange = strandsComma ? { from: match.from, to: wordRange.to } : wordRange;
+						// `A, Yeah` closes up to `A (Yeah)`; `A , Yeah` and a line-leading comma must
 						// not gain a second space.
-						replacement =
+						wrapReplacement =
 							strandsComma && before.length > 0 && !/\s$/u.test(before) ? ` ${wrapped}` : wrapped;
 					}
-					diagnostics.push({
-						...diagnostic(
+					diagnostics.push(
+						diagnostic(
 							this,
-							range,
-							'This likely ad-lib may need parentheses.',
-							'The short phrase appears after a comma at the end of a lyric line. Parentheses are for a vocal sitting behind the lead, so an ad-lib the singer is performing as part of the line belongs exactly as it is written.',
-							[replacementFix(context, 'preview', `Wrap as ${wrapped}`, range, replacement)]
-						),
-						// More of these are sung than are backing, so the leading answer is
-						// that the line is already right and the wrap is the second offer.
-						presumedCorrect: true
-					});
+							wordRange,
+							'Lowercase this ad-lib or move it into parentheses.',
+							'A capital belongs to the start of a line or of a parenthetical. An ad-lib the singer performs as part of the line stays lowercase after its comma; a vocal sitting behind the lead takes parentheses, and the capital moves inside them.',
+							[
+								replacementFix(
+									context,
+									'preview',
+									`Replace with ${lowerWord}`,
+									wordRange,
+									lowerWord
+								),
+								replacementFix(context, 'preview', `Wrap as ${wrapped}`, wrapRange, wrapReplacement)
+							]
+						)
+					);
 				}
 			}
 		}

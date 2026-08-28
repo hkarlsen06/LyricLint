@@ -21,6 +21,10 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   through `posAtDOM`, or the inserted half of the diff is a dead zone.
 - `presumedCorrect` findings lead with `It's correct` in the contrast tier; it is `onIgnore`
   under the hood, per occurrence. `acceptsAsCorrect` is one derived answer for both surfaces.
+  No catalog rule sets `presumedCorrect` today — its last producer, the ad-lib wrap offer, was
+  retired (see *Some findings lead with the answer that nothing is wrong*) — but the shell
+  contract stays pinned in `diagnostic-parity.svelte.test.ts` for the next judgment-call rule.
+  `section.header-unrecognized` still leads with `It's correct`, recognized by id.
   Two acceptances stand in the ignore slot instead of leading: `It really is unintelligible`
   (`unknown.unresolved`) and `The performer is unknown` (`performer.inline-mismatch`) — the
   quiet `Ignore` is what each replaces, and `acceptsDiagnosticAsCorrect` in `ignore.ts` is the
@@ -136,24 +140,38 @@ likelier answer is that the words are already right. There the quiet `Ignore` is
 and whatever change the card also offers steps down to bordered, because a surface has one
 contrast action.
 
-Two findings are like that, and each of them says something about where the flag lives.
+One finding is like that today, and one was — and the one that was is the reason the mechanism
+knows its limits.
 
 **A custom section header is the whole of its rule.** `section.header-unrecognized` cannot vouch
 for `[Chor]`, and says so; a rule that never has anything else to report can be recognised by its
 id, which is how the card has always known.
 
-**An ad-lib after a comma is one of two findings its rule reports, and only one of them is a
-question.** Parentheses mark a vocal sitting _behind_ the lead, so an ad-lib the singer is
-performing as part of the line belongs exactly as it is written — most of what
-`adlib.parentheses` points at is already correct, and offering `Wrap as (Yeah)` as the loud answer
-was the linter asserting something it cannot hear. The rule's _other_ finding, that a
-parenthesized `(yeah)` wants a capital, is a fact about the text and keeps the ordinary shape. One
-rule, two shapes, so it cannot be read off the id: `presumedCorrect` is on the diagnostic, set by
-the rule that knows which of its findings is a judgment about performance.
+**An ad-lib after a comma was the other, and leading with the accepting answer did not save it.**
+Parentheses mark a vocal sitting _behind_ the lead, so an ad-lib the singer is performing as part
+of the line belongs exactly as it is written — most of what `adlib.parentheses` pointed at was
+already correct, and offering `Wrap as (Yeah)` as the loud answer was the linter asserting
+something it cannot hear. `presumedCorrect` was the first repair: on the diagnostic rather than
+read off the id, because the rule's _other_ finding — a parenthesized `(yeah)` wants a capital —
+is a fact about the text and keeps the ordinary shape, so one rule carried two shapes. It was not
+enough. Measured against real transcription, a rapper performing `Ayy` as the end of the line is
+at least as common as a backing vocal there, so the card was wrong about as often as it was right
+— and a finding whose base rate is a coin flip is churn whichever button leads, because every hit
+still costs the transcriber a read and a press about something only they can hear. The
+presumed-correct wrap offer is retired; what came back in its place (rule version 6) is the same
+comma-and-line-end shape gated on the one thing that proves the form wrong either way — a
+titlecased ad-lib, `, Ayy`, which mid-line convention allows in neither reading. That finding
+needs no `presumedCorrect`, because it is not a guess: it offers `Replace with ayy` and
+`Wrap as (Ayy)` and lets the transcriber say which repair their ears heard.
+`adlib-parentheses.test.ts` pins that the lowercase form is never flagged. `presumedCorrect`
+survives as the mechanism for the next judgment-call finding — with this as the calibration
+note: it softens a guess that is usually wrong to flag at all, it does not license one. The
+repair here was not softening the coin flip but finding the narrower predicate on which the
+claim stops being one.
 
 That is also why `It's correct` is `onIgnore` under the hood and not a new hook — an ignore is
 per-occurrence (`diagnostics/ignore.ts` keys on the rule, the message, the text and its
-surroundings), so accepting one ad-lib says nothing about the next one. Only the words on the
+surroundings), so accepting one occurrence says nothing about the next one. Only the words on the
 button change, and they change because the user is being asked a different question.
 
 **A styled voice nobody can name yet gets the same slot-standing answer.**
@@ -189,8 +207,8 @@ arrival, still hidden after a full rewrite of the lyrics inside the tags — is 
 `workbench.test.ts`. Keys stored before this change carry lyrics in the text part and now match
 nothing, so a pre-existing acceptance is re-asked once and then durable.
 
-Implementation: `presumedCorrect` and `identityText` on `Diagnostic` in `src/lib/core/types.ts`,
-`presumedCorrect` set in `rules/catalog/adlib-parentheses.ts`; `acceptsAsCorrect` in
+Implementation: `presumedCorrect` and `identityText` on `Diagnostic` in `src/lib/core/types.ts`
+(`presumedCorrect` currently with no catalog producer); `acceptsAsCorrect` in
 `src/lib/diagnostics/DiagnosticActions.svelte`, which is one derived answer for both surfaces —
 `diagnostic-parity.svelte.test.ts` renders the card and the popover and compares the row.
 

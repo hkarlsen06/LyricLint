@@ -30,6 +30,13 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   sized to its three flow labels (`Next`/`Skip`/`Apply`); `Skip` is bordered, never contrast,
   and while nobody is picked the card carries no contrast action at all
   (`actionLabel`/`showsEmptyAnswer`, one derived answer).
+- The roster never scrolls: chips wrap onto further rows in stable roster order, so no chip —
+  above all no *pre-selected* chip, which is part of what Apply writes — is ever off screen.
+  The pre-selection stays: it is the voice groups overlapping the selection, read against
+  `assignmentSelectionRange` — the transform's own reading of what the assignment would
+  rewrite, never the raw range — and it is what keeps Apply from silently stripping a covered
+  voice and what the deselect-everyone route to `Remove formatting` runs on. Pinned in
+  `PerformerPicker.svelte.test.ts` and `transform-boundaries.test.ts`.
 - The step indicator is an `aria-hidden` bar spanning a question block floored at the widest
   question, with a `sr-only` `Step 2 of 2` carrying the fact.
 - The roster is `.list-row`: the name *is* the rename (press to edit in place, no pencil), no
@@ -239,6 +246,52 @@ Three things it owes:
   hidden, the two would be announced twice — the same split `SourceCitation.svelte` makes, in the
   direction where the visible copy is the second one.
 
+
+### The roster wraps, because the pre-selection is part of the answer
+
+The picker opens with chips already pressed. That is not leftover state from its last use —
+`performerIdsForRange` reads the voice groups overlapping the selection on every open, so the
+opening state is the document's own claim about who already sings the selected text. It is
+load-bearing twice over: Apply writes the picked set for the range, so the initial set is what
+keeps an assignment over already-formatted text from silently stripping a voice, and
+deselecting everyone is how `Remove formatting` is asked for at all.
+
+The roster was a horizontally scrollable track — hidden scrollbar, an edge fade before the add
+control — and that broke the pre-selection in the worst direction: a pre-selected chip
+scrolled past the edge was still in the answer, so Apply wrote a joint group with a performer
+the card never showed. State the user cannot see deciding what a press writes is the failure,
+and two smaller fixes were rejected before the layout one. *Opening with nobody selected*
+keeps the surprise and flips its sign — the same forgetting then silently removes the covered
+voice instead of visibly adding a wrong one, and the removal flow loses its only way in.
+*Sorting the selected chips to the front* keeps the selected chips visible but not the rest of
+the ballot, and gives up positional stability between opens in a control used dozens of times
+per song — the same churn the check-glyph and the action floor were removed for.
+
+So the roster wraps. It is a ballot over a small closed set, not content to browse, and a
+horizontal scroller is the wrong container for a row whose every entry must be seen before
+pressing a button whose effect depends on all of them. A roster that fits changes nothing; a
+crowded one costs the card a row of height, transiently, instead of costing an assignment. The
+track, the fade, and the `.add-slot` sibling existed only to manage the scroller's clipping,
+so they went with it — chips, unknown chips, and the add control sit in one wrapping flex row,
+and the focus-ring padding went too, since rings only needed reserved room while an overflow
+edge could clip them. `PerformerPicker.svelte.test.ts` pins the wrap (a crowded roster on more
+than one row, every chip inside the card), the single-line case, and the absence of the old
+structure.
+
+And the range the pre-selection reads is the transform's, not the selection's.
+`assignmentSelectionRange` exposes `normalizeSelection` — whitespace trimmed, a lone
+parenthetical shrunk inside its parens, a caret grown to its line — and `performerIdsForRange`
+and `canRemoveFormattingForRange` are asked about that range, falling back to the raw one only
+while the shell's parse has not arrived. On every selection that reaches the picker today the
+two readings agree, but the agreement rests on invariants that live in other files: the
+keymap refuses a collapsed selection, and a voice group can only be overlapped through its own
+non-whitespace characters. Let either drift — a future `Ctrl-Alt-P` that accepts a caret and
+grows it to the line is the obvious one — and a raw-range pre-selection opens empty over a
+line whose voice Apply then silently strips. This is the same argument `canAssignVoiceGroup`
+records above: the question is what applying touches, so it has to be the transform's own
+answer rather than a second opinion that happens to agree. `assignmentSelectionRange` is
+pinned in `transform-boundaries.test.ts`; the wiring runs in `EditorPane.svelte.test.ts`'s
+pre-selection case.
 
 ### An unknown voice is the text's own fact, and the roster never learns it
 

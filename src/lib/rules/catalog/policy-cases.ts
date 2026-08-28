@@ -488,7 +488,10 @@ export const policyCases: readonly RulePolicyCase[] = [
 		title: 'A lowercase ad-lib in parentheses',
 		invalid: '[Verse]\n(yeah)',
 		valid: '[Verse]\n(Yeah)',
-		ambiguous: '[Verse]\nYeah I know'
+		// A lowercase trailing ad-lib is the lead's own line at least as often
+		// as a backing vocal, and only the transcriber can hear which — the rule
+		// speaks up only when a stray capital proves the form wrong either way.
+		ambiguous: '[Verse]\nWe run, yeah'
 	},
 	{
 		id: 'adlib.separator',

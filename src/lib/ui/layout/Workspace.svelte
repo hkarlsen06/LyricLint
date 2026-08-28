@@ -979,7 +979,10 @@
 	// Where the audio is, pushed into the anchor gutter — which fills one dot and
 	// is the entire extent of what playback is permitted to do to the document.
 	// It is deliberately not conditional on playing: a paused track still has a
-	// position, and showing it is how the user finds their way back to it.
+	// position, and showing it is how the user finds their way back to it. But
+	// whether the tape is running rides along, because a pause that lasts lets
+	// the editor rest the wash across the marked line's text — the line number
+	// and timestamp keep the color, which is that way back.
 	//
 	// The anchors are read on the same pass and deliberately so: an edit that
 	// shifts a timed line arrives as a document change, which `onAnchorsChanged`
@@ -990,7 +993,10 @@
 	// not changed since the last tap. Same lines at the same times, same array.
 	$effect(() => {
 		const player = controller.media?.player;
-		editorHandle?.setMediaPlayhead?.(player?.attached ? player.currentTime : undefined);
+		editorHandle?.setMediaPlayhead?.(
+			player?.attached ? player.currentTime : undefined,
+			player?.playing ?? false
+		);
 		const next = editorHandle?.getLineAnchors?.() ?? [];
 		// Untracked, because the comparison reads the very state it may write:
 		// tracked, the effect would depend on its own assignment.

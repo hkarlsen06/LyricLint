@@ -58,7 +58,8 @@ import {
 	lineAnchorsFor,
 	setFollowPlayheadEffect,
 	setLineAnchorsEffect,
-	setPlayheadEffect
+	setPlayheadEffect,
+	setPlayingEffect
 } from './extensions/line-anchors.js';
 import {
 	lyricSync,
@@ -1118,13 +1119,14 @@ export function createLyricEditor(
 				annotations: Transaction.addToHistory.of(false)
 			});
 		},
-		setMediaPlayhead(time) {
+		setMediaPlayhead(time, playing) {
 			// Cheap on purpose: this arrives several times a second for the length
 			// of a song. The field returns its own previous value when the marked
 			// anchor has not changed, so the common tick costs one transaction and
-			// no re-render.
+			// no re-render. An omitted `playing` reads as running, which keeps the
+			// wash always on for a shell that only ever pushes positions.
 			view.dispatch({
-				effects: setPlayheadEffect.of(time),
+				effects: [setPlayheadEffect.of(time), setPlayingEffect.of(playing ?? true)],
 				annotations: Transaction.addToHistory.of(false)
 			});
 		},

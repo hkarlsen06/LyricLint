@@ -173,7 +173,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `repeat.placeholder` | Warning | Text such as `[Chorus x2]` or `repeat chorus` substitutes for repeated lyrics | Explain only | `G-REPEATS` |
 | `sound-effect.asterisks` | Warning | A likely sound effect uses braces or an unsupported wrapper | Preview replacement | `G-SFX` |
 | `censored.mask` | Warning | A censored word uses a mask other than exactly four asterisks | Preview replacement | `G-CENSORED` |
-| `adlib.parentheses` | Suggestion | A likely ad-lib lacks parentheses or starts lowercase | Contextual fix preview; a phrase repeating the word right before its comma, as in `Yeah, yeah, yeah`, is the line's own refrain and is not flagged | `G-ADLIBS` |
+| `adlib.parentheses` | Suggestion | A parenthesized ad-lib starts lowercase, or a trailing ad-lib carries a capital its position does not allow | Contextual fix previews; `, Ayy` at a line's end is wrong in either reading — lowercase if the lead's own line, parenthesized if a backing vocal — so the card offers both, while lowercase `, ayy` is valid exactly as written and is never flagged | `G-ADLIBS` |
 | `adlib.separator` | Suggestion | Two or more recognized ad-libs run together with only whitespace between, as in `(Yeah yeah yeah)` or `(Uh huh)` | Preview a comma-separated or hyphen-joined run; ad-libs that double as ordinary words need a third before they count | `G-ADLIBS` |
 | `capitalization.line-start` | Suggestion | A lyric line starts lowercase without a known contextual reason | Contextual fix preview | `G-CAPS` |
 | `capitalization.title-case` | Suggestion | Several lyric lines appear to capitalize nearly every word | Explain only because names and intentional styling need review | `G-CAPS` |

@@ -7,6 +7,7 @@ import { hideControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
 import ControlTooltip from '$lib/ui/primitives/ControlTooltip.svelte';
 import { assignVoiceGroup } from '$lib/performers/transform.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
+import { washRestDelayMs } from './extensions/line-anchors.js';
 import { tapOffsetSeconds } from './extensions/lyric-sync.js';
 import EditorPane from './EditorPane.svelte';
 
@@ -854,6 +855,60 @@ describe('the timestamp column', () => {
 			expect(document.querySelector('.cm-line.ll-current-line')?.textContent).toBe('first line');
 			// One per gutter: the line number, the performer bar, the timestamp cell.
 			expect(document.querySelectorAll('.cm-gutterElement.ll-current-line-gutter')).toHaveLength(3);
+		});
+	});
+
+	// The transcription loop is listen, pause, type — so a pause that lasts rests
+	// the band across the text, and the rails keep the color: a paused tape still
+	// has a position, and the number and the time are where it stays findable.
+	// Resuming answers a press, so the band snaps straight back.
+	it('rests the wash once a pause lasts, and snaps it back on resume', async () => {
+		const { handle } = await mount({ text: lyric, mediaTime: () => 15 });
+		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
+		handle.setMediaPlayhead?.(15, false);
+
+		// The pause itself changes nothing: the wash stays until the delay passes.
+		await vi.waitFor(() => {
+			expect(document.querySelector('.cm-line.ll-current-line')).not.toBeNull();
+		});
+		expect(document.querySelector('.ll-current-line--rested')).toBeNull();
+
+		await vi.waitFor(
+			() => expect(document.querySelector('.cm-line.ll-current-line--rested')).not.toBeNull(),
+			{ timeout: washRestDelayMs + 2000 }
+		);
+		// Only the band rests. The rails keep the playhead's color — every gutter
+		// still marks the row, and the cell still shows the current time.
+		expect(document.querySelectorAll('.cm-gutterElement.ll-current-line-gutter')).toHaveLength(3);
+		expect(document.querySelector('.ll-time-value--current')?.textContent).toBe('0:10');
+
+		handle.setMediaPlayhead?.(15, true);
+		await vi.waitFor(() => {
+			expect(document.querySelector('.ll-current-line--rested')).toBeNull();
+			expect(document.querySelector('.cm-line.ll-current-line')).not.toBeNull();
+		});
+	});
+
+	// The mark moving while paused is the tape landing somewhere — the cue-point
+	// step keys work against a paused tape — and the wash coming back is the whole
+	// of the on-document feedback for where it landed.
+	it('re-lights a rested wash when the paused tape is seeked', async () => {
+		const { handle } = await mount({ text: lyric, mediaTime: () => 15 });
+		handle.setLineAnchors?.([
+			{ line: 2, time: 10 },
+			{ line: 3, time: 20 }
+		]);
+		handle.setMediaPlayhead?.(15, false);
+		await vi.waitFor(
+			() => expect(document.querySelector('.cm-line.ll-current-line--rested')).not.toBeNull(),
+			{ timeout: washRestDelayMs + 2000 }
+		);
+
+		handle.setMediaPlayhead?.(25, false);
+		await vi.waitFor(() => {
+			const washed = document.querySelector('.cm-line.ll-current-line');
+			expect(washed?.textContent).toBe('second line');
+			expect(washed?.classList.contains('ll-current-line--rested')).toBe(false);
 		});
 	});
 

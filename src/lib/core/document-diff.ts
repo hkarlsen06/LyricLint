@@ -36,7 +36,7 @@ export type DiffRow =
 	| { kind: 'removed'; text: string; at: number }
 	/** A line the current document has and the baseline does not. */
 	| { kind: 'added'; text: string; line: number; at: number }
-	/** A line present in both, rewritten in part: word-level del/ins pairs. */
+	/** A line present in both, rewritten in part: character-level del/ins pairs. */
 	| { kind: 'changed'; segments: readonly WordDiffSegment[]; line: number; at: number };
 
 interface DiffHunk {
@@ -69,14 +69,48 @@ interface DocumentDiff {
 	removedLines: number;
 }
 
-type LineOp = 'same' | 'removed' | 'added';
+type LineOp = 'same' | 'changed' | 'removed' | 'added';
 
 /**
- * Past this many lines on both sides of the trimmed middle, the LCS table stops
+ * Past this many line pairs in the trimmed middle, the alignment table stops
  * being worth its memory and the whole region is reported as one replacement —
  * which is also the honest answer for a paste of something else entirely.
  */
-const LCS_LIMIT = 3000;
+const ALIGN_LIMIT = 2_250_000;
+
+/**
+ * A pair at or above this score (of 1000) aligns as one changed line. Below
+ * it, the two lines are a removal and an addition that happen to be adjacent.
+ */
+const PAIR_THRESHOLD = 500;
+
+/**
+ * How alike two lines are, 0–1000: the characters they share at their edges
+ * against their combined length. Cheap on purpose — it runs once per cell of
+ * the alignment table — and edge-shaped on purpose: the variations that repeat
+ * through a lyric are a line plus an ad-lib, a swapped word, a dropped comma,
+ * all of which keep one or both edges. Two unrelated lines share almost
+ * nothing at their edges and fall well under the threshold.
+ */
+function pairScore(baseline: string, current: string): number {
+	if (baseline === current) return 1000;
+	const max = Math.min(baseline.length, current.length);
+	if (max === 0) return 0;
+	let prefix = 0;
+	while (prefix < max && baseline.charCodeAt(prefix) === current.charCodeAt(prefix)) {
+		prefix += 1;
+	}
+	let suffix = 0;
+	const cap = max - prefix;
+	while (
+		suffix < cap &&
+		baseline.charCodeAt(baseline.length - 1 - suffix) ===
+			current.charCodeAt(current.length - 1 - suffix)
+	) {
+		suffix += 1;
+	}
+	return Math.round((2000 * (prefix + suffix)) / (baseline.length + current.length));
+}
 
 /** Ops over baseline and current lines, in document order. */
 function diffLines(baseline: readonly string[], current: readonly string[]): LineOp[] {
@@ -101,28 +135,41 @@ function diffLines(baseline: readonly string[], current: readonly string[]): Lin
 	const midCurrent = current.slice(start, currentEnd);
 	const ops: LineOp[] = new Array(start).fill('same');
 
-	if (midBase.length > LCS_LIMIT && midCurrent.length > LCS_LIMIT) {
+	if (midBase.length * midCurrent.length > ALIGN_LIMIT) {
 		ops.push(...new Array<LineOp>(midBase.length).fill('removed'));
 		ops.push(...new Array<LineOp>(midCurrent.length).fill('added'));
 	} else {
-		ops.push(...lcsOps(midBase, midCurrent));
+		ops.push(...alignOps(midBase, midCurrent));
 	}
 
 	ops.push(...new Array<LineOp>(baseline.length - baseEnd).fill('same'));
 	return ops;
 }
 
-/** Standard LCS backtrack, removals before insertions inside a changed region. */
-function lcsOps(baseline: readonly string[], current: readonly string[]): LineOp[] {
-	const rows = baseline.length + 1;
+/**
+ * Score-maximising alignment, removals before insertions inside a changed
+ * region. An exact LCS is the tempting version of this, and it is what drew
+ * the diff nobody could read: it anchors only on byte-identical lines, and a
+ * lyric repeats its refrain with small variations — so the varied line
+ * matched nothing, its plain twin further down stole the anchor, and the
+ * page showed whole-line removals and additions for what a transcriber reads
+ * as one line with its ad-lib struck. Scoring near-identical lines as pairs
+ * (`changed`) lets the character diff inside the row tell that story instead.
+ */
+function alignOps(baseline: readonly string[], current: readonly string[]): LineOp[] {
 	const cols = current.length + 1;
-	const table = new Uint32Array(rows * cols);
+	// Scores fit comfortably: at most 1000 per pair over ALIGN_LIMIT-bounded rows.
+	const table = new Uint32Array((baseline.length + 1) * cols);
+	const scoreAt = (i: number, j: number): number => {
+		const score = pairScore(baseline[i], current[j]);
+		return score === 1000 || score >= PAIR_THRESHOLD ? score : 0;
+	};
 	for (let i = baseline.length - 1; i >= 0; i -= 1) {
 		for (let j = current.length - 1; j >= 0; j -= 1) {
+			const skip = Math.max(table[(i + 1) * cols + j], table[i * cols + j + 1]);
+			const score = scoreAt(i, j);
 			table[i * cols + j] =
-				baseline[i] === current[j]
-					? table[(i + 1) * cols + j + 1] + 1
-					: Math.max(table[(i + 1) * cols + j], table[i * cols + j + 1]);
+				score > 0 ? Math.max(skip, table[(i + 1) * cols + j + 1] + score) : skip;
 		}
 	}
 
@@ -130,8 +177,9 @@ function lcsOps(baseline: readonly string[], current: readonly string[]): LineOp
 	let i = 0;
 	let j = 0;
 	while (i < baseline.length && j < current.length) {
-		if (baseline[i] === current[j]) {
-			ops.push('same');
+		const score = scoreAt(i, j);
+		if (score > 0 && table[i * cols + j] === table[(i + 1) * cols + j + 1] + score) {
+			ops.push(baseline[i] === current[j] ? 'same' : 'changed');
 			i += 1;
 			j += 1;
 		} else if (table[(i + 1) * cols + j] >= table[i * cols + j + 1]) {
@@ -230,10 +278,10 @@ function describeSegment(deleted: string, inserted: string, closesLine: boolean)
 		);
 	}
 
-	// The aligner is greedy at run edges, so a spacing change can arrive
-	// wearing the words around it — " world again" against "world again" —
-	// which is why the comparison strips every space rather than testing for
-	// whitespace-only segments.
+	// The character trim usually hands the words back to shared text before a
+	// spacing change gets here, but the comparison still strips every space
+	// rather than testing for whitespace-only segments, so a segment that
+	// arrives wearing its neighbours is described all the same.
 	const deletedWords = deletedVisible.replace(/\s+/g, '');
 	const insertedWords = insertedVisible.replace(/\s+/g, '');
 	if (deletedWords === insertedWords) {
@@ -274,11 +322,23 @@ function describePair(baseline: string, current: string): string[] {
  */
 const COALESCE_GAP = 2;
 
+/** One line-level event inside a changed region, in reading order. */
+type ChangeEntry =
+	/** A baseline line and the current line it aligned with, for one changed row. */
+	| { kind: 'pair'; removed: string; added: string }
+	| { kind: 'removed'; text: string }
+	| { kind: 'added'; text: string };
+
 /** One contiguous changed region inside a hunk. */
 interface ChangePart {
 	kind: 'change';
-	removed: string[];
-	added: string[];
+	/**
+	 * The aligner names each pair; the rows are not re-derived by position.
+	 * Pairs and additions consume consecutive current lines from the part's
+	 * first — removals advance no current index — so the k-th such entry knows
+	 * exactly which line it describes.
+	 */
+	entries: ChangeEntry[];
 	/** Index into `currentStarts` of the first current line the part covers. */
 	firstCurrentLine: number;
 }
@@ -338,14 +398,16 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 			currentStarts[lineIndex] + (currentLines[lineIndex]?.length ?? 0);
 		const collapsePoint = (lineIndex: number): number =>
 			Math.min(currentStarts[lineIndex] ?? current.length, current.length);
+		// Current lines a part covers: its pairs and additions. Removals have
+		// nothing of their own in the current document.
+		const currentLineCount = (part: ChangePart): number =>
+			part.entries.filter((entry) => entry.kind !== 'removed').length;
+		const lastCurrentLines = currentLineCount(lastChange);
 		const from = collapsePoint(firstCurrentLine);
 		const to =
-			lastChange.added.length === 0
+			lastCurrentLines === 0
 				? collapsePoint(lastChange.firstCurrentLine)
-				: Math.min(
-						lineEnd(lastChange.firstCurrentLine + lastChange.added.length - 1),
-						current.length
-					);
+				: Math.min(lineEnd(lastChange.firstCurrentLine + lastCurrentLines - 1), current.length);
 
 		const rows: DiffRow[] = [];
 		const notes: string[] = [];
@@ -400,43 +462,41 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 				if (!isBlank(part.lineIndex)) rows.push(contextRow(part.lineIndex));
 				continue;
 			}
-			// The added lines of a part are consecutive current lines from its
-			// first — removals advance no current index — so the k-th pair and the
-			// k-th leftover addition both know exactly which line they describe.
+			// Entries arrive in reading order, pairing decided by the aligner.
+			// Pairs and additions consume consecutive current lines from the
+			// part's first; a removed line collapses to the part's own point.
 			const partFrom = collapsePoint(part.firstCurrentLine);
-			const pairCount = Math.min(part.removed.length, part.added.length);
-			for (let index = 0; index < pairCount; index += 1) {
-				const lineIndex = part.firstCurrentLine + index;
-				rows.push({
-					kind: 'changed',
-					segments: wordDiffSegments(part.removed[index], part.added[index]),
-					line: lineIndex + 1,
-					at: currentStarts[lineIndex]
-				});
-				notes.push(...describePair(part.removed[index], part.added[index]));
+			let consumed = 0;
+			for (const entry of part.entries) {
+				if (entry.kind === 'removed') {
+					rows.push({ kind: 'removed', text: entry.text, at: partFrom });
+					removedLines += 1;
+					continue;
+				}
+				const lineIndex = part.firstCurrentLine + consumed;
+				consumed += 1;
+				if (entry.kind === 'pair') {
+					rows.push({
+						kind: 'changed',
+						segments: wordDiffSegments(entry.removed, entry.added),
+						line: lineIndex + 1,
+						at: currentStarts[lineIndex]
+					});
+					notes.push(...describePair(entry.removed, entry.added));
+					changedLines += 1;
+				} else {
+					rows.push({
+						kind: 'added',
+						text: entry.text,
+						line: lineIndex + 1,
+						at: currentStarts[lineIndex]
+					});
+					addedLines += 1;
+				}
 			}
-			for (let index = pairCount; index < part.removed.length; index += 1) {
-				rows.push({ kind: 'removed', text: part.removed[index], at: partFrom });
-			}
-			for (let index = pairCount; index < part.added.length; index += 1) {
-				const lineIndex = part.firstCurrentLine + index;
-				rows.push({
-					kind: 'added',
-					text: part.added[index],
-					line: lineIndex + 1,
-					at: currentStarts[lineIndex]
-				});
-			}
-
-			changedLines += pairCount;
-			removedLines += part.removed.length - pairCount;
-			addedLines += part.added.length - pairCount;
 		}
 
-		const neighbourBelow =
-			lastChange.added.length === 0
-				? lastChange.firstCurrentLine
-				: lastChange.firstCurrentLine + lastChange.added.length;
+		const neighbourBelow = lastChange.firstCurrentLine + lastCurrentLines;
 		if (neighbourBelow < currentLines.length && !isBlank(neighbourBelow)) {
 			rows.push(contextRow(neighbourBelow));
 		}
@@ -479,14 +539,22 @@ export function diffDocuments(baseline: string, current: string): DocumentDiff {
 		if (tail?.kind === 'change') {
 			part = tail;
 		} else {
-			part = { kind: 'change', removed: [], added: [], firstCurrentLine: currentIndex };
+			part = { kind: 'change', entries: [], firstCurrentLine: currentIndex };
 			pending.parts.push(part);
 		}
-		if (op === 'removed') {
-			part.removed.push(baselineLines[baseIndex]);
+		if (op === 'changed') {
+			part.entries.push({
+				kind: 'pair',
+				removed: baselineLines[baseIndex],
+				added: currentLines[currentIndex]
+			});
+			baseIndex += 1;
+			currentIndex += 1;
+		} else if (op === 'removed') {
+			part.entries.push({ kind: 'removed', text: baselineLines[baseIndex] });
 			baseIndex += 1;
 		} else {
-			part.added.push(currentLines[currentIndex]);
+			part.entries.push({ kind: 'added', text: currentLines[currentIndex] });
 			currentIndex += 1;
 		}
 	}

@@ -30,6 +30,11 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
   down — do not give a gutter control an accessible name and call it done.
 - The marked cell is the last anchor at or before the playhead, keyed on `currentFrom`; a
   cell is one line tall regardless of wrap; every row reserves the same width.
+- A pause that lasts `washRestDelayMs` rests the wash across the marked line's text — fading
+  out, only the way out animated — while the line number and the timestamp keep the color; it
+  snaps back the moment playback resumes, and a paused seek re-lights it on the line the tape
+  landed on. The shell passes `playing` alongside the position (`setMediaPlayhead(time,
+  playing)`; omitted reads as running). `line-anchoring.svelte.test.ts` pins all three.
 - Sync mode: the editor owns the mode, the shell reacts (`onLyricSyncChange`); typing ends
   the run (read off the document changing, via a `transactionExtender`); pausing holds the
   run and a tap against a paused tape is refused out loud; no `preventDefault: true` on any
@@ -284,6 +289,41 @@ Six things that arrangement depends on:
   and no rebuild.
 - **No `initialSpacer`.** The column's width is a constant in the theme, so a spacer reserves
   nothing CSS has not already reserved.
+
+#### A pause that lasts rests the wash
+
+The transcription loop is listen, pause, type — so the band across the marked line used to be
+at its brightest exactly when the user had stopped listening and started editing: a
+full-measure tint directly under the words being worked on, saying something about audio that
+was not running. After `washRestDelayMs` of pause the band fades out, and the line number and
+the timestamp keep the playhead's color, which is the way back the whole column promises — a
+paused tape still has a position, stated in the rails where positions live rather than as a
+band under the text.
+
+Four decisions hold it:
+
+- **A delay, not the instant of the pause.** Pausing is often followed by an immediate resume
+  or a scrub, and a band that vanished on every press of `Space` would flicker the very loop
+  it is trying to stay out of.
+- **Only the way out animates.** The transition is declared on the rested modifier, so adding
+  it fades the band away (`--duration-slow`) and removing it snaps the band straight back —
+  resuming answers a press, and feedback for a press is not eased in. It also keeps the band's
+  ordinary movement between lines during playback instant.
+- **A paused seek re-lights it.** The mark moving while paused is the tape landing somewhere —
+  the cue-point step keys work against a paused tape — and the wash coming back is the whole
+  of the on-document feedback for where. The countdown restarts with it, and the mark is
+  mapped through document changes first (the follow listener's reason): typing above the
+  marked line shifts its offset without the playhead crossing anything, and must neither
+  re-light the band nor hand the pause a fresh delay.
+- **The field owns every way back; the timer only says the pause lasted.** Resume, a moved
+  mark, and detached audio all clear `washRested` inside `lineAnchorField` itself, and the
+  plugin's one job is dispatching `setWashRestedEffect(true)` when the countdown survives —
+  a field cannot count time, and a timer must not hold state a rebuild would destroy. The
+  shell's half is one flag on the push it already makes, `setMediaPlayhead(time, playing)`,
+  with an omitted `playing` reading as running so a shell that only pushes positions keeps
+  the wash it always had — and the playhead tick still must not delay the selection anchor's
+  report, so `transactionsHaveOnlyPlayheadEffects` counts both effects the tick rides in as
+  the tick.
 
 **The line number is the second way to play a line.** It is a wider, always-drawn target than four
 characters of muted time, on the side of the document the eye already uses to find a line — and

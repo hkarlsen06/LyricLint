@@ -294,9 +294,11 @@ export interface Diagnostic extends TextRange {
 	 * The finding is a guess about intent whose likeliest answer is that the text
 	 * is already right, so a shell leads with accepting it rather than with the
 	 * change. It is carried here rather than read off the rule id because a rule
-	 * can report both kinds: `adlib.parentheses` says a parenthesized ad-lib is
-	 * miscapitalized, which is a fact, and that an unparenthesized one may want
-	 * brackets, which is a question about how it was sung.
+	 * can report both kinds — a fact about the text and a question about how it
+	 * was sung — and only the rule knows which of its findings is which. No
+	 * catalog rule sets it today; the last producer, `adlib.parentheses`'s wrap
+	 * offer, was retired because its guess was wrong about as often as it was
+	 * right even with the accepting answer leading.
 	 */
 	presumedCorrect?: true;
 	/**
@@ -912,8 +914,13 @@ export interface EditorHandle {
 	 * `undefined` also takes the column away entirely, which is the honest
 	 * reading — with no audio there is nothing to show a time for and nothing to
 	 * anchor a line to.
+	 *
+	 * `playing` says whether the tape is running at that position. A pause that
+	 * lasts lets the wash across the marked line's text rest, with the line
+	 * number and timestamp keeping the color; omitted, it reads as running, so a
+	 * shell that only ever pushes positions keeps the wash it always had.
 	 */
-	setMediaPlayhead?(time: number | undefined): void;
+	setMediaPlayhead?(time: number | undefined, playing?: boolean): void;
 	/**
 	 * Enter or leave sync mode, where the document stops taking typing and a tap
 	 * anchors the caret's line before moving to the next one.

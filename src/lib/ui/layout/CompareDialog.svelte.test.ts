@@ -40,20 +40,22 @@ describe('CompareDialog', () => {
 		expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
 	});
 
-	test('a pasted baseline becomes a diff of del and ins with the line numbered per row', async () => {
+	test('a pasted baseline becomes a character diff with the line numbered per row', async () => {
 		const { controller } = createTestWorkbench();
 		render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
 		expect(screen.getByText('1 line changed', { exact: false })).toBeTruthy();
+		// The diff is character-level, as Genius draws it: `Lyne` against `Line`
+		// strikes only the `y` and inserts only the `i`, with the rest shared.
 		const dropped = openDialog().querySelector('del');
 		const added = openDialog().querySelector('ins');
-		expect(dropped?.textContent).toBe('Lyne');
-		expect(added?.textContent).toBe('Line');
+		expect(dropped?.textContent).toBe('y');
+		expect(added?.textContent).toBe('i');
 		// The number rides the row it is true of — no "Line N" heading, which
 		// named the first changed line over a card that starts at the header.
-		const changedRow = screen.getByText('Lyne').closest('button');
+		const changedRow = dropped?.closest('button');
 		expect(changedRow?.querySelector('.compare-diff__num')?.textContent).toBe('2');
 		expect(screen.queryByText('Line 2')).toBeNull();
 	});
@@ -64,7 +66,7 @@ describe('CompareDialog', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
-		await fireEvent.click(screen.getByText('Lyne').closest('button')!);
+		await fireEvent.click(openDialog().querySelector('del')!.closest('button')!);
 		expect(openDialog().open).toBe(false);
 		// The hand-off is a frame behind the close, so the browser's own focus
 		// restoration cannot trample it — hence the wait.
@@ -83,8 +85,8 @@ describe('CompareDialog', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
-		// Aim inside the inserted word, past its first character. The caret must
-		// land within line 2 (offsets 8–12), not at its start.
+		// Aim at the inserted character — the `i` the diff adds after the shared
+		// `L`. The caret must land within line 2 (offsets 8–12), not at its start.
 		const inserted = openDialog().querySelector('ins')!;
 		const rect = inserted.getBoundingClientRect();
 		await fireEvent.click(inserted.closest('button')!, {
@@ -103,15 +105,16 @@ describe('CompareDialog', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
-		// The struck-through characters are not in the document, so no character
+		// The struck-through character is not in the document, so no character
 		// under the tap exists to land on — the boundary is the honest answer.
+		// The deletion sits after the shared `L`, so its boundary is offset 9.
 		const dropped = openDialog().querySelector('del')!;
 		const rect = dropped.getBoundingClientRect();
 		await fireEvent.click(dropped.closest('button')!, {
 			clientX: rect.left + rect.width * 0.6,
 			clientY: rect.top + rect.height / 2
 		});
-		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 8, head: 8 }));
+		await waitFor(() => expect(calls.selections.at(-1)).toEqual({ anchor: 9, head: 9 }));
 	});
 
 	test('a context row is a press too, parking the caret on the unchanged line', async () => {
@@ -135,7 +138,7 @@ describe('CompareDialog', () => {
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		expect(screen.queryByRole('textbox', { name: 'The lyrics as the page has them' })).toBeNull();
-		expect(screen.getByText('Lyne')).toBeTruthy();
+		expect(openDialog().querySelector('del')?.textContent).toBe('y');
 	});
 
 	test('the baseline is written to the draft record, so it survives a reload', async () => {
@@ -185,7 +188,7 @@ describe('CompareDialog', () => {
 		expect(screen.getByRole('textbox', { name: 'The lyrics as the page has them' })).toBeTruthy();
 		await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 		expect(screen.queryByRole('textbox', { name: 'The lyrics as the page has them' })).toBeNull();
-		expect(screen.getByText('Lyne')).toBeTruthy();
+		expect(openDialog().querySelector('del')?.textContent).toBe('y');
 	});
 
 	test('an invisible-only change is carried by a sentence, not by the rows alone', async () => {

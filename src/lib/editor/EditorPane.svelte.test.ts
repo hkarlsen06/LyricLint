@@ -565,6 +565,9 @@ describe('EditorPane', () => {
 			text,
 			displayContext: context({
 				performers: performers(),
+				// The parse routes the pre-selection through the transform's own
+				// `assignmentSelectionRange` rather than the raw-range fallback.
+				parsed: parseDocument(text),
 				voiceGroups: [
 					{
 						from,

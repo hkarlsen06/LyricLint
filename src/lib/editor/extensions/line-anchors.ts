@@ -18,7 +18,7 @@ import {
 	gutterLineClass,
 	lineNumberMarkers
 } from '@codemirror/view';
-import type { BlockInfo } from '@codemirror/view';
+import type { BlockInfo, ViewUpdate } from '@codemirror/view';
 import { isLyricLine } from '$lib/core/parser.js';
 import { annotationSpansFor } from './annotation-spans.js';
 import { prefersReducedMotion } from '$lib/interaction/motion.js';
@@ -121,6 +121,23 @@ const anchorNudgeSeconds = 0.25;
  */
 export const setPlayheadEffect = StateEffect.define<number | undefined>();
 
+/**
+ * Whether the tape is actually running, alongside where it is.
+ *
+ * The wash reads this and nothing else does: a paused tape still has a
+ * position — the column keeps drawing, the marked cell stays marked — but a
+ * pause that lasts puts the band across the text to rest, because the pause is
+ * the typing half of the transcription loop and a bright band under the words
+ * being edited shouts about audio that is not running.
+ */
+export const setPlayingEffect = StateEffect.define<boolean>();
+
+/**
+ * The pause has lasted, so the wash may go. Dispatched only by the timer
+ * plugin below; the field itself decides every way the wash comes *back*.
+ */
+const setWashRestedEffect = StateEffect.define<boolean>();
+
 /** Whether the document follows the playhead. On until the shell says otherwise. */
 export const setFollowPlayheadEffect = StateEffect.define<boolean>();
 
@@ -160,6 +177,21 @@ interface LineAnchorState {
 	 * editor rather than standing there as an empty rail.
 	 */
 	playhead: number | undefined;
+	/**
+	 * Whether the tape is running. `true` until the shell says otherwise, so a
+	 * shell that only ever pushes positions keeps the wash it always had.
+	 */
+	playing: boolean;
+	/**
+	 * The wash has been put to rest by a pause that lasted `washRestDelayMs`.
+	 *
+	 * Only the band across the text answers to this — the line number and the
+	 * timestamp keep the playhead's color, which is how a parked tape stays
+	 * findable. It clears here, in the field, the moment playback resumes or the
+	 * marked line changes; only the *setting* arrives from outside, because a
+	 * field cannot count time.
+	 */
+	washRested: boolean;
 	/** Start position of the anchor the playhead is currently inside. */
 	currentFrom: number | undefined;
 	/**
@@ -347,6 +379,15 @@ const seekableLineMarker = new (class extends GutterMarker {
  * element in *every* gutter is exactly the fact being stated.
  */
 const currentLine = Decoration.line({ class: 'll-current-line' });
+
+/**
+ * The same line once a pause has lasted: the band fades out and only the rails
+ * keep the color. The pause is the typing half of the transcription loop, so
+ * the one thing that leaves is the tint sitting directly under the words being
+ * worked on — the line number and the timestamp stay yellow, which is how a
+ * parked tape stays findable, and the marked cell never stops being marked.
+ */
+const currentLineRested = Decoration.line({ class: 'll-current-line ll-current-line--rested' });
 
 const currentLineGutterMarker = new (class extends GutterMarker {
 	override elementClass = 'll-current-line-gutter';
@@ -780,7 +821,14 @@ function derive(
 	playhead: number | undefined,
 	adjusting: number | undefined
 ): LineAnchorState {
-	return { anchors, playhead, currentFrom: currentAnchorFrom(anchors, playhead), adjusting };
+	return {
+		anchors,
+		playhead,
+		playing: true,
+		washRested: false,
+		currentFrom: currentAnchorFrom(anchors, playhead),
+		adjusting
+	};
 }
 
 export const lineAnchorField = StateField.define<LineAnchorState>({
@@ -794,6 +842,8 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 				)
 			: value.anchors;
 		let playhead = value.playhead;
+		let playing = value.playing;
+		let washRested = value.washRested;
 		// The open pair belongs to a line, so it travels with the text like an
 		// anchor does — and it closes with the draft being read back.
 		let adjusting =
@@ -826,10 +876,26 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 				}
 			} else if (effect.is(setPlayheadEffect)) {
 				playhead = effect.value;
+			} else if (effect.is(setPlayingEffect)) {
+				playing = effect.value;
+			} else if (effect.is(setWashRestedEffect)) {
+				washRested = effect.value;
 			}
 		}
 
 		const currentFrom = currentAnchorFrom(anchors, playhead);
+		// The rested wash belongs to one pause on one line. Playback resuming ends
+		// the pause, and the mark moving means the tape was sent somewhere — a
+		// paused seek included, where the wash coming back *is* the feedback for
+		// where it landed. The old mark is mapped through the edit first, exactly
+		// as the follow listener maps it: an edit above the marked line shifts its
+		// offset without the playhead crossing anything.
+		const restedFrom =
+			value.currentFrom !== undefined && transaction.docChanged
+				? transaction.changes.mapPos(value.currentFrom)
+				: value.currentFrom;
+		if (playing || playhead === undefined || currentFrom !== restedFrom) washRested = false;
+
 		// Exact time has no visual consumer here: attachment is its definedness and
 		// the marked cell is `currentFrom`. Keeping the value identical within that
 		// cell prevents every dependent facet from recomputing on playback ticks.
@@ -837,11 +903,13 @@ export const lineAnchorField = StateField.define<LineAnchorState>({
 			anchors === value.anchors &&
 			currentFrom === value.currentFrom &&
 			adjusting === value.adjusting &&
+			playing === value.playing &&
+			washRested === value.washRested &&
 			(playhead === undefined) === (value.playhead === undefined)
 		) {
 			return value;
 		}
-		return { anchors, playhead, currentFrom, adjusting };
+		return { anchors, playhead, playing, washRested, currentFrom, adjusting };
 	}
 });
 
@@ -1011,6 +1079,81 @@ const dismissAdjustOnOutside = ViewPlugin.fromClass(
 	}
 );
 
+/**
+ * How long a pause lasts before the wash rests.
+ *
+ * Long enough that the pause half of the listen–pause–type loop does not
+ * flicker the band on every stop-and-resume; short enough that the tint is
+ * gone by the time typing is properly under way. Exported for the test that
+ * pins it, which cannot assert "a short time" without knowing how short.
+ */
+export const washRestDelayMs = 2000;
+
+/**
+ * Count the pause down, and say so when it lasts.
+ *
+ * The timer lives out here because a field cannot count time; everything else
+ * about the rested wash — every way it comes back — is the field's own rule.
+ * The countdown belongs to one pause on one line: playback resuming or the
+ * mark moving cancels it, and the mark moving *while paused* restarts it, so a
+ * paused seek shows the band on the line it landed on and then rests it again.
+ */
+const restWashAfterPause = ViewPlugin.fromClass(
+	class {
+		private timer: number | undefined;
+
+		constructor(private readonly view: EditorView) {}
+
+		update(update: ViewUpdate): void {
+			const before = update.startState.field(lineAnchorField);
+			const after = update.state.field(lineAnchorField);
+			const counting =
+				after.playhead !== undefined &&
+				!after.playing &&
+				after.currentFrom !== undefined &&
+				!after.washRested;
+			if (!counting) {
+				this.clear();
+				return;
+			}
+			// The same pause on the same line keeps its countdown — mapped through
+			// the edit for the follow listener's reason, so typing above the marked
+			// line does not hand the pause a fresh delay.
+			const beforeFrom =
+				before.currentFrom === undefined ? undefined : update.changes.mapPos(before.currentFrom);
+			const wasCounting = before.playhead !== undefined && !before.playing && !before.washRested;
+			if (this.timer !== undefined && wasCounting && after.currentFrom === beforeFrom) return;
+			this.clear();
+			this.timer = window.setTimeout(() => {
+				this.timer = undefined;
+				// Re-read at the moment of firing: a resume the plugin has not been
+				// updated for yet must not put a running tape's wash to rest.
+				const field = this.view.state.field(lineAnchorField);
+				if (
+					field.playhead === undefined ||
+					field.playing ||
+					field.currentFrom === undefined ||
+					field.washRested
+				) {
+					return;
+				}
+				this.view.dispatch({ effects: setWashRestedEffect.of(true) });
+			}, washRestDelayMs);
+		}
+
+		private clear(): void {
+			if (this.timer !== undefined) {
+				window.clearTimeout(this.timer);
+				this.timer = undefined;
+			}
+		}
+
+		destroy(): void {
+			this.clear();
+		}
+	}
+);
+
 interface LineAnchorOptions {
 	/**
 	 * Seek the audio. Called only from a press on a timestamp — never from a caret
@@ -1077,8 +1220,11 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 		}),
 		EditorView.decorations.compute([lineAnchorField], (state) => {
 			const from = currentLineStart(state);
-			return from === undefined ? Decoration.none : Decoration.set(currentLine.range(from));
+			if (from === undefined) return Decoration.none;
+			const rested = state.field(lineAnchorField).washRested;
+			return Decoration.set((rested ? currentLineRested : currentLine).range(from));
 		}),
+		restWashAfterPause,
 		gutterLineClass.compute([lineAnchorField], (state) => {
 			const from = currentLineStart(state);
 			return from === undefined ? RangeSet.empty : RangeSet.of(currentLineGutterMarker.range(from));
@@ -1309,6 +1455,16 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	// the content's edge.
 	'.cm-line.ll-current-line': {
 		backgroundColor: 'var(--color-playhead-soft)'
+	},
+	// A pause that lasts sends the band away by fading, not by cutting out — a
+	// tint vanishing on the instant reads as something breaking. The transition
+	// is declared on the modifier so only the way out animates: resuming answers
+	// a press and snaps the band straight back, and the band crossing lines
+	// during playback never fades either.
+	'.cm-line.ll-current-line--rested': {
+		backgroundColor: 'transparent',
+		transitionProperty: 'background-color',
+		transitionDuration: 'var(--duration-slow)'
 	},
 	// Written two classes deep on purpose: `.cm-activeLineGutter` sets the text
 	// color at one, and `StyleModule` does not promise this theme comes out after

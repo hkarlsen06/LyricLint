@@ -21,7 +21,7 @@ import {
 	editorRevisionField,
 	parsedDocumentForState
 } from './extensions/editor-state.js';
-import { setPlayheadEffect } from './extensions/line-anchors.js';
+import { setPlayheadEffect, setPlayingEffect } from './extensions/line-anchors.js';
 import { transactionsHaveOnlyPlayheadEffects } from './extensions/selection-anchor.js';
 import { safeExternalUrl } from '$lib/diagnostics/source-url.js';
 import { sectionHeaderOptions, suggestNextOrdinal } from './overlays/section-picker.js';
@@ -109,10 +109,16 @@ describe('editor pure helpers', () => {
 	it('recognizes effect-only playhead transactions', () => {
 		const state = EditorState.create({ doc: 'Hello' });
 		const tick = state.update({ effects: setPlayheadEffect.of(1) });
+		// The handle's real tick: one reading of the tape, position and whether it
+		// is running, in one transaction. Both effects are the tick.
+		const fullTick = state.update({
+			effects: [setPlayheadEffect.of(1), setPlayingEffect.of(false)]
+		});
 		const otherEffect = StateEffect.define<boolean>();
 		const mixed = state.update({ effects: [setPlayheadEffect.of(1), otherEffect.of(true)] });
 
 		expect(transactionsHaveOnlyPlayheadEffects([tick])).toBe(true);
+		expect(transactionsHaveOnlyPlayheadEffects([fullTick])).toBe(true);
 		expect(transactionsHaveOnlyPlayheadEffects([mixed])).toBe(false);
 	});
 

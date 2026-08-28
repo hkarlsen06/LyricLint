@@ -5,11 +5,15 @@ import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { SelectionAnchor } from '../contracts.js';
 import { linkableHeaderAt } from '../section-links.js';
 import { editorComposingField, editorContextField, parsedDocumentForView } from './editor-state.js';
-import { setPlayheadEffect } from './line-anchors.js';
+import { setPlayheadEffect, setPlayingEffect } from './line-anchors.js';
 
 const VIEWPORT_MARGIN = 8;
 
-/** Playback ticks change no selection geometry and must not delay its report. */
+/**
+ * Playback ticks change no selection geometry and must not delay its report.
+ * A tick is one reading of the tape — its position and whether it is running —
+ * so both of the effects it rides in count as the tick.
+ */
 export function transactionsHaveOnlyPlayheadEffects(transactions: readonly Transaction[]): boolean {
 	return (
 		transactions.length > 0 &&
@@ -18,7 +22,9 @@ export function transactionsHaveOnlyPlayheadEffects(transactions: readonly Trans
 				!transaction.docChanged &&
 				!transaction.selection &&
 				transaction.effects.length > 0 &&
-				transaction.effects.every((effect) => effect.is(setPlayheadEffect))
+				transaction.effects.every(
+					(effect) => effect.is(setPlayheadEffect) || effect.is(setPlayingEffect)
+				)
 		)
 	);
 }

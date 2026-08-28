@@ -9,7 +9,7 @@ describe('diffDocuments', () => {
 		expect(diff.hunks).toHaveLength(0);
 	});
 
-	test('a rewritten word is one changed hunk with word-level segments and the line offsets', () => {
+	test('a rewritten word is one changed hunk with character-level segments and the line offsets', () => {
 		const baseline = '[Verse 1]\nHello wrld\nSecond line';
 		const current = '[Verse 1]\nHello world\nSecond line';
 		const diff = diffDocuments(baseline, current);
@@ -27,8 +27,9 @@ describe('diffDocuments', () => {
 			{
 				kind: 'changed',
 				segments: [
-					{ kind: 'shared', text: 'Hello ' },
-					{ kind: 'change', deleted: 'wrld', inserted: 'world' }
+					{ kind: 'shared', text: 'Hello w' },
+					{ kind: 'change', deleted: '', inserted: 'o' },
+					{ kind: 'shared', text: 'rld' }
 				],
 				line: 2,
 				at: 10
@@ -168,6 +169,49 @@ describe('diffDocuments', () => {
 		// The line numbers on the rows carry the skip; a "(blank line)" row is
 		// only owed where a blank line is itself the change.
 		expect(diff.hunks[0].rows.map((row) => row.kind)).toEqual(['changed', 'changed']);
+	});
+
+	test('a varied repeat of a line pairs with its own twin, not with an exact match further down', () => {
+		// A refrain repeats its lines with ad-lib variations. An exact-match
+		// alignment anchors on the byte-identical plain twin, dumping the varied
+		// line as a whole-line removal and its counterpart as a whole-line
+		// addition — a wall of red and green for what a transcriber reads as one
+		// line with its ad-lib struck. The similarity alignment pairs each varied
+		// line with the line it varies, and the character diff tells the rest.
+		const baseline = [
+			'[Refreng]',
+			'Jeg tok over hele dritten <i>(Hah)</i>',
+			'Vi styrer hele byen <i>(City)</i>',
+			'Jeg tok over hele dritten',
+			'Vi styrer hele byen'
+		].join('\n');
+		const current = [
+			'[Refreng]',
+			'Jeg tok over hele dritten',
+			'Vi styrer hele byen <i>City</i>',
+			'Jeg tok over hele dritten',
+			'Vi styrer hele byen (Wow)'
+		].join('\n');
+		const diff = diffDocuments(baseline, current);
+		expect(diff.hunks).toHaveLength(1);
+		expect(diff.hunks[0].rows.map((row) => row.kind)).toEqual([
+			'context', // [Refreng]
+			'changed', // the ad-lib struck off line 2
+			'changed', // (City) → City on line 3
+			'context', // the plain twin, still just a kept line
+			'changed' // (Wow) added on line 5
+		]);
+		expect(diff.changedLines).toBe(3);
+		expect(diff.removedLines).toBe(0);
+		expect(diff.addedLines).toBe(0);
+	});
+
+	test('unrelated lines do not pair — a rewrite stays whole-line rows', () => {
+		const diff = diffDocuments('One\nAlpha lyric here\nTwo', 'One\nSomething else entirely\nTwo');
+		const kinds = diff.hunks[0].rows.map((row) => row.kind);
+		// Adjacent but dissimilar: an honest removal and addition, so the reader
+		// is not asked to decode a changed row that rewrites every character.
+		expect(kinds).toEqual(['context', 'removed', 'added', 'context']);
 	});
 
 	test('a quote made typographic is named, because the glyphs are near-identical', () => {
