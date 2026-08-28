@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { countGuidanceLookups } from '$lib/guidance/guidance-search.js';
-	import { guidanceTopicTitles } from '$lib/guidance/guidance.js';
+	import {
+		authorityLabels,
+		guidanceTopicTitles,
+		type GuidanceAuthority
+	} from '$lib/guidance/guidance.js';
 	import { siteUrl } from '$lib/seo.js';
+	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import type { PageProps } from './$types.js';
 
@@ -15,6 +20,41 @@
 	 * the conventions come from and how much standing each tier has.
 	 */
 	const total = $derived(countGuidanceLookups(data.sections));
+
+	/*
+	 * The legend for the authority ladder, ascending as the ladder fills. The
+	 * labels come off `authorityLabels` and the bars off `AuthorityLadder` —
+	 * the same map and the same component every entry's meta line draws — so
+	 * the legend cannot come to state a tier differently than the entries it
+	 * explains. The descriptions paraphrase `docs/guidelines.md`, which owns
+	 * the ladder's full argument.
+	 */
+	const tiers: readonly { authority: GuidanceAuthority; description: string }[] = [
+		{
+			authority: 'lyriclint',
+			description:
+				"LyricLint's own preference, on a convention no Genius source states — the blank line between song parts, the text-hygiene checks. It shares the bottom step with community guidance, because our preference claims no more standing than unreviewed community writing."
+		},
+		{
+			authority: 'community',
+			description:
+				'Ordinary community voice in any venue: an unreviewed annotation, guide-page text with no staff badge, an ordinary forum post.'
+		},
+		{
+			authority: 'external',
+			description:
+				"An authority outside Genius — a dictionary, a language academy, a platform's own documentation. It ranks below a reviewed annotation because it is authoritative about language, not about Genius."
+		},
+		{
+			authority: 'editorial',
+			description: 'A reviewed Genius annotation with no staff among its contributors.'
+		},
+		{
+			authority: 'staff',
+			description:
+				"Genius staff wrote or touched it: a staff-badged guide page, staff among an annotation's contributors, or a staff reply on the forum. Who wrote it decides the tier, never the venue it appears in."
+		}
+	];
 
 	// Title case, because a tab is a label rather than a sentence: `Genius
 	// transcription guidelines · LyricLint` read as the middle of a sentence
@@ -60,10 +100,9 @@
 		that do — as each rule's own page links back to its convention here.
 	</p>
 	<p>
-		Every entry says how much standing it has: staff guidance ranks highest, then editor-reviewed
-		annotations, then outside references, then unreviewed community writing. An entry claims only
-		the tier its sources establish — and a few are LyricLint's own advisories, marked as exactly
-		that, because our name goes on a preference no Genius source states.
+		Every entry says how much standing it has — the ascending bars ahead of its tier label — and
+		claims only the tier its sources establish. The ladder at the foot of this page reads out what
+		each level means.
 	</p>
 
 	<h2>The topics so far</h2>
@@ -82,6 +121,28 @@
 			</li>
 		{/each}
 	</ul>
+
+	<h2>The authority ladder</h2>
+	<p>
+		The ascending bars ahead of each entry's tier label are its standing drawn as a ladder: four
+		steps for the four source tiers, filled up to the tier the entry's sources establish. Climbing
+		it is evidence, never an edit — an entry rises only when a higher-tier source confirming it
+		joins its citations.
+	</p>
+	<!-- The term is the entries' own pairing — the ladder and the label the meta
+	     lines draw — so a reader can carry the mark from here to any entry. The
+	     ladder stays `aria-hidden` as it is everywhere: the label is the fact. -->
+	<dl class="guidelines__tiers">
+		{#each tiers as { authority, description } (authority)}
+			<div>
+				<dt>
+					<AuthorityLadder {authority} />
+					{authorityLabels[authority]}
+				</dt>
+				<dd>{description}</dd>
+			</div>
+		{/each}
+	</dl>
 
 	<div class="site-actions">
 		<a class="button" href={resolve('/lint/')}>Check a transcription in the workbench</a>

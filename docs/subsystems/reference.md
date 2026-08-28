@@ -462,7 +462,12 @@ below.
 
 **The index view leads with the welcome page, not the list.** At `/rules/` and `/guidelines/` the
 intro — the guide, the tier ladder — takes the left column and the list rides the right; opening a
-page swaps them, so the page arrives where the list was and the list crosses to the left. The grid
+page swaps them, so the page arrives where the list was and the list crosses to the left. The
+guidance intro closes with the ladder's legend (`.guidelines__tiers`): the five tiers ascending
+from the LyricLint advisory to staff guidance, each term drawn with the entries' own
+`AuthorityLadder` + `authorityLabels` pairing so the legend cannot word or draw a tier differently
+than the entries it explains, and the intro's opening prose points down to it rather than
+enumerating the tiers a second time. The grid
 areas are read off `data-view` structurally, so no page carries a naming class and a new section
 gets the whole convention for free.
 

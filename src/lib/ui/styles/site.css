@@ -748,6 +748,32 @@
 }
 
 /*
+ * The guidelines welcome page's legend for the ladder: one term per tier,
+ * ascending as the ladder fills. The term is the ladder and the label
+ * together — the entries' own pairing, but in the body color and weight,
+ * because here the tier is the subject being read rather than a fact in an
+ * entry's margin — over one sentence of what earns it.
+ */
+.guidelines__tiers {
+	margin: 0 0 var(--space-4);
+}
+
+.guidelines__tiers div + div {
+	margin-block-start: var(--space-4);
+}
+
+.guidelines__tiers dt {
+	display: flex;
+	gap: var(--space-2);
+	align-items: center;
+	font-weight: var(--font-weight-semibold);
+}
+
+.guidelines__tiers dd {
+	margin: var(--space-1) 0 0;
+}
+
+/*
  * The live demo: the workbench's own `EditorPane`, mounted without the shell
  * around it. It gets the same border and surface as a `.site-sample`, because
  * it is the same material — a piece of document text set apart from the prose
