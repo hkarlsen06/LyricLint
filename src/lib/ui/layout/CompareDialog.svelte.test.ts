@@ -201,22 +201,22 @@ describe('CompareDialog', () => {
 	});
 
 	test('rows that collapse to the same offset and line label both render', async () => {
-		// Two removals straddling a kept line near the document's end share
-		// their collapse point (they coalesce into one hunk now, but the rows
-		// keep the shared offset). Keyed on that point, the each block threw
-		// each_key_duplicate mid-flush — the first Show changes press appeared
-		// to do nothing while the baseline was already stored, and the press
-		// after it stored the emptied paste area as the baseline.
+		// Several struck rows share one collapse point (offset 0 here). Keyed
+		// on that point, the each block threw each_key_duplicate mid-flush —
+		// the first Show changes press appeared to do nothing while the
+		// baseline was already stored, and the press after it stored the
+		// emptied paste area as the baseline.
 		const { controller } = createTestWorkbench({ text: 'c\na\n' });
 		render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('a\nb\n\na');
 
-		const dropped = [...openDialog().querySelectorAll('del')].map((el) => el.textContent);
-		expect(dropped).toEqual(['b', 'a']);
+		// A removed row's del carries no data-doc-len; a changed row's does.
+		const removedDels = [...openDialog().querySelectorAll('del:not([data-doc-len])')];
+		expect(removedDels.map((el) => el.textContent)).toEqual(['a', 'b', '(blank line)']);
 		// A removed line has no line in the document any more, so its gutter
 		// cell is honestly empty.
-		for (const del of openDialog().querySelectorAll('del')) {
+		for (const del of removedDels) {
 			const num = del.closest('button')?.querySelector('.compare-diff__num');
 			expect(num?.textContent).toBe('');
 		}

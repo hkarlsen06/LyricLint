@@ -206,37 +206,42 @@ describe('diffDocuments', () => {
 		expect(diff.addedLines).toBe(0);
 	});
 
-	test('a line edited at both ends still pairs, and a markup move draws in place', () => {
-		// The edge score alone missed this line — a comma dropped near the front
-		// and the markup flipped at the tail leave neither edge long enough — so
-		// the word-overlap score is what pairs it. Inside the row, the flip
-		// renders as the tags struck and re-placed around steady lyrics.
+	test('a moved parenthetical boundary draws as Genius draws it', () => {
+		// The flip `<i>(City)</i>` → `(<i>City</i>)` shares nothing at the
+		// line's edges, but one flat character pass holds the markup and the
+		// word steady and shows the parens moved — red inside, green outside —
+		// which is Genius's own rendering of this canonical edit.
 		const baseline = 'One\nHvem er på, som oss? Vi styrer hele byen <i>(City)</i>\nTwo';
 		const current = 'One\nHvem er på som oss? Vi styrer hele byen (<i>City</i>)\nTwo';
 		const diff = diffDocuments(baseline, current);
 		expect(diff.hunks).toHaveLength(1);
 		const changed = diff.hunks[0].rows.find((row) => row.kind === 'changed');
-		if (changed?.kind !== 'changed') throw new Error('expected the pair to draw as changed');
+		if (changed?.kind !== 'changed') throw new Error('expected one changed row');
 		expect(changed.segments).toEqual([
 			{ kind: 'shared', text: 'Hvem er på' },
 			{ kind: 'change', deleted: ',', inserted: '' },
 			{ kind: 'shared', text: ' som oss? Vi styrer hele byen ' },
-			{ kind: 'change', deleted: '<i>', inserted: '' },
-			{ kind: 'shared', text: '(' },
-			{ kind: 'change', deleted: '', inserted: '<i>' },
+			{ kind: 'change', deleted: '', inserted: '(' },
+			{ kind: 'shared', text: '<i>' },
+			{ kind: 'change', deleted: '(', inserted: '' },
 			{ kind: 'shared', text: 'City' },
-			{ kind: 'change', deleted: '', inserted: '</i>' },
-			{ kind: 'shared', text: ')' },
-			{ kind: 'change', deleted: '</i>', inserted: '' }
+			{ kind: 'change', deleted: ')', inserted: '' },
+			{ kind: 'shared', text: '</i>' },
+			{ kind: 'change', deleted: '', inserted: ')' }
 		]);
 	});
 
-	test('unrelated lines do not pair — a rewrite stays whole-line rows', () => {
+	test('a rewritten line is one del/ins pair, not confetti of shared letters', () => {
 		const diff = diffDocuments('One\nAlpha lyric here\nTwo', 'One\nSomething else entirely\nTwo');
 		const kinds = diff.hunks[0].rows.map((row) => row.kind);
-		// Adjacent but dissimilar: an honest removal and addition, so the reader
-		// is not asked to decode a changed row that rewrites every character.
-		expect(kinds).toEqual(['context', 'removed', 'added', 'context']);
+		expect(kinds).toEqual(['context', 'changed', 'context']);
+		const changed = diff.hunks[0].rows[1];
+		if (changed.kind !== 'changed') throw new Error('expected the rewrite as one changed row');
+		// The two lines agree on scattered letters; the semantic cleanup folds
+		// them back so the row reads as one strike and one insertion.
+		expect(changed.segments).toEqual([
+			{ kind: 'change', deleted: 'Alpha lyric here', inserted: 'Something else entirely' }
+		]);
 	});
 
 	test('a quote made typographic is named, because the glyphs are near-identical', () => {
@@ -281,23 +286,30 @@ describe('diffDocuments', () => {
 		expect(rows.length).toBeGreaterThan(0);
 	});
 
-	test('removals straddling kept lines coalesce, and share a collapse point at the end', () => {
-		// These were once three hunks, and the two removals near the document's
-		// end shared their collapse point and line label — which is why a
-		// renderer may not treat the (at, line) pair as an identity; keying on it
-		// crashed the dialog once. Coalescing puts them in one hunk now, where
-		// the two removed rows still legitimately carry the same offset.
+	test('rows sharing one collapse point all render — a renderer may not key on it', () => {
+		// Scrambled short lines degrade to struck baseline rows over fresh
+		// current rows, and every struck row collapses to the same offset —
+		// which is why a renderer may not treat the (at, line) pair as an
+		// identity; keying on it crashed the dialog once.
 		const diff = diffDocuments('a\nb\n\na', 'c\na\n');
 		expect(diff.hunks).toHaveLength(1);
 		const hunk = diff.hunks[0];
-		expect(hunk.rows.map((row) => row.kind)).toEqual(['added', 'context', 'removed', 'removed']);
+		expect(hunk.rows.map((row) => row.kind)).toEqual([
+			'removed',
+			'removed',
+			'removed',
+			'changed',
+			'added'
+		]);
 		const removedRows = hunk.rows.filter((row) => row.kind === 'removed');
 		expect(removedRows).toEqual([
-			{ kind: 'removed', text: 'b', at: 4 },
-			{ kind: 'removed', text: 'a', at: 4 }
+			{ kind: 'removed', text: 'a', at: 0 },
+			{ kind: 'removed', text: 'b', at: 0 },
+			{ kind: 'removed', text: '', at: 0 }
 		]);
+		expect(diff.changedLines).toBe(1);
 		expect(diff.addedLines).toBe(1);
-		expect(diff.removedLines).toBe(2);
+		expect(diff.removedLines).toBe(3);
 	});
 
 	test('a note is stated once per hunk however many lines repeat it', () => {

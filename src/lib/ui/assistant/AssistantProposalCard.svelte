@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-	import type { WordDiffSegment } from '$lib/core/word-diff.js';
-	import { wordDiffSegments } from '$lib/core/word-diff.js';
+	import { charDiffSegments, type DiffSegment } from '$lib/core/char-diff.js';
 	import { acquirePreview } from '$lib/diagnostics/preview-slot.js';
 	import type { AssistantProposalRecord } from '$lib/assistant/types.js';
 
@@ -19,13 +18,13 @@
 		decidable: boolean;
 	} = $props();
 
-	const segments = $derived(wordDiffSegments(proposal.anchor.exact, proposal.replacement));
+	const segments = $derived(charDiffSegments(proposal.anchor.exact, proposal.replacement));
 	let releasePreview: (() => void) | undefined;
 	let resolving = $state(false);
 
 	const CONTEXT_LENGTH = 22;
 
-	function contextText(segment: WordDiffSegment, index: number): string {
+	function contextText(segment: DiffSegment, index: number): string {
 		if (segment.kind !== 'shared') return '';
 		const text = segment.text.replace(/\n/gu, ' ⏎ ');
 		if (index === 0) {
