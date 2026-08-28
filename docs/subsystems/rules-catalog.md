@@ -28,6 +28,11 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/harper.ts`, `src/lib/rules/reg
   **with** a legend missing a styled slot (one finding per unaccounted slot, anchored on the
   slot's first span). Formatting-first transcription is a workflow, not a defect — see *A
   styled voice nobody can name yet is work remaining, not a mistake* below.
+- A finding whose claim outlives the words it flags declares `identityText`, and per-occurrence
+  ignores key on that in place of the flagged text. `performer.inline-mismatch` flags a styled
+  span but claims a voice, so its identity is the voice's name (`unknownVoiceName`); keyed on
+  the lyrics, the acceptance died on the first edit inside the tags.
+  `docs/subsystems/diagnostics.md` carries the keying and the picker-side acceptance.
 - An `ambiguous` policy case is a reviewed decision, not a hole: the answer to a gap beside
   one is a second rule at the right tier (`suggestion` + `preview`), never a wider regex.
 - Adding a rule is four registrations and two counts: `registry.ts`,

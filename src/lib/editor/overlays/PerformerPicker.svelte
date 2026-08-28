@@ -4,6 +4,7 @@
 	import type { Attachment } from 'svelte/attachments';
 	import type { PerformerId, PerformerRecord, StyleSlot } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
+	import { unknownVoiceName } from '$lib/performers/legend-cleanup.js';
 	import type { ScreenRect } from '../contracts.js';
 	import { preferredControlPlacement } from './anchored-position.js';
 
@@ -300,14 +301,6 @@
 			await tick();
 			restoreFocus?.();
 		}
-	}
-
-	function unknownVoiceName(slot: StyleSlot): string {
-		return slot === 4
-			? 'Unknown bold italic voice'
-			: slot === 3
-				? 'Unknown bold voice'
-				: 'Unknown italic voice';
 	}
 
 	async function beginAdd(): Promise<void> {

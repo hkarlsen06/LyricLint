@@ -300,6 +300,17 @@ export interface Diagnostic extends TextRange {
 	 */
 	presumedCorrect?: true;
 	/**
+	 * What a per-occurrence ignore keys on in place of the flagged text.
+	 *
+	 * Set when the finding is about a thing the flagged text only evidences —
+	 * `performer.inline-mismatch` flags the first styled span of an unnamed
+	 * voice, but its claim is about the voice, not the words it happens to sing
+	 * there. Keyed on the lyrics, an acceptance died on the next edit inside
+	 * the tags and the card asked its question again; keyed on this, it names
+	 * what was actually answered and survives the lyrics changing under it.
+	 */
+	identityText?: string;
+	/**
 	 * The check is LyricLint's own reading of its cited sources rather than a
 	 * claim they state directly, so the meta line marks the interpretation as
 	 * ours before citing what it reads. Carried onto the finding by

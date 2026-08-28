@@ -98,6 +98,14 @@ interface PanelView {
 	/** Apply every safe fix the panel is showing as one edit. */
 	applyBulkFix(): void;
 	ignoreDiagnostic(diagnostic: Diagnostic): void;
+	/**
+	 * Store an acceptance the user has already given somewhere other than the
+	 * card — the picker's unknown-voice chip is the answer `The performer is
+	 * unknown`, so the finding it creates arrives answered. Silent, because the
+	 * press it rides on already announced; the acceptance still lists among the
+	 * ignored findings, restorable like any other.
+	 */
+	recordAcceptedOccurrence(key: string): void;
 	restoreDiagnostic(diagnosticKey: string): void;
 	/**
 	 * Ask the next snapshot to hand the workbench to its leading finding, for an
@@ -437,6 +445,10 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		},
 		leadOnNextSnapshot() {
 			leadPending = true;
+		},
+		recordAcceptedOccurrence(key) {
+			if (ignoredDiagnosticKeys.includes(key)) return;
+			setIgnored(key, true);
 		},
 		restoreDiagnostic(key) {
 			if (!ignoredDiagnosticKeys.includes(key)) return;

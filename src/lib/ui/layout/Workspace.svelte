@@ -22,6 +22,7 @@
 		resolveLanguageTag
 	} from '$lib/languages/registry.js';
 	import { lineNumberAt } from '$lib/core/line-numbers.js';
+	import { unknownVoiceAcceptanceKey } from '$lib/diagnostics/ignore.js';
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
 	import {
@@ -627,7 +628,17 @@
 			};
 			if (styleSlot !== undefined) request.styleSlot = styleSlot;
 			const result = assignUnknownVoice(request);
-			if (result.status === 'applied') return result.edit;
+			if (result.status === 'applied') {
+				// The chip pressed is the answer `The performer is unknown`, so the
+				// finding this edit creates arrives already accepted — a card asking
+				// the question the picker just answered is the workbench arguing
+				// with itself. Written before the edit lands: nothing can settle in
+				// between, and the next settled lint matches it to the finding.
+				controller.recordAcceptedOccurrence(
+					unknownVoiceAcceptanceKey(snapshot.text, range, result.styleSlot)
+				);
+				return result.edit;
+			}
 			const reason = (result.blocked ?? result.reason).replaceAll('-', ' ');
 			controller.feedback.announce(`Unknown voice assignment blocked: ${reason}.`);
 			return undefined;

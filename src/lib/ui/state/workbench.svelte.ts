@@ -213,6 +213,8 @@ export interface WorkbenchController {
 	applyFixBatch(diagnostic: Diagnostic, fix: DiagnosticFix): void;
 	applyBulkFix(): void;
 	ignoreDiagnostic(diagnostic: Diagnostic): void;
+	/** Store an acceptance already answered elsewhere; see `PanelView`'s own doc. */
+	recordAcceptedOccurrence(key: string): void;
 	restoreDiagnostic(diagnosticKey: string): void;
 	copyCanonical(): Promise<boolean>;
 	pasteLyrics(): Promise<void>;
@@ -696,6 +698,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		applyFixBatch: panel.applyFixBatch,
 		applyBulkFix: panel.applyBulkFix,
 		ignoreDiagnostic: panel.ignoreDiagnostic,
+		recordAcceptedOccurrence: panel.recordAcceptedOccurrence,
 		restoreDiagnostic: panel.restoreDiagnostic,
 		copyCanonical: editorSession.copyCanonical,
 		pasteLyrics: editorSession.pasteLyrics,

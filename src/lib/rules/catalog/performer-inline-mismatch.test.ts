@@ -13,6 +13,12 @@ describe('performer.inline-mismatch', () => {
 			'A styled voice is not yet named in the section legend.'
 		]);
 		expect(findings.every((finding) => finding.fixes === undefined)).toBe(true);
+		// The claim is about the voice, so the ignore keys on the voice: the
+		// identity is the styling's name, never the lyrics it happens to flag.
+		expect(findings.map((finding) => finding.identityText)).toEqual([
+			'Unknown italic voice',
+			'Unknown bold voice'
+		]);
 	});
 
 	it('is silent in a section with no legend at all', () => {

@@ -4,8 +4,11 @@ import {
 	acceptsDiagnosticAsCorrect,
 	diagnosticIgnoreKey,
 	ignoredDiagnosticAccepted,
-	matchIgnoredDiagnostics
+	ignoredDiagnosticText,
+	matchIgnoredDiagnostics,
+	unknownVoiceAcceptanceKey
 } from './ignore.js';
+import { unknownVoiceMessage } from '$lib/rules/catalog/performer-inline-mismatch.js';
 import { diagnosticKey } from './order.js';
 
 function diagnostic(from: number, overrides: Partial<Diagnostic> = {}): Diagnostic {
@@ -92,5 +95,48 @@ describe('an accepted occurrence', () => {
 
 		expect(ignoredDiagnosticAccepted(forged)).toBe(false);
 		expect(matchIgnoredDiagnostics([diagnostic(11)], text, [forged]).size).toBe(0);
+	});
+});
+
+/**
+ * `performer.inline-mismatch` is about the voice, not the words it sings, and
+ * an acceptance keyed on those words died on the first edit inside the tags —
+ * the card asked `The performer is unknown` again after every rewrite.
+ */
+describe('a finding with its own identity text', () => {
+	function voiceFinding(from: number, to: number): Diagnostic {
+		return diagnostic(from, {
+			to,
+			ruleId: 'performer.inline-mismatch',
+			message: unknownVoiceMessage,
+			identityText: 'Unknown italic voice'
+		});
+	}
+
+	it('keys on the identity and follows the finding while its lyrics change', () => {
+		const text = 'lead line\n<i>hello there</i>';
+		const key = diagnosticIgnoreKey(voiceFinding(10, 28), text);
+
+		// The identity is also what the ignored list prints: what was accepted is
+		// the voice, and the lyrics the key would otherwise show are long gone.
+		expect(ignoredDiagnosticText(key)).toBe('Unknown italic voice');
+
+		const editedText = 'lead line\n<i>completely new words</i>';
+		const edited = voiceFinding(10, 37);
+		expect([...matchIgnoredDiagnostics([edited], editedText, [key]).values()]).toEqual([
+			diagnosticKey(edited)
+		]);
+	});
+
+	it('mints at wrap time the acceptance the finding then arrives wearing', () => {
+		const preText = 'lead line\nhello there';
+		const key = unknownVoiceAcceptanceKey(preText, { from: 10, to: 21 }, 2);
+		expect(ignoredDiagnosticAccepted(key)).toBe(true);
+
+		const postText = 'lead line\n<i>hello there</i>';
+		const finding = voiceFinding(10, 28);
+		expect([...matchIgnoredDiagnostics([finding], postText, [key]).values()]).toEqual([
+			diagnosticKey(finding)
+		]);
 	});
 });

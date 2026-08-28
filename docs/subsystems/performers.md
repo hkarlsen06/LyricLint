@@ -42,7 +42,13 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   reading). The plus and the dash mark the minting chip as the add-performer chip's sibling, so
   "join the existing italic unknown" and "add another unknown voice" cannot read as synonyms. Pressing one wraps the selection via `assignUnknownVoice` and **never writes a
   legend edit** — the missing legend group is what records the voice as unidentified, and
-  `performer.inline-mismatch` keeps the remaining work visible. No second step ever: nothing
+  `performer.inline-mismatch` records the remaining work. That finding arrives *already
+  accepted* when the state came from these chips: the press is the answer
+  `The performer is unknown`, so `Workspace.svelte` writes the acceptance as the wrap applies
+  (`unknownVoiceAcceptanceKey`), and the card only shows for styled markup that arrived by
+  typing or paste — `docs/subsystems/diagnostics.md` carries the keying, which is on the
+  voice's name (`unknownVoiceName`, the shared owner beside the predicate), never on the
+  lyrics it flags. No second step ever: nothing
   goes in the header, so there is no rest-of-section question. Chips appear only in the plain
   selection flow, not the legend flow or step two. Pinned in `unknown-voice.test.ts`,
   `PerformerPicker.svelte.test.ts`, and `EditorPane.svelte.test.ts`.

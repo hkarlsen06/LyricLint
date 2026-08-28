@@ -25,6 +25,11 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   (`unknown.unresolved`) and `The performer is unknown` (`performer.inline-mismatch`) — the
   quiet `Ignore` is what each replaces, and `acceptsDiagnosticAsCorrect` in `ignore.ts` is the
   one predicate the button, the key's `accepted` marker, and the toast all read.
+- A finding that declares `identityText` keys its per-occurrence ignores on that string in
+  place of the flagged text (`performer.inline-mismatch` keys on the voice's name, never the
+  lyrics it flags), and the picker's unknown-voice chip writes the acceptance itself at mint
+  time (`unknownVoiceAcceptanceKey`, recorded via `recordAcceptedOccurrence`). The round trip
+  is pinned in `workbench.test.ts` (*a minted unknown voice arrives accepted…*).
 - `Fix all N` batches by rule *and* fix label; the linter's bulk fix plans over the visible
   diagnostics only; a batch is one `AtomicDocumentEdit` (`mergeFixes` drops `selectionAfter`).
   Counts are of diagnostics, not fixes. The count comes from `countDiagnosticFixBatch` on the
@@ -164,8 +169,28 @@ nothing about a bold voice added later, and the acceptance lists as accepted, no
 preferences panel. The regression is in `DiagnosticDetails.svelte.test.ts`, beside the guided
 assignment's own.
 
-Implementation: `presumedCorrect` on `Diagnostic` in `src/lib/core/types.ts`, set in
-`rules/catalog/adlib-parentheses.ts`; `acceptsAsCorrect` in
+**An acceptance about a voice must not be keyed to the words it sings.** As first shipped, the
+answer above did not stick. The occurrence key carried the flagged text — the styled span's own
+lyrics — and matching gates on that part exactly, so editing anything between the tags orphaned
+the acceptance, the next settled lint pruned the orphan from the store, and the card asked
+`The performer is unknown` again. In a workflow whose whole point is going on transcribing that
+voice, every rewrite of its line re-asked a question already answered. The rule now sets
+`identityText` on its findings — the voice's name, `Unknown italic voice` and kin, the one
+wording `unknownVoiceName` in `legend-cleanup.ts` owns and the picker's chips already speak —
+and `identity()` in `ignore.ts` keys the text part on it when present. The claim is keyed on
+what it is about; the context parts go on ranking which same-named occurrence is meant, so
+confirming one section's italic voice still says nothing about another's. The second half of the
+annoyance was the workbench arguing with itself: the picker's unknown-voice chip *is* this
+card's answer, so `createUnknownVoiceEdit` in `Workspace.svelte` writes the acceptance as it
+applies the wrap — `unknownVoiceAcceptanceKey` builds the key against the pre-edit document,
+which is sound because matching gates only on the three parts knowable before the finding
+exists, and the finding then arrives already accepted. The round trip — minted, hidden on
+arrival, still hidden after a full rewrite of the lyrics inside the tags — is pinned in
+`workbench.test.ts`. Keys stored before this change carry lyrics in the text part and now match
+nothing, so a pre-existing acceptance is re-asked once and then durable.
+
+Implementation: `presumedCorrect` and `identityText` on `Diagnostic` in `src/lib/core/types.ts`,
+`presumedCorrect` set in `rules/catalog/adlib-parentheses.ts`; `acceptsAsCorrect` in
 `src/lib/diagnostics/DiagnosticActions.svelte`, which is one derived answer for both surfaces —
 `diagnostic-parity.svelte.test.ts` renders the card and the popover and compares the row.
 

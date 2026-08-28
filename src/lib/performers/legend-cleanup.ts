@@ -93,6 +93,22 @@ export function unaccountedStyledSlots(
 }
 
 /**
+ * What the workbench calls an unknown voice when it has to name one in prose.
+ *
+ * One owner beside the predicate that finds them: the picker's chips say it to
+ * the screen reader, `performer.inline-mismatch` keys its findings' ignores on
+ * it, and the acceptance the picker writes at mint time has to produce the
+ * very string the rule will key — two wordings would quietly unmatch them.
+ */
+export function unknownVoiceName(slot: StyleSlot): string {
+	return slot === 4
+		? 'Unknown bold italic voice'
+		: slot === 3
+			? 'Unknown bold voice'
+			: 'Unknown italic voice';
+}
+
+/**
  * Compute the edits that drop legend slots no longer used by a section body.
  *
  * The rule implemented: for every cleanly parsed section whose body has any

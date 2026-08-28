@@ -1,4 +1,6 @@
-import type { Diagnostic } from '$lib/core/types.js';
+import type { Diagnostic, StyleSlot, TextRange } from '$lib/core/types.js';
+import { unknownVoiceName } from '$lib/performers/legend-cleanup.js';
+import { unknownVoiceMessage } from '$lib/rules/catalog/performer-inline-mismatch.js';
 import { diagnosticKey } from './order.js';
 
 const CONTEXT_LENGTH = 32;
@@ -28,7 +30,12 @@ function identity(diagnostic: Diagnostic, text: string): IgnoreIdentity {
 	return [
 		diagnostic.ruleId,
 		diagnostic.message,
-		text.slice(diagnostic.from, diagnostic.to),
+		// `identityText`, where a rule declares one, is what the finding is about;
+		// the flagged text is only where it stands. Matching demands this part
+		// exact, so a finding about a voice keyed on the voice's lyrics came apart
+		// on the first edit inside the tags — the context parts below rank, they
+		// do not gate, which is what lets the same answer follow the finding.
+		diagnostic.identityText ?? text.slice(diagnostic.from, diagnostic.to),
 		text.slice(Math.max(0, diagnostic.from - CONTEXT_LENGTH), diagnostic.from),
 		text.slice(diagnostic.to, diagnostic.to + CONTEXT_LENGTH),
 		diagnostic.from
@@ -83,6 +90,36 @@ function parse(key: string): IgnoreIdentity | undefined {
 	} catch {
 		// Old rule-level session keys are deliberately not occurrence ignores.
 	}
+}
+
+/**
+ * The acceptance the picker's unknown-voice chip writes at the moment it acts.
+ *
+ * Pressing that chip *is* the answer `The performer is unknown`, so the card
+ * that would ask it again must find the question already answered. The key is
+ * written against the pre-edit document — the finding it will match does not
+ * exist yet — which only works because matching gates on the first three
+ * parts, all knowable here, while the context and offset merely rank: they are
+ * taken from the selection being wrapped, which is where the finding will
+ * land. The marker is hardcoded because this rule is one of the ids
+ * `acceptsDiagnosticAsCorrect` names; a rule that stopped accepting would
+ * strand this key as a seventh part `parse` refuses.
+ */
+export function unknownVoiceAcceptanceKey(
+	text: string,
+	range: TextRange,
+	styleSlot: StyleSlot
+): string {
+	const parts: IgnoreIdentity = [
+		'performer.inline-mismatch',
+		unknownVoiceMessage,
+		unknownVoiceName(styleSlot),
+		text.slice(Math.max(0, range.from - CONTEXT_LENGTH), range.from),
+		text.slice(range.to, range.to + CONTEXT_LENGTH),
+		range.from,
+		ACCEPTED_MARKER
+	];
+	return JSON.stringify(parts);
 }
 
 export function diagnosticIgnoreKey(diagnostic: Diagnostic, text: string): string {

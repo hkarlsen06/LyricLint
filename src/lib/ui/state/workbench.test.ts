@@ -24,6 +24,7 @@ import { createFeedbackState, NOTICE_TOAST_DURATION } from './feedback.svelte.js
 import { createMediaPlayer } from './media-player.svelte.js';
 import { StubAudio } from './media-test-audio.js';
 import { sampleDraftText } from '../sample-draft.js';
+import { unknownVoiceAcceptanceKey } from '$lib/diagnostics/ignore.js';
 import { createWorkbenchController } from './workbench.svelte.js';
 import { buildRuleContext, computeDiagnostics } from './wiring.js';
 
@@ -1103,6 +1104,52 @@ describe('workbench diagnostic navigation', () => {
 		controller.onSnapshot({ ...snapshot(record, 2, text), diagnostics: [finding] });
 		expect(controller.ignoredDiagnosticKeys).toEqual([]);
 		expect(controller.visibleDiagnostics).toEqual([finding]);
+	});
+
+	/**
+	 * The picker's unknown-voice chip is the answer `The performer is unknown`,
+	 * so the finding the wrap creates has to arrive already accepted — and the
+	 * acceptance keys on the voice rather than on the words it sings, so editing
+	 * the lyrics inside the tags cannot resurrect the card. Both halves broke
+	 * before this was pinned: the card asked the question the picker had just
+	 * answered, and asked it again after every edit between the tags.
+	 */
+	test('a minted unknown voice arrives accepted and stays accepted while its lyrics change', () => {
+		const preText = '[Chorus: A]\nhello there';
+		const record = draft('draft-a', preText);
+		const { controller } = setup({ initial: record });
+		controller.onSnapshot(snapshot(record, 1, preText));
+
+		// What Workspace's `createUnknownVoiceEdit` records as it applies the
+		// wrap, keyed against the pre-edit document: the finding does not exist
+		// yet, and matching gates only on the parts knowable here.
+		controller.recordAcceptedOccurrence(
+			unknownVoiceAcceptanceKey(preText, { from: 12, to: 23 }, 2)
+		);
+
+		const settle = (revision: number, text: string): Diagnostic[] => {
+			const next = snapshot(record, revision, text);
+			const diagnostics = computeDiagnostics(
+				next.parsed,
+				buildRuleContext(record.language, record.performers, record.ruleSetVersion, next.revision)
+			);
+			controller.onSnapshot({ ...next, diagnostics }, diagnostics);
+			return diagnostics;
+		};
+
+		const wrapped = settle(2, '[Chorus: A]\n<i>hello there</i>');
+		expect(wrapped.map((finding) => finding.ruleId)).toContain('performer.inline-mismatch');
+		expect(controller.unignoredDiagnostics.map((finding) => finding.ruleId)).not.toContain(
+			'performer.inline-mismatch'
+		);
+		expect(controller.ignoredDiagnosticCount).toBe(1);
+
+		// Every word the voice sings changes; the answer must not.
+		settle(3, '[Chorus: A]\n<i>goodbye everyone else</i>');
+		expect(controller.unignoredDiagnostics.map((finding) => finding.ruleId)).not.toContain(
+			'performer.inline-mismatch'
+		);
+		expect(controller.ignoredDiagnosticCount).toBe(1);
 	});
 
 	test('shows provisional verse numbering only when its prose-header prerequisite is ignored', () => {
