@@ -212,7 +212,7 @@ then previewed as a diff in the shot. The selection is the **last line of Verse 
 picker prefers the space above the selection and anywhere else it covered a section header — a
 hidden header reads as a song with a hole in it — and because that puts the roster beside the
 section title's reading path instead of near the foot of the image. The script adds the performers through the roster
-before pasting, so the legends resolve instead of arriving as unresolved voices, and it dismisses
+before pasting, so the legends resolve to them instead of importing strangers, and it dismisses
 the roster's confirmation toasts before capturing — a toast in a product shot is a notification
 about work the reader never did. There is deliberately no second chorus: two would raise
 `section.unlinked-repeat`, a real finding that is not this picture's subject. `.lp-shot--detail`

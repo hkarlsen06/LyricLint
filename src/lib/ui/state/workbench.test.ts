@@ -1232,7 +1232,11 @@ describe('workbench performer imports', () => {
 		expect(controller.performers).toEqual([]);
 	});
 
-	test('imports on an explicit short draft open and surfaces unresolved styled voices', async () => {
+	// A styled slot with no header entry is an unknown voice — the text's own
+	// fact, derived where needed and never a roster identity. Import used to
+	// answer it by minting an `Unresolved voice 2` performer, which put a
+	// pressable stranger with a color in every picker.
+	test('imports on an explicit short draft open without minting placeholder voices', async () => {
 		const first = draft('draft-a', '');
 		const second = draft(
 			'draft-b',
@@ -1248,14 +1252,56 @@ describe('workbench performer imports', () => {
 
 		await controller.openDraft(second.id);
 
-		expect(controller.performers.map((entry) => entry.displayName)).toEqual([
-			'Avery',
-			'Unresolved voice 2'
-		]);
-		expect(controller.unresolvedVoiceGroups).toEqual([
-			expect.objectContaining({ rawNameText: 'Unresolved voice 2', styleSlot: 2 })
-		]);
+		expect(controller.performers.map((entry) => entry.displayName)).toEqual(['Avery']);
 		expect(controller.snapshot.text).toBe(second.text);
+	});
+
+	// Drafts saved while the minting ran still carry the records, so the same
+	// import that created them retires them — except one a header genuinely
+	// names, which is a real reference the roster must keep resolving.
+	test('retires stored placeholder voices on import unless a header names them', async () => {
+		const first = draft('draft-a', '');
+		const second = {
+			...draft(
+				'draft-b',
+				'[Chorus: Avery & <i>Unresolved voice 2</i>]\nPlain lyric with <i>a styled voice</i>'
+			),
+			performers: [
+				{
+					id: 'named-2',
+					displayName: 'Unresolved voice 2',
+					normalizedKey: 'unresolved voice 2',
+					aliases: ['Unresolved voice 2'],
+					colorId: 'performer-1',
+					order: 0
+				},
+				{
+					id: 'stale-3',
+					displayName: 'Unresolved voice 3',
+					normalizedKey: 'unresolved voice 3',
+					aliases: ['Unresolved voice 3'],
+					colorId: 'performer-2',
+					order: 1
+				}
+			]
+		};
+		const repository = createInMemoryDraftRepository([first, second]);
+		const controlled = controllableAutosave(repository);
+		const { controller } = setup({
+			initial: first,
+			repository,
+			autosave: controlled.autosave
+		});
+
+		await controller.openDraft(second.id);
+
+		expect(controller.performers.map((entry) => entry.displayName)).toEqual([
+			'Unresolved voice 2',
+			'Avery'
+		]);
+		expect(controller.feedback.toasts.map((toast) => toast.message)).toContain(
+			'Removed the imported placeholder Unresolved voice 3.'
+		);
 	});
 
 	test('follows a header rename in the roster and keeps the old spelling resolvable', () => {

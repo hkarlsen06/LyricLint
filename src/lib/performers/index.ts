@@ -1,6 +1,6 @@
 export { findExactPerformer, normalizePerformerKey } from './identity.js';
 export { allocatePerformerColor, performerColorIds } from './color.js';
-export { extractPerformers } from './import.js';
+export { extractPerformers, isRetiredUnresolvedVoiceName } from './import.js';
 export {
 	assignUnknownVoice,
 	assignVoiceGroup,

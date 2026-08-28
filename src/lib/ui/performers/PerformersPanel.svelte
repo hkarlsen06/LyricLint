@@ -30,19 +30,5 @@
 		</section>
 	{/if}
 
-	{#if controller.unresolvedVoiceGroups.length > 0}
-		<section class="unresolved-voices" aria-label="Unresolved imported voices">
-			<h2>Unresolved voices</h2>
-			<p>
-				These inline styles had no matching header entry. Their source markup remains unchanged.
-			</p>
-			<ul>
-				{#each controller.unresolvedVoiceGroups as group (`${group.styleSlot}-${group.id}`)}
-					<li>{group.rawNameText ?? `Unresolved voice ${group.styleSlot}`}</li>
-				{/each}
-			</ul>
-		</section>
-	{/if}
-
 	<PerformerLegend document={controller.snapshot.parsed} performers={controller.performers} />
 </div>

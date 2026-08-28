@@ -338,6 +338,22 @@ The resolve path needed no new code: selecting a styled passage and picking a na
 already reuses the passage's slot and writes the legend, converting the unknown into a named
 voice in one gesture — which is the flow `performer.inline-mismatch`'s guidance describes.
 
+**The rejected design was already shipped once, and it survived in the import path.** Long
+before this model, `extractPerformers` answered the same text state — a styled slot with no
+header entry — by minting a real roster performer named `Unresolved voice N` per slot, plus an
+"Unresolved voices" section in the Performers panel listing them. That is the alternative the
+paragraph above rejects, live in production: a pressable stranger with a hashed colour in every
+picker, inflating the `context.performers` counts that gate the performer rules, and — pressed —
+writing a legend that names `Unresolved voice 2` into a header. Once the derived model shipped,
+the same picker offered both answers to one question, which is how the leftover was noticed. The
+minting, the `unresolvedVoiceGroups` plumbing, and the panel section are gone; the only trace is
+`isRetiredUnresolvedVoiceName` in `import.ts`, which `importFromSnapshot` uses to retire the
+records old drafts still carry — exact-named placeholders no extracted group references. A
+placeholder someone renamed no longer matches the name, and one a header genuinely names stays
+referenced, so both are kept. Pinned in `performers.test.ts` (extraction mints nothing; the
+recognizer's edges), `workbench.test.ts` (import without minting; retirement sparing a named
+placeholder), and `PerformersPanel.svelte.test.ts` (no section, no roster row).
+
 Implementation: `assignUnknownVoice` / `unknownVoiceOffers` in `performers/transform.ts` (the
 wrap machinery is `wrapSelectionTransforms`, shared with `assignVoiceGroup` so the named and
 unknown paths cannot disagree about what a wrap does), `unaccountedStyledSlots` in

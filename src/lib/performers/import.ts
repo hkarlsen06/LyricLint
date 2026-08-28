@@ -164,7 +164,6 @@ export function extractPerformers(
 	const rosterAdditions: PerformerRecord[] = [];
 	const suggestions: ImportExtraction['suggestions'] = [];
 	const voiceGroups: ImportedVoiceGroup[] = [];
-	const unresolvedVoiceGroups: ImportExtraction['unresolvedVoiceGroups'] = [];
 	const availableRoster: PerformerRecord[] = [...knownRoster];
 	const candidates = document.sections.flatMap((section) =>
 		logicalHeaderGroups(document, section, knownRoster).map((group) => ({
@@ -216,51 +215,6 @@ export function extractPerformers(
 		});
 	}
 
-	for (const section of document.sections) {
-		const headerSlots = new Set(
-			voiceGroups
-				.filter((group) => group.sectionFrom === section.from)
-				.map((group) => group.styleSlot)
-		);
-		const inlineSlots = new Set<StyleSlot>();
-
-		for (const line of section.lines) {
-			for (const span of line.styleSpans) {
-				if (!('unsupported' in span)) {
-					inlineSlots.add(span.slot);
-				}
-			}
-		}
-
-		for (const slot of inlineSlots) {
-			if (headerSlots.has(slot)) {
-				continue;
-			}
-
-			const unresolvedName = `Unresolved voice ${slot}`;
-			let unresolvedPerformer = findExactPerformer(unresolvedName, availableRoster);
-			if (!unresolvedPerformer) {
-				unresolvedPerformer = createRosterAddition(unresolvedName, availableRoster);
-				availableRoster.push(unresolvedPerformer);
-				rosterAdditions.push(unresolvedPerformer);
-			}
-
-			const groupKey = makeVoiceGroupKey([unresolvedPerformer.id]);
-			const unresolved: ImportedVoiceGroup = {
-				id: groupKey,
-				groupKey,
-				sectionFrom: section.from,
-				performerIds: [unresolvedPerformer.id],
-				styleSlot: slot,
-				rawNameText: unresolvedName,
-				inlineRanges: supportedSpansForSlot(document, section.from, slot),
-				unresolved: true
-			};
-			voiceGroups.push(unresolved);
-			unresolvedVoiceGroups.push(unresolved);
-		}
-	}
-
 	const uniqueSuggestions = new Map<string, ImportExtraction['suggestions'][number]>();
 	for (const suggestion of suggestions) {
 		const key = `${suggestion.importedRange.from}:${suggestion.importedRange.to}:${suggestion.performerId}`;
@@ -269,8 +223,23 @@ export function extractPerformers(
 
 	return {
 		rosterAdditions,
-		unresolvedVoiceGroups,
 		suggestions: [...uniqueSuggestions.values()],
 		voiceGroups
 	};
+}
+
+/**
+ * A roster record this import path used to mint and no longer does.
+ *
+ * Extraction once answered a styled slot with no header entry by creating a
+ * real performer named `Unresolved voice N` — the design the unknown-voice
+ * model explicitly rejected, because it gave an identity to a voice whose
+ * whole point is having none, and put a pressable stranger in every picker.
+ * The state is derived now (`unaccountedStyledSlots`), but drafts saved while
+ * the minting ran still carry the records; `importFromSnapshot` uses this to
+ * retire them, and only them — a placeholder someone renamed no longer
+ * matches, and one a header genuinely names stays referenced and kept.
+ */
+export function isRetiredUnresolvedVoiceName(displayName: string): boolean {
+	return /^Unresolved voice [2-4]$/u.test(displayName);
 }

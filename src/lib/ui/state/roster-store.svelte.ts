@@ -1,15 +1,11 @@
-import type {
-	EditorSnapshot,
-	ImportSuggestion,
-	PerformerRecord,
-	VoiceGroup
-} from '$lib/core/types.js';
+import type { EditorSnapshot, ImportSuggestion, PerformerRecord } from '$lib/core/types.js';
 import {
 	allocatePerformerColor,
 	extractPerformers,
+	isRetiredUnresolvedVoiceName,
 	performerColorIds
 } from '$lib/performers/index.js';
-import { SvelteMap } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { FeedbackState } from './feedback.svelte.js';
 
 export interface RosterMergeSuggestion {
@@ -40,7 +36,6 @@ interface RosterStoreDependencies {
 interface RosterStore {
 	readonly performers: readonly PerformerRecord[];
 	readonly suggestions: readonly RosterMergeSuggestion[];
-	readonly unresolvedVoiceGroups: readonly VoiceGroup[];
 	/** Adopt a stored roster without marking the draft dirty. */
 	reset(roster: readonly PerformerRecord[]): void;
 	importFromSnapshot(snapshot: EditorSnapshot): void;
@@ -65,7 +60,6 @@ interface RosterStore {
 export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 	let performers = $state<PerformerRecord[]>(cloneRoster(deps.initialPerformers));
 	let importSuggestions = $state<ImportSuggestion[]>([]);
-	let unresolvedVoiceGroups = $state<VoiceGroup[]>([]);
 
 	const feedback = deps.feedback;
 
@@ -132,9 +126,6 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			}
 			return [...suggestions.values()];
 		},
-		get unresolvedVoiceGroups() {
-			return unresolvedVoiceGroups;
-		},
 		reset(roster) {
 			performers = cloneRoster(roster);
 		},
@@ -144,19 +135,31 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 				...suggestion,
 				importedRange: { ...suggestion.importedRange }
 			}));
-			// One entry per distinct voice identity. Extraction emits an unresolved
-			// group per section that styles the slot, and they share an id: the
-			// identity key is derived from performer IDs alone, and every section
-			// reuses the same `Unresolved voice N` performer. The panel renders one
-			// indistinguishable row per entry, so the duplicates were both visual
-			// noise and a collision in its keyed each.
-			const distinctUnresolved = new SvelteMap<string, VoiceGroup>();
-			for (const group of extraction.unresolvedVoiceGroups) {
-				const copy: VoiceGroup = { ...group, performerIds: [...group.performerIds] };
-				if (group.sourceRange) copy.sourceRange = { ...group.sourceRange };
-				distinctUnresolved.set(`${group.styleSlot}-${group.id}`, copy);
+
+			// Extraction used to answer a styled slot with no header entry by
+			// minting a real `Unresolved voice N` performer — an identity for a
+			// voice whose whole point is having none, and a pressable stranger in
+			// every picker. The state is derived now, but drafts saved while the
+			// minting ran still carry the records, so the same moment that created
+			// them retires them: an exact-named placeholder no extracted group
+			// references is the artifact and nothing else. One a header genuinely
+			// names stays referenced (extraction resolves the name to the record),
+			// and one the user renamed no longer matches the name.
+			const referencedIds = new SvelteSet(
+				extraction.voiceGroups.flatMap((group) => group.performerIds)
+			);
+			const retired = performers.filter(
+				(performer) =>
+					isRetiredUnresolvedVoiceName(performer.displayName) && !referencedIds.has(performer.id)
+			);
+			if (retired.length > 0) {
+				const kept = performers.filter((performer) => !retired.includes(performer));
+				const message =
+					retired.length === 1
+						? `Removed the imported placeholder ${retired[0]?.displayName}.`
+						: `Removed ${retired.length} imported placeholder voices.`;
+				commitRoster(kept, message);
 			}
-			unresolvedVoiceGroups = [...distinctUnresolved.values()];
 
 			if (extraction.rosterAdditions.length === 0) return;
 			const additions = extraction.rosterAdditions.map((performer, index) => ({

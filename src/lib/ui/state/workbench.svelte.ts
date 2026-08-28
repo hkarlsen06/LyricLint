@@ -15,8 +15,7 @@ import type {
 	SectionLink,
 	DraftIgnoreStore,
 	Severity,
-	SourceReference,
-	VoiceGroup
+	SourceReference
 } from '$lib/core/types.js';
 import { SvelteDate, SvelteMap } from 'svelte/reactivity';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
@@ -132,7 +131,6 @@ export interface WorkbenchController {
 	readonly sources: ReadonlyMap<string, SourceReference>;
 	readonly ruleSet?: RuleSetManifest;
 	readonly rosterSuggestions: readonly RosterMergeSuggestion[];
-	readonly unresolvedVoiceGroups: readonly VoiceGroup[];
 	/**
 	 * The audio this draft is transcribed from, or undefined in a build with no
 	 * media repository behind it. Surfaces read `media?.player.attached` rather
@@ -579,9 +577,6 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		get rosterSuggestions() {
 			return roster.suggestions;
-		},
-		get unresolvedVoiceGroups() {
-			return roster.unresolvedVoiceGroups;
 		},
 		get media() {
 			return media;

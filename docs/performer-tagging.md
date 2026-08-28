@@ -60,7 +60,7 @@ Never fuzzy-merge names automatically. Offer merge suggestions for casing or lik
 
 Do not split every comma, ampersand, or word `and` blindly. Performer names may contain separators, and a joint voice group is semantically different from two independent performers.
 
-If inline styling has no resolvable header mapping, preserve it and create `Unresolved voice 2`, `Unresolved voice 3`, or `Unresolved voice 4` with a diagnostic.
+If inline styling has no resolvable header mapping, preserve it and add nothing to the roster: that state is an unknown voice — a distinct, unidentified singer — derived from the text where needed (`unaccountedStyledSlots`), reported once per slot by `performer.inline-mismatch`, and offered as unknown-voice chips in the picker. It must never become a roster identity (see `docs/subsystems/performers.md`).
 
 ## Selecting and assigning performers
 

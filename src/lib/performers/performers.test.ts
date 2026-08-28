@@ -6,7 +6,7 @@ import type { AtomicDocumentEdit, PerformerRecord, Section, TextEdit } from '$li
 import { serializeLegend } from '$lib/serialization/genius-markup.js';
 import { allocateStyleSlot, analyzeSlotOrder } from './allocation.js';
 import { cleanupLegendSlots } from './legend-cleanup.js';
-import { extractPerformers } from './import.js';
+import { extractPerformers, isRetiredUnresolvedVoiceName } from './import.js';
 import {
 	findExactPerformer,
 	makeVoiceGroupKey,
@@ -110,7 +110,6 @@ describe('performer import extraction', () => {
 			const extraction = extractPerformers(parseDocument(source.input), roster(source.performers));
 
 			expect(extraction.rosterAdditions).toHaveLength(0);
-			expect(extraction.unresolvedVoiceGroups).toHaveLength(0);
 			expect(extraction.voiceGroups.map((group) => group.styleSlot)).toEqual(
 				id === 'valid-four-voice-slots' ? [1, 2, 3, 4] : [1, 2]
 			);
@@ -169,16 +168,24 @@ describe('performer import extraction', () => {
 		});
 	});
 
-	it('creates an unresolved voice record for inline style without a header mapping', () => {
+	// An inline style with no header mapping is an unknown voice — the text's
+	// own fact, derived by `unaccountedStyledSlots` where it is needed. This
+	// path used to answer it by minting an `Unresolved voice 2` roster record,
+	// which gave an identity to a voice whose whole point is having none.
+	it('mints nothing for inline style without a header mapping', () => {
 		const source = fixture('inline-style-without-legend');
 		const extraction = extractPerformers(parseDocument(source.input), roster(source.performers));
 
-		expect(extraction.unresolvedVoiceGroups).toHaveLength(1);
-		expect(extraction.unresolvedVoiceGroups[0]).toMatchObject({
-			styleSlot: 2,
-			rawNameText: 'Unresolved voice 2'
-		});
-		expect(extraction.rosterAdditions.at(-1)?.displayName).toBe('Unresolved voice 2');
+		expect(extraction.rosterAdditions).toEqual([]);
+		expect(extraction.voiceGroups.map((group) => group.styleSlot)).not.toContain(2);
+	});
+
+	it('recognizes exactly the placeholder names the retired path minted', () => {
+		expect(isRetiredUnresolvedVoiceName('Unresolved voice 2')).toBe(true);
+		expect(isRetiredUnresolvedVoiceName('Unresolved voice 4')).toBe(true);
+		// Slot 1 was never minted, and a renamed placeholder is a real performer.
+		expect(isRetiredUnresolvedVoiceName('Unresolved voice 1')).toBe(false);
+		expect(isRetiredUnresolvedVoiceName('Unresolved voice 2 (KrissyB?)')).toBe(false);
 	});
 });
 

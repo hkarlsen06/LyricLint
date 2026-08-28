@@ -120,7 +120,6 @@ button.performer-row__name:hover {
    performers one) and is written as `section + section` there because its
    first section sat directly under the panel header's border-bottom. */
 .merge-suggestions,
-.unresolved-voices,
 .performer-legend {
 	margin-top: var(--space-5);
 	padding-top: var(--space-4);
@@ -128,7 +127,6 @@ button.performer-row__name:hover {
 }
 
 .merge-suggestions ul,
-.unresolved-voices ul,
 .performer-legend ol,
 .performer-legend ul {
 	display: grid;

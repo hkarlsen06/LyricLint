@@ -81,7 +81,8 @@ describe('parseDocument', () => {
 		// and no `]` on its own line — exactly the shape of a header still being
 		// typed. Read as one it split the verse in two, reported a missing
 		// bracket, and stranded the tail's styled spans in a legendless section
-		// the importer answered with an "Unresolved voice" performer.
+		// as spurious unknown voices (in that era, minted "Unresolved voice"
+		// roster performers).
 		const text = [
 			'[Vers 4: Amara]',
 			'Skal vi se (Nei)',

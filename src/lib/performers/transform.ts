@@ -1050,7 +1050,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 
 	const extraction = extractPerformers(request.document, request.roster);
 	const resolvedGroups = extraction.voiceGroups
-		.filter((group) => group.sectionFrom === section.from && !group.unresolved)
+		.filter((group) => group.sectionFrom === section.from)
 		.map((group) => ({
 			id: group.groupKey,
 			performerIds: group.performerIds,
@@ -1163,7 +1163,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 			}
 		];
 		const retainedLegendGroups = extraction.voiceGroups
-			.filter((group) => group.sectionFrom === section.from && !group.unresolved)
+			.filter((group) => group.sectionFrom === section.from)
 			.sort((left, right) => (left.sourceRange?.from ?? 0) - (right.sourceRange?.from ?? 0))
 			.filter((group) => retainedSlots.has(group.styleSlot))
 			.map((group) => ({

@@ -214,34 +214,19 @@ describe('PerformersPanel', () => {
 		expect(screen.getByText(/select lyric text in the editor/i)).toBeTruthy();
 	});
 
-	test('surfaces unresolved imported styles without changing the document', () => {
+	// A styled slot the header does not name is an unknown voice — reported once
+	// by `performer.inline-mismatch` and offered in the picker, never a roster
+	// identity. The panel used to grow an "Unresolved voices" section for it,
+	// fed by placeholder performers the import minted; both are retired, and the
+	// document and roster stay exactly as they were.
+	test('gives an unmatched styled voice no section and no roster row', () => {
 		const text = '[Chorus: Avery]\nA long plain lyric with <i>an unmatched styled voice</i>';
 		const { controller } = createTestWorkbench({ text, performers: [] });
 		render(PerformersPanel, { controller });
 
-		expect(screen.getByRole('heading', { name: 'Unresolved voices' })).toBeTruthy();
-		expect(
-			within(screen.getByRole('region', { name: 'Unresolved imported voices' })).getByText(
-				'Unresolved voice 2'
-			)
-		).toBeTruthy();
-		expect(controller.snapshot.text).toBe(text);
-	});
-
-	test('lists a recurring unresolved voice once across sections', () => {
-		// Extraction emits one unresolved group per section that styles the slot,
-		// and they share an identity id. Rendering both crashed the panel with
-		// `each_key_duplicate`, which left the workspace stuck on its loading state.
-		const text =
-			'[Chorus: Avery]\nA long plain lyric with <i>an unmatched styled voice</i>\n\n' +
-			'[Verse: Avery]\nAnother plain lyric with <i>a second unmatched voice</i>';
-		const { controller } = createTestWorkbench({ text, performers: [] });
-		render(PerformersPanel, { controller });
-
-		const region = screen.getByRole('region', { name: 'Unresolved imported voices' });
-		expect(within(region).getAllByText('Unresolved voice 2')).toHaveLength(1);
-		expect(within(region).getAllByRole('listitem')).toHaveLength(1);
-		expect(controller.unresolvedVoiceGroups).toHaveLength(1);
+		expect(screen.queryByRole('heading', { name: 'Unresolved voices' })).toBeNull();
+		expect(screen.queryByText('Unresolved voice 2')).toBeNull();
+		expect(controller.performers.map((entry) => entry.displayName)).toEqual(['Avery']);
 		expect(controller.snapshot.text).toBe(text);
 	});
 });

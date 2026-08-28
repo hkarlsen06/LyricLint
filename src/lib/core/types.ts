@@ -610,13 +610,6 @@ export interface ImportSuggestion {
 	reason: 'case' | 'normalized-key' | 'alias';
 }
 
-/** Performer identities and unresolved styled voices extracted from a document. */
-export interface ImportExtraction {
-	rosterAdditions: PerformerRecord[];
-	unresolvedVoiceGroups: VoiceGroup[];
-	suggestions: ImportSuggestion[];
-}
-
 /** Inputs for assigning one joint or solo group to an exact text selection. */
 export interface AssignmentRequest {
 	revision: number;
