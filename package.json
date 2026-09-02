@@ -28,7 +28,7 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
-		"@oxlint/plugins": "1.79.0",
+		"@oxlint/plugins": "1.80.0",
 		"@playwright/test": "^1.62.1",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.70.3",
