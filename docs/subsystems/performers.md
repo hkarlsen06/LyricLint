@@ -37,7 +37,8 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
 - A picked performer is the chip — border and fill in the performer's own color, no width
   change on press, `aria-pressed` the carrier. The action button has a `min-width` floor
   sized to its three flow labels (`Next`/`Skip`/`Apply`); `Skip` is bordered, never contrast,
-  and while nobody is picked the card carries no contrast action at all
+  and the labeled `Add voice` button sits beneath it in the action column, away from the voice
+  chips. Add voice carries contrast until a named answer is ready; then Apply takes it
   (`actionLabel`/`showsEmptyAnswer`, one derived answer).
 - The roster never scrolls: chips wrap onto further rows in stable roster order, so no chip —
   above all no *pre-selected* chip, which is part of what Apply writes — is ever off screen.
@@ -53,10 +54,13 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
 - An **unknown voice** is derived from the text, never stored: a styled slot the section's
   legend does not name (`unaccountedStyledSlots` in `legend-cleanup.ts`, the one owner). The
   picker draws one act-on-press chip per unaccounted slot in that slot's own styling (no dot,
-  no performer colour — an unknown has no identity) plus a dashed `+ Unknown voice` chip while
-  a styled slot is free of both legend and body (`unknownVoiceOffers`, the transform's own
-  reading). The plus and the dash mark the minting chip as the add-performer chip's sibling, so
-  "join the existing italic unknown" and "add another unknown voice" cannot read as synonyms. Pressing one wraps the selection via `assignUnknownVoice` and **never writes a
+  no performer colour — an unknown has no identity) plus a quiet dashed `+ Unknown voice` chip
+  while a styled slot is free of both legend and body (`unknownVoiceOffers`, the transform's own
+  reading). Adding a named identity is the labeled `Add voice` button in the separate action
+  column beneath Apply: it takes the contrast tier until a named answer is ready, then steps
+  down to the filled default tier, so it always outranks the unknown fallback without
+  competing with Apply. Pressing an unknown chip wraps the selection via `assignUnknownVoice`
+  and **never writes a
   legend edit** — the missing legend group is what records the voice as unidentified, and
   `performer.inline-mismatch` records the remaining work. That finding arrives *already
   accepted* when the state came from these chips: the press is the answer
@@ -315,11 +319,12 @@ horizontal scroller is the wrong container for a row whose every entry must be s
 pressing a button whose effect depends on all of them. A roster that fits changes nothing; a
 crowded one costs the card a row of height, transiently, instead of costing an assignment. The
 track, the fade, and the `.add-slot` sibling existed only to manage the scroller's clipping,
-so they went with it — chips, unknown chips, and the add control sit in one wrapping flex row,
-and the focus-ring padding went too, since rings only needed reserved room while an overflow
-edge could clip them. `PerformerPicker.svelte.test.ts` pins the wrap (a crowded roster on more
-than one row, every chip inside the card), the single-line case, and the absence of the old
-structure.
+so they went with it — the voice chips sit in one wrapping flex row, and the focus-ring padding
+went too, since rings only needed reserved room while an overflow edge could clip them. The
+`Add voice` command instead sits beneath Apply in the adjacent action column, separating it
+from the unknown-voice chips. `PerformerPicker.svelte.test.ts` pins the wrap (a crowded roster
+on more than one row, every chip inside the card), the single-line case, the action-column
+placement, and the absence of the old structure.
 
 And the range the pre-selection reads is the transform's, not the selection's.
 `assignmentSelectionRange` exposes `normalizeSelection` — whitespace trimmed, a lone
@@ -371,7 +376,7 @@ Three consequences hold the feature together:
   are the section's actual unnamed voices, rendered in the styling they already have, and the
   dashed chip mints whatever slot is next free. Presentation is self-limiting: chips exist only
   where unaccounted styling exists, so the ordinary roster never carries them.
-- **A press is a whole answer, so the chips act on press** (the dashed add chip's precedent).
+- **A press is a whole answer, so the unknown chips act on press.**
   An unknown cannot join a named group — a joint group with an unidentified member has no
   legend to be written into — so there is no selection state for Apply to accumulate, and no
   legend write means the two-voice flow's second question never arises. This is also what lets

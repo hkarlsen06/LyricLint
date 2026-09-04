@@ -1228,6 +1228,116 @@ function localizeSpan(members: readonly MemberShape[], span: TextRange): MemberS
 	}));
 }
 
+interface BoundaryExtension {
+	members: readonly MemberShape[];
+	text: string;
+	sourceRange: TextRange;
+	local: boolean;
+	finalHole?: number;
+	typeOnlyHere: boolean;
+}
+
+/**
+ * A lyric appended after Enter first left the old body's right edge.
+ *
+ * The bare terminal line break is structural and stays local: until something
+ * is written after it, it may be the gap before the next section. If ordinary
+ * lyric text follows, the post-change parse extends the same section across
+ * that gap. At that point the intent is no longer ambiguous, so the whole new
+ * tail can become shared in one edit to every peer.
+ *
+ * A header opening does not qualify because it makes a new parsed section; the
+ * old body's end stays where it was. A boundary inside a final divergent run
+ * also stays local, preserving the ordinary greedy-edge rule for differences.
+ */
+function boundaryExtension(
+	transaction: Transaction,
+	parsed: ParsedDocument,
+	change: TextRange
+): BoundaryExtension | undefined {
+	if (change.from !== change.to) return undefined;
+	const after = parsedDocumentForState(transaction.state);
+	const groups = memberGroups(transaction.startState, parsed);
+	for (const group of groups) {
+		for (const header of group) {
+			const body = sectionBodyRange(parsed, header);
+			if (!body || body.to >= change.from) continue;
+			const gap = transaction.startState.doc.sliceString(body.to, change.from);
+			if (!/[\r\n]/u.test(gap) || !/^[\t\r\n ]+$/u.test(gap)) continue;
+
+			const mappedHeader = transaction.changes.mapPos(header, -1);
+			const nextBody = sectionBodyRange(after, mappedHeader);
+			const mappedEnd = transaction.changes.mapPos(body.to, -1);
+			const changedEnd = transaction.changes.mapPos(change.to, 1);
+			if (!nextBody || nextBody.to <= mappedEnd || nextBody.to < changedEnd) continue;
+
+			const ordered = [header, ...group.filter((candidate) => candidate !== header)];
+			const members = groupShape(transaction.startState, parsed, ordered);
+			const source = members?.[0];
+			if (!members || !source) continue;
+			const sourceLength = source.body.to - source.body.from;
+			const finalHole = holeContaining(source.holes, sourceLength, sourceLength);
+			const typeOnly = isTypeOnlyHere(transaction.startState, header);
+
+			const text = transaction.newDoc.sliceString(mappedEnd, nextBody.to);
+			if (text.length > 0) {
+				return {
+					members,
+					text,
+					// Pre-change coordinates, like every `setLinkHolesEffect` value.
+					// Mapping its right edge forward takes in the text being inserted.
+					sourceRange: { from: body.to, to: change.to },
+					local: typeOnly || finalHole !== undefined,
+					finalHole,
+					typeOnlyHere: typeOnly
+				};
+			}
+		}
+	}
+	return undefined;
+}
+
+/** Carry a shared extension, or record a local one without touching its peers. */
+function mirrorBoundaryExtension(
+	transaction: Transaction,
+	extension: BoundaryExtension
+): TransactionSpec | undefined {
+	if (extension.local) {
+		const holes = extension.members.flatMap((member, memberIndex) => {
+			const mapped = member.holes.map((hole) => ({
+				from: member.body.from + hole.from,
+				to: member.body.from + hole.to
+			}));
+			if (extension.finalHole !== undefined) {
+				if (memberIndex === 0 && mapped[extension.finalHole]) {
+					mapped[extension.finalHole] = {
+						...mapped[extension.finalHole],
+						to: extension.sourceRange.to
+					};
+				}
+				return mapped;
+			}
+			const at = member.body.to;
+			mapped.push(memberIndex === 0 ? extension.sourceRange : { from: at, to: at });
+			return mapped;
+		});
+		const outside = holesOutside(transaction.startState, extension.members);
+		return {
+			effects: [
+				setLinkHolesEffect.of([...outside, ...holes]),
+				...(extension.typeOnlyHere ? [typeOnlyHereAppliedEffect.of(null)] : [])
+			]
+		};
+	}
+	const edits = extension.members.slice(1).map((member) => {
+		const at = transaction.changes.mapPos(member.body.to, 1);
+		return { from: at, to: at, insert: extension.text };
+	});
+	if (edits.length === 0) return undefined;
+	edits.sort((left, right) => left.from - right.from);
+	return { changes: edits, sequential: true };
+}
+
 export function sectionLinkMirror(): Extension {
 	return EditorState.transactionFilter.of((transaction) => {
 		if (!transaction.docChanged) {
@@ -1301,6 +1411,12 @@ export function sectionLinkMirror(): Extension {
 			if (!insideAddressedRange) {
 				throw new RangeError('The local linked-section edit leaves its addressed range.');
 			}
+		}
+
+		if (!onlyHere && !transaction.startState.field(editorComposingField, false)) {
+			const extension = boundaryExtension(transaction, parsed, change!);
+			const mirrored = extension ? mirrorBoundaryExtension(transaction, extension) : undefined;
+			if (mirrored) return [transaction, mirrored];
 		}
 
 		const group = memberGroups(transaction.startState, parsed).find((headers) =>
@@ -1378,6 +1494,16 @@ export function sectionLinkMirror(): Extension {
 		}
 
 		const normalChange = change!;
+		if (normalChange.from === source.body.to && normalChange.to === source.body.to) {
+			const after = parsedDocumentForState(transaction.state);
+			const nextBody = sectionBodyRange(after, transaction.changes.mapPos(source.header, -1));
+			const oldEnd = transaction.changes.mapPos(source.body.to, -1);
+			// A body that did not grow past its old end says the insertion belongs
+			// after this section. Most importantly, this is the first Enter used to
+			// make room for the next header; carrying it adds stray blank lines to
+			// every earlier copy.
+			if (!nextBody || nextBody.to <= oldEnd) return transaction;
+		}
 		const relative = {
 			from: normalChange.from - source.body.from,
 			to: normalChange.to - source.body.from

@@ -505,13 +505,9 @@ export interface LinkDifference {
 }
 
 /**
- * One copy's version of one difference, with enough of its own line either side
- * to be read as a diff rather than as a floating fragment.
- *
- * `før, du kunne spørt meg` on its own says nothing about where in the chorus it
- * sits, or that the other copies simply stop at that point. The line around it
- * says both, and the shared halves are identical in every copy by construction —
- * which is what makes the versions line up under each other on screen.
+ * One copy's version of one difference, with the shared runs either side. The
+ * picker states that shared location once, then groups copies whose `text` is
+ * identical so only the real alternatives repeat.
  */
 interface LinkWording {
 	headerFrom: number;

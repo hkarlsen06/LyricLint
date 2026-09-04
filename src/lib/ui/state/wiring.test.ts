@@ -127,12 +127,28 @@ describe('UI wiring', () => {
 		expect(isTypingChange('Hold on', 'Hold on')).toBe(false);
 	});
 
-	// The rules see a parsed document and nothing else, so a linked group still
-	// looks like two identical choruses to them — and linked sections keep
-	// identical words by construction, which is the suggestion firing on its own
-	// result forever. The links are known here, so the answer is here.
-	test('stops suggesting a link once one is made', () => {
-		const text = '[Chorus]\nHold the line\n\n[Verse 1]\nA lyric\n\n[Chorus]\nHold the line';
+	// The rules see a parsed document and nothing else, so a complete linked
+	// group still looks like unlinked repeats to them. The links are known here,
+	// and the answer has to consider every occurrence: looking only at the first
+	// header hid the action from a newly pasted third copy because that first
+	// header was already linked.
+	test('keeps suggesting a link until every repeat belongs to one group', () => {
+		const text = [
+			'[Chorus]',
+			'Hold the line',
+			'',
+			'[Verse 1]',
+			'A lyric',
+			'',
+			'[Chorus 2]',
+			'Hold the line',
+			'',
+			'[Verse 2]',
+			'Another lyric',
+			'',
+			'[Chorus 3]',
+			'Hold the line'
+		].join('\n');
 		const parsed = parseDocument(text);
 		const diagnostics = computeDiagnostics(
 			parsed,
@@ -147,13 +163,62 @@ describe('UI wiring', () => {
 		const suggested = (links: { lines: number[] }[]) =>
 			filterForEditorState(snapshot, diagnostics, links).filter(
 				(diagnostic) => diagnostic.ruleId === 'section.unlinked-repeat'
-			).length;
+			);
 
-		expect(suggested([])).toBe(1);
-		// The diagnostic is anchored on the first header, which is line 1.
-		expect(suggested([{ lines: [1, 7] }])).toBe(0);
+		expect(suggested([])).toHaveLength(1);
+		// The first two copies are linked, but the third still carries the same
+		// finding as a related range and must keep its nearby guided action.
+		const partial = suggested([{ lines: [1, 7] }]);
+		expect(partial).toHaveLength(1);
+		expect(partial[0]?.relatedRanges?.map((range) => text.slice(range.from, range.to))).toContain(
+			'[Chorus 3]'
+		);
+		// Once all three are in one group, the finding has been answered.
+		expect(suggested([{ lines: [1, 7, 13] }])).toHaveLength(0);
 		// A link somewhere else in the song is not an answer to this one.
-		expect(suggested([{ lines: [4, 9] }])).toBe(1);
+		expect(suggested([{ lines: [4, 10] }])).toHaveLength(1);
+	});
+
+	test('keeps suggesting across separately linked groups of the same repeat', () => {
+		const text = [
+			'[Chorus]',
+			'Hold',
+			'',
+			'[Verse 1]',
+			'A',
+			'',
+			'[Chorus 2]',
+			'Hold',
+			'',
+			'[Verse 2]',
+			'B',
+			'',
+			'[Chorus 3]',
+			'Hold',
+			'',
+			'[Verse 3]',
+			'C',
+			'',
+			'[Chorus 4]',
+			'Hold'
+		].join('\n');
+		const parsed = parseDocument(text);
+		const diagnostics = computeDiagnostics(
+			parsed,
+			buildRuleContext('en', [], currentRuleSet.version, 3)
+		);
+		const snapshot = {
+			...createTestWorkbench({ text, revision: 3 }).controller.snapshot,
+			parsed,
+			diagnostics,
+			selection: { anchor: 0, head: 0 }
+		};
+
+		expect(
+			filterForEditorState(snapshot, diagnostics, [{ lines: [1, 7] }, { lines: [13, 19] }]).filter(
+				(diagnostic) => diagnostic.ruleId === 'section.unlinked-repeat'
+			)
+		).toHaveLength(1);
 	});
 
 	test('draws a preview requested before the editor could render one', () => {

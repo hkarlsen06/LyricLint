@@ -22,6 +22,9 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/harper.ts`, `src/lib/rules/reg
   `performer.inline-mismatch` and the picker's unknown-voice offers). A rule re-deriving
   another rule's question presents as the panel arguing with itself. Cross-rule interactions
   are pinned in `catalog-policy.test.ts`.
+- `section.unlinked-repeat` is filtered against live link state, but only retires when one stored
+  group covers its primary and every related occurrence. A partial group keeps the guided action
+  on a newly pasted copy; two separate groups are still separate corrections.
 - The two unnamed-voice findings split by legend presence and are both `suggestion`:
   `performer.header-required` owns the section with styled text and **no** legend (one
   header-anchored finding, roster-gated), `performer.inline-mismatch` owns the section

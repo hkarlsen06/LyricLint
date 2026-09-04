@@ -321,13 +321,18 @@ function linesUnderTheCaret(
 }
 
 /**
- * Stop suggesting a link where one is already made.
+ * Stop suggesting a link once every reported repeat is in one group.
  *
  * Linked sections keep identical words by construction, so the suggestion would
- * otherwise fire on its own result forever. Membership of *any* group is enough
- * to go quiet, which under-reports a group only partly linked — deliberately:
- * leaving one repeat out is a decision the user made in the picker, and this
- * rule exists to catch the copies nobody tied together, not to argue with them.
+ * otherwise fire on its own result forever. But a link covering only some of a
+ * diagnostic's occurrences is not the result that finding asks for: a newly
+ * pasted third copy still needs its own nearby `Manage linking` action. Checking
+ * the primary range alone hid the whole finding because the rule anchors on the
+ * first copy, which is ordinarily one of the copies already linked.
+ *
+ * One group has to cover every primary and related range. Merely finding every
+ * line in *some* group is not enough: two separately linked pairs still cannot
+ * carry one correction between them.
  */
 function dropLinkedRepeats(
 	snapshot: EditorSnapshot,
@@ -335,14 +340,13 @@ function dropLinkedRepeats(
 	sectionLinks: readonly SectionLink[]
 ): readonly Diagnostic[] {
 	if (sectionLinks.length === 0) return diagnostics;
-	const linkedLines = new Set(sectionLinks.flatMap((link) => link.lines));
-	return diagnostics.filter(
-		(diagnostic) =>
-			!(
-				diagnostic.ruleId === 'section.unlinked-repeat' &&
-				linkedLines.has(lineNumberAt(snapshot.text, diagnostic.from))
-			)
-	);
+	return diagnostics.filter((diagnostic) => {
+		if (diagnostic.ruleId !== 'section.unlinked-repeat') return true;
+		const occurrenceLines = [diagnostic, ...(diagnostic.relatedRanges ?? [])].map((range) =>
+			lineNumberAt(snapshot.text, range.from)
+		);
+		return !sectionLinks.some((link) => occurrenceLines.every((line) => link.lines.includes(line)));
+	});
 }
 
 /**

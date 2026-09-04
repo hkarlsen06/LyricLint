@@ -2,7 +2,7 @@ import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { parseDocument } from '$lib/core/parser.js';
-import type { EditorHandle, LanguagePack, PerformerRecord } from '$lib/core/types.js';
+import type { Diagnostic, EditorHandle, LanguagePack, PerformerRecord } from '$lib/core/types.js';
 import {
 	assignVoiceGroup,
 	assignVoiceLegend,
@@ -69,25 +69,30 @@ function callbacks(overrides: Partial<LyricEditorCallbacks> = {}): LyricEditorCa
 	};
 }
 
-function context(languagePack: LanguagePack): EditorDisplayContext {
+function context(
+	languagePack: LanguagePack,
+	overrides: Partial<EditorDisplayContext> = {}
+): EditorDisplayContext {
 	return {
 		language: languagePack.tag,
 		performers: [],
 		ruleSetVersion: 'section-link-test',
-		languagePack
+		languagePack,
+		...overrides
 	};
 }
 
 async function mount(
 	text: string,
 	languagePack: LanguagePack = englishLanguagePack,
-	overrides: Partial<LyricEditorCallbacks> = {}
+	overrides: Partial<LyricEditorCallbacks> = {},
+	contextOverrides: Partial<EditorDisplayContext> = {}
 ): Promise<EditorHandle> {
 	let handle: EditorHandle | undefined;
 	await render(EditorPane, {
 		props: {
 			initialText: text,
-			context: context(languagePack),
+			context: context(languagePack, contextOverrides),
 			callbacks: callbacks(overrides),
 			onready: (ready: EditorHandle) => {
 				handle = ready;
@@ -585,6 +590,132 @@ describe('making linked copies agree', () => {
 		const linked = handle.getSnapshot().text;
 		expect(linked).toContain('[Chorus 3]\nHold on tigth\nNever let go');
 		expect(linked).toContain('[Chorus]\nHold on tight\nNever let go');
+	});
+});
+
+describe('editing the edges of a linked section', () => {
+	const song = [
+		'[Chorus]',
+		'Hold on tight',
+		'Never let go',
+		'',
+		'[Verse]',
+		'Something else',
+		'',
+		'[Chorus 2]',
+		'Hold on tight',
+		'Never let go'
+	].join('\n');
+
+	async function linkedSong(): Promise<EditorHandle> {
+		const handle = await mount(song);
+		handle.linkSections?.({
+			headers: [offsetOf(song, '[Chorus]'), offsetOf(song, '[Chorus 2]')]
+		});
+		await new Promise((resolve) => setTimeout(resolve, 600));
+		return handle;
+	}
+
+	it('keeps terminal line breaks local so they can begin the next section', async () => {
+		const handle = await linkedSong();
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: song.length, to: song.length, insert: '\n' }]
+		});
+
+		// The first Enter leaves the linked body. Mirroring it into the earlier
+		// chorus adds layout below a section the user is nowhere near.
+		expect(handle.getSnapshot().text).toBe(`${song}\n`);
+
+		const afterBreak = handle.getSnapshot().text;
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [
+				{
+					from: afterBreak.length,
+					to: afterBreak.length,
+					insert: '\n[Verse 2]\nA new verse'
+				}
+			]
+		});
+
+		expect(handle.getSnapshot().text).toBe(`${song}\n\n[Verse 2]\nA new verse`);
+		expect(handle.getSnapshot().text.match(/\[Verse 2\]/gu)).toHaveLength(1);
+	});
+
+	it('still mirrors a line break inserted in the middle of linked lyrics', async () => {
+		const handle = await linkedSong();
+		const firstNever = song.indexOf('Never let go');
+		const splitAt = firstNever + 'Never'.length;
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: splitAt, to: splitAt, insert: '\n' }]
+		});
+
+		expect(handle.getSnapshot().text.match(/Never\n let go/gu)).toHaveLength(2);
+	});
+
+	it('mirrors lyrics deliberately extended from the last line', async () => {
+		const handle = await linkedSong();
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: song.length, to: song.length, insert: '\n' }]
+		});
+		const afterBreak = handle.getSnapshot().text;
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: afterBreak.length, to: afterBreak.length, insert: 'One more line' }]
+		});
+
+		expect(handle.getSnapshot().text.match(/Never let go\nOne more line/gu)).toHaveLength(2);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(afterBreak);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(song);
+	});
+
+	it('keeps a terminal lyric extension local while editing only this section', async () => {
+		const handle = await linkedSong();
+		const secondHeader = offsetOf(song, '[Chorus 2]');
+		expect(handle.typeOnlyHere?.(secondHeader)).toBe(true);
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: song.length, to: song.length, insert: '\n' }]
+		});
+		const afterBreak = handle.getSnapshot().text;
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: afterBreak.length, to: afterBreak.length, insert: 'Only over here' }]
+		});
+
+		const changed = handle.getSnapshot().text;
+		expect(changed.match(/Never let go\nOnly over here/gu)).toHaveLength(1);
+		expect(handle.getSectionLinks?.()[0]?.holes).toHaveLength(2);
+	});
+
+	it('keeps an extension local when the linked endings already differ', async () => {
+		const handle = await mount(REPEAT);
+		handle.linkSections?.({
+			headers: [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')]
+		});
+		const before = handle.getSnapshot().text;
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: before.length, to: before.length, insert: '\n' }]
+		});
+		const afterBreak = handle.getSnapshot().text;
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: afterBreak.length, to: afterBreak.length, insert: 'Only this ending' }]
+		});
+
+		const changed = handle.getSnapshot().text;
+		expect(changed.match(/Only this ending/gu)).toHaveLength(1);
+		expect(
+			handle
+				.getLinkDifferences?.([offsetOf(changed, '[Chorus]'), offsetOf(changed, '[Chorus 2]')])?.[0]
+				?.wordings.map((wording) => wording.text)
+		).toEqual(['tonight', 'again\nOnly this ending']);
 	});
 });
 
@@ -1148,6 +1279,47 @@ describe('typing only in one linked copy', () => {
 });
 
 describe('the link card', () => {
+	it('uses the related diagnostic occurrence that opened linking as this section', async () => {
+		const song = [
+			'[Pre-Chorus]',
+			'Stay near',
+			'[Verse]',
+			...Array.from({ length: 23 }, (_, index) => `Verse line ${index + 1}`),
+			'[Pre-Chorus 2]',
+			'Stay near'
+		].join('\n');
+		const relatedFrom = offsetOf(song, '[Pre-Chorus 2]');
+		const diagnostic: Diagnostic = {
+			ruleId: 'section.unlinked-repeat',
+			severity: 'suggestion',
+			from: 0,
+			to: '[Pre-Chorus]'.length,
+			message: 'These pre-choruses can stay in sync.',
+			explanation: 'Link matching song parts.',
+			sourceIds: [],
+			relatedRanges: [{ from: relatedFrom, to: relatedFrom + '[Pre-Chorus 2]'.length }]
+		};
+		await mount(
+			song,
+			englishLanguagePack,
+			{},
+			{
+				diagnostics: { revision: 0, items: [diagnostic] }
+			}
+		);
+		const relatedUnderline = document.querySelector<HTMLElement>(
+			`[data-ll-diagnostic-anchor="${relatedFrom}:${relatedFrom + '[Pre-Chorus 2]'.length}"]`
+		);
+		expect(relatedUnderline).not.toBeNull();
+
+		await userEvent.hover(relatedUnderline!);
+		await page.getByRole('button', { name: 'Manage linking' }).click();
+
+		await expect.element(page.getByRole('dialog', { name: 'Link this pre-chorus' })).toBeVisible();
+		await expect.element(page.getByText('This section · line 27')).toBeVisible();
+		await expect.element(page.getByText('Same lyrics · line 1')).toBeVisible();
+	});
+
 	// The marker serves the editor's one hover wait, like the severity underline
 	// and the count badge. Opening on the bare `pointerenter` meant a mouse
 	// crossing the document dragged a card open behind every linked header it
@@ -1307,10 +1479,10 @@ describe('the link card', () => {
 			.not.toBeInTheDocument();
 	});
 
-	// A diff: each version on its own line, under the name of the section it
-	// belongs to, and shown *in* its own line so the shared halves stack up and
-	// the differing run is the only thing that moves.
-	it('shows the difference inside the line it sits in', async () => {
+	// A diff states its shared location once, then shows only the wording that
+	// varies. Repeating the shared line in every section row makes the reader
+	// compare text that is already known to agree.
+	it('shows the shared location once and only the differing wording in each row', async () => {
 		const handle = await mount(REPEAT);
 		const caret = offsetOf(REPEAT, 'Hold on tight');
 		handle.setSelection({ anchor: caret, head: caret });
@@ -1324,19 +1496,17 @@ describe('the link card', () => {
 		await expect.element(card.getByText('They differ in 1 place')).toBeVisible();
 		await expect.element(card.getByText('tonight', { exact: true })).toBeVisible();
 		await expect.element(card.getByText('again', { exact: true })).toBeVisible();
-		// The run is marked, and the rest of its line is around it as context.
+		// The runs are marked, with their shared location stated once above them.
 		const runs = [...document.querySelectorAll('.compare__run')].map((run) => run.textContent);
 		expect(runs).toEqual(['tonight', 'again']);
-		const shared = [...document.querySelectorAll('.compare__shared')].map(
-			(part) => part.textContent
-		);
-		expect(shared.some((part) => part?.includes('be there'))).toBe(true);
+		const contexts = [...document.querySelectorAll('.compare__context')];
+		expect(contexts).toHaveLength(1);
+		expect(contexts[0]?.textContent).toContain('be there');
 	});
 
-	// The caret marking where a copy has nothing is a bar with no text in it, so
-	// the words were on an `aria-label` — which a generic `span` does not carry
-	// and most assistive technology never announces.
-	it('says in text where a copy has nothing, rather than labelling a bar', async () => {
+	// A bare insertion caret is compact but cryptic in this vertical comparison;
+	// plain text says exactly what is absent.
+	it('says plainly when a copy has no words at a difference', async () => {
 		const handle = await mount(SONG);
 		const caret = offsetOf(SONG, 'Hold on tight');
 		handle.setSelection({ anchor: caret, head: caret });
@@ -1344,16 +1514,13 @@ describe('the link card', () => {
 		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
 
 		// Both, so the untyped copy is a difference to respect rather than the one
-		// thing the link would fill — which is the state that draws the caret.
+		// thing the link would fill.
 		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
 		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
 
-		const bar = document.querySelector('.compare__run--empty');
-		expect(bar).not.toBeNull();
-		expect(bar?.getAttribute('aria-label')).toBeNull();
-		expect(bar?.getAttribute('aria-hidden')).toBe('true');
-		expect(bar?.nextElementSibling?.className).toBe('sr-only');
-		expect(bar?.nextElementSibling?.textContent).toBe('nothing here');
+		const empty = document.querySelector('.compare__empty');
+		expect(empty).not.toBeNull();
+		expect(empty?.textContent).toBe('No words here');
 	});
 
 	// The decision is a radio pair stating both outcomes, not a tick per
@@ -1527,6 +1694,9 @@ describe('the link card', () => {
 
 		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
 		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
+		expect(
+			[...document.querySelectorAll('.compare__who')].map((version) => version.textContent)
+		).toEqual(['Chorus 1 & 3', 'Chorus 2']);
 		await expect.element(page.getByRole('option', { name: 'Chorus 1 & 3' })).toBeInTheDocument();
 		await expect.element(page.getByRole('option', { name: 'Chorus 2' })).toBeInTheDocument();
 		expect(document.querySelectorAll('.outcome__select option')).toHaveLength(2);

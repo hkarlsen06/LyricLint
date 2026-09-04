@@ -2252,7 +2252,7 @@ describe('PerformerPicker keyboard flow', () => {
 		expect(focusTarget).toBe(document.activeElement);
 	});
 
-	it('opens with an empty roster and adds a performer inline from the + chip', async () => {
+	it('opens with an empty roster and adds a performer inline from Add voice', async () => {
 		const focusTarget = document.createElement('button');
 		focusTarget.dataset.testFocusReturn = 'true';
 		focusTarget.textContent = 'Editor focus target';
@@ -2268,8 +2268,7 @@ describe('PerformerPicker keyboard flow', () => {
 			returnFocus: () => focusTarget.focus(),
 			onAddPerformer
 		});
-		await expect.element(page.getByText('Add a performer', { exact: true })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Add a performer' })).toHaveFocus();
+		await expect.element(page.getByRole('button', { name: 'Add voice' })).toHaveFocus();
 
 		await userEvent.keyboard('{Enter}');
 		const nameInput = page.getByRole('textbox', { name: 'New performer name' });
@@ -2298,10 +2297,8 @@ describe('PerformerPicker keyboard flow', () => {
 			onCancel,
 			returnFocus: () => focusTarget.focus()
 		});
-		// No onAddPerformer means no + chip; with it, the input round-trips.
-		await expect
-			.element(page.getByRole('button', { name: 'Add a performer' }))
-			.not.toBeInTheDocument();
+		// No onAddPerformer means no Add voice action; with it, the input round-trips.
+		await expect.element(page.getByRole('button', { name: 'Add voice' })).not.toBeInTheDocument();
 		// One picker at a time, as in the pane: a press inside the second one is a
 		// press outside the first, and the first would dismiss itself over it.
 		withoutAdd.unmount();
@@ -2313,7 +2310,7 @@ describe('PerformerPicker keyboard flow', () => {
 			returnFocus: () => focusTarget.focus(),
 			onAddPerformer: vi.fn()
 		});
-		await userEvent.click(page.getByRole('button', { name: 'Add a performer' }));
+		await userEvent.click(page.getByRole('button', { name: 'Add voice' }));
 		await expect.element(page.getByRole('textbox', { name: 'New performer name' })).toHaveFocus();
 
 		await userEvent.keyboard('{Escape}');
@@ -2321,7 +2318,7 @@ describe('PerformerPicker keyboard flow', () => {
 		await expect
 			.element(page.getByRole('textbox', { name: 'New performer name' }))
 			.not.toBeInTheDocument();
-		await expect.element(page.getByRole('button', { name: 'Add a performer' })).toHaveFocus();
+		await expect.element(page.getByRole('button', { name: 'Add voice' })).toHaveFocus();
 
 		await userEvent.keyboard('{Escape}');
 		expect(onCancel).toHaveBeenCalledOnce();

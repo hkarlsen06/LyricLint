@@ -22,6 +22,11 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
   `transactionFilter` with `sequential: true` — one snapshot, one undo. Undo/redo/IME are
   exempt; only a single contiguous edit inside one member's body mirrors; membership is a
   range over the header's line; fewer than two members is not a group.
+- A bare line break at a linked body's right edge is structural and stays local, so Enter can
+  make room for the next section without adding blank lines to every peer. A break within the
+  body still mirrors. If ordinary lyrics follow the terminal break, the post-change parse proves
+  the same section grew and the new tail mirrors; a new header leaves the old body unchanged and
+  stays outside the link. A final divergent run keeps its greedy, local edge.
 - The whole invariant rests on every edit reporting its honest size — `narrowEdit` in
   `performers/transform.ts` is that repair, and it belongs in the transform, never as a
   mirror exemption. Pinned in `section-links.svelte.test.ts` and
@@ -31,16 +36,20 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
   does not turn it off. Turning it off preserves those differences and resumes mirroring shared
   text. The picker renders it as a switch and stays open when it changes. The active header carries
   a danger rail, red wash, and `Editing this section only` label.
-- The card shows a diff (context = the shared runs either side, never "the rest of the
-  line"), decides by radio pair, names the winning copy in a dropdown (`replaceFrom`), and
-  turns rows into what would happen (`del`/`ins`, struck through as well as coloured).
+- The card sits beside the header when its full width fits, falling back above/below on narrow
+  canvases. Its diff states the shared location once, then lists each distinct wording once with
+  every section that uses it; an absent wording says `No words here`. It decides by radio pair,
+  names the winning copy in a dropdown (`replaceFrom`), and turns rows into what would happen
+  (`del`/`ins`, struck through as well as coloured).
   `winningText` follows `winningWording`: the picked copy unless empty, then the first with
   words. The card is pinned by its top (`pinnedTop`); applying collapses the selection —
   load-bearing, or the card reopens.
 - `section.unlinked-repeat` gates on `worthLinking` (some pair passing the core-owned
   half-the-shorter-body similarity predicate; empty copies neither count nor count against);
   it remains same-semantic only, is a `suggestion` with no fix
-  whose action opens the picker; suppression lives in `filterForEditorState`, and links
+  whose action opens the picker from the exact primary or related occurrence that exposed it;
+  suppression lives in `filterForEditorState` and retires the finding only when one group covers
+  every reported occurrence, so a newly pasted copy keeps the action at its own header; links
   moving without an edit must ask for a snapshot (`republishForSectionLinks`, run
   `untrack`ed).
 - Undo needs `invertedEffects` carrying groups *and runs*, and the restore effect must
@@ -228,6 +237,30 @@ performer's name: the document is never briefly inconsistent, one snapshot is em
 restores every section at once. A second `view.dispatch` would give the user one undo step per linked
 section for something they typed once.
 
+#### The last line is both lyric text and a way out of the section
+
+Press Enter in the middle of a linked body and the intent is clear: a repeated lyric line is being
+split or a new one is being inserted among the repeated words, so the break mirrors. Press Enter at
+the body's exact right edge and the intent is not clear yet. It may extend the chorus, or it may be
+the blank space before `[Verse 3]`. Mirroring immediately chose the first interpretation and added
+blank lines beneath every earlier chorus while the transcriber was trying to continue the song at
+the foot of the document.
+
+**The bare terminal break is therefore structural and local.** The post-change parse decides what
+happens next. If a header begins, the old section's body still ends where it did and every character
+of the new section remains outside the link. If ordinary lyric text begins instead, the parser
+extends the same section across the waiting break; that is the first unambiguous evidence that the
+chorus itself grew, so the complete new tail is inserted at every peer's body end. From the next
+character onward it is ordinary shared text again. This keeps both natural sequences intact:
+Enter, Enter, `[Verse]` creates one new section, while Enter followed by another lyric adds that
+line to each linked copy.
+
+An explicit local mode or a divergent run already reaching the body's end keeps the extension
+local. In that case the new tail extends the existing difference (or creates a corresponding
+zero-width run in each peer), preserving the rule that a divergent run owns edits at its greedy
+edge. The boundary regressions in `section-links.svelte.test.ts` pin all four cases: middle break,
+terminal break before a header, shared terminal lyric, and local terminal lyric.
+
 #### Making copies agree is asked for per difference
 
 `keepDifferent[i] === false` collapses difference `i` to one wording. **That wording is the source's**
@@ -309,10 +342,18 @@ below. The radio's own accessible name says what it does without it
 (`Replace them with another section's version`), because a name that stops mid-sentence at a
 `<select>` is not a sentence.
 
-**The diff shows each version inside its own line.** `før, du kunne spørt meg` on its own says
-nothing about where in the chorus it sits, or that the other copies simply stop there. So each row
-is the run with its neighbours around it: the shared halves muted, the divergent run marked, and the
-versions stacked so the only thing that moves between them is the run.
+**The diff says the shared location once, then shows only the distinct wordings.** A floating
+`før, du kunne spørt meg` still says nothing about where in the chorus it sits, so the shared runs
+on either side are retained as a short `Between … and …` location. Repeating that context in every
+section row was the mistake: in a three-section group it made the reader compare three mostly
+identical lyric lines to discover that only two actual versions existed. The location is one fact
+about one difference and is printed once above its versions.
+
+**Sections that agree share a version row.** `Refreng 1 & 2` followed by one phrase says immediately
+that those copies agree and leaves the other wording as the only alternative to compare. Printing
+one row per section made agreement look like more disagreement and made eight differences grow into
+twenty-four lyric rows. The grouping is exact text equality; it changes presentation only, not the
+stored merge shape or which section can win in the dropdown.
 
 **That context is the shared runs either side, and never "the rest of the line".** Clipped to the
 line it was drawn from, the context stopped at whatever line boundary each copy happened to have —
@@ -324,12 +365,13 @@ leading `…`, because the shared run either side of a difference can be the who
 
 **The lyric wraps rather than truncating.** Set to one line with an ellipsis, the run itself — the
 one thing the row exists to show — was the part that got cut off, and there was nowhere to scroll to
-see it. Wrapping means the run is always whole and only the context is ever abbreviated, which is
-the right way round. The list keeps a `max-height` so a long comparison scrolls.
+see it. Wrapping means the run is always whole and only the one shared location is ever abbreviated,
+which is the right way round. The list keeps a `max-height` so a long comparison scrolls.
 
-**A copy that has nothing there gets an insertion caret, not the words "nothing here".** It is the
-mark a diff already uses, it sits at the exact point the other copies' words would go, and it costs
-the row no width it would have to take from the lyric.
+**A version with nothing there says `No words here`.** The insertion caret it replaced was compact
+but cryptic outside a conventional side-by-side patch: it asked the reader to infer that an
+unlabelled bar meant an absent phrase. The location is already stated above, so plain language names
+the only remaining fact.
 
 **The highlight ends where the run ends.** It carried a one-pixel `box-shadow` spread to fake
 padding, which drew a band a pixel out on every side — read down a column of rows that is a stripe
@@ -366,10 +408,6 @@ outcome nobody chose.
 copy's version, unless it is empty, in which case the first copy with words wins. The two have to
 agree, because this row is a promise about what that function is going to do.
 
-**An insertion caret only survives into the replacing state on a row that is not changing.**
-Everywhere else the green insertion has taken its place, which is a better answer to "where do the
-words go" than a bar.
-
 **The two outcomes are one control each, not two rows apart.** Given `--control-height-sm` and their
 own padding they sat a whole row apart with nothing between them, which reads as two separate things
 rather than as one either/or. The heading over the diff takes the opposite correction: with only the
@@ -385,7 +423,14 @@ neither can be read two ways.
 
 The diff is **information, not a control**. Nothing in it is pressable.
 
-#### The card is pinned, not frozen
+#### The card uses the empty column, then pins rather than freezing
+
+**The full-width card goes to the right of the header whenever that column can hold it.** A lyric
+line is horizontal and the workbench is ordinarily wider than its text, so placing the picker
+above or below spent scarce vertical room while covering lyrics and leaving the empty right side
+unused. The side placement keeps the card out of the text, moves its top upward only as far as its
+current height requires, and caps it at the viewport edge. If the full 24rem width does not fit,
+the existing above/below placement remains the narrow-canvas fallback.
 
 What the old "must not resize" rule was really protecting is the **position** of whatever the
 pointer is on. The card hangs from its bottom edge, so anything appearing lower down pushes the
@@ -402,8 +447,9 @@ card has drawn, after which the card extends downwards into space the user is no
 Three things go with it:
 
 - Only the `above` placement needs it; `below` is already measured from its top.
-- `--ll-room` is what is left below the pinned top, so a long diff scrolls rather than putting the
-  actions out of reach.
+- `--ll-room` is the actual space from that top to the viewport edge, with no minimum that can
+  extend past the window. It caps beside, pinned-above, and already-top-anchored below cards, so a
+  long diff scrolls and every control remains reachable.
 - The diff list keeps a `max-height` of its own for the same reason.
 
 `section-links.svelte.test.ts` asserts the card's top **and the ticked row's own top** are unchanged
@@ -503,6 +549,11 @@ Four things it still owes:
 performers` as a guided action on the shared row rather than inventing a fourth kind of fix. The
   picker is also the honest surface: a card cannot show a three-section reconciliation as a diff, and
   the picker names every member and every difference before anything runs.
+- **The occurrence that exposed the diagnostic is the picker source.** A repeat diagnostic has one
+  primary header and draws the same underline over every related header. Its popover already stays
+  anchored to the particular underline under the pointer; `Manage linking` carries that range
+  forward too. Reverting to the diagnostic's primary range made a card opened from Pre-Chorus 2 call
+  Pre-Chorus 1 “this section”, even while the pointer and popover were beside the second copy.
 - **It arbitrates nothing, and the picker preselects nothing.** The rule points and stops there.
 - **It anchors on a copy that has words**, never an empty one, so a copy the user is filling always
   has somewhere to take the words from.
@@ -517,6 +568,15 @@ about the links — and `filterForEditorState` in `wiring.ts` is where that alre
 runs on every snapshot while the lint itself is memoized on the document. A link made or taken off
 changes no text, so a rule that learned about links through its context would keep the answered
 suggestion on screen until the next keystroke.
+
+**It is answered only when one link covers every occurrence the diagnostic reports.** The rule has
+one primary range and the other copies as related ranges. Checking only the primary made a partial
+link look complete, because that primary is the first copy with words and is ordinarily one of the
+two already tied together. Paste a third copy lower in the document and its nearby `Manage linking`
+action disappeared with the finding; the only route left was scrolling back to a `⇄` marker on the
+old group, where the third copy happened to appear in the list. The complete set is checked now, so
+the same finding and underline reach the new header. Two separate link groups stay visible too:
+every occurrence has membership, but no correction crosses from one group to the other.
 
 **Which means something has to ask for a snapshot when the links move, because the editor will not.**
 An effects-only transaction deliberately emits none (`update-bridge.ts`: the shell reacts to snapshots

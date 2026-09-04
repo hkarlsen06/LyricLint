@@ -102,13 +102,7 @@ describe('PerformerPicker layout', () => {
 		expect(actionStyle.borderTopLeftRadius).not.toBe(getComputedStyle(chip!).borderTopLeftRadius);
 	});
 
-	it('wraps a crowded roster instead of scrolling it, the add control in the same flow', async () => {
-		// Regression: the roster was a horizontally scrollable track with a hidden
-		// bar and an edge fade, and a pre-selected chip scrolled past the edge was
-		// still part of what Apply wrote — a joint assignment decided by state the
-		// card never showed. The track, the fade, and the `.add-slot` sibling
-		// existed only to manage that clipping, so they are gone with it: one
-		// wrapping row holds every chip and the add control.
+	it('places Add voice below Apply instead of among the voice chips', async () => {
 		await render(PerformerPicker, {
 			performers: crowdedRoster(),
 			initialSelectedIds: ['leif tore'],
@@ -122,30 +116,28 @@ describe('PerformerPicker layout', () => {
 		expect(document.querySelector('.add-slot')).toBeNull();
 
 		const roster = document.querySelector<HTMLElement>('.roster');
-		const add = document.querySelector<HTMLButtonElement>('.chip--add');
+		const actions = document.querySelector<HTMLElement>('.actions');
+		const apply = document.querySelector<HTMLButtonElement>('.apply');
+		const add = document.querySelector<HTMLButtonElement>('.add-voice');
 		const plus = add?.querySelector<SVGElement>('svg');
 		expect(roster).not.toBeNull();
+		expect(actions).not.toBeNull();
+		expect(apply).not.toBeNull();
 		expect(add).not.toBeNull();
 		expect(plus).not.toBeNull();
 		await new Promise(requestAnimationFrame);
 
-		// Nothing is clipped: the roster holds its chips without horizontal
-		// overflow, taking a second row instead of an edge to scroll past.
-		expect(roster!.scrollWidth).toBeLessThanOrEqual(roster!.clientWidth);
-		const chips = [...roster!.querySelectorAll<HTMLElement>('.chip')];
-		expect(
-			new Set(chips.map((chip) => Math.round(chip.getBoundingClientRect().top))).size
-		).toBeGreaterThan(1);
-
-		// The add control follows the last chip in the same flow, not in a fixed
-		// slot beside a scrolling viewport.
-		expect(chips.at(-1)).toBe(add);
+		expect(roster!.contains(add)).toBe(false);
+		expect(actions!.contains(add)).toBe(true);
+		expect(add!.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+			apply!.getBoundingClientRect().bottom
+		);
 		expect(plus!.getBoundingClientRect().width).toBeGreaterThan(12);
 	});
 
 	it('keeps a roster that fits on a single line', async () => {
 		await render(PerformerPicker, {
-			performers: crowdedRoster().slice(0, 1),
+			performers: crowdedRoster().slice(0, 2),
 			onApply: vi.fn(),
 			onCancel: vi.fn(),
 			returnFocus: () => {},
@@ -155,9 +147,16 @@ describe('PerformerPicker layout', () => {
 		const roster = document.querySelector<HTMLElement>('.roster');
 		expect(roster).not.toBeNull();
 		await new Promise(requestAnimationFrame);
-		const chips = [...roster!.querySelectorAll<HTMLElement>('.chip')];
-		expect(chips.length).toBeGreaterThan(1);
-		expect(new Set(chips.map((chip) => Math.round(chip.getBoundingClientRect().top))).size).toBe(1);
+		const controls = [...roster!.querySelectorAll<HTMLElement>('[data-picker-chip]')];
+		expect(controls).toHaveLength(2);
+		expect(
+			new Set(
+				controls.map((control) => {
+					const box = control.getBoundingClientRect();
+					return Math.round(box.top + box.height / 2);
+				})
+			).size
+		).toBe(1);
 	});
 
 	it('explains when clearing the main performer cannot remove any formatting', async () => {
@@ -498,6 +497,35 @@ describe('PerformerPicker step bar', () => {
 });
 
 describe('PerformerPicker unknown voices', () => {
+	it('makes Add voice the named-voice CTA and keeps Unknown voice secondary', async () => {
+		await render(PerformerPicker, {
+			performers: crowdedRoster().slice(0, 2),
+			initialSelectedIds: [],
+			allowRemoval: false,
+			canAddUnknown: true,
+			onAssignUnknown: vi.fn(),
+			onAddPerformer: vi.fn(),
+			onApply: vi.fn(),
+			onCancel: vi.fn(),
+			returnFocus: () => {}
+		});
+
+		const add = document.querySelector<HTMLButtonElement>('.add-voice');
+		const unknown = document.querySelector<HTMLButtonElement>('.chip--unknown-new');
+		expect(add?.textContent?.trim()).toBe('Add voice');
+		expect(add?.classList.contains('button')).toBe(true);
+		expect(add?.classList.contains('button--contrast')).toBe(true);
+		expect(unknown?.classList.contains('button--contrast')).toBe(false);
+
+		// Once a named voice is selected, Apply becomes the sole contrast action;
+		// Add voice remains a filled default button above the dashed fallback.
+		await userEvent.click(page.getByRole('button', { name: 'Leif Tore' }));
+		expect(add?.classList.contains('button--contrast')).toBe(false);
+		expect(document.querySelector('.actions button')?.classList.contains('button--contrast')).toBe(
+			true
+		);
+	});
+
 	it('draws an act-on-press chip per unknown slot, styled and named without color', async () => {
 		const onAssignUnknown = vi.fn();
 		await render(PerformerPicker, {

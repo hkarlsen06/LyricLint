@@ -101,6 +101,11 @@
 	let activeIndex = $state(0);
 	let keyboardNavigated = $state(false);
 	let root: HTMLDivElement;
+	const EDGE = 8;
+	const GAP = 6;
+	let beside = $state(false);
+	let besideTop = $state<number | undefined>();
+	let placementFrame: number | undefined;
 	const mac = 'navigator' in globalThis && /Mac|iPhone|iPad|iPod/iu.test(navigator.platform);
 	// `Mod-Shift-L`, the editor's own binding for the same command — one chord,
 	// pressable in the document and in this card alike.
@@ -176,9 +181,50 @@
 		new Map(others.map((occurrence, index) => [occurrence.headerFrom, index]))
 	);
 
-	const labelFor = $derived(
-		new Map(occurrences.map((occurrence) => [occurrence.headerFrom, sectionName(occurrence)]))
-	);
+	type DifferenceWording = LinkDifference['wordings'][number];
+
+	function sectionGroupLabel(headers: readonly number[]): string {
+		const members = headers.flatMap((header) => {
+			const occurrence = occurrences.find((candidate) => candidate.headerFrom === header);
+			return occurrence ? [occurrence] : [];
+		});
+		const allSameKind = current?.sameKind && members.every((member) => member.sameKind);
+		const parts = allSameKind
+			? members.map((member) => String(member.ordinal))
+			: members.map(sectionName);
+		const joined =
+			parts.length < 3 ? parts.join(' & ') : `${parts.slice(0, -1).join(', ')} & ${parts.at(-1)}`;
+		return allSameKind ? `${kind} ${joined}` : joined;
+	}
+
+	/**
+	 * Show each distinct wording once. Repeating an identical lyric under three
+	 * section names makes the reader compare rows that do not differ; joining the
+	 * names leaves only the alternatives that need attention.
+	 */
+	function versionsFor(difference: LinkDifference): Array<{
+		text: string;
+		label: string;
+		representative: DifferenceWording;
+	}> {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a local accumulator discarded before the render reads it
+		const groups = new Map<string, DifferenceWording[]>();
+		for (const wording of difference.wordings) {
+			groups.set(wording.text, [...(groups.get(wording.text) ?? []), wording]);
+		}
+		return [...groups.entries()].flatMap(([text, wordings]) => {
+			const representative = wordings[0];
+			return representative
+				? [
+						{
+							text,
+							label: sectionGroupLabel(wordings.map((wording) => wording.headerFrom)),
+							representative
+						}
+					]
+				: [];
+		});
+	}
 
 	/**
 	 * Copies that say the same thing are one possible replacement, not several
@@ -199,20 +245,10 @@
 			groups.set(version, [...(groups.get(version) ?? []), header]);
 		}
 		return [...groups.values()].map((members) => {
-			const memberOccurrences = members.flatMap((header) => {
-				const occurrence = occurrences.find((candidate) => candidate.headerFrom === header);
-				return occurrence ? [occurrence] : [];
-			});
-			const allSameKind = current?.sameKind && memberOccurrences.every((member) => member.sameKind);
-			const parts = allSameKind
-				? memberOccurrences.map((member) => String(member.ordinal))
-				: memberOccurrences.map(sectionName);
-			const joined =
-				parts.length < 3 ? parts.join(' & ') : `${parts.slice(0, -1).join(', ')} & ${parts.at(-1)}`;
 			return {
 				value: members[0] ?? currentHeaderFrom,
 				members,
-				label: allSameKind ? `${kind} ${joined}` : joined
+				label: sectionGroupLabel(members)
 			};
 		});
 	});
@@ -258,13 +294,55 @@
 	);
 
 	const top = $derived(
-		pinnedTop ?? Math.max(8, placement === 'above' ? (anchor?.top ?? 8) : (anchor?.bottom ?? 0) + 6)
+		besideTop ??
+			pinnedTop ??
+			Math.max(EDGE, placement === 'above' ? (anchor?.top ?? EDGE) : (anchor?.bottom ?? 0) + GAP)
 	);
 	const position = $derived(
 		anchor
-			? `--ll-anchor-left: ${Math.max(8, anchor.left)}px; top: ${top}px; --ll-room: ${Math.max(120, window.innerHeight - top - 8)}px;`
+			? `--ll-anchor-left: ${Math.max(EDGE, anchor.left)}px; --ll-anchor-right: ${anchor.right}px; top: ${top}px; --ll-room: ${Math.max(0, window.innerHeight - top - EDGE)}px;`
 			: undefined
 	);
+
+	/**
+	 * Prefer the unused column beside the header when the complete card width fits.
+	 * Its top may move upward just enough for the card's current height to fit;
+	 * after that it stays fixed, so revealing a diff still cannot move a row under
+	 * the pointer. Narrow viewports keep the established above/below placement.
+	 */
+	function resolvePlacement(): void {
+		if (!anchor || !root) {
+			return;
+		}
+		if (placementFrame !== undefined) {
+			cancelAnimationFrame(placementFrame);
+			placementFrame = undefined;
+		}
+		const measured = root.getBoundingClientRect();
+		const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+		const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+		const fitsBeside = anchor.right + GAP + measured.width <= viewportWidth - EDGE;
+		beside = fitsBeside;
+		pinnedTop = undefined;
+		if (fitsBeside) {
+			const naturalHeight = root.scrollHeight + measured.height - root.clientHeight;
+			const visibleHeight = Math.min(naturalHeight, Math.max(0, viewportHeight - EDGE * 2));
+			besideTop = Math.max(EDGE, Math.min(anchor.top, viewportHeight - visibleHeight - EDGE));
+			return;
+		}
+		besideTop = undefined;
+		if (placement === 'above') {
+			// Let the class change remove any former beside placement before reading
+			// the transformed above position that becomes the permanent top.
+			placementFrame = requestAnimationFrame(() => {
+				const measuredTop = root?.getBoundingClientRect().top;
+				if (measuredTop !== undefined) {
+					pinnedTop = Math.max(EDGE, measuredTop);
+				}
+				placementFrame = undefined;
+			});
+		}
+	}
 
 	function rowInputs(): HTMLInputElement[] {
 		return root ? [...root.querySelectorAll<HTMLInputElement>('[data-link-row]')] : [];
@@ -417,23 +495,16 @@
 		}
 	}
 
-	/**
-	 * Enough of the line either side to place the run, and no more.
-	 *
-	 * Trimmed towards the middle rather than left to the browser's own ellipsis,
-	 * which cuts from the end and would drop the run itself off the edge of a
-	 * narrow card whenever the line's opening is long. A leading `…` says the line
-	 * carries on.
-	 */
+	/** Enough shared text to locate a difference without repeating it per version. */
 	const CONTEXT = 22;
 
 	function lead(before: string): string {
-		const flat = oneLine(before);
+		const flat = oneLine(before).trim();
 		return flat.length > CONTEXT ? `…${flat.slice(-CONTEXT)}` : flat;
 	}
 
 	function trail(after: string): string {
-		const flat = oneLine(after);
+		const flat = oneLine(after).trim();
 		return flat.length > CONTEXT ? `${flat.slice(0, CONTEXT)}…` : flat;
 	}
 
@@ -469,15 +540,8 @@
 		if (takesFocus) {
 			focusActive();
 		}
-		// After the first paint, so the measurement is of a card that has drawn.
-		if (anchor && placement === 'above') {
-			requestAnimationFrame(() => {
-				const measured = root?.getBoundingClientRect().top;
-				if (measured !== undefined) {
-					pinnedTop = Math.max(8, measured);
-				}
-			});
-		}
+		resolvePlacement();
+		window.addEventListener('resize', resolvePlacement);
 		// The card takes focus as it opens, so :focus-visible would ring the first
 		// row before anyone navigated to it. Reveal on the first Tab or arrow.
 		const revealFocusRing = (event: KeyboardEvent): void => {
@@ -486,7 +550,13 @@
 			}
 		};
 		window.addEventListener('keydown', revealFocusRing, true);
-		return () => window.removeEventListener('keydown', revealFocusRing, true);
+		return () => {
+			window.removeEventListener('resize', resolvePlacement);
+			window.removeEventListener('keydown', revealFocusRing, true);
+			if (placementFrame !== undefined) {
+				cancelAnimationFrame(placementFrame);
+			}
+		};
 	});
 </script>
 
@@ -495,6 +565,7 @@
 	class:anchored={anchor}
 	class:below={anchor && placement === 'below'}
 	class:pinned={pinnedTop !== undefined}
+	class:beside={anchor && beside}
 	style={position}
 	{@attach dismissOnOutside(dismiss)}
 >
@@ -562,10 +633,9 @@
 		</ul>
 
 		{#if headers.length > 1}
-			<!-- A diff, not a control. Each version on its own line under the name of
-			     the section it belongs to, and each shown *in* its own line so the
-			     shared halves stack up and the differing run is the only thing that
-			     moves. Nothing in here is pressable. -->
+			<!-- A diff, not a control. Shared context appears once as a location, then
+			     only the distinct wordings are listed. Sections that agree share a row,
+			     so everything repeated here is a real alternative. -->
 			<p class="compare__head">
 				{differences.length === 0
 					? 'These copies say the same thing.'
@@ -575,23 +645,44 @@
 				<ul class="compare">
 					{#each differences as difference (difference.index)}
 						{@const winning = winningText(difference)}
-						{#each difference.wordings as wording (wording.headerFrom)}
-							{@const settled = !replacing || wording.text === winning}
-							<li class="compare__side" class:compare__side--settled={replacing && settled}>
-								<span class="compare__who">{labelFor.get(wording.headerFrom) ?? ''}</span>
-								<span class="compare__line" title={fullLine(wording)}
-									><span class="compare__shared">{lead(wording.before)}</span
-									>{#if settled}{#if wording.text}<span class="compare__run"
-												>{oneLine(wording.text)}</span
-											>{:else}<span class="compare__run compare__run--empty" aria-hidden="true"
-											></span><span class="sr-only">nothing here</span
-											>{/if}{:else}{#if wording.text}<del class="compare__drop"
-												>{oneLine(wording.text)}</del
-											>{/if}{#if winning}<ins class="compare__add">{oneLine(winning)}</ins
-											>{/if}{/if}<span class="compare__shared">{trail(wording.after)}</span></span
-								>
-							</li>
-						{/each}
+						{@const representative = difference.wordings[0]}
+						{@const before = representative ? lead(representative.before) : ''}
+						{@const after = representative ? trail(representative.after) : ''}
+						<li class="compare__difference">
+							<p class="compare__context">
+								{#if before && after}
+									Between <span class="compare__quote">{before}</span> and
+									<span class="compare__quote">{after}</span>
+								{:else if before}
+									After <span class="compare__quote">{before}</span>
+								{:else if after}
+									Before <span class="compare__quote">{after}</span>
+								{:else}
+									The whole section
+								{/if}
+							</p>
+							<ul class="compare__versions">
+								{#each versionsFor(difference) as version (version.text)}
+									{@const settled = !replacing || version.text === winning}
+									<li class="compare__side" class:compare__side--settled={replacing && settled}>
+										<span class="compare__who">{version.label}</span>
+										<span class="compare__line" title={fullLine(version.representative)}>
+											{#if settled}
+												{#if version.text}
+													<span class="compare__run">{oneLine(version.text)}</span>
+												{:else}
+													<span class="compare__empty">No words here</span>
+												{/if}
+											{:else}
+												{#if version.text}<del class="compare__drop">{oneLine(version.text)}</del
+													>{/if}
+												{#if winning}<ins class="compare__add">{oneLine(winning)}</ins>{/if}
+											{/if}
+										</span>
+									</li>
+								{/each}
+							</ul>
+						</li>
 					{/each}
 				</ul>
 			{/if}
@@ -759,15 +850,22 @@
 		transform: translateY(calc(-100% - 0.45rem));
 	}
 
-	/* Measured once it has drawn, after which the top is where it stays and the
-	   card extends downwards — see `pinnedTop`. `--ll-room` is what is left below
-	   it, so a comparison longer than the screen scrolls rather than putting the
-	   actions out of reach. */
+	/* A beside or below card already grows from a fixed top; an above card joins
+	   them once its initial top has been measured and pinned. Every form needs the
+	   actual room below that top. A minimum here would put the bottom back outside
+	   a short viewport, so the card itself scrolls even when only a sliver remains. */
+	.anchored.beside,
+	.anchored.below,
 	.anchored.pinned {
 		max-height: var(--ll-room);
-		transform: none;
 	}
 
+	.anchored.beside {
+		left: calc(var(--ll-anchor-right) + 6px);
+	}
+
+	.anchored.beside,
+	.anchored.pinned,
 	.anchored.below {
 		transform: none;
 	}
@@ -824,8 +922,48 @@
 		align-content: start;
 		margin: 0;
 		padding: 0;
-		gap: var(--space-0-5);
+		gap: var(--space-2);
 		overflow-y: auto;
+		list-style: none;
+	}
+
+	.compare__difference {
+		display: grid;
+		gap: var(--space-1);
+	}
+
+	.compare__difference + .compare__difference {
+		padding-block-start: var(--space-2);
+		border-block-start: var(--border-width) solid var(--color-border);
+	}
+
+	.compare__context {
+		margin: 0;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		font-weight: var(--font-weight-regular);
+	}
+
+	.compare__quote {
+		color: var(--color-text);
+		font-family: var(--font-mono);
+	}
+
+	.compare__quote::before,
+	.compare__quote::after {
+		color: var(--color-text-muted);
+		content: '“';
+	}
+
+	.compare__quote::after {
+		content: '”';
+	}
+
+	.compare__versions {
+		display: grid;
+		margin: 0;
+		padding: 0;
+		gap: var(--space-0-5);
 		list-style: none;
 	}
 
@@ -833,20 +971,20 @@
 		display: grid;
 		align-items: baseline;
 		gap: var(--space-1-5);
-		grid-template-columns: auto 1fr;
+		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
 	}
 
 	.compare__who {
+		min-width: 0;
 		color: var(--color-text-muted);
 		font-size: var(--font-size-xs);
 		font-weight: var(--font-weight-regular);
 		font-variant-numeric: tabular-nums;
-		white-space: nowrap;
+		overflow-wrap: anywhere;
 	}
 
-	/* The lyric, in the editor's own face: the row is quoting the document rather
-	   than naming a section. One line, so two versions of the same line sit
-	   directly above one another and only the run between them moves. */
+	/* The lyric, in the editor's own face: only the divergent run is repeated.
+	   Its shared location is stated once above the versions. */
 	.compare__line {
 		min-width: 0;
 		font-family: var(--font-mono);
@@ -856,10 +994,11 @@
 		white-space: pre-wrap;
 	}
 
-	/* The shared halves are context, not content: quiet, so the eye lands on the
-	   one span in the row that is actually different. */
-	.compare__shared {
+	.compare__empty {
 		color: var(--color-text-muted);
+		font-family: var(--font-ui);
+		font-style: italic;
+		font-weight: var(--font-weight-regular);
 	}
 
 	/* No `box-shadow` spread. It painted a band a pixel out from the run on every
@@ -873,20 +1012,6 @@
 		border-radius: var(--radius-sm);
 		background: var(--color-warning-soft);
 		color: var(--color-text);
-	}
-
-	/* Where this copy simply stops, or has nothing yet. An insertion caret rather
-	   than the words "nothing here": it is the same mark a diff uses, it sits at
-	   the exact point the other copies' words would go, and it costs the row no
-	   width it would have to steal from the lyric. */
-	.compare__run--empty {
-		display: inline-block;
-		width: 0;
-		height: 1em;
-		padding: 0;
-		border-inline-start: 2px solid var(--color-warning);
-		background: none;
-		vertical-align: -0.2em;
 	}
 
 	/* Once replacing is chosen, a row that is changing shows the change rather
@@ -920,15 +1045,6 @@
 	   change, so it is marked as the version rather than as an edit. */
 	.compare__side--settled .compare__run {
 		background: var(--color-success-surface);
-	}
-
-	/* A caret only survives into the replacing state on a row that is not changing
-	   — where the winning version is itself nothing. Everywhere else the green
-	   insertion has taken its place, which is a better answer to "where do the
-	   words go" than a bar. */
-	.compare__side--settled .compare__run--empty {
-		border-inline-start-color: var(--color-success);
-		background: none;
 	}
 
 	.compare__side--settled .compare__who {

@@ -313,12 +313,14 @@
 		});
 	}
 
-	// The diagnostic's own range is the header, and the picker takes it as both
-	// the anchor and the source it links from — which the rule guarantees is a
-	// section with words in it, never the empty repeat about to be filled.
-	function startSectionLink(diagnostic: Diagnostic): void {
+	// Every primary and related range is one occurrence's header. Keep the exact
+	// occurrence that opened the diagnostic: falling back to `diagnostic.from`
+	// here made Manage linking call the first copy “this section” even when the
+	// user reached the card from a later copy's underline.
+	function startSectionLink(diagnostic: Diagnostic, occurrence?: TextRange): void {
+		const range = occurrence ?? { from: diagnostic.from, to: diagnostic.to };
 		internalCallbacks().onSectionLinkRequest?.({
-			range: { from: diagnostic.from, to: diagnostic.to },
+			range,
 			prefer: 'above'
 		});
 	}
@@ -985,7 +987,8 @@
 		onAssignPerformers={legendTarget(diagnosticOverlay.diagnostic)
 			? () => startLegendAssignment(diagnosticOverlay.diagnostic)
 			: undefined}
-		onLinkSections={() => startSectionLink(diagnosticOverlay.diagnostic)}
+		onLinkSections={() =>
+			startSectionLink(diagnosticOverlay.diagnostic, diagnosticOverlay.anchorRange)}
 		onSetLanguage={callbacks.onSetLanguage ? setLanguage : undefined}
 		onIgnore={ignoreDiagnostic}
 		onDismiss={(heldFocus) => {

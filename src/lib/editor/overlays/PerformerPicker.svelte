@@ -111,7 +111,7 @@
 	/** Unknown chips only draw with a press to receive; a list without the handler is decoration. */
 	const shownUnknownSlots = $derived(onAssignUnknown ? unknownSlots : []);
 	const showsNewUnknown = $derived(canAddUnknown && onAssignUnknown !== undefined);
-	/** The add chip's roving-tabindex position, after every performer and unknown chip. */
+	/** The add control's roving-tabindex position, after every performer and unknown chip. */
 	const addChipIndex = $derived(
 		performers.length + shownUnknownSlots.length + (showsNewUnknown ? 1 : 0)
 	);
@@ -214,7 +214,9 @@
 		const rosterStop = adding ? addInput : chipButtons()[activeIndex];
 		return [
 			...(rosterStop ? [rosterStop] : []),
-			...root.querySelectorAll<HTMLButtonElement>('.actions button:not(:disabled)')
+			...root.querySelectorAll<HTMLButtonElement>(
+				'.actions button:not([data-picker-chip]):not(:disabled)'
+			)
 		];
 	}
 
@@ -269,7 +271,7 @@
 	}
 
 	/**
-	 * A whole answer on one press, exactly as the dashed add chip acts on press:
+	 * A whole answer on one press, exactly as the named-voice action acts on press:
 	 * an unknown voice cannot be combined with a named one — a joint group with
 	 * an unidentified member has no legend to be written into — so there is no
 	 * selection state to accumulate and nothing for Apply to add.
@@ -359,7 +361,7 @@
 				? event.target.closest<HTMLButtonElement>('[data-performer]')
 				: null;
 		const addButton =
-			event.target instanceof HTMLElement ? event.target.closest('.chip--add') : null;
+			event.target instanceof HTMLElement ? event.target.closest('.add-voice') : null;
 		switch (event.key) {
 			case 'ArrowRight':
 			case 'ArrowDown':
@@ -505,11 +507,10 @@
 				</button>
 			{/each}
 			{#if showsNewUnknown}
-				<!-- Dashed, with the plus, like the add chip — because it is the same
-					     kind of answer: it mints something rather than choosing something
-					     already here. An existing unknown draws as a plain styled chip,
-					     and this pair of cues is what keeps "join the italic unknown"
-					     and "add another unknown voice" from reading as synonyms. -->
+				<!-- Dashed and muted because an unknown voice is the fallback answer,
+				     not the named-voice CTA. An existing unknown draws as a plain styled
+				     chip, while the plus distinguishes minting a fresh unknown from joining
+				     one already present. -->
 				<button
 					type="button"
 					class="chip chip--unknown chip--unknown-new"
@@ -523,32 +524,15 @@
 					<span class="sr-only">New unknown voice</span>
 				</button>
 			{/if}
-			{#if onAddPerformer}
-				{#if adding}
-					<input
-						bind:this={addInput}
-						bind:value={addName}
-						class="chip chip--input"
-						placeholder="Performer name"
-						aria-label="New performer name"
-						onkeydown={handleAddInputKeydown}
-					/>
-				{:else}
-					<button
-						type="button"
-						class="chip chip--add"
-						data-picker-chip
-						aria-label="Add a performer"
-						tabindex={activeIndex === addChipIndex ? 0 : -1}
-						onclick={beginAdd}
-						onfocus={() => (activeIndex = addChipIndex)}
-					>
-						<Plus aria-hidden="true" size={16} strokeWidth={2.7} />
-					</button>
-					{#if performers.length === 0}
-						<span class="picker__empty-hint">Add a performer</span>
-					{/if}
-				{/if}
+			{#if onAddPerformer && adding}
+				<input
+					bind:this={addInput}
+					bind:value={addName}
+					class="chip chip--input"
+					placeholder="Performer name"
+					aria-label="New performer name"
+					onkeydown={handleAddInputKeydown}
+				/>
 			{/if}
 		</div>
 		<div class="actions">
@@ -558,10 +542,9 @@
 				card is asking for, and the contrast tier is how a surface says
 				"this is what you came to press". Left contrast, the loudest control
 				on the card was advertising *not* answering the question. Bordered
-				is the middle tier, so it stays plainly clickable without being
-				encouraged, and the card simply carries no contrast action while
-				nobody is picked — which is honest, because at that moment there is
-				nothing to press it *for*.
+					is the middle tier, so it stays plainly clickable without being
+					encouraged. When available, Add voice carries the contrast tier until
+					a named answer is ready and Apply takes it.
 			-->
 			<button
 				type="button"
@@ -581,6 +564,20 @@
 					<span aria-hidden="true" class="apply__key">↵</span>
 				{/if}
 			</button>
+			{#if onAddPerformer && !adding}
+				<button
+					type="button"
+					class="button add-voice"
+					class:button--contrast={!canApply || showsEmptyAnswer}
+					data-picker-chip
+					tabindex={activeIndex === addChipIndex ? 0 : -1}
+					onclick={beginAdd}
+					onfocus={() => (activeIndex = addChipIndex)}
+				>
+					<Plus aria-hidden="true" size={16} strokeWidth={2.7} />
+					Add voice
+				</button>
+			{/if}
 			{#if removalUnavailable}
 				<span class="sr-only" id="performer-removal-unavailable">
 					The main performer has no inline formatting to remove.
@@ -787,21 +784,7 @@
 		color: inherit;
 	}
 
-	.chip--add {
-		width: var(--control-height-sm);
-		height: var(--control-height-sm);
-		padding: 0;
-		justify-content: center;
-		border-style: dashed;
-		border-radius: var(--radius-round);
-		color: var(--color-text-muted);
-	}
-
-	.chip--add:hover {
-		color: inherit;
-	}
-
-	.chip--add :global(svg) {
+	.add-voice :global(svg) {
 		flex: none;
 		width: var(--font-size-md);
 		height: var(--font-size-md);
@@ -816,11 +799,6 @@
 		background: transparent;
 		color: inherit;
 		font: inherit;
-	}
-
-	.picker__empty-hint {
-		color: var(--color-text-muted);
-		white-space: nowrap;
 	}
 
 	/* Colors, hover, and disabled treatment come from the global contrast tier;
@@ -855,9 +833,11 @@
 	.actions {
 		/* The roster is the part that gives way when the row runs out of room (it
 		   wraps); without this the actions box shrinks under its own button and
-		   the Apply pill hangs outside the picker's rounded edge. */
+		   the Apply button hangs outside the picker's rounded edge. Add voice lives
+		   below it so it cannot be mistaken for an unknown-voice chip. */
 		flex: none;
 		display: flex;
+		flex-direction: column;
 		gap: var(--space-1-5);
 		padding-inline-start: var(--space-2);
 		border-inline-start: var(--border-width) solid var(--color-border);
