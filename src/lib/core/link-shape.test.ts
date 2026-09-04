@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { alignBodies, expandOverHoles, holeContaining, translateSpan } from './link-shape.js';
+import {
+	alignBodies,
+	bodiesAreSimilarEnoughToLink,
+	expandOverHoles,
+	holeContaining,
+	linkBodySimilarity,
+	translateSpan
+} from './link-shape.js';
 
 /** The divergent runs as their own text, which is what the card ends up showing. */
 function wordings(bodies: readonly string[]): string[][] {
@@ -105,6 +112,37 @@ describe('aligning the copies of a song part', () => {
 			});
 			expect(new Set(shared).size).toBe(1);
 		}
+	});
+});
+
+describe('discovering copies by their shared lyrics', () => {
+	it('scores exact, partial, and unrelated bodies through the link aligner', () => {
+		expect(linkBodySimilarity('\nHold the line', '\nHold the line')).toBe(1);
+		expect(
+			bodiesAreSimilarEnoughToLink(
+				'\nHold the line\nAnd wait for me',
+				'\nHold the line\nAnd wait for now'
+			)
+		).toBe(true);
+		expect(bodiesAreSimilarEnoughToLink('\nHold the line', '\nNothing alike')).toBe(false);
+	});
+
+	it('does not infer similarity from an empty copy', () => {
+		expect(linkBodySimilarity('', '')).toBe(0);
+		expect(linkBodySimilarity('\nHold the line', '')).toBe(0);
+	});
+
+	it("answers exact copies before applying a caller's alignment ceiling", () => {
+		const long = Array.from({ length: 10 }, (_, index) => `line ${index}`).join('\n');
+		expect(linkBodySimilarity(long, long, { maxTokens: 1 })).toBe(1);
+		expect(linkBodySimilarity(long, `${long} changed`, { maxTokens: 1 })).toBe(0);
+	});
+
+	it('applies the discovery ceiling to Unicode-separated words', () => {
+		const left = Array.from({ length: 5 }, (_, index) => `word${index}`).join('\u00a0');
+		const right = left.replace('word4', 'changed');
+
+		expect(linkBodySimilarity(left, right, { maxTokens: 4 })).toBe(0);
 	});
 });
 

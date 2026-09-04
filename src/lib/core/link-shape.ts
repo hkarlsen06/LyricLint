@@ -1,5 +1,5 @@
 // Decision record: docs/subsystems/section-links.md — read it before changing this file, and update it with any behavior change.
-import type { TextRange } from '$lib/core/types.js';
+import type { Section, TextRange } from '$lib/core/types.js';
 
 /**
  * The shape of a link group: which words its members keep in step, and which
@@ -30,6 +30,10 @@ interface Token extends TextRange {
 	text: string;
 }
 
+function isTokenWhitespace(char: string): boolean {
+	return /\s/u.test(char);
+}
+
 /**
  * Above this, the quadratic alignment is abandoned for a whole-body comparison.
  * A chorus is tens of tokens; a document pasted into one section is not a
@@ -37,6 +41,30 @@ interface Token extends TextRange {
  * difference that is honestly there.
  */
 const MAX_TOKENS = 2000;
+
+/**
+ * How much of the shorter body must already be shared before the picker treats
+ * two differently named sections as likely copies of one another.
+ *
+ * This is also the linter's gate for volunteering a repeated song part. One
+ * owner matters here: if discovery and the rule used different thresholds,
+ * two surfaces would give different answers about which lyrics are alike.
+ */
+export const MIN_LINK_SIMILARITY = 0.5;
+
+/** Keep automatic discovery far below the one-off link aligner's hard ceiling. */
+export const MAX_LINK_DISCOVERY_TOKENS = 400;
+
+const SIMILARITY_CACHE_LIMIT = 64;
+const similarityCache = new Map<string, number>();
+
+/** A section body normalized the same way everywhere that discovers copies. */
+export function comparableSectionBody(section: Section): string {
+	return section.lines
+		.map((line) => line.text.trim())
+		.filter((line) => line.length > 0)
+		.join('\n');
+}
 
 /**
  * Words and line breaks, with the whitespace between them left as glue.
@@ -57,18 +85,37 @@ function tokenize(body: string): Token[] {
 			index += 1;
 			continue;
 		}
-		if (/\s/u.test(char)) {
+		if (isTokenWhitespace(char)) {
 			index += 1;
 			continue;
 		}
 		let end = index;
-		while (end < body.length && !/\s/u.test(body[end] ?? '')) {
+		while (end < body.length && !isTokenWhitespace(body[end] ?? '')) {
 			end += 1;
 		}
 		tokens.push({ from: index, to: end, text: body.slice(index, end) });
 		index = end;
 	}
 	return tokens;
+}
+
+/** `tokenize`'s count without allocating the tokens, for discovery ceilings. */
+function tokenCount(body: string): number {
+	let count = 0;
+	let inWord = false;
+	for (let index = 0; index < body.length; index += 1) {
+		const char = body[index];
+		if (char === '\n') {
+			count += 1;
+			inWord = false;
+		} else if (isTokenWhitespace(char ?? '')) {
+			inWord = false;
+		} else if (!inWord) {
+			count += 1;
+			inWord = true;
+		}
+	}
+	return count;
 }
 
 /**
@@ -288,6 +335,52 @@ export function alignBodies(bodies: readonly string[]): TextRange[][] {
 		}
 	}
 	return holesBetween(shared, bodies);
+}
+
+/**
+ * The fraction of the shorter body already shared by two possible copies.
+ *
+ * It deliberately uses `alignBodies`, so the words a discovery score calls
+ * shared are exactly the words the link itself would mirror. Empty bodies have
+ * no evidence of similarity. An exact match is answered before the optional
+ * token ceiling, while a refused non-exact alignment scores zero.
+ */
+export function linkBodySimilarity(
+	left: string,
+	right: string,
+	options: { maxTokens?: number } = {}
+): number {
+	if (left.length === 0 || right.length === 0) {
+		return 0;
+	}
+	if (left === right) {
+		return 1;
+	}
+	const maxTokens = options.maxTokens ?? MAX_TOKENS;
+	if (tokenCount(left) > maxTokens || tokenCount(right) > maxTokens) {
+		return 0;
+	}
+	const key = `${left.length}:${left}\u0000${right}`;
+	let similarity = similarityCache.get(key);
+	if (similarity === undefined) {
+		const holes = alignBodies([left, right]);
+		const own = (holes[0] ?? []).reduce((total, hole) => total + (hole.to - hole.from), 0);
+		similarity = (left.length - own) / Math.min(left.length, right.length);
+		if (similarityCache.size >= SIMILARITY_CACHE_LIMIT) {
+			similarityCache.clear();
+		}
+		similarityCache.set(key, similarity);
+	}
+	return similarity;
+}
+
+/** Whether similarity is strong enough to offer these bodies as copies. */
+export function bodiesAreSimilarEnoughToLink(
+	left: string,
+	right: string,
+	options: { maxTokens?: number } = {}
+): boolean {
+	return linkBodySimilarity(left, right, options) >= MIN_LINK_SIMILARITY;
 }
 
 /**

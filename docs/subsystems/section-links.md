@@ -10,9 +10,10 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
 
 - A group is a merge structure, not a body: stored divergent runs with shared text between
   them identical in every member by construction. Linking writes nothing (`alignBodies`);
-  making copies agree is asked per difference. Only verbatim-repeating parts link
-  (`LINKABLE_SEMANTICS`, via `linkableSemantic`/`headerSemanticKey` in
-  `languages/registry.ts` — semantics, never spelling; English consulted second).
+  making copies agree is asked per difference. The picker opens from any headed section and
+  offers the established same-semantic chorus/pre-/post-chorus set plus differently named
+  sections that share at least half of the shorter body. Existing peers are always retained;
+  similarity discovers intent and never replaces the stored shape.
 - The alignment is decided once and stored as intent — never re-derived live, because a diff
   cannot tell a mistake from a decision. The aligner matches words and line breaks, verifies
   inter-token text byte-for-byte, and hands edge whitespace (only) back to the shared text.
@@ -25,18 +26,20 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
   `performers/transform.ts` is that repair, and it belongs in the transform, never as a
   mirror exemption. Pinned in `section-links.svelte.test.ts` and
   `transform-boundaries.test.ts`.
-- `Type only here` (`Mod-Shift-L`) is a section-scoped toggle. While on, every edit in that
+- `Edit this section only` (`Mod-Shift-L`) is a section-scoped toggle. While on, every edit in that
   member stays local and opens or extends only the divergent run it touches; moving the caret
   does not turn it off. Turning it off preserves those differences and resumes mirroring shared
-  text. The active header carries a danger rail, red wash, and `Editing this section only` label.
+  text. The picker renders it as a switch and stays open when it changes. The active header carries
+  a danger rail, red wash, and `Editing this section only` label.
 - The card shows a diff (context = the shared runs either side, never "the rest of the
   line"), decides by radio pair, names the winning copy in a dropdown (`replaceFrom`), and
   turns rows into what would happen (`del`/`ins`, struck through as well as coloured).
   `winningText` follows `winningWording`: the picked copy unless empty, then the first with
   words. The card is pinned by its top (`pinnedTop`); applying collapses the selection —
   load-bearing, or the card reopens.
-- `section.unlinked-repeat` gates on `worthLinking` (some pair sharing half the shorter
-  copy; empty copies neither count nor count against); it is a `suggestion` with no fix
+- `section.unlinked-repeat` gates on `worthLinking` (some pair passing the core-owned
+  half-the-shorter-body similarity predicate; empty copies neither count nor count against);
+  it remains same-semantic only, is a `suggestion` with no fix
   whose action opens the picker; suppression lives in `filterForEditorState`, and links
   moving without an edit must ask for a snapshot (`republishForSectionLinks`, run
   `untrack`ed).
@@ -90,9 +93,19 @@ now on they move together, apart from the words named in the card. Making copies
 still available and is asked for **per difference**, so the destructive act is something the user
 requests about specific words rather than the price of linking at all.
 
-**Only what a song repeats verbatim may be linked**, which is chorus, pre-chorus and post-chorus
-(`LINKABLE_SEMANTICS`). A verse repeats its shape and not its words, so offering to link two of them
-would be a standing offer to overwrite one with the other. Refrain is deliberately out for now.
+**The section kind is a discovery hint, not a link gate.** Chorus, pre-chorus and post-chorus
+(`LINKABLE_SEMANTICS`) are still offered as complete same-kind sets, including empty copies and
+intentional variations, because those are the parts a transcriber ordinarily repeats verbatim. A
+verse repeats its shape and not its words, so verses are not offered merely for both being verses.
+But any headed section can open the picker, and a differently named section is offered when the
+aligner says it shares at least half of the shorter body. That admits the real cross-name case — an
+Intro whose lyrics return under Chorus or Outro — without filling the card with structurally similar
+but lyrically unrelated verses. The person still ticks the candidate; similarity never links it.
+
+**Existing peers bypass discovery.** After an Intro and Chorus are linked, `Edit this section only`
+can make their current bodies less than half alike. Hiding the Chorus on the next opening would
+present the group as unlinked and remove the way to manage it, so the stored membership is unioned
+into the candidate list regardless of its current score.
 
 **The kind is the language pack's `semanticPart`, never the spelling.** That is what makes this work
 in every supported language without a word of it being written twice: `[Hook]` and `[Refreng]` and
@@ -231,10 +244,10 @@ empty-section special case collapses into the general model rather than needing 
 #### Setting words aside by hand is a selection and a press — and the press was retired
 
 `requestSectionLink` opens the card with a lyric selection offered as a difference, ticked. Its
-keystroke was `Mod-Shift-L`, and that chord now arms `Type only here` instead — a whole card
+keystroke was `Mod-Shift-L`, and that chord now enables `Edit this section only` instead — a whole card
 arriving under a keystroke read as the workbench doing something nobody asked, and the local
 exception covers the job this flow was mostly used for (writing your own words in one copy). The
-machinery stays, on the handle, because the translation below is what `Type only here` and the
+machinery stays, on the handle, because the translation below is what `Edit this section only` and the
 picker's own selection path are built on. The span is **translated** into every peer rather than
 searched for, through
 the same arithmetic the mirror uses: a position in shared text is the same distance from the nearest
@@ -244,18 +257,18 @@ appeared in some copies and not others would leave the group with different coun
 translation downstream refuses, so the link would go quiet rather than fail, which is the worse
 failure.
 
-**`linkTargetAt` answers the keyboard, and `linkableHeaderAt` stays exactly as narrow as it was.**
-That second predicate answers the _pointer_ path, where a card opens uninvited on a bare selection,
-and teaching it about lyric ranges would put the link card on the most common gesture in a text
-editor — beside the performer picker, which is already there. An aimed press has been asked; a
-selection has not. That is the rule _A surface that opens itself has to have been asked_ already
-states, applied to a second surface that wanted the same gesture.
+**`linkTargetAt` answers the keyboard, and `linkableHeaderAt` stays gesture-narrow rather than
+kind-narrow.** Any headed section may now be the source, but the pointer path still requires its
+whole header. Teaching that path about lyric ranges would put the link card on the most common
+gesture in a text editor — beside the performer picker, which is already there. An aimed press has
+been asked; a selection has not. That is the rule _A surface that opens itself has to have been
+asked_ already states, applied to a second surface that wanted the same gesture.
 
 **And the answer about existing differences is resolved before a new one is added.** Inserting first
 would shift every index the user's ticks were given against, silently, and collapse the wrong
 difference.
 
-**`Type only here` belongs to the section, not to a caret position.** The one-shot design made the
+**`Edit this section only` belongs to the section, not to a caret position.** The one-shot design made the
 user predict which edit CodeMirror would report next, then quietly retired itself after that edit.
 Moving to another line of the same chorus restored mirroring without a visible mode change. The
 toggle now survives edits and selection movement and is available anywhere in a linked member,
@@ -272,6 +285,11 @@ the rest of the chorus.
 differences made while it was on remain explicit divergent runs. Shared text mirrors again, while
 typing inside a preserved run remains local by the ordinary containment rule. Reconciliation stays
 in the link card, where the versions and the winning copy are visible before text changes.
+
+**The picker uses a switch and changes in place.** This is a live mode with two durable states, not
+an action that completes the card's task, so flipping it does not dismiss the popover or move focus
+back into the editor. Its `On`/`Off` explanation updates beneath the same control; Escape, outside
+press, and the link marker remain the popover's ways out.
 
 #### The card asks one thing at a time, and shows a diff
 
@@ -576,11 +594,11 @@ links to re-pasted text would be guessing at which of the new headers used to be
 that is silently wrong overwrites work. Line anchors behave the same way for the same reason.
 `section-links.svelte.test.ts` pins this as a decision rather than leaving it as a surprise.
 
-**`Mod-Shift-L` belongs to `Type only here` now, and the picker's ways in are the pointer's own** —
+**`Mod-Shift-L` belongs to `Edit this section only` now, and the picker's ways in are the pointer's own** —
 the `⇄` marker and the diagnostic's guided action. The chord opened this card for a while, and a
 whole card arriving under a keystroke read as the workbench doing something nobody asked; toggling
 the section-local mode is the aimed answer, and the card is where the chord is taught (its
-linked-state note, and the `Type only here` button's own tooltip). Pressing it again turns the mode
+linked-state note, and the `Edit this section only` switch's own tooltip). Pressing it again turns the mode
 off without reconciling the differences made while it was on; see the type-only-here section above.
 `Mod-Shift` and
 deliberately not the `Ctrl-Alt` family the rest of the editor's commands live in — `Ctrl-Alt-L` is
@@ -595,8 +613,12 @@ alike are these copies" is one more than the number that can stay in agreement, 
 predicates and the body range — no CodeMirror either, so `EditorPane` may import it without pulling
 the editor into the landing page's bundle), `src/lib/editor/extensions/section-links.ts` (the two
 fields, the mirror, the decorations), and `SectionLinkPicker.svelte`. **`linkableSemantic` lives in
-`languages/registry.ts`**, beside the `headerSemanticKey` it is built on, because the rule asks it too
-and a rule may not import the editor. The rule is `rules/catalog/section-unlinked-repeat.ts`, its
+`languages/registry.ts`**, beside the `headerSemanticKey` it is built on, because the rule and the
+same-kind discovery path ask it too and a rule may not import the editor. Cross-name discovery and
+the rule share `comparableSectionBody`, `linkBodySimilarity`, the half-body threshold and the
+automatic-discovery ceiling from `core/link-shape.ts`; two answers to “how alike are these” would
+make the workbench disagree with itself. The rule is
+`rules/catalog/section-unlinked-repeat.ts`, its
 action is `onLinkSections` on `DiagnosticActions.svelte` — wired to the picker by `startSectionLink`
 in `EditorPane.svelte` and by `linkDiagnosticSections` on the controller.
 

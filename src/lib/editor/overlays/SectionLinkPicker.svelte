@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Switch } from 'bits-ui';
 	import { onMount, tick, untrack } from 'svelte';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import type { LinkDifference, TextRange } from '$lib/core/types.js';
@@ -7,7 +8,7 @@
 	import type { LinkOccurrence } from '../section-links.js';
 
 	interface Props {
-		/** Every section of this kind, in document order, the current one included. */
+		/** Every discovered copy, in document order, the current one included. */
 		occurrences: readonly LinkOccurrence[];
 		/** The one the card was opened from: the source every decision resolves against. */
 		currentHeaderFrom: number;
@@ -42,7 +43,7 @@
 			makeDifferent?: TextRange;
 			replaceFrom?: number;
 		}) => void;
-		onTypeOnlyHere?: () => void;
+		onTypeOnlyHere?: () => boolean;
 		onCancel: () => void;
 		returnFocus: () => void;
 	}
@@ -73,8 +74,17 @@
 	);
 	const kind = $derived(current?.label.replace(/\s+\d+$/u, '') ?? 'section');
 	const kindWord = $derived(kind.toLocaleLowerCase());
+	function sectionName(occurrence: LinkOccurrence): string {
+		// Preserve the compact Chorus 1/2/3 language for the established same-kind
+		// path. A differently named match must keep its own header: calling an Intro
+		// “Chorus 4” would hide the reason it was surprising enough to discover.
+		return current?.sameKind && occurrence.sameKind
+			? `${kind} ${occurrence.ordinal}`
+			: occurrence.label;
+	}
 
 	let selected = $state<number[]>([...untrack(() => initialSelected)]);
+	let sectionOnlyActive = $state(untrack(() => typeOnlyHereActive));
 	/**
 	 * The one decision the card asks about the words, and it is a two-way choice
 	 * rather than a tick per difference.
@@ -135,7 +145,7 @@
 	 * commonest deliberate difference this feature exists for, and reading that
 	 * hole as a request to be filled forced the ad-lib into every copy with the
 	 * respect option never drawn. An empty wording in a group already linked can
-	 * likewise be a deliberate `Type only here` insertion and must stay a
+	 * likewise be a deliberate `Edit this section only` insertion and must stay a
 	 * difference.
 	 */
 	const fillsOnlyEmptyCopies = $derived(
@@ -167,9 +177,7 @@
 	);
 
 	const labelFor = $derived(
-		new Map(
-			occurrences.map((occurrence) => [occurrence.headerFrom, `${kind} ${occurrence.ordinal}`])
-		)
+		new Map(occurrences.map((occurrence) => [occurrence.headerFrom, sectionName(occurrence)]))
 	);
 
 	/**
@@ -191,14 +199,21 @@
 			groups.set(version, [...(groups.get(version) ?? []), header]);
 		}
 		return [...groups.values()].map((members) => {
-			const ordinals = members.map(
-				(header) => occurrences.find((occurrence) => occurrence.headerFrom === header)?.ordinal ?? 0
-			);
-			const suffix =
-				ordinals.length < 3
-					? ordinals.join(' & ')
-					: `${ordinals.slice(0, -1).join(', ')} & ${ordinals.at(-1)}`;
-			return { value: members[0] ?? currentHeaderFrom, members, label: `${kind} ${suffix}` };
+			const memberOccurrences = members.flatMap((header) => {
+				const occurrence = occurrences.find((candidate) => candidate.headerFrom === header);
+				return occurrence ? [occurrence] : [];
+			});
+			const allSameKind = current?.sameKind && memberOccurrences.every((member) => member.sameKind);
+			const parts = allSameKind
+				? memberOccurrences.map((member) => String(member.ordinal))
+				: memberOccurrences.map(sectionName);
+			const joined =
+				parts.length < 3 ? parts.join(' & ') : `${parts.slice(0, -1).join(', ')} & ${parts.at(-1)}`;
+			return {
+				value: members[0] ?? currentHeaderFrom,
+				members,
+				label: allSameKind ? `${kind} ${joined}` : joined
+			};
 		});
 	});
 	const replaceOptionValue = $derived(
@@ -279,7 +294,7 @@
 		return [
 			...(row ? [row] : []),
 			...root.querySelectorAll<HTMLElement>(
-				'.outcome input:checked, .actions button:not(:disabled)'
+				'.outcome input:checked, .actions button:not(:disabled), [role="switch"]'
 			)
 		];
 	}
@@ -327,7 +342,11 @@
 		if (!typeOnlyHereReady || !onTypeOnlyHere) {
 			return;
 		}
-		onTypeOnlyHere();
+		sectionOnlyActive = onTypeOnlyHere();
+	}
+
+	function setTypeOnlyHere(checked: boolean): void {
+		if (checked !== sectionOnlyActive) beginTypeOnlyHere();
 	}
 
 	function cancel(): void {
@@ -486,7 +505,7 @@
 		role="dialog"
 		tabindex="-1"
 		aria-label={`Link this ${kindWord}`}
-		onkeydown={handleKeydown}
+		onkeydowncapture={handleKeydown}
 		onmousedown={(event) => {
 			// Keep presses on the card from handing focus back to the editor, but do
 			// not cancel the native gesture that opens the version picker. A select
@@ -506,11 +525,15 @@
 					{#if isCurrent}
 						<label class="row row--current">
 							<input class="row__check" type="checkbox" checked disabled />
-							<span class="row__label">{kind} {occurrence.ordinal}</span>
+							<span class="row__label">{sectionName(occurrence)}</span>
 							<span class="row__meta">This section · line {occurrence.line}</span>
 						</label>
 					{:else}
-						<label class="row" class:row--matching={occurrence.comparison === 'same'}>
+						<label
+							class="row"
+							class:row--matching={occurrence.comparison === 'same' ||
+								occurrence.comparison === 'similar'}
+						>
 							<input
 								type="checkbox"
 								data-link-row
@@ -521,13 +544,15 @@
 								onchange={() => toggle(occurrence.headerFrom)}
 								onfocus={() => (activeIndex = rowIndex.get(occurrence.headerFrom) ?? 0)}
 							/>
-							<span class="row__label">{kind} {occurrence.ordinal}</span>
+							<span class="row__label">{sectionName(occurrence)}</span>
 							<span class="row__meta">
 								{occurrence.comparison === 'same'
 									? 'Same lyrics'
-									: occurrence.comparison === 'empty'
-										? 'Empty'
-										: 'Differs'}
+									: occurrence.comparison === 'similar'
+										? 'Similar lyrics'
+										: occurrence.comparison === 'empty'
+											? 'Empty'
+											: 'Differs'}
 								· line {occurrence.line}
 							</span>
 						</label>
@@ -638,28 +663,29 @@
 			</p>
 		{/if}
 		{#if typeOnlyHereReady}
-			<!-- The button leads and its clarifying line follows, as a caption: read
+			<!-- The switch leads and its clarifying line follows, as a caption: read
 			     above the control, the sentence joined the run of linking notes it
 			     hangs directly under, and the thing it explains was still a scroll of
 			     the eye away. -->
 			<div class="type-only-here-action">
-				<div class="actions actions--single">
-					<button
-						type="button"
-						class="button apply type-only-here"
-						aria-pressed={typeOnlyHereActive}
+				<div class="toggle-field">
+					<label for="section-only-switch">Edit this section only</label>
+					<Switch.Root
+						id="section-only-switch"
+						class="switch"
+						checked={sectionOnlyActive}
 						aria-keyshortcuts={typeOnlyHereKeyshortcuts}
-						onclick={beginTypeOnlyHere}
+						onCheckedChange={setTypeOnlyHere}
 						{@attach describeControl(() => ({
-							label: 'Type only here',
+							label: 'Edit this section only',
 							shortcut: typeOnlyHereShortcut
 						}))}
 					>
-						Type only here
-					</button>
+						<Switch.Thumb class="switch__thumb" />
+					</Switch.Root>
 				</div>
 				<p class="picker__note">
-					{typeOnlyHereActive
+					{sectionOnlyActive
 						? 'On: changes anywhere in this section stay here.'
 						: 'Off: edits to shared words update every linked section.'}
 				</p>
@@ -1045,33 +1071,9 @@
 		gap: var(--space-1-5);
 	}
 
-	.actions--single {
-		grid-template-columns: 1fr;
-	}
-
 	.apply {
 		min-height: var(--control-height-sm);
 		padding: var(--space-1) var(--space-2-5);
-	}
-
-	/* This is the one decision in the already-linked state, and unlike the
-	   ordinary link form there is no Cancel competing beside it. Blue names it
-	   as the deliberate local exception without inventing another global tier. */
-	.button.type-only-here[aria-pressed='true'] {
-		border-color: var(--color-accent);
-		background: var(--color-accent);
-		color: var(--color-accent-text);
-	}
-
-	.button.type-only-here[aria-pressed='true']:hover:not(:disabled) {
-		border-color: var(--color-accent-hover);
-		background: var(--color-accent-hover);
-		color: var(--color-accent-text);
-	}
-
-	.button.type-only-here[aria-pressed='true']:active:not(:disabled) {
-		border-color: var(--color-accent-active);
-		background: var(--color-accent-active);
 	}
 
 	/* Secondary through weight and a mix against the button's own fill, never

@@ -82,7 +82,7 @@ export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallb
 	if (!target) {
 		return announce(
 			callbacks,
-			'Put the cursor in a chorus, pre-chorus, or post-chorus to link it to the others, or select words you want to change only there.'
+			'Put the cursor in a section with a header to link it to matching lyrics, or select words you want to change only there.'
 		);
 	}
 	callbacks.onSectionLinkRequest?.({
@@ -330,7 +330,7 @@ export function lyricLintKeymap(
 		{ key: 'Alt-p', run: assignPerformers(callbacks), preventDefault: true },
 		{ key: 'Mod-Shift-h', run: insertSection(callbacks), preventDefault: true },
 		// `Mod-Shift-L` arms the local exception — the same press as the link
-		// card's `Type only here` button. It used to open the link picker, and a
+		// card's `Edit this section only` button. It used to open the link picker, and a
 		// whole card arriving under a keystroke read as the workbench doing
 		// something nobody asked; the picker's ways in are its own surfaces now,
 		// the `⇄` marker and the diagnostic's guided action. `Mod-Shift` and

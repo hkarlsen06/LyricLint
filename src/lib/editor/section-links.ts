@@ -1,6 +1,11 @@
 import { linkableSemantic } from '$lib/languages/registry.js';
 import type { LanguagePack, ParsedDocument, Section, TextRange } from '$lib/core/types.js';
 import { lineNumberAt } from '$lib/core/line-numbers.js';
+import {
+	bodiesAreSimilarEnoughToLink,
+	comparableSectionBody,
+	MAX_LINK_DISCOVERY_TOKENS
+} from '$lib/core/link-shape.js';
 
 function sectionForHeader(parsed: ParsedDocument, headerFrom: number): Section | undefined {
 	return parsed.sections.find((section) => section.header?.from === headerFrom);
@@ -29,7 +34,7 @@ export function sectionBodyRange(
 	return { from, to: Math.max(from, section.to) };
 }
 
-/** One section of a linkable kind, numbered by where it falls in the song. */
+/** One section the link picker can offer, numbered within the established kind. */
 export interface LinkOccurrence {
 	/** Offset of the header's opening bracket, the identity every hook uses. */
 	headerFrom: number;
@@ -39,6 +44,8 @@ export interface LinkOccurrence {
 	label: string;
 	/** Position among this kind's occurrences, counted from the top of the song. */
 	ordinal: number;
+	/** Whether the old semantic-kind discovery path is what included this row. */
+	sameKind: boolean;
 	/**
 	 * How this section's lyrics compare with the words a link would write.
 	 *
@@ -46,52 +53,85 @@ export interface LinkOccurrence {
 	 * in which case it reports `empty` like any other empty copy, because an
 	 * empty section is not what a link is written from.
 	 */
-	comparison: 'source' | 'same' | 'empty' | 'different';
+	comparison: 'source' | 'same' | 'similar' | 'empty' | 'different';
 }
 
-/** Every section of the same kind as the one at `headerFrom`, in document order. */
+interface LinkOccurrenceOptions {
+	/** Existing peers stay manageable even after their lyrics have diverged. */
+	includeHeaderOffsets?: readonly number[];
+}
+
+/**
+ * Sections worth offering beside the one at `headerFrom`, in document order.
+ *
+ * The established chorus/pre-/post-chorus path still includes every occurrence
+ * of the same semantic kind. Any other headed section joins the list when its
+ * body shares at least half of the shorter copy. Existing peers are always
+ * retained: similarity discovers a link, but never gets to forget its stored
+ * intent later.
+ */
 export function linkOccurrences(
 	parsed: ParsedDocument,
 	pack: LanguagePack | undefined,
-	headerFrom: number
+	headerFrom: number,
+	options: LinkOccurrenceOptions = {}
 ): LinkOccurrence[] {
-	const semantic = linkableSemantic(
-		pack,
-		sectionForHeader(parsed, headerFrom)?.header?.rawNamePart
-	);
-	if (!semantic) {
+	const opened = sectionForHeader(parsed, headerFrom);
+	if (!opened?.header) {
 		return [];
 	}
-	const members = parsed.sections.filter(
-		(section) => section.header && linkableSemantic(pack, section.header.rawNamePart) === semantic
-	);
-	const lyrics = (section: Section): string =>
-		section.lines
-			.map((line) => line.text.trim())
-			.filter(Boolean)
-			.join('\n');
+	const semantic = linkableSemantic(pack, opened.header.rawNamePart);
+	const headed = parsed.sections.filter((section) => section.header);
+	const sameKind = semantic
+		? headed.filter((section) => linkableSemantic(pack, section.header?.rawNamePart) === semantic)
+		: [];
 	// What a link would actually write: the opened section's words, or — where it
 	// has none — the first copy that has any, since that is where `linkSections`
 	// takes them from. Compared against an empty source every peer reads
 	// `different`, which is the card telling a user filling a new `[Chorus 3]`
 	// that the two identical choruses above it disagree.
-	const opened = sectionForHeader(parsed, headerFrom) ?? members[0];
 	const sourceLyrics =
-		lyrics(opened) || lyrics(members.find((section) => lyrics(section).length > 0) ?? opened);
-	return members.map((section, index) => ({
-		headerFrom: section.header?.from ?? 0,
-		line: lineNumberAt(parsed.text, section.header?.from ?? 0),
-		label: section.header?.rawNamePart.trim() || section.header?.raw || '',
-		ordinal: index + 1,
-		comparison:
-			lyrics(section).length === 0
-				? 'empty'
-				: section.header?.from === headerFrom
-					? 'source'
-					: lyrics(section) === sourceLyrics
-						? 'same'
-						: 'different'
-	}));
+		comparableSectionBody(opened) ||
+		comparableSectionBody(
+			sameKind.find((section) => comparableSectionBody(section).length > 0) ?? opened
+		);
+	const included = new Set(options.includeHeaderOffsets ?? []);
+	let sameKindOrdinal = 0;
+	return headed.flatMap((section) => {
+		const header = section.header!;
+		const isSameKind =
+			semantic !== undefined && linkableSemantic(pack, header.rawNamePart) === semantic;
+		if (isSameKind) {
+			sameKindOrdinal += 1;
+		}
+		const body = comparableSectionBody(section);
+		const isSource = header.from === headerFrom;
+		const isSimilar = bodiesAreSimilarEnoughToLink(sourceLyrics, body, {
+			maxTokens: MAX_LINK_DISCOVERY_TOKENS
+		});
+		if (!isSource && !included.has(header.from) && !isSameKind && !isSimilar) {
+			return [];
+		}
+		return [
+			{
+				headerFrom: header.from,
+				line: lineNumberAt(parsed.text, header.from),
+				label: header.rawNamePart.trim() || header.raw,
+				ordinal: isSameKind ? sameKindOrdinal : 1,
+				sameKind: isSameKind,
+				comparison:
+					body.length === 0
+						? 'empty'
+						: isSource
+							? 'source'
+							: body === sourceLyrics
+								? 'same'
+								: !isSameKind && isSimilar
+									? 'similar'
+									: 'different'
+			}
+		];
+	});
 }
 
 /**
@@ -105,13 +145,13 @@ export function linkOccurrences(
  */
 export function linkableHeaderAt(
 	parsed: ParsedDocument,
-	pack: LanguagePack | undefined,
+	_pack: LanguagePack | undefined,
 	from: number,
 	to: number
 ): TextRange | undefined {
 	const section = parsed.sections.find((candidate) => {
 		const header = candidate.header;
-		if (!header || !linkableSemantic(pack, header.rawNamePart)) {
+		if (!header) {
 			return false;
 		}
 		return from === to
@@ -132,10 +172,10 @@ export function linkableHeaderAt(
  * What an aimed press means: which section's card to open, and which words the
  * user had in hand when they asked.
  *
- * A selection of *lyrics* inside a linkable section resolves to that section's
- * header and reports itself. In an existing group it is the span `Type only
- * here` will replace; while linking new members it can still be set aside as a
- * difference immediately.
+ * A selection of *lyrics* inside a headed section resolves to that section's
+ * header and reports itself. In an existing group it is the span `Edit this
+ * section only` will replace; while linking new members it can still be set
+ * aside as a difference immediately.
  *
  * Deliberately not `linkableHeaderAt`, which stays exactly as narrow as it was.
  * That predicate answers the *pointer* path, where a card opens uninvited on a
@@ -157,11 +197,7 @@ export function linkTargetAt(
 		return undefined;
 	}
 	const section = parsed.sections.find(
-		(candidate) =>
-			candidate.header &&
-			linkableSemantic(pack, candidate.header.rawNamePart) &&
-			candidate.header.to <= from &&
-			to <= candidate.to
+		(candidate) => candidate.header && candidate.header.to <= from && to <= candidate.to
 	);
 	return section?.header
 		? { header: { from: section.header.from, to: section.header.to }, selection: { from, to } }

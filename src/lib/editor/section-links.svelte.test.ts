@@ -99,10 +99,10 @@ async function mount(
 	return handle;
 }
 
-describe('what counts as a linkable section', () => {
+describe('what the link picker discovers', () => {
 	const parsed = parseDocument(SONG);
 
-	it('numbers every chorus chronologically and leaves other kinds out', () => {
+	it('numbers every chorus chronologically and leaves unrelated kinds as the source only', () => {
 		const occurrences = linkOccurrences(parsed, englishLanguagePack, offsetOf(SONG, '[Chorus]'));
 		expect(occurrences.map((occurrence) => occurrence.ordinal)).toEqual([1, 2, 3]);
 		expect(occurrences.map((occurrence) => occurrence.label)).toEqual([
@@ -118,8 +118,40 @@ describe('what counts as a linkable section', () => {
 		// Line numbers are what gets written down, so they have to match
 		// CodeMirror's own 1-based numbering.
 		expect(occurrences.map((occurrence) => occurrence.line)).toEqual([4, 11, 15]);
-		expect(linkOccurrences(parsed, englishLanguagePack, offsetOf(SONG, '[Verse 1]'))).toEqual([]);
-		expect(linkOccurrences(parsed, englishLanguagePack, offsetOf(SONG, '[Outro]'))).toEqual([]);
+		expect(
+			linkOccurrences(parsed, englishLanguagePack, offsetOf(SONG, '[Verse 1]')).map(
+				(occurrence) => occurrence.label
+			)
+		).toEqual(['Verse 1']);
+		expect(
+			linkOccurrences(parsed, englishLanguagePack, offsetOf(SONG, '[Outro]')).map(
+				(occurrence) => occurrence.label
+			)
+		).toEqual(['Outro']);
+	});
+
+	it('discovers a differently named section from the lyrics they share', () => {
+		const text =
+			'[Intro]\nHold the line\nAnd wait for me\n\n[Verse]\nNothing alike\n\n[Chorus]\nHold the line\nAnd wait for now';
+		const crossKind = parseDocument(text);
+		const occurrences = linkOccurrences(crossKind, englishLanguagePack, offsetOf(text, '[Intro]'));
+
+		expect(occurrences.map((occurrence) => occurrence.label)).toEqual(['Intro', 'Chorus']);
+		expect(occurrences.map((occurrence) => occurrence.comparison)).toEqual(['source', 'similar']);
+	});
+
+	it('keeps an existing peer even when its current lyrics are no longer similar', () => {
+		const text = '[Intro]\nOpen the door\n\n[Outro]\nGoodnight forever';
+		const crossKind = parseDocument(text);
+		const intro = offsetOf(text, '[Intro]');
+		const outro = offsetOf(text, '[Outro]');
+
+		expect(linkOccurrences(crossKind, englishLanguagePack, intro)).toHaveLength(1);
+		expect(
+			linkOccurrences(crossKind, englishLanguagePack, intro, {
+				includeHeaderOffsets: [outro]
+			}).map((occurrence) => occurrence.label)
+		).toEqual(['Intro', 'Outro']);
 	});
 
 	it('reads the draft language first and English second', () => {
@@ -160,7 +192,7 @@ describe('what counts as a linkable section', () => {
 		]);
 	});
 
-	it('offers itself only for a header selected whole, on one line', () => {
+	it('offers any section header only when it is selected whole, on one line', () => {
 		const header = offsetOf(SONG, '[Chorus]');
 		expect(linkableHeaderAt(parsed, englishLanguagePack, header, header + 8)).toEqual({
 			from: header,
@@ -170,9 +202,12 @@ describe('what counts as a linkable section', () => {
 		expect(linkableHeaderAt(parsed, englishLanguagePack, header + 1, header + 4)).toBeUndefined();
 		// A selection reaching into the lyrics below it is a passage.
 		expect(linkableHeaderAt(parsed, englishLanguagePack, header, header + 20)).toBeUndefined();
-		// A verse is never linkable however it is selected.
+		// A differently named repeat can start from a verse too.
 		const verse = offsetOf(SONG, '[Verse 1]');
-		expect(linkableHeaderAt(parsed, englishLanguagePack, verse, verse + 9)).toBeUndefined();
+		expect(linkableHeaderAt(parsed, englishLanguagePack, verse, verse + 9)).toEqual({
+			from: verse,
+			to: verse + 9
+		});
 	});
 
 	it('measures a body from the end of the header line, so an empty section has one', () => {
@@ -676,7 +711,7 @@ describe('typing only in one linked copy', () => {
 		handle.requestSectionLink?.();
 
 		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		const typeOnlyHereButton = page.getByRole('button', { name: /Type only here/ });
+		const typeOnlyHereButton = page.getByRole('switch', { name: /Edit this section only/ });
 		await expect.element(typeOnlyHereButton).toBeVisible();
 		await expect
 			.element(typeOnlyHereButton)
@@ -714,11 +749,11 @@ describe('typing only in one linked copy', () => {
 			actionRect.top - statusRect.bottom
 		);
 		expect(typeOnlyElement.querySelector('.apply__key')).toBeNull();
-		expect(typeOnlyElement.getAttribute('aria-pressed')).toBe('false');
+		expect(typeOnlyElement.getAttribute('aria-checked')).toBe('false');
 		typeOnlyElement.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }));
 		await expect
 			.poll(() => document.querySelector('.control-tooltip')?.textContent)
-			.toContain('Type only here');
+			.toContain('Edit this section only');
 		const shortcut = navigator.platform.toLocaleLowerCase().includes('mac')
 			? '⇧⌘L'
 			: 'Ctrl+Shift+L';
@@ -728,6 +763,12 @@ describe('typing only in one linked copy', () => {
 
 		typeOnlyElement.focus();
 		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
+		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
+		await expect.element(typeOnlyHereButton).toHaveAttribute('aria-checked', 'true');
+		await expect
+			.element(page.getByText('On: changes anywhere in this section stay here.'))
+			.toBeVisible();
+		await userEvent.keyboard('{Escape}');
 		await expect
 			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
 			.not.toBeInTheDocument();
@@ -743,6 +784,12 @@ describe('typing only in one linked copy', () => {
 			getComputedStyle(dangerProbe).backgroundColor
 		);
 		expect(getComputedStyle(activeHeader).boxShadow).not.toBe('none');
+		handle.setSelection({ anchor: offsetOf(SAME, '[Chorus]'), head: offsetOf(SAME, '[Chorus]') });
+		const activeLocalHeader = document.querySelector('.ll-section-only-header.cm-activeLine')!;
+		expect(getComputedStyle(activeLocalHeader).backgroundColor).toBe(
+			getComputedStyle(dangerProbe).backgroundColor
+		);
+		handle.setSelection({ anchor: caret, head: caret });
 		dangerProbe.remove();
 		expect(announcements.at(-1)).toContain('Changes anywhere in it stay here');
 
@@ -771,7 +818,9 @@ describe('typing only in one linked copy', () => {
 		// The mode belongs to the section, not the caret or the first local run.
 		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+		await expect
+			.element(page.getByRole('switch', { name: /Edit this section only/ }))
+			.toBeVisible();
 		await expect
 			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
 			.toBeChecked();
@@ -919,9 +968,16 @@ describe('typing only in one linked copy', () => {
 		handle.setSelection({ anchor: from, head: from + 'tight'.length });
 		expect(handle.canTypeOnlyHere?.(header)).toBe(true);
 		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+		await expect
+			.element(page.getByRole('switch', { name: /Edit this section only/ }))
+			.toBeVisible();
 		await expect.element(page.getByRole('button', { name: /Leave out/ })).not.toBeInTheDocument();
-		await page.getByRole('button', { name: /Type only here/ }).click();
+		await page.getByRole('switch', { name: /Edit this section only/ }).click();
+		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
+		await expect
+			.element(page.getByRole('switch', { name: /Edit this section only/ }))
+			.toHaveAttribute('aria-checked', 'true');
+		await userEvent.keyboard('{Escape}');
 		await userEvent.keyboard('close');
 
 		const typed = handle.getSnapshot().text;
@@ -941,7 +997,9 @@ describe('typing only in one linked copy', () => {
 		const caret = SAME.indexOf('tight') + 'tight'.length;
 		handle.setSelection({ anchor: caret, head: caret });
 		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+		await expect
+			.element(page.getByRole('switch', { name: /Edit this section only/ }))
+			.toBeVisible();
 
 		document.activeElement?.dispatchEvent(
 			new KeyboardEvent('keydown', {
@@ -954,9 +1012,10 @@ describe('typing only in one linked copy', () => {
 			})
 		);
 
+		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
 		await expect
-			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
-			.not.toBeInTheDocument();
+			.element(page.getByRole('switch', { name: /Edit this section only/ }))
+			.toHaveAttribute('aria-checked', 'true');
 		expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
 			'Editing this section only'
 		);
@@ -1022,7 +1081,9 @@ describe('typing only in one linked copy', () => {
 
 			expect(handle.canTypeOnlyHere?.(header)).toBe(true);
 			handle.requestSectionLink?.();
-			await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
+			await expect
+				.element(page.getByRole('switch', { name: /Edit this section only/ }))
+				.toBeVisible();
 			await userEvent.keyboard('{Escape}');
 		});
 
@@ -1168,8 +1229,12 @@ describe('the link card', () => {
 		expect(card.element().contains(document.activeElement)).toBe(true);
 		// It holds the focus, and the linked-state action is the explicit toggle.
 		await expect
-			.element(page.getByRole('button', { name: /Type only here/ }))
-			.toHaveAttribute('aria-pressed', 'false');
+			.element(page.getByRole('switch', { name: /Edit this section only/ }))
+			.toHaveAttribute('aria-checked', 'false');
+		await userEvent.keyboard('{Tab}{Tab}');
+		expect(document.activeElement).toBe(
+			page.getByRole('switch', { name: /Edit this section only/ }).element()
+		);
 		// The document is unchanged: Enter on a control inside `.cm-content` is a
 		// press CodeMirror would otherwise spend on a line break.
 		expect(handle.getSnapshot().text).toBe(SONG);
@@ -1192,6 +1257,37 @@ describe('the link card', () => {
 		await expect.element(page.getByRole('checkbox', { name: /Chorus 3/ })).toBeVisible();
 		await expect.element(page.getByText('Differs · line 11')).toBeVisible();
 		await expect.element(page.getByText('Empty · line 15')).toBeVisible();
+	});
+
+	it('offers a similarly worded section under its own different header name', async () => {
+		const text =
+			'[Intro]\nHold the line\nAnd wait for me\n\n[Verse]\nNothing alike\n\n[Chorus]\nHold the line\nAnd wait for now';
+		const handle = await mount(text);
+		const intro = offsetOf(text, '[Intro]');
+		handle.setSelection({ anchor: intro, head: intro });
+		handle.requestSectionLink?.();
+
+		await expect.element(page.getByRole('dialog', { name: 'Link this intro' })).toBeVisible();
+		const chorus = page.getByRole('checkbox', { name: /Chorus.*Similar lyrics/ });
+		await expect.element(chorus).toBeVisible();
+
+		await chorus.click();
+		await page.getByRole('button', { name: /Link 2 sections/ }).click();
+		expect(handle.getSectionLinks?.()).toHaveLength(1);
+		expect(handle.getSectionLinks?.()[0]?.lines).toEqual([1, 8]);
+	});
+
+	it('keeps a differently named existing peer in the picker after its lyrics diverge', async () => {
+		const text = '[Intro]\nOpen the door\n\n[Outro]\nGoodnight forever';
+		const handle = await mount(text);
+		const intro = offsetOf(text, '[Intro]');
+		const outro = offsetOf(text, '[Outro]');
+		handle.linkSections?.({ headers: [intro, outro] });
+		handle.setSelection({ anchor: intro, head: intro });
+		handle.requestSectionLink?.();
+
+		await expect.element(page.getByRole('dialog', { name: 'Link this intro' })).toBeVisible();
+		await expect.element(page.getByRole('checkbox', { name: /Outro/ })).toBeChecked();
 	});
 
 	// The card asks one thing at a time. Nothing is said about the words until
@@ -1534,21 +1630,20 @@ describe('the link card', () => {
 
 	// An aimed command that silently does nothing reads as a broken command, so
 	// the one refusal it can make is said out loud.
-	it('says why rather than doing nothing on a section that cannot be linked', async () => {
+	it('says why rather than doing nothing in a document without a headed section', async () => {
 		const announcements: string[] = [];
-		const handle = await mount(SONG, englishLanguagePack, {
+		const text = 'A lyric without a header';
+		const handle = await mount(text, englishLanguagePack, {
 			onAnnouncement: (message: string) => void announcements.push(message)
 		});
-		const verse = offsetOf(SONG, 'A second thing');
-		handle.setSelection({ anchor: verse, head: verse });
+		const lyric = offsetOf(text, 'lyric');
+		handle.setSelection({ anchor: lyric, head: lyric });
 		handle.requestSectionLink?.();
 
 		expect(announcements).toEqual([
-			'Put the cursor in a chorus, pre-chorus, or post-chorus to link it to the others, or select words you want to change only there.'
+			'Put the cursor in a section with a header to link it to matching lyrics, or select words you want to change only there.'
 		]);
-		await expect
-			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
-			.not.toBeInTheDocument();
+		await expect.element(page.getByRole('dialog')).not.toBeInTheDocument();
 	});
 });
 

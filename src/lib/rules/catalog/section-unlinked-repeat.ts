@@ -1,62 +1,21 @@
 import { getLanguagePack, linkableSemantic } from '$lib/languages/registry.js';
-import { alignBodies } from '$lib/core/link-shape.js';
+import {
+	bodiesAreSimilarEnoughToLink,
+	comparableSectionBody,
+	MAX_LINK_DISCOVERY_TOKENS
+} from '$lib/core/link-shape.js';
 import type { Diagnostic, ParsedDocument, RuleDefinition, Section } from '$lib/core/types.js';
 import { isImmediateRepeat } from './section-immediate-repeat-spacing.js';
 import { diagnostic } from './utils.js';
 
-/** A section's lyrics as one comparable string. Markup and spacing are the words. */
-function bodyText(section: Section): string {
-	return section.lines
-		.map((line) => line.text.trim())
-		.filter((line) => line.length > 0)
-		.join('\n');
-}
-
 /**
- * Half. Two copies that share less of themselves than this are two different
- * passages that happen to carry the same header, and tying them together would
- * link almost nothing to almost nothing.
- *
- * A fraction rather than a count, because it has to mean the same thing for a
- * two-line pre-chorus and a twelve-line one. Measured against the *shorter*
- * copy, so a section that repeats another in full and then carries on is still
- * offered — the short one is wholly inside the long one, which is exactly the
- * case linking is for.
+ * Automatic discovery stays far below `link-shape`'s own 2000-token ceiling.
+ * That larger limit is for aligning the group after a person has chosen it;
+ * here every same-kind pair is reconsidered on every keystroke inside a member,
+ * and the alignment is quadratic — 2000 tokens is a 16MB matrix per pair per
+ * keystroke. A repeated song part is tens of tokens, so what discovery refuses
+ * is never a chorus. The chosen link still keeps the full alignment range.
  */
-const SHARED_ENOUGH = 0.5;
-const ALIGNMENT_CACHE_LIMIT = 64;
-const alignmentCache = new Map<string, ReturnType<typeof alignBodies>>();
-
-/**
- * A ceiling on what this rule is willing to align, and it is far below
- * `link-shape`'s own 2000. That one is right for the picker, which aligns once
- * on a press; here every same-kind pair is re-aligned on every keystroke inside
- * a member, and the alignment is quadratic — 2000 tokens is a 16MB matrix per
- * pair per keystroke. A repeated song part is tens of tokens, so what this
- * refuses is never a chorus, and the only thing it decides is what the linter
- * volunteers unasked. The picker keeps the full range.
- */
-const MOST_VOLUNTEERED_TOKENS = 400;
-
-/** `link-shape`'s tokens — words and line breaks — counted rather than built. */
-function tokenCount(body: string): number {
-	let count = 0;
-	let inWord = false;
-	for (let index = 0; index < body.length; index += 1) {
-		const char = body[index];
-		if (char === '\n') {
-			count += 1;
-			inWord = false;
-		} else if (char === ' ' || char === '\t' || char === '\r') {
-			inWord = false;
-		} else if (!inWord) {
-			count += 1;
-			inWord = true;
-		}
-	}
-	return count;
-}
-
 /**
  * Whether these copies have enough in common to be worth keeping in step.
  *
@@ -76,7 +35,7 @@ function tokenCount(body: string): number {
  * this rule most wants to catch: a repeat waiting to be filled.
  */
 function worthLinking(members: readonly Section[]): boolean {
-	const bodies = members.map(bodyText).filter((body) => body.length > 0);
+	const bodies = members.map(comparableSectionBody).filter((body) => body.length > 0);
 	if (bodies.length < 2) {
 		// One copy with words and the rest still empty. Nothing to compare, and
 		// filling them is the whole point.
@@ -97,25 +56,7 @@ function worthLinking(members: readonly Section[]): boolean {
 }
 
 function sharesEnough(left: string, right: string): boolean {
-	// The overwhelmingly common answer, and it costs no alignment.
-	if (left === right) {
-		return true;
-	}
-	if (tokenCount(left) > MOST_VOLUNTEERED_TOKENS || tokenCount(right) > MOST_VOLUNTEERED_TOKENS) {
-		return false;
-	}
-	const key = `${left.length}:${left}${right}`;
-	let holes = alignmentCache.get(key);
-	if (!holes) {
-		holes = alignBodies([left, right]);
-		if (alignmentCache.size >= ALIGNMENT_CACHE_LIMIT) {
-			alignmentCache.clear();
-		}
-		alignmentCache.set(key, holes);
-	}
-	const own = (holes[0] ?? []).reduce((total, hole) => total + (hole.to - hole.from), 0);
-	// Shared length is the same number read off either copy, so one will do.
-	return left.length - own >= Math.min(left.length, right.length) * SHARED_ENOUGH;
+	return bodiesAreSimilarEnoughToLink(left, right, { maxTokens: MAX_LINK_DISCOVERY_TOKENS });
 }
 
 /**
@@ -171,14 +112,16 @@ function linkableRepeatGroups(
 		// resolves the wordings it has to from the section it was opened on, so
 		// anchoring this finding on an empty `[Chorus 2]` would leave a copy the
 		// user is filling with nowhere to take the words from.
-		const source = members.find((member) => bodyText(member).length > 0);
+		const source = members.find((member) => comparableSectionBody(member).length > 0);
 		if (!source) {
 			continue;
 		}
 		// Only so the finding can say how much of the work is already done. It
 		// arbitrates nothing and no longer decides who is in the offer.
 		const matching = members.filter(
-			(member) => bodyText(member) === bodyText(source) || bodyText(member).length === 0
+			(member) =>
+				comparableSectionBody(member) === comparableSectionBody(source) ||
+				comparableSectionBody(member).length === 0
 		);
 		found.push({ source, matching, members });
 	}

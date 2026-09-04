@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick, untrack } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type {
 		AtomicDocumentEdit,
 		Diagnostic,
@@ -11,6 +11,7 @@
 		StyleSlot,
 		TextRange
 	} from '$lib/core/types.js';
+	import { lineNumberAt } from '$lib/core/line-numbers.js';
 	import {
 		resolveLegendAssignment,
 		type LegendAssignmentResolution
@@ -570,14 +571,28 @@
 	}
 
 	/**
-	 * Every section of the same kind as the one the card was opened from, read
-	 * from the editor's own snapshot rather than from `context.parsed` — the
-	 * shell's parse lands a beat behind the document, and a list of sections that
-	 * is one keystroke stale would offer offsets the link is written against.
+	 * Every discovered copy, read from the editor's own snapshot rather than from
+	 * `context.parsed` — the shell's parse lands a beat behind the document, and a
+	 * list of sections that is one keystroke stale would offer offsets the link is
+	 * written against. Stored peers are included before similarity is considered.
 	 */
 	function sectionsToLink(headerFrom: number): LinkOccurrence[] {
 		const parsed = editor?.handle.getSnapshot().parsed;
-		return parsed ? linkOccurrences(parsed, fallbackLanguagePack, headerFrom) : [];
+		if (!parsed) {
+			return [];
+		}
+		const currentLine = lineNumberAt(parsed.text, headerFrom);
+		const group = (editor?.handle.getSectionLinks?.() ?? []).find((link) =>
+			link.lines.includes(currentLine)
+		);
+		const includeHeaderOffsets = group
+			? parsed.sections.flatMap((section) =>
+					section.header && group.lines.includes(lineNumberAt(parsed.text, section.header.from))
+						? [section.header.from]
+						: []
+				)
+			: [];
+		return linkOccurrences(parsed, fallbackLanguagePack, headerFrom, { includeHeaderOffsets });
 	}
 
 	/** The sections already tied to this one, so the card opens on the truth. */
@@ -634,22 +649,18 @@
 		session = closeOverlay(session);
 	}
 
-	function beginTypeOnlyHere(headerFrom: number): void {
+	function beginTypeOnlyHere(headerFrom: number): boolean {
 		const turningOff = editor?.handle.isTypeOnlyHere?.(headerFrom) ?? false;
 		if (!editor?.handle.typeOnlyHere?.(headerFrom)) {
 			callbacks.onAnnouncement('This section is no longer linked.');
-			return;
+			return turningOff;
 		}
 		callbacks.onAnnouncement(
 			turningOff
 				? 'Editing only this section turned off. Future edits to shared words will update the linked sections.'
 				: 'Editing only this section. Changes anywhere in it stay here until you turn this off.'
 		);
-		session = closeOverlay(session);
-		// The one path out of this card that does not go back to whatever opened
-		// it: the toggle chooses the document as the place to work next. After the tick, so the card that was
-		// pressed is gone rather than taking it straight back.
-		void tick().then(returnFocus);
+		return !turningOff;
 	}
 
 	function existingHeaders(): string[] {
