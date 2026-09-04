@@ -171,6 +171,34 @@ function sharedEdge(left: string, right: string, fromEnd = false): number {
 	return count;
 }
 
+function isUnknownVoiceIdentity(value: string): boolean {
+	return (
+		value === 'Unknown italic voice' ||
+		value === 'Unknown bold voice' ||
+		value === 'Unknown bold italic voice'
+	);
+}
+
+/**
+ * Slot styling is presentation, not an unknown voice's identity. A performer
+ * assignment may move that voice down to keep newly named legend groups in
+ * canonical order; the acceptance follows the same occurrence by context.
+ */
+function identityPartMatches(
+	saved: IgnoreIdentity,
+	current: IgnoreIdentity,
+	partIndex: number
+): boolean {
+	if (saved[partIndex] === current[partIndex]) return true;
+	return (
+		partIndex === 2 &&
+		saved[0] === 'performer.inline-mismatch' &&
+		current[0] === 'performer.inline-mismatch' &&
+		isUnknownVoiceIdentity(saved[2]) &&
+		isUnknownVoiceIdentity(current[2])
+	);
+}
+
 /** Match each saved occurrence once, retaining it when unrelated text shifts its offsets. */
 export function matchIgnoredDiagnostics(
 	diagnostics: readonly Diagnostic[],
@@ -188,7 +216,11 @@ export function matchIgnoredDiagnostics(
 		let distance = Number.POSITIVE_INFINITY;
 		for (let index = 0; index < remaining.length; index += 1) {
 			const current = identity(remaining[index]!, text);
-			if (saved.slice(0, 3).some((part, partIndex) => part !== current[partIndex])) continue;
+			if (
+				saved.slice(0, 3).some((_, partIndex) => !identityPartMatches(saved, current, partIndex))
+			) {
+				continue;
+			}
 			const context = sharedEdge(saved[3], current[3], true) + sharedEdge(saved[4], current[4]);
 			const candidateDistance = Math.abs(saved[5] - current[5]);
 			if (context > bestContext || (context === bestContext && candidateDistance < distance)) {

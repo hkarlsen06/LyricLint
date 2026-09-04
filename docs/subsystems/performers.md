@@ -68,6 +68,12 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   goes in the header, so there is no rest-of-section question. Chips appear only in the plain
   selection flow, not the legend flow or step two. Pinned in `unknown-voice.test.ts`,
   `PerformerPicker.svelte.test.ts`, and `EditorPane.svelte.test.ts`.
+- A new named voice inserts ahead of retained unknown slots: the named group takes the next
+  canonical legend slot and the contiguous unknown run moves down atomically (`<i>` → `<b>` →
+  `<i><b>`). It never writes a legend that skips the unknown slot and immediately triggers
+  `performer.style-order`; a full run with nowhere to move refuses as `too-many-groups`. Pin:
+  `performers.test.ts` (*moves an earlier unknown voice down* and *cascades contiguous unknown
+  voices*).
 
 ## Decision record
 
@@ -374,6 +380,15 @@ Three consequences hold the feature together:
 The resolve path needed no new code: selecting a styled passage and picking a named performer
 already reuses the passage's slot and writes the legend, converting the unknown into a named
 voice in one gesture — which is the flow `performer.inline-mismatch`'s guidance describes.
+
+Naming a different passage while an earlier styled slot is still unknown is an insertion, not an
+allocation around it. The first implementation treated every body-held slot as unavailable, so an
+italic unknown forced the selected named voice into bold while the header jumped directly from
+plain to bold. The assignment itself therefore created `performer.style-order`. The transform now
+keeps the named voices contiguous in the legend and moves the retained unknown run down one slot
+in the same atomic edit. Unknowns preserve their relative order, and only the contiguous run moves:
+an unknown already beyond the first free slot has no reason to change. If slots 2–4 are all occupied,
+there is no fifth representation and the existing `too-many-groups` refusal applies.
 
 **The rejected design was already shipped once, and it survived in the import path.** Long
 before this model, `extractPerformers` answered the same text state — a styled slot with no

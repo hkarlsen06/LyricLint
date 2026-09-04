@@ -37,7 +37,10 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   place of the flagged text (`performer.inline-mismatch` keys on the voice's name, never the
   lyrics it flags), and the picker's unknown-voice chip writes the acceptance itself at mint
   time (`unknownVoiceAcceptanceKey`, recorded via `recordAcceptedOccurrence`). The round trip
-  is pinned in `workbench.test.ts` (*a minted unknown voice arrives accepted…*).
+  is pinned in `workbench.test.ts` (*a minted unknown voice arrives accepted…*). The three
+  style-derived unknown names are equivalent during matching so an automatic slot-order restyle
+  does not revoke that acceptance; pin: `ignore.test.ts` (*keeps the acceptance when slot-order
+  insertion restyles the unknown voice*).
 - An ignored occurrence belongs to its 'scribe until the reader explicitly restores it (or the
   'scribe is deleted). A lint pass in which the occurrence is absent does not erase that decision;
   if later edits recreate the occurrence, it stays hidden. Pin: `workbench.test.ts` (*keeps an
@@ -214,6 +217,15 @@ exists, and the finding then arrives already accepted. The round trip — minted
 arrival, still hidden after a full rewrite of the lyrics inside the tags — is pinned in
 `workbench.test.ts`. Keys stored before this change carry lyrics in the text part and now match
 nothing, so a pre-existing acceptance is re-asked once and then durable.
+
+**Restyling an unknown voice does not make it a different voice.** Named performer assignment can
+insert a new canonical slot ahead of an unknown one, moving the unknown from italic to bold (or
+bold to bold italic) while its lyrics and section remain the same. The visible/accessibility name
+still describes the current styling, but `matchIgnoredDiagnostics` treats those three
+style-derived names as equivalent for `performer.inline-mismatch` only, then uses the existing
+context and distance ranking to follow the same occurrence. Without that narrow equivalence, the
+automatic repair would immediately ask `The performer is unknown` again about a voice the reader
+had already answered.
 
 **An absent lint result does not retract the reader's decision.** The store once pruned any saved
 occurrence that failed to match the latest settled lint result. That treated a transient state of

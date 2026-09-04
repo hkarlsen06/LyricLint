@@ -755,8 +755,8 @@ export function cancelTypeOnlyHere(view: EditorView): boolean {
 /**
  * Close the difference under the caret, so its words are shared again.
  *
- * The way back from `Type only here`, on the same chord: `Mod-Shift-L` pressed
- * while the `Typing only here` marker stands collapses the one run the caret is
+ * The former way back from `Type only here`: `Mod-Shift-L` pressed while the
+ * old caret marker stood collapsed the one run the caret was
  * in, exactly as the card's replace does per difference — so from the next
  * keystroke the mirror carries edits here again. This copy's wording wins,
  * unless it is empty, in which case the first copy with words does
@@ -1503,10 +1503,10 @@ class SectionLinkMarker extends WidgetType {
 		marker.textContent = '⇄';
 		if (this.local) {
 			const status = document.createElement('span');
-			status.className = 'll-type-only-here';
-			status.textContent = 'Typing only here';
+			status.className = 'll-section-only-status';
+			status.textContent = 'Editing this section only';
 			status.setAttribute('aria-hidden', 'true');
-			marker.append(' ', status);
+			marker.append(status);
 		}
 		marker.setAttribute(
 			'aria-label',
@@ -1667,12 +1667,20 @@ export const sectionLinkTheme = EditorView.baseTheme({
 		fontFamily: 'var(--font-ui)',
 		fontWeight: 'var(--font-weight-semibold)'
 	},
-	'.ll-type-only-here': {
+	'.ll-section-only-status': {
+		marginInlineStart: 'var(--space-1-5)',
+		color: 'var(--color-danger)',
 		whiteSpace: 'nowrap'
 	},
 	'.ll-section-only-header': {
-		background: 'var(--color-selected)',
-		boxShadow: 'inset var(--space-1) 0 0 var(--color-accent)'
+		background: 'var(--color-danger-surface)',
+		boxShadow: 'inset var(--space-1) 0 0 var(--color-danger)'
+	},
+	// The ordinary caret-row wash is a large inset shadow, so it would otherwise
+	// cover both the danger surface and its rail when the caret is on the header.
+	'.ll-section-only-header.cm-activeLine': {
+		backgroundColor: 'var(--color-danger-surface)',
+		boxShadow: 'inset var(--space-1) 0 0 var(--color-danger)'
 	},
 	'.ll-link-divergent': {
 		textDecorationLine: 'underline',

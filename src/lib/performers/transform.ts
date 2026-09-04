@@ -246,7 +246,12 @@ function appendSplitPiece(
 	}
 }
 
-function buildLinePieces(text: string, line: LyricLine, selection: TextRange): StyledPiece[] {
+function buildLinePieces(
+	text: string,
+	line: LyricLine,
+	selection: TextRange,
+	slotRemap?: ReadonlyMap<StyleSlot, StyleSlot>
+): StyledPiece[] {
 	const pieces: StyledPiece[] = [];
 	let cursor = line.from;
 
@@ -264,7 +269,7 @@ function buildLinePieces(text: string, line: LyricLine, selection: TextRange): S
 			pieces,
 			text.slice(span.contentFrom, span.contentTo),
 			{ from: span.contentFrom, to: span.contentTo },
-			span.slot,
+			slotRemap?.get(span.slot) ?? span.slot,
 			selection
 		);
 		cursor = span.to;
@@ -296,6 +301,52 @@ function retainedStyleSlots(text: string, section: Section, selection: TextRange
 		}
 	}
 	return retained;
+}
+
+/** Whether every sung piece in the selection already carries one style slot. */
+function selectionUsesSlot(
+	text: string,
+	section: Section,
+	selection: TextRange,
+	styleSlot: StyleSlot
+): boolean {
+	const selected = section.lines.flatMap((line) =>
+		buildLinePieces(text, line, selection).filter(
+			(piece) => piece.selected && hasSungText(piece.text)
+		)
+	);
+	return selected.length > 0 && selected.every((piece) => piece.slot === styleSlot);
+}
+
+/**
+ * Make room for a named voice at `styleSlot` by moving the contiguous run of
+ * still-unknown voices after it down one slot. The move is an insertion, not a
+ * swap: an unknown already after the first free slot keeps its identity and
+ * styling, while every displaced unknown preserves its relative order.
+ */
+function unknownSlotInsertionRemap(
+	section: Section,
+	retainedSlots: ReadonlySet<StyleSlot>,
+	styleSlot: StyleSlot
+): Map<StyleSlot, StyleSlot> | undefined {
+	const unknownSlots = new Set(unaccountedStyledSlots(section).map(({ slot }) => slot));
+	const displaced: StyleSlot[] = [];
+	let occupied: StyleSlot | undefined = styleSlot;
+	while (occupied !== undefined && retainedSlots.has(occupied)) {
+		if (!unknownSlots.has(occupied)) {
+			return undefined;
+		}
+		displaced.push(occupied);
+		occupied = occupied === 2 ? 3 : occupied === 3 ? 4 : undefined;
+	}
+	if (occupied === undefined) return undefined;
+
+	const remap = new Map<StyleSlot, StyleSlot>();
+	for (const slot of displaced) {
+		if (slot === 2) remap.set(2, 3);
+		if (slot === 3) remap.set(3, 4);
+	}
+	return remap;
 }
 
 function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
@@ -345,8 +396,14 @@ function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
  * The visible text and voice slots stay the same — only the boundary-spanning
  * serialization becomes one balanced wrapper per affected line.
  */
-function balanceLine(text: string, line: LyricLine): TextEdit | undefined {
-	const rendered = renderPieces(buildLinePieces(text, line, { from: line.to, to: line.to }));
+function balanceLine(
+	text: string,
+	line: LyricLine,
+	slotRemap?: ReadonlyMap<StyleSlot, StyleSlot>
+): TextEdit | undefined {
+	const rendered = renderPieces(
+		buildLinePieces(text, line, { from: line.to, to: line.to }, slotRemap)
+	);
 	return rendered.text === line.text ? undefined : narrowEdit(line.from, line.text, rendered.text);
 }
 
@@ -439,7 +496,8 @@ function transformLine(
 	line: LyricLine,
 	selection: TextRange,
 	styleSlot: StyleSlot,
-	rewritableContinuedSpans?: ReadonlySet<SupportedStyleSpan>
+	rewritableContinuedSpans?: ReadonlySet<SupportedStyleSpan>,
+	slotRemap?: ReadonlyMap<StyleSlot, StyleSlot>
 ): LineTransform | undefined {
 	if (line.styleSpans.some((span) => 'unsupported' in span)) {
 		return undefined;
@@ -459,7 +517,7 @@ function transformLine(
 		return undefined;
 	}
 
-	const pieces = buildLinePieces(text, line, selection).map((piece) =>
+	const pieces = buildLinePieces(text, line, selection, slotRemap).map((piece) =>
 		piece.selected ? { ...piece, slot: styleSlot } : piece
 	);
 	const rendered = renderPieces(pieces);
@@ -876,7 +934,8 @@ function wrapSelectionTransforms(
 	text: string,
 	section: Section,
 	wrapRange: TextRange,
-	styleSlot: StyleSlot
+	styleSlot: StyleSlot,
+	slotRemap?: ReadonlyMap<StyleSlot, StyleSlot>
 ):
 	| {
 			status: 'wrapped';
@@ -936,6 +995,7 @@ function wrapSelectionTransforms(
 
 	const lineTransforms: { line: LyricLine; transform: LineTransform }[] = [];
 	const balancingEdits: TextEdit[] = [];
+	const renderedLines = new Set<LyricLine>();
 	for (const line of section.lines) {
 		const lineSelection = trimWhitespaceRange(text, {
 			from: Math.max(wrapRange.from, line.from),
@@ -943,18 +1003,57 @@ function wrapSelectionTransforms(
 		});
 		if (lineSelection.from >= lineSelection.to) {
 			if (supportedSpans(line).some((span) => rewritableContinuedSpans.has(span))) {
-				const edit = balanceLine(text, line);
+				const edit = balanceLine(text, line, slotRemap);
 				if (edit) {
 					balancingEdits.push(edit);
+					renderedLines.add(line);
 				}
 			}
 			continue;
 		}
-		const transform = transformLine(text, line, lineSelection, styleSlot, rewritableContinuedSpans);
+		const transform = transformLine(
+			text,
+			line,
+			lineSelection,
+			styleSlot,
+			rewritableContinuedSpans,
+			slotRemap
+		);
 		if (!transform) {
 			return { status: 'blocked', reason: 'invalid-range' };
 		}
 		lineTransforms.push({ line, transform });
+		renderedLines.add(line);
+	}
+
+	// Lines rewritten for the selection already apply the remap while rendering.
+	// Everywhere else only the wrapper markers change, preserving a multiline
+	// unknown as one multiline wrapper rather than splitting it into one per line.
+	if (slotRemap && slotRemap.size > 0) {
+		for (const line of section.lines) {
+			if (renderedLines.has(line)) continue;
+			for (const span of supportedSpans(line)) {
+				const mapped = slotRemap.get(span.slot);
+				if (!mapped) continue;
+				const next = styleTags(mapped);
+				if (span.from < span.contentFrom) {
+					balancingEdits.push({
+						from: span.from,
+						to: span.contentFrom,
+						insert: next.opening
+					});
+				}
+				if (span.contentTo < span.to) {
+					balancingEdits.push({
+						from: span.contentTo,
+						to: span.to,
+						insert: next.closing
+					});
+				}
+				// A continued middle segment has no markers of its own. The first
+				// and last segments above rewrite the shared wrapper exactly once.
+			}
+		}
 	}
 
 	if (lineTransforms.length === 0) {
@@ -1061,11 +1160,21 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	const resolvedSection: Section = { ...section, voiceGroups: resolvedGroups };
 	const retainedSlots = retainedStyleSlots(request.text, section, selection);
 	let allocation = allocateStyleSlot(resolvedSection, selectedKey);
-	if (allocation.status !== 'existing') {
+	let slotRemap = new Map<StyleSlot, StyleSlot>();
+	if (allocation.status === 'available') {
 		const reusableSlot = STYLE_SLOTS.find((slot) => !retainedSlots.has(slot));
-		allocation = reusableSlot
-			? { status: 'available', styleSlot: reusableSlot }
-			: { status: 'unavailable' };
+		if (!reusableSlot) {
+			allocation = { status: 'unavailable' };
+		} else if (reusableSlot < allocation.styleSlot || allocation.styleSlot === 1) {
+			allocation = { status: 'available', styleSlot: reusableSlot };
+		} else if (
+			retainedSlots.has(allocation.styleSlot) &&
+			!selectionUsesSlot(request.text, section, selection, allocation.styleSlot)
+		) {
+			const remap = unknownSlotInsertionRemap(section, retainedSlots, allocation.styleSlot);
+			allocation = remap ? allocation : { status: 'unavailable' };
+			slotRemap = remap ?? slotRemap;
+		}
 	}
 
 	if (allocation.status === 'unavailable') {
@@ -1136,7 +1245,13 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 		};
 	}
 
-	const wrapped = wrapSelectionTransforms(request.text, section, wrapRange, allocation.styleSlot);
+	const wrapped = wrapSelectionTransforms(
+		request.text,
+		section,
+		wrapRange,
+		allocation.styleSlot,
+		slotRemap
+	);
 	if (wrapped.status === 'blocked') {
 		return { status: 'blocked', reason: wrapped.reason };
 	}

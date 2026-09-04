@@ -28,7 +28,7 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
 - `Type only here` (`Mod-Shift-L`) is a section-scoped toggle. While on, every edit in that
   member stays local and opens or extends only the divergent run it touches; moving the caret
   does not turn it off. Turning it off preserves those differences and resumes mirroring shared
-  text. The active header carries a strong rail, fill, and `Typing only here` label.
+  text. The active header carries a danger rail, red wash, and `Editing this section only` label.
 - The card shows a diff (context = the shared runs either side, never "the rest of the
   line"), decides by radio pair, names the winning copy in a dropdown (`replaceFrom`), and
   turns rows into what would happen (`del`/`ins`, struck through as well as coloured).
@@ -417,7 +417,7 @@ so the answer can never be given against a set that is no longer showing.
 #### What is drawn
 
 **A linked header says so on its own line** through `⇄`, a widget outside the text. While `Type only
-here` is on, that header gains an accent rail, a selected fill, and the words `Typing only here`.
+here` is on, that header gains a danger rail, a red wash, and the words `Editing this section only`.
 The signal belongs to the section rather than the caret, so it stays prominent while the user moves
 between the lines they intend to edit.
 
@@ -437,7 +437,7 @@ clean lyrics on the clipboard are this application's entire output. A mark adds 
 It is drawn as a **dotted** underline because every other underline in the editor is wavy and belongs
 to a diagnostic — this is not a finding, it is a note about what an edit here will and will not
 reach. A run that is empty in this copy draws nothing, because there is nothing there to draw on;
-the card is where those are named. `Typing only here` is reserved for the explicit section mode,
+the card is where those are named. `Editing this section only` is reserved for the explicit mode,
 not inferred from whichever divergent run happens to contain the caret.
 
 **The mark on the header stayed as it was, and that is a decision.** `⇄` means one thing — this
@@ -578,11 +578,11 @@ that is silently wrong overwrites work. Line anchors behave the same way for the
 
 **`Mod-Shift-L` belongs to `Type only here` now, and the picker's ways in are the pointer's own** —
 the `⇄` marker and the diagnostic's guided action. The chord opened this card for a while, and a
-whole card arriving under a keystroke read as the workbench doing something nobody asked; arming
-the local exception is the aimed, caret-sized answer, and the card is where the chord is taught
-(its linked-state note, and the `Type only here` button's own tooltip). It is a toggle — pressed
-where the `Typing only here` marker stands, it shares the words again; see the type-only-here
-section above. `Mod-Shift` and
+whole card arriving under a keystroke read as the workbench doing something nobody asked; toggling
+the section-local mode is the aimed answer, and the card is where the chord is taught (its
+linked-state note, and the `Type only here` button's own tooltip). Pressing it again turns the mode
+off without reconciling the differences made while it was on; see the type-only-here section above.
+`Mod-Shift` and
 deliberately not the `Ctrl-Alt` family the rest of the editor's commands live in — `Ctrl-Alt-L` is
 the transport's forward key, bound to the window, and two implementations of one keystroke is how
 every nudge came to fire twice. The keymap binding and the card's own key handler run the same

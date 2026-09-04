@@ -104,12 +104,16 @@ describe('an accepted occurrence', () => {
  * the card asked `The performer is unknown` again after every rewrite.
  */
 describe('a finding with its own identity text', () => {
-	function voiceFinding(from: number, to: number): Diagnostic {
+	function voiceFinding(
+		from: number,
+		to: number,
+		identityText = 'Unknown italic voice'
+	): Diagnostic {
 		return diagnostic(from, {
 			to,
 			ruleId: 'performer.inline-mismatch',
 			message: unknownVoiceMessage,
-			identityText: 'Unknown italic voice'
+			identityText
 		});
 	}
 
@@ -137,6 +141,17 @@ describe('a finding with its own identity text', () => {
 		const finding = voiceFinding(10, 28);
 		expect([...matchIgnoredDiagnostics([finding], postText, [key]).values()]).toEqual([
 			diagnosticKey(finding)
+		]);
+	});
+
+	it('keeps the acceptance when slot-order insertion restyles the unknown voice', () => {
+		const text = 'lead line\n<i>unknown voice</i>';
+		const key = diagnosticIgnoreKey(voiceFinding(10, 30), text);
+		const restyledText = 'lead line\n<b>unknown voice</b>';
+		const restyled = voiceFinding(10, 30, 'Unknown bold voice');
+
+		expect([...matchIgnoredDiagnostics([restyled], restyledText, [key]).values()]).toEqual([
+			diagnosticKey(restyled)
 		]);
 	});
 });

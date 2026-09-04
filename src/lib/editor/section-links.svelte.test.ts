@@ -731,8 +731,19 @@ describe('typing only in one linked copy', () => {
 		await expect
 			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
 			.not.toBeInTheDocument();
-		expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+		const sectionOnlyStatus = document.querySelector('.ll-section-only-status');
+		expect(sectionOnlyStatus?.textContent).toBe('Editing this section only');
+		expect(getComputedStyle(sectionOnlyStatus!).marginInlineStart).not.toBe('0px');
 		expect(document.querySelector('.ll-section-only-header')).not.toBeNull();
+		const activeHeader = document.querySelector('.ll-section-only-header')!;
+		const dangerProbe = document.createElement('span');
+		dangerProbe.style.background = 'var(--color-danger-surface)';
+		document.body.append(dangerProbe);
+		expect(getComputedStyle(activeHeader).backgroundColor).toBe(
+			getComputedStyle(dangerProbe).backgroundColor
+		);
+		expect(getComputedStyle(activeHeader).boxShadow).not.toBe('none');
+		dangerProbe.remove();
 		expect(announcements.at(-1)).toContain('Changes anywhere in it stay here');
 
 		await userEvent.keyboard('er');
@@ -742,7 +753,9 @@ describe('typing only in one linked copy', () => {
 		// The marker outlives the armed one-shot, because the fact it names does:
 		// the caret is standing in the run the edit just created, so typing on
 		// still stays in this copy, and the label draws for as long as that holds.
-		expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+		expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
+			'Editing this section only'
+		);
 		expect(onSectionLinksChanged).toHaveBeenCalledTimes(1);
 		expect(
 			handle
@@ -756,7 +769,7 @@ describe('typing only in one linked copy', () => {
 		const sharedCaret = typed.indexOf('Never let go') + 'Never'.length;
 		handle.setSelection({ anchor: sharedCaret, head: sharedCaret });
 		// The mode belongs to the section, not the caret or the first local run.
-		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 		handle.requestSectionLink?.();
 		await expect.element(page.getByRole('button', { name: /Type only here/ })).toBeVisible();
 		await expect
@@ -787,7 +800,9 @@ describe('typing only in one linked copy', () => {
 
 		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
 
-		expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+		expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
+			'Editing this section only'
+		);
 		expect(announcements.at(-1)).toContain('Changes anywhere in it stay here');
 		await userEvent.keyboard('er');
 		const typed = handle.getSnapshot().text;
@@ -814,7 +829,7 @@ describe('typing only in one linked copy', () => {
 		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
 		text = handle.getSnapshot().text;
 		expect(text.split('Hold on tighter')).toHaveLength(2);
-		expect(document.querySelector('.ll-type-only-here')).toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).toBeNull();
 		expect(announcements.at(-1)).toContain('turned off');
 
 		// Existing local words stay local. Shared words mirror again once the mode is off.
@@ -840,10 +855,10 @@ describe('typing only in one linked copy', () => {
 		handle.focus();
 
 		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
-		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 
 		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
-		expect(document.querySelector('.ll-type-only-here')).toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).toBeNull();
 		expect(announcements.at(-1)).toContain('Editing only this section turned off.');
 
 		await userEvent.keyboard('!');
@@ -861,26 +876,26 @@ describe('typing only in one linked copy', () => {
 		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
 
 		await userEvent.keyboard('er');
-		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 
 		// Erased back to nothing, the run is zero width — invisible, and still
 		// the caret's own: an insertion here stays in this copy.
 		await userEvent.keyboard('{Backspace}{Backspace}');
 		expect(handle.getSnapshot().text).toBe(SAME);
-		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 
 		// One more erases formerly shared text, but the section-wide mode keeps it local.
 		await userEvent.keyboard('{Backspace}');
 		let text = handle.getSnapshot().text;
 		expect(text).toContain('[Chorus]\nHold on tigh\n');
 		expect(text).toContain('[Chorus 2]\nHold on tight\n');
-		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 
 		await userEvent.keyboard('ter');
 		text = handle.getSnapshot().text;
 		expect(text).toContain('[Chorus]\nHold on tighter');
 		expect(text).toContain('[Chorus 2]\nHold on tight\n');
-		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 
 		// Moving to another line in the chorus does not retire the mode, and only
 		// only the newly touched spans are added to the link's stored differences.
@@ -890,7 +905,7 @@ describe('typing only in one linked copy', () => {
 		text = handle.getSnapshot().text;
 		expect(text).toContain('[Chorus]\nHold on tighter\nNever! let go');
 		expect(text).toContain('[Chorus 2]\nHold on tight\nNever let go');
-		expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 		expect(handle.getSectionLinks?.()[0]?.holes).toHaveLength(6);
 	});
 
@@ -942,7 +957,9 @@ describe('typing only in one linked copy', () => {
 		await expect
 			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
 			.not.toBeInTheDocument();
-		expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+		expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
+			'Editing this section only'
+		);
 	});
 
 	it('lets Escape cancel before the next edit', async () => {
@@ -958,7 +975,7 @@ describe('typing only in one linked copy', () => {
 		handle.focus();
 
 		await userEvent.keyboard('{Escape}');
-		expect(document.querySelector('.ll-type-only-here')).toBeNull();
+		expect(document.querySelector('.ll-section-only-status')).toBeNull();
 		expect(announcements.at(-1)).toBe('Editing only this section turned off.');
 		await userEvent.keyboard('!');
 		expect(handle.getSnapshot().text.split('Hold on tight!')).toHaveLength(3);
@@ -1019,14 +1036,14 @@ describe('typing only in one linked copy', () => {
 
 			const text = handle.getSnapshot().text;
 			expect(text).toBe(ADLIB);
-			expect(document.querySelector('.ll-type-only-here')).not.toBeNull();
+			expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
 		});
 
 		it('does not confuse an existing difference with the section-wide mode', async () => {
 			const handle = await linked();
 			const caret = emptyRunCaret(ADLIB);
 			handle.setSelection({ anchor: caret, head: caret });
-			expect(document.querySelector('.ll-type-only-here')).toBeNull();
+			expect(document.querySelector('.ll-section-only-status')).toBeNull();
 		});
 
 		it('keeps the typed ad-lib in this copy and adds no second difference', async () => {
@@ -1036,7 +1053,9 @@ describe('typing only in one linked copy', () => {
 			handle.setSelection({ anchor: caret, head: caret });
 			expect(handle.typeOnlyHere?.(header)).toBe(true);
 			handle.focus();
-			expect(document.querySelector('.ll-type-only-here')?.textContent).toBe('Typing only here');
+			expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
+				'Editing this section only'
+			);
 
 			await userEvent.keyboard(' (Woo)');
 

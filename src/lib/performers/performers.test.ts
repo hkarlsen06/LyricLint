@@ -304,6 +304,92 @@ describe('performer assignment transforms', () => {
 		}
 	});
 
+	it('moves an earlier unknown voice down so a newly named voice keeps slot order', () => {
+		const input =
+			'[Vers 1: Mein]\n' +
+			'Jeg er en Roc baby\n' +
+			'Også hopper vi til sengs i min president (<i>Roc-Boyz</i>)\n' +
+			'Jeg er en bad boy, baby, alltid lit\n' +
+			'Burde drikke vann\n' +
+			'Backstage-experience, hun vil føle alt';
+		const records = roster(['Mein', 'KrissyB']);
+		const from = input.indexOf('Jeg er en bad boy');
+		const selected =
+			'Jeg er en bad boy, baby, alltid lit\n' +
+			'Burde drikke vann\n' +
+			'Backstage-experience, hun vil føle alt';
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: from + selected.length },
+			performerIds: [records[1]!.id],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') return;
+		const output = applyEdits(input, result.edit.edits);
+		expect(output).toBe(
+			'[Vers 1: Mein & <i>KrissyB</i>]\n' +
+				'Jeg er en Roc baby\n' +
+				'Også hopper vi til sengs i min president (<b>Roc-Boyz</b>)\n' +
+				`<i>${selected}</i>`
+		);
+		expect(result.styleSlot).toBe(2);
+		expect(
+			parseDocument(output).sections[0]?.header?.legendGroups.map((group) => group.styleSlot)
+		).toEqual([1, 2]);
+		expect(
+			analyzeSlotOrder(parseDocument(output).sections[0]!).filter(
+				(issue) => issue.kind === 'style-order'
+			)
+		).toEqual([]);
+		expect(output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)).toBe(
+			selected
+		);
+	});
+
+	it('cascades contiguous unknown voices while preserving their order', () => {
+		const input = '[Verse: A]\n<i>Unknown one</i> and <b>Unknown two</b>\nNamed part';
+		const records = roster(['A', 'B']);
+		const from = input.indexOf('Named part');
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: from + 'Named part'.length },
+			performerIds: [records[1]!.id],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') return;
+		expect(applyEdits(input, result.edit.edits)).toBe(
+			'[Verse: A & <i>B</i>]\n<b>Unknown one</b> and <i><b>Unknown two</b></i>\n<i>Named part</i>'
+		);
+	});
+
+	it('keeps a displaced multiline unknown voice in one wrapper', () => {
+		const input = '[Verse: A]\nA line\n<i>Unknown one\nUnknown two</i>\nNamed part';
+		const records = roster(['A', 'B']);
+		const from = input.indexOf('Named part');
+		const result = assignVoiceGroup({
+			revision: 1,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: from + 'Named part'.length },
+			performerIds: [records[1]!.id],
+			roster: records
+		});
+
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') return;
+		expect(applyEdits(input, result.edit.edits)).toBe(
+			'[Verse: A & <i>B</i>]\nA line\n<b>Unknown one\nUnknown two</b>\n<i>Named part</i>'
+		);
+	});
+
 	// A first legend group landing in italic is a legend that does not begin at
 	// plain, which `performer.style-order` flags and cannot fix: the only reorder
 	// available to one group hands it the unstyled lyrics it was distinguished
