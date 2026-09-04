@@ -5,7 +5,12 @@ import type { DecorationSet } from '@codemirror/view';
 import { severityRank, type Diagnostic, type Severity, type TextRange } from '$lib/core/types.js';
 import { diagnosticTriggerAttribute } from '../contracts.js';
 import type { RevisionedDiagnostics } from '../contracts.js';
-import { editorCallbacksField, editorComposingField, editorRevisionField } from './editor-state.js';
+import {
+	editorCallbacksField,
+	editorComposingField,
+	editorRevisionField,
+	isCompositionChange
+} from './editor-state.js';
 import { HoverIntent } from './hover-intent.js';
 import { pressed } from './widget-press.js';
 
@@ -398,8 +403,11 @@ function buildDecorations(
 export const lintDecorationField = StateField.define<LintDecorationState>({
 	create: () => ({ diagnostics: [], decorations: Decoration.none }),
 	update(value, transaction) {
+		const compositionChange = isCompositionChange(transaction);
 		if (transaction.docChanged) {
-			value = { diagnostics: [], decorations: Decoration.none };
+			value = compositionChange
+				? { ...value, decorations: value.decorations.map(transaction.changes) }
+				: { diagnostics: [], decorations: Decoration.none };
 		}
 
 		for (const effect of transaction.effects) {
@@ -426,7 +434,11 @@ export const lintDecorationField = StateField.define<LintDecorationState>({
 			};
 		}
 
-		if (transaction.selection && value.diagnostics.length > 0) {
+		if (
+			transaction.selection &&
+			value.diagnostics.length > 0 &&
+			!transaction.state.field(editorComposingField, false)
+		) {
 			const active = activeRelatedDiagnostic(transaction.state, value.diagnostics);
 			if (active !== value.active) {
 				value = {

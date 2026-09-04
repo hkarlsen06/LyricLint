@@ -654,6 +654,26 @@ export function createLyricEditor(
 	let appliedContext: EditorDisplayContext | undefined;
 	let destroyed = false;
 	let contextFlushQueued = false;
+
+	function queuePendingContextFlush(): void {
+		if (!pendingContext || contextFlushQueued) return;
+		contextFlushQueued = true;
+		queueMicrotask(() => {
+			contextFlushQueued = false;
+			if (
+				destroyed ||
+				!pendingContext ||
+				view.state.field(editorComposingField) ||
+				view.composing
+			) {
+				return;
+			}
+			const context = pendingContext;
+			pendingContext = undefined;
+			applyContext(context);
+		});
+	}
+
 	const callbackProxy = createCallbackProxy(() => activeCallbacks);
 	const initialRevision = options.initialRevision ?? 0;
 	if (!Number.isSafeInteger(initialRevision) || initialRevision < 0) {
@@ -834,20 +854,14 @@ export function createLyricEditor(
 			options.selectionSettleDelay
 		),
 		performerCaretAnnouncementPlugin(),
+		// CodeMirror may finish a Safari dead-key composition through its private
+		// observer rather than a DOM compositionend. That produces a view update,
+		// and it is the guaranteed point at which context withheld from the
+		// composition DOM can safely put performer and section decorations back.
+		EditorView.updateListener.of(() => queuePendingContextFlush()),
 		createUpdateListener((snapshot) => {
 			activeCallbacks.onSnapshot(snapshot);
-			if (!pendingContext || contextFlushQueued) {
-				return;
-			}
-			contextFlushQueued = true;
-			queueMicrotask(() => {
-				contextFlushQueued = false;
-				if (!destroyed && pendingContext && !view.state.field(editorComposingField)) {
-					const context = pendingContext;
-					pendingContext = undefined;
-					applyContext(context);
-				}
-			});
+			queuePendingContextFlush();
 		})
 	];
 
@@ -1158,8 +1172,10 @@ export function createLyricEditor(
 		updateContext(context) {
 			if (view.state.field(editorComposingField) || view.composing) {
 				pendingContext = context;
+				queuePendingContextFlush();
 				return;
 			}
+			pendingContext = undefined;
 			applyContext(context);
 		},
 		updateCallbacks(callbacks) {

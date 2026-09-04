@@ -1,5 +1,5 @@
 import { StateEffect, StateField } from '@codemirror/state';
-import type { EditorState } from '@codemirror/state';
+import type { EditorState, Transaction } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
 import { parseDocument } from '$lib/core/parser.js';
 import type { ParsedDocument } from '$lib/core/types.js';
@@ -67,6 +67,20 @@ export const editorComposingField = StateField.define<boolean>({
 		return value;
 	}
 });
+
+/**
+ * Whether this document change is only the browser's provisional IME text.
+ *
+ * Context-derived presentation must map what it already knows through this
+ * change, not clear itself as though the user committed an edit. The shell is
+ * deliberately withheld until composition settles, at which point it sends
+ * the exact parse, diagnostics, and performer ranges for the committed text.
+ */
+export function isCompositionChange(transaction: Transaction): boolean {
+	return (
+		transaction.docChanged && transaction.startState.field(editorComposingField, false) === true
+	);
+}
 
 export const editorCallbacksField = StateField.define<LyricEditorCallbacks | undefined>({
 	create: () => undefined,

@@ -1,6 +1,7 @@
 # Performers: the roster, the two-way rename, and the picker that opens itself
 
 Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`,
+`src/lib/editor/extensions/performer-decorations.ts`,
 `src/lib/ui/state/roster-store.svelte.ts`, `src/lib/ui/state/workbench.svelte.ts`,
 `src/lib/ui/styles/performers.css`
 
@@ -13,6 +14,14 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   `workbench performer renames` in `workbench.test.ts`.
 - Only a settled rename re-derives the color (`recolorPerformer`), never `adoptHeaderRename`,
   which fires per keystroke — re-deriving there strobes every bar through the palette.
+- A live IME/dead-key preedit follows the editor-wide `isCompositionChange` policy: map the settled
+  performer payload and decorations through its transaction, never clear every other line's wash,
+  and wait for the committed snapshot before fresh performer resolution. Pin:
+  `EditorPane.svelte.test.ts` (*keeps every settled context decoration…*).
+- Mapping a performer range may change its positional identity on every provisional character. The
+  caret announcer updates that identity during composition but stays silent, so it neither repeats
+  the performer over the IME nor mistakes the first settled caret move for entering a new voice.
+  Pin: `EditorPane.svelte.test.ts` (*announces performer identity only…*).
 - `narrowEdit` in `performers/transform.ts` keeps every edit's range honest (common text at
   both ends trimmed, clamped to the selection's span, never splitting a surrogate pair). This
   is what keeps performer tagging from ending section-link differences nobody touched — the
@@ -61,6 +70,34 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   `PerformerPicker.svelte.test.ts`, and `EditorPane.svelte.test.ts`.
 
 ## Decision record
+
+### A provisional character does not erase settled performers
+
+A dead key is a real IME composition even when its preedit is only one visible accent. Until the
+next character or Space commits it, WebKit reports `insertCompositionText` and correctly keeps the
+composition open. LyricLint must not lint the provisional character, offer a section header for a
+provisional new line, or dispatch fresh decorations into the composition DOM.
+
+But `performerGroupsField` and `performerDecorationField` used to answer every document change by
+emptying themselves wholesale. That is right for an ordinary edit while the shell derives a fresh
+parse, but wrong for a composition: an accent being composed on the last line erased the settled
+performer bars and washes from the entire song until Space committed it. The browser had not
+crashed and the snapshot gate was not stuck; the editor was deliberately holding the preedit while
+LyricLint unnecessarily discarded unrelated display state.
+
+During composition, both performer fields now follow the shared `isCompositionChange` predicate and
+map what they already know through the transaction.
+Ranges before and after the preedit stay attached to the same words, erased ranges drop, and the
+visual `DecorationSet` and gutter `RangeSet` travel with the same change. This does not derive any
+new claim from provisional text: the shell still rebuilds the exact performer payload only after
+composition commits. The browser test holds a dead-key preedit open and checks performer decoration
+alongside every other context-derived display so this remains one editor policy rather than a
+performer exception.
+
+The caret announcer consumes the same mapped payload, which makes its range key move even while the
+caret remains in one voice. It updates that key during composition but does not announce it: the IME
+owns the speech channel while provisional text is changing, and carrying the key forward is what
+keeps the first ordinary move inside the same settled voice silent too.
 
 ### A performer's rename runs in both directions, and the headers are the point of it
 

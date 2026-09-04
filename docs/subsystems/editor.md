@@ -1,14 +1,31 @@
-# The editor's edges: clipboard metadata and the audio drop
+# The editor's edges: composition, clipboard metadata, and the audio drop
 
 Touches: `src/lib/editor/clipboard-metadata.ts`,
 `src/lib/editor/extensions/clipboard-metadata.ts`, `src/lib/editor/create-editor.ts`
-(`audioFileDrop`, `createCallbackProxy`), `src/lib/editor/contracts.ts`
+(`audioFileDrop`, `createCallbackProxy`), `src/lib/editor/extensions/update-bridge.ts`,
+`src/lib/editor/extensions/editor-state.ts`, context-derived decoration fields,
+`src/lib/editor/contracts.ts`
 
 ## The rules
 
 - Every editor↔shell hook must be added to `createCallbackProxy` in `create-editor.ts` — an
   explicit allow-list where a missing callback looks exactly like a feature that silently
   does nothing.
+- The snapshot gate withholds IME preedit, then releases on `compositionend` or on a finalized
+  `insertText` from a dead key. Safari may omit the former; CodeMirror repairs its own state from
+  the latter, and LyricLint must repair its separate state as well. Active preedit is
+  `insertCompositionText` and never takes this fallback. Context queued during that handoff flushes
+  on CodeMirror's settled view update, without waiting for another character. Pins:
+  `keyboard-commands.svelte.test.ts`, `EditorPane.svelte.test.ts`.
+- A finalized `insertText` is only a request to check CodeMirror's recovery, never authority to end
+  a composition itself. The gate releases only after public `compositionStarted` becomes false, so
+  the Safari workaround cannot truncate a longer-lived composition in another browser. Pin:
+  `keyboard-commands.svelte.test.ts` (*does not treat insertText as an ended composition…*).
+- Every context-derived display field reads the one `isCompositionChange` predicate. A provisional
+  composition transaction maps settled decorations through the change; it does not clear them and
+  does not derive replacements from provisional text. An ordinary committed edit still clears
+  stale display until the shell refreshes it. Pin: `EditorPane.svelte.test.ts` (*keeps every settled
+  context decoration while a dead-key preedit is open*).
 - A copy carries timings and links in a `text/html` flavor (`data-lyriclint`); `text/plain`
   stays byte-for-byte the selection's own slice — clean lyrics on the clipboard are this
   application's entire output. The toolbar's `Copy lyrics` deliberately carries nothing.
@@ -33,6 +50,53 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `audio-drop.svelte.test.ts` asserts both halves.
 
 ## Decision record
+
+### A dead key may finish without saying composition ended
+
+Snapshots are withheld during IME composition so autosave, diagnostics, performer decoration, and
+anchored surfaces never react to a preedit the browser is still rewriting. LyricLint carries that
+gate in `editorComposingField`, separately from CodeMirror's own composing state, because
+transaction filters and snapshots need the answer in immutable editor state.
+
+Safari occasionally omits `compositionend` after a dead key such as an acute, grave, circumflex,
+or diaeresis accent. CodeMirror already recovers its private composing state when the resulting
+`beforeinput` arrives as finalized `insertText`, but its recovery calls an internal observer and
+does not emit another DOM `compositionend`. LyricLint's field therefore stayed true forever: text
+continued to appear in CodeMirror while no snapshot reached linting or autosave, and every surface
+suppressed during composition stayed absent.
+
+`createUpdateListener` mirrors CodeMirror's recovery signal after the same short delay, then yields
+one timer turn for CodeMirror's earlier-queued Safari timer. It releases only when CodeMirror's
+public `compositionStarted` has actually become false: `insertText` can occur without ending a
+longer-lived composition on another browser, and the fallback has no authority to overrule it. A
+genuine preedit therefore remains withheld for its real end. Each composition run carries an
+identity so a delayed finish from one run cannot release a newer one.
+
+There are two gates because there are two things to protect: LyricLint's state gate withholds the
+snapshot, while CodeMirror's own flag protects the live composition DOM from decoration updates.
+The shell's refreshed context can arrive between those gates releasing. `pendingContext` therefore
+flushes from the first settled CodeMirror view update as well as from the snapshot path; otherwise
+the new document saves and lints while performer wash and the headerless-section helper remain
+cleared until the next ordinary character. The regressions deliberately omit the first
+`compositionend`, send the finalized dead-key input, and assert both that one resumed snapshot
+escapes with `composing: false` and that decoration returns without another edit.
+
+A dead key that has emitted only `insertCompositionText` is different: that composition has not
+ended at all, and Space or the next character is what commits it. Fresh lint, performer resolution,
+markup parsing, and headerless-section context correctly wait. But the displayed accent also caused
+a real CodeMirror document transaction, and each context field used to interpret any such change as
+a committed edit and empty itself. That common invalidation policy—not a Safari crash and not a
+performer-only fault—is why the wash, diagnostic underlines and diffs, syntax treatment, and existing
+section helpers all vanished in turn.
+
+`isCompositionChange` in `editor-state.ts` is the one owner of the distinction. During provisional
+composition, each context-derived field maps its already-settled ranges or decorations through the
+transaction. It neither claims the provisional character is valid nor asks the shell to parse it;
+interaction with stale diagnostics remains gated while composing. Once the composition commits, the
+snapshot reaches the shell and the exact context replaces the mapped display. Ordinary edits retain
+the previous clear-then-refresh behavior. The cross-surface regression opens one dead-key preedit
+and holds the fix preview, diagnostic underline, performer marker, markup dimming, and section helper
+on screen together so another field cannot quietly reintroduce its own definition of composition.
 
 ### A copy carries its timings and links in a second flavor, and the plain text never learns
 
@@ -166,4 +230,3 @@ saying what an edge already says.
 Implementation: `audioFileDrop` in `src/lib/editor/create-editor.ts`, `onAudioFileDropped` in
 `contracts.ts`, and `src/lib/editor/audio-drop.svelte.test.ts`, which asserts both halves of the
 regression: dragover is not `defaultPrevented` for text, and dropped text still reaches the document.
-

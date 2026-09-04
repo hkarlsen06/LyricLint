@@ -1,6 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { EditorView } from '@codemirror/view';
 import type { Diagnostic, EditorHandle } from '$lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
@@ -403,6 +404,100 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 		await new Promise((resolve) => window.setTimeout(resolve, 50));
 		expect(lint).toHaveBeenCalledOnce();
 		expect(lint).toHaveBeenCalledWith('日本語');
+	});
+
+	it('does not treat insertText as an ended composition while CodeMirror remains composing', async () => {
+		const snapshots = vi.fn();
+		const { handle } = await mount({
+			text: 'Accent',
+			editorCallbacks: callbacks({ onSnapshot: snapshots })
+		});
+		const textbox = page.getByRole('textbox', { name: 'Lyrics editor' }).element();
+		snapshots.mockClear();
+
+		textbox.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		textbox.dispatchEvent(
+			new InputEvent('beforeinput', {
+				bubbles: true,
+				cancelable: true,
+				data: '´',
+				inputType: 'insertCompositionText'
+			})
+		);
+		await new Promise((resolve) => window.setTimeout(resolve, 30));
+		expect(snapshots).not.toHaveBeenCalled();
+
+		textbox.dispatchEvent(
+			new InputEvent('beforeinput', {
+				bubbles: true,
+				cancelable: true,
+				data: '´',
+				inputType: 'insertText'
+			})
+		);
+		handle.dispatchAtomic({
+			baseRevision: 0,
+			edits: [{ from: 6, to: 6, insert: '´' }]
+		});
+		expect(snapshots).not.toHaveBeenCalled();
+		await new Promise((resolve) => window.setTimeout(resolve, 50));
+		expect(snapshots).not.toHaveBeenCalled();
+		expect(handle.getSnapshot()).toMatchObject({ text: 'Accent´', composing: true });
+
+		textbox.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '´' }));
+		await new Promise((resolve) => window.setTimeout(resolve, 20));
+
+		expect(snapshots).toHaveBeenCalledOnce();
+		expect(snapshots.mock.calls[0]?.[0]).toMatchObject({
+			text: 'Accent´',
+			composing: false
+		});
+	});
+
+	it('resumes snapshots after CodeMirror recovers a dead key without compositionend', async () => {
+		const snapshots = vi.fn();
+		const { handle } = await mount({
+			text: 'Accent',
+			editorCallbacks: callbacks({ onSnapshot: snapshots })
+		});
+		const textbox = page.getByRole('textbox', { name: 'Lyrics editor' }).element();
+		if (!(textbox instanceof HTMLElement)) throw new Error('Editor textbox is not HTML.');
+		const view = EditorView.findFromDOM(textbox);
+		if (!view) throw new Error('CodeMirror view was not found.');
+		let codeMirrorCompositionStarted = true;
+		const compositionStarted = vi
+			.spyOn(view, 'compositionStarted', 'get')
+			.mockImplementation(() => codeMirrorCompositionStarted);
+		snapshots.mockClear();
+
+		try {
+			textbox.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+			textbox.dispatchEvent(
+				new InputEvent('beforeinput', {
+					bubbles: true,
+					cancelable: true,
+					data: '´',
+					inputType: 'insertText'
+				})
+			);
+			handle.dispatchAtomic({
+				baseRevision: 0,
+				edits: [{ from: 6, to: 6, insert: '´' }]
+			});
+			window.setTimeout(() => {
+				codeMirrorCompositionStarted = false;
+			}, 20);
+			await new Promise((resolve) => window.setTimeout(resolve, 50));
+
+			expect(snapshots).toHaveBeenCalledOnce();
+			expect(snapshots.mock.calls[0]?.[0]).toMatchObject({
+				text: 'Accent´',
+				composing: false
+			});
+		} finally {
+			compositionStarted.mockRestore();
+			textbox.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '´' }));
+		}
 	});
 
 	// The transport triad is the shell's, bound to the window so it answers while

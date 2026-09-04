@@ -3,7 +3,7 @@ import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import type { Diagnostic, ParsedDocument, TextRange } from '$lib/core/types.js';
-import { editorCallbacksField } from './editor-state.js';
+import { editorCallbacksField, isCompositionChange } from './editor-state.js';
 
 interface SectionGhostContext {
 	parsed: ParsedDocument;
@@ -87,7 +87,7 @@ export const sectionGhostField = StateField.define<DecorationSet>({
 	create: () => Decoration.none,
 	update(value, transaction) {
 		if (transaction.docChanged) {
-			value = Decoration.none;
+			value = isCompositionChange(transaction) ? value.map(transaction.changes) : Decoration.none;
 		}
 		for (const effect of transaction.effects) {
 			if (effect.is(setHeaderlessSectionsEffect)) {

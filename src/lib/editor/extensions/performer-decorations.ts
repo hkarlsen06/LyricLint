@@ -1,10 +1,10 @@
 import { RangeSet, StateEffect, StateField } from '@codemirror/state';
-import type { EditorState, Extension, Range } from '@codemirror/state';
+import type { ChangeDesc, EditorState, Extension, Range } from '@codemirror/state';
 import { Decoration, EditorView, GutterMarker, ViewPlugin, gutter } from '@codemirror/view';
 import type { DecorationSet, ViewUpdate } from '@codemirror/view';
 import type { PerformerRecord } from '$lib/core/types.js';
 import type { VoiceGroupRange } from '../contracts.js';
-import { editorCallbacksField } from './editor-state.js';
+import { editorCallbacksField, editorComposingField, isCompositionChange } from './editor-state.js';
 
 /**
  * Editor colors keyed to the stable name-derived roster color ids. Unknown
@@ -60,11 +60,27 @@ export const setVoiceGroupsEffect = StateEffect.define<VoiceGroupDecorationPaylo
 
 const emptyPayload: VoiceGroupDecorationPayload = { groups: [], performers: [] };
 
+function mapPayloadThroughComposition(
+	payload: VoiceGroupDecorationPayload,
+	changes: ChangeDesc
+): VoiceGroupDecorationPayload {
+	return {
+		performers: payload.performers,
+		groups: payload.groups.flatMap((group) => {
+			const from = changes.mapPos(group.from, -1);
+			const to = changes.mapPos(group.to, 1);
+			return from < to ? [{ ...group, from, to }] : [];
+		})
+	};
+}
+
 export const performerGroupsField = StateField.define<VoiceGroupDecorationPayload>({
 	create: () => emptyPayload,
 	update(value, transaction) {
 		if (transaction.docChanged) {
-			value = emptyPayload;
+			value = isCompositionChange(transaction)
+				? mapPayloadThroughComposition(value, transaction.changes)
+				: emptyPayload;
 		}
 		for (const effect of transaction.effects) {
 			if (effect.is(setVoiceGroupsEffect)) {
@@ -409,7 +425,12 @@ export const performerDecorationField = StateField.define<PerformerVisuals>({
 	create: () => emptyVisuals,
 	update(value, transaction) {
 		if (transaction.docChanged) {
-			value = emptyVisuals;
+			value = isCompositionChange(transaction)
+				? {
+						decorations: value.decorations.map(transaction.changes),
+						gutterMarkers: value.gutterMarkers.map(transaction.changes)
+					}
+				: emptyVisuals;
 		}
 		for (const effect of transaction.effects) {
 			if (effect.is(setVoiceGroupsEffect)) {
@@ -462,7 +483,11 @@ class PerformerCaretAnnouncer {
 			return;
 		}
 		this.activeRangeKey = nextRangeKey;
-		if (!range) {
+		// A composition maps the settled group around the provisional caret. Keep
+		// the identity in step so the next ordinary move is compared with current
+		// state, but do not talk over the IME with the same performer on every
+		// provisional selection update.
+		if (update.view.composing || update.state.field(editorComposingField, false) || !range) {
 			return;
 		}
 		const style = voiceGroupStyle(

@@ -19,6 +19,10 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   `selectDiagnostic` does not clear the preview.
 - The fix-preview insert widget must override `ignoreEvent` (mousemove only) and resolve
   through `posAtDOM`, or the inserted half of the diff is a dead zone.
+- A live IME/dead-key preedit maps the settled diagnostic underline and diff preview through its
+  provisional transaction. It does not erase either, expose the stale diagnostic for interaction,
+  or re-lint before composition commits. The shared predicate is `isCompositionChange`; pin:
+  `EditorPane.svelte.test.ts` (*keeps every settled context decoration…*).
 - `presumedCorrect` findings lead with `It's correct` in the contrast tier; it is `onIgnore`
   under the hood, per occurrence. `acceptsAsCorrect` is one derived answer for both surfaces.
   No catalog rule sets `presumedCorrect` today — its last producer, the ad-lib wrap offer, was
@@ -354,4 +358,3 @@ layer at the head's own bottom edge — and what does something else is lifted o
 and the slack beside the last control is card, exactly as the head's padding is. The one thing this
 costs is selecting the explanation's prose with the pointer, which is the trade a card that is a
 control makes anyway.
-

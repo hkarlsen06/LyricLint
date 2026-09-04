@@ -76,6 +76,22 @@ describe('parseDocument', () => {
 		expect(isSectionHeaderLine('[Chorus?]')).toBe(true);
 	});
 
+	it('keeps lyrics bookended by unknown markers out of the section-header parser', () => {
+		// A leading marker closes before the lyric does. Looking only at the last
+		// character made the second marker's `]` look like the close for one giant
+		// header named `?] toppet nå [?`.
+		const lyric = '[?] toppet nå [?]';
+		const document = parseDocument(`[Vers]\n${lyric}\nNeste linje`);
+
+		expect(document.sections).toHaveLength(1);
+		expect(document.sections[0]?.header?.name).toBe('Vers');
+		expect(document.sections[0]?.lines.map((line) => line.text)).toEqual([lyric, 'Neste linje']);
+		expect(isSectionHeaderLine(lyric)).toBe(false);
+		expect(isLyricLine(lyric)).toBe(true);
+		// Nested brackets in a performer name do not close the outer header.
+		expect(isSectionHeaderLine('[Verse: Bracket [Live]]')).toBe(true);
+	});
+
 	it('keeps an annotation-opening line as a lyric of its section, never a header', () => {
 		// A Genius annotation whose fragment crosses a line break opens with a `[`
 		// and no `]` on its own line — exactly the shape of a header still being

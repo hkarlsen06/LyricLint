@@ -1,6 +1,7 @@
 import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { EditorView } from '@codemirror/view';
 import { parseDocument } from '$lib/core/parser.js';
 import type {
 	Diagnostic,
@@ -9,6 +10,7 @@ import type {
 	SourceReference
 } from '$lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
+import { createLyricEditor } from './create-editor.js';
 import { insertSectionHeader } from '$lib/performers/transform.js';
 import EditorPane from './EditorPane.svelte';
 import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
@@ -367,6 +369,142 @@ describe('EditorPane', () => {
 		content.dispatchEvent(
 			new CompositionEvent('compositionend', { bubbles: true, data: '日本語' })
 		);
+	});
+
+	it('keeps settled performer decoration while a dead-key preedit is open', async () => {
+		const text = '[Verse: Avery]\nAvery sings\n\n';
+		const nextText = `${text}´`;
+		const lineFrom = text.indexOf('Avery sings');
+		const lineTo = lineFrom + 'Avery sings'.length;
+		const roster = performers();
+		const displayContext = (value: string): EditorDisplayContext =>
+			context({
+				performers: roster,
+				parsed: parseDocument(value),
+				voiceGroups: [
+					{
+						from: lineFrom,
+						to: lineTo,
+						group: { id: 'voice-avery', performerIds: ['avery'], styleSlot: 1 }
+					}
+				]
+			});
+		const editorCallbacks = callbacks();
+		let handle: EditorHandle | undefined;
+		const props = {
+			initialText: text,
+			context: displayContext(text),
+			callbacks: editorCallbacks,
+			onready: (readyHandle: EditorHandle) => {
+				handle = readyHandle;
+			}
+		};
+		const screen = await render(EditorPane, { props });
+		await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+		if (!handle) throw new Error('Editor did not expose its handle.');
+		expect(document.querySelector('.ll-performer-gutter-marker')).not.toBeNull();
+
+		const textbox = page.getByRole('textbox', { name: 'Lyrics editor' }).element();
+		textbox.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		textbox.dispatchEvent(
+			new InputEvent('beforeinput', {
+				bubbles: true,
+				cancelable: true,
+				data: '´',
+				inputType: 'insertCompositionText'
+			})
+		);
+		handle.dispatchAtomic({
+			baseRevision: 0,
+			edits: [{ from: text.length, to: text.length, insert: '´' }]
+		});
+		await new Promise((resolve) => window.setTimeout(resolve, 50));
+		expect(handle.getSnapshot()).toMatchObject({ text: nextText, composing: true });
+		expect(document.querySelector('.ll-performer-gutter-marker')).not.toBeNull();
+		await expect
+			.element(page.getByRole('button', { name: '+ Add section header' }))
+			.not.toBeInTheDocument();
+
+		textbox.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '´' }));
+		await new Promise((resolve) => window.setTimeout(resolve, 20));
+		await screen.rerender({ ...props, context: displayContext(nextText) });
+		await new Promise((resolve) => window.setTimeout(resolve, 50));
+
+		expect(document.querySelector('.ll-performer-gutter-marker')).not.toBeNull();
+		await expect.element(page.getByRole('button', { name: '+ Add section header' })).toBeVisible();
+		expect(handle.getSnapshot().text).toBe(nextText);
+	});
+
+	it('keeps every settled context decoration while a dead-key preedit is open', () => {
+		const text = 'Intro line\n\n[Verse: Avery]\nhello!';
+		const lyricFrom = text.indexOf('hello!');
+		const roster = performers();
+		const host = document.createElement('div');
+		document.body.append(host);
+		const instance = createLyricEditor(host, {
+			initialText: text,
+			initialSelection: { anchor: text.length, head: text.length },
+			context: context({
+				performers: roster,
+				parsed: parseDocument(text),
+				diagnostics: {
+					revision: 0,
+					items: [testDiagnostic({ from: lyricFrom, to: lyricFrom + 5 })]
+				},
+				voiceGroups: [
+					{
+						from: lyricFrom,
+						to: lyricFrom + 'hello!'.length,
+						group: { id: 'voice-avery', performerIds: ['avery'], styleSlot: 1 }
+					}
+				]
+			}),
+			callbacks: callbacks(),
+			windowFind: false
+		});
+
+		try {
+			instance.handle.previewAtomic?.({
+				baseRevision: 0,
+				edits: [{ from: lyricFrom, to: lyricFrom + 5, insert: 'Hello' }]
+			});
+			for (const selector of [
+				'.ll-fix-preview-insert',
+				'.ll-diagnostic-range',
+				'.ll-performer-gutter-marker',
+				'.ll-syntax-dim',
+				'.ll-section-ghost-button'
+			]) {
+				expect(
+					host.querySelector(selector),
+					`missing ${selector} before composition`
+				).not.toBeNull();
+			}
+
+			instance.view.contentDOM.dispatchEvent(
+				new CompositionEvent('compositionstart', { bubbles: true })
+			);
+			instance.view.dispatch({
+				changes: { from: text.length, to: text.length, insert: '´' }
+			});
+
+			expect(instance.handle.getSnapshot()).toMatchObject({
+				text: `${text}´`,
+				composing: true
+			});
+			for (const selector of [
+				'.ll-fix-preview-insert',
+				'.ll-diagnostic-range',
+				'.ll-performer-gutter-marker',
+				'.ll-syntax-dim',
+				'.ll-section-ghost-button'
+			]) {
+				expect(host.querySelector(selector), `lost ${selector} during composition`).not.toBeNull();
+			}
+		} finally {
+			instance.destroy();
+			host.remove();
+		}
 	});
 
 	it('mirrors a performer renamed in one header into the other headers', async () => {
@@ -1532,7 +1670,8 @@ describe('EditorPane', () => {
 	});
 
 	it('announces performer identity only when the caret enters a highlighted range', async () => {
-		const editorCallbacks = callbacks();
+		const onAnnouncement = vi.fn();
+		const editorCallbacks = { ...callbacks(), onAnnouncement };
 		const { handle } = await mountEditor({
 			text: 'hello x',
 			selection: { anchor: 6, head: 6 },
@@ -1553,9 +1692,26 @@ describe('EditorPane', () => {
 		expect(editorCallbacks.onAnnouncement).toHaveBeenCalledWith('Performed by Avery');
 		handle.setSelection({ anchor: 2, head: 2 });
 		expect(editorCallbacks.onAnnouncement).toHaveBeenCalledTimes(1);
+
+		const textbox = page.getByRole('textbox', { name: 'Lyrics editor' }).element();
+		if (!(textbox instanceof HTMLElement)) throw new Error('Editor textbox is not HTML.');
+		const view = EditorView.findFromDOM(textbox);
+		if (!view) throw new Error('CodeMirror view was not found.');
+		onAnnouncement.mockClear();
+		textbox.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		view.dispatch({
+			changes: { from: 2, to: 2, insert: '´' },
+			selection: { anchor: 3 }
+		});
+		expect(onAnnouncement).not.toHaveBeenCalled();
+		textbox.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '´' }));
+		await new Promise((resolve) => window.setTimeout(resolve, 20));
+		handle.setSelection({ anchor: 4, head: 4 });
+		expect(onAnnouncement).not.toHaveBeenCalled();
+
 		handle.setSelection({ anchor: 6, head: 6 });
 		handle.setSelection({ anchor: 3, head: 3 });
-		expect(editorCallbacks.onAnnouncement).toHaveBeenCalledTimes(2);
+		expect(onAnnouncement).toHaveBeenCalledOnce();
 
 		const highlight = document.querySelector<HTMLElement>('.ll-performer-slot-3');
 		expect(highlight).not.toBeNull();

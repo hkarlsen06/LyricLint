@@ -143,7 +143,19 @@ export function isSectionHeaderLine(text: string, context?: LineDocumentContext)
 		return false;
 	}
 
-	return trimmed.endsWith(']') || !trimmed.includes(']');
+	let bracketDepth = 0;
+	for (let index = 0; index < trimmed.length; index += 1) {
+		if (trimmed[index] === '[') {
+			bracketDepth += 1;
+		} else if (trimmed[index] === ']') {
+			bracketDepth -= 1;
+			if (bracketDepth === 0) {
+				return index === trimmed.length - 1;
+			}
+		}
+	}
+
+	return true;
 }
 
 /**

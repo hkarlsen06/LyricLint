@@ -36,19 +36,56 @@ export function snapshotFromState(state: EditorState, atomic = false): EditorSna
  * final text, selection, diagnostics, and revision from one state.
  */
 export function createUpdateListener(callback: (snapshot: EditorSnapshot) => void): Extension {
+	let compositionRun = 0;
+
+	const finishComposition = (
+		view: EditorView,
+		run: number,
+		delay: number,
+		waitForCodeMirror = false
+	): void => {
+		window.setTimeout(() => {
+			if (
+				!view.dom.isConnected ||
+				run !== compositionRun ||
+				!view.state.field(editorComposingField)
+			) {
+				return;
+			}
+			// Extension handlers run before CodeMirror's built-in beforeinput
+			// handler, so both dead-key recovery timers are registered for the same
+			// instant in that order. Give CodeMirror's already-queued Safari timer one
+			// turn, then release only if CodeMirror really ended the composition. Other
+			// browsers may legitimately keep a composition open across `insertText`;
+			// the fallback signal must never overrule their state.
+			if (view.compositionStarted) {
+				if (waitForCodeMirror) finishComposition(view, run, 0);
+				return;
+			}
+			view.dispatch({ effects: setComposingEffect.of(false) });
+		}, delay);
+	};
+
 	return [
 		EditorView.domEventHandlers({
 			compositionstart(_event, view) {
+				compositionRun += 1;
 				view.dispatch({ effects: setComposingEffect.of(true) });
 				return false;
 			},
 			compositionend(_event, view) {
-				window.setTimeout(() => {
-					if (!view.dom.isConnected) {
-						return;
-					}
-					view.dispatch({ effects: setComposingEffect.of(false) });
-				}, 0);
+				finishComposition(view, compositionRun, 0);
+				return false;
+			},
+			beforeinput(event, view) {
+				// Safari occasionally omits compositionend after a dead key. CodeMirror
+				// repairs its own composing flag when the finalized `insertText` arrives,
+				// but that internal repair emits no DOM event for this separate snapshot
+				// gate. Check the same signal here, but let CodeMirror's public
+				// `compositionStarted` state decide whether the recovery actually happened.
+				if (event.inputType === 'insertText' && view.state.field(editorComposingField)) {
+					finishComposition(view, compositionRun, 20, true);
+				}
 				return false;
 			}
 		}),

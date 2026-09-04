@@ -3,6 +3,7 @@ import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView, WidgetType } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import type { AtomicDocumentEdit, TextEdit } from '$lib/core/types.js';
+import { isCompositionChange } from './editor-state.js';
 
 export const setFixPreviewEffect = StateEffect.define<AtomicDocumentEdit | undefined>();
 
@@ -116,7 +117,7 @@ export const fixPreviewField = StateField.define<DecorationSet>({
 	create: () => Decoration.none,
 	update(value, transaction) {
 		if (transaction.docChanged) {
-			value = Decoration.none;
+			value = isCompositionChange(transaction) ? value.map(transaction.changes) : Decoration.none;
 		}
 		for (const effect of transaction.effects) {
 			if (effect.is(setFixPreviewEffect)) {

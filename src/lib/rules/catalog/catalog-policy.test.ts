@@ -180,6 +180,15 @@ describe('rule regressions', () => {
 		const nearMiss = '[Intro]\nEikeli\n[??]\nEikeli';
 		expect(diagnostics('section.header-unrecognized', nearMiss)).toEqual([]);
 		expect(diagnostics('unknown.marker', nearMiss)).toHaveLength(1);
+
+		// The first marker closes before the line does; the final marker must not
+		// lend its closing bracket to a fictitious header spanning the whole lyric.
+		const bookended = '[Vers]\n[?] toppet nå [?]';
+		expect(diagnostics('section.header-unrecognized', bookended, 'no')).toEqual([]);
+		expect(diagnostics('section.header-spacing', bookended, 'no')).toEqual([]);
+		expect(diagnostics('unknown.unresolved', bookended, 'no')[0]?.message).toBe(
+			'Try to identify the 2 lyrics marked [?].'
+		);
 	});
 
 	it('accepts the optional quoted title header on a non-English song', () => {

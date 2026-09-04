@@ -293,6 +293,22 @@ Implementation: `rules/catalog/section-header-empty.ts`, `headerNameIsEmpty` in 
 with the others, and `section-header-empty.test.ts` drives the real transform from the real
 finding's range — the one contract neither file would catch alone.
 
+### A closing bracket cannot reach backward past sung text
+
+`[?] toppet nå [?]` used to parse as one section header named `?] toppet nå [?`. The predicate
+only asked whether a line began with `[` and ended with `]`, so the second unknown marker's closing
+bracket was allowed to close the first marker's opening bracket across the lyric between them. The
+result was a custom-header review quoting placeholder syntax, while both real `[?]` markers vanished
+from the unknown-lyric rule and the whole line vanished from timing and sync mode.
+
+A closed section header now keeps its **outer** `[` open through the end of the trimmed line. Nested
+brackets in a performer name remain inside that outer pair, but if the bracket depth returns to zero
+and sung text follows, a later bracket cannot turn the line back into structure. Unclosed header
+typing remains recoverable because a line whose outer bracket has not closed is still a header
+candidate, and the exact whole-line `[?]` / `[??]` exception remains sung text. `parser.test.ts` pins
+the document shape and the nested-name case; `catalog-policy.test.ts` pins the user-visible ownership:
+no header diagnostic, and both unknown markers are counted.
+
 ### An `ambiguous` policy case is a decision, and widening a rule past one is how a safe fix stops being safe
 
 `unknown.marker` flags `(?)` and `[??]` and offers `[?]` as a one-press **safe** fix, and its own

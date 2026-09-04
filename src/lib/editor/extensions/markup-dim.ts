@@ -3,6 +3,7 @@ import type { EditorState, Range } from '@codemirror/state';
 import { Decoration, EditorView } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import type { ParsedDocument } from '$lib/core/types.js';
+import { isCompositionChange } from './editor-state.js';
 import { setHeaderlessSectionsEffect } from './section-ghosts.js';
 
 const dim = Decoration.mark({ class: 'll-syntax-dim' });
@@ -67,7 +68,7 @@ export const markupDimField = StateField.define<DecorationSet>({
 	create: () => Decoration.none,
 	update(value, transaction) {
 		if (transaction.docChanged) {
-			value = Decoration.none;
+			value = isCompositionChange(transaction) ? value.map(transaction.changes) : Decoration.none;
 		}
 		for (const effect of transaction.effects) {
 			if (effect.is(setHeaderlessSectionsEffect)) {
