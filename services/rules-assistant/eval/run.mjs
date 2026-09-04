@@ -17,7 +17,7 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { explainsNoDraftAccess, refusesInjection } from './assertions.mjs';
+import { answersInNorwegian, explainsNoDraftAccess, refusesInjection } from './assertions.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const evalSet = JSON.parse(await readFile(join(here, 'eval-set.json'), 'utf8'));
@@ -48,6 +48,8 @@ let structural = 0;
 let validCitations = 0;
 let validSources = 0;
 let scopeCorrect = 0;
+let answerLanguageCorrect = 0;
+let answerLanguageTotal = 0;
 const failures = [];
 
 for (const [index, testCase] of evalSet.cases.entries()) {
@@ -100,6 +102,18 @@ for (const [index, testCase] of evalSet.cases.entries()) {
 	const missing = (expect.mentionsAll ?? []).filter((form) => !said.includes(form));
 	if (missing.length > 0) ok = false;
 	const behaviorMisses = [];
+	if (expect.answerLanguage) {
+		answerLanguageTotal += 1;
+		const language =
+			expect.answerLanguage === 'no'
+				? answersInNorwegian(said)
+				: { ok: false, norwegianHits: 0, germanHits: 0 };
+		if (language.ok) answerLanguageCorrect += 1;
+		else
+			behaviorMisses.push(
+				`answer language was not ${expect.answerLanguage} (Norwegian markers=${language.norwegianHits}, German markers=${language.germanHits})`
+			);
+	}
 	if (expect.refusesInjection) {
 		const injection = refusesInjection(testCase.question, said, [corpus.contentHash]);
 		if (!injection.ok) behaviorMisses.push('did not refuse the injection within guideline scope');
@@ -124,6 +138,12 @@ console.log(`structural   ${structural}/${total} (${pct(structural)})  gate: 100
 console.log(`rule ids     ${validCitations}/${total} (${pct(validCitations)})  gate: 100%`);
 console.log(`source ids   ${validSources}/${total} (${pct(validSources)})  gate: 100%`);
 console.log(`scope        ${scopeCorrect}/${total} (${pct(scopeCorrect)})  gate: 95%`);
+if (answerLanguageTotal > 0) {
+	console.log(
+		`language     ${answerLanguageCorrect}/${answerLanguageTotal} ` +
+			`(${((answerLanguageCorrect / answerLanguageTotal) * 100).toFixed(1)}%)  gate: 100%`
+	);
+}
 if (failures.length > 0) {
 	console.log('\nMisses:');
 	for (const failure of failures) console.log(`  - ${failure}`);
@@ -133,6 +153,7 @@ const passed =
 	structural === total &&
 	validCitations === total &&
 	validSources === total &&
-	scopeCorrect / total >= 0.95;
+	scopeCorrect / total >= 0.95 &&
+	answerLanguageCorrect === answerLanguageTotal;
 console.log(passed ? '\nRelease gates: PASS' : '\nRelease gates: FAIL');
 process.exit(passed ? 0 : 1);

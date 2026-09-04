@@ -635,17 +635,19 @@
 	}
 
 	function beginTypeOnlyHere(headerFrom: number): void {
+		const turningOff = editor?.handle.isTypeOnlyHere?.(headerFrom) ?? false;
 		if (!editor?.handle.typeOnlyHere?.(headerFrom)) {
-			callbacks.onAnnouncement('Place the caret in shared lyrics before choosing Type only here.');
+			callbacks.onAnnouncement('This section is no longer linked.');
 			return;
 		}
 		callbacks.onAnnouncement(
-			'Your next edit at the caret won’t be copied to the other linked sections. Press Escape to cancel.'
+			turningOff
+				? 'Editing only this section turned off. Future edits to shared words will update the linked sections.'
+				: 'Editing only this section. Changes anywhere in it stay here until you turn this off.'
 		);
 		session = closeOverlay(session);
 		// The one path out of this card that does not go back to whatever opened
-		// it: what has just been armed is the *next* edit at the caret, so the
-		// focus owed is the document's. After the tick, so the card that was
+		// it: the toggle chooses the document as the place to work next. After the tick, so the card that was
 		// pressed is gone rather than taking it straight back.
 		void tick().then(returnFocus);
 	}
@@ -922,6 +924,7 @@
 {:else if linkOverlay}
 	{@const occurrences = sectionsToLink(linkOverlay.headerFrom)}
 	{@const typeOnlyHereAvailable = editor?.handle.canTypeOnlyHere?.(linkOverlay.headerFrom) ?? false}
+	{@const typeOnlyHereActive = editor?.handle.isTypeOnlyHere?.(linkOverlay.headerFrom) ?? false}
 	<SectionLinkPicker
 		{occurrences}
 		currentHeaderFrom={linkOverlay.headerFrom}
@@ -934,6 +937,7 @@
 					.text.slice(linkOverlay.selection.from, linkOverlay.selection.to)
 			: undefined}
 		{typeOnlyHereAvailable}
+		{typeOnlyHereActive}
 		takesFocus={linkOverlay.takesFocus}
 		anchor={overlayAnchor}
 		placement={overlayPlacement}

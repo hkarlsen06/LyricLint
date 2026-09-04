@@ -94,6 +94,7 @@ import {
 	applyOnlyHereAnnotation,
 	canTypeOnlyHere,
 	expandLinkedPerformerEdit,
+	isTypeOnlyHere,
 	linkDifferencesFor,
 	linkHolesField,
 	linkSections as linkSectionsCommand,
@@ -1120,6 +1121,9 @@ export function createLyricEditor(
 		},
 		canTypeOnlyHere(headerFrom) {
 			return canTypeOnlyHere(view.state, headerFrom);
+		},
+		isTypeOnlyHere(headerFrom) {
+			return isTypeOnlyHere(view.state, headerFrom);
 		},
 		typeOnlyHere(headerFrom) {
 			return typeOnlyHere(view, headerFrom);

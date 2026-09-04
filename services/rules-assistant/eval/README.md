@@ -13,6 +13,9 @@ Two boolean expectations use intentionally simple prose heuristics:
 - `mustExplainNoDraftAccess` requires both a draft/document/lyrics reference
   and an explicit statement that the assistant cannot read, see, view, or
   access it.
+- `answerLanguage: "no"` is the narrow regression gate for the observed
+  Norwegian-to-German switch. It requires multiple Norwegian prose markers and
+  refuses any German prose marker; it is not a general-purpose detector.
 
 These checks cover the accountless question-only eval path. They do **not**
 exercise the browser agent/tool path or verify the `read_scribe` untrusted-data

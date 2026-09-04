@@ -5,11 +5,7 @@ import type { Diagnostic, EditorCallbacks, TextRange } from '$lib/core/types.js'
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { LyricEditorCallbacks } from './contracts.js';
 import { linkTargetAt } from './section-links.js';
-import {
-	cancelTypeOnlyHere,
-	rejoinLinkedWordsAt,
-	typeOnlyHere
-} from './extensions/section-links.js';
+import { cancelTypeOnlyHere, isTypeOnlyHere, typeOnlyHere } from './extensions/section-links.js';
 import {
 	editorComposingField,
 	editorContextField,
@@ -98,25 +94,11 @@ export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallb
 }
 
 /**
- * Keep the next edit in the linked copy containing the caret or selection —
- * or, pressed where that is already true, undo it.
- *
- * The chord is a toggle keyed to the state the `Typing only here` marker
- * names. Armed and pressed again, it stands down. Pressed with the caret in
- * one of this copy's own runs — the marker's own condition — it closes that
- * difference and the words are shared again (`rejoinLinkedWordsAt`), which is
- * the way back the card's group-wide replace was too blunt for. Only where
- * neither is true does it arm.
+ * Toggle independent editing for the linked section containing the selection.
  */
 function typeOnlyInLinkedSection(callbacks: LyricEditorCallbacks): (view: EditorView) => boolean {
 	return (view) => {
 		if (composing(view)) {
-			return true;
-		}
-		if (cancelTypeOnlyHere(view)) {
-			return true;
-		}
-		if (rejoinLinkedWordsAt(view)) {
 			return true;
 		}
 		const range = logicalSelection(view);
@@ -126,15 +108,24 @@ function typeOnlyInLinkedSection(callbacks: LyricEditorCallbacks): (view: Editor
 			range.from,
 			range.to
 		);
-		if (!target || !typeOnlyHere(view, target.header.from)) {
+		if (!target) {
 			return announce(
 				callbacks,
-				'Place the caret or a selection in shared lyrics of a linked section before choosing Type only here.'
+				'Place the caret or a selection in a linked section before toggling Edit only this section.'
+			);
+		}
+		const turningOff = isTypeOnlyHere(view.state, target.header.from);
+		if (!typeOnlyHere(view, target.header.from)) {
+			return announce(
+				callbacks,
+				'Place the caret or a selection in a linked section before toggling Edit only this section.'
 			);
 		}
 		return announce(
 			callbacks,
-			'Your next edit at the caret won’t be copied to the other linked sections. Press Escape to cancel.'
+			turningOff
+				? 'Editing only this section turned off. Future edits to shared words will update the linked sections.'
+				: 'Editing only this section. Changes anywhere in it stay here until you turn this off.'
 		);
 	};
 }

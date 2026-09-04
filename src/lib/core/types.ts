@@ -882,14 +882,16 @@ export interface EditorHandle {
 	 * own wording — what the picker's second list is built from.
 	 */
 	getLinkDifferences?(headerOffsets: readonly number[]): LinkDifference[];
-	/** Whether `Type only here` can be armed at the current caret or selection. */
+	/** Whether this linked section can enter section-only editing mode. */
 	canTypeOnlyHere?(headerFrom: number): boolean;
+	/** Whether this linked section is currently being edited independently. */
+	isTypeOnlyHere?(headerFrom: number): boolean;
 	/**
-	 * Keep the next edit at the current caret in this linked section.
+	 * Toggle section-only editing for this linked section.
 	 *
-	 * The first edit creates a divergent run in every member as part of the same
-	 * history event. Continued typing then stays local because it is inside that
-	 * run; everything outside it remains linked.
+	 * While enabled, every body edit stays in this copy and creates the smallest
+	 * divergent run that can describe it. Turning it off preserves those runs and
+	 * resumes mirroring edits made in shared text.
 	 */
 	typeOnlyHere?(headerFrom: number): boolean;
 	/** Every line anchor, for the shell to write down. */

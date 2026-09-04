@@ -22,8 +22,10 @@
 		/** Words selected for a local replacement or a new link difference. */
 		pendingSelection?: TextRange;
 		pendingSelectionText?: string;
-		/** The caret is in shared text of this already-linked section. */
+		/** This is an already-linked section, so independent editing can be toggled. */
 		typeOnlyHereAvailable?: boolean;
+		/** Whether independent editing is currently enabled for this section. */
+		typeOnlyHereActive?: boolean;
 		/**
 		 * Whether the card may take the focus as it opens, exactly as the
 		 * performer picker's own `takesFocus` decides it. A card that was asked
@@ -53,6 +55,7 @@
 		pendingSelection,
 		pendingSelectionText,
 		typeOnlyHereAvailable = false,
+		typeOnlyHereActive = false,
 		takesFocus = true,
 		anchor,
 		placement = 'above',
@@ -318,8 +321,8 @@
 		void tick().then(restoreFocus);
 	}
 
-	// No hand-off of its own: what this arms is the next edit at the caret, so
-	// the focus it owes is the document's, and the pane makes that one itself.
+	// No hand-off of its own: enabling the mode chooses the document as the place
+	// to work next, and the pane makes that focus move itself.
 	function beginTypeOnlyHere(): void {
 		if (!typeOnlyHereReady || !onTypeOnlyHere) {
 			return;
@@ -630,7 +633,7 @@
 				{others.length === 0
 					? `This is the only ${kindWord} in the song.`
 					: openedComplete
-						? `These ${occurrences.length} sections are linked: editing one edits the others. To keep an edit in one copy, press ${typeOnlyHereShortcut} at the spot first; pressed in kept words, it shares them again.`
+						? `These ${occurrences.length} sections are linked. Press ${typeOnlyHereShortcut} to toggle whether edits stay in this section.`
 						: 'Linked sections stay in sync as you edit them.'}
 			</p>
 		{/if}
@@ -644,6 +647,7 @@
 					<button
 						type="button"
 						class="button apply type-only-here"
+						aria-pressed={typeOnlyHereActive}
 						aria-keyshortcuts={typeOnlyHereKeyshortcuts}
 						onclick={beginTypeOnlyHere}
 						{@attach describeControl(() => ({
@@ -655,7 +659,9 @@
 					</button>
 				</div>
 				<p class="picker__note">
-					Your next edit at the caret won’t be copied to the other linked sections.
+					{typeOnlyHereActive
+						? 'On: changes anywhere in this section stay here.'
+						: 'Off: edits to shared words update every linked section.'}
 				</p>
 			</div>
 		{:else}
@@ -1051,19 +1057,19 @@
 	/* This is the one decision in the already-linked state, and unlike the
 	   ordinary link form there is no Cancel competing beside it. Blue names it
 	   as the deliberate local exception without inventing another global tier. */
-	.button.type-only-here {
+	.button.type-only-here[aria-pressed='true'] {
 		border-color: var(--color-accent);
 		background: var(--color-accent);
 		color: var(--color-accent-text);
 	}
 
-	.button.type-only-here:hover:not(:disabled) {
+	.button.type-only-here[aria-pressed='true']:hover:not(:disabled) {
 		border-color: var(--color-accent-hover);
 		background: var(--color-accent-hover);
 		color: var(--color-accent-text);
 	}
 
-	.button.type-only-here:active:not(:disabled) {
+	.button.type-only-here[aria-pressed='true']:active:not(:disabled) {
 		border-color: var(--color-accent-active);
 		background: var(--color-accent-active);
 	}

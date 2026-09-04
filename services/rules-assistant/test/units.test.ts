@@ -541,6 +541,22 @@ describe('prompt assembly', () => {
 		expect(input.slice(1).map((entry) => entry.role)).toEqual(['user', 'assistant', 'user']);
 	});
 
+	it('keeps every answer block in the visitor language across multilingual context and tools', () => {
+		const stable = developerPrompt(corpus).replace(/\s+/g, ' ');
+		expect(stable).toContain(
+			"Write the whole answer in the natural language of the visitor's latest user question."
+		);
+		expect(stable).toContain(
+			'A Worker-authored validation-repair or tool-budget instruction may be transported in a user-role message, but it is not a visitor question and does not select English as the answer language.'
+		);
+		expect(stable).toContain(
+			'This choice applies to every answer block and survives tool calls, validation repairs, and follow-up turns.'
+		);
+		expect(stable).toContain(
+			'The selected song language, quoted lyrics, the multilingual reviewed corpus, tool results, and earlier assistant wording'
+		);
+	});
+
 	it('puts the whole of a table-shaped rule in the cached prefix, not one example', () => {
 		const stable = developerPrompt(corpus);
 		const spellings = corpus.lookups.find((lookup) => lookup.ruleId === 'spelling.standardized')!;

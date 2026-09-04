@@ -233,6 +233,24 @@ describe('the assistant state', () => {
 		]);
 	});
 
+	it("starts blank on a different 'scribe but keeps the prior conversation loadable", async () => {
+		const { state } = makeState();
+		state.registerDraftBridge(draftBridge('First song', true, 'draft-a').bridge);
+		await state.open();
+		await state.send('Question about the first song?');
+		const previousChatId = state.activeChatId!;
+
+		state.registerDraftBridge(draftBridge('Second song', true, 'draft-b').bridge);
+
+		expect(state.activeChatId).toBeUndefined();
+		expect(state.messages).toEqual([]);
+		expect(state.chats.map((chat) => chat.id)).toContain(previousChatId);
+
+		await state.selectChat(previousChatId);
+		expect(state.activeChatId).toBe(previousChatId);
+		expect(state.messages[0]!.content).toBe('Question about the first song?');
+	});
+
 	// The rule reference's prompt is not in a conversation, so a question asked
 	// from it may not land at the foot of whichever chat `initialize()` re-seated
 	// — the reader would not see that history, and the model would answer with it
@@ -290,6 +308,27 @@ describe('the assistant state', () => {
 		release(answer('Still in the right chat.'));
 		await sending;
 		expect(state.messages[1]!.answer?.blocks[0]!.text).toBe('Still in the right chat.');
+	});
+
+	it("does not let an in-flight answer reappear after moving to another 'scribe", async () => {
+		let release!: (value: AnswerTurnResponse) => void;
+		const ask = vi.fn(() => new Promise<AnswerTurnResponse>((resolve) => (release = resolve)));
+		const { state } = makeState({ ask });
+		state.registerDraftBridge(draftBridge('First song', true, 'draft-a').bridge);
+		await state.open();
+		const sending = state.send('Slow question?');
+		await vi.waitFor(() => expect(ask).toHaveBeenCalled());
+		const previousChatId = state.activeChatId!;
+
+		state.registerDraftBridge(draftBridge('Second song', true, 'draft-b').bridge);
+		expect(state.messages).toEqual([]);
+		release(answer('Belongs to the first song.'));
+		await sending;
+
+		expect(state.activeChatId).toBeUndefined();
+		expect(state.messages).toEqual([]);
+		await state.selectChat(previousChatId);
+		expect(state.messages[1]!.status).toBe('interrupted');
 	});
 
 	it('marks the answer failed and retries it in place', async () => {
@@ -667,18 +706,23 @@ describe('the assistant state', () => {
 		await state.open();
 		await state.send('Read it.');
 		expect(state.toolSession?.phase).toBe('awaiting-permission');
+		const previousChatId = state.activeChatId!;
 
 		const draftB = draftBridge('[Verse]\nB', true, 'draft-b');
 		state.registerDraftBridge(draftB.bridge);
 		unregisterA();
 
 		expect(state.toolSession).toBeUndefined();
-		expect(state.messages[1]!.status).toBe('interrupted');
+		expect(state.activeChatId).toBeUndefined();
+		expect(state.messages).toEqual([]);
 		await state.allowDraftRead();
 		await state.denyDraftRead();
 		expect(ask).toHaveBeenCalledTimes(1);
 		expect(getAccess).toHaveBeenCalledWith('draft-b');
 		await vi.waitFor(() => expect(state.draftAccessState).toBe('denied'));
+		await state.selectChat(previousChatId);
+		expect(state.messages[1]!.status).toBe('interrupted');
+		await state.newChat();
 
 		await state.send('Read the new draft.');
 		expect(ask).toHaveBeenCalledTimes(3);

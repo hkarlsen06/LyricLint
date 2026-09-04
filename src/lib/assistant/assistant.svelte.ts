@@ -282,6 +282,10 @@ export function createAssistantState(deps: AssistantDeps) {
 	let draftAccessState = $state<DraftAccessDecision | undefined>(undefined);
 	let toolSession = $state<AssistantToolSession | undefined>(undefined);
 	let bridgeGeneration = 0;
+	// Kept beyond a bridge's cleanup so the next registration can distinguish a
+	// keyed remount of this 'scribe from an actual move to another one.
+	let registeredDraftId: string | undefined;
+	let conversationGeneration = 0;
 	/** The attempt a challenge resumes. */
 	let currentAttempt: { assistantMessageId: string } | undefined;
 
@@ -338,10 +342,18 @@ export function createAssistantState(deps: AssistantDeps) {
 	 * is left alone, and a turn that really did die is still marked the next time
 	 * anyone looks at it — which is the only moment the state is read.
 	 */
-	async function openChat(repo: AssistantChatRepository, chatId: string): Promise<void> {
+	async function openChat(
+		repo: AssistantChatRepository,
+		chatId: string,
+		expectedGeneration = conversationGeneration
+	): Promise<void> {
 		await repo.markPendingInterrupted(chatId, (message) => decisionPending(message) !== undefined);
+		const storedMessages = await repo.messagesFor(chatId);
+		// A draft switch may have cleared the surface while IndexedDB was reading.
+		// Do not let that stale read put the previous conversation back.
+		if (expectedGeneration !== conversationGeneration) return;
 		activeChatId = chatId;
-		messages = await repo.messagesFor(chatId);
+		messages = storedMessages;
 		restoreToolSession();
 	}
 
@@ -394,6 +406,29 @@ export function createAssistantState(deps: AssistantDeps) {
 		void patchMessage(assistantMessageId, { status: 'interrupted' }).catch((error) => {
 			console.error('assistant_draft_switch_interrupt_failed', error);
 		});
+	}
+
+	/**
+	 * A different 'scribe starts on a blank assistant surface. This is a view
+	 * reset, not deletion: the conversation remains in `chats` and can be loaded
+	 * deliberately from history when somebody really does want cross-'scribe
+	 * context.
+	 */
+	function clearConversationForDraftChange(): void {
+		conversationGeneration += 1;
+		const assistantMessageId =
+			currentAttempt?.assistantMessageId ?? toolSession?.assistantMessageId;
+		if (assistantMessageId) {
+			void patchMessage(assistantMessageId, { status: 'interrupted' }).catch((error) => {
+				console.error('assistant_draft_switch_interrupt_failed', error);
+			});
+		}
+		activeChatId = undefined;
+		messages = [];
+		abandonToolSession();
+		failure = undefined;
+		challengePending = false;
+		contextDividerIndex = undefined;
 	}
 
 	function fail(cause: unknown): AssistantFailure {
@@ -586,6 +621,10 @@ export function createAssistantState(deps: AssistantDeps) {
 				return;
 			}
 		} catch (error) {
+			// A draft switch detached this request from the visible conversation.
+			// Its pending record was already interrupted; a late network failure is
+			// not a failure of the new, empty surface.
+			if (!currentMessage(assistantMessageId)) return;
 			const described = fail(error);
 			failure = described;
 			if (described.code === 'challenge_required' || described.code === 'challenge_failed') {
@@ -921,10 +960,11 @@ export function createAssistantState(deps: AssistantDeps) {
 			// reads the very state the registration writes — untracked, or the
 			// effect depends on itself and boot never settles.
 			untrack(() => {
-				const previousDraftId = draftBridge?.draftId();
-				if (toolSession && previousDraftId !== undefined && previousDraftId !== bridge.draftId()) {
-					interruptToolSessionForDraftChange();
+				const nextDraftId = bridge.draftId();
+				if (registeredDraftId !== undefined && registeredDraftId !== nextDraftId) {
+					clearConversationForDraftChange();
 				}
+				registeredDraftId = nextDraftId;
 			});
 			draftBridge = bridge;
 			draftAccessState = undefined;

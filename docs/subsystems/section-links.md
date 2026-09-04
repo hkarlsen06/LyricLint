@@ -25,11 +25,10 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
   `performers/transform.ts` is that repair, and it belongs in the transform, never as a
   mirror exemption. Pinned in `section-links.svelte.test.ts` and
   `transform-boundaries.test.ts`.
-- `Type only here` (`Mod-Shift-L`) is a toggle: arms the local exception, and pressed where
-  the `Typing only here` marker stands it rejoins that one difference
-  (`rejoinLinkedWordsAt`, one isolated history event, announced with the way back).
-  `canTypeOnlyHere` answers on the run's *width* — zero-width runs are the feature's most
-  ordinary case. The marker outlives the mode and leaves only with the caret.
+- `Type only here` (`Mod-Shift-L`) is a section-scoped toggle. While on, every edit in that
+  member stays local and opens or extends only the divergent run it touches; moving the caret
+  does not turn it off. Turning it off preserves those differences and resumes mirroring shared
+  text. The active header carries a strong rail, fill, and `Typing only here` label.
 - The card shows a diff (context = the shared runs either side, never "the rest of the
   line"), decides by radio pair, names the winning copy in a dropdown (`replaceFrom`), and
   turns rows into what would happen (`del`/`ins`, struck through as well as coloured).
@@ -256,51 +255,23 @@ states, applied to a second surface that wanted the same gesture.
 would shift every index the user's ticks were given against, silently, and collapse the wrong
 difference.
 
-**`Type only here` is refused inside a difference that is already there, and the empty ones are the
-exception.** The reasoning for the refusal is sound and stays: the mode would be a fact standing
-true, and a control for that appears to do nothing. What it missed is that the fact is only
-_visible_ where the run has words in it — the dotted underline the caret is sitting in is what says
-so. A run that is empty in this copy draws nothing, because there is nothing there to draw on, so
-those were the one set of positions in a linked body where typing already stays put and no mark
-anywhere says it.
+**`Type only here` belongs to the section, not to a caret position.** The one-shot design made the
+user predict which edit CodeMirror would report next, then quietly retired itself after that edit.
+Moving to another line of the same chorus restored mirroring without a visible mode change. The
+toggle now survives edits and selection movement and is available anywhere in a linked member,
+including inside an existing difference and at an empty run.
 
-That is not an edge case, it is the feature's most ordinary use. A peer with an ad-lib the other
-copy lacks puts an empty run at exactly the caret a transcriber goes to when they want to write
-their own — the end of the line for a trailing `(Yeah)`, mid-sentence for an inline one — so the
-button vanished precisely where it was being looked for, and read as the workbench refusing. It was
-reported as being unable to write a second chorus's ad-lib at all, on a caret where typing would in
-fact have stayed local the whole time.
+**A local edit changes the smallest coherent part of the merge shape.** If it is wholly inside an
+existing divergent run, that run simply maps through the edit. In shared text, the exact changed
+span becomes a new run in every member. If the edit crosses one or more existing runs, those runs
+and only the shared text crossed between them become one run. The untouched words on either side
+remain linked. This is what “only this section” means without throwing away word-level linking for
+the rest of the chorus.
 
-So `canTypeOnlyHere` answers on the run's **width** rather than on its existence. Pressing it there
-arms the mode, the `Typing only here` marker draws, and the mirror's own "already local" branch
-spends the press without adding a second run beside the difference already recorded — machinery
-that was written for this and could not previously be reached. Nothing about a run with words in it
-changed.
-
-**And the marker outlives the mode, because the fact it names does.** Armed-only, it vanished on
-the first keystroke — while the caret stood in the run that keystroke had just created, where
-typing on still stayed local. The reported version of the confusion was worse: local text erased
-back to nothing leaves a zero-width run at the caret, where a further deletion eats _shared_ text
-and reaches every copy while an insertion still stays in this one, and nothing on screen told the
-two apart. So `Typing only here` draws for as long as it is true — whenever the collapsed caret
-stands where an insertion would be contained in one of this copy's runs, read with the mirror's own
-edge-inclusive containment so the label and the next keystroke cannot disagree — and it leaves only
-with the caret. Zero-width runs are exactly the case this is for: they are the one difference the
-dotted underline cannot show.
-
-**And the chord is a toggle, keyed to the state the marker names.** `Mod-Shift-L` armed and
-pressed again stands down; pressed while the marker stands — the caret in one of this copy's runs —
-it closes that one difference (`rejoinLinkedWordsAt`): this copy's wording wins, is written over
-every peer's, and the mirror carries edits here again. The existing ways back were too blunt for
-the question: undo only works immediately, and the card's replace collapses every difference in
-the group at once. Three rules on the rejoin. **This copy's words win unless they are empty**, in
-which case the first copy with words does — `winningWording`'s own rule, because an erased run
-rejoined has nothing to offer and emptying every peer to match it is the one thing rejoining must
-never do. **It is one isolated history event** (`isolateHistory`), because it is pressed right
-after typing and the history otherwise joined it into the typing's group — one undo then silently
-took the local words along with the rejoin, so "undo brings the difference back", which the
-announcement promises, was false. **And it announces with the way back named**, because several
-sections may have changed and only one of them is on screen.
+**Turning the toggle off never reconciles words.** It changes the scope of future edits only;
+differences made while it was on remain explicit divergent runs. Shared text mirrors again, while
+typing inside a preserved run remains local by the ordinary containment rule. Reconciliation stays
+in the link card, where the versions and the winning copy are visible before text changes.
 
 #### The card asks one thing at a time, and shows a diff
 
@@ -445,7 +416,10 @@ so the answer can never be given against a set that is no longer showing.
 
 #### What is drawn
 
-**A linked header says so on its own line** through `⇄`, a widget outside the text.
+**A linked header says so on its own line** through `⇄`, a widget outside the text. While `Type only
+here` is on, that header gains an accent rail, a selected fill, and the words `Typing only here`.
+The signal belongs to the section rather than the caret, so it stays prominent while the user moves
+between the lines they intend to edit.
 
 **And it serves the editor's one hover wait before it opens anything.** It opened on the bare
 `pointerenter`, which made it the only pointer target in the document that answered instantly — so a
@@ -463,9 +437,8 @@ clean lyrics on the clipboard are this application's entire output. A mark adds 
 It is drawn as a **dotted** underline because every other underline in the editor is wavy and belongs
 to a diagnostic — this is not a finding, it is a note about what an edit here will and will not
 reach. A run that is empty in this copy draws nothing, because there is nothing there to draw on;
-the card is where those are named — and the caret is where the `Typing only here` marker names
-them, standing whenever typing at the caret would stay in this copy (see the type-only-here
-section above).
+the card is where those are named. `Typing only here` is reserved for the explicit section mode,
+not inferred from whichever divergent run happens to contain the caret.
 
 **The mark on the header stayed as it was, and that is a decision.** `⇄` means one thing — this
 section moves with others — and giving linkable-but-unlinked headers a dimmer copy of it would
@@ -631,4 +604,3 @@ in `EditorPane.svelte` and by `linkDiagnosticSections` on the controller.
 what makes an empty `[Chorus 3]` take a peer's words with no special case — replacing an empty range
 at the end of a header line with `"\nHold on tight"` is an ordinary edit, while a body measured from
 the first lyric of a section that has none has no position to describe at all.
-

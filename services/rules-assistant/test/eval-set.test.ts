@@ -2,6 +2,7 @@
  * so a corpus change cannot silently orphan a case or a family. */
 import { describe, expect, it } from 'vitest';
 import evalSetJson from '../eval/eval-set.json';
+import { answersInNorwegian } from '../eval/assertions.mjs';
 import { corpus } from '../src/corpus';
 
 interface EvalCase {
@@ -14,6 +15,7 @@ interface EvalCase {
 		citesAny?: string[];
 		citesNone?: boolean;
 		mentionsAll?: string[];
+		answerLanguage?: string;
 	};
 }
 
@@ -54,6 +56,23 @@ describe('the evaluation set', () => {
 			.map((testCase) => testCase.language)
 			.sort();
 		expect(covered).toEqual(corpusTags);
+	});
+
+	it('pins Norwegian answer language against the observed German switch', () => {
+		const norwegianCases = evalSet.cases.filter(
+			(testCase) => testCase.expect?.answerLanguage === 'no'
+		);
+		expect(norwegianCases.length).toBeGreaterThan(0);
+		expect(
+			answersInNorwegian(
+				'Bruk [Refreng] i en norsk sang, og behold den engelske teksten bare hvis den synges.'
+			).ok
+		).toBe(true);
+		expect(
+			answersInNorwegian(
+				'Die Anführungszeichen wurden korrigiert. Prüfe die hörbare Pause in der Aufnahme.'
+			).ok
+		).toBe(false);
 	});
 
 	it('includes the adversarial categories', () => {

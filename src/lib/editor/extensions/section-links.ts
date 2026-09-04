@@ -98,16 +98,13 @@ export const setLinkHolesEffect = StateEffect.define<readonly TextRange[]>();
 export const applyOnlyHereAnnotation = Annotation.define<TextRange>();
 
 /**
- * The one edit the user has asked to keep in this copy.
+ * The linked section the user is editing independently.
  *
- * The range is the editor selection at the moment `Type only here` is pressed:
- * a point for an insertion or deletion, and a span for a replacement. It is a
- * mode only until the next edit (or until the selection moves), so it is editor
- * state rather than anything persisted on the draft.
+ * This is a working mode rather than draft content: its header maps through
+ * edits, survives caret movement, and is deliberately not persisted.
  */
 interface TypeOnlyHereState {
 	header: number;
-	range: TextRange;
 }
 
 const setTypeOnlyHereEffect = StateEffect.define<TypeOnlyHereState | undefined>();
@@ -326,7 +323,7 @@ export const linkHolesField = StateField.define<readonly TextRange[]>({
 	}
 });
 
-/** The one local edit currently armed, if any. */
+/** The linked section currently being edited independently, if any. */
 export const typeOnlyHereField = StateField.define<TypeOnlyHereState | undefined>({
 	create: () => undefined,
 	update(value, transaction) {
@@ -334,26 +331,16 @@ export const typeOnlyHereField = StateField.define<TypeOnlyHereState | undefined
 			if (effect.is(setTypeOnlyHereEffect)) {
 				return effect.value;
 			}
+			if (effect.is(setSectionLinksEffect) || effect.is(setSectionLinkEffect)) {
+				return undefined;
+			}
 		}
 		if (!value) {
 			return undefined;
 		}
-		// The edit itself consumes the mode. The filter adds the difference before
-		// this field is updated, in the same transaction and therefore the same undo.
-		if (transaction.docChanged) {
-			return undefined;
-		}
-		// "At the caret" is literal. Moving the caret or changing the selection
-		// retires the promise rather than applying it somewhere else later.
-		if (transaction.selection) {
-			const selection = transaction.selection.main;
-			const from = Math.min(selection.anchor, selection.head);
-			const to = Math.max(selection.anchor, selection.head);
-			if (from !== value.range.from || to !== value.range.to) {
-				return undefined;
-			}
-		}
-		return value;
+		return transaction.docChanged
+			? { header: transaction.changes.mapPos(value.header, -1) }
+			: value;
 	}
 });
 
@@ -625,6 +612,7 @@ export function expandLinkedPerformerEdit(
 	);
 	const sourceHeader = sourceSection?.header;
 	if (!sourceSection || !sourceHeader) return edit;
+	if (isTypeOnlyHere(state, sourceHeader.from)) return edit;
 
 	const group = memberGroups(state, parsed).find((headers) => headers.includes(sourceHeader.from));
 	if (!group) return edit;
@@ -725,70 +713,25 @@ function holesOutside(state: EditorState, members: readonly MemberShape[]): Text
 	);
 }
 
-/** Whether the current selection can become the next local edit in this member. */
+/** Whether this header still belongs to a coherent linked group. */
 export function canTypeOnlyHere(state: EditorState, headerFrom: number): boolean {
 	const parsed = parsedDocumentForState(state);
 	const group = memberGroups(state, parsed).find((headers) => headers.includes(headerFrom));
-	if (!group) {
-		return false;
-	}
-	// The named copy leads so the selection and every translated range are read
-	// from the same member, regardless of where that copy falls in the song.
-	const ordered = [headerFrom, ...group.filter((header) => header !== headerFrom)];
-	const members = groupShape(state, parsed, ordered);
-	const source = members?.[0];
-	if (!members || !source) {
-		return false;
-	}
-	const selection = state.selection.main;
-	const range = {
-		from: Math.min(selection.anchor, selection.head),
-		to: Math.max(selection.anchor, selection.head)
-	};
-	if (range.from < source.body.from || range.to > source.body.to) {
-		return false;
-	}
-	const relative = {
-		from: range.from - source.body.from,
-		to: range.to - source.body.from
-	};
-	const containing = holeContaining(source.holes, relative.from, relative.to);
-	if (containing !== undefined) {
-		// It already types only here inside a stored difference, so the mode is a
-		// fact that is standing true — and where the run has words in it the
-		// document says so itself, with the dotted underline the caret is sitting
-		// in. Offering a control for that would make the button appear to do
-		// nothing.
-		//
-		// A run that is *empty* in this copy draws nothing, because there is
-		// nothing there to draw on. That leaves one position per empty run where
-		// typing already stays in this copy and no mark anywhere says so — which
-		// is the one place in a linked body the reassurance is most worth having,
-		// and it is exactly the caret a transcriber puts down to write the ad-lib
-		// a peer already has. Pressing it arms the mode, the marker draws, and the
-		// mirror's own "already local" branch spends it without adding a second
-		// run for the difference that is already recorded.
-		const hole = source.holes[containing];
-		return hole !== undefined && hole.from === hole.to;
-	}
-	const probe = members.map((member) => ({ ...member, holes: [...member.holes] }));
-	return addDifference(members, probe, range, true);
+	return !!group && !!groupShape(state, parsed, group);
 }
 
-/** Arm one local edit at the editor's current caret or selection. */
+export function isTypeOnlyHere(state: EditorState, headerFrom: number): boolean {
+	return state.field(typeOnlyHereField, false)?.header === headerFrom;
+}
+
+/** Toggle independent editing for one linked section. */
 export function typeOnlyHere(view: EditorView, headerFrom: number): boolean {
 	if (!canTypeOnlyHere(view.state, headerFrom)) {
 		return false;
 	}
-	const selection = view.state.selection.main;
+	const active = isTypeOnlyHere(view.state, headerFrom);
 	view.dispatch({
-		effects: setTypeOnlyHereEffect.of({
-			header: headerFrom,
-			range: {
-				from: Math.min(selection.anchor, selection.head),
-				to: Math.max(selection.anchor, selection.head)
-			}
-		}),
+		effects: setTypeOnlyHereEffect.of(active ? undefined : { header: headerFrom }),
 		annotations: Transaction.addToHistory.of(false)
 	});
 	return true;
@@ -803,7 +746,9 @@ export function cancelTypeOnlyHere(view: EditorView): boolean {
 		effects: setTypeOnlyHereEffect.of(undefined),
 		annotations: Transaction.addToHistory.of(false)
 	});
-	view.state.field(editorCallbacksField, false)?.onAnnouncement('Typing only here cancelled.');
+	view.state
+		.field(editorCallbacksField, false)
+		?.onAnnouncement('Editing only this section turned off.');
 	return true;
 }
 
@@ -1173,7 +1118,23 @@ function addDifference(
 	) {
 		return false;
 	}
-	const widened = expandOverHoles(source.holes, relative.from, relative.to);
+	let widenedFrom = relative.from;
+	let widenedTo = relative.to;
+	for (const hole of source.holes) {
+		if (hole.to >= widenedFrom && hole.from <= widenedTo) {
+			widenedFrom = Math.min(widenedFrom, hole.from);
+			widenedTo = Math.max(widenedTo, hole.to);
+		}
+	}
+	let firstHole = 0;
+	while (firstHole < source.holes.length && (source.holes[firstHole]?.to ?? 0) < widenedFrom) {
+		firstHole += 1;
+	}
+	let lastHole = firstHole;
+	while (lastHole < source.holes.length && (source.holes[lastHole]?.from ?? 0) <= widenedTo) {
+		lastHole += 1;
+	}
+	const widened = { from: widenedFrom, to: widenedTo, firstHole, lastHole };
 	if (widened.firstHole !== widened.lastHole) {
 		// The selection reached across a difference that is already there, so what
 		// it names is not one new run but a rewrite of several. Left alone.
@@ -1223,13 +1184,48 @@ function addDifference(
  * the document is a restructuring rather than a rewrite of the words, and
  * guessing at those is how a link would eat work the user meant to keep.
  */
-function changeTouchesArmedRange(change: TextRange, armed: TextRange): boolean {
-	if (armed.from !== armed.to) {
-		return armed.from <= change.from && change.to <= armed.to;
+/**
+ * Turn the edited span into one local run in every member.
+ *
+ * Existing runs touched by the edit are folded into it; untouched runs and the
+ * shared words between them remain separate. This is the smallest coherent
+ * shape the edit can leave behind, including insertions represented by an
+ * initially zero-width run.
+ */
+function localizeSpan(members: readonly MemberShape[], span: TextRange): MemberShape[] | undefined {
+	const source = members[0];
+	if (!source) return undefined;
+	const relative = { from: span.from - source.body.from, to: span.to - source.body.from };
+	if (
+		relative.from < 0 ||
+		relative.from > relative.to ||
+		relative.to > source.body.to - source.body.from
+	) {
+		return undefined;
 	}
-	// Insert, Backspace and Delete describe the three useful shapes around a
-	// caret: a point, a range ending at it, and a range beginning at it.
-	return change.from === armed.from || change.to === armed.from;
+	if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
+		return members.map((member) => ({ ...member, holes: [...member.holes] }));
+	}
+	const widened = expandOverHoles(source.holes, relative.from, relative.to);
+	const sourceLength = source.body.to - source.body.from;
+	const additions = members.map((member) =>
+		member === source
+			? { from: widened.from, to: widened.to }
+			: translateSpan(
+					{ holes: source.holes, length: sourceLength },
+					{ holes: member.holes, length: member.body.to - member.body.from },
+					widened
+				)
+	);
+	if (additions.some((addition) => !addition)) return undefined;
+	return members.map((member, index) => ({
+		...member,
+		holes: [
+			...member.holes.slice(0, widened.firstHole),
+			additions[index]!,
+			...member.holes.slice(widened.lastHole)
+		]
+	}));
 }
 
 export function sectionLinkMirror(): Extension {
@@ -1247,8 +1243,44 @@ export function sectionLinkMirror(): Extension {
 		}
 		const onlyHere = transaction.annotation(applyOnlyHereAnnotation);
 		const change = singleChangedRange(transaction.changes);
+		const parsed = parsedDocumentForState(transaction.startState);
 		if (!onlyHere && !change) {
-			return transaction;
+			const active = transaction.startState.field(typeOnlyHereField, false);
+			if (!active) return transaction;
+			const group = memberGroups(transaction.startState, parsed).find((headers) =>
+				headers.includes(active.header)
+			);
+			const section = parsed.sections.find((candidate) => candidate.header?.from === active.header);
+			if (!group || !section) return transaction;
+			const ordered = [active.header, ...group.filter((header) => header !== active.header)];
+			const members = groupShape(transaction.startState, parsed, ordered);
+			const source = members?.[0];
+			if (!members || !source) return transaction;
+			const changes: TextRange[] = [];
+			let insideSection = true;
+			transaction.changes.iterChangedRanges((from, to) => {
+				if (from < section.from || to > section.to) insideSection = false;
+				if (source.body.from <= from && to <= source.body.to) changes.push({ from, to });
+			});
+			if (!insideSection || changes.length === 0) return transaction;
+			let localMembers: MemberShape[] = members;
+			for (const range of changes) {
+				const localized = localizeSpan(localMembers, range);
+				if (!localized) return transaction;
+				localMembers = localized;
+			}
+			return [
+				transaction,
+				{
+					effects: [
+						setLinkHolesEffect.of([
+							...holesOutside(transaction.startState, members),
+							...absoluteHoles(localMembers)
+						]),
+						typeOnlyHereAppliedEffect.of(null)
+					]
+				}
+			];
 		}
 		const addressed = onlyHere ?? change!;
 		if (
@@ -1271,7 +1303,6 @@ export function sectionLinkMirror(): Extension {
 			}
 		}
 
-		const parsed = parsedDocumentForState(transaction.startState);
 		const group = memberGroups(transaction.startState, parsed).find((headers) =>
 			headers.some((header) => {
 				const body = sectionBodyRange(parsed, header);
@@ -1352,18 +1383,12 @@ export function sectionLinkMirror(): Extension {
 			to: normalChange.to - source.body.from
 		};
 		const local = transaction.startState.field(typeOnlyHereField, false);
-		if (local?.header === source.header && changeTouchesArmedRange(normalChange, local.range)) {
-			// If this range was already its own, the requested outcome already holds.
-			// Still mark the edit as consumed so the shell refreshes the persisted
-			// mapped range after the words change.
+		if (local?.header === source.header) {
 			if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
-				return [transaction, { effects: typeOnlyHereAppliedEffect.of(null) }];
+				return transaction;
 			}
-			const localMembers = members.map((member) => ({
-				...member,
-				holes: [...member.holes]
-			}));
-			if (addDifference(members, localMembers, normalChange, true)) {
+			const localMembers = localizeSpan(members, normalChange);
+			if (localMembers) {
 				return [
 					transaction,
 					{
@@ -1456,42 +1481,37 @@ export function typeOnlyHereNotifier(): Extension {
 	});
 }
 
-class TypeOnlyHereMarker extends WidgetType {
-	eq(other: TypeOnlyHereMarker): boolean {
-		return other instanceof TypeOnlyHereMarker;
-	}
-
-	toDOM(): HTMLElement {
-		const marker = document.createElement('span');
-		marker.className = 'll-type-only-here';
-		marker.textContent = 'Typing only here';
-		marker.setAttribute('aria-hidden', 'true');
-		return marker;
-	}
-
-	ignoreEvent(): boolean {
-		return true;
-	}
-}
-
 class SectionLinkMarker extends WidgetType {
 	/** The wait a pointer serves before this marker opens its card. */
 	private readonly hover = new HoverIntent<() => void>((open) => open());
 
-	constructor(readonly headerFrom: number) {
+	constructor(
+		readonly headerFrom: number,
+		readonly local: boolean
+	) {
 		super();
 	}
 
 	eq(other: SectionLinkMarker): boolean {
-		return other.headerFrom === this.headerFrom;
+		return other.headerFrom === this.headerFrom && other.local === this.local;
 	}
 
 	toDOM(view: EditorView): HTMLElement {
 		const marker = document.createElement('button');
 		marker.type = 'button';
-		marker.className = 'll-section-link-marker';
+		marker.className = `ll-section-link-marker${this.local ? ' ll-section-link-marker--local' : ''}`;
 		marker.textContent = '⇄';
-		marker.setAttribute('aria-label', 'Edit linked sections');
+		if (this.local) {
+			const status = document.createElement('span');
+			status.className = 'll-type-only-here';
+			status.textContent = 'Typing only here';
+			status.setAttribute('aria-hidden', 'true');
+			marker.append(' ', status);
+		}
+		marker.setAttribute(
+			'aria-label',
+			this.local ? 'Edit linked sections, editing only this section' : 'Edit linked sections'
+		);
 		marker.setAttribute('aria-haspopup', 'dialog');
 		// No `aria-keyshortcuts`: `Mod-Shift-L` arms Type only here rather than
 		// opening this card, so the marker has no keyboard twin to claim. And no
@@ -1567,15 +1587,9 @@ class SectionLinkMarker extends WidgetType {
  * finding, it is a note about what an edit here will and will not reach.
  *
  * A run that is empty in this copy draws nothing, because there is nothing
- * there to draw on. The card is where those are named — and the caret is where
- * the *marker* names them: `Typing only here` draws for as long as it is true,
- * which is whenever the caret stands where an insertion would be contained in
- * one of this copy's own runs. It used to draw only while the one-shot was
- * armed and vanish on the first keystroke, which left the fact invisible at
- * exactly the moments it was being relied on — typing on inside the fresh run,
- * and the reported case: local text erased back to nothing, where deletions
- * had started reaching the peers again while insertions still stayed local,
- * with nothing on screen distinguishing the two.
+ * there to draw on. The explicit section-only mode is instead named on the
+ * header, where it stays visible regardless of the caret or the width of any
+ * one divergent run.
  */
 export const sectionLinkDecorations = EditorView.decorations.compute(
 	['selection', sectionLinkField, linkHolesField, typeOnlyHereField],
@@ -1585,24 +1599,20 @@ export const sectionLinkDecorations = EditorView.decorations.compute(
 			return Decoration.none;
 		}
 		const marks: Range<Decoration>[] = [];
+		const local = state.field(typeOnlyHereField, false);
 		const cursor = field.iter();
 		while (cursor.value) {
+			const localHeader = local?.header === cursor.from;
+			if (localHeader) {
+				marks.push(Decoration.line({ class: 'll-section-only-header' }).range(cursor.from));
+			}
 			marks.push(
 				Decoration.widget({
-					widget: new SectionLinkMarker(cursor.from),
+					widget: new SectionLinkMarker(cursor.from, localHeader),
 					side: 1
 				}).range(cursor.to)
 			);
 			cursor.next();
-		}
-		const local = state.field(typeOnlyHereField, false);
-		if (local) {
-			marks.push(
-				Decoration.widget({
-					widget: new TypeOnlyHereMarker(),
-					side: 1
-				}).range(clamp(state, local.range.to))
-			);
 		}
 		// Nothing further to draw, and — since this runs on every keystroke in a
 		// document that has links — nothing to parse either. A group whose copies
@@ -1623,25 +1633,6 @@ export const sectionLinkDecorations = EditorView.decorations.compute(
 				const body = sectionBodyRange(parsed, header);
 				return body ? [body] : [];
 			});
-		// The caret standing in a run, zero-width included: the same containment
-		// the mirror answers an insertion with — a run's ends map outwards, so
-		// both edges are inside — read for display, so what the marker says and
-		// what the next keystroke does cannot disagree. Only a collapsed caret: a
-		// selection is not somewhere typing is happening, and one reaching past
-		// the run is an edit the mirror carries. `!local` because the armed
-		// one-shot already drew the same widget at the same position.
-		const caret = state.selection.main;
-		if (!local && caret.empty) {
-			const inside = holes.find((hole) => hole.from <= caret.head && caret.head <= hole.to);
-			if (inside && bodies.some((body) => body.from <= inside.from && inside.to <= body.to)) {
-				marks.push(
-					Decoration.widget({
-						widget: new TypeOnlyHereMarker(),
-						side: 1
-					}).range(clamp(state, inside.to))
-				);
-			}
-		}
 		const divergent = Decoration.mark({ class: 'll-link-divergent' });
 		for (const hole of holes) {
 			if (
@@ -1671,21 +1662,23 @@ export const sectionLinkTheme = EditorView.baseTheme({
 	'.ll-section-link-marker:hover, .ll-section-link-marker:focus-visible': {
 		color: 'var(--color-text)'
 	},
+	'.ll-section-link-marker--local': {
+		color: 'var(--color-text)',
+		fontFamily: 'var(--font-ui)',
+		fontWeight: 'var(--font-weight-semibold)'
+	},
+	'.ll-type-only-here': {
+		whiteSpace: 'nowrap'
+	},
+	'.ll-section-only-header': {
+		background: 'var(--color-selected)',
+		boxShadow: 'inset var(--space-1) 0 0 var(--color-accent)'
+	},
 	'.ll-link-divergent': {
 		textDecorationLine: 'underline',
 		textDecorationStyle: 'dotted',
 		textDecorationThickness: '1px',
 		textDecorationColor: 'var(--color-border-strong)',
 		textUnderlineOffset: '0.25em'
-	},
-	'.ll-type-only-here': {
-		marginInlineStart: '0.55em',
-		color: 'var(--color-text-muted)',
-		fontFamily: 'var(--font-ui)',
-		fontSize: 'var(--font-size-xs)',
-		fontStyle: 'italic',
-		fontWeight: 'var(--font-weight-medium)',
-		pointerEvents: 'none',
-		whiteSpace: 'nowrap'
 	}
 });

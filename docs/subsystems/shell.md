@@ -53,6 +53,8 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 - The assistant transcript follows its own foot via `stickToBottom()`: unpinned only by an
   upward move (or wheel/touch intent), re-pinned only at the foot; instant scroll, deferred to
   `requestAnimationFrame`. No `Jump to latest` control.
+- Moving to a different 'scribe starts the assistant on a blank chat without deleting history;
+  loading an earlier conversation is the explicit cross-'scribe path.
 - The dev tab title (`PUBLIC_DEV_TAB_TITLE`) replaces the whole title, is gated on
   `import.meta.env.DEV`, and is pinned empty in `vite.config.ts` for the suite.
 
@@ -536,6 +538,16 @@ and `src/lib/ui/layout/DraftMenu.svelte`.
 
 ### The assistant's transcript follows its own foot, and a scroll up is the end of that
 
+**A different 'scribe starts with no conversation selected.** The assistant state lives above
+the workbench so its modal and panel share one transcript, but that lifetime must not make the
+last song's conversation the next song's default context. When the workspace registers a new
+draft id, the active transcript is cleared while its stored chat remains in Conversations. An
+intentional selection from that list may load any earlier conversation against the current
+'scribe; that is the cross-reference escape hatch, and it is explicit rather than automatic.
+A pending turn is marked interrupted before it is detached, so a late answer or tool decision
+cannot land on the replacement draft. `assistant-state.test.ts` pins both the blank transition
+and the ability to reload the prior chat.
+
 An answer arrives a token at a time, so a transcript that does not follow its own bottom edge
 shows the reader the top of a message and leaves them pressing End for the rest of it. The hard
 half is the other one: a reader scrolls up to check what was said earlier **while the stream is
@@ -601,4 +613,3 @@ Three things about it:
   which is why the value is read in the component body rather than at module scope.
 
 Implementation: `src/lib/ui/layout/DocumentTitle.svelte`.
-

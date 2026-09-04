@@ -29,3 +29,66 @@ export function explainsNoDraftAccess(answerText) {
 	const namesDraft = /\b(?:draft|document|open lyrics?|current lyrics?)\b/i.test(answerText);
 	return { ok: cannotRead && namesDraft, cannotRead, namesDraft };
 }
+
+/**
+ * Narrow language regression check for the failure that motivated it: a
+ * Norwegian answer switching to German after reading multilingual context.
+ * This is deliberately not presented as a general language detector.
+ */
+export function answersInNorwegian(answerText) {
+	const words = answerText.toLocaleLowerCase('nb-NO').match(/[\p{L}]+/gu) ?? [];
+	const norwegian = new Set([
+		'og',
+		'å',
+		'er',
+		'det',
+		'som',
+		'skal',
+		'ikke',
+		'med',
+		'for',
+		'på',
+		'av',
+		'til',
+		'hvis',
+		'eller',
+		'bør',
+		'kan',
+		'må',
+		'norsk',
+		'norske',
+		'bruk',
+		'behold',
+		'linjen',
+		'overskriftene'
+	]);
+	const german = new Set([
+		'und',
+		'ist',
+		'das',
+		'die',
+		'der',
+		'nicht',
+		'mit',
+		'für',
+		'auf',
+		'wenn',
+		'oder',
+		'sollte',
+		'deutsch',
+		'deutsche',
+		'verwende',
+		'behalte',
+		'aufnahme',
+		'zeile',
+		'wurde',
+		'prüfe'
+	]);
+	const norwegianHits = words.filter((word) => norwegian.has(word)).length;
+	const germanHits = words.filter((word) => german.has(word)).length;
+	return {
+		ok: norwegianHits >= 2 && germanHits === 0,
+		norwegianHits,
+		germanHits
+	};
+}
