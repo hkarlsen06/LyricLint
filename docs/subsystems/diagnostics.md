@@ -38,6 +38,10 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   lyrics it flags), and the picker's unknown-voice chip writes the acceptance itself at mint
   time (`unknownVoiceAcceptanceKey`, recorded via `recordAcceptedOccurrence`). The round trip
   is pinned in `workbench.test.ts` (*a minted unknown voice arrives accepted…*).
+- An ignored occurrence belongs to its 'scribe until the reader explicitly restores it (or the
+  'scribe is deleted). A lint pass in which the occurrence is absent does not erase that decision;
+  if later edits recreate the occurrence, it stays hidden. Pin: `workbench.test.ts` (*keeps an
+  ignored diagnostic hidden when edits remove and later recreate it*).
 - `Fix all N` batches by rule *and* fix label; the linter's bulk fix plans over the visible
   diagnostics only; a batch is one `AtomicDocumentEdit` (`mergeFixes` drops `selectionAfter`).
   Counts are of diagnostics, not fixes. The count comes from `countDiagnosticFixBatch` on the
@@ -194,7 +198,7 @@ assignment's own.
 **An acceptance about a voice must not be keyed to the words it sings.** As first shipped, the
 answer above did not stick. The occurrence key carried the flagged text — the styled span's own
 lyrics — and matching gates on that part exactly, so editing anything between the tags orphaned
-the acceptance, the next settled lint pruned the orphan from the store, and the card asked
+the acceptance, the next settled lint used to prune the orphan from the store, and the card asked
 `The performer is unknown` again. In a workflow whose whole point is going on transcribing that
 voice, every rewrite of its line re-asked a question already answered. The rule now sets
 `identityText` on its findings — the voice's name, `Unknown italic voice` and kin, the one
@@ -210,6 +214,14 @@ exists, and the finding then arrives already accepted. The round trip — minted
 arrival, still hidden after a full rewrite of the lyrics inside the tags — is pinned in
 `workbench.test.ts`. Keys stored before this change carry lyrics in the text part and now match
 nothing, so a pre-existing acceptance is re-asked once and then durable.
+
+**An absent lint result does not retract the reader's decision.** The store once pruned any saved
+occurrence that failed to match the latest settled lint result. That treated a transient state of
+the text as an explicit Restore: remove or interrupt a marker, keep editing, and recreate it, and
+the diagnostic returned even though the reader had already answered it for this 'scribe. Saved
+ignores now remain until Restore is pressed or the 'scribe itself is emptied or deleted. Matching
+still keys suppression per occurrence, so the retained decision does not hide a different finding
+merely because it comes from the same rule.
 
 Implementation: `presumedCorrect` and `identityText` on `Diagnostic` in `src/lib/core/types.ts`
 (`presumedCorrect` currently with no catalog producer); `acceptsAsCorrect` in

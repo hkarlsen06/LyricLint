@@ -145,11 +145,8 @@ export interface WorkbenchController {
 	 */
 	setEditorHandle(handle: EditorHandle | undefined): void;
 	setSaveStatus(status: AutosaveStatus): void;
-	/**
-	 * Store a snapshot. The second argument is the complete, unfiltered lint
-	 * result, or null while an asynchronous rule provider is still preparing it.
-	 */
-	onSnapshot(snapshot: EditorSnapshot, settledDiagnostics?: readonly Diagnostic[] | null): void;
+	/** Store the latest editor snapshot and its currently visible diagnostics. */
+	onSnapshot(snapshot: EditorSnapshot): void;
 	/**
 	 * A line anchor was written, corrected, or cleared.
 	 *
@@ -617,15 +614,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			panel.retryFixPreview();
 		},
 		setSaveStatus: draft.setSaveStatus,
-		onSnapshot(nextSnapshot, settledDiagnostics = nextSnapshot.diagnostics) {
+		onSnapshot(nextSnapshot) {
 			const change = editorSession.adoptSnapshot(nextSnapshot);
 			if (!change) return;
 			panel.pruneActiveDiagnostic(nextSnapshot.diagnostics);
-			if (settledDiagnostics && !nextSnapshot.composing) {
-				panel.pruneIgnoredDiagnostics(settledDiagnostics);
-			}
-			// A fix's own re-lint arrives here. Prune first so the card the fix
-			// emptied is gone before the panel leads with the next one.
+			// A fix's own re-lint arrives here. Drop its active card before the
+			// panel leads with the next one.
 			panel.leadAfterFix(nextSnapshot.diagnostics);
 			if (change.unchanged) return;
 			if (change.textDelta >= largePasteThreshold) roster.importFromSnapshot(nextSnapshot);

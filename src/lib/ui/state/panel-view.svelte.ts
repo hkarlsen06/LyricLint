@@ -57,8 +57,6 @@ interface PanelView {
 	toggleSeverity(severity: Severity): void;
 	/** Re-read the stored ignores for whichever draft is current now. */
 	refreshIgnoredDiagnostics(): void;
-	/** Forget ignored occurrences that no longer exist in a settled lint result. */
-	pruneIgnoredDiagnostics(diagnostics: readonly Diagnostic[]): void;
 	/** Drop the active card once its diagnostic is gone from the document. */
 	pruneActiveDiagnostic(diagnostics: readonly Diagnostic[]): void;
 	/**
@@ -310,19 +308,6 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		},
 		refreshIgnoredDiagnostics() {
 			ignoreEpoch += 1;
-		},
-		pruneIgnoredDiagnostics(diagnostics) {
-			const current = matchIgnoredDiagnostics(
-				diagnostics,
-				deps.snapshot().text,
-				ignoredDiagnosticKeys
-			);
-			const stale = ignoredDiagnosticKeys.filter((key) => !current.has(key));
-			if (stale.length === 0) return;
-			const draftId = deps.draftId();
-			for (const key of stale) deps.ignoreStore.restore(draftId, key);
-			ignoreEpoch += 1;
-			deps.onIgnoredDiagnosticsChange?.();
 		},
 		pruneActiveDiagnostic(diagnostics) {
 			if (

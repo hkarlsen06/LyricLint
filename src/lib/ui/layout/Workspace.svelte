@@ -403,18 +403,12 @@
 					harperCoveredKey = key;
 					const merged = mergeHarperDiagnostics(nativeDiagnostics, harperDiagnostics);
 					lastDiagnostics = merged;
-					controller.onSnapshot(
-						{
-							...current,
-							diagnostics: filterForEditorState(
-								current,
-								merged,
-								editorHandle?.getSectionLinks?.(),
-								{ settled: documentSettled }
-							)
-						},
-						merged
-					);
+					controller.onSnapshot({
+						...current,
+						diagnostics: filterForEditorState(current, merged, editorHandle?.getSectionLinks?.(), {
+							settled: documentSettled
+						})
+					});
 				})
 				.catch((error: Error) => {
 					if (request !== harperRequest || harperUnavailable) return;
@@ -429,18 +423,15 @@
 					// in the document indefinitely.
 					lastDiagnostics = nativeDiagnostics;
 					const current = controller.snapshot;
-					controller.onSnapshot(
-						{
-							...current,
-							diagnostics: filterForEditorState(
-								current,
-								nativeDiagnostics,
-								editorHandle?.getSectionLinks?.(),
-								{ settled: documentSettled }
-							)
-						},
-						nativeDiagnostics
-					);
+					controller.onSnapshot({
+						...current,
+						diagnostics: filterForEditorState(
+							current,
+							nativeDiagnostics,
+							editorHandle?.getSectionLinks?.(),
+							{ settled: documentSettled }
+						)
+					});
 				});
 		}, harperDelay);
 	}
@@ -529,7 +520,7 @@
 
 	function publishSnapshot(snapshot: EditorSnapshot): void {
 		const enriched = enrichSnapshot(snapshot);
-		controller.onSnapshot(enriched, harperPending ? null : lastDiagnostics);
+		controller.onSnapshot(enriched);
 	}
 
 	/**

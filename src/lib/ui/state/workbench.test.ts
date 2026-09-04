@@ -1056,26 +1056,22 @@ describe('workbench diagnostic navigation', () => {
 		expect(controller.activeDiagnosticKey).toBeUndefined();
 	});
 
-	test('forgets ignored diagnostics once the settled lint result no longer contains them', () => {
+	test('keeps an ignored diagnostic hidden when edits remove and later recreate it', () => {
 		const text = '[Verse]\nfirst line';
 		const record = draft('draft-a', text);
 		const { controller } = setup({ initial: record });
 		const finding: Diagnostic = { ...diagnostic, from: 8, to: 13 };
 		controller.onSnapshot({ ...snapshot(record, 1, text), diagnostics: [finding] });
 		controller.ignoreDiagnostic(finding);
-
-		controller.onSnapshot(snapshot(record, 2, text), [finding]);
 		expect(controller.ignoredDiagnosticCount).toBe(1);
 
-		const fixed = snapshot(record, 3, '[Verse]\nFirst line');
-		controller.onSnapshot(fixed, null);
+		const fixed = snapshot(record, 2, '[Verse]\nFirst line');
+		controller.onSnapshot(fixed);
 		expect(controller.ignoredDiagnosticCount).toBe(1);
 
-		controller.onSnapshot(fixed, []);
-		expect(controller.ignoredDiagnosticCount).toBe(0);
-
-		controller.onSnapshot({ ...snapshot(record, 4, text), diagnostics: [finding] });
-		expect(controller.visibleDiagnostics).toEqual([finding]);
+		controller.onSnapshot({ ...snapshot(record, 3, text), diagnostics: [finding] });
+		expect(controller.visibleDiagnostics).toEqual([]);
+		expect(controller.ignoredDiagnosticCount).toBe(1);
 	});
 
 	/**
@@ -1133,7 +1129,7 @@ describe('workbench diagnostic navigation', () => {
 				next.parsed,
 				buildRuleContext(record.language, record.performers, record.ruleSetVersion, next.revision)
 			);
-			controller.onSnapshot({ ...next, diagnostics }, diagnostics);
+			controller.onSnapshot({ ...next, diagnostics });
 			return diagnostics;
 		};
 
@@ -1167,7 +1163,7 @@ describe('workbench diagnostic navigation', () => {
 
 		expect(proseHeader).toBeDefined();
 		expect(diagnostics.map((diagnostic) => diagnostic.ruleId)).toContain('section.verse-numbering');
-		controller.onSnapshot({ ...next, diagnostics }, diagnostics);
+		controller.onSnapshot({ ...next, diagnostics });
 		expect(controller.unignoredDiagnostics.map((diagnostic) => diagnostic.ruleId)).not.toContain(
 			'section.verse-numbering'
 		);
