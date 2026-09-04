@@ -3,7 +3,7 @@ import {
 	allocatePerformerColor,
 	extractPerformers,
 	isRetiredUnresolvedVoiceName,
-	performerColorIds
+	normalizePerformerKey
 } from '$lib/performers/index.js';
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { FeedbackState } from './feedback.svelte.js';
@@ -16,14 +16,8 @@ export interface RosterMergeSuggestion {
 	reason: 'case' | 'normalized-key' | 'alias';
 }
 
-export { performerColorIds };
-
 export function cloneRoster(roster: readonly PerformerRecord[]): PerformerRecord[] {
 	return roster.map((performer) => ({ ...performer, aliases: [...performer.aliases] }));
-}
-
-function normalizedKey(displayName: string): string {
-	return displayName.trim().toLocaleLowerCase();
 }
 
 interface RosterStoreDependencies {
@@ -180,7 +174,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 			const next: PerformerRecord = {
 				id: deps.idFactory(),
 				displayName: trimmed,
-				normalizedKey: normalizedKey(trimmed),
+				normalizedKey: normalizePerformerKey(trimmed),
 				aliases: [],
 				colorId: allocatePerformerColor(trimmed, performers),
 				order: performers.length
@@ -197,7 +191,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 						? {
 								...performer,
 								displayName: trimmed,
-								normalizedKey: normalizedKey(trimmed),
+								normalizedKey: normalizePerformerKey(trimmed),
 								// The color follows the name it was derived from. The
 								// performer's own token is left out of the usage count: it is
 								// the one being replaced, and counting it would push the new
@@ -238,7 +232,7 @@ export function createRosterStore(deps: RosterStoreDependencies): RosterStore {
 						? {
 								...performer,
 								displayName: trimmed,
-								normalizedKey: normalizedKey(trimmed),
+								normalizedKey: normalizePerformerKey(trimmed),
 								aliases
 							}
 						: performer

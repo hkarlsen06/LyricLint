@@ -13,9 +13,9 @@ const two = [getSource('G-SECTION-HOOK')!, getSource('G-LANG-HEADERS')!];
 
 // The guidance topic page's `Checked by` run, which folds behind this same
 // control rather than growing a second one beside it. Driven off the real
-// entries, so the count in the label is a fact about the catalog: nine rules
-// on `guidance.spelling.standard-orthography` measured seven lines of
-// monospace links at 320px, which is what folding them is for.
+// entries, so the count in the label stays a fact about the catalog: the
+// longest `relatedRuleIds` run supplies the folded count, which is what keeps
+// this honest as the catalog grows.
 const INLINE_RULE_IDS = 3;
 const longestRuleRun = guidanceEntries.reduce<readonly string[]>(
 	(longest, entry) =>
@@ -95,7 +95,7 @@ describe('SiteSourceFold', () => {
 	// run and stays outside the button, so the button names only what is behind
 	// it — and the run it reveals is the same run the inline branch draws.
 	it('folds a long run behind its own count, keeping the prefix outside the button', async () => {
-		expect(longestRuleRun.length).toBe(9);
+		expect(longestRuleRun.length).toBeGreaterThan(INLINE_RULE_IDS);
 		render(SiteSourceFold, {
 			prefix: 'Checked by',
 			folded: longestRuleRun.length > INLINE_RULE_IDS,
@@ -103,7 +103,7 @@ describe('SiteSourceFold', () => {
 			children: ruleRun(longestRuleRun)
 		});
 
-		const disclosure = page.getByRole('button', { name: '9 rules' });
+		const disclosure = page.getByRole('button', { name: `${longestRuleRun.length} rules` });
 		await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
 		expect(document.querySelectorAll('a')).toHaveLength(0);
 		expect(document.body.textContent).toContain('Checked by');

@@ -2,11 +2,15 @@
 import { randomId } from '../core/random-id.js';
 import { assistantDraftAccessKey } from '../assistant/permissions.js';
 import { copyCompareBaseline, copySectionLinks } from './copy.js';
+import {
+	MAX_RECENT_LANGUAGES,
+	RECENT_LANGUAGES_KEY,
+	parseRecentLanguages
+} from './recent-languages.js';
 import type { AppMetadataRecord, DraftCreateInput, DraftRecord, DraftRepository } from './types.js';
 import type { LyricLintDatabase } from './database.js';
 
 const CURRENT_DRAFT_KEY = 'currentDraftId';
-const RECENT_LANGUAGES_KEY = 'recentLanguages';
 
 /**
  * Preferences share the metadata table with the keys above, so they are
@@ -17,7 +21,6 @@ const RECENT_LANGUAGES_KEY = 'recentLanguages';
 function preferenceKey(key: string): string {
 	return `preference:${key}`;
 }
-const MAX_RECENT_LANGUAGES = 5;
 
 /**
  * What a draft is called before anything has named it.
@@ -143,24 +146,6 @@ function currentDraftMetadata(id: string): AppMetadataRecord {
 		value: id,
 		updatedAt: now()
 	};
-}
-
-/** A stored language tag with something in it, as read back from metadata JSON. */
-function isFilledString(value: unknown): value is string {
-	return typeof value === 'string' && value.trim().length > 0;
-}
-
-function parseRecentLanguages(value: string | undefined): string[] {
-	if (!value) return [];
-	try {
-		const parsed: unknown = JSON.parse(value);
-		if (!Array.isArray(parsed)) return [];
-		return [
-			...new Set(parsed.flatMap((language) => (isFilledString(language) ? [language.trim()] : [])))
-		].slice(0, MAX_RECENT_LANGUAGES);
-	} catch {
-		return [];
-	}
 }
 
 /** Create a serializable draft repository backed by the supplied Dexie database. */
@@ -325,7 +310,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 
 		async getRecentLanguages() {
 			const metadata = await database.appMetadata.get(RECENT_LANGUAGES_KEY);
-			return parseRecentLanguages(metadata?.value);
+			return parseRecentLanguages(metadata?.value).slice(0, MAX_RECENT_LANGUAGES);
 		},
 
 		async rememberLanguage(language) {

@@ -55,10 +55,6 @@ import {
  */
 type ScribeProjectInput = Parameters<typeof serializeScribe>[0];
 
-export { performerColorIds } from './roster-store.svelte.js';
-export type { RosterMergeSuggestion } from './roster-store.svelte.js';
-export type { RightPanelTab } from './panel-view.svelte.js';
-
 interface WorkbenchDependencies {
 	editor: EditorHandle;
 	initialSnapshot: EditorSnapshot;

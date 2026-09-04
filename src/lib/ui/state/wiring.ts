@@ -2,6 +2,7 @@
 import { runRules } from '$lib/rules/index.js';
 import { sourceRegistry } from '$lib/rules/index.js';
 import { findExactPerformer } from '$lib/performers/index.js';
+import { decodeLegendText } from '$lib/performers/import.js';
 import type { VoiceGroupRange } from '$lib/editor/index.js';
 import { lineNumberAt } from '$lib/core/line-numbers.js';
 import { scanAnnotations } from '$lib/core/annotations.js';
@@ -358,25 +359,6 @@ function dropLinkedRepeats(
  * `Avery & Blair`. Unmatched parts are ignored for display coloring only; they
  * never change the canonical document.
  */
-function decodeLegendText(value: string): string {
-	return value.replace(/&(?:amp|lt|gt|quot|#39);/gu, (entity) => {
-		switch (entity) {
-			case '&amp;':
-				return '&';
-			case '&lt;':
-				return '<';
-			case '&gt;':
-				return '>';
-			case '&quot;':
-				return '"';
-			case '&#39;':
-				return "'";
-			default:
-				return entity;
-		}
-	});
-}
-
 function resolvePerformerIds(
 	rawNameText: string,
 	performers: readonly PerformerRecord[]

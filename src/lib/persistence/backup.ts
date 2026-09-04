@@ -2,6 +2,11 @@ import Dexie, { type ObservabilitySet } from 'dexie';
 
 import { randomId } from '../core/random-id.js';
 import { ASSISTANT_DRAFT_ACCESS_PREFIX } from '../assistant/permissions.js';
+import {
+	MAX_RECENT_LANGUAGES,
+	RECENT_LANGUAGES_KEY,
+	parseRecentLanguages
+} from './recent-languages.js';
 import type { LyricLintDatabase } from './database.js';
 import type {
 	AppMetadataRecord,
@@ -18,8 +23,6 @@ const HANDLE_KEY = 'workspace';
 const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 const AUTOSAVE_DELAY_MS = 750;
 const CURRENT_DRAFT_KEY = 'currentDraftId';
-const RECENT_LANGUAGES_KEY = 'recentLanguages';
-const MAX_RECENT_LANGUAGES = 5;
 
 type SerializableMediaRecord = Omit<MediaHandleRecord, 'handle'>;
 type FilePermission = 'granted' | 'prompt' | 'denied';
@@ -116,11 +119,6 @@ function isNumber(value: Json | undefined): value is number {
 /** `Number.isInteger` as a narrowing, since it answers false for every non-number. */
 function isInteger(value: Json | undefined): value is number {
 	return Number.isInteger(value);
-}
-
-/** A remembered language tag with something in it. */
-function isFilledString(value: Json | undefined): value is string {
-	return isString(value) && value.trim() !== '';
 }
 
 /** A link's membership is 1-based header lines, so zero and below name nothing. */
@@ -362,19 +360,6 @@ function parseIgnoredDiagnostics(value: Json): IgnoredDiagnosticsRecord {
 		draftId: stringField(value, 'draftId'),
 		keys: [...new Set(keys)].sort()
 	};
-}
-
-function parseRecentLanguages(value: string | undefined): string[] {
-	if (!value) return [];
-	try {
-		const parsed: unknown = JSON.parse(value);
-		if (!Array.isArray(parsed)) return [];
-		return [
-			...new Set(parsed.flatMap((language) => (isFilledString(language) ? [language.trim()] : [])))
-		];
-	} catch {
-		return [];
-	}
 }
 
 export function parseWorkspaceBackup(text: string): WorkspaceBackupFile {
