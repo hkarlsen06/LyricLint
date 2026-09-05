@@ -401,13 +401,12 @@
 	transform: rotate(180deg);
 }
 
-/* The row's height is fixed, so the expanded list carries its own bottom space
-   rather than borrowing it from the section's padding. */
+/* The footer owns bottom spacing in both collapsed and expanded states. */
 .ignored-rules ul {
 	display: grid;
-	margin: 0 0 var(--space-2);
+	margin: 0;
 	padding: 0;
-	gap: var(--space-2);
+	gap: var(--space-4);
 	list-style: none;
 }
 
@@ -415,7 +414,34 @@
    type — a rule's name at body size beside a header at `--font-size-sm` read as
    two lists that had landed on top of each other. */
 .ignored-rules li {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: var(--space-2);
+	align-items: start;
+	padding-inline: var(--space-2);
 	font-size: var(--font-size-sm);
+	overflow-wrap: anywhere;
+}
+
+.ignored-rules__description {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	align-items: start;
+	gap: var(--space-1);
+}
+
+.ignored-rules__title {
+	font-weight: var(--font-weight-medium);
+}
+
+.ignored-rules__rule,
+.ignored-rules__location {
+	color: var(--color-text-muted);
+}
+
+.ignored-rules li > .button {
+	white-space: nowrap;
 }
 
 /* Muted, because it qualifies the row rather than naming it: the rule and the
@@ -425,7 +451,6 @@
 	color: var(--color-text-muted);
 }
 
-.ignored-rules li,
 .merge-suggestions li {
 	display: flex;
 	gap: var(--space-2);

@@ -472,3 +472,50 @@
 		width: 0;
 	}
 }
+
+/* An explicit writing view keeps the same editor and its scroll position.
+   The toolbar remains the visible, keyboard-reachable way back to the tools. */
+.workspace.workspace--expanded {
+	grid-template-columns: minmax(44rem, 1fr) minmax(0, 0rem);
+}
+
+.workspace--expanded .editor-region {
+	margin-right: var(--space-2);
+}
+
+.right-panel[aria-hidden='true'] {
+	visibility: hidden;
+}
+
+@media (max-width: 68rem) {
+	.workspace.workspace--expanded {
+		grid-template-columns: 100%;
+		grid-template-rows: auto minmax(0, 3fr) minmax(0, 0fr);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.workspace {
+		transition:
+			grid-template-columns var(--duration-slow) var(--ease-out-quart),
+			grid-template-rows var(--duration-slow) var(--ease-out-quart);
+	}
+
+	.editor-region {
+		transition: margin-right var(--duration-slow) var(--ease-out-quart);
+	}
+
+	/* Remain visible while sliding out; inert removes interaction immediately.
+	   Reopening restores visibility synchronously so the selected tab can focus. */
+	.right-panel[aria-hidden='true'] {
+		transition: visibility var(--duration-slow);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.workspace,
+	.editor-region,
+	.right-panel {
+		transition-property: none;
+	}
+}

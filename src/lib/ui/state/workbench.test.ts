@@ -897,6 +897,26 @@ describe('workbench diagnostic navigation', () => {
 		expect(controller.activeTab).toBe('linter');
 	});
 
+	test('continues from a deliberately chosen passage after a fix instead of returning to earlier findings', () => {
+		const text = '[Verse]\nfirst line\nsecond line\nthird line';
+		const record = draft('draft-a', text);
+		const { controller, editor } = setup({ initial: record });
+		const earlier: Diagnostic = { ...diagnostic, severity: 'error', from: 8, to: 13 };
+		const fixed: Diagnostic = {
+			...diagnostic,
+			from: 19,
+			to: 25,
+			fixes: [{ kind: 'safe', label: 'Capitalize', edit: { baseRevision: 1, edits: [] } }]
+		};
+		const later: Diagnostic = { ...diagnostic, from: 31, to: 36 };
+		controller.onSnapshot({ ...snapshot(record, 1, text), diagnostics: [earlier, fixed, later] });
+		controller.navigateToDiagnostic(fixed, { focus: false });
+		editor.dispatchAtomic = () =>
+			controller.onSnapshot({ ...snapshot(record, 2, text), diagnostics: [earlier, later] });
+		controller.applyFix(fixed, fixed.fixes![0]);
+		expect(controller.activeDiagnosticKey).toBe('section-header-missing:31:36');
+	});
+
 	test('hands the editor to the diagnostic the panel leads with after a fix', () => {
 		// Applying a fix empties the card the user was reading, so the panel leads
 		// with another one — and the editor's active-line wash, which is all that

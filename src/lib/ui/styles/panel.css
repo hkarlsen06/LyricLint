@@ -80,7 +80,7 @@
    scrolling list of diagnostics framed between them. */
 .right-panel__footer {
 	flex: none;
-	padding: 0 var(--space-4);
+	padding: 0 var(--space-4) var(--space-2-5);
 	background: var(--color-chrome);
 }
 

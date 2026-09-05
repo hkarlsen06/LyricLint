@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/dom';
+import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
@@ -93,6 +93,58 @@ function declaredMarginTop(selector: string): string | undefined {
 afterEach(cleanup);
 
 describe('the assistant panel', () => {
+	test.each(['Enter', 'Ask'])(
+		'preserves refused questions submitted through %s',
+		async (method) => {
+			const { assistant, send } = panelAssistant();
+			render(AssistantPanel, { assistant });
+			const composer = screen.getByRole('textbox', {
+				name: 'Your question'
+			}) as HTMLTextAreaElement;
+			await fireEvent.input(composer, {
+				target: { value: 'Keep this question if another tab is answering.' }
+			});
+			if (method === 'Enter') await fireEvent.keyDown(composer, { key: 'Enter' });
+			else await fireEvent.submit(composer.closest('form')!);
+			await waitFor(() => expect(send).toHaveBeenCalledOnce());
+			await waitFor(() =>
+				expect(composer.value).toBe('Keep this question if another tab is answering.')
+			);
+		}
+	);
+
+	test('keeps an overlong question editable and discloses how to send it', async () => {
+		const { assistant, send } = panelAssistant();
+		render(AssistantPanel, { assistant });
+		const composer = screen.getByRole('textbox', { name: 'Your question' }) as HTMLTextAreaElement;
+		const question = '🎤'.repeat(2001);
+		await fireEvent.input(composer, { target: { value: question } });
+		await fireEvent.keyDown(composer, { key: 'Enter' });
+		expect(composer.value).toBe(question);
+		expect(send).not.toHaveBeenCalled();
+		expect(screen.getByText('Remove 1 character to send.')).toBeTruthy();
+		expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
+		await fireEvent.input(composer, { target: { value: question.slice(2) } });
+		expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(false);
+	});
+
+	test('Enter commits an IME composition without sending the question', async () => {
+		const { assistant, send } = panelAssistant();
+		render(AssistantPanel, { assistant });
+		const composer = screen.getByRole('textbox', { name: 'Your question' }) as HTMLTextAreaElement;
+		await fireEvent.input(composer, { target: { value: 'この歌詞' } });
+		const event = new KeyboardEvent('keydown', {
+			key: 'Enter',
+			isComposing: true,
+			bubbles: true,
+			cancelable: true
+		});
+		await fireEvent(composer, event);
+		expect(event.defaultPrevented).toBe(false);
+		expect(composer.value).toBe('この歌詞');
+		expect(send).not.toHaveBeenCalled();
+	});
+
 	test('fills the pane, pins the composer at its foot, and carries both chat controls', () => {
 		const { assistant } = panelAssistant();
 		const { container } = render(AssistantPanel, { assistant });

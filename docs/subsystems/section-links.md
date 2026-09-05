@@ -46,8 +46,9 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
   every section that uses it; an absent wording says `No words here`. It decides by radio pair,
   names the winning copy in a dropdown (`replaceFrom`), and turns rows into what would happen
   (`del`/`ins`, struck through as well as coloured).
-  `winningText` follows `winningWording`: the picked copy unless empty, then the first with
-  words. The card is pinned by its top (`pinnedTop`); applying collapses the selection —
+  `winningText` follows `winningWording`: an absent phrase in a populated copy can win;
+  only a wholly empty source falls back to the first copy with words. Individual wording actions
+  reconcile only their own difference; unchosen differences stay local. The card is pinned by its top (`pinnedTop`); applying collapses the selection —
   load-bearing, or the card reopens.
 - `section.unlinked-repeat` gates on `worthLinking` (some pair passing the core-owned
   half-the-shorter-body similarity predicate; empty copies neither count nor count against);
@@ -279,16 +280,17 @@ a final divergent run stays local here too.
 
 #### Making copies agree is asked for per difference
 
-`keepDifferent[i] === false` collapses difference `i` to one wording. **That wording is the source's**
-— the copy the card was opened from, the words the user is looking at — **unless the source has
-nothing there**, which is the one case where the section in front of the user cannot win: an untyped
-`[Chorus 3]` is a request to be _filled_, and letting its emptiness win would answer it by emptying
-the chorus that had the words. Then the words come from the first member of the group that has any.
-**The group, never the document**, because a copy the user did not tick is not part of what they
-asked for.
+`keepDifferent[i] === false` collapses difference `i` to one wording. The individual winner in
+`replaceFromByDifference[i]` takes precedence over the group-wide `replaceFrom`; absent both,
+the opened copy is the source. An absent phrase in a populated source wins exactly as written.
+Only a **wholly empty source body** falls back to the first populated wording in the group: an
+untyped `[Chorus 3]` should fill rather than erase the copies with lyrics.
 
-This is the same rule the old whole-body link had for bodies, now applied per difference — and the
-empty-section special case collapses into the general model rather than needing its own branch.
+The picker omits wholly empty sections from replacement choices; their absent rows remain visible
+in the comparison. If populated and empty sections share an absent wording, the populated copy
+represents that choice. Thus every visible wording action can produce the absence or words it
+names. **The group, never the document** supplies the fallback: an unticked copy is outside the
+user's decision.
 
 #### Setting words aside by hand is a selection and a press — and the press was retired
 
@@ -401,7 +403,8 @@ happened to be opened from, noticing that a _later_ chorus has the wording worth
 repair "close the card and open it again from the right one". `replaceFrom` rides the choice, the
 dropdown lists the ticked copies, and choosing one selects the replace outcome — picking a version
 is asking for it. Unticking the chosen copy falls back to the opened one, because a section that is
-not in the group cannot be the one whose version wins. An empty wording still never wins.
+not in the group cannot be the one whose version wins. Changing membership also clears individual
+wording choices: difference indexes belong to the selected set, not to the whole song.
 
 **Choosing to replace turns each row into what would happen to it**, rather than recolouring what
 is already there. A row that is changing keeps the words it loses, struck through, with the words it
@@ -423,7 +426,8 @@ Three states follow from it, and the third is the one worth naming:
 outcome nobody chose.
 
 **And the card's `winningText` follows the same rule as the editor's `winningWording`**: the picked
-copy's version, unless it is empty, in which case the first copy with words wins. The two have to
+copy's version, including an absent phrase in a populated section. Only a wholly empty section
+follows the first copy with words. The two have to
 agree, because this row is a promise about what that function is going to do.
 
 **The two outcomes are one control each, not two rows apart.** Given `--control-height-sm` and their
@@ -439,7 +443,26 @@ lesson is the general one: **a novel control is a bug unless the familiar one ge
 the job.** A diff and a radio pair are what everyone has already met in a file-conflict dialog, and
 neither can be read two ways.
 
-The diff is **information, not a control**. Nothing in it is pressable.
+The default diff is a comparison, with an explicit **Use this wording** action beside each
+version. Choosing it previews reconciliation of that difference alone and leaves the others local;
+**Keep this difference** reverses the pending choice. The final **Replace words** applies the
+reviewed choices together, with one undo. This handles a typo beside an intentional ad-lib without
+bringing back ambiguous per-difference checkboxes. The group-wide radio outcomes remain available
+and clear individual choices when chosen.
+
+**An absent phrase can be the winning version.** Choosing the chorus without an ad-lib means
+removing that ad-lib from the other copies. The former fallback treated every absence as an empty
+section and silently kept the words the selected version did not contain. The safeguard now checks
+the complete source body: a wholly untyped chorus still fills from a populated peer, while absence
+inside a populated chorus is an intentional version. Preview and application use that same rule.
+`section-links.svelte.test.ts` pins selective removal and atomic undo, alongside the empty-copy
+fill cases; `SectionLinkPicker.svelte.test.ts` pins the matching preview and submitted choices.
+
+**Native controls own Enter.** The card's Enter shortcut must not intercept a focused button or
+select: doing so made Enter on Cancel apply a pending replacement. Its Tab cycle includes the
+winning-version select and each wording action. `SectionLinkPicker.svelte.test.ts` pins cancellation
+without application and keyboard traversal to the dropdown. Scope copy names shared words and
+preserved differences, rather than claiming every edit will affect every copy.
 
 #### The card uses the empty column, then pins rather than freezing
 

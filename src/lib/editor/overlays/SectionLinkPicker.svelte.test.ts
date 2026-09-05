@@ -1,6 +1,7 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import type { ComponentProps } from 'svelte';
 import type { LinkDifference } from '$lib/core/types.js';
 import type { LinkOccurrence } from '../section-links.js';
 import SectionLinkPicker from './SectionLinkPicker.svelte';
@@ -110,5 +111,83 @@ describe('SectionLinkPicker placement', () => {
 		const cardBox = (await card.element()).getBoundingClientRect();
 		expect(cardBox.top).toBe(486);
 		expect(cardBox.bottom).toBeLessThanOrEqual(window.innerHeight - 8);
+	});
+});
+
+describe('SectionLinkPicker decisions', () => {
+	function setup(extra: Partial<ComponentProps<typeof SectionLinkPicker>> = {}) {
+		const onApply = vi.fn();
+		const onCancel = vi.fn();
+		return {
+			onApply,
+			onCancel,
+			view: render(SectionLinkPicker, {
+				occurrences,
+				currentHeaderFrom: 0,
+				initialSelected: [20, 40],
+				differencesFor: () => differences,
+				onApply,
+				onCancel,
+				returnFocus: vi.fn(),
+				...extra
+			})
+		};
+	}
+	it('lets Enter cancel pending replacement without applying it', async () => {
+		const { onApply, onCancel, view } = setup();
+		await view;
+		await page.getByRole('radio', { name: /Replace them/ }).click();
+		(await page.getByRole('button', { name: 'Cancel', exact: true }).element()).focus();
+		await userEvent.keyboard('{Enter}');
+		expect(onCancel).toHaveBeenCalledOnce();
+		expect(onApply).not.toHaveBeenCalled();
+	});
+	it('includes the winning-version select in keyboard traversal', async () => {
+		const { view } = setup();
+		await view;
+		const radio = await page
+			.getByRole('radio', { name: 'Respect differences between them' })
+			.element();
+		radio.focus();
+		await userEvent.keyboard('{Tab}');
+		expect(document.activeElement).toBe(await page.getByRole('combobox').element());
+	});
+	it('reconciles one difference while leaving another local, and can undo the choice', async () => {
+		const two = [...differences, { ...differences[0]!, index: 1 }];
+		const { onApply, view } = setup({ differencesFor: () => two });
+		await view;
+		await page.getByRole('button', { name: 'Use Chorus 2 wording for difference 1' }).click();
+		await page.getByRole('button', { name: 'Keep this difference' }).click();
+		await expect
+			.element(page.getByRole('button', { name: 'Replace words', exact: true }))
+			.not.toBeInTheDocument();
+		await page.getByRole('button', { name: 'Use Chorus 2 wording for difference 1' }).click();
+		await page.getByRole('button', { name: 'Replace words', exact: true }).click();
+		expect(onApply).toHaveBeenCalledWith(
+			expect.objectContaining({
+				keepDifferent: [false, true],
+				replaceFromByDifference: [20, undefined]
+			})
+		);
+	});
+	it('previews removing an ad-lib when the selected populated copy has no words there', async () => {
+		const absent = [
+			{
+				...differences[0]!,
+				wordings: differences[0]!.wordings.map((w) => ({
+					...w,
+					text: w.headerFrom === 20 ? '' : 'hey'
+				}))
+			}
+		];
+		const { onApply, view } = setup({ differencesFor: () => absent });
+		await view;
+		await page.getByRole('button', { name: 'Use Chorus 2 wording for difference 1' }).click();
+		expect(document.querySelector('.compare del')?.textContent).toBe('hey');
+		expect(document.querySelector('.compare ins')).toBeNull();
+		await page.getByRole('button', { name: 'Replace words', exact: true }).click();
+		expect(onApply).toHaveBeenCalledWith(
+			expect.objectContaining({ replaceFromByDifference: [20] })
+		);
 	});
 });

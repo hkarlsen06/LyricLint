@@ -2,7 +2,8 @@
 
 Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-store.svelte.ts`,
 `src/lib/ui/state/media-shortcuts.ts`, `src/lib/ui/state/keyboard-inset.ts`,
-`src/lib/ui/media/MediaStrip.svelte`, `src/lib/ui/media/MediaPicker.svelte`,
+`src/lib/ui/media/MediaStrip.svelte`, `src/lib/ui/media/MediaTransport.svelte`,
+`src/lib/ui/media/MediaPicker.svelte`,
 `src/lib/ui/styles/media.css`, `src/lib/persistence/media-repository.ts`,
 `src/lib/ui/clipboard.ts`
 
@@ -34,6 +35,13 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
 - Back/forward step between cue points only within `cueStepReach` (10s); beyond that the 2s
   nudge takes over in both directions (`cueBefore`/`cueAfter`, pinned in
   `media-player.test.ts`).
+- Catalogue searches return an explicit `attached` outcome for a pasted link. Existing
+  source state never decides whether a search should close (`MediaPicker.svelte.test.ts`).
+- Side-control labels use the same cue lookup as transport: outside the 10s cue reach they
+  name the 2s nudge, even when other lines are timed (`MediaStrip.svelte.test.ts`).
+- A replay passage is explicit and session-scoped: Loop from here, Loop to here, Stop loop.
+  It clears on source changes, outside seeks, and sync entry; pausing stays inside the passage
+  (`media-player.test.ts`, `MediaStrip.svelte.test.ts`).
 - Two defaults do the work: resume backs up 2s (cancelled by deliberate placement) and
   `preservesPitch` is on.
 - The player is the second row of `.editor-region`, on `--color-chrome`. Catalogue song
@@ -72,9 +80,12 @@ padding separates its controls from footer text. Wide layouts place artwork, son
 and attribution in that order on one row; narrower layouts preserve seek width by stacking them. The pending state
 names the song at the row's start and parks its one command at the far end, so the Load
 control keeps a stable home instead of sliding with the length of the song's name. It
-uses the same control-row height, margin, and padding as loaded playback, so loading
+uses the same control-row height and padding as loaded playback, so loading
 replaces the command without resizing the control bar. `MediaStrip.svelte.test.ts`
-compares the pending and loaded heights. The whole loaded player settles upward by
+compares the pending and loaded heights. Equal block padding centers both states in the
+space below the editor; a separate top margin previously added to the top padding and
+pushed the controls down. Inline clearance inside the controls' scrollport keeps the
+outer buttons' shadow rings visible without moving their aligned edges. The whole loaded player settles upward by
 `--space-2` over `--duration-slow` with `--ease-out-quart`, leaving its reserved height
 intact. Animating the shared strip includes catalogue identity and the Apple Music / Spotify
 link, even when the wide artwork layout uses `display: contents`. Animating only the control
@@ -580,9 +591,9 @@ one request either way.
 to be retyped into fields somewhere else, and the page it is retyped into takes one writer at a
 time — so a reader handed four names on one wrapped line has been given the facts and none of the
 work, and the gesture they are left with is the one this list is worst at: selecting to a comma
-they have to find. The receipt says so in the sentence it already had (`— press one to copy it`),
-because a value that is only pressable is a control nobody discovers; the tools panel's copy is
-found the way a name in a row is always found here, by underlining under the pointer.
+they have to find. The values live in Song, where each underlines under the pointer and
+remains keyboard reachable. Copy lyrics no longer opens an automatic metadata receipt:
+its confirmation stays on the existing copy button, and metadata remains on its home surface.
 
 Four things it owes, and the first is what makes it compatible with the rule directly below that a
 writer credit is never rewritten:
@@ -669,3 +680,30 @@ section in `SongPanel.svelte`.
 The source dialog shares the studio overlay geometry: an unruled header,
 spaced source sections, and rounded result hover targets. Source selection and
 attachment behavior remain unchanged.
+
+### A search result is not an attachment state
+
+Changing an Apple Music song and searching for another used to close the picker immediately:
+the existing source still identified itself as Apple, which the picker treated as proof that
+this request had attached a link. Spotify had the same failure. The store now returns
+`{ attached: true }` only when the submitted link attaches; ordinary results, including an empty
+list, stay in the dialog. Provider catalogue response types remain unchanged because attachment
+is the store's job. `MediaPicker.svelte.test.ts` covers replacement searches for both sources.
+
+### Replay a difficult passage without repeatedly navigating back
+
+Loop from here records the live playhead. The user plays or seeks ahead and presses Loop to here;
+that starts repeating the chosen interval. End stays disabled until the passage is at least a
+quarter second long. Stop loop removes the interval without pausing, and Cancel loop abandons a
+pending start. The range remains visible beside the active control.
+
+The shared player owns the repeat, so every source uses the same behavior. It follows source
+position events rather than promising sample-accurate audio boundaries; remote sources can take
+longer to seek. The sources retain their existing pending-seek guards; the transport adds no latch that would
+require an in-range tick, because a short passage can fall entirely between provider reports. A pause keeps the range,
+and the normal resume rewind is clamped to its start. Deliberately seeking or stepping outside
+the range clears it, so a timestamp press cannot be pulled back into an old loop. Changing the
+source or draft clears it too; it is listening state, never saved timing data. Sync entry clears
+it before tapping starts, because a repeating tape cannot advance a timing run sensibly.
+`media-player.test.ts` exercises replay, pause/resume, refusal of an empty interval, outside seek,
+source replacement, and stopping without pausing; `MediaStrip.svelte.test.ts` exercises its controls.

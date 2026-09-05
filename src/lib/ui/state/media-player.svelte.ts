@@ -402,6 +402,14 @@ export interface MediaPlayer {
 	 * plain nudge is what is left.
 	 */
 	readonly cuePoints: readonly number[];
+	/** The same cue-or-nudge decision used by transport, mirrored for its controls. */
+	readonly backLabel: string;
+	readonly forwardLabel: string;
+	/** A deliberate replay passage, scoped to this attachment and session. */
+	readonly loop: { start: number; end?: number } | undefined;
+	setLoopStart(): void;
+	finishLoop(): void;
+	clearLoop(): void;
 	setCuePoints(times: readonly number[]): void;
 	/** Move by `seconds`, clamped to the track. Never starts or stops playback. */
 	nudge(seconds: number): void;
@@ -610,6 +618,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	let songDetails = $state<SongDetails | undefined>(undefined);
 	let availableRates = $state<readonly number[]>(playbackRates);
 	let cuePoints = $state<readonly number[]>([]);
+	let loop = $state<{ start: number; end?: number } | undefined>();
 	/**
 	 * What the user has asked for, as against what the source is doing.
 	 *
@@ -703,6 +712,14 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		return {
 			timeChanged(time) {
 				if (!live()) return;
+				if (loop?.end !== undefined && playing && time >= loop.end) {
+					// Sources already hold pending seek targets against stale reports.
+					// Do not add a second latch: a short passage can fit entirely
+					// between provider ticks, with no in-range tick to release it.
+					active!.seek(loop.start);
+					currentTime = loop.start;
+					return;
+				}
 				currentTime = time;
 				progressListener?.(time, 'progress');
 			},
@@ -753,6 +770,12 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			},
 			ended() {
 				if (!live()) return;
+				if (loop?.end !== undefined) {
+					active!.seek(loop.start);
+					currentTime = loop.start;
+					active!.play();
+					return;
+				}
 				playing = false;
 				wantPlaying = false;
 				rewindOnResume = false;
@@ -798,6 +821,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 	function moveTo(target: number): void {
 		const source = active;
 		if (source === undefined) return;
+		if (loop?.end !== undefined && (target < loop.start || target >= loop.end)) player.clearLoop();
 		source.seek(clamp(target, 0, source.duration));
 		currentTime = source.time;
 		// A deliberate placement, so it cancels the run-in the same way a scrub
@@ -886,6 +910,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 
 	/** Hand the transport to a source, before that source is told what to load. */
 	function beginAttachment(next: MediaSource, label: string): number {
+		loop = undefined;
 		const generation = ++attachmentGeneration;
 		if (active && active !== next) active.clear();
 		active = next;
@@ -1059,6 +1084,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		},
 
 		detach() {
+			loop = undefined;
 			attachmentGeneration += 1;
 			active?.clear();
 			active = undefined;
@@ -1101,7 +1127,11 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			// Nothing to spend it on yet; the attachment will, when it lands.
 			if (attaching) return;
 			if (rewindOnResume) {
-				const target = clamp(source.time - resumeRewindSeconds, 0, source.duration);
+				const target = clamp(
+					source.time - resumeRewindSeconds,
+					loop?.end !== undefined ? loop.start : 0,
+					source.duration
+				);
 				source.seek(target);
 				currentTime = source.time;
 				rewindOnResume = false;
@@ -1129,6 +1159,35 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 			return cuePoints;
 		},
 
+		get backLabel() {
+			return cueBefore(currentTime) === undefined ? 'Back 2 seconds' : 'Previous line';
+		},
+		get forwardLabel() {
+			return cueAfter(currentTime) === undefined ? 'Forward 2 seconds' : 'Next line';
+		},
+		get loop() {
+			return loop;
+		},
+		setLoopStart() {
+			if (!active || !Number.isFinite(duration) || duration <= 0) return;
+			loop = { start: clamp(active.time, 0, duration) };
+			deps.feedback.announce(
+				`Loop starts at ${formatTime(loop.start)}. Play or seek to its end, then choose Loop to here.`
+			);
+		},
+		finishLoop() {
+			if (!active || !loop) return;
+			const end = Math.min(active.time, duration);
+			if (end < loop.start + 0.25) return;
+			loop = { start: loop.start, end };
+			moveTo(loop.start);
+			player.play();
+			deps.feedback.announce(`Looping ${formatTime(loop.start)} to ${formatTime(end)}.`);
+		},
+		clearLoop() {
+			loop = undefined;
+		},
+
 		setCuePoints(times) {
 			cuePoints = [...times].sort((a, b) => a - b);
 		},
@@ -1142,6 +1201,7 @@ export function createMediaPlayer(deps: MediaPlayerDependencies): MediaPlayer {
 		seek(time) {
 			const source = active;
 			if (source === undefined) return;
+			if (loop?.end !== undefined && (time < loop.start || time >= loop.end)) player.clearLoop();
 			source.seek(clamp(time, 0, source.duration));
 			currentTime = source.time;
 			rewindOnResume = false;

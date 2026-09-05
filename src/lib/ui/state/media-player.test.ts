@@ -607,3 +607,60 @@ describe('formatTime', () => {
 		expect(formatTime(Number.POSITIVE_INFINITY)).toBe('—');
 	});
 });
+
+describe('replaying a passage', () => {
+	it('loops at the chosen end, keeps pause and resume within the passage, and clears on an outside seek', () => {
+		const { player, audio } = setup();
+		player.seek(10);
+		player.setLoopStart();
+		player.seek(15);
+		player.finishLoop();
+		expect(player.loop).toEqual({ start: 10, end: 15 });
+		expect(audio.currentTime).toBe(10);
+		expect(player.playing).toBe(true);
+		audio.currentTime = 15.1;
+		audio.dispatchEvent(new Event('timeupdate'));
+		expect(audio.currentTime).toBe(10);
+		player.pause();
+		player.play();
+		expect(audio.currentTime).toBe(10);
+		player.seek(30);
+		expect(player.loop).toBeUndefined();
+		expect(audio.currentTime).toBe(30);
+	});
+	it('rejects a reversed or empty passage and forgets loop points on a new attachment', () => {
+		const { player } = setup();
+		player.seek(10);
+		player.setLoopStart();
+		player.seek(9);
+		player.finishLoop();
+		expect(player.loop).toEqual({ start: 10 });
+		player.attach(new File([''], 'other.mp3'));
+		expect(player.loop).toBeUndefined();
+	});
+	it('lets stopping a loop leave playback running', () => {
+		const { player, audio } = setup();
+		player.seek(10);
+		player.setLoopStart();
+		player.seek(15);
+		player.finishLoop();
+		player.clearLoop();
+		audio.currentTime = 16;
+		audio.dispatchEvent(new Event('timeupdate'));
+		expect(player.currentTime).toBe(16);
+		expect(player.playing).toBe(true);
+	});
+});
+
+it('keeps repeating when provider ticks skip the entire short passage', () => {
+	const { player, audio } = setup();
+	player.seek(10);
+	player.setLoopStart();
+	player.seek(10.25);
+	player.finishLoop();
+	for (let pass = 0; pass < 3; pass++) {
+		audio.currentTime = 10.6;
+		audio.dispatchEvent(new Event('timeupdate'));
+		expect(audio.currentTime).toBe(10);
+	}
+});

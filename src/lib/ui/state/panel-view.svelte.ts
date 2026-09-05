@@ -1,3 +1,4 @@
+import { ChangeSet } from '@codemirror/state';
 import type {
 	AtomicDocumentEdit,
 	Diagnostic,
@@ -64,7 +65,7 @@ interface PanelView {
 	 * leads with and put the editor's line wash on it.
 	 */
 	leadAfterFix(diagnostics: readonly Diagnostic[]): void;
-	navigateToDiagnostic(diagnostic: Diagnostic): void;
+	navigateToDiagnostic(diagnostic: Diagnostic, options?: { focus?: boolean }): void;
 	/** Mark a diagnostic's card without moving the editor to it. */
 	highlightDiagnostic(diagnostic: Diagnostic): void;
 	chooseSectionHeader(diagnostic: Diagnostic): void;
@@ -245,6 +246,16 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	// line the fix had landed in. It is armed before the dispatch because the
 	// editor emits the re-linted snapshot from inside it.
 	let leadPending = false;
+	let passageFrom: number | undefined;
+
+	function nextInReview(diagnostics: readonly Diagnostic[]): Diagnostic | undefined {
+		const ordered = orderDiagnostics(visibleIn(diagnostics));
+		const from = passageFrom;
+		if (from === undefined) return ordered[0];
+		return (
+			[...ordered].sort((a, b) => a.from - b.from).find((item) => item.from >= from) ?? ordered[0]
+		);
+	}
 
 	/**
 	 * The one path from a decided edit to the document. Everything that applies
@@ -259,6 +270,9 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		if (!edit || edit.baseRevision !== deps.snapshot().revision) {
 			feedback.announce('This fix is stale. Review the current diagnostic before applying it.');
 			return;
+		}
+		if (passageFrom !== undefined) {
+			passageFrom = ChangeSet.of(edit.edits, deps.snapshot().text.length).mapPos(passageFrom, -1);
 		}
 		leadPending = true;
 		try {
@@ -307,6 +321,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 					);
 		},
 		refreshIgnoredDiagnostics() {
+			passageFrom = undefined;
 			ignoreEpoch += 1;
 		},
 		pruneActiveDiagnostic(diagnostics) {
@@ -322,11 +337,13 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			leadPending = false;
 			// Whichever tab is showing stays: the press that applied the fix does
 			// not also get to choose what panel the user is looking at.
-			const next = orderDiagnostics(visibleIn(diagnostics))[0];
+			const next = nextInReview(diagnostics);
 			if (next) selectDiagnostic(next);
 		},
-		navigateToDiagnostic(diagnostic) {
-			revealDiagnostic(diagnostic).focus();
+		navigateToDiagnostic(diagnostic, options) {
+			passageFrom = diagnostic.from;
+			const editor = revealDiagnostic(diagnostic);
+			if (options?.focus !== false) editor.focus();
 		},
 		// The pointer resting on an underline in the editor. The panel follows
 		// along, but the editor stays put: the reveal in `revealDiagnostic` lifts
@@ -378,6 +395,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			deps.editor().clearPreview?.();
 		},
 		applyFix(diagnostic, fix) {
+			if (passageFrom !== undefined) passageFrom = diagnostic.from;
 			dispatchFixEdit(fix.edit, `${fix.label} applied for ${diagnostic.message}.`);
 		},
 		fixBatchSize(diagnostic, fix) {
@@ -412,6 +430,9 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			const key = diagnosticIgnoreKey(diagnostic, deps.snapshot().text);
 			if (ignoredDiagnosticKeys.includes(key)) return;
 			setIgnored(key, true);
+			if (passageFrom !== undefined) passageFrom = diagnostic.from;
+			const next = nextInReview(deps.snapshot().diagnostics);
+			if (next) selectDiagnostic(next);
 			// The suppression is the same either way; what the reader answered is
 			// not, and a card that led with `It's correct` must not report back that
 			// the finding was ignored.
@@ -429,6 +450,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			});
 		},
 		leadOnNextSnapshot() {
+			passageFrom = undefined;
 			leadPending = true;
 		},
 		recordAcceptedOccurrence(key) {

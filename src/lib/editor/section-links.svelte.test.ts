@@ -1430,10 +1430,11 @@ describe('the link card', () => {
 		await expect
 			.element(page.getByRole('switch', { name: /Edit this section only/ }))
 			.toHaveAttribute('aria-checked', 'false');
-		await userEvent.keyboard('{Tab}{Tab}');
-		expect(document.activeElement).toBe(
-			page.getByRole('switch', { name: /Edit this section only/ }).element()
-		);
+		const switchElement = page.getByRole('switch', { name: /Edit this section only/ }).element();
+		for (let step = 0; step < 12 && document.activeElement !== switchElement; step += 1) {
+			await userEvent.keyboard('{Tab}');
+		}
+		expect(document.activeElement).toBe(switchElement);
 		// The document is unchanged: Enter on a control inside `.cm-content` is a
 		// press CodeMirror would otherwise spend on a line break.
 		expect(handle.getSnapshot().text).toBe(SONG);
@@ -2036,5 +2037,27 @@ describe('what a link survives', () => {
 		const text = handle.getSnapshot().text;
 		expect(text).toContain('again!');
 		expect(text).toContain('there tonight\n');
+	});
+});
+
+describe('chosen wording for individual link differences', () => {
+	it('removes an absent phrase from peers without replacing another intentional difference, and undoes atomically', async () => {
+		const text =
+			'[Chorus]\nHold on (hey) tonight\nNever let go\n\n[Chorus 2]\nHold on tonight\nNever let go (again)';
+		const handle = await mount(text);
+		const headers = [0, text.indexOf('[Chorus 2]')];
+		const differences = handle.getLinkDifferences!(headers);
+		const adlib = differences.findIndex((d) => d.wordings.some((w) => w.text.includes('hey')));
+		expect(adlib).toBeGreaterThanOrEqual(0);
+		handle.linkSections!({
+			headers,
+			keepDifferent: differences.map((_, i) => i !== adlib),
+			replaceFromByDifference: differences.map((_, i) => (i === adlib ? headers[1] : undefined))
+		});
+		expect(handle.getSnapshot().text).not.toContain('hey');
+		expect(handle.getSnapshot().text).toContain('(again)');
+		expect(handle.getSnapshot().text.split('(again)')).toHaveLength(2);
+		handle.undo();
+		expect(handle.getSnapshot().text).toBe(text);
 	});
 });

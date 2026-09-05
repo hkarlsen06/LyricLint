@@ -8,7 +8,8 @@
 	import { severityPluralLabels } from '$lib/diagnostics/severity-labels.js';
 	import { tick } from 'svelte';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let { controller, active = true }: { controller: WorkbenchController; active?: boolean } =
+		$props();
 
 	// One row at a time may be armed for deletion, so the pending draft is the
 	// list's state rather than each row's.
@@ -121,6 +122,25 @@
 		controller.drafts.filter((draft) => draft.id !== controller.draftId).slice(0, 5)
 	);
 
+	async function applyBulkFix(trigger: HTMLButtonElement): Promise<void> {
+		const ownedFocus = document.activeElement === trigger;
+		const panel = trigger.closest('.linter-panel');
+		const reviewTab = trigger
+			.closest('.right-panel')
+			?.querySelector<HTMLButtonElement>('#linter-panel-tab');
+		controller.applyBulkFix();
+		await tick();
+		if (ownedFocus && !trigger.isConnected) {
+			const next =
+				panel?.querySelector<HTMLButtonElement>(
+					'.diagnostic-card--expanded .diagnostic-list__navigate'
+				) ??
+				panel?.querySelector<HTMLButtonElement>('.diagnostic-list__navigate') ??
+				reviewTab;
+			next?.focus();
+		}
+	}
+
 	function lineFor(offset: number): number {
 		const text = controller.snapshot.text;
 		let line = 1;
@@ -186,7 +206,7 @@
 			<button
 				type="button"
 				class="button linter-panel__bulk-action"
-				onclick={() => controller.applyBulkFix()}
+				onclick={(event) => void applyBulkFix(event.currentTarget)}
 			>
 				Fix {bulk.automatic}
 				{bulk.automatic === 1 ? 'issue' : 'issues'} automatically
@@ -218,13 +238,14 @@
 	{/snippet}
 
 	<DiagnosticList
+		active={active && controller.activeTab === 'linter'}
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
 		activeDiagnosticKey={controller.activeDiagnosticKey}
 		{emptyState}
 		{emptyActions}
 		{lineFor}
-		onNavigate={(diagnostic) => controller.navigateToDiagnostic(diagnostic)}
+		onNavigate={(diagnostic) => controller.navigateToDiagnostic(diagnostic, { focus: false })}
 		onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
 		canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
 		onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}

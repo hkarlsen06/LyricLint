@@ -1,6 +1,6 @@
-import { fireEvent, screen } from '@testing-library/dom';
+import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { Diagnostic } from '$lib/core/types.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
 import LinterPanel from './LinterPanel.svelte';
@@ -297,5 +297,144 @@ describe("a card's batch repeats the change the card is previewing", () => {
 		// The expanded card's own fix button already applies the single occurrence.
 		expect(screen.getByRole('button', { name: "Replace with I'ma" })).toBeTruthy();
 		expect(screen.queryByRole('button', { name: /^Fix all/ })).toBeNull();
+	});
+});
+
+describe('review continuity', () => {
+	afterEach(cleanup);
+
+	test('collapses the open finding and retires its preview until reopened', async () => {
+		const { controller, editor } = createTestWorkbench({ diagnostics: [spelling(0, 4, "I'ma")] });
+		const preview = vi.fn();
+		const clear = vi.fn();
+		editor.previewAtomic = preview;
+		editor.clearPreview = clear;
+		render(LinterPanel, { controller });
+		await waitFor(() => expect(preview).toHaveBeenCalled());
+		const row = screen.getByRole('button', { name: /^Go to/ });
+		await fireEvent.click(row);
+		expect(row.getAttribute('aria-expanded')).toBe('false');
+		expect(screen.queryByRole('button', { name: "Replace with I'ma" })).toBeNull();
+		expect(clear).toHaveBeenCalled();
+		await fireEvent.click(row);
+		expect(row.getAttribute('aria-expanded')).toBe('true');
+		expect(screen.getByRole('button', { name: "Replace with I'ma" })).toBeTruthy();
+	});
+
+	test('retires the review preview while another tool is visible', async () => {
+		const { controller, editor } = createTestWorkbench({ diagnostics: [spelling(0, 4, "I'ma")] });
+		editor.previewAtomic = vi.fn();
+		const clear = vi.fn();
+		editor.clearPreview = clear;
+		render(LinterPanel, { controller });
+		await waitFor(() => expect(editor.previewAtomic).toHaveBeenCalled());
+		controller.setActiveTab('performers');
+		await waitFor(() => expect(clear).toHaveBeenCalled());
+		expect(screen.queryByRole('button', { name: "Replace with I'ma" })).toBeNull();
+		controller.setActiveTab('linter');
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: "Replace with I'ma" })).toBeTruthy()
+		);
+	});
+
+	test('moves between findings with controls and their shortcuts without stealing focus', async () => {
+		const { controller, calls } = createTestWorkbench({
+			diagnostics: [spelling(0, 4, "I'ma"), prose(8, 12)]
+		});
+		render(LinterPanel, { controller });
+		const next = screen.getByRole('button', { name: 'Next' });
+		next.focus();
+		await fireEvent.click(next);
+		expect(controller.activeDiagnosticKey).toBe('line.prose-density:8:12');
+		expect(calls.focusCount).toBe(0);
+		await fireEvent.keyDown(window, { key: 'ArrowUp', altKey: true, shiftKey: true });
+		expect(controller.activeDiagnosticKey).toBe('spelling.standardized:0:4');
+		expect(screen.getByText('1 of 2')).toBeTruthy();
+	});
+
+	test('leaves selection keys to text fields and open pickers', async () => {
+		const { controller } = createTestWorkbench({
+			diagnostics: [spelling(0, 4, "I'ma"), prose(8, 12)]
+		});
+		render(LinterPanel, { controller });
+		const field = document.createElement('textarea');
+		document.body.append(field);
+		const dialog = document.createElement('div');
+		dialog.setAttribute('role', 'dialog');
+		dialog.textContent = 'Open picker';
+		try {
+			const typing = new KeyboardEvent('keydown', {
+				key: 'ArrowDown',
+				altKey: true,
+				shiftKey: true,
+				bubbles: true,
+				cancelable: true
+			});
+			field.dispatchEvent(typing);
+			expect(typing.defaultPrevented).toBe(false);
+			expect(controller.activeDiagnosticKey).toBeUndefined();
+			document.body.append(dialog);
+			const picking = new KeyboardEvent('keydown', {
+				key: 'ArrowDown',
+				altKey: true,
+				shiftKey: true,
+				bubbles: true,
+				cancelable: true
+			});
+			window.dispatchEvent(picking);
+			expect(picking.defaultPrevented).toBe(false);
+			expect(controller.activeDiagnosticKey).toBeUndefined();
+		} finally {
+			field.remove();
+			dialog.remove();
+		}
+	});
+
+	test('hands focus off the disappearing automatic-fix command to the remaining decision', async () => {
+		const following = prose(8, 12);
+		const { controller, editor } = createTestWorkbench({
+			diagnostics: [spelling(0, 4, "I'ma"), following]
+		});
+		editor.dispatchAtomic = () =>
+			controller.onSnapshot({ ...controller.snapshot, revision: 5, diagnostics: [following] });
+		render(LinterPanel, { controller });
+		const bulk = screen.getByRole('button', { name: 'Fix 1 issue automatically' });
+		bulk.focus();
+		await fireEvent.click(bulk);
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				screen.getByRole('button', { name: 'Go to This line reads as prose.' })
+			)
+		);
+	});
+
+	test('keeps the next row mounted and focused after ignoring its predecessor', async () => {
+		const { controller } = createTestWorkbench({
+			diagnostics: [spelling(0, 4, "I'ma"), prose(8, 12)]
+		});
+		render(LinterPanel, { controller });
+		const following = screen.getByRole('button', { name: 'Go to This line reads as prose.' });
+		const ignore = screen.getByRole('button', { name: 'Ignore' });
+		ignore.focus();
+		await fireEvent.click(ignore);
+		await waitFor(() => expect(document.activeElement).toBe(following));
+		expect(following.isConnected).toBe(true);
+	});
+
+	test('hands keyboard focus to the surviving finding after a fix', async () => {
+		const fixed = spelling(0, 4, "I'ma");
+		const following = prose(8, 12);
+		const { controller, editor } = createTestWorkbench({ diagnostics: [fixed, following] });
+		editor.dispatchAtomic = () =>
+			controller.onSnapshot({ ...controller.snapshot, revision: 5, diagnostics: [following] });
+		render(LinterPanel, { controller });
+		const fix = screen.getByRole('button', { name: "Replace with I'ma" });
+		fix.focus();
+		await fireEvent.click(fix);
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				screen.getByRole('button', { name: 'Go to This line reads as prose.' })
+			)
+		);
 	});
 });

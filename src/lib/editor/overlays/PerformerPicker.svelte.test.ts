@@ -511,11 +511,20 @@ describe('PerformerPicker unknown voices', () => {
 		});
 
 		const add = document.querySelector<HTMLButtonElement>('.add-voice');
-		const unknown = document.querySelector<HTMLButtonElement>('.chip--unknown-new');
+		const unknown = document.querySelector<HTMLButtonElement>('.unknown-voice--new');
 		expect(add?.textContent?.trim()).toBe('Add voice');
 		expect(add?.classList.contains('button')).toBe(true);
 		expect(add?.classList.contains('button--contrast')).toBe(true);
 		expect(unknown?.classList.contains('button--contrast')).toBe(false);
+		expect(unknown?.classList.contains('button')).toBe(true);
+		expect(unknown?.classList.contains('chip')).toBe(false);
+		const ordinary = document.createElement('button');
+		ordinary.className = 'button';
+		document.body.append(ordinary);
+		expect(getComputedStyle(unknown!).borderTopLeftRadius).toBe(
+			getComputedStyle(ordinary).borderTopLeftRadius
+		);
+		ordinary.remove();
 
 		// Once a named voice is selected, Apply becomes the sole contrast action;
 		// Add voice remains a filled default button above the dashed fallback.
@@ -540,15 +549,15 @@ describe('PerformerPicker unknown voices', () => {
 			returnFocus: () => {}
 		});
 
-		const italic = page.getByRole('button', { name: 'Unknown italic voice' });
-		const bold = page.getByRole('button', { name: 'Unknown bold voice' });
-		const boldItalic = page.getByRole('button', { name: 'Unknown bold italic voice' });
+		const italic = page.getByRole('button', { name: 'Use unknown italic voice' });
+		const bold = page.getByRole('button', { name: 'Use unknown bold voice' });
+		const boldItalic = page.getByRole('button', { name: 'Use unknown bold italic voice' });
 		await expect.element(italic).toBeVisible();
 		await expect.element(bold).toBeVisible();
 		await expect.element(boldItalic).toBeVisible();
 
 		// The slot's own styling is the visual cue that tells the three apart.
-		const labels = document.querySelectorAll<HTMLElement>('.chip--unknown [aria-hidden="true"]');
+		const labels = document.querySelectorAll<HTMLElement>('.unknown-voice [aria-hidden="true"]');
 		expect(labels).toHaveLength(3);
 		expect(getComputedStyle(labels[0]!).fontStyle).toBe('italic');
 		expect(getComputedStyle(labels[1]!).fontWeight).not.toBe(
@@ -557,7 +566,12 @@ describe('PerformerPicker unknown voices', () => {
 		expect(getComputedStyle(labels[2]!).fontStyle).toBe('italic');
 
 		// No identity, no dot: the dot is a performer color's carrier.
-		expect(document.querySelectorAll('.chip--unknown .chip__dot')).toHaveLength(0);
+		expect(document.querySelectorAll('.unknown-voice .chip__dot')).toHaveLength(0);
+		for (const action of document.querySelectorAll<HTMLButtonElement>('.unknown-voice')) {
+			expect(action.classList.contains('button')).toBe(true);
+			expect(action.classList.contains('chip')).toBe(false);
+			expect(action.hasAttribute('data-picker-chip')).toBe(true);
+		}
 
 		// One press is the whole answer, carrying the slot it joins.
 		await userEvent.click(bold);
@@ -578,21 +592,23 @@ describe('PerformerPicker unknown voices', () => {
 			returnFocus: () => {}
 		});
 
-		await userEvent.click(page.getByRole('button', { name: 'New unknown voice' }));
+		await userEvent.click(page.getByRole('button', { name: 'Use new unknown voice' }));
 		expect(onAssignUnknown).toHaveBeenCalledWith(undefined);
 
 		// The shared flex alignment centers the icon without a positional nudge.
-		const plus = document.querySelector<SVGElement>('.chip--unknown-new svg');
+		const plus = document.querySelector<SVGElement>('.unknown-voice--new svg');
 		expect(plus).not.toBeNull();
 		const icon = plus!.getBoundingClientRect();
 		const chip = plus!.closest('button')!.getBoundingClientRect();
 		expect(Math.abs(icon.top + icon.height / 2 - (chip.top + chip.height / 2))).toBeLessThan(1);
 
 		await view.rerender({ canAddUnknown: false });
-		expect(document.querySelector('.chip--unknown-new')).toBeNull();
+		expect(document.querySelector('.unknown-voice--new')).toBeNull();
 		// The existing unknown chip stays: it is derived from the document, not
 		// from the free-slot question.
-		await expect.element(page.getByRole('button', { name: 'Unknown italic voice' })).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: 'Use unknown italic voice' }))
+			.toBeVisible();
 	});
 
 	it('draws no unknown chips without a handler to receive the press', async () => {
@@ -607,6 +623,6 @@ describe('PerformerPicker unknown voices', () => {
 			returnFocus: () => {}
 		});
 
-		expect(document.querySelector('.chip--unknown')).toBeNull();
+		expect(document.querySelector('.unknown-voice')).toBeNull();
 	});
 });

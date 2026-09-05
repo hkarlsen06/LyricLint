@@ -6,8 +6,10 @@
 	 * second rendering or a different privacy claim on either surface.
 	 */
 	import { ArrowUp, ChevronRight } from 'lucide-svelte';
+	import { tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
+	import { MAX_QUESTION_CHARS } from '$lib/assistant/types.js';
 	import {
 		loadRulePreviews,
 		type RulePreview,
@@ -27,6 +29,9 @@
 	let composerInput = $state<HTMLTextAreaElement>();
 	let challengeContainer = $state<HTMLDivElement>();
 	let draft = $state('');
+	const questionLength = $derived([...draft.trim()].length);
+	const questionTooLong = $derived(questionLength > MAX_QUESTION_CHARS);
+	let submitting = $state(false);
 	let previews = $state<Map<string, RulePreview>>();
 	let sources = $state<Map<string, RulePreviewSource>>();
 	let referencesFailedToLoad = $state(false);
@@ -48,7 +53,10 @@
 	// it. The send button knew about two of the three and the Enter key knew about
 	// none, which is why the key is what people lost their question to.
 	const canSend = $derived(
-		!assistant.busy && !assistant.challengePending && assistant.toolSession === undefined
+		!submitting &&
+			!assistant.busy &&
+			!assistant.challengePending &&
+			assistant.toolSession === undefined
 	);
 	const disclosure = $derived.by(() => {
 		if (!assistant.draftToolsAvailable) {
@@ -176,15 +184,26 @@
 
 	async function submit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
-		if (!canSend || draft.trim() === '') return;
+		await sendDraft();
+	}
+
+	async function sendDraft(): Promise<void> {
+		if (!canSend || questionTooLong || draft.trim() === '') return;
 		const question = draft;
+		submitting = true;
 		resetComposer();
-		const consumed = await ask(question);
-		// A refusal only discoverable past the await — the conversation held by
-		// another tab — hands the question back, the same rule the synchronous
-		// busy guard keeps by never clearing at all. Only into a composer still
-		// empty: the reader may have typed on while the probe was out.
-		if (!consumed && draft.trim() === '') draft = question;
+		try {
+			// Both keyboard and button submissions restore refused input. Never
+			// overwrite a newer question typed while the store checks the chat lock.
+			const consumed = await ask(question);
+			if (!consumed && draft.trim() === '') {
+				draft = question;
+				await tick();
+				if (composerInput) resizeComposer(composerInput);
+			}
+		} finally {
+			submitting = false;
+		}
 	}
 
 	function resizeComposer(textarea: HTMLTextAreaElement): void {
@@ -202,14 +221,11 @@
 	}
 
 	function onComposerKeydown(event: KeyboardEvent): void {
-		if (event.key !== 'Enter' || event.shiftKey) return;
+		if (event.isComposing || event.key !== 'Enter' || event.shiftKey) return;
 		// Enter is this field's send key whether or not the send can land, so it
 		// never breaks the line; refused, it leaves the draft exactly where it is.
 		event.preventDefault();
-		if (!canSend || draft.trim() === '') return;
-		const question = draft;
-		resetComposer();
-		void ask(question);
+		void sendDraft();
 	}
 
 	function awaitingReview(messageId: string): boolean {
@@ -423,6 +439,19 @@
 	<div class="assistant-conversation__foot">
 		<p class="sr-only" role="status" data-testid="assistant-announcement">{announcement}</p>
 		<form class="assistant-composer" onsubmit={submit}>
+			<p
+				id="assistant-question-limit"
+				class="assistant-composer__limit"
+				class:danger-text={questionTooLong}
+				aria-live="polite"
+			>
+				{#if questionTooLong}
+					Remove {questionLength - MAX_QUESTION_CHARS}
+					{questionLength - MAX_QUESTION_CHARS === 1 ? 'character' : 'characters'} to send.
+				{:else}
+					{MAX_QUESTION_CHARS.toLocaleString('en')} characters maximum · Shift+Enter for a new line
+				{/if}
+			</p>
 			<div class="assistant-composer__field">
 				<label class="sr-only" for="assistant-question">Your question</label>
 				<textarea
@@ -431,6 +460,8 @@
 					bind:value={draft}
 					rows="1"
 					placeholder="Ask about the guidelines or proofreading…"
+					aria-describedby="assistant-question-limit"
+					aria-invalid={questionTooLong}
 					oninput={(event) => resizeComposer(event.currentTarget)}
 					onkeydown={onComposerKeydown}></textarea>
 				<!-- The shared tiers, not a fourth one: this is the composer's one
@@ -440,7 +471,7 @@
 				<button
 					type="submit"
 					class="icon-button button--contrast assistant-composer__send"
-					disabled={!canSend || draft.trim() === ''}
+					disabled={!canSend || questionTooLong || draft.trim() === ''}
 					aria-label="Ask"
 				>
 					<ArrowUp aria-hidden="true" size={17} strokeWidth={2.25} />

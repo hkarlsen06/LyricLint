@@ -13,6 +13,10 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/layout/LandscapeNotice.
   `68rem`. In the stacked panel, `.right-panel__content` grows with ordinary panes but
   fits the available height for Assistant, preserving its transcript scroll port and
   the media/footer below it. `RightPanel.svelte.test.ts` pins pane layout.
+- Expand editor replaces the split with one writing region at every width; Show tools
+  restores the selected tool. Hidden panels are removed from layout and the accessibility
+  tree while their state and the editor's identity survive. `Workspace.svelte.test.ts`
+  measures the extra writing space and focus return at phone and desktop widths.
 - The phone is supported upright and refused on its side: `(pointer: coarse) and
   (max-height: 30rem)` hides `.app-shell` (CSS, never `matchMedia` — the app is prerendered)
   and `LandscapeNotice` takes its place. Height *and* coarse pointer, never height alone;
@@ -30,6 +34,21 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/layout/LandscapeNotice.
   iOS focus-zoom lurch silently.
 
 ## Decision record
+
+### The split is a starting point, not a permanent cost
+
+Wrapped lyrics, playback, and a software keyboard compete for a phone's writing space. The
+default remains the familiar 3:2 editor/panel split, but Expand editor in the toolbar hides the
+panel and gives the editor the remaining height. Desktop uses the same command to gain width.
+This is an explicit choice, never an automatic focus-triggered reflow while typing. Show tools
+stays visible with the finding count and restores the previous tool; the four-glyph editor tray
+does not grow. Neither the editor nor the panel is remounted, and playback stays attached.
+Expansion preserves the current left inset; only the available writing area grows. The desktop
+inset must not shrink to the phone inset when the panel disappears.
+Matching grid tracks animate width on desktop and height when stacked, using the slow motion
+token and ease-out curve. The panel becomes inert and leaves the accessibility tree immediately;
+visibility hides it when its track finishes collapsing to zero. Reopening reverses the transition
+without remounting either surface. Reduced-motion preferences skip the transition.
 
 ### The toolbar gives its commands a reachable row
 

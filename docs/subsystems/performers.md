@@ -427,3 +427,21 @@ muted section numbers, clear section names, and indented voice rows; each style 
 renders its named italic/bold treatment. The literal style words remain, so typography and
 color never have to explain identity or formatting alone. Editor voice highlights share
 softer corners without padding that would change source-text geometry.
+
+
+### Assignment explains both the gesture and the action
+
+The roster guidance names **Ctrl+Alt+P** after selecting lyric text; pointer selection also opens
+the picker. Keyboard selections deliberately do not open it unasked, so the guidance must name
+the aimed alternative on the surface where someone learns assignment.
+
+Named performer chips remain selections that await Apply. Unknown voices cannot join a named
+group, so their immediate action remains, but their labels now say **Use unknown** and
+**Use new unknown voice**. Their accessible names include the existing styling identity. The verb
+makes the immediate write explicit instead of presenting it as another pending roster selection.
+Their geometry is the ordinary bordered `.button` tier, never the categorical chip's pill radius.
+Named performers retain selectable chips; unknown actions retain `data-picker-chip` solely for
+shared roving keyboard navigation. The picker test pins the global button radius and the absence
+of the `.chip` class on immediate actions.
+`PerformerPicker.svelte.test.ts` and `EditorPane.svelte.test.ts` pin those names and the one-press
+assignment path.

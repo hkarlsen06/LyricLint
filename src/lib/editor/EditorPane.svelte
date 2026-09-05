@@ -635,6 +635,7 @@
 		keepDifferent: boolean[];
 		makeDifferent?: TextRange;
 		replaceFrom?: number;
+		replaceFromByDifference?: readonly (number | undefined)[];
 	}): void {
 		const closing = choice.keepDifferent.filter((kept) => !kept).length;
 		editor?.handle.linkSections?.(choice);
@@ -645,7 +646,7 @@
 			choice.keepDifferent.filter((keep) => keep).length + (choice.makeDifferent ? 1 : 0);
 		callbacks.onAnnouncement(
 			choice.headers.length > 1
-				? `${choice.headers.length} sections linked${kept > 0 ? `, keeping ${kept} difference${kept === 1 ? '' : 's'}` : ''}${closing > 0 ? `, ${closing} made to agree` : ''}. Editing one now edits them all.`
+				? `${choice.headers.length} sections linked${kept > 0 ? `, keeping ${kept} difference${kept === 1 ? '' : 's'}` : ''}${closing > 0 ? `, ${closing} made to agree` : ''}. Edits to shared words update the linked sections; preserved differences stay local.`
 				: 'Section unlinked.'
 		);
 		session = closeOverlay(session);

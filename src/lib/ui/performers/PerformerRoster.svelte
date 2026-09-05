@@ -38,10 +38,13 @@
 
 	{#if controller.performers.length === 0}
 		<p class="empty-state">
-			Add performers here, then select lyric text in the editor to assign them.
+			Add performers here, then select lyric text and press Ctrl+Alt+P to assign them.
 		</p>
 	{:else}
-		<p class="roster-hint">Select lyric text in the editor to assign performers to it.</p>
+		<p class="roster-hint">
+			Select lyric text, then press Ctrl+Alt+P to assign performers. Selecting with the pointer also
+			opens the picker.
+		</p>
 		<ul class="performer-list" aria-label="'Scribe performer roster">
 			{#each orderedPerformers as performer (performer.id)}
 				<PerformerEditor

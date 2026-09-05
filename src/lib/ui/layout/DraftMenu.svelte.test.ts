@@ -32,6 +32,31 @@ function thirdDraft(): DraftRecord {
 describe('DraftMenu', () => {
 	afterEach(cleanup);
 
+	test('filters a large library and resets the search when the menu closes', async () => {
+		const drafts = Array.from({ length: 8 }, (_, index) => ({
+			...secondDraft(),
+			id: `draft-${index}`,
+			title: index === 3 ? 'Summer rain' : `Winter ${index}`
+		}));
+		const { controller } = createTestWorkbench({ drafts });
+		await controller.refreshDrafts();
+		render(DraftMenu, { controller });
+		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		await userEvent.click(trigger);
+		const search = screen.getByRole('searchbox', {
+			name: "Find a saved 'scribe by title or opening lyrics"
+		});
+		await fireEvent.input(search, { target: { value: 'SUMMER' } });
+		expect(screen.getByRole('button', { name: /^Summer rain/ })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: /^Winter 1/ })).toBeNull();
+		await fireEvent.input(search, { target: { value: 'missing' } });
+		expect(screen.getByRole('status').textContent).toContain('No saved');
+		await fireEvent.keyDown(search, { key: 'Escape' });
+		await userEvent.click(trigger);
+		expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('');
+		expect(screen.getByRole('button', { name: /^Winter 1/ })).toBeTruthy();
+	});
+
 	test('opens, renames, duplicates, exports, and deletes a draft', async () => {
 		const exported: Array<{ text: string; filename: string }> = [];
 		const base = createTestWorkbench();
@@ -262,5 +287,48 @@ describe('DraftMenu', () => {
 		await fireEvent.pointerDown(trigger);
 		await fireEvent.pointerDown(screen.getByText("Saved 'scribes"));
 		expect(menu.open).toBe(true);
+	});
+});
+
+describe('DraftMenu duplicate titles', () => {
+	afterEach(cleanup);
+	test('shows lyric openings only for duplicate titles and can find the intended copy by its words', async () => {
+		const drafts = [
+			{
+				...secondDraft(),
+				id: 'same-a',
+				title: 'Untitled transcription',
+				text: '[Verse]\nThe morning sun'
+			},
+			{
+				...secondDraft(),
+				id: 'same-b',
+				title: 'Untitled transcription',
+				text: '\n[Chorus]\nA winter moon'
+			},
+			{ ...secondDraft(), id: 'unique-a', title: 'Named song', text: '[Verse]\nUnique opening' },
+			{ ...secondDraft(), id: 'unique-b', title: 'Another song' },
+			{ ...thirdDraft(), id: 'unique-c' }
+		];
+		const { controller, repository } = createTestWorkbench({ drafts });
+		await controller.refreshDrafts();
+		render(DraftMenu, { controller });
+		await userEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		expect(screen.getByText('The morning sun')).toBeTruthy();
+		expect(screen.getByText('A winter moon')).toBeTruthy();
+		expect(screen.queryByText('Unique opening')).toBeNull();
+		const unique = screen.getByText('Named song').closest('li');
+		expect(unique?.querySelector('.draft-menu__preview')).toBeNull();
+		const search = screen.getByRole('searchbox', {
+			name: "Find a saved 'scribe by title or opening lyrics"
+		});
+		await fireEvent.input(search, { target: { value: 'WINTER MOON' } });
+		expect(screen.queryByText('The morning sun')).toBeNull();
+		// A filtered duplicate keeps its identifying preview even when the other copy is hidden.
+		await userEvent.click(
+			screen.getByRole('button', { name: /Untitled transcription A winter moon/ })
+		);
+		expect(controller.draftId).toBe('same-b');
+		expect(await repository.get('same-b')).not.toHaveProperty('lyricPreview');
 	});
 });

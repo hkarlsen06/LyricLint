@@ -857,8 +857,7 @@ export function linkDifferencesFor(
 /**
  * The wording a difference collapses to when the user stops keeping it.
  *
- * The source's, because that is the copy the card was opened from and the words
- * the user is looking at — unless the source has nothing there, which is the one
+ * The chosen copy's, including an absent phrase. Only a wholly empty body is the one
  * case where the section in front of the user cannot win: an untyped
  * `[Chorus 3]` is a request to be *filled*, and letting its emptiness win would
  * answer it by emptying the chorus that had the words. The group, never the
@@ -880,7 +879,11 @@ function winningWording(
 	// Whichever copy the user named, and the opened one only as the default.
 	const source = members.find((member) => member.header === replaceFrom) ?? members[0];
 	const own = source ? textFor(source) : '';
-	if (own.trim().length > 0 || !source) {
+	if (
+		own.trim().length > 0 ||
+		!source ||
+		state.doc.sliceString(source.body.from, source.body.to).trim().length > 0
+	) {
 		return own;
 	}
 	return members.map(textFor).find((text) => text.trim().length > 0) ?? own;
@@ -945,7 +948,12 @@ export function linkSections(view: EditorView, choice: SectionLinkChoice): numbe
 			});
 			continue;
 		}
-		const text = winningWording(view.state, shaped, index, choice.replaceFrom);
+		const text = winningWording(
+			view.state,
+			shaped,
+			index,
+			choice.replaceFromByDifference?.[index] ?? choice.replaceFrom
+		);
 		for (const member of shaped) {
 			const hole = member.holes[index];
 			if (!hole) continue;

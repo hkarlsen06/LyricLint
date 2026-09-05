@@ -389,3 +389,39 @@ describe('MediaPicker', () => {
 		expect(dialog()?.open).toBe(false);
 	});
 });
+
+// Existing attachment state is not the result of a new search.
+describe('catalogue source replacement', () => {
+	it.each(['apple', 'spotify'] as const)(
+		'keeps %s search results open over an existing attachment',
+		async (kind) => {
+			const { media, openDialog } = setup();
+			Object.defineProperty(media.player, 'sourceKind', { get: () => kind });
+			Object.defineProperty(media, kind === 'apple' ? 'songId' : 'trackId', {
+				get: () => 'existing'
+			});
+			media.searchAppleMusic = async () => ({
+				results: [{ songId: 'new', name: 'Another song', durationSeconds: 200 }]
+			});
+			media.searchSpotify = async () => ({
+				results: [{ trackId: 'new', name: 'Another song', durationSeconds: 200 }]
+			});
+			await openDialog();
+			const field = page.getByLabelText(kind === 'apple' ? 'Apple Music search' : 'Spotify search');
+			await field.fill('another');
+			(field.element().closest('form') as HTMLFormElement).requestSubmit();
+			await expect.element(page.getByRole('button', { name: /Another song/ })).toBeVisible();
+			expect(dialog()?.open).toBe(true);
+		}
+	);
+	it('closes only when the catalogue reports an attachment', async () => {
+		const { media, openDialog } = setup();
+		media.searchAppleMusic = async () => ({ attached: true });
+		await openDialog();
+		await page.getByLabelText('Apple Music search').fill('song link');
+		(
+			page.getByLabelText('Apple Music search').element().closest('form') as HTMLFormElement
+		).requestSubmit();
+		await vi.waitFor(() => expect(dialog()?.open).toBe(false));
+	});
+});

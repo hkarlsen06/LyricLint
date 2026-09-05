@@ -211,7 +211,7 @@ describe('PerformersPanel', () => {
 		expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
 		expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Assign' })).toBeNull();
-		expect(screen.getByText(/select lyric text in the editor/i)).toBeTruthy();
+		expect(screen.getByText(/select lyric text, then press Ctrl\+Alt\+P/i)).toBeTruthy();
 	});
 
 	// A styled slot the header does not name is an unknown voice — reported once

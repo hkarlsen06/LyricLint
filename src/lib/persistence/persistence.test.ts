@@ -118,6 +118,10 @@ describe('draft repository', () => {
 		});
 
 		expect((await repository.list()).map(({ id }) => id)).toEqual(['draft-b', 'draft-a']);
+		expect((await repository.list()).find(({ id }) => id === 'draft-a')?.lyricPreview).toBe(
+			'Exact text'
+		);
+		expect(await repository.get('draft-a')).not.toHaveProperty('lyricPreview');
 
 		await repository.rename(original.id, 'Renamed');
 		expect((await repository.get(original.id))?.title).toBe('Renamed');

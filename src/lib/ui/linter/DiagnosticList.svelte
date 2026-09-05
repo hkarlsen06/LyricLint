@@ -3,11 +3,13 @@
 	import { tick, type Snippet } from 'svelte';
 	import { BookOpen, CheckCheck } from 'lucide-svelte';
 	import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
+	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';
 	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
 	import DiagnosticDetails from './DiagnosticDetails.svelte';
 
 	let {
 		diagnostics,
+		active = true,
 		sources,
 		activeDiagnosticKey,
 		emptyState,
@@ -27,6 +29,7 @@
 		onIgnore
 	}: {
 		diagnostics: readonly Diagnostic[];
+		active?: boolean;
 		sources: ReadonlyMap<string, SourceReference>;
 		activeDiagnosticKey?: string;
 		/** Empty, clean, and set-aside reviews have distinct composed states.
@@ -87,8 +90,9 @@
 	// Exactly one card sits expanded at a time; before any explicit choice the
 	// top card starts expanded so the panel is never a wall of closed rows.
 	let chosenKey = $state<string | undefined>();
+	let collapsedKey = $state<string | undefined>();
 	let list = $state<HTMLOListElement>();
-	const expandedKey = $derived.by(() => {
+	const selectedKey = $derived.by(() => {
 		if (
 			activeDiagnosticKey &&
 			sortedDiagnostics.some((diagnostic) => cardKey(diagnostic) === activeDiagnosticKey)
@@ -102,10 +106,15 @@
 		return first ? cardKey(first) : undefined;
 	});
 
+	const expandedKey = $derived(active && selectedKey !== collapsedKey ? selectedKey : undefined);
+	const currentIndex = $derived(
+		sortedDiagnostics.findIndex((item) => cardKey(item) === selectedKey)
+	);
+
 	$effect(() => {
 		const key = activeDiagnosticKey;
 		const currentList = list;
-		if (!key || !currentList) return;
+		if (!active || !key || !currentList) return;
 		void tick().then(() => {
 			const card = Array.from(currentList.children).find(
 				(candidate) => candidate.getAttribute('data-diagnostic-key') === key
@@ -115,8 +124,53 @@
 	});
 
 	function activate(diagnostic: Diagnostic): void {
+		if (expandedKey === cardKey(diagnostic)) {
+			collapsedKey = cardKey(diagnostic);
+			return;
+		}
+		collapsedKey = undefined;
 		chosenKey = cardKey(diagnostic);
 		onNavigate(diagnostic);
+	}
+
+	function step(direction: -1 | 1): void {
+		const target = sortedDiagnostics[currentIndex + direction];
+		if (!target) return;
+		collapsedKey = undefined;
+		chosenKey = cardKey(target);
+		onNavigate(target);
+	}
+
+	function navigateWithKeyboard(event: KeyboardEvent): void {
+		if (
+			!active ||
+			event.defaultPrevented ||
+			!event.altKey ||
+			!event.shiftKey ||
+			event.ctrlKey ||
+			event.metaKey ||
+			event.isComposing
+		)
+			return;
+		if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+		const target = event.target;
+		if (
+			target instanceof Element &&
+			target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]')
+		)
+			return;
+		// Pickers own their keyboard interaction even when the pointer opened them
+		// without moving focus. Only visible surfaces count, not parked dialogs.
+		if (
+			Array.from(
+				document.querySelectorAll('dialog, [role="dialog"], [role="menu"], [role="listbox"]')
+			).some((surface) => surface.getClientRects().length > 0)
+		)
+			return;
+		const direction = event.key === 'ArrowUp' ? -1 : 1;
+		if (!sortedDiagnostics[currentIndex + direction]) return;
+		event.preventDefault();
+		step(direction);
 	}
 
 	async function runRemovingAction(
@@ -125,22 +179,34 @@
 		fallbackSelector: string
 	): Promise<void> {
 		const row = trigger.closest('li');
-		const nextRowControl = row?.nextElementSibling?.querySelector<HTMLButtonElement>(
-			'.diagnostic-list__navigate'
-		);
+		const index = row && list ? Array.from(list.children).indexOf(row) : 0;
+		const nextKey = row?.nextElementSibling?.getAttribute('data-diagnostic-key');
 		// The target may only become stable after the diagnostic disappears, so
 		// look it up after the action and its resulting render have settled.
 		const panel = trigger.closest('.right-panel');
 		action();
 		await tick();
-		if (nextRowControl?.isConnected) {
-			nextRowControl.focus();
+		const rows = Array.from(list?.children ?? []);
+		const next =
+			rows.find((candidate) => candidate.classList.contains('diagnostic-card--expanded')) ??
+			rows.find((candidate) => candidate.getAttribute('data-diagnostic-key') === nextKey) ??
+			rows[Math.min(index, rows.length - 1)];
+		const nextControl = next?.querySelector<HTMLButtonElement>('.diagnostic-list__navigate');
+		if (nextControl) {
+			nextControl.focus();
 			return;
 		}
 		const fallback =
 			panel?.querySelector<HTMLButtonElement>(fallbackSelector) ??
 			panel?.querySelector<HTMLButtonElement>('#linter-panel-tab');
 		fallback?.focus();
+	}
+
+	function fixAndMoveFocus(action: () => void): void {
+		const trigger = document.activeElement;
+		if (trigger instanceof HTMLButtonElement && list?.contains(trigger)) {
+			void runRemovingAction(trigger, action, '#linter-panel-tab');
+		} else action();
 	}
 
 	function ignoreAndMoveFocus(diagnostic: Diagnostic, trigger: HTMLButtonElement): void {
@@ -151,6 +217,8 @@
 		void runRemovingAction(trigger, () => onSetLanguage(language), '#linter-panel-tab');
 	}
 </script>
+
+<svelte:window onkeydown={navigateWithKeyboard} />
 
 {#if sortedDiagnostics.length === 0}
 	<div
@@ -186,14 +254,35 @@
 		{@render emptyActions?.()}
 	</div>
 {:else}
+	{#if sortedDiagnostics.length > 1}
+		<div class="diagnostic-actions" role="group" aria-label="Navigate findings">
+			<button
+				type="button"
+				class="button button--quiet"
+				disabled={currentIndex <= 0}
+				aria-keyshortcuts="Alt+Shift+ArrowUp"
+				{@attach describeControl(() => ({ label: 'Previous finding', shortcut: 'Alt+Shift+↑' }))}
+				onclick={() => step(-1)}>Previous</button
+			>
+			<span aria-live="polite">{currentIndex + 1} of {sortedDiagnostics.length}</span>
+			<button
+				type="button"
+				class="button button--quiet"
+				disabled={currentIndex >= sortedDiagnostics.length - 1}
+				aria-keyshortcuts="Alt+Shift+ArrowDown"
+				{@attach describeControl(() => ({ label: 'Next finding', shortcut: 'Alt+Shift+↓' }))}
+				onclick={() => step(1)}>Next</button
+			>
+		</div>
+	{/if}
 	<ol bind:this={list} class="diagnostic-list" aria-label="Document diagnostics">
-		{#each sortedDiagnostics as diagnostic, index (`${cardKey(diagnostic)}-${index}`)}
+		{#each sortedDiagnostics as diagnostic (`${cardKey(diagnostic)}:${diagnostic.message}`)}
 			{@const expanded = cardKey(diagnostic) === expandedKey}
 			<li
 				data-diagnostic-key={cardKey(diagnostic)}
 				class:diagnostic-error={diagnostic.severity === 'error'}
 				class:diagnostic-card--expanded={expanded}
-				class:diagnostic-card--active={cardKey(diagnostic) === activeDiagnosticKey}
+				class:diagnostic-card--active={expanded && cardKey(diagnostic) === activeDiagnosticKey}
 			>
 				<!--
 					The row is still the control: the button stretches over the whole
@@ -226,10 +315,10 @@
 						onSetLanguage={setLanguageAndMoveFocus}
 						onPreviewFix={(fix) => onPreviewFix(diagnostic, fix)}
 						{onCancelPreview}
-						onApplyFix={(fix) => onApplyFix(diagnostic, fix)}
+						onApplyFix={(fix) => fixAndMoveFocus(() => onApplyFix(diagnostic, fix))}
 						fixBatchSize={fixBatchSize ? (fix) => fixBatchSize(diagnostic, fix) : undefined}
 						onApplyFixBatch={onApplyFixBatch
-							? (fix) => onApplyFixBatch(diagnostic, fix)
+							? (fix) => fixAndMoveFocus(() => onApplyFixBatch?.(diagnostic, fix))
 							: undefined}
 						onIgnore={(trigger) => ignoreAndMoveFocus(diagnostic, trigger)}
 					/>

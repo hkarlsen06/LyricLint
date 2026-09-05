@@ -249,7 +249,7 @@ export interface MediaStore {
 	 * that happens to *be* a link is attached rather than searched, so the paste
 	 * still works and costs no second control.
 	 */
-	searchSpotify(query: string): Promise<SpotifySearchOutcome>;
+	searchSpotify(query: string): Promise<SpotifySearchOutcome | { attached: true }>;
 	/**
 	 * Attach a track the user picked out of those results.
 	 *
@@ -267,7 +267,7 @@ export interface MediaStore {
 	 * is signed in to yet and there is no redirect to survive. The sign-in happens
 	 * later, inside the attach, where MusicKit runs it in a window of its own.
 	 */
-	searchAppleMusic(query: string): Promise<AppleMusicSearchOutcome>;
+	searchAppleMusic(query: string): Promise<AppleMusicSearchOutcome | { attached: true }>;
 	/** Attach a song the user picked out of those results, on the same contract. */
 	attachAppleMusicSong(songId: string, name: string): Promise<string | undefined>;
 	/**
@@ -839,7 +839,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 				const redirecting = !spotifyAuth.signedIn();
 				const message = await store.attachSpotify(trimmed);
 				if (message !== undefined) return { error: message };
-				return redirecting ? { signingIn: true } : { results: [] };
+				return redirecting ? { signingIn: true } : { attached: true };
 			}
 
 			// The query rides across the redirect the way a link does, so a first
@@ -901,7 +901,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 					parsed.songId,
 					provisionalSongName(parsed.songId)
 				);
-				return message === undefined ? { results: [] } : { error: message };
+				return message === undefined ? { attached: true } : { error: message };
 			}
 
 			return await searchAppleMusicSongs(trimmed, { music: () => configureAppleMusic() });

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/dom';
+import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -157,9 +157,8 @@ describe('RightPanel', () => {
 		);
 	});
 
-	// The same inset owns the dock's bottom and outside edge, and the composer
-	// finishes on that control boundary rather than its label's baseline.
-	test('gives Preferences equal outer insets and aligns the composer with its button', async () => {
+	// The dock keeps equal outer insets; the composer uses the media strip's bottom padding.
+	test('gives Preferences equal outer insets and the composer media-strip bottom spacing', async () => {
 		await page.viewport(1496, 900);
 		const { controller } = createTestWorkbench();
 		controller.setActiveTab('assistant');
@@ -174,7 +173,7 @@ describe('RightPanel', () => {
 		const button = preferences.getBoundingClientRect();
 		expect(edge.right - button.right).toBeGreaterThan(0);
 		expect(edge.bottom - button.bottom).toBeCloseTo(edge.right - button.right, 1);
-		expect(field.getBoundingClientRect().bottom).toBeCloseTo(button.bottom, 1);
+		expect(edge.bottom - field.getBoundingClientRect().bottom).toBeCloseTo(10, 1);
 		// Selected text must fit too; its heavier weight used to clip the rim.
 		await fireEvent.click(preferences);
 		const selected = preferences.getBoundingClientRect();
@@ -282,7 +281,7 @@ describe('RightPanel', () => {
 		expect(calls.revealed).toEqual([{ from: 9, to: 13 }]);
 		expect(calls.selections).toEqual([{ anchor: 9, head: 13 }]);
 		expect(calls.navigation).toEqual(['selection', 'reveal']);
-		expect(calls.focusCount).toBe(1);
+		expect(calls.focusCount).toBe(0);
 		expect(warningButton.closest('li')?.classList.contains('diagnostic-card--active')).toBe(true);
 
 		controller.navigateToDiagnostic(error);
@@ -527,7 +526,11 @@ describe('RightPanel', () => {
 		expect(screen.getByTestId('live-region').textContent).toContain('Ignored');
 
 		const ignoredToggle = screen.getByRole('button', { name: /diagnostic ignored/ });
-		await waitFor(() => expect(document.activeElement).toBe(ignoredToggle));
+		await waitFor(() =>
+			expect(document.activeElement).toBe(
+				screen.getByRole('button', { name: 'Go to Add another section header' })
+			)
+		);
 		await fireEvent.click(ignoredToggle);
 		await fireEvent.click(screen.getByRole('button', { name: 'Restore' }));
 		expect(controller.ignoredDiagnosticCount).toBe(0);
@@ -559,6 +562,41 @@ describe('RightPanel', () => {
 	// An ignore is per occurrence, so one rule set aside twice is two rows — and
 	// the rule's name is the same on both of them. The flagged text is the only
 	// thing that tells them apart, and the ignore key already carries it.
+	test('distinguishes matching ignored words by their current section and line and reveals without restoring', async () => {
+		const text = '[Verse]\nImma go\n\n[Chorus]\nImma go';
+		const findings = [text.indexOf('Imma'), text.lastIndexOf('Imma')].map((from) =>
+			diagnostic({
+				ruleId: 'spelling.standardized',
+				severity: 'suggestion',
+				message: 'Use standard spelling',
+				from,
+				to: from + 4
+			})
+		);
+		const { controller, calls } = createTestWorkbench({ text, diagnostics: findings });
+		render(RightPanel, { controller });
+		findings.forEach((item) => controller.ignoreDiagnostic(item));
+		await waitFor(() => expect(controller.ignoredDiagnosticCount).toBe(2));
+		await fireEvent.click(screen.getByRole('button', { name: /2 diagnostics ignored/ }));
+		expect(screen.getByRole('button', { name: 'Show [Verse] · Line 2' })).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button', { name: 'Show [Chorus] · Line 5' }));
+		expect(calls.revealed.at(-1)).toEqual({ from: findings[1]!.from, to: findings[1]!.to });
+		expect(controller.ignoredDiagnosticCount).toBe(2);
+		controller.onSnapshot({ ...controller.snapshot, revision: 5, diagnostics: [] });
+		await waitFor(() =>
+			expect(screen.queryByRole('button', { name: /^Show \[Chorus\]/ })).toBeNull()
+		);
+		expect(document.querySelector('.right-panel__footer')).toBeNull();
+		expect(controller.ignoredDiagnosticCount).toBe(2);
+		controller.onSnapshot({ ...controller.snapshot, revision: 6, diagnostics: [findings[0]!] });
+		await waitFor(() =>
+			expect(screen.getByRole('button', { name: '2 diagnostics ignored' })).toBeTruthy()
+		);
+		await fireEvent.click(screen.getByRole('button', { name: '2 diagnostics ignored' }));
+		expect(screen.getByRole('button', { name: 'Show [Verse] · Line 2' })).toBeTruthy();
+		expect(screen.getAllByText('No matching finding in the current lyrics')).toHaveLength(1);
+	});
+
 	test('names the flagged text on each ignored occurrence', async () => {
 		const text = 'Imma go til dawn';
 		const first = diagnostic({
@@ -583,7 +621,7 @@ describe('RightPanel', () => {
 		await waitFor(() => expect(controller.ignoredDiagnosticCount).toBe(2));
 
 		await fireEvent.click(screen.getByRole('button', { name: /diagnostics ignored/ }));
-		const rows = [...document.querySelectorAll('.ignored-rules li span')].map((row) =>
+		const rows = [...document.querySelectorAll('.ignored-rules__title')].map((row) =>
 			row.textContent?.replace(/\s+/gu, ' ').trim()
 		);
 
@@ -676,20 +714,20 @@ describe('RightPanel', () => {
 				row.textContent?.replace(/\s+/gu, ' ').trim()
 			);
 
-		expect(rowText().some((row) => row?.includes('· Marked as correct'))).toBe(true);
-		expect(rowText().some((row) => row?.includes('· Ignored'))).toBe(true);
+		expect(rowText().some((row) => row?.includes('Marked as correct'))).toBe(true);
+		expect(rowText().some((row) => row?.includes('Ignored'))).toBe(true);
 
-		const accepted = [...document.querySelectorAll('.ignored-rules li')].find((row) =>
-			row.textContent?.includes('Marked as correct')
+		const accepted = [...document.querySelectorAll<HTMLLIElement>('.ignored-rules li')].find(
+			(row) => row.textContent?.includes('Marked as correct')
 		);
-		await fireEvent.click(accepted!.querySelector('button')!);
+		await fireEvent.click(within(accepted!).getByRole('button', { name: 'Restore' }));
 
 		await waitFor(() => expect(controller.ignoredDiagnosticCount).toBe(1));
 		expect(screen.getByText('Review the custom section header “Chor”.')).toBeTruthy();
 		// Down to one kind, the row's qualifier goes with it: the line above is
 		// already saying which one is left.
 		expect(screen.getByRole('button', { name: '1 diagnostic ignored' })).toBeTruthy();
-		expect(rowText().some((row) => row?.includes('· Ignored'))).toBe(false);
+		expect(rowText().some((row) => row?.includes('Ignored'))).toBe(false);
 	});
 
 	test('opens the editor section picker from a missing-header diagnostic', async () => {

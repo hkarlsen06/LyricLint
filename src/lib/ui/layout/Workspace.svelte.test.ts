@@ -77,59 +77,23 @@ describe('Workspace and toolbar', () => {
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy());
 	});
 
-	/*
-	 * The receipt is the one copy worth interrupting: the next thing the user does
-	 * with these lyrics is fill in a Genius song page, and the facts the catalogue
-	 * read already paid for are several of its fields. It draws only where there is
-	 * something on it besides the word the button says in its own slot — a modal
-	 * repeating a press is a surface that opened itself for nothing.
-	 */
-	test("hands the song's facts over with the copy, and only where there are any", async () => {
+	test('copies without interrupting with song metadata even when facts are available', async () => {
 		const writeText = vi.fn(async () => {});
 		vi.stubGlobal('navigator', { clipboard: { writeText } });
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
-		// The toolbar reads one fact off the store — `player.songDetails` — so the
-		// double carries exactly that; the workbench under test has no media store
-		// of its own to borrow one from.
 		const player: Partial<MediaPlayer> = {
 			songDetails: { artist: 'Mul', title: 'Sensommer', label: 'Sony', isrc: 'NOA1234' }
 		};
-		const withSongMedia: Partial<MediaStore> = { player: player as MediaPlayer };
 		const withSong: typeof controller = {
 			...controller,
-			media: withSongMedia as MediaStore
+			media: { player } as MediaStore
 		};
-
-		const { unmount } = render(DocumentToolbar, { controller: withSong });
-		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
-
-		const receipt = await waitFor(() => {
-			const dialog = document.querySelector('dialog.copy-receipt') as HTMLDialogElement;
-			expect(dialog.open).toBe(true);
-			return dialog;
-		});
-		// The fields that form actually asks for: artist and title are on it here and
-		// not in the tools panel, which leaves them to the toolbar and the cover
-		// band the receipt covers up — and the ISRC is the other way round, because
-		// there is nowhere on the page to type it.
-		expect([...receipt.querySelectorAll('dt')].map((term) => term.textContent)).toEqual([
-			'Artist',
-			'Title',
-			'Label'
-		]);
-		// The button keeps its own label, so the copy is not confirmed twice.
-		expect(screen.queryByRole('button', { name: 'Lyrics copied' })).toBeNull();
-
-		await fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-		await waitFor(() => expect(receipt.open).toBe(false));
-		unmount();
-
-		// A source that knows nothing about the song has nothing to hand over, so
-		// the button is the whole of the confirmation.
-		render(DocumentToolbar, { controller });
+		render(DocumentToolbar, { controller: withSong });
 		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
-		expect((document.querySelector('dialog.copy-receipt') as HTMLDialogElement).open).toBe(false);
+		expect(writeText).toHaveBeenCalledWith('[Verse]\nLine');
+		expect(document.querySelector('dialog.copy-receipt')).toBeNull();
+		expect(document.querySelector('dialog[open]')).toBeNull();
 	});
 
 	// The contrast tier is the loudest thing on the screen, and on an empty
@@ -679,7 +643,11 @@ describe('Workspace and toolbar', () => {
 		await waitFor(() => expect(controller.language).toBe('fr'));
 		await waitFor(() => expect(screen.queryByText(message)).toBeNull());
 		await waitFor(() =>
-			expect(screen.getByRole('tab', { name: /^Review/u })).toBe(document.activeElement)
+			expect(document.activeElement).toBe(
+				screen.getByRole('button', {
+					name: 'Go to “Verse” conflicts with the reviewed French header pack.'
+				})
+			)
 		);
 	});
 
@@ -1272,27 +1240,71 @@ describe('Workspace and toolbar', () => {
 		}
 	});
 
-	test('keeps the panel mounted at a narrow viewport with no way to dismiss it', async () => {
-		vi.stubGlobal(
-			'matchMedia',
-			vi.fn().mockReturnValue({
-				matches: true,
-				media: '(max-width: 68rem)',
-				onchange: null,
-				addEventListener: vi.fn(),
-				removeEventListener: vi.fn(),
-				addListener: vi.fn(),
-				removeListener: vi.fn(),
-				dispatchEvent: vi.fn()
-			})
-		);
-		const { controller } = createTestWorkbench();
-		renderWorkspace(controller);
-
-		const editorRegion = screen.getByTestId('editor-region');
-		expect(getComputedStyle(editorRegion).display).not.toBe('none');
-		expect(screen.getByRole('tab', { name: /Review/ })).toBeTruthy();
-		expect(screen.queryByRole('button', { name: 'Hide right panel' })).toBeNull();
-		expect(screen.queryByRole('button', { name: 'Show right panel' })).toBeNull();
-	});
+	test.each([390, 1100, 1440])(
+		'expands writing space and returns to the same panel at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			try {
+				const { controller } = createTestWorkbench({ text: '[Verse]\ni dont want this.' });
+				renderWorkspace(controller);
+				await waitFor(() => expect(controller.visibleDiagnostics.length).toBeGreaterThan(0));
+				const editor = screen.getByTestId('editor-region');
+				const before = editor.getBoundingClientRect();
+				const toolbar = screen.getByRole('banner', { name: 'Document controls' });
+				const toolbarHeight = toolbar.getBoundingClientRect().height;
+				const extent = (rect: DOMRect) => (width < 1088 ? rect.height : rect.width);
+				function sampleTransition(): DOMRect {
+					const transition = screen
+						.getByTestId('workspace')
+						.getAnimations()
+						.find(
+							(animation) =>
+								animation instanceof CSSTransition &&
+								animation.transitionProperty.startsWith('grid-template-')
+						);
+					expect(transition).toBeDefined();
+					transition!.pause();
+					transition!.currentTime = Number(transition!.effect!.getTiming().duration) / 2;
+					const bounds = editor.getBoundingClientRect();
+					expect(bounds.left).toBe(before.left);
+					transition!.finish();
+					return bounds;
+				}
+				await fireEvent.click(screen.getByRole('button', { name: 'Expand editor' }));
+				const expanding = sampleTransition();
+				await waitFor(() => expect(screen.queryByRole('tab', { name: /Review/ })).toBeNull());
+				expect(screen.getByTestId('editor-region')).toBe(editor);
+				const panel = document.getElementById('document-panel')!;
+				expect(panel.inert).toBe(true);
+				await waitFor(() => expect(getComputedStyle(panel).visibility).toBe('hidden'));
+				const after = editor.getBoundingClientRect();
+				expect(after.left).toBe(before.left);
+				expect(extent(expanding)).toBeGreaterThan(extent(before));
+				expect(extent(expanding)).toBeLessThan(extent(after));
+				expect(Math.abs(toolbar.getBoundingClientRect().height - toolbarHeight)).toBeLessThan(1);
+				expect(width < 1088 ? after.height : after.width).toBeGreaterThan(
+					width < 1088 ? before.height : before.width
+				);
+				const panelBounds = panel.getBoundingClientRect();
+				expect(width < 1088 ? panelBounds.height : panelBounds.width).toBe(0);
+				await fireEvent.click(screen.getByRole('button', { name: /Show tools/ }));
+				const contracting = sampleTransition();
+				expect(extent(contracting)).toBeGreaterThan(extent(before));
+				expect(extent(contracting)).toBeLessThan(extent(after));
+				await waitFor(() =>
+					expect(document.activeElement).toBe(screen.getByRole('tab', { name: /Review/ }))
+				);
+				expect(panel.inert).toBe(false);
+				await waitFor(() => {
+					const restored = editor.getBoundingClientRect();
+					expect(restored.left).toBe(before.left);
+					expect(Math.abs(restored.width - before.width)).toBeLessThan(1);
+					expect(Math.abs(restored.height - before.height)).toBeLessThan(1);
+				});
+				expect(screen.getByTestId('editor-region')).toBe(editor);
+			} finally {
+				await page.viewport(800, 600);
+			}
+		}
+	);
 });

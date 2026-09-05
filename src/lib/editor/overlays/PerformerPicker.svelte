@@ -491,7 +491,7 @@
 					     label is the non-colour cue that separates the three. -->
 				<button
 					type="button"
-					class="chip chip--unknown"
+					class="button unknown-voice"
 					data-picker-chip
 					tabindex={performers.length + unknownIndex === activeIndex ? 0 : -1}
 					onclick={() => assignUnknown(slot)}
@@ -499,11 +499,11 @@
 				>
 					<span
 						aria-hidden="true"
-						class="chip__unknown-label"
-						class:chip__unknown-label--italic={slot === 2 || slot === 4}
-						class:chip__unknown-label--bold={slot === 3 || slot === 4}>Unknown</span
+						class="unknown-voice__label"
+						class:unknown-voice__label--italic={slot === 2 || slot === 4}
+						class:unknown-voice__label--bold={slot === 3 || slot === 4}>Use unknown</span
 					>
-					<span class="sr-only">{unknownVoiceName(slot)}</span>
+					<span class="sr-only">Use {unknownVoiceName(slot).toLocaleLowerCase()}</span>
 				</button>
 			{/each}
 			{#if showsNewUnknown}
@@ -513,15 +513,15 @@
 				     one already present. -->
 				<button
 					type="button"
-					class="chip chip--unknown chip--unknown-new"
+					class="button unknown-voice unknown-voice--new"
 					data-picker-chip
 					tabindex={performers.length + shownUnknownSlots.length === activeIndex ? 0 : -1}
 					onclick={() => assignUnknown(undefined)}
 					onfocus={() => (activeIndex = performers.length + shownUnknownSlots.length)}
 				>
 					<Plus aria-hidden="true" size={14} strokeWidth={2.7} />
-					<span aria-hidden="true">Unknown voice</span>
-					<span class="sr-only">New unknown voice</span>
+					<span aria-hidden="true">Use new unknown voice</span>
+					<span class="sr-only">Use new unknown voice</span>
 				</button>
 			{/if}
 			{#if onAddPerformer && adding}
@@ -751,32 +751,18 @@
 		box-shadow: inset 0 0 0 1px color-mix(in oklch, currentColor 30%, transparent);
 	}
 
-	/* An unknown voice has no identity, so the chip has no dot and no performer
-	   colour — the slot's own styling on the label is what tells the three
-	   apart, and the sr-only name says the same where styling does not reach. */
-	.chip--unknown {
-		color: inherit;
-	}
-
-	.chip__unknown-label--italic {
+	/* Unknown assignments are immediate commands, so they consume the global
+     button geometry. Only the label carries its existing voice styling. */
+	.unknown-voice__label--italic {
 		font-style: italic;
 	}
 
-	.chip__unknown-label--bold {
+	.unknown-voice__label--bold {
 		font-weight: var(--font-weight-bold);
 	}
 
-	.chip--unknown-new {
-		border-style: dashed;
-		color: var(--color-text-muted);
-	}
-
-	.chip--unknown-new :global(svg) {
+	.unknown-voice--new :global(svg) {
 		flex: none;
-	}
-
-	.chip--unknown-new:hover {
-		color: inherit;
 	}
 
 	.add-voice :global(svg) {

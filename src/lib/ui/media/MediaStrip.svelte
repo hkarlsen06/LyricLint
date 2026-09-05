@@ -64,6 +64,9 @@
 	} = $props();
 
 	const player = $derived(media.player);
+	$effect(() => {
+		if (sync?.active) player.clearLoop();
+	});
 
 	// NaN until the browser has read the file's metadata, and a scrubber with no
 	// range is a control that cannot be aimed — so it waits rather than pretending
@@ -276,6 +279,35 @@
 				reading `Stop syncing` explains that only to someone who already knows
 				what syncing is.
 			-->
+				{#if seekable && !sync?.active}
+					{#if player.loop?.end !== undefined}
+						<button
+							type="button"
+							class="button"
+							aria-pressed="true"
+							onclick={() => player.clearLoop()}>Stop loop</button
+						>
+						<span class="media-strip__time"
+							>{formatTime(player.loop.start)}–{formatTime(player.loop.end)}</span
+						>
+					{:else if player.loop}
+						<button
+							type="button"
+							class="button"
+							disabled={player.currentTime < player.loop.start + 0.25}
+							onclick={() => player.finishLoop()}>Loop to here</button
+						>
+						<span class="media-strip__time">From {formatTime(player.loop.start)}</span>
+						<button type="button" class="button button--quiet" onclick={() => player.clearLoop()}
+							>Cancel loop</button
+						>
+					{:else}
+						<button type="button" class="button button--quiet" onclick={() => player.setLoopStart()}
+							>Loop from here</button
+						>
+					{/if}
+				{/if}
+
 				{#if follow?.available}
 					<button
 						type="button"
@@ -337,7 +369,7 @@
 								: sync.scopesSelection
 									? 'Sync selection'
 									: sync.complete
-										? 'Lyrics synced'
+										? 'Retime lyrics'
 										: 'Sync lyrics'}
 						</span>
 					</button>

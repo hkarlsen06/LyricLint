@@ -16,6 +16,32 @@
 	let menuTrigger: HTMLElement;
 	let importInput: HTMLInputElement;
 	let importing = $state(false);
+	let query = $state('');
+	const filteredDrafts = $derived(
+		controller.drafts.filter((draft) =>
+			`${draft.title} ${draft.lyricPreview ?? ''}`
+				.toLocaleLowerCase()
+				.includes(query.trim().toLocaleLowerCase())
+		)
+	);
+	const duplicateTitles = $derived.by(() => {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local accumulator; the complete result is derived from the library
+		const counts = new Map<string, number>();
+		for (const draft of controller.drafts) {
+			const title = draft.title.trim().toLocaleLowerCase();
+			counts.set(title, (counts.get(title) ?? 0) + 1);
+		}
+		return new Set([...counts].filter(([, count]) => count > 1).map(([title]) => title));
+	});
+	const searchAvailable = $derived(controller.drafts.length >= 5 || query !== '');
+
+	$effect(() => {
+		if (!open) {
+			query = '';
+			renameId = undefined;
+			deleteId = undefined;
+		}
+	});
 
 	function beginRename(id: string, title: string): void {
 		renameId = id;
@@ -99,7 +125,14 @@
 <!-- The name and the date are one line whether or not the row is pressable, so
      the confirm step can take the press away without moving anything. -->
 {#snippet identity(draft: DraftSummary)}
-	<span class="list-row__name">{draft.title}</span>
+	{#if draft.lyricPreview && duplicateTitles.has(draft.title.trim().toLocaleLowerCase())}
+		<span class="draft-menu__identity">
+			<span class="list-row__name">{draft.title}</span>
+			<span class="draft-menu__preview" title={draft.lyricPreview}>{draft.lyricPreview}</span>
+		</span>
+	{:else}
+		<span class="list-row__name">{draft.title}</span>
+	{/if}
 	<time datetime={draft.updatedAt} title={fullDraftDate(draft.updatedAt)}>
 		{formatDraftDate(draft.updatedAt)}
 	</time>
@@ -150,13 +183,31 @@
 			}}
 		/>
 
+		{#if searchAvailable}
+			<label class="sr-only" for="draft-search"
+				>Find a saved 'scribe by title or opening lyrics</label
+			>
+			<input
+				id="draft-search"
+				class="draft-menu__search"
+				type="search"
+				placeholder="Title or opening lyrics…"
+				bind:value={query}
+				oninput={() => {
+					renameId = undefined;
+					deleteId = undefined;
+				}}
+			/>
+		{/if}
 		{#if controller.drafts.length === 0}
 			<p class="empty-state">
 				No saved 'scribes yet. This one will appear after its first local save.
 			</p>
+		{:else if filteredDrafts.length === 0}
+			<p class="empty-state" role="status">No saved 'scribes match “{query.trim()}”.</p>
 		{:else}
 			<ul class="draft-list">
-				{#each controller.drafts as draft (draft.id)}
+				{#each filteredDrafts as draft (draft.id)}
 					<li class="list-row" class:current={draft.id === controller.draftId}>
 						{#if renameId === draft.id}
 							<form class="list-row__form" onsubmit={(event) => submitRename(event, draft.id)}>
@@ -260,3 +311,18 @@
 		     data is — a claim is made once, where the reader is deciding. -->
 	</div>
 </details>
+
+<style>
+	.draft-menu__identity {
+		display: grid;
+		min-width: 0;
+		gap: var(--space-0-5);
+	}
+	.draft-menu__preview {
+		overflow: hidden;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-xs);
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+</style>

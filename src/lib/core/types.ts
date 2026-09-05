@@ -539,9 +539,11 @@ export interface SectionLinkChoice {
 	 * noticing that the *third* chorus has the wording you meant to keep is the
 	 * ordinary case, and hard-wiring the opened section would make the repair
 	 * "close the card, open it again from the right copy". Defaults to the opened
-	 * section, and an empty wording never wins — see `winningWording`.
+	 * section. Only a wholly empty source falls back to a populated peer.
 	 */
 	replaceFrom?: number;
+	/** Explicit winners for individual differences, overriding the group-wide choice. */
+	replaceFromByDifference?: readonly (number | undefined)[];
 }
 
 /** Lightweight metadata used to list drafts without opening their text. */
@@ -551,6 +553,8 @@ export interface DraftSummary {
 	language: string;
 	createdAt: string;
 	updatedAt: string;
+	/** Opening lyric text, derived for lists only; never persisted on a draft. */
+	lyricPreview?: string;
 }
 
 /** A revision-tagged, serializable draft state accepted by autosave. */
@@ -892,6 +896,10 @@ export interface EditorHandle {
 	typeOnlyHere?(headerFrom: number): boolean;
 	/** Every line anchor, for the shell to write down. */
 	getLineAnchors?(): LineAnchor[];
+	/** A lyric line eligible for an explicit timing correction. */
+	getTimingLine?(pos: number): { line: number; text: string } | undefined;
+	/** Correct or clear one line using the same effects as the timestamp gutter. */
+	setLineTiming?(line: number, time: number | undefined): boolean;
 	/** Replace every line anchor, for a draft being opened. */
 	setLineAnchors?(anchors: readonly LineAnchor[]): void;
 	/**

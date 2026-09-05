@@ -22,8 +22,7 @@
 .media-strip {
 	grid-row: 2;
 	min-width: 0;
-	margin-top: var(--space-2);
-	padding: var(--space-1) var(--space-3) var(--space-2);
+	padding: var(--space-2-5) var(--space-3);
 	border: 0;
 	border-radius: 0;
 	background: var(--color-chrome);
@@ -34,6 +33,9 @@
 .media-strip__controls {
 	display: flex;
 	min-height: var(--control-height-lg);
+	/* Let the outer controls' shadow rings clear the scrollport without moving them. */
+	margin-inline: calc(-1 * var(--space-0-5));
+	padding-inline: var(--space-0-5);
 	overflow-x: auto;
 	scrollbar-width: thin;
 	gap: var(--space-3);

@@ -32,7 +32,7 @@
 	} from '$lib/rules/index.js';
 	import { useAssistantState } from '$lib/assistant/assistant.svelte.js';
 	import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
-	import { onDestroy, type Component, untrack } from 'svelte';
+	import { onDestroy, tick, type Component, untrack } from 'svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import {
 		buildRuleContext,
@@ -69,6 +69,22 @@
 	} = $props();
 
 	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
+	let editorExpanded = $state(false);
+	let workspaceElement = $state<HTMLElement>();
+	let previousTab = untrack(() => controller.activeTab);
+	$effect(() => {
+		const tab = controller.activeTab;
+		if (tab !== previousTab) editorExpanded = false;
+		previousTab = tab;
+	});
+
+	async function toggleEditor(): Promise<void> {
+		editorExpanded = !editorExpanded;
+		await tick();
+		if (editorExpanded) editorHandle.focus();
+		else
+			workspaceElement?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus();
+	}
 	let mediaPicker = $state<{
 		open(source?: HTMLButtonElement, fallbackFocus?: () => void): Promise<void>;
 	}>();
@@ -985,13 +1001,18 @@
 	});
 </script>
 
-<main class="workspace" data-testid="workspace">
+<main
+	bind:this={workspaceElement}
+	class="workspace"
+	class:workspace--expanded={editorExpanded}
+	data-testid="workspace"
+>
 	<h1 class="sr-only">LyricLint transcription workbench</h1>
 
 	<!-- The toolbar spans both columns: the draft's name, its save state, and the
 	     commands that act on the whole document belong to the window, not to the
 	     editor half of it. The panel's tabs then hang directly under it. -->
-	<DocumentToolbar {controller} {brandRevealed} />
+	<DocumentToolbar {controller} {brandRevealed} {editorExpanded} onToggleEditor={toggleEditor} />
 
 	<section class="editor-region" aria-label="Lyrics workspace">
 		<!-- Level with the panel's tab strip, so the two read as one band under the
@@ -1026,7 +1047,7 @@
 		{/if}
 	</section>
 
-	<RightPanel {controller} {assistant} />
+	<RightPanel {controller} {assistant} collapsed={editorExpanded} />
 
 	{#if controller.media}
 		<!-- One shared audio dialog behind the tray's note glyph and the strip's

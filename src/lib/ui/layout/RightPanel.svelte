@@ -3,6 +3,7 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { Tabs } from 'bits-ui';
 	import { assistantAvailable } from '$lib/assistant/api.js';
+	import { matchIgnoredDiagnostics } from '$lib/diagnostics/ignore.js';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import AssistantPanel from '../assistant/AssistantPanel.svelte';
 	import LinterPanel from '../linter/LinterPanel.svelte';
@@ -15,14 +16,24 @@
 
 	let {
 		controller,
-		assistant
+		assistant,
+		collapsed = false
 	}: {
 		controller: WorkbenchController;
 		assistant?: AssistantState;
+		collapsed?: boolean;
 	} = $props();
 
 	// Keep arrow-key navigation aligned with the dock's CSS orientation.
 	const verticalDock = new MediaQuery('(min-width: 78rem)');
+
+	const hasMatchingIgnoredDiagnostics = $derived(
+		matchIgnoredDiagnostics(
+			controller.snapshot.diagnostics,
+			controller.snapshot.text,
+			controller.ignoredDiagnosticKeys
+		).size > 0
+	);
 
 	const assistantEnabled = $derived(assistant !== undefined && assistantAvailable());
 
@@ -69,7 +80,13 @@
 	 */
 </script>
 
-<aside class="right-panel" aria-label="Document panel">
+<aside
+	id="document-panel"
+	class="right-panel"
+	aria-label="Document panel"
+	aria-hidden={collapsed}
+	inert={collapsed}
+>
 	<Tabs.Root
 		value={controller.activeTab}
 		onValueChange={changeTab}
@@ -122,7 +139,7 @@
 		     has a foot to pin it to. -->
 			<div class="right-panel__body">
 				<Tabs.Content value="linter" class="right-panel__pane">
-					<LinterPanel {controller} />
+					<LinterPanel {controller} active={!collapsed} />
 				</Tabs.Content>
 				<Tabs.Content value="performers" class="right-panel__pane">
 					<PerformersPanel {controller} />
@@ -145,10 +162,12 @@
 			</div>
 
 			<!-- The footer is a real boundary only once there is something behind it. -->
-			{#if controller.activeTab === 'linter' && controller.ignoredDiagnosticKeys.length > 0}
+			{#if controller.activeTab === 'linter' && hasMatchingIgnoredDiagnostics}
 				<footer class="right-panel__footer">
 					<IgnoredRules
 						diagnosticKeys={controller.ignoredDiagnosticKeys}
+						snapshot={controller.snapshot}
+						onReveal={(diagnostic) => controller.navigateToDiagnostic(diagnostic)}
 						onRestore={(key) => controller.restoreDiagnostic(key)}
 					/>
 				</footer>

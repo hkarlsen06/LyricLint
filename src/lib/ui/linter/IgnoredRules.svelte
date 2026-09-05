@@ -1,32 +1,59 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import type { Diagnostic, EditorSnapshot } from '$lib/core/types.js';
+	import { lineNumberAt } from '$lib/core/line-numbers.js';
+	import { diagnosticKey } from '$lib/diagnostics/order.js';
 	import { ChevronDown } from 'lucide-svelte';
 	import {
 		ignoredDiagnosticAccepted,
 		ignoredDiagnosticRuleId,
-		ignoredDiagnosticText
+		ignoredDiagnosticText,
+		matchIgnoredDiagnostics
 	} from '$lib/diagnostics/ignore.js';
 	import { ruleName } from '$lib/rules/index.js';
 
 	let {
 		diagnosticKeys,
+		snapshot,
+		onReveal,
 		onRestore
 	}: {
 		diagnosticKeys: readonly string[];
+		snapshot?: EditorSnapshot;
+		onReveal?: (diagnostic: Diagnostic) => void;
 		onRestore: (diagnosticKey: string) => void;
 	} = $props();
 
 	let expanded = $state(false);
 	let toggle: HTMLButtonElement | null = $state(null);
 
-	const rows = $derived(
-		diagnosticKeys.map((key) => ({
-			key,
-			name: ruleName(ignoredDiagnosticRuleId(key)),
-			flagged: ignoredDiagnosticText(key),
-			accepted: ignoredDiagnosticAccepted(key)
-		}))
-	);
+	const rows = $derived.by(() => {
+		const matches = snapshot
+			? matchIgnoredDiagnostics(snapshot.diagnostics, snapshot.text, diagnosticKeys)
+			: new Map<string, string>();
+		return diagnosticKeys.map((key) => {
+			const diagnostic = snapshot?.diagnostics.find(
+				(item) => diagnosticKey(item) === matches.get(key)
+			);
+			const section =
+				diagnostic &&
+				snapshot?.parsed.sections.find(
+					(item) => item.from <= diagnostic.from && item.to >= diagnostic.to
+				);
+			const line =
+				diagnostic && snapshot ? lineNumberAt(snapshot.text, diagnostic.from) : undefined;
+			return {
+				key,
+				diagnostic,
+				name: ruleName(ignoredDiagnosticRuleId(key)),
+				flagged: ignoredDiagnosticText(key),
+				accepted: ignoredDiagnosticAccepted(key),
+				location: line
+					? `${section?.header?.raw ? `${section.header.raw} · ` : ''}Line ${line}`
+					: undefined
+			};
+		});
+	});
 	const acceptedCount = $derived(rows.filter((row) => row.accepted).length);
 	const ignoredCount = $derived(rows.length - acceptedCount);
 	/**
@@ -88,17 +115,29 @@
 		<ul>
 			{#each rows as row (row.key)}
 				<li>
-					<!-- An ignore is per occurrence, so one rule set aside twice is two
-					     rows carrying the same name. The flagged text is what tells them
-					     apart, and the key already holds it. The kind follows as one more
-					     fact about the row, after an interpunct, in the meta-line idiom
-					     the diagnostic card sets. -->
-					<span
-						>{row.name}{#if row.flagged}&nbsp;— “{row.flagged}”{/if}{#if mixed}<span
-								class="ignored-rules__kind"
-								>&nbsp;· {row.accepted ? 'Marked as correct' : 'Ignored'}</span
-							>{/if}</span
-					>
+					<div class="ignored-rules__description">
+						<strong class="ignored-rules__title"
+							>{row.flagged ? `“${row.flagged}”` : row.name}</strong
+						>
+						{#if row.flagged}
+							<span class="ignored-rules__rule">{row.name}</span>
+						{/if}
+						{#if mixed}
+							<span class="ignored-rules__kind"
+								>{row.accepted ? 'Marked as correct' : 'Ignored'}</span
+							>
+						{/if}
+						{#if row.location && row.diagnostic && onReveal}
+							<button
+								type="button"
+								class="button button--quiet button--flush"
+								aria-label={`Show ${row.location}`}
+								onclick={() => row.diagnostic && onReveal?.(row.diagnostic)}>{row.location}</button
+							>
+						{:else if snapshot}
+							<span class="ignored-rules__location">No matching finding in the current lyrics</span>
+						{/if}
+					</div>
 					<button
 						type="button"
 						class="button button--quiet"

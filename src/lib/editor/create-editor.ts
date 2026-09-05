@@ -51,6 +51,9 @@ import {
 } from './extensions/header-rename.js';
 import { legendCleanupFilter } from './extensions/legend-cleanup.js';
 import {
+	anchorLineEffect,
+	clearLineAnchorEffect,
+	isStampableLine,
 	anchorHintsOnLineNumbers,
 	anchorSeekOnLineNumber,
 	lineAnchors,
@@ -1132,6 +1135,26 @@ export function createLyricEditor(
 		},
 		getLineAnchors() {
 			return lineAnchorsFor(view.state);
+		},
+		getTimingLine(pos) {
+			const line = view.state.doc.lineAt(Math.max(0, Math.min(pos, view.state.doc.length)));
+			return isStampableLine(line, view.state.doc)
+				? { line: line.number, text: line.text }
+				: undefined;
+		},
+		setLineTiming(number, time) {
+			if (view.state.field(editorComposingField) || view.composing) return false;
+			if (!Number.isInteger(number) || number < 1 || number > view.state.doc.lines) return false;
+			if (time !== undefined && (!Number.isFinite(time) || time < 0)) return false;
+			const line = view.state.doc.line(number);
+			if (!isStampableLine(line, view.state.doc)) return false;
+			view.dispatch({
+				effects:
+					time === undefined
+						? clearLineAnchorEffect.of({ pos: line.from })
+						: anchorLineEffect.of({ pos: line.from, time })
+			});
+			return true;
 		},
 		setLineAnchors(anchors) {
 			view.dispatch({

@@ -42,6 +42,7 @@
 			keepDifferent: boolean[];
 			makeDifferent?: TextRange;
 			replaceFrom?: number;
+			replaceFromByDifference?: readonly (number | undefined)[];
 		}) => void;
 		onTypeOnlyHere?: () => boolean;
 		onCancel: () => void;
@@ -96,6 +97,21 @@
 	 * outcomes as sentences and can only be read one way.
 	 */
 	let replaceWords = $state(false);
+	let individualWinners = $state<Record<number, number>>({});
+	const hasIndividualWinners = $derived(Object.keys(individualWinners).length > 0);
+	function chooseWording(index: number, header: number): void {
+		replaceWords = false;
+		individualWinners = { ...individualWinners, [index]: header };
+	}
+	function respectDifference(index: number): void {
+		const next = { ...individualWinners };
+		delete next[index];
+		individualWinners = next;
+	}
+	function setReplaceWords(replace: boolean): void {
+		individualWinners = {};
+		replaceWords = replace;
+	}
 	/** Whose version wins where a difference is closed. The opened copy by default. */
 	let replaceFrom = $state(untrack(() => currentHeaderFrom));
 	let activeIndex = $state(0);
@@ -213,7 +229,8 @@
 			groups.set(wording.text, [...(groups.get(wording.text) ?? []), wording]);
 		}
 		return [...groups.entries()].flatMap(([text, wordings]) => {
-			const representative = wordings[0];
+			const representative =
+				wordings.find((wording) => !emptyBodies.has(wording.headerFrom)) ?? wordings[0];
 			return representative
 				? [
 						{
@@ -235,7 +252,7 @@
 	const replaceOptions = $derived.by(() => {
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- a local accumulator inside a derived, discarded before anything reads it
 		const groups = new Map<string, number[]>();
-		for (const header of headers) {
+		for (const header of headers.filter((header) => !emptyBodies.has(header))) {
 			const version = JSON.stringify(
 				differences.map(
 					(difference) =>
@@ -253,7 +270,9 @@
 		});
 	});
 	const replaceOptionValue = $derived(
-		replaceOptions.find((option) => option.members.includes(replaceFrom))?.value ?? replaceFrom
+		replaceOptions.find((option) => option.members.includes(replaceFrom))?.value ??
+			replaceOptions[0]?.value ??
+			replaceFrom
 	);
 
 	// Whether the card *opened* on a group that was already complete, which is the
@@ -284,11 +303,14 @@
 	 */
 	let pinnedTop = $state<number | undefined>();
 
-	const changed = $derived(membershipChanged || replacing || pendingSelection !== undefined);
+	const changed = $derived(
+		membershipChanged || replacing || hasIndividualWinners || pendingSelection !== undefined
+	);
 	const typeOnlyHereReady = $derived(
 		wasLinked &&
 			!membershipChanged &&
 			!replacing &&
+			!hasIndividualWinners &&
 			typeOnlyHereAvailable &&
 			onTypeOnlyHere !== undefined
 	);
@@ -372,7 +394,7 @@
 		return [
 			...(row ? [row] : []),
 			...root.querySelectorAll<HTMLElement>(
-				'.outcome input:checked, .actions button:not(:disabled), [role="switch"]'
+				'.outcome input:checked, .outcome:not(:has(input:checked)) input[type="radio"]:not(#link-words-replace), .outcome select, .compare button, .actions button:not(:disabled), [role="switch"]'
 			)
 		];
 	}
@@ -389,6 +411,7 @@
 	}
 
 	function toggle(headerFrom: number): void {
+		individualWinners = {};
 		selected = selected.includes(headerFrom)
 			? selected.filter((candidate) => candidate !== headerFrom)
 			: [...selected, headerFrom];
@@ -407,7 +430,12 @@
 		// showing the offer for all of them, which is a different list.
 		onApply({
 			headers,
-			keepDifferent: (headers.length > 1 ? differencesFor(headers) : []).map(() => !replacing),
+			keepDifferent: (headers.length > 1 ? differencesFor(headers) : []).map(
+				(difference) => !replacing && individualWinners[difference.index] === undefined
+			),
+			replaceFromByDifference: differencesFor(headers).map(
+				(difference) => individualWinners[difference.index]
+			),
 			makeDifferent: pendingSelection,
 			replaceFrom
 		});
@@ -462,7 +490,10 @@
 			trapTab(event);
 			return;
 		}
-		if (event.key === 'Enter') {
+		if (
+			event.key === 'Enter' &&
+			!(event.target instanceof HTMLElement && event.target.closest('button, select'))
+		) {
 			event.preventDefault();
 			if (typeOnlyHereReady) {
 				beginTypeOnlyHere();
@@ -516,13 +547,15 @@
 	/**
 	 * The version every copy ends up with, once replacing is chosen.
 	 *
-	 * The picked copy's, unless it has nothing there — an empty wording never
-	 * wins, exactly as `winningWording` decides it in the editor. The two have to
+	 * The picked copy's, including an absent phrase in a populated section. Only
+	 * a wholly empty source falls back, exactly as `winningWording` decides it. The two have to
 	 * agree, because this is the row that promises what that one is about to do.
 	 */
 	function winningText(difference: LinkDifference): string {
-		const picked = difference.wordings.find((wording) => wording.headerFrom === replaceFrom);
-		if (picked && picked.text.trim().length > 0) {
+		const picked = difference.wordings.find(
+			(wording) => wording.headerFrom === (individualWinners[difference.index] ?? replaceFrom)
+		);
+		if (picked && (picked.text.trim().length > 0 || !emptyBodies.has(picked.headerFrom))) {
 			return picked.text;
 		}
 		return (
@@ -645,6 +678,8 @@
 				<ul class="compare">
 					{#each differences as difference (difference.index)}
 						{@const winning = winningText(difference)}
+						{@const replacingDifference =
+							replacing || individualWinners[difference.index] !== undefined}
 						{@const representative = difference.wordings[0]}
 						{@const before = representative ? lead(representative.before) : ''}
 						{@const after = representative ? trail(representative.after) : ''}
@@ -663,8 +698,11 @@
 							</p>
 							<ul class="compare__versions">
 								{#each versionsFor(difference) as version (version.text)}
-									{@const settled = !replacing || version.text === winning}
-									<li class="compare__side" class:compare__side--settled={replacing && settled}>
+									{@const settled = !replacingDifference || version.text === winning}
+									<li
+										class="compare__side"
+										class:compare__side--settled={replacingDifference && settled}
+									>
 										<span class="compare__who">{version.label}</span>
 										<span class="compare__line" title={fullLine(version.representative)}>
 											{#if settled}
@@ -679,9 +717,26 @@
 												{#if winning}<ins class="compare__add">{oneLine(winning)}</ins>{/if}
 											{/if}
 										</span>
+										{#if !fillsOnlyEmptyCopies && !emptyBodies.has(version.representative.headerFrom)}
+											<button
+												type="button"
+												class="button button--quiet"
+												aria-label={`Use ${version.label} wording for difference ${difference.index + 1}`}
+												onclick={() =>
+													chooseWording(difference.index, version.representative.headerFrom)}
+												>Use this wording</button
+											>
+										{/if}
 									</li>
 								{/each}
 							</ul>
+							{#if individualWinners[difference.index] !== undefined}
+								<button
+									type="button"
+									class="button button--quiet"
+									onclick={() => respectDifference(difference.index)}>Keep this difference</button
+								>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -697,8 +752,8 @@
 					<input
 						type="radio"
 						name="link-words"
-						checked={!replaceWords}
-						onchange={() => (replaceWords = false)}
+						checked={!replaceWords && !hasIndividualWinners}
+						onchange={() => setReplaceWords(false)}
 					/>
 					<span>Respect differences between them</span>
 				</label>
@@ -709,7 +764,7 @@
 						name="link-words"
 						checked={replaceWords}
 						aria-label="Replace them with another section’s version"
-						onchange={() => (replaceWords = true)}
+						onchange={() => setReplaceWords(true)}
 					/>
 					<label for="link-words-replace">Replace them with</label>
 					<!-- Any copy, not the one the card happens to be open on: noticing that
@@ -722,7 +777,7 @@
 						value={replaceOptionValue}
 						onchange={(event) => {
 							replaceFrom = Number(event.currentTarget.value);
-							replaceWords = true;
+							setReplaceWords(true);
 						}}
 					>
 						{#each replaceOptions as option (option.value)}
@@ -750,7 +805,7 @@
 					? `This is the only ${kindWord} in the song.`
 					: openedComplete
 						? `These ${occurrences.length} sections are linked. Press ${typeOnlyHereShortcut} to toggle whether edits stay in this section.`
-						: 'Linked sections stay in sync as you edit them.'}
+						: 'Edits to shared words update linked sections. Differences stay local. Review replacements before applying.'}
 			</p>
 		{/if}
 		{#if typeOnlyHereReady}
@@ -793,7 +848,7 @@
 						? `Link ${selected.length + 1} sections`
 						: membershipChanged
 							? 'Unlink'
-							: replacing
+							: replacing || hasIndividualWinners
 								? 'Replace words'
 								: pendingSelection
 									? 'Leave out'
@@ -972,6 +1027,11 @@
 		align-items: baseline;
 		gap: var(--space-1-5);
 		grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+	}
+
+	.compare__side > button {
+		grid-column: 2;
+		justify-self: start;
 	}
 
 	.compare__who {

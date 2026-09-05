@@ -213,12 +213,16 @@ describe('MediaStrip', () => {
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(125);
 		player.setCuePoints([12, 30]);
+		player.seek(21);
 
 		render(MediaStrip, { props: { media } });
 
 		await expect.element(page.getByRole('button', { name: 'Previous line' })).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Next line' })).toBeVisible();
 		expect(page.getByRole('button', { name: 'Back 2 seconds' }).elements()).toHaveLength(0);
+		player.seek(0);
+		await expect.element(page.getByRole('button', { name: 'Back 2 seconds' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Forward 2 seconds' })).toBeVisible();
 	});
 
 	it('swaps the middle control to Pause while playing, keeping its slot', async () => {
@@ -325,6 +329,8 @@ describe('MediaStrip', () => {
 				const load = reconnect.element().getBoundingClientRect();
 				expect(load.left).toBeGreaterThan(name.getBoundingClientRect().right);
 				expect(strip.right - load.right).toBeCloseTo(12, 0);
+				const controls = document.querySelector<HTMLElement>('.media-strip__controls')!;
+				expect(controls.getBoundingClientRect().right - load.right).toBeGreaterThanOrEqual(2);
 				// The bordered tier's edge is a shadow ring outside its box and the row
 				// is a scroller, so an exact fit clips it. The button must stand clear
 				// of the strip's own top edge.
@@ -583,7 +589,7 @@ describe('MediaStrip', () => {
 		await expect.element(page.getByRole('button', { name: 'Sync selection' })).toBeVisible();
 
 		scopes = false;
-		await expect.element(page.getByRole('button', { name: 'Lyrics synced' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Retime lyrics' })).toBeVisible();
 	});
 
 	// The skip past already-timed lines is contextual twice over: it exists only
@@ -636,7 +642,7 @@ describe('MediaStrip', () => {
 	// A finished song states that it is finished, and is still the same one-press
 	// control: `runStart` reads a fully timed lyric as a fresh pass from the top,
 	// so a readout here would take away the only way to re-time a song.
-	it('reads Lyrics synced when every line is timed, and still starts a fresh run', async () => {
+	it('reads Retime lyrics when every line is timed, and still starts a fresh run', async () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		let active = $state(false);
@@ -653,7 +659,7 @@ describe('MediaStrip', () => {
 
 		render(MediaStrip, { props: { media, sync } });
 
-		await page.getByRole('button', { name: 'Lyrics synced' }).click();
+		await page.getByRole('button', { name: 'Retime lyrics' }).click();
 
 		expect(sync.active).toBe(true);
 		await expect.element(page.getByRole('button', { name: 'Stop syncing' })).toBeVisible();
@@ -846,4 +852,20 @@ describe('MediaStrip attribution', () => {
 			animation.finish();
 		}
 	);
+});
+
+it('sets and cancels a replay passage in the transport', async () => {
+	const { audio, media, player } = store();
+	player.attach(new File([''], 'track.mp3'));
+	audio.setDuration(125);
+	player.seek(10);
+	render(MediaStrip, { props: { media } });
+	await page.getByRole('button', { name: 'Loop from here' }).click();
+	await expect.element(page.getByRole('button', { name: 'Loop to here' })).toBeDisabled();
+	player.seek(15);
+	await page.getByRole('button', { name: 'Loop to here' }).click();
+	expect(player.loop).toEqual({ start: 10, end: 15 });
+	await page.getByRole('button', { name: 'Stop loop' }).click();
+	expect(player.loop).toBeUndefined();
+	expect(player.playing).toBe(true);
 });

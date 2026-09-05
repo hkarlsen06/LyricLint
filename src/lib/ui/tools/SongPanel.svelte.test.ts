@@ -372,3 +372,39 @@ describe('SongPanel song metadata', () => {
 		expect(edges.size).toBe(1);
 	});
 });
+
+describe('current line timing controls', () => {
+	afterEach(cleanup);
+	test('offers keyboard-reachable exact time, nudges, and clear-one while retaining other lines', async () => {
+		const { controller, calls } = createTestWorkbench();
+		controller.editor.getTimingLine = () => ({ line: 2, text: 'First lyric line' });
+		controller.editor.setLineTiming = (line, time) => {
+			calls.lineAnchors = calls.lineAnchors.filter((anchor) => anchor.line !== line);
+			if (time !== undefined) calls.lineAnchors.push({ line, time });
+			return true;
+		};
+		calls.lineAnchors = [
+			{ line: 2, time: 12.34 },
+			{ line: 3, time: 20 }
+		];
+		controller.onLineAnchorsChanged();
+		const { container } = render(SongPanel, { controller });
+		container.style.width = '300px';
+		const field = screen.getByRole('spinbutton', { name: 'Time in seconds' }) as HTMLInputElement;
+		const row = field.parentElement!.getBoundingClientRect();
+		expect(field.getBoundingClientRect().width).toBeGreaterThan(100);
+		expect(
+			screen.getByRole('button', { name: 'Set time' }).getBoundingClientRect().right
+		).toBeLessThanOrEqual(row.right);
+		expect(field.value).toBe('12.34');
+		await fireEvent.click(screen.getByRole('button', { name: 'Earlier 0.25s' }));
+		expect(controller.currentLineTiming?.time).toBe(12.09);
+		await fireEvent.input(field, { target: { value: '15.67' } });
+		await fireEvent.submit(field.closest('form')!);
+		expect(controller.currentLineTiming?.time).toBe(15.67);
+		await fireEvent.click(screen.getByRole('button', { name: 'Clear line time' }));
+		expect(calls.lineAnchors).toEqual([{ line: 3, time: 20 }]);
+		expect(screen.queryByRole('button', { name: 'Earlier 0.25s' })).toBeNull();
+		expect(field.value).toBe('');
+	});
+});

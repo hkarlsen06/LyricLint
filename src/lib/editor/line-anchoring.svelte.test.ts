@@ -2346,3 +2346,35 @@ describe('sync mode across linked sections', () => {
 		expect(times(handle)[14]).toBeCloseTo(152 - tapOffsetSeconds, 5);
 	});
 });
+
+describe('accessible line timing correction', () => {
+	it('corrects and clears one lyric line through the saving hook without changing words or moving playback', async () => {
+		const text = '[Verse]\nFirst line\nSecond line';
+		const { handle, anchorsChanged, seek } = await mount({ text });
+		expect(handle.getTimingLine?.(0)).toBeUndefined();
+		expect(handle.getTimingLine?.(8)).toEqual({ line: 2, text: 'First line' });
+		expect(handle.setLineTiming?.(1, 3)).toBe(false);
+		expect(handle.setLineTiming?.(2, -1)).toBe(false);
+		expect(handle.setLineTiming?.(2, 12.34)).toBe(true);
+		expect(handle.setLineTiming?.(3, 20)).toBe(true);
+		expect(handle.getLineAnchors?.()).toEqual([
+			{ line: 2, time: 12.34 },
+			{ line: 3, time: 20 }
+		]);
+		expect(handle.setLineTiming?.(2, undefined)).toBe(true);
+		expect(handle.getLineAnchors?.()).toEqual([{ line: 3, time: 20 }]);
+		expect(anchorsChanged).toHaveBeenCalledTimes(3);
+		expect(seek).not.toHaveBeenCalled();
+		expect(handle.getSnapshot().text).toBe(text);
+	});
+});
+
+it('refuses timing correction during an active composed character', async () => {
+	const { handle, anchorsChanged } = await mount({ text: 'First lyric' });
+	const textbox = document.querySelector('.cm-content') as HTMLElement;
+	textbox.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: 'に' }));
+	expect(handle.setLineTiming?.(1, 3)).toBe(false);
+	expect(handle.getLineAnchors?.()).toEqual([]);
+	expect(anchorsChanged).not.toHaveBeenCalled();
+	textbox.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: 'に' }));
+});

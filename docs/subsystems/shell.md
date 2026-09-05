@@ -11,6 +11,16 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## The rules
 
+- Copying lyrics confirms in the toolbar button and never opens a metadata receipt.
+  Song owns the available metadata. `Workspace.svelte.test.ts` pins the non-interruption.
+- The toolbar can expand the editor and restore the panels without remounting either.
+  Hidden panels retire their diagnostic preview; opening findings retains panel focus.
+  Review offers Previous/Next controls with their shortcuts. `Workspace.svelte.test.ts`
+  and `LinterPanel.svelte.test.ts` pin these paths.
+- Assistant Enter and Ask share submission, retain refused input, and leave composing Enter
+  to the IME. The composer discloses the Unicode character limit before sending and keeps
+  oversized input editable. `AssistantPanel.svelte.test.ts` pins both paths and composition.
+
 - The toolbar spans the whole window and splits on what a control acts on, not on how loud it
   is; the save readout draws nothing while saving is going well (`sr-only` otherwise).
 - Diagnostics are inset rows separated by space, without hairlines. Resting rows are
@@ -24,11 +34,11 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   of the dock. `RightPanel.svelte.test.ts` pins orientation and pane visibility.
 - The window ends on its columns: the toolbar spans above them and each column
   ends on its own controls, with no status bar under them. The composer's field
-  and the dock's button end on one shared foot line; the pending transport uses
+  uses the media strip's bottom padding; the pending transport uses
   the same control-row height and outer spacing as loaded playback.
   `Workspace.svelte.test.ts` pins the grid and the absence.
 - The desktop dock has equal bottom and outer-side insets, owned by `--panel-edge-inset`.
-  The composer field ends at the Preferences button's outer edge. The dock fits its
+  The composer field uses `--space-2-5` at its foot to match the media strip. The dock fits its
   labels rather than clipping a fixed width. `RightPanel.svelte.test.ts` pins these bounds.
 - Empty, clean, and all-set-aside reviews are centered, unboxed states with distinct words
   and marks; setting findings aside never claims a clean draft. Filter-hidden findings
@@ -80,6 +90,44 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   `import.meta.env.DEV`, and is pinned empty in `vite.config.ts` for the suite.
 
 ## Decision record
+
+### Writing and copying do not require leaving the current task
+
+Expansion and contraction animate the grid with the shared motion tokens, preserving the left
+inset; reduced-motion preferences make the change immediate. Collapsing tools become inert
+immediately, while their visible surface travels with the shrinking grid track.
+
+The toolbar's Expand editor control gives the document the available writing space on a phone
+or desktop. Show tools occupies the same slot and carries the visible-finding count while the
+tools are hidden. The editor and panels remain mounted so selection, scroll position, and
+in-progress tool state survive. Expanding focuses the editor; restoring focuses the selected
+tab. Choosing a different tool programmatically also restores the panels. The Review preview
+is gated on panel visibility, rather than allowing an invisible card to keep proposing a diff.
+
+Copy lyrics no longer opens a modal just because a source knows song facts. Repeated correction
+and copy cycles should have the same cost whether audio is attached or not. The existing button
+confirms the copy; the Song panel continues to own the metadata and its copy controls.
+
+### The assistant keeps questions that it cannot send
+
+The form restored a question when the chat lock refused submission, but the Enter handler
+discarded the result. Both now use one submit function with the same in-flight gate and refusal
+recovery. An input typed while the request is pending is never overwritten by that recovery.
+The length guard uses the store's Unicode code-point limit rather than HTML maxlength, which
+counts UTF-16 units and would silently truncate some pasted questions. The input remains editable
+and says how many characters need removing. Enter while composing belongs to the IME.
+Limit guidance sits above the field so the composer retains its shared bottom alignment.
+
+### The composer shares the media strip's bottom padding
+
+The assistant tab uses `--space-2-5` below its field, matching the media strip.
+The Review footer appears only while at least one saved choice matches a current finding,
+using `matchIgnoredDiagnostics`; unmatched choices remain saved and the section returns
+when a match returns (`RightPanel.svelte.test.ts`).
+The Review footer uses the same token in both collapsed and expanded states;
+the expanded hidden-diagnostics list adds no second bottom margin.
+This replaces the earlier dock-edge alignment; the dock retains its equal outer insets.
+`RightPanel.svelte.test.ts` measures both gaps. The dialog keeps its own composer gutter.
 
 ### The dock's outer edges share one inset
 

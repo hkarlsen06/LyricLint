@@ -10,7 +10,19 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 - Show, don't ask: selecting a diagnostic previews its fix in the document as a diff; the card
   carries one control labelled with the fix itself (no `Apply`, no `Preview`, no `Cancel`).
   Previewing never scrolls and never focuses the editor.
-- Applying a fix hands the workbench to the next finding (`leadAfterFix`); any wholesale
+- An open card can be collapsed by pressing its heading again. Collapsing it, leaving Review,
+  or hiding the panels releases that card's preview; returning to Review resumes an expanded
+  card's preview. Pins: `LinterPanel.svelte.test.ts` (*collapses the open finding…*,
+  *retires the review preview…*).
+- Review offers Previous/Next and `Alt-Shift-Up/Down` in its existing reading order. These
+  commands and opening a card reveal the lyric range without taking keyboard focus from the
+  panel. Text fields, IME composition, and visible pickers keep ownership of their keys. Removing a finding resolves focus against the newly rendered rows, whose keys never
+  include their array index. Pins: `LinterPanel.svelte.test.ts` (*moves between findings…*,
+  *keeps the next row mounted…*, *hands keyboard focus…*).
+- Applying a fix hands the workbench to the next finding (`leadAfterFix`); a deliberately
+  selected passage advances to the next finding in document order from that passage, wrapping
+  to the ranked lead when none remain after it. Default triage retains the ranked lead.
+  Pin: `workbench.test.ts` (*continues from a deliberately chosen passage…*). Any wholesale
   document replacement arms the same advance through `leadOnNextSnapshot`, called from
   `replaceDocument`'s `onBeforeReplace` hook — before the dispatch, and never on a paste that
   failed.
@@ -41,6 +53,11 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   style-derived unknown names are equivalent during matching so an automatic slot-order restyle
   does not revoke that acceptance; pin: `ignore.test.ts` (*keeps the acceptance when slot-order
   insertion restyles the unknown voice*).
+- Restorable occurrences name their current section and line through the same occurrence
+  matching that suppresses them; the location reveals the lyrics without restoring the finding.
+  The section hides when no saved choice matches, without deleting those choices.
+  While at least one matches, an unmatched saved choice says `No matching finding in the current lyrics` and offers no fabricated location.
+  Pin: `RightPanel.svelte.test.ts` (*distinguishes matching ignored words…*).
 - An ignored occurrence belongs to its 'scribe until the reader explicitly restores it (or the
   'scribe is deleted). A lint pass in which the occurrence is absent does not erase that decision;
   if later edits recreate the occurrence, it stays hidden. Pin: `workbench.test.ts` (*keeps an
@@ -389,3 +406,43 @@ layer at the head's own bottom edge — and what does something else is lifted o
 and the slack beside the last control is card, exactly as the head's padding is. The one thing this
 costs is selecting the explanation's prose with the pointer, which is the trade a card that is a
 control makes anyway.
+
+
+### A review can pause, and a keyboard review keeps its place
+
+The first finding still starts expanded, but it is a starting point rather than a permanent
+preview. Pressing an expanded heading collapses it and releases its preview slot. A hidden
+Review panel also stops mounting its details: an invisible card cannot own a diff over the
+lyrics or reclaim the slot after an assistant proposal leaves. Reopening Review resumes its
+selected card unless the reader explicitly collapsed it.
+
+The card reveals the range without focusing the editor, so keyboard users can open an
+explanation and continue through its decisions. Previous and Next name the panel's existing
+reading order and disclose their `Alt-Shift-Up/Down` twins. Row identities no longer contain an
+array index: removing one finding must not destroy every subsequent control. A removing action
+finds the surviving expanded row after rendering and focuses its heading, with the remaining
+row or Review tab as the fallback.
+
+There are two valid ways into review. Default triage works the ranked list from its lead, while
+someone who deliberately selects a passage has already said where to work. After that person's
+fix or acceptance, choose the next remaining occurrence from that passage in document order,
+wrapping to the ranked lead only when the rest of the passage is clear. Whole-document
+replacement resets this choice and leads the new document as before. The display order stays
+provider-stable; no delayed Harper answer inserts itself above the reviewed rules.
+
+Repeated choruses also repeat the text shown in the ignored list. A stored choice is matched
+against the current diagnostics with `matchIgnoredDiagnostics`, the suppression's own answer,
+and its section and current line become a reveal control. Revealing does not retract the
+choice. A choice that currently matches nothing keeps Restore but says so, rather than showing
+an old offset as though it still located the occurrence.
+
+
+### Saved review choices have a readable hierarchy
+
+The hidden findings list leads with the saved text, followed by the rule name and current
+location in muted text. Restore holds a consistent column beside each entry; spacing
+separates entries without boxes. Mixed lists name each choice as ignored or marked correct.
+An unmatched choice says “No matching finding in the current lyrics”: absence of a diagnostic
+does not prove the saved words are absent. Current locations still reveal without restoring,
+and no historical location is invented. `RightPanel.svelte.test.ts` pins the titles, statuses,
+and reveal/restore behavior.

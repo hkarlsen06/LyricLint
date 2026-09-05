@@ -151,9 +151,9 @@
 	/**
 	 * Search, or attach outright when what was typed turns out to be a link.
 	 *
-	 * `{ results: [] }` therefore means two different things and both end the
-	 * same way: nothing matched, or a pasted link attached and the dialog is
-	 * already closing. `searched` is what tells the empty list from the state
+	 * `{ attached: true }` names a successful attachment explicitly. Existing
+	 * player state cannot tell whether this request attached or only searched.
+	 * `searched` is what tells the empty list from the state
 	 * before anything was asked, so "No matches" cannot greet a user who has not
 	 * typed anything yet.
 	 */
@@ -176,7 +176,7 @@
 			return;
 		}
 		// A pasted link attaches inside the store, so the dialog's work is done.
-		if (media.player.sourceKind === 'spotify' && media.trackId !== undefined) {
+		if ('attached' in outcome) {
 			close();
 			return;
 		}
@@ -224,7 +224,7 @@
 			return;
 		}
 		// A pasted link attaches inside the store, so the dialog's work is done.
-		if (media.player.sourceKind === 'apple' && media.songId !== undefined) {
+		if ('attached' in outcome) {
 			close();
 			return;
 		}

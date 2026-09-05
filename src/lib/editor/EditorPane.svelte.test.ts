@@ -814,8 +814,8 @@ describe('EditorPane', () => {
 		// The two-voice flow is armed for a named answer — and the unknown chip
 		// steps past it, because an unknown writes no legend.
 		await expect.element(page.getByText('Who sings this?')).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'New unknown voice' })).toBeVisible();
-		await userEvent.click(page.getByRole('button', { name: 'Unknown italic voice' }));
+		await expect.element(page.getByRole('button', { name: 'Use new unknown voice' })).toBeVisible();
+		await userEvent.click(page.getByRole('button', { name: 'Use unknown italic voice' }));
 
 		expect(createUnknownVoiceEdit).toHaveBeenCalledWith({ range: { from, to }, styleSlot: 2 });
 		await expect
@@ -836,12 +836,12 @@ describe('EditorPane', () => {
 		handle.setSelection({ anchor: from, head: to });
 		handle.focus();
 		await userEvent.keyboard('{Alt>}p{/Alt}');
-		await expect.element(page.getByRole('button', { name: 'New unknown voice' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Use new unknown voice' })).toBeVisible();
 		await userEvent.click(page.getByRole('button', { name: /Blair/u }));
 		await userEvent.click(page.getByRole('button', { name: /Next/u }));
 
 		await expect.element(page.getByText('Who sings the rest?')).toBeVisible();
-		expect(document.querySelector('.chip--unknown')).toBeNull();
+		expect(document.querySelector('.unknown-voice')).toBeNull();
 	});
 
 	it('shows that the plain main performer has no formatting to remove', async () => {

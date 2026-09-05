@@ -6,7 +6,11 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/primitives/RemoveButt
 
 ## The rules
 
-- A draft is one line: glyph commands on the name's own row, muted until hover/focus, each
+- At five saved drafts the menu offers case-insensitive title/opening-lyric search. Filtering never
+  changes the saved records; a no-match result retains the search field, and closing the
+  menu clears search and pending row actions. `DraftMenu.svelte.test.ts` pins recovery.
+
+- A uniquely titled draft is one line: glyph commands on the name's own row, muted until hover/focus, each
   keeping the draft in its accessible name. The confirm takes the trigger's own slot
   (`RemoveButton`, shared by every list that offers a way out of a row) and moves focus onto
   itself; the armed row is the list's state, one question open at a time.
@@ -34,6 +38,28 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/primitives/RemoveButt
   `docs/subsystems/media.md` for what counts as a name worth having.
 
 ## Decision record
+
+### A longer draft list can be searched without opening each document
+
+Five saved drafts is the point where the menu offers a title or opening-lyric search. Small libraries retain
+their compact rows. The field filters summary titles and lyric openings without changing recency order or fetching
+individual documents. It stays present through no-match results and deletions, and reopening the menu
+starts with the full library. Editing the query abandons pending rename/delete controls so an
+action cannot remain armed on a row that the search hid.
+
+### Duplicate names need a lyric opening
+
+Rows whose titles collide (ignoring case and surrounding whitespace) show a muted opening lyric
+beneath the title. Unique titles keep their single-line layout; headers and blank lines do not
+qualify as the opening, using the parser's `isLyricLine` predicate. The bounded snippet is derived
+by `persistence/draft-summary.ts`, shared by the Dexie and in-memory repositories. It is optional
+`DraftSummary` metadata, never a `DraftRecord` field or a stored copy that can go stale.
+
+Collision detection uses the whole library, so searching down to one matching duplicate does not
+remove the snippet that identified it. The opening is part of the row's accessible name and stays
+visible when deletion is armed. A header-only or wordless audio draft simply has no snippet.
+`DraftMenu.svelte.test.ts` pins duplicate-only display, search by lyric, and opening the intended
+copy; `persistence.test.ts` pins header skipping and the absence of the derived field on records.
 
 ### A draft is one line, and an empty draft is not a draft
 
@@ -162,3 +188,5 @@ performer roster); `src/lib/ui/drafts/draft-date.ts` for the dates; what each su
 `overlays.css`, `linter.css`, and `performers.css`; and the persistence rule in
 `draft-store.svelte.ts` and `persistence/recovery.ts`.
 
+Preview extraction shares the `isReadableDraft` boundary predicate with recovery. Unreadable
+records remain listed and untouched on disk; they simply have no invented lyric preview.

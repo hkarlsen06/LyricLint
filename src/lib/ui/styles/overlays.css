@@ -61,6 +61,12 @@
  * drafts list adds to that — the row is a way into the draft, so its name and
  * date are one pressable control.
  */
+.draft-menu__search {
+	width: 100%;
+	margin-block: var(--space-2);
+	font-size: var(--font-size-editor);
+}
+
 .draft-list {
 	margin: 0;
 	padding: 0;

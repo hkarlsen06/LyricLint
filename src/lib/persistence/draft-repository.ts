@@ -1,4 +1,5 @@
 // Decision record: docs/subsystems/drafts.md — read it before changing this file, and update it with any behavior change.
+import { summarizeDraft } from './draft-summary.js';
 import { randomId } from '../core/random-id.js';
 import { assistantDraftAccessKey } from '../assistant/permissions.js';
 import { copyCompareBaseline, copySectionLinks } from './copy.js';
@@ -153,13 +154,7 @@ export function createDraftRepository(database: LyricLintDatabase): DraftReposit
 	return {
 		async list() {
 			const records = await database.drafts.orderBy('updatedAt').reverse().toArray();
-			return records.map(({ id, title, language, createdAt, updatedAt }) => ({
-				id,
-				title,
-				language,
-				createdAt,
-				updatedAt
-			}));
+			return records.map(summarizeDraft);
 		},
 
 		// A record this cannot copy is left out rather than thrown. This runs at

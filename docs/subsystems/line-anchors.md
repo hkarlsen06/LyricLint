@@ -3,7 +3,9 @@
 Touches: `src/lib/editor/extensions/line-anchors.ts`,
 `src/lib/editor/extensions/lyric-sync.ts`, `src/lib/editor/keymap.ts`
 (`Ctrl-Alt-M`, `Ctrl-Alt-Enter`), `src/lib/editor/contracts.ts`
-(`onLyricSyncChange`, `onSeekMedia`, `onRequestMediaPlayback`)
+(`onLyricSyncChange`, `onSeekMedia`, `onRequestMediaPlayback`),
+`src/lib/editor/create-editor.ts`, `src/lib/ui/state/workbench.svelte.ts`,
+`src/lib/ui/tools/SongPanel.svelte`
 
 ## The rules
 
@@ -28,6 +30,11 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
   inline end is the overlay scrollbar's lane, measured against the scrollport in
   `line-anchoring.svelte.test.ts`. Everything in the gutter is `aria-hidden` all the way
   down — do not give a gutter control an accessible name and call it done.
+- Song offers the caret's lyric line as an accessible timing surface: exact seconds,
+  quarter-second corrections, playback-time stamping, and clear-one. It uses the same
+  stampable-line predicate and anchor effects as the gutter, saving through the existing hook
+  (`line-anchoring.svelte.test.ts`, `SongPanel.svelte.test.ts`). Completed sync says Retime lyrics,
+  naming the action instead of presenting an actionable status (`MediaStrip.svelte.test.ts`).
 - The marked cell is the last anchor at or before the playhead, keyed on `currentFrom`; a
   cell is one line tall regardless of wrap; every row reserves the same width.
 - A pause that lasts `washRestDelayMs` rests the wash across the marked line's text — fading
@@ -710,3 +717,26 @@ repeat's half of it), `linkedPeerHeaders` and `linePairingLimits` in `extensions
 the line-number handler in `create-editor.ts` where the seek and the caret move are ordered, the
 control in `MediaStrip.svelte`, and the wiring in `Workspace.svelte`.
 
+
+### Correct one timestamp without reaching into an inaccessible gutter
+
+The pointer gutter stays outside the accessible tree, and a hundred timestamps still do not
+become a hundred tab stops. Song now provides the selected lyric line's timing as ordinary labeled
+controls: exact time in seconds, Earlier 0.25s, Later 0.25s, Use playback time while audio is
+attached, and Clear line time while that line has a timing. The heading includes the line number
+and the lyric is quoted directly underneath so the target remains visible while focus is in
+these controls. Headers and blank lines offer no timing surface.
+
+`getTimingLine` uses `isStampableLine`; `setLineTiming` dispatches `anchorLineEffect` or
+`clearLineAnchorEffect`, so correction and removal take the existing `onLineAnchorsChanged` route
+through `createCallbackProxy`. They neither edit the lyrics nor seek the tape, and refuse changes during an active composed
+character so panel controls cannot disrupt an IME session. The controller
+reads the current snapshot selection and its reactive known anchors, and announces the result.
+No new callback, clipboard decoration, or persistence field is introduced. The browser editor
+test pins the save hook, untouched text and playback, and preservation of neighboring timings;
+Song's component test exercises the labeled exact-time field, quarter-second correction and
+single-line removal.
+
+A fully timed song's sync button now says Retime lyrics. The previous Lyrics synced label
+looked like a completed status while its press restarted timing; the new wording exposes the
+action directly, including to a touch user who cannot discover the title tooltip.

@@ -9,12 +9,9 @@
 
 	const fallbackModifier = transportModifier();
 
-	// Once the song has timed lines the side keys step between them, so the
-	// controls say so. A button labelled with a number of seconds it no longer
-	// moves is worse than one with no number on it at all.
-	const timed = $derived(player.cuePoints.length > 0);
-	const backLabel = $derived(timed ? 'Previous line' : 'Back 2 seconds');
-	const forwardLabel = $derived(timed ? 'Next line' : 'Forward 2 seconds');
+	// Labels and movement share the player's adaptive cue-or-nudge decision.
+	const backLabel = $derived(player.backLabel);
+	const forwardLabel = $derived(player.forwardLabel);
 
 	// One keystroke per control, the one a transcriber's hands can actually reach
 	// for: the Escape family. Escape toggles, Shift+Escape backs up, Alt+Escape

@@ -663,6 +663,16 @@ a.assistant-rule__source:hover {
 	box-shadow: var(--shadow-control);
 }
 
+.assistant-composer__limit {
+	margin: 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-xs);
+}
+
+.assistant-composer__limit.danger-text {
+	color: var(--color-danger);
+}
+
 .assistant-composer textarea {
 	flex: 1;
 	height: auto;
@@ -728,8 +738,8 @@ a.assistant-rule__source:hover {
 
 .assistant-panel .assistant-composer {
 	--composer-gutter: var(--space-3);
-	/* Match the dock button's outer edge using its shared inset. */
-	padding-bottom: var(--panel-edge-inset, var(--composer-gutter));
+	/* Match the media strip's bottom padding. */
+	padding-bottom: var(--space-2-5);
 }
 
 @media (max-width: 36rem) {

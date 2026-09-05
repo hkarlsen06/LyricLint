@@ -1,9 +1,9 @@
+import { summarizeDraft } from '$lib/persistence/draft-summary.js';
 import type {
 	AutosaveController,
 	AutosaveSnapshot,
 	DraftRecord,
 	DraftRepository,
-	DraftSummary,
 	DraftIgnoreStore
 } from '$lib/core/types.js';
 import type {
@@ -23,16 +23,6 @@ function cloneDraft(draft: DraftRecord): DraftRecord {
 	};
 }
 
-function toSummary(draft: DraftRecord): DraftSummary {
-	return {
-		id: draft.id,
-		title: draft.title,
-		language: draft.language,
-		createdAt: draft.createdAt,
-		updatedAt: draft.updatedAt
-	};
-}
-
 export function createInMemoryDraftRepository(
 	initialDrafts: readonly DraftRecord[] = []
 ): DraftRepository {
@@ -45,7 +35,7 @@ export function createInMemoryDraftRepository(
 		async list() {
 			return [...drafts.values()]
 				.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-				.map(toSummary);
+				.map(summarizeDraft);
 		},
 		async get(id) {
 			const draft = drafts.get(id);

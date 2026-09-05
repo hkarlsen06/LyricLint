@@ -11,6 +11,10 @@
 	let { controller }: { controller: WorkbenchController } = $props();
 	let confirmClearAnchors = $state(false);
 	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
+	const timing = $derived(controller.currentLineTiming);
+	let exactTime = $derived(
+		timing?.time === undefined ? undefined : Math.round(timing.time * 100) / 100
+	);
 
 	const artwork = $derived(controller.media?.player.artwork);
 	const details = $derived(controller.media?.player.songDetails);
@@ -187,6 +191,64 @@
 		beside `Delete all local data`, which is a different scope and now a different
 		tab — the two were only ever together because both are destructive.
 	-->
+	{#if timing}
+		<section>
+			<h2>Timing line {timing.line}</h2>
+			<p>{timing.text}</p>
+			<form
+				class="line-timing-form"
+				onsubmit={(event) => {
+					event.preventDefault();
+					if (exactTime !== undefined) controller.setCurrentLineTime(exactTime);
+				}}
+			>
+				<label for="current-line-time">Time in seconds</label>
+				<div class="tool-actions">
+					<input
+						class="line-timing-input"
+						id="current-line-time"
+						type="number"
+						min="0"
+						step="0.01"
+						required
+						bind:value={exactTime}
+						placeholder="Not timed"
+					/>
+					<button type="submit" class="button" disabled={exactTime === undefined}>Set time</button>
+				</div>
+			</form>
+			<div class="tool-actions">
+				{#if timing.time !== undefined}
+					<button
+						type="button"
+						class="button"
+						disabled={timing.time === 0}
+						onclick={() => controller.setCurrentLineTime(Math.max(0, timing.time! - 0.25))}
+						>Earlier 0.25s</button
+					>
+					<button
+						type="button"
+						class="button"
+						onclick={() => controller.setCurrentLineTime(timing.time! + 0.25)}>Later 0.25s</button
+					>
+					<button
+						type="button"
+						class="button button--quiet"
+						onclick={() => controller.setCurrentLineTime(undefined)}>Clear line time</button
+					>
+				{/if}
+				{#if controller.media?.player.attached}
+					<button
+						type="button"
+						class="button button--quiet"
+						onclick={() => controller.setCurrentLineTime(controller.media!.player.liveTime())}
+						>Use playback time</button
+					>
+				{/if}
+			</div>
+		</section>
+	{/if}
+
 	{#if controller.lineAnchorCount > 0}
 		<section>
 			<h2>Timed lyrics</h2>
@@ -244,3 +306,15 @@
 		</section>
 	{/if}
 </div>
+
+<style>
+	.line-timing-form + .tool-actions {
+		margin-top: var(--space-2);
+	}
+
+	.line-timing-input {
+		flex: 1 1 0;
+		min-width: 0;
+		max-width: 100%;
+	}
+</style>

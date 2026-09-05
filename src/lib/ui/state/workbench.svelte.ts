@@ -170,6 +170,8 @@ export interface WorkbenchController {
 	 * there is something to act on.
 	 */
 	readonly lineAnchorCount: number;
+	readonly currentLineTiming: { line: number; text: string; time: number | undefined } | undefined;
+	setCurrentLineTime(time: number | undefined): void;
 	/** Drop every line timing on this draft. The words are untouched. */
 	clearLineAnchors(): void;
 	/** Save this draft's line timings as a timed-lyrics file a player can read. */
@@ -190,7 +192,7 @@ export interface WorkbenchController {
 	setLanguage(language: string): void;
 	undo(): void;
 	redo(): void;
-	navigateToDiagnostic(diagnostic: Diagnostic): void;
+	navigateToDiagnostic(diagnostic: Diagnostic, options?: { focus?: boolean }): void;
 	/** Mark a diagnostic's card without moving the editor to it. */
 	highlightDiagnostic(diagnostic: Diagnostic): void;
 	chooseSectionHeader(diagnostic: Diagnostic): void;
@@ -631,6 +633,29 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		get lineAnchorCount() {
 			return knownLineAnchors.length;
+		},
+		get currentLineTiming() {
+			const line = editorSession.editor.getTimingLine?.(editorSession.snapshot.selection.head);
+			return line
+				? { ...line, time: knownLineAnchors.find((anchor) => anchor.line === line.line)?.time }
+				: undefined;
+		},
+		setCurrentLineTime(time) {
+			const line = controller.currentLineTiming;
+			if (!line || !editorSession.editor.setLineTiming?.(line.line, time)) {
+				const message =
+					'Finish typing the current character, then choose a lyric line and a time of zero seconds or later.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+			knownLineAnchors = editorSession.editor.getLineAnchors?.() ?? knownLineAnchors;
+			draft.scheduleSave();
+			feedback.announce(
+				time === undefined
+					? `Timing cleared for line ${line.line}.`
+					: `Line ${line.line} timed at ${time.toFixed(2)} seconds.`
+			);
 		},
 		get sectionLinks() {
 			return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
