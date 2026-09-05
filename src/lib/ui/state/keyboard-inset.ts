@@ -1,5 +1,5 @@
 /**
- * Where the software keyboard's top edge is, published to CSS.
+ * The visible workspace rectangle and keyboard edge, published to CSS.
  *
  * A phone keyboard covers the foot of the workbench — the transport included —
  * because the page is laid out against a viewport the keyboard does not shrink.
@@ -12,7 +12,12 @@
  * opens is browser lore that differs by engine and by version, and a rule built
  * on it is a rule that silently does nothing on the device it was written for.
  *
- * Both published values come from `visualViewport` alone:
+ * All geometry comes from `visualViewport` alone:
+ *
+ * - **`--visual-viewport-height` / `--visual-viewport-offset`** always describe
+ *   the unzoomed visible rectangle. Mobile uses them even without a keyboard
+ *   baseline, notably on rotation with the keyboard already open. Pinch zoom
+ *   retains the last unzoomed layout rather than reflowing beneath the gesture.
  *
  * - **`--keyboard-top`** is `offsetTop + height` — the bottom edge of what the
  *   user can see, in the coordinate space `position: fixed` is measured against.
@@ -91,6 +96,13 @@ export function trackKeyboardInset(): () => void {
 
 	const measure = () => {
 		frame = 0;
+		// Pinch zoom magnifies the existing layout. Resizing it to the zoomed
+		// rectangle would undo that gesture and move the document under the fingers.
+		if (viewport.scale && viewport.scale !== 1) return;
+		// Mobile fits the visible rectangle even across a rotation with the
+		// keyboard already open, where there is no unoccluded baseline yet.
+		root.style.setProperty('--visual-viewport-height', `${Math.round(viewport.height)}px`);
+		root.style.setProperty('--visual-viewport-offset', `${Math.round(viewport.offsetTop)}px`);
 		if (viewport.width !== baselineWidth) {
 			baselineWidth = viewport.width;
 			baseline = viewport.height;
@@ -131,5 +143,7 @@ export function trackKeyboardInset(): () => void {
 		viewport.removeEventListener('resize', schedule);
 		viewport.removeEventListener('scroll', schedule);
 		clear();
+		root.style.removeProperty('--visual-viewport-height');
+		root.style.removeProperty('--visual-viewport-offset');
 	};
 }

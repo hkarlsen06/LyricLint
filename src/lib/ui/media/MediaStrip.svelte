@@ -1,6 +1,8 @@
 <script lang="ts">
 	import {
 		Check,
+		ChevronDown,
+		ChevronUp,
 		ListEnd,
 		Pencil,
 		Play,
@@ -10,6 +12,9 @@
 		Timer,
 		X
 	} from 'lucide-svelte';
+	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
+	import { MediaQuery } from 'svelte/reactivity';
+	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { drawsCoverBand, formatTime } from '../state/media-player.svelte.js';
 	import type { MediaStore } from '../state/media-store.svelte.js';
@@ -74,6 +79,24 @@
 	} = $props();
 
 	const player = $derived(media.player);
+	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
+	const detailsId = $props.id();
+	let detailsOpen = $state(false);
+	let disclosure = $state<HTMLButtonElement>();
+	const detailsVisible = $derived(detailsOpen || !!sync?.active);
+
+	function dismissDetails() {
+		detailsOpen = false;
+	}
+
+	function dismissOnEscape(event: KeyboardEvent) {
+		if (phone.current && detailsOpen && !sync?.active && event.key === 'Escape') {
+			event.preventDefault();
+			if (document.getElementById(detailsId)?.contains(document.activeElement)) disclosure?.focus();
+			detailsOpen = false;
+		}
+	}
+
 	$effect(() => {
 		if (sync?.active) player.clearLoop();
 	});
@@ -105,6 +128,10 @@
 	 * the two controls here that are aimed rather than tapped, where losing the
 	 * keyboard is the smaller cost.
 	 *
+	 * Leave `pointerdown` alone: cancelling a touch pointerdown suppresses the
+	 * activation click in WebKit. Its compatibility mousedown is the focus gate;
+	 * cancelling that keeps the keyboard open while the real tap still plays.
+	 *
 	 * `click` is not a default action of `mousedown` and still fires, so every
 	 * control keeps working exactly as it did. This is the same move a rich-text
 	 * toolbar makes for the same reason.
@@ -120,7 +147,9 @@
 			if (target instanceof Element && target.closest('button')) event.preventDefault();
 		};
 		node.addEventListener('mousedown', onPress);
-		return () => node.removeEventListener('mousedown', onPress);
+		return () => {
+			node.removeEventListener('mousedown', onPress);
+		};
 	}
 
 	/**
@@ -165,6 +194,8 @@
 	);
 </script>
 
+<svelte:document onkeydown={dismissOnEscape} />
+
 {#snippet audioPencil()}
 	{#if openMediaPicker}
 		<button
@@ -181,7 +212,7 @@
 {/snippet}
 
 <!--
-	The audio transport, under the editor column and nowhere else.
+	The audio transport, in the stable workspace media row shared by every view.
 
 	It is not a fourth panel tab, because tabs are exclusive and that would make
 	the user choose between seeing diagnostics and controlling audio during the one
@@ -195,8 +226,8 @@
 
 	The controls are the same controls whichever source is attached, and this row
 	holds all of them. A video's picture is not one of them and is not here: it
-	draws at the foot of the right panel, where two hundred pixels cost a scroll
-	through the findings rather than two hundred pixels off the document. Which
+	draws in its own stable workspace row, below the panel on desktop and above
+	playback on phones, so switching task views never hides or rebuilds it. Which
 	source is attached shows in this row only in which rates the speed control
 	offers.
 -->
@@ -204,16 +235,15 @@
 	class="media-strip"
 	data-testid="media-strip"
 	data-loaded={player.attached}
+	data-details-open={detailsVisible}
 	{@attach publishStripHeight}
 	{@attach keepFocus}
+	{@attach dismissOnOutside(dismissDetails)}
 >
 	{#if player.attached && drawsCoverBand(player.sourceKind)}
 		<MediaArtwork {media} {announce} identityAction={audioPencil} />
 	{/if}
 	<div class="media-strip__controls">
-		{#if player.attached && !drawsCoverBand(player.sourceKind)}
-			{@render audioPencil()}
-		{/if}
 		{#if player.attached}
 			<div class="media-strip__transport">
 				<MediaTransport {player} />
@@ -261,26 +291,44 @@
 				/>
 			{/if}
 
-			<div class="media-strip__meta">
-				<span class="media-strip__time">{formatTime(player.duration)}</span>
+			<button
+				type="button"
+				class="button button--quiet media-strip__disclosure"
+				bind:this={disclosure}
+				aria-label="Audio details"
+				aria-expanded={detailsVisible}
+				aria-controls={detailsId}
+				disabled={!!sync?.active}
+				onclick={() => (detailsOpen = !detailsOpen)}
+			>
+				Audio
+				{#if detailsVisible}
+					<ChevronUp aria-hidden="true" size={14} />
+				{:else}
+					<ChevronDown aria-hidden="true" size={14} />
+				{/if}
+			</button>
 
-				<!-- The rates the attached source can actually apply, not the rates the
+			<div class="media-strip__meta" id={detailsId}>
+				<span class="media-strip__time media-strip__duration">{formatTime(player.duration)}</span>
+				<div class="media-strip__options">
+					<!-- The rates the attached source can actually apply, not the rates the
 			     workbench would like to offer. YouTube has a menu of its own and
 			     ignores anything off it without a word, so a control listing the
 			     constant would be offering presses that silently do nothing. -->
-				<label class="media-strip__rate">
-					<span class="sr-only">Playback speed</span>
-					<select
-						value={player.rate}
-						onchange={(event) => player.setRate(Number(event.currentTarget.value))}
-					>
-						{#each player.availableRates as rate (rate)}
-							<option value={rate}>{rate}×</option>
-						{/each}
-					</select>
-				</label>
+					<label class="media-strip__rate">
+						<span class="sr-only">Playback speed</span>
+						<select
+							value={player.rate}
+							onchange={(event) => player.setRate(Number(event.currentTarget.value))}
+						>
+							{#each player.availableRates as rate (rate)}
+								<option value={rate}>{rate}×</option>
+							{/each}
+						</select>
+					</label>
 
-				<!--
+					<!--
 				Timing the whole lyric. It sits here because syncing is a transport
 				activity — you press play and tap along — and because this row only
 				exists once there is something to tap along to.
@@ -291,82 +339,83 @@
 				reading `Stop syncing` explains that only to someone who already knows
 				what syncing is.
 			-->
-				{#if seekable && !sync?.active}
-					<div class="media-strip__loop">
-						<button
-							type="button"
-							class="button"
-							class:button--quiet={!player.loop}
-							aria-label={player.loop?.end !== undefined
-								? `Stop loop: ${formatTime(player.loop.start)}–${formatTime(player.loop.end)}`
-								: player.loop
-									? 'End here'
-									: 'Loop from here'}
-							aria-pressed={player.loop?.end !== undefined}
-							disabled={!!player.loop &&
-								player.loop.end === undefined &&
-								player.currentTime < player.loop.start + 0.25}
-							onclick={() => {
-								if (player.loop?.end !== undefined) player.clearLoop();
-								else if (player.loop) player.finishLoop();
-								else player.setLoopStart();
-							}}
-							{@attach describeControl(() => ({
-								label:
-									player.loop?.end !== undefined
-										? `Stop loop: ${formatTime(player.loop.start)}–${formatTime(player.loop.end)}`
-										: player.loop
-											? `Loop from ${formatTime(player.loop.start)} to here — play or seek ahead to set the end`
-											: 'Loop from here — mark the start of a passage to repeat'
-							}))}
-						>
-							<Repeat aria-hidden="true" size={14} strokeWidth={2.4} />
-							{#if player.loop?.end !== undefined}
-								<span class="media-strip__time"
-									>{formatTime(player.loop.start)}–{formatTime(player.loop.end)}</span
-								>
-							{:else}
-								{player.loop ? 'End here' : 'Loop'}
-							{/if}
-						</button>
-						{#if player.loop && player.loop.end === undefined}
+					{#if seekable && !sync?.active}
+						<div class="media-strip__loop">
 							<button
 								type="button"
-								class="button--quiet icon-button"
-								aria-label="Cancel loop"
-								onclick={() => player.clearLoop()}
-								{@attach describeControl(() => ({ label: 'Cancel loop' }))}
+								class="button"
+								class:button--quiet={!player.loop}
+								aria-label={player.loop?.end !== undefined
+									? `Stop loop: ${formatTime(player.loop.start)}–${formatTime(player.loop.end)}`
+									: player.loop
+										? 'End here'
+										: 'Loop from here'}
+								aria-pressed={player.loop?.end !== undefined}
+								disabled={!!player.loop &&
+									player.loop.end === undefined &&
+									player.currentTime < player.loop.start + 0.25}
+								onclick={() => {
+									if (player.loop?.end !== undefined) player.clearLoop();
+									else if (player.loop) player.finishLoop();
+									else player.setLoopStart();
+								}}
+								{@attach describeControl(() => ({
+									label:
+										player.loop?.end !== undefined
+											? `Stop loop: ${formatTime(player.loop.start)}–${formatTime(player.loop.end)}`
+											: player.loop
+												? `Loop from ${formatTime(player.loop.start)} to here — play or seek ahead to set the end`
+												: 'Loop from here — mark the start of a passage to repeat'
+								}))}
 							>
-								<X aria-hidden="true" size={14} strokeWidth={2.4} />
+								<Repeat aria-hidden="true" size={14} strokeWidth={2.4} />
+								{#if player.loop?.end !== undefined}
+									<span class="media-strip__time"
+										>{formatTime(player.loop.start)}–{formatTime(player.loop.end)}</span
+									>
+								{:else}
+									{player.loop ? 'End here' : 'Loop'}
+								{/if}
 							</button>
-						{/if}
-						<span class="sr-only" aria-live="polite"
-							>{player.loop && player.loop.end === undefined
-								? `Loop starts at ${formatTime(player.loop.start)}. Play or seek ahead, then press End here.`
-								: ''}</span
+							{#if player.loop && player.loop.end === undefined}
+								<button
+									type="button"
+									class="button--quiet icon-button"
+									aria-label="Cancel loop"
+									onclick={() => player.clearLoop()}
+									{@attach describeControl(() => ({ label: 'Cancel loop' }))}
+								>
+									<X aria-hidden="true" size={14} strokeWidth={2.4} />
+								</button>
+							{/if}
+							<span class="sr-only" aria-live="polite"
+								>{player.loop && player.loop.end === undefined
+									? `Loop starts at ${formatTime(player.loop.start)}. Play or seek ahead, then press End here.`
+									: ''}</span
+							>
+						</div>
+					{/if}
+
+					{#if follow?.available}
+						<button
+							type="button"
+							class="button--quiet icon-button"
+							aria-pressed={follow.active}
+							aria-label="Follow the playing line"
+							title={follow.active ? 'Stop following the playing line' : 'Follow the playing line'}
+							onclick={follow.toggle}
 						>
-					</div>
-				{/if}
-
-				{#if follow?.available}
-					<button
-						type="button"
-						class="button--quiet icon-button"
-						aria-pressed={follow.active}
-						aria-label="Follow the playing line"
-						title={follow.active ? 'Stop following the playing line' : 'Follow the playing line'}
-						onclick={follow.toggle}
-					>
-						{#if follow.active}
-							<ListEnd aria-hidden="true" size={14} strokeWidth={2.4} />
-						{:else}
-							<TextAlignStart aria-hidden="true" size={14} strokeWidth={2.4} />
-						{/if}
-					</button>
-				{/if}
-
-				{#if sync}
-					<!--
+							{#if follow.active}
+								<ListEnd aria-hidden="true" size={14} strokeWidth={2.4} />
+							{:else}
+								<TextAlignStart aria-hidden="true" size={14} strokeWidth={2.4} />
+							{/if}
+						</button>
+					{/if}
+				</div>
+				<div class="media-strip__timing">
+					{#if sync}
+						<!--
 					A finished song says so rather than offering the job again, but it is
 					still the same control and still one press: `runStart` reads a fully
 					timed lyric as a fresh pass from the top, which is the only sensible
@@ -386,38 +435,38 @@
 					practice-rate run is as accurate as a full-speed one, and the anchors
 					come out in track time either way.
 				-->
-					<button
-						type="button"
-						class="button media-strip__sync"
-						title={sync.active
-							? 'Stop timing and go back to editing'
-							: sync.scopesSelection
-								? 'Play and tap Space at each selected line to time it. The run stops after the last selected line'
-								: sync.complete
-									? 'Every line is timed. Play the song from the start and tap Space to time it again'
-									: 'Play the song from the start and tap Space at each line to time it. Slowing the playback rate makes fast lines easier to tap'}
-						onclick={sync.toggle}
-					>
-						{#if !sync.active && sync.complete && !sync.scopesSelection}
-							<Check aria-hidden="true" size={13} strokeWidth={2.25} />
-						{:else}
-							<Timer aria-hidden="true" size={13} strokeWidth={2.25} />
-						{/if}
-						<span>
-							{sync.active
-								? 'Stop syncing'
+						<button
+							type="button"
+							class="button media-strip__sync"
+							title={sync.active
+								? 'Stop timing and go back to editing'
 								: sync.scopesSelection
-									? 'Sync selection'
+									? 'Play and tap Space at each selected line to time it. The run stops after the last selected line'
 									: sync.complete
-										? 'Retime lyrics'
-										: 'Sync lyrics'}
-						</span>
-					</button>
-				{/if}
+										? 'Every line is timed. Play the song from the start and tap Space to time it again'
+										: 'Play the song from the start and tap Space at each line to time it. Slowing the playback rate makes fast lines easier to tap'}
+							onclick={sync.toggle}
+						>
+							{#if !sync.active && sync.complete && !sync.scopesSelection}
+								<Check aria-hidden="true" size={13} strokeWidth={2.25} />
+							{:else}
+								<Timer aria-hidden="true" size={13} strokeWidth={2.25} />
+							{/if}
+							<span>
+								{sync.active
+									? 'Stop syncing'
+									: sync.scopesSelection
+										? 'Sync selection'
+										: sync.complete
+											? 'Retime lyrics'
+											: 'Sync lyrics'}
+							</span>
+						</button>
+					{/if}
 
-				{#if sync?.active}
-					{#if sync.canSkip && sync.skip}
-						<!--
+					{#if sync?.active}
+						{#if sync.canSkip && sync.skip}
+							<!--
 						The way past lyrics that are already timed. A song synced once and
 						then edited — a line split into several, in more than one place — is
 						timed everywhere except the new lines, and a run walking towards the
@@ -433,16 +482,16 @@
 						disappearance after the last gap is the one sign the run gives that
 						nothing ahead still wants a time.
 					-->
-						<button
-							type="button"
-							class="button media-strip__skip"
-							title="Play from the last timed line before the next untimed one"
-							onclick={sync.skip}
-						>
-							Skip timed lines
-						</button>
-					{/if}
-					<!--
+							<button
+								type="button"
+								class="button media-strip__skip"
+								title="Play from the last timed line before the next untimed one"
+								onclick={sync.skip}
+							>
+								Skip timed lines
+							</button>
+						{/if}
+						<!--
 					The tap itself, because a finger has no `Space`. It takes the slot the
 					hint took — the run's instruction is now the thing you press, which is
 					shorter to read and is the only way to drive a run on a phone.
@@ -469,19 +518,21 @@
 					whole instruction stays the accessible name, because a glyph says
 					nothing to a screen reader.
 				-->
-					<button
-						type="button"
-						class="button media-strip__tap"
-						aria-label="Tap each line"
-						aria-keyshortcuts="Space Enter"
-						title="Time the line that is starting now"
-						onclick={sync.tap}
-					>
-						<Pointer aria-hidden="true" size={14} strokeWidth={2.25} />
-						Tap
-					</button>
-					<span class="media-strip__hint">Esc stops</span>
-				{:else}
+						<button
+							type="button"
+							class="button media-strip__tap"
+							aria-label="Tap each line"
+							aria-keyshortcuts="Space Enter"
+							title="Time the line that is starting now"
+							onclick={sync.tap}
+						>
+							<Pointer aria-hidden="true" size={14} strokeWidth={2.25} />
+							Tap
+						</button>
+						<span class="media-strip__hint">Esc stops</span>
+					{/if}
+				</div>
+				{#if !sync?.active}
 					<!--
 					The name and the mark are said once, and both are said wherever the song
 					is being shown: on the artwork band's own bar for a source that has one,
@@ -497,8 +548,11 @@
 					row never draws them at all.
 				-->
 					{#if !drawsCoverBand(player.sourceKind)}
-						<span class="media-strip__name" title={player.name}>{player.name}</span>
-						<MediaAttribution {media} />
+						<div class="media-strip__source">
+							{@render audioPencil()}
+							<span class="media-strip__name" title={player.name}>{player.name}</span>
+							<MediaAttribution {media} />
+						</div>
 					{/if}
 				{/if}
 

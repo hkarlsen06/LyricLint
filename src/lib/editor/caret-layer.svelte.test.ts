@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { cdp, page } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { EditorHandle } from '$lib/core/types.js';
@@ -50,6 +50,7 @@ async function mount(text: string): Promise<{ handle: EditorHandle; content: HTM
 
 describe('the drawn caret', () => {
 	it('draws in its own layer while focused, above the line fills, and only then', async () => {
+		expect(window.matchMedia('(pointer: fine)').matches).toBe(true);
 		const { handle, content } = await mount('[Verse]\nHello line');
 		const editor = content.closest('.cm-editor')!;
 
@@ -89,5 +90,22 @@ describe('the drawn caret', () => {
 			// caret at its head would be a mark nobody asked for.
 			expect(editor.querySelector('.ll-caret-layer .ll-caret')).toBeNull();
 		});
+	});
+	it('switches between native touch caret and the desktop layer with the primary pointer', async () => {
+		const { handle, content } = await mount('[Verse]\nHello line');
+		handle.focus();
+		handle.setSelection({ anchor: 10, head: 10 });
+		const editor = content.closest('.cm-editor')!;
+		await vi.waitFor(() => expect(editor.querySelector('.ll-caret-layer')).toBeTruthy());
+		const caretLayer = editor.querySelector<HTMLElement>('.ll-caret-layer')!;
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+		try {
+			expect(getComputedStyle(caretLayer).display).toBe('none');
+			expect(getComputedStyle(content).caretColor).not.toBe('rgba(0, 0, 0, 0)');
+		} finally {
+			await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+		}
+		expect(getComputedStyle(caretLayer).display).not.toBe('none');
+		expect(getComputedStyle(content).caretColor).toBe('rgba(0, 0, 0, 0)');
 	});
 });

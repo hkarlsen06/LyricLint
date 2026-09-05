@@ -7,6 +7,7 @@
 	 */
 	import { ArrowUp, ChevronRight } from 'lucide-svelte';
 	import { tick } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import { MAX_QUESTION_CHARS } from '$lib/assistant/types.js';
@@ -17,6 +18,7 @@
 	} from '$lib/assistant/rule-previews.js';
 	import { renderChallenge, type ChallengeHandle } from '$lib/assistant/turnstile.js';
 	import { stickToBottom } from '$lib/interaction/stick-to-bottom.js';
+	import { PHONE_LAYOUT_QUERY } from '$lib/interaction/phone-layout.js';
 	import LoadingMark from '$lib/ui/primitives/LoadingMark.svelte';
 	import AssistantAnswer from './AssistantAnswer.svelte';
 	import AssistantLinkActionCard from './AssistantLinkActionCard.svelte';
@@ -27,6 +29,7 @@
 	let { assistant }: { assistant: AssistantState } = $props();
 
 	let composerInput = $state<HTMLTextAreaElement>();
+	const phone = new MediaQuery(PHONE_LAYOUT_QUERY);
 	let challengeContainer = $state<HTMLDivElement>();
 	let draft = $state('');
 	const questionLength = $derived([...draft.trim()].length);
@@ -207,10 +210,41 @@
 	}
 
 	function resizeComposer(textarea: HTMLTextAreaElement): void {
+		if (!phone.current) {
+			textarea.style.height = 'auto';
+			textarea.style.height = `${Math.min(textarea.scrollHeight, 144)}px`;
+			textarea.style.overflowY = textarea.scrollHeight > 144 ? 'auto' : 'hidden';
+			return;
+		}
+		if (!textarea.clientWidth) return;
+		const maximum = Number.parseFloat(getComputedStyle(textarea).maxHeight);
 		textarea.style.height = 'auto';
-		textarea.style.height = `${Math.min(textarea.scrollHeight, 144)}px`;
-		textarea.style.overflowY = textarea.scrollHeight > 144 ? 'auto' : 'hidden';
+		const height = textarea.scrollHeight;
+		textarea.style.height = `${Math.min(height, maximum)}px`;
+		textarea.style.overflowY = height > maximum ? 'auto' : 'hidden';
 	}
+
+	// A one-row placeholder can wrap before the first input. Re-measure when
+	// a hidden Tools pane opens or rotates, as well as when its draft changes.
+	$effect(() => {
+		if (!phone.current) return;
+		void draft;
+		if (composerInput) resizeComposer(composerInput);
+	});
+
+	$effect(() => {
+		if (!phone.current) return;
+		const textarea = composerInput;
+		if (!textarea) return;
+		let width = -1;
+		const observer = new ResizeObserver(([entry]) => {
+			if (entry.contentRect.width === width) return;
+			width = entry.contentRect.width;
+			resizeComposer(textarea);
+		});
+		observer.observe(textarea);
+		return () => observer.disconnect();
+	});
 
 	function resetComposer(): void {
 		draft = '';
@@ -449,7 +483,11 @@
 					Remove {questionLength - MAX_QUESTION_CHARS}
 					{questionLength - MAX_QUESTION_CHARS === 1 ? 'character' : 'characters'} to send.
 				{:else}
-					{MAX_QUESTION_CHARS.toLocaleString('en')} characters maximum · Shift+Enter for a new line
+					{MAX_QUESTION_CHARS.toLocaleString('en')} characters maximum<span
+						class="assistant-composer__keyboard-hint"
+					>
+						· Shift+Enter for a new line</span
+					>
 				{/if}
 			</p>
 			<div class="assistant-composer__field">

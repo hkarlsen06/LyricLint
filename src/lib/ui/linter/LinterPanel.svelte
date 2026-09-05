@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Severity } from '$lib/core/types.js';
+	import type { Diagnostic, Severity } from '$lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
 	import { formatDraftDate, fullDraftDate } from '$lib/ui/drafts/draft-date.js';
@@ -8,8 +8,21 @@
 	import { severityPluralLabels } from '$lib/diagnostics/severity-labels.js';
 	import { tick } from 'svelte';
 
-	let { controller, active = true }: { controller: WorkbenchController; active?: boolean } =
-		$props();
+	let {
+		controller,
+		active = true,
+		mobile = false,
+		reviewFocused = false,
+		onOpenFinding,
+		onReviewList
+	}: {
+		controller: WorkbenchController;
+		active?: boolean;
+		mobile?: boolean;
+		reviewFocused?: boolean;
+		onOpenFinding?: (diagnostic: Diagnostic) => void;
+		onReviewList?: () => void;
+	} = $props();
 
 	// One row at a time may be armed for deletion, so the pending draft is the
 	// list's state rather than each row's.
@@ -151,7 +164,12 @@
 	}
 </script>
 
-<div class="panel-content linter-panel">
+<div class="panel-content linter-panel" class:linter-panel--focused={mobile && reviewFocused}>
+	{#if mobile && reviewFocused}
+		<button type="button" class="button button--quiet mobile-review-back" onclick={onReviewList}
+			>All findings</button
+		>
+	{/if}
 	{#if controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0}
 		<h2 class="linter-panel__heading">Review lyrics</h2>
 	{/if}
@@ -238,6 +256,8 @@
 	{/snippet}
 
 	<DiagnosticList
+		overview={mobile && !reviewFocused}
+		focusedOnly={mobile && reviewFocused}
 		active={active && controller.activeTab === 'linter'}
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
@@ -245,7 +265,10 @@
 		{emptyState}
 		{emptyActions}
 		{lineFor}
-		onNavigate={(diagnostic) => controller.navigateToDiagnostic(diagnostic, { focus: false })}
+		onNavigate={(diagnostic) => {
+			if (mobile) onOpenFinding?.(diagnostic);
+			else controller.navigateToDiagnostic(diagnostic, { focus: false });
+		}}
 		onChooseHeader={(diagnostic) => controller.chooseSectionHeader(diagnostic)}
 		canAssignPerformers={(diagnostic) => controller.canAssignDiagnosticPerformers(diagnostic)}
 		onAssignPerformers={(diagnostic) => controller.assignDiagnosticPerformers(diagnostic)}

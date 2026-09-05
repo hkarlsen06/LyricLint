@@ -10,6 +10,8 @@
 	let {
 		diagnostics,
 		active = true,
+		overview = false,
+		focusedOnly = false,
 		sources,
 		activeDiagnosticKey,
 		emptyState,
@@ -30,6 +32,8 @@
 	}: {
 		diagnostics: readonly Diagnostic[];
 		active?: boolean;
+		overview?: boolean;
+		focusedOnly?: boolean;
 		sources: ReadonlyMap<string, SourceReference>;
 		activeDiagnosticKey?: string;
 		/** Empty, clean, and set-aside reviews have distinct composed states.
@@ -106,7 +110,9 @@
 		return first ? cardKey(first) : undefined;
 	});
 
-	const expandedKey = $derived(active && selectedKey !== collapsedKey ? selectedKey : undefined);
+	const expandedKey = $derived(
+		active && !overview && (focusedOnly || selectedKey !== collapsedKey) ? selectedKey : undefined
+	);
 	const currentIndex = $derived(
 		sortedDiagnostics.findIndex((item) => cardKey(item) === selectedKey)
 	);
@@ -123,8 +129,17 @@
 		});
 	});
 
+	let revealedKey: string | undefined;
+	$effect(() => {
+		const key = active && focusedOnly ? selectedKey : undefined;
+		if (key === revealedKey) return;
+		revealedKey = key;
+		const current = sortedDiagnostics.find((item) => cardKey(item) === key);
+		if (current) void tick().then(() => onNavigate(current));
+	});
+
 	function activate(diagnostic: Diagnostic): void {
-		if (expandedKey === cardKey(diagnostic)) {
+		if (!focusedOnly && expandedKey === cardKey(diagnostic)) {
 			collapsedKey = cardKey(diagnostic);
 			return;
 		}
@@ -196,9 +211,13 @@
 			nextControl.focus();
 			return;
 		}
-		const fallback =
-			panel?.querySelector<HTMLButtonElement>(fallbackSelector) ??
-			panel?.querySelector<HTMLButtonElement>('#linter-panel-tab');
+		const fallback = [
+			panel?.querySelector<HTMLButtonElement>(fallbackSelector),
+			focusedOnly
+				? document.querySelector<HTMLButtonElement>('#mobile-review-control')
+				: panel?.querySelector<HTMLButtonElement>('#linter-panel-tab')
+		].find((control) => control && control.getClientRects().length > 0);
+
 		fallback?.focus();
 	}
 
@@ -254,7 +273,7 @@
 		{@render emptyActions?.()}
 	</div>
 {:else}
-	{#if sortedDiagnostics.length > 1}
+	{#if !overview && sortedDiagnostics.length > 1}
 		<div class="diagnostic-actions" role="group" aria-label="Navigate findings">
 			<button
 				type="button"
@@ -280,6 +299,7 @@
 			{@const expanded = cardKey(diagnostic) === expandedKey}
 			<li
 				data-diagnostic-key={cardKey(diagnostic)}
+				hidden={focusedOnly && cardKey(diagnostic) !== selectedKey}
 				class:diagnostic-error={diagnostic.severity === 'error'}
 				class:diagnostic-card--expanded={expanded}
 				class:diagnostic-card--active={expanded && cardKey(diagnostic) === activeDiagnosticKey}

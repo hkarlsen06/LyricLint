@@ -1,7 +1,8 @@
-import { page, userEvent } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { EditorView } from '@codemirror/view';
+import { selectionAnchorForView } from './extensions/selection-anchor.js';
 import { parseDocument } from '$lib/core/parser.js';
 import type {
 	Diagnostic,
@@ -2442,5 +2443,58 @@ describe('DiagnosticPopover fix flow', () => {
 		await userEvent.click(accept);
 		expect(onIgnore).toHaveBeenCalledOnce();
 		expect(screen.container.querySelector('.diagnostic-actions__accept')).not.toBeNull();
+	});
+});
+
+// Touch emulation is last: disabling it leaves Chromium with no primary pointer.
+describe('EditorPane touch assignment', () => {
+	it('keeps native touch selection free of assignment until Assign voices is requested', async () => {
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+		try {
+			const { handle, editorCallbacks } = await mountEditor({
+				text: '[Verse]\nHello world',
+				displayContext: context({ performers: performers() })
+			});
+			const textbox = page.getByRole('textbox', { name: 'Lyrics editor' }).element();
+			const view = EditorView.findFromDOM(textbox as HTMLElement)!;
+			handle.focus();
+			view.dispatch({ selection: { anchor: 8, head: 13 }, userEvent: 'select.pointer' });
+			expect(selectionAnchorForView(view, true)?.offersAssignment).toBe(false);
+			await new Promise((resolve) => window.setTimeout(resolve, 100));
+			await expect
+				.element(page.getByRole('dialog', { name: 'Assign performers' }))
+				.not.toBeInTheDocument();
+			expect(editorCallbacks.onAssignRequest).not.toHaveBeenCalled();
+			expect(handle.getSnapshot().selection).toEqual({ anchor: 8, head: 13 });
+			handle.requestPerformerAssignment?.();
+			await expect.element(page.getByRole('dialog', { name: 'Assign performers' })).toBeVisible();
+			expect(handle.getSnapshot().selection).toEqual({ anchor: 8, head: 13 });
+			expect(editorCallbacks.onAssignRequest).toHaveBeenCalledWith({
+				range: { from: 8, to: 13 },
+				prefer: 'above'
+			});
+		} finally {
+			await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+		}
+	});
+
+	it('keeps automatic assignment on wide touch layouts without the Assign voices control', async () => {
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+		await page.viewport(1200, 800);
+		try {
+			const { handle } = await mountEditor({
+				text: '[Verse]\nHello world',
+				displayContext: context({ performers: performers() })
+			});
+			const textbox = page.getByRole('textbox', { name: 'Lyrics editor' }).element();
+			const view = EditorView.findFromDOM(textbox as HTMLElement)!;
+			handle.focus();
+			view.dispatch({ selection: { anchor: 8, head: 13 }, userEvent: 'select.pointer' });
+			expect(selectionAnchorForView(view, true)?.offersAssignment).toBe(true);
+			await expect.element(page.getByRole('dialog', { name: 'Assign performers' })).toBeVisible();
+		} finally {
+			await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+			await page.viewport(800, 600);
+		}
 	});
 });

@@ -2,6 +2,7 @@ import type { Extension, Transaction } from '@codemirror/state';
 import { ViewPlugin } from '@codemirror/view';
 import type { EditorView, ViewUpdate } from '@codemirror/view';
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
+import { PHONE_LAYOUT_QUERY } from '$lib/interaction/phone-layout.js';
 import type { SelectionAnchor } from '../contracts.js';
 import { linkableHeaderAt } from '../section-links.js';
 import {
@@ -93,6 +94,9 @@ export function selectionAnchorForView(
 		// pause — which is nearly all of them.
 		offersAssignment:
 			pointerDriven &&
+			// Native touch selection belongs to its handles and edit menu. Opening
+			// a picker here covers that gesture; Assign voices is the explicit way in.
+			!window.matchMedia(PHONE_LAYOUT_QUERY).matches &&
 			canAssignVoiceGroup(parsedDocumentForState(view.state), { anchor: from, head: to })
 	};
 	if (linkHeader) anchor.linkHeader = linkHeader;

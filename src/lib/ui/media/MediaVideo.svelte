@@ -10,15 +10,14 @@
 </script>
 
 <!--
-	The video, at the foot of the right panel and directly above the status bar.
+	The video, mounted by Workspace outside its switchable editor and tool views.
+	Desktop always floats a 16:9 frame at the editor’s bottom-right. Every phone view keeps it above playback.
+	An independently rendered RightPanel supplies its own mount.
 
 	It is not hidden and it is not decoration: YouTube's embed terms require the
 	player to be visible and unobscured, at no less than 200 by 200 pixels. The
-	panel is narrower than the 356px a 200px-tall 16:9 frame wants at its
-	narrowest, so the frame takes the panel's width and holds 200px as a floor —
-	which pillarboxes the picture by a few pixels there rather than shrinking it
-	below a minimum that is not ours to set. Anything larger would be a video
-	player in a transcription workbench, which is not what anyone opened.
+	desktop overlay uses that height floor and a 16:9 width. Mobile task views
+	keep their compact frame outside the hidden editor and tools regions.
 
 	It draws only while a video is what is attached. A local file is the default
 	and gives this band back entirely, the same way the strip itself costs nothing

@@ -30,7 +30,6 @@
 	import Workspace from '$lib/ui/layout/Workspace.svelte';
 	import { useFeedbackState } from '$lib/ui/state/feedback.svelte.js';
 	import { guardWorkbenchTab, type TabGuard } from '$lib/ui/state/tab-guard.js';
-	import { noticeTouchLayout } from '$lib/ui/state/touch-notice.js';
 	import { ensurePersistentStorage } from '$lib/ui/state/storage-persistence.svelte.js';
 	import {
 		createWorkbenchController,
@@ -275,30 +274,12 @@
 	<TabBusyNotice />
 {/if}
 
-<!-- The touch notice is said as the boot screen leaves, and that hand-off is why
-     it is spoken from here rather than from the group layout: `revealed` is this
-     page's own state, and the boot screen's departure is the only moment that
-     answers "is there a workbench to recommend anything about".
-
-     It waits for two reasons now. The boot screen covers the whole window,
-     toasts included (`--layer-boot` sits above `--layer-toast`), so a notice
-     raised any earlier would spend its countdown behind it and be gone before
-     anyone saw it. And a boot failure never sets `revealed`, so the notice never
-     speaks over an error — which is right twice over: there is no workbench
-     behind one, and spending a session-scoped message on a failed load means
-     never seeing it on the reload that works.
-
-     A tab waiting for another one is the third state that outranks the sequence,
-     and for the same reason a boot failure is: the boot screen covers the whole
-     window, so left mounted it would hide the notice for as long as the wait
-     lasts — which is the one message that has to be read. It comes back the
-     moment the lock arrives, because from there this is an ordinary boot. -->
+<!-- Reveal only after boot has succeeded and the draft lock is available. -->
 {#if !revealed && !bootError && !tabBusy}
 	<BootScreen
 		ready={Boolean(controller)}
 		ondone={() => {
 			revealed = true;
-			noticeTouchLayout(feedback);
 		}}
 	/>
 {/if}

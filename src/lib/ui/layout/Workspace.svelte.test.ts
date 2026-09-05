@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
 import type { Diagnostic, TextRange } from '$lib/core/types.js';
@@ -38,6 +38,9 @@ function renderWorkspace(
 }
 
 describe('Workspace and toolbar', () => {
+	beforeEach(async () => {
+		await page.viewport(800, 600);
+	});
 	afterEach(() => {
 		cleanup();
 		vi.unstubAllGlobals();
@@ -317,13 +320,11 @@ describe('Workspace and toolbar', () => {
 		// strip — beside the contrast action whose press it is the review before.
 		const compare = screen.getByRole('button', { name: 'Compare' });
 		const copy = screen.getByRole('button', { name: 'Copy lyrics' });
-		expect([...commands!.children].filter((child) => child.matches('button, details'))).toEqual([
-			undo,
-			redo,
-			language,
-			compare,
-			copy
-		]);
+		expect([
+			...commands!.querySelectorAll(
+				':scope > button, .document-toolbar__secondary-actions > button'
+			)
+		]).toEqual([undo, redo, language, compare, copy]);
 		// Navigation between drafts left the strip for the draft's own name, and
 		// creation followed it — neither acts on the document this strip commands.
 		expect(commands!.contains(screen.getByRole('button', { name: "'Scribes" }))).toBe(false);
@@ -398,7 +399,7 @@ describe('Workspace and toolbar', () => {
 		const editorRegion = document.querySelector('.editor-region')!;
 		const panel = document.querySelector('.right-panel')!;
 		expect(getComputedStyle(editorRegion).gridRowStart).toBe('2');
-		expect(getComputedStyle(panel).gridRowStart).toBe(stacked ? '3' : '2');
+		expect(getComputedStyle(panel).gridRowStart).toBe(stacked ? '4' : '2');
 		expect(document.querySelector('.status-bar')).toBeNull();
 		expect(getComputedStyle(workspace).display).toBe('grid');
 		expect(panel.querySelector('.panel-tabs')).toBeTruthy();
@@ -1220,7 +1221,6 @@ describe('Workspace and toolbar', () => {
 			renderWorkspace(controller);
 			const toolbar = screen.getByRole('banner', { name: 'Document controls' });
 			await screen.findByRole('button', { name: 'Copy lyrics' });
-			await screen.findByRole('button', { name: 'Compare' });
 			const controls = toolbar.querySelectorAll<HTMLElement>(
 				'.document-toolbar__commands > button, .document-toolbar__identity > button, .draft-title, summary'
 			);
@@ -1237,7 +1237,7 @@ describe('Workspace and toolbar', () => {
 		}
 	});
 
-	test.each([390, 1100, 1440])(
+	test.each([800, 1100, 1440])(
 		'expands writing space and returns to the same panel at %ipx',
 		async (width) => {
 			await page.viewport(width, 844);

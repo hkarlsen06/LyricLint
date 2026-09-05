@@ -7,6 +7,12 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 ## The rules
 
+- In phone task views, tapping an editor underline or count badge opens that finding in
+  Review, with the real lyric context and shared actions. A count badge starts with its
+  first finding; Previous/Next handles the rest. No diagnostic popover or cluster menu opens.
+  Hover and native text selection do not navigate. `e2e/mobile-workbench.spec.ts` pins taps,
+  the selected occurrence, fixes, focus handoff, and the absence of floating diagnostics.
+
 - Show, don't ask: selecting a diagnostic previews its fix in the document as a diff; the card
   carries one control labelled with the fix itself (no `Apply`, no `Preview`, no `Cancel`).
   Previewing never scrolls and never focuses the editor.
@@ -81,6 +87,27 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   against the `<li>`, the head stays unpositioned, and only the buttons lift over it.
 
 ## Decision record
+
+### Phone review opens one decision beside the lyrics
+
+The mobile overview suppresses default card expansion and its preview. Opening a row
+reveals the editor before navigating to the passage, then displays only the selected row.
+The same DiagnosticList and DiagnosticDetails own ordering, actions, preview lifetime, and
+focus as desktop. All findings returns to the overview; Write and Tools release previews.
+Previous/Next and automatic advancement reveal the next passage without opening the keyboard.
+Reveal is keyed to the diagnostic identity so a selection snapshot cannot create a navigation
+feedback loop. Hidden rows are absent from layout and the accessibility tree. Once the last
+finding disappears, focus can return to the visible mobile Review control.
+
+An editor tap uses this same decision surface. Desktop popovers and cluster menus can
+extend beyond a phone viewport, and making a second diagnostic surface fit would still
+leave two competing ways to review. The shell passes `diagnosticsInPanel` using the task-view
+query; the editor suppresses hover overlays and routes deliberate presses through
+`onDiagnosticReviewRequest` in the callback proxy. The shell selects the finding, reveals
+it after Review has laid out, and focuses its heading to dismiss the software keyboard.
+Dragging a text selection remains an editing gesture.
+
+Pin: `e2e/mobile-workbench.spec.ts` (phone review fix flow and editor diagnostic taps).
 
 ### Show, don't ask
 

@@ -61,7 +61,9 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
   (`onLyricSyncNotice`; the editor announces, the shell must not announce again). Inside a
   run the line number's seek also moves the caret, armed (`syncMoveTo`) — and stays armed.
 - The tap is also a control (`Tap each line`), bound to the `lyricSyncTap` command, drawn on
-  every pointer, never focusing the editor; entry focus is deferred one frame. While a run is
+  every pointer, never focusing the editor; entry focus is deferred one frame. Phone task
+  views focus the tap control on entry to dismiss the keyboard, while desktop focuses
+  the editor. `e2e/mobile-workbench.spec.ts` pins entry, repeated taps, and saved anchors. While a run is
   on, a bare space taps from anywhere short of a surface that types or presses with it.
 
 ## Decision record
@@ -704,13 +706,20 @@ announcing again — two live-region writes for one event is the message read tw
 The editor owns the mode and the shell reacts (`onLyricSyncChange`), which is what keeps the tape
 and the mode from disagreeing: `Escape` and the end of the document both end a run without the shell
 being asked, and both arrive through that one hook. The shell answers by playing or pausing, and by
-focusing the editor on entry — the tap is a keystroke, so a run cannot start with focus in the
+focusing the editor on desktop entry — the tap is a keystroke, so a run cannot start with focus in the
 button that started it. **That focus is deferred one frame**, because the hook fires synchronously
 inside the press that turned the mode on: the click's own default processing and the re-render the
 state flip schedules both run after a synchronous call, and either can take the focus straight
 back. Left synchronous, a run started with focus on the scrubber — where a scoped run's own design
 just had the user parking the tape — came up with the space bar answering nothing, and the repair
 was re-clicking the very line the entry had already selected.
+
+Phone task views instead focus the `Tap each line` button in that same deferred frame.
+Focusing the contenteditable opens the software keyboard, sometimes after the user has
+already begun tapping, and timing needs no typing. The button retains keyboard activation
+for an attached keyboard; subsequent taps and skips still call the shared editor commands
+without focusing the document. `e2e/mobile-workbench.spec.ts` exercises a real audio file,
+entry from a focused editor, repeated stamps, and completed timings with editor focus absent.
 
 Implementation: `src/lib/editor/extensions/lyric-sync.ts` (`linkedFill` and `syncMoveTo` are the
 repeat's half of it), `linkedPeerHeaders` and `linePairingLimits` in `extensions/section-links.ts`,

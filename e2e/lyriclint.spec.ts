@@ -1093,55 +1093,17 @@ test.describe('phone', () => {
 	// not gated away.
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-	test('serves the workbench upright and asks for a rotation on its side', async ({ page }) => {
+	test('supports both orientations without a desktop recommendation', async ({ page }) => {
 		await page.goto('/lint/');
-
+		await expect(page.locator('main.workspace')).toBeVisible();
+		await expect(page.getByRole('navigation', { name: 'Workbench views' })).toBeVisible();
+		await page.setViewportSize({ width: 844, height: 390 });
 		await expect(page.locator('main.workspace')).toBeVisible();
 		await expect(editor(page)).toBeVisible();
-		await expect(page.getByRole('heading', { name: 'LyricLint needs the tall side' })).toBeHidden();
-
-		// Sideways there is no height left to divide between the editor and the
-		// panel, so this one orientation is refused. Gone from the layout and from
-		// the accessibility tree, not just painted over.
-		await page.setViewportSize({ width: 844, height: 390 });
-		await expect(
-			page.getByRole('heading', { name: 'LyricLint needs the tall side' })
-		).toBeVisible();
-		await expect(page.locator('main.workspace')).toBeHidden();
-		await expect(editor(page)).toBeHidden();
-	});
-
-	/**
-	 * The notice waits for the boot screen, and this is the only place that can
-	 * see it: the boot screen is in the prerendered HTML and covers the whole
-	 * window, toasts included, so a notice raised any earlier would spend its
-	 * countdown behind it and be gone before anyone saw it. What is asserted is
-	 * therefore the order — nothing of the notice while the boot screen is on
-	 * screen — and that it still arrives afterwards, which is the half a plain
-	 * delete would also have passed.
-	 */
-	test('holds the touch notice until the boot screen has gone', async ({ page }) => {
-		// Scoped to the region that draws it: the same words are also written into
-		// the sr-only live region, and an unscoped text match would be two nodes.
-		const notice = page.locator('.toast-region').getByText('LyricLint is quicker on a laptop');
-		const boot = page.locator('.boot-screen');
-
-		await page.goto('/lint/');
-
-		// The boot screen is in the prerendered HTML, so it is on screen from the
-		// first paint and this is a state to assert against rather than a race to
-		// win.
-		await expect(boot).toBeVisible();
-		await expect(notice).toHaveCount(0);
-
-		await expect(boot).toHaveCount(0);
-		await expect(notice).toBeVisible();
-
-		// And it is a toast rather than the modal it was: the workbench is behind
-		// it the whole time, not dimmed out and waiting on an answer.
-		await expect(editor(page)).toBeVisible();
-		await page.getByRole('button', { name: 'Dismiss notification' }).click();
-		await expect(notice).toHaveCount(0);
+		await expect(page.getByRole('heading', { name: 'LyricLint needs the tall side' })).toHaveCount(
+			0
+		);
+		await expect(page.locator('.toast-region')).not.toContainText('quicker on a laptop');
 	});
 });
 

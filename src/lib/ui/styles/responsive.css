@@ -34,6 +34,10 @@
    it, and everything else, the findings, the player, and the ignored-rules
    footer, reached by scrolling to the bottom of it. */
 @media (max-width: 68rem) {
+	.editor-actions__button[aria-controls='document-panel'] .editor-actions__glyph {
+		transform: rotate(90deg);
+	}
+
 	.workspace {
 		grid-template-columns: 100%;
 		grid-template-rows: auto minmax(0, 3fr) minmax(0, 2fr);
@@ -99,7 +103,7 @@
 	}
 }
 
-@media (max-width: 46rem) {
+@media (pointer: fine) and (max-width: 46rem) {
 	/* Identity and commands get their own row before either can be clipped.
 	   Labels stay visible; very narrow windows wrap the command row. */
 	.document-toolbar {
@@ -157,7 +161,9 @@
 	.draft-title {
 		max-width: min(15rem, 60vw);
 	}
+}
 
+@media (max-width: 46rem) {
 	.button {
 		min-height: var(--control-height-lg);
 	}
@@ -259,92 +265,8 @@
 	background: var(--color-chrome);
 }
 
-/*
- * The landscape gate.
- *
- * The workbench runs on a phone held upright: the editor and the linter stack,
- * and each scrolls in its own port. Turned sideways there is no height left to
- * divide — the toolbar, the tab strip and the status bar are fixed costs, and
- * what remains would be a couple of lines of lyric over a couple of lines of
- * finding. So this one orientation is refused outright, and the notice takes its
- * place: `display: none` on the shell wrapper takes the app out of the
- * accessibility tree too, which an overlay would not have done.
- *
- * Height *and* a coarse pointer, never height alone. A short window on a laptop
- * is a supported size — the stacked layout above is exactly what it is for — and
- * a rule keyed on height alone would tell someone with a keyboard and a mouse to
- * rotate a screen they cannot rotate.
- */
 .app-shell {
 	display: contents;
-}
-
-.landscape-notice {
-	display: none;
-}
-
-@media (pointer: coarse) and (max-height: 30rem) {
-	.app-shell {
-		display: none;
-	}
-
-	/* Prose on the canvas — no border, no fill, no card. Nothing here is a surface
-	   the user acts on or one that has to be told apart from a neighbour, so a box
-	   would be decoration. See "A card has to earn its border". */
-	.landscape-notice {
-		display: grid;
-		min-height: 100vh;
-		min-height: 100dvh;
-		padding: var(--space-6);
-		place-content: center;
-	}
-
-	.landscape-notice > div {
-		max-width: 34rem;
-	}
-
-	/* The brand is the first word of the headline rather than a logo above it, so
-	   it runs at the heading's size and not at one of its own. That is the whole
-	   override: every dimension in the lockup — bracket height, bracket width, the
-	   waveform's stroke, both slot widths in `ch` — is already expressed against
-	   its own type, so inheriting a font-size resizes the brand. */
-	.landscape-notice h1 {
-		margin: 0 0 var(--space-4);
-		font-size: var(--font-size-2xl);
-		font-weight: var(--font-weight-semibold);
-		line-height: var(--line-height-tight);
-	}
-
-	/* The lockup is inline-flex and its first item holds only absolutely
-	   positioned letters, so it has no baseline of its own: the browser
-	   synthesises one from the bottom of its margin box, and the brand rides above
-	   the sentence it is the first word of. This sits it back down on the line —
-	   measured, not derived, but stable in `em` because the wordmark and the body
-	   copy are the mono and sans cuts of one family and share their vertical
-	   metrics. */
-	.landscape-notice h1 .app-wordmark {
-		font-size: inherit;
-		vertical-align: -0.181em;
-	}
-
-	/* Hover opens nothing here; the press is the whole affordance. This surface is
-	   `pointer: coarse`, and on a touch screen `:hover` is not a state anyone
-	   entered on purpose — it is applied to whatever was tapped last and stays
-	   there. Left in, it would open the lockup on the first tap and then refuse to
-	   let the second tap close it, because the finger that pressed is exactly what
-	   hover is stuck to. */
-	.landscape-notice .app-wordmark[data-state='idle']:hover {
-		--wm-open: 0;
-	}
-
-	.landscape-notice p {
-		margin: 0 0 var(--space-3);
-		color: var(--color-text-muted);
-	}
-
-	.landscape-notice p:last-child {
-		margin-bottom: 0;
-	}
 }
 
 /*
@@ -451,12 +373,8 @@
 	}
 }
 
-/* Keep timing actions visible below playback on a phone. The inner row can
-   still scroll if a sync run offers more commands than this width can hold. */
-@media (max-width: 40rem) {
+@media (pointer: fine) and (max-width: 40rem) {
 	.media-strip__controls {
-		/* Reserve playback and timing rows in both pending and loaded states. */
-		min-height: calc(2 * var(--control-height-lg) + var(--space-2) + var(--space-1));
 		flex-wrap: wrap;
 		gap: var(--space-2);
 	}
@@ -517,5 +435,317 @@
 	.editor-region,
 	.right-panel {
 		transition-property: none;
+	}
+}
+
+/* The media stays mounted outside the task regions. Desktop retains its two
+   columns, with audio under the lyrics and the video over the editor’s corner. */
+.workspace {
+	grid-template-rows: auto minmax(0, 1fr) auto;
+}
+.editor-region {
+	/* Both occupants name their column: the explicit video otherwise pushes
+	   this auto-placed editor into an implicit second column when stacked. */
+	grid-column: 1;
+	grid-template-rows: minmax(0, 1fr);
+}
+.workspace-media {
+	grid-column: 1;
+	grid-row: 3;
+	min-width: 0;
+	margin-inline: var(--space-4) var(--space-2);
+}
+.workspace-video {
+	grid-column: 2;
+	grid-row: 3;
+	min-width: 0;
+}
+.mobile-navigation {
+	display: none;
+}
+
+@media (min-width: 68.001rem) {
+	.workspace .right-panel {
+		grid-row: 2 / 4;
+	}
+}
+@media (max-width: 68rem) {
+	.workspace {
+		grid-template-rows: auto minmax(0, 3fr) auto minmax(0, 2fr);
+	}
+	.workspace .right-panel {
+		grid-row: 4;
+	}
+	.workspace-media {
+		grid-row: 3;
+		margin-inline: var(--space-2);
+	}
+	.workspace-video {
+		grid-column: 1;
+		grid-row: 5;
+	}
+	.workspace.workspace--expanded {
+		grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 0fr);
+	}
+}
+
+/* Task views use one scroll region until a finding is explicitly opened.
+   Keep this query aligned with PHONE_WORKSPACE_QUERY. */
+@media (pointer: coarse) and (max-width: 68rem) {
+	.workspace,
+	.workspace.workspace--expanded {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-rows: auto minmax(0, 1fr) minmax(0, 0fr) auto auto auto;
+		padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+		transition: none;
+		height: var(--visual-viewport-height, 100dvh);
+		position: fixed;
+		top: var(--visual-viewport-offset, 0px);
+		left: 0;
+		right: 0;
+	}
+	.workspace .editor-region {
+		--editor-actions-reserve: 0px;
+		display: flex;
+		flex-direction: column;
+		grid-column: 1;
+		grid-row: 2;
+		margin-inline: var(--space-2);
+	}
+	.workspace .editor-actions {
+		position: static;
+		align-self: flex-end;
+		flex: none;
+	}
+	.workspace .editor-host {
+		flex: 1;
+		min-height: 0;
+	}
+	.workspace .right-panel {
+		grid-column: 1;
+		grid-row: 2;
+	}
+	.workspace[data-mobile-view='review'][data-review-focused='true'] {
+		grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) auto auto auto;
+	}
+	.workspace[data-mobile-view='review'][data-review-focused='true'] .right-panel {
+		grid-row: 3;
+	}
+	.workspace[data-mobile-view='review'][data-review-focused='true'] .editor-actions {
+		display: none;
+	}
+	.editor-region[aria-hidden='true'],
+	.right-panel[aria-hidden='true'] {
+		display: none;
+	}
+	.workspace-media {
+		grid-column: 1;
+		grid-row: 5;
+		margin: 0;
+	}
+	.workspace-video {
+		grid-column: 1;
+		grid-row: 4;
+	}
+	.workspace-video .media-video {
+		margin: 0;
+	}
+	.workspace-video .media-video__frame {
+		width: var(--media-video-min);
+		margin-inline: auto;
+		aspect-ratio: 1;
+	}
+	.mobile-navigation {
+		grid-column: 1;
+		grid-row: 6;
+		display: flex;
+		gap: var(--space-1);
+		padding: var(--space-1) var(--space-2);
+		padding-bottom: max(var(--space-1), env(safe-area-inset-bottom));
+		background: var(--color-chrome);
+	}
+	.mobile-navigation .button {
+		flex: 1;
+		min-height: var(--control-height-touch);
+	}
+	.mobile-navigation [aria-pressed='true'] {
+		background: var(--color-fill-strong);
+		color: var(--color-text);
+		box-shadow: inset 0 calc(-1 * var(--focus-ring-width)) var(--color-text);
+	}
+	.workspace .right-panel__tabs-root {
+		overflow: hidden;
+	}
+	.workspace .right-panel__content {
+		flex: 1;
+		overflow: auto;
+	}
+	.workspace .right-panel__body {
+		flex: 1 0 auto;
+	}
+	.workspace .right-panel__content:has(.right-panel__pane--fit:not([hidden])) {
+		overflow: hidden;
+	}
+	.workspace .right-panel__body:has(.right-panel__pane--fit:not([hidden])) {
+		flex: 1;
+		overflow: hidden;
+	}
+	.workspace[data-mobile-view='review'] .right-panel__header {
+		display: none;
+	}
+	.workspace[data-mobile-view='tools'] #linter-panel-tab {
+		display: none;
+	}
+	.workspace .panel-tabs {
+		flex-wrap: wrap;
+		overflow: visible;
+	}
+	.workspace .panel-tabs button {
+		flex-direction: row;
+		min-height: var(--control-height-touch);
+	}
+	.workspace .panel-tabs button svg {
+		display: none;
+	}
+	.linter-panel--focused > .linter-panel__heading,
+	.linter-panel--focused > .linter-panel__filters,
+	.linter-panel--focused > .linter-panel__bulk,
+	.linter-panel--focused > .linter-panel__afterword {
+		display: none;
+	}
+	.linter-panel--focused .diagnostic-list > li {
+		background: transparent;
+		box-shadow: none;
+		padding-inline: 0;
+	}
+	.diagnostic-list > li[hidden] {
+		display: none;
+	}
+	.mobile-review-back {
+		align-self: flex-start;
+	}
+	.workspace .button,
+	.workspace .icon-button,
+	.workspace .filter-chip {
+		min-height: var(--control-height-touch);
+		min-width: var(--control-height-touch);
+	}
+	/* The visual viewport supplies the keyboard floor for the whole workbench,
+     so editor and assistant composer get the space above it, with no overlay. */
+	:root[data-keyboard-inset] .media-strip {
+		position: static;
+		transform: none;
+	}
+	:root[data-keyboard-inset] .workspace::after {
+		content: none;
+	}
+	:root[data-keyboard-inset] .mobile-navigation {
+		/* Task switching rests while typing. It must not ride the keyboard or
+		   take another row from the selected passage. */
+		display: none;
+	}
+}
+@media (pointer: coarse) {
+	.button,
+	.icon-button,
+	.filter-chip {
+		min-height: var(--control-height-touch);
+		min-width: var(--control-height-touch);
+	}
+	/* Class font shorthands otherwise outrank the generic input floor above.
+	   Scope the stronger rule to the workbench, including its dialog descendants. */
+	.workspace input:not(:where([type='checkbox'], [type='radio'], [type='range'], [type='file'])),
+	.workspace select,
+	.workspace textarea {
+		font-size: var(--font-size-lg);
+		min-height: var(--control-height-touch);
+	}
+}
+
+/* A visible video has an external 200px floor. In short landscape windows it
+   sits beside the task instead of consuming the remaining writing height. */
+@media (orientation: landscape) and (max-width: 68rem) and (pointer: coarse) {
+	.workspace:has(.workspace-video) {
+		grid-template-columns: minmax(0, 1fr) var(--media-video-min);
+	}
+	.workspace:has(.workspace-video) .workspace-video {
+		grid-column: 2;
+		grid-row: 2 / 4;
+		align-self: center;
+	}
+	.workspace:has(.workspace-video) .workspace-media,
+	.workspace:has(.workspace-video) .mobile-navigation {
+		grid-column: 1 / -1;
+	}
+}
+
+/* If a keyboard and the video floor cannot fit together, retain a reachable
+   writing region and allow this constrained workspace to scroll. */
+@media (pointer: coarse) and (max-width: 46rem) and (orientation: portrait) {
+	.workspace:has(.workspace-video) {
+		grid-template-rows: auto minmax(var(--mobile-context-min), 1fr) minmax(0, 0fr) auto auto auto;
+		overflow-y: auto;
+	}
+	:root[data-keyboard-inset]
+		.workspace:has(.workspace-video)[data-mobile-view='review'][data-review-focused='true'] {
+		grid-template-rows:
+			auto minmax(var(--mobile-context-min), 1fr) minmax(var(--mobile-context-min), 1fr)
+			auto auto auto;
+	}
+}
+
+@media (min-width: 68.001rem) {
+	/* Let each column end on its own media height: a video must not charge
+	   200px to the lyric column's shorter audio controls. */
+	.workspace .editor-region {
+		grid-column: 1;
+		grid-row: 2 / 4;
+		margin-bottom: var(--media-strip-height, 0px);
+	}
+	.workspace-media {
+		align-self: end;
+	}
+}
+
+/* The desktop player always occupies the editor’s bottom-right corner. It
+   shares the explicit editor grid area without creating a new column or row. */
+.workspace[data-video-floating='true'] .workspace-video {
+	grid-column: 1;
+	grid-row: 2;
+	align-self: end;
+	justify-self: end;
+	width: calc(var(--media-video-min) * 16 / 9);
+	margin: var(--space-3);
+	z-index: var(--layer-editor-panel);
+	box-shadow: var(--shadow-popover);
+	border-radius: var(--radius-control);
+}
+.workspace[data-video-floating='true'] .workspace-video .media-video {
+	padding: 0;
+}
+.workspace[data-video-floating='true'] .workspace-video .media-video__frame {
+	aspect-ratio: 16 / 9;
+}
+@media (min-width: 68.001rem) {
+	.workspace[data-video-floating='true'] .workspace-video {
+		grid-row: 2 / 4;
+		margin-bottom: calc(var(--media-strip-height, 0px) + var(--space-3));
+	}
+}
+
+/* Keep the final lyric scrollable above the floating frame without inserting
+   document content or changing the editor's visible height. */
+.workspace[data-video-floating='true']:has(.workspace-video) .editor-region {
+	--editor-scroll-padding: calc(var(--media-video-min) + var(--space-3) + var(--space-8));
+}
+
+/* The overlay shares the grid cell, whose edge is outside the editor's own
+   inset in stacked and expanded layouts. Include that inset in its margin. */
+.workspace.workspace--expanded[data-video-floating='true'] .workspace-video {
+	margin-right: calc(var(--space-2) + var(--space-3));
+}
+@media (max-width: 68rem) {
+	.workspace[data-video-floating='true'] .workspace-video {
+		margin-right: calc(var(--space-2) + var(--space-3));
 	}
 }

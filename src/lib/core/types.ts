@@ -839,6 +839,8 @@ export interface EditorHandle {
 	 * handles can omit it.
 	 */
 	requestSectionHeader?(): void;
+	/** Open the existing performer picker for the retained lyric selection. */
+	requestPerformerAssignment?(): void;
 	/**
 	 * Open the link picker for the repeated section containing the cursor, as if
 	 * the user pressed the link shortcut. The same command over the same

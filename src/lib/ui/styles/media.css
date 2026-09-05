@@ -110,7 +110,6 @@
 	 * the system where that is right: a `rem` shrinks with the reader's root font
 	 * size, and a minimum set by somebody else is not ours to scale below.
 	 */
-	--media-video-min: 200px;
 
 	display: flex;
 	flex: none;
@@ -725,4 +724,107 @@
 	align-items: center;
 	gap: var(--space-1);
 	flex: none;
+}
+
+.media-strip__options,
+.media-strip__timing,
+.media-strip__source {
+	display: contents;
+}
+
+/* Audio details expand in the existing strip; playback keeps its own row. */
+.media-strip__disclosure {
+	display: none;
+}
+
+@media (pointer: coarse) and (max-width: 68rem) {
+	.media-strip .media-strip__controls {
+		min-height: var(--control-height-touch);
+		flex-wrap: wrap;
+		gap: var(--space-1);
+	}
+
+	.media-strip .media-strip__disclosure {
+		display: inline-flex;
+		flex: none;
+		gap: var(--space-1);
+		padding-inline: var(--space-1);
+	}
+
+	.media-strip[data-details-open='false'] > .media-artwork,
+	.media-strip[data-details-open='false'] .media-strip__meta {
+		display: none;
+	}
+
+	.media-strip .media-strip__meta {
+		flex: 1 0 100%;
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--space-1);
+		padding-block: var(--space-1);
+	}
+
+	.media-strip .media-strip__duration,
+	.media-strip .media-strip__hint {
+		display: none;
+	}
+
+	.media-strip__options,
+	.media-strip__timing,
+	.media-strip__source {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		min-width: 0;
+	}
+
+	.media-strip__options {
+		justify-content: space-between;
+	}
+
+	.media-strip__timing {
+		flex-wrap: wrap;
+	}
+
+	.media-strip__timing:empty {
+		display: none;
+	}
+
+	.media-strip .media-strip__sync,
+	.media-strip .media-strip__tap {
+		flex: 1 1 auto;
+		justify-content: center;
+	}
+
+	.media-strip .media-strip__skip {
+		order: 1;
+		flex-basis: 100%;
+	}
+
+	.media-strip .media-strip__seek {
+		min-width: 0;
+		width: 0;
+		height: var(--control-height-touch);
+	}
+
+	.media-strip .media-strip__transport-button,
+	.media-strip .icon-button,
+	.media-strip .button,
+	.media-strip .button--quiet,
+	.media-strip .media-strip__rate select {
+		min-height: var(--control-height-touch);
+		min-width: var(--control-height-touch);
+	}
+
+	.media-strip .media-strip__rate select {
+		font-size: var(--font-size-lg);
+	}
+}
+
+@media (pointer: coarse) {
+	.media-strip .media-strip__transport-button,
+	.media-strip .icon-button {
+		min-width: var(--control-height-touch);
+		min-height: var(--control-height-touch);
+	}
 }

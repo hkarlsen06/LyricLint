@@ -45,7 +45,7 @@ The product should feel like a focused editorial instrument: dense enough for ex
 1. **The source stays visible.** Genius-compatible plain text and literal HTML markup remain the canonical document.
 2. **Every warning earns trust.** A production rule must include an exact Genius source, a reviewed interpretation, and a last-verified date.
 3. **Automation is reversible.** Structural and performer transformations are previewable where needed and always form one undoable edit.
-4. **Expert speed, accessible operation.** Common actions are keyboard-first, while all controls and diagnostics remain discoverable and screen-reader reachable.
+4. **Expert speed, accessible operation.** Common actions have direct keyboard and touch paths, while all controls and diagnostics remain discoverable and screen-reader reachable. Phones give writing, review, and tools their own views.
 5. **Local work is durable, and draft linting is local.** Drafts autosave locally and the editor remains useful offline. What reaches a network is asked for and never assumed: online audio playback per session, and the rules assistant per question — which receives only what is typed into its own composer, never the document.
 6. **Judgment is labeled as judgment.** Contextual conventions are suggestions or manual-review items, not false errors.
 

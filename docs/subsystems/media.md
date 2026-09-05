@@ -44,11 +44,13 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   (`media-player.test.ts`, `MediaStrip.svelte.test.ts`).
 - Two defaults do the work: resume backs up 2s (cancelled by deliberate placement) and
   `preservesPitch` is on.
-- The player is the second row of `.editor-region`, on `--color-chrome`. Catalogue song
+- The player lives in the stable `.workspace-media` sibling of `.editor-region`, on `--color-chrome`. Catalogue song
   identity and attribution sit above the controls in the same surface; the control row
-  keeps compact targets (`MediaStrip.svelte.test.ts`). With a software keyboard up it rides `--keyboard-top` (visualViewport
-  only — never `window.innerHeight`), and `keepFocus` keeps a button press from closing the
-  keyboard.
+  keeps compact targets on desktop and 44px transport targets on touch devices (`MediaStrip.svelte.test.ts`). On phones,
+  Audio explicitly discloses artwork and timing in the existing strip; playback and seek stay visible.
+  With a software keyboard up, the whole phone workspace fits the visual viewport and the
+  transport stays in flow; task navigation hides until the keyboard is dismissed. Wider layouts retain the `--keyboard-top` fallback (visualViewport
+  only — never `window.innerHeight`). `keepFocus` preserves focus on mouse and touch presses.
 - The player is an unboxed chrome area with spacing from the editor and footer. Its seek input clears the shared input shadow and hover
   background, so only the track and thumb draw; Play uses the default button tier beside
   quiet step controls. `MediaStrip.svelte.test.ts` pins the scrubber reset.
@@ -70,6 +72,45 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
 
 ## Decision record
 
+### Mobile views share one mounted player
+
+`Workspace` owns `.workspace-media` and `.workspace-video` as siblings of the editor and
+panel. On desktop, audio sits under the editor and a 16:9 video (about 356×200px)
+always floats at the editor’s bottom-right, including when writing is expanded.
+Both editor and video explicitly name grid column 1 so the overlay cannot displace
+lyrics into an implicit column. On portrait phones
+the active writing, review, or tool region is followed by the video, audio, and view navigation.
+Landscape phones place the video beside the active task. A portrait keyboard plus YouTube's
+200px video floor may need a scrolling workspace to preserve usable writing height.
+Neither media component belongs to a hidden view, so switching Write, Review, and Tools
+keeps transport and the YouTube frame visible without rebuilding the player or losing its
+playhead. `MobileMedia.svelte.test.ts` pins the frame identity, visibility, minimum dimensions,
+and playback across those transitions. `RightPanel` still renders its own video by default
+when used independently; Workspace passes `renderVideo={false}` so there is one mount. `DesktopMedia.svelte.test.ts` pins real lyric visibility, the full-height dock,
+the desktop overlay's 16:9 bounds, and the same provider through resizing and mobile view switches.
+
+Mobile playback has one compact row for stepping, play/pause, elapsed time, seek, and
+Audio. The Audio disclosure uses the shared base button plus its quiet modifier; omitting
+the base class let Safari draw a native blue rectangular control. Its expanded details
+use separate unboxed rows for speed/loop/follow, timing, and file identity. During sync,
+Stop and Tap share a stable row, with optional Skip timed lines below it. Mobile hides
+the duration readout and keyboard-only hint; the seek control still exposes total time
+in its accessible value. Desktop retains its inline controls and duration.
+`MediaStrip.svelte.test.ts` checks the 320px/390px control bounds and sync row arrangement.
+
+The software keyboard now sizes the whole phone workspace. `trackKeyboardInset` publishes
+`--visual-viewport-height` from `visualViewport.height` and `--visual-viewport-offset` from
+`visualViewport.offsetTop`, alongside the existing bottom-edge `--keyboard-top`. The phone
+workspace takes that height and offset; playback remains in its grid row, and the editor
+or tool composer receives the space above it. This avoids a transport overlay obscuring the
+last lyric lines or a tool's focused field. The inset flag still uses the observed drop
+in visual viewport height, resets its baseline on rotation, and polls while the keyboard
+is up. The values are cleared together on dismissal and teardown. Wider layouts retain
+the original fixed-strip fallback described below.
+
+This supersedes the historical editor-region ownership and phone fixed-strip positioning
+recorded below; source state, keyboard detection, and focus preservation remain shared.
+
 ### Song identity belongs with playback
 
 The compact catalogue artwork row now lives inside `MediaStrip`, above playback, rather
@@ -80,9 +121,10 @@ padding separates its controls from footer text. Wide layouts place artwork, son
 and attribution in that order on one row; narrower layouts preserve seek width by stacking them. The pending state
 names the song at the row's start, with the pencil immediately to its right, and parks Load at the far end, so the Load
 control keeps a stable home instead of sliding with the length of the song's name. It
-uses the same control-row height and padding as loaded playback, so loading
-replaces the command without resizing the control bar. `MediaStrip.svelte.test.ts`
-compares the pending and loaded heights. Equal block padding centers both states in the
+uses one control row with the same outer padding as loaded playback. Narrow desktop
+windows reserve no empty second row: loading grows the strip only when the playback
+and timing controls actually wrap. `MediaStrip.svelte.test.ts` checks pending height
+and wrapped playback on both sides of the 40rem breakpoint. Equal block padding centers both states in the
 space below the editor; a separate top margin previously added to the top padding and
 pushed the controls down. Inline clearance inside the controls' scrollport keeps the
 outer buttons' shadow rings visible without moving their aligned edges. The whole loaded player settles upward by
@@ -111,9 +153,18 @@ keep their visible Load audio / Reconnect audio wording inside the accessible na
 the song and source following it; the busy label likewise includes Loading….
 `MediaStrip.svelte.test.ts` covers those names.
 
-The complete player publishes its measured height for toast clearance and rides the
-software keyboard as one unit. On phones, timing controls wrap below playback so speed,
-follow, and syncing remain visible; an unusually long active-sync row can still scroll.
+The complete player publishes its measured height for toast clearance. The phone workspace
+fits above the software keyboard with playback in flow. On phones, the labelled Audio disclosure reveals artwork,
+source changes, speed, looping, follow, and syncing. Playback and seek remain visible while
+those secondary controls are collapsed; an active timing run keeps its controls visible.
+Expanded timing controls wrap, and the disclosure dismisses on its own control, Escape,
+and an outside press. A playback press preserves the caret and leaves disclosure state alone.
+`MediaStrip.svelte.test.ts` pins the compact view, touch target size, expansion, dismissal,
+and playback after dismissal. Focus retention cancels `mousedown` only, including the
+compatibility mouse event from a touch. Cancelling `pointerdown` preserved focus but
+suppressed WebKit's activation click: Play stayed Play and the song never started.
+The component test pins the uncancelled touch pointerdown, and the real WAV playback
+flow in `e2e/mobile-workbench.spec.ts` pins a working Safari tap with the editor still focused.
 `MediaStrip.svelte.test.ts` covers attribution before artwork, controls, pending actions,
 focus retention, and measured toast clearance. Earlier records below describe the layouts
 this arrangement supersedes; source loading, playback, and persistence rules still apply.
@@ -713,3 +764,9 @@ source or draft clears it too; it is listening state, never saved timing data. S
 it before tapping starts, because a repeating tape cannot advance a timing run sensibly.
 `media-player.test.ts` exercises replay, pause/resume, refusal of an empty interval, outside seek,
 source replacement, and stopping without pausing; `MediaStrip.svelte.test.ts` exercises its controls.
+
+Mobile viewport geometry is published even while no keyboard is detected, including a rotation
+with the keyboard already open. Pinch zoom freezes the unzoomed layout dimensions. The keyboard
+flag continues to own the wide-layout floating transport, but mobile sizing does not depend on
+an unoccluded baseline. The desktop editor spans the media grid row with its bottom margin read
+from the strip's published height, so a taller video never shortens the lyric column.

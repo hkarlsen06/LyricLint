@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { MediaQuery } from 'svelte/reactivity';
+	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
+	import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 	import { Music, PanelRightClose, PanelRightOpen, Search } from 'lucide-svelte';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
@@ -15,6 +18,13 @@
 		openMediaPicker?: (source: HTMLButtonElement) => void;
 	} = $props();
 
+	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
+	const canAssign = $derived(
+		!controller.snapshot.composing &&
+			controller.editor.requestPerformerAssignment !== undefined &&
+			canAssignVoiceGroup(controller.snapshot.parsed, controller.snapshot.selection)
+	);
+
 	// The same question `transportModifier` asks, and deliberately not that
 	// function: the transport folds a chord down to one modifier because it has
 	// three glyphs and no room for words. These are the editor's own bindings and
@@ -23,7 +33,7 @@
 
 	// Commands that are always available — never a selection, a chorus, or an
 	// attachment away from working. `Ctrl-Alt-P` and `Mod-Shift-L` are
-	// deliberately absent: each needs a selection or shared linked lyrics and
+	// absent from the permanent desktop row: each needs a selection or shared linked lyrics and
 	// refuses out loud the rest of the time, and a tray that spends most of its
 	// life offering answers it cannot give is the thing `availableRates` and
 	// `spotifyAvailable` both exist to prevent. Bold and italic are absent for
@@ -76,33 +86,18 @@
 	);
 </script>
 
-<!--
-	The editor column's own commands, as a tray hanging off the toolbar at the
-	right of the column, against the panel.
-
-	It takes the width its two controls need and stops, rather than running the
-	width of the document: a band drawn all the way across makes the row the
-	object, and the row is then mostly empty gutter with two words at one end of
-	it. Against the panel it is the tab strip's own chrome carried a little way
-	out over the document — same height, one continuous edge — which is what a
-	tray of this size has to belong to. Adrift at the left of the column it
-	belonged to nothing.
-
-	**The controls are glyphs, and what they are is a tooltip.** Spelled out, the
-	two labels and their shortcut captions were 243px of the document's own top
-	row for two commands — five times what the glyphs need, permanently, to say
-	something a transcriber reads once. The name and the keystroke arrive together
-	on hover, through the shared `describeControl`, which is the same box the
-	transport's own three controls use.
-
-	What that costs is named rather than hidden: a tooltip is not a thing a finger
-	can produce. The accessible name carries the whole label at every state, so
-	nothing is lost to a screen reader, but a sighted touch user meets two marks
-	and no words — which is the trade this shape makes, and the reason `[?]` keeps
-	its mark in the glyph rather than being drawn as an abstract icon. The mark is
-	what the button writes.
--->
-<div class="editor-actions" role="group" aria-label="Document actions">
+<!-- Cancel mouse down to retain the lyric selection while commands activate.
+     Keep touch pointer down uncancelled: Safari otherwise suppresses the native
+     click and Section/Find/Assign voices silently do nothing (as with playback).
+     Desktop glyphs disclose their names through the shared tooltip. Phones name
+     the section and search commands directly, and offer assignment for a valid
+     retained selection; the phone navigation owns returning to tools. -->
+<div
+	class:editor-actions--phone={phone.current}
+	class="editor-actions"
+	role="group"
+	aria-label="Document actions"
+>
 	{#each actions as action (action.id)}
 		<button
 			type="button"
@@ -110,10 +105,13 @@
 			aria-label={action.label}
 			aria-keyshortcuts={action.keyshortcuts}
 			aria-pressed={action.id === 'find' ? controller.searchOpen : undefined}
+			onmousedown={(event) => event.preventDefault()}
 			onclick={action.run}
 			{@attach describeControl(() => ({ label: action.label, shortcut: action.caption }))}
 		>
-			{#if action.mark}
+			{#if phone.current}
+				{action.id === 'section' ? 'Section' : action.id === 'unknown' ? '[?]' : 'Find'}
+			{:else if action.mark}
 				<span class="editor-actions__mark" aria-hidden="true">{action.mark}</span>
 			{:else if action.id === 'find'}
 				<!-- `1em` and `currentColor`, the rule the loading mark states: a glyph
@@ -140,7 +138,15 @@
 			<Music class="editor-actions__glyph" aria-hidden="true" size="1em" strokeWidth={2.25} />
 		</button>
 	{/if}
-	{#if onToggleEditor}
+	{#if phone.current && canAssign}
+		<button
+			type="button"
+			class="button--quiet editor-actions__button"
+			onmousedown={(event) => event.preventDefault()}
+			onclick={() => controller.editor.requestPerformerAssignment?.()}>Assign voices</button
+		>
+	{/if}
+	{#if onToggleEditor && !phone.current}
 		<button
 			type="button"
 			class="button--quiet editor-actions__button"
@@ -170,3 +176,17 @@
 		</button>
 	{/if}
 </div>
+
+<style>
+	.editor-actions--phone {
+		max-width: 100%;
+		padding-inline: var(--space-1);
+		gap: 0;
+	}
+	.editor-actions--phone .editor-actions__button {
+		min-height: var(--control-height-touch);
+		min-width: var(--control-height-touch);
+		padding-inline: var(--space-2);
+		font-size: var(--font-size-sm);
+	}
+</style>

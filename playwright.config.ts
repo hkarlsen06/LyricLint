@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 const port = Number.parseInt(process.env.PORT ?? '4173', 10);
 const baseURL = `http://127.0.0.1:${port}`;
@@ -11,9 +11,20 @@ export default defineConfig({
 	forbidOnly: !!process.env.CI,
 	use: {
 		baseURL,
-		permissions: ['clipboard-read', 'clipboard-write'],
 		trace: 'retain-on-failure'
 	},
+	projects: [
+		{
+			name: 'chromium',
+			testIgnore: '**/mobile-workbench.spec.ts',
+			use: { browserName: 'chromium', permissions: ['clipboard-read', 'clipboard-write'] }
+		},
+		{
+			name: 'mobile-webkit',
+			testMatch: '**/mobile-workbench.spec.ts',
+			use: { ...devices['iPhone 13'], browserName: 'webkit' }
+		}
+	],
 	webServer: process.env.PORT
 		? undefined
 		: {

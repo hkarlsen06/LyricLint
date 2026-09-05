@@ -27,9 +27,10 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   is what keeps performer tagging from ending section-link differences nobody touched — the
   fix lives in the transform, not the mirror. Pinned in `transform-boundaries.test.ts` and
   `section-links.svelte.test.ts`.
-- The picker opens uninvited on exactly two conditions — `select.pointer` gestures only, and
-  `canAssignVoiceGroup` ranges only — and is **silent** when either fails; `Ctrl-Alt-P` asks
-  the same predicate and refuses out loud. One flag on the anchor, `offersAssignment`. An
+- The picker opens uninvited for `select.pointer` gestures over `canAssignVoiceGroup` ranges,
+  except in the touch task layout (coarse pointer through `68rem`), where native selection
+  handles and editing menus own that gesture. Assign voices and `Ctrl-Alt-P` explicitly ask
+  the same predicate and refuse out loud. One flag on the anchor, `offersAssignment`. An
   anchor with nothing to offer leaves an open picker standing; only `undefined` retires it.
 - The uninvited surface does not take focus (`takesFocus`, same flag the diagnostic popover
   carries); the `↵` glyph on the action comes off with it. Pinned in
@@ -82,6 +83,21 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   voices*).
 
 ## Decision record
+
+### Native touch selection is editing, not an assignment request
+
+A phone selection opens native handles and the system edit menu. Automatically placing the
+performer picker over those controls interrupts copying, replacing, and adjusting the selected
+range. `selectionAnchorForView` therefore withholds `offersAssignment` while the shared
+`PHONE_LAYOUT_QUERY` matches, even when CodeMirror calls the transaction `select.pointer`.
+The query lives in `src/lib/interaction/phone-layout.ts` so editor and shell share the
+boundary without an editor dependency on the shell. It still reports selection geometry,
+and it leaves explicit Assign voices, keyboard shortcuts, and diagnostic requests unchanged.
+The gate belongs beside the existing assignment predicate so the overlay receives one decision.
+Fine-pointer desktop selections and coarse-pointer layouts wider than `68rem` retain the
+automatic picker: the replacement Assign voices control is only offered in the touch task
+layout. `EditorPane.svelte.test.ts` pins the quiet touch selection, the explicit handle command
+over exactly the retained range, and automatic assignment in the wide touch layout.
 
 ### A provisional character does not erase settled performers
 
@@ -162,8 +178,8 @@ are the `workbench performer renames` block in `workbench.test.ts`.
 
 ### A surface that opens itself has to have been asked, twice over
 
-The performer picker is the one overlay in the workbench that appears without a press aimed at
-it: select lyric text and it is there. That is worth having — assignment is the workbench's one
+On a fine-pointer desktop, the performer picker is the one overlay in the workbench that appears
+without a press aimed at it: select lyric text and it is there. That is worth having — assignment is the workbench's one
 selection-scoped job, and a card that arrives with the selection is faster than any command — but
 it puts the surface on the most common gesture in a text editor. People select text to re-read a
 line, to drag it, to delete it and type over it. So it opens on two conditions, and **it is silent

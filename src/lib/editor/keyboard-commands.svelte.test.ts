@@ -1,4 +1,4 @@
-import { page, userEvent } from 'vitest/browser';
+import { cdp, page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { EditorView } from '@codemirror/view';
@@ -133,6 +133,48 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 			range: { from: 8, to: 11 },
 			prefer: 'above'
 		});
+	});
+
+	it('keeps phone search and replacement controls readable, touchable, and within the editor', async () => {
+		await page.viewport(320, 740);
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+		try {
+			const { handle } = await mount({ text: '[Verse]\nWords here\nWords again' });
+			handle.toggleSearch?.();
+			await page.getByRole('textbox', { name: 'Find', exact: true }).fill('Words');
+			await page.getByRole('textbox', { name: 'Replace with' }).fill('Lines');
+			await expect.element(page.getByRole('button', { name: 'Replace all 2' })).toBeVisible();
+			const panel = document.querySelector<HTMLElement>('.ll-find')!;
+			const bounds = panel.getBoundingClientRect();
+			for (const control of panel.querySelectorAll<HTMLElement>('input, button')) {
+				const box = control.getBoundingClientRect();
+				if (box.width === 0) continue;
+				expect(box.height).toBeGreaterThanOrEqual(44);
+				expect(box.width).toBeGreaterThanOrEqual(44);
+				expect(box.left).toBeGreaterThanOrEqual(bounds.left);
+				expect(box.right).toBeLessThanOrEqual(bounds.right);
+				if (control instanceof HTMLInputElement) {
+					expect(parseFloat(getComputedStyle(control).fontSize)).toBeGreaterThanOrEqual(16);
+				}
+			}
+		} finally {
+			await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+			await page.viewport(800, 600);
+		}
+	});
+
+	it('opens the same performer picker from the touch command without changing the selection', async () => {
+		const { handle, editorCallbacks } = await mount({
+			text: '[Verse]\nFirst line',
+			selection: { anchor: 8, head: 13 }
+		});
+		handle.requestPerformerAssignment?.();
+		expect(editorCallbacks.onAssignRequest).toHaveBeenCalledWith({
+			range: { from: 8, to: 13 },
+			prefer: 'above'
+		});
+		expect(handle.getSnapshot().selection).toEqual({ anchor: 8, head: 13 });
+		await expect.element(page.getByRole('dialog', { name: 'Assign performers' })).toBeVisible();
 	});
 
 	it('keeps Alt+P as an alias for performer assignment', async () => {

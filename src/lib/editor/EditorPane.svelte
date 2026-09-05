@@ -76,7 +76,8 @@
 		ondestroyed,
 		sectionGhosts = true,
 		autoHeight = false,
-		windowFind = true
+		windowFind = true,
+		diagnosticsInPanel = false
 	}: EditorPaneProps = $props();
 	let host: HTMLDivElement;
 	let editor = $state.raw<LyricEditorInstance | undefined>();
@@ -356,6 +357,13 @@
 		);
 	}
 
+	function requestDiagnosticReview(diagnostic: Diagnostic): boolean {
+		if (!diagnosticsInPanel) return false;
+		session = closeOverlay(session);
+		callbacks.onDiagnosticActivate(diagnostic);
+		return true;
+	}
+
 	function internalCallbacks(): LyricEditorCallbacks {
 		return {
 			...callbacks,
@@ -398,11 +406,14 @@
 			// Every caller of this one is a pointer: the hovered underline and the
 			// cluster badge. It shows the card where the text already is; the shell
 			// only gets to mark the matching entry, never to travel to it.
+			onDiagnosticReviewRequest: requestDiagnosticReview,
 			onDiagnosticActivate(diagnostic, range) {
+				if (diagnosticsInPanel) return;
 				session = activateDiagnostic(session, diagnostic, false, range);
 				callbacks.onDiagnosticHighlight?.(diagnostic);
 			},
 			onDiagnosticActivateIntent(diagnostic) {
+				if (requestDiagnosticReview(diagnostic)) return;
 				session = activateDiagnostic(session, diagnostic, true);
 				callbacks.onDiagnosticActivate(diagnostic);
 			},
@@ -971,7 +982,7 @@
 		onCancel={() => (session = closeOverlay(session))}
 		{returnFocus}
 	/>
-{:else if diagnosticOverlay}
+{:else if diagnosticOverlay && !diagnosticsInPanel}
 	<DiagnosticPopover
 		diagnostic={diagnosticOverlay.diagnostic}
 		sources={context.sources}

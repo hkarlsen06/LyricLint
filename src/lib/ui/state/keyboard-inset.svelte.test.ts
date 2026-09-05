@@ -13,13 +13,14 @@ function stubViewport(height: number, width = 400) {
 		height,
 		width,
 		offsetTop: 0,
+		scale: 1,
 		addEventListener: (_: string, listener: () => void) => listeners.add(listener),
 		removeEventListener: (_: string, listener: () => void) => listeners.delete(listener)
 	};
 	Object.defineProperty(window, 'visualViewport', { value: viewport, configurable: true });
 	return {
 		/** Move the visible viewport and let the tracker settle on the next frame. */
-		async set(next: Partial<{ height: number; width: number; offsetTop: number }>) {
+		async set(next: Partial<{ height: number; width: number; offsetTop: number; scale: number }>) {
 			Object.assign(viewport, next);
 			for (const listener of listeners) listener();
 			await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -83,6 +84,8 @@ describe('trackKeyboardInset', () => {
 		await viewport.set({ height: 480, offsetTop: 40 });
 
 		expect(keyboardTop()).toBe('520px');
+		expect(root.style.getPropertyValue('--visual-viewport-height')).toBe('480px');
+		expect(root.style.getPropertyValue('--visual-viewport-offset')).toBe('40px');
 		stop();
 	});
 
@@ -133,6 +136,20 @@ describe('trackKeyboardInset', () => {
 		stop();
 	});
 
+	it('keeps mobile geometry through keyboard rotation and preserves layout during pinch zoom', async () => {
+		const viewport = stubViewport(800);
+		const stop = trackKeyboardInset();
+		await viewport.set({ height: 450 });
+		await viewport.set({ width: 800, height: 220 });
+		expect(root.style.getPropertyValue('--visual-viewport-height')).toBe('220px');
+		await viewport.set({ scale: 2, width: 400, height: 110, offsetTop: 80 });
+		expect(root.style.getPropertyValue('--visual-viewport-height')).toBe('220px');
+		expect(root.style.getPropertyValue('--visual-viewport-offset')).toBe('0px');
+		await viewport.set({ scale: 1, width: 800, height: 380, offsetTop: 0 });
+		expect(root.style.getPropertyValue('--visual-viewport-height')).toBe('380px');
+		stop();
+	});
+
 	it('unbinds and clears what it published', async () => {
 		const viewport = stubViewport(800);
 		const stop = trackKeyboardInset();
@@ -141,6 +158,8 @@ describe('trackKeyboardInset', () => {
 		stop();
 
 		expect(viewport.listenerCount).toBe(0);
+		expect(root.style.getPropertyValue('--visual-viewport-height')).toBe('');
+		expect(root.style.getPropertyValue('--visual-viewport-offset')).toBe('');
 		expect(keyboardTop()).toBe('');
 		expect(root.dataset.keyboardInset).toBeUndefined();
 	});

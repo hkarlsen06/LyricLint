@@ -2,6 +2,7 @@
 	import { ListChecks, WandSparkles, UsersRound, Music2, SlidersHorizontal } from 'lucide-svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { Tabs } from 'bits-ui';
+	import type { Diagnostic } from '$lib/core/types.js';
 	import { assistantAvailable } from '$lib/assistant/api.js';
 	import { matchIgnoredDiagnostics } from '$lib/diagnostics/ignore.js';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
@@ -17,11 +18,21 @@
 	let {
 		controller,
 		assistant,
-		collapsed = false
+		collapsed = false,
+		mobile = false,
+		reviewFocused = false,
+		onOpenFinding,
+		onReviewList,
+		renderVideo = true
 	}: {
 		controller: WorkbenchController;
 		assistant?: AssistantState;
 		collapsed?: boolean;
+		mobile?: boolean;
+		reviewFocused?: boolean;
+		onOpenFinding?: (diagnostic: Diagnostic) => void;
+		onReviewList?: () => void;
+		renderVideo?: boolean;
 	} = $props();
 
 	// Keep arrow-key navigation aligned with the dock's CSS orientation.
@@ -97,21 +108,23 @@
 	>
 		<div class="right-panel__header">
 			<Tabs.List class="panel-tabs" aria-label="Document panels">
-				<Tabs.Trigger id="linter-panel-tab" value="linter">
-					<span>Review</span>
-					<span class="panel-tabs__mark">
-						<ListChecks aria-hidden="true" size={20} strokeWidth={1.75} />
-						{#if controller.visibleDiagnostics.length > 0}
-							<!-- `role="img"`, the toast count's own pattern: a name on a bare
+				{#if !mobile || controller.activeTab === 'linter'}
+					<Tabs.Trigger id="linter-panel-tab" value="linter">
+						<span>Review</span>
+						<span class="panel-tabs__mark">
+							<ListChecks aria-hidden="true" size={20} strokeWidth={1.75} />
+							{#if controller.visibleDiagnostics.length > 0}
+								<!-- `role="img"`, the toast count's own pattern: a name on a bare
 							     `<span>` has no role to attach to, so the badge reached the
 							     tab's accessible name as a loose number with nothing saying
 							     what it counted. -->
-							<span class="tab-count" role="img" aria-label={diagnosticBadgeLabel}
-								>{controller.visibleDiagnostics.length}</span
-							>
-						{/if}
-					</span>
-				</Tabs.Trigger>
+								<span class="tab-count" role="img" aria-label={diagnosticBadgeLabel}
+									>{controller.visibleDiagnostics.length}</span
+								>
+							{/if}
+						</span>
+					</Tabs.Trigger>
+				{/if}
 				{#if assistantEnabled}
 					<Tabs.Trigger value="assistant" aria-label="Assistant">
 						<WandSparkles aria-hidden="true" size={20} strokeWidth={1.75} />
@@ -139,7 +152,14 @@
 		     has a foot to pin it to. -->
 			<div class="right-panel__body">
 				<Tabs.Content value="linter" class="right-panel__pane">
-					<LinterPanel {controller} active={!collapsed} />
+					<LinterPanel
+						{controller}
+						active={!collapsed}
+						{mobile}
+						{reviewFocused}
+						{onOpenFinding}
+						{onReviewList}
+					/>
 				</Tabs.Content>
 				<Tabs.Content value="performers" class="right-panel__pane">
 					<PerformersPanel {controller} />
@@ -185,7 +205,7 @@
 		     same two hundred taken off the document costs the thing being typed
 		     into. The transport stays under the editor, which is the honest reading
 		     of what it controls. -->
-			{#if controller.media?.player.sourceKind === 'youtube'}
+			{#if renderVideo && controller.media?.player.sourceKind === 'youtube'}
 				<MediaVideo media={controller.media} />
 			{/if}
 		</div>

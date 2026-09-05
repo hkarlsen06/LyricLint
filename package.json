@@ -16,7 +16,7 @@
 		"render:social": "bun scripts/render-social-preview.mjs",
 		"render:workbench": "bun scripts/render-workbench-shot.mjs",
 		"render:motion": "node scripts/render-motion.mjs",
-		"test:browsers": "playwright install --with-deps chromium",
+		"test:browsers": "playwright install --with-deps chromium webkit",
 		"test:e2e": "bun run test:browsers && playwright test",
 		"test": "bun run test:browsers && bun run check && bun run lint && bun run test:unit -- --run && bun run assistant:test && playwright test",
 		"test:unit": "vitest",

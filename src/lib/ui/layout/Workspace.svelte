@@ -53,6 +53,11 @@
 	import { carryHarperDiagnosticsAcrossEdit } from '../state/harper-continuity.js';
 	import { trackKeyboardInset } from '../state/keyboard-inset.js';
 	import RightPanel from './RightPanel.svelte';
+	import MediaVideo from '../media/MediaVideo.svelte';
+	import { MediaQuery } from 'svelte/reactivity';
+	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
+	import type { RightPanelTab } from '../state/panel-view.svelte.js';
+	import type { Diagnostic } from '$lib/core/types.js';
 
 	let {
 		controller,
@@ -71,12 +76,56 @@
 	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
 	let editorExpanded = $state(false);
 	let workspaceElement = $state<HTMLElement>();
+	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
+	const floatingVideo = $derived(!phone.current);
+	type MobileView = 'write' | 'review' | 'tools';
+	let mobileView = $state<MobileView>('write');
+	let reviewFocused = $state(false);
+	let toolsTab: RightPanelTab = 'song';
+	const panelCollapsed = $derived(phone.current ? mobileView === 'write' : editorExpanded);
+	const editorHidden = $derived(
+		phone.current && (mobileView === 'tools' || (mobileView === 'review' && !reviewFocused))
+	);
 	let previousTab = untrack(() => controller.activeTab);
 	$effect(() => {
 		const tab = controller.activeTab;
-		if (tab !== previousTab) editorExpanded = false;
+		if (tab !== previousTab) {
+			editorExpanded = false;
+			if (phone.current) mobileView = tab === 'linter' ? 'review' : 'tools';
+		}
+		if (tab !== 'linter') toolsTab = tab;
 		previousTab = tab;
 	});
+
+	function showMobileView(view: MobileView): void {
+		mobileView = view;
+		reviewFocused = false;
+		if (view === 'review') controller.setActiveTab('linter');
+		if (view === 'tools') controller.setActiveTab(toolsTab);
+		// Switching surfaces never focuses the editor: reopening the keyboard is
+		// the user's tap on the passage, not a side effect of navigation.
+	}
+
+	async function showReviewList(): Promise<void> {
+		reviewFocused = false;
+		await tick();
+		const rows = workspaceElement?.querySelectorAll<HTMLElement>('[data-diagnostic-key]');
+		const selected = Array.from(rows ?? []).find(
+			(row) => row.dataset.diagnosticKey === controller.activeDiagnosticKey
+		);
+		(selected ?? rows?.[0])
+			?.querySelector<HTMLButtonElement>('.diagnostic-list__navigate')
+			?.focus();
+	}
+
+	async function openMobileFinding(diagnostic: Diagnostic): Promise<void> {
+		if (!phone.current || mobileView !== 'review') return;
+		reviewFocused = true;
+		await tick();
+		// Reveal after the editor has acquired its review-context height.
+		if (!phone.current || mobileView !== 'review') return;
+		controller.navigateToDiagnostic(diagnostic, { focus: false });
+	}
 
 	async function toggleEditor(): Promise<void> {
 		editorExpanded = !editorExpanded;
@@ -95,7 +144,9 @@
 		void mediaPicker?.open(source, () => {
 			workspace
 				?.querySelector<HTMLButtonElement>(
-					'button[aria-label="Add audio source"], button[aria-label="Change audio source"]'
+					phone.current
+						? 'button[aria-label="Audio details"], button[aria-label="Add audio source"]'
+						: 'button[aria-label="Add audio source"], button[aria-label="Change audio source"]'
 				)
 				?.focus();
 		});
@@ -576,7 +627,24 @@
 		onSearchOpenChange: (open) => controller.noteSearchOpen(open),
 		// Keyboard diagnostic navigation travels to the diagnostic; hovering one in
 		// the editor only marks its card, leaving the text under the pointer still.
-		onDiagnosticActivate: (diagnostic) => controller.navigateToDiagnostic(diagnostic),
+		onDiagnosticActivate: (diagnostic) => {
+			if (!phone.current) {
+				controller.navigateToDiagnostic(diagnostic);
+				return;
+			}
+			mobileView = 'review';
+			controller.setActiveTab('linter');
+			controller.highlightDiagnostic(diagnostic);
+			void openMobileFinding(diagnostic).then(async () => {
+				await tick();
+				// Hand focus to Review to dismiss the typing keyboard without refocusing lyrics.
+				if (phone.current && mobileView === 'review') {
+					workspaceElement
+						?.querySelector<HTMLElement>('.diagnostic-card--expanded .diagnostic-list__navigate')
+						?.focus({ preventScroll: true });
+				}
+			});
+		},
 		onDiagnosticHighlight: (diagnostic) => controller.highlightDiagnostic(diagnostic),
 		onAnnouncement: (message) => controller.feedback.announce(message),
 		createPerformerEdit: ({ range, performerIds, sectionPerformerIds }) => {
@@ -736,7 +804,8 @@
 				// 0 included, would destroy the one position somebody chose.
 				if (startAt !== undefined) player?.seek(startAt);
 				player?.play();
-				// The tap is a keystroke, so the run cannot start with focus in the
+				// On phones, focus the tap control so syncing never opens the keyboard.
+				// On desktop the tap is a keystroke, so the run cannot start with focus in the
 				// button that started it. This is a deliberate focus move into a mode
 				// the user just asked for, not the editor grabbing the caret — and it
 				// is deferred a frame, because this hook fires synchronously inside
@@ -748,7 +817,12 @@
 				// the tape — came up with the space bar answering nothing. One frame
 				// later the press has fully played out and nothing contests it.
 				requestAnimationFrame(() => {
-					if (syncing) editorHandle?.focus();
+					if (!syncing) return;
+					if (phone.current) {
+						workspaceElement
+							?.querySelector<HTMLButtonElement>('.media-strip__tap')
+							?.focus({ preventScroll: true });
+					} else editorHandle?.focus();
 				});
 			} else {
 				player?.pause();
@@ -1004,7 +1078,10 @@
 <main
 	bind:this={workspaceElement}
 	class="workspace"
-	class:workspace--expanded={editorExpanded}
+	class:workspace--expanded={!phone.current && editorExpanded}
+	data-mobile-view={mobileView}
+	data-video-floating={floatingVideo}
+	data-review-focused={reviewFocused}
 	data-testid="workspace"
 >
 	<h1 class="sr-only">LyricLint transcription workbench</h1>
@@ -1014,7 +1091,12 @@
 	     editor half of it. The panel's tabs then hang directly under it. -->
 	<DocumentToolbar {controller} {brandRevealed} />
 
-	<section class="editor-region" aria-label="Lyrics workspace">
+	<section
+		class="editor-region"
+		aria-label="Lyrics workspace"
+		aria-hidden={editorHidden}
+		inert={editorHidden}
+	>
 		<!-- Level with the panel's tab strip, so the two read as one band under the
 		     toolbar: the editor's commands at the left of the window, the panel's
 		     tabs at the right. -->
@@ -1032,12 +1114,29 @@
 					initialSelection={controller.snapshot.selection}
 					initialRevision={controller.snapshot.revision}
 					context={editorContext}
+					diagnosticsInPanel={phone.current}
 					callbacks={editorCallbacks}
 					bind:handle={editorHandle}
 				/>
 			{/key}
 		</div>
+	</section>
 
+	<RightPanel
+		{controller}
+		{assistant}
+		collapsed={panelCollapsed}
+		mobile={phone.current}
+		{reviewFocused}
+		onOpenFinding={openMobileFinding}
+		onReviewList={showReviewList}
+		renderVideo={false}
+	/>
+
+	{#if controller.media?.player.sourceKind === 'youtube'}
+		<div class="workspace-video"><MediaVideo media={controller.media} /></div>
+	{/if}
+	<div class="workspace-media">
 		<!-- Only when there is something to control: an empty transport reports a
 		     state that could not have been otherwise, which is the same reason the
 		     counts in the Song tab wait for a count worth stating. -->
@@ -1050,9 +1149,33 @@
 				{openMediaPicker}
 			/>
 		{/if}
-	</section>
+	</div>
 
-	<RightPanel {controller} {assistant} collapsed={editorExpanded} />
+	<nav class="mobile-navigation" aria-label="Workbench views">
+		<button
+			type="button"
+			class="button button--quiet"
+			aria-pressed={mobileView === 'write'}
+			onclick={() => showMobileView('write')}>Write</button
+		>
+		<button
+			id="mobile-review-control"
+			type="button"
+			class="button button--quiet"
+			aria-pressed={mobileView === 'review'}
+			onclick={() => showMobileView('review')}
+		>
+			{controller.visibleDiagnostics.length > 0
+				? `Review (${controller.visibleDiagnostics.length})`
+				: 'Review'}
+		</button>
+		<button
+			type="button"
+			class="button button--quiet"
+			aria-pressed={mobileView === 'tools'}
+			onclick={() => showMobileView('tools')}>Tools</button
+		>
+	</nav>
 
 	{#if controller.media}
 		<!-- One shared audio dialog behind the tray's note glyph and the strip's

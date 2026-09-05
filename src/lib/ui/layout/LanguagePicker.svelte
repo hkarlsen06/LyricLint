@@ -5,7 +5,10 @@
 	import { tick } from 'svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let {
+		controller,
+		expandedLabel = false
+	}: { controller: WorkbenchController; expandedLabel?: boolean } = $props();
 	let dialog: HTMLDialogElement;
 	let trigger: HTMLButtonElement;
 	let searchInput: HTMLInputElement;
@@ -121,7 +124,9 @@
 	onclick={open}
 >
 	<Globe aria-hidden="true" size={16} strokeWidth={2} />
-	<span aria-hidden="true">{controller.language}</span>
+	<span aria-hidden="true"
+		>{expandedLabel ? `Language: ${selectedLabel}` : controller.language}</span
+	>
 </button>
 
 <dialog
@@ -343,6 +348,13 @@
 		.language-dialog {
 			width: calc(100vw - var(--space-2));
 			height: calc(100dvh - var(--space-2));
+		}
+	}
+	@media (pointer: coarse) {
+		/* Match the scoped field selector: its generated class outranks the
+		   workbench's generic input floor. */
+		.language-search input {
+			font-size: var(--font-size-lg);
 		}
 	}
 </style>

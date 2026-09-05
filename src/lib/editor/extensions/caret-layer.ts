@@ -18,7 +18,9 @@ import type { Extension } from '@codemirror/state';
  * `above: true`, painted over the content, with its own z-index above the
  * highlight's. Only the main cursor is drawn, because multiple selection
  * ranges are a feature this editor does not use, and the native caret is
- * turned transparent in the content theme so there are not two.
+ * turned transparent in the content theme so there are not two. Devices whose
+ * primary pointer is touch keep the native caret and selection handles instead;
+ * a touch-capable desktop with a fine primary pointer keeps the drawn caret.
  */
 
 const caretMarkers = layer({
@@ -59,6 +61,9 @@ const caretTheme = EditorView.baseTheme({
 		borderLeft: 'var(--editor-caret-width) solid var(--color-accent)',
 		marginLeft: 'calc(var(--editor-caret-width) / -2)',
 		pointerEvents: 'none'
+	},
+	'@media (pointer: coarse)': {
+		'.ll-caret-layer': { display: 'none' }
 	},
 	// Shown only while the editor holds focus, exactly as the native caret is.
 	'&.cm-focused .ll-caret': {

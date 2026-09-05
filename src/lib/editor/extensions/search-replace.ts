@@ -1,3 +1,4 @@
+import { PHONE_LAYOUT_QUERY } from '$lib/interaction/phone-layout.js';
 import {
 	SearchQuery,
 	findNext,
@@ -423,6 +424,19 @@ const searchReplaceTheme = EditorView.theme({
 		textDecoration: 'line-through',
 		textDecorationColor: 'var(--color-danger)',
 		textDecorationThickness: '2px'
+	},
+	// Phone actions occupy their own row, so search can use the complete width.
+	// Matches PHONE_WORKSPACE_QUERY without making the editor depend on the shell.
+	[`@media ${PHONE_LAYOUT_QUERY}`]: {
+		'.ll-find': { paddingInlineEnd: 'var(--space-2)' },
+		'.ll-find__group': { flexWrap: 'wrap', maxWidth: '100%' }
+	},
+	'@media (pointer: coarse)': {
+		'.ll-find input, .ll-find button': {
+			minHeight: 'var(--control-height-touch)',
+			minWidth: 'var(--control-height-touch)'
+		},
+		'.ll-find__field': { fontSize: 'var(--font-size-editor)' }
 	}
 });
 

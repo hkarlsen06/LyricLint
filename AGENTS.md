@@ -40,7 +40,7 @@ alters behavior a doc describes, **update the doc in the same commit**. `src/lib
 | Clipboard copy/paste metadata, the audio drop, editor↔shell hooks (`createCallbackProxy`)                                                                                           | `docs/subsystems/editor.md`         |
 | The landing page, generated shots and loops, the site palette and header, the wordmark, the favicon                                                                                 | `docs/subsystems/site.md`           |
 | `/rules/`, `/guidelines/`, their search, `SectionSplit`                                                                                                                             | `docs/subsystems/reference.md`      |
-| Phone/touch behavior, `responsive.css`, the touch notice                                                                                                                            | `docs/subsystems/responsive.md`     |
+| Phone/touch behavior, `responsive.css`, mobile task views                                                                                                                           | `docs/subsystems/responsive.md`     |
 | The service worker, offline behavior, deploy freshness                                                                                                                              | `docs/subsystems/service-worker.md` |
 
 The guidance catalog's content pipeline — adding entries, authority tiers, verification —

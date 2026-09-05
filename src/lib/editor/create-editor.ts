@@ -118,6 +118,7 @@ import { selectionAnchorPlugin } from './extensions/selection-anchor.js';
 import { searchReplace } from './extensions/search-replace.js';
 import { createUpdateListener, snapshotFromState } from './extensions/update-bridge.js';
 import {
+	assignPerformers,
 	lyricLintKeymap,
 	navigateDiagnostic,
 	openAvailableFix,
@@ -281,13 +282,18 @@ const editorTheme = EditorView.theme({
 		overflow: 'auto'
 	},
 	'.cm-content': {
-		padding: 'var(--space-6) var(--space-4) var(--space-8) var(--space-2)',
+		padding: 'var(--space-6) var(--space-4) var(--editor-scroll-padding) var(--space-2)',
 		// The visible caret is the drawn layer (extensions/caret-layer.ts): the
 		// native one paints under any child with a background, and this editor's
 		// lines are covered in deliberate fills — on a performer-tinted line it
 		// typed into the right place and could not be seen. Transparent rather
 		// than removed, so there are not two carets where the fills are absent.
+		// Touch devices restore the native caret below: iOS also uses its color
+		// for the selection handles.
 		caretColor: 'transparent'
+	},
+	'@media (pointer: coarse)': {
+		'.cm-content': { caretColor: 'var(--color-accent)' }
 	},
 	'.cm-line': {
 		padding: '0 var(--space-1)',
@@ -556,6 +562,7 @@ const lyricEditorCallbackKeySet = {
 	onAddPerformer: true,
 	onPerformerRenamed: true,
 	onDiagnosticActivateIntent: true,
+	onDiagnosticReviewRequest: true,
 	onAudioFileDropped: true,
 	onRequestMediaTime: true,
 	onRequestMediaPlayback: true,
@@ -599,6 +606,8 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		onSetLanguage: (language) => read().onSetLanguage?.(language),
 		onAddPerformer: (displayName) => read().onAddPerformer?.(displayName),
 		onPerformerRenamed: (rename) => read().onPerformerRenamed?.(rename),
+		onDiagnosticReviewRequest: (diagnostic) =>
+			read().onDiagnosticReviewRequest?.(diagnostic) ?? false,
 		onDiagnosticActivateIntent: (diagnostic, intent) => {
 			const callbacks = read();
 			if (callbacks.onDiagnosticActivateIntent) {
@@ -1088,6 +1097,9 @@ export function createLyricEditor(
 				scrollIntoView: true,
 				annotations: Transaction.addToHistory.of(false)
 			});
+		},
+		requestPerformerAssignment() {
+			assignPerformers(callbackProxy)(view);
 		},
 		requestSectionHeader() {
 			requestSectionHeader(view, callbackProxy);

@@ -121,6 +121,7 @@
 
 	/* The drawn caret is centered on the insertion coordinate using half its width. */
 	--editor-caret-width: 1.5px;
+	--editor-scroll-padding: var(--space-8);
 
 	/* Shape and borders */
 	--border-width: 1px;
@@ -138,6 +139,10 @@
 	--control-height-sm: 1.75rem;
 	--control-height-md: 2rem;
 	--control-height-lg: 2.25rem;
+	--control-height-touch: 2.75rem;
+	--mobile-context-min: 8rem;
+	/* YouTube requires a visible frame of at least 200 CSS pixels. */
+	--media-video-min: 200px;
 	--control-padding-inline: var(--space-2-5);
 	--control-padding-block: var(--space-1);
 	--control-gap: var(--space-1-5);

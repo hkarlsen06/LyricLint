@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
+import { cdp, page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
@@ -90,7 +91,13 @@ function declaredMarginTop(selector: string): string | undefined {
 	return undefined;
 }
 
-afterEach(cleanup);
+afterEach(async () => {
+	cleanup();
+	if (window.matchMedia('(pointer: coarse)').matches) {
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+	}
+	await page.viewport(800, 600);
+});
 
 describe('the assistant panel', () => {
 	test.each(['Enter', 'Ask'])(
@@ -168,6 +175,24 @@ describe('the assistant panel', () => {
 		expect(container.querySelector('.assistant-empty .assistant-disclosure')).not.toBeNull();
 		expect(screen.getByRole('button', { name: 'New chat' })).not.toBeNull();
 		expect(screen.getByRole('button', { name: 'Conversations' })).not.toBeNull();
+	});
+
+	test('keeps narrow desktop composer appearance and resizes only after input', async () => {
+		expect(window.matchMedia('(pointer: fine)').matches).toBe(true);
+		await page.viewport(320, 844);
+		const { assistant } = panelAssistant();
+		render(AssistantPanel, { assistant });
+		const textarea = screen.getByRole('textbox', { name: 'Your question' }) as HTMLTextAreaElement;
+		await frames();
+		expect(textarea.style.height).toBe('');
+		expect(getComputedStyle(textarea).borderRadius).not.toBe('0px');
+		await page.getByRole('textbox', { name: 'Your question' }).hover();
+		await waitFor(() =>
+			expect(getComputedStyle(textarea).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+		);
+		await fireEvent.input(textarea, { target: { value: 'A long desktop question. '.repeat(30) } });
+		expect(textarea.style.height).toBe('144px');
+		expect(textarea.style.overflowY).toBe('auto');
 	});
 
 	test('keeps the conversations popover inside the narrow panel', async () => {
@@ -293,5 +318,50 @@ describe('the assistant panel', () => {
 				name: "Ask again before sharing this 'scribe"
 			})
 		).not.toBeNull();
+	});
+	test('fits a wrapped phone placeholder, revealed drafts, and long questions in one field', async () => {
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+		await page.viewport(320, 844);
+		const { assistant } = panelAssistant();
+		const { container } = render(AssistantPanel, { assistant });
+		const panel = container.querySelector<HTMLElement>('.assistant-panel')!;
+		panel.style.width = '320px';
+		panel.style.height = '600px';
+		const textarea = screen.getByRole('textbox', { name: 'Your question' }) as HTMLTextAreaElement;
+		const field = container.querySelector<HTMLElement>('.assistant-composer__field')!;
+		await waitFor(() =>
+			expect(textarea.scrollHeight).toBeLessThanOrEqual(textarea.clientHeight + 1)
+		);
+		expect(Number.parseFloat(getComputedStyle(textarea).fontSize)).toBeGreaterThanOrEqual(16);
+		expect(textarea.getBoundingClientRect().right).toBeLessThan(
+			screen.getByRole('button', { name: 'Ask' }).getBoundingClientRect().left + 1
+		);
+		expect(field.getBoundingClientRect().right).toBeLessThanOrEqual(320);
+		await page.getByRole('textbox', { name: 'Your question' }).hover();
+		expect(getComputedStyle(textarea).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+		expect(getComputedStyle(textarea).borderRadius).toBe('0px');
+		expect(
+			getComputedStyle(container.querySelector('.assistant-composer__keyboard-hint')!).display
+		).toBe('none');
+
+		panel.style.display = 'none';
+		await frames();
+		await fireEvent.input(textarea, {
+			target: { value: 'How should I write this chorus heading and the repeated lines below it?' }
+		});
+		panel.style.width = '280px';
+		panel.style.display = '';
+		await waitFor(() =>
+			expect(textarea.scrollHeight).toBeLessThanOrEqual(textarea.clientHeight + 1)
+		);
+		await fireEvent.input(textarea, {
+			target: { value: 'A longer question about the chorus. '.repeat(30) }
+		});
+		await waitFor(() => expect(getComputedStyle(textarea).overflowY).toBe('auto'));
+		expect(textarea.scrollHeight).toBeGreaterThan(textarea.clientHeight);
+		await fireEvent.input(textarea, { target: { value: '' } });
+		await waitFor(() =>
+			expect(textarea.scrollHeight).toBeLessThanOrEqual(textarea.clientHeight + 1)
+		);
 	});
 });

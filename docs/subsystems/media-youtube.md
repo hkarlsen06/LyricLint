@@ -16,13 +16,43 @@ Touches: `src/lib/ui/state/media-youtube.ts`, `src/lib/ui/media/MediaVideo.svelt
 - No schema bump: `source`/`videoId` are unindexed on the live `version(2)` `mediaHandles`
   table, and absence reads as `'file'`.
 - The player must be visible (embed terms, 200×200 minimum — `px` deliberately, not `rem`).
-  It draws at the foot of the right panel, outside the panes (a tab switch must not rebuild
-  the iframe — `RightPanel.svelte.test.ts` pins element identity), below the ignored-rules
-  footer, `min-height` allowed to pillarbox.
+  Workspace mounts it in a stable `.workspace-video` sibling outside the editor and panel,
+  floating in 16:9 at the editor’s bottom-right on every desktop width, including expanded writing, above audio/navigation on portrait phones, and beside the
+  task region on landscape phones. Switching
+  Write, Review, or Tools cannot hide or rebuild it (`MobileMedia.svelte.test.ts` pins
+  visibility, element identity, and dimensions). Independent `RightPanel` usage retains
+  its own video mount (`RightPanel.svelte.test.ts`).
 - `media-test-youtube.ts`'s load count is what makes "nothing has contacted Google" an
   assertion rather than a hope.
 
 ## Decision record
+
+### A mobile task view cannot own the video
+
+Write, Review, and Tools hide different workspace regions, so a video inside the right
+panel would disappear whenever the user returned to writing. `Workspace` now owns the one
+`MediaVideo` outside both regions, passing `renderVideo={false}` to its `RightPanel`.
+Desktop always floats a 16:9 frame at the editor’s bottom-right, about 356×200px.
+Its dimensions preserve the provider's height floor and the requested aspect ratio.
+Right and bottom clearance are equal against the editor’s visible edges; stacked
+and expanded layouts include the editor’s outer inset when positioning the sibling overlay.
+The editor and video both explicitly occupy grid column 1. Leaving the editor's column
+on auto let the explicitly placed video push the lyrics into an implicit second column
+when the workspace stacked; measuring only editor height missed that regression.
+`DesktopMedia.svelte.test.ts` checks real editor placement and visible lyrics as well as
+video bounds, full-height dock, and provider identity across resizing and expansion.
+The desktop editor adds scroll padding equal to the frame height and bottom inset
+plus its usual breathing room, so even the final line can clear the overlay.
+This changes no lyric text. The provider element never moves in the DOM. Portrait phone placement is above the transport
+and view navigation, with a 200px square visible frame that preserves the source minimum
+without spending the full phone width on a 16:9 player. Landscape phones place that frame
+beside the active task so its height does not displace the lyrics. When a portrait keyboard
+leaves too little room for the video floor and a usable task region together, the workspace
+scrolls while preserving a minimum task height. Switching views changes neither
+the mount node nor the provider player; playback and playhead continue. `MobileMedia.svelte.test.ts`
+measures the frame and switches through all three views while checking that same instance.
+The default `RightPanel` video remains for independent use and its existing identity tests.
+This supersedes panel ownership in the historical placement record below.
 
 ### YouTube is a second source behind the same transport, and it is asked for every session
 

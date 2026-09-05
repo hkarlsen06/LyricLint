@@ -13,7 +13,9 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 - Copying lyrics confirms in the toolbar button and never opens a metadata receipt.
   Song owns the available metadata. `Workspace.svelte.test.ts` pins the non-interruption.
-- The editor action tray can expand the editor and restore the panels without remounting either.
+- On desktop, the editor action tray can expand the editor and restore the panels without remounting either.
+  Its expand/restore glyph rotates 90 degrees at the `68rem` stacked breakpoint,
+  so the pictured panel follows the actual panel below the editor.
   Hidden panels retire their diagnostic preview; opening findings retains panel focus.
   Review offers Previous/Next controls with their shortcuts. `Workspace.svelte.test.ts`
   and `LinterPanel.svelte.test.ts` pin these paths.
@@ -27,7 +29,7 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   transparent; the active or expanded finding takes `--color-surface`, rounded corners,
   and `--shadow-raised` in both schemes. No accent wash or ring. The panel and controls
   above it use `--color-chrome`. `RightPanel.svelte.test.ts` pins the treatment.
-- Every tool has an icon and visible name: Review, Assistant (when available), Performers,
+- Desktop tools have an icon and visible name: Review, Assistant (when available), Performers,
   Song, Preferences. At `78rem` the dock runs vertically along the outside edge; below
   it runs horizontally. Bits UI orientation follows the same query so arrow keys follow
   the visible order. `.right-panel__content` owns the body, media, and footer independently
@@ -45,9 +47,9 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   stay beside their filters. `LinterPanel.svelte.test.ts` pins the states.
 - Severity chips draw only the kinds the document has, unasked; a chip's count is over the
   unignored diagnostics and blind to the filters, or hiding a kind deletes the way back to it.
-- The editor's command tray (`.editor-actions`) is an absolutely positioned tray over the
-  document's top-right, not a band; glyphs are the marks they insert, tooltips carry the
-  name (and the keystroke where one exists). Up to four editing/source glyphs
+- On desktop the editor's command tray (`.editor-actions`) is absolutely positioned over the
+  document's top-right; phones give their larger labelled controls a dedicated row.
+  Desktop glyphs are the marks they insert; tooltips carry the name (and the keystroke where one exists). Up to four editing/source glyphs
   precede the icon-only expand/restore control at the right edge. Audio attach
   lives where its transport will appear. `Workspace.svelte.test.ts` measures its width
   and right edge.
@@ -91,6 +93,23 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## Decision record
 
+### Phone task navigation owns the available space
+
+Write, Review, and Tools replace the split only on primary coarse pointers at or below
+68rem, as defined by the shared phone workspace query. Narrow fine-pointer windows keep
+the desktop toolbar, panels, and Expand editor control. Write
+is the initial view, Review opens an overview and then a passage with one finding, and Tools
+remembers the last selected non-review pane. Switching never remounts the editor or media.
+The phone action tray takes its own row so the larger labelled controls cannot cover lyrics.
+The editor search panel therefore reserves no tray width on phones.
+The phone navigation replaces the editor expansion glyph; wide layouts keep that control.
+Media now occupies stable sibling grid regions, allowing it to remain available while either
+editor or panel is hidden. The desktop audio row sits below the editor. A 16:9 video always floats at the desktop editor’s bottom-right, including expanded
+writing, without reserving sidebar space or shortening the dock. The editor and video
+both explicitly name their grid column so the overlay cannot displace the lyrics. This supersedes the older two-row workspace and media-inside-editor layout below.
+
+Pins: `e2e/mobile-workbench.spec.ts`, `Workspace.svelte.test.ts`.
+
 ### One reference destination from the workbench
 
 The no-script fallback and error page link to the unified transcription guide rather than
@@ -99,13 +118,46 @@ presenting separate rules and guidelines choices. Assistant check previews link 
 a reference search. The assistant dialog and guide browser tests cover these entry points.
 
 
+### Phone search uses the width beneath its action row
+
+The in-flow phone command tray leaves search its full width. Search groups wrap their
+controls within the editor, fields use editor-sized text, and every search action has a
+44px touch target. The editor theme mirrors the phone workspace query without importing
+shell code. `keyboard-commands.svelte.test.ts` checks multiple-match search and replacement
+at 320px, including field type size and the bounds of every visible action.
+
+### Phone commands preserve the selected lyrics
+
+On the phone workspace query, the toolbar keeps the draft title/switcher and Copy/Paste
+on one row. The named Document disclosure owns New, Undo, Redo, language, and Compare;
+it dismisses on its trigger, Escape, and `dismissOnOutside`. Its existing dialog triggers
+remain mounted so closing a language or comparison dialog returns to a real control.
+The phone disclosure uses full-width named rows, including Undo, Redo and the full
+language name. Icon-only desktop geometry must not constrain these rows. Its toolbar owns
+`--layer-menu`, above the editor tray, and the dropdown is bounded by the toolbar edges.
+`MobileCommands.svelte.test.ts` mounts the full workspace and hit-tests every menu row over
+the tray at 320px and 390px; standalone toolbar geometry cannot catch sibling stacking.
+The desktop command order is unchanged. Frequent phone controls consume the 44px
+`--control-height-touch` token.
+
+The phone editor tray names Section and Find. Assign voices appears when the shared
+`canAssignVoiceGroup` predicate accepts the retained selection and the editor exposes the
+assignment command. Mouse down on an editing command preserves the editor selection;
+activation runs the existing keyboard command through the editor handle and callback proxy.
+Touch pointer down remains uncancelled: preventing it suppresses Safari’s synthetic click,
+so the explicit Assign voices tap would otherwise never open the picker. The real WebKit
+touch-selection e2e test pins that activation path.
+The phone Write/Review/Tools navigation replaces the expansion glyph. Desktop tray glyphs
+and shortcut disclosure remain. `MobileCommands.svelte.test.ts` pins menu dismissal and
+selection-preserving touch actions; the keyboard command suite covers the shared assignment.
+
 ### Header commands share the quiet control tier
 
 The right-hand commands sit directly on chrome: history, language,
 and Compare use the shared quiet buttons with muted resting text. Hover and keyboard
 focus restore full ink. Copy/Paste remains the single contrast action at the right edge.
-The controls use matching icon sizes and strokes. Labels stay visible at phone
-widths, where the existing responsive rules omit redundant icons and wrap the row.
+The controls use matching icon sizes and strokes. At phone widths the Document disclosure groups the secondary commands, leaving draft identity
+and Copy/Paste visible without wrapping.
 The existing toolbar interaction and viewport checks in `Workspace.svelte.test.ts`
 cover command order, copying, expansion, and narrow-screen bounds.
 
@@ -156,6 +208,17 @@ The length guard uses the store's Unicode code-point limit rather than HTML maxl
 counts UTF-16 units and would silently truncate some pasted questions. The input remains editable
 and says how many characters need removing. Enter while composing belongs to the IME.
 Limit guidance sits above the field so the composer retains its shared bottom alignment.
+
+### The phone composer measures its actual text
+
+On the phone workspace query, the composer measures the placeholder before typing and remeasures when a hidden pane
+opens or its width changes. A single `rows="1"` box clipped the second placeholder line
+on phones; input-only sizing missed that initial state. Typed questions grow to the CSS
+height limit, then scroll. On phones the textarea has no native appearance, fill, or rounding of its
+own, even under touch's sticky hover; the enclosing composer field owns that surface.
+Desktop retains its original input-driven sizing, rounding, and hover treatment.
+Phone guidance keeps the character limit and omits the desktop Shift+Enter instruction.
+`AssistantPanel.svelte.test.ts` checks initial wrapping, reveal, resize, and typed overflow.
 
 ### The composer shares the media strip's bottom padding
 
@@ -590,6 +653,12 @@ titles), `MediaStrip.svelte.test.ts` (the reconnect's `Esc`), and
 `section-links.svelte.test.ts` (the picker's sentence).
 
 ### The empty document is one message, not three
+
+Resting Review messages (ready, clean, and set aside) center within the full panel width.
+Their grid has no prose-width cap; the paragraphs carry `--measure-prose` instead. Capping
+the entire grid left it against the panel's start edge and visibly off-center once the
+desktop panel stacked below the editor. `DesktopWorkspace.svelte.test.ts` measures the
+message's glyph and text against the actual panel body at 750px and 1000px.
 
 A fresh open used to say "empty" four times — a black editor with a bare caret, a panel explaining
 how to feed it, and four zeroed counts in the footer's readout row — while the loudest control on the screen,

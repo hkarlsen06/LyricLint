@@ -99,7 +99,8 @@ class DiagnosticBadge extends WidgetType {
 		 * keeps the preview above, so arriving here with Tab neither takes the
 		 * caret nor puts the keyboard somewhere it has to guess its way out of.
 		 */
-		readonly activateIntent: ((diagnostic: Diagnostic) => void) | undefined
+		readonly activateIntent: ((diagnostic: Diagnostic) => void) | undefined,
+		readonly review: ((diagnostic: Diagnostic) => boolean) | undefined
 	) {
 		super();
 	}
@@ -177,7 +178,11 @@ class DiagnosticBadge extends WidgetType {
 		container.append(badge);
 
 		if (this.cluster.diagnostics.length === 1) {
-			badge.addEventListener('click', activate);
+			badge.addEventListener('click', () => {
+				const diagnostic = lead();
+				if (diagnostic && this.review?.(diagnostic)) return;
+				activate();
+			});
 			// Enter and Space are the press, and what a press asks for is the card
 			// that can be read and answered — the previewing one bare focus opened
 			// offers no `Close` and would go on a mouse movement nobody made.
@@ -215,6 +220,8 @@ class DiagnosticBadge extends WidgetType {
 				closeMenu();
 				return;
 			}
+			const diagnostic = lead();
+			if (diagnostic && this.review?.(diagnostic)) return;
 			menu.hidden = false;
 			badge.setAttribute('aria-expanded', 'true');
 			this.watchOutside(container, closeMenu);
@@ -390,7 +397,8 @@ function buildDecorations(
 					cluster,
 					callbacks?.onDiagnosticActivate,
 					callbacks?.onDiagnosticActivateIntent &&
-						((diagnostic) => callbacks.onDiagnosticActivateIntent?.(diagnostic, 'navigate'))
+						((diagnostic) => callbacks.onDiagnosticActivateIntent?.(diagnostic, 'navigate')),
+					callbacks?.onDiagnosticReviewRequest
 				),
 				side: 1
 			}).range(line.to)
@@ -545,8 +553,9 @@ function diagnosticAtPointer(event: MouseEvent, view: EditorView): DiagnosticHit
 /**
  * Show the underlined diagnostic while the pointer rests on it.
  *
- * Pointing is what reveals a diagnostic; clicking is left alone so a tap does
- * what a tap does everywhere else in a text field — place the caret. The
+ * On desktop, pointing reveals a diagnostic and clicking places the caret.
+ * A shell with a dedicated mobile Review surface can consume a deliberate
+ * click through onDiagnosticReviewRequest; selection drags remain editing. The
  * popover takes it from here: it stays up while the pointer travels toward it
  * and closes once the pointer leaves both it and the underline.
  */
@@ -570,6 +579,17 @@ export function diagnosticRangeHoverHandler(): Extension {
 		},
 		{
 			eventHandlers: {
+				click(event: MouseEvent, view: EditorView) {
+					if (view.composing || view.state.field(editorComposingField, false)) return false;
+					// A drag or native text selection keeps ownership of the text.
+					if (!view.state.selection.main.empty) return false;
+					const hit = diagnosticAtPointer(event, view);
+					return hit
+						? (view.state
+								.field(editorCallbacksField)
+								?.onDiagnosticReviewRequest?.(hit.diagnostic) ?? false)
+						: false;
+				},
 				mousemove(event: MouseEvent, view: EditorView) {
 					// A held button means the pointer is dragging out a selection, not
 					// pointing at anything; cards popping up along the way would land

@@ -8,6 +8,19 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 
 ## The rules
 
+- When the shell requests `diagnosticsInPanel`, hover never opens a diagnostic overlay.
+  Deliberate underline and badge presses use `onDiagnosticReviewRequest` through
+  `createCallbackProxy`; the shell owns Review navigation and focus. Nonempty selections
+  and composition retain their editing behavior. `e2e/mobile-workbench.spec.ts` pins the
+  mobile route; `EditorPane.svelte.test.ts` retains the desktop hover coverage.
+
+- Devices whose primary pointer is coarse keep a visible native caret and selection handles;
+  the custom desktop caret layer is hidden with `(pointer: coarse)`. A fine-primary-pointer
+  desktop keeps its drawn caret even if a touchscreen is also available.
+  `e2e/mobile-workbench.spec.ts` pins the native caret color and hidden layer;
+  `caret-layer.svelte.test.ts` pins switching between touch and desktop cursors. Native handle dragging still needs
+  an iOS device or simulator.
+
 - Every editor↔shell hook must be added to `createCallbackProxy` in `create-editor.ts` — an
   explicit allow-list where a missing callback looks exactly like a feature that silently
   does nothing.
@@ -53,6 +66,16 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `audio-drop.svelte.test.ts` asserts both halves.
 
 ## Decision record
+
+### The phone assignment button runs the keyboard command
+
+`EditorHandle.requestPerformerAssignment` invokes the existing `assignPerformers` command
+with `callbackProxy`, so the labelled touch entry shares selection normalization, composition
+protection, validation, and picker focus with Ctrl+Alt+P. It adds no new shell callback.
+The button preserves the native selection on mouse down and is offered only when the shared
+`canAssignVoiceGroup` predicate accepts it. `MobileCommands.svelte.test.ts` pins the retained
+selection and visibility; the editor keyboard-command tests continue to cover the command.
+
 
 ### A dead key may finish without saying composition ended
 
@@ -240,3 +263,26 @@ The active line uses a rounded neutral fill rather than a blue wash, keeping per
 identity and diagnostic color distinct from ordinary editing. The empty-document exception
 still removes the wash. Additional top breathing room comes from content padding, with no
 inserted widgets or changes to line mapping, source text, or clipboard output.
+
+### Native touch selection handles share the caret color
+
+The desktop caret layer keeps the cursor above performer fills, with the native caret
+made transparent to avoid drawing two cursors. That transparency also hid iOS selection
+handles and left a dark selection wash. Devices whose primary pointer is coarse use the
+accent-colored native caret and hide the custom layer. This is an input-capability rule,
+not a viewport width rule: tablets and phones in landscape need the same native selection
+controls. Testing `any-pointer` also caught desktop laptops with touchscreens and removed
+their layered caret even while a mouse was primary. Testing the primary pointer preserves
+the desktop layer on those machines.
+
+
+### Floating playback leaves room to scroll the final lyric
+
+The normal editor's content padding reads `--editor-scroll-padding`, whose default
+is the existing `--space-8`. A desktop workspace with a floating video adds the
+player height and its bottom inset to that padding, so the final lyric can scroll
+fully above the frame. The extra space is CSS padding, never blank document lines
+or decoration widgets, and goes away when the source is removed or the workspace
+switches to mobile task views. The auto-height reference editor is unchanged.
+`DesktopMedia.svelte.test.ts` scrolls the real CodeMirror document to its end and
+checks the last line against the floating frame while preserving the source text.

@@ -1,4 +1,4 @@
-import { page } from 'vitest/browser';
+import { cdp, page } from 'vitest/browser';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { createInMemoryMediaRepository } from '../state/in-memory.js';
@@ -157,6 +157,7 @@ describe('MediaStrip', () => {
 	});
 
 	it('offers the transport, the elapsed time, and the track at both ends', async () => {
+		await page.viewport(800, 600);
 		const { audio, media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(125);
@@ -297,8 +298,8 @@ describe('MediaStrip', () => {
 		await expect.element(seek).toHaveAttribute('aria-valuetext', '1:52 of 4:01');
 	});
 
-	it.each([390, 800, 1496])(
-		'keeps pending and loaded transport heights equal at %ipx',
+	it.each([390, 640, 641, 800, 1496])(
+		'keeps pending transport to one row and grows only for wrapped playback at %ipx',
 		async (width) => {
 			await page.viewport(width, 844);
 			try {
@@ -331,6 +332,14 @@ describe('MediaStrip', () => {
 				expect(load.left).toBeGreaterThan(name.getBoundingClientRect().right);
 				expect(strip.right - load.right).toBeCloseTo(12, 0);
 				const controls = document.querySelector<HTMLElement>('.media-strip__controls')!;
+				const controlStyle = getComputedStyle(controls);
+				expect(controls.getBoundingClientRect().height).toBeCloseTo(
+					load.height +
+						parseFloat(controlStyle.paddingTop) +
+						parseFloat(controlStyle.paddingBottom),
+					0
+				);
+
 				expect(controls.getBoundingClientRect().right - load.right).toBeGreaterThanOrEqual(2);
 				// The bordered tier's edge is a shadow ring outside its box and the row
 				// is a scroller, so an exact fit clips it. The button must stand clear
@@ -347,12 +356,18 @@ describe('MediaStrip', () => {
 					.toContain('Reconnect audio: sensommer.mp3');
 				expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe('Esc');
 
-				// Loading replaces the command without resizing the transport bar.
+				// Playback only adds height when its timing controls take a second row.
 				await media.attachFile(new File([''], 'sensommer.mp3', { type: 'audio/mpeg' }));
 				await expect.element(page.getByRole('button', { name: 'Play' })).toBeVisible();
-				expect(page.getByTestId('media-strip').element().getBoundingClientRect().height).toBe(
-					strip.height
-				);
+				const loadedHeight = page
+					.getByTestId('media-strip')
+					.element()
+					.getBoundingClientRect().height;
+				if (width <= 640) {
+					expect(loadedHeight).toBeGreaterThan(strip.height);
+				} else {
+					expect(loadedHeight).toBeLessThanOrEqual(strip.height);
+				}
 			} finally {
 				await page.viewport(800, 600);
 			}
@@ -699,6 +714,13 @@ describe('MediaStrip', () => {
 		play.dispatchEvent(press);
 
 		expect(press.defaultPrevented).toBe(true);
+		const touch = new PointerEvent('pointerdown', {
+			pointerType: 'touch',
+			bubbles: true,
+			cancelable: true
+		});
+		play.dispatchEvent(touch);
+		expect(touch.defaultPrevented).toBe(false);
 	});
 
 	/**
@@ -882,3 +904,99 @@ it('sets and cancels a replay passage in the transport', async () => {
 	expect(player.loop).toBeUndefined();
 	expect(player.playing).toBe(true);
 });
+
+it.each([320, 390])(
+	'keeps playback available with explicit audio details at %ipx',
+	async (width) => {
+		await page.viewport(width, 844);
+		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+		try {
+			const { media, player, audio } = store();
+			player.attach(new File([''], 'track.mp3'));
+			audio.setDuration(125);
+			const view = render(MediaStrip, {
+				props: {
+					media,
+					openMediaPicker: () => {},
+					follow: { available: true, active: false, toggle: () => {} },
+					sync: { active: false, toggle: () => {}, tap: () => {} }
+				}
+			});
+			const disclosure = page.getByRole('button', { name: 'Audio details' });
+			const play = page.getByRole('button', { name: 'Play', exact: true });
+			await expect.element(play).toBeVisible();
+			await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
+			expect(page.getByRole('combobox').elements()).toHaveLength(0);
+			expect(page.getByRole('button', { name: 'Loop from here' }).elements()).toHaveLength(0);
+			for (const control of [play.element(), disclosure.element()]) {
+				const box = control.getBoundingClientRect();
+				expect(box.height).toBeGreaterThanOrEqual(44);
+				expect(box.width).toBeGreaterThanOrEqual(44);
+				expect(box.right).toBeLessThanOrEqual(width);
+			}
+			const compactHeight = page
+				.getByTestId('media-strip')
+				.element()
+				.getBoundingClientRect().height;
+			await disclosure.click();
+			await expect.element(page.getByRole('combobox')).toBeVisible();
+			await expect.element(disclosure).toHaveAttribute('aria-expanded', 'true');
+			const strip = page.getByTestId('media-strip').element();
+			expect(strip.querySelector<HTMLElement>('.media-strip__duration')!.checkVisibility()).toBe(
+				false
+			);
+			const options = strip.querySelector<HTMLElement>('.media-strip__options')!;
+			const timing = strip.querySelector<HTMLElement>('.media-strip__timing')!;
+			expect(timing.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+				options.getBoundingClientRect().bottom
+			);
+			expect(getComputedStyle(disclosure.element()).borderRadius).not.toBe('0px');
+			for (const control of strip.querySelectorAll<HTMLElement>('button, select, input')) {
+				if (!control.checkVisibility()) continue;
+				const box = control.getBoundingClientRect();
+				expect(box.left).toBeGreaterThanOrEqual(0);
+				expect(box.right).toBeLessThanOrEqual(width);
+				expect(box.height).toBeGreaterThanOrEqual(44);
+			}
+			expect(
+				page.getByTestId('media-strip').element().getBoundingClientRect().height
+			).toBeGreaterThan(compactHeight);
+			const escape = new KeyboardEvent('keydown', {
+				key: 'Escape',
+				bubbles: true,
+				cancelable: true
+			});
+			document.dispatchEvent(escape);
+			expect(escape.defaultPrevented).toBe(true);
+			await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
+			await disclosure.click();
+			document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+			await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
+			await play.click();
+			await expect.element(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+			await view.rerender({
+				sync: { active: true, canSkip: true, skip: () => {}, toggle: () => {}, tap: () => {} }
+			});
+			const tapBox = page
+				.getByRole('button', { name: 'Tap each line' })
+				.element()
+				.getBoundingClientRect();
+			const stopBox = page
+				.getByRole('button', { name: 'Stop syncing' })
+				.element()
+				.getBoundingClientRect();
+			const skipBox = page
+				.getByRole('button', { name: 'Skip timed lines' })
+				.element()
+				.getBoundingClientRect();
+			expect(tapBox.top).toBe(stopBox.top);
+			expect(tapBox.left).toBeGreaterThanOrEqual(stopBox.right);
+			expect(tapBox.right).toBeLessThanOrEqual(width);
+			expect(skipBox.top).toBeGreaterThanOrEqual(tapBox.bottom);
+			expect(page.getByRole('button', { name: 'Loop from here' }).elements()).toHaveLength(0);
+		} finally {
+			await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+			await page.viewport(800, 600);
+		}
+	}
+);

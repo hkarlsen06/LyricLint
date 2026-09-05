@@ -35,7 +35,7 @@ function announce(callbacks: EditorCallbacks, message: string): true {
 	return true;
 }
 
-function assignPerformers(callbacks: EditorCallbacks): (view: EditorView) => boolean {
+export function assignPerformers(callbacks: EditorCallbacks): (view: EditorView) => boolean {
 	return (view) => {
 		if (composing(view)) {
 			return true;

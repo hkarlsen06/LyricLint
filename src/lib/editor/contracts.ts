@@ -174,6 +174,8 @@ interface EditorOverlayCallbacks {
 		previousName: string;
 		displayName: string;
 	}): void;
+	/** A deliberate pointer press; true means Review handled it instead of a popover. */
+	onDiagnosticReviewRequest?(diagnostic: Diagnostic): boolean;
 	onDiagnosticActivateIntent?(diagnostic: Diagnostic, intent: 'navigate' | 'fix'): void;
 	/**
 	 * An audio file was dropped on the document.
@@ -356,6 +358,8 @@ export interface EditorPaneProps {
 	autoHeight?: boolean;
 	/** See `CreateLyricEditorOptions.windowFind`. Defaults to on. */
 	windowFind?: boolean;
+	/** The shell displays deliberate diagnostic presses in its Review surface. */
+	diagnosticsInPanel?: boolean;
 }
 
 export interface ScreenRect {
@@ -373,10 +377,10 @@ export interface SelectionAnchor {
 	prefer: 'above' | 'below';
 	/**
 	 * Whether this selection is one the performer picker may open itself over,
-	 * which takes both a gesture that asked for nothing else (`select.pointer`)
-	 * and a range the assignment could actually be written to
-	 * (`canAssignVoiceGroup`). One flag rather than two, because the overlay layer
-	 * has one decision to make and no use for which half said no.
+	 * which takes a pointer gesture that asked for nothing else (`select.pointer`)
+	 * and a range the assignment could actually be written to (`canAssignVoiceGroup`).
+	 * In the touch task layout, selection leaves native handles and edit menus alone;
+	 * Assign voices is explicit. One flag because the overlay layer only needs the verdict.
 	 *
 	 * The geometry beside it is reported for every settled selection either way:
 	 * it is the anchor cache every overlay positions against, including the ones

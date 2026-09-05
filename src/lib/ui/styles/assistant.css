@@ -703,6 +703,30 @@ a.assistant-rule__source:hover {
 	height: var(--control-height-lg);
 }
 
+@media (pointer: coarse) and (max-width: 68rem) {
+	.assistant-composer textarea {
+		appearance: none;
+		min-width: 0;
+		border-radius: 0;
+		font-size: var(--font-size-editor);
+		min-height: var(--control-height-touch);
+	}
+
+	/* The enclosing field owns the surface, including on sticky touch hover. */
+	.assistant-composer textarea:hover:not(:disabled) {
+		background: transparent;
+	}
+
+	.assistant-composer__send {
+		width: var(--control-height-touch);
+		height: var(--control-height-touch);
+	}
+
+	.assistant-composer__keyboard-hint {
+		display: none;
+	}
+}
+
 .assistant-disclosure {
 	max-width: 30rem;
 	padding: 0;
