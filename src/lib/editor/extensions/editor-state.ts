@@ -1,6 +1,5 @@
 import { StateEffect, StateField } from '@codemirror/state';
 import type { EditorState, Transaction } from '@codemirror/state';
-import type { EditorView } from '@codemirror/view';
 import { parseDocument } from '$lib/core/parser.js';
 import type { ParsedDocument } from '$lib/core/types.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from '../contracts.js';
@@ -43,10 +42,6 @@ export function parsedDocumentForState(state: EditorState): ParsedDocument {
 	const current = parsed?.text === text ? parsed : parseDocument(text);
 	parsedDocuments.set(state, current);
 	return current;
-}
-
-export function parsedDocumentForView(view: EditorView): ParsedDocument {
-	return parsedDocumentForState(view.state);
 }
 
 export const editorRevisionField = StateField.define<number>({

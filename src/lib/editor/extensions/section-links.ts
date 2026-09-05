@@ -1,5 +1,5 @@
 // Decision record: docs/subsystems/section-links.md — read it before changing this file, and update it with any behavior change.
-import { invertedEffects, isolateHistory } from '@codemirror/commands';
+import { invertedEffects } from '@codemirror/commands';
 import {
 	Annotation,
 	EditorState,
@@ -749,106 +749,6 @@ export function cancelTypeOnlyHere(view: EditorView): boolean {
 	view.state
 		.field(editorCallbacksField, false)
 		?.onAnnouncement('Editing only this section turned off.');
-	return true;
-}
-
-/**
- * Close the difference under the caret, so its words are shared again.
- *
- * The former way back from `Type only here`: `Mod-Shift-L` pressed while the
- * old caret marker stood collapsed the one run the caret was
- * in, exactly as the card's replace does per difference — so from the next
- * keystroke the mirror carries edits here again. This copy's wording wins,
- * unless it is empty, in which case the first copy with words does
- * (`winningWording`'s own rule): an erased run rejoined has nothing to offer,
- * and emptying every peer to match it is the one thing rejoining must never do.
- *
- * One transaction, one undo: `sectionLinkHistory` carries the runs back with
- * the words, so undo restores the difference exactly as it stood.
- *
- * The caret stays put where this copy's words did not change, and lands after
- * the arriving words where they did — either way it ends in shared text, which
- * is what retires the marker that taught the press.
- */
-export function rejoinLinkedWordsAt(view: EditorView): boolean {
-	const state = view.state;
-	const caret = state.selection.main;
-	if (!caret.empty) return false;
-	const pos = caret.head;
-	const parsed = parsedDocumentForState(state);
-	const group = memberGroups(state, parsed).find((headers) =>
-		headers.some((header) => {
-			const body = sectionBodyRange(parsed, header);
-			return body !== undefined && body.from <= pos && pos <= body.to;
-		})
-	);
-	if (!group) return false;
-	const members = groupShape(state, parsed, group);
-	if (!members || members.length < 2) return false;
-	const member = members.find((shape) => shape.body.from <= pos && pos <= shape.body.to);
-	if (!member) return false;
-	// The marker's own containment: a run's ends map outwards, so both edges are
-	// inside, and a zero-width run at the caret is exactly the case the press is
-	// for.
-	const index = member.holes.findIndex(
-		(hole) => member.body.from + hole.from <= pos && pos <= member.body.from + hole.to
-	);
-	if (index < 0) return false;
-
-	const text = winningWording(state, members, index, member.header);
-	const changes: TextEdit[] = [];
-	for (const shape of members) {
-		const hole = shape.holes[index];
-		if (!hole) continue;
-		const from = shape.body.from + hole.from;
-		const to = shape.body.from + hole.to;
-		if (state.doc.sliceString(from, to) !== text) {
-			changes.push({ from, to, insert: text });
-		}
-	}
-	changes.sort((left, right) => left.from - right.from);
-	const surviving = members.map((shape) => ({
-		...shape,
-		holes: shape.holes.filter((_, holeIndex) => holeIndex !== index)
-	}));
-
-	// Where the caret ends up, computed the way `linkSections` computes its own
-	// landing: edits earlier in the document shift it, and words arriving in
-	// this copy put it after them.
-	const own = member.holes[index];
-	const ownFrom = member.body.from + (own?.from ?? 0);
-	const ownTo = member.body.from + (own?.to ?? 0);
-	// Not the own change: a zero-width run's own fill sits exactly at `ownFrom`
-	// and would otherwise count itself into the shift it is the target of.
-	const shift = changes
-		.filter((change) => change.to <= ownFrom && !(change.from === ownFrom && change.to === ownTo))
-		.reduce((sum, change) => sum + change.insert.length - (change.to - change.from), 0);
-	const ownChanged = changes.some((change) => change.from === ownFrom && change.to === ownTo);
-	const anchor = ownChanged ? ownFrom + shift + text.length : pos + shift;
-
-	const spec: TransactionSpec = {
-		selection: { anchor },
-		// Its own history event on both sides, or it is not its own undo: pressed
-		// right after typing — which is exactly when it is pressed — the history
-		// joined it into the typing's group, and one undo silently took the local
-		// words along with the rejoin they had just been shared by.
-		annotations: isolateHistory.of('full'),
-		effects: [
-			// Pre-change coordinates, exactly as `linkSections` emits them: the
-			// field maps the list through this transaction's own changes.
-			setLinkHolesEffect.of([...holesOutside(state, members), ...absoluteHoles(surviving)]),
-			// Rides the notifier every other shape change rides, so the shell's
-			// save hears about a difference that closed without the text moving.
-			typeOnlyHereAppliedEffect.of(null)
-		]
-	};
-	if (changes.length > 0) spec.changes = changes;
-	view.dispatch(spec);
-	state
-		.field(editorCallbacksField, false)
-		?.onAnnouncement(
-			'These words are shared with the other linked sections again. Undo brings the difference back.'
-		);
 	return true;
 }
 

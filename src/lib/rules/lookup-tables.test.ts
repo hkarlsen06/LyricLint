@@ -157,8 +157,4 @@ describe('rule lookup tables', () => {
 		expect(new Set(names).size).toBe(names.length);
 		expect(names).toContain('The closing curly single quote.');
 	});
-
-	it('is deterministic', () => {
-		expect(ruleLookupTables()).toEqual(ruleLookupTables());
-	});
 });

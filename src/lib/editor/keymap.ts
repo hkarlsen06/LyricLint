@@ -9,7 +9,7 @@ import { cancelTypeOnlyHere, isTypeOnlyHere, typeOnlyHere } from './extensions/s
 import {
 	editorComposingField,
 	editorContextField,
-	parsedDocumentForView
+	parsedDocumentForState
 } from './extensions/editor-state.js';
 import {
 	anchorLineEffect,
@@ -48,7 +48,12 @@ function assignPerformers(callbacks: EditorCallbacks): (view: EditorView) => boo
 		// selection, so the two ways in cannot disagree about what is assignable.
 		// This one says so out loud: the press was aimed at this command, and a
 		// shortcut that silently does nothing reads as a shortcut that is broken.
-		if (!canAssignVoiceGroup(parsedDocumentForView(view), { anchor: range.from, head: range.to })) {
+		if (
+			!canAssignVoiceGroup(parsedDocumentForState(view.state), {
+				anchor: range.from,
+				head: range.to
+			})
+		) {
 			return announce(
 				callbacks,
 				'Performers are assigned to lyric lines within one section that has a header.'
@@ -74,7 +79,7 @@ export function requestSectionLink(view: EditorView, callbacks: LyricEditorCallb
 	}
 	const range = logicalSelection(view);
 	const target = linkTargetAt(
-		parsedDocumentForView(view),
+		parsedDocumentForState(view.state),
 		view.state.field(editorContextField, false)?.languagePack,
 		range.from,
 		range.to
@@ -103,7 +108,7 @@ function typeOnlyInLinkedSection(callbacks: LyricEditorCallbacks): (view: Editor
 		}
 		const range = logicalSelection(view);
 		const target = linkTargetAt(
-			parsedDocumentForView(view),
+			parsedDocumentForState(view.state),
 			view.state.field(editorContextField, false)?.languagePack,
 			range.from,
 			range.to
@@ -132,7 +137,7 @@ function typeOnlyInLinkedSection(callbacks: LyricEditorCallbacks): (view: Editor
 
 function sectionHeaderTargetRange(view: EditorView): TextRange {
 	const position = view.state.selection.main.head;
-	const section = parsedDocumentForView(view).sections.find(
+	const section = parsedDocumentForState(view.state).sections.find(
 		(candidate) => candidate.from <= position && position <= candidate.to
 	);
 	// A headerless parsed section is one unit: adding its header belongs at the

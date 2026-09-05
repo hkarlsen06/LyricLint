@@ -232,9 +232,9 @@ predicate and the other imports it. A rule that re-derives another rule's questi
 bug, and it presents as a panel arguing with itself.
 
 Implementation: `isProseHeaderLine` in `rules/catalog/section-header-prose.ts`,
-`leadsWithProseHeader` in `section-header-missing.ts`, the guard in `numbers-spell-out.ts`, and the
-regressions in `catalog-policy.test.ts` — which is where cross-rule interactions are pinned, so the
-two halves cannot be re-broken one at a time.
+`sectionLeadsWithProseHeader` consumed directly by `section-header-missing.ts`, the guard in
+`numbers-spell-out.ts`, and the regressions in `catalog-policy.test.ts` — which is where cross-rule
+interactions are pinned, so the two halves cannot be re-broken one at a time.
 
 ### An empty header is not a custom one, and the picker fills the brackets it finds
 

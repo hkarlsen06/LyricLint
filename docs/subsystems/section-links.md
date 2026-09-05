@@ -317,7 +317,9 @@ the rest of the chorus.
 **Turning the toggle off never reconciles words.** It changes the scope of future edits only;
 differences made while it was on remain explicit divergent runs. Shared text mirrors again, while
 typing inside a preserved run remains local by the ordinary containment rule. Reconciliation stays
-in the link card, where the versions and the winning copy are visible before text changes.
+in the link card, where the versions and the winning copy are visible before text changes. The old
+caret-based `rejoinLinkedWordsAt` command had no remaining callers after the toggle replaced it
+and was removed; the card remains the reconciliation path.
 
 **The picker uses a switch and changes in place.** This is a live mode with two durable states, not
 an action that completes the card's task, so flipping it does not dismiss the popover or move focus

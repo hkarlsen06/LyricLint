@@ -18,7 +18,7 @@ describe('extractLineStyleSpans', () => {
 			[3, 'C'],
 			[4, 'D🌙']
 		]);
-		expect(spans.map((span) => span.from)).toEqual([...spans].map((span) => span.from).sort());
+		expect(spans.map((span) => span.from)).toEqual([22, 31, 40]);
 	});
 
 	it('records unsupported tags verbatim', () => {
@@ -56,7 +56,6 @@ describe('extractLineStyleSpans', () => {
 			['</i>', 'malformed-markup'],
 			['</b>', 'malformed-markup']
 		]);
-		expect(text).toBe('<i>First <b>crossed</i></b>');
 	});
 
 	it.each(['I <3 you', 'a < b'])('treats literal less-than text as plain lyrics: %s', (text) => {

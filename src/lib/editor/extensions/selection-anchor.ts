@@ -4,7 +4,11 @@ import type { EditorView, ViewUpdate } from '@codemirror/view';
 import { canAssignVoiceGroup } from '$lib/performers/transform.js';
 import type { SelectionAnchor } from '../contracts.js';
 import { linkableHeaderAt } from '../section-links.js';
-import { editorComposingField, editorContextField, parsedDocumentForView } from './editor-state.js';
+import {
+	editorComposingField,
+	editorContextField,
+	parsedDocumentForState
+} from './editor-state.js';
 import { setPlayheadEffect, setPlayingEffect } from './line-anchors.js';
 
 const VIEWPORT_MARGIN = 8;
@@ -66,7 +70,7 @@ export function selectionAnchorForView(
 	const spaceBelow = viewportHeight - bottom;
 	const linkHeader = pointerDriven
 		? linkableHeaderAt(
-				parsedDocumentForView(view),
+				parsedDocumentForState(view.state),
 				view.state.field(editorContextField, false)?.languagePack,
 				from,
 				to
@@ -88,7 +92,8 @@ export function selectionAnchorForView(
 		// this plugin reports on every settled scroll, geometry change and typing
 		// pause — which is nearly all of them.
 		offersAssignment:
-			pointerDriven && canAssignVoiceGroup(parsedDocumentForView(view), { anchor: from, head: to })
+			pointerDriven &&
+			canAssignVoiceGroup(parsedDocumentForState(view.state), { anchor: from, head: to })
 	};
 	if (linkHeader) anchor.linkHeader = linkHeader;
 	return anchor;
