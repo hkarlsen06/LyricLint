@@ -10,7 +10,8 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 
 - When the shell requests `diagnosticsInPanel`, hover never opens a diagnostic overlay.
   Deliberate underline and badge presses use `onDiagnosticReviewRequest` through
-  `createCallbackProxy`; the shell owns Review navigation and focus. Nonempty selections
+  `createCallbackProxy`, carrying the exact hit range for related occurrences; the shell owns
+  Review navigation and focus. Nonempty selections
   and composition retain their editing behavior. `e2e/mobile-workbench.spec.ts` pins the
   mobile route; `EditorPane.svelte.test.ts` retains the desktop hover coverage.
 

@@ -19,6 +19,9 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/state/phone-layout.ts`,
   diff. Tapping an editor underline or count badge opens the chosen finding in this same
   Review surface and transfers focus out of the editor; mobile diagnostic popovers and
   cluster menus stay closed. All findings returns to the list. `e2e/mobile-workbench.spec.ts` pins the fix flow.
+- Revealing a saved ignored or accepted finding opens its passage in Write without restoring
+  the finding or opening the typing keyboard. `MobileWorkspace.svelte.test.ts` pins the reveal,
+  selection, retained choice, and focus on the Write control.
 - Portrait and landscape both work. There is no orientation gate or desktop recommendation
   toast. `e2e/lyriclint.spec.ts` pins both orientations and the absence of the recommendation.
 - Mobile document commands live behind the named Document disclosure; identity and Copy or
@@ -69,6 +72,11 @@ one changes the layout to show the actual lyric passage and a single finding's a
 The list's shared ordering, preview, and focus logic still owns Previous, Next, fix, and
 set-aside behavior. Other rows leave layout and the accessibility tree during the decision.
 All findings restores the overview and releases the preview; Write restores the writing area.
+
+Saved choices have no active decision card. Their location controls therefore reveal the
+passage in Write, after the editor becomes visible, and return focus to the Write control.
+Calling ordinary diagnostic navigation from the overview left the editor hidden and inert,
+so the location appeared to do nothing. Revealing never restores the saved choice.
 
 ### Task navigation stays out of typing
 

@@ -587,7 +587,7 @@ export function diagnosticRangeHoverHandler(): Extension {
 					return hit
 						? (view.state
 								.field(editorCallbacksField)
-								?.onDiagnosticReviewRequest?.(hit.diagnostic) ?? false)
+								?.onDiagnosticReviewRequest?.(hit.diagnostic, hit.range) ?? false)
 						: false;
 				},
 				mousemove(event: MouseEvent, view: EditorView) {

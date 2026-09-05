@@ -129,6 +129,47 @@ test('tapping an underlined phone finding opens its Review decision and returns 
 	await expect(page.locator('.diagnostic-list')).not.toBeVisible();
 });
 
+test('a related chorus tap keeps that occurrence as the mobile linking source', async ({
+	page
+}) => {
+	await openWorkspace(page);
+	await replaceLyrics(
+		page,
+		'[Chorus]\nHold on tight\n\n[Verse]\nWalk with me\n\n[Chorus]\nHold on tight'
+	);
+	await lyricsEditor(page).blur();
+	const header = lyricsEditor(page).locator(
+		'.ll-diagnostic-range[aria-label*="Link these repeats"]'
+	);
+	await expect(header.last()).toBeVisible();
+	await header.last().tap();
+	await expect(page.getByRole('button', { name: 'All findings', exact: true })).toBeVisible();
+	await expect
+		.poll(() =>
+			page.evaluate(() => {
+				type Handle = {
+					view: {
+						state: {
+							selection: { main: { from: number } };
+							doc: { lineAt(pos: number): { number: number } };
+						};
+					};
+				};
+				const content = document.querySelector<HTMLElement & { cmView?: Handle; cmTile?: Handle }>(
+					'.cm-content'
+				);
+				const state = (content?.cmView ?? content?.cmTile)?.view.state;
+				return state?.doc.lineAt(state.selection.main.from).number;
+			})
+		)
+		.toBe(7);
+	await expect(page.locator('.diagnostic-card--expanded')).toContainText('Line 7');
+	await page.getByRole('button', { name: 'Manage linking', exact: true }).tap();
+	const picker = page.getByRole('dialog', { name: 'Link this chorus' });
+	await expect(picker).toBeVisible();
+	await expect(picker.locator('.row--current')).toContainText('This section · line 7');
+});
+
 test('tapping a phone issue count opens the first finding in Review without a floating menu', async ({
 	page
 }) => {

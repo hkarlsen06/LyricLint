@@ -606,8 +606,8 @@ export function createCallbackProxy(read: () => LyricEditorCallbacks): LyricEdit
 		onSetLanguage: (language) => read().onSetLanguage?.(language),
 		onAddPerformer: (displayName) => read().onAddPerformer?.(displayName),
 		onPerformerRenamed: (rename) => read().onPerformerRenamed?.(rename),
-		onDiagnosticReviewRequest: (diagnostic) =>
-			read().onDiagnosticReviewRequest?.(diagnostic) ?? false,
+		onDiagnosticReviewRequest: (diagnostic, range) =>
+			read().onDiagnosticReviewRequest?.(diagnostic, range) ?? false,
 		onDiagnosticActivateIntent: (diagnostic, intent) => {
 			const callbacks = read();
 			if (callbacks.onDiagnosticActivateIntent) {

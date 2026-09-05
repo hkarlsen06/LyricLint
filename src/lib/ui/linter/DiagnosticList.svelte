@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
+	import type { Diagnostic, SourceReference, TextRange } from '$lib/core/types.js';
 	import { tick, type Snippet } from 'svelte';
 	import { BookOpen, CheckCheck } from 'lucide-svelte';
 	import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
@@ -14,6 +14,7 @@
 		focusedOnly = false,
 		sources,
 		activeDiagnosticKey,
+		activeDiagnosticRange,
 		emptyState,
 		emptyActions,
 		lineFor,
@@ -36,6 +37,7 @@
 		focusedOnly?: boolean;
 		sources: ReadonlyMap<string, SourceReference>;
 		activeDiagnosticKey?: string;
+		activeDiagnosticRange?: TextRange;
 		/** Empty, clean, and set-aside reviews have distinct composed states.
 		 * Filtered findings stay beside the controls that reveal them. */
 		emptyState: {
@@ -322,7 +324,15 @@
 					>
 						<span class="diagnostic-list__title">{diagnostic.message}</span>
 					</button>
-					<DiagnosticMeta {diagnostic} {sources} line={lineFor?.(diagnostic.from)} />
+					<DiagnosticMeta
+						{diagnostic}
+						{sources}
+						line={lineFor?.(
+							cardKey(diagnostic) === activeDiagnosticKey
+								? (activeDiagnosticRange?.from ?? diagnostic.from)
+								: diagnostic.from
+						)}
+					/>
 				</div>
 				{#if expanded}
 					<DiagnosticDetails

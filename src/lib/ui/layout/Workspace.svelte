@@ -3,6 +3,7 @@
 		EditorHandle,
 		EditorSnapshot,
 		LineAnchor,
+		TextRange,
 		UnknownVoiceRequest
 	} from '$lib/core/types.js';
 	import type {
@@ -118,13 +119,28 @@
 			?.focus();
 	}
 
-	async function openMobileFinding(diagnostic: Diagnostic): Promise<void> {
+	async function openMobileFinding(diagnostic: Diagnostic, range?: TextRange): Promise<void> {
 		if (!phone.current || mobileView !== 'review') return;
 		reviewFocused = true;
 		await tick();
 		// Reveal after the editor has acquired its review-context height.
 		if (!phone.current || mobileView !== 'review') return;
+		controller.navigateToDiagnostic(diagnostic, { focus: false, range });
+	}
+
+	async function revealIgnoredFinding(diagnostic: Diagnostic): Promise<void> {
+		if (!phone.current) {
+			controller.navigateToDiagnostic(diagnostic);
+			return;
+		}
+		// A saved choice has no decision card. Reveal its passage in Write while
+		// keeping the choice set aside and the typing keyboard closed.
+		showMobileView('write');
+		await tick();
 		controller.navigateToDiagnostic(diagnostic, { focus: false });
+		workspaceElement
+			?.querySelector<HTMLButtonElement>('.mobile-navigation [aria-pressed="true"]')
+			?.focus({ preventScroll: true });
 	}
 
 	async function toggleEditor(): Promise<void> {
@@ -627,7 +643,7 @@
 		onSearchOpenChange: (open) => controller.noteSearchOpen(open),
 		// Keyboard diagnostic navigation travels to the diagnostic; hovering one in
 		// the editor only marks its card, leaving the text under the pointer still.
-		onDiagnosticActivate: (diagnostic) => {
+		onDiagnosticActivate: (diagnostic, range) => {
 			if (!phone.current) {
 				controller.navigateToDiagnostic(diagnostic);
 				return;
@@ -635,7 +651,7 @@
 			mobileView = 'review';
 			controller.setActiveTab('linter');
 			controller.highlightDiagnostic(diagnostic);
-			void openMobileFinding(diagnostic).then(async () => {
+			void openMobileFinding(diagnostic, range).then(async () => {
 				await tick();
 				// Hand focus to Review to dismiss the typing keyboard without refocusing lyrics.
 				if (phone.current && mobileView === 'review') {
@@ -1130,6 +1146,7 @@
 		{reviewFocused}
 		onOpenFinding={openMobileFinding}
 		onReviewList={showReviewList}
+		onRevealIgnored={revealIgnoredFinding}
 		renderVideo={false}
 	/>
 

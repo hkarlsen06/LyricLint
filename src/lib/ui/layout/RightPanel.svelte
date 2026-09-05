@@ -23,6 +23,7 @@
 		reviewFocused = false,
 		onOpenFinding,
 		onReviewList,
+		onRevealIgnored,
 		renderVideo = true
 	}: {
 		controller: WorkbenchController;
@@ -32,6 +33,7 @@
 		reviewFocused?: boolean;
 		onOpenFinding?: (diagnostic: Diagnostic) => void;
 		onReviewList?: () => void;
+		onRevealIgnored?: (diagnostic: Diagnostic) => void;
 		renderVideo?: boolean;
 	} = $props();
 
@@ -187,7 +189,8 @@
 					<IgnoredRules
 						diagnosticKeys={controller.ignoredDiagnosticKeys}
 						snapshot={controller.snapshot}
-						onReveal={(diagnostic) => controller.navigateToDiagnostic(diagnostic)}
+						onReveal={onRevealIgnored ??
+							((diagnostic) => controller.navigateToDiagnostic(diagnostic))}
 						onRestore={(key) => controller.restoreDiagnostic(key)}
 					/>
 				</footer>

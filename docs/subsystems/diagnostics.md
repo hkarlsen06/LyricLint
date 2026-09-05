@@ -472,4 +472,6 @@ separates entries without boxes. Mixed lists name each choice as ignored or mark
 An unmatched choice says “No matching finding in the current lyrics”: absence of a diagnostic
 does not prove the saved words are absent. Current locations still reveal without restoring,
 and no historical location is invented. `RightPanel.svelte.test.ts` pins the titles, statuses,
-and reveal/restore behavior.
+and reveal/restore behavior. On phones, saved locations open Write because an ignored finding
+has no visible Review card; focus goes to the Write control without opening the keyboard.
+`MobileWorkspace.svelte.test.ts` pins this path and confirms the choice remains ignored.

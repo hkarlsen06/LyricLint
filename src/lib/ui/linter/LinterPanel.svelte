@@ -262,6 +262,7 @@
 		diagnostics={controller.visibleDiagnostics}
 		sources={controller.sources}
 		activeDiagnosticKey={controller.activeDiagnosticKey}
+		activeDiagnosticRange={controller.activeDiagnosticRange}
 		{emptyState}
 		{emptyActions}
 		{lineFor}

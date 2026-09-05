@@ -357,10 +357,10 @@
 		);
 	}
 
-	function requestDiagnosticReview(diagnostic: Diagnostic): boolean {
+	function requestDiagnosticReview(diagnostic: Diagnostic, range?: TextRange): boolean {
 		if (!diagnosticsInPanel) return false;
 		session = closeOverlay(session);
-		callbacks.onDiagnosticActivate(diagnostic);
+		callbacks.onDiagnosticActivate(diagnostic, range);
 		return true;
 	}
 

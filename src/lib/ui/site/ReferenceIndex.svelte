@@ -96,7 +96,12 @@
 	function readAnchor(): void {
 		anchor = safeDecodeHash(location.hash.slice(1));
 	}
-	afterNavigate(readAnchor);
+	afterNavigate(() => {
+		// Browse topics only overrides the current article. A subsequent selection
+		// must reveal its entries even though the shared finder stays mounted.
+		browsingTopics = false;
+		readAnchor();
+	});
 	$effect(() => {
 		readAnchor();
 		window.addEventListener('hashchange', readAnchor);

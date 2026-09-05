@@ -15,7 +15,8 @@ import type {
 	SectionLink,
 	DraftIgnoreStore,
 	Severity,
-	SourceReference
+	SourceReference,
+	TextRange
 } from '$lib/core/types.js';
 import { SvelteDate, SvelteMap } from 'svelte/reactivity';
 import { resolveLanguageTag } from '$lib/languages/registry.js';
@@ -111,6 +112,7 @@ export interface WorkbenchController {
 	readonly performers: readonly PerformerRecord[];
 	readonly activeTab: RightPanelTab;
 	readonly activeDiagnosticKey?: string;
+	readonly activeDiagnosticRange?: TextRange;
 	readonly severityFilter: readonly Severity[];
 	readonly unignoredDiagnostics: readonly Diagnostic[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
@@ -192,7 +194,10 @@ export interface WorkbenchController {
 	setLanguage(language: string): void;
 	undo(): void;
 	redo(): void;
-	navigateToDiagnostic(diagnostic: Diagnostic, options?: { focus?: boolean }): void;
+	navigateToDiagnostic(
+		diagnostic: Diagnostic,
+		options?: { focus?: boolean; range?: TextRange }
+	): void;
 	/** Mark a diagnostic's card without moving the editor to it. */
 	highlightDiagnostic(diagnostic: Diagnostic): void;
 	chooseSectionHeader(diagnostic: Diagnostic): void;
@@ -529,6 +534,9 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		get activeDiagnosticKey() {
 			return panel.activeDiagnosticKey;
+		},
+		get activeDiagnosticRange() {
+			return panel.activeDiagnosticRange;
 		},
 		get severityFilter() {
 			return panel.severityFilter;

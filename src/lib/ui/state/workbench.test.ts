@@ -857,6 +857,27 @@ describe('workbench diagnostic navigation', () => {
 		expect(controller.activeDiagnosticKey).toBe('section-header-missing:8:12');
 	});
 
+	test('retains an aimed related occurrence through review and guided linking', () => {
+		const { controller, editor } = setup({});
+		const range = { from: 30, to: 38 };
+		const repeated = { ...diagnostic, relatedRanges: [range] };
+		editor.setSelection = vi.fn();
+		editor.revealRange = vi.fn();
+
+		controller.navigateToDiagnostic(repeated, { focus: false, range });
+		// Mounting the focused review card repeats navigation without a pointer range.
+		controller.navigateToDiagnostic(repeated, { focus: false });
+		controller.linkDiagnosticSections(repeated);
+		expect(controller.activeDiagnosticKey).toBe('section-header-missing:8:12');
+		expect(editor.setSelection).toHaveBeenLastCalledWith({ anchor: 30, head: 38 });
+		expect(editor.revealRange).toHaveBeenLastCalledWith(range);
+		expect(editor.requestSectionLink).toHaveBeenCalledOnce();
+
+		// An edit that removes the related occurrence must not reuse its stale range.
+		controller.navigateToDiagnostic(diagnostic, { focus: false });
+		expect(editor.setSelection).toHaveBeenLastCalledWith({ anchor: 8, head: 12 });
+	});
+
 	test('returns to the linter tab when the header picker is requested', () => {
 		const { controller } = setup({});
 		controller.setActiveTab('preferences');

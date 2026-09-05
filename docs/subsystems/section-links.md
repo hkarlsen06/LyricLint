@@ -54,6 +54,10 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
   half-the-shorter-body similarity predicate; empty copies neither count nor count against);
   it remains same-semantic only, is a `suggestion` with no fix
   whose action opens the picker from the exact primary or related occurrence that exposed it;
+  mobile Review retains that occurrence separately from the primary diagnostic identity, including
+  its repeated navigation when the card mounts and the displayed line number. The retained
+  occurrence is retired when it disappears or the document is replaced. `e2e/mobile-workbench.spec.ts` pins a related
+  chorus tap through `Manage linking`; `workbench.test.ts` pins stale-range rejection.
   suppression lives in `filterForEditorState` and retires the finding only when one group covers
   every reported occurrence, so a newly pasted copy keeps the action at its own header; links
   moving without an edit must ask for a snapshot (`republishForSectionLinks`, run

@@ -96,3 +96,24 @@ test('fixing the last mobile finding returns focus to the visible Review control
 	await waitFor(() => expect(document.activeElement).toBe(review));
 	expect(screen.getByText('No issues found')).toBeTruthy();
 });
+
+test('revealing an ignored finding opens its lyrics without restoring it or focusing typing', async () => {
+	await page.viewport(390, 844);
+	const controller = mount();
+	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
+	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
+	await fireEvent.click(screen.getAllByRole('button', { name: /^Go to / })[0]);
+	await fireEvent.click(screen.getByRole('button', { name: 'Ignore' }));
+	await fireEvent.click(screen.getByRole('button', { name: 'All findings' }));
+	await fireEvent.click(screen.getByRole('button', { name: '1 diagnostic ignored' }));
+	await fireEvent.click(screen.getByRole('button', { name: 'Show [Verse] · Line 2' }));
+	const editor = screen.getByLabelText<HTMLTextAreaElement>('Lyrics editor');
+	await waitFor(() => expect(editor.closest<HTMLElement>('.editor-region')!.inert).toBe(false));
+	expect(editor.getBoundingClientRect().height).toBeGreaterThan(0);
+	expect(controller.editor.getSnapshot().selection).toEqual({ anchor: 8, head: 12 });
+	expect(document.activeElement).toBe(navigation.getByRole('button', { name: 'Write' }));
+	expect(controller.ignoredDiagnosticKeys).toHaveLength(1);
+	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
+	expect(screen.getAllByRole('button', { name: /^Go to / })).toHaveLength(1);
+	expect(screen.getByRole('button', { name: '1 diagnostic ignored' })).toBeTruthy();
+});

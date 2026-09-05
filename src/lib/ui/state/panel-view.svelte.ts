@@ -7,7 +7,8 @@ import type {
 	EditorSnapshot,
 	RuleContext,
 	DraftIgnoreStore,
-	Severity
+	Severity,
+	TextRange
 } from '$lib/core/types.js';
 import {
 	acceptsDiagnosticAsCorrect,
@@ -43,6 +44,7 @@ interface PanelViewDependencies {
 interface PanelView {
 	readonly activeTab: RightPanelTab;
 	readonly activeDiagnosticKey?: string;
+	readonly activeDiagnosticRange?: TextRange;
 	readonly severityFilter: readonly Severity[];
 	readonly unignoredDiagnostics: readonly Diagnostic[];
 	readonly visibleDiagnostics: readonly Diagnostic[];
@@ -65,7 +67,10 @@ interface PanelView {
 	 * leads with and put the editor's line wash on it.
 	 */
 	leadAfterFix(diagnostics: readonly Diagnostic[]): void;
-	navigateToDiagnostic(diagnostic: Diagnostic, options?: { focus?: boolean }): void;
+	navigateToDiagnostic(
+		diagnostic: Diagnostic,
+		options?: { focus?: boolean; range?: TextRange }
+	): void;
 	/** Mark a diagnostic's card without moving the editor to it. */
 	highlightDiagnostic(diagnostic: Diagnostic): void;
 	chooseSectionHeader(diagnostic: Diagnostic): void;
@@ -208,6 +213,22 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	);
 	const bulkFixPlan = $derived(planBulkFix(visibleDiagnostics));
 
+	// Review keeps the aimed occurrence without changing the finding's identity.
+	// Repeated card navigation and guided actions resolve the same validated range.
+	let aimedOccurrence = $state.raw<{ key: string; range: TextRange } | undefined>();
+
+	function occurrenceRange(diagnostic: Diagnostic): TextRange {
+		const aimed = aimedOccurrence;
+		if (
+			aimed?.key === diagnosticKey(diagnostic) &&
+			[diagnostic, ...(diagnostic.relatedRanges ?? [])].some(
+				(range) => range.from === aimed.range.from && range.to === aimed.range.to
+			)
+		)
+			return aimed.range;
+		return diagnostic;
+	}
+
 	/**
 	 * Mark a diagnostic's card and put the editor's selection — and with it the
 	 * active-line wash — on its text, without scrolling deliberately: the
@@ -222,7 +243,8 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	function selectDiagnostic(diagnostic: Diagnostic): EditorHandle {
 		const editor = deps.editor();
 		activeDiagnosticKey = diagnosticKey(diagnostic);
-		editor.setSelection({ anchor: diagnostic.from, head: diagnostic.to });
+		const range = occurrenceRange(diagnostic);
+		editor.setSelection({ anchor: range.from, head: range.to });
 		return editor;
 	}
 
@@ -235,7 +257,8 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		// CodeMirror applies queued scroll requests during its measure phase.
 		// Reveal last so selection's nearest-edge scroll cannot replace the
 		// deliberate upper-third placement.
-		editor.revealRange({ from: diagnostic.from, to: diagnostic.to });
+		const range = occurrenceRange(diagnostic);
+		editor.revealRange({ from: range.from, to: range.to });
 		return editor;
 	}
 
@@ -295,6 +318,9 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		get activeDiagnosticKey() {
 			return activeDiagnosticKey;
 		},
+		get activeDiagnosticRange() {
+			return aimedOccurrence?.key === activeDiagnosticKey ? aimedOccurrence?.range : undefined;
+		},
 		get severityFilter() {
 			return severityFilter;
 		},
@@ -321,10 +347,16 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 					);
 		},
 		refreshIgnoredDiagnostics() {
+			aimedOccurrence = undefined;
 			passageFrom = undefined;
 			ignoreEpoch += 1;
 		},
 		pruneActiveDiagnostic(diagnostics) {
+			if (aimedOccurrence) {
+				const current = diagnostics.find((item) => diagnosticKey(item) === aimedOccurrence?.key);
+				if (!current || occurrenceRange(current) !== aimedOccurrence.range)
+					aimedOccurrence = undefined;
+			}
 			if (
 				activeDiagnosticKey &&
 				!diagnostics.some((diagnostic) => diagnosticKey(diagnostic) === activeDiagnosticKey)
@@ -341,7 +373,10 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			if (next) selectDiagnostic(next);
 		},
 		navigateToDiagnostic(diagnostic, options) {
-			passageFrom = diagnostic.from;
+			const key = diagnosticKey(diagnostic);
+			if (options?.range) aimedOccurrence = { key, range: options.range };
+			else if (aimedOccurrence?.key !== key) aimedOccurrence = undefined;
+			passageFrom = occurrenceRange(diagnostic).from;
 			const editor = revealDiagnostic(diagnostic);
 			if (options?.focus !== false) editor.focus();
 		},
@@ -450,6 +485,7 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 			});
 		},
 		leadOnNextSnapshot() {
+			aimedOccurrence = undefined;
 			passageFrom = undefined;
 			leadPending = true;
 		},

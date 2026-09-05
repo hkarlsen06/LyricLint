@@ -24,6 +24,8 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`,
   accessible. `reference/search.test.ts` pins these search tasks and grouping.
 - The directory is the unfiltered entrance. Topic links open articles; Browse all exposes entries;
   a direct detail arrival also exposes its topic without silently restricting later searches.
+  Browse topics overrides only the current view; selecting an article reveals its entries again,
+  including when selecting the same topic.
   `ReferenceIndex.svelte.test.ts` and the reference e2e tasks pin directory/search transitions.
 - Query, scope, topic, browse mode, and diagnostic filters belong to the URL. Typing replaces
   the current history entry; opening a result creates an ordinary navigation. The site nav and
@@ -61,6 +63,15 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`,
 The guidance catalog's content pipeline stays in `docs/guidelines.md` and is followed exactly.
 
 ## Decision record
+
+### Choosing a topic ends directory browsing
+
+The shared finder stays mounted between articles. Its local Browse topics override used to stay
+set after choosing the next topic, leaving the directory beside the new article while reloading
+the same URL showed that article's entries. The navigation hook now clears this temporary
+override without changing the URL-owned query or filters. The topic-directory e2e task selects
+a second topic, compares its results after reload, and selects the current topic again to pin
+both arrivals.
 
 ### Check explanations need their reviewed occurrence
 

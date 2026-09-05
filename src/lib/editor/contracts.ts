@@ -175,7 +175,7 @@ interface EditorOverlayCallbacks {
 		displayName: string;
 	}): void;
 	/** A deliberate pointer press; true means Review handled it instead of a popover. */
-	onDiagnosticReviewRequest?(diagnostic: Diagnostic): boolean;
+	onDiagnosticReviewRequest?(diagnostic: Diagnostic, range?: TextRange): boolean;
 	onDiagnosticActivateIntent?(diagnostic: Diagnostic, intent: 'navigate' | 'fix'): void;
 	/**
 	 * An audio file was dropped on the document.

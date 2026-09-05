@@ -509,6 +509,21 @@ test('the topic directory narrows browsing before showing entries', async ({ pag
 	).toHaveCount(0);
 	await page.getByRole('button', { name: 'Browse topics', exact: true }).click();
 	await expect(topics).toBeVisible();
+	await topics.getByRole('link', { name: 'Spelling and contractions', exact: true }).click();
+	await expect(page).toHaveURL(/\/guidelines\/spelling\/$/u);
+	await expect(topics).toHaveCount(0);
+	await expect(page.locator('.reference-result').first()).toBeVisible();
+	await expect(
+		page.locator('.reference-result').filter({ hasNotText: 'Spelling and contractions' })
+	).toHaveCount(0);
+	const spellingResults = await page.locator('.reference-result').count();
+	await page.reload();
+	await expect(page.locator('.reference-result')).toHaveCount(spellingResults);
+	await page.getByRole('button', { name: 'Browse topics', exact: true }).click();
+	await topics.getByRole('link', { name: 'Spelling and contractions', exact: true }).click();
+	await expect(topics).toHaveCount(0);
+	await expect(page.locator('.reference-result')).toHaveCount(spellingResults);
+	await page.getByRole('button', { name: 'Browse topics', exact: true }).click();
 	await page.getByRole('button', { name: 'Browse all', exact: true }).click();
 	expect(await page.locator('.reference-result').count()).toBeGreaterThan(40);
 });
