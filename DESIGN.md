@@ -2,7 +2,7 @@
 
 ## Design Direction
 
-LyricLint is a precise editorial instrument for long transcription sessions. The interface uses a restrained, warm-neutral palette so source text remains primary, with color reserved for actions, diagnostics, and performer identity. It should feel dense, trustworthy, and native to expert workflows rather than decorative.
+LyricLint is a precise editorial instrument for long transcription sessions. The interface uses a restrained, warm-neutral palette so source text remains primary, with color reserved for actions, diagnostics, and performer identity. It should feel calm, approachable, and comfortable for long writing sessions. The workbench uses rounded document and diagnostic surfaces, space instead of structural hairlines, and quiet controls that remain easy to discover.
 
 The dark theme is tuned for a transcriber working at a desktop in a dim room. The light theme supports daylight editing without turning the canvas into stark white.
 
@@ -51,7 +51,7 @@ The rule reference's pages are `--measure-reference` rather than the editor's me
 ### Spacing and Shape
 
 - Spacing follows the `--space-*` scale from 0.125rem to 3rem.
-- Standard controls use `--radius-control`.
+- Standard controls use `--radius-control`. Within the workbench this takes `--radius-md`; panel surfaces take `--radius-lg`.
 - Panels use `--radius-panel`; floating overlays use `--radius-overlay`.
 - Pills are reserved for compact categorical chips and badges, not ordinary action buttons.
 - A label is not a chip. A diagnostic's severity is a colored glyph and a colored word on the card's meta line — no fill, no border, no radius — rather than a badge on a line of its own; it costs no vertical space and cannot be mistaken for the pressable severity filters above the list.

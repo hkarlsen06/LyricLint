@@ -23,6 +23,12 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/layout/LandscapeNotice.
 
 ## Decision record
 
+### The softened document keeps its inset when stacked
+
+The stacked editor has a small inset on both sides. The panel below it separates by tone
+rather than a top hairline; the existing grid, scroll ports, and sticky tabs are unchanged.
+
+
 ### The phone is supported upright and refused on its side
 
 The workbench runs on a phone. The editor and the linter stack (the `68rem` breakpoint), each

@@ -6,8 +6,8 @@
 	min-height: 0;
 	overflow: hidden;
 	grid-row: 2;
-	border-left: var(--border-width) solid var(--color-border);
-	background: var(--color-canvas);
+	border-left: 0;
+	background: var(--color-chrome);
 }
 
 /* Bits UI renders Tabs.Root as a plain div; it must become the column that
@@ -92,8 +92,9 @@
    already scrolls an offscreen member into view. */
 .panel-tabs {
 	display: flex;
-	align-self: stretch;
-	gap: var(--space-4);
+	align-self: center;
+	padding-block: var(--space-1);
+	gap: var(--space-1);
 	overflow-x: auto;
 	scrollbar-width: none;
 }
@@ -105,7 +106,9 @@
 .panel-tabs button {
 	position: relative;
 	flex: none;
-	padding: 0 var(--space-1);
+	min-height: var(--control-height-sm);
+	padding: 0 var(--space-2);
+	border-radius: var(--radius-control);
 	border: 0;
 	background: transparent;
 	color: var(--color-text-muted);
@@ -114,6 +117,8 @@
 }
 
 .panel-tabs button[data-state='active'] {
+	background: var(--color-surface);
+	font-weight: var(--font-weight-semibold);
 	color: var(--color-text);
 }
 
@@ -125,18 +130,9 @@
 	align-items: center;
 }
 
-/* `bottom: 0`, not `-1px`: the strip is a scroll container now, which clips at
-   its own box, so an indicator hung 1px below it comes back clipped to a 1px
-   sliver. Sitting flush above the header's hairline instead of over it costs
-   the active tab that one line of separation and nothing else. */
-.panel-tabs button[data-state='active']::after {
-	position: absolute;
-	right: 0;
-	bottom: 0;
-	left: 0;
-	height: 2px;
-	background: var(--color-text);
-	content: '';
+.panel-tabs button:hover {
+	background: var(--color-fill);
+	color: var(--color-text);
 }
 
 .tab-count {

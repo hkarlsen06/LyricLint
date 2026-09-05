@@ -1150,10 +1150,7 @@ describe('Workspace and toolbar', () => {
 	});
 
 	test('keeps the status-bar link off the accent color', () => {
-		// The band is the quietest chrome in the window. A saturated blue would be
-		// the only saturated thing in it, and in a linter a lone spot of color reads
-		// as a finding — so the link is marked by its underline and takes the row's
-		// muted color instead.
+		// A quiet app control keeps navigation semantics without a permanent underline.
 		const { controller } = createTestWorkbench();
 		renderWorkspace(controller);
 
@@ -1161,7 +1158,8 @@ describe('Workspace and toolbar', () => {
 		const styles = getComputedStyle(link);
 		const row = getComputedStyle(link.closest('.status-bar')!);
 		expect(styles.color).toBe(row.color);
-		expect(styles.textDecorationLine).toBe('underline');
+		expect(styles.textDecorationLine).toBe('none');
+		expect(parseFloat(styles.minHeight)).toBeGreaterThan(0);
 	});
 
 	test('opens the one shared audio picker from the Song tab', async () => {

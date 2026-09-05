@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Info } from 'lucide-svelte';
 	import type {
 		EditorHandle,
 		EditorSnapshot,
@@ -1116,7 +1117,10 @@
 		     two keystroke hints were a legend for shortcuts nobody had asked for
 		     help with — three items of chrome to make one link look less alone. -->
 		<span class="status-bar__group">
-			<a class="status-bar__link" href={resolve('/')}>About LyricLint</a>
+			<a class="status-bar__link" href={resolve('/')}>
+				<Info size={14} aria-hidden="true" />
+				About LyricLint
+			</a>
 		</span>
 	</footer>
 {/snippet}

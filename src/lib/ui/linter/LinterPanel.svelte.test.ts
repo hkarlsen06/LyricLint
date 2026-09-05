@@ -120,12 +120,8 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		expect(openStyle.backgroundColor).toBe(getComputedStyle(resting).backgroundColor);
 		expect(openStyle.boxShadow).not.toBe('none');
 		expect(openStyle.boxShadow).not.toContain('inset');
-		// The seam goes with the lift: a row still ruled into the run at its foot
-		// is still part of it. The border keeps its width and loses only its color,
-		// so opening a card cannot shift the list under the pointer that opened it.
-		expect(openStyle.borderBottomStyle).toBe('solid');
-		expect(openStyle.borderBottomWidth).not.toBe('0px');
-		expect(openStyle.borderBottomColor).toBe('rgba(0, 0, 0, 0)');
+		expect(openStyle.borderBottomWidth).toBe('0px');
+		expect(parseFloat(openStyle.borderRadius)).toBeGreaterThan(0);
 	});
 
 	test('drops the remainder when there is none', () => {

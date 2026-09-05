@@ -19,15 +19,17 @@
    fallback for browsers without the unit, where it is exactly today's
    behaviour. */
 .workspace {
+	--radius-control: var(--radius-md);
+	--radius-panel: var(--radius-lg);
 	position: relative;
 	display: grid;
-	grid-template-columns: minmax(44rem, 1fr) minmax(21rem, 24rem);
+	grid-template-columns: minmax(44rem, 1fr) minmax(21rem, 26rem);
 	grid-template-rows: auto minmax(0, 1fr) auto;
 	width: 100%;
 	height: 100vh;
 	height: 100dvh;
 	overflow: clip;
-	background: var(--color-surface);
+	background: var(--color-chrome);
 }
 
 /*
@@ -57,6 +59,13 @@
 	min-height: 0;
 	grid-row: 2;
 	grid-template-rows: minmax(0, 1fr) auto;
+	margin-left: var(--space-3);
+	border-radius: var(--radius-panel);
+	background: var(--color-surface);
+}
+
+.editor-region > .editor-host {
+	border-radius: var(--radius-panel) var(--radius-panel) 0 0;
 }
 
 /*
@@ -78,10 +87,8 @@
  * tab strip: the chrome under the toolbar ends at one height across the window
  * even though the two surfaces do not touch.
  *
- * It closes on the side it pokes out of: a border and a radius at the
- * bottom-left corner, nothing at the right where the panel's own border already
- * draws the edge, and nothing at the top where it meets the toolbar it hangs
- * from.
+ * A rounded inner corner and a tonal change separate the tray; no hairline
+ * connects it to the rest of the window.
  *
  * `--color-chrome`, like the toolbar above it. The bulk-fix strip learned the
  * alternative the long way: drawn as bare canvas it took the tone of whatever it
@@ -97,8 +104,7 @@
 	display: flex;
 	min-height: var(--panel-tabs-height);
 	padding: 0 var(--space-3);
-	border-bottom: var(--border-width) solid var(--color-border);
-	border-left: var(--border-width) solid var(--color-border);
+	border: 0;
 	border-bottom-left-radius: var(--radius-panel);
 	gap: var(--space-1);
 	align-items: center;
@@ -151,7 +157,7 @@
 	grid-row: 1;
 	grid-column: 1 / -1;
 	padding: var(--space-2) var(--space-3) var(--space-2);
-	border-bottom: var(--border-width) solid var(--color-border);
+	border-bottom: 0;
 	gap: var(--space-3);
 	align-items: center;
 	justify-content: space-between;
@@ -1022,7 +1028,7 @@
 	grid-column: 1 / -1;
 	min-height: var(--control-height-md);
 	padding: var(--space-1) var(--space-3);
-	border-top: var(--border-width) solid var(--color-border);
+	border-top: 0;
 	gap: var(--space-4);
 	flex-wrap: wrap;
 	align-items: center;
@@ -1040,18 +1046,20 @@
 	align-items: center;
 }
 
-/*
- * The status bar's one link. It takes the muted color of the row rather than
- * `--color-accent`: the band is the quietest chrome in the window and a
- * saturated blue would be the only saturated thing in it, which in a linter
- * reads as a finding. The underline is what marks it as a link instead, and
- * hover promotes it to full text color — a change in weight, not in hue.
- */
+/* Navigation keeps link semantics, with the same quiet target as app controls. */
 .status-bar__link {
+	display: inline-flex;
+	min-height: var(--control-height-sm);
+	padding: var(--space-1) var(--space-2);
+	align-items: center;
+	gap: var(--space-1-5);
+	border-radius: var(--radius-control);
 	color: inherit;
-	text-decoration: underline;
+	text-decoration: none;
+	transition: background var(--duration-fast) var(--ease-out-quart);
 }
 
 .status-bar__link:hover {
+	background: var(--color-fill);
 	color: var(--color-text);
 }

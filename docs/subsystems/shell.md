@@ -13,10 +13,11 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 - The toolbar spans the whole window and splits on what a control acts on, not on how loud it
   is; the save readout draws nothing while saving is going well (`sr-only` otherwise).
-- Diagnostics are one continuous run — no gaps, no rounding, hairlines between. Selection is
+- Diagnostics are inset rounded rows separated by space, without hairlines. Selection is
   depth, not hue: recessed in dark, lifted in light. No accent wash, no accent ring.
-- `--color-canvas` is spent (panel behind the cards, selected card in dark); anything between
-  the tab strip and the cards is `--color-chrome` or it is a card — no third material.
+  `RightPanel.svelte.test.ts` pins the spacing, shape, and selection treatment.
+- The panel background and controls above the findings use `--color-chrome`;
+  `--color-canvas` belongs to the selected finding in dark.
 - Severity chips draw only the kinds the document has, unasked; a chip's count is over the
   unignored diagnostics and blind to the filters, or hiding a kind deletes the way back to it.
 - The editor's command tray (`.editor-actions`) is an absolutely positioned tray over the
@@ -59,6 +60,31 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   `import.meta.env.DEV`, and is pinned empty in `vite.config.ts` for the suite.
 
 ## Decision record
+
+### A calmer workbench replaces the ruled grid
+
+The workbench now uses chrome as the continuous window background. The document is inset
+from the left edge, with rounded top corners, and the panel separates from it by tone rather
+than a vertical hairline. The toolbar and status row no longer draw horizontal rules.
+Controls take the medium radius within the workspace; this does not change the public site.
+The active tab has a filled rounded target and stronger type, replacing its underline.
+
+Findings retain their depth cue but gain an inset, rounded corners, and a gap between rows.
+This supersedes the gapless geometry recorded below: repeated findings earn independent
+surfaces, while the panel itself has no enclosing border. Filters and bulk commands keep
+chrome so they cannot merge with the selected finding, but lose their bottom rules.
+
+The set-aside disclosure remains at the panel foot, with accurate ignored/accepted counts
+and restoration focus behavior. A rotating chevron replaces the blue `Show` label; the
+whole row is a quiet hover target and `aria-expanded` carries its state. About LyricLint
+keeps link semantics and its accessible name but uses a quiet control target, without a
+permanent website-style underline; an information glyph identifies the destination.
+The desktop panel can grow to 26rem so its tabs and diagnostic prose have breathing room. Pins: `RightPanel.svelte.test.ts`,
+`LinterPanel.svelte.test.ts`, and `Workspace.svelte.test.ts`.
+
+The earlier decisions below explain the interaction and depth choices that still hold;
+the square seams and connected bands described in their history have been superseded.
+
 
 ### The shell is one window, and the linter is one column
 

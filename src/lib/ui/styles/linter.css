@@ -1,12 +1,7 @@
 /* The linter tab: severity filters, diagnostic cards, severity chips, details, and ignored rules. */
 
-/* The linter tab is full-bleed: cards run edge to edge as square sections,
-   separated by slim bands of the darker panel canvas, as in the mockup.
-
-   It is also a column the full height of the panel, so the recent drafts at its
-   foot can be at the foot of the *panel* rather than trailing whatever the list
-   above them happens to be tall. Nothing else in here is pinned; everything
-   stacks from the top as before. */
+/* A full-height column keeps recent drafts at the foot. Findings are inset
+   rounded rows, separated by space rather than a ruled grid. */
 .panel-content.linter-panel {
 	display: flex;
 	padding: 0;
@@ -187,7 +182,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	padding: var(--space-2) var(--space-3);
-	border-bottom: var(--border-width) solid var(--color-border);
+	border-bottom: 0;
 	margin: 0;
 	gap: var(--space-2);
 	align-items: center;
@@ -221,7 +216,7 @@
 .linter-panel__filters {
 	display: flex;
 	padding: var(--space-2) var(--space-3);
-	border-bottom: var(--border-width) solid var(--color-border);
+	border-bottom: 0;
 	flex-wrap: wrap;
 	gap: var(--space-1);
 	/* Chrome, like the tab strip it drops out of — the row is an extension of
@@ -234,27 +229,21 @@
    so it is one implementation and not two. Nothing about it needs overriding
    here; this row only decides where the chips sit. */
 
-/* One continuous run, not a stack of separate cards: no gap, and a hairline
-   between neighbours is the only seam. */
+/* Inset findings separate by space; only the open finding takes depth. */
 .diagnostic-list {
 	display: grid;
 	margin: 0;
-	padding: 0;
-	gap: 0;
+	padding: var(--space-2) var(--space-3);
+	gap: var(--space-2);
 	list-style: none;
 }
 
-/* Square, borderless sections. Selection reads as depth rather than as another
-   box — which way the depth goes is the scheme's answer, below. `--color-canvas`
-   is the elevation family's recessed level, not a fill step; the rule a card
-   must not cross is about the fill ramp. */
-/* Positioned because the row's press target is measured against it: the card is
-   the control all the way down, explanation included, not just its head. */
+/* The row owns the stretched press target, including its explanation. */
 .diagnostic-list > li {
 	position: relative;
 	border: 0;
-	border-bottom: var(--border-width) solid var(--color-border);
-	border-radius: 0;
+	border-bottom: 0;
+	border-radius: var(--radius-panel);
 	background: var(--color-surface);
 }
 
@@ -262,34 +251,8 @@
 	border-bottom: 0;
 }
 
-/*
- * Selection is depth and nothing else. The active card — the one the editor is
- * sitting in — used to add an accent wash and an inset accent ring on top of
- * this, which put a blue box inside a panel whose whole job is to color things
- * by severity. The step is already unmistakable, and an active card is always
- * the expanded one, so the two states share one treatment.
- *
- * IT LIFTS IN LIGHT AND SINKS IN DARK, and that is not an inconsistency dressed
- * up. Depth is the cue in both; what differs is which direction the scheme has
- * a word for. In dark, the recessed level *is* the document's own tone, so a
- * well reads as somewhere to look into and the open card is the deepest thing
- * on the column. In light the recessed level is grey — and grey on a white
- * column is what this workbench uses everywhere else to say *spent*: disabled
- * text, a control that cannot be pressed, a rule that has been ignored. Sunk,
- * the one card the reader has opened and is about to press a fix on was the
- * dullest surface in the panel, which is the exact reading a selection must not
- * have.
- *
- * It cannot rise by lightness, because the resting cards are already the paper
- * — so it earns the lift with a shadow, which is what the elevation note in
- * `tokens.css` says light mode has to do for anything above `--color-surface`.
- * The seam goes with it: a row still ruled into the run at both ends is still
- * part of it, so the hairline under the lifted card and under the row above it
- * come off, and `z-index` lets the shadow fall *across* both neighbours instead
- * of under them. Nothing moves — the border keeps its 1px and only loses its
- * color, so lifting a card cannot shift the list under the pointer that opened
- * it.
- */
+/* Selection keeps the established depth cue: raised in light, recessed in dark.
+   Rounded edges and gaps replace seams without moving rows on selection. */
 .diagnostic-list > li.diagnostic-card--expanded,
 .diagnostic-list > li.diagnostic-card--active {
 	z-index: 1;
@@ -424,13 +387,7 @@
 	gap: var(--space-3);
 }
 
-/*
- * The collapsed footer is one row of chrome at the foot of the panel, and the
- * media strip is one row of chrome at the foot of the editor beside it — so they
- * are the same height, `--control-height-lg`, and neither one stacks padding of
- * its own on top of it. Two chrome bands meeting at the same seam, six pixels
- * apart, read as a mistake before they read as two different things.
- */
+/* A quiet disclosure lives directly on the panel background. */
 .ignored-rules {
 	padding: 0;
 }
@@ -439,9 +396,10 @@
 	display: flex;
 	width: 100%;
 	min-height: var(--control-height-lg);
-	padding: var(--space-1) 0;
+	padding: var(--space-1) var(--space-2);
 	border: 0;
-	gap: var(--space-1);
+	border-radius: var(--radius-control);
+	gap: var(--space-2);
 	align-items: center;
 	justify-content: space-between;
 	background: transparent;
@@ -451,12 +409,17 @@
 }
 
 .ignored-rules__toggle:hover {
+	background: var(--color-fill);
 	color: var(--color-text);
 }
 
-.ignored-rules__restore-hint {
-	color: var(--color-accent);
-	font-weight: var(--font-weight-semibold);
+.ignored-rules__chevron {
+	flex: none;
+	transition: transform var(--duration-fast) var(--ease-out-quart);
+}
+
+.ignored-rules__toggle[aria-expanded='true'] .ignored-rules__chevron {
+	transform: rotate(180deg);
 }
 
 /* The row's height is fixed, so the expanded list carries its own bottom space

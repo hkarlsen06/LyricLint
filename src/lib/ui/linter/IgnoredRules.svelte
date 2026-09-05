@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
+	import { ChevronDown } from 'lucide-svelte';
 	import {
 		ignoredDiagnosticAccepted,
 		ignoredDiagnosticRuleId,
@@ -81,11 +82,7 @@
 		onclick={() => (expanded = !expanded)}
 	>
 		<span>{summary}</span>
-		<!-- The hint names what is behind the disclosure, not what this press does
-		     — pressing it expands. `aria-hidden` rather than a reword, because the
-		     button's own state is already carried by `aria-expanded` and a second
-		     word in its accessible name would promise a restore it does not do. -->
-		<span class="ignored-rules__restore-hint" aria-hidden="true">Show</span>
+		<ChevronDown class="ignored-rules__chevron" size={16} aria-hidden="true" />
 	</button>
 	{#if expanded}
 		<ul>

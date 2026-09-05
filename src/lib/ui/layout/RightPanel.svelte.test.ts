@@ -293,7 +293,7 @@ describe('RightPanel', () => {
 		expect(filters()).toBeTruthy();
 	});
 
-	test('runs the diagnostics as one gapless column with the selected row set into it', async () => {
+	test('separates rounded diagnostics with space and retains selection depth', async () => {
 		const warning = diagnostic({
 			ruleId: 'section.header-missing',
 			severity: 'warning',
@@ -311,17 +311,16 @@ describe('RightPanel', () => {
 		const { controller } = createTestWorkbench({ diagnostics: [warning, error] });
 		render(RightPanel, { controller });
 
-		// No gap and no rounding: the cards read as one run of sections, seamed by
-		// a hairline rather than separated by bands of canvas.
 		const list = document.querySelector('.diagnostic-list')!;
 		const listStyle = getComputedStyle(list);
-		expect(listStyle.rowGap).toBe('0px');
-
+		expect(parseFloat(listStyle.rowGap)).toBeGreaterThan(0);
+		expect(parseFloat(listStyle.paddingLeft)).toBeGreaterThan(0);
 		const rows = [...list.children] as HTMLElement[];
 		expect(rows).toHaveLength(2);
-		expect(getComputedStyle(rows[0]!).borderRadius).toBe('0px');
-		expect(getComputedStyle(rows[0]!).borderBottomWidth).toBe('1px');
-		expect(getComputedStyle(rows[1]!).borderBottomWidth).toBe('0px');
+		for (const row of rows) {
+			expect(parseFloat(getComputedStyle(row).borderRadius)).toBeGreaterThan(0);
+			expect(getComputedStyle(row).borderBottomWidth).toBe('0px');
+		}
 
 		// Selection is depth, and the direction is the scheme's own answer — so this
 		// asserts whichever branch it is running under rather than one of them. Dark
@@ -585,8 +584,8 @@ describe('RightPanel', () => {
 
 		const toggle = screen.getByRole('button', { name: /diagnostic ignored/ });
 		expect(toggle.getAttribute('aria-expanded')).toBe('false');
-		expect(toggle.textContent).toContain('Show');
-		expect(toggle.querySelector('.ignored-rules__restore-hint')?.getAttribute('aria-hidden')).toBe(
+		expect(toggle.textContent).not.toContain('Show');
+		expect(toggle.querySelector('.ignored-rules__chevron')?.getAttribute('aria-hidden')).toBe(
 			'true'
 		);
 	});
