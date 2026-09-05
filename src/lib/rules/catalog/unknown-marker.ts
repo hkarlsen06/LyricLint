@@ -100,9 +100,10 @@ export const unknownImprovisedMarkerRule: RuleDefinition = {
  * where the work starts.
  *
  * Coalescing is also what makes `It really is unintelligible` mean what it
- * says: pressed once, it answers for the whole song as it stands. The ignore
- * identity includes the message, so a *new* `[?]` changes the count and brings
- * the card back — a fresh unknown is a fresh question.
+ * says: pressed once, it answers for the whole 'scribe as it stands, and a
+ * *new* `[?]` does not re-ask it. The card carries the count, but the ignore
+ * identity treats every count as the same occurrence — a fresh unknown is
+ * still the same answered question, not a fresh one.
  *
  * `document` tier, for `capitalization.title-case`'s reason: a marker typed on
  * line 52 rewrites the count on a card anchored at line 3, which is a change

@@ -324,6 +324,75 @@ describe('paste', () => {
 		expect(handle.getLineAnchors?.()).toEqual([]);
 	});
 
+	it('drops carried timings that would land behind the anchor above the paste', async () => {
+		const verse = 'First line\nSecond line\nThird line\nFourth line';
+		const atEnd = verse.length;
+		const { handle, text } = await mount({
+			text: verse,
+			selection: { anchor: atEnd, head: atEnd }
+		});
+		handle.setLineAnchors?.([
+			{ line: 1, time: 10 },
+			{ line: 2, time: 20 },
+			{ line: 3, time: 30 },
+			{ line: 4, time: 40 }
+		]);
+
+		const fragment = 'First line\nSecond line';
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', `\n${fragment}`);
+		transfer.setData(
+			'text/html',
+			clipboardHtml(`\n${fragment}`, {
+				lines: 3,
+				anchors: [
+					{ line: 1, time: 10 },
+					{ line: 2, time: 20 }
+				],
+				links: []
+			})
+		);
+
+		clipboard('paste', transfer);
+
+		expect(text()).toBe(`${verse}\n${fragment}`);
+		expect(handle.getLineAnchors?.()).toEqual([
+			{ line: 1, time: 10 },
+			{ line: 2, time: 20 },
+			{ line: 3, time: 30 },
+			{ line: 4, time: 40 }
+		]);
+	});
+
+	it('keeps a carried timing that still runs forward between its new neighbours', async () => {
+		const verse = 'First line\nSecond line\nFourth line';
+		const atStartOfThird = 'First line\nSecond line\n'.length;
+		const { handle, text } = await mount({
+			text: verse,
+			selection: { anchor: atStartOfThird, head: atStartOfThird }
+		});
+		handle.setLineAnchors?.([
+			{ line: 1, time: 10 },
+			{ line: 3, time: 40 }
+		]);
+
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', 'Third line\n');
+		transfer.setData(
+			'text/html',
+			clipboardHtml('Third line\n', { lines: 2, anchors: [{ line: 0, time: 20 }], links: [] })
+		);
+
+		clipboard('paste', transfer);
+
+		expect(text()).toBe('First line\nSecond line\nThird line\nFourth line');
+		expect(handle.getLineAnchors?.()).toEqual([
+			{ line: 1, time: 10 },
+			{ line: 3, time: 20 },
+			{ line: 4, time: 40 }
+		]);
+	});
+
 	it('undo takes back the paste, links and all', async () => {
 		const { handle, text } = await mount({ text: '' });
 		const transfer = new DataTransfer();

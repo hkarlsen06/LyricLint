@@ -155,3 +155,41 @@ describe('a finding with its own identity text', () => {
 		]);
 	});
 });
+
+/**
+ * `unknown.unresolved` is one card per document carrying the count in its
+ * message, so adding another `[?]` rewrites the message without making it a
+ * different question. An acceptance given for two markers must still hide the
+ * card when a third arrives.
+ */
+describe('an unresolved-marker acceptance across count changes', () => {
+	function unresolvedFinding(from: number, message: string): Diagnostic {
+		return diagnostic(from, {
+			to: from + 3,
+			ruleId: 'unknown.unresolved',
+			message
+		});
+	}
+
+	it('follows the finding when a new [?] rewrites the count', () => {
+		const text = '[Verse]\nI heard [?] tonight\nAnd [?] again';
+		const two = unresolvedFinding(17, 'Try to identify the 2 lyrics marked [?].');
+		const key = diagnosticIgnoreKey(two, text);
+
+		const editedText = `${text}\nStill [?]`;
+		const three = unresolvedFinding(17, 'Try to identify the 3 lyrics marked [?].');
+		expect([...matchIgnoredDiagnostics([three], editedText, [key]).values()]).toEqual([
+			diagnosticKey(three)
+		]);
+	});
+
+	it('does not let another rule borrow the count equivalence', () => {
+		const text = '[Verse]\nI heard [?] tonight\nAnd [?] again';
+		const other = diagnostic(17, { message: 'Try to identify the 2 lyrics marked [?].' });
+		const key = diagnosticIgnoreKey(other, text);
+
+		const editedText = `${text}\nStill [?]`;
+		const three = diagnostic(17, { message: 'Try to identify the 3 lyrics marked [?].' });
+		expect(matchIgnoredDiagnostics([three], editedText, [key]).size).toBe(0);
+	});
+});

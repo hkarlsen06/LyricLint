@@ -224,6 +224,47 @@ function applyLinks(
 }
 
 /**
+ * The carried timings that still run forward at the paste site, in fragment
+ * order.
+ *
+ * Anchors are absolute moments, so a copy is only keeping its times while
+ * they stay ordered where they land: after the nearest anchor on a line wholly
+ * before the pasted range and before the nearest anchor on a line wholly after
+ * it, and strictly increasing among themselves. Anchors on lines the paste
+ * overlaps are left out of both bounds — a replaced range's own timings go
+ * with it, and an insertion splitting a line collides with that line's anchor
+ * rather than ordering against it. Anything else is dropped while the words
+ * still land; a re-tap costs less than a jump into the wrong verse.
+ */
+function chronologicalAnchors(
+	state: EditorState,
+	metadata: ClipboardMetadata,
+	from: number,
+	to: number
+): ClipboardMetadata['anchors'] {
+	let prev: number | undefined;
+	let next: number | undefined;
+	for (const anchor of lineAnchorsFor(state)) {
+		const line = state.doc.line(anchor.line);
+		if (line.to < from) {
+			if (prev === undefined || anchor.time > prev) prev = anchor.time;
+		} else if (line.from >= to) {
+			if (next === undefined || anchor.time < next) next = anchor.time;
+		}
+	}
+	const ordered = [...metadata.anchors].sort((left, right) => left.line - right.line);
+	const kept: ClipboardMetadata['anchors'] = [];
+	let lower = prev;
+	for (const anchor of ordered) {
+		if (lower !== undefined && anchor.time <= lower) continue;
+		if (next !== undefined && anchor.time >= next) continue;
+		kept.push(anchor);
+		lower = anchor.time;
+	}
+	return kept;
+}
+
+/**
  * A paste carrying our own flavor lands the text and its metadata; anything
  * else is handed back to CodeMirror untouched.
  *
@@ -232,6 +273,13 @@ function applyLinks(
  * manager that merged flavors from two copies would otherwise land timings
  * measured against somebody else's lines, and the honest answer to that is the
  * text alone, through the default path.
+ *
+ * A carried timing lands only where it still runs forward: pasting two timed
+ * lines later into their own section would otherwise re-plant their earlier
+ * moments behind a later anchor, and everything downstream reads anchors as
+ * ordered. Timings that would arrive before the anchor above the paste or at
+ * or past the anchor below it — or behind a carried timing before them — are
+ * dropped while the words still land.
  */
 function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
 	const data = event.clipboardData;
@@ -248,7 +296,7 @@ function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
 	// Positions are stated in the new document's coordinates, which is what the
 	// anchor field reads its effect against — `from` plus an offset into the
 	// insert is that position whether or not the paste landed mid-line.
-	const anchors = metadata.anchors.map((anchor) =>
+	const anchors = chronologicalAnchors(view.state, metadata, from, to).map((anchor) =>
 		anchorLineEffect.of({ pos: from + (starts[anchor.line] ?? 0), time: anchor.time })
 	);
 	event.preventDefault();

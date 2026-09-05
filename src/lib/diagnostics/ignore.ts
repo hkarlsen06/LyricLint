@@ -183,6 +183,11 @@ function isUnknownVoiceIdentity(value: string): boolean {
  * Slot styling is presentation, not an unknown voice's identity. A performer
  * assignment may move that voice down to keep newly named legend groups in
  * canonical order; the acceptance follows the same occurrence by context.
+ *
+ * The unresolved-marker count is the same shape: one card per document carries
+ * how many `[?]`s are left, so adding another marker rewrites the message
+ * without making it a different question. An acceptance already given for this
+ * 'scribe therefore follows the finding across count changes.
  */
 function identityPartMatches(
 	saved: IgnoreIdentity,
@@ -190,6 +195,9 @@ function identityPartMatches(
 	partIndex: number
 ): boolean {
 	if (saved[partIndex] === current[partIndex]) return true;
+	if (partIndex === 1 && saved[0] === 'unknown.unresolved' && current[0] === 'unknown.unresolved') {
+		return true;
+	}
 	return (
 		partIndex === 2 &&
 		saved[0] === 'performer.inline-mismatch' &&

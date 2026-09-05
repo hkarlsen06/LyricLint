@@ -235,6 +235,13 @@ ignores now remain until Restore is pressed or the 'scribe itself is emptied or 
 still keys suppression per occurrence, so the retained decision does not hide a different finding
 merely because it comes from the same rule.
 
+**A new `[?]` does not make it a different unintelligible.** `unknown.unresolved` is one card per
+document carrying the count in its message, so adding another marker rewrites the message without
+changing the question. `matchIgnoredDiagnostics` treats every `unknown.unresolved` message as the
+same occurrence for that rule only, then uses the existing context and distance ranking to follow
+it. Without that narrow equivalence, each new `[?]` re-asked `It really is unintelligible` with
+the new total even though the reader had already answered it for this 'scribe.
+
 Implementation: `presumedCorrect` and `identityText` on `Diagnostic` in `src/lib/core/types.ts`
 (`presumedCorrect` currently with no catalog producer); `acceptsAsCorrect` in
 `src/lib/diagnostics/DiagnosticActions.svelte`, which is one derived answer for both surfaces —

@@ -30,8 +30,11 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   stays byte-for-byte the selection's own slice — clean lyrics on the clipboard are this
   application's entire output. The toolbar's `Copy lyrics` deliberately carries nothing.
 - The paste is the sanctioned exception to wholesale replacement losing anchors and links:
-  the payload is fragment-relative, guarded by the fragment's own line count, versioned, and
-  parsed trust-nothing (unreadable pieces drop, the rest applies).
+  the payload is fragment-relative, guarded by the fragment's own line count, versioned,
+  parsed trust-nothing (unreadable pieces drop, the rest applies), and timed only where
+  it still runs forward — a carried timing lands after the anchor above the paste and
+  before the anchor below it, strictly increasing, and anything earlier drops while the
+  words still land.
 - The extension owns a copy outright or leaves it to CodeMirror untouched — only single
   non-empty ranges with something to carry, and only where the live DOM selection is the
   editor's own. A link travels only where its whole group is inside the copy; landed links go

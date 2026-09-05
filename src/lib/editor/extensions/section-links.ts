@@ -1162,6 +1162,16 @@ function boundaryExtension(
 		for (const header of group) {
 			const body = sectionBodyRange(parsed, header);
 			if (!body || body.to >= change.from) continue;
+			// A member split by a medial blank line carries a headerless tail
+			// immediately after it. Filling that gap is not a terminal append:
+			// carrying the whole tail would duplicate the words peers already
+			// hold as their own tail. Defer to the medial fill below.
+			const memberSection = parsed.sections.find((section) => section.header?.from === header);
+			if (memberSection) {
+				const orderedSections = [...parsed.sections].sort((left, right) => left.from - right.from);
+				const nextSection = orderedSections[orderedSections.indexOf(memberSection) + 1];
+				if (nextSection && !nextSection.header) continue;
+			}
 			const gap = transaction.startState.doc.sliceString(body.to, change.from);
 			if (!/[\r\n]/u.test(gap) || !/^[\t\r\n ]+$/u.test(gap)) continue;
 
@@ -1236,6 +1246,110 @@ function mirrorBoundaryExtension(
 	if (edits.length === 0) return undefined;
 	edits.sort((left, right) => left.from - right.from);
 	return { changes: edits, sequential: true };
+}
+
+/**
+ * A lyric typed onto the blank line that split a linked body in two.
+ *
+ * Pressing Enter between lyric lines inserts `\n` before the line break
+ * already there, so `Hold\nNever` becomes `Hold\n\nNever`: a blank physical
+ * line, which the parser reads as a section boundary. The mirror carries that
+ * bare break to every peer (mid-body breaks mirror by design), so all copies
+ * split into a headed first half and a headerless tail. Typing on the empty
+ * line merges the edited copy back into one section; without help the peers
+ * keep their blank separators and the link thereafter covers only first
+ * halves — the reported "two separate sections".
+ *
+ * The terminal extension above must not answer this: it would carry the whole
+ * tail (`\nNew\nNever`) to each peer's body end, duplicating the `Never` the
+ * peer already holds as its tail. Instead the filled gap alone (`\nNew\n`)
+ * replaces each peer's blank gap, merging every copy the same way.
+ *
+ * Only the shared case mirrors. A local mode or a divergent run reaching the
+ * truncated edge stays local, like the terminal edge: the new words are this
+ * copy's own and must not reach peers.
+ */
+function medialGapFill(
+	transaction: Transaction,
+	parsed: ParsedDocument,
+	change: TextRange
+): TransactionSpec | undefined {
+	if (change.from !== change.to) return undefined;
+	const after = parsedDocumentForState(transaction.state);
+	const groups = memberGroups(transaction.startState, parsed);
+	const orderedSections = [...parsed.sections].sort((left, right) => left.from - right.from);
+	for (const group of groups) {
+		for (const header of group) {
+			const body = sectionBodyRange(parsed, header);
+			if (!body) continue;
+			const memberSection = parsed.sections.find((section) => section.header?.from === header);
+			if (!memberSection) continue;
+			const nextSection = orderedSections[orderedSections.indexOf(memberSection) + 1];
+			if (!nextSection || nextSection.header) continue;
+			if (!(body.to <= change.from && change.to <= nextSection.from)) continue;
+			const gapPre = transaction.startState.doc.sliceString(body.to, nextSection.from);
+			if (!/[\r\n]/u.test(gapPre) || !/^[\t\r\n ]+$/u.test(gapPre)) continue;
+
+			const mappedHeader = transaction.changes.mapPos(header, -1);
+			const nextBody = sectionBodyRange(after, mappedHeader);
+			if (!nextBody) continue;
+			const mappedBodyEnd = transaction.changes.mapPos(body.to, -1);
+			const mappedTailFrom = transaction.changes.mapPos(nextSection.from, 1);
+			const mappedTailTo = transaction.changes.mapPos(nextSection.to, 1);
+			const changedEnd = transaction.changes.mapPos(change.to, 1);
+			if (!(
+				nextBody.to > mappedBodyEnd &&
+				nextBody.to >= mappedTailTo &&
+				nextBody.to >= changedEnd
+			)) {
+				continue;
+			}
+			const newGapText = transaction.newDoc.sliceString(mappedBodyEnd, mappedTailFrom);
+			if (!/[^\t\r\n ]/u.test(newGapText)) continue;
+
+			const ordered = [header, ...group.filter((candidate) => candidate !== header)];
+			const members = groupShape(transaction.startState, parsed, ordered);
+			const source = members?.[0];
+			if (!members || !source) continue;
+			const sourceLength = source.body.to - source.body.from;
+			if (
+				isTypeOnlyHere(transaction.startState, header) ||
+				holeContaining(source.holes, sourceLength, sourceLength) !== undefined
+			) {
+				continue;
+			}
+
+			const edits: TextEdit[] = [];
+			let coherent = true;
+			for (const peer of members.slice(1)) {
+				const peerSection = parsed.sections.find((section) => section.header?.from === peer.header);
+				const peerNext = peerSection
+					? orderedSections[orderedSections.indexOf(peerSection) + 1]
+					: undefined;
+				const peerBody = sectionBodyRange(parsed, peer.header);
+				if (!peerSection || !peerNext || peerNext.header || !peerBody) {
+					coherent = false;
+					break;
+				}
+				const peerGap = transaction.startState.doc.sliceString(peerBody.to, peerNext.from);
+				if (!/[\r\n]/u.test(peerGap) || !/^[\t\r\n ]+$/u.test(peerGap)) {
+					coherent = false;
+					break;
+				}
+				const from = transaction.changes.mapPos(peerBody.to, 1);
+				const to = transaction.changes.mapPos(peerNext.from, 1);
+				if (transaction.startState.doc.sliceString(peerBody.to, peerNext.from) === newGapText) {
+					continue;
+				}
+				edits.push({ from, to, insert: newGapText });
+			}
+			if (!coherent) continue;
+			if (edits.length === 0) return undefined;
+			edits.sort((left, right) => left.from - right.from || left.to - right.to);
+			return { changes: edits, sequential: true };
+		}
+	}
+	return undefined;
 }
 
 export function sectionLinkMirror(): Extension {
@@ -1317,6 +1431,8 @@ export function sectionLinkMirror(): Extension {
 			const extension = boundaryExtension(transaction, parsed, change!);
 			const mirrored = extension ? mirrorBoundaryExtension(transaction, extension) : undefined;
 			if (mirrored) return [transaction, mirrored];
+			const medial = medialGapFill(transaction, parsed, change!);
+			if (medial) return [transaction, medial];
 		}
 
 		const group = memberGroups(transaction.startState, parsed).find((headers) =>

@@ -655,6 +655,33 @@ describe('editing the edges of a linked section', () => {
 		expect(handle.getSnapshot().text.match(/Never\n let go/gu)).toHaveLength(2);
 	});
 
+	it('mirrors a new line typed onto the blank that split linked copies', async () => {
+		const handle = await linkedSong();
+		// Enter at the end of a lyric line inserts before the break already
+		// there, so `Hold\nNever` becomes `Hold\n\nNever`: a blank physical
+		// line, which the parser reads as a section boundary. The bare break
+		// mirrors, splitting every peer the same way.
+		const firstTight = song.indexOf('Hold on tight') + 'Hold on tight'.length;
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: firstTight, to: firstTight, insert: '\n' }]
+		});
+		expect(handle.getSnapshot().text.match(/Hold on tight\n\nNever let go/gu)).toHaveLength(2);
+
+		// Typing on the empty line merges the edited copy back into one
+		// section. Only the filled gap travels: carrying the whole tail would
+		// duplicate the `Never let go` peers already hold as their own tail.
+		const emptyAt = '[Chorus]\nHold on tight\n'.length;
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: emptyAt, to: emptyAt, insert: 'New line' }]
+		});
+
+		const changed = handle.getSnapshot().text;
+		expect(changed.match(/Hold on tight\nNew line\nNever let go/gu)).toHaveLength(2);
+		expect(handle.getSectionLinks?.()).toHaveLength(1);
+	});
+
 	it('mirrors lyrics deliberately extended from the last line', async () => {
 		const handle = await linkedSong();
 		handle.dispatchAtomic({

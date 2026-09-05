@@ -27,6 +27,11 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
   body still mirrors. If ordinary lyrics follow the terminal break, the post-change parse proves
   the same section grew and the new tail mirrors; a new header leaves the old body unchanged and
   stays outside the link. A final divergent run keeps its greedy, local edge.
+- A blank line opened *inside* a linked body splits every copy the same way — Enter at the end
+  of a lyric line lands before the break already there — and filling it merges back. The fill
+  mirrors as the filled gap alone, never the whole tail, or peers duplicate the tail they
+  already hold as their own headerless section. A terminal extension never answers a member
+  carrying such a tail. Pinned in `section-links.svelte.test.ts`.
 - The whole invariant rests on every edit reporting its honest size — `narrowEdit` in
   `performers/transform.ts` is that repair, and it belongs in the transform, never as a
   mirror exemption. Pinned in `section-links.svelte.test.ts` and
@@ -260,6 +265,17 @@ local. In that case the new tail extends the existing difference (or creates a c
 zero-width run in each peer), preserving the rule that a divergent run owns edits at its greedy
 edge. The boundary regressions in `section-links.svelte.test.ts` pin all four cases: middle break,
 terminal break before a header, shared terminal lyric, and local terminal lyric.
+
+**A break at the end of a lyric line is a middle break that parses as two sections.** Splitting
+`Hold` mid-word keeps one section, but pressing Enter at the line's end inserts before the break
+already there, so `Hold\nNever` becomes `Hold\n\nNever`: a blank physical line, which closes the
+section and leaves a headerless tail. The bare break still mirrors — every peer splits the same
+way and the group stays in step on its truncated bodies — but the terminal extension must not
+answer the fill that follows. It would carry the whole tail (`\nNew\nNever`) to each peer's body
+end, duplicating the `Never` the peer already holds, and the copies read as two separate sections
+from then on. The fill is therefore its own path (`medialGapFill`): only the filled gap travels,
+replacing each peer's blank gap, so every copy merges back with the same new line. Local mode or
+a final divergent run stays local here too.
 
 #### Making copies agree is asked for per difference
 
