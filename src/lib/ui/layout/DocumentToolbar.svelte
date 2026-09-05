@@ -11,14 +11,10 @@
 
 	let {
 		controller,
-		brandRevealed = true,
-		editorExpanded = false,
-		onToggleEditor
+		brandRevealed = true
 	}: {
 		controller: WorkbenchController;
 		brandRevealed?: boolean;
-		editorExpanded?: boolean;
-		onToggleEditor?: () => void;
 	} = $props();
 	// Presentation-only clock for the "Saved locally · Ns ago" readout. It never
 	// feeds back into the controller; it only re-renders the relative timestamp.
@@ -163,7 +159,7 @@
 			title="New 'scribe"
 			onclick={() => controller.createDraft()}
 		>
-			<Plus aria-hidden="true" size={15} strokeWidth={2.25} />
+			<Plus aria-hidden="true" size={16} strokeWidth={2} />
 		</button>
 		<!-- Nothing is drawn while saving is going well: a disk glyph that is always
 		     there reports a state that never changes, and the slot went to the plus.
@@ -199,29 +195,6 @@
 	     surface never carries two contrast actions, and the user is never offered
 	     the end of a job they have not started. -->
 	<div class="document-toolbar__commands">
-		{#if onToggleEditor}
-			<button
-				type="button"
-				class="button button--quiet"
-				aria-label={editorExpanded
-					? `Show tools${controller.visibleDiagnostics.length > 0 ? `, ${controller.visibleDiagnostics.length} visible findings` : ''}`
-					: undefined}
-				aria-expanded={!editorExpanded}
-				aria-controls="document-panel"
-				onclick={onToggleEditor}
-			>
-				{editorExpanded ? 'Tools' : 'Expand editor'}
-				{#if editorExpanded && controller.visibleDiagnostics.length > 0}
-					<span
-						class="tab-count"
-						role="img"
-						aria-label={`${controller.visibleDiagnostics.length} visible findings`}
-					>
-						{controller.visibleDiagnostics.length}
-					</span>
-				{/if}
-			</button>
-		{/if}
 		<!-- The keystrokes already exist in the editor; these are the same two
 		     commands for the pointer, and they act on the document, so they belong
 		     in this strip rather than beside the draft's name. Quiet tier: they are
@@ -234,7 +207,7 @@
 			disabled={!controller.snapshot.canUndo}
 			onclick={() => controller.undo()}
 		>
-			<Undo aria-hidden="true" size={15} strokeWidth={2.25} />
+			<Undo aria-hidden="true" size={16} strokeWidth={2} />
 		</button>
 		<button
 			type="button"
@@ -244,7 +217,7 @@
 			disabled={!controller.snapshot.canRedo}
 			onclick={() => controller.redo()}
 		>
-			<Redo aria-hidden="true" size={15} strokeWidth={2.25} />
+			<Redo aria-hidden="true" size={16} strokeWidth={2} />
 		</button>
 		<LanguagePicker {controller} />
 		<!-- Reviewing what the copy will change on the page is the step before
@@ -257,15 +230,15 @@
 				class="button button--contrast"
 				onclick={() => controller.pasteLyrics()}
 			>
-				<ClipboardPaste aria-hidden="true" size={14} strokeWidth={2.25} />
+				<ClipboardPaste aria-hidden="true" size={16} strokeWidth={2} />
 				Paste lyrics
 			</button>
 		{:else}
 			<button type="button" class="button button--contrast" onclick={copyLyrics}>
 				{#if copied}
-					<Check aria-hidden="true" size={14} strokeWidth={2.25} />
+					<Check aria-hidden="true" size={16} strokeWidth={2} />
 				{:else}
-					<Copy aria-hidden="true" size={14} strokeWidth={2.25} />
+					<Copy aria-hidden="true" size={16} strokeWidth={2} />
 				{/if}
 				{copied ? 'Lyrics copied' : 'Copy lyrics'}
 			</button>

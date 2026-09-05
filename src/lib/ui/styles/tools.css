@@ -295,3 +295,114 @@
 	background: var(--color-fill);
 	color: var(--color-text);
 }
+
+/* Preferences is a list of settings, not a stack of articles. The row owns
+   its description and disclosure; expanded content stays on the same canvas. */
+.preferences-panel {
+	padding-block: var(--space-3);
+}
+
+.preferences-panel section + section {
+	margin-top: var(--space-1);
+}
+
+.preferences-panel h2 {
+	margin: 0;
+	font-size: var(--font-size-md);
+	font-weight: var(--font-weight-medium);
+	line-height: var(--line-height-ui);
+}
+
+.preferences-panel p:not(.sr-only) {
+	margin-block: 0 var(--space-3);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-body);
+}
+
+.preferences-panel p:not(.backup-status--warning),
+.preferences-panel__disclosure summary span {
+	color: var(--color-text-muted);
+}
+
+.preferences-panel > section:first-child:has(.toggle-field) {
+	padding-block: var(--space-4);
+}
+
+.preferences-panel .preferences-panel__heading {
+	min-height: var(--control-height-md);
+	margin-bottom: var(--space-1);
+}
+
+.preferences-panel__heading label {
+	cursor: pointer;
+}
+
+.preferences-panel .switch::after {
+	position: absolute;
+	inset: calc(-1 * var(--space-2)) 0;
+	content: '';
+}
+
+.preferences-panel__disclosure > summary {
+	display: flex;
+	min-height: var(--control-height-lg);
+	padding-block: var(--space-4);
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	list-style: none;
+	cursor: pointer;
+}
+
+.preferences-panel__disclosure summary span {
+	display: block;
+	margin-top: var(--space-1);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-body);
+}
+
+.preferences-panel__disclosure > summary::-webkit-details-marker {
+	display: none;
+}
+
+.preferences-panel__disclosure > summary:hover h2 {
+	text-decoration: underline;
+	text-underline-offset: var(--space-1);
+}
+
+.preferences-panel__chevron {
+	width: var(--space-4);
+	height: var(--space-4);
+	flex: none;
+	color: var(--color-text-muted);
+}
+
+.preferences-panel__disclosure[open] > summary .preferences-panel__chevron {
+	transform: rotate(90deg);
+}
+
+.preferences-panel__detail {
+	padding-block: var(--space-1) var(--space-4);
+}
+
+.preferences-panel__reset {
+	margin-top: var(--space-4);
+}
+
+.preferences-panel__backup .tool-actions + p,
+.preferences-panel__reset .tool-actions + p:not(.sr-only) {
+	margin-top: var(--space-3);
+}
+
+.preferences-panel .panel-foot {
+	margin-top: var(--space-5);
+}
+
+.preferences-panel .about-link {
+	margin-inline-start: calc(-1 * var(--space-2));
+}
+
+/* Preserve the reset target's position during its single pending decision. */
+.preferences-panel__inactive {
+	visibility: hidden;
+}

@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { Info } from 'lucide-svelte';
+	import { ChevronRight, Info } from 'lucide-svelte';
 	import { resolve } from '$app/paths';
 	import { Switch } from 'bits-ui';
 	import { onMount } from 'svelte';
+	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import { isEnglishLanguage } from '$lib/languages/registry.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
@@ -14,6 +15,7 @@
 
 	let { controller }: { controller: WorkbenchController } = $props();
 	let confirmDeleteAll = $state(false);
+	let resetButton = $state<HTMLButtonElement>();
 	let backupInput = $state<HTMLInputElement>();
 	let importingBackup = $state(false);
 	let backupState = $state<WorkspaceBackupState | undefined>();
@@ -63,243 +65,226 @@
 	}
 </script>
 
-<!--
-	The workspace half of what was one catch-all tab. Everything here is about the
-	application rather than the song in front of the user: your preferences, the
-	backup of every 'scribe, the local data behind them, and what rule set is
-	running. It exists so the tab beside it can be only about the song, and so the
-	one setting the feedback asked for — a way to turn grammar checking off — has a
-	home rather than a seventh section in a drawer.
+<svelte:window
+	onkeydown={(event) => {
+		if (event.key === 'Escape' && confirmDeleteAll) {
+			event.preventDefault();
+			confirmDeleteAll = false;
+			resetButton?.focus();
+		}
+	}}
+/>
 
-	The rules the panel earned still hold: a section is a heading over at most two
-	things, and a claim is made once, where the reader is deciding.
--->
 <div class="panel-content panel-sections preferences-panel">
-	<!--
-		Grammar checking leads because it is the reason this tab exists and the most
-		likely thing a user opens it for. It is a preference and not a per-finding
-		ignore because it is a stance on a whole provider: Harper is a general
-		English proofreader that cites itself, knows nothing about lyrics, and is
-		advisory by design — so turning it off is one decision, not fifty. Off also
-		spares the ~18MB download it would otherwise fetch the first time the
-		workbench needs it.
-
-		The section draws only while the document's language is English. Harper
-		never runs for any other language — the request gate in harper.ts refuses
-		before the download — so under Norwegian or Japanese the switch would be an
-		answer that cannot be carried out, flipping a bit nothing reads. The
-		preference itself is app-scoped and keeps its stored value; only the
-		control waits for a document Harper would actually check.
-	-->
 	{#if isEnglishLanguage(controller.language)}
-		<section>
-			<h2>Grammar checking</h2>
-			<!-- A switch, not a checkbox. The row is a live setting — flipping it acts
-			     at once, no form, no submit — and a switch is the control every settings
-			     surface has taught for exactly that, where a checkbox reads as a form
-			     answer and renders as the platform's own dated widget. The label is a
-			     real <label for>, so pressing the words toggles too. -->
-			<div class="toggle-field">
-				<label for="grammar-check-switch">Check grammar with Harper</label>
+		<section aria-labelledby="grammar-heading">
+			<div class="toggle-field preferences-panel__heading">
+				<h2 id="grammar-heading"><label for="grammar-check-switch">Grammar checking</label></h2>
 				<Switch.Root
 					id="grammar-check-switch"
 					class="switch"
+					aria-describedby="grammar-description"
 					checked={controller.grammarCheckEnabled}
 					onCheckedChange={(checked) => controller.setGrammarCheckEnabled(checked)}
 				>
 					<Switch.Thumb class="switch__thumb" />
 				</Switch.Root>
 			</div>
-			<p>
-				An English proofreader that runs beside the reviewed rules. Its suggestions cite Harper, not
-				Genius, and are advisory — they never bulk-fix and are never applied for you.
-			</p>
+			<p id="grammar-description">Optional English spelling and grammar suggestions.</p>
 		</section>
 	{/if}
 
 	{#if controller.backup}
-		<section>
-			<h2>Workspace backup</h2>
-			<p>
-				Backs up every 'scribe and its settings — not assistant chats, which stay in this browser
-				only. Imports add to this workspace, but local audio needs reconnecting.
-			</p>
-
-			<div class="tool-actions">
-				<button type="button" class="button" disabled={importingBackup} onclick={runBackupAction}>
-					{backupActionLabel}
-				</button>
-				<button
-					type="button"
-					class="button button--quiet"
-					disabled={importingBackup}
-					onclick={() => backupInput?.click()}
-				>
-					{importingBackup ? 'Importing…' : 'Import backup…'}
-				</button>
-				<input
-					bind:this={backupInput}
-					hidden
-					type="file"
-					accept="application/json,.json"
-					onchange={(event) => {
-						const input = event.currentTarget;
-						void importBackup(input.files?.[0]);
-						input.value = '';
-					}}
-				/>
-			</div>
-
-			<p class="backup-status" aria-live="polite">
-				{#if backupState?.linkedFileName}
-					{#if backupState.permission === 'granted'}
-						Autosaving to {backupState.linkedFileName}.
-					{:else}
-						Access to {backupState.linkedFileName} is needed. In Chrome, choose “Allow on every visit”
-						to keep backups running after you reopen LyricLint.
-					{/if}
-				{:else if backupState?.supported}
-					Choose a file once to autosave the whole workspace. Chrome can keep access between visits.
-				{/if}
-				{#if backupState?.status === 'saving'}
-					Saving…
-				{:else if backupState?.status === 'failed'}
-					The last automatic backup failed.
-				{/if}
+		<section aria-labelledby="backup-heading">
+			<details class="preferences-panel__disclosure">
+				<summary>
+					<div>
+						<h2 id="backup-heading">Workspace backup</h2>
+						<span>Save or import your workspace</span>
+					</div>
+					<ChevronRight class="preferences-panel__chevron" aria-hidden="true" />
+				</summary>
+				<div class="preferences-panel__detail">
+					<p>Save every 'scribe and its settings to a file. Assistant chats are excluded.</p>
+					<div class="preferences-panel__backup">
+						{#if backupState?.linkedFileName}
+							<p class="backup-status">
+								{#if backupState.permission === 'granted'}
+									Backup file: {backupState.linkedFileName}
+								{:else}
+									Access to {backupState.linkedFileName} is needed. In Chrome, choose “Allow on every
+									visit” to keep backups running after you reopen LyricLint.
+								{/if}
+							</p>
+						{:else if backupState?.supported}
+							<p class="backup-status">Choose a file to back up changes automatically.</p>
+						{/if}
+						<div class="tool-actions">
+							<button
+								type="button"
+								class="button"
+								disabled={importingBackup}
+								onclick={runBackupAction}
+							>
+								{backupActionLabel}
+							</button>
+							<button
+								type="button"
+								class="button button--quiet"
+								disabled={importingBackup}
+								aria-describedby="backup-import-description"
+								onclick={() => backupInput?.click()}
+							>
+								{importingBackup ? 'Importing…' : 'Import backup…'}
+							</button>
+							<input
+								bind:this={backupInput}
+								hidden
+								type="file"
+								accept="application/json,.json"
+								onchange={(event) => {
+									const input = event.currentTarget;
+									void importBackup(input.files?.[0]);
+									input.value = '';
+								}}
+							/>
+						</div>
+						<p id="backup-import-description">
+							Imports add to your workspace. Reconnect local audio afterward.
+						</p>
+					</div>
+				</div>
+			</details>
+			<p class:sr-only={backupState?.status !== 'failed'} class="backup-status" aria-live="polite">
+				{#if backupState?.status === 'failed'}The last automatic backup failed.{/if}
 			</p>
 		</section>
 	{/if}
 
-	<section>
-		<h2>Local data</h2>
-		<p>
-			'Scribes and assistant chats stay in this browser; audio stays on your disk. Linting works
-			offline; online playback and the rules assistant need a connection. Resetting LyricLint
-			deletes the 'scribes and the chats and returns every setting to its default.
-		</p>
-		<!--
-			Whether "stay in this browser" is actually durable. Browser storage is
-			best-effort until the origin is granted persistence, so this line states
-			whichever is true — and only where the browser can answer at all: an
-			`unknown` or `unsupported` state draws nothing, because a claim the
-			workbench cannot verify is worth less than silence.
-
-			The control draws only at `prompt`, where pressing it is what pays for
-			the permission dialog Firefox shows; Chromium's silent grants are taken
-			at boot without any of this. At `denied` there is no control, because a
-			button the browser has already refused is an answer that cannot be
-			carried out — the sentence points at the backup instead.
-		-->
-		{#if persistence === 'persistent'}
-			<p class="backup-status">
-				Storage is protected: this browser keeps LyricLint's data until you clear it yourself.
-			</p>
-		{:else if persistence === 'prompt'}
-			<p class="backup-status">
-				Storage is best-effort: under disk pressure the browser may clear it. The workspace backup
-				is the durable copy.
-			</p>
-			<div class="tool-actions">
-				<button type="button" class="button" onclick={protectStorage}>Protect storage</button>
+	<section
+		aria-labelledby="local-data-heading"
+		{@attach dismissOnOutside(() => (confirmDeleteAll = false))}
+	>
+		<details
+			class="preferences-panel__disclosure"
+			ontoggle={(event) => {
+				if (!event.currentTarget.open) confirmDeleteAll = false;
+			}}
+		>
+			<summary>
+				<div>
+					<h2 id="local-data-heading">Local data</h2>
+					<span>Browser storage and reset</span>
+				</div>
+				<ChevronRight class="preferences-panel__chevron" aria-hidden="true" />
+			</summary>
+			<div class="preferences-panel__detail">
+				<div class="preferences-panel__storage">
+					<p>'Scribes and chats stay in this browser. Audio stays on your disk.</p>
+					{#if persistence === 'persistent'}
+						<p class="backup-status">Storage is protected from automatic browser cleanup.</p>
+					{:else if persistence === 'prompt'}
+						<p class="backup-status">
+							Storage is best-effort: the browser may clear it under disk pressure.
+						</p>
+						<div
+							class="tool-actions"
+							class:preferences-panel__inactive={confirmDeleteAll}
+							inert={confirmDeleteAll}
+						>
+							<button type="button" class="button" onclick={protectStorage}>Protect storage</button>
+						</div>
+					{:else if persistence === 'denied'}
+						<p class="backup-status backup-status--warning">
+							This browser declined protected storage. Keep a backup as the durable copy.
+						</p>
+					{/if}
+				</div>
+				<div class="preferences-panel__reset">
+					<div class="tool-actions tool-actions--flush">
+						<button
+							bind:this={resetButton}
+							type="button"
+							class="button {confirmDeleteAll ? 'button--contrast' : 'button--quiet'}"
+							aria-describedby="reset-description"
+							onclick={async () => {
+								if (!confirmDeleteAll) {
+									confirmDeleteAll = true;
+									return;
+								}
+								await controller.deleteAllDrafts();
+								confirmDeleteAll = false;
+							}}>{confirmDeleteAll ? 'Reset LyricLint' : 'Reset LyricLint…'}</button
+						>
+						{#if confirmDeleteAll}
+							<button
+								type="button"
+								class="button button--quiet"
+								onclick={() => {
+									confirmDeleteAll = false;
+									resetButton?.focus();
+								}}>Cancel</button
+							>
+						{/if}
+					</div>
+					<p id="reset-description" class:sr-only={!confirmDeleteAll}>
+						{#if confirmDeleteAll}
+							Reset LyricLint to a fresh install? Every local 'scribe and chat will be deleted and
+							all settings reset. This cannot be undone. Backup files stay on disk.
+						{/if}
+					</p>
+					<p class="sr-only" aria-live="polite">
+						{confirmDeleteAll ? 'Confirm reset or cancel. This cannot be undone.' : ''}
+					</p>
+				</div>
 			</div>
-		{:else if persistence === 'denied'}
-			<p class="backup-status backup-status--warning">
-				This browser declined protected storage, so keep a workspace backup as the durable copy.
-			</p>
-		{/if}
-		<!--
-			The confirm replaces the trigger in place rather than opening a bordered
-			danger box inside the section. Line timings — a document-scoped delete —
-			live on the Song tab now, so this section asks exactly one question.
-
-			`Reset LyricLint`, not `Delete all local data`: the sweep now takes the
-			preferences and recent languages with the content, so the honest name is
-			the state the press produces — a fresh install — rather than a claim
-			about data that used to under-deliver on the settings. A linked backup
-			file survives on disk (the controller unlinks before deleting), which is
-			the one escape hatch out of this press.
-		-->
-		<div aria-live="polite">
-			{#if confirmDeleteAll}
-				<p class="danger-text">
-					Reset LyricLint to a fresh install? Every local 'scribe and chat is deleted, and every
-					setting returns to its default. This cannot be undone.
-				</p>
-				<div class="tool-actions">
-					<button
-						type="button"
-						class="button button--danger"
-						onclick={async () => {
-							await controller.deleteAllDrafts();
-							confirmDeleteAll = false;
-						}}>Reset LyricLint</button
-					>
-					<button
-						type="button"
-						class="button button--quiet"
-						onclick={() => (confirmDeleteAll = false)}>Cancel</button
-					>
-				</div>
-			{:else}
-				<!-- The flush pull is for an edge read against prose, and this row's
-				     neighbour changes with the storage state: under a sentence the
-				     label lines up with the text, but under the bordered `Protect
-				     storage` control the pull would outdent this box past the one
-				     above it — a quiet button's edge beside another control takes the
-				     control inset, which is what lines the two labels up. -->
-				<div class="tool-actions {persistence === 'prompt' ? '' : 'tool-actions--flush'}">
-					<button
-						type="button"
-						class="button button--quiet danger-text"
-						onclick={() => (confirmDeleteAll = true)}>Reset LyricLint…</button
-					>
-				</div>
-			{/if}
-		</div>
+		</details>
 	</section>
 
 	<section>
-		<h2>Reviewed rules</h2>
-		{#if controller.ruleSet}
-			<dl class="metadata-list">
+		<details class="preferences-panel__disclosure preferences-panel__rules">
+			<summary>
 				<div>
-					<dt>Version</dt>
-					<dd>{controller.ruleSet.version}</dd>
+					<h2>Reviewed rules</h2>
+					<span>Version and sources</span>
 				</div>
-				<div>
-					<dt>Published</dt>
-					<dd>
-						<time datetime={controller.ruleSet.publishedAt}>{controller.ruleSet.publishedAt}</time>
-					</dd>
-				</div>
-				<div>
-					<dt>Rules</dt>
-					<dd>{controller.ruleSet.ruleIds.length}</dd>
-				</div>
-			</dl>
-		{:else}
-			<p class="empty-state">Rule-set metadata is unavailable in this build.</p>
-		{/if}
-
-		{#if reviewedSources.length > 0}
-			<details class="source-list">
-				<summary>Reviewed source snapshot ({reviewedSources.length})</summary>
-				{#each reviewedSources as source (source.id)}
-					<SourceLink {source} />
-				{/each}
-			</details>
-		{/if}
+				<ChevronRight class="preferences-panel__chevron" aria-hidden="true" />
+			</summary>
+			<div class="preferences-panel__detail">
+				{#if controller.ruleSet}
+					<dl class="metadata-list">
+						<div>
+							<dt>Version</dt>
+							<dd>{controller.ruleSet.version}</dd>
+						</div>
+						<div>
+							<dt>Published</dt>
+							<dd>
+								<time datetime={controller.ruleSet.publishedAt}
+									>{controller.ruleSet.publishedAt}</time
+								>
+							</dd>
+						</div>
+						<div>
+							<dt>Rules</dt>
+							<dd>{controller.ruleSet.ruleIds.length}</dd>
+						</div>
+					</dl>
+				{:else}
+					<p class="empty-state">Rule-set metadata is unavailable in this build.</p>
+				{/if}
+				{#if reviewedSources.length > 0}
+					<div class="source-list">
+						{#each reviewedSources as source (source.id)}<SourceLink {source} />{/each}
+					</div>
+				{/if}
+			</div>
+		</details>
 	</section>
 
-	<!--
-		The way out of the workbench, and the only one: it acts on nothing, so it
-		lives in the tab about the application rather than in the toolbar's strip
-		of document commands. What it is for is a URL to hand someone else.
-	-->
 	<footer class="panel-foot">
-		<a class="about-link" href={resolve('/')}>
-			<Info size={14} aria-hidden="true" />
-			About LyricLint
-		</a>
+		<a class="about-link" href={resolve('/')}
+			><Info size={14} aria-hidden="true" />About LyricLint</a
+		>
 	</footer>
 </div>

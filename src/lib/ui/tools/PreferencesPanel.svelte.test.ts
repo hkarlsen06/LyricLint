@@ -10,6 +10,7 @@ import {
 } from '../state/storage-persistence.svelte.js';
 import { createTestWorkbench } from '../test-utils.js';
 import PreferencesPanel from './PreferencesPanel.svelte';
+import type { WorkbenchController } from '../state/workbench.svelte.js';
 
 /**
  * A CSS colour's sRGB bytes, whatever space it was written in.
@@ -66,6 +67,12 @@ function backupController(state: WorkspaceBackupState): WorkspaceBackupControlle
 	};
 }
 
+function renderExpanded(controller: WorkbenchController) {
+	const view = render(PreferencesPanel, { controller });
+	for (const details of view.container.querySelectorAll('details')) details.open = true;
+	return view;
+}
+
 /*
  * The workspace half of the split tab. It carries the app-scoped sections and
  * the one setting the feedback asked for; none of the song-scoped controls
@@ -107,6 +114,37 @@ describe('PreferencesPanel skimmability', () => {
 		]);
 	});
 
+	test('keeps rule metadata behind a single unboxed disclosure', async () => {
+		const { controller } = createTestWorkbench();
+		const { container } = render(PreferencesPanel, { controller });
+		const details = container.querySelector<HTMLDetailsElement>('.preferences-panel__rules')!;
+		expect(details.open).toBe(false);
+		expect(container.querySelector('details details')).toBeNull();
+		await userEvent.click(details.querySelector('summary')!);
+		expect(details.open).toBe(true);
+		await userEvent.click(details.querySelector('summary')!);
+		expect(details.open).toBe(false);
+	});
+
+	test('reveals backup and storage actions on demand and abandons a closed reset', async () => {
+		const { controller } = createTestWorkbench({
+			backup: backupController({ supported: false, status: 'idle' })
+		});
+		const { container } = render(PreferencesPanel, { controller });
+		expect(screen.getByRole('button', { name: 'Download backup' })).not.toBeVisible();
+		expect(screen.getByRole('button', { name: 'Reset LyricLint…' })).not.toBeVisible();
+		const rows = container.querySelectorAll('details');
+		expect(rows).toHaveLength(3);
+		await userEvent.click(rows[0]!.querySelector('summary')!);
+		expect(screen.getByRole('button', { name: 'Download backup' })).toBeTruthy();
+		await userEvent.click(rows[1]!.querySelector('summary')!);
+		await userEvent.click(screen.getByRole('button', { name: 'Reset LyricLint…' }));
+		await userEvent.click(rows[1]!.querySelector('summary')!);
+		await userEvent.click(rows[1]!.querySelector('summary')!);
+		expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Reset LyricLint…' })).toBeTruthy();
+	});
+
 	test('closes the tab on the named way out of the workbench', () => {
 		const { controller } = createTestWorkbench();
 		render(PreferencesPanel, { controller });
@@ -134,7 +172,7 @@ describe('PreferencesPanel grammar toggle', () => {
 		render(PreferencesPanel, { controller });
 
 		// A switch, not a checkbox — the state is carried by `aria-checked`.
-		const toggle = screen.getByRole('switch', { name: 'Check grammar with Harper' });
+		const toggle = screen.getByRole('switch', { name: 'Grammar checking' });
 		expect(toggle.getAttribute('aria-checked')).toBe('true');
 
 		await fireEvent.click(toggle);
@@ -156,7 +194,7 @@ describe('PreferencesPanel grammar toggle', () => {
 
 		controller.setLanguage('no');
 		await waitFor(() =>
-			expect(screen.queryByRole('switch', { name: 'Check grammar with Harper' })).toBeNull()
+			expect(screen.queryByRole('switch', { name: 'Grammar checking' })).toBeNull()
 		);
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Local data',
@@ -167,7 +205,7 @@ describe('PreferencesPanel grammar toggle', () => {
 		// never left, only the control.
 		controller.setLanguage('en-GB');
 		await waitFor(() =>
-			expect(screen.getByRole('switch', { name: 'Check grammar with Harper' })).toBeTruthy()
+			expect(screen.getByRole('switch', { name: 'Grammar checking' })).toBeTruthy()
 		);
 	});
 });
@@ -178,7 +216,7 @@ describe('PreferencesPanel destructive confirm', () => {
 	test('confirms in place instead of opening a box inside the panel section', async () => {
 		const { controller, repository } = createTestWorkbench();
 		await controller.refreshDrafts();
-		const { container } = render(PreferencesPanel, { controller });
+		const { container } = renderExpanded(controller);
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Reset LyricLint…' }));
 
@@ -199,9 +237,9 @@ describe('PreferencesPanel destructive confirm', () => {
 	test('resets the grammar preference along with the data', async () => {
 		const { controller, repository } = createTestWorkbench();
 		await controller.refreshDrafts();
-		render(PreferencesPanel, { controller });
+		renderExpanded(controller);
 
-		const toggle = screen.getByRole('switch', { name: 'Check grammar with Harper' });
+		const toggle = screen.getByRole('switch', { name: 'Grammar checking' });
 		await fireEvent.click(toggle);
 		expect(controller.grammarCheckEnabled).toBe(false);
 		expect(await repository.getPreference('grammarCheck')).toBe('false');
@@ -243,7 +281,7 @@ describe('PreferencesPanel storage persistence', () => {
 	test('says nothing while the state is unresolved', () => {
 		configureStoragePersistence();
 		const { controller } = createTestWorkbench();
-		render(PreferencesPanel, { controller });
+		renderExpanded(controller);
 
 		expect(screen.queryByText(/Storage is/u)).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Protect storage' })).toBeNull();
@@ -253,7 +291,7 @@ describe('PreferencesPanel storage persistence', () => {
 		configureStoragePersistence(storageApi());
 		await ensurePersistentStorage();
 		const { controller } = createTestWorkbench();
-		render(PreferencesPanel, { controller });
+		renderExpanded(controller);
 
 		expect(screen.getByText(/Storage is best-effort/u)).toBeTruthy();
 
@@ -268,7 +306,7 @@ describe('PreferencesPanel storage persistence', () => {
 		configureStoragePersistence(storageApi({ permissionState: async () => 'denied' as const }));
 		await ensurePersistentStorage();
 		const { controller } = createTestWorkbench();
-		render(PreferencesPanel, { controller });
+		renderExpanded(controller);
 
 		expect(screen.getByText(/declined protected storage/u)).toHaveClass('backup-status--warning');
 		expect(screen.queryByRole('button', { name: 'Protect storage' })).toBeNull();
@@ -286,7 +324,7 @@ describe('PreferencesPanel storage persistence', () => {
 		configureStoragePersistence(storageApi({ permissionState: async () => 'denied' as const }));
 		await ensurePersistentStorage();
 		const { controller } = createTestWorkbench();
-		const { container } = render(PreferencesPanel, { controller });
+		const { container } = renderExpanded(controller);
 
 		const warning = screen.getByText(/declined protected storage/u);
 		// The panel behind it, which `.right-panel` fills with `--color-canvas`.
@@ -295,42 +333,48 @@ describe('PreferencesPanel storage persistence', () => {
 		expect(contrast(getComputedStyle(warning).color, canvas)).toBeGreaterThanOrEqual(4.5);
 	});
 
-	/*
-	 * Measured rather than asserted by class, because the failure looks like
-	 * working CSS: the flush pull aligns a quiet button's label with prose, and
-	 * kept under the bordered `Protect storage` control it outdents the reset's
-	 * box past the one above it instead.
-	 */
-	test('drops the reset row’s flush pull only while a control stands above it', async () => {
+	test('keeps reset as the only decision while confirmation is pending', async () => {
 		configureStoragePersistence(storageApi());
 		await ensurePersistentStorage();
 		const { controller } = createTestWorkbench();
-		render(PreferencesPanel, { controller });
-
-		const rowOf = () =>
-			screen.getByRole('button', { name: 'Reset LyricLint…' }).parentElement as HTMLElement;
-		expect(parseFloat(getComputedStyle(rowOf()).marginInlineStart)).toBe(0);
-		cleanup();
-
-		// Under a sentence again — the granted state — the pull comes back so the
-		// label lines up with the paragraph edge.
-		configureStoragePersistence(storageApi({ persisted: async () => true }));
-		await ensurePersistentStorage();
-		const { controller: granted } = createTestWorkbench();
-		render(PreferencesPanel, { controller: granted });
-
-		expect(parseFloat(getComputedStyle(rowOf()).marginInlineStart)).toBeLessThan(0);
+		renderExpanded(controller);
+		const trigger = screen.getByRole('button', { name: 'Reset LyricLint…' });
+		trigger.focus();
+		const before = trigger.getBoundingClientRect();
+		await fireEvent.click(trigger);
+		const after = trigger.getBoundingClientRect();
+		expect(after.x).toBe(before.x);
+		expect(after.y).toBe(before.y);
+		expect(screen.queryByRole('button', { name: 'Protect storage' })).toBeNull();
+		expect(screen.getByRole('button', { name: 'Reset LyricLint' })).toBe(trigger);
+		expect(trigger).toHaveClass('button--contrast');
+		expect(document.activeElement).toBe(trigger);
+		await fireEvent.keyDown(window, { key: 'Escape' });
+		expect(screen.getByRole('button', { name: 'Protect storage' })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+		await fireEvent.click(trigger);
+		await fireEvent.pointerDown(screen.getByRole('link', { name: 'About LyricLint' }));
+		expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
 	});
 });
 
 describe('PreferencesPanel workspace backup', () => {
 	afterEach(cleanup);
 
+	test('keeps a failed automatic backup visible while its controls are collapsed', () => {
+		const { controller } = createTestWorkbench({
+			backup: backupController({ supported: true, status: 'failed' })
+		});
+		const { container } = render(PreferencesPanel, { controller });
+		expect(container.querySelector('details')!.open).toBe(false);
+		expect(screen.getByText('The last automatic backup failed.')).toBeVisible();
+	});
+
 	test('downloads a full backup where direct file access is unavailable', async () => {
 		const backup = backupController({ supported: false, status: 'idle' });
 		const exportLog: Array<{ text: string; filename: string }> = [];
 		const { controller } = createTestWorkbench({ backup, exportLog });
-		render(PreferencesPanel, { controller });
+		renderExpanded(controller);
 
 		await userEvent.click(await screen.findByRole('button', { name: 'Download backup' }));
 
@@ -348,7 +392,7 @@ describe('PreferencesPanel workspace backup', () => {
 			status: 'idle'
 		});
 		const { controller } = createTestWorkbench({ backup });
-		render(PreferencesPanel, { controller });
+		renderExpanded(controller);
 
 		expect(await screen.findByText(/choose “Allow on every visit”/u)).toBeTruthy();
 		await fireEvent.click(screen.getByRole('button', { name: 'Allow backup access' }));
@@ -359,7 +403,7 @@ describe('PreferencesPanel workspace backup', () => {
 	test('imports immediately without a destructive confirmation', async () => {
 		const backup = backupController({ supported: false, status: 'idle' });
 		const { controller } = createTestWorkbench({ backup });
-		const { container } = render(PreferencesPanel, { controller });
+		const { container } = renderExpanded(controller);
 		const file = new File(['{}'], 'July backup.json', { type: 'application/json' });
 		const input = container.querySelector<HTMLInputElement>('input[type="file"]');
 		expect(input).toBeTruthy();

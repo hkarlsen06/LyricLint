@@ -50,7 +50,9 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
 - The step indicator is an `aria-hidden` bar spanning a question block floored at the widest
   question, with a `sr-only` `Step 2 of 2` carrying the fact.
 - The roster is `.list-row`: the name *is* the rename (press to edit in place, no pencil), no
-  `<strong>`, trash via the shared `RemoveButton`.
+  `<strong>`, trash via the shared `RemoveButton`. The collapsed Performers by section reference
+  groups identical voice arrangements once, preserving style differences
+  (`PerformerLegend.svelte.test.ts`).
 - An **unknown voice** is derived from the text, never stored: a styled slot the section's
   legend does not name (`unaccountedStyledSlots` in `legend-cleanup.ts`, the one owner). The
   picker draws one act-on-press chip per unaccounted slot in that slot's own styling (no dot,
@@ -419,14 +421,25 @@ one-press apply in `EditorPane.svelte`, and `createUnknownVoiceEdit` through
 `createCallbackProxy` into `Workspace.svelte` and `LiveDemo.svelte`. Pinned in
 `unknown-voice.test.ts`, `PerformerPicker.svelte.test.ts`, and `EditorPane.svelte.test.ts`.
 
-### The roster and legend read as people and a section outline
+### The roster is editable; the formatting reference is occasional
 
-The roster uses round identity swatches beside full-width rename targets. Assignment guidance
-and the section legend are separated by space rather than hairlines. The ordered legend has
-muted section numbers, clear section names, and indented voice rows; each style label also
-renders its named italic/bold treatment. The literal style words remain, so typography and
-color never have to explain identity or formatting alone. Editor voice highlights share
-softer corners without padding that would change source-text geometry.
+The add field has one accessible label and ordinary input weight. Names remain the rename
+controls and removal retains its existing inline confirmation. Assignment instructions live
+behind “How to assign voices”, retaining both pointer selection and Ctrl+Alt+P without a
+permanent paragraph above the roster.
+
+The old section legend repeated the editor's outline, the same performer on every section,
+and “plain” beside every default voice. Performers by section is now one collapsed, unboxed
+reference. It groups identical ordered voice arrangements, including each voice's style slot,
+and names each arrangement once. Each section appears beneath it with its position in the full document, including repeated
+section names. Sections without voices still count toward that numbering. The disclosure names the section-to-performer mapping directly, without a second subtitle.
+Different arrangements with the same section name remain separate.
+
+Names wear their actual italic/bold treatment. Styled slots retain an accessible style label;
+plain needs no label. Unresolved raw names remain available, and a document with no named
+voice groups draws no empty reference. `PerformerLegend.svelte.test.ts` pins grouping,
+style differences, rename updates, disclosure, and absence. `PerformersPanel.svelte.test.ts`
+pins the roster interactions and the assignment guidance.
 
 
 ### Assignment explains both the gesture and the action

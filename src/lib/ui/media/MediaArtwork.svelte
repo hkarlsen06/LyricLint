@@ -1,10 +1,16 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { X } from 'lucide-svelte';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import ArtworkActions from './ArtworkActions.svelte';
 	import MediaAttribution from './MediaAttribution.svelte';
 
-	let { media, announce }: { media: MediaStore; announce?: (message: string) => void } = $props();
+	let {
+		media,
+		announce,
+		identityAction
+	}: { media: MediaStore; announce?: (message: string) => void; identityAction?: Snippet } =
+		$props();
 
 	const player = $derived(media.player);
 	const cover = $derived(player.artwork);
@@ -102,11 +108,14 @@
 
 		<!-- Title over artist, centred against the thumbnail: the song is what
 		     the row is about and the artist qualifies it. -->
-		<div class="media-artwork__meta">
-			<span class="media-artwork__title" {title}>{title}</span>
-			{#if artist}
-				<span class="media-artwork__artist" title={artist}>{artist}</span>
-			{/if}
+		<div class="media-artwork__identity">
+			<div class="media-artwork__meta">
+				<span class="media-artwork__title" {title}>{title}</span>
+				{#if artist}
+					<span class="media-artwork__artist" title={artist}>{artist}</span>
+				{/if}
+			</div>
+			{@render identityAction?.()}
 		</div>
 
 		<!-- The mark at the far end: the one thing in the row that has to be seen

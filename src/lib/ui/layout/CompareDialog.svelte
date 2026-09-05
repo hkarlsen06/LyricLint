@@ -183,11 +183,11 @@
 	<button
 		bind:this={trigger}
 		type="button"
-		class="button compare-trigger"
+		class="button button--quiet compare-trigger"
 		aria-haspopup="dialog"
 		onclick={open}
 	>
-		<Diff aria-hidden="true" size={15} strokeWidth={2.2} />
+		<Diff aria-hidden="true" size={16} strokeWidth={2} />
 		Compare
 	</button>
 {/if}

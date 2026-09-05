@@ -1,5 +1,7 @@
 <script lang="ts">
-	import type { ParsedDocument, PerformerRecord, StyleSlot } from '$lib/core/types.js';
+	import { ChevronRight } from 'lucide-svelte';
+	import { SvelteMap } from 'svelte/reactivity';
+	import type { ParsedDocument, PerformerRecord, StyleSlot, VoiceGroup } from '$lib/core/types.js';
 
 	let {
 		document,
@@ -10,7 +12,7 @@
 	} = $props();
 
 	const slotLabels = {
-		1: 'plain',
+		1: '',
 		2: 'italic',
 		3: 'bold',
 		4: 'bold italic'
@@ -23,39 +25,52 @@
 		return names.length > 0 ? names.join(' & ') : (rawNameText ?? 'Unresolved voice');
 	}
 
-	const sectionsWithVoices = $derived(
-		document.sections.filter((section) => section.voiceGroups.length > 0)
-	);
+	// A recurring chorus does not need to repeat an unchanged formatting key.
+	// Preserve group order and slots: a different assignment is a different key.
+	const arrangements = $derived.by(() => {
+		const grouped = new SvelteMap<string, { voices: VoiceGroup[]; sections: string[] }>();
+		for (const [index, section] of document.sections.entries()) {
+			if (section.voiceGroups.length === 0) continue;
+			const key = JSON.stringify(
+				section.voiceGroups.map((group) => [
+					group.performerIds.length > 0 ? group.performerIds : group.rawNameText,
+					group.styleSlot
+				])
+			);
+			let arrangement = grouped.get(key);
+			if (!arrangement) {
+				arrangement = { voices: section.voiceGroups, sections: [] };
+				grouped.set(key, arrangement);
+			}
+			const name = section.header?.name ?? 'Headerless section';
+			arrangement.sections.push(`${index + 1}. ${name}`);
+		}
+		return [...grouped].map(([key, arrangement]) => ({ key, ...arrangement }));
+	});
 </script>
 
-<section class="performer-legend" aria-label="Section performer legend">
-	<h2>Section legend</h2>
-	{#if sectionsWithVoices.length === 0}
-		<p class="empty-state">
-			Each section's performers and their markup styles are listed here. Assign performers to lyrics
-			in the editor to fill it in.
-		</p>
-	{:else}
-		<ol>
-			{#each sectionsWithVoices as section, index (section.from)}
-				<li>
-					<strong>{section.header?.name ?? `Headerless section ${index + 1}`}</strong>
-					<ul>
-						{#each section.voiceGroups as group (group.id)}
-							<li>
-								<span>{groupName(group.performerIds, group.rawNameText)}</span>
-								<!-- The style, not the slot it happens to occupy. "Slot 2" is this
-							     application's own bookkeeping and names nothing a transcriber
-							     can see in the document; the word after it already carried
-							     the whole fact. -->
-								<span class="performer-legend__style" data-slot={group.styleSlot}
-									>{slotLabels[group.styleSlot]}</span
-								>
-							</li>
+{#if arrangements.length > 0}
+	<details class="performer-legend">
+		<summary class="performer-legend__summary">
+			<h2>Performers by section</h2>
+			<ChevronRight class="performer-legend__chevron" aria-hidden="true" />
+		</summary>
+		<ul class="performer-legend__groups">
+			{#each arrangements as arrangement (arrangement.key)}
+				<li class="performer-legend__group">
+					<div class="performer-legend__voices">
+						{#each arrangement.voices as group (group.id)}
+							<span class="performer-legend__voice" data-slot={group.styleSlot}>
+								{groupName(group.performerIds, group.rawNameText)}
+								{#if group.styleSlot !== 1}
+									<span class="sr-only"> ({slotLabels[group.styleSlot]})</span>
+								{/if}
+							</span>
 						{/each}
-					</ul>
+					</div>
+					<p class="performer-legend__sections">{arrangement.sections.join(' · ')}</p>
 				</li>
 			{/each}
-		</ol>
-	{/if}
-</section>
+		</ul>
+	</details>
+{/if}

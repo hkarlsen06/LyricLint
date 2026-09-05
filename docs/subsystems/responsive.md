@@ -38,11 +38,11 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/layout/LandscapeNotice.
 ### The split is a starting point, not a permanent cost
 
 Wrapped lyrics, playback, and a software keyboard compete for a phone's writing space. The
-default remains the familiar 3:2 editor/panel split, but Expand editor in the toolbar hides the
+default remains the familiar 3:2 editor/panel split, but the icon-only Expand editor control in the editor tray hides the
 panel and gives the editor the remaining height. Desktop uses the same command to gain width.
 This is an explicit choice, never an automatic focus-triggered reflow while typing. Show tools
-stays visible with the finding count and restores the previous tool; the four-glyph editor tray
-does not grow. Neither the editor nor the panel is remounted, and playback stays attached.
+stays in the same tray slot and restores the previous tool. The finding count is in its
+accessible name; the icon has no visible text. The tray now holds up to five controls. Neither the editor nor the panel is remounted, and playback stays attached.
 Expansion preserves the current left inset; only the available writing area grows. The desktop
 inset must not shrink to the phone inset when the panel disappears.
 Matching grid tracks animate width on desktop and height when stacked, using the slow motion

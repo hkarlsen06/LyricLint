@@ -13,7 +13,7 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 - Copying lyrics confirms in the toolbar button and never opens a metadata receipt.
   Song owns the available metadata. `Workspace.svelte.test.ts` pins the non-interruption.
-- The toolbar can expand the editor and restore the panels without remounting either.
+- The editor action tray can expand the editor and restore the panels without remounting either.
   Hidden panels retire their diagnostic preview; opening findings retains panel focus.
   Review offers Previous/Next controls with their shortcuts. `Workspace.svelte.test.ts`
   and `LinterPanel.svelte.test.ts` pin these paths.
@@ -47,9 +47,9 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   unignored diagnostics and blind to the filters, or hiding a kind deletes the way back to it.
 - The editor's command tray (`.editor-actions`) is an absolutely positioned tray over the
   document's top-right, not a band; glyphs are the marks they insert, tooltips carry the
-  name (and the keystroke where one exists), four glyphs is the ceiling, and the
-  fourth is the audio attach — no caret command, but it never refuses and lives
-  where its transport will appear. `Workspace.svelte.test.ts` measures its width
+  name (and the keystroke where one exists). Up to four editing/source glyphs
+  precede the icon-only expand/restore control at the right edge. Audio attach
+  lives where its transport will appear. `Workspace.svelte.test.ts` measures its width
   and right edge.
 - Find/replace runs under the tray: CodeMirror panels get `--layer-editor-panel` (never
   `isolation: isolate` on the host), the row reserves `--editor-actions-reserve`, and the
@@ -91,15 +91,46 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## Decision record
 
+### Header commands share the quiet control tier
+
+The right-hand commands sit directly on chrome: history, language,
+and Compare use the shared quiet buttons with muted resting text. Hover and keyboard
+focus restore full ink. Copy/Paste remains the single contrast action at the right edge.
+The controls use matching icon sizes and strokes. Labels stay visible at phone
+widths, where the existing responsive rules omit redundant icons and wrap the row.
+The existing toolbar interaction and viewport checks in `Workspace.svelte.test.ts`
+cover command order, copying, expansion, and narrow-screen bounds.
+
+### Preferences puts settings before reference material
+
+Preferences is a compact list of settings rows on chrome. Headings use the ordinary UI
+size and medium weight; each disclosure pairs its name with one short description.
+Grammar checking stays directly operable. Workspace backup, Local data, and Reviewed rules
+open inline, with no nested disclosures, cards, or decorative separators. Their explanations
+and actions appear where the user has chosen to work; reset has no red resting treatment
+and its warning appears only after the user selects it. The About link closes the list.
+
+Backup failures stay visible and announced even when the backup disclosure is closed.
+Routine saving draws nothing. Export and import retain their contents and reconnection
+explanations beside the actions inside the disclosure.
+
+Reset keeps its button mounted and fixed in position, changes to the contrast tier, and
+places Cancel immediately after it. Its warning appears below the row, with a hidden live
+announcement. Protect storage becomes invisible and inert during confirmation, preserving
+its space. Cancel and Escape return focus; an outside press or closing Local data abandons
+the confirmation. `PreferencesPanel.svelte.test.ts` pins disclosure, reset, and backup paths.
+
 ### Writing and copying do not require leaving the current task
 
 Expansion and contraction animate the grid with the shared motion tokens, preserving the left
 inset; reduced-motion preferences make the change immediate. Collapsing tools become inert
 immediately, while their visible surface travels with the shrinking grid track.
 
-The toolbar's Expand editor control gives the document the available writing space on a phone
-or desktop. Show tools occupies the same slot and carries the visible-finding count while the
-tools are hidden. The editor and panels remain mounted so selection, scroll position, and
+The editor tray's Expand editor control gives the document the available writing space on a phone
+or desktop. Show tools occupies the same icon-only slot and includes the visible-finding count in
+its accessible name while the tools are hidden. The shared tooltip names each action;
+no visible label or count accompanies the icon. The tray ends with this control, and
+the document toolbar no longer offers it. The editor and panels remain mounted so selection, scroll position, and
 in-progress tool state survive. Expanding focuses the editor; restoring focuses the selected
 tab. Choosing a different tool programmatically also restores the panels. The Review preview
 is gated on panel visibility, rather than allowing an invisible card to keep proposing a diff.
@@ -376,10 +407,11 @@ second copy and must not announce.
 
 **The box itself is shared, and is the subject of its own section below.**
 
-**Four glyphs, and four is the ceiling.** Each costs about 30px of the document's own top row, past
-which this is the full-width band it replaced, wearing icons. Three are caret commands; the
-fourth is the audio attach, which is not — but it never refuses, whatever the caret is doing,
-and it lives exactly where its transport will appear. Bold and italic were considered and
+**Four editing/source glyphs and one workspace toggle.** Three are caret commands; the
+optional fourth attaches audio where its transport will appear. The fifth expands the
+editor or restores tools, at the editor's right edge. It remains icon-only in both states.
+The find bar reserves room for the extra control, and the existing tray geometry and
+expansion tests measure the layout and focus behavior. Bold and italic were considered and
 refused: `<i>` and `<b>` are the performer voice slots, the picker and the roster are how a voice is
 marked here, and a command is offered once.
 
@@ -412,6 +444,10 @@ Implementation: `src/lib/ui/layout/EditorActions.svelte`, `.editor-actions` in
 `onSearchOpenChange` on the contract.
 
 ### One box names a control, and it is drawn once
+
+The shared box uses `--space-4` on both inline edges and `--space-2` vertically.
+The wider inline inset keeps text clear of the rounded corners and reduces the
+available wrapping width without adding to the box's width cap.
 
 Three surfaces wanted the same thing and were about to solve it three ways. The diagnostic
 citation already had a real tooltip — measured, `position: fixed`, `aria-describedby` — the action

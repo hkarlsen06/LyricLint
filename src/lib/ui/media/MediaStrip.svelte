@@ -1,5 +1,15 @@
 <script lang="ts">
-	import { Check, ListEnd, Pencil, Play, Pointer, TextAlignStart, Timer } from 'lucide-svelte';
+	import {
+		Check,
+		ListEnd,
+		Pencil,
+		Play,
+		Pointer,
+		Repeat,
+		TextAlignStart,
+		Timer,
+		X
+	} from 'lucide-svelte';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { drawsCoverBand, formatTime } from '../state/media-player.svelte.js';
 	import type { MediaStore } from '../state/media-store.svelte.js';
@@ -155,6 +165,21 @@
 	);
 </script>
 
+{#snippet audioPencil()}
+	{#if openMediaPicker}
+		<button
+			type="button"
+			class="button--quiet icon-button"
+			aria-label="Change audio source"
+			aria-haspopup="dialog"
+			onclick={(event) => openMediaPicker(event.currentTarget)}
+			{@attach describeControl(() => ({ label: 'Change audio source' }))}
+		>
+			<Pencil aria-hidden="true" size={14} strokeWidth={2.4} />
+		</button>
+	{/if}
+{/snippet}
+
 <!--
 	The audio transport, under the editor column and nowhere else.
 
@@ -180,27 +205,14 @@
 	data-testid="media-strip"
 	data-loaded={player.attached}
 	{@attach publishStripHeight}
+	{@attach keepFocus}
 >
 	{#if player.attached && drawsCoverBand(player.sourceKind)}
-		<MediaArtwork {media} {announce} />
+		<MediaArtwork {media} {announce} identityAction={audioPencil} />
 	{/if}
-	<div class="media-strip__controls" {@attach keepFocus}>
-		{#if openMediaPicker}
-			<!-- The way back in: swapping tracks is a decision about what the
-			     draft's song is, so it opens the same dialog every other answer
-			     lives in rather than acting here. First in the row, quiet, like
-			     the follow glyph beside it — the transport it leads is the loud
-			     thing here, not the way to replace it. -->
-			<button
-				type="button"
-				class="button--quiet icon-button"
-				aria-label="Change audio source"
-				aria-haspopup="dialog"
-				onclick={(event) => openMediaPicker(event.currentTarget)}
-				{@attach describeControl(() => ({ label: 'Change audio source' }))}
-			>
-				<Pencil aria-hidden="true" size={14} strokeWidth={2.4} />
-			</button>
+	<div class="media-strip__controls">
+		{#if player.attached && !drawsCoverBand(player.sourceKind)}
+			{@render audioPencil()}
 		{/if}
 		{#if player.attached}
 			<div class="media-strip__transport">
@@ -280,32 +292,60 @@
 				what syncing is.
 			-->
 				{#if seekable && !sync?.active}
-					{#if player.loop?.end !== undefined}
+					<div class="media-strip__loop">
 						<button
 							type="button"
 							class="button"
-							aria-pressed="true"
-							onclick={() => player.clearLoop()}>Stop loop</button
+							class:button--quiet={!player.loop}
+							aria-label={player.loop?.end !== undefined
+								? `Stop loop: ${formatTime(player.loop.start)}–${formatTime(player.loop.end)}`
+								: player.loop
+									? 'End here'
+									: 'Loop from here'}
+							aria-pressed={player.loop?.end !== undefined}
+							disabled={!!player.loop &&
+								player.loop.end === undefined &&
+								player.currentTime < player.loop.start + 0.25}
+							onclick={() => {
+								if (player.loop?.end !== undefined) player.clearLoop();
+								else if (player.loop) player.finishLoop();
+								else player.setLoopStart();
+							}}
+							{@attach describeControl(() => ({
+								label:
+									player.loop?.end !== undefined
+										? `Stop loop: ${formatTime(player.loop.start)}–${formatTime(player.loop.end)}`
+										: player.loop
+											? `Loop from ${formatTime(player.loop.start)} to here — play or seek ahead to set the end`
+											: 'Loop from here — mark the start of a passage to repeat'
+							}))}
 						>
-						<span class="media-strip__time"
-							>{formatTime(player.loop.start)}–{formatTime(player.loop.end)}</span
+							<Repeat aria-hidden="true" size={14} strokeWidth={2.4} />
+							{#if player.loop?.end !== undefined}
+								<span class="media-strip__time"
+									>{formatTime(player.loop.start)}–{formatTime(player.loop.end)}</span
+								>
+							{:else}
+								{player.loop ? 'End here' : 'Loop'}
+							{/if}
+						</button>
+						{#if player.loop && player.loop.end === undefined}
+							<button
+								type="button"
+								class="button--quiet icon-button"
+								aria-label="Cancel loop"
+								onclick={() => player.clearLoop()}
+								{@attach describeControl(() => ({ label: 'Cancel loop' }))}
+							>
+								<X aria-hidden="true" size={14} strokeWidth={2.4} />
+							</button>
+						{/if}
+						<span class="sr-only" aria-live="polite"
+							>{player.loop && player.loop.end === undefined
+								? `Loop starts at ${formatTime(player.loop.start)}. Play or seek ahead, then press End here.`
+								: ''}</span
 						>
-					{:else if player.loop}
-						<button
-							type="button"
-							class="button"
-							disabled={player.currentTime < player.loop.start + 0.25}
-							onclick={() => player.finishLoop()}>Loop to here</button
-						>
-						<span class="media-strip__time">From {formatTime(player.loop.start)}</span>
-						<button type="button" class="button button--quiet" onclick={() => player.clearLoop()}
-							>Cancel loop</button
-						>
-					{:else}
-						<button type="button" class="button button--quiet" onclick={() => player.setLoopStart()}
-							>Loop from here</button
-						>
-					{/if}
+					</div>
 				{/if}
 
 				{#if follow?.available}
@@ -487,6 +527,7 @@
 		     the one binding in the workbench nothing on screen could teach; the
 		     shared box is where every other named control already says it. -->
 			<span class="media-strip__pending-name" title={media.pendingName}>{media.pendingName}</span>
+			{@render audioPencil()}
 			<button
 				type="button"
 				class="button media-strip__reconnect"

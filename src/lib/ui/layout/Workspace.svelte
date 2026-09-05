@@ -1012,13 +1012,18 @@
 	<!-- The toolbar spans both columns: the draft's name, its save state, and the
 	     commands that act on the whole document belong to the window, not to the
 	     editor half of it. The panel's tabs then hang directly under it. -->
-	<DocumentToolbar {controller} {brandRevealed} {editorExpanded} onToggleEditor={toggleEditor} />
+	<DocumentToolbar {controller} {brandRevealed} />
 
 	<section class="editor-region" aria-label="Lyrics workspace">
 		<!-- Level with the panel's tab strip, so the two read as one band under the
 		     toolbar: the editor's commands at the left of the window, the panel's
 		     tabs at the right. -->
-		<EditorActions {controller} openMediaPicker={controller.media ? openMediaPicker : undefined} />
+		<EditorActions
+			{controller}
+			{editorExpanded}
+			onToggleEditor={toggleEditor}
+			openMediaPicker={controller.media ? openMediaPicker : undefined}
+		/>
 
 		<div class="editor-host" data-testid="editor-region">
 			{#key controller.draftId}

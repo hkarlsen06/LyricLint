@@ -115,12 +115,12 @@
 <button
 	bind:this={trigger}
 	type="button"
-	class="button language-trigger"
+	class="button button--quiet language-trigger"
 	aria-haspopup="dialog"
 	aria-label={`Lyric language: ${selectedLabel}`}
 	onclick={open}
 >
-	<Globe aria-hidden="true" size={15} strokeWidth={2.1} />
+	<Globe aria-hidden="true" size={16} strokeWidth={2} />
 	<span aria-hidden="true">{controller.language}</span>
 </button>
 

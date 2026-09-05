@@ -206,7 +206,7 @@
 	box-sizing: border-box;
 	width: max-content;
 	max-width: 16rem;
-	padding: var(--space-2);
+	padding: var(--space-2) var(--space-4);
 	gap: var(--space-0-5);
 	border: 0;
 	border-radius: var(--radius-overlay);

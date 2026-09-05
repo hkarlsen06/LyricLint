@@ -1,13 +1,17 @@
 <script lang="ts">
-	import { Music, Search } from 'lucide-svelte';
+	import { Music, PanelRightClose, PanelRightOpen, Search } from 'lucide-svelte';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
 	let {
 		controller,
-		openMediaPicker
+		openMediaPicker,
+		editorExpanded = false,
+		onToggleEditor
 	}: {
 		controller: WorkbenchController;
+		editorExpanded?: boolean;
+		onToggleEditor?: () => void;
 		openMediaPicker?: (source: HTMLButtonElement) => void;
 	} = $props();
 
@@ -26,11 +30,9 @@
 	// the other reason — the performer picker and the roster are how a voice is
 	// marked here, and a command is offered once.
 	//
-	// Four is the ceiling. Each glyph costs about 30px of the document's own
-	// top row, so a fourth is the last one that fits before this is the full-width
-	// band it replaced, wearing icons. The fourth is the audio attach: not a
-	// caret command, but it never refuses — the dialog opens whatever the caret
-	// is doing — and it lives exactly where its transport will appear.
+	// Up to four editing/source commands, followed by the workspace toggle.
+	// The toggle belongs at the editor edge it expands and remains reachable
+	// when the tools are hidden.
 	const actions = $derived([
 		{
 			id: 'section',
@@ -122,7 +124,7 @@
 		</button>
 	{/each}
 	{#if audioAvailable && openMediaPicker}
-		<!-- The note is the tray's fourth and final glyph: attaching audio writes
+		<!-- The note is the tray's optional audio glyph: attaching audio writes
 		     nothing to the document, so like the magnifier it is a pictogram
 		     rather than a mark. It carries no keystroke, so its tooltip carries
 		     the name alone — a glyph with no box at all is a control nothing
@@ -136,6 +138,35 @@
 			{@attach describeControl(() => ({ label: 'Add audio source' }))}
 		>
 			<Music class="editor-actions__glyph" aria-hidden="true" size="1em" strokeWidth={2.25} />
+		</button>
+	{/if}
+	{#if onToggleEditor}
+		<button
+			type="button"
+			class="button--quiet editor-actions__button"
+			aria-label={editorExpanded
+				? `Show tools${controller.visibleDiagnostics.length > 0 ? `, ${controller.visibleDiagnostics.length} visible findings` : ''}`
+				: 'Expand editor'}
+			aria-expanded={!editorExpanded}
+			aria-controls="document-panel"
+			onclick={onToggleEditor}
+			{@attach describeControl(() => ({ label: editorExpanded ? 'Show tools' : 'Expand editor' }))}
+		>
+			{#if editorExpanded}
+				<PanelRightOpen
+					class="editor-actions__glyph"
+					aria-hidden="true"
+					size="1em"
+					strokeWidth={2}
+				/>
+			{:else}
+				<PanelRightClose
+					class="editor-actions__glyph"
+					aria-hidden="true"
+					size="1em"
+					strokeWidth={2}
+				/>
+			{/if}
 		</button>
 	{/if}
 </div>

@@ -4,7 +4,7 @@
 	display: grid;
 	margin-bottom: var(--space-4);
 	gap: var(--space-2);
-	font-weight: var(--font-weight-semibold);
+	font-weight: var(--font-weight-regular);
 }
 
 /* Assignment stays beside the lyrics; this is supporting guidance, not a divider. */
@@ -106,56 +106,108 @@ button.performer-row__name:hover {
 	--performer-color: var(--performer-slate);
 }
 
-.merge-suggestions,
-.performer-legend {
-	margin-top: var(--space-7);
+.merge-suggestions {
+	margin-top: var(--space-5);
 }
 
-.merge-suggestions ul,
-.performer-legend ol,
-.performer-legend ul {
+.performer-legend {
+	margin-top: var(--space-3);
+}
+
+.merge-suggestions ul {
 	display: grid;
 	margin: 0;
 	padding-inline-start: var(--space-5);
 	gap: var(--space-3);
 }
 
-.performer-legend ol > li {
-	padding: var(--space-2) 0 var(--space-2) var(--space-2);
-}
-
-.performer-legend ol > li::marker {
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-	font-variant-numeric: tabular-nums;
-}
-
-.performer-legend strong {
+/* The roster stays directly editable; occasional reference material opens
+   in place with the same quiet row rhythm as Preferences. */
+.performers-panel h2 {
+	margin: 0;
+	font-size: var(--font-size-md);
 	font-weight: var(--font-weight-medium);
+	line-height: var(--line-height-ui);
 }
 
-.performer-legend li > ul {
-	padding: 0;
-	margin-top: var(--space-1);
-	gap: var(--space-1);
+.performer-add input {
+	font-size: var(--font-size-editor);
+	font-weight: var(--font-weight-regular);
 }
 
-.performer-legend li > ul li {
+.performer-help {
+	margin-top: var(--space-3);
+}
+
+.performer-help > summary,
+.performer-legend__summary {
 	display: flex;
+	min-height: var(--control-height-lg);
+	padding-block: var(--space-3);
+	align-items: center;
 	justify-content: space-between;
 	gap: var(--space-3);
+	list-style: none;
+	cursor: pointer;
+}
+
+.performer-help > summary {
 	color: var(--color-text-muted);
 	font-size: var(--font-size-sm);
 }
 
-.performer-legend__style {
-	font-size: var(--font-size-xs);
+.performer-help > summary::-webkit-details-marker,
+.performer-legend__summary::-webkit-details-marker {
+	display: none;
 }
-.performer-legend__style[data-slot='2'],
-.performer-legend__style[data-slot='4'] {
+
+.performer-help > summary:hover,
+.performer-legend__summary:hover h2 {
+	text-decoration: underline;
+	text-underline-offset: var(--space-1);
+}
+
+.performer-legend__chevron {
+	width: var(--space-4);
+	height: var(--space-4);
+	flex: none;
+	color: var(--color-text-muted);
+}
+
+.performer-help[open] > summary .performer-legend__chevron,
+.performer-legend[open] > summary .performer-legend__chevron {
+	transform: rotate(90deg);
+}
+
+.performer-legend__groups {
+	display: grid;
+	gap: var(--space-4);
+	margin: var(--space-3) 0 0;
+	padding: 0;
+	list-style: none;
+}
+
+.performer-legend__voices {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1) var(--space-3);
+	font-size: var(--font-size-md);
+}
+
+.performer-legend__voice[data-slot='2'],
+.performer-legend__voice[data-slot='4'] {
 	font-style: italic;
 }
-.performer-legend__style[data-slot='3'],
-.performer-legend__style[data-slot='4'] {
+
+.performer-legend__voice[data-slot='3'],
+.performer-legend__voice[data-slot='4'] {
 	font-weight: var(--font-weight-bold);
+}
+
+.performer-legend__sections {
+	margin: var(--space-1) 0 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-body);
+	overflow-wrap: anywhere;
 }

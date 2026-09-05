@@ -39,7 +39,7 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   source state never decides whether a search should close (`MediaPicker.svelte.test.ts`).
 - Side-control labels use the same cue lookup as transport: outside the 10s cue reach they
   name the 2s nudge, even when other lines are timed (`MediaStrip.svelte.test.ts`).
-- A replay passage is explicit and session-scoped: Loop from here, Loop to here, Stop loop.
+- A replay passage is explicit and session-scoped: Loop, End here, then press the active range to stop.
   It clears on source changes, outside seeks, and sync entry; pausing stays inside the passage
   (`media-player.test.ts`, `MediaStrip.svelte.test.ts`).
 - Two defaults do the work: resume backs up 2s (cancelled by deliberate placement) and
@@ -78,7 +78,7 @@ left made them feel unrelated and put the attribution beside Preferences. One pl
 It shares window chrome rather than drawing a full-width filled rectangle. Compact bottom
 padding separates its controls from footer text. Wide layouts place artwork, song, playback,
 and attribution in that order on one row; narrower layouts preserve seek width by stacking them. The pending state
-names the song at the row's start and parks its one command at the far end, so the Load
+names the song at the row's start, with the pencil immediately to its right, and parks Load at the far end, so the Load
 control keeps a stable home instead of sliding with the length of the song's name. It
 uses the same control-row height and padding as loaded playback, so loading
 replaces the command without resizing the control bar. `MediaStrip.svelte.test.ts`
@@ -99,6 +99,7 @@ The Load audio / Reconnect audio button keeps the full source-specific label for
 accessibility and the shortcut hint. Loading occupies the same button with a busy mark,
 going quiet while it answers; forgetting the remembered source is the audio dialog's
 detach section, the same deliberate press that detaches an attached one.
+The loaded catalogue pencil sits immediately to the right of the title and artist, in the identity row at every width, rather than leading playback. `MediaStrip.svelte.test.ts` pins both pencil placements.
 No playback controls draw before attachment. Catalogue identity still draws before artwork
 arrives, and is rendered once through `MediaArtwork`, preserving its full-size-art dialog.
 
@@ -692,10 +693,15 @@ is the store's job. `MediaPicker.svelte.test.ts` covers replacement searches for
 
 ### Replay a difficult passage without repeatedly navigating back
 
-Loop from here records the live playhead. The user plays or seeks ahead and presses Loop to here;
-that starts repeating the chosen interval. End stays disabled until the passage is at least a
-quarter second long. Stop loop removes the interval without pausing, and Cancel loop abandons a
-pending start. The range remains visible beside the active control.
+One persistent repeat control records the live playhead with Loop, then changes to End here.
+The user plays or seeks ahead and presses it again to repeat the interval; it stays disabled
+until the passage is at least a quarter second long. While choosing the end, a quiet X beside
+it cancels the pending start. A live-region instruction and the shared tooltip explain the
+next step and name the start time. Once active, the repeat glyph and time range occupy the
+button itself, with a pressed state and a Stop loop accessible name and tooltip. Pressing it
+removes the interval without pausing. Separate range text and full-width cancel wording
+made the short transport grow around a secondary action; the range now earns its space as
+the stop control, and the same main button remains mounted through each step.
 
 The shared player owns the repeat, so every source uses the same behavior. It follows source
 position events rather than promising sample-accurate audio boundaries; remote sources can take

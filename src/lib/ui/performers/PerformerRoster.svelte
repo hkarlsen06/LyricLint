@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { ChevronRight } from 'lucide-svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { orderPerformersByAppearance } from '../state/wiring.js';
 	import PerformerEditor from './PerformerEditor.svelte';
@@ -24,27 +25,19 @@
 
 <section class="performer-roster">
 	<form class="performer-add" onsubmit={add}>
-		<label for="new-performer">Add performer</label>
+		<label class="sr-only" for="new-performer">Add performer</label>
 		<div class="inline-form">
 			<input
 				id="new-performer"
 				bind:value={newName}
 				autocomplete="off"
-				placeholder="Exact credited name"
+				placeholder="Performer name"
 			/>
-			<button type="submit" class="button button--contrast">Add</button>
+			<button type="submit" class="button button--contrast" disabled={!newName.trim()}>Add</button>
 		</div>
 	</form>
 
-	{#if controller.performers.length === 0}
-		<p class="empty-state">
-			Add performers here, then select lyric text and press Ctrl+Alt+P to assign them.
-		</p>
-	{:else}
-		<p class="roster-hint">
-			Select lyric text, then press Ctrl+Alt+P to assign performers. Selecting with the pointer also
-			opens the picker.
-		</p>
+	{#if controller.performers.length > 0}
 		<ul class="performer-list" aria-label="'Scribe performer roster">
 			{#each orderedPerformers as performer (performer.id)}
 				<PerformerEditor
@@ -57,4 +50,15 @@
 			{/each}
 		</ul>
 	{/if}
+	<details class="performer-help">
+		<summary
+			>How to assign voices<ChevronRight
+				class="performer-legend__chevron"
+				aria-hidden="true"
+			/></summary
+		>
+		<p class="roster-hint">
+			Select lyric text, then press Ctrl+Alt+P. Pointer selections open the picker automatically.
+		</p>
+	</details>
 </section>

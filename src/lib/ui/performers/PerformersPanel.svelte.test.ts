@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
+import { userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test } from 'vitest';
 import ToastRegion from '../primitives/ToastRegion.svelte';
@@ -199,7 +200,7 @@ describe('PerformersPanel', () => {
 
 	// Assignment is a selection-anchored action, so it lives only in the editor's
 	// floating picker. The panel offers no second, selection-blind way in.
-	test('offers no assignment controls, only a pointer to the editor picker', () => {
+	test('keeps assignment guidance behind a disclosure with no duplicate assignment controls', async () => {
 		const text = '[Chorus]\nShared line';
 		const { controller } = createTestWorkbench({
 			text,
@@ -211,7 +212,10 @@ describe('PerformersPanel', () => {
 		expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
 		expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Assign' })).toBeNull();
-		expect(screen.getByText(/select lyric text, then press Ctrl\+Alt\+P/i)).toBeTruthy();
+		const guidance = screen.getByText(/select lyric text, then press Ctrl\+Alt\+P/i);
+		expect(guidance).not.toBeVisible();
+		await userEvent.click(screen.getByText('How to assign voices'));
+		expect(guidance).toBeVisible();
 	});
 
 	// A styled slot the header does not name is an unknown voice — reported once

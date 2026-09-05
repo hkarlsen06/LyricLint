@@ -223,9 +223,17 @@
  * whole thumbnail's height to fill, which is why they sit a step up from
  * caption type.
  */
-.media-artwork__meta {
+.media-artwork__identity {
 	display: flex;
 	flex: 1 1 auto;
+	min-width: 0;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+.media-artwork__meta {
+	display: flex;
+	flex: 0 1 auto;
 	min-width: 0;
 	flex-direction: column;
 	gap: var(--space-1);
@@ -661,7 +669,7 @@
 @media (min-width: 90rem) {
 	.media-strip:has(> .media-artwork) {
 		display: grid;
-		grid-template-columns: auto minmax(var(--space-8), 9rem) minmax(0, 1fr) auto;
+		grid-template-columns: auto fit-content(12rem) minmax(0, 1fr) auto;
 		gap: var(--space-3);
 		align-items: center;
 	}
@@ -684,7 +692,7 @@
 		grid-row: 1;
 	}
 
-	.media-strip .media-artwork__meta {
+	.media-strip .media-artwork__identity {
 		grid-column: 2;
 		grid-row: 1;
 	}
@@ -709,4 +717,12 @@
    Keep the pending button's shadow clear of the scrolling row's edges. */
 .media-strip:not(:has(.media-strip__transport)) .media-strip__controls {
 	padding-block: var(--space-0-5);
+}
+
+/* Keep the temporary cancel beside the endpoint control, without a second surface. */
+.media-strip__loop {
+	display: flex;
+	align-items: center;
+	gap: var(--space-1);
+	flex: none;
 }

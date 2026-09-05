@@ -68,13 +68,13 @@ async function fontsSettled(): Promise<void> {
 
 describe('MediaStrip', () => {
 	/*
-	 * The way back in sits first in the row and quiet, like the follow glyph:
+	 * The way back in sits after the song name and stays quiet:
 	 * swapping tracks is a decision about the draft's song, so it opens the
 	 * shared dialog rather than acting here. It draws wherever the strip draws
 	 * — attached or remembered — and only where the shell hands the opener down,
 	 * so a strip without one names no way in at all.
 	 */
-	it('leads the strip with the audio pencil, or nothing without its opener', async () => {
+	it('places the audio pencil after the pending name, or nothing without its opener', async () => {
 		const { media } = store({
 			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }]
 		});
@@ -91,7 +91,8 @@ describe('MediaStrip', () => {
 		const pencil = page.getByRole('button', { name: 'Change audio source' });
 		await expect.element(pencil).toBeVisible();
 		const controls = [...document.querySelector('.media-strip__controls')!.children];
-		expect(controls[0]).toBe(pencil.element());
+		expect(controls[0]).toHaveClass('media-strip__pending-name');
+		expect(controls[1]).toBe(pencil.element());
 		expect(pencil.element().getAttribute('aria-haspopup')).toBe('dialog');
 
 		// Synthetic: userEvent's hover would show the shared tooltip box, which is
@@ -820,7 +821,7 @@ describe('MediaStrip attribution', () => {
 			const { media, player } = await open();
 			expect(player.artwork).toBeUndefined();
 
-			render(MediaStrip, { props: { media } });
+			render(MediaStrip, { props: { media, openMediaPicker: () => {} } });
 
 			const strip = page.getByTestId('media-strip').element();
 			expect(strip.querySelector('.media-artwork__title')?.textContent).toBeTruthy();
@@ -828,6 +829,9 @@ describe('MediaStrip attribution', () => {
 				strip.querySelectorAll('.media-attribution__spotify, .media-attribution__apple')
 			).toHaveLength(1);
 			expect(strip.querySelector('.media-strip__controls .media-artwork')).toBeNull();
+			const pencil = page.getByRole('button', { name: 'Change audio source' }).element();
+			expect(pencil.previousElementSibling).toHaveClass('media-artwork__meta');
+			expect(strip.querySelector('.media-strip__controls')!.contains(pencil)).toBe(false);
 			await expect.element(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 
 			// Source links are siblings of playback, including display:contents on
@@ -859,13 +863,22 @@ it('sets and cancels a replay passage in the transport', async () => {
 	player.attach(new File([''], 'track.mp3'));
 	audio.setDuration(125);
 	player.seek(10);
-	render(MediaStrip, { props: { media } });
+	const view = render(MediaStrip, { props: { media } });
 	await page.getByRole('button', { name: 'Loop from here' }).click();
-	await expect.element(page.getByRole('button', { name: 'Loop to here' })).toBeDisabled();
+	await page.getByRole('button', { name: 'Cancel loop' }).click();
+	expect(player.loop).toBeUndefined();
+	await page.getByRole('button', { name: 'Loop from here' }).click();
+	await expect.element(page.getByRole('button', { name: 'End here' })).toBeDisabled();
 	player.seek(15);
-	await page.getByRole('button', { name: 'Loop to here' }).click();
+	await page.getByRole('button', { name: 'End here' }).click();
 	expect(player.loop).toEqual({ start: 10, end: 15 });
-	await page.getByRole('button', { name: 'Stop loop' }).click();
+	await expect.element(page.getByRole('button', { name: 'Cancel loop' })).not.toBeInTheDocument();
+	const loop = view.container.querySelector('.media-strip__loop')!;
+	expect(loop.querySelectorAll('button')).toHaveLength(1);
+	expect(loop.querySelector('button')!.textContent).toContain('0:10–0:15');
+	expect(loop.querySelector('button')!.getAttribute('aria-pressed')).toBe('true');
+	expect(loop.querySelector(':scope > .media-strip__time')).toBeNull();
+	await page.getByRole('button', { name: 'Stop loop: 0:10–0:15' }).click();
 	expect(player.loop).toBeUndefined();
 	expect(player.playing).toBe(true);
 });

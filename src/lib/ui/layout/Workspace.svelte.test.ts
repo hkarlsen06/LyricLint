@@ -1011,11 +1011,8 @@ describe('Workspace and toolbar', () => {
 		renderWorkspace(controller);
 
 		const bar = screen.getByRole('group', { name: 'Document actions' });
-		// Three, and four is the ceiling: each glyph costs about 30px of the
-		// document's own top row, past which this is the full-width band it
-		// replaced, wearing icons.
-		expect(bar.querySelectorAll('button')).toHaveLength(3);
-		expect(bar.querySelectorAll('button').length).toBeLessThanOrEqual(4);
+		// Three editing commands and the icon-only workspace toggle.
+		expect(bar.querySelectorAll('button')).toHaveLength(4);
 	});
 
 	test('keeps the Preferences exit quiet', async () => {
@@ -1047,11 +1044,11 @@ describe('Workspace and toolbar', () => {
 		});
 		const { container } = renderWorkspace(controller);
 
-		// The tray's fourth and final glyph, drawn only while there is nothing
+		// The tray's optional audio glyph, drawn only while there is nothing
 		// for the strip to show — a pictogram like the magnifier, because
 		// attaching writes nothing to the document.
 		const bar = screen.getByRole('group', { name: 'Document actions' });
-		expect(bar.querySelectorAll('button')).toHaveLength(4);
+		expect(bar.querySelectorAll('button')).toHaveLength(5);
 		const note = within(bar).getByRole('button', { name: 'Add audio source' });
 		expect(note.querySelector('svg')).toBeTruthy();
 		expect(note.textContent?.trim()).toBe('');
@@ -1270,7 +1267,18 @@ describe('Workspace and toolbar', () => {
 					transition!.finish();
 					return bounds;
 				}
-				await fireEvent.click(screen.getByRole('button', { name: 'Expand editor' }));
+				const tray = within(editor.closest<HTMLElement>('.editor-region')!).getByRole('group', {
+					name: 'Document actions'
+				});
+				const expand = within(tray).getByRole('button', { name: 'Expand editor' });
+				expect(within(toolbar).queryByRole('button', { name: 'Expand editor' })).toBeNull();
+				expect(expand.textContent?.trim()).toBe('');
+				expect(expand).toBe(tray.lastElementChild);
+				await fireEvent.pointerEnter(expand);
+				expect(document.querySelector('.control-tooltip')?.textContent?.trim()).toBe(
+					'Expand editor'
+				);
+				await fireEvent.click(expand);
 				const expanding = sampleTransition();
 				await waitFor(() => expect(screen.queryByRole('tab', { name: /Review/ })).toBeNull());
 				expect(screen.getByTestId('editor-region')).toBe(editor);
@@ -1287,7 +1295,11 @@ describe('Workspace and toolbar', () => {
 				);
 				const panelBounds = panel.getBoundingClientRect();
 				expect(width < 1088 ? panelBounds.height : panelBounds.width).toBe(0);
-				await fireEvent.click(screen.getByRole('button', { name: /Show tools/ }));
+				const restore = within(tray).getByRole('button', { name: /Show tools/ });
+				expect(restore).toBe(expand);
+				expect(restore.textContent?.trim()).toBe('');
+				expect(restore.getAttribute('aria-expanded')).toBe('false');
+				await fireEvent.click(restore);
 				const contracting = sampleTransition();
 				expect(extent(contracting)).toBeGreaterThan(extent(before));
 				expect(extent(contracting)).toBeLessThan(extent(after));

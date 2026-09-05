@@ -64,7 +64,7 @@
 	/* What the find bar keeps clear so the tray never covers its way out. It is a
 	   constant because the tray is a fixed set of glyphs, and it is asserted
 	   against the tray's measured width rather than trusted. */
-	--editor-actions-reserve: 11rem;
+	--editor-actions-reserve: calc(11rem + var(--control-height-sm) + var(--space-1));
 
 	position: relative;
 	display: grid;
@@ -194,6 +194,25 @@
 }
 
 .document-toolbar__commands {
+	flex: none;
+}
+
+/* Secondary commands sit directly on the window chrome. Only the clipboard
+   action keeps a permanent surface; the shared button tiers own hover/focus. */
+.document-toolbar__commands > .button--quiet:not(:disabled) {
+	color: var(--color-text-muted);
+}
+
+.document-toolbar__commands > .button--quiet:hover:not(:disabled),
+.document-toolbar__commands > .button--quiet:focus-visible {
+	color: var(--color-text);
+}
+
+.document-toolbar__commands > .button {
+	white-space: nowrap;
+}
+
+.document-toolbar__commands > .button > svg {
 	flex: none;
 }
 
