@@ -1,6 +1,8 @@
 <script lang="ts">
+	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to base-prefixed or resolve-derived paths; the lint rule cannot inspect nested calls. */
 	import { afterNavigate } from '$app/navigation';
-	import { resolve } from '$app/paths';
+	import { base, resolve } from '$app/paths';
+	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
 	import { guidanceTopics } from '$lib/guidance/entries.js';
 	import {
 		authorityLabels,
@@ -9,7 +11,7 @@
 		guidanceTopicTitles
 	} from '$lib/guidance/guidance.js';
 	import { getSource } from '$lib/rules/data/sources.js';
-	import { ruleSlug } from '$lib/rules/reference-search.js';
+	import { referenceTopics } from '$lib/reference/topics.js';
 	import { siteUrl } from '$lib/seo.js';
 	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
 	import CodeProse from '$lib/ui/site/CodeProse.svelte';
@@ -18,29 +20,14 @@
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import { setReadingAnchor } from '$lib/ui/site/guidance-reading.svelte.js';
 	import { safeDecodeHash } from '$lib/ui/site/hash.js';
-	import type { PageProps } from './$types.js';
+	import type { PageProps, Snapshot } from './$types.js';
 
 	let { data }: PageProps = $props();
 
-	// A constant rather than a literal in the mustache, because a bare `{', '}`
-	// is `svelte/no-useless-mustaches` — the same trade the rule reference's
-	// interpunct runs make.
-	const ruleListSeparator = ', ';
-
-	/**
-	 * How many rule ids the meta line carries before the run folds. Three is
-	 * what fits beside the tier and the citation without wrapping the line;
-	 * `guidance.spelling.standard-orthography` names nine, which measured seven
-	 * lines of monospace links at 320px and pushed the entry's own statement off
-	 * the screen — a meta line is one line of facts, and a wall of ids is the
-	 * failure the diagnostic card's `Sources ⌄` already answers. Read off the
-	 * list's own length at render time, so an entry that gains or loses a rule
-	 * folds or unfolds without anything here being maintained.
-	 */
-	const INLINE_RULE_IDS = 3;
-
 	const topic = $derived(data.topic);
-	const topicTitle = $derived(guidanceTopicTitles[topic]);
+	const topicTitle = $derived(
+		referenceTopics.find((item) => item.id === topic)?.title ?? guidanceTopicTitles[topic]
+	);
 	const entries = $derived(
 		guidanceTopics().find((candidate) => candidate.topic === topic)!.entries
 	);
@@ -103,7 +90,7 @@
 	// carries it: a tab is a label, not a sentence. The topic's title leads,
 	// because a tab shows its first few characters and the topic is what tells
 	// two of these apart.
-	const pageTitle = $derived(`${topicTitle} · Genius Transcription Guidelines · LyricLint`);
+	const pageTitle = $derived(`${topicTitle} · Transcription guide · LyricLint`);
 	const pageDescription = $derived(
 		`Genius transcription conventions for ${topicTitle.toLowerCase()}: ${entries
 			.map((entry) => entry.title.toLowerCase())
@@ -157,7 +144,7 @@
 		guidanceTopicLandmarks[topic]?.find((landmark) => entryAnchor(landmark.id) === SPELLINGS_ANCHOR)
 	);
 
-	function landOnHash() {
+	function updateLanding(scrollToAnchor: boolean) {
 		// The same shared decode the index column reads its own mark through: a
 		// fragment is somebody else's string, and `#%` is a `URIError` rather than
 		// an anchor — thrown here it would take the topic page down on the arrival
@@ -180,13 +167,19 @@
 		// draws nothing.
 		const heading = anchor ? document.getElementById(anchor) : null;
 		setReadingAnchor(heading ? anchor : leadAnchor);
-		if (!heading) return;
+		if (!heading || !scrollToAnchor) return;
 		requestAnimationFrame(() =>
 			requestAnimationFrame(() => heading.scrollIntoView({ block: 'start' }))
 		);
 	}
 
-	afterNavigate(landOnHash);
+	function landOnHash(): void {
+		updateLanding(true);
+	}
+
+	// Back restores the reader's precise position, including a check opened below
+	// the entry heading. Refresh selection without overriding browser restoration.
+	afterNavigate(({ type }) => updateLanding(type !== 'popstate'));
 
 	/**
 	 * Which entry the reader is on: the last heading to have crossed the reading
@@ -198,6 +191,36 @@
 	 * the window scrolls and the line starts at the viewport's top.
 	 */
 	let article = $state<HTMLElement>();
+
+	// Disclosure height changes during restoration. Restore its reading position
+	// after both native open states and the router's own scroll pass have settled.
+	export const snapshot: Snapshot<{ checks: string[]; detailY: number; windowY: number }> = {
+		capture: () => ({
+			checks: Array.from(
+				article?.querySelectorAll<HTMLDetailsElement>('details[data-check-id][open]') ?? [],
+				(element) => element.dataset.checkId!
+			),
+			detailY: article?.closest<HTMLElement>('.site-split__detail')?.scrollTop ?? 0,
+			windowY: window.scrollY
+		}),
+		restore: (saved) => {
+			const restoredUrl = location.href;
+			for (const element of article?.querySelectorAll<HTMLDetailsElement>(
+				'details[data-check-id]'
+			) ?? []) {
+				element.open = saved.checks.includes(element.dataset.checkId!);
+			}
+			requestAnimationFrame(() =>
+				requestAnimationFrame(() => {
+					if (location.href !== restoredUrl) return;
+					const detail = article?.closest<HTMLElement>('.site-split__detail');
+					if (!detail) return;
+					detail.scrollTop = saved.detailY;
+					if (getComputedStyle(detail).overflowY === 'visible') window.scrollTo(0, saved.windowY);
+				})
+			);
+		}
+	};
 
 	function readingEntry(): string {
 		const firstHeading = article?.querySelector<HTMLElement>('h2[id]');
@@ -269,7 +292,7 @@
 	const structuredData = $derived({
 		'@context': 'https://schema.org',
 		'@type': 'TechArticle',
-		headline: `Genius Transcription Guidelines: ${topicTitle}`,
+		headline: `${topicTitle} · Transcription guide`,
 		url: canonicalUrl,
 		mainEntityOfPage: canonicalUrl,
 		description: pageDescription,
@@ -296,40 +319,57 @@
 
 <!-- Every string a search can match is drawn through the marker, so a
      guideline opened out of a search says which of its words matched — the
-     rule pages' own answer, and the reason the query lives in module state. -->
+     rule pages' own answer, using the shared reference query. -->
 {#snippet marked(value: string)}<GuidanceSearchHighlight text={value} />{/snippet}
 
-<!-- The one implementation of the `Checked by` run, rendered inline for a short
-     list and inside the disclosure for a long one, so the two cannot come to
-     draw different links.
-
-     The separator is a value, not markup whitespace, which the formatter is
-     free to move to the wrong side of the comma —
-     `punctuation.question,punctuation.line-ending` is what that looks like, and
-     it looks exactly like working markup.
-
-     A tab, exactly as the rows below do it and for the same reason: this one is
-     read mid-entry, which is the worst place in the section to lose a scroll
-     position to a lookup. No mark beside it — a glyph after every id in a comma
-     list is a run of marks rather than a note — so the sr-only text is the
-     whole of what says the press opens a tab. -->
-{#snippet ruleLinks(
-	ruleIds: readonly string[]
-)}{#each ruleIds as ruleId, index (ruleId)}{#if index > 0}{ruleListSeparator}{/if}<a
-			class="site-code"
-			href="{resolve('/(site)/rules/[rule]', { rule: ruleSlug(ruleId) })}/"
-			target="_blank"
-			rel="noopener noreferrer"
-			><GuidanceSearchHighlight text={ruleId} /><span class="sr-only">(opens in a new tab)</span></a
-		>{/each}{/snippet}
+<!-- Explanations describe a reviewed occurrence, so they open with the exact
+     input that produced them. Native disclosures keep long check inventories compact. -->
+{#snippet checkList(checks: readonly PageProps['data']['additionalChecks'][number][])}
+	<ul class="guidelines__checks">
+		{#each checks as check (check.href)}
+			<li>
+				<details data-check-id={check.id}>
+					<summary><GuidanceSearchHighlight text={check.title} /></summary>
+					<figure class="site-sample site-sample--invalid">
+						<figcaption class="site-sample__label">Flagged example</figcaption>
+						<pre
+							class="site-sample__text"
+							lang={check.language}
+							dir={check.language === 'ar' ? 'rtl' : undefined}><GuidanceSearchHighlight
+								text={check.invalid}
+							/></pre>
+					</figure>
+					<p><GuidanceSearchHighlight text={check.explanation} /></p>
+					<figure class="site-sample site-sample--valid">
+						<figcaption class="site-sample__label">Accepted by this check</figcaption>
+						<pre
+							class="site-sample__text"
+							lang={check.language}
+							dir={check.language === 'ar' ? 'rtl' : undefined}><GuidanceSearchHighlight
+								text={check.valid}
+							/></pre>
+					</figure>
+					<p>
+						<a
+							href={referenceHref(`${base}${check.href}`)}
+							aria-label={`See trigger and fix: ${check.title}`}>See trigger and fix</a
+						>
+					</p>
+				</details>
+			</li>
+		{/each}
+	</ul>
+{/snippet}
 
 <main id="main" tabindex="-1" class="site-prose site-split__page" bind:this={article}>
 	<h1><GuidanceSearchHighlight text={topicTitle} /></h1>
-	<p>
-		The reviewed conventions for this topic, in LyricLint's own words. Each one states its standing,
-		links the exact source it is read from, and names the
-		<a href={resolve('/rules/')}>linter</a> rules that check it.
-	</p>
+	<p class="site-lede">Reviewed conventions, examples, and the sources behind them.</p>
+	{#if entries.some((entry) => entry.relatedRuleIds?.length) || data.spellings || data.additionalChecks.length}
+		<p>
+			The checks below catch specific patterns in your text. They support your review; passing them
+			does not verify every part of a convention.
+		</p>
+	{/if}
 
 	{#if data.spellings}
 		<!-- A landmark is a deep-link target exactly as an entry is — the index
@@ -365,12 +405,7 @@
 					<SiteSourceFold sources={entrySources(spellingsLandmark.sourceIds)} text={marked} />
 				</div>
 			{/if}
-			<p>
-				The reviewed preferred forms, each over the spellings the guide corrects. The
-				<a href="{resolve('/(site)/rules/[rule]', { rule: 'spelling-standardized' })}/"
-					>linter checks every row</a
-				>, and its page also lists the transcription typos LyricLint catches on top.
-			</p>
+			<p>The reviewed preferred forms, each over the spellings the guide corrects.</p>
 			<ul class="site-run">
 				{#each displayedSpellings as entry, index (index)}
 					<li class="rules__lookup-row">
@@ -392,6 +427,10 @@
 					</li>
 				{/each}
 			</ul>
+			{#if data.checksById['spelling.standardized']}
+				<h3>What LyricLint checks</h3>
+				{@render checkList([data.checksById['spelling.standardized']])}
+			{/if}
 		</section>
 	{/if}
 
@@ -416,20 +455,6 @@
 				<span><GuidanceSearchHighlight text={authorityLabels[entry.authority]} /></span>
 				<span class="site-meta__separator" aria-hidden="true">·</span>
 				<SiteSourceFold sources={entrySources(entry.sourceIds)} text={marked} />
-				{#if entry.relatedRuleIds?.length}
-					<span class="site-meta__separator" aria-hidden="true">·</span>
-					<!-- Short runs read inline as they always have; a long one folds
-					     behind the citations' own disclosure, which is why that
-					     component draws this run too rather than a second control
-					     being written beside it. `Checked by` stays outside the
-					     button, so the label is the count and nothing else. -->
-					<SiteSourceFold
-						prefix="Checked by"
-						folded={entry.relatedRuleIds.length > INLINE_RULE_IDS}
-						label="{entry.relatedRuleIds.length} rules"
-						>{@render ruleLinks(entry.relatedRuleIds)}</SiteSourceFold
-					>
-				{/if}
 			</div>
 			<!-- The forms a convention names — `[Verse 1]`, `gon'`, `'90s` — are
 			     written in backticks in the entry and set in the code face here,
@@ -466,12 +491,47 @@
 			     what says it qualifies them, and position does not need a tone
 			     to help it. -->
 			{#if entry.note}
+				<h3>Exceptions and context</h3>
 				<p><CodeProse text={entry.note} mark={marked} /></p>
+			{/if}
+			{#if entry.relatedRuleIds?.length}
+				<h3>What LyricLint checks</h3>
+				{@render checkList(
+					entry.relatedRuleIds.flatMap((id) => (data.checksById[id] ? [data.checksById[id]] : []))
+				)}
 			{/if}
 		</section>
 	{/each}
+
+	{#if data.additionalChecks.length}
+		<section aria-labelledby="additional-checks">
+			<h2 id="additional-checks">More checks for this topic</h2>
+			<p>
+				These checks cover other patterns in this topic. Each explains its source, trigger, and
+				suggested correction.
+			</p>
+			{@render checkList(data.additionalChecks)}
+		</section>
+	{/if}
 
 	<div class="site-actions">
 		<a class="button" href={resolve('/lint/')}>Check a transcription in the workbench</a>
 	</div>
 </main>
+
+<style>
+	.guidelines__checks {
+		list-style: none;
+		padding: 0;
+		margin: var(--space-3) 0 0;
+	}
+	.guidelines__checks li + li {
+		margin-top: var(--space-4);
+	}
+	.guidelines__checks summary {
+		font-weight: var(--font-weight-medium);
+	}
+	.guidelines__checks p {
+		margin: var(--space-1) 0 0;
+	}
+</style>

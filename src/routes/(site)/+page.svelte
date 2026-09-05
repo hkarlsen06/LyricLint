@@ -499,7 +499,9 @@ And the "quiet" part was never really quiet`;
 						<span class="lp-finding__separator" aria-hidden="true">·</span>
 						<span>Line 1</span>
 						<span class="lp-finding__separator" aria-hidden="true">·</span>
-						<a href={resolve('/rules/')}>How to Add Songs to Genius</a>
+						<a href="{resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/"
+							>How to Add Songs to Genius</a
+						>
 					</span>
 				</div>
 				<div class="lp-finding">
@@ -510,7 +512,7 @@ And the "quiet" part was never really quiet`;
 						<span class="lp-finding__separator" aria-hidden="true">·</span>
 						<span>Line 3</span>
 						<span class="lp-finding__separator" aria-hidden="true">·</span>
-						<a href={resolve('/rules/')}>Ad-libs</a>
+						<a href="{resolve('/(site)/guidelines/[topic]', { topic: 'ad-libs' })}/">Ad-libs</a>
 					</span>
 				</div>
 			</div>
@@ -523,7 +525,7 @@ And the "quiet" part was never really quiet`;
 					take it.
 				</p>
 				<p class="lp-prose">
-					<a href={resolve('/rules/')}>Read the full rule reference</a>, including the sources
+					<a href={resolve('/guidelines/')}>Read the transcription guide</a>, including the sources
 					behind each one.
 				</p>
 			</div>

@@ -4,6 +4,7 @@ import type { Plugin } from 'vite';
 import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { legacyReferenceDestination } from './src/lib/reference/legacy-redirects.js';
 
 /**
  * The port both local servers listen on.
@@ -84,6 +85,25 @@ function loopbackLiteralUrls(): Plugin {
 	};
 }
 
+/** Mirror the production Pages redirects before either local server serves static HTML. */
+function referenceMigrationRedirects(): Plugin {
+	const middleware: import('vite').Connect.NextHandleFunction = (request, response, next) => {
+		const destination = legacyReferenceDestination(new URL(request.url ?? '/', 'http://localhost'));
+		if (!destination) return next();
+		response.writeHead(308, { Location: destination });
+		response.end();
+	};
+	return {
+		name: 'lyriclint:reference-migration-redirects',
+		configureServer(server) {
+			server.middlewares.use(middleware);
+		},
+		configurePreviewServer(server) {
+			server.middlewares.use(middleware);
+		}
+	};
+}
+
 export default defineConfig({
 	/**
 	 * Name the proxied host, so the tailnet dev server answers it.
@@ -158,6 +178,7 @@ export default defineConfig({
 	// use in development from invalidating the module graph under a live editor.
 	optimizeDeps: { include: ['@codemirror/search'] },
 	plugins: [
+		referenceMigrationRedirects(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

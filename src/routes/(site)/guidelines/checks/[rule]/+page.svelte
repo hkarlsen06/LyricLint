@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to resolve-derived paths; the lint rule cannot inspect nested calls. */
 	import { resolve } from '$app/paths';
+	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
 	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
 	import SourceLink from '$lib/diagnostics/SourceLink.svelte';
 	// Straight from the manifest, not through `$lib/rules/index.js`: that barrel
@@ -10,8 +11,7 @@
 	import { fixabilityLabel } from '$lib/rules/reference-search.js';
 	import { siteUrl } from '$lib/seo.js';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
-	// Shared with the guide on `/rules/` and with the guidance catalog, all
-	// three of which quote literal forms inside ordinary sentences.
+	// Shared with the guidance catalog, which quotes literal forms inside ordinary sentences.
 	import CodeProse from '$lib/ui/site/CodeProse.svelte';
 	// Every string on this page goes through it, so the reader who arrived by
 	// searching can see what matched instead of hunting for it down a wall of
@@ -65,20 +65,15 @@
 		return `Also catches ${parts.join(' and ')}`;
 	}
 
-	// Picked out of the layout's data rather than loaded again: the whole index is
-	// already here, because the list beside this column is drawn from it on every
-	// page in the section. `+page.server.ts` is what guarantees the slug names one
-	// of them.
-	const reference = $derived(
-		data.groups.flatMap((group) => group.rules).find((entry) => entry.slug === page.params.rule)!
-	);
+	// Only this check is loaded; the parent carries the lightweight shared finder.
+	const reference = $derived(data.reference);
 	// The rule's name, not the message it happens to produce on its example. The
 	// index row that opened this page leads with the same string, and a heading
 	// that disagreed with the row pressed to reach it reads as having landed
 	// somewhere else. The message is still on the page, under the example that
 	// produced it, which is what it is a statement about.
 	const pageTitle = $derived(`${reference.title} · LyricLint`);
-	const canonicalUrl = $derived(siteUrl(`/rules/${reference.slug}/`));
+	const canonicalUrl = $derived(siteUrl(`/guidelines/checks/${reference.slug}/`));
 	const structuredData = $derived({
 		'@context': 'https://schema.org',
 		'@type': 'TechArticle',
@@ -123,7 +118,7 @@
 	     slot states the one fact a reader scanning the reference wants next to
 	     the severity — whether the linter can fix this for them. -->
 	<div class="site-meta">
-		<SeverityTag severity={reference.severity} />
+		<SeverityTag severity={reference.severity} labelled />
 		<span class="site-meta__separator" aria-hidden="true">·</span>
 		<span class="site-code"><RuleSearchHighlight text={reference.id} /></span>
 		<span class="site-meta__separator" aria-hidden="true">·</span>
@@ -136,20 +131,14 @@
 
 	<p><RuleSearchHighlight text={reference.explanation} /></p>
 
-	<!-- The convention this rule is a check of, in the guidance catalog — the
-	     reverse of the entry's own "checked by" meta line, derived from the same
-	     mapping so the two directions cannot disagree. Same tab, unlike the
-	     catalog's links here: a reader on a rule page is looking the convention
-	     up, and the guideline is the next thing to read, not a lookup beside
-	     one. A deep link lands the topic page on the entry itself. -->
 	{#if reference.guidelines?.length}
 		<p>
 			{reference.guidelines.length === 1
-				? 'The convention behind this rule, in the transcription guidelines: '
-				: 'The conventions behind this rule, in the transcription guidelines: '}{#each reference.guidelines as guideline, index (`${guideline.topic}#${guideline.anchor}`)}{#if index > 0}{guidelineSeparator}{/if}<a
-					href="{resolve('/(site)/guidelines/[topic]', {
-						topic: guideline.topic
-					})}/#{guideline.anchor}"><RuleSearchHighlight text={guideline.title} /></a
+				? 'Convention: '
+				: 'Conventions: '}{#each reference.guidelines as guideline, index (`${guideline.topic}#${guideline.anchor}`)}{#if index > 0}{guidelineSeparator}{/if}<a
+					href={referenceHref(
+						`${resolve('/(site)/guidelines/[topic]', { topic: guideline.topic })}/#${guideline.anchor}`
+					)}><RuleSearchHighlight text={guideline.title} /></a
 				>{/each}.
 		</p>
 	{/if}
@@ -161,7 +150,7 @@
 	     what is separated from the page, and the members from each other by the
 	     line where they meet. -->
 	{#if lookup}
-		<h2>What this rule checks</h2>
+		<h2>What this check detects</h2>
 		<p><RuleSearchHighlight text={lookup.description} /></p>
 		<ul class="site-run">
 			{#each lookup.entries as entry, index (index)}
@@ -264,11 +253,17 @@
 		</p>
 	{/if}
 
+	<h2>The convention and its limits</h2>
+	<p>
+		This check detects the pattern shown above. An accepted example passes this check; it is not a
+		review of the whole transcription.
+	</p>
+
 	<h2>{reference.sources.length === 1 ? 'Source' : 'Sources'}</h2>
 	<p>
 		{reference.sources.length === 1
-			? 'The guideline this rule enforces, as cited on every finding it reports:'
-			: 'The guidelines this rule enforces, as cited on every finding it reports:'}
+			? 'The source cited by this check:'
+			: 'The sources cited by this check:'}
 	</p>
 	<!-- The citations are searched with everything else on this page, so they mark
 	     what matched with everything else on it. The snippet is how that reaches a

@@ -99,6 +99,10 @@ export async function followSelectedRow(column: HTMLElement | undefined): Promis
 	const finder = column.querySelector<HTMLElement>('.site-finder');
 	const top = port.top + (finder?.getBoundingClientRect().height ?? 0);
 	const rect = row.getBoundingClientRect();
+	// Breathing room is a destination for an offscreen row, not a reason to move
+	// one already visible. Search excerpts are taller than the old title rows;
+	// applying the margin first nudged a row immediately after it was pressed.
+	if (rect.top >= top && rect.bottom <= port.bottom) return;
 	const breath = Math.min(rect.height, Math.max(0, (port.bottom - top) / 4));
 
 	let delta = 0;

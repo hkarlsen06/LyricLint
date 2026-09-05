@@ -47,8 +47,8 @@
 			<h1>LyricLint needs JavaScript</h1>
 			<p>
 				The workbench runs entirely in your browser — the linter, the editor and your saved 'scribes
-				are all script. The <a href={resolve('/rules/')}>linter rules</a> and the
-				<a href={resolve('/guidelines/')}>guidelines</a> read fine without it.
+				are all script. The <a href={resolve('/guidelines/')}>transcription guide</a>
+				reads fine without it.
 			</p>
 		</div>
 	</div>

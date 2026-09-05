@@ -45,10 +45,7 @@
 			     most likely pointing: a rule page or a guideline is a URL people
 			     paste, and the workbench is not. -->
 			<a class="button button--quiet" data-sveltekit-reload href={resolve('/guidelines/')}>
-				Guidelines
-			</a>
-			<a class="button button--quiet" data-sveltekit-reload href={resolve('/rules/')}>
-				Linter rules
+				Transcription guide
 			</a>
 		</p>
 	</div>

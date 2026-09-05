@@ -1,0 +1,5 @@
+# Canonical transcription guide migration. No destination query/fragment: preserve incoming values.
+/rules /guidelines/ 308
+/rules/ /guidelines/ 308
+/rules/:rule/ /guidelines/checks/:rule/ 308
+/rules/:rule /guidelines/checks/:rule/ 308

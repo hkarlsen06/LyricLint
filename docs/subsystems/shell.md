@@ -91,6 +91,14 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## Decision record
 
+### One reference destination from the workbench
+
+The no-script fallback and error page link to the unified transcription guide rather than
+presenting separate rules and guidelines choices. Assistant check previews link directly to
+`/guidelines/checks/[rule]/`, so following a preview joins the same topic/answer navigation as
+a reference search. The assistant dialog and guide browser tests cover these entry points.
+
+
 ### Header commands share the quiet control tier
 
 The right-hand commands sit directly on chrome: history, language,

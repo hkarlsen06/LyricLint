@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import ReferenceSearchSync from '$lib/ui/site/ReferenceSearchSync.svelte';
+	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
 	import { siteUrl } from '$lib/seo.js';
 	import AppWordmark from '$lib/ui/layout/AppWordmark.svelte';
 	// Import the manifest directly. The rules barrel also exports the engine and
@@ -16,8 +18,8 @@
 	let scrollY = $state(0);
 
 	// Trailing slashes and the index route both have to match, so compare the
-	// path prefix rather than the string. `/rules/spelling-standardized` is still
-	// inside Rules.
+	// path prefix rather than the string. `/guidelines/checks/spelling-standardized/` is still
+	// inside the guide.
 	function current(href: string): 'page' | undefined {
 		const path = page.url.pathname.replace(/\/$/, '') || '/';
 		const target = href.replace(/\/$/, '') || '/';
@@ -26,24 +28,15 @@
 			: undefined;
 	}
 
-	// The two reference sections are the window shell — and the window shell has
+	// The unified reference uses the window shell — and the window shell has
 	// no footer. Its columns own the viewport's height, so a footer there is a
 	// permanent band of colophon pinned under content somebody is reading, on
 	// every screen, saying nothing about either column. The colophon belongs to
 	// the document pages, which end; the Apple attribution it carries is a
 	// once-per-site requirement and the document pages still state it.
-	const windowShell = $derived(Boolean(current('/rules') || current('/guidelines')));
+	const windowShell = $derived(Boolean(current('/guidelines')));
 
-	// The section the reader is in, named in the band at a size that answers the
-	// question from across the room. The two reference sections look alike on
-	// purpose — one shell, one finder idiom, one run of rows — and `aria-current`
-	// on a 15px nav link was the whole of what told them apart, which is a
-	// difference nobody reads. It is drawn only for the sections that have this
-	// problem: the landing page is the brand's own page and the privacy page's
-	// `<h1>` is the first thing under the masthead.
-	const sectionTitle = $derived(
-		current('/rules') ? 'Linter Rules' : current('/guidelines') ? 'Guidelines' : undefined
-	);
+	const sectionTitle = $derived(current('/guidelines') ? 'Transcription guide' : undefined);
 </script>
 
 <svelte:head>
@@ -99,6 +92,7 @@
      narrow screens, where there is only one column on show and the document is
      the honest scroller again. -->
 <svelte:window bind:scrollY />
+{#if windowShell}<ReferenceSearchSync />{/if}
 
 <div class="site" data-shell={windowShell ? 'window' : 'document'}>
 	<!-- The first tab stop on every page in this section, drawn only while it
@@ -138,8 +132,13 @@
 			     is this product", carried now by the logo-is-home convention
 			     alone. -->
 			<nav class="site-nav" aria-label="Site">
-				<a href={resolve('/guidelines/')} aria-current={current('/guidelines')}>Guidelines</a>
-				<a href={resolve('/rules/')} aria-current={current('/rules')}>Linter Rules</a>
+				<!-- eslint-disable svelte/no-navigation-without-resolve -- referenceHref decorates resolve() URLs with shared search parameters. -->
+				<a
+					href={windowShell ? referenceHref(resolve('/guidelines/')) : resolve('/guidelines/')}
+					aria-current={current('/guidelines')}>Guide</a
+				>
+
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				<!-- Drawn at every width. A comment here used to claim it was dropped
 				     on a phone, from the era of a whole-phone gate that no longer
 				     exists: the workbench supports a phone held upright (only

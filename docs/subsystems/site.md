@@ -58,6 +58,17 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 
 ## Decision record
 
+### Reference navigation carries the lookup
+
+The Guide link is the single reference destination in the site header. It carries search state
+inside `/guidelines/`, including check details; from other pages it is a clean index link.
+The masthead consistently says Transcription guide. Landing-page citations open their actual
+topic, and the full reference link opens the unified guide. The reference subsystem
+owns query serialization and restoration; the header consumes that owner rather than rebuilding
+query parameters. The cross-section search e2e task pins this behavior. Homepage reference question
+links and native disclosures use token-based prose styles in `site.css`, with no added panels.
+
+
 ### The landing page is a composition, and the workbench is the evidence in it
 
 The rest of this system is a tool. The landing page is the one surface nobody operates, read once

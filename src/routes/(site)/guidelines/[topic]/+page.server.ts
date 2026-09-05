@@ -1,11 +1,12 @@
 import { error } from '@sveltejs/kit';
 import { guidanceTopics } from '$lib/guidance/entries.js';
 import { guidanceTopicTitles } from '$lib/guidance/guidance.js';
+import { topicChecks } from '$lib/reference/topic-checks.server.js';
 import { ruleLookupTable } from '$lib/rules/lookup-tables.js';
 import type { EntryGenerator, PageServerLoad } from './$types.js';
 
 // adapter-static only writes the pages it is told about, so the entries come
-// from the catalog, not from crawling — the same rule as `/rules/[rule]`. Only
+// from the catalog, not from crawling — the same rule as `/guidelines/checks/[rule]`. Only
 // topics that actually have entries get a page; a title in
 // `guidanceTopicTitles` with nothing under it yet is not a destination.
 export const entries: EntryGenerator = () => guidanceTopics().map(({ topic }) => ({ topic }));
@@ -19,7 +20,7 @@ export const entries: EntryGenerator = () => guidanceTopics().map(({ topic }) =>
  *
  * The table is the standardized-spellings list drawn on that page, from the
  * same `ruleLookupTable` the rule page loads — one data source, two surfaces —
- * and it rides this per-page load for `/rules/[rule]`'s own reason: carried on
+ * and it rides this per-page load for `/guidelines/checks/[rule]`'s own reason: carried on
  * the shared layout it would copy the whole table into every topic's payload.
  * Deliberately only `spelling.standardized`: the per-language commons are
  * inventories of misspellings, not preferred-spelling policy, and each is
@@ -34,6 +35,7 @@ export const load: PageServerLoad = ({ params }) => {
 		error(404, `No guidelines are published at "${params.topic}".`);
 	}
 	return {
+		...topicChecks(params.topic),
 		topic: params.topic,
 		spellings: params.topic === 'spelling' ? ruleLookupTable('spelling.standardized') : undefined
 	};

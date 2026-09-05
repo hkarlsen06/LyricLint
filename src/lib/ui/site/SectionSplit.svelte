@@ -39,7 +39,7 @@
 		children: Snippet;
 	} = $props();
 
-	const indexPath = $derived(indexHref.replace(/\/$/, ''));
+	const indexPath = $derived(indexHref.split(/[?#]/)[0]!.replace(/\/$/, ''));
 
 	// Whether the reader reached this page by pressing a row. Only then is the
 	// list a real entry behind this one in history, and only then can going back

@@ -1,57 +1,144 @@
-# The reference sections: /rules/, /guidelines/, and the split shell they share
+# The transcription guide: conventions and linter checks in one reference
 
-Touches: `src/lib/rules/reference.ts`, `src/lib/rules/reference-search.ts`,
-`src/lib/rules/reference-guide.ts`, `src/lib/ui/site/SectionSplit.svelte`,
-`src/lib/ui/site/reveal-selected.ts`, `src/lib/ui/site/rule-search.svelte.ts`,
-`src/lib/guidance/guidance-search.ts`, `src/lib/ui/site/GuidanceIndex.svelte`,
-`src/lib/ui/site/guidance-reading.svelte.ts`, `src/lib/ui/assistant/AssistantSpark.svelte`,
-`src/routes/(site)/rules/`, `src/routes/(site)/guidelines/`
+Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`,
+`src/lib/rules/reference-search.ts`, `src/lib/rules/reference-guide.ts`,
+`src/lib/ui/site/SectionSplit.svelte`, `src/lib/ui/site/ReferenceIndex.svelte`,
+`src/lib/ui/site/reference-search.svelte.ts`, `src/lib/ui/site/reference-url.ts`,
+`src/lib/ui/site/ReferenceSearchSync.svelte`, `src/lib/ui/site/reveal-selected.ts`,
+`src/lib/ui/site/rule-search.svelte.ts`, `src/lib/ui/site/guidance-search.svelte.ts`,
+`src/lib/ui/site/guidance-reading.svelte.ts`, `src/lib/guidance/guidance-search.ts`,
+`src/routes/(site)/rules/`, `src/routes/(site)/guidelines/`, `static/_redirects`, `vite.config.ts`
 
 ## The rules
 
-- `title` on `RulePolicyCase` is the one written string in the reference; it names the
-  failure, not the convention; `variant` collapses per-language families in the index only
-  (URLs, sitemap, search stay exhaustive). `reference.test.ts` pins uniqueness, length,
-  and the guide's no-restating rule.
-- `/rules/` is the guide (one section per family, `groupGuidance` prose with no imports);
-  the list is the finder. `groupOrder` and `popularRuleIds` (ceiling: six) are editorial
-  judgments, written down and pinned — never derived from registry order or an invented
-  metric. Both lists are exhaustive and throw on an unknown family.
-- Search matches everything a page says (examples, citations, lookup-table prose via
-  `lookupSearchTerms`) — the citation omission was measured wrong once; a claim about how a
-  set is distributed is a measurement, not a judgment. Filtered, never ranked; `foldForSearch`
-  strips marks, folds quotes, lowercases last.
-- Matches are marked: `foldWithOffsets` runs the fold per character (folding changes
-  lengths), overlapping runs merge, `<mark>` in `--color-text-selection` with
-  `color: inherit`, and a mark inside a link gives up the accent (AA).
-  `SearchHighlight.svelte` is one unbroken template line — leading whitespace becomes real
-  text nodes inside `<pre>`; both the component test and the e2e spec measure rendered text
-  against input.
-- Query state is module state (siblings with nothing to hand each other), never the URL;
-  component tests must reset it. Chip counts are over the query alone and blind to the
-  chips; offered chips are decided over the whole set; a zero chip stays (unlike the linter
-  panel, whose set is the document's own).
-- `SectionSplit` owns the grid, the collapse, the back bar, and the view transition: names
-  go on the columns (never on `main` inside a scroll port — snapshots are unclipped), the
-  detail column is named by view to encode direction, the fourth gate is `stacked()`.
-  Equal columns are what keep the swap a pure translation. The back bar is pinned, bleeds
-  across the lane variables, and prefers `history.back()` where the index is behind it.
-- `revealSelectedRow`: opening by URL scrolls the list to the row (clearing the measured
-  finder, moving scroll not focus); pressing a row moves nothing. The guidance list also
-  *follows* the reading position (`guidance-reading.svelte.ts`, midpoint arithmetic,
-  nearest-edge smooth nudge) — the hash is only the pre-hydration fallback.
-- Guidance ↔ rules linking is two-way and derived from one source (`relatedRuleIds` /
-  `guidanceForRule`); entry meta-line rule ids open in a new tab (the catalog is read
-  mid-scroll); the rules section's own links stay in place. `language.selection-mismatch`
-  and the three Harper ids are deliberately named by no entry.
-- The assistant's entry is `AssistantSpark.svelte`, owning the whole finder row in both
-  sections; the wand toggles search ↔ ask (FLIP wipe, one duration/easing, DOM order follows
-  visual order, reduced-motion exempt), Enter opens the shared modal via `openWithQuestion`,
-  and the mode swap must not eat the query. Pinned in `AssistantSpark.svelte.test.ts`.
-- Harper is named on the index and given no pages; `style` is in `groupTitles` for the
-  ignored-rules footer alone.
+- Guidelines explain sourced conventions; rules explain the linter's exact triggers and fixes.
+  One guide at `/guidelines/` uses `ReferenceIndex`, shared topics, and one server-derived corpus.
+  Check details live at `/guidelines/checks/[rule]/`; the old `/rules/` routes only redirect.
+  No rule engine or statistical language corpus is imported by the client finder.
+  `reference/search.test.ts` pins catalog coverage and topic routing.
+- Search is ranked; browsing follows the catalog. Exact titles and identifiers outweigh body
+  text; specific multiword intent aliases outrank incidental words, and typo matches rank last. Common question
+  words do not prevent natural questions from matching. Snippets expose the matching passage,
+  including individual lookup-table rows, with linter-derived content identified as such.
+  Related matching checks group under a matching guideline in All scope; checks remain directly
+  accessible. `reference/search.test.ts` pins these search tasks and grouping.
+- The directory is the unfiltered entrance. Topic links open articles; Browse all exposes entries;
+  a direct detail arrival also exposes its topic without silently restricting later searches.
+  `ReferenceIndex.svelte.test.ts` and the reference e2e tasks pin directory/search transitions.
+- Query, scope, topic, browse mode, and diagnostic filters belong to the URL. Typing replaces
+  the current history entry; opening a result creates an ordinary navigation. The site nav and
+  reference links carry the state across the guide while preserving fragments. Direct links,
+  reloads and browser Back restore it. `reference-url.test.ts` and the reference e2e tasks pin this.
+  Prerendering does not read query parameters; hydration restores browser state.
+- `title` on `RulePolicyCase` names the failure, not the convention. `variant` collapses language
+  families in the written rule guide only; all rules stay independently searchable and linked.
+  `reference.test.ts` pins names and the guide's no-restating rule.
+- Matches use the shared `SearchHighlight`: significant query tokens omit question stopwords, and offset-aware folds preserve the original text,
+  including whitespace in lyric samples. `<mark>` uses the selection token and gives up link
+  accent for contrast. `RuleSearchHighlight.svelte.test.ts` and e2e sample assertions pin this.
+- Guidance ↔ rules links are derived from `relatedRuleIds` / `guidanceForRule`. Readers see
+  check titles, not implementation IDs. Convention examples and qualifications remain visible. Each
+  check title opens a native disclosure with the exact flagged/accepted examples and explanation,
+  so occurrence-specific wording is never presented without its input. Longer source explanations
+  disclose on demand. Topic snapshots preserve open checks and restore their scroll position after disclosure heights settle when returning with Back. `topic-checks.server.ts` derives wording from
+  the same rule references as detail pages, includes cross-topic links, and keeps unmatched
+  LyricLint checks discoverable without inventing conventions (`topic-checks.test.ts`). A linked check does not
+  claim complete verification of a convention. Existing source tiers and reviewed claims remain
+  authoritative. `guidance.test.ts`, `reference.test.ts`, and e2e coverage-link assertions pin this.
+- The assistant has a labelled Ask a question entrance, drawn only when configured and context
+  is available. It opens the shared conversation; it does not replace the search field.
+  `ReferenceIndex.svelte.test.ts` and the assistant e2e conversation pin this.
+- `SectionSplit` owns scroll ports, stacked layout, back navigation and view transitions.
+  Revealing a current result moves scroll, never focus or filters; pressing a visible row does
+  not move the list. Guidance follows the reading position. The reference e2e tasks pin deep
+  links, scroll preservation and the mobile finder, including the 16px minimum input size.
+- Homepage entrances are practical questions; the finder owns the only topic directory.
+  Everything is searched by default; optional content/topic/check filters live in one disclosure.
+  Harper is explained but has no invented rule pages.
+  Canonical metadata and the sitemap name only the unified guide and its check pages;
+  the metadata and sitemap e2e tests pin these.
+
+The guidance catalog's content pipeline stays in `docs/guidelines.md` and is followed exactly.
 
 ## Decision record
+
+### Check explanations need their reviewed occurrence
+
+A rule explanation can say “The standard spelling is definitely” because its diagnostic is
+attached to an occurrence. Rendering it directly beneath a general check title lost that input
+and read as a free-standing convention. Topic pages now keep each title visible and disclose
+its exact flagged example, explanation, accepted example, and link to full trigger/fix details.
+These are plain native disclosures, without nested panels. `topic-checks.test.ts` pins the
+examples and language to their rule reference; the spelling-topic e2e task pins visible examples
+and the integrated-check navigation task pins disclosure and reading-position restoration.
+
+Legacy `/rules/#<family>` bookmarks still reveal the corresponding shared topic through the
+finder's family aliases, and `/rules/#harper` reaches the homepage's Harper disclosure. They
+remain redirects into the unified guide, not duplicate reference destinations.
+
+### One reference, with the distinction inside each answer
+
+Shared discovery made the former top-level split artificial: the reader could find the same
+convention from either homepage and then had to navigate between two references to understand it.
+The user requested a unified experience. `/guidelines/` is now the sole home, shown as Guide in
+site navigation. Its finder owns the topic directory; the introductory page offers practical
+questions and the source methodology rather than duplicating that directory. Topic links open
+readable articles, and optional filters replace the prominent content-type switch.
+
+Each convention shows its reviewed instruction, examples and qualifications, followed by the
+actual explanations of the linter checks that apply. The mapping is still `relatedRuleIds`;
+`topicChecks` derives only the check records that topic needs. A check with no matching convention,
+such as the language-picker mismatch, stays discoverable as additional LyricLint behavior in its
+topic. Check details keep their own canonical `/guidelines/checks/[rule]/` URLs for longer tables,
+precise examples and fixes. Their convention links sit once beside their explanation. These are
+same-tab links inside one reference, with browser Back returning to the reading position.
+
+Old `/rules/` and `/rules/<slug>/` links redirect permanently. `static/_redirects` supplies HTTP
+308s on Cloudflare Pages, and the Vite plugin mirrors those in development and preview;
+`legacy-redirects.test.ts` pins every published check against both mappings. The old route loads
+also redirect client-side navigations and produce static fallback redirect pages. Queries pass
+through unchanged; destinations do not overwrite incoming fragments. The sitemap excludes legacy
+URLs. Internal links from the landing page, error/no-script pages and assistant use canonical guide
+URLs directly. This supersedes the two-homepage and unchanged-canonical decisions below.
+
+
+### One way to find an answer across two references
+
+The two sections shared their sources but made readers pick a catalog before looking anything up.
+Both had comprehensive substring matching, yet a query still produced a filtered version of the
+long index. A guideline could match words in a related rule while its visible row showed only a
+title, giving the reader no explanation for why it appeared.
+
+`reference/corpus.server.ts` derives serializable documents from reviewed guidance, rule examples,
+lookup rows and sources. `reference/search.ts` ranks these documents and extracts a matching
+passage. Shared topics live in `reference/topics.ts`; editorial aliases in `reference/aliases.ts` target
+specific conventions rather than every entry in a broad topic. These are discovery vocabulary,
+not new guideline claims. The All scope groups related checks without removing the
+links to their exact behavior. Search remains deterministic and local; no analytics or remote
+search service is introduced.
+
+Browsing and searching now have separate presentations. Browsing starts with a compact directory;
+searching puts answers in relevance order. Severity and fixability remain available in the linter
+scope behind Check filters, where they describe something the reader has explicitly chosen.
+Examples and exceptions stay visible in the answer, while source methodology and check details
+can be opened when needed. The assistant is a named command beside lookup, rather than a mode
+hidden behind an unlabelled wand.
+
+The old non-URL query decision prevented sharing a search and made the two sections independent.
+The user explicitly requested shared discovery and preserving filters, so this changes deliberately:
+`reference-url.ts` owns serialization, `reference-search.svelte.ts` owns the reactive browser state,
+and `ReferenceSearchSync` connects it to SvelteKit shallow replacement and reactive URL restoration (including shallow Back entries,
+which do not call `afterNavigate`). The address bar is authoritative: a cached route can restore
+its original `page.url` without the shallow entry’s filters, so URL effects and `popstate` both
+read `window.location` when restoring. The reload-then-Back browser task pins that distinction.
+The former per-section query modules are compatibility names for that single owner, so page
+highlights and the finder cannot disagree. Search changes do not create a history entry per letter.
+Navigation carries the query without discarding the topic fragment or existing destination filters.
+
+The separate RuleIndex, GuidanceIndex and AssistantSpark components and their obsolete structure
+tests retired in favor of the shared finder and task-based tests. Their rationale is retained below
+as history: descriptions of unranked filtering, Popular shortcuts, independent non-URL queries,
+the full exhaustive entrance, and the wand swap are superseded by the rules above.
 
 ### A rule is named for what it catches, and `/rules/` is a guide with a finder beside it
 
