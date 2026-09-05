@@ -220,7 +220,7 @@
 	max-width: 16rem;
 	padding: var(--space-2);
 	gap: var(--space-0-5);
-	border: var(--border-width) solid var(--color-border);
+	border: 0;
 	border-radius: var(--radius-overlay);
 	background: var(--color-overlay);
 	color: var(--color-text-muted);

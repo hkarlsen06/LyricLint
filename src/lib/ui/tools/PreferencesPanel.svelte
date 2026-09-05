@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { Info } from 'lucide-svelte';
+	import { resolve } from '$app/paths';
 	import { Switch } from 'bits-ui';
 	import { onMount } from 'svelte';
 	import { isEnglishLanguage } from '$lib/languages/registry.js';
@@ -288,4 +290,16 @@
 			</details>
 		{/if}
 	</section>
+
+	<!--
+		The way out of the workbench, and the only one: it acts on nothing, so it
+		lives in the tab about the application rather than in the toolbar's strip
+		of document commands. What it is for is a URL to hand someone else.
+	-->
+	<footer class="panel-foot">
+		<a class="about-link" href={resolve('/')}>
+			<Info size={14} aria-hidden="true" />
+			About LyricLint
+		</a>
+	</footer>
 </div>

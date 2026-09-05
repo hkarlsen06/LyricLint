@@ -1790,7 +1790,7 @@ export const sectionLinkDecorations = EditorView.decorations.compute(
 
 export const sectionLinkTheme = EditorView.baseTheme({
 	'.ll-section-link-marker': {
-		marginInlineStart: '0.35em',
+		marginInlineStart: 'var(--space-1-5)',
 		padding: '0',
 		border: '0',
 		appearance: 'none',

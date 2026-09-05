@@ -13,22 +13,16 @@ tier, and verifying annotation acceptance states — follows **`docs/guidelines.
 
 ## Read the subsystem doc before touching its code
 
-This repository documents decisions, not code. Each file in `docs/subsystems/` records, for
-one area, the rules that hold there and — more importantly — the failures that taught them:
-the tempting fix that was shipped and reverted, the API that looks right and is not, the edit
-that silently ate a user's work. Most of the bugs you could introduce here have already been
-introduced once, and the doc is where that is written down. The code will not warn you;
-several of these failures looked exactly like working code and passed the suite.
+This repository documents decisions, not code. Each file in `docs/subsystems/` records its
+rules and the failures that taught them; several of those failures looked like working code
+and passed the suite.
 
 So: **before editing a subsystem, read its doc** — the table below routes by what you are
-touching, and the most load-bearing source files carry a `Decision record:` pointer to theirs
-(a file without a pointer is not a file without a doc — the table is what routes). Each doc
-opens with **The rules** (the current invariants, each naming its pinning test) and follows
-with the **Decision record** (the full history — read it before arguing with a rule). Treat
-the docs as authoritative the way `DESIGN.md` is. And when your change alters behavior a doc
-describes, **update the doc in the same commit** — a doc that has drifted is worse than none,
-because the next reader obeys it. `src/lib/subsystem-docs.test.ts` pins that every doc is
-routed here and that every path a doc claims to govern exists.
+touching (the table routes, not per-file pointers, though load-bearing sources carry a
+`Decision record:` pointer to theirs). Each doc opens with **The rules** (the invariants,
+each naming its pinning test) and follows with the **Decision record** (read it before
+arguing with a rule). Treat the docs as authoritative the way `DESIGN.md` is. When your change
+alters behavior a doc describes, **update the doc in the same commit**. `src/lib/subsystem-docs.test.ts` pins routing and claimed paths.
 
 | Working on                                                                                                                                                                          | Read first                          |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
@@ -72,48 +66,18 @@ clean machine.
 
 ### Two TypeScripts are installed on purpose
 
-`typescript` is 6 and `@typescript/native` is 7, aliased (`npm:typescript@7`). That is not a
-half-finished migration — it is the arrangement svelte-check documents, and both halves are load
-bearing.
+`typescript` stays on 6 and `@typescript/native` is 7, aliased (`npm:typescript@7`). That is not a
+half-finished migration — it is the arrangement svelte-check documents. TS 7 ships no JS compiler
+API, so **svelte-check** refuses to start and **typescript-eslint** throws on a naive bump.
+`bun run check` opts in with `--tsgo`; `bun run lint` is untouched.
 
-TypeScript 7 is the native Go port, and the package no longer ships the JS compiler API: its `.`
-export is `lib/version.cjs`, which carries `version` and `versionMajorMinor` and nothing else.
-Everything that reads the compiler API off the name `typescript` therefore breaks on a naive bump —
-**svelte-check** refuses to start, and **typescript-eslint** throws `does not support TS 7.0` before
-a single file is linted. Two of the three commands above, from one version number.
-
-So the name `typescript` stays on 6, where those two tools find the API they expect, and the Go
-binary arrives under a second name that nothing else resolves. `bun run check` opts in with
-`--tsgo`; `bun run lint` is untouched and never learns any of this happened. Measured here, that is
-~9.9s to ~3.7s on `check`, with identical diagnostics — a planted error in a `.ts` file and in a
-`.svelte` file are both still reported at the same line and column, and `check` still exits
-non-zero.
-
-Four things it depends on:
-
-- **`--tsgo` writes transpiled Svelte to disk** (`.svelte-kit/.svelte-check`, ~1.1MB) and spawns the
-  binary against an overlay tsconfig. That path is already inside the gitignored `.svelte-kit`, so
-  it costs the repository nothing — but it is why the mode cannot simply be the default.
-- **It reports a much smaller file count** — 75 against 1298 — and that is a reporting difference,
-  not a coverage gap. Do not read the smaller number as the check having quietly stopped looking;
-  the planted-error probes above are what actually establishes that, and they are the thing to
-  re-run if this is ever doubted.
-- **It inherits `--incremental`'s limitation**: a Svelte file outside the tsconfig's root dir is not
-  properly type-checked. Every `.svelte` file here lives under `src/`, so the cost today is zero —
-  and a Svelte file added anywhere else is what would silently change that.
-- **Dependabot is told to skip both halves for the root package only**, and each for its own
-  reason. `typescript` is held at major 6, because that bump always reconstructs the broken
-  arrangement. `@typescript/native` is skipped outright, because **it is not a package on npm** —
-  it is only the name the alias is installed under, so Dependabot's lookup 404s and the whole
-  update run for this directory reports a failure while still opening everyone else's PRs. That
-  cost one red run before it was noticed. The consequence is that **TS 7 does not update itself
-  here**: bump it by hand alongside svelte-check, which is what decides the `--tsgo` flag anyway.
-  `services/rules-assistant` carries neither hold and runs TS 7 as `typescript` directly, because
-  it is plain `tsc` with neither svelte-check nor typescript-eslint in front of it — which is also
-  the cleanest demonstration that the blocker is those two tools rather than the compiler.
-
-The whole thing is a workaround with an expiry date. When svelte-check supports TS 7 without the
-dual install, this collapses to one dependency and the `--tsgo` flag goes away.
+`--tsgo` writes transpiled Svelte to gitignored `.svelte-kit/.svelte-check` (why it cannot be the
+default), reports a smaller file count that is a reporting difference rather than a coverage gap
+(the planted-error probes establish that), and inherits `--incremental`'s limitation: a Svelte file
+outside `src/` is not properly checked, and every `.svelte` file here lives under `src/`.
+Dependabot skips both halves for the root package, so bump TS 7 by hand alongside svelte-check.
+`services/rules-assistant` runs TS 7 directly (plain `tsc`, neither blocking tool in front of it).
+When svelte-check supports TS 7, this collapses to one dependency and the flag goes away.
 
 ## Git history
 
@@ -125,9 +89,7 @@ merge commit unless the user explicitly requests one or rebasing would rewrite s
 
 **Do not run `git checkout -- <file>` (or `git restore <file>`) unless you have just checked that
 the file contains no changes but your own.** It discards everything uncommitted in that file, and
-work that was never staged is not recoverable — not from the reflog, not from a stash, not from
-Vite's caches, which hold transforms in memory only and drop them the moment the watcher sees the
-file change.
+work that was never staged is not recoverable — not from the reflog, not from a stash.
 
 This working tree is normally carrying a large set of the user's own modified files, so any file
 worth experimenting in is likely to already hold work that is not yours. Backing an experiment out
@@ -138,6 +100,12 @@ file first and restore it after.
 The cost of getting this wrong is not a rerun. It is somebody's unsaved afternoon, and the only
 place it may still exist is their editor's undo buffer — so if it happens, say so immediately and
 tell them to check that before you offer to rebuild anything from memory.
+
+## Parallel work
+
+Parallelize independent work with subagents where it saves time or improves quality —
+independent subsystems, rule families, doc plus code plus test triples. Keep messages to other
+agents legible, with proper spacing between words, since a human may read them.
 
 ## UI rules
 
@@ -236,34 +204,20 @@ button variant — the legacy `.button--pill` hook has been removed, so do not r
 radii belong to categorical chips and badges only (`.tab-count`,
 `.linter-panel__filter-chip`), never to an action button.
 
-The severity on a diagnostic is no longer a chip at all. It was a filled badge holding a line of
-its own above the message, which spent a whole line of a card's height saying one word — and it
-had to be squared off to keep from reading as one of the pressable severity filters directly
-above it. It is a **colored glyph** now (`.severity`, no fill, no border, no radius), and it leads
-the card's meta line ahead of the line number: `⚠ Line 47 · Use song part headers`. Severity is one
-more fact about the finding, so it sits with where the finding is and what says so, and the color
-is the text's own color, which is why the shape question stops arising.
-
-**The word went because it was the same word every row.** A panel of nine findings printed
-`Suggestion` eight times, in one blue, down one column — repetition that never varies stops being
-read by the second row, and what the eye was actually using was the shape and the color. Dropping
-it also gives the column a left rail of glyphs to scan instead of a ragged mix of `⚠ Warning ·` and
-`ⓘ Suggestion ·`, and buys back width in a panel where a long rule name already runs to the edge.
+The severity on a diagnostic is a **colored glyph** (`.severity`, no fill, no border, no radius),
+leading the card's meta line ahead of the line number: `⚠ Line 47 · Use song part headers`. No chip,
+no word, no line of its own — repetition that never varies stops being read, and a chip reads as one
+of the pressable severity filters directly above it.
 Three things hold it up, and removing any one of them puts severity back on color alone:
 
 - **The four glyphs separate at 12px in greyscale.** `SeverityIcon.svelte` owns them, and
-  `SeverityIcon.svelte.test.ts` asserts no two severities draw the same outline. Error used to be
-  `!` in a circle and suggestion `i` in one — the same ring with the bar and the dot swapped, which
-  is a coin flip at this size — so error is a cross now: `✕`, `!`, `i`, `✓` in four different marks.
+  `SeverityIcon.svelte.test.ts` asserts no two severities draw the same outline: `✕`, `!`, `i`, `✓`.
 - **The word is still in the accessible tree**, `sr-only` inside the tag, and in its `title` for
-  the pointer. Nothing about the change is visual-only in the sense that costs a screen reader.
-- **The filter chip wears the same mark** (`LinterPanel.svelte`), because the row's word was half
-  of what tied `Suggestions` to the rows it hides; without the glyph on both, the tie is color.
+  the pointer.
+- **The filter chip wears the same mark** (`LinterPanel.svelte`); without the glyph on both, the tie is color.
 
 `SeverityTag.svelte` therefore takes `labelled`, and **the rule reference keeps the word**
-(`/rules` and `/rules/[rule]`). Nothing repeats there the way it does in the panel, the reader may
-never have opened the workbench, and a severity in a document is a fact to be read rather than a
-mark to be scanned.
+(`/rules` and `/rules/[rule]`).
 
 Three button tiers, and no more: `.button--quiet` (borderless) < `.button` (bordered default) <
 `.button--contrast` (theme-inverting, one per surface). `.button--primary` is gone — an
@@ -271,22 +225,15 @@ accent-filled button competed with the contrast tier for the same job. Pick the 
 the action _is_, not from which panel it landed in; if a command appears twice, only its home
 surface gets the contrast tier.
 
-**A control that draws no fill draws no inset.** A quiet button's inline padding is invisible
-until the pointer arrives, so a quiet button standing alone in a column of prose starts a few
-pixels right of every paragraph edge around it and reads as a misalignment rather than as
-something deliberate — which is exactly how `Delete all local data…` sat under its own paragraph
-in the tools panel. `.button--flush` cancels the inset with a negative inline margin, so the label
-lines up with the text and the hover fill keeps its padding. It is for a quiet button whose edge
-is read against text; inside a row of controls the gap _is_ the alignment and this would close it.
-The other way out is to give the control a real background — but a permanently filled red trigger
-for an action that already arms a `.button--danger` confirm would put two red buttons in one
-section, so flush is the default answer.
+**A control that draws no fill draws no inset.** A quiet button standing alone in prose
+misaligns against the paragraph edges around it, so `.button--flush` cancels the inset with a
+negative inline margin while keeping the hover padding. It is for an edge read against text;
+inside a row of controls the gap _is_ the alignment. Flush is the default answer over a
+permanently filled trigger.
 
 **The editor is part of the design system.** CodeMirror styles live in CSS-in-JS
-(`create-editor.ts` and `src/lib/editor/extensions/*.ts`) where the stylesheet cannot reach them,
-so they must reference tokens directly and must not carry literal fallbacks — a fallback is a
-second palette waiting to drift, and one of them (`--ll-focus`) was live for months because the
-variable it guarded never existed. `editor-token-policy.test.ts` enforces this.
+(`create-editor.ts` and `src/lib/editor/extensions/*.ts`), so they must reference tokens directly
+with no literal fallbacks. `editor-token-policy.test.ts` enforces this.
 
 **Opacity is never a state carrier.** No `opacity` for disabled, excluded, empty, or de-emphasized
 anything. Use `--color-text-disabled` / `--color-control-disabled` / `--color-border-disabled`, or
@@ -297,6 +244,10 @@ Component tests load `global.css` through `vitest-setup-client.ts`, so a compute
 sees the real tokens. Do not reintroduce literal fallbacks to make a test pass.
 
 ## Testing
+
+Run the checks appropriate to the change. Do not write new tests for reversible, low-impact
+changes that mirror the implementation. Once the relevant suite passes, broaden or repeat
+testing only when new changes, failures, or unresolved concerns justify it.
 
 Component behavior is covered by `vitest-browser-svelte` tests next to the component. When a
 UI interaction changes, update the test to assert the new structure — including the absence of
@@ -313,4 +264,6 @@ renderer is the drift this split exists to prevent; adding a DOM query helper is
 
 At the end of every turn, begin the final response by explaining what the user asked for, then
 explain how it was solved. Include enough context that someone returning to the project among
-many parallel projects can understand what is going on from the final response alone.
+many parallel projects can understand what is going on from the final response alone. Keep it
+brief: short paragraphs, only the detail the return-reader needs, no stock phrases or summary
+headers.

@@ -18,18 +18,29 @@
    document, so a `dvh` box grows underneath them as they go. `vh` stays as the
    fallback for browsers without the unit, where it is exactly today's
    behaviour. */
+.app-shell,
 .workspace {
 	--radius-control: var(--radius-md);
 	--radius-panel: var(--radius-lg);
+	--radius-overlay: calc(var(--radius-lg) + var(--radius-xs));
+}
+
+.workspace {
 	position: relative;
 	display: grid;
 	grid-template-columns: minmax(44rem, 1fr) minmax(21rem, 26rem);
-	grid-template-rows: auto minmax(0, 1fr) auto;
+	grid-template-rows: auto minmax(0, 1fr);
 	width: 100%;
 	height: 100vh;
 	height: 100dvh;
 	overflow: clip;
 	background: var(--color-chrome);
+}
+
+@media (min-width: 78rem) {
+	.workspace {
+		grid-template-columns: minmax(44rem, 1fr) minmax(24rem, 30rem);
+	}
 }
 
 /*
@@ -59,13 +70,13 @@
 	min-height: 0;
 	grid-row: 2;
 	grid-template-rows: minmax(0, 1fr) auto;
-	margin-left: var(--space-3);
+	margin-left: var(--space-4);
 	border-radius: var(--radius-panel);
-	background: var(--color-surface);
+	background: transparent;
 }
 
 .editor-region > .editor-host {
-	border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+	border-radius: var(--radius-panel);
 }
 
 /*
@@ -156,7 +167,7 @@
 	min-height: var(--header-height);
 	grid-row: 1;
 	grid-column: 1 / -1;
-	padding: var(--space-2) var(--space-3) var(--space-2);
+	padding: var(--space-2-5) var(--space-4);
 	border-bottom: 0;
 	gap: var(--space-3);
 	align-items: center;
@@ -955,9 +966,10 @@
    of its own at any point — a border inside the group's border is two rectangles
    for one control. */
 .draft-title {
+	text-overflow: ellipsis;
 	width: auto;
 	min-width: 4rem;
-	max-width: min(18rem, 30vw);
+	max-width: min(34rem, 42vw);
 	border-color: transparent;
 	background: transparent;
 	box-shadow: none;
@@ -1020,46 +1032,4 @@
 .save-status.failed {
 	color: var(--color-danger);
 	font-weight: var(--font-weight-semibold);
-}
-
-.status-bar {
-	display: flex;
-	grid-row: 3;
-	grid-column: 1 / -1;
-	min-height: var(--control-height-md);
-	padding: var(--space-1) var(--space-3);
-	border-top: 0;
-	gap: var(--space-4);
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: space-between;
-	background: var(--color-chrome);
-	color: var(--color-text-muted);
-	font-size: var(--font-size-xs);
-	font-variant-numeric: tabular-nums;
-}
-
-.status-bar__group {
-	display: inline-flex;
-	gap: var(--space-4);
-	flex-wrap: wrap;
-	align-items: center;
-}
-
-/* Navigation keeps link semantics, with the same quiet target as app controls. */
-.status-bar__link {
-	display: inline-flex;
-	min-height: var(--control-height-sm);
-	padding: var(--space-1) var(--space-2);
-	align-items: center;
-	gap: var(--space-1-5);
-	border-radius: var(--radius-control);
-	color: inherit;
-	text-decoration: none;
-	transition: background var(--duration-fast) var(--ease-out-quart);
-}
-
-.status-bar__link:hover {
-	background: var(--color-fill);
-	color: var(--color-text);
 }

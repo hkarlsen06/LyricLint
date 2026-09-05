@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Music2 } from 'lucide-svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
 	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
@@ -9,13 +8,7 @@
 	import { pendingMediaActionLabel } from '../media/pending-media-label.js';
 	import { youtubeSearchTerm } from '../state/media-youtube.js';
 
-	let {
-		controller,
-		openMediaPicker
-	}: {
-		controller: WorkbenchController;
-		openMediaPicker?: (source: HTMLButtonElement) => void;
-	} = $props();
+	let { controller }: { controller: WorkbenchController } = $props();
 	let confirmClearAnchors = $state(false);
 	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
 
@@ -28,10 +21,31 @@
 	 * already say them.
 	 */
 	const listedFacts = $derived(hasSongFacts(details));
-	const audioSourceLabel = $derived(
-		controller.media?.player.attached || controller.media?.pendingName
-			? 'Change audio source'
-			: 'Add audio source'
+	function count(value: number, noun: string): string | undefined {
+		return value > 0 ? `${value} ${noun}${value === 1 ? '' : 's'}` : undefined;
+	}
+	const documentStats = $derived.by(() => {
+		const parsed = controller.snapshot.parsed;
+		const lines = parsed.sections.reduce((total, section) => total + section.lines.length, 0);
+		return {
+			lines,
+			sections: parsed.sections.length,
+			performers: controller.performers.length
+		};
+	});
+	/**
+	 * The document in one run of facts, for the section about the files it turns
+	 * into. A count worth stating is one that could have been otherwise, so each
+	 * waits until it has something to report — an empty draft states nothing at
+	 * all. Local on purpose: the codebase has no shared pluralizer, and these
+	 * are panel chrome in English rather than lyric text.
+	 */
+	const documentCounts = $derived(
+		[
+			count(documentStats.lines, 'line'),
+			count(documentStats.sections, 'section'),
+			count(documentStats.performers, 'performer')
+		].filter((label) => label !== undefined)
 	);
 	const searchName = $derived.by(() => {
 		const title = controller.title.trim();
@@ -77,13 +91,13 @@
 
 		It leads, because it is the one section here that comes and goes with the
 		attachment — a section that is only sometimes there leads or it is somewhere
-		different on every draft. Each fact draws only where it exists; the audio
-		control is the one way this section can lead before any fact has arrived,
-		because it opens the shared picker that attaches one. Nothing else here
+		different on every draft. Each fact draws only where it exists. Attaching
+		itself lives in the workbench: the tray's note glyph while nothing is
+		attached, the strip's pencil once something is. Nothing else here
 		contacts anyone: the facts and the cover's address arrived on the read that
 		named the song, and the link is derived from the id the draft already stores.
 	-->
-	{#if artwork || videoUrl || listedFacts || searchName || openMediaPicker}
+	{#if artwork || videoUrl || listedFacts || searchName}
 		<section>
 			<!-- No sentence under the heading. `Song metadata` over a column of
 			     labelled facts and self-describing commands is already the whole
@@ -101,17 +115,6 @@
 						onclick={() => void controller.media?.reconnect()}
 					>
 						{pendingMediaActionLabel(controller.media.pendingSource)}
-					</button>
-				{/if}
-				{#if openMediaPicker}
-					<button
-						type="button"
-						class="button"
-						aria-haspopup="dialog"
-						onclick={(event) => openMediaPicker(event.currentTarget)}
-					>
-						<Music2 aria-hidden="true" size={14} strokeWidth={2.25} />
-						{audioSourceLabel}
 					</button>
 				{/if}
 				{#if searchName && !videoUrl}
@@ -153,6 +156,11 @@
 	-->
 	<section>
 		<h2>Document</h2>
+		{#if documentCounts.length > 0}
+			<!-- The draft in one run of facts, over the files it turns into: what
+			     would be exported, in the order it would be counted. -->
+			<p>{documentCounts.join(' · ')}</p>
+		{/if}
 		<div class="tool-actions">
 			<button type="button" class="button" onclick={() => controller.exportDraft()}>
 				Export .txt

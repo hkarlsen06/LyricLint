@@ -177,7 +177,7 @@
 		max-width: var(--measure-editor);
 		height: 100%;
 		min-height: 20rem;
-		padding: 2.25rem clamp(1rem, 5vw, 4rem);
+		padding: var(--space-5) var(--space-4);
 		border: 0;
 		border-radius: 0;
 		resize: none;

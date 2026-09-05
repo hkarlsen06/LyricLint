@@ -601,8 +601,8 @@
 		max-width: 100%;
 		gap: var(--space-2);
 		align-items: center;
-		padding: var(--space-2);
-		border: var(--border-width) solid var(--color-border-strong);
+		padding: var(--space-3);
+		border: 0;
 		border-radius: var(--radius-overlay);
 		background: var(--color-overlay);
 		color: var(--color-text);
@@ -771,13 +771,8 @@
 		color: var(--color-text-muted);
 	}
 
-	/* Flex centers the icon on the label's whole line box, but the box carries
-	   its descender space at the bottom, so the glyph mass sits above center —
-	   and a geometrically centered plus reads low against it. One pixel up puts
-	   the crossbar on the lowercase body, which is most of this label. */
 	.chip--unknown-new :global(svg) {
 		flex: none;
-		margin-block-start: -0.0625rem;
 	}
 
 	.chip--unknown-new:hover {
@@ -840,7 +835,6 @@
 		flex-direction: column;
 		gap: var(--space-1-5);
 		padding-inline-start: var(--space-2);
-		border-inline-start: var(--border-width) solid var(--color-border);
 	}
 
 	/*

@@ -11,9 +11,10 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
 - One transport, four sources behind `MediaSource`; a source reports, it never decides. Every
   rule (resume rewind, clamps, `liveTime()`, run-in cancellation) is written once against the
   interface. `media-test-audio.ts` is the stub both test files drive.
-- Nothing draws while there is nothing to control. Attaching is one control in the status bar
-  (`Add audio` → `Change audio`), opening one modal with unboxed answers, each a control plus
-  a meta line of facts.
+- Nothing draws while there is nothing to control. Attaching is one shared dialog
+  behind two state-dependent ways in: the tray's note glyph while nothing is
+  attached, the strip's pencil once something is. Each answer inside is a control
+  plus a meta line of facts, unboxed.
 - Keys: `F7/F8/F9` and platform-modifier `J/K/L` (`Ctrl-` on macOS, `Alt-` elsewhere,
   `Ctrl-Alt-` universal); the reach-for keys are the `Escape` family (bare toggles,
   `Shift+Esc` back, `Alt+Esc` forward) — bubble phase, standing down on `defaultPrevented`
@@ -35,11 +36,14 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   `media-player.test.ts`).
 - Two defaults do the work: resume backs up 2s (cancelled by deliberate placement) and
   `preservesPitch` is on.
-- The strip is the second row of `.editor-region`, `--color-chrome`, `--control-height-lg`,
-  and everything in it must fit that height — `MediaStrip.svelte.test.ts` measures content
-  against a sibling. With a software keyboard up it rides `--keyboard-top` (visualViewport
+- The player is the second row of `.editor-region`, on `--color-chrome`. Catalogue song
+  identity and attribution sit above the controls in the same surface; the control row
+  keeps compact targets (`MediaStrip.svelte.test.ts`). With a software keyboard up it rides `--keyboard-top` (visualViewport
   only — never `window.innerHeight`), and `keepFocus` keeps a button press from closing the
   keyboard.
+- The player is an unboxed chrome area with spacing from the editor and footer. Its seek input clears the shared input shadow and hover
+  background, so only the track and thumb draw; Play uses the default button tier beside
+  quiet step controls. `MediaStrip.svelte.test.ts` pins the scrubber reset.
 - Audio and playhead belong to the draft, in the `mediaHandles` table (bytes never stored;
   handle, name, number). The boot draft goes through `openFor` directly; a restored position
   is held until metadata; the hide-flush reads `player.liveTime()`; writes go against
@@ -47,16 +51,70 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
 - The song names the draft only over `DEFAULT_DRAFT_TITLE`, decided in the media store: a
   pasted link's URL and an over-long filename are worse than nothing and stay quiet; the late
   `named` arrives through the same suggestion stream.
-- `player.artwork` is the one cover fact; the panel band draws on the *name*, not the
+- `player.artwork` is the one cover fact; the player identity row draws on the *name*, not the
   picture; a video gets no band (its player already shows the frame). Artwork commands are
   one `ArtworkActions.svelte`; `downloadImage` falls back to opening a tab
   (`clipboard.svelte.test.ts`). Song metadata is a `<dl>` with `display: contents` rows,
   every value a press, credits split by `creditSegments` (joins back byte-for-byte —
   `SongFacts.svelte.test.ts` measures the pieces meeting).
-- `drawsCoverBand(sourceKind)` is one decision for both the panel and the strip; the
+- `drawsCoverBand(sourceKind)` decides whether the player has a catalogue identity row; the
   third-party mark travels with the name (`MediaAttribution.svelte`, one component).
 
 ## Decision record
+
+### Song identity belongs with playback
+
+The compact catalogue artwork row now lives inside `MediaStrip`, above playback, rather
+than beneath the diagnostic panel. Seeing a track on the right and its controls on the
+left made them feel unrelated and put the attribution beside Preferences. One player area groups the song, source link, and controls under the lyrics.
+It shares window chrome rather than drawing a full-width filled rectangle. Compact bottom
+padding separates its controls from footer text. Wide layouts place artwork, song, playback,
+and attribution in that order on one row; narrower layouts preserve seek width by stacking them. The pending state
+names the song at the row's start and parks its one command at the far end, so the Load
+control keeps a stable home instead of sliding with the length of the song's name. It
+uses the same control-row height, margin, and padding as loaded playback, so loading
+replaces the command without resizing the control bar. `MediaStrip.svelte.test.ts`
+compares the pending and loaded heights. The whole loaded player settles upward by
+`--space-2` over `--duration-slow` with `--ease-out-quart`, leaving its reserved height
+intact. Animating the shared strip includes catalogue identity and the Apple Music / Spotify
+link, even when the wide artwork layout uses `display: contents`. Animating only the control
+row left those siblings snapping into place. `MediaStrip.svelte.test.ts` measures the source
+link and playback moving together. The entrance runs on attachment, never on playhead updates
+or timing-control changes, and is omitted under reduced motion. The
+editor has its own complete rounded edge with a gap above the player. YouTube keeps its
+visible video in the sidebar; its minimum frame cannot be charged to the lyric viewport.
+
+The Load audio / Reconnect audio button keeps the full source-specific label for
+accessibility and the shortcut hint. Loading occupies the same button with a busy mark,
+going quiet while it answers; forgetting the remembered source is the audio dialog's
+detach section, the same deliberate press that detaches an attached one.
+No playback controls draw before attachment. Catalogue identity still draws before artwork
+arrives, and is rendered once through `MediaArtwork`, preserving its full-size-art dialog.
+
+The audio dialog returns keyboard focus after the attachment state has rendered. If the
+original opener disappeared, Workspace supplies the surviving audio control: the strip's
+Change audio source after attaching, or the tray's Add audio source after detaching.
+`Workspace.svelte.test.ts` exercises both transitions through the dialog. Pending controls
+keep their visible Load audio / Reconnect audio wording inside the accessible name, with
+the song and source following it; the busy label likewise includes Loading….
+`MediaStrip.svelte.test.ts` covers those names.
+
+The complete player publishes its measured height for toast clearance and rides the
+software keyboard as one unit. On phones, timing controls wrap below playback so speed,
+follow, and syncing remain visible; an unusually long active-sync row can still scroll.
+`MediaStrip.svelte.test.ts` covers attribution before artwork, controls, pending actions,
+focus retention, and measured toast clearance. Earlier records below describe the layouts
+this arrangement supersedes; source loading, playback, and persistence rules still apply.
+
+
+### The transport reads as playback controls
+
+The strip shares the window chrome without a top rule. Play takes the default button tier
+so the central playback control is easier to find beside the quiet step controls. The seek
+input explicitly clears both the shared input shadow and its hover background: inheriting
+those paints a second rounded field around the track, making a scrubber look like a text
+input. The track and thumb already supply its shape and interaction target; keyboard focus
+keeps the shared focus treatment. `MediaStrip.svelte.test.ts` checks the missing field shadow.
 
 ### The audio is a transport, and it is never at rest
 
@@ -69,7 +127,7 @@ row would run under both columns and shorten the right panel, whose linter pane 
 column with its recent drafts pinned to the foot. Hanging it under the document alone is also the
 honest reading: it controls what the document is transcribed from, not the window. The row is
 `auto`, so it costs nothing until a file is attached, and it is `--color-chrome` like the toolbar
-above it and the status bar below — the bulk-fix strip's lesson, that a row drawn as bare canvas
+above it — the bulk-fix strip's lesson, that a row drawn as bare canvas
 between two surfaces merges with whichever one it touches.
 
 It was not made a fourth panel tab, and the reason generalizes: tabs are exclusive, so a Media tab
@@ -146,14 +204,15 @@ Implementation: `src/lib/ui/state/keyboard-inset.ts`, the `:root[data-keyboard-i
 **Nothing draws while there is nothing to control.** No empty transport, no `Load audio` in the
 toolbar competing with its one contrast action.
 
-**Attaching is one control in the status bar, and it opens one question.** It sat in the tools panel
+**Attaching opens one question, through two state-dependent ways in.** It sat in the tools panel
 first, which meant three tabs away from the document and, worse, split across two commands —
 `Attach audio…` and `Use a YouTube video…` — so the user had to know which kind of answer they had
-before they could start. There is one trigger now (`MediaPicker.svelte`), it lives in the row the
-transport itself appears directly above, and the two ways to answer sit side by side inside a modal.
-It is the one control in the status bar and therefore the one exception to that row being a readout:
-its slot never moves and only its label follows the state, `Add audio` to `Change audio`, because a
-control that vanished once audio was attached would take the only way to swap tracks with it.
+before they could start. It moved to the footer's readout row next, as that row's one exception.
+Both are gone now: while nothing is attached the tray's note glyph opens the one shared dialog
+(`MediaPicker.svelte`), and once something is — attached or remembered — the strip's pencil
+takes over from the row the transport itself draws in. The two never show together, so the
+command is still offered once, and neither is a control that vanishes on the press it answers:
+the note stands down because the pencil stands up. The answers sit side by side inside a modal.
 
 The modal is a modal because attaching is a detour — nothing else in the workbench is worth doing
 until it is answered or abandoned — and neither answer inside it is boxed. The dialog is already the
@@ -606,3 +665,7 @@ Implementation: `downloadImage` in `src/lib/ui/clipboard.ts` (with `clipboard.sv
 pinning the fallback), `artworkChanged` in `media-spotify.ts` and `media-youtube.ts`, and the
 section in `SongPanel.svelte`.
 
+
+The source dialog shares the studio overlay geometry: an unruled header,
+spaced source sections, and rounded result hover targets. Source selection and
+attachment behavior remain unchanged.

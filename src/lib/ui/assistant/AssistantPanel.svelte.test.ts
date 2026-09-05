@@ -103,6 +103,14 @@ describe('the assistant panel', () => {
 		expect(getComputedStyle(panel).display).toBe('flex');
 		expect(getComputedStyle(conversation).flexDirection).toBe('column');
 		expect(declaredMarginTop('.assistant-conversation__foot')).toBe('auto');
+		const field = container.querySelector<HTMLElement>('.assistant-composer__field')!;
+		const send = container.querySelector<HTMLElement>('.assistant-composer__send')!;
+		const fieldBox = field.getBoundingClientRect();
+		const sendBox = send.getBoundingClientRect();
+		expect(
+			Math.abs(sendBox.top + sendBox.height / 2 - fieldBox.top - fieldBox.height / 2)
+		).toBeLessThan(1);
+
 		expect(foot.querySelector('.assistant-composer')).not.toBeNull();
 		expect(foot.querySelector('.assistant-disclosure')).toBeNull();
 		expect(container.querySelector('.assistant-empty .assistant-disclosure')).not.toBeNull();

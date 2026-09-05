@@ -418,3 +418,12 @@ unknown paths cannot disagree about what a wrap does), `unaccountedStyledSlots` 
 one-press apply in `EditorPane.svelte`, and `createUnknownVoiceEdit` through
 `createCallbackProxy` into `Workspace.svelte` and `LiveDemo.svelte`. Pinned in
 `unknown-voice.test.ts`, `PerformerPicker.svelte.test.ts`, and `EditorPane.svelte.test.ts`.
+
+### The roster and legend read as people and a section outline
+
+The roster uses round identity swatches beside full-width rename targets. Assignment guidance
+and the section legend are separated by space rather than hairlines. The ordered legend has
+muted section numbers, clear section names, and indented voice rows; each style label also
+renders its named italic/bold treatment. The literal style words remain, so typography and
+color never have to explain identity or formatting alone. Editor voice highlights share
+softer corners without padding that would change source-text geometry.

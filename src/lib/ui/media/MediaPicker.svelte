@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Music2, X } from 'lucide-svelte';
+	import { X } from 'lucide-svelte';
 	import { tick } from 'svelte';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import type { SpotifySearchResult } from '../state/media-spotify.js';
@@ -29,8 +29,8 @@
 	});
 
 	let dialog: HTMLDialogElement;
-	let trigger: HTMLButtonElement;
-	let opener: HTMLButtonElement;
+	let opener: HTMLButtonElement | undefined;
+	let focusReplacement: (() => void) | undefined;
 	let urlInput: HTMLInputElement;
 	let url = $state('');
 	let query = $state('');
@@ -62,10 +62,10 @@
 	let songSearching = $state(false);
 	let attachingId = $state<string | undefined>(undefined);
 
-	// The slot never moves and the label follows the state, the way the toolbar's
-	// one contrast action swaps between `Copy lyrics` and `Paste lyrics`. A
-	// control that disappeared once audio was attached would take the only way to
-	// swap tracks with it.
+	// The dialog's own heading follows the state, the way the toolbar's one
+	// contrast action swaps between `Copy lyrics` and `Paste lyrics`: it names
+	// the job the opener's label named, so the surface never answers a
+	// different question than the press asked.
 	const label = $derived(
 		media.player.attached || media.pendingName ? 'Change audio source' : 'Add audio source'
 	);
@@ -75,8 +75,12 @@
 	// selected, because the two things done to a link that is already there are
 	// copying it out and typing over it, and a selection is the one state that
 	// serves both without a clearing press first.
-	export async function open(source = trigger): Promise<void> {
+	export async function open(
+		source?: HTMLButtonElement,
+		fallbackFocus?: () => void
+	): Promise<void> {
 		opener = source;
+		focusReplacement = fallbackFocus;
 		url = media.videoId ? `https://youtu.be/${media.videoId}` : '';
 		error = undefined;
 		trackError = undefined;
@@ -113,11 +117,16 @@
 
 	function close(): void {
 		dialog.close();
-		opener.focus();
+		// Attachment can replace the tray opener with the transport opener (or
+		// remove the transport on detach). Let that render settle first.
+		void tick().then(() => {
+			if (opener?.isConnected) opener.focus();
+			else focusReplacement?.();
+		});
 	}
 
-	// Escape and the close control hand focus back to whichever of the two
-	// triggers opened this shared dialog; an outside press does not,
+	// Escape and the close control hand focus back to whichever trigger opened
+	// this shared dialog; an outside press does not,
 	// because the press has already named where the user is going.
 	function dismissOnBackdrop(event: MouseEvent): void {
 		if (event.target === dialog) dialog.close();
@@ -239,16 +248,12 @@
 	}
 </script>
 
-<button
-	bind:this={trigger}
-	type="button"
-	class="button--quiet status-bar__media"
-	aria-haspopup="dialog"
-	onclick={() => open(trigger)}
->
-	<Music2 aria-hidden="true" size={13} strokeWidth={2.25} />
-	<span>{label}</span>
-</button>
+<!--
+	One dialog behind every way in: the tray's note glyph while nothing is
+	attached, the strip's pencil once something is. The heading follows the same
+	state their labels do, so the surface never answers a different question
+	than the press asked.
+-->
 
 <!--
 	One question — where is the song? — asked in one place, with the answers
@@ -288,9 +293,6 @@
 >
 	<div class="media-dialog__surface">
 		<div class="media-dialog__header">
-			<!-- The trigger's own label: a dialog headed `Add audio` opened from a
-			     control reading `Change audio source` is two names for one job, and the
-			     one the user pressed is the one they are holding in their head. -->
 			<h2 id="media-dialog-title">{label}</h2>
 			<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
 				<X aria-hidden="true" size={16} strokeWidth={2.25} />
@@ -594,33 +596,11 @@
 </dialog>
 
 <style>
-	/* Quiet enough to belong in the quietest row in the window, and still a
-	   control: it keeps the row's small type but takes the body color, so it
-	   reads as pressable beside the muted counts rather than as one of them. */
-	.status-bar__media {
-		display: inline-flex;
-		min-height: var(--control-height-sm);
-		padding: 0 var(--space-1-5);
-		gap: var(--space-1-5);
-		align-items: center;
-		color: var(--color-text);
-		font-size: var(--font-size-xs);
-	}
-
-	.status-bar__media :global(svg) {
-		flex: none;
-		color: var(--color-text-muted);
-	}
-
-	.status-bar__media:hover :global(svg) {
-		color: var(--color-text);
-	}
-
 	.media-dialog {
 		width: min(30rem, calc(100vw - var(--space-4)));
 		max-width: none;
 		padding: 0;
-		border: var(--border-width) solid var(--color-border-strong);
+		border: 0;
 		border-radius: var(--radius-overlay);
 		background: var(--color-overlay);
 		color: var(--color-text);
@@ -635,26 +615,24 @@
 	   header of this height is chrome around four lines of content. */
 	.media-dialog__header {
 		display: flex;
-		padding: var(--space-3) var(--space-2) 0 var(--space-4);
+		padding: var(--space-4) var(--space-4) var(--space-2) var(--space-5);
 		align-items: center;
 		justify-content: space-between;
 	}
 
 	.media-dialog__header h2 {
 		margin: 0;
-		font-size: var(--font-size-md);
+		font-size: var(--font-size-lg);
 		font-weight: var(--font-weight-semibold);
 	}
 
 	.media-dialog__body {
-		padding: var(--space-3) var(--space-4) var(--space-4);
+		padding: var(--space-3) var(--space-5) var(--space-5);
 	}
 
-	/* The separator goes *between* the two answers, never above the first. */
+	/* Each source gets breathing room on the existing dialog surface. */
 	.media-dialog__body section + section {
-		margin-top: var(--space-3);
-		padding-top: var(--space-3);
-		border-top: var(--border-width) solid var(--color-border);
+		margin-top: var(--space-5);
 	}
 
 	.media-dialog__meta {
@@ -681,23 +659,21 @@
 		line-height: var(--line-height-body);
 	}
 
-	/* A run of rows, the way the linter's findings are: no gap, no rounding, a
-	   hairline between neighbours. Nothing here draws a box — the dialog is the
-	   surface these sit on. */
+	/* Results share the quiet menu-row treatment, with space between targets. */
 	.media-dialog__results {
-		margin: var(--space-2) 0 0 0;
+		display: grid;
+		gap: var(--space-1);
+		margin: var(--space-3) 0 0 0;
 		padding: 0;
 		list-style: none;
-	}
-
-	.media-dialog__results li + li {
-		border-top: var(--border-width) solid var(--color-border);
 	}
 
 	.media-dialog__result {
 		display: flex;
 		width: 100%;
-		padding: var(--space-2) var(--space-1-5);
+		min-height: var(--control-height-lg);
+		padding: var(--space-2-5) var(--space-2);
+		border-radius: var(--radius-control);
 		gap: var(--space-3);
 		align-items: baseline;
 		justify-content: space-between;
@@ -709,7 +685,8 @@
 		cursor: pointer;
 	}
 
-	.media-dialog__result:hover {
+	.media-dialog__result:hover:not(:disabled),
+	.media-dialog__result:focus-visible {
 		background: var(--color-control-hover);
 	}
 

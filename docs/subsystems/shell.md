@@ -13,17 +13,34 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 - The toolbar spans the whole window and splits on what a control acts on, not on how loud it
   is; the save readout draws nothing while saving is going well (`sr-only` otherwise).
-- Diagnostics are inset rounded rows separated by space, without hairlines. Selection is
-  depth, not hue: recessed in dark, lifted in light. No accent wash, no accent ring.
-  `RightPanel.svelte.test.ts` pins the spacing, shape, and selection treatment.
-- The panel background and controls above the findings use `--color-chrome`;
-  `--color-canvas` belongs to the selected finding in dark.
+- Diagnostics are inset rows separated by space, without hairlines. Resting rows are
+  transparent; the active or expanded finding takes `--color-surface`, rounded corners,
+  and `--shadow-raised` in both schemes. No accent wash or ring. The panel and controls
+  above it use `--color-chrome`. `RightPanel.svelte.test.ts` pins the treatment.
+- Every tool has an icon and visible name: Review, Assistant (when available), Performers,
+  Song, Preferences. At `78rem` the dock runs vertically along the outside edge; below
+  it runs horizontally. Bits UI orientation follows the same query so arrow keys follow
+  the visible order. `.right-panel__content` owns the body, media, and footer independently
+  of the dock. `RightPanel.svelte.test.ts` pins orientation and pane visibility.
+- The window ends on its columns: the toolbar spans above them and each column
+  ends on its own controls, with no status bar under them. The composer's field
+  and the dock's button end on one shared foot line; the pending transport uses
+  the same control-row height and outer spacing as loaded playback.
+  `Workspace.svelte.test.ts` pins the grid and the absence.
+- The desktop dock has equal bottom and outer-side insets, owned by `--panel-edge-inset`.
+  The composer field ends at the Preferences button's outer edge. The dock fits its
+  labels rather than clipping a fixed width. `RightPanel.svelte.test.ts` pins these bounds.
+- Empty, clean, and all-set-aside reviews are centered, unboxed states with distinct words
+  and marks; setting findings aside never claims a clean draft. Filter-hidden findings
+  stay beside their filters. `LinterPanel.svelte.test.ts` pins the states.
 - Severity chips draw only the kinds the document has, unasked; a chip's count is over the
   unignored diagnostics and blind to the filters, or hiding a kind deletes the way back to it.
 - The editor's command tray (`.editor-actions`) is an absolutely positioned tray over the
-  document's top-right, not a band; glyphs are the marks they insert, tooltips carry name +
-  keystroke, four glyphs is the ceiling, and only caret-only commands belong in it.
-  `Workspace.svelte.test.ts` measures its width and right edge.
+  document's top-right, not a band; glyphs are the marks they insert, tooltips carry the
+  name (and the keystroke where one exists), four glyphs is the ceiling, and the
+  fourth is the audio attach — no caret command, but it never refuses and lives
+  where its transport will appear. `Workspace.svelte.test.ts` measures its width
+  and right edge.
 - Find/replace runs under the tray: CodeMirror panels get `--layer-editor-panel` (never
   `isolation: isolate` on the host), the row reserves `--editor-actions-reserve`, and the
   magnifier is the visible exit — its pressed state comes from `onSearchOpenChange`, never
@@ -32,12 +49,15 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   box per application, mounted in `Workspace.svelte`; placement read off the control by
   `placeControlHint`; `aria-hidden` because both facts are already the control's own.
 - A control with a keyboard twin names it in that box; only the leading fix names `Mod-.`,
-  which answers from the whole window; a control with no twin names nothing. Gutter cells use
+  which answers from the whole window. A control whose label is already visible
+  gets no box — it would only repeat it — but a glyph shows no label, so the
+  tray's audio note names itself in the box with no keystroke to teach; a mark
+  nobody can name is a control nobody can find. Gutter cells use
   the imperative `showControlHint` pair and disclose only on the caret's own line. Pins:
   `diagnostic-parity.svelte.test.ts`, `line-anchoring.svelte.test.ts`.
 - The empty document is one message split across surfaces: ghost transcription in the editor,
   `Paste lyrics` in the toolbar (refusals toast *and* announce via `report`), a waiting panel,
-  a silent status bar. `controller.isEmpty` / `canLoadSample` are the single answers;
+  and no counts anywhere. `controller.isEmpty` / `canLoadSample` are the single answers;
   `.right-panel__pane` must keep `[hidden]` out of its `display` rule
   (`RightPanel.svelte.test.ts` asserts exactly one pane draws).
 - A panel section is a heading over at most two things; a claim is made once, where the
@@ -61,11 +81,74 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## Decision record
 
+### The dock's outer edges share one inset
+
+Preferences had more space below it than to its right, and the fixed rail width could
+clip its selected label and rounded rim. The desktop header now sizes to its content
+and uses `--panel-edge-inset` on every side. The assistant composer reads that same
+inset at its foot, aligning the two filled control edges rather than a field edge to
+text inside another button. No per-control offset compensates for their geometry.
+`RightPanel.svelte.test.ts` measures equal right/bottom gaps in resting and selected states.
+
+Toast badge spacing and boot-message margins use the shared scale. Compare's inline
+changes share `--inline-diff-padding` and `--inline-diff-gap` with the editor and link
+picker; these scale with type instead of each surface guessing a different inset.
+The mock editor uses the standard editor block spacing and a scale-based inline inset.
+
+
+### Tool names stay readable and counts keep their own space
+
+The dock labels use the small text token rather than the smallest metadata size. A tool
+has at least its label's natural width, so a narrow horizontal dock scrolls instead of
+letting names overlap. Review's count sits beside its icon in normal flow; an absolute
+corner badge could collide with the glyph as counts gained digits. The badge keeps the
+full count and its accessible noun. Toolbar reflow is recorded in the responsive subsystem.
+
+
+### A writing workspace with a dock and one active decision
+
+Softening the old grid helped its edges, but left five competing tab labels across a narrow
+column and a blank review reading like a missing result. Every tool now has an icon and a
+visible name, including Assistant. Review names the user's task in place of Linter. On wide
+screens the dock occupies the outside edge, with Preferences at its foot; the content column
+keeps its own scrolling body, media, and set-aside disclosure. Below `78rem` the dock becomes
+a horizontal row. The orientation passed to Bits UI changes with the CSS breakpoint, so the
+keyboard never has to navigate an invisible layout.
+
+The desktop panel can grow to 30rem to accommodate that dock. More generous toolbar padding
+and a wider draft title give the song's identity room without adding another heading to the
+document; the toolbar retains the shared site-header height.
+Resting findings now sit directly on chrome. Only the selected or expanded finding rises,
+in both themes: a surface means there is a decision here, rather than outlining every
+potential decision. This supersedes both the filled resting cards and the dark recessed
+selection described below; selection still uses depth without a severity-competing hue.
+
+An empty review, a clean review, and a review with every finding set aside each have a composed
+message and a different mark. The wording preserves the distinction: saved choices are not a
+claim that every rule passes. Only filter-hidden findings remain a caption beside the filters
+that bring them back. The sample stays with the waiting message, and recent drafts stay at the
+foot. Pins: `RightPanel.svelte.test.ts`, `LinterPanel.svelte.test.ts`, and
+`Workspace.svelte.test.ts`.
+
+The window ends on its columns: the toolbar spans above them and each column ends
+on its own controls, with no status bar under them. A full-width status row was
+tried and left the foot one straight band with nothing on it worth the band —
+a readout whose counts moved to the Song tab, a link that belongs with the
+application's own settings, and an attach entry that belonged where its
+transport appears. Sharing the transport's line was tried before that and could
+not hold, because the strip's height changes with its state (pending, loaded,
+syncing) while the composer's does not. What holds is one control line at the
+foot for the composer's field and the dock's button. Pending transport controls now
+share the loaded row's height and spacing (see the media decision record). The named way out, About LyricLint, closes the Preferences tab —
+it acts on nothing, so it stays out of the toolbar's strip of document commands.
+Within the panel, the composer and dock share the same outer inset. Earlier alignment
+to the label's ink was replaced by control-edge alignment, as recorded below.
+
 ### A calmer workbench replaces the ruled grid
 
 The workbench now uses chrome as the continuous window background. The document is inset
 from the left edge, with rounded top corners, and the panel separates from it by tone rather
-than a vertical hairline. The toolbar and status row no longer draw horizontal rules.
+than a vertical hairline. The toolbar draws no horizontal rule.
 Controls take the medium radius within the workspace; this does not change the public site.
 The active tab has a filled rounded target and stronger type, replacing its underline.
 
@@ -76,14 +159,12 @@ chrome so they cannot merge with the selected finding, but lose their bottom rul
 
 The set-aside disclosure remains at the panel foot, with accurate ignored/accepted counts
 and restoration focus behavior. A rotating chevron replaces the blue `Show` label; the
-whole row is a quiet hover target and `aria-expanded` carries its state. About LyricLint
-keeps link semantics and its accessible name but uses a quiet control target, without a
-permanent website-style underline; an information glyph identifies the destination.
+whole row is a quiet hover target and `aria-expanded` carries its state.
 The desktop panel can grow to 26rem so its tabs and diagnostic prose have breathing room. Pins: `RightPanel.svelte.test.ts`,
 `LinterPanel.svelte.test.ts`, and `Workspace.svelte.test.ts`.
 
-The earlier decisions below explain the interaction and depth choices that still hold;
-the square seams and connected bands described in their history have been superseded.
+The earlier decisions below retain the interaction history; their square seams, connected
+bands, and scheme-specific selection depth have been superseded by the records above.
 
 
 ### The shell is one window, and the linter is one column
@@ -91,8 +172,8 @@ the square seams and connected bands described in their history have been supers
 The document toolbar spans the whole window, above both columns — the draft's name, its save
 state, and the commands that act on the whole document belong to the window, not to the editor
 half of it. The right panel's tab strip hangs directly under it, at `--panel-tabs-height` rather
-than the toolbar's `--header-height`. Toolbar, tab strip, ignored-rules footer, video band, and
-status bar are all `--color-chrome`; the scrolling content between them is not.
+than the toolbar's `--header-height`. Toolbar, tab strip, ignored-rules footer, and video
+band are all `--color-chrome`; the scrolling content between them is not.
 
 **The toolbar splits on what a control acts on, not on how loud it is.** The left is the identity
 strip — the brand, the draft's name, and the plus that starts another one, which acts on no
@@ -141,7 +222,7 @@ handlers to work around Bits UI's activation order, all of them for a press that
 What the reveal was buying was vertical space, and the row buys it back by **drawing only the
 kinds that are actually there**. `Errors 0` and `Manual review 0` were two thirds of this row on
 an ordinary draft: counts that could not have been otherwise, offering to filter out kinds that
-are not in the document — the same thing the status bar refuses to print. A clean draft draws no
+are not in the document — the same discipline the Song tab's counts follow. A clean draft draws no
 row at all.
 
 **A chip's count is over the unignored diagnostics and blind to the filters**, exactly as in the
@@ -163,9 +244,8 @@ Implementation: `chips` in `src/lib/ui/linter/LinterPanel.svelte`, `src/lib/ui/s
 The tab strip hangs under the toolbar at `--panel-tabs-height` and used to be the whole of that
 band: to the left of it, across the editor column, was nothing. So the editor's own commands had
 nowhere to be, and the one that had shipped — inserting Genius's unknown-lyric marker — had ended up
-in the **status bar**, which is the row this file describes as a readout with exactly one control.
-It failed twice over. It was a second control in that row, and what it said there was `Insert [?]`,
-which is a mark somebody either knows or does not — and the reader who needs the button is by
+in the old footer's readout row as a second control saying `Insert [?]`, which is
+a mark somebody either knows or does not — and the reader who needs the button is by
 definition the second kind. A glyph cannot teach the convention it is a glyph for.
 
 **`.editor-actions` is a tray, not a band, and it took three wrong shapes to get there.** Drawn
@@ -226,39 +306,39 @@ a class, because the state is a fact about a toggle and colour is never a state 
 **The controls are glyphs, and what they are is a tooltip.** Spelled out — `Section header` over
 `⇧⌘H`, `Unknown lyric [?]` over `⌃⌥U` — the tray was 243px of the document's own top row for two
 commands, five times what the glyphs need, permanently, to say something a transcriber reads once.
-The name and the keystroke arrive together on hover and on focus, which is the one moment either is
-being asked for, and the tray is 95px.
+The name arrives on hover and on focus, with the keystroke beside it where the control has
+one; the note that attaches audio has none to teach, so its box carries the name alone.
 
 **The glyph is the mark, not an icon drawn to stand for it.** `[?]` is exactly what the button
 writes into the document; `[+]` is that mark's own family saying a header goes in. Both are
 `--font-mono`, at the weight the document will draw them in. An abstract pictogram here would be a
-second thing to learn on top of the convention this control exists to teach.
+second thing to learn on top of the convention this control exists to teach — which is why the
+two controls that write nothing, the magnifier and the note, are the two drawn as pictograms.
 
 **What that costs is named rather than hidden, because it is the original complaint coming most of
-the way back.** The status-bar control this replaced also had a `title`; a tooltip is not a thing a
-finger can produce, so a sighted touch user now meets two marks and no words. Two things hold the
-line. The **accessible name is the whole label** at every state (`aria-label`, with
-`aria-keyshortcuts` beside it), so nothing is lost to a screen reader and nothing here repeats the
-gutter's mistake of a control that is only a pointer affordance. And the tooltip is drawn
-`aria-hidden`, because both facts in it are already the button's own name and shortcut — described
-rather than hidden, they would be announced twice. That last part is the citation tooltip's rule
-(`SourceCitation.svelte`) applied in the one case where the direction reverses: there the visible
-text is the _only_ copy and needs `aria-describedby`; here it is the second copy and must not
-announce.
+the way back.** A tooltip is not a thing a finger can produce, so a sighted touch user meets marks
+and no words. Two things hold the line. The **accessible name is the whole label** at every state
+(`aria-label`, with `aria-keyshortcuts` beside it where a twin exists), so nothing is lost to a
+screen reader and nothing here repeats the gutter's mistake of a control that is only a pointer
+affordance. And the tooltip is drawn `aria-hidden`, because every fact in it is already the
+button's own — described rather than hidden, they would be announced twice. That last part is the
+citation tooltip's rule (`SourceCitation.svelte`) applied in the one case where the direction
+reverses: there the visible text is the _only_ copy and needs `aria-describedby`; here it is the
+second copy and must not announce.
 
 **The box itself is shared, and is the subject of its own section below.**
 
-**Three glyphs, and four is the ceiling.** Each costs about 30px of the document's own top row, past
-which this is the full-width band it replaced, wearing icons. Bold and italic were considered and
+**Four glyphs, and four is the ceiling.** Each costs about 30px of the document's own top row, past
+which this is the full-width band it replaced, wearing icons. Three are caret commands; the
+fourth is the audio attach, which is not — but it never refuses, whatever the caret is doing,
+and it lives exactly where its transport will appear. Bold and italic were considered and
 refused: `<i>` and `<b>` are the performer voice slots, the picker and the roster are how a voice is
 marked here, and a command is offered once.
 
-**Only commands a caret alone can carry out.** `Ctrl-Alt-P` and `Mod-Shift-L` are
+**The three caret commands are commands a caret alone can carry out.** `Ctrl-Alt-P` and `Mod-Shift-L` are
 deliberately absent: each needs a selection or shared lyrics in an existing link and
 announces a refusal the rest of the time, and a bar that spends most of its life offering answers
-it cannot give is what `availableRates` and `spotifyAvailable` both exist to prevent. That leaves
-two, which is also all a row of this width holds — the same constraint that moved `Add audio` out
-of the tools panel.
+it cannot give is what `availableRates` and `spotifyAvailable` both exist to prevent.
 
 **It draws at every state, including over an empty document.** A band that appeared on the first
 keystroke would shove the editor down at the moment somebody started typing, and the reader who has
@@ -307,15 +387,15 @@ popover-specific tooltip.
 
 **The placement is read off the control, never passed in.** The surfaces occupy different edges and
 none should have to say so: the tray hangs at the top-right of the document, the link picker can sit
-on either side of its anchor, and the transport is the last row above the status bar, where there is
+on either side of its anchor, and the transport is the last row of its column, where there is
 no room below at all. `placeControlHint` is that arithmetic, exported and unit-tested against
 synthetic rects rather than trusted — it flips to `bottom` when the control is within a two-line box
 of the foot, lays out from whichever edge the control is nearer, and clamps at 8px so nothing starts
 off screen.
 
 **It is `aria-hidden`, not `aria-describedby`, and this is the one place that direction reverses.**
-Both facts in it are already the control's own accessible name and `aria-keyshortcuts`, so
-describing would announce each twice. The citation's tooltip is the opposite case — its visible text
+Every fact in it is already the control's own — the accessible name, and `aria-keyshortcuts`
+where a twin exists — so describing would announce each twice. The citation's tooltip is the opposite case — its visible text
 is the _only_ copy — which is why that one keeps `aria-describedby` and this one must not grow it.
 
 **On the transport it joins the caption rather than replacing it.** The caption under each glyph is
@@ -420,7 +500,7 @@ titles), `MediaStrip.svelte.test.ts` (the reconnect's `Esc`), and
 ### The empty document is one message, not three
 
 A fresh open used to say "empty" four times — a black editor with a bare caret, a panel explaining
-how to feed it, and four zeroed counts in the status bar — while the loudest control on the screen,
+how to feed it, and four zeroed counts in the footer's readout row — while the loudest control on the screen,
 the contrast-tier `Copy lyrics`, pointed at the exit of a job nobody had started. The fix is not
 decoration. It is dividing one message between the surfaces so that no two of them say it:
 
@@ -450,13 +530,13 @@ decoration. It is dividing one message between the surfaces so that no two of th
 - **The panel says what it is waiting for**, and nothing about how to start. Its copy got shorter
   when the editor took over the instructions; re-adding "paste or write some lyrics" here is the
   drift this section exists to prevent.
-- **The status bar says nothing at all.** A count worth stating is one that could have been
-  otherwise, so each count waits until it has something to report. The shortcut hints that used to
-  keep it company are gone at every state, not just this one: a legend for `F8` and `⌘.` was help
+- **Nothing counts nothing.** A count worth stating is one that could have been
+  otherwise, so each count waits until it has something to report — and they live
+  in the Song tab's Document section, over the files they describe, rather than in
+  a footer readout. The shortcut hints that used to keep that row company are gone
+  at every state, not just this one: a legend for `F8` and `⌘.` was help
   nobody had asked for, printed permanently across the quietest row in the window. So was `offline
-ready`, which is a fact about the application in a row that summarises the document. What is left
-  at the end of the row is the `About LyricLint` link, alone, which is the whole of what that end of
-  the row is for.
+ready`, which is a fact about the application in a row that summarises the document.
 
 Two things the empty panel offers, both prose on the canvas rather than boxes: the drafts the user
 already has (a fresh open is only empty because it opened a _new_ one, and their work should not be
@@ -495,8 +575,8 @@ was defensible; the panel was a wall of grey.
 Two rules came out of the repair:
 
 - **A section's actions fit on one row.** Two is what fits at this panel's width, so a third has to
-  displace something or live somewhere else. That is what moved attaching audio to the status bar
-  rather than shortening its label to squeeze it in — the constraint is a forcing function for
+  displace something or live somewhere else. That is what first moved attaching audio out of
+  this crowded section — the constraint is a forcing function for
   putting a command where it belongs, not a licence to abbreviate. `Export current draft (.txt)`
   also lost two words, because the toolbar names the draft two rows above it.
 - **A claim is made once, where the reader is deciding.** Everything local is said under
@@ -561,6 +641,13 @@ comparing `event.target` to the dialog (`src/lib/ui/layout/LanguagePicker.svelte
 Canonical implementations: `src/lib/editor/overlays/SectionPicker.svelte`,
 `src/lib/editor/overlays/PerformerPicker.svelte`, `src/lib/editor/overlays/DiagnosticPopover.svelte`,
 and `src/lib/ui/layout/DraftMenu.svelte`.
+
+### The composer centers its send control
+
+The shared composer centers Send vertically inside its field, in both the panel and dialog.
+Bottom alignment put a 36px button against the foot of a taller textarea and made it sag.
+The field's outside inset and panel foot alignment stay unchanged. `AssistantPanel.svelte.test.ts`
+measures the button's center against the field.
 
 ### The assistant's transcript follows its own foot, and a scroll up is the end of that
 
@@ -639,3 +726,26 @@ Three things about it:
   which is why the value is read in the component body rather than at module scope.
 
 Implementation: `src/lib/ui/layout/DocumentTitle.svelte`.
+
+### Floating surfaces share the studio geometry
+
+The app shell owns the rounded control, panel, and overlay tokens so dialogs,
+toasts, and shortcut tooltips inherit the same geometry as the workspace. Menus
+and dialogs use their overlay shadow for separation, with spacing in place of
+decorative header rules. Shared list rows give names and commands more breathing
+room without changing the single-row rename and confirmation flows. Buttons,
+icon controls, and fields share color transitions and respect reduced motion.
+Editor picker shells follow this treatment too; selection marks and functional
+internal separators remain intact.
+
+### Separation follows ownership, not outlines
+
+Catalogue identity now lives with playback below the editor, so the tool body's outline
+and the vertical rail divider no longer separate the song from Preferences. Both are
+removed. The tool pane remains on chrome, with spacing separating it from the document
+and navigation. The editor retains rounded corners on its filled surface; the player sits unboxed on
+window chrome, with extra clearance above the footer. Large outlines and a second
+full-width filled rectangle added shapes without clarifying ownership.
+
+The smaller mobile inset, scroll ownership, and full-sized action targets remain.
+YouTube's visible frame stays below the tool content. See the media decision record.

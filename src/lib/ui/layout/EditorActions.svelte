@@ -1,9 +1,15 @@
 <script lang="ts">
-	import { Search } from 'lucide-svelte';
+	import { Music, Search } from 'lucide-svelte';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let {
+		controller,
+		openMediaPicker
+	}: {
+		controller: WorkbenchController;
+		openMediaPicker?: (source: HTMLButtonElement) => void;
+	} = $props();
 
 	// The same question `transportModifier` asks, and deliberately not that
 	// function: the transport folds a chord down to one modifier because it has
@@ -20,9 +26,11 @@
 	// the other reason — the performer picker and the roster are how a voice is
 	// marked here, and a command is offered once.
 	//
-	// Three is near the ceiling. Each glyph costs about 30px of the document's own
+	// Four is the ceiling. Each glyph costs about 30px of the document's own
 	// top row, so a fourth is the last one that fits before this is the full-width
-	// band it replaced, wearing icons.
+	// band it replaced, wearing icons. The fourth is the audio attach: not a
+	// caret command, but it never refuses — the dialog opens whatever the caret
+	// is doing — and it lives exactly where its transport will appear.
 	const actions = $derived([
 		{
 			id: 'section',
@@ -55,6 +63,15 @@
 			run: () => controller.toggleSearch()
 		}
 	]);
+	// The audio attach draws only while there is nothing for the strip to show:
+	// no attachment and no remembered source. Past that the strip itself carries
+	// the way back in, so the tray never offers what the row below already does.
+	const audioAvailable = $derived(
+		openMediaPicker !== undefined &&
+			controller.media !== undefined &&
+			!controller.media.player.attached &&
+			controller.media.pendingName === undefined
+	);
 </script>
 
 <!--
@@ -104,4 +121,21 @@
 			{/if}
 		</button>
 	{/each}
+	{#if audioAvailable && openMediaPicker}
+		<!-- The note is the tray's fourth and final glyph: attaching audio writes
+		     nothing to the document, so like the magnifier it is a pictogram
+		     rather than a mark. It carries no keystroke, so its tooltip carries
+		     the name alone — a glyph with no box at all is a control nothing
+		     but a screen reader can name. -->
+		<button
+			type="button"
+			class="button--quiet editor-actions__button"
+			aria-label="Add audio source"
+			aria-haspopup="dialog"
+			onclick={(event) => openMediaPicker(event.currentTarget)}
+			{@attach describeControl(() => ({ label: 'Add audio source' }))}
+		>
+			<Music class="editor-actions__glyph" aria-hidden="true" size="1em" strokeWidth={2.25} />
+		</button>
+	{/if}
 </div>

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { WorkbenchController } from '../state/workbench.svelte.js';
 import type { MediaPlayer, SongDetails } from '../state/media-player.svelte.js';
 import type { MediaStore } from '../state/media-store.svelte.js';
-import { createTestWorkbench } from '../test-utils.js';
+import { createTestWorkbench, performer } from '../test-utils.js';
 import SongPanel from './SongPanel.svelte';
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 
@@ -54,17 +54,6 @@ describe('SongPanel skimmability', () => {
 		expect(screen.queryByRole('button', { name: /YouTube/iu })).toBeNull();
 	});
 
-	test('opens the shared audio-source dialog from the Song tab', async () => {
-		const { controller } = createTestWorkbench();
-		const openMediaPicker = vi.fn();
-		render(SongPanel, { controller, openMediaPicker });
-
-		const trigger = screen.getByRole('button', { name: 'Add audio source' });
-		expect(trigger.getAttribute('aria-haspopup')).toBe('dialog');
-		await fireEvent.click(trigger);
-		expect(openMediaPicker).toHaveBeenCalledWith(trigger);
-	});
-
 	test('loads a remembered source directly from the Song tab', async () => {
 		const reconnect = vi.fn(async () => {});
 		const player: Partial<MediaPlayer> = { attached: false };
@@ -79,7 +68,7 @@ describe('SongPanel skimmability', () => {
 			...createTestWorkbench().controller,
 			media: media as MediaStore
 		};
-		render(SongPanel, { controller, openMediaPicker: vi.fn() });
+		render(SongPanel, { controller });
 
 		await fireEvent.click(
 			screen.getByRole('button', {
@@ -87,7 +76,86 @@ describe('SongPanel skimmability', () => {
 			})
 		);
 		expect(reconnect).toHaveBeenCalledOnce();
-		expect(screen.getByRole('button', { name: 'Change audio source' })).toBeTruthy();
+		// The picker itself lives in the workbench — the tray's note glyph, the
+		// strip's pencil — so this tab names no second way into it.
+		expect(screen.queryByRole('button', { name: 'Change audio source' })).toBeNull();
+		expect(screen.queryByRole('button', { name: 'Add audio source' })).toBeNull();
+	});
+});
+
+/*
+ * The draft in one run of facts, over the files it turns into. A count worth
+ * stating is one that could have been otherwise, so each waits until it has
+ * something to report and an empty draft states nothing at all.
+ */
+describe('SongPanel document counts', () => {
+	afterEach(cleanup);
+
+	function documentSection(root: ParentNode): HTMLElement | undefined {
+		return [...root.querySelectorAll('section')].find(
+			(section) => section.querySelector('h2')?.textContent === 'Document'
+		);
+	}
+
+	test('pluralizes the counts, singular at one', () => {
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
+		const { container } = render(SongPanel, { controller });
+
+		expect(documentSection(container)?.textContent).toContain('1 line · 1 section');
+		expect(documentSection(container)?.textContent).not.toContain('1 lines');
+		expect(documentSection(container)?.textContent).not.toContain('1 sections');
+	});
+
+	// The counts are one run of facts with interpuncts between them, exactly as
+	// a diagnostic's meta line is — the performer count joins the run rather
+	// than sitting in a spaced-apart group of its own.
+	test('joins the performer count into the one interpunct run', () => {
+		const { controller } = createTestWorkbench({
+			text: '[Verse]\nA lyric',
+			performers: [performer('p1', 'Ari', 0)]
+		});
+		const { container } = render(SongPanel, { controller });
+
+		expect(documentSection(container)?.textContent).toContain('1 line · 1 section · 1 performer');
+	});
+
+	// This document has lines and sections but no performers, so the roster half
+	// of the run is absent rather than reporting a zero. The voice-group count
+	// is gone outright: it summed legend entries over the whole document —
+	// offset-keyed, so three identical choruses counted three — which is a
+	// number nobody could read anything from. Re-adding it is the specific
+	// regression.
+	test('omits a count until it has something to report', () => {
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
+		const { container } = render(SongPanel, { controller });
+
+		const text = documentSection(container)?.textContent ?? '';
+		expect(text).not.toContain('0 performers');
+		expect(text).not.toContain('voice group');
+	});
+
+	// The line count is of sung text only. Blank lines and bracket-shaped lines
+	// — headers, an unclosed `[Bridge` — are structure, and the parser keeps
+	// them out of `section.lines`; this pins that the counts inherit the
+	// distinction rather than counting rows. A lone `[?]` is the exception the
+	// parser makes: it wears the header's brackets but stands where a line
+	// nobody could make out was sung, so it counts as the lyric it marks.
+	test('counts only lyric lines', () => {
+		const { controller } = createTestWorkbench({
+			text: '[Verse 1]\nOne\nTwo\n\n[Chorus]\nThree\n   \n[?]\n[Bridge'
+		});
+		const { container } = render(SongPanel, { controller });
+
+		expect(documentSection(container)?.textContent).toContain('4 lines');
+	});
+
+	test('states no counts at all for an empty document', () => {
+		const { controller } = createTestWorkbench({ text: '' });
+		const { container } = render(SongPanel, { controller });
+
+		// Nothing counts anything, so nothing in the tab is a number — which is
+		// a stricter claim than naming the counts that went.
+		expect(documentSection(container)?.textContent).not.toMatch(/\d/u);
 	});
 });
 

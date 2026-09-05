@@ -55,10 +55,9 @@
 </script>
 
 <!--
-	The cover, in the same band the YouTube player occupies and for the same
-	reason: it is the part of the media feature that is looked at rather than
-	operated, so its pixels cost a scroll here and would cost the document
-	anywhere else.
+	The catalogue identity row, above playback inside MediaStrip. Keeping the
+	song and source link beside the controls makes their ownership explicit.
+	YouTube keeps its visible frame in the sidebar.
 
 	**The compact row is the only shape.** This band used to expand into a stage —
 	the full-width picture with the facts and a second transport scrimmed onto it —

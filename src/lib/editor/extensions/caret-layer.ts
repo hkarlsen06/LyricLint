@@ -56,8 +56,8 @@ const caretTheme = EditorView.baseTheme({
 	'@keyframes ll-caret-blink2': { '0%': {}, '50%': { opacity: '0' }, '100%': {} },
 	'.ll-caret': {
 		display: 'none',
-		borderLeft: '1.5px solid var(--color-accent)',
-		marginLeft: '-0.75px',
+		borderLeft: 'var(--editor-caret-width) solid var(--color-accent)',
+		marginLeft: 'calc(var(--editor-caret-width) / -2)',
 		pointerEvents: 'none'
 	},
 	// Shown only while the editor holds focus, exactly as the native caret is.

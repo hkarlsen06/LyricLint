@@ -6,12 +6,12 @@ import type { MediaSourceKind } from '../state/media-player.svelte.js';
  */
 export function pendingMediaLabel(name: string, source: MediaSourceKind | undefined): string {
 	return source === 'youtube'
-		? `Load ${name} from YouTube`
+		? `Load audio: ${name} from YouTube`
 		: source === 'spotify'
-			? `Load ${name} from Spotify`
+			? `Load audio: ${name} from Spotify`
 			: source === 'apple'
-				? `Load ${name} from Apple Music`
-				: `Reconnect ${name}`;
+				? `Load audio: ${name} from Apple Music`
+				: `Reconnect audio: ${name}`;
 }
 
 /** Compact form for a panel where the draft already supplies the song's name. */

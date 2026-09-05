@@ -1,7 +1,7 @@
 /*
  * The audio transport strip, at the foot of the editor column.
  *
- * It is `--color-chrome`, like the toolbar above it and the status bar below it,
+ * It is `--color-chrome`, like the toolbar above it,
  * for the reason the bulk-fix strip learned the long way: a row drawn as bare
  * canvas between two surfaces merges with whichever one it touches, and its
  * controls read as loose inside that surface rather than as commands over it.
@@ -20,19 +20,72 @@
 	the narrowest widths.
 */
 .media-strip {
-	display: flex;
-	min-height: var(--control-height-lg);
-	/* The last of `.editor-region`'s two rows; the action tray takes none. */
 	grid-row: 2;
-	overflow-x: auto;
-	padding: var(--space-1) var(--space-3);
-	scrollbar-width: none;
-	border-top: var(--border-width) solid var(--color-border);
-	gap: var(--space-3);
-	align-items: center;
+	min-width: 0;
+	margin-top: var(--space-2);
+	padding: var(--space-1) var(--space-3) var(--space-2);
+	border: 0;
+	border-radius: 0;
 	background: var(--color-chrome);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
+}
+
+.media-strip__controls {
+	display: flex;
+	min-height: var(--control-height-lg);
+	overflow-x: auto;
+	scrollbar-width: thin;
+	gap: var(--space-3);
+	align-items: center;
+}
+
+/* Animate the whole player so catalogue identity and attribution arrive with
+   playback, including the wide layout where artwork uses display: contents.
+   Playback ticks do not restart the entrance; layout height stays unchanged. */
+@media (prefers-reduced-motion: no-preference) {
+	.media-strip[data-loaded='true'] {
+		animation: media-strip-arrive var(--duration-slow) var(--ease-out-quart);
+	}
+}
+
+@keyframes media-strip-arrive {
+	from {
+		translate: 0 var(--space-2);
+	}
+	to {
+		translate: 0 0;
+	}
+}
+
+/* Identity and controls share a surface; the cover remains an artwork action. */
+.media-strip .media-artwork {
+	--media-thumb: var(--control-height-lg);
+	padding: var(--space-1) 0 var(--space-2);
+	background: transparent;
+}
+
+/* Two compact caption lines, aligned to the transport rather than body prose. */
+.media-strip .media-artwork__meta {
+	gap: 0;
+	line-height: var(--line-height-tight);
+}
+
+.media-strip .media-artwork__title,
+.media-strip .media-artwork__artist {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.media-strip__pending-name {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--color-text);
+	font-size: var(--font-size-sm);
 }
 
 /*
@@ -78,7 +131,7 @@
 	min-width: var(--media-video-min);
 	min-height: var(--media-video-min);
 	overflow: hidden;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-control);
 	aspect-ratio: 16 / 9;
 	background: var(--color-canvas);
 }
@@ -132,7 +185,7 @@
 	overflow: hidden;
 	padding: 0;
 	border: 0;
-	border-radius: var(--radius-sm);
+	border-radius: var(--radius-control);
 	background: none;
 	cursor: pointer;
 }
@@ -213,7 +266,7 @@
 	width: min(28rem, calc(100vw - var(--space-6)), calc(100dvh - 11rem));
 	max-width: none;
 	padding: 0;
-	border: var(--border-width) solid var(--color-border-strong);
+	border: 0;
 	border-radius: var(--radius-overlay);
 	background: var(--color-overlay);
 	color: var(--color-text);
@@ -227,7 +280,7 @@
 .artwork-dialog__header {
 	display: flex;
 	min-height: 3.25rem;
-	padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+	padding: var(--space-4) var(--space-4) var(--space-2) var(--space-5);
 	gap: var(--space-3);
 	align-items: center;
 	justify-content: space-between;
@@ -251,7 +304,7 @@
 
 .artwork-dialog__actions {
 	display: flex;
-	padding: var(--space-3) var(--space-4) var(--space-4);
+	padding: var(--space-3) var(--space-5) var(--space-5);
 }
 
 .media-strip__transport,
@@ -286,9 +339,10 @@
 */
 .media-strip__transport-button {
 	display: inline-flex;
-	min-height: var(--control-height-sm);
+	min-height: var(--control-height-md);
+	min-width: var(--control-height-md);
 	flex: none;
-	padding: 0 var(--space-1-5);
+	padding: 0 var(--space-2);
 	align-items: center;
 	justify-content: center;
 	color: var(--color-text);
@@ -458,6 +512,7 @@
 	flex: 1 1 auto;
 	padding: 0;
 	border: none;
+	box-shadow: none;
 	background: transparent;
 	appearance: none;
 	cursor: pointer;
@@ -465,6 +520,7 @@
 
 .media-strip__seek:hover:not(:disabled) {
 	border: none;
+	background: transparent;
 }
 
 /* WebKit has no progress pseudo-element, so the played half is a hard-stop
@@ -582,17 +638,73 @@
 	color: var(--color-text);
 }
 
-/* The reconnect row is one command and one way out of it, so the command takes
-   the slack and the dismissal stays pinned to the far end. */
+/* The pending row is the song at one end and its one command at the other: the
+   name holds the start while the Load control takes the far end, so the action
+   keeps a stable home instead of sliding with the length of the song's name. */
 .media-strip__reconnect {
-	flex: 1 1 auto;
-	justify-content: flex-start;
-	min-height: var(--control-height-sm);
-	font-size: var(--font-size-xs);
+	flex: none;
+	margin-inline-start: auto;
+	min-height: var(--control-height-md);
+	font-size: var(--font-size-sm);
 }
 
 .media-strip .icon-button {
 	width: var(--control-height-sm);
 	min-height: var(--control-height-sm);
 	color: var(--color-text);
+}
+
+/* A wide editor can keep identity and playback on the same baseline. Narrower
+   layouts keep the two rows, preserving useful seek width and source marks. */
+@media (min-width: 90rem) {
+	.media-strip:has(> .media-artwork) {
+		display: grid;
+		grid-template-columns: auto minmax(var(--space-8), 9rem) minmax(0, 1fr) auto;
+		gap: var(--space-3);
+		align-items: center;
+	}
+
+	.media-strip .media-artwork {
+		--media-thumb: var(--control-height-md);
+		display: contents;
+		padding: 0;
+		gap: var(--space-2);
+	}
+
+	.media-strip:has(> .media-artwork) > .media-strip__controls {
+		grid-column: 3;
+		grid-row: 1;
+		min-width: 0;
+	}
+
+	.media-strip .media-artwork__thumb {
+		grid-column: 1;
+		grid-row: 1;
+	}
+
+	.media-strip .media-artwork__meta {
+		grid-column: 2;
+		grid-row: 1;
+	}
+
+	.media-strip .media-artwork__aside {
+		grid-column: 4;
+		grid-row: 1;
+	}
+}
+
+/* Waiting is a small action group, not a bar stretched across the document. */
+.media-strip:not(:has(.media-strip__transport)) .media-strip__controls {
+	justify-content: flex-start;
+}
+
+.media-strip__pending-name {
+	flex: 0 1 auto;
+	max-width: var(--measure-prose);
+}
+
+/* Pending and loaded controls use the same row height and outer spacing.
+   Keep the pending button's shadow clear of the scrolling row's edges. */
+.media-strip:not(:has(.media-strip__transport)) .media-strip__controls {
+	padding-block: var(--space-0-5);
 }

@@ -5,6 +5,14 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/layout/LandscapeNotice.
 
 ## The rules
 
+- Below `46rem`, toolbar identity and commands occupy separate rows. Commands retain
+  their visible labels and wrap when necessary; no document action clips outside the
+  viewport. `Workspace.svelte.test.ts` measures their bounds at 320, 390, and 736px.
+
+- The tool dock becomes horizontal below `78rem`; the editor and panel still stack at
+  `68rem`. In the stacked panel, `.right-panel__content` grows with ordinary panes but
+  fits the available height for Assistant, preserving its transcript scroll port and
+  the media/footer below it. `RightPanel.svelte.test.ts` pins pane layout.
 - The phone is supported upright and refused on its side: `(pointer: coarse) and
   (max-height: 30rem)` hides `.app-shell` (CSS, never `matchMedia` — the app is prerendered)
   and `LandscapeNotice` takes its place. Height *and* coarse pointer, never height alone;
@@ -23,6 +31,35 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/layout/LandscapeNotice.
 
 ## Decision record
 
+### The toolbar gives its commands a reachable row
+
+The wider draft title and generous desktop toolbar did not fit a phone: the identity
+remained visible while language, Compare, and Copy extended beyond the clipped workspace.
+Below `46rem`, identity and commands each get a row. The title absorbs the space between
+brand and creation; the command row uses compact padding and retains every text label.
+Redundant icons give their width to the words, while Undo and Redo keep their glyphs.
+At the smallest widths, commands wrap instead of requiring a hidden sideways scroll.
+A failed-save message may wrap too, so a refusal remains visible beside the draft.
+
+
+### The dock stays reachable in a short desktop window
+
+The desktop tool dock also scrolls vertically when the window is short. Fixed-size targets
+must not clip Preferences below the panel; keyboard focus scrolls the tool into view.
+`RightPanel.svelte.test.ts` exercises the final tool in a short dock.
+
+### The dock changes direction before the document stacks
+
+A vertical dock is useful only while its labels leave enough room for review prose. It becomes
+a horizontal row below `78rem`, before the established `68rem` stacked layout takes over.
+Labels remain visible in both arrangements, and Bits UI uses the matching orientation for
+arrow-key navigation (owned by `RightPanel.svelte`).
+
+The new content wrapper must inherit the old column's two sizing behaviors: normal panes grow
+and the outer panel scrolls, while Assistant fits and its transcript scrolls. Its `:has()`
+selectors must reach through that wrapper, or the assistant grows past the media and footer.
+The sticky horizontal dock, document inset, and software-keyboard transport remain in place.
+
 ### The softened document keeps its inset when stacked
 
 The stacked editor has a small inset on both sides. The panel below it separates by tone
@@ -36,7 +73,7 @@ scrolls in its own port, every fix has a button, and the transport's own control
 touch user needs for playback — nobody transcribes a song on a phone by keyboard shortcut.
 
 **One orientation is refused, and only one.** Turned sideways there is no height left to divide:
-the toolbar, the tab strip and the status bar are fixed costs, and what remains would be a couple
+the toolbar and the tab strip are fixed costs, and what remains would be a couple
 of lines of lyric over a couple of lines of finding. `(pointer: coarse) and (max-height: 30rem)`
 hides `.app-shell` outright — `display: none` takes the app out of the accessibility tree, which an
 overlay would not have done — and `LandscapeNotice.svelte` takes its place.
@@ -143,3 +180,11 @@ land in either inherits from the body or names `--font-size-editor` — a field 
 
 Implementation: the `(pointer: coarse)` block in `src/lib/ui/styles/responsive.css`.
 
+
+### The player travels as a unit
+
+The keyboard-pinned `.media-strip` includes catalogue identity and playback together,
+and publishes that whole height for toast clearance. At phone widths its timing row
+wraps below the transport and scrubber; overflow stays within the timing row during
+long sync flows. Both pending and loaded controls reserve those two rows, so loading
+does not change the control bar's height. The document and panel retain their existing scroll ownership.

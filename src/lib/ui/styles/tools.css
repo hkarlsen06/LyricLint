@@ -247,3 +247,51 @@
 .backup-status.backup-status--warning {
 	color: color-mix(in oklch, var(--color-warning) 80%, var(--color-text));
 }
+
+/* Supporting prose stays a step below the controls it explains. */
+.panel-sections section > p {
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-body);
+	margin-block: var(--space-3) var(--space-4);
+}
+
+.panel-sections .metadata-list {
+	font-size: var(--font-size-sm);
+	gap: var(--space-3) var(--space-5);
+}
+
+.source-list > summary {
+	padding-block: var(--space-2);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+	cursor: pointer;
+}
+
+.toggle-field {
+	min-height: var(--control-height-lg);
+}
+
+/* The foot of the application tab: the named way out, kept quiet. Navigation
+   keeps link semantics, with the same quiet target app controls use — no
+   permanent underline, the text color rather than the accent. */
+.panel-foot {
+	margin-top: var(--space-7);
+}
+
+.about-link {
+	display: inline-flex;
+	min-height: var(--control-height-sm);
+	padding: var(--space-1) var(--space-2);
+	align-items: center;
+	gap: var(--space-1-5);
+	border-radius: var(--radius-control);
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+	text-decoration: none;
+	transition: background var(--duration-fast) var(--ease-out-quart);
+}
+
+.about-link:hover {
+	background: var(--color-fill);
+	color: var(--color-text);
+}

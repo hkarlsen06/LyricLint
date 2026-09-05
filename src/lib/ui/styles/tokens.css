@@ -114,6 +114,14 @@
 	--space-7: 2.5rem;
 	--space-8: 3rem;
 
+	/* Inline differences scale with the text they annotate, across the editor
+	   and comparison surfaces. */
+	--inline-diff-padding: 0.15em;
+	--inline-diff-gap: 0.2em;
+
+	/* The drawn caret is centered on the insertion coordinate using half its width. */
+	--editor-caret-width: 1.5px;
+
 	/* Shape and borders */
 	--border-width: 1px;
 	--radius-xs: 0.25rem;

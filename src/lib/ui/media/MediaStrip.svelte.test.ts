@@ -68,6 +68,44 @@ async function fontsSettled(): Promise<void> {
 
 describe('MediaStrip', () => {
 	/*
+	 * The way back in sits first in the row and quiet, like the follow glyph:
+	 * swapping tracks is a decision about the draft's song, so it opens the
+	 * shared dialog rather than acting here. It draws wherever the strip draws
+	 * — attached or remembered — and only where the shell hands the opener down,
+	 * so a strip without one names no way in at all.
+	 */
+	it('leads the strip with the audio pencil, or nothing without its opener', async () => {
+		const { media } = store({
+			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }]
+		});
+		await media.openFor('draft-1');
+
+		const opened: HTMLButtonElement[] = [];
+		const { unmount } = render(MediaStrip, {
+			props: {
+				media,
+				openMediaPicker: (source: HTMLButtonElement) => void opened.push(source)
+			}
+		});
+
+		const pencil = page.getByRole('button', { name: 'Change audio source' });
+		await expect.element(pencil).toBeVisible();
+		const controls = [...document.querySelector('.media-strip__controls')!.children];
+		expect(controls[0]).toBe(pencil.element());
+		expect(pencil.element().getAttribute('aria-haspopup')).toBe('dialog');
+
+		// Synthetic: userEvent's hover would show the shared tooltip box, which is
+		// module state that outlives the render — this press is about the
+		// wiring, not the hover.
+		pencil.element().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		expect(opened).toEqual([pencil.element()]);
+		unmount();
+
+		render(MediaStrip, { props: { media } });
+		expect(page.getByRole('button', { name: 'Change audio source' }).elements()).toHaveLength(0);
+	});
+
+	/*
 	 * The three transport controls name themselves through the same box the
 	 * editor's action tray uses — one `describeControl` and one `ControlTooltip`,
 	 * rather than the native `title` each of them carried, which is slow, unstyled,
@@ -226,6 +264,8 @@ describe('MediaStrip', () => {
 		await expect.element(page.getByTestId('media-elapsed')).toHaveTextContent('1:52');
 		audio.setDuration(161);
 		await expect.element(seek).toHaveValue('112');
+		// The shared input shadow must not draw a rounded box around the timeline.
+		expect(getComputedStyle(seek.element()).boxShadow).toBe('none');
 	});
 
 	/*
@@ -252,37 +292,70 @@ describe('MediaStrip', () => {
 		await expect.element(seek).toHaveAttribute('aria-valuetext', '1:52 of 4:01');
 	});
 
-	it('names the remembered file in the reconnect control and offers no transport', async () => {
-		const { media } = store({
-			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }]
-		});
-		await media.openFor('draft-1');
+	it.each([390, 800, 1496])(
+		'keeps pending and loaded transport heights equal at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			try {
+				const { media } = store({
+					records: [
+						{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }
+					]
+				});
+				await media.openFor('draft-1');
 
-		render(MediaStrip, { props: { media } });
-		render(ControlTooltip, { props: {} });
+				render(MediaStrip, { props: { media } });
+				render(ControlTooltip, { props: {} });
 
-		const reconnect = page.getByRole('button', { name: 'Reconnect sensommer.mp3' });
-		await expect.element(reconnect).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Forget sensommer.mp3' })).toBeVisible();
-		expect(page.getByRole('button', { name: 'Play' }).elements()).toHaveLength(0);
-		expect(page.getByRole('slider', { name: 'Seek' }).elements()).toHaveLength(0);
+				const reconnect = page.getByRole('button', { name: 'Reconnect audio: sensommer.mp3' });
+				await expect.element(reconnect).toBeVisible();
+				expect(reconnect.element().textContent?.trim()).toBe('Reconnect audio');
+				// Forgetting a remembered source lives in the audio dialog beside every
+				// other answer to what the draft's song is — re-adding it here is the
+				// regression. The song holds the row's start while the Load control keeps
+				// the far end, so the action sits still whatever the name measures.
+				expect(page.getByRole('button', { name: 'Forget sensommer.mp3' }).elements()).toHaveLength(
+					0
+				);
+				expect(page.getByRole('button', { name: 'Play' }).elements()).toHaveLength(0);
+				expect(page.getByRole('slider', { name: 'Seek' }).elements()).toHaveLength(0);
 
-		// A bare Escape loads the pending source — the fallback under the
-		// transport's toggle. The keystroke used to live in `aria-keyshortcuts`
-		// alone, which made it the one binding in the workbench nothing on screen
-		// could teach; the shared box is where every other named control says it.
-		reconnect.element().dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }));
-		await expect
-			.poll(() => document.querySelector('.control-tooltip')?.textContent)
-			.toContain('Reconnect sensommer.mp3');
-		expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe('Esc');
-	});
+				const strip = page.getByTestId('media-strip').element().getBoundingClientRect();
+				const name = document.querySelector<HTMLElement>('.media-strip__pending-name')!;
+				const load = reconnect.element().getBoundingClientRect();
+				expect(load.left).toBeGreaterThan(name.getBoundingClientRect().right);
+				expect(strip.right - load.right).toBeCloseTo(12, 0);
+				// The bordered tier's edge is a shadow ring outside its box and the row
+				// is a scroller, so an exact fit clips it. The button must stand clear
+				// of the strip's own top edge.
+				expect(load.top - strip.top).toBeGreaterThanOrEqual(1);
 
-	// Both controls in this row answer the same question, so they go quiet
-	// together: a reconnect waits on a permission prompt, and a Forget pressed
-	// into that window is a decision the store now honours but a control that
-	// stays live over a press it cannot complete cleanly reads as broken.
-	it('takes both of the pending row’s controls out of use while one is answering', async () => {
+				// A bare Escape loads the pending source — the fallback under the
+				// transport's toggle. The keystroke used to live in `aria-keyshortcuts`
+				// alone, which made it the one binding in the workbench nothing on screen
+				// could teach; the shared box is where every other named control says it.
+				reconnect.element().dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }));
+				await expect
+					.poll(() => document.querySelector('.control-tooltip')?.textContent)
+					.toContain('Reconnect audio: sensommer.mp3');
+				expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe('Esc');
+
+				// Loading replaces the command without resizing the transport bar.
+				await media.attachFile(new File([''], 'sensommer.mp3', { type: 'audio/mpeg' }));
+				await expect.element(page.getByRole('button', { name: 'Play' })).toBeVisible();
+				expect(page.getByTestId('media-strip').element().getBoundingClientRect().height).toBe(
+					strip.height
+				);
+			} finally {
+				await page.viewport(800, 600);
+			}
+		}
+	);
+
+	// The pending row's one control goes quiet while it is answering: a reconnect
+	// waits on a permission prompt, and a control that stays live over a press it
+	// cannot complete cleanly reads as broken.
+	it('takes the pending row’s control out of use while it is answering', async () => {
 		let choose: (() => void) | undefined;
 		const { media } = store({
 			records: [{ draftId: 'draft-1', name: 'sensommer.mp3', attachedAt: '2026-07-01T00:00:00Z' }],
@@ -297,13 +370,13 @@ describe('MediaStrip', () => {
 
 		render(MediaStrip, { props: { media } });
 
-		await expect.element(page.getByRole('button', { name: 'Forget sensommer.mp3' })).toBeEnabled();
+		const reconnect = page.getByRole('button', { name: 'Reconnect audio: sensommer.mp3' });
+		await expect.element(reconnect).toBeEnabled();
 
+		const button = reconnect.element();
 		const reconnecting = media.reconnect();
-		await expect
-			.element(page.getByRole('button', { name: 'Reconnect sensommer.mp3' }))
-			.toBeDisabled();
-		await expect.element(page.getByRole('button', { name: 'Forget sensommer.mp3' })).toBeDisabled();
+		await expect.element(button).toBeDisabled();
+		await expect.element(button).toHaveAccessibleName('Loading… sensommer.mp3');
 
 		choose?.();
 		await reconnecting;
@@ -317,7 +390,7 @@ describe('MediaStrip', () => {
 
 		render(MediaStrip, { props: { media } });
 
-		await page.getByRole('button', { name: 'Reconnect sensommer.mp3' }).click();
+		await page.getByRole('button', { name: 'Reconnect audio: sensommer.mp3' }).click();
 
 		await expect.element(page.getByRole('button', { name: 'Play' })).toBeVisible();
 		expect(media.pendingName).toBeUndefined();
@@ -440,7 +513,7 @@ describe('MediaStrip', () => {
 		// Naming YouTube in the control is what makes the press the consent: a bare
 		// "Reconnect" would spend it without saying so.
 		await expect
-			.element(page.getByRole('button', { name: 'Load Sensommer from YouTube' }))
+			.element(page.getByRole('button', { name: 'Load audio: Sensommer from YouTube' }))
 			.toBeVisible();
 		expect(page.getByRole('button', { name: 'Reconnect Sensommer' }).elements()).toHaveLength(0);
 	});
@@ -644,9 +717,8 @@ describe('MediaStrip', () => {
 
 	// The X sat at the end of the most-operated row in the window and was hit by
 	// accident more often than on purpose. Detaching lives in the audio dialog
-	// now, behind a deliberate press; re-adding a control for it here is the
-	// regression. The pending row's `Forget` keeps its X — that state draws no
-	// transport, so there is nothing beside it to miss.
+	// now, behind a deliberate press — for a remembered source no less than an
+	// attached one; re-adding a control for it here is the regression.
 	it('offers no detach control while audio is attached', async () => {
 		const { media } = store();
 		await media.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
@@ -677,7 +749,7 @@ describe('MediaStrip and the toasts above it', () => {
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
 		render(ToastRegion, { props: { feedback: createFeedbackState() } });
-		const overStatusBar = toastOffset();
+		const overFoot = toastOffset();
 
 		render(MediaStrip, { props: { media } });
 		await fontsSettled();
@@ -688,7 +760,7 @@ describe('MediaStrip and the toasts above it', () => {
 
 		// The observer writes on the frame after layout, so this is polled rather
 		// than read: a strip whose height never reaches the region is the bug.
-		await expect.poll(() => toastOffset()).toBeCloseTo(overStatusBar + height, 0);
+		await expect.poll(() => toastOffset()).toBeCloseTo(overFoot + height, 0);
 	});
 
 	// The other half, and the same failure wearing the other hat: a height left on
@@ -699,13 +771,13 @@ describe('MediaStrip and the toasts above it', () => {
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
 		render(ToastRegion, { props: { feedback: createFeedbackState() } });
-		const overStatusBar = toastOffset();
+		const overFoot = toastOffset();
 
 		const strip = render(MediaStrip, { props: { media } });
-		await expect.poll(() => toastOffset()).toBeGreaterThan(overStatusBar);
+		await expect.poll(() => toastOffset()).toBeGreaterThan(overFoot);
 
 		strip.unmount();
-		await expect.poll(() => toastOffset()).toBeCloseTo(overStatusBar, 0);
+		await expect.poll(() => toastOffset()).toBeCloseTo(overFoot, 0);
 	});
 });
 
@@ -736,14 +808,42 @@ describe('MediaStrip attribution', () => {
 	it.each([
 		['Apple Music', appleStore],
 		['Spotify', spotifyStore]
-	])('leaves the name and the mark to the band for %s, cover or no cover', async (_case, open) => {
-		const { media, player } = await open();
-		expect(player.artwork).toBeUndefined();
+	])(
+		'keeps the song and its attribution with playback for %s before artwork arrives',
+		async (_case, open) => {
+			const { media, player } = await open();
+			expect(player.artwork).toBeUndefined();
 
-		render(MediaStrip, { props: { media } });
+			render(MediaStrip, { props: { media } });
 
-		expect(document.querySelector('.media-strip__name')).toBeNull();
-		expect(document.querySelector('.media-attribution__spotify')).toBeNull();
-		expect(document.querySelector('.media-attribution__apple')).toBeNull();
-	});
+			const strip = page.getByTestId('media-strip').element();
+			expect(strip.querySelector('.media-artwork__title')?.textContent).toBeTruthy();
+			expect(
+				strip.querySelectorAll('.media-attribution__spotify, .media-attribution__apple')
+			).toHaveLength(1);
+			expect(strip.querySelector('.media-strip__controls .media-artwork')).toBeNull();
+			await expect.element(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+
+			// Source links are siblings of playback, including display:contents on
+			// wide screens. Both must travel with the same entrance.
+			const animation = strip.getAnimations()[0]!;
+			expect(animation).toBeDefined();
+			animation.pause();
+			const attribution = strip.querySelector<HTMLElement>('.media-artwork__aside')!;
+			const controls = strip.querySelector<HTMLElement>('.media-strip__controls')!;
+			animation.currentTime = 0;
+			const before = [
+				attribution.getBoundingClientRect().top,
+				controls.getBoundingClientRect().top
+			];
+			animation.currentTime = Number(animation.effect!.getTiming().duration);
+			const travel = [
+				before[0]! - attribution.getBoundingClientRect().top,
+				before[1]! - controls.getBoundingClientRect().top
+			];
+			expect(travel[0]).toBeGreaterThan(0);
+			expect(travel[0]).toBeCloseTo(travel[1]!, 1);
+			animation.finish();
+		}
+	);
 });

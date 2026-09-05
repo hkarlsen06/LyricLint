@@ -42,8 +42,11 @@ function setup(options: { file?: File | undefined; draftTitle?: string } = {}) {
 
 	const props: ComponentProps<typeof MediaPicker> = { media };
 	if (options.draftTitle !== undefined) props.draftTitle = options.draftTitle;
-	render(MediaPicker, { props });
-	return { media, youtube };
+	const view = render(MediaPicker, { props });
+	// The triggers live where they act now — the tray's note glyph, the strip's
+	// pencil — so the suite opens the dialog the way they do, through the one
+	// shared `open` they all call.
+	return { media, youtube, openDialog: () => view.component.open() };
 }
 
 const dialog = () => document.querySelector('dialog');
@@ -55,17 +58,22 @@ const liveText = (): string[] =>
 		.filter((text) => text !== '');
 
 describe('MediaPicker', () => {
-	it('is one trigger in the status bar and nothing else until it is pressed', async () => {
-		const { youtube } = setup();
+	it('renders only the closed dialog until it is opened', async () => {
+		const { youtube, openDialog } = setup();
 
-		await expect.element(page.getByRole('button', { name: 'Add audio' })).toBeVisible();
+		// No trigger of its own: the tray's note and the strip's pencil open it.
+		expect(page.getByRole('button', { name: 'Add audio' }).elements()).toHaveLength(0);
+		expect(page.getByRole('button', { name: 'Change audio' }).elements()).toHaveLength(0);
 		expect(dialog()?.open).toBe(false);
 		expect(youtube.loads).toBe(0);
+
+		await openDialog();
+		await expect.element(page.getByRole('button', { name: 'Choose a file…' })).toBeVisible();
 	});
 
 	it('offers every answer to one question, in one place', async () => {
-		setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { openDialog } = setup();
+		await openDialog();
 
 		expect(dialog()?.open).toBe(true);
 		await expect.element(page.getByRole('button', { name: 'Choose a file…' })).toBeVisible();
@@ -77,8 +85,8 @@ describe('MediaPicker', () => {
 	// panel the reader has since scrolled past — and as a line of facts rather
 	// than a paragraph of prose, which read as a warning about the button under it.
 	it('states what YouTube costs before the press that spends it, having loaded nothing', async () => {
-		const { youtube } = setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { youtube, openDialog } = setup();
+		await openDialog();
 
 		await expect
 			.element(page.getByText('Google can theoretically see what you play ·', { exact: false }))
@@ -92,8 +100,8 @@ describe('MediaPicker', () => {
 	// build will actually show them: Apple Music ships, Spotify is a local-only
 	// experiment, so the one a stranger can use comes first.
 	it('leads with YouTube and closes with the file', async () => {
-		setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { openDialog } = setup();
+		await openDialog();
 
 		const controls = [...(dialog()?.querySelectorAll('input, button.button') ?? [])];
 		expect(controls.map((el) => el.getAttribute('aria-label') ?? el.textContent?.trim())).toEqual([
@@ -111,8 +119,8 @@ describe('MediaPicker', () => {
 	// link first, and the search field is that. One field takes both, so a paste
 	// still works without a second control beside it.
 	it('asks for a track by name rather than by link', async () => {
-		setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { openDialog } = setup();
+		await openDialog();
 
 		const field = page.getByLabelText('Spotify search').element() as HTMLInputElement;
 		expect(field.placeholder).toBe('Search Spotify, or paste a link');
@@ -121,16 +129,16 @@ describe('MediaPicker', () => {
 	// Spotify costs a subscription and the speed control, and both are facts the
 	// user needs in front of them before the press rather than after it.
 	it('states what Spotify costs, including the rate it takes away', async () => {
-		setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { openDialog } = setup();
+		await openDialog();
 
 		await expect.element(page.getByText('Needs Spotify Premium ·', { exact: false })).toBeVisible();
 		await expect.element(page.getByText('No speed control', { exact: false })).toBeVisible();
 	});
 
 	it('takes a chosen file and closes on the answer', async () => {
-		const { media } = setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { media, openDialog } = setup();
+		await openDialog();
 
 		await page.getByRole('button', { name: 'Choose a file…' }).click();
 
@@ -141,8 +149,8 @@ describe('MediaPicker', () => {
 
 	// A dismissed OS picker is not an answer, so the question stays open.
 	it('stays open when the file picker is dismissed', async () => {
-		const { media } = setup({ file: undefined });
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { media, openDialog } = setup({ file: undefined });
+		await openDialog();
 
 		await page.getByRole('button', { name: 'Choose a file…' }).click();
 
@@ -151,8 +159,8 @@ describe('MediaPicker', () => {
 	});
 
 	it('answers a link that is not one in place, and spends nothing', async () => {
-		const { media, youtube } = setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { media, youtube, openDialog } = setup();
+		await openDialog();
 
 		await page.getByLabelText('YouTube link').fill('https://vimeo.com/12345');
 		await page.getByRole('button', { name: 'Use video' }).click();
@@ -165,8 +173,8 @@ describe('MediaPicker', () => {
 	});
 
 	it('treats a real link as the opt-in and closes the question', async () => {
-		const { media, youtube } = setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { media, youtube, openDialog } = setup();
+		await openDialog();
 
 		await page
 			.getByLabelText('YouTube link')
@@ -180,14 +188,14 @@ describe('MediaPicker', () => {
 	});
 
 	it('closes on Escape and on the closing control, abandoning what was typed', async () => {
-		setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { openDialog } = setup();
+		await openDialog();
 		await page.getByLabelText('YouTube link').fill('https://vimeo.com/12345');
 
 		await userEvent.keyboard('{Escape}');
 		expect(dialog()?.open).toBe(false);
 
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		await openDialog();
 		expect((page.getByLabelText('YouTube link').element() as HTMLInputElement).value).toBe('');
 
 		await page.getByRole('button', { name: 'Close' }).click();
@@ -197,10 +205,10 @@ describe('MediaPicker', () => {
 	// A draft already on a video opens the field holding that video's link,
 	// selected — copying it out and typing over it are both one gesture from here.
 	it('prefills and selects the link of the video already attached', async () => {
-		const { media } = setup();
+		const { media, openDialog } = setup();
 		await media.attachYouTube('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90s');
 
-		await page.getByRole('button', { name: 'Change audio' }).click();
+		await openDialog();
 
 		const input = page.getByLabelText('YouTube link').element() as HTMLInputElement;
 		expect(input.value).toBe('https://youtu.be/dQw4w9WgXcQ');
@@ -210,25 +218,12 @@ describe('MediaPicker', () => {
 
 	// A file is not a link, so there is nothing to offer back.
 	it('opens empty for a draft on a local file', async () => {
-		const { media } = setup();
+		const { media, openDialog } = setup();
 		await media.attachFile(new File([''], 'track.mp3'));
 
-		await page.getByRole('button', { name: 'Change audio' }).click();
+		await openDialog();
 
 		expect((page.getByLabelText('YouTube link').element() as HTMLInputElement).value).toBe('');
-	});
-
-	// The slot never moves; only the label follows the state. A control that
-	// disappeared once audio was attached would take the only way to swap tracks
-	// with it.
-	it('keeps its slot and renames itself once audio is attached', async () => {
-		const { media } = setup();
-		await expect.element(page.getByRole('button', { name: 'Add audio' })).toBeVisible();
-
-		await media.attachFile(new File([''], 'track.mp3'));
-
-		await expect.element(page.getByRole('button', { name: 'Change audio' })).toBeVisible();
-		expect(page.getByRole('button', { name: 'Add audio' }).elements()).toHaveLength(0);
 	});
 
 	/**
@@ -245,14 +240,14 @@ describe('MediaPicker', () => {
 		const answered = new Promise<void>((resolve) => {
 			release = resolve;
 		});
-		const { media } = setup();
+		const { media, openDialog } = setup();
 		// A search that hangs until this test lets it go.
 		media.searchAppleMusic = async () => {
 			await answered;
 			return { error: 'Apple Music could not be reached.' };
 		};
 
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		await openDialog();
 		await page.getByLabelText('Apple Music search').fill('kygo');
 
 		const search = dialog()?.querySelector('.media-dialog__search') as HTMLButtonElement;
@@ -269,13 +264,13 @@ describe('MediaPicker', () => {
 	});
 
 	/*
-	 * A dialog headed `Add audio` opened from a control reading `Change audio
-	 * source` is two names for one job, and the one the user pressed is the one
-	 * they are holding in their head while they read the heading.
+	 * A dialog headed `Add audio source` opened for a draft that already has
+	 * audio headed `Change audio source` is two names for one job: the heading
+	 * follows the state the opener's label named, whichever trigger opened it.
 	 */
 	it('heads the dialog with the label of the control that opened it', async () => {
-		const { media } = setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { media, openDialog } = setup();
+		await openDialog();
 		await expect.element(page.getByRole('heading', { name: 'Add audio source' })).toBeVisible();
 
 		await media.attachFile(new File([''], 'track.mp3'));
@@ -293,10 +288,10 @@ describe('MediaPicker', () => {
 	 * sighted answer to it.
 	 */
 	it('says what a search found, and what it did not, where it will be heard', async () => {
-		const { media } = setup();
+		const { media, openDialog } = setup();
 		media.searchAppleMusic = async () => ({ results: [] });
 
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		await openDialog();
 		await page.getByLabelText('Apple Music search').fill('kygo');
 		dialog()!.querySelector<HTMLButtonElement>('.media-dialog__search')!.click();
 
@@ -332,13 +327,13 @@ describe('MediaPicker', () => {
 	 * back on the slowest connections, where nothing else here would fail.
 	 */
 	it('buys Apple’s SDK with the press that opens the dialog', async () => {
-		const { media } = setup();
+		const { media, openDialog } = setup();
 		const prepared = vi.fn();
 		media.prepareAppleMusic = prepared;
 
 		expect(prepared).not.toHaveBeenCalled();
 
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		await openDialog();
 
 		expect(prepared).toHaveBeenCalledTimes(1);
 	});
@@ -350,8 +345,8 @@ describe('MediaPicker', () => {
 	 * which is the same rule `availableRates` and `spotifyAvailable` follow.
 	 */
 	it('offers a prefilled YouTube search named after the draft', async () => {
-		setup({ draftTitle: 'Mul — Sensommer' });
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { openDialog } = setup({ draftTitle: 'Mul — Sensommer' });
+		await openDialog();
 
 		const search = dialog()?.querySelector('a[href*="results?search_query"]') as HTMLAnchorElement;
 		expect(search.href).toBe(
@@ -365,8 +360,8 @@ describe('MediaPicker', () => {
 	it('says nothing where the draft has no name and nothing is attached', async () => {
 		// The placeholder title by its own name, so renaming it cannot leave this
 		// asserting against a string nothing produces any more.
-		setup({ draftTitle: DEFAULT_DRAFT_TITLE });
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { openDialog } = setup({ draftTitle: DEFAULT_DRAFT_TITLE });
+		await openDialog();
 
 		expect(dialog()?.querySelector('a[href*="results?search_query"]')).toBeNull();
 	});
@@ -379,14 +374,14 @@ describe('MediaPicker', () => {
 	 * conditional answer in this dialog follows.
 	 */
 	it('offers detach only while something is attached, and the press detaches and closes', async () => {
-		const { media } = setup();
-		await page.getByRole('button', { name: 'Add audio' }).click();
+		const { media, openDialog } = setup();
+		await openDialog();
 
 		expect(page.getByRole('button', { name: 'Detach', exact: false }).elements()).toHaveLength(0);
 		dialog()?.close();
 
 		await media.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
-		await page.getByRole('button', { name: 'Change audio' }).click();
+		await openDialog();
 		await page.getByRole('button', { name: 'Detach track.mp3' }).click();
 
 		expect(media.player.attached).toBe(false);

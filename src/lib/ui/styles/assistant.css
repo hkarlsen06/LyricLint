@@ -22,7 +22,7 @@
 	height: min(42rem, calc(100dvh - var(--space-6)));
 	max-height: 52rem;
 	padding: 0;
-	border: var(--border-width) solid var(--color-border-strong);
+	border: 0;
 	border-radius: var(--radius-overlay);
 	background: var(--color-overlay);
 	box-shadow: var(--shadow-overlay);
@@ -69,8 +69,7 @@
  * separates nothing. */
 .assistant-dialog__header {
 	display: flex;
-	padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
-	border-bottom: var(--border-width) solid var(--color-border);
+	padding: var(--space-4) var(--space-4) var(--space-2) var(--space-5);
 	align-items: center;
 	gap: var(--space-2);
 }
@@ -149,7 +148,7 @@
 	max-height: min(24rem, 60vh);
 	padding: var(--space-2);
 	overflow: auto;
-	border: var(--border-width) solid var(--color-border-strong);
+	border: 0;
 	border-radius: var(--radius-overlay);
 	background: var(--color-overlay);
 	box-shadow: var(--shadow-overlay);
@@ -168,10 +167,9 @@
 .assistant-chats__heading {
 	padding: var(--space-1) var(--space-2) var(--space-2);
 	margin: 0 0 var(--space-1);
-	border-bottom: var(--border-width) solid var(--color-border);
 	color: var(--color-text-muted);
 	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-semibold);
+	font-weight: var(--font-weight-medium);
 }
 
 .assistant-chats__list {
@@ -269,8 +267,8 @@
 	margin: 0;
 }
 
-/* Proposals repeat as independently reviewable units, so each earns one
- * border. The diff is information rather than a target; hover/focus on the
+/* Proposals repeat as independently reviewable units, so each earns a
+ * softly raised surface. The diff is information rather than a target; hover/focus on the
  * card only borrows the editor's single preview slot. */
 .assistant-proposals {
 	display: grid;
@@ -282,13 +280,13 @@
 	display: grid;
 	gap: var(--space-2);
 	padding: var(--space-3);
-	border: var(--border-width) solid var(--color-border);
-	border-radius: var(--radius-md);
+	border: 0;
+	border-radius: var(--radius-panel);
 	background: var(--color-surface);
+	box-shadow: var(--shadow-raised);
 }
 
 .assistant-proposal:focus-within {
-	border-color: var(--color-focus);
 	box-shadow: 0 0 0 var(--focus-ring-width) var(--color-focus-soft);
 }
 
@@ -393,7 +391,7 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 	margin: 0 0 var(--space-2);
 	color: var(--color-text);
 	font-size: var(--font-size-xl);
-	font-weight: var(--font-weight-semibold);
+	font-weight: var(--font-weight-medium);
 }
 
 .assistant-empty > p {
@@ -474,10 +472,8 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 	display: inline-block;
 	margin-block-end: var(--space-1);
 	color: var(--color-text-muted);
-	font-size: var(--font-size-2xs);
-	font-weight: var(--font-weight-semibold);
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-medium);
 }
 
 .assistant-scope {
@@ -494,8 +490,8 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 
 /* The answer's citations, collected once at its foot — cards after every
  * paragraph chopped the answer into fragments, and the same source was cited
- * three times down one reply. The cards are one bordered run with a hairline
- * between neighbours, the linter's idiom, and each is a title over one meta
+ * three times down one reply. The references form a quiet run separated
+ * by space, matching the review list, and each is a title over one meta
  * line: severity, fix behavior, source. */
 .assistant-citations {
 	display: grid;
@@ -505,16 +501,13 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 
 .assistant-citations__label {
 	color: var(--color-text-muted);
-	font-size: var(--font-size-2xs);
-	font-weight: var(--font-weight-semibold);
-	letter-spacing: 0.06em;
-	text-transform: uppercase;
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-medium);
 }
 
 .assistant-rule-run {
-	overflow: hidden;
-	border: var(--border-width) solid var(--color-border);
-	border-radius: var(--radius-md);
+	display: grid;
+	gap: var(--space-2);
 }
 
 /* One mark for a citation everywhere it appears: superscript in the prose, the
@@ -569,10 +562,6 @@ button.assistant-reference__quote:focus-visible .assistant-reference__exact {
 .assistant-rule__title,
 .assistant-rule__meta {
 	grid-column: 2;
-}
-
-.assistant-rule + .assistant-rule {
-	border-top: var(--border-width) solid var(--color-border);
 }
 
 /* The card was three shades of accent blue per row — title, arrow, source —
@@ -667,7 +656,7 @@ a.assistant-rule__source:hover {
 
 .assistant-composer__field {
 	display: flex;
-	align-items: flex-end;
+	align-items: center;
 	padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
 	border-radius: var(--radius-control);
 	background: var(--color-surface);
@@ -739,6 +728,8 @@ a.assistant-rule__source:hover {
 
 .assistant-panel .assistant-composer {
 	--composer-gutter: var(--space-3);
+	/* Match the dock button's outer edge using its shared inset. */
+	padding-bottom: var(--panel-edge-inset, var(--composer-gutter));
 }
 
 @media (max-width: 36rem) {

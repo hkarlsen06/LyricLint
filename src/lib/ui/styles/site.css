@@ -619,7 +619,7 @@
  * under the ramp's own floor.
  */
 .site-form {
-	padding: 0.12em 0.28em;
+	padding: var(--space-0-5) var(--space-1);
 	border-radius: var(--radius-xs);
 	background: var(--color-fill-subtle);
 	white-space: nowrap;
@@ -841,7 +841,13 @@
    is the only reason the swap does not move the page. Re-measure them if the
    editor's gutter, content padding, or type changes. */
 .site-demo__fallback {
-	padding: var(--space-5) 19px var(--space-5) 61px;
+	/* Match the editor border, number gutter, performer gutter, content inset,
+	   and line inset instead of keeping a measured pixel sum. */
+	--demo-text-start: calc(
+		var(--border-width) + var(--space-7) + var(--space-2) + var(--space-2) + var(--space-1)
+	);
+	--demo-text-end: calc(var(--space-4) + var(--space-1) - var(--border-width));
+	padding: var(--space-5) var(--demo-text-end) var(--space-5) var(--demo-text-start);
 	margin: 0;
 	/* The editor's own base face, or the wraps stop matching: the stand-in is a
 	   plain <pre> and cannot split markup from words, so it takes the words'
@@ -1726,14 +1732,18 @@
    is the copy that cannot be erased). The padding gives the bar's width back so
    the marked row's text keeps the x of every row around it. Direct-child only:
    the language links inside a family row are marked by their own rule below. */
+.site-split__index {
+	--current-row-marker-width: calc(var(--border-width) * 3);
+}
+
 .site-split__index .site-run > li > a[aria-current='page'] {
-	border-inline-start: 3px solid var(--color-text-muted);
-	padding-inline-start: calc(var(--space-4) - 3px);
+	border-inline-start: var(--current-row-marker-width) solid var(--color-text-muted);
+	padding-inline-start: calc(var(--space-4) - var(--current-row-marker-width));
 }
 
 .site-split__index .rules__languages a[aria-current='page'] {
-	border-inline-start: 3px solid var(--color-text-muted);
-	padding-inline-start: calc(var(--space-2) - 3px);
+	border-inline-start: var(--current-row-marker-width) solid var(--color-text-muted);
+	padding-inline-start: calc(var(--space-2) - var(--current-row-marker-width));
 }
 
 @media (forced-colors: active) {

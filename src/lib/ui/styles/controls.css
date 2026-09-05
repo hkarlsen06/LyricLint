@@ -281,7 +281,11 @@ textarea:disabled {
    (diagnostics.css); this is that decision applied to the tier system rather
    than one surface. */
 @media (prefers-reduced-motion: no-preference) {
-	.button {
+	.button,
+	.icon-button,
+	input,
+	select,
+	textarea {
 		transition:
 			background-color var(--duration-fast) var(--ease-out-quart),
 			border-color var(--duration-fast) var(--ease-out-quart),

@@ -76,8 +76,9 @@
 		// it holds the two things worth pressing from here.
 		if (controller.isEmpty) {
 			return {
-				title: 'Nothing to lint yet',
-				detail: 'Findings appear here as soon as the document has something in it.'
+				title: 'Ready for your lyrics',
+				detail: 'Suggestions will appear here as you write.',
+				waiting: true
 			};
 		}
 		if (hiddenByFilters > 0) {
@@ -88,29 +89,14 @@
 		}
 		if (controller.snapshot.diagnostics.length > 0) {
 			return {
-				// Not "all issues ignored", which reads as a verdict on the reader. The
-				// findings are set aside, not dismissed, and the way back is offered
-				// rather than instructed.
-				title: 'Nothing left to show',
-				detail:
-					// It points at the footer without naming either of the two answers
-					// it lists — findings set aside here may have been ignored or
-					// marked as correct, and one word for both would be wrong about
-					// half of them. Capitalised it named a heading called "Ignored
-					// diagnostics" that nothing on screen draws, so the reader was sent
-					// looking for a section that does not exist.
-					"Every finding here is set aside for this 'scribe. Bring any of them back from the list below."
+				title: 'All findings set aside',
+				detail: 'Your choices are saved with this draft.\nYou can restore any finding below.',
+				settled: true
 			};
 		}
 		return {
 			title: 'No issues found',
-			// The newline is deliberate: centred, the two sentences are two facts,
-			// and each reads on a line of its own (`pre-line` on the clean state)
-			// rather than wrapping mid-sentence wherever the pane's width falls.
-			detail: "This 'scribe passes every enabled rule.\nDiagnostics reappear as you edit.",
-			// The one empty state that is an achievement rather than a circumstance,
-			// so it is the one drawn as a state — centered in the pane, under the
-			// check — instead of as a caption at the top of an empty column.
+			detail: 'Your lyrics pass every enabled rule.\nChecking continues as you write.',
 			clean: true
 		};
 	});
@@ -146,6 +132,9 @@
 </script>
 
 <div class="panel-content linter-panel">
+	{#if controller.visibleDiagnostics.length > 0 || hiddenByFilters > 0}
+		<h2 class="linter-panel__heading">Review lyrics</h2>
+	{/if}
 	<!-- The chips are on screen whenever there is something to filter. They used
 	     to be revealed by pressing the Linter tab a second time from inside the
 	     linter, which is a gesture nobody performs and nothing advertises — the

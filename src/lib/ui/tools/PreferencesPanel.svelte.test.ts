@@ -106,6 +106,18 @@ describe('PreferencesPanel skimmability', () => {
 			'Reviewed rules'
 		]);
 	});
+
+	test('closes the tab on the named way out of the workbench', () => {
+		const { controller } = createTestWorkbench();
+		render(PreferencesPanel, { controller });
+
+		// The app-level tab owns the exit: it acts on nothing, so it stays out
+		// of the toolbar's document commands. The brand lockup links home too;
+		// this is the named exit.
+		const link = screen.getByRole('link', { name: 'About LyricLint' }) as HTMLAnchorElement;
+		expect(link.getAttribute('href')).toBe('/');
+		expect(link.closest('.panel-foot')).toBeTruthy();
+	});
 });
 
 /*

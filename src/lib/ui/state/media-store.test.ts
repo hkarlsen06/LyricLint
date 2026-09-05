@@ -829,7 +829,7 @@ describe('a press made while a reconnect is still waiting', () => {
 	 * reference to audio the user had thrown away in the meantime — and it
 	 * attached it, and wrote its record back. The prompt is the window: it is open
 	 * for as long as somebody takes to answer a browser dialog, and the row it was
-	 * pressed from is still on screen with its Forget control in it.
+	 * pressed from is still on screen with the pending row it left behind in it.
 	 */
 	it('abandons the reconnect that a detach has already answered', async () => {
 		const repository = createInMemoryMediaRepository();

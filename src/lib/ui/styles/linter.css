@@ -23,45 +23,49 @@
 	gap: var(--space-1);
 }
 
-/* The clean state is the one that is an achievement rather than a circumstance,
-   so it is composed as a state: centered in the pane's height under the check
-   mark, instead of a caption at the top of an empty column. Still prose on the
-   canvas — the glyph and the centering are the whole of the difference. The
-   other three empty states keep the top: each sits above the thing that
-   resolves it (the sample offer, the drafts at the foot, the chips, the
-   footer), and centering them would strand the message away from its answer. */
-.diagnostic-list__empty--clean {
+/* An empty or completed review should feel settled, not like a missing list.
+   Filtered findings stay beside their filters; the three resting states share
+   a composed, unboxed message. Set-aside findings remain distinct from clean. */
+.diagnostic-list__empty--clean,
+.diagnostic-list__empty--settled,
+.diagnostic-list__empty--waiting {
 	flex: 1;
 	align-content: center;
 	justify-items: center;
-	gap: var(--space-1-5);
+	gap: var(--space-2);
 	text-align: center;
-}
-
-/* Each sentence of the detail is its own line: centred prose that wraps
-   mid-sentence at whatever width the pane happens to have reads as a caption
-   that ran out of room, where one fact per line reads as set. The break is a
-   newline in the string, honoured here and collapsed to a space everywhere
-   else an empty state renders. */
-.diagnostic-list__empty--clean p {
-	white-space: pre-line;
-}
-
-.diagnostic-list__empty-mark {
-	width: var(--space-6);
-	height: var(--space-6);
-	margin-bottom: var(--space-2);
-	color: var(--color-success);
 }
 
 .diagnostic-list__empty p {
 	margin: 0;
 	font-size: var(--font-size-sm);
+	line-height: var(--line-height-body);
+	white-space: pre-line;
 }
 
-.diagnostic-list__empty-title {
+.diagnostic-list__empty-mark {
+	width: var(--space-8);
+	height: var(--space-8);
+	margin-bottom: var(--space-4);
+	color: var(--color-text-muted);
+}
+
+.diagnostic-list__empty--clean .diagnostic-list__empty-mark {
+	color: var(--color-success);
+}
+
+.diagnostic-list__empty .diagnostic-list__empty-title {
 	color: var(--color-text);
-	font-weight: var(--font-weight-semibold);
+	font-size: var(--font-size-xl);
+	font-weight: var(--font-weight-medium);
+	line-height: var(--line-height-tight);
+}
+
+.linter-panel .linter-panel__heading {
+	margin: 0;
+	padding: var(--space-5) var(--space-4) var(--space-3);
+	font-size: var(--font-size-xl);
+	font-weight: var(--font-weight-medium);
 }
 
 /* The drafts sit at the foot of the column, pushed there by the auto margin
@@ -159,7 +163,7 @@
 /* The grid stretches its items, and a button that spans the prose measure reads
    as a banner rather than an offer. */
 .linter-panel__empty-action {
-	justify-self: start;
+	justify-self: center;
 	padding-top: var(--space-3);
 }
 
@@ -238,46 +242,20 @@
 	list-style: none;
 }
 
-/* The row owns the stretched press target, including its explanation. */
+/* Resting findings read as a list. The open finding is the one surface with
+   an independent decision, so only it takes a fill and elevation. */
 .diagnostic-list > li {
 	position: relative;
 	border: 0;
-	border-bottom: 0;
 	border-radius: var(--radius-panel);
-	background: var(--color-surface);
+	background: transparent;
 }
 
-.diagnostic-list > li:last-child {
-	border-bottom: 0;
-}
-
-/* Selection keeps the established depth cue: raised in light, recessed in dark.
-   Rounded edges and gaps replace seams without moving rows on selection. */
 .diagnostic-list > li.diagnostic-card--expanded,
 .diagnostic-list > li.diagnostic-card--active {
 	z-index: 1;
-	border-bottom-color: transparent;
+	background: var(--color-surface);
 	box-shadow: var(--shadow-raised);
-}
-
-.diagnostic-list > li:has(+ li.diagnostic-card--expanded),
-.diagnostic-list > li:has(+ li.diagnostic-card--active) {
-	border-bottom-color: transparent;
-}
-
-@media (prefers-color-scheme: dark) {
-	.diagnostic-list > li.diagnostic-card--expanded,
-	.diagnostic-list > li.diagnostic-card--active {
-		z-index: auto;
-		border-bottom-color: var(--color-border);
-		background: var(--color-canvas);
-		box-shadow: var(--shadow-recessed);
-	}
-
-	.diagnostic-list > li:has(+ li.diagnostic-card--expanded),
-	.diagnostic-list > li:has(+ li.diagnostic-card--active) {
-		border-bottom-color: var(--color-border);
-	}
 }
 
 /* The depth answers a press, so it arrives at the control tier's rate rather
@@ -298,6 +276,7 @@
    unpositioned: the stretched press layer below resolves against the row, so a
    containing block here would stop it at the head's own bottom edge. */
 .diagnostic-list__head {
+	border-radius: inherit;
 	display: grid;
 	padding: var(--space-3) var(--space-4);
 	gap: var(--space-1);
@@ -375,7 +354,7 @@
 }
 
 .diagnostic-list__title {
-	font-weight: var(--font-weight-semibold);
+	font-weight: var(--font-weight-medium);
 }
 
 /* The expanded card's body — explanation and actions — is shared with the

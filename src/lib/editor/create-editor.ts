@@ -278,7 +278,7 @@ const editorTheme = EditorView.theme({
 		overflow: 'auto'
 	},
 	'.cm-content': {
-		padding: 'var(--space-5) var(--space-4) var(--space-8) var(--space-2)',
+		padding: 'var(--space-6) var(--space-4) var(--space-8) var(--space-2)',
 		// The visible caret is the drawn layer (extensions/caret-layer.ts): the
 		// native one paints under any child with a background, and this editor's
 		// lines are covered in deliberate fills — on a performer-tinted line it
@@ -312,10 +312,11 @@ const editorTheme = EditorView.theme({
 		minWidth: 'var(--space-7)',
 		padding: 'var(--space-0-5) var(--space-3) 0 var(--space-2)'
 	},
-	// The caret's row gets a subtle blue-tinted wash.
+	// A rounded neutral wash locates the caret without competing with voice colors.
 	'.cm-activeLine': {
 		backgroundColor: 'transparent',
-		boxShadow: 'inset 0 0 0 62.5rem color-mix(in oklch, var(--color-focus) 9%, transparent)'
+		borderRadius: 'var(--radius-sm)',
+		boxShadow: 'inset 0 0 0 62.5rem var(--color-fill-subtle)'
 	},
 	// Except on the empty document. A wash marks the row you are on *among
 	// others*, and an empty document has no others for it to pick out — here it
@@ -369,6 +370,7 @@ const autoHeightTheme = EditorView.theme({
 		minHeight: '0'
 	},
 	'&.cm-editor .cm-content': {
+		paddingTop: 'var(--space-5)',
 		paddingBottom: 'var(--space-5)'
 	}
 });

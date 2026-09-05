@@ -220,11 +220,11 @@
 		/* `--ll-anchor-space` is the room on whichever side the card landed on;
 		   without an anchor there is no side, so the cap stands alone. */
 		max-height: min(26rem, calc(100vh - 1rem), var(--ll-anchor-space, 100vh));
-		padding: var(--space-3);
+		padding: var(--space-4);
 		gap: var(--space-3);
 		align-content: start;
 		overflow-y: auto;
-		border: var(--border-width) solid var(--color-border);
+		border: 0;
 		border-radius: var(--radius-overlay);
 		background: var(--color-overlay);
 		color: var(--color-text);

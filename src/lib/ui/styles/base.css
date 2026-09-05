@@ -85,13 +85,16 @@ a::selection {
  * scrollable overflow on the app shell.
  */
 .sr-only {
+	/* A clipping primitive, not layout spacing; all three dimensions agree. */
+	--sr-only-size: 1px;
+
 	position: absolute;
 	inset-block-start: 0;
 	inset-inline-start: 0;
-	width: 1px;
-	height: 1px;
+	width: var(--sr-only-size);
+	height: var(--sr-only-size);
 	padding: 0;
-	margin: -1px;
+	margin: calc(-1 * var(--sr-only-size));
 	overflow: hidden;
 	clip: rect(0, 0, 0, 0);
 	white-space: nowrap;

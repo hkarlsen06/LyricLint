@@ -305,7 +305,7 @@
 
 <style>
 	.boot-message {
-		margin: 4rem auto;
+		margin: var(--space-8) auto;
 		max-width: 32rem;
 		text-align: center;
 		color: var(--color-text-muted);

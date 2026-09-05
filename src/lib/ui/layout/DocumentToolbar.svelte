@@ -337,7 +337,7 @@
 		max-height: calc(100dvh - var(--space-6));
 		padding: 0;
 		overflow: auto;
-		border: var(--border-width) solid var(--color-border-strong);
+		border: 0;
 		border-radius: var(--radius-overlay);
 		background: var(--color-overlay);
 		color: var(--color-text);
@@ -354,7 +354,7 @@
 	.copy-receipt__body {
 		display: flex;
 		flex-direction: column;
-		padding: var(--space-5) var(--space-4) var(--space-4);
+		padding: var(--space-6) var(--space-5) var(--space-5);
 		gap: var(--space-3);
 		text-align: center;
 	}
@@ -379,7 +379,6 @@
 	.copy-receipt__facts {
 		margin-top: var(--space-2);
 		padding-top: var(--space-4);
-		border-top: var(--border-width) solid var(--color-border);
 		text-align: start;
 	}
 

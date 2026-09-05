@@ -68,7 +68,7 @@
 
 <button
 	type="button"
-	class="button button--quiet media-strip__transport-button"
+	class="button media-strip__transport-button"
 	onclick={() => player.transport('toggle')}
 	aria-label={player.playing ? 'Pause' : 'Play'}
 	aria-busy={player.starting}

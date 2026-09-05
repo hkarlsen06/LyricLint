@@ -132,8 +132,8 @@ export const fixPreviewField = StateField.define<DecorationSet>({
 export const fixPreviewTheme = EditorView.baseTheme({
 	'.ll-fix-preview-insert': {
 		display: 'inline',
-		marginInline: '0.1em',
-		paddingInline: '0.15em',
+		marginInline: 'calc(var(--inline-diff-gap) / 2)',
+		paddingInline: 'var(--inline-diff-padding)',
 		borderRadius: 'var(--radius-xs)',
 		background: 'color-mix(in oklch, var(--color-suggestion) 24%, transparent)',
 		boxShadow: 'inset 0 -2px 0 var(--color-suggestion)',
@@ -150,7 +150,7 @@ export const fixPreviewTheme = EditorView.baseTheme({
 	},
 	'.ll-fix-preview-blank-line': {
 		display: 'inline-block',
-		paddingInline: '0.15em',
+		paddingInline: 'var(--inline-diff-padding)',
 		color: 'var(--color-text-muted)',
 		textDecoration: 'none',
 		boxShadow: 'inset 0 -2px 0 var(--color-danger)'

@@ -89,39 +89,21 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		expect(rowFill).toBe(getComputedStyle(chips).backgroundColor);
 	});
 
-	/*
-	 * Selection is depth in both schemes, and the direction is the scheme's own
-	 * answer — so this asserts the branch it is actually running under rather than
-	 * one of them. The regression it guards is the light half: the open card is
-	 * the one carrying the fix the reader is about to press, and dropped to the
-	 * recessed grey it wore the tone this workbench spends on things that are
-	 * spent. It cannot rise by lightness, the resting cards being the paper
-	 * already, so keeping the paper *and* owning an outward shadow is the whole
-	 * of the state and either half alone is the bug.
-	 */
-	test('lifts the open card in light and sinks it in dark', () => {
+	// Only the open finding draws a surface; the others remain an unboxed list.
+	test('lifts only the open finding above the quiet list in both themes', () => {
 		const { controller } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), prose(40, 60)]
 		});
 		render(LinterPanel, { controller });
-
 		const open = document.querySelector('.diagnostic-card--expanded')!;
 		const resting = document.querySelector(
 			'.diagnostic-list > li:not(.diagnostic-card--expanded)'
 		)!;
 		const openStyle = getComputedStyle(open);
-
-		if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-			expect(openStyle.backgroundColor).not.toBe(getComputedStyle(resting).backgroundColor);
-			expect(openStyle.boxShadow).toContain('inset');
-			return;
-		}
-
-		expect(openStyle.backgroundColor).toBe(getComputedStyle(resting).backgroundColor);
+		expect(openStyle.backgroundColor).not.toBe(getComputedStyle(resting).backgroundColor);
 		expect(openStyle.boxShadow).not.toBe('none');
-		expect(openStyle.boxShadow).not.toContain('inset');
+		expect(getComputedStyle(resting).boxShadow).toBe('none');
 		expect(openStyle.borderBottomWidth).toBe('0px');
-		expect(parseFloat(openStyle.borderRadius)).toBeGreaterThan(0);
 	});
 
 	test('drops the remainder when there is none', () => {

@@ -624,7 +624,7 @@ export const lintDecorationTheme = EditorView.baseTheme({
 	},
 	'.ll-diagnostic-blank-line': {
 		display: 'inline-block',
-		paddingInline: '0.15em',
+		paddingInline: 'var(--inline-diff-padding)',
 		color: 'var(--color-text-muted)'
 	},
 	'.cm-line:has(.ll-fix-preview-blank-line) .ll-diagnostic-blank-line': {

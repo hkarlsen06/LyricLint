@@ -233,3 +233,10 @@ saying what an edge already says.
 Implementation: `audioFileDrop` in `src/lib/editor/create-editor.ts`, `onAudioFileDropped` in
 `contracts.ts`, and `src/lib/editor/audio-drop.svelte.test.ts`, which asserts both halves of the
 regression: dragover is not `defaultPrevented` for text, and dropped text still reaches the document.
+
+### The caret row stays neutral
+
+The active line uses a rounded neutral fill rather than a blue wash, keeping performer
+identity and diagnostic color distinct from ordinary editing. The empty-document exception
+still removes the wash. Additional top breathing room comes from content padding, with no
+inserted widgets or changes to line mapping, source text, or clipboard output.

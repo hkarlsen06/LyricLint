@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
@@ -7,7 +7,7 @@ import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
 import type { Diagnostic, TextRange } from '$lib/core/types.js';
 import type { HarperDiagnosticProvider } from '$lib/rules/index.js';
 import LiveRegion from '../primitives/LiveRegion.svelte';
-import { createTestWorkbench, performer } from '../test-utils.js';
+import { createTestWorkbench } from '../test-utils.js';
 import { createFeedbackState } from '../state/feedback.svelte.js';
 import { createInMemoryMediaRepository } from '../state/in-memory.js';
 import { createMediaPlayer, type MediaPlayer } from '../state/media-player.svelte.js';
@@ -427,16 +427,15 @@ describe('Workspace and toolbar', () => {
 		// The tab strip then hangs under it: in the row the two columns share, or —
 		// once the columns have folded into one — in the row directly below the
 		// editor's. Either way both halves are rows of the same viewport-height
-		// grid, so the status bar keeps the floor and neither half scrolls the
-		// window. The test runner's own viewport decides which shape is live.
+		// grid and neither half scrolls the window. The test runner's own viewport
+		// decides which shape is live. There is no third row and no status bar:
+		// each column ends on its own controls.
 		const stacked = window.matchMedia('(max-width: 68rem)').matches;
 		const editorRegion = document.querySelector('.editor-region')!;
 		const panel = document.querySelector('.right-panel')!;
 		expect(getComputedStyle(editorRegion).gridRowStart).toBe('2');
 		expect(getComputedStyle(panel).gridRowStart).toBe(stacked ? '3' : '2');
-		expect(getComputedStyle(document.querySelector('.status-bar')!).gridRowStart).toBe(
-			stacked ? '4' : '3'
-		);
+		expect(document.querySelector('.status-bar')).toBeNull();
 		expect(getComputedStyle(workspace).display).toBe('grid');
 		expect(panel.querySelector('.panel-tabs')).toBeTruthy();
 	});
@@ -451,86 +450,6 @@ describe('Workspace and toolbar', () => {
 
 		await waitFor(() => expect(controller.snapshot.revision).toBe(6));
 		expect(controller.snapshot.text).toBe('"hello”');
-	});
-
-	test('pluralizes the status bar counts, singular at one', () => {
-		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		renderWorkspace(controller);
-
-		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
-		expect(summary.textContent).toContain('1 line · 1 section');
-		expect(summary.textContent).not.toContain('1 lines');
-		expect(summary.textContent).not.toContain('1 sections');
-	});
-
-	// The counts are one run of facts with interpuncts between them, exactly as
-	// a diagnostic's meta line is — the performer count joins the run rather
-	// than sitting in a spaced-apart group of its own.
-	test('joins the performer count into the one interpunct run', () => {
-		const { controller } = createTestWorkbench({
-			text: '[Verse]\nA lyric',
-			performers: [performer('p1', 'Ari', 0)]
-		});
-		renderWorkspace(controller);
-
-		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
-		expect(summary.textContent).toContain('1 line · 1 section · 1 performer');
-	});
-
-	// A count worth stating is one that could have been otherwise. This document
-	// has lines and sections but no performers, so the roster half of the row is
-	// absent rather than reporting a zero. The voice-group count is gone
-	// outright: it summed legend entries over the whole document — offset-keyed,
-	// so three identical choruses counted three — which is a number nobody
-	// could read anything from. Re-adding it is the specific regression.
-	test('omits a status bar count until it has something to report', () => {
-		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		renderWorkspace(controller);
-
-		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
-		expect(summary.textContent).not.toContain('0 performers');
-		expect(summary.textContent).not.toContain('voice group');
-	});
-
-	// The line count is of sung text only. Blank lines and bracket-shaped lines
-	// — headers, an unclosed `[Bridge` — are structure, and the parser keeps
-	// them out of `section.lines`; this pins that the status bar inherits the
-	// distinction rather than counting rows. A lone `[?]` is the exception the
-	// parser makes: it wears the header's brackets but stands where a line
-	// nobody could make out was sung, so it counts as the lyric it marks.
-	test('counts only lyric lines in the status bar', () => {
-		const { controller } = createTestWorkbench({
-			text: '[Verse 1]\nOne\nTwo\n\n[Chorus]\nThree\n   \n[?]\n[Bridge'
-		});
-		renderWorkspace(controller);
-
-		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
-		expect(summary.textContent).toContain('4 lines');
-	});
-
-	test('states no counts at all for an empty document', () => {
-		const { controller } = createTestWorkbench({ text: '' });
-		renderWorkspace(controller);
-
-		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
-		// Nothing left in the row counts anything, so nothing left in it is a
-		// number — which is a stricter claim than naming the four that went.
-		expect(summary.textContent).not.toMatch(/\d/);
-		expect(summary.textContent?.trim()).toBe('About LyricLint');
-	});
-
-	// The row summarises the document. A claim about the app and a legend for
-	// keystrokes nobody asked about are neither of them that, so the end of the
-	// row is the one link and nothing else.
-	test('carries no shortcut legend or offline claim in the status bar', () => {
-		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		renderWorkspace(controller);
-
-		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
-		expect(summary.textContent).not.toContain('next issue');
-		expect(summary.textContent).not.toContain('fixes');
-		expect(summary.textContent).not.toContain('offline ready');
-		expect(summary.querySelector('kbd')).toBeNull();
 	});
 
 	test('re-lints the current document immediately when its language changes', async () => {
@@ -760,7 +679,7 @@ describe('Workspace and toolbar', () => {
 		await waitFor(() => expect(controller.language).toBe('fr'));
 		await waitFor(() => expect(screen.queryByText(message)).toBeNull());
 		await waitFor(() =>
-			expect(screen.getByRole('tab', { name: /^Linter/u })).toBe(document.activeElement)
+			expect(screen.getByRole('tab', { name: /^Review/u })).toBe(document.activeElement)
 		);
 	});
 
@@ -839,36 +758,19 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
-	test('puts the way out of the workbench in the status bar, not the toolbar', () => {
+	test('puts the way out of the workbench in Preferences, not the toolbar', async () => {
 		// The toolbar holds commands that act on the document; this acts on nothing,
-		// so it lives in the quietest persistent row instead. Anyone already in the
+		// so it lives in the tab about the application instead. Anyone already in the
 		// app has found the product — what they occasionally need is a URL to hand
 		// to someone else.
 		const { controller } = createTestWorkbench();
 		renderWorkspace(controller);
 
-		const link = screen.getByRole('link', { name: 'About LyricLint' });
+		await fireEvent.click(screen.getByRole('tab', { name: 'Preferences' }));
+		const pane = screen.getByRole('tabpanel', { name: 'Preferences' });
+		const link = within(pane).getByRole('link', { name: 'About LyricLint' });
 		expect(link.getAttribute('href')).toBe('/');
-		expect(link.closest('.status-bar')).toBeTruthy();
 		expect(link.closest('.document-toolbar')).toBeNull();
-	});
-
-	// The row is a readout, and `Add audio` is its one documented exception. The
-	// unknown-marker insert used to sit here as a second control, saying `[?]` at
-	// a reader who by definition did not know what `[?]` meant — so it moved to
-	// the editor column's own action bar, where the label can explain the mark and
-	// where every other command that acts on the document at the caret lives.
-	test('keeps the status bar a readout with one control', () => {
-		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		renderWorkspace(controller);
-
-		const summary = screen.getByRole('contentinfo', { name: 'Document summary' });
-		// `Add audio` is the row's one exception and draws only where the shell has
-		// a media store; nothing else in here is pressable at any state.
-		const controls = [...summary.querySelectorAll('button')];
-		expect(controls.every((control) => /audio/iu.test(control.textContent ?? ''))).toBe(true);
-		expect(summary.textContent).not.toContain('[?]');
-		expect(summary.textContent).not.toContain('Insert');
 	});
 
 	test('offers the caret commands in the action bar, with the keystrokes that run them', async () => {
@@ -880,10 +782,9 @@ describe('Workspace and toolbar', () => {
 
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		// Level with the panel's tab strip and inside the editor column, not the
-		// toolbar and not the status bar.
+		// toolbar.
 		expect(bar.closest('.editor-region')).toBeTruthy();
 		expect(bar.closest('.document-toolbar')).toBeNull();
-		expect(bar.closest('.status-bar')).toBeNull();
 
 		// The control is a glyph, and the whole label is its accessible name — which
 		// is what keeps the trade this shape makes off the screen reader: a tooltip
@@ -1149,20 +1050,22 @@ describe('Workspace and toolbar', () => {
 		expect(bar.querySelectorAll('button').length).toBeLessThanOrEqual(4);
 	});
 
-	test('keeps the status-bar link off the accent color', () => {
-		// A quiet app control keeps navigation semantics without a permanent underline.
+	test('keeps the Preferences exit quiet', async () => {
+		// A quiet app control keeps navigation semantics without a permanent underline
+		// and with a real hit area; the muted color lives in the stylesheet.
 		const { controller } = createTestWorkbench();
 		renderWorkspace(controller);
 
-		const link = screen.getByRole('link', { name: 'About LyricLint' });
+		await fireEvent.click(screen.getByRole('tab', { name: 'Preferences' }));
+		const pane = screen.getByRole('tabpanel', { name: 'Preferences' });
+		const link = within(pane).getByRole('link', { name: 'About LyricLint' });
+		expect(link.classList.contains('about-link')).toBe(true);
 		const styles = getComputedStyle(link);
-		const row = getComputedStyle(link.closest('.status-bar')!);
-		expect(styles.color).toBe(row.color);
 		expect(styles.textDecorationLine).toBe('none');
 		expect(parseFloat(styles.minHeight)).toBeGreaterThan(0);
 	});
 
-	test('opens the one shared audio picker from the Song tab', async () => {
+	test('opens the one shared audio picker from the tray note', async () => {
 		const player = createMediaPlayer({
 			feedback: createFeedbackState(),
 			createAudio: () => new StubAudio().asMediaElement(),
@@ -1176,9 +1079,17 @@ describe('Workspace and toolbar', () => {
 		});
 		const { container } = renderWorkspace(controller);
 
-		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
-		const songPane = screen.getByRole('tabpanel', { name: 'Song' });
-		await fireEvent.click(within(songPane).getByRole('button', { name: 'Add audio source' }));
+		// The tray's fourth and final glyph, drawn only while there is nothing
+		// for the strip to show — a pictogram like the magnifier, because
+		// attaching writes nothing to the document.
+		const bar = screen.getByRole('group', { name: 'Document actions' });
+		expect(bar.querySelectorAll('button')).toHaveLength(4);
+		const note = within(bar).getByRole('button', { name: 'Add audio source' });
+		expect(note.querySelector('svg')).toBeTruthy();
+		expect(note.textContent?.trim()).toBe('');
+		expect(note.getAttribute('aria-haspopup')).toBe('dialog');
+
+		await fireEvent.click(note);
 
 		// The dialog's name follows its trigger's label: a surface announced as
 		// something narrower than what was pressed reads as the wrong dialog.
@@ -1186,6 +1097,80 @@ describe('Workspace and toolbar', () => {
 			true
 		);
 		expect(container.querySelectorAll('dialog.media-dialog')).toHaveLength(1);
+	});
+
+	test('hands focus to the surviving audio opener after attaching and detaching', async () => {
+		const player = createMediaPlayer({
+			feedback: createFeedbackState(),
+			createAudio: () => new StubAudio().asMediaElement(),
+			createObjectUrl: () => 'blob:test',
+			revokeObjectUrl: () => {},
+			loadYouTubeApi: createStubYouTubeApi().load,
+			scheduleYouTubePoll: createStubPoll().schedule
+		});
+		const { controller } = createTestWorkbench({
+			media: { repository: createInMemoryMediaRepository([]), player }
+		});
+		renderWorkspace(controller);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		const media = controller.media!;
+		vi.spyOn(media, 'attach').mockImplementation(async () => {
+			await media.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+			return true;
+		});
+
+		const add = screen.getByRole('button', { name: 'Add audio source' });
+		await userEvent.click(add);
+		await userEvent.click(screen.getByRole('button', { name: 'Choose a file…' }));
+		await waitFor(() => {
+			expect(add.isConnected).toBe(false);
+			expect(document.activeElement).toBe(
+				screen.getByRole('button', { name: 'Change audio source' })
+			);
+		});
+
+		const change = screen.getByRole('button', { name: 'Change audio source' });
+		await userEvent.click(change);
+		await userEvent.click(screen.getByRole('button', { name: 'Detach track.mp3' }));
+		await waitFor(() => {
+			expect(change.isConnected).toBe(false);
+			expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Add audio source' }));
+		});
+	});
+
+	test('offers the audio entry exactly once per state', async () => {
+		const player = createMediaPlayer({
+			feedback: createFeedbackState(),
+			createAudio: () => new StubAudio().asMediaElement(),
+			createObjectUrl: () => 'blob:test',
+			revokeObjectUrl: () => {},
+			loadYouTubeApi: createStubYouTubeApi().load,
+			scheduleYouTubePoll: createStubPoll().schedule
+		});
+		const { controller } = createTestWorkbench({
+			media: { repository: createInMemoryMediaRepository([]), player }
+		});
+		renderWorkspace(controller);
+
+		// While nothing is attached the tray holds the only way in — the Song
+		// tab names no second one.
+		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
+		const songPane = screen.getByRole('tabpanel', { name: 'Song' });
+		expect(within(songPane).queryByRole('button', { name: /audio source/iu })).toBeNull();
+		expect(
+			within(screen.getByRole('group', { name: 'Document actions' })).getByRole('button', {
+				name: 'Add audio source'
+			})
+		).toBeTruthy();
+
+		// Once something is attached the strip's pencil takes over and the tray
+		// glyph stands down.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await controller.media!.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
+		await waitFor(() =>
+			expect(screen.queryByRole('button', { name: 'Add audio source' })).toBeNull()
+		);
+		expect(screen.getByRole('button', { name: 'Change audio source' })).toBeTruthy();
 	});
 
 	// The strip's own control is the only way in, so it has to be findable: a
@@ -1263,6 +1248,30 @@ describe('Workspace and toolbar', () => {
 		expect(screen.queryByRole('button', { name: 'Stop syncing' })).toBeNull();
 	});
 
+	test.each([320, 390, 736])('keeps every toolbar command on screen at %ipx', async (width) => {
+		await page.viewport(width, 844);
+		try {
+			const { controller } = createTestWorkbench({ text: '[Verse]\nA line to review' });
+			renderWorkspace(controller);
+			const toolbar = screen.getByRole('banner', { name: 'Document controls' });
+			await screen.findByRole('button', { name: 'Copy lyrics' });
+			await screen.findByRole('button', { name: 'Compare' });
+			const controls = toolbar.querySelectorAll<HTMLElement>(
+				'.document-toolbar__commands > button, .document-toolbar__identity > button, .draft-title, summary'
+			);
+			for (const control of controls) {
+				const box = control.getBoundingClientRect();
+				if (box.width === 0) continue;
+				expect(box.left, control.outerHTML).toBeGreaterThanOrEqual(0);
+				expect(box.right, control.outerHTML).toBeLessThanOrEqual(width);
+				expect(box.bottom).toBeLessThanOrEqual(toolbar.getBoundingClientRect().bottom);
+			}
+			expect(toolbar.scrollWidth).toBeLessThanOrEqual(toolbar.clientWidth);
+		} finally {
+			await page.viewport(800, 600);
+		}
+	});
+
 	test('keeps the panel mounted at a narrow viewport with no way to dismiss it', async () => {
 		vi.stubGlobal(
 			'matchMedia',
@@ -1282,7 +1291,7 @@ describe('Workspace and toolbar', () => {
 
 		const editorRegion = screen.getByTestId('editor-region');
 		expect(getComputedStyle(editorRegion).display).not.toBe('none');
-		expect(screen.getByRole('tab', { name: /Linter/ })).toBeTruthy();
+		expect(screen.getByRole('tab', { name: /Review/ })).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Hide right panel' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Show right panel' })).toBeNull();
 	});

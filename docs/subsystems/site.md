@@ -382,6 +382,16 @@ Implementation: `src/lib/ui/styles/landing.css` (the whole system),
 `src/routes/(site)/+page.svelte`, and `scripts/render-workbench-shot.mjs`. `.site-meta__fact`
 survives in `site.css` because three surfaces draw a meta line, not one.
 
+### Spacing comes from the scale or from the geometry it aligns
+
+The hero opening and shot breath retain their fluid viewport proportions in named local tokens;
+fixed limits are multiples of the shared spacing scale. Inline quoted forms use that scale too.
+The point-list mark centers against the first text line using its line height and marker size,
+so a font change cannot leave an optical top-margin nudge behind. Reference current-row padding
+subtracts the same marker-width token that paints its border, keeping selected and resting text
+aligned. The demo fallback derives its existing insets from the editor border, number and
+performer gutters, and content and line insets rather than keeping measured pixel totals.
+
 ### The marketing site pins its scheme, and pinning one is not a handful of overrides
 
 The workbench follows `prefers-color-scheme`, because it is a tool somebody sits in front of for

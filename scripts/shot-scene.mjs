@@ -294,7 +294,7 @@ export async function prepareHeroScene(page, editor) {
 	// ones that say the most about a whole song. Capturing before they land
 	// photographs a panel that is still filling.
 	await page.waitForTimeout(2500);
-	await page.getByRole('tab', { name: 'Linter' }).click();
+	await page.getByRole('tab', { name: 'Review' }).click();
 	await openLeadingDiagnostic(page);
 	await blurEverything(page);
 

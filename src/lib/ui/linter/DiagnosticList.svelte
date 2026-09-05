@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
 	import { tick, type Snippet } from 'svelte';
+	import { BookOpen, CheckCheck } from 'lucide-svelte';
 	import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
 	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
 	import DiagnosticDetails from './DiagnosticDetails.svelte';
@@ -28,15 +29,15 @@
 		diagnostics: readonly Diagnostic[];
 		sources: ReadonlyMap<string, SourceReference>;
 		activeDiagnosticKey?: string;
-		/**
-		 * What an empty list means right now — an empty document, filters hiding
-		 * everything, every issue ignored, or a genuinely clean draft — so the
-		 * panel never just stops without saying which. `clean` marks the last of
-		 * those, which is the only one that is an achievement rather than a
-		 * circumstance: it draws centered in the pane under the check mark, where
-		 * the other three stay captions above the content that resolves them.
-		 */
-		emptyState: { title: string; detail: string; clean?: boolean };
+		/** Empty, clean, and set-aside reviews have distinct composed states.
+		 * Filtered findings stay beside the controls that reveal them. */
+		emptyState: {
+			title: string;
+			detail: string;
+			clean?: boolean;
+			settled?: boolean;
+			waiting?: boolean;
+		};
 		/**
 		 * What the reader can do about the empty state, when there is anything.
 		 * Only the untouched-document case has an answer worth a control; the
@@ -155,8 +156,14 @@
 	<div
 		class="empty-state diagnostic-list__empty"
 		class:diagnostic-list__empty--clean={emptyState.clean}
+		class:diagnostic-list__empty--settled={emptyState.settled}
+		class:diagnostic-list__empty--waiting={emptyState.waiting}
 	>
-		{#if emptyState.clean}
+		{#if emptyState.waiting}
+			<BookOpen class="diagnostic-list__empty-mark" aria-hidden="true" strokeWidth={1.25} />
+		{:else if emptyState.settled}
+			<CheckCheck class="diagnostic-list__empty-mark" aria-hidden="true" strokeWidth={1.25} />
+		{:else if emptyState.clean}
 			<!-- The check the severity glyphs already use, at reading size and in the
 			     success color. `aria-hidden` because the title beside it is the whole
 			     of what it says. -->

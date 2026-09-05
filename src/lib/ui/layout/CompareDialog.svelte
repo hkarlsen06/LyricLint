@@ -358,7 +358,7 @@
 		max-width: none;
 		max-height: calc(100dvh - var(--space-6));
 		padding: 0;
-		border: var(--border-width) solid var(--color-border-strong);
+		border: 0;
 		border-radius: var(--radius-overlay);
 		background: var(--color-overlay);
 		color: var(--color-text);
@@ -378,15 +378,14 @@
 	.compare-dialog__header {
 		display: flex;
 		min-height: 3.25rem;
-		padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
-		border-bottom: var(--border-width) solid var(--color-border);
+		padding: var(--space-4) var(--space-4) var(--space-2) var(--space-5);
 		align-items: center;
 		justify-content: space-between;
 	}
 
 	.compare-dialog__header strong {
 		font-size: var(--font-size-lg);
-		font-weight: var(--font-weight-bold);
+		font-weight: var(--font-weight-semibold);
 	}
 
 	/* The ask is prose and a paste area directly on the dialog — the dialog is
@@ -394,7 +393,7 @@
 	.compare-dialog__ask {
 		display: flex;
 		flex-direction: column;
-		padding: var(--space-4);
+		padding: var(--space-3) var(--space-5) var(--space-5);
 		gap: var(--space-3);
 	}
 
@@ -406,14 +405,14 @@
 	.compare-dialog__ask textarea {
 		min-height: 12rem;
 		padding: var(--space-2-5);
-		border: var(--border-width) solid var(--color-control-border);
+		border: var(--border-width) solid transparent;
 		border-radius: var(--radius-control);
 		background: var(--color-control);
 		color: var(--color-text);
 		/* Lyric text, so the lyric face — matching the editor the lines came from. */
 		font-family: var(--font-lyrics);
 		font-size-adjust: var(--font-lyrics-size-adjust);
-		font-size: var(--font-size-sm);
+		font-size: var(--font-size-md);
 		line-height: var(--line-height-editor);
 		resize: vertical;
 	}
@@ -430,8 +429,8 @@
 
 	.compare-dialog__meta {
 		display: flex;
-		padding: var(--space-3) var(--space-4);
-		border-bottom: var(--border-width) solid var(--color-border);
+		padding: var(--space-3) var(--space-5);
+		flex-wrap: wrap;
 		gap: var(--space-3);
 		align-items: center;
 		justify-content: space-between;
@@ -465,11 +464,10 @@
 		padding: var(--space-2) var(--space-2-5);
 	}
 
-	/* One run of hunks, hairlines where they meet — not a heading over each. */
+	/* Space separates the independent changes without ruling the lyric text. */
 	.compare-diff__hunk + .compare-diff__hunk {
-		margin-top: var(--space-1);
+		margin-top: var(--space-3);
 		padding-top: var(--space-2);
-		border-top: var(--border-width) solid var(--color-border);
 	}
 
 	/* Every line is its own press, so every line is its own button — the row
@@ -532,7 +530,7 @@
 	/* The editor's fix-preview idiom: what the page loses stays put, struck
 	   through as well as coloured — colour alone is never a state carrier. */
 	.compare-diff__drop {
-		padding: 0 0.15em;
+		padding: 0 var(--inline-diff-padding);
 		border-radius: var(--radius-sm);
 		background: var(--color-danger-surface);
 		color: var(--color-danger);
@@ -540,7 +538,7 @@
 	}
 
 	.compare-diff__add {
-		padding: 0 0.15em;
+		padding: 0 var(--inline-diff-padding);
 		border-radius: var(--radius-sm);
 		background: var(--color-success-surface);
 		color: var(--color-text);
@@ -548,7 +546,7 @@
 	}
 
 	.compare-diff__drop + .compare-diff__add {
-		margin-inline-start: 0.2em;
+		margin-inline-start: var(--inline-diff-gap);
 	}
 
 	.compare-diff__blank {

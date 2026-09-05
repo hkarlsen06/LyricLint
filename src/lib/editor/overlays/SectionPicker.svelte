@@ -153,8 +153,8 @@
 
 		z-index: calc(var(--layer-picker) + 1);
 		width: var(--ll-card-width);
-		padding: var(--space-2-5);
-		border: var(--border-width) solid var(--color-border);
+		padding: var(--space-3);
+		border: 0;
 		border-radius: var(--radius-overlay);
 		background: var(--color-overlay);
 		color: var(--color-text);

@@ -2,7 +2,7 @@
 
 ## Design Direction
 
-LyricLint is a precise editorial instrument for long transcription sessions. The interface uses a restrained, warm-neutral palette so source text remains primary, with color reserved for actions, diagnostics, and performer identity. It should feel calm, approachable, and comfortable for long writing sessions. The workbench uses rounded document and diagnostic surfaces, space instead of structural hairlines, and quiet controls that remain easy to discover.
+LyricLint is a precise editorial instrument for long transcription sessions. The interface uses a restrained, warm-neutral palette so source text remains primary, with color reserved for actions, diagnostics, and performer identity. It should feel calm, approachable, and comfortable for long writing sessions. The workbench gives the document room, names every tool in a compact dock, and uses space instead of structural hairlines. Findings read as a list; the active finding alone becomes a raised surface for a decision.
 
 The dark theme is tuned for a transcriber working at a desktop in a dim room. The light theme supports daylight editing without turning the canvas into stark white.
 
@@ -14,12 +14,12 @@ The canonical implementation is `src/lib/ui/styles/tokens.css`. Components consu
 
 - Surfaces come in two families with different jobs, and the split is load-bearing.
   - **Elevation** is `--color-canvas` (recessed) and `--color-surface` (raised), plus `--color-overlay`. Two levels, deliberately. The light theme runs out of headroom just short of white, so anything above `--color-surface` earns its place with a shadow rather than more lightness.
-  - **Fill** is `--color-fill-subtle` → `--color-fill` → `--color-fill-strong`, stepping from the surface _toward the text color_: darker in light, lighter in dark. Because the direction is perceptual rather than a lightness value, hover, selection, and emphasis read the same way in both themes. `--color-chrome` aliases the first step for flat bands like the toolbar and status bar.
+  - **Fill** is `--color-fill-subtle` → `--color-fill` → `--color-fill-strong`, stepping from the surface _toward the text color_: darker in light, lighter in dark. Because the direction is perceptual rather than a lightness value, hover, selection, and emphasis read the same way in both themes. `--color-chrome` aliases the first step for flat bands like the toolbar.
   - A card or panel never takes a fill step deeper than `--color-fill-subtle`, so no card can cross its own canvas. Dropping a row to `--color-canvas` to mark it as recessed is the elevation family, not the fill ramp, and is allowed — that is what the recessed level is for.
   - The dark anchors are charcoal, not near-black. A canvas down at the bottom of the range compresses every level above it into the darkest fifth, which is how a tab strip and the list beneath it ended up reading as one unbroken black field. Surfaces also carry very little chroma, so a violet cast never competes with the diagnostics colored on top of them.
   - **Both schemes spend comparable tonal range, and the light one is the wider of the two on purpose.** Its whole ladder used to fit inside 6.3 points of lightness where dark spent 8.5, and the step carrying the most area on screen — a chrome band against the document beside it — was 2.8 points of that. The model was never wrong; the steps simply did not arrive, so every boundary in the window fell to its hairline and the workbench read as one white sheet ruled into boxes. The paper stayed put and the levels under it moved down, because there is no room above it. Light gets the wider steps because the eye adapts to the brightest thing in view, so a near-white grey separates less than the same delta does among the charcoals — and this is the scheme meant for a lit room.
   - **Light-mode shadows are not a garnish on the lightness step, they are the only cue above `--color-surface`** — which is why they used to be the weakest thing in the system, at 8%–18% against dark's 35%–55%, and are not any more. `--shadow-raised` is what a full-width row lifted out of a run of touching rows takes; it casts at both its top and bottom edges, because such a row is clipped left and right by its own column and a shadow below it alone reads as the row _beneath_ being lower.
-  - **Recessed and raised are not fixed to a state — a state picks whichever one its scheme has a word for.** A selected diagnostic sinks in dark and lifts in light; see the linter section in `AGENTS.md` for why, and for the one surface (`.rules__index`) that stays recessed in both because its container clips an outer shadow.
+  - **The active diagnostic rises in both schemes.** Resting findings are transparent on chrome, so opening one adds `--color-surface` and `--shadow-raised` without moving it. This replaces dark selection’s recessed well: with the resting cards removed, elevation now consistently identifies the decision being worked on. The rule index (`.rules__index`) remains recessed because its container clips an outer shadow.
 - Every performer identity has a solid (`--performer-*`, the roster swatch, picker dot, and editor gutter segment) and a tint (`--performer-*-tint`, used for legend names and every voice on mixed lyric lines) on the same hue. Adjacent physical lines led by the same performer merge into one fully rounded gutter run; hovering any part of the run reveals its performer label. Hues stay fixed across themes; only lightness and chroma move.
 - Text and borders use `--color-text`, `--color-text-muted`, `--color-border`, and `--color-border-strong`.
 - Controls use the `--color-control-*` family.
@@ -50,7 +50,8 @@ The rule reference's pages are `--measure-reference` rather than the editor's me
 
 ### Spacing and Shape
 
-- Spacing follows the `--space-*` scale from 0.125rem to 3rem.
+- Spacing follows the `--space-*` scale from 0.125rem to 3rem. Padding and margins consume tokens; related edges derive from the same owner instead of independent optical offsets.
+- Inline diffs share `--inline-diff-padding` and `--inline-diff-gap` across the editor and comparison surfaces. These are type-relative spacing roles, while panel and control insets use the fixed spacing scale.
 - Standard controls use `--radius-control`. Within the workbench this takes `--radius-md`; panel surfaces take `--radius-lg`.
 - Panels use `--radius-panel`; floating overlays use `--radius-overlay`.
 - Pills are reserved for compact categorical chips and badges, not ordinary action buttons.

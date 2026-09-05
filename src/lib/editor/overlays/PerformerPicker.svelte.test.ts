@@ -581,12 +581,12 @@ describe('PerformerPicker unknown voices', () => {
 		await userEvent.click(page.getByRole('button', { name: 'New unknown voice' }));
 		expect(onAssignUnknown).toHaveBeenCalledWith(undefined);
 
-		// The plus rides one pixel above flex center: the label's line box holds
-		// its descender space at the bottom, so a geometrically centered icon
-		// reads low against the glyphs beside it.
+		// The shared flex alignment centers the icon without a positional nudge.
 		const plus = document.querySelector<SVGElement>('.chip--unknown-new svg');
 		expect(plus).not.toBeNull();
-		expect(getComputedStyle(plus!).marginBlockStart).toBe('-1px');
+		const icon = plus!.getBoundingClientRect();
+		const chip = plus!.closest('button')!.getBoundingClientRect();
+		expect(Math.abs(icon.top + icon.height / 2 - (chip.top + chip.height / 2))).toBeLessThan(1);
 
 		await view.rerender({ canAddUnknown: false });
 		expect(document.querySelector('.chip--unknown-new')).toBeNull();

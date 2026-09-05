@@ -52,7 +52,9 @@
 	   of these meet between any two sections, which is what the ceiling is
 	   sized against: past about 12rem of clear space the reader stops reading a
 	   page and starts scrolling through separate ones. */
-	--lp-band: clamp(var(--space-8), 8vw, 6rem);
+	--lp-band: clamp(var(--space-8), 8vw, calc(var(--space-8) * 2));
+	--lp-hero-opening: clamp(var(--space-8), 9.5vw, calc(var(--space-7) * 3));
+	--lp-shot-breath: clamp(var(--space-7), 5vw, var(--space-8));
 
 	position: relative;
 	/* Over the noise film, which is fixed at `--layer-editor-panel`. The page's
@@ -147,7 +149,7 @@
 	   reference composition spends ~120px there, and the difference between that
 	   and a section's ordinary padding is the difference between a page opening
 	   and a page continuing. */
-	padding-block: clamp(var(--space-8), 9.5vw, 7.5rem) var(--lp-band);
+	padding-block: var(--lp-hero-opening) var(--lp-band);
 	/* The grid and the marks are absolutely placed against this box and are
 	   allowed to run past its edges; nothing may leak sideways and give the page
 	   a horizontal scroll. */
@@ -405,7 +407,7 @@
 .lp-shot {
 	position: relative;
 	max-width: 74rem;
-	margin: clamp(var(--space-7), 5vw, var(--space-8)) auto 0;
+	margin: var(--lp-shot-breath) auto 0;
 }
 
 .lp-shot::before {
@@ -830,13 +832,15 @@
 }
 
 .lp-points__mark {
+	--point-mark-size: calc(var(--space-5) - var(--space-0-5));
 	display: grid;
-	width: 1.375rem;
-	height: 1.375rem;
+	width: var(--point-mark-size);
+	height: var(--point-mark-size);
 	border: var(--border-width) solid
 		color-mix(in oklch, var(--color-accent) 30%, var(--color-border));
 	border-radius: var(--radius-sm);
-	margin-top: 0.1em;
+	/* Center on the first line, including when the prose wraps below it. */
+	margin-top: max(0px, calc((1lh - var(--point-mark-size)) / 2));
 	background: var(--color-accent-soft);
 	color: var(--color-accent);
 	place-items: center;

@@ -48,7 +48,9 @@
 							     application's own bookkeeping and names nothing a transcriber
 							     can see in the document; the word after it already carried
 							     the whole fact. -->
-								<span>{slotLabels[group.styleSlot]}</span>
+								<span class="performer-legend__style" data-slot={group.styleSlot}
+									>{slotLabels[group.styleSlot]}</span
+								>
 							</li>
 						{/each}
 					</ul>

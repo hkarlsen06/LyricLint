@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { Check, ListEnd, Pointer, TextAlignStart, Timer, X } from 'lucide-svelte';
+	import { Check, ListEnd, Pencil, Play, Pointer, TextAlignStart, Timer } from 'lucide-svelte';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { drawsCoverBand, formatTime } from '../state/media-player.svelte.js';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import { pendingMediaLabel } from './pending-media-label.js';
 	import MediaTransport from './MediaTransport.svelte';
 	import MediaAttribution from './MediaAttribution.svelte';
+	import MediaArtwork from './MediaArtwork.svelte';
+	import LoadingMark from '../primitives/LoadingMark.svelte';
 
 	/**
 	 * Timing the whole lyric, which is a transport activity and therefore lives in
@@ -50,8 +52,16 @@
 	let {
 		media,
 		sync,
-		follow
-	}: { media: MediaStore; sync?: LyricSyncControl; follow?: FollowControl } = $props();
+		follow,
+		announce,
+		openMediaPicker
+	}: {
+		media: MediaStore;
+		sync?: LyricSyncControl;
+		follow?: FollowControl;
+		announce?: (message: string) => void;
+		openMediaPicker?: (source: HTMLButtonElement) => void;
+	} = $props();
 
 	const player = $derived(media.player);
 
@@ -162,23 +172,49 @@
 	source is attached shows in this row only in which rates the speed control
 	offers.
 -->
-<div class="media-strip" data-testid="media-strip" {@attach keepFocus} {@attach publishStripHeight}>
-	{#if player.attached}
-		<div class="media-strip__transport">
-			<MediaTransport {player} />
+<div
+	class="media-strip"
+	data-testid="media-strip"
+	data-loaded={player.attached}
+	{@attach publishStripHeight}
+>
+	{#if player.attached && drawsCoverBand(player.sourceKind)}
+		<MediaArtwork {media} {announce} />
+	{/if}
+	<div class="media-strip__controls" {@attach keepFocus}>
+		{#if openMediaPicker}
+			<!-- The way back in: swapping tracks is a decision about what the
+			     draft's song is, so it opens the same dialog every other answer
+			     lives in rather than acting here. First in the row, quiet, like
+			     the follow glyph beside it — the transport it leads is the loud
+			     thing here, not the way to replace it. -->
+			<button
+				type="button"
+				class="button--quiet icon-button"
+				aria-label="Change audio source"
+				aria-haspopup="dialog"
+				onclick={(event) => openMediaPicker(event.currentTarget)}
+				{@attach describeControl(() => ({ label: 'Change audio source' }))}
+			>
+				<Pencil aria-hidden="true" size={14} strokeWidth={2.4} />
+			</button>
+		{/if}
+		{#if player.attached}
+			<div class="media-strip__transport">
+				<MediaTransport {player} />
 
-			<span class="media-strip__time" data-testid="media-elapsed">
-				{formatTime(player.currentTime)}
-			</span>
-		</div>
+				<span class="media-strip__time" data-testid="media-elapsed">
+					{formatTime(player.currentTime)}
+				</span>
+			</div>
 
-		{#if player.error}
-			<!-- Prose in the row it belongs to, not a tinted box that pops into
+			{#if player.error}
+				<!-- Prose in the row it belongs to, not a tinted box that pops into
 			     existence. The file is still named at the far end, so re-attaching
 			     is one press away. -->
-			<p class="media-strip__error">{player.error}</p>
-		{:else}
-			<!-- The value is clamped to the range that exists, and it is the same
+				<p class="media-strip__error">{player.error}</p>
+			{:else}
+				<!-- The value is clamped to the range that exists, and it is the same
 			     `seekable` the range is drawn from rather than a second condition.
 			     A restored position is reported the moment a draft opens, before the
 			     metadata that says how long the song is — so an unclamped `112` was
@@ -193,43 +229,43 @@
 			     what the two readouts either side of it say, in the same `m:ss`, and
 			     before the metadata lands it says why the control cannot be aimed
 			     rather than reporting a range that is not the song's. -->
-			<input
-				class="media-strip__seek"
-				type="range"
-				min="0"
-				max={seekable ? player.duration : 1}
-				step="0.05"
-				value={seekable ? Math.min(player.currentTime, player.duration) : 0}
-				disabled={!seekable}
-				style="--seek-fill: {seekFill}"
-				aria-label="Seek"
-				aria-valuetext={seekable
-					? `${formatTime(player.currentTime)} of ${formatTime(player.duration)}`
-					: 'Not seekable yet'}
-				oninput={(event) => player.seek(event.currentTarget.valueAsNumber)}
-			/>
-		{/if}
+				<input
+					class="media-strip__seek"
+					type="range"
+					min="0"
+					max={seekable ? player.duration : 1}
+					step="0.05"
+					value={seekable ? Math.min(player.currentTime, player.duration) : 0}
+					disabled={!seekable}
+					style="--seek-fill: {seekFill}"
+					aria-label="Seek"
+					aria-valuetext={seekable
+						? `${formatTime(player.currentTime)} of ${formatTime(player.duration)}`
+						: 'Not seekable yet'}
+					oninput={(event) => player.seek(event.currentTarget.valueAsNumber)}
+				/>
+			{/if}
 
-		<div class="media-strip__meta">
-			<span class="media-strip__time">{formatTime(player.duration)}</span>
+			<div class="media-strip__meta">
+				<span class="media-strip__time">{formatTime(player.duration)}</span>
 
-			<!-- The rates the attached source can actually apply, not the rates the
+				<!-- The rates the attached source can actually apply, not the rates the
 			     workbench would like to offer. YouTube has a menu of its own and
 			     ignores anything off it without a word, so a control listing the
 			     constant would be offering presses that silently do nothing. -->
-			<label class="media-strip__rate">
-				<span class="sr-only">Playback speed</span>
-				<select
-					value={player.rate}
-					onchange={(event) => player.setRate(Number(event.currentTarget.value))}
-				>
-					{#each player.availableRates as rate (rate)}
-						<option value={rate}>{rate}×</option>
-					{/each}
-				</select>
-			</label>
+				<label class="media-strip__rate">
+					<span class="sr-only">Playback speed</span>
+					<select
+						value={player.rate}
+						onchange={(event) => player.setRate(Number(event.currentTarget.value))}
+					>
+						{#each player.availableRates as rate (rate)}
+							<option value={rate}>{rate}×</option>
+						{/each}
+					</select>
+				</label>
 
-			<!--
+				<!--
 				Timing the whole lyric. It sits here because syncing is a transport
 				activity — you press play and tap along — and because this row only
 				exists once there is something to tap along to.
@@ -240,25 +276,25 @@
 				reading `Stop syncing` explains that only to someone who already knows
 				what syncing is.
 			-->
-			{#if follow?.available}
-				<button
-					type="button"
-					class="button--quiet icon-button"
-					aria-pressed={follow.active}
-					aria-label="Follow the playing line"
-					title={follow.active ? 'Stop following the playing line' : 'Follow the playing line'}
-					onclick={follow.toggle}
-				>
-					{#if follow.active}
-						<ListEnd aria-hidden="true" size={14} strokeWidth={2.4} />
-					{:else}
-						<TextAlignStart aria-hidden="true" size={14} strokeWidth={2.4} />
-					{/if}
-				</button>
-			{/if}
+				{#if follow?.available}
+					<button
+						type="button"
+						class="button--quiet icon-button"
+						aria-pressed={follow.active}
+						aria-label="Follow the playing line"
+						title={follow.active ? 'Stop following the playing line' : 'Follow the playing line'}
+						onclick={follow.toggle}
+					>
+						{#if follow.active}
+							<ListEnd aria-hidden="true" size={14} strokeWidth={2.4} />
+						{:else}
+							<TextAlignStart aria-hidden="true" size={14} strokeWidth={2.4} />
+						{/if}
+					</button>
+				{/if}
 
-			{#if sync}
-				<!--
+				{#if sync}
+					<!--
 					A finished song says so rather than offering the job again, but it is
 					still the same control and still one press: `runStart` reads a fully
 					timed lyric as a fresh pass from the top, which is the only sensible
@@ -278,38 +314,38 @@
 					practice-rate run is as accurate as a full-speed one, and the anchors
 					come out in track time either way.
 				-->
-				<button
-					type="button"
-					class="button media-strip__sync"
-					title={sync.active
-						? 'Stop timing and go back to editing'
-						: sync.scopesSelection
-							? 'Play and tap Space at each selected line to time it. The run stops after the last selected line'
-							: sync.complete
-								? 'Every line is timed. Play the song from the start and tap Space to time it again'
-								: 'Play the song from the start and tap Space at each line to time it. Slowing the playback rate makes fast lines easier to tap'}
-					onclick={sync.toggle}
-				>
-					{#if !sync.active && sync.complete && !sync.scopesSelection}
-						<Check aria-hidden="true" size={13} strokeWidth={2.25} />
-					{:else}
-						<Timer aria-hidden="true" size={13} strokeWidth={2.25} />
-					{/if}
-					<span>
-						{sync.active
-							? 'Stop syncing'
+					<button
+						type="button"
+						class="button media-strip__sync"
+						title={sync.active
+							? 'Stop timing and go back to editing'
 							: sync.scopesSelection
-								? 'Sync selection'
+								? 'Play and tap Space at each selected line to time it. The run stops after the last selected line'
 								: sync.complete
-									? 'Lyrics synced'
-									: 'Sync lyrics'}
-					</span>
-				</button>
-			{/if}
+									? 'Every line is timed. Play the song from the start and tap Space to time it again'
+									: 'Play the song from the start and tap Space at each line to time it. Slowing the playback rate makes fast lines easier to tap'}
+						onclick={sync.toggle}
+					>
+						{#if !sync.active && sync.complete && !sync.scopesSelection}
+							<Check aria-hidden="true" size={13} strokeWidth={2.25} />
+						{:else}
+							<Timer aria-hidden="true" size={13} strokeWidth={2.25} />
+						{/if}
+						<span>
+							{sync.active
+								? 'Stop syncing'
+								: sync.scopesSelection
+									? 'Sync selection'
+									: sync.complete
+										? 'Lyrics synced'
+										: 'Sync lyrics'}
+						</span>
+					</button>
+				{/if}
 
-			{#if sync?.active}
-				{#if sync.canSkip && sync.skip}
-					<!--
+				{#if sync?.active}
+					{#if sync.canSkip && sync.skip}
+						<!--
 						The way past lyrics that are already timed. A song synced once and
 						then edited — a line split into several, in more than one place — is
 						timed everywhere except the new lines, and a run walking towards the
@@ -325,16 +361,16 @@
 						disappearance after the last gap is the one sign the run gives that
 						nothing ahead still wants a time.
 					-->
-					<button
-						type="button"
-						class="button media-strip__skip"
-						title="Play from the last timed line before the next untimed one"
-						onclick={sync.skip}
-					>
-						Skip timed lines
-					</button>
-				{/if}
-				<!--
+						<button
+							type="button"
+							class="button media-strip__skip"
+							title="Play from the last timed line before the next untimed one"
+							onclick={sync.skip}
+						>
+							Skip timed lines
+						</button>
+					{/if}
+					<!--
 					The tap itself, because a finger has no `Space`. It takes the slot the
 					hint took — the run's instruction is now the thing you press, which is
 					shorter to read and is the only way to drive a run on a phone.
@@ -361,20 +397,20 @@
 					whole instruction stays the accessible name, because a glyph says
 					nothing to a screen reader.
 				-->
-				<button
-					type="button"
-					class="button media-strip__tap"
-					aria-label="Tap each line"
-					aria-keyshortcuts="Space Enter"
-					title="Time the line that is starting now"
-					onclick={sync.tap}
-				>
-					<Pointer aria-hidden="true" size={14} strokeWidth={2.25} />
-					Tap
-				</button>
-				<span class="media-strip__hint">Esc stops</span>
-			{:else}
-				<!--
+					<button
+						type="button"
+						class="button media-strip__tap"
+						aria-label="Tap each line"
+						aria-keyshortcuts="Space Enter"
+						title="Time the line that is starting now"
+						onclick={sync.tap}
+					>
+						<Pointer aria-hidden="true" size={14} strokeWidth={2.25} />
+						Tap
+					</button>
+					<span class="media-strip__hint">Esc stops</span>
+				{:else}
+					<!--
 					The name and the mark are said once, and both are said wherever the song
 					is being shown: on the artwork band's own bar for a source that has one,
 					here for a source that does not.
@@ -388,66 +424,60 @@
 					reads as a glitch rather than as a hand-off. Where a band is coming, this
 					row never draws them at all.
 				-->
-				{#if !drawsCoverBand(player.sourceKind)}
-					<span class="media-strip__name" title={player.name}>{player.name}</span>
-					<MediaAttribution {media} />
+					{#if !drawsCoverBand(player.sourceKind)}
+						<span class="media-strip__name" title={player.name}>{player.name}</span>
+						<MediaAttribution {media} />
+					{/if}
 				{/if}
-			{/if}
 
+				<!--
+			No detach control, and there used to be one: an X at the end of the
+			most-operated row in the window, a few pixels from the transport, so
+			the press that missed threw the track away in the middle of the loop
+			this row exists to serve. Detaching is a decision about what the
+			draft's song is, not a transport operation, so it lives in the audio
+			dialog beside every other answer to that question
+			(`MediaPicker.svelte`), behind the same deliberate press — for a
+			remembered source no less than an attached one.
+		-->
+			</div>
+		{:else if media.pendingName}
 			<!--
-				No detach control, and there used to be one: an X at the end of the
-				most-operated row in the window, a few pixels from the transport, so
-				the press that missed threw the track away in the middle of the loop
-				this row exists to serve. Detaching is a decision about what the
-				draft's song is, not a transport operation, so it lives in the audio
-				dialog beside every other answer to that question
-				(`MediaPicker.svelte`), behind the same deliberate press. The pending
-				row below keeps its X: that state draws no transport, so there is
-				nothing beside it to miss.
-			-->
-		</div>
-	{:else if media.pendingName}
-		<!--
 			The draft remembers its audio but nothing may act on that without a
 			press, so the row asks for one. The source is named in the button rather
 			than in a sentence beside it: the name is what the press is about, and a
 			label plus a generic "Reconnect" would be two controls' worth of words
 			for one control.
 		-->
-		<!-- A bare Escape loads the pending source — the fallback under the
+			<!-- A bare Escape loads the pending source — the fallback under the
 		     transport's toggle, which the listener binds while a source is merely
 		     pending. The keystroke was in `aria-keyshortcuts` alone, which made it
 		     the one binding in the workbench nothing on screen could teach; the
 		     shared box is where every other named control already says it. -->
-		<button
-			type="button"
-			class="button button--quiet media-strip__reconnect"
-			onclick={() => void media.reconnect()}
-			disabled={media.busy}
-			aria-keyshortcuts="Escape"
-			{@attach describeControl(() =>
-				pendingLabel ? { label: pendingLabel, shortcut: 'Esc' } : undefined
-			)}
-		>
-			{pendingLabel}
-		</button>
-
-		<!--
-			Disabled while an attachment is in flight, like the reconnect beside it.
-			A detach issued during a permission prompt is a decision the store now
-			honours, but a control that stays live over a press it cannot complete
-			cleanly is a control that reads as broken — and the two buttons in this
-			row have to agree about whether the row is answering.
-		-->
-		<button
-			type="button"
-			class="button--quiet icon-button"
-			onclick={() => void media.detach()}
-			disabled={media.busy}
-			aria-label={`Forget ${media.pendingName}`}
-			title="Forget this audio"
-		>
-			<X aria-hidden="true" size={14} strokeWidth={2.4} />
-		</button>
-	{/if}
+			<span class="media-strip__pending-name" title={media.pendingName}>{media.pendingName}</span>
+			<button
+				type="button"
+				class="button media-strip__reconnect"
+				aria-label={media.busy ? `Loading… ${media.pendingName}` : pendingLabel}
+				aria-busy={media.busy}
+				onclick={() => void media.reconnect()}
+				disabled={media.busy}
+				aria-keyshortcuts="Escape"
+				{@attach describeControl(() =>
+					pendingLabel ? { label: pendingLabel, shortcut: 'Esc' } : undefined
+				)}
+			>
+				{#if media.busy}
+					<LoadingMark />
+				{:else}
+					<Play aria-hidden="true" size={16} fill="currentColor" />
+				{/if}
+				{media.busy
+					? 'Loading…'
+					: media.pendingSource === 'file'
+						? 'Reconnect audio'
+						: 'Load audio'}
+			</button>
+		{/if}
+	</div>
 </div>

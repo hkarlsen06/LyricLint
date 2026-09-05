@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { Info } from 'lucide-svelte';
 	import type {
 		EditorHandle,
 		EditorSnapshot,
@@ -31,11 +30,9 @@
 		mergeHarperDiagnostics,
 		type HarperDiagnosticProvider
 	} from '$lib/rules/index.js';
-	import { resolve } from '$app/paths';
 	import { useAssistantState } from '$lib/assistant/assistant.svelte.js';
 	import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
 	import { onDestroy, type Component, untrack } from 'svelte';
-	import { MediaQuery } from 'svelte/reactivity';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import {
 		buildRuleContext,
@@ -55,7 +52,6 @@
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
 	import { carryHarperDiagnosticsAcrossEdit } from '../state/harper-continuity.js';
 	import { trackKeyboardInset } from '../state/keyboard-inset.js';
-	import { STACKED_BREAKPOINT } from '../state/phone-layout.js';
 	import RightPanel from './RightPanel.svelte';
 
 	let {
@@ -73,11 +69,20 @@
 	} = $props();
 
 	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
-	let mediaPicker = $state<{ open(source?: HTMLButtonElement): Promise<void> }>();
+	let mediaPicker = $state<{
+		open(source?: HTMLButtonElement, fallbackFocus?: () => void): Promise<void>;
+	}>();
 	const EditorComponent = $derived(editorComponent);
 
 	function openMediaPicker(source: HTMLButtonElement): void {
-		void mediaPicker?.open(source);
+		const workspace = source.closest('.workspace');
+		void mediaPicker?.open(source, () => {
+			workspace
+				?.querySelector<HTMLButtonElement>(
+					'button[aria-label="Add audio source"], button[aria-label="Change audio source"]'
+				)
+				?.focus();
+		});
 	}
 
 	// Undefined in a workspace rendered on its own, which is how every component
@@ -222,43 +227,7 @@
 		return assistant.registerDraftBridge(bridge);
 	});
 
-	/** The stacked layout, in step with the matching block in responsive.css. */
-	const stacked = new MediaQuery(`(max-width: ${STACKED_BREAKPOINT})`);
-
 	const reducedMotion = prefersReducedMotion();
-
-	// Local on purpose: the codebase has no shared pluralizer, and the status
-	// bar is UI chrome (always English), not lyric text, so the language packs
-	// under $lib/languages do not apply.
-	function count(value: number, noun: string): string {
-		return `${value} ${noun}${value === 1 ? '' : 's'}`;
-	}
-
-	// Read-only presentation stats for the status bar; derived from the snapshot
-	// the controller already holds, never written back. `section.lines` holds
-	// only sung text — the parser keeps blank lines and bracket-shaped lines
-	// out of it — so the count is of lyric lines, not of the document's rows.
-	const documentStats = $derived.by(() => {
-		const parsed = controller.snapshot.parsed;
-		const lines = parsed.sections.reduce((total, section) => total + section.lines.length, 0);
-		return {
-			lines,
-			sections: parsed.sections.length,
-			performers: controller.performers.length
-		};
-	});
-
-	// A count worth stating is one that could have been otherwise. On a fresh
-	// document all four are zero, which is four more ways for the window to say
-	// "empty" to someone who can already see that it is — so each one waits
-	// until it has something to report.
-	const documentCounts = $derived(
-		[
-			documentStats.lines > 0 ? count(documentStats.lines, 'line') : undefined,
-			documentStats.sections > 0 ? count(documentStats.sections, 'section') : undefined,
-			documentStats.performers > 0 ? count(documentStats.performers, 'performer') : undefined
-		].filter((label) => label !== undefined)
-	);
 
 	// Run the rule engine for one revision and fold the diagnostics into the
 	// snapshot before the controller stores it. Composition revisions reuse the
@@ -1028,7 +997,7 @@
 		<!-- Level with the panel's tab strip, so the two read as one band under the
 		     toolbar: the editor's commands at the left of the window, the panel's
 		     tabs at the right. -->
-		<EditorActions {controller} />
+		<EditorActions {controller} openMediaPicker={controller.media ? openMediaPicker : undefined} />
 
 		<div class="editor-host" data-testid="editor-region">
 			{#key controller.draftId}
@@ -1045,36 +1014,25 @@
 
 		<!-- Only when there is something to control: an empty transport reports a
 		     state that could not have been otherwise, which is the same reason the
-		     status bar's counts wait for a count worth stating. -->
+		     counts in the Song tab wait for a count worth stating. -->
 		{#if controller.media && (controller.media.player.attached || controller.media.pendingName)}
-			<MediaStrip media={controller.media} sync={lyricSync} follow={followControl} />
+			<MediaStrip
+				media={controller.media}
+				sync={lyricSync}
+				follow={followControl}
+				announce={(message) => controller.feedback.announce(message)}
+				{openMediaPicker}
+			/>
 		{/if}
 	</section>
 
-	<!--
-		Stacked, the status bar is handed to the panel rather than kept as the
-		grid's last row. It is the window's summary and belongs on the floor of the
-		window — but at this size that floor is a band taken off a list that is
-		already too short, and the row holds the only way to attach audio, so it
-		cannot simply be dropped. Inside the panel's scroll port it is the last
-		thing under the player, reached by scrolling to the bottom of whichever tab
-		is open. One element either way: rendering it twice would put a second
-		`Add audio` dialog and a second copy of every count in the document.
+	<RightPanel {controller} {assistant} />
 
-		`stacked` is the same breakpoint as the documented block in responsive.css and
-		has to be changed with it. Its fallback is false, so a server render — which
-		has no viewport to ask — emits the grid row, which is where the CSS still
-		puts it until the query resolves.
-	-->
-	<RightPanel
-		{controller}
-		{assistant}
-		openMediaPicker={controller.media ? openMediaPicker : undefined}
-		footer={stacked.current ? statusBar : undefined}
-	/>
-
-	{#if !stacked.current}
-		{@render statusBar()}
+	{#if controller.media}
+		<!-- One shared audio dialog behind the tray's note glyph and the strip's
+		     pencil: the triggers live where they act, the dialog mounts once at
+		     the workspace root so it survives either surface. -->
+		<MediaPicker bind:this={mediaPicker} media={controller.media} draftTitle={controller.title} />
 	{/if}
 </main>
 
@@ -1083,44 +1041,3 @@
      that a workspace rendered on its own — which is how every component test
      renders it — still has somewhere to draw. -->
 <ControlTooltip />
-
-{#snippet statusBar()}
-	<footer class="status-bar" aria-label="Document summary">
-		<span class="status-bar__group">
-			<!-- The way in to the audio, in the row the transport itself appears
-			     directly above. It is a control among readouts, so unlike the counts
-			     it does not wait for something to report — a stable slot with a
-			     label that follows the state is what makes it findable at all. -->
-			{#if controller.media}
-				<!-- The title rides along so the picker can offer a search for the song
-				     this draft is already named after, rather than only for one that
-				     has been attached. -->
-				<MediaPicker
-					bind:this={mediaPicker}
-					media={controller.media}
-					draftTitle={controller.title}
-				/>
-			{/if}
-			{#if documentCounts.length > 0}
-				<span>{documentCounts.join(' · ')}</span>
-			{/if}
-		</span>
-		<!-- The way out of the workbench, and the only one on the desktop layout.
-		     It belongs here rather than in the toolbar for two reasons: the toolbar
-		     holds commands that act on the document and this acts on nothing, and
-		     anyone already inside the app has no need to be told what the app is.
-		     What they do need, occasionally, is a URL to hand someone else — so it
-		     sits in the quietest persistent row on the screen.
-
-		     It is the whole end of the row now. "offline ready" was a fact about
-		     the app rather than about the document this row summarises, and the
-		     two keystroke hints were a legend for shortcuts nobody had asked for
-		     help with — three items of chrome to make one link look less alone. -->
-		<span class="status-bar__group">
-			<a class="status-bar__link" href={resolve('/')}>
-				<Info size={14} aria-hidden="true" />
-				About LyricLint
-			</a>
-		</span>
-	</footer>
-{/snippet}

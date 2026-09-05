@@ -514,7 +514,7 @@ export const performerDecorationTheme = EditorView.baseTheme({
 	// is explicit; single-voice lines rely on the gutter. Legend names introduce
 	// the same colors in the header.
 	'.ll-performer-mixed, .ll-performer-legend-name': {
-		borderRadius: 'var(--radius-xs)',
+		borderRadius: 'var(--radius-sm)',
 		background: 'var(--ll-performer-tint)',
 		boxDecorationBreak: 'clone',
 		WebkitBoxDecorationBreak: 'clone'

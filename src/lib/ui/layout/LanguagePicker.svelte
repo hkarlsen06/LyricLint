@@ -207,7 +207,7 @@
 		height: min(38rem, calc(100dvh - var(--space-6)));
 		max-height: none;
 		padding: 0;
-		border: var(--border-width) solid var(--color-border-strong);
+		border: 0;
 		border-radius: var(--radius-overlay);
 		background: var(--color-overlay);
 		color: var(--color-text);
@@ -227,22 +227,22 @@
 	.language-dialog__header {
 		display: flex;
 		min-height: 3.25rem;
-		padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
-		border-bottom: var(--border-width) solid var(--color-border);
+		padding: var(--space-4) var(--space-4) var(--space-2) var(--space-5);
 		align-items: center;
 		justify-content: space-between;
 	}
 
 	.language-dialog__header strong {
 		font-size: var(--font-size-lg);
-		font-weight: var(--font-weight-bold);
+		font-weight: var(--font-weight-semibold);
 	}
 
 	.language-search {
 		display: grid;
-		margin: var(--space-3);
+		margin: var(--space-2) var(--space-5) var(--space-3);
 		grid-template-columns: auto minmax(0, 1fr);
-		border: var(--border-width) solid var(--color-control-border);
+		border: var(--border-width) solid transparent;
+		box-shadow: var(--shadow-control);
 		border-radius: var(--radius-control);
 		background: var(--color-control);
 		align-items: center;
@@ -260,15 +260,17 @@
 
 	.language-search input {
 		min-width: 0;
+		font-size: var(--font-size-md);
 		border: 0;
 		background: transparent;
+		box-shadow: none;
 		outline: 0;
 	}
 
 	.language-results {
 		min-height: 0;
 		overflow-y: auto;
-		padding: 0 var(--space-2) var(--space-2);
+		padding: 0 var(--space-3) var(--space-3);
 	}
 
 	.language-results ul {
@@ -287,7 +289,6 @@
 	.language-group--all {
 		margin-top: var(--space-2);
 		padding-top: var(--space-3);
-		border-top: var(--border-width) solid var(--color-border);
 	}
 
 	.language-option {
@@ -311,7 +312,7 @@
 	}
 
 	.language-option.selected {
-		background: var(--color-selected);
+		background: var(--color-fill);
 		font-weight: var(--font-weight-semibold);
 	}
 
@@ -329,7 +330,7 @@
 	}
 
 	.language-option.selected .language-option__meta {
-		color: var(--color-accent);
+		color: var(--color-text);
 	}
 
 	.language-empty {

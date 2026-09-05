@@ -832,8 +832,8 @@
 		max-height: inherit;
 		overflow-y: auto;
 		gap: var(--space-2);
-		padding: var(--space-2-5);
-		border: var(--border-width) solid var(--color-border-strong);
+		padding: var(--space-3);
+		border: 0;
 		border-radius: var(--radius-overlay);
 		background: var(--color-overlay);
 		color: var(--color-text);
@@ -933,8 +933,8 @@
 	}
 
 	.compare__difference + .compare__difference {
+		margin-top: var(--space-3);
 		padding-block-start: var(--space-2);
-		border-block-start: var(--border-width) solid var(--color-border);
 	}
 
 	.compare__context {
@@ -1008,7 +1008,7 @@
 	   horizontal padding, so it grows around its text rather than over the text
 	   beside it. */
 	.compare__run {
-		padding: 0 0.15em;
+		padding: 0 var(--inline-diff-padding);
 		border-radius: var(--radius-sm);
 		background: var(--color-warning-soft);
 		color: var(--color-text);
@@ -1022,7 +1022,7 @@
 	   Struck through as well as coloured, because colour alone is never a state
 	   carrier here. */
 	.compare__drop {
-		padding: 0 0.15em;
+		padding: 0 var(--inline-diff-padding);
 		border-radius: var(--radius-sm);
 		background: var(--color-danger-surface);
 		color: var(--color-danger);
@@ -1030,7 +1030,7 @@
 	}
 
 	.compare__add {
-		padding: 0 0.15em;
+		padding: 0 var(--inline-diff-padding);
 		border-radius: var(--radius-sm);
 		background: var(--color-success-surface);
 		color: var(--color-text);
@@ -1038,7 +1038,7 @@
 	}
 
 	.compare__drop + .compare__add {
-		margin-inline-start: 0.2em;
+		margin-inline-start: var(--inline-diff-gap);
 	}
 
 	/* A row that is already saying the winning version has nothing to show as a
@@ -1135,8 +1135,7 @@
 	}
 
 	.row:has(.row__check:checked):not(.row--current) {
-		border-color: var(--color-border-strong);
-		background: var(--color-selected);
+		background: var(--color-fill);
 	}
 
 	.row__check {

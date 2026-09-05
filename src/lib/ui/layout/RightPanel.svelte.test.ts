@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 import LiveRegion from '../primitives/LiveRegion.svelte';
@@ -76,9 +76,10 @@ function withAudio(options: Parameters<typeof createTestWorkbench>[0] = {}) {
 }
 
 describe('RightPanel', () => {
-	afterEach(() => {
+	afterEach(async () => {
 		cleanup();
 		vi.unstubAllEnvs();
+		await page.viewport(800, 600);
 	});
 
 	// The panes are flex columns so the linter can pin its foot to the bottom of
@@ -156,39 +157,81 @@ describe('RightPanel', () => {
 		);
 	});
 
-	test('switches tabs with keyboard-operable Bits UI tabs', async () => {
+	// The same inset owns the dock's bottom and outside edge, and the composer
+	// finishes on that control boundary rather than its label's baseline.
+	test('gives Preferences equal outer insets and aligns the composer with its button', async () => {
+		await page.viewport(1496, 900);
+		const { controller } = createTestWorkbench();
+		controller.setActiveTab('assistant');
+		render(RightPanel, { controller, assistant: panelAssistant() });
+		const panel = document.querySelector<HTMLElement>('.right-panel')!;
+		panel.style.height = '40rem';
+
+		const field = document.querySelector<HTMLElement>('.assistant-composer__field')!;
+		const preferences = screen.getByRole('tab', { name: 'Preferences' });
+		await waitFor(() => expect(field.getBoundingClientRect().height).toBeGreaterThan(0));
+		const edge = panel.getBoundingClientRect();
+		const button = preferences.getBoundingClientRect();
+		expect(edge.right - button.right).toBeGreaterThan(0);
+		expect(edge.bottom - button.bottom).toBeCloseTo(edge.right - button.right, 1);
+		expect(field.getBoundingClientRect().bottom).toBeCloseTo(button.bottom, 1);
+		// Selected text must fit too; its heavier weight used to clip the rim.
+		await fireEvent.click(preferences);
+		const selected = preferences.getBoundingClientRect();
+		expect(edge.bottom - selected.bottom).toBeCloseTo(edge.right - selected.right, 1);
+	});
+
+	test.each([390, 1496])('switches tools with the dock’s arrow keys at %ipx', async (width) => {
+		await page.viewport(width, 846);
 		const { controller } = createTestWorkbench();
 		render(RightPanel, { controller, assistant: panelAssistant() });
+		// A supported short desktop must scroll the dock, not lose its last tool.
+		const panel = document.querySelector<HTMLElement>('.right-panel')!;
+		if (width === 1496) panel.style.height = '340px';
 
-		// Assistant is a glyph with no text, so tabs are read by accessible name.
+		// Every tool carries a visible label and an icon; names remain keyboard targets.
 		expect(
 			screen
 				.getAllByRole('tab')
 				.map((tab) => tab.getAttribute('aria-label') ?? tab.textContent?.trim())
-		).toEqual(['Linter', 'Assistant', 'Performers', 'Song', 'Preferences']);
+		).toEqual(['Review', 'Assistant', 'Performers', 'Song', 'Preferences']);
 
 		const performersTab = screen.getByRole('tab', { name: 'Performers' });
 		await fireEvent.click(performersTab);
 		expect(controller.activeTab).toBe('performers');
 		expect(screen.getByText('Add performer')).toBeTruthy();
 
-		const linterTab = screen.getByRole('tab', { name: /Linter/ });
+		const linterTab = screen.getByRole('tab', { name: /Review/ });
 		linterTab.focus();
-		await fireEvent.keyDown(linterTab, { key: 'ArrowRight' });
+		await fireEvent.keyDown(linterTab, {
+			key: window.matchMedia('(min-width: 78rem)').matches ? 'ArrowDown' : 'ArrowRight'
+		});
 		await waitFor(() => expect(controller.activeTab).toBe('assistant'));
 		expect(document.activeElement?.getAttribute('aria-label')).toBe('Assistant');
 
-		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+		await fireEvent.keyDown(document.activeElement!, {
+			key: window.matchMedia('(min-width: 78rem)').matches ? 'ArrowDown' : 'ArrowRight'
+		});
 		await waitFor(() => expect(controller.activeTab).toBe('performers'));
 		expect(document.activeElement?.textContent).toContain('Performers');
 
-		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+		await fireEvent.keyDown(document.activeElement!, {
+			key: window.matchMedia('(min-width: 78rem)').matches ? 'ArrowDown' : 'ArrowRight'
+		});
 		await waitFor(() => expect(controller.activeTab).toBe('song'));
 		expect(document.activeElement?.textContent).toContain('Song');
 
-		await fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+		await fireEvent.keyDown(document.activeElement!, {
+			key: window.matchMedia('(min-width: 78rem)').matches ? 'ArrowDown' : 'ArrowRight'
+		});
 		await waitFor(() => expect(controller.activeTab).toBe('preferences'));
 		expect(document.activeElement?.textContent).toContain('Preferences');
+		if (width === 1496) {
+			const preferences = screen.getByRole('tab', { name: 'Preferences' });
+			expect(preferences.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+				panel.getBoundingClientRect().bottom
+			);
+		}
 	});
 
 	test('keeps the four base tabs and mounts no assistant pane when unavailable', async () => {
@@ -199,7 +242,7 @@ describe('RightPanel', () => {
 
 		await waitFor(() => expect(controller.activeTab).toBe('linter'));
 		expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
-			'Linter',
+			'Review',
 			'Performers',
 			'Song',
 			'Preferences'
@@ -271,7 +314,7 @@ describe('RightPanel', () => {
 		const { controller } = createTestWorkbench({ diagnostics: [finding] });
 		render(RightPanel, { controller });
 
-		const linterTab = screen.getByRole('tab', { name: /Linter/ });
+		const linterTab = screen.getByRole('tab', { name: /Review/ });
 		const filters = () => screen.queryByRole('group', { name: 'Filter diagnostics by severity' });
 
 		// The chips used to hang off a second press on this tab from inside the
@@ -322,29 +365,12 @@ describe('RightPanel', () => {
 			expect(getComputedStyle(row).borderBottomWidth).toBe('0px');
 		}
 
-		// Selection is depth, and the direction is the scheme's own answer — so this
-		// asserts whichever branch it is running under rather than one of them. Dark
-		// drops the expanded row to the recessed elevation, darker than its
-		// neighbour, with an inner shadow so it reads as cut into the column. Light
-		// cannot rise by lightness, its resting cards being the paper already, so it
-		// keeps the paper and lifts on an outward shadow instead: sunk there, the one
-		// card carrying a fix wore the grey this workbench spends on things that are
-		// spent. Both halves of the light state matter, and either alone is the bug.
 		const expanded = rows.find((row) => row.classList.contains('diagnostic-card--expanded'))!;
 		const closed = rows.find((row) => !row.classList.contains('diagnostic-card--expanded'))!;
 		const expandedStyle = getComputedStyle(expanded);
-
-		if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-			expect(expandedStyle.backgroundColor).not.toBe(getComputedStyle(closed).backgroundColor);
-			expect(expandedStyle.boxShadow).toContain('inset');
-		} else {
-			expect(expandedStyle.backgroundColor).toBe(getComputedStyle(closed).backgroundColor);
-			expect(expandedStyle.boxShadow).not.toBe('none');
-			expect(expandedStyle.boxShadow).not.toContain('inset');
-			// The seam goes with the lift, and only its color does: the border keeps
-			// the 1px asserted above, so opening a card never moves the list.
-			expect(expandedStyle.borderBottomColor).toBe('rgba(0, 0, 0, 0)');
-		}
+		expect(expandedStyle.backgroundColor).not.toBe(getComputedStyle(closed).backgroundColor);
+		expect(expandedStyle.boxShadow).not.toBe('none');
+		expect(getComputedStyle(closed).boxShadow).toBe('none');
 
 		// The severity is a colored glyph and a colored word on the meta line, not
 		// a filled badge holding a line of its own above the message.
@@ -693,10 +719,8 @@ describe('RightPanel', () => {
 		const { controller } = createTestWorkbench({ text: '   \n\n', diagnostics: [] });
 		render(RightPanel, { controller });
 
-		expect(screen.getByText('Nothing to lint yet')).toBeTruthy();
-		expect(
-			screen.getByText('Findings appear here as soon as the document has something in it.')
-		).toBeTruthy();
+		expect(screen.getByText('Ready for your lyrics')).toBeTruthy();
+		expect(screen.getByText('Suggestions will appear here as you write.')).toBeTruthy();
 		expect(screen.getByRole('button', { name: "Load a sample 'scribe" })).toBeTruthy();
 		expect(screen.queryByText('No issues found')).toBeNull();
 	});
@@ -719,7 +743,7 @@ describe('RightPanel', () => {
 		controller.setLanguage('no');
 		render(RightPanel, { controller });
 
-		await waitFor(() => expect(screen.getByText('Nothing to lint yet')).toBeTruthy());
+		await waitFor(() => expect(screen.getByText('Ready for your lyrics')).toBeTruthy());
 		expect(screen.queryByRole('button', { name: "Load a sample 'scribe" })).toBeNull();
 	});
 
@@ -817,7 +841,7 @@ describe('RightPanel', () => {
 		render(RightPanel, { controller: clean });
 		expect(screen.getByText('No issues found')).toBeTruthy();
 		expect(
-			screen.getByText("This 'scribe passes every enabled rule. Diagnostics reappear as you edit.")
+			screen.getByText('Your lyrics pass every enabled rule. Checking continues as you write.')
 		).toBeTruthy();
 		cleanup();
 
@@ -829,7 +853,7 @@ describe('RightPanel', () => {
 		const { controller } = createTestWorkbench({ diagnostics: [finding] });
 		render(RightPanel, { controller });
 
-		await fireEvent.click(screen.getByRole('tab', { name: /Linter/ }));
+		await fireEvent.click(screen.getByRole('tab', { name: /Review/ }));
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
 		expect(screen.getByText('Hidden by filters')).toBeTruthy();
 		expect(
@@ -840,11 +864,9 @@ describe('RightPanel', () => {
 		// should stop pointing at the filters once they no longer hide anything.
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
 		controller.ignoreDiagnostic(finding);
-		await waitFor(() => expect(screen.getByText('Nothing left to show')).toBeTruthy());
+		await waitFor(() => expect(screen.getByText('All findings set aside')).toBeTruthy());
 		expect(
-			screen.getByText(
-				"Every finding here is set aside for this 'scribe. Bring any of them back from the list below."
-			)
+			screen.getByText('Your choices are saved with this draft. You can restore any finding below.')
 		).toBeTruthy();
 	});
 
@@ -868,7 +890,7 @@ describe('RightPanel', () => {
 		await controller.media!.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
 		await waitFor(() => expect(document.querySelector('.media-video')).not.toBeNull());
 
-		const column = document.querySelector('.right-panel__tabs-root')!;
+		const column = document.querySelector('.right-panel__content')!;
 		const video = document.querySelector('.media-video')!;
 		expect(column.lastElementChild).toBe(video);
 		// Chrome, like the tab strip at the other end of the column: `--color-canvas`
@@ -918,7 +940,7 @@ describe('RightPanel', () => {
 		// With every severity shown, the line after the last card closes the list.
 		expect(screen.getByText('No further issues detected.')).toBeTruthy();
 
-		await fireEvent.click(screen.getByRole('tab', { name: /Linter/ }));
+		await fireEvent.click(screen.getByRole('tab', { name: /Review/ }));
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
 		expect(screen.queryByText('No further issues detected.')).toBeNull();
 		expect(screen.getByText('1 more issue hidden by the severity filters.')).toBeTruthy();
