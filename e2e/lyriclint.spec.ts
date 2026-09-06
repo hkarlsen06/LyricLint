@@ -43,7 +43,7 @@ async function expectDocText(page: Page, expected: string): Promise<void> {
 }
 
 async function openWorkspace(page: Page): Promise<void> {
-	await page.goto('/lint/');
+	await page.goto('/workbench/');
 	await expect(editor(page)).toBeVisible();
 }
 
@@ -137,7 +137,7 @@ test('the homepage and workbench align the wordmark and link it home', async ({ 
 	await expect(page).toHaveURL(/\/$/u);
 });
 
-test('marketing home opens the workbench at /lint', async ({ page }) => {
+test('marketing home opens the canonical workbench', async ({ page }) => {
 	await page.goto('/');
 
 	await expect(
@@ -162,10 +162,20 @@ test('marketing home opens the workbench at /lint', async ({ page }) => {
 		.toBe(true);
 	await page.getByRole('link', { name: 'Open the workbench' }).first().click();
 
-	await expect(page).toHaveURL(/\/lint\/$/u);
+	await expect(page).toHaveURL(/\/workbench\/$/u);
 	await expect(editor(page)).toBeVisible();
 	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
 	await expect(page.locator('main.workspace h1')).toHaveText('LyricLint transcription workbench');
+});
+
+test('the old lint URL permanently redirects without losing workspace state', async ({ page }) => {
+	const response = await page.request.get('/lint/?panel=linking&x=1&x=2', { maxRedirects: 0 });
+	expect(response.status()).toBe(308);
+	expect(response.headers().location).toBe('/workbench/?panel=linking&x=1&x=2');
+
+	await page.goto('/lint/?panel=linking&x=1&x=2#draft');
+	await expect(page).toHaveURL(/\/workbench\/\?panel=linking&x=1&x=2#draft$/u);
+	await expect(editor(page)).toBeVisible();
 });
 
 test('the landing page activates its real editor only near the live demo', async ({ page }) => {
@@ -266,7 +276,9 @@ test('the landing demo keeps accepted and ignored findings dismissed while editi
 
 	// Moving the accepted marker and introducing a fresh finding proves that a
 	// subsequent lint pass retains the decision while still checking other text.
-	const edited = lyrics.replace('counted every', 'counted nearly every').replace('(Yeah)', '(yeah)');
+	const edited = lyrics
+		.replace('counted every', 'counted nearly every')
+		.replace('(Yeah)', '(yeah)');
 	await replaceDocument(page, edited);
 	await demo.getByRole('heading').click();
 	await expect(findings).toHaveCount(1);
@@ -814,6 +826,7 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 	expect(sitemap).toContain(
 		'<loc>https://lyriclint.com/guidelines/checks/spelling-arabic-common/</loc>'
 	);
+	expect(sitemap).not.toContain('/workbench/');
 	expect(sitemap).not.toContain('/lint/');
 
 	const robots = await (await request.get('/robots.txt')).text();
@@ -1237,7 +1250,7 @@ test.describe('phone', () => {
 	test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
 	test('supports both orientations without a desktop recommendation', async ({ page }) => {
-		await page.goto('/lint/');
+		await page.goto('/workbench/');
 		await expect(page.locator('main.workspace')).toBeVisible();
 		await expect(page.getByRole('navigation', { name: 'Workbench views' })).toBeVisible();
 		await page.setViewportSize({ width: 844, height: 390 });
@@ -1281,7 +1294,7 @@ test('offline reopen from cache via the service worker', async ({ page, context 
 });
 
 /**
- * The offline snapshot is the app, not the site: `/` and `/lint/` are precached
+ * The offline snapshot is the app, not the site: `/` and `/workbench/` are precached
  * and the 60 rule reference pages — most of the deploy by bytes, re-fetched
  * per visitor per deploy when they were precached — are not. A rules page joins
  * the snapshot by being read, which is the navigation strategy writing what it
@@ -1309,7 +1322,7 @@ test('the offline snapshot precaches the app and admits the guide when read', as
 			return paths.filter((path) => !path.startsWith('/_app/'));
 		});
 
-	await expect.poll(cachedPages).toContain('/lint/');
+	await expect.poll(cachedPages).toContain('/workbench/');
 	expect(await cachedPages()).not.toContain('/workbench.png');
 	expect(await cachedPages()).not.toContainEqual(expect.stringMatching(/\.webm$/u));
 	expect(await cachedPages()).toContain('/workbench-640.webp');

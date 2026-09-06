@@ -50,7 +50,7 @@ const precachedImmutable = build.filter((asset) => !asset.endsWith('.wasm'));
  */
 const precachedPages = prerendered.filter((page) => {
 	const path = toPathname(page).replace(/\/$/u, '');
-	return path === base || path === `${base}/lint`;
+	return path === base || path === `${base}/workbench`;
 });
 const pagePaths = new Set(prerendered.map(toPathname));
 const staticPaths = new Set(files.map(toPathname));

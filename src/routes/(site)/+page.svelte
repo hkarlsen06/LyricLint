@@ -119,7 +119,7 @@
 	const socialDescription =
 		'Paste your lyrics. Review formatting fixes and their sources. Copy the finished text into Genius.';
 	const canonicalUrl = siteUrl('/');
-	const appUrl = siteUrl('/lint/');
+	const appUrl = siteUrl('/workbench/');
 	const harperUrl = $derived(data.harperUrl);
 	// The `WebSite` node is what Google's site-name feature reads — without it,
 	// results print the bare domain where the brand should be. It belongs on the
@@ -257,7 +257,7 @@ You said we'd drive until the radio gave out (yeah)`;
 			     step away as the fact line's first entry rather than a link of
 			     their own between the buttons and the facts. -->
 			<div class="lp-hero__actions">
-				<a class="button button--contrast" href={resolve('/lint/')}>
+				<a class="button button--contrast" href={resolve('/workbench/')}>
 					<LyricIcon />
 					<span>Open the workbench</span>
 				</a>
@@ -764,7 +764,7 @@ You said we'd drive until the radio gave out (yeah)`;
 			<h2>Submit it right the first time.</h2>
 			<p>LyricLint is free and needs no account. Paste your lyrics and see what it finds.</p>
 			<div class="lp-cta__actions">
-				<a class="button button--contrast" href={resolve('/lint/')}>
+				<a class="button button--contrast" href={resolve('/workbench/')}>
 					<LyricIcon />
 					<span>Open the workbench</span>
 				</a>

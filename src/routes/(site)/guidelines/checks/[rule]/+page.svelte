@@ -277,6 +277,6 @@
 	     page is the way back — one of them would always be the second control for
 	     a move the reader already has. -->
 	<div class="site-actions">
-		<a class="button" href={resolve('/lint/')}>Check a transcription in the workbench</a>
+		<a class="button" href={resolve('/workbench/')}>Check a transcription in the workbench</a>
 	</div>
 </main>

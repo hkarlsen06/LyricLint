@@ -2,7 +2,7 @@
 	"name": "LyricLint",
 	"short_name": "LyricLint",
 	"description": "A linter for Genius lyric transcriptions.",
-	"start_url": "/lint/",
+	"start_url": "/workbench/",
 	"scope": "/",
 	"display": "standalone",
 	"orientation": "portrait",

@@ -34,9 +34,9 @@ const profiles = {
 		throughput: 10_000_000 / 8
 	}
 };
-const routes = (process.env.PERF_ROUTES ?? '/,/lint/,/guidelines/').split(',');
+const routes = (process.env.PERF_ROUTES ?? '/,/workbench/,/guidelines/').split(',');
 assert(
-	routes.every((route) => ['/', '/lint/', '/guidelines/'].includes(route)),
+	routes.every((route) => ['/', '/workbench/', '/guidelines/'].includes(route)),
 	'Unknown audit route'
 );
 const settleMs = 10_000;
@@ -144,7 +144,7 @@ async function interact(page, route, profile) {
 		await page.waitForTimeout(300);
 		actions.push({ name, startMs: start, endMs: await page.evaluate(() => performance.now()) });
 	}
-	if (route === '/lint/') {
+	if (route === '/workbench/') {
 		const editor = page.getByRole('textbox', { name: 'Lyrics editor' });
 		await editor.waitFor({ state: 'visible', timeout: 120_000 });
 		await action('Paste representative lyrics', () =>

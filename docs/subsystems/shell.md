@@ -93,6 +93,20 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## Decision record
 
+### The workbench URL names the whole instrument
+
+`/workbench/` is the canonical app entry. The surface writes, reviews, assigns performers, links
+sections, times lyrics and manages drafts as well as linting, so the former `/lint/` path named only
+one part of the job while the product and its calls to action already called the whole surface the
+workbench. Internal links, panel URL updates, OAuth returns, the web app manifest and offline
+snapshot all use the canonical path.
+
+Published `/lint` and `/lint/` links remain valid through permanent redirects in `static/_redirects`,
+mirrored by Vite for local development and preview and by the legacy route for client navigation.
+The redirect preserves query parameters and fragments so a bookmarked panel or in-progress OAuth
+return lands in the same state. The sitemap contains neither the canonical private workspace nor
+its legacy address. Pins: `workbench-redirect.test.ts` and `e2e/lyriclint.spec.ts`.
+
 ### Linking opens an overview before a comparison
 
 Linking is a named dock tab between Review and Assistant. It uses the ordinary panel scroll port

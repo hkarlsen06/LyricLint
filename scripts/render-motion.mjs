@@ -154,7 +154,7 @@ async function main() {
 			reducedMotion: 'reduce'
 		});
 
-		await page.goto(`${origin}/lint/`);
+		await page.goto(`${origin}/workbench/`);
 		const editor = await waitForWorkbench(page);
 
 		if (hero) {

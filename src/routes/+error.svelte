@@ -35,7 +35,7 @@
 		     is offering a way out. A new document gets a new module graph, which is
 		     the only thing that actually recovers. -->
 		<p class="error-page__actions">
-			<a class="button button--contrast" data-sveltekit-reload href={resolve('/lint/')}>
+			<a class="button button--contrast" data-sveltekit-reload href={resolve('/workbench/')}>
 				Return to the workspace
 			</a>
 			<a class="button button--quiet" data-sveltekit-reload href={resolve('/')}>

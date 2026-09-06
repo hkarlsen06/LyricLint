@@ -3,43 +3,46 @@ import { rightPanelTabFromUrl, urlForRightPanelTab } from './panel-url.js';
 
 describe('right panel URL state', () => {
 	test.each([
-		['https://lyriclint.app/lint', 'linter'],
-		['https://lyriclint.app/lint?panel=linter', 'linter'],
-		['https://lyriclint.app/lint?panel=linking', 'linking'],
-		['https://lyriclint.app/lint?panel=performers', 'performers'],
-		['https://lyriclint.app/lint?panel=song', 'song'],
-		['https://lyriclint.app/lint?panel=preferences', 'preferences'],
+		['https://lyriclint.app/workbench', 'linter'],
+		['https://lyriclint.app/workbench?panel=linter', 'linter'],
+		['https://lyriclint.app/workbench?panel=linking', 'linking'],
+		['https://lyriclint.app/workbench?panel=performers', 'performers'],
+		['https://lyriclint.app/workbench?panel=song', 'song'],
+		['https://lyriclint.app/workbench?panel=preferences', 'preferences'],
 		// `tools` was the id of the catch-all tab before it split; a shared link
 		// lands on the song half, which is where its metadata and exports now live.
-		['https://lyriclint.app/lint?panel=tools', 'song'],
-		['https://lyriclint.app/lint?panel=assistant', 'assistant'],
-		['https://lyriclint.app/lint?panel=unknown', 'linter']
+		['https://lyriclint.app/workbench?panel=tools', 'song'],
+		['https://lyriclint.app/workbench?panel=assistant', 'assistant'],
+		['https://lyriclint.app/workbench?panel=unknown', 'linter']
 	] as const)('reads %s as %s', (href, expected) => {
 		expect(rightPanelTabFromUrl(new URL(href))).toBe(expected);
 	});
 
 	test('round-trips the assistant panel', () => {
-		const next = urlForRightPanelTab(new URL('https://lyriclint.app/lint?draft=one'), 'assistant');
+		const next = urlForRightPanelTab(
+			new URL('https://lyriclint.app/workbench?draft=one'),
+			'assistant'
+		);
 
-		expect(next.href).toBe('https://lyriclint.app/lint?draft=one&panel=assistant');
+		expect(next.href).toBe('https://lyriclint.app/workbench?draft=one&panel=assistant');
 		expect(rightPanelTabFromUrl(next)).toBe('assistant');
 	});
 
 	test('preserves unrelated URL state when selecting a panel', () => {
 		const next = urlForRightPanelTab(
-			new URL('https://lyriclint.app/lint?draft=one#diagnostic'),
+			new URL('https://lyriclint.app/workbench?draft=one#diagnostic'),
 			'performers'
 		);
 
-		expect(next.href).toBe('https://lyriclint.app/lint?draft=one&panel=performers#diagnostic');
+		expect(next.href).toBe('https://lyriclint.app/workbench?draft=one&panel=performers#diagnostic');
 	});
 
 	test('uses the clean URL for the default linter panel', () => {
 		const next = urlForRightPanelTab(
-			new URL('https://lyriclint.app/lint?draft=one&panel=tools#diagnostic'),
+			new URL('https://lyriclint.app/workbench?draft=one&panel=tools#diagnostic'),
 			'linter'
 		);
 
-		expect(next.href).toBe('https://lyriclint.app/lint?draft=one#diagnostic');
+		expect(next.href).toBe('https://lyriclint.app/workbench?draft=one#diagnostic');
 	});
 });

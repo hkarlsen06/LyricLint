@@ -147,7 +147,7 @@
 				     this masthead draws on. `App` rather than `Workbench` for the
 				     row's width — the product's own name for the surface stays
 				     `workbench` everywhere prose has room for it. -->
-				<a href={resolve('/lint/')}>App</a>
+				<a href={resolve('/workbench/')}>App</a>
 			</nav>
 		</div>
 	</header>

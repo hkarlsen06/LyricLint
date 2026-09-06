@@ -628,10 +628,10 @@ describe('the Spotify session', () => {
 			protocol: 'https:',
 			hostname: '127.0.0.1',
 			origin: 'https://127.0.0.1',
-			pathname: '/lint/',
+			pathname: '/workbench/',
 			search: '',
 			hash: '',
-			href: 'https://127.0.0.1/lint/',
+			href: 'https://127.0.0.1/workbench/',
 			assign
 		});
 
@@ -639,13 +639,14 @@ describe('the Spotify session', () => {
 		const authorization = new URL(String(assign.mock.calls[0]?.[0]));
 		const state = authorization.searchParams.get('state');
 		expect(state).toBe(store.get('lyriclint:spotify:state'));
+		expect(authorization.searchParams.get('redirect_uri')).toBe('https://127.0.0.1/workbench/');
 
 		vi.stubGlobal('location', {
 			origin: 'https://127.0.0.1',
-			pathname: '/lint/',
+			pathname: '/workbench/',
 			search: '?panel=tools&code=code&state=wrong',
 			hash: '#draft',
-			href: 'https://127.0.0.1/lint/?panel=tools&code=code&state=wrong#draft'
+			href: 'https://127.0.0.1/workbench/?panel=tools&code=code&state=wrong#draft'
 		});
 		const replaceState = vi.fn();
 		vi.stubGlobal('history', { state: { kept: true }, replaceState });
@@ -657,7 +658,7 @@ describe('the Spotify session', () => {
 		});
 		expect(request).not.toHaveBeenCalled();
 		expect(store.has('lyriclint:spotify:intent')).toBe(false);
-		expect(replaceState).toHaveBeenCalledWith({ kept: true }, '', '/lint/?panel=tools#draft');
+		expect(replaceState).toHaveBeenCalledWith({ kept: true }, '', '/workbench/?panel=tools#draft');
 		vi.unstubAllGlobals();
 	});
 

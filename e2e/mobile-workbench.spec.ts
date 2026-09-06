@@ -4,7 +4,7 @@ const lyricsEditor = (page: Page) => page.getByRole('textbox', { name: 'Lyrics e
 const mobileNavigation = (page: Page) => page.getByRole('navigation', { name: 'Workbench views' });
 
 async function openWorkspace(page: Page): Promise<void> {
-	await page.goto('/lint/');
+	await page.goto('/workbench/');
 	await expect(lyricsEditor(page)).toBeVisible();
 	await expect(mobileNavigation(page)).toBeVisible();
 	await expect(page.locator('.boot-screen')).not.toBeVisible();

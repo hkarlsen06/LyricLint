@@ -12,7 +12,7 @@ const runs = Number(process.argv[4] ?? 3);
 await mkdir(output, { recursive: true });
 const results = [];
 for (const profile of ['mobile', 'desktop']) {
-	for (const route of ['/', '/lint/', '/guidelines/']) {
+	for (const route of ['/', '/workbench/', '/guidelines/']) {
 		for (let run = 1; run <= runs; run++) {
 			const name = `${profile}-${route.replaceAll('/', '') || 'landing'}-${run}`;
 			const path = resolve(output, name);

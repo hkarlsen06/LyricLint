@@ -16,7 +16,7 @@
 		about: {
 			'@type': 'SoftwareApplication',
 			name: 'LyricLint',
-			url: siteUrl('/lint/')
+			url: siteUrl('/workbench/')
 		},
 		author: maintainerStructuredData
 	};

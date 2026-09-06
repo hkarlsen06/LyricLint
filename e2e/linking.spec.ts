@@ -22,7 +22,7 @@ async function expectLyrics(page: Page, text: string): Promise<void> {
 test('Linking keeps lyrics intact, stages one correction, and stays on the chosen section', async ({
 	page
 }) => {
-	await page.goto('/lint/');
+	await page.goto('/workbench/');
 	await expect(editor(page)).toBeVisible();
 	await editor(page).fill(original);
 	await page.getByRole('tab', { name: 'Linking', exact: true }).click();
@@ -96,7 +96,7 @@ test('Linking can use a later section’s full version and undo all replacements
 	page
 }) => {
 	const lyrics = `${original}\n\n[Chorus 3]\nHold on tight\nCarry me home (Yeah)`;
-	await page.goto('/lint/');
+	await page.goto('/workbench/');
 	await expect(editor(page)).toBeVisible();
 	await editor(page).fill(lyrics);
 	await page.getByRole('tab', { name: 'Linking', exact: true }).click();

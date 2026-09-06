@@ -53,7 +53,7 @@ await new Promise((done) => server.listen(0, '127.0.0.1', done));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch();
 try {
-	for (const route of ['/', '/lint/']) {
+	for (const route of ['/', '/workbench/']) {
 		for (let run = 1; run <= 3; run++) {
 			const context = await browser.newContext({ reducedMotion: 'reduce' });
 			const page = await context.newPage();
@@ -85,7 +85,7 @@ try {
 					videoBytes: requests
 						.filter(({ pathname }) => pathname.endsWith('.webm'))
 						.reduce((sum, request) => sum + request.bytes, 0),
-					offlinePages: cache.filter((path) => path === '/' || path === '/lint/')
+					offlinePages: cache.filter((path) => path === '/' || path === '/workbench/')
 				})
 			);
 			if (verify) {
@@ -95,7 +95,10 @@ try {
 					'Reduced-motion visits must not download marketing videos through the worker'
 				);
 				assert.equal(immutable.length, unique.size, `${route}: immutable assets downloaded twice`);
-				assert.ok(cache.includes('/') && cache.includes('/lint/'), 'Offline shells are cached');
+				assert.ok(
+					cache.includes('/') && cache.includes('/workbench/'),
+					'Offline shells are cached'
+				);
 				for (const pathname of unique.keys()) {
 					assert.ok(
 						cache.includes(pathname),

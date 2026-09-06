@@ -515,7 +515,7 @@
 	{/if}
 
 	<div class="site-actions">
-		<a class="button" href={resolve('/lint/')}>Check a transcription in the workbench</a>
+		<a class="button" href={resolve('/workbench/')}>Check a transcription in the workbench</a>
 	</div>
 </main>
 

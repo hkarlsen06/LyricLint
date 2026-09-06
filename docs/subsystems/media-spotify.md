@@ -125,7 +125,7 @@ tab, because the workbench is a document being typed into.
 
 **Spotify refuses the name `localhost`, not merely insecure origins, and its error says the
 opposite.** `redirect_uri: Insecure` on a blank white page is what comes back from
-`https://localhost:5173/lint/` — a real TLS origin with an mkcert certificate behind it — because
+`https://localhost:5173/workbench/` — a real TLS origin with an mkcert certificate behind it — because
 the rule is about the host and Spotify wants `127.0.0.1`. Read as a statement about the scheme,
 that message sends you to fix the one thing that was already right, and it cost two wrong guesses
 here before anyone doubted the word "Insecure". `spotifyRedirectAllowed()` refuses `localhost` and
@@ -140,13 +140,17 @@ origin**, where `sessionStorage` cannot see the PKCE verifier that was written u
 — so the flow would fail one step later with a far stranger message. The origin has to be one the
 user is actually on.
 
-**The sign-in is a full-page redirect back to `/lint/`, not a popup.** A popup costs another
+**The sign-in is a full-page redirect back to `/workbench/`, not a popup.** A popup costs another
 prerendered route, a `postMessage` bridge and a blocker to fall foul of, to save a reload at the one
 moment a reload is free — the draft is autosaved, and attaching audio is not typing. `attachSpotify`
 is therefore re-entrant: it either attaches or leaves for Spotify carrying the link, and
 `resumeSignIn` calls it again with that link on the way back. It runs **after** `openFor` at boot,
 because the returning load has already restored this draft's pending track and `openFor` arriving
 second would detach what the user just signed in to hear.
+
+The Spotify app registration must list the exact canonical callback for each enabled origin, such
+as `https://127.0.0.1:5173/workbench/`. The compatibility redirect from `/lint/` cannot substitute:
+Spotify validates the requested callback before it sends the browser anywhere.
 
 **The client id is committed, because it is not a secret and the alternative fails silently.** A
 client id travels in the authorize URL and is inlined in the bundle however it is supplied; PKCE is
@@ -169,4 +173,3 @@ field added to all three or silently dropped by two.
 Implementation: `src/lib/ui/state/spotify-auth.ts` (PKCE, tokens, the redirect),
 `media-spotify.ts` (the source and the link parser), and `media-spotify.test.ts`, whose stub SDK is
 what makes "attaching plays nothing" an assertion rather than a hope.
-

@@ -174,8 +174,8 @@
 						// SAFETY: `URL.search` is empty or opens with `?`, and `URL.hash` is
 						// empty or opens with `#` — so this is one of exactly the three route
 						// shapes named here, which a template literal type cannot express.
-						const target = `/lint/${next.search}${next.hash}` as
-							'/lint/' | `/lint/?${string}` | `/lint/#${string}`;
+						const target = `/workbench/${next.search}${next.hash}` as
+							'/workbench/' | `/workbench/?${string}` | `/workbench/#${string}`;
 						replaceState(resolve(target), page.state);
 					},
 					onBackupRestored: () => location.reload(),

@@ -5,6 +5,7 @@ import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { legacyReferenceDestination } from './src/lib/reference/legacy-redirects.js';
+import { legacyWorkbenchDestination } from './src/lib/workbench-redirect.js';
 
 /**
  * The port both local servers listen on.
@@ -106,15 +107,16 @@ function loopbackLiteralUrls(): Plugin {
 }
 
 /** Mirror the production Pages redirects before either local server serves static HTML. */
-function referenceMigrationRedirects(): Plugin {
+function migrationRedirects(): Plugin {
 	const middleware: import('vite').Connect.NextHandleFunction = (request, response, next) => {
-		const destination = legacyReferenceDestination(new URL(request.url ?? '/', 'http://localhost'));
+		const url = new URL(request.url ?? '/', 'http://localhost');
+		const destination = legacyWorkbenchDestination(url) ?? legacyReferenceDestination(url);
 		if (!destination) return next();
 		response.writeHead(308, { Location: destination });
 		response.end();
 	};
 	return {
-		name: 'lyriclint:reference-migration-redirects',
+		name: 'lyriclint:migration-redirects',
 		configureServer(server) {
 			server.middlewares.use(middleware);
 		},
@@ -198,7 +200,7 @@ export default defineConfig({
 	// use in development from invalidating the module graph under a live editor.
 	optimizeDeps: { include: ['@codemirror/search'] },
 	plugins: [
-		referenceMigrationRedirects(),
+		migrationRedirects(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

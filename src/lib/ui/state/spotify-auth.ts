@@ -171,7 +171,7 @@ export function spotifyConfigured(): boolean {
  * included — `trailingSlash: 'always'` means this app's own URLs carry one.
  */
 function spotifyRedirectUri(): string {
-	return new URL('/lint/', location.origin).toString();
+	return new URL('/workbench/', location.origin).toString();
 }
 
 /**
@@ -225,7 +225,7 @@ export function spotifyRedirectAllowed(): boolean {
  */
 export function spotifyInsecureOriginMessage(): string {
 	const port = location.port === '' ? '' : `:${location.port}`;
-	return `Spotify refuses to sign in from ${location.origin} — it rejects the name \`localhost\` even over HTTPS. Open https://127.0.0.1${port}/lint/ instead.`;
+	return `Spotify refuses to sign in from ${location.origin} — it rejects the name \`localhost\` even over HTTPS. Open https://127.0.0.1${port}/workbench/ instead.`;
 }
 
 function base64url(bytes: ArrayBuffer): string {

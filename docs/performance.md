@@ -18,7 +18,7 @@ Three fresh browser contexts per entry route, before and after:
 | Entry route | Immutable HTTP requests before | After | Redundant uncompressed bytes eliminated |
 | --- | ---: | ---: | ---: |
 | Landing `/` | 115 | 81 | 316,184 |
-| Workbench `/lint/` | 135 | 81 | 1,509,180 |
+| Workbench `/workbench/` | 135 | 81 | 1,509,180 |
 
 All six after runs had zero repeated immutable downloads and retained the same 115 cached URLs,
 including both offline shells. The measurement excludes WASM. It counts uncompressed origin

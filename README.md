@@ -4,7 +4,7 @@ A browser-based editor and linter for [Genius](https://genius.com/) lyric
 transcriptions. Paste a transcription, see every formatting problem with the
 Genius guideline that backs it, and copy clean markup back out.
 
-[**Open LyricLint**](https://lyriclint.com/lint/) ·
+[**Open LyricLint**](https://lyriclint.com/workbench/) ·
 [Browse the rules](https://lyriclint.com/rules/) ·
 [Rule catalog](docs/rules.md)
 
