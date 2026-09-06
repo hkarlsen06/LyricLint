@@ -58,7 +58,8 @@
 			/></summary
 		>
 		<p class="roster-hint">
-			Select lyric text, then press Ctrl+Alt+P. Pointer selections open the picker automatically.
+			Select lyric text, then choose Assign voices or press Ctrl+Alt+P. Pointer selections open the
+			picker automatically on desktop.
 		</p>
 	</details>
 </section>

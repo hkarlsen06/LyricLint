@@ -144,6 +144,29 @@ describe('draft repository', () => {
 		expect(await repository.getCurrent()).toBeUndefined();
 	});
 
+	it('derives previews with document-aware annotation parsing', async () => {
+		const { repository } = await createRepository('annotation-preview');
+		await repository.create({
+			id: 'draft-a',
+			text: '[Det er for mange white boys i gamet nå\nOg alle sammen suger](35524264)\nNeste'
+		});
+
+		expect((await repository.list())[0]?.lyricPreview).toBe(
+			'[Det er for mange white boys i gamet nå'
+		);
+	});
+
+	it('gives summaries of readable rows with malformed titles the default title', async () => {
+		const { database, repository } = await createRepository('summary-title-fallback');
+		await seedRawDraft(database, {
+			id: 'missing-title',
+			text: 'Still readable',
+			updatedAt: '2026-01-01T00:00:00.000Z'
+		});
+
+		expect((await repository.list())[0]?.title).toBe('Untitled transcription');
+	});
+
 	it('keeps import provenance immutable and strips non-contract fields when saving', async () => {
 		const { database, repository } = await createRepository('snapshot-boundary');
 		const created = await repository.create({

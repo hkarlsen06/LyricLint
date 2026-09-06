@@ -51,9 +51,11 @@ action cannot remain armed on a row that the search hid.
 
 Rows whose titles collide (ignoring case and surrounding whitespace) show a muted opening lyric
 beneath the title. Unique titles keep their single-line layout; headers and blank lines do not
-qualify as the opening, using the parser's `isLyricLine` predicate. The bounded snippet is derived
-by `persistence/draft-summary.ts`, shared by the Dexie and in-memory repositories. It is optional
-`DraftSummary` metadata, never a `DraftRecord` field or a stored copy that can go stale.
+qualify as the opening. The whole-document parser owns that classification so an annotation whose
+fragment crosses a line break remains sung text rather than looking like a section header. The
+bounded snippet is derived by `persistence/draft-summary.ts`, shared by the Dexie and in-memory
+repositories. It is optional `DraftSummary` metadata, never a `DraftRecord` field or a stored copy
+that can go stale.
 
 Collision detection uses the whole library, so searching down to one matching duplicate does not
 remove the snippet that identified it. The opening is part of the row's accessible name and stays
@@ -189,4 +191,6 @@ performer roster); `src/lib/ui/drafts/draft-date.ts` for the dates; what each su
 `draft-store.svelte.ts` and `persistence/recovery.ts`.
 
 Preview extraction shares the `isReadableDraft` boundary predicate with recovery. Unreadable
-records remain listed and untouched on disk; they simply have no invented lyric preview.
+records remain listed and untouched on disk; they simply have no invented lyric preview. A readable
+partial row whose title is absent, blank, or not a string is summarized under
+`DEFAULT_DRAFT_TITLE`, so one damaged title cannot prevent the menu from opening for healthy drafts.

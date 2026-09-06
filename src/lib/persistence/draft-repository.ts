@@ -10,6 +10,9 @@ import {
 } from './recent-languages.js';
 import type { AppMetadataRecord, DraftCreateInput, DraftRecord, DraftRepository } from './types.js';
 import type { LyricLintDatabase } from './database.js';
+import { DEFAULT_DRAFT_TITLE } from './draft-defaults.js';
+
+export { DEFAULT_DRAFT_TITLE } from './draft-defaults.js';
 
 const CURRENT_DRAFT_KEY = 'currentDraftId';
 
@@ -32,7 +35,6 @@ function preferenceKey(key: string): string {
  * had been spelled out by hand in each of them, which is one edit away from a
  * rule that silently stops matching.
  */
-export const DEFAULT_DRAFT_TITLE = 'Untitled transcription';
 const DEFAULT_TITLE = DEFAULT_DRAFT_TITLE;
 const DEFAULT_LANGUAGE = 'en';
 

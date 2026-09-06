@@ -212,7 +212,9 @@ describe('PerformersPanel', () => {
 		expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
 		expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Assign' })).toBeNull();
-		const guidance = screen.getByText(/select lyric text, then press Ctrl\+Alt\+P/i);
+		const guidance = screen.getByText(
+			/select lyric text, then choose Assign voices or press Ctrl\+Alt\+P.*automatically on desktop/i
+		);
 		expect(guidance).not.toBeVisible();
 		await userEvent.click(screen.getByText('How to assign voices'));
 		expect(guidance).toBeVisible();

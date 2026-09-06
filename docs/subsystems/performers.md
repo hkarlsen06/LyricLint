@@ -460,9 +460,11 @@ pins the roster interactions and the assignment guidance.
 
 ### Assignment explains both the gesture and the action
 
-The roster guidance names **Ctrl+Alt+P** after selecting lyric text; pointer selection also opens
-the picker. Keyboard selections deliberately do not open it unasked, so the guidance must name
-the aimed alternative on the surface where someone learns assignment.
+The roster guidance names the explicit **Assign voices** action and **Ctrl+Alt+P** after selecting
+lyric text, and says that pointer selection opens the picker automatically on desktop. The touch
+task layout deliberately suppresses that automatic picker because native selection handles own
+the gesture; its Assign voices action is the aimed alternative on the surface where someone learns
+assignment. Keyboard selections deliberately do not open the picker unasked.
 
 Named performer chips remain selections that await Apply. Unknown voices cannot join a named
 group, so their immediate action remains, but their labels now say **Use unknown** and
