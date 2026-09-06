@@ -93,6 +93,18 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## Decision record
 
+### Focus rings stay inside controls
+
+Focus rings use neutral gray in both themes to keep keyboard navigation visible
+without the bright blue emphasis. The site's pinned dark palette shares that gray.
+
+The shared focus offset is the negative ring width. Outside outlines were repeatedly
+clipped by scroll ports and the tool dock, leaving blue fragments around controls.
+Inset outlines preserve keyboard focus visibility without requiring extra layout space
+around each control. The diagnostic heading uses the same offset directly rather than
+negating it. The reference columns retain their existing clearance lane so changing
+focus placement does not move their sticky bars or rounded selection washes.
+
 ### The workbench URL names the whole instrument
 
 `/workbench/` is the canonical app entry. The surface writes, reviews, assigns performers, links
@@ -663,12 +675,16 @@ flow these keys serve is replay-and-restamp of the line being worked on. None of
 the gutter's accessibility posture: the rail is still `aria-hidden` all the way down, and the
 box it feeds is `aria-hidden` too.
 
-**A control with no twin claims no shortcut.** Manage linking and the `⇄` marker both open
-the Linking panel, while `Mod-Shift-L` belongs to Edit this section only. The visible Manage linking
-label needs no duplicate tooltip. The glyph does need its name: now that hovering no longer opens
-a popover, it uses the shared imperative hint on hover and focus, without a native `title` or an
-invented shortcut. Its hint is released on leave, blur, activation, or removal.
-`Mod-Shift-L` is taught on the panel's switch, where it is also answered.
+**Linked-header controls keep separate purposes.** `Link` opens the respective Linking view;
+its local-mode counterpart `Unlink` opens the same view rather than unlinking the section. The
+adjacent `Pen`/`PenLine` pair toggles “Edit this section only,” with `aria-pressed` exposing the
+state. These inline header glyphs follow one character-space, with separate 24px targets
+centered around a text-height fill centered on the header’s capital height. The adjacent scope text
+is a noninteractive readout.
+Each has its own action-only shared hint, without repeating the adjacent scope. Hover and focus
+do not navigate or toggle, and each control releases
+its hint on leave, blur, activation, or removal. Neither claims a global shortcut for a different
+caret's section; `Mod-Shift-L` is taught on the panel's switch, where it is also answered.
 
 **What this deliberately does not do is nudge.** A behavioral tip — "you have pressed this five
 times, try `⌘.`" — was considered and refused: touch users have no keyboard, keyboard users

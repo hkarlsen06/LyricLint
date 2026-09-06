@@ -1,3 +1,5 @@
+import { copySectionLinks } from '$lib/persistence/copy.js';
+import { validateLinkPassages } from '$lib/core/link-record.js';
 import type {
 	CompareBaselineRecord,
 	LineAnchor,
@@ -155,7 +157,7 @@ function parsePerformers(value: JsonValue): PerformerRecord[] {
 	});
 }
 
-function parseLinks(value: JsonValue): SectionLink[] {
+function parseLinks(value: JsonValue, lyrics: string): SectionLink[] {
 	if (!Array.isArray(value)) throw new ScribeFormatError('sectionLinks must be a list.');
 	return value.map((item, index) => {
 		if (!record(item)) throw new ScribeFormatError(`sectionLinks[${index}] must be an object.`);
@@ -177,12 +179,14 @@ function parseLinks(value: JsonValue): SectionLink[] {
 			throw new ScribeFormatError(`sectionLinks[${index}].lines must name distinct lines.`);
 		}
 		lines.sort((left, right) => left - right);
-		if (item.holes === undefined) return { lines };
+		const passages = validateLinkPassages(item, lines, lyrics.split('\n'));
+		if (item.holes === undefined) return { lines, ...passages };
 		if (!Array.isArray(item.holes)) {
 			throw new ScribeFormatError(`sectionLinks[${index}].holes must be a list.`);
 		}
 		return {
 			lines,
+			...passages,
 			holes: item.holes.map((hole, holeIndex) => {
 				if (!record(hole)) {
 					throw new ScribeFormatError(
@@ -268,11 +272,7 @@ export function serializeScribe(input: ScribeProjectInput): string {
 			...performer,
 			aliases: [...performer.aliases]
 		})),
-		sectionLinks: input.sectionLinks.map((link) => {
-			const copy: SectionLink = { lines: [...link.lines] };
-			if (link.holes) copy.holes = link.holes.map((hole) => ({ ...hole }));
-			return copy;
-		}),
+		sectionLinks: copySectionLinks(input.sectionLinks),
 		lineAnchors: input.lineAnchors.map((anchor) => ({ ...anchor })),
 		ignoredDiagnostics: [...new Set(input.ignoredDiagnostics)].sort()
 	};
@@ -305,7 +305,7 @@ export function parseScribe(source: string): ScribeProject {
 	const compareBaseline = parseBaseline(value.document.compareBaseline);
 	const lyrics = string(value.document.lyrics, 'document.lyrics');
 	const performers = parsePerformers(value.performers);
-	const sectionLinks = parseLinks(value.sectionLinks);
+	const sectionLinks = parseLinks(value.sectionLinks, lyrics);
 	const lineAnchors = parseAnchors(value.lineAnchors);
 	const lineCount = lyrics.split('\n').length;
 	if (selection && (selection.anchor > lyrics.length || selection.head > lyrics.length)) {

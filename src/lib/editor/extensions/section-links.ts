@@ -2,7 +2,9 @@
 import { invertedEffects } from '@codemirror/commands';
 import {
 	Annotation,
+	ChangeSet,
 	EditorState,
+	findClusterBreak,
 	RangeSet,
 	RangeValue,
 	StateEffect,
@@ -10,14 +12,15 @@ import {
 } from '@codemirror/state';
 import type { ChangeDesc, Extension, Range, TransactionSpec } from '@codemirror/state';
 import { Transaction } from '@codemirror/state';
-import { Decoration, EditorView, WidgetType } from '@codemirror/view';
+import { Decoration, EditorView } from '@codemirror/view';
 import type { DecorationSet } from '@codemirror/view';
 import { randomId } from '$lib/core/random-id.js';
 import { parseDocument } from '$lib/core/parser.js';
 import type {
 	AtomicDocumentEdit,
 	LinkDifference,
-	LinkHole,
+	LinkConnectionPreview,
+	LinkPassageOccurrence,
 	ParsedDocument,
 	SectionHeader,
 	SectionLink,
@@ -25,24 +28,33 @@ import type {
 	TextEdit,
 	TextRange
 } from '$lib/core/types.js';
-import {
-	alignBodies,
-	expandOverHoles,
-	holeContaining,
-	translateSpan,
-	widenToRuns
-} from '$lib/core/link-shape.js';
+import { alignBodies, holeContaining, translateSpan } from '$lib/core/link-shape.js';
 import { narrowEdit } from '$lib/performers/transform.js';
-import { releaseControlHint, showControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
-import type { SectionLinkOrigin } from '../contracts.js';
-import { sectionBodyRange } from '../section-links.js';
+import {
+	alignPassages,
+	coalescePassages,
+	type PassageMember,
+	type SharedPassage
+} from '$lib/core/link-passages.js';
+import { extendPassages } from '$lib/core/link-passage-extension.js';
+import { validateLinkPassages } from '$lib/core/link-record.js';
+import {
+	applyPassageTransfer,
+	clearPassageExclusions,
+	detachPassageRange,
+	mapPassageState,
+	passageTargets,
+	type PassageState
+} from '../link-passage-edits.js';
+import { linkingSectionNames, sectionBodyRange } from '../section-links.js';
 import {
 	editorCallbacksField,
 	editorComposingField,
+	setComposingEffect,
 	parsedDocumentForState
 } from './editor-state.js';
-import { singleChangedRange } from './header-rename.js';
-import { pressed } from './widget-press.js';
+import { SectionLinkMarker, type SectionLinkScope } from './section-link-marker.js';
+export { sectionLinkTheme } from './section-link-marker.js';
 
 /**
  * Membership in one link group, carried on a range over the header's own line.
@@ -78,7 +90,17 @@ export const setSectionLinksEffect = StateEffect.define<readonly SectionLink[]>(
  * leaves whatever group it was in first, and fewer than two survivors is not a
  * link, so a lone header simply comes loose.
  */
-export const setSectionLinkEffect = StateEffect.define<{ headers: readonly number[] }>();
+export const setSectionLinkEffect = StateEffect.define<{
+	headers: readonly number[];
+	record?: SectionLink;
+	refresh?: boolean;
+}>();
+
+const transferPassageEffect = StateEffect.define<readonly PassageMember[]>();
+const reconnectPassageEffect = StateEffect.define<readonly PassageMember[]>();
+const detachPassageEffect = StateEffect.define<PassageMember>();
+/** Complete replacement in the resulting document's coordinates (composition commit). */
+const replacePassageStateEffect = StateEffect.define<PassageState>();
 
 /**
  * Replace every divergent run in the document, in pre-change coordinates.
@@ -130,13 +152,28 @@ const typeOnlyHereAppliedEffect = StateEffect.define<null>();
 const restoreSectionLinksEffect = StateEffect.define<{
 	groups: readonly (readonly number[])[];
 	holes: readonly TextRange[];
+	passages: PassageState;
 }>({
 	map: (value, changes) => ({
 		groups: value.groups.map((group) => group.map((pos) => changes.mapPos(pos, 1))),
 		holes: value.holes.map((hole) => ({
 			from: changes.mapPos(hole.from, -1),
 			to: changes.mapPos(hole.to, 1)
-		}))
+		})),
+		passages: {
+			passages: value.passages.passages.map((passage) => ({
+				members: passage.members.map((member) => ({
+					header: changes.mapPos(member.header, 1),
+					from: changes.mapPos(member.from, -1),
+					to: changes.mapPos(member.to, 1)
+				}))
+			})),
+			detached: value.passages.detached.map((member) => ({
+				header: changes.mapPos(member.header, 1),
+				from: changes.mapPos(member.from, -1),
+				to: changes.mapPos(member.to, 1)
+			}))
+		}
 	})
 });
 
@@ -323,6 +360,266 @@ export const linkHolesField = StateField.define<readonly TextRange[]>({
 	}
 });
 
+function emptyPassages(): PassageState {
+	return { passages: [], detached: [] };
+}
+
+/** A stored passage may cross a temporary blank line, but never another header. */
+function passageBounds(parsed: ParsedDocument, header: number): TextRange | undefined {
+	const section = parsed.sections.find((candidate) => candidate.header?.from === header);
+	if (!section?.header) return undefined;
+	const next = parsed.sections.find(
+		(candidate) => candidate.header && candidate.header.from > header
+	);
+	return { from: section.header.to, to: next?.header?.from ?? parsed.text.length };
+}
+
+function validPassages(state: EditorState, value: PassageState): PassageState {
+	const parsed = parsedDocumentForState(state);
+	const groups = memberGroups(state, parsed);
+	const ownGroup = new Map(
+		groups.flatMap((headers, index) => headers.map((header) => [header, index] as const))
+	);
+	const valid = (member: PassageMember) => {
+		const bounds = passageBounds(parsed, member.header);
+		return (
+			ownGroup.has(member.header) &&
+			bounds &&
+			member.from >= bounds.from &&
+			member.to <= bounds.to &&
+			member.from <= member.to
+		);
+	};
+	const passages: SharedPassage[] = [];
+	for (const passage of value.passages) {
+		const parts = new Map<number, PassageMember[]>();
+		for (const member of passage.members) {
+			if (!valid(member)) continue;
+			const group = ownGroup.get(member.header)!;
+			const members = parts.get(group) ?? [];
+			members.push(member);
+			parts.set(group, members);
+		}
+		for (const members of parts.values()) {
+			if (
+				members.length >= 2 &&
+				members.every(
+					(member) =>
+						state.doc.sliceString(member.from, member.to) ===
+						state.doc.sliceString(members[0]!.from, members[0]!.to)
+				)
+			) {
+				passages.push({ members });
+			}
+		}
+	}
+	return {
+		passages: coalescePassages(passages, value.detached),
+		detached: value.detached.filter(valid)
+	};
+}
+
+function passageRecordFor(state: EditorState, member: PassageMember): LinkPassageOccurrence {
+	const from = state.doc.lineAt(clamp(state, member.from));
+	const to = state.doc.lineAt(clamp(state, member.to));
+	return {
+		headerLine: state.doc.lineAt(clamp(state, member.header)).number,
+		line: from.number,
+		column: member.from - from.from,
+		endLine: to.number,
+		endColumn: member.to - to.from
+	};
+}
+
+function passagesFromRecords(state: EditorState, records: readonly SectionLink[]): PassageState {
+	const result = emptyPassages();
+	const parsed = parsedDocumentForState(state);
+	const lineTexts = state.doc.toString().split('\n');
+	for (const record of records) {
+		const headers = record.lines
+			.filter((line) => Number.isInteger(line) && line >= 1 && line <= state.doc.lines)
+			.map((line) => state.doc.line(line).from);
+		if (headers.length < 2) continue;
+		const checked = validateLinkPassages(record, record.lines, lineTexts);
+		if (checked.passages !== undefined) {
+			const read = (member: LinkPassageOccurrence): PassageMember => ({
+				header: state.doc.line(member.headerLine).from,
+				from: state.doc.line(member.line).from + member.column,
+				to: state.doc.line(member.endLine).from + member.endColumn
+			});
+			result.passages.push(
+				...checked.passages.map((passage) => ({ members: passage.members.map(read) }))
+			);
+			result.detached.push(...(checked.detached ?? []).map(read));
+			continue;
+		}
+		// Old holes cannot distinguish detected variation from an explicit local
+		// edit. Preserve them as exclusions, including deliberately equal wording.
+		const holes = holesFromRecords(state, [record]);
+		const members = headers.map((header) => memberShape(parsed, holes, header));
+		if (members.some((member) => !member)) continue;
+		// SAFETY: the preceding guard rejects every missing member.
+		const shapes = members as MemberShape[];
+		const bodies = shapes.map((member) => state.doc.sliceString(member.body.from, member.body.to));
+		if (!record.holes) {
+			const aligned = alignBodies(bodies);
+			shapes.forEach((member, index) => {
+				member.holes = aligned[index] ?? [];
+			});
+		}
+		if (new Set(shapes.map((member) => member.holes.length)).size !== 1) {
+			result.detached.push(...shapes.map((member) => ({ header: member.header, ...member.body })));
+			continue;
+		}
+		const count = shapes[0]!.holes.length;
+		for (let slot = 0; slot <= count; slot++) {
+			const shared = shapes.map((member) => ({
+				header: member.header,
+				from: member.body.from + (slot === 0 ? 0 : member.holes[slot - 1]!.to),
+				to: slot === count ? member.body.to : member.body.from + member.holes[slot]!.from
+			}));
+			if (
+				shared.every(
+					(member) =>
+						member.from <= member.to &&
+						state.doc.sliceString(member.from, member.to) ===
+							state.doc.sliceString(shared[0]!.from, shared[0]!.to)
+				) &&
+				(shared[0]!.from < shared[0]!.to || count === 0)
+			)
+				result.passages.push({ members: shared });
+		}
+		result.detached.push(
+			...shapes.flatMap((member) =>
+				member.holes.map((hole) => ({
+					header: member.header,
+					from: member.body.from + hole.from,
+					to: member.body.from + hole.to
+				}))
+			)
+		);
+	}
+	return result;
+}
+
+/** The editing model; the legacy holes remain only a wording-comparison adapter. */
+export const sectionPassageField = StateField.define<PassageState>({
+	create: emptyPassages,
+	update(value, transaction) {
+		const edits: TextEdit[] = [];
+		transaction.changes.iterChanges((from, to, _fromB, _toB, insert) => {
+			edits.push({ from, to, insert: insert.toString() });
+		});
+		let next = transaction.docChanged
+			? mapPassageState(
+					value,
+					transaction.changes,
+					edits,
+					transaction.startState.doc.toString(),
+					transaction.newDoc.toString()
+				)
+			: value;
+		const parsed = parsedDocumentForState(transaction.state);
+		for (const effect of transaction.effects) {
+			if (effect.is(setSectionLinksEffect)) {
+				next = passagesFromRecords(transaction.state, effect.value);
+			} else if (effect.is(replacePassageStateEffect)) {
+				next = effect.value;
+			} else if (effect.is(restoreSectionLinksEffect)) {
+				next = effect.value.passages;
+			} else if (effect.is(setSectionLinkEffect)) {
+				const headers = effect.value.headers.map((header) => transaction.changes.mapPos(header, 1));
+				const inGroup = (member: PassageMember) => headers.includes(member.header);
+				if (effect.value.record) {
+					const restored = passagesFromRecords(transaction.state, [effect.value.record]);
+					next = {
+						passages: [
+							...next.passages.map((passage) => ({
+								members: passage.members.filter((member) => !inGroup(member))
+							})),
+							...restored.passages
+						],
+						detached: [...next.detached.filter((member) => !inGroup(member)), ...restored.detached]
+					};
+					continue;
+				}
+				const bodies = headers.flatMap((header) => {
+					const body = sectionBodyRange(parsed, header);
+					return body
+						? [
+								{
+									header,
+									from: body.from,
+									text: transaction.state.doc.sliceString(body.from, body.to)
+								}
+							]
+						: [];
+				});
+				let candidates: PassageState = { passages: alignPassages(bodies), detached: [] };
+				if (!effect.value.refresh) {
+					for (const detached of next.detached.filter(inGroup))
+						candidates = detachPassageRange(candidates, detached);
+				}
+				const oldGroups = memberGroups(
+					transaction.startState,
+					parsedDocumentForState(transaction.startState)
+				).map((group) => group.map((header) => transaction.changes.mapPos(header, 1)));
+				const extended = extendPassages(
+					next.passages,
+					candidates.passages,
+					effect.value.refresh ? [] : oldGroups,
+					effect.value.refresh ? [] : next.detached
+				);
+				next = {
+					passages: extended,
+					detached: effect.value.refresh
+						? clearPassageExclusions(
+								next.detached,
+								extended.flatMap((passage) => passage.members.filter(inGroup))
+							)
+						: next.detached
+				};
+			} else if (effect.is(transferPassageEffect) || effect.is(reconnectPassageEffect)) {
+				next = applyPassageTransfer(
+					next,
+					transaction.changes,
+					effect.value,
+					effect.is(reconnectPassageEffect)
+				);
+			} else if (effect.is(detachPassageEffect)) {
+				const member = effect.value;
+				next = detachPassageRange(next, {
+					header: transaction.changes.mapPos(member.header, 1),
+					from: transaction.changes.mapPos(member.from, -1),
+					to: transaction.changes.mapPos(member.to, 1)
+				});
+			}
+		}
+		return validPassages(transaction.state, next);
+	}
+});
+
+interface LinkComposition {
+	base: EditorState;
+	changes: ChangeSet;
+}
+
+/** Hold the settled correspondence while the browser rewrites provisional IME text. */
+export const sectionLinkCompositionField = StateField.define<LinkComposition | undefined>({
+	create: () => undefined,
+	update(value, transaction) {
+		for (const effect of transaction.effects) {
+			if (effect.is(setComposingEffect)) {
+				if (!effect.value) return undefined;
+				if (!value) return { base: transaction.startState, changes: transaction.changes };
+			}
+		}
+		return value && transaction.docChanged
+			? { ...value, changes: value.changes.compose(transaction.changes) }
+			: value;
+	}
+});
+
 /** The linked section currently being edited independently, if any. */
 export const typeOnlyHereField = StateField.define<TypeOnlyHereState | undefined>({
 	create: () => undefined,
@@ -361,10 +658,12 @@ export const typeOnlyHereField = StateField.define<TypeOnlyHereState | undefined
 export const sectionLinkHistory = invertedEffects.of((transaction) => {
 	const before = transaction.startState.field(sectionLinkField, false);
 	const holes = transaction.startState.field(linkHolesField, false) ?? [];
+	const passages = transaction.startState.field(sectionPassageField, false) ?? emptyPassages();
 	const linkEffect = transaction.effects.some(
 		(effect) =>
 			effect.is(setSectionLinkEffect) ||
 			effect.is(setLinkHolesEffect) ||
+			effect.is(replacePassageStateEffect) ||
 			effect.is(restoreSectionLinksEffect)
 	);
 	if (!before || (before.size === 0 && !linkEffect)) {
@@ -373,7 +672,9 @@ export const sectionLinkHistory = invertedEffects.of((transaction) => {
 	if (!transaction.docChanged && !linkEffect) {
 		return [];
 	}
-	return [restoreSectionLinksEffect.of({ groups: [...groupsOf(before).values()], holes })];
+	return [
+		restoreSectionLinksEffect.of({ groups: [...groupsOf(before).values()], holes, passages })
+	];
 });
 
 /** One member of a group: where its body is, and which parts of it are its own. */
@@ -512,43 +813,33 @@ export function linePairingLimits(
 	return { own: Infinity, peer: Infinity };
 }
 
-/**
- * The shape of one group, re-derived from the words if what is stored cannot
- * describe it.
- *
- * Stored intent wins wherever it is coherent, because an alignment recomputed
- * on every edit cannot tell a mistake from a decision. Re-derivation is for the
- * cases where there is no intent to honour: a group loaded from a draft written
- * before differences existed, or one whose members somehow ended up with
- * different numbers of runs, where every translation downstream would refuse
- * anyway.
- */
+/** Current wording comparison for review; stored passages alone govern mirroring. */
 function groupShape(
 	state: EditorState,
 	parsed: ParsedDocument,
 	headers: readonly number[],
 	options: { realign?: boolean } = {}
 ): MemberShape[] | undefined {
-	const holes = state.field(linkHolesField, false) ?? [];
-	const shapes = headers.map((header) => memberShape(parsed, holes, header));
-	const members = shapes.filter((shape): shape is MemberShape => shape !== undefined);
-	if (members.length !== shapes.length) {
-		return undefined;
-	}
-	// A set that is not already a group has no stored intent to honour, so it is
-	// aligned afresh — which is what lets the card show two unlinked choruses what
-	// they would disagree on before anything is tied together.
-	const existing = memberGroups(state, parsed).find(
-		(group) => group.length === headers.length && headers.every((header) => group.includes(header))
-	);
-	const realign = options.realign ?? !existing;
-	const coherent = new Set(members.map((member) => member.holes.length)).size <= 1;
-	if (coherent && !realign) {
-		return members;
-	}
+	const shapes = headers.map((header) => memberShape(parsed, [], header));
+	if (shapes.some((shape) => !shape)) return undefined;
+	// SAFETY: the preceding guard rejects every missing shape.
+	const members = shapes as MemberShape[];
 	const bodies = members.map((member) => state.doc.sliceString(member.body.from, member.body.to));
 	const aligned = alignBodies(bodies);
-	return members.map((member, index) => ({ ...member, holes: aligned[index] ?? [] }));
+	members.forEach((member, index) => {
+		member.holes = aligned[index] ?? [];
+	});
+	// A comparison explains current wording. Explicit exclusions that happen to
+	// have equal text remain reviewable, but never drive automatic mirroring.
+	if (!options.realign) {
+		for (const detached of state.field(sectionPassageField, false)?.detached ?? []) {
+			const source = members.find((member) => member.header === detached.header);
+			if (!source) continue;
+			const ordered = [source, ...members.filter((member) => member !== source)];
+			addDifference(ordered, ordered, detached, true);
+		}
+	}
+	return members;
 }
 
 function applyTextEdits(text: string, edits: readonly TextEdit[]): string {
@@ -644,35 +935,17 @@ export function expandLinkedPerformerEdit(
 	const bodyEdits = edit.edits.filter(
 		(change) => source.body.from <= change.from && change.to <= source.body.to
 	);
-	const sourceLength = source.body.to - source.body.from;
+	const passages = state.field(sectionPassageField, false) ?? emptyPassages();
 	for (const change of bodyEdits) {
-		const relative = {
-			from: change.from - source.body.from,
-			to: change.to - source.body.from
-		};
-		if (holeContaining(source.holes, relative.from, relative.to) !== undefined) continue;
-		const span = expandOverHoles(source.holes, relative.from, relative.to);
-		// Crossing a deliberate difference has no one byte-identical operation to
-		// repeat. Preserve the different words instead of turning formatting into a
-		// lyric rewrite.
-		if (
-			span.firstHole !== span.lastHole ||
-			span.from !== relative.from ||
-			span.to !== relative.to
-		) {
-			continue;
-		}
-		for (const peer of members.slice(1)) {
-			const target = translateSpan(
-				{ holes: source.holes, length: sourceLength },
-				{ holes: peer.holes, length: peer.body.to - peer.body.from },
-				span
-			);
-			if (!target) continue;
-			const from = peer.body.from + target.from;
-			const to = peer.body.from + target.to;
-			if (state.doc.sliceString(from, to) === change.insert) continue;
-			additions.push({ from, to, insert: change.insert });
+		for (const target of passageTargets(
+			passages,
+			state.doc.toString(),
+			sourceHeader.from,
+			change
+		)) {
+			if (state.doc.sliceString(target.from, target.to) !== change.insert) {
+				additions.push({ from: target.from, to: target.to, insert: change.insert });
+			}
 		}
 	}
 
@@ -752,40 +1025,81 @@ export function cancelTypeOnlyHere(view: EditorView): boolean {
 	return true;
 }
 
-/** Every link, as header line numbers and the runs each member keeps its own. */
+/** Persist exact passage intent, with a local-only fallback for older applications. */
 export function sectionLinksFor(state: EditorState): SectionLink[] {
-	const field = state.field(sectionLinkField, false);
-	if (!field) {
-		return [];
-	}
-	const holes = state.field(linkHolesField, false) ?? [];
+	const value = state.field(sectionPassageField, false) ?? emptyPassages();
 	const parsed = parsedDocumentForState(state);
-	return memberGroups(state, parsed)
-		.map((headers) => {
-			const lines = headers
-				.map((header) => state.doc.lineAt(clamp(state, header)).number)
-				.sort((left, right) => left - right);
-			const own: LinkHole[] = [];
-			for (const header of headers) {
-				const body = sectionBodyRange(parsed, header);
-				if (!body) continue;
-				for (const hole of holes) {
-					if (body.from <= hole.from && hole.to <= body.to) {
-						const start = state.doc.lineAt(clamp(state, hole.from));
-						const end = state.doc.lineAt(clamp(state, hole.to));
-						own.push({
-							line: start.number,
-							column: hole.from - start.from,
-							endLine: end.number,
-							endColumn: hole.to - end.from
-						});
-					}
+	return memberGroups(state, parsed).map((headers) => {
+		const lines = headers.map((header) => state.doc.lineAt(header).number);
+		const passages = value.passages.flatMap((passage) => {
+			const members = passage.members.filter((member) => headers.includes(member.header));
+			return members.length >= 2
+				? [{ members: members.map((member) => passageRecordFor(state, member)) }]
+				: [];
+		});
+		// An older tab ignores passages. Whole-body holes ensure it never treats
+		// this richer link as permission to replace every version with one body.
+		const holes = headers.flatMap((header) => {
+			const body = sectionBodyRange(parsed, header);
+			if (!body) return [];
+			const range = passageRecordFor(state, { header, ...body });
+			return [
+				{
+					line: range.line,
+					column: range.column,
+					endLine: range.endLine,
+					endColumn: range.endColumn
 				}
+			];
+		});
+		const detached = value.detached
+			.filter((member) => headers.includes(member.header))
+			.map((member) => passageRecordFor(state, member));
+		const record: SectionLink = { lines, holes, passages };
+		if (detached.length) record.detached = detached;
+		return record;
+	});
+}
+
+/** Preview exactly the compatible connections an explicit refresh can establish. */
+export function linkConnectionsFor(
+	state: EditorState,
+	headers: readonly number[]
+): LinkConnectionPreview[] {
+	const parsed = parsedDocumentForState(state);
+	const current = state.field(sectionPassageField, false) ?? emptyPassages();
+	const bodies = headers.flatMap((header) => {
+		const body = sectionBodyRange(parsed, header);
+		return body
+			? [{ header, from: body.from, text: state.doc.sliceString(body.from, body.to) }]
+			: [];
+	});
+	return extendPassages(current.passages, alignPassages(bodies)).flatMap((passage) => {
+		const members = passage.members.filter((member) => headers.includes(member.header));
+		const source = members[0];
+		if (!source || members.length < 2) return [];
+		const text = state.doc.sliceString(source.from, source.to);
+		if (!text.trim()) return [];
+		const existing = passageTargets(current, state.doc.toString(), source.header, source);
+		return [
+			{
+				text,
+				from: source.from,
+				headers: members.map((member) => member.header),
+				added: members
+					.slice(1)
+					.some(
+						(member) =>
+							!existing.some(
+								(peer) =>
+									peer.header === member.header &&
+									peer.from === member.from &&
+									peer.to === member.to
+							)
+					)
 			}
-			return own.length > 0 ? { lines, holes: own } : { lines };
-		})
-		.filter((link) => link.lines.length >= 2)
-		.sort((left, right) => (left.lines[0] ?? 0) - (right.lines[0] ?? 0));
+		];
+	});
 }
 
 /** Stored runs put back on the document, dropping any the text no longer has room for. */
@@ -937,6 +1251,7 @@ export function linkSections(view: EditorView, choice: SectionLinkChoice): numbe
 	// every index the user's ticks were given against, silently, and collapse the
 	// wrong difference.
 	const changes: TextEdit[] = [];
+	const reconnected: PassageMember[][] = [];
 	const keep = choice.keepDifferent;
 	const surviving: MemberShape[] = shaped.map((member) => ({ ...member, holes: [] }));
 	const count = shaped[0]?.holes.length ?? 0;
@@ -954,6 +1269,20 @@ export function linkSections(view: EditorView, choice: SectionLinkChoice): numbe
 			shaped,
 			index,
 			choice.replaceFromByDifference?.[index] ?? choice.replaceFrom
+		);
+		reconnected.push(
+			shaped.flatMap((member) => {
+				const hole = member.holes[index];
+				return hole
+					? [
+							{
+								header: member.header,
+								from: member.body.from + hole.from,
+								to: member.body.from + hole.to
+							}
+						]
+					: [];
+			})
 		);
 		for (const member of shaped) {
 			const hole = member.holes[index];
@@ -990,8 +1319,12 @@ export function linkSections(view: EditorView, choice: SectionLinkChoice): numbe
 	const spec: TransactionSpec = {
 		selection: { anchor: caret },
 		effects: [
-			setSectionLinkEffect.of({ headers: [...headers] }),
-			setLinkHolesEffect.of([...holesOutside(view.state, shaped), ...absoluteHoles(surviving)])
+			setSectionLinkEffect.of({ headers: [...headers], refresh: choice.refreshConnections }),
+			setLinkHolesEffect.of([...holesOutside(view.state, shaped), ...absoluteHoles(surviving)]),
+			...reconnected.map((members) => reconnectPassageEffect.of(members)),
+			...(choice.makeDifferent
+				? [detachPassageEffect.of({ header: headers[0]!, ...choice.makeDifferent })]
+				: [])
 		]
 	};
 	if (changes.length > 0) spec.changes = changes;
@@ -1074,547 +1407,215 @@ function addDifference(
 	return true;
 }
 
-/**
- * Repeat an edit made in one linked section in every other section of its group.
- *
- * Appended to the transaction that caused it, the way `headerRenameFilter`
- * mirrors a performer's name: the document is never briefly inconsistent, one
- * snapshot is emitted, and one undo restores every section at once. Undo, redo
- * and IME composition are exempt so history replays byte for byte.
- *
- * What is carried is a span of *shared* text, not the whole body. An edit that
- * lands wholly inside one of the copy's own runs is left where it was made —
- * that is what makes two choruses differing by a line linkable at all. An edit
- * that reaches across such a run's edge takes the run with it, in every copy,
- * because writing over a difference is how a difference is ended.
- *
- * Only a single contiguous edit inside exactly one member's body is mirrored.
- * An edit that reaches a header, spans two sections, or arrives scattered across
- * the document is a restructuring rather than a rewrite of the words, and
- * guessing at those is how a link would eat work the user meant to keep.
- */
-/**
- * Turn the edited span into one local run in every member.
- *
- * Existing runs touched by the edit are folded into it; untouched runs and the
- * shared words between them remain separate. This is the smallest coherent
- * shape the edit can leave behind, including insertions represented by an
- * initially zero-width run.
- */
-function localizeSpan(members: readonly MemberShape[], span: TextRange): MemberShape[] | undefined {
-	const source = members[0];
-	if (!source) return undefined;
-	const relative = { from: span.from - source.body.from, to: span.to - source.body.from };
-	if (
-		relative.from < 0 ||
-		relative.from > relative.to ||
-		relative.to > source.body.to - source.body.from
-	) {
-		return undefined;
-	}
-	if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
-		return members.map((member) => ({ ...member, holes: [...member.holes] }));
-	}
-	const widened = expandOverHoles(source.holes, relative.from, relative.to);
-	const sourceLength = source.body.to - source.body.from;
-	const additions = members.map((member) =>
-		member === source
-			? { from: widened.from, to: widened.to }
-			: translateSpan(
-					{ holes: source.holes, length: sourceLength },
-					{ holes: member.holes, length: member.body.to - member.body.from },
-					widened
-				)
-	);
-	if (additions.some((addition) => !addition)) return undefined;
-	return members.map((member, index) => ({
-		...member,
-		holes: [
-			...member.holes.slice(0, widened.firstHole),
-			additions[index]!,
-			...member.holes.slice(widened.lastHole)
-		]
-	}));
-}
-
-interface BoundaryExtension {
-	members: readonly MemberShape[];
-	text: string;
-	sourceRange: TextRange;
-	local: boolean;
-	finalHole?: number;
-	typeOnlyHere: boolean;
-}
-
-/**
- * A lyric appended after Enter first left the old body's right edge.
- *
- * The bare terminal line break is structural and stays local: until something
- * is written after it, it may be the gap before the next section. If ordinary
- * lyric text follows, the post-change parse extends the same section across
- * that gap. At that point the intent is no longer ambiguous, so the whole new
- * tail can become shared in one edit to every peer.
- *
- * A header opening does not qualify because it makes a new parsed section; the
- * old body's end stays where it was. A boundary inside a final divergent run
- * also stays local, preserving the ordinary greedy-edge rule for differences.
- */
-function boundaryExtension(
-	transaction: Transaction,
-	parsed: ParsedDocument,
-	change: TextRange
-): BoundaryExtension | undefined {
-	if (change.from !== change.to) return undefined;
-	const after = parsedDocumentForState(transaction.state);
-	const groups = memberGroups(transaction.startState, parsed);
-	for (const group of groups) {
-		for (const header of group) {
-			const body = sectionBodyRange(parsed, header);
-			if (!body || body.to >= change.from) continue;
-			// A member split by a medial blank line carries a headerless tail
-			// immediately after it. Filling that gap is not a terminal append:
-			// carrying the whole tail would duplicate the words peers already
-			// hold as their own tail. Defer to the medial fill below.
-			const memberSection = parsed.sections.find((section) => section.header?.from === header);
-			if (memberSection) {
-				const orderedSections = [...parsed.sections].sort((left, right) => left.from - right.from);
-				const nextSection = orderedSections[orderedSections.indexOf(memberSection) + 1];
-				if (nextSection && !nextSection.header) continue;
-			}
-			const gap = transaction.startState.doc.sliceString(body.to, change.from);
-			if (!/[\r\n]/u.test(gap) || !/^[\t\r\n ]+$/u.test(gap)) continue;
-
-			const mappedHeader = transaction.changes.mapPos(header, -1);
-			const nextBody = sectionBodyRange(after, mappedHeader);
-			const mappedEnd = transaction.changes.mapPos(body.to, -1);
-			const changedEnd = transaction.changes.mapPos(change.to, 1);
-			if (!nextBody || nextBody.to <= mappedEnd || nextBody.to < changedEnd) continue;
-
-			const ordered = [header, ...group.filter((candidate) => candidate !== header)];
-			const members = groupShape(transaction.startState, parsed, ordered);
-			const source = members?.[0];
-			if (!members || !source) continue;
-			const sourceLength = source.body.to - source.body.from;
-			const finalHole = holeContaining(source.holes, sourceLength, sourceLength);
-			const typeOnly = isTypeOnlyHere(transaction.startState, header);
-
-			const text = transaction.newDoc.sliceString(mappedEnd, nextBody.to);
-			if (text.length > 0) {
-				return {
-					members,
-					text,
-					// Pre-change coordinates, like every `setLinkHolesEffect` value.
-					// Mapping its right edge forward takes in the text being inserted.
-					sourceRange: { from: body.to, to: change.to },
-					local: typeOnly || finalHole !== undefined,
-					finalHole,
-					typeOnlyHere: typeOnly
-				};
-			}
-		}
+/** Find the linked owner, retaining a body split temporarily by an internal blank line. */
+function passageSource(state: EditorState, range: TextRange): number | undefined {
+	const parsed = parsedDocumentForState(state);
+	const passages = state.field(sectionPassageField, false)?.passages ?? [];
+	for (const header of memberGroups(state, parsed).flat()) {
+		const body = sectionBodyRange(parsed, header);
+		if (!body) continue;
+		const end = Math.max(
+			body.to,
+			...passages.flatMap((passage) =>
+				passage.members.filter((member) => member.header === header).map((member) => member.to)
+			)
+		);
+		if (body.from <= range.from && range.to <= end) return header;
 	}
 	return undefined;
 }
 
-/** Carry a shared extension, or record a local one without touching its peers. */
-function mirrorBoundaryExtension(
-	transaction: Transaction,
-	extension: BoundaryExtension
-): TransactionSpec | undefined {
-	if (extension.local) {
-		const holes = extension.members.flatMap((member, memberIndex) => {
-			const mapped = member.holes.map((hole) => ({
-				from: member.body.from + hole.from,
-				to: member.body.from + hole.to
-			}));
-			if (extension.finalHole !== undefined) {
-				if (memberIndex === 0 && mapped[extension.finalHole]) {
-					mapped[extension.finalHole] = {
-						...mapped[extension.finalHole],
-						to: extension.sourceRange.to
-					};
-				}
-				return mapped;
-			}
-			const at = member.body.to;
-			mapped.push(memberIndex === 0 ? extension.sourceRange : { from: at, to: at });
-			return mapped;
-		});
-		const outside = holesOutside(transaction.startState, extension.members);
+function commitLinkedComposition(transaction: Transaction): TransactionSpec | undefined {
+	if (!transaction.effects.some((effect) => effect.is(setComposingEffect) && !effect.value))
+		return undefined;
+	const composing = transaction.startState.field(sectionLinkCompositionField, false);
+	if (!composing) return undefined;
+	const base = composing.base;
+	const value = base.field(sectionPassageField, false);
+	if (!value) return undefined;
+	if (base.doc.eq(transaction.newDoc)) {
 		return {
-			effects: [
-				setLinkHolesEffect.of([...outside, ...holes]),
-				...(extension.typeOnlyHere ? [typeOnlyHereAppliedEffect.of(null)] : [])
-			]
+			effects: replacePassageStateEffect.of(value),
+			userEvent: 'input.type.compose',
+			sequential: true
 		};
 	}
-	const edits = extension.members.slice(1).map((member) => {
-		const at = transaction.changes.mapPos(member.body.to, 1);
-		return { from: at, to: at, insert: extension.text };
+	const change = narrowEdit(0, base.doc.toString(), transaction.newDoc.toString());
+	const header = passageSource(base, change);
+	if (header === undefined) return undefined;
+	const local = isTypeOnlyHere(base, header);
+	const targets = local ? [] : passageTargets(value, base.doc.toString(), header, change);
+	// Preedit may have replaced a whole word several times. Its historical
+	// ChangeSet does not describe the size of the final correction honestly;
+	// use the minimal NET edit for both source and peer coordinates.
+	const composed = ChangeSet.of(change, base.doc.length);
+	const additions = targets.map((member) => ({
+		from: composed.mapPos(member.from, 1),
+		to: composed.mapPos(member.to, 1),
+		insert: change.insert
+	}));
+	const peerChanges = ChangeSet.of(additions, transaction.newDoc.length);
+	const complete = composed.compose(peerChanges);
+	const after = peerChanges.apply(transaction.newDoc);
+	const edits: TextEdit[] = [];
+	complete.iterChanges((from, to, _fromB, _toB, insert) => {
+		edits.push({ from, to, insert: insert.toString() });
 	});
-	if (edits.length === 0) return undefined;
-	edits.sort((left, right) => left.from - right.from);
-	return { changes: edits, sequential: true };
-}
-
-/**
- * A lyric typed onto the blank line that split a linked body in two.
- *
- * Pressing Enter between lyric lines inserts `\n` before the line break
- * already there, so `Hold\nNever` becomes `Hold\n\nNever`: a blank physical
- * line, which the parser reads as a section boundary. The mirror carries that
- * bare break to every peer (mid-body breaks mirror by design), so all copies
- * split into a headed first half and a headerless tail. Typing on the empty
- * line merges the edited copy back into one section; without help the peers
- * keep their blank separators and the link thereafter covers only first
- * halves — the reported "two separate sections".
- *
- * The terminal extension above must not answer this: it would carry the whole
- * tail (`\nNew\nNever`) to each peer's body end, duplicating the `Never` the
- * peer already holds as its tail. Instead the filled gap alone (`\nNew\n`)
- * replaces each peer's blank gap, merging every copy the same way.
- *
- * Only the shared case mirrors. A local mode or a divergent run reaching the
- * truncated edge stays local, like the terminal edge: the new words are this
- * copy's own and must not reach peers.
- */
-function medialGapFill(
-	transaction: Transaction,
-	parsed: ParsedDocument,
-	change: TextRange
-): TransactionSpec | undefined {
-	if (change.from !== change.to) return undefined;
-	const after = parsedDocumentForState(transaction.state);
-	const groups = memberGroups(transaction.startState, parsed);
-	const orderedSections = [...parsed.sections].sort((left, right) => left.from - right.from);
-	for (const group of groups) {
-		for (const header of group) {
-			const body = sectionBodyRange(parsed, header);
-			if (!body) continue;
-			const memberSection = parsed.sections.find((section) => section.header?.from === header);
-			if (!memberSection) continue;
-			const nextSection = orderedSections[orderedSections.indexOf(memberSection) + 1];
-			if (!nextSection || nextSection.header) continue;
-			if (!(body.to <= change.from && change.to <= nextSection.from)) continue;
-			const gapPre = transaction.startState.doc.sliceString(body.to, nextSection.from);
-			if (!/[\r\n]/u.test(gapPre) || !/^[\t\r\n ]+$/u.test(gapPre)) continue;
-
-			const mappedHeader = transaction.changes.mapPos(header, -1);
-			const nextBody = sectionBodyRange(after, mappedHeader);
-			if (!nextBody) continue;
-			const mappedBodyEnd = transaction.changes.mapPos(body.to, -1);
-			const mappedTailFrom = transaction.changes.mapPos(nextSection.from, 1);
-			const mappedTailTo = transaction.changes.mapPos(nextSection.to, 1);
-			const changedEnd = transaction.changes.mapPos(change.to, 1);
-			if (!(
-				nextBody.to > mappedBodyEnd &&
-				nextBody.to >= mappedTailTo &&
-				nextBody.to >= changedEnd
-			)) {
-				continue;
-			}
-			const newGapText = transaction.newDoc.sliceString(mappedBodyEnd, mappedTailFrom);
-			if (!/[^\t\r\n ]/u.test(newGapText)) continue;
-
-			const ordered = [header, ...group.filter((candidate) => candidate !== header)];
-			const members = groupShape(transaction.startState, parsed, ordered);
-			const source = members?.[0];
-			if (!members || !source) continue;
-			const sourceLength = source.body.to - source.body.from;
-			if (
-				isTypeOnlyHere(transaction.startState, header) ||
-				holeContaining(source.holes, sourceLength, sourceLength) !== undefined
-			) {
-				continue;
-			}
-
-			const edits: TextEdit[] = [];
-			let coherent = true;
-			for (const peer of members.slice(1)) {
-				const peerSection = parsed.sections.find((section) => section.header?.from === peer.header);
-				const peerNext = peerSection
-					? orderedSections[orderedSections.indexOf(peerSection) + 1]
-					: undefined;
-				const peerBody = sectionBodyRange(parsed, peer.header);
-				if (!peerSection || !peerNext || peerNext.header || !peerBody) {
-					coherent = false;
-					break;
-				}
-				const peerGap = transaction.startState.doc.sliceString(peerBody.to, peerNext.from);
-				if (!/[\r\n]/u.test(peerGap) || !/^[\t\r\n ]+$/u.test(peerGap)) {
-					coherent = false;
-					break;
-				}
-				const from = transaction.changes.mapPos(peerBody.to, 1);
-				const to = transaction.changes.mapPos(peerNext.from, 1);
-				if (transaction.startState.doc.sliceString(peerBody.to, peerNext.from) === newGapText) {
-					continue;
-				}
-				edits.push({ from, to, insert: newGapText });
-			}
-			if (!coherent) continue;
-			if (edits.length === 0) return undefined;
-			edits.sort((left, right) => left.from - right.from || left.to - right.to);
-			return { changes: edits, sequential: true };
-		}
-	}
-	return undefined;
+	let next = mapPassageState(value, complete, edits, base.doc.toString(), after.toString());
+	if (targets.length)
+		next = applyPassageTransfer(next, complete, [
+			{ header, from: change.from, to: change.to },
+			...targets
+		]);
+	if (local)
+		next = detachPassageRange(next, {
+			header: complete.mapPos(header, 1),
+			from: complete.mapPos(change.from, -1),
+			to: complete.mapPos(change.to, 1)
+		});
+	return {
+		changes: peerChanges,
+		effects: replacePassageStateEffect.of(next),
+		// CodeMirror deliberately joins a compose commit to its provisional edits,
+		// even after a long pause choosing a character. One composition, one undo.
+		userEvent: 'input.type.compose',
+		sequential: true
+	};
 }
 
 export function sectionLinkMirror(): Extension {
 	return EditorState.transactionFilter.of((transaction) => {
-		if (!transaction.docChanged) {
+		const composition = commitLinkedComposition(transaction);
+		if (composition) return [transaction, composition];
+		if (
+			!transaction.docChanged ||
+			transaction.isUserEvent('undo') ||
+			transaction.isUserEvent('redo')
+		)
 			return transaction;
-		}
-		const links = transaction.startState.field(sectionLinkField, false);
-		if (!links || links.size === 0) {
+		if (
+			transaction.effects.some(
+				(effect) => effect.is(setSectionLinkEffect) || effect.is(setSectionLinksEffect)
+			)
+		)
 			return transaction;
-		}
-		const userEvent = transaction.annotation(Transaction.userEvent);
-		if (userEvent === 'undo' || userEvent === 'redo') {
-			return transaction;
-		}
+		const before = transaction.startState;
+		const value = before.field(sectionPassageField, false);
+		if (!value || before.field(editorComposingField, false)) return transaction;
 		const onlyHere = transaction.annotation(applyOnlyHereAnnotation);
-		const change = singleChangedRange(transaction.changes);
-		const parsed = parsedDocumentForState(transaction.startState);
-		if (!onlyHere && !change) {
-			const active = transaction.startState.field(typeOnlyHereField, false);
-			if (!active) return transaction;
-			const group = memberGroups(transaction.startState, parsed).find((headers) =>
-				headers.includes(active.header)
-			);
-			const section = parsed.sections.find((candidate) => candidate.header?.from === active.header);
-			if (!group || !section) return transaction;
-			const ordered = [active.header, ...group.filter((header) => header !== active.header)];
-			const members = groupShape(transaction.startState, parsed, ordered);
-			const source = members?.[0];
-			if (!members || !source) return transaction;
-			const changes: TextRange[] = [];
-			let insideSection = true;
-			transaction.changes.iterChangedRanges((from, to) => {
-				if (from < section.from || to > section.to) insideSection = false;
-				if (source.body.from <= from && to <= source.body.to) changes.push({ from, to });
-			});
-			if (!insideSection || changes.length === 0) return transaction;
-			let localMembers: MemberShape[] = members;
-			for (const range of changes) {
-				const localized = localizeSpan(localMembers, range);
-				if (!localized) return transaction;
-				localMembers = localized;
-			}
-			return [
-				transaction,
-				{
-					effects: [
-						setLinkHolesEffect.of([
-							...holesOutside(transaction.startState, members),
-							...absoluteHoles(localMembers)
-						]),
-						typeOnlyHereAppliedEffect.of(null)
-					]
-				}
-			];
-		}
-		const addressed = onlyHere ?? change!;
 		if (
 			onlyHere &&
 			(!Number.isSafeInteger(onlyHere.from) ||
 				!Number.isSafeInteger(onlyHere.to) ||
 				onlyHere.from < 0 ||
 				onlyHere.from > onlyHere.to ||
-				onlyHere.to > transaction.startState.doc.length)
+				onlyHere.to > before.doc.length)
 		) {
 			throw new RangeError('The local linked-section edit has an invalid range.');
 		}
-		if (onlyHere) {
-			let insideAddressedRange = true;
-			transaction.changes.iterChangedRanges((from, to) => {
-				if (from < onlyHere.from || to > onlyHere.to) insideAddressedRange = false;
-			});
-			if (!insideAddressedRange) {
+		const changes: TextEdit[] = [];
+		transaction.changes.iterChanges((from, to, _fromB, _toB, insert) => {
+			if (onlyHere && (from < onlyHere.from || to > onlyHere.to))
 				throw new RangeError('The local linked-section edit leaves its addressed range.');
-			}
-		}
-
-		if (!onlyHere && !transaction.startState.field(editorComposingField, false)) {
-			const extension = boundaryExtension(transaction, parsed, change!);
-			const mirrored = extension ? mirrorBoundaryExtension(transaction, extension) : undefined;
-			if (mirrored) return [transaction, mirrored];
-			const medial = medialGapFill(transaction, parsed, change!);
-			if (medial) return [transaction, medial];
-		}
-
-		const group = memberGroups(transaction.startState, parsed).find((headers) =>
-			headers.some((header) => {
-				const body = sectionBodyRange(parsed, header);
-				return body && body.from <= addressed.from && addressed.to <= body.to;
-			})
+			changes.push({ from, to, insert: insert.toString() });
+		});
+		const source = passageSource(
+			before,
+			onlyHere ?? { from: changes[0]!.from, to: changes.at(-1)!.to }
 		);
-		if (!group) {
-			if (onlyHere) {
-				const changedInsideLinkedMember = memberGroups(transaction.startState, parsed).some(
-					(headers) =>
-						headers.some((header) => {
-							const body = sectionBodyRange(parsed, header);
-							if (!body) return false;
-							let inside = false;
-							transaction.changes.iterChangedRanges((from, to) => {
-								if (body.from <= from && to <= body.to) inside = true;
-							});
-							return inside;
-						})
+		const parsed = parsedDocumentForState(before);
+		if (source === undefined) {
+			// Enter at the terminal edge first creates space outside the body.
+			// Once lyrics fill it, the same parsed section has demonstrably grown.
+			if (onlyHere || changes.length !== 1 || changes[0]!.from !== changes[0]!.to)
+				return transaction;
+			const change = changes[0]!;
+			const after = parsedDocumentForState(transaction.state);
+			for (const header of memberGroups(before, parsed).flat()) {
+				const body = sectionBodyRange(parsed, header);
+				if (!body || body.to >= change.from || isTypeOnlyHere(before, header)) continue;
+				const gap = before.doc.sliceString(body.to, change.from);
+				if (!/^[\t\r\n ]+$/u.test(gap) || !gap.includes('\n')) continue;
+				const grown = sectionBodyRange(after, transaction.changes.mapPos(header, 1));
+				if (!grown || grown.to < transaction.changes.mapPos(change.from, 1)) continue;
+				const own = { header, from: body.to, to: change.from };
+				const targets = passageTargets(value, before.doc.toString(), header, {
+					from: body.to,
+					to: body.to
+				});
+				if (!targets.length) continue;
+				const insert = transaction.newDoc.sliceString(
+					transaction.changes.mapPos(body.to, -1),
+					grown.to
 				);
-				if (changedInsideLinkedMember) {
-					throw new RangeError('A local edit must address one linked section body.');
-				}
+				const edits = targets.map((member) => ({
+					from: transaction.changes.mapPos(member.from, 1),
+					to: transaction.changes.mapPos(member.to, 1),
+					insert
+				}));
+				return [
+					transaction,
+					{ changes: edits, effects: transferPassageEffect.of([own, ...targets]), sequential: true }
+				];
 			}
 			return transaction;
 		}
-		// The edited copy leads, because every offset below is measured from it.
-		const ordered = [
-			...group.filter((header) => {
-				const body = sectionBodyRange(parsed, header);
-				return body && body.from <= addressed.from && addressed.to <= body.to;
-			}),
-			...group.filter((header) => {
-				const body = sectionBodyRange(parsed, header);
-				return !(body && body.from <= addressed.from && addressed.to <= body.to);
-			})
-		];
-		const members = groupShape(transaction.startState, parsed, ordered);
-		const source = members?.[0];
-		if (!members || !source) {
-			return transaction;
-		}
-
-		if (onlyHere) {
-			const relative = {
-				from: onlyHere.from - source.body.from,
-				to: onlyHere.to - source.body.from
-			};
-			// It is already local. The marker effect still makes the shell persist
-			// any positions mapped by the edit.
-			if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
-				return [transaction, { effects: typeOnlyHereAppliedEffect.of(null) }];
-			}
-			const localMembers = members.map((member) => ({
-				...member,
-				holes: [...member.holes]
-			}));
-			if (!addDifference(members, localMembers, onlyHere, true)) {
-				throw new RangeError('The proposal cannot become one linked-section difference.');
-			}
+		if (onlyHere || isTypeOnlyHere(before, source)) {
+			const ranges = (onlyHere ? [onlyHere] : changes).filter(
+				(range) =>
+					!value.detached.some(
+						(member) =>
+							member.header === source && member.from <= range.from && range.to <= member.to
+					)
+			);
+			if (!ranges.length) return transaction;
 			return [
 				transaction,
 				{
 					effects: [
-						setLinkHolesEffect.of([
-							...holesOutside(transaction.startState, members),
-							...absoluteHoles(localMembers)
-						]),
+						...ranges.map((range) =>
+							detachPassageEffect.of({ header: source, from: range.from, to: range.to })
+						),
 						typeOnlyHereAppliedEffect.of(null)
 					]
 				}
 			];
 		}
-
-		const normalChange = change!;
-		if (normalChange.from === source.body.to && normalChange.to === source.body.to) {
-			const after = parsedDocumentForState(transaction.state);
-			const nextBody = sectionBodyRange(after, transaction.changes.mapPos(source.header, -1));
-			const oldEnd = transaction.changes.mapPos(source.body.to, -1);
-			// A body that did not grow past its old end says the insertion belongs
-			// after this section. Most importantly, this is the first Enter used to
-			// make room for the next header; carrying it adds stray blank lines to
-			// every earlier copy.
-			if (!nextBody || nextBody.to <= oldEnd) return transaction;
-		}
-		const relative = {
-			from: normalChange.from - source.body.from,
-			to: normalChange.to - source.body.from
-		};
-		const local = transaction.startState.field(typeOnlyHereField, false);
-		if (local?.header === source.header) {
-			if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
-				return transaction;
+		const additions: TextEdit[] = [];
+		const transfers: PassageMember[][] = [];
+		for (const change of changes) {
+			const body = sectionBodyRange(parsed, source);
+			if (body && change.from === body.to && change.to === body.to) {
+				const grown = sectionBodyRange(
+					parsedDocumentForState(transaction.state),
+					transaction.changes.mapPos(source, 1)
+				);
+				if (!grown || grown.to <= transaction.changes.mapPos(body.to, -1)) continue;
 			}
-			const localMembers = localizeSpan(members, normalChange);
-			if (localMembers) {
-				return [
-					transaction,
-					{
-						effects: [
-							setLinkHolesEffect.of([
-								...holesOutside(transaction.startState, members),
-								...absoluteHoles(localMembers)
-							]),
-							typeOnlyHereAppliedEffect.of(null)
-						]
-					}
-				];
-			}
+			const targets = passageTargets(value, before.doc.toString(), source, change);
+			for (const target of targets)
+				additions.push({ from: target.from, to: target.to, insert: change.insert });
+			if (targets.length)
+				transfers.push([{ header: source, from: change.from, to: change.to }, ...targets]);
 		}
-		if (transaction.startState.field(editorComposingField, false)) {
+		if (!additions.length) return transaction;
+		additions.sort((a, b) => a.from - b.from || a.to - b.to);
+		// Every destination is planned from one snapshot. Refuse an inconsistent
+		// mapping as a unit rather than apply overlapping edits to another copy.
+		if (additions.some((edit, index) => index > 0 && additions[index - 1]!.to > edit.from))
 			return transaction;
-		}
-		if (holeContaining(source.holes, relative.from, relative.to) !== undefined) {
-			return transaction;
-		}
-		const sourceLength = source.body.to - source.body.from;
-		// The whole run, not the handful of characters that changed. See
-		// `widenToRuns`: a run is identical in every member by definition, so
-		// writing all of it cannot drift and repairs a group that already has.
-		const span = widenToRuns(
-			source.holes,
-			sourceLength,
-			expandOverHoles(source.holes, relative.from, relative.to)
-		);
-		const text = transaction.newDoc.sliceString(
-			transaction.changes.mapPos(source.body.from + span.from, -1),
-			transaction.changes.mapPos(source.body.from + span.to, 1)
-		);
-
-		const edits: TextEdit[] = [];
-		for (const member of members.slice(1)) {
-			const target = translateSpan(
-				{ holes: source.holes, length: sourceLength },
-				{ holes: member.holes, length: member.body.to - member.body.from },
-				span
-			);
-			if (!target) {
-				continue;
+		return [
+			transaction,
+			{
+				changes: additions.map((edit) => ({
+					...edit,
+					from: transaction.changes.mapPos(edit.from, 1),
+					to: transaction.changes.mapPos(edit.to, 1)
+				})),
+				effects: transfers.map((members) => transferPassageEffect.of(members)),
+				sequential: true
 			}
-			const from = member.body.from + target.from;
-			const to = member.body.from + target.to;
-			const original = transaction.startState.doc.sliceString(from, to);
-			if (original === text) {
-				continue;
-			}
-			// The *span* is still the whole run — that is what makes the write
-			// idempotent where the group is in step and a repair where it is not —
-			// but the *edit* dispatched is trimmed to where the two texts actually
-			// differ, because a change's range is a claim other features read. A
-			// line wholly inside a replacement reads as rewritten in
-			// `line-anchors.ts`: its anchor survives only through the rescue,
-			// re-seated at a position `mapPos` cannot explain, so the playhead
-			// follow took every mirrored keystroke for the mark moving and
-			// scrolled the reader away from the line they were typing. Old prefix
-			// + trimmed slice + old suffix is the run's new text by construction,
-			// so the document comes out byte for byte the same; only the claim
-			// stops overstating.
-			const narrowed = narrowEdit(from, original, text);
-			edits.push({
-				from: transaction.changes.mapPos(narrowed.from, 1),
-				to: transaction.changes.mapPos(narrowed.to, 1),
-				insert: narrowed.insert
-			});
-		}
-		if (edits.length === 0) {
-			return transaction;
-		}
-		edits.sort((left, right) => left.from - right.from);
-		const mirrored: TransactionSpec = { changes: edits, sequential: true };
-		return [transaction, mirrored];
+		];
 	});
 }
 
@@ -1629,190 +1630,115 @@ export function typeOnlyHereNotifier(): Extension {
 		if (changed) {
 			update.state.field(editorCallbacksField, false)?.onSectionLinksChanged?.();
 		}
+		if (update.selectionSet && !update.state.field(editorComposingField, false)) {
+			const before = sectionLinkScope(update.startState);
+			const after = sectionLinkScope(update.state);
+			if (after && (before?.header !== after.header || before.scope.label !== after.scope.label)) {
+				update.state.field(editorCallbacksField, false)?.onAnnouncement(after.scope.label);
+			}
+		}
 	});
 }
 
-class SectionLinkMarker extends WidgetType {
-	constructor(
-		readonly headerFrom: number,
-		readonly local: boolean
-	) {
-		super();
+/** The same complete-operation planner supplies both the header and actual mirroring. */
+export function sectionLinkScope(
+	state: EditorState
+): { header: number; scope: SectionLinkScope } | undefined {
+	const composition = state.field(sectionLinkCompositionField, false);
+	if (composition) {
+		const settled = sectionLinkScope(composition.base);
+		return settled
+			? { ...settled, header: composition.changes.mapPos(settled.header, 1) }
+			: undefined;
 	}
-
-	eq(other: SectionLinkMarker): boolean {
-		return other.headerFrom === this.headerFrom && other.local === this.local;
-	}
-
-	toDOM(view: EditorView): HTMLElement {
-		const marker = document.createElement('button');
-		marker.type = 'button';
-		marker.className = `ll-section-link-marker${this.local ? ' ll-section-link-marker--local' : ''}`;
-		marker.textContent = '⇄';
-		if (this.local) {
-			const status = document.createElement('span');
-			status.className = 'll-section-only-status';
-			status.textContent = 'Editing this section only';
-			status.setAttribute('aria-hidden', 'true');
-			marker.append(status);
+	const range = state.selection.main;
+	const header = passageSource(state, range);
+	if (header === undefined) return undefined;
+	const value = state.field(sectionPassageField, false);
+	if (!value) return undefined;
+	if (isTypeOnlyHere(state, header))
+		return { header, scope: { label: 'Editing this section only' } };
+	const names = linkingSectionNames(parsedDocumentForState(state));
+	const list = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' });
+	const peersFor = (span: TextRange) =>
+		passageTargets(value, state.doc.toString(), header, span).map((peer) => peer.header);
+	const describe = (peers: number[]) =>
+		peers.length
+			? `Also edits ${list.format(peers.map((peer) => names.get(peer) ?? 'linked section'))}`
+			: 'Only this section';
+	const peers = peersFor(range);
+	let label = describe(peers);
+	const detail: string[] = [];
+	if (range.empty) {
+		const text = state.doc.toString();
+		const backward = peersFor({ from: findClusterBreak(text, range.from, false), to: range.from });
+		const forward = peersFor({ from: range.from, to: findClusterBreak(text, range.from, true) });
+		if (backward.join(',') !== peers.join(',') || forward.join(',') !== peers.join(',')) {
+			label = peers.length
+				? `Typing also edits ${list.format(peers.map((peer) => names.get(peer) ?? 'linked section'))}`
+				: 'Typing only in this section';
+			detail.push(`Backspace: ${describe(backward)}. Delete: ${describe(forward)}.`);
 		}
-		marker.setAttribute(
-			'aria-label',
-			this.local ? 'Edit linked sections, editing only this section' : 'Edit linked sections'
-		);
-		const showHint = () => showControlHint(marker, { label: 'Manage linking' });
-		const releaseHint = () => releaseControlHint(marker);
-		marker.addEventListener('pointerenter', showHint);
-		marker.addEventListener('pointerleave', releaseHint);
-		marker.addEventListener('focus', showHint);
-		marker.addEventListener('blur', releaseHint);
-		marker.addEventListener('keydown', (event) => {
-			if (event.key === 'Escape') releaseHint();
-		});
-		const open = (origin: SectionLinkOrigin) => {
-			releaseHint();
-			const line = view.state.doc.lineAt(clamp(view.state, this.headerFrom));
-			view.state.field(editorCallbacksField, false)?.onSectionLinkRequest?.(
-				{
-					range: { from: line.from, to: line.to },
-					prefer: 'above'
-				},
-				origin
-			);
-		};
-		const byPress: SectionLinkOrigin = {
-			takesFocus: true,
-			returnFocus: () => {
-				if (!marker.isConnected) {
-					return false;
-				}
-				marker.focus();
-				return true;
-			}
-		};
-		// Reaching a marker by pointer or Tab does not navigate the shell. Only a
-		// deliberate press opens Linking; widget key handling protects lyric text.
-		marker.addEventListener('click', () => open(byPress));
-		pressed(marker, () => open(byPress));
-		return marker;
+	} else if (!peers.length) {
+		detail.push('The selection includes wording that is independent in the other sections.');
 	}
-
-	destroy(dom: HTMLElement): void {
-		releaseControlHint(dom);
-	}
+	const scope: SectionLinkScope = { label };
+	if (detail.length) scope.detail = detail.join(' ');
+	return { header, scope };
 }
 
-/**
- * Mark linked headers, and the words inside them that are each copy's own.
- *
- * A divergent run is a `Decoration.mark` and never a widget, for the reason the
- * `⇄` on a header is a widget only because it sits outside the text: clean
- * lyrics on the clipboard are this application's entire output, and a mark adds
- * nothing to a copy. It is drawn as a dotted underline because every other
- * underline in the editor is wavy and belongs to a diagnostic — this is not a
- * finding, it is a note about what an edit here will and will not reach.
- *
- * A run that is empty in this copy draws nothing, because there is nothing
- * there to draw on. The explicit section-only mode is instead named on the
- * header, where it stays visible regardless of the caret or the width of any
- * one divergent run.
- */
+/** Headers carry scope; only text with no shared occurrence is marked independent. */
 export const sectionLinkDecorations = EditorView.decorations.compute(
-	['selection', sectionLinkField, linkHolesField, typeOnlyHereField],
+	[
+		'selection',
+		sectionLinkField,
+		sectionPassageField,
+		typeOnlyHereField,
+		sectionLinkCompositionField
+	],
 	(state): DecorationSet => {
 		const field = state.field(sectionLinkField, false);
-		if (!field || field.size === 0) {
-			return Decoration.none;
-		}
+		if (!field || field.size === 0) return Decoration.none;
 		const marks: Range<Decoration>[] = [];
 		const local = state.field(typeOnlyHereField, false);
+		const scope = sectionLinkScope(state);
 		const cursor = field.iter();
 		while (cursor.value) {
 			const localHeader = local?.header === cursor.from;
-			if (localHeader) {
+			if (localHeader)
 				marks.push(Decoration.line({ class: 'll-section-only-header' }).range(cursor.from));
-			}
 			marks.push(
 				Decoration.widget({
-					widget: new SectionLinkMarker(cursor.from, localHeader),
+					widget: new SectionLinkMarker(
+						cursor.from,
+						localHeader,
+						typeOnlyHere,
+						scope?.header === cursor.from ? scope.scope : undefined
+					),
 					side: 1
 				}).range(cursor.to)
 			);
 			cursor.next();
 		}
-		// Nothing further to draw, and — since this runs on every keystroke in a
-		// document that has links — nothing to parse either. A group whose copies
-		// agree throughout is the common case and costs this compute the header
-		// marks and no more.
-		const holes = state.field(linkHolesField, false) ?? [];
-		if (holes.length === 0) {
-			return Decoration.set(marks, true);
-		}
-		// One parse, shared with `memberGroups`. A run is only drawn inside a body
-		// that is still in a group: unlinking leaves the ex-peer's runs behind in the
-		// field, and words underlined by a link that no longer exists are worse than
-		// the residue itself.
 		const parsed = parsedDocumentForState(state);
-		const bodies = memberGroups(state, parsed)
-			.flat()
-			.flatMap((header) => {
-				const body = sectionBodyRange(parsed, header);
-				return body ? [body] : [];
-			});
+		const passages = state.field(sectionPassageField, false)?.passages ?? [];
 		const divergent = Decoration.mark({ class: 'll-link-divergent' });
-		for (const hole of holes) {
-			if (
-				hole.to > hole.from &&
-				bodies.some((body) => body.from <= hole.from && hole.to <= body.to)
-			) {
-				marks.push(divergent.range(hole.from, hole.to));
+		for (const header of memberGroups(state, parsed).flat()) {
+			const body = sectionBodyRange(parsed, header);
+			if (!body) continue;
+			let at = body.from;
+			const shared = passages
+				.flatMap((passage) =>
+					passage.members.filter((member) => member.header === header && member.from < member.to)
+				)
+				.sort((a, b) => a.from - b.from);
+			for (const member of shared) {
+				if (at < member.from && at < body.to)
+					marks.push(divergent.range(at, Math.min(member.from, body.to)));
+				at = Math.max(at, member.to);
 			}
+			if (at < body.to) marks.push(divergent.range(at, body.to));
 		}
 		return Decoration.set(marks, true);
 	}
 );
-
-export const sectionLinkTheme = EditorView.baseTheme({
-	'.ll-section-link-marker': {
-		marginInlineStart: 'var(--space-1-5)',
-		padding: '0',
-		border: '0',
-		appearance: 'none',
-		background: 'transparent',
-		color: 'var(--color-text-muted)',
-		fontFamily: 'inherit',
-		fontSize: 'var(--font-size-xs)',
-		lineHeight: 'inherit',
-		cursor: 'pointer'
-	},
-	'.ll-section-link-marker:hover, .ll-section-link-marker:focus-visible': {
-		color: 'var(--color-text)'
-	},
-	'.ll-section-link-marker--local': {
-		color: 'var(--color-text)',
-		fontFamily: 'var(--font-ui)',
-		fontWeight: 'var(--font-weight-semibold)'
-	},
-	'.ll-section-only-status': {
-		marginInlineStart: 'var(--space-1-5)',
-		color: 'var(--color-danger)',
-		whiteSpace: 'nowrap'
-	},
-	'.ll-section-only-header': {
-		background: 'var(--color-danger-surface)',
-		boxShadow: 'inset var(--space-1) 0 0 var(--color-danger)'
-	},
-	// The ordinary caret-row wash is a large inset shadow, so it would otherwise
-	// cover both the danger surface and its rail when the caret is on the header.
-	'.ll-section-only-header.cm-activeLine': {
-		backgroundColor: 'var(--color-danger-surface)',
-		boxShadow: 'inset var(--space-1) 0 0 var(--color-danger)'
-	},
-	'.ll-link-divergent': {
-		textDecorationLine: 'underline',
-		textDecorationStyle: 'dotted',
-		textDecorationThickness: '1px',
-		textDecorationColor: 'var(--color-border-strong)',
-		textUnderlineOffset: '0.25em'
-	}
-});

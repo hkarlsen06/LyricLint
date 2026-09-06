@@ -574,7 +574,7 @@ describe('autosave and recovery', () => {
 		openDatabases.add(database);
 		const repository = createDraftRepository(database);
 		const complete = {
-			...draft({ id: 'whole-draft', text: '[Verse]\nFirst line\nSecond line' }),
+			...draft({ id: 'whole-draft', text: '[Verse]\nFirst line\n[Chorus]\nFirst line' }),
 			originalText: '[Verse]\noriginal',
 			editorSelection: { anchor: 3, head: 7 },
 			// The sub-records carry `satisfies Required<…>` for the same reason the
@@ -595,7 +595,22 @@ describe('autosave and recovery', () => {
 					holes: [
 						{ line: 2, column: 4, endLine: 2, endColumn: 9 } satisfies Required<LinkHole>,
 						{ line: 4, column: 4, endLine: 4, endColumn: 7 } satisfies Required<LinkHole>
-					]
+					],
+					passages: [
+						{
+							members: [
+								{ headerLine: 1, line: 2, column: 0, endLine: 2, endColumn: 4 },
+								{ headerLine: 3, line: 4, column: 0, endLine: 4, endColumn: 4 }
+							]
+						},
+						{
+							members: [
+								{ headerLine: 1, line: 2, column: 10, endLine: 2, endColumn: 10 },
+								{ headerLine: 3, line: 4, column: 10, endLine: 4, endColumn: 10 }
+							]
+						}
+					],
+					detached: [{ headerLine: 1, line: 2, column: 5, endLine: 2, endColumn: 9 }]
 				} satisfies Required<SectionLink>
 			],
 			compareBaseline: {

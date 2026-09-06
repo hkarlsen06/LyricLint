@@ -53,6 +53,36 @@ afterEach(async () => {
 });
 
 describe('workspace backup', () => {
+	it('retains draft text but suspends malformed passage connections in an imported backup', () => {
+		const source = draft('passages', '[Intro]\nSame\n[Chorus]\nSame');
+		const sectionLinks = [
+			{
+				lines: [1, 3],
+				passages: [
+					{
+						members: [
+							{ headerLine: 1, line: 2, column: 0, endLine: 2, endColumn: 4 },
+							{ headerLine: 3, line: 4, column: 0, endLine: 4, endColumn: 999 }
+						]
+					}
+				]
+			}
+		];
+		const restored = parseWorkspaceBackup(
+			JSON.stringify({
+				format: 'lyriclint-workspace',
+				version: 1,
+				createdAt: source.createdAt,
+				drafts: [{ ...source, sectionLinks }],
+				appMetadata: [],
+				media: [],
+				ignoredDiagnostics: []
+			})
+		);
+		expect(restored.drafts[0]?.text).toBe(source.text);
+		expect(restored.drafts[0]?.sectionLinks).toEqual([{ lines: [1, 3], passages: [] }]);
+	});
+
 	it('stays disconnected when the remembered handle cannot be read', async () => {
 		const db = await database('handle-read-failure');
 		vi.spyOn(db.backupHandles, 'get').mockRejectedValueOnce(new Error('storage refused'));

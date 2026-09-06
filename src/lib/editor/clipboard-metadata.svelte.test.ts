@@ -146,7 +146,27 @@ describe('copy', () => {
 				{ line: 1, time: 12.53 },
 				{ line: 5, time: 41.9 }
 			],
-			links: [{ lines: [0, 4] }]
+			links: [
+				{
+					lines: [0, 4],
+					holes: [
+						{ line: 0, column: 8, endLine: 2, endColumn: 17 },
+						{ line: 4, column: 8, endLine: 6, endColumn: 16 }
+					],
+					passages: [
+						{
+							members: [
+								{ headerLine: 0, line: 0, column: 8, endLine: 2, endColumn: 12 },
+								{ headerLine: 4, line: 4, column: 8, endLine: 6, endColumn: 12 }
+							]
+						}
+					],
+					detached: [
+						{ headerLine: 0, line: 2, column: 12, endLine: 2, endColumn: 17 },
+						{ headerLine: 4, line: 6, column: 12, endLine: 6, endColumn: 16 }
+					]
+				}
+			]
 		});
 	});
 
@@ -215,6 +235,50 @@ describe('copy', () => {
 });
 
 describe('paste', () => {
+	it('restores stored word connections after paste and mirrors an edit across different lines', async () => {
+		const prefix = '[Verse]\nLocal\n\n';
+		const fragment = '[Intro]\nVin i et badekar, ri-ri\n\n[Chorus]\nVin i et badekar';
+		const payload: ClipboardMetadata = {
+			lines: 5,
+			anchors: [],
+			links: [
+				{
+					lines: [0, 3],
+					passages: [
+						{
+							members: [
+								{ headerLine: 0, line: 1, column: 9, endLine: 1, endColumn: 16 },
+								{ headerLine: 3, line: 4, column: 9, endLine: 4, endColumn: 16 }
+							]
+						}
+					],
+					detached: []
+				}
+			]
+		};
+		const { handle, text } = await mount({
+			text: prefix,
+			selection: { anchor: prefix.length, head: prefix.length }
+		});
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', fragment);
+		transfer.setData('text/html', clipboardHtml(fragment, payload));
+		clipboard('paste', transfer);
+		expect(handle.getSectionLinks?.()[0]?.passages).toEqual([
+			{
+				members: [
+					{ headerLine: 4, line: 5, column: 9, endLine: 5, endColumn: 16 },
+					{ headerLine: 7, line: 8, column: 9, endLine: 8, endColumn: 16 }
+				]
+			}
+		]);
+		const from = text().indexOf('badekar');
+		handle.setSelection({ anchor: from, head: from + 7 });
+		await focusEditor();
+		await userEvent.keyboard('badeker');
+		expect(text()).toBe(prefix + fragment.replaceAll('badekar', 'badeker'));
+	});
+
 	it('lands the text, its timings, and its link, and tells the shell', async () => {
 		const { handle, linksChanged, text } = await mount({ text: '' });
 		const transfer = new DataTransfer();
@@ -233,8 +297,20 @@ describe('paste', () => {
 			{
 				lines: [1, 5],
 				holes: [
-					{ line: 3, column: 12, endLine: 3, endColumn: 17 },
-					{ line: 7, column: 12, endLine: 7, endColumn: 16 }
+					{ line: 1, column: 8, endLine: 3, endColumn: 17 },
+					{ line: 5, column: 8, endLine: 7, endColumn: 16 }
+				],
+				passages: [
+					{
+						members: [
+							{ headerLine: 1, line: 1, column: 8, endLine: 3, endColumn: 12 },
+							{ headerLine: 5, line: 5, column: 8, endLine: 7, endColumn: 12 }
+						]
+					}
+				],
+				detached: [
+					{ headerLine: 1, line: 3, column: 12, endLine: 3, endColumn: 17 },
+					{ headerLine: 5, line: 7, column: 12, endLine: 7, endColumn: 16 }
 				]
 			}
 		]);
@@ -267,11 +343,43 @@ describe('paste', () => {
 		clipboard('paste', transfer);
 
 		expect(text()).toBe(`${song}tail`);
-		// The well-formed run survives; the overshooting one is gone rather than
-		// stretched to the end of a document line that now carries `tail`.
-		expect(handle.getSectionLinks?.()).toEqual([
-			{ lines: [1, 5], holes: [{ line: 3, column: 12, endLine: 3, endColumn: 17 }] }
-		]);
+		// Dropping the overshoot leaves mismatched legacy holes: suspend that shape
+		// rather than guessing which text its missing counterpart used to protect.
+		expect(handle.getSectionLinks?.()[0]?.passages).toEqual([]);
+		const from = text().indexOf('Hold');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from, to: from + 4, insert: 'Keep' }]
+		});
+		expect(text()).toBe(`${song.replace('Hold', 'Keep')}tail`);
+	});
+
+	it('preserves deliberately local matching words from a legacy clipboard', async () => {
+		const fragment = '[Chorus]\nHold on tight\n\n[Chorus]\nHold on tight';
+		const metadata: ClipboardMetadata = {
+			lines: 5,
+			anchors: [],
+			links: [
+				{
+					lines: [0, 3],
+					holes: [
+						{ line: 1, column: 8, endLine: 1, endColumn: 13 },
+						{ line: 4, column: 8, endLine: 4, endColumn: 13 }
+					]
+				}
+			]
+		};
+		const { handle, text } = await mount({ text: '' });
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', fragment);
+		transfer.setData('text/html', clipboardHtml(fragment, metadata));
+		clipboard('paste', transfer);
+		const from = text().indexOf('tight');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from, to: from + 5, insert: 'close' }]
+		});
+		expect(text()).toBe(fragment.replace('tight', 'close'));
 	});
 
 	it('hands a carried source to the shell instead of acting on it', async () => {

@@ -2,7 +2,13 @@ import { page, userEvent } from 'vitest/browser';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { parseDocument } from '$lib/core/parser.js';
-import type { Diagnostic, EditorHandle, LanguagePack, PerformerRecord } from '$lib/core/types.js';
+import type {
+	Diagnostic,
+	EditorHandle,
+	LanguagePack,
+	LinkHole,
+	PerformerRecord
+} from '$lib/core/types.js';
 import {
 	assignVoiceGroup,
 	assignVoiceLegend,
@@ -46,6 +52,35 @@ function offsetOf(text: string, needle: string): number {
 	const index = text.indexOf(needle);
 	if (index < 0) throw new Error(`${needle} is not in the fixture.`);
 	return index;
+}
+
+function lineOffset(text: string, line: number): number {
+	return text
+		.split('\n')
+		.slice(0, line - 1)
+		.reduce((offset, content) => offset + content.length + 1, 0);
+}
+
+function rangeText(text: string, range: LinkHole): string {
+	return text.slice(
+		lineOffset(text, range.line) + range.column,
+		lineOffset(text, range.endLine) + range.endColumn
+	);
+}
+
+function differenceWordings(handle: EditorHandle): string[][] {
+	const text = handle.getSnapshot().text;
+	const headers = handle.getSectionLinks?.()[0]?.lines.map((line) => lineOffset(text, line)) ?? [];
+	return (
+		handle
+			.getLinkDifferences?.(headers)
+			?.map((difference) => difference.wordings.map((wording) => wording.text)) ?? []
+	);
+}
+
+function detachedTexts(handle: EditorHandle): string[] {
+	const text = handle.getSnapshot().text;
+	return handle.getSectionLinks?.()[0]?.detached?.map((range) => rangeText(text, range)) ?? [];
 }
 
 /** A roster for the assignments the mirror has to reason about. */
@@ -274,8 +309,9 @@ describe('linking sections that do not agree throughout', () => {
 		const links = handle.getSectionLinks?.() ?? [];
 		expect(links).toHaveLength(1);
 		expect(links[0]?.lines).toEqual([4, 12]);
-		// One difference per copy — `tonight` and `again` — and nothing else.
-		expect(links[0]?.holes).toHaveLength(2);
+		// Stored passages own synchronization; legacy holes are only a safe fallback.
+		expect(links[0]?.passages?.length).toBeGreaterThan(0);
+		expect(differenceWordings(handle)).toEqual([['tonight', 'again']]);
 	});
 
 	it('names the difference by the words, not by the line it is on', async () => {
@@ -385,7 +421,11 @@ describe('linking sections that do not agree throughout', () => {
 		expect(tagged.split('ayy')).toHaveLength(2);
 		expect(tagged).toContain('[Chorus 2: Avery]\nHold on tight\nThe night is young');
 		// And the difference is still a difference, ready to be told apart again.
-		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(2);
+		expect(
+			differenceWordings(handle)
+				.flat()
+				.some((wording) => wording.includes('ayy'))
+		).toBe(true);
 	});
 
 	// The complement, and the reason the repair is a narrower edit rather than an
@@ -503,10 +543,8 @@ describe('linking sections that do not agree throughout', () => {
 		expect(handle.getSnapshot().text).toBe(song);
 	});
 
-	// Writing across a difference's edge is how a difference is ended: the run is
-	// swallowed in every copy rather than the edit being refused, which would
-	// leave the copies quietly out of step.
-	it('swallows a difference an edit reached across', async () => {
+	// A larger selection cannot authorize replacing the peer's independent words.
+	it('keeps an edit crossing independent wording local while preserving other shared passages', async () => {
 		const handle = await mount(REPEAT);
 		handle.linkSections?.({
 			headers: [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')]
@@ -522,10 +560,15 @@ describe('linking sections that do not agree throughout', () => {
 		});
 
 		const rewritten = handle.getSnapshot().text;
-		expect(rewritten.split('And I will be here tomorrow')).toHaveLength(3);
-		expect(rewritten).not.toContain('again');
-		// Nothing is left to keep apart.
-		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(0);
+		expect(rewritten).toContain('And I will be here tomorrow');
+		expect(rewritten).toContain('And I will be there again');
+		const shared = rewritten.indexOf('Hold on tight');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: shared, to: shared + 'Hold'.length, insert: 'Stay' }]
+		});
+		expect(handle.getSnapshot().text.split('Stay on tight')).toHaveLength(3);
+		expect(handle.getSnapshot().text).toContain('And I will be there again');
 	});
 
 	it('draws the divergent words in every copy, and nothing else', async () => {
@@ -538,7 +581,7 @@ describe('linking sections that do not agree throughout', () => {
 		const marks = [...document.querySelectorAll('.ll-link-divergent')].map(
 			(mark) => mark.textContent
 		);
-		expect(marks).toEqual(['tonight', 'again']);
+		expect(marks).toEqual([' tonight', ' again']);
 	});
 });
 
@@ -721,7 +764,7 @@ describe('editing the edges of a linked section', () => {
 
 		const changed = handle.getSnapshot().text;
 		expect(changed.match(/Never let go\nOnly over here/gu)).toHaveLength(1);
-		expect(handle.getSectionLinks?.()[0]?.holes).toHaveLength(2);
+		expect(detachedTexts(handle).some((text) => text.includes('Only over here'))).toBe(true);
 	});
 
 	it('keeps an extension local when the linked endings already differ', async () => {
@@ -759,7 +802,8 @@ describe('recording a deliberate difference', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
 		});
-		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(0);
+		expect(differenceWordings(handle)).toEqual([]);
+		expect(detachedTexts(handle)).toEqual([]);
 
 		const tight = SAME.indexOf('tight');
 		handle.linkSections?.({
@@ -767,7 +811,7 @@ describe('recording a deliberate difference', () => {
 			keepDifferent: [],
 			makeDifferent: { from: tight, to: tight + 'tight'.length }
 		});
-		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(2);
+		expect(detachedTexts(handle)).toEqual(['tight']);
 
 		await new Promise((resolve) => setTimeout(resolve, 600));
 		const caret = tight + 'tight'.length;
@@ -827,6 +871,7 @@ describe('typing only in one linked copy', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
 		});
+		const initialLinks = handle.getSectionLinks?.();
 		onSectionLinksChanged.mockClear();
 		await new Promise((resolve) => setTimeout(resolve, 600));
 
@@ -846,12 +891,12 @@ describe('typing only in one linked copy', () => {
 		const changed = handle.getSnapshot().text;
 		expect(changed).toContain('[Chorus]\nStay on close');
 		expect(changed).toContain('[Chorus 2]\nHold on tight');
-		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(2);
+		expect(detachedTexts(handle)).toEqual(['Stay on close']);
 		expect(onSectionLinksChanged).toHaveBeenCalledOnce();
 
 		handle.undo();
 		expect(handle.getSnapshot().text).toBe(SAME);
-		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(0);
+		expect(handle.getSectionLinks?.()).toEqual(initialLinks);
 	});
 
 	it('arms the caret before writing and keeps the whole typing run local', async () => {
@@ -864,6 +909,7 @@ describe('typing only in one linked copy', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(SAME, '[Chorus]'), offsetOf(SAME, '[Chorus 2]')]
 		});
+		const initialLinks = handle.getSectionLinks?.();
 		onSectionLinksChanged.mockClear();
 		await new Promise((resolve) => setTimeout(resolve, 600));
 
@@ -873,7 +919,7 @@ describe('typing only in one linked copy', () => {
 		handle.focus();
 		const sectionOnlyStatus = document.querySelector('.ll-section-only-status');
 		expect(sectionOnlyStatus?.textContent).toBe('Editing this section only');
-		expect(getComputedStyle(sectionOnlyStatus!).marginInlineStart).not.toBe('0px');
+		expect(getComputedStyle(sectionOnlyStatus!).paddingInlineStart).not.toBe('0px');
 		expect(document.querySelector('.ll-section-only-header')).not.toBeNull();
 		const activeHeader = document.querySelector('.ll-section-only-header')!;
 		const dangerProbe = document.createElement('span');
@@ -895,9 +941,7 @@ describe('typing only in one linked copy', () => {
 		const typed = handle.getSnapshot().text;
 		expect(typed).toContain('[Chorus]\nHold on tighter');
 		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
-		// The marker outlives the armed one-shot, because the fact it names does:
-		// the caret is standing in the run the edit just created, so typing on
-		// still stays in this copy, and the label draws for as long as that holds.
+		// The section mode stays visible while typing creates its local wording.
 		expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
 			'Editing this section only'
 		);
@@ -906,11 +950,11 @@ describe('typing only in one linked copy', () => {
 			handle
 				.getLinkDifferences?.([offsetOf(typed, '[Chorus]'), offsetOf(typed, '[Chorus 2]')])?.[0]
 				?.wordings.map((wording) => wording.text)
-		).toEqual(['er', '']);
+		).toEqual(['tighter', 'tight']);
+		expect(detachedTexts(handle)).toEqual(['er']);
 
-		// Reopening elsewhere in the group keeps that empty peer wording as the
-		// deliberate variation just created. It must not be mistaken for a newly
-		// linked empty section and offered for automatic replacement.
+		// Moving elsewhere preserves the deliberately local suffix. The comparison
+		// presents complete words while the stored exclusion remains the actual edit.
 		const sharedCaret = typed.indexOf('Never let go') + 'Never'.length;
 		handle.setSelection({ anchor: sharedCaret, head: sharedCaret });
 		// The mode belongs to the section, not the caret or the first local run.
@@ -920,13 +964,14 @@ describe('typing only in one linked copy', () => {
 			handle
 				.getLinkDifferences?.([offsetOf(typed, '[Chorus]'), offsetOf(typed, '[Chorus 2]')])?.[0]
 				?.wordings.map((wording) => wording.text)
-		).toEqual(['er', '']);
+		).toEqual(['tighter', 'tight']);
+		expect(detachedTexts(handle)).toEqual(['er']);
 
 		// The local words and the exception that kept them local are one history
 		// event. A half-undo would leave the next edit with the wrong scope.
 		handle.undo();
 		expect(handle.getSnapshot().text).toBe(SAME);
-		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(0);
+		expect(handle.getSectionLinks?.()).toEqual(initialLinks);
 		expect(onSectionLinksChanged).toHaveBeenCalledTimes(2);
 	});
 
@@ -1049,7 +1094,16 @@ describe('typing only in one linked copy', () => {
 		expect(text).toContain('[Chorus]\nHold on tighter\nNever! let go');
 		expect(text).toContain('[Chorus 2]\nHold on tight\nNever let go');
 		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
-		expect(handle.getSectionLinks?.()[0]?.holes).toHaveLength(6);
+		expect(detachedTexts(handle).join('')).toContain('!');
+		// Untouched words resume sharing when the mode ends; the two local edits survive.
+		expect(handle.typeOnlyHere?.(offsetOf(text, '[Chorus]'))).toBe(true);
+		const hold = text.indexOf('Hold');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: hold, to: hold + 'Hold'.length, insert: 'Stay' }]
+		});
+		expect(handle.getSnapshot().text).toContain('[Chorus]\nStay on tighter\nNever! let go');
+		expect(handle.getSnapshot().text).toContain('[Chorus 2]\nStay on tight\nNever let go');
 	});
 
 	it('uses a selection as the words the next local edit replaces', async () => {
@@ -1177,8 +1231,8 @@ describe('typing only in one linked copy', () => {
 			]);
 			expect(differences).toHaveLength(1);
 			expect(differences?.[0]?.wordings.map((wording) => wording.text).sort()).toEqual([
-				' (Woo)',
-				' (Yeah)'
+				'(Woo)',
+				'(Yeah)'
 			]);
 		});
 
@@ -1282,7 +1336,7 @@ describe('opening Linking from the editor', () => {
 	});
 
 	it.each(['click', 'Enter', 'Space'])(
-		'forwards a marker %s without editing the lyrics',
+		'toggles local editing with the separate lock %s without opening Linking',
 		async (press) => {
 			// The previous pointer test may leave the mouse where this fresh marker
 			// will mount. Move it away so keyboard assertions have no later hover.
@@ -1296,24 +1350,47 @@ describe('opening Linking from the editor', () => {
 			const handle = await mount(SONG, englishLanguagePack, { onSectionLinkRequest });
 			const header = offsetOf(SONG, '[Chorus]');
 			handle.linkSections?.({ headers: [header, offsetOf(SONG, '[Chorus 2]')] });
-			const marker = document.querySelector<HTMLElement>('.ll-section-link-marker')!;
+			const marker = document.querySelector<HTMLElement>('.ll-section-local-toggle')!;
 			if (press === 'click') {
 				await userEvent.click(marker);
 			} else {
 				marker.focus();
 				await userEvent.keyboard(press === 'Enter' ? '{Enter}' : ' ');
 			}
-			expect(onSectionLinkRequest).toHaveBeenCalledExactlyOnceWith(
-				{
-					range: { from: header, to: header + '[Chorus]'.length },
-					prefer: 'above'
-				},
-				expect.objectContaining({ takesFocus: true, returnFocus: expect.any(Function) })
-			);
+			expect(onSectionLinkRequest).not.toHaveBeenCalled();
+			expect(handle.isTypeOnlyHere?.(header)).toBe(true);
+			expect(marker.getAttribute('aria-pressed')).toBe('true');
+			await userEvent.click(marker);
+			expect(handle.isTypeOnlyHere?.(header)).toBe(false);
+			expect(marker.getAttribute('aria-pressed')).toBe('false');
 			expect(handle.getSnapshot().text).toBe(SONG);
 			expect(document.querySelector('[role="dialog"]')).toBeNull();
 			expect(marker.hasAttribute('aria-haspopup')).toBe(false);
 			await expect.poll(shownControlHint).toBeUndefined();
+		}
+	);
+
+	it.each(['click', 'Enter', 'Space'])(
+		'opens the matching section in Linking with marker %s without toggling the lock',
+		async (press) => {
+			const onSectionLinkRequest = vi.fn();
+			const handle = await mount(SONG, englishLanguagePack, { onSectionLinkRequest });
+			const first = offsetOf(SONG, '[Chorus]');
+			const header = offsetOf(SONG, '[Chorus 2]');
+			handle.linkSections?.({ headers: [first, header] });
+			const marker = [...document.querySelectorAll<HTMLElement>('.ll-section-link-marker')].at(-1)!;
+			if (press === 'click') await userEvent.click(marker);
+			else {
+				marker.focus();
+				await userEvent.keyboard(press === 'Enter' ? '{Enter}' : ' ');
+			}
+			expect(onSectionLinkRequest).toHaveBeenCalledWith(
+				{ range: { from: header, to: header + '[Chorus 2]'.length }, prefer: 'above' },
+				expect.objectContaining({ takesFocus: true })
+			);
+			expect(handle.isTypeOnlyHere?.(first)).toBe(false);
+			expect(handle.isTypeOnlyHere?.(header)).toBe(false);
+			expect(handle.getSnapshot().text).toBe(SONG);
 		}
 	);
 
@@ -1392,12 +1469,15 @@ describe('what a link survives', () => {
 		});
 
 		const text = handle.getSnapshot().text;
-		const holes = handle.getSectionLinks?.()[0]?.holes ?? [];
-		expect(holes).toHaveLength(2);
-		// Still sitting on the two words it was written for.
-		const lines = text.split('\n');
-		expect(lines[(holes[0]?.line ?? 1) - 1]?.slice(holes[0]?.column)).toBe('tonight');
-		expect(lines[(holes[1]?.line ?? 1) - 1]?.slice(holes[1]?.column)).toBe('again');
+		expect(differenceWordings(handle)).toEqual([['tonight', 'again']]);
+		// The mapped shared coordinates must still carry a correction to both copies.
+		const shared = text.indexOf('Hold');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: shared, to: shared + 'Hold'.length, insert: 'Stay' }]
+		});
+		expect(handle.getSnapshot().text.split('Stay on tight')).toHaveLength(3);
+		expect(differenceWordings(handle)).toEqual([['tonight', 'again']]);
 	});
 
 	// Undo restores the words by reversing changes, and a `StateField` reverses
@@ -1440,7 +1520,14 @@ describe('what a link survives', () => {
 
 		handle.undo();
 		expect(handle.getSnapshot().text).toBe(REPEAT);
-		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(2);
+		expect(differenceWordings(handle)).toEqual([['tonight', 'again']]);
+		const again = REPEAT.indexOf('again');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: again, to: again + 'again'.length, insert: 'tomorrow' }]
+		});
+		expect(handle.getSnapshot().text).toContain('there tonight');
+		expect(handle.getSnapshot().text).toContain('there tomorrow');
 	});
 
 	it('undoing the link itself takes the link off', async () => {
@@ -1511,10 +1598,8 @@ describe('what a link survives', () => {
 		expect(handle.getSnapshot().text.split('Never let go!')).toHaveLength(2);
 	});
 
-	// A draft written before differences existed carries no runs, and its copies
-	// were kept identical by the code that wrote it — so the whole body is shared
-	// and the mirror behaves exactly as it used to.
-	it('restores a saved link with no differences and mirrors the whole body', async () => {
+	// Missing legacy runs are not permission to overwrite bodies that already differ.
+	it('preserves differing wording while restoring valid shared passages from an older link', async () => {
 		const handle = await mount(SONG);
 		handle.setSectionLinks?.([{ lines: [4, 11] }]);
 		expect(handle.getSectionLinks?.()[0]?.lines).toEqual([4, 11]);
@@ -1526,8 +1611,25 @@ describe('what a link survives', () => {
 
 		const text = handle.getSnapshot().text;
 		expect(text).toContain('Hold on tight!');
-		expect(text).not.toContain('tigth');
-		expect(text.split('Hold on tight!')).toHaveLength(3);
+		expect(text).toContain('Hold on tigth');
+		expect(text.split('Hold on tight!')).toHaveLength(2);
+		const shared = text.indexOf('Never');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: shared, to: shared + 'Never'.length, insert: 'Always' }]
+		});
+		expect(handle.getSnapshot().text.split('Always let go')).toHaveLength(3);
+		expect(handle.getSnapshot().text).toContain('Hold on tigth');
+	});
+
+	it('restores an older whole-body link when the saved copies agree', async () => {
+		const handle = await mount(SAME);
+		handle.setSectionLinks?.([{ lines: [1, 8] }]);
+		const caret = SAME.indexOf('Hold on tight') + 'Hold on tight'.length;
+		handle.focus();
+		handle.setSelection({ anchor: caret, head: caret });
+		await userEvent.keyboard('!');
+		expect(handle.getSnapshot().text.split('Hold on tight!')).toHaveLength(3);
 	});
 
 	it('restores saved differences and keeps them out of the mirror', async () => {

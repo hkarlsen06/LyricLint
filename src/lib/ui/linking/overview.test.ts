@@ -11,7 +11,8 @@ describe('linking overview', () => {
 		expect(overview.available).toHaveLength(1);
 		const group = overview.available[0]!;
 		expect(group.headerFrom).toBe(0);
-		expect(group.differenceCount).toBeUndefined();
+		expect(group.action).toBe('create');
+		expect(group.existingGroups).toEqual([]);
 		expect(
 			group.occurrences.map((occurrence) => linkingSectionNames(parsed).get(occurrence.headerFrom))
 		).toEqual(['Chorus 1', 'Chorus 2']);
@@ -34,10 +35,10 @@ describe('linking overview', () => {
 			'Intro',
 			'Outro'
 		]);
-		expect(overview.linked[0]?.differenceCount).toBe(1);
+		expect(overview.linked[0]?.action).toBe('manage');
 	});
 
-	it('uses stored differences even when the current words happen to agree', () => {
+	it('retains stored membership even when the current words happen to agree', () => {
 		const parsed = parseDocument('[Chorus]\nHold on tight\n\n[Chorus]\nHold on tight');
 		const overview = linkingOverview(parsed, englishLanguagePack, [
 			{
@@ -49,7 +50,7 @@ describe('linking overview', () => {
 			}
 		]);
 		expect(overview.available).toEqual([]);
-		expect(overview.linked[0]?.differenceCount).toBe(1);
+		expect(overview.linked[0]?.action).toBe('manage');
 	});
 
 	it('offers a newly pasted peer while showing only current members in the linked group', () => {
@@ -59,8 +60,30 @@ describe('linking overview', () => {
 		const overview = linkingOverview(parsed, englishLanguagePack, [{ lines: [1, 4] }]);
 		expect(overview.linked[0]?.occurrences.map((occurrence) => occurrence.line)).toEqual([1, 4]);
 		expect(overview.available).toHaveLength(1);
+		expect(overview.available[0]?.action).toBe('add');
+		expect(
+			overview.available[0]?.existingGroups.map((group) => group.map((member) => member.line))
+		).toEqual([[1, 4]]);
 		expect(overview.available[0]?.occurrences.map((occurrence) => occurrence.line)).toEqual([
 			1, 4, 7
+		]);
+	});
+
+	it('identifies combining existing groups separately from creating a link', () => {
+		const parsed = parseDocument(
+			'[Intro]\nHold on tight\n\n[Chorus]\nHold on tight\n\n[Chorus]\nHold on tight\n\n[Outro]\nHold on tight'
+		);
+		const overview = linkingOverview(parsed, englishLanguagePack, [
+			{ lines: [1, 10] },
+			{ lines: [4, 7] }
+		]);
+		expect(overview.available).toHaveLength(1);
+		expect(overview.available[0]?.action).toBe('combine');
+		expect(
+			overview.available[0]?.existingGroups.map((group) => group.map((member) => member.line))
+		).toEqual([
+			[1, 10],
+			[4, 7]
 		]);
 	});
 

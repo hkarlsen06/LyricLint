@@ -1,3 +1,4 @@
+import { validateLinkPassages } from '../core/link-record.js';
 import Dexie, { type ObservabilitySet } from 'dexie';
 
 import { randomId } from '../core/random-id.js';
@@ -258,7 +259,10 @@ function parseDraft(value: Json): DraftRecord {
 						]
 					: []
 			);
-			return holes.length > 0 ? { lines, holes } : { lines };
+			return {
+				...(holes.length > 0 ? { lines, holes } : { lines }),
+				...validateLinkPassages(link, lines, text.split('\n'))
+			};
 		});
 	}
 

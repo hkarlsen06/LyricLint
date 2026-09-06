@@ -307,3 +307,25 @@ or decoration widgets, and goes away when the source is removed or the workspace
 switches to mobile task views. The auto-height reference editor is unchanged.
 `DesktopMedia.svelte.test.ts` scrolls the real CodeMirror document to its end and
 checks the last line against the floating frame while preserving the source text.
+
+### Clipboard passage links keep their stored intent
+
+A copy now carries passage memberships and explicit local exclusions in fragment-relative
+coordinates, including zero-width connections left by deletion. Copying a subset of whole sections
+filters each passage to those members; a passage with fewer than two survivors ceases to connect,
+while the group's empty `passages` list remains meaningful. Pasting restores these exact connections
+through the ordinary link-setting effect's `record` payload rather than rediscovering similarities.
+
+The shared `core/link-record.ts` validator checks the new format coherently, first against fragment
+line bounds and then against the actual plain text during paste. An invalid coordinate, overlapping
+connection, or unequal passage suspends the group's connections (`passages: []`) while the lyrics
+and readable timings still land. This deliberately supersedes dropping individual unreadable holes
+for the new format: partial recovery must never turn a local passage into shared text. The HTML
+version remains compatible because new exports retain whole-body legacy holes, which make an older
+reader leave the copied lyrics local when it cannot preserve the new metadata.
+
+Legacy clipboard groups use that same record-restoration route: their carried holes remain explicit
+local exclusions even where their text still matches. Re-running discovery on a legacy paste would
+silently reconnect those words. If rejecting an out-of-fragment hole leaves unequal legacy hole
+counts, migration suspends the group's propagation instead of guessing a missing counterpart;
+`clipboard-metadata.svelte.test.ts` exercises both matching local words and an overshooting column.

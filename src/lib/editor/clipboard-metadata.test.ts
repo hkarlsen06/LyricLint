@@ -27,6 +27,42 @@ describe('the clipboard flavor', () => {
 		expect(metadataFromClipboardHtml(clipboardHtml(fragment, metadata))).toEqual(metadata);
 	});
 
+	it('round-trips passage subsets, explicit local exclusions, and deleted shared text', () => {
+		const carried: ClipboardMetadata = {
+			...metadata,
+			links: [
+				{
+					lines: [0, 3],
+					passages: [
+						{
+							members: [
+								{ headerLine: 0, line: 1, column: 0, endLine: 1, endColumn: 4 },
+								{ headerLine: 3, line: 4, column: 0, endLine: 4, endColumn: 4 }
+							]
+						},
+						{
+							members: [
+								{ headerLine: 0, line: 1, column: 4, endLine: 1, endColumn: 4 },
+								{ headerLine: 3, line: 4, column: 4, endLine: 4, endColumn: 4 }
+							]
+						}
+					],
+					detached: [{ headerLine: 0, line: 1, column: 5, endLine: 1, endColumn: 7 }]
+				}
+			]
+		};
+		expect(metadataFromClipboardHtml(clipboardHtml(fragment, carried))).toEqual(carried);
+	});
+
+	it('keeps the lyrics and timings when a passage payload is corrupt, with all connections suspended', () => {
+		const raw = { v: 1, ...metadata, links: [{ lines: [0, 3], passages: null }] };
+		const html = `<div data-lyriclint="${JSON.stringify(raw).replaceAll('"', '&quot;')}"></div>`;
+		expect(metadataFromClipboardHtml(html)).toEqual({
+			...metadata,
+			links: [{ lines: [0, 3], passages: [] }]
+		});
+	});
+
 	it('escapes the lyrics on the way in, so markup in a song is text and not elements', () => {
 		const html = clipboardHtml(fragment, metadata);
 		expect(html).not.toContain('<breathe>');

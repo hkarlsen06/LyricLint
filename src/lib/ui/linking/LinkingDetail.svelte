@@ -1,8 +1,13 @@
 <script lang="ts">
 	import DiffExcerpt from './DiffExcerpt.svelte';
+	import PassageConnections from './PassageConnections.svelte';
 	import { Switch } from 'bits-ui';
 	import { tick, untrack } from 'svelte';
-	import type { LinkDifference, SectionLinkChoice } from '$lib/core/types.js';
+	import type {
+		LinkConnectionPreview,
+		LinkDifference,
+		SectionLinkChoice
+	} from '$lib/core/types.js';
 	import type { LinkOccurrence } from '$lib/editor/section-links.js';
 	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';
 
@@ -14,6 +19,7 @@
 		fromOverview?: boolean;
 		comparedHeaders?: readonly number[];
 		differencesFor: (headers: number[]) => LinkDifference[];
+		connectionsFor?: (headers: number[]) => LinkConnectionPreview[];
 		onApply: (choice: SectionLinkChoice) => void;
 		onBack: () => void;
 		onNavigate?: (headerFrom: number) => void;
@@ -31,6 +37,7 @@
 		fromOverview = false,
 		comparedHeaders,
 		differencesFor,
+		connectionsFor,
 		onApply,
 		onBack,
 		onNavigate,
@@ -409,6 +416,16 @@
 			{@render secondaryControl()}
 		</div>
 	</div>
+	{#if wasLinked && !changed && !reviewing && connectionsFor}
+		<PassageConnections
+			connectionsFor={() => connectionsFor?.(headers) ?? []}
+			nameFor={(header) => groupName([header])}
+			{documentText}
+			onNavigate={onNavigateLyric}
+			onReconnect={() => onApply({ headers, refreshConnections: true })}
+		/>
+	{/if}
+
 	{#if differences.length > 0 && (fillsOnlyEmptyCopies || reviewing)}
 		<section class="differences" aria-labelledby={`${id}-differences-title`}>
 			<h3 id={`${id}-differences-title`}>

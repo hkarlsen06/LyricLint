@@ -203,3 +203,20 @@ export function linkTargetAt(
 		? { header: { from: section.header.from, to: section.header.to }, selection: { from, to } }
 		: undefined;
 }
+
+/** Number repeated names across the whole song, independent of the selected group. */
+export function linkingSectionNames(parsed: ParsedDocument): ReadonlyMap<number, string> {
+	const headers = parsed.sections.flatMap((section) => (section.header ? [section.header] : []));
+	const counts = new Map<string, number>();
+	const seen = new Map<string, number>();
+	const name = (header: (typeof headers)[number]) => header.rawNamePart.trim() || header.raw;
+	for (const header of headers) counts.set(name(header), (counts.get(name(header)) ?? 0) + 1);
+	return new Map(
+		headers.map((header) => {
+			const label = name(header);
+			const ordinal = (seen.get(label) ?? 0) + 1;
+			seen.set(label, ordinal);
+			return [header.from, (counts.get(label) ?? 0) > 1 ? `${label} ${ordinal}` : label];
+		})
+	);
+}

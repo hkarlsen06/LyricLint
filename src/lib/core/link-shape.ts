@@ -1,5 +1,6 @@
 // Decision record: docs/subsystems/section-links.md — read it before changing this file, and update it with any behavior change.
 import type { Section, TextRange } from '$lib/core/types.js';
+import { alignPassages, passageWordCount } from './link-passages.js';
 
 /**
  * The shape of a link group: which words its members keep in step, and which
@@ -97,25 +98,6 @@ function tokenize(body: string): Token[] {
 		index = end;
 	}
 	return tokens;
-}
-
-/** `tokenize`'s count without allocating the tokens, for discovery ceilings. */
-function tokenCount(body: string): number {
-	let count = 0;
-	let inWord = false;
-	for (let index = 0; index < body.length; index += 1) {
-		const char = body[index];
-		if (char === '\n') {
-			count += 1;
-			inWord = false;
-		} else if (isTokenWhitespace(char ?? '')) {
-			inWord = false;
-		} else if (!inWord) {
-			count += 1;
-			inWord = true;
-		}
-	}
-	return count;
 }
 
 /**
@@ -340,7 +322,7 @@ export function alignBodies(bodies: readonly string[]): TextRange[][] {
 /**
  * The fraction of the shorter body already shared by two possible copies.
  *
- * It deliberately uses `alignBodies`, so the words a discovery score calls
+ * It deliberately uses `alignPassages`, so the words a discovery score calls
  * shared are exactly the words the link itself would mirror. Empty bodies have
  * no evidence of similarity. An exact match is answered before the optional
  * token ceiling, while a refused non-exact alignment scores zero.
@@ -357,15 +339,21 @@ export function linkBodySimilarity(
 		return 1;
 	}
 	const maxTokens = options.maxTokens ?? MAX_TOKENS;
-	if (tokenCount(left) > maxTokens || tokenCount(right) > maxTokens) {
+	if (passageWordCount(left) > maxTokens || passageWordCount(right) > maxTokens) {
 		return 0;
 	}
 	const key = `${left.length}:${left}\u0000${right}`;
 	let similarity = similarityCache.get(key);
 	if (similarity === undefined) {
-		const holes = alignBodies([left, right]);
-		const own = (holes[0] ?? []).reduce((total, hole) => total + (hole.to - hole.from), 0);
-		similarity = (left.length - own) / Math.min(left.length, right.length);
+		const passages = alignPassages([
+			{ header: 0, from: 0, text: left },
+			{ header: 1, from: 0, text: right }
+		]);
+		const shared = passages.reduce(
+			(total, passage) => total + passage.members[0].to - passage.members[0].from,
+			0
+		);
+		similarity = shared / Math.min(left.length, right.length);
 		if (similarityCache.size >= SIMILARITY_CACHE_LIMIT) {
 			similarityCache.clear();
 		}

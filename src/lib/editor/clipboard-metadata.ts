@@ -1,3 +1,6 @@
+import { validateLinkPassages } from '../core/link-record.js';
+import type { LinkPassageRecord, LinkPassageOccurrence } from '../core/types.js';
+
 /**
  * The second flavor a copy carries, and the arithmetic of reading it back.
  *
@@ -85,6 +88,9 @@ export interface ClipboardLink {
 	lines: number[];
 	/** The runs each member keeps its own, absent where the members agree throughout. */
 	holes?: ClipboardHole[];
+	/** Passage coordinates use fragment-relative, zero-based lines here. */
+	passages?: LinkPassageRecord[];
+	detached?: LinkPassageOccurrence[];
 }
 
 export interface ClipboardMetadata {
@@ -247,7 +253,10 @@ function readLink(value: Json, lines: number): ClipboardLink | undefined {
 				.map((hole) => readHole(hole, lines))
 				.filter((hole): hole is ClipboardHole => hole !== undefined)
 		: [];
-	return holes.length > 0 ? { lines: sorted, holes } : { lines: sorted };
+	return {
+		...(holes.length > 0 ? { lines: sorted, holes } : { lines: sorted }),
+		...validateLinkPassages(value, sorted, undefined, 0, lines)
+	};
 }
 
 /**

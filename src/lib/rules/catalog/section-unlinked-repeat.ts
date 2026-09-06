@@ -9,12 +9,12 @@ import { isImmediateRepeat } from './section-immediate-repeat-spacing.js';
 import { diagnostic } from './utils.js';
 
 /**
- * Automatic discovery stays far below `link-shape`'s own 2000-token ceiling.
+ * Automatic discovery stays far below the passage aligner's 2000-word ceiling.
  * That larger limit is for aligning the group after a person has chosen it;
  * here every same-kind pair is reconsidered on every keystroke inside a member,
- * and the alignment is quadratic — 2000 tokens is a 16MB matrix per pair per
- * keystroke. A repeated song part is tens of tokens, so what discovery refuses
- * is never a chorus. The chosen link still keeps the full alignment range.
+ * and the alignment is quadratic. A repeated song part is usually tens of
+ * words; large pasted sections must not make automatic discovery expensive.
+ * Explicit linking has its own larger, bounded alignment budget.
  */
 /**
  * Whether these copies have enough in common to be worth keeping in step.
@@ -25,7 +25,7 @@ import { diagnostic } from './utils.js';
  * together at all: every word is a difference, the mirror can never carry an
  * edit, and the finding is an offer to do nothing.
  *
- * The alignment that answers this is the same `alignBodies` the link itself is
+ * The alignment that answers this is the same `alignPassages` the link itself is
  * built on, which is why it lives in `core` rather than beside the editor: a
  * rule may not import the editor, and two answers to "how alike are these" is
  * one more than the number that can stay in agreement.

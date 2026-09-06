@@ -192,12 +192,11 @@
 
 	/* Focus, motion, and interaction states */
 	--focus-ring-width: 2px;
-	--focus-ring-offset: 2px;
-	/* How far the ring reaches outside a control's own border box. A scroll port
-	   clips at its padding edge, so anything focusable that sits flush against
-	   one needs this much padding there or the ring is cut off along that edge —
-	   which reads as a broken border rather than as a clipped outline. */
-	--focus-ring-reach: calc(var(--focus-ring-width) + var(--focus-ring-offset));
+	/* Keep the entire outline inside controls, clear of ancestor overflow clips. */
+	--focus-ring-offset: calc(-1 * var(--focus-ring-width));
+	/* Retain the reference columns' existing clearance for their rounded washes
+	   and sticky bars. This legacy lane no longer depends on outline placement. */
+	--focus-ring-reach: calc(2 * var(--focus-ring-width));
 	--duration-fast: 120ms;
 	--duration-medium: 180ms;
 	--duration-slow: 240ms;
@@ -317,7 +316,7 @@
 	--color-discord: #5865f2;
 	--color-discord-hover: #4752c4;
 	--color-discord-ink: #ffffff;
-	--color-focus: oklch(54% 0.15 255);
+	--color-focus: oklch(54% 0 0);
 	--color-focus-soft: color-mix(in oklch, var(--color-focus) 28%, transparent);
 
 	/*
@@ -528,7 +527,7 @@
 		--color-accent-active: oklch(81% 0.1 255);
 		--color-accent-text: oklch(17% 0.008 285);
 		--color-accent-soft: oklch(32% 0.06 255);
-		--color-focus: oklch(68% 0.14 255);
+		--color-focus: oklch(62% 0 0);
 		--color-text-selection: oklch(38% 0.1 255);
 		/* The soft severity surfaces rise with the canvas under them: a tag has to
 		   stay a tag against a charcoal card, not sink into it. */

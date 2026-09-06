@@ -105,7 +105,7 @@
 	--color-accent-active: oklch(81% 0.1 255);
 	--color-accent-text: oklch(17% 0.008 285);
 	--color-accent-soft: oklch(32% 0.06 255);
-	--color-focus: oklch(68% 0.14 255);
+	--color-focus: oklch(62% 0 0);
 	--color-text-selection: oklch(38% 0.1 255);
 	--color-danger: oklch(72% 0.15 28);
 	--color-danger-hover: oklch(78% 0.14 28);

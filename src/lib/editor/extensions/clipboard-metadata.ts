@@ -3,7 +3,8 @@ import type { EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { isSectionHeaderLine } from '$lib/core/parser.js';
 import { annotationSpansFor } from './annotation-spans.js';
-import type { TextRange } from '$lib/core/types.js';
+import type { LinkHole, LinkPassageOccurrence, SectionLink } from '$lib/core/types.js';
+import { validateLinkPassages } from '$lib/core/link-record.js';
 import {
 	clipboardHtml,
 	lineStartOffsets,
@@ -13,12 +14,7 @@ import type { ClipboardLink, ClipboardMetadata } from '../clipboard-metadata.js'
 import { sectionBodyRange } from '../section-links.js';
 import { editorCallbacksField, parsedDocumentForState } from './editor-state.js';
 import { anchorLineEffect, lineAnchorsFor } from './line-anchors.js';
-import {
-	linkHolesField,
-	sectionLinksFor,
-	setLinkHolesEffect,
-	setSectionLinkEffect
-} from './section-links.js';
+import { sectionLinksFor, setSectionLinkEffect } from './section-links.js';
 
 /**
  * What a copy of `[from, to)` carries beside its text, or `undefined` for a
@@ -78,11 +74,27 @@ function metadataForRange(
 				endLine: hole.endLine - firstLine,
 				endColumn: hole.endColumn
 			}));
-		links.push(
-			holes.length > 0
-				? { lines: kept.map((member) => member.line - firstLine), holes }
-				: { lines: kept.map((member) => member.line - firstLine) }
-		);
+		const carried: ClipboardLink = { lines: kept.map((member) => member.line - firstLine) };
+		if (holes.length > 0) carried.holes = holes;
+		const keptHeaders = new Set(kept.map((member) => member.line));
+		const relative = (member: LinkPassageOccurrence): LinkPassageOccurrence => ({
+			...member,
+			headerLine: member.headerLine - firstLine,
+			line: member.line - firstLine,
+			endLine: member.endLine - firstLine
+		});
+		if (link.passages !== undefined) {
+			carried.passages = link.passages.flatMap((passage) => {
+				const members = passage.members.filter((member) => keptHeaders.has(member.headerLine));
+				return members.length >= 2 ? [{ members: members.map(relative) }] : [];
+			});
+		}
+		if (link.detached !== undefined) {
+			carried.detached = link.detached
+				.filter((member) => keptHeaders.has(member.headerLine))
+				.map(relative);
+		}
+		links.push(carried);
 	}
 
 	if (anchors.length === 0 && links.length === 0) return undefined;
@@ -181,7 +193,7 @@ function applyLinks(
 ): void {
 	const { state } = view;
 	const effects = [];
-	const landed: TextRange[] = [];
+
 	// The line as the copy carried it: up to the break before the next one, which
 	// is not part of it, and to the fragment's end for the last.
 	const fragmentLineLength = (index: number): number | undefined => {
@@ -203,7 +215,26 @@ function applyLinks(
 			);
 		});
 		if (!intact) continue;
-		effects.push(setSectionLinkEffect.of({ headers }));
+		if (link.passages !== undefined) {
+			const validated = validateLinkPassages(link, link.lines, text.split('\n'), 0);
+			const firstLandedLine = state.doc.lineAt(base).number;
+			const absolute = (member: LinkPassageOccurrence): LinkPassageOccurrence => ({
+				...member,
+				headerLine: member.headerLine + firstLandedLine,
+				line: member.line + firstLandedLine,
+				endLine: member.endLine + firstLandedLine
+			});
+			const record: SectionLink = {
+				lines: headers.map((header) => state.doc.lineAt(header).number),
+				passages: (validated.passages ?? []).map((passage) => ({
+					members: passage.members.map(absolute)
+				}))
+			};
+			if (validated.detached !== undefined) record.detached = validated.detached.map(absolute);
+			effects.push(setSectionLinkEffect.of({ headers, record }));
+			continue;
+		}
+		const holes: LinkHole[] = [];
 		for (const hole of link.holes ?? []) {
 			const startLength = fragmentLineLength(hole.line);
 			const endLength = fragmentLineLength(hole.endLine);
@@ -214,12 +245,23 @@ function applyLinks(
 			// length from the fragment line inside it whenever a paste lands mid-line.
 			const from = base + (starts[hole.line] ?? 0) + hole.column;
 			const holeTo = base + (starts[hole.endLine] ?? 0) + hole.endColumn;
-			if (from <= holeTo) landed.push({ from, to: holeTo });
+			if (from <= holeTo) {
+				const start = state.doc.lineAt(from);
+				const end = state.doc.lineAt(holeTo);
+				holes.push({
+					line: start.number,
+					column: from - start.from,
+					endLine: end.number,
+					endColumn: holeTo - end.from
+				});
+			}
 		}
+		const record: SectionLink = { lines: headers.map((header) => state.doc.lineAt(header).number) };
+		if (holes.length > 0) record.holes = holes;
+		effects.push(setSectionLinkEffect.of({ headers, record }));
 	}
 	if (effects.length === 0) return;
-	const existing = state.field(linkHolesField, false) ?? [];
-	view.dispatch({ effects: [...effects, setLinkHolesEffect.of([...existing, ...landed])] });
+	view.dispatch({ effects });
 	state.field(editorCallbacksField, false)?.onSectionLinksChanged?.();
 }
 

@@ -99,10 +99,13 @@ import {
 	expandLinkedPerformerEdit,
 	isTypeOnlyHere,
 	linkDifferencesFor,
+	linkConnectionsFor,
 	linkHolesField,
 	linkSections as linkSectionsCommand,
 	sectionLinkDecorations,
 	sectionLinkField,
+	sectionPassageField,
+	sectionLinkCompositionField,
 	sectionLinkHistory,
 	sectionLinkMirror,
 	sectionLinkTheme,
@@ -818,6 +821,8 @@ export function createLyricEditor(
 		// one only ever reads a header and the other only ever reads a body.
 		sectionLinkField,
 		linkHolesField,
+		sectionPassageField,
+		sectionLinkCompositionField,
 		typeOnlyHereField,
 		sectionLinkHistory,
 		sectionLinkMirror(),
@@ -1135,6 +1140,9 @@ export function createLyricEditor(
 		},
 		getLinkDifferences(headerOffsets) {
 			return linkDifferencesFor(view.state, headerOffsets);
+		},
+		getLinkConnections(headerOffsets) {
+			return linkConnectionsFor(view.state, headerOffsets);
 		},
 		canTypeOnlyHere(headerFrom) {
 			return canTypeOnlyHere(view.state, headerFrom);

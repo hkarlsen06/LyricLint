@@ -1,5 +1,6 @@
 // Decision record: docs/subsystems/drafts.md and docs/subsystems/section-links.md — read both before changing this file, and update them with any behavior change.
 import type { CompareBaselineRecord, SectionLink } from '../core/types.js';
+import { validateLinkPassages } from '../core/link-record.js';
 
 /**
  * A deep copy of a draft's section links.
@@ -19,6 +20,9 @@ export function copySectionLinks(links: readonly SectionLink[]): SectionLink[] {
 	return links.map((link) => {
 		const copy: SectionLink = { lines: [...link.lines] };
 		if (link.holes) copy.holes = link.holes.map((hole) => ({ ...hole }));
+		// Repository reads pass here before the editor can inspect an IndexedDB row.
+		// Validate atomically, and retain [] rather than activating a legacy mirror.
+		Object.assign(copy, validateLinkPassages(link, link.lines));
 		return copy;
 	});
 }

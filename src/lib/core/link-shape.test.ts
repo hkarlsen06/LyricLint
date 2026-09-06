@@ -132,6 +132,18 @@ describe('discovering copies by their shared lyrics', () => {
 		expect(linkBodySimilarity('\nHold the line', '')).toBe(0);
 	});
 
+	it('discovers corresponding words despite surrounding punctuation', () => {
+		expect(bodiesAreSimilarEnoughToLink('i et badekar, ri-ri', 'vin i et badekar')).toBe(true);
+		expect(linkBodySimilarity('i et badekar, ri-ri', 'vin i et badekar')).toBe(
+			'i et badekar'.length / 'vin i et badekar'.length
+		);
+	});
+
+	it('does not score ambiguous repeated occurrences as established correspondence', () => {
+		expect(linkBodySimilarity('la la', 'la')).toBe(0);
+		expect(linkBodySimilarity('red blue', 'blue red')).toBe(0);
+	});
+
 	it("answers exact copies before applying a caller's alignment ceiling", () => {
 		const long = Array.from({ length: 10 }, (_, index) => `line ${index}`).join('\n');
 		expect(linkBodySimilarity(long, long, { maxTokens: 1 })).toBe(1);

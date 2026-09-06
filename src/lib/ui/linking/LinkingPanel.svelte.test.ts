@@ -163,7 +163,11 @@ describe('Linking panel with the real editor', () => {
 		);
 		expect(handle.getSnapshot().text).toBe(SONG);
 		expect(handle.getSectionLinks?.()).toHaveLength(1);
-		expect(panel.getByText('2 differences kept')).toBeTruthy();
+		expect(
+			panel.getByText('Matching passages stay in sync. Each section keeps its own variations.')
+		).toBeTruthy();
+		expect(panel.queryByText(/differences? kept/)).toBeNull();
+		expect(panel.queryByText('Not linked together')).toBeNull();
 		const linked = container.querySelectorAll('.linking-group--linked');
 		expect(linked).toHaveLength(1);
 		expect(linked[0]?.querySelectorAll('.linked-member')).toHaveLength(2);
@@ -187,6 +191,7 @@ describe('Linking panel with the real editor', () => {
 		const { panel, handle } = await setup();
 		await openComparison(panel);
 		await fireEvent.click(panel.getByRole('button', { name: 'Link 2 sections' }));
+		const originalLinks = handle.getSectionLinks?.();
 		await fireEvent.click(panel.getByRole('button', { name: /Manage Chorus, Chorus 2/ }));
 		await fireEvent.click(panel.getByRole('button', { name: 'Review differences' }));
 		await fireEvent.click(panel.getByRole('button', { name: 'Choose wording per difference' }));
@@ -206,10 +211,16 @@ describe('Linking panel with the real editor', () => {
 		expect(handle.getSnapshot().text.split('And I will be there again')).toHaveLength(3);
 		expect(handle.getSnapshot().text).toContain('(Yeah)');
 		expect(handle.getSnapshot().text).toContain('(Woo)');
-		expect(handle.getSectionLinks?.()[0]?.holes).toHaveLength(2);
+		const changed = handle.getSnapshot().text;
+		expect(
+			handle
+				.getLinkDifferences?.([0, changed.indexOf('[Chorus 2]')])
+				?.map((difference) => difference.wordings.map((wording) => wording.text))
+		).toEqual([['(Yeah)', '(Woo)']]);
 		handle.undo();
 		expect(handle.getSnapshot().text).toBe(SONG);
-		expect(handle.getSectionLinks?.()[0]?.holes).toHaveLength(4);
+		expect(handle.getSectionLinks?.()).toEqual(originalLinks);
+		expect(handle.getLinkDifferences?.([0, SONG.indexOf('[Chorus 2]')])).toHaveLength(2);
 	});
 
 	it('opens the actual linked members from Manage and all row members from an available comparison', async () => {
@@ -219,6 +230,10 @@ describe('Linking panel with the real editor', () => {
 		const third = text.indexOf('[Chorus 3]');
 		handle.linkSections?.({ headers: [0, second] });
 		await tick();
+		expect(
+			within(panel.getByRole('list', { name: 'Sections to add' })).getAllByRole('listitem')
+		).toHaveLength(1);
+		expect(panel.getAllByRole('button', { name: /^Line 1$/ })).toHaveLength(1);
 		await fireEvent.click(panel.getByRole('button', { name: 'Manage Chorus, Chorus 2' }));
 		expect(controller.linkingComparedHeaders).toEqual([0, second]);
 		expect(panel.getByRole('checkbox', { name: /^Chorus Line/ })).toBeChecked();
@@ -226,7 +241,7 @@ describe('Linking panel with the real editor', () => {
 		expect(panel.getByRole('checkbox', { name: /^Chorus 3/ })).not.toBeChecked();
 		await fireEvent.click(panel.getByRole('button', { name: /Back to linking/ }));
 		await fireEvent.click(
-			panel.getByRole('button', { name: 'Set up link Chorus, Chorus 2, Chorus 3' })
+			panel.getByRole('button', { name: 'Add sections Chorus, Chorus 2, Chorus 3' })
 		);
 		expect(controller.linkingComparedHeaders).toEqual([0, second, third]);
 		for (const checkbox of panel.getAllByRole('checkbox')) {
@@ -237,6 +252,35 @@ describe('Linking panel with the real editor', () => {
 		expect(handle.getSnapshot().text).toBe(text);
 		expect(handle.getSectionLinks?.()[0]?.lines).toEqual([1, 9, 14]);
 	});
+
+	it.each([320, 640])(
+		'summarizes combining groups without listing their members twice at %ipx',
+		async (width) => {
+			const text =
+				'[Intro with a particularly long section name]\nHold on tight\n\n[Chorus]\nHold on tight\n\n[Chorus]\nHold on tight\n\n[Outro]\nHold on tight';
+			const { panel, handle, controller, container } = await setup(text);
+			container.style.width = `${width}px`;
+			const firstChorus = text.indexOf('[Chorus]');
+			const secondChorus = text.indexOf('[Chorus]', firstChorus + 1);
+			const outro = text.indexOf('[Outro]');
+			handle.linkSections?.({ headers: [0, outro] });
+			handle.linkSections?.({ headers: [firstChorus, secondChorus] });
+			await tick();
+			expect(
+				panel.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)
+			).toEqual(['Linked sections', 'Available to link']);
+			expect(container.querySelectorAll('.linked-member')).toHaveLength(4);
+			expect(panel.queryByText('Not linked together')).toBeNull();
+			expect(panel.queryByText(/differences? kept/)).toBeNull();
+			const combine = panel.getByRole('button', { name: /^Combine groups / });
+			expect(combine.getBoundingClientRect().right).toBeLessThanOrEqual(
+				container.getBoundingClientRect().right + 1
+			);
+			await fireEvent.click(combine);
+			expect(controller.linkingComparedHeaders).toEqual([0, firstChorus, secondChorus, outro]);
+			for (const checkbox of panel.getAllByRole('checkbox')) expect(checkbox).toBeChecked();
+		}
+	);
 
 	it('can exclude the overview representative and link only the remaining selected sections', async () => {
 		const text = `${SONG}\n\n[Chorus 3]\nHold on tight\nAnd I will be there tonight\nNever let go (Yeah)`;
@@ -293,7 +337,11 @@ describe('Linking panel with the real editor', () => {
 		expect(changed).not.toContain('tonight');
 		expect(changed).not.toContain('(Yeah)');
 		expect(changed).toContain('[Verse]\nA second thing entirely');
-		expect(handle.getSectionLinks?.()[0]?.holes ?? []).toHaveLength(0);
+		const headers = [0, changed.indexOf('[Chorus 2]')];
+		expect(handle.getLinkDifferences?.(headers)).toEqual([]);
+		const connections = handle.getLinkConnections?.(headers) ?? [];
+		expect(connections.length).toBeGreaterThan(0);
+		expect(connections.every((connection) => !connection.added)).toBe(true);
 		handle.undo();
 		expect(handle.getSnapshot().text).toBe(SONG);
 		expect(handle.getSectionLinks?.()).toEqual([]);

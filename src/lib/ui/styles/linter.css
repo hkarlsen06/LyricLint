@@ -349,7 +349,7 @@
    hairline into the neighbouring card. */
 .diagnostic-list__head:has(.diagnostic-list__navigate:focus-visible) {
 	outline: var(--focus-ring-width) solid var(--color-focus);
-	outline-offset: calc(-1 * var(--focus-ring-offset));
+	outline-offset: var(--focus-ring-offset);
 }
 
 .diagnostic-list__navigate:focus-visible {

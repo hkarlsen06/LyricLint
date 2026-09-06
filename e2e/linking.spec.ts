@@ -43,9 +43,7 @@ test('Linking keeps lyrics intact, stages one correction, and stays on the chose
 	).toHaveAttribute('aria-expanded', 'false');
 	await detail.getByRole('button', { name: 'Link 2 sections', exact: true }).click();
 	await expectLyrics(page, original);
-	await expect(
-		editor(page).getByRole('button', { name: 'Edit linked sections', exact: true })
-	).toHaveCount(2);
+	await expect(editor(page).locator('.ll-section-link-marker')).toHaveCount(2);
 	await panel.getByRole('button', { name: 'Manage Chorus 1, Chorus 2', exact: true }).click();
 	const heading = detail.getByRole('heading', { level: 2 });
 	await expect(heading).toBeVisible();
@@ -71,18 +69,26 @@ test('Linking keeps lyrics intact, stages one correction, and stays on the chose
 	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expectLyrics(page, original);
 
-	// A pointer may pass or pause over a link on its way elsewhere. Only a press
-	// should leave the panel the writer deliberately selected.
+	// The lock controls section-only editing without leaving the current tool;
+	// the original link marker still opens the respective section in Linking.
 	await page.getByRole('tab', { name: /^Review/u }).click();
-	const marker = editor(page)
-		.getByRole('button', { name: 'Edit linked sections', exact: true })
-		.last();
+	const marker = editor(page).locator('.ll-section-link-marker').last();
+	const lock = editor(page).locator('.ll-section-local-toggle').last();
 	await marker.hover();
-	await page.waitForTimeout(500);
 	await expect(page.getByRole('tab', { name: /^Review/u })).toHaveAttribute(
 		'aria-selected',
 		'true'
 	);
+	await lock.focus();
+	await lock.press('Enter');
+	await expect(lock).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByRole('tab', { name: /^Review/u })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+	await lock.press(' ');
+	await expect(lock).toHaveAttribute('aria-pressed', 'false');
+	await expectLyrics(page, original);
 	await marker.click();
 	await expect(page.getByRole('tab', { name: 'Linking', exact: true })).toHaveAttribute(
 		'aria-selected',
@@ -125,12 +131,100 @@ test('Linking can use a later section’s full version and undo all replacements
 			.replace('tighht', 'tight')
 			.replace('(Oh)', '(Yeah)')
 	);
-	await expect(
-		editor(page).getByRole('button', { name: 'Edit linked sections', exact: true })
-	).toHaveCount(3);
+	await expect(editor(page).locator('.ll-section-link-marker')).toHaveCount(3);
 	await page.getByRole('button', { name: 'Undo', exact: true }).click();
 	await expectLyrics(page, lyrics);
+	await expect(editor(page).locator('.ll-section-link-marker')).toHaveCount(0);
+});
+
+const passageSong = [
+	'[Intro]',
+	'Hver sommer drar hun alltid til Italia',
+	'Vin-vin-vin, i et badekar, ri-ri',
+	'Lever livet hver dag',
+	'',
+	'[Chorus 1]',
+	'Hver sommer drar hun alltid til Italia',
+	'På vingård, drikker vin i et badekar',
+	'Lever livet hver dag',
+	'',
+	'[Chorus 2]',
+	'Hver sommer drar hun alltid til Italia',
+	'På vingård, drikker vin i et badekar',
+	'Lever livet hver dag',
+	'',
+	'[Outro]',
+	'Hver sommer drar hun alltid til Italia',
+	'Vin-vin-vin, i et badekar, ri-ri',
+	'Lever livet hver dag (Oh)'
+].join('\n');
+
+async function placeCaret(page: Page, at: number): Promise<void> {
+	await editor(page).focus();
+	await page.evaluate((anchor) => {
+		type View = { dispatch(spec: { selection: { anchor: number } }): void };
+		type Handle = { view: View };
+		const content = document.querySelector<HTMLElement & { cmView?: Handle; cmTile?: Handle }>(
+			'.cm-content'
+		);
+		(content?.cmView ?? content?.cmTile)?.view.dispatch({ selection: { anchor } });
+	}, at);
+}
+
+test('Passage scope identifies real recipients and reconnects an explicitly local matching word', async ({
+	page
+}) => {
+	await page.goto('/workbench/');
+	await expect(editor(page)).toBeVisible();
+	await editor(page).fill(passageSong);
+	await page.getByRole('tab', { name: 'Linking', exact: true }).click();
+	const panel = page.getByRole('tabpanel', { name: 'Linking', exact: true });
+	await panel.getByRole('button', { name: 'Set up link Intro, Chorus 1, Chorus 2, Outro' }).click();
+	await panel.getByRole('button', { name: 'Link 4 sections', exact: true }).click();
+	await expectLyrics(page, passageSong);
+	await expect(panel.getByText('Not linked together', { exact: true })).toHaveCount(0);
+	await expect(panel.getByText(/\d+ differences? kept/u)).toHaveCount(0);
+
+	await panel.getByRole('button', { name: 'Manage Intro, Chorus 1, Chorus 2, Outro' }).click();
 	await expect(
-		editor(page).getByRole('button', { name: 'Edit linked sections', exact: true })
+		panel.getByRole('button', { name: 'Link matching lyrics again', exact: true })
 	).toHaveCount(0);
+	await expect(panel.getByText('Already connected', { exact: true })).toHaveCount(0);
+	await panel.getByRole('button', { name: '← Back to linking', exact: true }).click();
+
+	const chorusAt = passageSong.indexOf('drikker') + 3;
+	await placeCaret(page, chorusAt);
+	await expect(
+		editor(page).locator('.ll-section-link-status').filter({ hasText: 'Also edits Chorus 2' })
+	).toHaveCount(1);
+	await editor(page).press('x');
+	await expectLyrics(page, passageSong.replaceAll('drikker', 'drixkker'));
+	await page.getByRole('button', { name: 'Undo', exact: true }).click();
+	await expectLyrics(page, passageSong);
+
+	const suffix = passageSong.indexOf('badekar') + 'badekar'.length;
+	await placeCaret(page, suffix);
+	const intro = editor(page).locator('.ll-section-link-marker').first();
+	await expect(intro).toHaveAttribute(
+		'aria-label',
+		/Typing also edits Chorus 1, Chorus 2, and Outro/u
+	);
+	await expect(intro).toHaveAttribute('aria-label', /Delete: Also edits Outro/u);
+	await editor(page).press(`${mod}+Shift+L`);
+	await editor(page).press('Backspace');
+	await editor(page).press('r');
+	await expectLyrics(page, passageSong);
+	await editor(page).press(`${mod}+Shift+L`);
+	await page.getByRole('tab', { name: 'Linking', exact: true }).click();
+	await panel.getByRole('button', { name: 'Manage Intro, Chorus 1, Chorus 2, Outro' }).click();
+	await panel.getByRole('button', { name: 'Link matching lyrics again', exact: true }).click();
+	await expect(panel.getByText('Already connected', { exact: true })).toHaveCount(0);
+	await expect(
+		panel.getByRole('region', { name: 'Lyrics to link again', exact: true })
+	).toContainText('badekar');
+	await panel.getByRole('button', { name: 'Link these lyrics again', exact: true }).click();
+	await expectLyrics(page, passageSong);
+	await placeCaret(page, suffix);
+	await editor(page).press('s');
+	await expectLyrics(page, passageSong.replaceAll('badekar', 'badekars'));
 });

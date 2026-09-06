@@ -79,6 +79,9 @@ of controls and neighboring content before and after real interactions on deskto
 
 - Standard control heights are small, medium, and large.
 - Focus uses `--focus-ring-width`, `--focus-ring-offset`, and `--color-focus`.
+  The ring is neutral gray in both themes, with theme-specific lightness.
+  The offset is the negative ring width, keeping the outline inside the control
+  so scroll ports cannot clip it. Focus styling does not change control geometry.
 - State transitions use 120 to 240 milliseconds and `--ease-out-quart`. The cap is what it costs to answer an action: the result has to be settled before the user looks for it, and an overshoot past the target reads as the control missing and correcting. Nothing that reports state may reach past this.
 - The brand lockup is the one exception, and it is one because it reports nothing: `--duration-brand` and `--ease-spring-out` exist for it alone. Its easing overshoots on purpose.
 - Travel between rests — a whole surface pulled from one place to another, like the reference sections' column push — uses `--ease-in-out-cubic`. `--ease-out-quart` launches at full speed, which is right for a state answer and reads as thrown when the thing moving is a column rather than a control.

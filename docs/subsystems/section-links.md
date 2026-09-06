@@ -1,91 +1,285 @@
-# Section links: a chorus typed once, and the merge structure that keeps repeats honest
+# Section links: shared passages retain their actual copies
 
-Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
-`src/lib/editor/extensions/section-links.ts`,
-`src/lib/ui/linking/`,
-`src/lib/rules/catalog/section-unlinked-repeat.ts`, `src/lib/performers/transform.ts`,
-`src/lib/persistence/copy.ts`
+Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.ts`,
+`src/lib/core/link-record.ts`, `src/lib/core/link-shape.ts`,
+`src/lib/editor/link-passage-edits.ts`, `src/lib/editor/section-links.ts`,
+`src/lib/editor/extensions/section-links.ts`, `src/lib/editor/extensions/section-link-marker.ts`,
+`src/lib/ui/linking/`, `src/lib/rules/catalog/section-unlinked-repeat.ts`,
+`src/lib/performers/transform.ts`, `src/lib/persistence/copy.ts`
 
 ## The rules
 
-- A group is a merge structure, not a body: stored divergent runs with shared text between
-  them identical in every member by construction. Linking writes nothing (`alignBodies`);
-  making copies agree requires an explicit wording choice. The picker opens from any headed section and
-  offers the established same-semantic chorus/pre-/post-chorus set plus differently named
-  sections that share at least half of the shorter body. Existing peers are always retained;
-  similarity discovers intent and never replaces the stored shape.
-- The alignment is decided once and stored as intent — never re-derived live, because a diff
-  cannot tell a mistake from a decision. The aligner matches words and line breaks, verifies
-  inter-token text byte-for-byte, and hands edge whitespace (only) back to the shared text.
-- The mirror: an edit *contained* in a divergent run stays local; one that *overlaps* a run
-  carries the whole shared run to every peer (`carryHoles` ↔ `expandOverHoles`). It is a
-  `transactionFilter` with `sequential: true` — one snapshot, one undo. Undo/redo/IME are
-  exempt; only a single contiguous edit inside one member's body mirrors; membership is a
-  range over the header's line; fewer than two members is not a group.
-- A bare line break at a linked body's right edge is structural and stays local, so Enter can
-  make room for the next section without adding blank lines to every peer. A break within the
-  body still mirrors. If ordinary lyrics follow the terminal break, the post-change parse proves
-  the same section grew and the new tail mirrors; a new header leaves the old body unchanged and
-  stays outside the link. A final divergent run keeps its greedy, local edge.
-- A blank line opened *inside* a linked body splits every copy the same way — Enter at the end
-  of a lyric line lands before the break already there — and filling it merges back. The fill
-  mirrors as the filled gap alone, never the whole tail, or peers duplicate the tail they
-  already hold as their own headerless section. A terminal extension never answers a member
-  carrying such a tail. Pinned in `section-links.svelte.test.ts`.
-- The whole invariant rests on every edit reporting its honest size — `narrowEdit` in
-  `performers/transform.ts` is that repair, and it belongs in the transform, never as a
-  mirror exemption. Pinned in `section-links.svelte.test.ts` and
-  `transform-boundaries.test.ts`.
-- `Edit this section only` (`Mod-Shift-L`) is a section-scoped toggle. While on, every edit in that
-  member stays local and opens or extends only the divergent run it touches; moving the caret
-  does not turn it off. Turning it off preserves those differences and resumes mirroring shared
-  text. The Linking panel renders it as a switch and stays open when it changes. The active header carries
-  a danger rail, red wash, and `Editing this section only` label.
-- Linking lives in a persistent side-panel tab: an overview of available repeats and stored
-  groups opens into membership selection with wording preserved by default. An overview
-  entry compares exactly the members of the clicked group, without calling any member This section;
-  only an explicit editor entry locks and identifies its source. The panel never follows caret movement or hover.
-  `overview.test.ts`, `LinkingDetail.svelte.test.ts`, and `e2e/linking.spec.ts` pin this flow.
-- Each comparison shows readable lyric context for each distinct wording, preserving real line
-  breaks. Review differences immediately reveals numbered, read-only differences with clickable
-  lyric-line gutters. Decisions follow the evidence: preserve and link, enable individual wording
-  choices, or use one full version. The two editing approaches are exclusive, and switching clears
-  pending choices. Keeping every variation requires no review. Previews name each affected section.
-  There is no nested comparison scrollbar.
-  `LinkingDetail.svelte.test.ts` pins quick linking, optional review, grouped wording, and selective application.
-- An absent phrase in a populated copy can win; a wholly empty copy cannot erase populated
-  copies. Filling empty copies is disclosed separately and named in the final action. Mixed
-  populated variants keep their differences unless explicitly reconciled. Preview and application
-  follow the same winner contract. `LinkingDetail.svelte.test.ts` and `section-links.svelte.test.ts`
-  pin absent-phrase removal and empty-copy filling.
-- `section.unlinked-repeat` gates on `worthLinking` (some pair passing the core-owned
-  half-the-shorter-body similarity predicate; empty copies neither count nor count against);
-  it remains same-semantic only, is a `suggestion` with no fix
-  whose action opens the picker from the exact primary or related occurrence that exposed it;
-  mobile Review retains that occurrence separately from the primary diagnostic identity, including
-  its repeated navigation when the card mounts and the displayed line number. The retained
-  occurrence is retired when it disappears or the document is replaced. `e2e/mobile-workbench.spec.ts` pins a related
-  chorus tap through `Manage linking`; `workbench.test.ts` pins stale-range rejection.
-  suppression lives in `filterForEditorState` and retires the finding only when one group covers
-  every reported occurrence, so a newly pasted copy keeps the action at its own header; links
-  moving without an edit must ask for a snapshot (`republishForSectionLinks`, run
-  `untrack`ed).
-- Undo needs `invertedEffects` carrying groups *and runs*, and the restore effect must
-  define `map` or the history silently drops it.
-- Links persist as header line numbers plus per-run line/column ends, read off live ranges at
-  save time; zero width is meaningful and kept. Every record rebuilder uses
-  `copySectionLinks` in `persistence/copy.ts` — the fourth copier (`writeRecord`) is the one
-  that shipped the bug. `backup.ts` drops an unreadable run rather than the backup.
-- Wholesale document replacement loses links and anchors by design (re-attaching would be
-  guessing); the clipboard-metadata paste is the one sanctioned exception
-  (`docs/subsystems/editor.md`).
-- `linkTargetAt` answers explicit requests. The `⇄` marker opens Linking on click, Enter,
-  or Space; hover, focus alone, and whole-header selection never navigate; a divergent run is a
-  `Decoration.mark` (dotted), never a widget — widgets participate in copy.
+- A section group records which performances belong together. Each stored **passage** names
+  the actual subset sharing exact text; a chorus-only passage remains connected when an intro
+  joins the group. Occurrences have non-overlapping absolute ranges and at most one occurrence
+  per header in a passage. Linking preserves lyrics; changing wording requires an explicit choice.
+- `alignPassages` establishes correspondence only on a linking or explicit reconnection action.
+  It matches complete Unicode lyric words, retaining internal apostrophes and lexical hyphens
+  while separating surrounding punctuation. Performer tag names and annotation IDs are not
+  lyric tokens: use `extractLineStyleSpans` and `scanAnnotations`, their existing owners.
+  Mid-word formatting must not create standalone word fragments.
+- Pairwise LCS evidence is accepted only where the pairing is forced in every optimal alignment.
+  Neighboring matched words supply context; an isolated word needs nearby anchors on both sides,
+  unless the complete lexical sequences already agree. Normalize pair evidence into compatible
+  components; contradictory occurrences or order stay local. Intervening punctuation, whitespace,
+  and line breaks join passages only when their exact text and adjacent word anchors agree.
+- Work is bounded before syntax scanning and quadratic alignment. Non-identical bodies over
+  32,768 UTF-16 units, over 2,000 words, or over the pair/total matrix budgets are not aligned.
+  Exact duplicate bodies and subsets still connect without quadratic comparison. Discovery uses
+  `linkBodySimilarity`, which scores `alignPassages` ranges and shares its lexical counting owner;
+  the automatic discovery ceiling remains 400 words and the threshold half the shorter body.
+- Stored correspondence is editing intent, never a fresh diff after typing. Membership changes
+  use `extendPassages`: retain established connections, split at their boundaries, add compatible
+  recipients, and preserve old local wording. Equal text does not silently reconnect exclusions.
+- `passageTargets` owns automatic destinations for the mirror, header scope, and performer edits.
+  A replacement reaches a peer only when its **entire** range maps contiguously and exactly there,
+  including every intervening boundary. It may cross different passage subsets if that peer
+  participates throughout. Never split arbitrary replacement text or widen it over a variation.
+- An insertion first belongs to a unique stored empty passage, then an interior passage, then the
+  adjacent word's passage (word before the caret first, otherwise word after it). At a remaining
+  non-word boundary, prefer the passage starting there, then the one ending there. This lets a
+  letter appended to `badekar` remain linked despite a local comma. The scope label reports this
+  insertion policy; Backspace and Delete can have different destinations at the same caret.
+- A deleted shared passage retains its paired empty positions. Coalescing must not absorb that
+  insertion owner into its adjacent nonempty passages, including across membership subsets.
+  Explicit local insertion points take precedence and also prevent coalescing across them; a
+  selection spanning one stays local. Identical collapsed connections have one stored owner.
+  Mapping splits only touched relationships; peers left unchanged remain connected to each other.
+- Mirroring is a `transactionFilter` with `sequential: true`: all destinations are planned from
+  one pre-edit snapshot and applied atomically with link changes. Reject overlapping destination
+  edits. Multiple edits in one linked source can mirror; edits spanning sections or headers do
+  not acquire a guessed source. Undo/redo replay the complete transaction without remirroring.
+- IME preedit does not update peers or rederive scope. On commit, `narrowEdit` derives the minimal
+  **net** correction from the saved precomposition document; that operation mirrors through the
+  same passage planner. The committed correction and exact passage state form one undo event,
+  even after a long character-selection pause. Cancelled composition restores its saved intent.
+- A terminal bare line break stays local to leave room for a new section. If subsequent lyrics
+  prove the same section grew, only the extension mirrors; a new header does not. A medial
+  blank line retains the linked tail so filling the gap mirrors once, without duplicating that
+  tail. Section-only mode and independently worded endings keep their extensions local.
+- Every edit must report its honest range. `narrowEdit` in `performers/transform.ts` prevents a
+  performer wrapper from claiming to replace a whole line. An ad-lib present in one copy stays
+  there; assignment on shared words uses the same exact destinations and updates linked legends
+  through the established performer transaction.
+- `Edit this section only` (`Mod-Shift-L`) remains a section-scoped toggle. It detaches only that
+  occurrence's touched range; the other copies stay connected. Moving the caret does not disable
+  the mode. Turning it off resumes untouched shared passages and preserves its local exclusions.
+  The persistent panel renders a switch; the header retains its danger rail, wash, and explicit
+  `Editing this section only` label. `makeDifferent` likewise records a source-only exclusion.
+- Only the active linked section shows ordinary caret/selection scope beside its header:
+  `Also edits …` or `Only this section`. If directional deletion differs from insertion, use
+  `Typing also edits …` / `Typing only in this section` and disclose Backspace/Delete scopes in
+  the accessible name. A mixed selection reports the actual complete-operation
+  recipients; if none, its accessible description explains the independent wording. Section-only mode takes precedence.
+- The scope label is out of flow beside the fixed-size marker and bounded by the available line
+  width. Long labels ellipsize visually but remain complete in the accessible name. Button
+  hints state only their action, without repeating the adjacent scope. Scope changes briefly highlight without changing text geometry, respect reduced motion,
+  and do not restart the highlight for an unchanged label. Selection-driven scope changes are
+  announced; typing does not announce every character. Provisional IME retains settled scope.
+- The persistent Linking panel follows explicit navigation, never caret movement or hover. Its
+  overview lists existing groups first and distinguishes `Set up link`, `Add sections`, and
+  `Combine groups`. Existing members are summarized in discovery actions rather than repeated
+  as unlinked sections. Explain once: matching passages stay in sync and variations stay local;
+  internal diff counts are not an outstanding-work status.
+- `Link matching lyrics again` appears only when compatible exact connections can be added.
+  It previews only the affected lyrics and named sections, explaining that future edits will
+  update those copies even where the user previously edited them separately. `Link these lyrics
+  again` clears only covered exclusions and changes no wording. Do not list already-connected
+  lyrics or draw an empty recovery surface. There is no arbitrary manual pairing of ambiguous
+  repeated occurrences. Wording alternatives remain the explicit comparison flow.
+- Comparisons preserve readable lyric context, real line breaks, named destinations, and clickable
+  lyric gutters. `Review differences` is optional. Individual wording choices and choosing one
+  whole version are exclusive; switching clears pending choices. A populated copy's absent phrase
+  can win, but a wholly empty copy cannot erase populated peers. Empty-copy filling is separately
+  disclosed. No nested comparison scrollbar or mandatory review to preserve variations.
+- The picker offers same-semantic chorus/pre-/post-chorus sets plus sufficiently similar differently
+  named sections, and always retains existing peers. `section.unlinked-repeat` remains a
+  same-semantic suggestion with no fix, gated by the same core similarity owner. Its action uses
+  the exact primary or related occurrence that opened it. `filterForEditorState` suppresses it
+  only when one group covers every reported occurrence; link-only changes republish the snapshot.
+- Undo's mapped restore effect carries groups, passages, and exclusions. Persistence uses header
+  lines plus occurrence line/column ends read from live coordinates. Presence of `passages` selects
+  the new format; `passages: []` means no automatic connections. Every copier, backup, Scribe file,
+  and supported clipboard path preserves passages, `detached`, and zero-width positions through
+  `copySectionLinks` / `validateLinkPassages`.
+- New records include whole-body legacy `holes` so an older reader leaves lyrics local rather than
+  treating missing metadata as universal sharing. Legacy holes migrate as exclusions and their
+  valid exact gaps become passages; do not rediscover inside those holes. A legacy record with
+  no holes uses its old word alignment, preserving mismatched words rather than overwriting them.
+  Invalid new metadata suspends the group's passages atomically, preserves lyrics, and cannot
+  fall through to legacy alignment. Explicit connection review is the recovery route.
+- Membership is a range over the header line; deleting it retires that member, and fewer than two
+  members is no group. Wholesale replacement loses links by design; validated clipboard metadata
+  is the sanctioned restoration path. The link icon opens that section in Linking on click,
+  Enter, or Space. The management icon is Lucide `Link` during shared editing and `Unlink`
+  during local editing; both open management rather than unlinking the section. The adjacent
+  mode control uses `Pen` for shared editing and `PenLine` for `Edit this section only`, with a
+  stable accessible name, `aria-pressed`, and its own shared hint. It preserves the panel and
+  caret. These inline actions follow one header-character space after `]`, with separate
+  24px targets centered around a text-height background centered on the header’s capital height.
+  The targets extend beyond the fill without increasing the line height. Artwork is no taller
+  than the bracket. The scope
+  readout is a noninteractive sibling, never part of either button. A subtle shared fill groups
+  the two controls; the scope uses regular-weight muted text, retaining danger text in local mode.
+  Local lyric ranges are dotted `Decoration.mark`s, never content widgets.
 
 ## Decision record
 
-### A chorus is typed once, and what its repeats do differently is said out loud
+### September 6, 2026: an intro must not disconnect two identical choruses
+
+The reported Norwegian song contains an intro and outro with `Vin-vin-vin, i et badekar, ri-ri`
+and two choruses with `På vingård, drikker vin i et badekar`. Both choruses said `badekar` when
+linked. The pasted `badeker` was a subsequent typo which failed to propagate, not an intentional
+variant to preserve.
+
+The old model had two failures. Its shared runs were the intersection of **every** member, so
+adding the intro discarded chorus-only connections such as `På vingård` and `FaceTime`. Its
+whitespace tokenizer treated `badekar,` as a different word from `badekar`, so even the common
+`i et badekar` could not carry a correction across all four. Listing `10 differences kept`
+explained neither failure and made ordinary variations look like work to resolve.
+
+A passage now records its actual copies. `i et badekar` connects all four; chorus-only wording
+connects the two choruses; intro wording connects the intro and outro. The outro's `(Sammendrag)`
+remains its own. Replacement, deletion, correction, and appending at the word boundary follow
+those stored connections regardless of the current spelling. This is the behavior exercised by
+`core/link-passages.test.ts` and `editor/passage-linking.svelte.test.ts`.
+
+#### Ordered evidence is useful; arbitrary tie-breaking is not intent
+
+`alignPassages` uses word-level LCS, not a line-first matcher. Prefix and suffix LCS tables
+identify every possible pair at each rank of an optimal alignment. A pair is accepted only if
+that rank has one possibility. Adjacent accepted words anchor each other; an isolated match
+requires anchored words before and after it within 24 lexical positions in both copies. Exact
+whole lexical sequences supply their own positional evidence, including a one-word refrain.
+A repeated `hold on` line inserted among identical `hold on` lines remains ambiguous; choosing
+one by scan direction would fabricate an occurrence identity.
+
+Compatible pair evidence is merged into disjoint components. More than one occurrence from one
+section in a component, or conflicting order across sections, rejects that correspondence.
+Only exact glue between corresponding neighboring words can merge their ranges. This preserves
+punctuation and spacing while letting the preceding complete word remain shared. Tag names and
+annotation IDs are omitted using the parser's recognizers: sung Norwegian `i` must never connect
+to the `i` inside `<i>`, and annotation `123` must never connect to a sung number. A formatted
+fragment such as `lo<i>ve</i>` cannot introduce standalone `lo` and `ve` anchors.
+
+Pair matrices are limited to one million cells, with four million across one build. Syntax
+scanning also has a body-length ceiling because malformed tag-like input can be costly before
+word alignment starts. Identical bodies still have a direct path, including oversized duplicate
+subsets. Refusal to align uncertain or oversized material leaves it local rather than freezing
+link setup or fabricating editable connections.
+
+#### Existing connections win when membership grows
+
+A fresh global diff cannot tell a correction from an intentional variation. The replacement
+therefore keeps the old decision to store intent, but stores positive passage membership and
+explicit exclusions separately. `extendPassages` splits candidate ranges at established
+boundaries, inherits all existing peers of those slices, and refuses contradictory positions or
+order. It also refuses reconnection between formerly grouped headers where their old passages
+did not establish that relationship. Adding an intro cannot reduce an existing chorus pair,
+and a previously local edit cannot reconnect merely because its wording later happens to match.
+
+`Link matching lyrics again` is the explicit way to reconsider that choice. Its preview and
+application use the same compatible-extension builder. It names recipient groups and quotes the
+passages about to reconnect. The action clears only exclusions actually covered by connected
+ranges; different wording and unresolved matches remain independent. It does not rewrite lyrics
+or offer arbitrary pairing controls for a tied repeated occurrence.
+
+#### Selection size never authorizes replacing a variation
+
+The historical mirror treated crossing a hole boundary as permission to swallow the whole
+variation in every peer. Replacing `there tonight` could silently replace a peer's `there again`.
+The new planner checks each destination separately: every selected character and intervening
+boundary must have a contiguous exact correspondence there. A selection across four-way and
+chorus-only passages can reach the other chorus if its complete range is connected, while the
+intro remains unchanged. A selection spanning local wording stays local to that peer.
+
+The entire replacement is carried as one operation; its inserted characters are not distributed
+among disconnected matches. Mapping updates all relationships touched by source and generated
+edits, retaining unchanged peer subsets. One transaction and one undo restore text and the exact
+connections, including a shared word deleted to paired empty positions. Those positions remain
+separate during coalescing and serialization because they own a later insertion. A sequence of
+local deletions followed by the same deletion in the other copies exposed two additional hazards:
+intermediate merging could close an earlier recipient’s cut, and a subset’s empty position could
+be swallowed by a larger shared passage. Transfers now preserve all cuts until their replacement
+is installed; coalescing respects empty positions across every subset and explicit local boundary.
+When a deletion collapses a shared position onto a local exception, the exception retains ownership.
+
+IME follows the same operation contract after composition ends. Repeated provisional replacements
+can make the accumulated ChangeSet much wider than the final correction. Deriving the narrow
+net change from the saved document prevents a single composed character from claiming a whole
+word or losing its insertion relationship. Peers wait until commit; cancellation restores the
+precomposition passage state; a delayed commit still belongs to the same undo event.
+
+#### The header describes this caret, not the entire group
+
+At the end of shared `badekar` followed by a local comma, typing extends the shared word,
+Backspace removes its shared last letter, and Delete removes the local comma. One undifferentiated
+`Also edits …` promise would be false for one of those actions. The header therefore says
+`Typing also edits …` when the three destination sets differ, and the accessible
+name describes Backspace and Delete. Selections use their actual whole-operation recipients.
+
+The readout occupies an out-of-flow slot beside the fixed-size link control. Long destinations
+fit the remaining width with ellipsis and stay fully available through the accessible name. Changing scope uses a short background highlight, disabled under reduced
+motion, rather than shifting the header or lyrics. The existing section-only danger treatment
+remains distinct from naturally local wording. `editor/passage-scope.svelte.test.ts` and
+`editor/extensions/section-link-marker.svelte.test.ts` exercise scope and geometry.
+
+#### The header controls editing; recovery offers a concrete action
+
+The first passage UI exposed the stored connection inventory even when there was nothing to do.
+Two identical refrains produced a large highlighted lyric list headed “Already connected,” below
+“No additional matching passages.” That taught neither a useful action nor an understandable
+state. The recovery disclosure now exists only for additions, shows only the affected lyrics,
+and explains what linking them again will change about subsequent edits. Already-connected text
+stays in the editor rather than becoming another review task.
+
+The same release made the header hint say “Manage linking,” burying “Edit this section only” in
+the panel. The header is where a transcriber is deciding whether this edit should spread, but
+repurposing the familiar `⇄` control to toggle that mode changed its established meaning. Keep
+the linking control opening the respective Linking view. It uses `Link` during shared editing
+and `Unlink` during local editing, while the adjacent mode control uses `Pen` and `PenLine`.
+The icons communicate state without changing what either control does. Both pairs sit inline
+after one character-space from the bracket. Glyph-sized targets crowded the icons and made
+them difficult to press; baseline alignment also lifted the controls above the header. Each
+now has a separate 24px target, vertically centered beside the header. The scope readout is
+a noninteractive sibling so its text cannot accidentally open Linking. Separate floating icons
+and a bold scope sentence still read as unrelated additions. A subtle shared fill now groups
+the two controls, while regular-weight muted scope text follows outside that group. The spacing
+token initially produced 32px targets; the compact targets now use the actual 24px token.
+The visible group now uses the header’s text height and capital-height alignment, while the 24px
+targets extend around it. Target size must not determine the visible fill or lift the line.
+Button hints name only the action, without repeating the adjacent scope.
+Each control has its own hint and keyboard activation; the mode control exposes `aria-pressed`
+and retains the explicit header treatment. Hover and focus change neither the mode nor the panel.
+
+#### Stored passage metadata must fail local in an older reader too
+
+The presence of `passages` is the format discriminator, not a truthiness check: an empty list
+means all wording is local. `detached` records deliberate source-only exclusions, including
+empty positions. Drafts, copies, backups, Scribe, clipboard metadata, and undo all carry those
+fields. The common validator rejects a malformed new-format group as a unit and retains the
+empty passage list so no fallback can silently turn it into a universally shared legacy link.
+
+New records additionally store whole-body legacy holes. An older tab or importer ignoring the
+new fields therefore sees entirely local bodies. If it saves again, newer code imports those
+holes as exclusions; it can lose automatic connections, but cannot gain permission to overwrite
+lyrics. For genuine legacy holes, exact gaps are translated without rediscovering inside the
+holes. The older no-hole format has no such recorded exclusion and uses its legacy alignment
+while preserving any differing words that have arrived since it was saved. Explicit connection
+review can recover compatible connections without changing text.
+
+Validation lives in `core/link-record.test.ts`, `editor/passage-transactions.svelte.test.ts`, the
+clipboard suites, and the persistence/backup/Scribe suites. `editor/section-links.svelte.test.ts`
+retains the existing performer, local-mode, terminal-line, structural, and undo regressions while
+asserting actual passages and exclusions instead of the legacy fallback hole count.
+
+
+### Historical record: the group-wide hole model (superseded September 6, 2026)
+
+> Historical scope: every subsection below describes the superseded implementation and its
+> failure history. Its universal shared runs, hole-swallowing mirror, IME exemption, and hole-only
+> persistence are not current contracts. The current rules and September 6 record above take
+> precedence; retained UX, discovery, and data-loss incidents explain the decisions that survived.
 
 A song's second chorus is its first chorus, so transcribing it means typing the same lines
 again — and the mistake that follows is the one nobody catches: one of them has a typo, or a

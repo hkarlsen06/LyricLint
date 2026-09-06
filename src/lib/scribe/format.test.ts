@@ -71,6 +71,27 @@ describe('LyricLint Scribe format', () => {
 		});
 	});
 
+	test('preserves passage connections through a Scribe export and suspends corrupt connections', () => {
+		const sectionLinks = [
+			{
+				lines: [1, 4],
+				passages: [
+					{
+						members: [
+							{ headerLine: 1, line: 2, column: 0, endLine: 2, endColumn: 8 },
+							{ headerLine: 4, line: 5, column: 0, endLine: 5, endColumn: 8 }
+						]
+					}
+				],
+				detached: []
+			}
+		];
+		const serialized = serializeScribe({ ...input, sectionLinks });
+		expect(parseScribe(serialized).sectionLinks).toEqual(sectionLinks);
+		const broken = serialized.replace('"endColumn": 8', '"endColumn": 800');
+		expect(parseScribe(broken).sectionLinks).toEqual([{ lines: [1, 4], passages: [] }]);
+	});
+
 	test('accepts unknown fields for forward-compatible additions', () => {
 		const raw = JSON.parse(serializeScribe(input));
 		raw.future = { anything: true };

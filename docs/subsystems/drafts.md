@@ -194,3 +194,19 @@ Preview extraction shares the `isReadableDraft` boundary predicate with recovery
 records remain listed and untouched on disk; they simply have no invented lyric preview. A readable
 partial row whose title is absent, blank, or not a string is summarized under
 `DEFAULT_DRAFT_TITLE`, so one damaged title cannot prevent the menu from opening for healthy drafts.
+
+### Passage connections survive every draft and file copier
+
+Section links now carry `passages` (including an empty list) and `detached` alongside legacy
+`holes`. Presence of `passages` selects the stored passage model; losing an empty list must never
+turn an intentionally local group into a legacy whole-body mirror. `copySectionLinks` deeply copies
+both nested passage occurrences and explicit exclusions, and the Scribe exporter uses this same
+copier. The whole-record persistence fixture exercises live and zero-width connections through
+autosave, backup parsing, and database reopening.
+
+`core/link-record.ts` owns validation for backups, Scribe imports, clipboard payloads, and editor
+restoration. Passage coordinates, unique member identities, equal text, and non-overlap are checked
+as one structure. A corrupt new-format structure retains its group with `passages: []`, suspending
+propagation while preserving the lyrics; dropping only one bad field could accidentally activate
+legacy mirroring. Legacy hole parsing retains its existing compatibility behavior. New records also
+carry whole-body legacy holes so older clients that discard unknown fields leave the text local.

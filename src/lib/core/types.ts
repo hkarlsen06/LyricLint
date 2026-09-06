@@ -467,10 +467,15 @@ export interface SectionLink {
 	 * choruses differing by one line have one run each, and those two are the
 	 * same difference.
 	 *
-	 * Absent means what it meant before differences existed: the members are kept
-	 * identical throughout.
+	 * Legacy records use these runs as the inverse of shared text. When passages
+	 * are present, holes instead cover whole bodies as a safe fallback for older
+	 * readers; the passage records alone own synchronization.
 	 */
 	holes?: LinkHole[];
+	/** Presence selects stored passage connections; an empty list means all edits are local. */
+	passages?: LinkPassageRecord[];
+	/** Explicit local edits that must not be rediscovered when membership grows. */
+	detached?: LinkPassageOccurrence[];
 }
 
 /**
@@ -491,6 +496,16 @@ export interface LinkHole {
 	endLine: number;
 	/** Characters into the ending line. */
 	endColumn: number;
+}
+
+/** A stored connection between identical text in two or more section bodies. */
+export interface LinkPassageRecord {
+	members: LinkPassageOccurrence[];
+}
+
+/** A passage's document coordinates and the header owning it. */
+export interface LinkPassageOccurrence extends LinkHole {
+	headerLine: number;
 }
 
 /**
@@ -522,9 +537,19 @@ interface LinkWording {
 }
 
 /** What the user answered in the Linking panel. */
+export interface LinkConnectionPreview {
+	text: string;
+	from: number;
+	headers: number[];
+	/** At least one occurrence gains a connection it does not currently have. */
+	added: boolean;
+}
+
 export interface SectionLinkChoice {
 	/** The sections to tie together, the one the card was opened from first. */
 	headers: readonly number[];
+	/** Explicitly reconnect reviewed matching passages without changing lyrics. */
+	refreshConnections?: boolean;
 	/**
 	 * Per difference of the resulting shape, whether the copies go on keeping
 	 * their own words. Omitted keeps every one of them, which is what linking
@@ -885,6 +910,7 @@ export interface EditorHandle {
 	 * own wording — what the picker's second list is built from.
 	 */
 	getLinkDifferences?(headerOffsets: readonly number[]): LinkDifference[];
+	getLinkConnections?(headerOffsets: readonly number[]): LinkConnectionPreview[];
 	/** Whether this linked section can enter section-only editing mode. */
 	canTypeOnlyHere?(headerFrom: number): boolean;
 	/** Whether this linked section is currently being edited independently. */

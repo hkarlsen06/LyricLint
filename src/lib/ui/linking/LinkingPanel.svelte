@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Decision record: docs/subsystems/section-links.md.
 	import { tick } from 'svelte';
-	import { Link2, GitCompareArrows } from 'lucide-svelte';
+	import { Link2 } from 'lucide-svelte';
 	import { lineNumberAt } from '$lib/core/line-numbers.js';
 	import type { SectionLinkChoice } from '$lib/core/types.js';
 	import { linkOccurrences } from '$lib/editor/section-links.js';
@@ -61,6 +61,24 @@
 		return group.occurrences
 			.map((occurrence) => sectionNames.get(occurrence.headerFrom) ?? occurrence.label)
 			.join(', ');
+	}
+
+	function actionLabel(group: LinkingOverviewGroup): string {
+		return {
+			manage: 'Manage',
+			create: 'Set up link',
+			add: 'Add sections',
+			combine: 'Combine groups'
+		}[group.action];
+	}
+
+	function newOccurrences(group: LinkingOverviewGroup) {
+		const existing = new Set(group.existingGroups.flat().map((member) => member.headerFrom));
+		return group.occurrences.filter((member) => !existing.has(member.headerFrom));
+	}
+
+	function existingNames(group: LinkingOverviewGroup): string {
+		return group.existingGroups.map((occurrences) => names({ ...group, occurrences })).join(' + ');
 	}
 
 	async function navigate(headerFrom: number): Promise<void> {
@@ -148,6 +166,9 @@
 				fromOverview={baseline.fromOverview}
 				comparedHeaders={baseline.comparedHeaders}
 				differencesFor={(headers) => controller.editor.getLinkDifferences?.(headers) ?? []}
+				connectionsFor={controller.editor.getLinkConnections
+					? (headers) => controller.editor.getLinkConnections?.(headers) ?? []
+					: undefined}
 				onApply={(choice) => apply(choice, baseline)}
 				onBack={back}
 				typeOnlyHereAvailable={controller.editor.canTypeOnlyHere?.(baseline.headerFrom) ?? false}
@@ -160,50 +181,55 @@
 		{#if overview.available.length === 0 && overview.linked.length === 0}
 			<p>Repeated sections will appear here so you can keep their shared lyrics in sync.</p>
 		{:else}
-			{#each [{ title: 'Available to link', groups: overview.available, linked: false }, { title: 'Linked sections', groups: overview.linked, linked: true }] as category (category.title)}
+			<p>Matching passages stay in sync. Each section keeps its own variations.</p>
+			{#each [{ title: 'Linked sections', groups: overview.linked, linked: true }, { title: 'Available to link', groups: overview.available, linked: false }] as category (category.title)}
 				{#if category.groups.length > 0}
 					<section aria-label={category.title}>
 						<h3>{category.title}</h3>
 						<ul class="linking-groups">
 							{#each category.groups as group (group.headerFrom)}
 								<li class="linking-group" class:linking-group--linked={category.linked}>
-									<div class="linking-group__members">
-										<ul class="linked-members" aria-label="Sections in this group">
-											{#each group.occurrences as occurrence (occurrence.headerFrom)}
-												<li class="linked-member">
-													<span class="linked-member__name"
-														>{sectionNames.get(occurrence.headerFrom) ?? occurrence.label}</span
-													>
-													<button
-														type="button"
-														class="button button--quiet linked-member__line"
-														onclick={() => navigate(occurrence.headerFrom)}
-														>Line {occurrence.line}</button
-													>
-												</li>
-											{/each}
-										</ul>
-									</div>
-									<div class="linking-group__footer">
-										<span class="linking-group__state">
-											{#if category.linked}<Link2
-													size={16}
-													aria-hidden="true"
-												/>{:else}<GitCompareArrows size={16} aria-hidden="true" />{/if}
-											<span
-												>{category.linked
-													? group.differenceCount
-														? `${group.differenceCount} ${group.differenceCount === 1 ? 'difference' : 'differences'} kept`
-														: 'Same lyrics'
-													: 'Not linked together'}</span
+									{#if group.existingGroups.length > 0}
+										<p class="linking-group__summary">
+											{group.action === 'add' ? 'Add to' : 'Combine'}
+											{existingNames(group)}
+										</p>
+									{/if}
+									{#if category.linked || newOccurrences(group).length > 0}
+										<div class="linking-group__members">
+											<ul
+												class="linked-members"
+												aria-label={group.existingGroups.length > 0
+													? 'Sections to add'
+													: 'Sections in this group'}
 											>
-										</span>
+												{#each category.linked ? group.occurrences : newOccurrences(group) as occurrence (occurrence.headerFrom)}
+													<li class="linked-member">
+														<span class="linked-member__name"
+															>{sectionNames.get(occurrence.headerFrom) ?? occurrence.label}</span
+														>
+														<button
+															type="button"
+															class="button button--quiet linked-member__line"
+															onclick={() => navigate(occurrence.headerFrom)}
+															>Line {occurrence.line}</button
+														>
+													</li>
+												{/each}
+											</ul>
+										</div>
+									{/if}
+									<div class="linking-group__footer">
+										{#if category.linked}
+											<span class="linking-group__state"
+												><Link2 size={16} aria-hidden="true" /> Linked</span
+											>
+										{/if}
 										<button
 											class="button"
 											type="button"
-											aria-label={`${category.linked ? 'Manage' : 'Set up link'} ${names(group)}`}
-											onclick={() => open(group)}
-											>{category.linked ? 'Manage' : 'Set up link'}</button
+											aria-label={`${actionLabel(group)} ${names(group)}`}
+											onclick={() => open(group)}>{actionLabel(group)}</button
 										>
 									</div>
 								</li>
@@ -259,6 +285,9 @@
 		border-block-start: var(--border-width) solid var(--color-border);
 		padding-block-start: var(--space-6);
 	}
+	.linking-group__summary {
+		overflow-wrap: anywhere;
+	}
 	.linking-group__members {
 		padding-inline-start: var(--space-2);
 	}
@@ -313,6 +342,7 @@
 		font-size: var(--font-size-sm);
 	}
 	.linking-group__footer button {
+		margin-inline-start: auto;
 		flex: none;
 	}
 </style>

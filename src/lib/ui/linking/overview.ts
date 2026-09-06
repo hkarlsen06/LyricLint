@@ -6,8 +6,10 @@ import { linkOccurrences, type LinkOccurrence } from '$lib/editor/section-links.
 export interface LinkingOverviewGroup {
 	headerFrom: number;
 	occurrences: LinkOccurrence[];
-	/** Stored differences for an existing group; candidates have no chosen alignment yet. */
-	differenceCount: number | undefined;
+	/** Candidate actions distinguish creating a link from extending existing ones. */
+	action: 'manage' | 'create' | 'add' | 'combine';
+	/** Already linked members are summarized rather than listed twice in the overview. */
+	existingGroups: LinkOccurrence[][];
 }
 
 export interface LinkingOverview {
@@ -41,13 +43,7 @@ export function linkingOverview(
 		const occurrences = linkOccurrences(parsed, pack, first.from, {
 			includeHeaderOffsets: offsets
 		}).filter((occurrence) => offsets.includes(occurrence.headerFrom));
-		// Each member carries one hole per stored difference. Count the first
-		// member's holes rather than comparing lyrics and erasing stored intent.
-		const nextHeader = headers.find((header) => header.from > first.from);
-		const differenceCount = (link.holes ?? []).filter(
-			(hole) => hole.line >= first.line && (!nextHeader || hole.line < nextHeader.line)
-		).length;
-		linked.push({ headerFrom: first.from, occurrences, differenceCount });
+		linked.push({ headerFrom: first.from, occurrences, action: 'manage', existingGroups: [] });
 	}
 	linked.sort((left, right) => left.headerFrom - right.headerFrom);
 
@@ -67,24 +63,22 @@ export function linkingOverview(
 		const key = occurrences.map((occurrence) => occurrence.headerFrom).join(',');
 		if (seen.has(key)) continue;
 		seen.add(key);
-		available.push({ headerFrom: header.from, occurrences, differenceCount: undefined });
+		const existingGroups = linked
+			.map((group) =>
+				group.occurrences.filter((member) =>
+					occurrences.some((candidate) => candidate.headerFrom === member.headerFrom)
+				)
+			)
+			.filter((group) => group.length > 0);
+		available.push({
+			headerFrom: header.from,
+			occurrences,
+			action:
+				existingGroups.length > 1 ? 'combine' : existingGroups.length === 1 ? 'add' : 'create',
+			existingGroups
+		});
 	}
 	return { available, linked };
 }
 
-/** Number repeated names across the whole song, independent of the selected group. */
-export function linkingSectionNames(parsed: ParsedDocument): ReadonlyMap<number, string> {
-	const headers = parsed.sections.flatMap((section) => (section.header ? [section.header] : []));
-	const counts = new Map<string, number>();
-	const seen = new Map<string, number>();
-	const name = (header: (typeof headers)[number]) => header.rawNamePart.trim() || header.raw;
-	for (const header of headers) counts.set(name(header), (counts.get(name(header)) ?? 0) + 1);
-	return new Map(
-		headers.map((header) => {
-			const label = name(header);
-			const ordinal = (seen.get(label) ?? 0) + 1;
-			seen.set(label, ordinal);
-			return [header.from, (counts.get(label) ?? 0) > 1 ? `${label} ${ordinal}` : label];
-		})
-	);
-}
+export { linkingSectionNames } from '$lib/editor/section-links.js';
