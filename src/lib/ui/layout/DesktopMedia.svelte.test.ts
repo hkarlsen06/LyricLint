@@ -1,6 +1,6 @@
 import { cdp, page } from 'vitest/browser';
 import { tick } from 'svelte';
-import { expect, it } from 'vitest';
+import { afterEach, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { createTestWorkbench } from '../test-utils.js';
 import { createFeedbackState } from '../state/feedback.svelte.js';
@@ -10,6 +10,11 @@ import { StubAudio } from '../state/media-test-audio.js';
 import { createStubPoll, createStubYouTubeApi } from '../state/media-test-youtube.js';
 import EditorPane from '$lib/editor/EditorPane.svelte';
 import Workspace from './Workspace.svelte';
+
+afterEach(async () => {
+	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
+	await page.viewport(800, 600);
+});
 
 it('keeps visible lyrics beside one 16:9 floating player across desktop sizes and phone views', async () => {
 	await page.viewport(1440, 800);
@@ -140,6 +145,4 @@ it('keeps visible lyrics beside one 16:9 floating player across desktop sizes an
 	expect(frame.checkVisibility()).toBe(true);
 	expect(youtube.players).toHaveLength(1);
 	expect(source.destroyed).toBe(false);
-	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
-	await page.viewport(800, 600);
 });

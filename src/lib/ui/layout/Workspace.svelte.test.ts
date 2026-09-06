@@ -1217,16 +1217,15 @@ describe('Workspace and toolbar', () => {
 	test.each([320, 390, 736])('keeps every toolbar command on screen at %ipx', async (width) => {
 		await page.viewport(width, 844);
 		try {
+			expect(window.matchMedia('(pointer: fine)').matches).toBe(true);
 			const { controller } = createTestWorkbench({ text: '[Verse]\nA line to review' });
 			renderWorkspace(controller);
 			const toolbar = screen.getByRole('banner', { name: 'Document controls' });
 			await screen.findByRole('button', { name: 'Copy lyrics' });
-			const controls = toolbar.querySelectorAll<HTMLElement>(
-				'.document-toolbar__commands > button, .document-toolbar__identity > button, .draft-title, summary'
-			);
+			const controls = toolbar.querySelectorAll<HTMLElement>('button, .draft-title, summary');
 			for (const control of controls) {
+				if (!control.checkVisibility()) continue;
 				const box = control.getBoundingClientRect();
-				if (box.width === 0) continue;
 				expect(box.left, control.outerHTML).toBeGreaterThanOrEqual(0);
 				expect(box.right, control.outerHTML).toBeLessThanOrEqual(width);
 				expect(box.bottom).toBeLessThanOrEqual(toolbar.getBoundingClientRect().bottom);

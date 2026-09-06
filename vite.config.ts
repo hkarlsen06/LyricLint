@@ -33,6 +33,26 @@ import { legacyReferenceDestination } from './src/lib/reference/legacy-redirects
  */
 const DEV_PORT = 5173;
 
+// Chromium can report pointer:none after CDP touch emulation is disabled.
+// Vitest isolates files with iframes but reuses their containing page, so a
+// later desktop test can inherit that input state. Phone-only files explicitly
+// enable touch before each test and can share an instance. Each mixed-input
+// file gets its own instance so it always begins with a real fine pointer.
+// Decision record: docs/subsystems/responsive.md
+const phoneTestFiles = [
+	'src/lib/ui/layout/MobileCommands.svelte.test.ts',
+	'src/lib/ui/layout/MobileMedia.svelte.test.ts',
+	'src/lib/ui/layout/MobileWorkspace.svelte.test.ts'
+];
+const mixedInputTestFiles = [
+	'src/lib/editor/EditorPane.svelte.test.ts',
+	'src/lib/editor/caret-layer.svelte.test.ts',
+	'src/lib/editor/keyboard-commands.svelte.test.ts',
+	'src/lib/ui/assistant/AssistantPanel.svelte.test.ts',
+	'src/lib/ui/layout/DesktopMedia.svelte.test.ts',
+	'src/lib/ui/media/MediaStrip.svelte.test.ts'
+];
+
 /**
  * The dev server's certificate, when this machine has made one.
  *
@@ -424,7 +444,25 @@ export default defineConfig({
 					browser: {
 						enabled: true,
 						provider: playwright(),
-						instances: [{ browser: 'chromium', headless: true }]
+						instances: [
+							{
+								browser: 'chromium',
+								headless: true,
+								exclude: [...phoneTestFiles, ...mixedInputTestFiles]
+							},
+							{
+								browser: 'chromium',
+								headless: true,
+								name: 'client-phone',
+								include: phoneTestFiles
+							},
+							...mixedInputTestFiles.map((file) => ({
+								browser: 'chromium' as const,
+								headless: true,
+								name: `client-${file.split('/').at(-1)!.replace('.svelte.test.ts', '')}`,
+								include: [file]
+							}))
+						]
 					},
 					/**
 					 * A ceiling on how many test files are in a browser at once. It is a
@@ -435,10 +473,10 @@ export default defineConfig({
 					 * cores would mean eight Chromium instances at a few hundred MB each, and
 					 * that an 8-core / 15GiB box would swap and report it as a timeout on a
 					 * different file each run — a memory ceiling wearing the costume of a
-					 * race. Both halves are wrong. Browser mode launches *one* Chromium and
-					 * opens a page per file, so the per-file cost is a renderer child rather
-					 * than a browser; and the pool never saturates anyway, because these
-					 * files are individually quick.
+					 * race. Both halves were wrong. The original browser project launched
+					 * one Chromium and reused a bounded pool of pages across test files.
+					 * Input isolation now adds separate browser instances above; this cap
+					 * applies within each instance, not across all of them.
 					 *
 					 * Measured on this repo, 122 files and 1520 tests: the whole suite runs
 					 * in ~30s and peaks at 6.8GB of 15GiB with zero swap, capped or not.

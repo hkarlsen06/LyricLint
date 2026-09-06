@@ -51,6 +51,26 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/state/phone-layout.ts`,
 
 ## Decision record
 
+### Touch emulation stays inside its test file
+
+Chromium can report `pointer: none` after `Emulation.setTouchEmulationEnabled` is
+disabled, even though the page began with `pointer: fine`. Vitest's file isolation
+recreates the tester iframe but reuses its containing browser page. A later desktop
+test therefore inherits the wrong input mode: narrow toolbar wrapping disappears,
+and desktop media and caret preconditions fail depending on file order. Waiting for
+the media query cannot repair the retained state.
+
+`phoneTestFiles` and `mixedInputTestFiles` in `vite.config.ts` exclude files changing
+touch emulation from the shared desktop instance. Phone-only files explicitly enable
+touch before every test and share a phone instance. Each mixed-input file gets its
+own instance, so it begins with a fine pointer and no other file reuses its page.
+Add new files using that CDP command to the appropriate list. Mixed desktop-to-touch
+tests retain their real input transitions. Desktop assertions keep
+requiring a fine pointer; they must not accept `none` to hide this leak. Cleanup still
+disables touch emulation on failure. The full browser suite, including
+`DesktopMedia.svelte.test.ts`, `DesktopWorkspace.svelte.test.ts`,
+`Workspace.svelte.test.ts`, and `caret-layer.svelte.test.ts`, exercises the separation.
+
 ### Task views replace the permanent phone split
 
 The earlier `3fr / 2fr` stacked layout made two independently scrolling regions share

@@ -1224,7 +1224,7 @@ test('the error page leaves by loading a new document, not by routing', async ({
 
 /**
  * The site keeps the assistant as an answers-only dialog; the workbench puts
- * that same persisted conversation in its fourth panel tab. No assistant
+ * that same persisted conversation in its Assistant panel tab. No assistant
  * backend runs under this suite, so the request is blocked explicitly and the
  * failed turn gives both surfaces a transcript and a retry to render.
  */
@@ -1248,16 +1248,18 @@ test('the rules dialog and workbench tab share one persisted conversation', asyn
 	await expect(dialog.getByRole('button', { name: 'Allow' })).toHaveCount(0);
 
 	// The same conversation survives a real navigation, but its workbench home
-	// is the second tab rather than another modal entry point.
+	// is the Assistant tab in the document dock.
 	await openWorkspace(page);
 	const tabs = page.getByRole('tablist', { name: 'Document panels' }).getByRole('tab');
-	await expect(tabs).toHaveCount(5);
-	// Assistant is a glyph, so it is found by accessible name rather than by text.
-	await expect(tabs.nth(1)).toHaveAccessibleName('Assistant');
-	await expect(tabs.nth(2)).toHaveText('Performers');
-	await expect(tabs.nth(3)).toHaveText('Song');
-	await expect(tabs.nth(4)).toHaveText('Preferences');
-	await tabs.nth(1).click();
+	await expect(tabs).toHaveText([
+		'Review',
+		'Linking',
+		'Assistant',
+		'Performers',
+		'Song',
+		'Preferences'
+	]);
+	await page.getByRole('tab', { name: 'Assistant', exact: true }).click();
 
 	const assistantPanel = page.getByRole('tabpanel', { name: 'Assistant' });
 	await expect(assistantPanel.getByLabel('Conversation', { exact: true })).toContainText(

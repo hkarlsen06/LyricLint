@@ -196,7 +196,9 @@ describe('Linking panel with the real editor', () => {
 			})
 		);
 		expect(handle.getSnapshot().text).toBe(SONG);
-		expect(panel.getByText('Change preview')).toBeTruthy();
+		expect(panel.getByRole('deletion').textContent).toBe('tonight');
+		expect(panel.getByRole('insertion').textContent).toBe('again');
+		expect(panel.queryByText('Change preview')).toBeNull();
 		expect(panel.queryByRole('button', { name: 'Hide differences' })).toBeNull();
 		expect(panel.getByRole('button', { name: 'Cancel' })).toBeTruthy();
 		await fireEvent.click(panel.getByRole('button', { name: 'Apply 1 change' }));
