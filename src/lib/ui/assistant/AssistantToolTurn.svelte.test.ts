@@ -21,7 +21,7 @@ describe('an assistant draft-read turn', () => {
 	test('Allow calls the store and the resolved turn collapses to one line', async () => {
 		const assistant = assistantStub();
 		const call: DraftReadCall = { callId: 'read-1', name: 'read_scribe' };
-		const view = render(AssistantToolTurn, { call, assistant, decidable: true });
+		const view = await render(AssistantToolTurn, { call, assistant, decidable: true });
 
 		expect(view.container.querySelector('[aria-live="polite"]')?.textContent).toContain('Waiting');
 		// The question is addressed to the reader, so it is set as prose.
@@ -50,7 +50,7 @@ describe('an assistant draft-read turn', () => {
 	test("Deny calls the store and states that the 'scribe was not shared", async () => {
 		const assistant = assistantStub();
 		const call: DraftReadCall = { callId: 'read-1', name: 'read_scribe' };
-		const view = render(AssistantToolTurn, { call, assistant, decidable: true });
+		const view = await render(AssistantToolTurn, { call, assistant, decidable: true });
 
 		await fireEvent.click(within(view.container).getByRole('button', { name: 'Deny' }));
 		expect(assistant.denyDraftRead).toHaveBeenCalledOnce();
@@ -58,13 +58,13 @@ describe('an assistant draft-read turn', () => {
 		expect(view.container.textContent?.trim()).toBe("'Scribe not shared.");
 	});
 
-	test('an undecided call with no live session is stated as history, not asked again', () => {
+	test('an undecided call with no live session is stated as history, not asked again', async () => {
 		// The record outlives the session, so a restored transcript redraws this
 		// call — and `allowDraftRead` refuses without a session. Drawn as a
 		// prompt it is two dead buttons under a line saying the turn is over.
 		const assistant = assistantStub();
 		const call: DraftReadCall = { callId: 'read-1', name: 'read_scribe' };
-		const view = render(AssistantToolTurn, { call, assistant, decidable: false });
+		const view = await render(AssistantToolTurn, { call, assistant, decidable: false });
 
 		expect(within(view.container).queryByRole('button', { name: 'Allow' })).toBeNull();
 		expect(within(view.container).queryByRole('button', { name: 'Deny' })).toBeNull();

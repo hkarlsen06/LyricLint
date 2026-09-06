@@ -46,7 +46,7 @@ function visibleText(node: Element): string {
 
 describe('the diagnostic meta line', () => {
 	it('reads as one sentence: severity, line, then what says so', async () => {
-		const screen = render(DiagnosticMeta, {
+		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
 			line: 47
@@ -69,14 +69,14 @@ describe('the diagnostic meta line', () => {
 		// and the pointer gets it from the tooltip.
 		expect(severity.querySelector('.sr-only')?.textContent).toBe('Warning');
 		expect(severity.getAttribute('title')).toBe('Warning');
-		screen.unmount();
+		await screen.unmount();
 	});
 
 	it('shows the section and verified date as the link tooltip, on hover and on focus', async () => {
 		// Away from the viewport's top edge, where the tooltip takes its primary
 		// placement — a card mounted at 0 exercises only the fallback.
 		document.body.style.paddingTop = '300px';
-		const screen = render(DiagnosticMeta, {
+		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
 			line: 47
@@ -115,13 +115,13 @@ describe('the diagnostic meta line', () => {
 			await vi.waitFor(() => expect(document.querySelector('.source-tooltip')).toBeNull());
 		} finally {
 			document.body.style.paddingTop = '';
-			screen.unmount();
+			await screen.unmount();
 		}
 	});
 
 	it('folds two or more citations behind one control so the line stays one line', async () => {
 		const ids = ['G-LINES', 'G-QE-MARKS'];
-		const screen = render(DiagnosticMeta, {
+		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(ids),
 			sources: sourcesFor(ids),
 			line: 47
@@ -145,11 +145,11 @@ describe('the diagnostic meta line', () => {
 		await disclosure.click();
 		await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false');
 		expect(screen.container.querySelector('.diagnostic-meta__sources')).toBeNull();
-		screen.unmount();
+		await screen.unmount();
 	});
 
 	it('leaves a lone citation inline rather than behind a disclosure', async () => {
-		const screen = render(DiagnosticMeta, {
+		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
 			line: 47
@@ -157,11 +157,11 @@ describe('the diagnostic meta line', () => {
 
 		await expect.element(page.getByRole('button', { name: 'Sources' })).not.toBeInTheDocument();
 		expect(screen.container.querySelectorAll('.diagnostic-meta__row a')).toHaveLength(1);
-		screen.unmount();
+		await screen.unmount();
 	});
 
 	it('says the citation opens a tab, in the link’s name rather than in its description', async () => {
-		const screen = render(DiagnosticMeta, {
+		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
 			line: 47
@@ -188,11 +188,11 @@ describe('the diagnostic meta line', () => {
 		expect(visibleText(screen.container.querySelector('.diagnostic-meta__row')!)).toBe(
 			'Line 47 · Page G-LINES'
 		);
-		screen.unmount();
+		await screen.unmount();
 	});
 
 	it('draws the linked page’s favicon inside the citation, decoratively', async () => {
-		const screen = render(DiagnosticMeta, {
+		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
 			line: 47
@@ -209,11 +209,11 @@ describe('the diagnostic meta line', () => {
 		expect(visibleText(screen.container.querySelector('.diagnostic-meta__row')!)).toBe(
 			'Line 47 · Page G-LINES'
 		);
-		screen.unmount();
+		await screen.unmount();
 	});
 
 	it('marks a derivation as LyricLint’s reading, ahead of what it reads', async () => {
-		const screen = render(DiagnosticMeta, {
+		const screen = await render(DiagnosticMeta, {
 			diagnostic: { ...diagnostic(['G-LINES']), derivation: true },
 			sources: sourcesFor(['G-LINES']),
 			line: 47
@@ -231,17 +231,17 @@ describe('the diagnostic meta line', () => {
 		expect(visibleText(screen.container.querySelector('.diagnostic-meta__row')!)).toBe(
 			'Line 47 · LyricLint reading · Page G-LINES'
 		);
-		screen.unmount();
+		await screen.unmount();
 	});
 
 	it('draws no derivation tag on a finding the sources state directly', async () => {
-		const screen = render(DiagnosticMeta, {
+		const screen = await render(DiagnosticMeta, {
 			diagnostic: diagnostic(['G-LINES']),
 			sources: sourcesFor(['G-LINES']),
 			line: 47
 		});
 
 		expect(screen.container.querySelector('.diagnostic-meta__derivation')).toBeNull();
-		screen.unmount();
+		await screen.unmount();
 	});
 });

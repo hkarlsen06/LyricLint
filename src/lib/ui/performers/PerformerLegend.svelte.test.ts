@@ -32,7 +32,7 @@ describe('PerformerLegend', () => {
 			['Chorus', [voice('avery')]],
 			['Outro', [voice('avery')]]
 		]);
-		const view = render(PerformerLegend, { document: parsed, performers });
+		const view = await render(PerformerLegend, { document: parsed, performers });
 		const details = view.container.querySelector('details')!;
 		expect(details.open).toBe(false);
 		expect(view.container.querySelector('ul')!.checkVisibility()).toBe(false);
@@ -57,7 +57,7 @@ describe('PerformerLegend', () => {
 			['Outro', [{ id: 'joint', performerIds: ['avery', 'blair'], styleSlot: 1 }]],
 			['Outro', [{ id: 'joint', performerIds: ['blair', 'avery'], styleSlot: 1 }]]
 		]);
-		const view = render(PerformerLegend, { document: parsed, performers });
+		const view = await render(PerformerLegend, { document: parsed, performers });
 		await fireEvent.click(view.container.querySelector('summary')!);
 		expect(within(view.container).getAllByRole('listitem')).toHaveLength(5);
 		expect(within(view.container).getByText('1. Chorus')).toBeTruthy();
@@ -80,7 +80,7 @@ describe('PerformerLegend', () => {
 			['Chorus', [{ id: 'raw', performerIds: [], styleSlot: 1, rawNameText: 'Guest' }]],
 			['Bridge', [{ id: 'other-raw', performerIds: [], styleSlot: 1, rawNameText: 'Other guest' }]]
 		]);
-		const view = render(PerformerLegend, { document: parsed, performers });
+		const view = await render(PerformerLegend, { document: parsed, performers });
 		await fireEvent.click(view.container.querySelector('summary')!);
 		await view.rerender({
 			document: parsed,
@@ -94,8 +94,8 @@ describe('PerformerLegend', () => {
 		expect(view.container.querySelector('details')!.open).toBe(true);
 	});
 
-	test('omits the disclosure when no section names voices', () => {
-		const view = render(PerformerLegend, {
+	test('omits the disclosure when no section names voices', async () => {
+		const view = await render(PerformerLegend, {
 			document: parseDocument('[Verse]\nA lyric'),
 			performers
 		});

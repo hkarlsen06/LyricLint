@@ -90,6 +90,8 @@ async function mount(options: {
 	});
 	await expect.element(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
 	if (!handle) throw new Error('CodeMirror did not publish its editor handle.');
+	// Gutter hit testing uses measured line heights, settled on CodeMirror's next frame.
+	await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 	return { handle, seek, syncChanges, announcements, notices, anchorsChanged };
 }
 
@@ -442,7 +444,7 @@ describe('the timestamp column', () => {
 		});
 		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
 		await withColumn(handle);
-		render(ControlTooltip, { props: {} });
+		await render(ControlTooltip, { props: {} });
 
 		const hover = (element: Element) =>
 			element.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
@@ -501,7 +503,7 @@ describe('the timestamp column', () => {
 		});
 		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
 		await withColumn(handle);
-		render(ControlTooltip, { props: {} });
+		await render(ControlTooltip, { props: {} });
 
 		const numbers = lineNumberElements();
 		const anchored = numbers.find((element) => element.classList.contains('ll-line-seek'));

@@ -38,8 +38,8 @@ function assistantStub(): AssistantState {
 afterEach(cleanup);
 
 describe('an assistant lyric-reference card', () => {
-	test('quotes the exact text between its context with no injected whitespace', () => {
-		const { container } = render(AssistantReferenceCard, {
+	test('quotes the exact text between its context with no injected whitespace', async () => {
+		const { container } = await render(AssistantReferenceCard, {
 			reference: shown(),
 			assistant: assistantStub()
 		});
@@ -56,7 +56,7 @@ describe('an assistant lyric-reference card', () => {
 
 	test('hovering the card and pressing or focusing the quote all reveal the place', async () => {
 		const assistant = assistantStub();
-		const { container } = render(AssistantReferenceCard, {
+		const { container } = await render(AssistantReferenceCard, {
 			reference: shown(),
 			assistant
 		});
@@ -75,7 +75,10 @@ describe('an assistant lyric-reference card', () => {
 
 	test('a failed reference is inert prose that says why, not a control', async () => {
 		const assistant = assistantStub();
-		const view = render(AssistantReferenceCard, { reference: failed('ambiguous'), assistant });
+		const view = await render(AssistantReferenceCard, {
+			reference: failed('ambiguous'),
+			assistant
+		});
 		expect(view.container.textContent).toContain('Not shown.');
 		expect(view.container.textContent).toContain('appears more than once');
 		expect(view.container.querySelector('button')).toBeNull();

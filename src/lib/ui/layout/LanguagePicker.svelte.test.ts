@@ -28,7 +28,7 @@ describe('LanguagePicker', () => {
 	// typist wants to hear is how many are left.
 	test('the results list is not a live region, and the count is', async () => {
 		const { controller } = createTestWorkbench();
-		render(LanguagePicker, { controller });
+		await render(LanguagePicker, { controller });
 		await openPicker();
 
 		const list = screen.getByRole('list', { name: 'Languages' });
@@ -41,7 +41,7 @@ describe('LanguagePicker', () => {
 	// that arrives with its text already in it is not an update, and is not read.
 	test('the status line mounts empty and reports each narrowing', async () => {
 		const { controller } = createTestWorkbench();
-		render(LanguagePicker, { controller });
+		await render(LanguagePicker, { controller });
 		await openPicker();
 
 		expect(status().textContent?.trim()).toBe('');

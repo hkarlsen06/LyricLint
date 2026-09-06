@@ -40,7 +40,7 @@ describe('DraftMenu', () => {
 		}));
 		const { controller } = createTestWorkbench({ drafts });
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		await userEvent.click(trigger);
 		const search = screen.getByRole('searchbox', {
@@ -65,7 +65,7 @@ describe('DraftMenu', () => {
 			exportLog: exported
 		});
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 		const heading = screen.getByRole('heading', { name: "Saved 'scribes", level: 2 });
 		const titlebar = heading.closest('.draft-menu__titlebar');
@@ -134,7 +134,7 @@ describe('DraftMenu', () => {
 	test('offers no way to delete everything, and a fresh install is one sentence', async () => {
 		const { controller } = createTestWorkbench({ drafts: [] });
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 
 		expect(screen.getByText(/No saved 'scribes yet/u)).toBeTruthy();
@@ -145,7 +145,7 @@ describe('DraftMenu', () => {
 		const base = createTestWorkbench();
 		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 
 		expect(screen.queryByRole('button', { name: /delete all/iu })).toBeNull();
@@ -157,7 +157,7 @@ describe('DraftMenu', () => {
 			drafts: [base.initialDraft, secondDraft()]
 		});
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 
 		const row = screen.getByText('Second song').closest('li')!;
@@ -175,7 +175,7 @@ describe('DraftMenu', () => {
 			drafts: [base.initialDraft, secondDraft(), thirdDraft()]
 		});
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 
 		const second = screen.getByText('Second song').closest('li')!;
@@ -193,7 +193,7 @@ describe('DraftMenu', () => {
 		const base = createTestWorkbench();
 		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		await fireEvent.click(trigger);
 		const menu = trigger.closest('details')!;
@@ -223,7 +223,7 @@ describe('DraftMenu', () => {
 		const base = createTestWorkbench();
 		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		await fireEvent.click(trigger);
 		const menu = trigger.closest('details')!;
@@ -254,7 +254,7 @@ describe('DraftMenu', () => {
 		const base = createTestWorkbench();
 		const { controller } = createTestWorkbench({ drafts: [base.initialDraft, secondDraft()] });
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 
 		const row = screen.getByText('Second song').closest('li')!;
@@ -276,7 +276,7 @@ describe('DraftMenu', () => {
 	test('keeps the menu open for a press on the summary or inside the popover', async () => {
 		const { controller } = createTestWorkbench();
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		await fireEvent.click(trigger);
 		const menu = trigger.closest('details')!;
@@ -312,7 +312,7 @@ describe('DraftMenu duplicate titles', () => {
 		];
 		const { controller, repository } = createTestWorkbench({ drafts });
 		await controller.refreshDrafts();
-		render(DraftMenu, { controller });
+		await render(DraftMenu, { controller });
 		await userEvent.click(screen.getByRole('button', { name: "'Scribes" }));
 		expect(screen.getByText('The morning sun')).toBeTruthy();
 		expect(screen.getByText('A winter moon')).toBeTruthy();

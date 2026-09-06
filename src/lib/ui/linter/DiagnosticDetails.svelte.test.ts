@@ -140,7 +140,7 @@ describe('DiagnosticDetails preview flow', () => {
 		// Collapsing the card is the only way out of a preview now, and the
 		// document must not be left showing a diff for a diagnostic nobody
 		// is looking at.
-		screen.unmount();
+		await screen.unmount();
 		expect(onCancelPreview).toHaveBeenCalledOnce();
 		expect(onApplyFix).not.toHaveBeenCalled();
 	});

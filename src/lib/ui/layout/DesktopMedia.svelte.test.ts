@@ -38,7 +38,7 @@ it('keeps visible lyrics beside one 16:9 floating player across desktop sizes an
 		text: lyrics,
 		media: { repository: createInMemoryMediaRepository([]), player }
 	});
-	const view = render(Workspace, {
+	const view = await render(Workspace, {
 		controller,
 		editorComponent: EditorPane,
 		harperProvider: { lint: async () => [], dispose: async () => {} }

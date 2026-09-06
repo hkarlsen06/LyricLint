@@ -43,7 +43,7 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		const { controller, calls } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), spelling(20, 24, "I'ma"), prose(40, 60), prose(70, 90)]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		// The button never claims the findings it cannot settle: four are showing
 		// and it offers the two that go without review.
@@ -64,14 +64,14 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		expect(controller.feedback.announcement).toContain('2 still need a decision');
 	});
 
-	test('is chrome, so it never reads as the open card below it', () => {
+	test('is chrome, so it never reads as the open card below it', async () => {
 		const { controller } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), prose(40, 60)]
 		});
 		// The chips are the other strip that hangs here, and they draw themselves
 		// once the document has findings, so the two can be compared as the one
 		// material they are meant to share.
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		const row = document.querySelector('.linter-panel__bulk')!;
 		const rowFill = getComputedStyle(row).backgroundColor;
@@ -90,11 +90,11 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 	});
 
 	// Only the open finding draws a surface; the others remain an unboxed list.
-	test('lifts only the open finding above the quiet list in both themes', () => {
+	test('lifts only the open finding above the quiet list in both themes', async () => {
 		const { controller } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), prose(40, 60)]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 		const open = document.querySelector('.diagnostic-card--expanded')!;
 		const resting = document.querySelector(
 			'.diagnostic-list > li:not(.diagnostic-card--expanded)'
@@ -106,19 +106,19 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		expect(openStyle.borderBottomWidth).toBe('0px');
 	});
 
-	test('drops the remainder when there is none', () => {
+	test('drops the remainder when there is none', async () => {
 		const { controller } = createTestWorkbench({ diagnostics: [spelling(0, 4, "I'ma")] });
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		expect(screen.getByRole('button', { name: 'Fix 1 issue automatically' })).toBeTruthy();
 		expect(screen.queryByText(/need a decision/)).toBeNull();
 	});
 
-	test('ends the row with what the command will not touch', () => {
+	test('ends the row with what the command will not touch', async () => {
 		const { controller } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), prose(40, 60), prose(70, 90)]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		const row = document.querySelector('.linter-panel__bulk')!;
 		// Command at one end, remainder at the other — which is also what keeps a
@@ -135,9 +135,9 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		expect(getComputedStyle(action).borderBottomWidth).not.toBe('0px');
 	});
 
-	test('is absent, not disabled, when it could do nothing', () => {
+	test('is absent, not disabled, when it could do nothing', async () => {
 		const { controller } = createTestWorkbench({ diagnostics: [prose(0, 10)] });
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		expect(screen.queryByRole('button', { name: /automatically/ })).toBeNull();
 	});
@@ -162,7 +162,7 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 				})
 			]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		expect(screen.getByRole('button', { name: 'Fix 2 issues automatically' })).toBeTruthy();
 
@@ -178,7 +178,7 @@ describe('the linter offers one bulk command over the list it is showing', () =>
 		const { controller } = createTestWorkbench({
 			diagnostics: [first, spelling(20, 24, "I'ma")]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		controller.ignoreDiagnostic(first);
 		await Promise.resolve();
@@ -194,9 +194,9 @@ describe('the severity chips are on screen, and only for the kinds that are ther
 			chip.textContent?.replace(/\s+/gu, ' ').trim()
 		);
 
-	test('draws itself without being asked for', () => {
+	test('draws itself without being asked for', async () => {
 		const { controller } = createTestWorkbench({ diagnostics: [prose(0, 10)] });
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		// The row used to be revealed by pressing the Linter tab a second time from
 		// inside the linter, which is a gesture nothing advertises and nobody
@@ -204,7 +204,7 @@ describe('the severity chips are on screen, and only for the kinds that are ther
 		expect(screen.getByRole('group', { name: 'Filter diagnostics by severity' })).toBeTruthy();
 	});
 
-	test('offers no chip for a severity with nothing in it', () => {
+	test('offers no chip for a severity with nothing in it', async () => {
 		const { controller } = createTestWorkbench({
 			diagnostics: [
 				prose(0, 10),
@@ -217,16 +217,16 @@ describe('the severity chips are on screen, and only for the kinds that are ther
 				})
 			]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		// `Errors 0` and `Manual review 0` are counts that could not have been
 		// otherwise, offering to filter out kinds that are not in the document.
 		expect(chipNames()).toEqual(['Warnings 1', 'Suggestions 1']);
 	});
 
-	test('draws no row at all when there is nothing to filter', () => {
+	test('draws no row at all when there is nothing to filter', async () => {
 		const { controller } = createTestWorkbench({ diagnostics: [] });
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		expect(screen.queryByRole('group', { name: 'Filter diagnostics by severity' })).toBeNull();
 	});
@@ -244,7 +244,7 @@ describe('the severity chips are on screen, and only for the kinds that are ther
 				})
 			]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
 
@@ -274,7 +274,7 @@ describe("a card's batch repeats the change the card is previewing", () => {
 				spelling(80, 83, "'til")
 			]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		const fixAll = screen.getByRole('button', { name: 'Fix all 3' });
 		await fireEvent.click(fixAll);
@@ -288,11 +288,11 @@ describe("a card's batch repeats the change the card is previewing", () => {
 		expect(controller.feedback.announcement).toBe("Replace with I'ma applied to 3 findings.");
 	});
 
-	test('says nothing about a batch of one', () => {
+	test('says nothing about a batch of one', async () => {
 		const { controller } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), spelling(60, 63, "'til")]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 
 		// The expanded card's own fix button already applies the single occurrence.
 		expect(screen.getByRole('button', { name: "Replace with I'ma" })).toBeTruthy();
@@ -309,7 +309,7 @@ describe('review continuity', () => {
 		const clear = vi.fn();
 		editor.previewAtomic = preview;
 		editor.clearPreview = clear;
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 		await waitFor(() => expect(preview).toHaveBeenCalled());
 		const row = screen.getByRole('button', { name: /^Go to/ });
 		await fireEvent.click(row);
@@ -326,7 +326,7 @@ describe('review continuity', () => {
 		editor.previewAtomic = vi.fn();
 		const clear = vi.fn();
 		editor.clearPreview = clear;
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 		await waitFor(() => expect(editor.previewAtomic).toHaveBeenCalled());
 		controller.setActiveTab('performers');
 		await waitFor(() => expect(clear).toHaveBeenCalled());
@@ -341,7 +341,7 @@ describe('review continuity', () => {
 		const { controller, calls } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), prose(8, 12)]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 		const next = screen.getByRole('button', { name: 'Next' });
 		next.focus();
 		await fireEvent.click(next);
@@ -356,7 +356,7 @@ describe('review continuity', () => {
 		const { controller } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), prose(8, 12)]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 		const field = document.createElement('textarea');
 		document.body.append(field);
 		const dialog = document.createElement('div');
@@ -397,7 +397,7 @@ describe('review continuity', () => {
 		});
 		editor.dispatchAtomic = () =>
 			controller.onSnapshot({ ...controller.snapshot, revision: 5, diagnostics: [following] });
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 		const bulk = screen.getByRole('button', { name: 'Fix 1 issue automatically' });
 		bulk.focus();
 		await fireEvent.click(bulk);
@@ -412,7 +412,7 @@ describe('review continuity', () => {
 		const { controller } = createTestWorkbench({
 			diagnostics: [spelling(0, 4, "I'ma"), prose(8, 12)]
 		});
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 		const following = screen.getByRole('button', { name: 'Go to This line reads as prose.' });
 		const ignore = screen.getByRole('button', { name: 'Ignore' });
 		ignore.focus();
@@ -427,7 +427,7 @@ describe('review continuity', () => {
 		const { controller, editor } = createTestWorkbench({ diagnostics: [fixed, following] });
 		editor.dispatchAtomic = () =>
 			controller.onSnapshot({ ...controller.snapshot, revision: 5, diagnostics: [following] });
-		render(LinterPanel, { controller });
+		await render(LinterPanel, { controller });
 		const fix = screen.getByRole('button', { name: "Replace with I'ma" });
 		fix.focus();
 		await fireEvent.click(fix);

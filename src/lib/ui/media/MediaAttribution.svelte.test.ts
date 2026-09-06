@@ -16,7 +16,7 @@ import MediaAttribution from './MediaAttribution.svelte';
 describe('MediaAttribution', () => {
 	it('names the track and links the mark to it on Spotify', async () => {
 		const { media } = await spotifyStore();
-		render(MediaAttribution, { props: { media } });
+		await render(MediaAttribution, { props: { media } });
 
 		const link = page.getByRole('link', { name: 'Open Mul — Sensommer on Spotify' });
 		await expect
@@ -31,7 +31,7 @@ describe('MediaAttribution', () => {
 	// every other link on the page inherits — and their stated 21px floor.
 	it('draws the mark in Spotify green at their minimum size', async () => {
 		const { media } = await spotifyStore();
-		render(MediaAttribution, { props: { media } });
+		await render(MediaAttribution, { props: { media } });
 
 		const link = page.getByRole('link', { name: 'Open Mul — Sensommer on Spotify' }).element();
 		expect(getComputedStyle(link).color).toBe('rgb(29, 185, 84)');
@@ -41,7 +41,7 @@ describe('MediaAttribution', () => {
 	// Apple wants the same thing, and gets their own supplied lockup for it.
 	it('carries Apple’s badge and links back to the song', async () => {
 		const { media } = await appleStore();
-		render(MediaAttribution, { props: { media } });
+		await render(MediaAttribution, { props: { media } });
 
 		const link = page.getByRole('link', {
 			name: 'Listen to Kygo — Stole the Show on Apple Music'
@@ -74,7 +74,7 @@ describe('MediaAttribution', () => {
 	 */
 	it('uses Apple’s own artwork at its own aspect ratio, with no second request', async () => {
 		const { media } = await appleStore();
-		render(MediaAttribution, { props: { media } });
+		await render(MediaAttribution, { props: { media } });
 
 		const badge = document.querySelector('.media-attribution__apple img') as HTMLImageElement;
 		const src = badge.getAttribute('src') ?? '';

@@ -66,7 +66,7 @@ afterEach(() => vi.unstubAllEnvs());
 
 describe('ReferenceIndex', () => {
 	it('starts with a compact topic directory and exposes entries only after a choice', async () => {
-		render(ReferenceIndex, { corpus });
+		await render(ReferenceIndex, { corpus });
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(0);
 		expect(document.querySelector('.reference-topics a svg[aria-hidden="true"]')).not.toBeNull();
 		expect(document.querySelector('.reference-topics .reference-description')).toBeNull();
@@ -81,7 +81,7 @@ describe('ReferenceIndex', () => {
 	});
 
 	it('searches conventions and checks together, groups related checks and shows the matching passage', async () => {
-		render(ReferenceIndex, { corpus });
+		await render(ReferenceIndex, { corpus });
 		await page.getByRole('searchbox').fill('two singers');
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(1);
 		await expect.element(page.getByText('Use a legend for two singers.')).toBeVisible();
@@ -100,7 +100,7 @@ describe('ReferenceIndex', () => {
 	});
 
 	it('shows the matching lookup row and preserves lookup state in result links', async () => {
-		render(ReferenceIndex, { corpus });
+		await render(ReferenceIndex, { corpus });
 		await page.getByRole('searchbox').fill('definately');
 		expect(document.querySelector('.reference-result')?.textContent).toContain(
 			'definately → definitely'
@@ -123,7 +123,7 @@ describe('ReferenceIndex', () => {
 	it('marks the reading position without changing an active search', async () => {
 		setReferenceSearchState({ query: 'two singers' });
 		setReadingAnchor('voices');
-		render(ReferenceIndex, { corpus, selectedTopic: 'performers' });
+		await render(ReferenceIndex, { corpus, selectedTopic: 'performers' });
 		await expect
 			.element(page.getByRole('link', { name: /Credit each singer/ }))
 			.toHaveAttribute('aria-current', 'page');
@@ -132,7 +132,7 @@ describe('ReferenceIndex', () => {
 	});
 	it('narrows linter checks by severity and fix type without changing the query', async () => {
 		setReferenceSearchState({ scope: 'rules', browseAll: true });
-		render(ReferenceIndex, { corpus });
+		await render(ReferenceIndex, { corpus });
 		await page.getByText('Filters (active)', { exact: true }).click();
 		await page.getByRole('button', { name: 'Warnings', exact: true }).click();
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(1);
@@ -145,7 +145,7 @@ describe('ReferenceIndex', () => {
 	});
 
 	it('reveals a deep-linked rule and lets All topics override its implicit topic', async () => {
-		render(ReferenceIndex, { corpus, selectedSlug: 'performers-legend' });
+		await render(ReferenceIndex, { corpus, selectedSlug: 'performers-legend' });
 		expect(document.querySelector('a[aria-current="page"]')?.textContent).toContain(
 			'A voice with no legend'
 		);
@@ -166,12 +166,12 @@ describe('ReferenceIndex', () => {
 				throw new Error('Opening must not send a question');
 			}
 		});
-		render(ReferenceIndex, { corpus, assistant });
+		await render(ReferenceIndex, { corpus, assistant });
 		await page.getByRole('button', { name: 'Ask a question', exact: true }).click();
 		expect(assistant.isOpen).toBe(true);
 	});
 	it('marks useful search words without highlighting question stopwords', async () => {
-		render(ReferenceIndex, { corpus });
+		await render(ReferenceIndex, { corpus });
 		await page.getByRole('searchbox').fill('How do I credit singers');
 		const marked = [...document.querySelectorAll('.reference-results mark')].map((mark) =>
 			mark.textContent?.toLowerCase()
@@ -182,7 +182,7 @@ describe('ReferenceIndex', () => {
 	it('lands a legacy rule-family fragment on the corresponding topic without moving focus', async () => {
 		history.replaceState(null, '', `${location.pathname}#section`);
 		const focused = document.activeElement;
-		render(ReferenceIndex, { corpus });
+		await render(ReferenceIndex, { corpus });
 		await expect
 			.element(page.getByRole('link', { name: 'Section headers and performers' }))
 			.toBeVisible();

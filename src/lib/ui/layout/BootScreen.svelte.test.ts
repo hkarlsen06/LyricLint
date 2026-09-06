@@ -8,14 +8,14 @@ import BootScreen from './BootScreen.svelte';
  * gate below without spending the sequence's own two seconds in the suite — and
  * the gate is the part with logic in it.
  */
-function withoutMotion(run: () => void): void {
+async function withoutMotion(run: () => Promise<void>): Promise<void> {
 	const real = window.matchMedia;
 	window.matchMedia = ((query: string) => ({
 		...real.call(window, query),
 		matches: query.includes('prefers-reduced-motion')
 	})) as typeof window.matchMedia;
 	try {
-		run();
+		await run();
 	} finally {
 		window.matchMedia = real;
 	}
@@ -69,7 +69,7 @@ describe('BootScreen', () => {
 	// starts — on the word, which is what the stretch is a stretch of.
 	it('opens on the wordmark and holds the workspace back through the pull', async () => {
 		const ondone = vi.fn();
-		render(BootScreen, { props: { ready: true, ondone } });
+		await render(BootScreen, { props: { ready: true, ondone } });
 
 		expect(screen().dataset.stage).toBe('word');
 		expect(
@@ -95,7 +95,7 @@ describe('BootScreen', () => {
 	 * announces a wait that did not happen.
 	 */
 	it('closes the mark and draws no waveform when nothing is being waited for', async () => {
-		render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
+		await render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
 		const wave = () => document.querySelector('.app-wordmark__wave') as SVGSVGElement;
 		const path = () => wave().querySelector('path') as SVGPathElement;
 
@@ -139,7 +139,7 @@ describe('BootScreen', () => {
 	 */
 	it('closes the brackets even when the workbench arrives mid-fall', async () => {
 		const props = $state({ ready: false, ondone: vi.fn() });
-		render(BootScreen, { props });
+		await render(BootScreen, { props });
 		const wave = () => document.querySelector('.app-wordmark__wave') as SVGSVGElement;
 
 		// Into the fall, then answer.
@@ -177,7 +177,7 @@ describe('BootScreen', () => {
 	 * and a beat of bare canvas with nothing on it to uncover.
 	 */
 	it('fades the brackets out while they are still falling', async () => {
-		render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
+		await render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
 		const mark = () => screen().querySelector('.app-wordmark') as HTMLElement;
 
 		await vi.waitFor(() => expect(screen().dataset.stage).toBe('land'), { timeout: 3000 });
@@ -250,7 +250,7 @@ describe('BootScreen', () => {
 	 * get out of the way.
 	 */
 	it('opens the canvas from the middle instead of fading it', async () => {
-		render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
+		await render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
 		const backdrop = () => getComputedStyle(screen(), '::before');
 
 		const alpha = (color: string) => {
@@ -311,14 +311,18 @@ describe('BootScreen', () => {
 	 */
 	it('runs the wave out to the mark before revealing, and outlasts the backdrop', async () => {
 		const props = $state({ ready: false, ondone: vi.fn() });
-		render(BootScreen, { props });
+		await render(BootScreen, { props });
 		const mark = () => screen().querySelector('.app-wordmark') as HTMLElement;
 		const wave = () => document.querySelector('.app-wordmark__wave path') as SVGPathElement;
 
-		await vi.waitFor(() => expect(screen().hasAttribute('data-wait')).toBe(true), {
-			timeout: 4000
-		});
-		expect(wave().getAttribute('d')).not.toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
+		// The wait state is published before the wave's first animation frame.
+		await vi.waitFor(
+			() => {
+				expect(screen().hasAttribute('data-wait')).toBe(true);
+				expect(wave().getAttribute('d')).not.toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
+			},
+			{ timeout: 4000 }
+		);
 
 		props.ready = true;
 
@@ -391,7 +395,7 @@ describe('BootScreen', () => {
 	 * to leave its own range: no overshoot, no rebound, no settling wobble.
 	 */
 	it('stops dead at the mark rather than springing past it', async () => {
-		render(BootScreen, { props: { ready: false, ondone: vi.fn() } });
+		await render(BootScreen, { props: { ready: false, ondone: vi.fn() } });
 		const mark = () => screen().querySelector('.app-wordmark') as HTMLElement;
 		const driver = () => Number(getComputedStyle(mark()).getPropertyValue('--wm-open'));
 
@@ -421,7 +425,9 @@ describe('BootScreen', () => {
 	it('waits on the workspace with the waveform, then reveals', async () => {
 		const ondone = vi.fn();
 		const props = $state({ ready: false, ondone });
-		withoutMotion(() => render(BootScreen, { props }));
+		await withoutMotion(async () => {
+			await render(BootScreen, { props });
+		});
 
 		expect(screen().dataset.stage).toBe('land');
 		expect(screen().hasAttribute('data-wait')).toBe(true);

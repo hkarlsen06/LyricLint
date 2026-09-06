@@ -77,7 +77,7 @@ function withAudio(options: Parameters<typeof createTestWorkbench>[0] = {}) {
 
 describe('RightPanel', () => {
 	afterEach(async () => {
-		cleanup();
+		await cleanup();
 		vi.unstubAllEnvs();
 		await page.viewport(800, 600);
 	});
@@ -88,7 +88,7 @@ describe('RightPanel', () => {
 	// honours it — all four panels stack into one column.
 	test('draws only the active pane despite the panes being flex columns', async () => {
 		const { controller } = createTestWorkbench();
-		render(RightPanel, { controller, assistant: panelAssistant() });
+		await render(RightPanel, { controller, assistant: panelAssistant() });
 
 		const panes = () => [...document.querySelectorAll('.right-panel__pane')];
 		expect(panes().length).toBe(6);
@@ -132,7 +132,7 @@ describe('RightPanel', () => {
 				content: `Question ${index} about how a chorus header is written in a transcription.`
 			}))
 		});
-		render(RightPanel, { controller, assistant });
+		await render(RightPanel, { controller, assistant });
 		const panel = document.querySelector<HTMLElement>('.right-panel')!;
 		panel.style.height = '32rem';
 
@@ -165,7 +165,7 @@ describe('RightPanel', () => {
 		await page.viewport(1496, 900);
 		const { controller } = createTestWorkbench();
 		controller.setActiveTab('assistant');
-		render(RightPanel, { controller, assistant: panelAssistant() });
+		await render(RightPanel, { controller, assistant: panelAssistant() });
 		const panel = document.querySelector<HTMLElement>('.right-panel')!;
 		panel.style.height = '40rem';
 
@@ -186,7 +186,7 @@ describe('RightPanel', () => {
 	test.each([390, 1496])('switches tools with the dock’s arrow keys at %ipx', async (width) => {
 		await page.viewport(width, 846);
 		const { controller } = createTestWorkbench();
-		render(RightPanel, { controller, assistant: panelAssistant() });
+		await render(RightPanel, { controller, assistant: panelAssistant() });
 		// A supported short desktop must scroll the dock, not lose its last tool.
 		const panel = document.querySelector<HTMLElement>('.right-panel')!;
 		if (width === 1496) panel.style.height = '340px';
@@ -245,7 +245,7 @@ describe('RightPanel', () => {
 		vi.stubEnv('PUBLIC_ASSISTANT_ANSWERS_URL', '');
 		const { controller } = createTestWorkbench();
 		controller.setActiveTab('assistant');
-		render(RightPanel, { controller, assistant: panelAssistant() });
+		await render(RightPanel, { controller, assistant: panelAssistant() });
 
 		await waitFor(() => expect(controller.activeTab).toBe('linter'));
 		expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
@@ -281,7 +281,7 @@ describe('RightPanel', () => {
 			to: 7
 		});
 		const { controller, calls } = createTestWorkbench({ diagnostics: [warning, error] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		const diagnosticButtons = screen.getAllByRole('button', { name: /^Go to/ });
 		expect(diagnosticButtons[0]?.textContent).toContain('Close this section header');
@@ -320,7 +320,7 @@ describe('RightPanel', () => {
 			message: 'Add a section header'
 		});
 		const { controller } = createTestWorkbench({ diagnostics: [finding] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		const linterTab = screen.getByRole('tab', { name: /Review/ });
 		const filters = () => screen.queryByRole('group', { name: 'Filter diagnostics by severity' });
@@ -360,7 +360,7 @@ describe('RightPanel', () => {
 			to: 7
 		});
 		const { controller } = createTestWorkbench({ diagnostics: [warning, error] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		const list = document.querySelector('.diagnostic-list')!;
 		const listStyle = getComputedStyle(list);
@@ -415,7 +415,7 @@ describe('RightPanel', () => {
 			to: 7
 		});
 		const { controller, calls } = createTestWorkbench({ diagnostics: [warning, error] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		const row = screen
 			.getByRole('button', { name: 'Go to Add a section header' })
@@ -468,7 +468,7 @@ describe('RightPanel', () => {
 			to: 13
 		});
 		const { controller } = createTestWorkbench({ diagnostics: [warning] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		const row = screen
 			.getByRole('button', { name: 'Go to Add a section header' })
@@ -520,9 +520,9 @@ describe('RightPanel', () => {
 			text: 'Verse 1\nVerse 2',
 			diagnostics: [finding, sibling]
 		});
-		render(RightPanel, { controller });
-		render(ToastRegion, { feedback });
-		render(LiveRegion, { feedback });
+		await render(RightPanel, { controller });
+		await render(ToastRegion, { feedback });
+		await render(LiveRegion, { feedback });
 
 		expect(screen.queryByRole('button', { name: 'Ignore this session' })).toBeNull();
 		// The ignored-diagnostics footer stays out of the panel until it has something
@@ -583,7 +583,7 @@ describe('RightPanel', () => {
 			})
 		);
 		const { controller, calls } = createTestWorkbench({ text, diagnostics: findings });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 		findings.forEach((item) => controller.ignoreDiagnostic(item));
 		await waitFor(() => expect(controller.ignoredDiagnosticCount).toBe(2));
 		await fireEvent.click(screen.getByRole('button', { name: /2 diagnostics ignored/ }));
@@ -623,7 +623,7 @@ describe('RightPanel', () => {
 			to: 11
 		});
 		const { controller } = createTestWorkbench({ text, diagnostics: [first, second] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		controller.ignoreDiagnostic(first);
 		controller.ignoreDiagnostic(second);
@@ -650,7 +650,7 @@ describe('RightPanel', () => {
 			message: 'This lyric section has no header.'
 		});
 		const { controller } = createTestWorkbench({ diagnostics: [finding] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		controller.ignoreDiagnostic(finding);
 		await waitFor(() => expect(controller.ignoredDiagnosticCount).toBe(1));
@@ -670,8 +670,8 @@ describe('RightPanel', () => {
 			message: 'Review the custom section header “Chor”.'
 		});
 		const { controller, feedback } = createTestWorkbench({ diagnostics: [finding] });
-		render(RightPanel, { controller });
-		render(LiveRegion, { feedback });
+		await render(RightPanel, { controller });
+		await render(LiveRegion, { feedback });
 
 		expect(screen.queryByRole('button', { name: 'Ignore' })).toBeNull();
 		const accept = screen.getByRole('button', { name: "It's correct" });
@@ -709,7 +709,7 @@ describe('RightPanel', () => {
 			to: 15
 		});
 		const { controller } = createTestWorkbench({ text, diagnostics: [header, missing] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		controller.ignoreDiagnostic(missing);
 		controller.ignoreDiagnostic(header);
@@ -748,7 +748,7 @@ describe('RightPanel', () => {
 			to: 14
 		});
 		const { controller, calls } = createTestWorkbench({ diagnostics: [finding] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		expect(screen.queryByRole('button', { name: /Preview:/ })).toBeNull();
 		await fireEvent.click(screen.getByRole('button', { name: 'Choose header' }));
@@ -762,9 +762,9 @@ describe('RightPanel', () => {
 	// The editor now carries the instructions — a ghost transcription where the
 	// caret is, and Paste lyrics in the toolbar — so the panel says what it will
 	// do rather than repeating how to feed it, and offers the sample instead.
-	test('says what it is waiting for, and offers the sample, while the document is empty', () => {
+	test('says what it is waiting for, and offers the sample, while the document is empty', async () => {
 		const { controller } = createTestWorkbench({ text: '   \n\n', diagnostics: [] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		expect(screen.getByText('Ready for your lyrics')).toBeTruthy();
 		expect(screen.getByText('Suggestions will appear here as you write.')).toBeTruthy();
@@ -774,7 +774,7 @@ describe('RightPanel', () => {
 
 	test('replaces the empty document with the sample transcription in one edit', async () => {
 		const { controller, calls } = createTestWorkbench({ text: '', diagnostics: [] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		await fireEvent.click(screen.getByRole('button', { name: "Load a sample 'scribe" }));
 
@@ -788,7 +788,7 @@ describe('RightPanel', () => {
 	test('withholds the sample when the selected language is not the sample’s', async () => {
 		const { controller } = createTestWorkbench({ text: '', diagnostics: [] });
 		controller.setLanguage('no');
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		await waitFor(() => expect(screen.getByText('Ready for your lyrics')).toBeTruthy());
 		expect(screen.queryByRole('button', { name: "Load a sample 'scribe" })).toBeNull();
@@ -802,7 +802,7 @@ describe('RightPanel', () => {
 			diagnostics: [],
 			drafts: [savedDraft('draft-1', 'Test draft', ''), savedDraft('draft-2', 'Older song')]
 		});
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		await waitFor(() => expect(screen.getByText("Recent 'scribes")).toBeTruthy());
 		expect(screen.getByRole('button', { name: /^Older song/ })).toBeTruthy();
@@ -833,7 +833,7 @@ describe('RightPanel', () => {
 			diagnostics: [],
 			drafts: [savedDraft('draft-1', 'Test draft', ''), savedDraft('draft-2', 'Older song')]
 		});
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		await waitFor(() => expect(screen.getByText("Recent 'scribes")).toBeTruthy());
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete Older song' }));
@@ -857,7 +857,7 @@ describe('RightPanel', () => {
 			diagnostics: [],
 			drafts: [savedDraft('draft-1', 'Test draft', ''), savedDraft('draft-2', 'Older song')]
 		});
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		await waitFor(() => expect(screen.getByText("Recent 'scribes")).toBeTruthy());
 		await fireEvent.click(screen.getByRole('button', { name: 'Delete Older song' }));
@@ -874,7 +874,7 @@ describe('RightPanel', () => {
 			message: 'Use a straight typewriter quote in lyric text.'
 		});
 		const { controller } = createTestWorkbench({ diagnostics: [finding] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		controller.toggleSeverity('warning');
 
@@ -885,12 +885,12 @@ describe('RightPanel', () => {
 
 	test('blames the filters for an empty linter list only when they are the cause', async () => {
 		const { controller: clean } = createTestWorkbench({ diagnostics: [] });
-		render(RightPanel, { controller: clean });
+		await render(RightPanel, { controller: clean });
 		expect(screen.getByText('No issues found')).toBeTruthy();
 		expect(
 			screen.getByText('Your lyrics pass every enabled rule. Checking continues as you write.')
 		).toBeTruthy();
-		cleanup();
+		await cleanup();
 
 		const finding = diagnostic({
 			ruleId: 'section.header-missing',
@@ -898,7 +898,7 @@ describe('RightPanel', () => {
 			message: 'Add a section header'
 		});
 		const { controller } = createTestWorkbench({ diagnostics: [finding] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		await fireEvent.click(screen.getByRole('tab', { name: /Review/ }));
 		await fireEvent.click(screen.getByRole('button', { name: /Warnings/ }));
@@ -928,7 +928,7 @@ describe('RightPanel', () => {
 			message: 'Add a section header'
 		});
 		const { controller, youtube } = withAudio({ diagnostics: [finding] });
-		render(RightPanel, { controller, assistant: panelAssistant() });
+		await render(RightPanel, { controller, assistant: panelAssistant() });
 
 		// Nothing attached draws nothing, and nothing has been asked of Google.
 		expect(document.querySelector('.media-video')).toBeNull();
@@ -959,7 +959,7 @@ describe('RightPanel', () => {
 	// rebuilt on every tab switch — a black flash and a lost playhead each time.
 	test('keeps the same video element across a tab switch', async () => {
 		const { controller } = withAudio();
-		render(RightPanel, { controller, assistant: panelAssistant() });
+		await render(RightPanel, { controller, assistant: panelAssistant() });
 
 		await controller.media!.attachYouTube('https://youtu.be/dQw4w9WgXcQ');
 		await waitFor(() => expect(document.querySelector('.media-video__frame')).not.toBeNull());
@@ -982,7 +982,7 @@ describe('RightPanel', () => {
 			message: 'Close this section header'
 		});
 		const { controller } = createTestWorkbench({ diagnostics: [warning, error] });
-		render(RightPanel, { controller });
+		await render(RightPanel, { controller });
 
 		// With every severity shown, the line after the last card closes the list.
 		expect(screen.getByText('No further issues detected.')).toBeTruthy();

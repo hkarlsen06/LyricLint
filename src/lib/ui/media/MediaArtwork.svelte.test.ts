@@ -20,7 +20,7 @@ describe('MediaArtwork', () => {
 	 */
 	it('draws one compact row: thumbnail, title over artist, and the mark', async () => {
 		const { media } = await withCover();
-		render(MediaArtwork, { props: { media } });
+		await render(MediaArtwork, { props: { media } });
 
 		const row = document.querySelector('.media-artwork') as HTMLElement;
 		expect(row.querySelector('.media-artwork__cover')?.getAttribute('src')).toBe(cover);
@@ -61,7 +61,7 @@ describe('MediaArtwork', () => {
 		const { media, player } = await appleStore();
 		expect(player.artwork).toBeUndefined();
 
-		const { container } = render(MediaArtwork, { props: { media } });
+		const { container } = await render(MediaArtwork, { props: { media } });
 
 		expect(container.querySelector('.media-artwork')).not.toBeNull();
 		const meta = document.querySelector('.media-artwork__meta') as HTMLElement;
@@ -81,7 +81,7 @@ describe('MediaArtwork', () => {
 		const { media, player } = await spotifyStore();
 		expect(player.artwork).toBeUndefined();
 
-		render(MediaArtwork, { props: { media } });
+		await render(MediaArtwork, { props: { media } });
 
 		expect(document.querySelector('.media-artwork__title')?.textContent).toBe('Sensommer');
 		expect(document.querySelector('.media-artwork__artist')?.textContent).toBe('Mul');
@@ -93,7 +93,7 @@ describe('MediaArtwork', () => {
 	// shape.
 	it('grows the thumbnail in place when the cover arrives', async () => {
 		const { media } = await appleStore();
-		const { rerender } = render(MediaArtwork, { props: { media } });
+		const { rerender } = await render(MediaArtwork, { props: { media } });
 		expect(document.querySelector('.media-artwork__thumb')).toBeNull();
 
 		const withArtwork = await withCover();
@@ -111,7 +111,7 @@ describe('MediaArtwork', () => {
 	 */
 	it('opens the full-size cover in a modal with the two artwork commands', async () => {
 		const { media } = await withCover();
-		render(MediaArtwork, { props: { media } });
+		await render(MediaArtwork, { props: { media } });
 
 		const dialog = document.querySelector('.artwork-dialog') as HTMLDialogElement;
 		expect(dialog.open).toBe(false);
@@ -146,7 +146,7 @@ describe('MediaArtwork', () => {
 
 		const announced: string[] = [];
 		const { media } = await withCover();
-		render(MediaArtwork, {
+		await render(MediaArtwork, {
 			props: { media, announce: (message: string) => announced.push(message) }
 		});
 
@@ -164,7 +164,7 @@ describe('MediaArtwork', () => {
 	// the same fact twice.
 	it('leaves both copies of the cover out of the accessible tree', async () => {
 		const { media } = await withCover();
-		render(MediaArtwork, { props: { media } });
+		await render(MediaArtwork, { props: { media } });
 
 		expect(document.querySelector('.media-artwork__cover')?.getAttribute('alt')).toBe('');
 		expect(document.querySelector('.artwork-dialog__cover')?.getAttribute('alt')).toBe('');

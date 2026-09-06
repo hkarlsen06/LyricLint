@@ -14,14 +14,14 @@ beforeEach(async () => {
 
 afterEach(async () => {
 	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
-	cleanup();
+	await cleanup();
 	await page.viewport(800, 600);
 });
 
 test('keeps phone identity and copy visible while document commands dismiss three ways', async () => {
 	await page.viewport(320, 844);
 	const { controller } = createTestWorkbench({ text: '[Verse]\nThe words' });
-	render(DocumentToolbar, { controller });
+	await render(DocumentToolbar, { controller });
 	const trigger = await screen.findByRole('button', { name: 'Document' });
 	const copy = screen.getByRole('button', { name: 'Copy lyrics' });
 	expect(screen.queryByRole('button', { name: 'Compare' })).toBeNull();
@@ -53,7 +53,7 @@ test('names touch editing actions and preserves the selection before opening ass
 	});
 	const assign = vi.fn();
 	controller.editor.requestPerformerAssignment = assign;
-	render(EditorActions, { controller, onToggleEditor: vi.fn() });
+	await render(EditorActions, { controller, onToggleEditor: vi.fn() });
 	const section = await screen.findByRole('button', { name: 'Section header' });
 	expect(section.textContent?.trim()).toBe('Section');
 	const voices = screen.getByRole('button', { name: 'Assign voices' });
@@ -84,7 +84,7 @@ test.each([320, 390])(
 	async (width) => {
 		await page.viewport(width, 844);
 		const { controller } = createTestWorkbench({ text: '[Verse]\nThe words' });
-		render(Workspace, {
+		await render(Workspace, {
 			controller,
 			editorComponent: MockEditorPane,
 			harperProvider: { lint: async () => [], dispose: async () => {} }

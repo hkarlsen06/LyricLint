@@ -375,7 +375,7 @@ describe('PerformerPicker action width', () => {
 		const action = document.querySelector<HTMLElement>('.actions button');
 		expect(action).not.toBeNull();
 		const width = action!.getBoundingClientRect().width;
-		unmount();
+		await unmount();
 		return width;
 	}
 
@@ -442,7 +442,7 @@ describe('PerformerPicker step bar', () => {
 			expect(document.querySelector('.picker__prompt .sr-only')?.textContent?.trim()).toBe(
 				`Step ${step} of 2`
 			);
-			unmount();
+			await unmount();
 		}
 
 		expect(widths[1]).toBeCloseTo(widths[0], 1);

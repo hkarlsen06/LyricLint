@@ -24,7 +24,7 @@ const noHarper: HarperDiagnosticProvider = {
 	dispose: async () => {}
 };
 
-function renderWorkspace(
+async function renderWorkspace(
 	controller: ReturnType<typeof createTestWorkbench>['controller'],
 	harperProvider: HarperDiagnosticProvider = noHarper,
 	assistant?: AssistantState
@@ -33,16 +33,16 @@ function renderWorkspace(
 	// With an assistant, mount through the host that provides the real context —
 	// the same door the app layout uses — rather than mocking the module.
 	return assistant
-		? render(WorkspaceWithAssistant, { assistant, ...props })
-		: render(Workspace, props);
+		? await render(WorkspaceWithAssistant, { assistant, ...props })
+		: await render(Workspace, props);
 }
 
 describe('Workspace and toolbar', () => {
 	beforeEach(async () => {
 		await page.viewport(800, 600);
 	});
-	afterEach(() => {
-		cleanup();
+	afterEach(async () => {
+		await cleanup();
 		vi.unstubAllGlobals();
 		vi.unstubAllEnvs();
 	});
@@ -52,8 +52,8 @@ describe('Workspace and toolbar', () => {
 		const writeText = vi.fn(async () => {});
 		vi.stubGlobal('navigator', { clipboard: { writeText } });
 		const { controller, feedback } = createTestWorkbench({ text: canonical });
-		render(DocumentToolbar, { controller });
-		render(LiveRegion, { feedback });
+		await render(DocumentToolbar, { controller });
+		await render(LiveRegion, { feedback });
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
 		expect(writeText).toHaveBeenCalledWith(canonical);
@@ -70,7 +70,7 @@ describe('Workspace and toolbar', () => {
 		const writeText = vi.fn(async () => {});
 		vi.stubGlobal('navigator', { clipboard: { writeText } });
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
@@ -91,7 +91,7 @@ describe('Workspace and toolbar', () => {
 			...controller,
 			media: { player } as MediaStore
 		};
-		render(DocumentToolbar, { controller: withSong });
+		await render(DocumentToolbar, { controller: withSong });
 		await fireEvent.click(screen.getByRole('button', { name: 'Copy lyrics' }));
 		await waitFor(() => expect(screen.getByRole('button', { name: 'Lyrics copied' })).toBeTruthy());
 		expect(writeText).toHaveBeenCalledWith('[Verse]\nLine');
@@ -102,18 +102,18 @@ describe('Workspace and toolbar', () => {
 	// The contrast tier is the loudest thing on the screen, and on an empty
 	// document `Copy lyrics` spends it pointing at the exit. Same slot, same
 	// tier, label following the state — and never both at once.
-	test('offers the paste end of the work while the document is empty', () => {
+	test('offers the paste end of the work while the document is empty', async () => {
 		const { controller } = createTestWorkbench({ text: '' });
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		const paste = screen.getByRole('button', { name: 'Paste lyrics' });
 		expect(paste.classList.contains('button--contrast')).toBe(true);
 		expect(screen.queryByRole('button', { name: 'Copy lyrics' })).toBeNull();
 	});
 
-	test('returns the slot to copy once the document has something in it', () => {
+	test('returns the slot to copy once the document has something in it', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nLine' });
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		expect(screen.getByRole('button', { name: 'Copy lyrics' })).toBeTruthy();
 		expect(screen.queryByRole('button', { name: 'Paste lyrics' })).toBeNull();
@@ -124,7 +124,7 @@ describe('Workspace and toolbar', () => {
 			text: '',
 			clipboardText: '[Verse]\nPasted line'
 		});
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Paste lyrics' }));
 
@@ -139,8 +139,8 @@ describe('Workspace and toolbar', () => {
 	// where that keystroke lands instead of explaining a permission.
 	test('hands over to keyboard paste when the clipboard cannot be read', async () => {
 		const { controller, calls, feedback } = createTestWorkbench({ text: '' });
-		render(DocumentToolbar, { controller });
-		render(LiveRegion, { feedback });
+		await render(DocumentToolbar, { controller });
+		await render(LiveRegion, { feedback });
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Paste lyrics' }));
 
@@ -149,9 +149,9 @@ describe('Workspace and toolbar', () => {
 		expect(screen.getByTestId('live-region').textContent).toContain('paste shortcut');
 	});
 
-	test('keeps document creation, navigation, language, and copy in the toolbar', () => {
+	test('keeps document creation, navigation, language, and copy in the toolbar', async () => {
 		const { controller } = createTestWorkbench();
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		// Section insertion and performer assignment stay reachable through the
 		// editor itself (ghost control and selection surface).
@@ -169,7 +169,7 @@ describe('Workspace and toolbar', () => {
 
 	test('waits for the boot reveal before handing the wordmark into the toolbar', async () => {
 		const { controller } = createTestWorkbench();
-		const view = render(DocumentToolbar, { controller, brandRevealed: false });
+		const view = await render(DocumentToolbar, { controller, brandRevealed: false });
 		const wordmark = document.querySelector('.app-wordmark') as HTMLElement;
 		const title = screen.getByLabelText("'Scribe title");
 		const awayLeft = title.getBoundingClientRect().left;
@@ -213,7 +213,7 @@ describe('Workspace and toolbar', () => {
 	// at the far end of the command strip.
 	test('the drafts disclosure hangs off the title field and stays icon-only', async () => {
 		const { controller } = createTestWorkbench();
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		const switcher = trigger.closest('.draft-switcher');
@@ -235,7 +235,7 @@ describe('Workspace and toolbar', () => {
 	test('the plus button creates and opens a new draft', async () => {
 		const { controller, repository } = createTestWorkbench();
 		const initialDraftId = controller.draftId;
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		await fireEvent.click(screen.getByRole('button', { name: "New 'scribe" }));
 
@@ -246,9 +246,9 @@ describe('Workspace and toolbar', () => {
 		expect((await repository.list()).map(({ id }) => id)).toEqual([initialDraftId]);
 	});
 
-	test('reads brand, draft name, then the new-draft plus across the identity strip', () => {
+	test('reads brand, draft name, then the new-draft plus across the identity strip', async () => {
 		const { controller } = createTestWorkbench();
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		const identity = document.querySelector('.document-toolbar__identity');
 		expect(identity).toBeTruthy();
@@ -267,7 +267,7 @@ describe('Workspace and toolbar', () => {
 	test('selects the whole default title on click without overriding a named draft caret', async () => {
 		const { controller } = createTestWorkbench();
 		await controller.setTitle('Untitled transcription');
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		const title = screen.getByLabelText("'Scribe title") as HTMLInputElement;
 		await fireEvent.click(title);
@@ -283,7 +283,7 @@ describe('Workspace and toolbar', () => {
 
 	test('draws nothing while saving is going well, then spells the failure out', async () => {
 		const { controller } = createTestWorkbench();
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		const status = screen.getByRole('img', { name: /^Autosave status/ });
 		// The healthy states draw nothing at all — no glyph, no words — but stay in
@@ -307,9 +307,9 @@ describe('Workspace and toolbar', () => {
 		expect(status.querySelector('svg')).toBeTruthy();
 	});
 
-	test('leaves document commands in the command strip, with drafts and creation out of it', () => {
+	test('leaves document commands in the command strip, with drafts and creation out of it', async () => {
 		const { controller } = createTestWorkbench();
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		const commands = document.querySelector('.document-toolbar__commands');
 		expect(commands).toBeTruthy();
@@ -337,7 +337,7 @@ describe('Workspace and toolbar', () => {
 
 	test('mutes a history command that would do nothing, and follows the snapshot', async () => {
 		const { controller, calls } = createTestWorkbench();
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		const undo = screen.getByRole('button', { name: 'Undo' }) as HTMLButtonElement;
 		const redo = screen.getByRole('button', { name: 'Redo' }) as HTMLButtonElement;
@@ -359,7 +359,7 @@ describe('Workspace and toolbar', () => {
 
 	test('reflects a late autosave failure instead of remaining on saving', async () => {
 		const { controller } = createTestWorkbench();
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		controller.setSaveStatus('saving');
 		await waitFor(() =>
@@ -376,9 +376,9 @@ describe('Workspace and toolbar', () => {
 		);
 	});
 
-	test('spans the toolbar across both columns with the panel tabs beneath it', () => {
+	test('spans the toolbar across both columns with the panel tabs beneath it', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		// The toolbar belongs to the window, not to the editor half of it, so it
 		// is a child of the workspace grid rather than of the editor region.
@@ -407,7 +407,7 @@ describe('Workspace and toolbar', () => {
 
 	test('continues the controller revision when the editor mounts', async () => {
 		const { controller } = createTestWorkbench({ text: '“hello”', revision: 5 });
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		await fireEvent.input(screen.getByRole('textbox', { name: 'Lyrics editor' }), {
 			target: { value: '"hello”' }
@@ -419,7 +419,7 @@ describe('Workspace and toolbar', () => {
 
 	test('re-lints the current document immediately when its language changes', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		await waitFor(() =>
 			expect(
@@ -482,15 +482,15 @@ describe('Workspace and toolbar', () => {
 		// Unlinked, the rule points at the repeat: without this the assertion
 		// below would pass on a fixture that never produced the finding at all.
 		let { controller } = createTestWorkbench({ text: song });
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 		await waitFor(() => expect(suggested()).toBe(true));
-		cleanup();
+		await cleanup();
 
 		// The draft's own links, re-seated onto the editor exactly as a reload
 		// does it. Nothing else publishes a snapshot here, so the diagnostics
 		// arriving at all is the hand-off having asked for them.
 		({ controller } = createTestWorkbench({ text: song, sectionLinks: [{ lines: [1, 7] }] }));
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 		await waitFor(() => expect(controller.snapshot.diagnostics.length).toBeGreaterThan(0));
 		expect(suggested()).toBe(false);
 	});
@@ -498,7 +498,7 @@ describe('Workspace and toolbar', () => {
 	test('reuses diagnostics when only the editor selection changes', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nImma go' });
 		const lint = vi.fn(async () => []);
-		renderWorkspace(controller, { lint, dispose: async () => {} });
+		await renderWorkspace(controller, { lint, dispose: async () => {} });
 		await waitFor(() => expect(lint).toHaveBeenCalledOnce());
 		const editor = screen.getByRole('textbox', { name: 'Lyrics editor' }) as HTMLTextAreaElement;
 
@@ -538,7 +538,7 @@ describe('Workspace and toolbar', () => {
 			dispose: vi.fn(async () => {})
 		};
 		const { controller } = createTestWorkbench({ text });
-		renderWorkspace(controller, harperProvider);
+		await renderWorkspace(controller, harperProvider);
 
 		await waitFor(() => expect(harperProvider.lint).toHaveBeenCalledOnce());
 		await waitFor(() =>
@@ -586,7 +586,7 @@ describe('Workspace and toolbar', () => {
 			});
 		});
 		const { controller } = createTestWorkbench({ text });
-		renderWorkspace(controller, { lint, dispose: async () => {} });
+		await renderWorkspace(controller, { lint, dispose: async () => {} });
 
 		await waitFor(() => expect(screen.getByText('Keep this Harper finding.')).toBeTruthy());
 		await fireEvent.click(
@@ -624,7 +624,7 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({
 			text: '[Verse]\nJe regarde la lumière du matin\nEt je sais que tu resteras avec moi ce soir'
 		});
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		const message = 'Lyrics appear to be French, but English is selected.';
 		await waitFor(() =>
@@ -654,7 +654,7 @@ describe('Workspace and toolbar', () => {
 
 	test('offers the complete Genius language inventory in the selector', async () => {
 		const { controller } = createTestWorkbench();
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
 		const dialog = screen.getByRole('dialog', { name: 'Lyric language' });
@@ -678,7 +678,7 @@ describe('Workspace and toolbar', () => {
 
 	test('filters languages and restores focus to the trigger when the dialog closes', async () => {
 		const { controller } = createTestWorkbench();
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 		const trigger = screen.getByRole('button', { name: 'Lyric language: English' });
 
 		await fireEvent.click(trigger);
@@ -698,7 +698,7 @@ describe('Workspace and toolbar', () => {
 
 	test('moves used languages to the top of the recent section without duplicates', async () => {
 		const { controller } = createTestWorkbench({ recentLanguages: ['fr', 'no'] });
-		render(DocumentToolbar, { controller });
+		await render(DocumentToolbar, { controller });
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Lyric language: English' }));
 		let dialog = screen.getByRole('dialog', { name: 'Lyric language' });
@@ -733,7 +733,7 @@ describe('Workspace and toolbar', () => {
 		// app has found the product — what they occasionally need is a URL to hand
 		// to someone else.
 		const { controller } = createTestWorkbench();
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		await fireEvent.click(screen.getByRole('tab', { name: 'Preferences' }));
 		const pane = screen.getByRole('tabpanel', { name: 'Preferences' });
@@ -743,11 +743,12 @@ describe('Workspace and toolbar', () => {
 	});
 
 	test('offers the caret commands in the action bar, with the keystrokes that run them', async () => {
-		const { controller, calls } = createTestWorkbench({
+		const { controller } = createTestWorkbench({
 			text: '[Verse]\nI heard something',
 			selection: { anchor: 15, head: 10 }
 		});
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
+		const dispatchAtomic = vi.spyOn(controller.editor, 'dispatchAtomic');
 
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		// Level with the panel's tab strip and inside the editor column, not the
@@ -770,13 +771,11 @@ describe('Workspace and toolbar', () => {
 		expect(screen.queryByRole('button', { name: 'Ask LyricLint' })).toBeNull();
 
 		await fireEvent.click(unknown);
-		expect(calls.dispatched).toEqual([
-			{
-				baseRevision: 4,
-				edits: [{ from: 10, to: 15, insert: '[?]' }],
-				selectionAfter: { anchor: 13, head: 13 }
-			}
-		]);
+		expect(dispatchAtomic).toHaveBeenCalledExactlyOnceWith({
+			baseRevision: 4,
+			edits: [{ from: 10, to: 15, insert: '[?]' }],
+			selectionAfter: { anchor: 13, head: 13 }
+		});
 	});
 
 	test('registers the assistant draft bridge for the workspace lifetime', async () => {
@@ -792,7 +791,7 @@ describe('Workspace and toolbar', () => {
 		const bridgeOnly: Partial<AssistantState> = { registerDraftBridge };
 		const { controller, calls } = createTestWorkbench({ text: '[Verse]\nA lyric', revision: 7 });
 
-		const workspace = renderWorkspace(controller, noHarper, bridgeOnly as AssistantState);
+		const workspace = await renderWorkspace(controller, noHarper, bridgeOnly as AssistantState);
 		await waitFor(() => expect(registerDraftBridge).toHaveBeenCalledOnce());
 
 		expect(bridge?.draftId()).toBe('draft-1');
@@ -853,7 +852,7 @@ describe('Workspace and toolbar', () => {
 		};
 		expect(() => bridge?.reveal({ from: 400, to: 500 })).not.toThrow();
 
-		workspace.unmount();
+		await workspace.unmount();
 		expect(unregister).toHaveBeenCalledOnce();
 	});
 
@@ -868,7 +867,7 @@ describe('Workspace and toolbar', () => {
 		};
 		const text = '[Chorus]\nA\n[Chorus]\nB\n[Chorus]\nC\n[Verse]\nD';
 		const { controller } = createTestWorkbench({ text });
-		renderWorkspace(controller, noHarper, bridgeOnly as AssistantState);
+		await renderWorkspace(controller, noHarper, bridgeOnly as AssistantState);
 		await waitFor(() => expect(bridge).toBeDefined());
 
 		const editor = controller.editor;
@@ -923,9 +922,9 @@ describe('Workspace and toolbar', () => {
 	// `justify-self` restores the band silently. The right edge is the other half
 	// of it, because that is what makes the tray read as the tab strip's chrome
 	// carried out over the document rather than as a shape adrift on it.
-	test('sizes the action bar to its contents and hangs it at the right of the column', () => {
+	test('sizes the action bar to its contents and hangs it at the right of the column', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		const barBox = bar.getBoundingClientRect();
@@ -943,8 +942,10 @@ describe('Workspace and toolbar', () => {
 	// one drawn as a pictogram: the other two show the mark they put in the
 	// document, and this has no mark to show.
 	test('opens find and replace from the tray', async () => {
-		const { controller, calls } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		renderWorkspace(controller);
+		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
+		await renderWorkspace(controller);
+		const toggleSearch = vi.fn();
+		controller.editor.toggleSearch = toggleSearch;
 
 		const find = screen.getByRole('button', { name: 'Find and replace' });
 		expect(find.closest('.editor-actions')).toBeTruthy();
@@ -953,7 +954,7 @@ describe('Workspace and toolbar', () => {
 		expect(find.getAttribute('aria-keyshortcuts')).toMatch(/\+F$/u);
 
 		await fireEvent.click(find);
-		expect(calls.searchOpenCount).toBe(1);
+		expect(toggleSearch).toHaveBeenCalledOnce();
 
 		// The bar runs *under* the tray, so the glyph sitting over its way out has to
 		// be one: it is a toggle, and the state is reported by the editor rather than
@@ -977,7 +978,7 @@ describe('Workspace and toolbar', () => {
 	// the tray.
 	test('names the action and its keystroke on hover and on focus', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		const unknown = screen.getByRole('button', { name: 'Unknown lyric [?]' });
 		expect(document.querySelector('.control-tooltip')).toBeNull();
@@ -1007,9 +1008,9 @@ describe('Workspace and toolbar', () => {
 	// A band that appeared on the first keystroke would shove the editor down at
 	// the moment somebody started typing — and someone looking at an empty
 	// document is exactly the reader who has never met `[?]`.
-	test('draws the action bar over an empty document', () => {
+	test('draws the action bar over an empty document', async () => {
 		const { controller } = createTestWorkbench();
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		const bar = screen.getByRole('group', { name: 'Document actions' });
 		// Three editing commands and the icon-only workspace toggle.
@@ -1020,7 +1021,7 @@ describe('Workspace and toolbar', () => {
 		// A quiet app control keeps navigation semantics without a permanent underline
 		// and with a real hit area; the muted color lives in the stylesheet.
 		const { controller } = createTestWorkbench();
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		await fireEvent.click(screen.getByRole('tab', { name: 'Preferences' }));
 		const pane = screen.getByRole('tabpanel', { name: 'Preferences' });
@@ -1043,7 +1044,7 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({
 			media: { repository: createInMemoryMediaRepository([]), player }
 		});
-		const { container } = renderWorkspace(controller);
+		const { container } = await renderWorkspace(controller);
 
 		// The tray's optional audio glyph, drawn only while there is nothing
 		// for the strip to show — a pictogram like the magnifier, because
@@ -1077,7 +1078,7 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({
 			media: { repository: createInMemoryMediaRepository([]), player }
 		});
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		const media = controller.media!;
 		vi.spyOn(media, 'attach').mockImplementation(async () => {
@@ -1116,7 +1117,7 @@ describe('Workspace and toolbar', () => {
 		const { controller } = createTestWorkbench({
 			media: { repository: createInMemoryMediaRepository([]), player }
 		});
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		// While nothing is attached the tray holds the only way in — the Song
 		// tab names no second one.
@@ -1162,7 +1163,7 @@ describe('Workspace and toolbar', () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		await controller.media!.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(200);
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		const sync = await screen.findByRole('button', { name: 'Sync lyrics' });
 		expect(sync.classList.contains('button')).toBe(true);
@@ -1197,7 +1198,7 @@ describe('Workspace and toolbar', () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		await controller.media!.attachFile(new File([''], 'first.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(200);
-		renderWorkspace(controller);
+		await renderWorkspace(controller);
 
 		await fireEvent.click(await screen.findByRole('button', { name: 'Sync lyrics' }));
 		expect(screen.getByRole('button', { name: 'Stop syncing' })).toBeTruthy();
@@ -1219,7 +1220,7 @@ describe('Workspace and toolbar', () => {
 		try {
 			expect(window.matchMedia('(pointer: fine)').matches).toBe(true);
 			const { controller } = createTestWorkbench({ text: '[Verse]\nA line to review' });
-			renderWorkspace(controller);
+			await renderWorkspace(controller);
 			const toolbar = screen.getByRole('banner', { name: 'Document controls' });
 			await screen.findByRole('button', { name: 'Copy lyrics' });
 			const controls = toolbar.querySelectorAll<HTMLElement>('button, .draft-title, summary');
@@ -1242,7 +1243,7 @@ describe('Workspace and toolbar', () => {
 			await page.viewport(width, 844);
 			try {
 				const { controller } = createTestWorkbench({ text: '[Verse]\ni dont want this.' });
-				renderWorkspace(controller);
+				await renderWorkspace(controller);
 				await waitFor(() => expect(controller.visibleDiagnostics.length).toBeGreaterThan(0));
 				const editor = screen.getByTestId('editor-region');
 				const before = editor.getBoundingClientRect();

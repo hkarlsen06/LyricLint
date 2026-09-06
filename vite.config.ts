@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
+import type { ResolvedConfig as VitestResolvedConfig } from 'vitest/node';
 import type { Plugin } from 'vite';
 import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
@@ -122,6 +123,33 @@ function migrationRedirects(): Plugin {
 		},
 		configurePreviewServer(server) {
 			server.middlewares.use(middleware);
+		}
+	};
+}
+
+/** Keep Vitest 5's runtime globals consistent with Vite's compiled literals. */
+function browserKitDefines(): Plugin {
+	return {
+		name: 'lyriclint:browser-kit-defines',
+		configResolved(config) {
+			// SAFETY: Vitest adds its runtime defines in an earlier config hook;
+			// the optional field is checked before use outside a browser test run.
+			const test = config.test as typeof config.test &
+				Partial<Pick<VitestResolvedConfig, 'defines'>>;
+			if (!test?.browser?.enabled || !test.defines) return;
+			// Vitest 5 hands browser workers Vite's raw replacement expressions.
+			// Its runtime setup assigns them directly, so `false` becomes truthy
+			// and the empty base path becomes two quote characters. Copy the map:
+			// Vite still needs the original expressions for compile-time replacement.
+			test.defines = { ...test.defines };
+			for (const [key, value] of Object.entries(test.defines)) {
+				if (!key.startsWith('__SVELTEKIT_')) continue;
+				try {
+					test.defines[key] = JSON.parse(value);
+				} catch {
+					// Expressions such as the dev payload remain Vite's responsibility.
+				}
+			}
 		}
 	};
 }
@@ -413,7 +441,8 @@ export default defineConfig(({ mode }) => ({
 			// falls open to the network.
 			version: { pollInterval: 60_000 }
 		}),
-		loopbackLiteralUrls()
+		loopbackLiteralUrls(),
+		browserKitDefines()
 	],
 	test: {
 		expect: { requireAssertions: true },
@@ -456,6 +485,8 @@ export default defineConfig(({ mode }) => ({
 					name: 'client',
 					browser: {
 						enabled: true,
+						// Vitest 5's runner UI scales the iframe and intercepts edge clicks.
+						ui: false,
 						provider: playwright(),
 						instances: [
 							{

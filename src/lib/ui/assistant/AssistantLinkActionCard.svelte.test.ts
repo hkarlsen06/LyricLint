@@ -39,8 +39,8 @@ function assistantStub(): AssistantState {
 afterEach(cleanup);
 
 describe('an assistant section-link action card', () => {
-	test('states the operation and note in words without an editor diff', () => {
-		const { container } = render(AssistantLinkActionCard, {
+	test('states the operation and note in words without an editor diff', async () => {
+		const { container } = await render(AssistantLinkActionCard, {
 			action: action(),
 			assistant: assistantStub(),
 			decidable: true
@@ -52,7 +52,11 @@ describe('an assistant section-link action card', () => {
 
 	test('approve and reject call the store and settled outcomes replace the controls', async () => {
 		const assistant = assistantStub();
-		const view = render(AssistantLinkActionCard, { action: action(), assistant, decidable: true });
+		const view = await render(AssistantLinkActionCard, {
+			action: action(),
+			assistant,
+			decidable: true
+		});
 
 		await fireEvent.click(within(view.container).getByRole('button', { name: 'Approve' }));
 		expect(assistant.approveLinkAction).toHaveBeenCalledWith('link-1');
@@ -77,8 +81,8 @@ describe('an assistant section-link action card', () => {
 		expect(view.container.textContent).toContain('Unlinked.');
 	});
 
-	test('an unresolvable action states why and offers no approval', () => {
-		const view = render(AssistantLinkActionCard, {
+	test('an unresolvable action states why and offers no approval', async () => {
+		const view = await render(AssistantLinkActionCard, {
 			action: action('failed', 'not-linkable'),
 			assistant: assistantStub(),
 			decidable: true
@@ -89,8 +93,8 @@ describe('an assistant section-link action card', () => {
 		expect(within(view.container).queryByRole('button', { name: 'Reject' })).toBeNull();
 	});
 
-	test('a pending action whose session is gone is history, not an offer', () => {
-		const view = render(AssistantLinkActionCard, {
+	test('a pending action whose session is gone is history, not an offer', async () => {
+		const view = await render(AssistantLinkActionCard, {
 			action: action(),
 			assistant: assistantStub(),
 			decidable: false

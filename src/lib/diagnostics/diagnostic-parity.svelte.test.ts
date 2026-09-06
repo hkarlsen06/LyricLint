@@ -70,11 +70,11 @@ function actions(root: ParentNode): RenderedAction[] {
 	);
 }
 
-function panelActions(
+async function panelActions(
 	diagnostic: Diagnostic,
 	batch?: ReturnType<typeof batchOf>
-): RenderedAction[] {
-	const screen = render(DiagnosticDetails, {
+): Promise<RenderedAction[]> {
+	const screen = await render(DiagnosticDetails, {
 		diagnostic,
 		onChooseHeader: vi.fn(),
 		onLinkSections: vi.fn(),
@@ -86,16 +86,16 @@ function panelActions(
 		...batch
 	});
 	const rendered = actions(screen.container);
-	screen.unmount();
+	await screen.unmount();
 	return rendered;
 }
 
-function popoverActions(
+async function popoverActions(
 	diagnostic: Diagnostic,
 	takeFocus = false,
 	batch?: ReturnType<typeof batchOf>
-): RenderedAction[] {
-	const screen = render(DiagnosticPopover, {
+): Promise<RenderedAction[]> {
+	const screen = await render(DiagnosticPopover, {
 		diagnostic,
 		takeFocus,
 		onLinkSections: vi.fn(),
@@ -107,18 +107,18 @@ function popoverActions(
 		...batch
 	});
 	const rendered = actions(screen.container);
-	screen.unmount();
+	await screen.unmount();
 	return rendered;
 }
 
 describe('a diagnostic reads the same in the panel and in the editor', () => {
-	it('offers one action row, built from one component, on both surfaces', () => {
+	it('offers one action row, built from one component, on both surfaces', async () => {
 		const diagnostic = contractionDiagnostic();
-		const panel = panelActions(diagnostic);
+		const panel = await panelActions(diagnostic);
 
 		// The hovered card is the panel's card, exactly: same actions, same
 		// labels, same button tiers, same order.
-		expect(popoverActions(diagnostic)).toEqual(panel);
+		expect(await popoverActions(diagnostic)).toEqual(panel);
 		expect(panel).toEqual([
 			{ label: "Replace with Don't", classes: 'button button--contrast diagnostic-actions__fix' },
 			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
@@ -130,7 +130,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 	// three answers shout equally in the one place the reader is choosing
 	// *between* them, and erased the precedence the fix ordering had just given
 	// the lead.
-	it('gives the contrast tier to the leading fix alone on both surfaces', () => {
+	it('gives the contrast tier to the leading fix alone on both surfaces', async () => {
 		const diagnostic: Diagnostic = {
 			...contractionDiagnostic(),
 			ruleId: 'spelling.texting-shorthand',
@@ -154,9 +154,9 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			{ label: "Replace with you're", classes: 'button diagnostic-actions__fix' },
 			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
 		];
-		expect(panelActions(diagnostic)).toEqual(expected);
-		expect(popoverActions(diagnostic)).toEqual(expected);
-		for (const row of [panelActions(diagnostic), popoverActions(diagnostic)]) {
+		expect(await panelActions(diagnostic)).toEqual(expected);
+		expect(await popoverActions(diagnostic)).toEqual(expected);
+		for (const row of [await panelActions(diagnostic), await popoverActions(diagnostic)]) {
 			expect(row.filter((action) => action.classes.includes('button--contrast'))).toHaveLength(1);
 		}
 	});
@@ -190,7 +190,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 				}
 			]
 		};
-		const screen = render(DiagnosticDetails, {
+		const screen = await render(DiagnosticDetails, {
 			diagnostic,
 			onChooseHeader: vi.fn(),
 			onPreviewFix: vi.fn(),
@@ -198,7 +198,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			onApplyFix: vi.fn(),
 			onIgnore: vi.fn()
 		});
-		render(ControlTooltip, { props: {} });
+		await render(ControlTooltip, { props: {} });
 
 		const fixes = [
 			...screen.container.querySelectorAll<HTMLButtonElement>('.diagnostic-actions__fix')
@@ -221,7 +221,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		await vi.waitFor(() => {
 			expect(document.querySelector('.control-tooltip')).toBeNull();
 		});
-		screen.unmount();
+		await screen.unmount();
 	});
 
 	// A guided action with a keyboard twin names it; one without a twin names
@@ -235,7 +235,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			ruleId: 'section.header-missing',
 			fixes: undefined
 		};
-		const screen = render(DiagnosticDetails, {
+		const screen = await render(DiagnosticDetails, {
 			diagnostic: headerless,
 			onChooseHeader: vi.fn(),
 			onPreviewFix: vi.fn(),
@@ -243,7 +243,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			onApplyFix: vi.fn(),
 			onIgnore: vi.fn()
 		});
-		render(ControlTooltip, { props: {} });
+		await render(ControlTooltip, { props: {} });
 
 		const guided = screen.container.querySelector<HTMLButtonElement>('.diagnostic-actions__guided');
 		expect(guided?.getAttribute('aria-keyshortcuts')).toBe('Control+Shift+H');
@@ -254,14 +254,14 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		});
 		expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe('Ctrl+Shift+H');
 		guided?.dispatchEvent(new PointerEvent('pointerleave'));
-		screen.unmount();
+		await screen.unmount();
 
 		const repeat: Diagnostic = {
 			...contractionDiagnostic(),
 			ruleId: 'section.unlinked-repeat',
 			fixes: undefined
 		};
-		const linking = render(DiagnosticDetails, {
+		const linking = await render(DiagnosticDetails, {
 			diagnostic: repeat,
 			onChooseHeader: vi.fn(),
 			onLinkSections: vi.fn(),
@@ -277,23 +277,23 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		manage?.dispatchEvent(new PointerEvent('pointerenter'));
 		await new Promise((resolve) => setTimeout(resolve, 25));
 		expect(document.querySelector('.control-tooltip')).toBeNull();
-		linking.unmount();
+		await linking.unmount();
 	});
 
-	it('adds a way out only where the surface would otherwise trap the keyboard', () => {
+	it('adds a way out only where the surface would otherwise trap the keyboard', async () => {
 		const diagnostic = contractionDiagnostic();
 
 		// The keyboard-opened card holds focus and is exempt from the pointer-leave
 		// watcher, so it — and only it — carries a visible Close.
-		const dialog = popoverActions(diagnostic, true);
+		const dialog = await popoverActions(diagnostic, true);
 		expect(dialog.at(-1)).toEqual({
 			label: 'Close',
 			classes: 'button button--quiet diagnostic-actions__close'
 		});
-		expect(dialog.slice(0, -1)).toEqual(panelActions(diagnostic));
+		expect(dialog.slice(0, -1)).toEqual(await panelActions(diagnostic));
 	});
 
-	it('offers the detected language before the quiet ignore action on both surfaces', () => {
+	it('offers the detected language before the quiet ignore action on both surfaces', async () => {
 		const diagnostic: Diagnostic = {
 			...contractionDiagnostic(),
 			ruleId: 'language.selection-mismatch',
@@ -308,11 +308,11 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			},
 			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
 		];
-		expect(panelActions(diagnostic)).toEqual(expected);
-		expect(popoverActions(diagnostic)).toEqual(expected);
+		expect(await panelActions(diagnostic)).toEqual(expected);
+		expect(await popoverActions(diagnostic)).toEqual(expected);
 	});
 
-	it('offers the link picker for a repeated section on both surfaces', () => {
+	it('offers the link picker for a repeated section on both surfaces', async () => {
 		const diagnostic: Diagnostic = {
 			...contractionDiagnostic(),
 			ruleId: 'section.unlinked-repeat',
@@ -325,11 +325,11 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			{ label: 'Manage linking', classes: 'button diagnostic-actions__guided' },
 			{ label: 'Ignore', classes: 'button button--quiet diagnostic-actions__ignore' }
 		];
-		expect(panelActions(diagnostic)).toEqual(expected);
-		expect(popoverActions(diagnostic)).toEqual(expected);
+		expect(await panelActions(diagnostic)).toEqual(expected);
+		expect(await popoverActions(diagnostic)).toEqual(expected);
 	});
 
-	it('leads with acceptance, and steps the fix down, on both surfaces', () => {
+	it('leads with acceptance, and steps the fix down, on both surfaces', async () => {
 		// A synthetic `presumedCorrect` finding — no catalog rule sets it today
 		// (the ad-lib wrap offer that did was retired), but the shell contract
 		// stays pinned: the likelier answer takes the row's one contrast tier
@@ -352,11 +352,11 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			{ label: "It's correct", classes: 'button button--contrast diagnostic-actions__accept' },
 			{ label: 'Wrap as (Yeah)', classes: 'button diagnostic-actions__fix' }
 		];
-		expect(panelActions(diagnostic)).toEqual(expected);
-		expect(popoverActions(diagnostic)).toEqual(expected);
+		expect(await panelActions(diagnostic)).toEqual(expected);
+		expect(await popoverActions(diagnostic)).toEqual(expected);
 	});
 
-	it('accepts an unresolved lyric with a normal button on both surfaces', () => {
+	it('accepts an unresolved lyric with a normal button on both surfaces', async () => {
 		const diagnostic: Diagnostic = {
 			...contractionDiagnostic(),
 			ruleId: 'unknown.unresolved',
@@ -364,15 +364,15 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		};
 		const expected = [{ label: 'It really is unintelligible', classes: 'button button--contrast' }];
 
-		expect(panelActions(diagnostic)).toEqual(expected);
-		expect(popoverActions(diagnostic)).toEqual(expected);
+		expect(await panelActions(diagnostic)).toEqual(expected);
+		expect(await popoverActions(diagnostic)).toEqual(expected);
 	});
 
-	it('offers the same batch, in the same tier, on both surfaces', () => {
+	it('offers the same batch, in the same tier, on both surfaces', async () => {
 		const diagnostic = spellingDiagnostic();
-		const panel = panelActions(diagnostic, batchOf(3));
+		const panel = await panelActions(diagnostic, batchOf(3));
 
-		expect(popoverActions(diagnostic, false, batchOf(3))).toEqual(panel);
+		expect(await popoverActions(diagnostic, false, batchOf(3))).toEqual(panel);
 		expect(panel).toEqual([
 			{
 				label: "Replace with I'ma",
@@ -385,36 +385,36 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		]);
 	});
 
-	it('says nothing about a batch that is only this one finding', () => {
+	it('says nothing about a batch that is only this one finding', async () => {
 		const diagnostic = spellingDiagnostic();
 
 		// The button beside it already applies the single occurrence; "Fix all 1"
 		// would be a second control for the same press.
 		for (const row of [
-			panelActions(diagnostic, batchOf(1)),
-			popoverActions(diagnostic, false, batchOf(1))
+			await panelActions(diagnostic, batchOf(1)),
+			await popoverActions(diagnostic, false, batchOf(1))
 		]) {
 			expect(row.map((action) => action.label)).toEqual(["Replace with I'ma", 'Ignore']);
 		}
 	});
 
-	it('never offers to repeat a fix the user has to confirm', () => {
+	it('never offers to repeat a fix the user has to confirm', async () => {
 		// The contraction fix is `preview`: it is exactly the case that has to be
 		// decided one occurrence at a time, whatever count the shell reports.
 		const diagnostic = contractionDiagnostic();
 
 		for (const row of [
-			panelActions(diagnostic, batchOf(4)),
-			popoverActions(diagnostic, false, batchOf(4))
+			await panelActions(diagnostic, batchOf(4)),
+			await popoverActions(diagnostic, false, batchOf(4))
 		]) {
 			expect(row.some((action) => action.label.startsWith('Fix all'))).toBe(false);
 		}
 	});
 
-	it('never puts a verb in front of a fix that already names itself', () => {
+	it('never puts a verb in front of a fix that already names itself', async () => {
 		const diagnostic = contractionDiagnostic();
 
-		for (const row of [panelActions(diagnostic), popoverActions(diagnostic)]) {
+		for (const row of [await panelActions(diagnostic), await popoverActions(diagnostic)]) {
 			// "Apply Replace with Don't" said the same thing twice; the label is the
 			// whole button now, on both surfaces.
 			expect(row.map((action) => action.label)).not.toContain('Apply');
@@ -422,7 +422,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		}
 	});
 
-	it('hands the one preview slot back when the other surface closes', () => {
+	it('hands the one preview slot back when the other surface closes', async () => {
 		// Hovering an underline opens the popover over a card the panel already has
 		// expanded, so both surfaces want the same diff. The popover leaving used to
 		// clear it outright, and the still-expanded card was left describing a
@@ -430,14 +430,14 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		const diagnostic = contractionDiagnostic();
 		const card = { onPreviewFix: vi.fn(), onCancelPreview: vi.fn() };
 		const popover = { onPreviewFix: vi.fn(), onCancelPreview: vi.fn() };
-		const panel = render(DiagnosticDetails, {
+		const panel = await render(DiagnosticDetails, {
 			diagnostic,
 			onChooseHeader: vi.fn(),
 			onApplyFix: vi.fn(),
 			onIgnore: vi.fn(),
 			...card
 		});
-		const overlay = render(DiagnosticPopover, {
+		const overlay = await render(DiagnosticPopover, {
 			diagnostic,
 			onApplyFix: vi.fn(),
 			onIgnore: vi.fn(),
@@ -445,7 +445,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		});
 		expect(popover.onPreviewFix).toHaveBeenCalledTimes(1);
 
-		overlay.unmount();
+		await overlay.unmount();
 
 		// The card that is still open re-asserts its diff, and nothing cleared it.
 		expect(popover.onCancelPreview).not.toHaveBeenCalled();
@@ -453,13 +453,13 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		expect(card.onPreviewFix).toHaveBeenCalledTimes(2);
 
 		// Nothing is left showing a diff, so the last surface out clears the slot.
-		panel.unmount();
+		await panel.unmount();
 		expect(card.onCancelPreview).toHaveBeenCalledTimes(1);
 	});
 
-	it('marks the finding with the same severity tag in both places', () => {
+	it('marks the finding with the same severity tag in both places', async () => {
 		const diagnostic = contractionDiagnostic();
-		const popover = render(DiagnosticPopover, {
+		const popover = await render(DiagnosticPopover, {
 			diagnostic,
 			onPreviewFix: vi.fn(),
 			onCancelPreview: vi.fn(),
@@ -485,10 +485,10 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		// the muted prose beneath it.
 		const explanation = popover.container.querySelector('.diagnostic-explanation')!;
 		expect(style.color).not.toBe(getComputedStyle(explanation).color);
-		popover.unmount();
+		await popover.unmount();
 	});
 
-	it('cites its source on the meta line, not in a footer under the card', () => {
+	it('cites its source on the meta line, not in a footer under the card', async () => {
 		const diagnostic = { ...contractionDiagnostic(), sourceIds: ['G-CONTRACTIONS'] };
 		const sources = [
 			{
@@ -504,7 +504,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 		];
 
 		for (const screen of [
-			render(DiagnosticPopover, {
+			await render(DiagnosticPopover, {
 				diagnostic,
 				sources,
 				onPreviewFix: vi.fn(),
@@ -512,7 +512,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 				onApplyFix: vi.fn(),
 				onIgnore: vi.fn()
 			}),
-			render(DiagnosticList, {
+			await render(DiagnosticList, {
 				diagnostics: [diagnostic],
 				sources: new Map(sources.map((source) => [source.id, source])),
 				emptyState: { title: '', detail: '' },
@@ -551,7 +551,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			expect(description.textContent).toContain('Section headers and performer legends');
 			expect(description.textContent).toContain('2026-07-24');
 
-			screen.unmount();
+			await screen.unmount();
 		}
 	});
 });

@@ -59,7 +59,7 @@ async function setup(text = SONG) {
 		}
 	});
 	await waitFor(() => expect(handle).toBeDefined());
-	const view = render(LinkingPanel, { controller: workbench.controller });
+	const view = await render(LinkingPanel, { controller: workbench.controller });
 	const panel = within(view.container);
 	return {
 		...workbench,

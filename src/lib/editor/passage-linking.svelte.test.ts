@@ -79,7 +79,7 @@ function occurrence(text: string, word: string, index: number): number {
 
 async function mount(text = SONG, links?: SectionLink[]) {
 	let handle: EditorHandle | undefined;
-	const view = render(EditorPane, {
+	const view = await render(EditorPane, {
 		props: {
 			initialText: text,
 			context: {

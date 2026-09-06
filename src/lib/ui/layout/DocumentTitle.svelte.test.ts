@@ -4,13 +4,13 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import DocumentTitle from './DocumentTitle.svelte';
 
 describe('DocumentTitle', () => {
-	afterEach(() => {
-		cleanup();
+	afterEach(async () => {
+		await cleanup();
 		vi.unstubAllEnvs();
 	});
 
 	test('keeps the active draft first and updates when the draft changes', async () => {
-		const screen = render(DocumentTitle, { title: 'Test draft' });
+		const screen = await render(DocumentTitle, { title: 'Test draft' });
 
 		await waitFor(() => expect(document.title).toBe('Test draft · LyricLint'));
 
@@ -26,7 +26,7 @@ describe('DocumentTitle', () => {
 
 		// The whole title, not a prefix on the draft's: a tab shows the first few
 		// characters, so the label has to be all of them.
-		render(DocumentTitle, { title: 'Test draft' });
+		await render(DocumentTitle, { title: 'Test draft' });
 
 		await waitFor(() => expect(document.title).toBe('Dev'));
 	});

@@ -7,13 +7,13 @@ import MockEditorPane from './MockEditorPane.svelte';
 import Workspace from './Workspace.svelte';
 
 afterEach(async () => {
-	cleanup();
+	await cleanup();
 	await page.viewport(800, 600);
 });
 
-function mount(text = '[Verse]\nImma go\nImma stay') {
+async function mount(text = '[Verse]\nImma go\nImma stay') {
 	const { controller } = createTestWorkbench({ text });
-	render(Workspace, {
+	await render(Workspace, {
 		controller,
 		editorComponent: MockEditorPane,
 		harperProvider: { lint: async () => [], dispose: async () => {} }
@@ -25,7 +25,7 @@ test.each([390, 640])(
 	'a %ipx mouse-driven desktop keeps its panels and document commands',
 	async (width) => {
 		await page.viewport(width, 844);
-		mount();
+		await mount();
 		await waitFor(() => expect(window.matchMedia('(pointer: fine)').matches).toBe(true));
 		expect(screen.queryByRole('navigation', { name: 'Workbench views' })).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Document' })).toBeNull();
@@ -42,7 +42,7 @@ test.each([390, 640])(
 
 test.each([750, 1000])('centers a clean review within the %ipx stacked panel', async (width) => {
 	await page.viewport(width, 844);
-	mount('[Verse]\nWalking home\nThrough the night');
+	await mount('[Verse]\nWalking home\nThrough the night');
 	const workspace = screen.getByTestId('workspace');
 	workspace.style.height = '800px';
 	await waitFor(() => expect(screen.getByText('No issues found')).toBeTruthy());

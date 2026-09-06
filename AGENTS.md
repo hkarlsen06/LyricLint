@@ -173,8 +173,10 @@ Component behavior is covered by `vitest-browser-svelte` tests next to the compo
 UI interaction changes, update the test to assert the new structure — including the absence of
 the thing that was removed.
 
-The renderer is `vitest-browser-svelte`, and nothing else mounts a component. `@testing-library/dom`
-is the query and event layer beside it, for tests whose assertions inspect real elements —
+The renderer is `vitest-browser-svelte`, and nothing else mounts a component.
+`render`, `rerender`, and `unmount` are asynchronous in renderer v3; await them, including
+through shared setup helpers, before inspecting or interacting with the component.
+`@testing-library/dom` is the query and event layer beside it, for tests whose assertions inspect real elements —
 `within(view.container)` scoping in particular, which the browser locators have no equivalent
 for. It is configured once in `vitest-setup-client.ts`, where `eventWrapper: flushSync` and an
 `asyncWrapper` that awaits `tick()` teach it Svelte's flush boundaries. Adding a second component

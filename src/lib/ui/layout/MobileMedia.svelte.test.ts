@@ -29,7 +29,7 @@ it('keeps one visible YouTube player and transport across every phone view', asy
 			text: '[Verse]\nFirst line\nSecond line',
 			media: { repository: createInMemoryMediaRepository([]), player }
 		});
-		const view = render(Workspace, {
+		const view = await render(Workspace, {
 			controller,
 			editorComponent: MockEditorPane,
 			harperProvider: { lint: async () => [], dispose: async () => {} }

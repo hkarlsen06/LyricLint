@@ -13,8 +13,8 @@ describe('PerformersPanel', () => {
 		const { controller, feedback } = createTestWorkbench({
 			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
 		});
-		render(PerformersPanel, { controller });
-		render(ToastRegion, { feedback });
+		await render(PerformersPanel, { controller });
+		await render(ToastRegion, { feedback });
 
 		const addInput = screen.getByRole('textbox', { name: 'Add performer' });
 		await fireEvent.input(addInput, { target: { value: 'avery' } });
@@ -78,7 +78,7 @@ describe('PerformersPanel', () => {
 		const { controller } = createTestWorkbench({
 			performers: [performer('avery', 'Avery', 0)]
 		});
-		render(PerformersPanel, { controller });
+		await render(PerformersPanel, { controller });
 
 		const row = screen.getByRole('list', { name: "'Scribe performer roster" }).querySelector('li')!;
 		expect(within(row).queryByTitle('Rename')?.tagName).toBe('BUTTON');
@@ -98,7 +98,7 @@ describe('PerformersPanel', () => {
 		const { controller } = createTestWorkbench({
 			performers: [performer('avery', 'Avery', 0)]
 		});
-		render(PerformersPanel, { controller });
+		await render(PerformersPanel, { controller });
 
 		const row = screen.getByRole('list', { name: "'Scribe performer roster" }).querySelector('li')!;
 		await fireEvent.click(within(row).getByRole('button', { name: 'Remove Avery' }));
@@ -111,7 +111,7 @@ describe('PerformersPanel', () => {
 		const { controller } = createTestWorkbench({
 			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
 		});
-		render(PerformersPanel, { controller });
+		await render(PerformersPanel, { controller });
 
 		const roster = screen.getByRole('list', { name: "'Scribe performer roster" });
 		const averyRow = within(roster).getByText('Avery').closest('li')!;
@@ -139,7 +139,7 @@ describe('PerformersPanel', () => {
 		const { controller } = createTestWorkbench({
 			performers: [performer('krissy', 'KrissyB', 0)]
 		});
-		render(PerformersPanel, { controller });
+		await render(PerformersPanel, { controller });
 
 		const roster = screen.getByRole('list', { name: "'Scribe performer roster" });
 		// The editor's own mirror, arriving while this row is mounted.
@@ -159,7 +159,7 @@ describe('PerformersPanel', () => {
 		const { controller } = createTestWorkbench({
 			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
 		});
-		render(PerformersPanel, { controller });
+		await render(PerformersPanel, { controller });
 
 		const roster = screen.getByRole('list', { name: "'Scribe performer roster" });
 		const averyRow = within(roster).getByText('Avery').closest('li')!;
@@ -183,13 +183,13 @@ describe('PerformersPanel', () => {
 		expect(first.controller.performers[0]?.colorId).toBe(second.controller.performers[0]?.colorId);
 	});
 
-	test('lists the roster in order of first appearance in the lyrics', () => {
+	test('lists the roster in order of first appearance in the lyrics', async () => {
 		const text = '[Chorus: Blair, <i>Avery</i>]\nBlair line\n<i>Avery line</i>';
 		const { controller } = createTestWorkbench({
 			text,
 			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
 		});
-		render(PerformersPanel, { controller });
+		await render(PerformersPanel, { controller });
 
 		const roster = screen.getByRole('list', { name: "'Scribe performer roster" });
 		const names = within(roster)
@@ -207,7 +207,7 @@ describe('PerformersPanel', () => {
 			selection: { anchor: 9, head: text.length },
 			performers: [performer('avery', 'Avery', 0), performer('blair', 'Blair', 1, 'teal')]
 		});
-		render(PerformersPanel, { controller });
+		await render(PerformersPanel, { controller });
 
 		expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
 		expect(screen.queryByRole('button', { name: 'Apply' })).toBeNull();
@@ -225,10 +225,10 @@ describe('PerformersPanel', () => {
 	// identity. The panel used to grow an "Unresolved voices" section for it,
 	// fed by placeholder performers the import minted; both are retired, and the
 	// document and roster stay exactly as they were.
-	test('gives an unmatched styled voice no section and no roster row', () => {
+	test('gives an unmatched styled voice no section and no roster row', async () => {
 		const text = '[Chorus: Avery]\nA long plain lyric with <i>an unmatched styled voice</i>';
 		const { controller } = createTestWorkbench({ text, performers: [] });
-		render(PerformersPanel, { controller });
+		await render(PerformersPanel, { controller });
 
 		expect(screen.queryByRole('heading', { name: 'Unresolved voices' })).toBeNull();
 		expect(screen.queryByText('Unresolved voice 2')).toBeNull();

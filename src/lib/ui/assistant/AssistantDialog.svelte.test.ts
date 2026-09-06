@@ -57,7 +57,7 @@ afterEach(cleanup);
 describe('the assistant dialog', () => {
 	test('the header names the assistant, not one of the three doors into it', async () => {
 		const assistant = makeAssistant();
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 
 		// One modal, three entry points — the rule reference, the guidance
@@ -78,7 +78,7 @@ describe('the assistant dialog', () => {
 
 	test('citations collect once at the foot of the answer as compact rule cards', async () => {
 		const assistant = makeAssistant();
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('Why does my header need a closing bracket?');
 
@@ -146,7 +146,7 @@ describe('the assistant dialog', () => {
 			() => new Promise<ReturnType<typeof cannedAnswer>>((resolve) => (release = resolve))
 		);
 		const assistant = makeAssistant({ ask });
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		const sending = assistant.send('Slow question?');
 		await waitFor(() => expect(ask).toHaveBeenCalled());
@@ -161,7 +161,7 @@ describe('the assistant dialog', () => {
 
 	test('the transcript is a log, and completion is announced by a region that was already mounted', async () => {
 		const assistant = makeAssistant();
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 
 		// `log`, not a bare div carrying an aria-label nothing reads.
@@ -184,7 +184,7 @@ describe('the assistant dialog', () => {
 
 	test('the composer sends through the shared control tiers, not a fourth one', async () => {
 		const assistant = makeAssistant();
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 
 		// There are exactly three tiers, and the composer's one destination action
@@ -204,7 +204,7 @@ describe('the assistant dialog', () => {
 				})
 			)
 		});
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('Is this grammatical?');
 		await waitFor(() => {
@@ -230,7 +230,7 @@ describe('the assistant dialog', () => {
 				})
 			)
 		});
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('What does the source say?');
 		await waitFor(() =>
@@ -256,7 +256,7 @@ describe('the assistant dialog', () => {
 			.mockRejectedValueOnce(new AssistantError('provider_error'))
 			.mockResolvedValue(cannedAnswer(citedAnswer()));
 		const assistant = makeAssistant({ ask });
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('Question?');
 		await waitFor(() => {
@@ -270,7 +270,7 @@ describe('the assistant dialog', () => {
 
 	test('the composer sends through the form and disables while busy', async () => {
 		const assistant = makeAssistant();
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		const textarea = screen.getByLabelText('Your question') as HTMLTextAreaElement;
 		await fireEvent.input(textarea, { target: { value: 'How do I mark a chorus?' } });
@@ -303,7 +303,7 @@ describe('the assistant dialog', () => {
 			}
 		} as LockManager;
 		const assistant = makeAssistant({ locks });
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('First question?');
 		await waitFor(() => expect(assistant.chats).toHaveLength(1));
@@ -332,7 +332,7 @@ describe('the assistant dialog', () => {
 				)
 				.mockRejectedValue(new AssistantError('offline'))
 		});
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('First?');
 		await waitFor(() => {
@@ -346,7 +346,7 @@ describe('the assistant dialog', () => {
 
 	test('user turns are bubbles, assistant turns are prose, and no visible role captions remain', async () => {
 		const assistant = makeAssistant();
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('How do I mark a chorus?');
 		await waitFor(() => {
@@ -365,7 +365,7 @@ describe('the assistant dialog', () => {
 
 	test('conversations live in a popover, and deleting one is a confirm in the row', async () => {
 		const assistant = makeAssistant();
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		await assistant.send('First question?');
 		await waitFor(() => expect(assistant.chats).toHaveLength(1));
@@ -398,7 +398,7 @@ describe('the assistant dialog', () => {
 
 	test('the transcript never contains draft text and the disclosure names the boundary', async () => {
 		const assistant = makeAssistant();
-		const { container } = render(AssistantDialog, { assistant });
+		const { container } = await render(AssistantDialog, { assistant });
 		await assistant.open();
 		expect(container.querySelector('.assistant-conversation')).not.toBeNull();
 		expect(container.textContent).toContain("cannot see your 'scribe");

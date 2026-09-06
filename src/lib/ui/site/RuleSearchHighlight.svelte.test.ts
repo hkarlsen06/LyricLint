@@ -28,23 +28,23 @@ function marks(): string[] {
 	return [...container.querySelectorAll('mark')].map((mark) => mark.textContent ?? '');
 }
 
-function draw(text: string) {
-	const result = render(RuleSearchHighlight, { text });
+async function draw(text: string) {
+	const result = await render(RuleSearchHighlight, { text });
 	container = result.container;
 	return result;
 }
 
 describe('RuleSearchHighlight', () => {
-	it('draws the text unchanged while nothing has been searched for', () => {
-		draw('Use [Verse 1] rather than Verse 1:');
+	it('draws the text unchanged while nothing has been searched for', async () => {
+		await draw('Use [Verse 1] rather than Verse 1:');
 
 		expect(drawn()).toBe('Use [Verse 1] rather than Verse 1:');
 		expect(marks()).toEqual([]);
 	});
 
-	it('marks the query where it appears', () => {
+	it('marks the query where it appears', async () => {
 		setRuleSearchQuery('verse');
-		draw('Use [Verse 1] rather than Verse 1:');
+		await draw('Use [Verse 1] rather than Verse 1:');
 
 		expect(marks()).toEqual(['Verse', 'Verse']);
 		// The mark is a `<mark>` rather than a coloured span, so the fact is in
@@ -52,7 +52,7 @@ describe('RuleSearchHighlight', () => {
 		expect(container.querySelector('mark')?.className).toBe('site-hit');
 	});
 
-	it('adds not one character to the text it marks', () => {
+	it('adds not one character to the text it marks', async () => {
 		// This is the assertion the whole component is written around. The
 		// examples on a rule page are set in a `<pre>`, so a newline the template
 		// introduced between two segments is a line of a transcription nobody
@@ -60,15 +60,15 @@ describe('RuleSearchHighlight', () => {
 		// would catch it, because it looks exactly like working markup.
 		const lyric = '[Verse 1]\nI heard you say\n  it twice  ';
 		setRuleSearchQuery('verse say');
-		draw(lyric);
+		await draw(lyric);
 
 		expect(drawn()).toBe(lyric);
 		expect(marks()).toEqual(['Verse', 'say']);
 	});
 
-	it('marks whole characters where the fold changed the string’s length', () => {
+	it('marks whole characters where the fold changed the string’s length', async () => {
 		setRuleSearchQuery('ca va');
-		draw('Ça va bien');
+		await draw('Ça va bien');
 
 		expect(marks()).toEqual(['Ça', 'va']);
 		expect(drawn()).toBe('Ça va bien');
@@ -76,7 +76,7 @@ describe('RuleSearchHighlight', () => {
 
 	it('follows the query as it is typed, because the field is beside the page', async () => {
 		setRuleSearchQuery('head');
-		draw('Use song part headers');
+		await draw('Use song part headers');
 		expect(marks()).toEqual(['head']);
 
 		// Two words are two terms, both of which had to match for the rule to be

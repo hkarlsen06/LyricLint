@@ -32,15 +32,15 @@ const ruleRun = (ids: readonly string[]) =>
 	}));
 
 describe('SiteSourceFold', () => {
-	it('draws a single citation inline, with no disclosure to press', () => {
-		render(SiteSourceFold, { sources: one });
+	it('draws a single citation inline, with no disclosure to press', async () => {
+		await render(SiteSourceFold, { sources: one });
 
 		expect(document.querySelector('a')?.textContent).toContain(one[0]!.pageTitle);
 		expect(document.querySelector('button')).toBeNull();
 	});
 
 	it('folds two citations behind Sources, and the label never rewrites itself', async () => {
-		render(SiteSourceFold, { sources: two });
+		await render(SiteSourceFold, { sources: two });
 
 		// Folded: the disclosure is the only thing on the line, and neither
 		// citation is in the document at all — a hidden link would still be a
@@ -78,9 +78,9 @@ describe('SiteSourceFold', () => {
 	// The second run this control draws. A short one is the meta line's own
 	// words and must stay exactly that: a disclosure there would be a press for
 	// two links the reader can already read.
-	it('draws a short run inline behind its prefix, with no disclosure to press', () => {
+	it('draws a short run inline behind its prefix, with no disclosure to press', async () => {
 		expect(shortRuleRun.length).toBeLessThanOrEqual(INLINE_RULE_IDS);
-		render(SiteSourceFold, {
+		await render(SiteSourceFold, {
 			prefix: 'Checked by',
 			folded: false,
 			children: ruleRun(shortRuleRun)
@@ -96,7 +96,7 @@ describe('SiteSourceFold', () => {
 	// it — and the run it reveals is the same run the inline branch draws.
 	it('folds a long run behind its own count, keeping the prefix outside the button', async () => {
 		expect(longestRuleRun.length).toBeGreaterThan(INLINE_RULE_IDS);
-		render(SiteSourceFold, {
+		await render(SiteSourceFold, {
 			prefix: 'Checked by',
 			folded: longestRuleRun.length > INLINE_RULE_IDS,
 			label: `${longestRuleRun.length} rules`,

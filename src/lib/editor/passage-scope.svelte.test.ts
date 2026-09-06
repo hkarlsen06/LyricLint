@@ -33,7 +33,7 @@ const SONG = [
 
 async function setup(text = SONG, reducedMotion = false) {
 	let handle: EditorHandle | undefined;
-	const view = render(EditorPane, {
+	const view = await render(EditorPane, {
 		props: {
 			initialText: text,
 			context: {

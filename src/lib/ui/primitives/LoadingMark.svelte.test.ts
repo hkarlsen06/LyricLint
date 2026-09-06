@@ -29,7 +29,7 @@ describe('LoadingMark', () => {
 	 * the selector, because that is the failure — the CSS is valid either way.
 	 */
 	it('parks the lockup closed on the mark', async () => {
-		render(LoadingMark, { props: { label: 'Loading the catalogue' } });
+		await render(LoadingMark, { props: { label: 'Loading the catalogue' } });
 
 		expect(getComputedStyle(mark()).getPropertyValue('--wm-open')).toBe('0');
 		// And it answers nothing: the lockup's own hover and press morph would be a
@@ -39,7 +39,7 @@ describe('LoadingMark', () => {
 
 	// The wave runs, which is the whole of what this element says.
 	it('runs the waveform', async () => {
-		render(LoadingMark, { props: { label: 'Loading the catalogue' } });
+		await render(LoadingMark, { props: { label: 'Loading the catalogue' } });
 
 		const drawn = await frames(400);
 		expect(new Set(drawn).size).toBeGreaterThan(5);
@@ -52,11 +52,11 @@ describe('LoadingMark', () => {
 	 * use of the same component instance's markup.
 	 */
 	it('gives the mark its wave back when it goes', async () => {
-		const rendered = render(LoadingMark, { props: { label: 'Loading the catalogue' } });
+		const rendered = await render(LoadingMark, { props: { label: 'Loading the catalogue' } });
 		await frames(120);
 
-		rendered.unmount();
-		render(LoadingMark, { props: { label: 'Loading the catalogue' } });
+		await rendered.unmount();
+		await render(LoadingMark, { props: { label: 'Loading the catalogue' } });
 		expect(wave().getAttribute('d')).toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
 	});
 
@@ -64,7 +64,7 @@ describe('LoadingMark', () => {
 	// waited on rather than saying "Loading…" — which is why the label has no
 	// default rather than a generic one.
 	it('announces what it is waiting for', async () => {
-		render(LoadingMark, { props: { label: 'Loading the catalogue' } });
+		await render(LoadingMark, { props: { label: 'Loading the catalogue' } });
 
 		const status = document.querySelector('[role="status"]') as HTMLElement;
 		expect(status.textContent).toBe('Loading the catalogue');
@@ -72,7 +72,7 @@ describe('LoadingMark', () => {
 	});
 
 	it('leaves announcements to a busy containing control when no label is given', async () => {
-		render(LoadingMark);
+		await render(LoadingMark);
 
 		expect(document.querySelector('[role="status"]')).toBeNull();
 		expect(mark().closest('[aria-hidden="true"]')).not.toBeNull();

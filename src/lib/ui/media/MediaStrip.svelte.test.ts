@@ -81,7 +81,7 @@ describe('MediaStrip', () => {
 		await media.openFor('draft-1');
 
 		const opened: HTMLButtonElement[] = [];
-		const { unmount } = render(MediaStrip, {
+		const { unmount } = await render(MediaStrip, {
 			props: {
 				media,
 				openMediaPicker: (source: HTMLButtonElement) => void opened.push(source)
@@ -100,9 +100,9 @@ describe('MediaStrip', () => {
 		// wiring, not the hover.
 		pencil.element().dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		expect(opened).toEqual([pencil.element()]);
-		unmount();
+		await unmount();
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 		expect(page.getByRole('button', { name: 'Change audio source' }).elements()).toHaveLength(0);
 	});
 
@@ -125,8 +125,8 @@ describe('MediaStrip', () => {
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(125);
 
-		render(MediaStrip, { props: { media } });
-		render(ControlTooltip, { props: {} });
+		await render(MediaStrip, { props: { media } });
+		await render(ControlTooltip, { props: {} });
 
 		const play = page.getByRole('button', { name: 'Play' });
 		await expect.element(play).toBeVisible();
@@ -162,7 +162,7 @@ describe('MediaStrip', () => {
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(125);
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 		const modifier = navigator.platform.toLocaleLowerCase().includes('mac') ? 'Control' : 'Alt';
 
 		const back = page.getByRole('button', { name: 'Back 2 seconds' });
@@ -217,7 +217,7 @@ describe('MediaStrip', () => {
 		player.setCuePoints([12, 30]);
 		player.seek(21);
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		await expect.element(page.getByRole('button', { name: 'Previous line' })).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Next line' })).toBeVisible();
@@ -232,7 +232,7 @@ describe('MediaStrip', () => {
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(60);
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		await page.getByRole('button', { name: 'Play' }).click();
 		await expect.element(page.getByRole('button', { name: 'Pause' })).toBeVisible();
@@ -247,7 +247,7 @@ describe('MediaStrip', () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		await expect.element(page.getByRole('slider', { name: 'Seek' })).toBeDisabled();
 	});
@@ -264,7 +264,7 @@ describe('MediaStrip', () => {
 			startAt: 112
 		});
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		const seek = page.getByRole('slider', { name: 'Seek' });
 		await expect.element(page.getByTestId('media-elapsed')).toHaveTextContent('1:52');
@@ -287,7 +287,7 @@ describe('MediaStrip', () => {
 			startAt: 112
 		});
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		const seek = page.getByRole('slider', { name: 'Seek' });
 		// Before the metadata, the control cannot be aimed and says so rather than
@@ -310,8 +310,8 @@ describe('MediaStrip', () => {
 				});
 				await media.openFor('draft-1');
 
-				render(MediaStrip, { props: { media } });
-				render(ControlTooltip, { props: {} });
+				await render(MediaStrip, { props: { media } });
+				await render(ControlTooltip, { props: {} });
 
 				const reconnect = page.getByRole('button', { name: 'Reconnect audio: sensommer.mp3' });
 				await expect.element(reconnect).toBeVisible();
@@ -390,7 +390,7 @@ describe('MediaStrip', () => {
 		});
 		await media.openFor('draft-1');
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		const reconnect = page.getByRole('button', { name: 'Reconnect audio: sensommer.mp3' });
 		await expect.element(reconnect).toBeEnabled();
@@ -410,7 +410,7 @@ describe('MediaStrip', () => {
 		});
 		await media.openFor('draft-1');
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		await page.getByRole('button', { name: 'Reconnect audio: sensommer.mp3' }).click();
 
@@ -426,7 +426,7 @@ describe('MediaStrip', () => {
 		player.attach(new File([''], 'broken.mp3', { type: 'audio/mpeg' }));
 		audio.dispatchEvent(new Event('error'));
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		await expect.element(page.getByText('That file could not be played.')).toBeVisible();
 		expect(page.getByRole('slider', { name: 'Seek' }).elements()).toHaveLength(0);
@@ -445,7 +445,7 @@ describe('MediaStrip', () => {
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		audio.dispatchEvent(new Event('error'));
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 		await expect.element(page.getByText('That file could not be played.')).toBeVisible();
 
 		await audio.play();
@@ -459,7 +459,7 @@ describe('MediaStrip', () => {
 	// attaching a video must not grow the editor column by a frame.
 	it('draws no picture for either source', async () => {
 		const { audio, media, player } = store();
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 		audio.setDuration(125);
@@ -498,7 +498,7 @@ describe('MediaStrip', () => {
 		// speed control answering to whatever the source turns out to allow.
 		player.mountVideo(document.createElement('div'));
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		const select = page.getByRole('combobox', { name: 'Playback speed' });
 		await expect.element(select).toBeVisible();
@@ -530,7 +530,7 @@ describe('MediaStrip', () => {
 		});
 		await media.openFor('draft-1');
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		// Naming YouTube in the control is what makes the press the consent: a bare
 		// "Reconnect" would spend it without saying so.
@@ -563,7 +563,7 @@ describe('MediaStrip', () => {
 			}
 		};
 
-		render(MediaStrip, { props: { media, sync } });
+		await render(MediaStrip, { props: { media, sync } });
 
 		await expect.element(page.getByText('track.mp3')).toBeVisible();
 		expect(page.getByRole('button', { name: 'Tap each line' }).elements()).toHaveLength(0);
@@ -600,7 +600,7 @@ describe('MediaStrip', () => {
 			tap: () => {}
 		};
 
-		render(MediaStrip, { props: { media, sync } });
+		await render(MediaStrip, { props: { media, sync } });
 
 		await expect.element(page.getByRole('button', { name: 'Sync selection' })).toBeVisible();
 
@@ -636,7 +636,7 @@ describe('MediaStrip', () => {
 			}
 		};
 
-		render(MediaStrip, { props: { media, sync } });
+		await render(MediaStrip, { props: { media, sync } });
 
 		await page.getByRole('button', { name: 'Sync lyrics' }).click();
 
@@ -673,7 +673,7 @@ describe('MediaStrip', () => {
 			tap: () => {}
 		};
 
-		render(MediaStrip, { props: { media, sync } });
+		await render(MediaStrip, { props: { media, sync } });
 
 		await page.getByRole('button', { name: 'Retime lyrics' }).click();
 
@@ -687,7 +687,7 @@ describe('MediaStrip', () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		await expect.element(page.getByText('track.mp3')).toBeVisible();
 		expect(page.getByRole('button', { name: /sync/iu }).elements()).toHaveLength(0);
@@ -707,7 +707,7 @@ describe('MediaStrip', () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		const play = page.getByRole('button', { name: 'Play' }).element();
 		const press = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
@@ -732,7 +732,7 @@ describe('MediaStrip', () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		for (const control of [
 			page.getByRole('slider').element(),
@@ -752,7 +752,7 @@ describe('MediaStrip', () => {
 		const { media } = store();
 		await media.attachFile(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		await expect.element(page.getByRole('slider', { name: 'Seek' })).toBeVisible();
 		expect(page.getByRole('button', { name: 'Detach track.mp3' }).elements()).toHaveLength(0);
@@ -777,10 +777,10 @@ describe('MediaStrip and the toasts above it', () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
-		render(ToastRegion, { props: { feedback: createFeedbackState() } });
+		await render(ToastRegion, { props: { feedback: createFeedbackState() } });
 		const overFoot = toastOffset();
 
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 		await fontsSettled();
 
 		const strip = page.getByTestId('media-strip').element();
@@ -799,13 +799,13 @@ describe('MediaStrip and the toasts above it', () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
 
-		render(ToastRegion, { props: { feedback: createFeedbackState() } });
+		await render(ToastRegion, { props: { feedback: createFeedbackState() } });
 		const overFoot = toastOffset();
 
-		const strip = render(MediaStrip, { props: { media } });
+		const strip = await render(MediaStrip, { props: { media } });
 		await expect.poll(() => toastOffset()).toBeGreaterThan(overFoot);
 
-		strip.unmount();
+		await strip.unmount();
 		await expect.poll(() => toastOffset()).toBeCloseTo(overFoot, 0);
 	});
 });
@@ -820,7 +820,7 @@ describe('MediaStrip attribution', () => {
 	it('names a local file itself, and attributes nobody for it', async () => {
 		const { media, player } = store();
 		player.attach(new File([''], 'track.mp3', { type: 'audio/mpeg' }));
-		render(MediaStrip, { props: { media } });
+		await render(MediaStrip, { props: { media } });
 
 		expect(document.querySelector('.media-strip__name')?.textContent).toBe('track.mp3');
 		expect(document.querySelector('.media-attribution__spotify')).toBeNull();
@@ -843,7 +843,7 @@ describe('MediaStrip attribution', () => {
 			const { media, player } = await open();
 			expect(player.artwork).toBeUndefined();
 
-			render(MediaStrip, { props: { media, openMediaPicker: () => {} } });
+			await render(MediaStrip, { props: { media, openMediaPicker: () => {} } });
 
 			const strip = page.getByTestId('media-strip').element();
 			expect(strip.querySelector('.media-artwork__title')?.textContent).toBeTruthy();
@@ -885,7 +885,7 @@ it('sets and cancels a replay passage in the transport', async () => {
 	player.attach(new File([''], 'track.mp3'));
 	audio.setDuration(125);
 	player.seek(10);
-	const view = render(MediaStrip, { props: { media } });
+	const view = await render(MediaStrip, { props: { media } });
 	await page.getByRole('button', { name: 'Loop from here' }).click();
 	await page.getByRole('button', { name: 'Cancel loop' }).click();
 	expect(player.loop).toBeUndefined();
@@ -914,7 +914,7 @@ it.each([320, 390])(
 			const { media, player, audio } = store();
 			player.attach(new File([''], 'track.mp3'));
 			audio.setDuration(125);
-			const view = render(MediaStrip, {
+			const view = await render(MediaStrip, {
 				props: {
 					media,
 					openMediaPicker: () => {},

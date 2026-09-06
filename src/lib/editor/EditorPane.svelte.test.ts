@@ -2302,7 +2302,7 @@ describe('PerformerPicker keyboard flow', () => {
 		await expect.element(page.getByRole('button', { name: 'Add voice' })).not.toBeInTheDocument();
 		// One picker at a time, as in the pane: a press inside the second one is a
 		// press outside the first, and the first would dismiss itself over it.
-		withoutAdd.unmount();
+		await withoutAdd.unmount();
 
 		const screen = await render(PerformerPicker, {
 			performers: performers(),
@@ -2324,7 +2324,7 @@ describe('PerformerPicker keyboard flow', () => {
 		await userEvent.keyboard('{Escape}');
 		expect(onCancel).toHaveBeenCalledOnce();
 		expect(focusTarget).toBe(document.activeElement);
-		screen.unmount();
+		await screen.unmount();
 	});
 });
 
@@ -2383,7 +2383,7 @@ describe('DiagnosticPopover fix flow', () => {
 		expect(onApplyFix).toHaveBeenCalledTimes(2);
 
 		// Closing the card takes its preview with it.
-		screen.unmount();
+		await screen.unmount();
 		expect(onCancelPreview).toHaveBeenCalled();
 	});
 

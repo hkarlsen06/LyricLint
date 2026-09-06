@@ -67,8 +67,8 @@ function backupController(state: WorkspaceBackupState): WorkspaceBackupControlle
 	};
 }
 
-function renderExpanded(controller: WorkbenchController) {
-	const view = render(PreferencesPanel, { controller });
+async function renderExpanded(controller: WorkbenchController) {
+	const view = await render(PreferencesPanel, { controller });
 	for (const details of view.container.querySelectorAll('details')) details.open = true;
 	return view;
 }
@@ -81,11 +81,11 @@ function renderExpanded(controller: WorkbenchController) {
 describe('PreferencesPanel skimmability', () => {
 	afterEach(cleanup);
 
-	test('leads with grammar checking and lists only app-scoped sections', () => {
+	test('leads with grammar checking and lists only app-scoped sections', async () => {
 		const { controller } = createTestWorkbench({
 			backup: backupController({ supported: false, status: 'idle' })
 		});
-		const { container } = render(PreferencesPanel, { controller });
+		const { container } = await render(PreferencesPanel, { controller });
 
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Grammar checking',
@@ -103,9 +103,9 @@ describe('PreferencesPanel skimmability', () => {
 		expect(screen.queryByRole('button', { name: /Delete all local data/u })).toBeNull();
 	});
 
-	test('drops the backup section where no backup controller is present', () => {
+	test('drops the backup section where no backup controller is present', async () => {
 		const { controller } = createTestWorkbench();
-		const { container } = render(PreferencesPanel, { controller });
+		const { container } = await render(PreferencesPanel, { controller });
 
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Grammar checking',
@@ -116,7 +116,7 @@ describe('PreferencesPanel skimmability', () => {
 
 	test('keeps rule metadata behind a single unboxed disclosure', async () => {
 		const { controller } = createTestWorkbench();
-		const { container } = render(PreferencesPanel, { controller });
+		const { container } = await render(PreferencesPanel, { controller });
 		const details = container.querySelector<HTMLDetailsElement>('.preferences-panel__rules')!;
 		expect(details.open).toBe(false);
 		expect(container.querySelector('details details')).toBeNull();
@@ -130,7 +130,7 @@ describe('PreferencesPanel skimmability', () => {
 		const { controller } = createTestWorkbench({
 			backup: backupController({ supported: false, status: 'idle' })
 		});
-		const { container } = render(PreferencesPanel, { controller });
+		const { container } = await render(PreferencesPanel, { controller });
 		expect(screen.getByRole('button', { name: 'Download backup' })).not.toBeVisible();
 		expect(screen.getByRole('button', { name: 'Reset LyricLint…' })).not.toBeVisible();
 		const rows = container.querySelectorAll('details');
@@ -145,9 +145,9 @@ describe('PreferencesPanel skimmability', () => {
 		expect(screen.getByRole('button', { name: 'Reset LyricLint…' })).toBeTruthy();
 	});
 
-	test('closes the tab on the named way out of the workbench', () => {
+	test('closes the tab on the named way out of the workbench', async () => {
 		const { controller } = createTestWorkbench();
-		render(PreferencesPanel, { controller });
+		await render(PreferencesPanel, { controller });
 
 		// The app-level tab owns the exit: it acts on nothing, so it stays out
 		// of the toolbar's document commands. The brand lockup links home too;
@@ -169,7 +169,7 @@ describe('PreferencesPanel grammar toggle', () => {
 	test('reflects and writes the preference', async () => {
 		const { controller, repository } = createTestWorkbench();
 		const setPreference = vi.spyOn(repository, 'setPreference');
-		render(PreferencesPanel, { controller });
+		await render(PreferencesPanel, { controller });
 
 		// A switch, not a checkbox — the state is carried by `aria-checked`.
 		const toggle = screen.getByRole('switch', { name: 'Grammar checking' });
@@ -190,7 +190,7 @@ describe('PreferencesPanel grammar toggle', () => {
 	// Norwegian would offer a switch that changes nothing on screen.
 	test('draws only while the document language is English', async () => {
 		const { controller } = createTestWorkbench();
-		const { container } = render(PreferencesPanel, { controller });
+		const { container } = await render(PreferencesPanel, { controller });
 
 		controller.setLanguage('no');
 		await waitFor(() =>
@@ -216,7 +216,7 @@ describe('PreferencesPanel destructive confirm', () => {
 	test('confirms in place instead of opening a box inside the panel section', async () => {
 		const { controller, repository } = createTestWorkbench();
 		await controller.refreshDrafts();
-		const { container } = renderExpanded(controller);
+		const { container } = await renderExpanded(controller);
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Reset LyricLint…' }));
 
@@ -237,7 +237,7 @@ describe('PreferencesPanel destructive confirm', () => {
 	test('resets the grammar preference along with the data', async () => {
 		const { controller, repository } = createTestWorkbench();
 		await controller.refreshDrafts();
-		renderExpanded(controller);
+		await renderExpanded(controller);
 
 		const toggle = screen.getByRole('switch', { name: 'Grammar checking' });
 		await fireEvent.click(toggle);
@@ -264,9 +264,9 @@ describe('PreferencesPanel destructive confirm', () => {
  * not become the next test's boot state.
  */
 describe('PreferencesPanel storage persistence', () => {
-	afterEach(() => {
+	afterEach(async () => {
 		configureStoragePersistence();
-		cleanup();
+		await cleanup();
 	});
 
 	function storageApi(overrides: Partial<PersistentStorageApi> = {}): PersistentStorageApi {
@@ -278,10 +278,10 @@ describe('PreferencesPanel storage persistence', () => {
 		};
 	}
 
-	test('says nothing while the state is unresolved', () => {
+	test('says nothing while the state is unresolved', async () => {
 		configureStoragePersistence();
 		const { controller } = createTestWorkbench();
-		renderExpanded(controller);
+		await renderExpanded(controller);
 
 		expect(screen.queryByText(/Storage is/u)).toBeNull();
 		expect(screen.queryByRole('button', { name: 'Protect storage' })).toBeNull();
@@ -291,7 +291,7 @@ describe('PreferencesPanel storage persistence', () => {
 		configureStoragePersistence(storageApi());
 		await ensurePersistentStorage();
 		const { controller } = createTestWorkbench();
-		renderExpanded(controller);
+		await renderExpanded(controller);
 
 		expect(screen.getByText(/Storage is best-effort/u)).toBeTruthy();
 
@@ -306,7 +306,7 @@ describe('PreferencesPanel storage persistence', () => {
 		configureStoragePersistence(storageApi({ permissionState: async () => 'denied' as const }));
 		await ensurePersistentStorage();
 		const { controller } = createTestWorkbench();
-		renderExpanded(controller);
+		await renderExpanded(controller);
 
 		expect(screen.getByText(/declined protected storage/u)).toHaveClass('backup-status--warning');
 		expect(screen.queryByRole('button', { name: 'Protect storage' })).toBeNull();
@@ -324,7 +324,7 @@ describe('PreferencesPanel storage persistence', () => {
 		configureStoragePersistence(storageApi({ permissionState: async () => 'denied' as const }));
 		await ensurePersistentStorage();
 		const { controller } = createTestWorkbench();
-		const { container } = renderExpanded(controller);
+		const { container } = await renderExpanded(controller);
 
 		const warning = screen.getByText(/declined protected storage/u);
 		// The panel behind it, which `.right-panel` fills with `--color-canvas`.
@@ -337,7 +337,7 @@ describe('PreferencesPanel storage persistence', () => {
 		configureStoragePersistence(storageApi());
 		await ensurePersistentStorage();
 		const { controller } = createTestWorkbench();
-		renderExpanded(controller);
+		await renderExpanded(controller);
 		const trigger = screen.getByRole('button', { name: 'Reset LyricLint…' });
 		trigger.focus();
 		const before = trigger.getBoundingClientRect();
@@ -361,11 +361,11 @@ describe('PreferencesPanel storage persistence', () => {
 describe('PreferencesPanel workspace backup', () => {
 	afterEach(cleanup);
 
-	test('keeps a failed automatic backup visible while its controls are collapsed', () => {
+	test('keeps a failed automatic backup visible while its controls are collapsed', async () => {
 		const { controller } = createTestWorkbench({
 			backup: backupController({ supported: true, status: 'failed' })
 		});
-		const { container } = render(PreferencesPanel, { controller });
+		const { container } = await render(PreferencesPanel, { controller });
 		expect(container.querySelector('details')!.open).toBe(false);
 		expect(screen.getByText('The last automatic backup failed.')).toBeVisible();
 	});
@@ -374,7 +374,7 @@ describe('PreferencesPanel workspace backup', () => {
 		const backup = backupController({ supported: false, status: 'idle' });
 		const exportLog: Array<{ text: string; filename: string }> = [];
 		const { controller } = createTestWorkbench({ backup, exportLog });
-		renderExpanded(controller);
+		await renderExpanded(controller);
 
 		await userEvent.click(await screen.findByRole('button', { name: 'Download backup' }));
 
@@ -392,7 +392,7 @@ describe('PreferencesPanel workspace backup', () => {
 			status: 'idle'
 		});
 		const { controller } = createTestWorkbench({ backup });
-		renderExpanded(controller);
+		await renderExpanded(controller);
 
 		expect(await screen.findByText(/choose “Allow on every visit”/u)).toBeTruthy();
 		await fireEvent.click(screen.getByRole('button', { name: 'Allow backup access' }));
@@ -403,7 +403,7 @@ describe('PreferencesPanel workspace backup', () => {
 	test('imports immediately without a destructive confirmation', async () => {
 		const backup = backupController({ supported: false, status: 'idle' });
 		const { controller } = createTestWorkbench({ backup });
-		const { container } = renderExpanded(controller);
+		const { container } = await renderExpanded(controller);
 		const file = new File(['{}'], 'July backup.json', { type: 'application/json' });
 		const input = container.querySelector<HTMLInputElement>('input[type="file"]');
 		expect(input).toBeTruthy();

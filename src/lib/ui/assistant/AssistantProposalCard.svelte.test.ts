@@ -39,9 +39,9 @@ function assistantStub(): AssistantState {
 afterEach(cleanup);
 
 describe('an assistant proposal card', () => {
-	test('renders deletion, insertion, and muted context as a wrapping non-control diff', () => {
+	test('renders deletion, insertion, and muted context as a wrapping non-control diff', async () => {
 		const assistant = assistantStub();
-		const { container } = render(AssistantProposalCard, {
+		const { container } = await render(AssistantProposalCard, {
 			proposal: proposal(),
 			assistant,
 			decidable: true
@@ -64,10 +64,10 @@ describe('an assistant proposal card', () => {
 		);
 	});
 
-	test('names a proposal that will stay in only the addressed section', () => {
+	test('names a proposal that will stay in only the addressed section', async () => {
 		const assistant = assistantStub();
 		const local = { ...proposal(), applyTo: 'this_section_only' as const };
-		const { container } = render(AssistantProposalCard, {
+		const { container } = await render(AssistantProposalCard, {
 			proposal: local,
 			assistant,
 			decidable: true
@@ -83,7 +83,7 @@ describe('an assistant proposal card', () => {
 		const backgroundEmpty = vi.fn();
 		const releaseBackground = acquirePreview(backgroundShow, backgroundEmpty);
 		const assistant = assistantStub();
-		const view = render(AssistantProposalCard, {
+		const view = await render(AssistantProposalCard, {
 			proposal: proposal(),
 			assistant,
 			decidable: true
@@ -96,7 +96,7 @@ describe('an assistant proposal card', () => {
 		expect(backgroundShow).toHaveBeenCalledTimes(2);
 
 		await fireEvent.pointerEnter(card);
-		view.unmount();
+		await view.unmount();
 		expect(backgroundShow).toHaveBeenCalledTimes(3);
 
 		releaseBackground();
@@ -105,7 +105,7 @@ describe('an assistant proposal card', () => {
 
 	test('clears the editor when it is the last preview owner', async () => {
 		const assistant = assistantStub();
-		const { container } = render(AssistantProposalCard, {
+		const { container } = await render(AssistantProposalCard, {
 			proposal: proposal(),
 			assistant,
 			decidable: true
@@ -119,7 +119,7 @@ describe('an assistant proposal card', () => {
 
 	test('approve and reject call the store, and outcomes replace both controls', async () => {
 		const assistant = assistantStub();
-		const view = render(AssistantProposalCard, {
+		const view = await render(AssistantProposalCard, {
 			proposal: proposal(),
 			assistant,
 			decidable: true
@@ -141,9 +141,9 @@ describe('an assistant proposal card', () => {
 		expect(within(view.container).queryByRole('button', { name: 'Approve' })).toBeNull();
 	});
 
-	test('an unresolvable proposal states why and offers no approval', () => {
+	test('an unresolvable proposal states why and offers no approval', async () => {
 		const assistant = assistantStub();
-		const { container } = render(AssistantProposalCard, {
+		const { container } = await render(AssistantProposalCard, {
 			proposal: proposal('failed', 'ambiguous'),
 			assistant,
 			decidable: true
@@ -161,7 +161,7 @@ describe('an assistant proposal card', () => {
 		// them. `pendingProposal` refuses without a live session, so Approve here
 		// would be a control that silently does nothing.
 		const assistant = assistantStub();
-		const { container } = render(AssistantProposalCard, {
+		const { container } = await render(AssistantProposalCard, {
 			proposal: proposal(),
 			assistant,
 			decidable: false

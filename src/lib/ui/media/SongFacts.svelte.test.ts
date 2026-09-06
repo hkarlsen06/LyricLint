@@ -76,7 +76,7 @@ describe('creditSegments', () => {
 describe('SongFacts', () => {
 	it('copies one writer at a time, and the rest of a value whole', async () => {
 		const { copied } = stubClipboard();
-		render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+		await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
 
 		await page.getByRole('button', { name: 'Copy Thor-Erik Claussen' }).click();
 		await page.getByRole('button', { name: 'Copy RCA Records Label' }).click();
@@ -94,7 +94,7 @@ describe('SongFacts', () => {
 	 * own punctuation and nothing else.
 	 */
 	it('draws the credit line with the string’s own separators and no others', async () => {
-		const { container } = render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+		const { container } = await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
 
 		const writers = [...container.querySelectorAll('dd')].find((value) =>
 			value.textContent?.includes('Kristofer Strandberg')
@@ -121,7 +121,7 @@ describe('SongFacts', () => {
 	 */
 	it('confirms a copy in the name it took, without moving anything', async () => {
 		stubClipboard();
-		render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+		await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
 
 		const first = page.getByRole('button', { name: 'Copy Petter Bjørklund Kristiansen' }).element();
 		const second = page.getByRole('button', { name: 'Copy Kristofer Strandberg' }).element();
@@ -144,7 +144,7 @@ describe('SongFacts', () => {
 	it('says nothing when the clipboard refuses', async () => {
 		const { refuse } = stubClipboard();
 		refuse();
-		const { container } = render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+		const { container } = await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
 
 		const label = page.getByRole('button', { name: 'Copy RCA Records Label' }).element();
 		const resting = getComputedStyle(label).color;
@@ -157,7 +157,7 @@ describe('SongFacts', () => {
 	// The date keeps its machine-readable form, and the press is still the value.
 	it('keeps the release date a <time>', async () => {
 		const { copied } = stubClipboard();
-		const { container } = render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+		const { container } = await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
 
 		expect(container.querySelector('time')?.getAttribute('datetime')).toBe('2025-06-11');
 		await page.getByRole('button', { name: 'Copy 2025-06-11' }).click();

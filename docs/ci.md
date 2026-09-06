@@ -29,6 +29,18 @@ WebKit, so it calls `bun run test:browsers`, the same installation script as the
 complete local test chain. Neither browser coverage nor a test is removed to
 reduce CI time.
 
+## Vitest 5 browser compatibility
+
+The browser suite disables the runner UI because its scaled iframe places some
+component controls under the runner's resize divider, intercepting native clicks.
+Tests still use Playwright and the same desktop and phone browser instances.
+
+`browserKitDefines` in `vite.config.ts` decodes SvelteKit's JSON literals in
+Vitest's browser runtime globals while preserving Vite's compile-time expressions.
+Vitest 5 otherwise assigns encoded strings directly: the empty base path becomes
+quote characters and the `false` hash-routing flag becomes truthy. The existing
+navigation assertions exercise the correct URLs.
+
 ## Measurements
 
 The last completed baseline run inspected before this change was

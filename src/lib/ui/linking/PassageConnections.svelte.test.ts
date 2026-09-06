@@ -25,7 +25,7 @@ describe('passage connection review', () => {
 		const connectionsFor = vi.fn(() => connections);
 		const onReconnect = vi.fn();
 		const onNavigate = vi.fn();
-		const view = render(PassageConnections, {
+		const view = await render(PassageConnections, {
 			connectionsFor,
 			nameFor,
 			documentText,
@@ -55,7 +55,7 @@ describe('passage connection review', () => {
 	it('omits whitespace-only snippets and navigates trimmed previews to the first visible lyric', async () => {
 		const onNavigate = vi.fn();
 		const text = '[Intro]\n\n  i et badekar  \n';
-		const view = render(PassageConnections, {
+		const view = await render(PassageConnections, {
 			connectionsFor: () => [
 				{ text: '\n  i et badekar  \n', from: 8, headers: [0, 20], added: true },
 				{ text: '\n ', from: 7, headers: [0, 20], added: false }
@@ -76,7 +76,7 @@ describe('passage connection review', () => {
 
 	it('discloses added empty and whitespace connections before reconnecting them', async () => {
 		const onNavigate = vi.fn();
-		const view = render(PassageConnections, {
+		const view = await render(PassageConnections, {
 			connectionsFor: () => [
 				{ text: '', from: 8, headers: [0, 20], added: true },
 				{ text: '\n ', from: 7, headers: [0, 20], added: true }
@@ -97,7 +97,7 @@ describe('passage connection review', () => {
 
 	it('shows Unicode word context around a partial connection while highlighting only the added letters', async () => {
 		const text = '[Intro]\ni et badekar og blåbær';
-		const view = render(PassageConnections, {
+		const view = await render(PassageConnections, {
 			connectionsFor: () => [
 				{ text: 'r', from: text.indexOf('badekar') + 6, headers: [0, 20], added: true },
 				{ text: 'å', from: text.indexOf('blåbær') + 2, headers: [0, 20], added: true }
@@ -118,7 +118,7 @@ describe('passage connection review', () => {
 	});
 
 	it('does not offer reconnect when only existing connections are available', async () => {
-		const view = render(PassageConnections, {
+		const view = await render(PassageConnections, {
 			connectionsFor: () => connections.filter((connection) => !connection.added),
 			nameFor,
 			documentText,
@@ -133,7 +133,7 @@ describe('passage connection review', () => {
 	it.each([320, 640])(
 		'opens below its stationary disclosure and wraps long names and snippets at %ipx',
 		async (width) => {
-			const view = render(PassageConnections, {
+			const view = await render(PassageConnections, {
 				connectionsFor: () => [
 					{
 						...connections[1]!,
@@ -179,7 +179,7 @@ const occurrences: LinkOccurrence[] = [
 describe('connection review in linking detail', () => {
 	it('applies refresh through the existing choice callback and clears review when membership changes', async () => {
 		const onApply = vi.fn();
-		const view = render(LinkingDetail, {
+		const view = await render(LinkingDetail, {
 			occurrences,
 			currentHeaderFrom: 0,
 			initialSelected: [20],
@@ -206,7 +206,7 @@ describe('connection review in linking detail', () => {
 	});
 
 	it('retires connection review before opening wording decisions', async () => {
-		const view = render(LinkingDetail, {
+		const view = await render(LinkingDetail, {
 			occurrences,
 			currentHeaderFrom: 0,
 			initialSelected: [20],

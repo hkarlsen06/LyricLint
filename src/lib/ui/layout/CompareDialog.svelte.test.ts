@@ -19,15 +19,15 @@ async function pasteBaseline(text: string): Promise<void> {
 describe('CompareDialog', () => {
 	afterEach(cleanup);
 
-	test('the trigger does not draw over an empty document', () => {
+	test('the trigger does not draw over an empty document', async () => {
 		const { controller } = createTestWorkbench({ text: '' });
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		expect(screen.queryByRole('button', { name: 'Compare' })).toBeNull();
 	});
 
 	test('the first open asks for the page, and the action waits for a paste', async () => {
 		const { controller } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 
 		const area = screen.getByRole('textbox', { name: 'The lyrics as the page has them' });
@@ -42,7 +42,7 @@ describe('CompareDialog', () => {
 
 	test('a pasted baseline becomes a character diff with the line numbered per row', async () => {
 		const { controller } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
@@ -62,7 +62,7 @@ describe('CompareDialog', () => {
 
 	test('pressing a changed line closes the dialog and parks the caret on it, focused', async () => {
 		const { controller, calls } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
@@ -81,7 +81,7 @@ describe('CompareDialog', () => {
 
 	test('a tap resolves to the character under it, not the start of the line', async () => {
 		const { controller, calls } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
@@ -101,7 +101,7 @@ describe('CompareDialog', () => {
 
 	test('a tap on deleted text lands at the boundary its deletion left behind', async () => {
 		const { controller, calls } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
@@ -119,7 +119,7 @@ describe('CompareDialog', () => {
 
 	test('a context row is a press too, parking the caret on the unchanged line', async () => {
 		const { controller, calls } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
@@ -130,7 +130,7 @@ describe('CompareDialog', () => {
 
 	test('the baseline is kept, so reopening shows the diff at once', async () => {
 		const { controller } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
@@ -143,7 +143,7 @@ describe('CompareDialog', () => {
 
 	test('the baseline is written to the draft record, so it survives a reload', async () => {
 		const { controller, repository } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
@@ -158,7 +158,7 @@ describe('CompareDialog', () => {
 
 	test('the diff states the baseline age, and a stale one carries the nudge', async () => {
 		const { controller } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
@@ -170,7 +170,7 @@ describe('CompareDialog', () => {
 
 	test('line endings and the trailing newline a select-all drags along are not differences', async () => {
 		const { controller } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\r\nLine\r\n');
 
@@ -180,7 +180,7 @@ describe('CompareDialog', () => {
 
 	test('Change baseline swaps to the ask in place, and Cancel returns to the diff', async () => {
 		const { controller } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nLyne');
 
@@ -193,7 +193,7 @@ describe('CompareDialog', () => {
 
 	test('an invisible-only change is carried by a sentence, not by the rows alone', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nHello world' });
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('[Verse]\nHello world ');
 
@@ -207,7 +207,7 @@ describe('CompareDialog', () => {
 		// baseline was already stored, and the press after it stored the
 		// emptied paste area as the baseline.
 		const { controller } = createTestWorkbench({ text: 'c\na\n' });
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await pasteBaseline('a\nb\n\na');
 
@@ -224,7 +224,7 @@ describe('CompareDialog', () => {
 
 	test('a press on the backdrop closes the dialog', async () => {
 		const { controller } = createTestWorkbench();
-		render(CompareDialog, { controller });
+		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		await fireEvent.click(openDialog());
 		expect(openDialog().open).toBe(false);

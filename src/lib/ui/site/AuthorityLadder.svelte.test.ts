@@ -12,7 +12,7 @@ function ladder() {
 }
 
 describe('AuthorityLadder', () => {
-	it('draws four steps at every tier, filled to the tier the sources establish', () => {
+	it('draws four steps at every tier, filled to the tier the sources establish', async () => {
 		const filled = {
 			staff: 4,
 			editorial: 3,
@@ -22,27 +22,27 @@ describe('AuthorityLadder', () => {
 		} satisfies Record<GuidanceAuthority, number>;
 		for (const [authority, met] of Object.entries(filled)) {
 			document.body.innerHTML = '';
-			render(AuthorityLadder, { authority: authority as GuidanceAuthority });
+			await render(AuthorityLadder, { authority: authority as GuidanceAuthority });
 			expect(ladder(), authority).toEqual({ total: 4, met });
 		}
 	});
 
-	it('a LyricLint advisory holds the bottom step, level with community guidance', () => {
+	it('a LyricLint advisory holds the bottom step, level with community guidance', async () => {
 		// One filled bar, not zero and not a missing ladder: our own preference
 		// ranks with unreviewed community writing, and a row with no ladder at
 		// all would read as a different kind of fact rather than as the lowest
 		// rung of the same one.
-		render(AuthorityLadder, { authority: 'lyriclint' });
+		await render(AuthorityLadder, { authority: 'lyriclint' });
 		expect(ladder()).toEqual({ total: 4, met: 1 });
 	});
 
-	it('is hidden from assistive technology — the tier label beside it is the fact', () => {
-		render(AuthorityLadder, { authority: 'staff' });
+	it('is hidden from assistive technology — the tier label beside it is the fact', async () => {
+		await render(AuthorityLadder, { authority: 'staff' });
 		expect(document.querySelector('.site-ladder')?.getAttribute('aria-hidden')).toBe('true');
 	});
 
-	it('separates a met step from an unmet one by fill, not by opacity', () => {
-		render(AuthorityLadder, { authority: 'editorial' });
+	it('separates a met step from an unmet one by fill, not by opacity', async () => {
+		await render(AuthorityLadder, { authority: 'editorial' });
 		const steps = [...document.querySelectorAll<HTMLElement>('.site-ladder__step')];
 		const met = getComputedStyle(steps[0]!);
 		const unmet = getComputedStyle(steps[3]!);

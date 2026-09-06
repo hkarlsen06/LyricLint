@@ -13,14 +13,14 @@ beforeEach(async () => {
 
 afterEach(async () => {
 	await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
-	cleanup();
+	await cleanup();
 	if (viewportDescriptor) Object.defineProperty(window, 'visualViewport', viewportDescriptor);
 	await page.viewport(800, 600);
 });
 
-function mount(text = '[Verse]\nImma go\nImma stay') {
+async function mount(text = '[Verse]\nImma go\nImma stay') {
 	const { controller } = createTestWorkbench({ text });
-	render(Workspace, {
+	await render(Workspace, {
 		controller,
 		editorComponent: MockEditorPane,
 		harperProvider: { lint: async () => [], dispose: async () => {} }
@@ -30,7 +30,7 @@ function mount(text = '[Verse]\nImma go\nImma stay') {
 
 test('phone review opens one decision, releases it on return, and retains the editor', async () => {
 	await page.viewport(390, 844);
-	mount();
+	await mount();
 	const editor = screen.getByTestId('editor-region');
 	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
 	expect(editor.getBoundingClientRect().height).toBeGreaterThan(600);
@@ -62,7 +62,7 @@ test('the keyboard gives its space to writing and restores navigation only after
 		removeEventListener: events.removeEventListener.bind(events)
 	};
 	Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport });
-	mount();
+	await mount();
 	viewport.height = 420;
 	viewport.offsetTop = 30;
 	events.dispatchEvent(new Event('resize'));
@@ -83,7 +83,7 @@ test('the keyboard gives its space to writing and restores navigation only after
 
 test('fixing the last mobile finding returns focus to the visible Review control', async () => {
 	await page.viewport(390, 844);
-	mount('[Verse]\nImma go');
+	await mount('[Verse]\nImma go');
 	const review = within(screen.getByRole('navigation', { name: 'Workbench views' })).getByRole(
 		'button',
 		{ name: /^Review/ }
@@ -99,7 +99,7 @@ test('fixing the last mobile finding returns focus to the visible Review control
 
 test('revealing an ignored finding opens its lyrics without restoring it or focusing typing', async () => {
 	await page.viewport(390, 844);
-	const controller = mount();
+	const controller = await mount();
 	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
 	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
 	await fireEvent.click(screen.getAllByRole('button', { name: /^Go to / })[0]);

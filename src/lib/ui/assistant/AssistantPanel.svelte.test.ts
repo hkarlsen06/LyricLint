@@ -92,7 +92,7 @@ function declaredMarginTop(selector: string): string | undefined {
 }
 
 afterEach(async () => {
-	cleanup();
+	await cleanup();
 	if (window.matchMedia('(pointer: coarse)').matches) {
 		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: false });
 	}
@@ -104,7 +104,7 @@ describe('the assistant panel', () => {
 		'preserves refused questions submitted through %s',
 		async (method) => {
 			const { assistant, send } = panelAssistant();
-			render(AssistantPanel, { assistant });
+			await render(AssistantPanel, { assistant });
 			const composer = screen.getByRole('textbox', {
 				name: 'Your question'
 			}) as HTMLTextAreaElement;
@@ -122,7 +122,7 @@ describe('the assistant panel', () => {
 
 	test('keeps an overlong question editable and discloses how to send it', async () => {
 		const { assistant, send } = panelAssistant();
-		render(AssistantPanel, { assistant });
+		await render(AssistantPanel, { assistant });
 		const composer = screen.getByRole('textbox', { name: 'Your question' }) as HTMLTextAreaElement;
 		const question = '🎤'.repeat(2001);
 		await fireEvent.input(composer, { target: { value: question } });
@@ -137,7 +137,7 @@ describe('the assistant panel', () => {
 
 	test('Enter commits an IME composition without sending the question', async () => {
 		const { assistant, send } = panelAssistant();
-		render(AssistantPanel, { assistant });
+		await render(AssistantPanel, { assistant });
 		const composer = screen.getByRole('textbox', { name: 'Your question' }) as HTMLTextAreaElement;
 		await fireEvent.input(composer, { target: { value: 'この歌詞' } });
 		const event = new KeyboardEvent('keydown', {
@@ -152,9 +152,9 @@ describe('the assistant panel', () => {
 		expect(send).not.toHaveBeenCalled();
 	});
 
-	test('fills the pane, pins the composer at its foot, and carries both chat controls', () => {
+	test('fills the pane, pins the composer at its foot, and carries both chat controls', async () => {
 		const { assistant } = panelAssistant();
-		const { container } = render(AssistantPanel, { assistant });
+		const { container } = await render(AssistantPanel, { assistant });
 		const panel = container.querySelector<HTMLElement>('.assistant-panel')!;
 		const conversation = container.querySelector<HTMLElement>('.assistant-conversation')!;
 		const foot = container.querySelector<HTMLElement>('.assistant-conversation__foot')!;
@@ -181,7 +181,7 @@ describe('the assistant panel', () => {
 		expect(window.matchMedia('(pointer: fine)').matches).toBe(true);
 		await page.viewport(320, 844);
 		const { assistant } = panelAssistant();
-		render(AssistantPanel, { assistant });
+		await render(AssistantPanel, { assistant });
 		const textarea = screen.getByRole('textbox', { name: 'Your question' }) as HTMLTextAreaElement;
 		await frames();
 		expect(textarea.style.height).toBe('');
@@ -197,7 +197,7 @@ describe('the assistant panel', () => {
 
 	test('keeps the conversations popover inside the narrow panel', async () => {
 		const { assistant } = panelAssistant();
-		const { container } = render(AssistantPanel, { assistant });
+		const { container } = await render(AssistantPanel, { assistant });
 		const panel = container.querySelector<HTMLElement>('.assistant-panel')!;
 		panel.style.width = '21rem';
 		panel.style.overflow = 'hidden';
@@ -223,7 +223,7 @@ describe('the assistant panel', () => {
 	 */
 	test('opens a stored transcript at its foot and follows an answer as it arrives', async () => {
 		const { assistant } = panelAssistant(undefined, transcriptOf(20));
-		const { container } = render(AssistantPanel, { assistant });
+		const { container } = await render(AssistantPanel, { assistant });
 		container.querySelector<HTMLElement>('.assistant-panel')!.style.height = '320px';
 		const transcript = container.querySelector<HTMLElement>('.assistant-transcript')!;
 		await frames();
@@ -241,7 +241,7 @@ describe('the assistant panel', () => {
 
 	test('leaves a reader who has scrolled up alone until they ask something', async () => {
 		const { assistant, send } = panelAssistant(undefined, transcriptOf(20));
-		const { container } = render(AssistantPanel, { assistant });
+		const { container } = await render(AssistantPanel, { assistant });
 		container.querySelector<HTMLElement>('.assistant-panel')!.style.height = '320px';
 		const transcript = container.querySelector<HTMLElement>('.assistant-transcript')!;
 		await frames();
@@ -278,7 +278,7 @@ describe('the assistant panel', () => {
 			assistantMessageId: 'message-0',
 			phase: 'awaiting-review'
 		});
-		const { container } = render(AssistantPanel, { assistant });
+		const { container } = await render(AssistantPanel, { assistant });
 		const composer = container.querySelector<HTMLTextAreaElement>('#assistant-question')!;
 
 		await fireEvent.input(composer, { target: { value: 'And what about a pre-chorus?' } });
@@ -294,14 +294,14 @@ describe('the assistant panel', () => {
 
 	test('shows the revoke control only for a stored decision', async () => {
 		const undecided = panelAssistant();
-		const first = render(AssistantPanel, { assistant: undecided.assistant });
+		const first = await render(AssistantPanel, { assistant: undecided.assistant });
 		expect(
 			within(first.container).queryByRole('button', { name: /sharing this 'scribe/i })
 		).toBeNull();
-		first.unmount();
+		await first.unmount();
 
 		const granted = panelAssistant('granted');
-		const second = render(AssistantPanel, { assistant: granted.assistant });
+		const second = await render(AssistantPanel, { assistant: granted.assistant });
 		const revoke = within(second.container).getByRole('button', {
 			name: "Stop sharing this 'scribe"
 		});
@@ -309,10 +309,10 @@ describe('the assistant panel', () => {
 		expect(revoke.classList).toContain('button--flush');
 		await fireEvent.click(revoke);
 		expect(granted.revokeDraftAccess).toHaveBeenCalledOnce();
-		second.unmount();
+		await second.unmount();
 
 		const denied = panelAssistant('denied');
-		const third = render(AssistantPanel, { assistant: denied.assistant });
+		const third = await render(AssistantPanel, { assistant: denied.assistant });
 		expect(
 			within(third.container).getByRole('button', {
 				name: "Ask again before sharing this 'scribe"
@@ -323,7 +323,7 @@ describe('the assistant panel', () => {
 		await cdp().send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
 		await page.viewport(320, 844);
 		const { assistant } = panelAssistant();
-		const { container } = render(AssistantPanel, { assistant });
+		const { container } = await render(AssistantPanel, { assistant });
 		const panel = container.querySelector<HTMLElement>('.assistant-panel')!;
 		panel.style.width = '320px';
 		panel.style.height = '600px';
@@ -379,7 +379,7 @@ describe('stored assistant answer recovery', () => {
 			};
 			const { assistant } = panelAssistant(undefined, [message]);
 			assistant.retry = vi.fn(async () => undefined);
-			const { container } = render(AssistantPanel, { assistant });
+			const { container } = await render(AssistantPanel, { assistant });
 			const view = within(container);
 			if (content.trim()) {
 				expect(view.getByText(content)).not.toBeNull();

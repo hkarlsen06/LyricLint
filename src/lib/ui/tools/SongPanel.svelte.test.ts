@@ -17,9 +17,9 @@ import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 describe('SongPanel skimmability', () => {
 	afterEach(cleanup);
 
-	test('leaves only song-scoped sections here, with portable and project exports', () => {
+	test('leaves only song-scoped sections here, with portable and project exports', async () => {
 		const { controller } = createTestWorkbench();
-		const { container } = render(SongPanel, { controller });
+		const { container } = await render(SongPanel, { controller });
 
 		// A locally named draft can search for its song before anything is attached.
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
@@ -47,9 +47,9 @@ describe('SongPanel skimmability', () => {
 		expect(screen.queryByRole('switch', { name: /Harper/u })).toBeNull();
 	});
 
-	test('says nothing about audio for a draft with none', () => {
+	test('says nothing about audio for a draft with none', async () => {
 		const { controller } = createTestWorkbench();
-		render(SongPanel, { controller });
+		await render(SongPanel, { controller });
 
 		expect(screen.queryByRole('button', { name: /audio/iu })).toBeNull();
 		expect(screen.queryByRole('button', { name: /YouTube/iu })).toBeNull();
@@ -69,7 +69,7 @@ describe('SongPanel skimmability', () => {
 			...createTestWorkbench().controller,
 			media: media as MediaStore
 		};
-		render(SongPanel, { controller });
+		await render(SongPanel, { controller });
 
 		await fireEvent.click(
 			screen.getByRole('button', {
@@ -98,9 +98,9 @@ describe('SongPanel document counts', () => {
 		);
 	}
 
-	test('pluralizes the counts, singular at one', () => {
+	test('pluralizes the counts, singular at one', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		const { container } = render(SongPanel, { controller });
+		const { container } = await render(SongPanel, { controller });
 
 		expect(documentSection(container)?.textContent).toContain('1 line · 1 section');
 		expect(documentSection(container)?.textContent).not.toContain('1 lines');
@@ -110,12 +110,12 @@ describe('SongPanel document counts', () => {
 	// The counts are one run of facts with interpuncts between them, exactly as
 	// a diagnostic's meta line is — the performer count joins the run rather
 	// than sitting in a spaced-apart group of its own.
-	test('joins the performer count into the one interpunct run', () => {
+	test('joins the performer count into the one interpunct run', async () => {
 		const { controller } = createTestWorkbench({
 			text: '[Verse]\nA lyric',
 			performers: [performer('p1', 'Ari', 0)]
 		});
-		const { container } = render(SongPanel, { controller });
+		const { container } = await render(SongPanel, { controller });
 
 		expect(documentSection(container)?.textContent).toContain('1 line · 1 section · 1 performer');
 	});
@@ -126,9 +126,9 @@ describe('SongPanel document counts', () => {
 	// offset-keyed, so three identical choruses counted three — which is a
 	// number nobody could read anything from. Re-adding it is the specific
 	// regression.
-	test('omits a count until it has something to report', () => {
+	test('omits a count until it has something to report', async () => {
 		const { controller } = createTestWorkbench({ text: '[Verse]\nA lyric' });
-		const { container } = render(SongPanel, { controller });
+		const { container } = await render(SongPanel, { controller });
 
 		const text = documentSection(container)?.textContent ?? '';
 		expect(text).not.toContain('0 performers');
@@ -141,18 +141,18 @@ describe('SongPanel document counts', () => {
 	// distinction rather than counting rows. A lone `[?]` is the exception the
 	// parser makes: it wears the header's brackets but stands where a line
 	// nobody could make out was sung, so it counts as the lyric it marks.
-	test('counts only lyric lines', () => {
+	test('counts only lyric lines', async () => {
 		const { controller } = createTestWorkbench({
 			text: '[Verse 1]\nOne\nTwo\n\n[Chorus]\nThree\n   \n[?]\n[Bridge'
 		});
-		const { container } = render(SongPanel, { controller });
+		const { container } = await render(SongPanel, { controller });
 
 		expect(documentSection(container)?.textContent).toContain('4 lines');
 	});
 
-	test('states no counts at all for an empty document', () => {
+	test('states no counts at all for an empty document', async () => {
 		const { controller } = createTestWorkbench({ text: '' });
-		const { container } = render(SongPanel, { controller });
+		const { container } = await render(SongPanel, { controller });
 
 		// Nothing counts anything, so nothing in the tab is a number — which is
 		// a stricter claim than naming the counts that went.
@@ -171,7 +171,7 @@ describe('SongPanel line timings', () => {
 
 	test('offers the draft’s line timings only while it has some, and clears them', async () => {
 		const { controller, calls } = createTestWorkbench();
-		const { container } = render(SongPanel, { controller });
+		const { container } = await render(SongPanel, { controller });
 
 		// Nothing timed: no `Timed lyrics` section, and no control offering to
 		// delete nothing.
@@ -235,8 +235,8 @@ describe('SongPanel song metadata', () => {
 		);
 	}
 
-	test('offers each control only where its own fact exists, and leads the tab', () => {
-		const { container } = render(SongPanel, {
+	test('offers each control only where its own fact exists, and leads the tab', async () => {
+		const { container } = await render(SongPanel, {
 			controller: withSong({
 				artwork: 'https://i.scdn.co/image/640',
 				songDetails: { isrc: 'USUG11500642' }
@@ -273,7 +273,7 @@ describe('SongPanel song metadata', () => {
 		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as Clipboard);
 
 		const controller = withSong({ artwork: 'https://i.scdn.co/image/640' });
-		render(SongPanel, { controller });
+		await render(SongPanel, { controller });
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Copy image URL' }));
 		await waitFor(() => expect(copied).toEqual(['https://i.scdn.co/image/640']));
@@ -288,7 +288,7 @@ describe('SongPanel song metadata', () => {
 		};
 		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as Clipboard);
 
-		render(SongPanel, {
+		await render(SongPanel, {
 			controller: withSong({ videoId: 'dQw4w9WgXcQ', artwork: 'https://i.ytimg.com/vi/x/hq.jpg' })
 		});
 
@@ -297,8 +297,8 @@ describe('SongPanel song metadata', () => {
 		await waitFor(() => expect(copied).toEqual(['https://www.youtube.com/watch?v=dQw4w9WgXcQ']));
 	});
 
-	test('draws no list for a source that knows only the artist and title', () => {
-		const { container } = render(SongPanel, {
+	test('draws no list for a source that knows only the artist and title', async () => {
+		const { container } = await render(SongPanel, {
 			controller: withSong({ songDetails: { artist: 'Mul', title: 'Sensommer' } })
 		});
 
@@ -307,9 +307,9 @@ describe('SongPanel song metadata', () => {
 		expect(screen.getByRole('link', { name: 'Search YouTube' })).toBeTruthy();
 	});
 
-	test('draws nothing for an untitled draft with no song facts or media', () => {
+	test('draws nothing for an untitled draft with no song facts or media', async () => {
 		const controller = { ...withSong({}), title: DEFAULT_DRAFT_TITLE } as WorkbenchController;
-		const { container } = render(SongPanel, { controller });
+		const { container } = await render(SongPanel, { controller });
 
 		expect(headings(container)).not.toContain('Song metadata');
 		expect(screen.queryByRole('link', { name: 'Search YouTube' })).toBeNull();
@@ -318,8 +318,8 @@ describe('SongPanel song metadata', () => {
 		expect(screen.queryByRole('button', { name: 'Copy YouTube link' })).toBeNull();
 	});
 
-	test('lists only the facts the catalogue actually carried', () => {
-		const { container } = render(SongPanel, {
+	test('lists only the facts the catalogue actually carried', async () => {
+		const { container } = await render(SongPanel, {
 			controller: withSong({
 				songDetails: {
 					releaseDate: '2015-03-23',
@@ -347,8 +347,8 @@ describe('SongPanel song metadata', () => {
 	 * without putting space between them, so the first value long enough to wrap
 	 * came back flush against its own term and read as one word.
 	 */
-	test('keeps a long value clear of its term, in a column with the others', () => {
-		const { container } = render(SongPanel, {
+	test('keeps a long value clear of its term, in a column with the others', async () => {
+		const { container } = await render(SongPanel, {
 			controller: withSong({
 				songDetails: {
 					releaseDate: '2026-03-20',
@@ -389,7 +389,7 @@ describe('current line timing controls', () => {
 			{ line: 3, time: 20 }
 		];
 		controller.onLineAnchorsChanged();
-		const { container } = render(SongPanel, { controller });
+		const { container } = await render(SongPanel, { controller });
 		container.style.width = '300px';
 		const field = screen.getByRole('spinbutton', { name: 'Time in seconds' }) as HTMLInputElement;
 		const row = field.parentElement!.getBoundingClientRect();
@@ -417,7 +417,7 @@ describe('Genius page link', () => {
 		'stores, opens, and clears a link without shifting content at %ipx',
 		async (width) => {
 			const { controller } = createTestWorkbench({ text: '' });
-			const { container } = render(SongPanel, { controller });
+			const { container } = await render(SongPanel, { controller });
 			container.style.width = `${width}px`;
 			const field = screen.getByRole('textbox', { name: 'Genius page link' }) as HTMLInputElement;
 			const document = screen.getByRole('heading', { name: 'Document' });

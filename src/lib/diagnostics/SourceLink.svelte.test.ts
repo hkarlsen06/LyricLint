@@ -20,7 +20,7 @@ describe('the block form of a citation', () => {
 		// The external-link glyph is aria-hidden and the favicon's alt is empty, so
 		// this note is the whole of what tells a screen reader the link leaves the
 		// page — the convention every external link on the site pages follows.
-		const screen = render(SourceLink, { source: SOURCE });
+		const screen = await render(SourceLink, { source: SOURCE });
 
 		const link = screen.container.querySelector('.source-reference a')!;
 		expect(link.getAttribute('target')).toBe('_blank');
@@ -32,15 +32,15 @@ describe('the block form of a citation', () => {
 		// Said to a screen reader only: the block goes on reading as the title, the
 		// verified date, and the section.
 		expect(link.querySelector('.sr-only')?.className).toContain('sr-only');
-		screen.unmount();
+		await screen.unmount();
 	});
 
-	it('is not a link at all when the citation has no web address', () => {
+	it('is not a link at all when the citation has no web address', async () => {
 		// Nothing to open, so nothing claims to open a tab.
-		const screen = render(SourceLink, { source: { ...SOURCE, url: 'G-LINES' } });
+		const screen = await render(SourceLink, { source: { ...SOURCE, url: 'G-LINES' } });
 
 		expect(screen.container.querySelector('.source-reference a')).toBeNull();
 		expect(screen.container.textContent).not.toContain('opens in a new tab');
-		screen.unmount();
+		await screen.unmount();
 	});
 });
