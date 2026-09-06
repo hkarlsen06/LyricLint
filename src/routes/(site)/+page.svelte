@@ -4,6 +4,7 @@
 	import { BookOpen, Check } from 'lucide-svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
+	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';
 	import { authorityLabels, type GuidanceAuthority } from '$lib/guidance/guidance.js';
 	import { maintainerStructuredData, siteUrl } from '$lib/seo.js';
 	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
@@ -139,7 +140,7 @@
 		author: maintainerStructuredData,
 		applicationCategory: 'UtilitiesApplication',
 		operatingSystem: 'Any',
-		browserRequirements: 'Requires a desktop or laptop web browser',
+		browserRequirements: 'Requires a modern web browser',
 		offers: {
 			'@type': 'Offer',
 			price: 0,
@@ -276,7 +277,7 @@ You said we'd drive until the radio gave out (yeah)`;
 				</a>
 			</div>
 
-			<!-- The quiet line under the buttons: the way to the Guidelines, which
+			<!-- The quiet line under the buttons: the way to the transcription guide, which
 			     gave the Discord invite its old slot above, and the repository.
 			     The privacy claim has a section of its own below and the footer of
 			     every page carries it. -->
@@ -285,7 +286,7 @@ You said we'd drive until the radio gave out (yeah)`;
 					<!-- The mark names the destination the way the octocat names
 					     GitHub: the guide is a book, in the link's own ink. -->
 					<BookOpen aria-hidden="true" size={14} strokeWidth={2.25} />
-					<span>Go to the Guidelines</span>
+					<span>Read the transcription guide</span>
 				</a>
 				<span class="site-meta__fact">
 					<span class="site-meta__separator" aria-hidden="true">·</span>
@@ -507,30 +508,32 @@ You said we'd drive until the radio gave out (yeah)`;
 	<section class="lp-section">
 		<div class="lp-container lp-split">
 			<div class="lp-panel">
-				<div class="lp-panel__head">Linter</div>
-				<div class="lp-finding">
-					<span class="lp-finding__message">Write this section header as [Verse 1].</span>
-					<span class="lp-finding__meta">
-						<span class="lp-finding__severity" aria-hidden="true">&#9888;</span>
-						<span>Warning</span>
-						<span class="lp-finding__separator" aria-hidden="true">·</span>
-						<span>Line 1</span>
-						<span class="lp-finding__separator" aria-hidden="true">·</span>
-						<a href="{resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/"
-							>How to Add Songs to Genius</a
-						>
-					</span>
-				</div>
-				<div class="lp-finding">
-					<span class="lp-finding__message">Capitalize this parenthesized ad-lib.</span>
-					<span class="lp-finding__meta">
-						<span class="lp-finding__severity" aria-hidden="true">&#9432;</span>
-						<span>Suggestion</span>
-						<span class="lp-finding__separator" aria-hidden="true">·</span>
-						<span>Line 3</span>
-						<span class="lp-finding__separator" aria-hidden="true">·</span>
-						<a href="{resolve('/(site)/guidelines/[topic]', { topic: 'ad-libs' })}/">Ad-libs</a>
-					</span>
+				<div class="lp-panel__head">Review</div>
+				<div class="lp-finding-list">
+					<div class="lp-finding">
+						<span class="lp-finding__message">Write this section header as [Verse 1].</span>
+						<div class="diagnostic-meta">
+							<span class="diagnostic-meta__row">
+								<SeverityTag severity="warning" labelled={false} />
+								<span>Line 1</span>
+								<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
+								<a href="{resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/"
+									>How to Add Songs to Genius</a
+								>
+							</span>
+						</div>
+					</div>
+					<div class="lp-finding">
+						<span class="lp-finding__message">Capitalize this parenthesized ad-lib.</span>
+						<div class="diagnostic-meta">
+							<span class="diagnostic-meta__row">
+								<SeverityTag severity="suggestion" labelled={false} />
+								<span>Line 3</span>
+								<span class="diagnostic-meta__separator" aria-hidden="true">·</span>
+								<a href="{resolve('/(site)/guidelines/[topic]', { topic: 'ad-libs' })}/">Ad-libs</a>
+							</span>
+						</div>
+					</div>
 				</div>
 			</div>
 
@@ -611,7 +614,7 @@ You said we'd drive until the radio gave out (yeah)`;
 	<section class="lp-section">
 		<div class="lp-container lp-split">
 			<div class="lp-panel">
-				<div class="lp-panel__head">Guidelines</div>
+				<div class="lp-panel__head">Transcription guide</div>
 				{#each guidelines as entry (entry.key)}
 					<div class="lp-guideline">
 						<span class="lp-guideline__title">{entry.title}</span>
@@ -646,7 +649,7 @@ You said we'd drive until the radio gave out (yeah)`;
 			</div>
 
 			<div class="lp-split__copy">
-				<h2>The transcription guidelines in one place.</h2>
+				<h2>The transcription guide in one place.</h2>
 				<p class="lp-prose">
 					Genius guidance is spread across staff guides, accepted annotations, and forum rulings. We
 					bring it together in {guidanceCount} reviewed entries across {guidanceTopicCount} topics. Each
@@ -660,8 +663,8 @@ You said we'd drive until the radio gave out (yeah)`;
 					the guide.
 				</p>
 				<p class="lp-prose">
-					<a href={resolve('/guidelines/')}>Go to the Guidelines</a>. You can read them without
-					opening the workbench.
+					<a href={resolve('/guidelines/')}>Open the transcription guide</a>. You can read it
+					without opening the workbench.
 				</p>
 			</div>
 		</div>
