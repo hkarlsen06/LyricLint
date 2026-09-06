@@ -6,12 +6,10 @@
 		DiagnosticFix,
 		EditorSnapshot,
 		LanguagePack,
-		LinkDifference,
 		PerformerId,
 		StyleSlot,
 		TextRange
 	} from '$lib/core/types.js';
-	import { lineNumberAt } from '$lib/core/line-numbers.js';
 	import {
 		resolveLegendAssignment,
 		type LegendAssignmentResolution
@@ -37,14 +35,12 @@
 		beginLegendAssignment,
 		cachedAnchorRect,
 		cancelPerformerPicker,
-		cancelSectionLinkPicker,
 		closeOverlay,
 		closedOverlaySession,
 		dismissDiagnostic,
 		finishPerformerAssignment,
 		forgetDismissedSelection,
 		openPerformerPicker,
-		openSectionLinkPicker,
 		openSectionPicker,
 		overlayRange,
 		releaseUnanchoredDiagnostic,
@@ -54,10 +50,8 @@
 	} from './overlay-state.js';
 	import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
 	import PerformerPicker from './overlays/PerformerPicker.svelte';
-	import SectionLinkPicker from './overlays/SectionLinkPicker.svelte';
 	import SectionPicker from './overlays/SectionPicker.svelte';
 	import type { SectionHeaderNeighbors } from './overlays/section-picker.js';
-	import { linkOccurrences, type LinkOccurrence } from './section-links.js';
 
 	/** What `createPerformerEdit` takes, read off the contract rather than restated here. */
 	type PerformerChoice = Parameters<NonNullable<LyricEditorCallbacks['createPerformerEdit']>>[0];
@@ -107,7 +101,7 @@
 
 	/**
 	 * Which side of a measured rect has room, for a card no reported selection
-	 * anchor describes — the `Mod-Shift-L` path opens on a bare caret. The same
+	 * anchor describes, such as a diagnostic opened from the keyboard. The same
 	 * comparison `selectionAnchorForView` makes, so a card that opens from the
 	 * pointer and one that opens from the keyboard land on the same side.
 	 */
@@ -124,7 +118,6 @@
 	// the overlay's own callbacks fire from.
 	const performerOverlay = $derived(overlay.kind === 'performer' ? overlay : undefined);
 	const sectionOverlay = $derived(overlay.kind === 'section' ? overlay : undefined);
-	const linkOverlay = $derived(overlay.kind === 'link' ? overlay : undefined);
 	const diagnosticOverlay = $derived(overlay.kind === 'diagnostic' ? overlay : undefined);
 	const legend = $derived(performerOverlay?.legend);
 	const pendingVoice = $derived(performerOverlay?.pendingVoice);
@@ -386,22 +379,10 @@
 				session = openSectionPicker(session, request.range);
 				callbacks.onSectionHeaderRequest(request);
 			},
-			// Not forwarded: linking is one document edit repeated, so there is
-			// nothing here for the shell to arbitrate. `request.range` is the
-			// header itself, which the keyboard command resolved from the caret.
-			//
-			// No origin means aimed: `Mod-Shift-L` and the diagnostic's guided
-			// action are both presses that meant only this. Only the `⇄` marker
-			// names one, because only it opens the card two ways.
+			// Linking is a persistent shell workspace, opened only by an explicit request.
 			onSectionLinkRequest(request, origin) {
-				linkTrigger = origin?.returnFocus;
-				session = openSectionLinkPicker(
-					session,
-					request.range,
-					request.range.from,
-					origin?.takesFocus ?? true,
-					request.selection
-				);
+				session = closeOverlay(session);
+				callbacks.onSectionLinkRequest?.(request, origin);
 			},
 			// Every caller of this one is a pointer: the hovered underline and the
 			// cluster badge. It shows the card where the text already is; the shell
@@ -428,28 +409,6 @@
 	function returnFocus(): void {
 		editor?.handle.focus();
 	}
-
-	/** What the `⇄` marker that opened the link card hands the focus back to. */
-	let linkTrigger = $state.raw<(() => boolean) | undefined>();
-
-	/**
-	 * Where the focus goes when the link card closes without arming an edit.
-	 *
-	 * A card the pointer opened uninvited never took the caret, so it has none to
-	 * give back — the same rule dismissing a hovered diagnostic follows. One that
-	 * was asked for returns it to whatever asked: the marker, which promises a
-	 * dialog and therefore promises the way back out of one, or the document,
-	 * which is where both keyboard paths were standing.
-	 */
-	const returnFocusFromLink = $derived(
-		linkOverlay?.takesFocus
-			? () => {
-					if (!linkTrigger?.()) {
-						returnFocus();
-					}
-				}
-			: () => {}
-	);
 
 	function bumpScrollTick(): void {
 		scrollTick += 1;
@@ -581,100 +540,6 @@
 			);
 		}
 		session = finishPerformerAssignment(session, { kind: 'range', range, performerIds: [] });
-	}
-
-	/**
-	 * Every discovered copy, read from the editor's own snapshot rather than from
-	 * `context.parsed` — the shell's parse lands a beat behind the document, and a
-	 * list of sections that is one keystroke stale would offer offsets the link is
-	 * written against. Stored peers are included before similarity is considered.
-	 */
-	function sectionsToLink(headerFrom: number): LinkOccurrence[] {
-		const parsed = editor?.handle.getSnapshot().parsed;
-		if (!parsed) {
-			return [];
-		}
-		const currentLine = lineNumberAt(parsed.text, headerFrom);
-		const group = (editor?.handle.getSectionLinks?.() ?? []).find((link) =>
-			link.lines.includes(currentLine)
-		);
-		const includeHeaderOffsets = group
-			? parsed.sections.flatMap((section) =>
-					section.header && group.lines.includes(lineNumberAt(parsed.text, section.header.from))
-						? [section.header.from]
-						: []
-				)
-			: [];
-		return linkOccurrences(parsed, fallbackLanguagePack, headerFrom, { includeHeaderOffsets });
-	}
-
-	/** The sections already tied to this one, so the card opens on the truth. */
-	function linkedPeers(headerFrom: number, occurrences: readonly LinkOccurrence[]): number[] {
-		const currentLine = occurrences.find(
-			(occurrence) => occurrence.headerFrom === headerFrom
-		)?.line;
-		if (currentLine === undefined) {
-			return [];
-		}
-		const group = (editor?.handle.getSectionLinks?.() ?? []).find((link) =>
-			link.lines.includes(currentLine)
-		);
-		return group
-			? occurrences
-					.filter(
-						(occurrence) =>
-							occurrence.headerFrom !== headerFrom && group.lines.includes(occurrence.line)
-					)
-					.map((occurrence) => occurrence.headerFrom)
-			: [];
-	}
-
-	/**
-	 * What the group of these headers would disagree on.
-	 *
-	 * Asked of the editor on every tick rather than computed once, because a set
-	 * that is not yet a group has no stored shape — what two unlinked choruses
-	 * differ on is worked out from the words, and ticking a third changes the
-	 * answer.
-	 */
-	function linkDifferences(headerOffsets: number[]): LinkDifference[] {
-		return editor?.handle.getLinkDifferences?.(headerOffsets) ?? [];
-	}
-
-	function applySectionLink(choice: {
-		headers: number[];
-		keepDifferent: boolean[];
-		makeDifferent?: TextRange;
-		replaceFrom?: number;
-		replaceFromByDifference?: readonly (number | undefined)[];
-	}): void {
-		const closing = choice.keepDifferent.filter((kept) => !kept).length;
-		editor?.handle.linkSections?.(choice);
-		// Linking writes nothing on its own, so saying it "overwrote" the others
-		// would be false; what a screen reader needs is how many copies are now in
-		// step and how much of them is deliberately not.
-		const kept =
-			choice.keepDifferent.filter((keep) => keep).length + (choice.makeDifferent ? 1 : 0);
-		callbacks.onAnnouncement(
-			choice.headers.length > 1
-				? `${choice.headers.length} sections linked${kept > 0 ? `, keeping ${kept} difference${kept === 1 ? '' : 's'}` : ''}${closing > 0 ? `, ${closing} made to agree` : ''}. Edits to shared words update the linked sections; preserved differences stay local.`
-				: 'Section unlinked.'
-		);
-		session = closeOverlay(session);
-	}
-
-	function beginTypeOnlyHere(headerFrom: number): boolean {
-		const turningOff = editor?.handle.isTypeOnlyHere?.(headerFrom) ?? false;
-		if (!editor?.handle.typeOnlyHere?.(headerFrom)) {
-			callbacks.onAnnouncement('This section is no longer linked.');
-			return turningOff;
-		}
-		callbacks.onAnnouncement(
-			turningOff
-				? 'Editing only this section turned off. Future edits to shared words will update the linked sections.'
-				: 'Editing only this section. Changes anywhere in it stay here until you turn this off.'
-		);
-		return !turningOff;
 	}
 
 	function existingHeaders(): string[] {
@@ -946,31 +811,6 @@
 				: undefined}
 		/>
 	{/key}
-{:else if linkOverlay}
-	{@const occurrences = sectionsToLink(linkOverlay.headerFrom)}
-	{@const typeOnlyHereAvailable = editor?.handle.canTypeOnlyHere?.(linkOverlay.headerFrom) ?? false}
-	{@const typeOnlyHereActive = editor?.handle.isTypeOnlyHere?.(linkOverlay.headerFrom) ?? false}
-	<SectionLinkPicker
-		{occurrences}
-		currentHeaderFrom={linkOverlay.headerFrom}
-		initialSelected={linkedPeers(linkOverlay.headerFrom, occurrences)}
-		differencesFor={linkDifferences}
-		pendingSelection={linkOverlay.selection}
-		pendingSelectionText={linkOverlay.selection
-			? editor?.handle
-					.getSnapshot()
-					.text.slice(linkOverlay.selection.from, linkOverlay.selection.to)
-			: undefined}
-		{typeOnlyHereAvailable}
-		{typeOnlyHereActive}
-		takesFocus={linkOverlay.takesFocus}
-		anchor={overlayAnchor}
-		placement={overlayPlacement}
-		onApply={applySectionLink}
-		onTypeOnlyHere={() => beginTypeOnlyHere(linkOverlay.headerFrom)}
-		onCancel={() => (session = cancelSectionLinkPicker(session))}
-		returnFocus={returnFocusFromLink}
-	/>
 {:else if sectionOverlay}
 	<SectionPicker
 		languagePack={fallbackLanguagePack}

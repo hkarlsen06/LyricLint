@@ -29,7 +29,7 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   transparent; the active or expanded finding takes `--color-surface`, rounded corners,
   and `--shadow-raised` in both schemes. No accent wash or ring. The panel and controls
   above it use `--color-chrome`. `RightPanel.svelte.test.ts` pins the treatment.
-- Desktop tools have an icon and visible name: Review, Assistant (when available), Performers,
+- Desktop tools have an icon and visible name: Review, Linking, Assistant (when available), Performers,
   Song, Preferences. At `78rem` the dock runs vertically along the outside edge; below
   it runs horizontally. Bits UI orientation follows the same query so arrow keys follow
   the visible order. `.right-panel__content` owns the body, media, and footer independently
@@ -92,6 +92,27 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   `import.meta.env.DEV`, and is pinned empty in `vite.config.ts` for the suite.
 
 ## Decision record
+
+### Linking opens an overview before a comparison
+
+Linking is a named dock tab between Review and Assistant. It uses the ordinary panel scroll port
+and is a tool under the existing phone Tools view. Its overview lists available repeats and stored
+groups; a deliberate Set up link or Manage action opens membership selection, with optional difference review.
+Each overview group is a connected vertical list of members with aligned line numbers, followed
+by its state and action. A group entry carries no implied source section; explicit editor requests
+do. Quick linking preserves differences by default. Review differences expands a read-only numbered
+comparison below the action row, with clickable lyric-line gutters. Decisions follow the diff:
+preserve and link, enable individual wording choices, or choose one full version. The replacement
+controls are progressively revealed; the comparison itself never requires choosing an approach first.
+The full interaction and preserved-difference rules live in `section-links.md`.
+
+Editor link markers and diagnostic actions forward through the existing callback proxy into the
+workspace. The workspace selects Linking, restores collapsed panels, enters Tools on phones, and
+focuses the detail heading. Hover and caret movement cannot change the tab. The tab is a URL state
+(`?panel=linking`) with no error-count badge: kept differences are valid transcription decisions.
+
+Pins: `RightPanel.svelte.test.ts`, `panel-url.test.ts`, `e2e/linking.spec.ts`, and
+`e2e/mobile-workbench.spec.ts`.
 
 ### Phone task navigation owns the available space
 
@@ -628,14 +649,12 @@ flow these keys serve is replay-and-restamp of the line being worked on. None of
 the gutter's accessibility posture: the rail is still `aria-hidden` all the way down, and the
 box it feeds is `aria-hidden` too.
 
-**A control with no twin names nothing.** `Manage linking` and the `⇄` marker both open the link
-picker, and neither has a keystroke to claim — `Mod-Shift-L` belongs to `Type only here` — so
-neither carries `aria-keyshortcuts` or a box that would only repeat the label. The marker also
-refuses the box for a second reason: a hover there is already serving `HoverIntent` toward
-opening the card itself, and a tooltip racing the surface it names would lose to it or cover it.
-`Mod-Shift-L` itself is taught where it is answered — the `Type only here` button's own tooltip,
-and one sentence in the picker's linked-state note, because a reader looking at an already-linked
-group is exactly who wants words of their own in one copy.
+**A control with no twin claims no shortcut.** Manage linking and the `⇄` marker both open
+the Linking panel, while `Mod-Shift-L` belongs to Edit this section only. The visible Manage linking
+label needs no duplicate tooltip. The glyph does need its name: now that hovering no longer opens
+a popover, it uses the shared imperative hint on hover and focus, without a native `title` or an
+invented shortcut. Its hint is released on leave, blur, activation, or removal.
+`Mod-Shift-L` is taught on the panel's switch, where it is also answered.
 
 **What this deliberately does not do is nudge.** A behavioral tip — "you have pressed this five
 times, try `⌘.`" — was considered and refused: touch users have no keyboard, keyboard users
@@ -647,10 +666,10 @@ has no keyboard.
 Implementation: the imperative pair in `control-tooltip.svelte.ts`, the row in
 `DiagnosticActions.svelte`, the delegated hovers in `extensions/line-anchors.ts` (spread into
 `lineNumbers` in `create-editor.ts`), the reconnect control in `MediaStrip.svelte`, and the note
-in `SectionLinkPicker.svelte`. The pins are `diagnostic-parity.svelte.test.ts` (the row's twins,
+in `LinkingDetail.svelte`. The pins are `diagnostic-parity.svelte.test.ts` (the row's twins,
 leading fix only), `line-anchoring.svelte.test.ts` (the cells, the numbers, the absence of
 titles), `MediaStrip.svelte.test.ts` (the reconnect's `Esc`), and
-`section-links.svelte.test.ts` (the picker's sentence).
+`LinkingDetail.svelte.test.ts` (the switch and its shortcut).
 
 ### The empty document is one message, not three
 

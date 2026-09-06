@@ -11,7 +11,7 @@ import {
 import { germanLanguagePack } from '$lib/languages/de.js';
 import { norwegianLanguagePack } from '$lib/languages/no.js';
 import { englishLanguagePack } from '$lib/languages/en.js';
-import ControlTooltip from '$lib/ui/primitives/ControlTooltip.svelte';
+import { shownControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
 import {
@@ -284,6 +284,10 @@ describe('linking sections that do not agree throughout', () => {
 		const differences = handle.getLinkDifferences?.(headers) ?? [];
 		expect(differences).toHaveLength(1);
 		expect(differences[0]?.wordings.map((wording) => wording.text)).toEqual(['tonight', 'again']);
+		expect(differences[0]?.wordings.map((wording) => wording.from)).toEqual([
+			REPEAT.indexOf('tonight'),
+			REPEAT.indexOf('again')
+		]);
 	});
 
 	// The line they share is kept in step, which is the half that makes linking
@@ -865,71 +869,8 @@ describe('typing only in one linked copy', () => {
 
 		const caret = SAME.indexOf('tight') + 'tight'.length;
 		handle.setSelection({ anchor: caret, head: caret });
-		render(ControlTooltip, { props: {} });
-		handle.requestSectionLink?.();
-
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		const typeOnlyHereButton = page.getByRole('switch', { name: /Edit this section only/ });
-		await expect.element(typeOnlyHereButton).toBeVisible();
-		await expect
-			.element(typeOnlyHereButton)
-			.toHaveAttribute('aria-keyshortcuts', 'Control+Shift+L');
-		await expect.element(page.getByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
-		const typeOnlyElement = typeOnlyHereButton.element();
-		const localExplanation = page.getByText(
-			'Off: edits to shared words update every linked section.'
-		);
-		const localGroup = typeOnlyElement.closest('.type-only-here-action');
-		expect(localGroup?.contains(localExplanation.element())).toBe(true);
-		// Ruled off from the linking above it — a separator, not a box. Spatial
-		// grouping alone shipped first and read as one run of grey: three muted
-		// paragraphs stack above this block, and the one that belongs to the
-		// button was indistinguishable from the two that belong to the linking.
-		const groupStyle = getComputedStyle(localGroup as Element);
-		expect(groupStyle.borderTopWidth).toBe('1px');
-		expect(groupStyle.borderTopStyle).toBe('solid');
-		expect(groupStyle.borderTopColor).not.toBe('rgba(0, 0, 0, 0)');
-		const linkedStatus = page.getByText('These 2 sections are linked.');
-		// The linked state's note teaches the type-only-here chord, because a
-		// reader looking at an already-linked group is exactly who wants words of
-		// their own in one copy.
-		expect(linkedStatus.element().textContent).toContain(
-			'Press Ctrl+Shift+L to toggle whether edits stay in this section.'
-		);
-		const statusRect = linkedStatus.element().getBoundingClientRect();
-		const explanationRect = localExplanation.element().getBoundingClientRect();
-		const actionRect = typeOnlyElement.getBoundingClientRect();
-		// The clarifying line is the button's caption, under it — read above the
-		// control it joined the run of linking notes it hung directly beneath —
-		// and the pair is tighter within itself than to the linking above the rule.
-		expect(explanationRect.top).toBeGreaterThanOrEqual(actionRect.bottom);
-		expect(explanationRect.top - actionRect.bottom).toBeLessThan(
-			actionRect.top - statusRect.bottom
-		);
-		expect(typeOnlyElement.querySelector('.apply__key')).toBeNull();
-		expect(typeOnlyElement.getAttribute('aria-checked')).toBe('false');
-		typeOnlyElement.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }));
-		await expect
-			.poll(() => document.querySelector('.control-tooltip')?.textContent)
-			.toContain('Edit this section only');
-		const shortcut = navigator.platform.toLocaleLowerCase().includes('mac')
-			? '⇧⌘L'
-			: 'Ctrl+Shift+L';
-		expect(document.querySelector('.control-tooltip kbd')?.textContent).toBe(shortcut);
-		typeOnlyElement.dispatchEvent(new PointerEvent('pointerleave', { bubbles: false }));
-		await expect.element(localExplanation).toBeVisible();
-
-		typeOnlyElement.focus();
-		await userEvent.keyboard('{Control>}{Shift>}l{/Shift}{/Control}');
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await expect.element(typeOnlyHereButton).toHaveAttribute('aria-checked', 'true');
-		await expect
-			.element(page.getByText('On: changes anywhere in this section stay here.'))
-			.toBeVisible();
-		await userEvent.keyboard('{Escape}');
-		await expect
-			.element(page.getByRole('dialog', { name: 'Link this chorus' }))
-			.not.toBeInTheDocument();
+		expect(handle.typeOnlyHere?.(offsetOf(SAME, '[Chorus]'))).toBe(true);
+		handle.focus();
 		const sectionOnlyStatus = document.querySelector('.ll-section-only-status');
 		expect(sectionOnlyStatus?.textContent).toBe('Editing this section only');
 		expect(getComputedStyle(sectionOnlyStatus!).marginInlineStart).not.toBe('0px');
@@ -949,7 +890,6 @@ describe('typing only in one linked copy', () => {
 		);
 		handle.setSelection({ anchor: caret, head: caret });
 		dangerProbe.remove();
-		expect(announcements.at(-1)).toContain('Changes anywhere in it stay here');
 
 		await userEvent.keyboard('er');
 		const typed = handle.getSnapshot().text;
@@ -975,15 +915,12 @@ describe('typing only in one linked copy', () => {
 		handle.setSelection({ anchor: sharedCaret, head: sharedCaret });
 		// The mode belongs to the section, not the caret or the first local run.
 		expect(document.querySelector('.ll-section-only-status')).not.toBeNull();
-		handle.requestSectionLink?.();
-		await expect
-			.element(page.getByRole('switch', { name: /Edit this section only/ }))
-			.toBeVisible();
-		await expect
-			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
-			.toBeChecked();
-		await expect.element(page.getByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
-		await userEvent.keyboard('{Escape}');
+		expect(handle.isTypeOnlyHere?.(offsetOf(typed, '[Chorus]'))).toBe(true);
+		expect(
+			handle
+				.getLinkDifferences?.([offsetOf(typed, '[Chorus]'), offsetOf(typed, '[Chorus 2]')])?.[0]
+				?.wordings.map((wording) => wording.text)
+		).toEqual(['er', '']);
 
 		// The local words and the exception that kept them local are one history
 		// event. A half-undo would leave the next edit with the wrong scope.
@@ -1010,7 +947,6 @@ describe('typing only in one linked copy', () => {
 		expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
 			'Editing this section only'
 		);
-		expect(announcements.at(-1)).toContain('Changes anywhere in it stay here');
 		await userEvent.keyboard('er');
 		const typed = handle.getSnapshot().text;
 		expect(typed).toContain('[Chorus]\nHold on tighter');
@@ -1125,58 +1061,13 @@ describe('typing only in one linked copy', () => {
 		const from = SAME.indexOf('tight');
 		handle.setSelection({ anchor: from, head: from + 'tight'.length });
 		expect(handle.canTypeOnlyHere?.(header)).toBe(true);
-		handle.requestSectionLink?.();
-		await expect
-			.element(page.getByRole('switch', { name: /Edit this section only/ }))
-			.toBeVisible();
-		await expect.element(page.getByRole('button', { name: /Leave out/ })).not.toBeInTheDocument();
-		await page.getByRole('switch', { name: /Edit this section only/ }).click();
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await expect
-			.element(page.getByRole('switch', { name: /Edit this section only/ }))
-			.toHaveAttribute('aria-checked', 'true');
-		await userEvent.keyboard('{Escape}');
+		expect(handle.typeOnlyHere?.(header)).toBe(true);
+		handle.focus();
 		await userEvent.keyboard('close');
 
 		const typed = handle.getSnapshot().text;
 		expect(typed).toContain('[Chorus]\nHold on close');
 		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
-	});
-
-	// The card matches the physical key as well as the character, because a
-	// modifier can change what `key` reports — the trap that once left the
-	// card's own shortcut dead on the platform its tooltip was written for.
-	it('answers its own shortcut by physical key when the layout rewrites the character', async () => {
-		const handle = await mount(SAME);
-		const header = offsetOf(SAME, '[Chorus]');
-		handle.linkSections?.({ headers: [header, offsetOf(SAME, '[Chorus 2]')] });
-		await new Promise((resolve) => setTimeout(resolve, 600));
-
-		const caret = SAME.indexOf('tight') + 'tight'.length;
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-		await expect
-			.element(page.getByRole('switch', { name: /Edit this section only/ }))
-			.toBeVisible();
-
-		document.activeElement?.dispatchEvent(
-			new KeyboardEvent('keydown', {
-				code: 'KeyL',
-				key: 'Λ',
-				ctrlKey: true,
-				shiftKey: true,
-				bubbles: true,
-				cancelable: true
-			})
-		);
-
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await expect
-			.element(page.getByRole('switch', { name: /Edit this section only/ }))
-			.toHaveAttribute('aria-checked', 'true');
-		expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
-			'Editing this section only'
-		);
 	});
 
 	it('lets Escape cancel before the next edit', async () => {
@@ -1238,11 +1129,8 @@ describe('typing only in one linked copy', () => {
 			handle.setSelection({ anchor: caret, head: caret });
 
 			expect(handle.canTypeOnlyHere?.(header)).toBe(true);
-			handle.requestSectionLink?.();
-			await expect
-				.element(page.getByRole('switch', { name: /Edit this section only/ }))
-				.toBeVisible();
-			await userEvent.keyboard('{Escape}');
+			expect(handle.typeOnlyHere?.(header)).toBe(true);
+			expect(handle.isTypeOnlyHere?.(header)).toBe(true);
 		});
 
 		it('toggles the whole section without changing an existing empty run', async () => {
@@ -1305,7 +1193,7 @@ describe('typing only in one linked copy', () => {
 	});
 });
 
-describe('the link card', () => {
+describe('opening Linking from the editor', () => {
 	it('uses the related diagnostic occurrence that opened linking as this section', async () => {
 		const song = [
 			'[Pre-Chorus]',
@@ -1326,10 +1214,11 @@ describe('the link card', () => {
 			sourceIds: [],
 			relatedRanges: [{ from: relatedFrom, to: relatedFrom + '[Pre-Chorus 2]'.length }]
 		};
+		const onSectionLinkRequest = vi.fn();
 		await mount(
 			song,
 			englishLanguagePack,
-			{},
+			{ onSectionLinkRequest },
 			{
 				diagnostics: { revision: 0, items: [diagnostic] }
 			}
@@ -1342,488 +1231,115 @@ describe('the link card', () => {
 		await userEvent.hover(relatedUnderline!);
 		await page.getByRole('button', { name: 'Manage linking' }).click();
 
-		await expect.element(page.getByRole('dialog', { name: 'Link this pre-chorus' })).toBeVisible();
-		await expect.element(page.getByText('This section · line 27')).toBeVisible();
-		await expect.element(page.getByText('Same lyrics · line 1')).toBeVisible();
-	});
-
-	// The marker serves the editor's one hover wait, like the severity underline
-	// and the count badge. Opening on the bare `pointerenter` meant a mouse
-	// crossing the document dragged a card open behind every linked header it
-	// passed over. This runs first in the block deliberately: a real pointer
-	// parked on a marker by an earlier test would open one for us.
-	it('opens nothing for a pointer that only passes over the mark', async () => {
-		const handle = await mount(SONG);
-		handle.linkSections?.({
-			headers: [offsetOf(SONG, '[Chorus]'), offsetOf(SONG, '[Chorus 2]')]
-		});
-		const marker = document.querySelector<HTMLElement>('.ll-section-link-marker');
-		expect(marker).not.toBeNull();
-
-		marker!.dispatchEvent(new PointerEvent('pointerenter', { bubbles: false }));
-		marker!.dispatchEvent(new PointerEvent('pointerleave', { bubbles: false }));
-		await new Promise((resolve) => setTimeout(resolve, 200));
-
+		expect(onSectionLinkRequest).toHaveBeenCalledWith(
+			{
+				range: { from: relatedFrom, to: relatedFrom + '[Pre-Chorus 2]'.length },
+				prefer: 'above'
+			},
+			undefined
+		);
 		expect(document.querySelector('[role="dialog"]')).toBeNull();
 	});
 
-	it('opens the link picker when a linked-section mark is hovered', async () => {
-		const handle = await mount(SONG);
-		handle.linkSections?.({
-			headers: [offsetOf(SONG, '[Chorus]'), offsetOf(SONG, '[Chorus 2]')]
-		});
-		const marker = document.querySelector<HTMLElement>('.ll-section-link-marker');
-		expect(marker).not.toBeNull();
-		const caret = offsetOf(SONG, 'Fading now') + 'Fading'.length;
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.focus();
-
-		await userEvent.hover(marker!);
-
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await expect.element(page.getByText('This section · line 4')).toBeVisible();
-
-		// A card nobody asked for leaves the caret where it was. Taking it blurred
-		// the editor — the drawn caret goes with `.cm-focused` — and sent the next
-		// keystrokes into checkboxes, where Space toggles link membership.
-		expect(document.activeElement?.closest('.cm-content')).not.toBeNull();
-		expect(document.querySelector('.apply__key')).toBeNull();
-
-		await userEvent.keyboard('!');
-
-		expect(handle.getSnapshot().text).toContain('Fading! now');
-	});
-
-	// `aria-haspopup="dialog"` is a promise about a press, and it used to be kept
-	// for arriving instead: Tab reached the marker, the card took the focus,
-	// Escape handed it to the editor, and the next Tab was back on the same marker
-	// — a document with linked sections could not be traversed at all.
-	it('opens on a press rather than on arriving, and gives the focus back', async () => {
-		// The real pointer is wherever the last test left it, and a marker drawn
-		// under it opens a card for us before this one presses anything.
-		const corner = document.createElement('button');
-		corner.type = 'button';
-		corner.textContent = 'Elsewhere';
-		corner.style.cssText = 'position: fixed; right: 0; bottom: 0; z-index: 100;';
-		document.body.append(corner);
-		await userEvent.hover(corner);
-		corner.remove();
-
-		const handle = await mount(SONG);
-		handle.linkSections?.({
-			headers: [offsetOf(SONG, '[Chorus]'), offsetOf(SONG, '[Chorus 2]')]
-		});
-		const marker = document.querySelector<HTMLElement>('.ll-section-link-marker');
-		expect(marker).not.toBeNull();
-
-		marker!.focus();
-		await new Promise((resolve) => setTimeout(resolve, 200));
-
+	it('never opens Linking from hover, focus, or whole-header selection', async () => {
+		const onSectionLinkRequest = vi.fn();
+		const handle = await mount(SONG, englishLanguagePack, { onSectionLinkRequest });
+		const header = offsetOf(SONG, '[Chorus]');
+		handle.linkSections?.({ headers: [header, offsetOf(SONG, '[Chorus 2]')] });
+		const marker = document.querySelector<HTMLElement>('.ll-section-link-marker')!;
+		await userEvent.hover(marker);
+		marker.focus();
+		handle.setSelection({ anchor: header, head: header + '[Chorus]'.length });
+		await new Promise((resolve) => setTimeout(resolve, 600));
+		expect(onSectionLinkRequest).not.toHaveBeenCalled();
 		expect(document.querySelector('[role="dialog"]')).toBeNull();
-
-		await userEvent.keyboard('{Enter}');
-
-		const card = page.getByRole('dialog', { name: 'Link this chorus' });
-		await expect.element(card).toBeVisible();
-		expect(card.element().contains(document.activeElement)).toBe(true);
-		// It holds the focus, and the linked-state action is the explicit toggle.
-		await expect
-			.element(page.getByRole('switch', { name: /Edit this section only/ }))
-			.toHaveAttribute('aria-checked', 'false');
-		const switchElement = page.getByRole('switch', { name: /Edit this section only/ }).element();
-		for (let step = 0; step < 12 && document.activeElement !== switchElement; step += 1) {
-			await userEvent.keyboard('{Tab}');
-		}
-		expect(document.activeElement).toBe(switchElement);
-		// The document is unchanged: Enter on a control inside `.cm-content` is a
-		// press CodeMirror would otherwise spend on a line break.
 		expect(handle.getSnapshot().text).toBe(SONG);
-
-		await userEvent.keyboard('{Escape}');
-
-		await expect.element(card).not.toBeInTheDocument();
-		expect(document.activeElement).toBe(marker);
 	});
 
-	it('lists every occurrence, numbered, with the source named rather than offered', async () => {
+	it('names the marker through the shared hint and clears it when the gesture ends', async () => {
 		const handle = await mount(SONG);
-		const caret = offsetOf(SONG, 'Hold on tight');
+		const header = offsetOf(SONG, '[Chorus]');
+		handle.linkSections?.({ headers: [header, offsetOf(SONG, '[Chorus 2]')] });
+		const marker = document.querySelector<HTMLElement>('.ll-section-link-marker')!;
+		expect(marker.hasAttribute('title')).toBe(false);
+		expect(marker.hasAttribute('aria-keyshortcuts')).toBe(false);
+
+		marker.dispatchEvent(new PointerEvent('pointerenter'));
+		expect(shownControlHint()).toMatchObject({ label: 'Manage linking' });
+		expect(shownControlHint()?.shortcut).toBeUndefined();
+		marker.dispatchEvent(new PointerEvent('pointerleave'));
+		await expect.poll(shownControlHint).toBeUndefined();
+
+		marker.focus();
+		expect(shownControlHint()?.label).toBe('Manage linking');
+		marker.blur();
+		await expect.poll(shownControlHint).toBeUndefined();
+
+		marker.dispatchEvent(new PointerEvent('pointerenter'));
+		handle.linkSections?.({ headers: [header] });
+		await expect.poll(shownControlHint).toBeUndefined();
+		expect(marker.isConnected).toBe(false);
+	});
+
+	it.each(['click', 'Enter', 'Space'])(
+		'forwards a marker %s without editing the lyrics',
+		async (press) => {
+			// The previous pointer test may leave the mouse where this fresh marker
+			// will mount. Move it away so keyboard assertions have no later hover.
+			const elsewhere = document.createElement('button');
+			elsewhere.style.cssText = 'position: fixed; right: 0; bottom: 0;';
+			elsewhere.textContent = 'Elsewhere';
+			document.body.append(elsewhere);
+			await userEvent.hover(elsewhere);
+			elsewhere.remove();
+			const onSectionLinkRequest = vi.fn();
+			const handle = await mount(SONG, englishLanguagePack, { onSectionLinkRequest });
+			const header = offsetOf(SONG, '[Chorus]');
+			handle.linkSections?.({ headers: [header, offsetOf(SONG, '[Chorus 2]')] });
+			const marker = document.querySelector<HTMLElement>('.ll-section-link-marker')!;
+			if (press === 'click') {
+				await userEvent.click(marker);
+			} else {
+				marker.focus();
+				await userEvent.keyboard(press === 'Enter' ? '{Enter}' : ' ');
+			}
+			expect(onSectionLinkRequest).toHaveBeenCalledExactlyOnceWith(
+				{
+					range: { from: header, to: header + '[Chorus]'.length },
+					prefer: 'above'
+				},
+				expect.objectContaining({ takesFocus: true, returnFocus: expect.any(Function) })
+			);
+			expect(handle.getSnapshot().text).toBe(SONG);
+			expect(document.querySelector('[role="dialog"]')).toBeNull();
+			expect(marker.hasAttribute('aria-haspopup')).toBe(false);
+			await expect.poll(shownControlHint).toBeUndefined();
+		}
+	);
+
+	it('forwards an explicit request resolved from a lyric caret to its header', async () => {
+		const onSectionLinkRequest = vi.fn();
+		const handle = await mount(SONG, englishLanguagePack, { onSectionLinkRequest });
+		const caret = offsetOf(SONG, 'Hold on tigth');
+		const header = offsetOf(SONG, '[Chorus 2]');
 		handle.setSelection({ anchor: caret, head: caret });
 		handle.requestSectionLink?.();
-
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await expect.element(page.getByText('This section · line 4')).toBeVisible();
-		await expect.element(page.getByRole('checkbox', { name: /Chorus 2/ })).toBeVisible();
-		await expect.element(page.getByRole('checkbox', { name: /Chorus 3/ })).toBeVisible();
-		await expect.element(page.getByText('Differs · line 11')).toBeVisible();
-		await expect.element(page.getByText('Empty · line 15')).toBeVisible();
+		expect(onSectionLinkRequest).toHaveBeenCalledWith(
+			{
+				range: { from: header, to: header + '[Chorus 2]'.length },
+				prefer: 'above'
+			},
+			undefined
+		);
+		expect(document.querySelector('[role="dialog"]')).toBeNull();
 	});
 
-	it('offers a similarly worded section under its own different header name', async () => {
-		const text =
-			'[Intro]\nHold the line\nAnd wait for me\n\n[Verse]\nNothing alike\n\n[Chorus]\nHold the line\nAnd wait for now';
-		const handle = await mount(text);
-		const intro = offsetOf(text, '[Intro]');
-		handle.setSelection({ anchor: intro, head: intro });
-		handle.requestSectionLink?.();
-
-		await expect.element(page.getByRole('dialog', { name: 'Link this intro' })).toBeVisible();
-		const chorus = page.getByRole('checkbox', { name: /Chorus.*Similar lyrics/ });
-		await expect.element(chorus).toBeVisible();
-
-		await chorus.click();
-		await page.getByRole('button', { name: /Link 2 sections/ }).click();
-		expect(handle.getSectionLinks?.()).toHaveLength(1);
-		expect(handle.getSectionLinks?.()[0]?.lines).toEqual([1, 8]);
-	});
-
-	it('keeps a differently named existing peer in the picker after its lyrics diverge', async () => {
-		const text = '[Intro]\nOpen the door\n\n[Outro]\nGoodnight forever';
-		const handle = await mount(text);
-		const intro = offsetOf(text, '[Intro]');
-		const outro = offsetOf(text, '[Outro]');
-		handle.linkSections?.({ headers: [intro, outro] });
-		handle.setSelection({ anchor: intro, head: intro });
-		handle.requestSectionLink?.();
-
-		await expect.element(page.getByRole('dialog', { name: 'Link this intro' })).toBeVisible();
-		await expect.element(page.getByRole('checkbox', { name: /Outro/ })).toBeChecked();
-	});
-
-	// The card asks one thing at a time. Nothing is said about the words until
-	// some copies have been picked, because what they differ on is a question
-	// about a set the user has not chosen yet.
-	it('says nothing about the words until a peer is ticked', async () => {
+	it('uses a chosen populated peer as the replacement source', async () => {
 		const handle = await mount(REPEAT);
-		const caret = offsetOf(REPEAT, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-
-		const card = page.getByRole('dialog', { name: 'Link this chorus' });
-		await expect.element(card).toBeVisible();
-		await expect.element(card.getByText(/They differ in/)).not.toBeInTheDocument();
-		await expect
-			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
-			.not.toBeInTheDocument();
-	});
-
-	// A diff states its shared location once, then shows only the wording that
-	// varies. Repeating the shared line in every section row makes the reader
-	// compare text that is already known to agree.
-	it('shows the shared location once and only the differing wording in each row', async () => {
-		const handle = await mount(REPEAT);
-		const caret = offsetOf(REPEAT, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-
-		// Scoped to the card, because the document behind it holds these words too.
-		const card = page.getByRole('dialog', { name: 'Link this chorus' });
-		await expect.element(card.getByText('They differ in 1 place')).toBeVisible();
-		await expect.element(card.getByText('tonight', { exact: true })).toBeVisible();
-		await expect.element(card.getByText('again', { exact: true })).toBeVisible();
-		// The runs are marked, with their shared location stated once above them.
-		const runs = [...document.querySelectorAll('.compare__run')].map((run) => run.textContent);
-		expect(runs).toEqual(['tonight', 'again']);
-		const contexts = [...document.querySelectorAll('.compare__context')];
-		expect(contexts).toHaveLength(1);
-		expect(contexts[0]?.textContent).toContain('be there');
-	});
-
-	// A bare insertion caret is compact but cryptic in this vertical comparison;
-	// plain text says exactly what is absent.
-	it('says plainly when a copy has no words at a difference', async () => {
-		const handle = await mount(SONG);
-		const caret = offsetOf(SONG, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-
-		// Both, so the untyped copy is a difference to respect rather than the one
-		// thing the link would fill.
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
-
-		const empty = document.querySelector('.compare__empty');
-		expect(empty).not.toBeNull();
-		expect(empty?.textContent).toBe('No words here');
-	});
-
-	// The decision is a radio pair stating both outcomes, not a tick per
-	// difference whose polarity has to be worked out against the list above it.
-	it('states both outcomes as sentences, and keeps each version by default', async () => {
-		const handle = await mount(REPEAT);
-		const caret = offsetOf(REPEAT, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-
-		const keep = page.getByRole('radio', { name: 'Respect differences between them' });
-		await expect.element(keep).toBeChecked();
-		await expect
-			.element(page.getByRole('radio', { name: /Replace them with another section/ }))
-			.not.toBeChecked();
-
-		// Applying the default writes nothing, which is what the default says.
-		await page.getByRole('button', { name: /Link 2 sections/ }).click();
-		expect(handle.getSnapshot().text).toBe(REPEAT);
-	});
-
-	it('fills an empty copy without offering emptiness as a difference to preserve', async () => {
-		const handle = await mount(SONG);
-		const caret = offsetOf(SONG, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
-
-		await expect
-			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
-			.not.toBeInTheDocument();
-		await expect
-			.element(page.getByRole('radio', { name: /Replace them with another section/ }))
-			.not.toBeInTheDocument();
-		await expect
-			.element(page.getByRole('combobox', { name: /Which section/ }))
-			.not.toBeInTheDocument();
-
-		await page.getByRole('button', { name: /Link 2 sections/ }).click();
-		const filled = handle
-			.getSnapshot()
-			.parsed.sections.find((section) => section.header?.rawNamePart === 'Chorus 3');
-		expect(filled?.lines.map((line) => line.text)).toEqual(['Hold on tight', 'Never let go']);
-	});
-
-	// An ad-lib present in one copy and absent from the others is a hole inside a
-	// worded body, not an untyped copy asking to be filled. Reading it as a fill
-	// forced the ad-lib into every chorus with the respect option never drawn —
-	// and where in the line the hole sits decides nothing.
-	it('offers to respect an ad-lib hole in a worded copy rather than forcing the fill', async () => {
-		const ADLIB = [
-			'[Chorus]',
-			'Hold on <i>(Yeah)</i> tight',
-			'Never let go',
-			'',
-			'[Chorus 2]',
-			'Hold on tight',
-			'Never let go'
-		].join('\n');
-		const handle = await mount(ADLIB);
-		const caret = offsetOf(ADLIB, 'Never let go');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-
-		const keep = page.getByRole('radio', { name: 'Respect differences between them' });
-		await expect.element(keep).toBeChecked();
-
-		// Applying the default keeps the ad-lib where it was written and nowhere else.
-		await page.getByRole('button', { name: /Link 2 sections/ }).click();
-		expect(handle.getSnapshot().text).toBe(ADLIB);
-	});
-
-	it('replaces the other copies when that outcome is chosen', async () => {
-		const handle = await mount(REPEAT);
-		const caret = offsetOf(REPEAT, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-
-		await page.getByRole('radio', { name: /Replace them with another section/ }).click();
-		await page.getByRole('button', { name: /Link 2 sections/ }).click();
-
-		const matched = handle.getSnapshot().text;
-		expect(matched.split('And I will be there tonight')).toHaveLength(3);
-	});
-
-	// The diff answers "what would happen", not "what is there now". A row that is
-	// changing shows the words it loses struck through and the words it gains
-	// beside them — the editor's own fix-preview idiom. Colouring the row red said
-	// only that something was wrong with it.
-	it('shows what each copy would end up with once replacing is chosen', async () => {
-		const handle = await mount(REPEAT);
-		const caret = offsetOf(REPEAT, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-
-		// Keeping both, neither row is showing a change.
-		expect(document.querySelectorAll('.compare__drop, .compare__add')).toHaveLength(0);
-
-		await page.getByRole('radio', { name: /Replace them with another section/ }).click();
-		const words = (selector: string): (string | null)[] =>
-			[...document.querySelectorAll(selector)].map((node) => node.textContent);
-		expect(words('.compare__drop')).toEqual(['again']);
-		expect(words('.compare__add')).toEqual(['tonight']);
-
-		// And naming the other copy turns the diff around rather than leaving it
-		// describing an outcome nobody chose.
-		await page.getByRole('combobox', { name: /Which section/ }).selectOptions('Chorus 2');
-		expect(words('.compare__drop')).toEqual(['tonight']);
-		expect(words('.compare__add')).toEqual(['again']);
-	});
-
-	// Whose version wins is the user's to pick, not the card's. Hard-wired to the
-	// copy the card happened to be opened from, noticing that a *later* chorus has
-	// the wording worth keeping meant closing the card and opening it again from
-	// the right one.
-	it('replaces from whichever copy the dropdown names', async () => {
-		const handle = await mount(REPEAT);
-		const caret = offsetOf(REPEAT, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-
-		// Choosing a copy is choosing to replace, so the radio follows the dropdown.
-		const choice = page.getByRole('combobox', { name: /Which section/ });
-		await expect.element(choice).toBeVisible();
-		// Opening a native select is its mousedown default action. The picker keeps
-		// mouse presses from refocusing the editor, but must leave this gesture
-		// alone or the dropdown looks enabled and never opens.
-		const select = choice.element() as HTMLSelectElement;
-		expect(
-			select.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }))
-		).toBe(true);
-		await choice.selectOptions('Chorus 2');
-		await expect
-			.element(page.getByRole('radio', { name: /Replace them with another section/ }))
-			.toBeChecked();
-
-		await page.getByRole('button', { name: /Link 2 sections/ }).click();
-
-		// The second chorus's ending won, which is the opposite of the default.
-		const matched = handle.getSnapshot().text;
-		expect(matched.split('And I will be there again')).toHaveLength(3);
-		expect(matched).not.toContain('tonight');
-	});
-
-	it('lists identical copies as one replacement version', async () => {
-		const repeatedVersions = [
-			'[Chorus]',
-			'And I will be there tonight',
-			'',
-			'[Chorus 2]',
-			'And I will be there again',
-			'',
-			'[Chorus 3]',
-			'And I will be there tonight'
-		].join('\n');
-		const handle = await mount(repeatedVersions);
-		const caret = offsetOf(repeatedVersions, 'And I will be there tonight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
-		expect(
-			[...document.querySelectorAll('.compare__who')].map((version) => version.textContent)
-		).toEqual(['Chorus 1 & 3', 'Chorus 2']);
-		await expect.element(page.getByRole('option', { name: 'Chorus 1 & 3' })).toBeInTheDocument();
-		await expect.element(page.getByRole('option', { name: 'Chorus 2' })).toBeInTheDocument();
-		expect(document.querySelectorAll('.outcome__select option')).toHaveLength(2);
-	});
-
-	// Nothing to decide where there is nothing to decide about: the radio pair is
-	// a question about words that differ, so two copies that agree are not asked.
-	it('asks nothing about the words when the copies already agree', async () => {
-		const handle = await mount(SAME);
-		const caret = offsetOf(SAME, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-		await expect.element(page.getByRole('dialog', { name: 'Link this chorus' })).toBeVisible();
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-
-		await expect.element(page.getByText('These copies say the same thing.')).toBeVisible();
-		await expect
-			.element(page.getByRole('radio', { name: 'Respect differences between them' }))
-			.not.toBeInTheDocument();
-	});
-
-	// Opened on a group that is already complete there is no linking left to
-	// describe — every peer is in, and all the card offers is taking one out — so
-	// the note states the standing fact instead of narrating an unavailable action.
-	it('states the link rather than describing linking when the group is complete', async () => {
-		const handle = await mount(SONG);
-		handle.linkSections?.({
-			headers: [
-				offsetOf(SONG, '[Chorus]'),
-				offsetOf(SONG, '[Chorus 2]'),
-				offsetOf(SONG, '[Chorus 3]')
-			]
-		});
-		const caret = handle.getSnapshot().text.indexOf('[Chorus]');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-
-		await expect.element(page.getByText(/These 3 sections are linked/)).toBeVisible();
-		await expect
-			.element(page.getByText('Linked sections stay in step as you edit them.'))
-			.not.toBeInTheDocument();
-	});
-
-	// Partially linked is still an offer to link, so the sentence about what
-	// linking does is the right one — and unticking a row inside a complete group
-	// must not swap it back, because the two wrap to different heights.
-	it('keeps the note it opened with while rows are ticked', async () => {
-		const handle = await mount(SONG);
-		handle.linkSections?.({
-			headers: [
-				offsetOf(SONG, '[Chorus]'),
-				offsetOf(SONG, '[Chorus 2]'),
-				offsetOf(SONG, '[Chorus 3]')
-			]
-		});
-		const caret = handle.getSnapshot().text.indexOf('[Chorus]');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-
-		const note = page.getByText(/These 3 sections are linked/);
-		await expect.element(note).toBeVisible();
-		await page.getByRole('checkbox', { name: /Chorus 3/ }).click();
-		await expect.element(page.getByRole('button', { name: /Link 2 sections/ })).toBeVisible();
-		await expect.element(note).toBeVisible();
-	});
-
-	// What the old "must not resize" rule was really protecting is the *position*
-	// of whatever the pointer is on. The card used to hang from its bottom edge,
-	// so the diff appearing on the first tick pushed the very checkboxes being
-	// ticked up the screen — and freezing the card's size to stop that is what
-	// filled it with decisions about copies nobody had picked. Pinned at the top
-	// it grows downwards instead, into space the user is not pointing at.
-	// Measured rather than trusted: the failure it replaces looked like working CSS.
-	it('does not move when a row is ticked, however much it grows', async () => {
-		const handle = await mount(REPEAT);
-		const caret = offsetOf(REPEAT, 'Hold on tight');
-		handle.setSelection({ anchor: caret, head: caret });
-		handle.requestSectionLink?.();
-
-		const card = page.getByRole('dialog', { name: 'Link this chorus' });
-		await expect.element(card).toBeVisible();
-		const rowBefore = (
-			await page.getByRole('checkbox', { name: /Chorus 2/ }).element()
-		).getBoundingClientRect();
-		const before = (await card.element()).getBoundingClientRect();
-
-		await page.getByRole('checkbox', { name: /Chorus 2/ }).click();
-		await expect.element(page.getByText('They differ in 1 place')).toBeVisible();
-		const after = (await card.element()).getBoundingClientRect();
-		const rowAfter = (
-			await page.getByRole('checkbox', { name: /Chorus 2/ }).element()
-		).getBoundingClientRect();
-
-		expect(after.width).toBe(before.width);
-		expect(after.top).toBe(before.top);
-		// The row the pointer is on has not moved, which is the whole point.
-		expect(rowAfter.top).toBe(rowBefore.top);
-		// And it did grow, or this would be pinning nothing.
-		expect(after.height).toBeGreaterThan(before.height);
+		const headers = [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')];
+		handle.linkSections?.({ headers, keepDifferent: [false], replaceFrom: headers[1] });
+		expect(handle.getSnapshot().text.split('And I will be there again')).toHaveLength(3);
+		expect(handle.getSnapshot().text).not.toContain('tonight');
 	});
 
 	// An aimed command that silently does nothing reads as a broken command, so

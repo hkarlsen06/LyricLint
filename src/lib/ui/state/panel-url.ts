@@ -10,6 +10,7 @@ export function rightPanelTabFromUrl(url: URL): RightPanelTab {
 	// the metadata and exports it named now live.
 	if (panel === 'tools') return 'song';
 	return panel === 'performers' ||
+		panel === 'linking' ||
 		panel === 'song' ||
 		panel === 'preferences' ||
 		panel === 'assistant'

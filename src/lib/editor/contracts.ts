@@ -33,23 +33,11 @@ export type { ClipboardMediaSource };
  */
 export const diagnosticTriggerAttribute = 'data-ll-diagnostic-trigger';
 
-/**
- * What asked for a link card, which is the one thing the request itself cannot
- * say — both keyboard paths and both pointer paths name the same header.
- *
- * Absent means aimed, because every caller that names no origin is: the
- * `Mod-Shift-L` binding and the diagnostic's guided action are presses that
- * meant only this.
- */
+/** The explicit editor control that requested the shell's Linking panel. */
 export interface SectionLinkOrigin {
-	/** Whether the card may take the focus as it opens. */
+	/** Whether the requested panel may take focus. */
 	takesFocus: boolean;
-	/**
-	 * The control that asked, for the focus the card owes back when it closes
-	 * without an edit to carry on typing into. It reports whether the focus
-	 * landed: a trigger the document has rebuilt or removed while the card was
-	 * open is no longer anywhere to return to, and the editor takes it instead.
-	 */
+	/** Return to the requesting control if it still exists in the document. */
 	returnFocus?: () => boolean;
 }
 
@@ -298,13 +286,9 @@ interface EditorOverlayCallbacks {
 	onDiagnosticHighlight?(diagnostic: Diagnostic): void;
 	onDiagnosticDismiss?(): boolean;
 	/**
-	 * A repeated section's header was aimed at, by selecting it whole or by
-	 * pressing the link shortcut on it.
-	 *
-	 * Handled inside the pane and deliberately not forwarded to the shell: the
-	 * whole of linking — which sections, which words win, and keeping them in
-	 * step afterwards — lives in the editor, because it is one document edit
-	 * repeated, not a domain transform the shell has to arbitrate.
+	 * Explicitly open the shell's Linking panel for a resolved section header.
+	 * The editor owns link mutations; the shell owns their review and controls.
+	 * Forwarded through createCallbackProxy and EditorPane.
 	 */
 	onSectionLinkRequest?(request: EditorAnchorRequest, origin?: SectionLinkOrigin): void;
 	/**
@@ -387,20 +371,6 @@ export interface SelectionAnchor {
 	 * that were never opened from a selection.
 	 */
 	offersAssignment: boolean;
-	/**
-	 * The repeated-section header this selection names whole, when it names one,
-	 * and the offer the link picker opens itself on.
-	 *
-	 * A second field rather than a second reading of `offersAssignment`: these are
-	 * two surfaces, not two halves of one decision, and they are mutually
-	 * exclusive by construction — a header is never a range an assignment could be
-	 * written to. It carries the header's own range rather than a bare flag,
-	 * because the picker is keyed to the header while the anchor is keyed to the
-	 * selection, and re-deriving one from the other in the overlay layer is how the
-	 * two would come to disagree.
-	 *
-	 * Short-circuited on the same gesture as `offersAssignment`, for the same
-	 * reason.
-	 */
+	/** The whole header named by the selection. This metadata never opens Linking. */
 	linkHeader?: TextRange;
 }

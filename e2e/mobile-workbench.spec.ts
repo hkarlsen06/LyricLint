@@ -165,9 +165,85 @@ test('a related chorus tap keeps that occurrence as the mobile linking source', 
 		.toBe(7);
 	await expect(page.locator('.diagnostic-card--expanded')).toContainText('Line 7');
 	await page.getByRole('button', { name: 'Manage linking', exact: true }).tap();
-	const picker = page.getByRole('dialog', { name: 'Link this chorus' });
-	await expect(picker).toBeVisible();
-	await expect(picker.locator('.row--current')).toContainText('This section · line 7');
+	await expect(page.getByRole('tab', { name: 'Linking', exact: true })).toHaveAttribute(
+		'aria-selected',
+		'true'
+	);
+	const detail = page.locator('.linking-detail');
+	await expect(detail.getByRole('heading', { name: 'Link Chorus 2', exact: true })).toBeVisible();
+	await expect(detail.locator('.member').filter({ hasText: 'This section' })).toContainText(
+		'Line 7'
+	);
+	await expect(page.getByRole('dialog', { name: 'Link this chorus' })).toHaveCount(0);
+});
+
+test('phone Linking preserves variations and previews one correction before applying', async ({
+	page
+}) => {
+	await openWorkspace(page);
+	const original =
+		'[Chorus 1]\nHold on tight\nCarry me home\n\n[Verse]\nWalk with me\n\n[Chorus 2]\nHold on tighht\nCarry me home (Oh)';
+	await replaceLyrics(page, original);
+	await mobileNavigation(page).getByRole('button', { name: 'Tools', exact: true }).tap();
+	await page.getByRole('tab', { name: 'Linking', exact: true }).tap();
+	const panel = page.getByRole('tabpanel', { name: 'Linking', exact: true });
+	await panel
+		.getByRole('button', { name: /Set up link/u })
+		.first()
+		.tap();
+	const detail = page.locator('.linking-detail');
+	await expect(detail.getByRole('checkbox', { name: /^Chorus 2/u })).toBeChecked();
+	await expect(detail.getByText('This section', { exact: false })).toHaveCount(0);
+	await expect(detail.locator('.difference')).toHaveCount(0);
+	await expect(detail.getByRole('radio')).toHaveCount(0);
+	await expect(
+		detail.getByRole('button', { name: 'Link 2 sections', exact: true })
+	).toBeInViewport();
+	await detail.getByRole('button', { name: 'Link 2 sections', exact: true }).tap();
+	await expectLyrics(page, original);
+	await panel.getByRole('button', { name: 'Manage Chorus 1, Chorus 2', exact: true }).tap();
+	await expect(detail.getByRole('heading', { level: 2 })).toBeVisible();
+	await detail.getByRole('button', { name: 'Review differences', exact: true }).tap();
+	await expect(detail.locator('.difference')).toHaveCount(2);
+	await expect(detail.locator('.version__choice input')).toHaveCount(0);
+	await detail.getByRole('button', { name: 'Choose wording per difference', exact: true }).tap();
+	const wordingChoice = detail.getByRole('checkbox', {
+		name: 'Use Chorus 1 wording for difference 1 in all 2 sections'
+	});
+	await page.evaluate(() => document.fonts.ready.then(() => undefined));
+	await wordingChoice.scrollIntoViewIfNeeded();
+	const positions = () =>
+		detail.locator('.version__choice, .difference').evaluateAll((elements) =>
+			elements.map((element) => {
+				const rect = element.getBoundingClientRect();
+				return [rect.x, rect.y, rect.width, rect.height];
+			})
+		);
+	const beforeChoice = await positions();
+	await wordingChoice.tap();
+	await expect(detail.locator('del')).toHaveText('tighht');
+	expect(await positions()).toEqual(beforeChoice);
+	await detail.getByRole('button', { name: 'Line 8', exact: true }).tap();
+	await expect(
+		mobileNavigation(page).getByRole('button', { name: 'Write', exact: true })
+	).toBeFocused();
+	await expect(lyricsEditor(page)).toBeVisible();
+	await expect(lyricsEditor(page)).not.toBeFocused();
+	await mobileNavigation(page).getByRole('button', { name: 'Tools', exact: true }).tap();
+	await expect(detail.locator('del')).toHaveText('tighht');
+	await expectLyrics(page, original);
+	const apply = detail.getByRole('button', { name: 'Apply 1 change', exact: true });
+	await apply.scrollIntoViewIfNeeded();
+	await expect(apply).toBeInViewport();
+	await apply.tap();
+	await expectLyrics(page, original.replace('tighht', 'tight'));
+	await mobileNavigation(page).getByRole('button', { name: 'Write', exact: true }).tap();
+	await page.getByRole('button', { name: 'Document', exact: true }).tap();
+	await page.getByRole('button', { name: 'Undo', exact: true }).tap();
+	await expectLyrics(page, original);
+	await expect
+		.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+		.toBe(true);
 });
 
 test('tapping a phone issue count opens the first finding in Review without a floating menu', async ({

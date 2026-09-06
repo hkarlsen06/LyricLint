@@ -25,7 +25,8 @@ import type { BulkFixPlan } from '$lib/rules/bulk-fix.js';
 import { ruleName } from '$lib/rules/reference.js';
 import type { FeedbackState } from './feedback.svelte.js';
 
-export type RightPanelTab = 'linter' | 'performers' | 'song' | 'preferences' | 'assistant';
+export type RightPanelTab =
+	'linter' | 'linking' | 'performers' | 'song' | 'preferences' | 'assistant';
 
 const allSeverities: Severity[] = ['error', 'warning', 'suggestion', 'manual-review'];
 

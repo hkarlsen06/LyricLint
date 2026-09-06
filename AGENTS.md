@@ -36,7 +36,7 @@ alters behavior a doc describes, **update the doc in the same commit**. `src/lib
 | The Spotify source and its auth                                                                                                                                                     | `docs/subsystems/media-spotify.md`  |
 | The Apple Music source and its token                                                                                                                                                | `docs/subsystems/media-apple.md`    |
 | Line anchors, the timestamp gutter, sync mode, the linked fill                                                                                                                      | `docs/subsystems/line-anchors.md`   |
-| Section links, the mirror, the link picker, `Type only here`                                                                                                                        | `docs/subsystems/section-links.md`  |
+| Section links, the mirror, the Linking panel, `Type only here`                                                                                                                      | `docs/subsystems/section-links.md`  |
 | Clipboard copy/paste metadata, the audio drop, editor↔shell hooks (`createCallbackProxy`)                                                                                           | `docs/subsystems/editor.md`         |
 | The landing page, generated shots and loops, the site palette and header, the wordmark, the favicon                                                                                 | `docs/subsystems/site.md`           |
 | `/rules/`, `/guidelines/`, their search, `SectionSplit`                                                                                                                             | `docs/subsystems/reference.md`      |
@@ -113,6 +113,15 @@ agents legible, with proper spacing between words, since a human may read them.
 
 **NEVER EVER USE EYEBROWS.** Do not place a small label, kicker, category, or mono all-caps text
 above a heading. Write a heading that names the section on its own.
+
+### Zero layout shifts
+
+**Design toward zero layout shifts as the golden standard.** Selection, pending previews, status,
+and cancellation keep existing controls and reading positions anchored. Reserve space using real
+content and wrapping; keep action slots stable and swap labels/actions in place. Never insert a
+warning or Cancel button above the user's current decision, and never substitute animation for
+stable geometry. Intentional progressive disclosure grows below its trigger. Test interaction
+geometry at desktop and phone widths, including long text. `DESIGN.md` defines the full rule.
 
 ### No cards inside cards
 

@@ -8,6 +8,12 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 
 ## The rules
 
+- Linking opens only through an explicit editor request, forwarded by `createCallbackProxy`
+  and `EditorPane` to the shell panel. Opening it closes the current anchored overlay.
+  Selecting a whole header, hovering its link marker, and focusing the marker do not open
+  or redirect Linking. Marker clicks and Enter/Space request it without editing lyrics.
+  `section-links.svelte.test.ts` and `overlay-state.test.ts` pin these boundaries.
+
 - When the shell requests `diagnosticsInPanel`, hover never opens a diagnostic overlay.
   Deliberate underline and badge presses use `onDiagnosticReviewRequest` through
   `createCallbackProxy`, carrying the exact hit range for related occurrences; the shell owns
@@ -67,6 +73,20 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `audio-drop.svelte.test.ts` asserts both halves.
 
 ## Decision record
+
+### Linking decisions belong beside the document
+
+Choosing repeated sections and reviewing their different lyrics outgrew an anchored popover.
+The editor still owns the merge shape, mirrored edits, history, and section-only editing;
+its existing `onSectionLinkRequest` now passes explicit navigation intent to the shell.
+`EditorPane` closes any diagnostic or picker that led to the request and renders no linking
+popover. The persistent panel therefore survives ordinary caret movement and gives the
+comparison its own reading space.
+
+The marker is a button for that navigation, with click and widget-safe Enter/Space handling.
+Hover and focus are reading and traversal gestures, so neither changes the panel. A whole-header
+selection remains a text selection. `Mod-Shift-L` continues to toggle editing only the current
+linked section directly, independent of panel navigation.
 
 ### The phone assignment button runs the keyboard command
 

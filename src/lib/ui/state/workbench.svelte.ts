@@ -166,6 +166,15 @@ export interface WorkbenchController {
 	onSectionLinksChanged(): void;
 	/** Current groups, addressed by their persisted 1-based header lines. */
 	readonly sectionLinks: readonly SectionLink[];
+	/** Explicitly chosen section; the caret never retargets Linking. */
+	readonly linkingHeaderFrom: number | undefined;
+	readonly linkingFromOverview: boolean;
+	readonly linkingComparedHeaders: readonly number[] | undefined;
+	openLinking(
+		headerFrom: number,
+		options?: { fromOverview?: boolean; comparedHeaders?: readonly number[] }
+	): void;
+	closeLinking(): void;
 	/**
 	 * How many lines in this draft are timed. Read by the two surfaces that act on
 	 * them — the delete and the timed-lyrics export — so each draws only where
@@ -288,7 +297,15 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 	// The same hand-off, for the same reason: a freshly mounted editor holds no
 	// links, and a save landing in that window would write the blank over the
 	// draft's own.
-	let knownSectionLinks: readonly SectionLink[] = deps.initialDraft.sectionLinks ?? [];
+	let knownSectionLinks = $state<readonly SectionLink[]>(deps.initialDraft.sectionLinks ?? []);
+	let linkingHeaderFrom = $state<number | undefined>();
+	let linkingFromOverview = $state(false);
+	let linkingComparedHeaders = $state<readonly number[] | undefined>();
+	function resetLinking(): void {
+		linkingHeaderFrom = undefined;
+		linkingFromOverview = false;
+		linkingComparedHeaders = undefined;
+	}
 
 	const draft = createDraftStore({
 		initialDraft: deps.initialDraft,
@@ -326,6 +343,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 				return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
 			},
 			onDraftLoaded(nextDraft) {
+				resetLinking();
 				roster.reset(nextDraft.performers);
 				panel.refreshIgnoredDiagnostics();
 				// The song is the draft, so the audio travels with it: switching
@@ -621,8 +639,12 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		setSaveStatus: draft.setSaveStatus,
 		onSnapshot(nextSnapshot) {
+			const previousText = editorSession.snapshot.text;
 			const change = editorSession.adoptSnapshot(nextSnapshot);
 			if (!change) return;
+			// Offsets and difference indexes belong to the text that was reviewed.
+			// A new text needs a fresh choice; selection and lint-only updates do not.
+			if (previousText !== nextSnapshot.text) resetLinking();
 			panel.pruneActiveDiagnostic(nextSnapshot.diagnostics);
 			// A fix's own re-lint arrives here. Drop its active card before the
 			// panel leads with the next one.
@@ -666,7 +688,37 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			);
 		},
 		get sectionLinks() {
+			// Header lines and stored run coordinates also move on ordinary edits.
+			void editorSession.snapshot.revision;
+			void knownSectionLinks;
 			return editorSession.editor.getSectionLinks?.() ?? knownSectionLinks;
+		},
+		get linkingHeaderFrom() {
+			return linkingHeaderFrom;
+		},
+		get linkingFromOverview() {
+			return linkingFromOverview;
+		},
+		get linkingComparedHeaders() {
+			return linkingComparedHeaders;
+		},
+		openLinking(headerFrom, options) {
+			const header = editorSession.editor
+				.getSnapshot()
+				.parsed.sections.find((section) => section.header?.from === headerFrom)?.header;
+			if (!header) {
+				const message = 'That section has changed. Choose it again in Linking.';
+				feedback.announce(message);
+				feedback.addToast({ message });
+				return;
+			}
+			linkingHeaderFrom = header.from;
+			linkingFromOverview = options?.fromOverview ?? false;
+			linkingComparedHeaders = options?.comparedHeaders ? [...options.comparedHeaders] : undefined;
+			panel.setActiveTab('linking');
+		},
+		closeLinking() {
+			resetLinking();
 		},
 		clearLineAnchors() {
 			// Both halves, in this order: the editor's own field is what the next

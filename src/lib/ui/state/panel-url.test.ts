@@ -5,6 +5,7 @@ describe('right panel URL state', () => {
 	test.each([
 		['https://lyriclint.app/lint', 'linter'],
 		['https://lyriclint.app/lint?panel=linter', 'linter'],
+		['https://lyriclint.app/lint?panel=linking', 'linking'],
 		['https://lyriclint.app/lint?panel=performers', 'performers'],
 		['https://lyriclint.app/lint?panel=song', 'song'],
 		['https://lyriclint.app/lint?panel=preferences', 'preferences'],

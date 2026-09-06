@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { ListChecks, WandSparkles, UsersRound, Music2, SlidersHorizontal } from 'lucide-svelte';
+	import {
+		ListChecks,
+		Link2,
+		WandSparkles,
+		UsersRound,
+		Music2,
+		SlidersHorizontal
+	} from 'lucide-svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { Tabs } from 'bits-ui';
 	import type { Diagnostic } from '$lib/core/types.js';
@@ -8,6 +15,7 @@
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import AssistantPanel from '../assistant/AssistantPanel.svelte';
 	import LinterPanel from '../linter/LinterPanel.svelte';
+	import LinkingPanel from '../linking/LinkingPanel.svelte';
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
 	import MediaVideo from '../media/MediaVideo.svelte';
 	import PerformersPanel from '../performers/PerformersPanel.svelte';
@@ -24,6 +32,7 @@
 		onOpenFinding,
 		onReviewList,
 		onRevealIgnored,
+		onShowEditor,
 		renderVideo = true
 	}: {
 		controller: WorkbenchController;
@@ -34,6 +43,7 @@
 		onOpenFinding?: (diagnostic: Diagnostic) => void;
 		onReviewList?: () => void;
 		onRevealIgnored?: (diagnostic: Diagnostic) => void;
+		onShowEditor?: () => void | Promise<void>;
 		renderVideo?: boolean;
 	} = $props();
 
@@ -73,6 +83,7 @@
 	function changeTab(value: string): void {
 		if (
 			value === 'linter' ||
+			value === 'linking' ||
 			value === 'performers' ||
 			value === 'song' ||
 			value === 'preferences' ||
@@ -127,6 +138,10 @@
 						</span>
 					</Tabs.Trigger>
 				{/if}
+				<Tabs.Trigger id="linking-panel-tab" value="linking">
+					<Link2 aria-hidden="true" size={20} strokeWidth={1.75} />
+					<span>Linking</span>
+				</Tabs.Trigger>
 				{#if assistantEnabled}
 					<Tabs.Trigger value="assistant" aria-label="Assistant">
 						<WandSparkles aria-hidden="true" size={20} strokeWidth={1.75} />
@@ -165,6 +180,9 @@
 				</Tabs.Content>
 				<Tabs.Content value="performers" class="right-panel__pane">
 					<PerformersPanel {controller} />
+				</Tabs.Content>
+				<Tabs.Content value="linking" class="right-panel__pane">
+					<LinkingPanel {controller} {onShowEditor} />
 				</Tabs.Content>
 				<Tabs.Content value="song" class="right-panel__pane">
 					<SongPanel {controller} />

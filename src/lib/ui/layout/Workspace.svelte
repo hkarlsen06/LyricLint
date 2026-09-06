@@ -128,6 +128,15 @@
 		controller.navigateToDiagnostic(diagnostic, { focus: false, range });
 	}
 
+	async function showEditorFromLinking(): Promise<void> {
+		if (!phone.current) return;
+		showMobileView('write');
+		await tick();
+		workspaceElement
+			?.querySelector<HTMLButtonElement>('.mobile-navigation [aria-pressed="true"]')
+			?.focus({ preventScroll: true });
+	}
+
 	async function revealIgnoredFinding(diagnostic: Diagnostic): Promise<void> {
 		if (!phone.current) {
 			controller.navigateToDiagnostic(diagnostic);
@@ -796,6 +805,17 @@
 			controller.onSectionLinksChanged();
 			republishForSectionLinks();
 		},
+		onSectionLinkRequest: (request, origin) => {
+			// Only an explicit request navigates. Reading or selecting lyrics keeps
+			// the current tool and its pending decision in place.
+			if (origin?.takesFocus === false) return;
+			controller.openLinking(request.range.from);
+			editorExpanded = false;
+			if (phone.current) mobileView = 'tools';
+			void tick().then(() => {
+				workspaceElement?.querySelector<HTMLElement>('[data-linking-heading]')?.focus();
+			});
+		},
 		onSeekMedia: (time) => {
 			const player = controller.media?.player;
 			if (!player?.attached) return;
@@ -1147,6 +1167,7 @@
 		onOpenFinding={openMobileFinding}
 		onReviewList={showReviewList}
 		onRevealIgnored={revealIgnoredFinding}
+		onShowEditor={showEditorFromLinking}
 		renderVideo={false}
 	/>
 

@@ -2,7 +2,7 @@
 
 Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
 `src/lib/editor/extensions/section-links.ts`,
-`src/lib/editor/overlays/SectionLinkPicker.svelte`,
+`src/lib/ui/linking/`,
 `src/lib/rules/catalog/section-unlinked-repeat.ts`, `src/lib/performers/transform.ts`,
 `src/lib/persistence/copy.ts`
 
@@ -10,7 +10,7 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
 
 - A group is a merge structure, not a body: stored divergent runs with shared text between
   them identical in every member by construction. Linking writes nothing (`alignBodies`);
-  making copies agree is asked per difference. The picker opens from any headed section and
+  making copies agree requires an explicit wording choice. The picker opens from any headed section and
   offers the established same-semantic chorus/pre-/post-chorus set plus differently named
   sections that share at least half of the shorter body. Existing peers are always retained;
   similarity discovers intent and never replaces the stored shape.
@@ -39,17 +39,25 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
 - `Edit this section only` (`Mod-Shift-L`) is a section-scoped toggle. While on, every edit in that
   member stays local and opens or extends only the divergent run it touches; moving the caret
   does not turn it off. Turning it off preserves those differences and resumes mirroring shared
-  text. The picker renders it as a switch and stays open when it changes. The active header carries
+  text. The Linking panel renders it as a switch and stays open when it changes. The active header carries
   a danger rail, red wash, and `Editing this section only` label.
-- The card sits beside the header when its full width fits, falling back above/below on narrow
-  canvases. Its diff states the shared location once, then lists each distinct wording once with
-  every section that uses it; an absent wording says `No words here`. It decides by radio pair,
-  names the winning copy in a dropdown (`replaceFrom`), and turns rows into what would happen
-  (`del`/`ins`, struck through as well as coloured).
-  `winningText` follows `winningWording`: an absent phrase in a populated copy can win;
-  only a wholly empty source falls back to the first copy with words. Individual wording actions
-  reconcile only their own difference; unchosen differences stay local. The card is pinned by its top (`pinnedTop`); applying collapses the selection —
-  load-bearing, or the card reopens.
+- Linking lives in a persistent side-panel tab: an overview of available repeats and stored
+  groups opens into membership selection with wording preserved by default. An overview
+  entry compares exactly the members of the clicked group, without calling any member This section;
+  only an explicit editor entry locks and identifies its source. The panel never follows caret movement or hover.
+  `overview.test.ts`, `LinkingDetail.svelte.test.ts`, and `e2e/linking.spec.ts` pin this flow.
+- Each comparison shows readable lyric context for each distinct wording, preserving real line
+  breaks. Review differences immediately reveals numbered, read-only differences with clickable
+  lyric-line gutters. Decisions follow the evidence: preserve and link, enable individual wording
+  choices, or use one full version. The two editing approaches are exclusive, and switching clears
+  pending choices. Keeping every variation requires no review. Previews name each affected section.
+  There is no nested comparison scrollbar.
+  `LinkingDetail.svelte.test.ts` pins quick linking, optional review, grouped wording, and selective application.
+- An absent phrase in a populated copy can win; a wholly empty copy cannot erase populated
+  copies. Filling empty copies is disclosed separately and named in the final action. Mixed
+  populated variants keep their differences unless explicitly reconciled. Preview and application
+  follow the same winner contract. `LinkingDetail.svelte.test.ts` and `section-links.svelte.test.ts`
+  pin absent-phrase removal and empty-copy filling.
 - `section.unlinked-repeat` gates on `worthLinking` (some pair passing the core-owned
   half-the-shorter-body similarity predicate; empty copies neither count nor count against);
   it remains same-semantic only, is a `suggestion` with no fix
@@ -71,8 +79,8 @@ Touches: `src/lib/core/link-shape.ts`, `src/lib/editor/section-links.ts`,
 - Wholesale document replacement loses links and anchors by design (re-attaching would be
   guessing); the clipboard-metadata paste is the one sanctioned exception
   (`docs/subsystems/editor.md`).
-- `linkTargetAt` answers the keyboard; `linkableHeaderAt` stays pointer-narrow. The `⇄`
-  marker opens through `HoverIntent` and has no click path; a divergent run is a
+- `linkTargetAt` answers explicit requests. The `⇄` marker opens Linking on click, Enter,
+  or Space; hover, focus alone, and whole-header selection never navigate; a divergent run is a
   `Decoration.mark` (dotted), never a widget — widgets participate in copy.
 
 ## Decision record
@@ -109,8 +117,8 @@ half of the invariant is true by construction rather than by two lists agreeing.
 becomes the shared runs, and everything else is set aside as each copy's own. Pressing `Link` on two
 choruses that differ by a line changes not one character of the document — it only says that from
 now on they move together, apart from the words named in the card. Making copies actually agree is
-still available and is asked for **per difference**, so the destructive act is something the user
-requests about specific words rather than the price of linking at all.
+available through an explicit whole-version choice or individual differences, so replacing lyrics
+is something the user requests rather than the price of linking at all.
 
 **The section kind is a discovery hint, not a link gate.** Chorus, pre-chorus and post-chorus
 (`LINKABLE_SEMANTICS`) are still offered as complete same-kind sets, including empty copies and
@@ -119,7 +127,7 @@ verse repeats its shape and not its words, so verses are not offered merely for 
 But any headed section can open the picker, and a differently named section is offered when the
 aligner says it shares at least half of the shorter body. That admits the real cross-name case — an
 Intro whose lyrics return under Chorus or Outro — without filling the card with structurally similar
-but lyrically unrelated verses. The person still ticks the candidate; similarity never links it.
+but lyrically unrelated verses. The person still confirms the selected candidates; similarity never links them automatically.
 
 **Existing peers bypass discovery.** After an Intro and Chorus are linked, `Edit this section only`
 can make their current bodies less than half alike. Hiding the Chorus on the next opening would
@@ -298,26 +306,17 @@ user's decision.
 
 #### Setting words aside by hand is a selection and a press — and the press was retired
 
-`requestSectionLink` opens the card with a lyric selection offered as a difference, ticked. Its
-keystroke was `Mod-Shift-L`, and that chord now enables `Edit this section only` instead — a whole card
-arriving under a keystroke read as the workbench doing something nobody asked, and the local
-exception covers the job this flow was mostly used for (writing your own words in one copy). The
-machinery stays, on the handle, because the translation below is what `Edit this section only` and the
-picker's own selection path are built on. The span is **translated** into every peer rather than
-searched for, through
-the same arithmetic the mirror uses: a position in shared text is the same distance from the nearest
-difference in every copy, so "these five characters" means the same five characters everywhere
-without a word of either copy being compared. It lands in every member or in none — a run that
-appeared in some copies and not others would leave the group with different counts, which every
-translation downstream refuses, so the link would go quiet rather than fail, which is the worse
-failure.
+The former `requestSectionLink` popover could offer a lyric selection as a new difference.
+Its old `Mod-Shift-L` chord now enables `Edit this section only` instead, which covers the ordinary
+job: writing words in one copy. The Linking panel resolves explicit requests to the containing
+section and leaves creating local differences to this mode. The lower-level `makeDifferent`
+command remains available on the editor handle.
 
-**`linkTargetAt` answers the keyboard, and `linkableHeaderAt` stays gesture-narrow rather than
-kind-narrow.** Any headed section may now be the source, but the pointer path still requires its
-whole header. Teaching that path about lyric ranges would put the link card on the most common
-gesture in a text editor — beside the performer picker, which is already there. An aimed press has
-been asked; a selection has not. That is the rule _A surface that opens itself has to have been
-asked_ already states, applied to a second surface that wanted the same gesture.
+Its span is **translated** into every peer rather than searched for, through the same arithmetic
+the mirror uses: a position in shared text is the same distance from the nearest difference in
+every copy. It lands in every member or in none, because mismatched run counts would make the
+mirror refuse. `linkTargetAt` still resolves explicit commands from the caret or lyric selection;
+`linkableHeaderAt` is selection metadata, and selecting a header no longer opens a linking surface.
 
 **And the answer about existing differences is resolved before a new one is added.** Inserting first
 would shift every index the user's ticks were given against, silently, and collapse the wrong
@@ -339,189 +338,191 @@ the rest of the chorus.
 **Turning the toggle off never reconciles words.** It changes the scope of future edits only;
 differences made while it was on remain explicit divergent runs. Shared text mirrors again, while
 typing inside a preserved run remains local by the ordinary containment rule. Reconciliation stays
-in the link card, where the versions and the winning copy are visible before text changes. The old
+in the Linking panel, where the versions and the winning copy are visible before text changes. The old
 caret-based `rejoinLinkedWordsAt` command had no remaining callers after the toggle replaced it
-and was removed; the card remains the reconciliation path.
+and was removed; the panel remains the reconciliation path.
 
-**The picker uses a switch and changes in place.** This is a live mode with two durable states, not
-an action that completes the card's task, so flipping it does not dismiss the popover or move focus
-back into the editor. Its `On`/`Off` explanation updates beneath the same control; Escape, outside
-press, and the link marker remain the popover's ways out.
+**The panel uses a switch and changes in place.** This is a live mode with two durable states,
+so flipping it does not leave the group or move focus back into the editor. Its On/Off explanation
+updates beneath the same control. Pending membership or wording choices disable the switch until
+that decision is finished or cancelled.
 
-#### The card asks one thing at a time, and shows a diff
+#### Linking shows the groups, their wording policy, and their differences
 
-The sections list is what it was: tick the copies to tie together. **Nothing is said about the words
-until some are ticked**, because what two copies differ on is a question about a set the user has
-not chosen yet. Once a peer is ticked, the card grows a **diff** and then the one decision, as a
-**radio pair**:
+The old popover put membership checkboxes, a miniature scrolling comparison, per-wording actions,
+and a global replacement radio pair on one surface. Choosing one wording left both radios
+unchecked. Its `Between … and …` fragments saved repetition but asked a transcriber to reconstruct
+the sung line before making a decision. More width alone would not repair that order of questions.
 
-- ◉ Respect differences between them
-- ○ Replace them with `Chorus 1 ⌄`
+**The Linking tab opens on the song's repeats.** Available candidate sets and existing linked
+sets are separate lists. Each group draws its members vertically, with section names in one
+column and line numbers in another. Repeated literal section names get document-order numbers
+from `linkingSectionNames`, shared by the overview, membership, version choices, and diff sources;
+filtering or deselecting members never renumbers them. Group boundaries use a divider and generous
+spacing, including space below each list heading. Line numbers are navigation buttons in both
+the overview and membership list: they select and reveal the actual header without toggling
+membership, changing the linking source, or discarding wording choices. On phones they open Write
+without focusing the typing surface. `LinkingPanel.svelte.test.ts` pins navigation and retained choices.
+A dashed connector groups proposed repeats; a solid connector
+groups existing links. Set up link opens the Link sections screen; it does not apply a link.
+The label names the normal linking task instead of implying that lyric comparison is required. Its state and Set up link or Manage action sit beneath those members.
+Concatenating names and dotted metadata into a paragraph obscured the relationship the list exists
+to show, so visual structure now carries that relationship. No repeated
+sections means a short explanation on the canvas, not an empty comparison or a boxed tutorial.
+Stored differences read as differences kept, never warnings or a queue that needs to reach zero.
 
-**The second radio names the copy, and it names it in a control rather than in its label.**
-`Replace them with this chorus's words` is ambiguous the moment there are three of them — the reader
-has to work out which chorus "this" is from the greyed row further up — so the copy is the dropdown
-that follows the words, which is the same control described under _Whose version wins is a dropdown_
-below. The radio's own accessible name says what it does without it
-(`Replace them with another section's version`), because a name that stops mid-sentence at a
-`<select>` is not a sentence.
+`overview.ts` asks `linkOccurrences` for candidate sets, reusing the core-owned discovery predicate
+and its token ceiling. It deduplicates identical sets but never merges overlapping ones into a
+transitive cluster: A resembling B and B resembling C does not establish A resembling C. Existing
+peers bypass discovery as before. Candidate rows do not compute an alignment or promise a
+comparison count before membership has been selected; linked rows count the first member's stored
+holes rather than re-deriving intent from today's lyrics.
 
-**The diff says the shared location once, then shows only the distinct wordings.** A floating
-`før, du kunne spørt meg` still says nothing about where in the chorus it sits, so the shared runs
-on either side are retained as a short `Between … and …` location. Repeating that context in every
-section row was the mistake: in a three-section group it made the reader compare three mostly
-identical lyric lines to discover that only two actual versions existed. The location is one fact
-about one difference and is printed once above its versions.
+**An overview group is not a source section.** Set up link and Manage record both the overview origin
+and the exact member offsets of the row the user chose. The first header remains a discovery
+representative, never a claim about the user's location. All members of that chosen row start in the
+comparison and all can be deselected; this previews a group and still requires the final Link
+command before any membership changes. An available row that adds a new section to an existing
+group therefore compares the whole proposed set, while Manage compares only its stored members.
+With fewer than two members a group comparison cannot apply or unlink an arbitrary first member.
 
-**Sections that agree share a version row.** `Refreng 1 & 2` followed by one phrase says immediately
-that those copies agree and leaves the other wording as the only alternative to compare. Printing
-one row per section made agreement look like more disagreement and made eight differences grow into
-twenty-four lyric rows. The grouping is exact text equality; it changes presentation only, not the
-stored merge shape or which section can win in the dropdown.
+Only an editor marker or diagnostic action has a real source. That source stays checked, has the
+This section label, and can expose Edit this section only. Its new candidate peers remain unchecked
+until chosen. Caret updates preserve the origin; a different explicit request replaces it. Source
+identity never follows from the first matching header or the selected replacement version.
 
-**That context is the shared runs either side, and never "the rest of the line".** Clipped to the
-line it was drawn from, the context stopped at whatever line boundary each copy happened to have —
-and a run that spans lines ends on a _different_ line in each copy, so the text drawn beside it was
-different text. On screen that put a word inside one copy's run and in another copy's context, with
-the insertion caret sitting in front of a word the row above was showing as shared. A shared run is
-identical in every member by construction; a line is not. It is trimmed towards the middle with a
-leading `…`, because the shared run either side of a difference can be the whole rest of the chorus.
+**The normal decision is selecting sections and linking them.** The initial view shows membership,
+a short assurance that differences stay as written, and the Link action. It asks for no wording
+policy choice and displays no comparison. Review differences expands the numbered comparison beneath
+the existing summary and action row. Its first view is read-only: every distinct version is visible,
+but no wording checkbox or whole-version source list asks for a decision before the user has seen
+the lyrics.
 
-**The lyric wraps rather than truncating.** Set to one line with an ellipsis, the run itself — the
-one thing the row exists to show — was the part that got cut off, and there was nowhere to scroll to
-see it. Wrapping means the run is always whole and only the one shared location is ever abbreviated,
-which is the right way round. The list keeps a `max-height` so a long comparison scrolls.
+**Show the evidence before asking how to change it.** The decision area follows the differences,
+headed What would you like to do?. Its footer omits Hide differences; Cancel appears in a
+reserved slot beside the decision heading only while wording changes are pending. The top review control still
+collapses the comparison.
+A thin divider with a centered or separates the preservation action from the replacement choices.
+Once wording changes are pending, it becomes a continuous hairline: applying the selected changes
+is no longer an alternative to choosing them. Clearing all choices restores or, with the same
+reserved divider height in both states.
+Preserving and linking is the default action; Choose wording per difference enables optional version
+checkboxes in the existing comparison, while Use one section’s full version reveals source choices
+and makes that same comparison a read-only replacement preview. Only one set of editing controls
+is shown at a time. Reopening review or changing membership returns to the read-only comparison;
+cancelling wording changes keeps the current review visible. There is no initial approach gate,
+per-difference accordion, or source dropdown. The earlier two-button gate reduced the initial control
+count but made users choose a replacement strategy without seeing what differed. Progressive
+disclosure belongs to the replacement controls, not to the evidence needed to decide.
 
-**A version with nothing there says `No words here`.** The insertion caret it replaced was compact
-but cryptic outside a conventional side-by-side patch: it asked the reader to infer that an
-unlabelled bar meant an absent phrase. The location is already stated above, so plain language names
-the only remaining fact.
+Compare and linking share their inline change renderer and lyric-line presentation. Compare's
+two-document diff treats one text as the baseline and the other as changes, so it cannot own linking's
+multi-section alignment: a differing chorus is not an edit to an authoritative original. Linking
+continues to render the editor's aligned runs, grouping identical versions and using exactly the
+winner contract that application will carry out. A second diff must never re-derive the meaning of
+a preserved run.
 
-**The highlight ends where the run ends.** It carried a one-pixel `box-shadow` spread to fake
-padding, which drew a band a pixel out on every side — read down a column of rows that is a stripe
-lying behind words that are not part of the difference at all. Inline padding grows the box around
-its own text instead.
+Hide differences explicitly names a visibility action, not a completion or linking action.
+It returns to the compact view when no wording edits are pending. While replacements are pending,
+Cancel occupies that same secondary-action slot. Cancelling clears winners without closing review,
+so a compact Link action never hides destructive choices and neither control shifts its neighbors. Membership changes still clear wording choices. Empty-copy fills retain their visible
+preview and explicit action because that default operation changes lyrics.
 
-**Whose version wins is a dropdown, not the opened section.** Hard-wired to the copy the card
-happened to be opened from, noticing that a _later_ chorus has the wording worth keeping made the
-repair "close the card and open it again from the right one". `replaceFrom` rides the choice, the
-dropdown lists the ticked copies, and choosing one selects the replace outcome — picking a version
-is asking for it. Unticking the chosen copy falls back to the opened one, because a section that is
-not in the group cannot be the one whose version wins. Changing membership also clears individual
-wording choices: difference indexes belong to the selected set, not to the whole song.
+**A comparison repeats each distinct wording once, with enough lyrics to read it.** Identical
+versions share one excerpt and choice, with their names grouped above the lyrics; unlike the old per-section full-line comparison, the new
+view does not repeat every identical copy. It retains the affected lyric line and real
+line breaks rather than printing technical return glyphs or detached `Between` fragments. Multiline
+variations can include adjacent shared lines. An excerpt that reaches a neighboring difference
+mid-line ends with an ellipsis, so omitted words cannot look like an intended deletion. The
+changed phrase is highlighted and dotted-underlined, so color does not carry the distinction alone.
+Each physical lyric line in the excerpt has clickable absolute document numbers right-aligned after the lyric text,
+one for each grouped source in heading order. They navigate to the lyric line, not the section
+header; inserted preview-only lines show a plus instead of an invented document number. The editor
+supplies the original divergent-run offset, so clipping context never guesses a location from text.
+An absent phrase needs no missing-words label: the surrounding lyrics and highlighted alternative show what differs.
+Every difference has its own heading and a single code-style surface containing its lyric excerpts.
+A muted background and separators between versions distinguish the comparison from the actions
+below; there are no nested boxes or inner scrollbars. Every distinct version remains visible. The panel owns scrolling,
+so no short inner diff window hides the alternative just beneath the first one.
 
-**Choosing to replace turns each row into what would happen to it**, rather than recolouring what
-is already there. A row that is changing keeps the words it loses, struck through, with the words it
-gains beside them — the editor's own fix-preview idiom, and the only arrangement that answers "what
-would actually happen". Colouring the losing rows red said only that something was wrong with them,
-and left the reader to imagine the result.
+**Preservation means no version is chosen.** Read-only review offers no wording checkboxes.
+A decorative list dot occupies the checkbox slot beside each source name until a choice is enabled,
+so the indentation has a visible purpose without moving the heading. After
+Choose wording per difference, each numbered difference owns its own optional choice, labelled
+beside the source names. Checking one version clears the other choice
+for that difference; unchecking it returns only that difference to preservation. Choices for other
+differences stay intact. The subtitle states both the one-version-per-difference rule and the
+meaning of no selection. Readable Same lyrics and Differs clues in membership come from the
+editor's comparison field, with its reference described on the clue, before review is opened.
 
-Three states follow from it, and the third is the one worth naming:
+**Use one section’s full version is an alternative approach.** It reveals populated source radios
+below the comparison and requires a source before applying replacements. Choosing one resolves every
+difference to that source, including intentionally absent phrases. The already visible comparison
+becomes a read-only replacement preview and contains no per-difference checkboxes. Switching approaches clears pending winners and the whole-version
+source, so hidden choices cannot carry across. A wholly untyped section can never erase populated
+copies. Cancelling returns to preservation without collapsing the current review. The comparison
+remains present when the selected source is cleared.
 
-- **The picked copy** is already saying the winning version, so it shows no change at all, only its
-  run marked green.
-- **A copy that differs** shows `del` then `ins`, in `--color-danger` and `--color-success`. Struck
-  through **as well as** coloured, because colour alone is never a state carrier here.
-- **A copy that happens to match the winner already** is not changing either, so it is marked as the
-  version rather than as an edit. Marking it as a change would promise an edit that never runs.
+Each version has one stable lyric footprint. It shows the original text at rest and a labelled
+inline change preview when affected: removed original words stay visible with strikethrough and
+replacement words are inserted beside them. The checkbox always selects that source's **original**
+wording, as the subtitle explains. Hidden, noninteractive, aria-hidden sizing text lays out every
+possible replacement in the same CSS grid cell; actual wrapping determines the maximum footprint.
+There is no guessed fixed height, clipping, second preview paragraph inserted on selection, or
+hidden focusable control. There is no redundant As written label or separate status line. Pending Preview/Selected status
+shares a measured slot in the source-name row, so selecting or cancelling never adds vertical space. Section names, location, and outcome have separate
+visual roles instead of a dot-separated sentence. The removed text is struck through and inserted
+text underlined; state never depends on color alone.
 
-**Switching the dropdown turns the whole diff around**, because the diff is derived from
-`replaceFrom` rather than from the opened section — otherwise the card would go on describing an
-outcome nobody chose.
+**No incidental movement during a decision.** Summary prose is constant; pending counts are
+announced in the existing live region and named by the primary action. The action row has two
+stable columns, with labels measured invisibly in the same slot so wrapping cannot change its
+height. Cancel replaces Review/Hide instead of becoming a third button. The footer offers the final
+action after the diff, labelled Keep differences and link when creating a link without replacements.
+It spans the same full width as the other two choices; footer Cancel sits beside the heading so
+the primary choice never narrows or shifts when edits are pending.
+It draws only when the top action has scrolled out of view, observed against the panel's scroll port;
+its slot stays reserved so transferring visibility cannot move the decision controls. There is only
+one visible primary action. The approach-switch note is an accessible description, not inserted
+visible prose. Version choices and following differences
+keep their positions when selecting, unselecting, switching winners, or cancelling. Geometry tests
+in `LinkingDetail.svelte.test.ts` cover narrow multiline alternatives; the mobile browser flow pins
+the tapped checkbox's viewport position. This implements the zero-layout-shift standard in DESIGN.md.
 
-**And the card's `winningText` follows the same rule as the editor's `winningWording`**: the picked
-copy's version, including an absent phrase in a populated section. Only a wholly empty section
-follows the first copy with words. The two have to
-agree, because this row is a promise about what that function is going to do.
+Unchecking the selected version returns an individual difference to preservation; Cancel beside the final apply action
+clears all wording choices without undoing membership selection. The final action names pending
+changes as well as linking, and membership changes clear pending winners because difference indexes
+belong to that set. The editor's per-difference winner contract applies both whole-version and
+individual choices atomically, with one undo restoring the previous lyrics and link structure.
 
-**The two outcomes are one control each, not two rows apart.** Given `--control-height-sm` and their
-own padding they sat a whole row apart with nothing between them, which reads as two separate things
-rather than as one either/or. The heading over the diff takes the opposite correction: with only the
-card's uniform gap above it, the section rows and the comparison ran together as one list of six.
+**An empty copy is disclosed as a fill.** When the selected populated copies agree and the only
+other bodies are wholly untyped, the panel names the source and empty destination and the final
+button says Fill … and link. The visible fill preview shows the same edits the engine will make.
+An absent phrase inside a populated copy remains selectable, including when it wins by removing
+an ad-lib elsewhere. Mixed populated variants plus an empty copy preserve the differences unless
+specific wordings or a whole version are chosen; their explanatory sentence says the empty copy remains empty.
 
-**This replaced a checkbox per difference, and the reason is worth keeping.** Ticked meant _keep
-these words apart_, six pixels under a list where ticked meant _include this section_. One control,
-two opposite meanings, on one card — and the row beside it ran both versions together with an
-interpunct into a single truncated line, so which words were whose could not be read at all. The
-lesson is the general one: **a novel control is a bug unless the familiar one genuinely cannot do
-the job.** A diff and a radio pair are what everyone has already met in a file-conflict dialog, and
-neither can be read two ways.
+**The panel is persistent, and navigation is deliberate.** Back to linking returns to the
+reference list. Click, Enter, or Space on the editor marker, or Manage linking on a diagnostic,
+opens the exact source in the tab and moves focus to its heading. The workspace restores the panel
+when the editor was expanded and opens Tools on phones. Hover, marker focus alone, header
+selection, and caret movement do not switch tools or replace an ongoing comparison. Switching
+other tools keeps the chosen section, while leaving the mounted pane may discard unapplied choices.
+The Edit this section only switch remains here, together with its actual Mod-Shift-L binding.
 
-The default diff is a comparison, with an explicit **Use this wording** action beside each
-version. Choosing it previews reconciliation of that difference alone and leaves the others local;
-**Keep this difference** reverses the pending choice. The final **Replace words** applies the
-reviewed choices together, with one undo. This handles a typo beside an intentional ad-lib without
-bringing back ambiguous per-difference checkboxes. The group-wide radio outcomes remain available
-and clear individual choices when chosen.
+**Pending offsets cannot survive a different document.** A text change or draft switch returns
+Linking to its overview; caret and lint-only updates leave the current group alone. A stored shape
+or membership change remounts the detail against the new truth. The overview refreshes stored
+header lines and run coordinates on ordinary text revisions as well as explicit link notifications. Immediately before application,
+`LinkingPanel` checks both live text and the serialized links against the rendered baseline; a
+race refuses visibly and audibly. The editor continues to own the atomic edit, preserved runs,
+selection collapse, and undo. No diff is re-derived to guess which pending decisions still apply.
 
-**An absent phrase can be the winning version.** Choosing the chorus without an ad-lib means
-removing that ad-lib from the other copies. The former fallback treated every absence as an empty
-section and silently kept the words the selected version did not contain. The safeguard now checks
-the complete source body: a wholly untyped chorus still fills from a populated peer, while absence
-inside a populated chorus is an intentional version. Preview and application use that same rule.
-`section-links.svelte.test.ts` pins selective removal and atomic undo, alongside the empty-copy
-fill cases; `SectionLinkPicker.svelte.test.ts` pins the matching preview and submitted choices.
-
-**Native controls own Enter.** The card's Enter shortcut must not intercept a focused button or
-select: doing so made Enter on Cancel apply a pending replacement. Its Tab cycle includes the
-winning-version select and each wording action. `SectionLinkPicker.svelte.test.ts` pins cancellation
-without application and keyboard traversal to the dropdown. Scope copy names shared words and
-preserved differences, rather than claiming every edit will affect every copy.
-
-#### The card uses the empty column, then pins rather than freezing
-
-**The full-width card goes to the right of the header whenever that column can hold it.** A lyric
-line is horizontal and the workbench is ordinarily wider than its text, so placing the picker
-above or below spent scarce vertical room while covering lyrics and leaving the empty right side
-unused. The side placement keeps the card out of the text, moves its top upward only as far as its
-current height requires, and caps it at the viewport edge. If the full 24rem width does not fit,
-the existing above/below placement remains the narrow-canvas fallback.
-
-What the old "must not resize" rule was really protecting is the **position** of whatever the
-pointer is on. The card hangs from its bottom edge, so anything appearing lower down pushes the
-section list — the very checkboxes being ticked — up the screen.
-
-Freezing the card's size was the wrong way to stop that, and it cost two rounds. Reserving the
-diff's height meant reserving it for the largest set the user _might_ tick, which opened the card as
-a tall empty box; filling that space with a preview meant showing a comparison and a decision about
-copies nobody had picked yet, which is a question asked before the one it depends on has been
-answered.
-
-**So the top is pinned instead.** `pinnedTop` is measured in a `requestAnimationFrame` after the
-card has drawn, after which the card extends downwards into space the user is not pointing at.
-Three things go with it:
-
-- Only the `above` placement needs it; `below` is already measured from its top.
-- `--ll-room` is the actual space from that top to the viewport edge, with no minimum that can
-  extend past the window. It caps beside, pinned-above, and already-top-anchored below cards, so a
-  long diff scrolls and every control remains reachable.
-- The diff list keeps a `max-height` of its own for the same reason.
-
-`section-links.svelte.test.ts` asserts the card's top **and the ticked row's own top** are unchanged
-across a tick, and that the card did grow — a pin that pins nothing would pass the first two.
-
-The note is still one sentence per **opening** rather than one per tick (`openedComplete`), because
-two sentences of different length rewrap to different heights and that is a change nothing asked
-for.
-
-**Applying collapses the selection**, and that is load-bearing rather than tidiness: the card opens
-_because_ a header is selected whole, and the selection survives the edit, so leaving it there would
-reopen the card the user just answered on the next settled anchor report. A collapsed selection
-reports no anchor at all. **Which is exactly why a missing anchor does not retire this card**, unlike
-the performer picker — that one exists solely because a range of lyrics is selected, while this one
-is anchored to a _header_ that is still there.
-It leaves the way every other transient surface does: Escape, Cancel, an outside press, or applying.
-
-**A card no anchor describes takes the side that has room**, rather than `above` unconditionally.
-`anchorPlacement` takes the fallback from the caller, and the caller measures with
-`selectionAnchorForView`'s own comparison, so the pointer-opened card and the keyboard-opened one
-land on the same side.
-
-**The keyboard keeps the section list and the radios apart.** Arrows rove the section rows only; the
-radio group answers its own arrows, which is what a radio group is for.
-
-`apply` asks for the differences of the ticked copies again rather than reading the list on screen,
-so the answer can never be given against a set that is no longer showing.
+Pins: `overview.test.ts`, `LinkingDetail.svelte.test.ts`, `LinkingPanel.svelte.test.ts`,
+`workbench.test.ts`, `RightPanel.svelte.test.ts`, `e2e/linking.spec.ts`, and the phone Linking flow
+in `e2e/mobile-workbench.spec.ts`. The earlier pinning/placement and radio-pair rules are superseded
+by this panel flow; their useful lessons are retained above in the reasons for grouping and
+explicit, per-difference choices.
 
 #### What is drawn
 
@@ -530,15 +531,11 @@ here` is on, that header gains a danger rail, a red wash, and the words `Editing
 The signal belongs to the section rather than the caret, so it stays prominent while the user moves
 between the lines they intend to edit.
 
-**And it serves the editor's one hover wait before it opens anything.** It opened on the bare
-`pointerenter`, which made it the only pointer target in the document that answered instantly — so a
-mouse crossing the editor on its way to the panel dragged a card open behind it for every linked
-header it passed over. `HoverIntent` in `extensions/hover-intent.ts` is that wait, shared with the
-severity underline and the count badge at the end of a line, so a pointer crossing a crowded
-document meets one rule rather than a different one per target. The keyboard is exempt, as it is on
-the badge: reaching the marker with `Tab` is a decision already made, so `focus` cancels the wait and
-opens at once. There is deliberately **no click path** — a press focuses the button, and a second
-`open()` behind the first would reset a card the user had already started answering.
+**The marker opens the Linking panel only on a deliberate press.** A click, Enter, or Space
+forwards the source header through `onSectionLinkRequest`. Hover and focus alone leave the current
+tool alone, showing only the shared Manage linking tooltip. The marker uses no native `title` and
+claims no shortcut; leaving, blurring, pressing, or removing it releases the hint. The previous hover wait was appropriate to a transient popover; navigating a persistent
+panel under the same gesture would replace a decision while the user was only crossing the lyrics.
 
 **A divergent run is a `Decoration.mark`, never a widget**, and that distinction is the same one the
 `⇄` earns its exception from: a widget in the content flow participates in selection and copy, and
@@ -546,7 +543,7 @@ clean lyrics on the clipboard are this application's entire output. A mark adds 
 It is drawn as a **dotted** underline because every other underline in the editor is wavy and belongs
 to a diagnostic — this is not a finding, it is a note about what an edit here will and will not
 reach. A run that is empty in this copy draws nothing, because there is nothing there to draw on;
-the card is where those are named. `Editing this section only` is reserved for the explicit mode,
+the Linking panel is where those are named. `Editing this section only` is reserved for the explicit mode,
 not inferred from whichever divergent run happens to contain the caret.
 
 **The mark on the header stayed as it was, and that is a decision.** `⇄` means one thing — this
@@ -702,13 +699,13 @@ that is silently wrong overwrites work. Line anchors behave the same way for the
 **`Mod-Shift-L` belongs to `Edit this section only` now, and the picker's ways in are the pointer's own** —
 the `⇄` marker and the diagnostic's guided action. The chord opened this card for a while, and a
 whole card arriving under a keystroke read as the workbench doing something nobody asked; toggling
-the section-local mode is the aimed answer, and the card is where the chord is taught (its
-linked-state note, and the `Edit this section only` switch's own tooltip). Pressing it again turns the mode
+the section-local mode is the aimed answer, and the Linking panel teaches the chord beside
+the `Edit this section only` switch and in its tooltip. Pressing it again turns the mode
 off without reconciling the differences made while it was on; see the type-only-here section above.
 `Mod-Shift` and
 deliberately not the `Ctrl-Alt` family the rest of the editor's commands live in — `Ctrl-Alt-L` is
 the transport's forward key, bound to the window, and two implementations of one keystroke is how
-every nudge came to fire twice. The keymap binding and the card's own key handler run the same
+every nudge came to fire twice. The keymap binding and the panel's own key handler run the same
 `typeOnlyHere` machinery, and the aimed press names its refusal out loud.
 
 Implementation: `src/lib/core/link-shape.ts` (the aligner and the run arithmetic — pure, no
@@ -717,14 +714,14 @@ the editor because the rule asks it too**, and a rule may not import the editor:
 alike are these copies" is one more than the number that can stay in agreement, `src/lib/editor/section-links.ts` (the
 predicates and the body range — no CodeMirror either, so `EditorPane` may import it without pulling
 the editor into the landing page's bundle), `src/lib/editor/extensions/section-links.ts` (the two
-fields, the mirror, the decorations), and `SectionLinkPicker.svelte`. **`linkableSemantic` lives in
+fields, the mirror, the decorations), and `ui/linking/LinkingDetail.svelte`. **`linkableSemantic` lives in
 `languages/registry.ts`**, beside the `headerSemanticKey` it is built on, because the rule and the
 same-kind discovery path ask it too and a rule may not import the editor. Cross-name discovery and
 the rule share `comparableSectionBody`, `linkBodySimilarity`, the half-body threshold and the
 automatic-discovery ceiling from `core/link-shape.ts`; two answers to “how alike are these” would
 make the workbench disagree with itself. The rule is
 `rules/catalog/section-unlinked-repeat.ts`, its
-action is `onLinkSections` on `DiagnosticActions.svelte` — wired to the picker by `startSectionLink`
+action is `onLinkSections` on `DiagnosticActions.svelte` — wired to the panel by `startSectionLink`
 in `EditorPane.svelte` and by `linkDiagnosticSections` on the controller.
 
 **A body is measured from the end of the header line, not from the first lyric.** That one offset is

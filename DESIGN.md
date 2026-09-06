@@ -63,6 +63,19 @@ All ordinary buttons share the same control radius, height, padding, focus ring,
 
 ### Interaction
 
+**Zero layout shifts is the standard for interaction.** Selecting a version, toggling a setting,
+entering a pending state, or cancelling it must not move existing controls or the passage being
+read. Keep action slots and their geometry stable across labels; replace a secondary action in its
+existing slot instead of inserting another control. Announce transient status without adding prose
+above the current decision. Reserve preview space from the actual possible content at the current
+width, including wrapping and multiline text; do not clip content or guess a fixed height.
+
+Progressive disclosure may intentionally add the requested content **below** its trigger, keeping
+the trigger and preceding content anchored. Navigation, viewport changes, and explicit changes to
+which items are displayed are intentional structural changes; ordinary selection is not. Animation
+only moves a shift more slowly and is not a substitute for stable geometry. Verify the positions
+of controls and neighboring content before and after real interactions on desktop and touch widths.
+
 - Standard control heights are small, medium, and large.
 - Focus uses `--focus-ring-width`, `--focus-ring-offset`, and `--color-focus`.
 - State transitions use 120 to 240 milliseconds and `--ease-out-quart`. The cap is what it costs to answer an action: the result has to be settled before the user looks for it, and an overshoot past the target reads as the control missing and correcting. Nothing that reports state may reach past this.

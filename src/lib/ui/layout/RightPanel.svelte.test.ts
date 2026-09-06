@@ -91,10 +91,13 @@ describe('RightPanel', () => {
 		render(RightPanel, { controller, assistant: panelAssistant() });
 
 		const panes = () => [...document.querySelectorAll('.right-panel__pane')];
-		expect(panes().length).toBe(5);
+		expect(panes().length).toBe(6);
 		const shown = () => panes().filter((pane) => getComputedStyle(pane).display !== 'none');
 		expect(shown()).toHaveLength(1);
 		expect(shown()[0]!.hasAttribute('hidden')).toBe(false);
+		await fireEvent.click(screen.getByRole('tab', { name: 'Linking' }));
+		await waitFor(() => expect(shown()).toHaveLength(1));
+		expect(shown()[0]!.textContent).toContain('Link repeated sections');
 
 		// The catch-all tab split: `Local data` is on Preferences now, `Export .txt`
 		// on Song.
@@ -193,7 +196,7 @@ describe('RightPanel', () => {
 			screen
 				.getAllByRole('tab')
 				.map((tab) => tab.getAttribute('aria-label') ?? tab.textContent?.trim())
-		).toEqual(['Review', 'Assistant', 'Performers', 'Song', 'Preferences']);
+		).toEqual(['Review', 'Linking', 'Assistant', 'Performers', 'Song', 'Preferences']);
 
 		const performersTab = screen.getByRole('tab', { name: 'Performers' });
 		await fireEvent.click(performersTab);
@@ -203,6 +206,11 @@ describe('RightPanel', () => {
 		const linterTab = screen.getByRole('tab', { name: /Review/ });
 		linterTab.focus();
 		await fireEvent.keyDown(linterTab, {
+			key: window.matchMedia('(min-width: 78rem)').matches ? 'ArrowDown' : 'ArrowRight'
+		});
+		await waitFor(() => expect(controller.activeTab).toBe('linking'));
+		expect(document.activeElement?.textContent).toContain('Linking');
+		await fireEvent.keyDown(document.activeElement!, {
 			key: window.matchMedia('(min-width: 78rem)').matches ? 'ArrowDown' : 'ArrowRight'
 		});
 		await waitFor(() => expect(controller.activeTab).toBe('assistant'));
@@ -233,7 +241,7 @@ describe('RightPanel', () => {
 		}
 	});
 
-	test('keeps the four base tabs and mounts no assistant pane when unavailable', async () => {
+	test('keeps the five base tabs and mounts no assistant pane when unavailable', async () => {
 		vi.stubEnv('PUBLIC_ASSISTANT_ANSWERS_URL', '');
 		const { controller } = createTestWorkbench();
 		controller.setActiveTab('assistant');
@@ -242,12 +250,13 @@ describe('RightPanel', () => {
 		await waitFor(() => expect(controller.activeTab).toBe('linter'));
 		expect(screen.getAllByRole('tab').map((tab) => tab.textContent?.trim())).toEqual([
 			'Review',
+			'Linking',
 			'Performers',
 			'Song',
 			'Preferences'
 		]);
 		expect(screen.queryByRole('tab', { name: 'Assistant' })).toBeNull();
-		expect(document.querySelectorAll('.right-panel__pane')).toHaveLength(4);
+		expect(document.querySelectorAll('.right-panel__pane')).toHaveLength(5);
 		expect(document.querySelector('.assistant-panel')).toBeNull();
 		expect(
 			[...document.querySelectorAll('.right-panel__pane')].filter(

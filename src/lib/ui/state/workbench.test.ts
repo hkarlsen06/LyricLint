@@ -836,6 +836,42 @@ describe('workbench draft safety', () => {
 	});
 });
 
+describe('workbench linking navigation', () => {
+	test('keeps the explicitly opened section when the caret moves', () => {
+		const initial = draft('draft-a', '[Chorus]\nHold on\n\n[Chorus]\nHold on');
+		const { controller } = setup({ initial });
+		const header = initial.text.lastIndexOf('[Chorus]');
+		controller.openLinking(header);
+		controller.onSnapshot({ ...snapshot(initial), selection: { anchor: 0, head: 0 } });
+		expect(controller.activeTab).toBe('linking');
+		expect(controller.linkingHeaderFrom).toBe(header);
+		controller.setActiveTab('song');
+		controller.setActiveTab('linking');
+		expect(controller.linkingHeaderFrom).toBe(header);
+	});
+
+	test('retires a comparison when its document changes and rejects missing headers', () => {
+		const initial = draft('draft-a', '[Chorus]\nHold on');
+		const { controller } = setup({ initial });
+		controller.openLinking(0);
+		controller.onSnapshot(snapshot(initial, 1, '[Verse]\nNew words'));
+		expect(controller.linkingHeaderFrom).toBeUndefined();
+		controller.openLinking(999);
+		expect(controller.linkingHeaderFrom).toBeUndefined();
+		expect(controller.toasts.at(-1)?.message).toContain('section has changed');
+	});
+
+	test('returns to the overview when another draft opens', async () => {
+		const initial = draft('draft-a', '[Chorus]\nHold on');
+		const other = draft('draft-b', '[Chorus]\nDifferent song');
+		const { controller } = setup({ initial, drafts: [initial, other] });
+		controller.openLinking(0);
+		await controller.openDraft('draft-b');
+		expect(controller.activeTab).toBe('linking');
+		expect(controller.linkingHeaderFrom).toBeUndefined();
+	});
+});
+
 describe('workbench diagnostic navigation', () => {
 	const diagnostic: Diagnostic = {
 		ruleId: 'section-header-missing',
@@ -1519,5 +1555,63 @@ describe('workbench performer renames', () => {
 			expect.objectContaining({ displayName: 'Avery, The Voice', aliases: ['Avery'] })
 		);
 		expect(controller.feedback.toasts.at(-1)?.message).toContain('The headers keep Avery');
+	});
+});
+
+describe('linking navigation origin', () => {
+	const text = '[Chorus]\nHold on\n\n[Chorus 2]\nHold on';
+	const secondHeader = text.indexOf('[Chorus 2]');
+
+	test('retains an overview request through selection-only snapshots and replaces it on an explicit section request', () => {
+		const initial = draft('draft-a', text);
+		const { controller } = setup({ initial });
+		controller.openLinking(0, { fromOverview: true, comparedHeaders: [0, secondHeader] });
+		controller.onSnapshot({
+			...snapshot(initial),
+			selection: { anchor: secondHeader, head: secondHeader }
+		});
+		expect(controller.linkingHeaderFrom).toBe(0);
+		expect(controller.linkingFromOverview).toBe(true);
+		expect(controller.linkingComparedHeaders).toEqual([0, secondHeader]);
+
+		controller.openLinking(secondHeader);
+		expect(controller.linkingHeaderFrom).toBe(secondHeader);
+		expect(controller.linkingFromOverview).toBe(false);
+		expect(controller.linkingComparedHeaders).toBeUndefined();
+	});
+
+	test('rejects a stale explicit header without relabelling the current overview comparison', () => {
+		const { controller } = setup({ initial: draft('draft-a', text) });
+		controller.openLinking(0, { fromOverview: true, comparedHeaders: [0, secondHeader] });
+		controller.openLinking(2);
+		expect(controller.linkingHeaderFrom).toBe(0);
+		expect(controller.linkingFromOverview).toBe(true);
+		expect(controller.linkingComparedHeaders).toEqual([0, secondHeader]);
+		expect(controller.feedback.announcement).toBe(
+			'That section has changed. Choose it again in Linking.'
+		);
+	});
+
+	test('clears the origin with a closed comparison, a text revision, and a draft switch', async () => {
+		const initial = draft('draft-a', text);
+		const next = draft('draft-b', text);
+		const { controller } = setup({ initial, drafts: [initial, next] });
+		controller.openLinking(0, { fromOverview: true, comparedHeaders: [0, secondHeader] });
+		controller.closeLinking();
+		expect(controller.linkingHeaderFrom).toBeUndefined();
+		expect(controller.linkingFromOverview).toBe(false);
+		expect(controller.linkingComparedHeaders).toBeUndefined();
+
+		controller.openLinking(0, { fromOverview: true, comparedHeaders: [0, secondHeader] });
+		controller.onSnapshot(snapshot(initial, 1, text + '!'));
+		expect(controller.linkingHeaderFrom).toBeUndefined();
+		expect(controller.linkingFromOverview).toBe(false);
+		expect(controller.linkingComparedHeaders).toBeUndefined();
+
+		controller.openLinking(0, { fromOverview: true, comparedHeaders: [0, secondHeader] });
+		await controller.openDraft(next.id);
+		expect(controller.linkingHeaderFrom).toBeUndefined();
+		expect(controller.linkingFromOverview).toBe(false);
+		expect(controller.linkingComparedHeaders).toBeUndefined();
 	});
 });

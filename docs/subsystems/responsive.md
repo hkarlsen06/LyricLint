@@ -8,6 +8,10 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/state/phone-layout.ts`,
 - Phones open in Write, with the lyrics taking the available height. The labelled
   Write, Review (with the visible finding count), and Tools controls switch task views.
   The editor remains mounted; selection, undo history, and scroll position survive.
+  Linking is a tool within Tools: deliberate editor or Review requests open its detail and
+  focus its heading without opening the keyboard. Its comparison uses the panel scroll port.
+  Linking line buttons return to Write and reveal the header, retaining linking choices and
+  focusing the Write control instead of opening the typing keyboard.
   `e2e/mobile-workbench.spec.ts` pins the writing, tools, rotation, and recovery flow.
 - `PHONE_WORKSPACE_QUERY` selects task views only on primary coarse pointers at or below
   `68rem`. It aliases the shared interaction query used by the editor. The matching CSS

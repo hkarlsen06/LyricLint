@@ -312,6 +312,16 @@ describe('dismissed selections', () => {
 });
 
 describe('selection anchor reports', () => {
+	it('does not open linking merely because a complete header is selected', () => {
+		const session = closedOverlaySession();
+		expect(
+			reportSelectionAnchor(session, anchor({ offersAssignment: false, linkHeader: selection }))
+		).toEqual({
+			session,
+			assignRequested: false
+		});
+	});
+
 	it('ignores a selection that does not offer an assignment', () => {
 		const session = closedOverlaySession();
 

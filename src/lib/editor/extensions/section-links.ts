@@ -33,6 +33,7 @@ import {
 	widenToRuns
 } from '$lib/core/link-shape.js';
 import { narrowEdit } from '$lib/performers/transform.js';
+import { releaseControlHint, showControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
 import type { SectionLinkOrigin } from '../contracts.js';
 import { sectionBodyRange } from '../section-links.js';
 import {
@@ -41,7 +42,6 @@ import {
 	parsedDocumentForState
 } from './editor-state.js';
 import { singleChangedRange } from './header-rename.js';
-import { HoverIntent } from './hover-intent.js';
 import { pressed } from './widget-press.js';
 
 /**
@@ -846,6 +846,7 @@ export function linkDifferencesFor(
 			const next = member.holes[index + 1]?.from ?? member.body.to - member.body.from;
 			return {
 				headerFrom: member.header,
+				from,
 				text: hole ? state.doc.sliceString(from, to) : '',
 				before: state.doc.sliceString(member.body.from + previous, from),
 				after: state.doc.sliceString(to, member.body.from + next)
@@ -1632,9 +1633,6 @@ export function typeOnlyHereNotifier(): Extension {
 }
 
 class SectionLinkMarker extends WidgetType {
-	/** The wait a pointer serves before this marker opens its card. */
-	private readonly hover = new HoverIntent<() => void>((open) => open());
-
 	constructor(
 		readonly headerFrom: number,
 		readonly local: boolean
@@ -1662,13 +1660,17 @@ class SectionLinkMarker extends WidgetType {
 			'aria-label',
 			this.local ? 'Edit linked sections, editing only this section' : 'Edit linked sections'
 		);
-		marker.setAttribute('aria-haspopup', 'dialog');
-		// No `aria-keyshortcuts`: `Mod-Shift-L` arms Type only here rather than
-		// opening this card, so the marker has no keyboard twin to claim. And no
-		// `describeControl` box either, because a hover here is already serving
-		// `HoverIntent` toward opening the card itself, and a tooltip racing the
-		// surface it names would lose to it or cover it.
+		const showHint = () => showControlHint(marker, { label: 'Manage linking' });
+		const releaseHint = () => releaseControlHint(marker);
+		marker.addEventListener('pointerenter', showHint);
+		marker.addEventListener('pointerleave', releaseHint);
+		marker.addEventListener('focus', showHint);
+		marker.addEventListener('blur', releaseHint);
+		marker.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape') releaseHint();
+		});
 		const open = (origin: SectionLinkOrigin) => {
+			releaseHint();
 			const line = view.state.doc.lineAt(clamp(view.state, this.headerFrom));
 			view.state.field(editorCallbacksField, false)?.onSectionLinkRequest?.(
 				{
@@ -1678,11 +1680,6 @@ class SectionLinkMarker extends WidgetType {
 				origin
 			);
 		};
-		/**
-		 * A press, from either device. `aria-haspopup="dialog"` promises exactly
-		 * this, and the card it opens takes the focus and hands it back here —
-		 * which is what the attribute is a promise of.
-		 */
 		const byPress: SectionLinkOrigin = {
 			takesFocus: true,
 			returnFocus: () => {
@@ -1693,36 +1690,15 @@ class SectionLinkMarker extends WidgetType {
 				return true;
 			}
 		};
-		// Armed with one stable value: `HoverIntent` compares targets by identity,
-		// so a fresh closure per `pointerenter` would re-arm the wait forever and a
-		// pointer that came to a complete stop would never open anything.
-		const openByHover = () => open({ takesFocus: false });
-		// Pointing serves the editor's one hover wait and opens a card nobody
-		// asked for, so it takes no focus.
-		marker.addEventListener('pointerenter', () => this.hover.arm(openByHover));
-		marker.addEventListener('pointerleave', () => this.hover.cancel());
-		// Bare `focus` opened it once, and that made a document with linked
-		// sections untraversable: Tab reached the marker, the card took the focus,
-		// Escape gave it to the editor, and the next Tab was back on the same
-		// marker. Arriving somewhere is not asking for anything — a press is, from
-		// either device. The click path is safe now for the same reason: nothing
-		// opens behind it, so there is no card already being answered for a second
-		// `open()` to reset.
-		marker.addEventListener('click', () => {
-			this.hover.cancel();
-			open(byPress);
-		});
-		pressed(marker, () => {
-			this.hover.cancel();
-			open(byPress);
-		});
+		// Reaching a marker by pointer or Tab does not navigate the shell. Only a
+		// deliberate press opens Linking; widget key handling protects lyric text.
+		marker.addEventListener('click', () => open(byPress));
+		pressed(marker, () => open(byPress));
 		return marker;
 	}
 
-	// The marker is rebuilt whenever its header moves or the group changes; a
-	// wait armed against the old one must not fire against the new.
-	destroy(): void {
-		this.hover.cancel();
+	destroy(dom: HTMLElement): void {
+		releaseControlHint(dom);
 	}
 }
 

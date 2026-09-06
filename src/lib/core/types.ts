@@ -494,8 +494,8 @@ export interface LinkHole {
 }
 
 /**
- * One difference inside a link group, with each member's own wording — the row
- * the link card's second list draws.
+ * One difference inside a link group, with each member's own wording for the
+ * Linking panel comparison.
  */
 export interface LinkDifference {
 	/** Position in the group's shape, which is what an answer names. */
@@ -506,20 +506,22 @@ export interface LinkDifference {
 
 /**
  * One copy's version of one difference, with the shared runs either side. The
- * picker states that shared location once, then groups copies whose `text` is
- * identical so only the real alternatives repeat.
+ * panel groups copies whose `text` is identical and clips the adjacent shared
+ * runs to readable context, so only the real alternatives repeat.
  */
 interface LinkWording {
 	headerFrom: number;
+	/** Absolute document offset of the divergent run, including an empty run. */
+	from: number;
 	/** The divergent run itself. Empty where this copy has nothing there. */
 	text: string;
-	/** Shared text before it, back to the start of its line. */
+	/** Shared text before it, back to the preceding difference or body start. */
 	before: string;
-	/** Shared text after it, on to the end of its line. */
+	/** Shared text after it, through the next difference or body end. */
 	after: string;
 }
 
-/** What the user answered in the link card. */
+/** What the user answered in the Linking panel. */
 export interface SectionLinkChoice {
 	/** The sections to tie together, the one the card was opened from first. */
 	headers: readonly number[];
@@ -842,9 +844,8 @@ export interface EditorHandle {
 	/** Open the existing performer picker for the retained lyric selection. */
 	requestPerformerAssignment?(): void;
 	/**
-	 * Open the link picker for the repeated section containing the cursor, as if
-	 * the user pressed the link shortcut. The same command over the same
-	 * predicate, so the two ways in cannot come to mean different things.
+	 * Request Linking for the section containing the cursor or selection.
+	 * Explicit editor and diagnostic actions share this target resolution.
 	 */
 	requestSectionLink?(): void;
 	/**

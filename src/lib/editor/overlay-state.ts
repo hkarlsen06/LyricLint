@@ -73,31 +73,7 @@ type OverlayState =
 			 */
 			pendingVoice?: readonly PerformerId[];
 	  }
-	| { kind: 'section'; range: TextRange }
-	| {
-			kind: 'link';
-			/**
-			 * The selection that opened the card, not the header it names. The
-			 * dismissal that keeps a closed card from reopening is keyed to the
-			 * selection still sitting there, so the two have to be the same range.
-			 */
-			range: TextRange;
-			/**
-			 * Whether the card may take the focus as it opens, exactly as the two
-			 * variants above decide it. `Mod-Shift-L`, the diagnostic's guided
-			 * action, and a press on the `⇄` marker are all asked for and take it.
-			 * The two that open uninvited do not: the marker's own hover wait, and
-			 * a pointer selection that happens to cover a header whole. Taking it
-			 * there blurred the editor — the drawn caret goes with `.cm-focused` —
-			 * and sent the next keystrokes into checkboxes where Space toggles
-			 * link membership.
-			 */
-			takesFocus: boolean;
-			/** Lyrics selected for a local replacement or a new link difference. */
-			selection?: TextRange;
-			/** The header's own offset, which is what every link hook is keyed to. */
-			headerFrom: number;
-	  };
+	| { kind: 'section'; range: TextRange };
 
 /** The overlay plus the suppression that outlives any single overlay. */
 export interface OverlaySession {
@@ -170,27 +146,6 @@ export function beginLegendAssignment(
 
 export function openSectionPicker(session: OverlaySession, range: TextRange): OverlaySession {
 	return withOverlay(session, { kind: 'section', range });
-}
-
-export function openSectionLinkPicker(
-	session: OverlaySession,
-	range: TextRange,
-	headerFrom: number,
-	takesFocus: boolean,
-	selection?: TextRange
-): OverlaySession {
-	return withOverlay(session, { kind: 'link', range, headerFrom, takesFocus, selection });
-}
-
-/**
- * Cancelling records the range, exactly as the performer picker's does: the
- * header is still selected after the card closes, and the next settled anchor
- * report would otherwise reopen what the user just dismissed.
- */
-export function cancelSectionLinkPicker(session: OverlaySession): OverlaySession {
-	return session.overlay.kind === 'link'
-		? { overlay: { kind: 'none' }, dismissedSelection: rangeKey(session.overlay.range) }
-		: closeOverlay(session);
 }
 
 /**
@@ -393,8 +348,7 @@ export interface SelectionAnchorOutcome {
  * A settled selection anchor.
  *
  * `undefined` means there is no anchored selection at all — collapsed,
- * whitespace-only, or composing — which retires the two cards that opened
- * themselves from a selection (the performer picker and the link picker) but
+ * whitespace-only, or composing — which retires the performer picker but
  * leaves a section picker or diagnostic popover alone: neither was opened
  * from the selection.
  *
@@ -407,14 +361,7 @@ export function reportSelectionAnchor(
 	session: OverlaySession,
 	anchor: SelectionAnchor | undefined
 ): SelectionAnchorOutcome {
-	const openedFromSelection =
-		session.overlay.kind === 'performer' || session.overlay.kind === 'link';
-	// Only the performer picker goes. It exists solely because a range of lyrics
-	// is selected, so a selection that is gone is a card describing nothing. The
-	// link picker is anchored to a *header*, which is still there — and it opens
-	// from a bare caret too, through `Mod-Shift-L`, so retiring it here killed the
-	// keyboard-opened card on the very next settle. It leaves the way every other
-	// transient surface does: Escape, Cancel, an outside press, or applying.
+	const openedFromSelection = session.overlay.kind === 'performer';
 	if (!anchor) {
 		// A dismissal suppresses only the selection that is still standing behind
 		// the card. Once the selection collapses there is no stale anchor report
@@ -442,18 +389,6 @@ export function reportSelectionAnchor(
 	// beside the caret and leaves it exactly where it was.
 	if (anchor.offersAssignment) {
 		return { session: openPerformerPicker(settled, anchor.range, false), assignRequested: true };
-	}
-	// No `assignRequested`: the shell has nothing to arbitrate about a link, so
-	// there is no request to forward. The pane opens the card and that is all.
-	if (anchor.linkHeader) {
-		// `false` for the same reason the picker above takes it: nobody pressed
-		// anything. Sweeping a header whole is a selection the user is in the
-		// middle of working with, and a card that took the caret out of the
-		// document there would land their next keystroke in a checkbox.
-		return {
-			session: openSectionLinkPicker(settled, anchor.range, anchor.linkHeader.from, false),
-			assignRequested: false
-		};
 	}
 	return { session: settled, assignRequested: false };
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import InlineDiffText from '../primitives/InlineDiffText.svelte';
 	import { Diff, X } from 'lucide-svelte';
 	import { tick } from 'svelte';
 	import { diffDocuments, type DiffRow } from '$lib/core/document-diff.js';
@@ -172,10 +173,6 @@
 	}
 </script>
 
-{#snippet lineText(text: string)}
-	{#if text === ''}<em class="compare-diff__blank">(blank line)</em>{:else}{text}{/if}
-{/snippet}
-
 <!-- Comparing acts on the whole document, so the trigger lives in the command
      strip — and it does not draw over an empty document, where there is nothing
      to compare and the modal could only explain its own absence. -->
@@ -308,24 +305,36 @@
 											>
 											<span class="compare-diff__text">
 												{#if row.kind === 'removed'}
-													<del class="compare-diff__drop">{@render lineText(row.text)}</del>
+													<InlineDiffText kind="del" text={row.text} blankLabel />
 												{:else if row.kind === 'added'}
-													<ins class="compare-diff__add" data-doc-len={row.text.length}
-														>{@render lineText(row.text)}</ins
-													>
+													<InlineDiffText
+														kind="ins"
+														text={row.text}
+														documentLength={row.text.length}
+														blankLabel
+														underlineInsertion={false}
+													/>
 												{:else if row.kind === 'context'}
-													<span data-doc-len={row.text.length}>{@render lineText(row.text)}</span>
+													<InlineDiffText
+														text={row.text}
+														documentLength={row.text.length}
+														blankLabel
+													/>
 												{:else}
-													{#each row.segments as segment, segmentIndex (segmentIndex)}{#if segment.kind === 'shared'}<span
-																class="compare-diff__shared"
-																data-doc-len={segment.text.length}>{segment.text}</span
-															>{:else}{#if segment.deleted}<del
-																	class="compare-diff__drop"
-																	data-doc-len="0">{segment.deleted}</del
-																>{/if}{#if segment.inserted}<ins
-																	class="compare-diff__add"
-																	data-doc-len={segment.inserted.length}>{segment.inserted}</ins
-																>{/if}{/if}{/each}
+													{#each row.segments as segment, segmentIndex (segmentIndex)}{#if segment.kind === 'shared'}<InlineDiffText
+																kind="shared"
+																text={segment.text}
+																documentLength={segment.text.length}
+															/>{:else}{#if segment.deleted}<InlineDiffText
+																	kind="del"
+																	text={segment.deleted}
+																	documentLength={0}
+																/>{/if}{#if segment.inserted}<InlineDiffText
+																	kind="ins"
+																	text={segment.inserted}
+																	documentLength={segment.inserted.length}
+																	underlineInsertion={false}
+																/>{/if}{/if}{/each}
 												{/if}
 											</span>
 										</button>
@@ -521,37 +530,6 @@
 
 	.compare-diff__gap {
 		color: var(--color-text-muted);
-	}
-
-	.compare-diff__shared {
-		color: var(--color-text-muted);
-	}
-
-	/* The editor's fix-preview idiom: what the page loses stays put, struck
-	   through as well as coloured — colour alone is never a state carrier. */
-	.compare-diff__drop {
-		padding: 0 var(--inline-diff-padding);
-		border-radius: var(--radius-sm);
-		background: var(--color-danger-surface);
-		color: var(--color-danger);
-		text-decoration: line-through;
-	}
-
-	.compare-diff__add {
-		padding: 0 var(--inline-diff-padding);
-		border-radius: var(--radius-sm);
-		background: var(--color-success-surface);
-		color: var(--color-text);
-		text-decoration: none;
-	}
-
-	.compare-diff__drop + .compare-diff__add {
-		margin-inline-start: var(--inline-diff-gap);
-	}
-
-	.compare-diff__blank {
-		color: var(--color-text-muted);
-		font-style: italic;
 	}
 
 	.compare-diff__notes {
