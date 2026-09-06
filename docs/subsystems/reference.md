@@ -64,6 +64,19 @@ The guidance catalog's content pipeline stays in `docs/guidelines.md` and is fol
 
 ## Decision record
 
+### Typing reuses the corpus preparation
+
+The route corpus does not change while the reader types. `createReferenceSearch` prepares its
+folded fields, distinct fuzzy-match words and tokenized intent aliases once; the finder's derived
+search function is replaced when the corpus changes. Previously each keystroke rebuilt all of
+these and folded each passage again for every query token. Snippet scoring now reads the already
+folded passage at its original field position. Ranking, fuzzy matching, grouping and snippets
+remain synchronous and unchanged; each query still creates fresh result objects and related-check
+lists. No query results or mutable search state are shared between finders. The standalone
+`searchReference` helper still prepares its supplied corpus on each call, so callers replacing or
+editing their input cannot inherit a stale global cache. `reference/search.test.ts` pins repeated
+queries, result isolation and corpus replacement alongside the existing search tasks.
+
 ### Choosing a topic ends directory browsing
 
 The shared finder stays mounted between articles. Its local Browse topics override used to stay

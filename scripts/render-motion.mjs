@@ -18,8 +18,8 @@
  *
  * `ORIGIN` overrides the server it drives. The two detail scenes write two files
  * each into `static/`: a `.webm` for the page, and a `.gif` for anywhere a video
- * tag is not welcome — a README, an issue, a social post. The hero writes only
- * the `.webm`, for the reason given where the GIF is encoded.
+ * tag is not welcome — a README, an issue, a social post. The hero writes full
+ * and phone-sized WebMs, with no GIF for the reason given where it is encoded.
  *
  * Run it with **node**, not bun: bun resolves `playwright-core` out of its own
  * global cache, which is routinely a different version from the one in
@@ -37,11 +37,13 @@
  * here is a script rather than a capture taken by hand.
  */
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, link } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
+import { renderMobileLoop } from './render-mobile-loop.mjs';
+import { writeShotDimensions } from './write-shot-dimensions.mjs';
 import {
 	assertHeroSelection,
 	harperTranscription,
@@ -60,13 +62,9 @@ const stem = hero ? 'workbench' : harper ? 'workbench-harper' : 'workbench-perfo
 const webmPath = resolve(`static/${stem}.webm`);
 const gifPath = resolve(`static/${stem}.gif`);
 
-/**
- * 20fps. The cursor is the only thing moving for most of the loop, and a
- * pointer reads as deliberate at 20 where at 30 it reads as a mouse being
- * flicked — and a GIF pays for every frame twice, in palette error and in
- * bytes.
- */
-const FPS = 20;
+/** Smooth pointer motion, with scene beats still measured in twentieths of a second. */
+const FPS = 60;
+const BEATS_PER_SECOND = 20;
 
 /** The capture is the whole editor column; the crop is worked out afterwards. */
 const SCALE = 2;
@@ -133,7 +131,7 @@ const CURSOR_SCRIPT = `
 `;
 
 /** Ease so the pointer starts and stops like a hand, not like a tween. */
-const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const ease = (t) => t * t * t * (10 + t * (-15 + 6 * t));
 
 async function main() {
 	await mkdir(resolve('static'), { recursive: true });
@@ -304,7 +302,7 @@ async function main() {
 			? { x: region.x + region.width * 0.66, y: region.y + 300 }
 			: harper
 				? { x: region.x + region.width * 0.45, y: firstLineTop + 6 }
-				: { x: region.x + region.width * 0.62, y: region.y + 90 };
+				: { x: region.x + Math.min(region.width * 0.62, 500), y: region.y + 90 };
 		// The crop is the union of what the scene drew, and the pointer is drawn by
 		// us rather than by the page — so its home has to be entered into that union
 		// by hand or the arrow can rest just outside the frame. The box is the
@@ -318,12 +316,20 @@ async function main() {
 		let cursor = { ...restPosition };
 		let frameIndex = 0;
 
-		const capture = async (press = 0) => {
+		const capture = async (press = 0, samples = FPS / BEATS_PER_SECOND) => {
 			await page.evaluate(([x, y, p]) => window.__shotCursor(x, y, p), [cursor.x, cursor.y, press]);
 			const path = join(frameDir, `f-${String(frameIndex).padStart(4, '0')}.png`);
 			await page.screenshot({ path, type: 'png', clip: region });
 			frames.push(path);
 			frameIndex += 1;
+			// Holds keep their original pacing without photographing an unchanged
+			// cursor three times. Moving frames always request a single sample.
+			for (let i = 1; i < samples; i += 1) {
+				const repeated = join(frameDir, `f-${String(frameIndex).padStart(4, '0')}.png`);
+				await link(path, repeated);
+				frames.push(repeated);
+				frameIndex += 1;
+			}
 		};
 
 		const hold = async (count, press = 0) => {
@@ -333,26 +339,38 @@ async function main() {
 		/*
 		 * A move is the same call whether or not a button is down — the drag is
 		 * the mouse being *held*, which `page.mouse.down()` established before
-		 * this ran and `page.mouse.up()` ends after it. There is deliberately no
-		 * pressed variant here.
+		 * this ran and `page.mouse.up()` ends after it. The dragging option only
+		 * keeps the path straight along the selected lyric line.
 		 */
-		const glide = async (to, count) => {
+		const glide = async (to, beats, { dragging = false } = {}) => {
 			const from = { ...cursor };
+			const dx = to.x - from.x;
+			const dy = to.y - from.y;
+			const distance = Math.hypot(dx, dy);
+			// Long reaches need more time than neighbouring controls. A gentle arc
+			// keeps travel from looking ruler-straight; selection stays on its line.
+			const seconds = Math.max(beats / BEATS_PER_SECOND, 0.18 + Math.sqrt(distance) / 38);
+			const count = Math.ceil(seconds * FPS);
+			const bend = dragging ? 0 : Math.min(18, distance * 0.045);
 			for (let i = 1; i <= count; i += 1) {
 				const t = ease(i / count);
-				cursor = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
+				const arc = 4 * t * (1 - t) * bend;
+				cursor = {
+					x: from.x + dx * t - (dy / (distance || 1)) * arc,
+					y: from.y + dy * t + (dx / (distance || 1)) * arc
+				};
 				await page.mouse.move(cursor.x, cursor.y);
-				await capture();
+				await capture(0, 1);
 			}
 		};
 
 		/** A press, its pulse, and the frames the surface takes to answer it. */
-		const clickHere = async (settleFrames) => {
+		const clickHere = async (settleFrames, keepMoving = false) => {
 			await page.mouse.move(cursor.x, cursor.y);
 			await page.mouse.down();
-			await capture(0.05);
+			await capture(0.05, keepMoving ? 1 : FPS / BEATS_PER_SECOND);
 			await page.mouse.up();
-			for (const p of [0.35, 0.6, 0.85]) await capture(p);
+			if (!keepMoving) for (const p of [0.35, 0.6, 0.85]) await capture(p);
 			await hold(settleFrames);
 		};
 
@@ -382,28 +400,27 @@ async function main() {
 			//       gesture a reader would actually make.
 			const points = await selectionPoints(page);
 			await glide(points.from, 15);
-			await hold(3);
 
 			await page.mouse.move(points.from.x, points.from.y);
 			await page.mouse.down();
 			await capture(0.05);
-			await glide(points.to, 13);
+			await glide(points.to, 13, { dragging: true });
 			await page.mouse.up();
 			await capture();
 
 			await page.locator('.picker-layer .picker').waitFor({ state: 'visible', timeout: 10_000 });
 			await observe();
-			await hold(14);
+			await hold(6);
 
 			// ── 3. `Who sings this? · 1 of 2` — the phrase's own voice.
 			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Avery'), 13);
-			await clickHere(11);
+			await clickHere(0, true);
 			await observe();
 
 			// ── 4. `Next`, because this section has no legend yet and applying would
 			//       otherwise promise an assignment and then ask a second question.
 			await glide(await centreOf('.picker-layer .picker .actions button', 'Next'), 11);
-			await clickHere(14);
+			await clickHere(0, true);
 			await page.waitForTimeout(200);
 			await observe();
 
@@ -425,22 +442,18 @@ async function main() {
 			 * again between Avery and Blair — so a dwell between the presses reads as
 			 * the hand hesitating over a question it already answered. The second
 			 * press is a flick to the adjacent chip with no pause on the first, and
-			 * the read happens afterwards, on the row showing both names pressed.
+			 * the pointer continues directly to Apply once both are selected.
 			 */
 			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Avery'), 9);
-			await clickHere(2);
+			await clickHere(0, true);
 			await glide(await centreOf('.picker-layer .picker [data-picker-chip]', 'Blair'), 5);
-			await clickHere(12);
+			await clickHere(0, true);
 			await observe();
 
 			// ── 6. Apply. The wrapper, the slot and the header legend are written
 			//       together as one edit.
 			await glide(await centreOf('.picker-layer .picker .actions button', 'Apply'), 11);
-			await page.mouse.move(cursor.x, cursor.y);
-			await page.mouse.down();
-			await capture(0.05);
-			await page.mouse.up();
-			for (const p of [0.35, 0.6, 0.85]) await capture(p);
+			await clickHere(0, true);
 			await page.waitForTimeout(600);
 
 			// Applying returns focus to the editor. Nothing should carry a focus ring
@@ -637,22 +650,25 @@ async function main() {
 					// stopping on, so this whole branch runs at the slow end: it is a
 					// new question, and then a surface nothing else in the run has put
 					// on screen.
-					const picker = page.locator('.picker-layer .picker');
+					const detail = page.locator('.linking-detail');
 					await glide(guided, 9);
 					await press(22, 0);
-					await picker.waitFor({ state: 'visible', timeout: 10_000 });
+					await detail.waitFor({ state: 'visible', timeout: 10_000 });
 					await hold(20);
 
-					// The peer copy. `.row--current` is this section, drawn ticked and
-					// disabled, so the one row left is the chorus being tied to it.
-					await glide(await centreOf('.picker-layer .picker .rows .row:not(.row--current)'), 10);
-					// Ticking it is what draws the comparison underneath, which is the
-					// thing in this picker actually worth reading.
+					// The source is checked and disabled. Select the other chorus in
+					// Linking's persistent panel, then read the shared-lyrics outcome.
+					await glide(await centreOf('.linking-detail .members input:not(:disabled)'), 10);
 					await press(12, 22);
 
-					await glide(await centreOf('.picker-layer .picker button.apply'), 10);
+					await glide(await centreOf('.linking-detail .actions .button--contrast'), 10);
 					await press(10, 0);
-					await picker.waitFor({ state: 'detached', timeout: 10_000 });
+					await detail.waitFor({ state: 'detached', timeout: 10_000 });
+					await hold(16);
+					// Linking remains the active tab after applying. Return to Review
+					// through its own control before reading or acting on its findings.
+					await glide(await centreOf('[role="tab"]', 'Review'), 10);
+					await press(10, 0);
 					await until(
 						async () => (await findings()) < before,
 						'the link to answer its own suggestion'
@@ -707,16 +723,23 @@ async function main() {
 				}
 			});
 			await glide(await centreOf('.diagnostic-list__navigate'), 14);
-			await clickHere(0);
+			if (
+				(await page.locator('.diagnostic-list__navigate').first().getAttribute('aria-expanded')) !==
+				'true'
+			) {
+				await clickHere(0);
+			}
 			await page.waitForTimeout(600);
 			await hold(6);
 
+			await page.getByRole('textbox', { name: 'Lyrics editor' }).focus();
+			await page.keyboard.press('ArrowLeft');
 			const points = await selectionPoints(page);
 			await glide(points.from, 14);
 			await page.mouse.move(points.from.x, points.from.y);
 			await page.mouse.down();
 			await capture(0.05);
-			await glide(points.to, 12);
+			await glide(points.to, 12, { dragging: true });
 			await page.mouse.up();
 			await capture();
 			await page.locator('.picker-layer .picker').waitFor({ state: 'visible', timeout: 10_000 });
@@ -860,6 +883,8 @@ async function main() {
 			webmPath
 		]);
 
+		await writeShotDimensions();
+
 		/*
 		 * **The hero writes no GIF, and the arithmetic is why.** A GIF is the
 		 * sharing copy for a detail shot: a few hundred frames of one column, most
@@ -873,6 +898,7 @@ async function main() {
 		 * already what `README.md` points at.
 		 */
 		if (hero) {
+			await renderMobileLoop();
 			const { size } = await (await import('node:fs/promises')).stat(webmPath);
 			console.log(`wrote ${webmPath} (webm, ${(size / 1024).toFixed(0)}KB)`);
 			console.log('no gif for the hero scene — the still is its sharing copy');
@@ -888,7 +914,7 @@ async function main() {
 		// loop whose subject is a pointer crossing a static document.
 		const gifWidth = even(crop.width / SCALE);
 		const palette = join(frameDir, 'palette.png');
-		const gifScale = `scale=${gifWidth}:-2:flags=lanczos`;
+		const gifScale = `fps=50,scale=${gifWidth}:-2:flags=lanczos`;
 		await run('ffmpeg', [
 			'-y',
 			...input,

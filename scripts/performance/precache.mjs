@@ -80,10 +80,20 @@ try {
 						immutable.reduce((sum, request) => sum + request.bytes, 0) -
 						[...unique.values()].reduce((sum, bytes) => sum + bytes, 0),
 					cachedAssets: cache.length,
+					totalRequestBytes: requests.reduce((sum, request) => sum + request.bytes, 0),
+					videoRequests: requests.filter(({ pathname }) => pathname.endsWith('.webm')).length,
+					videoBytes: requests
+						.filter(({ pathname }) => pathname.endsWith('.webm'))
+						.reduce((sum, request) => sum + request.bytes, 0),
 					offlinePages: cache.filter((path) => path === '/' || path === '/lint/')
 				})
 			);
 			if (verify) {
+				assert.equal(
+					requests.filter(({ pathname }) => pathname.endsWith('.webm')).length,
+					0,
+					'Reduced-motion visits must not download marketing videos through the worker'
+				);
 				assert.equal(immutable.length, unique.size, `${route}: immutable assets downloaded twice`);
 				assert.ok(cache.includes('/') && cache.includes('/lint/'), 'Offline shells are cached');
 				for (const pathname of unique.keys()) {

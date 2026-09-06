@@ -23,7 +23,11 @@ export const assignedPhrase = 'Somewhere past the bridge';
 
 /** The shared browser window for every still and motion scene. */
 export function shotViewport(scene) {
-	return { width: 1280, height: scene === 'performers' ? 1150 : 820 };
+	// Give the floating action tray room outside the portrait crop.
+	return {
+		width: scene === 'performers' ? 1440 : 1280,
+		height: scene === 'performers' ? 1150 : 820
+	};
 }
 
 /**
@@ -224,19 +228,15 @@ export async function dragPhrase(page, phrase = assignedPhrase) {
  * It presses the row rather than naming a rule, so the scene follows
  * `diagnostics/order.ts` instead of pinning it.
  *
- * **The press is made whether or not the card is already open, and skipping it
- * when it is breaks the scene two steps later.** `DiagnosticList` expands the
- * leading card on its own, so the obvious guard here is to press only a closed
- * one — but selecting a diagnostic also selects its range in the document, and
- * that is what leaves the editor's selection somewhere other than the phrase
- * the scene re-drags across afterwards. Skipped, the drag re-selects a range
- * that is already selected, CodeMirror emits no new selection, and the picker
- * that opens on `select.pointer` never opens at all.
+ * The row toggles expansion, so press only when closed. Navigation can preserve
+ * the existing selection; `restoreHeroSelection` collapses it explicitly before
+ * re-dragging the phrase.
  */
 export async function openLeadingDiagnostic(page) {
 	const first = page.locator('.diagnostic-list > li').first();
 	await first.waitFor({ state: 'visible', timeout: 30_000 });
-	await first.locator('.diagnostic-list__navigate').click();
+	const navigate = first.locator('.diagnostic-list__navigate');
+	if ((await navigate.getAttribute('aria-expanded')) !== 'true') await navigate.click();
 	await page.waitForTimeout(600);
 }
 
@@ -314,6 +314,10 @@ export async function prepareHeroScene(page, editor) {
  * first: the same phrase selected, the same card open, the same roster showing.
  */
 export async function restoreHeroSelection(page) {
+	// Assignment leaves this phrase selected. Collapse it before dragging again,
+	// or the browser moves the selected text instead of making a new selection.
+	await page.getByRole('textbox', { name: 'Lyrics editor' }).focus();
+	await page.keyboard.press('ArrowLeft');
 	await dragPhrase(page);
 	await assertHeroSelection(page);
 }

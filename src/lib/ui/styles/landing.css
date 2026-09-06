@@ -437,9 +437,9 @@
 	height: auto;
 }
 
-/* The native video poster disappears at playback start, which can be earlier
-   than the first decoded frame. This duplicate uses the same cached asset but
-   stays above the media until `autoplayInView` marks that frame paintable. */
+/* The responsive still owns the poster; a native video poster would request
+   the full-size source too. Keep it above the media until `autoplayInView`
+   marks a decoded frame paintable. The video alone reserves the geometry. */
 .lp-shot__frame .lp-shot__poster {
 	position: absolute;
 	z-index: 1;
@@ -516,20 +516,6 @@
 		0 calc(-1 * var(--border-width)) 0 var(--color-border);
 }
 
-.lp-run__mark {
-	display: grid;
-	width: 3rem;
-	height: 3rem;
-	border: var(--border-width) solid var(--color-border-strong);
-	border-radius: var(--radius-md);
-	margin-bottom: var(--space-3);
-	background: var(--color-fill-subtle);
-	color: var(--color-text-muted);
-	font-family: var(--font-mono);
-	font-size: var(--font-size-xl);
-	place-items: center;
-}
-
 .lp-run__title {
 	font-size: var(--font-size-lg);
 	font-weight: var(--font-weight-semibold);
@@ -540,31 +526,6 @@
 	margin: 0;
 	color: var(--color-text-muted);
 	line-height: var(--line-height-body);
-}
-
-/* A trailing line of facts under a run, ruled off with a dashed hairline. The
-   dash is what separates it from the run's own solid border: this is a footnote
-   about the thing above it rather than another member of it. */
-.lp-note {
-	display: flex;
-	padding-top: var(--space-4);
-	border-top: var(--border-width) dashed var(--color-border);
-	gap: var(--space-5);
-	flex-wrap: wrap;
-	margin-top: var(--space-5);
-	color: var(--color-text-muted);
-	font-size: var(--font-size-sm);
-}
-
-.lp-note__item {
-	display: inline-flex;
-	gap: var(--space-2);
-	align-items: center;
-}
-
-.lp-note__item svg {
-	flex: none;
-	color: var(--color-success);
 }
 
 /* The community section's action row under its copy. The Discord widget
@@ -605,6 +566,16 @@
 	gap: clamp(var(--space-6), 4vw, var(--space-8));
 	align-items: center;
 	grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+}
+
+/* The interactive demo can grow as lyrics wrap or are edited. Keep the
+   heading and editor anchored at the top instead of recentering the copy. */
+.lp-demo {
+	align-items: start;
+}
+
+.lp-demo .site-demo {
+	margin-bottom: 0;
 }
 
 /*

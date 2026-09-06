@@ -1,0 +1,2372 @@
+{
+  "date": "2026-09-06",
+  "baseline": "ced4eb3 source; latest concurrently generated marketing assets mirrored into both builds",
+  "lighthouse": {
+    "settings": {
+      "mobile": {
+        "output": [
+          "json",
+          "html"
+        ],
+        "maxWaitForFcp": 30000,
+        "maxWaitForLoad": 45000,
+        "pauseAfterFcpMs": 1000,
+        "pauseAfterLoadMs": 1000,
+        "networkQuietThresholdMs": 1000,
+        "cpuQuietThresholdMs": 1000,
+        "formFactor": "mobile",
+        "throttling": {
+          "rttMs": 150,
+          "throughputKbps": 1638.4,
+          "requestLatencyMs": 562.5,
+          "downloadThroughputKbps": 1474.5600000000002,
+          "uploadThroughputKbps": 675,
+          "cpuSlowdownMultiplier": 4
+        },
+        "throttlingMethod": "simulate",
+        "screenEmulation": {
+          "mobile": true,
+          "width": 412,
+          "height": 823,
+          "deviceScaleFactor": 1.75,
+          "disabled": false
+        },
+        "emulatedUserAgent": "Mozilla/5.0 (Linux; Android 11; moto g power (2022)) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36",
+        "auditMode": false,
+        "gatherMode": false,
+        "clearStorageTypes": [
+          "file_systems",
+          "shader_cache",
+          "service_workers",
+          "cache_storage"
+        ],
+        "disableStorageReset": false,
+        "debugNavigation": false,
+        "channel": "cli",
+        "usePassiveGathering": false,
+        "disableFullPageScreenshot": false,
+        "skipAboutBlank": false,
+        "blankPage": "about:blank",
+        "ignoreStatusCode": false,
+        "locale": "en-US",
+        "blockedUrlPatterns": null,
+        "additionalTraceCategories": null,
+        "extraHeaders": null,
+        "precomputedLanternData": null,
+        "onlyAudits": null,
+        "onlyCategories": [
+          "performance",
+          "accessibility"
+        ],
+        "skipAudits": null
+      },
+      "desktop": {
+        "output": [
+          "json",
+          "html"
+        ],
+        "maxWaitForFcp": 30000,
+        "maxWaitForLoad": 45000,
+        "pauseAfterFcpMs": 1000,
+        "pauseAfterLoadMs": 1000,
+        "networkQuietThresholdMs": 1000,
+        "cpuQuietThresholdMs": 1000,
+        "formFactor": "desktop",
+        "throttling": {
+          "rttMs": 40,
+          "throughputKbps": 10240,
+          "requestLatencyMs": 0,
+          "downloadThroughputKbps": 0,
+          "uploadThroughputKbps": 0,
+          "cpuSlowdownMultiplier": 1
+        },
+        "throttlingMethod": "simulate",
+        "screenEmulation": {
+          "mobile": false,
+          "width": 1350,
+          "height": 940,
+          "deviceScaleFactor": 1,
+          "disabled": false
+        },
+        "emulatedUserAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+        "auditMode": false,
+        "gatherMode": false,
+        "clearStorageTypes": [
+          "file_systems",
+          "shader_cache",
+          "service_workers",
+          "cache_storage"
+        ],
+        "disableStorageReset": false,
+        "debugNavigation": false,
+        "channel": "cli",
+        "usePassiveGathering": false,
+        "disableFullPageScreenshot": false,
+        "skipAboutBlank": false,
+        "blankPage": "about:blank",
+        "ignoreStatusCode": false,
+        "locale": "en-US",
+        "blockedUrlPatterns": null,
+        "additionalTraceCategories": null,
+        "extraHeaders": null,
+        "precomputedLanternData": null,
+        "onlyAudits": null,
+        "onlyCategories": [
+          "performance",
+          "accessibility"
+        ],
+        "skipAudits": null
+      }
+    },
+    "chrome": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "samples": {
+      "before": [
+        {
+          "profile": "mobile",
+          "route": "/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 82,
+          "accessibility": 100,
+          "ttfb": 5.471,
+          "fcp": 2585.6966,
+          "lcp": 4291.4486,
+          "tbt": 2,
+          "cls": 0,
+          "bytes": 736491
+        },
+        {
+          "profile": "mobile",
+          "route": "/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 81,
+          "accessibility": 100,
+          "ttfb": 1.4770000000000003,
+          "fcp": 2572.68285,
+          "lcp": 4404.780699999999,
+          "tbt": 0.5,
+          "cls": 0,
+          "bytes": 736254
+        },
+        {
+          "profile": "mobile",
+          "route": "/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 82,
+          "accessibility": 100,
+          "ttfb": 0.9479999999999997,
+          "fcp": 2571.1502250000003,
+          "lcp": 4262.624725,
+          "tbt": 2,
+          "cls": 0,
+          "bytes": 736045
+        },
+        {
+          "profile": "mobile",
+          "route": "/lint/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 70,
+          "accessibility": 100,
+          "ttfb": 1.783,
+          "fcp": 2509.9730000000004,
+          "lcp": 5891.1676,
+          "tbt": 241.90270000000055,
+          "cls": 0.0013318161981529285,
+          "bytes": 597545
+        },
+        {
+          "profile": "mobile",
+          "route": "/lint/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 70,
+          "accessibility": 100,
+          "ttfb": 0.917,
+          "fcp": 2801.50325,
+          "lcp": 5880.171,
+          "tbt": 235.11075000000073,
+          "cls": 0.0013318357834139983,
+          "bytes": 597545
+        },
+        {
+          "profile": "mobile",
+          "route": "/lint/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 70,
+          "accessibility": 100,
+          "ttfb": 0.7590000000000003,
+          "fcp": 2505.1445,
+          "lcp": 5890.8734,
+          "tbt": 253.88555000000042,
+          "cls": 0.0013310246804059107,
+          "bytes": 597545
+        },
+        {
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 93,
+          "accessibility": 100,
+          "ttfb": 1.919,
+          "fcp": 2051.0536,
+          "lcp": 2912.6607999999987,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227276
+        },
+        {
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 93,
+          "accessibility": 100,
+          "ttfb": 2.399,
+          "fcp": 2050.3663999999994,
+          "lcp": 2911.0992000000006,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227276
+        },
+        {
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 93,
+          "accessibility": 100,
+          "ttfb": 2.2560000000000002,
+          "fcp": 2062.2623999999996,
+          "lcp": 2936.2871999999993,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227276
+        },
+        {
+          "profile": "desktop",
+          "route": "/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 98,
+          "accessibility": 100,
+          "ttfb": 0.876,
+          "fcp": 718.23995,
+          "lcp": 1016.1315000000002,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 736079
+        },
+        {
+          "profile": "desktop",
+          "route": "/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 99,
+          "accessibility": 100,
+          "ttfb": 0.774,
+          "fcp": 622.7179999999998,
+          "lcp": 887.1804999999999,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 736406
+        },
+        {
+          "profile": "desktop",
+          "route": "/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 98,
+          "accessibility": 100,
+          "ttfb": 0.6120000000000001,
+          "fcp": 740.2338,
+          "lcp": 958.6919000000001,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 736502
+        },
+        {
+          "profile": "desktop",
+          "route": "/lint/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 95,
+          "accessibility": 100,
+          "ttfb": 1.1019999999999999,
+          "fcp": 519.3377500000001,
+          "lcp": 1243.5728499999998,
+          "tbt": 23,
+          "cls": 0.001006537340896384,
+          "bytes": 597545
+        },
+        {
+          "profile": "desktop",
+          "route": "/lint/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 96,
+          "accessibility": 100,
+          "ttfb": 1.2289999999999996,
+          "fcp": 595.065325,
+          "lcp": 1217.67405,
+          "tbt": 6,
+          "cls": 0.0010059837532583435,
+          "bytes": 597545
+        },
+        {
+          "profile": "desktop",
+          "route": "/lint/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 96,
+          "accessibility": 100,
+          "ttfb": 1.4669999999999999,
+          "fcp": 615.8683249999999,
+          "lcp": 1225.6960499999998,
+          "tbt": 12,
+          "cls": 0.0010067097072558454,
+          "bytes": 597545
+        },
+        {
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 100,
+          "accessibility": 100,
+          "ttfb": 0.852,
+          "fcp": 484.49915,
+          "lcp": 708.3624,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227276
+        },
+        {
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 100,
+          "accessibility": 100,
+          "ttfb": 1.6329999999999998,
+          "fcp": 475.48697227076735,
+          "lcp": 700.8854041286684,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227276
+        },
+        {
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 100,
+          "accessibility": 100,
+          "ttfb": 1.9939999999999998,
+          "fcp": 484.1097,
+          "lcp": 708.5232,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227276
+        }
+      ],
+      "after": [
+        {
+          "profile": "mobile",
+          "route": "/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 93,
+          "accessibility": 100,
+          "ttfb": 5.300000000000001,
+          "fcp": 1997.6912499999999,
+          "lcp": 2945.3824999999997,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 1568047
+        },
+        {
+          "profile": "mobile",
+          "route": "/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 92,
+          "accessibility": 100,
+          "ttfb": 1.129,
+          "fcp": 1987.0540000000003,
+          "lcp": 3057.7864,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 1568047
+        },
+        {
+          "profile": "mobile",
+          "route": "/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 92,
+          "accessibility": 100,
+          "ttfb": 2.029,
+          "fcp": 1989.6445000000003,
+          "lcp": 3063.8312000000005,
+          "tbt": 1,
+          "cls": 0,
+          "bytes": 1568047
+        },
+        {
+          "profile": "mobile",
+          "route": "/lint/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 70,
+          "accessibility": 100,
+          "ttfb": 3.202,
+          "fcp": 2810.2251499999998,
+          "lcp": 5885.3002,
+          "tbt": 235.64165000000048,
+          "cls": 0.001331609224914814,
+          "bytes": 597552
+        },
+        {
+          "profile": "mobile",
+          "route": "/lint/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 67,
+          "accessibility": 100,
+          "ttfb": 0.83,
+          "fcp": 2804.035075,
+          "lcp": 5784.880099999998,
+          "tbt": 313.21832500000164,
+          "cls": 0.0013318356062529697,
+          "bytes": 597552
+        },
+        {
+          "profile": "mobile",
+          "route": "/lint/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 68,
+          "accessibility": 100,
+          "ttfb": 0.652,
+          "fcp": 2801.568125,
+          "lcp": 5780.2575000000015,
+          "tbt": 290.4368749999999,
+          "cls": 0.0013318357834139983,
+          "bytes": 597552
+        },
+        {
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 93,
+          "accessibility": 100,
+          "ttfb": 1.9900000000000002,
+          "fcp": 2058.5177999999996,
+          "lcp": 2930.0533999999993,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227339
+        },
+        {
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 93,
+          "accessibility": 100,
+          "ttfb": 1.9,
+          "fcp": 2057.8393999999994,
+          "lcp": 2896.0182000000004,
+          "tbt": 23,
+          "cls": 0,
+          "bytes": 227339
+        },
+        {
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 93,
+          "accessibility": 100,
+          "ttfb": 1.157,
+          "fcp": 2058.8977999999997,
+          "lcp": 2934.693400000002,
+          "tbt": 3,
+          "cls": 0,
+          "bytes": 227339
+        },
+        {
+          "profile": "desktop",
+          "route": "/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 100,
+          "accessibility": 100,
+          "ttfb": 0.7970000000000002,
+          "fcp": 476.75097500000004,
+          "lcp": 712.9187250000001,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 404500
+        },
+        {
+          "profile": "desktop",
+          "route": "/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 100,
+          "accessibility": 100,
+          "ttfb": 0.9810000000000001,
+          "fcp": 480.97415000000007,
+          "lcp": 762.3515499999999,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 404500
+        },
+        {
+          "profile": "desktop",
+          "route": "/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 100,
+          "accessibility": 100,
+          "ttfb": 0.917,
+          "fcp": 482.31842500000005,
+          "lcp": 719.5965000000001,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 404500
+        },
+        {
+          "profile": "desktop",
+          "route": "/lint/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 96,
+          "accessibility": 100,
+          "ttfb": 0.627,
+          "fcp": 601.013575,
+          "lcp": 1230.24455,
+          "tbt": 14,
+          "cls": 0.0010065224914488431,
+          "bytes": 597552
+        },
+        {
+          "profile": "desktop",
+          "route": "/lint/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 95,
+          "accessibility": 100,
+          "ttfb": 1.044,
+          "fcp": 493.32810000000006,
+          "lcp": 1237.5989000000002,
+          "tbt": 26,
+          "cls": 0.001006844870582881,
+          "bytes": 597552
+        },
+        {
+          "profile": "desktop",
+          "route": "/lint/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 95,
+          "accessibility": 100,
+          "ttfb": 0.9249999999999999,
+          "fcp": 617.553525,
+          "lcp": 1255.84085,
+          "tbt": 42,
+          "cls": 0.0010065701871911528,
+          "bytes": 597552
+        },
+        {
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "run": 1,
+          "version": "12.8.2",
+          "performance": 100,
+          "accessibility": 100,
+          "ttfb": 0.954,
+          "fcp": 485.4304000000001,
+          "lcp": 708.2623999999998,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227339
+        },
+        {
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "run": 2,
+          "version": "12.8.2",
+          "performance": 100,
+          "accessibility": 100,
+          "ttfb": 0.6420000000000001,
+          "fcp": 484.65749999999997,
+          "lcp": 709.3200000000003,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227339
+        },
+        {
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "run": 3,
+          "version": "12.8.2",
+          "performance": 100,
+          "accessibility": 100,
+          "ttfb": 0.6459999999999999,
+          "fcp": 487.03569999999996,
+          "lcp": 712.7792,
+          "tbt": 0,
+          "cls": 0,
+          "bytes": 227339
+        }
+      ]
+    },
+    "summary": [
+      {
+        "profile": "mobile",
+        "route": "/",
+        "ttfb": {
+          "before": {
+            "median": 1.4770000000000003,
+            "min": 0.9479999999999997,
+            "max": 5.471
+          },
+          "after": {
+            "median": 2.029,
+            "min": 1.129,
+            "max": 5.300000000000001
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 2572.68285,
+            "min": 2571.1502250000003,
+            "max": 2585.6966
+          },
+          "after": {
+            "median": 1989.6445000000003,
+            "min": 1987.0540000000003,
+            "max": 1997.6912499999999
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 4291.4486,
+            "min": 4262.624725,
+            "max": 4404.780699999999
+          },
+          "after": {
+            "median": 3057.7864,
+            "min": 2945.3824999999997,
+            "max": 3063.8312000000005
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "after": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 736254,
+            "min": 736045,
+            "max": 736491
+          },
+          "after": {
+            "median": 1568047,
+            "min": 1568047,
+            "max": 1568047
+          }
+        },
+        "performance": {
+          "before": {
+            "median": 82,
+            "min": 81,
+            "max": 82
+          },
+          "after": {
+            "median": 92,
+            "min": 92,
+            "max": 93
+          }
+        },
+        "accessibility": {
+          "before": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          },
+          "after": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          }
+        },
+        "tbt": {
+          "before": {
+            "median": 2,
+            "min": 0.5,
+            "max": 2
+          },
+          "after": {
+            "median": 0,
+            "min": 0,
+            "max": 1
+          }
+        }
+      },
+      {
+        "profile": "mobile",
+        "route": "/lint/",
+        "ttfb": {
+          "before": {
+            "median": 0.917,
+            "min": 0.7590000000000003,
+            "max": 1.783
+          },
+          "after": {
+            "median": 0.83,
+            "min": 0.652,
+            "max": 3.202
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 2509.9730000000004,
+            "min": 2505.1445,
+            "max": 2801.50325
+          },
+          "after": {
+            "median": 2804.035075,
+            "min": 2801.568125,
+            "max": 2810.2251499999998
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 5890.8734,
+            "min": 5880.171,
+            "max": 5891.1676
+          },
+          "after": {
+            "median": 5784.880099999998,
+            "min": 5780.2575000000015,
+            "max": 5885.3002
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0.0013318161981529285,
+            "min": 0.0013310246804059107,
+            "max": 0.0013318357834139983
+          },
+          "after": {
+            "median": 0.0013318356062529697,
+            "min": 0.001331609224914814,
+            "max": 0.0013318357834139983
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 597545,
+            "min": 597545,
+            "max": 597545
+          },
+          "after": {
+            "median": 597552,
+            "min": 597552,
+            "max": 597552
+          }
+        },
+        "performance": {
+          "before": {
+            "median": 70,
+            "min": 70,
+            "max": 70
+          },
+          "after": {
+            "median": 68,
+            "min": 67,
+            "max": 70
+          }
+        },
+        "accessibility": {
+          "before": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          },
+          "after": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          }
+        },
+        "tbt": {
+          "before": {
+            "median": 241.90270000000055,
+            "min": 235.11075000000073,
+            "max": 253.88555000000042
+          },
+          "after": {
+            "median": 290.4368749999999,
+            "min": 235.64165000000048,
+            "max": 313.21832500000164
+          }
+        }
+      },
+      {
+        "profile": "mobile",
+        "route": "/guidelines/",
+        "ttfb": {
+          "before": {
+            "median": 2.2560000000000002,
+            "min": 1.919,
+            "max": 2.399
+          },
+          "after": {
+            "median": 1.9,
+            "min": 1.157,
+            "max": 1.9900000000000002
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 2051.0536,
+            "min": 2050.3663999999994,
+            "max": 2062.2623999999996
+          },
+          "after": {
+            "median": 2058.5177999999996,
+            "min": 2057.8393999999994,
+            "max": 2058.8977999999997
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 2912.6607999999987,
+            "min": 2911.0992000000006,
+            "max": 2936.2871999999993
+          },
+          "after": {
+            "median": 2930.0533999999993,
+            "min": 2896.0182000000004,
+            "max": 2934.693400000002
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "after": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 227276,
+            "min": 227276,
+            "max": 227276
+          },
+          "after": {
+            "median": 227339,
+            "min": 227339,
+            "max": 227339
+          }
+        },
+        "performance": {
+          "before": {
+            "median": 93,
+            "min": 93,
+            "max": 93
+          },
+          "after": {
+            "median": 93,
+            "min": 93,
+            "max": 93
+          }
+        },
+        "accessibility": {
+          "before": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          },
+          "after": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          }
+        },
+        "tbt": {
+          "before": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "after": {
+            "median": 3,
+            "min": 0,
+            "max": 23
+          }
+        }
+      },
+      {
+        "profile": "desktop",
+        "route": "/",
+        "ttfb": {
+          "before": {
+            "median": 0.774,
+            "min": 0.6120000000000001,
+            "max": 0.876
+          },
+          "after": {
+            "median": 0.917,
+            "min": 0.7970000000000002,
+            "max": 0.9810000000000001
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 718.23995,
+            "min": 622.7179999999998,
+            "max": 740.2338
+          },
+          "after": {
+            "median": 480.97415000000007,
+            "min": 476.75097500000004,
+            "max": 482.31842500000005
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 958.6919000000001,
+            "min": 887.1804999999999,
+            "max": 1016.1315000000002
+          },
+          "after": {
+            "median": 719.5965000000001,
+            "min": 712.9187250000001,
+            "max": 762.3515499999999
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "after": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 736406,
+            "min": 736079,
+            "max": 736502
+          },
+          "after": {
+            "median": 404500,
+            "min": 404500,
+            "max": 404500
+          }
+        },
+        "performance": {
+          "before": {
+            "median": 98,
+            "min": 98,
+            "max": 99
+          },
+          "after": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          }
+        },
+        "accessibility": {
+          "before": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          },
+          "after": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          }
+        },
+        "tbt": {
+          "before": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "after": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        }
+      },
+      {
+        "profile": "desktop",
+        "route": "/lint/",
+        "ttfb": {
+          "before": {
+            "median": 1.2289999999999996,
+            "min": 1.1019999999999999,
+            "max": 1.4669999999999999
+          },
+          "after": {
+            "median": 0.9249999999999999,
+            "min": 0.627,
+            "max": 1.044
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 595.065325,
+            "min": 519.3377500000001,
+            "max": 615.8683249999999
+          },
+          "after": {
+            "median": 601.013575,
+            "min": 493.32810000000006,
+            "max": 617.553525
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 1225.6960499999998,
+            "min": 1217.67405,
+            "max": 1243.5728499999998
+          },
+          "after": {
+            "median": 1237.5989000000002,
+            "min": 1230.24455,
+            "max": 1255.84085
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0.001006537340896384,
+            "min": 0.0010059837532583435,
+            "max": 0.0010067097072558454
+          },
+          "after": {
+            "median": 0.0010065701871911528,
+            "min": 0.0010065224914488431,
+            "max": 0.001006844870582881
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 597545,
+            "min": 597545,
+            "max": 597545
+          },
+          "after": {
+            "median": 597552,
+            "min": 597552,
+            "max": 597552
+          }
+        },
+        "performance": {
+          "before": {
+            "median": 96,
+            "min": 95,
+            "max": 96
+          },
+          "after": {
+            "median": 95,
+            "min": 95,
+            "max": 96
+          }
+        },
+        "accessibility": {
+          "before": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          },
+          "after": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          }
+        },
+        "tbt": {
+          "before": {
+            "median": 12,
+            "min": 6,
+            "max": 23
+          },
+          "after": {
+            "median": 26,
+            "min": 14,
+            "max": 42
+          }
+        }
+      },
+      {
+        "profile": "desktop",
+        "route": "/guidelines/",
+        "ttfb": {
+          "before": {
+            "median": 1.6329999999999998,
+            "min": 0.852,
+            "max": 1.9939999999999998
+          },
+          "after": {
+            "median": 0.6459999999999999,
+            "min": 0.6420000000000001,
+            "max": 0.954
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 484.1097,
+            "min": 475.48697227076735,
+            "max": 484.49915
+          },
+          "after": {
+            "median": 485.4304000000001,
+            "min": 484.65749999999997,
+            "max": 487.03569999999996
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 708.3624,
+            "min": 700.8854041286684,
+            "max": 708.5232
+          },
+          "after": {
+            "median": 709.3200000000003,
+            "min": 708.2623999999998,
+            "max": 712.7792
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "after": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 227276,
+            "min": 227276,
+            "max": 227276
+          },
+          "after": {
+            "median": 227339,
+            "min": 227339,
+            "max": 227339
+          }
+        },
+        "performance": {
+          "before": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          },
+          "after": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          }
+        },
+        "accessibility": {
+          "before": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          },
+          "after": {
+            "median": 100,
+            "min": 100,
+            "max": 100
+          }
+        },
+        "tbt": {
+          "before": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          },
+          "after": {
+            "median": 0,
+            "min": 0,
+            "max": 0
+          }
+        }
+      }
+    ]
+  },
+  "browser": {
+    "conditions": {
+      "profiles": {
+        "mobile": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "deviceScaleFactor": 1,
+          "isMobile": true,
+          "hasTouch": true,
+          "cpu": 4,
+          "latency": 150,
+          "throughput": 200000
+        },
+        "desktop": {
+          "viewport": {
+            "width": 1350,
+            "height": 940
+          },
+          "deviceScaleFactor": 1,
+          "isMobile": false,
+          "hasTouch": false,
+          "cpu": 1,
+          "latency": 40,
+          "throughput": 1250000
+        }
+      },
+      "runs": 3,
+      "routes": [
+        "/",
+        "/lint/",
+        "/guidelines/"
+      ],
+      "settleMs": 10000,
+      "cache": "fresh browser context for every navigation",
+      "serviceWorkers": "allowed",
+      "loadCutoff": "10 seconds after DOMContentLoaded",
+      "interactionMetric": "largest observed Event Timing interaction duration (16 ms threshold); not field INP",
+      "transferScope": "page target CDP loadingFinished; may exclude service-worker background requests"
+    },
+    "chrome": "151.0.7922.34",
+    "samples": {
+      "before": [
+        {
+          "run": 1,
+          "profile": "mobile",
+          "route": "/",
+          "ttfb": 3.6999998092651367,
+          "fcp": 1284,
+          "lcp": 6232,
+          "cls": 0.04133945347348327,
+          "interaction": 240,
+          "bytes": 1091101,
+          "interactionCls": 0.04133945347348327,
+          "observedInteractions": 9
+        },
+        {
+          "run": 1,
+          "profile": "mobile",
+          "route": "/lint/",
+          "ttfb": 2.8000001907348633,
+          "fcp": 820,
+          "lcp": 4564,
+          "cls": 0.0011390370201759584,
+          "interaction": 424,
+          "bytes": 595275,
+          "interactionCls": 0.00871913513588229,
+          "observedInteractions": 17
+        },
+        {
+          "run": 1,
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "ttfb": 2.9000000953674316,
+          "fcp": 1012,
+          "lcp": 1012,
+          "cls": 0.0002525402824177405,
+          "interaction": 280,
+          "bytes": 225006,
+          "interactionCls": 0.0002525402824177405,
+          "observedInteractions": 12
+        },
+        {
+          "run": 1,
+          "profile": "desktop",
+          "route": "/",
+          "ttfb": 2.8000001907348633,
+          "fcp": 352,
+          "lcp": 1004,
+          "cls": 0.0022129381526164,
+          "interaction": 32,
+          "bytes": 726247,
+          "interactionCls": 0.0022129381526164,
+          "observedInteractions": 8
+        },
+        {
+          "run": 1,
+          "profile": "desktop",
+          "route": "/lint/",
+          "ttfb": 1.9000000953674316,
+          "fcp": 196,
+          "lcp": 924,
+          "cls": 0.0010276988571456913,
+          "interaction": 40,
+          "bytes": 595275,
+          "interactionCls": 0.022095851501619825,
+          "observedInteractions": 14
+        },
+        {
+          "run": 1,
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "ttfb": 2.3000001907348633,
+          "fcp": 320,
+          "lcp": 320,
+          "cls": 0.0002478079030086721,
+          "interaction": 80,
+          "bytes": 225006,
+          "interactionCls": 0.0002478079030086721,
+          "observedInteractions": 12
+        },
+        {
+          "run": 2,
+          "profile": "mobile",
+          "route": "/",
+          "ttfb": 3.200000286102295,
+          "fcp": 1256,
+          "lcp": 6284,
+          "cls": 0.04133945347348327,
+          "interaction": 80,
+          "bytes": 1090845,
+          "interactionCls": 0.04133945347348327,
+          "observedInteractions": 9
+        },
+        {
+          "run": 2,
+          "profile": "mobile",
+          "route": "/lint/",
+          "ttfb": 2.1999998092651367,
+          "fcp": 836,
+          "lcp": 4548,
+          "cls": 0.0011390304509186421,
+          "interaction": 312,
+          "bytes": 595275,
+          "interactionCls": 0.00871913513588229,
+          "observedInteractions": 18
+        },
+        {
+          "run": 2,
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "ttfb": 2.1999998092651367,
+          "fcp": 1000,
+          "lcp": 1000,
+          "cls": 0.000252530661194336,
+          "interaction": 288,
+          "bytes": 225006,
+          "interactionCls": 0.000252530661194336,
+          "observedInteractions": 12
+        },
+        {
+          "run": 2,
+          "profile": "desktop",
+          "route": "/",
+          "ttfb": 3,
+          "fcp": 356,
+          "lcp": 1012,
+          "cls": 0.0022129381526164,
+          "interaction": 24,
+          "bytes": 726643,
+          "interactionCls": 0.0022129381526164,
+          "observedInteractions": 9
+        },
+        {
+          "run": 2,
+          "profile": "desktop",
+          "route": "/lint/",
+          "ttfb": 2,
+          "fcp": 208,
+          "lcp": 912,
+          "cls": 0.0010286678768169427,
+          "interaction": 112,
+          "bytes": 595275,
+          "interactionCls": 0.022095851501619825,
+          "observedInteractions": 13
+        },
+        {
+          "run": 2,
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "ttfb": 2.6999998092651367,
+          "fcp": 312,
+          "lcp": 312,
+          "cls": 0.00024769582909794273,
+          "interaction": 64,
+          "bytes": 225006,
+          "interactionCls": 0.00024769582909794273,
+          "observedInteractions": 12
+        },
+        {
+          "run": 3,
+          "profile": "mobile",
+          "route": "/",
+          "ttfb": 3.1000003814697266,
+          "fcp": 1272,
+          "lcp": 6248,
+          "cls": 0.04133945347348327,
+          "interaction": 72,
+          "bytes": 1091323,
+          "interactionCls": 0.04133945347348327,
+          "observedInteractions": 9
+        },
+        {
+          "run": 3,
+          "profile": "mobile",
+          "route": "/lint/",
+          "ttfb": 3.9000000953674316,
+          "fcp": 808,
+          "lcp": 4364,
+          "cls": 0.00039326488629424074,
+          "interaction": 296,
+          "bytes": 595275,
+          "interactionCls": 0.00871913513588229,
+          "observedInteractions": 18
+        },
+        {
+          "run": 3,
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "ttfb": 3.6999998092651367,
+          "fcp": 1040,
+          "lcp": 1040,
+          "cls": 0.0002525211606962215,
+          "interaction": 328,
+          "bytes": 225006,
+          "interactionCls": 0.0002525211606962215,
+          "observedInteractions": 12
+        },
+        {
+          "run": 3,
+          "profile": "desktop",
+          "route": "/",
+          "ttfb": 2,
+          "fcp": 360,
+          "lcp": 1016,
+          "cls": 0.0022129381526164,
+          "interaction": 32,
+          "bytes": 726409,
+          "interactionCls": 0.0022129381526164,
+          "observedInteractions": 9
+        },
+        {
+          "run": 3,
+          "profile": "desktop",
+          "route": "/lint/",
+          "ttfb": 2.5999999046325684,
+          "fcp": 228,
+          "lcp": 952,
+          "cls": 0.0010283834067800225,
+          "interaction": 24,
+          "bytes": 595275,
+          "interactionCls": 0.022095851501619825,
+          "observedInteractions": 14
+        },
+        {
+          "run": 3,
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "ttfb": 2.1999998092651367,
+          "fcp": 304,
+          "lcp": 304,
+          "cls": 0.00024786693248231626,
+          "interaction": 72,
+          "bytes": 225006,
+          "interactionCls": 0.00024786693248231626,
+          "observedInteractions": 12
+        }
+      ],
+      "after": [
+        {
+          "run": 1,
+          "profile": "mobile",
+          "route": "/",
+          "ttfb": 3.8000001907348633,
+          "fcp": 1104,
+          "lcp": 1936,
+          "cls": 0.04133945347348327,
+          "interaction": 64,
+          "bytes": 626767,
+          "interactionCls": 0.04133945347348327,
+          "observedInteractions": 9
+        },
+        {
+          "run": 1,
+          "profile": "mobile",
+          "route": "/lint/",
+          "ttfb": 2.5999999046325684,
+          "fcp": 808,
+          "lcp": 4604,
+          "cls": 0.001139016092078945,
+          "interaction": 464,
+          "bytes": 595282,
+          "interactionCls": 0.00871913513588229,
+          "observedInteractions": 17
+        },
+        {
+          "run": 1,
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "ttfb": 3.1000003814697266,
+          "fcp": 1044,
+          "lcp": 1044,
+          "cls": 0.00025253543885100005,
+          "interaction": 272,
+          "bytes": 225069,
+          "interactionCls": 0.00025253543885100005,
+          "observedInteractions": 12
+        },
+        {
+          "run": 1,
+          "profile": "desktop",
+          "route": "/",
+          "ttfb": 2.5999999046325684,
+          "fcp": 372,
+          "lcp": 616,
+          "cls": 0.0022129381526164,
+          "interaction": 32,
+          "bytes": 402230,
+          "interactionCls": 0.0022129381526164,
+          "observedInteractions": 9
+        },
+        {
+          "run": 1,
+          "profile": "desktop",
+          "route": "/lint/",
+          "ttfb": 6.299999713897705,
+          "fcp": 208,
+          "lcp": 916,
+          "cls": 0.0010280700036955637,
+          "interaction": 40,
+          "bytes": 595282,
+          "interactionCls": 0.022095851501619825,
+          "observedInteractions": 16
+        },
+        {
+          "run": 1,
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "ttfb": 2.200000286102295,
+          "fcp": 312,
+          "lcp": 312,
+          "cls": 0.0002477556240717626,
+          "interaction": 72,
+          "bytes": 225069,
+          "interactionCls": 0.0002477556240717626,
+          "observedInteractions": 6
+        },
+        {
+          "run": 2,
+          "profile": "mobile",
+          "route": "/",
+          "ttfb": 2.5,
+          "fcp": 1096,
+          "lcp": 1928,
+          "cls": 0.04133945347348327,
+          "interaction": 88,
+          "bytes": 617887,
+          "interactionCls": 0.04133945347348327,
+          "observedInteractions": 9
+        },
+        {
+          "run": 2,
+          "profile": "mobile",
+          "route": "/lint/",
+          "ttfb": 1.9000000953674316,
+          "fcp": 800,
+          "lcp": 4380,
+          "cls": 0.0006029889774505795,
+          "interaction": 352,
+          "bytes": 595282,
+          "interactionCls": 0.00871913513588229,
+          "observedInteractions": 18
+        },
+        {
+          "run": 2,
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "ttfb": 3.799999713897705,
+          "fcp": 1004,
+          "lcp": 1004,
+          "cls": 0.00025253545046765105,
+          "interaction": 264,
+          "bytes": 225069,
+          "interactionCls": 0.00025253545046765105,
+          "observedInteractions": 12
+        },
+        {
+          "run": 2,
+          "profile": "desktop",
+          "route": "/",
+          "ttfb": 2.5999999046325684,
+          "fcp": 352,
+          "lcp": 608,
+          "cls": 0.0022129381526164,
+          "interaction": 32,
+          "bytes": 402230,
+          "interactionCls": 0.0022129381526164,
+          "observedInteractions": 9
+        },
+        {
+          "run": 2,
+          "profile": "desktop",
+          "route": "/lint/",
+          "ttfb": 2.4000000953674316,
+          "fcp": 208,
+          "lcp": 916,
+          "cls": 0.0010279354872204073,
+          "interaction": 24,
+          "bytes": 595282,
+          "interactionCls": 0.022095851501619825,
+          "observedInteractions": 14
+        },
+        {
+          "run": 2,
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "ttfb": 6.5,
+          "fcp": 320,
+          "lcp": 320,
+          "cls": 0.0002478126624967736,
+          "interaction": 72,
+          "bytes": 225069,
+          "interactionCls": 0.0002478126624967736,
+          "observedInteractions": 3
+        },
+        {
+          "run": 3,
+          "profile": "mobile",
+          "route": "/",
+          "ttfb": 2.1999998092651367,
+          "fcp": 1016,
+          "lcp": 1912,
+          "cls": 0.04133945347348327,
+          "interaction": 72,
+          "bytes": 626767,
+          "interactionCls": 0.04133945347348327,
+          "observedInteractions": 9
+        },
+        {
+          "run": 3,
+          "profile": "mobile",
+          "route": "/lint/",
+          "ttfb": 3.700000286102295,
+          "fcp": 856,
+          "lcp": 4396,
+          "cls": 0.00021336089503857047,
+          "interaction": 304,
+          "bytes": 595282,
+          "interactionCls": 0.00871913513588229,
+          "observedInteractions": 18
+        },
+        {
+          "run": 3,
+          "profile": "mobile",
+          "route": "/guidelines/",
+          "ttfb": 3,
+          "fcp": 984,
+          "lcp": 984,
+          "cls": 0.00025254894044776584,
+          "interaction": 264,
+          "bytes": 225069,
+          "interactionCls": 0.00025254894044776584,
+          "observedInteractions": 12
+        },
+        {
+          "run": 3,
+          "profile": "desktop",
+          "route": "/",
+          "ttfb": 2.3000001907348633,
+          "fcp": 364,
+          "lcp": 616,
+          "cls": 0.0022129381526164,
+          "interaction": 16,
+          "bytes": 402230,
+          "interactionCls": 0.0022129381526164,
+          "observedInteractions": 9
+        },
+        {
+          "run": 3,
+          "profile": "desktop",
+          "route": "/lint/",
+          "ttfb": 2.1999998092651367,
+          "fcp": 216,
+          "lcp": 924,
+          "cls": 0.0010285990702462615,
+          "interaction": 32,
+          "bytes": 595282,
+          "interactionCls": 0.022095851501619825,
+          "observedInteractions": 14
+        },
+        {
+          "run": 3,
+          "profile": "desktop",
+          "route": "/guidelines/",
+          "ttfb": 2.8000001907348633,
+          "fcp": 316,
+          "lcp": 316,
+          "cls": 0.000247810860425012,
+          "interaction": 72,
+          "bytes": 225069,
+          "interactionCls": 0.000247810860425012,
+          "observedInteractions": 3
+        }
+      ]
+    },
+    "summary": [
+      {
+        "profile": "mobile",
+        "route": "/",
+        "ttfb": {
+          "before": {
+            "median": 3.200000286102295,
+            "min": 3.1000003814697266,
+            "max": 3.6999998092651367
+          },
+          "after": {
+            "median": 2.5,
+            "min": 2.1999998092651367,
+            "max": 3.8000001907348633
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 1272,
+            "min": 1256,
+            "max": 1284
+          },
+          "after": {
+            "median": 1096,
+            "min": 1016,
+            "max": 1104
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 6248,
+            "min": 6232,
+            "max": 6284
+          },
+          "after": {
+            "median": 1928,
+            "min": 1912,
+            "max": 1936
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0.04133945347348327,
+            "min": 0.04133945347348327,
+            "max": 0.04133945347348327
+          },
+          "after": {
+            "median": 0.04133945347348327,
+            "min": 0.04133945347348327,
+            "max": 0.04133945347348327
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 1091101,
+            "min": 1090845,
+            "max": 1091323
+          },
+          "after": {
+            "median": 626767,
+            "min": 617887,
+            "max": 626767
+          }
+        },
+        "interaction": {
+          "before": {
+            "median": 80,
+            "min": 72,
+            "max": 240
+          },
+          "after": {
+            "median": 72,
+            "min": 64,
+            "max": 88
+          }
+        }
+      },
+      {
+        "profile": "mobile",
+        "route": "/lint/",
+        "ttfb": {
+          "before": {
+            "median": 2.8000001907348633,
+            "min": 2.1999998092651367,
+            "max": 3.9000000953674316
+          },
+          "after": {
+            "median": 2.5999999046325684,
+            "min": 1.9000000953674316,
+            "max": 3.700000286102295
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 820,
+            "min": 808,
+            "max": 836
+          },
+          "after": {
+            "median": 808,
+            "min": 800,
+            "max": 856
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 4548,
+            "min": 4364,
+            "max": 4564
+          },
+          "after": {
+            "median": 4396,
+            "min": 4380,
+            "max": 4604
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0.0011390304509186421,
+            "min": 0.00039326488629424074,
+            "max": 0.0011390370201759584
+          },
+          "after": {
+            "median": 0.0006029889774505795,
+            "min": 0.00021336089503857047,
+            "max": 0.001139016092078945
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 595275,
+            "min": 595275,
+            "max": 595275
+          },
+          "after": {
+            "median": 595282,
+            "min": 595282,
+            "max": 595282
+          }
+        },
+        "interaction": {
+          "before": {
+            "median": 312,
+            "min": 296,
+            "max": 424
+          },
+          "after": {
+            "median": 352,
+            "min": 304,
+            "max": 464
+          }
+        }
+      },
+      {
+        "profile": "mobile",
+        "route": "/guidelines/",
+        "ttfb": {
+          "before": {
+            "median": 2.9000000953674316,
+            "min": 2.1999998092651367,
+            "max": 3.6999998092651367
+          },
+          "after": {
+            "median": 3.1000003814697266,
+            "min": 3,
+            "max": 3.799999713897705
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 1012,
+            "min": 1000,
+            "max": 1040
+          },
+          "after": {
+            "median": 1004,
+            "min": 984,
+            "max": 1044
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 1012,
+            "min": 1000,
+            "max": 1040
+          },
+          "after": {
+            "median": 1004,
+            "min": 984,
+            "max": 1044
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0.000252530661194336,
+            "min": 0.0002525211606962215,
+            "max": 0.0002525402824177405
+          },
+          "after": {
+            "median": 0.00025253545046765105,
+            "min": 0.00025253543885100005,
+            "max": 0.00025254894044776584
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 225006,
+            "min": 225006,
+            "max": 225006
+          },
+          "after": {
+            "median": 225069,
+            "min": 225069,
+            "max": 225069
+          }
+        },
+        "interaction": {
+          "before": {
+            "median": 288,
+            "min": 280,
+            "max": 328
+          },
+          "after": {
+            "median": 264,
+            "min": 264,
+            "max": 272
+          }
+        }
+      },
+      {
+        "profile": "desktop",
+        "route": "/",
+        "ttfb": {
+          "before": {
+            "median": 2.8000001907348633,
+            "min": 2,
+            "max": 3
+          },
+          "after": {
+            "median": 2.5999999046325684,
+            "min": 2.3000001907348633,
+            "max": 2.5999999046325684
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 356,
+            "min": 352,
+            "max": 360
+          },
+          "after": {
+            "median": 364,
+            "min": 352,
+            "max": 372
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 1012,
+            "min": 1004,
+            "max": 1016
+          },
+          "after": {
+            "median": 616,
+            "min": 608,
+            "max": 616
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0.0022129381526164,
+            "min": 0.0022129381526164,
+            "max": 0.0022129381526164
+          },
+          "after": {
+            "median": 0.0022129381526164,
+            "min": 0.0022129381526164,
+            "max": 0.0022129381526164
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 726409,
+            "min": 726247,
+            "max": 726643
+          },
+          "after": {
+            "median": 402230,
+            "min": 402230,
+            "max": 402230
+          }
+        },
+        "interaction": {
+          "before": {
+            "median": 32,
+            "min": 24,
+            "max": 32
+          },
+          "after": {
+            "median": 32,
+            "min": 16,
+            "max": 32
+          }
+        }
+      },
+      {
+        "profile": "desktop",
+        "route": "/lint/",
+        "ttfb": {
+          "before": {
+            "median": 2,
+            "min": 1.9000000953674316,
+            "max": 2.5999999046325684
+          },
+          "after": {
+            "median": 2.4000000953674316,
+            "min": 2.1999998092651367,
+            "max": 6.299999713897705
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 208,
+            "min": 196,
+            "max": 228
+          },
+          "after": {
+            "median": 208,
+            "min": 208,
+            "max": 216
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 924,
+            "min": 912,
+            "max": 952
+          },
+          "after": {
+            "median": 916,
+            "min": 916,
+            "max": 924
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0.0010283834067800225,
+            "min": 0.0010276988571456913,
+            "max": 0.0010286678768169427
+          },
+          "after": {
+            "median": 0.0010280700036955637,
+            "min": 0.0010279354872204073,
+            "max": 0.0010285990702462615
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 595275,
+            "min": 595275,
+            "max": 595275
+          },
+          "after": {
+            "median": 595282,
+            "min": 595282,
+            "max": 595282
+          }
+        },
+        "interaction": {
+          "before": {
+            "median": 40,
+            "min": 24,
+            "max": 112
+          },
+          "after": {
+            "median": 32,
+            "min": 24,
+            "max": 40
+          }
+        }
+      },
+      {
+        "profile": "desktop",
+        "route": "/guidelines/",
+        "ttfb": {
+          "before": {
+            "median": 2.3000001907348633,
+            "min": 2.1999998092651367,
+            "max": 2.6999998092651367
+          },
+          "after": {
+            "median": 2.8000001907348633,
+            "min": 2.200000286102295,
+            "max": 6.5
+          }
+        },
+        "fcp": {
+          "before": {
+            "median": 312,
+            "min": 304,
+            "max": 320
+          },
+          "after": {
+            "median": 316,
+            "min": 312,
+            "max": 320
+          }
+        },
+        "lcp": {
+          "before": {
+            "median": 312,
+            "min": 304,
+            "max": 320
+          },
+          "after": {
+            "median": 316,
+            "min": 312,
+            "max": 320
+          }
+        },
+        "cls": {
+          "before": {
+            "median": 0.0002478079030086721,
+            "min": 0.00024769582909794273,
+            "max": 0.00024786693248231626
+          },
+          "after": {
+            "median": 0.000247810860425012,
+            "min": 0.0002477556240717626,
+            "max": 0.0002478126624967736
+          }
+        },
+        "bytes": {
+          "before": {
+            "median": 225006,
+            "min": 225006,
+            "max": 225006
+          },
+          "after": {
+            "median": 225069,
+            "min": 225069,
+            "max": 225069
+          }
+        },
+        "interaction": {
+          "before": {
+            "median": 72,
+            "min": 64,
+            "max": 80
+          },
+          "after": {
+            "median": 72,
+            "min": 72,
+            "max": 72
+          }
+        }
+      }
+    ]
+  },
+  "searchCPU": [
+    {
+      "revision": "before",
+      "cpuRate": 1,
+      "trial": 0,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 0,
+      "medianMs": 4.5,
+      "p95Ms": 6.900000095367432,
+      "totalMs": 932.7999992370605,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "after",
+      "cpuRate": 1,
+      "trial": 0,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 9.699999809265137,
+      "medianMs": 0.39999961853027344,
+      "p95Ms": 0.6999998092651367,
+      "totalMs": 70.00000143051147,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "after",
+      "cpuRate": 1,
+      "trial": 1,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 14.5,
+      "medianMs": 0.3000001907348633,
+      "p95Ms": 0.5999999046325684,
+      "totalMs": 60.49999809265137,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "before",
+      "cpuRate": 1,
+      "trial": 1,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 0,
+      "medianMs": 4.599999904632568,
+      "p95Ms": 5.900000095367432,
+      "totalMs": 906.5000004768372,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "before",
+      "cpuRate": 1,
+      "trial": 2,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 0,
+      "medianMs": 4.599999904632568,
+      "p95Ms": 6.5,
+      "totalMs": 939.5,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "after",
+      "cpuRate": 1,
+      "trial": 2,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 12.599999904632568,
+      "medianMs": 0.3000001907348633,
+      "p95Ms": 0.5,
+      "totalMs": 57.5,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "before",
+      "cpuRate": 4,
+      "trial": 0,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 0,
+      "medianMs": 22,
+      "p95Ms": 30.299999713897705,
+      "totalMs": 4354.499996185303,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "after",
+      "cpuRate": 4,
+      "trial": 0,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 37.59999990463257,
+      "medianMs": 1.3000001907348633,
+      "p95Ms": 2.3000001907348633,
+      "totalMs": 250.89999866485596,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "after",
+      "cpuRate": 4,
+      "trial": 1,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 39.59999990463257,
+      "medianMs": 1.3000001907348633,
+      "p95Ms": 2.6000003814697266,
+      "totalMs": 259.99999952316284,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "before",
+      "cpuRate": 4,
+      "trial": 1,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 0,
+      "medianMs": 22.199999809265137,
+      "p95Ms": 33.09999990463257,
+      "totalMs": 4543.500005722046,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "before",
+      "cpuRate": 4,
+      "trial": 2,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 0,
+      "medianMs": 21.199999809265137,
+      "p95Ms": 28.700000286102295,
+      "totalMs": 4258.60000371933,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    },
+    {
+      "revision": "after",
+      "cpuRate": 4,
+      "trial": 2,
+      "documents": 114,
+      "queryPrefixes": 64,
+      "operations": 192,
+      "preparationMs": 62.40000009536743,
+      "medianMs": 1.1999998092651367,
+      "p95Ms": 2.700000286102295,
+      "totalMs": 242.89999914169312,
+      "outputHash": "babca51b6158de321a783cfd6971f1382aaea1a37ab5013d600b2973143a4064"
+    }
+  ],
+  "field": {
+    "available": false,
+    "source": "Public PSI reports show No Data; see loading-audit.md"
+  }
+}

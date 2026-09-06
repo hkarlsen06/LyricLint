@@ -1,4 +1,5 @@
 <script lang="ts">
+	import shotDimensions from '$lib/assets/shot-dimensions.json';
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import { BookOpen, Check } from 'lucide-svelte';
 	import type { Attachment } from 'svelte/attachments';
@@ -60,9 +61,9 @@
 
 		// Starting behind an image that has not decoded yet would recreate the
 		// same gap at the other edge of the hand-off. The stills are small and
-		// already requested as native posters, so this normally resolves from the
-		// shared cache and does not hold up the video request.
-		const posterReady = poster?.decode().catch(() => undefined) ?? Promise.resolve();
+		// decoded only on arrival, so below-fold lazy images stay out of the
+		// initial waterfall. The image owns the no-script and reduced-motion state.
+		const posterReady = () => poster?.decode().catch(() => undefined) ?? Promise.resolve();
 		let shouldPlay = false;
 		const observer = new IntersectionObserver(
 			([entry]) => {
@@ -80,7 +81,7 @@
 				// a reader who scrolls back to a copy left halfway through meets the
 				// result before the gesture that produced it, which is the one order
 				// in which none of it explains anything.
-				void posterReady.then(() => {
+				void posterReady().then(() => {
 					if (!shouldPlay || !video.isConnected) return;
 					video.currentTime = 0;
 					// A browser may refuse to start even a muted video, and the refusal is
@@ -112,10 +113,10 @@
 	// Kept under 160 characters: Google truncates around there, and a description
 	// cut mid-sentence reads worse than a shorter one that ends on its own.
 	const pageDescription = $derived(
-		`A free lyric formatter and checker for Genius transcriptions — ${ruleCount} reviewed rules plus local grammar and spelling checks, all in your browser.`
+		`Format Genius lyrics for free. Check ${ruleCount} reviewed rules, spelling, and grammar in your browser.`
 	);
 	const socialDescription =
-		'Paste a transcription, see every formatting problem with the Genius source that backs it, and copy clean markup. Your lyrics stay in your browser.';
+		'Paste your lyrics. Review formatting fixes and their sources. Copy the finished text into Genius.';
 	const canonicalUrl = siteUrl('/');
 	const appUrl = siteUrl('/lint/');
 	const harperUrl = $derived(data.harperUrl);
@@ -146,23 +147,11 @@
 		}
 	});
 
-	// Deliberately invented lines, not a real song. The page needs a transcription
-	// that is wrong in several ordinary ways at once — a written-out label instead
-	// of a header, a typewriter apostrophe, a lowercase line start, a lowercase
-	// ad-lib — and inventing them is also the only way to show a lyric here at
-	// all. The ad-lib is already parenthesized on purpose: whether a bare
-	// trailing `yeah` is the lead's own line or a backing vocal is a judgment
-	// the linter deliberately leaves to the transcriber, so the demo only shows
-	// the half it actually checks.
+	// Invented lyrics with three ordinary formatting errors: an unbracketed header,
+	// a parenthesized unknown word, and a lowercase ad-lib. Keep the first interaction small and approachable.
 	const messy = `Verse 1:
-i has counted every streetlight on the way
-you said we'd drive until the radio gave out (yeah)
-and the "quiet" part was never really quiet`;
-
-	const clean = `[Verse 1]
-I have counted every streetlight on the way
-You said we'd drive until the radio gave out (Yeah)
-And the "quiet" part was never really quiet`;
+I counted every (?) on the way
+You said we'd drive until the radio gave out (yeah)`;
 
 	// Two corrections floating over the hero, each a flagged form over the form
 	// the linter writes. They used to be four scattered chips of bare notation —
@@ -257,8 +246,8 @@ And the "quiet" part was never really quiet`;
 			<h1>Catch Genius formatting problems before you submit.</h1>
 
 			<p class="lp-hero__sub">
-				Paste a transcription and see every formatting problem — each one with the Genius guideline
-				behind it.
+				Paste your lyrics to check their formatting. See what needs fixing and read the source
+				behind each suggestion.
 			</p>
 
 			<!-- The workbench keeps the page's one contrast action; the Discord
@@ -337,31 +326,24 @@ And the "quiet" part was never really quiet`;
 			     the video having been edited in a picture whose whole argument is
 			     that nothing here is staged.
 
-			     **This one keeps its `poster`, and the performer loop's rule is why
-			     rather than an exception to it.** What that rule is actually about
-			     is two media of *different* framings sharing one slot: a `<video>`
-			     takes its intrinsic ratio from the poster until metadata arrives
-			     and from the media afterwards, so a 1094×1574 still under a
-			     1226×1572 loop resized the box mid-load. Here the two are the same
-			     scene at the same crop — 2560×1640 both, because the loop's frame
-			     one *is* the still — so there is no ratio to disagree about and
-			     nothing shifts.
-
-			     Which makes the poster worth having, because this slot is the
-			     page's visual evidence: the WebP still is 152KB, the loop is
-			     ~2.6MB, and posting the former means the first screen paints
-			     without waiting on the latter. `preload="metadata"` keeps the video
-			     out of that race; `autoplayInView` starts it when it is ready. It
-			     is also the whole no-JavaScript and reduced-motion story — both
-			     leave the poster up, which is exactly the picture this section
-			     carried before it moved. -->
+			     The responsive image carries frame one at the video's exact ratio.
+			     It stays above the video until a decoded frame can replace it. There
+			     is no native poster: that would download the full-size image as well
+			     as the responsive candidate. `preload="none"` leaves playback to the
+			     observer; without JavaScript or with reduced motion the still stays. -->
 			<div class="lp-shot">
 				<div class="lp-shot__frame">
 					<img
 						class="lp-shot__poster"
 						src="{resolve('/')}workbench.webp"
-						width="2560"
-						height="1640"
+						srcset="{resolve('/')}workbench-640.webp {shotDimensions['workbench-640.webp']
+							.width}w, {resolve('/')}workbench-1280.webp {shotDimensions['workbench-1280.webp']
+							.width}w, {resolve('/')}workbench-1920.webp {shotDimensions['workbench-1920.webp']
+							.width}w, {resolve('/')}workbench.webp {shotDimensions['workbench.webp'].width}w"
+						sizes="(min-width: 74rem) 71rem, calc(100vw - 3rem)"
+						fetchpriority="high"
+						width={shotDimensions['workbench.webp'].width}
+						height={shotDimensions['workbench.webp'].height}
 						alt=""
 						aria-hidden="true"
 					/>
@@ -370,118 +352,153 @@ And the "quiet" part was never really quiet`;
 					     `<video>`. -->
 					<video
 						{@attach autoplayInView}
-						src="{resolve('/')}workbench.webm"
-						poster="{resolve('/')}workbench.webp"
-						width="2560"
-						height="1640"
-						aria-label="The LyricLint workbench working through a transcription: Avery and Blair colour-tagged through Verse 2, and a linter panel of sourced findings that empties as each card's fix is pressed — five at once from the bulk strip, then one at a time, with the song's two choruses linked partway through so every later correction lands in both. The document ends clean, then rewinds to where it started."
+						width={shotDimensions['workbench.webm'].width}
+						height={shotDimensions['workbench.webm'].height}
+						aria-label="The workbench checks a transcription with Avery and Blair marked in colour. Five fixes are applied at once, followed by individual fixes. The two choruses are linked so later edits update both. The findings clear, then the document rewinds."
 						loop
 						muted
 						playsinline
-						preload="metadata"
-					></video>
+						preload="none"
+					>
+						<source
+							src="{resolve('/')}workbench-mobile.webm"
+							type="video/webm"
+							media="(max-width: 30rem)"
+						/>
+						<source src="{resolve('/')}workbench.webm" type="video/webm" />
+					</video>
 				</div>
 			</div>
 		</div>
 	</section>
 
-	<!-- The demo is the product, not a picture of it: the same editor, the same
-	     rule set, the same cards. It reads its findings back afterwards rather
-	     than introducing them with a colon, so the section leads with the thing
-	     worth looking at. -->
+	<!-- The live editor uses the same evidence-and-copy split as the detail demos. -->
 	<section class="lp-section">
-		<div class="lp-container">
-			<div class="lp-head">
-				<h2>This is the real editor, running on this page.</h2>
-				<p>
-					Not a screenshot and not a video. Hover an underline for the finding, the guideline behind
-					it, and the fix — or type into it and see what else it catches.
-				</p>
-			</div>
-
+		<div class="lp-container lp-split lp-split--flip lp-demo">
 			<LazyLiveDemo text={messy} performerNames={['Avery', 'Blair']} />
 
-			<p class="lp-prose">
-				That transcription has a written-out section header, a lowercase line start, a subject and
-				verb that disagree, and an ad-lib missing its capital.
-			</p>
-
-			<p class="lp-prose">
-				Apply the fixes it offers and you are left with the document you meant to submit — the same
-				plain text and literal Genius markup you would have typed by hand.
-			</p>
-
-			<figure class="lp-panel">
-				<figcaption class="lp-panel__head">What you copy out</figcaption>
-				<pre class="lp-panel__body">{clean}</pre>
-			</figure>
+			<div class="lp-split__copy">
+				<h2>Try the editor right here.</h2>
+				<p class="lp-prose">
+					Try fixing the section header, the <code class="site-code">(?)</code> marker, and the lowercase
+					ad-lib. Hover over an underline to see the suggested fix, then try it in the lyrics.
+				</p>
+			</div>
 		</div>
 	</section>
 
-	<!-- One bordered run with hairlines between the members, the way the linter
-	     draws a run of diagnostics. Four separate cards with gaps between them
-	     would be four boundaries doing one boundary's job. -->
 	<section class="lp-section">
-		<div class="lp-container">
-			<div class="lp-head">
-				<h2>{ruleCount} reviewed rules, and the judgement calls stay yours.</h2>
-				<p>
-					Every rule required an exact source URL, a written interpretation, a human review, and a
-					last-verified date before it was allowed to ship. Genius conventions cite the guideline's
-					own annotation; spellings cite the language authorities that correct them; and where a
-					check is our own reading of the sources, its page says so.
-				</p>
+		<div class="lp-container lp-split">
+			<!-- Generated by `scripts/render-motion.mjs`: the real editor assigning
+			     two performers. The video reserves its actual 1264×1618 ratio before
+			     metadata arrives. The overlaid still is fitted to that frame instead
+			     of becoming a native poster that changes the video's intrinsic ratio.
+			     Both image and video wait until this section is near or in view. -->
+			<div class="lp-shot lp-shot--detail">
+				<div class="lp-shot__frame">
+					<img
+						class="lp-shot__poster"
+						src="{resolve('/')}workbench-performers.webp"
+						loading="lazy"
+						width={shotDimensions['workbench-performers.webp'].width}
+						height={shotDimensions['workbench-performers.webp'].height}
+						alt=""
+						aria-hidden="true"
+					/>
+					<!-- Named by `aria-label`, carrying the description the still
+					     carried, because a silent loop of a pointer using the product
+					     should be announced the way the picture it replaces was.
+					     Deliberately not `role="img"`, which is what one wants to reach
+					     for here and which the platform refuses: a `<video>` may not be
+					     relabelled as an image. There is nothing to hear and no
+					     controls, so what is left — an embedded object with an
+					     accessible name — is the honest description of it. -->
+					<video
+						{@attach autoplayInView}
+						src="{resolve('/')}workbench-performers.webm"
+						width={shotDimensions['workbench-performers.webm'].width}
+						height={shotDimensions['workbench-performers.webm'].height}
+						aria-label="Words are selected in the editor and assigned to Avery. The rest of the section is assigned to Avery and Blair together. LyricLint adds the performer names to the header and wraps the selected words in italics markup. Coloured marks beside the lines show who sings them."
+						loop
+						muted
+						playsinline
+						preload="none"
+					></video>
+				</div>
 			</div>
 
-			<ul class="lp-run">
-				<li>
-					<span class="lp-run__mark" aria-hidden="true">[ ]</span>
-					<span class="lp-run__title">Section headers</span>
-					<p class="lp-run__body">
-						Bracketed song parts, recognised names, verse numbering, and the repeats that should be
-						one chorus rather than three copies of it.
-					</p>
-				</li>
-				<li>
-					<span class="lp-run__mark" aria-hidden="true">&lt;i&gt;</span>
-					<span class="lp-run__title">Performer markup</span>
-					<p class="lp-run__body">
-						Literal HTML that has to balance, use its style slots in a consistent order, and agree
-						with the legend in the header above it.
-					</p>
-				</li>
-				<li>
-					<span class="lp-run__mark" aria-hidden="true">&rsquo;</span>
-					<span class="lp-run__title">Punctuation and spelling</span>
-					<p class="lp-run__body">
-						Typewriter quotes, missing contraction apostrophes, reviewed Genius spellings, censored
-						masks, and invisible whitespace.
-					</p>
-				</li>
-				<li>
-					<span class="lp-run__mark" aria-hidden="true">&#9888;</span>
-					<span class="lp-run__title">Calls you have to make</span>
-					<p class="lp-run__body">
-						Where a convention is genuinely contextual, the finding says so and its fix is previewed
-						for you to confirm instead of applied.
-					</p>
-				</li>
-			</ul>
+			<div class="lp-split__copy">
+				<h2>Select the words. Choose who sings them.</h2>
 
-			<p class="lp-note">
-				<span class="lp-note__item">
-					<Check aria-hidden="true" size={14} strokeWidth={3} />
-					Sourced, versioned, and bundled with the app
-				</span>
-				<span class="lp-note__item">
-					<Check aria-hidden="true" size={14} strokeWidth={3} />
-					Never a live scraper
-				</span>
-				<span class="lp-note__item">
-					<Check aria-hidden="true" size={14} strokeWidth={3} />
-					Nothing changes unless you press the control that changes it
-				</span>
-			</p>
+				<p class="lp-prose">
+					Genius uses HTML to mark who sings each line. The tags need to match the performer names
+					in the section header. Keeping them in sync by hand takes time.
+				</p>
+
+				<p class="lp-prose">
+					Select the words and choose a performer. LyricLint adds the markup and updates the header
+					in one edit. You can undo it in one press. Colours help you follow each voice in the
+					editor. <strong>The colours stay in the editor.</strong> Your copied text contains only Genius
+					markup.
+				</p>
+
+				<p class="lp-prose">
+					Try it in the demo above. Fix the section header first, then select some words and choose
+					Avery or Blair.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<section class="lp-section">
+		<div class="lp-container lp-split lp-split--flip">
+			<!-- Generated by `scripts/render-motion.mjs --harper`: a real Harper
+			     underline in the real editor, hovered the way a reader hovers it,
+			     read, and fixed. The still it replaced could show the open card and
+			     stop there; what the loop adds is the press — that the button beside
+			     the explanation does what the explanation says.
+
+			     The video reserves its actual 1026×586 ratio. The lazy overlaid image
+			     keeps the opening finding visible before playback, including without
+			     JavaScript, without setting the video's intrinsic geometry. -->
+			<div class="lp-shot lp-shot--detail">
+				<div class="lp-shot__frame">
+					<img
+						class="lp-shot__poster"
+						src="{resolve('/')}workbench-harper.webp"
+						loading="lazy"
+						width={shotDimensions['workbench-harper.webp'].width}
+						height={shotDimensions['workbench-harper.webp'].height}
+						alt=""
+						aria-hidden="true"
+					/>
+					<video
+						{@attach autoplayInView}
+						src="{resolve('/')}workbench-harper.webm"
+						width={shotDimensions['workbench-harper.webm'].width}
+						height={shotDimensions['workbench-harper.webm'].height}
+						aria-label="The line 'I has counted every streetlight' has a wavy underline. Hovering opens a Harper suggestion that explains the grammar mistake and asks you to review it in context. The preview strikes out 'has' and adds 'have'. Pressing Replace with have fixes the line and removes the underline."
+						loop
+						muted
+						playsinline
+						preload="none"
+					></video>
+				</div>
+			</div>
+
+			<div class="lp-split__copy">
+				<h2>Spelling and grammar that never leave the page.</h2>
+				<p class="lp-prose">
+					<a href={harperUrl} rel="external">Harper</a> checks English spelling and grammar in your browser.
+					It is open source. Your lyrics are never sent to Harper or a LyricLint server for these checks.
+				</p>
+				<p class="lp-prose">
+					Lyrics often bend grammar rules. You review every Harper suggestion before applying it.
+					Its dictionary includes performer names and Genius spellings like <code class="site-code"
+						>ayy</code
+					>. LyricLint follows the Genius rules when the two disagree.
+				</p>
+			</div>
 		</div>
 	</section>
 
@@ -520,149 +537,15 @@ And the "quiet" part was never really quiet`;
 			<div class="lp-split__copy">
 				<h2>Every warning carries its source.</h2>
 				<p class="lp-prose">
-					A linter that cannot say why it is complaining is just an opinion with a red underline.
-					Each finding links to the guideline it came from, so you can check the ruling rather than
-					take it.
+					{ruleCount} reviewed checks cover headers, performer markup, punctuation, and spelling. Each
+					finding links to its source and explains the problem. Checks based on LyricLint's own interpretation
+					say so on their pages.
 				</p>
 				<p class="lp-prose">
-					<a href={resolve('/guidelines/')}>Read the transcription guide</a>, including the sources
-					behind each one.
-				</p>
-			</div>
-		</div>
-	</section>
-
-	<section class="lp-section">
-		<div class="lp-container lp-split">
-			<!-- Generated by `scripts/render-motion.mjs`: the real editor,
-			     driven by a real browser, filmed one frame at a time. The poster is
-			     frame one extracted from that loop, so it has the exact same crop and
-			     aspect ratio rather than merely depicting the same scene.
-
-			     A still could only assert that the markup is never typed; the loop
-			     shows the pointer dragging a phrase and pressing two names, which is
-			     this section's entire claim.
-
-			     The older still was framed differently: 1094×1574 against the loop's
-			     1226×1572. A `<video>` takes its intrinsic ratio from the poster until
-			     metadata arrives and from the media afterwards, so putting those two
-			     assets in one slot resized the column mid-load. The extracted WebP is
-			     1226×1572 too, and the attributes state that same ratio before either
-			     asset arrives.
-
-			     `preload="none"` keeps the 312KB loop out of the first navigation;
-			     `autoplayInView` starts it when this section is actually being read.
-			     The 80KB poster carries frame one until then, including without
-			     JavaScript, without giving the box a second geometry. -->
-			<div class="lp-shot lp-shot--detail">
-				<div class="lp-shot__frame">
-					<img
-						class="lp-shot__poster"
-						src="{resolve('/')}workbench-performers.webp"
-						width="1226"
-						height="1572"
-						alt=""
-						aria-hidden="true"
-					/>
-					<!-- Named by `aria-label`, carrying the description the still
-					     carried, because a silent loop of a pointer using the product
-					     should be announced the way the picture it replaces was.
-					     Deliberately not `role="img"`, which is what one wants to reach
-					     for here and which the platform refuses: a `<video>` may not be
-					     relabelled as an image. There is nothing to hear and no
-					     controls, so what is left — an embedded object with an
-					     accessible name — is the honest description of it. -->
-					<video
-						{@attach autoplayInView}
-						src="{resolve('/')}workbench-performers.webm"
-						poster="{resolve('/')}workbench-performers.webp"
-						width="1226"
-						height="1572"
-						aria-label="A whole transcription in the editor. Part of a lyric line is selected with a drag, and the performer picker opens asking who sings it: Avery is chosen for that phrase, then both Avery and Blair together for the rest of the section. Applying writes the section header's legend and wraps the phrase in italics markup, and both performers' colours run down the gutter beside the lines they share."
-						loop
-						muted
-						playsinline
-						preload="none"
-					></video>
-				</div>
-			</div>
-
-			<div class="lp-split__copy">
-				<h2>Credit a voice by selecting it, not by writing the HTML.</h2>
-
-				<p class="lp-prose">
-					Marking up who sings what is the part of a Genius transcription that costs the most and
-					goes wrong the most: the markup is literal HTML, it has to be balanced, the style slots
-					have to be used in a consistent order, and the section header's legend has to agree with
-					every span underneath it — all of it typed by hand, in a plain textarea, one
-					<code class="site-code">&lt;i&gt;</code> at a time.
-				</p>
-
-				<p class="lp-prose">
-					LyricLint does it as a selection. Select the words and choose the voice, then the section
-					header gets updated as one edit you can undo in one press. Every performer keeps a colour,
-					so you can see who is singing each passage at a glance — and <strong
-						>the colour is display only</strong
-					>. It never reaches the markup you copy out, which stays exactly what Genius expects.
-				</p>
-
-				<p class="lp-prose">
-					The demo above has two performers on its roster already. Select any part of a line and
-					hand it to one of them — after you've fixed the header.
-				</p>
-			</div>
-		</div>
-	</section>
-
-	<section class="lp-section">
-		<div class="lp-container lp-split lp-split--flip">
-			<!-- Generated by `scripts/render-motion.mjs --harper`: a real Harper
-			     underline in the real editor, hovered the way a reader hovers it,
-			     read, and fixed. The still it replaced could show the open card and
-			     stop there; what the loop adds is the press — that the button beside
-			     the explanation does what the explanation says.
-
-			     Its poster is frame one extracted from the video, so both sides of
-			     metadata loading have the stated 1044×570 ratio. `preload="none"`
-			     leaves the 96KB loop out of the landing waterfall until the observer
-			     sees this section; the 20KB poster keeps its opening finding visible
-			     before then and when JavaScript is unavailable. -->
-			<div class="lp-shot lp-shot--detail">
-				<div class="lp-shot__frame">
-					<img
-						class="lp-shot__poster"
-						src="{resolve('/')}workbench-harper.webp"
-						width="1044"
-						height="570"
-						alt=""
-						aria-hidden="true"
-					/>
-					<video
-						{@attach autoplayInView}
-						src="{resolve('/')}workbench-harper.webm"
-						poster="{resolve('/')}workbench-harper.webp"
-						width="1044"
-						height="570"
-						aria-label="A lyric line reading 'I has counted every streetlight' with a wavy underline under the disagreement, previewing 'has' struck through and 'have' beside it. Hovering the underline opens a popover explaining that the verb must agree in number with the pronoun, citing Harper and advising that the suggestion be reviewed in context; pressing Replace with have corrects the line and the underline goes."
-						loop
-						muted
-						playsinline
-						preload="none"
-					></video>
-				</div>
-			</div>
-
-			<div class="lp-split__copy">
-				<h2>Spelling and grammar that never leave the page.</h2>
-				<p class="lp-prose">
-					<a href={harperUrl} rel="external">Harper</a>, the open-source English grammar engine,
-					runs inside the page — so your lyrics are not sent to Harper or to a LyricLint server.
+					You make the judgement calls. Review the suggested edit and decide what fits the song.
 				</p>
 				<p class="lp-prose">
-					Lyrics are not ordinary prose, so it stays advisory: its fixes are always shown for
-					review. Performer names and reviewed Genius spellings such as
-					<code class="site-code">ayy</code> are added to its dictionary, and LyricLint's sourced Genius
-					rules take precedence wherever the two disagree.
+					<a href={resolve('/guidelines/')}>Read the transcription guide</a>
 				</p>
 			</div>
 		</div>
@@ -678,7 +561,7 @@ And the "quiet" part was never really quiet`;
 							<Check size={12} strokeWidth={3.3} />
 						</span>
 						<span
-							><strong>No account and no upload.</strong> There is no server to send one to.</span
+							><strong>No account needed.</strong> Check your lyrics without uploading them.</span
 						>
 					</li>
 					<li>
@@ -686,8 +569,7 @@ And the "quiet" part was never really quiet`;
 							<Check size={12} strokeWidth={3.3} />
 						</span>
 						<span>
-							<strong>Autosaved in your own browser.</strong> Closing the tab does not lose work, and
-							a crash does not either.
+							<strong>Saved in your browser.</strong> Reopen the page to pick up your saved draft.
 						</span>
 					</li>
 					<li>
@@ -695,8 +577,7 @@ And the "quiet" part was never really quiet`;
 							<Check size={12} strokeWidth={3.3} />
 						</span>
 						<span>
-							<strong>Works offline once loaded</strong>, which matters when the rules you are
-							checking against live on a site that is not always reachable.
+							<strong>Works offline once loaded.</strong> Keep editing and checking without a connection.
 						</span>
 					</li>
 				</ul>
@@ -705,14 +586,17 @@ And the "quiet" part was never really quiet`;
 			<div class="lp-split__copy">
 				<h2>Your lyrics stay in your browser.</h2>
 				<p class="lp-prose">
-					The exceptions are yours to choose, each on its own press. You can play the song you are
-					transcribing alongside the lyrics: an audio file off your own disk, which is never
-					uploaded and never copied into the browser, a YouTube video, which loads Google's player
-					into the page and lets Google see which video it is, or an Apple Music track — a 'scribe
-					using the online options stops working offline. And you can ask the rules assistant a
-					question about the guidelines, which sends that question — and your 'scribe only after you
-					explicitly grant the assistant access to it, one 'scribe at a time — to be answered.
-					<a href={resolve('/privacy/')}>The privacy page</a> lists everything.
+					Editing and checking happen on your device. Optional features can connect to other
+					services when you choose to use them.
+				</p>
+				<p class="lp-prose">
+					Play an audio file from your device without uploading it or storing a copy in the browser.
+					YouTube, Spotify, and Apple Music load their own players and need an internet connection.
+				</p>
+				<p class="lp-prose">
+					The rules assistant sends your question and recent chat messages to an answering service.
+					It can read your draft only after you give permission for that draft. You can revoke
+					access at any time. <a href={resolve('/privacy/')}>Read the privacy details</a>.
 				</p>
 			</div>
 		</div>
@@ -762,24 +646,22 @@ And the "quiet" part was never really quiet`;
 			</div>
 
 			<div class="lp-split__copy">
-				<h2>Every guideline we could find, in one place.</h2>
+				<h2>The transcription guidelines in one place.</h2>
 				<p class="lp-prose">
-					Genius's transcription guidance is scattered across staff guides, accepted annotations,
-					and forum rulings. The Guidelines gather it: {guidanceCount} reviewed conventions across
-					{guidanceTopicCount} topics — section headers, spelling, ad-libs, censored and unknown words,
-					non-English songs, and more — each stated plainly with the source behind it, including the conventions
-					no linter could check.
+					Genius guidance is spread across staff guides, accepted annotations, and forum rulings. We
+					bring it together in {guidanceCount} reviewed entries across {guidanceTopicCount} topics. Each
+					entry explains a convention and links to its source. The guide also covers choices a linter
+					cannot check.
 				</p>
 				<p class="lp-prose">
-					Every entry says how much standing it has: staff guidance ranks above editor-reviewed
-					annotations, and those above outside references and community writing. Where a convention
-					is LyricLint's own preference rather than anything Genius states, it is marked as exactly
-					that — and where the linter checks a convention, the entry names the rules that check it,
-					and each rule's page links back.
+					Each entry shows who backs it. Staff guidance ranks first, followed by editor-reviewed
+					annotations, then outside references and community writing. LyricLint's own preferences
+					are clearly labelled. Entries link to any related checks, and those checks link back to
+					the guide.
 				</p>
 				<p class="lp-prose">
-					<a href={resolve('/guidelines/')}>Go to the Guidelines</a> — they read on their own, before
-					the workbench is ever open.
+					<a href={resolve('/guidelines/')}>Go to the Guidelines</a>. You can read them without
+					opening the workbench.
 				</p>
 			</div>
 		</div>
@@ -796,27 +678,26 @@ And the "quiet" part was never really quiet`;
 			<ul class="lp-run">
 				<li>
 					<span class="lp-run__title">Not a way to edit Genius</span>
-					<p class="lp-run__body">You copy the finished markup out and paste it in.</p>
+					<p class="lp-run__body">Copy your finished text and paste it into Genius.</p>
 				</li>
 				<li>
 					<span class="lp-run__title">Not an automated transcriber</span>
 					<p class="lp-run__body">
-						Linting is deterministic, reviewed rules — no model rewrites your words. The one AI
-						surface is the optional rules assistant, which answers questions about the guidelines
-						and can never see your 'scribe.
+						You write the lyrics. LyricLint checks them against reviewed rules. The optional AI
+						assistant answers questions about the guidelines.
 					</p>
 				</li>
 				<li>
 					<span class="lp-run__title">Not a live scraper</span>
 					<p class="lp-run__body">
-						The rules are a reviewed, versioned snapshot, so what it checks today is what it checked
-						yesterday.
+						Reviewed rules come with the app. Checks do not fetch guidance from Genius while you
+						work.
 					</p>
 				</li>
 				<li>
 					<span class="lp-run__title">Not a rewriter</span>
 					<p class="lp-run__body">
-						Nothing changes in your document unless you press the control that changes it.
+						You choose which fixes to apply. LyricLint does not rewrite your lyrics on its own.
 					</p>
 				</li>
 			</ul>
@@ -843,6 +724,7 @@ And the "quiet" part was never really quiet`;
 			     logs the refusal as an error on every load. -->
 			<iframe
 				class="lp-join__widget"
+				loading="lazy"
 				src="https://discord.com/widget?id=1542181994174222356&theme=dark"
 				title="LyricLint Discord server"
 				width="350"
@@ -852,14 +734,13 @@ And the "quiet" part was never really quiet`;
 			></iframe>
 
 			<div class="lp-split__copy">
-				<h2>Built in the open, and better with help.</h2>
+				<h2>Help make LyricLint better.</h2>
 				<p class="lp-prose">
-					Everything on this page — the workbench, the rules, the scripts that film it — is in one
-					public repository. If LyricLint misses something, gets a lyric wrong, or lacks a check you
-					wish it ran, an issue is the fastest way to make it better; pull requests are welcome too,
-					from a one-line fix to a whole feature. And if you would rather talk it through first — a
-					ruling you disagree with, a lyric it got wrong, or transcription itself — the Discord is
-					where that conversation happens.
+					LyricLint is open source. The code, rules, and demo scripts are all on GitHub. Open an
+					issue to report a mistake or ask for a feature. Contributions of any size are welcome.
+				</p>
+				<p class="lp-prose">
+					Join the Discord to discuss a guideline, ask a question, or talk about transcription.
 				</p>
 				<div class="lp-join">
 					<a class="button" href="https://github.com/hkarlsen06/LyricLint/issues" rel="external">
@@ -878,10 +759,7 @@ And the "quiet" part was never really quiet`;
 	<section class="lp-cta">
 		<div class="lp-container">
 			<h2>Submit it right the first time.</h2>
-			<p>
-				Free, no account, and your lyrics stay in your browser. Paste a transcription and see what
-				it finds.
-			</p>
+			<p>LyricLint is free and needs no account. Paste your lyrics and see what it finds.</p>
 			<div class="lp-cta__actions">
 				<a class="button button--contrast" href={resolve('/lint/')}>
 					<LyricIcon />

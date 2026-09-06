@@ -6,7 +6,7 @@
 	import { assistantAvailable } from '$lib/assistant/api.js';
 	import { useAssistantState, type AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import {
-		searchReference,
+		createReferenceSearch,
 		referenceSearchTokens,
 		type ReferenceDocument
 	} from '$lib/reference/search.js';
@@ -59,8 +59,9 @@
 			!filters.severities.length &&
 			!filters.fixabilities.length
 	);
+	const search = $derived(createReferenceSearch(corpus));
 	const matches = $derived(
-		searchReference(corpus, filters.query, {
+		search(filters.query, {
 			scope,
 			topic: effectiveTopic,
 			severities: scope === 'rules' && filters.severities.length ? filters.severities : undefined,

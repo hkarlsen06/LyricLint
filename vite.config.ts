@@ -383,10 +383,16 @@ export default defineConfig({
 			// The `.gif` is the motion loop's sharing copy — a README, an issue, a
 			// post. `workbench.png` serves the same job for the README while the page
 			// uses its WebP. No page references either, so neither belongs in every
-			// visitor's offline snapshot.
+			// visitor's offline snapshot. Marketing WebMs are enhancements too: keep
+			// their stills offline, without precaching every resolution of every loop
+			// for visitors who never watch them. Unlisted video URLs go to the network.
 			serviceWorker: {
 				register: false,
-				files: (file) => !file.startsWith('_') && !file.endsWith('.gif') && file !== 'workbench.png'
+				files: (file) =>
+					!file.startsWith('_') &&
+					!file.endsWith('.gif') &&
+					!file.endsWith('.webm') &&
+					file !== 'workbench.png'
 			},
 			// A deploy reaches a client on their next full-page load — navigations
 			// are network-first through the worker, and a new build's chunks match

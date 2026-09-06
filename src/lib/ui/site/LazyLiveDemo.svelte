@@ -75,14 +75,11 @@
 			<div class="site-demo__editor">
 				<pre class="site-demo__fallback">{text}</pre>
 			</div>
-			<p class="site-demo__hint">
-				Hover over an underline to see the finding, the relevant Genius guideline, and the suggested
-				fix.
-				{#if performerNames.length > 0}
-					Select a line to credit it to {performerList}.
-				{/if}
-				Edit directly to see what else the editor catches.
-			</p>
+			{#if performerNames.length > 0}
+				<p class="site-demo__hint">
+					You can also select words and credit them to {performerList}.
+				</p>
+			{/if}
 		</div>
 	{/if}
 </div>

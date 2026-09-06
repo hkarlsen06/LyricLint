@@ -1,4 +1,14 @@
 <script lang="ts">
+	import { diagnosticIgnoreKey, matchIgnoredDiagnostics } from '$lib/diagnostics/ignore.js';
+	import { diagnosticKey } from '$lib/diagnostics/order.js';
+	import ControlTooltip from '../primitives/ControlTooltip.svelte';
+	import {
+		showControlHint,
+		releaseControlHint,
+		shownControlHint
+	} from '../state/control-tooltip.svelte.js';
+	import { canAssignVoiceGroup } from '$lib/performers/transform.js';
+	import { PHONE_LAYOUT_QUERY } from '$lib/interaction/phone-layout.js';
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	// The landing page's demo is the product, not a picture of it.
 	//
@@ -176,7 +186,7 @@
 					lastDiagnostics = merged;
 					snapshot = {
 						...snapshot,
-						diagnostics: filterForEditorState(snapshot, merged, handle?.getSectionLinks?.())
+						diagnostics: visibleDiagnostics(snapshot, merged)
 					};
 				})
 				.catch((error: Error) => {
@@ -207,6 +217,22 @@
 		}, languageDetectorDelay);
 	}
 
+	// Demo choices live only for this mounted example, never in saved drafts.
+	let ignoredDiagnosticKeys: string[] = [];
+	function visibleDiagnostics(
+		next: EditorSnapshot,
+		diagnostics: readonly Diagnostic[]
+	): Diagnostic[] {
+		const ignored = new Set(
+			matchIgnoredDiagnostics(diagnostics, next.text, ignoredDiagnosticKeys).values()
+		);
+		return filterForEditorState(
+			next,
+			diagnostics.filter((diagnostic) => !ignored.has(diagnosticKey(diagnostic))),
+			handle?.getSectionLinks?.()
+		);
+	}
+
 	function enrich(snapshot: EditorSnapshot): EditorSnapshot {
 		// Composition revisions reuse whatever was last computed, exactly as the
 		// workbench does: linting half-finished IME input reports on text the
@@ -215,14 +241,14 @@
 			invalidateHarper();
 			return {
 				...snapshot,
-				diagnostics: filterForEditorState(snapshot, lastDiagnostics, handle?.getSectionLinks?.())
+				diagnostics: visibleDiagnostics(snapshot, lastDiagnostics)
 			};
 		}
 		const key = lintKey(snapshot);
 		if (key === lastLintKey) {
 			return {
 				...snapshot,
-				diagnostics: filterForEditorState(snapshot, lastDiagnostics, handle?.getSectionLinks?.())
+				diagnostics: visibleDiagnostics(snapshot, lastDiagnostics)
 			};
 		}
 		lastDiagnostics = computeDiagnostics(
@@ -234,7 +260,7 @@
 		scheduleHarper(snapshot, lastDiagnostics);
 		return {
 			...snapshot,
-			diagnostics: filterForEditorState(snapshot, lastDiagnostics, handle?.getSectionLinks?.())
+			diagnostics: visibleDiagnostics(snapshot, lastDiagnostics)
 		};
 	}
 
@@ -259,6 +285,53 @@
 	// and an editor that arrives clean and sprouts underlines a tick later reads
 	// as a page still loading rather than as a linter that has already run.
 	let snapshot = $state<EditorSnapshot>(enrich(initialSnapshot()));
+	let demoEditor: HTMLDivElement;
+	const headerHint = 'Fix the section header first to tag performers.';
+	const needsHeader = $derived.by(() => {
+		const { anchor, head } = snapshot.selection;
+		if (
+			snapshot.composing ||
+			anchor === head ||
+			canAssignVoiceGroup(snapshot.parsed, snapshot.selection)
+		)
+			return false;
+		const from = Math.min(anchor, head);
+		const to = Math.max(anchor, head);
+		return (
+			snapshot.text.slice(from, to).trim().length > 0 &&
+			snapshot.parsed.sections.some(
+				(section) =>
+					!section.header &&
+					section.from <= from &&
+					section.to >= to &&
+					snapshot.diagnostics.some(
+						(finding) =>
+							finding.ruleId === 'section.header-prose' &&
+							finding.from >= section.from &&
+							finding.to <= from
+					)
+			)
+		);
+	});
+	$effect(() => {
+		// Follow each new selection; Escape/outside dismissal must last until
+		// another selection, not reopen because the shared tooltip was cleared.
+		const selection = snapshot.selection;
+		const blocked = needsHeader;
+		if (!demoEditor) return;
+		if (
+			blocked &&
+			selection.anchor !== selection.head &&
+			!window.matchMedia(PHONE_LAYOUT_QUERY).matches
+		) {
+			showControlHint(demoEditor, { label: headerHint });
+		} else {
+			releaseControlHint(demoEditor);
+		}
+		return () => releaseControlHint(demoEditor);
+	});
+	const hintAnnouncement = $derived(shownControlHint()?.label === headerHint ? headerHint : '');
+
 	// The static sample below is the prerendered text, and it is what a crawler
 	// and a reader with no JavaScript get. CodeMirror only exists after mount, so
 	// the fallback stands in until the real pane is ready and then stands down —
@@ -384,9 +457,8 @@
 			);
 		},
 		onApplyDiagnosticFix: (_diagnostic, fix) => applyEdit(fix),
-		// The real planner, over this pane's own diagnostics. There is no severity
-		// filter and no ignore list on this surface, so every finding is visible
-		// and the count the button shows is the count it will change.
+		// The real planner sees only visible findings, so accepted and ignored
+		// occurrences cannot rejoin a batch through its count or its edits.
 		countDiagnosticFixBatch: (diagnostic, fix) =>
 			collectMatchingFixes(snapshot.diagnostics, diagnostic, fix).length,
 		onApplyDiagnosticFixBatch: (diagnostic, fix) => {
@@ -399,13 +471,26 @@
 			if (merged) handle?.dispatchAtomic(merged);
 			else applyEdit(fix);
 		},
-		onIgnoreDiagnostic: () => {},
+		onIgnoreDiagnostic: (diagnostic) => {
+			const key = diagnosticIgnoreKey(diagnostic, snapshot.text);
+			if (!ignoredDiagnosticKeys.includes(key)) ignoredDiagnosticKeys.push(key);
+			handle?.clearPreview?.();
+			snapshot = { ...snapshot, diagnostics: visibleDiagnostics(snapshot, lastDiagnostics) };
+		},
 		onSetLanguage: () => {}
 	};
 </script>
 
+<svelte:window
+	onkeydown={(event) => {
+		if (event.key === 'Escape') releaseControlHint(demoEditor);
+	}}
+	onscroll={() => releaseControlHint(demoEditor)}
+/>
+<ControlTooltip />
+<span class="sr-only" role="status">{hintAnnouncement}</span>
 <div class="site-demo">
-	<div class="site-demo__editor">
+	<div class="site-demo__editor" bind:this={demoEditor}>
 		{#if !editorReady}
 			<pre class="site-demo__fallback">{text}</pre>
 		{/if}
@@ -437,12 +522,9 @@
 	     before it. Svelte trims the whitespace just inside a block's opening tag,
 	     so `offers.{#if …}` followed by an indented line ran the two sentences
 	     together; whitespace *outside* the tag survives as the space they need. -->
-	<p class="site-demo__hint">
-		Hover over an underline to see the finding, the relevant Genius guideline, and the suggested
-		fix.
-		{#if performers.length > 0}
-			Select a line to credit it to {performerList}.
-		{/if}
-		Edit directly to see what else the editor catches.
-	</p>
+	{#if performers.length > 0}
+		<p class="site-demo__hint">
+			You can also select words and credit them to {performerList}.
+		</p>
+	{/if}
 </div>

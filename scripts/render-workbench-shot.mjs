@@ -26,6 +26,7 @@ import { mkdir, unlink } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
+import { writeShotDimensions } from './write-shot-dimensions.mjs';
 import {
 	harperTranscription,
 	prepareHeroScene,
@@ -192,4 +193,22 @@ try {
 // PNG is a shipped asset of its own.
 await run('ffmpeg', ['-y', '-i', outputPath, '-c:v', 'libwebp', '-quality', '82', webpPath]);
 console.log(`wrote ${webpPath}`);
+if (!performers && !harper) {
+	for (const width of [640, 1280, 1920]) {
+		await run('ffmpeg', [
+			'-y',
+			'-i',
+			outputPath,
+			'-vf',
+			`scale=${width}:-1`,
+			'-c:v',
+			'libwebp',
+			'-quality',
+			'82',
+			resolve(`static/workbench-${width}.webp`)
+		]);
+	}
+}
 if (performers || harper) await unlink(outputPath);
+
+await writeShotDimensions();

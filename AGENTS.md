@@ -11,18 +11,17 @@ Adding entries to the guidance catalog behind `/guidelines/` — turning supplie
 pasted Genius guideline text into reviewed entries, registering sources with their authority
 tier, and verifying annotation acceptance states — follows **`docs/guidelines.md`** exactly.
 
-## Read the subsystem doc before touching its code
+## Read relevant subsystem guidance
 
-This repository documents decisions, not code. Each file in `docs/subsystems/` records its
-rules and the failures that taught them; several of those failures looked like working code
-and passed the suite.
+Before changing behavior, read **The rules** and the relevant **Decision record** in the
+subsystem doc routed below. These are authoritative invariants and their supporting failure
+history; passing tests alone does not justify breaking them. Read the relevant record before
+challenging a rule, and update the doc when changing behavior it describes.
 
-So: **before editing a subsystem, read its doc** — the table below routes by what you are
-touching (the table routes, not per-file pointers, though load-bearing sources carry a
-`Decision record:` pointer to theirs). Each doc opens with **The rules** (the invariants,
-each naming its pinning test) and follows with the **Decision record** (read it before
-arguing with a rule). Treat the docs as authoritative the way `DESIGN.md` is. When your change
-alters behavior a doc describes, **update the doc in the same commit**. `src/lib/subsystem-docs.test.ts` pins routing and claimed paths.
+For trivial edits that do not affect behavior, such as spelling or formatting, skip unrelated
+decision history. Still read guidance relevant to the edit, including content, accessibility,
+and data-safety constraints. If an edit could affect behavior, use the full guidance above.
+`src/lib/subsystem-docs.test.ts` pins routing and claimed paths.
 
 | Working on                                                                                                                                                                          | Read first                          |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
@@ -109,58 +108,18 @@ agents legible, with proper spacing between words, since a human may read them.
 
 ## UI rules
 
-### Never use eyebrows
+For UI changes, read `DESIGN.md` and `docs/ui-agent-guidance.md` for detailed patterns,
+examples, and canonical implementations. Keep these boundaries in every UI change:
 
-**NEVER EVER USE EYEBROWS.** Do not place a small label, kicker, category, or mono all-caps text
-above a heading. Write a heading that names the section on its own.
-
-### Zero layout shifts
-
-**Design toward zero layout shifts as the golden standard.** Selection, pending previews, status,
-and cancellation keep existing controls and reading positions anchored. Reserve space using real
-content and wrapping; keep action slots stable and swap labels/actions in place. Never insert a
-warning or Cancel button above the user's current decision, and never substitute animation for
-stable geometry. Intentional progressive disclosure grows below its trigger. Test interaction
-geometry at desktop and phone widths, including long text. `DESIGN.md` defines the full rule.
-
-### No cards inside cards
-
-Never nest a card, panel, or bordered/filled box inside another one. If an action needs a
-follow-up step, it happens **in place** in the existing surface — swap the control's label,
-reveal a sibling control in the same row, or change the surface's own state. Do not open a
-second bordered box inside the card the user is already looking at.
-
-Concretely, for a two-step confirm:
-
-- The trigger keeps its slot and changes its label (`Preview` → `Confirm`).
-- The confirming control is the high-contrast CTA (`.button--contrast`, the theme-inverting
-  white/black action).
-- `Cancel` sits immediately to the right of it, quiet emphasis.
-- Competing actions on the same surface (for example `Ignore this session`) are hidden while
-  the confirm step is pending, so exactly one decision is on screen.
-- Announce the pending state with a visually hidden `aria-live` region rather than a visible
-  status box.
-
-This applies to destructive confirms too: a warning reads as prose in the section it belongs to,
-not as a tinted danger box that pops into existence.
-
-Canonical implementations: `src/lib/ui/tools/PreferencesPanel.svelte` and
-`src/lib/ui/layout/DraftMenu.svelte`.
-
-### A card has to earn its border
-
-A card is a boundary, and a boundary has to separate something from something. Before drawing
-one, name the job: it groups items that repeat (a diagnostic among other diagnostics), it marks
-a region the user acts on independently of its neighbors, or it lifts a surface above the page
-(a popover, a menu). If none of those apply, the border is decoration — drop it and let the
-content sit directly on the page background.
-
-The tell is a card with nothing beside it. A single centered box on an otherwise empty page
-separates its contents from nothing at all; it only adds a rectangle, an inset, and a second
-background color for the reader to parse. Full-page messages — boot and error states — are prose on
-the canvas: constrain the measure with `max-width`, center it, and stop there.
-
-Canonical implementation: `.error-page` in `src/lib/ui/styles/overlays.css`.
+- No eyebrow labels above headings; headings name their own sections.
+- Keep controls and reading positions stable through interaction; progressive disclosure grows
+  below its trigger. Verify geometry at desktop and phone widths with long text.
+- Never nest cards or confirmation boxes; confirm in the existing surface. Borders must mark
+  a real grouping, independent action region, or floating surface.
+- Preserve visible focus, accessible names and announcements, reduced-motion preferences,
+  and WCAG 2.2 AA. State must have a non-color cue; never use opacity to convey it.
+- Consume semantic design tokens, including in the editor, without literal fallbacks. Ordinary
+  buttons share one silhouette and the three established emphasis tiers; pills are for categories.
 
 ### Cross-cutting invariants
 
@@ -203,54 +162,6 @@ argument for each.
   checklist in `docs/subsystems/rules-catalog.md`, including `bun run assistant:corpus`.
 - **Nothing a finger types into is smaller than 16px** — new fields inherit from the body or
   name `--font-size-editor` (`docs/subsystems/responsive.md`).
-
-### Design system
-
-`DESIGN.md` is authoritative. Components consume semantic tokens from
-`src/lib/ui/styles/tokens.css` — never literal colors, radii, spacing, or timings. All ordinary
-buttons share one silhouette; emphasis changes through color, not shape. There is no pill-shaped
-button variant — the legacy `.button--pill` hook has been removed, so do not reintroduce it. Pill
-radii belong to categorical chips and badges only (`.tab-count`,
-`.linter-panel__filter-chip`), never to an action button.
-
-The severity on a diagnostic is a **colored glyph** (`.severity`, no fill, no border, no radius),
-leading the card's meta line ahead of the line number: `⚠ Line 47 · Use song part headers`. No chip,
-no word, no line of its own — repetition that never varies stops being read, and a chip reads as one
-of the pressable severity filters directly above it.
-Three things hold it up, and removing any one of them puts severity back on color alone:
-
-- **The four glyphs separate at 12px in greyscale.** `SeverityIcon.svelte` owns them, and
-  `SeverityIcon.svelte.test.ts` asserts no two severities draw the same outline: `✕`, `!`, `i`, `✓`.
-- **The word is still in the accessible tree**, `sr-only` inside the tag, and in its `title` for
-  the pointer.
-- **The filter chip wears the same mark** (`LinterPanel.svelte`); without the glyph on both, the tie is color.
-
-`SeverityTag.svelte` therefore takes `labelled`, and **the rule reference keeps the word**
-(`/rules` and `/rules/[rule]`).
-
-Three button tiers, and no more: `.button--quiet` (borderless) < `.button` (bordered default) <
-`.button--contrast` (theme-inverting, one per surface). `.button--primary` is gone — an
-accent-filled button competed with the contrast tier for the same job. Pick the tier from what
-the action _is_, not from which panel it landed in; if a command appears twice, only its home
-surface gets the contrast tier.
-
-**A control that draws no fill draws no inset.** A quiet button standing alone in prose
-misaligns against the paragraph edges around it, so `.button--flush` cancels the inset with a
-negative inline margin while keeping the hover padding. It is for an edge read against text;
-inside a row of controls the gap _is_ the alignment. Flush is the default answer over a
-permanently filled trigger.
-
-**The editor is part of the design system.** CodeMirror styles live in CSS-in-JS
-(`create-editor.ts` and `src/lib/editor/extensions/*.ts`), so they must reference tokens directly
-with no literal fallbacks. `editor-token-policy.test.ts` enforces this.
-
-**Opacity is never a state carrier.** No `opacity` for disabled, excluded, empty, or de-emphasized
-anything. Use `--color-text-disabled` / `--color-control-disabled` / `--color-border-disabled`, or
-an opaque muted color, plus a non-color cue. Opacity stacks, drops contrast below AA, and dims the
-focus ring along with the label.
-
-Component tests load `global.css` through `vitest-setup-client.ts`, so a computed-style assertion
-sees the real tokens. Do not reintroduce literal fallbacks to make a test pass.
 
 ## Testing
 

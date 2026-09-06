@@ -16,7 +16,8 @@ Touches: `src/service-worker.ts`, `src/routes/+layout.svelte`, `src/routes/+erro
   about freshness — it is only how good the offline copy is.
 - The precache is `/`, `/lint/`, static files, and non-wasm immutable assets; install copies
   immutable assets forward from the previous cache, and misses reuse the HTTP cache; rules pages
-  join the snapshot by being read. The Harper wasm and the motion `.gif` stay excluded.
+  join the snapshot by being read. The Harper wasm and marketing `.gif`/`.webm` loops stay excluded; landing stills remain
+  cached so offline home content stays visible.
 - Registration is app code, not `kit.serviceWorker.register`: registered under `!dev`,
   **unregistered under `dev`** (an installed worker controls `localhost` until something
   takes it off). The error page's links carry `data-sveltekit-reload`.
@@ -28,6 +29,19 @@ Touches: `src/service-worker.ts`, `src/routes/+layout.svelte`, `src/routes/+erro
   the waiting-update and version-poll paths are verified by hand.
 
 ## Decision record
+
+### Marketing loops do not belong in every offline installation
+
+Native lazy loading and visibility-gated playback only control the page's requests. Precaching
+all static WebMs defeated both: opening the workbench downloaded three marketing loops, and a
+responsive fourth would have added another 1.3MB to every installation. `serviceWorker.files`
+now excludes WebMs along with the unused sharing copies. Their URLs therefore fall through to
+the network; the existing video play rejection leaves the image overlay visible when offline.
+All WebP stills, including responsive candidates, remain in the offline snapshot. The snapshot
+admission e2e test asserts no cached WebMs and opens all three landing stills offline; workbench
+recovery remains covered independently. The precache benchmark counts actual origin video
+requests, including the service-worker target that a page-only network trace may omit.
+
 
 ### The service worker is an offline snapshot, and it never stands between the user and the network
 

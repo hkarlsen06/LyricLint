@@ -183,6 +183,101 @@ test('the landing page activates its real editor only near the live demo', async
 	await expect(fallback).toHaveCount(0);
 });
 
+test('the landing demo explains the header prerequisite before assigning voices', async ({
+	page
+}) => {
+	for (const width of [1440, 900]) {
+		await page.setViewportSize({ width, height: 1000 });
+		await page.goto('/');
+		const demo = page.locator('.lp-demo');
+		await demo.scrollIntoViewIfNeeded();
+		await expect(editor(page)).toBeVisible();
+		await expect.poll(() => docText(page)).toMatch(/^Verse 1:/u);
+
+		const heading = await demo.getByRole('heading').boundingBox();
+		const frame = await demo.locator('.site-demo__editor').boundingBox();
+		if (width === 1440) expect(Math.abs(heading!.y - frame!.y)).toBeLessThan(1);
+		else expect(heading!.y).toBeGreaterThan(frame!.y + frame!.height);
+
+		// The initial selection explains its prerequisite without moving the copy.
+		// Repairing the header then enables the ordinary performer picker.
+		const word = await demo
+			.locator('.cm-line')
+			.nth(1)
+			.evaluate((line) => {
+				const text = line.firstChild!;
+				const start = text.textContent!.indexOf('counted');
+				const range = document.createRange();
+				range.setStart(text, start);
+				range.setEnd(text, start + 'counted'.length);
+				const rect = range.getBoundingClientRect();
+				return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+			});
+		await page.mouse.dblclick(word.x, word.y);
+		const tooltip = page.locator('.control-tooltip');
+		await expect(tooltip).toHaveText('Fix the section header first to tag performers.');
+		await expect(page.getByRole('status')).toHaveText(
+			'Fix the section header first to tag performers.'
+		);
+		await expect(page.getByRole('dialog', { name: 'Assign performers' })).toHaveCount(0);
+		const afterHint = await demo.getByRole('heading').boundingBox();
+		expect(afterHint!.y).toBe(heading!.y);
+		await page.keyboard.press('Escape');
+		await expect(tooltip).toHaveCount(0);
+		await editor(page).press('ArrowLeft');
+		await demo.locator('[data-ll-diagnostic-range]').first().hover();
+		await page.getByRole('button', { name: 'Use [Verse 1]', exact: true }).click();
+		await expect.poll(() => docText(page)).toMatch(/^\[Verse 1\]/u);
+		await page.mouse.dblclick(word.x, word.y);
+		await expect(tooltip).toHaveCount(0);
+		const picker = page.getByRole('dialog', { name: 'Assign performers' });
+		await expect(picker).toBeVisible();
+		await picker.getByRole('button', { name: 'Avery', exact: true }).click();
+		await picker.getByRole('button', { name: 'Next', exact: true }).click();
+		await picker.getByRole('button', { name: 'Blair', exact: true }).click();
+		await picker.getByRole('button', { name: 'Apply', exact: true }).click();
+		await expect(picker).toHaveCount(0);
+		await expect.poll(() => docText(page)).toContain('<i>counted</i>');
+		await expect.poll(() => docText(page)).toContain('Avery');
+		await expect.poll(() => docText(page)).toContain('Blair');
+	}
+});
+
+test('the landing demo keeps accepted and ignored findings dismissed while editing', async ({
+	page
+}) => {
+	await page.goto('/');
+	const demo = page.locator('.lp-demo');
+	await demo.scrollIntoViewIfNeeded();
+	await expect(editor(page)).toBeVisible();
+	const lyrics =
+		"[Verse]\nI counted every [?] on the way\nYou said we'd drive until the radio gave out (Yeah)";
+	await replaceDocument(page, lyrics);
+	await demo.getByRole('heading').click();
+
+	const findings = demo.locator('[data-ll-diagnostic-range]');
+	await expect(findings).toHaveCount(1);
+	await expect(findings).toHaveText('[?]');
+	await findings.hover();
+	await page.getByRole('button', { name: 'It really is unintelligible', exact: true }).click();
+	await expect(page.locator('.popover')).toHaveCount(0);
+	await expect(findings).toHaveCount(0);
+	await expectDocText(page, lyrics);
+
+	// Moving the accepted marker and introducing a fresh finding proves that a
+	// subsequent lint pass retains the decision while still checking other text.
+	const edited = lyrics.replace('counted every', 'counted nearly every').replace('(Yeah)', '(yeah)');
+	await replaceDocument(page, edited);
+	await demo.getByRole('heading').click();
+	await expect(findings).toHaveCount(1);
+	await expect(findings).toHaveText('yeah');
+	await findings.hover();
+	await page.getByRole('button', { name: 'Ignore', exact: true }).click();
+	await expect(page.locator('.popover')).toHaveCount(0);
+	await expect(findings).toHaveCount(0);
+	await expectDocText(page, edited);
+});
+
 test('a landing video keeps its still until its first frame is ready', async ({ page }) => {
 	let releaseVideo!: () => void;
 	const videoReleased = new Promise<void>((resolve) => {
@@ -196,13 +291,46 @@ test('a landing video keeps its still until its first frame is ready', async ({ 
 	await page.goto('/', { waitUntil: 'domcontentloaded' });
 
 	const frame = page.locator('.lp-shot__frame').first();
+	await frame.scrollIntoViewIfNeeded();
 	const poster = frame.locator('.lp-shot__poster');
 	await expect(poster).toBeVisible();
+	await expect(poster).toHaveAttribute('fetchpriority', 'high');
+	await expect(frame.locator('video')).not.toHaveAttribute('poster');
+	await page.evaluate(() => document.fonts.ready);
+	const before = await frame.boundingBox();
 	await expect(frame).not.toHaveAttribute('data-video-ready', '');
 
 	releaseVideo();
 	await expect(frame).toHaveAttribute('data-video-ready', '');
 	await expect(poster).toHaveCSS('opacity', '0');
+	expect(await frame.boundingBox()).toEqual(before);
+});
+
+test('landing video frames keep their dimensions through loading on phone and desktop', async ({
+	page
+}) => {
+	for (const width of [390, 1280]) {
+		await page.setViewportSize({ width, height: 844 });
+		await page.goto('/');
+		await page.evaluate(() => document.fonts.ready);
+		for (const frame of await page.locator('.lp-shot__frame').all()) {
+			const before = await frame.boundingBox();
+			await frame.scrollIntoViewIfNeeded();
+			await expect(frame).toHaveAttribute('data-video-ready', '');
+			const video = frame.locator('video');
+			const dimensions = await video.evaluate((element: HTMLVideoElement) => ({
+				actual: [element.videoWidth, element.videoHeight],
+				declared: [element.width, element.height]
+			}));
+			expect(dimensions.actual[0] / dimensions.actual[1]).toBeCloseTo(
+				dimensions.declared[0] / dimensions.declared[1],
+				5
+			);
+			const after = await frame.boundingBox();
+			expect(after!.width).toBeCloseTo(before!.width, 1);
+			expect(after!.height).toBeCloseTo(before!.height, 1);
+		}
+	}
 });
 
 test('the unified guide has one entrance and exposes check metadata and language semantics', async ({
@@ -1183,6 +1311,8 @@ test('the offline snapshot precaches the app and admits the guide when read', as
 
 	await expect.poll(cachedPages).toContain('/lint/');
 	expect(await cachedPages()).not.toContain('/workbench.png');
+	expect(await cachedPages()).not.toContainEqual(expect.stringMatching(/\.webm$/u));
+	expect(await cachedPages()).toContain('/workbench-640.webp');
 	expect(await cachedPages()).not.toContainEqual(expect.stringMatching(/^\/guidelines\//u));
 
 	await page.goto('/guidelines/');
@@ -1191,6 +1321,16 @@ test('the offline snapshot precaches the app and admits the guide when read', as
 	await context.setOffline(true);
 	await page.reload();
 	await expect(page.getByRole('heading', { name: 'Transcription guide' })).toBeVisible();
+	await page.goto('/');
+	for (const poster of await page.locator('.lp-shot__poster').all()) {
+		await poster.scrollIntoViewIfNeeded();
+		await expect
+			.poll(() =>
+				poster.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)
+			)
+			.toBe(true);
+		await expect(poster).toHaveCSS('opacity', '1');
+	}
 	await context.setOffline(false);
 });
 

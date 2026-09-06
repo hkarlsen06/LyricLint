@@ -98,20 +98,57 @@ function excerpt(text: string, tokens: readonly string[]): string {
 	return `${start ? '…' : ''}${text.slice(start, start + 240).trim()}${start + 240 < text.length ? '…' : ''}`;
 }
 
+interface ReferenceSearchOptions {
+	scope?: ReferenceScope;
+	topic?: string;
+	severities?: readonly Severity[];
+	fixabilities?: readonly Fixability[];
+}
+
+/** Prepare the immutable route corpus once; query results remain fresh on every call. */
+export function createReferenceSearch(corpus: readonly ReferenceDocument[]) {
+	const prepared = corpus.map((document) => {
+		const folded = [
+			document.title,
+			document.id,
+			...document.passages,
+			document.topicTitle,
+			...document.aliases
+		].map(foldForSearch);
+		return {
+			document,
+			folded,
+			words: [...new Set(folded.flatMap((field) => field.match(/[\p{L}\p{N}']+/gu) ?? []))],
+			aliasTokens: document.aliases.map(referenceSearchTokens)
+		};
+	});
+	return (query: string, options: ReferenceSearchOptions = {}): ReferenceSearchResult[] =>
+		searchPreparedReference(prepared, query, options);
+}
+
 export function searchReference(
 	corpus: readonly ReferenceDocument[],
 	query: string,
-	options: {
-		scope?: ReferenceScope;
-		topic?: string;
-		severities?: readonly Severity[];
-		fixabilities?: readonly Fixability[];
-	} = {}
+	options: ReferenceSearchOptions = {}
+): ReferenceSearchResult[] {
+	return createReferenceSearch(corpus)(query, options);
+}
+
+function searchPreparedReference(
+	prepared: readonly {
+		document: ReferenceDocument;
+		folded: string[];
+		words: string[];
+		aliasTokens: string[][];
+	}[],
+	query: string,
+	options: ReferenceSearchOptions
 ): ReferenceSearchResult[] {
 	const tokens = referenceSearchTokens(query);
+	const phrase = foldForSearch(query.trim());
 	const scope = options.scope ?? 'all';
 	const results: ReferenceSearchResult[] = [];
-	for (const document of corpus) {
+	for (const { document, folded, words, aliasTokens } of prepared) {
 		if (options.topic && document.topic !== options.topic) continue;
 		if (scope === 'rules' && document.kind !== 'rule') continue;
 		if (
@@ -127,15 +164,6 @@ export function searchReference(
 		)
 			continue;
 		if (scope === 'guidelines' && document.kind !== 'guideline') continue;
-		const fields = [
-			document.title,
-			document.id,
-			...document.passages,
-			document.topicTitle,
-			...document.aliases
-		];
-		const folded = fields.map(foldForSearch);
-		const words = new Set(folded.flatMap((field) => field.match(/[\p{L}\p{N}']+/gu) ?? []));
 		let score = 0;
 		let approximate = false;
 		let matches = true;
@@ -143,7 +171,7 @@ export function searchReference(
 			const field = folded.findIndex((text) => text.includes(token));
 			if (field >= 0)
 				score += field === 0 ? 12 : field === 1 ? 10 : field < document.passages.length + 2 ? 6 : 2;
-			else if ([...words].some((word) => nearby(token, word))) {
+			else if (words.some((word) => nearby(token, word))) {
 				score += 1;
 				approximate = true;
 			} else {
@@ -152,18 +180,16 @@ export function searchReference(
 			}
 		}
 		if (!matches || (query.trim() && tokens.length === 0)) continue;
-		const phrase = foldForSearch(query.trim());
 		if (phrase && folded[0]!.includes(phrase)) score += 24;
 		// A reviewed multiword intent outranks an incidental literal word such as 'two'.
-		const intentMatch = document.aliases.some((alias) => {
-			const aliasTokens = referenceSearchTokens(alias);
-			return aliasTokens.length > 1 && aliasTokens.every((token) => tokens.includes(token));
-		});
+		const intentMatch = aliasTokens.some(
+			(alias) => alias.length > 1 && alias.every((token) => tokens.includes(token))
+		);
 		if (intentMatch) score += 40;
 		const snippets = document.passages.map((text, index) => ({
 			text,
 			index,
-			hits: tokens.reduce((sum, token) => sum + (foldForSearch(text).includes(token) ? 1 : 0), 0)
+			hits: tokens.reduce((sum, token) => sum + (folded[index + 2]!.includes(token) ? 1 : 0), 0)
 		}));
 		snippets.sort((a, b) => b.hits - a.hits || a.index - b.index);
 		results.push({

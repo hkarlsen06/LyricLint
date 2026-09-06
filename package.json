@@ -13,6 +13,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --tsgo --watch",
 		"lint": "prettier --check . && oxlint && eslint .",
 		"format": "prettier --write .",
+		"render:all": "node scripts/render-all.mjs",
 		"render:social": "bun scripts/render-social-preview.mjs",
 		"render:workbench": "bun scripts/render-workbench-shot.mjs",
 		"render:motion": "node scripts/render-motion.mjs",

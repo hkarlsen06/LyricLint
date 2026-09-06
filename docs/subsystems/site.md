@@ -2,7 +2,8 @@
 
 Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 `src/lib/ui/styles/site.css`, `scripts/render-workbench-shot.mjs`,
-`scripts/render-motion.mjs`, `scripts/shot-scene.mjs`,
+`scripts/render-motion.mjs`, `scripts/render-all.mjs`, `scripts/shot-scene.mjs`,
+`scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`,
 `src/lib/ui/layout/AppWordmark.svelte`, `src/lib/assets/lyriclint-mark.svg`
 
 ## The rules
@@ -23,11 +24,15 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   nothing), run with `node` not `bun`, with our own drawn cursor (`pointer-events: none` is
   load-bearing — anything hittable under it dismisses the surface being filmed). Crops are
   the union across time; the caret is parked at the top first.
-- The performers loop is a `<video>` and nothing else — no poster, no `<img>`: two media of
-  different framings in one slot is a layout shift. `preload="auto"`, rewound on both edges
-  by the shared `autoplayInView` attachment, frame one under `prefers-reduced-motion`, no
-  play/pause control (any future control reads `onplay`/`onpause` only). The hero loop keeps
-  its poster because the poster *is* frame one at the same size.
+- Product loops use an overlaid image until the video has a decoded frame. The hero
+  image has responsive candidates and high fetch priority; its loop selects a 1280-pixel
+  variant below 30rem. Detail images and the Discord
+  iframe are lazy. Videos have no native poster (which would duplicate the responsive
+  download) and use `preload="none"`. Explicit video dimensions reserve the frame;
+  the generators refresh `shot-dimensions.json` from the encoded files via ffprobe, and the
+  page consumes it for image/video dimensions and responsive width descriptors.
+  `autoplayInView` decodes the image only on arrival, rewinds on both edges, and keeps
+  reduced-motion readers on the still. Landing video e2e checks pin the handoff and geometry.
 - Harper loops/shots must keep their scene honest: lyric documents read as run-on sentences,
   and past Harper's length threshold a document-wide `Readability` finding plus `dedup: true`
   swallowed everything — the provider de-dups *after* filtering, pinned against real WASM in
@@ -57,6 +62,124 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   data.
 
 ## Decision record
+
+### One command refreshes every generated shot and loop
+
+`bun run render:all` runs `scripts/render-all.mjs`: build once, start an owned Vite preview
+server on an ephemeral loopback port, then run the existing capture commands sequentially.
+Preview uses HTTP explicitly so local development certificates cannot break capture. Each
+child receives the owned server's `ORIGIN`; no existing dev server is reused or stopped.
+The fixed build prevents generated assets or concurrent source edits from causing HMR
+reloads halfway through a scene. The server closes on success, failure, or interruption;
+on POSIX, interruption also terminates the active command's process group.
+
+The sequence renders the social preview, all three stills, both detail loops, then the hero
+loop. The hero already derives the mobile video, and the generators refresh responsive
+stills and the dimensions manifest, so the aggregate does not encode those twice. The first
+failure stops the sequence; motion keeps its required Node runtime through `render:motion`.
+Outputs are written to `static/`, not the initial build copy; deployment needs a fresh build.
+
+### Demo acceptances use the workbench's occurrence matching
+
+The demo's Ignore callback was empty, so affirmative controls such as “It really is
+unintelligible” closed briefly without removing the finding. LiveDemo now records occurrence
+keys through `diagnosticIgnoreKey` and filters with `matchIgnoredDiagnostics` on every publish,
+including cached selection updates and delayed Harper results. Dismissal preserves the lyrics
+and follows the same occurrence across edits. Choices last only for the mounted demo; they
+never read or write saved drafts. The browser regression accepts an unknown marker and checks
+that a later edit does not bring its finding back.
+
+### The live demo shares the detail sections' split layout
+
+The interactive editor sits beside its explanation in `lp-split--flip`: copy left and editor
+right on desktop, editor first on narrow screens. Their top edges align so editing or wrapping
+the lyrics does not recenter the heading. The former full-width editor and static
+“What you copy out” panel left wide empty bands and repeated the result the live editor can
+show itself. The static output is removed. The editor keeps its content-driven height and lazy
+loading; this changes the page composition, not its editing behavior. The sample has only three
+intentional findings: an unbracketed section header, a parenthesized unknown-word marker,
+and a lowercase parenthesized ad-lib.
+Keep grammar and additional capitalisation errors out of this first interaction; the separate
+Harper section demonstrates grammar checking. Selecting lyrics before repairing the header
+shows a dismissible tooltip explaining that prerequisite. The shared assignment predicate stays
+unchanged; after the fix, selecting lyrics opens the real performer picker. The hint uses the
+shared tooltip renderer and announces the same explanation without moving the page.
+
+### Landing copy uses direct sentences
+
+Marketing prose introduces one idea at a time. Split explanations into short sentences instead
+of interrupting them with parenthetical clauses or long lists. Demo hints and accessible video
+descriptions follow the same approach; quoted guideline entries and lyric examples stay exact.
+The privacy copy distinguishes local checks from optional online features. The assistant can
+read a draft with explicit, revocable permission, so it must not promise it can never see lyrics.
+
+### Demonstrations come before the rule-review explanation
+
+The early four-column rule overview repeated what the demonstrations show and delayed the
+performer and spelling loops with review-process copy. It is removed. Its rule count, coverage,
+and judgement-call promise now live in the shorter “Every warning carries its source” section,
+after both detail loops and before privacy. The existing example findings carry the evidence;
+there is no separate category grid or checklist. The count still comes from the registry.
+
+### Performer captures keep the tray outside the frame and decisions moving
+
+The performer viewport is wider than the hero's, giving the floating editor actions tray
+room outside the portrait crop. Both still and loop share that viewport; the crop still
+contains the lyrics and picker, and the resting cursor stays within that content width.
+Previously the tray's left corner intruded into the upper-right edge of the video.
+
+Choosing a known performer and advancing are one continuous decision. Performer clicks
+record one pressed frame and immediately move toward the next control, including Next
+and Apply. They do not stop to finish a click-ring animation or hold after each choice.
+The initial picker gets a short reading beat; the completed assignment gets the final hold.
+
+### Cursor motion is sampled smoothly without speeding up the scene
+
+The original 20fps cursor crossed long distances in only a handful of frames, with the same
+short duration used for nearby controls and distant targets. The resulting jumps made each
+movement feel staccato. `render-motion.mjs` now samples movement at 60fps, uses a quintic easing
+curve with zero velocity and acceleration at either end, and gives longer reaches more time.
+Travel follows a shallow deterministic arc; lyric selection drags stay straight so the gesture
+cannot select a neighbouring line. There is no random jitter or overshoot at a click target.
+
+Scene beats remain twentieths of a second, preserving the reading pauses and undo pacing.
+Stationary samples repeat their captured frame through hard links rather than paying for three
+identical screenshots. WebM keeps 60fps; the detail GIFs sample at 50fps so frame durations are
+whole centiseconds. The mobile loop inherits the hero's frame rate. Running all three scene
+generators verifies that these real gestures still select, fix, link, and rewind successfully.
+
+
+### September loading audit: one poster request, at the appropriate size
+
+The historical no-poster performer decision below was superseded by a persistent image overlay
+that prevents a black flash between playback starting and the first decoded frame. The audit
+found that keeping a native `poster` alongside that image forces an extra full-size request when
+responsive candidates are introduced. The overlaid image now owns the still by itself; the video
+keeps its explicit dimensions, accessible description, and playback behavior. The hero image and
+video share the same 2560×1640 ratio. The generated 640/1280/1920-pixel WebPs come from the same
+lossless PNG in `render-workbench-shot.mjs`, with the original retained for large displays.
+`render-mobile-loop.mjs` derives a 1280×820 VP9 copy from the generated hero loop and also runs
+when `render-motion.mjs --hero` refreshes that loop. A media-qualified source selects it below
+30rem; the original remains the fallback and desktop source. The playback sequence is unchanged.
+The still, motion, and mobile-loop generators call `write-shot-dimensions.mjs` after encoding.
+It probes the shipped WebP/WebM files and writes the checked-in `shot-dimensions.json`; the page
+imports it for intrinsic sizes and srcset widths. Commit this manifest with regenerated assets.
+`node scripts/write-shot-dimensions.mjs` refreshes it without re-filming. This keeps crops driven
+by their content (and video crops by the union across time), while preventing stale page values.
+The detail videos reserve their actual encoded dimensions. Their overlaid stills are fitted inside
+that stable frame. The mobile/desktop video e2e check compares declared and decoded ratios and
+measures the frame across loading.
+
+Detail images use native lazy loading. Their `decode()` call lives inside the visibility callback,
+so an off-screen attachment does not defeat lazy loading or delay initial content with a download.
+The Discord widget also loads lazily while retaining its reserved size and accessible title.
+The existing site-only Latin UI font preload stays in place. Extending it to the workbench
+slowed first paint in the applied-throttling experiment, so that experiment was removed. No
+font-display or type metrics changed.
+
+The browser audit and Lighthouse reproduction commands and measurements are in
+[the loading audit](../loading-audit.md). Lab interaction latency is not field INP.
+
 
 ### Reference navigation carries the lookup
 
@@ -173,12 +296,21 @@ so it can be watched again.
   function plus a camera. It runs **twice** in the loop, because the last frame has to be the
   first — which is also what turns the still into a regression test for the refactor: it came out
   byte-identical.
+  Before re-selecting the assigned phrase, the shared setup focuses the editor and collapses
+  its existing selection with ArrowLeft. Diagnostic navigation can preserve that selection;
+  dragging it again would move the text instead of selecting it and prevent the picker from
+  opening. The capture asserts that the reopened picker still reads Avery from the markup.
+  The leading diagnostic row toggles expansion, so setup and rewind press it only when its
+  `aria-expanded` state is false; pressing an already-open row would hide the explanation.
 - **Nothing in the run is scripted.** There is no list of rules and no hand-written repair: at each
   step it presses whatever the leading card offers, so the order is `diagnostics/order.ts` and a
   rule that changes its fix changes the film rather than breaking it. The one card that offers no
   fix is `section.unlinked-repeat`, and it is _created by the bulk fix_ — bracketing the two
   written-out `Chorus:` labels is what makes them sections a repeat can be seen between. Its guided
-  action is taken, and from there every chorus fix lands in both copies through the link's own
+  action opens the persistent Linking panel; the script checks the peer chorus, applies the
+  link, and returns through the Review tab before continuing. Waiting for the former floating
+  link picker would time out without filming the current workflow. From there every chorus fix
+  lands in both copies through the link's own
   mirror, so the counter falls by two and four at a time. The feature demonstrates itself in the
   middle of a video about something else.
 - **It rewinds by holding the toolbar's Undo, and it stops on the document rather than on a
@@ -713,4 +845,3 @@ is composited by iOS against a wallpaper and no contrast heuristic runs on it.
 
 Safari caches favicons hard and does not clear them on a normal reload. Verifying a change there
 means clearing website data, not pressing refresh.
-
