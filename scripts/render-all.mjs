@@ -11,8 +11,12 @@ const captures = [
 	['render:workbench'],
 	['render:workbench', '--performers'],
 	['render:workbench', '--harper'],
+	['render:workbench', '--player'],
+	['render:workbench', '--song'],
 	['render:motion'],
 	['render:motion', '--harper'],
+	['render:motion', '--player'],
+	['render:motion', '--song'],
 	['render:motion', '--hero']
 ];
 
@@ -65,10 +69,26 @@ export async function renderAll({ run = runCommand, startPreview = preview } = {
 	process.once('SIGTERM', interrupt);
 	let server;
 	try {
-		await run(['build'], process.env, controller.signal);
+		// This unsigned token only unlocks the intercepted Apple capture fixture.
+		// Capture mode has separate Kit and adapter output, so it cannot overwrite
+		// the deployment build or persist fixture credentials in an env file.
+		const token = [
+			Buffer.from(JSON.stringify({ alg: 'none' })).toString('base64url'),
+			Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 86400 })).toString(
+				'base64url'
+			),
+			''
+		].join('.');
+		await run(
+			['build', '--mode', 'capture'],
+			// Kit's prerender workers reload Vite config using MODE, not CLI args.
+			{ ...process.env, MODE: 'capture', PUBLIC_APPLE_MUSIC_TOKEN: token },
+			controller.signal
+		);
 		controller.signal.throwIfAborted();
 		server = await startPreview({
 			root,
+			mode: 'capture',
 			// An ephemeral loopback port cannot take over an existing dev server.
 			// Explicit HTTP also avoids inheriting local development certificates.
 			preview: { host: '127.0.0.1', port: 0, open: false, https: false }

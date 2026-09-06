@@ -24,8 +24,8 @@ Touches: `src/lib/editor/extensions/line-anchors.ts`,
   optionally called (`?.` once dropped a whole synced song into the headless placeholder
   handle), and `bindings.lineAnchors` falls back to the pending list, never `[]`.
   `workbench.test.ts` pins both halves.
-- The timestamp column: the time is the play control; one glyph beside it (stamp on untimed,
-  ± pair on timed, step 0.25s, precise `m:ss.cc` only while open); `.ll-time-gutter` is
+- The timestamp column: the time is the play control; edit and delete glyphs beside timed
+  lines (stamp on untimed, ± pair while editing, step 0.25s, precise `m:ss.cc` only while open); `.ll-time-gutter` is
   `overflow: visible`; the reserve is the widest state written out padding included; the
   inline end is the overlay scrollbar's lane, measured against the scrollport in
   `line-anchoring.svelte.test.ts`. Everything in the gutter is `aria-hidden` all the way
@@ -187,11 +187,14 @@ carries line numbers and the performer voice bars, so a third lane crowded it; a
 _that_ a line is anchored, never to when. The column on the right says both, and it is where the eye
 already goes to check timings.
 
-A cell is a time and one control. **The time is the play control** — a visible timestamp is the most
-obvious thing in the world to press to hear that moment, so it needs no glyph, and a separate play
-button would be a second control for the gesture the pointer is already on. **The glyph beside it is
-one control, not two**: a pin and a pencil in adjacent slots would be two buttons where the line's
-own state already says which of the two writes is on offer.
+A cell is a time and its timing controls. **The time is the play control** — a visible timestamp
+is the most obvious thing in the world to press to hear that moment, so it needs no glyph, and a separate play
+button would be a second control for the gesture the pointer is already on. **The write glyph
+switches between pin and pencil** because the line’s state says which write is on offer. Timed lines also offer a trash icon beside the pencil. It clears only that line
+through `clearLineAnchorEffect`, including the existing save notification, without moving the
+caret or seeking playback. The shared hover hint names deletion; the Song panel remains the
+accessible clear-one surface because CodeMirror hides gutters from assistive technology.
+The controls share the existing width reserve, so clearing a timing does not move the column.
 
 **On an untimed line that glyph stamps the playhead; on a timed one it opens `−` and `+` beside the
 time.** Those are not the same write, which is what the single control used to assume. A line that

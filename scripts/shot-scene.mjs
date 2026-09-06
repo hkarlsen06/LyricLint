@@ -15,14 +15,45 @@
  * it is quoted permanently.
  */
 
+import { performersTranscription } from './shot-lyrics.mjs';
+export { performersTranscription };
+
 /** The performers used throughout the product-shot scenes. */
 export const performerNames = ['Avery', 'Blair'];
+
+export { installPlayerScene, preparePlayerScene, playerLineTimes } from './player-shot-scene.mjs';
+
+/** Keep the timed lyrics and the transport together in a compact detail frame. */
+export async function playerShotRegion(page, scene) {
+	return page.evaluate((kind) => {
+		const editor = document.querySelector('.editor-region').getBoundingClientRect();
+		const media = document.querySelector('.workspace-media').getBoundingClientRect();
+		const metadata = document.querySelector('.song-panel > section').getBoundingClientRect();
+		const even = (value) => Math.ceil(value / 2) * 2;
+		return kind === 'song'
+			? {
+					x: Math.floor(metadata.left - 16),
+					y: Math.floor(metadata.top - 16),
+					width: even(metadata.width + 32),
+					height: even(metadata.height + 32)
+				}
+			: {
+					x: Math.floor(editor.left),
+					y: Math.floor(editor.top),
+					width: even(editor.width),
+					height: even(media.bottom - editor.top)
+				};
+	}, scene);
+}
 
 /** The phrase the performer scene hands to Avery. */
 export const assignedPhrase = 'Somewhere past the bridge';
 
 /** The shared browser window for every still and motion scene. */
 export function shotViewport(scene) {
+	if (scene === 'player') return { width: 1100, height: 620 };
+	// Artwork commands keep their rows when the copied confirmation appears.
+	if (scene === 'song') return { width: 1280, height: 620 };
 	// Give the floating action tray room outside the portrait crop.
 	return {
 		width: scene === 'performers' ? 1440 : 1280,
@@ -81,54 +112,6 @@ Chorus:
 hold the line, hold the line
 we was never gonna make it definately
 hold the line til the morning comes (yeah)`;
-
-/**
- * The performer-tagging document — invented like the other, but deliberately
- * *clean*: its subject is the picker over a selection, and a column of
- * unrelated underlines would compete with it. It is a whole short song rather
- * than an excerpt, because the still is cropped *portrait* — it sits beside the
- * section's copy on a desktop, so what fills its height is a long
- * transcription. The chorus and the bridge are already marked up, legend and
- * spans, so the roster's colours are on screen above the selection being
- * assigned. There is deliberately no second chorus: two of them would raise
- * `section.unlinked-repeat` on the headers, which is a real finding and not
- * this picture's subject.
- *
- * Verse 2 is deliberately the one section with no legend, because it is the
- * section the shot assigns. The apostrophes are typewriter ones on purpose —
- * a curly `we'd` draws a finding whose fix the document-replacement lead then
- * previews as a diff, in a picture whose whole subject is the picker.
- */
-export const performersTranscription = `[Verse 1]
-I counted every streetlight on the way
-You said we'd drive until the radio gave out (Yeah)
-And the quiet part was never really quiet
-We let the engine hum instead of answering
-
-[Chorus: Avery & <i>Blair</i>]
-Hold the line, hold the line
-<i>We were never gonna make it quietly</i>
-Hold the line before the morning comes
-
-[Verse 2]
-The map you drew was a coffee ring and a guess
-I keep it folded in the door where the cold gets in
-We counted three exits and took none of them
-Somewhere past the bridge the signal dropped again
-
-[Bridge: Blair]
-Tell me what the quiet part was for
-You can say it now, no one is on the road
-
-[Verse 3]
-The morning came in sideways through the glass
-You wrote our names in breath and let them fade
-I held the wheel like it was listening
-And hummed the part we never wrote down
-
-[Outro: Avery]
-Leave the radio on for me
-Leave the radio on`;
 
 /**
  * The grammar shot's document. One Harper finding and nothing else, so the

@@ -126,7 +126,7 @@ function migrationRedirects(): Plugin {
 	};
 }
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	/**
 	 * Name the proxied host, so the tailnet dev server answers it.
 	 *
@@ -202,6 +202,8 @@ export default defineConfig({
 	plugins: [
 		migrationRedirects(),
 		sveltekit({
+			// Fixture credentials and generated output stay outside deployment builds.
+			...(mode === 'capture' ? { outDir: '.svelte-kit-capture' } : {}),
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
 				runes: ({ filename }) =>
@@ -210,7 +212,10 @@ export default defineConfig({
 			// Cloudflare Pages treats a static site without a top-level 404 page
 			// as an SPA and rewrites unknown paths to index.html. A missing hashed
 			// asset must remain a 404 rather than becoming 200 text/html.
-			adapter: adapter({ fallback: '404.html' }),
+			adapter: adapter({
+				fallback: '404.html',
+				...(mode === 'capture' ? { pages: 'build-capture', assets: 'build-capture' } : {})
+			}),
 			/**
 			 * The Content-Security-Policy, carried by SvelteKit rather than by
 			 * `static/_headers`.
@@ -536,4 +541,4 @@ export default defineConfig({
 			}
 		]
 	}
-});
+}));

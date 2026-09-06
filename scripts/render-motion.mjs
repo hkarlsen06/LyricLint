@@ -15,8 +15,10 @@
  *     node scripts/render-motion.mjs --hero       # the landing page's first screen
  *     node scripts/render-motion.mjs              # performer tagging
  *     node scripts/render-motion.mjs --harper     # on-device grammar
+ *     node scripts/render-motion.mjs --player     # synced lyric playback
+ *     node scripts/render-motion.mjs --song       # credits and artwork
  *
- * `ORIGIN` overrides the server it drives. The two detail scenes write two files
+ * `ORIGIN` overrides the server it drives. The detail scenes write two files
  * each into `static/`: a `.webm` for the page, and a `.gif` for anywhere a video
  * tag is not welcome — a README, an issue, a social post. The hero writes full
  * and phone-sized WebMs, with no GIF for the reason given where it is encoded.
@@ -37,7 +39,7 @@
  * here is a script rather than a capture taken by hand.
  */
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, rm, link } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, link, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
@@ -47,7 +49,11 @@ import { writeShotDimensions } from './write-shot-dimensions.mjs';
 import {
 	assertHeroSelection,
 	harperTranscription,
+	installPlayerScene,
+	playerShotRegion,
+	playerLineTimes,
 	prepareHeroScene,
+	preparePlayerScene,
 	preparePerformerScene,
 	selectionPoints,
 	shotViewport,
@@ -58,7 +64,11 @@ const run = promisify(execFile);
 const origin = process.env.ORIGIN ?? 'http://127.0.0.1:5173';
 const harper = process.argv.includes('--harper');
 const hero = process.argv.includes('--hero');
-const stem = hero ? 'workbench' : harper ? 'workbench-harper' : 'workbench-performers';
+const player = process.argv.includes('--player');
+const song = process.argv.includes('--song');
+const mediaScene = player || song;
+const scene = player ? 'player' : song ? 'song' : hero ? 'hero' : harper ? 'harper' : 'performers';
+const stem = scene === 'hero' ? 'workbench' : `workbench-${scene}`;
 const webmPath = resolve(`static/${stem}.webm`);
 const gifPath = resolve(`static/${stem}.gif`);
 
@@ -144,7 +154,8 @@ async function main() {
 			// purpose, and — for the performer scene — tall enough to hold the whole
 			// song plus the picker under the selection. The grammar scene's document
 			// is four lines, so it needs no more room than the hero's.
-			viewport: shotViewport(hero ? 'hero' : harper ? 'harper' : 'performers'),
+			viewport: shotViewport(scene),
+			permissions: ['clipboard-read', 'clipboard-write'],
 			deviceScaleFactor: SCALE,
 			colorScheme: 'dark',
 			// The transport, the drafts menu and the wordmark all animate on
@@ -154,10 +165,17 @@ async function main() {
 			reducedMotion: 'reduce'
 		});
 
+		if (mediaScene) await installPlayerScene(page);
 		await page.goto(`${origin}/workbench/`);
 		const editor = await waitForWorkbench(page);
 
-		if (hero) {
+		if (mediaScene) {
+			await preparePlayerScene(page, editor, { timed: !player });
+			// Copy confirmations and the paused-line fade must spend filmed time,
+			// not the variable wall time needed to encode a screenshot.
+			await page.clock.install();
+			await page.clock.pauseAt(new Date(Date.now() + 100));
+		} else if (hero) {
 			// The whole hero scene, shared with the still it opens on — the loop's
 			// first frame has to *be* that picture.
 			await prepareHeroScene(page, editor);
@@ -202,7 +220,7 @@ async function main() {
 		 * and take the picker with it, and the caret it parks at the top is a caret
 		 * the still does not have either. `prepareHeroScene` has already blurred.
 		 */
-		if (!hero) {
+		if (!hero && !mediaScene) {
 			await page.keyboard.press('Control+Home');
 			await page.evaluate(() =>
 				document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
@@ -230,17 +248,19 @@ async function main() {
 		 * the still's own frame, which is what lets the two share a slot on the page
 		 * without the box changing size when the video's metadata lands.
 		 */
-		const region = hero
-			? { x: 0, y: 0, width: 1280, height: 820 }
-			: await page.evaluate(() => {
-					const box = document.querySelector('.editor-region').getBoundingClientRect();
-					return {
-						x: Math.round(box.left),
-						y: Math.round(box.top),
-						width: Math.round(box.width),
-						height: Math.round(box.height)
-					};
-				});
+		const region = mediaScene
+			? await playerShotRegion(page, scene)
+			: hero
+				? { x: 0, y: 0, width: 1280, height: 820 }
+				: await page.evaluate(() => {
+						const box = document.querySelector('.editor-region').getBoundingClientRect();
+						return {
+							x: Math.round(box.left),
+							y: Math.round(box.top),
+							width: Math.round(box.width),
+							height: Math.round(box.height)
+						};
+					});
 
 		/** Every box worth keeping in frame, unioned as the scene plays. */
 		const seen = [];
@@ -298,11 +318,15 @@ async function main() {
 		 * loop's longest holds pulling a surface open behind it. Well below the tray,
 		 * for the same reason.
 		 */
-		const restPosition = hero
-			? { x: region.x + region.width * 0.66, y: region.y + 300 }
-			: harper
-				? { x: region.x + region.width * 0.45, y: firstLineTop + 6 }
-				: { x: region.x + Math.min(region.width * 0.62, 500), y: region.y + 90 };
+		const restPosition = player
+			? { x: region.x + region.width * 0.74, y: region.y + 160 }
+			: song
+				? { x: region.x + region.width - 40, y: region.y + 36 }
+				: hero
+					? { x: region.x + region.width * 0.66, y: region.y + 300 }
+					: harper
+						? { x: region.x + region.width * 0.45, y: firstLineTop + 6 }
+						: { x: region.x + Math.min(region.width * 0.62, 500), y: region.y + 90 };
 		// The crop is the union of what the scene drew, and the pointer is drawn by
 		// us rather than by the page — so its home has to be entered into that union
 		// by hand or the arrow can rest just outside the frame. The box is the
@@ -315,8 +339,125 @@ async function main() {
 		});
 		let cursor = { ...restPosition };
 		let frameIndex = 0;
+		let filmSpeed = 1;
+		let keyUntil = 0;
+		let shownKey = '';
+		let shownAction = '';
+		let keyCount = 0;
+		let phase = '';
+		let syncStartFrame = 0;
+		let syncEndFrame = 0;
+		if (player) {
+			await page.evaluate(() => {
+				const badge = document.createElement('div');
+				badge.id = '__shot_keys';
+				badge.setAttribute('aria-hidden', 'true');
+				badge.style.cssText = `position:fixed;z-index:2147483646;pointer-events:none;
+					display:none;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);
+					border:var(--border-width) solid var(--color-border-strong);border-radius:var(--radius-control);
+					background:var(--color-overlay);color:var(--color-text);box-shadow:var(--shadow-overlay);
+					font:var(--font-weight-semibold) var(--font-size-md) var(--font-ui);transform:translate(-50%,-50%);`;
+				const speed = badge.cloneNode(false);
+				speed.id = '__shot_speed';
+				speed.style.cssText =
+					'position:fixed;z-index:2147483646;pointer-events:none;display:none;transform:translate(-50%,-50%)';
+				speed.innerHTML = `<svg width="128" height="80" viewBox="0 0 128 80" fill="none" aria-hidden="true" style="overflow:visible;filter:drop-shadow(0 2px 3px #000)">
+					<defs><filter id="shot-tape" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+						<feTurbulence class="wave" type="fractalNoise" baseFrequency="0 .025" numOctaves="2" seed="11" result="wave"/>
+						<feColorMatrix in="wave" type="matrix" values="1 0 0 0 0  0 0 0 0 .5  0 0 0 0 0  0 0 0 0 1" result="map"/>
+						<feDisplacementMap in="SourceGraphic" in2="map" scale="0" xChannelSelector="R" yChannelSelector="G" result="warped"/>
+						<feTurbulence class="grain" type="fractalNoise" baseFrequency=".8" numOctaves="1" seed="1" result="grain"/>
+						<feColorMatrix in="grain" type="saturate" values="0"/>
+						<feComponentTransfer><feFuncA type="linear" slope="0"/></feComponentTransfer>
+						<feComposite in2="warped" operator="in" result="noise"/>
+						<feBlend in="warped" in2="noise" mode="screen"/>
+					</filter></defs>
+					<path d="M12 12 62 40 12 68Z M66 12 116 40 66 68Z" fill="#fff" stroke="#161616" stroke-width="2"/>
+				</svg>`;
+				badge.innerHTML = '<kbd></kbd><span class="count"></span><span class="action"></span>';
+				badge.querySelector('.count').style.cssText =
+					'min-width:3ch;font-variant-numeric:tabular-nums';
+				badge.querySelector('kbd').style.cssText =
+					'font:inherit;border:var(--border-width) solid var(--color-border-strong);border-radius:var(--radius-sm);padding:var(--space-1) var(--space-2)';
+				const tracking = document.createElement('div');
+				tracking.id = '__shot_tracking';
+				tracking.setAttribute('aria-hidden', 'true');
+				tracking.style.cssText = `position:fixed;z-index:2147483645;pointer-events:none;display:none;height:6px;
+					background:repeating-linear-gradient(90deg,transparent 0 2px,#fff8 2px 3px,transparent 3px 7px,#fff3 7px 9px);`;
+				document.body.append(tracking, badge, speed);
+			});
+		}
+		const pressKey = async (key, label, action = '') => {
+			keyCount =
+				shownKey === label && (phase === 'sync' || frameIndex / FPS < keyUntil) ? keyCount + 1 : 1;
+			shownKey = label;
+			shownAction = action;
+			keyUntil = frameIndex / FPS + 1.1;
+			await page.keyboard.press(key);
+		};
 
 		const capture = async (press = 0, samples = FPS / BEATS_PER_SECOND) => {
+			if (mediaScene) {
+				await page.evaluate(
+					(seconds) => window.__shotAdvance(seconds),
+					(samples / FPS) * filmSpeed
+				);
+				await page.clock.runFor((samples / FPS) * 1000 * filmSpeed);
+			}
+			if (player) {
+				const key = frameIndex / FPS < keyUntil ? shownKey : '';
+				const action = key ? shownAction : '';
+				await page.evaluate(
+					({ key, action, phase, keyCount, filmSpeed, frameIndex }) => {
+						const badge = document.querySelector('#__shot_keys');
+						const speed = document.querySelector('#__shot_speed');
+						const media = document.querySelector('.workspace-media').getBoundingClientRect();
+						const editor = document.querySelector('.editor-region').getBoundingClientRect();
+						const identity = document
+							.querySelector('.media-artwork__identity')
+							.getBoundingClientRect();
+						badge.style.left = `${media.left + media.width * 0.57}px`;
+						badge.style.top = `${identity.top + identity.height / 2}px`;
+						badge.style.display = key ? 'flex' : 'none';
+						badge.querySelector('kbd').textContent = key;
+						badge.querySelector('kbd').style.display = key ? '' : 'none';
+						badge.querySelector('.count').textContent = `× ${keyCount}`;
+						badge.querySelector('.count').style.display =
+							key === 'Space' || keyCount > 1 ? '' : 'none';
+						badge.querySelector('.action').textContent = action;
+						badge.querySelector('.action').style.display = action ? '' : 'none';
+						speed.style.left = `${editor.left + editor.width / 2}px`;
+						speed.style.top = `${(editor.top + media.bottom) / 2}px`;
+
+						// VHS scan distortion follows the supplied rewind reference, played forward.
+						// Affect the footage; keep the tutorial icon and key counter clean.
+						const strength = Math.min(1, Math.max(0, Math.log2(filmSpeed) / 5));
+						speed
+							.querySelector('.wave')
+							.setAttribute('baseFrequency', `0 ${0.022 + 0.004 * Math.sin(frameIndex * 0.12)}`);
+						speed.querySelector('feDisplacementMap').setAttribute('scale', String(36 * strength));
+						speed
+							.querySelector('.grain')
+							.setAttribute('seed', String((Math.floor(frameIndex / 8) % 4) + 1));
+						speed.querySelector('feFuncA').setAttribute('slope', String(0.22 * strength));
+						document.querySelector('.workspace').style.filter = phase ? 'url(#shot-tape)' : '';
+						const tracking = document.querySelector('#__shot_tracking');
+						tracking.style.display = phase ? 'block' : 'none';
+						tracking.style.left = `${editor.left}px`;
+						tracking.style.width = `${editor.width}px`;
+						tracking.style.top = `${editor.top + ((frameIndex * 7) % (media.bottom - editor.top - 6))}px`;
+						tracking.style.opacity = String(strength * 0.3);
+						speed.style.display = phase ? 'flex' : 'none';
+					},
+					{ key, action, phase, keyCount, filmSpeed, frameIndex }
+				);
+			}
+			if (song) {
+				const metadata = await page.locator('.song-panel > section').first().boundingBox();
+				if (!metadata || metadata.y + metadata.height > region.y + region.height) {
+					throw new Error('the metadata scene outgrew its frame');
+				}
+			}
 			await page.evaluate(([x, y, p]) => window.__shotCursor(x, y, p), [cursor.x, cursor.y, press]);
 			const path = join(frameDir, `f-${String(frameIndex).padStart(4, '0')}.png`);
 			await page.screenshot({ path, type: 'png', clip: region });
@@ -828,7 +969,166 @@ async function main() {
 			}
 		}
 
-		await (hero ? filmHero() : harper ? filmHarper() : filmPerformers());
+		async function filmPlayer() {
+			const playback = () => page.evaluate(() => window.__shotPlayback());
+			await glide(await centreOf('.media-strip__sync'), 12);
+			await clickHere(4, true);
+			if (!(await playback()).playing) throw new Error('Sync lyrics did not start playback');
+			// Stamp the mock song immediately, then give that first result a clean beat.
+			await pressKey('Space', 'Space');
+			await capture(0, 1);
+			if ((await page.locator('.ll-time-value[data-anchor-seek]').count()) !== 1) {
+				throw new Error('the first sync tap did not create a timestamp');
+			}
+			if (await page.locator('#__shot_speed').isVisible()) {
+				throw new Error('the fast-forward effect appeared before the first timestamp');
+			}
+			await hold(3);
+			syncStartFrame = frameIndex;
+			const syncEndTime = playerLineTimes.at(-1)[1] + 0.051;
+			phase = 'sync';
+			for (const [line, seconds] of playerLineTimes.slice(1)) {
+				// A short, steep ramp compresses the middle; the final tap has a brief roll-off.
+				// A little over 50ms compensates for the sync tap offset without
+				// rounding an intended 0:32 down to 0:31.
+				while ((await playback()).time < seconds + 0.051) {
+					const elapsed = (frameIndex - syncStartFrame) / FPS;
+					const remaining = Math.max(0, syncEndTime - (await playback()).time);
+					filmSpeed = Math.min(70, 5 * 2 ** (elapsed / 0.2), 5 + 7 * remaining);
+					await capture(0, 1);
+				}
+				await pressKey('Space', 'Space');
+				await capture(0, 1);
+				const timed = page.locator('.ll-time-value[data-anchor-seek]');
+				if ((await timed.count()) !== playerLineTimes.findIndex(([n]) => n === line) + 1) {
+					throw new Error(`Space did not time lyric line ${line}`);
+				}
+			}
+			syncEndFrame = frameIndex;
+			filmSpeed = 1;
+			phase = '';
+			if (keyCount !== playerLineTimes.length)
+				throw new Error('Space presses were not deduplicated');
+			if ((await playback()).playing) throw new Error('the completed sync did not pause');
+			await page.mouse.wheel(0, -700);
+			await glide(restPosition, 4);
+			await hold(8);
+
+			// Drag the real range thumb in both directions. The highlighted lyric,
+			// not just the counter, must follow each part of the scrub.
+			const slider = await page.locator('.media-strip__seek').evaluate((input) => {
+				const box = input.getBoundingClientRect();
+				const probe = document.createElement('span');
+				probe.style.cssText = 'position:absolute;width:var(--space-3)';
+				document.body.append(probe);
+				const thumb = probe.getBoundingClientRect().width;
+				probe.remove();
+				return {
+					x: box.x + thumb / 2,
+					y: box.y + box.height / 2,
+					width: box.width - thumb,
+					max: Number(input.max)
+				};
+			});
+			const scrubPoint = (time) => ({
+				x: slider.x + (slider.width * time) / slider.max,
+				y: slider.y
+			});
+			await glide(scrubPoint((await playback()).time), 12);
+			await page.mouse.down();
+			await capture(0.15);
+			for (const [time, line] of [
+				[10, 3],
+				[34, 10],
+				[18, 5]
+			]) {
+				await glide(scrubPoint(time), 22, { dragging: true });
+				await hold(12);
+				const expected = await page
+					.locator('.cm-line')
+					.nth(line - 1)
+					.textContent();
+				if ((await page.locator('.cm-line.ll-current-line').textContent()) !== expected) {
+					throw new Error(`scrubbing to ${time} did not highlight line ${line}`);
+				}
+			}
+			await page.mouse.up();
+			await capture();
+
+			const number = page.locator('.cm-lineNumbers .cm-gutterElement').filter({ hasText: /^4$/ });
+			const box = await number.boundingBox();
+			if (!box) throw new Error('line number 4 is not visible');
+			await glide({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, 12);
+			await clickHere(16);
+			if (
+				!(await playback()).playing ||
+				!(await page.locator('.cm-line.ll-current-line').textContent()).includes(
+					'And the quiet part was never really quiet'
+				)
+			) {
+				throw new Error('clicking line number 4 did not jump to that lyric');
+			}
+			await glide(restPosition, 12);
+			await hold(12);
+
+			await pressKey('Escape', 'Esc', 'Pause');
+			const paused = await playback();
+			if (paused.playing) throw new Error('Escape did not pause');
+			await hold(24);
+			await pressKey('Escape', 'Esc', 'Replay');
+			const resumed = await playback();
+			if (!resumed.playing || Math.abs(resumed.time - (paused.time - 2)) > 0.1) {
+				throw new Error(
+					`resume did not rewind two seconds: ${JSON.stringify({ paused, resumed })}`
+				);
+			}
+			await hold(40);
+			const beforeBack = await playback();
+			await pressKey('Shift+Escape', 'Shift + Esc', 'Back');
+			if ((await playback()).time >= beforeBack.time - 0.1)
+				throw new Error('Shift+Escape did not jump back');
+			await hold(24);
+			const beforeForward = await playback();
+			await pressKey('Alt+Escape', 'Option + Esc', 'Forward');
+			if ((await playback()).time <= beforeForward.time + 0.1)
+				throw new Error('Alt+Escape did not jump forward');
+			await hold(32);
+			await pressKey('Escape', 'Esc', 'Pause');
+			await hold(36);
+		}
+
+		async function filmSong() {
+			const writer = page.locator('.metadata-list button').filter({ hasText: 'Avery' }).first();
+			const box = await writer.boundingBox();
+			if (!box) throw new Error('the song scene needs an Avery writer credit');
+			const writerName = (await writer.textContent()).trim();
+			await glide({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, 12);
+			await clickHere(24);
+			if ((await page.evaluate(() => navigator.clipboard.readText())) !== writerName) {
+				throw new Error('writer copy did not reach the clipboard');
+			}
+			await glide(await centreOf('.song-panel .artwork-actions button', 'Copy image URL'), 12);
+			await clickHere(24);
+			const copiedUrl = await page.evaluate(() => navigator.clipboard.readText());
+			if (!copiedUrl.startsWith('https://')) throw new Error('artwork URL was not copied');
+			await glide(await centreOf('.song-panel .artwork-actions button', 'Download album art'), 10);
+			const downloaded = page.waitForEvent('download');
+			await clickHere(8);
+			const download = await downloaded;
+			if (await download.failure()) throw new Error('album art download failed');
+			await glide(restPosition, 12);
+			await hold(36);
+		}
+
+		await (player
+			? filmPlayer()
+			: song
+				? filmSong()
+				: hero
+					? filmHero()
+					: harper
+						? filmHarper()
+						: filmPerformers());
 
 		await browser.close();
 
@@ -837,14 +1137,19 @@ async function main() {
 		//    subsamples chroma and an odd dimension is rejected outright.
 		const pad = { top: 20, bottom: 24, right: 28 };
 		const left = region.x;
-		const top = hero ? region.y : Math.max(region.y, Math.min(...seen.map((r) => r.top)) - pad.top);
-		const right = hero
-			? region.x + region.width
-			: Math.min(region.x + region.width, Math.max(...seen.map((r) => r.right)) + pad.right);
-		const bottom = hero
-			? region.y + region.height
-			: Math.min(region.y + region.height, Math.max(...seen.map((r) => r.bottom)) + pad.bottom);
-		const even = (n) => Math.max(2, Math.round(n) - (Math.round(n) % 2));
+		const top =
+			hero || mediaScene
+				? region.y
+				: Math.max(region.y, Math.min(...seen.map((r) => r.top)) - pad.top);
+		const right =
+			hero || mediaScene
+				? region.x + region.width
+				: Math.min(region.x + region.width, Math.max(...seen.map((r) => r.right)) + pad.right);
+		const bottom =
+			hero || mediaScene
+				? region.y + region.height
+				: Math.min(region.y + region.height, Math.max(...seen.map((r) => r.bottom)) + pad.bottom);
+		const even = (n) => Math.round(n) - (Math.round(n) % 2);
 		const crop = {
 			x: even((left - region.x) * SCALE),
 			y: even((top - region.y) * SCALE),
@@ -862,26 +1167,50 @@ async function main() {
 		// VP9 at the capture's own 2x, because this is what the page plays and a
 		// product shot is scaled down in the layout — a 1x encode set into the
 		// frame is visibly soft on every display anybody reads that page on.
-		await run('ffmpeg', [
-			'-y',
-			...input,
-			'-vf',
-			cropFilter,
-			'-c:v',
-			'libvpx-vp9',
-			'-pix_fmt',
-			'yuv420p',
-			'-crf',
-			'30',
-			'-b:v',
-			'0',
-			'-row-mt',
-			'1',
-			'-cpu-used',
-			'2',
-			'-an',
-			webmPath
-		]);
+		const segments = player
+			? [
+					{ start: 0, end: syncStartFrame, lossless: true },
+					{ start: syncStartFrame, end: syncEndFrame, lossless: false },
+					{ start: syncEndFrame, end: frames.length, lossless: true }
+				]
+			: [{ start: 0, end: frames.length, lossless: false }];
+		const parts = [];
+		for (const [index, segment] of segments.entries()) {
+			const output = player ? join(frameDir, `part-${index}.webm`) : webmPath;
+			await run('ffmpeg', [
+				'-y',
+				'-start_number',
+				String(segment.start),
+				...input,
+				'-frames:v',
+				String(segment.end - segment.start),
+				'-vf',
+				cropFilter,
+				'-c:v',
+				'libvpx-vp9',
+				'-pix_fmt',
+				'yuv420p',
+				'-crf',
+				segment.lossless ? '0' : '30',
+				// Random VHS grain needs compression. The clear sections stay lossless:
+				// lossy motion prediction previously smeared lyric glyphs after seeks.
+				...(segment.lossless ? ['-lossless', '1', '-auto-alt-ref', '0'] : []),
+				'-b:v',
+				'0',
+				'-row-mt',
+				'1',
+				'-cpu-used',
+				'2',
+				'-an',
+				output
+			]);
+			parts.push(`file 'part-${index}.webm'`);
+		}
+		if (player) {
+			const list = join(frameDir, 'parts.txt');
+			await writeFile(list, parts.join('\n'));
+			await run('ffmpeg', ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', webmPath]);
+		}
 
 		await writeShotDimensions();
 
@@ -912,19 +1241,20 @@ async function main() {
 		// the acres of still background, and `diff_mode=rectangle` writes each
 		// frame as the rectangle that moved, which is most of the saving on a
 		// loop whose subject is a pointer crossing a static document.
+		const gifInput = player ? ['-i', webmPath] : input;
 		const gifWidth = even(crop.width / SCALE);
 		const palette = join(frameDir, 'palette.png');
 		const gifScale = `fps=50,scale=${gifWidth}:-2:flags=lanczos`;
 		await run('ffmpeg', [
 			'-y',
-			...input,
+			...gifInput,
 			'-vf',
-			`${cropFilter},${gifScale},palettegen=max_colors=192:stats_mode=diff`,
+			`${cropFilter},${gifScale},palettegen=max_colors=${player ? 48 : 192}:stats_mode=diff`,
 			palette
 		]);
 		await run('ffmpeg', [
 			'-y',
-			...input,
+			...gifInput,
 			'-i',
 			palette,
 			'-lavfi',

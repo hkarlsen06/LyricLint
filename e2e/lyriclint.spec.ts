@@ -325,6 +325,29 @@ test('landing video frames keep their dimensions through loading on phone and de
 		await page.setViewportSize({ width, height: 844 });
 		await page.goto('/');
 		await page.evaluate(() => document.fonts.ready);
+		const player = page.locator('.lp-player');
+		await expect(player.locator('figcaption')).toHaveCount(0);
+		await expect(player).not.toContainText('F7');
+		await expect(player).toContainText('tap Space as each line starts');
+		const playerFrame = await player.locator('.lp-shot__frame').boundingBox();
+		const playerCopy = await player.locator('.lp-split__copy').boundingBox();
+		if (width >= 1280) {
+			expect(playerFrame!.y + playerFrame!.height / 2).toBeCloseTo(
+				playerCopy!.y + playerCopy!.height / 2,
+				0
+			);
+		} else {
+			expect(playerFrame!.x).toBeGreaterThanOrEqual(0);
+			expect(playerFrame!.x + playerFrame!.width).toBeLessThanOrEqual(width);
+			expect(playerCopy!.y).toBeGreaterThanOrEqual(playerFrame!.y + playerFrame!.height);
+		}
+		for (const scene of ['player', 'song']) {
+			await expect(page.locator(`video[src$="workbench-${scene}.webm"]`)).toHaveCount(1);
+			await expect(page.locator(`img[src$="workbench-${scene}.webp"]`)).toHaveAttribute(
+				'loading',
+				'lazy'
+			);
+		}
 		for (const frame of await page.locator('.lp-shot__frame').all()) {
 			const before = await frame.boundingBox();
 			await frame.scrollIntoViewIfNeeded();
@@ -342,6 +365,26 @@ test('landing video frames keep their dimensions through loading on phone and de
 			expect(after!.width).toBeCloseTo(before!.width, 1);
 			expect(after!.height).toBeCloseTo(before!.height, 1);
 		}
+	}
+});
+
+test('player demonstrations keep their screenshots for reduced motion', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.goto('/');
+	for (const scene of ['player', 'song']) {
+		const video = page.locator(`video[src$="workbench-${scene}.webm"]`);
+		const frame = video.locator('..');
+		await frame.scrollIntoViewIfNeeded();
+		const still = frame.locator('img');
+		await expect(still).toBeVisible();
+		await expect(still).toHaveCSS('opacity', '1');
+		await expect
+			.poll(() => still.evaluate((image: HTMLImageElement) => image.naturalWidth))
+			.toBeGreaterThan(0);
+		await expect(video).toHaveAttribute('preload', 'none');
+		await expect(video).not.toHaveAttribute('poster');
+		await expect(frame).not.toHaveAttribute('data-video-ready');
+		expect(await video.evaluate((element: HTMLVideoElement) => element.paused)).toBe(true);
 	}
 });
 

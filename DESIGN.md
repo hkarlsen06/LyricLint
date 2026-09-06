@@ -30,6 +30,7 @@ The canonical implementation is `src/lib/ui/styles/tokens.css`. Components consu
 ### Typography
 
 - UI: `--font-ui` — IBM Plex Sans, shipped as a self-hosted variable face.
+- Inline keyboard shortcuts inherit their surrounding font and size, keeping key names on the prose line. A smaller monospace face makes them appear lowered; fix the shared typography rather than applying positional offsets. Shortcut tooltips may use their own metadata size on their separate line.
 - Source and markup: `--font-mono` — IBM Plex Mono, shipped as self-hosted static weights, since no variable cut of Plex Mono exists.
 - Lyric words: `--font-lyrics` — Karla, shipped as a self-hosted variable face (normal and italic), with `Programme` leading the stack unshipped (tokens.css says why). The words are prose somebody reads for an hour; the markup inside a line stays `--font-mono` through the same decoration that dims it (`markup-dim.ts`), so "this is source" is carried by tone and type together — and an annotation link dims only its wrapper (`[` and `](id)`), because the fragment between them is sung words, not source. Karla runs small in its em, so every surface consuming `--font-lyrics` also applies `--font-lyrics-size-adjust`, which normalizes whatever face the stack resolves to Plex's x-height ratio — a deliberate no-op on every Plex face.
 - Fixed product scale: `--font-size-2xs` through `--font-size-xl`

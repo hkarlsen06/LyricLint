@@ -15,7 +15,9 @@
  * editor cropped portrait around a pointer selection with the performer picker
  * open over it, roster and all; `--harper` writes the on-device-grammar detail
  * shot — a hovered Harper underline with its popover open, fix preview and
- * citation included. Every file lands in `static/`.
+ * citation included. `--player` captures synced lyrics with their transport;
+ * `--song` captures the Apple Music metadata and artwork commands.
+ * Every file lands in `static/`.
  *
  * The documents these are taken of, and the performer scene's own setup, live
  * in `shot-scene.mjs` — `render-motion.mjs` films the same scene this
@@ -29,7 +31,10 @@ import { chromium } from 'playwright';
 import { writeShotDimensions } from './write-shot-dimensions.mjs';
 import {
 	harperTranscription,
+	installPlayerScene,
+	playerShotRegion,
 	prepareHeroScene,
+	preparePlayerScene,
 	preparePerformerScene,
 	selectionPoints,
 	shotViewport,
@@ -40,7 +45,19 @@ const run = promisify(execFile);
 const origin = process.env.ORIGIN ?? 'http://127.0.0.1:5173';
 const performers = process.argv.includes('--performers');
 const harper = process.argv.includes('--harper');
-const stem = performers ? 'workbench-performers' : harper ? 'workbench-harper' : 'workbench';
+const player = process.argv.includes('--player');
+const song = process.argv.includes('--song');
+const mediaScene = player || song;
+const scene = player
+	? 'player'
+	: song
+		? 'song'
+		: performers
+			? 'performers'
+			: harper
+				? 'harper'
+				: 'hero';
+const stem = scene === 'hero' ? 'workbench' : `workbench-${scene}`;
 const outputPath = resolve(`static/${stem}.png`);
 const webpPath = resolve(`static/${stem}.webp`);
 
@@ -56,7 +73,7 @@ try {
 		// in a picture reads as an application with nothing in it. The performers
 		// shot is taller instead: its crop is portrait, and the window has to hold
 		// the whole song plus the picker below the selection.
-		viewport: shotViewport(performers ? 'performers' : harper ? 'harper' : 'hero'),
+		viewport: shotViewport(scene),
 		// A product shot is scaled down in the page, so it is rendered at 2x and
 		// let the browser resample it — a 1x capture set into a 1180px frame is
 		// visibly soft on every display anybody reads this page on.
@@ -67,11 +84,17 @@ try {
 		reducedMotion: 'reduce'
 	});
 
+	if (mediaScene) await installPlayerScene(page);
 	await page.goto(`${origin}/workbench/`);
 
 	const editor = await waitForWorkbench(page);
 
-	if (performers) {
+	if (mediaScene) {
+		await preparePlayerScene(page, editor, { timed: !player });
+		const clip = await playerShotRegion(page, scene);
+		await page.screenshot({ path: outputPath, type: 'png', clip });
+		console.log(`wrote ${outputPath} (${clip.width * 2}x${clip.height * 2})`);
+	} else if (performers) {
 		await preparePerformerScene(page, editor);
 
 		// The picker opens on a *pointer* selection and on nothing else, so the
@@ -193,7 +216,7 @@ try {
 // PNG is a shipped asset of its own.
 await run('ffmpeg', ['-y', '-i', outputPath, '-c:v', 'libwebp', '-quality', '82', webpPath]);
 console.log(`wrote ${webpPath}`);
-if (!performers && !harper) {
+if (scene === 'hero') {
 	for (const width of [640, 1280, 1920]) {
 		await run('ffmpeg', [
 			'-y',
@@ -209,6 +232,6 @@ if (!performers && !harper) {
 		]);
 	}
 }
-if (performers || harper) await unlink(outputPath);
+if (scene !== 'hero') await unlink(outputPath);
 
 await writeShotDimensions();

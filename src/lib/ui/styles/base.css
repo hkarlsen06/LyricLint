@@ -29,6 +29,12 @@ textarea {
 	font: inherit;
 }
 
+/* Inline shortcuts share the surrounding text's size and baseline. Browser
+   monospace defaults make them smaller and visibly lower within a prose line. */
+kbd {
+	font: inherit;
+}
+
 button,
 summary,
 select {

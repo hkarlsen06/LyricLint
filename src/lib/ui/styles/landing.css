@@ -477,6 +477,13 @@
 	margin: 0;
 }
 
+/* A single metadata panel needs less magnification than the editor shots. */
+.lp-shot--song {
+	width: 100%;
+	max-width: 26rem;
+	justify-self: center;
+}
+
 .lp-shot--detail::before {
 	opacity: 0.3;
 }
@@ -576,6 +583,23 @@
 
 .lp-demo .site-demo {
 	margin-bottom: 0;
+}
+
+.lp-shot__caption {
+	margin: var(--space-3) 0 0;
+	color: var(--color-text-muted);
+	font-size: var(--font-size-sm);
+	line-height: var(--line-height-body);
+}
+
+.lp-player__keys {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3) var(--space-5);
+}
+
+.lp-player kbd {
+	color: var(--color-text);
 }
 
 /*

@@ -373,6 +373,102 @@ You said we'd drive until the radio gave out (yeah)`;
 		</div>
 	</section>
 
+	<section class="lp-section" aria-labelledby="player-heading">
+		<div class="lp-container lp-split lp-player">
+			<figure class="lp-shot lp-shot--detail">
+				<div class="lp-shot__frame">
+					<img
+						class="lp-shot__poster"
+						src="{resolve('/')}workbench-player.webp"
+						loading="lazy"
+						width={shotDimensions['workbench-player.webp'].width}
+						height={shotDimensions['workbench-player.webp'].height}
+						alt=""
+						aria-hidden="true"
+					/>
+					<video
+						{@attach autoplayInView}
+						src="{resolve('/')}workbench-player.webm"
+						width={shotDimensions['workbench-player.webm'].width}
+						height={shotDimensions['workbench-player.webm'].height}
+						aria-label="An example track is synced to every lyric line with Space in an accelerated demonstration. Dragging the player’s scrubber moves the yellow highlight through the lyrics. Clicking a line number jumps to that line and plays it. On-screen keypresses show Escape pausing and resuming two seconds earlier, then Shift+Escape and Option+Escape stepping between synced lines."
+						loop
+						muted
+						playsinline
+						preload="none"
+					></video>
+				</div>
+			</figure>
+			<div class="lp-split__copy">
+				<h2 id="player-heading">Keep your hands on the lyrics.</h2>
+				<p class="lp-prose">
+					Play YouTube or Apple Music beside your draft. Pause, type, and replay without switching
+					tabs.
+				</p>
+				<p class="lp-prose">
+					<strong>Pause. Type. Hear it again.</strong> Press <kbd>Esc</kbd> to pause. Press it again to
+					replay the last two seconds and carry on.
+				</p>
+				<p class="lp-prose">
+					<strong>Jump straight to a line.</strong> Choose Sync lyrics, then tap <kbd>Space</kbd> as each
+					line starts. Click a line number to play from there.
+				</p>
+				<p class="lp-prose lp-player__keys">
+					<span><kbd>Shift</kbd> + <kbd>Esc</kbd> back</span>
+					<span><kbd>Option / Alt</kbd> + <kbd>Esc</kbd> forward</span>
+				</p>
+				<p class="lp-prose">
+					Loop a tricky passage, or slow down YouTube playback when the video supports it.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<section class="lp-section" aria-labelledby="song-heading">
+		<div class="lp-container lp-split lp-split--flip">
+			<figure class="lp-shot lp-shot--detail lp-shot--song">
+				<div class="lp-shot__frame">
+					<img
+						class="lp-shot__poster"
+						src="{resolve('/')}workbench-song.webp"
+						loading="lazy"
+						width={shotDimensions['workbench-song.webp'].width}
+						height={shotDimensions['workbench-song.webp'].height}
+						alt=""
+						aria-hidden="true"
+					/>
+					<video
+						{@attach autoplayInView}
+						src="{resolve('/')}workbench-song.webm"
+						width={shotDimensions['workbench-song.webm'].width}
+						height={shotDimensions['workbench-song.webm'].height}
+						aria-label="The Song panel shows release date, writers, album, and label. Clicking Avery Lane copies that writer’s name. Copy image URL confirms the artwork link was copied, then Download album art saves the cover."
+						loop
+						muted
+						playsinline
+						preload="none"
+					></video>
+				</div>
+				<figcaption class="lp-shot__caption">Example credits in the real Song panel.</figcaption>
+			</figure>
+			<div class="lp-split__copy">
+				<h2 id="song-heading">Bring the credits and cover to Genius.</h2>
+				<p class="lp-prose">
+					Apple Music brings the song details, too. See the writer credits and release details Apple
+					provides in the Song panel. Click a value to copy it, including individual writer names.
+				</p>
+				<p class="lp-prose">
+					Copy the album art’s image URL or download the cover, ready for adding the song to Genius.
+					The details you need stay beside the transcription you’re working on.
+				</p>
+				<p class="lp-prose">
+					Full-track Apple Music playback requires an Apple Music subscription. Credits vary by
+					release, so check them before submitting.
+				</p>
+			</div>
+		</div>
+	</section>
+
 	<!-- The live editor uses the same evidence-and-copy split as the detail demos. -->
 	<section class="lp-section">
 		<div class="lp-container lp-split lp-split--flip lp-demo">

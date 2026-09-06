@@ -3,6 +3,7 @@
 Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 `src/lib/ui/styles/site.css`, `scripts/render-workbench-shot.mjs`,
 `scripts/render-motion.mjs`, `scripts/render-all.mjs`, `scripts/shot-scene.mjs`,
+`scripts/player-shot-scene.mjs`, `scripts/shot-lyrics.mjs`,
 `scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`,
 `src/lib/ui/layout/AppWordmark.svelte`, `src/lib/assets/lyriclint-mark.svg`
 
@@ -63,17 +64,72 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 
 ## Decision record
 
+### Playback gets an early transcription section
+
+The player and Apple Music detail sections follow the hero, before the live formatting demo.
+Their generated stills and loops use the same image-over-video handoff as the other demonstrations.
+Playback copy explains listen/pause/replay, synced line jumps, slower playback and passage loops.
+The second section shows copying credits and artwork for adding songs to Genius.
+Apple Music's subscription requirement and variable credits stay beside its benefit.
+Resume rewinds two seconds; stepping uses nearby synced lines. Do not claim that ordinary
+resume automatically returns to a line's start. The copy names Escape shortcuts beside the action they perform. Function-key alternatives
+are omitted because browser and desktop handling makes them unreliable.
+
+`--player` and `--song` on both capture scripts share `player-shot-scene.mjs` through
+`shot-scene.mjs`. The real workbench attaches an invented track and writes timings through
+the sync and Song timing controls. The player reuses the first three sections of the performer
+demo from `shot-lyrics.mjs`, with eleven lyric lines; the shared text must not be copied into a
+second fixture. Only MusicKit, catalogue responses, and original cover artwork are fixtures;
+no Apple account or recording is used. The build must offer Apple Music, but capture requests
+never reach Apple. An unsigned token is suitable only in an isolated capture build, never
+in a deployed build or a checked-in env file. The credits caption identifies its example data;
+the player has no caption and is vertically centered beside its copy on desktop.
+The metadata figure is capped at 26rem and centered in its column: filling the column
+over-magnified this single panel. The shared figure cap sizes the still and loop together
+and contracts to the available width on phones.
+
+The provider advances in filmed time, and Playwright's clock gives copy confirmations the same
+duration regardless of screenshot speed. The playback loop starts untimed, enters Sync lyrics,
+and stamps its first line about 0.2 seconds after Sync is pressed. That first timestamp and
+Space badge appear cleanly before the fast-forward effect starts. The remaining ten taps use
+an exponential ramp from 5× up to 70×, doubling every 0.2 filmed seconds with a brief
+roll-off into the final tap. The first timestamp is mock timing; it need not wait for 0:04. It then drags the real scrubber in both
+directions, asserting that the yellow line wash follows it, and clicks line number 4 to jump
+and play. Escape's two-second rewind and cue stepping follow at normal speed. A tutorial badge
+shows the actual Space, Escape, Shift+Escape, and Option+Escape presses in the player's spare
+identity-row space. Consecutive presses share one key badge with an incrementing multiplier.
+A clean, centered double-triangle fast-forward icon marks the accelerated pass without a speed
+label. The full-footage treatment follows the supplied [VHS rewind reference](https://www.youtube.com/watch?v=zByO2TmM1WU),
+played forward: animated horizontal scan displacement, monochrome grain, and a moving tracking
+line. Their strength follows the speed ramp. The centered icon and key badge stay clean above
+those effects, which disappear before scrubbing. A uniform spatial blur smeared the lyrics;
+physical shutter blur alone was too subtle on a largely static screen and did not match the
+reference's tape distortion. These are filming overlays and take no pointer hits.
+The finished timed song holds before the next run restarts from the untimed opening. The metadata
+loop checks the clipboard and a successful JPEG download. The player crop includes the whole
+editor actions tray and transport; the metadata crop stays on the complete metadata section.
+The player WebM encodes the VHS passage at CRF 30 because lossless grain inflated the clip
+to 75 MB. The clear sections use lossless VP9 without alternate reference frames: lossy motion
+prediction smeared lyric glyphs after repeated scrubber seeks even though the source frames
+were clean. Concatenating the three independently encoded sections preserves those clean frames.
+The sharing GIF uses the encoded video and a 48-color palette so the tape grain does not
+dominate its file size.
+
 ### One command refreshes every generated shot and loop
 
-`bun run render:all` runs `scripts/render-all.mjs`: build once, start an owned Vite preview
-server on an ephemeral loopback port, then run the existing capture commands sequentially.
+`bun run render:all` runs `scripts/render-all.mjs`: build once in Vite's `capture` mode,
+start an owned preview server on an ephemeral loopback port, then run the existing capture
+commands sequentially. Capture mode writes only `.svelte-kit-capture/` and `build-capture/`.
+The aggregate supplies an unsigned, one-day Apple fixture token only to that build process;
+it needs no Apple credentials and never changes an env file or the ordinary deployment build.
+Never deploy the capture output. A normal `bun run build` retains its production configuration.
 Preview uses HTTP explicitly so local development certificates cannot break capture. Each
 child receives the owned server's `ORIGIN`; no existing dev server is reused or stopped.
 The fixed build prevents generated assets or concurrent source edits from causing HMR
 reloads halfway through a scene. The server closes on success, failure, or interruption;
 on POSIX, interruption also terminates the active command's process group.
 
-The sequence renders the social preview, all three stills, both detail loops, then the hero
+The sequence renders the social preview, all five stills, all four detail loops, then the hero
 loop. The hero already derives the mobile video, and the generators refresh responsive
 stills and the dimensions manifest, so the aggregate does not encode those twice. The first
 failure stops the sequence; motion keeps its required Node runtime through `render:motion`.

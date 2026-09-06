@@ -340,11 +340,23 @@ class TimeGutterMarker extends GutterMarker {
 		const stamp = document.createElement('button');
 		stamp.type = 'button';
 		stamp.tabIndex = -1;
-		stamp.className = 'll-time-stamp';
+		stamp.className = 'll-time-stamp ll-time-action';
 		stamp.dataset.anchorStamp = 'true';
 		stamp.dataset.anchored = String(this.time !== undefined);
 		stamp.append(stampGlyph(this.time !== undefined));
-		cell.append(stamp);
+		const actions = document.createElement('span');
+		actions.className = 'll-time-actions';
+		actions.append(stamp);
+		if (this.time !== undefined) {
+			const clear = document.createElement('button');
+			clear.type = 'button';
+			clear.tabIndex = -1;
+			clear.className = 'll-time-clear ll-time-action';
+			clear.dataset.anchorClear = 'true';
+			clear.append(stampGlyph('clear'));
+			actions.append(clear);
+		}
+		cell.append(actions);
 
 		return cell;
 	}
@@ -463,6 +475,8 @@ function timeGutterHint(
 			label: `${anchorNudgeSeconds}s ${Number(nudge.dataset.anchorNudge) < 0 ? 'earlier' : 'later'}`
 		};
 	}
+	const clear = target?.closest<HTMLElement>('[data-anchor-clear]');
+	if (clear) return { node: clear, label: 'Delete this line’s timing' };
 	const stamp = target?.closest<HTMLElement>('[data-anchor-stamp]');
 	if (!stamp) return undefined;
 	// The pencil opens the ± pair, and re-stamping a timed line is `Ctrl-Alt-M`'s
@@ -577,8 +591,8 @@ function nudgeButton(direction: 1 | -1): HTMLButtonElement {
 	return button;
 }
 
-/** A pin for an empty line, a pencil for one already carrying a time. */
-function stampGlyph(anchored: boolean): SVGElement {
+/** Timing controls: stamp, edit, and delete. */
+function stampGlyph(anchored: boolean | 'clear'): SVGElement {
 	const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 	svg.setAttribute('viewBox', '0 0 16 16');
 	svg.setAttribute('width', '13');
@@ -589,7 +603,14 @@ function stampGlyph(anchored: boolean): SVGElement {
 	svg.setAttribute('stroke-linecap', 'round');
 	svg.setAttribute('stroke-linejoin', 'round');
 	const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-	path.setAttribute('d', anchored ? 'm10 2.5 3.5 3.5-8 8H2v-3.5Z' : 'M8 3.5v9M3.5 8h9');
+	path.setAttribute(
+		'd',
+		anchored === 'clear'
+			? 'M2.5 4.5h11M6 4.5v-2h4v2M4 4.5l.5 9h7l.5-9M6.5 7v4M9.5 7v4'
+			: anchored
+				? 'm10 2.5 3.5 3.5-8 8H2v-3.5Z'
+				: 'M8 3.5v9M3.5 8h9'
+	);
 	svg.append(path);
 	return svg;
 }
@@ -1343,6 +1364,12 @@ export function lineAnchors(options: LineAnchorOptions): Extension {
 						return true;
 					}
 
+					if (target?.closest('[data-anchor-clear]')) {
+						event.preventDefault();
+						view.dispatch({ effects: clearLineAnchorEffect.of({ pos: line.from }) });
+						return true;
+					}
+
 					if (!target?.closest('[data-anchor-stamp]')) return false;
 
 					// A timed line's pencil opens the pair rather than writing anything,
@@ -1475,8 +1502,17 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	// Hidden rather than transparent, and `visibility` rather than `opacity`:
 	// opacity is never a state carrier here, and `visibility: hidden` keeps the
 	// slot's width so revealing the control moves nothing.
-	'.ll-time-stamp': {
+	'.ll-time-actions': {
 		display: 'flex',
+		// Reserve both glyphs even when only stamping is available.
+		width: 'calc(var(--font-size-sm) * 2 + var(--space-1))',
+		flexShrink: '0',
+		gap: 'var(--space-1)'
+	},
+	'.ll-time-action': {
+		display: 'flex',
+		width: 'var(--font-size-sm)',
+		justifyContent: 'center',
 		visibility: 'hidden',
 		padding: '0',
 		border: 'none',
@@ -1489,13 +1525,13 @@ export const lineAnchorTheme = EditorView.baseTheme({
 	// where the pointer happened to already be, which is nowhere until you know to
 	// look — a control discovered by hovering a blank column is a control nobody
 	// discovers. `highlightActiveLineGutter` is what puts the class here.
-	'.cm-activeLineGutter .ll-time-stamp': {
+	'.cm-activeLineGutter .ll-time-action': {
 		visibility: 'visible'
 	},
-	'.ll-time-cell:hover .ll-time-stamp': {
+	'.ll-time-cell:hover .ll-time-action': {
 		visibility: 'visible'
 	},
-	'.ll-time-stamp:hover': {
+	'.ll-time-action:hover': {
 		color: 'var(--color-text)'
 	},
 	// Packed from the left while the pair is open, so `+` lands against the last

@@ -389,7 +389,7 @@ describe('line anchoring stays out of the way', () => {
 		await withColumn(handle);
 
 		const controls = [...cellFor('first line').querySelectorAll<HTMLElement>('button')];
-		expect(controls).toHaveLength(2);
+		expect(controls).toHaveLength(3);
 		for (const control of controls) {
 			expect(control.getAttribute('tabindex')).toBe('-1');
 			expect(control.getAttribute('aria-label')).toBeNull();
@@ -692,6 +692,58 @@ describe('the timestamp column', () => {
 
 		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 75 }]);
 	});
+
+	it.each([1200, 390])(
+		'deletes only the chosen timing without moving the controls at %ipx',
+		async (width) => {
+			await page.viewport(width, 800);
+			try {
+				const longLine =
+					'A long lyric line that wraps on a phone while its timing controls stay beside it';
+				const text = `${lyric}\n${longLine}`;
+				const { handle, seek, anchorsChanged } = await mount({ text, mediaTime: () => 75 });
+				handle.setLineAnchors?.([
+					{ line: 2, time: 10 },
+					{ line: 4, time: 20 }
+				]);
+				await withColumn(handle);
+				const snapshot = handle.getSnapshot();
+				const box = (selector: string) =>
+					cellFor(longLine).querySelector(selector)!.getBoundingClientRect();
+				const timeLeft = box('.ll-time-value').left;
+				const editLeft = box('.ll-time-stamp').left;
+				const gutterWidth = document
+					.querySelector('.ll-time-gutter')!
+					.getBoundingClientRect().width;
+				expect(box('.ll-time-clear').left).toBeGreaterThan(box('.ll-time-stamp').right);
+				expect(
+					document.querySelector('.cm-scroller')!.getBoundingClientRect().right -
+						box('.ll-time-clear').right
+				).toBeGreaterThanOrEqual(16);
+				expect(cellFor('second line').querySelector('.ll-time-clear')).toBeNull();
+				anchorsChanged.mockClear();
+
+				press(cellFor(longLine), '.ll-time-clear');
+
+				expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 10 }]);
+				expect(anchorsChanged).toHaveBeenCalledTimes(1);
+				expect(seek).not.toHaveBeenCalled();
+				expect(handle.getSnapshot().text).toBe(snapshot.text);
+				expect(handle.getSnapshot().selection).toEqual(snapshot.selection);
+				await vi.waitFor(() =>
+					expect(cellFor(longLine).querySelector('.ll-time-clear')).toBeNull()
+				);
+				expect(cellFor(longLine).querySelector('.ll-time-value')?.textContent).toBe('–');
+				expect(box('.ll-time-value').left).toBe(timeLeft);
+				expect(box('.ll-time-stamp').left).toBe(editLeft);
+				expect(document.querySelector('.ll-time-gutter')!.getBoundingClientRect().width).toBe(
+					gutterWidth
+				);
+			} finally {
+				await page.viewport(800, 600);
+			}
+		}
+	);
 
 	// A line that already carries a time is nearly always a line whose time is
 	// nearly right — a tap landed late, or a run was a beat behind — so writing the
