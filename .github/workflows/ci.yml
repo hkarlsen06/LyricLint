@@ -77,6 +77,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+      - name: Install Bun setup prerequisites
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends unzip
       - uses: oven-sh/setup-bun@v2
       - name: Cache Bun packages
         uses: actions/cache@v6

@@ -78,6 +78,8 @@ normally have no retries.
 
 The E2E job uses the versioned official Playwright image, which includes Chromium,
 WebKit, and their OS dependencies. Refresh its tag alongside Playwright upgrades.
+It does not include `unzip`, so the job installs it before `setup-bun` extracts
+the Bun release archive.
 If a package update needs browser revisions absent from the image, the job falls
 back to the complete headless-shell/WebKit installation, including OS dependencies.
 The `checks` job keeps the ordinary runner: its Chromium-only installation is
