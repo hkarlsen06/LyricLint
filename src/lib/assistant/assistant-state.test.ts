@@ -346,6 +346,51 @@ describe('the assistant state', () => {
 		expect(state.messages).toHaveLength(2);
 	});
 
+	it.each(['', '   ', 'Saved plain answer'])(
+		'recovers a stored completion with content %j',
+		async (content) => {
+			const repository = memoryRepository();
+			const chat = await repository.createChat('t', 'v');
+			await repository.addMessage({
+				chatId: chat.id,
+				role: 'user',
+				createdAt: '2026-01-01T00:00:00.000Z',
+				status: 'complete',
+				content: 'Original question?'
+			});
+			const saved = await repository.addMessage({
+				chatId: chat.id,
+				role: 'assistant',
+				createdAt: '2026-01-01T00:00:01.000Z',
+				status: 'complete',
+				content
+			});
+			const ask = vi.fn(async () => answer('Recovered.'));
+			const state = createAssistantState({
+				repository: async () => repository,
+				ask,
+				ruleSetVersion: 'v'
+			});
+			await state.open();
+			await state.retry(saved.id);
+			if (content.trim()) {
+				expect(ask).not.toHaveBeenCalled();
+				expect(state.messages[1]!.content).toBe(content);
+			} else {
+				expect(ask).toHaveBeenCalledOnce();
+				expect(state.messages).toHaveLength(2);
+				expect(state.messages[1]!.id).toBe(saved.id);
+				expect(state.messages[1]!.answer?.blocks[0]!.text).toBe('Recovered.');
+				const stored = (await repository.messagesFor(chat.id))[1]!;
+				expect(stored.status).toBe('complete');
+				expect(stored.content).toBe('Recovered.');
+				expect(stored.answer).toEqual(state.messages[1]!.answer);
+				await state.retry(saved.id);
+				expect(ask).toHaveBeenCalledOnce();
+			}
+		}
+	);
+
 	it('marks a reload-orphaned pending answer interrupted, and it can be retried', async () => {
 		const repository = memoryRepository();
 		const chat = await repository.createChat('t', 'v');

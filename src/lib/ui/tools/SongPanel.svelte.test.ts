@@ -24,6 +24,7 @@ describe('SongPanel skimmability', () => {
 		// A locally named draft can search for its song before anything is attached.
 		expect([...container.querySelectorAll('h2')].map((heading) => heading.textContent)).toEqual([
 			'Song metadata',
+			'Genius page',
 			'Document'
 		]);
 		expect((screen.getByRole('link', { name: 'Search YouTube' }) as HTMLAnchorElement).href).toBe(
@@ -407,4 +408,51 @@ describe('current line timing controls', () => {
 		expect(screen.queryByRole('button', { name: 'Earlier 0.25s' })).toBeNull();
 		expect(field.value).toBe('');
 	});
+});
+
+describe('Genius page link', () => {
+	afterEach(cleanup);
+
+	test.each([300, 600])(
+		'stores, opens, and clears a link without shifting content at %ipx',
+		async (width) => {
+			const { controller } = createTestWorkbench({ text: '' });
+			const { container } = render(SongPanel, { controller });
+			container.style.width = `${width}px`;
+			const field = screen.getByRole('textbox', { name: 'Genius page link' }) as HTMLInputElement;
+			const document = screen.getByRole('heading', { name: 'Document' });
+			const before = document.getBoundingClientRect().top;
+			const url = `https://genius.com/Artist-${'long-song-title-'.repeat(20)}lyrics`;
+			await fireEvent.input(field, { target: { value: url } });
+			await fireEvent.change(field);
+			expect(controller.geniusUrl).toBe(url);
+			expect(screen.getByRole('link', { name: 'Open Genius page' }).getAttribute('href')).toBe(url);
+			expect(document.getBoundingClientRect().top).toBe(before);
+			expect(field.getBoundingClientRect().right).toBeLessThanOrEqual(
+				container.getBoundingClientRect().right
+			);
+			expect(parseFloat(getComputedStyle(field).fontSize)).toBeGreaterThanOrEqual(16);
+			const draftId = controller.draftId;
+			await controller.createDraft();
+			await waitFor(() => expect(field.isConnected).toBe(false));
+			const nextField = screen.getByRole('textbox', {
+				name: 'Genius page link'
+			}) as HTMLInputElement;
+			expect(nextField.value).toBe('');
+			await controller.openDraft(draftId);
+			await waitFor(() => expect(controller.geniusUrl).toBe(url));
+			const restored = screen.getByRole('textbox', {
+				name: 'Genius page link'
+			}) as HTMLInputElement;
+			expect(restored.value).toBe(url);
+			await fireEvent.input(restored, { target: { value: 'https://example.com/song' } });
+			await fireEvent.change(restored);
+			expect(controller.geniusUrl).toBe(url);
+			expect(restored.validity.valid).toBe(false);
+			await fireEvent.input(restored, { target: { value: '' } });
+			await fireEvent.change(restored);
+			expect(controller.geniusUrl).toBeUndefined();
+			expect(screen.queryByRole('link', { name: 'Open Genius page' })).toBeNull();
+		}
+	);
 });

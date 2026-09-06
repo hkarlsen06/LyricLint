@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hasCompletedAnswer } from '$lib/assistant/message.js';
 	/**
 	 * The assistant below its surface-specific header: transcript, request
 	 * status, challenge, composer, and the empty-state disclosure. The modal
@@ -416,13 +417,17 @@
 									<LoadingMark label="Answering" />
 								</p>
 							{/if}
-						{:else if message.status === 'complete' && message.answer}
-							<AssistantAnswer
-								answer={message.answer}
-								{previews}
-								{sources}
-								{referencesFailedToLoad}
-							/>
+						{:else if hasCompletedAnswer(message)}
+							{#if message.answer}
+								<AssistantAnswer
+									answer={message.answer}
+									{previews}
+									{sources}
+									{referencesFailedToLoad}
+								/>
+							{:else}
+								<p class="assistant-turn__text">{message.content}</p>
+							{/if}
 						{:else}
 							<p class="assistant-turn__text">
 								{message.status === 'interrupted'

@@ -395,6 +395,8 @@ export interface PerformerRecord {
 
 /** A locally persisted lyric draft. All dates are ISO strings. */
 export interface DraftRecord {
+	/** The Genius page this transcription belongs to, independent of attached audio. */
+	geniusUrl?: string;
 	id: string;
 	title: string;
 	text: string;

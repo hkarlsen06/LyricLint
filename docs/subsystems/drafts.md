@@ -17,7 +17,7 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/primitives/RemoveButt
 - A draft with nothing in it is never written: `createDraft` loads a transient record, the
   first save with text creates the row, `discardEmptyDraft` gives it back, and
   `recoverStartupDraft` sweeps blanks — but spares a wordless draft with attached audio
-  (`hasAttachment`, consulted on **every** save).
+  (`hasAttachment`, consulted on **every** save) or a saved Genius page link.
 - A landed save re-reads the drafts list, bounded by `sawPendingSave`; `noteSaveStatus` in
   `draft-store.svelte.ts` is the one place `saveStatus` is assigned.
 - The way into the list is the draft's own name (`.draft-switcher`): field plus chevron, one
@@ -102,7 +102,7 @@ A draft's name is not this, and the difference is what the row is for. A draft r
 the draft, so its name opens it and the pencil stays; a performer row is nothing but the name, so
 the name is the only thing there to press.
 
-**Attached audio is the exception, and it is the whole of the exception.** A song chosen for a
+**Attached audio and a saved Genius page are deliberate work.** A song chosen for a
 draft with no words yet is deliberate work — the user said what this transcription is _of_ — and
 without this it was thrown away on every reload, silently and in two places at once: the draft was
 never written, so the media row pointed at a transient id no later boot would produce; and had it
@@ -210,3 +210,14 @@ as one structure. A corrupt new-format structure retains its group with `passage
 propagation while preserving the lyrics; dropping only one bad field could accidentally activate
 legacy mirroring. Legacy hole parsing retains its existing compatibility behavior. New records also
 carry whole-body legacy holes so older clients that discard unknown fields leave the text local.
+
+### A Genius page belongs to its transcription
+
+`DraftRecord.geniusUrl` stores the page linked from the Song tab independently of audio. It survives
+autosave, renames, duplication, reloads, workspace backups, and Scribe files (`document.geniusUrl`).
+A saved link keeps a wordless draft alive on every save and during startup recovery, just as an audio
+attachment does. Clearing the link removes that exception when no lyrics or audio remain.
+
+`core/genius-url.ts` owns validation for the field, external link, and imported files: HTTP or HTTPS,
+`genius.com` or `www.genius.com`, a page path, and no embedded credentials. Imported invalid links
+are refused before workspace state changes; older files with no link still load.

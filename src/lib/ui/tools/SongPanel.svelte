@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { normalizeGeniusUrl } from '$lib/core/genius-url.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import type { TimedLyricsFormat } from '$lib/core/timed-lyrics.js';
 	import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
@@ -15,6 +16,12 @@
 	let exactTime = $derived(
 		timing?.time === undefined ? undefined : Math.round(timing.time * 100) / 100
 	);
+
+	let geniusUrl = $derived.by(() => {
+		void controller.draftId;
+		return controller.geniusUrl ?? '';
+	});
+	const geniusPage = $derived(normalizeGeniusUrl(controller.geniusUrl));
 
 	const artwork = $derived(controller.media?.player.artwork);
 	const details = $derived(controller.media?.player.songDetails);
@@ -150,6 +157,38 @@
 			</div>
 		</section>
 	{/if}
+
+	<section>
+		<h2>Genius page</h2>
+		{#key controller.draftId}
+			<label class="sr-only" for="genius-page-url">Genius page link</label>
+			<input
+				id="genius-page-url"
+				class="genius-page-input"
+				type="url"
+				placeholder="https://genius.com/Artist-song-lyrics"
+				bind:value={geniusUrl}
+				oninput={(event) => event.currentTarget.setCustomValidity('')}
+				onchange={(event) => {
+					const accepted = controller.setGeniusUrl(geniusUrl);
+					event.currentTarget.setCustomValidity(accepted ? '' : 'Enter a valid Genius page link.');
+					if (!accepted) event.currentTarget.reportValidity();
+				}}
+			/>
+		{/key}
+		<div class="tool-actions genius-page-actions">
+			{#if geniusPage}
+				<!-- eslint-disable svelte/no-navigation-without-resolve -- normalizeGeniusUrl validates this external page link. -->
+				<a
+					class="button button--quiet button--flush"
+					href={geniusPage}
+					target="_blank"
+					rel="noopener noreferrer">Open Genius page</a
+				>
+				<!-- eslint-enable svelte/no-navigation-without-resolve -->
+			{/if}
+		</div>
+	</section>
 
 	<!--
 		One action, because an export is wanted once, on the way out. `Copy lyrics`
@@ -308,6 +347,17 @@
 </div>
 
 <style>
+	.genius-page-input {
+		width: 100%;
+		min-width: 0;
+		font-size: var(--font-size-editor);
+	}
+
+	.genius-page-actions {
+		min-height: var(--control-height-touch);
+		margin-top: var(--space-2);
+	}
+
 	.line-timing-form + .tool-actions {
 		margin-top: var(--space-2);
 	}

@@ -859,6 +859,15 @@ Bottom alignment put a 36px button against the foot of a taller textarea and mad
 The field's outside inset and panel foot alignment stay unchanged. `AssistantPanel.svelte.test.ts`
 measures the button's center against the field.
 
+### Stored assistant answers recover without hiding missing content
+
+Normal completion persists the structured answer and its plain text together. For a stored
+completed record missing its structured answer, display retained nonblank text as escaped text.
+If both are absent (including whitespace-only content), keep the failure message and allow Retry
+in place. `hasCompletedAnswer` owns the shared rendering/retry decision; valid completed answers
+cannot be retried and overwritten. Recovery uses the existing conversation lock and persistence
+path. The panel and assistant state tests pin the fallback and the actual retry.
+
 ### The assistant's transcript follows its own foot, and a scroll up is the end of that
 
 **A different 'scribe starts with no conversation selected.** The assistant state lives above
@@ -963,3 +972,11 @@ in both empty and populated documents, including expanded writing.
 
 The smaller mobile inset, scroll ownership, and full-sized action targets remain.
 YouTube's visible frame stays below the tool content. See the media decision record.
+
+### The Genius page belongs to the scribe
+
+Song has a Genius page section even before audio or lyrics exist. Its URL field saves on
+change and clearing it removes the link. Only validated Genius HTTP(S) page links can be
+opened; invalid edits keep the previous saved value and report the refusal. The action row
+reserves its height so adding or clearing the link leaves Document in place. Draft switching
+resets the field, including any invalid edit. The link travels with Scribe files and backups.

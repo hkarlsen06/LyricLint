@@ -365,3 +365,32 @@ describe('the assistant panel', () => {
 		);
 	});
 });
+
+describe('stored assistant answer recovery', () => {
+	for (const content of ['Retained answer <b>as text</b>.', '', '   ']) {
+		test(`recovers completed content ${JSON.stringify(content)}`, async () => {
+			const message: AssistantMessageRecord = {
+				id: 'answer',
+				chatId: 'chat-1',
+				role: 'assistant',
+				createdAt: '2026-08-02T10:00:00.000Z',
+				status: 'complete',
+				content
+			};
+			const { assistant } = panelAssistant(undefined, [message]);
+			assistant.retry = vi.fn(async () => undefined);
+			const { container } = render(AssistantPanel, { assistant });
+			const view = within(container);
+			if (content.trim()) {
+				expect(view.getByText(content)).not.toBeNull();
+				expect(container.querySelector('.assistant-turn__text b')).toBeNull();
+				expect(view.queryByRole('button', { name: 'Retry' })).toBeNull();
+				expect(view.queryByText('This question did not get an answer.')).toBeNull();
+			} else {
+				expect(view.getByText('This question did not get an answer.')).not.toBeNull();
+				await fireEvent.click(view.getByRole('button', { name: 'Retry' }));
+				expect(assistant.retry).toHaveBeenCalledWith('answer');
+			}
+		});
+	}
+});

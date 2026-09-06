@@ -1,3 +1,4 @@
+import { normalizeGeniusUrl } from '../core/genius-url.js';
 import { validateLinkPassages } from '../core/link-record.js';
 import Dexie, { type ObservabilitySet } from 'dexie';
 
@@ -184,6 +185,13 @@ function parseDraft(value: Json): DraftRecord {
 		updatedAt: stringField(value, 'updatedAt'),
 		ruleSetVersion: stringField(value, 'ruleSetVersion')
 	};
+
+	if (value.geniusUrl !== undefined) {
+		const geniusUrl = normalizeGeniusUrl(value.geniusUrl);
+		if (geniusUrl === undefined)
+			throw new WorkspaceBackupError('Invalid Genius page link in backup.');
+		draft.geniusUrl = geniusUrl;
+	}
 
 	const originalText = optionalStringField(value, 'originalText');
 	if (originalText !== undefined) draft.originalText = originalText;

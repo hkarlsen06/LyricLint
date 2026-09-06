@@ -107,6 +107,8 @@ export interface WorkbenchController {
 	readonly canLoadSample: boolean;
 	readonly draftId: string;
 	readonly title: string;
+	readonly geniusUrl: string | undefined;
+	setGeniusUrl(value: string): boolean;
 	readonly language: string;
 	readonly recentLanguages: readonly string[];
 	readonly performers: readonly PerformerRecord[];
@@ -535,6 +537,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get draftId() {
 			return draft.draftId;
 		},
+		get geniusUrl() {
+			return draft.geniusUrl;
+		},
+		setGeniusUrl: draft.setGeniusUrl,
 		get title() {
 			return draft.title;
 		},
@@ -842,6 +848,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// Each of these four is absent rather than present-and-undefined: the
 			// Scribe file is JSON, and a key written as `null` is a claim the
 			// record never made.
+			if (exported.geniusUrl !== undefined) project.geniusUrl = exported.geniusUrl;
 			if (exported.originalText !== undefined) project.originalText = exported.originalText;
 			if (exported.editorSelection !== undefined) project.selection = exported.editorSelection;
 			if (exported.compareBaseline !== undefined) {
@@ -900,6 +907,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// lists stay absent where they are empty — a record is compared field by
 			// field on its way to disk, and a key nobody set is not a value.
 			const scribed = project.document;
+			if (scribed.geniusUrl !== undefined) imported.geniusUrl = scribed.geniusUrl;
 			if (scribed.originalText !== undefined) imported.originalText = scribed.originalText;
 			if (scribed.selection !== undefined) imported.editorSelection = scribed.selection;
 			if (scribed.compareBaseline !== undefined) {

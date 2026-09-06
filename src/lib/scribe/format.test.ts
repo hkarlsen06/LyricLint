@@ -3,6 +3,7 @@ import { parseScribe, ScribeFormatError, serializeScribe } from './format.js';
 
 const input = {
 	title: 'Sensommer',
+	geniusUrl: 'https://genius.com/Mul-sensommer-lyrics',
 	language: 'no',
 	lyrics: '[Refreng: Mul]\nEn linje\n\n[Refreng: Mul]\nEn linje',
 	originalText: '[Chorus: Mul]\nEn linje\n\n[Chorus: Mul]\nEn linje',
@@ -57,6 +58,7 @@ describe('LyricLint Scribe format', () => {
 			version: 1,
 			document: {
 				title: input.title,
+				geniusUrl: input.geniusUrl,
 				language: input.language,
 				lyrics: input.lyrics,
 				originalText: input.originalText,
@@ -69,6 +71,12 @@ describe('LyricLint Scribe format', () => {
 			ignoredDiagnostics: ['first', 'second'],
 			song: input.song
 		});
+	});
+
+	test('refuses unsafe Genius page links before importing', () => {
+		expect(() =>
+			parseScribe(serializeScribe({ ...input, geniusUrl: 'javascript:alert(1)' }))
+		).toThrow(ScribeFormatError);
 	});
 
 	test('preserves passage connections through a Scribe export and suspends corrupt connections', () => {

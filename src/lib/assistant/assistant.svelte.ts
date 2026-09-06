@@ -18,6 +18,7 @@ import { browserChatLocks, withChatLock, type ChatLockOutcome } from './chat-loc
 import { nowIso, type AssistantChatRepository } from './chat-repository.js';
 import type { AssistantDraftBridge } from './draft-bridge.js';
 import { boundedHistory, liveToolSuffix } from './history.js';
+import { hasCompletedAnswer } from './message.js';
 import { resolveLinkAction } from './link-actions.js';
 import {
 	clearDraftAccess,
@@ -927,7 +928,7 @@ export function createAssistantState(deps: AssistantDeps) {
 		async retry(assistantMessageId: string): Promise<void> {
 			if (busy) return;
 			const target = messages.find((message) => message.id === assistantMessageId);
-			if (!target || target.role !== 'assistant' || target.status === 'complete') return;
+			if (!target || target.role !== 'assistant' || hasCompletedAnswer(target)) return;
 			const chatId = activeChatId;
 			if (!chatId) return;
 			// The reset is inside the lock with the request it precedes: stripped

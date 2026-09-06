@@ -53,6 +53,22 @@ afterEach(async () => {
 });
 
 describe('workspace backup', () => {
+	it('refuses unsafe Genius page links before importing a backup', () => {
+		expect(() =>
+			parseWorkspaceBackup(
+				JSON.stringify({
+					format: 'lyriclint-workspace',
+					version: 1,
+					createdAt: '2026-07-01T10:00:00.000Z',
+					drafts: [{ ...draft('unsafe', 'Lyrics'), geniusUrl: 'javascript:alert(1)' }],
+					appMetadata: [],
+					media: [],
+					ignoredDiagnostics: []
+				})
+			)
+		).toThrow(WorkspaceBackupError);
+	});
+
 	it('retains draft text but suspends malformed passage connections in an imported backup', () => {
 		const source = draft('passages', '[Intro]\nSame\n[Chorus]\nSame');
 		const sectionLinks = [

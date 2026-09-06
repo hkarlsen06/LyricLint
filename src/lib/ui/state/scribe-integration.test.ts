@@ -19,6 +19,7 @@ describe('Workbench Scribe projects', () => {
 		calls.lineAnchors = [{ line: 2, time: 4.25 }];
 		controller.onLineAnchorsChanged();
 
+		controller.setGeniusUrl('https://genius.com/Artist-song-lyrics');
 		controller.exportScribe();
 
 		expect(exportLog).toHaveLength(1);
@@ -26,6 +27,7 @@ describe('Workbench Scribe projects', () => {
 		expect(parseScribe(exportLog[0]!.text)).toMatchObject({
 			document: {
 				title: 'Test draft',
+				geniusUrl: 'https://genius.com/Artist-song-lyrics',
 				language: 'en',
 				lyrics: '[Chorus: Alice]\nLine\n\n[Chorus: Alice]\nLine'
 			},
@@ -39,6 +41,7 @@ describe('Workbench Scribe projects', () => {
 		const { controller, repository } = createTestWorkbench({ text: '[Verse]\nCurrent work' });
 		const source = serializeScribe({
 			title: 'Imported song',
+			geniusUrl: 'https://genius.com/Artist-imported-song-lyrics',
 			language: 'no',
 			lyrics: '[Refreng]\nImportert',
 			selection: { anchor: 0, head: 10 },
@@ -56,6 +59,7 @@ describe('Workbench Scribe projects', () => {
 		expect(await repository.get('draft-1')).toMatchObject({ text: '[Verse]\nCurrent work' });
 		expect(await repository.get('generated-1')).toMatchObject({
 			title: 'Imported song',
+			geniusUrl: 'https://genius.com/Artist-imported-song-lyrics',
 			lineAnchors: [{ line: 2, time: 8 }]
 		});
 	});

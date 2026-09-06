@@ -1,3 +1,4 @@
+import { normalizeGeniusUrl } from '$lib/core/genius-url.js';
 import { copySectionLinks } from '$lib/persistence/copy.js';
 import { validateLinkPassages } from '$lib/core/link-record.js';
 import type {
@@ -21,6 +22,7 @@ interface ScribeProject {
 		language: string;
 		lyrics: string;
 		originalText?: string;
+		geniusUrl?: string;
 		selection?: SerializedSelection;
 		compareBaseline?: CompareBaselineRecord;
 	};
@@ -36,6 +38,7 @@ interface ScribeProjectInput {
 	language: string;
 	lyrics: string;
 	originalText?: string;
+	geniusUrl?: string;
 	selection?: SerializedSelection;
 	compareBaseline?: CompareBaselineRecord;
 	performers: readonly PerformerRecord[];
@@ -259,6 +262,7 @@ export function serializeScribe(input: ScribeProjectInput): string {
 		language: input.language,
 		lyrics: input.lyrics
 	};
+	if (input.geniusUrl !== undefined) scribeDocument.geniusUrl = input.geniusUrl;
 	if (input.originalText !== undefined) scribeDocument.originalText = input.originalText;
 	if (input.selection !== undefined) scribeDocument.selection = { ...input.selection };
 	if (input.compareBaseline !== undefined) {
@@ -331,6 +335,12 @@ export function parseScribe(source: string): ScribeProject {
 		language: string(value.document.language, 'document.language'),
 		lyrics
 	};
+	if (value.document.geniusUrl !== undefined) {
+		const geniusUrl = normalizeGeniusUrl(value.document.geniusUrl);
+		if (geniusUrl === undefined)
+			throw new ScribeFormatError('document.geniusUrl must be a Genius page link.');
+		scribeDocument.geniusUrl = geniusUrl;
+	}
 	if (originalText !== undefined) scribeDocument.originalText = originalText;
 	if (selection !== undefined) scribeDocument.selection = selection;
 	if (compareBaseline !== undefined) scribeDocument.compareBaseline = compareBaseline;

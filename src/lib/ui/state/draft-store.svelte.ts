@@ -1,3 +1,4 @@
+import { normalizeGeniusUrl } from '$lib/core/genius-url.js';
 import { copyCompareBaseline, copySectionLinks } from '$lib/persistence/copy.js';
 // The broadened controller, not the frozen one: `noteDraftLoaded` is the
 // persistence layer's own hook and is what a reopened draft's saves depend on.
@@ -105,6 +106,8 @@ interface DraftStoreDependencies {
 interface DraftStore {
 	readonly draftId: string;
 	readonly title: string;
+	readonly geniusUrl: string | undefined;
+	setGeniusUrl(value: string): boolean;
 	readonly language: string;
 	readonly recentLanguages: readonly string[];
 	readonly drafts: readonly DraftSummary[];
@@ -142,6 +145,7 @@ interface DraftStore {
 export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	let draftId = $state(deps.initialDraft.id);
 	let title = $state(deps.initialDraft.title);
+	let geniusUrl = $state(deps.initialDraft.geniusUrl);
 	let language = $state(deps.initialDraft.language);
 	let recentLanguages = $state(
 		prependRecentLanguage(deps.initialRecentLanguages ?? [], deps.initialDraft.language)
@@ -159,7 +163,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 	// never does — see `scheduleSave` — so blankness and persistence track each
 	// other, and startup recovery has already swept any blank record an older
 	// build left behind.
-	let persisted = deps.initialDraft.text.trim().length > 0;
+	let persisted = deps.initialDraft.text.trim().length > 0 || !!deps.initialDraft.geniusUrl?.trim();
 
 	const feedback = deps.feedback;
 	const bindings = deps.bindings;
@@ -192,9 +196,10 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 			lineAnchors: bindings.lineAnchors.map((anchor) => ({ ...anchor })),
 			sectionLinks: copySectionLinks(bindings.sectionLinks)
 		};
-		// Both stay absent rather than present-and-undefined: a record is compared
+		// Optional metadata stays absent rather than present-and-undefined: a record is compared
 		// field by field on its way to disk, and a key nobody set is not a value.
 		if (originalText !== undefined) record.originalText = originalText;
+		if (geniusUrl !== undefined) record.geniusUrl = geniusUrl;
 		if (compareBaseline !== undefined) {
 			record.compareBaseline = copyCompareBaseline(compareBaseline);
 		}
@@ -286,11 +291,16 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		// as one more "Untitled transcription" among the real ones, so it is never
 		// written — and a draft emptied out gives up the record it had.
 		//
-		// Attached audio is the exception, and it has to be checked on *every*
+		// Attached audio and a Genius page link are worth keeping on *every*
 		// save rather than only at the moment of attaching: the document is still
 		// wordless on the next snapshot, so without this the draft the attachment
 		// just created would be discarded again a keystroke later.
-		if (draft.text.trim().length === 0 && !keepEmpty && !(deps.hasAttachment?.() ?? false)) {
+		if (
+			draft.text.trim().length === 0 &&
+			!geniusUrl?.trim() &&
+			!keepEmpty &&
+			!(deps.hasAttachment?.() ?? false)
+		) {
 			discardEmptyDraft();
 			return;
 		}
@@ -335,6 +345,7 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		persisted = isPersisted;
 		draftId = nextDraft.id;
 		title = nextDraft.title;
+		geniusUrl = nextDraft.geniusUrl;
 		language = nextDraft.language;
 		rememberLanguage(nextDraft.language);
 		createdAt = nextDraft.createdAt;
@@ -364,6 +375,19 @@ export function createDraftStore(deps: DraftStoreDependencies): DraftStore {
 		},
 		get title() {
 			return title;
+		},
+		get geniusUrl() {
+			return geniusUrl;
+		},
+		setGeniusUrl(value) {
+			const normalized = normalizeGeniusUrl(value);
+			if (value.trim() && normalized === undefined) {
+				reportFailure('Enter a Genius page link, such as https://genius.com/Artist-song-lyrics.');
+				return false;
+			}
+			geniusUrl = normalized;
+			scheduleSave();
+			return true;
 		},
 		get language() {
 			return language;

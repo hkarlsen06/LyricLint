@@ -78,6 +78,10 @@ function copyDraft(record: DraftRecord): DraftRecord {
 		ruleSetVersion: record.ruleSetVersion
 	};
 
+	if (record.geniusUrl !== undefined) {
+		copy.geniusUrl = record.geniusUrl;
+	}
+
 	if (record.originalText !== undefined) {
 		copy.originalText = record.originalText;
 	}
@@ -119,6 +123,10 @@ function createRecord(input: DraftCreateInput): DraftRecord {
 		updatedAt: input.updatedAt ?? timestamp,
 		ruleSetVersion: input.ruleSetVersion ?? ''
 	};
+
+	if (input.geniusUrl !== undefined) {
+		record.geniusUrl = input.geniusUrl;
+	}
 
 	if (input.originalText !== undefined) {
 		record.originalText = input.originalText;

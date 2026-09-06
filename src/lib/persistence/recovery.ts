@@ -60,7 +60,11 @@ export async function recoverStartupDraft(
 		// rows this sweep exists to clear — it is a transcription about to start,
 		// and deleting it takes the attachment with it, because `delete` clears
 		// the media record in the same transaction.
-		if (draft.text.trim().length === 0 && (await media?.get(draft.id)) === undefined) {
+		if (
+			draft.text.trim().length === 0 &&
+			!(typeof draft.geniusUrl === 'string' && draft.geniusUrl.trim().length > 0) &&
+			(await media?.get(draft.id)) === undefined
+		) {
 			await repository.delete(draft.id);
 			continue;
 		}

@@ -38,6 +38,10 @@ function copySnapshot(snapshot: AutosaveSnapshot): DraftRecord {
 		ruleSetVersion: draft.ruleSetVersion
 	};
 
+	if (draft.geniusUrl !== undefined) {
+		copy.geniusUrl = draft.geniusUrl;
+	}
+
 	if (draft.originalText !== undefined) {
 		copy.originalText = draft.originalText;
 	}

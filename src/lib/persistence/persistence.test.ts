@@ -576,6 +576,7 @@ describe('autosave and recovery', () => {
 		const complete = {
 			...draft({ id: 'whole-draft', text: '[Verse]\nFirst line\n[Chorus]\nFirst line' }),
 			originalText: '[Verse]\noriginal',
+			geniusUrl: 'https://genius.com/Artist-song-lyrics',
 			editorSelection: { anchor: 3, head: 7 },
 			// The sub-records carry `satisfies Required<…>` for the same reason the
 			// whole record does: the copiers hand-list these fields too, so an
@@ -1007,6 +1008,18 @@ describe('autosave and recovery', () => {
 		// for it until the first save that gives it text.
 		expect(await repository.list()).toEqual([]);
 		expect(await repository.getCurrent()).toBeUndefined();
+	});
+
+	it('recovers a wordless draft with a Genius page link', async () => {
+		const { repository } = await createRepository('recover-genius-link');
+		const linked = draft({
+			id: 'linked',
+			text: '',
+			geniusUrl: 'https://genius.com/Artist-song-lyrics'
+		});
+		await repository.create(linked);
+		expect(await recoverStartupDraft(repository)).toEqual(linked);
+		expect(await repository.get(linked.id)).toEqual(linked);
 	});
 
 	it('sweeps blank records left behind by earlier sessions', async () => {
