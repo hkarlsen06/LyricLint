@@ -2,8 +2,9 @@
 
 Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 `src/lib/ui/styles/site.css`, `scripts/render-workbench-shot.mjs`,
-`scripts/render-motion.mjs`, `scripts/render-all.mjs`, `scripts/shot-scene.mjs`,
-`scripts/player-shot-scene.mjs`, `scripts/shot-lyrics.mjs`,
+`scripts/render-motion.mjs`, `scripts/key-overlay.mjs`, `scripts/render-all.mjs`, `scripts/shot-scene.mjs`,
+`scripts/player-shot-scene.mjs`, `scripts/hero-shot-scene.mjs`, `scripts/shot-lyrics.mjs`,
+`scripts/fixtures/city-lights.json`, `scripts/fixtures/city-lights.jpg`,
 `scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`,
 `src/lib/ui/layout/AppWordmark.svelte`, `src/lib/assets/lyriclint-mark.svg`
 
@@ -18,15 +19,19 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   over the form the linter writes — `aria-hidden`, confined away from the headline band and
   the shot.
 - Every product shot is generated (`render-workbench-shot.mjs` / `render-motion.mjs` over
-  the shared `shot-scene.mjs` — the still and the loop must not drift). Transcriptions in
-  shots are invented; nothing in the hero run is scripted (it presses whatever the leading
-  card offers); the rewind stops on the document, not a count.
+  shared scene helpers — the still and the loop must not drift). Detail transcriptions are
+  invented; the hero uses the author-authorized City Lights lyrics and artwork from
+  `scripts/fixtures/`, shared through `hero-shot-scene.mjs`. Its scripted transcription and
+  review sequence uses real workbench controls; only the capture provider clock is simulated.
+  The finished document holds before a normal loop cut, without undoing the transcription.
 - Loops are frames encoded by a **real** ffmpeg (Playwright's bundled one decodes almost
   nothing), run with `node` not `bun`, with our own drawn cursor (`pointer-events: none` is
   load-bearing — anything hittable under it dismisses the surface being filmed). Crops are
   the union across time; the caret is parked at the top first.
 - Product loops use an overlaid image until the video has a decoded frame. The hero
-  image has responsive candidates and high fetch priority; its loop selects a 1280-pixel
+  image shows the same song populated in Review, deliberately distinct from the video
+  opening on a blank draft. It shares the video's dimensions, has responsive candidates and
+  high fetch priority; its loop selects a 1280-pixel
   variant below 30rem. Detail images and the Discord
   iframe are lazy. Videos have no native poster (which would duplicate the responsive
   download) and use `preload="none"`. Explicit video dimensions reserve the frame;
@@ -64,6 +69,45 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 
 ## Decision record
 
+### The hero follows a transcription of City Lights
+
+The hero now starts with a blank draft and attaches the author's YouTube link for
+[City Lights](https://www.youtube.com/watch?v=u56DQPzv2kg). The author authorized the real
+lyrics and artwork; `scripts/fixtures/city-lights.json` records the song and lyric reference,
+and the adjacent JPG supplies its artwork. `hero-shot-scene.mjs` owns the shared scene for
+both capture scripts. This supersedes the invented-only hero, unscripted diagnostic queue,
+matching first/last frames, and Undo return described in the historical composition record below.
+
+The opening spends time on listening, pausing, typing part of the first phrase, and resuming
+two seconds earlier to finish it. The remaining transcription accelerates with a visible
+fast-forward cue. The songwriter's 24 line starts are stored against document line numbers
+in the fixture. The opening listens from 0:00 to the second line at 0:03.95; the accelerated
+pass follows the remaining cues at 20×, retaining the instrumental gap. Its typing windows
+are capped at six song seconds, with four seconds for the final line whose end was not supplied.
+Review then brackets `Verse 1:`, links the choruses while preserving the
+second chorus's extra ad-libs, and corrects two shared `heartbeet` occurrences to `heartbeat`.
+Each correction reaches both choruses. The final lyrics match the reference, the findings
+clear, and a hold precedes the ordinary loop cut. Deleting or undoing the finished song would
+obscure the workflow this sequence is teaching.
+
+The attachment, editing, shortcuts, fixes, and linking use the real workbench. YouTube's live
+embed required sign-in in the capture environment, so the capture helper supplies a simulated
+provider clock and local artwork; it does not record live playback or ship a provider mock
+in the app. The reusable `key-overlay.mjs` shows the actual paste and transport key presses,
+with action labels and repeat counts, and follows the native dialog so the paste badge stays
+visible. Typed letters appear in the editor rather than as individual badges.
+
+The clear hero spans encode losslessly. Its accelerated span uses lighter, coarser grain
+and VP9 CRF 40: reusing the detail loop's fine grain across the full window inflated the
+39.5-second hero to 32 MB. The tape displacement remains, and the effect clears before
+review. This changes only the hero's filming treatment; the player detail retains its grain
+and CRF 30 encoding.
+
+The still is the same song populated in Review, not the blank opening frame. It shares the
+video's dimensions and gives loading, reduced-motion, and no-JavaScript readers a useful
+picture. The responsive image handoff, muted autoplay, viewport observer, and reduced-motion
+behavior remain unchanged; this demonstration has no sound control.
+
 ### Playback gets an early transcription section
 
 The player and Apple Music detail sections follow the hero, before the live formatting demo.
@@ -96,9 +140,19 @@ an exponential ramp from 5× up to 70×, doubling every 0.2 filmed seconds with 
 roll-off into the final tap. The first timestamp is mock timing; it need not wait for 0:04. It then drags the real scrubber in both
 directions, asserting that the yellow line wash follows it, and clicks line number 4 to jump
 and play. Escape's two-second rewind and cue stepping follow at normal speed. A tutorial badge
-shows the actual Space, Escape, Shift+Escape, and Option+Escape presses in the player's spare
-identity-row space. Consecutive presses share one key badge with an incrementing multiplier.
-A clean, centered double-triangle fast-forward icon marks the accelerated pass without a speed
+shows the actual Space, Escape, Shift+Escape, and Option+Escape presses at the center of the
+video. The fast-forward icon sits above it so the two overlays never overlap. Consecutive presses share one key badge with an incrementing multiplier.
+`scripts/key-overlay.mjs` owns the reusable badge styling, key presses, timed visibility,
+and repeat counts. Only the keycap has an outline; the surrounding key/action row uses
+a frosted backdrop: a translucent strong-fill tint with a broad, desaturated blur, without
+an outer border or box shadow. This obscures the lettering behind the badge without nested boxes.
+Badges stay visible for two filmed seconds after a press by default.
+Capture scripts create it with `createKeyOverlay(page)`, call
+`press(key, { at, label, action, continueCount, showCount })`, then
+`render(at, { x, y })` before each screenshot; `at` is filmed seconds. Position and repeat
+policy belong to the scene, while the helper needs no player DOM or fast-forward effect.
+`dispose()` removes it when reusing a page.
+A clean, horizontally centered double-triangle fast-forward icon marks the accelerated pass without a speed
 label. The full-footage treatment follows the supplied [VHS rewind reference](https://www.youtube.com/watch?v=zByO2TmM1WU),
 played forward: animated horizontal scan displacement, monochrome grain, and a moving tracking
 line. Their strength follows the speed ramp. The centered icon and key badge stay clean above
@@ -317,6 +371,11 @@ outright, because there is no outside left. Downwards: the product shot occupies
 of the section and nothing may drift over the evidence, so the marks are confined to the top 40%.
 A fifth mark reading `[Chorus: Avery & Blair]` was **cut rather than repositioned**: it is the
 longest string of the set, so it reached the words at one width and the screenshot at the next.
+
+**Historical hero sequence — superseded by “The hero follows a transcription of City Lights”
+above.** The following records why the previous invented document, automatic review queue,
+first-frame poster, and Undo loop were chosen; those are no longer hero requirements. Its
+native-poster loading decision was separately superseded by the September loading audit.
 
 **The product shot is generated, not taken.** `scripts/render-workbench-shot.mjs` drives the real
 workbench in a real browser and screenshots it, for the reason `render-social-preview.mjs` is a

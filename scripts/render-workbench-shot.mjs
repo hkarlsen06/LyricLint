@@ -31,6 +31,7 @@ import { chromium } from 'playwright';
 import { writeShotDimensions } from './write-shot-dimensions.mjs';
 import {
 	harperTranscription,
+	installHeroScene,
 	installPlayerScene,
 	playerShotRegion,
 	prepareHeroScene,
@@ -85,6 +86,7 @@ try {
 	});
 
 	if (mediaScene) await installPlayerScene(page);
+	if (scene === 'hero') await installHeroScene(page);
 	await page.goto(`${origin}/workbench/`);
 
 	const editor = await waitForWorkbench(page);

@@ -1,22 +1,11 @@
-/*
- * The invented documents the product shots are taken of, and the scene setup
- * the performer shots share.
- *
- * These lived inline in `render-workbench-shot.mjs` until a second script
- * needed the performer scene — the still and the motion loop are the same
- * workbench, the same roster and the same song, photographed once and filmed
- * once, so a copy of either in two files is a copy that drifts. The rule is the
- * one `copySectionLinks` is written down for: a thing rebuilt in two places is
- * only as correct as the least careful place that rebuilds it.
- *
- * Every document below is invented, line by line. A product shot of a lyric
- * linter is the one screenshot that must not contain a real transcription: the
- * picture ships in the bundle and on every social card, so anything quoted in
- * it is quoted permanently.
+/** Shared scene setup for generated product stills and motion.
+ * Detail scenes use invented lyrics. The hero uses the author's City Lights,
+ * with permission, through hero-shot-scene.mjs.
  */
 
 import { performersTranscription } from './shot-lyrics.mjs';
 export { performersTranscription };
+export { installHeroScene, prepareHeroScene } from './hero-shot-scene.mjs';
 
 /** The performers used throughout the product-shot scenes. */
 export const performerNames = ['Avery', 'Blair'];
@@ -60,58 +49,6 @@ export function shotViewport(scene) {
 		height: scene === 'performers' ? 1150 : 820
 	};
 }
-
-/**
- * The hero shot's document — written to be wrong in several ordinary ways at
- * once (a written-out section label, a lowercase line start, a subject and verb
- * that disagree, a typewriter apostrophe, a lowercase ad-lib), because a linter
- * showing an empty panel is a picture of nothing happening. The ad-libs are
- * already parenthesized, as the landing demo's are: whether a bare trailing
- * `yeah` is the lead's own line is a judgment the linter leaves to the
- * transcriber, so the scenes only stage the half it checks.
- * Verse 2 is the clean, initially untagged passage from the performer scene;
- * the hero-shot script runs that scene's assignment before it captures.
- *
- * The chorus repeats after the bridge, as a chorus does — the same four lines
- * again, so the panel reports that section's findings twice, which is what a
- * transcription of a real song produces. It also fills the editor column: at
- * one chorus the document ran out two thirds of the way down and the rest of
- * the picture was empty canvas, which is the failure the shot's own viewport
- * width is chosen to avoid, arrived at from the other direction.
- *
- * **Two of them do not raise `section.unlinked-repeat` here, and the reason is
- * the reason the sibling document below gives for having only one.** That rule
- * reads `section.header`, which a *bracketed* header is; these labels are
- * written out, so the parser hands each one over as a lyric and every section
- * in this document is headerless. `section.header-prose` is what answers them —
- * one card per label, which is the subject — and the repeat is invisible to the
- * link rule. Bracket these headers and a real link suggestion appears.
- */
-export const transcription = `Verse 1:
-i has counted every streetlight on the way
-you said we'd drive until the radio gave out (yeah)
-and the "quiet" part was never really quiet
-
-Chorus:
-hold the line, hold the line
-we was never gonna make it definately
-hold the line til the morning comes (yeah)
-
-[Verse 2]
-The map you drew was a coffee ring and a guess
-I keep it folded in the door where the cold gets in
-We counted three exits and took none of them
-Somewhere past the bridge the signal dropped again
-
-Bridge:
-(dont look back)
-so tell me what the quiet part was for
-tell me what the quiet part was for   
-
-Chorus:
-hold the line, hold the line
-we was never gonna make it definately
-hold the line til the morning comes (yeah)`;
 
 /**
  * The grammar shot's document. One Harper finding and nothing else, so the
@@ -182,145 +119,6 @@ export async function preparePerformerRoster(page) {
 	const dismiss = page.getByRole('button', { name: 'Dismiss notification' });
 	while (await dismiss.count()) await dismiss.first().click();
 	await page.locator('.toast').first().waitFor({ state: 'detached', timeout: 10_000 });
-}
-
-/**
- * Drag across a phrase the way a reader does, and wait for the picker it opens.
- *
- * The performer picker opens on a *pointer* selection and on nothing else, so
- * neither the still nor the loop may reach for it programmatically: the gesture
- * is the API. Shared because three scenes now make it — the still, the
- * performer loop, and the hero loop, which makes it twice.
- */
-export async function dragPhrase(page, phrase = assignedPhrase) {
-	const points = await selectionPoints(page, phrase);
-	await page.mouse.move(points.from.x, points.from.y);
-	await page.mouse.down();
-	await page.mouse.move(points.to.x, points.to.y, { steps: 12 });
-	await page.mouse.up();
-	const picker = page.locator('.picker-layer .picker');
-	await picker.waitFor({ state: 'visible', timeout: 10_000 });
-	return picker;
-}
-
-/**
- * Expand the panel's leading finding — the card whose explanation, citation and
- * fix are half of what the hero scene is a picture of, and whose expansion is
- * what previews that fix in the document as a diff.
- *
- * It presses the row rather than naming a rule, so the scene follows
- * `diagnostics/order.ts` instead of pinning it.
- *
- * The row toggles expansion, so press only when closed. Navigation can preserve
- * the existing selection; `restoreHeroSelection` collapses it explicitly before
- * re-dragging the phrase.
- */
-export async function openLeadingDiagnostic(page) {
-	const first = page.locator('.diagnostic-list > li').first();
-	await first.waitFor({ state: 'visible', timeout: 30_000 });
-	const navigate = first.locator('.diagnostic-list__navigate');
-	if ((await navigate.getAttribute('aria-expanded')) !== 'true') await navigate.click();
-	await page.waitForTimeout(600);
-}
-
-/** Nothing carries a focus ring in a still: it reads as a control to press. */
-export async function blurEverything(page) {
-	await page.evaluate(() =>
-		document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined
-	);
-}
-
-/**
- * The hero scene: the whole workbench in use, which is what the landing page's
- * first screen is a picture of.
- *
- * It is here rather than in the shot script because the loop films the same
- * scene the still photographs — and now films it *twice*, since the loop has to
- * come back to this exact state for its last frame to be its first. Three
- * copies of a setup this long is three copies that drift, which is the rule
- * this file opens with.
- *
- * The order is load-bearing at both ends. The roster comes first so the legend
- * the assignment writes resolves against real performers; the leading card is
- * opened before the phrase is re-selected, because opening it is a press in the
- * panel and would dismiss the picker if it came second.
- */
-export async function prepareHeroScene(page, editor) {
-	// The hero borrows the performer detail scene's roster before pasting its
-	// untagged Verse 2. The assignment below then resolves its generated legend
-	// against real performers and draws both colours in the editor.
-	await preparePerformerRoster(page);
-
-	await editor.click();
-	await page.keyboard.press('Control+A');
-	await editor.fill(transcription);
-
-	// A draft called `Untitled transcription` in a product shot says the workbench
-	// has not been used. The switcher's field is the rename, so this is the same
-	// press a reader would make.
-	const title = page.getByRole('textbox', { name: "'Scribe title" }).first();
-	if (await title.count()) await title.fill('Hold the Line');
-
-	// Run the performer detail's actual two-step assignment on Verse 2: Avery
-	// sings the selected phrase, then Avery and Blair are chosen for the rest.
-	// The resulting legend, markup and colours are therefore produced by the
-	// workbench instead of being hand-written into a second fixture.
-	const picker = await dragPhrase(page);
-	await picker.getByRole('button', { name: performerNames[0], exact: true }).click();
-	await picker.getByRole('button', { name: 'Next', exact: true }).click();
-	await picker.getByRole('button', { name: performerNames[0], exact: true }).click();
-	await picker.getByRole('button', { name: performerNames[1], exact: true }).click();
-	await picker.getByRole('button', { name: 'Apply', exact: true }).click();
-	await picker.waitFor({ state: 'detached', timeout: 10_000 });
-
-	// The `document`-tier rules settle 1500ms after typing stops, and they are the
-	// ones that say the most about a whole song. Capturing before they land
-	// photographs a panel that is still filling.
-	await page.waitForTimeout(2500);
-	await page.getByRole('tab', { name: 'Review' }).click();
-	await openLeadingDiagnostic(page);
-	await blurEverything(page);
-
-	await restoreHeroSelection(page);
-}
-
-/**
- * Re-open the Avery-only assignment the scene's first pass wrote.
- *
- * The picker derives its initial selection from the legend and span already in
- * the document, so Avery must come up pressed without anything choosing a
- * performer this time — that is the assertion, and it is what makes this a
- * picture of the workbench reading its own markup back rather than of a script
- * pressing two buttons.
- *
- * The loop calls this a second time, after its rewind, so its last frame is its
- * first: the same phrase selected, the same card open, the same roster showing.
- */
-export async function restoreHeroSelection(page) {
-	// Assignment leaves this phrase selected. Collapse it before dragging again,
-	// or the browser moves the selected text instead of making a new selection.
-	await page.getByRole('textbox', { name: 'Lyrics editor' }).focus();
-	await page.keyboard.press('ArrowLeft');
-	await dragPhrase(page);
-	await assertHeroSelection(page);
-}
-
-/**
- * The assertions `restoreHeroSelection` makes, without the drag that produces
- * them — the loop films its own drag frame by frame and then asks for these.
- */
-export async function assertHeroSelection(page) {
-	const picker = page.locator('.picker-layer .picker');
-	const avery = picker.getByRole('button', { name: performerNames[0], exact: true });
-	await avery.waitFor({ state: 'visible' });
-	if ((await avery.getAttribute('aria-pressed')) !== 'true') {
-		throw new Error(`${performerNames[0]} was not preselected for the tagged Verse 2 phrase`);
-	}
-	const blair = picker.getByRole('button', { name: performerNames[1], exact: true });
-	if ((await blair.getAttribute('aria-pressed')) !== 'false') {
-		throw new Error(`${performerNames[1]} was selected for the Avery-only Verse 2 phrase`);
-	}
-	await page.waitForTimeout(400);
 }
 
 /** The performer detail scene: a populated roster, then the full song. */

@@ -941,5 +941,9 @@ and navigation. The editor retains rounded corners on its filled surface; the pl
 window chrome, with extra clearance above the footer. Large outlines and a second
 full-width filled rectangle added shapes without clarifying ownership.
 
+Without a media transport, the editor's bottom inset matches its left inset, including
+the smaller inset at narrow widths. Its rounded foot stays clear of the window edge
+in both empty and populated documents, including expanded writing.
+
 The smaller mobile inset, scroll ownership, and full-sized action targets remain.
 YouTube's visible frame stays below the tool content. See the media decision record.

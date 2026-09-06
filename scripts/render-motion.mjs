@@ -44,15 +44,16 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { chromium } from 'playwright';
+import { filmHeroScene } from './hero-shot-scene.mjs';
+import { createKeyOverlay } from './key-overlay.mjs';
 import { renderMobileLoop } from './render-mobile-loop.mjs';
 import { writeShotDimensions } from './write-shot-dimensions.mjs';
 import {
-	assertHeroSelection,
 	harperTranscription,
 	installPlayerScene,
 	playerShotRegion,
 	playerLineTimes,
-	prepareHeroScene,
+	installHeroScene,
 	preparePlayerScene,
 	preparePerformerScene,
 	selectionPoints,
@@ -127,6 +128,8 @@ const CURSOR_SCRIPT = `
 	document.head.appendChild(steady);
 
 	window.__shotCursor = (x, y, press) => {
+		const parent = document.querySelector('dialog:modal') ?? document.body;
+		if (host.parentElement !== parent) parent.append(host);
 		const arrow = document.getElementById('__shot_arrow');
 		const ring = document.getElementById('__shot_ring');
 		/* The path's tip is at 1.5,1.5, so the hotspot is offset by that much and
@@ -166,6 +169,7 @@ async function main() {
 		});
 
 		if (mediaScene) await installPlayerScene(page);
+		if (hero) await installHeroScene(page);
 		await page.goto(`${origin}/workbench/`);
 		const editor = await waitForWorkbench(page);
 
@@ -176,9 +180,9 @@ async function main() {
 			await page.clock.install();
 			await page.clock.pauseAt(new Date(Date.now() + 100));
 		} else if (hero) {
-			// The whole hero scene, shared with the still it opens on — the loop's
-			// first frame has to *be* that picture.
-			await prepareHeroScene(page, editor);
+			// The film starts blank; the same song's populated still covers loading.
+			await page.clock.install();
+			await page.clock.pauseAt(new Date(Date.now() + 100));
 		} else if (harper) {
 			await editor.click();
 			await page.keyboard.press('Control+A');
@@ -213,13 +217,7 @@ async function main() {
 		 * opens the way the workbench opens, and what the hover adds is the half a
 		 * diff cannot carry: the message, the source it comes from, and the button.
 		 */
-		/*
-		 * **The hero scene is exempt from both halves, and that is not an
-		 * oversight.** Its opening state is the still's, which is a *selection*: the
-		 * phrase the performer picker is open over. `Control+Home` would collapse it
-		 * and take the picker with it, and the caret it parks at the top is a caret
-		 * the still does not have either. `prepareHeroScene` has already blurred.
-		 */
+		// The hero opens on a blank document; media scenes prepare their own caret.
 		if (!hero && !mediaScene) {
 			await page.keyboard.press('Control+Home');
 			await page.evaluate(() =>
@@ -340,24 +338,14 @@ async function main() {
 		let cursor = { ...restPosition };
 		let frameIndex = 0;
 		let filmSpeed = 1;
-		let keyUntil = 0;
-		let shownKey = '';
-		let shownAction = '';
-		let keyCount = 0;
+		const keys = player || hero ? await createKeyOverlay(page) : null;
 		let phase = '';
 		let syncStartFrame = 0;
 		let syncEndFrame = 0;
-		if (player) {
+		if (player || hero) {
 			await page.evaluate(() => {
-				const badge = document.createElement('div');
-				badge.id = '__shot_keys';
-				badge.setAttribute('aria-hidden', 'true');
-				badge.style.cssText = `position:fixed;z-index:2147483646;pointer-events:none;
-					display:none;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);
-					border:var(--border-width) solid var(--color-border-strong);border-radius:var(--radius-control);
-					background:var(--color-overlay);color:var(--color-text);box-shadow:var(--shadow-overlay);
-					font:var(--font-weight-semibold) var(--font-size-md) var(--font-ui);transform:translate(-50%,-50%);`;
-				const speed = badge.cloneNode(false);
+				const speed = document.createElement('div');
+				speed.setAttribute('aria-hidden', 'true');
 				speed.id = '__shot_speed';
 				speed.style.cssText =
 					'position:fixed;z-index:2147483646;pointer-events:none;display:none;transform:translate(-50%,-50%)';
@@ -374,60 +362,42 @@ async function main() {
 					</filter></defs>
 					<path d="M12 12 62 40 12 68Z M66 12 116 40 66 68Z" fill="#fff" stroke="#161616" stroke-width="2"/>
 				</svg>`;
-				badge.innerHTML = '<kbd></kbd><span class="count"></span><span class="action"></span>';
-				badge.querySelector('.count').style.cssText =
-					'min-width:3ch;font-variant-numeric:tabular-nums';
-				badge.querySelector('kbd').style.cssText =
-					'font:inherit;border:var(--border-width) solid var(--color-border-strong);border-radius:var(--radius-sm);padding:var(--space-1) var(--space-2)';
 				const tracking = document.createElement('div');
 				tracking.id = '__shot_tracking';
 				tracking.setAttribute('aria-hidden', 'true');
 				tracking.style.cssText = `position:fixed;z-index:2147483645;pointer-events:none;display:none;height:6px;
 					background:repeating-linear-gradient(90deg,transparent 0 2px,#fff8 2px 3px,transparent 3px 7px,#fff3 7px 9px);`;
-				document.body.append(tracking, badge, speed);
+				document.body.append(tracking, speed);
 			});
 		}
-		const pressKey = async (key, label, action = '') => {
-			keyCount =
-				shownKey === label && (phase === 'sync' || frameIndex / FPS < keyUntil) ? keyCount + 1 : 1;
-			shownKey = label;
-			shownAction = action;
-			keyUntil = frameIndex / FPS + 1.1;
-			await page.keyboard.press(key);
-		};
+		const pressKey = (key, label, action = '') =>
+			keys.press(key, {
+				at: frameIndex / FPS,
+				label,
+				action,
+				continueCount: phase === 'sync',
+				showCount: label === 'Space'
+			});
 
 		const capture = async (press = 0, samples = FPS / BEATS_PER_SECOND) => {
-			if (mediaScene) {
+			if (mediaScene || hero) {
 				await page.evaluate(
 					(seconds) => window.__shotAdvance(seconds),
 					(samples / FPS) * filmSpeed
 				);
 				await page.clock.runFor((samples / FPS) * 1000 * filmSpeed);
 			}
-			if (player) {
-				const key = frameIndex / FPS < keyUntil ? shownKey : '';
-				const action = key ? shownAction : '';
-				await page.evaluate(
-					({ key, action, phase, keyCount, filmSpeed, frameIndex }) => {
-						const badge = document.querySelector('#__shot_keys');
+			if (player || hero) {
+				const center = await page.evaluate(
+					({ phase, filmSpeed, frameIndex, hero }) => {
 						const speed = document.querySelector('#__shot_speed');
-						const media = document.querySelector('.workspace-media').getBoundingClientRect();
+						const media = document.querySelector('.workspace-media')?.getBoundingClientRect();
 						const editor = document.querySelector('.editor-region').getBoundingClientRect();
-						const identity = document
-							.querySelector('.media-artwork__identity')
-							.getBoundingClientRect();
-						badge.style.left = `${media.left + media.width * 0.57}px`;
-						badge.style.top = `${identity.top + identity.height / 2}px`;
-						badge.style.display = key ? 'flex' : 'none';
-						badge.querySelector('kbd').textContent = key;
-						badge.querySelector('kbd').style.display = key ? '' : 'none';
-						badge.querySelector('.count').textContent = `× ${keyCount}`;
-						badge.querySelector('.count').style.display =
-							key === 'Space' || keyCount > 1 ? '' : 'none';
-						badge.querySelector('.action').textContent = action;
-						badge.querySelector('.action').style.display = action ? '' : 'none';
-						speed.style.left = `${editor.left + editor.width / 2}px`;
-						speed.style.top = `${(editor.top + media.bottom) / 2}px`;
+						const centerX = editor.left + editor.width / 2;
+						const bottom = media?.bottom ?? editor.bottom;
+						const centerY = (editor.top + bottom) / 2;
+						speed.style.left = `${centerX}px`;
+						speed.style.top = `${centerY - 72}px`;
 
 						// VHS scan distortion follows the supplied rewind reference, played forward.
 						// Affect the footage; keep the tutorial icon and key counter clean.
@@ -436,21 +406,30 @@ async function main() {
 							.querySelector('.wave')
 							.setAttribute('baseFrequency', `0 ${0.022 + 0.004 * Math.sin(frameIndex * 0.12)}`);
 						speed.querySelector('feDisplacementMap').setAttribute('scale', String(36 * strength));
+						// Fine random grain dominates a full-window encode. The hero keeps
+						// the tape texture coarser and lighter at its larger resolution.
+						speed.querySelector('.grain').setAttribute('baseFrequency', hero ? '.16' : '.8');
 						speed
 							.querySelector('.grain')
 							.setAttribute('seed', String((Math.floor(frameIndex / 8) % 4) + 1));
-						speed.querySelector('feFuncA').setAttribute('slope', String(0.22 * strength));
+						speed
+							.querySelector('feFuncA')
+							.setAttribute('slope', String((hero ? 0.1 : 0.22) * strength));
 						document.querySelector('.workspace').style.filter = phase ? 'url(#shot-tape)' : '';
 						const tracking = document.querySelector('#__shot_tracking');
 						tracking.style.display = phase ? 'block' : 'none';
 						tracking.style.left = `${editor.left}px`;
 						tracking.style.width = `${editor.width}px`;
-						tracking.style.top = `${editor.top + ((frameIndex * 7) % (media.bottom - editor.top - 6))}px`;
+						tracking.style.top = `${editor.top + ((frameIndex * 7) % (bottom - editor.top - 6))}px`;
 						tracking.style.opacity = String(strength * 0.3);
 						speed.style.display = phase ? 'flex' : 'none';
+						return hero
+							? { x: editor.left + 205, y: editor.bottom - 52 }
+							: { x: centerX, y: centerY };
 					},
-					{ key, action, phase, keyCount, filmSpeed, frameIndex }
+					{ phase, filmSpeed, frameIndex, hero }
 				);
+				await keys.render(frameIndex / FPS, center);
 			}
 			if (song) {
 				const metadata = await page.locator('.song-panel > section').first().boundingBox();
@@ -624,292 +603,6 @@ async function main() {
 		}
 
 		/*
-		 * The hero scene: a whole transcription cleaned, finding by finding, and
-		 * then wound back so it can be watched again.
-		 *
-		 * The still this replaces could show a workbench with findings in it. What
-		 * it could not show is the thing anybody actually wants to know before
-		 * pasting a transcription into a stranger's website — that pressing the
-		 * buttons empties the panel, and that what is left is their song with the
-		 * markup right. So the loop is the queue going to zero, in the product's own
-		 * time, with nothing cut.
-		 *
-		 * ## What the run is allowed to press
-		 *
-		 * Only what the panel offers. There is no scripted list of rules and no
-		 * hand-written repair anywhere in here: at every step it presses whatever
-		 * the leading card carries, which is the same press a reader makes, and the
-		 * order it works in is `diagnostics/order.ts`. A rule that changed its fix,
-		 * its label or its position changes the film rather than breaking it.
-		 *
-		 * That is also the honest reason the scene needs no manual editing. A
-		 * finding whose card offered no way out would stop this run dead — and one
-		 * does, so it is worth naming: **the bulk fix creates the link
-		 * suggestion.** Bracketing the two written-out `Chorus:` labels is what
-		 * turns them into real sections, which is what lets
-		 * `section.unlinked-repeat` see a repeat at all, and its answer is a guided
-		 * action rather than a text edit. The run takes it — opens the picker, ticks
-		 * the second chorus, applies — because that is the answer the product gives.
-		 *
-		 * And it is the best thing in the loop. From there every chorus fix lands in
-		 * both copies at once through the link's own mirror, so the counter falls by
-		 * two and four at a time and the last eight findings go in six presses. The
-		 * feature demonstrates itself, in the middle of a video about something
-		 * else, without a word of copy.
-		 *
-		 * ## The rewind
-		 *
-		 * A loop has to come back, and there are only two ways: cut to the start, or
-		 * undo. The cut is a splice — one frame where a finished song becomes a
-		 * broken one — which reads as the video having been edited, in a picture
-		 * whose entire argument is that nothing here is staged. So the pointer holds
-		 * the toolbar's own Undo down and the document rewinds under it, which is a
-		 * true statement about the workbench as well as a way home: every one of
-		 * these presses is one undo step, including the batch of five.
-		 *
-		 * It stops on the *document*, not on a count of presses. The bulk fix was
-		 * the first edit of the run, and the thing it did first was bracket line 1 —
-		 * so the moment that line reads `Verse 1:` again, the run is exactly undone
-		 * and the performer assignment underneath it is untouched. Counting presses
-		 * instead would mean knowing whether applying a link that moved no text
-		 * costs a history entry, which is a question this script should not have an
-		 * opinion about.
-		 */
-		async function filmHero() {
-			const findings = () =>
-				page.evaluate(() => document.querySelectorAll('.diagnostic-list > li').length);
-
-			/**
-			 * Wait for the workbench, *without* filming the wait.
-			 *
-			 * This is the same argument the header of this file makes for frames over
-			 * a screen recording: the timing is declared rather than observed. A lint
-			 * is memoized and an atomic edit skips the settle, so these waits are
-			 * short — but they are a busy machine's to vary, and a loop that came out
-			 * three seconds longer on a laptop under load would not be the same loop.
-			 */
-			const until = async (predicate, what) => {
-				const deadline = Date.now() + 25_000;
-				for (;;) {
-					if (await predicate()) return;
-					if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
-					await page.waitForTimeout(80);
-				}
-			};
-
-			/** The centre of a box that may not be there, for asking which it is. */
-			const maybe = async (selector) =>
-				page.evaluate((sel) => {
-					const el = document.querySelector(sel);
-					if (!el) return undefined;
-					const r = el.getBoundingClientRect();
-					return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-				}, selector);
-
-			/**
-			 * Arrive at a control, *read what it is about*, and press it.
-			 *
-			 * The dwell is the whole difference between a demo and a macro. Pressed
-			 * the moment the pointer lands, the run reads as a script executing —
-			 * fourteen buttons hit at machine speed, with no frame in which anybody
-			 * could have decided anything — and a viewer's honest conclusion is that
-			 * the fixes were never looked at. Which is the opposite of what this
-			 * product asks of them: every one of these cards is a suggestion with a
-			 * source, and the transcriber is supposed to weigh it.
-			 *
-			 * **It is graded rather than constant, because that is what a person
-			 * actually does.** The first card is a card nobody has seen before, so it
-			 * gets read whole — message, explanation, the Genius guideline under it —
-			 * and the second gets most of that. By the third the shape is familiar and
-			 * what is left to check is the one line that changed, which is a glance.
-			 * A constant dwell long enough for the first card would spend forty
-			 * seconds proving the reader can still read; one short enough for the
-			 * fourteenth is the macro. Anything with a new surface in it — the bulk
-			 * strip, the link picker — resets to the slow end, because there is
-			 * something unfamiliar on screen again.
-			 */
-			const dwellFor = (step) => (step === 0 ? 28 : step === 1 ? 18 : step < 4 ? 12 : 9);
-			const settleFor = (step) => (step === 0 ? 18 : step === 1 ? 12 : 8);
-
-			/** Read, press, let the surface answer off camera, then hold on the result. */
-			const press = async (dwell, settle, expect) => {
-				await hold(dwell);
-				await clickHere(0);
-				if (expect) await until(expect.test, expect.what);
-				await hold(settle);
-			};
-
-			const start = await findings();
-			if (start === 0) throw new Error('the hero scene opened with nothing to fix');
-
-			// A beat on the opening picture before anything moves. The loop restarts
-			// here, and a viewer arriving mid-scroll needs a moment on the workbench
-			// as it stands before the pointer starts changing it.
-			await hold(12);
-
-			// ── 1. Every safe fix in the panel, in one press and one undo step.
-			//       The performer picker the scene opens on goes here, dismissed by
-			//       the outside press like every other transient surface.
-			await glide(await centreOf('.linter-panel__bulk button'), 16);
-			await press(20, 20, {
-				test: async () => (await findings()) < start,
-				what: 'the bulk fix to land'
-			});
-
-			// ── 2. Whatever the leading card offers, until the panel is empty. Only
-			//       the expanded card renders an action row, so the selectors below
-			//       can afford to be this blunt: there is only ever one.
-			let left = await findings();
-			for (let step = 0; left > 0; step += 1) {
-				if (step > 40) throw new Error(`the fix run did not converge; ${left} left`);
-				const before = left;
-				const fix =
-					(await maybe('.diagnostic-actions__fix')) ??
-					(await maybe('.diagnostic-actions__fix-all'));
-
-				if (fix) {
-					await glide(fix, step === 0 ? 10 : 7);
-					await press(dwellFor(step), settleFor(step), {
-						test: async () => (await findings()) < before,
-						what: 'the fix to land'
-					});
-				} else {
-					// The guided answer — `section.unlinked-repeat`, and the reason the
-					// run needs no scripted repair. Linking is a state effect rather
-					// than a text edit, so it cannot arrive as a fix button.
-					const guided = await maybe('.diagnostic-actions__guided');
-					if (!guided) {
-						const stuck = await page.evaluate(
-							() =>
-								document
-									.querySelector('.diagnostic-list > li .diagnostic-list__navigate')
-									?.textContent?.trim() ?? '(no card)'
-						);
-						throw new Error(`nothing to press on «${stuck}»`);
-					}
-					// A card that offers something other than a fix is a card worth
-					// stopping on, so this whole branch runs at the slow end: it is a
-					// new question, and then a surface nothing else in the run has put
-					// on screen.
-					const detail = page.locator('.linking-detail');
-					await glide(guided, 9);
-					await press(22, 0);
-					await detail.waitFor({ state: 'visible', timeout: 10_000 });
-					await hold(20);
-
-					// The source is checked and disabled. Select the other chorus in
-					// Linking's persistent panel, then read the shared-lyrics outcome.
-					await glide(await centreOf('.linking-detail .members input:not(:disabled)'), 10);
-					await press(12, 22);
-
-					await glide(await centreOf('.linking-detail .actions .button--contrast'), 10);
-					await press(10, 0);
-					await detail.waitFor({ state: 'detached', timeout: 10_000 });
-					await hold(16);
-					// Linking remains the active tab after applying. Return to Review
-					// through its own control before reading or acting on its findings.
-					await glide(await centreOf('[role="tab"]', 'Review'), 10);
-					await press(10, 0);
-					await until(
-						async () => (await findings()) < before,
-						'the link to answer its own suggestion'
-					);
-					await hold(16);
-				}
-				left = await findings();
-			}
-
-			// ── 3. The empty panel, held. This is the frame the whole run is for,
-			//       and the one worth actually reading: a clean document beside a
-			//       panel that says so.
-			await hold(36);
-
-			/*
-			 * ── 4. The rewind. Two frames a press, so the document unwinds at about
-			 *       ten a second: fast enough to read as one gesture rather than as
-			 *       twenty edits, slow enough that the eye catches the markup coming
-			 *       back off. `.document-toolbar__history` is Undo then Redo, so the
-			 *       first is the one.
-			 */
-			await glide(await centreOf('.document-toolbar__history'), 16);
-			await hold(10);
-			const openedOn = async () =>
-				page.evaluate(() =>
-					(document.querySelector('.cm-line')?.textContent ?? '').startsWith('Verse 1:')
-				);
-			for (let undos = 0; !(await openedOn()); undos += 1) {
-				if (undos > 60) throw new Error('the rewind never reached the opening document');
-				await page.mouse.down();
-				await capture(0.5);
-				await page.mouse.up();
-				await capture(0.15);
-			}
-			await until(async () => (await findings()) === start, 'the opening findings to come back');
-			await hold(10);
-
-			/*
-			 * ── 5. Back to the picture the loop opened on. The document is already
-			 *       there; what is left is the two things the still's own setup does
-			 *       after pasting — the leading card open, and the phrase selected
-			 *       with the picker over it — so they are made here the same way,
-			 *       with the pointer, rather than dispatched behind the frames.
-			 */
-			await page.evaluate(() => {
-				// The one thing that is reset rather than performed. A list that lost
-				// its scroll during the run would put the opening frame's own cards
-				// somewhere else, and there is no gesture that means "back to the top"
-				// worth spending three seconds of a loop on.
-				for (const el of document.querySelectorAll('.right-panel__pane, .diagnostic-list')) {
-					el.scrollTop = 0;
-				}
-			});
-			await glide(await centreOf('.diagnostic-list__navigate'), 14);
-			if (
-				(await page.locator('.diagnostic-list__navigate').first().getAttribute('aria-expanded')) !==
-				'true'
-			) {
-				await clickHere(0);
-			}
-			await page.waitForTimeout(600);
-			await hold(6);
-
-			await page.getByRole('textbox', { name: 'Lyrics editor' }).focus();
-			await page.keyboard.press('ArrowLeft');
-			const points = await selectionPoints(page);
-			await glide(points.from, 14);
-			await page.mouse.move(points.from.x, points.from.y);
-			await page.mouse.down();
-			await capture(0.05);
-			await glide(points.to, 12, { dragging: true });
-			await page.mouse.up();
-			await capture();
-			await page.locator('.picker-layer .picker').waitFor({ state: 'visible', timeout: 10_000 });
-			// The same assertion the still makes: Avery comes up pressed because the
-			// document says so, not because anything here pressed a name.
-			await assertHeroSelection(page);
-			await hold(6);
-
-			await glide(restPosition, 14);
-			await hold(30);
-
-			const final = await page.evaluate(() => ({
-				count: document.querySelectorAll('.diagnostic-list > li').length,
-				text: [...document.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n')
-			}));
-			if (final.count !== start) {
-				throw new Error(`the rewind left ${final.count} findings, not the ${start} it opened on`);
-			}
-			// The rewind has to stop *above* the performer assignment: it is part of
-			// the picture the loop opens on, and one undo too many takes it off.
-			if (
-				!/\[Verse 2: .+\]/.test(final.text) ||
-				!/<i>Somewhere past the bridge<\/i>/.test(final.text)
-			) {
-				throw new Error(`the rewind undid the performer assignment:\n${final.text}`);
-			}
-		}
-
-		/*
 		 * The grammar scene. One finding, hovered the way a reader hovers it, read,
 		 * and fixed — which is the whole of what this section claims and the half a
 		 * still cannot show: that the button beside the explanation does what the
@@ -1007,7 +700,7 @@ async function main() {
 			syncEndFrame = frameIndex;
 			filmSpeed = 1;
 			phase = '';
-			if (keyCount !== playerLineTimes.length)
+			if (keys.count !== playerLineTimes.length)
 				throw new Error('Space presses were not deduplicated');
 			if ((await playback()).playing) throw new Error('the completed sync did not pause');
 			await page.mouse.wheel(0, -700);
@@ -1125,7 +818,21 @@ async function main() {
 			: song
 				? filmSong()
 				: hero
-					? filmHero()
+					? filmHeroScene({
+							page,
+							editor,
+							hold,
+							glide,
+							clickHere,
+							pressKey,
+							restPosition,
+							setSpeed(speed) {
+								if (speed > 1 && !phase) syncStartFrame = frameIndex;
+								if (speed === 1 && phase) syncEndFrame = frameIndex;
+								filmSpeed = speed;
+								phase = speed > 1 ? 'transcribe' : '';
+							}
+						})
 					: harper
 						? filmHarper()
 						: filmPerformers());
@@ -1167,16 +874,17 @@ async function main() {
 		// VP9 at the capture's own 2x, because this is what the page plays and a
 		// product shot is scaled down in the layout — a 1x encode set into the
 		// frame is visibly soft on every display anybody reads that page on.
-		const segments = player
-			? [
-					{ start: 0, end: syncStartFrame, lossless: true },
-					{ start: syncStartFrame, end: syncEndFrame, lossless: false },
-					{ start: syncEndFrame, end: frames.length, lossless: true }
-				]
-			: [{ start: 0, end: frames.length, lossless: false }];
+		const segments =
+			player || hero
+				? [
+						{ start: 0, end: syncStartFrame, lossless: true },
+						{ start: syncStartFrame, end: syncEndFrame, lossless: false },
+						{ start: syncEndFrame, end: frames.length, lossless: true }
+					]
+				: [{ start: 0, end: frames.length, lossless: false }];
 		const parts = [];
 		for (const [index, segment] of segments.entries()) {
-			const output = player ? join(frameDir, `part-${index}.webm`) : webmPath;
+			const output = player || hero ? join(frameDir, `part-${index}.webm`) : webmPath;
 			await run('ffmpeg', [
 				'-y',
 				'-start_number',
@@ -1191,9 +899,10 @@ async function main() {
 				'-pix_fmt',
 				'yuv420p',
 				'-crf',
-				segment.lossless ? '0' : '30',
+				segment.lossless ? '0' : hero ? '40' : '30',
 				// Random VHS grain needs compression. The clear sections stay lossless:
 				// lossy motion prediction previously smeared lyric glyphs after seeks.
+				// The full-window hero spends fewer bits on its accelerated grain.
 				...(segment.lossless ? ['-lossless', '1', '-auto-alt-ref', '0'] : []),
 				'-b:v',
 				'0',
@@ -1206,7 +915,7 @@ async function main() {
 			]);
 			parts.push(`file 'part-${index}.webm'`);
 		}
-		if (player) {
+		if (player || hero) {
 			const list = join(frameDir, 'parts.txt');
 			await writeFile(list, parts.join('\n'));
 			await run('ffmpeg', ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', webmPath]);
@@ -1222,8 +931,8 @@ async function main() {
 		 * three times the pixels, five times the frames, and both halves of it
 		 * changing at once as the panel empties beside a document being rewritten.
 		 * The result is tens of megabytes, which is not a thing anybody drops into
-		 * a README or a post. What serves that job here is the still: this loop's
-		 * own opening frame, already generated by `render-workbench-shot.mjs` and
+		 * a README or a post. What serves that job here is the same song's populated
+		 * still, already generated by `render-workbench-shot.mjs` and
 		 * already what `README.md` points at.
 		 */
 		if (hero) {

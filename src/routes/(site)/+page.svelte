@@ -312,26 +312,17 @@ You said we'd drive until the radio gave out (yeah)`;
 				</span>
 			</p>
 
-			<!-- Filmed by `scripts/render-motion.mjs --hero`, which drives the real
-			     workbench in a real browser; the poster is the same scene's still
-			     from `render-workbench-shot.mjs`, which is to say frame one.
+			<!-- The City Lights scene in `scripts/hero-shot-scene.mjs` drives the real
+			     workbench from a blank draft through YouTube attachment, transcription,
+			     replay, review, and linked chorus corrections. The author authorized
+			     the lyrics and artwork; only the capture provider clock is simulated.
 
-			     **A still could show a workbench with findings in it. It could not
-			     show the panel emptying**, which is the one thing a reader wants to
-			     know before pasting a transcription into a stranger's website — so
-			     the hero is the whole run: every safe fix in one press, then card
-			     after card, then the two choruses linked so each later fix lands in
-			     both at once, then nothing left to report. It rewinds by holding
-			     the toolbar's own Undo rather than cutting, because a cut is one
-			     frame where a finished song becomes a broken one, which reads as
-			     the video having been edited in a picture whose whole argument is
-			     that nothing here is staged.
-
-			     The responsive image carries frame one at the video's exact ratio.
-			     It stays above the video until a decoded frame can replace it. There
-			     is no native poster: that would download the full-size image as well
-			     as the responsive candidate. `preload="none"` leaves playback to the
-			     observer; without JavaScript or with reduced motion the still stays. -->
+			     The responsive still shows the same song populated in Review, at the
+			     video's exact ratio, rather than the blank opening frame. It stays
+			     above the video until a decoded frame can replace it. There is no
+			     native poster, avoiding a duplicate full-size download. `preload="none"`
+			     leaves playback to the observer; without JavaScript or with reduced
+			     motion the still stays. -->
 			<div class="lp-shot">
 				<div class="lp-shot__frame">
 					<img
@@ -355,7 +346,7 @@ You said we'd drive until the radio gave out (yeah)`;
 						{@attach autoplayInView}
 						width={shotDimensions['workbench.webm'].width}
 						height={shotDimensions['workbench.webm'].height}
-						aria-label="The workbench checks a transcription with Avery and Blair marked in colour. Five fixes are applied at once, followed by individual fixes. The two choruses are linked so later edits update both. The findings clear, then the document rewinds."
+						aria-label="City Lights is attached through YouTube in a blank draft. A phrase is transcribed, then playback resumes two seconds earlier to hear it again. On-screen keys show the shortcuts. The remaining typing speeds up, a section header is corrected, and the choruses are linked while preserving their different ad-libs. Two spelling fixes update both choruses, leaving no findings."
 						loop
 						muted
 						playsinline

@@ -48,6 +48,10 @@
 		margin-inline: var(--space-2);
 	}
 
+	.workspace:not(:has(.media-strip)) .editor-region {
+		margin-bottom: var(--space-2);
+	}
+
 	.right-panel {
 		grid-row: 3;
 		border-top: 0;

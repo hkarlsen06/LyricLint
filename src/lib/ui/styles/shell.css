@@ -81,6 +81,11 @@
 	border-radius: var(--radius-panel);
 }
 
+/* Without a transport below it, keep the rounded document clear of the window edge. */
+.workspace:not(:has(.media-strip)) .editor-region {
+	margin-bottom: var(--space-4);
+}
+
 /*
  * The editor column's commands, as a tray over the top-right corner of the
  * document.
