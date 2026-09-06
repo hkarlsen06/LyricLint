@@ -62,6 +62,7 @@ export async function recoverStartupDraft(
 		// the media record in the same transaction.
 		if (
 			draft.text.trim().length === 0 &&
+			// oxlint-disable-next-line anti-slop/no-runtime-typeof -- Stored partial records can violate DraftRecord; preserve any nonempty link without trusting its runtime type.
 			!(typeof draft.geniusUrl === 'string' && draft.geniusUrl.trim().length > 0) &&
 			(await media?.get(draft.id)) === undefined
 		) {

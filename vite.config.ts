@@ -203,7 +203,7 @@ export default defineConfig(({ mode }) => ({
 		migrationRedirects(),
 		sveltekit({
 			// Fixture credentials and generated output stay outside deployment builds.
-			...(mode === 'capture' ? { outDir: '.svelte-kit-capture' } : {}),
+			...(mode === 'capture' ? { outDir: '.svelte-kit-capture' } : undefined),
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
 				runes: ({ filename }) =>
@@ -214,7 +214,7 @@ export default defineConfig(({ mode }) => ({
 			// asset must remain a 404 rather than becoming 200 text/html.
 			adapter: adapter({
 				fallback: '404.html',
-				...(mode === 'capture' ? { pages: 'build-capture', assets: 'build-capture' } : {})
+				...(mode === 'capture' ? { pages: 'build-capture', assets: 'build-capture' } : undefined)
 			}),
 			/**
 			 * The Content-Security-Policy, carried by SvelteKit rather than by
