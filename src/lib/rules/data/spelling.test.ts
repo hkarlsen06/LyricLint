@@ -6,6 +6,43 @@ function replacements(text: string, language = 'en-US'): string[] {
 }
 
 describe('standardized spelling data', () => {
+	it('keeps cached lookups independent of language, context, offsets, case and caller mutation', () => {
+		const text = 'tryne';
+		const first = lookupSpellingCandidates(text, { language: 'en' });
+		expect(first[0]).toMatchObject({ from: 0, to: 5, replacement: 'tryna', fuzzy: true });
+		first[0].replacement = 'corrupted';
+		first.length = 0;
+		expect(replacements(text, 'no')).toEqual([]);
+		expect(replacements(text, 'en')).toEqual(['tryna']);
+		expect(replacements('TRYNE', 'en')).toEqual(['TRYNA']);
+		expect(lookupSpellingCandidates('😀 tryne', { language: 'en' })[0]).toMatchObject({
+			from: 3,
+			to: 8,
+			replacement: 'tryna'
+		});
+		expect(replacements('ei jente', 'no')).toEqual([]);
+		expect(replacements('ei, jente', 'no')).toEqual(['ayy']);
+		expect(replacements('ei jente', 'no')).toEqual([]);
+	});
+
+	it('preserves spelling decisions after cache eviction and on lines too long to cache', () => {
+		const text = 'Shawdy tryne';
+		const expected = lookupSpellingCandidates(text, { language: 'en' });
+		for (let index = 0; index < 2_100; index += 1) {
+			const word = `zz${String.fromCharCode(97 + (index % 26))}${String.fromCharCode(97 + (Math.floor(index / 26) % 26))}${String.fromCharCode(97 + Math.floor(index / 676))}zz`;
+			lookupSpellingCandidates(word, { language: 'en' });
+		}
+		expect(lookupSpellingCandidates(text, { language: 'en' })).toEqual(expected);
+		const prefix = 'z'.repeat(2_100) + ' ';
+		expect(lookupSpellingCandidates(prefix + text, { language: 'en' })).toEqual(
+			expected.map((candidate) => ({
+				...candidate,
+				from: candidate.from + prefix.length,
+				to: candidate.to + prefix.length
+			}))
+		);
+	});
+
 	it('encodes every reviewed row, including accepted variants', () => {
 		expect(standardizedSpellings).toHaveLength(29);
 		expect(

@@ -1,7 +1,7 @@
 # The rules catalog: tiers, shared predicates, Harper, and how a rule ships
 
 Touches: `src/lib/rules/catalog/`, `src/lib/rules/harper.ts`, `src/lib/rules/registry.ts`,
-`src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/rule-set.ts`, `src/lib/ui/state/wiring.ts`,
+`src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, `src/lib/rules/data/rule-set.ts`, `src/lib/ui/state/wiring.ts`,
 `src/lib/rules/catalog/policy-cases.ts`, `services/rules-assistant/`
 
 ## The rules
@@ -59,6 +59,12 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/harper.ts`, `src/lib/rules/reg
 - Shorthand expansion (`spelling.texting-shorthand`) is gated on one question — does anybody
   sing the letters? — never a `safe` fix, never mirrors the token's case beyond a leading
   capital, and leaves neighbouring sets to the rules that own them.
+
+- Spelling memoization retains only line-local candidates keyed by the complete text and language,
+  rather than complete diagnostics. Ranges, revisions and performer state are never cached
+  at the diagnostic level. Cache size and retained text lengths are bounded, and returned
+  candidates cannot mutate stored results. `data/spelling.test.ts` pins context, language, casing,
+  UTF-16 offsets, caller mutation, eviction and oversized lines.
 
 ## Decision record
 
@@ -363,7 +369,7 @@ lookup — a map of misspellings, a set of expansions, a list of preferred forms
 assistant as its one reviewed example and nothing else, because the corpus derives a rule the way
 the reference page does. `spelling.standardized` shipped that way: asked what the standardized
 spellings are, the assistant could see exactly one pair and said so. Export the table and add it to
-`ruleLookupTables()` in `src/lib/rules/lookup-tables.ts`, which carries per-entry fix behavior — a
+`ruleLookupTables()` in `src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, which carries per-entry fix behavior — a
 rule's `fixability` is a ceiling, not what every row of its table gets — and keeps LyricLint's own
 curated misspellings labelled apart from the reviewed forms. `services/rules-assistant/README.md`
 is where the rest of that decision is written down, including why a reviewed source is still a
@@ -561,3 +567,31 @@ Two shape changes rode along, and each closes a hole the old shape had:
 Ruleset `2026.08.27.0`; both rules bumped to version 3, corpus regenerated. The regressions are
 `performer-inline-mismatch.test.ts` (consolidation, legendless silence) and the pinned
 `toHaveLength(1)` in `catalog-policy.test.ts`.
+
+### Rechecking an unchanged lyric should not rediscover every spelling
+
+Profiling the native rules found `spelling.standardized` spending most of its time rebuilding
+fuzzy candidates for words it had just read. Every keystroke runs the full catalog, yet most lines
+and most words are unchanged. The lookup has only two inputs — line text and language — so those
+are sufficient to reuse its result without reusing any document state.
+
+`lookupSpellingCandidates` now keeps up to 1,000 line/language results, each limited to 2,048
+UTF-16 units with a language tag no longer than 64 units, and returns fresh candidate objects.
+Longer input still receives the same checks; it simply is not retained. Reaching the limit clears
+the map, so an unusually large paste has a fixed retained-memory ceiling. The cold fuzzy path
+indexes preferred forms by Unicode code-point length, walks only candidates within one character
+of the token length, and stops once ambiguity is proven instead of allocating intermediate arrays
+for every word.
+
+Only the pure lookup is reused. Contextual exact matches still depend on the entire line and its
+language; fuzzy matching stays English-only. Diagnostic construction still applies the current
+line offset and revision on every run, and the performer roster is not an input to this spelling
+lookup. Caching complete diagnostics here would violate those contracts.
+
+`scripts/benchmark-lint.ts` measures parse plus all native rules across successive typing
+revisions of 24-, 80- and 800-line lyrics and a unique-token workload that exceeds the cache
+limit. It prints timing distributions and SHA-256 digests of complete parsed documents and
+findings, allowing revisions to be compared without trading correctness for throughput. Build it
+with `bun build scripts/benchmark-lint.ts --target=node --outfile=/tmp/benchmark-lint.mjs` and
+run with Node to measure V8; run directly with Bun to measure JavaScriptCore. These measurements
+exclude asynchronous Harper, rendering and language detection outside the native rule pass.

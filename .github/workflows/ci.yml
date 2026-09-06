@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# A newer PR commit supersedes its checks; production pushes still finish their gates.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   checks:
     name: checks
@@ -25,7 +30,21 @@ jobs:
             ${{ runner.os }}-bun-
       - run: bun install --frozen-lockfile
       - run: bun run check
-      - run: bun run lint
+      # Content hashes survive checkout timestamp changes. The restore prefix is
+      # bounded by dependencies/configuration: Prettier does not invalidate its
+      # own cache when a plugin changes. See docs/ci.md.
+      - name: Cache lint results
+        uses: actions/cache@v6
+        with:
+          path: node_modules/.cache/ci-lint
+          key: ${{ runner.os }}-lint-v1-${{ hashFiles('bun.lock', 'package.json', 'eslint.config.js', 'prettier.config.js', '.prettierignore', '.gitignore', '**/tsconfig.json', 'vite.config.ts') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-lint-v1-${{ hashFiles('bun.lock', 'package.json', 'eslint.config.js', 'prettier.config.js', '.prettierignore', '.gitignore', '**/tsconfig.json', 'vite.config.ts') }}-
+      - name: Lint
+        run: |
+          bunx prettier --check . --cache --cache-strategy content --cache-location node_modules/.cache/ci-lint/prettier
+          bunx oxlint
+          bunx eslint . --cache --cache-strategy content --cache-location node_modules/.cache/ci-lint/eslint
       - run: bunx playwright install --with-deps chromium
       - run: bun run test:unit -- --run
 
@@ -60,7 +79,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
+      - run: bun run test:browsers
       - run: bunx playwright test
 
   # The production deploy depends on CI. Cloudflare Pages' own automatic

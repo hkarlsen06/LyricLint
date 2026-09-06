@@ -499,6 +499,44 @@ const fuzzySpellings = standardizedSpellings.flatMap((spelling) => {
 	];
 });
 
+// A one-edit candidate can differ by at most one Unicode code point. Index
+// once so a cold token visits only the preferred forms it can possibly match.
+const fuzzySpellingsByLength = new Map<
+	number,
+	{ spelling: StandardizedSpelling; value: string; characters: string[]; excluded: Set<string> }[]
+>();
+for (const { spelling, preferred, excluded } of fuzzySpellings) {
+	for (const candidate of preferred) {
+		for (
+			let length = candidate.characters.length - 1;
+			length <= candidate.characters.length + 1;
+			length += 1
+		) {
+			const bucket = fuzzySpellingsByLength.get(length) ?? [];
+			bucket.push({ spelling, ...candidate, excluded });
+			fuzzySpellingsByLength.set(length, bucket);
+		}
+	}
+}
+
+interface FuzzyMatch {
+	spelling: StandardizedSpelling;
+	preferred: string;
+}
+
+function uniqueFuzzyMatch(word: string): FuzzyMatch | null {
+	const normalized = normalizedSpelling(word);
+	const characters = Array.from(normalized);
+	let found: FuzzyMatch | null = null;
+	for (const candidate of fuzzySpellingsByLength.get(characters.length) ?? []) {
+		if (candidate.excluded.has(normalized)) continue;
+		if (!isSingleEditApart(characters, candidate.characters)) continue;
+		if (found) return null;
+		found = { spelling: candidate.spelling, preferred: candidate.value };
+	}
+	return found;
+}
+
 function htmlTokenRanges(text: string): Array<{ from: number; to: number }> {
 	return Array.from(text.matchAll(/<[^>]*>/gu), (match) => ({
 		from: match.index,
@@ -513,8 +551,34 @@ function intersectsHtml(
 	return htmlRanges.some((html) => range.from < html.to && html.from < range.to);
 }
 
+// Each lookup depends only on this line and its language. Keep the stored
+// candidates private: callers receive fresh objects so edits to their result
+// cannot poison the next revision. Both entry count and line length are bounded.
+const spellingCandidateCache = new Map<string, readonly SpellingCandidate[]>();
+const SPELLING_CACHE_LIMIT = 1_000;
+const SPELLING_CACHE_MAX_LINE_LENGTH = 2_048;
+
 /** Find sufficiently certain reviewed spelling candidates without touching literal HTML tags. */
 export function lookupSpellingCandidates(
+	text: string,
+	context: SpellingLookupContext
+): SpellingCandidate[] {
+	const cacheable = text.length <= SPELLING_CACHE_MAX_LINE_LENGTH && context.language.length <= 64;
+	const key = cacheable ? JSON.stringify([context.language, text]) : '';
+	const cached = cacheable ? spellingCandidateCache.get(key) : undefined;
+	if (cached) return cached.map((candidate) => ({ ...candidate }));
+	const candidates = computeSpellingCandidates(text, context);
+	if (cacheable) {
+		if (spellingCandidateCache.size >= SPELLING_CACHE_LIMIT) spellingCandidateCache.clear();
+		spellingCandidateCache.set(
+			key,
+			candidates.map((candidate) => ({ ...candidate }))
+		);
+	}
+	return candidates;
+}
+
+function computeSpellingCandidates(
 	text: string,
 	context: SpellingLookupContext
 ): SpellingCandidate[] {
@@ -581,20 +645,9 @@ export function lookupSpellingCandidates(
 				continue;
 			}
 
-			const normalized = normalizedSpelling(match[0]);
-			const characters = Array.from(normalized);
-			const matches = fuzzySpellings.flatMap(({ spelling, preferred, excluded }) =>
-				!excluded.has(normalized)
-					? preferred
-							.filter((candidate) => isSingleEditApart(characters, candidate.characters))
-							.map((candidate) => ({ spelling, preferred: candidate.value }))
-					: []
-			);
-			if (matches.length !== 1) {
-				continue;
-			}
-
-			const [{ spelling, preferred }] = matches;
+			const matchResult = uniqueFuzzyMatch(match[0]);
+			if (!matchResult) continue;
+			const { spelling, preferred } = matchResult;
 			const replacement = preserveSimpleCase(match[0], preferred);
 			candidates.push({
 				from,

@@ -15,8 +15,8 @@ Touches: `src/service-worker.ts`, `src/routes/+layout.svelte`, `src/routes/+erro
   until no page from the previous version is open. The worker's version decides nothing
   about freshness — it is only how good the offline copy is.
 - The precache is `/`, `/lint/`, static files, and non-wasm immutable assets; install copies
-  immutable assets forward from the previous cache; rules pages join the snapshot by being
-  read. The Harper wasm and the motion `.gif` stay excluded.
+  immutable assets forward from the previous cache, and misses reuse the HTTP cache; rules pages
+  join the snapshot by being read. The Harper wasm and the motion `.gif` stay excluded.
 - Registration is app code, not `kit.serviceWorker.register`: registered under `!dev`,
   **unregistered under `dev`** (an installed worker controls `localhost` until something
   takes it off). The error page's links carry `data-sveltekit-reload`.
@@ -111,3 +111,20 @@ Implementation: `src/service-worker.ts`, the registration and the version upgrad
 `src/routes/+layout.svelte`, the `serviceWorker` and `version` options in `vite.config.ts`, and
 the reload links in `src/routes/+error.svelte`.
 
+### Installation reuses the browser's immutable downloads
+
+An asset missing from the previous worker's CacheStorage is not necessarily missing from the
+browser: the first navigation already downloaded its modules before registering the worker.
+Using `cache: 'reload'` for immutable precache misses downloaded those identical bytes a second
+time. Install now lets the normal HTTP cache answer hashed asset requests; their content-addressed
+URLs and `static/_headers`'s one-year immutable policy make reuse safe. Static files retain their
+normal revalidation policy, and the two HTML snapshots still use `reload` so installing a new
+worker cannot preserve stale markup. Content-type validation, copying previous snapshots forward,
+and the offline set remain unchanged.
+
+`scripts/performance/precache.mjs` serves a production build with that immutable header and counts
+actual origin requests through three cold browser contexts per entry route. It does not intercept
+Playwright requests, which would disable the HTTP cache being measured. Body byte counts are
+uncompressed origin bytes rather than a claim about compressed CDN transfer. Run with `--verify`
+to assert zero duplicate immutable downloads and that every downloaded asset reached the snapshot.
+The offline reopen and snapshot-admission e2e tests continue to pin the offline behavior.
