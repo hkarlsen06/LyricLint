@@ -2050,3 +2050,18 @@
 .reference-disclosure[open] > summary {
 	margin-block-end: var(--space-3);
 }
+
+@media (pointer: coarse) {
+	/* Shared input selectors have specificity (0,0,1), so any class that
+	   sizes a field elsewhere in the system quietly outranks them — which is how
+	   the reference sections' search fields shipped at 13px under a finger and
+	   re-created the Safari focus-zoom this whole block exists to prevent. The
+	   raise is restated at the class's own specificity for the one field class
+	   that carries a size of its own (the finder owns its own size). A new field class that sets `font-size` needs a row here, or it
+	   reintroduces the lurch on the one device the test suite does not run on —
+	   `e2e/lyriclint.spec.ts` pins this one's computed size under a coarse
+	   pointer. */
+	.site-finder__search {
+		font-size: var(--font-size-lg);
+	}
+}

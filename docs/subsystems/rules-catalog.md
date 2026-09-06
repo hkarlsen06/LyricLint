@@ -2,7 +2,7 @@
 
 Touches: `src/lib/rules/catalog/`, `src/lib/rules/harper.ts`, `src/lib/rules/registry.ts`,
 `src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, `src/lib/rules/data/rule-set.ts`, `src/lib/ui/state/wiring.ts`,
-`src/lib/rules/catalog/policy-cases.ts`, `services/rules-assistant/`
+`src/lib/rules/catalog/policy-cases.ts`, `src/lib/languages/detect.ts`, `services/rules-assistant/`
 
 ## The rules
 
@@ -65,6 +65,10 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/harper.ts`, `src/lib/rules/reg
   at the diagnostic level. Cache size and retained text lengths are bounded, and returned
   candidates cannot mutate stored results. `data/spelling.test.ts` pins context, language, casing,
   UTF-16 offsets, caller mutation, eviction and oversized lines.
+- Language recognition reuses complete-line preprocessing and scores for unchanged normalized
+  lyric text only. It still analyzes the full current lyrics synchronously, applies current
+  selected-language thresholds, and constructs fresh document ranges. Cache bounds are retention
+  limits, never sampling or detection limits. Native benchmarks initialize the statistical detector.
 
 ## Decision record
 
@@ -384,9 +388,9 @@ now happened enough to write down: a rule is added, the checklist above is follo
 `bun run check`, `bun run lint` and `bun run test:unit -- --run` all pass, the work is pushed —
 and CI goes red on the sitemap count, because **none of the three commands in Tooling runs the
 Playwright suite**. The e2e spec is only exercised in CI, so the failure is discovered after the
-push. The production deploy now gates on CI — `ci.yml`'s `deploy` job triggers the Cloudflare
-Pages build through a deploy hook only after every CI job is green, with Cloudflare's own
-automatic production deploys disabled — so a red run is no longer shrugged at: it is the site not
+push. The production deploy now gates on CI — `ci.yml`'s `deploy` job uploads the exact
+production artifact that passed E2E only after every CI job is green, with Cloudflare's own
+automatic production builds disabled — so a red run is no longer shrugged at: it is the site not
 shipping. That is also this assertion's second lesson, not its first: the spec's own
 comment records that the count once read 52 against 55 rules for three releases, which is what a
 bare figure with nothing saying what it counts costs.
@@ -593,5 +597,27 @@ revisions of 24-, 80- and 800-line lyrics and a unique-token workload that excee
 limit. It prints timing distributions and SHA-256 digests of complete parsed documents and
 findings, allowing revisions to be compared without trading correctness for throughput. Build it
 with `bun build scripts/benchmark-lint.ts --target=node --outfile=/tmp/benchmark-lint.mjs` and
-run with Node to measure V8; run directly with Bun to measure JavaScriptCore. These measurements
-exclude asynchronous Harper, rendering and language detection outside the native rule pass.
+run with Node to measure V8; run directly with Bun to measure JavaScriptCore. Both native benchmark
+drivers now initialize the statistical language detector before warmup, matching steady-state
+editing. They exclude initialization, asynchronous Harper and rendering.
+
+### Language analysis reuses unchanged lyrics without changing the question
+
+`language.selection-mismatch` runs in the synchronous native pass. After the detector's lazy
+initialization, each edit used to mask all lyric markup, allocate every matched Unicode letter,
+scan every script and analyze the complete statistical sample again. The original benchmark
+never loaded the detector, so it omitted that steady-state statistical work.
+
+`detect.ts` now reuses normalized visible text, letter/script counts and local whitespace bounds
+for up to 1,000 complete lines of at most 2,048 UTF-16 units. Document-wide counts still include
+every occurrence of repeated lines; current offsets are applied when constructing the first
+visible lyric range. Removing whitespace at line boundaries before joining gives the same
+normalized statistical text as collapsing the original joined lines.
+
+The most recent statistical score map is retained only for an identical normalized sample of at
+most 65,536 units. Header edits, performer wrappers and changing the selected language can reuse
+those scores, but the selected-language ratio and Norwegian ambiguity handling run against the
+current request. Changed lyrics still reach the complete statistical detector; nothing is sampled,
+truncated, deferred or moved behind a second visibility gate. Larger input is analyzed normally
+without being retained. Tests cover changed text, shifted ranges, selected-language thresholds,
+caller mutation, line-cache eviction, repeated scripts and oversized lines.

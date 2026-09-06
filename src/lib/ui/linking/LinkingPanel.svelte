@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Decision record: docs/subsystems/section-links.md.
-	import { tick } from 'svelte';
-	import { Link2 } from 'lucide-svelte';
+	import { tick, untrack } from 'svelte';
+	import Link2 from 'lucide-svelte/icons/link-2';
 	import { lineNumberAt } from '$lib/core/line-numbers.js';
 	import type { SectionLinkChoice } from '$lib/core/types.js';
 	import { linkOccurrences } from '$lib/editor/section-links.js';
@@ -12,14 +12,33 @@
 
 	let {
 		controller,
+		active = true,
 		onShowEditor
-	}: { controller: WorkbenchController; onShowEditor?: () => void | Promise<void> } = $props();
+	}: {
+		controller: WorkbenchController;
+		active?: boolean;
+		onShowEditor?: () => void | Promise<void>;
+	} = $props();
 	let root: HTMLDivElement;
-	const parsed = $derived(controller.snapshot.parsed);
+	const readInputs = () => ({
+		parsed: controller.snapshot.parsed,
+		links: controller.sectionLinks,
+		pack: getLanguagePack(controller.language),
+		headerFrom: controller.linkingHeaderFrom,
+		fromOverview: controller.linkingFromOverview,
+		comparedHeaders: controller.linkingComparedHeaders,
+		draftId: controller.draftId
+	});
+	let lastInputs = untrack(readInputs);
+	const inputs = $derived.by(() => {
+		if (active) lastInputs = readInputs();
+		return lastInputs;
+	});
+	const parsed = $derived(inputs.parsed);
 	const sectionNames = $derived(linkingSectionNames(parsed));
-	const links = $derived(controller.sectionLinks);
-	const pack = $derived(getLanguagePack(controller.language));
-	const headerFrom = $derived(controller.linkingHeaderFrom);
+	const links = $derived(inputs.links);
+	const pack = $derived(inputs.pack);
+	const headerFrom = $derived(inputs.headerFrom);
 	const overview = $derived(linkingOverview(parsed, pack, links));
 	const session = $derived.by(() => {
 		if (headerFrom === undefined) return undefined;
@@ -35,18 +54,18 @@
 		const signature = JSON.stringify(links);
 		return {
 			headerFrom,
-			fromOverview: controller.linkingFromOverview,
-			comparedHeaders: controller.linkingComparedHeaders,
+			fromOverview: inputs.fromOverview,
+			comparedHeaders: inputs.comparedHeaders,
 			text: parsed.text,
 			signature,
 			key: JSON.stringify([
-				controller.draftId,
+				inputs.draftId,
 				parsed.text,
 				signature,
 				headerFrom,
-				controller.language,
-				controller.linkingFromOverview,
-				controller.linkingComparedHeaders
+				pack.tag,
+				inputs.fromOverview,
+				inputs.comparedHeaders
 			]),
 			occurrences: linkOccurrences(parsed, pack, headerFrom, { includeHeaderOffsets: members }),
 			selected: members.filter((from) => from !== headerFrom)

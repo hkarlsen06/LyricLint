@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as passages from './link-passages.js';
 import {
 	alignBodies,
 	bodiesAreSimilarEnoughToLink,
@@ -116,6 +117,76 @@ describe('aligning the copies of a song part', () => {
 });
 
 describe('discovering copies by their shared lyrics', () => {
+	it('reuses all comparisons when a group has more than 64 pairs', () => {
+		const bodies = Array.from(
+			{ length: 12 },
+			(_, index) => `Signal ${index}alpha ${index}bravo ${index}charlie ${index}delta`
+		);
+		const align = vi.spyOn(passages, 'alignPassages');
+		try {
+			for (let revision = 0; revision < 2; revision++) {
+				for (let left = 0; left < bodies.length; left++) {
+					for (let right = left + 1; right < bodies.length; right++) {
+						expect(linkBodySimilarity(bodies[left]!, bodies[right]!)).toBe(0);
+					}
+				}
+			}
+			expect(align).toHaveBeenCalledTimes(66);
+		} finally {
+			align.mockRestore();
+		}
+	});
+
+	it('uses lexical rejection only where the full aligner also finds no shared passage', () => {
+		const bodies = [
+			'Hold on tight',
+			'Hold on, friend',
+			'<i>Bright</i> morning',
+			'i et badekar, ri-ri',
+			'[Hold on](123)',
+			'123 beside lo<i>ve</i>',
+			'la la',
+			'la',
+			'🎵 mañana café',
+			'\t\n!!!',
+			'!!!'
+		];
+		for (const left of bodies) {
+			for (const right of bodies) {
+				const shared = passages.alignPassages([
+					{ header: 0, from: 0, text: left },
+					{ header: 1, from: 0, text: right }
+				]);
+				const characters = shared.reduce(
+					(total, passage) => total + passage.members[0]!.to - passage.members[0]!.from,
+					0
+				);
+				expect(linkBodySimilarity(left, right)).toBe(
+					characters / Math.min(left.length, right.length)
+				);
+			}
+		}
+	});
+
+	it('keeps caller ceilings and exact-copy behavior after a permissive result is cached', () => {
+		const left = 'We keep these words together through the morning';
+		const right = `${left} light`;
+		expect(linkBodySimilarity(left, right)).toBe(1);
+		expect(linkBodySimilarity(left, right, { maxTokens: 3 })).toBe(0);
+		expect(linkBodySimilarity(left, left, { maxTokens: 3 })).toBe(1);
+		expect(linkBodySimilarity(left, right)).toBe(1);
+	});
+
+	it('recomputes the same score after body-cache eviction', () => {
+		const left = 'Another shared passage across the hills';
+		const right = `${left} tonight`;
+		const expected = linkBodySimilarity(left, right);
+		for (let index = 0; index < 150; index++) {
+			linkBodySimilarity(`eviction${index} only`, `different${index} words`);
+		}
+		expect(linkBodySimilarity(left, right)).toBe(expected);
+	});
+
 	it('scores exact, partial, and unrelated bodies through the link aligner', () => {
 		expect(linkBodySimilarity('\nHold the line', '\nHold the line')).toBe(1);
 		expect(

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '$lib/ui/styles/site.css';
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import ReferenceSearchSync from '$lib/ui/site/ReferenceSearchSync.svelte';

@@ -8,6 +8,12 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 
 ## The rules
 
+- A document-changing snapshot carries the actual serializable edits and their preceding
+  revision in `documentChange`. The update bridge composes withheld IME transactions and
+  publishes their net mapping once with the committed snapshot. Selection-only snapshots
+  carry no repeated edit. This metadata is presentation continuity, never persisted state or
+  authority to apply an old fix. `keyboard-commands.svelte.test.ts` pins the composition boundary.
+
 - Linking opens only through an explicit editor request, forwarded by `createCallbackProxy`
   and `EditorPane` to the shell panel. Opening it closes the current anchored overlay.
   Selecting a whole header, hovering its link marker, and focusing the marker do not open
@@ -46,6 +52,10 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   does not derive replacements from provisional text. An ordinary committed edit still clears
   stale display until the shell refreshes it. Pin: `EditorPane.svelte.test.ts` (*keeps every settled
   context decoration while a dead-key preedit is open*).
+- Context effects follow their actual inputs. Diagnostics-only changes leave performer and syntax
+  decoration intact; headerless helpers still follow ignored prose-header findings. A document
+  change invalidates every settled display even if an edit is reversed before context returns.
+  `context-updates.svelte.test.ts` pins both selective updates and restoration after that reversal.
 - A copy carries timings and links in a `text/html` flavor (`data-lyriclint`); `text/plain`
   stays byte-for-byte the selection's own slice — clean lyrics on the clipboard are this
   application's entire output. The toolbar's `Copy lyrics` deliberately carries nothing.
@@ -73,6 +83,25 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `audio-drop.svelte.test.ts` asserts both halves.
 
 ## Decision record
+
+### A new finding does not change the syntax or the performers
+
+Harper's delayed answer, an ignored finding and the end of a typing pause can change diagnostics
+without changing the lyrics. `applyContext` used to dispatch every display effect for any context
+change, rebuilding performer ranges, gutter markers and markup dimming each time. Its whole-context
+equality check prevented identical updates, but could not keep independent displays intact when one
+input genuinely changed.
+
+The editor now compares each display's dependencies before dispatching its effect. Syntax dimming
+has its own `setMarkupDocumentEffect`: the headerless helper still depends on visible diagnostics,
+because ignoring a prose-header finding restores the helper, while the literal source markup does
+not change. Performer changes likewise leave syntax and diagnostics alone.
+
+The applied immutable document is part of these comparisons. An edit followed by a reversal can
+restore the old text and reuse its parse while the intervening transaction already cleared the
+display; matching payload references alone would leave that display empty. IME continues to use
+the existing queued-context handoff and maps settled decoration during preedit. No source text,
+clipboard representation, focus, layout or diagnostic timing changes.
 
 ### Linking decisions belong beside the document
 

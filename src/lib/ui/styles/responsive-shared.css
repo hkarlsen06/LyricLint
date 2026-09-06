@@ -1,0 +1,76 @@
+/* Shared control sizes and motion preferences, after the base controls.
+   Root-qualified size floors outrank compact classes in later route styles. */
+
+@media (max-width: 46rem) {
+	:root .button {
+		min-height: var(--control-height-lg);
+	}
+}
+
+/*
+ * Nothing a finger can type into may be smaller than 16px, because Safari on iOS
+ * answers a focus on a smaller field by zooming the page in — and it does not
+ * zoom back out. That reads as the app lurching every time the caret is placed,
+ * and it is the whole reason this block exists.
+ *
+ * The two ways out of it are this and `maximum-scale=1` on the viewport meta,
+ * which buys the same result by taking pinch zoom away from everyone. That is
+ * not a trade this application makes.
+ *
+ * `--font-size-lg` rather than a literal `1rem`: it is the first step on the
+ * ramp that clears the threshold, it is a token, and slightly larger text under
+ * a finger is right on its own terms. The editor moves through
+ * `--font-size-editor` so the landing page's stand-in moves with it; the form
+ * controls inherit their size from the body, so they are named directly.
+ *
+ * Keyed on the pointer and not on width, like every other rule here that means
+ * "a phone": a narrow window on a laptop has a fine pointer, does not zoom, and
+ * has no reason to grow its type.
+ */
+@media (pointer: coarse) {
+	:root {
+		/* The editor's default is `lg` now (tokens.css), so this is a floor rather
+		   than a step up — kept so the token can never drop back under the zoom
+		   threshold on a coarse pointer without this block refusing it. */
+		--font-size-editor: var(--font-size-lg);
+	}
+
+	input,
+	select,
+	textarea {
+		font-size: var(--font-size-lg);
+	}
+
+	:root .button,
+	:root .icon-button,
+	:root .filter-chip {
+		min-height: var(--control-height-touch);
+		min-width: var(--control-height-touch);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.button,
+	.icon-button,
+	a,
+	input,
+	select,
+	textarea {
+		transition:
+			background-color var(--duration-fast) var(--ease-out-quart),
+			border-color var(--duration-fast) var(--ease-out-quart),
+			color var(--duration-fast) var(--ease-out-quart),
+			box-shadow var(--duration-fast) var(--ease-out-quart);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+	}
+}

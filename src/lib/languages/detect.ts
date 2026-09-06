@@ -58,6 +58,27 @@ const scriptProfiles: readonly ScriptProfile[] = [
 	{ tag: 'am', pattern: /\p{Script=Ethiopic}/gu, minimumLetters: 8, minimumShare: 0.65 }
 ];
 
+const scriptPatterns = [
+	/[\p{Script=Hiragana}\p{Script=Katakana}]/gu,
+	/\p{Script=Han}/gu,
+	...scriptProfiles.map((profile) => profile.pattern)
+];
+const lineAnalysisLimit = 1000;
+const maximumCachedLineLength = 2048;
+const maximumCachedStatisticalLength = 65_536;
+
+interface VisibleLine {
+	text: string;
+	leadingWhitespace: number;
+	trailingWhitespace: number;
+	letters: number;
+	scripts: readonly number[];
+}
+
+const visibleLines = new Map<string, VisibleLine>();
+let statisticalText: string | undefined;
+let statisticalResult: ReadonlyMap<string, number> | undefined;
+
 function maskedVisibleLine(text: string): string {
 	return text
 		.replace(/<[^>]*>/gu, (tag) => ' '.repeat(tag.length))
@@ -69,45 +90,65 @@ function maskedVisibleLine(text: string): string {
 interface VisibleLyrics {
 	text: string;
 	range?: TextRange;
+	letters: number;
+	scripts: readonly number[];
+}
+
+function visibleLine(text: string): VisibleLine {
+	const cached = visibleLines.get(text);
+	if (cached) return cached;
+	const masked = maskedVisibleLine(text);
+	const result: VisibleLine = {
+		text: masked.replace(/\s+/gu, ' ').trim(),
+		leadingWhitespace: /^\s*/u.exec(masked)?.[0].length ?? 0,
+		trailingWhitespace: /\s*$/u.exec(masked)?.[0].length ?? 0,
+		letters: countMatches(masked, /\p{L}/gu),
+		scripts: scriptPatterns.map((pattern) => countMatches(masked, pattern))
+	};
+	if (text.length <= maximumCachedLineLength) {
+		if (visibleLines.size >= lineAnalysisLimit) {
+			const oldest = visibleLines.keys().next().value;
+			if (oldest !== undefined) visibleLines.delete(oldest);
+		}
+		visibleLines.set(text, result);
+	}
+	return result;
 }
 
 function visibleLyrics(document: ParsedDocument): VisibleLyrics {
-	const lines = document.sections
-		.flatMap((section) => section.lines)
-		.map((line) => ({ line, masked: maskedVisibleLine(line.text) }));
-	const firstVisibleLine = lines.find(({ masked }) => /\p{L}/u.test(masked));
-	const cleaned = lines
-		.map(({ masked }) => masked)
-		.join('\n')
-		.replace(/\s+/gu, ' ')
-		.trim();
-
-	if (!firstVisibleLine) {
-		return { text: cleaned };
-	}
-
-	const leadingWhitespace = /^\s*/u.exec(firstVisibleLine.masked)?.[0].length ?? 0;
-	const trailingWhitespace = /\s*$/u.exec(firstVisibleLine.masked)?.[0].length ?? 0;
-	return {
-		text: cleaned,
-		range: {
-			from: firstVisibleLine.line.from + leadingWhitespace,
-			to: Math.max(
-				firstVisibleLine.line.from + leadingWhitespace,
-				firstVisibleLine.line.to - trailingWhitespace
-			)
+	const text: string[] = [];
+	let range: TextRange | undefined;
+	let letters = 0;
+	const scripts = scriptPatterns.map(() => 0);
+	for (const section of document.sections) {
+		for (const line of section.lines) {
+			const visible = visibleLine(line.text);
+			if (visible.text.length > 0) text.push(visible.text);
+			letters += visible.letters;
+			for (let index = 0; index < scripts.length; index++) {
+				scripts[index]! += visible.scripts[index]!;
+			}
+			if (!range && visible.letters > 0) {
+				range = {
+					from: line.from + visible.leadingWhitespace,
+					to: Math.max(line.from + visible.leadingWhitespace, line.to - visible.trailingWhitespace)
+				};
+			}
 		}
-	};
+	}
+	return { text: text.join(' '), range, letters, scripts };
 }
 
 function countMatches(text: string, pattern: RegExp): number {
-	return Array.from(text.matchAll(pattern)).length;
+	let count = 0;
+	pattern.lastIndex = 0;
+	while (pattern.exec(text) !== null) count++;
+	return count;
 }
 
-function directScriptTag(text: string, letterCount: number): string | undefined {
-	const kanaCount =
-		countMatches(text, /\p{Script=Hiragana}/gu) + countMatches(text, /\p{Script=Katakana}/gu);
-	const hanCount = countMatches(text, /\p{Script=Han}/gu);
+function directScriptTag(counts: readonly number[], letterCount: number): string | undefined {
+	const kanaCount = counts[0]!;
+	const hanCount = counts[1]!;
 
 	if (kanaCount >= 4 && (kanaCount + hanCount) / letterCount >= 0.55) {
 		return 'ja';
@@ -116,8 +157,8 @@ function directScriptTag(text: string, letterCount: number): string | undefined 
 		return 'zh';
 	}
 
-	for (const profile of scriptProfiles) {
-		const count = countMatches(text, profile.pattern);
+	for (const [index, profile] of scriptProfiles.entries()) {
+		const count = counts[index + 2]!;
 		if (count >= profile.minimumLetters && count / letterCount >= profile.minimumShare) {
 			return profile.tag;
 		}
@@ -128,6 +169,24 @@ function directScriptTag(text: string, letterCount: number): string | undefined 
 function normalizedDetectorTag(tag: string): string | undefined {
 	const normalized = tag === 'sr' || tag === 'hr' || tag === 'bs' ? 'sh' : tag;
 	return selectableTags.has(normalized) ? normalized : undefined;
+}
+
+function statisticalScores(text: string): ReadonlyMap<string, number> {
+	// Headers, performer wrappers and the selected language can change while
+	// the statistical input stays identical. Reuse only those text-local scores;
+	// selection-dependent thresholds and current document ranges remain fresh.
+	if (text === statisticalText && statisticalResult) return statisticalResult;
+	const scores = new Map<string, number>();
+	for (const [rawTag, score] of detector!.detect(text)) {
+		const tag = normalizedDetectorTag(rawTag);
+		if (!tag) continue;
+		scores.set(tag, Math.max(scores.get(tag) ?? 0, score));
+	}
+	if (text.length <= maximumCachedStatisticalLength) {
+		statisticalText = text;
+		statisticalResult = scores;
+	}
+	return scores;
 }
 
 /**
@@ -144,12 +203,11 @@ export function detectSongLanguage(
 	const selectedTag = resolveLanguageTag(selectedLanguage);
 	if (selectedTag === 'und') return undefined;
 
-	const { text, range } = visibleLyrics(document);
+	const { text, range, letters: letterCount, scripts } = visibleLyrics(document);
 	if (!range) return undefined;
-	const letterCount = countMatches(text, /\p{L}/gu);
 	if (letterCount === 0) return undefined;
 
-	const scriptTag = directScriptTag(text, letterCount);
+	const scriptTag = directScriptTag(scripts, letterCount);
 	if (scriptTag) {
 		return {
 			tag: scriptTag,
@@ -162,12 +220,7 @@ export function detectSongLanguage(
 
 	if (letterCount < minimumStatisticalLetters) return undefined;
 	if (!detector) return undefined;
-	const scores = new Map<string, number>();
-	for (const [rawTag, score] of detector.detect(text)) {
-		const tag = normalizedDetectorTag(rawTag);
-		if (!tag) continue;
-		scores.set(tag, Math.max(scores.get(tag) ?? 0, score));
-	}
+	const scores = statisticalScores(text);
 
 	let best = [...scores].sort((left, right) => right[1] - left[1])[0];
 	const norwegianScore = scores.get('no');

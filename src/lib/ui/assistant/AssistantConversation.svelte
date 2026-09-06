@@ -6,7 +6,8 @@
 	 * and workbench panel share this component so a tool turn cannot acquire a
 	 * second rendering or a different privacy claim on either surface.
 	 */
-	import { ArrowUp, ChevronRight } from 'lucide-svelte';
+	import ArrowUp from 'lucide-svelte/icons/arrow-up';
+	import ChevronRight from 'lucide-svelte/icons/chevron-right';
 	import { tick } from 'svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { resolve } from '$app/paths';

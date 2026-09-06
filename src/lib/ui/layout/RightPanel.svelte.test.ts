@@ -114,6 +114,29 @@ describe('RightPanel', () => {
 		expect(shown()[0]!.textContent).toContain('What would you like to check?');
 	});
 
+	test('initializes a tool on first use and retains unfinished input across tabs and expansion', async () => {
+		const { controller } = createTestWorkbench();
+		const assistant = panelAssistant();
+		const view = await render(RightPanel, { controller, assistant });
+		expect(document.querySelector('.assistant-panel')).toBeNull();
+		expect(document.querySelector('.linking-panel')).toBeNull();
+		expect(document.querySelector('.performers-panel')).toBeNull();
+		expect(assistant.ensureLoaded).not.toHaveBeenCalled();
+		await fireEvent.click(screen.getByRole('tab', { name: 'Assistant' }));
+		const input = screen.getByRole('textbox') as HTMLTextAreaElement;
+		await fireEvent.input(input, { target: { value: 'An unfinished question' } });
+		expect(assistant.ensureLoaded).toHaveBeenCalledOnce();
+		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
+		expect(input.isConnected).toBe(true);
+		await fireEvent.click(screen.getByRole('tab', { name: 'Assistant' }));
+		expect(assistant.ensureLoaded).toHaveBeenCalledOnce();
+		await view.rerender({ controller, assistant, collapsed: true });
+		expect(input.isConnected).toBe(true);
+		await view.rerender({ controller, assistant, collapsed: false });
+		expect(screen.getByRole('textbox')).toBe(input);
+		expect(input.value).toBe('An unfinished question');
+	});
+
 	// The pane carries chrome at both ends — the chat tray above, the composer
 	// below — so it fits the body rather than growing it. Grown, the body becomes
 	// the scroll port for the whole pane and both controls leave the screen: the

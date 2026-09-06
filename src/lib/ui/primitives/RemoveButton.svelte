@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Trash2 } from 'lucide-svelte';
+	import Trash2 from 'lucide-svelte/icons/trash-2';
 	/**
 	 * Taking a row out of a list, in one place, in two presses.
 	 *

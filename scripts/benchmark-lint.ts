@@ -3,6 +3,11 @@ import { createHash } from 'node:crypto';
 import { parseDocument } from '../src/lib/core/parser.js';
 import { runRules } from '../src/lib/rules/engine.js';
 import { ruleContext } from '../src/lib/rules/rule-test-utils.js';
+import { loadStatisticalLanguageDetector } from '../src/lib/languages/detect.js';
+
+// Measure steady-state editing after the same lazy initialization as Workspace.
+// Import/download time belongs to startup, not to these native lint samples.
+await loadStatisticalLanguageDetector();
 
 const lines = [
 	'I walk through the city when the sun goes down',
@@ -67,6 +72,7 @@ for (const scenario of scenarios) {
 	console.log(
 		JSON.stringify({
 			scenario: scenario.name,
+			statisticalLanguageDetector: 'loaded',
 			characters: scenario.texts[0].length,
 			medianMs: samples[4],
 			minMs: samples[0],

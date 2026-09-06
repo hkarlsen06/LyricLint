@@ -199,6 +199,7 @@ export default defineConfig(({ mode }) => ({
 		host: true
 	},
 	build: {
+		reportCompressedSize: false,
 		/**
 		 * Inline Apple's badge, whatever its size.
 		 *

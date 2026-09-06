@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Clock3, Plus } from 'lucide-svelte';
+	import Clock3 from 'lucide-svelte/icons/clock-3';
+	import Plus from 'lucide-svelte/icons/plus';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';

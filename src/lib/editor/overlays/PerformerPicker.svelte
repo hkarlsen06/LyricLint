@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Plus } from 'lucide-svelte';
+	import Plus from 'lucide-svelte/icons/plus';
 	import { onMount, tick, untrack } from 'svelte';
 	import type { Attachment } from 'svelte/attachments';
 	import type { PerformerId, PerformerRecord, StyleSlot } from '$lib/core/types.js';

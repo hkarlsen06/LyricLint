@@ -64,6 +64,14 @@ The guidance catalog's content pipeline stays in `docs/guidelines.md` and is fol
 
 ## Decision record
 
+### Guide metadata is derived before serialization
+
+The shared layout returns the complete local search corpus plus the reviewed lookup count and
+topic identifiers. Only the guide entrance needs that count and the topic names for structured
+metadata; sending every full entry and landmark again as `sections` added payload to every
+article. `countGuidanceLookups` still owns the counting semantics, called by the server load.
+Topic articles keep their own complete content and the finder keeps every searchable passage.
+
 ### Typing reuses the corpus preparation
 
 The route corpus does not change while the reader types. `createReferenceSearch` prepares its
@@ -833,4 +841,3 @@ in `routes/(site)/guidelines/[topic]/+page.svelte`, `guidance-search.svelte.ts` 
 view-transition blocks in `site.css`, and the section layouts in `routes/(site)/rules/` and
 `routes/(site)/guidelines/`. The guidance catalog's content pipeline — what an entry is, the
 authority ladder, how one is added — is `docs/guidelines.md`.
-

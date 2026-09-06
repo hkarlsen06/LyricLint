@@ -7,6 +7,14 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 ## The rules
 
+- Diagnostic row identity follows unchanged occurrences through the editor's actual
+  `documentChange`, separately from current diagnostic ranges and revision-bound fixes.
+  Repeated text never acquires another occurrence's controls by ordinal or text search.
+  Selection, collapse, focus, and row geometry survive edits above the finding. Missing change
+  metadata starts fresh for changed text. Pins: `row-identity.test.ts`, `LinterPanel.svelte.test.ts`.
+- Occurrence suppression and the ignored-list location use the same derived match result.
+  Repeated line-number queries share `core/line-numbers.ts` and its indexed lookup.
+
 - In phone task views, tapping an editor underline or count badge opens that finding in
   Review, with the real lyric context and shared actions. A count badge starts with its
   first finding; Previous/Next handles the rest. No diagnostic popover or cluster menu opens.
@@ -87,6 +95,28 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   against the `<li>`, the head stays unpositioned, and only the buttons lift over it.
 
 ## Decision record
+
+### Controls follow the occurrence while fixes follow the current revision
+
+The row key formerly embedded absolute offsets. A character inserted at the beginning of an
+80-line diagnostic-heavy document destroyed all 139 finding rows, recreating their controls
+and losing keyboard focus even though the findings had merely moved. `row-identity.ts` now
+maps the preceding snapshot's occurrences through actual editor changes. Only a matching
+current range, unchanged flagged text, and unchanged message inherit the presentation key.
+Actual diagnostic keys and fix revisions remain current; presentation continuity never carries
+an old edit forward. The same mapping follows the selected related occurrence.
+
+Composition combines its withheld changes before publication. Multiple changes in a batch
+can therefore retain unaffected findings between them; an inserted identical chorus gets new
+controls while the original choruses retain theirs. A whole replacement or missing/stale
+mapping cannot guess this continuity. Tests cover these distinctions and verify surviving DOM,
+focus, current fix offsets, and control geometry at desktop and phone widths with wrapped text.
+
+Snapshots are immutable replacements in the shell, so `editor-session` stores them with
+`$state.raw`. There are no in-place snapshot writers requiring proxies around every parsed
+line and diagnostic. Occurrence matching prepares each candidate's immutable context once;
+the panel, suppression, and ignored-list locations share its result. Repeated line lookup uses
+one indexed implementation, including the shared LF, CRLF, and lone-CR convention.
 
 ### Phone review opens one decision beside the lyrics
 

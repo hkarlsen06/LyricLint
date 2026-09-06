@@ -1,5 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
+// These cases exercise editing and history; normal-motion startup stays covered
+// by the desktop integration and CSP cases in lyriclint.spec.ts.
+test.use({ reducedMotion: 'reduce' });
+
 const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
 const editor = (page: Page) => page.getByRole('textbox', { name: 'Lyrics editor' });
 const original =
@@ -19,12 +23,21 @@ async function expectLyrics(page: Page, text: string): Promise<void> {
 		.toBe(text);
 }
 
+async function openWorkspace(page: Page, text: string): Promise<void> {
+	await page.goto('/workbench/');
+	await expect(editor(page)).toBeVisible();
+	await editor(page).fill(text);
+	await expectLyrics(page, text);
+	// The fixture is a previous edit, not part of the linking action being undone.
+	// Advance Date past CodeMirror's 500ms history window without delaying or
+	// replacing the browser timers and animation frames the interaction needs.
+	await page.clock.setFixedTime(await page.evaluate(() => Date.now() + 600));
+}
+
 test('Linking keeps lyrics intact, stages one correction, and stays on the chosen section', async ({
 	page
 }) => {
-	await page.goto('/workbench/');
-	await expect(editor(page)).toBeVisible();
-	await editor(page).fill(original);
+	await openWorkspace(page, original);
 	await page.getByRole('tab', { name: 'Linking', exact: true }).click();
 	const panel = page.getByRole('tabpanel', { name: 'Linking', exact: true });
 	await panel
@@ -102,9 +115,7 @@ test('Linking can use a later section’s full version and undo all replacements
 	page
 }) => {
 	const lyrics = `${original}\n\n[Chorus 3]\nHold on tight\nCarry me home (Yeah)`;
-	await page.goto('/workbench/');
-	await expect(editor(page)).toBeVisible();
-	await editor(page).fill(lyrics);
+	await openWorkspace(page, lyrics);
 	await page.getByRole('tab', { name: 'Linking', exact: true }).click();
 	await page
 		.getByRole('tabpanel', { name: 'Linking', exact: true })
@@ -174,9 +185,7 @@ async function placeCaret(page: Page, at: number): Promise<void> {
 test('Passage scope identifies real recipients and reconnects an explicitly local matching word', async ({
 	page
 }) => {
-	await page.goto('/workbench/');
-	await expect(editor(page)).toBeVisible();
-	await editor(page).fill(passageSong);
+	await openWorkspace(page, passageSong);
 	await page.getByRole('tab', { name: 'Linking', exact: true }).click();
 	const panel = page.getByRole('tabpanel', { name: 'Linking', exact: true });
 	await panel.getByRole('button', { name: 'Set up link Intro, Chorus 1, Chorus 2, Outro' }).click();

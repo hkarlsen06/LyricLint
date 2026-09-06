@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronRight } from 'lucide-svelte';
+	import ChevronRight from 'lucide-svelte/icons/chevron-right';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { orderPerformersByAppearance } from '../state/wiring.js';
 	import PerformerEditor from './PerformerEditor.svelte';

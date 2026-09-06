@@ -1,17 +1,15 @@
 <script lang="ts">
-	import {
-		Check,
-		ChevronDown,
-		ChevronUp,
-		ListEnd,
-		Pencil,
-		Play,
-		Pointer,
-		Repeat,
-		TextAlignStart,
-		Timer,
-		X
-	} from 'lucide-svelte';
+	import Check from 'lucide-svelte/icons/check';
+	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import ChevronUp from 'lucide-svelte/icons/chevron-up';
+	import ListEnd from 'lucide-svelte/icons/list-end';
+	import Pencil from 'lucide-svelte/icons/pencil';
+	import Play from 'lucide-svelte/icons/play';
+	import Pointer from 'lucide-svelte/icons/pointer';
+	import Repeat from 'lucide-svelte/icons/repeat';
+	import TextAlignStart from 'lucide-svelte/icons/text-align-start';
+	import Timer from 'lucide-svelte/icons/timer';
+	import X from 'lucide-svelte/icons/x';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';

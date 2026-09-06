@@ -1,5 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
+// Functional cases need the ready workspace. Keep the complete animated startup
+// and recovery journey below under the ordinary browser preferences.
+test.use({ reducedMotion: 'reduce' });
+
 const lyricsEditor = (page: Page) => page.getByRole('textbox', { name: 'Lyrics editor' });
 const mobileNavigation = (page: Page) => page.getByRole('navigation', { name: 'Workbench views' });
 
@@ -29,42 +33,52 @@ async function replaceLyrics(page: Page, text: string): Promise<void> {
 	await expectLyrics(page, text);
 }
 
-test('phone writing keeps the document through tools, rotation, and recovery', async ({ page }) => {
-	await openWorkspace(page);
-	const navigation = mobileNavigation(page);
-	await expect(navigation.getByRole('button', { name: 'Write', exact: true })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
-	const canonical = '[Verse]\nSilver moonlight';
-	await replaceLyrics(page, canonical);
+test.describe('normal-motion integration', () => {
+	test.use({ reducedMotion: 'no-preference' });
 
-	// Keep an identity probe: switching views must preserve the editor and its undo history.
-	await lyricsEditor(page).evaluate((element) => {
-		(element as HTMLElement & { mobileIdentityProbe?: boolean }).mobileIdentityProbe = true;
+	test('phone writing keeps the document through tools, rotation, and recovery', async ({
+		page
+	}) => {
+		await openWorkspace(page);
+		const navigation = mobileNavigation(page);
+		await expect(navigation.getByRole('button', { name: 'Write', exact: true })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		const canonical = '[Verse]\nSilver moonlight';
+		await replaceLyrics(page, canonical);
+
+		// Keep an identity probe: switching views must preserve the editor and its undo history.
+		await lyricsEditor(page).evaluate((element) => {
+			(element as HTMLElement & { mobileIdentityProbe?: boolean }).mobileIdentityProbe = true;
+		});
+		await navigation.getByRole('button', { name: 'Tools', exact: true }).click();
+		await expect(lyricsEditor(page)).not.toBeVisible();
+		await navigation.getByRole('button', { name: 'Write', exact: true }).click();
+		expect(
+			await lyricsEditor(page).evaluate(
+				(element) =>
+					(element as HTMLElement & { mobileIdentityProbe?: boolean }).mobileIdentityProbe
+			)
+		).toBe(true);
+		await expectLyrics(page, canonical);
+
+		await page.setViewportSize({ width: 844, height: 390 });
+		await expect(lyricsEditor(page)).toBeVisible();
+		await expect(page.getByText(/turn your phone|rotate your phone/iu)).toHaveCount(0);
+		await expect
+			.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+			.toBe(true);
+		await page.setViewportSize({ width: 390, height: 844 });
+
+		await expect(page.getByLabel('Autosave status')).toHaveAttribute(
+			'aria-label',
+			/Saved locally/u
+		);
+		await page.reload();
+		await expectLyrics(page, canonical);
+		await expect(mobileNavigation(page)).toBeVisible();
 	});
-	await navigation.getByRole('button', { name: 'Tools', exact: true }).click();
-	await expect(lyricsEditor(page)).not.toBeVisible();
-	await navigation.getByRole('button', { name: 'Write', exact: true }).click();
-	expect(
-		await lyricsEditor(page).evaluate(
-			(element) => (element as HTMLElement & { mobileIdentityProbe?: boolean }).mobileIdentityProbe
-		)
-	).toBe(true);
-	await expectLyrics(page, canonical);
-
-	await page.setViewportSize({ width: 844, height: 390 });
-	await expect(lyricsEditor(page)).toBeVisible();
-	await expect(page.getByText(/turn your phone|rotate your phone/iu)).toHaveCount(0);
-	await expect
-		.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
-		.toBe(true);
-	await page.setViewportSize({ width: 390, height: 844 });
-
-	await expect(page.getByLabel('Autosave status')).toHaveAttribute('aria-label', /Saved locally/u);
-	await page.reload();
-	await expectLyrics(page, canonical);
-	await expect(mobileNavigation(page)).toBeVisible();
 });
 
 test('phone review fixes a finding beside its lyric passage and returns to writing', async ({
@@ -434,20 +448,23 @@ test('touch editing keeps a visible native caret without a duplicate drawn curso
 	await lyricsEditor(page).focus();
 	for (const colorScheme of ['dark', 'light'] as const) {
 		await page.emulateMedia({ colorScheme });
-		const colors = await lyricsEditor(page).evaluate((element) => {
-			const probe = document.createElement('span');
-			probe.style.color = 'var(--color-accent)';
-			document.body.append(probe);
-			const accent = getComputedStyle(probe).color;
-			probe.remove();
-			return {
-				caret: getComputedStyle(element).caretColor,
-				accent,
-				touch: matchMedia('(any-pointer: coarse)').matches
-			};
-		});
-		expect(colors.touch).toBe(true);
-		expect(colors.caret).toBe(colors.accent);
+		// A theme change can still be between its starting and final colors when
+		// the media command resolves. Wait for the actual computed token match.
+		await expect
+			.poll(() =>
+				lyricsEditor(page).evaluate((element) => {
+					const probe = document.createElement('span');
+					probe.style.color = 'var(--color-accent)';
+					document.body.append(probe);
+					const accent = getComputedStyle(probe).color;
+					probe.remove();
+					return {
+						matchesAccent: getComputedStyle(element).caretColor === accent,
+						touch: matchMedia('(any-pointer: coarse)').matches
+					};
+				})
+			)
+			.toEqual({ matchesAccent: true, touch: true });
 		await expect(page.locator('.ll-caret-layer')).toHaveCSS('display', 'none');
 	}
 });

@@ -1,24 +1,25 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { Diagnostic, EditorSnapshot } from '$lib/core/types.js';
-	import { lineNumberAt } from '$lib/core/line-numbers.js';
+	import { lineNumberLookup } from '$lib/core/line-numbers.js';
 	import { diagnosticKey } from '$lib/diagnostics/order.js';
-	import { ChevronDown } from 'lucide-svelte';
+	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import {
 		ignoredDiagnosticAccepted,
 		ignoredDiagnosticRuleId,
-		ignoredDiagnosticText,
-		matchIgnoredDiagnostics
+		ignoredDiagnosticText
 	} from '$lib/diagnostics/ignore.js';
 	import { ruleName } from '$lib/rules/index.js';
 
 	let {
 		diagnosticKeys,
+		matches,
 		snapshot,
 		onReveal,
 		onRestore
 	}: {
 		diagnosticKeys: readonly string[];
+		matches: ReadonlyMap<string, string>;
 		snapshot?: EditorSnapshot;
 		onReveal?: (diagnostic: Diagnostic) => void;
 		onRestore: (diagnosticKey: string) => void;
@@ -28,20 +29,16 @@
 	let toggle: HTMLButtonElement | null = $state(null);
 
 	const rows = $derived.by(() => {
-		const matches = snapshot
-			? matchIgnoredDiagnostics(snapshot.diagnostics, snapshot.text, diagnosticKeys)
-			: new Map<string, string>();
+		const diagnostics = new Map(snapshot?.diagnostics.map((item) => [diagnosticKey(item), item]));
+		const lineAt = lineNumberLookup(snapshot?.text ?? '');
 		return diagnosticKeys.map((key) => {
-			const diagnostic = snapshot?.diagnostics.find(
-				(item) => diagnosticKey(item) === matches.get(key)
-			);
+			const diagnostic = diagnostics.get(matches.get(key) ?? '');
 			const section =
 				diagnostic &&
 				snapshot?.parsed.sections.find(
 					(item) => item.from <= diagnostic.from && item.to >= diagnostic.to
 				);
-			const line =
-				diagnostic && snapshot ? lineNumberAt(snapshot.text, diagnostic.from) : undefined;
+			const line = diagnostic ? lineAt(diagnostic.from) : undefined;
 			return {
 				key,
 				diagnostic,

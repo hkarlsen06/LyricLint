@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 # A newer PR commit supersedes its checks; production pushes still finish their gates.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
@@ -45,7 +49,7 @@ jobs:
           bunx prettier --check . --cache --cache-strategy content --cache-location node_modules/.cache/ci-lint/prettier
           bunx oxlint
           bunx eslint . --cache --cache-strategy content --cache-location node_modules/.cache/ci-lint/eslint
-      - run: bunx playwright install --with-deps chromium
+      - run: bunx playwright install --with-deps --only-shell chromium
       - run: bun run test:unit -- --run
 
   assistant:
@@ -67,6 +71,9 @@ jobs:
   e2e:
     name: e2e
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --init --ipc=host
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -79,20 +86,54 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
       - run: bun install --frozen-lockfile
-      - run: bun run test:browsers
+      # The image already contains both browsers and their OS dependencies.
+      # A dependency update can change browser revisions before the image tag
+      # is refreshed; install only when those revisions are absent.
+      - name: Check the preinstalled browsers
+        run: |
+          if ! bun -e 'import { existsSync } from "node:fs"; import { chromium, webkit } from "playwright"; process.exit([chromium, webkit].every(browser => existsSync(browser.executablePath())) ? 0 : 1)'; then
+            bunx playwright install --with-deps --only-shell chromium webkit
+          fi
+      - name: Build the site
+        env:
+          PRODUCTION_BUILD: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          PUBLIC_APPLE_MUSIC_TOKEN: ${{ github.event_name == 'push' && vars.PUBLIC_APPLE_MUSIC_TOKEN || '' }}
+          PUBLIC_ASSISTANT_ANSWERS_URL: ${{ github.event_name == 'push' && vars.PUBLIC_ASSISTANT_ANSWERS_URL || '' }}
+          PUBLIC_TURNSTILE_SITE_KEY: ${{ github.event_name == 'push' && vars.PUBLIC_TURNSTILE_SITE_KEY || '' }}
+        run: |
+          if [ "$PRODUCTION_BUILD" = true ]; then
+            for name in PUBLIC_APPLE_MUSIC_TOKEN PUBLIC_ASSISTANT_ANSWERS_URL PUBLIC_TURNSTILE_SITE_KEY; do
+              if [ -z "${!name}" ]; then
+                echo "Missing production build variable: $name" >&2
+                exit 1
+              fi
+            done
+          fi
+          bun run build
       - run: bunx playwright test
+        env:
+          PLAYWRIGHT_PREBUILT: '1'
+      - name: Save E2E retry traces
+        if: ${{ !cancelled() && hashFiles('test-results/**/trace.zip') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-traces-${{ github.sha }}
+          path: test-results/
+          overwrite: true
+          retention-days: 7
+      - name: Save the tested production site
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-site-${{ github.sha }}
+          path: build/
+          overwrite: true
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 3
 
-  # The production deploy depends on CI. Cloudflare Pages' own automatic
-  # production-branch deployments are disabled; this job triggers the build
-  # through a deploy hook instead, and only after every CI job is green.
-  # Cloudflare still runs the build itself (its build variables, e.g.
-  # PUBLIC_APPLE_MUSIC_TOKEN, stay where they are), and PR preview
-  # deployments are untouched.
-  #
-  # CLOUDFLARE_DEPLOY_HOOK_URL is a repository secret holding a deploy hook
-  # created for the production branch (Pages project → Settings → Builds &
-  # deployments → Deploy hooks). A missing secret fails this job loudly
-  # rather than skipping the deploy in silence.
+  # Publish the exact artifact that passed E2E, after every required check succeeds.
+  # Pages' automatic production builds remain disabled; PR previews stay on Pages.
   deploy:
     name: deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -103,12 +144,39 @@ jobs:
       group: production-deploy
       cancel-in-progress: false
     steps:
-      - name: Trigger the Cloudflare Pages production deploy
+      - name: Check the production revision
+        id: revision
         env:
-          DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          if [ -z "$DEPLOY_HOOK_URL" ]; then
-            echo "CLOUDFLARE_DEPLOY_HOOK_URL is not set" >&2
+          current_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)
+          if [ "$current_sha" = "$COMMIT_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "A newer main revision supersedes this deployment."
+          fi
+      - uses: oven-sh/setup-bun@v2
+        if: steps.revision.outputs.current == 'true'
+      - name: Check deployment configuration
+        if: steps.revision.outputs.current == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID before deploying; see docs/ci.md." >&2
             exit 1
           fi
-          curl -fsS -X POST "$DEPLOY_HOOK_URL" > /dev/null
+      - uses: actions/download-artifact@v8
+        if: steps.revision.outputs.current == 'true'
+        with:
+          name: production-site-${{ github.sha }}
+          path: build/
+      - name: Deploy the tested site to Cloudflare Pages
+        if: steps.revision.outputs.current == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: bunx --package wrangler@4.129.0 wrangler pages deploy build --project-name lyriclint --branch main --commit-hash "$COMMIT_SHA" --commit-dirty=false

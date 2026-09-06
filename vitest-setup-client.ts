@@ -10,6 +10,10 @@
  * the same tokens the app ships.
  */
 import './src/lib/ui/styles/global.css';
+// Standalone components have no route layout to supply their content styles.
+import './src/lib/ui/styles/workbench.css';
+import './src/lib/ui/styles/site.css';
+import './src/lib/ui/styles/landing.css';
 import { configure } from '@testing-library/dom';
 import { flushSync, tick } from 'svelte';
 

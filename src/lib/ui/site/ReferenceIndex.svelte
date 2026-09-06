@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { tick } from 'svelte';
-	import { ChevronRight } from 'lucide-svelte';
+	import ChevronRight from 'lucide-svelte/icons/chevron-right';
 	import { afterNavigate } from '$app/navigation';
 	import { base, resolve } from '$app/paths';
 	import { assistantAvailable } from '$lib/assistant/api.js';

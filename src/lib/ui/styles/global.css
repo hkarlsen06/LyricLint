@@ -1,23 +1,11 @@
-/*
- * Entry point for the app stylesheet. Tokens come first so every part below can
- * resolve them; the parts then load in cascade order, which is load-bearing —
- * reordering these imports changes which rule wins.
- */
+/* Shared design foundations. Route layouts load only their own content styles. */
 @import './fonts.css';
 @import './tokens.css';
 @import './base.css';
 @import './controls.css';
 @import './rows.css';
-@import './shell.css';
-@import './media.css';
-@import './editor.css';
-@import './panel.css';
-@import './linter.css';
+@import './wordmark.css';
 @import './diagnostics.css';
-@import './performers.css';
-@import './tools.css';
 @import './overlays.css';
 @import './assistant.css';
-@import './site.css';
-@import './landing.css';
-@import './responsive.css';
+@import './responsive-shared.css';

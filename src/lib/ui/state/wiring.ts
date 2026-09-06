@@ -4,7 +4,7 @@ import { sourceRegistry } from '$lib/rules/index.js';
 import { findExactPerformer } from '$lib/performers/index.js';
 import { decodeLegendText } from '$lib/performers/import.js';
 import type { VoiceGroupRange } from '$lib/editor/index.js';
-import { lineNumberAt } from '$lib/core/line-numbers.js';
+import { lineNumberAt, lineNumberLookup } from '$lib/core/line-numbers.js';
 import { scanAnnotations } from '$lib/core/annotations.js';
 import { isLyricLine, scanPhysicalLines } from '$lib/core/parser.js';
 import type {
@@ -246,27 +246,6 @@ export function filterForEditorState(
 				return settled || !caretLines.has(lineAt(diagnostic.from));
 		}
 	});
-}
-
-/** Line numbers for many offsets in one pass, in the order they are asked for. */
-function lineNumberLookup(text: string): (offset: number) => number {
-	let starts: number[] | undefined;
-	return (offset) => {
-		if (!starts) {
-			starts = [0];
-			for (let index = 0; index < text.length; index += 1) {
-				if (text[index] === '\n') starts.push(index + 1);
-			}
-		}
-		let low = 0;
-		let high = starts.length - 1;
-		while (low < high) {
-			const mid = (low + high + 1) >> 1;
-			if (starts[mid]! <= offset) low = mid;
-			else high = mid - 1;
-		}
-		return low + 1;
-	};
 }
 
 /**

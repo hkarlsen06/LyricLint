@@ -8,7 +8,7 @@
 	 * here is resolved from the local corpus, never from model output, and the
 	 * complete reference opens on the rule's own page in a new tab.
 	 */
-	import { ExternalLink } from 'lucide-svelte';
+	import ExternalLink from 'lucide-svelte/icons/external-link';
 	import { resolve } from '$app/paths';
 	import type { Severity } from '$lib/core/types.js';
 	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';

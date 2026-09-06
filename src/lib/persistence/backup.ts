@@ -3,6 +3,7 @@ import { validateLinkPassages } from '../core/link-record.js';
 import Dexie, { type ObservabilitySet } from 'dexie';
 
 import { randomId } from '../core/random-id.js';
+import { mutatedKeys } from './mutation-keys.js';
 import { ASSISTANT_DRAFT_ACCESS_PREFIX } from '../assistant/permissions.js';
 import {
 	MAX_RECENT_LANGUAGES,
@@ -24,6 +25,7 @@ const VERSION = 1;
 const HANDLE_KEY = 'workspace';
 const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 const AUTOSAVE_DELAY_MS = 750;
+const POSITION_BACKUP_DELAY_MS = 30_000;
 const CURRENT_DRAFT_KEY = 'currentDraftId';
 
 type SerializableMediaRecord = Omit<MediaHandleRecord, 'handle'>;
@@ -467,6 +469,18 @@ async function createBackupFile(
 	};
 }
 
+function serializeBackupFile(backup: WorkspaceBackupFile): string {
+	return `${JSON.stringify(backup, null, 2)}\n`;
+}
+
+/** Playback alone changes position; every other portable attachment fact needs a prompt backup. */
+function mediaIdentity(record: MediaHandleRecord): string {
+	const copy = { ...record };
+	delete copy.handle;
+	delete copy.position;
+	return JSON.stringify(copy);
+}
+
 /**
  * The browser's own save-file picker, where there is a browser carrying one.
  *
@@ -492,10 +506,13 @@ export function createWorkspaceBackup(
 	};
 	let handle: WritableFileHandle | undefined;
 	let timer: ReturnType<typeof setTimeout> | undefined;
-	let dirty = false;
+	let timerDue = 0;
+	let dirtyVersion = 0;
+	let savedVersion = 0;
 	let writing: Promise<void> | undefined;
 	let destroyed = false;
 	const listeners = new Set<(state: WorkspaceBackupState) => void>();
+	let backedUpMedia = new Map<string, string>();
 
 	function publish(update: Partial<WorkspaceBackupState>): void {
 		currentState = { ...currentState, ...update };
@@ -518,6 +535,9 @@ export function createWorkspaceBackup(
 			// handle the save-file picker returned — and a picker handle carries
 			// `createWritable` and the permission pair the record's type omits.
 			handle = record.handle as WritableFileHandle;
+			// A remembered destination does not prove the previous session's last
+			// write succeeded. The first authorized flush must establish a fresh backup.
+			dirtyVersion += 1;
 			publish({
 				linkedFileName: record.name,
 				permission: await permissionFor(handle)
@@ -530,36 +550,95 @@ export function createWorkspaceBackup(
 		});
 
 	const databasePrefix = `idb://${database.name}/`;
+	function scheduleWrite(delay: number): void {
+		if (destroyed) return;
+		dirtyVersion += 1;
+		void ready.then(() => {
+			if (destroyed || !handle || currentState.permission !== 'granted') return;
+			const due = Date.now() + delay;
+			if (timer !== undefined && timerDue <= due) return;
+			if (timer !== undefined) clearTimeout(timer);
+			timerDue = due;
+			timer = setTimeout(() => {
+				timer = undefined;
+				void controller.flush();
+			}, delay);
+		});
+	}
+
+	async function checkMediaChanges(parts: ObservabilitySet): Promise<void> {
+		await ready;
+		if (destroyed || !handle || currentState.permission !== 'granted') return;
+		const keys = mutatedKeys(parts, `${databasePrefix}mediaHandles/`);
+		try {
+			const records =
+				keys === undefined
+					? await database.mediaHandles.toArray()
+					: await database.mediaHandles.bulkGet(keys);
+			const next = new Map(
+				records.flatMap((record) =>
+					record ? [[record.draftId, mediaIdentity(record)] as const] : []
+				)
+			);
+			const changed = keys ?? [...new Set([...backedUpMedia.keys(), ...next.keys()])];
+			if (changed.some((key) => next.get(key) !== backedUpMedia.get(key))) {
+				scheduleWrite(AUTOSAVE_DELAY_MS);
+			}
+		} catch {
+			// If classification is unavailable, retain the ordinary backup deadline.
+			scheduleWrite(AUTOSAVE_DELAY_MS);
+		}
+	}
+
 	const mutationListener = (parts: ObservabilitySet) => {
 		if (
+			parts.all ||
 			Object.keys(parts).some((part) =>
-				['drafts', 'appMetadata', 'mediaHandles'].some((table) =>
+				['drafts', 'appMetadata', 'draftIgnores'].some((table) =>
 					part.startsWith(`${databasePrefix}${table}/`)
 				)
 			)
 		) {
 			controller.schedule();
 		}
+		if (Object.keys(parts).some((part) => part.startsWith(`${databasePrefix}mediaHandles/`))) {
+			// A full library rewrite is disproportionate to a five-second progress checkpoint.
+			// Mark it dirty immediately so an explicit flush never waits on classification.
+			scheduleWrite(POSITION_BACKUP_DELAY_MS);
+			void checkMediaChanges(parts);
+		}
 	};
 	Dexie.on.storagemutated.subscribe(mutationListener);
 
 	async function writeUntilClean(): Promise<void> {
-		while (dirty && handle && currentState.permission === 'granted') {
-			dirty = false;
+		while (
+			savedVersion < dirtyVersion &&
+			handle &&
+			currentState.permission === 'granted' &&
+			!destroyed
+		) {
+			const version = dirtyVersion;
 			publish({ status: 'saving' });
 			try {
 				const writable = await handle.createWritable();
-				await writable.write(await controller.serialize());
+				const backup = await createBackupFile(database, now, ignoreStore);
+				await writable.write(serializeBackupFile(backup));
 				await writable.close();
+				savedVersion = version;
+				backedUpMedia = new Map(
+					backup.media.map((record) => [record.draftId, mediaIdentity(record)])
+				);
 				publish({ status: 'saved' });
 			} catch {
-				dirty = true;
 				publish({
 					status: 'failed',
 					permission: handle ? await permissionFor(handle) : undefined
 				});
 				break;
 			}
+			// Changes arriving during a write keep their deadline. An explicit flush cancels
+			// that timer and drains immediately, including when another write is in flight.
+			if (timer !== undefined) break;
 		}
 	}
 
@@ -573,7 +652,7 @@ export function createWorkspaceBackup(
 			return () => listeners.delete(listener);
 		},
 		async serialize() {
-			return `${JSON.stringify(await createBackupFile(database, now, ignoreStore), null, 2)}\n`;
+			return serializeBackupFile(await createBackupFile(database, now, ignoreStore));
 		},
 		async restore(file) {
 			if (file.size > MAX_BACKUP_BYTES) {
@@ -713,7 +792,7 @@ export function createWorkspaceBackup(
 			await database.backupHandles.put(record);
 			publish({ linkedFileName: chosen.name, permission });
 			if (permission === 'granted') {
-				dirty = true;
+				dirtyVersion += 1;
 				await controller.flush();
 			}
 			return true;
@@ -725,43 +804,44 @@ export function createWorkspaceBackup(
 			publish({ permission });
 			if (permission !== 'granted') return false;
 			await beforeWrite();
-			dirty = true;
+			dirtyVersion += 1;
 			await controller.flush();
 			return true;
 		},
 		async unlink() {
 			if (timer) clearTimeout(timer);
 			timer = undefined;
-			dirty = false;
+			savedVersion = dirtyVersion;
 			handle = undefined;
 			await database.backupHandles.delete(HANDLE_KEY);
 			currentState = { supported: currentState.supported, status: 'idle' };
 			publish({});
 		},
 		schedule() {
-			void ready.then(() => {
-				if (destroyed || !handle || currentState.permission !== 'granted' || timer !== undefined) {
-					return;
-				}
-				dirty = true;
-				timer = setTimeout(() => {
-					timer = undefined;
-					void controller.flush();
-				}, AUTOSAVE_DELAY_MS);
-			});
+			scheduleWrite(AUTOSAVE_DELAY_MS);
 		},
 		async flush() {
 			await ready;
 			if (timer) clearTimeout(timer);
 			timer = undefined;
 			if (!handle || currentState.permission !== 'granted' || destroyed) return;
-			dirty = true;
-			if (!writing) {
-				writing = writeUntilClean().finally(() => {
-					writing = undefined;
-				});
-			}
-			await writing;
+			const requiredVersion = dirtyVersion;
+			do {
+				if (!writing && savedVersion < requiredVersion) {
+					writing = writeUntilClean().finally(() => {
+						writing = undefined;
+					});
+				}
+				await writing;
+				if (currentState.status === 'failed') return;
+				// A request arriving as the previous writer settles still owes its own
+				// committed changes; merely awaiting that older promise could miss them.
+			} while (
+				savedVersion < requiredVersion &&
+				handle &&
+				currentState.permission === 'granted' &&
+				!destroyed
+			);
 		},
 		destroy() {
 			destroyed = true;

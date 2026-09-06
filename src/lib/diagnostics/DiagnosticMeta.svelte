@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ChevronDown } from 'lucide-svelte';
+	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import type { Diagnostic, SourceReference } from '$lib/core/types.js';
 	import SeverityTag from './SeverityTag.svelte';
 	import SourceCitation from './SourceCitation.svelte';

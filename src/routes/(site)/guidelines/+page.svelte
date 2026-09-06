@@ -2,7 +2,6 @@
 	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to resolve-derived paths; the lint rule cannot inspect nested calls. */
 	import { resolve } from '$app/paths';
 	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
-	import { countGuidanceLookups } from '$lib/guidance/guidance-search.js';
 	import {
 		authorityLabels,
 		guidanceTopicTitles,
@@ -15,7 +14,7 @@
 
 	let { data }: PageProps = $props();
 
-	const total = $derived(countGuidanceLookups(data.sections));
+	const total = $derived(data.guidanceCount);
 
 	/*
 	 * The legend for the authority ladder, ascending as the ladder fills. The
@@ -64,7 +63,7 @@
 		url: canonicalUrl,
 		description: pageDescription,
 		numberOfItems: total,
-		hasPart: data.sections.map(({ topic }) => ({
+		hasPart: data.guidanceTopics.map((topic) => ({
 			'@type': 'TechArticle',
 			headline: guidanceTopicTitles[topic],
 			url: siteUrl(`/guidelines/${topic}/`)

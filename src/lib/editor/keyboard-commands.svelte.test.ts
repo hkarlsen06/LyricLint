@@ -448,6 +448,28 @@ describe('LyricLint keyboard commands through CodeMirror', () => {
 		expect(lint).toHaveBeenCalledWith('日本語');
 	});
 
+	it('composes the exact withheld edits into the resumed snapshot', async () => {
+		const snapshots = vi.fn();
+		await mount({ text: 'Imma\nImma', editorCallbacks: callbacks({ onSnapshot: snapshots }) });
+		const textbox = page.getByRole('textbox', { name: 'Lyrics editor' }).element() as HTMLElement;
+		const view = EditorView.findFromDOM(textbox);
+		if (!view) throw new Error('CodeMirror view was not found.');
+		snapshots.mockClear();
+		textbox.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+		view.dispatch({ changes: { from: 0, to: 0, insert: 'に' } });
+		view.dispatch({ changes: { from: 0, to: 1, insert: '日本\n' } });
+		expect(snapshots).not.toHaveBeenCalled();
+		textbox.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '日本' }));
+		await vi.waitFor(() => expect(snapshots).toHaveBeenCalledOnce());
+		expect(snapshots.mock.calls[0]?.[0]).toMatchObject({
+			revision: 2,
+			text: '日本\nImma\nImma',
+			documentChange: { baseRevision: 0, edits: [{ from: 0, to: 0, insert: '日本\n' }] }
+		});
+		view.dispatch({ selection: { anchor: 3 } });
+		expect(snapshots.mock.calls.at(-1)?.[0].documentChange).toBeUndefined();
+	});
+
 	it('does not treat insertText as an ended composition while CodeMirror remains composing', async () => {
 		const snapshots = vi.fn();
 		const { handle } = await mount({

@@ -1,13 +1,12 @@
 import { EditorState } from '@codemirror/state';
 import { describe, expect, it } from 'vitest';
 import { parseDocument } from '$lib/core/parser.js';
-import { markupDimField } from './markup-dim.js';
-import { setHeaderlessSectionsEffect } from './section-ghosts.js';
+import { markupDimField, setMarkupDocumentEffect } from './markup-dim.js';
 
 function dimmedRanges(text: string): { from: number; to: number; slice: string }[] {
 	const state = EditorState.create({ doc: text, extensions: [markupDimField] });
 	const settled = state.update({
-		effects: setHeaderlessSectionsEffect.of({ parsed: parseDocument(text), diagnostics: [] })
+		effects: setMarkupDocumentEffect.of(parseDocument(text))
 	}).state;
 	const ranges: { from: number; to: number; slice: string }[] = [];
 	settled.field(markupDimField).between(0, text.length, (from, to) => {

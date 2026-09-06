@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { Check, Globe, Search, X } from 'lucide-svelte';
+	import Check from 'lucide-svelte/icons/check';
+	import Globe from 'lucide-svelte/icons/globe';
+	import Search from 'lucide-svelte/icons/search';
+	import X from 'lucide-svelte/icons/x';
 	import { getLanguagePack } from '$lib/languages/registry.js';
 	import { languageSourceInventory } from '$lib/languages/inventory.js';
 	import { tick } from 'svelte';

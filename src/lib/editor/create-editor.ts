@@ -73,7 +73,11 @@ import {
 	syncMoveTo
 } from './extensions/lyric-sync.js';
 import { invisibleMarks, invisibleMarksTheme } from './extensions/invisible-marks.js';
-import { markupDimField, markupDimTheme } from './extensions/markup-dim.js';
+import {
+	markupDimField,
+	markupDimTheme,
+	setMarkupDocumentEffect
+} from './extensions/markup-dim.js';
 import {
 	diagnosticRangeHoverHandler,
 	lintDecorationField,
@@ -670,6 +674,7 @@ export function createLyricEditor(
 	let activeCallbacks = options.callbacks;
 	let pendingContext: EditorDisplayContext | undefined;
 	let appliedContext: EditorDisplayContext | undefined;
+	let appliedDocument: EditorState['doc'] | undefined;
 	let destroyed = false;
 	let contextFlushQueued = false;
 
@@ -977,14 +982,25 @@ export function createLyricEditor(
 		const text = view.state.doc.toString();
 		const parsed = context.parsed?.text === text ? context.parsed : parseDocument(text);
 		const nextContext = { ...context, parsed };
+		// A changed document clears settled decorations before context returns.
+		// Compare the immutable document too: an edit followed by undo can bring
+		// back the old text and parse while those decorations still need restoring.
+		const documentChanged = appliedDocument !== view.state.doc;
+		const parsedChanged = documentChanged || appliedContext?.parsed !== parsed;
+		const diagnosticsChanged =
+			documentChanged ||
+			appliedContext?.diagnostics?.revision !== nextContext.diagnostics?.revision ||
+			!sameReferences(appliedContext?.diagnostics?.items, nextContext.diagnostics?.items);
+		const performersChanged =
+			documentChanged ||
+			appliedContext?.performers !== nextContext.performers ||
+			appliedContext?.voiceGroups !== nextContext.voiceGroups;
 		if (
+			!parsedChanged &&
+			!diagnosticsChanged &&
+			!performersChanged &&
 			appliedContext?.language === nextContext.language &&
-			appliedContext.performers === nextContext.performers &&
 			appliedContext.ruleSetVersion === nextContext.ruleSetVersion &&
-			appliedContext.parsed === nextContext.parsed &&
-			appliedContext.diagnostics?.revision === nextContext.diagnostics?.revision &&
-			sameReferences(appliedContext.diagnostics?.items, nextContext.diagnostics?.items) &&
-			appliedContext.voiceGroups === nextContext.voiceGroups &&
 			appliedContext.languagePack === nextContext.languagePack &&
 			appliedContext.reducedMotion === nextContext.reducedMotion &&
 			sameReferences(appliedContext.sources, nextContext.sources)
@@ -992,25 +1008,35 @@ export function createLyricEditor(
 			return;
 		}
 		appliedContext = nextContext;
-		view.dispatch({
-			effects: [
-				setEditorContextEffect.of(nextContext),
-				setDiagnosticsEffect.of(
-					context.diagnostics ?? {
-						revision,
-						items: []
-					}
-				),
+		appliedDocument = view.state.doc;
+		const effects: StateEffect<unknown>[] = [
+			setEditorContextEffect.of(nextContext),
+			setEditorCallbacksEffect.of(activeCallbacks)
+		];
+		if (diagnosticsChanged) {
+			effects.push(setDiagnosticsEffect.of(context.diagnostics ?? { revision, items: [] }));
+		}
+		if (performersChanged) {
+			effects.push(
 				setVoiceGroupsEffect.of({
 					groups: context.voiceGroups ?? [],
 					performers: context.performers
-				}),
+				})
+			);
+		}
+		if (parsedChanged) effects.push(setMarkupDocumentEffect.of(parsed));
+		// Ignoring a prose-header finding can reveal the headerless helper without
+		// changing any source markup, so these two displays have separate inputs.
+		if (parsedChanged || diagnosticsChanged) {
+			effects.push(
 				setHeaderlessSectionsEffect.of({
 					parsed,
 					diagnostics: context.diagnostics?.items ?? []
-				}),
-				setEditorCallbacksEffect.of(activeCallbacks)
-			],
+				})
+			);
+		}
+		view.dispatch({
+			effects,
 			annotations: Transaction.addToHistory.of(false)
 		});
 	}

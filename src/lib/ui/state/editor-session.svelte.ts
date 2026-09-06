@@ -56,7 +56,9 @@ export function createEditorSession(deps: EditorSessionDependencies): EditorSess
 	// the window and `Escape` and the panel's own `✕` close it — three ways in and
 	// out, only one of which is the tray's own press.
 	let searchOpen = $state(false);
-	let snapshot = $state(deps.initialSnapshot);
+	// Snapshots are immutable replacements from the editor. Proxying every parsed
+	// line, finding and fix adds reactive bookkeeping without an in-place writer.
+	let snapshot = $state.raw(deps.initialSnapshot);
 	let lastEditorRevision: number | undefined;
 
 	// Declared out here rather than as a sibling method: the controller hands

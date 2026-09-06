@@ -1,6 +1,7 @@
 # Mobile workbench: writing, reviewing, and tools
 
-Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/state/phone-layout.ts`,
+Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-shared.css`,
+`src/lib/ui/state/phone-layout.ts`,
 `src/lib/ui/layout/Workspace.svelte`, `src/lib/ui/state/keyboard-inset.ts`, `src/app.html`
 
 ## The rules
@@ -32,7 +33,8 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/state/phone-layout.ts`,
   Paste remain visible. Touch editing actions are named, and assignment uses the shared
   voice-group predicate. `MobileCommands.svelte.test.ts` pins bounds, dismissal, and selection.
 - Frequent buttons, icon controls, and severity filters use `--control-height-touch` (44px)
-  on touch screens. Nothing a finger types into is smaller than 16px. Preserve pinch zoom:
+  on touch screens at every width. Shared size floors outrank compact route styles even
+  when those sheets load later. Nothing a finger types into is smaller than 16px. Preserve pinch zoom:
   `src/app.html` stays `width=device-width, initial-scale=1`. The reference search field
   has an explicit override because its class otherwise outranks the input selector. Workbench
   fields have a stronger workspace-scoped floor to beat component font shorthands, including
@@ -50,6 +52,20 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/state/phone-layout.ts`,
   also needs simulator/device validation.
 
 ## Decision record
+
+### Shared touch and motion rules stay available on every route
+
+`responsive.css` now follows the workbench-only styles. The common button/input floors and
+motion preferences live in `responsive-shared.css`, loaded by the root stylesheet, so opening
+the guide or the assistant modal directly retains them. The finder's class-specific font-size
+override follows its declarations in `site.css`. Moving these rules with the workspace would
+silently shrink the guide's touch controls; their ownership follows the controls they protect.
+
+The shared button size floors qualify their selectors with `:root`, because route styles load
+after them. Equal-specificity compact classes otherwise shrink controls again: the Review bulk
+action fell from 44px to 28px on a 1400px touch viewport, beyond the phone workspace override's
+68rem ceiling. The narrow-window floor uses the same priority for fine pointers. These remain
+minimum sizes, so controls with longer labels or larger destination treatments can still grow.
 
 ### Touch emulation stays inside its test file
 

@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { Check, ClipboardPaste, Copy, Plus, Redo, TriangleAlert, Undo } from 'lucide-svelte';
+	import Check from 'lucide-svelte/icons/check';
+	import ClipboardPaste from 'lucide-svelte/icons/clipboard-paste';
+	import Copy from 'lucide-svelte/icons/copy';
+	import Plus from 'lucide-svelte/icons/plus';
+	import Redo from 'lucide-svelte/icons/redo';
+	import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
+	import Undo from 'lucide-svelte/icons/undo';
 	import { resolve } from '$app/paths';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { onMount } from 'svelte';

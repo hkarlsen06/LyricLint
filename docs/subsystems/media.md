@@ -535,6 +535,25 @@ against `ownerDraftId`, the draft the loaded audio belongs to, never the draft t
 open: switching drafts mid-playback would otherwise stamp the outgoing track's playhead onto the
 incoming draft.
 
+The portable workspace backup has a separate playback budget. Rewriting every lyric in the library
+after each five-second position checkpoint made listening alone repeatedly serialize and replace a
+multi-megabyte file. Position-only mutations now wait up to 30 seconds for that secondary copy;
+the browser's own position record still lands every five seconds. The backup compares only changed
+media records with the portable metadata in the last successful backup, excluding position and file
+handles. New attachments, source names, detachment, and lyric changes keep the 750ms deadline.
+Unknown mutation ranges or failed classification take the ordinary prompt path when necessary.
+
+A pause, ending, or seek asks for that prompt backup after its position write succeeds. Hiding the
+tab still flushes the final position and then the complete workspace backup immediately. A clean
+flush performs no rewrite, but waits for a write already in flight; failed writes remain dirty for
+retry. A restored backup handle starts dirty: the previous session may have failed or been interrupted,
+so its first authorized flush refreshes the file even without another edit. Only a successful write
+in this session establishes that it is clean. Mutations arriving during a write retain their deadline,
+while an explicit flush drains them in order. Portable backups remain complete, coherent JSON snapshots, with no change to primary lyric
+autosave or attachment durability. `backup.test.ts` pins the two deadlines, final progress, no-op
+flushes, failed-write retry across sessions, and overlapping flushes; `media-store.test.ts` pins the
+settled callback after a successful position write.
+
 Implementation: `src/lib/ui/state/media-player.svelte.ts` (the transport and its arithmetic),
 `media-store.svelte.ts` (attachment, permission, and the durable position),
 `src/lib/ui/media/MediaStrip.svelte`, `src/lib/ui/styles/media.css`, and

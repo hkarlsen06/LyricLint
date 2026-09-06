@@ -4,7 +4,7 @@
 	 * dismissal, and focus restoration; AssistantConversation owns everything
 	 * below this header and is shared verbatim with the workbench panel.
 	 */
-	import { X } from 'lucide-svelte';
+	import X from 'lucide-svelte/icons/x';
 	import { Dialog } from 'bits-ui';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import AssistantChatControls from './AssistantChatControls.svelte';

@@ -514,6 +514,7 @@ describe('a diagnostic reads the same in the panel and in the editor', () => {
 			}),
 			await render(DiagnosticList, {
 				diagnostics: [diagnostic],
+				rowKey: () => 'finding',
 				sources: new Map(sources.map((source) => [source.id, source])),
 				emptyState: { title: '', detail: '' },
 				onNavigate: vi.fn(),

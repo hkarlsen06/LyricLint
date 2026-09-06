@@ -1,0 +1,9 @@
+/* Workbench-only content, in its existing cascade order. */
+@import './shell.css';
+@import './media.css';
+@import './editor.css';
+@import './panel.css';
+@import './linter.css';
+@import './performers.css';
+@import './tools.css';
+@import './responsive.css';

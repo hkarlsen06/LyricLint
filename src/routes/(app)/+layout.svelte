@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '$lib/ui/styles/workbench.css';
 	import { resolve } from '$app/paths';
 	import LiveRegion from '$lib/ui/primitives/LiveRegion.svelte';
 	import ToastRegion from '$lib/ui/primitives/ToastRegion.svelte';

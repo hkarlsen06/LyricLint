@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import * as shape from '$lib/core/link-shape.js';
 import { checkRule, markedText } from '../rule-test-utils.js';
 import { sectionUnlinkedRepeatRule } from './section-unlinked-repeat.js';
 
@@ -7,6 +8,40 @@ function findings(text: string, language = 'en'): string[] {
 }
 
 describe('section.unlinked-repeat', () => {
+	it('reuses unchanged groups beyond the body-cache capacity when another section is edited', () => {
+		const choruses = Array.from(
+			{ length: 140 },
+			(_, index) =>
+				`[Chorus ${index + 1}]\nSignal ${index}first ${index}second ${index}third ${index}fourth`
+		).join('\n\n');
+		expect(findings(choruses)).toEqual([]);
+		const compare = vi.spyOn(shape, 'bodiesAreSimilarEnoughToLink');
+		try {
+			expect(findings(`[Verse]\nNew lyrics\n\n${choruses}`)).toEqual([]);
+			expect(compare).not.toHaveBeenCalled();
+		} finally {
+			compare.mockRestore();
+		}
+	});
+
+	it('still finds a matching pair at the end of a large group and rebuilds current ranges', () => {
+		const unrelated = Array.from(
+			{ length: 12 },
+			(_, index) =>
+				`[Chorus ${index + 1}]\nSignal ${index}first ${index}second ${index}third ${index}fourth`
+		).join('\n\n');
+		const text = `${unrelated}\n\n[Chorus 13]\nHold the line\n\n[Verse]\nBetween\n\n[Chorus 14]\nHold the line`;
+		const first = checkRule(sectionUnlinkedRepeatRule, text);
+		const prefix = '[Intro]\nWords arriving before the choruses\n\n';
+		const shifted = checkRule(sectionUnlinkedRepeatRule, prefix + text);
+		expect(first).toHaveLength(1);
+		expect(shifted[0]!.from).toBe(first[0]!.from + prefix.length);
+		expect(shifted[0]!.relatedRanges!.at(-1)!.from).toBe(
+			first[0]!.relatedRanges!.at(-1)!.from + prefix.length
+		);
+		expect(findings(text.replace('Hold the line', 'A wholly different refrain'))).toEqual([]);
+	});
+
 	it('offers a link where two choruses are already the same words', () => {
 		expect(
 			findings('[Chorus]\nHold the line\n\n[Verse 1]\nA lyric\n\n[Chorus]\nHold the line')

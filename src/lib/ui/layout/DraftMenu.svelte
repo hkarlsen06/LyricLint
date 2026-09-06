@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { ChevronDown, Copy, Download, Pencil } from 'lucide-svelte';
+	import ChevronDown from 'lucide-svelte/icons/chevron-down';
+	import Copy from 'lucide-svelte/icons/copy';
+	import Download from 'lucide-svelte/icons/download';
+	import Pencil from 'lucide-svelte/icons/pencil';
 	import type { DraftSummary } from '$lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';

@@ -120,6 +120,8 @@ export interface WorkbenchController {
 	readonly visibleDiagnostics: readonly Diagnostic[];
 	readonly bulkFixPlan: BulkFixPlan;
 	readonly ignoredDiagnosticKeys: readonly string[];
+	readonly ignoredDiagnosticMatches: ReadonlyMap<string, string>;
+	diagnosticRowKey(diagnostic: Diagnostic): string;
 	readonly ignoredDiagnosticCount: number;
 	readonly saveStatus: AutosaveStatus;
 	/** The Compare dialog's stored baseline for the current draft, if any. */
@@ -420,6 +422,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			// every later save. Both directions are lazy closures because the two
 			// stores need each other and only one of them can be built first.
 			onAttached: () => draft.keepDraft(),
+			onPositionSettled: deps.backup?.schedule,
 			onTitleSuggestion: (title) => void nameDraftAfterSource(title)
 		};
 		// Absent rather than undefined: the store builds its own player where no
@@ -577,6 +580,10 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		get ignoredDiagnosticKeys() {
 			return panel.ignoredDiagnosticKeys;
 		},
+		get ignoredDiagnosticMatches() {
+			return panel.ignoredDiagnosticMatches;
+		},
+		diagnosticRowKey: panel.diagnosticRowKey,
 		get ignoredDiagnosticCount() {
 			return panel.ignoredDiagnosticKeys.length;
 		},
@@ -645,13 +652,13 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 		},
 		setSaveStatus: draft.setSaveStatus,
 		onSnapshot(nextSnapshot) {
-			const previousText = editorSession.snapshot.text;
+			const previous = editorSession.snapshot;
 			const change = editorSession.adoptSnapshot(nextSnapshot);
 			if (!change) return;
 			// Offsets and difference indexes belong to the text that was reviewed.
 			// A new text needs a fresh choice; selection and lint-only updates do not.
-			if (previousText !== nextSnapshot.text) resetLinking();
-			panel.pruneActiveDiagnostic(nextSnapshot.diagnostics);
+			if (previous.text !== nextSnapshot.text) resetLinking();
+			panel.adoptSnapshot(previous, nextSnapshot);
 			// A fix's own re-lint arrives here. Drop its active card before the
 			// panel leads with the next one.
 			panel.leadAfterFix(nextSnapshot.diagnostics);

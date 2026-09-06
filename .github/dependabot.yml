@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
     ignore:
       # `typescript` is deliberately held at 6 here. svelte-check and
       # typescript-eslint both read the compiler API off that package name, and
@@ -35,8 +39,16 @@ updates:
     directory: /services/rules-assistant
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        patterns: ['*']
+        update-types: [minor, patch]

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { FileText } from 'lucide-svelte';
+	import FileText from 'lucide-svelte/icons/file-text';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import type { AssistantToolCallRecord } from '$lib/persistence/types.js';
 

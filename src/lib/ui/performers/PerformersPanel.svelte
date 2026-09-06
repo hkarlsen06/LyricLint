@@ -3,7 +3,8 @@
 	import PerformerLegend from './PerformerLegend.svelte';
 	import PerformerRoster from './PerformerRoster.svelte';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let { controller, active = true }: { controller: WorkbenchController; active?: boolean } =
+		$props();
 </script>
 
 <div class="panel-content performers-panel">
@@ -30,5 +31,9 @@
 		</section>
 	{/if}
 
-	<PerformerLegend document={controller.snapshot.parsed} performers={controller.performers} />
+	<PerformerLegend
+		document={controller.snapshot.parsed}
+		performers={controller.performers}
+		{active}
+	/>
 </div>

@@ -2,7 +2,7 @@
 	// Decision record: docs/subsystems/diagnostics.md — read it before changing
 	// this file, and update it with any behavior change.
 	import { untrack } from 'svelte';
-	import { Check } from 'lucide-svelte';
+	import Check from 'lucide-svelte/icons/check';
 	import { previewableFix, previewSignature } from '$lib/core/fix-preview.js';
 	import type { Diagnostic, DiagnosticFix } from '$lib/core/types.js';
 	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';

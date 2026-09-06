@@ -8,14 +8,11 @@ import type { Diagnostic, ParsedDocument, RuleDefinition, Section } from '$lib/c
 import { isImmediateRepeat } from './section-immediate-repeat-spacing.js';
 import { diagnostic } from './utils.js';
 
-/**
- * Automatic discovery stays far below the passage aligner's 2000-word ceiling.
- * That larger limit is for aligning the group after a person has chosen it;
- * here every same-kind pair is reconsidered on every keystroke inside a member,
- * and the alignment is quadratic. A repeated song part is usually tens of
- * words; large pasted sections must not make automatic discovery expensive.
- * Explicit linking has its own larger, bounded alignment budget.
- */
+const GROUP_CACHE_LIMIT = 16;
+const GROUP_CACHE_CHARACTERS = 262_144;
+const MAX_CACHED_GROUP_CHARACTERS = 65_536;
+const groupWorthCache = new Map<string, boolean>();
+let retainedGroupCharacters = 0;
 /**
  * Whether these copies have enough in common to be worth keeping in step.
  *
@@ -36,6 +33,33 @@ import { diagnostic } from './utils.js';
  */
 function worthLinking(members: readonly Section[]): boolean {
 	const bodies = members.map(comparableSectionBody).filter((body) => body.length > 0);
+	// Re-parsing an edit in a verse creates new Section objects for unchanged
+	// choruses too. Cache only their pure answer, never ranges or diagnostics.
+	// Whole-group reuse also covers groups larger than the bounded pair cache.
+	const characters = bodies.reduce((total, body) => total + body.length, 0);
+	const key = characters <= MAX_CACHED_GROUP_CHARACTERS ? JSON.stringify(bodies) : undefined;
+	if (key !== undefined) {
+		const cached = groupWorthCache.get(key);
+		if (cached !== undefined) return cached;
+	}
+	const worth = bodiesWorthLinking(bodies);
+	if (key !== undefined && key.length <= MAX_CACHED_GROUP_CHARACTERS) {
+		while (
+			groupWorthCache.size >= GROUP_CACHE_LIMIT ||
+			retainedGroupCharacters + key.length > GROUP_CACHE_CHARACTERS
+		) {
+			const oldest = groupWorthCache.keys().next().value;
+			if (oldest === undefined) break;
+			groupWorthCache.delete(oldest);
+			retainedGroupCharacters -= oldest.length;
+		}
+		groupWorthCache.set(key, worth);
+		retainedGroupCharacters += key.length;
+	}
+	return worth;
+}
+
+function bodiesWorthLinking(bodies: readonly string[]): boolean {
 	if (bodies.length < 2) {
 		// One copy with words and the rest still empty. Nothing to compare, and
 		// filling them is the whole point.

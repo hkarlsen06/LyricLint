@@ -1,7 +1,10 @@
 // Decision record: docs/subsystems/section-links.md.
 import { EditorView, WidgetType } from '@codemirror/view';
 import { mount, unmount } from 'svelte';
-import { Link, Unlink, Pen, PenLine } from 'lucide-svelte';
+import Link from 'lucide-svelte/icons/link';
+import Unlink from 'lucide-svelte/icons/unlink';
+import Pen from 'lucide-svelte/icons/pen';
+import PenLine from 'lucide-svelte/icons/pen-line';
 import { releaseControlHint, showControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
 import { pressed } from './widget-press.js';
 import { editorCallbacksField } from './editor-state.js';

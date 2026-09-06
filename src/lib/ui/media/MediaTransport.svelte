@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { Pause, Play, SkipBack, SkipForward } from 'lucide-svelte';
+	import Pause from 'lucide-svelte/icons/pause';
+	import Play from 'lucide-svelte/icons/play';
+	import SkipBack from 'lucide-svelte/icons/skip-back';
+	import SkipForward from 'lucide-svelte/icons/skip-forward';
 	import type { MediaPlayer } from '../state/media-player.svelte.js';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import { transportModifier } from '../state/media-shortcuts.js';

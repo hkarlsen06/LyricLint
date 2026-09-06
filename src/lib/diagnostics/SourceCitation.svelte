@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { ExternalLink } from 'lucide-svelte';
+	import ExternalLink from 'lucide-svelte/icons/external-link';
 	import type { Snippet } from 'svelte';
 	import type { SourceReference } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';

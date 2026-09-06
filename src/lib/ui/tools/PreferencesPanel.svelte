@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { ChevronRight, Info } from 'lucide-svelte';
+	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import Info from 'lucide-svelte/icons/info';
 	import { resolve } from '$app/paths';
 	import { Switch } from 'bits-ui';
 	import { onMount } from 'svelte';

@@ -816,6 +816,12 @@ export interface EditorSnapshot {
 	canUndo: boolean;
 	canRedo: boolean;
 	/**
+	 * Actual editor changes since the preceding emitted document, including all
+	 * transactions withheld during composition. View identities may follow these
+	 * ranges; fixes still belong to this snapshot's own revision. Never persisted.
+	 */
+	documentChange?: Pick<AtomicDocumentEdit, 'baseRevision' | 'edits'>;
+	/**
 	 * This snapshot's document change arrived as one complete edit rather than as
 	 * composition: a fix, a bulk fix, an inserted marker or header, a performer
 	 * assignment, a whole document replaced.

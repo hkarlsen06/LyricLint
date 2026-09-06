@@ -167,6 +167,99 @@ describe('draft repository', () => {
 		expect((await repository.list())[0]?.title).toBe('Untitled transcription');
 	});
 
+	it('refreshes only committed changed drafts while keeping summary order and previews current', async () => {
+		const { database, repository } = await createRepository('incremental-summaries');
+		const first = await repository.create({ id: 'a', text: 'First', updatedAt: '2026-01-01' });
+		await repository.create({ id: 'b', text: 'Second', updatedAt: '2026-01-02' });
+		const initial = await repository.list();
+		initial[0].title = 'A caller must not mutate the cached summary';
+		const fullRead = vi.spyOn(database.drafts, 'orderBy');
+		const changedRead = vi.spyOn(database.drafts, 'bulkGet');
+
+		await repository.save({ ...first, text: '[Verse]\nChanged opening', updatedAt: '2026-01-03' });
+		const summaries = await repository.list();
+		expect(summaries.map(({ id }) => id)).toEqual(['a', 'b']);
+		expect(summaries[0].lyricPreview).toBe('Changed opening');
+		expect(summaries[1].title).toBe('Untitled transcription');
+		expect(changedRead).toHaveBeenCalledExactlyOnceWith(['a']);
+		expect(fullRead).not.toHaveBeenCalled();
+		await repository.list();
+		expect(changedRead).toHaveBeenCalledTimes(1);
+		expect(await repository.get('a')).not.toHaveProperty('lyricPreview');
+		await database.drafts.update('a', { text: 'After a refused read' });
+		changedRead.mockRejectedValueOnce(new Error('Read refused'));
+		await expect(repository.list()).rejects.toThrow('Read refused');
+		expect((await repository.list())[0].lyricPreview).toBe('After a refused read');
+	});
+
+	it('invalidates summaries for other connections, raw imports, range deletes, and reopening', async () => {
+		const { database, repository } = await createRepository('external-summaries');
+		await repository.create({ id: 'a', text: 'Original', updatedAt: '2026-01-01' });
+		await repository.list();
+		const other = await openDatabase(database.name);
+		openDatabases.add(other);
+		await other.drafts.update('a', { text: 'Changed without changing the timestamp' });
+		expect((await repository.list())[0].lyricPreview).toBe(
+			'Changed without changing the timestamp'
+		);
+		await other.drafts.bulkPut(
+			Array.from({ length: 51 }, (_, index) => draft({ id: `import-${index}`, text: 'Imported' }))
+		);
+		expect(await repository.list()).toHaveLength(52);
+		await other.drafts.where('id').startsWith('import-').delete();
+		expect((await repository.list()).map(({ id }) => id)).toEqual(['a']);
+		await other.drafts.clear();
+		expect(await repository.list()).toEqual([]);
+		const backup = createWorkspaceBackup(database);
+		await backup.restore(
+			new File(
+				[
+					JSON.stringify({
+						format: 'lyriclint-workspace',
+						version: 1,
+						createdAt: '2026-09-06',
+						drafts: [draft({ id: 'restored', text: 'Restored backup lyrics' })],
+						appMetadata: [],
+						media: [],
+						ignoredDiagnostics: []
+					})
+				],
+				'workspace.json'
+			)
+		);
+		backup.destroy();
+		expect((await repository.list())[0].lyricPreview).toBe('Restored backup lyrics');
+		database.close();
+		await other.drafts.clear();
+		await other.drafts.add(draft({ id: 'new-session', text: 'After closing' }));
+		await database.open();
+		expect((await repository.list())[0].lyricPreview).toBe('After closing');
+	});
+
+	it('does not lose an invalidation that arrives while changed drafts are being read', async () => {
+		const { database, repository } = await createRepository('summary-read-race');
+		await repository.create({ id: 'a', text: 'Original' });
+		await repository.list();
+		await database.drafts.update('a', { text: 'First update' });
+		let release: () => void = () => {};
+		let readStarted: () => void = () => {};
+		const held = new Promise<void>((resolve) => (release = resolve));
+		const started = new Promise<void>((resolve) => (readStarted = resolve));
+		const bulkGet = database.drafts.bulkGet.bind(database.drafts);
+		vi.spyOn(database.drafts, 'bulkGet').mockImplementationOnce((keys) =>
+			bulkGet(keys).then(async (records) => {
+				readStarted();
+				await held;
+				return records;
+			})
+		);
+		const listing = repository.list();
+		await started;
+		await database.drafts.update('a', { text: 'Latest update' });
+		release();
+		expect((await listing)[0].lyricPreview).toBe('Latest update');
+	});
+
 	it('keeps import provenance immutable and strips non-contract fields when saving', async () => {
 		const { database, repository } = await createRepository('snapshot-boundary');
 		const created = await repository.create({

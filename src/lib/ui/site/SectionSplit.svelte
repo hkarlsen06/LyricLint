@@ -3,7 +3,8 @@
 	// this file, and update it with any behavior change.
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import type { Snippet } from 'svelte';
-	import { ArrowLeft, ExternalLink } from 'lucide-svelte';
+	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
+	import ExternalLink from 'lucide-svelte/icons/external-link';
 	import { afterNavigate, goto, onNavigate } from '$app/navigation';
 
 	let {

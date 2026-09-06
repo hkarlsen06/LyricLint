@@ -18,6 +18,7 @@ import {
 	ignoredDiagnosticRuleId
 } from '$lib/diagnostics/ignore.js';
 import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
+import { diagnosticRowSignature, reconcileDiagnosticRows } from '$lib/diagnostics/row-identity.js';
 import { filterProvisionalVerseNumbering } from '$lib/diagnostics/prerequisites.js';
 import { resolveLegendAssignment } from '$lib/performers/legend-assignment.js';
 import { collectMatchingFixes, mergeFixes, planBulkFix } from '$lib/rules/bulk-fix.js';
@@ -57,12 +58,14 @@ interface PanelView {
 	 */
 	readonly bulkFixPlan: BulkFixPlan;
 	readonly ignoredDiagnosticKeys: readonly string[];
+	readonly ignoredDiagnosticMatches: ReadonlyMap<string, string>;
+	diagnosticRowKey(diagnostic: Diagnostic): string;
 	setActiveTab(tab: RightPanelTab): void;
 	toggleSeverity(severity: Severity): void;
 	/** Re-read the stored ignores for whichever draft is current now. */
 	refreshIgnoredDiagnostics(): void;
-	/** Drop the active card once its diagnostic is gone from the document. */
-	pruneActiveDiagnostic(diagnostics: readonly Diagnostic[]): void;
+	/** Follow surviving occurrences through actual edits, retiring findings that disappeared. */
+	adoptSnapshot(previous: EditorSnapshot, next: EditorSnapshot): void;
 	/**
 	 * Once an applied fix has been re-linted, mark the diagnostic the panel now
 	 * leads with and put the editor's line wash on it.
@@ -126,6 +129,14 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	let activeTab = $state<RightPanelTab>(deps.initialActiveTab ?? 'linter');
 	let activeDiagnosticKey = $state<string | undefined>();
 	let severityFilter = $state<Severity[]>([...allSeverities]);
+	let nextRowId = 0;
+	const allocateRowKey = () => `finding-${nextRowId++}`;
+	let rowKeys = $state.raw<ReadonlyMap<string, string>>(
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- immutable snapshot; replacing the map publishes the complete reconciliation
+		new Map(
+			deps.snapshot().diagnostics.map((item) => [diagnosticRowSignature(item), allocateRowKey()])
+		)
+	);
 
 	/**
 	 * The set-aside diagnostics, read from the store rather than mirrored beside
@@ -148,6 +159,13 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		void deps.snapshot().revision;
 		return deps.ignoreStore.list(deps.draftId());
 	});
+	const ignoredDiagnosticMatches = $derived(
+		matchIgnoredDiagnostics(
+			deps.snapshot().diagnostics,
+			deps.snapshot().text,
+			ignoredDiagnosticKeys
+		)
+	);
 
 	const feedback = deps.feedback;
 
@@ -193,12 +211,13 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 	}
 
 	function unignoredIn(diagnostics: readonly Diagnostic[]): Diagnostic[] {
-		const ignored = [
-			...matchIgnoredDiagnostics(diagnostics, deps.snapshot().text, ignoredDiagnosticKeys).values()
-		];
-		const unignored = diagnostics.filter(
-			(diagnostic) => !ignored.includes(diagnosticKey(diagnostic))
-		);
+		const matches =
+			diagnostics === deps.snapshot().diagnostics
+				? ignoredDiagnosticMatches
+				: matchIgnoredDiagnostics(diagnostics, deps.snapshot().text, ignoredDiagnosticKeys);
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- local membership index; the complete filtered result is derived
+		const ignored = new Set(matches.values());
+		const unignored = diagnostics.filter((diagnostic) => !ignored.has(diagnosticKey(diagnostic)));
 		return filterProvisionalVerseNumbering(unignored, deps.snapshot().parsed, deps.ruleContext());
 	}
 
@@ -337,6 +356,13 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		get ignoredDiagnosticKeys() {
 			return ignoredDiagnosticKeys;
 		},
+		get ignoredDiagnosticMatches() {
+			return ignoredDiagnosticMatches;
+		},
+		diagnosticRowKey(diagnostic) {
+			const signature = diagnosticRowSignature(diagnostic);
+			return rowKeys.get(signature) ?? signature;
+		},
 		setActiveTab(tab) {
 			setActiveTab(tab);
 		},
@@ -350,9 +376,27 @@ export function createPanelView(deps: PanelViewDependencies): PanelView {
 		refreshIgnoredDiagnostics() {
 			aimedOccurrence = undefined;
 			passageFrom = undefined;
+			activeDiagnosticKey = undefined;
+			// eslint-disable-next-line svelte/prefer-svelte-reactivity -- immutable snapshot, reset when changing drafts
+			rowKeys = new Map();
 			ignoreEpoch += 1;
 		},
-		pruneActiveDiagnostic(diagnostics) {
+		adoptSnapshot(previous, next) {
+			const diagnostics = next.diagnostics;
+			if (
+				previous.text !== next.text ||
+				previous.diagnostics !== diagnostics ||
+				rowKeys.size === 0
+			) {
+				const reconciled = reconcileDiagnosticRows(previous, next, rowKeys, allocateRowKey);
+				rowKeys = reconciled.keys;
+				if (activeDiagnosticKey) activeDiagnosticKey = reconciled.remapped.get(activeDiagnosticKey);
+				if (aimedOccurrence) {
+					const key = reconciled.remapped.get(aimedOccurrence.key);
+					const range = reconciled.mapRange(aimedOccurrence.range);
+					aimedOccurrence = key && range ? { key, range } : undefined;
+				}
+			}
 			if (aimedOccurrence) {
 				const current = diagnostics.find((item) => diagnosticKey(item) === aimedOccurrence?.key);
 				if (!current || occurrenceRange(current) !== aimedOccurrence.range)

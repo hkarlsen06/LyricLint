@@ -1,7 +1,9 @@
 <script lang="ts">
+	import '$lib/ui/styles/landing.css';
 	import shotDimensions from '$lib/assets/shot-dimensions.json';
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
-	import { BookOpen, Check } from 'lucide-svelte';
+	import BookOpen from 'lucide-svelte/icons/book-open';
+	import Check from 'lucide-svelte/icons/check';
 	import type { Attachment } from 'svelte/attachments';
 	import { resolve } from '$app/paths';
 	import SeverityTag from '$lib/diagnostics/SeverityTag.svelte';

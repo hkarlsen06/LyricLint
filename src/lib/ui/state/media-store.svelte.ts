@@ -145,6 +145,8 @@ interface MediaStoreDependencies {
 	 * nothing about the document, so nothing else will schedule the save.
 	 */
 	onAttached?: () => void;
+	/** Request a prompt portable backup after a pause, seek, or final position checkpoint lands. */
+	onPositionSettled?: () => void;
 	/**
 	 * A name worth calling the draft, when the source has one.
 	 *
@@ -484,13 +486,14 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	let lastWriteAt = 0;
 	let lastWritten: number | undefined;
 
-	async function writePosition(position: number): Promise<void> {
+	async function writePosition(position: number, settled = false): Promise<void> {
 		const draftId = ownerDraftId;
 		if (draftId === undefined) return;
 		lastWriteAt = clock();
 		lastWritten = position;
 		try {
 			await deps.repository.savePosition(draftId, position);
+			if (settled) deps.onPositionSettled?.();
 		} catch {
 			// The position is a convenience. Losing it is not worth a message.
 		}
@@ -498,7 +501,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 	player.setProgressListener((time, reason) => {
 		if (reason === 'settled') {
-			void writePosition(time);
+			void writePosition(time, true);
 			return;
 		}
 		if (clock() - lastWriteAt < positionWriteIntervalMs) return;
@@ -1276,7 +1279,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 			if (ownerDraftId === undefined || !player.attached) return;
 			const time = player.liveTime();
 			if (time === lastWritten) return;
-			await writePosition(time);
+			await writePosition(time, true);
 		},
 
 		destroy() {

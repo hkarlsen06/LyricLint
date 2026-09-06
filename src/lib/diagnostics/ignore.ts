@@ -213,8 +213,14 @@ export function matchIgnoredDiagnostics(
 	text: string,
 	ignored: readonly string[]
 ): Map<string, string> {
-	const remaining = [...diagnostics];
 	const result = new Map<string, string>();
+	if (ignored.length === 0) return result;
+	// Compute immutable occurrence facts once, instead of allocating them for
+	// every saved-choice/candidate pair. Matching and tie-breaking stay in order.
+	const remaining = diagnostics.map((diagnostic) => ({
+		diagnostic,
+		identity: identity(diagnostic, text)
+	}));
 
 	for (const key of ignored) {
 		const saved = parse(key);
@@ -223,9 +229,11 @@ export function matchIgnoredDiagnostics(
 		let bestContext = -1;
 		let distance = Number.POSITIVE_INFINITY;
 		for (let index = 0; index < remaining.length; index += 1) {
-			const current = identity(remaining[index]!, text);
+			const current = remaining[index]!.identity;
 			if (
-				saved.slice(0, 3).some((_, partIndex) => !identityPartMatches(saved, current, partIndex))
+				!identityPartMatches(saved, current, 0) ||
+				!identityPartMatches(saved, current, 1) ||
+				!identityPartMatches(saved, current, 2)
 			) {
 				continue;
 			}
@@ -237,7 +245,7 @@ export function matchIgnoredDiagnostics(
 				distance = candidateDistance;
 			}
 		}
-		if (best >= 0) result.set(key, diagnosticKey(remaining.splice(best, 1)[0]!));
+		if (best >= 0) result.set(key, diagnosticKey(remaining.splice(best, 1)[0]!.diagnostic));
 	}
 
 	return result;

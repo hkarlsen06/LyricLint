@@ -62,7 +62,9 @@ inlined in the bundle as `PUBLIC_APPLE_MUSIC_TOKEN` and committed to nothing. Th
 it is the secret and never leaves the machine that mints it. The trap this avoids is the one
 Spotify's client id documents: `import.meta.env` resolves at **build** time, so a Cloudflare Pages
 _runtime_ variable or a `wrangler secret` never reaches the bundle and Apple Music would work
-locally and quietly vanish from the deployed picker. Production sets it as a **build** variable.
+locally and quietly vanish from the deployed picker. Production CI reads it from the
+GitHub Actions repository variable during the **build**, before testing and deploying that
+same artifact; see `docs/ci.md`.
 
 **`appleMusicConfigured` reads `exp` rather than testing for presence**, and that is not
 belt-and-braces. The failure this will actually meet is not a missing token but a stale one, six
@@ -310,4 +312,3 @@ extra, so nothing a guideline requires rides only inside it.
   passed through unresolved the panel draws a broken image. The size is chosen in `media-apple.ts`
   at roughly twice the panel's narrowest width, because the CDN renders whatever is asked for and
   the alternative is every surface picking its own.
-

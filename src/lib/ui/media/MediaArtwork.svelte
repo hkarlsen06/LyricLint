@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { X } from 'lucide-svelte';
+	import X from 'lucide-svelte/icons/x';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import ArtworkActions from './ArtworkActions.svelte';
 	import MediaAttribution from './MediaAttribution.svelte';

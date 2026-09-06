@@ -65,6 +65,7 @@ async function setup(text = SONG) {
 		...workbench,
 		handle: handle!,
 		panel,
+		view,
 		container: view.container,
 		pauseSnapshotPublication: () => (publishSnapshots = false)
 	};
@@ -82,6 +83,25 @@ async function openComparison(panel: ReturnType<typeof within>) {
 }
 
 describe('Linking panel with the real editor', () => {
+	it('keeps hidden analysis still and catches up to current ranges when activated', async () => {
+		const { panel, view, handle, controller } = await setup();
+		const firstLine = panel.getByRole('button', { name: 'Line 1' });
+		await view.rerender({ controller, active: false });
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: 0, to: 0, insert: '[Intro]\nA new opening\n\n' }]
+		});
+		await tick();
+		expect(panel.getByRole('button', { name: 'Line 1' })).toBe(firstLine);
+		expect(panel.queryByRole('button', { name: 'Line 4' })).toBeNull();
+		await view.rerender({ controller, active: true });
+		await fireEvent.click(panel.getByRole('button', { name: 'Line 4' }));
+		expect(handle.getSnapshot().selection.anchor).toBe(
+			handle.getSnapshot().text.indexOf('[Chorus]')
+		);
+		expect(panel.getByRole('button', { name: 'Line 12' })).toBeTruthy();
+	});
+
 	it('jumps from overview and detail line buttons without changing linking choices', async () => {
 		const { panel, handle, controller } = await setup();
 		await fireEvent.click(panel.getByRole('button', { name: /^Line 9$/ }));

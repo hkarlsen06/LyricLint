@@ -28,6 +28,10 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   Exact duplicate bodies and subsets still connect without quadratic comparison. Discovery uses
   `linkBodySimilarity`, which scores `alignPassages` ranges and shares its lexical counting owner;
   the automatic discovery ceiling remains 400 words and the threshold half the shorter body.
+- Discovery reuses lexical facts and pair scores by complete body text, plus the boolean answer
+  for unchanged same-kind groups. Cache limits never skip candidate pairs or retain diagnostic
+  ranges. A pair with no common lexical word can be rejected before alignment; a shared word
+  still requires the ordinary ambiguity-aware aligner. Caller token ceilings apply on cache hits.
 - Stored correspondence is editing intent, never a fresh diff after typing. Membership changes
   use `extendPassages`: retain established connections, split at their boundaries, add compatible
   recipients, and preserve old local wording. Equal text does not silently reconnect exclusions.
@@ -124,6 +128,26 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   Local lyric ranges are dotted `Decoration.mark`s, never content widgets.
 
 ## Decision record
+
+### Discovery keeps unchanged work without a pair-count cliff
+
+The old 64-entry pair-score cache cleared itself on overflow. Eleven unrelated chorus bodies made
+55 comparisons and stayed warm; twelve made 66 and repeatedly discarded the scores they were about
+to need. Every native lint pass therefore paid the full alignment cost again on unchanged lyrics.
+
+Discovery now retains lexical facts for up to 128 bodies and 262,144 UTF-16 units of body text.
+Pair scores use weak body endpoints, so evicting a body releases its comparisons without retaining
+its lyrics in each pair key. `passageLexicon` uses correspondence's existing word, markup,
+annotation and body-length guards. No common lexical word proves that two non-identical bodies
+have no shared passage; finding a common word proves nothing until `alignPassages` accepts it.
+The caller's token ceiling is checked before a cached score, and exact copies still bypass it.
+
+The rule also caches up to 16 complete group answers, bounded to 65,536 units per key and 262,144
+units in total. This preserves unchanged groups beyond the body cache's capacity when another
+section is edited. Only the boolean answer is stored: source selection, related ranges and the
+current finding are rebuilt. Oversized or evicted inputs follow the same complete comparison
+path, never a truncated candidate list. Tests cover all 66 pairs, late valid pairs, groups beyond
+the body-cache capacity, shifted ranges, eviction and parity with the full aligner.
 
 ### September 6, 2026: an intro must not disconnect two identical choruses
 
@@ -837,6 +861,12 @@ at init reversed that order and hid it: the first version of this test passed ag
 shell.
 
 #### Undo, and what is written down
+
+The browser suite separates deliberate undo steps with `vi.setSystemTime`, advancing only
+transaction timestamps beyond CodeMirror's grouping window. Linking and restoration dispatch
+synchronously; their state assertions need no settling sleep. Browser timers and animation
+frames remain real, and the negative hover test still observes a full delay before concluding
+that Linking did not open. Date is restored after every test.
 
 **Undo reverses the link along with the words, and that needs `invertedEffects`.** Undo restores text
 by reversing changes, and a `StateField` reverses nothing on its own. Every history event carries the

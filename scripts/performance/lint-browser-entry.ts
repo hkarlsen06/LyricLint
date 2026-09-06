@@ -2,6 +2,7 @@
 import { parseDocument } from '../../src/lib/core/parser.js';
 import { runRules } from '../../src/lib/rules/engine.js';
 import { ruleContext } from '../../src/lib/rules/rule-test-utils.js';
+import { loadStatisticalLanguageDetector } from '../../src/lib/languages/detect.js';
 
 const body = [
 	'I walk through the city when the sun goes down',
@@ -10,7 +11,8 @@ const body = [
 	'You know I wanna stay until the morning light'
 ].join('\n');
 
-function measureLint(sections = 20) {
+async function measureLint(sections = 20) {
+	await loadStatisticalLanguageDetector();
 	const text = Array.from({ length: sections }, (_, i) => `[Verse ${i + 1}]\n${body}`).join('\n\n');
 	const context = ruleContext();
 	const run = (i: number) =>
@@ -29,6 +31,7 @@ function measureLint(sections = 20) {
 	}
 	times.sort((a, b) => a - b);
 	return {
+		statisticalLanguageDetector: 'loaded',
 		characters: text.length,
 		lyricLines: sections * 4,
 		medianMs: times[50],

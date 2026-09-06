@@ -1,8 +1,11 @@
 # The marketing site: the landing composition, its shots and loops, the palette, the brand
 
 Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
-`src/lib/ui/styles/site.css`, `scripts/render-workbench-shot.mjs`,
-`scripts/render-motion.mjs`, `scripts/key-overlay.mjs`, `scripts/render-all.mjs`, `scripts/shot-scene.mjs`,
+`src/lib/ui/styles/site.css`, `src/lib/ui/styles/wordmark.css`,
+`src/lib/ui/styles/global.css`, `src/lib/ui/styles/workbench.css`,
+`scripts/render-workbench-shot.mjs`,
+`scripts/render-motion.mjs`, `scripts/render-mobile-loop.mjs`, `scripts/key-overlay.mjs`,
+`scripts/render-all.mjs`, `scripts/shot-scene.mjs`,
 `scripts/player-shot-scene.mjs`, `scripts/hero-shot-scene.mjs`, `scripts/shot-lyrics.mjs`,
 `scripts/fixtures/city-lights.json`, `scripts/fixtures/city-lights.jpg`,
 `scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`,
@@ -10,6 +13,10 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 
 ## The rules
 
+- Shared design foundations load at the root; the app layout loads workbench styles,
+  the site layout loads site/reference styles, and only the homepage loads landing styles.
+  Keep shared wordmark, diagnostic, overlay, assistant, touch-target and motion rules available
+  without opening the workbench. Route CSS loads synchronously before its surface renders.
 - The landing page is a composition read once: claim and proof in one screen, `--lp-display`
   is its own marketing ramp, section headings stand alone (no eyebrows), runs of facts are
   one bordered object with hairlines inside, the measure goes on the heading itself. The
@@ -69,6 +76,45 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 
 ## Decision record
 
+### The accelerated tape effect has its own encoding budget
+
+The short accelerated sections dominated the regenerated videos' size: the desktop hero was
+19.0 MB, its phone copy 8.1 MB, and the player detail 8.3 MB. The hero and player now encode
+only those sections at CRF 50. Clear desktop sections retain lossless VP9, without alternate
+reference frames; resolution, 60fps gestures, frame counts and the tape treatment are unchanged.
+Do not apply this stronger compression to the readable transcription, scrubber or review spans.
+
+The master stores its accelerated start/end frame numbers in WebM metadata. The mobile
+generator reads and validates them before encoding, retaining the original Lanczos scale and
+CRF 30 for clear sections and using CRF 50 for the tape effect. A blanket CRF 30 transcode spent
+most of the phone download on that grain again. The metadata keeps standalone mobile refreshes
+and fresh captures on one timing source. Missing metadata refuses before changing the current
+asset; generating the hero refreshes it. Trimming uses frame numbers, since seeking by the
+equivalent decimal timestamps dropped a frame at a WebM boundary. Temporary mobile parts stay
+beside the destination so the final replacement is atomic across filesystem layouts.
+
+The initial optimization stream-copied the existing desktop clear sections; decoded frame
+hashes matched for all 1,948 hero and 1,185 player clear frames. The mobile copy is regenerated
+from that master, never from a previously compressed phone copy. Its clear-section quality
+settings remain unchanged. Refresh the player sharing GIF from its encoded video as usual.
+
+### Each route loads the styles its surfaces use
+
+The root stylesheet used to include every workbench, reference and landing selector. It now
+keeps the shared foundations, controls, wordmark, diagnostics, overlays and assistant, while
+the route layouts import their own content styles. `workbench.css` preserves the original
+app-part order and ends with the app's responsive overrides. `responsive-shared.css` keeps
+the common touch-target sizes, input floor and reduced-motion behavior on every route; the
+finder's class-specific input override follows its own styles in `site.css`.
+
+The wordmark rules moved verbatim out of `shell.css` so the masthead and loading marks do not
+require the workspace grid and toolbar. Shared diagnostics and overlays remain available to
+the lazy homepage editor, assistant modal and root error page. No cascade layers, deferred CSS,
+font-display changes or coverage-based deletion were introduced. Component test setup imports
+the route sheets beside the shared sheet because standalone components have no route layout.
+Compare initial and interactive geometry on mouse and touch layouts when changing these
+boundaries, including site-to-workbench navigation and the lazy editor.
+
 ### The hero follows a transcription of City Lights
 
 The hero now starts with a blank draft and attaches the author's YouTube link for
@@ -98,10 +144,9 @@ with action labels and repeat counts, and follows the native dialog so the paste
 visible. Typed letters appear in the editor rather than as individual badges.
 
 The clear hero spans encode losslessly. Its accelerated span uses lighter, coarser grain
-and VP9 CRF 40: reusing the detail loop's fine grain across the full window inflated the
+and VP9 CRF 50: reusing the detail loop's fine grain across the full window inflated the
 39.5-second hero to 32 MB. The tape displacement remains, and the effect clears before
-review. This changes only the hero's filming treatment; the player detail retains its grain
-and CRF 30 encoding.
+review. This changes only the hero's filming treatment; the player detail retains its grain.
 
 The still is the same song populated in Review, not the blank opening frame. It shares the
 video's dimensions and gives loading, reduced-motion, and no-JavaScript readers a useful
@@ -162,7 +207,7 @@ reference's tape distortion. These are filming overlays and take no pointer hits
 The finished timed song holds before the next run restarts from the untimed opening. The metadata
 loop checks the clipboard and a successful JPEG download. The player crop includes the whole
 editor actions tray and transport; the metadata crop stays on the complete metadata section.
-The player WebM encodes the VHS passage at CRF 30 because lossless grain inflated the clip
+The player WebM encodes the VHS passage at CRF 50 because lossless grain inflated the clip
 to 75 MB. The clear sections use lossless VP9 without alternate reference frames: lossy motion
 prediction smeared lyric glyphs after repeated scrubber seeks even though the source frames
 were clean. Concatenating the three independently encoded sections preserves those clean frames.

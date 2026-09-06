@@ -1,5 +1,5 @@
 import { page, userEvent } from 'vitest/browser';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { parseDocument } from '$lib/core/parser.js';
 import type {
@@ -26,6 +26,18 @@ import {
 	linkableHeaderAt,
 	sectionBodyRange
 } from './section-links.js';
+
+afterEach(() => {
+	vi.useRealTimers();
+});
+
+/**
+ * CodeMirror groups history by transaction timestamps, with a 500ms window.
+ * Advance only Date for a separate undo step; browser timers and layout stay real.
+ */
+function separateUndoEvent(): void {
+	vi.setSystemTime(Date.now() + 600);
+}
 
 const SONG = [
 	'[Verse 1]',
@@ -333,7 +345,7 @@ describe('linking sections that do not agree throughout', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')]
 		});
-		await new Promise((resolve) => setTimeout(resolve, 600));
+		separateUndoEvent();
 
 		const text = handle.getSnapshot().text;
 		const from = text.indexOf('And I will be there tonight') + 'And I'.length;
@@ -358,7 +370,6 @@ describe('linking sections that do not agree throughout', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')]
 		});
-		await new Promise((resolve) => setTimeout(resolve, 600));
 
 		const text = handle.getSnapshot().text;
 		const caret = text.indexOf('again') + 'again'.length;
@@ -397,7 +408,6 @@ describe('linking sections that do not agree throughout', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(song, '[Chorus:'), offsetOf(song, '[Chorus 2:')]
 		});
-		await new Promise((resolve) => setTimeout(resolve, 600));
 
 		const text = handle.getSnapshot().text;
 		const from = text.indexOf('(ayy)');
@@ -447,7 +457,6 @@ describe('linking sections that do not agree throughout', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(song, '[Chorus:'), offsetOf(song, '[Chorus 2:')]
 		});
-		await new Promise((resolve) => setTimeout(resolve, 600));
 
 		const text = handle.getSnapshot().text;
 		const from = text.indexOf('Hold on tight');
@@ -482,7 +491,7 @@ describe('linking sections that do not agree throughout', () => {
 		const firstHeader = song.indexOf('[Chorus]');
 		const secondHeader = song.lastIndexOf('[Chorus]');
 		handle.linkSections?.({ headers: [firstHeader, secondHeader] });
-		await new Promise((resolve) => setTimeout(resolve, 600));
+		separateUndoEvent();
 
 		const text = handle.getSnapshot().text;
 		const from = text.indexOf('Shared refrain');
@@ -523,7 +532,7 @@ describe('linking sections that do not agree throughout', () => {
 		const firstHeader = song.indexOf('[Chorus]');
 		const secondHeader = song.lastIndexOf('[Chorus]');
 		handle.linkSections?.({ headers: [firstHeader, secondHeader] });
-		await new Promise((resolve) => setTimeout(resolve, 600));
+		separateUndoEvent();
 
 		const text = handle.getSnapshot().text;
 		const result = assignVoiceLegend({
@@ -549,7 +558,6 @@ describe('linking sections that do not agree throughout', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')]
 		});
-		await new Promise((resolve) => setTimeout(resolve, 600));
 
 		// Select `there tonight` — shared text, then the difference — and retype it.
 		const text = handle.getSnapshot().text;
@@ -576,12 +584,12 @@ describe('linking sections that do not agree throughout', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')]
 		});
-		await new Promise((resolve) => setTimeout(resolve, 50));
-
-		const marks = [...document.querySelectorAll('.ll-link-divergent')].map(
-			(mark) => mark.textContent
-		);
-		expect(marks).toEqual([' tonight', ' again']);
+		await vi.waitFor(() => {
+			const marks = [...document.querySelectorAll('.ll-link-divergent')].map(
+				(mark) => mark.textContent
+			);
+			expect(marks).toEqual([' tonight', ' again']);
+		});
 	});
 });
 
@@ -659,7 +667,6 @@ describe('editing the edges of a linked section', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(song, '[Chorus]'), offsetOf(song, '[Chorus 2]')]
 		});
-		await new Promise((resolve) => setTimeout(resolve, 600));
 		return handle;
 	}
 
@@ -731,6 +738,7 @@ describe('editing the edges of a linked section', () => {
 
 	it('mirrors lyrics deliberately extended from the last line', async () => {
 		const handle = await linkedSong();
+		separateUndoEvent();
 		handle.dispatchAtomic({
 			baseRevision: handle.getSnapshot().revision,
 			edits: [{ from: song.length, to: song.length, insert: '\n' }]
@@ -813,7 +821,6 @@ describe('recording a deliberate difference', () => {
 		});
 		expect(detachedTexts(handle)).toEqual(['tight']);
 
-		await new Promise((resolve) => setTimeout(resolve, 600));
 		const caret = tight + 'tight'.length;
 		handle.focus();
 		handle.setSelection({ anchor: caret, head: caret });
@@ -873,7 +880,7 @@ describe('typing only in one linked copy', () => {
 		});
 		const initialLinks = handle.getSectionLinks?.();
 		onSectionLinksChanged.mockClear();
-		await new Promise((resolve) => setTimeout(resolve, 600));
+		separateUndoEvent();
 
 		const from = SAME.indexOf('Hold on tight');
 		const to = from + 'Hold on tight'.length;
@@ -911,7 +918,7 @@ describe('typing only in one linked copy', () => {
 		});
 		const initialLinks = handle.getSectionLinks?.();
 		onSectionLinksChanged.mockClear();
-		await new Promise((resolve) => setTimeout(resolve, 600));
+		separateUndoEvent();
 
 		const caret = SAME.indexOf('tight') + 'tight'.length;
 		handle.setSelection({ anchor: caret, head: caret });
@@ -919,7 +926,11 @@ describe('typing only in one linked copy', () => {
 		handle.focus();
 		const sectionOnlyStatus = document.querySelector('.ll-section-only-status');
 		expect(sectionOnlyStatus?.textContent).toBe('Editing this section only');
-		expect(getComputedStyle(sectionOnlyStatus!).paddingInlineStart).not.toBe('0px');
+		// Padding follows CodeMirror's next measurement of the available label width.
+		await vi.waitFor(() => {
+			const status = document.querySelector('.ll-section-only-status')!;
+			expect(getComputedStyle(status).paddingInlineStart).not.toBe('0px');
+		});
 		expect(document.querySelector('.ll-section-only-header')).not.toBeNull();
 		const activeHeader = document.querySelector('.ll-section-only-header')!;
 		const dangerProbe = document.createElement('span');
@@ -1110,7 +1121,6 @@ describe('typing only in one linked copy', () => {
 		const handle = await mount(SAME);
 		const header = offsetOf(SAME, '[Chorus]');
 		handle.linkSections?.({ headers: [header, offsetOf(SAME, '[Chorus 2]')] });
-		await new Promise((resolve) => setTimeout(resolve, 600));
 
 		const from = SAME.indexOf('tight');
 		handle.setSelection({ anchor: from, head: from + 'tight'.length });
@@ -1172,7 +1182,6 @@ describe('typing only in one linked copy', () => {
 			handle.linkSections?.({
 				headers: [offsetOf(ADLIB, '[Chorus]'), offsetOf(ADLIB, '[Chorus 2]')]
 			});
-			await new Promise((resolve) => setTimeout(resolve, 600));
 			return handle;
 		}
 
@@ -1489,7 +1498,7 @@ describe('what a link survives', () => {
 			headers: [offsetOf(SONG, '[Chorus]'), offsetOf(SONG, '[Chorus 2]')]
 		});
 		const linked = handle.getSnapshot().text;
-		await new Promise((resolve) => setTimeout(resolve, 600));
+		separateUndoEvent();
 
 		const from = linked.indexOf('[Chorus 2]');
 		handle.dispatchAtomic({
@@ -1511,7 +1520,7 @@ describe('what a link survives', () => {
 		handle.linkSections?.({
 			headers: [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')]
 		});
-		await new Promise((resolve) => setTimeout(resolve, 600));
+		separateUndoEvent();
 		handle.linkSections?.({
 			headers: [offsetOf(REPEAT, '[Chorus]'), offsetOf(REPEAT, '[Chorus 2]')],
 			keepDifferent: [false]
@@ -1646,7 +1655,6 @@ describe('what a link survives', () => {
 		handle.setSectionLinks?.(links);
 		expect(handle.getSectionLinks?.()).toEqual(links);
 
-		await new Promise((resolve) => setTimeout(resolve, 600));
 		const caret = handle.getSnapshot().text.indexOf('again') + 'again'.length;
 		handle.focus();
 		handle.setSelection({ anchor: caret, head: caret });

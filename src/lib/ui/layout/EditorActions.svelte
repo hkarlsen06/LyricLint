@@ -2,7 +2,10 @@
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
 	import { canAssignVoiceGroup } from '$lib/performers/transform.js';
-	import { Music, PanelRightClose, PanelRightOpen, Search } from 'lucide-svelte';
+	import Music from 'lucide-svelte/icons/music';
+	import PanelRightClose from 'lucide-svelte/icons/panel-right-close';
+	import PanelRightOpen from 'lucide-svelte/icons/panel-right-open';
+	import Search from 'lucide-svelte/icons/search';
 	import { describeControl } from '../state/control-tooltip.svelte.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 

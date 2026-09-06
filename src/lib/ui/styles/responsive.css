@@ -167,12 +167,6 @@
 	}
 }
 
-@media (max-width: 46rem) {
-	.button {
-		min-height: var(--control-height-lg);
-	}
-}
-
 /*
  * The transport rides the top of the software keyboard.
  *
@@ -273,54 +267,7 @@
 	display: contents;
 }
 
-/*
- * Nothing a finger can type into may be smaller than 16px, because Safari on iOS
- * answers a focus on a smaller field by zooming the page in — and it does not
- * zoom back out. That reads as the app lurching every time the caret is placed,
- * and it is the whole reason this block exists.
- *
- * The two ways out of it are this and `maximum-scale=1` on the viewport meta,
- * which buys the same result by taking pinch zoom away from everyone. That is
- * not a trade this application makes.
- *
- * `--font-size-lg` rather than a literal `1rem`: it is the first step on the
- * ramp that clears the threshold, it is a token, and slightly larger text under
- * a finger is right on its own terms. The editor moves through
- * `--font-size-editor` so the landing page's stand-in moves with it; the form
- * controls inherit their size from the body, so they are named directly.
- *
- * Keyed on the pointer and not on width, like every other rule here that means
- * "a phone": a narrow window on a laptop has a fine pointer, does not zoom, and
- * has no reason to grow its type.
- */
 @media (pointer: coarse) {
-	:root {
-		/* The editor's default is `lg` now (tokens.css), so this is a floor rather
-		   than a step up — kept so the token can never drop back under the zoom
-		   threshold on a coarse pointer without this block refusing it. */
-		--font-size-editor: var(--font-size-lg);
-	}
-
-	input,
-	select,
-	textarea {
-		font-size: var(--font-size-lg);
-	}
-
-	/* The element selectors above are specificity (0,0,1), so any class that
-	   sizes a field elsewhere in the system quietly outranks them — which is how
-	   the reference sections' search fields shipped at 13px under a finger and
-	   re-created the Safari focus-zoom this whole block exists to prevent. The
-	   raise is restated at the class's own specificity for the one field class
-	   that carries a size of its own (`site.css` sets it to `--font-size-sm` for
-	   a mouse). A new field class that sets `font-size` needs a row here, or it
-	   reintroduces the lurch on the one device the test suite does not run on —
-	   `e2e/lyriclint.spec.ts` pins this one's computed size under a coarse
-	   pointer. */
-	.site-finder__search {
-		font-size: var(--font-size-lg);
-	}
-
 	/* The three most-pressed controls in the workbench, at a size a finger can
 	   aim. They are `.button`s, so below 46rem they already step up with every
 	   other control — but that rule is keyed on width, and a tablet in landscape
@@ -348,32 +295,6 @@
 
 	.media-strip__tap + .media-strip__hint {
 		display: none;
-	}
-}
-
-@media (prefers-reduced-motion: no-preference) {
-	.button,
-	.icon-button,
-	a,
-	input,
-	select,
-	textarea {
-		transition:
-			background-color var(--duration-fast) var(--ease-out-quart),
-			border-color var(--duration-fast) var(--ease-out-quart),
-			color var(--duration-fast) var(--ease-out-quart),
-			box-shadow var(--duration-fast) var(--ease-out-quart);
-	}
-}
-
-@media (prefers-reduced-motion: reduce) {
-	*,
-	*::before,
-	*::after {
-		scroll-behavior: auto !important;
-		transition-duration: 0.01ms !important;
-		animation-duration: 0.01ms !important;
-		animation-iteration-count: 1 !important;
 	}
 }
 
@@ -650,12 +571,6 @@
 	}
 }
 @media (pointer: coarse) {
-	.button,
-	.icon-button,
-	.filter-chip {
-		min-height: var(--control-height-touch);
-		min-width: var(--control-height-touch);
-	}
 	/* Class font shorthands otherwise outrank the generic input floor above.
 	   Scope the stronger rule to the workbench, including its dialog descendants. */
 	.workspace input:not(:where([type='checkbox'], [type='radio'], [type='range'], [type='file'])),

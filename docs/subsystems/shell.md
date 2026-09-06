@@ -11,6 +11,13 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## The rules
 
+- A tool initializes on first selection, then keeps its local state mounted across tab changes
+  and editor expansion. Hidden Review rows, Linking analysis, performer arrangements, and Song
+  statistics retain their last displayed values without following document updates. Activation
+  reads the current state before the controls are actionable. The unused Assistant loads no
+  transcript or preview corpus. `RightPanel.svelte.test.ts` pins lazy initialization and retained
+  unfinished input; `LinterPanel.svelte.test.ts` pins row continuity.
+
 - Copying lyrics confirms in the toolbar button and never opens a metadata receipt.
   Song owns the available metadata. `Workspace.svelte.test.ts` pins the non-interruption.
 - On desktop, the editor action tray can expand the editor and restore the panels without remounting either.
@@ -92,6 +99,30 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   `import.meta.env.DEV`, and is pinned empty in `vite.config.ts` for the suite.
 
 ## Decision record
+
+### Hidden tools keep their state without doing their visible work
+
+Bits UI hides inactive tab contents but still renders their child snippets. Mounting every tool
+at startup therefore loaded the assistant preview corpus before a question was asked and kept
+linking analysis and review DOM reacting while hidden. `RightPanel` now remembers which tools
+have been selected and initializes their content only on first use. Returning to a visited tool,
+including after editor expansion, retains the same controls and local input.
+
+Expensive presentation derivations read their inputs only while their pane is active, retaining
+their last displayed values otherwise. They catch up synchronously on activation. This pauses
+presentation work without pausing editing, linting, autosave, audio, or assistant requests.
+Review releases its preview while hidden, as before; its rows and a tool's unfinished inputs
+remain mounted. This also avoids eager assistant transcript and reference-data initialization.
+
+### Boot assertions share the same real animation
+
+`BootScreen.svelte.test.ts` records the ready-workspace sequence once, from the initial word
+through the pull, falling brackets, and canvas reveal. The same three-second frame history
+checks the absent waveform, bracket fade, reveal timing and monotonic radius, and that the
+workspace stays covered during the pull. These assertions previously replayed the same sequence
+four times. Mid-fall readiness, a delayed workspace, the mark's stopped landing, and reduced
+motion remain separate scenarios. Keep real CSS animations and frame sampling: fake timers or
+final-style assertions alone miss the visual ordering regressions these tests cover.
 
 ### Focus rings stay inside controls
 

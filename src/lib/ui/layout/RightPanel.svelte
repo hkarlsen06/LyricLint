@@ -1,17 +1,15 @@
 <script lang="ts">
-	import {
-		ListChecks,
-		Link2,
-		WandSparkles,
-		UsersRound,
-		Music2,
-		SlidersHorizontal
-	} from 'lucide-svelte';
+	import ListChecks from 'lucide-svelte/icons/list-checks';
+	import Link2 from 'lucide-svelte/icons/link-2';
+	import WandSparkles from 'lucide-svelte/icons/wand-sparkles';
+	import UsersRound from 'lucide-svelte/icons/users-round';
+	import Music2 from 'lucide-svelte/icons/music-2';
+	import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal';
 	import { MediaQuery } from 'svelte/reactivity';
+	import { untrack } from 'svelte';
 	import { Tabs } from 'bits-ui';
 	import type { Diagnostic } from '$lib/core/types.js';
 	import { assistantAvailable } from '$lib/assistant/api.js';
-	import { matchIgnoredDiagnostics } from '$lib/diagnostics/ignore.js';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
 	import AssistantPanel from '../assistant/AssistantPanel.svelte';
 	import LinterPanel from '../linter/LinterPanel.svelte';
@@ -47,16 +45,20 @@
 		renderVideo?: boolean;
 	} = $props();
 
+	// Initialize a tool when it is first chosen, then keep its controls and local
+	// state mounted across navigation and editor expansion.
+	let activatedPanels = $state.raw<ReadonlySet<string>>(
+		untrack(() => new Set([controller.activeTab]))
+	);
+	$effect.pre(() => {
+		const tab = controller.activeTab;
+		if (!activatedPanels.has(tab)) activatedPanels = new Set([...activatedPanels, tab]);
+	});
+
 	// Keep arrow-key navigation aligned with the dock's CSS orientation.
 	const verticalDock = new MediaQuery('(min-width: 78rem)');
 
-	const hasMatchingIgnoredDiagnostics = $derived(
-		matchIgnoredDiagnostics(
-			controller.snapshot.diagnostics,
-			controller.snapshot.text,
-			controller.ignoredDiagnosticKeys
-		).size > 0
-	);
+	const hasMatchingIgnoredDiagnostics = $derived(controller.ignoredDiagnosticMatches.size > 0);
 
 	const assistantEnabled = $derived(assistant !== undefined && assistantAvailable());
 
@@ -169,26 +171,43 @@
 		     has a foot to pin it to. -->
 			<div class="right-panel__body">
 				<Tabs.Content value="linter" class="right-panel__pane">
-					<LinterPanel
-						{controller}
-						active={!collapsed}
-						{mobile}
-						{reviewFocused}
-						{onOpenFinding}
-						{onReviewList}
-					/>
+					{#if activatedPanels.has('linter')}
+						<LinterPanel
+							{controller}
+							active={!collapsed}
+							{mobile}
+							{reviewFocused}
+							{onOpenFinding}
+							{onReviewList}
+						/>
+					{/if}
 				</Tabs.Content>
 				<Tabs.Content value="performers" class="right-panel__pane">
-					<PerformersPanel {controller} />
+					{#if activatedPanels.has('performers')}
+						<PerformersPanel
+							{controller}
+							active={!collapsed && controller.activeTab === 'performers'}
+						/>
+					{/if}
 				</Tabs.Content>
 				<Tabs.Content value="linking" class="right-panel__pane">
-					<LinkingPanel {controller} {onShowEditor} />
+					{#if activatedPanels.has('linking')}
+						<LinkingPanel
+							{controller}
+							{onShowEditor}
+							active={!collapsed && controller.activeTab === 'linking'}
+						/>
+					{/if}
 				</Tabs.Content>
 				<Tabs.Content value="song" class="right-panel__pane">
-					<SongPanel {controller} />
+					{#if activatedPanels.has('song')}
+						<SongPanel {controller} active={!collapsed && controller.activeTab === 'song'} />
+					{/if}
 				</Tabs.Content>
 				<Tabs.Content value="preferences" class="right-panel__pane">
-					<PreferencesPanel {controller} />
+					{#if activatedPanels.has('preferences')}
+						<PreferencesPanel {controller} />
+					{/if}
 				</Tabs.Content>
 				<!-- The assistant is the one pane that fits rather than grows: its
 			     transcript is its own scroll port, framed between the chat tray above
@@ -196,7 +215,9 @@
 			     scrolls. -->
 				{#if assistantEnabled && assistant}
 					<Tabs.Content value="assistant" class="right-panel__pane right-panel__pane--fit">
-						<AssistantPanel {assistant} />
+						{#if activatedPanels.has('assistant')}
+							<AssistantPanel {assistant} />
+						{/if}
 					</Tabs.Content>
 				{/if}
 			</div>
@@ -206,6 +227,7 @@
 				<footer class="right-panel__footer">
 					<IgnoredRules
 						diagnosticKeys={controller.ignoredDiagnosticKeys}
+						matches={controller.ignoredDiagnosticMatches}
 						snapshot={controller.snapshot}
 						onReveal={onRevealIgnored ??
 							((diagnostic) => controller.navigateToDiagnostic(diagnostic))}

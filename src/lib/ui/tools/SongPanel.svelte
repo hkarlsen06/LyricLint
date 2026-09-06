@@ -9,10 +9,15 @@
 	import { pendingMediaActionLabel } from '../media/pending-media-label.js';
 	import { youtubeSearchTerm } from '../state/media-youtube.js';
 
-	let { controller }: { controller: WorkbenchController } = $props();
+	let { controller, active = true }: { controller: WorkbenchController; active?: boolean } =
+		$props();
 	let confirmClearAnchors = $state(false);
 	let timedLyricsFormat = $state<TimedLyricsFormat>('lrc');
-	const timing = $derived(controller.currentLineTiming);
+	let lastTiming: WorkbenchController['currentLineTiming'];
+	const timing = $derived.by(() => {
+		if (active) lastTiming = controller.currentLineTiming;
+		return lastTiming;
+	});
 	let exactTime = $derived(
 		timing?.time === undefined ? undefined : Math.round(timing.time * 100) / 100
 	);
@@ -35,14 +40,17 @@
 	function count(value: number, noun: string): string | undefined {
 		return value > 0 ? `${value} ${noun}${value === 1 ? '' : 's'}` : undefined;
 	}
+	let lastDocumentStats = { lines: 0, sections: 0, performers: 0 };
 	const documentStats = $derived.by(() => {
+		if (!active) return lastDocumentStats;
 		const parsed = controller.snapshot.parsed;
 		const lines = parsed.sections.reduce((total, section) => total + section.lines.length, 0);
-		return {
+		lastDocumentStats = {
 			lines,
 			sections: parsed.sections.length,
 			performers: controller.performers.length
 		};
+		return lastDocumentStats;
 	});
 	/**
 	 * The document in one run of facts, for the section about the files it turns

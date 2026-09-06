@@ -88,6 +88,13 @@ export function passageWordCount(text: string): number {
 	return text.length > MAX_BODY_LENGTH ? Infinity : lyricWords(text).length;
 }
 
+/** Pure lexical facts for discovery, using correspondence's syntax and length guards. */
+export function passageLexicon(text: string) {
+	if (text.length > MAX_BODY_LENGTH) return { wordCount: Infinity, words: new Set<string>() };
+	const words = lyricWords(text);
+	return { wordCount: words.length, words: new Set(words.map((word) => word.text)) };
+}
+
 function words(body: PassageBody, bodyIndex: number, firstId: number): Word[] {
 	return lyricWords(body.text).map((word, index) => ({
 		text: word.text,

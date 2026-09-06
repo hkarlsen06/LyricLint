@@ -1,6 +1,6 @@
 // Decision record: docs/subsystems/section-links.md — read it before changing this file, and update it with any behavior change.
 import type { Section, TextRange } from '$lib/core/types.js';
-import { alignPassages, passageWordCount } from './link-passages.js';
+import { alignPassages, passageLexicon } from './link-passages.js';
 
 /**
  * The shape of a link group: which words its members keep in step, and which
@@ -56,8 +56,44 @@ export const MIN_LINK_SIMILARITY = 0.5;
 /** Keep automatic discovery far below the one-off link aligner's hard ceiling. */
 export const MAX_LINK_DISCOVERY_TOKENS = 400;
 
-const SIMILARITY_CACHE_LIMIT = 64;
-const similarityCache = new Map<string, number>();
+interface ComparableBody {
+	wordCount: number;
+	words: ReadonlySet<string>;
+	similarities: WeakMap<ComparableBody, number>;
+}
+
+// Bound retained text as well as body count. Pair scores have weak endpoints,
+// so retiring a body also releases its old comparisons instead of keeping a
+// second copy of its text in every pair key.
+const BODY_CACHE_LIMIT = 128;
+const BODY_CACHE_CHARACTERS = 262_144;
+const comparableBodies = new Map<string, ComparableBody>();
+let retainedBodyCharacters = 0;
+
+function comparableBody(text: string): ComparableBody {
+	const cached = comparableBodies.get(text);
+	if (cached) {
+		comparableBodies.delete(text);
+		comparableBodies.set(text, cached);
+		return cached;
+	}
+	const body: ComparableBody = { ...passageLexicon(text), similarities: new WeakMap() };
+	// Oversized input still receives the ordinary alignment refusal, but is
+	// never retained. The lexical owner applies the body-length ceiling.
+	if (!Number.isFinite(body.wordCount)) return body;
+	while (
+		comparableBodies.size >= BODY_CACHE_LIMIT ||
+		retainedBodyCharacters + text.length > BODY_CACHE_CHARACTERS
+	) {
+		const oldest = comparableBodies.keys().next().value;
+		if (oldest === undefined) break;
+		comparableBodies.delete(oldest);
+		retainedBodyCharacters -= oldest.length;
+	}
+	comparableBodies.set(text, body);
+	retainedBodyCharacters += text.length;
+	return body;
+}
 
 /** A section body normalized the same way everywhere that discovers copies. */
 export function comparableSectionBody(section: Section): string {
@@ -339,12 +375,31 @@ export function linkBodySimilarity(
 		return 1;
 	}
 	const maxTokens = options.maxTokens ?? MAX_TOKENS;
-	if (passageWordCount(left) > maxTokens || passageWordCount(right) > maxTokens) {
+	const leftBody = comparableBody(left);
+	const rightBody = comparableBody(right);
+	// Check the caller's ceiling before reading a score obtained under a more
+	// permissive budget. Exact bodies above still need no alignment at all.
+	if (leftBody.wordCount > maxTokens || rightBody.wordCount > maxTokens) {
 		return 0;
 	}
-	const key = `${left.length}:${left}\u0000${right}`;
-	let similarity = similarityCache.get(key);
+	let similarity = leftBody.similarities.get(rightBody);
 	if (similarity === undefined) {
+		// Without one common lexical word, no passage can correspond. This is a
+		// rejection only; a shared word still needs the full ambiguity-aware
+		// alignment before it can count towards similarity.
+		const smaller = leftBody.words.size <= rightBody.words.size ? leftBody.words : rightBody.words;
+		const larger = smaller === leftBody.words ? rightBody.words : leftBody.words;
+		let sharesWord = false;
+		for (const word of smaller) {
+			if (larger.has(word)) {
+				sharesWord = true;
+				break;
+			}
+		}
+		if (!sharesWord) {
+			leftBody.similarities.set(rightBody, 0);
+			return 0;
+		}
 		const passages = alignPassages([
 			{ header: 0, from: 0, text: left },
 			{ header: 1, from: 0, text: right }
@@ -354,10 +409,7 @@ export function linkBodySimilarity(
 			0
 		);
 		similarity = shared / Math.min(left.length, right.length);
-		if (similarityCache.size >= SIMILARITY_CACHE_LIMIT) {
-			similarityCache.clear();
-		}
-		similarityCache.set(key, similarity);
+		leftBody.similarities.set(rightBody, similarity);
 	}
 	return similarity;
 }

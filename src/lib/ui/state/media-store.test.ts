@@ -75,6 +75,7 @@ function setup(
 		handle?: FileSystemFileHandle;
 		loadMusicKit?: MusicKitLoader;
 		onTitleSuggestion?: (title: string) => void;
+		onPositionSettled?: () => void;
 		/** A Spotify SDK that never registers a device, so nothing reaches Spotify. */
 		spotify?: boolean;
 	} = {}
@@ -121,6 +122,7 @@ function setup(
 		}
 	};
 	if (options.onTitleSuggestion) storeDeps.onTitleSuggestion = options.onTitleSuggestion;
+	if (options.onPositionSettled) storeDeps.onPositionSettled = options.onPositionSettled;
 	const media = createMediaStore(storeDeps);
 
 	return { audio, feedback, file, media, player, repository, youtube };
@@ -267,6 +269,31 @@ describe('media store across sessions', () => {
 
 		await media.flushPosition();
 		expect((await repository.get('draft-1'))?.position).toBe(12);
+	});
+
+	it('requests a settled-position backup only after the position write succeeds', async () => {
+		const onPositionSettled = vi.fn();
+		const { audio, media, repository } = setup({ onPositionSettled });
+		await media.attachFile(new File([''], 'track.mp3'));
+		audio.setDuration(600);
+		audio.currentTime = 12;
+		let release: () => void = () => {};
+		const held = new Promise<void>((resolve) => (release = resolve));
+		const savePosition = repository.savePosition.bind(repository);
+		vi.spyOn(repository, 'savePosition').mockImplementationOnce(async (id, position) => {
+			await held;
+			await savePosition(id, position);
+		});
+		const flushed = media.flushPosition();
+		expect(onPositionSettled).not.toHaveBeenCalled();
+		release();
+		await flushed;
+		expect((await repository.get('draft-1'))?.position).toBe(12);
+		expect(onPositionSettled).toHaveBeenCalledTimes(1);
+		audio.currentTime = 18;
+		vi.mocked(repository.savePosition).mockRejectedValueOnce(new Error('Write refused'));
+		await media.flushPosition();
+		expect(onPositionSettled).toHaveBeenCalledTimes(1);
 	});
 
 	// Switching drafts while audio runs must not stamp the outgoing track's

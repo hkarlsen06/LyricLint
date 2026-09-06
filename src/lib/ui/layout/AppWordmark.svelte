@@ -13,7 +13,7 @@
 	// letter fan-out, the flatten, and the bracket tint are all `calc()` off it.
 	// One slider, the way an After Effects control null drives a rig: the states
 	// cannot drift apart or race, and reversing mid-flight reverses everything
-	// together. `shell.css` holds the arithmetic.
+	// together. `wordmark.css` holds the arithmetic.
 	//
 	// Both halves are decoration, so the group carries the single accessible name
 	// and the letters stay out of the accessibility tree — a screen reader should

@@ -1,14 +1,16 @@
 <script lang="ts">
-	import { ChevronRight } from 'lucide-svelte';
+	import ChevronRight from 'lucide-svelte/icons/chevron-right';
 	import { SvelteMap } from 'svelte/reactivity';
 	import type { ParsedDocument, PerformerRecord, StyleSlot, VoiceGroup } from '$lib/core/types.js';
 
 	let {
 		document,
-		performers
+		performers,
+		active = true
 	}: {
 		document: ParsedDocument;
 		performers: readonly PerformerRecord[];
+		active?: boolean;
 	} = $props();
 
 	const slotLabels = {
@@ -27,7 +29,9 @@
 
 	// A recurring chorus does not need to repeat an unchanged formatting key.
 	// Preserve group order and slots: a different assignment is a different key.
+	let lastArrangements: Array<{ key: string; voices: VoiceGroup[]; sections: string[] }> = [];
 	const arrangements = $derived.by(() => {
+		if (!active) return lastArrangements;
 		const grouped = new SvelteMap<string, { voices: VoiceGroup[]; sections: string[] }>();
 		for (const [index, section] of document.sections.entries()) {
 			if (section.voiceGroups.length === 0) continue;
@@ -45,7 +49,8 @@
 			const name = section.header?.name ?? 'Headerless section';
 			arrangement.sections.push(`${index + 1}. ${name}`);
 		}
-		return [...grouped].map(([key, arrangement]) => ({ key, ...arrangement }));
+		lastArrangements = [...grouped].map(([key, arrangement]) => ({ key, ...arrangement }));
+		return lastArrangements;
 	});
 </script>
 

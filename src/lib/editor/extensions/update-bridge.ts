@@ -1,7 +1,7 @@
 import { redoDepth, undoDepth } from '@codemirror/commands';
-import type { EditorState, Extension } from '@codemirror/state';
+import type { ChangeSet, EditorState, Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import type { EditorSnapshot } from '$lib/core/types.js';
+import type { EditorSnapshot, TextEdit } from '$lib/core/types.js';
 import { diagnosticsForState } from './lint-decorations.js';
 import {
 	editorComposingField,
@@ -37,6 +37,8 @@ export function snapshotFromState(state: EditorState, atomic = false): EditorSna
  */
 export function createUpdateListener(callback: (snapshot: EditorSnapshot) => void): Extension {
 	let compositionRun = 0;
+	let changes: ChangeSet | undefined;
+	let baseRevision = 0;
 
 	const finishComposition = (
 		view: EditorView,
@@ -90,6 +92,13 @@ export function createUpdateListener(callback: (snapshot: EditorSnapshot) => voi
 			}
 		}),
 		EditorView.updateListener.of((update) => {
+			if (update.docChanged) {
+				if (changes) changes = changes.compose(update.changes);
+				else {
+					baseRevision = update.startState.field(editorRevisionField);
+					changes = update.changes;
+				}
+			}
 			if (update.state.field(editorComposingField)) {
 				return;
 			}
@@ -108,7 +117,16 @@ export function createUpdateListener(callback: (snapshot: EditorSnapshot) => voi
 				const atomic =
 					update.docChanged &&
 					update.transactions.some((transaction) => transaction.isUserEvent('input.atomic'));
-				callback(snapshotFromState(update.state, atomic));
+				const snapshot = snapshotFromState(update.state, atomic);
+				if (changes) {
+					const edits: TextEdit[] = [];
+					changes.iterChanges((from, to, _fromB, _toB, inserted) => {
+						edits.push({ from, to, insert: inserted.toString() });
+					});
+					snapshot.documentChange = { baseRevision, edits };
+					changes = undefined;
+				}
+				callback(snapshot);
 			}
 		})
 	];

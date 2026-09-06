@@ -1,5 +1,5 @@
 // Decision record: docs/subsystems/drafts.md — read it before changing this file, and update it with any behavior change.
-import { summarizeDraft } from './draft-summary.js';
+import { createDraftSummaryReader } from './draft-summary-cache.js';
 import { randomId } from '../core/random-id.js';
 import { assistantDraftAccessKey } from '../assistant/permissions.js';
 import { copyCompareBaseline, copySectionLinks } from './copy.js';
@@ -161,11 +161,9 @@ function currentDraftMetadata(id: string): AppMetadataRecord {
 
 /** Create a serializable draft repository backed by the supplied Dexie database. */
 export function createDraftRepository(database: LyricLintDatabase): DraftRepository {
+	const list = createDraftSummaryReader(database);
 	return {
-		async list() {
-			const records = await database.drafts.orderBy('updatedAt').reverse().toArray();
-			return records.map(summarizeDraft);
-		},
+		list,
 
 		// A record this cannot copy is left out rather than thrown. This runs at
 		// boot, ahead of anything on screen, and a throw here reaches the lint

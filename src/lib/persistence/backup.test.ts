@@ -10,6 +10,7 @@ import { createDraftIgnoreStore } from './draft-ignores.js';
 import type { DraftRecord } from './types.js';
 
 const databases = new Map<string, LyricLintDatabase>();
+const linkedBackups = new Set<ReturnType<typeof createWorkspaceBackup>>();
 
 function draft(id: string, text: string): DraftRecord {
 	return {
@@ -44,7 +45,56 @@ async function database(label: string): Promise<LyricLintDatabase> {
 	return opened;
 }
 
+/** The destination stream is controlled here; all workspace reads still use IndexedDB. */
+async function linkedBackup(db: LyricLintDatabase) {
+	const writes: string[] = [];
+	const write = vi.fn(async (data: FileSystemWriteChunkType) => {
+		expect(data).toBeTypeOf('string');
+		writes.push(String(data));
+	});
+	const close = vi.fn(async () => {});
+	const writable = Object.assign(new WritableStream(), {
+		write,
+		close,
+		async seek() {},
+		async truncate() {}
+	});
+	const handle = {
+		kind: 'file' as const,
+		name: 'workspace.json',
+		async getFile() {
+			return new File([], 'workspace.json');
+		},
+		async isSameEntry() {
+			return false;
+		},
+		async queryPermission() {
+			return 'granted' as const;
+		},
+		async requestPermission() {
+			return 'granted' as const;
+		},
+		async createWritable() {
+			return writable;
+		}
+	};
+	vi.spyOn(db.backupHandles, 'get').mockResolvedValue({
+		key: 'workspace',
+		name: handle.name,
+		handle,
+		linkedAt: '2026-09-06'
+	});
+	const backup = createWorkspaceBackup(db);
+	linkedBackups.add(backup);
+	backup.schedule();
+	await backup.flush();
+	return { backup, writes, write, close };
+}
+
 afterEach(async () => {
+	vi.useRealTimers();
+	for (const backup of linkedBackups) backup.destroy();
+	linkedBackups.clear();
 	for (const [name, opened] of databases) {
 		closeDatabase(opened);
 		await Dexie.delete(name);
@@ -53,6 +103,121 @@ afterEach(async () => {
 });
 
 describe('workspace backup', () => {
+	it('coalesces continuous playback checkpoints into a bounded backup and skips clean flushes', async () => {
+		const db = await database('progress-cadence');
+		await db.drafts.add(draft('a', 'Lyrics'));
+		await db.mediaHandles.add({ draftId: 'a', name: 'song.mp3', attachedAt: '2026-09-06' });
+		const { backup, writes } = await linkedBackup(db);
+		await backup.flush();
+		expect(writes).toHaveLength(1);
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+		for (let position = 5; position <= 25; position += 5) {
+			await db.mediaHandles.update('a', { position });
+			await vi.advanceTimersByTimeAsync(5000);
+			expect(writes).toHaveLength(1);
+		}
+		await vi.advanceTimersByTimeAsync(5000);
+		await vi.waitFor(() => expect(writes).toHaveLength(2));
+		await backup.flush();
+		expect(parseWorkspaceBackup(writes[1]).media[0].position).toBe(25);
+		expect(writes).toHaveLength(2);
+	});
+
+	it('keeps lyrics, source metadata, and detachment backups prompt during playback', async () => {
+		const db = await database('content-cadence');
+		await db.drafts.add(draft('a', 'Lyrics'));
+		await db.mediaHandles.add({ draftId: 'a', name: 'song.mp3', attachedAt: '2026-09-06' });
+		const { writes } = await linkedBackup(db);
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+		await db.mediaHandles.update('a', { position: 5 });
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(writes).toHaveLength(1);
+		await db.mediaHandles.update('a', { name: 'Known song' });
+		await vi.advanceTimersByTimeAsync(750);
+		await vi.waitFor(() => expect(writes).toHaveLength(2));
+		expect(parseWorkspaceBackup(writes[1]).media[0]).toMatchObject({
+			name: 'Known song',
+			position: 5
+		});
+		await db.drafts.update('a', { text: 'Latest lyrics' });
+		await vi.advanceTimersByTimeAsync(750);
+		await vi.waitFor(() => expect(writes).toHaveLength(3));
+		expect(parseWorkspaceBackup(writes[2]).drafts[0].text).toBe('Latest lyrics');
+		await db.mediaHandles.delete('a');
+		await vi.advanceTimersByTimeAsync(750);
+		await vi.waitFor(() => expect(writes).toHaveLength(4));
+		expect(parseWorkspaceBackup(writes[3]).media).toEqual([]);
+	});
+
+	it('flushes final progress immediately and retains a failed backup for retry', async () => {
+		const db = await database('progress-flush');
+		await db.drafts.add(draft('a', 'Lyrics'));
+		await db.mediaHandles.add({ draftId: 'a', name: 'song.mp3', attachedAt: '2026-09-06' });
+		const { backup, writes, write } = await linkedBackup(db);
+		await db.mediaHandles.update('a', { position: 12 });
+		await backup.flush();
+		expect(parseWorkspaceBackup(writes[1]).media[0].position).toBe(12);
+		await db.mediaHandles.update('a', { position: 18 });
+		write.mockRejectedValueOnce(new Error('Disk refused the write'));
+		await backup.flush();
+		expect(backup.state().status).toBe('failed');
+		await backup.flush();
+		expect(backup.state().status).toBe('saved');
+		expect(parseWorkspaceBackup(writes.at(-1)!).media[0].position).toBe(18);
+		const count = writes.length;
+		await backup.flush();
+		expect(writes).toHaveLength(count);
+	});
+
+	it('refreshes a restored backup after a failed write in the previous session', async () => {
+		const db = await database('reopened-backup');
+		await db.drafts.add(draft('a', 'Original lyrics'));
+		const { backup, writes, write } = await linkedBackup(db);
+		await db.drafts.update('a', { text: 'Latest lyrics' });
+		write.mockRejectedValueOnce(new Error('Disk refused the write'));
+		await backup.flush();
+		expect(backup.state().status).toBe('failed');
+		expect(writes).toHaveLength(1);
+		backup.destroy();
+
+		// The remembered handle survives, but no new edit schedules this session's flush.
+		const reopened = createWorkspaceBackup(db);
+		linkedBackups.add(reopened);
+		await reopened.flush();
+		expect(reopened.state().status).toBe('saved');
+		expect(writes).toHaveLength(2);
+		expect(parseWorkspaceBackup(writes[1]).drafts[0].text).toBe('Latest lyrics');
+		await reopened.flush();
+		expect(writes).toHaveLength(2);
+	});
+
+	it('waits for an in-flight backup and drains changes requested by another explicit flush', async () => {
+		const db = await database('flush-race');
+		await db.drafts.add(draft('a', 'Original'));
+		const { backup, writes, close } = await linkedBackup(db);
+		let release: () => void = () => {};
+		let closing: () => void = () => {};
+		const held = new Promise<void>((resolve) => (release = resolve));
+		const started = new Promise<void>((resolve) => (closing = resolve));
+		close.mockImplementationOnce(async () => {
+			closing();
+			await held;
+		});
+		await db.drafts.update('a', { text: 'First update' });
+		const first = backup.flush();
+		await started;
+		let cleanFlushFinished = false;
+		const clean = backup.flush().then(() => (cleanFlushFinished = true));
+		await Promise.resolve();
+		expect(cleanFlushFinished).toBe(false);
+		await db.drafts.update('a', { text: 'Latest update' });
+		const final = backup.flush();
+		release();
+		await Promise.all([first, clean, final]);
+		expect(writes).toHaveLength(3);
+		expect(parseWorkspaceBackup(writes[2]).drafts[0].text).toBe('Latest update');
+	});
+
 	it('refuses unsafe Genius page links before importing a backup', () => {
 		expect(() =>
 			parseWorkspaceBackup(

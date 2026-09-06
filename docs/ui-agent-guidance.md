@@ -102,6 +102,6 @@ anything. Use `--color-text-disabled` / `--color-control-disabled` / `--color-bo
 an opaque muted color, plus a non-color cue. Opacity stacks, drops contrast below AA, and dims the
 focus ring along with the label.
 
-Component tests load `global.css` through `vitest-setup-client.ts`, so a computed-style assertion
-sees the real tokens. Do not reintroduce literal fallbacks to make a test pass.
-
+Component tests load `global.css` and the route styles through `vitest-setup-client.ts`, so a
+computed-style assertion sees the real tokens and surface styles. Do not reintroduce literal
+fallbacks to make a test pass.

@@ -899,10 +899,12 @@ async function main() {
 				'-pix_fmt',
 				'yuv420p',
 				'-crf',
-				segment.lossless ? '0' : hero ? '40' : '30',
+				segment.lossless ? '0' : hero || player ? '50' : '30',
 				// Random VHS grain needs compression. The clear sections stay lossless:
 				// lossy motion prediction previously smeared lyric glyphs after seeks.
-				// The full-window hero spends fewer bits on its accelerated grain.
+				// Spend fewer bits on the accelerated tape effect, where random grain
+				// dominated the download. Gestures and readable review stay lossless;
+				// the capture's dimensions, 60fps timing and tape treatment stay intact.
 				...(segment.lossless ? ['-lossless', '1', '-auto-alt-ref', '0'] : []),
 				'-b:v',
 				'0',
@@ -918,7 +920,22 @@ async function main() {
 		if (player || hero) {
 			const list = join(frameDir, 'parts.txt');
 			await writeFile(list, parts.join('\n'));
-			await run('ffmpeg', ['-y', '-f', 'concat', '-safe', '0', '-i', list, '-c', 'copy', webmPath]);
+			await run('ffmpeg', [
+				'-y',
+				'-f',
+				'concat',
+				'-safe',
+				'0',
+				'-i',
+				list,
+				'-c',
+				'copy',
+				'-metadata',
+				`LYRICLINT_ACCELERATED_START_FRAME=${syncStartFrame}`,
+				'-metadata',
+				`LYRICLINT_ACCELERATED_END_FRAME=${syncEndFrame}`,
+				webmPath
+			]);
 		}
 
 		await writeShotDimensions();

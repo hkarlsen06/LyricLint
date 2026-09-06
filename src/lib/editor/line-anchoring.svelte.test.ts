@@ -1,5 +1,5 @@
 import { page, userEvent } from 'vitest/browser';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { isLyricLine, parseDocument } from '$lib/core/parser.js';
 import type { EditorHandle, PerformerRecord } from '$lib/core/types.js';
@@ -10,6 +10,10 @@ import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js'
 import { washRestDelayMs } from './extensions/line-anchors.js';
 import { tapOffsetSeconds } from './extensions/lyric-sync.js';
 import EditorPane from './EditorPane.svelte';
+
+afterEach(() => {
+	vi.useRealTimers();
+});
 
 function context(): EditorDisplayContext {
 	return {
@@ -919,17 +923,20 @@ describe('the timestamp column', () => {
 	it('rests the wash once a pause lasts, and snaps it back on resume', async () => {
 		const { handle } = await mount({ text: lyric, mediaTime: () => 15 });
 		handle.setLineAnchors?.([{ line: 2, time: 10 }]);
+		await withColumn(handle, 15);
+		// Control the pause countdown only; layout and CSS animation frames stay real.
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 		handle.setMediaPlayhead?.(15, false);
 
 		// The pause itself changes nothing: the wash stays until the delay passes.
-		await vi.waitFor(() => {
-			expect(document.querySelector('.cm-line.ll-current-line')).not.toBeNull();
-		});
+		expect(document.querySelector('.cm-line.ll-current-line')).not.toBeNull();
 		expect(document.querySelector('.ll-current-line--rested')).toBeNull();
 
-		await vi.waitFor(
-			() => expect(document.querySelector('.cm-line.ll-current-line--rested')).not.toBeNull(),
-			{ timeout: washRestDelayMs + 2000 }
+		await vi.advanceTimersByTimeAsync(washRestDelayMs - 1);
+		expect(document.querySelector('.ll-current-line--rested')).toBeNull();
+		await vi.advanceTimersByTimeAsync(1);
+		await vi.waitFor(() =>
+			expect(document.querySelector('.cm-line.ll-current-line--rested')).not.toBeNull()
 		);
 		// Only the band rests. The rails keep the playhead's color — every gutter
 		// still marks the row, and the cell still shows the current time.
@@ -952,10 +959,12 @@ describe('the timestamp column', () => {
 			{ line: 2, time: 10 },
 			{ line: 3, time: 20 }
 		]);
+		await withColumn(handle, 15);
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 		handle.setMediaPlayhead?.(15, false);
-		await vi.waitFor(
-			() => expect(document.querySelector('.cm-line.ll-current-line--rested')).not.toBeNull(),
-			{ timeout: washRestDelayMs + 2000 }
+		await vi.advanceTimersByTimeAsync(washRestDelayMs);
+		await vi.waitFor(() =>
+			expect(document.querySelector('.cm-line.ll-current-line--rested')).not.toBeNull()
 		);
 
 		handle.setMediaPlayhead?.(25, false);

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { lineNumberLookup } from '$lib/core/line-numbers.js';
 	import type { Diagnostic, Severity } from '$lib/core/types.js';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import RemoveButton from '$lib/ui/primitives/RemoveButton.svelte';
@@ -154,14 +155,7 @@
 		}
 	}
 
-	function lineFor(offset: number): number {
-		const text = controller.snapshot.text;
-		let line = 1;
-		for (let index = 0; index < offset && index < text.length; index += 1) {
-			if (text[index] === '\n') line += 1;
-		}
-		return line;
-	}
+	const lineFor = $derived(lineNumberLookup(controller.snapshot.text));
 </script>
 
 <div class="panel-content linter-panel" class:linter-panel--focused={mobile && reviewFocused}>
@@ -260,6 +254,7 @@
 		focusedOnly={mobile && reviewFocused}
 		active={active && controller.activeTab === 'linter'}
 		diagnostics={controller.visibleDiagnostics}
+		rowKey={controller.diagnosticRowKey}
 		sources={controller.sources}
 		activeDiagnosticKey={controller.activeDiagnosticKey}
 		activeDiagnosticRange={controller.activeDiagnosticRange}

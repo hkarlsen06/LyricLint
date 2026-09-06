@@ -1,6 +1,8 @@
 import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { page } from 'vitest/browser';
+import { parseDocument } from '$lib/core/parser.js';
 import type { Diagnostic } from '$lib/core/types.js';
 import { createTestWorkbench, diagnostic } from '../test-utils.js';
 import LinterPanel from './LinterPanel.svelte';
@@ -420,6 +422,78 @@ describe('review continuity', () => {
 		await waitFor(() => expect(document.activeElement).toBe(following));
 		expect(following.isConnected).toBe(true);
 	});
+
+	test.each([390, 1350])(
+		'retains controls, focus, geometry, and current fixes after an insertion above findings at %ipx',
+		async (width) => {
+			await page.viewport(width, 940);
+			try {
+				const text = 'Intro\nImma go home\nShawdy comes home';
+				const first = spelling(6, 10, "I'ma");
+				const second = {
+					...spelling(19, 25, 'Shawty'),
+					message:
+						'Check this spelling in the repeated passage while keeping the original words and the performer’s phrasing visible.'
+				};
+				const { controller, calls } = createTestWorkbench({ text, diagnostics: [first, second] });
+				await render(LinterPanel, { controller });
+				const controls = screen.getAllByRole('button', { name: /^Go to / });
+				const selected = controls[1]!;
+				await fireEvent.click(selected);
+				selected.focus();
+				const geometry = controls.map((control) => control.getBoundingClientRect());
+				const fixControl = screen.getByRole('button', { name: 'Replace with Shawty' });
+				const fixGeometry = fixControl.getBoundingClientRect();
+				const prefix = 'New line\n';
+				const nextText = prefix + text;
+				const shifted = [first, second].map((item) => ({
+					...item,
+					from: item.from + prefix.length,
+					to: item.to + prefix.length,
+					fixes: item.fixes?.map((fix) => ({
+						...fix,
+						edit: {
+							...fix.edit,
+							baseRevision: 5,
+							edits: fix.edit.edits.map((edit) => ({
+								...edit,
+								from: edit.from + prefix.length,
+								to: edit.to + prefix.length
+							}))
+						}
+					}))
+				}));
+				controller.onSnapshot({
+					...controller.snapshot,
+					revision: 5,
+					text: nextText,
+					parsed: parseDocument(nextText),
+					diagnostics: shifted,
+					documentChange: { baseRevision: 4, edits: [{ from: 0, to: 0, insert: prefix }] }
+				});
+				await waitFor(() =>
+					expect(screen.getAllByRole('button', { name: /^Go to / })).toEqual(controls)
+				);
+				expect(document.activeElement).toBe(selected);
+				expect(selected.getAttribute('aria-expanded')).toBe('true');
+				controls.forEach((control, index) => {
+					const next = control.getBoundingClientRect();
+					expect(Math.abs(next.top - geometry[index]!.top)).toBeLessThan(1);
+					expect(Math.abs(next.left - geometry[index]!.left)).toBeLessThan(1);
+					expect(Math.abs(next.height - geometry[index]!.height)).toBeLessThan(1);
+				});
+				expect(screen.getByRole('button', { name: 'Replace with Shawty' })).toBe(fixControl);
+				expect(Math.abs(fixControl.getBoundingClientRect().top - fixGeometry.top)).toBeLessThan(1);
+				await fireEvent.click(fixControl);
+				expect(calls.dispatched.at(-1)).toMatchObject({
+					baseRevision: 5,
+					edits: [{ from: 28, to: 34, insert: 'Shawty' }]
+				});
+			} finally {
+				await page.viewport(800, 600);
+			}
+		}
+	);
 
 	test('hands keyboard focus to the surviving finding after a fix', async () => {
 		const fixed = spelling(0, 4, "I'ma");

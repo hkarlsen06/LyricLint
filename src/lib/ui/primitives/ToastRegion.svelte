@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
 	import { fly } from 'svelte/transition';
-	import { X } from 'lucide-svelte';
+	import X from 'lucide-svelte/icons/x';
 	import type { FeedbackState } from '../state/feedback.svelte.js';
 
 	let { feedback }: { feedback: FeedbackState } = $props();

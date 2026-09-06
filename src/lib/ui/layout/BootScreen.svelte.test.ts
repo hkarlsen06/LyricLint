@@ -63,54 +63,57 @@ function revealRadius(): number {
 }
 
 describe('BootScreen', () => {
-	// The reveal is gated on both halves, and this is the half that is easy to
-	// lose: a workspace that opened local storage in 40ms must not cut the
-	// sequence off in the middle of the pull. It also pins where the sequence
-	// starts — on the word, which is what the stretch is a stretch of.
-	it('opens on the wordmark and holds the workspace back through the pull', async () => {
+	// The reveal waits for both the workspace and the animation. Observe the
+	// ready-workspace path once, retaining every real frame of its three-second
+	// window for the waveform, falling brackets, and expanding canvas assertions.
+	it('holds a ready workspace through the pull, then fades the mark and opens the canvas', async () => {
 		const ondone = vi.fn();
 		await render(BootScreen, { props: { ready: true, ondone } });
-
-		expect(screen().dataset.stage).toBe('word');
-		expect(
-			getComputedStyle(screen().querySelector('.app-wordmark')!).getPropertyValue('--wm-open')
-		).toBe('1');
-
-		await vi.waitFor(() => expect(screen().dataset.stage).toBe('pull'), { timeout: 2000 });
-		expect(ondone).not.toHaveBeenCalled();
-	});
-
-	/**
-	 * A boot with nothing to wait for, which is the ordinary case and was the one
-	 * nothing covered. Two things have to be true of it and both were wrong.
-	 *
-	 * The mark has to be *closed* before anything fades. `landed` came off a timer
-	 * counting from the stage flip while the fall was timed from the browser's next
-	 * style resolution, so the two disagreed by a frame — and this easing spends
-	 * its last sixth in its final frame, so that frame was the difference between a
-	 * shut mark and one still visibly ajar. It fired on the fall's own end now.
-	 *
-	 * And no waveform draws at all: there is no wait, so there is nothing for one
-	 * to report, and a wave flashing up for a tenth of a second on the way out
-	 * announces a wait that did not happen.
-	 */
-	it('closes the mark and draws no waveform when nothing is being waited for', async () => {
-		await render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
+		const mark = () => screen().querySelector('.app-wordmark') as HTMLElement;
 		const wave = () => document.querySelector('.app-wordmark__wave') as SVGSVGElement;
 		const path = () => wave().querySelector('path') as SVGPathElement;
+		const backdrop = () => getComputedStyle(screen(), '::before');
+		const alpha = (color: string) => {
+			const parts = color.match(/[\d.]+/gu) ?? [];
+			return parts.length > 3 ? Number(parts[3]) : 1;
+		};
 
-		const seen: { open: number; visible: boolean; d: string }[] = [];
+		expect(screen().dataset.stage).toBe('word');
+		expect(getComputedStyle(mark()).getPropertyValue('--wm-open')).toBe('1');
+
+		// The canvas is a masked layer under the lockup, and the screen itself is
+		// bare — so what clears is a hole in the backdrop, not the backdrop.
+		expect(alpha(getComputedStyle(screen()).backgroundColor)).toBe(0);
+		expect(backdrop().getPropertyValue('mask-image')).toContain('radial-gradient');
+		expect(alpha(backdrop().backgroundColor)).toBe(1);
+		// No second layer may cover the expanding hole.
+		expect(getComputedStyle(screen(), '::after').content).toBe('none');
+
+		const seen: {
+			stage: string | undefined;
+			done: boolean;
+			open: number;
+			opacity: number;
+			shock: number;
+			visible: boolean;
+			d: string;
+			leaving: boolean;
+		}[] = [];
 		await new Promise<void>((done) => {
 			const started = performance.now();
 			const tick = () => {
 				const el = screen();
 				if (!el || !document.contains(el)) return done();
+				const style = getComputedStyle(mark());
 				seen.push({
-					open: Number(
-						getComputedStyle(el.querySelector('.app-wordmark')!).getPropertyValue('--wm-open')
-					),
+					stage: el.dataset.stage,
+					done: ondone.mock.calls.length > 0,
+					open: Number(style.getPropertyValue('--wm-open')),
+					opacity: Number(style.opacity),
+					shock: shock(),
 					visible: getComputedStyle(wave()).visibility === 'visible',
-					d: path().getAttribute('d') ?? ''
+					d: path().getAttribute('d') ?? '',
+					leaving: el.hasAttribute('data-leaving')
 				});
 				if (performance.now() - started < 3000) requestAnimationFrame(tick);
 				else done();
@@ -118,12 +121,64 @@ describe('BootScreen', () => {
 			tick();
 		});
 
+		const pull = seen.filter((frame) => frame.stage === 'pull');
+		expect(pull.length).toBeGreaterThan(0);
+		expect(pull.some((frame) => frame.done)).toBe(false);
+
 		// The wave is never drawn, and never redrawn either — the mark keeps its own
 		// path from the first frame to the last.
 		expect(seen.some((frame) => frame.visible)).toBe(false);
 		expect(new Set(seen.map((frame) => frame.d))).toEqual(new Set([WAVE_D_ATTRIBUTE_OF_THE_MARK]));
 		// And it shut before it went: fully closed, not caught partway.
 		expect(seen.at(-1)!.open).toBeCloseTo(0, 3);
+
+		// With nothing to wait for, the fall is the exit: the brackets fade during
+		// their travel, with no stationary beat before the canvas opens.
+		const fall = seen.filter((frame) => frame.stage === 'land');
+		expect(fall.length).toBeGreaterThan(0);
+		// The screen starts going while the lockup is still near full stretch.
+		const atReveal = fall.find((frame) => frame.leaving)!;
+		expect(atReveal.open).toBeGreaterThan(1);
+
+		// And the brackets are completely invisible with travel still left in them —
+		// the eye loses a lockup in motion, never one parked at its destination.
+		//
+		// Asserted as "some frame was like this" rather than "the first zero-opacity
+		// frame was": the fall's easing is back-loaded hard, so how much travel is
+		// left at any *particular* frame depends on where the frames happen to land.
+		// Pinning that made this flake about one run in six, and the flake was worth
+		// listening to — the margin was under a frame wide, which is not a margin.
+		expect(fall.some((frame) => frame.opacity === 0 && frame.open > 0.05)).toBe(true);
+
+		// It does arrive, a moment later and unseen.
+		expect(fall.at(-1)!.open).toBeCloseTo(0, 3);
+		expect(fall.at(-1)!.opacity).toBe(0);
+
+		// And the circle is struck by the collision rather than by the screen
+		// starting to leave, which on this path are three hundred milliseconds
+		// apart: the screen begins going at the top of the fall, and the brackets do
+		// not begin to meet until three quarters of the way down it. Without the
+		// delay the canvas was already open while the lockup hung at full strength
+		// above it, so the reveal came out of nothing and the brand was left
+		// dissolving on a workspace that had arrived first.
+		const fadeBegins = fall.find((frame) => frame.opacity < 1)!;
+		expect(fadeBegins.shock).toBeLessThan(0.4);
+
+		// The lockup is still on screen when the charge goes off — the circle leaves
+		// something, rather than an empty middle a moment after it emptied.
+		expect(fall.find((frame) => frame.shock > 0)!.opacity).toBeGreaterThan(0);
+
+		// And it runs all the way out before the screen does.
+		expect(fall.at(-1)!.shock).toBeGreaterThan(0.9);
+
+		const circle = fall.map((frame) => frame.shock);
+		// It leaves the middle and only expands: a radius that went back on itself
+		// would be a hole breathing rather than a reveal travelling.
+		expect(circle.at(0)).toBe(0);
+		for (const [index, value] of circle.entries()) {
+			if (index > 0) expect(value).toBeGreaterThanOrEqual(circle[index - 1]);
+		}
+		expect(circle.at(-1)).toBeGreaterThan(0.9);
 	});
 
 	/**
@@ -165,130 +220,6 @@ describe('BootScreen', () => {
 		// down to one space, which is where two bracket characters typed against
 		// each other would sit. Zero would butt the strokes into one shape.
 		expect(slotWidth()).toBeCloseTo(oneSpace(), 0);
-	});
-
-	/**
-	 * With nothing to wait for, the fall *is* the exit: the brackets fade as they
-	 * travel and are gone before they arrive anywhere.
-	 *
-	 * Which is why the reveal starts at the top of the fall here rather than at the
-	 * landing. Held back to the landing, the mark reached its resting place, sat
-	 * there, and was then rubbed out — a still frame in the middle of a movement,
-	 * and a beat of bare canvas with nothing on it to uncover.
-	 */
-	it('fades the brackets out while they are still falling', async () => {
-		await render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
-		const mark = () => screen().querySelector('.app-wordmark') as HTMLElement;
-
-		await vi.waitFor(() => expect(screen().dataset.stage).toBe('land'), { timeout: 3000 });
-
-		const fall: { open: number; opacity: number; shock: number; leaving: boolean }[] = [];
-		await new Promise<void>((done) => {
-			const started = performance.now();
-			const tick = () => {
-				const el = screen();
-				if (!el || !document.contains(el)) return done();
-				fall.push({
-					open: Number(getComputedStyle(mark()).getPropertyValue('--wm-open')),
-					opacity: Number(getComputedStyle(mark()).opacity),
-					shock: shock(),
-					leaving: el.hasAttribute('data-leaving')
-				});
-				if (performance.now() - started < 1200) requestAnimationFrame(tick);
-				else done();
-			};
-			tick();
-		});
-
-		// The screen starts going while the lockup is still near full stretch.
-		const atReveal = fall.find((frame) => frame.leaving)!;
-		expect(atReveal.open).toBeGreaterThan(1);
-
-		// And the brackets are completely invisible with travel still left in them —
-		// the eye loses a lockup in motion, never one parked at its destination.
-		//
-		// Asserted as "some frame was like this" rather than "the first zero-opacity
-		// frame was": the fall's easing is back-loaded hard, so how much travel is
-		// left at any *particular* frame depends on where the frames happen to land.
-		// Pinning that made this flake about one run in six, and the flake was worth
-		// listening to — the margin was under a frame wide, which is not a margin.
-		expect(fall.some((frame) => frame.opacity === 0 && frame.open > 0.05)).toBe(true);
-
-		// It does arrive, a moment later and unseen.
-		expect(fall.at(-1)!.open).toBeCloseTo(0, 3);
-		expect(fall.at(-1)!.opacity).toBe(0);
-
-		// And the circle is struck by the collision rather than by the screen
-		// starting to leave, which on this path are three hundred milliseconds
-		// apart: the screen begins going at the top of the fall, and the brackets do
-		// not begin to meet until three quarters of the way down it. Without the
-		// delay the canvas was already open while the lockup hung at full strength
-		// above it, so the reveal came out of nothing and the brand was left
-		// dissolving on a workspace that had arrived first.
-		const fadeBegins = fall.find((frame) => frame.opacity < 1)!;
-		expect(fadeBegins.shock).toBeLessThan(0.4);
-
-		// The lockup is still on screen when the charge goes off — the circle leaves
-		// something, rather than an empty middle a moment after it emptied.
-		expect(fall.find((frame) => frame.shock > 0)!.opacity).toBeGreaterThan(0);
-
-		// And it runs all the way out before the screen does.
-		expect(fall.at(-1)!.shock).toBeGreaterThan(0.9);
-	});
-
-	/**
-	 * The reveal itself, which is the impact's own consequence: the canvas opens in
-	 * a circle from the point the brackets met and expands past the corners.
-	 *
-	 * What it replaces is a background fade on the screen — which came from
-	 * nowhere in particular and said nothing about what the mark had just done. So
-	 * the absence is asserted too: this screen paints no background of its own at
-	 * all now, and anything that gave it one back would put an unmasked sheet over
-	 * the hole and quietly restore the old ending. The other absence is a second
-	 * layer over the canvas — a ring at the circle's edge, a glow, a wave behind
-	 * it — which is a second object to watch on a screen whose remaining job is to
-	 * get out of the way.
-	 */
-	it('opens the canvas from the middle instead of fading it', async () => {
-		await render(BootScreen, { props: { ready: true, ondone: vi.fn() } });
-		const backdrop = () => getComputedStyle(screen(), '::before');
-
-		const alpha = (color: string) => {
-			const parts = color.match(/[\d.]+/gu) ?? [];
-			return parts.length > 3 ? Number(parts[3]) : 1;
-		};
-
-		// The canvas is a masked layer under the lockup, and the screen itself is
-		// bare — so what clears is a hole in the backdrop, not the backdrop.
-		expect(alpha(getComputedStyle(screen()).backgroundColor)).toBe(0);
-		expect(backdrop().getPropertyValue('mask-image')).toContain('radial-gradient');
-		expect(alpha(backdrop().backgroundColor)).toBe(1);
-
-		// And there is nothing over it: the reveal is the mask and nothing else.
-		expect(getComputedStyle(screen(), '::after').content).toBe('none');
-
-		await vi.waitFor(() => expect(screen().dataset.stage).toBe('land'), { timeout: 3000 });
-
-		const circle: number[] = [];
-		await new Promise<void>((done) => {
-			const started = performance.now();
-			const tick = () => {
-				const el = screen();
-				if (!el || !document.contains(el)) return done();
-				circle.push(shock());
-				if (performance.now() - started < 1200) requestAnimationFrame(tick);
-				else done();
-			};
-			tick();
-		});
-
-		// It leaves the middle and only expands: a radius that went back on itself
-		// would be a hole breathing rather than a reveal travelling.
-		expect(circle.at(0)).toBe(0);
-		for (const [index, value] of circle.entries()) {
-			if (index > 0) expect(value).toBeGreaterThanOrEqual(circle[index - 1]);
-		}
-		expect(circle.at(-1)).toBeGreaterThan(0.9);
 	});
 
 	/**

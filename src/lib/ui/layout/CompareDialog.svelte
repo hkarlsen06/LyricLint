@@ -1,6 +1,7 @@
 <script lang="ts">
 	import InlineDiffText from '../primitives/InlineDiffText.svelte';
-	import { Diff, X } from 'lucide-svelte';
+	import Diff from 'lucide-svelte/icons/diff';
+	import X from 'lucide-svelte/icons/x';
 	import { tick } from 'svelte';
 	import { diffDocuments, type DiffRow } from '$lib/core/document-diff.js';
 	import { formatDraftDate } from '../drafts/draft-date.js';

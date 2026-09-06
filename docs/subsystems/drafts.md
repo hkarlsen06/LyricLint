@@ -20,6 +20,9 @@ Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/primitives/RemoveButt
   (`hasAttachment`, consulted on **every** save) or a saved Genius page link.
 - A landed save re-reads the drafts list, bounded by `sawPendingSave`; `noteSaveStatus` in
   `draft-store.svelte.ts` is the one place `saveStatus` is assigned.
+- The list caches derived summaries in memory, never on disk. Committed Dexie mutation keys
+  invalidate changed drafts; broad changes rebuild the list. Imports and other connections use
+  that same invalidation path, and closing the database releases the cache and its subscription.
 - The way into the list is the draft's own name (`.draft-switcher`): field plus chevron, one
   bordered group, popover anchored to the switcher's left edge. Dates are read, not parsed,
   and English like the rest of the chrome.
@@ -144,6 +147,19 @@ autosave controller's `onStatusChange`, so a status that has not passed through 
 `saving` since the last read has nothing new to show. `noteSaveStatus` in `draft-store.svelte.ts` is
 therefore the **one** place `saveStatus` is assigned; an assignment that goes around it is a save
 the list never hears about.
+
+That read now refreshes a derived summary cache. Reading every complete draft and parsing every
+unchanged lyric after each save made typing in one document pay for the entire library. The first
+read still derives every summary with the shared document parser. Later reads fetch only committed
+changed IDs, preserving the first-save appearance, recency order, and annotation-aware lyric opening.
+The cache contains summaries only, so it retains neither full lyrics nor a second durable record.
+
+Invalidation follows Dexie's committed primary-key mutation ranges instead of assuming all writers
+use the repository. Direct imports, recovery deletes, and writes through another connection therefore
+refresh the same cache, even when a writer leaves `updatedAt` unchanged. Broad mutation ranges rebuild
+it; concurrent reads share work and retain invalidations arriving during an outstanding read. Failed
+reads retry from the database, and close removes the global subscription. `persistence.test.ts` pins
+changed-record reads, external writes, bulk/range changes, reopening, and the in-flight read race.
 
 Dates are read, not parsed: `Today`, `Yesterday`, `3 days ago`, then `15 Jun`, and the year only
 outside this one. They are English like the rest of the chrome — the browser locale put a Norwegian

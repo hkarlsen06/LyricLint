@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { X } from 'lucide-svelte';
+	import X from 'lucide-svelte/icons/x';
 	import { tick } from 'svelte';
 	import type { MediaStore } from '../state/media-store.svelte.js';
 	import type { SpotifySearchResult } from '../state/media-spotify.js';

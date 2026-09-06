@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { Diagnostic, SourceReference, TextRange } from '$lib/core/types.js';
 	import { tick, type Snippet } from 'svelte';
-	import { BookOpen, CheckCheck } from 'lucide-svelte';
+	import BookOpen from 'lucide-svelte/icons/book-open';
+	import CheckCheck from 'lucide-svelte/icons/check-check';
 	import { diagnosticKey, orderDiagnostics } from '$lib/diagnostics/order.js';
 	import { describeControl } from '$lib/ui/state/control-tooltip.svelte.js';
 	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
@@ -9,6 +10,7 @@
 
 	let {
 		diagnostics,
+		rowKey,
 		active = true,
 		overview = false,
 		focusedOnly = false,
@@ -32,6 +34,7 @@
 		onIgnore
 	}: {
 		diagnostics: readonly Diagnostic[];
+		rowKey: (diagnostic: Diagnostic) => string;
 		active?: boolean;
 		overview?: boolean;
 		focusedOnly?: boolean;
@@ -89,9 +92,27 @@
 	// The panel's reading order is shared with the state that follows it: after a
 	// fix the workbench hands the editor to the diagnostic this list leads with,
 	// so the two may not sort by different rules.
-	const sortedDiagnostics = $derived(orderDiagnostics(diagnostics));
-
 	const cardKey = diagnosticKey;
+	const activeKey = $derived(active ? activeDiagnosticKey : undefined);
+	let lastRows: Array<{ key: string; diagnostic: Diagnostic; line: number | undefined }> = [];
+	const rows = $derived.by(() => {
+		// Keep the same controls while hidden, without sorting, numbering, or
+		// updating their contents for a pane the user cannot see. Activation reads
+		// the latest complete snapshot before these controls become actionable.
+		if (active) {
+			lastRows = orderDiagnostics(diagnostics).map((diagnostic) => ({
+				key: rowKey(diagnostic),
+				diagnostic,
+				line: lineFor?.(
+					cardKey(diagnostic) === activeKey
+						? (activeDiagnosticRange?.from ?? diagnostic.from)
+						: diagnostic.from
+				)
+			}));
+		}
+		return lastRows;
+	});
+	const sortedDiagnostics = $derived(rows.map((row) => row.diagnostic));
 
 	// Exactly one card sits expanded at a time; before any explicit choice the
 	// top card starts expanded so the panel is never a wall of closed rows.
@@ -99,28 +120,21 @@
 	let collapsedKey = $state<string | undefined>();
 	let list = $state<HTMLOListElement>();
 	const selectedKey = $derived.by(() => {
-		if (
-			activeDiagnosticKey &&
-			sortedDiagnostics.some((diagnostic) => cardKey(diagnostic) === activeDiagnosticKey)
-		) {
-			return activeDiagnosticKey;
-		}
-		if (chosenKey && sortedDiagnostics.some((diagnostic) => cardKey(diagnostic) === chosenKey)) {
+		const activeRow = activeKey && rows.find((row) => cardKey(row.diagnostic) === activeKey);
+		if (activeRow) return activeRow.key;
+		if (chosenKey && rows.some((row) => row.key === chosenKey)) {
 			return chosenKey;
 		}
-		const first = sortedDiagnostics[0];
-		return first ? cardKey(first) : undefined;
+		return rows[0]?.key;
 	});
 
 	const expandedKey = $derived(
 		active && !overview && (focusedOnly || selectedKey !== collapsedKey) ? selectedKey : undefined
 	);
-	const currentIndex = $derived(
-		sortedDiagnostics.findIndex((item) => cardKey(item) === selectedKey)
-	);
+	const currentIndex = $derived(rows.findIndex((row) => row.key === selectedKey));
 
 	$effect(() => {
-		const key = activeDiagnosticKey;
+		const key = activeKey;
 		const currentList = list;
 		if (!active || !key || !currentList) return;
 		void tick().then(() => {
@@ -136,17 +150,17 @@
 		const key = active && focusedOnly ? selectedKey : undefined;
 		if (key === revealedKey) return;
 		revealedKey = key;
-		const current = sortedDiagnostics.find((item) => cardKey(item) === key);
+		const current = rows.find((row) => row.key === key)?.diagnostic;
 		if (current) void tick().then(() => onNavigate(current));
 	});
 
 	function activate(diagnostic: Diagnostic): void {
-		if (!focusedOnly && expandedKey === cardKey(diagnostic)) {
-			collapsedKey = cardKey(diagnostic);
+		if (!focusedOnly && expandedKey === rowKey(diagnostic)) {
+			collapsedKey = rowKey(diagnostic);
 			return;
 		}
 		collapsedKey = undefined;
-		chosenKey = cardKey(diagnostic);
+		chosenKey = rowKey(diagnostic);
 		onNavigate(diagnostic);
 	}
 
@@ -154,7 +168,7 @@
 		const target = sortedDiagnostics[currentIndex + direction];
 		if (!target) return;
 		collapsedKey = undefined;
-		chosenKey = cardKey(target);
+		chosenKey = rowKey(target);
 		onNavigate(target);
 	}
 
@@ -297,14 +311,15 @@
 		</div>
 	{/if}
 	<ol bind:this={list} class="diagnostic-list" aria-label="Document diagnostics">
-		{#each sortedDiagnostics as diagnostic (`${cardKey(diagnostic)}:${diagnostic.message}`)}
-			{@const expanded = cardKey(diagnostic) === expandedKey}
+		{#each rows as row (row.key)}
+			{@const diagnostic = row.diagnostic}
+			{@const expanded = row.key === expandedKey}
 			<li
 				data-diagnostic-key={cardKey(diagnostic)}
-				hidden={focusedOnly && cardKey(diagnostic) !== selectedKey}
+				hidden={focusedOnly && row.key !== selectedKey}
 				class:diagnostic-error={diagnostic.severity === 'error'}
 				class:diagnostic-card--expanded={expanded}
-				class:diagnostic-card--active={expanded && cardKey(diagnostic) === activeDiagnosticKey}
+				class:diagnostic-card--active={expanded && cardKey(diagnostic) === activeKey}
 			>
 				<!--
 					The row is still the control: the button stretches over the whole
@@ -324,15 +339,7 @@
 					>
 						<span class="diagnostic-list__title">{diagnostic.message}</span>
 					</button>
-					<DiagnosticMeta
-						{diagnostic}
-						{sources}
-						line={lineFor?.(
-							cardKey(diagnostic) === activeDiagnosticKey
-								? (activeDiagnosticRange?.from ?? diagnostic.from)
-								: diagnostic.from
-						)}
-					/>
+					<DiagnosticMeta {diagnostic} {sources} line={row.line} />
 				</div>
 				{#if expanded}
 					<DiagnosticDetails

@@ -18,7 +18,7 @@
 	// worth folding, `label` is what the button names, and `prefix` is the
 	// words that introduce the run and stay outside the button. All four are
 	// optional, so a citation caller passes none of them and is unchanged.
-	import { ChevronDown } from 'lucide-svelte';
+	import ChevronDown from 'lucide-svelte/icons/chevron-down';
 	import type { Snippet } from 'svelte';
 	import type { SourceReference } from '$lib/core/types.js';
 	import SourceCitation from '$lib/diagnostics/SourceCitation.svelte';
