@@ -1,4 +1,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import {
+	heroCaptions,
+	heroPlaybackRate,
+	playerCaptions
+} from '../src/lib/ui/site/demo-captions.js';
 
 const mod = process.platform === 'darwin' ? 'Meta' : 'Control';
 
@@ -368,9 +373,71 @@ test('landing video frames keep their dimensions through loading on phone and de
 	}
 });
 
+test('demo subtitles follow spoken beats inside the video header', async ({ page }) => {
+	test.setTimeout(60_000);
+	for (const width of [390, 1280]) {
+		await page.setViewportSize({ width, height: 1000 });
+		await page.goto('/');
+		await page.evaluate(() => document.fonts.ready);
+		for (const [selector, cues, headerCenter, rate] of [
+			['.lp-hero video', heroCaptions, 28 / 1280, heroPlaybackRate],
+			['.lp-player video', playerCaptions, 22 / 688, 1]
+		] as const) {
+			const video = page.locator(selector);
+			const frame = video.locator('xpath=ancestor::*[contains(@class, "lp-shot__frame")]');
+			await frame.scrollIntoViewIfNeeded();
+			await expect(frame).toHaveAttribute('data-video-ready', '');
+			expect(await video.evaluate((element: HTMLVideoElement) => element.playbackRate)).toBe(rate);
+			await video.evaluate((element: HTMLVideoElement) => element.pause());
+			const before = await frame.boundingBox();
+			const caption = frame.locator('.demo-captions__current');
+			await expect(frame.locator('.demo-captions__measure')).toHaveCount(0);
+			// Watch a real cue boundary too: frame scheduling must continue after play.
+			await video.evaluate(async (element: HTMLVideoElement, time) => {
+				element.currentTime = time;
+				await element.play();
+			}, cues[0].start + 0.1);
+			await expect(caption).toHaveText(cues[1].text);
+			await video.evaluate((element: HTMLVideoElement) => element.pause());
+			// Backwards seek to the opening also exercises the viewport/loop reset.
+			for (const cue of [...cues, cues[0]]) {
+				await video.evaluate((element: HTMLVideoElement, time) => {
+					element.currentTime = time;
+				}, cue.start + 0.1);
+				await expect(caption).toHaveText(cue.text);
+				await expect(caption).toBeVisible();
+				expect(await frame.boundingBox()).toEqual(before);
+				const text = await caption.boundingBox();
+				const footage = await video.boundingBox();
+				expect(text!.y).toBeGreaterThanOrEqual(footage!.y);
+				expect(text!.y + text!.height / 2).toBeCloseTo(
+					footage!.y + Math.max(footage!.width * headerCenter, text!.height / 2),
+					0
+				);
+				const maxHeight = await caption.evaluate((element) => {
+					const style = getComputedStyle(element);
+					return (
+						2 * parseFloat(style.lineHeight) +
+						parseFloat(style.paddingTop) +
+						parseFloat(style.paddingBottom)
+					);
+				});
+				expect(text!.height).toBeLessThanOrEqual(maxHeight + 1);
+				expect(text!.x + text!.width / 2).toBeCloseTo(footage!.x + footage!.width / 2, 0);
+				expect(before!.height - footage!.height).toBeLessThan(3);
+				expect(text!.x).toBeGreaterThanOrEqual(before!.x);
+				expect(text!.x + text!.width).toBeLessThanOrEqual(before!.x + before!.width);
+			}
+		}
+	}
+});
+
 test('player demonstrations keep their screenshots for reduced motion', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await page.goto('/');
+	for (const caption of await page.locator('.demo-captions').all()) {
+		await expect(caption).toBeHidden();
+	}
 	for (const scene of ['player', 'song']) {
 		const video = page.locator(`video[src$="workbench-${scene}.webm"]`);
 		const frame = video.locator('..');

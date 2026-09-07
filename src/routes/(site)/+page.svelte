@@ -11,6 +11,8 @@
 	import { maintainerStructuredData, siteUrl } from '$lib/seo.js';
 	import AuthorityLadder from '$lib/ui/site/AuthorityLadder.svelte';
 	import LazyLiveDemo from '$lib/ui/site/LazyLiveDemo.svelte';
+	import DemoCaptions from '$lib/ui/site/DemoCaptions.svelte';
+	import { heroCaptions, heroPlaybackRate, playerCaptions } from '$lib/ui/site/demo-captions.js';
 	import LyricIcon from '$lib/ui/site/LyricIcon.svelte';
 	import StructuredData from '$lib/ui/site/StructuredData.svelte';
 	import type { PageProps } from './$types.js';
@@ -46,7 +48,9 @@
 	const autoplayInView: Attachment<HTMLVideoElement> = (video) => {
 		if (prefersReducedMotion()) return;
 
-		const frame = video.parentElement;
+		video.defaultPlaybackRate = Number(video.dataset.playbackRate ?? 1);
+		video.playbackRate = video.defaultPlaybackRate;
+		const frame = video.closest('.lp-shot__frame');
 		const poster = frame?.querySelector<HTMLImageElement>('.lp-shot__poster');
 		// A video's native poster is removed when playback starts, not when the
 		// first decoded frame is ready to replace it. Keep a real image over the
@@ -327,40 +331,44 @@ You said we'd drive until the radio gave out (yeah)`;
 			     motion the still stays. -->
 			<div class="lp-shot">
 				<div class="lp-shot__frame">
-					<img
-						class="lp-shot__poster"
-						src="{resolve('/')}workbench.webp"
-						srcset="{resolve('/')}workbench-640.webp {shotDimensions['workbench-640.webp']
-							.width}w, {resolve('/')}workbench-1280.webp {shotDimensions['workbench-1280.webp']
-							.width}w, {resolve('/')}workbench-1920.webp {shotDimensions['workbench-1920.webp']
-							.width}w, {resolve('/')}workbench.webp {shotDimensions['workbench.webp'].width}w"
-						sizes="(min-width: 74rem) 71rem, calc(100vw - 3rem)"
-						fetchpriority="high"
-						width={shotDimensions['workbench.webp'].width}
-						height={shotDimensions['workbench.webp'].height}
-						alt=""
-						aria-hidden="true"
-					/>
-					<!-- Named by `aria-label` for the reason the performer loop is, and
+					<div class="lp-shot__media">
+						<img
+							class="lp-shot__poster"
+							src="{resolve('/')}workbench.webp"
+							srcset="{resolve('/')}workbench-640.webp {shotDimensions['workbench-640.webp']
+								.width}w, {resolve('/')}workbench-1280.webp {shotDimensions['workbench-1280.webp']
+								.width}w, {resolve('/')}workbench-1920.webp {shotDimensions['workbench-1920.webp']
+								.width}w, {resolve('/')}workbench.webp {shotDimensions['workbench.webp'].width}w"
+							sizes="(min-width: 74rem) 71rem, calc(100vw - 3rem)"
+							fetchpriority="high"
+							width={shotDimensions['workbench.webp'].width}
+							height={shotDimensions['workbench.webp'].height}
+							alt=""
+							aria-hidden="true"
+						/>
+						<!-- Named by `aria-label` for the reason the performer loop is, and
 					     deliberately not `role="img"`, which the platform refuses on a
 					     `<video>`. -->
-					<video
-						{@attach autoplayInView}
-						width={shotDimensions['workbench.webm'].width}
-						height={shotDimensions['workbench.webm'].height}
-						aria-label="City Lights is attached through YouTube in a blank draft. A phrase is transcribed, then playback resumes two seconds earlier to hear it again. On-screen keys show the shortcuts. The remaining typing speeds up, a section header is corrected, and the choruses are linked while preserving their different ad-libs. Two spelling fixes update both choruses, leaving no findings."
-						loop
-						muted
-						playsinline
-						preload="none"
-					>
-						<source
-							src="{resolve('/')}workbench-mobile.webm"
-							type="video/webm"
-							media="(max-width: 30rem)"
-						/>
-						<source src="{resolve('/')}workbench.webm" type="video/webm" />
-					</video>
+						<video
+							{@attach autoplayInView}
+							data-playback-rate={heroPlaybackRate}
+							width={shotDimensions['workbench.webm'].width}
+							height={shotDimensions['workbench.webm'].height}
+							aria-label="City Lights is attached through YouTube in a blank draft. A phrase is transcribed, then playback resumes two seconds earlier to hear it again. On-screen keys show the shortcuts. The remaining typing speeds up, a section header is corrected, and the choruses are linked while preserving their different ad-libs. Two spelling fixes update both choruses, preserving their different ad-libs and leaving no findings. The finished lyrics are copied to the clipboard."
+							loop
+							muted
+							playsinline
+							preload="none"
+						>
+							<source
+								src="{resolve('/')}workbench-mobile.webm"
+								type="video/webm"
+								media="(max-width: 30rem)"
+							/>
+							<source src="{resolve('/')}workbench.webm" type="video/webm" />
+						</video>
+					</div>
+					<DemoCaptions cues={heroCaptions} headerCenter={28 / 1280} />
 				</div>
 			</div>
 		</div>
@@ -370,26 +378,29 @@ You said we'd drive until the radio gave out (yeah)`;
 		<div class="lp-container lp-split lp-player">
 			<figure class="lp-shot lp-shot--detail">
 				<div class="lp-shot__frame">
-					<img
-						class="lp-shot__poster"
-						src="{resolve('/')}workbench-player.webp"
-						loading="lazy"
-						width={shotDimensions['workbench-player.webp'].width}
-						height={shotDimensions['workbench-player.webp'].height}
-						alt=""
-						aria-hidden="true"
-					/>
-					<video
-						{@attach autoplayInView}
-						src="{resolve('/')}workbench-player.webm"
-						width={shotDimensions['workbench-player.webm'].width}
-						height={shotDimensions['workbench-player.webm'].height}
-						aria-label="An example track is synced to every lyric line with Space in an accelerated demonstration. Dragging the player’s scrubber moves the yellow highlight through the lyrics. Clicking a line number jumps to that line and plays it. On-screen keypresses show Escape pausing and resuming two seconds earlier, then Shift+Escape and Option+Escape stepping between synced lines."
-						loop
-						muted
-						playsinline
-						preload="none"
-					></video>
+					<div class="lp-shot__media">
+						<img
+							class="lp-shot__poster"
+							src="{resolve('/')}workbench-player.webp"
+							loading="lazy"
+							width={shotDimensions['workbench-player.webp'].width}
+							height={shotDimensions['workbench-player.webp'].height}
+							alt=""
+							aria-hidden="true"
+						/>
+						<video
+							{@attach autoplayInView}
+							src="{resolve('/')}workbench-player.webm"
+							width={shotDimensions['workbench-player.webm'].width}
+							height={shotDimensions['workbench-player.webm'].height}
+							aria-label="An example track is synced to every lyric line with Space in an accelerated demonstration. Dragging the player’s scrubber moves the yellow highlight through the lyrics. Clicking a line number jumps to that line and plays it. On-screen keypresses show Escape pausing and resuming two seconds earlier, then Shift+Escape and Option+Escape stepping between synced lines."
+							loop
+							muted
+							playsinline
+							preload="none"
+						></video>
+					</div>
+					<DemoCaptions cues={playerCaptions} headerCenter={22 / 688} />
 				</div>
 			</figure>
 			<div class="lp-split__copy">

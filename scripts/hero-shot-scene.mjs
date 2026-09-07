@@ -9,6 +9,10 @@ import { readFile } from 'node:fs/promises';
 export const heroSong = JSON.parse(
 	await readFile(new URL('./fixtures/city-lights.json', import.meta.url), 'utf8')
 );
+const tutorial = JSON.parse(
+	await readFile(new URL('../src/lib/assets/hero-tutorial.json', import.meta.url), 'utf8')
+);
+
 export const heroVideoUrl = `https://www.youtube.com/watch?v=${heroSong.videoId}`;
 
 // Ordinary transcription mistakes, corrected on camera. The reference remains
@@ -131,18 +135,33 @@ export async function filmHeroScene({
 	clickHere,
 	pressKey,
 	setSpeed,
+	getTime,
 	restPosition
 }) {
 	const cues = heroSong.lineTimes;
-	const openingEnd = cues[1].seconds;
 	const playback = () => page.evaluate(() => window.__shotPlayback());
 	const wait = (seconds) => hold(Math.round(seconds * 20));
+	// The written script owns the clock. Refuse a late action rather than silently
+	// stretching the film away from its captions when a gesture changes.
+	const until = async (seconds, label) => {
+		if (getTime() > seconds + 0.1) {
+			throw new Error(`${label} missed its narration cue: ${getTime().toFixed(2)} > ${seconds}`);
+		}
+		await hold(Math.max(0, Math.ceil((seconds - getTime()) * 20)));
+	};
+	const at = async (id, action) => {
+		const step = tutorial.steps.find((step) => step.id === id);
+		const seconds = action ? step?.actions[action] : step?.start;
+		if (!Number.isFinite(seconds)) throw new Error(`Missing tutorial cue: ${id}.${action}`);
+		await until(seconds, `${id}.${action ?? 'start'}`);
+		console.log(`hero: ${id}.${action ?? 'start'} at ${getTime().toFixed(2)}s`);
+	};
 	const settle = async () => {
 		await page.clock.runFor(2000);
 		// The proofreader runs in a worker, outside Playwright's page clock.
 		await page.waitForTimeout(300);
 	};
-	const click = async (locator, readFor = 0.25, after = 0.2) => {
+	const click = async (locator, readFor = 0.1, after = 0.1) => {
 		await locator.waitFor({ state: 'visible' });
 		const box = await locator.boundingBox();
 		if (!box) throw new Error('A filmed control has no visible bounds');
@@ -166,13 +185,16 @@ export async function filmHeroScene({
 	};
 
 	await expectLyrics('', 'Opening');
+	await at('import', 'open');
 	await click(page.getByRole('button', { name: 'Add audio source', exact: true }));
 	const url = page.getByRole('textbox', { name: 'YouTube link' });
 	await click(url, 0.1, 0);
 	await page.evaluate((value) => navigator.clipboard.writeText(value), heroVideoUrl);
+	await at('import', 'paste');
 	await pressKey('Control+V', 'Ctrl V', 'Paste song link');
 	await wait(0.65);
 	if ((await url.inputValue()) !== heroVideoUrl) throw new Error('The song link was not pasted');
+	await at('import', 'attach');
 	await click(page.getByRole('button', { name: 'Use video', exact: true }), 0.1, 0.25);
 	const seek = page.getByRole('slider', { name: 'Seek', exact: true });
 	await seek.waitFor({ state: 'visible' });
@@ -180,22 +202,25 @@ export async function filmHeroScene({
 
 	await click(editor, 0, 0);
 	await type('Verse 1:\n');
+	await at('listen', 'play');
 	await pressKey('Escape', 'Esc', 'Listen');
 	if (!(await playback()).playing) throw new Error('Escape did not start the song');
-	await wait(openingEnd - (await playback()).time);
+	await at('type', 'pause');
 	await pressKey('Escape', 'Esc', 'Pause');
 	if ((await playback()).playing) throw new Error('Escape did not pause the song');
-	await wait(0.35);
+	await at('type', 'type');
 	await type('Under city lights');
 	await wait(0.4);
+	await at('replay', 'play');
 	const pausedAt = (await playback()).time;
 	await pressKey('Escape', 'Esc', 'Replay · back 2s');
 	const replay = await playback();
 	if (!replay.playing || Math.abs(replay.time - (pausedAt - 2)) > 0.01) {
 		throw new Error(`Resume did not rewind two seconds: ${pausedAt} → ${replay.time}`);
 	}
-	await wait(2.2);
+	await at('replay', 'pause');
 	await pressKey('Escape', 'Esc', 'Pause');
+	await at('replay', 'type');
 	await type(' we walk');
 	await wait(0.4);
 	const opening = 'Verse 1:\nUnder city lights we walk';
@@ -204,8 +229,10 @@ export async function filmHeroScene({
 
 	// Accelerated typing still goes through normal text input. Never replace the
 	// entire document midway: that would erase the history this film has created.
+	await at('accelerate', 'start');
 	await pressKey('Escape', 'Esc', 'Continue transcribing');
-	setSpeed(20);
+	const speed = 24;
+	setSpeed(speed);
 	const lines = heroDraft.split('\n');
 	for (let index = 2; index < lines.length; index += 1) {
 		await page.keyboard.press('Enter');
@@ -217,11 +244,11 @@ export async function filmHeroScene({
 		}
 		const cue = cues[cueIndex];
 		while ((await playback()).time < cue.seconds) await hold(1);
-		// At 20× each filmed beat covers one song second. Spread the typing
+		// The accelerated pass spends the script’s allotted time on the remaining song. Spread the typing
 		// over its sung phrase, leaving the instrumental break visibly untapped.
 		// The final line gets four seconds; no end-of-vocal timestamp was supplied.
 		const end = Math.min(cues[cueIndex + 1]?.seconds ?? cue.seconds + 4, cue.seconds + 6);
-		const beats = Math.max(1, Math.ceil(end - (await playback()).time));
+		const beats = Math.max(1, Math.ceil(((end - (await playback()).time) * 20) / speed));
 		for (let beat = 0; beat < beats; beat += 1) {
 			await page.keyboard.insertText(
 				line.slice(
@@ -232,39 +259,82 @@ export async function filmHeroScene({
 			await hold(1);
 		}
 	}
+	await at('accelerate', 'end');
 	setSpeed(1);
 	if ((await playback()).playing) await pressKey('Escape', 'Esc', 'Review');
 	await settle();
 	await expectLyrics(heroDraft, 'Accelerated transcription');
+	await at('header', 'open');
 	await editor.focus();
 	await pressKey('Control+Home', 'Ctrl Home', 'Review from the top');
 	await wait(0.4);
 	const leading = page.locator('.diagnostic-list__navigate').first();
 	if ((await leading.getAttribute('aria-expanded')) !== 'true') await click(leading);
-	await click(page.getByRole('button', { name: 'Use [Verse 1]', exact: true }), 1.2, 0.5);
-	await click(page.getByRole('button', { name: 'Manage linking', exact: true }), 0.8, 0.65);
+	await at('header', 'fix');
+	await click(page.getByRole('button', { name: 'Use [Verse 1]', exact: true }));
+	await at('link', 'open');
+	await click(page.getByRole('button', { name: 'Manage linking', exact: true }));
+	await at('link', 'select');
 	const secondChorus = page.getByRole('checkbox', { name: /^Chorus 2/ });
-	if (!(await secondChorus.isChecked())) await click(secondChorus, 0.4, 0.65);
+	if (!(await secondChorus.isChecked())) await click(secondChorus);
 	const beforeLink = await lyrics(page);
-	await click(page.getByRole('button', { name: 'Link 2 sections', exact: true }), 0.8, 0.6);
+	await at('link', 'link');
+	await click(page.getByRole('button', { name: 'Link 2 sections', exact: true }));
 	await expectLyrics(beforeLink, 'Linking preserves both choruses');
-	await click(page.getByRole('tab', { name: /^Review/ }), 0.1, 0.3);
+	await at('link', 'review');
+	await click(page.getByRole('tab', { name: /^Review/ }));
 	await settle();
-	for (const remaining of [2, 0]) {
-		await click(page.getByRole('button', { name: 'Replace with heartbeat', exact: true }), 1, 0.55);
+
+	const showOtherChorus = async () => {
+		await editor.focus();
+		await page.keyboard.press('Control+End');
+		const editorBox = await page.locator('.editor-region').boundingBox();
+		await glide({ x: editorBox.x + 80, y: editorBox.y + 120 }, 8);
+		// End brings the caret into view, but the floating source can still cover
+		// the right half of a lyric. Spend the editor's real bottom scroll padding.
+		await page.mouse.wheel(0, 600);
+		await wait(0.2);
+		const adlib = page
+			.locator('.cm-line')
+			.filter({ hasText: 'heartbeat (Echoing through the city)' });
+		if (!(await adlib.isVisible()))
+			throw new Error('The other chorus’s preserved ad-lib is not visible');
+		const box = await adlib.boundingBox();
+		const picture = await page.locator('.workspace-video').boundingBox();
+		if (box.y < editorBox.y || box.y + box.height > picture.y) {
+			throw new Error('The preserved ad-lib is obscured by the floating song video');
+		}
+		await glide({ x: box.x + box.width * 0.75, y: box.y + box.height / 2 }, 8);
+	};
+	for (const [id, remaining] of [
+		['typo', 2],
+		['adlibs', 0]
+	]) {
+		await at(id, 'fix');
+		await click(page.getByRole('button', { name: 'Replace with heartbeat', exact: true }));
 		await settle();
 		if ((await lyrics(page)).split('heartbeet').length - 1 !== remaining) {
 			throw new Error('The spelling correction did not mirror to the other chorus');
 		}
+		await at(id, 'show');
+		await showOtherChorus();
 	}
 	await expectLyrics(heroSong.lyrics, 'Finished transcription');
 	if ((await page.locator('.diagnostic-list > li').count()) !== 0) {
 		throw new Error('The finished transcription still has findings');
 	}
 	console.log('hero: linked choruses, mirrored both fixes, preserved the original lyrics');
+	await at('copy', 'home');
 	await editor.focus();
 	await pressKey('Control+Home', 'Ctrl Home', 'Back to the opening');
 	await page.evaluate(() => document.activeElement?.blur());
 	await glide(restPosition, 8);
-	await wait(2.5);
+	await at('copy', 'copy');
+	await click(page.getByRole('button', { name: 'Copy lyrics', exact: true }));
+	if ((await page.evaluate(() => navigator.clipboard.readText())) !== heroSong.lyrics) {
+		throw new Error('The finished lyrics did not reach the clipboard intact');
+	}
+	await glide(restPosition, 8);
+	await until(tutorial.duration, 'Finished hold');
+	console.log('hero: copied the exact finished lyrics; narration timeline complete');
 }

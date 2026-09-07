@@ -1,0 +1,294 @@
+{
+	"duration": 91,
+	"steps": [
+		{
+			"id": "import",
+			"start": 0,
+			"end": 11,
+			"text": "I’ll bring the song in so I can listen while I write. Saves me playing hide-and-seek with my tabs.",
+			"captions": [
+				{
+					"start": 0.5,
+					"end": 2.9,
+					"text": "I’ll bring the song in"
+				},
+				{
+					"start": 2.9,
+					"end": 6.6,
+					"text": "so I can listen while I write."
+				},
+				{
+					"start": 6.6,
+					"end": 8.1,
+					"text": "Saves me playing"
+				},
+				{
+					"start": 8.1,
+					"end": 10.1,
+					"text": "hide-and-seek with my tabs."
+				}
+			],
+			"actions": {
+				"open": 1,
+				"paste": 3,
+				"attach": 5.7
+			}
+		},
+		{
+			"id": "listen",
+			"start": 11,
+			"end": 17,
+			"text": "Let’s catch the first line.",
+			"captions": [
+				{
+					"start": 11,
+					"end": 13.4,
+					"text": "Let’s catch the first line."
+				}
+			],
+			"actions": {
+				"play": 13.35
+			}
+		},
+		{
+			"id": "type",
+			"start": 17,
+			"end": 26,
+			"text": "Now I’ll pause and get that down. My short-term memory has already handed in its notice.",
+			"captions": [
+				{
+					"start": 17,
+					"end": 20.3,
+					"text": "Now I’ll pause and get that down."
+				},
+				{
+					"start": 20.3,
+					"end": 23.2,
+					"text": "My short-term memory has already"
+				},
+				{
+					"start": 23.2,
+					"end": 25.8,
+					"text": "handed in its notice."
+				}
+			],
+			"actions": {
+				"pause": 17.3,
+				"type": 18.3
+			}
+		},
+		{
+			"id": "replay",
+			"start": 26,
+			"end": 35,
+			"text": "Missed the end there. Esc takes me back two seconds, so I can catch it again.",
+			"captions": [
+				{
+					"start": 26,
+					"end": 28.5,
+					"text": "Missed the end there."
+				},
+				{
+					"start": 28.5,
+					"end": 31.4,
+					"text": "Esc takes me back two seconds,"
+				},
+				{
+					"start": 31.4,
+					"end": 34.3,
+					"text": "so I can catch it again."
+				}
+			],
+			"actions": {
+				"play": 28.5,
+				"pause": 31.4,
+				"type": 32.3
+			}
+		},
+		{
+			"id": "accelerate",
+			"start": 35,
+			"end": 46,
+			"text": "Same thing for the rest. I’ll skip ahead. Nobody needs to watch me discover where the keys are.",
+			"captions": [
+				{
+					"start": 35,
+					"end": 37.7,
+					"text": "Same thing for the rest."
+				},
+				{
+					"start": 37.7,
+					"end": 40.2,
+					"text": "I’ll skip ahead."
+				},
+				{
+					"start": 40.2,
+					"end": 42.7,
+					"text": "Nobody needs to watch me"
+				},
+				{
+					"start": 42.7,
+					"end": 45.4,
+					"text": "discover where the keys are."
+				}
+			],
+			"actions": {
+				"start": 40,
+				"end": 45.5
+			}
+		},
+		{
+			"id": "header",
+			"start": 46,
+			"end": 54,
+			"text": "Right, let’s check it. This verse header needs brackets. One click sorts that out.",
+			"captions": [
+				{
+					"start": 46,
+					"end": 48.3,
+					"text": "Right, let’s check it."
+				},
+				{
+					"start": 48.3,
+					"end": 51.2,
+					"text": "This verse header needs brackets."
+				},
+				{
+					"start": 51.2,
+					"end": 53.6,
+					"text": "One click sorts that out."
+				}
+			],
+			"actions": {
+				"open": 46.2,
+				"fix": 51.2
+			}
+		},
+		{
+			"id": "link",
+			"start": 54,
+			"end": 64,
+			"text": "These choruses repeat, so I’ll link them. That way, I won’t have to make the same correction twice.",
+			"captions": [
+				{
+					"start": 54,
+					"end": 55.6,
+					"text": "These choruses repeat,"
+				},
+				{
+					"start": 55.6,
+					"end": 57.7,
+					"text": "so I’ll link them."
+				},
+				{
+					"start": 57.7,
+					"end": 60.7,
+					"text": "That way, I won’t have to"
+				},
+				{
+					"start": 60.7,
+					"end": 63.4,
+					"text": "make the same correction twice."
+				}
+			],
+			"actions": {
+				"open": 54.4,
+				"select": 55.5,
+				"link": 56.8,
+				"review": 62.2
+			}
+		},
+		{
+			"id": "typo",
+			"start": 64,
+			"end": 73,
+			"text": "There’s a typo. Fix it here, and the other chorus updates too. Very considerate of it.",
+			"captions": [
+				{
+					"start": 64,
+					"end": 66.5,
+					"text": "There’s a typo."
+				},
+				{
+					"start": 66.5,
+					"end": 68.7,
+					"text": "Fix it here,"
+				},
+				{
+					"start": 68.7,
+					"end": 71.4,
+					"text": "and the other chorus updates too."
+				},
+				{
+					"start": 71.4,
+					"end": 73,
+					"text": "Very considerate of it."
+				}
+			],
+			"actions": {
+				"fix": 66.7,
+				"show": 68.7
+			}
+		},
+		{
+			"id": "adlibs",
+			"start": 73,
+			"end": 81,
+			"text": "One more. And the different ad-libs are still there, just where we left them.",
+			"captions": [
+				{
+					"start": 73,
+					"end": 75.2,
+					"text": "One more."
+				},
+				{
+					"start": 75.2,
+					"end": 78.2,
+					"text": "And the different ad-libs are still there,"
+				},
+				{
+					"start": 78.2,
+					"end": 80.6,
+					"text": "just where we left them."
+				}
+			],
+			"actions": {
+				"fix": 73.4,
+				"show": 75.6
+			}
+		},
+		{
+			"id": "copy",
+			"start": 81,
+			"end": 91,
+			"text": "There we go. Nothing left to review. I’ll copy the lyrics, and they’re ready to paste into Genius.",
+			"captions": [
+				{
+					"start": 81,
+					"end": 83.2,
+					"text": "There we go."
+				},
+				{
+					"start": 83.2,
+					"end": 85.7,
+					"text": "Nothing left to review."
+				},
+				{
+					"start": 85.7,
+					"end": 87.9,
+					"text": "I’ll copy the lyrics,"
+				},
+				{
+					"start": 87.9,
+					"end": 91,
+					"text": "and they’re ready to paste into Genius."
+				}
+			],
+			"actions": {
+				"home": 81,
+				"copy": 86.2
+			}
+		}
+	],
+	"playbackRate": 1.25
+}

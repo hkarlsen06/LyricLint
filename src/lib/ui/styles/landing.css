@@ -421,6 +421,7 @@
 }
 
 .lp-shot__frame {
+	container-type: inline-size;
 	position: relative;
 	display: block;
 	border: var(--border-width) solid var(--color-border-strong);
@@ -428,6 +429,10 @@
 	background: var(--color-canvas);
 	box-shadow: var(--shadow-overlay);
 	overflow: hidden;
+}
+
+.lp-shot__media {
+	position: relative;
 }
 
 .lp-shot__frame img,

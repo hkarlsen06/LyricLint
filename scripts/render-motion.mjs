@@ -13,6 +13,7 @@
  *
  *     bun run vite dev --host 127.0.0.1 --port 5173
  *     node scripts/render-motion.mjs --hero       # the landing page's first screen
+ *     node scripts/render-motion.mjs --hero --rehearse # verify timing and actions without encoding
  *     node scripts/render-motion.mjs              # performer tagging
  *     node scripts/render-motion.mjs --harper     # on-device grammar
  *     node scripts/render-motion.mjs --player     # synced lyric playback
@@ -65,6 +66,8 @@ const run = promisify(execFile);
 const origin = process.env.ORIGIN ?? 'http://127.0.0.1:5173';
 const harper = process.argv.includes('--harper');
 const hero = process.argv.includes('--hero');
+// Exercise the authored timeline and all real controls before spending time encoding.
+const rehearse = process.argv.includes('--rehearse');
 const player = process.argv.includes('--player');
 const song = process.argv.includes('--song');
 const mediaScene = player || song;
@@ -439,14 +442,14 @@ async function main() {
 			}
 			await page.evaluate(([x, y, p]) => window.__shotCursor(x, y, p), [cursor.x, cursor.y, press]);
 			const path = join(frameDir, `f-${String(frameIndex).padStart(4, '0')}.png`);
-			await page.screenshot({ path, type: 'png', clip: region });
+			if (!rehearse) await page.screenshot({ path, type: 'png', clip: region });
 			frames.push(path);
 			frameIndex += 1;
 			// Holds keep their original pacing without photographing an unchanged
 			// cursor three times. Moving frames always request a single sample.
 			for (let i = 1; i < samples; i += 1) {
 				const repeated = join(frameDir, `f-${String(frameIndex).padStart(4, '0')}.png`);
-				await link(path, repeated);
+				if (!rehearse) await link(path, repeated);
 				frames.push(repeated);
 				frameIndex += 1;
 			}
@@ -512,7 +515,7 @@ async function main() {
 
 		// ── 1. The document as it stands, before anything is asked of it.
 		await observe();
-		await hold(14);
+		if (!hero) await hold(14);
 
 		async function filmPerformers() {
 			// ── 2. The pointer arrives at the phrase and drags across it. The picker
@@ -826,6 +829,7 @@ async function main() {
 							clickHere,
 							pressKey,
 							restPosition,
+							getTime: () => frameIndex / FPS,
 							setSpeed(speed) {
 								if (speed > 1 && !phase) syncStartFrame = frameIndex;
 								if (speed === 1 && phase) syncEndFrame = frameIndex;
@@ -838,6 +842,12 @@ async function main() {
 						: filmPerformers());
 
 		await browser.close();
+		if (rehearse) {
+			console.log(
+				`Rehearsal passed: ${scene}, ${frameIndex} frames, ${(frameIndex / FPS).toFixed(2)}s`
+			);
+			return;
+		}
 
 		// ── The crop: the union of every box the scene put on screen, in the
 		//    captured frames' own pixels. Even on both axes, because `yuv420p`

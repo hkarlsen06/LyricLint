@@ -9,6 +9,7 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 `scripts/player-shot-scene.mjs`, `scripts/hero-shot-scene.mjs`, `scripts/shot-lyrics.mjs`,
 `scripts/fixtures/city-lights.json`, `scripts/fixtures/city-lights.jpg`,
 `scripts/write-shot-dimensions.mjs`, `src/lib/assets/shot-dimensions.json`,
+`src/lib/assets/hero-tutorial.json`, `src/lib/ui/site/DemoCaptions.svelte`, `src/lib/ui/site/demo-captions.ts`,
 `src/lib/ui/layout/AppWordmark.svelte`, `src/lib/assets/lyriclint-mark.svg`
 
 ## The rules
@@ -76,6 +77,42 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 
 ## Decision record
 
+### The main and playback demos have conversational subtitles
+
+The hero follows the approved conversational script in `src/lib/assets/hero-tutorial.json`.
+Its ten steps own the narration, phrase-sized caption cues, action timestamps, and 91-second
+source timeline. Its `playbackRate` of 1.25 presents that sequence in about 73 seconds; both
+actions and captions follow the same media clock. This changes presentation speed without
+re-encoding the lossless master. Connected phrases replace tiny fragments and gaps, retaining
+pauses for listening and inspecting results. The page flattens those cues; `filmHeroScene` waits for the same action timestamps
+and refuses any gesture more than 0.1 seconds late. There is no separately retimed hero
+subtitle list. The initial 65-second estimate did not allow enough time for the full wording,
+listening, and visible results. A frame-free `--hero --rehearse` pass exercises the complete
+sequence and its assertions before the full capture and encode.
+
+The acceleration starts only after “I’ll skip ahead”, at 40 seconds. The capture uses 24×
+playback until the authored 45.5-second boundary, then normal speed for review. Each spelling
+fix is followed by a look at the second chorus so the mirrored change and preserved ad-libs
+are visible. The final Copy lyrics press is real; capture refuses unless the clipboard matches
+the entire authorized lyric fixture byte for byte. The last result holds to the script's end.
+
+`DemoCaptions.svelte` centers phrases within the filmed header using its midpoint relative to
+source width (28/1280 in the hero, 22/688 in the player). Container-width units avoid WebKit
+resolving a percentage minimum height against an automatic frame height to zero, which left
+captions too high despite Chromium passing. The header sets a minimum height, letting a two-line phone caption grow downward
+without clipping. The player retains its separate short walkthrough in `demo-captions.ts`.
+Frame callbacks follow playback; media events update paused seeks, and scheduling stops on
+pause or unmount. Earlier attempts squeezed fast-changing fragments into finished footage;
+the hero now gives the actions the time the explanation needs.
+
+The captions are page-rendered, retaining readable type at phone widths. They are an absolute
+overlay within the original video frame, without a separate strip or extra height. Their opaque
+canvas backing keeps text legible over changing footage. Short phrases keep the overlay away
+from edge controls; verify every cue at desktop and phone widths. The poster remains confined
+to the positioned media wrapper. Captions appear only after the decoded-frame handoff and stay
+hidden for reduced motion. The video's accessible description supplies the complete sequence;
+visual cue changes are hidden from assistive technology to avoid unsolicited announcements.
+
 ### The accelerated tape effect has its own encoding budget
 
 The short accelerated sections dominated the regenerated videos' size: the desktop hero was
@@ -128,7 +165,7 @@ The opening spends time on listening, pausing, typing part of the first phrase, 
 two seconds earlier to finish it. The remaining transcription accelerates with a visible
 fast-forward cue. The songwriter's 24 line starts are stored against document line numbers
 in the fixture. The opening listens from 0:00 to the second line at 0:03.95; the accelerated
-pass follows the remaining cues at 20×, retaining the instrumental gap. Its typing windows
+pass follows the remaining cues at 24× within the narration timeline, retaining the instrumental gap. Its typing windows
 are capped at six song seconds, with four seconds for the final line whose end was not supplied.
 Review then brackets `Verse 1:`, links the choruses while preserving the
 second chorus's extra ad-libs, and corrects two shared `heartbeet` occurrences to `heartbeat`.
