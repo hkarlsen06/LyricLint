@@ -150,6 +150,8 @@ describe('application custom-property policy', () => {
 
 		for (const { path, source } of sources) {
 			for (const [, name] of source.matchAll(/(--[a-z0-9-]+)['"]?\s*:/g)) defined.add(name);
+			// Svelte style directives also define custom properties on the element.
+			for (const [, name] of source.matchAll(/\bstyle:(--[a-z0-9-]+)\s*=/g)) defined.add(name);
 			for (const [, name] of source.matchAll(/setProperty\(\s*['"](--[a-z0-9-]+)['"]/g)) {
 				defined.add(name);
 			}
