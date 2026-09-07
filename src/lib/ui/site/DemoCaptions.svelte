@@ -16,6 +16,7 @@
 		// Frame callbacks follow media time, rather than timeupdate's coarse cadence.
 		// Keep the event path for paused seeks; stop scheduling when playback stops.
 		let pending: number | undefined;
+		// oxlint-disable-next-line anti-slop/no-runtime-typeof -- Browser API availability needs a runtime check to retain the animation-frame fallback.
 		const frameCallbacks = typeof video.requestVideoFrameCallback === 'function';
 		const stop = () => {
 			if (pending === undefined) return;
