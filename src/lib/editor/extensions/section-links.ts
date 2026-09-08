@@ -47,6 +47,7 @@ import {
 	type PassageState
 } from '../link-passage-edits.js';
 import { linkingSectionNames, sectionBodyRange } from '../section-links.js';
+import { recoverPastedSectionLinks } from '../pasted-section-links.js';
 import {
 	editorCallbacksField,
 	editorComposingField,
@@ -133,6 +134,9 @@ const setTypeOnlyHereEffect = StateEffect.define<TypeOnlyHereState | undefined>(
 
 /** Marks the transaction that consumed `Type only here` and changed link shape. */
 const typeOnlyHereAppliedEffect = StateEffect.define<null>();
+
+/** A carrying clipboard supplies its own intent instead of recovering the old draft's. */
+export const pastedSectionMetadata = Annotation.define<boolean>();
 
 /**
  * Put the groups and their divergent runs back exactly as they were, in the
@@ -1502,6 +1506,31 @@ export function sectionLinkMirror(): Extension {
 		const before = transaction.startState;
 		const value = before.field(sectionPassageField, false);
 		if (!value || before.field(editorComposingField, false)) return transaction;
+		if (
+			transaction.isUserEvent('input.paste') &&
+			!transaction.annotation(pastedSectionMetadata) &&
+			!transaction.annotation(applyOnlyHereAnnotation)
+		) {
+			const links = before.field(sectionLinkField);
+			// Ordinary body pastes still use the mirror. Recovery is only needed
+			// when a replacement erased an existing member's header.
+			if (dropErased(links, transaction.changes).size < links.size) {
+				const recovered = recoverPastedSectionLinks(
+					parsedDocumentForState(before),
+					parsedDocumentForState(transaction.state),
+					[...groupsOf(links).values()],
+					value
+				);
+				if (recovered)
+					return [
+						transaction,
+						{
+							effects: restoreSectionLinksEffect.of({ ...recovered, holes: [] }),
+							sequential: true
+						}
+					];
+			}
+		}
 		const onlyHere = transaction.annotation(applyOnlyHereAnnotation);
 		if (
 			onlyHere &&

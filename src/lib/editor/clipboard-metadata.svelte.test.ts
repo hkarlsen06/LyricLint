@@ -519,6 +519,273 @@ describe('paste', () => {
 	});
 });
 
+describe('external replacement paste', () => {
+	it('retains matching corrections at both edges of a shared body', async () => {
+		const original =
+			'[Chorus]\nHold on through the night, tight\n\n[Chorus]\nHold on through the night, tight';
+		const { handle, text } = await mount({
+			text: original,
+			selection: { anchor: 0, head: original.length }
+		});
+		handle.setSectionLinks?.([{ lines: [1, 4] }]);
+		const updated = original.replaceAll('Hold', 'Stay').replaceAll('tight', 'close');
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', updated);
+		clipboard('paste', transfer);
+
+		expect(text()).toBe(updated);
+		const from = updated.indexOf('close');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from, to: from + 5, insert: 'near' }]
+		});
+		expect(text()).toBe(updated.replaceAll('close', 'near'));
+		const start = text().indexOf('Stay');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: start, to: start + 4, insert: 'Keep' }]
+		});
+		expect(text()).toBe(updated.replaceAll('close', 'near').replaceAll('Stay', 'Keep'));
+	});
+
+	it.each(['plain', 'foreign HTML'])(
+		'retains known links after an unchanged %s paste',
+		async (flavor) => {
+			const { handle, text, linksChanged } = await mount({
+				text: song,
+				selection: { anchor: 0, head: song.length }
+			});
+			handle.setSectionLinks?.([{ lines: [1, 5] }]);
+			const before = handle.getSectionLinks?.();
+			linksChanged.mockClear();
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', song);
+			if (flavor === 'foreign HTML') transfer.setData('text/html', `<pre>${song}</pre>`);
+
+			clipboard('paste', transfer);
+
+			expect(text()).toBe(song);
+			expect(handle.getSectionLinks?.()).toEqual(before);
+			expect(linksChanged).toHaveBeenCalled();
+			const from = song.indexOf('tight');
+			handle.dispatchAtomic({
+				baseRevision: handle.getSnapshot().revision,
+				edits: [{ from, to: from + 5, insert: 'close' }]
+			});
+			expect(text()).toBe(song.replaceAll('tight', 'close'));
+		}
+	);
+
+	it('maps corrected lyrics and shifted headers without mirroring the paste itself', async () => {
+		const { handle, text } = await mount({
+			text: song,
+			selection: { anchor: 0, head: song.length }
+		});
+		handle.setSectionLinks?.([{ lines: [1, 5] }]);
+		const updated =
+			'[Intro]\nJust arrived\n\n' + song.replaceAll('tight', 'close').replace('rain', 'storm');
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', updated);
+		transfer.setData('text/html', `<pre>${updated}</pre>`);
+
+		clipboard('paste', transfer);
+
+		expect(text()).toBe(updated);
+		expect(handle.getSectionLinks?.().map((link) => link.lines)).toEqual([[4, 8]]);
+		const from = updated.indexOf('close');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from, to: from + 5, insert: 'near' }]
+		});
+		expect(text()).toBe(updated.replaceAll('close', 'near'));
+	});
+
+	it.each(['local words', 'no shared passages', 'empty shared position'])(
+		'preserves stored intent on exact paste: %s',
+		async (intent) => {
+			const original = '[Chorus]\nHold on tight\n\n[Chorus]\nHold on tight';
+			const { handle, text } = await mount({
+				text: original,
+				selection: { anchor: 0, head: original.length }
+			});
+			const local = [
+				{ headerLine: 1, line: 2, column: 8, endLine: 2, endColumn: 13 },
+				{ headerLine: 4, line: 5, column: 8, endLine: 5, endColumn: 13 }
+			];
+			handle.setSectionLinks?.([
+				{
+					lines: [1, 4],
+					passages:
+						intent === 'no shared passages'
+							? []
+							: [
+									{
+										members: local.map((member) => ({
+											...member,
+											column: intent === 'empty shared position' ? 8 : 0,
+											endColumn: 8
+										}))
+									}
+								],
+					detached: intent === 'local words' ? local : []
+				}
+			]);
+			const before = handle.getSectionLinks?.();
+			const transfer = new DataTransfer();
+			transfer.setData('text/plain', original);
+
+			clipboard('paste', transfer);
+
+			expect(handle.getSectionLinks?.()).toEqual(before);
+			const from = original.indexOf('tight');
+			handle.dispatchAtomic({
+				baseRevision: handle.getSnapshot().revision,
+				edits: [{ from, to: intent === 'empty shared position' ? from : from + 5, insert: 'close' }]
+			});
+			expect(text()).toBe(
+				intent === 'empty shared position'
+					? original.replaceAll('tight', 'closetight')
+					: original.replace('tight', 'close')
+			);
+		}
+	);
+
+	it('drops links for unrelated lyrics with the same headers', async () => {
+		const { handle, text } = await mount({
+			text: song,
+			selection: { anchor: 0, head: song.length }
+		});
+		handle.setSectionLinks?.([{ lines: [1, 5] }]);
+		const updated =
+			'[Chorus]\nAmber clouds gather\nQuiet birds fly\n\n[Chorus]\nAmber clouds gather\nQuiet birds fly';
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', updated);
+
+		clipboard('paste', transfer);
+
+		expect(text()).toBe(updated);
+		expect(handle.getSectionLinks?.()).toEqual([]);
+	});
+
+	it('keeps previously local words independent when the paste gives both copies the same correction', async () => {
+		const original = '[Chorus]\nHold on tight\n\n[Chorus]\nHold on tight';
+		const { handle, text } = await mount({
+			text: original,
+			selection: { anchor: 0, head: original.length }
+		});
+		handle.setSectionLinks?.([
+			{
+				lines: [1, 4],
+				holes: [
+					{ line: 2, column: 8, endLine: 2, endColumn: 13 },
+					{ line: 5, column: 8, endLine: 5, endColumn: 13 }
+				]
+			}
+		]);
+		const updated = original.replaceAll('tight', 'close');
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', updated);
+		clipboard('paste', transfer);
+		expect(text()).toBe(updated);
+		expect(handle.getSectionLinks?.()[0]?.lines).toEqual([1, 4]);
+		const from = updated.indexOf('close');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from, to: from + 5, insert: 'near' }]
+		});
+		expect(text()).toBe(updated.replace('close', 'near'));
+		const shared = text().indexOf('Hold');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from: shared, to: shared + 4, insert: 'Keep' }]
+		});
+		expect(text()).toBe(updated.replace('close', 'near').replaceAll('Hold', 'Keep'));
+	});
+
+	it('honors carried metadata instead of recovering the replaced draft’s links', async () => {
+		const { handle, text } = await mount({
+			text: song,
+			selection: { anchor: 0, head: song.length }
+		});
+		handle.setSectionLinks?.([{ lines: [1, 5] }]);
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', song);
+		transfer.setData(
+			'text/html',
+			clipboardHtml(song, { lines: 7, anchors: [{ line: 1, time: 12 }], links: [] })
+		);
+
+		clipboard('paste', transfer);
+
+		expect(text()).toBe(song);
+		expect(handle.getLineAnchors?.()).toEqual([{ line: 2, time: 12 }]);
+		expect(handle.getSectionLinks?.()).toEqual([]);
+	});
+
+	it('retains unaffected peers when the paste changes only one formerly shared copy', async () => {
+		const chorus = '[Chorus]\nHold on tight';
+		const original = [chorus, chorus, chorus].join('\n\n');
+		const { handle, text } = await mount({
+			text: original,
+			selection: { anchor: 0, head: original.length }
+		});
+		handle.setSectionLinks?.([{ lines: [1, 4, 7] }]);
+		const updated = original.replace('tight', 'close');
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', updated);
+		clipboard('paste', transfer);
+		expect(text()).toBe(updated);
+		expect(handle.getSectionLinks?.()[0]?.lines).toEqual([1, 4, 7]);
+		const from = updated.indexOf('tight');
+		handle.dispatchAtomic({
+			baseRevision: handle.getSnapshot().revision,
+			edits: [{ from, to: from + 5, insert: 'near' }]
+		});
+		expect(text()).toBe(updated.replaceAll('tight', 'near'));
+	});
+
+	it('declines ambiguous members when identical chorus counts change', async () => {
+		const chorus = '[Chorus]\nHold on tight';
+		const original = [chorus, chorus, chorus].join('\n\n');
+		const { handle, text } = await mount({
+			text: original,
+			selection: { anchor: 0, head: original.length }
+		});
+		handle.setSectionLinks?.([{ lines: [1, 4, 7] }]);
+		const updated = [chorus, chorus].join('\n\n');
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', updated);
+
+		clipboard('paste', transfer);
+
+		expect(text()).toBe(updated);
+		expect(handle.getSectionLinks?.()).toEqual([]);
+	});
+
+	it('undoes and redoes replacement text and recovered links together', async () => {
+		const { handle, text } = await mount({
+			text: song,
+			selection: { anchor: 0, head: song.length }
+		});
+		handle.setSectionLinks?.([{ lines: [1, 5] }]);
+		const before = handle.getSectionLinks?.();
+		const updated = '[Intro]\nJust arrived\n\n' + song.replaceAll('tight', 'close');
+		const transfer = new DataTransfer();
+		transfer.setData('text/plain', updated);
+		clipboard('paste', transfer);
+		const after = handle.getSectionLinks?.();
+		expect(after?.map((link) => link.lines)).toEqual([[4, 8]]);
+
+		handle.undo();
+		expect(text()).toBe(song);
+		expect(handle.getSectionLinks?.()).toEqual(before);
+
+		handle.redo();
+		expect(text()).toBe(updated);
+		expect(handle.getSectionLinks?.()).toEqual(after);
+	});
+});
+
 describe('cut', () => {
 	it('carries the metadata out and removes the selection', async () => {
 		const secondChorus = song.indexOf('[Chorus]\nHold on tight\nThrough the rain');

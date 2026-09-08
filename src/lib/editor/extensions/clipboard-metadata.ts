@@ -14,7 +14,7 @@ import type { ClipboardLink, ClipboardMetadata } from '../clipboard-metadata.js'
 import { sectionBodyRange } from '../section-links.js';
 import { editorCallbacksField, parsedDocumentForState } from './editor-state.js';
 import { anchorLineEffect, lineAnchorsFor } from './line-anchors.js';
-import { sectionLinksFor, setSectionLinkEffect } from './section-links.js';
+import { pastedSectionMetadata, sectionLinksFor, setSectionLinkEffect } from './section-links.js';
 
 /**
  * What a copy of `[from, to)` carries beside its text, or `undefined` for a
@@ -346,6 +346,7 @@ function claimPaste(event: ClipboardEvent, view: EditorView): boolean {
 		changes: { from, to, insert: text },
 		selection: { anchor: from + text.length },
 		effects: anchors,
+		annotations: pastedSectionMetadata.of(true),
 		scrollIntoView: true,
 		userEvent: 'input.paste'
 	});

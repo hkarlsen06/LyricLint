@@ -2,7 +2,8 @@
 
 Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.ts`,
 `src/lib/core/link-record.ts`, `src/lib/core/link-shape.ts`,
-`src/lib/editor/link-passage-edits.ts`, `src/lib/editor/section-links.ts`,
+`src/lib/editor/link-passage-edits.ts`, `src/lib/editor/pasted-section-links.ts`,
+`src/lib/editor/section-links.ts`,
 `src/lib/editor/extensions/section-links.ts`, `src/lib/editor/extensions/section-link-marker.ts`,
 `src/lib/ui/linking/`, `src/lib/rules/catalog/section-unlinked-repeat.ts`,
 `src/lib/performers/transform.ts`, `src/lib/persistence/copy.ts`
@@ -13,7 +14,9 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   the actual subset sharing exact text; a chorus-only passage remains connected when an intro
   joins the group. Occurrences have non-overlapping absolute ranges and at most one occurrence
   per header in a passage. Linking preserves lyrics; changing wording requires an explicit choice.
-- `alignPassages` establishes correspondence only on a linking or explicit reconnection action.
+- `alignPassages` establishes peer correspondence only on a linking or explicit reconnection action.
+  Replacement paste may align each old body with its own new version to map existing intent;
+  it never discovers connections between pasted peers.
   It matches complete Unicode lyric words, retaining internal apostrophes and lexical hyphens
   while separating surrounding punctuation. Performer tag names and annotation IDs are not
   lyric tokens: use `extractLineStyleSpans` and `scanAnnotations`, their existing owners.
@@ -113,8 +116,11 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   Invalid new metadata suspends the group's passages atomically, preserves lyrics, and cannot
   fall through to legacy alignment. Explicit connection review is the recovery route.
 - Membership is a range over the header line; deleting it retires that member, and fewer than two
-  members is no group. Wholesale replacement loses links by design; validated clipboard metadata
-  is the sanctioned restoration path. The link icon opens that section in Linking on click,
+  members is no group. A replacement paste recovers known members when heading, occurrence order,
+  and lyric evidence identify their new sections. Ambiguous or unrelated members drop; existing
+  local exclusions remain local. Validated clipboard metadata takes precedence over recovery.
+  Deletion followed by a separate plain paste retains no hidden link history.
+  The link icon opens that section in Linking on click,
   Enter, or Space. The management icon is Lucide `Link` during shared editing and `Unlink`
   during local editing; both open management rather than unlinking the section. The adjacent
   mode control uses `Pen` for shared editing and `PenLine` for `Edit this section only`, with a
@@ -128,6 +134,33 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   Local lyric ranges are dotted `Decoration.mark`s, never content widgets.
 
 ## Decision record
+
+### A Genius refresh carries forward the links the draft already knows
+
+Replacing the lyrics with a fresh copy from Genius used to erase every linked header, even
+when the same sections returned unchanged. The transcriber was refreshing the wording, not
+discarding their editing decisions. `pasted-section-links.ts` now recovers those decisions for
+`input.paste` transactions that erase an existing member header.
+
+Sections match by heading name and occurrence order when the count is stable, with the existing
+body-similarity predicate supplying lyric evidence. A unique exact body takes precedence; conflicting
+reordering is rejected. When the count changes, only bodies unique in both versions identify a
+survivor. Unrelated lyrics with familiar headings and indistinguishable inserted/deleted repeats
+therefore cannot inherit links. Groups need two surviving members and never acquire new ones.
+
+The bounded passage aligner compares each old body only with its identified new version. Its
+exact anchors produce a finer mapping for metadata, which `mapPassageState` applies to the stored
+passages and exclusions. Equal corrections inside previously shared spans retain their connections
+through `passageTargets` and `applyPassageTransfer`; changes across local boundaries cannot invent
+connections. Empty passage lists, paired insertion points, and deliberately equal local words keep
+their meaning. The paste itself remains the exact incoming text and is never mirrored by recovery.
+
+Recovery uses the mapped restore effect in the same transaction as the paste, so undo/redo and the
+existing link-change notifier carry the words and decisions together. A validated carrying clipboard
+opts out: its own stored intent wins. Ordinary body editing keeps the normal mirror; deleting the
+document and later pasting plain text has no previous document to recover from. Browser regressions
+in `clipboard-metadata.svelte.test.ts` cover refresh, later propagation, preserved exclusions,
+ambiguity, unrelated lyrics, and atomic history.
 
 ### Discovery keeps unchanged work without a pair-count cliff
 
@@ -914,11 +947,10 @@ And it needs `onSectionLinksChanged`, because **unlinking and closing a differen
 at all**: a shell that saved only on a document change would keep writing a shape the user had just
 changed.
 
-**What none of it survives is the document being replaced wholesale.** Select all, cut, paste back
-and the links are gone — every header line the membership was written against was erased. Re-attaching
-links to re-pasted text would be guessing at which of the new headers used to be which, and a link
-that is silently wrong overwrites work. Line anchors behave the same way for the same reason.
-`section-links.svelte.test.ts` pins this as a decision rather than leaving it as a surprise.
+**Deleting the document still retires its links.** A later plain paste has no previous document
+to recover from; `section-links.svelte.test.ts` pins that two-step boundary. A replacement paste
+now has the evidence described in “A Genius refresh carries forward the links the draft already
+knows” above. A carrying clipboard can instead supply its own validated links.
 
 **`Mod-Shift-L` belongs to `Edit this section only` now, and the picker's ways in are the pointer's own** —
 the `⇄` marker and the diagnostic's guided action. The chord opened this card for a while, and a

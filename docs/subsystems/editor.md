@@ -59,8 +59,10 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 - A copy carries timings and links in a `text/html` flavor (`data-lyriclint`); `text/plain`
   stays byte-for-byte the selection's own slice — clean lyrics on the clipboard are this
   application's entire output. The toolbar's `Copy lyrics` deliberately carries nothing.
-- The paste is the sanctioned exception to wholesale replacement losing anchors and links:
-  the payload is fragment-relative, guarded by the fragment's own line count, versioned,
+- A replacement paste may recover existing section links from the previous document's heading
+  and lyric evidence (see `section-links.md`); it preserves local intent and changes no pasted words.
+  A validated carrying clipboard takes precedence over that recovery:
+  its payload is fragment-relative, guarded by the fragment's own line count, versioned,
   parsed trust-nothing (unreadable pieces drop, the rest applies), and timed only where
   it still runs forward — a carried timing lands after the anchor above the paste and
   before the anchor below it, strictly increasing, and anything earlier drops while the
@@ -185,12 +187,12 @@ other side of the trip ever looks. Copy a synced, linked chorus out of one 'scri
 another and the timings and the link arrive with it; paste the same clipboard into a Genius lyrics
 box and nothing but the words was ever there.
 
-**The paste is the sanctioned exception to wholesale replacement losing everything.** The rule that
-a document replaced whole loses its anchors and links is about guessing — re-attaching them to
-re-pasted text would mean guessing which of the new headers used to be which, and a link that is
-silently wrong overwrites work. A payload riding the paste is the one case where that stops being a
-guess: it says which fragment line owns which time and which headers move together, so applying it
-is arithmetic rather than inference. Everything in it is **fragment-relative** — 0-based lines into
+**A carrying paste supplies its own metadata.** Plain replacement pastes can now recover the draft's
+existing links from heading and lyric evidence, as recorded in `section-links.md`. A payload riding
+the paste takes precedence: it says which fragment line owns which time and which headers move
+together. `pastedSectionMetadata` opts that transaction out of old-link recovery, including when
+the carried links deliberately contain no shared passages. Applying the payload is arithmetic
+rather than inference. Everything in it is **fragment-relative** — 0-based lines into
 the copied text, because the paste has no idea where in which document the copy was made — and the
 fragment's own line count rides along as the guard: a `text/plain` that no longer splits into that
 many lines is not the text the metadata describes (a clipboard manager merging flavors from two
