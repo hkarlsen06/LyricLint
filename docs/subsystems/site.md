@@ -69,11 +69,10 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   press latches; only a mouse leaving releases. The toolbar handoff spends `--wm-in` as a
   width against the live `--wm-width` sum. Everything is `em`; `ch` is exact because it is
   monospaced.
-- The favicon is the waveform alone in `#dea645` — Safari plates any icon under its
-  undocumented contrast threshold against the tab bar, `prefers-color-scheme` inside an SVG
-  favicon resolves in the wrong context, and a mid-tone picks one scheme (dark won). Never
-  resize by rewriting the SVG's attributes; Safari verifies only after clearing website
-  data.
+- The favicon uses the full bracketed wave in white on a dark yellow
+  (`#a87500`) rounded square, with heavier strokes for tab sizes. Generate both PNG favicons and the Apple
+  touch icon from that SVG using a sized wrapper, never by rewriting SVG attributes.
+  Safari verification requires clearing website data; normal reloads retain cached icons.
 
 ## Decision record
 
@@ -1004,41 +1003,25 @@ Implementation: `src/lib/ui/layout/AppWordmark.svelte` (state and markup only) a
 in `src/lib/ui/styles/shell.css`. `src/lib/assets/lyriclint-mark.svg` is the static mark and
 carries the same geometry — the closed lockup has to keep matching it.
 
-**The favicon is the waveform alone in `#dea645`, and both choices are contrast, not taste.**
-There is no tile, and no brackets: at the ~16–18px a tab strip or a search result's chip renders,
-brackets and a waveform are three strokes fighting for the same pixels, and the full mark came out
-illegible in Google's own results. So the icon is the waveform by itself — the lockup's exact
-geometry, not a redrawing — with the `viewBox` cropped to the wave's own bounding box plus half a
-unit, which lands its stroke nearly twice as thick at 16px as the full mark managed. The brand's
-dark ink is the one thing it may not have, because:
+### The favicon uses the full mark on dark yellow
 
-**Safari draws its own background behind any favicon whose contrast against the tab bar is too
-low.** Its dark-mode tab bar is `#282828`; the brand's `#1c1c22` scores 1.15:1 against it, which is
-about as low as a favicon can score. Safari's plate is white and rounded and a little larger than
-the icon, so a dark tile came back wearing a white ring, and a transparent icon with dark ink came
-back as a solid white box with the mark inverted on top. Two rounds went into blaming our own file
-for both. The threshold is undocumented and does not match WCAG AA or AAA; the only lever is the
-icon's own brightness. `#dea645` scores 6.77:1, so nothing is drawn behind it.
+The requested identity is the main bracketed wave in white on a darkened LyricLint-yellow
+(`#a87500`) rounded square. The original `#dea645` is approximately OKLCH(0.760 0.130 78.1°).
+Lower its lightness to 0.600, retain its hue, and fit chroma to 0.125 within sRGB;
+the SVG stores the resulting hex color for favicon compatibility. A literal `1 − L`
+inversion produced an almost-black brown at 0.240 and was rejected because it no longer
+read as yellow. It reuses the static mark's path geometry, with 2.8-unit strokes to
+help the brackets and wave survive at 16px. The dark yellow field gives the icon a rounded square
+silhouette, with a 6-unit corner radius in the 32-unit viewBox. This replaces the transparent amber wave and the dark Apple touch tile.
 
-Three consequences worth keeping straight:
+The earlier full mark lost definition at small sizes, which led to the wave-only version.
+The dark field improves white-stroke contrast; inspect exports at actual 16px and 32px sizes.
+The previous Safari experiments found unwanted background plates around dark marks and
+unreliable `prefers-color-scheme` behavior inside favicon SVGs. Keep this asset self-contained;
+its new treatment still needs verification in Safari after clearing website data.
 
-- **A transparent background is only safe while the mark is bright.** Transparency is not what
-  summons the plate — low contrast is. The moment this mark takes a darker color it is a white box
-  again, and no amount of squaring, padding, or opaque tiling addresses that.
-- **`prefers-color-scheme` inside an SVG favicon does not help.** It resolves in the browser's
-  favicon context rather than the tab strip's, so ink that swapped under the dark scheme rendered
-  the light value anyway. No media query belongs in this file.
-- **A single mid-tone reads against dark or against light, never both.** `#dea645` is 6.77:1 on a
-  dark bar and 2.18:1 on a light one, so this icon is chosen for a dark tab strip and gives up the
-  light one — where Safari will plate it dark, which is the acceptable end of the trade. An icon
-  that wanted both would need a bright field _and_ dark ink, which is a tile, which is the version
-  in the history of this file.
-
-`favicon-16.png` and `favicon-32.png` are `favicon.svg` rasterized at those sizes with the page
-background omitted — never scale the old files, and never size by rewriting the SVG's `width`/`height`
-attributes, which silently stops matching the moment the file is reformatted and crops the icon
-instead. Size the wrapper. `apple-touch-icon.png` keeps the dark tile, because a home-screen icon
-is composited by iOS against a wallpaper and no contrast heuristic runs on it.
-
-Safari caches favicons hard and does not clear them on a normal reload. Verifying a change there
-means clearing website data, not pressing refresh.
+`favicon-16.png`, `favicon-32.png`, and `apple-touch-icon.png` are rasterized directly from
+`favicon.svg` at 16, 32, and 180 pixels. Size the wrapper instead of rewriting the SVG's
+attributes or scaling an old PNG. Browser PNGs preserve transparent corners. The Apple
+touch export uses the same yellow as its page background to retain a solid square;
+iOS supplies its own home-screen mask.

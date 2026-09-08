@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import ChevronRight from 'lucide-svelte/icons/chevron-right';
+	import WandSparkles from 'lucide-svelte/icons/wand-sparkles';
 	import { afterNavigate } from '$app/navigation';
 	import { base, resolve } from '$app/paths';
 	import { assistantAvailable } from '$lib/assistant/api.js';
@@ -98,7 +99,7 @@
 		anchor = safeDecodeHash(location.hash.slice(1));
 	}
 	afterNavigate(() => {
-		// Browse topics only overrides the current article. A subsequent selection
+		// Clearing filters only overrides the current article. A subsequent selection
 		// must reveal its entries even though the shared finder stays mounted.
 		browsingTopics = false;
 		readAnchor();
@@ -146,6 +147,14 @@
 	}
 </script>
 
+{#snippet topicLabel(topic: (typeof topics)[number])}
+	<span class="reference-topic-copy">
+		<span id={`topic-title-${topic.id}`}>{topic.title}</span>
+		<span id={`topic-question-${topic.id}`} class="reference-topic-question">{topic.question}</span>
+	</span>
+	<ChevronRight size={16} aria-hidden="true" />
+{/snippet}
+
 <div class="site-split__index reference-index" data-sveltekit-noscroll bind:this={column}>
 	<search class="site-finder" aria-label="Find transcription answers">
 		<label for="reference-search">Search the transcription guide</label>
@@ -160,133 +169,46 @@
 			oninput={(event) => setQuery(event.currentTarget.value)}
 			onkeydown={onKeydown}
 		/>
-		<details class="reference-filters">
-			<summary
-				>Filters{scope !== 'all' ||
-				filters.topic ||
-				filters.severities.length ||
-				filters.fixabilities.length
-					? ' (active)'
-					: ''}</summary
-			>
-			<div class="reference-controls">
-				<label for="reference-content">Content</label>
-				<select
-					id="reference-content"
-					value={scope}
-					onchange={(event) =>
-						setReferenceSearchState({
-							scope: event.currentTarget.value as 'all' | 'guidelines' | 'rules',
-							severities: [],
-							fixabilities: []
-						})}
-				>
-					<option value="all">Everything</option><option value="guidelines">Conventions</option
-					><option value="rules">Linter checks</option>
-				</select>
-			</div>
-			<div class="reference-controls">
-				<label for="reference-topic">Topic</label>
-				<select
-					id="reference-topic"
-					value={effectiveTopic ?? ''}
-					onchange={(event) =>
-						setReferenceSearchState({
-							topic: event.currentTarget.value,
-							browseAll: event.currentTarget.value === ''
-						})}
-				>
-					<option value="">All topics</option>
-					{#each referenceTopics as topic (topic.id)}<option value={topic.id}>{topic.title}</option
-						>{/each}
-				</select>
-			</div>
-			{#if scope === 'rules'}
-				<div class="reference-controls" role="group" aria-label="Filter checks by severity">
-					{#each severityOrder.filter( (value) => corpus.some((doc) => doc.severity === value) ) as severity (severity)}
-						<button
-							type="button"
-							class="button"
-							aria-pressed={filters.severities.includes(severity)}
-							onclick={() =>
-								setReferenceSearchState({
-									severities: filters.severities.includes(severity)
-										? filters.severities.filter((value) => value !== severity)
-										: [...filters.severities, severity]
-								})}>{severityPluralLabels[severity]}</button
-						>
-					{/each}
-				</div>
-				<div class="reference-controls" role="group" aria-label="Filter checks by fix type">
-					{#each fixabilityOrder.filter( (value) => corpus.some((doc) => doc.fixability === value) ) as fixability (fixability)}
-						<button
-							type="button"
-							class="button"
-							aria-pressed={filters.fixabilities.includes(fixability)}
-							onclick={() =>
-								setReferenceSearchState({
-									fixabilities: filters.fixabilities.includes(fixability)
-										? filters.fixabilities.filter((value) => value !== fixability)
-										: [...filters.fixabilities, fixability]
-								})}>{fixabilityLabel(fixability)}</button
-						>
-					{/each}
-				</div>
-				<p class="reference-meta">
-					Choose categories to narrow the checks. No selection includes every category.
-				</p>
-			{/if}
-		</details>
-		{#if !directory || scope !== 'all'}
-			<div class="reference-controls">
-				{#if effectiveTopic || scope !== 'all'}<span class="reference-meta"
-						>{selectedTitle ?? 'All topics'}{scope === 'rules'
-							? ' · Linter checks'
-							: scope === 'guidelines'
-								? ' · Conventions'
-								: ''}</span
-					>{/if}
-				<button
-					type="button"
-					class="button button--quiet"
-					onclick={() => {
-						browsingTopics = true;
-						setReferenceSearchState({
-							query: '',
-							scope: 'all',
-							topic: '',
-							browseAll: false,
-							severities: [],
-							fixabilities: []
-						});
-					}}>Browse topics</button
-				>
-
-				{#if scope !== 'all' || filters.topic || filters.severities.length || filters.fixabilities.length}<button
-						type="button"
-						class="button button--quiet"
-						onclick={() => {
-							browsingTopics = true;
-							setReferenceSearchState({
-								scope: 'all',
-								topic: '',
-								severities: [],
-								fixabilities: []
-							});
-						}}>Clear filters</button
-					>{/if}
-				{#if searching}<button
-						type="button"
-						class="button button--quiet"
-						onclick={() => setQuery('')}>Clear search</button
-					>{/if}
-			</div>
-		{/if}
 		{#if assistant && assistantAvailable()}
 			<button
 				type="button"
 				class="button button--quiet button--flush reference-ask"
-				onclick={() => void assistant.open()}>Ask a question</button
+				onclick={() => void assistant.open()}
+			>
+				<WandSparkles aria-hidden="true" size={20} strokeWidth={1.75} />
+				Ask a question
+			</button>
+		{/if}
+		<div class="reference-controls reference-browse-actions">
+			<button
+				type="button"
+				class="button button--quiet"
+				onclick={() => setReferenceSearchState({ browseAll: true })}>Browse all</button
+			>
+			<button
+				type="button"
+				class="button button--quiet"
+				disabled={directory && scope === 'all'}
+				onclick={() => {
+					browsingTopics = true;
+					setReferenceSearchState({
+						query: '',
+						scope: 'all',
+						topic: '',
+						browseAll: false,
+						severities: [],
+						fixabilities: []
+					});
+				}}>Clear filters</button
+			>
+		</div>
+		{#if effectiveTopic || scope !== 'all'}
+			<span class="reference-meta"
+				>{selectedTitle ?? 'All topics'}{scope === 'rules'
+					? ' · Linter checks'
+					: scope === 'guidelines'
+						? ' · Conventions'
+						: ''}</span
 			>
 		{/if}
 		<span class="sr-only" role="status"
@@ -295,6 +217,84 @@
 				: `${results.length} results${selectedTitle ? ` in ${selectedTitle}` : ''}`}</span
 		>
 	</search>
+
+	<details class="reference-filters">
+		<summary
+			>Filters{scope !== 'all' ||
+			filters.topic ||
+			filters.severities.length ||
+			filters.fixabilities.length
+				? ' (active)'
+				: ''}</summary
+		>
+		<div class="reference-controls">
+			<label for="reference-content">Content</label>
+			<select
+				id="reference-content"
+				value={scope}
+				onchange={(event) =>
+					setReferenceSearchState({
+						scope: event.currentTarget.value as 'all' | 'guidelines' | 'rules',
+						severities: [],
+						fixabilities: []
+					})}
+			>
+				<option value="all">Everything</option><option value="guidelines">Conventions</option
+				><option value="rules">Linter checks</option>
+			</select>
+		</div>
+		<div class="reference-controls">
+			<label for="reference-topic">Topic</label>
+			<select
+				id="reference-topic"
+				value={effectiveTopic ?? ''}
+				onchange={(event) =>
+					setReferenceSearchState({
+						topic: event.currentTarget.value,
+						browseAll: event.currentTarget.value === ''
+					})}
+			>
+				<option value="">All topics</option>
+				{#each referenceTopics as topic (topic.id)}<option value={topic.id}>{topic.title}</option
+					>{/each}
+			</select>
+		</div>
+		{#if scope === 'rules'}
+			<div class="reference-controls" role="group" aria-label="Filter checks by severity">
+				{#each severityOrder.filter( (value) => corpus.some((doc) => doc.severity === value) ) as severity (severity)}
+					<button
+						type="button"
+						class="button"
+						aria-pressed={filters.severities.includes(severity)}
+						onclick={() =>
+							setReferenceSearchState({
+								severities: filters.severities.includes(severity)
+									? filters.severities.filter((value) => value !== severity)
+									: [...filters.severities, severity]
+							})}>{severityPluralLabels[severity]}</button
+					>
+				{/each}
+			</div>
+			<div class="reference-controls" role="group" aria-label="Filter checks by fix type">
+				{#each fixabilityOrder.filter( (value) => corpus.some((doc) => doc.fixability === value) ) as fixability (fixability)}
+					<button
+						type="button"
+						class="button"
+						aria-pressed={filters.fixabilities.includes(fixability)}
+						onclick={() =>
+							setReferenceSearchState({
+								fixabilities: filters.fixabilities.includes(fixability)
+									? filters.fixabilities.filter((value) => value !== fixability)
+									: [...filters.fixabilities, fixability]
+							})}>{fixabilityLabel(fixability)}</button
+					>
+				{/each}
+			</div>
+			<p class="reference-meta">
+				Choose categories to narrow the checks. No selection includes every category.
+			</p>
+		{/if}
+	</details>
 
 	{#if directory}
 		<nav aria-label="Browse reference topics">
@@ -318,8 +318,8 @@
 								href={referenceHref(
 									`${resolve('/(site)/guidelines/[topic]', { topic: topic.id })}/`
 								)}
-								aria-describedby={`topic-question-${topic.id}`}
-								><span>{topic.title}</span><ChevronRight size={16} aria-hidden="true" /></a
+								aria-labelledby={`topic-title-${topic.id}`}
+								aria-describedby={`topic-question-${topic.id}`}>{@render topicLabel(topic)}</a
 							>
 							<!-- eslint-enable svelte/no-navigation-without-resolve -->
 						{:else}
@@ -327,19 +327,13 @@
 								type="button"
 								class="button button--quiet"
 								onclick={() => setReferenceSearchState({ topic: topic.id, browseAll: false })}
-								aria-describedby={`topic-question-${topic.id}`}
-								><span>{topic.title}</span><ChevronRight size={16} aria-hidden="true" /></button
+								aria-labelledby={`topic-title-${topic.id}`}
+								aria-describedby={`topic-question-${topic.id}`}>{@render topicLabel(topic)}</button
 							>
 						{/if}
-						<span id={`topic-question-${topic.id}`} class="sr-only">{topic.question}</span>
 					</li>
 				{/each}
 			</ul>
-			<button
-				type="button"
-				class="button"
-				onclick={() => setReferenceSearchState({ browseAll: true })}>Browse all</button
-			>
 		</nav>
 	{:else}
 		<nav aria-label="Reference results">
@@ -400,6 +394,9 @@
 </div>
 
 <style>
+	.reference-index {
+		padding-block-end: var(--space-6);
+	}
 	.reference-index h2 {
 		margin-block: var(--space-4) var(--space-2);
 		font-size: var(--font-size-lg);
@@ -429,8 +426,20 @@
 	.reference-filters .reference-controls {
 		margin-block: var(--space-2);
 	}
+	.reference-filters {
+		margin-block-start: var(--space-4);
+	}
 	.reference-filters summary {
 		cursor: pointer;
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		font-weight: var(--font-weight-medium);
+	}
+	.reference-filters + nav > h2 {
+		margin-block-start: var(--space-1);
+	}
+	.reference-filters[open] + nav > h2 {
+		margin-block-start: var(--space-5);
 	}
 	.reference-ask {
 		justify-self: start;
@@ -446,6 +455,24 @@
 	}
 	.reference-topics > li {
 		position: relative;
+		padding-block: var(--space-2);
+	}
+	.reference-topics > li + li {
+		border-top: var(--border-width) solid var(--color-border);
+	}
+	.reference-topic-question {
+		display: block;
+		margin-block-start: var(--space-1);
+		font-weight: var(--font-weight-regular);
+		color: var(--color-text-muted);
+		font-size: var(--font-size-sm);
+		line-height: var(--line-height-body);
+	}
+	.reference-topics a.button {
+		text-decoration: none;
+	}
+	.reference-topics a.button:hover .reference-topic-copy > span:first-child {
+		text-decoration: underline;
 	}
 	.reference-legacy-anchor {
 		position: absolute;
@@ -467,7 +494,7 @@
 		grid-template-columns: minmax(0, 1fr) auto;
 		align-items: center;
 		gap: var(--space-2);
-		min-height: calc(var(--control-height-lg) + var(--space-2));
+		min-height: var(--control-height-md);
 		padding: var(--space-2) var(--space-2);
 	}
 	.reference-topics .button > span:first-child {

@@ -1,5 +1,10 @@
 <script lang="ts">
 	/* eslint-disable svelte/no-navigation-without-resolve -- referenceHref only adds URL state to resolve-derived paths; the lint rule cannot inspect nested calls. */
+	import ListMusic from 'lucide-svelte/icons/list-music';
+	import Users from 'lucide-svelte/icons/users';
+	import Ear from 'lucide-svelte/icons/ear';
+	import AudioLines from 'lucide-svelte/icons/audio-lines';
+	import ArrowUpRight from 'lucide-svelte/icons/arrow-up-right';
 	import { resolve } from '$app/paths';
 	import { referenceHref } from '$lib/ui/site/reference-search.svelte.js';
 	import {
@@ -86,46 +91,53 @@
 
 <StructuredData data={structuredData} />
 
-<main id="main" tabindex="-1" class="site-prose site-split__page">
-	<h1>Transcription guide</h1>
+<main id="main" tabindex="-1" class="site-prose site-split__page guide-welcome">
+	<h1>Put what you hear<br /> into words.</h1>
 	<p class="site-lede">
-		Write lyrics for Genius with reviewed conventions, clear examples, and the checks that help you
-		put them into practice.
+		A hard-to-hear word. A second singer. A chorus that comes back around. Find your way through the
+		little decisions that go into writing lyrics for Genius.
 	</p>
-	<p>Look up a word, paste a warning, or start with a question:</p>
+	<h2>Start with the bit you’re stuck on</h2>
 	<ul class="reference-questions">
 		<li>
 			<a
 				href={referenceHref(
 					`${resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/`
-				)}>How do I label song sections?</a
+				)}><ListMusic size={24} aria-hidden="true" /><span>How do I label song sections?</span></a
 			>
 		</li>
 		<li>
 			<a
 				href={referenceHref(
 					`${resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/#artist-identifiers`
-				)}>How do I credit different singers?</a
+				)}><Users size={24} aria-hidden="true" /><span>How do I credit different singers?</span></a
 			>
 		</li>
 		<li>
 			<a
 				href={referenceHref(
 					`${resolve('/(site)/guidelines/[topic]', { topic: 'censored-unknown' })}/#unknown-marker`
-				)}>What if I cannot hear a word?</a
+				)}><Ear size={24} aria-hidden="true" /><span>What if I cannot hear a word?</span></a
 			>
 		</li>
 		<li>
 			<a
 				href={referenceHref(
 					`${resolve('/(site)/guidelines/[topic]', { topic: 'section-headers' })}/#parenthetical-formatting`
-				)}>How do I write backing vocals?</a
+				)}><AudioLines size={24} aria-hidden="true" /><span>How do I write backing vocals?</span></a
 			>
 		</li>
 	</ul>
 
+	<div class="guide-practice">
+		<p>Already have some lyrics written down?</p>
+		<a class="button button--contrast" href={resolve('/workbench/')}
+			>Check your lyrics <ArrowUpRight size={16} aria-hidden="true" /></a
+		>
+	</div>
+
 	<details class="reference-disclosure">
-		<summary>Sources and the authority ladder</summary>
+		<summary>Where does the advice come from?</summary>
 		<p>
 			Each entry names its source and authority tier. A linked linter check may cover only part of a
 			convention; read its example and the entry’s qualifications for the limits.
@@ -153,15 +165,68 @@
 	</details>
 
 	<details id="harper" class="reference-disclosure">
-		<summary>Proofreading alongside transcription checks</summary>
+		<summary>What about spelling and grammar?</summary>
 		<p>
 			The workbench also uses Harper for English spelling, grammar, and style suggestions. Those
 			suggestions come from the proofreader, so they are not listed here as Genius conventions. Read
 			them in the context of the lyrics before applying a change.
 		</p>
 	</details>
-
-	<div class="site-actions">
-		<a class="button" href={resolve('/workbench/')}>Check a transcription in the workbench</a>
-	</div>
 </main>
+
+<style>
+	.guide-welcome h1 {
+		font-size: clamp(calc(var(--font-size-xl) * 1.75), 3.5vw, calc(var(--font-size-xl) * 2.5));
+		line-height: var(--line-height-tight);
+		letter-spacing: -0.035em;
+		margin-bottom: var(--space-5);
+	}
+	.guide-welcome h2 {
+		margin-top: var(--space-7);
+		font-size: var(--font-size-lg);
+	}
+	.reference-questions {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		list-style: none;
+		padding: 0;
+		gap: var(--space-3);
+		margin-block: var(--space-4) var(--space-6);
+	}
+	.reference-questions li {
+		margin: 0;
+		min-width: 0;
+	}
+	.reference-questions a {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--space-4) var(--space-2);
+		height: 100%;
+		padding: var(--space-4);
+		border: var(--border-width) solid var(--color-border);
+		border-radius: var(--radius-panel);
+		background: var(--color-surface);
+		color: var(--color-text);
+		text-decoration: none;
+		line-height: var(--line-height-body);
+	}
+	.reference-questions a:hover {
+		background: var(--color-fill-subtle);
+		border-color: var(--color-border-strong);
+	}
+	.reference-questions a > :global(svg:first-child) {
+		grid-column: 1 / -1;
+		color: var(--color-text-muted);
+	}
+	.guide-practice {
+		margin-block: var(--space-6) var(--space-7);
+	}
+	.guide-practice p {
+		margin-bottom: var(--space-3);
+		color: var(--color-text-muted);
+	}
+	@media (max-width: 25rem) {
+		.reference-questions {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+</style>

@@ -579,7 +579,7 @@ test('shared reference search finds warning text and preserves URL state', async
 			.evaluate((node) => getComputedStyle(node).color)
 	]);
 	expect(marked).toBe(prose);
-	await page.getByRole('button', { name: 'Clear search', exact: true }).click();
+	await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
 	await expect(page.locator('main mark.site-hit')).toHaveCount(0);
 });
 
@@ -757,7 +757,7 @@ test('the topic directory narrows browsing before showing entries', async ({ pag
 	await expect(
 		page.locator('.reference-result').filter({ hasNotText: 'Punctuation and symbols' })
 	).toHaveCount(0);
-	await page.getByRole('button', { name: 'Browse topics', exact: true }).click();
+	await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
 	await expect(topics).toBeVisible();
 	await topics.getByRole('link', { name: 'Spelling and contractions', exact: true }).click();
 	await expect(page).toHaveURL(/\/guidelines\/spelling\/$/u);
@@ -769,11 +769,11 @@ test('the topic directory narrows browsing before showing entries', async ({ pag
 	const spellingResults = await page.locator('.reference-result').count();
 	await page.reload();
 	await expect(page.locator('.reference-result')).toHaveCount(spellingResults);
-	await page.getByRole('button', { name: 'Browse topics', exact: true }).click();
+	await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
 	await topics.getByRole('link', { name: 'Spelling and contractions', exact: true }).click();
 	await expect(topics).toHaveCount(0);
 	await expect(page.locator('.reference-result')).toHaveCount(spellingResults);
-	await page.getByRole('button', { name: 'Browse topics', exact: true }).click();
+	await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
 	await page.getByRole('button', { name: 'Browse all', exact: true }).click();
 	expect(await page.locator('.reference-result').count()).toBeGreaterThan(40);
 });
@@ -1302,7 +1302,7 @@ test.describe('phone reference sections', () => {
 		).toBeGreaterThanOrEqual(16);
 
 		// The guide still follows, in order, below the rows.
-		const guide = page.getByRole('heading', { name: 'Transcription guide' });
+		const guide = page.getByRole('heading', { name: 'Put what you hear into words.' });
 		const guideBox = await guide.boundingBox();
 		const finderBox = await search.boundingBox();
 		expect(guideBox!.y).toBeGreaterThan(finderBox!.y);
@@ -1451,7 +1451,7 @@ test('the offline snapshot precaches the app and admits the guide when read', as
 
 	await context.setOffline(true);
 	await page.reload();
-	await expect(page.getByRole('heading', { name: 'Transcription guide' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Put what you hear into words.' })).toBeVisible();
 	await page.goto('/');
 	for (const poster of await page.locator('.lp-shot__poster').all()) {
 		await poster.scrollIntoViewIfNeeded();

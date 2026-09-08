@@ -69,14 +69,21 @@ describe('ReferenceIndex', () => {
 		await render(ReferenceIndex, { corpus });
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(0);
 		expect(document.querySelector('.reference-topics a svg[aria-hidden="true"]')).not.toBeNull();
-		expect(document.querySelector('.reference-topics .reference-description')).toBeNull();
+		await expect
+			.element(page.getByText('How do I label song sections and credit different singers?'))
+			.toBeVisible();
+		expect(document.querySelector('.reference-topics .sr-only')).toBeNull();
 		expect(document.querySelector('.reference-topics a')?.getAttribute('href')).toBe(
 			'/guidelines/section-headers/'
 		);
 		expect(document.querySelector('[aria-label="Search scope"]')).toBeNull();
+		expect(document.querySelector('.reference-topics + button')).toBeNull();
+		await expect
+			.element(page.getByRole('button', { name: 'Browse topics', exact: true }))
+			.not.toBeInTheDocument();
 		await page.getByRole('button', { name: 'Browse all', exact: true }).click();
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(2);
-		await page.getByRole('button', { name: 'Browse topics', exact: true }).click();
+		await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(0);
 	});
 
@@ -116,7 +123,7 @@ describe('ReferenceIndex', () => {
 				)
 			)
 			.toBeVisible();
-		await page.getByRole('button', { name: 'Clear search' }).click();
+		await page.getByRole('button', { name: 'Clear filters' }).click();
 		expect(referenceSearchState().query).toBe('');
 	});
 
@@ -142,6 +149,21 @@ describe('ReferenceIndex', () => {
 		await page.getByRole('button', { name: 'Automatic fix', exact: true }).click();
 		expect(document.querySelectorAll('.reference-result')).toHaveLength(0);
 		expect(referenceSearchState().query).toBe('');
+		const clear = page.getByRole('button', { name: 'Clear filters', exact: true });
+		expect(document.querySelector('.reference-filters')?.textContent).not.toContain(
+			'Clear filters'
+		);
+		expect(
+			[...document.querySelectorAll('.reference-browse-actions button')].map((button) =>
+				button.textContent?.trim()
+			)
+		).toEqual(['Browse all', 'Clear filters']);
+
+		await clear.click();
+		expect(referenceSearchState().scope).toBe('all');
+		expect(referenceSearchState().severities).toEqual([]);
+		expect(referenceSearchState().fixabilities).toEqual([]);
+		await expect.element(clear).toBeDisabled();
 	});
 
 	it('reveals a deep-linked rule and lets All topics override its implicit topic', async () => {
@@ -167,6 +189,15 @@ describe('ReferenceIndex', () => {
 			}
 		});
 		await render(ReferenceIndex, { corpus, assistant });
+		const ask = document.querySelector<HTMLButtonElement>('.reference-ask')!;
+		const filters = document.querySelector<HTMLDetailsElement>('.reference-filters')!;
+		expect(ask.closest('search')?.nextElementSibling).toBe(filters);
+		expect(filters.nextElementSibling?.querySelector('h2')?.textContent).toBe('Browse by topic');
+		expect(ask.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+		const before = ask.getBoundingClientRect().y;
+		await page.getByText('Filters', { exact: true }).click();
+		expect(filters.open).toBe(true);
+		expect(ask.getBoundingClientRect().y).toBe(before);
 		await page.getByRole('button', { name: 'Ask a question', exact: true }).click();
 		expect(assistant.isOpen).toBe(true);
 	});

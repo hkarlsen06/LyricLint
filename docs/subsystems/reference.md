@@ -24,7 +24,8 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`,
   accessible. `reference/search.test.ts` pins these search tasks and grouping.
 - The directory is the unfiltered entrance. Topic links open articles; Browse all exposes entries;
   a direct detail arrival also exposes its topic without silently restricting later searches.
-  Browse topics overrides only the current view; selecting an article reveals its entries again,
+  Clear filters resets search and filters and returns the finder to its topic directory,
+  overriding only the current view; selecting an article reveals its entries again,
   including when selecting the same topic.
   `ReferenceIndex.svelte.test.ts` and the reference e2e tasks pin directory/search transitions.
 - Query, scope, topic, browse mode, and diagnostic filters belong to the URL. Typing replaces
@@ -47,8 +48,14 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`,
   LyricLint checks discoverable without inventing conventions (`topic-checks.test.ts`). A linked check does not
   claim complete verification of a convention. Existing source tiers and reviewed claims remain
   authoritative. `guidance.test.ts`, `reference.test.ts`, and e2e coverage-link assertions pin this.
-- The assistant has a labelled Ask a question entrance, drawn only when configured and context
-  is available. It opens the shared conversation; it does not replace the search field.
+- The assistant has a labelled Ask a question entrance with the shared wand icon, drawn only
+  when configured and context is available. It opens the shared conversation; it does not
+  replace the search field. At the user’s request, Filters is a small, muted disclosure directly
+  above the topic/results heading, outside the sticky search area. Expanded filters leave a
+  full section gap before that heading. The search area owns one stable action row: Browse all
+  on the left, Clear filters on the right. Clear filters replaces Browse topics and clears the
+  query, filters and browse mode together; it is disabled at the unfiltered directory. There
+  is no second Browse all at the bottom and no reset action inside the disclosure.
   `ReferenceIndex.svelte.test.ts` and the assistant e2e conversation pin this.
 - `SectionSplit` owns scroll ports, stacked layout, back navigation and view transitions.
   Revealing a current result moves scroll, never focus or filters; pressing a visible row does
@@ -63,6 +70,25 @@ Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`,
 The guidance catalog's content pipeline stays in `docs/guidelines.md` and is followed exactly.
 
 ## Decision record
+
+### Scrollbars appear while a column moves
+
+The split columns use thin native scrollbars with transparent tracks. `SectionSplit`
+shows each thumb on scroll and hides it after 800ms without movement, independently
+for each column. Only the thumb color changes: the stable gutter and padding remain,
+so text and controls never reflow when it appears. Native scrolling and dragging stay
+intact; without JavaScript the thin thumb stays visible, and forced colors retain the
+browser's scrollbar colors. The stacked phone view keeps its native document scrollbar.
+
+### The entrance speaks to someone working on a lyric
+
+The guide welcome leads with an invitation to write and four practical question links,
+with distinct icons and generous targets. The finder shows each topic's existing question
+beneath its title, so readers can recognize their task without knowing the catalog vocabulary.
+Source tiers and proofreading remain available through plainly named disclosures; the full
+source descriptions and reviewed guidance are unchanged. Search remains the first phone
+entrance, and the finder still owns the only topic directory.
+
 
 ### Guide metadata is derived before serialization
 

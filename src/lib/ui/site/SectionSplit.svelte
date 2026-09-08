@@ -42,6 +42,37 @@
 
 	const indexPath = $derived(indexHref.split(/[?#]/)[0]!.replace(/\/$/, ''));
 
+	function scrollbars(node: HTMLElement) {
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity -- Timer handles are cleanup bookkeeping, not rendered state.
+		const timers = new Map<HTMLElement, ReturnType<typeof setTimeout>>();
+		node.dataset.scrollbarsReady = '';
+		function onScroll(event: Event): void {
+			const column = event.target;
+			if (!(column instanceof HTMLElement) || column.parentElement !== node) return;
+			clearTimeout(timers.get(column));
+			column.dataset.scrolling = '';
+			timers.set(
+				column,
+				setTimeout(() => {
+					delete column.dataset.scrolling;
+					timers.delete(column);
+				}, 800)
+			);
+		}
+		// Scroll does not bubble; capture observes both sibling scroll ports.
+		node.addEventListener('scroll', onScroll, { capture: true, passive: true });
+		return {
+			destroy() {
+				node.removeEventListener('scroll', onScroll, true);
+				delete node.dataset.scrollbarsReady;
+				for (const [column, timer] of timers) {
+					clearTimeout(timer);
+					delete column.dataset.scrolling;
+				}
+			}
+		};
+	}
+
 	// Whether the reader reached this page by pressing a row. Only then is the
 	// list a real entry behind this one in history, and only then can going back
 	// be what returns to it — with the scroll position they left it at, which the
@@ -197,7 +228,12 @@
      The grid areas put it back on the left visually. -->
 <svelte:document onclickcapture={notePress} />
 
-<div class="site-split" data-view={detailOpen ? 'detail' : 'index'} data-section={section}>
+<div
+	class="site-split"
+	use:scrollbars
+	data-view={detailOpen ? 'detail' : 'index'}
+	data-section={section}
+>
 	<div class="site-split__detail" bind:this={detail}>
 		{#if detailOpen}
 			<!-- The way out of an open page and back to the section's welcome view —
