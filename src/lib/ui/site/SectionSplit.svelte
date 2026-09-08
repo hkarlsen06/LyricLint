@@ -6,6 +6,7 @@
 	import ArrowLeft from 'lucide-svelte/icons/arrow-left';
 	import ExternalLink from 'lucide-svelte/icons/external-link';
 	import { afterNavigate, goto, onNavigate } from '$app/navigation';
+	import { safeDecodeHash } from './hash.js';
 
 	let {
 		indexHref,
@@ -202,6 +203,11 @@
 		// and the document is what changed. `stacked()` is that question, asked
 		// the same way the transition gate asks it.
 		if (!detail) return;
+		// Keep the browser/router's fragment landing when it names this column.
+		// Finder aliases and unknown fragments still start the new page at its top.
+		const anchor = safeDecodeHash(navigation.to?.url.hash.slice(1) ?? '');
+		const target = anchor ? document.getElementById(anchor) : null;
+		if (target && detail.contains(target)) return;
 		detail.scrollTop = 0;
 		if (stacked()) {
 			window.scrollTo(0, 0);

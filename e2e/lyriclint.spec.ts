@@ -526,11 +526,15 @@ test('legacy rule URLs redirect into the guide without losing search or fragment
 			.getByRole('navigation', { name: 'Browse reference topics' })
 			.getByRole('link', { name: 'Section headers and performers', exact: true })
 	).toBeInViewport();
-	await page.goto('/rules/#harper');
-	await expect(page).toHaveURL(/\/guidelines\/#harper$/u);
-	await expect(page.locator('#harper summary')).toBeInViewport();
-	await page.locator('#harper summary').click();
-	await expect(page.locator('#harper')).toHaveAttribute('open');
+	for (const width of [1280, 390]) {
+		await page.setViewportSize({ width, height: 720 });
+		await page.goto('/rules/#harper');
+		await expect(page).toHaveURL(/\/guidelines\/#harper$/u);
+		await expect(page.locator('#harper summary')).toBeInViewport();
+		await page.locator('#harper summary').click();
+		await expect(page.locator('#harper')).toHaveAttribute('open');
+	}
+	await page.setViewportSize({ width: 1280, height: 720 });
 	await page.goto('/rules/spelling-english-common/?q=definately&scope=rules#example');
 	await expect(page).toHaveURL(
 		/\/guidelines\/checks\/spelling-english-common\/\?q=definately&scope=rules#example$/u

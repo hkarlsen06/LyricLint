@@ -71,6 +71,15 @@ The guidance catalog's content pipeline stays in `docs/guidelines.md` and is fol
 
 ## Decision record
 
+### Fragment arrivals keep their landing
+
+`SectionSplit` resets the detail column for ordinary arrivals, but preserves the native/router
+scroll when the fragment names an element inside that column. Resetting it during hydration
+overwrote the landing on `/rules/#harper`; the taller guide welcome exposed this by putting the
+disclosure below the fold. Finder aliases and unknown fragments still reset the detail, and
+Back retains its existing restoration path. The legacy-URL e2e task pins the disclosure arrival
+at desktop and phone widths.
+
 ### Scrollbars appear while a column moves
 
 The split columns use thin native scrollbars with transparent tracks. `SectionSplit`
