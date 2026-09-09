@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/dom';
 import { page } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import EditorPane from '$lib/editor/EditorPane.svelte';
 import type { runRules as RunRules } from '$lib/rules/engine.js';
 import { createTestWorkbench } from '../test-utils.js';
 import MockEditorPane from './MockEditorPane.svelte';
@@ -50,6 +51,30 @@ describe('Workspace native checker startup', () => {
 		expect(load).not.toHaveBeenCalled();
 		expect(screen.queryByText('No issues found')).toBeNull();
 		expect(screen.queryByText('Checking lyrics…')).toBeNull();
+	});
+
+	it('never publishes an unlinked-repeat finding while the real editor restores saved links', async () => {
+		const native = await import('$lib/rules/engine.js');
+		const text = ['[Chorus]', 'Go', '', '[Verse]', 'Hey', '', '[Chorus 2]', 'Go'].join('\n');
+		const { controller } = createTestWorkbench({ text, sectionLinks: [{ lines: [1, 7] }] });
+		controller.setGrammarCheckEnabled(false);
+		const published = vi.spyOn(controller, 'onSnapshot');
+		await render(Workspace, {
+			controller,
+			editorComponent: EditorPane,
+			harperProvider: { lint: async () => [], dispose: async () => {} },
+			loadNativeRules: async () => native
+		});
+		await waitFor(() =>
+			expect(controller.editor.getSectionLinks?.().map((group) => group.lines)).toEqual([[1, 7]])
+		);
+		await waitFor(() => expect(controller.snapshot.diagnostics.length).toBeGreaterThan(0));
+		expect(published.mock.calls.length).toBeGreaterThan(0);
+		expect(
+			published.mock.calls
+				.flatMap(([snapshot]) => snapshot.diagnostics)
+				.filter((diagnostic) => diagnostic.ruleId === 'section.unlinked-repeat')
+		).toEqual([]);
 	});
 
 	it('keeps pending distinct from clean and checks the latest edit when loading finishes', async () => {

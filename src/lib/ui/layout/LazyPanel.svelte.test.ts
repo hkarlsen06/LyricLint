@@ -8,7 +8,7 @@ afterEach(async () => {
 	await cleanup();
 });
 
-test('announces a pending tool and allows a refused download to be retried', async () => {
+test('keeps pending text visually hidden by default and shows failures with Retry', async () => {
 	const { controller } = createTestWorkbench();
 	let rejectLoad!: (error: Error) => void;
 	const load = vi.fn(() => import('../tools/SongPanel.svelte'));
@@ -24,8 +24,11 @@ test('announces a pending tool and allows a refused download to be retried', asy
 		panelProps: { controller }
 	});
 	expect(screen.getByRole('status').textContent).toBe('Loading Song…');
+	expect(screen.getByRole('status').getBoundingClientRect().height).toBeLessThanOrEqual(1);
 	rejectLoad(new Error('Offline'));
-	expect((await screen.findByRole('alert')).textContent).toContain('Could not load Song');
+	const alert = await screen.findByRole('alert');
+	expect(alert.textContent).toContain('Could not load Song');
+	expect(alert.getBoundingClientRect().height).toBeGreaterThan(1);
 	await fireEvent.click(screen.getByRole('button', { name: 'Retry loading Song' }));
 	expect(await screen.findByText('Export .txt')).toBeTruthy();
 	expect(load).toHaveBeenCalledTimes(2);

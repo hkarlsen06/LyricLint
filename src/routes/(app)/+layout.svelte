@@ -9,22 +9,10 @@
 	const feedback = useFeedbackState();
 </script>
 
-<!-- With scripting off the boot screen is what is left: a wordmark and
-     "Loading your workspace…" over a canvas that never opens, which reads as a
-     load that failed rather than as a requirement. It is prose on the canvas,
-     not a box, and it says the two true things — the workbench needs a script,
-     and the reading sections do not. It hangs off the `(app)` group with the
-     rest of the shell so it cannot reach the `(site)` pages, which have nothing
-     to apologise for. -->
+<!-- The workbench requires JavaScript; the reading sections remain available without it. -->
 <noscript>
-	<!-- Parsed only where scripting is off, which is the one place this rule is
-	     wanted: the boot screen covers the window at `--layer-boot` and would
-	     otherwise sit over this message, and the shell behind it is an empty
-	     workbench. A stacking context above the boot screen would need a layer
-	     token for a state no script can ever reach. -->
 	<style>
-		.app-shell,
-		.boot-screen {
+		.app-shell {
 			display: none;
 		}
 	</style>

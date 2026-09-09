@@ -40,7 +40,7 @@
 		<p role="alert">Could not load {name}. Check your connection and try again.</p>
 		<div><button class="button" onclick={open}>Retry loading {name}</button></div>
 	{:else}
-		<p role="status">Loading {name}…</p>
+		<p class="sr-only" role="status">Loading {name}…</p>
 	{/if}
 {/snippet}
 

@@ -855,6 +855,14 @@ performers` as a guided action on the shared row rather than inventing a fourth 
   `isImmediateRepeat` predicate. Only the adjacent pair steps aside; the rest of the kind stays
   linkable.
 
+**Startup filters against recovered state from the first publication.** Every native and
+Harper publication reads `controller.sectionLinks`, which retains the draft's saved links
+until the editor takes ownership. The bindable editor handle can arrive before its links
+are restored; reading it directly briefly published `section.unlinked-repeat` and then
+removed it. Re-filtering after restoration corrected the final state but allowed a flash.
+`WorkspaceRules.svelte.test.ts` records every publication with the real asynchronous editor
+and a ready rule catalog, so a transient false finding fails even when the final panel is correct.
+
 **The suppression is in the shell, not in `RuleContext`.** Linked sections keep their shared runs
 identical by construction, so the rule would fire on its own result forever unless something knew
 about the links — and `filterForEditorState` in `wiring.ts` is where that already happens, because it

@@ -84,6 +84,7 @@
 	const audioAvailable = $derived(
 		openMediaPicker !== undefined &&
 			controller.media !== undefined &&
+			!controller.media.restoring &&
 			!controller.media.player.attached &&
 			controller.media.pendingName === undefined
 	);

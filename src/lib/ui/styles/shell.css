@@ -227,67 +227,6 @@
 	margin-left: calc(-1 * var(--space-2));
 }
 
-/* Startup owns this animation only while the editor is pending. These rules
-   follow the wordmark's parked state so this screen owns its driver. */
-.boot-screen {
-	--boot-stretch: 1.22;
-
-	position: fixed;
-	inset: 0;
-	z-index: var(--layer-boot);
-	display: grid;
-	background: var(--color-canvas);
-	font-size: var(--font-size-3xl);
-	place-content: center;
-}
-
-.boot-screen .app-wordmark {
-	--wm-open: 1;
-
-	font-size: inherit;
-	cursor: default;
-	pointer-events: none;
-}
-
-/* Pull beyond the word, then release monotonically into the waiting mark. */
-.boot-screen[data-stage='pull'] .app-wordmark {
-	--wm-open: var(--boot-stretch);
-
-	transition: --wm-open var(--boot-pull) var(--ease-out-quart);
-}
-
-.boot-screen[data-stage='land'] .app-wordmark {
-	--wm-open: 0;
-
-	animation: boot-release var(--boot-release) cubic-bezier(0.5, 0, 0.85, 0.25);
-}
-
-@keyframes boot-release {
-	from {
-		--wm-open: var(--boot-stretch);
-	}
-
-	to {
-		--wm-open: 0;
-	}
-}
-
-/* The waveform starts only once the brackets land, if startup is still pending. */
-.boot-screen .app-wordmark__wave {
-	visibility: hidden;
-}
-
-.boot-screen[data-wait] .app-wordmark__wave {
-	visibility: visible;
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.boot-screen[data-stage] .app-wordmark {
-		animation: none;
-		transition: none;
-	}
-}
-
 /* The brand is the way back to the marketing home. The link draws no extra
    surface, so the lockup keeps exactly the same geometry it had when it was
    inert. It buys a little extra room before the adjacent bold draft name so the

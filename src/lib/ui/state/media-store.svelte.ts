@@ -165,6 +165,8 @@ interface MediaStoreDependencies {
 
 export interface MediaStore {
 	readonly player: MediaPlayer;
+	/** Saved attachment state is still being recovered for the current draft. */
+	readonly restoring: boolean;
 	/**
 	 * The name of audio this draft remembers but cannot open yet.
 	 *
@@ -465,6 +467,7 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	// still waiting on a prompt, a picker or a sign-in — see `reconnect`.
 	let attachGeneration = 0;
 
+	let restoring = $state(false);
 	let pendingName = $state<string | undefined>(undefined);
 	let pendingSource = $state<MediaSourceKind | undefined>(undefined);
 	let pendingHandle: PersistableFileHandle | undefined;
@@ -689,6 +692,9 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 	const store: MediaStore = {
 		get player() {
 			return player;
+		},
+		get restoring() {
+			return restoring;
 		},
 		get pendingName() {
 			return pendingName;
@@ -1199,79 +1205,84 @@ export function createMediaStore(deps: MediaStoreDependencies): MediaStore {
 
 		async openFor(draftId) {
 			const generation = ++openGeneration;
-			// Another draft is another attachment, so a reconnect still waiting on
-			// the one being left is superseded exactly as a detach supersedes it.
-			attachGeneration += 1;
-			// Whatever was playing belongs to the draft being left, so its last
-			// position is written against that draft before the owner moves.
-			await store.flushPosition();
-			if (generation !== openGeneration) return;
-			ownerDraftId = undefined;
-			player.detach();
-			forget();
-			lastWritten = undefined;
-
-			let record;
+			restoring = true;
 			try {
-				record = await deps.repository.get(draftId);
-			} catch {
-				// Every other storage failure in this store says so, and this is the
-				// one with the most to lose: swallowed, a draft that has audio opens
-				// with no strip, no pending row and no explanation, which reads as the
-				// attachment having been thrown away rather than as a read that failed.
-				report('The audio this ’scribe remembers could not be read from local storage.');
-				return;
-			}
-			if (generation !== openGeneration) return;
-			if (!record) return;
+				// Another draft is another attachment, so a reconnect still waiting on
+				// the one being left is superseded exactly as a detach supersedes it.
+				attachGeneration += 1;
+				// Whatever was playing belongs to the draft being left, so its last
+				// position is written against that draft before the owner moves.
+				await store.flushPosition();
+				if (generation !== openGeneration) return;
+				ownerDraftId = undefined;
+				player.detach();
+				forget();
+				lastWritten = undefined;
 
-			pendingName = record.name;
-			pendingSource = record.source ?? 'file';
-			pendingHandle = record.handle;
-			pendingVideoId = record.videoId;
-			pendingTrackId = record.trackId;
-			pendingSongId = record.songId;
-			pendingPosition = record.position;
-			currentVideoId = record.videoId;
-			currentTrackId = record.trackId;
-			currentSongId = record.songId;
+				let record;
+				try {
+					record = await deps.repository.get(draftId);
+				} catch {
+					// Every other storage failure in this store says so, and this is the
+					// one with the most to lose: swallowed, a draft that has audio opens
+					// with no strip, no pending row and no explanation, which reads as the
+					// attachment having been thrown away rather than as a read that failed.
+					report('The audio this ’scribe remembers could not be read from local storage.');
+					return;
+				}
+				if (generation !== openGeneration) return;
+				if (!record) return;
 
-			// A video is loaded without a press only where the user has already said
-			// yes to Google in this session — the same trade the file path makes with
-			// an already-granted permission, and for the same reason: a page nobody
-			// has touched must not reach out on its own.
-			if (pendingSource === 'youtube') {
-				if (!youtubeAllowed || pendingVideoId === undefined) return;
-				await adoptVideo(pendingVideoId, pendingName);
-				return;
-			}
+				pendingName = record.name;
+				pendingSource = record.source ?? 'file';
+				pendingHandle = record.handle;
+				pendingVideoId = record.videoId;
+				pendingTrackId = record.trackId;
+				pendingSongId = record.songId;
+				pendingPosition = record.position;
+				currentVideoId = record.videoId;
+				currentTrackId = record.trackId;
+				currentSongId = record.songId;
 
-			// And a track comes back without a press only where this session has
-			// already signed in — the same trade, with the sign-in standing where
-			// the granted permission and the YouTube consent stand.
-			if (pendingSource === 'spotify') {
-				if (!spotifyAuth.signedIn() || pendingTrackId === undefined) return;
-				await adoptTrack(pendingTrackId, pendingName);
-				return;
-			}
+				// A video is loaded without a press only where the user has already said
+				// yes to Google in this session — the same trade the file path makes with
+				// an already-granted permission, and for the same reason: a page nobody
+				// has touched must not reach out on its own.
+				if (pendingSource === 'youtube') {
+					if (!youtubeAllowed || pendingVideoId === undefined) return;
+					await adoptVideo(pendingVideoId, pendingName);
+					return;
+				}
 
-			// A song always waits to be asked. Whether Apple still has a session for
-			// this user is a question only MusicKit can answer, and asking it means
-			// loading Apple's script — so the honest thing is to draw the press and
-			// let it pay for both. It falls through to the file branch harmlessly
-			// (there is no handle), but only by accident, and an accident is not what
-			// this should rest on.
-			if (pendingSource === 'apple') return;
+				// And a track comes back without a press only where this session has
+				// already signed in — the same trade, with the sign-in standing where
+				// the granted permission and the YouTube consent stand.
+				if (pendingSource === 'spotify') {
+					if (!spotifyAuth.signedIn() || pendingTrackId === undefined) return;
+					await adoptTrack(pendingTrackId, pendingName);
+					return;
+				}
 
-			// A permission already granted for this origin needs no gesture, so the
-			// track simply comes back where it was left. Anything else waits to be
-			// asked — `adopt` carries the position through either path.
-			if (!pendingHandle?.queryPermission) return;
-			try {
-				if ((await pendingHandle.queryPermission({ mode: 'read' })) !== 'granted') return;
-				adopt(await pendingHandle.getFile(), pendingHandle);
-			} catch {
-				// Leave it pending; the press will report what went wrong.
+				// A song always waits to be asked. Whether Apple still has a session for
+				// this user is a question only MusicKit can answer, and asking it means
+				// loading Apple's script — so the honest thing is to draw the press and
+				// let it pay for both. It falls through to the file branch harmlessly
+				// (there is no handle), but only by accident, and an accident is not what
+				// this should rest on.
+				if (pendingSource === 'apple') return;
+
+				// A permission already granted for this origin needs no gesture, so the
+				// track simply comes back where it was left. Anything else waits to be
+				// asked — `adopt` carries the position through either path.
+				if (!pendingHandle?.queryPermission) return;
+				try {
+					if ((await pendingHandle.queryPermission({ mode: 'read' })) !== 'granted') return;
+					adopt(await pendingHandle.getFile(), pendingHandle);
+				} catch {
+					// Leave it pending; the press will report what went wrong.
+				}
+			} finally {
+				if (generation === openGeneration) restoring = false;
 			}
 		},
 

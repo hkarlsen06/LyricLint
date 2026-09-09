@@ -1116,10 +1116,18 @@ describe('Workspace and toolbar', () => {
 			loadYouTubeApi: createStubYouTubeApi().load,
 			scheduleYouTubePoll: createStubPoll().schedule
 		});
-		const { controller } = createTestWorkbench({
-			media: { repository: createInMemoryMediaRepository([]), player }
-		});
+		const repository = createInMemoryMediaRepository([]);
+		const recovery = Promise.withResolvers<void>();
+		const get = repository.get.bind(repository);
+		repository.get = async (id) => {
+			await recovery.promise;
+			return get(id);
+		};
+		const { controller } = createTestWorkbench({ media: { repository, player } });
 		await renderWorkspace(controller);
+		expect(screen.queryByRole('button', { name: 'Add audio source' })).toBeNull();
+		recovery.resolve();
+		await screen.findByRole('button', { name: 'Add audio source' });
 
 		// While nothing is attached the tray holds the only way in — the Song
 		// tab names no second one.

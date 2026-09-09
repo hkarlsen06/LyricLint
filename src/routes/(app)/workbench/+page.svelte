@@ -11,7 +11,6 @@
 		EditorSnapshot
 	} from '$lib/core/types.js';
 	import EditorPane from '$lib/editor/EditorPane.svelte';
-	import BootScreen from '$lib/ui/layout/BootScreen.svelte';
 	import {
 		closeDatabase,
 		createAutosaveController,
@@ -44,7 +43,7 @@
 	let bootError = $state<string | undefined>();
 	// Another tab of this browser holds the workbench, so this one has not opened
 	// local storage and is not going to until that tab goes away. It outranks the
-	// boot screen, which would otherwise cover the notice for the whole wait.
+	// pending startup announcement.
 	let tabBusy = $state(false);
 	// Recovery and the actual editor mount own readiness. A brand animation must
 	// never hold back a document that is already ready to edit.
@@ -121,11 +120,8 @@
 				if (cancelled) return;
 				tabBusy = false;
 
-				// `?slowboot` holds the workbench back so the boot screen's waiting
-				// state — the mark landed, the waveform running — can be looked at on a
-				// machine where local storage opens in forty milliseconds. Ten seconds
-				// unless a number is given. `import.meta.env.DEV` is a build-time
-				// constant, so none of this reaches a production bundle.
+				// `?slowboot` simulates pending startup for development checks. Ten
+				// seconds unless a number is given; absent from production bundles.
 				if (import.meta.env.DEV) {
 					const slowBoot = page.url.searchParams.get('slowboot');
 					if (slowBoot !== null) {
@@ -262,7 +258,7 @@
 	/>
 </svelte:head>
 
-<!-- Keep the recovered workspace covered only until its real editor has mounted. -->
+<!-- Render the recovered workspace as soon as it is available. -->
 {#if bootError}
 	<div class="boot-message">
 		<p role="alert">{bootError}</p>
@@ -285,9 +281,9 @@
 	<TabBusyNotice />
 {/if}
 
-<!-- The brand reports an actual wait; it never adds a minimum loading duration. -->
+<!-- Announce pending startup without a visual splash or animation gate. -->
 {#if !revealed && !bootError && !tabBusy}
-	<BootScreen />
+	<p class="sr-only" role="status">Loading your workspace…</p>
 {/if}
 
 <style>

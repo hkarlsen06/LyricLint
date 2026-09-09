@@ -817,3 +817,11 @@ states; once loaded, the same strip instance survives desktop and phone view cha
 The player, store, and keyboard handling remain available from startup, so source recovery
 and transport shortcuts do not wait for the surface module. The desktop and mobile media
 component tests wait for the actual strip before checking its layout and retained instance.
+
+### Startup attachment recovery must finish before offering Add audio
+
+The media store exposes `restoring` for the current `openFor` generation. The editor
+actions tray waits for it to finish before interpreting an absent attachment and pending
+name as an empty draft. Otherwise a remembered source makes Add audio flash before
+its strip appears. Superseded recovery cannot clear the newer draft's pending state.
+Recovery errors still report visibly and accessibly, and release the pending state.

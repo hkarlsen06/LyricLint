@@ -127,22 +127,21 @@ Review releases its preview while hidden, as before; its rows and a tool's unfin
 remain mounted. This also avoids eager assistant transcript and reference-data initialization.
 
 Tool views other than Review also download their component code on first selection. Selection
-itself remains synchronous; a loading message, or an announced refusal with Retry, occupies the
-selected pane while its code arrives. Once loaded, the same component instance remains mounted
+itself remains synchronous. The shared `LazyContent` loader always keeps pending text screen-reader-only, across
+panels, dialogs, menus and editor overlays, without per-surface visibility options; a failed load visibly reports the refusal with Retry. Once loaded, the same component instance remains mounted
 across tab changes. `LazyPanel.svelte.test.ts` covers failed downloads and retry; the panel tests
 continue to cover retained inputs. The eager Review view remains ready with the document.
 
 ### Startup ends when the editor is ready
 
-The boot screen reports pending work only. Its word, pull, landing and waiting waveform
-may play while draft recovery and editor creation run, but they no longer hold a ready
-workspace behind a minimum animation duration or a canvas reveal. The parent removes the
-screen as soon as the real editor handle is ready. No exit timer, fade or masking layer
-remains. This supersedes the earlier ready-workspace animation gate.
+Startup has no visual splash, centered logo, loading animation, or delayed reveal.
+Render the recovered workspace immediately and let the real editor mount without an
+animation gate. A screen-reader status reports pending startup; storage and editor
+failures retain their visible alert and Reload action, and another tab retains its notice.
 
-`BootScreen.svelte.test.ts` samples the real pending animation and retains coverage of its
-announcement, reduced-motion waveform and teardown. Parent readiness tests cover dismissal;
-the indicator has no readiness prop or completion callback of its own.
+The previous pending-only animation still flashed on quick loads, and delaying its
+appearance did not produce a satisfactory transition. The startup animation and its
+styles have therefore been removed entirely, superseding both animation approaches.
 
 ### Focus rings stay inside controls
 

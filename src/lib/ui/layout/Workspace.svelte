@@ -556,7 +556,7 @@
 					lastDiagnostics = merged;
 					controller.onSnapshot({
 						...current,
-						diagnostics: filterForEditorState(current, merged, editorHandle?.getSectionLinks?.(), {
+						diagnostics: filterForEditorState(current, merged, controller.sectionLinks, {
 							settled: documentSettled
 						})
 					});
@@ -576,12 +576,9 @@
 					const current = controller.snapshot;
 					controller.onSnapshot({
 						...current,
-						diagnostics: filterForEditorState(
-							current,
-							nativeDiagnostics,
-							editorHandle?.getSectionLinks?.(),
-							{ settled: documentSettled }
-						)
+						diagnostics: filterForEditorState(current, nativeDiagnostics, controller.sectionLinks, {
+							settled: documentSettled
+						})
 					});
 				});
 		}, harperDelay);
@@ -606,6 +603,8 @@
 		}, languageDetectorDelay);
 	}
 
+	// The controller owns recovered links before the real editor is attached.
+	// Reading the bindable handle directly here briefly sees its unrestored state.
 	function enrichSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
 		noteDocumentChange(snapshot);
 		// Keep publishing text, selection and revisions while the first catalog
@@ -634,12 +633,9 @@
 				}
 				return {
 					...snapshot,
-					diagnostics: filterForEditorState(
-						snapshot,
-						lastDiagnostics,
-						editorHandle?.getSectionLinks?.(),
-						{ settled: documentSettled }
-					)
+					diagnostics: filterForEditorState(snapshot, lastDiagnostics, controller.sectionLinks, {
+						settled: documentSettled
+					})
 				};
 			}
 			const context = buildRuleContext(
@@ -669,12 +665,9 @@
 		}
 		return {
 			...snapshot,
-			diagnostics: filterForEditorState(
-				snapshot,
-				lastDiagnostics,
-				editorHandle?.getSectionLinks?.(),
-				{ settled: documentSettled }
-			)
+			diagnostics: filterForEditorState(snapshot, lastDiagnostics, controller.sectionLinks, {
+				settled: documentSettled
+			})
 		};
 	}
 
