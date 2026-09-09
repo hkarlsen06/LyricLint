@@ -382,6 +382,16 @@ You said we'd drive until the radio gave out (yeah)`;
 						<img
 							class="lp-shot__poster"
 							src="{resolve('/')}workbench-player.webp"
+							srcset="{resolve('/')}workbench-player-400.webp {shotDimensions[
+								'workbench-player-400.webp'
+							].width}w, {resolve('/')}workbench-player-640.webp {shotDimensions[
+								'workbench-player-640.webp'
+							].width}w, {resolve('/')}workbench-player-960.webp {shotDimensions[
+								'workbench-player-960.webp'
+							].width}w, {resolve('/')}workbench-player.webp {shotDimensions[
+								'workbench-player.webp'
+							].width}w"
+							sizes="(max-width: 64rem) min(56rem, calc(100vw - 3rem)), (min-width: 74rem) 34.85rem, calc((100vw - 3rem - 4vw) * 1.05 / 2.05)"
 							loading="lazy"
 							width={shotDimensions['workbench-player.webp'].width}
 							height={shotDimensions['workbench-player.webp'].height}
@@ -435,6 +445,12 @@ You said we'd drive until the radio gave out (yeah)`;
 					<img
 						class="lp-shot__poster"
 						src="{resolve('/')}workbench-song.webp"
+						srcset="{resolve('/')}workbench-song-400.webp {shotDimensions['workbench-song-400.webp']
+							.width}w, {resolve('/')}workbench-song-640.webp {shotDimensions[
+							'workbench-song-640.webp'
+						].width}w, {resolve('/')}workbench-song.webp {shotDimensions['workbench-song.webp']
+							.width}w"
+						sizes="min(26rem, calc(100vw - 3rem))"
 						loading="lazy"
 						width={shotDimensions['workbench-song.webp'].width}
 						height={shotDimensions['workbench-song.webp'].height}
@@ -500,6 +516,16 @@ You said we'd drive until the radio gave out (yeah)`;
 					<img
 						class="lp-shot__poster"
 						src="{resolve('/')}workbench-performers.webp"
+						srcset="{resolve('/')}workbench-performers-400.webp {shotDimensions[
+							'workbench-performers-400.webp'
+						].width}w, {resolve('/')}workbench-performers-640.webp {shotDimensions[
+							'workbench-performers-640.webp'
+						].width}w, {resolve('/')}workbench-performers-960.webp {shotDimensions[
+							'workbench-performers-960.webp'
+						].width}w, {resolve('/')}workbench-performers.webp {shotDimensions[
+							'workbench-performers.webp'
+						].width}w"
+						sizes="(max-width: 64rem) min(56rem, calc(100vw - 3rem)), (min-width: 74rem) 34.85rem, calc((100vw - 3rem - 4vw) * 1.05 / 2.05)"
 						loading="lazy"
 						width={shotDimensions['workbench-performers.webp'].width}
 						height={shotDimensions['workbench-performers.webp'].height}
@@ -567,6 +593,15 @@ You said we'd drive until the radio gave out (yeah)`;
 					<img
 						class="lp-shot__poster"
 						src="{resolve('/')}workbench-harper.webp"
+						srcset="{resolve('/')}workbench-harper-400.webp {shotDimensions[
+							'workbench-harper-400.webp'
+						].width}w, {resolve('/')}workbench-harper-640.webp {shotDimensions[
+							'workbench-harper-640.webp'
+						].width}w, {resolve('/')}workbench-harper-960.webp {shotDimensions[
+							'workbench-harper-960.webp'
+						].width}w, {resolve('/')}workbench-harper.webp {shotDimensions['workbench-harper.webp']
+							.width}w"
+						sizes="(max-width: 64rem) min(56rem, calc(100vw - 3rem)), (min-width: 74rem) 34.85rem, calc((100vw - 3rem - 4vw) * 1.05 / 2.05)"
 						loading="lazy"
 						width={shotDimensions['workbench-harper.webp'].width}
 						height={shotDimensions['workbench-harper.webp'].height}

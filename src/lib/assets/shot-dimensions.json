@@ -11,6 +11,18 @@
 		"width": 640,
 		"height": 410
 	},
+	"workbench-harper-400.webp": {
+		"width": 400,
+		"height": 228
+	},
+	"workbench-harper-640.webp": {
+		"width": 640,
+		"height": 364
+	},
+	"workbench-harper-960.webp": {
+		"width": 960,
+		"height": 546
+	},
 	"workbench-harper.webm": {
 		"width": 1026,
 		"height": 586
@@ -23,6 +35,18 @@
 		"width": 1280,
 		"height": 820
 	},
+	"workbench-performers-400.webp": {
+		"width": 400,
+		"height": 512
+	},
+	"workbench-performers-640.webp": {
+		"width": 640,
+		"height": 819
+	},
+	"workbench-performers-960.webp": {
+		"width": 960,
+		"height": 1229
+	},
 	"workbench-performers.webm": {
 		"width": 1264,
 		"height": 1618
@@ -31,6 +55,18 @@
 		"width": 1264,
 		"height": 1618
 	},
+	"workbench-player-400.webp": {
+		"width": 400,
+		"height": 328
+	},
+	"workbench-player-640.webp": {
+		"width": 640,
+		"height": 525
+	},
+	"workbench-player-960.webp": {
+		"width": 960,
+		"height": 787
+	},
 	"workbench-player.webm": {
 		"width": 1376,
 		"height": 1128
@@ -38,6 +74,14 @@
 	"workbench-player.webp": {
 		"width": 1376,
 		"height": 1128
+	},
+	"workbench-song-400.webp": {
+		"width": 400,
+		"height": 354
+	},
+	"workbench-song-640.webp": {
+		"width": 640,
+		"height": 566
 	},
 	"workbench-song.webm": {
 		"width": 696,

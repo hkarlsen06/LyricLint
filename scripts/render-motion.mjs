@@ -78,6 +78,8 @@ const gifPath = resolve(`static/${stem}.gif`);
 
 /** Smooth pointer motion, with scene beats still measured in twentieths of a second. */
 const FPS = 60;
+// Keep scene gestures on their authored clock, delivering every other captured frame.
+const OUTPUT_FPS = 30;
 const BEATS_PER_SECOND = 20;
 
 /** The capture is the whole editor column; the crop is worked out afterwards. */
@@ -901,11 +903,16 @@ async function main() {
 				String(segment.start),
 				...input,
 				'-frames:v',
-				String(segment.end - segment.start),
+				String(Math.ceil(segment.end / 2) - Math.ceil(segment.start / 2)),
 				'-vf',
-				cropFilter,
+				`${cropFilter},select=not(mod(n+${segment.start}\\,2)),setpts=N/(${OUTPUT_FPS}*TB)`,
+				'-r',
+				String(OUTPUT_FPS),
 				'-c:v',
 				'libvpx-vp9',
+				// Static UI holds need few full frames; loop playback always starts at zero.
+				'-g',
+				String(OUTPUT_FPS * 10),
 				'-pix_fmt',
 				'yuv420p',
 				'-crf',
@@ -914,7 +921,7 @@ async function main() {
 				// lossy motion prediction previously smeared lyric glyphs after seeks.
 				// Spend fewer bits on the accelerated tape effect, where random grain
 				// dominated the download. Gestures and readable review stay lossless;
-				// the capture's dimensions, 60fps timing and tape treatment stay intact.
+				// the capture's dimensions, timeline and tape treatment stay intact.
 				...(segment.lossless ? ['-lossless', '1', '-auto-alt-ref', '0'] : []),
 				'-b:v',
 				'0',
@@ -940,10 +947,12 @@ async function main() {
 				list,
 				'-c',
 				'copy',
+				'-bsf:v',
+				`setts=ts=N/(${OUTPUT_FPS}*TB)`,
 				'-metadata',
-				`LYRICLINT_ACCELERATED_START_FRAME=${syncStartFrame}`,
+				`LYRICLINT_ACCELERATED_START_FRAME=${Math.ceil(syncStartFrame / 2)}`,
 				'-metadata',
-				`LYRICLINT_ACCELERATED_END_FRAME=${syncEndFrame}`,
+				`LYRICLINT_ACCELERATED_END_FRAME=${Math.ceil(syncEndFrame / 2)}`,
 				webmPath
 			]);
 		}

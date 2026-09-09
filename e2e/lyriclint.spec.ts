@@ -357,6 +357,15 @@ test('landing video frames keep their dimensions through loading on phone and de
 			const before = await frame.boundingBox();
 			await frame.scrollIntoViewIfNeeded();
 			await expect(frame).toHaveAttribute('data-video-ready', '');
+			const detailPoster = frame.locator('img[src*="workbench-"]');
+			if (await detailPoster.count()) {
+				const candidateWidth = width === 390 ? 400 : 640;
+				await expect
+					.poll(() => detailPoster.evaluate((image: HTMLImageElement) => image.currentSrc))
+					.toMatch(
+						new RegExp(`workbench-(player|song|performers|harper)-${candidateWidth}\\.webp$`)
+					);
+			}
 			const video = frame.locator('video');
 			const dimensions = await video.evaluate((element: HTMLVideoElement) => ({
 				actual: [element.videoWidth, element.videoHeight],

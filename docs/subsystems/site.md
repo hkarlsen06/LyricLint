@@ -35,12 +35,13 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 - Loops are frames encoded by a **real** ffmpeg (Playwright's bundled one decodes almost
   nothing), run with `node` not `bun`, with our own drawn cursor (`pointer-events: none` is
   load-bearing — anything hittable under it dismisses the surface being filmed). Crops are
-  the union across time; the caret is parked at the top first.
+  the union across time; the caret is parked at the top first. Capture keeps its 60fps scene clock;
+  shipped WebM loops sample every other frame at 30fps, preserving scene and subtitle timing.
 - Product loops use an overlaid image until the video has a decoded frame. The hero
   image shows the same song populated in Review, deliberately distinct from the video
   opening on a blank draft. It shares the video's dimensions, has responsive candidates and
   high fetch priority; its loop selects a 1280-pixel
-  variant below 30rem. Detail images and the Discord
+  variant below 30rem. Detail images also have responsive width candidates; they and the Discord
   iframe are lazy. Videos have no native poster (which would duplicate the responsive
   download) and use `preload="none"`. Explicit video dimensions reserve the frame;
   the generators refresh `shot-dimensions.json` from the encoded files via ffprobe, and the
@@ -75,6 +76,28 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   Safari verification requires clearing website data; normal reloads retain cached icons.
 
 ## Decision record
+
+### September image and video transfer reductions
+
+Detail posters now offer 400/640/960-pixel WebPs alongside the original (the smaller song
+capture needs only 400/640). Their `sizes` follows the stacked layout and the detail and song
+figure caps. Native lazy loading, intrinsic dimensions and the decoded-video handoff remain
+in place. Fresh captures derive every candidate from the lossless PNG before removing that
+intermediate; the initial detail variants were downscaled from the existing WebPs because
+those PNGs were no longer retained. Originals remain available for high-density displays.
+
+The long hero was spending most of its bytes on full keyframes every 128 frames, even while
+the screen held still. Video encoding now allows ten seconds between keyframes. At the user's request, shipped videos
+now use 30fps. Capture still runs at 60fps so the scripted
+gesture clock stays intact; delivery selects global even-numbered frames and halves the
+encoded frame count. Accelerated-section metadata uses those output frame numbers. Resolution,
+scene duration (within one output frame) and the separate accelerated-section quality settings
+remain unchanged. This trades more decoding after a seek for a smaller download; verify caption
+seeks and viewport restarts as well as the first-frame handoff. The refreshed hero and player
+clear spans preserve the retained source frames losslessly;
+their accelerated spans are re-encoded at CRF 50. Other existing detail loops were resampled
+and re-encoded at their existing CRF 30. The mobile copy retains CRF 30 for clear spans and
+CRF 50 for the tape effect.
 
 ### The main and playback demos have conversational subtitles
 

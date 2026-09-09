@@ -69,6 +69,9 @@ export async function renderMobileLoop() {
 				index === 1 ? '50' : '30',
 				'-b:v',
 				'0',
+				// UI holds need fewer full frames; keep seeking bounded to ten seconds.
+				'-g',
+				String(Math.round(fps * 10)),
 				'-row-mt',
 				'1',
 				'-cpu-used',

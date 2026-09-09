@@ -218,8 +218,10 @@ try {
 // PNG is a shipped asset of its own.
 await run('ffmpeg', ['-y', '-i', outputPath, '-c:v', 'libwebp', '-quality', '82', webpPath]);
 console.log(`wrote ${webpPath}`);
-if (scene === 'hero') {
-	for (const width of [640, 1280, 1920]) {
+{
+	const widths =
+		scene === 'hero' ? [640, 1280, 1920] : scene === 'song' ? [400, 640] : [400, 640, 960];
+	for (const width of widths) {
 		await run('ffmpeg', [
 			'-y',
 			'-i',
@@ -230,7 +232,7 @@ if (scene === 'hero') {
 			'libwebp',
 			'-quality',
 			'82',
-			resolve(`static/workbench-${width}.webp`)
+			resolve(`static/${stem}-${width}.webp`)
 		]);
 	}
 }
