@@ -21,3 +21,8 @@ export function answersInNorwegian(answerText: string): BehavioralAssertion & {
 	norwegianHits: number;
 	germanHits: number;
 };
+
+export function toolNotesInNorwegian(notes: string[]): BehavioralAssertion & {
+	norwegianHits: number;
+	germanNoteIndexes: number[];
+};

@@ -19,6 +19,7 @@ import { signSession, turnstileVerifier, verifySession } from '../src/identity';
 import { CACHE_BREAKPOINT, developerPrompt, promptCacheKey, pruneHistory } from '../src/prompt';
 import {
 	DRAFT_TOOLS,
+	estimateSpendUsd,
 	gatewayHeaders,
 	numberDraftLines,
 	parseProviderResponse,
@@ -530,6 +531,19 @@ describe('history pruning', () => {
 	});
 });
 
+describe('provider spend accounting', () => {
+	it('charges Sol input, cached input, cache writes, and output at their separate rates', () => {
+		expect(
+			estimateSpendUsd({
+				inputTokens: 1000,
+				cachedInputTokens: 600,
+				cacheWriteTokens: 100,
+				outputTokens: 100
+			})
+		).toBeCloseTo(0.00394, 8);
+	});
+});
+
 describe('prompt assembly', () => {
 	it('orders instructions, corpus, breakpoint, history, question', () => {
 		const input = serializedInput(
@@ -541,16 +555,16 @@ describe('prompt assembly', () => {
 		expect(input.slice(1).map((entry) => entry.role)).toEqual(['user', 'assistant', 'user']);
 	});
 
-	it('keeps every answer block in the visitor language across multilingual context and tools', () => {
+	it('keeps answer blocks and visible tool notes in the visitor language', () => {
 		const stable = developerPrompt(corpus).replace(/\s+/g, ' ');
 		expect(stable).toContain(
-			"Write the whole answer in the natural language of the visitor's latest user question."
+			"Write all visitor-visible prose in the natural language of the visitor's latest user question."
 		);
 		expect(stable).toContain(
 			'A Worker-authored validation-repair or tool-budget instruction may be transported in a user-role message, but it is not a visitor question and does not select English as the answer language.'
 		);
 		expect(stable).toContain(
-			'This choice applies to every answer block and survives tool calls, validation repairs, and follow-up turns.'
+			'This choice applies to every answer block and every tool annotation: the note in show_lyrics references, propose_edits proposals, and manage_links actions is displayed directly to the visitor, so it must use the same language as the answer.'
 		);
 		expect(stable).toContain(
 			'The selected song language, quoted lyrics, the multilingual reviewed corpus, tool results, and earlier assistant wording'
@@ -619,6 +633,21 @@ describe('prompt assembly', () => {
 		expect(withTools.prompt_cache_key).toBe(`${withoutTools.prompt_cache_key}-tools`);
 		expect(withoutTools).not.toHaveProperty('tools');
 		expect(withoutTools).not.toHaveProperty('include');
+	});
+
+	it.each([
+		['show_lyrics', 'references'],
+		['propose_edits', 'proposals'],
+		['manage_links', 'actions']
+	])('describes %s notes as visitor-facing prose in the answer language', (name, collection) => {
+		const request = providerRequest([{ role: 'user', content: 'Korrekturles' }], 'll-test', true);
+		const tools = request.tools as OpenAI.Responses.FunctionTool[];
+		const parameters = tools.find((tool) => tool.name === name)!.parameters as {
+			properties: Record<string, { items: { properties: { note: { description: string } } } }>;
+		};
+		const description = parameters.properties[collection]!.items.properties.note.description;
+		expect(description).toContain('displayed directly to the visitor');
+		expect(description).toContain("visitor's answer language");
 	});
 
 	it('replays provider items verbatim before fenced worker-built tool output', () => {

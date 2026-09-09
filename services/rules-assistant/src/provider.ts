@@ -82,6 +82,9 @@ export interface AnswerProvider {
 	): Promise<ProviderResult>;
 }
 
+const VISITOR_NOTE_DESCRIPTION =
+	"Explanation displayed directly to the visitor. Use the visitor's answer language, as defined in the developer instructions, for this note just as for the final answer; never switch to the language of the corpus, quoted lyrics, or earlier assistant notes.";
+
 export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 	{
 		type: 'function',
@@ -126,7 +129,7 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 								}
 							},
 							replacement: { type: 'string' },
-							note: { type: 'string' },
+							note: { type: 'string', description: VISITOR_NOTE_DESCRIPTION },
 							applyTo: {
 								type: 'string',
 								enum: ['linked_sections', 'this_section_only'],
@@ -175,7 +178,7 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 									}
 								}
 							},
-							note: { type: 'string' }
+							note: { type: 'string', description: VISITOR_NOTE_DESCRIPTION }
 						}
 					}
 				}
@@ -217,7 +220,7 @@ export const DRAFT_TOOLS: OpenAI.Responses.FunctionTool[] = [
 									line: { type: ['integer', 'null'], minimum: 1 }
 								}
 							},
-							note: { type: 'string' }
+							note: { type: 'string', description: VISITOR_NOTE_DESCRIPTION }
 						}
 					}
 				}

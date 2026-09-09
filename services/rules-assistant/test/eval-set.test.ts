@@ -2,8 +2,10 @@
  * so a corpus change cannot silently orphan a case or a family. */
 import { describe, expect, it } from 'vitest';
 import evalSetJson from '../eval/eval-set.json';
-import { answersInNorwegian } from '../eval/assertions.mjs';
+import { answersInNorwegian, toolNotesInNorwegian } from '../eval/assertions.mjs';
 import { corpus } from '../src/corpus';
+import type { AnswerProvider, ProviderResult } from '../src/provider';
+import { evaluateToolLanguage, toolNotes } from '../eval/tool-language';
 
 interface EvalCase {
 	id: string;
@@ -73,6 +75,91 @@ describe('the evaluation set', () => {
 				'Die Anführungszeichen wurden korrigiert. Prüfe die hörbare Pause in der Aufnahme.'
 			).ok
 		).toBe(false);
+	});
+
+	it('checks tool notes independently of Norwegian answers and quoted lyrics', () => {
+		const notes = toolNotes({
+			callId: 'reference',
+			name: 'show_lyrics',
+			input: {
+				references: [
+					{
+						id: 'one',
+						anchor: { exact: 'Die Nacht ist still', before: '', after: '', line: 1 },
+						note: 'Behold teksten som den er.'
+					},
+					{
+						id: 'two',
+						anchor: { exact: 'Jeg venter på deg', before: '', after: '', line: 2 },
+						note: 'Bitte mit der Aufnahme abgleichen.'
+					}
+				]
+			}
+		});
+		expect(notes.map((note) => answersInNorwegian(note).ok)).toEqual([true, false]);
+	});
+
+	it('requires annotations but permits short Norwegian notes and catches one German note', () => {
+		expect(toolNotesInNorwegian([]).ok).toBe(false);
+		expect(toolNotesInNorwegian(['Første refreng', 'Behold teksten som den er.']).ok).toBe(true);
+		expect(toolNotesInNorwegian(['Første refreng']).ok).toBe(true);
+		expect(
+			toolNotesInNorwegian(['Første refreng', 'Bitte mit der Aufnahme abgleichen.'])
+		).toMatchObject({ ok: false, germanNoteIndexes: [1] });
+	});
+
+	it('fails German annotations between a shared read and a Norwegian final answer', async () => {
+		const usage = { inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
+		const responses: ProviderResult[] = [
+			{
+				kind: 'tool_calls',
+				usage,
+				providerItems: '[]',
+				calls: [{ callId: 'read', name: 'read_scribe', input: {} }]
+			},
+			{
+				kind: 'tool_calls',
+				usage,
+				providerItems: '[]',
+				calls: [
+					{
+						callId: 'show',
+						name: 'show_lyrics',
+						input: {
+							references: [
+								{
+									id: 'one',
+									anchor: { exact: 'Jeg hører skymåneklangen din', before: '', after: '', line: 3 },
+									note: 'Bitte mit der Aufnahme abgleichen.'
+								}
+							]
+						}
+					}
+				]
+			},
+			{
+				kind: 'answer',
+				usage,
+				raw: {
+					scope: 'draft-work',
+					blocks: [
+						{ kind: 'prose', text: 'Behold teksten som den er.', ruleIds: [], sourceIds: [] }
+					]
+				}
+			}
+		];
+		const provider: AnswerProvider = async (messages) => {
+			if (responses.length === 2)
+				expect(messages.at(-1)).toMatchObject({
+					role: 'tool',
+					results: [{ name: 'read_scribe', result: { status: 'granted' } }]
+				});
+			return responses.shift()!;
+		};
+		await expect(evaluateToolLanguage(provider, 'Korrekturles', () => {})).rejects.toThrow(
+			'Tool language regression: annotation language'
+		);
+		expect(responses).toHaveLength(0);
 	});
 
 	it('includes the adversarial categories', () => {

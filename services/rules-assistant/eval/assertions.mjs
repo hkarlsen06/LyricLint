@@ -60,7 +60,9 @@ export function answersInNorwegian(answerText) {
 		'bruk',
 		'behold',
 		'linjen',
-		'overskriftene'
+		'overskriftene',
+		'første',
+		'refreng'
 	]);
 	const german = new Set([
 		'und',
@@ -90,5 +92,18 @@ export function answersInNorwegian(answerText) {
 		ok: norwegianHits >= 2 && germanHits === 0,
 		norwegianHits,
 		germanHits
+	};
+}
+
+/** Check annotations separately for German drift, allowing short Norwegian labels
+ * to contribute to a shared Norwegian signal rather than each meeting a prose quota. */
+export function toolNotesInNorwegian(notes) {
+	const checks = notes.map(answersInNorwegian);
+	const germanNoteIndexes = checks.flatMap((check, index) => (check.germanHits > 0 ? [index] : []));
+	const norwegianHits = checks.reduce((total, check) => total + check.norwegianHits, 0);
+	return {
+		ok: notes.length > 0 && norwegianHits >= 2 && germanNoteIndexes.length === 0,
+		norwegianHits,
+		germanNoteIndexes
 	};
 }

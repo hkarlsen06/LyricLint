@@ -72,9 +72,9 @@ export const SESSION_RULES = {
 
 export const MODEL = {
 	/** Provider-native OpenAI model id, routed through Cloudflare AI Gateway. */
-	id: 'gpt-5.6-luna',
-	// Medium keeps this interactive rules assistant on GPT-5.6's conversational
-	// baseline. Higher efforts spend more of maxOutputTokens on reasoning and can
+	id: 'gpt-5.6-sol',
+	// Sol at medium passed the short Norwegian tool-note regression that Luna
+	// failed; see ../eval/language-incident.md. Higher efforts spend more tokens and can
 	// put long stretches of silence before the first streamed token.
 	reasoning: { effort: 'medium', context: 'current_turn' },
 	/** GPT-5.6 answer-length default. The prompt already bounds what an answer
@@ -86,11 +86,11 @@ export const MODEL = {
 	providerTimeoutMs: 120_000,
 	/** Standard-processing prices per 1M tokens. Gateway spend limits remain the
 	 * authoritative global ceiling; these enforce the per-session approximation. */
-	estInputUsdPerMTok: 0.2,
-	estCachedInputUsdPerMTok: 0.02,
+	estInputUsdPerMTok: 4,
+	estCachedInputUsdPerMTok: 0.4,
 	/** GPT-5.6 explicit cache writes are billed at 1.25x uncached input. */
-	estCacheWriteUsdPerMTok: 0.25,
-	estOutputUsdPerMTok: 1.2
+	estCacheWriteUsdPerMTok: 5,
+	estOutputUsdPerMTok: 20
 } as const;
 
 /** Worst-case output spend held while a global request is in flight. The

@@ -86,6 +86,26 @@ scraping is not part of the editing path. If reviewed excerpts are ever wanted,
 they belong on `SourceReference` beside `lastVerifiedAt`, so re-verifying a
 source is what re-verifies its quotation.
 
+## Tool annotations are part of the answer
+
+The response language applies to every visible prose field, including the `note`
+in `show_lyrics`, `propose_edits`, and `manage_links`. These are shown directly
+in the transcript before the final answer. An instruction limited to “answer
+blocks” left Norwegian proofreading with German annotations even when the final
+answer was Norwegian. The shared tool-note description now carries the same
+language requirement as the developer prompt. Lyric anchors and replacements
+remain in the transcription's language; they are not prose to translate.
+Language evals must inspect tool notes separately from final answer blocks, since
+a Norwegian final answer does not establish that the tool annotations were Norwegian.
+
+That instruction gap was not the whole cause. Complete tool-round reproductions
+showed Luna switching to German on `Korrekturles`, even without the reviewed
+corpus and despite stronger language instructions. Sol handled both the short
+Norwegian command and a German control with the original prompt. The provider
+therefore uses `gpt-5.6-sol` at medium reasoning, with matching spend-accounting
+rates. The [incident record](eval/language-incident.md) contains the controls,
+results, limits, and reason for retaining reasoning replay.
+
 ## The tool budget is spent by withholding the tools
 
 A turn may use the browser-executed 'scribe tools `MAX_TOOL_ROUNDS` times, and
