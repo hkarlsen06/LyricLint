@@ -242,6 +242,7 @@ export type TurnResponse = AnswerTurnResponse | ToolCallsTurnResponse;
 
 export type AssistantErrorCode =
 	| 'invalid_request'
+	| 'ruleset_mismatch'
 	| 'challenge_required'
 	| 'challenge_failed'
 	| 'request_in_progress'

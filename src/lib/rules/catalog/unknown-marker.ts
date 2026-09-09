@@ -82,7 +82,7 @@ export const unknownImprovisedMarkerRule: RuleDefinition = {
 							this,
 							match,
 							`Genius marks an unclear lyric with [?], not «${match.text}».`,
-							"Bare question marks are an improvised placeholder rather than a recognized marker, and the same characters can be deliberate punctuation — so the replacement is offered for review instead of applied mechanically.",
+							'Bare question marks are an improvised placeholder rather than a recognized marker, and the same characters can be deliberate punctuation — so the replacement is offered for review instead of applied mechanically.',
 							[replacementFix(context, 'preview', 'Replace with [?]', match, '[?]')]
 						)
 					);

@@ -60,6 +60,24 @@ function stalledFetcher() {
  * runs on virtual time — a real one would take three minutes to establish that
  * something did *not* happen.
  */
+it('preserves a ruleset mismatch as a distinct failure', async () => {
+	const fetcher = vi.fn(async () =>
+		Response.json(
+			{ error: { code: 'ruleset_mismatch', message: 'Different versions.' } },
+			{ status: 409 }
+		)
+	);
+	await expect(
+		askAssistant({
+			chatId: 'chat-version',
+			messages: [{ role: 'user', content: 'Korrekturles' }],
+			clientRuleSetVersion: 'old-version',
+			fetcher
+		})
+	).rejects.toMatchObject({ code: 'ruleset_mismatch' });
+	expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
 describe('assistant answer stream inactivity', () => {
 	afterEach(() => {
 		vi.useRealTimers();

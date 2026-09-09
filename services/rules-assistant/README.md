@@ -125,7 +125,7 @@ bun install
 bun run check     # tsc
 bun run test      # vitest — validation, quotas, sessions, structured output
 bun run dev       # wrangler dev (see below)
-bun run deploy    # wrangler deploy
+bun run deploy    # emergency only: bypasses the root CI release guard
 ```
 
 From the repository root, `bun run assistant:test` does install + check + test.
@@ -133,8 +133,15 @@ From the repository root, `bun run assistant:test` does install + check + test.
 Worker deployment is manual by design. CI gates the Pages application, but the
 repository has no Cloudflare API-token secret with authority to publish this
 Worker. After the root and Worker checks pass, `bun run assistant:deploy` at the
-repository root delegates to this package's `deploy` script. Do not treat a
-Pages deployment as a Worker deployment.
+repository root verifies the clean tracked revision is current GitHub `main` with
+all three CI checks passing, then delegates to this package's `deploy` script.
+The preflight requires an authenticated `gh` CLI. Running this package's deploy
+command directly bypasses the check and is reserved for emergency recovery. Do not
+treat a Pages deployment as a Worker deployment. For a production corpus update, wait for
+that revision's CI `checks`, `assistant`, and `e2e` jobs to pass before deploying
+the Worker. Pages publication then verifies the live Worker's ruleset version and
+corpus hash; rerun its deploy job if it reached this gate before the Worker was
+ready. See `docs/ci.md` for the rollout sequence and its old-client limitations.
 
 ## Configuration
 
@@ -202,13 +209,15 @@ a replayed cookie cannot move. `src/identity.ts` states the trade in full.
    `api.lyriclint.com/v1/answers`. The rate-limit bindings and Durable Object
    handle the finer browser/IP, daily, concurrency, and session/IP/global spend
    limits after that outer layer.
-5. Generate and verify the corpus, then deploy:
+5. From the repository root, generate and verify the corpus. Commit and push
+   the revision to `main`, wait for its three CI checks to pass, then deploy
+   through the guarded root command:
 
    ```bash
    bun run assistant:corpus
    bun run assistant:test
-   cd services/rules-assistant
-   bun run deploy
+   # After committing, pushing, and passing CI:
+   bun run assistant:deploy
    ```
 
 6. Configure Pages with

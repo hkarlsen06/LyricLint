@@ -42,6 +42,29 @@ Edit on the account hosting this project; it does not need Worker deployment
 access. Configuration is checked explicitly before upload. A Wrangler OAuth
 login is a local interactive credential and must not be copied into CI.
 
+Immediately before publishing Pages, the deploy job checks the configured assistant's
+`/health` endpoint against this revision's generated corpus. Both `ruleSetVersion`
+and `corpusHash` must match; missing metadata, network failure, or a non-success
+response blocks publication. `bun run assistant:test` exercises the gate, including
+a changed corpus whose ruleset version was not bumped.
+
+The Worker remains a separate manual deployment. For a corpus update, first wait
+for this revision's `checks`, `assistant`, and `e2e` jobs to pass, then deploy the
+Worker with `bun run assistant:deploy`, and rerun the Pages deploy job if its health
+gate already failed. The root `assistant:deploy` command enforces this ordering:
+it requires an unmodified tracked tree at GitHub's current `main` SHA and successful `checks`,
+`assistant`, and `e2e` jobs in that revision's latest push CI run. It requires an
+authenticated `gh` CLI and fails closed if GitHub cannot be queried. The Pages
+`deploy` job is deliberately excluded, since it can be waiting for the Worker.
+For emergency recovery only, running `bun run deploy` inside
+`services/rules-assistant` bypasses this preflight; the operator then owns checking
+the revision and coordinating Pages. Normal releases use the guarded root command.
+This gate prevents publishing a site against an older Worker; it cannot make two
+separate deployments atomic or update already-open browser tabs. The client must
+therefore handle a ruleset mismatch explicitly, preserving the question and offering
+a reload instead of telling the visitor to shorten their message. Request version
+validation remains enforced by the Worker.
+
 Rotate the Apple developer token in the GitHub Actions repository variable and
 ship a new revision to rebuild it into the tested artifact. Keep the Pages
 production build variable synchronized if retaining the old hook for manual

@@ -70,7 +70,9 @@ interface AssistantToolSession {
 }
 
 const FAILURE_MESSAGES = {
-	invalid_request: 'That question could not be sent. Shorten it and try again.',
+	invalid_request: 'That question could not be sent. Try starting a new chat.',
+	ruleset_mismatch:
+		'The app and assistant are on different versions. Reload to get the latest app. If this continues, try again after the update finishes.',
 	challenge_required: 'Quick check that you are human, then your question goes through.',
 	challenge_failed: 'The check did not pass. Try it again.',
 	request_in_progress: 'One question at a time — the last one is still being answered.',
@@ -885,7 +887,10 @@ export function createAssistantState(deps: AssistantDeps) {
 			const text = question.trim();
 			if (!text || busy || challengePending || toolSession) return false;
 			if ([...text].length > MAX_QUESTION_CHARS) {
-				failure = { code: 'invalid_request', message: FAILURE_MESSAGES.invalid_request };
+				failure = {
+					code: 'invalid_request',
+					message: `Questions can contain at most ${MAX_QUESTION_CHARS.toLocaleString('en-US')} characters. Shorten it and try again.`
+				};
 				return false;
 			}
 			await initialize();

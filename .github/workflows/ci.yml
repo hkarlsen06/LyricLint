@@ -172,11 +172,18 @@ jobs:
             echo "Set CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID before deploying; see docs/ci.md." >&2
             exit 1
           fi
+      - uses: actions/checkout@v7
+        if: steps.revision.outputs.current == 'true'
       - uses: actions/download-artifact@v8
         if: steps.revision.outputs.current == 'true'
         with:
           name: production-site-${{ github.sha }}
           path: build/
+      - name: Verify the deployed assistant corpus
+        if: steps.revision.outputs.current == 'true'
+        env:
+          PUBLIC_ASSISTANT_ANSWERS_URL: ${{ vars.PUBLIC_ASSISTANT_ANSWERS_URL }}
+        run: bun scripts/check-assistant-deployment.mjs
       - name: Deploy the tested site to Cloudflare Pages
         if: steps.revision.outputs.current == 'true'
         env:

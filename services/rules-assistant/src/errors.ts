@@ -5,6 +5,7 @@
  */
 export type ErrorCode =
 	| 'invalid_request'
+	| 'ruleset_mismatch'
 	| 'challenge_required'
 	| 'challenge_failed'
 	| 'request_in_progress'
@@ -17,6 +18,7 @@ export type ErrorCode =
 
 const ERROR_STATUS = {
 	invalid_request: 400,
+	ruleset_mismatch: 409,
 	challenge_required: 403,
 	challenge_failed: 403,
 	request_in_progress: 409,

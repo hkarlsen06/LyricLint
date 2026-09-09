@@ -26,6 +26,9 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   Hidden panels retire their diagnostic preview; opening findings retains panel focus.
   Review offers Previous/Next controls with their shortcuts. `Workspace.svelte.test.ts`
   and `LinterPanel.svelte.test.ts` pin these paths.
+- Assistant version skew has its own `ruleset_mismatch` recovery message; only the local
+  question-length check asks the visitor to shorten their question. Failed questions stay in
+  the transcript. `assistant-state.test.ts` and `api.test.ts` pin the error and retained text.
 - Assistant Enter and Ask share submission, retain refused input, and leave composing Enter
   to the IME. The composer discloses the Unicode character limit before sending and keeps
   oversized input editable. `AssistantPanel.svelte.test.ts` pins both paths and composition.
@@ -276,6 +279,16 @@ is gated on panel visibility, rather than allowing an invisible card to keep pro
 Copy lyrics no longer opens a modal just because a source knows song facts. Repeated correction
 and copy cycles should have the same cost whether audio is attached or not. The existing button
 confirms the copy; the Song panel continues to own the metadata and its copy controls.
+
+### An assistant release mismatch is not an oversized question
+
+A Worker published ahead of a website release rejected the previous browser ruleset as
+`invalid_request`. The browser translated every such error to “Shorten it”, even for
+“Korrekturles”. The Worker now returns `ruleset_mismatch` (409), and the browser explains
+that the app and assistant versions differ, with reload/update recovery. Ruleset equality
+remains enforced before session checks or provider calls; accepting an unknown corpus would
+let the browser and assistant disagree about cited rules. No automatic reload interrupts
+editing. Deployment gates and their rollout limits are documented in `docs/ci.md`.
 
 ### The assistant keeps questions that it cannot send
 

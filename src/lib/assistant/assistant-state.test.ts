@@ -331,6 +331,18 @@ describe('the assistant state', () => {
 		expect(state.messages[1]!.status).toBe('interrupted');
 	});
 
+	it('keeps a short question and explains version skew without blaming its length', async () => {
+		const ask = vi.fn().mockRejectedValue(new AssistantError('ruleset_mismatch'));
+		const { state } = makeState({ ask });
+		await state.open();
+		await state.send('Korrekturles');
+		expect(state.messages[0]!.content).toBe('Korrekturles');
+		expect(state.messages[1]!.status).toBe('failed');
+		expect(state.failure?.code).toBe('ruleset_mismatch');
+		expect(state.failure?.message).toContain('Reload');
+		expect(state.failure?.message).not.toContain('Shorten');
+	});
+
 	it('marks the answer failed and retries it in place', async () => {
 		const ask = vi
 			.fn()
@@ -613,6 +625,7 @@ describe('the assistant state', () => {
 		await state.send('x'.repeat(2001));
 		expect(deps.ask).not.toHaveBeenCalled();
 		expect(state.failure?.code).toBe('invalid_request');
+		expect(state.failure?.message).toContain('2,000 characters');
 	});
 
 	it('deletes the active chat and empties the transcript', async () => {

@@ -644,9 +644,9 @@ describe('the answers endpoint', () => {
 				makeRequest(requestBody({ clientRuleSetVersion: 'stale-version' })),
 				env
 			);
-			expect(response.status).toBe(400);
+			expect(response.status).toBe(409);
 			expect((await response.json()) as object).toMatchObject({
-				error: { code: 'invalid_request' }
+				error: { code: 'ruleset_mismatch' }
 			});
 		});
 	});

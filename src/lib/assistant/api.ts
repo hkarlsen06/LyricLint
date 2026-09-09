@@ -59,6 +59,7 @@ export function assistantAvailable(): boolean {
 
 const KNOWN_CODES: ReadonlySet<string> = new Set([
 	'invalid_request',
+	'ruleset_mismatch',
 	'challenge_required',
 	'challenge_failed',
 	'request_in_progress',

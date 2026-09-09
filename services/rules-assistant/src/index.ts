@@ -286,8 +286,8 @@ export function createHandler(options: HandlerOptions = {}) {
 			validateConversation(body);
 			if (body.clientRuleSetVersion !== corpus.ruleSetVersion) {
 				throw new ApiError(
-					'invalid_request',
-					'This client uses a different ruleset version. Reload and try again.'
+					'ruleset_mismatch',
+					'The app and assistant are on different versions. Reload to get the latest app. If this continues, try again after the update finishes.'
 				);
 			}
 
