@@ -172,6 +172,15 @@
 		open(source?: HTMLButtonElement, fallbackFocus?: () => void): Promise<void>;
 	}>();
 	const EditorComponent = $derived(editorComponent);
+	// The lazy surface and focus handoff must await the same promise, so the
+	// following tick includes the strip's render, even on its first import.
+	let mediaStripModule: Promise<typeof import('../media/MediaStrip.svelte')> | undefined;
+	function loadMediaStrip() {
+		return (mediaStripModule ??= import('../media/MediaStrip.svelte').catch((error) => {
+			mediaStripModule = undefined;
+			throw error;
+		}));
+	}
 
 	async function focusMediaOpener(workspace: Element | null): Promise<void> {
 		const opener = () =>
@@ -190,7 +199,7 @@
 		// not moved elsewhere during that wait.
 		const previousFocus = document.activeElement;
 		try {
-			await import('../media/MediaStrip.svelte');
+			await loadMediaStrip();
 		} catch {
 			// The shared loading surface owns the visible refusal and Retry.
 		}
@@ -1317,7 +1326,7 @@
 		{#if controller.media && (controller.media.player.attached || controller.media.pendingName)}
 			<LazyPanel
 				name="audio controls"
-				load={() => import('../media/MediaStrip.svelte')}
+				load={loadMediaStrip}
 				panelProps={{
 					media: controller.media,
 					sync: lyricSync,

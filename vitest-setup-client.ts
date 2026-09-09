@@ -22,6 +22,8 @@ import { flushSync, tick } from 'svelte';
 // elements; teach it Svelte's flush boundaries without reinstating a second
 // component renderer.
 configure({
+	// Cold lazy imports can outlast Testing Library's one-second default in CI.
+	asyncUtilTimeout: 5000,
 	eventWrapper: flushSync,
 	asyncWrapper: async (callback) => {
 		const result = await callback();

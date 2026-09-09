@@ -129,13 +129,18 @@ skip gzip-size reporting; dedicated size audits can still compress emitted files
 
 ## Vitest 5 browser compatibility
 
+The shared DOM Testing Library setup allows five seconds for `findBy*` and
+`waitFor` assertions. Cold lazy component imports can exceed its one-second
+default on CI; successful assertions still resolve as soon as the UI is ready.
+Keep waiting for the actual loaded controls before checking focus or geometry.
+
 Keep dependencies reached only through lazy surfaces in `optimizeDeps.include`
 when Vite's initial scan misses them. Opening the lazy drafts menu discovered
 `lucide-svelte/icons/download` during CI and triggered dependency re-optimization.
 Already mounted components retained the old Svelte runtime while lazy components
 loaded the new one, causing `effect_orphan`, failed imports, and iframe timeouts.
 Pre-bundling that icon alongside CodeMirror search prevents the mid-test reload;
-the browser tests retain their existing assertions and timeouts.
+the browser tests retain their existing behavioral assertions.
 
 The browser suite disables the runner UI because its scaled iframe places some
 component controls under the runner's resize divider, intercepting native clicks.

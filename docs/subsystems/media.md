@@ -149,6 +149,10 @@ arrives, and is rendered once through `MediaArtwork`, preserving its full-size-a
 The audio dialog returns keyboard focus after the attachment state has rendered. If the
 original opener disappeared, Workspace supplies the surviving audio control: the strip's
 Change audio source after attaching, or the tray's Add audio source after detaching.
+The lazy strip and this focus handoff share one import promise before awaiting the
+render tick. Separate imports can resolve in different turns, leaving focus on the
+body because the handoff ran before the strip mounted. A failed import clears the
+shared promise so Retry can load again; focus still stays put if the user moved it.
 `Workspace.svelte.test.ts` exercises both transitions through the dialog. Pending controls
 keep their visible Load audio / Reconnect audio wording inside the accessible name, with
 the song and source following it; the busy label likewise includes Loading….
