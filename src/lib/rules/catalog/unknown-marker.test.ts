@@ -8,6 +8,9 @@ import {
 
 describe('unknown.improvised-marker', () => {
 	it.each([
+		['a single mark on its own line', '?', '?'],
+		['a single mark with surrounding whitespace', '  ?\t', '?'],
+		['a whole-line run', '???', '???'],
 		['a run between words', 'I heard ??? tonight', '???'],
 		['a run at the end of a line', 'I heard ???', '???'],
 		['two question marks', 'I heard ?? tonight', '??'],
@@ -18,6 +21,7 @@ describe('unknown.improvised-marker', () => {
 		const diagnostics = checkRule(unknownImprovisedMarkerRule, input);
 
 		expect(markedText(input, diagnostics)).toEqual([marker]);
+		expect(diagnostics[0].message).toBe(`Genius marks an unclear lyric with [?], not «${marker}».`);
 		expect(applyRuleFixes(unknownImprovisedMarkerRule, input)).toBe(
 			`[Verse]\n${lyric.replace(marker, '[?]')}`
 		);
@@ -29,6 +33,7 @@ describe('unknown.improvised-marker', () => {
 	it.each([
 		['emphatic punctuation on a word', 'Are you serious???'],
 		['a single question mark', 'Was that you?'],
+		['a spaced question ending', 'Was that you ?'],
 		['a spaced-out single mark', 'I heard ? tonight'],
 		['the correct marker', 'I heard [?] tonight'],
 		['a run inside an alphanumeric token', 'track2?? now']
@@ -61,10 +66,10 @@ describe('unknown.improvised-marker', () => {
 
 	// Applying it hands the document to the rule that asks the transcriber to go
 	// back and identify the line, which is the finding they actually want next.
-	it('lands on a document unknown.unresolved then picks up', () => {
-		const fixed = applyRuleFixes(unknownImprovisedMarkerRule, '[Verse]\nI heard ??? tonight');
+	it.each(['I heard ??? tonight', '?'])('hands %s to unknown.unresolved after fixing', (lyric) => {
+		const fixed = applyRuleFixes(unknownImprovisedMarkerRule, `[Verse]\n${lyric}`);
 
-		expect(fixed).toBe('[Verse]\nI heard [?] tonight');
+		expect(fixed).toBe(`[Verse]\n${lyric.replace(/\?+/, '[?]')}`);
 		expect(checkRule(unknownImprovisedMarkerRule, fixed)).toHaveLength(0);
 		expect(checkRule(unknownUnresolvedRule, fixed)).toHaveLength(1);
 	});

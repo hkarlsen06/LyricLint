@@ -346,6 +346,9 @@ Three things it owes:
 - **The run has to be a token of its own**, and that boundary is the rule. A placeholder stands where
   the words nobody could make out would have stood; emphatic punctuation attaches to the word it
   punctuates, so `I heard ??? tonight` is flagged and `Are you serious???` is not.
+  A single `?` also qualifies when it occupies the entire lyric line (ignoring surrounding
+  whitespace): it stands for a missing line. A single mark beside words remains punctuation.
+  The diagnostic quotes the actual marker and keeps the same preview-only replacement.
 - **It reads `recognizedUnknownMarker` rather than re-deriving it.** `( ?? )` and `[???]` are
   `unknown.marker`'s findings, and two diagnostics over one span are two cards arguing about it —
   the same failure `isProseHeaderLine` and `isImmediateRepeat` exist to prevent, and the same

@@ -56,11 +56,13 @@ export const unknownMarkerRule: RuleDefinition = {
  * while a lone `???` has exactly one thing it can be steering toward, and `[?]`
  * is it.
  */
-const improvisedUnknownMarker = /(?<![\p{L}\p{M}\p{N}_?])\?{2,}(?![\p{L}\p{M}\p{N}_?])/gu;
+// A single mark is a placeholder only when it occupies the whole lyric line.
+const improvisedUnknownMarker =
+	/(?<=^\s*)\?(?=\s*$)|(?<![\p{L}\p{M}\p{N}_?])\?{2,}(?![\p{L}\p{M}\p{N}_?])/gu;
 
 export const unknownImprovisedMarkerRule: RuleDefinition = {
 	id: 'unknown.improvised-marker',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'suggestion',
 	fixability: 'preview',
 	sourceIds: ['G-UNKNOWN'],
@@ -79,8 +81,8 @@ export const unknownImprovisedMarkerRule: RuleDefinition = {
 						diagnostic(
 							this,
 							match,
-							'Genius marks an unclear lyric with [?], not «???».',
-							"A bare run of question marks is the transcriber's own placeholder rather than a marker anyone recognizes, and the same characters can be deliberate punctuation — so the replacement is offered for review instead of applied mechanically.",
+							`Genius marks an unclear lyric with [?], not «${match.text}».`,
+							"Bare question marks are an improvised placeholder rather than a recognized marker, and the same characters can be deliberate punctuation — so the replacement is offered for review instead of applied mechanically.",
 							[replacementFix(context, 'preview', 'Replace with [?]', match, '[?]')]
 						)
 					);

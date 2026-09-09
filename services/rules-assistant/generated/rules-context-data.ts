@@ -3,9 +3,9 @@ import type { AssistantCorpus } from './rules-context';
 
 export const corpus = {
 	formatVersion: 5,
-	ruleSetVersion: '2026.08.28.0',
-	generatedAt: '2026-08-28T16:37:32.394Z',
-	contentHash: '7319e8e8956b084ba1932e914ff5dc719a481c251c3df0b4ceb01aae19469397',
+	ruleSetVersion: '2026.09.09.0',
+	generatedAt: '2026-09-09T14:25:38.310Z',
+	contentHash: '7719305d35a76c86332be67ed3875ff17f30f8a78db0198d412f62607ed4cc27',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -762,7 +762,7 @@ export const corpus = {
 			severity: 'suggestion',
 			message: 'Genius marks an unclear lyric with [?], not «???».',
 			explanation:
-				"A bare run of question marks is the transcriber's own placeholder rather than a marker anyone recognizes, and the same characters can be deliberate punctuation — so the replacement is offered for review instead of applied mechanically.",
+				'Bare question marks are an improvised placeholder rather than a recognized marker, and the same characters can be deliberate punctuation — so the replacement is offered for review instead of applied mechanically.',
 			fix: 'preview',
 			fixLabel: 'Replace with [?]',
 			language: 'en',
