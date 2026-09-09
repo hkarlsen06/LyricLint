@@ -83,6 +83,16 @@ of controls and neighboring content before and after real interactions on deskto
   The offset is the negative ring width, keeping the outline inside the control
   so scroll ports cannot clip it. Focus styling does not change control geometry.
 - State transitions use 120 to 240 milliseconds and `--ease-out-quart`. The cap is what it costs to answer an action: the result has to be settled before the user looks for it, and an overshoot past the target reads as the control missing and correcting. Nothing that reports state may reach past this.
+- On load and each ’scribe opening or creation, viewport lyric lines and diagnostic rows
+  reveal in top-to-bottom order,
+  fading from transparent to opaque over `--duration-workspace-entrance` (400ms), with
+  `--duration-workspace-stagger` (60ms) between starts compressed to a maximum
+  `--duration-workspace-stagger-limit` (720ms). Only opacity changes, using
+  `--ease-in-out-cubic`; positions remain fixed. This user-requested entrance alone may use temporary opacity;
+  interaction immediately reveals everything. Its prepaint mask expires after two seconds,
+  readiness never waits for completion, and ordinary edits never replay it. New empty
+  ’scribes reveal their placeholder lines.
+  See [Motion usage](docs/motion.md) for its bounded lifetime.
 - The brand lockup is the one exception, and it is one because it reports nothing: `--duration-brand` and `--ease-spring-out` exist for it alone. Its easing overshoots on purpose.
 - Travel between rests — a whole surface pulled from one place to another, like the reference sections' column push — uses `--ease-in-out-cubic`. `--ease-out-quart` launches at full speed, which is right for a state answer and reads as thrown when the thing moving is a column rather than a control.
 - Reduced-motion preferences suppress transitions and animations.
@@ -115,4 +125,4 @@ of controls and neighboring content before and after real interactions on deskto
 
 ## Accessibility
 
-The shell targets WCAG 2.2 AA. Focus is always visible, color is never the only carrier of state, touch targets grow at narrow breakpoints, and motion respects user preference. Exact lyric markup remains visible and is never replaced by decorative rendering.
+The shell targets WCAG 2.2 AA. Focus is always visible, color is never the only carrier of state, touch targets grow at narrow breakpoints, and motion respects user preference. Exact lyric markup is never replaced by decorative rendering. The temporary startup reveal leaves text in the accessible tree; focus or input immediately restores full visibility.

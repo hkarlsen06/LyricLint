@@ -7,9 +7,16 @@ Touches: `src/lib/ui/styles/shell.css`, `src/lib/ui/styles/panel.css`,
 `src/lib/interaction/dismiss.ts`, `src/lib/interaction/stick-to-bottom.ts`,
 `src/lib/ui/tools/` (SongPanel/PreferencesPanel — the decision record below predates the
 Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
-`src/lib/editor/extensions/document-placeholder.ts`
+`src/lib/editor/extensions/document-placeholder.ts`, `src/lib/ui/layout/workspace-entrance.ts`
 
 ## The rules
+
+- The workspace reveals its initial viewport's lyric lines and diagnostic rows on load and
+  each ’scribe identity change, top-to-bottom, using only temporary opacity. A prepaint mask prevents a flash;
+  its two-second limit reveals all content if startup is slow. Interaction immediately reveals
+  everything; reduced motion and a hidden document skip the effect. Readiness never waits for
+  completion, and ordinary edits never replay it. `../motion.md` owns usage and
+  performance limits.
 
 - A tool initializes on first selection, then keeps its local state mounted across tab changes
   and editor expansion. Hidden Review rows, Linking analysis, performer arrangements, and Song
@@ -134,14 +141,40 @@ continue to cover retained inputs. The eager Review view remains ready with the 
 
 ### Startup ends when the editor is ready
 
-Startup has no visual splash, centered logo, loading animation, or delayed reveal.
+Startup has no visual splash, centered logo, or loading animation.
 Render the recovered workspace immediately and let the real editor mount without an
 animation gate. A screen-reader status reports pending startup; storage and editor
 failures retain their visible alert and Reload action, and another tab retains its notice.
 
 The previous pending-only animation still flashed on quick loads, and delaying its
-appearance did not produce a satisfactory transition. The startup animation and its
-styles have therefore been removed entirely, superseding both animation approaches.
+appearance did not produce a satisfactory transition. Its splash and styles were removed.
+
+The requested lyric-line and diagnostic-row entrance is a later, narrowly scoped exception.
+The user clarified that rows should appear sequentially: moving already visible text did
+not satisfy the request. The shell now reveals viewport rows from transparent to opaque
+over 400ms, with no translation or other position changes. Starts are 60ms apart, compressed to a maximum
+720ms delay across each group. Only this entrance may use temporary opacity; it never
+communicates application state. The lazily imported Motion mini API animates at most 48
+rows per group, inspecting at most 64 existing children.
+
+`data-workspace-entrance` masks rows before their first paint to prevent a visible-then-hidden
+flash. Each mask is removed as its group starts. A two-second limit from attachment reveals
+all content and abandons the effect if startup is slow. A separate two-second cleanup limit
+starts after Motion and initial editor/native-rule readiness (`data-entrance-pending`).
+Input, focus, visibility or motion-preference changes, failures, and teardown remove masks
+and restore opacity immediately. Each row has one native opacity animation; transforms
+are left untouched. The attachment remains outside the draft-keyed subtree, but its effect
+reads `controller.draftId`: opening or creating a ’scribe retires the old lifetime and starts
+a new one without remounting the workspace. Readiness is keyed to the new editor’s draft ID.
+Empty ’scribes reveal their existing placeholder lines without waiting for native rules.
+Typing and lint updates do not change identity and never re-arm the effect. Readiness does not wait for completion, and no splash returns.
+
+Production CSS can rewrite `400ms` as `.4s`. `secondsFromCssTime` respects the unit for
+both duration and stagger before passing seconds to Motion. Assuming milliseconds made
+the built animation last 0.4ms while unminified browser tests still passed. The regression
+now covers both spellings and checks the native animation's actual duration and stagger;
+the built site must also be checked in WebKit, including intermediate opacity and unchanged row positions.
+See [Motion usage](../motion.md) for the limits and the distinction from paid Motion+ features.
 
 ### Focus rings stay inside controls
 

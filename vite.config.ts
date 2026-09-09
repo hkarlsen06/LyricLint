@@ -197,6 +197,9 @@ export default defineConfig(({ mode }) => ({
 	 */
 	preview: {
 		port: DEV_PORT,
+		// Caddy always targets this port. Falling forward would leave the public
+		// dev URL on an older preview process with a stale build-asset index.
+		strictPort: true,
 		host: true
 	},
 	build: {

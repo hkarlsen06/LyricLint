@@ -200,6 +200,9 @@
 	--duration-fast: 120ms;
 	--duration-medium: 180ms;
 	--duration-slow: 240ms;
+	--duration-workspace-entrance: 400ms;
+	--duration-workspace-stagger: 60ms;
+	--duration-workspace-stagger-limit: 720ms;
 	--ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 	/* Travel between rests — a surface pulled from one place to another rather
 	   than a control answering a press. `--ease-out-quart` launches at full

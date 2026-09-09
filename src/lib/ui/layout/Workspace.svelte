@@ -25,6 +25,7 @@
 	import { lineNumberAt } from '$lib/core/line-numbers.js';
 	import { unknownVoiceAcceptanceKey } from '$lib/diagnostics/ignore.js';
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
+	import { workspaceEntrance } from './workspace-entrance.js';
 	import type { HarperDiagnosticProvider } from '$lib/rules/harper.js';
 	import { mergeHarperDiagnostics } from '$lib/rules/results.js';
 	import { useAssistantState } from '$lib/assistant/assistant.svelte.js';
@@ -80,6 +81,7 @@
 	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
 	let editorExpanded = $state(false);
 	let workspaceElement = $state<HTMLElement>();
+	let entranceReadyDraftId = $state<string>();
 	const phone = new MediaQuery(PHONE_WORKSPACE_QUERY);
 	const floatingVideo = $derived(!phone.current);
 	type MobileView = 'write' | 'review' | 'tools';
@@ -1228,12 +1230,18 @@
 
 <main
 	bind:this={workspaceElement}
+	{@attach (node) => {
+		// The attachment effect follows identity, not edits or lint snapshots.
+		if (controller.draftId) return workspaceEntrance(node);
+	}}
 	class="workspace"
 	class:workspace--expanded={!phone.current && editorExpanded}
 	data-mobile-view={mobileView}
 	data-video-floating={floatingVideo}
 	data-review-focused={reviewFocused}
 	data-testid="workspace"
+	data-entrance-pending={entranceReadyDraftId !== controller.draftId ||
+		(!controller.isEmpty && nativeRulesStatus === 'pending')}
 >
 	<h1 class="sr-only">LyricLint transcription workbench</h1>
 
@@ -1260,6 +1268,7 @@
 
 		<div class="editor-host" data-testid="editor-region">
 			{#key controller.draftId}
+				{@const mountedDraftId = controller.draftId}
 				<EditorComponent
 					initialText={controller.snapshot.text}
 					initialSelection={controller.snapshot.selection}
@@ -1268,7 +1277,10 @@
 					diagnosticsInPanel={phone.current}
 					callbacks={editorCallbacks}
 					bind:handle={editorHandle}
-					{onready}
+					onready={() => {
+						entranceReadyDraftId = mountedDraftId;
+						onready?.();
+					}}
 					{onerror}
 				/>
 			{/key}

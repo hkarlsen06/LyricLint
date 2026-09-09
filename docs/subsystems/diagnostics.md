@@ -7,6 +7,12 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 ## The rules
 
+- The shell's entrance may reveal the initial viewport's diagnostic rows once per ’scribe opening using
+  temporary opacity only, in their
+  existing reading order. New findings, fixes, filter changes, and later Harper results do not
+  replay it. Shared card and popover components contain no entrance animation; see
+  [Motion usage](../motion.md).
+
 - Diagnostic row identity follows unchanged occurrences through the editor's actual
   `documentChange`, separately from current diagnostic ranges and revision-bound fixes.
   Repeated text never acquires another occurrence's controls by ordinal or text search.
@@ -95,6 +101,15 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
   against the `<li>`, the head stays unpositioned, and only the buttons lift over it.
 
 ## Decision record
+
+### Entrance motion belongs to the initial list
+
+Putting an entrance in each card would animate every newly rendered finding while someone
+is reviewing or typing. The workspace attachment instead handles the first visible list of each opened ’scribe as
+one bounded group, without changing row identity or provider order. A temporary prepaint mask
+prevents a flash before rows reveal in sequence; a two-second limit reveals everything if
+startup is slow. Interaction cancels the effect and restores full opacity immediately,
+preserving stable controls during review; popovers remain unchanged.
 
 ### Checking availability is distinct from a clean draft
 

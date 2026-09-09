@@ -1,5 +1,14 @@
 /* App shell: the workspace grid, the document toolbar, and the status bar. */
 
+/* Startup reveal only: JS removes the mask before animation, on interaction,
+   on failure, and after a bounded wait. Content is visible without JS. */
+@media (prefers-reduced-motion: no-preference) {
+	[data-workspace-entrance~='lyrics'] .cm-line,
+	[data-workspace-entrance~='diagnostics'] .diagnostic-list > li {
+		opacity: 0;
+	}
+}
+
 /* `clip`, not `hidden`: a hidden box is still a scroll container, so a stray
    `scrollIntoView` or focus call anywhere inside could scroll the whole shell
    out of view with no scrollbar or wheel gesture to bring it back. Clipping

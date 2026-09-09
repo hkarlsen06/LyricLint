@@ -8,6 +8,11 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 
 ## The rules
 
+- Startup motion belongs to the shell attachment, which may temporarily mask and reveal
+  existing viewport `.cm-line` elements (or empty-document `.ll-placeholder-line` elements) using only opacity. It never splits text, wraps lines, inserts decorations, changes
+  editor state, or materializes offscreen lines. Input cancels it before editing continues;
+  clipboard text and CodeMirror's DOM ownership remain intact. See [Motion usage](../motion.md).
+
 - The workbench preloads the editor's dynamic entry and static dependencies without
   evaluating them with the shell. View creation stays inside the browser mount lifetime;
   either async startup yield may be cancelled. A failed import or construction must replace
@@ -90,6 +95,15 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `audio-drop.svelte.test.ts` asserts both halves.
 
 ## Decision record
+
+### Startup motion leaves the document structure alone
+
+Animating lyric lines by splitting or wrapping their text would interfere with CodeMirror's
+DOM reconciliation and clean clipboard output. The shell instead targets existing viewport
+lines once, restores their original inline opacity, and retires on interaction.
+The prepaint mask prevents a flash before the staggered reveal and expires after two seconds
+if startup is slow; focus and input reveal all text immediately. Ordinary
+edits do not start another entrance; opening or creating a ’scribe does. The editor has no Motion dependency.
 
 ### Overlay code follows the first overlay request
 

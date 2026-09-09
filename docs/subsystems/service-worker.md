@@ -32,6 +32,15 @@ Touches: `src/service-worker.ts`, `src/routes/+layout.svelte`, `src/routes/+erro
 
 ## Decision record
 
+### Preview must own the port the proxy targets
+
+`dev.lyriclint.com` forwards to port 5173. Preview uses `strictPort: true` so a
+second process cannot silently move to 5174 while the public URL keeps reaching
+the old process. Restart preview after rebuilding: its static asset index belongs
+to the build present when it started. Serving new HTML through an old index can
+return 404 for every new hashed module even though the files exist on disk.
+This is a server mismatch, not a reason to clear browser storage or saved drafts.
+
 ### Marketing loops do not belong in every offline installation
 
 Native lazy loading and visibility-gated playback only control the page's requests. Precaching
