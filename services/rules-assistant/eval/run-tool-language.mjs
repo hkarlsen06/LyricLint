@@ -1,6 +1,7 @@
 /** Explicit live-evaluation entry point; never imported by the Worker or unit tests. */
-import { createOpenAiProvider } from '../src/provider';
-import { evaluateToolLanguage } from './tool-language';
+import process from 'node:process';
+import { createOpenAiProvider } from '../src/provider.ts';
+import { evaluateToolLanguage } from './tool-language.ts';
 
 const { AI_GATEWAY_BASE_URL, OPENAI_API_KEY, AI_GATEWAY_TOKEN } = process.env;
 if (!AI_GATEWAY_BASE_URL || !OPENAI_API_KEY || !AI_GATEWAY_TOKEN) {

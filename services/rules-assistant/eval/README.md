@@ -36,7 +36,7 @@ From the repository root, with `AI_GATEWAY_BASE_URL`, `OPENAI_API_KEY`, and
 `AI_GATEWAY_TOKEN` available in the environment or the service's `.dev.vars`:
 
 ```bash
-bun --env-file=services/rules-assistant/.dev.vars services/rules-assistant/eval/run-tool-language.ts
+bun --env-file=services/rules-assistant/.dev.vars services/rules-assistant/eval/run-tool-language.mjs
 ```
 
 The base URL is also documented in `services/rules-assistant/wrangler.jsonc`;
