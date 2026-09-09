@@ -49,6 +49,16 @@ jobs:
           bunx prettier --check . --cache --cache-strategy content --cache-location node_modules/.cache/ci-lint/prettier
           bunx oxlint
           bunx eslint . --cache --cache-strategy content --cache-location node_modules/.cache/ci-lint/eslint
+      - name: Disable the unused system Chrome repository
+        # Playwright downloads its own Chromium. A stale Google apt index must
+        # not block installation of its Ubuntu system libraries; see docs/ci.md.
+        run: |
+          for source in /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            [ -f "$source" ] || continue
+            if grep -q 'https\?://dl\.google\.com/linux/chrome' "$source"; then
+              sudo mv "$source" "$source.disabled"
+            fi
+          done
       - run: bunx playwright install --with-deps --only-shell chromium
       - run: bun run test:unit -- --run
 

@@ -93,6 +93,13 @@ WebKit. CI installs only Chromium's headless shell with `--only-shell`; local
 coverage and behavioral assertions remain intact, including real boot-animation
 observations and the offline/cache-admission scenarios.
 
+Before installing Chromium's system dependencies, `checks` disables the runner's
+Google Chrome apt source, recognizing both `.list` and `.sources` formats by URL.
+Playwright downloads its own Chromium and needs no packages from that repository.
+An inconsistent Google package index otherwise makes `apt-get update` fail with
+`Hash Sum mismatch` before tests start, as happened on run `34383336325` and its
+retry. Ubuntu sources and package signature/hash verification remain enabled.
+
 CI traces the first E2E retry rather than recording and discarding every green
 first attempt. The two-retry policy is unchanged. This loses the original failing
 attempt's trace when a flake disappears on retry; the first retry is still traced
