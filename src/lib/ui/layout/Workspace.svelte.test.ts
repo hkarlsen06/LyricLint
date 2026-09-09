@@ -1090,7 +1090,7 @@ describe('Workspace and toolbar', () => {
 
 		const add = screen.getByRole('button', { name: 'Add audio source' });
 		await userEvent.click(add);
-		await userEvent.click(screen.getByRole('button', { name: 'Choose a file…' }));
+		await userEvent.click(await screen.findByRole('button', { name: 'Choose a file…' }));
 		await waitFor(() => {
 			expect(add.isConnected).toBe(false);
 			expect(document.activeElement).toBe(

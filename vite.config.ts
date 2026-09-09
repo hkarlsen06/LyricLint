@@ -226,9 +226,10 @@ export default defineConfig(({ mode }) => ({
 	// unset, and its dynamic twin reads `process` at module scope, which the
 	// browser test environment does not have.
 	envPrefix: ['VITE_', 'PUBLIC_'],
-	// CodeMirror's search panel is opened lazily; pre-bundling prevents its first
-	// use in development from invalidating the module graph under a live editor.
-	optimizeDeps: { include: ['@codemirror/search'] },
+	// These dependencies first appear in lazy surfaces. Pre-bundle them so opening
+	// search or the drafts menu cannot invalidate a live editor or browser test's
+	// Svelte runtime. See docs/ci.md.
+	optimizeDeps: { include: ['@codemirror/search', 'lucide-svelte/icons/download'] },
 	plugins: [
 		migrationRedirects(),
 		editorPreloadPlugin(),
