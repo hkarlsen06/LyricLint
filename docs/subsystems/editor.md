@@ -8,6 +8,11 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 
 ## The rules
 
+- The workbench preloads the editor's dynamic entry and static dependencies without
+  evaluating them with the shell. View creation stays inside the browser mount lifetime;
+  either async startup yield may be cancelled. A failed import or construction must replace
+  the pending screen with a visible, announced refusal, never a permanently blocked editor.
+
 - A document-changing snapshot carries the actual serializable edits and their preceding
   revision in `documentChange`. The update bridge composes withheld IME transactions and
   publishes their net mapping once with the committed snapshot. Selection-only snapshots
@@ -85,6 +90,49 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `audio-drop.svelte.test.ts` asserts both halves.
 
 ## Decision record
+
+### Overlay code follows the first overlay request
+
+`EditorPane` loads the three overlay implementations together on first use. Their existing
+props and render branches remain in the pane's snippet, so loading introduces no second
+owner for assignment, section choices or diagnostic actions. The generic loader lives in
+`interaction/LazyContent.svelte`, shared with shell tools without an editor-to-shell import.
+
+An eager pending surface owns Cancel, Escape, outside presses and conditional keyboard focus
+from the moment the request appears. Hovered diagnostics use the same pointer-leave attachment
+before and after loading. Closing the overlay hides pending UI immediately; a later module
+arrival renders only the current overlay session, so a dismissed request cannot reopen.
+Focus acquired by keyboard traversal in the pending surface transfers to the loaded controls.
+Failed loads announce a refusal and offer Retry alongside Cancel. The loaded implementation
+stays cached for subsequent overlays, while each overlay's local state still follows its
+existing mount lifetime. Tests cover pending focus/dismissal, late-load cancellation and the
+unchanged editor and diagnostic interactions.
+
+### Fetch the editor early and give startup work separate tasks
+
+The workbench's selective build preloads fetch `create-editor` and its static dependencies
+with the document, while `EditorPane` evaluates that dynamic import after shell mounting.
+A second zero-delay yield separates module evaluation from view construction. These are
+browser task boundaries, not minimum loading durations; readiness follows the real view
+and its initial snapshot. Options are read after both yields and cancellation is checked
+before construction, so a retired pane creates no editor. Landing demos retain their lazy
+pane boundary and do not preload the full editor with the landing page.
+
+Import and construction errors flow through `onerror`. The workbench gives that error
+priority over its already-recovered controller and replaces the pending screen with an
+alert and Reload action. Standalone panes without an error handler show their own alert.
+Failed startup publishes no usable handle; local draft recovery is not discarded or reset.
+
+### Assemble the initial view before attaching it
+
+Initial context effects are applied to `EditorState` before constructing the view, so the
+constructor builds the correct decorations once. The view's DOM is assembled disconnected,
+then appended to the host synchronously. This avoids repeated DOM updates and connected
+layout reads while startup is still building the editor. The host's document or shadow root
+is passed explicitly so styles and events retain the correct root. CodeMirror schedules
+its first geometry measurement for the next frame; our plugins likewise defer geometry
+reads until after attachment. Caret, placeholder and pane browser suites exercise geometry
+and interaction, and startup failure tests cover callback and standalone refusal paths.
 
 ### A new finding does not change the syntax or the performers
 

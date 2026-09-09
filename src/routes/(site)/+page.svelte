@@ -90,6 +90,14 @@
 				// in which none of it explains anything.
 				void posterReady().then(() => {
 					if (!shouldPlay || !video.isConnected) return;
+					// Pick one hero rendition on first playback. A <source> fallback list
+					// can download the desktop movie after a failed phone request.
+					if (!video.hasAttribute('src') && video.dataset.src) {
+						video.src =
+							video.dataset.mobileSrc && window.matchMedia('(max-width: 30rem)').matches
+								? video.dataset.mobileSrc
+								: video.dataset.src;
+					}
 					video.currentTime = 0;
 					// A browser may refuse to start even a muted video, and the refusal is
 					// nothing to act on: what is behind it is frame one, which is a
@@ -351,6 +359,8 @@ You said we'd drive until the radio gave out (yeah)`;
 					     `<video>`. -->
 						<video
 							{@attach autoplayInView}
+							data-src="{resolve('/')}workbench.webm"
+							data-mobile-src="{resolve('/')}workbench-mobile.webm"
 							data-playback-rate={heroPlaybackRate}
 							width={shotDimensions['workbench.webm'].width}
 							height={shotDimensions['workbench.webm'].height}
@@ -359,14 +369,7 @@ You said we'd drive until the radio gave out (yeah)`;
 							muted
 							playsinline
 							preload="none"
-						>
-							<source
-								src="{resolve('/')}workbench-mobile.webm"
-								type="video/webm"
-								media="(max-width: 30rem)"
-							/>
-							<source src="{resolve('/')}workbench.webm" type="video/webm" />
-						</video>
+						></video>
 					</div>
 					<DemoCaptions cues={heroCaptions} headerCenter={28 / 1280} />
 				</div>

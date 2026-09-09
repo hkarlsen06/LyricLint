@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { runRules as computeDiagnostics } from '$lib/rules/engine.js';
 	import { diagnosticIgnoreKey, matchIgnoredDiagnostics } from '$lib/diagnostics/ignore.js';
 	import { diagnosticKey } from '$lib/diagnostics/order.js';
 	import ControlTooltip from '../primitives/ControlTooltip.svelte';
@@ -59,7 +60,6 @@
 	} from '$lib/rules/index.js';
 	import {
 		buildRuleContext,
-		computeDiagnostics,
 		filterForEditorState,
 		resolveVoiceGroupRanges
 	} from '../state/wiring.js';

@@ -1,6 +1,6 @@
 # Drafts: the menu, the switcher, and what persistence owes a record
 
-Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/primitives/RemoveButton.svelte`,
+Touches: `src/lib/ui/layout/DraftMenu.svelte`, `src/lib/ui/layout/DraftMenuBody.svelte`, `src/lib/ui/primitives/RemoveButton.svelte`,
 `src/lib/ui/styles/rows.css`, `src/lib/ui/drafts/draft-date.ts`,
 `src/lib/ui/state/draft-store.svelte.ts`, `src/lib/persistence/`
 
@@ -237,3 +237,35 @@ attachment does. Clearing the link removes that exception when no lyrics or audi
 `core/genius-url.ts` owns validation for the field, external link, and imported files: HTTP or HTTPS,
 `genius.com` or `www.genius.com`, a page path, and no embedded credentials. Imported invalid links
 are refused before workspace state changes; older files with no link still load.
+
+
+### The drafts popover initializes on first opening
+
+The native summary remains available immediately, while the saved rows, search, and import
+control initialize on the first opening. Building every saved draft row inside closed
+`details` extended editor startup in proportion to the library. Once initialized, the
+popover and its file input stay mounted across closes so a pending picker or import keeps
+its owner. Closing still clears search and pending rename/delete actions. The existing
+DraftMenu interaction suite checks the initial absence and retained input alongside search,
+imports, and row actions.
+
+
+### Shared Scribe files load their codec when requested
+
+The workbench imports the Scribe parser and serializer only inside the existing import and
+export actions. Export captures the draft and its project fields before waiting for the codec;
+subsequent edits cannot change the requested export. Failed loading, serialization, or download
+reports a refusal by toast and announcement, without announcing an export. Import checks the
+filename and byte ceiling before loading or reading the file, then uses the unchanged parser
+validation before writing any draft state. The lightweight format contract owns the byte ceiling
+and error class; the codec reexports both for compatibility.
+
+
+### Draft rows load behind the native menu
+
+The native details, summary, heading, import button, and file input remain in `DraftMenu`.
+Opening loads `DraftMenuBody` through the shared loading/refusal-and-Retry surface, so the
+search, previews, row commands, and confirmation implementation do not run during startup.
+The body stays mounted after first use and receives the current open state; closing clears
+search and armed row actions while preserving the import input and any pending import.
+Escape still returns focus to the summary, and outside presses retain their own focus target.

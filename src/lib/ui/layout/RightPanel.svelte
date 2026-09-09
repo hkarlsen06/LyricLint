@@ -11,18 +11,16 @@
 	import type { Diagnostic } from '$lib/core/types.js';
 	import { assistantAvailable } from '$lib/assistant/api.js';
 	import type { AssistantState } from '$lib/assistant/assistant.svelte.js';
-	import AssistantPanel from '../assistant/AssistantPanel.svelte';
+	import LazyPanel from '$lib/interaction/LazyContent.svelte';
 	import LinterPanel from '../linter/LinterPanel.svelte';
-	import LinkingPanel from '../linking/LinkingPanel.svelte';
 	import IgnoredRules from '../linter/IgnoredRules.svelte';
 	import MediaVideo from '../media/MediaVideo.svelte';
-	import PerformersPanel from '../performers/PerformersPanel.svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
-	import SongPanel from '../tools/SongPanel.svelte';
-	import PreferencesPanel from '../tools/PreferencesPanel.svelte';
 
 	let {
 		controller,
+		nativeRulesStatus = 'ready',
+		onRetryNativeRules,
 		assistant,
 		collapsed = false,
 		mobile = false,
@@ -34,6 +32,8 @@
 		renderVideo = true
 	}: {
 		controller: WorkbenchController;
+		nativeRulesStatus?: 'pending' | 'failed' | 'ready';
+		onRetryNativeRules?: () => void;
 		assistant?: AssistantState;
 		collapsed?: boolean;
 		mobile?: boolean;
@@ -173,6 +173,8 @@
 				<Tabs.Content value="linter" class="right-panel__pane">
 					{#if activatedPanels.has('linter')}
 						<LinterPanel
+							{nativeRulesStatus}
+							{onRetryNativeRules}
 							{controller}
 							active={!collapsed}
 							{mobile}
@@ -184,29 +186,45 @@
 				</Tabs.Content>
 				<Tabs.Content value="performers" class="right-panel__pane">
 					{#if activatedPanels.has('performers')}
-						<PerformersPanel
-							{controller}
-							active={!collapsed && controller.activeTab === 'performers'}
+						<LazyPanel
+							name="Performers"
+							load={() => import('../performers/PerformersPanel.svelte')}
+							panelProps={{
+								controller,
+								active: !collapsed && controller.activeTab === 'performers'
+							}}
 						/>
 					{/if}
 				</Tabs.Content>
 				<Tabs.Content value="linking" class="right-panel__pane">
 					{#if activatedPanels.has('linking')}
-						<LinkingPanel
-							{controller}
-							{onShowEditor}
-							active={!collapsed && controller.activeTab === 'linking'}
+						<LazyPanel
+							name="Linking"
+							load={() => import('../linking/LinkingPanel.svelte')}
+							panelProps={{
+								controller,
+								onShowEditor,
+								active: !collapsed && controller.activeTab === 'linking'
+							}}
 						/>
 					{/if}
 				</Tabs.Content>
 				<Tabs.Content value="song" class="right-panel__pane">
 					{#if activatedPanels.has('song')}
-						<SongPanel {controller} active={!collapsed && controller.activeTab === 'song'} />
+						<LazyPanel
+							name="Song"
+							load={() => import('../tools/SongPanel.svelte')}
+							panelProps={{ controller, active: !collapsed && controller.activeTab === 'song' }}
+						/>
 					{/if}
 				</Tabs.Content>
 				<Tabs.Content value="preferences" class="right-panel__pane">
 					{#if activatedPanels.has('preferences')}
-						<PreferencesPanel {controller} />
+						<LazyPanel
+							name="Preferences"
+							load={() => import('../tools/PreferencesPanel.svelte')}
+							panelProps={{ controller }}
+						/>
 					{/if}
 				</Tabs.Content>
 				<!-- The assistant is the one pane that fits rather than grows: its
@@ -216,7 +234,11 @@
 				{#if assistantEnabled && assistant}
 					<Tabs.Content value="assistant" class="right-panel__pane right-panel__pane--fit">
 						{#if activatedPanels.has('assistant')}
-							<AssistantPanel {assistant} />
+							<LazyPanel
+								name="Assistant"
+								load={() => import('../assistant/AssistantPanel.svelte')}
+								panelProps={{ assistant }}
+							/>
 						{/if}
 					</Tabs.Content>
 				{/if}

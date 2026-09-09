@@ -97,21 +97,21 @@ describe('RightPanel', () => {
 		expect(shown()[0]!.hasAttribute('hidden')).toBe(false);
 		await fireEvent.click(screen.getByRole('tab', { name: 'Linking' }));
 		await waitFor(() => expect(shown()).toHaveLength(1));
-		expect(shown()[0]!.textContent).toContain('Link repeated sections');
+		await waitFor(() => expect(shown()[0]!.textContent).toContain('Link repeated sections'));
 
 		// The catch-all tab split: `Local data` is on Preferences now, `Export .txt`
 		// on Song.
 		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
 		await waitFor(() => expect(shown()).toHaveLength(1));
-		expect(shown()[0]!.textContent).toContain('Export .txt');
+		await waitFor(() => expect(shown()[0]!.textContent).toContain('Export .txt'));
 
 		await fireEvent.click(screen.getByRole('tab', { name: 'Preferences' }));
 		await waitFor(() => expect(shown()).toHaveLength(1));
-		expect(shown()[0]!.textContent).toContain('Local data');
+		await waitFor(() => expect(shown()[0]!.textContent).toContain('Local data'));
 
 		await fireEvent.click(screen.getByRole('tab', { name: 'Assistant' }));
 		await waitFor(() => expect(shown()).toHaveLength(1));
-		expect(shown()[0]!.textContent).toContain('What would you like to check?');
+		await waitFor(() => expect(shown()[0]!.textContent).toContain('What would you like to check?'));
 	});
 
 	test('initializes a tool on first use and retains unfinished input across tabs and expansion', async () => {
@@ -123,7 +123,7 @@ describe('RightPanel', () => {
 		expect(document.querySelector('.performers-panel')).toBeNull();
 		expect(assistant.ensureLoaded).not.toHaveBeenCalled();
 		await fireEvent.click(screen.getByRole('tab', { name: 'Assistant' }));
-		const input = screen.getByRole('textbox') as HTMLTextAreaElement;
+		const input = (await screen.findByRole('textbox')) as HTMLTextAreaElement;
 		await fireEvent.input(input, { target: { value: 'An unfinished question' } });
 		expect(assistant.ensureLoaded).toHaveBeenCalledOnce();
 		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
@@ -160,6 +160,7 @@ describe('RightPanel', () => {
 		panel.style.height = '32rem';
 
 		const body = document.querySelector<HTMLElement>('.right-panel__body')!;
+		await waitFor(() => expect(document.querySelector('.assistant-transcript')).not.toBeNull());
 		const transcript = document.querySelector<HTMLElement>('.assistant-transcript')!;
 		const tray = document.querySelector<HTMLElement>('.assistant-panel__controls')!;
 		const composer = document.querySelector<HTMLElement>('.assistant-composer')!;
@@ -192,6 +193,9 @@ describe('RightPanel', () => {
 		const panel = document.querySelector<HTMLElement>('.right-panel')!;
 		panel.style.height = '40rem';
 
+		await waitFor(() =>
+			expect(document.querySelector('.assistant-composer__field')).not.toBeNull()
+		);
 		const field = document.querySelector<HTMLElement>('.assistant-composer__field')!;
 		const preferences = screen.getByRole('tab', { name: 'Preferences' });
 		await waitFor(() => expect(field.getBoundingClientRect().height).toBeGreaterThan(0));
@@ -224,7 +228,7 @@ describe('RightPanel', () => {
 		const performersTab = screen.getByRole('tab', { name: 'Performers' });
 		await fireEvent.click(performersTab);
 		expect(controller.activeTab).toBe('performers');
-		expect(screen.getByText('Add performer')).toBeTruthy();
+		expect(await screen.findByText('Add performer')).toBeTruthy();
 
 		const linterTab = screen.getByRole('tab', { name: /Review/ });
 		linterTab.focus();

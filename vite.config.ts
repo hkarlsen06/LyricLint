@@ -5,6 +5,7 @@ import type { Plugin } from 'vite';
 import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { editorPreloadPlugin, withEditorPreloads } from './src/lib/build/editor-preloads.js';
 import { legacyReferenceDestination } from './src/lib/reference/legacy-redirects.js';
 import { legacyWorkbenchDestination } from './src/lib/workbench-redirect.js';
 
@@ -230,6 +231,7 @@ export default defineConfig(({ mode }) => ({
 	optimizeDeps: { include: ['@codemirror/search'] },
 	plugins: [
 		migrationRedirects(),
+		editorPreloadPlugin(),
 		sveltekit({
 			// Fixture credentials and generated output stay outside deployment builds.
 			...(mode === 'capture' ? { outDir: '.svelte-kit-capture' } : undefined),
@@ -241,10 +243,16 @@ export default defineConfig(({ mode }) => ({
 			// Cloudflare Pages treats a static site without a top-level 404 page
 			// as an SPA and rewrites unknown paths to index.html. A missing hashed
 			// asset must remain a 404 rather than becoming 200 text/html.
-			adapter: adapter({
-				fallback: '404.html',
-				...(mode === 'capture' ? { pages: 'build-capture', assets: 'build-capture' } : undefined)
-			}),
+			adapter: withEditorPreloads(
+				adapter({
+					fallback: '404.html',
+					...(mode === 'capture' ? { pages: 'build-capture', assets: 'build-capture' } : undefined)
+				})
+			),
+			// Deliver the route's small stylesheets with its prerendered HTML, avoiding
+			// blocking CSS round trips on a cold mobile load. Kit preserves cascade
+			// order and retains external assets for client-side navigation.
+			inlineStyleThreshold: 50_000,
 			/**
 			 * The Content-Security-Policy, carried by SvelteKit rather than by
 			 * `static/_headers`.
@@ -274,10 +282,10 @@ export default defineConfig(({ mode }) => ({
 			 * directive that has to be a header goes there, beside the
 			 * `X-Frame-Options: DENY` it restates in the modern spelling.
 			 *
-			 * Every third-party origin below is a script this application injects on a
-			 * press, and nothing is contacted before one — see the media sources and
-			 * the assistant. A wildcard appears only where a vendor's own player
-			 * spreads across subdomains we do not choose.
+			 * The media sources and assistant contact third-party origins on a press.
+			 * Cloudflare also injects its Web Analytics beacon at the edge on page load.
+			 * A wildcard appears only where a vendor's own player spreads across
+			 * subdomains we do not choose.
 			 */
 			csp: {
 				mode: 'hash',
@@ -291,7 +299,7 @@ export default defineConfig(({ mode }) => ({
 					// nothing in the bundle calls `eval` or `new Function`, and the
 					// grammar checker is the only WebAssembly here.
 					//
-					// The four hosts are the four scripts injected by a press:
+					// The first four hosts are scripts injected by a press:
 					// Turnstile's challenge, YouTube's IFrame API, Spotify's Web
 					// Playback SDK, and Apple's MusicKit. SvelteKit appends the
 					// `sha256-` for its own inline hydration script.
@@ -301,7 +309,9 @@ export default defineConfig(({ mode }) => ({
 						'https://challenges.cloudflare.com',
 						'https://www.youtube.com',
 						'https://sdk.scdn.co',
-						'https://js-cdn.music.apple.com'
+						'https://js-cdn.music.apple.com',
+						// Cloudflare Web Analytics, injected at the edge.
+						'https://static.cloudflareinsights.com'
 					],
 
 					// Harper's `WorkerLinter` builds its worker from a `blob:` URL — the
@@ -350,6 +360,8 @@ export default defineConfig(({ mode }) => ({
 					'connect-src': [
 						// The wasm asset, `_app/version.json`, and the service worker.
 						'self',
+						// Cloudflare Web Analytics beacon reports.
+						'https://cloudflareinsights.com',
 						// The rules assistant — a streaming NDJSON POST, not EventSource.
 						'https://api.lyriclint.com',
 						// Spotify: the PKCE token exchange, then the Web API. The

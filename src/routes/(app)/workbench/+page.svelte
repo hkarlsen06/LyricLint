@@ -24,7 +24,9 @@
 		type LyricLintDatabase,
 		type WorkspaceBackupController
 	} from '$lib/persistence/index.js';
-	import { currentRuleSet, sourceRegistry } from '$lib/rules/index.js';
+	import { siteUrl } from '$lib/seo.js';
+	import { currentRuleSet } from '$lib/rules/data/rule-set.js';
+	import { sourceRegistry } from '$lib/rules/data/sources.js';
 	import DocumentTitle from '$lib/ui/layout/DocumentTitle.svelte';
 	import TabBusyNotice from '$lib/ui/layout/TabBusyNotice.svelte';
 	import Workspace from '$lib/ui/layout/Workspace.svelte';
@@ -44,8 +46,8 @@
 	// local storage and is not going to until that tab goes away. It outranks the
 	// boot screen, which would otherwise cover the notice for the whole wait.
 	let tabBusy = $state(false);
-	// The boot screen retires itself once the mark has landed and the workbench is
-	// ready: it is what decides when the workspace is revealed, not this page.
+	// Recovery and the actual editor mount own readiness. A brand animation must
+	// never hold back a document that is already ready to edit.
 	let revealed = $state(false);
 	let database: LyricLintDatabase | undefined;
 	let backup: WorkspaceBackupController | undefined;
@@ -251,43 +253,47 @@
 <DocumentTitle title={controller?.title} />
 
 <svelte:head>
-	<meta name="robots" content="noindex, follow" />
-	<!-- Noindexed, so no search snippet reads this — but link previews and
-	     auditors do, and without it the workbench is the one page saying nothing
-	     about itself. The title stays DocumentTitle's: the tab is named after the
-	     transcription, and that is the design rather than a gap. -->
+	<link rel="canonical" href={siteUrl('/workbench/')} />
+	<!-- Drafts stay in browser storage; search engines see the generic workbench.
+	     DocumentTitle keeps the active transcription visible in the browser tab. -->
 	<meta
 		name="description"
 		content="Paste a Genius transcription, review every finding against the guideline that backs it, and copy clean markup. Everything stays in your browser."
 	/>
 </svelte:head>
 
-<!-- The workspace is mounted as soon as it exists and the boot screen covers it
-     until the lockup has landed, so the reveal is a screen coming off something
-     already drawn rather than a workbench assembling itself in front of the
-     user. A boot failure is the one thing that outranks the sequence. -->
-{#if controller}
-	<Workspace {controller} editorComponent={EditorPane} brandRevealed={revealed} />
-{:else if bootError}
-	<p class="boot-message" role="alert">{bootError}</p>
+<!-- Keep the recovered workspace covered only until its real editor has mounted. -->
+{#if bootError}
+	<div class="boot-message">
+		<p role="alert">{bootError}</p>
+		<button class="button" type="button" onclick={() => location.reload()}>Reload</button>
+	</div>
+{:else if controller}
+	<Workspace
+		{controller}
+		editorComponent={EditorPane}
+		brandRevealed={revealed}
+		onerror={(error) => {
+			bootError = 'The editor could not start. Reload to try again.';
+			console.error('LyricLint failed to start the editor.', error);
+		}}
+		onready={() => {
+			revealed = true;
+		}}
+	/>
 {:else if tabBusy}
 	<TabBusyNotice />
 {/if}
 
-<!-- Reveal only after boot has succeeded and the draft lock is available. -->
+<!-- The brand reports an actual wait; it never adds a minimum loading duration. -->
 {#if !revealed && !bootError && !tabBusy}
-	<BootScreen
-		ready={Boolean(controller)}
-		ondone={() => {
-			revealed = true;
-		}}
-	/>
+	<BootScreen />
 {/if}
 
 <style>
 	.boot-message {
 		margin: var(--space-8) auto;
-		max-width: 32rem;
+		max-width: var(--measure-prose);
 		text-align: center;
 		color: var(--color-text-muted);
 		font: inherit;

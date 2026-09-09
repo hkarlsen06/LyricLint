@@ -103,6 +103,15 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 
 ## Decision record
 
+### The public workbench entry can appear in search
+
+PageSpeed flagged `/workbench/` because its `noindex, follow` directive excluded the app
+from search. At the user's request, the public entry now allows indexing, declares its own
+canonical URL (without panel/query state), and appears in the sitemap. The earlier decision
+to exclude the workspace from the sitemap is superseded. Drafts remain browser-local: allowing
+indexing of the generic app entry does not publish stored transcriptions. The existing
+marketing-navigation and sitemap e2e checks pin this policy.
+
 ### Hidden tools keep their state without doing their visible work
 
 Bits UI hides inactive tab contents but still renders their child snippets. Mounting every tool
@@ -117,15 +126,23 @@ presentation work without pausing editing, linting, autosave, audio, or assistan
 Review releases its preview while hidden, as before; its rows and a tool's unfinished inputs
 remain mounted. This also avoids eager assistant transcript and reference-data initialization.
 
-### Boot assertions share the same real animation
+Tool views other than Review also download their component code on first selection. Selection
+itself remains synchronous; a loading message, or an announced refusal with Retry, occupies the
+selected pane while its code arrives. Once loaded, the same component instance remains mounted
+across tab changes. `LazyPanel.svelte.test.ts` covers failed downloads and retry; the panel tests
+continue to cover retained inputs. The eager Review view remains ready with the document.
 
-`BootScreen.svelte.test.ts` records the ready-workspace sequence once, from the initial word
-through the pull, falling brackets, and canvas reveal. The same three-second frame history
-checks the absent waveform, bracket fade, reveal timing and monotonic radius, and that the
-workspace stays covered during the pull. These assertions previously replayed the same sequence
-four times. Mid-fall readiness, a delayed workspace, the mark's stopped landing, and reduced
-motion remain separate scenarios. Keep real CSS animations and frame sampling: fake timers or
-final-style assertions alone miss the visual ordering regressions these tests cover.
+### Startup ends when the editor is ready
+
+The boot screen reports pending work only. Its word, pull, landing and waiting waveform
+may play while draft recovery and editor creation run, but they no longer hold a ready
+workspace behind a minimum animation duration or a canvas reveal. The parent removes the
+screen as soon as the real editor handle is ready. No exit timer, fade or masking layer
+remains. This supersedes the earlier ready-workspace animation gate.
+
+`BootScreen.svelte.test.ts` samples the real pending animation and retains coverage of its
+announcement, reduced-motion waveform and teardown. Parent readiness tests cover dismissal;
+the indicator has no readiness prop or completion callback of its own.
 
 ### Focus rings stay inside controls
 
@@ -150,7 +167,7 @@ snapshot all use the canonical path.
 Published `/lint` and `/lint/` links remain valid through permanent redirects in `static/_redirects`,
 mirrored by Vite for local development and preview and by the legacy route for client navigation.
 The redirect preserves query parameters and fragments so a bookmarked panel or in-progress OAuth
-return lands in the same state. The sitemap contains neither the canonical private workspace nor
+return lands in the same state. The sitemap includes the canonical workbench and excludes
 its legacy address. Pins: `workbench-redirect.test.ts` and `e2e/lyriclint.spec.ts`.
 
 ### Linking opens an overview before a comparison
@@ -1024,3 +1041,33 @@ change and clearing it removes the link. Only validated Genius HTTP(S) page link
 opened; invalid edits keep the previous saved value and report the refusal. The action row
 reserves its height so adding or clearing the link leaves Document in place. Draft switching
 resets the field, including any invalid edit. The link travels with Scribe files and backups.
+
+### Closed language dialogs do not build their option list
+
+The language picker keeps its native dialog and trigger mounted, but builds its search and
+language rows only while open. The closed picker previously mounted dozens of button rows
+at workbench startup, including behind the phone's closed Document menu. Opening still clears
+the query and focuses search; the native close event retires the body after selection, Close,
+Escape, or a backdrop press. The results status mounts empty before search changes announce
+counts. `LanguagePicker.svelte.test.ts` pins the absent initial rows, reopening, and focus.
+
+
+### Panel code follows the surface that uses it
+
+`Workspace` loads `RightPanel` through the same `LazyContent` boundary as individual tools.
+Desktop begins loading it immediately; phone Write waits for Review or Tools. A pending
+load or refusal occupies one `aside` in the existing panel grid region, replaced by the
+real panel once loaded. There are no nested panels. `LazyContent` shares the announced
+loading/refusal text and Retry action across both uses, while its optional pending-surface
+snippet supplies only the outer layout. Loaded panels remain mounted across hiding and
+resizing, preserving tool input, Review state, and focus behavior. Workspace tests wait
+for real controls before asserting their geometry and retained instances.
+
+### Comparison loads inside its native dialog
+
+The Compare launcher keeps its native dialog, title and Close control ready on a press.
+Its comparison body and document-diff code load only while open, through `LazyContent`'s
+shared loading, refusal and Retry states inside that same surface. Closing removes the
+body, so each open resets pasted text and the replacement step while retaining the saved
+baseline. The loaded ask focuses its paste field; Close and backdrop presses return to
+the original trigger, and row selection keeps its existing next-frame editor focus handoff.

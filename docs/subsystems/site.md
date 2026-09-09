@@ -18,6 +18,8 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   the site layout loads site/reference styles, and only the homepage loads landing styles.
   Keep shared wordmark, diagnostic, overlay, assistant, touch-target and motion rules available
   without opening the workbench. Route CSS loads synchronously before its surface renders.
+  Stylesheets smaller than 50,000 UTF-16 code units are embedded by SvelteKit in the
+  prerendered HTML; larger sheets retain normal blocking links.
 - The landing page is a composition read once: claim and proof in one screen, `--lp-display`
   is its own marketing ramp, section headings stand alone (no eyebrows), runs of facts are
   one bordered object with hairlines inside, the measure goes on the heading itself. The
@@ -40,8 +42,9 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
 - Product loops use an overlaid image until the video has a decoded frame. The hero
   image shows the same song populated in Review, deliberately distinct from the video
   opening on a blank draft. It shares the video's dimensions, has responsive candidates and
-  high fetch priority; its loop selects a 1280-pixel
-  variant below 30rem. Detail images also have responsive width candidates; they and the Discord
+  high fetch priority; its loop selects a single source on first playback, using the 1280-pixel
+  variant below 30rem. Failed playback keeps the still instead of trying the other rendition.
+  Detail images also have responsive width candidates; they and the Discord
   iframe are lazy. Videos have no native poster (which would duplicate the responsive
   download) and use `preload="none"`. Explicit video dimensions reserve the frame;
   the generators refresh `shot-dimensions.json` from the encoded files via ffprobe, and the
@@ -76,6 +79,63 @@ Touches: `src/routes/(site)/+page.svelte`, `src/lib/ui/styles/landing.css`,
   Safari verification requires clearing website data; normal reloads retain cached icons.
 
 ## Decision record
+
+### Variable fonts retain the weights the design system uses
+
+The shipped IBM Plex Sans and Karla files retain the continuous weight axis from 400 upward.
+The token scale starts at 400; thinner masters downloaded on every cold load but never rendered.
+`python3 scripts/optimize-fonts.py` regenerates the six variable files from integrity-checked
+Fontsource 5.3.0 originals using fontTools 4.63.0. It verifies unchanged character coverage and
+identical glyph outlines and advance widths at every supported token weight, including 550,
+650, and Karla's 750. No characters, italic faces, font-display behavior, or used weights are
+removed. IBM Plex Mono remains unchanged. Regenerate and extend this verification before
+introducing a weight below 400. The original licenses remain with the shipped files.
+
+### Preload the editor without evaluating it with the shell
+
+The workbench preloads its dynamic `create-editor` entry and that entry's static imports,
+while the pane evaluates the module separately from shell startup. The Vite build helper
+reads the emitted chunk graph through `generateBundle`; it never follows dynamic imports
+into optional tools. Its owned metadata passes between the client build and adapter through
+the public output directory APIs and is removed before assets are copied.
+
+The adapter wrapper adds tags only when writing the prerendered `/workbench/` document,
+before optional compression. The existing adapter still chooses the output directory,
+including capture builds. Public URLs respect Kit's base or asset origin, and existing
+preloads are retained without duplicates. No framework manifest path or hashed filename
+is embedded in source. `editor-preloads.test.ts` pins the graph and URL boundaries.
+
+### Cold navigations receive their styles with the document
+
+The September 9 workbench PageSpeed report flagged render-blocking stylesheets. Kit's
+`inlineStyleThreshold: 50_000` embeds the four initial sheets in their existing cascade order,
+removing their network round trips before first paint. Route ownership, selectors, font display,
+and the boot sequence stay the same. Kit keeps external assets for client-side navigation and
+disabled links so Vite does not reload styles already embedded in the document. The CSP already
+permits inline styles for CodeMirror; no policy relaxation is needed.
+
+This trades a larger HTML response and less cross-document CSS cache reuse for earlier cold
+rendering. It does not eliminate editor startup JavaScript or the deliberate boot animation.
+Verify production rendering and site-to-workbench navigation, since dev does not use inlining.
+
+One local before/after run of `scripts/performance/browser-vitals.mjs`, limited to `/workbench/`
+against preserved gzip production builds, measured mobile FCP 872→352 ms and LCP 4292→3972 ms;
+desktop FCP 276→108 ms and LCP 972→872 ms. Both interaction sequences passed without page errors
+or horizontal overflow. Lighthouse 12.8.2 removed the blocking-CSS finding, but its mobile
+performance score remained 71; the separate indexing correction raised SEO from 63 to 100.
+These single-run lab observations are not field measurements or a promised PageSpeed score.
+
+### The hero selects one video instead of a fallback chain
+
+A mobile audit reported both hero renditions: about 10.4 MB of desktop footage on top of the
+2.8 MB phone file. Fresh local and live audits did not reproduce that exact run, but deliberately
+failing the mobile request reproduced the native `<source>` chain advancing to the desktop file.
+Both renditions use the same codec, so that fallback adds a large transfer without broadening
+browser support. The visibility attachment now assigns one `src` when playback first starts,
+after the poster decodes. It uses the phone rendition below 30rem and keeps that choice through
+resizes and viewport restarts. A refused download leaves the still visible. Reduced motion and
+no JavaScript leave the hero without a video source. The network regression aborts mobile video
+loading and asserts that the desktop file is never requested; geometry tests cover both choices.
 
 ### September image and video transfer reductions
 
@@ -373,8 +433,8 @@ keeps its explicit dimensions, accessible description, and playback behavior. Th
 video share the same 2560×1640 ratio. The generated 640/1280/1920-pixel WebPs come from the same
 lossless PNG in `render-workbench-shot.mjs`, with the original retained for large displays.
 `render-mobile-loop.mjs` derives a 1280×820 VP9 copy from the generated hero loop and also runs
-when `render-motion.mjs --hero` refreshes that loop. A media-qualified source selects it below
-30rem; the original remains the fallback and desktop source. The playback sequence is unchanged.
+when `render-motion.mjs --hero` refreshes that loop. The visibility attachment selects it below
+30rem; the original is selected for desktop. The playback sequence is unchanged.
 The still, motion, and mobile-loop generators call `write-shot-dimensions.mjs` after encoding.
 It probes the shipped WebP/WebM files and writes the checked-in `shot-dimensions.json`; the page
 imports it for intrinsic sizes and srcset widths. Commit this manifest with regenerated assets.

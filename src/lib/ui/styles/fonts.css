@@ -3,10 +3,12 @@
  * faces DESIGN.md names — IBM Plex Sans for UI, IBM Plex Mono for source, and
  * Karla for the lyric words — ship with the app instead of being requested
  * from a CDN or hoped for on the user's machine. The binaries in /static/fonts
- * are copied verbatim from @fontsource-variable/ibm-plex-sans 5.3.0,
+ * originate from @fontsource-variable/ibm-plex-sans 5.3.0,
  * @fontsource/ibm-plex-mono 5.3.0, and @fontsource-variable/karla 5.3.0; the
  * packages are not runtime inputs after vendoring (licenses in
- * /static/fonts/OFL.txt).
+ * /static/fonts/OFL.txt). scripts/optimize-fonts.py removes variable weights
+ * below 400, which the token scale does not use, while verifying every glyph
+ * and the outlines/advance widths at each supported token weight.
  *
  * font-display: swap on every face, deliberately. This is a text editor: a
  * flash of fallback-styled text is a cosmetic blip, but a flash of *invisible*
@@ -27,8 +29,8 @@
  */
 
 /*
- * UI face: one variable file per subset carries the whole weight axis
- * (100-700), so the token scale's 550/650 render as true intermediate
+ * UI face: one variable file per subset carries the used weight axis
+ * (400-700), so the token scale's 550/650 render as true intermediate
  * instances instead of snapping to a neighbouring static weight. The axis
  * tops out at 700 — IBM Plex has no 750 — so --font-weight-heavy clamps to
  * 700 and renders like bold. That is a limit of the typeface itself, not of
@@ -38,7 +40,7 @@
 	font-family: 'IBM Plex Sans Variable';
 	font-style: normal;
 	font-display: swap;
-	font-weight: 100 700;
+	font-weight: 400 700;
 	src: url('/fonts/ibm-plex-sans-latin-wght-normal.woff2') format('woff2-variations');
 	unicode-range:
 		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
@@ -48,7 +50,7 @@
 	font-family: 'IBM Plex Sans Variable';
 	font-style: normal;
 	font-display: swap;
-	font-weight: 100 700;
+	font-weight: 400 700;
 	src: url('/fonts/ibm-plex-sans-latin-ext-wght-normal.woff2') format('woff2-variations');
 	unicode-range:
 		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
@@ -64,14 +66,14 @@
  * for one hard requirement: the performer style slots render lyric words in
  * true italic (slot 2) and semibold italic (slot 4), and Karla has a real
  * italic axis where Space Grotesk would be synthesized oblique. One variable
- * file per subset and style carries the whole 200-800 weight axis, so the
+ * file per subset and style carries the 400-800 weight axis, so the
  * token scale's 550/650 render as true instances.
  */
 @font-face {
 	font-family: 'Karla Variable';
 	font-style: normal;
 	font-display: swap;
-	font-weight: 200 800;
+	font-weight: 400 800;
 	src: url('/fonts/karla-latin-wght-normal.woff2') format('woff2-variations');
 	unicode-range:
 		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
@@ -81,7 +83,7 @@
 	font-family: 'Karla Variable';
 	font-style: italic;
 	font-display: swap;
-	font-weight: 200 800;
+	font-weight: 400 800;
 	src: url('/fonts/karla-latin-wght-italic.woff2') format('woff2-variations');
 	unicode-range:
 		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
@@ -91,7 +93,7 @@
 	font-family: 'Karla Variable';
 	font-style: normal;
 	font-display: swap;
-	font-weight: 200 800;
+	font-weight: 400 800;
 	src: url('/fonts/karla-latin-ext-wght-normal.woff2') format('woff2-variations');
 	unicode-range:
 		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
@@ -102,7 +104,7 @@
 	font-family: 'Karla Variable';
 	font-style: italic;
 	font-display: swap;
-	font-weight: 200 800;
+	font-weight: 400 800;
 	src: url('/fonts/karla-latin-ext-wght-italic.woff2') format('woff2-variations');
 	unicode-range:
 		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,

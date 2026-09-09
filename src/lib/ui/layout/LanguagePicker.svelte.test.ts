@@ -23,6 +23,26 @@ function status(): HTMLElement {
 describe('LanguagePicker', () => {
 	afterEach(cleanup);
 
+	test('builds language options only while open and resets search with focus on reopening', async () => {
+		const { controller } = createTestWorkbench();
+		await render(LanguagePicker, { controller });
+		const trigger = screen.getByRole('button', { name: /^Lyric language:/ });
+		expect(document.querySelector('.language-option')).toBeNull();
+		await openPicker();
+		expect(document.activeElement).toBe(screen.getByRole('searchbox'));
+		await search('zzzz');
+		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		await waitFor(() => expect(document.querySelector('.language-search')).toBeNull());
+		expect(document.activeElement).toBe(trigger);
+		await openPicker();
+		expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('');
+		expect(document.activeElement).toBe(screen.getByRole('searchbox'));
+		await fireEvent.click(screen.getByRole('button', { name: 'English (United Kingdom)' }));
+		expect(controller.language).toBe('en-GB');
+		await waitFor(() => expect(document.querySelector('.language-option')).toBeNull());
+		expect(document.activeElement).toBe(trigger);
+	});
+
 	// The whole results list used to sit inside `aria-live="polite"`, so every
 	// keystroke queued dozens of re-rendered options to be read out. What the
 	// typist wants to hear is how many are left.

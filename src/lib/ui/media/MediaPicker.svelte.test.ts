@@ -19,7 +19,9 @@ import MediaPicker from './MediaPicker.svelte';
  * injected a script tag, which is what makes "nothing has been fetched" an
  * assertion rather than a hope.
  */
-async function setup(options: { file?: File | undefined; draftTitle?: string } = {}) {
+async function setup(
+	options: { file?: File | undefined; draftTitle?: string; resumedQuery?: string } = {}
+) {
 	const feedback = createFeedbackState();
 	const youtube = createStubYouTubeApi();
 	const poll = createStubPoll();
@@ -40,13 +42,25 @@ async function setup(options: { file?: File | undefined; draftTitle?: string } =
 		pickFile: async () => (file ? { file } : undefined)
 	});
 
+	if (options.resumedQuery !== undefined) {
+		media.takeResumedQuery = vi.fn().mockReturnValueOnce(options.resumedQuery);
+		media.searchSpotify = vi.fn(async () => ({ results: [] }));
+	}
 	const props: ComponentProps<typeof MediaPicker> = { media };
 	if (options.draftTitle !== undefined) props.draftTitle = options.draftTitle;
 	const view = await render(MediaPicker, { props });
 	// The triggers live where they act now — the tray's note glyph, the strip's
 	// pencil — so the suite opens the dialog the way they do, through the one
 	// shared `open` they all call.
-	return { media, youtube, openDialog: () => view.component.open() };
+	return {
+		media,
+		youtube,
+		openImmediately: () => view.component.open(),
+		openDialog: async () => {
+			await view.component.open();
+			await expect.element(page.getByLabelText('YouTube link')).toBeVisible();
+		}
+	};
 }
 
 const dialog = () => document.querySelector('dialog');
@@ -58,6 +72,16 @@ const liveText = (): string[] =>
 		.filter((text) => text !== '');
 
 describe('MediaPicker', () => {
+	it('opens and searches a query resumed from Spotify sign-in', async () => {
+		const { media } = await setup({ resumedQuery: 'A remembered song' });
+		await vi.waitFor(() => expect(media.searchSpotify).toHaveBeenCalledWith('A remembered song'));
+		expect(dialog()?.open).toBe(true);
+		expect((page.getByLabelText('Spotify search').element() as HTMLInputElement).value).toBe(
+			'A remembered song'
+		);
+		expect(media.searchSpotify).toHaveBeenCalledTimes(1);
+	});
+
 	it('renders only the closed dialog until it is opened', async () => {
 		const { youtube, openDialog } = await setup();
 
@@ -65,10 +89,26 @@ describe('MediaPicker', () => {
 		expect(page.getByRole('button', { name: 'Add audio' }).elements()).toHaveLength(0);
 		expect(page.getByRole('button', { name: 'Change audio' }).elements()).toHaveLength(0);
 		expect(dialog()?.open).toBe(false);
+		expect(dialog()?.querySelector('input, form, button')).toBeNull();
 		expect(youtube.loads).toBe(0);
 
 		await openDialog();
 		await expect.element(page.getByRole('button', { name: 'Choose a file…' })).toBeVisible();
+	});
+
+	it('can dismiss while the forms load and reopen with a selected link', async () => {
+		const { openImmediately, openDialog } = await setup();
+		await openImmediately();
+		expect(dialog()?.querySelector('h2')?.textContent).toBe('Add audio source');
+		(dialog()?.querySelector('button[aria-label="Close"]') as HTMLButtonElement).click();
+		await vi.dynamicImportSettled();
+		await vi.waitFor(() => {
+			expect(dialog()?.open).toBe(false);
+			expect(dialog()?.querySelector('input')).toBeNull();
+		});
+		await openDialog();
+		expect(dialog()?.open).toBe(true);
+		expect(document.activeElement).toBe(page.getByLabelText('YouTube link').element());
 	});
 
 	it('offers every answer to one question, in one place', async () => {
@@ -147,6 +187,29 @@ describe('MediaPicker', () => {
 		expect(dialog()?.open).toBe(false);
 	});
 
+	it('keeps a reopened dialog and its focus when an earlier attachment finishes', async () => {
+		const { media, openDialog } = await setup();
+		let finishAttach!: (attached: boolean) => void;
+		const attachment = new Promise<boolean>((resolve) => {
+			finishAttach = resolve;
+		});
+		media.attach = vi.fn(() => attachment);
+		await openDialog();
+		await page.getByRole('button', { name: 'Choose a file…' }).click();
+		expect(media.attach).toHaveBeenCalledOnce();
+		await page.getByRole('button', { name: 'Close', exact: true }).click();
+		await openDialog();
+		const input = page.getByLabelText('YouTube link').element();
+		expect(document.activeElement).toBe(input);
+		finishAttach(true);
+		await attachment;
+		// Give the old completion and its former focus-restoration tick time to run.
+		await vi.waitFor(() => {
+			expect(dialog()?.open).toBe(true);
+			expect(document.activeElement).toBe(input);
+		});
+	});
+
 	// A dismissed OS picker is not an answer, so the question stays open.
 	it('stays open when the file picker is dismissed', async () => {
 		const { media, openDialog } = await setup({ file: undefined });
@@ -194,6 +257,7 @@ describe('MediaPicker', () => {
 
 		await userEvent.keyboard('{Escape}');
 		expect(dialog()?.open).toBe(false);
+		await vi.waitFor(() => expect(dialog()?.querySelector('input')).toBeNull());
 
 		await openDialog();
 		expect((page.getByLabelText('YouTube link').element() as HTMLInputElement).value).toBe('');
@@ -333,9 +397,10 @@ describe('MediaPicker', () => {
 
 		expect(prepared).not.toHaveBeenCalled();
 
-		await openDialog();
-
+		const opening = openDialog();
+		// Preparing the SDK must stay on the opener's gesture, before the render await.
 		expect(prepared).toHaveBeenCalledTimes(1);
+		await opening;
 	});
 
 	/*

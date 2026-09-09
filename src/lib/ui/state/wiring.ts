@@ -1,6 +1,5 @@
 // Decision record: docs/subsystems/rules-catalog.md — read it before changing this file, and update it with any behavior change.
-import { runRules } from '$lib/rules/index.js';
-import { sourceRegistry } from '$lib/rules/index.js';
+import { sourceRegistry } from '$lib/rules/data/sources.js';
 import { findExactPerformer } from '$lib/performers/index.js';
 import { decodeLegendText } from '$lib/performers/import.js';
 import type { VoiceGroupRange } from '$lib/editor/index.js';
@@ -122,11 +121,6 @@ export function buildRuleContext(
 		ruleSetVersion,
 		revision
 	};
-}
-
-/** Run every enabled rule against one parsed revision, sorted by severity. */
-export function computeDiagnostics(parsed: ParsedDocument, context: RuleContext): Diagnostic[] {
-	return runRules(parsed, context);
 }
 
 /**

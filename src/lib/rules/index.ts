@@ -5,4 +5,4 @@ export { collectMatchingFixes, mergeFixes } from './bulk-fix.js';
 export { enabledRules } from './registry.js';
 export { currentRuleSet } from './data/rule-set.js';
 export { sourceRegistry } from './data/sources.js';
-export { ruleName } from './reference.js';
+export { ruleName } from './names.js';

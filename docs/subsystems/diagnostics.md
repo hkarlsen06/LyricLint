@@ -96,6 +96,15 @@ Touches: `src/lib/diagnostics/`, `src/lib/diagnostics/order.ts`,
 
 ## Decision record
 
+### Checking availability is distinct from a clean draft
+
+Before the native catalog has loaded, nonempty lyrics show Checking lyrics in the existing
+empty-list surface with a live status. A refused download shows Checking unavailable and
+Retry checking, while the workspace also toasts and announces the refusal. Only a completed
+native pass can produce No issues found. An untouched empty editor still shows Ready for
+your lyrics. The same availability props travel through the lazily mounted document panel,
+so opening Review while a download is pending cannot turn an unchecked draft into a clean one.
+
 ### Controls follow the occurrence while fixes follow the current revision
 
 The row key formerly embedded absolute offsets. A character inserted at the beginning of an
@@ -505,3 +514,13 @@ and no historical location is invented. `RightPanel.svelte.test.ts` pins the tit
 and reveal/restore behavior. On phones, saved locations open Write because an ignored finding
 has no visible Review card; focus goes to the Write control without opening the keyboard.
 `MobileWorkspace.svelte.test.ts` pins this path and confirms the choice remains ignored.
+
+
+### Citation images stay outside the initial JavaScript
+
+Source favicons use same-origin hashed asset URLs rather than inline data URIs.
+Inlining every host image increased the editor's initial JavaScript even for an empty
+document with no citations. Vite keeps the images in the immutable build manifest, so
+the offline worker still includes them in its snapshot. The existing fixed favicon
+dimensions preserve citation geometry while images load; no third-party favicon service
+is contacted. Source coverage and shared diagnostic rendering retain their existing tests.

@@ -9,7 +9,7 @@
 		ignoredDiagnosticRuleId,
 		ignoredDiagnosticText
 	} from '$lib/diagnostics/ignore.js';
-	import { ruleName } from '$lib/rules/index.js';
+	import { ruleName } from '$lib/rules/names.js';
 
 	let {
 		diagnosticKeys,

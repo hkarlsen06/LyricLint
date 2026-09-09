@@ -1,10 +1,7 @@
+import { runRules as computeDiagnostics } from '$lib/rules/engine.js';
 import { describe, expect, test } from 'vitest';
 import { parseDocument } from '$lib/core/parser.js';
-import {
-	buildRuleContext,
-	computeDiagnostics,
-	filterForEditorState
-} from '$lib/ui/state/wiring.js';
+import { buildRuleContext, filterForEditorState } from '$lib/ui/state/wiring.js';
 import type { Diagnostic, EditorSnapshot } from '$lib/core/types.js';
 import { currentRuleSet } from './index.js';
 

@@ -3,11 +3,11 @@
  *
  * A mark riding the link it identifies is the established citation idiom, and
  * it is a different thing from a brand badge on the card: it says where the
- * link goes, nothing about affiliation. The files are fetched once and bundled
- * — every one is under Vite's inline limit, so they ship as data URIs inside
- * the stylesheet-free chunk and cost no request — because a favicon service
- * URL on every card would contact a third party at render time, which this
- * application never does.
+ * link goes, nothing about affiliation. The files ship as same-origin hashed
+ * assets rather than inline data URIs: the editor's initial JavaScript should
+ * not contain every citation image before any citation is visible. The offline
+ * worker includes them with the other immutable build assets. A favicon service
+ * URL would contact a third party at render time, which this application never does.
  *
  * The map is keyed on the host with any `www.` stripped, so a source URL that
  * gains or loses the prefix keeps its mark. A host with no entry draws
@@ -17,20 +17,20 @@
  * arrives with its mark or fails there rather than shipping a bare link
  * among decorated ones.
  */
-import academie from '$lib/assets/favicons/academie.png';
-import apple from '$lib/assets/favicons/apple.png';
-import bunka from '$lib/assets/favicons/bunka.png';
-import cambridge from '$lib/assets/favicons/cambridge.png';
-import duden from '$lib/assets/favicons/duden.png';
-import genius from '$lib/assets/favicons/genius.png';
-import github from '$lib/assets/favicons/github.png';
-import korean from '$lib/assets/favicons/korean.png';
-import ksaa from '$lib/assets/favicons/ksaa.png';
-import merriamWebster from '$lib/assets/favicons/merriam-webster.png';
-import oqlf from '$lib/assets/favicons/oqlf.png';
-import projetVoltaire from '$lib/assets/favicons/projet-voltaire.png';
-import rae from '$lib/assets/favicons/rae.png';
-import sprakradet from '$lib/assets/favicons/sprakradet.png';
+import academie from '$lib/assets/favicons/academie.png?no-inline';
+import apple from '$lib/assets/favicons/apple.png?no-inline';
+import bunka from '$lib/assets/favicons/bunka.png?no-inline';
+import cambridge from '$lib/assets/favicons/cambridge.png?no-inline';
+import duden from '$lib/assets/favicons/duden.png?no-inline';
+import genius from '$lib/assets/favicons/genius.png?no-inline';
+import github from '$lib/assets/favicons/github.png?no-inline';
+import korean from '$lib/assets/favicons/korean.png?no-inline';
+import ksaa from '$lib/assets/favicons/ksaa.png?no-inline';
+import merriamWebster from '$lib/assets/favicons/merriam-webster.png?no-inline';
+import oqlf from '$lib/assets/favicons/oqlf.png?no-inline';
+import projetVoltaire from '$lib/assets/favicons/projet-voltaire.png?no-inline';
+import rae from '$lib/assets/favicons/rae.png?no-inline';
+import sprakradet from '$lib/assets/favicons/sprakradet.png?no-inline';
 
 /** Hosts are read off a citation's URL, so the table is keyed by whatever it says. */
 interface FaviconsByHost {

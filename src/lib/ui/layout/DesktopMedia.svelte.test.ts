@@ -44,6 +44,7 @@ it('keeps visible lyrics beside one 16:9 floating player across desktop sizes an
 		harperProvider: { lint: async () => [], dispose: async () => {} }
 	});
 	await tick();
+	await expect.element(page.getByRole('tab', { name: /Review/ })).toBeVisible();
 	const panel = view.container.querySelector<HTMLElement>('.right-panel')!;
 	const dock = view.container.querySelector<HTMLElement>('.right-panel__header')!;
 	const originalDockHeight = dock.getBoundingClientRect().height;

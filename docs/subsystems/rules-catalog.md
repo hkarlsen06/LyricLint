@@ -1,6 +1,6 @@
 # The rules catalog: tiers, shared predicates, Harper, and how a rule ships
 
-Touches: `src/lib/rules/catalog/`, `src/lib/rules/harper.ts`, `src/lib/rules/registry.ts`,
+Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/results.ts`, `src/lib/rules/harper.ts`, `src/lib/rules/registry.ts`,
 `src/lib/rules/lookup-tables.ts`, `src/lib/rules/data/spelling.ts`, `src/lib/rules/data/rule-set.ts`, `src/lib/ui/state/wiring.ts`,
 `src/lib/rules/catalog/policy-cases.ts`, `src/lib/languages/detect.ts`, `services/rules-assistant/`
 
@@ -71,6 +71,21 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/harper.ts`, `src/lib/rules/reg
   limits, never sampling or detection limits. Native benchmarks initialize the statistical detector.
 
 ## Decision record
+
+### An empty editor does not initialize the rule catalog
+
+`Workspace` imports the native runner when the first nonempty snapshot arrives, including a
+recovered draft. Pending initialization does not hold text, selection, revisions, or autosave:
+the controller keeps receiving current snapshots. Completion checks the latest snapshot with
+the current language and performers, rather than retaining the document that started the
+request. A composing snapshot still waits for its committed input.
+
+This is a module-availability boundary, not another typing deferral. Once loaded, native
+rules run synchronously and `filterForEditorState` remains the only settlement gate. The
+initial availability state never claims that unchecked lyrics pass every rule. Review shows
+Checking lyrics, or Checking unavailable with Retry; a failed download also toasts and
+announces. Teardown ignores a late result. `WorkspaceRules.svelte.test.ts` pins edits, draft
+switching, composition, retry, and destruction across this boundary.
 
 ### A rule sees a finished song, and the document under the caret is not one
 
@@ -624,3 +639,16 @@ current request. Changed lyrics still reach the complete statistical detector; n
 truncated, deferred or moved behind a second visibility gate. Larger input is analyzed normally
 without being retained. Tests cover changed text, shifted ranges, selected-language thresholds,
 caller mutation, line-cache eviction, repeated scripts and oversized lines.
+
+
+### Result handling does not initialize the native catalog
+
+`rules/results.ts` owns deterministic diagnostic sorting, safe-fix collision arbitration,
+and Harper merging with native-range containment. It depends only on core types, so merging
+and batch-fix planning can process results without importing the native rule registry or
+initializing the Harper provider and spelling data. `harper.ts` reexports the merge for existing
+callers. The engine reexports these functions for existing
+callers, and `runRules` remains the single synchronous rule runner. Shared editor-state wiring
+builds context and applies the existing deferral policy without importing that runner; callers
+that execute native rules import the engine explicitly. Engine and fix-contract tests continue
+to verify ordering and all-or-nothing collision handling.

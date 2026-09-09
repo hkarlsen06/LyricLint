@@ -35,10 +35,14 @@ test('phone review opens one decision, releases it on return, and retains the ed
 	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
 	expect(editor.getBoundingClientRect().height).toBeGreaterThan(600);
 	expect(screen.queryByRole('tab', { name: /Review/ })).toBeNull();
+	expect(document.querySelector('#document-panel')).toBeNull();
 	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
+	await screen.findAllByRole('button', { name: /^Go to / });
+	const panel = document.querySelector('#document-panel');
+	expect(panel).not.toBeNull();
 	expect(editor.closest<HTMLElement>('.editor-region')!.inert).toBe(true);
 	expect(document.querySelectorAll('.diagnostic-card--expanded')).toHaveLength(0);
-	const finding = screen.getAllByRole('button', { name: /^Go to / })[0];
+	const finding = (await screen.findAllByRole('button', { name: /^Go to / }))[0];
 	await fireEvent.click(finding);
 	await waitFor(() => expect(editor.closest<HTMLElement>('.editor-region')!.inert).toBe(false));
 	expect(screen.getAllByRole('button', { name: /^Go to / })).toHaveLength(1);
@@ -47,6 +51,7 @@ test('phone review opens one decision, releases it on return, and retains the ed
 	await waitFor(() => expect(document.activeElement).toBe(finding));
 	expect(document.querySelectorAll('.diagnostic-card--expanded')).toHaveLength(0);
 	await fireEvent.click(navigation.getByRole('button', { name: 'Write' }));
+	expect(document.querySelector('#document-panel')).toBe(panel);
 	expect(screen.getByTestId('editor-region')).toBe(editor);
 	expect(editor.getBoundingClientRect().height).toBeGreaterThan(600);
 });
@@ -89,7 +94,7 @@ test('fixing the last mobile finding returns focus to the visible Review control
 		{ name: /^Review/ }
 	);
 	await fireEvent.click(review);
-	await fireEvent.click(screen.getByRole('button', { name: /^Go to / }));
+	await fireEvent.click(await screen.findByRole('button', { name: /^Go to / }));
 	const fix = screen.getByRole('button', { name: "Replace with I'ma" });
 	fix.focus();
 	await fireEvent.click(fix);
@@ -102,7 +107,7 @@ test('revealing an ignored finding opens its lyrics without restoring it or focu
 	const controller = await mount();
 	const navigation = within(screen.getByRole('navigation', { name: 'Workbench views' }));
 	await fireEvent.click(navigation.getByRole('button', { name: /^Review/ }));
-	await fireEvent.click(screen.getAllByRole('button', { name: /^Go to / })[0]);
+	await fireEvent.click((await screen.findAllByRole('button', { name: /^Go to / }))[0]);
 	await fireEvent.click(screen.getByRole('button', { name: 'Ignore' }));
 	await fireEvent.click(screen.getByRole('button', { name: 'All findings' }));
 	await fireEvent.click(screen.getByRole('button', { name: '1 diagnostic ignored' }));

@@ -9,6 +9,7 @@ export const prerender = true;
 const paths = [
 	'/',
 	'/about/',
+	'/workbench/',
 	'/guidelines/',
 	'/privacy/',
 	...ruleReferences().map((reference) => `/guidelines/checks/${reference.slug}/`),

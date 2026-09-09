@@ -115,6 +115,79 @@ describe('EditorPane', () => {
 		await expect.element(page.getByText('[Verse]')).toBeVisible();
 	});
 
+	it('cancels pending editor creation when the pane unmounts', async () => {
+		const onready = vi.fn();
+		const editorCallbacks = callbacks();
+		const view = await render(EditorPane, {
+			props: {
+				initialText: 'Retired draft',
+				context: context(),
+				callbacks: editorCallbacks,
+				onready
+			}
+		});
+		await view.unmount();
+		await new Promise<void>((resolve) => setTimeout(resolve, 0));
+		expect(onready).not.toHaveBeenCalled();
+		expect(editorCallbacks.onSnapshot).not.toHaveBeenCalled();
+		expect(document.querySelector('.cm-editor')).toBeNull();
+	});
+
+	it('reads current initial props after yielding to the browser', async () => {
+		const onready = vi.fn();
+		const view = await render(EditorPane, {
+			props: { initialText: 'Before', context: context(), callbacks: callbacks(), onready }
+		});
+		await view.rerender({ initialText: 'After', initialRevision: 3 });
+		await vi.waitFor(() => expect(onready).toHaveBeenCalledTimes(1));
+		const handle = onready.mock.calls[0][0] as EditorHandle;
+		expect(handle.getSnapshot().text).toBe('After');
+		expect(handle.getSnapshot().revision).toBe(3);
+	});
+
+	it('reports startup construction failures without publishing readiness', async () => {
+		const onerror = vi.fn();
+		const onready = vi.fn();
+		const editorCallbacks = callbacks();
+		await render(EditorPane, {
+			props: {
+				initialText: 'Keep these lyrics',
+				initialRevision: -1,
+				context: context(),
+				callbacks: editorCallbacks,
+				onerror,
+				onready
+			}
+		});
+		await vi.waitFor(() => expect(onerror).toHaveBeenCalledExactlyOnceWith(expect.any(RangeError)));
+		expect(onready).not.toHaveBeenCalled();
+		expect(editorCallbacks.onSnapshot).not.toHaveBeenCalled();
+		expect(document.querySelector('.cm-editor')).toBeNull();
+	});
+
+	it('shows an announced startup failure when no parent handles the error', async () => {
+		const report = vi.spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			await render(EditorPane, {
+				props: {
+					initialText: 'Keep these lyrics',
+					initialRevision: -1,
+					context: context(),
+					callbacks: callbacks()
+				}
+			});
+			await expect
+				.element(page.getByRole('alert'))
+				.toHaveTextContent('The editor could not start. Reload the page to try again.');
+			expect(report).toHaveBeenCalledWith(
+				'LyricLint failed to start the editor.',
+				expect.any(RangeError)
+			);
+		} finally {
+			report.mockRestore();
+		}
+	});
+
 	it('preserves the current revision when the editor remounts', async () => {
 		const { handle } = await mountEditor({ text: '“hello”', revision: 5 });
 
@@ -1589,6 +1662,8 @@ describe('EditorPane', () => {
 		expect(markers[3]?.style.getPropertyValue('--ll-performer-solid')).toBe(
 			'var(--performer-teal)'
 		);
+		// CodeMirror measures gutter row heights on its next animation frame.
+		await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 		const firstMarkerRect = markers[0]!.getBoundingClientRect();
 		const firstLineRect = markers[0]!.parentElement!.getBoundingClientRect();
 		const middleMarkerRect = markers[1]!.getBoundingClientRect();

@@ -169,7 +169,11 @@ test('marketing home opens the canonical workbench', async ({ page }) => {
 
 	await expect(page).toHaveURL(/\/workbench\/$/u);
 	await expect(editor(page)).toBeVisible();
-	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, follow');
+	await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
+	await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+		'href',
+		'https://lyriclint.com/workbench/'
+	);
 	await expect(page.locator('main.workspace h1')).toHaveText('LyricLint transcription workbench');
 });
 
@@ -323,6 +327,28 @@ test('a landing video keeps its still until its first frame is ready', async ({ 
 	expect(await frame.boundingBox()).toEqual(before);
 });
 
+test('a failed mobile hero keeps its still without downloading the desktop video', async ({
+	page
+}) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	const requested: string[] = [];
+	await page.route(/\/workbench(?:-mobile)?\.webm$/, async (route) => {
+		requested.push(new URL(route.request().url()).pathname);
+		await route.abort('failed');
+	});
+	await page.goto('/');
+	const frame = page.locator('.lp-hero .lp-shot__frame');
+	const video = frame.locator('video');
+	await frame.scrollIntoViewIfNeeded();
+	await expect(video).toHaveAttribute('src', /\/workbench-mobile\.webm$/);
+	await expect
+		.poll(() => video.evaluate((element: HTMLVideoElement) => element.error?.code))
+		.toBe(4);
+	await expect(frame).not.toHaveAttribute('data-video-ready', '');
+	await expect(frame.locator('.lp-shot__poster')).toHaveCSS('opacity', '1');
+	expect(requested).toEqual(['/workbench-mobile.webm']);
+});
+
 test('landing video frames keep their dimensions through loading on phone and desktop', async ({
 	page
 }) => {
@@ -367,6 +393,12 @@ test('landing video frames keep their dimensions through loading on phone and de
 					);
 			}
 			const video = frame.locator('video');
+			if (await video.getAttribute('data-mobile-src')) {
+				await expect(video).toHaveAttribute(
+					'src',
+					width === 390 ? /\/workbench-mobile\.webm$/ : /\/workbench\.webm$/
+				);
+			}
 			const dimensions = await video.evaluate((element: HTMLVideoElement) => ({
 				actual: [element.videoWidth, element.videoHeight],
 				declared: [element.width, element.height]
@@ -920,7 +952,7 @@ test('a fragment naming nothing falls back to the lead, and a landmark washes', 
 	await expect(page.locator('.guidelines__landmark:has(:target)')).toHaveCount(1);
 });
 
-test('sitemap lists every public page and excludes the workbench', async ({ request }) => {
+test('sitemap lists every public page including the workbench', async ({ request }) => {
 	const sitemapResponse = await request.get('/sitemap.xml');
 	expect(sitemapResponse.ok()).toBe(true);
 	expect(sitemapResponse.headers()['content-type']).toMatch(/(?:application|text)\/xml/u);
@@ -938,8 +970,8 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 	const guidelinePages =
 		sitemap.match(/<loc>https:\/\/lyriclint\.com\/guidelines\/[^/]+\/<\/loc>/gu) ?? [];
 	expect(guidelinePages).toHaveLength(10);
-	// Plus the home, about, unified guide, and privacy pages.
-	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + guidelinePages.length + 4);
+	// Plus the home, about, workbench, unified guide, and privacy pages.
+	expect(sitemap.match(/<url>/gu)).toHaveLength(rulePages.length + guidelinePages.length + 5);
 	expect(sitemap).toContain('<loc>https://lyriclint.com/</loc>');
 	expect(sitemap).toContain('<loc>https://lyriclint.com/about/</loc>');
 	expect(sitemap).not.toContain('/rules/');
@@ -949,7 +981,7 @@ test('sitemap lists every public page and excludes the workbench', async ({ requ
 	expect(sitemap).toContain(
 		'<loc>https://lyriclint.com/guidelines/checks/spelling-arabic-common/</loc>'
 	);
-	expect(sitemap).not.toContain('/workbench/');
+	expect(sitemap).toContain('<loc>https://lyriclint.com/workbench/</loc>');
 	expect(sitemap).not.toContain('/lint/');
 
 	const robots = await (await request.get('/robots.txt')).text();
@@ -1017,6 +1049,30 @@ test('the prerendered policy admits the workbench and refuses everything else', 
 
 	// The workbench came up and nothing was refused bringing it up.
 	await expect(page.getByRole('textbox', { name: 'Lyrics editor' })).toBeVisible();
+	expect(await page.evaluate(() => (window as ProbeWindow).__csp)).toEqual([]);
+
+	// Preview has no Cloudflare edge injection. Exercise both analytics grants
+	// with local responses so this checks CSP without sending real telemetry.
+	await page.route('https://static.cloudflareinsights.com/beacon.min.js', (route) =>
+		route.fulfill({ contentType: 'application/javascript', body: '/* analytics probe */' })
+	);
+	await page.route('https://cloudflareinsights.com/cdn-cgi/rum', (route) =>
+		route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } })
+	);
+	await page.evaluate(async () => {
+		await new Promise<void>((resolve, reject) => {
+			const script = document.createElement('script');
+			script.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+			script.onload = () => resolve();
+			script.onerror = () => reject(new Error('Analytics script blocked'));
+			document.head.append(script);
+		});
+		const response = await fetch('https://cloudflareinsights.com/cdn-cgi/rum', {
+			method: 'POST',
+			body: '{}'
+		});
+		if (!response.ok) throw new Error('Analytics report failed');
+	});
 	expect(await page.evaluate(() => (window as ProbeWindow).__csp)).toEqual([]);
 
 	// And the policy is enforced rather than merely present.

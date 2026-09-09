@@ -2,12 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import BootScreen from './BootScreen.svelte';
 
-/**
- * Parks the component on its reduced-motion path, where the whole sequence is
- * skipped and the mark has already landed. That is the only way to reach the
- * gate below without spending the sequence's own two seconds in the suite — and
- * the gate is the part with logic in it.
- */
 async function withoutMotion(run: () => Promise<void>): Promise<void> {
 	const real = window.matchMedia;
 	window.matchMedia = ((query: string) => ({
@@ -22,397 +16,87 @@ async function withoutMotion(run: () => Promise<void>): Promise<void> {
 }
 
 const screen = () => document.querySelector('.boot-screen') as HTMLElement;
-
-const slotWidth = () =>
-	(screen().querySelector('.app-wordmark__slot') as HTMLElement).getBoundingClientRect().width;
-
-/**
- * One space in the lockup's own font, measured rather than assumed — it is what
- * the brackets close to, and `ch` follows whichever mono face resolved.
- */
-function oneSpace(): number {
-	const mark = screen().querySelector('.app-wordmark') as HTMLElement;
-	const probe = document.createElement('span');
-	probe.style.cssText = 'position:absolute;width:1ch;visibility:hidden';
-	mark.append(probe);
-	const width = probe.getBoundingClientRect().width;
-	probe.remove();
-	return width;
-}
-
-/** The lockup's own single-period wave, as `AppWordmark.svelte` draws it. */
 const WAVE_D_ATTRIBUTE_OF_THE_MARK = 'M2 16Q9 6.7 16 16T30 16';
 
-/** How far the circle has got, 0 to 1, which is the whole of the reveal. */
-const shock = () => Number(getComputedStyle(screen()).getPropertyValue('--boot-shock'));
-
-/**
- * That circle's radius in pixels, which is what a claim about the reveal passing
- * something has to be measured in. Percentages on a `circle` gradient resolve
- * against the distance from the middle of the box to its furthest corner, and
- * `--boot-shock-reach` is how far past that the driver's own 1 reaches — read
- * from the stylesheet rather than restated here, so the two cannot drift.
- */
-function revealRadius(): number {
-	const box = screen().getBoundingClientRect();
-	const corner = Math.hypot(box.width / 2, box.height / 2);
-	const reach = Number.parseFloat(
-		getComputedStyle(screen()).getPropertyValue('--boot-shock-reach')
-	);
-	return shock() * (reach / 100) * corner;
-}
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
 describe('BootScreen', () => {
-	// The reveal waits for both the workspace and the animation. Observe the
-	// ready-workspace path once, retaining every real frame of its three-second
-	// window for the waveform, falling brackets, and expanding canvas assertions.
-	it('holds a ready workspace through the pull, then fades the mark and opens the canvas', async () => {
-		const ondone = vi.fn();
-		await render(BootScreen, { props: { ready: true, ondone } });
-		const mark = () => screen().querySelector('.app-wordmark') as HTMLElement;
-		const wave = () => document.querySelector('.app-wordmark__wave') as SVGSVGElement;
-		const path = () => wave().querySelector('path') as SVGPathElement;
-		const backdrop = () => getComputedStyle(screen(), '::before');
-		const alpha = (color: string) => {
-			const parts = color.match(/[\d.]+/gu) ?? [];
-			return parts.length > 3 ? Number(parts[3]) : 1;
-		};
-
+	it('pulls the word into a steady mark and runs the wave while startup remains pending', async () => {
+		await render(BootScreen);
+		const mark = screen().querySelector('.app-wordmark') as HTMLElement;
+		const wave = screen().querySelector('.app-wordmark__wave') as SVGSVGElement;
+		const path = wave.querySelector('path')!;
 		expect(screen().dataset.stage).toBe('word');
-		expect(getComputedStyle(mark()).getPropertyValue('--wm-open')).toBe('1');
+		expect(getComputedStyle(mark).getPropertyValue('--wm-open')).toBe('1');
+		expect(getComputedStyle(wave).visibility).toBe('hidden');
 
-		// The canvas is a masked layer under the lockup, and the screen itself is
-		// bare — so what clears is a hole in the backdrop, not the backdrop.
-		expect(alpha(getComputedStyle(screen()).backgroundColor)).toBe(0);
-		expect(backdrop().getPropertyValue('mask-image')).toContain('radial-gradient');
-		expect(alpha(backdrop().backgroundColor)).toBe(1);
-		// No second layer may cover the expanding hole.
-		expect(getComputedStyle(screen(), '::after').content).toBe('none');
-
-		const seen: {
-			stage: string | undefined;
-			done: boolean;
-			open: number;
-			opacity: number;
-			shock: number;
-			visible: boolean;
-			d: string;
-			leaving: boolean;
-		}[] = [];
-		await new Promise<void>((done) => {
-			const started = performance.now();
-			const tick = () => {
-				const el = screen();
-				if (!el || !document.contains(el)) return done();
-				const style = getComputedStyle(mark());
-				seen.push({
-					stage: el.dataset.stage,
-					done: ondone.mock.calls.length > 0,
-					open: Number(style.getPropertyValue('--wm-open')),
-					opacity: Number(style.opacity),
-					shock: shock(),
-					visible: getComputedStyle(wave()).visibility === 'visible',
-					d: path().getAttribute('d') ?? '',
-					leaving: el.hasAttribute('data-leaving')
-				});
-				if (performance.now() - started < 3000) requestAnimationFrame(tick);
-				else done();
-			};
-			tick();
-		});
-
-		const pull = seen.filter((frame) => frame.stage === 'pull');
-		expect(pull.length).toBeGreaterThan(0);
-		expect(pull.some((frame) => frame.done)).toBe(false);
-
-		// The wave is never drawn, and never redrawn either — the mark keeps its own
-		// path from the first frame to the last.
-		expect(seen.some((frame) => frame.visible)).toBe(false);
-		expect(new Set(seen.map((frame) => frame.d))).toEqual(new Set([WAVE_D_ATTRIBUTE_OF_THE_MARK]));
-		// And it shut before it went: fully closed, not caught partway.
-		expect(seen.at(-1)!.open).toBeCloseTo(0, 3);
-
-		// With nothing to wait for, the fall is the exit: the brackets fade during
-		// their travel, with no stationary beat before the canvas opens.
-		const fall = seen.filter((frame) => frame.stage === 'land');
-		expect(fall.length).toBeGreaterThan(0);
-		// The screen starts going while the lockup is still near full stretch.
-		const atReveal = fall.find((frame) => frame.leaving)!;
-		expect(atReveal.open).toBeGreaterThan(1);
-
-		// And the brackets are completely invisible with travel still left in them —
-		// the eye loses a lockup in motion, never one parked at its destination.
-		//
-		// Asserted as "some frame was like this" rather than "the first zero-opacity
-		// frame was": the fall's easing is back-loaded hard, so how much travel is
-		// left at any *particular* frame depends on where the frames happen to land.
-		// Pinning that made this flake about one run in six, and the flake was worth
-		// listening to — the margin was under a frame wide, which is not a margin.
-		expect(fall.some((frame) => frame.opacity === 0 && frame.open > 0.05)).toBe(true);
-
-		// It does arrive, a moment later and unseen.
-		expect(fall.at(-1)!.open).toBeCloseTo(0, 3);
-		expect(fall.at(-1)!.opacity).toBe(0);
-
-		// And the circle is struck by the collision rather than by the screen
-		// starting to leave, which on this path are three hundred milliseconds
-		// apart: the screen begins going at the top of the fall, and the brackets do
-		// not begin to meet until three quarters of the way down it. Without the
-		// delay the canvas was already open while the lockup hung at full strength
-		// above it, so the reveal came out of nothing and the brand was left
-		// dissolving on a workspace that had arrived first.
-		const fadeBegins = fall.find((frame) => frame.opacity < 1)!;
-		expect(fadeBegins.shock).toBeLessThan(0.4);
-
-		// The lockup is still on screen when the charge goes off — the circle leaves
-		// something, rather than an empty middle a moment after it emptied.
-		expect(fall.find((frame) => frame.shock > 0)!.opacity).toBeGreaterThan(0);
-
-		// And it runs all the way out before the screen does.
-		expect(fall.at(-1)!.shock).toBeGreaterThan(0.9);
-
-		const circle = fall.map((frame) => frame.shock);
-		// It leaves the middle and only expands: a radius that went back on itself
-		// would be a hole breathing rather than a reveal travelling.
-		expect(circle.at(0)).toBe(0);
-		for (const [index, value] of circle.entries()) {
-			if (index > 0) expect(value).toBeGreaterThanOrEqual(circle[index - 1]);
+		const frames: { stage: string | undefined; open: number; waiting: boolean }[] = [];
+		const started = performance.now();
+		while (performance.now() - started < 1900) {
+			frames.push({
+				stage: screen().dataset.stage,
+				open: Number(getComputedStyle(mark).getPropertyValue('--wm-open')),
+				waiting: screen().hasAttribute('data-wait')
+			});
+			await nextFrame();
 		}
-		expect(circle.at(-1)).toBeGreaterThan(0.9);
-	});
-
-	/**
-	 * The workbench arriving *during* the fall, which is the third case and used to
-	 * be its own worse ending.
-	 *
-	 * Whether to close the brackets onto each other was decided once, at the top of
-	 * the fall, and expressed by switching between two keyframe sets — so an answer
-	 * that came a hundred milliseconds late could not be acted on at all, and the
-	 * boot landed on a mark holding an empty gap with no wave in it. Closing is a
-	 * transition on a length now, so it can begin whenever the answer does: mid-fall
-	 * it starts from wherever the gap had got to and carries on from there.
-	 */
-	it('closes the brackets even when the workbench arrives mid-fall', async () => {
-		const props = $state({ ready: false, ondone: vi.fn() });
-		await render(BootScreen, { props });
-		const wave = () => document.querySelector('.app-wordmark__wave') as SVGSVGElement;
-
-		// Into the fall, then answer.
-		await vi.waitFor(() => expect(screen().dataset.stage).toBe('land'), { timeout: 3000 });
-		props.ready = true;
-
-		let sawWave = false;
-		await new Promise<void>((done) => {
-			const started = performance.now();
-			const tick = () => {
-				const el = screen();
-				if (!el || !document.contains(el)) return done();
-				if (getComputedStyle(wave()).visibility === 'visible') sawWave = true;
-				if (performance.now() - started < 1500) requestAnimationFrame(tick);
-				else done();
-			};
-			tick();
-		});
-
-		// No wave: the wait was over before the mark could report one.
-		expect(sawWave).toBe(false);
-		// And they closed anyway rather than being left holding the mark's gap —
-		// down to one space, which is where two bracket characters typed against
-		// each other would sit. Zero would butt the strokes into one shape.
-		expect(slotWidth()).toBeCloseTo(oneSpace(), 0);
-	});
-
-	/**
-	 * The waiting path's own ending, which is the one the mark survives.
-	 *
-	 * Three things at once, because they are one sequence and the interesting part
-	 * is their order: the wave runs, and when the workbench arrives it does not
-	 * stop where it stands — it runs out to a whole wavelength, where it is the
-	 * mark's own curve again, and only then does the screen begin to leave. Then
-	 * the canvas is blown out from underneath the lockup, and the lockup outlasts
-	 * it.
-	 *
-	 * That last one is measured rather than read off the durations, because a
-	 * duration says nothing about presence: the front-loaded curve the backdrop
-	 * used to fade on spent nearly all of it in its own first third, so a mark
-	 * wearing the same curve collapsed just as fast over twice the duration. It has
-	 * since been lost a second way — a `transition` shorthand declared for the fall
-	 * reset the one the fade lives on — which is why this is asserted from the
-	 * pixels, and now from where the front has actually got to.
-	 */
-	it('runs the wave out to the mark before revealing, and outlasts the backdrop', async () => {
-		const props = $state({ ready: false, ondone: vi.fn() });
-		await render(BootScreen, { props });
-		const mark = () => screen().querySelector('.app-wordmark') as HTMLElement;
-		const wave = () => document.querySelector('.app-wordmark__wave path') as SVGPathElement;
-
-		// The wait state is published before the wave's first animation frame.
-		await vi.waitFor(
-			() => {
-				expect(screen().hasAttribute('data-wait')).toBe(true);
-				expect(wave().getAttribute('d')).not.toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
-			},
-			{ timeout: 4000 }
+		expect(frames.some((frame) => frame.stage === 'pull' && frame.open > 1)).toBe(true);
+		expect(frames.filter((frame) => frame.stage !== 'land').some((frame) => frame.waiting)).toBe(
+			false
 		);
-
-		props.ready = true;
-
-		// Where the front has to have got to before the lockup can be said to have
-		// been uncovered: past the lockup's own edge, so the canvas is gone from
-		// behind the whole of it.
-		const markReach = mark().getBoundingClientRect().width / 2;
-
-		let waveAtReveal = '';
-		let markWhenUncovered = Number.NaN;
-		const exit: { slot: number; opacity: number }[] = [];
-		await new Promise<void>((done) => {
-			const started = performance.now();
-			const tick = () => {
-				const el = screen();
-				if (!el || !document.contains(el)) return done();
-				if (!waveAtReveal && el.hasAttribute('data-leaving')) {
-					waveAtReveal = wave().getAttribute('d') ?? '';
-				}
-				if (waveAtReveal) {
-					exit.push({ slot: slotWidth(), opacity: Number(getComputedStyle(mark()).opacity) });
-					if (Number.isNaN(markWhenUncovered) && revealRadius() > markReach) {
-						markWhenUncovered = Number(getComputedStyle(mark()).opacity);
-					}
-				}
-				if (performance.now() - started < 4000) requestAnimationFrame(tick);
-				else done();
-			};
-			tick();
-		});
-
-		// Parked on the mark's own curve before the screen started to go, rather
-		// than frozen wherever the workbench happened to arrive.
-		expect(waveAtReveal).toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
-
-		// The brackets close to one space, and the mark is gone by the time they get
-		// there.
-		expect(exit.at(0)!.slot).toBeGreaterThan(oneSpace() * 1.5);
-		expect(exit.at(-1)!.slot).toBeCloseTo(oneSpace(), 0);
-		expect(exit.at(-1)!.opacity).toBeCloseTo(0, 2);
-
-		// And the fade tracks the travel, which is the whole of it: what is left of
-		// the opacity is what is left of the gap. Half closed is half gone.
-		//
-		// Two easings is what this replaces, and it is invisible in the source and
-		// obvious on screen — front-loaded on the gap and back-loaded on the opacity
-		// put the brackets halfway shut at 96% opacity, then faded them over travel
-		// too small to see. One duration is not one gesture; one curve is.
-		// Halfway along the travel, which ends at one space rather than at nothing.
-		const midway = (exit.at(0)!.slot + oneSpace()) / 2;
-		const halfway = exit.find((frame) => frame.slot < midway)!;
-		expect(halfway.opacity).toBeLessThan(0.65);
-		expect(halfway.opacity).toBeGreaterThan(0.25);
-
-		// Still there once the wave has cleared the ground it stands on, though. The
-		// lockup is what is being looked at and the canvas is only what is in the
-		// way, so they do not go at one rate — the brackets finish their travel over
-		// the workspace the blast uncovered under them.
-		expect(markWhenUncovered).toBeGreaterThan(0.2);
+		const fall = frames.filter((frame) => frame.stage === 'land');
+		expect(Math.max(...fall.map((frame) => frame.open))).toBeGreaterThan(0.5);
+		expect(Math.min(...fall.map((frame) => frame.open))).toBeGreaterThanOrEqual(-0.001);
+		expect(fall.at(-1)?.open).toBeCloseTo(0, 3);
+		expect(screen().hasAttribute('data-wait')).toBe(true);
+		expect(getComputedStyle(wave).visibility).toBe('visible');
+		expect(path.getAttribute('d')).not.toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
+		// Pending work keeps an opaque canvas; there is no timed reveal state.
+		expect(screen().hasAttribute('data-leaving')).toBe(false);
+		expect(getComputedStyle(screen(), '::before').content).toBe('none');
+		expect(getComputedStyle(screen()).maskImage).toBe('none');
 	});
 
-	/**
-	 * The release stops dead at the mark, and this is the assertion that says so.
-	 *
-	 * It used to carry past rest into a compression and ring back out, and that
-	 * cost two rounds of getting the turning point on screen at all — first it was
-	 * skipped, then it was held. Both were fixed and the whole thing was then cut,
-	 * because a mark that gives and recoils reads as light where this one has to
-	 * read as immovable. So the driver is sampled every frame and asserted never
-	 * to leave its own range: no overshoot, no rebound, no settling wobble.
-	 */
-	it('stops dead at the mark rather than springing past it', async () => {
-		await render(BootScreen, { props: { ready: false, ondone: vi.fn() } });
-		const mark = () => screen().querySelector('.app-wordmark') as HTMLElement;
-		const driver = () => Number(getComputedStyle(mark()).getPropertyValue('--wm-open'));
-
-		await vi.waitFor(() => expect(screen().dataset.stage).toBe('land'), { timeout: 3000 });
-
-		const samples: number[] = [];
-		await new Promise<void>((done) => {
-			const started = performance.now();
-			const tick = () => {
-				samples.push(driver());
-				if (performance.now() - started < 700) requestAnimationFrame(tick);
-				else done();
-			};
-			tick();
-		});
-
-		// Never past the mark in either direction: the fall is monotonic from the
-		// stretch down to rest, and rest is where it stays.
-		expect(Math.min(...samples)).toBeGreaterThanOrEqual(-0.001);
-		expect(samples.at(-1)).toBeCloseTo(0, 3);
-		// And it actually fell — a driver that never moved would satisfy the above.
-		expect(Math.max(...samples)).toBeGreaterThan(0.5);
+	it('announces the pending workspace after its live region mounts', async () => {
+		await render(BootScreen);
+		const status = screen().querySelector('[role="status"]')!;
+		await vi.waitFor(() => expect(status.textContent).toBe('Loading your workspace…'));
 	});
 
-	// And the other half: a landing that arrived first waits, with the mark's own
-	// waveform reporting the wait rather than a spinner beside it.
-	it('waits on the workspace with the waveform, then reveals', async () => {
-		const ondone = vi.fn();
-		const props = $state({ ready: false, ondone });
+	it('parks on the mark under reduced motion and stops its wave when removed', async () => {
 		await withoutMotion(async () => {
-			await render(BootScreen, { props });
+			const view = await render(BootScreen);
+			expect(screen().dataset.stage).toBe('land');
+			expect(screen().hasAttribute('data-wait')).toBe(true);
+			const path = screen().querySelector('.app-wordmark__wave path') as SVGPathElement;
+			const shapes = new Set<string | null>();
+			for (let frame = 0; frame < 5; frame++) {
+				await nextFrame();
+				shapes.add(path.getAttribute('d'));
+				expect(path.getBBox().x).toBeCloseTo(2, 5);
+				expect(path.getBBox().width).toBeCloseTo(28, 5);
+			}
+			expect(shapes.size).toBeGreaterThan(1);
+			await view.unmount();
+			expect(document.querySelector('.boot-screen')).toBeNull();
+			expect(path.getAttribute('d')).toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
+			await nextFrame();
+			expect(path.getAttribute('d')).toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
 		});
+	});
 
-		expect(screen().dataset.stage).toBe('land');
-		expect(screen().hasAttribute('data-wait')).toBe(true);
-
-		const wave = document.querySelector('.app-wordmark__wave path') as SVGPathElement;
-
-		// The mark's own wave is what is on screen the instant the wait begins.
-		expect(wave.getAttribute('d')).toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
-
-		// It is redrawn per frame from here, so sample the geometry rather than a
-		// property name: what the animation is made of has changed three times, and
-		// what it has to look like has not.
-		const frames: { d: string; box: DOMRect }[] = [];
-		await new Promise<void>((done) => {
-			const started = performance.now();
-			const tick = () => {
-				frames.push({ d: wave.getAttribute('d') ?? '', box: wave.getBBox() });
-				if (performance.now() - started < 700) requestAnimationFrame(tick);
-				else done();
-			};
-			tick();
-		});
-
-		// It moves — the phase advances rather than the wave sitting still.
-		expect(new Set(frames.map((frame) => frame.d)).size).toBeGreaterThan(10);
-
-		// And the ends never move, which is the whole reason the curve is computed
-		// rather than translated. A wave that travels by sliding a longer path has
-		// to overrun the box and be clipped, so it widens and loses the round caps
-		// the mark ends in — visibly, on the frame the wait starts. Every frame here
-		// spans exactly the mark's own `2` to `30`.
-		const mark = new DOMParser()
-			.parseFromString(
-				`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="${WAVE_D_ATTRIBUTE_OF_THE_MARK}"/></svg>`,
-				'image/svg+xml'
-			)
-			.querySelector('path');
-		document.body.append(mark!.ownerSVGElement!);
-		const markBox = mark!.getBBox();
-		mark!.ownerSVGElement!.remove();
-
-		for (const frame of frames) {
-			expect(frame.box.x).toBeCloseTo(markBox.x, 5);
-			expect(frame.box.width).toBeCloseTo(markBox.width, 5);
+	it('can be removed before the first animation stage without leaving timers', async () => {
+		const clear = vi.spyOn(window, 'clearTimeout');
+		try {
+			const view = await render(BootScreen);
+			const root = screen();
+			expect(root.dataset.stage).toBe('word');
+			const before = clear.mock.calls.length;
+			await view.unmount();
+			expect(clear.mock.calls.length - before).toBeGreaterThanOrEqual(4);
+			expect(document.querySelector('.boot-screen')).toBeNull();
+		} finally {
+			clear.mockRestore();
 		}
-
-		expect(ondone).not.toHaveBeenCalled();
-
-		props.ready = true;
-		await vi.waitFor(() => expect(ondone).toHaveBeenCalledTimes(1));
-		// The mark gets its own wave back for the frames it has left — and the wave
-		// is still drawn for them. It does not wink off when the wait ends; it is
-		// taken away by the brackets closing over it, which needs it on screen.
-		expect(wave.getAttribute('d')).toBe(WAVE_D_ATTRIBUTE_OF_THE_MARK);
-		expect(screen().hasAttribute('data-wait')).toBe(true);
 	});
 });

@@ -1,3 +1,4 @@
+import { runRules as computeDiagnostics } from '$lib/rules/engine.js';
 import { copySectionLinks } from '$lib/persistence/copy.js';
 import { parseDocument } from '$lib/core/parser.js';
 import type {
@@ -26,7 +27,7 @@ import { StubAudio } from './media-test-audio.js';
 import { sampleDraftText } from '../sample-draft.js';
 import { unknownVoiceAcceptanceKey } from '$lib/diagnostics/ignore.js';
 import { createWorkbenchController } from './workbench.svelte.js';
-import { buildRuleContext, computeDiagnostics } from './wiring.js';
+import { buildRuleContext } from './wiring.js';
 
 function draft(id: string, text = '[Verse]\nLine'): DraftRecord {
 	return {
@@ -271,6 +272,17 @@ describe('workbench draft safety', () => {
 	 */
 	// The timings a player gets are the editor's live ones, named after the draft
 	// rather than after the file the audio came from.
+	test('reports a failed Scribe download without announcing an export', async () => {
+		const exportText = vi.fn(() => {
+			throw new Error('Download unavailable');
+		});
+		const { controller } = setup({ exportText });
+		await controller.exportScribe();
+		expect(exportText).toHaveBeenCalledOnce();
+		expect(controller.feedback.announcement).toBe("That 'scribe could not be exported.");
+		expect(controller.toasts.at(-1)?.message).toBe("That 'scribe could not be exported.");
+	});
+
 	test('writes the editor’s own anchors out as a timed-lyrics file', () => {
 		const exportText = vi.fn();
 		const { controller, editor } = setup({ exportText });

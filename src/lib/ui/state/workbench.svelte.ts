@@ -42,19 +42,8 @@ import { WorkspaceBackupError, type WorkspaceBackupController } from '$lib/persi
 import { DEFAULT_DRAFT_TITLE } from '$lib/persistence/draft-repository.js';
 import { headerNameAtoms, isMirrorableHeaderName } from '$lib/performers/index.js';
 import { buildRuleContext } from './wiring.js';
-import {
-	maxScribeBytes,
-	parseScribe,
-	serializeScribe,
-	ScribeFormatError
-} from '$lib/scribe/format.js';
-
-/**
- * The whole of what a `.lls` file carries, read off the serializer rather than
- * restated here — a field added there is then a compile error in this one place
- * rather than a project quietly exported without it.
- */
-type ScribeProjectInput = Parameters<typeof serializeScribe>[0];
+import { maxScribeBytes, ScribeFormatError } from '$lib/scribe/contracts.js';
+import type { ScribeProjectInput } from '$lib/scribe/format.js';
 
 interface WorkbenchDependencies {
 	editor: EditorHandle;
@@ -863,12 +852,19 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 			}
 			if (song !== undefined) project.song = song;
 
-			exportText(
-				serializeScribe(project),
-				safeFilename(exported.title, 'lls'),
-				'application/vnd.lyriclint.scribe+json;charset=utf-8'
-			);
-			feedback.announce(`Exported ${exported.title} as a LyricLint Scribe.`);
+			try {
+				const { serializeScribe } = await import('$lib/scribe/format.js');
+				exportText(
+					serializeScribe(project),
+					safeFilename(exported.title, 'lls'),
+					'application/vnd.lyriclint.scribe+json;charset=utf-8'
+				);
+				feedback.announce(`Exported ${exported.title} as a LyricLint Scribe.`);
+			} catch {
+				const message = "That 'scribe could not be exported.";
+				feedback.announce(message);
+				feedback.addToast({ message });
+			}
 		},
 		async importScribe(file) {
 			if (!file.name.toLocaleLowerCase().endsWith('.lls')) {
@@ -890,6 +886,7 @@ export function createWorkbenchController(deps: WorkbenchDependencies): Workbenc
 
 			let project;
 			try {
+				const { parseScribe } = await import('$lib/scribe/format.js');
 				project = parseScribe(await file.text());
 			} catch (error) {
 				const message =

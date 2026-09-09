@@ -7,7 +7,7 @@ function file(name: string, contents: string): File {
 }
 
 describe('Workbench Scribe projects', () => {
-	test('exports the current editable project as .lls rather than only its lyrics', () => {
+	test('exports the current editable project as .lls rather than only its lyrics', async () => {
 		const exportLog: Array<{ text: string; filename: string }> = [];
 		const alice = performer('alice', 'Alice', 0);
 		const { controller, calls } = createTestWorkbench({
@@ -20,7 +20,7 @@ describe('Workbench Scribe projects', () => {
 		controller.onLineAnchorsChanged();
 
 		controller.setGeniusUrl('https://genius.com/Artist-song-lyrics');
-		controller.exportScribe();
+		await controller.exportScribe();
 
 		expect(exportLog).toHaveLength(1);
 		expect(exportLog[0]?.filename).toBe('Test draft.lls');

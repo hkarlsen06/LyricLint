@@ -4,6 +4,7 @@
  * Run against a production preview, with no concurrent Lighthouse/build/test workload.
  * Optional PERF_SCREENSHOTS=1 saves each page beside OUTPUT.json.
  * PERF_ROUTES=/ limits a targeted rerun; default is all three audited routes.
+ * PERF_INSECURE_TLS=1 allows a local audit server's self-signed certificate.
  */
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -40,7 +41,11 @@ assert(
 	'Unknown audit route'
 );
 const settleMs = 10_000;
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+	headless: true,
+	// Context-level ignoreHTTPSErrors does not cover a service worker's script fetch.
+	args: process.env.PERF_INSECURE_TLS === '1' ? ['--ignore-certificate-errors'] : []
+});
 const report = {
 	kind: 'lab',
 	baseURL,
@@ -203,7 +208,11 @@ try {
 		for (const [profile, config] of Object.entries(profiles)) {
 			for (const route of routes) {
 				const { cpu, latency, throughput, ...device } = config;
-				const context = await browser.newContext({ ...device, serviceWorkers: 'allow' });
+				const context = await browser.newContext({
+					...device,
+					serviceWorkers: 'allow',
+					ignoreHTTPSErrors: process.env.PERF_INSECURE_TLS === '1'
+				});
 				const page = await context.newPage();
 				const errors = [];
 				page.on('pageerror', (error) => errors.push(error.message));

@@ -25,19 +25,14 @@
 	import { lineNumberAt } from '$lib/core/line-numbers.js';
 	import { unknownVoiceAcceptanceKey } from '$lib/diagnostics/ignore.js';
 	import { prefersReducedMotion } from '$lib/interaction/motion.js';
-	import { loadStatisticalLanguageDetector } from '$lib/languages/detect.js';
-	import {
-		createHarperDiagnosticProvider,
-		mergeHarperDiagnostics,
-		type HarperDiagnosticProvider
-	} from '$lib/rules/index.js';
+	import type { HarperDiagnosticProvider } from '$lib/rules/harper.js';
+	import { mergeHarperDiagnostics } from '$lib/rules/results.js';
 	import { useAssistantState } from '$lib/assistant/assistant.svelte.js';
 	import type { AssistantDraftBridge } from '$lib/assistant/draft-bridge.js';
 	import { onDestroy, tick, type Component, untrack } from 'svelte';
 	import type { WorkbenchController } from '../state/workbench.svelte.js';
 	import {
 		buildRuleContext,
-		computeDiagnostics,
 		filterForEditorState,
 		everyLyricLineTimed,
 		isTypingChange,
@@ -49,11 +44,12 @@
 	import DocumentToolbar from './DocumentToolbar.svelte';
 	import EditorActions from './EditorActions.svelte';
 	import MediaPicker from '../media/MediaPicker.svelte';
-	import MediaStrip from '../media/MediaStrip.svelte';
 	import { bindTransportShortcuts } from '../state/media-shortcuts.js';
 	import { carryHarperDiagnosticsAcrossEdit } from '../state/harper-continuity.js';
 	import { trackKeyboardInset } from '../state/keyboard-inset.js';
-	import RightPanel from './RightPanel.svelte';
+	import LazyPanel from '$lib/interaction/LazyContent.svelte';
+	import { NOTICE_TOAST_DURATION } from '../state/feedback.svelte.js';
+	type NativeRules = typeof import('$lib/rules/engine.js').runRules;
 	import MediaVideo from '../media/MediaVideo.svelte';
 	import { MediaQuery } from 'svelte/reactivity';
 	import { PHONE_WORKSPACE_QUERY } from '../state/phone-layout.js';
@@ -63,8 +59,11 @@
 	let {
 		controller,
 		editorComponent,
-		harperProvider = createHarperDiagnosticProvider(),
-		brandRevealed = true
+		harperProvider,
+		brandRevealed = true,
+		onready,
+		onerror,
+		loadNativeRules = () => import('$lib/rules/engine.js')
 	}: {
 		controller: WorkbenchController;
 		editorComponent: Component<EditorPaneProps>;
@@ -72,6 +71,10 @@
 		harperProvider?: HarperDiagnosticProvider;
 		/** Delays the toolbar lockup until the boot screen has finished leaving. */
 		brandRevealed?: boolean;
+		/** The real editor has mounted with its recovered document and selection. */
+		onready?: () => void;
+		onerror?: (error: Error) => void;
+		loadNativeRules?: () => Promise<{ runRules: NativeRules }>;
 	} = $props();
 
 	let editorHandle = $state<EditorHandle>(untrack(() => controller.editor));
@@ -84,6 +87,12 @@
 	let reviewFocused = $state(false);
 	let toolsTab: RightPanelTab = 'song';
 	const panelCollapsed = $derived(phone.current ? mobileView === 'write' : editorExpanded);
+	// A phone starts in Write. Build the panel only when first revealed, then
+	// retain it so switching tasks never loses a tool's local state.
+	let panelInitialized = $state(untrack(() => !panelCollapsed));
+	$effect.pre(() => {
+		if (!panelCollapsed) panelInitialized = true;
+	});
 	const editorHidden = $derived(
 		phone.current && (mobileView === 'tools' || (mobileView === 'review' && !reviewFocused))
 	);
@@ -164,17 +173,35 @@
 	}>();
 	const EditorComponent = $derived(editorComponent);
 
+	async function focusMediaOpener(workspace: Element | null): Promise<void> {
+		const opener = () =>
+			workspace?.querySelector<HTMLButtonElement>(
+				phone.current
+					? 'button[aria-label="Audio details"], button[aria-label="Add audio source"]'
+					: 'button[aria-label="Add audio source"], button[aria-label="Change audio source"]'
+			);
+		const immediate = opener();
+		if (immediate) {
+			immediate.focus();
+			return;
+		}
+		// The successful first attachment can close its picker before the strip
+		// finishes loading. Hand focus to its replacement only if the user has
+		// not moved elsewhere during that wait.
+		const previousFocus = document.activeElement;
+		try {
+			await import('../media/MediaStrip.svelte');
+		} catch {
+			// The shared loading surface owns the visible refusal and Retry.
+		}
+		await tick();
+		if (!workspace?.isConnected || document.activeElement !== previousFocus) return;
+		(opener() ?? workspace.querySelector<HTMLButtonElement>('.workspace-media button'))?.focus();
+	}
+
 	function openMediaPicker(source: HTMLButtonElement): void {
 		const workspace = source.closest('.workspace');
-		void mediaPicker?.open(source, () => {
-			workspace
-				?.querySelector<HTMLButtonElement>(
-					phone.current
-						? 'button[aria-label="Audio details"], button[aria-label="Add audio source"]'
-						: 'button[aria-label="Add audio source"], button[aria-label="Change audio source"]'
-				)
-				?.focus();
-		});
+		void mediaPicker?.open(source, () => void focusMediaOpener(workspace));
 	}
 
 	// Undefined in a workspace rendered on its own, which is how every component
@@ -339,6 +366,57 @@
 	let languageDetectorTimer: ReturnType<typeof setTimeout> | undefined;
 	let languageDetectorStarted = false;
 	let destroyed = false;
+	let ownedHarperProvider: HarperDiagnosticProvider | undefined;
+	let harperProviderPromise: Promise<HarperDiagnosticProvider | undefined> | undefined;
+
+	async function lintWithHarper(
+		request: Parameters<HarperDiagnosticProvider['lint']>[0],
+		generation: number
+	): Promise<Diagnostic[]> {
+		const provider =
+			harperProvider ??
+			(await (harperProviderPromise ??= import('$lib/rules/harper.js').then(
+				({ createHarperDiagnosticProvider }) => {
+					if (destroyed) return undefined;
+					return (ownedHarperProvider = createHarperDiagnosticProvider());
+				}
+			)));
+		if (destroyed || generation !== harperRequest || !provider) return [];
+		return provider.lint(request);
+	}
+
+	let nativeRules: NativeRules | undefined;
+	let nativeRulesRequested = false;
+	let nativeRulesStatus = $state<'pending' | 'failed' | 'ready'>('pending');
+
+	function requestNativeRules(): void {
+		if (nativeRulesRequested || destroyed) return;
+		nativeRulesRequested = true;
+		nativeRulesStatus = 'pending';
+		void Promise.resolve()
+			.then(() => loadNativeRules())
+			.then(({ runRules }) => {
+				if (destroyed) return;
+				nativeRules = runRules;
+				lastLintKey = '';
+				publishSnapshot(controller.snapshot);
+			})
+			// A rejected import can carry any thrown value; it is logged, never trusted as data.
+			// oxlint-disable-next-line anti-slop/no-unknown-parameters
+			.catch((error: unknown) => {
+				if (destroyed) return;
+				nativeRulesStatus = 'failed';
+				console.error('Lyric checking could not load.', error);
+				const message = 'Lyric checking could not load. Retry in Review.';
+				controller.feedback.announce(message);
+				controller.feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
+			});
+	}
+
+	function retryNativeRules(): void {
+		nativeRulesRequested = false;
+		requestNativeRules();
+	}
 	const harperDelay = 250;
 	const languageDetectorDelay = 150;
 
@@ -443,14 +521,16 @@
 		const performers = [...controller.performers];
 		harperTimer = setTimeout(() => {
 			harperTimer = undefined;
-			void harperProvider
-				.lint({
+			void lintWithHarper(
+				{
 					text: snapshot.text,
 					document: snapshot.parsed,
 					language,
 					performers,
 					revision: snapshot.revision
-				})
+				},
+				request
+			)
 				.then((harperDiagnostics) => {
 					const current = controller.snapshot;
 					if (
@@ -506,7 +586,8 @@
 		languageDetectorTimer = setTimeout(() => {
 			languageDetectorTimer = undefined;
 			languageDetectorStarted = true;
-			void loadStatisticalLanguageDetector()
+			void import('$lib/languages/detect.js')
+				.then(({ loadStatisticalLanguageDetector }) => loadStatisticalLanguageDetector())
 				.then(() => {
 					if (destroyed) return;
 					lastLintKey = '';
@@ -518,6 +599,13 @@
 
 	function enrichSnapshot(snapshot: EditorSnapshot): EditorSnapshot {
 		noteDocumentChange(snapshot);
+		// Keep publishing text, selection and revisions while the first catalog
+		// request is pending. Its completion always checks the latest snapshot.
+		if (!nativeRules) {
+			lastLintKey = lintKey(snapshot);
+			if (snapshot.text.length > 0) requestNativeRules();
+			return { ...snapshot, diagnostics: [] };
+		}
 		if (!snapshot.composing) {
 			const key = lintKey(snapshot);
 			if (key === lastLintKey) {
@@ -551,7 +639,8 @@
 				controller.ruleSet?.version ?? 'unavailable',
 				snapshot.revision
 			);
-			const nativeDiagnostics = computeDiagnostics(snapshot.parsed, context);
+			const nativeDiagnostics = nativeRules(snapshot.parsed, context);
+			nativeRulesStatus = 'ready';
 			lastNativeDiagnostics = nativeDiagnostics;
 			// A fix is complete the moment this atomic snapshot arrives, but Harper's
 			// replacement answer is still behind its debounce and worker pass. Carry
@@ -610,9 +699,9 @@
 		if (settleTimer !== undefined) clearTimeout(settleTimer);
 		if (languageDetectorTimer !== undefined) clearTimeout(languageDetectorTimer);
 		invalidateHarper();
-		void harperProvider
-			.dispose()
-			.catch((error: Error) => console.error('Harper worker cleanup failed.', error));
+		void Promise.all([harperProvider?.dispose(), ownedHarperProvider?.dispose()]).catch(
+			(error: Error) => console.error('Harper worker cleanup failed.', error)
+		);
 	});
 
 	const editorContext = $derived<EditorDisplayContext>({
@@ -662,12 +751,36 @@
 			controller.highlightDiagnostic(diagnostic);
 			void openMobileFinding(diagnostic, range).then(async () => {
 				await tick();
-				// Hand focus to Review to dismiss the typing keyboard without refocusing lyrics.
-				if (phone.current && mobileView === 'review') {
-					workspaceElement
-						?.querySelector<HTMLElement>('.diagnostic-card--expanded .diagnostic-list__navigate')
-						?.focus({ preventScroll: true });
+				if (!phone.current || mobileView !== 'review') return;
+				const decision = () =>
+					workspaceElement?.querySelector<HTMLElement>(
+						'.diagnostic-card--expanded .diagnostic-list__navigate'
+					);
+				const target =
+					decision() ?? workspaceElement?.querySelector<HTMLElement>('#document-panel');
+				// Review's first download can outlast the render tick. The pending
+				// panel must dismiss the keyboard while its decision is unavailable.
+				target?.focus({ preventScroll: true });
+				if (decision()) return;
+				const findingKey = controller.activeDiagnosticKey;
+				try {
+					await import('./RightPanel.svelte');
+				} catch {
+					// The focused loading surface owns the refusal and Retry.
+					return;
 				}
+				await tick();
+				const focus = document.activeElement;
+				if (
+					!workspaceElement?.isConnected ||
+					!phone.current ||
+					mobileView !== 'review' ||
+					!reviewFocused ||
+					controller.activeDiagnosticKey !== findingKey ||
+					(focus !== target && !(target && !target.isConnected && focus === document.body))
+				)
+					return;
+				decision()?.focus({ preventScroll: true });
 			});
 		},
 		onDiagnosticHighlight: (diagnostic) => controller.highlightDiagnostic(diagnostic),
@@ -1153,23 +1266,46 @@
 					diagnosticsInPanel={phone.current}
 					callbacks={editorCallbacks}
 					bind:handle={editorHandle}
+					{onready}
+					{onerror}
 				/>
 			{/key}
 		</div>
 	</section>
 
-	<RightPanel
-		{controller}
-		{assistant}
-		collapsed={panelCollapsed}
-		mobile={phone.current}
-		{reviewFocused}
-		onOpenFinding={openMobileFinding}
-		onReviewList={showReviewList}
-		onRevealIgnored={revealIgnoredFinding}
-		onShowEditor={showEditorFromLinking}
-		renderVideo={false}
-	/>
+	{#if panelInitialized}
+		<LazyPanel
+			name="Document panel"
+			load={() => import('./RightPanel.svelte')}
+			panelProps={{
+				controller,
+				assistant,
+				nativeRulesStatus,
+				onRetryNativeRules: retryNativeRules,
+				collapsed: panelCollapsed,
+				mobile: phone.current,
+				reviewFocused,
+				onOpenFinding: openMobileFinding,
+				onReviewList: showReviewList,
+				onRevealIgnored: revealIgnoredFinding,
+				onShowEditor: showEditorFromLinking,
+				renderVideo: false
+			}}
+		>
+			{#snippet pendingSurface(content)}
+				<aside
+					id="document-panel"
+					tabindex="-1"
+					class="right-panel"
+					aria-label="Document panel"
+					aria-hidden={panelCollapsed}
+					inert={panelCollapsed}
+				>
+					{@render content()}
+				</aside>
+			{/snippet}
+		</LazyPanel>
+	{/if}
 
 	{#if controller.media?.player.sourceKind === 'youtube'}
 		<div class="workspace-video"><MediaVideo media={controller.media} /></div>
@@ -1179,13 +1315,21 @@
 		     state that could not have been otherwise, which is the same reason the
 		     counts in the Song tab wait for a count worth stating. -->
 		{#if controller.media && (controller.media.player.attached || controller.media.pendingName)}
-			<MediaStrip
-				media={controller.media}
-				sync={lyricSync}
-				follow={followControl}
-				announce={(message) => controller.feedback.announce(message)}
-				{openMediaPicker}
-			/>
+			<LazyPanel
+				name="audio controls"
+				load={() => import('../media/MediaStrip.svelte')}
+				panelProps={{
+					media: controller.media,
+					sync: lyricSync,
+					follow: followControl,
+					announce: (message: string) => controller.feedback.announce(message),
+					openMediaPicker
+				}}
+			>
+				{#snippet pendingSurface(content)}
+					<div class="media-strip">{@render content()}</div>
+				{/snippet}
+			</LazyPanel>
 		{/if}
 	</div>
 

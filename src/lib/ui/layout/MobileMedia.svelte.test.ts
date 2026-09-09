@@ -44,6 +44,7 @@ it('keeps one visible YouTube player and transport across every phone view', asy
 		source.ready({ duration: 180, title: 'Test song' });
 		player.seek(20);
 		const frame = view.container.querySelector<HTMLElement>('.media-video__frame')!;
+		await expect.element(page.getByTestId('media-strip')).toBeVisible();
 		const strip = view.container.querySelector<HTMLElement>('.media-strip')!;
 		const editor = view.container.querySelector('[data-testid="editor-region"]');
 		await page.getByRole('button', { name: 'Play', exact: true }).click();

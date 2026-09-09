@@ -4,7 +4,7 @@
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import DiagnosticActions from '$lib/diagnostics/DiagnosticActions.svelte';
 	import DiagnosticMeta from '$lib/diagnostics/DiagnosticMeta.svelte';
-	import { diagnosticTriggerAttribute } from '../contracts.js';
+	import { dismissOnHoverLeave } from './dismiss-on-hover-leave.js';
 	import type { ScreenRect } from '../contracts.js';
 	import { anchoredPosition } from './anchored-position.js';
 
@@ -76,21 +76,6 @@
 	}
 
 	/**
-	 * Whether the keyboard is standing on this card or on the control that opened
-	 * it. Either is focus the pointer-leave watcher may not close out from under:
-	 * a card reached with Tab has no pointer behind it to leave, so a mouse
-	 * knocked on the way past would take away the surface a keyboard user is
-	 * reading with nothing on screen having asked for it.
-	 */
-	function focusHoldsCard(): boolean {
-		const active = document.activeElement;
-		return (
-			(root?.contains(active) ?? false) ||
-			(active instanceof Element && active.closest(`[${diagnosticTriggerAttribute}]`) !== null)
-		);
-	}
-
-	/**
 	 * `Close` is offered only to the card that was opened with the keyboard. That
 	 * one holds focus and is deliberately exempt from the pointer-leave watcher,
 	 * so without a visible control its only exit is a keystroke nobody announced.
@@ -106,57 +91,6 @@
 	function dismissFromOutsidePress(): void {
 		onDismiss(false);
 	}
-
-	// Hovering an underline is what opens this card, so the pointer leaving both
-	// the card and its underline is what closes it again. A grace margin plus a
-	// short delay keeps the diagonal travel from underline to popover from
-	// closing it early. Keyboard-opened popovers (takeFocus) are unaffected, and
-	// a popover the user has tabbed into is never closed out from under focus.
-	$effect(() => {
-		if (takeFocus) {
-			return;
-		}
-		let timer: number | undefined;
-		const margin = 28;
-		const within = (
-			rect: { left: number; right: number; top: number; bottom: number },
-			x: number,
-			y: number,
-			pad: number
-		) =>
-			x >= rect.left - pad &&
-			x <= rect.right + pad &&
-			y >= rect.top - pad &&
-			y <= rect.bottom + pad;
-		const onMove = (event: PointerEvent) => {
-			const rect = root?.getBoundingClientRect();
-			if (!rect) {
-				return;
-			}
-			const near =
-				within(rect, event.clientX, event.clientY, margin) ||
-				(anchor !== undefined && within(anchor, event.clientX, event.clientY, 12));
-			if (near) {
-				if (timer !== undefined) {
-					clearTimeout(timer);
-					timer = undefined;
-				}
-			} else if (timer === undefined) {
-				timer = window.setTimeout(() => {
-					if (!focusHoldsCard()) {
-						onDismiss(false);
-					}
-				}, 250);
-			}
-		};
-		window.addEventListener('pointermove', onMove, { passive: true });
-		return () => {
-			window.removeEventListener('pointermove', onMove);
-			if (timer !== undefined) {
-				clearTimeout(timer);
-			}
-		};
-	});
 </script>
 
 <!-- A role either way, because the label needs one to land on: `aria-label` on a
@@ -179,6 +113,7 @@
 		}
 	}}
 	{@attach dismissOnOutside(dismissFromOutsidePress)}
+	{@attach dismissOnHoverLeave({ anchor, takeFocus, onDismiss: () => onDismiss(false) })}
 >
 	<!-- Same marker, same wording, same order as the card in the linter panel:
 	     message, then the meta line the severity leads, then the reasoning. The

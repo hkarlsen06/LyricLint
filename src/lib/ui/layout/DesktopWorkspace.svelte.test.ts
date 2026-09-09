@@ -18,6 +18,7 @@ async function mount(text = '[Verse]\nImma go\nImma stay') {
 		editorComponent: MockEditorPane,
 		harperProvider: { lint: async () => [], dispose: async () => {} }
 	});
+	await screen.findByRole('tab', { name: /Review/ });
 	return controller;
 }
 

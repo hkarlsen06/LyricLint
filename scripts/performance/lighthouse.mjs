@@ -9,10 +9,15 @@ import { resolve } from 'node:path';
 const origin = process.argv[2];
 const output = resolve(process.argv[3]);
 const runs = Number(process.argv[4] ?? 3);
+const routes = process.env.PERF_ROUTES?.split(',') ?? ['/', '/workbench/', '/guidelines/'];
+const profiles = process.env.PERF_PROFILES?.split(',') ?? ['mobile', 'desktop'];
+const chromeFlags =
+	'--headless --no-sandbox --disable-dev-shm-usage' +
+	(process.env.PERF_INSECURE_TLS === '1' ? ' --ignore-certificate-errors' : '');
 await mkdir(output, { recursive: true });
 const results = [];
-for (const profile of ['mobile', 'desktop']) {
-	for (const route of ['/', '/workbench/', '/guidelines/']) {
+for (const profile of profiles) {
+	for (const route of routes) {
 		for (let run = 1; run <= runs; run++) {
 			const name = `${profile}-${route.replaceAll('/', '') || 'landing'}-${run}`;
 			const path = resolve(output, name);
@@ -20,10 +25,9 @@ for (const profile of ['mobile', 'desktop']) {
 				const child = spawn(
 					'bunx',
 					[
-						'lighthouse@12.8.2',
+						'lighthouse@13.4.1',
 						`${origin}${route}`,
-						'--chrome-flags=--headless --no-sandbox --disable-dev-shm-usage',
-						'--only-categories=performance,accessibility',
+						`--chrome-flags=${chromeFlags}`,
 						'--output=json',
 						'--output=html',
 						`--output-path=${path}`,
@@ -52,6 +56,8 @@ for (const profile of ['mobile', 'desktop']) {
 				settings: report.configSettings,
 				performance: report.categories.performance.score * 100,
 				accessibility: report.categories.accessibility.score * 100,
+				bestPractices: report.categories['best-practices'].score * 100,
+				seo: report.categories.seo.score * 100,
 				ttfb: audit('server-response-time'),
 				fcp: audit('first-contentful-paint'),
 				lcp: audit('largest-contentful-paint'),

@@ -335,6 +335,8 @@ export interface EditorPaneProps {
 	callbacks: LyricEditorCallbacks;
 	handle?: EditorHandle;
 	onready?: (handle: EditorHandle) => void;
+	/** Startup import or construction failed; the parent can replace its loading surface. */
+	onerror?: (error: Error) => void;
 	ondestroyed?: () => void;
 	/** See `CreateLyricEditorOptions.sectionGhosts`. Defaults to on. */
 	sectionGhosts?: boolean;

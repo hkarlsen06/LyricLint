@@ -98,20 +98,24 @@ export function trackKeyboardInset(): () => void {
 		frame = 0;
 		// Pinch zoom magnifies the existing layout. Resizing it to the zoomed
 		// rectangle would undo that gesture and move the document under the fingers.
-		if (viewport.scale && viewport.scale !== 1) return;
+		const scale = viewport.scale;
+		if (scale && scale !== 1) return;
+		// Read one geometry snapshot before writing CSS: a viewport read after a
+		// root style change can synchronously lay out the newly mounted editor.
+		const { height, width, offsetTop } = viewport;
 		// Mobile fits the visible rectangle even across a rotation with the
 		// keyboard already open, where there is no unoccluded baseline yet.
-		root.style.setProperty('--visual-viewport-height', `${Math.round(viewport.height)}px`);
-		root.style.setProperty('--visual-viewport-offset', `${Math.round(viewport.offsetTop)}px`);
-		if (viewport.width !== baselineWidth) {
-			baselineWidth = viewport.width;
-			baseline = viewport.height;
+		root.style.setProperty('--visual-viewport-height', `${Math.round(height)}px`);
+		root.style.setProperty('--visual-viewport-offset', `${Math.round(offsetTop)}px`);
+		if (width !== baselineWidth) {
+			baselineWidth = width;
+			baseline = height;
 		}
 		// A keyboard only ever makes this smaller, so the largest seen is the one
 		// with nothing over it.
-		if (viewport.height > baseline) baseline = viewport.height;
+		if (height > baseline) baseline = height;
 
-		if (baseline - viewport.height < KEYBOARD_MIN_PX) {
+		if (baseline - height < KEYBOARD_MIN_PX) {
 			clear();
 			return;
 		}
@@ -119,10 +123,7 @@ export function trackKeyboardInset(): () => void {
 		// `offsetTop` is how far the visible viewport has been pushed down inside
 		// the layout one, which iOS does to bring the caret into view. It is part of
 		// where the bottom edge lands and dropping it puts the strip over the keys.
-		root.style.setProperty(
-			'--keyboard-top',
-			`${Math.round(viewport.offsetTop + viewport.height)}px`
-		);
+		root.style.setProperty('--keyboard-top', `${Math.round(offsetTop + height)}px`);
 		root.dataset.keyboardInset = '';
 		startPoll();
 	};

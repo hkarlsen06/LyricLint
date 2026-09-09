@@ -53,6 +53,22 @@ Touches: `src/lib/ui/styles/responsive.css`, `src/lib/ui/styles/responsive-share
 
 ## Decision record
 
+### The first Write view mounts only the writing surface
+
+On a phone, the panel's code download and first mount wait until Review or Tools is opened.
+The dynamic import keeps tab controls and Review rendering code out of the initial writing
+bundle. Constructing the hidden dock and its Review content alongside CodeMirror was also
+extending the startup task for controls the reader could not yet reach. Once initialized, the panel stays mounted through
+Write, task switches, and viewport changes, retaining local tool state. Desktop still mounts
+the visible panel immediately. Linting and the navigation's finding count remain owned by
+the workspace and run independently of panel visibility. The mobile workspace test pins both
+the initially absent panel and the retained loaded instance after a return to Write.
+While its code loads, the selected task gets one panel surface with an announced loading
+state or a visible, announced refusal and Retry. The replacement uses the same grid region.
+An underline or count-badge request focuses this pending surface immediately to dismiss the
+typing keyboard, then transfers focus to the loaded decision only while the same finding
+and focus ownership remain active.
+
 ### Shared touch and motion rules stay available on every route
 
 `responsive.css` now follows the workbench-only styles. The common button/input floors and
@@ -169,3 +185,11 @@ The reference pages, intermediate stacked layout, horizontal dock below `78rem`,
 Assistant's dedicated transcript scroll port keep their earlier ownership. The panel's
 content wrapper must continue reaching the fitted Assistant pane through `:has()`; growing
 that pane like ordinary prose pushes its composer out of reach.
+
+
+### Viewport measurements precede their CSS writes
+
+The keyboard tracker reads height, width, and offset from one visual-viewport snapshot
+before changing root styles. Interleaving those reads with CSS writes forced layout
+while the editor was mounting. Pinch-zoom handling, rotation baselines, the keyboard
+threshold, and polling retain the same behavior and existing keyboard-inset tests.

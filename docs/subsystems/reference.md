@@ -1,6 +1,6 @@
 # The transcription guide: conventions and linter checks in one reference
 
-Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`,
+Touches: `src/lib/reference/`, `src/lib/rules/reference.ts`, `src/lib/rules/names.ts`,
 `src/lib/rules/reference-search.ts`, `src/lib/rules/reference-guide.ts`,
 `src/lib/ui/site/SectionSplit.svelte`, `src/lib/ui/site/ReferenceIndex.svelte`,
 `src/lib/ui/site/reference-search.svelte.ts`, `src/lib/ui/site/reference-url.ts`,
@@ -876,3 +876,15 @@ in `routes/(site)/guidelines/[topic]/+page.svelte`, `guidance-search.svelte.ts` 
 view-transition blocks in `site.css`, and the section layouts in `routes/(site)/rules/` and
 `routes/(site)/guidelines/`. The guidance catalog's content pipeline — what an entry is, the
 authority ladder, how one is added — is `docs/guidelines.md`.
+
+
+### Workbench labels do not load reference-page content
+
+`rules/names.ts` owns rule-family names and diagnostic rule labels without importing the
+reference corpus or running reference derivation. The workbench's ignored findings and
+announcements consume this module; reference pages use the same family-name owner.
+Previously importing `ruleName` through `reference.ts` pulled guideline entries and
+reference initialization into editor startup even though a label only formats its rule ID.
+The existing reference export remains available for compatibility, while the public rules
+barrel exports directly from the small naming module. Reference derivation and rule
+validation are unchanged.

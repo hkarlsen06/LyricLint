@@ -11,7 +11,7 @@ function openDialog(): HTMLDialogElement {
 }
 
 async function pasteBaseline(text: string): Promise<void> {
-	const area = screen.getByRole('textbox', { name: 'The lyrics as the page has them' });
+	const area = await screen.findByRole('textbox', { name: 'The lyrics as the page has them' });
 	await fireEvent.input(area, { target: { value: text } });
 	await fireEvent.click(screen.getByRole('button', { name: 'Show changes' }));
 }
@@ -30,14 +30,36 @@ describe('CompareDialog', () => {
 		await render(CompareDialog, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 
-		const area = screen.getByRole('textbox', { name: 'The lyrics as the page has them' });
+		const area = await screen.findByRole('textbox', { name: 'The lyrics as the page has them' });
 		expect(area).toBeTruthy();
+		expect(document.activeElement).toBe(area);
 		const action = screen.getByRole('button', { name: 'Show changes' });
 		expect(action).toHaveProperty('disabled', true);
 		await fireEvent.input(area, { target: { value: '[Verse]\nLyne' } });
 		expect(action).toHaveProperty('disabled', false);
 		// The first ask has nothing to cancel back to; close is the way out.
 		expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+	});
+
+	test('closing an unfinished replacement resets the body while retaining the saved baseline', async () => {
+		const { controller } = createTestWorkbench();
+		controller.setCompareBaseline('[Verse]\nLyne');
+		await render(CompareDialog, { controller });
+		const trigger = screen.getByRole('button', { name: 'Compare' });
+		expect(document.querySelector('.compare-diff')).toBeNull();
+		await fireEvent.click(trigger);
+		expect(openDialog().open).toBe(true);
+		await fireEvent.click(await screen.findByRole('button', { name: 'Change baseline' }));
+		await fireEvent.input(screen.getByRole('textbox'), {
+			target: { value: 'Unfinished replacement' }
+		});
+		await fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+		expect(document.activeElement).toBe(trigger);
+		expect(document.querySelector('.compare-dialog__ask')).toBeNull();
+		await fireEvent.click(trigger);
+		await fireEvent.click(await screen.findByRole('button', { name: 'Change baseline' }));
+		expect(screen.getByRole('textbox')).toHaveProperty('value', '');
+		expect(controller.compareBaseline?.text).toBe('[Verse]\nLyne');
 	});
 
 	test('a pasted baseline becomes a character diff with the line numbered per row', async () => {
@@ -138,7 +160,7 @@ describe('CompareDialog', () => {
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Compare' }));
 		expect(screen.queryByRole('textbox', { name: 'The lyrics as the page has them' })).toBeNull();
-		expect(openDialog().querySelector('del')?.textContent).toBe('y');
+		await waitFor(() => expect(openDialog().querySelector('del')?.textContent).toBe('y'));
 	});
 
 	test('the baseline is written to the draft record, so it survives a reload', async () => {

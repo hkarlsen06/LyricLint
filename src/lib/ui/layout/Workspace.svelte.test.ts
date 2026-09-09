@@ -32,9 +32,11 @@ async function renderWorkspace(
 	const props = { controller, editorComponent: MockEditorPane, harperProvider };
 	// With an assistant, mount through the host that provides the real context —
 	// the same door the app layout uses — rather than mocking the module.
-	return assistant
+	const view = assistant
 		? await render(WorkspaceWithAssistant, { assistant, ...props })
 		: await render(Workspace, props);
+	await screen.findByRole('tab', { name: /Review/ });
+	return view;
 }
 
 describe('Workspace and toolbar', () => {
@@ -737,7 +739,7 @@ describe('Workspace and toolbar', () => {
 
 		await fireEvent.click(screen.getByRole('tab', { name: 'Preferences' }));
 		const pane = screen.getByRole('tabpanel', { name: 'Preferences' });
-		const link = within(pane).getByRole('link', { name: 'About LyricLint' });
+		const link = await within(pane).findByRole('link', { name: 'About LyricLint' });
 		expect(link.getAttribute('href')).toBe('/');
 		expect(link.closest('.document-toolbar')).toBeNull();
 	});
@@ -1025,7 +1027,7 @@ describe('Workspace and toolbar', () => {
 
 		await fireEvent.click(screen.getByRole('tab', { name: 'Preferences' }));
 		const pane = screen.getByRole('tabpanel', { name: 'Preferences' });
-		const link = within(pane).getByRole('link', { name: 'About LyricLint' });
+		const link = await within(pane).findByRole('link', { name: 'About LyricLint' });
 		expect(link.classList.contains('about-link')).toBe(true);
 		const styles = getComputedStyle(link);
 		expect(styles.textDecorationLine).toBe('none');
@@ -1123,6 +1125,7 @@ describe('Workspace and toolbar', () => {
 		// tab names no second one.
 		await fireEvent.click(screen.getByRole('tab', { name: 'Song' }));
 		const songPane = screen.getByRole('tabpanel', { name: 'Song' });
+		await within(songPane).findByText('Export .txt');
 		expect(within(songPane).queryByRole('button', { name: /audio source/iu })).toBeNull();
 		expect(
 			within(screen.getByRole('group', { name: 'Document actions' })).getByRole('button', {
@@ -1137,7 +1140,7 @@ describe('Workspace and toolbar', () => {
 		await waitFor(() =>
 			expect(screen.queryByRole('button', { name: 'Add audio source' })).toBeNull()
 		);
-		expect(screen.getByRole('button', { name: 'Change audio source' })).toBeTruthy();
+		expect(await screen.findByRole('button', { name: 'Change audio source' })).toBeTruthy();
 	});
 
 	// The strip's own control is the only way in, so it has to be findable: a

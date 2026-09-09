@@ -11,6 +11,8 @@
 
 	let {
 		controller,
+		nativeRulesStatus = 'ready',
+		onRetryNativeRules,
 		active = true,
 		mobile = false,
 		reviewFocused = false,
@@ -18,12 +20,24 @@
 		onReviewList
 	}: {
 		controller: WorkbenchController;
+		nativeRulesStatus?: 'pending' | 'failed' | 'ready';
+		onRetryNativeRules?: () => void;
 		active?: boolean;
 		mobile?: boolean;
 		reviewFocused?: boolean;
 		onOpenFinding?: (diagnostic: Diagnostic) => void;
 		onReviewList?: () => void;
 	} = $props();
+
+	async function retryChecking(trigger: HTMLButtonElement): Promise<void> {
+		const ownedFocus = document.activeElement === trigger;
+		const reviewTab = trigger
+			.closest('.right-panel')
+			?.querySelector<HTMLButtonElement>('#linter-panel-tab');
+		onRetryNativeRules?.();
+		await tick();
+		if (ownedFocus && !trigger.isConnected) reviewTab?.focus();
+	}
 
 	// One row at a time may be armed for deletion, so the pending draft is the
 	// list's state rather than each row's.
@@ -89,6 +103,16 @@
 		// caret is, and Paste lyrics in the toolbar), so this line says what the
 		// panel will do rather than repeating how to feed it, and the space under
 		// it holds the two things worth pressing from here.
+		if (controller.snapshot.text.length > 0 && nativeRulesStatus !== 'ready') {
+			return {
+				status: true,
+				title: nativeRulesStatus === 'failed' ? 'Checking unavailable' : 'Checking lyrics…',
+				detail:
+					nativeRulesStatus === 'failed'
+						? 'Retry to check this draft.'
+						: 'You can keep writing while the checker loads.'
+			};
+		}
 		if (controller.isEmpty) {
 			return {
 				title: 'Ready for your lyrics',
@@ -96,6 +120,7 @@
 				waiting: true
 			};
 		}
+
 		if (hiddenByFilters > 0) {
 			return {
 				title: 'Hidden by filters',
@@ -240,6 +265,13 @@
 	     this state at all — they are somewhere else to be — so they wait at the
 	     far end of the column instead of between the message and its offer. -->
 	{#snippet emptyActions()}
+		{#if controller.snapshot.text.length > 0 && nativeRulesStatus === 'failed'}
+			<button
+				type="button"
+				class="button"
+				onclick={(event) => void retryChecking(event.currentTarget)}>Retry checking</button
+			>
+		{/if}
 		{#if controller.isEmpty && controller.canLoadSample}
 			<div class="linter-panel__empty-action">
 				<button type="button" class="button" onclick={() => controller.loadSample()}>

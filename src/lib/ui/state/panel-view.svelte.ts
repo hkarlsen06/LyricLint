@@ -23,7 +23,7 @@ import { filterProvisionalVerseNumbering } from '$lib/diagnostics/prerequisites.
 import { resolveLegendAssignment } from '$lib/performers/legend-assignment.js';
 import { collectMatchingFixes, mergeFixes, planBulkFix } from '$lib/rules/bulk-fix.js';
 import type { BulkFixPlan } from '$lib/rules/bulk-fix.js';
-import { ruleName } from '$lib/rules/reference.js';
+import { ruleName } from '$lib/rules/names.js';
 import type { FeedbackState } from './feedback.svelte.js';
 
 export type RightPanelTab =

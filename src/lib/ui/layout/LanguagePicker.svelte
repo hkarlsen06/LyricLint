@@ -14,8 +14,9 @@
 	}: { controller: WorkbenchController; expandedLabel?: boolean } = $props();
 	let dialog: HTMLDialogElement;
 	let trigger: HTMLButtonElement;
-	let searchInput: HTMLInputElement;
+	let searchInput = $state<HTMLInputElement>();
 	let query = $state('');
+	let isOpen = $state(false);
 
 	const languages: readonly (readonly [string, string])[] = [
 		['en', 'English'],
@@ -69,9 +70,10 @@
 
 	async function open(): Promise<void> {
 		query = '';
+		isOpen = true;
 		dialog.showModal();
 		await tick();
-		searchInput.focus();
+		searchInput?.focus();
 	}
 
 	function close(): void {
@@ -137,66 +139,71 @@
 	class="language-dialog"
 	aria-labelledby="language-dialog-title"
 	onclick={handleBackdropClick}
+	onclose={(event) => (isOpen = event.currentTarget.open)}
 >
-	<div class="language-dialog__surface">
-		<div class="language-dialog__header">
-			<strong id="language-dialog-title">Lyric language</strong>
-			<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
-				<X aria-hidden="true" size={16} strokeWidth={2.25} />
-			</button>
-		</div>
+	{#if isOpen}
+		<div class="language-dialog__surface">
+			<div class="language-dialog__header">
+				<strong id="language-dialog-title">Lyric language</strong>
+				<button type="button" class="icon-button button--quiet" aria-label="Close" onclick={close}>
+					<X aria-hidden="true" size={16} strokeWidth={2.25} />
+				</button>
+			</div>
 
-		<label class="language-search" for="language-search-input">
-			<Search aria-hidden="true" size={16} strokeWidth={2.25} />
-			<input
-				bind:this={searchInput}
-				bind:value={query}
-				id="language-search-input"
-				type="search"
-				placeholder="Search languages"
-				autocomplete="off"
-				spellcheck="false"
-				onkeydown={handleSearchKeydown}
-			/>
-		</label>
+			<label class="language-search" for="language-search-input">
+				<Search aria-hidden="true" size={16} strokeWidth={2.25} />
+				<input
+					bind:this={searchInput}
+					bind:value={query}
+					id="language-search-input"
+					type="search"
+					placeholder="Search languages"
+					autocomplete="off"
+					spellcheck="false"
+					onkeydown={handleSearchKeydown}
+				/>
+			</label>
 
-		<!-- The count is the live region, never the list. Wrapped around the results
+			<!-- The count is the live region, never the list. Wrapped around the results
 		     themselves, every keystroke re-rendered dozens of options inside a
 		     polite region and queued the whole catalogue to be read out; what the
 		     typist actually wants to hear is how many are left. Mounted at every
 		     state and empty until it has something to say, because a live region
 		     that arrives with its text already in it is not announced. -->
-		<p class="sr-only" role="status">
-			{query.trim().length === 0 ? '' : resultsStatus}
-		</p>
+			<p class="sr-only" role="status">
+				{query.trim().length === 0 ? '' : resultsStatus}
+			</p>
 
-		<div class="language-results">
-			{#if filteredLanguages.length}
-				<ul aria-label="Languages">
-					{#if query.trim().length === 0}
-						{#if recentLanguages.length}
-							<li class="language-group" role="presentation">Recent</li>
-							{#each recentLanguages as [tag, name] (tag)}
+			<div class="language-results">
+				{#if filteredLanguages.length}
+					<ul aria-label="Languages">
+						{#if query.trim().length === 0}
+							{#if recentLanguages.length}
+								<li class="language-group" role="presentation">Recent</li>
+								{#each recentLanguages as [tag, name] (tag)}
+									{@render languageOption(tag, name)}
+								{/each}
+							{/if}
+							{#if allLanguages.length}
+								<li class="language-group language-group--all" role="presentation">
+									All languages
+								</li>
+								{#each allLanguages as [tag, name] (tag)}
+									{@render languageOption(tag, name)}
+								{/each}
+							{/if}
+						{:else}
+							{#each filteredLanguages as [tag, name] (tag)}
 								{@render languageOption(tag, name)}
 							{/each}
 						{/if}
-						{#if allLanguages.length}
-							<li class="language-group language-group--all" role="presentation">All languages</li>
-							{#each allLanguages as [tag, name] (tag)}
-								{@render languageOption(tag, name)}
-							{/each}
-						{/if}
-					{:else}
-						{#each filteredLanguages as [tag, name] (tag)}
-							{@render languageOption(tag, name)}
-						{/each}
-					{/if}
-				</ul>
-			{:else}
-				<p class="language-empty">No languages match “{query.trim()}”.</p>
-			{/if}
+					</ul>
+				{:else}
+					<p class="language-empty">No languages match “{query.trim()}”.</p>
+				{/if}
+			</div>
 		</div>
-	</div>
+	{/if}
 </dialog>
 
 <style>

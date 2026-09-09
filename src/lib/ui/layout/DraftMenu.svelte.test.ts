@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/dom';
 import { userEvent } from 'vitest/browser';
 import { cleanup, render } from 'vitest-browser-svelte';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { DraftRecord } from '$lib/core/types.js';
 import { createTestWorkbench } from '../test-utils.js';
 import DraftMenu from './DraftMenu.svelte';
@@ -29,8 +29,28 @@ function thirdDraft(): DraftRecord {
 	};
 }
 
+async function waitForBody(): Promise<void> {
+	await waitFor(() => expect(screen.queryByText("Loading saved 'scribes…")).toBeNull());
+}
+
 describe('DraftMenu', () => {
 	afterEach(cleanup);
+
+	test('can close before the row module arrives without reopening or taking focus', async () => {
+		const { controller } = createTestWorkbench();
+		await render(DraftMenu, { controller });
+		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		await fireEvent.click(trigger);
+		expect(screen.getByRole('heading', { name: "Saved 'scribes" })).toBeTruthy();
+		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
+		await fireEvent.keyDown(trigger, { key: 'Escape' });
+		await vi.dynamicImportSettled();
+		expect(document.querySelector('details')?.open).toBe(false);
+		expect(document.activeElement).toBe(trigger);
+		await userEvent.click(trigger);
+		await waitForBody();
+		expect(screen.getByRole('heading', { name: "Saved 'scribes" })).toBeTruthy();
+	});
 
 	test('filters a large library and resets the search when the menu closes', async () => {
 		const drafts = Array.from({ length: 8 }, (_, index) => ({
@@ -42,7 +62,12 @@ describe('DraftMenu', () => {
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
+		expect(document.querySelector('.draft-menu__popover')).toBeNull();
 		await userEvent.click(trigger);
+		await waitForBody();
+		const popover = document.querySelector('.draft-menu__popover');
+		const fileInput = popover?.querySelector('input[type="file"]');
+		expect(fileInput).toBeTruthy();
 		const search = screen.getByRole('searchbox', {
 			name: "Find a saved 'scribe by title or opening lyrics"
 		});
@@ -52,7 +77,10 @@ describe('DraftMenu', () => {
 		await fireEvent.input(search, { target: { value: 'missing' } });
 		expect(screen.getByRole('status').textContent).toContain('No saved');
 		await fireEvent.keyDown(search, { key: 'Escape' });
+		expect(document.querySelector('.draft-menu__popover')).toBe(popover);
+		expect(fileInput?.isConnected).toBe(true);
 		await userEvent.click(trigger);
+		await waitForBody();
 		expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('');
 		expect(screen.getByRole('button', { name: /^Winter 1/ })).toBeTruthy();
 	});
@@ -67,6 +95,7 @@ describe('DraftMenu', () => {
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await waitForBody();
 		const heading = screen.getByRole('heading', { name: "Saved 'scribes", level: 2 });
 		const titlebar = heading.closest('.draft-menu__titlebar');
 		const importButton = within(titlebar as HTMLElement).getByRole('button', {
@@ -78,11 +107,13 @@ describe('DraftMenu', () => {
 		await userEvent.click(screen.getByRole('button', { name: /^Second song/ }));
 		expect(controller.draftId).toBe('draft-2');
 		await userEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await waitForBody();
 		const secondRow = screen.getByText('Second song').closest('li');
 		expect(secondRow).toBeTruthy();
 		// The row's commands are glyphs, so the draft's own name is what carries
 		// them in the accessible tree.
 		await fireEvent.click(within(secondRow!).getByRole('button', { name: 'Export Second song' }));
+		await waitFor(() => expect(exported).toHaveLength(1));
 		expect(exported[0]).toEqual({
 			text: expect.stringContaining('"format": "LYRICLINT_SCRIBE"'),
 			filename: 'Second song.lls'
@@ -136,6 +167,7 @@ describe('DraftMenu', () => {
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await waitForBody();
 
 		expect(screen.getByText(/No saved 'scribes yet/u)).toBeTruthy();
 		expect(screen.queryByRole('button', { name: /delete all/iu })).toBeNull();
@@ -147,6 +179,7 @@ describe('DraftMenu', () => {
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await waitForBody();
 
 		expect(screen.queryByRole('button', { name: /delete all/iu })).toBeNull();
 	});
@@ -159,6 +192,7 @@ describe('DraftMenu', () => {
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await waitForBody();
 
 		const row = screen.getByText('Second song').closest('li')!;
 		await fireEvent.click(within(row).getByRole('button', { name: 'Delete Second song' }));
@@ -177,6 +211,7 @@ describe('DraftMenu', () => {
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await waitForBody();
 
 		const second = screen.getByText('Second song').closest('li')!;
 		const third = screen.getByText('Third song').closest('li')!;
@@ -196,6 +231,7 @@ describe('DraftMenu', () => {
 		await render(DraftMenu, { controller });
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		await fireEvent.click(trigger);
+		await waitForBody();
 		const menu = trigger.closest('details')!;
 		// The native `toggle` event lands a task after the click, and it is what
 		// tells the component it is open; wait for the expansion state to say so.
@@ -212,6 +248,7 @@ describe('DraftMenu', () => {
 
 		// Reopening must not present the confirm the user walked away from.
 		await fireEvent.click(trigger);
+		await waitForBody();
 		const reopened = screen.getByText('Second song').closest('li')!;
 		expect(within(reopened).getByRole('button', { name: 'Delete Second song' })).toBeTruthy();
 	});
@@ -226,6 +263,7 @@ describe('DraftMenu', () => {
 		await render(DraftMenu, { controller });
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		await fireEvent.click(trigger);
+		await waitForBody();
 		const menu = trigger.closest('details')!;
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
 
@@ -241,6 +279,7 @@ describe('DraftMenu', () => {
 
 		// And the question the user walked away from is gone rather than primed.
 		await fireEvent.click(trigger);
+		await waitForBody();
 		const reopened = screen.getByText('Second song').closest('li')!;
 		expect(reopened.querySelector('.remove-button__confirm')).toBeNull();
 		expect(within(reopened).getByRole('button', { name: 'Delete Second song' })).toBeTruthy();
@@ -256,6 +295,7 @@ describe('DraftMenu', () => {
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
 		await fireEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await waitForBody();
 
 		const row = screen.getByText('Second song').closest('li')!;
 		const region = row.querySelector('[aria-live]')!;
@@ -279,6 +319,7 @@ describe('DraftMenu', () => {
 		await render(DraftMenu, { controller });
 		const trigger = screen.getByRole('button', { name: "'Scribes" });
 		await fireEvent.click(trigger);
+		await waitForBody();
 		const menu = trigger.closest('details')!;
 		await waitFor(() => expect(trigger.getAttribute('aria-expanded')).toBe('true'));
 
@@ -314,6 +355,7 @@ describe('DraftMenu duplicate titles', () => {
 		await controller.refreshDrafts();
 		await render(DraftMenu, { controller });
 		await userEvent.click(screen.getByRole('button', { name: "'Scribes" }));
+		await waitForBody();
 		expect(screen.getByText('The morning sun')).toBeTruthy();
 		expect(screen.getByText('A winter moon')).toBeTruthy();
 		expect(screen.queryByText('Unique opening')).toBeNull();

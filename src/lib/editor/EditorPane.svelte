@@ -48,9 +48,11 @@
 		type LegendTarget,
 		type OverlaySession
 	} from './overlay-state.js';
-	import DiagnosticPopover from './overlays/DiagnosticPopover.svelte';
-	import PerformerPicker from './overlays/PerformerPicker.svelte';
-	import SectionPicker from './overlays/SectionPicker.svelte';
+	import type DiagnosticPopoverComponent from './overlays/DiagnosticPopover.svelte';
+	import type PerformerPickerComponent from './overlays/PerformerPicker.svelte';
+	import type SectionPickerComponent from './overlays/SectionPicker.svelte';
+	import LazyContent from '$lib/interaction/LazyContent.svelte';
+	import PendingEditorOverlay from './overlays/PendingEditorOverlay.svelte';
 	import type { SectionHeaderNeighbors } from './overlays/section-picker.js';
 
 	/** What `createPerformerEdit` takes, read off the contract rather than restated here. */
@@ -67,6 +69,7 @@
 		callbacks,
 		handle = $bindable(),
 		onready,
+		onerror,
 		ondestroyed,
 		sectionGhosts = true,
 		autoHeight = false,
@@ -74,6 +77,7 @@
 		diagnosticsInPanel = false
 	}: EditorPaneProps = $props();
 	let host: HTMLDivElement;
+	let startupError = $state(false);
 	let editor = $state.raw<LyricEditorInstance | undefined>();
 	let selectionAnchor = $state<SelectionAnchor | undefined>();
 	// Every overlay this pane can show lives in one discriminated value, so the
@@ -89,6 +93,20 @@
 	let selectionAnchorTick = 0;
 
 	const overlay = $derived(session.overlay);
+	let overlaysRequested = $state(false);
+	let focusedPendingOverlay = $state.raw<OverlaySession['overlay']>();
+	const hasOverlay = $derived(
+		overlay.kind !== 'none' && !(overlay.kind === 'diagnostic' && diagnosticsInPanel)
+	);
+	$effect(() => {
+		if (hasOverlay) overlaysRequested = true;
+	});
+	function dismissPendingOverlay(restoreFocus: boolean): void {
+		clearFixPreview();
+		session = overlay.kind === 'performer' ? cancelPerformerPicker(session) : closeOverlay(session);
+		if (restoreFocus) returnFocus();
+	}
+
 	// One anchor per pane: the open overlay names its range, and the cache
 	// invariant is applied once here instead of per overlay in the markup.
 	const anchorRange = $derived(overlayRange(overlay));
@@ -712,52 +730,69 @@
 	});
 
 	onMount(() => {
+		// Yield between shell mounting, module evaluation, and view construction.
+		// Read all options after yielding so intervening prop updates still apply.
 		let cancelled = false;
-
-		void (async () => {
-			const { createLyricEditor } = await import('./create-editor.js');
-			if (cancelled) {
-				return;
-			}
-			const options: CreateLyricEditorOptions = {
-				initialText,
-				initialSelection,
-				initialRevision,
-				context,
-				callbacks: internalCallbacks(),
-				// Read once, with the rest of the mount options: the extension list
-				// is built when the view is created, and the window listener is bound
-				// with it, so none of these is something a pane can change without
-				// remounting.
-				sectionGhosts,
-				autoHeight,
-				windowFind,
-				onSelectionAnchor(anchor) {
-					selectionAnchorTick = scrollTick;
-					selectionAnchor = anchor;
-					const report = reportSelectionAnchor(session, anchor);
-					session = report.session;
-					if (anchor && report.assignRequested) {
-						callbacks.onAssignRequest({ range: anchor.range, prefer: anchor.prefer });
+		const mountTimer = setTimeout(async () => {
+			try {
+				const { createLyricEditor } = await import('./create-editor.js');
+				await new Promise<void>((resolve) => setTimeout(resolve, 0));
+				if (cancelled) return;
+				const options: CreateLyricEditorOptions = {
+					initialText,
+					initialSelection,
+					initialRevision,
+					context,
+					callbacks: internalCallbacks(),
+					// Read once, with the rest of the mount options: the extension list
+					// is built when the view is created, and the window listener is bound
+					// with it, so none of these is something a pane can change without
+					// remounting.
+					sectionGhosts,
+					autoHeight,
+					windowFind,
+					onSelectionAnchor(anchor) {
+						selectionAnchorTick = scrollTick;
+						selectionAnchor = anchor;
+						const report = reportSelectionAnchor(session, anchor);
+						session = report.session;
+						if (anchor && report.assignRequested) {
+							callbacks.onAssignRequest({ range: anchor.range, prefer: anchor.prefer });
+						}
 					}
+				};
+				editor = createLyricEditor(host, options);
+				editor.handle.requestPerformerLegendAssignment = startLegendAssignment;
+				handle = editor.handle;
+				editor.view.scrollDOM.addEventListener('scroll', bumpScrollTick, { passive: true });
+				// The update bridge deliberately stays silent for the initial state
+				// (it only emits for document or selection changes), so freshly
+				// loaded drafts would otherwise never reach the lint pipeline.
+				// Emit one snapshot now; the shell's enrichment is idempotent and
+				// re-applying context dispatches an effects-only transaction that
+				// the bridge ignores, so this cannot re-enter.
+				internalCallbacks().onSnapshot(handle.getSnapshot());
+				onready?.(handle);
+			} catch (error) {
+				if (cancelled) return;
+				editor?.view.scrollDOM.removeEventListener('scroll', bumpScrollTick);
+				editor?.destroy();
+				editor = undefined;
+				handle = undefined;
+				if (onerror) {
+					onerror(
+						error instanceof Error ? error : new Error('Editor startup failed', { cause: error })
+					);
+				} else {
+					startupError = true;
+					console.error('LyricLint failed to start the editor.', error);
 				}
-			};
-			editor = createLyricEditor(host, options);
-			editor.handle.requestPerformerLegendAssignment = startLegendAssignment;
-			handle = editor.handle;
-			editor.view.scrollDOM.addEventListener('scroll', bumpScrollTick, { passive: true });
-			// The update bridge deliberately stays silent for the initial state
-			// (it only emits for document or selection changes), so freshly
-			// loaded drafts would otherwise never reach the lint pipeline.
-			// Emit one snapshot now; the shell's enrichment is idempotent and
-			// re-applying context dispatches an effects-only transaction that
-			// the bridge ignores, so this cannot re-enter.
-			internalCallbacks().onSnapshot(handle.getSnapshot());
-			onready?.(handle);
-		})();
+			}
+		}, 0);
 
 		return () => {
 			cancelled = true;
+			clearTimeout(mountTimer);
 			editor?.view.scrollDOM.removeEventListener('scroll', bumpScrollTick);
 			editor?.destroy();
 			editor = undefined;
@@ -774,85 +809,122 @@
 	bind:this={host}
 	data-testid="lyric-editor"
 	oncompositionstart={suppressOverlaysDuringComposition}
-></div>
+>
+	{#if startupError}
+		<p role="alert">The editor could not start. Reload the page to try again.</p>
+	{/if}
+</div>
 
-{#if performerOverlay}
-	{#key legend?.step ?? (pendingVoice ? 'section-voice' : 'selection')}
-		{@const unknownOffer = unknownVoiceOffer()}
-		{@const assignmentRange = assignmentRangeFor(performerOverlay.range)}
-		<PerformerPicker
-			performers={context.performers}
-			unknownSlots={unknownOffer.existingSlots}
-			canAddUnknown={unknownOffer.canAllocateNew}
-			onAssignUnknown={callbacks.createUnknownVoiceEdit ? applyUnknownVoice : undefined}
-			initialSelectedIds={legend
-				? legend.step === 'section'
-					? legend.sectionPerformerIds
-					: legend.styledPerformerIds
-				: pendingVoice
-					? []
-					: performerIdsForRange(assignmentRange)}
-			removalAvailable={!legend && !pendingVoice && canRemoveFormattingForRange(assignmentRange)}
-			prompt={legendPrompt?.text}
-			step={legendPrompt?.step}
-			stepCount={legendPrompt?.stepCount}
-			applyLabel={legend?.step === 'section' || needsSectionVoice() ? 'Next' : 'Apply'}
-			emptyApplyLabel={pendingVoice ? 'Skip' : undefined}
-			returnFocusOnApply={legend?.step !== 'section' && !needsSectionVoice()}
-			takesFocus={performerOverlay.takesFocus}
-			allowRemoval={!legend && !pendingVoice}
+{#snippet overlays(
+	PerformerPicker: typeof PerformerPickerComponent,
+	SectionPicker: typeof SectionPickerComponent,
+	DiagnosticPopover: typeof DiagnosticPopoverComponent
+)}
+	{#if performerOverlay}
+		{#key legend?.step ?? (pendingVoice ? 'section-voice' : 'selection')}
+			{@const unknownOffer = unknownVoiceOffer()}
+			{@const assignmentRange = assignmentRangeFor(performerOverlay.range)}
+			<PerformerPicker
+				performers={context.performers}
+				unknownSlots={unknownOffer.existingSlots}
+				canAddUnknown={unknownOffer.canAllocateNew}
+				onAssignUnknown={callbacks.createUnknownVoiceEdit ? applyUnknownVoice : undefined}
+				initialSelectedIds={legend
+					? legend.step === 'section'
+						? legend.sectionPerformerIds
+						: legend.styledPerformerIds
+					: pendingVoice
+						? []
+						: performerIdsForRange(assignmentRange)}
+				removalAvailable={!legend && !pendingVoice && canRemoveFormattingForRange(assignmentRange)}
+				prompt={legendPrompt?.text}
+				step={legendPrompt?.step}
+				stepCount={legendPrompt?.stepCount}
+				applyLabel={legend?.step === 'section' || needsSectionVoice() ? 'Next' : 'Apply'}
+				emptyApplyLabel={pendingVoice ? 'Skip' : undefined}
+				returnFocusOnApply={legend?.step !== 'section' && !needsSectionVoice()}
+				takesFocus={performerOverlay.takesFocus || focusedPendingOverlay === performerOverlay}
+				allowRemoval={!legend && !pendingVoice}
+				anchor={overlayAnchor}
+				placement={overlayPlacement}
+				onApply={applyPerformers}
+				onCancel={cancelPerformer}
+				{returnFocus}
+				onAddPerformer={callbacks.onAddPerformer
+					? (displayName) => callbacks.onAddPerformer?.(displayName)
+					: undefined}
+			/>
+		{/key}
+	{:else if sectionOverlay}
+		<SectionPicker
+			languagePack={fallbackLanguagePack}
+			existingHeaders={existingHeaders()}
+			neighbors={sectionHeaderNeighbors(sectionOverlay.range)}
+			range={sectionOverlay.range}
 			anchor={overlayAnchor}
-			placement={overlayPlacement}
-			onApply={applyPerformers}
-			onCancel={cancelPerformer}
+			onChoose={chooseSection}
+			onCancel={() => (session = closeOverlay(session))}
 			{returnFocus}
-			onAddPerformer={callbacks.onAddPerformer
-				? (displayName) => callbacks.onAddPerformer?.(displayName)
-				: undefined}
 		/>
-	{/key}
-{:else if sectionOverlay}
-	<SectionPicker
-		languagePack={fallbackLanguagePack}
-		existingHeaders={existingHeaders()}
-		neighbors={sectionHeaderNeighbors(sectionOverlay.range)}
-		range={sectionOverlay.range}
-		anchor={overlayAnchor}
-		onChoose={chooseSection}
-		onCancel={() => (session = closeOverlay(session))}
-		{returnFocus}
-	/>
-{:else if diagnosticOverlay && !diagnosticsInPanel}
-	<DiagnosticPopover
-		diagnostic={diagnosticOverlay.diagnostic}
-		sources={context.sources}
-		anchor={overlayAnchor}
-		takeFocus={diagnosticOverlay.takesFocus}
-		onPreviewFix={previewFix}
-		onCancelPreview={clearFixPreview}
-		onApplyFix={applyFix}
-		fixBatchSize={callbacks.countDiagnosticFixBatch
-			? (fix) => callbacks.countDiagnosticFixBatch?.(diagnosticOverlay.diagnostic, fix) ?? 0
-			: undefined}
-		onApplyFixBatch={callbacks.onApplyDiagnosticFixBatch ? applyFixBatch : undefined}
-		onChooseHeader={() => startHeaderChoice(diagnosticOverlay.diagnostic)}
-		onAssignPerformers={legendTarget(diagnosticOverlay.diagnostic)
-			? () => startLegendAssignment(diagnosticOverlay.diagnostic)
-			: undefined}
-		onLinkSections={() =>
-			startSectionLink(diagnosticOverlay.diagnostic, diagnosticOverlay.anchorRange)}
-		onSetLanguage={callbacks.onSetLanguage ? setLanguage : undefined}
-		onIgnore={ignoreDiagnostic}
-		onDismiss={(heldFocus) => {
-			clearFixPreview();
-			session = closeOverlay(session);
-			// A card the pointer merely left never held focus; pulling the caret
-			// into the editor there would hijack whatever the user was typing in.
-			if (heldFocus) {
-				returnFocus();
-			}
-		}}
-	/>
+	{:else if diagnosticOverlay && !diagnosticsInPanel}
+		<DiagnosticPopover
+			diagnostic={diagnosticOverlay.diagnostic}
+			sources={context.sources}
+			anchor={overlayAnchor}
+			takeFocus={diagnosticOverlay.takesFocus || focusedPendingOverlay === diagnosticOverlay}
+			onPreviewFix={previewFix}
+			onCancelPreview={clearFixPreview}
+			onApplyFix={applyFix}
+			fixBatchSize={callbacks.countDiagnosticFixBatch
+				? (fix) => callbacks.countDiagnosticFixBatch?.(diagnosticOverlay.diagnostic, fix) ?? 0
+				: undefined}
+			onApplyFixBatch={callbacks.onApplyDiagnosticFixBatch ? applyFixBatch : undefined}
+			onChooseHeader={() => startHeaderChoice(diagnosticOverlay.diagnostic)}
+			onAssignPerformers={legendTarget(diagnosticOverlay.diagnostic)
+				? () => startLegendAssignment(diagnosticOverlay.diagnostic)
+				: undefined}
+			onLinkSections={() =>
+				startSectionLink(diagnosticOverlay.diagnostic, diagnosticOverlay.anchorRange)}
+			onSetLanguage={callbacks.onSetLanguage ? setLanguage : undefined}
+			onIgnore={ignoreDiagnostic}
+			onDismiss={(heldFocus) => {
+				clearFixPreview();
+				session = closeOverlay(session);
+				// A card the pointer merely left never held focus; pulling the caret
+				// into the editor there would hijack whatever the user was typing in.
+				if (heldFocus) {
+					returnFocus();
+				}
+			}}
+		/>
+	{/if}
+{/snippet}
+
+{#if overlaysRequested}
+	<LazyContent
+		name="editor controls"
+		load={() => import('./overlays/EditorOverlays.svelte')}
+		panelProps={{ children: overlays }}
+	>
+		{#snippet pendingSurface(content)}
+			{#if hasOverlay}
+				{#key overlay}
+					<PendingEditorOverlay
+						anchor={overlayAnchor}
+						takeFocus={overlay.kind === 'section' ||
+							(overlay.kind !== 'none' && overlay.takesFocus)}
+						hover={overlay.kind === 'diagnostic'}
+						onDismiss={dismissPendingOverlay}
+						onFocus={() => {
+							focusedPendingOverlay = overlay;
+						}}
+					>
+						{@render content()}
+					</PendingEditorOverlay>
+				{/key}
+			{/if}
+		{/snippet}
+	</LazyContent>
 {/if}
 
 <style>

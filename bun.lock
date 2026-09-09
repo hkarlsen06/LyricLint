@@ -45,6 +45,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@sveltejs/kit@2.70.3": "patches/@sveltejs%2Fkit@2.70.3.patch",
+  },
   "overrides": {
     "@codemirror/state": "6.7.4",
     "@codemirror/view": "6.43.11",

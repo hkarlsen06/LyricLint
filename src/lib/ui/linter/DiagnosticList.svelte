@@ -49,6 +49,7 @@
 			clean?: boolean;
 			settled?: boolean;
 			waiting?: boolean;
+			status?: boolean;
 		};
 		/**
 		 * What the reader can do about the empty state, when there is anything.
@@ -258,6 +259,7 @@
 {#if sortedDiagnostics.length === 0}
 	<div
 		class="empty-state diagnostic-list__empty"
+		role={emptyState.status ? 'status' : undefined}
 		class:diagnostic-list__empty--clean={emptyState.clean}
 		class:diagnostic-list__empty--settled={emptyState.settled}
 		class:diagnostic-list__empty--waiting={emptyState.waiting}

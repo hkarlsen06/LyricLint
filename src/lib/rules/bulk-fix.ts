@@ -1,5 +1,5 @@
 import type { AtomicDocumentEdit, Diagnostic, DiagnosticFix } from '$lib/core/types.js';
-import { collectSafeFixes } from './engine.js';
+import { collectSafeFixes } from './results.js';
 
 /**
  * What makes two fixes the same change.

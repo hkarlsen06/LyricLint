@@ -890,12 +890,28 @@ export function createLyricEditor(
 		})
 	];
 
-	const state = EditorState.create({
+	const emptyContextState = EditorState.create({
 		doc: preparedDocument.text,
 		selection: initialSelection(preparedSelection, preparedDocument.text.length),
 		extensions
 	});
-	const view = new EditorView({ state, parent: host });
+	// Populate the display fields before a view exists, so its first DOM already
+	// represents the recovered document instead of immediately rebuilding it.
+	const state = emptyContextState.update({
+		effects: contextEffects(emptyContextState, options.context),
+		annotations: Transaction.addToHistory.of(false)
+	}).state;
+	// Build disconnected so constructor style reads cannot repeatedly lay out the
+	// workbench. Preserve the host's document/shadow root for styles and events;
+	// CodeMirror's scheduled first measurement runs after this synchronous append.
+	const hostRoot = host.getRootNode();
+	// SAFETY: node type 9 is Document; type 11 with a host is ShadowRoot. Other roots use ownerDocument.
+	const root = (
+		hostRoot.nodeType === 9 || (hostRoot.nodeType === 11 && 'host' in hostRoot)
+			? hostRoot
+			: host.ownerDocument
+	) as Document | ShadowRoot;
+	const view = new EditorView({ state, root });
 	// Read once, beside the extension list's own options: a listener bound at
 	// mount is not something a pane can take back without remounting.
 	const windowFind = options.windowFind ?? true;
@@ -977,15 +993,18 @@ export function createLyricEditor(
 	};
 	if (windowFind) window.addEventListener('keydown', openFix, true);
 
-	function applyContext(context: EditorDisplayContext): void {
-		const revision = view.state.field(editorRevisionField);
-		const text = view.state.doc.toString();
+	function contextEffects(
+		state: EditorState,
+		context: EditorDisplayContext
+	): StateEffect<unknown>[] {
+		const revision = state.field(editorRevisionField);
+		const text = state.doc.toString();
 		const parsed = context.parsed?.text === text ? context.parsed : parseDocument(text);
 		const nextContext = { ...context, parsed };
 		// A changed document clears settled decorations before context returns.
 		// Compare the immutable document too: an edit followed by undo can bring
 		// back the old text and parse while those decorations still need restoring.
-		const documentChanged = appliedDocument !== view.state.doc;
+		const documentChanged = appliedDocument !== state.doc;
 		const parsedChanged = documentChanged || appliedContext?.parsed !== parsed;
 		const diagnosticsChanged =
 			documentChanged ||
@@ -1005,10 +1024,10 @@ export function createLyricEditor(
 			appliedContext.reducedMotion === nextContext.reducedMotion &&
 			sameReferences(appliedContext.sources, nextContext.sources)
 		) {
-			return;
+			return [];
 		}
 		appliedContext = nextContext;
-		appliedDocument = view.state.doc;
+		appliedDocument = state.doc;
 		const effects: StateEffect<unknown>[] = [
 			setEditorContextEffect.of(nextContext),
 			setEditorCallbacksEffect.of(activeCallbacks)
@@ -1035,10 +1054,13 @@ export function createLyricEditor(
 				})
 			);
 		}
-		view.dispatch({
-			effects,
-			annotations: Transaction.addToHistory.of(false)
-		});
+		return effects;
+	}
+
+	function applyContext(context: EditorDisplayContext): void {
+		const effects = contextEffects(view.state, context);
+		if (effects.length === 0) return;
+		view.dispatch({ effects, annotations: Transaction.addToHistory.of(false) });
 	}
 
 	const handle: EditorHandle = {
@@ -1275,6 +1297,6 @@ export function createLyricEditor(
 		}
 	};
 
-	applyContext(options.context);
+	host.appendChild(view.dom);
 	return instance;
 }

@@ -4,6 +4,7 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
 `src/lib/ui/state/media-shortcuts.ts`, `src/lib/ui/state/keyboard-inset.ts`,
 `src/lib/ui/media/MediaStrip.svelte`, `src/lib/ui/media/MediaTransport.svelte`,
 `src/lib/ui/media/MediaPicker.svelte`,
+`src/lib/ui/media/MediaPickerBody.svelte`,
 `src/lib/ui/styles/media.css`, `src/lib/persistence/media-repository.ts`,
 `src/lib/ui/clipboard.ts`
 
@@ -789,3 +790,26 @@ with the keyboard already open. Pinch zoom freezes the unzoomed layout dimension
 flag continues to own the wide-layout floating transport, but mobile sizing does not depend on
 an unoccluded baseline. The desktop editor spans the media grid row with its bottom margin read
 from the strip's published height, so a taller video never shortens the lyric column.
+
+### The audio picker builds its fields when opened
+
+The shared picker and its native dialog stay mounted so a resumed Spotify query can reopen
+and search automatically. Its forms, search logic, and result surfaces load from
+`MediaPickerBody.svelte` only when opened, avoiding unused JavaScript and dialog DOM during
+editor startup. The heading and Close control remain available during loading or a failed
+import; the shared lazy loader offers Retry. Closing before loading completes cannot focus
+a hidden field or run a resumed search. Search text survives reopening, while errors and
+results reset. Opening still prepares Apple's SDK
+synchronously on the user's gesture, before waiting for the fields to render and selecting the
+YouTube link. Native close events retire the fields on every dismissal path; attachment,
+search, and focus restoration keep their existing owners. `MediaPicker.svelte.test.ts` pins
+the absent initial fields, resumed query, and synchronous preparation.
+
+### The transport surface loads when a source exists
+
+Workspace loads `MediaStrip` when audio is attached or a remembered source has a pending
+name. The existing `media-strip` region hosts the shared lazy loader's loading and retry
+states; once loaded, the same strip instance survives desktop and phone view changes.
+The player, store, and keyboard handling remain available from startup, so source recovery
+and transport shortcuts do not wait for the surface module. The desktop and mobile media
+component tests wait for the actual strip before checking its layout and retained instance.

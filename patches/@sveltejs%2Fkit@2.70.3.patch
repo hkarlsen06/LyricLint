@@ -1,0 +1,18 @@
+diff --git a/src/exports/vite/build/utils.js b/src/exports/vite/build/utils.js
+index fc4079b80d90ae6941e29c3ce7794400a02d5016..94c5ee531a50e2fc8bb8cf0111a7da64358be9b8 100644
+--- a/src/exports/vite/build/utils.js
++++ b/src/exports/vite/build/utils.js
+@@ -32,8 +32,11 @@ export function find_deps(manifest, entry, add_dynamic_css) {
+ 	 * @param {number} dynamic_import_depth
+ 	 */
+ 	function traverse(current, add_js, initial_importer, dynamic_import_depth) {
+-		if (seen.has(current)) return;
+-		seen.add(current);
++		// A lazy traversal must not prevent a later static traversal from adding
++		// this module and its dependencies to the initial modulepreload graph.
++		const key = `${add_js}:${current}`;
++		if (seen.has(key)) return;
++		seen.add(key);
+ 
+ 		const { chunk } = resolve_symlinks(manifest, current);
+ 
