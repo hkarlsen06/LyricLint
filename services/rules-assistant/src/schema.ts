@@ -1,6 +1,7 @@
 /**
  * Request and answer schemas. The request schema is what clients may send —
- * deliberately nothing that selects a model, effort, prompt, or corpus. The
+ * deliberately nothing that supplies a model, effort, prompt, or corpus. The
+ * client version and hash identify only a corpus approved by the release. The
  * answer schema is the strict structured output the model must produce, and
  * `validateAnswer` is the gate that keeps invented rules and misplaced
  * citations from ever reaching a browser.
@@ -358,6 +359,7 @@ export const answerRequestSchema = z
 		messages: z.array(wireMessageV2Schema).min(1).max(REQUEST_RULES.maxSuppliedMessages),
 		turnstileToken: z.string().min(1).max(4096).optional(),
 		clientRuleSetVersion: z.string().min(1).max(64),
+		clientCorpusHash: z.string().min(1).max(128).optional(),
 		toolsAvailable: z.boolean().optional(),
 		supportsRetry: z.boolean().optional()
 	})

@@ -30,40 +30,102 @@ production values, and Cloudflare's existing PR preview behavior is unchanged.
 
 Only a successful production E2E job uploads `build/`, named for `github.sha`.
 The deploy job downloads that artifact from the same workflow run after all three
-checks succeed and uploads it with a pinned Wrangler version. It never rebuilds.
+checks succeed and uploads it with a pinned Wrangler version. It never rebuilds the site.
 Uploads replace the same named artifact on a job rerun; rerunning only deployment
 can still download the artifact from the earlier successful E2E attempt.
 The Cloudflare Pages project is `lyriclint`, with branch `main`; its automatic
 production builds remain disabled. The old deploy hook is no longer used.
 
 Deployment requires the GitHub Actions variable `CLOUDFLARE_ACCOUNT_ID` and
-secret `CLOUDFLARE_API_TOKEN`. Give the token only Account → Cloudflare Pages →
-Edit on the account hosting this project; it does not need Worker deployment
-access. Configuration is checked explicitly before upload. A Wrangler OAuth
-login is a local interactive credential and must not be copied into CI.
+secret `CLOUDFLARE_API_TOKEN`. The token must cover both publishers:
 
-Immediately before publishing Pages, the deploy job checks the configured assistant's
-`/health` endpoint against this revision's generated corpus. Both `ruleSetVersion`
-and `corpusHash` must match; missing metadata, network failure, or a non-success
-response blocks publication. `bun run assistant:test` exercises the gate, including
-a changed corpus whose ruleset version was not bumped.
+| Resource | Permission |
+| --- | --- |
+| Account hosting LyricLint | Cloudflare Pages: Edit |
+| Account hosting LyricLint | Workers Scripts: Edit |
 
-The Worker remains a separate manual deployment. For a corpus update, first wait
-for this revision's `checks`, `assistant`, and `e2e` jobs to pass, then deploy the
-Worker with `bun run assistant:deploy`, and rerun the Pages deploy job if its health
-gate already failed. The root `assistant:deploy` command enforces this ordering:
-it requires an unmodified tracked tree at GitHub's current `main` SHA and successful `checks`,
-`assistant`, and `e2e` jobs in that revision's latest push CI run. It requires an
-authenticated `gh` CLI and fails closed if GitHub cannot be queried. The Pages
-`deploy` job is deliberately excluded, since it can be waiting for the Worker.
-For emergency recovery only, running `bun run deploy` inside
-`services/rules-assistant` bypasses this preflight; the operator then owns checking
-the revision and coordinating Pages. Normal releases use the guarded root command.
-This gate prevents publishing a site against an older Worker; it cannot make two
-separate deployments atomic or update already-open browser tabs. The client must
-therefore handle a ruleset mismatch explicitly, preserving the question and offering
-a reload instead of telling the visitor to shorten their message. Request version
-validation remains enforced by the Worker.
+Scope the token to the account hosting LyricLint. Regular code releases preserve
+the existing `api.lyriclint.com` custom domain. Their generated Wrangler config
+omits `route`/`routes` and disables `workers.dev` and preview URLs, so publication
+does not read or change zone routes. Creating or changing domains and routes is
+a separate infrastructure operation with its own scoped authority.
+When provisioning or rotating the token, grant both scopes in the Cloudflare
+dashboard and store it as `CLOUDFLARE_API_TOKEN`. Editing an existing token's
+permissions preserves its GitHub secret. Code changes do not grant permissions.
+Local Wrangler OAuth cannot manage API tokens and must not be copied into CI.
+Configuration is checked before publication.
+
+The generated deployment config also removes `ASSISTANT_DISABLED` from source
+vars and inherits that binding by name. Wrangler's strict inheritance rejects
+an absent binding. This preserves the live operational kill switch: `--keep-vars`
+alone would still overwrite it with the source value. The other source vars and
+all quota, rate-limit, and analytics bindings remain configured as reviewed.
+
+## Publish the assistant and site together
+
+The serialized `deploy` job is the normal publisher for both the Worker and Pages.
+It runs only after `checks`, `assistant`, and `e2e` succeed, using this sequence:
+
+1. Read the live site's `/assistant-release.json`, which identifies its `revision`,
+   `ruleSetVersion`, `corpusHash`, `clientCorpusHash: true` capability, and the
+   `answersUrl` actually built into the browser. Production metadata must name
+   `https://api.lyriclint.com/v1/answers`; another endpoint is rejected before
+   publication. The tested artifact supplies the health-check target, so changing
+   a repository variable after its build cannot make CI verify another Worker.
+2. Load that exact revision's committed, reviewed corpus from Git and verify its
+   version and hash. Prepare the Worker with the new corpus and the actual live
+   site's corpus, deduplicating an unchanged pair. The previous Git commit is not
+   a substitute: failed or superseded releases might never have reached Pages.
+3. Run Worker type checking and tests against this final prepared bundle before
+   deploying it. Any preparation or validation failure leaves production untouched.
+4. Deploy the Worker and verify `/health` supports both exact version/hash pairs.
+   Missing support, malformed health metadata, or a failed request blocks Pages.
+5. Publish the exact Pages artifact that passed E2E, then verify its live release
+   metadata. The prior site's corpus remains supported if Pages publication fails.
+
+If the exact candidate is already live, a retry verifies health and release
+metadata only. It does not redeploy the Worker or prune its retained corpus.
+Both health and release probes use unique query strings, explicit `no-cache`
+request headers, and `no-store` responses. Bounded retries allow Worker and Pages
+publication to propagate while retaining the exact compatibility checks.
+
+The first release has one explicit bootstrap exception for the verified live site
+that predates `/assistant-release.json`: revision
+`0982b7a205ebce2a57ebcfa6357a91a89cfc418d`, ruleset `2026.09.10.0`, corpus
+`5b8a4913bae061c26eb8fff9b9ac1b3569bb394f89a09017fbb2c12e36d07d6d`.
+It is recognized only when `/_app/version.json` returns the exact build version
+`1789066083892`. Missing metadata is not general permission to guess a previous
+corpus. An unknown or older site fails closed.
+
+Each browser request sends its ruleset version and `clientCorpusHash`. The Worker
+uses the matching bundled corpus for the prompt, prompt cache, and citation
+validation. Hashless legacy requests can use only an explicitly retained legacy
+corpus; they never select the newest corpus merely because its ruleset version
+matches. Unknown pairs remain `ruleset_mismatch` errors before provider work.
+This supports the new and actual previous live site across rollout and failed
+publication. It does not promise compatibility with arbitrarily old open tabs;
+those retain their question and receive the reload recovery message.
+
+Pushing a release to `main` starts the complete pipeline. If publication needs a
+retry, `bun run assistant:deploy` at the root or `bun run deploy` inside
+`services/rules-assistant` requests the CI deployment retry through authenticated
+`gh`; neither command publishes a Worker from the local tree. Raw Wrangler
+production publication is outside this release protocol and is not a documented
+recovery shortcut. Local development and explicitly separate staging remain available.
+Use `gh auth login` for the local retry command: its `gh run watch` step does not
+support fine-grained personal access tokens. The CI publisher uses its job's
+`GITHUB_TOKEN`, with `contents: read` and `actions: read`; only the local retry
+needs authority to rerun a job.
+
+### Why a Pages-only health gate was insufficient
+
+On September 10, the Worker activated at 18:47:36 UTC while E2E was still building
+and checking the site; Pages completed at 18:50:40. Reloading during that interval
+fetched the same old site against the new Worker. The old package deployment
+command bypassed the root CI preflight, and even the guarded Worker-first sequence
+left a gap between two incompatible publications. Waiting for Pages first would
+reverse that gap. CI now owns both publications, and retaining the actual live
+corpus preserves strict request validation while either site is being served.
 
 Rotate the Apple developer token in the GitHub Actions repository variable and
 ship a new revision to rebuild it into the tested artifact. Keep the Pages

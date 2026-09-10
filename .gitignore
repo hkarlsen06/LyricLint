@@ -31,3 +31,6 @@ test-results
 
 # Wrangler local secrets for services/*
 .dev.vars
+
+# CI-only Worker configuration; the published domain and kill switch are retained.
+/services/rules-assistant/wrangler.release.json

@@ -48,6 +48,7 @@ function makeAssistant(overrides: Partial<AssistantDeps> = {}) {
 		repository: async () => repository,
 		ask,
 		ruleSetVersion: corpus.ruleSetVersion,
+		corpusHash: corpus.contentHash,
 		...overrides
 	});
 }

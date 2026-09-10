@@ -213,6 +213,9 @@ worker.addEventListener('fetch', (event) => {
 
 	const url = new URL(request.url);
 	if (url.origin !== worker.location.origin) return;
+	// This prerendered manifest proves which release the origin is serving.
+	// Even a direct navigation must bypass the offline snapshot.
+	if (url.pathname === `${base}/assistant-release.json`) return;
 
 	if (immutablePaths.has(url.pathname)) {
 		event.respondWith(immutableAsset(event));

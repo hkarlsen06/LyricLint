@@ -1,4 +1,6 @@
+import { execFileSync } from 'node:child_process';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { corpusMetadata } from '../services/rules-assistant/generated/rules-context-meta.js';
 import {
 	heroCaptions,
 	heroPlaybackRate,
@@ -952,6 +954,22 @@ test('a fragment naming nothing falls back to the lead, and a landmark washes', 
 	await expect(page.locator('.guidelines__landmark:has(:target)')).toHaveCount(1);
 });
 
+test('the assistant release manifest identifies the built website and citation corpus', async ({
+	request
+}) => {
+	const response = await request.get('/assistant-release.json');
+	expect(response.ok()).toBe(true);
+	expect(response.headers()['content-type']).toContain('application/json');
+	expect(await response.json()).toEqual({
+		revision:
+			process.env.RELEASE_REVISION ??
+			execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+		...corpusMetadata,
+		clientCorpusHash: true,
+		answersUrl: expect.any(String)
+	});
+});
+
 test('sitemap lists every public page including the workbench', async ({ request }) => {
 	const sitemapResponse = await request.get('/sitemap.xml');
 	expect(sitemapResponse.ok()).toBe(true);
@@ -1514,11 +1532,27 @@ test('the offline snapshot precaches the app and admits the guide when read', as
 	expect(await cachedPages()).not.toContainEqual(expect.stringMatching(/\.webm$/u));
 	expect(await cachedPages()).toContain('/workbench-640.webp');
 	expect(await cachedPages()).not.toContainEqual(expect.stringMatching(/^\/guidelines\//u));
+	expect(await cachedPages()).not.toContain('/assistant-release.json');
+
+	// Even navigating to the release manifest must leave it out of the snapshot:
+	// CI and future release checks need the origin's current identity.
+	await page.goto('/assistant-release.json');
+	expect(await cachedPages()).not.toContain('/assistant-release.json');
 
 	await page.goto('/guidelines/');
 	await expect.poll(cachedPages).toContain('/guidelines/');
 
 	await context.setOffline(true);
+	expect(
+		await page.evaluate(async () => {
+			try {
+				await fetch('/assistant-release.json', { cache: 'no-store' });
+				return true;
+			} catch {
+				return false;
+			}
+		})
+	).toBe(false);
 	await page.reload();
 	await expect(page.getByRole('heading', { name: 'Put what you hear into words.' })).toBeVisible();
 	await page.goto('/');

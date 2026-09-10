@@ -64,6 +64,7 @@ for (const [index, testCase] of evalSet.cases.entries()) {
 			chatId: `eval-${testCase.id}`,
 			messages: [{ role: 'user', content: testCase.question }],
 			clientRuleSetVersion: corpus.ruleSetVersion,
+			clientCorpusHash: corpus.contentHash,
 			turnstileToken: 'eval-turnstile-token'
 		})
 	});

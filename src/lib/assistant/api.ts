@@ -47,7 +47,7 @@ const DEFAULT_ANSWERS_URL = 'https://api.lyriclint.com/v1/answers';
  */
 export const STREAM_INACTIVITY_MS = 180_000;
 
-function assistantAnswersUrl(): string {
+export function assistantAnswersUrl(): string {
 	const configured = import.meta.env.PUBLIC_ASSISTANT_ANSWERS_URL;
 	if (configured !== undefined) return configured.trim();
 	return DEFAULT_ANSWERS_URL;
@@ -94,6 +94,7 @@ interface TurnRequestBody {
 	chatId: string;
 	messages: WireMessageV2[];
 	clientRuleSetVersion: string;
+	clientCorpusHash: string;
 	supportsRetry: true;
 	toolsAvailable?: true;
 	turnstileToken?: string;
@@ -103,6 +104,7 @@ export interface AskOptions {
 	chatId: string;
 	messages: WireMessageV2[];
 	clientRuleSetVersion: string;
+	clientCorpusHash: string;
 	toolsAvailable?: boolean;
 	turnstileToken?: string;
 	onProgress?(answer: StructuredAssistantAnswer): void | Promise<void>;
@@ -141,6 +143,7 @@ async function sendTurn(
 		chatId: options.chatId,
 		messages: options.messages,
 		clientRuleSetVersion: options.clientRuleSetVersion,
+		clientCorpusHash: options.clientCorpusHash,
 		supportsRetry: true
 	};
 	if (options.toolsAvailable) body.toolsAvailable = true;

@@ -5,7 +5,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "wrangler dev",
-		"deploy": "wrangler deploy",
+		"deploy": "bun ../../scripts/request-production-deploy.mjs",
 		"check": "tsc --noEmit",
 		"test": "vitest run"
 	},

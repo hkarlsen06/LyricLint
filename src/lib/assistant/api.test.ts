@@ -7,6 +7,7 @@ interface SentTurnRequest {
 	chatId: string;
 	messages: WireMessageV2[];
 	clientRuleSetVersion: string;
+	clientCorpusHash: string;
 	supportsRetry?: boolean;
 	toolsAvailable?: boolean;
 	turnstileToken?: string;
@@ -72,6 +73,7 @@ it('preserves a ruleset mismatch as a distinct failure', async () => {
 			chatId: 'chat-version',
 			messages: [{ role: 'user', content: 'Korrekturles' }],
 			clientRuleSetVersion: 'old-version',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher
 		})
 	).rejects.toMatchObject({ code: 'ruleset_mismatch' });
@@ -93,6 +95,7 @@ describe('assistant answer stream inactivity', () => {
 			chatId: 'chat-stall',
 			messages: [{ role: 'user', content: 'Question' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher: stream.fetcher
 		})
 			.then(() => undefined)
@@ -134,6 +137,7 @@ describe('assistant answer stream inactivity', () => {
 			chatId: 'chat-slow',
 			messages: [{ role: 'user', content: 'Question' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher: stream.fetcher
 		});
 
@@ -174,6 +178,7 @@ describe('assistant answer stream inactivity', () => {
 			chatId: 'chat-clean',
 			messages: [{ role: 'user', content: 'Question' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher
 		});
 		// A watchdog that outlived its turn would abort a controller nothing is
@@ -208,6 +213,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-1',
 			messages: [{ role: 'user', content: 'Chorus?' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher,
 			onProgress: progress
 		});
@@ -235,6 +241,7 @@ describe('assistant answer streaming', () => {
 			vi.mocked(fetcher).mock.calls[0]![1]!.body as string
 		) as SentTurnRequest;
 		expect(sent.supportsRetry).toBe(true);
+		expect(sent.clientCorpusHash).toBe('a'.repeat(64));
 	});
 
 	/**
@@ -272,6 +279,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-strip',
 			messages: [{ role: 'user', content: 'Chorus?' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher
 		});
 		expect(response.kind).toBe('answer');
@@ -326,6 +334,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-tools',
 			messages: [{ role: 'user', content: 'Check my draft.' }],
 			clientRuleSetVersion: 'v2',
+			clientCorpusHash: 'a'.repeat(64),
 			toolsAvailable: true,
 			fetcher,
 			onProgress: progress
@@ -367,6 +376,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-tail',
 			messages: [{ role: 'user', content: 'Question' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher
 		});
 		expect(response).toMatchObject({
@@ -404,6 +414,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-repair',
 			messages: [{ role: 'user', content: 'Question' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher,
 			onProgress: progress,
 			onRetry: retry
@@ -457,6 +468,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-q',
 			messages: [{ role: 'user', content: 'Dashes?' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher
 		});
 		expect(response.kind).toBe('answer');
@@ -484,6 +496,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-1',
 			messages: [{ role: 'user', content: 'Chorus?' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher,
 			onProgress: progress
 		}).finally(() => {
@@ -541,6 +554,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-1',
 			messages: [{ role: 'user', content: 'Question' }],
 			clientRuleSetVersion: 'v1',
+			clientCorpusHash: 'a'.repeat(64),
 			fetcher,
 			onProgress: progress,
 			onRetry: retry
@@ -576,6 +590,7 @@ describe('assistant answer streaming', () => {
 				chatId: 'chat-1',
 				messages: [{ role: 'user', content: 'Question' }],
 				clientRuleSetVersion: 'v1',
+				clientCorpusHash: 'a'.repeat(64),
 				fetcher
 			})
 		).rejects.toMatchObject({ code: 'provider_error', message: 'A future server failure.' });
@@ -604,6 +619,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-1',
 			messages: [{ role: 'user', content: 'Read this draft.' }],
 			clientRuleSetVersion: 'v2',
+			clientCorpusHash: 'a'.repeat(64),
 			toolsAvailable: true,
 			fetcher
 		});
@@ -657,6 +673,7 @@ describe('assistant answer streaming', () => {
 			chatId: 'chat-1',
 			messages: [{ role: 'user', content: 'Link the choruses.' }],
 			clientRuleSetVersion: 'v2.1',
+			clientCorpusHash: 'a'.repeat(64),
 			toolsAvailable: true,
 			fetcher
 		});

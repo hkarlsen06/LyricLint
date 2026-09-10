@@ -160,6 +160,7 @@ function makeState(overrides: Partial<AssistantDeps> = {}) {
 		repository: async () => repository,
 		ask: vi.fn(async () => answer()),
 		ruleSetVersion: 'test-version',
+		corpusHash: 'a'.repeat(64),
 		getDraftAccess: async (draftId) => access.get(draftId),
 		setDraftAccess: async (draftId, decision) => {
 			access.set(draftId, decision);
@@ -186,6 +187,7 @@ describe('the assistant state', () => {
 		expect(deps.ask).toHaveBeenCalledWith(
 			expect.objectContaining({
 				clientRuleSetVersion: 'test-version',
+				clientCorpusHash: 'a'.repeat(64),
 				messages: [{ role: 'user', content: 'How do I mark a chorus?' }]
 			})
 		);
@@ -381,7 +383,8 @@ describe('the assistant state', () => {
 			const state = createAssistantState({
 				repository: async () => repository,
 				ask,
-				ruleSetVersion: 'v'
+				ruleSetVersion: 'v',
+				corpusHash: 'a'.repeat(64)
 			});
 			await state.open();
 			await state.retry(saved.id);
@@ -424,7 +427,8 @@ describe('the assistant state', () => {
 		const state = createAssistantState({
 			repository: async () => repository,
 			ask,
-			ruleSetVersion: 'v'
+			ruleSetVersion: 'v',
+			corpusHash: 'a'.repeat(64)
 		});
 		await state.open();
 		expect(state.messages[1]!.status).toBe('interrupted');

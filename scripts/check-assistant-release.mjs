@@ -12,8 +12,9 @@ export function assertAssistantReleaseReady({ revision, mainRevision, dirty, job
 	}
 }
 
-if (import.meta.main) {
-	const run = (command, args) => execFileSync(command, args, { encoding: 'utf8' }).trim();
+export function readAssistantReleaseState(
+	run = (command, args) => execFileSync(command, args, { encoding: 'utf8' }).trim()
+) {
 	const revision = run('git', ['rev-parse', 'HEAD']);
 	const dirty = run('git', ['status', '--porcelain', '--untracked-files=no']) !== '';
 	const mainRevision = run('gh', [
@@ -43,6 +44,12 @@ if (import.meta.main) {
 	const jobs = runs.length
 		? JSON.parse(run('gh', ['run', 'view', String(runs[0].databaseId), '--json', 'jobs'])).jobs
 		: [];
-	assertAssistantReleaseReady({ revision, mainRevision, dirty, jobs });
+	return { revision, mainRevision, dirty, jobs, runId: runs[0]?.databaseId };
+}
+
+if (import.meta.main) {
+	const state = readAssistantReleaseState();
+	assertAssistantReleaseReady(state);
+	const { revision } = state;
 	console.log(`CI passed for ${revision}; the assistant can be deployed.`);
 }

@@ -36,6 +36,8 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
 - Assistant version skew has its own `ruleset_mismatch` recovery message; only the local
   question-length check asks the visitor to shorten their question. Failed questions stay in
   the transcript. `assistant-state.test.ts` and `api.test.ts` pin the error and retained text.
+  Requests identify the exact reviewed corpus with a ruleset version and content hash;
+  coordinated publication retains the actual live site's corpus during rollout (`../ci.md`).
 - Assistant Enter and Ask share submission, retain refused input, and leave composing Enter
   to the IME. The composer discloses the Unicode character limit before sending and keeps
   oversized input editable. `AssistantPanel.svelte.test.ts` pins both paths and composition.
@@ -334,10 +336,16 @@ confirms the copy; the Song panel continues to own the metadata and its copy con
 A Worker published ahead of a website release rejected the previous browser ruleset as
 `invalid_request`. The browser translated every such error to “Shorten it”, even for
 “Korrekturles”. The Worker now returns `ruleset_mismatch` (409), and the browser explains
-that the app and assistant versions differ, with reload/update recovery. Ruleset equality
-remains enforced before session checks or provider calls; accepting an unknown corpus would
-let the browser and assistant disagree about cited rules. No automatic reload interrupts
-editing. Deployment gates and their rollout limits are documented in `docs/ci.md`.
+that the app and assistant versions differ, with reload/update recovery. Requests now identify
+both ruleset version and corpus hash; the Worker accepts only a known bundled corpus before
+session checks or provider calls. Its prompt, cache, and citation validation all use that
+corpus. Legacy hashless requests resolve only to an explicitly retained legacy corpus.
+
+The September 10 incident showed why recovery copy alone was insufficient: the Worker
+published while the old site was still live, so reload fetched the same incompatible app.
+The coordinated CI release now retains the actual live site's reviewed corpus while publishing
+the new site. Arbitrarily old tabs can still require reload, and their questions stay intact.
+No automatic reload interrupts editing. `docs/ci.md` owns the publication sequence and limits.
 
 ### The assistant keeps questions that it cannot send
 

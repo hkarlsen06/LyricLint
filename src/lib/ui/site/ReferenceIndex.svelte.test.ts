@@ -184,6 +184,7 @@ describe('ReferenceIndex', () => {
 		const assistant = createAssistantState({
 			repository: async () => repository,
 			ruleSetVersion: 'test',
+			corpusHash: 'a'.repeat(64),
 			ask: async () => {
 				throw new Error('Opening must not send a question');
 			}

@@ -145,23 +145,41 @@ bun install
 bun run check     # tsc
 bun run test      # vitest — validation, quotas, sessions, structured output
 bun run dev       # wrangler dev (see below)
-bun run deploy    # emergency only: bypasses the root CI release guard
+bun run deploy    # request a retry of the coordinated CI deployment
 ```
 
 From the repository root, `bun run assistant:test` does install + check + test.
 
-Worker deployment is manual by design. CI gates the Pages application, but the
-repository has no Cloudflare API-token secret with authority to publish this
-Worker. After the root and Worker checks pass, `bun run assistant:deploy` at the
-repository root verifies the clean tracked revision is current GitHub `main` with
-all three CI checks passing, then delegates to this package's `deploy` script.
-The preflight requires an authenticated `gh` CLI. Running this package's deploy
-command directly bypasses the check and is reserved for emergency recovery. Do not
-treat a Pages deployment as a Worker deployment. For a production corpus update, wait for
-that revision's CI `checks`, `assistant`, and `e2e` jobs to pass before deploying
-the Worker. Pages publication then verifies the live Worker's ruleset version and
-corpus hash; rerun its deploy job if it reached this gate before the Worker was
-ready. See `docs/ci.md` for the rollout sequence and its old-client limitations.
+Production Worker and Pages publication share one serialized CI deployment after
+`checks`, `assistant`, and `e2e` succeed. CI reads the live site's
+`/assistant-release.json`, loads that exact revision's reviewed corpus from Git,
+and prepares the Worker with both the new and actual live corpus. Worker checks
+and tests run against that final bundle. After Worker publication, health must
+confirm both version/hash pairs before CI publishes the site artifact that passed
+E2E and verifies its live metadata. A failed Pages publication therefore leaves
+the previous site's assistant working.
+
+The release manifest records the `answersUrl` built into the browser. Production
+accepts only `https://api.lyriclint.com/v1/answers` and verifies that endpoint,
+even if repository variables change after the artifact is built. Health and
+release metadata return `Cache-Control: no-store`; deployment probes also use
+unique query strings and explicit `no-cache` request headers. Bounded retries
+allow publication to propagate without accepting stale or incompatible metadata.
+Retrying an already published revision verifies it without redeploying the Worker
+or removing compatibility for earlier clients.
+
+Requests select a known bundled corpus using `clientRuleSetVersion` and
+`clientCorpusHash`; prompts, prompt-cache keys, and citation validation use that
+same selection. Legacy hashless requests are accepted only for an explicitly
+retained legacy corpus. Unknown pairs fail before provider work. Compatibility
+covers the new and actual previous live site, not arbitrary historical tabs.
+
+Push a release to `main` to start the pipeline. Both the root
+`bun run assistant:deploy` and this package's `bun run deploy` request a CI
+deployment retry through authenticated `gh`; neither publishes local Worker code.
+Do not use raw Wrangler to bypass the production sequence. Local development and
+separate staging are still supported. See [CI and deployment](../../docs/ci.md)
+for credential setup, the exact bootstrap exception, and recovery limits.
 
 ## Configuration
 
@@ -171,6 +189,12 @@ frontend deploy needed), `ALLOWED_ORIGIN` (a comma-separated exact allowlist),
 `TURNSTILE_ALLOW_LOCALHOST` (keep `"false"` outside local development),
 `AI_GATEWAY_BASE_URL` (replace
 `ACCOUNT_ID` with the real account).
+
+The production deployment config inherits `ASSISTANT_DISABLED` by name instead
+of publishing its source value. Strict binding inheritance fails if it is absent;
+`--keep-vars` alone would not preserve a dashboard value also named in source vars.
+Regular code releases also preserve the existing custom domain by omitting routes
+and disabling `workers.dev` and preview URLs in that generated config.
 
 Secrets (`wrangler secret put …`, never committed):
 
@@ -229,22 +253,23 @@ a replayed cookie cannot move. `src/identity.ts` states the trade in full.
    `api.lyriclint.com/v1/answers`. The rate-limit bindings and Durable Object
    handle the finer browser/IP, daily, concurrency, and session/IP/global spend
    limits after that outer layer.
-5. From the repository root, generate and verify the corpus. Commit and push
-   the revision to `main`, wait for its three CI checks to pass, then deploy
-   through the guarded root command:
+5. Configure the CI deployment credential using [CI and deployment](../../docs/ci.md).
+   Set the GitHub Actions repository variables to
+   `PUBLIC_ASSISTANT_ANSWERS_URL=https://api.lyriclint.com/v1/answers` and the
+   production Turnstile site key. From the repository root, generate and verify
+   the corpus, then commit and push the revision to `main`. CI publishes the
+   Worker and tested site together:
 
    ```bash
    bun run assistant:corpus
    bun run assistant:test
-   # After committing, pushing, and passing CI:
+   # Only if the coordinated CI deployment needs a retry:
    bun run assistant:deploy
    ```
 
-6. Configure Pages with
-   `PUBLIC_ASSISTANT_ANSWERS_URL=https://api.lyriclint.com/v1/answers`
-   and the production Turnstile site key. Keep `ASSISTANT_DISABLED=true` until
-   the staging evals and multilingual review pass, deploy Pages, then set it to
-   `false` and deploy a Worker version containing only that variable change.
+6. Keep `ASSISTANT_DISABLED=true` until the staging evals and multilingual review
+   pass. Publish the Worker and Pages through CI, then enable the service with
+   the kill switch.
 
 ## Evaluating
 
@@ -268,9 +293,10 @@ fails.
 
 1. Deploy Worker + Gateway config to staging; run the eval set and a manual
    multilingual review.
-2. Deploy production with `ASSISTANT_DISABLED = "true"`.
-3. Deploy the frontend. Its entry points will show the service-disabled state
+2. Push production with `ASSISTANT_DISABLED = "true"` and let CI publish the
+   compatible Worker and frontend. Entry points show the service-disabled state
    until the Worker kill switch is flipped.
+3. Confirm CI verified Worker compatibility and the live site's release metadata.
 4. Flip the kill switch off.
 5. Watch metadata-only metrics (Analytics Engine dataset
    `rules_assistant_metrics`); alert at 50/80/100% of the daily budget.

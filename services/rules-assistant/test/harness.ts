@@ -140,6 +140,7 @@ export function requestBody(overrides: WireRequestBody = {}): WireRequestBody {
 		chatId: 'chat-1',
 		messages: [{ role: 'user', content: 'How do I mark a chorus?' }],
 		clientRuleSetVersion: corpus.ruleSetVersion,
+		clientCorpusHash: corpus.contentHash,
 		...overrides
 	};
 }

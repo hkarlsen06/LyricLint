@@ -3,8 +3,8 @@
  * layered abuse control (WAF and the AI Gateway ceiling sit outside this
  * file), and browser-executed draft tools whose results return in a later
  * request. Answer text may stream before its final validation; citations and
- * completion remain behind that gate. Nothing a client can say selects a
- * model, prompt, or corpus.
+ * completion remain behind that gate. Clients identify only a release-approved
+ * corpus; they cannot supply a model, prompt, or corpus content.
  */
 import {
 	GLOBAL_REQUEST_SPEND_RESERVATION_USD,
@@ -15,7 +15,7 @@ import {
 	SESSION_RULES,
 	type Env
 } from './config';
-import { corpus, corpusRuleIds, corpusSourceIds } from './corpus';
+import { corpus, corpusCatalog, type CorpusCatalog, type SupportedCorpus } from './corpus';
 import { ApiError, errorBody, type ErrorBody } from './errors';
 import {
 	hashIdentifier,
@@ -66,7 +66,12 @@ interface QuotaSnapshot {
 type ResponseBody =
 	| { requestId: string; assistant: StructuredAnswer; quota: QuotaSnapshot }
 	| (ErrorBody & { requestId?: string })
-	| { status: string; ruleSetVersion: string; corpusHash: string };
+	| {
+			status: string;
+			ruleSetVersion: string;
+			corpusHash: string;
+			supportedCorpora: SupportedCorpus[];
+	  };
 
 /** Everything the NDJSON stream emits: the answer stream's own events, plus the
  * tool-call, completion and failure envelopes this handler wraps them in. */
@@ -229,11 +234,13 @@ function writeMetric(env: Env, point: TurnMetric): void {
 
 interface HandlerOptions {
 	provider?: AnswerProvider;
+	corpusCatalog?: CorpusCatalog;
 	verifyTurnstile?: TurnstileVerifier;
 	now?: () => number;
 }
 
 export function createHandler(options: HandlerOptions = {}) {
+	const catalog = options.corpusCatalog ?? corpusCatalog;
 	return async function handleAnswers(request: Request, env: Env): Promise<Response> {
 		const now = options.now ?? Date.now;
 		const startedAt = now();
@@ -284,7 +291,8 @@ export function createHandler(options: HandlerOptions = {}) {
 			}
 			const body = parsed.data;
 			validateConversation(body);
-			if (body.clientRuleSetVersion !== corpus.ruleSetVersion) {
+			const selectedCorpus = catalog.resolve(body.clientRuleSetVersion, body.clientCorpusHash);
+			if (!selectedCorpus) {
 				throw new ApiError(
 					'ruleset_mismatch',
 					'The app and assistant are on different versions. Reload to get the latest app. If this continues, try again after the update finishes.'
@@ -404,7 +412,12 @@ export function createHandler(options: HandlerOptions = {}) {
 			// --- The model ---------------------------------------------------------
 			const provider =
 				options.provider ??
-				createOpenAiProvider(env.AI_GATEWAY_BASE_URL, env.OPENAI_API_KEY, env.AI_GATEWAY_TOKEN);
+				createOpenAiProvider(
+					env.AI_GATEWAY_BASE_URL,
+					env.OPENAI_API_KEY,
+					env.AI_GATEWAY_TOKEN,
+					selectedCorpus.corpus
+				);
 			let spendUsd = 0;
 			try {
 				const providerSafetyIdentifier = await safetyIdentifier(state.sid, env.ABUSE_HMAC_SECRET);
@@ -541,8 +554,8 @@ export function createHandler(options: HandlerOptions = {}) {
 										try {
 											answer = validateAnswer(
 												result.raw,
-												corpusRuleIds,
-												corpusSourceIds,
+												selectedCorpus.ruleIds,
+												selectedCorpus.sourceIds,
 												body.toolsAvailable === true
 											);
 										} catch (error) {
@@ -580,8 +593,8 @@ export function createHandler(options: HandlerOptions = {}) {
 											}
 											answer = validateAnswer(
 												result.raw,
-												corpusRuleIds,
-												corpusSourceIds,
+												selectedCorpus.ruleIds,
+												selectedCorpus.sourceIds,
 												body.toolsAvailable === true
 											);
 											console.warn('assistant_answer_repaired', {
@@ -719,8 +732,8 @@ export function createHandler(options: HandlerOptions = {}) {
 					try {
 						answer = validateAnswer(
 							result.raw,
-							corpusRuleIds,
-							corpusSourceIds,
+							selectedCorpus.ruleIds,
+							selectedCorpus.sourceIds,
 							body.toolsAvailable === true
 						);
 					} catch (error) {
@@ -753,8 +766,8 @@ export function createHandler(options: HandlerOptions = {}) {
 						}
 						answer = validateAnswer(
 							result.raw,
-							corpusRuleIds,
-							corpusSourceIds,
+							selectedCorpus.ruleIds,
+							selectedCorpus.sourceIds,
 							body.toolsAvailable === true
 						);
 						console.warn('assistant_answer_repaired', {
@@ -860,10 +873,11 @@ const worker = {
 				{
 					status: env.ASSISTANT_DISABLED === 'true' ? 'disabled' : 'ok',
 					ruleSetVersion: corpus.ruleSetVersion,
-					corpusHash: corpus.contentHash
+					corpusHash: corpus.contentHash,
+					supportedCorpora: corpusCatalog.supportedCorpora
 				},
 				200,
-				undefined,
+				{ 'cache-control': 'no-store' },
 				requestOrigin
 			);
 		}

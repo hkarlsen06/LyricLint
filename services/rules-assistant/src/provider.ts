@@ -13,7 +13,7 @@ import {
 	MAX_TOOL_ARGUMENT_CHARS,
 	MODEL
 } from './config';
-import { corpus } from './corpus';
+import { corpus, type RulesCorpus } from './corpus';
 import { ApiError } from './errors';
 import {
 	answerJsonSchema,
@@ -327,7 +327,8 @@ function settledInputItem(
 export function providerRequest(
 	messages: AnswerRequest['messages'],
 	safetyIdentifier: string,
-	toolsAvailable = false
+	toolsAvailable = false,
+	selectedCorpus: RulesCorpus = corpus
 ): Omit<OpenAI.Responses.ResponseCreateParamsNonStreaming, 'stream'> {
 	const pruned = pruneHistory(messages);
 	// The history is walked in order rather than grouped by kind. Grouped — every
@@ -336,7 +337,7 @@ export function providerRequest(
 	// its rounds were spent above the rounds it was talking about, and a repair
 	// prompt landed the same way.
 	const input: OpenAI.Responses.ResponseInputItem[] = [
-		settledInputItem('developer', developerPrompt(corpus), true)
+		settledInputItem('developer', developerPrompt(selectedCorpus), true)
 	];
 	for (const message of pruned) {
 		if (message.role === 'assistant' && 'toolCalls' in message) {
@@ -361,7 +362,7 @@ export function providerRequest(
 		store: false,
 		max_output_tokens: MODEL.maxOutputTokens,
 		safety_identifier: safetyIdentifier,
-		prompt_cache_key: `${promptCacheKey(corpus)}${toolsAvailable ? '-tools' : ''}`,
+		prompt_cache_key: `${promptCacheKey(selectedCorpus)}${toolsAvailable ? '-tools' : ''}`,
 		prompt_cache_options: { mode: 'explicit', ttl: '30m' },
 		text: {
 			verbosity: MODEL.verbosity,
@@ -533,7 +534,8 @@ export function parseProviderResponse(response: OpenAI.Responses.Response): Prov
 export function createOpenAiProvider(
 	baseUrl: string,
 	openAiApiKey: string,
-	gatewayToken: string
+	gatewayToken: string,
+	selectedCorpus: RulesCorpus
 ): AnswerProvider {
 	const client = new OpenAI({
 		baseURL: baseUrl,
@@ -551,7 +553,7 @@ export function createOpenAiProvider(
 		let response: OpenAI.Responses.Response;
 		try {
 			const stream = client.responses.stream(
-				providerRequest(messages, safetyIdentifier, toolsAvailable),
+				providerRequest(messages, safetyIdentifier, toolsAvailable, selectedCorpus),
 				{ signal }
 			);
 			if (onOutputTextDelta) {

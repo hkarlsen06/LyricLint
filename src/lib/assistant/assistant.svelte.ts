@@ -12,7 +12,7 @@ import type {
 	AssistantToolCallRecord,
 	AssistantToolTurnRecord
 } from '$lib/persistence/types.js';
-import { currentRuleSet } from '$lib/rules/data/rule-set.js';
+import { corpusMetadata } from '../../../services/rules-assistant/generated/rules-context-meta.js';
 import { askAssistant, type AskOptions } from './api.js';
 import { browserChatLocks, withChatLock, type ChatLockOutcome } from './chat-lock.js';
 import { nowIso, type AssistantChatRepository } from './chat-repository.js';
@@ -49,6 +49,7 @@ export interface AssistantDeps {
 	repository(): Promise<AssistantChatRepository>;
 	ask(options: AskOptions): Promise<TurnResponse>;
 	ruleSetVersion: string;
+	corpusHash: string;
 	/** The lock manager conversations are written under, supplied by the shipped
 	 * wiring — see `browserChatLocks`. Absent or `null`, writes are unguarded,
 	 * which is what a browser with no Web Locks gets anyway. */
@@ -590,6 +591,7 @@ export function createAssistantState(deps: AssistantDeps) {
 						...liveToolSuffix(pending.toolTurns, draftText, bridge?.sectionLinks() ?? [])
 					],
 					clientRuleSetVersion: deps.ruleSetVersion,
+					clientCorpusHash: deps.corpusHash,
 					toolsAvailable: draftBridge !== undefined,
 					onProgress: showProgress,
 					onRetry: resetProgress
@@ -1159,14 +1161,8 @@ export function createDefaultAssistantState(): AssistantState {
 			return createAssistantChatRepository(await openDatabase());
 		},
 		ask: askAssistant,
-		ruleSetVersion: currentRuleSetVersion()
+		...corpusMetadata
 	});
-}
-
-function currentRuleSetVersion(): string {
-	// The manifest is plain data with no rule implementations behind it, so
-	// importing it here costs the bundle nothing it does not already carry.
-	return currentRuleSet.version;
 }
 
 const CONTEXT_KEY = Symbol('lyriclint.assistant');

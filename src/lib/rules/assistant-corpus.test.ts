@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { corpus as generatedCorpus } from '../../../services/rules-assistant/generated/rules-context-data.js';
+import { corpusMetadata } from '../../../services/rules-assistant/generated/rules-context-meta.js';
 import { guidanceEntries } from '$lib/guidance/entries.js';
 import { reviewedLanguagePacks } from '$lib/languages/registry.js';
 import { buildAssistantCorpusContent, corpusContentHash } from './assistant-corpus.js';
@@ -25,6 +26,12 @@ const rulesMd = readFileSync(join(root, 'docs/rules.md'), 'utf8');
 const committed: AssistantCorpus = generatedCorpus;
 
 describe('assistant corpus parity', () => {
+	it('identifies the same exact corpus in browser requests and website release metadata', () => {
+		expect(corpusMetadata).toEqual({
+			ruleSetVersion: committed.ruleSetVersion,
+			corpusHash: committed.contentHash
+		});
+	});
 	it('keeps the committed JSON artifact equal to the typed data module', () => {
 		// The JSON is still read at runtime by the Worker eval harness and as
 		// fixture data, and it cannot carry a "do not edit" header — this is its

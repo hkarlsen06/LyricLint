@@ -7,8 +7,10 @@ const answersUrl = 'https://api.example.com/v1/answers';
 
 test('checks the configured assistant health endpoint without a cached response', async () => {
 	await checkAssistantDeployment(answersUrl, corpus, async (url, options) => {
-		assert.equal(url.href, 'https://api.example.com/health');
+		assert.equal(url.origin + url.pathname, 'https://api.example.com/health');
+		assert.ok(url.searchParams.get('release-check'));
 		assert.equal(options.cache, 'no-store');
+		assert.equal(options.headers['cache-control'], 'no-cache');
 		assert.ok(options.signal instanceof AbortSignal);
 		return Response.json({ ruleSetVersion: corpus.ruleSetVersion, corpusHash: corpus.contentHash });
 	});
@@ -40,5 +42,76 @@ test('blocks publication when health is unavailable', async () => {
 			throw new Error('Network unavailable');
 		}),
 		/Network unavailable/
+	);
+});
+
+const live = {
+	ruleSetVersion: corpus.ruleSetVersion,
+	corpusHash: 'previous-corpus',
+	clientCorpusHash: true
+};
+const currentHealth = { ruleSetVersion: corpus.ruleSetVersion, corpusHash: corpus.contentHash };
+
+test('allows publication only when both exact corpora are supported, even at the same ruleset version', async () => {
+	await checkAssistantDeployment(
+		answersUrl,
+		corpus,
+		async () =>
+			Response.json({
+				...currentHealth,
+				supportedCorpora: [currentHealth, live]
+			}),
+		live
+	);
+});
+
+for (const supportedCorpora of [
+	undefined,
+	{},
+	[currentHealth],
+	[live],
+	[currentHealth, { ...live, corpusHash: 'wrong-hash' }]
+]) {
+	test(`blocks a one-sided or malformed compatibility declaration: ${JSON.stringify(supportedCorpora)}`, async () => {
+		await assert.rejects(
+			checkAssistantDeployment(
+				answersUrl,
+				corpus,
+				async () =>
+					Response.json({
+						...currentHealth,
+						supportedCorpora
+					}),
+				live
+			),
+			/does not support the live and incoming/
+		);
+	});
+}
+
+test('requires explicit hashless support while the legacy website is live', async () => {
+	const legacy = { ...live, clientCorpusHash: false };
+	await assert.rejects(
+		checkAssistantDeployment(
+			answersUrl,
+			corpus,
+			async () =>
+				Response.json({
+					...currentHealth,
+					supportedCorpora: [currentHealth, live]
+				}),
+			legacy
+		),
+		/legacy clients/
+	);
+	await checkAssistantDeployment(
+		answersUrl,
+		corpus,
+		async () =>
+			Response.json({
+				...currentHealth,
+				supportedCorpora: [currentHealth, { ...live, acceptsLegacyClients: true }]
+			}),
+		legacy
 	);
 });

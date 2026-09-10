@@ -27,10 +27,20 @@ Touches: `src/service-worker.ts`, `src/routes/+layout.svelte`, `src/routes/+erro
   into a full-page load — silent on purpose, upgrade on a gesture, never mid-session.
   Neither cache layer may pin `_app/version.json`: it must keep matching none of the
   worker's strategies.
+- `/assistant-release.json` identifies the deployed website for assistant rollouts. It always
+  bypasses the worker, including navigations, and `static/_headers` marks it `no-store`.
 - Pinned in `e2e/lyriclint.spec.ts` (`offline reopen`, precache scope + read-admission);
   the waiting-update and version-poll paths are verified by hand.
 
 ## Decision record
+
+### Assistant release checks read the deployed origin
+
+The assistant rollout needs the website's exact commit and corpus hash before advancing its
+compatibility window. `/assistant-release.json` is built with the website, so it appears among
+prerendered URLs; letting the static strategy answer it would report an older offline snapshot
+as the deployed release. The fetch handler excludes this path before every strategy, and the
+host sends `Cache-Control: no-store`. It is not an offline page and never joins the snapshot.
 
 ### Preview must own the port the proxy targets
 

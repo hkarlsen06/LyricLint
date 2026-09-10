@@ -24,8 +24,8 @@
 		"token:apple": "node scripts/apple-music-token.mjs",
 		"harper:rules": "bun scripts/harper-rules.mjs",
 		"assistant:corpus": "bun scripts/generate-rules-context.ts",
-		"assistant:test": "bun test scripts/check-assistant-deployment.test.mjs scripts/check-assistant-release.test.mjs && cd services/rules-assistant && bun install --frozen-lockfile && bun run check && bun run test",
-		"assistant:deploy": "bun scripts/check-assistant-release.mjs && cd services/rules-assistant && bun run deploy"
+		"assistant:test": "bun test scripts/check-assistant-deployment.test.mjs scripts/check-assistant-release.test.mjs scripts/production-release.test.mjs && cd services/rules-assistant && bun install --frozen-lockfile && bun run check && bun run test",
+		"assistant:deploy": "bun scripts/request-production-deploy.mjs"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
