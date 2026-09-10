@@ -20,7 +20,9 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
 - Keys: `F7/F8/F9` and platform-modifier `J/K/L` (`Ctrl-` on macOS, `Alt-` elsewhere,
   `Ctrl-Alt-` universal); the reach-for keys are the `Escape` family (bare toggles,
   `Shift+Esc` back, `Alt+Esc` forward) — bubble phase, standing down on `defaultPrevented`
-  and on presses targeted inside an open dialog. A bare `Escape` with nothing attached loads
+  and on presses targeted inside an open dialog. `Edit this section only` stays active while
+  attached audio takes Escape; without audio, that mode can claim Escape to exit.
+  A bare `Escape` with nothing attached loads
   the pending source. Only the one-modifier fallback is named on screen, in the shared
   tooltip.
 - `bindTransportShortcuts` is window-level, capture phase, physical-key matched

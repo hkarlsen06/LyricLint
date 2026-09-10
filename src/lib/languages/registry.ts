@@ -88,7 +88,7 @@ function matchesHeaderTerm(header: string, term: string, pack: LanguagePack): bo
 /**
  * Which semantic part a header name spells in this language, ignoring its ordinal.
  *
- * One answer for every surface that asks: the section picker's ordering, and the
+ * One answer for every surface that asks: the section picker's numbering, and the
  * chorus linking that has to decide whether two headers are the same kind. Two
  * spellings of "is this a chorus" would disagree the first time a pack gained a
  * term.

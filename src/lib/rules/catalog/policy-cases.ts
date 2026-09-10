@@ -331,7 +331,7 @@ export const policyCases: readonly RulePolicyCase[] = [
 	},
 	{
 		id: 'quotes.typewriter',
-		title: 'A curly quote in lyric text',
+		title: 'A non-typewriter quote or apostrophe',
 		invalid: '[Verse]\n“Hello”',
 		valid: '[Verse]\n"Hello"',
 		ambiguous: '[Verse]\n<u>“Hello”</u>'

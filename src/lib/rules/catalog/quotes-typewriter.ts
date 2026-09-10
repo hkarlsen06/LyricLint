@@ -2,7 +2,7 @@ import type { RuleDefinition } from '$lib/core/types.js';
 import { type CatalogLookup, diagnostic, matchesOutsideMarkup, replacementFix } from './utils.js';
 
 /**
- * The straight mark each curly one becomes, and the name that tells one
+ * The straight mark each non-typewriter mark becomes, and the name that tells one
  * occurrence from another.
  *
  * The message has to carry the name because the character cannot. A line
@@ -12,12 +12,19 @@ import { type CatalogLookup, diagnostic, matchesOutsideMarkup, replacementFix } 
  * does not: `“` and `”` differ by the direction of a curl at 15px, which is
  * exactly the size the panel draws them at.
  */
-export const curlyQuotes: CatalogLookup<{ straight: string; name: string }> = {
-	'‘': { straight: "'", name: 'opening curly single quote' },
-	'’': { straight: "'", name: 'closing curly single quote' },
-	'“': { straight: '"', name: 'opening curly double quote' },
-	'”': { straight: '"', name: 'closing curly double quote' }
+export const quoteMarks: CatalogLookup<{
+	straight: string;
+	name: string;
+	fix: 'safe' | 'preview';
+}> = {
+	'‘': { straight: "'", name: 'opening curly single quote', fix: 'safe' },
+	'’': { straight: "'", name: 'closing curly single quote', fix: 'safe' },
+	'“': { straight: '"', name: 'opening curly double quote', fix: 'safe' },
+	'”': { straight: '"', name: 'closing curly double quote', fix: 'safe' },
+	'´': { straight: "'", name: 'acute accent', fix: 'preview' }
 };
+
+const quotePattern = new RegExp(`[${Object.keys(quoteMarks).join('')}]`, 'gu');
 
 /**
  * `’` between two letters is an apostrophe, not the closing half of anything —
@@ -31,9 +38,9 @@ function isApostrophe(text: string, index: number): boolean {
 
 export const quotesTypewriterRule: RuleDefinition = {
 	id: 'quotes.typewriter',
-	version: 1,
+	version: 2,
 	defaultSeverity: 'warning',
-	fixability: 'safe',
+	fixability: 'preview',
 	sourceIds: ['G-TYPEWRITER'],
 	// Not `character`, though the *finding* would qualify: `isApostrophe` reads
 	// `text[index + 1]`, so `Don’` reports the closing curly single quote and
@@ -44,23 +51,36 @@ export const quotesTypewriterRule: RuleDefinition = {
 	check(document, context) {
 		return document.sections.flatMap((section) =>
 			section.lines.flatMap((line) =>
-				matchesOutsideMarkup(line, /[‘’“”]/gu).map((match) => {
-					const curly = curlyQuotes[match.text];
-					const replacement = curly?.straight ?? match.text;
+				matchesOutsideMarkup(line, quotePattern).flatMap((match) => {
+					const mark = quoteMarks[match.text];
+					if (!mark) return [];
+					const offset = match.from - line.from;
+					// A spacing accent beside a word can be an apostrophe typo.
+					// Keep standalone accent notation and actual combining accents intact.
+					if (
+						match.text === '´' &&
+						!/\p{L}\p{M}*$/u.test(line.text.slice(0, offset)) &&
+						!/^\p{L}/u.test(line.text.slice(offset + 1))
+					) {
+						return [];
+					}
+					const replacement = mark.straight;
 					const name =
 						match.text === '’' && isApostrophe(line.text, match.from - line.from)
 							? 'curly apostrophe'
-							: (curly?.name ?? 'curly quote');
+							: mark.name;
 					return diagnostic(
 						this,
 						match,
 						`Use a straight ${replacement} instead of the ${name}.`,
-						'The exact curly quote can be replaced mechanically. Lines containing unsupported markup are excluded so the fixer never rewrites uncertain markup.',
+						mark.fix === 'preview'
+							? 'A spacing acute accent beside a word can be a mistyped apostrophe. Check the intended mark before replacing it with a straight apostrophe.'
+							: 'The exact curly quote can be replaced mechanically. Lines containing unsupported markup are excluded so the fixer never rewrites uncertain markup.',
 						// The label stays the bare replacement, so the two halves of a
 						// pair share one `Fix all 2` batch: replacing `“` and `”` with `"`
 						// is the same command, and the card's diff honestly stands in for
 						// both.
-						[replacementFix(context, 'safe', `Replace with ${replacement}`, match, replacement)]
+						[replacementFix(context, mark.fix, `Replace with ${replacement}`, match, replacement)]
 					);
 				})
 			)

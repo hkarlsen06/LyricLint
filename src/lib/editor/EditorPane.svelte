@@ -53,7 +53,6 @@
 	import type SectionPickerComponent from './overlays/SectionPicker.svelte';
 	import LazyContent from '$lib/interaction/LazyContent.svelte';
 	import PendingEditorOverlay from './overlays/PendingEditorOverlay.svelte';
-	import type { SectionHeaderNeighbors } from './overlays/section-picker.js';
 
 	/** What `createPerformerEdit` takes, read off the contract rather than restated here. */
 	type PerformerChoice = Parameters<NonNullable<LyricEditorCallbacks['createPerformerEdit']>>[0];
@@ -570,7 +569,7 @@
 		);
 	}
 
-	function sectionHeaderNeighbors(range: TextRange): SectionHeaderNeighbors {
+	function sectionHeadersBefore(range: TextRange): readonly string[] | undefined {
 		const sections = editor?.handle.getSnapshot().parsed.sections ?? [];
 		const targetIndex = sections.findIndex(
 			(section) =>
@@ -578,39 +577,19 @@
 				section.lines.some((line) => line.from === range.from)
 		);
 		if (targetIndex < 0) {
-			return {};
+			return undefined;
 		}
 
 		const target = sections[targetIndex];
 		// When the command points at a lyric line inside an already headed section,
 		// that section's header is before the new boundary. Count it when choosing
-		// the next ordinal and offer it as the nearest previous part. A diagnostic
-		// targeting the section's own empty header keeps the older shape: that
-		// header is the thing being named, not a predecessor.
+		// the next ordinal. When a diagnostic targets the section's own empty
+		// header, that header is the thing being named, not a predecessor.
 		const splitsHeadedSection = target?.header !== undefined && range.from > target.header.to;
 		const headersBeforeEnd = targetIndex + (splitsHeadedSection ? 1 : 0);
-		const headersBefore = sections
+		return sections
 			.slice(0, headersBeforeEnd)
 			.flatMap((section) => (section.header ? [section.header.rawNamePart] : []));
-		let previousHeader: string | undefined;
-		for (let index = headersBeforeEnd - 1; index >= 0; index -= 1) {
-			const header = sections[index]?.header;
-			if (header) {
-				previousHeader = header.rawNamePart;
-				break;
-			}
-		}
-
-		let nextHeader: string | undefined;
-		for (let index = targetIndex + 1; index < sections.length; index += 1) {
-			const header = sections[index]?.header;
-			if (header) {
-				nextHeader = header.rawNamePart;
-				break;
-			}
-		}
-
-		return { previousHeader, nextHeader, headersBefore };
 	}
 
 	async function chooseSection(choice: SectionHeaderChoice): Promise<void> {
@@ -859,7 +838,7 @@
 		<SectionPicker
 			languagePack={fallbackLanguagePack}
 			existingHeaders={existingHeaders()}
-			neighbors={sectionHeaderNeighbors(sectionOverlay.range)}
+			headersBefore={sectionHeadersBefore(sectionOverlay.range)}
 			range={sectionOverlay.range}
 			anchor={overlayAnchor}
 			onChoose={chooseSection}

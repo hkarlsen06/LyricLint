@@ -2075,7 +2075,7 @@ describe('EditorPane', () => {
 		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
 	});
 
-	it('ranks a pre-chorus first when a headerless section sits between a verse and refrain', async () => {
+	it('keeps song order and positional numbering between a verse and refrain', async () => {
 		const createSectionHeaderEdit = vi.fn();
 		const languagePack = {
 			tag: 'no',
@@ -2102,8 +2102,10 @@ describe('EditorPane', () => {
 		await expect.element(page.getByRole('dialog', { name: 'Add section header' })).toBeVisible();
 
 		expect(
-			document.querySelector<HTMLElement>('[role="option"]:first-child button')?.textContent?.trim()
-		).toBe('Pre-Chorus');
+			Array.from(document.querySelectorAll('[role="option"] button'), (button) =>
+				button.textContent?.trim()
+			)
+		).toEqual(['Intro', 'Vers 2', 'Pre-Chorus', 'Chorus', 'Refreng', 'Post-Chorus', 'Bro']);
 		await expect.element(page.getByRole('button', { name: 'Vers 2' })).toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Vers 3' })).not.toBeInTheDocument();
 

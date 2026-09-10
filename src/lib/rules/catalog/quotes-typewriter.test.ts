@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyRuleFixes, checkRule, markedText } from '../rule-test-utils.js';
 import { quotesTypewriterRule as rule } from './quotes-typewriter.js';
+import { collectSafeFixes } from '../engine.js';
 
 function messages(text: string): string[] {
 	return checkRule(rule, text).map((finding) => finding.message);
@@ -11,6 +12,51 @@ describe('quotes.typewriter', () => {
 		expect(applyRuleFixes(rule, '[Verse]\nShe said “hold on”')).toBe('[Verse]\nShe said "hold on"');
 		expect(applyRuleFixes(rule, '[Verse]\nThe ‘line’ holds')).toBe("[Verse]\nThe 'line' holds");
 		expect(applyRuleFixes(rule, '[Verse]\nI don’t go')).toBe("[Verse]\nI don't go");
+	});
+
+	it('flags the spacing acute accent in the Norwegian line and previews only that character', () => {
+		const text = '[Pre-Chorus]\nSe de fant, de fant no´ hoes, hoes, hoes';
+		const findings = checkRule(rule, text, { language: 'no' });
+		expect(markedText(text, findings)).toEqual(['´']);
+		expect(findings[0]).toMatchObject({
+			message: "Use a straight ' instead of the acute accent.",
+			settlesOn: 'line',
+			fixes: [{ kind: 'preview' }]
+		});
+		expect(applyRuleFixes(rule, text, { language: 'no' })).toBe(
+			"[Pre-Chorus]\nSe de fant, de fant no' hoes, hoes, hoes"
+		);
+		expect(collectSafeFixes(findings)).toEqual([]);
+	});
+
+	it.each([
+		['I don´t go', "I don't go"],
+		['Hold ´em close', "Hold 'em close"],
+		['Keep runnin´', "Keep runnin'"],
+		['🌙 <i>no´</i>', "🌙 <i>no'</i>"],
+		['𐐀´', "𐐀'"],
+		['e\u0301´', "e\u0301'"]
+	])('finds word-adjacent accents with exact offsets in %s', (input, expected) => {
+		const text = `[Verse]\n${input}`;
+		expect(markedText(text, checkRule(rule, text))).toEqual(['´']);
+		expect(applyRuleFixes(rule, text)).toBe(`[Verse]\n${expected}`);
+	});
+
+	it.each(['café og òg', 'cafe\u0301', 'A standalone ´ mark', '5′ 2″', '<u>no´</u>'])(
+		'leaves genuine accents, notation, and unsupported markup alone: %s',
+		(input) => {
+			expect(messages(`[Verse]\n${input}`)).toEqual([]);
+		}
+	);
+
+	it('keeps curly quote replacements safe beside a previewed accent', () => {
+		const findings = checkRule(rule, '[Verse]\n“no´”');
+		expect(findings.map((finding) => finding.fixes?.[0]?.kind)).toEqual([
+			'safe',
+			'preview',
+			'safe'
+		]);
+		expect(collectSafeFixes(findings)).toHaveLength(2);
 	});
 
 	// The pair sits on one line, so severity, line number and citation are the

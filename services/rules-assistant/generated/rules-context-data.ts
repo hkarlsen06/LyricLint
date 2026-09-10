@@ -3,9 +3,9 @@ import type { AssistantCorpus } from './rules-context';
 
 export const corpus = {
 	formatVersion: 5,
-	ruleSetVersion: '2026.09.09.0',
-	generatedAt: '2026-09-09T14:25:38.310Z',
-	contentHash: '7719305d35a76c86332be67ed3875ff17f30f8a78db0198d412f62607ed4cc27',
+	ruleSetVersion: '2026.09.10.0',
+	generatedAt: '2026-09-10T18:23:46.870Z',
+	contentHash: '5b8a4913bae061c26eb8fff9b9ac1b3569bb394f89a09017fbb2c12e36d07d6d',
 	rules: [
 		{
 			id: 'syntax.unbalanced-brackets',
@@ -488,7 +488,7 @@ export const corpus = {
 		{
 			id: 'quotes.typewriter',
 			slug: 'quotes-typewriter',
-			title: 'A curly quote in lyric text',
+			title: 'A non-typewriter quote or apostrophe',
 			group: 'quotes',
 			groupTitle: 'Quotation marks',
 			severity: 'warning',
@@ -1305,12 +1305,20 @@ export const corpus = {
 		{
 			ruleId: 'quotes.typewriter',
 			description:
-				'Curly quotation marks and the typewriter mark each becomes. A closing curly single quote between two letters is named as an apostrophe rather than as the closing half of a pair, which is most of what this rule points at in real lyrics.',
+				'Curly quotation marks and the typewriter mark each becomes. A closing curly single quote between two letters is named as an apostrophe rather than as the closing half of a pair, which is most of what this rule points at in real lyrics. LyricLint also checks spacing acute accents beside words as possible apostrophe typos, with a previewed replacement. Actual accented letters are unchanged.',
 			entries: [
 				{ preferred: ["'"], instead: ['‘'], note: 'The opening curly single quote.', fix: 'safe' },
 				{ preferred: ["'"], instead: ['’'], note: 'The closing curly single quote.', fix: 'safe' },
 				{ preferred: ['"'], instead: ['“'], note: 'The opening curly double quote.', fix: 'safe' },
-				{ preferred: ['"'], instead: ['”'], note: 'The closing curly double quote.', fix: 'safe' }
+				{ preferred: ['"'], instead: ['”'], note: 'The closing curly double quote.', fix: 'safe' },
+				{
+					preferred: ["'"],
+					instead: [],
+					curatedMisspellings: ['´'],
+					appliesWhen: 'Immediately beside a letter, including its combining marks.',
+					note: 'The acute accent.',
+					fix: 'preview'
+				}
 			]
 		},
 		{

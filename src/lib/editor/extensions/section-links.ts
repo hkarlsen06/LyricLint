@@ -1014,7 +1014,7 @@ export function typeOnlyHere(view: EditorView, headerFrom: number): boolean {
 	return true;
 }
 
-/** Escape's first claim while a local linked-section edit is waiting. */
+/** Turn off local section editing; Escape uses this only without attached audio. */
 export function cancelTypeOnlyHere(view: EditorView): boolean {
 	if (!view.state.field(typeOnlyHereField, false)) {
 		return false;

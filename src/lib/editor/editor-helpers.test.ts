@@ -166,7 +166,7 @@ describe('editor pure helpers', () => {
 		});
 	});
 
-	it('ranks likely repeating sections ahead of one-off sections already in the song', () => {
+	it('keeps the same song progression regardless of headers already in the draft', () => {
 		const pack: LanguagePack = {
 			tag: 'en',
 			displayName: 'English',
@@ -183,33 +183,29 @@ describe('editor pure helpers', () => {
 			reviewed: true
 		};
 
-		const labels = sectionHeaderOptions(pack, ['Intro', 'Verse', 'Chorus', 'Verse 2'], '').map(
-			(option) => option.label
-		);
-
-		expect(labels.slice(0, 3)).toEqual(['Verse 3', 'Chorus', 'Pre-Chorus']);
-		expect(labels.indexOf('Intro')).toBeGreaterThan(labels.indexOf('Bridge'));
+		for (const existing of [[], ['Intro', 'Verse', 'Chorus', 'Verse 2', 'Outro']]) {
+			expect(sectionHeaderOptions(pack, existing, '').map((option) => option.headerName)).toEqual([
+				'Intro',
+				'Verse',
+				'Pre-Chorus',
+				'Chorus',
+				'Bridge',
+				'Outro'
+			]);
+		}
 	});
 
-	it('keeps query relevance ahead of contextual likelihood', () => {
-		const pack: LanguagePack = {
-			tag: 'en',
-			displayName: 'English',
-			policy: 'localized',
-			headers: [
-				{ semanticPart: 'Verse', terms: ['Verse'] },
-				{ semanticPart: 'Instrumental Verse', terms: ['Instrumental Verse'] }
-			],
-			sourceIds: ['source'],
-			reviewed: true
-		};
+	it('filters matching headers without promoting exact or prefix matches', () => {
+		const options = sectionHeaderOptions(norwegianLanguagePack, ['Vers', 'Refreng'], 'chorus');
 
-		expect(sectionHeaderOptions(pack, ['Verse'], 'instrumental')[0]?.headerName).toBe(
-			'Instrumental Verse'
-		);
+		expect(options.map((option) => option.headerName)).toEqual([
+			'Pre-Chorus',
+			'Chorus',
+			'Post-Chorus'
+		]);
 	});
 
-	it('recognizes a pre-chorus from its position between a verse and chorus', () => {
+	it('keeps localized aliases together in song order at an insertion position', () => {
 		const pack: LanguagePack = {
 			tag: 'no',
 			displayName: 'Norwegian',
@@ -226,18 +222,20 @@ describe('editor pure helpers', () => {
 			reviewed: true
 		};
 
-		const options = sectionHeaderOptions(pack, ['Intro', 'Vers 1', 'Refreng'], '', {
-			previousHeader: 'Vers 1',
-			nextHeader: 'Refreng'
-		});
+		const options = sectionHeaderOptions(pack, ['Intro', 'Vers 1', 'Refreng'], '', [
+			'Intro',
+			'Vers 1'
+		]);
 
-		expect(options[0]?.headerName).toBe('Pre-Chorus');
-		expect(options.findIndex((option) => option.headerName === 'Pre-Chorus')).toBeLessThan(
-			options.findIndex((option) => option.headerName === 'Chorus')
-		);
-		expect(options.findIndex((option) => option.headerName === 'Pre-Chorus')).toBeLessThan(
-			options.findIndex((option) => option.headerName === 'Refreng')
-		);
+		expect(options.map((option) => option.label)).toEqual([
+			'Intro',
+			'Vers 2',
+			'Pre-Chorus',
+			'Chorus',
+			'Refreng',
+			'Post-Chorus',
+			'Bro'
+		]);
 	});
 
 	it('numbers a verse from its position instead of the song-wide maximum', () => {
@@ -253,11 +251,9 @@ describe('editor pure helpers', () => {
 			reviewed: true
 		};
 
-		const options = sectionHeaderOptions(pack, ['Vers 1', 'Refreng', 'Vers 2', 'Vers 3'], 'vers', {
-			previousHeader: 'Vers 1',
-			nextHeader: 'Refreng',
-			headersBefore: ['Vers 1']
-		});
+		const options = sectionHeaderOptions(pack, ['Vers 1', 'Refreng', 'Vers 2', 'Vers 3'], 'vers', [
+			'Vers 1'
+		]);
 
 		expect(options[0]).toMatchObject({
 			label: 'Vers 2',
@@ -268,40 +264,13 @@ describe('editor pure helpers', () => {
 	});
 
 	it('prefers Refreng over Chorus in the Norwegian section picker', () => {
-		const labels = sectionHeaderOptions(norwegianLanguagePack, ['Vers 1'], '', {
-			previousHeader: 'Vers 1',
-			headersBefore: ['Vers 1']
-		}).map((option) => option.label);
+		const labels = sectionHeaderOptions(norwegianLanguagePack, ['Vers 1'], '', ['Vers 1']).map(
+			(option) => option.label
+		);
 
 		expect(labels.indexOf('Refreng')).toBeLessThan(labels.indexOf('Chorus'));
 		expect(labels.indexOf('Bro')).toBeGreaterThan(-1);
 		expect(labels).not.toContain('Bridge');
-	});
-
-	it('uses the previous section to favor the natural next transition', () => {
-		const pack: LanguagePack = {
-			tag: 'en',
-			displayName: 'English',
-			policy: 'localized',
-			headers: [
-				{ semanticPart: 'Intro', terms: ['Intro'] },
-				{ semanticPart: 'Verse', terms: ['Verse'] },
-				{ semanticPart: 'Chorus', terms: ['Chorus'] },
-				{ semanticPart: 'Pre-Chorus', terms: ['Pre-Chorus'] },
-				{ semanticPart: 'Post-Chorus', terms: ['Post-Chorus'] }
-			],
-			sourceIds: ['source'],
-			reviewed: true
-		};
-
-		expect(
-			sectionHeaderOptions(pack, ['Intro'], '', { previousHeader: 'Intro' })[0]?.headerName
-		).toBe('Verse');
-		expect(
-			sectionHeaderOptions(pack, ['Verse', 'Chorus'], '', {
-				previousHeader: 'Chorus'
-			})[0]?.headerName
-		).toBe('Verse');
 	});
 
 	it('gives a joint group a palette entry of its own, never a member color and never a blend', () => {

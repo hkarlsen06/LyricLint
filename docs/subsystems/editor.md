@@ -8,6 +8,12 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
 
 ## The rules
 
+- Section-header choices follow a fixed typical song progression, with more common section
+  types first at the same stage. Search only filters that sequence. Draft contents and the
+  insertion position affect numbered labels, never ordering; aliases retain the selected
+  language pack's preferred order. `editor-helpers.test.ts` and `EditorPane.svelte.test.ts`
+  cover static ordering and positional numbering.
+
 - Startup motion belongs to the shell attachment, which may temporarily mask and reveal
   existing viewport `.cm-line` elements (or empty-document `.ll-placeholder-line` elements) using only opacity. It never splits text, wraps lines, inserts decorations, changes
   editor state, or materializes offscreen lines. Input cancels it before editing continues;
@@ -95,6 +101,17 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   `audio-drop.svelte.test.ts` asserts both halves.
 
 ## Decision record
+
+### Section-header choices keep a fixed song progression
+
+The picker previously scored nearby transitions and repeated section types, demoted an Intro
+or Outro already present, and promoted search matches. The same choice moved between openings,
+so finding it required rereading the list. `overlays/section-picker.ts` now owns one fixed
+sequence from opening to ending, using commonness to settle choices at the same stage. Flexible
+labels sit with intermediate passages; this is an editorial ordering, not a measured frequency
+ranking. Language-pack term preference breaks alias ties, and unfamiliar semantic types retain
+pack order after the known sequence. Search only removes nonmatching rows, with custom text
+still offered last. The pane supplies preceding headers only for positional numbering.
 
 ### Startup motion leaves the document structure alone
 

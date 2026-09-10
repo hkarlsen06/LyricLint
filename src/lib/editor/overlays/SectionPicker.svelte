@@ -3,13 +3,13 @@
 	import type { LanguagePack } from '$lib/core/types.js';
 	import { dismissOnOutside } from '$lib/interaction/dismiss.js';
 	import type { ScreenRect, SectionHeaderChoice } from '../contracts.js';
-	import { sectionHeaderOptions, type SectionHeaderNeighbors } from './section-picker.js';
+	import { sectionHeaderOptions } from './section-picker.js';
 	import { anchoredPosition } from './anchored-position.js';
 
 	interface Props {
 		languagePack: LanguagePack;
 		existingHeaders?: readonly string[];
-		neighbors?: SectionHeaderNeighbors;
+		headersBefore?: readonly string[];
 		range: { from: number; to: number };
 		anchor?: ScreenRect;
 		onChoose: (choice: SectionHeaderChoice) => void | Promise<void>;
@@ -20,7 +20,7 @@
 	let {
 		languagePack,
 		existingHeaders = [],
-		neighbors = {},
+		headersBefore,
 		range,
 		anchor,
 		onChoose,
@@ -30,7 +30,9 @@
 	let query = $state('');
 	let activeIndex = $state(0);
 	let input: HTMLInputElement;
-	const options = $derived(sectionHeaderOptions(languagePack, existingHeaders, query, neighbors));
+	const options = $derived(
+		sectionHeaderOptions(languagePack, existingHeaders, query, headersBefore)
+	);
 	const position = $derived(anchor ? anchoredPosition(anchor) : undefined);
 
 	$effect(() => {

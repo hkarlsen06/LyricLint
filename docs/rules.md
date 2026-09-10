@@ -152,7 +152,7 @@ misreported as an unknown song part. Pronunciation-sensitive spelling alternativ
 | `spelling.standardized` | Suggestion | A reviewed non-preferred spelling occurs in a context where the preferred spelling is sufficiently certain | Safe for context-free entries; meaning- and pronunciation-sensitive entries use preview | `G-SPELLING`, `G-AS-SPOKEN` |
 | `spelling.language-variant` | Manual review | British and American variants appear inconsistent with chosen performer language | No automatic fix | `G-SPELLING` |
 | `spelling.texting-shorthand` | Suggestion | Written-only shorthand such as `idk`, `tbh`, `rn`, or `ur` stands where the sung words would stand | Preview each expansion the shorthand can have; never safe, because an artist may spell the letters out | `G-SPELLING`, `G-AS-SPOKEN` |
-| `quotes.typewriter` | Warning | Curly apostrophes or quotation marks occur in lyric text | Safe character replacement outside unsupported markup | `G-TYPEWRITER` |
+| `quotes.typewriter` | Warning | Curly quotes or a spacing acute accent beside a word occur in lyric text | Safe replacement for curly quotes; preview a straight apostrophe for an acute accent; exclude unsupported markup | `G-TYPEWRITER` |
 | `contraction.apostrophe` | Warning | A likely contraction is missing its apostrophe | Contextual fix preview | `G-CONTRACTIONS` |
 | `grammar.english-pronoun-i` | Suggestion | The standalone first-person `i`, including common contractions, is lowercase | Preview capitalization because lowercase styling can be intentional | `G-CAPS` |
 | `spelling.english-common` | Suggestion | A frequent misspelling such as `definately`, `tommorrow`, or `freind` occurs | Preview the standard English spelling | Reviewed Merriam-Webster and Cambridge sources |

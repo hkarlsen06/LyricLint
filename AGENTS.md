@@ -189,3 +189,7 @@ explain how it was solved. Include enough context that someone returning to the 
 many parallel projects can understand what is going on from the final response alone. Keep it
 brief: short paragraphs, only the detail the return-reader needs, no stock phrases or summary
 headers.
+
+# Bro keep going
+
+Before you stop, ask yourself "is there a next step that the user would want me to do?" if so, keep going jobs not finished.

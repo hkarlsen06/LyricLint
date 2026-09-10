@@ -23,7 +23,8 @@ When a blank line creates a headerless section, show a non-document ghost row ab
 Activating it opens a searchable section picker:
 
 - Results come from the draft's selected lyric language.
-- Frequently used headers appear first.
+- Headers follow a fixed typical song progression, with more common section types first when
+  they occur at the same stage. Searching filters this order without rearranging it.
 - Numbered headers suggest the next ordinal, such as `Verse 2`.
 - Custom header text remains available.
 - Choosing a header inserts it as one undoable transaction.

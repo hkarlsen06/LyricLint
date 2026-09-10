@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { contractions as englishContractions } from './catalog/contraction-apostrophe.js';
 import { contractions as spanishContractions } from './catalog/grammar-spanish-contractions.js';
 import { numberWords } from './catalog/numbers-spell-out.js';
-import { curlyQuotes } from './catalog/quotes-typewriter.js';
+import { quoteMarks } from './catalog/quotes-typewriter.js';
 import { norwegianPreferences } from './catalog/section-localized-header-preference.js';
 import { replacements as commonEnglishMisspellings } from './catalog/spelling-english-common.js';
 import { expansions as shorthandExpansions } from './catalog/spelling-texting-shorthand.js';
@@ -40,7 +40,9 @@ describe('rule lookup tables', () => {
 				).toBeGreaterThan(0);
 				// An entry with nothing to replace is an accepted-variant record, and
 				// must not claim a repair for a finding that is never raised.
-				if (entry.instead.length === 0) expect(entry.fix).toBeUndefined();
+				if (entry.instead.length === 0 && !entry.curatedMisspellings?.length) {
+					expect(entry.fix).toBeUndefined();
+				}
 			}
 		}
 	});
@@ -145,7 +147,10 @@ describe('rule lookup tables', () => {
 			numberWords.map((word, digit) => [String(digit), [word]])
 		);
 		expect(pairs('quotes.typewriter')).toEqual(
-			Object.entries(curlyQuotes).map(([curly, { straight }]) => [curly, [straight]])
+			Object.entries(quoteMarks).map(([mark, { straight, fix }]) => [
+				fix === 'safe' ? mark : undefined,
+				[straight]
+			])
 		);
 		expect(pairs('section.localized-header-preference')).toEqual(
 			[...norwegianPreferences].map(([english, { replacement }]) => [english, [replacement]])
@@ -156,5 +161,19 @@ describe('rule lookup tables', () => {
 		const names = tableFor('quotes.typewriter').entries.map((entry) => entry.note);
 		expect(new Set(names).size).toBe(names.length);
 		expect(names).toContain('The closing curly single quote.');
+	});
+
+	it('publishes the accent as a contextual, curated typo with a previewed fix', () => {
+		const accent = tableFor('quotes.typewriter').entries.find((entry) =>
+			entry.curatedMisspellings?.includes('´')
+		);
+		expect(accent).toEqual({
+			preferred: ["'"],
+			instead: [],
+			curatedMisspellings: ['´'],
+			appliesWhen: 'Immediately beside a letter, including its combining marks.',
+			note: 'The acute accent.',
+			fix: 'preview'
+		});
 	});
 });

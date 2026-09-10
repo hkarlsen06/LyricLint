@@ -71,6 +71,8 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
 - `Edit this section only` (`Mod-Shift-L`) remains a section-scoped toggle. It detaches only that
   occurrence's touched range; the other copies stay connected. Moving the caret does not disable
   the mode. Turning it off resumes untouched shared passages and preserves its local exclusions.
+  With audio attached, `Escape` controls playback and leaves the mode active; without audio,
+  it can turn the mode off. The mode control and `Mod-Shift-L` remain explicit ways to exit.
   The persistent panel renders a switch; the header retains its danger rail, wash, and explicit
   `Editing this section only` label. `makeDifferent` likewise records a source-only exclusion.
 - Only the active linked section shows ordinary caret/selection scope beside its header:
@@ -134,6 +136,15 @@ Touches: `src/lib/core/link-passages.ts`, `src/lib/core/link-passage-extension.t
   Local lyric ranges are dotted `Decoration.mark`s, never content widgets.
 
 ## Decision record
+
+### Escape preserves local editing while audio is attached
+
+Pausing to correct a lyric used to turn off `Edit this section only`, so the next edit could
+unexpectedly reach the linked copies. The keymap now reads the existing media-time callback:
+an attached source, including one at time zero, leaves Escape free for the transport. Without
+audio, Escape still exits the mode. `section-links.svelte.test.ts` exercises repeated playback
+toggles through the window listener, verifies that subsequent typing stays local, and checks
+that detaching audio restores the Escape exit.
 
 ### A Genius refresh carries forward the links the draft already knows
 
@@ -388,7 +399,7 @@ into the candidate list regardless of its current score.
 **The kind is the language pack's `semanticPart`, never the spelling.** That is what makes this work
 in every supported language without a word of it being written twice: `[Hook]` and `[Refreng]` and
 `[코러스]` are all `chorus`, and `Chorus 2` matches `Chorus` because the ordinal is stripped by the
-same `headerSemanticKey` the section picker orders its suggestions with — one answer to "is this a
+same `headerSemanticKey` the section picker uses for positional numbering — one answer to "is this a
 chorus", exported from `languages/registry.ts`, because two would disagree the first time a pack
 gained a term. **English is consulted second**, not instead: Genius pages in every language carry
 English headers routinely — `ja` is an English pack outright, `no` lists `Chorus` beside `Refreng` —

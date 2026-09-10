@@ -18,6 +18,7 @@ import { germanLanguagePack } from '$lib/languages/de.js';
 import { norwegianLanguagePack } from '$lib/languages/no.js';
 import { englishLanguagePack } from '$lib/languages/en.js';
 import { shownControlHint } from '$lib/ui/state/control-tooltip.svelte.js';
+import { bindTransportShortcuts } from '$lib/ui/state/media-shortcuts.js';
 import type { EditorDisplayContext, LyricEditorCallbacks } from './contracts.js';
 import EditorPane from './EditorPane.svelte';
 import {
@@ -1040,7 +1041,7 @@ describe('typing only in one linked copy', () => {
 	});
 
 	// Armed and pressed again, the chord stands down — the other half of the
-	// toggle, matching the Escape it already answers to.
+	// toggle, matching Escape when no audio is attached.
 	it('cancels an armed press with a second press of the chord', async () => {
 		const announcements: string[] = [];
 		const handle = await mount(SAME, englishLanguagePack, {
@@ -1134,7 +1135,7 @@ describe('typing only in one linked copy', () => {
 		expect(typed).toContain('[Chorus 2]\nHold on tight\n');
 	});
 
-	it('lets Escape cancel before the next edit', async () => {
+	it('lets Escape cancel before the next edit when no audio is attached', async () => {
 		const announcements: string[] = [];
 		const handle = await mount(SAME, englishLanguagePack, {
 			onAnnouncement: (message) => void announcements.push(message)
@@ -1151,6 +1152,43 @@ describe('typing only in one linked copy', () => {
 		expect(announcements.at(-1)).toBe('Editing only this section turned off.');
 		await userEvent.keyboard('!');
 		expect(handle.getSnapshot().text.split('Hold on tight!')).toHaveLength(3);
+	});
+
+	it('keeps editing local while Escape controls attached audio, until the audio is detached', async () => {
+		let mediaTime: number | undefined = 0;
+		const handle = await mount(SAME, englishLanguagePack, {
+			onRequestMediaTime: () => mediaTime
+		});
+		const header = offsetOf(SAME, '[Chorus]');
+		handle.linkSections?.({ headers: [header, offsetOf(SAME, '[Chorus 2]')] });
+		const caret = SAME.indexOf('tight') + 'tight'.length;
+		handle.setSelection({ anchor: caret, head: caret });
+		expect(handle.typeOnlyHere?.(header)).toBe(true);
+		handle.focus();
+
+		const transport = vi.fn(() => mediaTime !== undefined);
+		const unbind = bindTransportShortcuts({ transport, mediaSession: null });
+		try {
+			await userEvent.keyboard('{Escape}{Escape}');
+			expect(transport.mock.calls).toEqual([['toggle'], ['toggle']]);
+			expect(handle.isTypeOnlyHere?.(header)).toBe(true);
+			expect(document.querySelector('.ll-section-only-status')?.textContent).toBe(
+				'Editing this section only'
+			);
+			expect(handle.getSnapshot().selection).toEqual({ anchor: caret, head: caret });
+			expect(handle.getSnapshot().text).toBe(SAME);
+			await userEvent.keyboard('!');
+			expect(handle.getSnapshot().text).toContain('[Chorus]\nHold on tight!');
+			expect(handle.getSnapshot().text).toContain('[Chorus 2]\nHold on tight\n');
+
+			mediaTime = undefined;
+			await userEvent.keyboard('{Escape}');
+			expect(handle.isTypeOnlyHere?.(header)).toBe(false);
+			expect(document.querySelector('.ll-section-only-status')).toBeNull();
+			expect(transport).toHaveBeenCalledTimes(2);
+		} finally {
+			unbind();
+		}
 	});
 
 	// A run that is empty in this copy is the one difference the document cannot

@@ -97,7 +97,8 @@ export const groupGuidance: GroupGuidance = {
 	quotes:
 		'Quotation marks and apostrophes are the straight typewriter kind. The curly ones arrive ' +
 		'by pasting out of a word processor, and although they look more finished they are not ' +
-		'what Genius stores.',
+		'what Genius stores. LyricLint also flags a spacing acute accent beside a word as a ' +
+		'possible apostrophe typo and offers a replacement for review.',
 	adlib:
 		'A vocal sitting behind the lead goes in parentheses, and what is inside them is ' +
 		'capitalized like any other line. Consecutive ad-libs are separated — a comma where they ' +

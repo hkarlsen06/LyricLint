@@ -377,9 +377,12 @@ export function lyricLintKeymap(
 		// the caret's own line. `M` marks; `Enter` goes.
 		{ key: 'Ctrl-Alt-m', run: anchorCurrentLine(callbacks), preventDefault: true },
 		{ key: 'Ctrl-Alt-Enter', run: playFromCurrentLine(callbacks), preventDefault: true },
-		// A pending local edit is the most immediate transient state in the editor;
-		// Escape retires it before reaching an older diagnostic behind it.
-		{ key: 'Escape', run: cancelTypeOnlyHere },
+		// With audio attached, keep local editing active and let Escape reach the
+		// transport. Without audio, Escape can still turn the section mode off.
+		{
+			key: 'Escape',
+			run: (view) => callbacks.onRequestMediaTime?.() === undefined && cancelTypeOnlyHere(view)
+		},
 		{ key: 'Escape', run: dismissDiagnostic(callbacks) },
 		...defaultKeymap,
 		...historyKeymap

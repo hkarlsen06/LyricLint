@@ -222,6 +222,22 @@ read in `extensions/update-bridge.ts` against `dispatchAtomicEdit`'s annotation 
 regression: it types the verse a character at a time and asserts the doomed-episode list is
 **empty**. A rule added at the wrong tier fails there rather than in somebody's transcription.
 
+### A spacing acute accent can impersonate an apostrophe
+
+`quotes.typewriter` originally matched only the four curly quotation marks. A Norwegian
+line containing `no´` therefore received no finding: U+00B4 is a spacing acute accent,
+not one of those quotes. The rule now also flags it immediately before, inside, or after
+a word, reading Unicode letters and their trailing combining marks. Standalone accent
+notation, accented letters, combining accents, and measurement primes are left alone.
+
+The accent replacement is `preview`: adjacency suggests an apostrophe typo but cannot
+establish the intended mark. Curly quote replacements remain `safe`, so the rule's
+`fixability: 'preview'` is a ceiling and only those existing safe fixes enter automatic
+batches. The lookup labels the accent as a curated typo, not a form named by Genius.
+Both paths keep `matchesOutsideMarkup` and `settlesOn: 'line'`; the reviewed unsupported
+markup case stays excluded. `quotes-typewriter.test.ts` pins the reported Norwegian
+line, word boundaries, Unicode offsets, markup, and mixed safe/preview fixes.
+
 ### A line that is a header is not a lyric, and every rule has to agree about which
 
 Paste what a word processor or a lyric site gives you and the first line is `Verse 1:`. Three rules

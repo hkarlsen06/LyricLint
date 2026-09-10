@@ -44,7 +44,7 @@
 import { contractions as englishContractions } from './catalog/contraction-apostrophe.js';
 import { contractions as spanishContractions } from './catalog/grammar-spanish-contractions.js';
 import { numberWords } from './catalog/numbers-spell-out.js';
-import { curlyQuotes } from './catalog/quotes-typewriter.js';
+import { quoteMarks } from './catalog/quotes-typewriter.js';
 import { norwegianPreferences } from './catalog/section-localized-header-preference.js';
 import { replacements as commonEnglishMisspellings } from './catalog/spelling-english-common.js';
 import { expansions as shorthandExpansions } from './catalog/spelling-texting-shorthand.js';
@@ -251,13 +251,22 @@ export function ruleLookupTables(): RuleLookupTable[] {
 			description:
 				'Curly quotation marks and the typewriter mark each becomes. A closing curly ' +
 				'single quote between two letters is named as an apostrophe rather than as the ' +
-				'closing half of a pair, which is most of what this rule points at in real lyrics.',
-			entries: Object.entries(curlyQuotes).map(([curly, { straight, name }]) => ({
-				preferred: [straight],
-				instead: [curly],
-				note: `The ${name}.`,
-				fix: 'safe' as const
-			}))
+				'closing half of a pair, which is most of what this rule points at in real lyrics. ' +
+				'LyricLint also checks spacing acute accents beside words as possible apostrophe ' +
+				'typos, with a previewed replacement. Actual accented letters are unchanged.',
+			entries: Object.entries(quoteMarks).map(([mark, { straight, name, fix }]) => {
+				const entry: RuleLookupEntry = {
+					preferred: [straight],
+					instead: fix === 'safe' ? [mark] : []
+				};
+				if (fix === 'preview') {
+					entry.curatedMisspellings = [mark];
+					entry.appliesWhen = 'Immediately beside a letter, including its combining marks.';
+				}
+				entry.note = `The ${name}.`;
+				entry.fix = fix;
+				return entry;
+			})
 		},
 		{
 			ruleId: 'section.localized-header-preference',
