@@ -128,6 +128,7 @@ jobs:
       - run: bunx playwright test
         env:
           PLAYWRIGHT_PREBUILT: '1'
+          RELEASE_REVISION: ${{ github.sha }}
       - name: Save E2E retry traces
         if: ${{ !cancelled() && hashFiles('test-results/**/trace.zip') != '' }}
         uses: actions/upload-artifact@v7
