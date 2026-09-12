@@ -366,10 +366,10 @@ because a hundred anchored lines would be two hundred tab stops before the first
 equivalent paths are `Ctrl-Alt-Enter`, `Ctrl-Alt-M`, and sync mode, all of which announce what they
 did. **Do not give a gutter control an accessible name and call it done.**
 
-The escape hatch — line-decoration widgets at the end of each line, which _would_ be in the
-accessible tree — is disqualified rather than unconsidered. A widget in the content flow
-participates in selection and copy, and clean lyrics on the clipboard are this application's entire
-output. A timestamp in somebody's paste is the worst bug it could ship.
+Timestamp controls remain in the gutter, separate from lyric selection, with the keyboard
+and sync alternatives above. The requirement is that timestamps never enter copied lyrics.
+It does not prohibit decorative widgets such as fix previews, which must preserve the same
+exact `text/plain` output (see `editor.md`).
 
 ### Sync mode is the one place the audio moves the document
 

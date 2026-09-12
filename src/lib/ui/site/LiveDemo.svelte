@@ -189,7 +189,7 @@
 						diagnostics: visibleDiagnostics(snapshot, merged)
 					};
 				})
-				.catch((error: Error) => {
+				.catch((error: unknown) => {
 					if (request !== harperRequest || harperUnavailable) return;
 					harperUnavailable = true;
 					console.error('Harper grammar checking is unavailable in the landing demo.', error);
@@ -211,7 +211,7 @@
 					lastLintKey = '';
 					snapshot = enrich(snapshot);
 				})
-				.catch((error: Error) =>
+				.catch((error: unknown) =>
 					console.error('Language recognition is unavailable in the landing demo.', error)
 				);
 		}, languageDetectorDelay);
@@ -344,7 +344,7 @@
 		invalidateHarper();
 		void harperProvider
 			.dispose()
-			.catch((error: Error) => console.error('Harper demo worker cleanup failed.', error));
+			.catch((error: unknown) => console.error('Harper demo worker cleanup failed.', error));
 	});
 
 	const context = $derived<EditorDisplayContext>({

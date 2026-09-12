@@ -13,15 +13,15 @@ tier, and verifying annotation acceptance states — follows **`docs/guidelines.
 
 ## Read relevant subsystem guidance
 
-Before changing behavior, read **The rules** and the relevant **Decision record** in the
-subsystem doc routed below. These are authoritative invariants and their supporting failure
-history; passing tests alone does not justify breaking them. Read the relevant record before
-challenging a rule, and update the doc when changing behavior it describes.
+Read the relevant entries under **The rules** in the subsystem routed below. They describe
+current contracts; they are not a checklist for unrelated work. Consult a **Decision record**
+when investigating a regression, resolving unclear intent, or changing the contract it explains.
+Historical implementations are context, not permanent requirements. When behavior changes,
+update the current contract and correct or mark any superseded guidance in the same document.
 
-For trivial edits that do not affect behavior, such as spelling or formatting, skip unrelated
-decision history. Still read guidance relevant to the edit, including content, accessibility,
-and data-safety constraints. If an edit could affect behavior, use the full guidance above.
-`src/lib/subsystem-docs.test.ts` pins routing and claimed paths.
+A spelling or formatting edit needs only guidance relevant to that edit. Preserve applicable
+content, accessibility, and data-safety requirements. Explicit user instructions take precedence
+over project defaults. `src/lib/subsystem-docs.test.ts` checks routing and claimed paths.
 
 | Working on                                                                                                                                                                          | Read first                          |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
@@ -42,9 +42,6 @@ and data-safety constraints. If an edit could affect behavior, use the full guid
 | Phone/touch behavior, `responsive.css`, mobile task views                                                                                                                           | `docs/subsystems/responsive.md`     |
 | The service worker, offline behavior, deploy freshness                                                                                                                              | `docs/subsystems/service-worker.md` |
 
-The guidance catalog's content pipeline — adding entries, authority tiers, verification —
-stays in `docs/guidelines.md` and is followed exactly.
-
 ## Tooling
 
 Use **bun**, never npm.
@@ -58,8 +55,8 @@ bun run assistant:test
 bun run test:e2e
 ```
 
-`bun run test` is the complete local CI-equivalent chain and installs Chromium
-before either browser-mode suite. The individual commands assume their normal
+`bun run test` is the complete local CI-equivalent chain and installs Chromium and WebKit
+before the browser suites. The individual commands assume their normal
 project dependencies are already installed; `test:e2e` installs Chromium on a
 clean machine.
 
@@ -108,8 +105,7 @@ agents legible, with proper spacing between words, since a human may read them.
 
 ## UI rules
 
-For UI changes, read `DESIGN.md` and `docs/ui-agent-guidance.md` for detailed patterns,
-examples, and canonical implementations. Keep these boundaries in every UI change:
+For UI changes, consult the relevant patterns in `DESIGN.md` and `docs/ui-agent-guidance.md`. Keep these boundaries in every UI change:
 
 - No eyebrow labels above headings; headings name their own sections.
 - Keep controls and reading positions stable through interaction; progressive disclosure grows
@@ -121,10 +117,10 @@ examples, and canonical implementations. Keep these boundaries in every UI chang
 - Consume semantic design tokens, including in the editor, without literal fallbacks. Ordinary
   buttons share one silhouette and the three established emphasis tiers; pills are for categories.
 
-### Cross-cutting invariants
+### Shared contracts
 
-These govern any new code, whichever subsystem it lands in. The subsystem docs carry the full
-argument for each.
+Apply these where the change touches their behavior. Implementation details and subsystem
+checklists belong in the routed documents above.
 
 - **One diagnostic, one implementation.** The panel card and the editor popover share
   `src/lib/diagnostics/` from the meta line down; `diagnostic-parity.svelte.test.ts` compares
@@ -134,32 +130,26 @@ argument for each.
   owns the predicate and the others import it (`isProseHeaderLine`, `isImmediateRepeat`,
   `canAssignVoiceGroup`, `headerSemanticKey`…). A locally re-derived copy presents as the
   workbench arguing with itself.
-- **Every rule declares `settlesOn`** (default `line`), and there is exactly one deferral
-  gate, `filterForEditorState`. A rule added at the wrong tier fails `typing-churn.test.ts`.
-- **Every editor↔shell hook goes in `createCallbackProxy`** (`create-editor.ts`) — a missing
-  callback looks exactly like a feature that silently does nothing.
 - **A `DraftRecord` field is only as safe as the least careful place that rebuilds one.**
   Grep for the new field's siblings across every copier (`docs/subsystems/drafts.md` names
   them); `persistence.test.ts` round-trips every optional field.
 - **Every transient surface dismisses on Escape, its own control, and an outside press** —
   use `dismissOnOutside` from `src/lib/interaction/dismiss.ts`, never a hand-rolled listener.
-- **Nothing in the content flow that is not the lyrics.** Editor decorations that must not
-  reach the clipboard are `Decoration.mark`s, never widgets — clean lyrics on the clipboard
-  are this application's entire output.
+- **Copied lyrics stay exact.** Decorations must not change the document or its `text/plain`
+  clipboard output. Marks and widgets are implementation choices; previews and controls must
+  not become copied lyrics. Clipboard metadata belongs in its separately validated HTML flavor.
 - **Never offer an answer that cannot be carried out.** A control, a rate, or a source that
   will refuse when pressed does not draw (`availableRates`, `spotifyAvailable`,
   `appleMusicConfigured` are the pattern).
 - **Color is never a state carrier, and neither is opacity.** Every state has a second cue
   (shape, fill-vs-none, `aria-pressed`); disabled uses the disabled tokens.
-- **A claim is made once, where the reader is deciding; a command is offered once**, on its
-  home surface.
-- **Success is silent; refusal is loud on both channels.** Nothing draws while things go well
-  (the save readout is the canon); a refusal that changes nothing on screen both toasts and
-  announces (`report`).
-- **Counts pinned in two suites move together.** The rule totals live in `engine.test.ts`
-  _and_ the sitemap assertion in `e2e/lyriclint.spec.ts`, which no local command runs —
-  `bunx playwright test -g "sitemap"` before calling it done. Adding a rule follows the
-  checklist in `docs/subsystems/rules-catalog.md`, including `bun run assistant:corpus`.
+- **Put explanations beside the decision.** Avoid redundant commands in the same workflow,
+  such as a second `Copy lyrics` beneath the toolbar. Contextual and responsive entry points
+  may share an action and implementation; their emphasis follows `DESIGN.md`.
+- **Feedback answers the action.** Routine background saves need no visible success readout.
+  Deliberate actions such as copying may confirm in place without moving neighboring content.
+  Refusals must be visible and announced; use the shared feedback state when the action has no
+  local error surface.
 - **Nothing a finger types into is smaller than 16px** — new fields inherit from the body or
   name `--font-size-editor` (`docs/subsystems/responsive.md`).
 
@@ -170,8 +160,8 @@ changes that mirror the implementation. Once the relevant suite passes, broaden 
 testing only when new changes, failures, or unresolved concerns justify it.
 
 Component behavior is covered by `vitest-browser-svelte` tests next to the component. When a
-UI interaction changes, update the test to assert the new structure — including the absence of
-the thing that was removed.
+UI interaction changes, cover its observable result, accessibility, and affected geometry.
+Assert the absence of removed controls when their duplication was the regression.
 
 The renderer is `vitest-browser-svelte`, and nothing else mounts a component.
 `render`, `rerender`, and `unmount` are asynchronous in renderer v3; await them, including

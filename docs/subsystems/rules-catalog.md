@@ -41,8 +41,9 @@ Touches: `src/lib/rules/catalog/`, `src/lib/rules/engine.ts`, `src/lib/rules/res
 - Adding a rule is four registrations and two counts: `registry.ts`,
   `currentRuleSet.ruleIds` in `data/rule-set.ts` (never `previousRuleSet`), a full
   `RulePolicyCase`, the row in `docs/rules.md`, the total in `engine.test.ts`, **and** the
-  sitemap total in `e2e/lyriclint.spec.ts` — which no local command runs; verify with
-  `bunx playwright test -g "sitemap"`. Then `bun run assistant:corpus` and bump
+  sitemap total in `e2e/lyriclint.spec.ts`. The full `bun run test` and `bun run test:e2e`
+  include that assertion; if neither has covered this change, run the focused
+  `bunx playwright test -g "sitemap"` check. Then `bun run assistant:corpus` and bump
   `currentRuleSet.version`. A table-shaped rule also registers in `ruleLookupTables()`.
 - `RulePolicyCase.title` names the failure, not the convention, and is the one written string
   in the reference; `variant` collapses per-language families in the index only.
@@ -389,18 +390,8 @@ Three things it owes:
   rule flags only runs mixed with letters. A lone `???` is not ambiguous about what it is, only about
   whether it was meant; there is exactly one form it can be steering toward, and `[?]` is it.
 
-A new rule is four registrations and **two** counts: `registry.ts`, `currentRuleSet.ruleIds` in
-`data/rule-set.ts` (**never** `previousRuleSet`), a `RulePolicyCase` with all three examples, the row
-in `docs/rules.md`, the hard-coded total in `engine.test.ts` — and the sitemap total in
-`e2e/lyriclint.spec.ts`, which no local command runs and which has therefore been missed on every
-rule that shipped without it (see _The catalog's size is pinned in two suites, and only one of
-them runs locally_ below).
-
-**Then regenerate the assistant corpus**, `bun run assistant:corpus`, because
-`services/rules-assistant/generated/rules-context.json` is a committed artifact stamped with
-`currentRuleSet.version` and `assistant-corpus.test.ts` compares it against the registry. Bump that
-version at the same time: the manifest is a record of what a version of the rule set shipped, so a
-set that gained a rule under an unchanged version number is one version meaning two things.
+Rule additions follow the registrations, counts, and corpus/version checklist in **The rules**
+above. Keeping that checklist in one place avoids preserving an older local test workflow here.
 
 **And a fifth where the rule is a table rather than a judgment.** A rule that checks against a
 lookup — a map of misspellings, a set of expansions, a list of preferred forms — reaches the rules
@@ -413,37 +404,17 @@ curated misspellings labelled apart from the reviewed forms. `services/rules-ass
 is where the rest of that decision is written down, including why a reviewed source is still a
 pointer and no Genius prose is stored.
 
-### The catalog's size is pinned in two suites, and only one of them runs locally
+### Rule additions need sitemap coverage as well as unit coverage
 
-Every rule is a prerendered page, so the sitemap grows by one URL per rule — and
-`e2e/lyriclint.spec.ts` pins that count (`expect(rulePages).toHaveLength(…)`), a second copy of the
-total `engine.test.ts` already holds. The two go out of step the same way every time, and it has
-now happened enough to write down: a rule is added, the checklist above is followed,
-`bun run check`, `bun run lint` and `bun run test:unit -- --run` all pass, the work is pushed —
-and CI goes red on the sitemap count, because **none of the three commands in Tooling runs the
-Playwright suite**. The e2e spec is only exercised in CI, so the failure is discovered after the
-push. The production deploy now gates on CI — `ci.yml`'s `deploy` job uploads the exact
-production artifact that passed E2E only after every CI job is green, with Cloudflare's own
-automatic production builds disabled — so a red run is no longer shrugged at: it is the site not
-shipping. That is also this assertion's second lesson, not its first: the spec's own
-comment records that the count once read 52 against 55 rules for three releases, which is what a
-bare figure with nothing saying what it counts costs.
+Rule additions once passed check, lint, and unit tests but failed CI because the sitemap's
+hard-coded rule count had not moved with the engine test's count. Those individual commands
+still do not run Playwright. The current full test command and end-to-end command do, so the
+old claim that the sitemap runs only in CI is superseded.
 
-Two things follow:
-
-- **Changing how many rules exist means updating both totals in the same commit** —
-  `engine.test.ts` and the sitemap assertion in `e2e/lyriclint.spec.ts`. The e2e number is the unit
-  number plus nothing: one page per rule, and the index, home and privacy pages are counted
-  separately on the next line.
-- **The check costs about a minute, so run it rather than trusting the arithmetic:**
-  `bunx playwright test -g "sitemap"` builds the site and verifies the count locally. This is the
-  cheap slice of the e2e suite, not the whole of it.
-
-The general shape is worth keeping in mind beyond this one assertion: the e2e spec is where
-counts and cross-surface facts get pinned _outside_ the unit suite — it has its own copy of the
-rules readout, its own row locators, its own layout measurements — so any change that moves a
-number the reference states should be grepped for in `e2e/` before it is called done. A local
-suite that cannot fail on the change is not evidence the change is complete.
+The current registration and verification checklist lives in **The rules** above. A successful
+run covering the sitemap on the current change satisfies that check; it need not be repeated
+because the same failure history appears elsewhere. Keep both counts accurate. Production
+release gating is documented in `../ci.md`.
 
 ### The way to quiet Harper is to know something Harper does not
 

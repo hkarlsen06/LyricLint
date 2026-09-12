@@ -249,11 +249,10 @@ function formatAnchorTimePrecise(seconds: number): string {
  * line), `Ctrl-Alt-M` (anchor it), and sync mode, all of which announce what they
  * did and need no aiming.
  *
- * The alternative was a line-decoration widget at the end of each line, which
- * *would* be in the accessible tree. It is disqualified because a widget in the
- * content flow participates in selection and copy, and clean lyrics on the
- * clipboard are this application's entire output. A timestamp in somebody's paste
- * is the worst bug it could ship.
+ * Timestamp controls stay in the gutter, separate from lyric selection and
+ * copy. The keyboard and sync paths above provide accessible equivalents.
+ * Decorative widgets elsewhere, such as fix previews, must preserve the same
+ * exact plain-text clipboard output; timestamps must never enter copied lyrics.
  */
 class TimeGutterMarker extends GutterMarker {
 	constructor(

@@ -82,8 +82,11 @@ Motion+ through Codex's MCP sign-in or `codex mcp login motion-plus`. Paid tools
 that separate authentication; installing the kit alone does not sign in. See the official
 [AI Kit installation guide](https://motion.dev/docs/ai-kit-install).
 
-To update the kit, run `bunx motion-ai@latest` with the same scope and agent, then
-format the supplied Markdown with `bunx prettier --write .agents/skills/motion`.
+The checked-in skill is adapted to this Svelte project: ordinary animation work
+can reuse local patterns, and MotionScore runs only when explicitly requested.
+To update the kit, run `bunx motion-ai@latest` with the same scope and agent, review
+the resulting diff to retain those local integration choices, then format the
+Markdown with `bunx prettier --write .agents/skills/motion`.
 
 ## Verification
 

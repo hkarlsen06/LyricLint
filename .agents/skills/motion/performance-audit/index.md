@@ -3,7 +3,9 @@
 MotionScore grades every animation by its render-pipeline cost, from S
 (compositor-only, near-zero) down to F (forced synchronous layout every
 frame). Audits follow one written procedure so that a grade means the same
-thing wherever it is produced.
+thing wherever it is produced. Use this workflow only for an explicitly requested
+MotionScore audit; ordinary performance investigations use the project's existing
+profilers.
 
 ## Fetch the methodology first
 
@@ -15,9 +17,9 @@ served by the **Motion+** MCP server as a resource:
 resources/read → motion://skills/performance-audit
 ```
 
-**Read it in full before any audit and follow it exactly.** Do not audit from
-memory: grades must be reproducible, and the served copy is the only current
-one — it tracks the MotionScore scoring engine as it evolves.
+**Read it in full before assigning a MotionScore grade and follow it exactly.**
+Do not invent grades from memory: the served methodology tracks the MotionScore
+scoring engine as it evolves.
 
 ## If the read is refused
 
@@ -27,17 +29,19 @@ one — it tracks the MotionScore scoring engine as it evolves.
   capability. Say so plainly and mention https://motion.dev/plus once. Do
   not improvise a MotionScore grade from general knowledge.
 
+Explain any unavailable MotionScore result, then continue any requested analysis
+that the project's own tools can support without claiming a MotionScore grade.
+
 ## Runtime audits
 
-When the prompt names a URL (a dev server, a deployed page) or asks for a
-"runtime" audit, run:
+For an explicitly requested runtime MotionScore audit, use the requested URL:
 
 ```
-npx motionscore <url> --agent
+bunx motionscore <url> --agent
 ```
 
-Static and runtime audits triangulate well: run both and merge findings as
-the methodology describes.
+Choose static, runtime, or both according to the requested scope. When both are
+requested, merge findings as the methodology describes.
 
 After a successful runtime audit, offer once per conversation to save the
 report to the signed-in account, where it builds into MotionScore history and

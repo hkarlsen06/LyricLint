@@ -1,8 +1,8 @@
 # UI implementation guidance
 
-Read alongside `../DESIGN.md` when changing UI. `../AGENTS.md` retains cross-cutting
-product, accessibility, token, and data-safety invariants. This document carries the detailed
-examples and canonical implementations previously in the root instructions.
+Consult the relevant patterns here alongside `../DESIGN.md` when changing UI.
+`../AGENTS.md` retains shared product, accessibility, token, and data-safety contracts.
+The examples explain current implementations; they do not expand an unrelated task.
 
 ### Never use eyebrows
 
@@ -79,7 +79,7 @@ Three things hold it up, and removing any one of them puts severity back on colo
 - **The filter chip wears the same mark** (`LinterPanel.svelte`); without the glyph on both, the tie is color.
 
 `SeverityTag.svelte` therefore takes `labelled`, and **the rule reference keeps the word**
-(`/rules` and `/rules/[rule]`).
+(`/guidelines/checks/[rule]`).
 
 Three button tiers, and no more: `.button--quiet` (borderless) < `.button` (bordered default) <
 `.button--contrast` (theme-inverting, one per surface). `.button--primary` is gone — an

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 /*
- * AGENTS.md routes agents to the decision records in docs/subsystems/ — the
+ * AGENTS.md routes agents to current contracts in docs/subsystems/ — the
  * split only works while the routing is honest. A doc nothing routes to is
  * never read, a routed doc that does not exist is a dead pointer, and a
  * `Touches:` path that no longer exists sends its reader to code that moved.
@@ -37,12 +37,11 @@ describe('subsystem docs routing', () => {
 		expect(missing).toEqual([]);
 	});
 
-	it('gives every doc a Touches line, The rules, and a Decision record', () => {
+	it('gives every doc a Touches line and current rules', () => {
 		for (const name of docs) {
 			const source = readFileSync(join(subsystemsDir, name), 'utf8');
 			expect(source, name).toMatch(/^Touches: /m);
 			expect(source, name).toContain('\n## The rules\n');
-			expect(source, name).toContain('\n## Decision record\n');
 		}
 	});
 

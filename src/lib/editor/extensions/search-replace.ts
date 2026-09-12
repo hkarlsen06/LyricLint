@@ -65,10 +65,9 @@ function scanMatches(state: EditorState): Matches {
 /**
  * The current match previews its replacement as a diff, exactly as a diagnostic
  * fix does: the text that would go stays put, struck through, and what would
- * take its place sits beside it. That is what replaced the per-match button this
- * extension used to draw — a control in the content flow, which is the one thing
- * the line-anchor column is forbidden from being, and for the same reason: the
- * clean lyrics on the clipboard are this application's output.
+ * take its place sits beside it. The shared preview widget leaves the document
+ * and plain-text clipboard output unchanged. Replacement commands stay in the
+ * search panel rather than repeating a button beside each match.
  *
  * It has its own field rather than borrowing `fixPreviewField`, because that slot
  * is handed back and forth between the diagnostic card and the popover and a

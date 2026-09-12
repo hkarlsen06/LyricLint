@@ -4,7 +4,7 @@ Rules for using Motion in Vue projects.
 
 ## Importing
 
-- Always import from `motion-v` and nothing else.
+- Use `motion-v` for Vue adapter components and hooks.
 - Import components and functions: `import { motion, useMotionValue } from 'motion-v'`
 
 ## Patterns

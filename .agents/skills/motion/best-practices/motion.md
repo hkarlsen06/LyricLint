@@ -4,7 +4,7 @@ Rules for using Motion in vanilla JavaScript, TypeScript, and HTML projects.
 
 ## Importing
 
-- Import from `motion`, never from `framer-motion`.
+- Use the installed Motion entry point that supports the requested API, including `motion/mini` for LyricLint's DOM entrance. Change legacy `framer-motion` imports when a migration is part of the task.
 
 ## `animate`
 

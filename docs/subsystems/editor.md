@@ -73,8 +73,9 @@ Touches: `src/lib/editor/clipboard-metadata.ts`,
   change invalidates every settled display even if an edit is reversed before context returns.
   `context-updates.svelte.test.ts` pins both selective updates and restoration after that reversal.
 - A copy carries timings and links in a `text/html` flavor (`data-lyriclint`); `text/plain`
-  stays byte-for-byte the selection's own slice — clean lyrics on the clipboard are this
-  application's entire output. The toolbar's `Copy lyrics` deliberately carries nothing.
+  stays byte-for-byte the selection's own slice, including while a decorative widget previews
+  an unapplied fix. Decorations never add words to that output. The toolbar's `Copy lyrics`
+  deliberately carries no metadata.
 - A replacement paste may recover existing section links from the previous document's heading
   and lyric evidence (see `section-links.md`); it preserves local intent and changes no pasted words.
   A validated carrying clipboard takes precedence over that recovery:

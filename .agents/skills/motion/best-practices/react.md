@@ -4,7 +4,8 @@ Rules for using Motion in React and TypeScript projects. Framer Motion is now ca
 
 ## Importing
 
-- **Never** import from `framer-motion`.
+These entry points apply to the `motion` package. Preserve an existing `framer-motion` installation unless migration is part of the task.
+
 - Import from `motion/react` in client components.
 - In server components, import `motion` like: `import * as motion from "motion/react-client"`
 - Files marked `"use client"` must import from `"motion/react"`.

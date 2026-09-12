@@ -413,7 +413,6 @@
 				publishSnapshot(controller.snapshot);
 			})
 			// A rejected import can carry any thrown value; it is logged, never trusted as data.
-			// oxlint-disable-next-line anti-slop/no-unknown-parameters
 			.catch((error: unknown) => {
 				if (destroyed) return;
 				nativeRulesStatus = 'failed';
@@ -563,7 +562,7 @@
 						})
 					});
 				})
-				.catch((error: Error) => {
+				.catch((error: unknown) => {
 					if (request !== harperRequest || harperUnavailable) return;
 					harperPending = false;
 					// A provider that has failed is one nothing more is coming from,
@@ -601,7 +600,7 @@
 					lastLintKey = '';
 					publishSnapshot(controller.snapshot);
 				})
-				.catch((error: Error) => console.error('Language recognition is unavailable.', error));
+				.catch((error: unknown) => console.error('Language recognition is unavailable.', error));
 		}, languageDetectorDelay);
 	}
 

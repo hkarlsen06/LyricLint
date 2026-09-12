@@ -91,9 +91,10 @@ Tools→Song+Preferences split), `src/lib/ui/layout/DocumentTitle.svelte`,
   and no counts anywhere. `controller.isEmpty` / `canLoadSample` are the single answers;
   `.right-panel__pane` must keep `[hidden]` out of its `display` rule
   (`RightPanel.svelte.test.ts` asserts exactly one pane draws).
-- A panel section is a heading over at most two things; a claim is made once, where the
-  reader is deciding; a command is offered once. `SongPanel.svelte.test.ts` and
-  `PreferencesPanel.svelte.test.ts` pin the heading lists and the absences.
+- Keep Song and Preferences sections focused on their own decisions. Song does not repeat
+  the toolbar's `Copy lyrics` action. Contextual actions may appear on other surfaces with
+  shared behavior and the emphasis described in `DESIGN.md`. `SongPanel.svelte.test.ts` and
+  `PreferencesPanel.svelte.test.ts` cover these sections.
 - The grammar-checking section draws only while the document's language is English
   (`isEnglishLanguage`, the same predicate the catalog rules gate on). Harper refuses every
   other language before its download, so under Norwegian the switch would be an answer that
@@ -632,7 +633,7 @@ editor or restores tools, at the editor's right edge. It remains icon-only in bo
 The find bar reserves room for the extra control, and the existing tray geometry and
 expansion tests measure the layout and focus behavior. Bold and italic were considered and
 refused: `<i>` and `<b>` are the performer voice slots, the picker and the roster are how a voice is
-marked here, and a command is offered once.
+marked here; generic bold and italic buttons would obscure that performer meaning.
 
 **The three caret commands are commands a caret alone can carry out.** `Ctrl-Alt-P` and `Mod-Shift-L` are
 deliberately absent: each needs a selection or shared lyrics in an existing link and
@@ -875,7 +876,7 @@ named as judgment calls.
 `controller.isEmpty` and `controller.canLoadSample` are the single answers to both questions; no
 surface decides for itself what "empty" means.
 
-### A panel section is a heading over at most two things
+### The tools panel removes redundant actions and explanations
 
 The tools tab stopped being skimmable the ordinary way: nothing in it was wrong on its own. Its
 `Document` section had grown to four actions, which wrapped into a ragged two-by-two of mixed tiers,
@@ -883,23 +884,19 @@ and the privacy story was told three separate times — once about audio under t
 under `Local data`, and once more in a trailing sentence with no heading over it at all. Every part
 was defensible; the panel was a wall of grey.
 
-Two rules came out of the repair:
+The repair was specific to this crowded panel:
 
-- **A section's actions fit on one row.** Two is what fits at this panel's width, so a third has to
-  displace something or live somewhere else. That is what first moved attaching audio out of
-  this crowded section — the constraint is a forcing function for
-  putting a command where it belongs, not a licence to abbreviate. `Export current draft (.txt)`
-  also lost two words, because the toolbar names the draft two rows above it.
+- **Its short action row became easier to scan.** Attaching audio moved to its transport,
+  and the export label lost words already supplied by the toolbar. This layout does not set
+  a universal maximum of two controls per section.
 - **A claim is made once, where the reader is deciding.** Everything local is said under
   `Local data`; what YouTube costs is said in the picker, beside the press that spends it. A warning
   met an hour before the decision is a warning already forgotten, and the same warning in two places
   reads as two different warnings.
-- **A command is offered once, and the section sits where its command is wanted.** `Copy lyrics`
-  went entirely: the toolbar carries it as the window's one contrast action, and repeating it three
-  rows down a panel was a second command for a press the user already has. What is left of
-  `Document` is the export, which is a thing a transcriber wants once on the way out — so the
-  section moved to the foot of the panel, under `Local data`, and only the rule reference is below
-  it. Order sections by how often the reader needs them, not by which one is about the document.
+- **The panel stopped repeating the toolbar's copy action.** `Copy lyrics` was removed from
+  `Document`, where it duplicated the visible toolbar button a few rows above. Export remained
+  near the foot of the panel. This does not prohibit contextual, keyboard, or responsive paths
+  to an action; diagnostic cards and popovers intentionally share the same actions.
 
 The trailing `.offline-note` went with this, and its CSS hook went with it: a selector for markup
 nothing renders is the same drift as a fallback color for a token nothing defines.

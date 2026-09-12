@@ -157,8 +157,7 @@
  * No gap, and that is the point of laying it out this way: the spacing on this
  * line is the credit string's own punctuation and nothing the stylesheet adds.
  * Flex also drops the whitespace-only text nodes the component's indentation
- * leaves between pieces, and gives the reserved mark at the end of the row a
- * baseline to sit on. */
+ * leaves between pieces. */
 .metadata-list dd {
 	display: flex;
 	flex-wrap: wrap;
@@ -189,12 +188,11 @@
 	text-decoration: underline;
 }
 
-/* The whole of the confirmation, and the whole of what it may cost: the name the
- * press took, in the success color, for as long as the press is worth answering.
- * Nothing is added to the line and nothing is reserved on the rows that are not
- * showing this, so the row the pointer is resting on does not move under it. */
+/* A double underline distinguishes success without color or moving the credit text. */
 .metadata-copy.is-copied {
 	color: var(--color-success);
+	text-decoration-line: underline;
+	text-decoration-style: double;
 }
 
 .metadata-copy__separator {

@@ -228,7 +228,7 @@
 		if (!browser) return;
 		backup?.destroy();
 		void (controller?.flushAutosave() ?? Promise.resolve())
-			.catch((error: Error) => console.error('The final autosave flush failed.', error))
+			.catch((error: unknown) => console.error('The final autosave flush failed.', error))
 			.finally(() => {
 				if (database) closeDatabase(database);
 				guard?.release();

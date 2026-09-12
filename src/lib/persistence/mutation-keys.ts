@@ -6,7 +6,7 @@ export function mutatedKeys(parts: ObservabilitySet, table: string): string[] | 
 	if (!ranges) return undefined;
 	const keys: string[] = [];
 	for (const range of new RangeSet().add(ranges)) {
-		// oxlint-disable-next-line anti-slop/no-runtime-typeof -- Dexie mutation ranges include numeric and compound bounds; only exact string primary keys identify our records.
+		// Dexie mutation ranges include numeric and compound bounds; only exact string primary keys identify our records.
 		if (typeof range.from !== 'string' || range.from !== range.to) return undefined;
 		keys.push(range.from);
 	}

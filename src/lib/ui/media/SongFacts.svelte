@@ -38,64 +38,42 @@
 </script>
 
 <script lang="ts">
-	/**
-	 * The attached song's facts, in the forms somebody filling in a song page
-	 * elsewhere has to paste — one implementation, because the tools panel and the
-	 * copy receipt are the same list seen from two places.
-	 *
-	 * A `<dl>` rather than a copied block: these go into separate fields, so one
-	 * string holding all of them would only have to be taken apart again by hand.
-	 * The grid is on the list and each row is `display: contents`, so a value that
-	 * wraps stays in its own column (`.metadata-list` in `tools.css`).
-	 *
-	 * **Every value is a press, and a writers row is one press per name.** The list
-	 * exists to be retyped into another page's fields, and that page takes one
-	 * writer at a time — so a reader who has to select four names out of one line by
-	 * hand, four times, has been handed the facts and none of the work. Selecting
-	 * a name with a pointer is also the one gesture this list was worst at: the
-	 * boundaries are commas in a wrapped line.
-	 *
-	 * `genius` is the list Genius's own song form asks for rather than everything
-	 * known, which is what the two surfaces differ by. It adds the artist and the
-	 * title — the tools panel leaves those to the toolbar and the cover band, which
-	 * the receipt covers up — and drops the ISRC, which that form has no field for.
-	 * A fact nobody is going to type in is a row between the reader and the ones
-	 * they are.
-	 *
-	 * Only Apple Music fills the whole of it. What is absent is deliberate rather
-	 * than missing — Apple's catalogue has no producer credits at all, and their
-	 * one writer field is `composerName`, a flat string this application does not
-	 * try to split.
-	 */
 	import { copyText } from '../clipboard.js';
+	import { NOTICE_TOAST_DURATION } from '../state/feedback.svelte.js';
+	import type { FeedbackState } from '../state/feedback.svelte.js';
 
-	let { details, genius = false }: { details: SongDetails; genius?: boolean } = $props();
+	let {
+		details,
+		genius = false,
+		feedback
+	}: { details: SongDetails; genius?: boolean; feedback: FeedbackState } = $props();
 
-	/**
-	 * Which press landed, and what it took.
-	 *
-	 * The confirmation is the copied name in the success color, and nothing else is
-	 * drawn. A mark beside it says the same thing a second time in a list where the
-	 * user has just pressed the thing they are looking at — and the only place to
-	 * put one that does not reflow the line under that press is a slot every row
-	 * reserves for it, which is a permanent indent on six rows for a state that is
-	 * showing on none of them. The announcement is what carries it for a reader with
-	 * no pointer.
-	 */
+	// Each value copies independently; feedback must leave its text and position intact.
 	let copiedKey = $state<string | undefined>();
 	let announcement = $state('');
 	let timer: ReturnType<typeof setTimeout> | undefined;
+	let copyAttempt = 0;
 
-	$effect(() => () => clearTimeout(timer));
+	$effect(() => () => {
+		copyAttempt += 1;
+		clearTimeout(timer);
+	});
 
 	async function copy(key: string, value: string) {
+		const attempt = ++copyAttempt;
+		clearTimeout(timer);
+		copiedKey = undefined;
+		announcement = '';
 		try {
 			await copyText(value);
 		} catch {
-			// The clipboard refusing is the one state that says nothing: a mark
-			// claiming a copy that never landed is worse than no mark at all.
+			if (attempt !== copyAttempt) return;
+			const message = 'Copy failed. Check browser clipboard permission and try again.';
+			feedback.announce(message);
+			feedback.addToast({ message, duration: NOTICE_TOAST_DURATION });
 			return;
 		}
+		if (attempt !== copyAttempt) return;
 		copiedKey = key;
 		announcement = `${value} copied`;
 		clearTimeout(timer);
@@ -107,7 +85,7 @@
 </script>
 
 <!--
-	`term` and the segment's index key the press, so the copied color lands on the
+	`term` and the segment's index key the press, so the copied cue lands on the
 	one name that was taken. `credit` is the only kind of value cut up, because it is
 	the only one that is a list; an artist named `Bob Marley & The Wailers` is one
 	entity and splitting it would offer half a band.
@@ -175,6 +153,5 @@
 	{/if}
 </dl>
 
-<!-- Inside the list rather than fed to the shell's own region: the receipt is a
-     modal, and a live region outside it is not reliably announced from within. -->
+<!-- Success stays beside the facts; refusals use the shared visible and live feedback. -->
 <span class="sr-only" aria-live="polite">{announcement}</span>

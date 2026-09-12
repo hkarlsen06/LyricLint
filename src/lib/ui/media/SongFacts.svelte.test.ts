@@ -1,7 +1,11 @@
-import { page } from 'vitest/browser';
-import { describe, expect, it, vi } from 'vitest';
+import { page, userEvent } from 'vitest/browser';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { tick } from 'svelte';
 import SongFacts, { creditSegments } from './SongFacts.svelte';
+import ToastRegion from '../primitives/ToastRegion.svelte';
+import LiveRegion from '../primitives/LiveRegion.svelte';
+import { createFeedbackState } from '../state/feedback.svelte.js';
 
 /*
  * The list exists to be retyped into another page's fields, and Genius takes one
@@ -24,6 +28,7 @@ const KATASTROFE = {
 interface StubbedClipboard {
 	copied: string[];
 	refuse: () => void;
+	allow: () => void;
 }
 
 /** The clipboard is the only thing these presses touch. */
@@ -41,6 +46,9 @@ function stubClipboard(): StubbedClipboard {
 		copied,
 		refuse: () => {
 			refusing = true;
+		},
+		allow: () => {
+			refusing = false;
 		}
 	};
 }
@@ -73,10 +81,32 @@ describe('creditSegments', () => {
 	});
 });
 
+async function mountFacts(details = KATASTROFE) {
+	const feedback = createFeedbackState();
+	const view = await render(SongFacts, { props: { details, genius: true, feedback } });
+	await render(ToastRegion, { feedback });
+	await render(LiveRegion, { feedback });
+	// Cold font loading changes writer wrapping before any interaction occurs.
+	// Measure the real UI face, including the subset used by the supplied names.
+	await document.fonts.ready;
+	return { ...view, feedback };
+}
+
+function positions(elements: Element[]) {
+	return elements.map((element) => element.getBoundingClientRect().toJSON());
+}
+
+const LONG_WRITER = 'Alexandria Valentina María Konstantinopoulou Bjørklund Kristiansen';
+const LONG_DETAILS = { ...KATASTROFE, writers: `${LONG_WRITER}, ${KATASTROFE.writers}` };
+const COPY_FAILURE = 'Copy failed. Check browser clipboard permission and try again.';
+
 describe('SongFacts', () => {
+	beforeEach(async () => {
+		await page.viewport(800, 600);
+	});
 	it('copies one writer at a time, and the rest of a value whole', async () => {
 		const { copied } = stubClipboard();
-		await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+		await mountFacts();
 
 		await page.getByRole('button', { name: 'Copy Thor-Erik Claussen' }).click();
 		await page.getByRole('button', { name: 'Copy RCA Records Label' }).click();
@@ -94,7 +124,7 @@ describe('SongFacts', () => {
 	 * own punctuation and nothing else.
 	 */
 	it('draws the credit line with the string’s own separators and no others', async () => {
-		const { container } = await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+		const { container } = await mountFacts();
 
 		const writers = [...container.querySelectorAll('dd')].find((value) =>
 			value.textContent?.includes('Kristofer Strandberg')
@@ -113,51 +143,122 @@ describe('SongFacts', () => {
 		}
 	});
 
-	/*
-	 * The confirmation is the copied name and nothing beside it, so nothing on the
-	 * line can move: a mark appended on the press would shift the row the pointer is
-	 * still resting on, and reserving a slot for one would indent every row for a
-	 * state showing on none of them.
-	 */
-	it('confirms a copy in the name it took, without moving anything', async () => {
-		stubClipboard();
-		await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+	it.each([800, 390, 320])(
+		'confirms pointer and keyboard copies without shifting long names at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			const { copied } = stubClipboard();
+			const { container } = await mountFacts(LONG_DETAILS);
+			const first = page.getByRole('button', { name: `Copy ${LONG_WRITER}` });
+			const controls = [...container.querySelectorAll('button')];
+			const before = positions(controls);
+			const live = container.querySelector('[aria-live]')!;
 
-		const first = page.getByRole('button', { name: 'Copy Petter Bjørklund Kristiansen' }).element();
-		const second = page.getByRole('button', { name: 'Copy Kristofer Strandberg' }).element();
-		const resting = getComputedStyle(second).color;
-		const before = second.getBoundingClientRect();
+			await first.click();
+			await expect.element(first).toHaveClass('is-copied');
+			expect(copied).toEqual([LONG_WRITER]);
+			expect(live.textContent).toBe(`${LONG_WRITER} copied`);
+			const style = getComputedStyle(first.element());
+			expect(style.textDecorationLine).toBe('underline');
+			expect(style.textDecorationStyle).toBe('double');
+			expect(positions(controls)).toEqual(before);
+			expect(document.activeElement).toBe(first.element());
 
-		expect(getComputedStyle(first).color).toBe(resting);
-		await page.getByRole('button', { name: 'Copy Petter Bjørklund Kristiansen' }).click();
+			await userEvent.keyboard('{Enter}');
+			expect(copied).toEqual([LONG_WRITER, LONG_WRITER]);
+			expect(positions(controls)).toEqual(before);
+			expect(document.activeElement).toBe(first.element());
+			expect(container.querySelectorAll('.is-copied')).toHaveLength(1);
+		}
+	);
 
-		// One name changes, and it is the one that was taken.
-		await vi.waitFor(() => expect(getComputedStyle(first).color).not.toBe(resting));
-		expect(getComputedStyle(second).color).toBe(resting);
-		const after = second.getBoundingClientRect();
-		expect(after.left).toBe(before.left);
-		expect(after.top).toBe(before.top);
-	});
+	it.each([800, 390, 320])(
+		'shows and announces refusal, clears success, and allows keyboard retry at %ipx',
+		async (width) => {
+			await page.viewport(width, 844);
+			const clipboard = stubClipboard();
+			const { container, feedback } = await mountFacts(LONG_DETAILS);
+			const first = page.getByRole('button', { name: `Copy ${LONG_WRITER}` });
+			const controls = [...container.querySelectorAll('button')];
+			const before = positions(controls);
+			await first.click();
+			await expect.element(first).toHaveClass('is-copied');
+			clipboard.refuse();
 
-	// A row claiming a copy that never landed is worse than no answer at all — the
-	// same silence the toolbar's own button keeps when the clipboard refuses.
-	it('says nothing when the clipboard refuses', async () => {
-		const { refuse } = stubClipboard();
-		refuse();
-		const { container } = await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+			await userEvent.keyboard('{Enter}');
+			const notification = page.getByRole('region', { name: 'Notifications' });
+			await expect.element(notification.getByText(COPY_FAILURE)).toBeVisible();
+			await expect.element(page.getByTestId('live-region')).toHaveTextContent(COPY_FAILURE);
+			expect(feedback.announcementId).toBe(1);
+			expect(container.querySelector('.is-copied')).toBeNull();
+			expect(container.querySelector('[aria-live]')?.textContent).toBe('');
+			expect(clipboard.copied).toEqual([LONG_WRITER]);
+			expect(positions(controls)).toEqual(before);
+			expect(document.activeElement).toBe(first.element());
 
-		const label = page.getByRole('button', { name: 'Copy RCA Records Label' }).element();
-		const resting = getComputedStyle(label).color;
-		await page.getByRole('button', { name: 'Copy RCA Records Label' }).click();
+			clipboard.allow();
+			await userEvent.keyboard('{Enter}');
+			await expect.element(first).toHaveClass('is-copied');
+			expect(clipboard.copied).toEqual([LONG_WRITER, LONG_WRITER]);
+			expect(container.querySelector('[aria-live]')?.textContent).toBe(`${LONG_WRITER} copied`);
+			expect(positions(controls)).toEqual(before);
+			expect(document.activeElement).toBe(first.element());
+		}
+	);
 
-		expect(getComputedStyle(label).color).toBe(resting);
+	it('lets only the latest pending copy report its result', async () => {
+		const requests = Array.from({ length: 6 }, () => Promise.withResolvers<void>());
+		let requestIndex = 0;
+		const writeText = vi.fn(() => requests[requestIndex++]!.promise);
+		const clipboard: Partial<Clipboard> = { writeText };
+		vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue(clipboard as Clipboard);
+		const { container, feedback } = await mountFacts();
+		const first = page.getByRole('button', { name: 'Copy Petter Bjørklund Kristiansen' });
+		const second = page.getByRole('button', { name: 'Copy Kristofer Strandberg' });
+		const live = container.querySelector('[aria-live]')!;
+
+		// A finishing after B starts must not leave success beside B's refusal.
+		await first.click();
+		await second.click();
+		requests[0]!.resolve();
+		await requests[0]!.promise;
+		await tick();
 		expect(container.querySelector('.is-copied')).toBeNull();
+		expect(live.textContent).toBe('');
+		requests[1]!.reject(new Error('denied'));
+		await requests[1]!.promise.catch(() => {});
+		await tick();
+		await expect
+			.element(page.getByRole('region', { name: 'Notifications' }).getByText(COPY_FAILURE))
+			.toBeVisible();
+		expect(feedback.announcementId).toBe(1);
+		expect(container.querySelector('.is-copied')).toBeNull();
+		expect(live.textContent).toBe('');
+
+		// Neither a late success nor a late refusal may replace the newer success.
+		for (const index of [2, 4]) {
+			await first.click();
+			await second.click();
+			requests[index + 1]!.resolve();
+			await requests[index + 1]!.promise;
+			await tick();
+			await expect.element(second).toHaveClass('is-copied');
+			if (index === 2) requests[index]!.resolve();
+			else requests[index]!.reject(new Error('late refusal'));
+			await requests[index]!.promise.catch(() => {});
+			await tick();
+			await expect.element(second).toHaveClass('is-copied');
+			expect(container.querySelectorAll('.is-copied')).toHaveLength(1);
+			expect(live.textContent).toBe('Kristofer Strandberg copied');
+			expect(feedback.announcementId).toBe(1);
+		}
+		expect(writeText).toHaveBeenCalledTimes(6);
 	});
 
 	// The date keeps its machine-readable form, and the press is still the value.
 	it('keeps the release date a <time>', async () => {
 		const { copied } = stubClipboard();
-		const { container } = await render(SongFacts, { props: { details: KATASTROFE, genius: true } });
+		const { container } = await mountFacts();
 
 		expect(container.querySelector('time')?.getAttribute('datetime')).toBe('2025-06-11');
 		await page.getByRole('button', { name: 'Copy 2025-06-11' }).click();

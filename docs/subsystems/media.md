@@ -69,7 +69,9 @@ Touches: `src/lib/ui/state/media-player.svelte.ts`, `src/lib/ui/state/media-stor
   one `ArtworkActions.svelte`; `downloadImage` falls back to opening a tab
   (`clipboard.svelte.test.ts`). Song metadata is a `<dl>` with `display: contents` rows,
   every value a press, credits split by `creditSegments` (joins back byte-for-byte —
-  `SongFacts.svelte.test.ts` measures the pieces meeting).
+  `SongFacts.svelte.test.ts` measures the pieces meeting). A copied value gains a double
+  underline and an announcement without moving neighboring values. Clipboard refusal clears
+  earlier success feedback and uses the shared visible and announced error report.
 - `drawsCoverBand(sourceKind)` decides whether the player has a catalogue identity row; the
   third-party mark travels with the name (`MediaAttribution.svelte`, one component).
 
@@ -684,13 +686,11 @@ writer credit is never rewritten:
   same guess would state a writer who does not exist.
 - **Only a credit is cut up**, because it is the only value that is a list. `Bob Marley & The
 Wailers` in the artist row is one entity, and splitting it would offer half a band.
-- **The confirmation is the copied name in the success color, and nothing is drawn beside it.**
-  There was a check at the end of the row and it went: a mark says a second time what the user has
-  just pressed and is looking at, and the only place to put one that does not shift the line under
-  that press is a slot every row reserves — a permanent indent on six rows for a state showing on
-  none of them, which is the complaint the loading mark answers by going in a slot that already had
-  a size. The `sr-only` announcement is what carries it for a reader with no pointer. A refused
-  clipboard draws nothing at all, exactly as the toolbar's own button says nothing.
+- **Copy feedback preserves the row's geometry.** The earlier implementation used success
+  color alone and silently ignored clipboard refusal. That behavior is superseded: a double
+  underline supplies a visible non-color success cue, and the copied value is announced.
+  Refusal clears the success state and produces the shared visible error report and announcement.
+  The names and separators keep their positions; no confirmation text is inserted into a credit.
 - **The row is a flex line with no gap**, so the spacing on it is the credit's own punctuation and
   nothing the stylesheet or the template's indentation added. `SongFacts.svelte.test.ts` measures
   the pieces meeting, because `Kristiansen , Kristofer` is what this looks like when it breaks and

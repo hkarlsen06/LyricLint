@@ -799,10 +799,10 @@ tool alone, showing only the shared Manage linking tooltip. The marker uses no n
 claims no shortcut; leaving, blurring, pressing, or removing it releases the hint. The previous hover wait was appropriate to a transient popover; navigating a persistent
 panel under the same gesture would replace a decision while the user was only crossing the lyrics.
 
-**A divergent run is a `Decoration.mark`, never a widget**, and that distinction is the same one the
-`⇄` earns its exception from: a widget in the content flow participates in selection and copy, and
-clean lyrics on the clipboard are this application's entire output. A mark adds nothing to a paste.
-It is drawn as a **dotted** underline because every other underline in the editor is wavy and belongs
+**A divergent run uses a `Decoration.mark`** to underline the existing lyrics. The header
+control and fix-preview widgets must preserve the same exact `text/plain` clipboard output;
+the clipboard contract does not depend on the decoration type.
+The run is drawn as a **dotted** underline because every other underline in the editor is wavy and belongs
 to a diagnostic — this is not a finding, it is a note about what an edit here will and will not
 reach. A run that is empty in this copy draws nothing, because there is nothing there to draw on;
 the Linking panel is where those are named. `Editing this section only` is reserved for the explicit mode,

@@ -180,6 +180,33 @@ describe('copy', () => {
 		expect(transfer.getData('text/html')).toBe('');
 	});
 
+	it.each([false, true])(
+		'copies the original lyrics while an unapplied fix widget is visible (metadata: %s)',
+		async (carryTimings) => {
+			const text = 'Hold on tight';
+			const { handle } = await mount({ text, selection: { anchor: 0, head: text.length } });
+			if (carryTimings) handle.setLineAnchors?.([{ line: 1, time: 12.53 }]);
+			handle.previewAtomic?.({
+				baseRevision: handle.getSnapshot().revision,
+				edits: [{ from: 8, to: 13, insert: 'forever' }]
+			});
+
+			await expect.element(page.getByText('forever', { exact: true })).toBeVisible();
+			await focusEditor();
+			const { transfer } = clipboard('copy');
+
+			expect(transfer.getData('text/plain')).toBe(text);
+			expect(handle.getSnapshot().text).toBe(text);
+			if (carryTimings) {
+				expect(metadataFromClipboardHtml(transfer.getData('text/html'))?.anchors).toEqual([
+					{ line: 0, time: 12.53 }
+				]);
+			} else {
+				expect(transfer.getData('text/html')).toBe('');
+			}
+		}
+	);
+
 	it('carries the remote source as a rider on a copy that already carries timings', async () => {
 		const { handle } = await mount({
 			text: song,

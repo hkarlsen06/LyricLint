@@ -30,16 +30,13 @@ export default defineConfig({
 		'anti-slop/no-object-parameters': 'error',
 		'anti-slop/no-reflect-apply': 'error',
 		'anti-slop/no-reflect-get': 'error',
-		// This project has no schemas; its boundary parsing lives in type predicates and
-		// assertion functions (clipboard-metadata, backup validation), which is what the
-		// option admits. Ad hoc typeof narrowing elsewhere is still rejected.
-		'anti-slop/no-runtime-typeof': ['error', { allowInTypeGuards: true }],
+		// Parsers, capability checks, and rejection handlers need these types and operators.
+		// Enforce validation at the boundary without banning the syntax used to perform it.
+		'anti-slop/no-runtime-typeof': 'off',
+		'anti-slop/no-unknown-parameters': 'off',
 		// Off: "shape" is this codebase's documented domain term for the section-link merge
 		// structure (core/link-shape.ts), not slop naming for a plain interface.
 		'anti-slop/no-shape-in-symbol-names': 'off',
-		// Same reasoning as no-runtime-typeof: the type-guard IS the boundary parser, so its
-		// own input is legitimately `unknown`. (Option added in our vendored copy.)
-		'anti-slop/no-unknown-parameters': ['error', { allowInTypeGuards: true }],
 		'anti-slop/no-unknown-returns': 'error',
 		'anti-slop/no-unknown-type-aliases': 'error',
 		'anti-slop/no-unsafe-dictionary-type': 'error',
@@ -49,7 +46,7 @@ export default defineConfig({
 	overrides: [
 		{
 			// A SAFETY comment on a test's stub cast documents nothing a reader needs; the
-			// structural rules (module mocking, unknown parameters, …) all stay on in tests.
+			// remaining structural rules (module mocking, chained assertions, …) stay on in tests.
 			files: ['**/*.test.ts', '**/*.spec.ts', 'vitest-setup-client.ts'],
 			rules: {
 				'anti-slop/require-safety-comment-for-type-assertion': 'off'

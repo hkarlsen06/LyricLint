@@ -123,7 +123,7 @@
 			     of what a paragraph there would have said. -->
 			<h2>Song metadata</h2>
 			{#if details && listedFacts}
-				<SongFacts {details} />
+				<SongFacts {details} feedback={controller.feedback} />
 			{/if}
 			<div class="tool-actions" class:song-metadata-actions--after-facts={details && listedFacts}>
 				{#if controller.media?.pendingName}

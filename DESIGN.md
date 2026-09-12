@@ -56,7 +56,7 @@ The rule reference's pages are `--measure-reference` rather than the editor's me
 - Standard controls use `--radius-control`. Within the workbench this takes `--radius-md`; panel surfaces take `--radius-lg`.
 - Panels use `--radius-panel`; floating overlays use `--radius-overlay`.
 - Pills are reserved for compact categorical chips and badges, not ordinary action buttons.
-- A label is not a chip. A diagnostic's severity is a colored glyph and a colored word on the card's meta line — no fill, no border, no radius — rather than a badge on a line of its own; it costs no vertical space and cannot be mistaken for the pressable severity filters above the list.
+- Diagnostic severity is a distinct colored glyph on the meta line, without a chip background or border. Keep its word in the accessible tree and tooltip; the rule reference also shows the word visibly. `SeverityTag` owns both presentations.
 - A diagnostic states its facts on one line under the message: severity, line number, citation. Provenance is the link on that line, not a footer of block citations; the section cited and the verified date are the link's tooltip. One citation sits inline, two or more fold behind a `Sources` disclosure so the line stays one line.
 - Circular icon targets use `--radius-round`.
 
