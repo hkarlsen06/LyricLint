@@ -27,6 +27,11 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   is what keeps performer tagging from ending section-link differences nobody touched — the
   fix lives in the transform, not the mirror. Pinned in `transform-boundaries.test.ts` and
   `section-links.svelte.test.ts`.
+- Partial voice assignments preserve surrounding multiline wrappers: `assignmentLines` joins
+  the parser's continued segments before rewriting, and `narrowEdit` leaves unchanged text
+  outside the edit. A complete parenthetical assigns its words whether either parenthesis was
+  selected; when its voice changes, both parentheses and adjacent whitespace stay plain.
+  Partial ad-lib selections retain unselected words' voices. Pin: `transform-boundaries.test.ts`.
 - The picker opens uninvited for `select.pointer` gestures over `canAssignVoiceGroup` ranges,
   except in the touch task layout (coarse pointer through `68rem`), where native selection
   handles and editing menus own that gesture. Assign voices and `Ctrl-Alt-P` explicitly ask
@@ -83,6 +88,25 @@ Touches: `src/lib/performers/`, `src/lib/editor/overlays/PerformerPicker.svelte`
   voices*).
 
 ## Decision record
+
+### Reassigning an ad-lib preserves the surrounding passage
+
+Selecting `Ah)` inside a multiline italic passage and assigning the plain voice produced
+`(</i>Ah)`, with every earlier line rewritten into its own italic wrapper. The transform
+balanced physical lines independently, and only recognized a parenthetical when the selection
+included both parentheses.
+
+`assignmentLines` now reconstructs complete supported wrappers from the parser's segments before
+splitting at the selection. This also preserves another continued voice meeting the affected
+wrapper on the same line. The existing `narrowEdit` trims unchanged surrounding text, so a tail
+ad-lib does not claim edits over earlier lyrics. Newly split whitespace stays outside wrappers;
+a whitespace-only remainder emits no empty tags.
+
+Selection normalization recognizes the complete ad-lib with either, both, or neither parenthesis
+selected. The words remain selected after applying; both parentheses stay plain when the voice
+changes. An unchanged voice remains a no-op, and selecting part of a longer ad-lib leaves its
+other words assigned as before. `transform-boundaries.test.ts` pins the screenshot case, both
+selection directions, surrounding voices, line endings, and exact undo restoration.
 
 ### Native touch selection is editing, not an assignment request
 

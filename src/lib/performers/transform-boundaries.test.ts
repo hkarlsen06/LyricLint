@@ -138,6 +138,42 @@ const boundaryCases: BoundaryCase[] = [
 ];
 
 describe('destructive performer transform boundaries', () => {
+	it.each(
+		['Ah', '(Ah)', 'Ah)', '(Ah'].flatMap((selected) =>
+			[false, true].map((backwards) => ({ selected, backwards }))
+		)
+	)(
+		'reassigns the complete ad-lib selected as $selected (backwards: $backwards)',
+		({ selected, backwards }) => {
+			const input = `${header}First voice\n<i>First italic line\nSecond italic line (Okay)\nJeg og Santana i en helt ny by (Ah)</i>`;
+			const from = input.indexOf(selected);
+			const to = from + selected.length;
+			const result = assignVoiceGroup({
+				revision: 41,
+				text: input,
+				document: parseDocument(input),
+				selection: backwards ? { anchor: to, head: from } : { anchor: from, head: to },
+				performerIds: ['A'],
+				roster
+			});
+			expect(result.status).toBe('applied');
+			if (result.status !== 'applied') throw new Error(result.reason);
+			const output = applyEdits(input, result.edit.edits);
+			expect(output).toBe(
+				`${header}First voice\n<i>First italic line\nSecond italic line (Okay)\nJeg og Santana i en helt ny by</i> (Ah)`
+			);
+			expect(visibleText(output)).toBe(visibleText(input));
+			expect(parseDocument(output).syntaxIssues).toEqual([]);
+			const after = result.edit.selectionAfter!;
+			expect(
+				output.slice(Math.min(after.anchor, after.head), Math.max(after.anchor, after.head))
+			).toBe('Ah');
+			expect(after.anchor > after.head).toBe(backwards);
+			expect(result.edit.edits.every((edit) => edit.from >= input.indexOf(' by ') + 3)).toBe(true);
+			expect(applyEdits(output, inverseEdits(input, result.edit))).toBe(input);
+		}
+	);
+
 	it.each(boundaryCases)(
 		'keeps wrappers and undo bytes exact for $name',
 		({ input, selection, expected, selectedText, undoSeeds }) => {
@@ -167,6 +203,93 @@ describe('destructive performer transform boundaries', () => {
 			expect(applyEdits(output, inverseEdits(input, result.edit))).toBe(input);
 		}
 	);
+
+	it.each([
+		['at the start', '<i>(Ah) First\nSecond</i>', 'Ah', '(Ah) <i>First\nSecond</i>'],
+		[
+			'in the middle',
+			'<i>First\nSecond (Ah) tail\nThird</i>',
+			'Ah',
+			'<i>First\nSecond</i> (Ah) <i>tail\nThird</i>'
+		],
+		[
+			'with nested parentheses',
+			'<i>First\nSecond ((Ah)) tail</i>',
+			'Ah',
+			'<i>First\nSecond</i> ((Ah)) <i>tail</i>'
+		],
+		[
+			'inside a partial ad-lib',
+			'<i>First\nSecond (Ah yeah)</i>',
+			'Ah',
+			'<i>First\nSecond (</i>Ah <i>yeah)</i>'
+		],
+		['with trailing whitespace', '<i>Word \r\n</i>', 'Word', 'Word \r\n'],
+		['with leading whitespace', '<i> Word</i>', 'Word', ' Word'],
+		['with CRLF', '<i>First\r\nSecond (Ah)</i>', 'Ah)', '<i>First\r\nSecond</i> (Ah)']
+	])('preserves surrounding lyrics %s', (_label, body, selected, expected) => {
+		const input = header + body;
+		const from = input.indexOf(selected);
+		const result = assignVoiceGroup({
+			revision: 41,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: from + selected.length },
+			performerIds: ['A'],
+			roster
+		});
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') throw new Error(result.reason);
+		const output = applyEdits(input, result.edit.edits);
+		expect(output).toBe(header + expected);
+		expect(visibleText(output)).toBe(visibleText(input));
+		expect(parseDocument(output).syntaxIssues).toEqual([]);
+		expect(output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)).toBe(
+			selected.replace(/[()]/gu, '')
+		);
+		expect(applyEdits(output, inverseEdits(input, result.edit))).toBe(input);
+	});
+
+	it('switches an ad-lib to another styled voice without fragmenting the surrounding voice', () => {
+		const legend = '[Verse: A, <i>B</i> & <b>C</b>]\n';
+		const input = `${legend}<i>First\nSecond (Ah)\nThird</i>`;
+		const from = input.indexOf('Ah)');
+		const result = assignVoiceGroup({
+			revision: 41,
+			text: input,
+			document: parseDocument(input),
+			selection: { anchor: from, head: from + 3 },
+			performerIds: ['C'],
+			roster: [
+				...roster,
+				{ ...roster[0]!, id: 'C', displayName: 'C', normalizedKey: 'c', order: 2 }
+			]
+		});
+		expect(result.status).toBe('applied');
+		if (result.status !== 'applied') throw new Error(result.reason);
+		const output = applyEdits(input, result.edit.edits);
+		expect(output).toBe(`${legend}<i>First\nSecond</i> (<b>Ah</b>)\n<i>Third</i>`);
+		expect(output.slice(result.edit.selectionAfter?.anchor, result.edit.selectionAfter?.head)).toBe(
+			'Ah'
+		);
+		expect(parseDocument(output).syntaxIssues).toEqual([]);
+		expect(applyEdits(output, inverseEdits(input, result.edit))).toBe(input);
+	});
+
+	it('leaves an ad-lib in its existing multiline voice unchanged', () => {
+		const input = `${header}<i>First\nSecond (Ah)\nThird</i>`;
+		const from = input.indexOf('Ah');
+		expect(
+			assignVoiceGroup({
+				revision: 41,
+				text: input,
+				document: parseDocument(input),
+				selection: { anchor: from, head: from + 2 },
+				performerIds: ['B'],
+				roster
+			})
+		).toEqual({ status: 'blocked', reason: 'invalid-range' });
+	});
 });
 
 // The cases above run through the transform, which only ever hands `narrowEdit`

@@ -20,7 +20,7 @@ import type {
 	UnknownVoiceRequest
 } from '$lib/core/types.js';
 import { headerNameIsEmpty } from '$lib/core/parser.js';
-import { serializeLegend, styleTags, wrapVoiceSpan } from '$lib/serialization/genius-markup.js';
+import { serializeLegend, styleTags } from '$lib/serialization/genius-markup.js';
 import { allocateStyleSlot } from './allocation.js';
 import { makeVoiceGroupKey } from './identity.js';
 import { extractPerformers } from './import.js';
@@ -153,6 +153,46 @@ function supportedStyleChains(section: Section): SupportedStyleSpan[][] {
 	return chains;
 }
 
+/** Keep a continued wrapper whole while rewriting it, including chains meeting on one line. */
+function assignmentLines(text: string, section: Section): LyricLine[] {
+	const mergedSpans = new Map<SupportedStyleSpan, SupportedStyleSpan | undefined>();
+	for (const chain of supportedStyleChains(section)) {
+		const first = chain[0];
+		const last = chain.at(-1);
+		if (!first || !last || chain.length < 2) continue;
+		for (const span of chain) mergedSpans.set(span, undefined);
+		mergedSpans.set(first, {
+			from: first.from,
+			to: last.to,
+			contentFrom: first.contentFrom,
+			contentTo: last.contentTo,
+			slot: first.slot,
+			rawTag: first.rawTag,
+			closingTag: last.closingTag
+		});
+	}
+
+	const lines: LyricLine[] = [];
+	let pending: LyricLine[] = [];
+	for (const line of section.lines) {
+		pending.push(line);
+		if (supportedSpans(line).some((span) => span.continuesToNextLine)) continue;
+		const first = pending[0]!;
+		lines.push({
+			...line,
+			from: first.from,
+			text: text.slice(first.from, line.to),
+			styleSpans: pending.flatMap((part) =>
+				part.styleSpans.flatMap((span) =>
+					!('unsupported' in span) && mergedSpans.has(span) ? (mergedSpans.get(span) ?? []) : span
+				)
+			)
+		});
+		pending = [];
+	}
+	return lines;
+}
+
 function removeSelectedDifferentiation(
 	request: AssignmentRequest,
 	section: Section,
@@ -225,24 +265,28 @@ function appendSplitPiece(
 	text: string,
 	sourceRange: TextRange,
 	slot: StyleSlot,
-	selection: TextRange
+	selection: TextRange,
+	plainRanges: readonly TextRange[]
 ): void {
-	const selectedFrom = Math.max(sourceRange.from, selection.from);
-	const selectedTo = Math.min(sourceRange.to, selection.to);
-
-	if (selectedFrom >= selectedTo) {
-		pieces.push({ text, slot, selected: false });
-		return;
-	}
-
-	const localFrom = selectedFrom - sourceRange.from;
-	const localTo = selectedTo - sourceRange.from;
-	if (localFrom > 0) {
-		pieces.push({ text: text.slice(0, localFrom), slot, selected: false });
-	}
-	pieces.push({ text: text.slice(localFrom, localTo), slot, selected: true });
-	if (localTo < text.length) {
-		pieces.push({ text: text.slice(localTo), slot, selected: false });
+	const boundaries = [
+		...new Set([
+			sourceRange.from,
+			sourceRange.to,
+			selection.from,
+			selection.to,
+			...plainRanges.flatMap((range) => [range.from, range.to])
+		])
+	]
+		.filter((offset) => sourceRange.from <= offset && offset <= sourceRange.to)
+		.sort((left, right) => left - right);
+	for (let index = 1; index < boundaries.length; index += 1) {
+		const from = boundaries[index - 1]!;
+		const to = boundaries[index]!;
+		pieces.push({
+			text: text.slice(from - sourceRange.from, to - sourceRange.from),
+			slot: plainRanges.some((range) => range.from <= from && to <= range.to) ? 1 : slot,
+			selected: selection.from <= from && to <= selection.to
+		});
 	}
 }
 
@@ -250,7 +294,8 @@ function buildLinePieces(
 	text: string,
 	line: LyricLine,
 	selection: TextRange,
-	slotRemap?: ReadonlyMap<StyleSlot, StyleSlot>
+	slotRemap?: ReadonlyMap<StyleSlot, StyleSlot>,
+	plainRanges: readonly TextRange[] = []
 ): StyledPiece[] {
 	const pieces: StyledPiece[] = [];
 	let cursor = line.from;
@@ -262,7 +307,8 @@ function buildLinePieces(
 				text.slice(cursor, span.from),
 				{ from: cursor, to: span.from },
 				1,
-				selection
+				selection,
+				plainRanges
 			);
 		}
 		appendSplitPiece(
@@ -270,7 +316,8 @@ function buildLinePieces(
 			text.slice(span.contentFrom, span.contentTo),
 			{ from: span.contentFrom, to: span.contentTo },
 			slotRemap?.get(span.slot) ?? span.slot,
-			selection
+			selection,
+			plainRanges
 		);
 		cursor = span.to;
 	}
@@ -281,7 +328,8 @@ function buildLinePieces(
 			text.slice(cursor, line.to),
 			{ from: cursor, to: line.to },
 			1,
-			selection
+			selection,
+			plainRanges
 		);
 	}
 	return pieces;
@@ -367,44 +415,45 @@ function renderPieces(pieces: readonly StyledPiece[]): RenderedLine {
 	let selectedFrom: number | undefined;
 	let selectedTo: number | undefined;
 
-	for (const run of runs) {
+	for (const [index, run] of runs.entries()) {
 		const content = run.pieces.map((piece) => piece.text).join('');
-		const wrapped = wrapVoiceSpan(content, run.slot);
-		const openingLength = run.slot === 1 ? 0 : run.slot === 4 ? '<i><b>'.length : '<i>'.length;
-		let contentOffset = text.length + openingLength;
+		// A newly split voice ends before the line break or space separating it
+		// from the selection. Existing boundaries without selected words stay exact.
+		const previous = runs[index - 1];
+		const next = runs[index + 1];
+		const leading =
+			run.slot !== 1 && previous && (previous.pieces.at(-1)?.selected || run.pieces[0]?.selected)
+				? content.length - content.trimStart().length
+				: 0;
+		const trailing =
+			run.slot !== 1 && next && (run.pieces.at(-1)?.selected || next.pieces[0]?.selected)
+				? content.length - content.trimEnd().length
+				: 0;
+		const end = Math.max(leading, content.length - trailing);
+		const tags = leading === end ? { opening: '', closing: '' } : styleTags(run.slot);
+		const contentOffset = (offset: number): number =>
+			text.length +
+			offset +
+			(offset >= leading ? tags.opening.length : 0) +
+			(offset > end ? tags.closing.length : 0);
+		let offset = 0;
 
 		for (const piece of run.pieces) {
 			if (piece.selected) {
-				selectedFrom ??= contentOffset;
-				selectedTo = contentOffset + piece.text.length;
+				selectedFrom ??= contentOffset(offset);
+				selectedTo = contentOffset(offset + piece.text.length);
 			}
-			contentOffset += piece.text.length;
+			offset += piece.text.length;
 		}
-		text += wrapped;
+		text +=
+			content.slice(0, leading) +
+			tags.opening +
+			content.slice(leading, end) +
+			tags.closing +
+			content.slice(end);
 	}
 
 	return { text, selectedFrom, selectedTo };
-}
-
-/**
- * Close and reopen every supported voice run on one physical line.
- *
- * A continued wrapper has one opening tag on its first line and one closing
- * tag on its last. Restyling only part of that wrapper has to make the lines
- * outside the selection self-contained too; otherwise removing the closing
- * tag from the selected tail would leave the untouched opening tag active.
- * The visible text and voice slots stay the same — only the boundary-spanning
- * serialization becomes one balanced wrapper per affected line.
- */
-function balanceLine(
-	text: string,
-	line: LyricLine,
-	slotRemap?: ReadonlyMap<StyleSlot, StyleSlot>
-): TextEdit | undefined {
-	const rendered = renderPieces(
-		buildLinePieces(text, line, { from: line.to, to: line.to }, slotRemap)
-	);
-	return rendered.text === line.text ? undefined : narrowEdit(line.from, line.text, rendered.text);
 }
 
 /**
@@ -496,31 +545,21 @@ function transformLine(
 	line: LyricLine,
 	selection: TextRange,
 	styleSlot: StyleSlot,
-	rewritableContinuedSpans?: ReadonlySet<SupportedStyleSpan>,
 	slotRemap?: ReadonlyMap<StyleSlot, StyleSlot>
 ): LineTransform | undefined {
 	if (line.styleSpans.some((span) => 'unsupported' in span)) {
 		return undefined;
 	}
-	// Rewriting only one physical line cannot safely preserve an outer wrapper
-	// whose opening or closing tag lives on another line — unless the transform
-	// covers the whole wrapper, in which case it is being rewritten rather than
-	// preserved, and every line of it re-renders with its own balanced tags.
-	// The caller names those spans; anything else continued stays lossless.
-	if (
-		supportedSpans(line).some(
-			(span) =>
-				(span.continuedFromPreviousLine || span.continuesToNextLine) &&
-				!rewritableContinuedSpans?.has(span)
-		)
-	) {
-		return undefined;
+	let pieces = buildLinePieces(text, line, selection, slotRemap);
+	if (pieces.some((piece) => piece.selected && piece.slot !== styleSlot)) {
+		const plainRanges = parentheticalPlainRanges(text, selection);
+		if (plainRanges.length > 0) {
+			pieces = buildLinePieces(text, line, selection, slotRemap, plainRanges);
+		}
 	}
-
-	const pieces = buildLinePieces(text, line, selection, slotRemap).map((piece) =>
-		piece.selected ? { ...piece, slot: styleSlot } : piece
+	const rendered = renderPieces(
+		pieces.map((piece) => (piece.selected ? { ...piece, slot: styleSlot } : piece))
 	);
-	const rendered = renderPieces(pieces);
 	if (rendered.selectedFrom === undefined || rendered.selectedTo === undefined) {
 		return undefined;
 	}
@@ -673,6 +712,43 @@ function enclosesOneParenthesisPair(text: string, range: TextRange): boolean {
 	return false;
 }
 
+/** Recognize the same complete ad-lib whether the selection includes either parenthesis. */
+function selectionParenthetical(text: string, range: TextRange): TextRange | undefined {
+	let { from, to } = range;
+	if (text[from] !== '(') {
+		while (from > 0 && /[^\S\r\n]/u.test(text[from - 1]!)) from -= 1;
+	}
+	if (text[to - 1] !== ')') {
+		while (to < text.length && /[^\S\r\n]/u.test(text[to]!)) to += 1;
+	}
+	if (text[from] !== '(' && text[from - 1] === '(') from -= 1;
+	if (text[to - 1] !== ')' && text[to] === ')') to += 1;
+	return text[from] === '(' &&
+		text[to - 1] === ')' &&
+		enclosesOneParenthesisPair(text, { from, to }) &&
+		hasSungText(text.slice(from + 1, to - 1))
+		? { from, to }
+		: undefined;
+}
+
+/** A complete reassigned ad-lib leaves its parentheses and adjacent spaces plain. */
+function parentheticalPlainRanges(text: string, selection: TextRange): TextRange[] {
+	const parenthetical = selectionParenthetical(text, selection);
+	if (!parenthetical) return [];
+	let { from, to } = parenthetical;
+	for (;;) {
+		while (from > 0 && /\s/u.test(text[from - 1]!)) from -= 1;
+		while (to < text.length && /\s/u.test(text[to]!)) to += 1;
+		if (text[from - 1] !== '(' || text[to] !== ')') break;
+		from -= 1;
+		to += 1;
+	}
+	return [
+		{ from, to: selection.from },
+		{ from: selection.to, to }
+	];
+}
+
 /**
  * A selection that is exactly one parenthetical assigns the words inside it.
  * The reviewed guide keeps parentheses outside performer formatting —
@@ -728,7 +804,10 @@ function normalizeSelection(
 	if (range.from === range.to) {
 		return 'whitespace-selection';
 	}
-	range = shrinkInsideParentheses(document.text, range);
+	range = shrinkInsideParentheses(
+		document.text,
+		selectionParenthetical(document.text, range) ?? range
+	);
 	return expandToGraphemeBoundaries(document.text, range);
 }
 
@@ -923,7 +1002,7 @@ function lineEndingForInsertion(text: string, offset: number): string {
 
 /**
  * Rewrite every line the wrap range touches so its selected pieces carry
- * `styleSlot`, balancing any continued wrapper the range overlaps.
+ * `styleSlot`, retaining the continuous wrappers around unselected lyrics.
  *
  * This is the lyric-body half of an assignment, shared by `assignVoiceGroup`
  * and `assignUnknownVoice` — the two differ only in whether a legend edit
@@ -940,85 +1019,25 @@ function wrapSelectionTransforms(
 	| {
 			status: 'wrapped';
 			lineTransforms: { line: LyricLine; transform: LineTransform }[];
-			balancingEdits: TextEdit[];
+			slotEdits: TextEdit[];
 	  }
 	| { status: 'blocked'; reason: 'invalid-range' | 'whitespace-selection' } {
-	// A wrapper spanning several lines may be restyled in part. Every line in an
-	// overlapping chain is re-rendered with balanced tags of its own: selected
-	// lines take the new slot, while lines outside the selection keep their old
-	// slot. That safely splits a shape such as `<i>first\nsecond\nthird</i>` when
-	// only `second` and `third` are reassigned, instead of silently refusing the
-	// edit because the opening tag lives above the selection.
-	const rewritableContinuedSpans = new Set<SupportedStyleSpan>();
-	const styleChains = supportedStyleChains(section);
-	for (const chain of styleChains) {
-		if (chain.some((span) => span.contentFrom < wrapRange.to && wrapRange.from < span.contentTo)) {
-			for (const span of chain) {
-				rewritableContinuedSpans.add(span);
-			}
-		}
-	}
-	// Two continued wrappers can meet on one physical line. Balancing that line
-	// for the first wrapper also balances the second, so carry the rewrite through
-	// the second chain as well; leaving its following line untouched would trade
-	// one unmatched boundary for another.
-	const chainForSpan = new Map<SupportedStyleSpan, SupportedStyleSpan[]>();
-	for (const chain of styleChains) {
-		for (const span of chain) {
-			chainForSpan.set(span, chain);
-		}
-	}
-	let expanded = true;
-	while (expanded) {
-		expanded = false;
-		for (const line of section.lines) {
-			const spans = supportedSpans(line);
-			if (!spans.some((span) => rewritableContinuedSpans.has(span))) {
-				continue;
-			}
-			for (const span of spans) {
-				if (
-					rewritableContinuedSpans.has(span) ||
-					(!span.continuedFromPreviousLine && !span.continuesToNextLine)
-				) {
-					continue;
-				}
-				for (const chainedSpan of chainForSpan.get(span) ?? []) {
-					if (!rewritableContinuedSpans.has(chainedSpan)) {
-						rewritableContinuedSpans.add(chainedSpan);
-						expanded = true;
-					}
-				}
-			}
-		}
-	}
-
+	// Joining the parser's physical-line segments restores each original wrapper
+	// before splitting at the selection. `narrowEdit` then leaves the untouched
+	// prefix and suffix in place, instead of closing/reopening every prior line.
+	const lines = assignmentLines(text, section);
 	const lineTransforms: { line: LyricLine; transform: LineTransform }[] = [];
-	const balancingEdits: TextEdit[] = [];
+	const slotEdits: TextEdit[] = [];
 	const renderedLines = new Set<LyricLine>();
-	for (const line of section.lines) {
+	for (const line of lines) {
 		const lineSelection = trimWhitespaceRange(text, {
 			from: Math.max(wrapRange.from, line.from),
 			to: Math.min(wrapRange.to, line.to)
 		});
 		if (lineSelection.from >= lineSelection.to) {
-			if (supportedSpans(line).some((span) => rewritableContinuedSpans.has(span))) {
-				const edit = balanceLine(text, line, slotRemap);
-				if (edit) {
-					balancingEdits.push(edit);
-					renderedLines.add(line);
-				}
-			}
 			continue;
 		}
-		const transform = transformLine(
-			text,
-			line,
-			lineSelection,
-			styleSlot,
-			rewritableContinuedSpans,
-			slotRemap
-		);
+		const transform = transformLine(text, line, lineSelection, styleSlot, slotRemap);
 		if (!transform) {
 			return { status: 'blocked', reason: 'invalid-range' };
 		}
@@ -1030,28 +1049,26 @@ function wrapSelectionTransforms(
 	// Everywhere else only the wrapper markers change, preserving a multiline
 	// unknown as one multiline wrapper rather than splitting it into one per line.
 	if (slotRemap && slotRemap.size > 0) {
-		for (const line of section.lines) {
+		for (const line of lines) {
 			if (renderedLines.has(line)) continue;
 			for (const span of supportedSpans(line)) {
 				const mapped = slotRemap.get(span.slot);
 				if (!mapped) continue;
 				const next = styleTags(mapped);
 				if (span.from < span.contentFrom) {
-					balancingEdits.push({
+					slotEdits.push({
 						from: span.from,
 						to: span.contentFrom,
 						insert: next.opening
 					});
 				}
 				if (span.contentTo < span.to) {
-					balancingEdits.push({
+					slotEdits.push({
 						from: span.contentTo,
 						to: span.to,
 						insert: next.closing
 					});
 				}
-				// A continued middle segment has no markers of its own. The first
-				// and last segments above rewrite the shared wrapper exactly once.
 			}
 		}
 	}
@@ -1059,7 +1076,7 @@ function wrapSelectionTransforms(
 	if (lineTransforms.length === 0) {
 		return { status: 'blocked', reason: 'whitespace-selection' };
 	}
-	return { status: 'wrapped', lineTransforms, balancingEdits };
+	return { status: 'wrapped', lineTransforms, slotEdits };
 }
 
 /**
@@ -1255,7 +1272,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	if (wrapped.status === 'blocked') {
 		return { status: 'blocked', reason: wrapped.reason };
 	}
-	const { lineTransforms, balancingEdits } = wrapped;
+	const { lineTransforms, slotEdits } = wrapped;
 
 	const combinedTransform = combineLineTransforms(
 		request.text,
@@ -1265,7 +1282,7 @@ export function assignVoiceGroup(request: AssignmentRequest): AssignmentResult {
 	const appliedTransforms = combinedTransform
 		? [combinedTransform]
 		: lineTransforms.map(({ transform }) => transform);
-	const edits: TextEdit[] = [...balancingEdits];
+	const edits: TextEdit[] = [...slotEdits];
 	if (allocation.status === 'available') {
 		// Inverted, the rest is the styled passage, so the rest's voices are the
 		// ones its legend group names. A skipped rest never reaches here — it
@@ -1497,13 +1514,13 @@ export function assignUnknownVoice(request: UnknownVoiceRequest): AssignmentResu
 	if (wrapped.status === 'blocked') {
 		return { status: 'blocked', reason: wrapped.reason };
 	}
-	const { lineTransforms, balancingEdits } = wrapped;
+	const { lineTransforms, slotEdits } = wrapped;
 	const combinedTransform = combineLineTransforms(request.text, lineTransforms, slot);
 	const appliedTransforms = combinedTransform
 		? [combinedTransform]
 		: lineTransforms.map(({ transform }) => transform);
 
-	const edits: TextEdit[] = [...balancingEdits];
+	const edits: TextEdit[] = [...slotEdits];
 	for (const transform of appliedTransforms) {
 		if (transform.edit) {
 			edits.push(transform.edit);

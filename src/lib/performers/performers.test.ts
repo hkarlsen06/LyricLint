@@ -920,7 +920,7 @@ describe('performer assignment transforms', () => {
 		}
 	});
 
-	it('balances a second multiline voice that meets the reassigned one on the same line', () => {
+	it('preserves a second multiline voice that meets the reassigned one on the same line', () => {
 		const input =
 			'[Verse: A, <i>B</i> & <b>C</b>]\n' + '<i>B first\nB last</i> and <b>C first\nC last</b>';
 		const records = roster(['A', 'B', 'C']);
@@ -938,8 +938,7 @@ describe('performer assignment transforms', () => {
 		if (result.status === 'applied') {
 			const output = applyEdits(input, result.edit.edits);
 			expect(output).toBe(
-				'[Verse: A, <i>B</i> & <b>C</b>]\n' +
-					'B first\n<i>B last</i> and <b>C first</b>\n<b>C last</b>'
+				'[Verse: A, <i>B</i> & <b>C</b>]\n' + 'B first\n<i>B last</i> and <b>C first\nC last</b>'
 			);
 			expect(parseDocument(output).syntaxIssues).toEqual([]);
 		}
